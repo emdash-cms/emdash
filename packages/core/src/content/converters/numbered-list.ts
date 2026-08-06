@@ -7,10 +7,6 @@ export interface OrderedListMetadata {
 	listStart: number;
 }
 
-export interface OrderedListCounter extends OrderedListMetadata {
-	count: number;
-}
-
 export function normalizeListId(value: unknown): string | undefined {
 	if (typeof value !== "string") return undefined;
 	const normalized = value.trim();
@@ -45,24 +41,6 @@ export function readOrderedListMetadata(
 		listId: normalizeListId(attrs?.listId) ?? deriveLegacyListId(fallbackId),
 		listStart: normalizeListStart(attrs?.listStart) ?? normalizeListStart(attrs?.start) ?? 1,
 	};
-}
-
-export function takeOrderedListStart(
-	counters: Map<string, OrderedListCounter>,
-	metadata: OrderedListMetadata,
-	directItemCount: number,
-): number {
-	const current = counters.get(metadata.listId);
-	const listStart = current?.listStart ?? metadata.listStart;
-	const count = current?.count ?? 0;
-	const derived = listStart + count;
-	const start = normalizeListStart(derived) ?? 1;
-	counters.set(metadata.listId, {
-		listId: metadata.listId,
-		listStart,
-		count: count + directItemCount,
-	});
-	return start;
 }
 
 interface ProseMirrorListDescriptor {

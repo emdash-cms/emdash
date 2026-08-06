@@ -50,7 +50,6 @@ export { default as Buttons } from "./Buttons.astro";
 export { default as Cover } from "./Cover.astro";
 export { default as File } from "./File.astro";
 export { default as Pullquote } from "./Pullquote.astro";
-export { default as OrderedList } from "./OrderedList.astro";
 
 // Mark components
 export { default as Superscript } from "./marks/Superscript.astro";
