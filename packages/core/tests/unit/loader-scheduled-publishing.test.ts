@@ -56,24 +56,41 @@ describeEachDialect("committed scheduled publication visibility", (dialect) => {
 	});
 
 	it("never exposes the initial slug or fields before the staged revision is promoted", async () => {
+		const initialContent = [
+			{
+				_type: "block",
+				style: "normal",
+				children: [{ _type: "span", text: "Initial content" }],
+			},
+		];
+		const finalContent = [
+			{
+				_type: "block",
+				style: "normal",
+				children: [{ _type: "span", text: "Final content" }],
+			},
+		];
 		const bylineRepo = new BylineRepository(ctx.db);
 		const byline = await bylineRepo.create({ slug: "reporter", displayName: "Reporter" });
 		const created = await handleContentCreate(ctx.db, "post", {
 			slug: "how-were-rethinking-work",
-			data: { title: "Initial title", content: "Initial content" },
+			data: { title: "Initial title", content: initialContent },
 			status: "draft",
 			bylines: [{ bylineId: byline.id }],
 		});
-		const id = created.data!.item.id;
+		expect(created.success).toBe(true);
+		if (!created.success) throw new Error(created.error.message);
+		const { item } = created.data;
+		const { id } = item;
 		const contentRepo = new ContentRepository(ctx.db);
 		const revisionRepo = new RevisionRepository(ctx.db);
 		const revision = await revisionRepo.create({
 			collection: "post",
 			entryId: id,
 			data: {
-				...created.data!.item.data,
+				...item.data,
 				title: "Final title",
-				content: "Final content",
+				content: finalContent,
 				_slug: "how-we-use-ai",
 			},
 		});
@@ -107,7 +124,7 @@ describeEachDialect("committed scheduled publication visibility", (dialect) => {
 		expect(entries).toHaveLength(1);
 		expect(entries[0]?.slug).toBe("how-we-use-ai");
 		expect(entries[0]?.data.title).toBe("Final title");
-		expect(entries[0]?.data.content).toBe("Final content");
+		expect(entries[0]?.data.content).toEqual(finalContent);
 		expect(entries.map((entry) => entry.slug)).not.toContain("how-were-rethinking-work");
 	});
 });
