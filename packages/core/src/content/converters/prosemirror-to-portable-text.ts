@@ -37,8 +37,8 @@ export function prosemirrorToPortableText(doc: ProseMirrorDocument): PortableTex
 
 	const blocks: PortableTextBlock[] = [];
 
-	for (let i = 0; i < doc.content.length; i++) {
-		const converted = convertNode(doc.content[i]!, `root:${i}`);
+	for (const [i, node] of doc.content.entries()) {
+		const converted = convertNode(node, `root:${i}`);
 		if (converted) {
 			if (Array.isArray(converted)) {
 				blocks.push(...converted);
@@ -184,8 +184,7 @@ function convertList(
 	const blocks: PortableTextTextBlock[] = [];
 	const metadata = listItem === "number" ? readOrderedListMetadata(node.attrs, path) : undefined;
 
-	for (let i = 0; i < (node.content || []).length; i++) {
-		const item = node.content![i]!;
+	for (const [i, item] of (node.content ?? []).entries()) {
 		if (item.type === "listItem") {
 			const itemBlocks = convertListItem(item, listItem, 1, `${path}:${i}`, metadata);
 			blocks.push(...itemBlocks);
@@ -207,8 +206,7 @@ function convertListItem(
 ): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
 
-	for (let i = 0; i < (item.content || []).length; i++) {
-		const child = item.content![i]!;
+	for (const [i, child] of (item.content ?? []).entries()) {
 		if (child.type === "paragraph") {
 			const { children, markDefs } = convertInlineContent(child.content || []);
 
@@ -246,8 +244,7 @@ function convertListItemNested(
 	const blocks: PortableTextTextBlock[] = [];
 	const metadata = listItem === "number" ? readOrderedListMetadata(node.attrs, path) : undefined;
 
-	for (let i = 0; i < (node.content || []).length; i++) {
-		const item = node.content![i]!;
+	for (const [i, item] of (node.content ?? []).entries()) {
 		if (item.type === "listItem") {
 			blocks.push(...convertListItem(item, listItem, level, `${path}:${i}`, metadata));
 		}
