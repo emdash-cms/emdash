@@ -82,7 +82,7 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 			// style "blockquote" (that's what the Gutenberg importer emits
 			// and what prosemirrorToPortableText serializes back to).
 			// Without this grouping each paragraph became its own quote
-			// node, and editor merges reverted on reload (#1884).
+			// node, and editor merges reverted on reload.
 			const quoteBlocks: PortableTextTextBlock[] = [];
 			while (i < blocks.length) {
 				const current = blocks[i];

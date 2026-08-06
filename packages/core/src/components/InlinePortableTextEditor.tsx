@@ -415,7 +415,7 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 			// PT is flat, so a multi-paragraph quote is stored as a run of
 			// blockquote-styled blocks. Mirrors the grouping in
 			// content/converters/portable-text-to-prosemirror.ts; without it
-			// merges revert on reload in the inline editor too (#1884).
+			// merges revert on reload in the inline editor too.
 			const quoteBlocks: PTTextBlock[] = [];
 			while (i < blocks.length) {
 				const cur = blocks[i];
@@ -2007,7 +2007,7 @@ export function InlinePortableTextEditor({
 		async (options?: { keepalive?: boolean }) => {
 			// A pagehide flush must not be skipped: an in-flight blur save is
 			// cancelled by the navigation, so the keepalive request is the only
-			// one that can still land (#1582).
+			// one that can still land.
 			if (savingRef.current && !options?.keepalive) return;
 
 			const current = JSON.stringify(getBlocks());
@@ -2052,8 +2052,8 @@ export function InlinePortableTextEditor({
 	// Flush unsaved edits when the page goes away (browser back/forward,
 	// link click, tab close). The blur handler doesn't cover this: unload
 	// doesn't reliably fire React blur, and a plain fetch started during
-	// unload is cancelled by the navigation — edits were silently lost
-	// (#1582). `keepalive` lets the PUT outlive the page.
+	// unload is cancelled by the navigation — edits were silently lost.
+	// `keepalive` lets the PUT outlive the page.
 	// Caveat: keepalive caps the body at 64KB — a very long document
 	// can still be lost on unload. Upgrade path: debounced autosave
 	// while typing (like the admin editor) so unload flushes are rare.
