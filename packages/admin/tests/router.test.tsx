@@ -42,6 +42,19 @@ vi.mock("../src/components/AdminCommandPalette", () => ({
 	AdminCommandPalette: () => null,
 }));
 
+// Stub the marketplace browse component: this file exercises the *route gate*
+// (does MarketplaceBrowsePage route to browse vs the unavailable prompt), not
+// MarketplaceBrowse's own rendering, which has dedicated coverage in
+// tests/components/MarketplaceBrowse.test.tsx. Other exports (e.g. AuditBadge)
+// are preserved so unrelated importers keep working.
+vi.mock("../src/components/MarketplaceBrowse", async () => {
+	const actual = await vi.importActual("../src/components/MarketplaceBrowse");
+	return {
+		...actual,
+		MarketplaceBrowse: () => <div data-testid="marketplace-browse" />,
+	};
+});
+
 vi.mock("../src/components/ContentEditor", () => ({
 	ContentEditor: ({
 		item,
@@ -414,5 +427,64 @@ describe("ContentEditPage – autosave cache patching", () => {
 			expect(screen.getByTestId("mock-title").element().textContent).toBe("Autosaved Title");
 			expect(screen.getByTestId("mock-slug").element().textContent).toBe("autosaved-title");
 		});
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Tests: marketplace route gated on dynamic-plugins sandbox availability
+// ---------------------------------------------------------------------------
+//
+// A Cloudflare free-tier site can have `marketplace` configured but no Worker
+// Loader binding, so `sandboxAvailable` is false. Browsing would only lead to a
+// 503 at install, so the route shows the how-to-enable prompt instead.
+
+describe("marketplace route – dynamic-plugins sandbox gate", () => {
+	let mockFetch: ReturnType<typeof createMockFetch>;
+
+	afterEach(() => {
+		mockFetch.restore();
+	});
+
+	function setup(sandboxAvailable: boolean) {
+		mockFetch = createMockFetch();
+		const manifest: AdminManifest = {
+			...MANIFEST,
+			i18n: undefined,
+			marketplace: "https://marketplace.example.com",
+			sandboxAvailable,
+		};
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: manifest })
+			.on("GET", "/_emdash/api/auth/me", { data: { id: "user_01", role: 60 } })
+			.on("GET", "/_emdash/api/admin/plugins", { data: [] })
+			// Prefix match also covers the ?q=... search variant.
+			.on("GET", "/_emdash/api/admin/plugins/marketplace", {
+				data: { items: [], nextCursor: undefined },
+			});
+	}
+
+	it("shows the enable-dynamic-plugins prompt when the sandbox is unavailable", async () => {
+		setup(false);
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/plugins/marketplace" });
+		const screen = await render(<TestApp />);
+
+		await expect
+			.element(screen.getByText("Dynamic plugins aren't available on this deployment"))
+			.toBeInTheDocument();
+	});
+
+	it("shows the marketplace browse UI when the sandbox is available", async () => {
+		setup(true);
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/plugins/marketplace" });
+		const screen = await render(<TestApp />);
+
+		// The gate lets the request through to the browse component (stubbed).
+		await expect.element(screen.getByTestId("marketplace-browse")).toBeInTheDocument();
+		// ...and the unavailable prompt must NOT be shown.
+		await expect
+			.element(screen.getByText("Dynamic plugins aren't available on this deployment"))
+			.not.toBeInTheDocument();
 	});
 });

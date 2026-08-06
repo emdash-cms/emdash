@@ -188,6 +188,22 @@ export interface EmDashManifest {
 		};
 	};
 	/**
+	 * Whether dynamic plugins can actually run on this deployment.
+	 *
+	 * Dynamic plugins (marketplace + registry installs) execute in a sandbox
+	 * runner. On Cloudflare that is Worker Loader, a Workers paid-plan feature;
+	 * on Node it is the workerd sidecar. `true` when the configured runner
+	 * reports available, or when the in-process `sandbox: false` bypass is
+	 * active. `false` when the runner is missing (e.g. the `worker_loaders`
+	 * binding is absent on a free-tier Cloudflare deploy).
+	 *
+	 * The admin UI gates its marketplace/registry browse + install surfaces on
+	 * this: when `marketplace`/`registry` is configured but this is `false`, it
+	 * shows a prompt explaining how to enable dynamic plugins instead of the
+	 * browse UI (which would otherwise fail at install time with a 503).
+	 */
+	sandboxAvailable?: boolean;
+	/**
 	 * Admin branding overrides for white-labeling.
 	 * Set via the `admin` config in `astro.config.mjs`.
 	 */

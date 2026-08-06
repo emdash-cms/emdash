@@ -443,6 +443,25 @@ const sandboxedRouteMetaCache = new Map<string, Map<string, RouteMeta>>();
 let sandboxRunner: SandboxRunner | null = null;
 
 /**
+ * Memoized sandbox-runner availability.
+ *
+ * `SandboxRunner.isAvailable()` is cheap on Cloudflare (a binding property
+ * read) but expensive on Node: the workerd runner spawns `workerd --version`
+ * synchronously (`execFileSync`, 5s timeout). The manifest is built per admin
+ * request, so probing on every call would stall the Node event loop on a hot
+ * path. Availability is process-stable (binary / binding presence doesn't
+ * change), so we probe once and cache. Left `undefined` until the runner is
+ * wired (during create()), so an early call can't cache a false negative.
+ */
+let sandboxRunnerAvailable: boolean | undefined;
+
+function isSandboxRunnerAvailable(): boolean {
+	if (!sandboxRunner) return false;
+	sandboxRunnerAvailable ??= sandboxRunner.isAvailable();
+	return sandboxRunnerAvailable;
+}
+
+/**
  * EmDashRuntime - singleton per worker
  */
 export class EmDashRuntime {
@@ -2368,6 +2387,15 @@ export class EmDashRuntime {
 			i18n,
 			marketplace: !!this.config.marketplace,
 			registry,
+			// Whether dynamic plugins can actually run here. The sandbox runner
+			// is instantiated eagerly during create() (loadSandboxedPlugins), so
+			// this reflects real binding availability, not a lazy-init miss. The
+			// bypass term keeps `sandbox: false` dev mode reporting available,
+			// since it loads dynamic plugins in-process instead. Availability is
+			// memoized (isSandboxRunnerAvailable) so this manifest hot path never
+			// re-runs the runner probe, which is a blocking subprocess spawn on
+			// Node's workerd runner.
+			sandboxAvailable: this.isSandboxBypassed() || isSandboxRunnerAvailable(),
 		};
 	}
 

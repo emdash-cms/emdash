@@ -24,7 +24,10 @@ import { createHookPipeline } from "../../../src/plugins/hooks.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
-function buildRuntime(db: Kysely<Database>): EmDashRuntime {
+function buildRuntime(
+	db: Kysely<Database>,
+	overrides?: { sandboxEnabled?: boolean; sandboxBypassed?: boolean },
+): EmDashRuntime {
 	const config: EmDashConfig = {};
 	const pipelineFactoryOptions = { db } as const;
 	const hooks = createHookPipeline([], pipelineFactoryOptions);
@@ -37,7 +40,8 @@ function buildRuntime(db: Kysely<Database>): EmDashRuntime {
 			throw new Error("createDialect not used in this test");
 		}) as any,
 		createStorage: null,
-		sandboxEnabled: false,
+		sandboxEnabled: overrides?.sandboxEnabled ?? false,
+		sandboxBypassed: overrides?.sandboxBypassed,
 		sandboxedPluginEntries: [],
 		createSandboxRunner: null,
 	};
@@ -157,5 +161,24 @@ describe("EmDashRuntime.getManifest()", () => {
 		for (let i = 0; i < 5; i++) {
 			expect(manifest.collections[`coll_${i}`]?.fields.title?.kind).toBe("string");
 		}
+	});
+
+	// `sandboxAvailable` gates the admin's dynamic-plugins UI. The runner-
+	// present-and-available branch is a passthrough to SandboxRunner.isAvailable()
+	// (tested in the cloudflare/workerd packages); here we pin the two states
+	// reachable without instantiating a runner.
+	it("reports sandboxAvailable=false when no sandbox runner is configured", async () => {
+		// The free-tier Cloudflare case: no worker_loaders binding → no runner.
+		const runtime = buildRuntime(db);
+		const manifest = await runtime.getManifest();
+		expect(manifest.sandboxAvailable).toBe(false);
+	});
+
+	it("reports sandboxAvailable=true in sandbox bypass mode (sandbox: false)", async () => {
+		// Bypass loads dynamic plugins in-process, so the feature works even
+		// though there is no isolate runner — the admin must not gate it off.
+		const runtime = buildRuntime(db, { sandboxEnabled: true, sandboxBypassed: true });
+		const manifest = await runtime.getManifest();
+		expect(manifest.sandboxAvailable).toBe(true);
 	});
 });

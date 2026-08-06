@@ -177,6 +177,16 @@ export interface AdminManifest {
 		};
 	};
 	/**
+	 * Whether dynamic plugins can actually run on this deployment. Dynamic
+	 * plugins (marketplace + registry installs) run in a sandbox — on Cloudflare
+	 * that is Worker Loader, a Workers paid-plan feature. `false` when the
+	 * runner is missing (e.g. no `worker_loaders` binding on a free-tier
+	 * deploy). When `marketplace`/`registry` is configured but this is `false`,
+	 * the browse/install UI is replaced with a prompt explaining how to enable
+	 * dynamic plugins rather than failing at install time with a 503.
+	 */
+	sandboxAvailable?: boolean;
+	/**
 	 * Admin branding overrides for white-labeling.
 	 * Set via the `admin` config in `astro.config.mjs`.
 	 */
