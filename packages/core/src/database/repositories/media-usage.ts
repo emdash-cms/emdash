@@ -227,6 +227,30 @@ export interface MediaUsageIndexStatusFinalizeInput extends MediaUsageIndexStatu
 	updatedAt?: string;
 }
 
+export interface MediaUsageIndexStatusEpochRepairInput extends MediaUsageIndexStatusIdentity {
+	collectionId: string;
+	runToken: string;
+	schemaVersion: number;
+}
+
+export interface MediaUsageIndexStatusEpochRepairRun {
+	changeEpoch: number | string;
+	startedAt: string;
+}
+
+export interface MediaUsageIndexStatusEpochFinalizeInput extends MediaUsageIndexStatusEpochRepairInput {
+	startingEpoch: number | string;
+	status: Exclude<MediaUsageIndexStatusValue, "never" | "running" | "stale">;
+	indexedSourceCount: number;
+	failedSourceCount: number;
+	lastErrorCode: string | null;
+}
+
+export interface MediaUsageIncrementalStatusIdentity {
+	collectionId: string;
+	collectionSlug: string;
+}
+
 export interface MediaUsageGuardedIndexStatusResult {
 	finalized: boolean;
 	status: MediaUsageIndexStatus | null;
@@ -938,14 +962,18 @@ export class MediaUsageRepository {
 		return deleted;
 	}
 
-	async findCollectionContentSources(collectionSlug: string): Promise<MediaUsageSource[]> {
-		const rows = await this.db
+	async findCollectionContentSources(
+		collectionSlug: string,
+		collectionId?: string,
+	): Promise<MediaUsageSource[]> {
+		let query = this.db
 			.selectFrom("_emdash_media_usage_sources")
 			.selectAll()
 			.where("source_type", "=", "content")
 			.where("collection_slug", "=", collectionSlug)
-			.orderBy("source_key", "asc")
-			.execute();
+			.orderBy("source_key", "asc");
+		if (collectionId !== undefined) query = query.where("collection_id", "=", collectionId);
+		const rows = await query.execute();
 		return rows.map((row) => rowToSource(row));
 	}
 
@@ -1384,6 +1412,235 @@ export class MediaUsageRepository {
 		};
 	}
 
+	async beginIndexStatusRepairAtCurrentEpoch(
+		input: MediaUsageIndexStatusEpochRepairInput,
+	): Promise<MediaUsageIndexStatusEpochRepairRun | null> {
+		const now = this.sortableUtcTimestamp();
+		const row = await this.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({
+				status: "running",
+				schema_version: input.schemaVersion,
+				started_at: now,
+				completed_at: null,
+				cursor: input.runToken,
+				indexed_source_count: 0,
+				failed_source_count: 0,
+				last_error_code: null,
+				reconciliation_required: 1,
+				updated_at: now,
+			})
+			.where("adapter_id", "=", input.adapterId)
+			.where("scope_type", "=", input.scopeType)
+			.where("scope_key", "=", input.scopeKey)
+			.where("collection_id", "=", input.collectionId)
+			.where("capture_state", "=", "active")
+			.where(
+				sql<boolean>`EXISTS (
+					SELECT 1
+					FROM _emdash_collections AS collection
+					WHERE collection.id = ${input.collectionId}
+						AND collection.slug = ${input.scopeKey}
+				)`,
+			)
+			.where(
+				sql<boolean>`EXISTS (
+					SELECT 1
+					FROM _emdash_media_usage_activation AS activation
+					WHERE activation.task_key = 'incremental_capture'
+						AND activation.state = 'active'
+				)`,
+			)
+			.returning(["change_epoch", "started_at"])
+			.executeTakeFirst();
+		if (!row?.started_at) return null;
+		return { changeEpoch: row.change_epoch, startedAt: row.started_at };
+	}
+
+	async finalizeIndexStatusRepairAtEpoch(
+		input: MediaUsageIndexStatusEpochFinalizeInput,
+	): Promise<MediaUsageGuardedIndexStatusResult> {
+		const now = this.sortableUtcTimestamp();
+		const updates = {
+			status: input.status,
+			schema_version: input.schemaVersion,
+			completed_at: now,
+			cursor: null,
+			indexed_source_count: input.indexedSourceCount,
+			failed_source_count: input.failedSourceCount,
+			last_error_code: input.lastErrorCode,
+			reconciliation_required: input.status === "complete" ? 0 : 1,
+			updated_at: now,
+		};
+
+		let query = this.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set(updates)
+			.where("adapter_id", "=", input.adapterId)
+			.where("scope_type", "=", input.scopeType)
+			.where("scope_key", "=", input.scopeKey)
+			.where("collection_id", "=", input.collectionId)
+			.where("status", "=", "running")
+			.where("cursor", "=", input.runToken)
+			.where("change_epoch", "=", input.startingEpoch)
+			.where(
+				sql<boolean>`EXISTS (
+					SELECT 1
+					FROM _emdash_collections AS collection
+					WHERE collection.id = ${input.collectionId}
+						AND collection.slug = ${input.scopeKey}
+				)`,
+			);
+		if (input.status === "complete") {
+			query = query.where(
+				sql<boolean>`NOT EXISTS (
+					SELECT 1
+					FROM _emdash_media_usage_work AS work
+					WHERE work.collection_id = ${input.collectionId}
+				)`,
+			);
+		}
+		const result = await query.executeTakeFirst();
+		const finalized = Number(result.numUpdatedRows ?? 0) > 0;
+
+		if (!finalized) {
+			await this.db
+				.updateTable("_emdash_media_usage_index_status")
+				.set({
+					status: "stale",
+					completed_at: null,
+					cursor: null,
+					last_error_code: "CONTENT_USAGE_REPAIR_CONFLICT",
+					reconciliation_required: 1,
+					updated_at: this.sortableUtcTimestamp(),
+				})
+				.where("adapter_id", "=", input.adapterId)
+				.where("scope_type", "=", input.scopeType)
+				.where("scope_key", "=", input.scopeKey)
+				.where("collection_id", "=", input.collectionId)
+				.where("status", "=", "running")
+				.where("cursor", "=", input.runToken)
+				.execute();
+		}
+
+		return {
+			finalized,
+			status: await this.findIndexStatusForCollection(input, input.collectionId),
+		};
+	}
+
+	async recordIncrementalSuccess(input: MediaUsageIncrementalStatusIdentity): Promise<boolean> {
+		const observed = await this.db
+			.selectFrom("_emdash_media_usage_index_status")
+			.select("change_epoch")
+			.where("adapter_id", "=", "content-media")
+			.where("scope_type", "=", "collection")
+			.where("scope_key", "=", input.collectionSlug)
+			.where("collection_id", "=", input.collectionId)
+			.where("capture_state", "=", "active")
+			.where(
+				sql<boolean>`EXISTS (
+					SELECT 1
+					FROM _emdash_collections AS collection
+					WHERE collection.id = ${input.collectionId}
+						AND collection.slug = ${input.collectionSlug}
+				)`,
+			)
+			.executeTakeFirst();
+		if (!observed) return false;
+
+		const canComplete = sql<boolean>`(
+			reconciliation_required = 0
+			AND status IN ('complete', 'stale', 'partial')
+			AND NOT EXISTS (
+				SELECT 1
+				FROM _emdash_media_usage_work AS work
+				WHERE work.collection_id = ${input.collectionId}
+			)
+		)`;
+		const now = this.sortableUtcTimestamp();
+		const result = await this.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({
+				status: sql<string>`CASE WHEN ${canComplete} THEN 'complete' ELSE status END`,
+				completed_at: sql<
+					string | null
+				>`CASE WHEN ${canComplete} THEN ${now} ELSE completed_at END`,
+				last_error_code: sql<
+					string | null
+				>`CASE WHEN ${canComplete} THEN NULL ELSE last_error_code END`,
+				last_incremental_success_at: now,
+				updated_at: now,
+			})
+			.where("adapter_id", "=", "content-media")
+			.where("scope_type", "=", "collection")
+			.where("scope_key", "=", input.collectionSlug)
+			.where("collection_id", "=", input.collectionId)
+			.where("change_epoch", "=", observed.change_epoch)
+			.where("capture_state", "=", "active")
+			.where(
+				sql<boolean>`EXISTS (
+					SELECT 1
+					FROM _emdash_collections AS collection
+					WHERE collection.id = ${input.collectionId}
+						AND collection.slug = ${input.collectionSlug}
+				)`,
+			)
+			.executeTakeFirst();
+		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
+	async recordIncrementalFailure(
+		input: MediaUsageIncrementalStatusIdentity & {
+			contentId: string;
+			workVersion: number | string;
+			errorCode: string;
+		},
+	): Promise<boolean> {
+		const now = this.sortableUtcTimestamp();
+		const result = await this.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({
+				status: sql<string>`CASE
+					WHEN reconciliation_required = 0 THEN 'partial'
+					WHEN status = 'running' THEN 'stale'
+					ELSE status
+				END`,
+				completed_at: sql<string | null>`CASE
+					WHEN reconciliation_required = 0 OR status = 'running' THEN NULL
+					ELSE completed_at
+				END`,
+				cursor: sql<string | null>`CASE WHEN status = 'running' THEN NULL ELSE cursor END`,
+				last_error_code: input.errorCode,
+				updated_at: now,
+			})
+			.where("adapter_id", "=", "content-media")
+			.where("scope_type", "=", "collection")
+			.where("scope_key", "=", input.collectionSlug)
+			.where("collection_id", "=", input.collectionId)
+			.where(
+				sql<boolean>`EXISTS (
+					SELECT 1
+					FROM _emdash_media_usage_work AS work
+					WHERE work.collection_id = ${input.collectionId}
+						AND work.content_id = ${input.contentId}
+						AND work.work_version = ${input.workVersion}
+						AND work.state = 'failed'
+						AND work.last_error_code = ${input.errorCode}
+				)`,
+			)
+			.where(
+				sql<boolean>`EXISTS (
+					SELECT 1
+					FROM _emdash_collections AS collection
+					WHERE collection.id = ${input.collectionId}
+						AND collection.slug = ${input.collectionSlug}
+				)`,
+			)
+			.executeTakeFirst();
+		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
 	async findIndexStatus(
 		identity: MediaUsageIndexStatusIdentity,
 	): Promise<MediaUsageIndexStatus | null> {
@@ -1398,14 +1655,39 @@ export class MediaUsageRepository {
 		return row ? rowToIndexStatus(row) : null;
 	}
 
-	async deleteIndexStatus(identity: MediaUsageIndexStatusIdentity): Promise<number> {
-		const result = await this.db
-			.deleteFrom("_emdash_media_usage_index_status")
+	private async findIndexStatusForCollection(
+		identity: MediaUsageIndexStatusIdentity,
+		collectionId: string,
+	): Promise<MediaUsageIndexStatus | null> {
+		const row = await this.db
+			.selectFrom("_emdash_media_usage_index_status")
+			.selectAll()
 			.where("adapter_id", "=", identity.adapterId)
 			.where("scope_type", "=", identity.scopeType)
 			.where("scope_key", "=", identity.scopeKey)
+			.where("collection_id", "=", collectionId)
 			.executeTakeFirst();
+		return row ? rowToIndexStatus(row) : null;
+	}
+
+	async deleteIndexStatus(
+		identity: MediaUsageIndexStatusIdentity,
+		collectionId?: string,
+	): Promise<number> {
+		let query = this.db
+			.deleteFrom("_emdash_media_usage_index_status")
+			.where("adapter_id", "=", identity.adapterId)
+			.where("scope_type", "=", identity.scopeType)
+			.where("scope_key", "=", identity.scopeKey);
+		if (collectionId !== undefined) query = query.where("collection_id", "=", collectionId);
+		const result = await query.executeTakeFirst();
 		return Number(result.numDeletedRows ?? 0);
+	}
+
+	private sortableUtcTimestamp(): RawBuilder<string> {
+		return isPostgres(this.db)
+			? sql<string>`to_char(clock_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`
+			: sql<string>`strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
 	}
 
 	private async findCurrentUsagePage(

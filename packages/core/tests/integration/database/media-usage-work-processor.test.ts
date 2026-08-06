@@ -40,6 +40,9 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 	it("claims and completes the saved entry's durable job immediately", async () => {
 		const fixture = await createActiveFixture(ctx, "posts");
 		await insertEntry(ctx, fixture, "entry-1", "media-1");
+		expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
+			expect.objectContaining({ status: "stale", reconciliation_required: 0 }),
+		);
 
 		const result = await processMediaUsageWorkAfterWrite(ctx.db, "posts", "entry-1");
 
@@ -56,6 +59,76 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 				identityVersion: 1,
 			}),
 		);
+		expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
+			expect.objectContaining({
+				status: "complete",
+				reconciliation_required: 0,
+				last_incremental_success_at: expect.any(String),
+				last_error_code: null,
+			}),
+		);
+	});
+
+	it("does not create complete coverage from an untrusted incremental success", async () => {
+		const fixture = await createActiveFixture(ctx, "untrusted");
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ status: "never", reconciliation_required: 1 })
+			.where("collection_id", "=", fixture.collectionId)
+			.execute();
+		await insertEntry(ctx, fixture, "entry-1", "media-1");
+
+		const result = await processMediaUsageWorkAfterWrite(ctx.db, "untrusted", "entry-1");
+
+		expect(result.outcome).toBe("completed");
+		expect(await countWork(ctx.db)).toBe(0);
+		expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
+			expect.objectContaining({
+				status: "never",
+				reconciliation_required: 1,
+				last_incremental_success_at: expect.any(String),
+			}),
+		);
+	});
+
+	it("does not publish an obsolete terminal failure after newer work arrives", async () => {
+		const fixture = await createActiveFixture(ctx, "failure_race");
+		await insertEntry(ctx, fixture, "entry-1", "media-1");
+		const failedVersion = await findWork(ctx.db);
+		await ctx.db
+			.updateTable("_emdash_media_usage_work")
+			.set({ state: "failed", last_error_code: "OBSOLETE_FAILURE" })
+			.where("collection_id", "=", fixture.collectionId)
+			.where("content_id", "=", "entry-1")
+			.where("work_version", "=", failedVersion.work_version)
+			.execute();
+		await sql`
+			UPDATE ${sql.ref(fixture.tableName)}
+			SET title = 'newer projection'
+			WHERE id = 'entry-1'
+		`.execute(ctx.db);
+
+		const recorded = await new MediaUsageRepository(ctx.db).recordIncrementalFailure({
+			collectionId: fixture.collectionId,
+			collectionSlug: fixture.collectionSlug,
+			contentId: "entry-1",
+			workVersion: failedVersion.work_version,
+			errorCode: "OBSOLETE_FAILURE",
+		});
+
+		expect(recorded).toBe(false);
+		expect(await findWork(ctx.db)).toEqual(
+			expect.objectContaining({
+				state: "pending",
+				work_version: expect.toSatisfy(
+					(value) => Number(value) === Number(failedVersion.work_version) + 1,
+				),
+				last_error_code: null,
+			}),
+		);
+		expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
+			expect.objectContaining({ status: "stale" }),
+		);
 	});
 
 	it("bounds each scheduled tick and leaves the backlog durable", async () => {
@@ -70,6 +143,16 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 		expect(result.claimedCount).toBe(MEDIA_USAGE_WORK_PROCESSING_LIMITS.jobsPerTick);
 		expect(result.completedCount).toBe(MEDIA_USAGE_WORK_PROCESSING_LIMITS.jobsPerTick);
 		expect(await countWork(ctx.db)).toBe(3 - MEDIA_USAGE_WORK_PROCESSING_LIMITS.jobsPerTick);
+		expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
+			expect.objectContaining({ status: "stale" }),
+		);
+
+		await processDueMediaUsageWork(ctx.db);
+		await processDueMediaUsageWork(ctx.db);
+		expect(await countWork(ctx.db)).toBe(0);
+		expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
+			expect.objectContaining({ status: "complete" }),
+		);
 	});
 
 	it("lets only one overlapping fast path own the job", async () => {
@@ -137,6 +220,9 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 				last_error_code: "MEDIA_USAGE_SNAPSHOT_FAILED",
 			}),
 		);
+		expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
+			expect.objectContaining({ status: "stale" }),
+		);
 
 		await ctx.db
 			.updateTable("_emdash_media_usage_work")
@@ -152,6 +238,13 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 			expect.objectContaining({
 				state: "failed",
 				attempt_count: MEDIA_USAGE_WORK_PROCESSING_LIMITS.maxAttempts,
+				last_error_code: "MEDIA_USAGE_SNAPSHOT_FAILED",
+			}),
+		);
+		expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
+			expect.objectContaining({
+				status: "partial",
+				reconciliation_required: 0,
 				last_error_code: "MEDIA_USAGE_SNAPSHOT_FAILED",
 			}),
 		);
@@ -298,6 +391,14 @@ async function countWork(db: Kysely<Database>): Promise<number> {
 
 async function findWork(db: Kysely<Database>) {
 	return db.selectFrom("_emdash_media_usage_work").selectAll().executeTakeFirstOrThrow();
+}
+
+async function findCoverageStatus(db: Kysely<Database>, collectionId: string) {
+	return db
+		.selectFrom("_emdash_media_usage_index_status")
+		.selectAll()
+		.where("collection_id", "=", collectionId)
+		.executeTakeFirstOrThrow();
 }
 
 async function installProjectionSupersessionTrigger(

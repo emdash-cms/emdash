@@ -4,6 +4,7 @@ import {
 	MediaUsageWorkRepository,
 	type MediaUsageWorkRecord,
 } from "../../database/repositories/media-usage-work.js";
+import { MediaUsageRepository } from "../../database/repositories/media-usage.js";
 import type { Database } from "../../database/types.js";
 import {
 	refreshContentMediaUsageForWork,
@@ -144,8 +145,15 @@ async function processCandidate(
 		claimed.contentId,
 	);
 	if (refresh.success) {
+		const completed = await repo.completeWork(lease);
+		if (completed) {
+			await new MediaUsageRepository(db).recordIncrementalSuccess({
+				collectionId: claimed.collectionId,
+				collectionSlug: claimed.collectionSlug,
+			});
+		}
 		return {
-			outcome: (await repo.completeWork(lease)) ? "completed" : "superseded",
+			outcome: completed ? "completed" : "superseded",
 			claimed: true,
 		};
 	}
@@ -159,8 +167,18 @@ async function processCandidate(
 
 	const errorCode = processingErrorCode(refresh.errorCode);
 	if (claimed.attemptCount + 1 >= MEDIA_USAGE_WORK_PROCESSING_LIMITS.maxAttempts) {
+		const failed = await repo.failWork({ ...lease, errorCode });
+		if (failed) {
+			await new MediaUsageRepository(db).recordIncrementalFailure({
+				collectionId: claimed.collectionId,
+				collectionSlug: claimed.collectionSlug,
+				contentId: claimed.contentId,
+				workVersion: claimed.workVersion,
+				errorCode,
+			});
+		}
 		return {
-			outcome: (await repo.failWork({ ...lease, errorCode })) ? "failed" : "superseded",
+			outcome: failed ? "failed" : "superseded",
 			claimed: true,
 		};
 	}
