@@ -290,3 +290,10 @@ export class ScheduledNotDueError extends Error {
 		this.name = "ScheduledNotDueError";
 	}
 }
+
+export class ContentMutationConflictError extends Error {
+	constructor(message = "Content changed while the operation was in progress") {
+		super(message);
+		this.name = "ContentMutationConflictError";
+	}
+}

@@ -92,6 +92,44 @@ describe("Revision Pruning", () => {
 		const countAfter = await revisionRepo.countByEntry("post", entryId);
 		expect(countAfter).toBe(10);
 	});
+
+	it("prunes eligible history while preserving old live and current draft revisions", async () => {
+		const entryId = ulid();
+		const { sql } = await import("kysely");
+		await sql`
+			INSERT INTO ec_post (id, slug, status, created_at, updated_at, version)
+			VALUES (${entryId}, ${"referenced-revisions"}, ${"published"}, ${new Date().toISOString()}, ${new Date().toISOString()}, ${1})
+		`.execute(db);
+		const live = await revisionRepo.create({
+			collection: "post",
+			entryId,
+			data: { title: "Old live" },
+		});
+		for (let i = 0; i < 55; i++) {
+			await revisionRepo.create({
+				collection: "post",
+				entryId,
+				data: { title: `History ${i}` },
+			});
+		}
+		const draft = await revisionRepo.create({
+			collection: "post",
+			entryId,
+			data: { title: "Current draft" },
+		});
+		await sql`
+			UPDATE ec_post
+			SET live_revision_id = ${live.id}, draft_revision_id = ${draft.id}
+			WHERE id = ${entryId}
+		`.execute(db);
+
+		const pruned = await revisionRepo.pruneOldRevisions("post", entryId, 10);
+
+		expect(pruned).toBe(46);
+		expect(await revisionRepo.findById(live.id)).not.toBeNull();
+		expect(await revisionRepo.findById(draft.id)).not.toBeNull();
+		expect(await revisionRepo.countByEntry("post", entryId)).toBe(11);
+	});
 });
 
 describe("MediaRepository.cleanupPendingUploads", () => {

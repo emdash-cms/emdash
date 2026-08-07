@@ -621,7 +621,7 @@ msgstr "添加"
 
 #. placeholder {0}: field.item_label
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/PortableTextEditor.tsx:1874
+#: packages/admin/src/components/PortableTextEditor.tsx:2108
 #: packages/admin/src/components/TaxonomyManager.tsx:378
 #: packages/admin/src/components/TaxonomyManager.tsx:836
 msgid "Add {0}"
@@ -639,11 +639,11 @@ msgstr "添加新的通行密钥"
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "添加至少一个子字段以定义重复器结构。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3403
+#: packages/admin/src/components/PortableTextEditor.tsx:3639
 msgid "Add column after"
 msgstr "在后面添加列"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3397
+#: packages/admin/src/components/PortableTextEditor.tsx:3633
 msgid "Add column before"
 msgstr "在前面添加列"
 
@@ -697,7 +697,7 @@ msgstr ""
 msgid "Add images to gallery"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1874
+#: packages/admin/src/components/PortableTextEditor.tsx:2108
 msgid "Add item"
 msgstr "添加项目"
 
@@ -705,7 +705,7 @@ msgstr "添加项目"
 msgid "Add Item"
 msgstr "添加项目"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3332
+#: packages/admin/src/components/PortableTextEditor.tsx:3568
 msgid "Add link"
 msgstr "添加链接"
 
@@ -738,11 +738,11 @@ msgstr "添加通行密钥"
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "在 astro.config.mjs 中添加插件以扩展 EmDash 功能。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3424
+#: packages/admin/src/components/PortableTextEditor.tsx:3660
 msgid "Add row after"
 msgstr "在下面添加行"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3418
+#: packages/admin/src/components/PortableTextEditor.tsx:3654
 msgid "Add row before"
 msgstr "在上面添加行"
 
@@ -810,15 +810,15 @@ msgstr ""
 msgid "Agent-callable MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3787
+#: packages/admin/src/components/PortableTextEditor.tsx:4044
 msgid "Align Center"
 msgstr "居中对齐"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3780
+#: packages/admin/src/components/PortableTextEditor.tsx:4037
 msgid "Align Left"
 msgstr "左对齐"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3794
+#: packages/admin/src/components/PortableTextEditor.tsx:4051
 msgid "Align Right"
 msgstr "右对齐"
 
@@ -1018,7 +1018,7 @@ msgstr "显示在文章和页面上"
 msgid "Application Password"
 msgstr "应用程序密码"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3876
+#: packages/admin/src/components/PortableTextEditor.tsx:4133
 msgid "Apply"
 msgstr "应用"
 
@@ -1027,8 +1027,8 @@ msgstr "应用"
 msgid "Apply language"
 msgstr "应用语言"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3258
-#: packages/admin/src/components/PortableTextEditor.tsx:3259
+#: packages/admin/src/components/PortableTextEditor.tsx:3494
+#: packages/admin/src/components/PortableTextEditor.tsx:3495
 msgid "Apply link"
 msgstr "应用链接"
 
@@ -1296,8 +1296,8 @@ msgstr "简介"
 msgid "Block actions - drag to reorder, click for menu"
 msgstr "操作块 —— 拖动重新排序，点击打开菜单"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3282
-#: packages/admin/src/components/PortableTextEditor.tsx:3684
+#: packages/admin/src/components/PortableTextEditor.tsx:3518
+#: packages/admin/src/components/PortableTextEditor.tsx:3923
 msgid "Bold"
 msgstr "粗体"
 
@@ -1333,8 +1333,8 @@ msgid "Browse themes and preview them with your own content."
 msgstr "浏览主题并使用您自己的内容预览。"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:127
-#: packages/admin/src/components/PortableTextEditor.tsx:1183
-#: packages/admin/src/components/PortableTextEditor.tsx:3746
+#: packages/admin/src/components/PortableTextEditor.tsx:1417
+#: packages/admin/src/components/PortableTextEditor.tsx:3985
 msgid "Bullet List"
 msgstr "无序列表"
 
@@ -1407,7 +1407,7 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/PluginManager.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:3860
+#: packages/admin/src/components/PortableTextEditor.tsx:4117
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
@@ -1617,9 +1617,9 @@ msgstr "点击邮件中的链接即可登录。"
 #: packages/admin/src/components/MenuList.tsx:139
 #: packages/admin/src/components/MenuList.tsx:145
 #: packages/admin/src/components/MenuList.tsx:149
-#: packages/admin/src/components/PortableTextEditor.tsx:1658
-#: packages/admin/src/components/PortableTextEditor.tsx:1664
-#: packages/admin/src/components/PortableTextEditor.tsx:1668
+#: packages/admin/src/components/PortableTextEditor.tsx:1892
+#: packages/admin/src/components/PortableTextEditor.tsx:1898
+#: packages/admin/src/components/PortableTextEditor.tsx:1902
 #: packages/admin/src/components/Redirects.tsx:115
 #: packages/admin/src/components/Redirects.tsx:121
 #: packages/admin/src/components/SectionPickerModal.tsx:61
@@ -1666,14 +1666,14 @@ msgid "Close settings"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:244
-#: packages/admin/src/components/PortableTextEditor.tsx:3324
+#: packages/admin/src/components/PortableTextEditor.tsx:3560
 #: packages/admin/src/components/Redirects.tsx:472
 msgid "Code"
 msgstr "代码"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:119
-#: packages/admin/src/components/PortableTextEditor.tsx:1213
-#: packages/admin/src/components/PortableTextEditor.tsx:3767
+#: packages/admin/src/components/PortableTextEditor.tsx:1447
+#: packages/admin/src/components/PortableTextEditor.tsx:4024
 msgid "Code Block"
 msgstr "代码块"
 
@@ -1779,7 +1779,7 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:294
 #: packages/admin/src/components/Dashboard.tsx:235
-#: packages/admin/src/components/PortableTextEditor.tsx:2472
+#: packages/admin/src/components/PortableTextEditor.tsx:2706
 #: packages/admin/src/components/SectionEditor.tsx:195
 #: packages/admin/src/components/Sidebar.tsx:365
 #: packages/admin/src/components/Widgets.tsx:899
@@ -1865,6 +1865,10 @@ msgstr "继续 →"
 #: packages/admin/src/components/WordPressImport.tsx:2529
 msgid "Continue Import"
 msgstr "继续导入"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:4001
+msgid "Continue numbering"
+msgstr ""
 
 #: packages/admin/src/components/users/roleDefinitions.ts:24
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -1959,7 +1963,7 @@ msgstr "创建"
 msgid "Create \"{trimmedInput}\""
 msgstr "创建 \"{trimmedInput}\""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1184
+#: packages/admin/src/components/PortableTextEditor.tsx:1418
 msgid "Create a bullet list"
 msgstr "创建无序列表"
 
@@ -1968,7 +1972,7 @@ msgstr "创建无序列表"
 msgid "Create a new {0}"
 msgstr "创建新的 {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1194
+#: packages/admin/src/components/PortableTextEditor.tsx:1428
 msgid "Create a numbered list"
 msgstr "创建有序列表"
 
@@ -2333,7 +2337,7 @@ msgstr "删除署名字段？"
 msgid "Delete Byline?"
 msgstr "删除署名？"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3409
+#: packages/admin/src/components/PortableTextEditor.tsx:3645
 msgid "Delete column"
 msgstr "删除列"
 
@@ -2402,7 +2406,7 @@ msgstr "删除重定向 {0}"
 msgid "Delete Redirect?"
 msgstr "删除重定向？"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3428
+#: packages/admin/src/components/PortableTextEditor.tsx:3664
 msgid "Delete row"
 msgstr "删除行"
 
@@ -2410,7 +2414,7 @@ msgstr "删除行"
 msgid "Delete Section?"
 msgstr "删除区块？"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3443
+#: packages/admin/src/components/PortableTextEditor.tsx:3679
 msgid "Delete table"
 msgstr "删除表格"
 
@@ -2649,7 +2653,7 @@ msgstr "显示在图片下方作为可见说明。"
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "无干扰模式（⌘⇧\\）"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1238
+#: packages/admin/src/components/PortableTextEditor.tsx:1472
 msgid "Divider"
 msgstr "分隔线"
 
@@ -2747,7 +2751,7 @@ msgstr "拖放或点击浏览 (.xml)"
 msgid "Drag here to add"
 msgstr "拖动到此处添加"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2050
+#: packages/admin/src/components/PortableTextEditor.tsx:2284
 msgid "Drag to reorder"
 msgstr "拖动以重新排序"
 
@@ -2821,7 +2825,7 @@ msgstr "编辑"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:220
-#: packages/admin/src/components/PortableTextEditor.tsx:1655
+#: packages/admin/src/components/PortableTextEditor.tsx:1889
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:254
 #: packages/admin/src/components/TaxonomyManager.tsx:109
 #: packages/admin/src/components/TaxonomyManager.tsx:377
@@ -2864,7 +2868,7 @@ msgstr "编辑字段"
 msgid "Edit image {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3332
+#: packages/admin/src/components/PortableTextEditor.tsx:3568
 msgid "Edit link"
 msgstr "编辑链接"
 
@@ -2961,11 +2965,11 @@ msgid "Email verified!"
 msgstr "邮箱已验证！"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:2486
+#: packages/admin/src/components/PortableTextEditor.tsx:2720
 msgid "Embed a {0}"
 msgstr "嵌入 {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2489
+#: packages/admin/src/components/PortableTextEditor.tsx:2723
 msgid "Embeds"
 msgstr "嵌入"
 
@@ -3110,7 +3114,7 @@ msgstr "已存在"
 msgid "Exit distraction-free mode"
 msgstr "退出无干扰模式"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3912
+#: packages/admin/src/components/PortableTextEditor.tsx:4169
 msgid "Exit Spotlight Mode"
 msgstr "退出聚焦模式"
 
@@ -3887,7 +3891,7 @@ msgid "Full admin access"
 msgstr "完全管理员访问权限"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:171
-#: packages/admin/src/components/PortableTextEditor.tsx:2453
+#: packages/admin/src/components/PortableTextEditor.tsx:2687
 msgid "Gallery"
 msgstr ""
 
@@ -3960,37 +3964,37 @@ msgstr "仅访客"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:63
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:32
-#: packages/admin/src/components/PortableTextEditor.tsx:1123
+#: packages/admin/src/components/PortableTextEditor.tsx:1357
 msgid "Heading 1"
 msgstr "标题 1"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:71
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:1133
+#: packages/admin/src/components/PortableTextEditor.tsx:1367
 msgid "Heading 2"
 msgstr "标题 2"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:79
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:1143
+#: packages/admin/src/components/PortableTextEditor.tsx:1377
 msgid "Heading 3"
 msgstr "标题 3"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
-#: packages/admin/src/components/PortableTextEditor.tsx:1153
+#: packages/admin/src/components/PortableTextEditor.tsx:1387
 msgid "Heading 4"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:95
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
-#: packages/admin/src/components/PortableTextEditor.tsx:1163
+#: packages/admin/src/components/PortableTextEditor.tsx:1397
 msgid "Heading 5"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:103
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
-#: packages/admin/src/components/PortableTextEditor.tsx:1173
+#: packages/admin/src/components/PortableTextEditor.tsx:1407
 msgid "Heading 6"
 msgstr ""
 
@@ -4049,7 +4053,7 @@ msgstr "如何创建应用程序密码"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
-#: packages/admin/src/components/PortableTextEditor.tsx:1223
+#: packages/admin/src/components/PortableTextEditor.tsx:1457
 msgid "HTML"
 msgstr "HTML"
 
@@ -4057,8 +4061,8 @@ msgstr "HTML"
 msgid "HTML source"
 msgstr "HTML 源代码"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3245
-#: packages/admin/src/components/PortableTextEditor.tsx:3842
+#: packages/admin/src/components/PortableTextEditor.tsx:3481
+#: packages/admin/src/components/PortableTextEditor.tsx:4099
 msgid "https://..."
 msgstr ""
 
@@ -4089,7 +4093,7 @@ msgstr "如果存在与 <0>{email}</0> 关联的账号，我们已发送登录�
 
 #: packages/admin/src/components/FieldEditor.tsx:204
 #: packages/admin/src/components/FieldEditor.tsx:587
-#: packages/admin/src/components/PortableTextEditor.tsx:2438
+#: packages/admin/src/components/PortableTextEditor.tsx:2672
 msgid "Image"
 msgstr "图片"
 
@@ -4241,7 +4245,7 @@ msgstr "不兼容"
 msgid "Indexed"
 msgstr "已索引"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3726
+#: packages/admin/src/components/PortableTextEditor.tsx:3965
 msgid "Inline Code"
 msgstr "行内代码"
 
@@ -4251,44 +4255,44 @@ msgid "Insert"
 msgstr "插入"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:1655
+#: packages/admin/src/components/PortableTextEditor.tsx:1889
 msgid "Insert {0}"
 msgstr "插入 {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1204
+#: packages/admin/src/components/PortableTextEditor.tsx:1438
 msgid "Insert a blockquote"
 msgstr "插入引用块"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1214
+#: packages/admin/src/components/PortableTextEditor.tsx:1448
 msgid "Insert a code block"
 msgstr "插入代码块"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1239
+#: packages/admin/src/components/PortableTextEditor.tsx:1473
 msgid "Insert a horizontal rule"
 msgstr "插入水平分隔线"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2469
+#: packages/admin/src/components/PortableTextEditor.tsx:2703
 msgid "Insert a reusable section"
 msgstr "插入可复用区块"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1249
+#: packages/admin/src/components/PortableTextEditor.tsx:1483
 msgid "Insert a table"
 msgstr "插入表格"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2439
+#: packages/admin/src/components/PortableTextEditor.tsx:2673
 msgid "Insert an image"
 msgstr "插入图片"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2454
+#: packages/admin/src/components/PortableTextEditor.tsx:2688
 msgid "Insert an image gallery"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1483
+#: packages/admin/src/components/PortableTextEditor.tsx:1717
 msgid "Insert block"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3664
-#: packages/admin/src/components/PortableTextEditor.tsx:3674
+#: packages/admin/src/components/PortableTextEditor.tsx:3903
+#: packages/admin/src/components/PortableTextEditor.tsx:3913
 msgid "Insert block after current block"
 msgstr ""
 
@@ -4300,12 +4304,12 @@ msgstr ""
 msgid "Insert from URL"
 msgstr "从 URL 插入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3812
-#: packages/admin/src/components/PortableTextEditor.tsx:3826
+#: packages/admin/src/components/PortableTextEditor.tsx:4069
+#: packages/admin/src/components/PortableTextEditor.tsx:4083
 msgid "Insert Link"
 msgstr "插入链接"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1224
+#: packages/admin/src/components/PortableTextEditor.tsx:1458
 msgid "Insert raw HTML"
 msgstr "插入原始 HTML"
 
@@ -4404,13 +4408,13 @@ msgstr ""
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3289
-#: packages/admin/src/components/PortableTextEditor.tsx:3691
+#: packages/admin/src/components/PortableTextEditor.tsx:3525
+#: packages/admin/src/components/PortableTextEditor.tsx:3930
 msgid "Italic"
 msgstr "斜体"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2036
+#: packages/admin/src/components/PortableTextEditor.tsx:2270
 #: packages/admin/src/components/RepeaterField.tsx:239
 msgid "Item {0}"
 msgstr "项目 {0}"
@@ -4503,7 +4507,7 @@ msgstr "标签（单数）"
 msgid "Language"
 msgstr "语言"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1124
+#: packages/admin/src/components/PortableTextEditor.tsx:1358
 msgid "Large section heading"
 msgstr "大章节标题"
 
@@ -4657,7 +4661,7 @@ msgstr "正在加载配置..."
 msgid "Loading content..."
 msgstr "正在加载内容..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3035
+#: packages/admin/src/components/PortableTextEditor.tsx:3271
 msgid "Loading editor..."
 msgstr "正在加载编辑器..."
 
@@ -4709,7 +4713,7 @@ msgstr "正在加载小部件..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaLibrary.tsx:635
 #: packages/admin/src/components/MediaPickerModal.tsx:775
-#: packages/admin/src/components/PortableTextEditor.tsx:2163
+#: packages/admin/src/components/PortableTextEditor.tsx:2397
 #: packages/admin/src/components/RegistryBrowse.tsx:146
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:160
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:205
@@ -4889,8 +4893,8 @@ msgstr ""
 msgid "MDX"
 msgstr "MDX"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2442
-#: packages/admin/src/components/PortableTextEditor.tsx:2457
+#: packages/admin/src/components/PortableTextEditor.tsx:2676
+#: packages/admin/src/components/PortableTextEditor.tsx:2691
 #: packages/admin/src/components/Sidebar.tsx:216
 #: packages/admin/src/components/WordPressImport.tsx:752
 #: packages/admin/src/components/WordPressImport.tsx:1145
@@ -4932,7 +4936,7 @@ msgstr "媒体读取"
 msgid "Media Write"
 msgstr "媒体写入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1134
+#: packages/admin/src/components/PortableTextEditor.tsx:1368
 msgid "Medium section heading"
 msgstr "中章节标题"
 
@@ -5029,7 +5033,7 @@ msgstr "最小长度"
 msgid "Min Value"
 msgstr "最小值"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1164
+#: packages/admin/src/components/PortableTextEditor.tsx:1398
 msgid "Minor section heading"
 msgstr ""
 
@@ -5378,7 +5382,7 @@ msgstr "无可安装的版本"
 msgid "No invite token provided"
 msgstr "未提供邀请令牌"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1959
+#: packages/admin/src/components/PortableTextEditor.tsx:2193
 #: packages/admin/src/components/RepeaterField.tsx:165
 #: packages/admin/src/components/settings/BackupSettings.tsx:283
 msgid "No items yet"
@@ -5488,7 +5492,7 @@ msgstr "暂无最近活动"
 msgid "No redirects yet"
 msgstr "暂无重定向"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1508
+#: packages/admin/src/components/PortableTextEditor.tsx:1742
 #: packages/admin/src/components/RepeaterField.tsx:374
 msgid "No results"
 msgstr "无结果"
@@ -5576,8 +5580,8 @@ msgid "Number of posts to show per page on list views"
 msgstr "列表视图每页显示的文章数量"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:135
-#: packages/admin/src/components/PortableTextEditor.tsx:1193
-#: packages/admin/src/components/PortableTextEditor.tsx:3753
+#: packages/admin/src/components/PortableTextEditor.tsx:1427
+#: packages/admin/src/components/PortableTextEditor.tsx:3992
 msgid "Numbered List"
 msgstr "有序列表"
 
@@ -6128,8 +6132,8 @@ msgid "Quick edit alt text"
 msgstr "快速编辑替代文本"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:111
-#: packages/admin/src/components/PortableTextEditor.tsx:1203
-#: packages/admin/src/components/PortableTextEditor.tsx:3760
+#: packages/admin/src/components/PortableTextEditor.tsx:1437
+#: packages/admin/src/components/PortableTextEditor.tsx:4017
 msgid "Quote"
 msgstr "引用"
 
@@ -6211,7 +6215,7 @@ msgstr "正在重定向到登录..."
 msgid "Redirects"
 msgstr "重定向"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3899
+#: packages/admin/src/components/PortableTextEditor.tsx:4156
 msgid "Redo"
 msgstr "重做"
 
@@ -6260,7 +6264,7 @@ msgstr "版本太新，无法安装"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
 #: packages/admin/src/components/ContentSettingsPanel.tsx:969
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
-#: packages/admin/src/components/PortableTextEditor.tsx:3872
+#: packages/admin/src/components/PortableTextEditor.tsx:4129
 #: packages/admin/src/components/settings/GeneralSettings.tsx:229
 #: packages/admin/src/components/settings/GeneralSettings.tsx:289
 #: packages/admin/src/components/settings/PasskeyItem.tsx:180
@@ -6313,13 +6317,13 @@ msgid "Remove Image?"
 msgstr "移除图片？"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2075
+#: packages/admin/src/components/PortableTextEditor.tsx:2309
 #: packages/admin/src/components/RepeaterField.tsx:275
 msgid "Remove item {0}"
 msgstr "移除项目 {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3270
-#: packages/admin/src/components/PortableTextEditor.tsx:3271
+#: packages/admin/src/components/PortableTextEditor.tsx:3506
+#: packages/admin/src/components/PortableTextEditor.tsx:3507
 msgid "Remove link"
 msgstr "移除链接"
 
@@ -6427,6 +6431,10 @@ msgstr "{resendCooldown}秒后重发"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:466
 msgid "Reset to original"
 msgstr "重置为原始"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:4008
+msgid "Restart numbering"
+msgstr ""
 
 #: packages/admin/src/components/RevisionHistory.tsx:238
 msgid "Restore"
@@ -6845,7 +6853,7 @@ msgstr "可搜索"
 msgid "Searching..."
 msgstr "搜索中..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2468
+#: packages/admin/src/components/PortableTextEditor.tsx:2702
 msgid "Section"
 msgstr "区块"
 
@@ -6994,7 +7002,7 @@ msgstr "选择文件"
 msgid "Select File"
 msgstr "选择文件"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3111
+#: packages/admin/src/components/PortableTextEditor.tsx:3347
 msgid "Select Gallery Images"
 msgstr ""
 
@@ -7003,7 +7011,7 @@ msgid "Select image"
 msgstr "选择图片"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:150
-#: packages/admin/src/components/PortableTextEditor.tsx:3097
+#: packages/admin/src/components/PortableTextEditor.tsx:3333
 #: packages/admin/src/components/settings/SeoSettings.tsx:223
 msgid "Select Image"
 msgstr "选择图片"
@@ -7030,12 +7038,12 @@ msgid "Select which content types to import."
 msgstr "选择要导入的内容类型。"
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:2170
+#: packages/admin/src/components/PortableTextEditor.tsx:2404
 #: packages/admin/src/components/RepeaterField.tsx:372
 msgid "Select..."
 msgstr "选择..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1499
+#: packages/admin/src/components/PortableTextEditor.tsx:1733
 msgid "Selected {selectedItemTitle}"
 msgstr ""
 
@@ -7351,15 +7359,15 @@ msgstr "别名已复制到剪贴板"
 msgid "Slugs cannot be changed after the field is created."
 msgstr "字段创建后无法更改标识符。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1144
+#: packages/admin/src/components/PortableTextEditor.tsx:1378
 msgid "Small section heading"
 msgstr "小章节标题"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1154
+#: packages/admin/src/components/PortableTextEditor.tsx:1388
 msgid "Smaller section heading"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1174
+#: packages/admin/src/components/PortableTextEditor.tsx:1408
 msgid "Smallest section heading"
 msgstr ""
 
@@ -7422,7 +7430,7 @@ msgstr "垃圾"
 msgid "Spam"
 msgstr "垃圾"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3912
+#: packages/admin/src/components/PortableTextEditor.tsx:4169
 msgid "Spotlight Mode"
 msgstr "聚焦模式"
 
@@ -7439,8 +7447,8 @@ msgid "Start Import"
 msgstr "开始导入"
 
 #: packages/admin/src/components/ContentEditor.tsx:1216
-#: packages/admin/src/components/PortableTextEditor.tsx:2329
-#: packages/admin/src/components/PortableTextEditor.tsx:2330
+#: packages/admin/src/components/PortableTextEditor.tsx:2563
+#: packages/admin/src/components/PortableTextEditor.tsx:2564
 msgid "Start writing, or type '/' for commands"
 msgstr ""
 
@@ -7472,8 +7480,8 @@ msgstr ""
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "按语言环境存储 — 署名的每个翻译都有各自的值。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3303
-#: packages/admin/src/components/PortableTextEditor.tsx:3705
+#: packages/admin/src/components/PortableTextEditor.tsx:3539
+#: packages/admin/src/components/PortableTextEditor.tsx:3944
 msgid "Strikethrough"
 msgstr "删除线"
 
@@ -7494,13 +7502,13 @@ msgstr "子字段"
 msgid "Subscriber"
 msgstr "订阅者"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3310
-#: packages/admin/src/components/PortableTextEditor.tsx:3712
+#: packages/admin/src/components/PortableTextEditor.tsx:3546
+#: packages/admin/src/components/PortableTextEditor.tsx:3951
 msgid "Subscript"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3317
-#: packages/admin/src/components/PortableTextEditor.tsx:3719
+#: packages/admin/src/components/PortableTextEditor.tsx:3553
+#: packages/admin/src/components/PortableTextEditor.tsx:3958
 msgid "Superscript"
 msgstr ""
 
@@ -7532,11 +7540,11 @@ msgstr "跟随系统（{resolvedLabel}）"
 msgid "System Fields"
 msgstr "系统字段"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1248
+#: packages/admin/src/components/PortableTextEditor.tsx:1482
 msgid "Table"
 msgstr "表格"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3392
+#: packages/admin/src/components/PortableTextEditor.tsx:3628
 msgid "Table controls"
 msgstr ""
 
@@ -7609,7 +7617,7 @@ msgstr "词条已删除"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3656
+#: packages/admin/src/components/PortableTextEditor.tsx:3895
 msgid "Text formatting"
 msgstr "文本格式化"
 
@@ -7865,7 +7873,7 @@ msgstr "以安装插件，或将它们添加到您的 astro.config.mjs。"
 msgid "to select"
 msgstr "选择"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3437
+#: packages/admin/src/components/PortableTextEditor.tsx:3673
 msgid "Toggle header row"
 msgstr "切换表头行"
 
@@ -8041,12 +8049,12 @@ msgstr "无法访问市场"
 msgid "Unassigned"
 msgstr "未分配"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3296
-#: packages/admin/src/components/PortableTextEditor.tsx:3698
+#: packages/admin/src/components/PortableTextEditor.tsx:3532
+#: packages/admin/src/components/PortableTextEditor.tsx:3937
 msgid "Underline"
 msgstr "下划线"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3892
+#: packages/admin/src/components/PortableTextEditor.tsx:4149
 msgid "Undo"
 msgstr "撤销"
 
@@ -8298,9 +8306,9 @@ msgstr "上传中..."
 #: packages/admin/src/components/FieldEditor.tsx:586
 #: packages/admin/src/components/MenuEditor.tsx:418
 #: packages/admin/src/components/MenuEditor.tsx:596
-#: packages/admin/src/components/PortableTextEditor.tsx:3250
-#: packages/admin/src/components/PortableTextEditor.tsx:3837
-#: packages/admin/src/components/PortableTextEditor.tsx:3847
+#: packages/admin/src/components/PortableTextEditor.tsx:3486
+#: packages/admin/src/components/PortableTextEditor.tsx:4094
+#: packages/admin/src/components/PortableTextEditor.tsx:4104
 msgid "URL"
 msgstr "URL"
 

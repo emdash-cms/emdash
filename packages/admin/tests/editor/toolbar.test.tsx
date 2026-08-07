@@ -548,6 +548,63 @@ describe("Formatting Button Toggle States", () => {
 		});
 	});
 
+	it("continues or restarts the selected numbered-list segment in RTL", async () => {
+		const previousDir = document.documentElement.dir;
+		document.documentElement.dir = "rtl";
+		try {
+			const { screen, editor } = await renderEditor({
+				value: [
+					{
+						_type: "block",
+						_key: "one",
+						style: "normal",
+						listItem: "number",
+						level: 1,
+						listId: "first",
+						listStart: 1,
+						children: [{ _type: "span", _key: "s1", text: "One" }],
+					},
+					{
+						_type: "block",
+						_key: "between",
+						style: "normal",
+						children: [{ _type: "span", _key: "s2", text: "Between" }],
+					},
+					{
+						_type: "block",
+						_key: "independent",
+						style: "normal",
+						listItem: "number",
+						level: 1,
+						listId: "second",
+						listStart: 1,
+						children: [{ _type: "span", _key: "s3", text: "Independent" }],
+					},
+				],
+			});
+			editor.commands.setTextSelection(getTextPosition(editor, "Independent"));
+
+			const continueButton = getToolbarButton(screen, "Continue numbering");
+			const restartButton = getToolbarButton(screen, "Restart numbering");
+			await expect.element(continueButton).toBeVisible();
+			await expect.element(restartButton).toBeVisible();
+			expect(continueButton.element().hasAttribute("disabled")).toBe(false);
+			expect(restartButton.element().hasAttribute("disabled")).toBe(false);
+
+			continueButton.element().click();
+			await vi.waitFor(() => {
+				const starts: number[] = [];
+				editor.state.doc.descendants((node) => {
+					if (node.type.name === "orderedList") starts.push(node.attrs.start);
+				});
+				expect(starts).toEqual([1, 2]);
+				expect(continueButton.element().hasAttribute("disabled")).toBe(true);
+			});
+		} finally {
+			document.documentElement.dir = previousDir;
+		}
+	});
+
 	it("Quote: click toggles aria-pressed to true", async () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
