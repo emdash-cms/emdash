@@ -2,11 +2,9 @@
  * Dynamic Plugins Unavailable
  *
  * Shown in place of the marketplace / registry browse UI when the deployment
- * has no sandbox runner (`manifest.sandboxAvailable === false`). Dynamic
- * plugins run sandboxed — on Cloudflare that is Worker Loader, a Workers
- * paid-plan feature — so a free-tier site with `worker_loaders` absent can't
- * install them. Rather than let the user browse and hit a 503 at install time,
- * we explain what's needed and how to enable it.
+ * has no available sandbox runner (`manifest.sandboxAvailable === false`).
+ * Rather than let the user browse and hit an error at install time, direct
+ * them to the platform-specific setup instructions.
  */
 
 import { LinkButton } from "@cloudflare/kumo";
@@ -32,21 +30,10 @@ export function DynamicPluginsUnavailable() {
 
 				<p className="mt-2 text-sm text-kumo-subtle">
 					<Trans>
-						Installing plugins at runtime runs them in a sandbox. On Cloudflare that uses Worker
-						Loader, which needs the Workers paid plan. Add the binding below to your{" "}
-						<code className="rounded bg-kumo-tint px-1 py-0.5 font-mono text-xs">
-							wrangler.jsonc
-						</code>{" "}
-						and redeploy to enable it.
+						Installing plugins at runtime requires an available sandbox runner. Configure one for
+						your deployment platform and redeploy to enable dynamic plugins.
 					</Trans>
 				</p>
-
-				<pre
-					dir="ltr"
-					className="mt-4 w-full overflow-x-auto rounded bg-kumo-tint p-3 text-start font-mono text-xs"
-				>
-					<code>{`"worker_loaders": [{ "binding": "LOADER" }]`}</code>
-				</pre>
 
 				<LinkButton
 					href={INSTALL_DOCS_URL}

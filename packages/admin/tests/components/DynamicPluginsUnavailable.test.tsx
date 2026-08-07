@@ -13,11 +13,18 @@ describe("DynamicPluginsUnavailable", () => {
 			.toBeInTheDocument();
 	});
 
-	it("shows the worker_loaders binding to add", async () => {
+	it("gives platform-neutral sandbox guidance", async () => {
 		const screen = await render(<DynamicPluginsUnavailable />);
 		await expect
-			.element(screen.getByText('"worker_loaders": [{ "binding": "LOADER" }]'))
+			.element(
+				screen.getByText(
+					"Installing plugins at runtime requires an available sandbox runner. Configure one for your deployment platform and redeploy to enable dynamic plugins.",
+				),
+			)
 			.toBeInTheDocument();
+		await expect
+			.element(screen.getByText('"worker_loaders": [{ "binding": "LOADER" }]'), { timeout: 100 })
+			.not.toBeInTheDocument();
 	});
 
 	it("links to the install docs", async () => {
