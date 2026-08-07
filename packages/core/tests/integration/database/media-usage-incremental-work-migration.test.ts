@@ -49,9 +49,7 @@ describeEachDialect("media usage incremental work migration", (dialect) => {
 	});
 
 	it("upgrades and reruns without rewriting legacy evidence or inventing work", async () => {
-		const migration =
-			await import("../../../src/database/migrations/057_media_usage_incremental_work.js");
-		await migration.down(ctx.db);
+		const migration = await rollBackIncrementalMigrations(ctx);
 
 		const registry = new SchemaRegistry(ctx.db);
 		await registry.createCollection({ slug: "posts", label: "Posts" });
@@ -191,9 +189,7 @@ describeEachDialect("media usage incremental work migration", (dialect) => {
 	});
 
 	it("purges a partially bound status if its collection is deleted or recreated before retry", async () => {
-		const migration =
-			await import("../../../src/database/migrations/057_media_usage_incremental_work.js");
-		await migration.down(ctx.db);
+		const migration = await rollBackIncrementalMigrations(ctx);
 
 		const registry = new SchemaRegistry(ctx.db);
 		await registry.createCollection({ slug: "recreated", label: "Recreated" });
@@ -235,3 +231,13 @@ describeEachDialect("media usage incremental work migration", (dialect) => {
 		expect(statuses).toEqual([]);
 	});
 });
+
+async function rollBackIncrementalMigrations(ctx: DialectTestContext) {
+	const cleanupIndexes =
+		await import("../../../src/database/migrations/058_media_usage_deletion_cleanup_indexes.js");
+	await cleanupIndexes.down(ctx.db);
+	const incremental =
+		await import("../../../src/database/migrations/057_media_usage_incremental_work.js");
+	await incremental.down(ctx.db);
+	return incremental;
+}

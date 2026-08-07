@@ -46,6 +46,7 @@ import {
 	markContentMediaUsageCollectionStale,
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
+import { processDueMediaUsageDeletionCleanup } from "./media/usage/deletion-cleanup.js";
 import {
 	processDueMediaUsageWork,
 	processMediaUsageWorkAfterWrite,
@@ -513,6 +514,17 @@ async function runScheduledMediaUsageWork(db: Kysely<Database>): Promise<void> {
 	}
 }
 
+async function runScheduledMediaUsageDeletionCleanup(db: Kysely<Database>): Promise<void> {
+	try {
+		const result = await processDueMediaUsageDeletionCleanup(db);
+		if (result.candidateCount > 0) {
+			console.info("[media-usage:deletion-cleanup] Scheduled processing", result);
+		}
+	} catch {
+		console.error("[media-usage:deletion-cleanup] Scheduled processing failed");
+	}
+}
+
 /**
  * EmDashRuntime - singleton per worker
  */
@@ -699,6 +711,7 @@ export class EmDashRuntime {
 		}
 
 		await runScheduledMediaUsageWork(this.db);
+		await runScheduledMediaUsageDeletionCleanup(this.db);
 
 		// Never throws; no-op unless scheduled backups are enabled and due.
 		await maybeRunScheduledBackup(this.db, this.storage ?? undefined);
@@ -1630,6 +1643,7 @@ export class EmDashRuntime {
 							console.error("[cleanup] System cleanup failed:", error);
 						}
 						await runScheduledMediaUsageWork(db);
+						await runScheduledMediaUsageDeletionCleanup(db);
 						// Never throws; no-op unless scheduled backups are enabled and due.
 						await maybeRunScheduledBackup(db, storage ?? undefined);
 					});

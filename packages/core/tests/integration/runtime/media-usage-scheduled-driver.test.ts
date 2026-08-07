@@ -20,6 +20,7 @@ describe("media usage scheduled drivers", () => {
 	it("drains bounded work from the Cloudflare scheduled entry point", async () => {
 		runtime = await EmDashRuntime.create(createDeps(null));
 		const fixture = await activateCollection(runtime, "cloudflare_posts");
+		const cleanupId = await createDeletionCleanup(runtime, "cloudflare_retired");
 		await insertEntry(runtime, fixture.tableName, "entry-1");
 
 		await runtime.runScheduledTasks();
@@ -30,12 +31,14 @@ describe("media usage scheduled drivers", () => {
 				canonicalSourceKey(fixture.collectionId, "entry-1"),
 			),
 		).not.toBeNull();
+		expect(await cleanupPhase(runtime, cleanupId)).toBe("sources");
 	});
 
 	it("drains bounded work from the Node timer maintenance callback", async () => {
 		const scheduler = new CapturingScheduler();
 		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
 		const fixture = await activateCollection(runtime, "node_posts");
+		const cleanupId = await createDeletionCleanup(runtime, "node_retired");
 		await insertEntry(runtime, fixture.tableName, "entry-1");
 
 		await scheduler.runMaintenance();
@@ -46,6 +49,7 @@ describe("media usage scheduled drivers", () => {
 				canonicalSourceKey(fixture.collectionId, "entry-1"),
 			),
 		).not.toBeNull();
+		expect(await cleanupPhase(runtime, cleanupId)).toBe("sources");
 	});
 
 	it("processes a trigger-created job before returning from an authenticated write", async () => {
@@ -163,6 +167,39 @@ async function countWork(runtime: EmDashRuntime): Promise<number> {
 		.select((eb) => eb.fn.countAll<number>().as("count"))
 		.executeTakeFirstOrThrow();
 	return Number(row.count);
+}
+
+async function createDeletionCleanup(runtime: EmDashRuntime, collectionSlug: string) {
+	await runtime.schemaRegistry.createCollection({ slug: collectionSlug, label: collectionSlug });
+	const collection = await runtime.schemaRegistry.getCollection(collectionSlug);
+	if (!collection) throw new Error(`Expected ${collectionSlug} cleanup collection`);
+	await runtime.db
+		.insertInto("_emdash_media_usage_index_status")
+		.values({
+			adapter_id: "content-media",
+			scope_type: "collection",
+			scope_key: collectionSlug,
+			status: "stale",
+			collection_id: collection.id,
+			reconciliation_required: 1,
+			capture_state: "deleting",
+			cleanup_state: "pending",
+			cleanup_phase: "work",
+			cleanup_next_attempt_at: "2000-01-01T00:00:00.000Z",
+		})
+		.execute();
+	await sql`DROP TABLE ${sql.ref(`ec_${collectionSlug}`)}`.execute(runtime.db);
+	await runtime.db.deleteFrom("_emdash_collections").where("id", "=", collection.id).execute();
+	return collection.id;
+}
+
+async function cleanupPhase(runtime: EmDashRuntime, collectionId: string) {
+	const row = await runtime.db
+		.selectFrom("_emdash_media_usage_index_status")
+		.select("cleanup_phase")
+		.where("collection_id", "=", collectionId)
+		.executeTakeFirstOrThrow();
+	return row.cleanup_phase;
 }
 
 function canonicalSourceKey(collectionId: string, contentId: string): string {
