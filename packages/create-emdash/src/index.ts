@@ -317,7 +317,7 @@ async function resolveDynamicPlugins(flags: ParsedFlags, platform: Platform): Pr
 	if (flags.yes) return false;
 	const enable = await p.confirm({
 		message:
-			"Enable dynamic plugins? (marketplace + sandboxed plugins; needs the Cloudflare Workers paid plan)",
+			"Enable the Cloudflare Worker Loader capability? (required by dynamic plugins; needs the Workers paid plan)",
 		initialValue: false,
 	});
 	if (p.isCancel(enable)) {
@@ -448,13 +448,13 @@ async function main() {
 		// the toggle is meaningful (loaderResult is "absent" on Node).
 		if (loaderResult === "enabled") {
 			p.log.info(
-				`Enabled dynamic plugins (${pc.cyan("worker_loaders")} in ${pc.cyan("wrangler.jsonc")}). ` +
-					`This needs the Cloudflare Workers paid plan to deploy.`,
+				`Enabled the Cloudflare Worker Loader capability (${pc.cyan("worker_loaders")} in ${pc.cyan("wrangler.jsonc")}). ` +
+					`This is required by dynamic plugins and needs the Workers paid plan to deploy.`,
 			);
 		} else if (loaderResult === "disabled") {
 			p.log.info(
-				`Dynamic plugins are off. Uncomment ${pc.cyan("worker_loaders")} in ${pc.cyan("wrangler.jsonc")} ` +
-					`to enable them later (needs the Workers paid plan).`,
+				`The Cloudflare Worker Loader capability is off. Uncomment ${pc.cyan("worker_loaders")} in ${pc.cyan("wrangler.jsonc")} ` +
+					`to enable it later for dynamic plugins (needs the Workers paid plan).`,
 			);
 		}
 

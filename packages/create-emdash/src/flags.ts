@@ -277,9 +277,10 @@ Options:
   --package-manager <key>      Alias of --pm
   --install                    Install dependencies after scaffolding
   --no-install                 Skip dependency install
-  --dynamic-plugins            Enable dynamic plugins (Cloudflare only; adds the
-                               Worker Loader binding — needs the Workers paid plan)
-  --no-dynamic-plugins         Leave dynamic plugins off (free-tier safe; default)
+  --dynamic-plugins            Enable the Worker Loader capability (Cloudflare only;
+                               required by dynamic plugins; needs the Workers paid plan)
+  --no-dynamic-plugins         Leave the Worker Loader capability off (free-tier safe;
+                               default)
   -y, --yes                    Accept defaults; skip confirmation prompts
   --force                      Allow overwriting a non-empty target dir
                                (required with --yes when the target is non-empty)
