@@ -2362,7 +2362,7 @@ export class MediaUsageRepository {
 		return row !== undefined;
 	}
 
-	private async projectionMatchesExpectedSource(
+	async projectionMatchesExpectedSource(
 		source: MediaUsageSourceInput,
 		expectedSource: MediaUsageSource,
 	): Promise<boolean> {

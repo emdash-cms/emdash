@@ -3,6 +3,7 @@ import { ulid } from "ulidx";
 
 import { isPostgres } from "../dialect-helpers.js";
 import type { Database, MediaUsageWorkTable } from "../types.js";
+import { decodeCursor, encodeCursor, type FindManyResult } from "./types.js";
 
 export type MediaUsageWorkState = "pending" | "retry" | "leased" | "failed";
 export type MediaUsageWorkVersion = number | string;
@@ -11,6 +12,10 @@ const MAX_WORK_SELECTION_LIMIT = 100;
 const NON_NEGATIVE_DECIMAL_PATTERN = /^(?:0|[1-9][0-9]*)$/;
 const POSITIVE_DECIMAL_PATTERN = /^[1-9][0-9]*$/;
 const STABLE_ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
+
+export const MEDIA_USAGE_WORK_OPERATOR_DEFAULT_LIMIT = 50;
+export const MEDIA_USAGE_WORK_OPERATOR_MAX_LIMIT = 100;
+const MEDIA_USAGE_WORK_STATES = ["pending", "retry", "leased", "failed"] as const;
 
 export interface MediaUsageWorkIdentity {
 	collectionId: string;
@@ -36,8 +41,385 @@ export interface MediaUsageWorkRecord extends MediaUsageWorkIdentity {
 	updatedAt: string;
 }
 
+export interface MediaUsageOperatorWorkItem {
+	collectionId: string;
+	collectionSlug: string;
+	contentId: string;
+	state: MediaUsageWorkState;
+	attemptCount: number;
+	nextAttemptAt: string;
+	leaseExpiresAt: string | null;
+	lastAttemptedAt: string | null;
+	lastErrorCode: string | null;
+	updatedAt: string;
+}
+
+export type MediaUsageOperatorRetryResult =
+	| { outcome: "pending"; changed: boolean; work: MediaUsageOperatorWorkItem }
+	| { outcome: "lease_active"; leaseExpiresAt: string }
+	| { outcome: "collection_not_found" }
+	| { outcome: "conflict" };
+
 export class MediaUsageWorkRepository {
 	constructor(private db: Kysely<Database>) {}
+
+	async findOperatorPage(options: {
+		collectionSlug: string;
+		state?: MediaUsageWorkState;
+		limit?: number;
+		cursor?: string;
+	}): Promise<FindManyResult<MediaUsageOperatorWorkItem> | null> {
+		if (!options.collectionSlug) {
+			throw new Error("Media usage work listing requires a collection slug");
+		}
+		if (options.state !== undefined && !isMediaUsageWorkState(options.state)) {
+			throw new Error("Media usage work listing requires a valid state");
+		}
+		const limit = operatorLimit(options.limit);
+		const cursor = options.cursor ? decodeCursor(options.cursor) : null;
+		const collection = await this.db
+			.selectFrom("_emdash_collections")
+			.select(["id", "slug"])
+			.where("slug", "=", options.collectionSlug)
+			.executeTakeFirst();
+		if (!collection) return null;
+
+		const states = options.state ? [options.state] : MEDIA_USAGE_WORK_STATES;
+		const candidates: MediaUsageOperatorWorkItem[] = [];
+		for (const state of states) {
+			const rows = await this.findOperatorRows({
+				collectionId: collection.id,
+				collectionSlug: collection.slug,
+				state,
+				limit: limit + 1,
+				cursor,
+			});
+			candidates.push(...rows.map(rowToOperatorWork));
+		}
+
+		const ordered = candidates.toSorted(compareOperatorWork);
+		const items = ordered.slice(0, limit);
+		const result: FindManyResult<MediaUsageOperatorWorkItem> = { items };
+		if (ordered.length > limit && items.length > 0) {
+			const last = items.at(-1)!;
+			result.nextCursor = encodeCursor(last.updatedAt, last.contentId);
+		}
+		return result;
+	}
+
+	private async findOperatorRows(input: {
+		collectionId: string;
+		collectionSlug: string;
+		state: MediaUsageWorkState;
+		limit: number;
+		cursor: { orderValue: string; id: string } | null;
+	}): Promise<Selectable<MediaUsageWorkTable>[]> {
+		let query = this.db
+			.selectFrom("_emdash_media_usage_work as work")
+			.innerJoin("_emdash_collections as current_collection", (join) =>
+				join
+					.onRef("current_collection.id", "=", "work.collection_id")
+					.onRef("current_collection.slug", "=", "work.collection_slug"),
+			)
+			.selectAll("work")
+			.where("work.collection_id", "=", input.collectionId)
+			.where("work.collection_slug", "=", input.collectionSlug)
+			.where("work.state", "=", input.state);
+		if (input.cursor) {
+			query = query.where((eb) =>
+				eb.or([
+					eb("work.updated_at", "<", input.cursor!.orderValue),
+					eb.and([
+						eb("work.updated_at", "=", input.cursor!.orderValue),
+						eb("work.content_id", "<", input.cursor!.id),
+					]),
+				]),
+			);
+		}
+		return query
+			.orderBy("work.updated_at", "desc")
+			.orderBy("work.content_id", "desc")
+			.limit(input.limit)
+			.execute();
+	}
+
+	async retryOperatorWork(input: {
+		collectionId: string;
+		contentId: string;
+	}): Promise<MediaUsageOperatorRetryResult> {
+		if (!input.collectionId || !input.contentId) {
+			throw new Error("Media usage operator retry requires collection and content IDs");
+		}
+		const collection = await this.findActiveOperatorCollection(input.collectionId);
+		if (!collection) return { outcome: "collection_not_found" };
+
+		const observed = await this.findWorkByIdentity(input.collectionId, input.contentId);
+		if (observed?.state === "pending" && observed.collection_slug === collection.slug) {
+			return { outcome: "pending", changed: false, work: rowToOperatorWork(observed) };
+		}
+
+		const invalidated = await this.invalidateCoverageForOperatorRetry({
+			...input,
+			collectionSlug: collection.slug,
+			observed,
+		});
+		if (!invalidated) return this.operatorRetryLost(input);
+
+		const reopened = observed
+			? await this.reopenObservedWork(observed, collection.slug, invalidated.change_epoch)
+			: await this.createOperatorWork({
+					...input,
+					collectionSlug: collection.slug,
+					changeEpoch: invalidated.change_epoch,
+				});
+		if (reopened) {
+			return { outcome: "pending", changed: true, work: rowToOperatorWork(reopened) };
+		}
+		return this.operatorRetryLost(input);
+	}
+
+	private async findActiveOperatorCollection(
+		collectionId: string,
+	): Promise<{ id: string; slug: string } | null> {
+		const row = await this.db
+			.selectFrom("_emdash_collections as collection")
+			.innerJoin("_emdash_media_usage_index_status as status", (join) =>
+				join
+					.onRef("status.collection_id", "=", "collection.id")
+					.onRef("status.scope_key", "=", "collection.slug"),
+			)
+			.select(["collection.id", "collection.slug"])
+			.where("collection.id", "=", collectionId)
+			.where("status.adapter_id", "=", "content-media")
+			.where("status.scope_type", "=", "collection")
+			.where("status.capture_state", "=", "active")
+			.executeTakeFirst();
+		return row ?? null;
+	}
+
+	private async findWorkByIdentity(
+		collectionId: string,
+		contentId: string,
+	): Promise<Selectable<MediaUsageWorkTable> | null> {
+		return (
+			(await this.db
+				.selectFrom("_emdash_media_usage_work")
+				.selectAll()
+				.where("collection_id", "=", collectionId)
+				.where("content_id", "=", contentId)
+				.executeTakeFirst()) ?? null
+		);
+	}
+
+	private async invalidateCoverageForOperatorRetry(input: {
+		collectionId: string;
+		collectionSlug: string;
+		contentId: string;
+		observed: Selectable<MediaUsageWorkTable> | null;
+	}): Promise<{ change_epoch: number | string } | null> {
+		let query = this.db
+			.updateTable("_emdash_media_usage_index_status as status")
+			.set({
+				change_epoch: sql<number>`change_epoch + 1`,
+				status: sql<string>`CASE WHEN status = 'complete' THEN 'stale' ELSE status END`,
+				completed_at: sql<
+					string | null
+				>`CASE WHEN status = 'complete' THEN NULL ELSE completed_at END`,
+				updated_at: this.timestampOffset(0),
+			})
+			.where("status.adapter_id", "=", "content-media")
+			.where("status.scope_type", "=", "collection")
+			.where("status.scope_key", "=", input.collectionSlug)
+			.where("status.collection_id", "=", input.collectionId)
+			.where("status.capture_state", "=", "active")
+			.where((eb) =>
+				eb.exists(
+					eb
+						.selectFrom("_emdash_collections as collection")
+						.select("collection.id")
+						.whereRef("collection.id", "=", "status.collection_id")
+						.whereRef("collection.slug", "=", "status.scope_key"),
+				),
+			);
+
+		const observed = input.observed;
+		if (observed) {
+			query = query.where((eb) => {
+				let work = eb
+					.selectFrom("_emdash_media_usage_work as work")
+					.select("work.content_id")
+					.whereRef("work.collection_id", "=", "status.collection_id")
+					.where("work.content_id", "=", input.contentId)
+					.where("work.work_version", "=", observed.work_version)
+					.where("work.state", "=", observed.state);
+				if (observed.state === "leased") {
+					work = work
+						.where("work.lease_expires_at", "is not", null)
+						.where(this.timestampIsDue("work.lease_expires_at"));
+				}
+				return eb.exists(work);
+			});
+		} else {
+			query = query.where((eb) =>
+				eb.not(
+					eb.exists(
+						eb
+							.selectFrom("_emdash_media_usage_work as work")
+							.select("work.content_id")
+							.whereRef("work.collection_id", "=", "status.collection_id")
+							.where("work.content_id", "=", input.contentId),
+					),
+				),
+			);
+		}
+
+		return (await query.returning("change_epoch").executeTakeFirst()) ?? null;
+	}
+
+	private async reopenObservedWork(
+		observed: Selectable<MediaUsageWorkTable>,
+		collectionSlug: string,
+		changeEpoch: number | string,
+	): Promise<Selectable<MediaUsageWorkTable> | null> {
+		let query = this.db
+			.updateTable("_emdash_media_usage_work")
+			.set({
+				collection_slug: collectionSlug,
+				change_epoch: changeEpoch,
+				work_version: sql<number>`work_version + 1`,
+				state: "pending",
+				attempt_count: 0,
+				next_attempt_at: this.timestampOffset(0),
+				lease_token: null,
+				lease_expires_at: null,
+				last_attempted_at: null,
+				last_error_code: null,
+				updated_at: this.timestampOffset(0),
+			})
+			.where("collection_id", "=", observed.collection_id)
+			.where("content_id", "=", observed.content_id)
+			.where("work_version", "=", observed.work_version)
+			.where("state", "=", observed.state)
+			.where((eb) =>
+				eb.exists(
+					eb
+						.selectFrom("_emdash_collections as collection")
+						.innerJoin("_emdash_media_usage_index_status as status", (join) =>
+							join
+								.onRef("status.collection_id", "=", "collection.id")
+								.onRef("status.scope_key", "=", "collection.slug"),
+						)
+						.select("collection.id")
+						.where("collection.id", "=", observed.collection_id)
+						.where("collection.slug", "=", collectionSlug)
+						.where("status.adapter_id", "=", "content-media")
+						.where("status.scope_type", "=", "collection")
+						.where("status.capture_state", "=", "active")
+						.where("status.change_epoch", "=", changeEpoch),
+				),
+			);
+		if (observed.state === "leased") {
+			query = query
+				.where("lease_expires_at", "is not", null)
+				.where(this.timestampIsDue("lease_expires_at"));
+		}
+		return (await query.returningAll().executeTakeFirst()) ?? null;
+	}
+
+	private async createOperatorWork(input: {
+		collectionId: string;
+		collectionSlug: string;
+		contentId: string;
+		changeEpoch: number | string;
+	}): Promise<Selectable<MediaUsageWorkTable> | null> {
+		const now = this.timestampOffset(0);
+		return (
+			(await this.db
+				.insertInto("_emdash_media_usage_work")
+				.columns([
+					"collection_id",
+					"collection_slug",
+					"content_id",
+					"change_epoch",
+					"work_version",
+					"state",
+					"attempt_count",
+					"next_attempt_at",
+					"lease_token",
+					"lease_expires_at",
+					"last_attempted_at",
+					"last_error_code",
+					"created_at",
+					"updated_at",
+				])
+				.expression((insert) =>
+					insert
+						.selectFrom("_emdash_media_usage_index_status as status")
+						.innerJoin("_emdash_collections as collection", (join) =>
+							join
+								.onRef("collection.id", "=", "status.collection_id")
+								.onRef("collection.slug", "=", "status.scope_key"),
+						)
+						.select((select) => [
+							select.val(input.collectionId).as("collection_id"),
+							"collection.slug as collection_slug",
+							select.val(input.contentId).as("content_id"),
+							"status.change_epoch as change_epoch",
+							select.val(1).as("work_version"),
+							select.val("pending").as("state"),
+							select.val(0).as("attempt_count"),
+							now.as("next_attempt_at"),
+							sql<null>`NULL`.as("lease_token"),
+							sql<null>`NULL`.as("lease_expires_at"),
+							sql<null>`NULL`.as("last_attempted_at"),
+							sql<null>`NULL`.as("last_error_code"),
+							now.as("created_at"),
+							now.as("updated_at"),
+						])
+						.where("status.adapter_id", "=", "content-media")
+						.where("status.scope_type", "=", "collection")
+						.where("status.scope_key", "=", input.collectionSlug)
+						.where("status.collection_id", "=", input.collectionId)
+						.where("status.capture_state", "=", "active")
+						.where("status.change_epoch", "=", input.changeEpoch),
+				)
+				.onConflict((conflict) => conflict.columns(["collection_id", "content_id"]).doNothing())
+				.returningAll()
+				.executeTakeFirst()) ?? null
+		);
+	}
+
+	private async operatorRetryLost(input: {
+		collectionId: string;
+		contentId: string;
+	}): Promise<MediaUsageOperatorRetryResult> {
+		if (!(await this.findActiveOperatorCollection(input.collectionId))) {
+			return { outcome: "collection_not_found" };
+		}
+		const current = await this.findWorkByIdentity(input.collectionId, input.contentId);
+		if (current?.state === "pending") {
+			return { outcome: "pending", changed: false, work: rowToOperatorWork(current) };
+		}
+		const liveLease = await this.findLiveLeaseExpiry(input.collectionId, input.contentId);
+		if (liveLease) return { outcome: "lease_active", leaseExpiresAt: liveLease };
+		return { outcome: "conflict" };
+	}
+
+	private async findLiveLeaseExpiry(
+		collectionId: string,
+		contentId: string,
+	): Promise<string | null> {
+		const row = await this.db
+			.selectFrom("_emdash_media_usage_work")
+			.select("lease_expires_at")
+			.where("collection_id", "=", collectionId)
+			.where("content_id", "=", contentId)
+			.where("state", "=", "leased")
+			.where("lease_expires_at", "is not", null)
+			.where(this.leaseIsLive())
+			.executeTakeFirst();
+		return row?.lease_expires_at ?? null;
+	}
 
 	async findDueWork(limit: number): Promise<MediaUsageWorkRecord[]> {
 		if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_WORK_SELECTION_LIMIT) {
@@ -222,7 +604,9 @@ export class MediaUsageWorkRepository {
 			: sql<boolean>`lease_expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
 	}
 
-	private timestampIsDue(column: "next_attempt_at" | "lease_expires_at"): RawBuilder<boolean> {
+	private timestampIsDue(
+		column: "next_attempt_at" | "lease_expires_at" | "work.lease_expires_at",
+	): RawBuilder<boolean> {
 		return isPostgres(this.db)
 			? sql<boolean>`${sql.ref(column)}::timestamptz <= clock_timestamp()`
 			: sql<boolean>`${sql.ref(column)} <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
@@ -241,6 +625,16 @@ export class MediaUsageWorkRepository {
 			${`${offsetSeconds >= 0 ? "+" : ""}${offsetSeconds} seconds`}
 		)`;
 	}
+}
+
+function operatorLimit(value: number | undefined): number {
+	if (value === undefined) return MEDIA_USAGE_WORK_OPERATOR_DEFAULT_LIMIT;
+	if (!Number.isSafeInteger(value) || value < 1 || value > MEDIA_USAGE_WORK_OPERATOR_MAX_LIMIT) {
+		throw new Error(
+			`Media usage operator limit must be a whole number from 1 to ${MEDIA_USAGE_WORK_OPERATOR_MAX_LIMIT}`,
+		);
+	}
+	return value;
 }
 
 function durationSeconds(value: number, label: string, allowZero: boolean): number {
@@ -314,6 +708,24 @@ function rowToWork(row: Selectable<MediaUsageWorkTable>): MediaUsageWorkRecord {
 	};
 }
 
+function rowToOperatorWork(
+	row: Selectable<MediaUsageWorkTable> | MediaUsageWorkRecord,
+): MediaUsageOperatorWorkItem {
+	const work = "collection_id" in row ? rowToWork(row) : row;
+	return {
+		collectionId: work.collectionId,
+		collectionSlug: work.collectionSlug,
+		contentId: work.contentId,
+		state: work.state,
+		attemptCount: work.attemptCount,
+		nextAttemptAt: work.nextAttemptAt,
+		leaseExpiresAt: work.leaseExpiresAt,
+		lastAttemptedAt: work.lastAttemptedAt,
+		lastErrorCode: work.lastErrorCode,
+		updatedAt: work.updatedAt,
+	};
+}
+
 function isMediaUsageWorkState(value: string): value is MediaUsageWorkState {
 	return value === "pending" || value === "retry" || value === "leased" || value === "failed";
 }
@@ -325,6 +737,11 @@ function compareDueWork(a: MediaUsageWorkRecord, b: MediaUsageWorkRecord): numbe
 	if (updated !== 0) return updated;
 	const collection = a.collectionId.localeCompare(b.collectionId);
 	return collection !== 0 ? collection : a.contentId.localeCompare(b.contentId);
+}
+
+function compareOperatorWork(a: MediaUsageOperatorWorkItem, b: MediaUsageOperatorWorkItem): number {
+	const updated = b.updatedAt.localeCompare(a.updatedAt);
+	return updated !== 0 ? updated : b.contentId.localeCompare(a.contentId);
 }
 
 function dueTimestamp(work: MediaUsageWorkRecord): string {

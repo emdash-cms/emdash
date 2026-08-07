@@ -252,6 +252,56 @@ const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
 
 `priority` is for the primary above-the-fold image. It sets `loading="eager"` and `fetchpriority="high"`: `loading` controls whether loading is deferred, and `fetchpriority` gives the browser a priority hint for the request.
 
+## Monitoring Media Usage Indexing
+
+EmDash records durable work when a supported content save changes its media references. It tries
+the work immediately and, when scheduled maintenance is enabled, retries transient failures in
+bounded background runs. Completed work is removed from the queue.
+
+Operators with `schema:manage` can inspect one collection at a time without loading or counting
+the whole backlog:
+
+```http
+GET /_emdash/api/admin/media-usage/work?collection=posts&state=failed&limit=50
+```
+
+The optional `state` is `pending`, `retry`, `leased`, or `failed`. Follow `nextCursor` to request
+another page. A `failed` item has reached the automatic retry limit and remains visible until a
+later content save or an explicit retry reopens it.
+
+Automatic indexing accepts at most 14 extracted media occurrences in each changed live or draft
+projection. A larger changed projection fails immediately with `MEDIA_USAGE_RESOURCE_LIMIT`,
+without consuming normal retries or publishing part of the new projection. Do not repeatedly retry
+this error: reduce the projection to 14 occurrences or fewer, or reconcile it under
+operator-controlled collection repair after assessing that collection-wide operation's cost. An
+already-indexed oversized projection can still complete as an unchanged no-op.
+
+Retry one item using the immutable `collectionId` and `contentId` returned by the list:
+
+```http
+POST /_emdash/api/admin/media-usage/work/retry
+Content-Type: application/json
+X-EmDash-Request: 1
+
+{
+	"collectionId": "01COLLECTION...",
+	"contentId": "01CONTENT..."
+}
+```
+
+The same operations are available through `EmDashClient.mediaListUsageWork()` and
+`EmDashClient.mediaRetryUsageWork()`. Retrying already-pending work is a successful no-op. A live
+worker lease returns `409 WORK_LEASE_ACTIVE`; wait until its reported expiry instead of trying to
+replace the active worker. Retrying `MEDIA_USAGE_RESOURCE_LIMIT` without changing or reconciling the
+entry returns it to the same terminal state.
+
+<Aside type="caution">
+	If scheduled maintenance is disabled, successful saves still attempt immediate indexing, but a
+	failed job has no automatic freshness deadline. The work list is not a historical scan: use
+	collection-scoped Media Usage repair after imports, direct database writes, or any suspected
+	unrecorded gap. An empty work page alone does not prove complete historical coverage.
+</Aside>
+
 ## Deleting Media
 
 1. Select the file(s) you want to delete
