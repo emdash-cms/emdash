@@ -46,7 +46,7 @@ function createDeps(
 }
 
 describe("EmDashRuntime.getManifest — sandbox availability", () => {
-	it("probes the runner at most once across repeated manifest builds", async () => {
+	it("reuses the startup probe across repeated manifest builds", async () => {
 		const isAvailable = vi.fn(() => true);
 		const fakeRunner: SandboxRunner = {
 			isAvailable,
@@ -59,6 +59,7 @@ describe("EmDashRuntime.getManifest — sandbox availability", () => {
 		const runtime = await EmDashRuntime.create(createDeps(() => fakeRunner));
 		try {
 			const probesAfterCreate = isAvailable.mock.calls.length;
+			expect(probesAfterCreate).toBe(1);
 
 			const m1 = await runtime.getManifest();
 			const m2 = await runtime.getManifest();
@@ -68,9 +69,7 @@ describe("EmDashRuntime.getManifest — sandbox availability", () => {
 			expect(m2.sandboxAvailable).toBe(true);
 			expect(m3.sandboxAvailable).toBe(true);
 
-			// Three fresh manifest builds must add at most one probe (the first,
-			// then memoized). Before the fix this grew by three.
-			expect(isAvailable.mock.calls.length - probesAfterCreate).toBeLessThanOrEqual(1);
+			expect(isAvailable).toHaveBeenCalledTimes(probesAfterCreate);
 		} finally {
 			await runtime.stopCron();
 		}

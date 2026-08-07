@@ -502,23 +502,28 @@ const marketplaceManifestCache = new Map<
 const sandboxedRouteMetaCache = new Map<string, Map<string, RouteMeta>>();
 let sandboxRunner: SandboxRunner | null = null;
 
-/**
- * Memoized sandbox-runner availability.
- *
- * `SandboxRunner.isAvailable()` is cheap on Cloudflare (a binding property
- * read) but expensive on Node: the workerd runner spawns `workerd --version`
- * synchronously (`execFileSync`, 5s timeout). The manifest is built per admin
- * request, so probing on every call would stall the Node event loop on a hot
- * path. Availability is process-stable (binary / binding presence doesn't
- * change), so we probe once and cache. Left `undefined` until the runner is
- * wired (during create()), so an early call can't cache a false negative.
- */
-let sandboxRunnerAvailable: boolean | undefined;
+const SANDBOX_RUNNER_AVAILABILITY_KEY = Symbol.for("emdash:sandbox-runner-availability");
+
+function getSandboxRunnerAvailabilityCache(): WeakMap<SandboxRunner, boolean> {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
+	let cache = globalSymbolStore[SANDBOX_RUNNER_AVAILABILITY_KEY] as
+		| WeakMap<SandboxRunner, boolean>
+		| undefined;
+	if (!cache) {
+		cache = new WeakMap();
+		globalSymbolStore[SANDBOX_RUNNER_AVAILABILITY_KEY] = cache;
+	}
+	return cache;
+}
 
 function isSandboxRunnerAvailable(): boolean {
 	if (!sandboxRunner) return false;
-	sandboxRunnerAvailable ??= sandboxRunner.isAvailable();
-	return sandboxRunnerAvailable;
+	const cache = getSandboxRunnerAvailabilityCache();
+	const cached = cache.get(sandboxRunner);
+	if (cached !== undefined) return cached;
+	const available = sandboxRunner.isAvailable();
+	cache.set(sandboxRunner, available);
+	return available;
 }
 
 /**
@@ -830,7 +835,7 @@ export class EmDashRuntime {
 	 */
 	private async syncSandboxedSourcePlugins(source: "marketplace" | "registry"): Promise<void> {
 		if (!this.storage) return;
-		if (!sandboxRunner || !sandboxRunner.isAvailable()) return;
+		if (!sandboxRunner || !isSandboxRunnerAvailable()) return;
 
 		const keySet = source === "marketplace" ? marketplacePluginKeys : registryPluginKeys;
 
@@ -1965,7 +1970,7 @@ export class EmDashRuntime {
 		// Check if the runner is actually available (has required bindings).
 		// Warn regardless of whether there are plugins to load, so operators
 		// see the issue even if no marketplace plugins are installed yet.
-		if (!sandboxRunner.isAvailable()) {
+		if (!isSandboxRunnerAvailable()) {
 			console.warn(
 				"EmDash: Plugin sandbox is configured but not available on this platform. " +
 					"Sandboxed plugins will not be loaded. " +
@@ -2071,7 +2076,7 @@ export class EmDashRuntime {
 		// BEFORE pipeline creation by EmDashRuntime.create(). Skip here.
 		if (deps.sandboxBypassed) return;
 
-		if (!sandboxRunner || !sandboxRunner.isAvailable()) {
+		if (!sandboxRunner || !isSandboxRunnerAvailable()) {
 			return;
 		}
 
