@@ -143,10 +143,14 @@ const schemaUpdateFieldToolSchema = z.object({
 	fieldSlug: z.string().describe("Field slug to update; the slug itself cannot be changed"),
 	label: updateFieldBody.shape.label.describe("New display name"),
 	type: updateFieldBody.shape.type.describe(
-		"New field type; only changes that preserve the underlying column type are allowed",
+		"New field type; only string, text, and slug aliases can be changed in place",
 	),
-	required: updateFieldBody.shape.required.describe("Whether the field is required"),
-	unique: updateFieldBody.shape.unique.describe("Whether field values must be unique"),
+	required: updateFieldBody.shape.required.describe(
+		"Whether the field is required; changing this requires a manual content migration",
+	),
+	unique: updateFieldBody.shape.unique.describe(
+		"Whether field values must be unique; changing this requires a manual content migration",
+	),
 	defaultValue: updateFieldBody.shape.defaultValue.describe("Default value for new content"),
 	validation: updateFieldBody.shape.validation.describe(
 		"Validation constraints; pass null to clear existing constraints",
@@ -158,7 +162,7 @@ const schemaUpdateFieldToolSchema = z.object({
 		"Whether full-text search indexes the field",
 	),
 	translatable: updateFieldBody.shape.translatable.describe(
-		"Whether values vary by locale instead of syncing across a translation group",
+		"Whether values vary by locale; changing to false requires a manual content migration",
 	),
 });
 
@@ -1801,6 +1805,7 @@ export function createMcpServer(
 				"Only provided settings change; omitted settings keep their current values. " +
 				"The collection slug cannot be changed.",
 			inputSchema: schemaUpdateCollectionToolSchema,
+			annotations: { destructiveHint: false },
 		},
 		async (args, extra) => {
 			requireScope(extra, "schema:write");
@@ -1955,9 +1960,10 @@ export function createMcpServer(
 			title: "Update Field",
 			description:
 				"Update an existing field without deleting its column or stored values. Only " +
-				"provided settings change; omitted settings keep their current values. Type " +
-				"changes that require a physical column migration are rejected with migration guidance.",
+				"provided settings change; omitted settings keep their current values. Changes " +
+				"that require a content or column migration are rejected with migration guidance.",
 			inputSchema: schemaUpdateFieldToolSchema,
+			annotations: { destructiveHint: false },
 		},
 		async (args, extra) => {
 			requireScope(extra, "schema:write");

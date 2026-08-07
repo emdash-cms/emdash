@@ -382,23 +382,23 @@ For `select` and `multiSelect` types, provide allowed values in `validation.opti
 
 #### `schema_update_field`
 
-Update an existing field without deleting its column or stored values. Only provided settings change; omitted settings keep their current values. Type changes are accepted only when the underlying column type remains compatible. Changes that require a physical content migration return `FIELD_TYPE_COLUMN_CHANGE` with migration guidance.
+Update an existing field without deleting its column or stored values. Only provided settings change; omitted settings keep their current values. `string`, `text`, and `slug` may be changed between one another. Other type changes and settings that require content or column migration are rejected with migration guidance. Invalid regular expressions and contradictory validation ranges are rejected before any schema metadata changes.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `collection` | `string` | Yes | Collection containing the field |
 | `fieldSlug` | `string` | Yes | Field slug to update |
 | `label` | `string` | No | New display name |
-| `type` | `string` | No | New field type; must preserve the underlying column type |
-| `required` | `boolean` | No | Whether the field is required |
-| `unique` | `boolean` | No | Whether field values must be unique |
+| `type` | `string` | No | New field type; only `string`, `text`, and `slug` aliases can be changed in place |
+| `required` | `boolean` | No | Whether the field is required; changing it requires a manual content migration |
+| `unique` | `boolean` | No | Whether field values must be unique; changing it requires a manual content migration |
 | `defaultValue` | `any` | No | Default value for new content |
 | `validation` | `object \| null` | No | Validation constraints; `null` clears them |
 | `widget` | `string` | No | Admin editor widget name |
 | `options` | `object` | No | Widget configuration |
 | `sortOrder` | `integer` | No | Field order in the content editor |
 | `searchable` | `boolean` | No | Whether full-text search indexes the field |
-| `translatable` | `boolean` | No | Whether values vary by locale |
+| `translatable` | `boolean` | No | Whether values vary by locale; changing to `false` requires a manual content migration |
 
 **Scope:** `schema:write` | **Minimum role:** Admin
 

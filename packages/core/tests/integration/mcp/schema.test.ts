@@ -24,6 +24,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
+import { validateContent } from "../../../src/schema/zod-generator.js";
 import {
 	connectMcpHarness,
 	extractJson,
@@ -317,6 +318,7 @@ describe("schema_update_collection", () => {
 			label: "Posts",
 			labelSingular: "Post",
 			supports: ["drafts", "revisions"],
+			hasSeo: true,
 		});
 		await registry.createField("post", { slug: "title", label: "Title", type: "string" });
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
@@ -413,6 +415,40 @@ describe("schema_update_collection", () => {
 		expect(result.isError).toBe(true);
 		expect(extractText(result)).toContain("[COLLECTION_NOT_FOUND]");
 		expect(extractText(result)).toContain('Collection "missing" not found');
+	});
+
+	it("rejects malformed URL patterns without changing the collection", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "post", urlPattern: "(" },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/url pattern|regular expression|invalid/i);
+		expect((await new SchemaRegistry(db).getCollection("post"))?.urlPattern).toBeUndefined();
+	});
+
+	it("preserves SEO when supports changes without hasSeo", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "post", supports: ["drafts", "preview"] },
+		});
+
+		expect(result.isError, extractText(result)).toBeFalsy();
+		expect(extractJson<{ item: { hasSeo: boolean } }>(result).item.hasSeo).toBe(true);
+		expect((await new SchemaRegistry(db).getCollection("post"))?.hasSeo).toBe(true);
+	});
+
+	it("preserves concurrent partial collection updates", async () => {
+		const registry = new SchemaRegistry(db);
+		await Promise.all([
+			registry.updateCollection("post", { label: "Articles" }),
+			registry.updateCollection("post", { description: "Concurrent description" }),
+		]);
+
+		const collection = await registry.getCollection("post");
+		expect(collection?.label).toBe("Articles");
+		expect(collection?.description).toBe("Concurrent description");
 	});
 
 	it("requires the schema:write token scope", async () => {
@@ -760,11 +796,9 @@ describe("schema_update_field", () => {
 				fieldSlug: "body",
 				label: "Summary",
 				type: "string",
-				required: true,
 				validation: { minLength: 1, maxLength: 160 },
 				widget: "text",
 				sortOrder: 4,
-				translatable: false,
 			},
 		});
 
@@ -785,11 +819,11 @@ describe("schema_update_field", () => {
 			slug: "body",
 			label: "Summary",
 			type: "string",
-			required: true,
+			required: false,
 			validation: { minLength: 1, maxLength: 160 },
 			widget: "text",
 			sortOrder: 4,
-			translatable: false,
+			translatable: true,
 		});
 
 		const content = await harness.client.callTool({
@@ -818,6 +852,88 @@ describe("schema_update_field", () => {
 
 		const field = await new SchemaRegistry(db).getField("post", "body");
 		expect(field?.type).toBe("text");
+	});
+
+	it("rejects a semantically incompatible type with the same column affinity", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_update_field",
+			arguments: {
+				collection: "post",
+				fieldSlug: "body",
+				type: "datetime",
+			},
+		});
+
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toContain("[FIELD_TYPE_CHANGE_REQUIRES_MIGRATION]");
+		expect(extractText(result)).toMatch(/manual content migration/i);
+		expect((await new SchemaRegistry(db).getField("post", "body"))?.type).toBe("text");
+	});
+
+	it("rejects field invariant changes that require data or column migration", async () => {
+		for (const change of [{ required: true }, { unique: true }, { translatable: false }]) {
+			const result = await harness.client.callTool({
+				name: "schema_update_field",
+				arguments: { collection: "post", fieldSlug: "body", ...change },
+			});
+			expect(result.isError).toBe(true);
+			expect(extractText(result)).toContain("[FIELD_UPDATE_REQUIRES_MIGRATION]");
+			expect(extractText(result)).toMatch(/manual content migration/i);
+		}
+
+		const field = await new SchemaRegistry(db).getField("post", "body");
+		expect(field).toMatchObject({ required: false, unique: false, translatable: true });
+	});
+
+	it("rejects invalid validation rules without changing the field", async () => {
+		for (const validation of [
+			{ pattern: "[" },
+			{ minLength: 5, maxLength: 1 },
+			{ min: 10, max: 1 },
+			{ minItems: 4, maxItems: 2 },
+		]) {
+			const result = await harness.client.callTool({
+				name: "schema_update_field",
+				arguments: { collection: "post", fieldSlug: "body", validation },
+			});
+			expect(result.isError).toBe(true);
+			expect(extractText(result)).toMatch(/invalid|minimum|maximum|pattern/i);
+		}
+
+		expect((await new SchemaRegistry(db).getField("post", "body"))?.validation).toBeUndefined();
+	});
+
+	it("invalidates the generated content schema after a field update", async () => {
+		const registry = new SchemaRegistry(db);
+		const before = await registry.getCollectionWithFields("post");
+		expect(before).not.toBeNull();
+		expect(validateContent(before!, { body: "primes the cache" }).success).toBe(true);
+
+		const update = await harness.client.callTool({
+			name: "schema_update_field",
+			arguments: {
+				collection: "post",
+				fieldSlug: "body",
+				validation: { maxLength: 1 },
+			},
+		});
+		expect(update.isError, extractText(update)).toBeFalsy();
+
+		const after = await registry.getCollectionWithFields("post");
+		expect(after).not.toBeNull();
+		expect(validateContent(after!, { body: "too long" }).success).toBe(false);
+	});
+
+	it("preserves concurrent partial field updates", async () => {
+		const registry = new SchemaRegistry(db);
+		await Promise.all([
+			registry.updateField("post", "body", { label: "Summary" }),
+			registry.updateField("post", "body", { sortOrder: 7 }),
+		]);
+
+		const field = await registry.getField("post", "body");
+		expect(field?.label).toBe("Summary");
+		expect(field?.sortOrder).toBe(7);
 	});
 
 	it("uses the REST validation contract for update input", async () => {
