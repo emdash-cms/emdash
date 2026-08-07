@@ -13,6 +13,8 @@ import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { handleMediaUsageSummaries } from "#api/handlers/media-usage.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { mediaGetQuery, mediaUpdateBody } from "#api/schemas.js";
+import { MediaRepository } from "#db/repositories/media.js";
+import { removeUploadAttempt } from "#media/upload-attempts.js";
 
 export const prerender = false;
 
@@ -137,20 +139,27 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 		);
 		if (ownerDenied) return ownerDenied;
 
-		// Delete file from storage via the storage adapter
-		if (emdash.storage) {
-			try {
-				await emdash.storage.delete(media.storageKey);
-			} catch {
-				// Best-effort — continue with database deletion
-			}
-		}
-
 		// Delete from database — site-settings cache invalidation happens
 		// in `EmDashRuntime.handleMediaDelete` so MCP/plugin paths inherit it.
 		const result = await emdash.handleMediaDelete(id);
+		if (!result.success) return unwrapResult(result);
+		if (
+			typeof result.data !== "object" ||
+			result.data === null ||
+			!("storageKey" in result.data) ||
+			typeof result.data.storageKey !== "string"
+		) {
+			return apiError("MEDIA_DELETE_ERROR", "Failed to delete media", 500);
+		}
 
-		return unwrapResult(result);
+		if (emdash.storage) {
+			const repo = new MediaRepository(emdash.db);
+			await removeUploadAttempt(emdash.storage, repo, result.data.storageKey, {
+				allowUntracked: true,
+			});
+		}
+
+		return apiSuccess({ deleted: true });
 	} catch (error) {
 		return handleError(error, "Failed to delete media", "MEDIA_DELETE_ERROR");
 	}

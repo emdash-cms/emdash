@@ -263,3 +263,22 @@ describe("resolveS3Config", () => {
 		});
 	});
 });
+
+describe("S3Storage.getSignedUploadUrl", () => {
+	it("returns a zero Content-Length when zero is included in the signature", async () => {
+		const storage = createStorage({
+			endpoint: "https://bucket.s3.example.com",
+			bucket: "my-bucket",
+			accessKeyId: "key",
+			secretAccessKey: "secret",
+		});
+
+		const signed = await storage.getSignedUploadUrl({
+			key: "empty.pdf",
+			contentType: "application/pdf",
+			size: 0,
+		});
+
+		expect(signed.headers["Content-Length"]).toBe("0");
+	});
+});

@@ -68,8 +68,10 @@ export function RegistryBrowse({ config, installedRegistryUris = new Set() }: Re
 		<div className="space-y-6">
 			{/* Header */}
 			<div>
-				<h1 className="text-3xl font-bold">{t`Plugin Registry`}</h1>
-				<p className="mt-1 text-kumo-subtle">{t`Browse and install plugins published to the decentralized registry.`}</p>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Plugin Registry`}</h1>
+				<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+					{t`Browse and install plugins published to the decentralized registry.`}
+				</p>
 			</div>
 
 			{/* Search */}
@@ -183,7 +185,7 @@ function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
 						<h2 className="truncate font-semibold">{name ?? pkg.slug}</h2>
 						{verified ? (
 							<ShieldCheck
-								className="h-4 w-4 shrink-0 text-kumo-brand"
+								className="h-4 w-4 shrink-0 text-kumo-link"
 								aria-label={t`Verified publisher`}
 							/>
 						) : null}

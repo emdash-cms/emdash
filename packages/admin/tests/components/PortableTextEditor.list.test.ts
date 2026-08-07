@@ -10,6 +10,8 @@ type ListBlock = {
 	style: "normal";
 	listItem: "bullet" | "number";
 	level: number;
+	listId?: string;
+	listStart?: number;
 	children: Array<{ _type: "span"; text: string }>;
 };
 
@@ -186,6 +188,7 @@ describe("ProseMirror → PortableText: nested list level", () => {
 
 type PMList = {
 	type: "bulletList" | "orderedList";
+	attrs?: Record<string, unknown>;
 	content: Array<{
 		type: "listItem";
 		content: Array<{ type: string; content?: unknown[] }>;
@@ -369,6 +372,197 @@ describe("Round-trip: PT → PM → PT preserves nested list level", () => {
 			["bullet", 1, "Top"],
 			["number", 2, "Nested"],
 			["bullet", 1, "Sibling"],
+		]);
+	});
+});
+
+describe("numbered-list continuity metadata", () => {
+	it("preserves an explicit ordered-list start", () => {
+		const portableText = _prosemirrorToPortableText({
+			type: "doc",
+			content: [
+				{
+					type: "orderedList",
+					attrs: { start: 2 },
+					content: [
+						{
+							type: "listItem",
+							content: [{ type: "paragraph", content: [{ type: "text", text: "Second" }] }],
+						},
+					],
+				},
+			],
+		}).filter(isListBlock);
+
+		expect(portableText[0]).toMatchObject({ listStart: 2 });
+		expect(portableText[0]?.listId).toBeTruthy();
+
+		const list = findFirstList(_portableTextToProsemirror(portableText));
+		expect(list?.attrs).toMatchObject({
+			start: 2,
+			listStart: 2,
+			listId: portableText[0]?.listId,
+		});
+	});
+
+	it.each([
+		{ listId: "  valid  ", listStart: 2, expectedId: "valid", expectedStart: 2 },
+		{ listId: " ", listStart: 0, expectedStart: 1 },
+		{ listId: "x".repeat(129), listStart: 2_147_483_648, expectedStart: 1 },
+		{
+			listId: "maximum",
+			listStart: 2_147_483_647,
+			expectedId: "maximum",
+			expectedStart: 2_147_483_647,
+		},
+	])("normalizes numbered-list metadata %#", ({ listId, listStart, expectedId, expectedStart }) => {
+		const list = findFirstList(
+			_portableTextToProsemirror([
+				{
+					...pt("number", 1, "Item"),
+					listId,
+					listStart,
+				},
+			]),
+		);
+
+		expect(list?.attrs?.start).toBe(expectedStart);
+		expect(list?.attrs?.listStart).toBe(expectedStart);
+		if (expectedId) {
+			expect(list?.attrs?.listId).toBe(expectedId);
+		} else {
+			expect(typeof list?.attrs?.listId).toBe("string");
+			expect(list?.attrs?.listId).not.toBe(listId);
+		}
+	});
+
+	it("derives a continuation start across an intervening block", () => {
+		const numbered = (key: string, text: string) => ({
+			...pt("number" as const, 1, text),
+			_key: key,
+			listId: "shared-list",
+			listStart: 1,
+		});
+		const doc = _portableTextToProsemirror([
+			numbered("one", "One"),
+			numbered("two", "Two"),
+			{
+				_type: "block",
+				_key: "between",
+				style: "normal",
+				children: [{ _type: "span", _key: "between-span", text: "Between" }],
+			},
+			numbered("three", "Three"),
+		]);
+		const lists = (doc.content as Array<{ type?: string }>).filter(
+			(node) => node.type === "orderedList",
+		) as PMList[];
+
+		expect(lists.map((list) => list.attrs?.start)).toEqual([1, 3]);
+		expect(lists.map((list) => list.attrs?.listId)).toEqual(["shared-list", "shared-list"]);
+	});
+
+	it("uses a later valid base when an earlier segment has no base", () => {
+		const first = { ...pt("number", 1, "Five"), listId: "shared-list" };
+		const second = {
+			...pt("number", 1, "Six"),
+			listId: "shared-list",
+			listStart: 5,
+		};
+		const doc = _portableTextToProsemirror([
+			first,
+			{
+				_type: "block",
+				_key: "between",
+				style: "normal",
+				children: [{ _type: "span", _key: "between-span", text: "Between" }],
+			},
+			second,
+		]);
+		const lists = (doc.content as Array<{ type?: string }>).filter(
+			(node) => node.type === "orderedList",
+		) as PMList[];
+
+		expect(lists.map((list) => list.attrs?.listStart)).toEqual([5, 5]);
+		expect(lists.map((list) => list.attrs?.start)).toEqual([5, 6]);
+	});
+
+	it("keeps a reused root and nested identity in separate numbering scopes", () => {
+		const withMetadata = (key: string, text: string, level: number, listStart: number) => ({
+			...pt("number", level, text),
+			_key: key,
+			listId: "shared-list",
+			listStart,
+		});
+		const doc = _portableTextToProsemirror([
+			withMetadata("root", "Root", 1, 1),
+			withMetadata("nested", "Nested", 2, 5),
+			withMetadata("root-two", "Root two", 1, 1),
+		]);
+		const outer = findFirstList(doc);
+		const nested = getNestedList(outer!.content[0]!);
+
+		expect(outer?.attrs).toMatchObject({ listId: "shared-list", listStart: 1, start: 1 });
+		expect(nested?.attrs).toMatchObject({ listStart: 5, start: 5 });
+		expect(nested?.attrs?.listId).not.toBe("shared-list");
+	});
+
+	it("survives save and reload across every supported top-level separator", () => {
+		const numberedList = (label: string, start: number) => ({
+			type: "orderedList",
+			attrs: { start, listStart: 1, listId: "shared-list" },
+			content: [
+				{
+					type: "listItem",
+					content: [{ type: "paragraph", content: [{ type: "text", text: label }] }],
+				},
+			],
+		});
+		const portableText = _prosemirrorToPortableText({
+			type: "doc",
+			content: [
+				numberedList("One", 1),
+				{ type: "paragraph", content: [{ type: "text", text: "Plain" }] },
+				numberedList("Two", 2),
+				{
+					type: "paragraph",
+					content: [{ type: "text", text: "Formatted", marks: [{ type: "bold" }] }],
+				},
+				numberedList("Three", 3),
+				{ type: "codeBlock", attrs: { language: "ts" }, content: [{ type: "text", text: "x" }] },
+				numberedList("Four", 4),
+				{ type: "image", attrs: { src: "/image.png", mediaId: "image" } },
+				numberedList("Five", 5),
+				{
+					type: "pluginBlock",
+					attrs: { blockType: "embed", id: "plugin", data: { title: "Plugin" } },
+				},
+				numberedList("Six", 6),
+			],
+		});
+		const numberedBlocks = portableText.filter(
+			(block): block is ListBlock => isListBlock(block) && block.listItem === "number",
+		);
+		expect(numberedBlocks.map((block) => [block.listId, block.listStart])).toEqual(
+			Array.from({ length: 6 }, () => ["shared-list", 1]),
+		);
+
+		const reloaded = _portableTextToProsemirror(portableText);
+		const rootNodes = reloaded.content as Array<{ type?: string; attrs?: Record<string, unknown> }>;
+		const lists = rootNodes.filter((node) => node.type === "orderedList");
+		expect(lists.map((list) => list.attrs?.start)).toEqual([1, 2, 3, 4, 5, 6]);
+		expect(rootNodes.map((node) => node.type)).toEqual([
+			"orderedList",
+			"paragraph",
+			"orderedList",
+			"paragraph",
+			"orderedList",
+			"codeBlock",
+			"orderedList",
+			"image",
+			"orderedList",
+			"pluginBlock",
+			"orderedList",
 		]);
 	});
 });

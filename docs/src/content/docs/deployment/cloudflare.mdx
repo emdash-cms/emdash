@@ -3,7 +3,7 @@ title: Deploy to Cloudflare
 description: Deploy EmDash to Cloudflare Workers with D1 and R2.
 ---
 
-import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
 Cloudflare Workers provides a fast, globally distributed runtime for EmDash. This guide covers deploying with D1 for the database and R2 for media storage.
 
@@ -209,6 +209,67 @@ emdash({
 ```
 
 See the [Authentication guide](/guides/authentication#cloudflare-access) for full configuration options.
+
+## Cloudflare AI Search
+
+The AI Search plugin indexes published EmDash content and adds smart search interface to your site.
+
+<Steps>
+1. Register the plugin in the `plugins` array passed to EmDash:
+
+	```js title="astro.config.mjs"
+	import { aiSearch } from "@emdash-cms/cloudflare/plugins";
+
+	// ...
+	plugins: [
+		formsPlugin(),
+		aiSearch(),
+	],
+	```
+
+2. Add the AI Search namespace binding to your Worker configuration:
+
+	```jsonc title="wrangler.jsonc"
+	{
+		"ai_search_namespaces": [
+			{
+				"binding": "AI_SEARCH",
+				"namespace": "default",
+			},
+		],
+	}
+	```
+
+3. Create the search endpoint used by the search interface:
+
+	```ts title="src/pages/api/ai-search/search.ts"
+	export { POST, prerender } from "@emdash-cms/cloudflare/plugins/ai-search";
+	```
+
+4. Add the search interface to your site layout. The trigger slot can contain any button that fits your site's design:
+
+	```astro title="src/layouts/Base.astro"
+	---
+	import AISearchSnippet from "@emdash-cms/cloudflare/plugins/ai-search/astro";
+	---
+
+	<AISearchSnippet apiUrl="/api/ai-search" placeholder="Search...">
+		<button slot="trigger" type="button">Search</button>
+	</AISearchSnippet>
+	```
+
+5. Deploy the site:
+
+	```bash
+	pnpm deploy
+	```
+
+6. Open **Cloudflare AI Search** in the EmDash admin panel, select the collections to index, and click **Sync All Content**.
+
+	This initial sync is required: the plugin's content hooks only fire for content created or updated after it was enabled, so anything published beforehand stays missing from the index until you run a full sync.
+</Steps>
+
+Content published or updated after setup is kept in sync automatically. The same page shows indexing progress.
 
 ## Email
 

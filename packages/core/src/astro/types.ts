@@ -210,6 +210,7 @@ export interface EmDashManifest {
 export interface HandlerResponse<T = unknown> {
 	success: boolean;
 	data?: T;
+	liveContentChanged?: boolean;
 	error?: {
 		code: string;
 		message: string;

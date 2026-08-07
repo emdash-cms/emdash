@@ -247,6 +247,24 @@ describe("mediaUploadUrlBody schema factory", () => {
 		expect(result.size).toBe(500);
 	});
 
+	it("accepts an empty file", () => {
+		const schema = mediaUploadUrlBody(1_000);
+		const result = schema.parse({ filename: "empty.pdf", contentType: "application/pdf", size: 0 });
+		expect(result.size).toBe(0);
+	});
+
+	it("accepts client content hashes in existing formats", () => {
+		const schema = mediaUploadUrlBody(1_000);
+		const contentHash = "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+		const result = schema.parse({
+			filename: "a.jpg",
+			contentType: "image/jpeg",
+			size: 500,
+			contentHash,
+		});
+		expect(result.contentHash).toBe(contentHash);
+	});
+
 	it("each call returns an independent schema with its own limit", () => {
 		const strict = mediaUploadUrlBody(100);
 		const loose = mediaUploadUrlBody(1_000_000);
