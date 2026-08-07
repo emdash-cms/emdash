@@ -282,7 +282,7 @@ export interface UpdateCollectionInput {
 	icon?: string;
 	admin?: CollectionAdminConfig;
 	supports?: CollectionSupport[];
-	urlPattern?: string;
+	urlPattern?: string | null;
 	hasSeo?: boolean;
 	/** Omit the auto-generated admin sidebar entry */
 	hidden?: boolean;

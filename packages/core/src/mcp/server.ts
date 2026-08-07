@@ -20,6 +20,8 @@ import {
 	CONTENT_TYPE_RE,
 	contentBylineInputSchema,
 	contentSeoInput,
+	updateCollectionBody,
+	updateFieldBody,
 } from "#api/schemas.js";
 
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
@@ -110,6 +112,59 @@ const mediaUsageRepairToolSchema = z
 			});
 		}
 	});
+
+const schemaUpdateCollectionToolSchema = z.object({
+	slug: z.string().describe("Collection slug to update; the slug itself cannot be changed"),
+	label: updateCollectionBody.shape.label.describe("New plural display name"),
+	labelSingular: updateCollectionBody.shape.labelSingular.describe("New singular display name"),
+	description: updateCollectionBody.shape.description.describe("New collection description"),
+	icon: updateCollectionBody.shape.icon.describe("New admin UI icon name"),
+	supports: updateCollectionBody.shape.supports.describe(
+		"Complete feature list to enable; omit to preserve the current list",
+	),
+	urlPattern: updateCollectionBody.shape.urlPattern.describe(
+		"New public URL pattern; pass null to clear it",
+	),
+	hasSeo: updateCollectionBody.shape.hasSeo.describe(
+		"Whether the collection supports SEO metadata",
+	),
+	commentsEnabled: updateCollectionBody.shape.commentsEnabled.describe(
+		"Whether comments are enabled for this collection",
+	),
+	commentsModeration: updateCollectionBody.shape.commentsModeration.describe(
+		"Comment moderation policy",
+	),
+	commentsClosedAfterDays: updateCollectionBody.shape.commentsClosedAfterDays.describe(
+		"Close comments after this many days; 0 keeps them open",
+	),
+	commentsAutoApproveUsers: updateCollectionBody.shape.commentsAutoApproveUsers.describe(
+		"Whether comments from authenticated users are automatically approved",
+	),
+});
+
+const schemaUpdateFieldToolSchema = z.object({
+	collection: z.string().describe("Collection slug containing the field"),
+	fieldSlug: z.string().describe("Field slug to update; the slug itself cannot be changed"),
+	label: updateFieldBody.shape.label.describe("New display name"),
+	type: updateFieldBody.shape.type.describe(
+		"New field type; only changes that preserve the underlying column type are allowed",
+	),
+	required: updateFieldBody.shape.required.describe("Whether the field is required"),
+	unique: updateFieldBody.shape.unique.describe("Whether field values must be unique"),
+	defaultValue: updateFieldBody.shape.defaultValue.describe("Default value for new content"),
+	validation: updateFieldBody.shape.validation.describe(
+		"Validation constraints; pass null to clear existing constraints",
+	),
+	widget: updateFieldBody.shape.widget.describe("Admin editor widget name"),
+	options: updateFieldBody.shape.options.describe("Widget configuration"),
+	sortOrder: updateFieldBody.shape.sortOrder.describe("Field order in the content editor"),
+	searchable: updateFieldBody.shape.searchable.describe(
+		"Whether full-text search indexes the field",
+	),
+	translatable: updateFieldBody.shape.translatable.describe(
+		"Whether values vary by locale instead of syncing across a translation group",
+	),
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -1794,6 +1849,32 @@ export function createMcpServer(
 	);
 
 	server.registerTool(
+		"schema_update_collection",
+		{
+			title: "Update Collection",
+			description:
+				"Update an existing collection without deleting its table, fields, or content. " +
+				"Only provided settings change; omitted settings keep their current values. " +
+				"The collection slug cannot be changed.",
+			inputSchema: schemaUpdateCollectionToolSchema,
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { slug, ...input } = args;
+			try {
+				const { handleSchemaCollectionUpdate } = await import("../api/handlers/schema.js");
+				const result = await handleSchemaCollectionUpdate(ec.db, slug, input);
+				if (result.success) ec.invalidateUrlPatternCache();
+				return unwrap(result);
+			} catch (error) {
+				return respondHandlerError(error, "SCHEMA_UPDATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
 		"schema_create_field",
 		{
 			title: "Add Field to Collection",
@@ -1922,6 +2003,30 @@ export function createMcpServer(
 				return jsonResult({ deleted: args.fieldSlug, collection: args.collection });
 			} catch (error) {
 				return respondHandlerError(error, "FIELD_DELETE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"schema_update_field",
+		{
+			title: "Update Field",
+			description:
+				"Update an existing field without deleting its column or stored values. Only " +
+				"provided settings change; omitted settings keep their current values. Type " +
+				"changes that require a physical column migration are rejected with migration guidance.",
+			inputSchema: schemaUpdateFieldToolSchema,
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { collection, fieldSlug, ...input } = args;
+			try {
+				const { handleSchemaFieldUpdate } = await import("../api/handlers/schema.js");
+				return unwrap(await handleSchemaFieldUpdate(ec.db, collection, fieldSlug, input));
+			} catch (error) {
+				return respondHandlerError(error, "SCHEMA_FIELD_UPDATE_ERROR");
 			}
 		},
 	);
