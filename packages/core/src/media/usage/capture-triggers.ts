@@ -21,6 +21,7 @@ type CaptureOperation = "insert" | "update" | "delete";
 export async function installMediaUsageCaptureTriggers(
 	db: Kysely<Database>,
 	identity: MediaUsageCaptureIdentity,
+	options: { replaceExisting?: boolean } = {},
 ): Promise<void> {
 	const identifiers = await captureIdentifiers(identity);
 	if (isPostgres(db)) await installPostgresFunction(db);
@@ -30,10 +31,21 @@ export async function installMediaUsageCaptureTriggers(
 	}
 
 	await assertCaptureLifecycle(db, identity, ["installing"]);
-	await removeCaptureTriggers(db, identifiers.tableName, installedNames);
+	const expectedNames = new Set(Object.values(identifiers.triggerNames));
+	const retainedNames = new Set(
+		options.replaceExisting === false
+			? installedNames.filter((name) => expectedNames.has(name))
+			: [],
+	);
+	await removeCaptureTriggers(
+		db,
+		identifiers.tableName,
+		installedNames.filter((name) => !retainedNames.has(name)),
+	);
 
-	if (isPostgres(db)) {
-		for (const operation of captureOperations) {
+	for (const operation of captureOperations) {
+		if (retainedNames.has(identifiers.triggerNames[operation])) continue;
+		if (isPostgres(db)) {
 			await postgresCreateTrigger(
 				db,
 				identifiers.tableName,
@@ -41,21 +53,32 @@ export async function installMediaUsageCaptureTriggers(
 				operation,
 				identity,
 			);
+		} else {
+			await sqliteCreateTrigger(
+				db,
+				identifiers.tableName,
+				identifiers.triggerNames[operation],
+				operation,
+				identity,
+			);
 		}
-		return;
-	}
-
-	for (const operation of captureOperations) {
-		await sqliteCreateTrigger(
-			db,
-			identifiers.tableName,
-			identifiers.triggerNames[operation],
-			operation,
-			identity,
-		);
 	}
 
 	await assertExpectedTriggerSet(db, identifiers, identity);
+}
+
+export async function verifyMediaUsageCaptureTriggers(
+	db: Kysely<Database>,
+	identity: MediaUsageCaptureIdentity,
+): Promise<boolean> {
+	const identifiers = await captureIdentifiers(identity);
+	if (!(await tableExists(db, identifiers.tableName))) return false;
+	return hasExactCaptureTriggers(
+		db,
+		identifiers,
+		identity,
+		await listOwnedCaptureTriggers(db, identifiers.tableName),
+	);
 }
 
 export async function removeMediaUsageCaptureTriggers(
