@@ -231,7 +231,7 @@ export interface UpdateCollectionInput {
 	description?: string;
 	icon?: string;
 	supports?: CollectionSupport[];
-	urlPattern?: string;
+	urlPattern?: string | null;
 	hasSeo?: boolean;
 	commentsEnabled?: boolean;
 	commentsModeration?: "all" | "first_time" | "none";
