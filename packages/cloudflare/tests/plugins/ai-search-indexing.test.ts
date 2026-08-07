@@ -823,6 +823,57 @@ describe("ai-search metadata schema route", () => {
 });
 
 describe("ai-search content:afterSave indexing", () => {
+	it("uses the binding snapshot from each request", async () => {
+		const uploadedByRequest: string[][] = [[], []];
+		const requestEnv = (request: number) => {
+			const instance = {
+				info: async () => ({ id: "emdash-content" }),
+				update: async () => {},
+				search: async () => ({ search_query: "", chunks: [] }),
+				items: {
+					upload: async (key: string) => {
+						uploadedByRequest[request]!.push(key);
+						return { id: `request-${request}` };
+					},
+					delete: async () => {},
+				},
+			};
+			return {
+				AI_SEARCH: {
+					get: () => instance,
+					create: async () => instance,
+				},
+			};
+		};
+		const plugin = createPlugin();
+		const ctx = makeContext();
+
+		try {
+			for (const request of [0, 1]) {
+				vi.doMock("cloudflare:workers", () => ({ env: requestEnv(request) }));
+				const id = `request-${request}`;
+				await plugin.hooks["content:afterSave"]!.handler(
+					{
+						content: {
+							id,
+							slug: id,
+							status: "published",
+							locale: "en",
+							data: { title: id, content: `${id} body` },
+						},
+						collection: "posts",
+						isNew: true,
+					},
+					ctx,
+				);
+			}
+		} finally {
+			vi.doMock("cloudflare:workers", () => ({ env: fakeEnv, waitUntil: () => {} }));
+		}
+
+		expect(uploadedByRequest).toEqual([["posts/request-0.md"], ["posts/request-1.md"]]);
+	});
+
 	it("uses the effective default collections before configuration is saved", async () => {
 		uploads.length = 0;
 		const plugin = createPlugin();
