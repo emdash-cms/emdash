@@ -10,14 +10,15 @@ import * as path from "node:path";
 import type { APIRoute } from "astro";
 import { ulid } from "ulidx";
 
-import { requirePerm } from "#api/authorize.js";
+import { canReadMediaUsageCount, requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { GLOBAL_UPLOAD_ALLOWLIST, resolveFieldAllowlist } from "#api/handlers/media-allowlist.js";
+import { handleMediaUsageSummaries } from "#api/handlers/media-usage.js";
 import { isParseError, parseQuery } from "#api/parse.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, formatFileSize, mediaListQuery } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
+import { enrichImageMetadata } from "#media/enrich.js";
 import { matchesMimeAllowlist, normalizeMime } from "#media/mime.js";
-import { generatePlaceholder } from "#media/placeholder.js";
 import { computeContentHash } from "#utils/hash.js";
 
 import type { MediaItem } from "../../types.js";
@@ -65,8 +66,26 @@ export const GET: APIRoute = async ({ request, locals }) => {
 
 	// Add URL to each media item (relative URLs for portability)
 	const itemsWithUrl = result.data.items.map((item) => addUrlToMedia(item));
+	if (query.includeUsage !== "1") {
+		return apiSuccess({ items: itemsWithUrl, nextCursor: result.data.nextCursor });
+	}
 
-	return apiSuccess({ items: itemsWithUrl, nextCursor: result.data.nextCursor });
+	const includeCount = canReadMediaUsageCount(user, locals.tokenScopes);
+	const usageResult = await handleMediaUsageSummaries(
+		emdash.db,
+		itemsWithUrl.map((item) => item.id),
+		{ includeCount },
+	);
+	if (!usageResult.success) return unwrapResult(usageResult);
+
+	const itemsWithUsage = [];
+	for (const item of itemsWithUrl) {
+		const usage = usageResult.data[item.id];
+		if (!usage) return apiError("MEDIA_USAGE_READ_ERROR", "Failed to read media usage", 500);
+		itemsWithUsage.push({ ...item, usage });
+	}
+
+	return apiSuccess({ items: itemsWithUsage, nextCursor: result.data.nextCursor });
 };
 
 /**
@@ -163,34 +182,32 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const width = widthStr ? parseInt(widthStr, 10) : undefined;
 		const height = heightStr ? parseInt(heightStr, 10) : undefined;
 
-		// Generate placeholder data for images.
-		// If the client sent a thumbnail (small pre-resized image), use that
-		// instead of the full buffer to avoid OOM on memory-constrained runtimes.
+		// Derive dimensions + LQIP placeholders via the shared helper.
+		// If the client sent a downscaled thumbnail, decode that for the blurhash
+		// (avoids OOM on large originals on memory-constrained runtimes).
 		const thumbnailEntry = formData.get("thumbnail");
 		const thumbnail = thumbnailEntry instanceof File ? thumbnailEntry : null;
-
-		let placeholder: Awaited<ReturnType<typeof generatePlaceholder>> = null;
-		if (file.type.startsWith("image/")) {
-			if (thumbnail) {
-				const thumbBuffer = new Uint8Array(await thumbnail.arrayBuffer());
-				placeholder = await generatePlaceholder(thumbBuffer, thumbnail.type);
-			} else {
-				const clientDims = width && height ? { width, height } : undefined;
-				placeholder = await generatePlaceholder(buffer, file.type, clientDims);
-			}
-		}
+		const enriched = await enrichImageMetadata(buffer, file.type, {
+			knownDimensions: width != null && height != null ? { width, height } : undefined,
+			placeholder: thumbnail
+				? { bytes: new Uint8Array(await thumbnail.arrayBuffer()), contentType: thumbnail.type }
+				: undefined,
+		});
 
 		// Create media record
 		const result = await emdash.handleMediaCreate({
 			filename: file.name,
 			mimeType: normalizeMime(file.type),
 			size: file.size,
-			width,
-			height,
+			// Client dimensions win over server header dimensions: the browser's
+			// naturalWidth/Height apply EXIF orientation, while image-size reports
+			// raw (pre-orientation) header dims — swapped for 90°/270° JPEGs.
+			width: width ?? enriched.width,
+			height: height ?? enriched.height,
 			storageKey,
 			contentHash,
-			blurhash: placeholder?.blurhash,
-			dominantColor: placeholder?.dominantColor,
+			blurhash: enriched.blurhash,
+			dominantColor: enriched.dominantColor,
 			authorId: user?.id,
 		});
 

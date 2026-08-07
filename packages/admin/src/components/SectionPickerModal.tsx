@@ -6,7 +6,7 @@
 
 import { Button, Dialog, Input } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { MagnifyingGlass, Stack, FolderOpen } from "@phosphor-icons/react";
+import { MagnifyingGlass, FolderOpen } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
@@ -14,6 +14,7 @@ import * as React from "react";
 import { fetchSections, type Section } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks";
 import { cn } from "../lib/utils";
+import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 
 interface SectionPickerModalProps {
 	open: boolean;
@@ -53,7 +54,7 @@ export function SectionPickerModal({ open, onOpenChange, onSelect }: SectionPick
 			<Dialog className="p-6 max-w-3xl max-h-[80vh] flex flex-col" size="lg">
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight flex items-center gap-2">
-						<Stack className="h-5 w-5" />
+						<ADMIN_NAV_ICONS.sections className="h-5 w-5" />
 						{t`Insert Section`}
 					</Dialog.Title>
 					<Dialog.Close
@@ -155,7 +156,7 @@ function SectionCard({ section, onSelect }: { section: Section; onSelect: () => 
 						className="w-full h-full object-cover"
 					/>
 				) : (
-					<Stack className="h-8 w-8 text-kumo-subtle" />
+					<ADMIN_NAV_ICONS.sections className="h-8 w-8 text-kumo-subtle" />
 				)}
 			</div>
 

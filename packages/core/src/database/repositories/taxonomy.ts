@@ -1,8 +1,33 @@
-import type { Kysely, Selectable } from "kysely";
+import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
-import type { Database, TaxonomyTable, ContentTaxonomyTable } from "../types.js";
+import { isMissingTableError } from "../../utils/db-errors.js";
+import type { Database, TaxonomyTable } from "../types.js";
+import { validateIdentifier } from "../validate.js";
+
+/**
+ * Filter + sort columns denormalized from an entry's `ec_*` row onto its
+ * `content_taxonomies` pivot rows (migration 051). Stamped at insert time so a
+ * newly-tagged entry is immediately seekable by a taxonomy-filtered listing.
+ */
+interface PivotDenorm {
+	status: string | null;
+	scheduled_at: string | null;
+	deleted_at: string | null;
+	locale: string | null;
+	published_at: string | null;
+	created_at: string | null;
+}
+
+const EMPTY_DENORM: PivotDenorm = {
+	status: null,
+	scheduled_at: null,
+	deleted_at: null,
+	locale: null,
+	published_at: null,
+	created_at: null,
+};
 
 export interface Taxonomy {
 	id: string;
@@ -251,14 +276,10 @@ export class TaxonomyRepository {
 		const group = await this.resolveTranslationGroup(taxonomyId);
 		if (!group) return;
 
-		const row: ContentTaxonomyTable = {
-			collection,
-			entry_id: entryId,
-			taxonomy_id: group,
-		};
+		const denorm = await this.fetchEntryDenorm(collection, entryId);
 		await this.db
 			.insertInto("content_taxonomies")
-			.values(row)
+			.values({ collection, entry_id: entryId, taxonomy_id: group, ...denorm })
 			.onConflict((oc) => oc.doNothing())
 			.execute();
 		invalidateTaxonomyObjectCache();
@@ -342,6 +363,7 @@ export class TaxonomyRepository {
 
 		const toAdd = [...newGroups].filter((g) => !currentGroups.has(g));
 		if (toAdd.length > 0) {
+			const denorm = await this.fetchEntryDenorm(collection, entryId);
 			await this.db
 				.insertInto("content_taxonomies")
 				.values(
@@ -349,6 +371,7 @@ export class TaxonomyRepository {
 						collection,
 						entry_id: entryId,
 						taxonomy_id,
+						...denorm,
 					})),
 				)
 				.onConflict((oc) => oc.doNothing())
@@ -387,6 +410,9 @@ export class TaxonomyRepository {
 			.execute();
 		if (rows.length === 0) return;
 
+		// Stamp the TARGET entry's current values — the copy inherits the source's
+		// term memberships but the target's own status/dates/locale.
+		const denorm = await this.fetchEntryDenorm(collection, targetEntryId);
 		await this.db
 			.insertInto("content_taxonomies")
 			.values(
@@ -394,6 +420,7 @@ export class TaxonomyRepository {
 					collection,
 					entry_id: targetEntryId,
 					taxonomy_id: r.taxonomy_id,
+					...denorm,
 				})),
 			)
 			.onConflict((oc) => oc.doNothing())
@@ -402,8 +429,36 @@ export class TaxonomyRepository {
 	}
 
 	/**
+	 * Read the denormalized filter + sort columns from an entry's `ec_*` row so
+	 * they can be stamped onto new pivot rows (migration 051). A missing table or
+	 * missing row yields all-nulls: the pivot columns are advisory, and the
+	 * listing read path re-checks the authoritative `ec_*` row regardless.
+	 */
+	private async fetchEntryDenorm(collection: string, entryId: string): Promise<PivotDenorm> {
+		validateIdentifier(collection, "collection type");
+		const tableName = `ec_${collection}`;
+		try {
+			const result = await sql<PivotDenorm>`
+				SELECT status, scheduled_at, deleted_at, locale, published_at, created_at
+				FROM ${sql.ref(tableName)}
+				WHERE id = ${entryId}
+			`.execute(this.db);
+			return result.rows[0] ?? EMPTY_DENORM;
+		} catch (error) {
+			if (isMissingTableError(error)) return EMPTY_DENORM;
+			throw error;
+		}
+	}
+
+	/**
 	 * Count content entries that use any translation of this term. Accepts
 	 * either a term id or a translation_group — we normalise to the group.
+	 *
+	 * Counts raw pivot rows regardless of the entry's status or deletion —
+	 * drafts and trashed entries are included. User-facing counts (admin term
+	 * list/get, public widget and term pages) use `fetchVisibleTermCounts`
+	 * from `taxonomies/term-counts.ts` instead, which counts only publicly
+	 * visible entries.
 	 */
 	async countEntriesWithTerm(termIdOrGroup: string): Promise<number> {
 		const group = await this.resolveTranslationGroup(termIdOrGroup);
@@ -453,6 +508,9 @@ export class TaxonomyRepository {
 	 *
 	 * Pass translation_groups (not term ids) — `content_taxonomies.taxonomy_id`
 	 * stores the translation_group so a single assignment spans every locale.
+	 *
+	 * Like `countEntriesWithTerm`, this counts raw pivot rows regardless of
+	 * status/deletion; user-facing counts go through `fetchVisibleTermCounts`.
 	 */
 	async countEntriesForTerms(translationGroups: string[]): Promise<Map<string, number>> {
 		if (translationGroups.length === 0) return new Map();

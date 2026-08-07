@@ -43,6 +43,16 @@ test.describe("Authentication", () => {
 			// No allowed domains are seeded, so signup should not be visible
 			await expect(admin.page.locator('a:has-text("Sign up")')).not.toBeVisible();
 		});
+
+		test("admin shell is not storable by shared caches", async ({ request }) => {
+			// Regression: the admin shell had no Cache-Control header, so shared
+			// caches applying RFC 9111 heuristic freshness (e.g. Cloudflare's
+			// Workers Cache) could store an authenticated 200 and replay it to
+			// anonymous visitors instead of the login redirect.
+			const res = await request.get("/_emdash/admin/login");
+			expect(res.status()).toBe(200);
+			expect(res.headers()["cache-control"]).toBe("private, no-store");
+		});
 	});
 
 	test.describe("Protected Routes", () => {

@@ -38,6 +38,9 @@
  * per-hook return contracts so misuse fails at compile time.
  */
 
+import type { Permission } from "@emdash-cms/auth";
+import type { ZodType } from "zod";
+
 import type {
 	CommentAfterCreateEvent,
 	CommentAfterCreateHandler,
@@ -49,13 +52,19 @@ import type {
 	CommentModerateHandler,
 	ContentAfterDeleteHandler,
 	ContentAfterPublishHandler,
+	ContentAfterRestoreHandler,
 	ContentAfterSaveHandler,
+	ContentAfterScheduleHandler,
 	ContentAfterUnpublishHandler,
+	ContentAfterUnscheduleHandler,
 	ContentBeforeDeleteHandler,
 	ContentBeforeSaveHandler,
 	ContentDeleteEvent,
 	ContentHookEvent,
 	ContentPublishStateChangeEvent,
+	ContentRestoreStateChangeEvent,
+	ContentScheduleStateChangeEvent,
+	ContentStateChangeEvent,
 	CronEvent,
 	CronHandler,
 	EmailAfterSendEvent,
@@ -97,6 +106,9 @@ export interface HookHandlers {
 	"content:afterDelete": ContentAfterDeleteHandler;
 	"content:afterPublish": ContentAfterPublishHandler;
 	"content:afterUnpublish": ContentAfterUnpublishHandler;
+	"content:afterRestore": ContentAfterRestoreHandler;
+	"content:afterSchedule": ContentAfterScheduleHandler;
+	"content:afterUnschedule": ContentAfterUnscheduleHandler;
 	"media:beforeUpload": MediaBeforeUploadHandler;
 	"media:afterUpload": MediaAfterUploadHandler;
 	cron: CronHandler;
@@ -191,8 +203,23 @@ export type RouteEntry =
 	| {
 			handler: RouteHandler;
 			public?: boolean;
+			/**
+			 * Cache-Control value for successful GET responses. Only honored on
+			 * routes that are also `public: true` — authenticated responses
+			 * always keep `private, no-store`.
+			 */
+			cacheControl?: string;
 			input?: unknown;
+			permission?: Permission;
 	  };
+
+export interface SandboxedMcpTool {
+	description: string;
+	route: string;
+	input: ZodType;
+	output?: ZodType;
+	destructive?: boolean;
+}
 
 /**
  * The shape of a sandboxed plugin's default export.
@@ -208,6 +235,7 @@ export interface SandboxedPlugin {
 		[K in keyof HookHandlers]?: HookEntry<K>;
 	};
 	routes?: Record<string, RouteEntry>;
+	mcp?: { tools: Record<string, SandboxedMcpTool> };
 }
 
 /**
@@ -226,6 +254,9 @@ export type {
 	ContentDeleteEvent,
 	ContentHookEvent,
 	ContentPublishStateChangeEvent,
+	ContentRestoreStateChangeEvent,
+	ContentScheduleStateChangeEvent,
+	ContentStateChangeEvent,
 	CronEvent,
 	EmailAfterSendEvent,
 	EmailBeforeSendEvent,

@@ -495,7 +495,7 @@ const publishDate =
 
 	.article-title {
 		font-size: clamp(2rem, 5vw, var(--font-size-5xl));
-		font-weight: 700;
+		font-weight: var(--font-weight-display);
 		line-height: var(--leading-tight);
 		letter-spacing: var(--tracking-tight);
 		margin-bottom: var(--spacing-4);
@@ -588,7 +588,7 @@ const publishDate =
 	}
 
 	.article-content :global(a) {
-		color: var(--color-accent);
+		color: var(--color-brand);
 		text-decoration: underline;
 		text-underline-offset: 3px;
 		text-decoration-thickness: 1px;
@@ -687,7 +687,7 @@ const publishDate =
 	.sidebar-widgets :global(.widget-search__input) {
 		width: 100%;
 		padding: var(--spacing-2) var(--spacing-3);
-		font-family: var(--font-sans);
+		font-family: var(--font-body);
 		font-size: var(--font-size-sm);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius);
@@ -705,8 +705,8 @@ const publishDate =
 	.sidebar-widgets :global(.widget-search__input):focus,
 	.sidebar-widgets :global(.widget-search__input):focus-visible {
 		outline: none;
-		border-color: var(--color-accent);
-		box-shadow: 0 0 0 3px var(--color-accent-ring);
+		border-color: var(--color-brand);
+		box-shadow: 0 0 0 3px var(--color-brand-ring);
 	}
 
 	.sidebar-widgets :global(.widget-search__button) {
@@ -863,7 +863,7 @@ const publishDate =
 
 	.article-comments :global(.ec-comments-heading) {
 		font-size: var(--font-size-2xl);
-		font-weight: 600;
+		font-weight: var(--font-weight-heading);
 		margin-bottom: var(--spacing-8);
 	}
 
@@ -893,8 +893,8 @@ const publishDate =
 	}
 
 	.article-comments :global(.ec-comment-form-submit) {
-		background: var(--color-accent) !important;
-		color: var(--color-on-accent) !important;
+		background: var(--color-brand) !important;
+		color: var(--color-on-brand) !important;
 	}
 
 	/* More posts section */
@@ -912,7 +912,7 @@ const publishDate =
 
 	.more-title {
 		font-size: var(--font-size-2xl);
-		font-weight: 600;
+		font-weight: var(--font-weight-heading);
 		margin-bottom: var(--spacing-10);
 	}
 

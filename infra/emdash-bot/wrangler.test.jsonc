@@ -1,0 +1,70 @@
+{
+	// Test-only wrangler config consumed by @cloudflare/vitest-pool-workers via
+	// vitest.workers.config.ts. Mirrors production bindings for the
+	// user-owned DOs (Sandbox, OrchestratorDO) and the AI / R2 surfaces but
+	// skips the Flue-generated workflow DOs (FlueRegistry, FlueClassify-
+	// CommandWorkflow, ...) because the test entry below doesn't go through
+	// Flue routing. Workflow integration tests need a separate harness once
+	// Flue ships a documented test helper.
+	//
+	// Keep in sync with wrangler.jsonc whenever a binding the orchestrator
+	// touches changes shape. Drift between this and production is a real
+	// risk -- the workers pool will pass tests that production then fails.
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-bot-test",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-04-01",
+	"compatibility_flags": ["nodejs_compat"],
+
+	// The test pool dispatches to this entry. It re-exports the DOs and
+	// provides a minimal fetch handler so SELF.fetch() works in tests.
+	"main": "./tests/integration/_entry.ts",
+
+	"ai": {
+		"binding": "AI",
+	},
+
+	// Sandbox is structurally identical to production, including the
+	// container image. The pool builds the image on first use; subsequent
+	// runs hit the local cache.
+	"containers": [
+		{
+			"class_name": "Sandbox",
+			"image": "./Dockerfile",
+		},
+	],
+
+	"durable_objects": {
+		"bindings": [
+			{
+				"class_name": "Sandbox",
+				"name": "Sandbox",
+			},
+			{
+				"class_name": "OrchestratorDO",
+				"name": "Orchestrator",
+			},
+		],
+	},
+
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["Sandbox", "OrchestratorDO"],
+		},
+	],
+
+	"r2_buckets": [
+		{
+			"binding": "BOT_WORKSPACE",
+			"bucket_name": "emdash-bot-workspace-test",
+		},
+	],
+
+	"vars": {
+		"GITHUB_APP_ID": "3255304",
+		"GITHUB_APP_INSTALLATION_ID": "120963314",
+		"GITHUB_OWNER": "emdash-cms",
+		"GITHUB_REPO": "emdash-test",
+	},
+}

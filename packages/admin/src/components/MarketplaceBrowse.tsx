@@ -11,7 +11,6 @@ import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	MagnifyingGlass,
-	PuzzlePiece,
 	DownloadSimple,
 	ShieldCheck,
 	ShieldWarning,
@@ -29,6 +28,7 @@ import {
 	type MarketplaceSearchOpts,
 } from "../lib/api/marketplace.js";
 import { safeIconUrl } from "../lib/url.js";
+import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 
 type SortOption = "installs" | "updated" | "created" | "name";
 
@@ -84,8 +84,10 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 		<div className="space-y-6">
 			{/* Header */}
 			<div>
-				<h1 className="text-3xl font-bold">{t`Marketplace`}</h1>
-				<p className="mt-1 text-kumo-subtle">{t`Browse and install plugins to extend your site.`}</p>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Marketplace`}</h1>
+				<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+					{t`Browse and install plugins to extend your site.`}
+				</p>
 			</div>
 
 			{/* Search + Sort */}
@@ -169,7 +171,7 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 				<>
 					{plugins.length === 0 ? (
 						<div className="rounded-lg border bg-kumo-base p-8 text-center">
-							<PuzzlePiece className="mx-auto h-12 w-12 text-kumo-subtle" />
+							<ADMIN_NAV_ICONS.plugins className="mx-auto h-12 w-12 text-kumo-subtle" />
 							<h3 className="mt-4 text-lg font-medium">{t`No plugins found`}</h3>
 							<p className="mt-2 text-sm text-kumo-subtle">
 								{debouncedQuery
@@ -247,7 +249,7 @@ function PluginCard({ plugin, isInstalled }: PluginCardProps) {
 				{/* Name + meta */}
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2">
-						<h3 className="truncate font-semibold group-hover:text-kumo-brand">{plugin.name}</h3>
+						<h3 className="truncate font-semibold group-hover:text-kumo-link">{plugin.name}</h3>
 						{isInstalled && (
 							<span
 								role="link"
@@ -264,7 +266,7 @@ function PluginCard({ plugin, isInstalled }: PluginCardProps) {
 					</div>
 					<div className="flex items-center gap-2 text-xs text-kumo-subtle">
 						<span>{plugin.author.name}</span>
-						{plugin.author.verified && <ShieldCheck className="h-3 w-3 text-kumo-brand" />}
+						{plugin.author.verified && <ShieldCheck className="h-3 w-3 text-kumo-link" />}
 						{plugin.latestVersion?.version && <span>v{plugin.latestVersion.version}</span>}
 					</div>
 				</div>
@@ -304,7 +306,7 @@ function PluginCard({ plugin, isInstalled }: PluginCardProps) {
 function PluginAvatar({ name }: { name: string }) {
 	const initial = name.charAt(0).toUpperCase();
 	return (
-		<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kumo-brand/10 text-kumo-brand font-bold text-lg">
+		<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kumo-brand/10 text-kumo-link font-bold text-lg">
 			{initial}
 		</div>
 	);
@@ -315,7 +317,7 @@ export function AuditBadge({ verdict }: { verdict: "pass" | "warn" | "fail" }) {
 	if (verdict === "pass") {
 		return (
 			<span
-				className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-green-500/10 text-green-600"
+				className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-kumo-success/10 text-kumo-success"
 				title={t`Security audit passed`}
 			>
 				<ShieldCheck className="h-3 w-3" />
@@ -326,7 +328,7 @@ export function AuditBadge({ verdict }: { verdict: "pass" | "warn" | "fail" }) {
 	if (verdict === "warn") {
 		return (
 			<span
-				className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-warning/10 text-warning"
+				className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-kumo-warning/10 text-kumo-warning"
 				title={t`Security audit flagged concerns`}
 			>
 				<Warning className="h-3 w-3" />

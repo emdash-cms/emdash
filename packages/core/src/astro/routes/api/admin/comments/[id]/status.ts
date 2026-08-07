@@ -14,7 +14,6 @@ import { commentStatusBody } from "#api/schemas.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
 import { lookupContentAuthor, sendCommentNotification } from "#comments/notifications.js";
 import { moderateComment, type CommentHookRunner } from "#comments/service.js";
-import type { CommentStatus } from "#db/repositories/comment.js";
 import type { ModerationDecision } from "#plugins/types.js";
 
 export const prerender = false;
@@ -37,7 +36,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		const body = await parseBody(request, commentStatusBody);
 		if (isParseError(body)) return body;
 
-		const newStatus = body.status as CommentStatus;
+		const newStatus = body.status;
 
 		// Build hook runner for the service
 		const hookRunner: CommentHookRunner = {

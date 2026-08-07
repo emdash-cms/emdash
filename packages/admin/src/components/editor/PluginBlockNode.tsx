@@ -66,7 +66,7 @@ export function registerPluginBlocks(
 	for (const block of blocks) {
 		registry.set(block.type, block);
 	}
-	const storage = editor.storage.pluginBlock as Record<string, unknown> | undefined;
+	const storage = editor.storage.pluginBlock;
 	if (storage) {
 		storage.registry = registry;
 	}
@@ -76,7 +76,7 @@ export function registerPluginBlocks(
 function getRegistry(editor: {
 	storage: Record<string, Record<string, unknown>>;
 }): Map<string, PluginBlockDef> {
-	const storage = editor.storage.pluginBlock as Record<string, unknown> | undefined;
+	const storage = editor.storage.pluginBlock;
 	return (storage?.registry as Map<string, PluginBlockDef>) ?? new Map();
 }
 

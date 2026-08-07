@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+	Realistic WordPress WXR export fixture for the migration acceptance test
+	(issue #1691). Modeled on a real small-business site export: posts and
+	pages with Gutenberg + classic content, drafts, a custom post type with
+	a custom taxonomy, hierarchical categories, tags, two authors, media
+	attachments (with size-variant URLs used in content), featured images,
+	SEO (Yoast) and ACF post meta, internal links, and a reusable block.
+-->
+<rss version="2.0"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:wp="http://wordpress.org/export/1.2/"
+>
+<channel>
+	<title>Acme Publishing</title>
+	<link>https://acme-publishing.example</link>
+	<description>Stories that outlive their servers</description>
+	<pubDate>Mon, 02 Mar 2026 09:00:00 +0000</pubDate>
+	<language>en-US</language>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<wp:base_site_url>https://acme-publishing.example</wp:base_site_url>
+	<wp:base_blog_url>https://acme-publishing.example</wp:base_blog_url>
+
+	<wp:author>
+		<wp:author_id>1</wp:author_id>
+		<wp:author_login><![CDATA[jane]]></wp:author_login>
+		<wp:author_email><![CDATA[jane@acme-publishing.example]]></wp:author_email>
+		<wp:author_display_name><![CDATA[Jane Doe]]></wp:author_display_name>
+	</wp:author>
+	<wp:author>
+		<wp:author_id>2</wp:author_id>
+		<wp:author_login><![CDATA[bob]]></wp:author_login>
+		<wp:author_email><![CDATA[bob@acme-publishing.example]]></wp:author_email>
+		<wp:author_display_name><![CDATA[Bob Smith]]></wp:author_display_name>
+	</wp:author>
+
+	<wp:category>
+		<wp:term_id>10</wp:term_id>
+		<wp:category_nicename><![CDATA[guides]]></wp:category_nicename>
+		<wp:category_parent><![CDATA[]]></wp:category_parent>
+		<wp:cat_name><![CDATA[Guides]]></wp:cat_name>
+	</wp:category>
+	<wp:category>
+		<wp:term_id>11</wp:term_id>
+		<wp:category_nicename><![CDATA[howto]]></wp:category_nicename>
+		<wp:category_parent><![CDATA[guides]]></wp:category_parent>
+		<wp:cat_name><![CDATA[How-To]]></wp:cat_name>
+	</wp:category>
+	<wp:category>
+		<wp:term_id>12</wp:term_id>
+		<wp:category_nicename><![CDATA[news]]></wp:category_nicename>
+		<wp:category_parent><![CDATA[]]></wp:category_parent>
+		<wp:cat_name><![CDATA[News]]></wp:cat_name>
+	</wp:category>
+
+	<wp:tag>
+		<wp:term_id>20</wp:term_id>
+		<wp:tag_slug><![CDATA[typescript]]></wp:tag_slug>
+		<wp:tag_name><![CDATA[TypeScript]]></wp:tag_name>
+	</wp:tag>
+	<wp:tag>
+		<wp:term_id>21</wp:term_id>
+		<wp:tag_slug><![CDATA[cloudflare]]></wp:tag_slug>
+		<wp:tag_name><![CDATA[Cloudflare]]></wp:tag_name>
+	</wp:tag>
+
+	<wp:term>
+		<wp:term_id>30</wp:term_id>
+		<wp:term_taxonomy>genre</wp:term_taxonomy>
+		<wp:term_slug><![CDATA[sci-fi]]></wp:term_slug>
+		<wp:term_name><![CDATA[Science Fiction]]></wp:term_name>
+	</wp:term>
+	<wp:term>
+		<wp:term_id>31</wp:term_id>
+		<wp:term_taxonomy>genre</wp:term_taxonomy>
+		<wp:term_slug><![CDATA[essay]]></wp:term_slug>
+		<wp:term_name><![CDATA[Essay]]></wp:term_name>
+	</wp:term>
+
+	<!-- ===================== Attachments ===================== -->
+
+	<item>
+		<title>Hero</title>
+		<wp:post_id>100</wp:post_id>
+		<wp:post_type>attachment</wp:post_type>
+		<wp:status>inherit</wp:status>
+		<wp:post_name>hero</wp:post_name>
+		<wp:attachment_url><![CDATA[https://acme-publishing.example/wp-content/uploads/2026/01/hero.jpg]]></wp:attachment_url>
+	</item>
+	<item>
+		<title>Diagram</title>
+		<wp:post_id>101</wp:post_id>
+		<wp:post_type>attachment</wp:post_type>
+		<wp:status>inherit</wp:status>
+		<wp:post_name>diagram</wp:post_name>
+		<wp:attachment_url><![CDATA[https://acme-publishing.example/wp-content/uploads/2026/02/diagram.png]]></wp:attachment_url>
+	</item>
+
+	<!-- ===================== Posts ===================== -->
+
+	<item>
+		<title>Building for the Long Term</title>
+		<link>https://acme-publishing.example/building-for-the-long-term/</link>
+		<pubDate>Thu, 15 Jan 2026 08:30:00 +0000</pubDate>
+		<dc:creator><![CDATA[jane]]></dc:creator>
+		<content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>Software outlives its authors when it is <strong>boring on purpose</strong>. This is our operating thesis.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2>What we optimize for</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul><li>Readability over cleverness</li><li>Deletion over addition</li><li>Standards over frameworks</li></ul>
+<!-- /wp:list -->
+
+<!-- wp:image {"id":100,"sizeSlug":"large","linkDestination":"none"} -->
+<figure class="wp-block-image size-large"><img src="https://acme-publishing.example/wp-content/uploads/2026/01/hero-1024x683.jpg" alt="Team at the whiteboard" class="wp-image-100"/></figure>
+<!-- /wp:image -->
+
+<!-- wp:quote -->
+<blockquote class="wp-block-quote"><p>Durability is a feature.</p></blockquote>
+<!-- /wp:quote -->
+
+<!-- wp:paragraph -->
+<p>We wrote about our stack in <a href="https://acme-publishing.example/hello-cloudflare/">Hello Cloudflare</a>.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+		<excerpt:encoded><![CDATA[Why we build for decades, not quarters.]]></excerpt:encoded>
+		<wp:post_id>1</wp:post_id>
+		<wp:post_date><![CDATA[2026-01-15 09:30:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2026-01-15 08:30:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[building-for-the-long-term]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<category domain="category" nicename="guides"><![CDATA[Guides]]></category>
+		<category domain="category" nicename="howto"><![CDATA[How-To]]></category>
+		<category domain="post_tag" nicename="typescript"><![CDATA[TypeScript]]></category>
+		<wp:postmeta>
+			<wp:meta_key><![CDATA[_thumbnail_id]]></wp:meta_key>
+			<wp:meta_value><![CDATA[100]]></wp:meta_value>
+		</wp:postmeta>
+		<wp:postmeta>
+			<wp:meta_key><![CDATA[_yoast_wpseo_title]]></wp:meta_key>
+			<wp:meta_value><![CDATA[Building for the Long Term — Acme Publishing]]></wp:meta_value>
+		</wp:postmeta>
+		<wp:postmeta>
+			<wp:meta_key><![CDATA[_yoast_wpseo_metadesc]]></wp:meta_key>
+			<wp:meta_value><![CDATA[Why we build software for decades, not quarters.]]></wp:meta_value>
+		</wp:postmeta>
+		<wp:postmeta>
+			<wp:meta_key><![CDATA[reading_time]]></wp:meta_key>
+			<wp:meta_value><![CDATA[7]]></wp:meta_value>
+		</wp:postmeta>
+		<wp:postmeta>
+			<wp:meta_key><![CDATA[subtitle]]></wp:meta_key>
+			<wp:meta_value><![CDATA[An operating thesis]]></wp:meta_value>
+		</wp:postmeta>
+	</item>
+
+	<item>
+		<title>Hello Cloudflare</title>
+		<link>https://acme-publishing.example/hello-cloudflare/</link>
+		<pubDate>Sun, 01 Feb 2026 10:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[bob]]></dc:creator>
+		<content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>We moved the site to the edge. Deploys take seconds now.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>npx wrangler deploy</code></pre>
+<!-- /wp:code -->
+
+<!-- wp:image {"id":101} -->
+<figure class="wp-block-image"><img src="https://acme-publishing.example/wp-content/uploads/2026/02/diagram.png" alt="Architecture diagram" class="wp-image-101"/></figure>
+<!-- /wp:image -->]]></content:encoded>
+		<excerpt:encoded><![CDATA[Notes from our move to the edge.]]></excerpt:encoded>
+		<wp:post_id>2</wp:post_id>
+		<wp:post_date><![CDATA[2026-02-01 11:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2026-02-01 10:00:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[hello-cloudflare]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<category domain="category" nicename="news"><![CDATA[News]]></category>
+		<category domain="post_tag" nicename="cloudflare"><![CDATA[Cloudflare]]></category>
+	</item>
+
+	<item>
+		<title>Classic Editor Memories</title>
+		<link>https://acme-publishing.example/classic-editor-memories/</link>
+		<pubDate>Tue, 10 Feb 2026 14:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[jane]]></dc:creator>
+		<content:encoded><![CDATA[<p>Before blocks, there was <em>just HTML</em>. This post was written in the classic editor and has no block markers at all.</p>
+<p>It still needs to survive the migration byte for byte.</p>]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>3</wp:post_id>
+		<wp:post_date><![CDATA[2026-02-10 15:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2026-02-10 14:00:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[classic-editor-memories]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<category domain="category" nicename="news"><![CDATA[News]]></category>
+	</item>
+
+	<item>
+		<title>Work in Progress</title>
+		<dc:creator><![CDATA[jane]]></dc:creator>
+		<content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>Half-written thoughts. Do not publish.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>4</wp:post_id>
+		<wp:post_date><![CDATA[2026-02-20 09:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2026-02-20 08:00:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[work-in-progress]]></wp:post_name>
+		<wp:status><![CDATA[draft]]></wp:status>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+	</item>
+
+	<item>
+		<title>Pending Review</title>
+		<dc:creator><![CDATA[bob]]></dc:creator>
+		<content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>Waiting for an editor to approve this one.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>5</wp:post_id>
+		<wp:post_date><![CDATA[2026-02-25 09:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2026-02-25 08:00:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[pending-review]]></wp:post_name>
+		<wp:status><![CDATA[pending]]></wp:status>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+	</item>
+
+	<!-- ===================== Pages ===================== -->
+
+	<item>
+		<title>About Us</title>
+		<link>https://acme-publishing.example/about-us/</link>
+		<dc:creator><![CDATA[jane]]></dc:creator>
+		<content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>Acme Publishing is a two-person shop that ships every Tuesday.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>6</wp:post_id>
+		<wp:post_date><![CDATA[2026-01-05 12:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2026-01-05 11:00:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[about-us]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_type><![CDATA[page]]></wp:post_type>
+	</item>
+
+	<item>
+		<title>Contact</title>
+		<link>https://acme-publishing.example/contact/</link>
+		<dc:creator><![CDATA[jane]]></dc:creator>
+		<content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>Write to hello@acme-publishing.example.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>7</wp:post_id>
+		<wp:post_date><![CDATA[2026-01-06 12:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2026-01-06 11:00:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[contact]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_type><![CDATA[page]]></wp:post_type>
+	</item>
+
+	<!-- ===================== Custom post type: book ===================== -->
+
+	<item>
+		<title>Dune</title>
+		<dc:creator><![CDATA[jane]]></dc:creator>
+		<content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>A desert planet, a spice, a dynasty.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>8</wp:post_id>
+		<wp:post_date><![CDATA[2026-02-12 10:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2026-02-12 09:00:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[dune]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_type><![CDATA[book]]></wp:post_type>
+		<category domain="genre" nicename="sci-fi"><![CDATA[Science Fiction]]></category>
+	</item>
+
+	<item>
+		<title>The Essayist</title>
+		<dc:creator><![CDATA[bob]]></dc:creator>
+		<content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>Collected essays on craft.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>9</wp:post_id>
+		<wp:post_date><![CDATA[2026-02-14 10:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2026-02-14 09:00:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[the-essayist]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_type><![CDATA[book]]></wp:post_type>
+		<category domain="genre" nicename="essay"><![CDATA[Essay]]></category>
+	</item>
+
+	<!-- ===================== Reusable block ===================== -->
+
+	<item>
+		<title>Newsletter CTA</title>
+		<dc:creator><![CDATA[jane]]></dc:creator>
+		<content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>Like this? Subscribe to the Acme newsletter.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>50</wp:post_id>
+		<wp:post_date><![CDATA[2026-01-10 12:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2026-01-10 11:00:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[newsletter-cta]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_type><![CDATA[wp_block]]></wp:post_type>
+	</item>
+
+</channel>
+</rss>

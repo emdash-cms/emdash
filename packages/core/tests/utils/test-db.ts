@@ -1,14 +1,32 @@
 import { randomUUID } from "node:crypto";
 
 import Database from "better-sqlite3";
-import { Kysely, PostgresDialect, SqliteDialect } from "kysely";
+import type { SqliteDialectConfig } from "kysely";
+import { Kysely, SqliteAdapter, SqliteDialect } from "kysely";
 import { Pool } from "pg";
 import { describe } from "vitest";
 
 import { getMigrationStatus, runMigrations } from "../../src/database/migrations/runner.js";
 import type { MigrationStatus } from "../../src/database/migrations/runner.js";
+import { FailFastPostgresDialect } from "../../src/database/pg-migration-lock.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
+import { resetTaxonomyDefsCacheForTests } from "../../src/taxonomies/index.js";
+
+/**
+ * Clear the isolate-wide, schema-derived caches that live on globalThis and
+ * therefore persist across tests within a vitest worker. A freshly created
+ * test database must never be served another database's cached taxonomy
+ * definitions, so we reset every time a new test DB is created.
+ *
+ * Note: we deliberately don't import from `../../src/loader.js` here — several
+ * test files `vi.mock` that module to stub `getDb`, and pulling another export
+ * through this shared util would blow up under those mocks. The loader's own
+ * taxonomy-names cache predates this util and is reset via its public path.
+ */
+function resetSchemaCachesForTests(): void {
+	resetTaxonomyDefsCacheForTests();
+}
 
 // ---------------------------------------------------------------------------
 // Environment
@@ -33,6 +51,7 @@ export const hasPgTestDatabase = PG_CONNECTION_STRING.length > 0;
  * Create an in-memory SQLite database for testing
  */
 export function createTestDatabase(): Kysely<DatabaseSchema> {
+	resetSchemaCachesForTests();
 	const sqlite = new Database(":memory:");
 
 	return new Kysely<DatabaseSchema>({
@@ -101,6 +120,73 @@ export async function setupTestDatabaseWithCollections(): Promise<Kysely<Databas
  */
 export async function teardownTestDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
 	await db.destroy();
+}
+
+/**
+ * Number of terms Cloudflare D1 allows in a compound SELECT
+ * (SQLITE_LIMIT_COMPOUND_SELECT). Measured against a real D1: five
+ * `UNION ALL` branches compile, six are rejected.
+ */
+export const D1_COMPOUND_SELECT_LIMIT = 5;
+
+class LimitedCompoundSelectAdapter extends SqliteAdapter {
+	constructor(readonly compoundSelectLimit: number) {
+		super();
+	}
+}
+
+class LimitedCompoundSelectDialect extends SqliteDialect {
+	readonly #limit: number;
+
+	constructor(config: SqliteDialectConfig, limit: number) {
+		super(config);
+		this.#limit = limit;
+	}
+
+	override createAdapter(): SqliteAdapter {
+		return new LimitedCompoundSelectAdapter(this.#limit);
+	}
+}
+
+export interface CompoundSelectTestDatabase {
+	db: Kysely<DatabaseSchema>;
+	/** Every statement prepared against the database, in order. */
+	statements: string[];
+}
+
+/**
+ * Test database standing in for a backend with — or without — a
+ * compound-SELECT ceiling.
+ *
+ * better-sqlite3 uses SQLite's upstream default of 500 and offers no way to
+ * lower it, so query shapes that D1 rejects run happily in tests. Pass a
+ * number and the dialect declares the ceiling the way the D1 dialect does,
+ * while prepare() rejects statements past it — where SQLite itself raises the
+ * error — with D1's error text, so code that inspects the message behaves the
+ * same. Pass null for a backend that imposes no ceiling.
+ */
+export async function setupTestDatabaseWithCompoundSelectLimit(
+	limit: number | null = D1_COMPOUND_SELECT_LIMIT,
+): Promise<CompoundSelectTestDatabase> {
+	resetSchemaCachesForTests();
+	const sqlite = new Database(":memory:");
+	const statements: string[] = [];
+	const prepare = sqlite.prepare.bind(sqlite);
+	sqlite.prepare = ((source: string) => {
+		statements.push(source);
+		const terms = source.split(/\b(?:UNION|INTERSECT|EXCEPT)\b/i).length;
+		if (limit !== null && terms > limit) {
+			throw new Error("too many terms in compound SELECT: SQLITE_ERROR");
+		}
+		return prepare(source);
+	}) as typeof sqlite.prepare;
+
+	const config = { database: sqlite };
+	const dialect =
+		limit === null ? new SqliteDialect(config) : new LimitedCompoundSelectDialect(config, limit);
+	const db = new Kysely<DatabaseSchema>({ dialect });
+	await runMigrations(db);
+	return { db, statements };
 }
 
 // ---------------------------------------------------------------------------
@@ -246,6 +332,7 @@ export interface PgTestContext {
  * Call `teardownTestPostgresDatabase()` in afterEach to drop the schema.
  */
 export async function createTestPostgresDatabase(): Promise<PgTestContext> {
+	resetSchemaCachesForTests();
 	const connectionString = await getWorkerConnectionString();
 	const pool = await getSharedPool();
 	const schemaName = uniqueSchemaName();
@@ -268,7 +355,9 @@ export async function createTestPostgresDatabase(): Promise<PgTestContext> {
 	});
 
 	const db = new Kysely<DatabaseSchema>({
-		dialect: new PostgresDialect({ pool: testPool }),
+		// Same dialect as the production Postgres adapters so every PG test
+		// exercises the fail-fast migration lock.
+		dialect: new FailFastPostgresDialect({ pool: testPool }),
 	});
 
 	return { db, schemaName };

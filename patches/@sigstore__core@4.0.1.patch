@@ -1,0 +1,43 @@
+diff --git a/dist/crypto.js b/dist/crypto.js
+index d972696..dad0c76 100644
+--- a/dist/crypto.js
++++ b/dist/crypto.js
+@@ -47,10 +47,38 @@ function digest(algorithm, ...data) {
+     }
+     return hash.digest();
+ }
++function algorithmForKey(key) {
++    if (!(key instanceof crypto_1.default.KeyObject) || key.type !== 'public') {
++        return false;
++    }
++    switch (key.asymmetricKeyType) {
++        case 'ec':
++            switch (key.asymmetricKeyDetails?.namedCurve) {
++                case 'prime256v1':
++                    return 'sha256';
++                case 'secp384r1':
++                    return 'sha384';
++                case 'secp521r1':
++                    return 'sha512';
++                default:
++                    return false;
++            }
++        case 'ed25519':
++            return undefined;
++        default:
++            return false;
++    }
++}
+ function verify(data, key, signature, algorithm) {
+     // The try/catch is to work around an issue in Node 14.x where verify throws
+     // an error in some scenarios if the signature is invalid.
+     try {
++        if (algorithm === undefined) {
++            algorithm = algorithmForKey(key);
++            if (algorithm === false) {
++                return false;
++            }
++        }
+         return crypto_1.default.verify(algorithm, data, key, signature);
+     }
+     catch (e) {

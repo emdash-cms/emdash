@@ -21,6 +21,7 @@ export interface CollectionStats {
 	total: number;
 	published: number;
 	draft: number;
+	scheduled: number;
 }
 
 export interface RecentItem {
@@ -69,6 +70,7 @@ export async function handleDashboardStats(
 					total: stats.total,
 					published: stats.published,
 					draft: stats.draft,
+					scheduled: stats.scheduled,
 				};
 			}),
 		);

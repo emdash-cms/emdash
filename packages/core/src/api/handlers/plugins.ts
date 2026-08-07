@@ -5,6 +5,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
+import type { SandboxedPluginEntry } from "../../emdash-runtime.js";
 import { PluginStateRepository, type PluginState, type PluginStatus } from "../../plugins/state.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import type { ApiResult } from "../types.js";
@@ -17,6 +18,8 @@ export interface PluginInfo {
 	enabled: boolean;
 	status: PluginStatus;
 	source?: "config" | "marketplace" | "registry";
+	/** True for statically-sandboxed plugins (registered via `sandboxed: []`) */
+	sandboxed?: boolean;
 	marketplaceVersion?: string;
 	/** Publisher DID, for registry-source plugins */
 	registryPublisherDid?: string;
@@ -26,6 +29,8 @@ export interface PluginInfo {
 	hasAdminPages: boolean;
 	hasDashboardWidgets: boolean;
 	hasHooks: boolean;
+	/** True when the plugin declares `admin.settingsSchema` (auto-generated settings form) */
+	hasSettings: boolean;
 	installedAt?: string;
 	activatedAt?: string;
 	deactivatedAt?: string;
@@ -33,6 +38,14 @@ export interface PluginInfo {
 	description?: string;
 	/** URL to the plugin icon on the marketplace */
 	iconUrl?: string;
+	mcpToolsEnabled: boolean;
+	mcpTools: Array<{
+		name: string;
+		description: string;
+		route: string;
+		permission: string;
+		destructive: boolean;
+	}>;
 }
 
 export interface PluginListResponse {
@@ -75,12 +88,61 @@ function buildPluginInfo(
 		hasAdminPages: (plugin.admin.pages?.length ?? 0) > 0,
 		hasDashboardWidgets: (plugin.admin.widgets?.length ?? 0) > 0,
 		hasHooks: Object.keys(plugin.hooks ?? {}).length > 0,
+		hasSettings: Object.keys(plugin.admin.settingsSchema ?? {}).length > 0,
 		installedAt: state?.installedAt?.toISOString(),
 		activatedAt: state?.activatedAt?.toISOString() ?? undefined,
 		deactivatedAt: state?.deactivatedAt?.toISOString() ?? undefined,
 		description: state?.description ?? undefined,
 		iconUrl:
 			isMarketplace && marketplaceUrl ? marketplaceIconUrl(marketplaceUrl, plugin.id) : undefined,
+		mcpToolsEnabled: state?.mcpToolsEnabled ?? false,
+		mcpTools: Object.entries(plugin.mcp?.tools ?? {}).flatMap(([name, tool]) => {
+			const permission = plugin.routes[tool.route]?.permission;
+			return permission
+				? [
+						{
+							name,
+							description: tool.description,
+							route: tool.route,
+							permission,
+							destructive: tool.destructive ?? false,
+						},
+					]
+				: [];
+		}),
+	};
+}
+
+/**
+ * Build plugin info for a statically-sandboxed plugin entry
+ */
+function buildSandboxedPluginInfo(
+	entry: SandboxedPluginEntry,
+	state: PluginState | null,
+): PluginInfo {
+	const status = state?.status ?? "active";
+	const enabled = status === "active";
+
+	return {
+		id: entry.id,
+		name: state?.displayName || entry.id,
+		version: entry.version,
+		package: undefined, // v2 doesn't have package field
+		enabled,
+		status,
+		source: "config",
+		sandboxed: true,
+		capabilities: entry.capabilities,
+		hasAdminPages: (entry.adminPages?.length ?? 0) > 0,
+		hasDashboardWidgets: (entry.adminWidgets?.length ?? 0) > 0,
+		hasHooks: false,
+		hasSettings: Object.keys(entry.settingsSchema ?? {}).length > 0,
+		installedAt: state?.installedAt?.toISOString(),
+		activatedAt: state?.activatedAt?.toISOString() ?? undefined,
+		deactivatedAt: state?.deactivatedAt?.toISOString() ?? undefined,
+		description: state?.description ?? undefined,
+		mcpToolsEnabled: state?.mcpToolsEnabled ?? false,
+		mcpTools: entry.mcp?.tools.map(({ inputSchema: _, outputSchema: __, ...tool }) => tool) ?? [],
 	};
 }
 
@@ -90,7 +152,14 @@ function buildPluginInfo(
 export async function handlePluginList(
 	db: Kysely<Database>,
 	configuredPlugins: ResolvedPlugin[],
+	sandboxedPluginEntries: SandboxedPluginEntry[],
 	marketplaceUrl?: string,
+	/**
+	 * Settings-schema lookup for runtime-installed (marketplace/registry)
+	 * plugins, which aren't in either build-time list. Typically
+	 * `EmDashRuntime.getRuntimePluginSettingsSchema`.
+	 */
+	runtimeSettingsSchemaLookup?: (pluginId: string) => Record<string, unknown> | null,
 ): Promise<ApiResult<PluginListResponse>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -103,6 +172,14 @@ export async function handlePluginList(
 			const state = stateMap.get(plugin.id) ?? null;
 			return buildPluginInfo(plugin, state, marketplaceUrl);
 		});
+
+		// Include statically-sandboxed plugins (registered via `sandboxed: []`
+		// in astro.config.mjs).
+		for (const entry of sandboxedPluginEntries) {
+			if (configuredIds.has(entry.id)) continue;
+			configuredIds.add(entry.id);
+			items.push(buildSandboxedPluginInfo(entry, stateMap.get(entry.id) ?? null));
+		}
 
 		// Include runtime-installed plugins (marketplace or registry) that
 		// aren't in the configured plugins list.
@@ -124,6 +201,7 @@ export async function handlePluginList(
 				hasAdminPages: false,
 				hasDashboardWidgets: false,
 				hasHooks: false,
+				hasSettings: Object.keys(runtimeSettingsSchemaLookup?.(state.pluginId) ?? {}).length > 0,
 				installedAt: state.installedAt?.toISOString(),
 				activatedAt: state.activatedAt?.toISOString() ?? undefined,
 				deactivatedAt: state.deactivatedAt?.toISOString() ?? undefined,
@@ -132,6 +210,8 @@ export async function handlePluginList(
 					state.source === "marketplace" && marketplaceUrl
 						? marketplaceIconUrl(marketplaceUrl, state.pluginId)
 						: undefined,
+				mcpToolsEnabled: state.mcpToolsEnabled,
+				mcpTools: [],
 			});
 		}
 
@@ -156,27 +236,37 @@ export async function handlePluginList(
 export async function handlePluginGet(
 	db: Kysely<Database>,
 	configuredPlugins: ResolvedPlugin[],
+	sandboxedPluginEntries: SandboxedPluginEntry[],
 	pluginId: string,
 	marketplaceUrl?: string,
 ): Promise<ApiResult<PluginResponse>> {
 	try {
+		const stateRepo = new PluginStateRepository(db);
 		const plugin = configuredPlugins.find((p) => p.id === pluginId);
-		if (!plugin) {
+
+		if (plugin) {
+			const state = await stateRepo.get(pluginId);
 			return {
-				success: false,
-				error: {
-					code: "NOT_FOUND",
-					message: `Plugin not found: ${pluginId}`,
-				},
+				success: true,
+				data: { item: buildPluginInfo(plugin, state, marketplaceUrl) },
 			};
 		}
 
-		const stateRepo = new PluginStateRepository(db);
-		const state = await stateRepo.get(pluginId);
+		const sandboxed = sandboxedPluginEntries.find((e) => e.id === pluginId);
+		if (sandboxed) {
+			const state = await stateRepo.get(pluginId);
+			return {
+				success: true,
+				data: { item: buildSandboxedPluginInfo(sandboxed, state) },
+			};
+		}
 
 		return {
-			success: true,
-			data: { item: buildPluginInfo(plugin, state, marketplaceUrl) },
+			success: false,
+			error: {
+				code: "NOT_FOUND",
+				message: `Plugin not found: ${pluginId}`,
+			},
 		};
 	} catch {
 		return {
@@ -214,10 +304,13 @@ function buildStateOnlyPluginInfo(
 		hasAdminPages: false,
 		hasDashboardWidgets: false,
 		hasHooks: false,
+		hasSettings: false,
 		installedAt: state.installedAt?.toISOString(),
 		activatedAt: state.activatedAt?.toISOString() ?? undefined,
 		deactivatedAt: state.deactivatedAt?.toISOString() ?? undefined,
 		description: state.description ?? undefined,
+		mcpToolsEnabled: state.mcpToolsEnabled,
+		mcpTools: [],
 	};
 }
 
@@ -227,6 +320,7 @@ function buildStateOnlyPluginInfo(
 export async function handlePluginEnable(
 	db: Kysely<Database>,
 	configuredPlugins: ResolvedPlugin[],
+	sandboxedPluginEntries: SandboxedPluginEntry[],
 	pluginId: string,
 ): Promise<ApiResult<PluginResponse>> {
 	try {
@@ -237,6 +331,13 @@ export async function handlePluginEnable(
 		if (plugin) {
 			const state = await stateRepo.enable(pluginId, plugin.version);
 			return { success: true, data: { item: buildPluginInfo(plugin, state) } };
+		}
+
+		// Statically-sandboxed plugin: addressable via its build-time entry.
+		const sandboxed = sandboxedPluginEntries.find((e) => e.id === pluginId);
+		if (sandboxed) {
+			const state = await stateRepo.enable(pluginId, sandboxed.version);
+			return { success: true, data: { item: buildSandboxedPluginInfo(sandboxed, state) } };
 		}
 
 		// Runtime-installed plugin (marketplace or registry): only
@@ -268,6 +369,7 @@ export async function handlePluginEnable(
 export async function handlePluginDisable(
 	db: Kysely<Database>,
 	configuredPlugins: ResolvedPlugin[],
+	sandboxedPluginEntries: SandboxedPluginEntry[],
 	pluginId: string,
 ): Promise<ApiResult<PluginResponse>> {
 	try {
@@ -277,6 +379,12 @@ export async function handlePluginDisable(
 		if (plugin) {
 			const state = await stateRepo.disable(pluginId, plugin.version);
 			return { success: true, data: { item: buildPluginInfo(plugin, state) } };
+		}
+
+		const sandboxed = sandboxedPluginEntries.find((e) => e.id === pluginId);
+		if (sandboxed) {
+			const state = await stateRepo.disable(pluginId, sandboxed.version);
+			return { success: true, data: { item: buildSandboxedPluginInfo(sandboxed, state) } };
 		}
 
 		const existing = await stateRepo.get(pluginId);

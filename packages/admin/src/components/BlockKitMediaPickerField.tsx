@@ -123,7 +123,7 @@ export function BlockKitMediaPickerField({
 				<Button
 					type="button"
 					variant="outline"
-					className="w-full h-24 border-dashed"
+					className="w-full h-24 justify-center border-dashed"
 					onClick={() => setPickerOpen(true)}
 				>
 					<div className="flex flex-col items-center gap-1.5 text-kumo-subtle">

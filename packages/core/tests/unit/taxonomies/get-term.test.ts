@@ -55,6 +55,14 @@ describeEachDialect("getTerm", (dialect) => {
 		contentRepo = new ContentRepository(ctx.db);
 		counter = new QueryCountingPlugin();
 		vi.mocked(getDb).mockResolvedValue(ctx.db.withPlugin(counter));
+		// The migration-seeded `category` def declares `["posts"]`; counts are
+		// scoped to the def's declared collections, so point it at the test
+		// collection (`post`).
+		await ctx.db
+			.updateTable("_emdash_taxonomy_defs")
+			.set({ collections: JSON.stringify(["post"]) })
+			.where("name", "=", "category")
+			.execute();
 	});
 
 	afterEach(async () => {
@@ -85,11 +93,13 @@ describeEachDialect("getTerm", (dialect) => {
 		const p1 = await contentRepo.create({
 			type: "post",
 			slug: "p1",
+			status: "published",
 			data: { title: "P1" },
 		});
 		const p2 = await contentRepo.create({
 			type: "post",
 			slug: "p2",
+			status: "published",
 			data: { title: "P2" },
 		});
 		await taxRepo.attachToEntry("post", p1.id, parent.id);
@@ -145,7 +155,7 @@ describeEachDialect("getTerm", (dialect) => {
 		expect(term?.children.map((c) => c.slug)).toEqual(["web"]);
 	});
 
-	it("resolves the term in three queries (term, count, children)", async () => {
+	it("resolves the term in four queries (def, term, count, children)", async () => {
 		const parent = await taxRepo.create({
 			name: "category",
 			slug: "tech",
@@ -160,6 +170,7 @@ describeEachDialect("getTerm", (dialect) => {
 		const post = await contentRepo.create({
 			type: "post",
 			slug: "p1",
+			status: "published",
 			data: { title: "P1" },
 		});
 		await taxRepo.attachToEntry("post", post.id, parent.id);
@@ -170,7 +181,11 @@ describeEachDialect("getTerm", (dialect) => {
 		expect(term).not.toBeNull();
 		expect(Number(term?.count)).toBe(1);
 		expect(term?.children).toHaveLength(1);
-		// 1 term lookup + (count ∥ children) — anything more is a regression.
-		expect(counter.count).toBe(3);
+		// 1 def lookup (for the count's collection scope) + 1 term lookup +
+		// (count ∥ children) — anything more is a regression. The count is a
+		// single UNION ALL round-trip regardless of how many collections the
+		// taxonomy spans, and on a page that also renders the taxonomy widget
+		// the request cache makes it free.
+		expect(counter.count).toBe(4);
 	});
 });

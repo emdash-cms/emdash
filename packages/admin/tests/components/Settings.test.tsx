@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import type { AdminManifest } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
@@ -20,6 +21,7 @@ vi.mock("@tanstack/react-router", async () => {
 });
 
 const mockFetchManifest = vi.fn<() => Promise<AdminManifest>>();
+const mockSetLocale = vi.fn<(locale: string) => void>();
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
@@ -28,6 +30,10 @@ vi.mock("../../src/lib/api", async () => {
 		fetchManifest: (...args: unknown[]) => mockFetchManifest(...(args as [])),
 	};
 });
+
+vi.mock("../../src/locales/useLocale.js", () => ({
+	useLocale: () => ({ locale: "en", setLocale: mockSetLocale }),
+}));
 
 // Import after mocks
 const { Settings } = await import("../../src/components/Settings");
@@ -60,7 +66,9 @@ describe("Settings", () => {
 				<Settings />
 			</Wrapper>,
 		);
-		await expect.element(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("heading", { name: "Settings", level: 1, exact: true }))
+			.toBeInTheDocument();
 	});
 
 	it("shows links to General, Social, and SEO sub-pages", async () => {
@@ -80,8 +88,53 @@ describe("Settings", () => {
 				<Settings />
 			</Wrapper>,
 		);
-		await expect.element(screen.getByText("API Tokens")).toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: /API Tokens/ })).toBeInTheDocument();
 		await expect.element(screen.getByText("Email", { exact: true })).toBeInTheDocument();
+	});
+
+	it("groups settings into clear semantic sections", async () => {
+		const screen = await render(
+			<Wrapper>
+				<Settings />
+			</Wrapper>,
+		);
+
+		for (const name of ["Site", "Security Settings", "API Tokens", "Email Settings", "Language"]) {
+			await expect
+				.element(screen.getByRole("heading", { name, level: 2, exact: true }))
+				.toBeInTheDocument();
+		}
+	});
+
+	it("filters and changes the admin language", async () => {
+		const screen = await render(
+			<Wrapper>
+				<Settings />
+			</Wrapper>,
+		);
+
+		await userEvent.click(screen.getByRole("combobox", { name: "Language", exact: true }));
+		await screen.getByRole("combobox", { name: "Search" }).fill("Portu");
+		await userEvent.click(screen.getByRole("option", { name: "Português (Brasil)" }));
+
+		expect(mockSetLocale).toHaveBeenCalledWith("pt-BR");
+	});
+
+	it("preserves the settings destinations", async () => {
+		const screen = await render(
+			<Wrapper>
+				<Settings />
+			</Wrapper>,
+		);
+
+		expect(screen.getByRole("link", { name: /General/ }).element()).toHaveAttribute(
+			"href",
+			"/settings/general",
+		);
+		expect(screen.getByRole("link", { name: /API Tokens/ }).element()).toHaveAttribute(
+			"href",
+			"/settings/api-tokens",
+		);
 	});
 
 	it("security link shown when authMode is passkey", async () => {
@@ -91,7 +144,7 @@ describe("Settings", () => {
 				<Settings />
 			</Wrapper>,
 		);
-		await expect.element(screen.getByText("Security")).toBeInTheDocument();
+		await expect.element(screen.getByText("Security", { exact: true })).toBeInTheDocument();
 		await expect.element(screen.getByText("Self-Signup Domains")).toBeInTheDocument();
 	});
 

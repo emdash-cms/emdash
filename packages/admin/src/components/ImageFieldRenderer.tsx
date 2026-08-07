@@ -14,6 +14,8 @@ import { Image as ImageIcon, ImageBroken, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
+import { metaString } from "../lib/media-utils";
+import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 
 /**
@@ -30,6 +32,10 @@ export interface ImageFieldValue {
 	alt?: string;
 	width?: number;
 	height?: number;
+	/** LQIP blurhash placeholder (images only) */
+	blurhash?: string;
+	/** LQIP dominant-color placeholder, as a CSS color (images only) */
+	dominantColor?: string;
 	/** Provider-specific metadata */
 	meta?: Record<string, unknown>;
 }
@@ -85,6 +91,10 @@ export function ImageFieldRenderer({
 			alt: item.alt || "",
 			width: item.width,
 			height: item.height,
+			// Cache LQIP alongside dimensions so embeds render a placeholder without a
+			// runtime lookup. Fall back to `meta` for providers that stash it there.
+			blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
+			dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
 			meta: isLocalProvider ? { ...item.meta, storageKey: item.storageKey } : item.meta,
 		});
 	};
@@ -94,11 +104,21 @@ export function ImageFieldRenderer({
 	};
 
 	return (
-		<div id={id}>
-			<Label>{label}</Label>
+		<div id={id} className="grid gap-2">
+			{description ? (
+				<FieldHelpLabel
+					help={description}
+					helpLabel={t`More information about ${label}`}
+					labelClassName="text-base font-medium text-kumo-default"
+				>
+					{label}
+				</FieldHelpLabel>
+			) : (
+				<Label>{label}</Label>
+			)}
 			{displayUrl ? (
 				imageBroken ? (
-					<div className="mt-2 relative group">
+					<div className="relative group">
 						<div className="min-h-20 rounded-lg border bg-kumo-muted flex items-center justify-center gap-2 text-kumo-subtle">
 							<ImageBroken className="h-5 w-5" />
 							<span className="text-sm">{t`Image not found`}</span>
@@ -125,7 +145,7 @@ export function ImageFieldRenderer({
 						</div>
 					</div>
 				) : (
-					<div className="mt-2 relative group">
+					<div className="relative group">
 						<img
 							src={displayUrl}
 							alt=""
@@ -158,7 +178,7 @@ export function ImageFieldRenderer({
 				<Button
 					type="button"
 					variant="outline"
-					className="mt-2 w-full h-32 border-dashed"
+					className="h-32 w-full justify-center border-dashed bg-kumo-control"
 					onClick={() => setPickerOpen(true)}
 				>
 					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
@@ -177,9 +197,8 @@ export function ImageFieldRenderer({
 				fieldId={fieldId}
 				title={t`Select ${label}`}
 			/>
-			{description && <p className="text-xs text-kumo-subtle mt-1">{description}</p>}
 			{required && !displayUrl && (
-				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
+				<p className="-mt-1 text-sm text-kumo-danger">{t`This field is required`}</p>
 			)}
 		</div>
 	);

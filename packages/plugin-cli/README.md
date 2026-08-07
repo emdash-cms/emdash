@@ -36,6 +36,18 @@ emdash-plugin info <handle-or-did> <slug>    Show package details
 
 The non-interactive output commands (`whoami`, `validate`, `search`, `info`, `login`, `publish`) accept `--json` for machine-readable output. Discovery commands (`search`, `info`) accept `--registry-url <url>` (or `EMDASH_REGISTRY_URL`).
 
+## Development
+
+From a fresh checkout, run `pnpm install` and then `pnpm build` before a scoped package typecheck:
+
+```sh
+pnpm install
+pnpm build
+pnpm --filter @emdash-cms/plugin-cli typecheck
+```
+
+The build emits internal workspace type declarations used by the scoped typecheck, matching CI's build-then-typecheck order.
+
 ## Authoring
 
 A typical plugin's `package.json` scripts:

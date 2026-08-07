@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { localeCode } from "./common.js";
+
 // ---------------------------------------------------------------------------
 // Taxonomy definitions: Input schemas
 // ---------------------------------------------------------------------------
@@ -24,7 +26,7 @@ export const createTaxonomyDefBody = z
 			.max(100)
 			.optional()
 			.default([]),
-		locale: z.string().min(1).optional(),
+		locale: localeCode.optional(),
 		translationOf: z.string().min(1).optional(),
 	})
 	.meta({ id: "CreateTaxonomyDefBody" });
@@ -39,7 +41,7 @@ export const createTermBody = z
 		label: z.string().min(1),
 		parentId: z.string().nullish(),
 		description: z.string().optional(),
-		locale: z.string().min(1).optional(),
+		locale: localeCode.optional(),
 		translationOf: z.string().min(1).optional(),
 	})
 	.meta({ id: "CreateTermBody" });
@@ -52,6 +54,21 @@ export const updateTermBody = z
 		description: z.string().optional(),
 	})
 	.meta({ id: "UpdateTermBody" });
+
+export const termListQuery = z
+	.object({
+		locale: localeCode.optional(),
+		includeCounts: z
+			.enum(["true", "false"])
+			.transform((v) => v === "true")
+			.optional()
+			.default(true)
+			.meta({
+				description:
+					"Include each term's visible-usage count. Pass false to skip the aggregate; `count` is then absent from every term.",
+			}),
+	})
+	.meta({ id: "TermListQuery" });
 
 // ---------------------------------------------------------------------------
 // Taxonomies: Response schemas
@@ -123,7 +140,7 @@ export const termWithCountSchema: z.ZodType = z
 		label: z.string(),
 		parentId: z.string().nullable(),
 		description: z.string().optional(),
-		count: z.number().int(),
+		count: z.number().int().optional(),
 		children: z.array(z.lazy(() => termWithCountSchema)),
 		locale: z.string(),
 		translationGroup: z.string().nullable(),

@@ -152,7 +152,7 @@ function typeIntoEditor(editor: Editor, text: string) {
 function textBlock(
 	text: string,
 	opts: {
-		style?: "normal" | "h1" | "h2" | "h3" | "blockquote";
+		style?: "normal" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "blockquote";
 		marks?: string[];
 		listItem?: "bullet" | "number";
 		level?: number;
@@ -313,6 +313,14 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(h1!.textContent).toBe("Title");
 	});
 
+	it("renders an h6 heading", async () => {
+		await render(<PortableTextEditor value={[textBlock("Detail", { style: "h6" })]} />);
+		const pm = await waitForEditor();
+		const h6 = pm.querySelector("h6");
+		expect(h6).toBeTruthy();
+		expect(h6!.textContent).toBe("Detail");
+	});
+
 	it("renders bold text", async () => {
 		await render(<PortableTextEditor value={[textBlock("Bold text", { marks: ["strong"] })]} />);
 		const pm = await waitForEditor();
@@ -338,6 +346,88 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(anchor).toBeTruthy();
 		expect(anchor!.textContent).toBe("Click me");
 		expect(anchor!.getAttribute("href")).toBe("https://example.com");
+	});
+
+	it("renders linked inline code in body text", async () => {
+		const linkKey = "lnk-code";
+		await render(
+			<PortableTextEditor
+				value={[
+					textBlock("fetch", {
+						marks: ["code", linkKey],
+						markDefs: [{ _type: "link", _key: linkKey, href: "https://example.com/fetch" }],
+					}),
+				]}
+			/>,
+		);
+		const pm = await waitForEditor();
+		const code = pm.querySelector("code");
+		const anchor = pm.querySelector("a");
+		expect(code).toBeTruthy();
+		expect(anchor).toBeTruthy();
+		expect(code!.textContent).toBe("fetch");
+		expect(anchor!.getAttribute("href")).toBe("https://example.com/fetch");
+		expect(anchor!.querySelector("code") || code!.closest("a")).toBeTruthy();
+	});
+
+	it("renders linked inline code in headings", async () => {
+		const linkKey = "lnk-h-code";
+		await render(
+			<PortableTextEditor
+				value={[
+					textBlock("useState", {
+						style: "h2",
+						marks: ["code", linkKey],
+						markDefs: [
+							{ _type: "link", _key: linkKey, href: "https://react.dev/reference/react/useState" },
+						],
+					}),
+				]}
+			/>,
+		);
+		const pm = await waitForEditor();
+		const heading = pm.querySelector("h2");
+		expect(heading).toBeTruthy();
+		expect(heading!.querySelector("code")).toBeTruthy();
+		expect(heading!.querySelector("a")?.getAttribute("href")).toBe(
+			"https://react.dev/reference/react/useState",
+		);
+	});
+
+	it("keeps code and link marks together when both are toggled", async () => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({
+			onChange,
+			value: [textBlock("API")],
+		});
+
+		editor
+			.chain()
+			.focus()
+			.selectAll()
+			.toggleCode()
+			.setLink({ href: "https://api.example.com" })
+			.run();
+
+		await vi.waitFor(() => {
+			expect(editor.isActive("code")).toBe(true);
+			expect(editor.isActive("link")).toBe(true);
+		});
+
+		await vi.waitFor(() => {
+			expect(onChange).toHaveBeenCalled();
+		});
+
+		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
+			children?: Array<{ text?: string; marks?: string[] }>;
+			markDefs?: Array<{ _type: string; _key: string; href?: string }>;
+		}>;
+		const span = blocks[0]?.children?.[0];
+		expect(span?.text).toBe("API");
+		expect(span?.marks).toContain("code");
+		const linkDef = blocks[0]?.markDefs?.find((d) => d._type === "link");
+		expect(linkDef?.href).toBe("https://api.example.com");
+		expect(span?.marks).toContain(linkDef?._key);
 	});
 
 	it("renders a bullet list", async () => {
@@ -450,6 +540,27 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(textContent.trim()).toBe("");
 	});
 
+	it("teaches writing and slash commands in the default placeholder", async () => {
+		await render(<PortableTextEditor value={[]} />);
+		const pm = await waitForEditor();
+		const placeholder = pm.querySelector("[data-placeholder]");
+		expect(placeholder?.getAttribute("data-placeholder")).toBe(
+			"Start writing, or type '/' for commands",
+		);
+	});
+
+	it("centers the writing column with responsive space for block controls", async () => {
+		await render(<PortableTextEditor value={[textBlock("Gutter spacing")]} />);
+		const pm = await waitForEditor();
+		expect(pm.className).toContain("w-full");
+		expect(pm.className).toContain("max-w-[calc(75ch+8rem)]");
+		expect(pm.className).toContain("mx-auto");
+		expect(pm.className).toContain("ps-14");
+		expect(pm.className).toContain("pe-14");
+		expect(pm.className).toContain("sm:ps-16");
+		expect(pm.className).toContain("sm:pe-16");
+	});
+
 	it("renders bold+italic text with multiple marks", async () => {
 		await render(
 			<PortableTextEditor value={[textBlock("Bold italic", { marks: ["strong", "em"] })]} />,
@@ -461,6 +572,21 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(em).toBeTruthy();
 		// The text is wrapped in both marks
 		expect(pm.textContent).toContain("Bold italic");
+	});
+
+	it("renders subscript and superscript Portable Text marks", async () => {
+		await render(
+			<PortableTextEditor
+				value={[
+					textBlock("Subscript", { marks: ["subscript"] }),
+					textBlock("Superscript", { marks: ["superscript"] }),
+				]}
+			/>,
+		);
+		const pm = await waitForEditor();
+
+		expect(pm.querySelector("sub")?.textContent).toBe("Subscript");
+		expect(pm.querySelector("sup")?.textContent).toBe("Superscript");
 	});
 
 	it("fires onChange with valid PT blocks when typing", async () => {
@@ -549,12 +675,42 @@ describe("Editor component behaviour", () => {
 	it("hides toolbar and footer in minimal mode", async () => {
 		await render(<PortableTextEditor minimal={true} value={[textBlock("Minimal")]} />);
 		await waitForEditor();
+		const surface = document.querySelector("[data-emdash-editor-surface]");
+		expect(surface).not.toHaveClass("bg-kumo-base");
+		expect(surface).not.toHaveClass("-mx-4");
 		// Toolbar has role="toolbar" — should not exist
 		const toolbar = document.querySelector('[role="toolbar"]');
 		expect(toolbar).toBeNull();
 		// Footer shows word count — should not exist
 		const footer = document.querySelector(".border-t");
 		expect(footer).toBeNull();
+	});
+
+	it("raises the non-minimal writing surface above the editor canvas", async () => {
+		await render(<PortableTextEditor value={[textBlock("Raised surface")]} />);
+		await waitForEditor();
+		const surface = document.querySelector("[data-emdash-editor-surface]");
+
+		expect(surface).toHaveClass("bg-kumo-base");
+	});
+
+	it("shrinks the editor surface to fit a narrow grid column", async () => {
+		const screen = await render(
+			<div data-testid="editor-column" style={{ display: "grid", width: 320 }}>
+				<PortableTextEditor value={[textBlock("Contained editor")]} />
+			</div>,
+		);
+		await waitForEditor();
+		const column = screen.getByTestId("editor-column").element();
+		const floatingRoot = screen.container.querySelector<HTMLElement>(
+			"[data-emdash-editor-floating-root]",
+		);
+
+		expect(floatingRoot).toBeTruthy();
+		expect(floatingRoot).toHaveClass("min-w-0");
+		expect(floatingRoot!.getBoundingClientRect().width).toBeLessThanOrEqual(
+			column.getBoundingClientRect().width,
+		);
 	});
 
 	it("calls onEditorReady with Editor instance", async () => {
@@ -630,14 +786,38 @@ describe("Toolbar", () => {
 		await expect.element(screen.getByRole("button", { name: "Italic" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Underline" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Strikethrough" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Subscript" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Superscript" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Inline Code" })).toBeInTheDocument();
 	});
 
-	it("has heading buttons", async () => {
+	it.each([
+		["Subscript", "subscript"],
+		["Superscript", "superscript"],
+	] as const)("persists %s formatting as a Portable Text mark", async (label, mark) => {
+		const onChange = vi.fn();
+		const { screen, editor } = await renderAndGetEditor({ onChange, value: [] });
+
+		await screen.getByRole("button", { name: label }).click();
+		typeIntoEditor(editor, "2");
+
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
+		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
+			children?: Array<{ marks?: string[] }>;
+		}>;
+		expect(blocks[0]?.children?.[0]?.marks).toContain(mark);
+	});
+
+	it("has a heading menu", async () => {
 		const screen = await renderWithToolbar();
-		await expect.element(screen.getByRole("button", { name: "Heading 1" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Heading 2" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Heading 3" })).toBeInTheDocument();
+		const trigger = screen.getByRole("button", { name: "Headings" });
+		await trigger.click();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 1" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 2" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 3" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 4" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 5" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 6" })).toBeInTheDocument();
 	});
 
 	it("has list buttons", async () => {
@@ -659,13 +839,14 @@ describe("Toolbar", () => {
 		await expect.element(screen.getByRole("button", { name: "Align Right" })).toBeInTheDocument();
 	});
 
-	it("has insert buttons", async () => {
+	it("keeps insertion-only actions out of the formatting toolbar", async () => {
 		const screen = await renderWithToolbar();
+		const toolbar = screen.getByRole("toolbar").element();
 		await expect.element(screen.getByRole("button", { name: "Insert Link" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Insert Image" })).toBeInTheDocument();
-		await expect
-			.element(screen.getByRole("button", { name: "Insert Horizontal Rule" }))
-			.toBeInTheDocument();
+		expect(toolbar.querySelector('[aria-label="Insert Table"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert Image"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert HTML"]')).toBeNull();
+		expect(toolbar.querySelector('[aria-label="Insert Horizontal Rule"]')).toBeNull();
 	});
 
 	it("has history buttons (initially disabled)", async () => {
@@ -721,19 +902,19 @@ describe("Toolbar", () => {
 		);
 	});
 
-	it("toggles Heading 1 aria-pressed when clicked", async () => {
+	it("changes the current block to Heading 1 from the heading menu", async () => {
 		const screen = await renderWithToolbar();
 		const pm = document.querySelector(".ProseMirror") as HTMLElement;
 		await focusEditor(pm);
 
-		const h1Btn = screen.getByRole("button", { name: "Heading 1" });
-		await expect.element(h1Btn).toHaveAttribute("aria-pressed", "false");
-
-		await h1Btn.click();
+		const trigger = screen.getByRole("button", { name: "Headings" });
+		await trigger.click();
+		await screen.getByRole("menuitem", { name: "Heading 1" }).click();
 
 		await vi.waitFor(
-			async () => {
-				await expect.element(h1Btn).toHaveAttribute("aria-pressed", "true");
+			() => {
+				expect(pm.querySelector("h1")).toBeTruthy();
+				expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
 			},
 			{ timeout: 2000 },
 		);

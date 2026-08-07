@@ -140,4 +140,33 @@ describe("generatePlaceholder", () => {
 		expect(result).not.toBeNull();
 		expect(result!.blurhash).toBeTruthy();
 	});
+
+	it("returns null when no dimensions can be determined — refuses unbounded decode (OOM guard)", async () => {
+		// A crafted/truncated PNG whose header image-size cannot parse but a
+		// decoder might still accept. Without known dimensions the decoded size
+		// is unbounded, so generation must bail instead of risking OOM.
+		const unparseable = new Uint8Array([0x00, 0x01, 0x02, 0x03, 0x04, 0x05]);
+		expect(await generatePlaceholder(unparseable, "image/png")).toBeNull();
+	});
+
+	it("matches case-insensitive MIME types (image/JPEG)", async () => {
+		const result = await generatePlaceholder(new Uint8Array(JPEG_4x4), "image/JPEG");
+		expect(result).not.toBeNull();
+		expect(result!.blurhash).toBeTruthy();
+	});
+
+	it("matches MIME types with a parameter suffix (image/jpeg; charset=binary)", async () => {
+		const result = await generatePlaceholder(
+			new Uint8Array(JPEG_4x4),
+			"image/jpeg; charset=binary",
+		);
+		expect(result).not.toBeNull();
+		expect(result!.blurhash).toBeTruthy();
+	});
+
+	it("treats image/JPG as jpeg", async () => {
+		const result = await generatePlaceholder(new Uint8Array(JPEG_4x4), "image/JPG");
+		expect(result).not.toBeNull();
+		expect(result!.blurhash).toBeTruthy();
+	});
 });

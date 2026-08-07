@@ -36,10 +36,8 @@ The dashboard displays:
 
 6. Click **Save**
 
-<Aside>
-	Drafts are only visible in the admin. Change status to **Published** to make content visible on
-	your site.
-</Aside>
+Drafts are only visible in the admin. Change status to **Published** to make content visible on
+your site.
 
 ## Content Statuses
 
@@ -106,7 +104,7 @@ Type `/` to access quick insert commands:
 Use `/html` to insert a raw HTML block. This is useful for embedding third-party widgets, custom markup, or content that doesn't fit the standard block types. HTML blocks are also created automatically when importing content from WordPress or Contentful that contains markup EmDash can't convert to native Portable Text blocks.
 
 <Aside type="caution">
-	HTML blocks are sanitized before rendering on the frontend to prevent XSS attacks. By default, iframes are only allowed from `www.youtube.com` and `player.vimeo.com`. Iframes from other providers (Cloudflare Stream, Loom, Wistia, Google Maps, etc.) will be stripped during sanitization.
+	HTML blocks are sanitized before rendering on the frontend to prevent XSS attacks. By default, iframes are only allowed from `www.youtube.com` and `player.vimeo.com`. Iframes from other providers will be stripped during sanitization.
 </Aside>
 
 To allow iframes from additional providers, override the `htmlBlock` component in your Portable Text rendering:
@@ -180,10 +178,8 @@ EmDash tracks changes to content. Access revision history from the editor sideba
 
 4. Click **Restore** to revert to that version
 
-<Aside type="caution">
-	Restoring a revision creates a new revision with the restored content. The original revision
-	history is preserved.
-</Aside>
+Restoring a revision creates a new revision with the restored content. The original revision
+history is preserved.
 
 ## Bulk Operations
 
@@ -232,8 +228,9 @@ Schedule content to publish at a future date:
 When the publication date arrives, the content automatically becomes published.
 
 <Aside type="tip">
-	Scheduled publishing requires your site to be server-rendered or have a scheduled task that checks
-	for pending publications.
+	On Node.js deployments, EmDash runs the scheduled publishing sweep automatically. On Cloudflare
+	Workers, it needs a cron trigger to publish content on schedule. This is included by default in new templates. See
+	[Deploy to Cloudflare](/deployment/cloudflare/#scheduled-publishing) for more information.
 </Aside>
 
 ## Deleting Content
@@ -332,9 +329,7 @@ The Translations panel shows all configured locales. Click **Edit** next to any 
 
 In the content list, use the locale dropdown in the toolbar to filter entries by language. Each entry shows its locale in a dedicated column.
 
-<Aside type="tip">
-  Each translation has its own slug, status, and revision history. Publish, schedule, and manage translations independently.
-</Aside>
+Each translation has its own slug, status, and revision history. Publish, schedule, and manage translations independently.
 
 See the [Internationalization guide](/guides/internationalization/) for full details on configuration, querying, and the language switcher.
 

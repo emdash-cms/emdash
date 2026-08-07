@@ -471,6 +471,9 @@ describe("HookPipeline", () => {
 					"content:afterDelete": createTestHook("writer", vi.fn()),
 					"content:afterPublish": createTestHook("writer", vi.fn()),
 					"content:afterUnpublish": createTestHook("writer", vi.fn()),
+					"content:afterRestore": createTestHook("writer", vi.fn()),
+					"content:afterSchedule": createTestHook("writer", vi.fn()),
+					"content:afterUnschedule": createTestHook("writer", vi.fn()),
 				},
 			});
 
@@ -481,6 +484,9 @@ describe("HookPipeline", () => {
 			expect(pipeline.hasHooks("content:afterDelete")).toBe(true);
 			expect(pipeline.hasHooks("content:afterPublish")).toBe(true);
 			expect(pipeline.hasHooks("content:afterUnpublish")).toBe(true);
+			expect(pipeline.hasHooks("content:afterRestore")).toBe(true);
+			expect(pipeline.hasHooks("content:afterSchedule")).toBe(true);
+			expect(pipeline.hasHooks("content:afterUnschedule")).toBe(true);
 		});
 
 		it("skips content:afterPublish without content:read capability", () => {
@@ -533,6 +539,84 @@ describe("HookPipeline", () => {
 
 			const pipeline = new HookPipeline([plugin]);
 			expect(pipeline.hasHooks("content:afterUnpublish")).toBe(true);
+		});
+
+		it("skips content:afterRestore without content:read capability", () => {
+			const plugin = createTestPlugin({
+				id: "no-cap",
+				capabilities: [],
+				hooks: {
+					"content:afterRestore": createTestHook("no-cap", vi.fn()),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin]);
+			expect(pipeline.hasHooks("content:afterRestore")).toBe(false);
+		});
+
+		it("registers content:afterRestore with content:read capability", () => {
+			const plugin = createTestPlugin({
+				id: "has-cap",
+				capabilities: ["content:read"],
+				hooks: {
+					"content:afterRestore": createTestHook("has-cap", vi.fn()),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin]);
+			expect(pipeline.hasHooks("content:afterRestore")).toBe(true);
+		});
+
+		it("skips content:afterSchedule without content:read capability", () => {
+			const plugin = createTestPlugin({
+				id: "no-cap",
+				capabilities: [],
+				hooks: {
+					"content:afterSchedule": createTestHook("no-cap", vi.fn()),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin]);
+			expect(pipeline.hasHooks("content:afterSchedule")).toBe(false);
+		});
+
+		it("registers content:afterSchedule with content:read capability", () => {
+			const plugin = createTestPlugin({
+				id: "has-cap",
+				capabilities: ["content:read"],
+				hooks: {
+					"content:afterSchedule": createTestHook("has-cap", vi.fn()),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin]);
+			expect(pipeline.hasHooks("content:afterSchedule")).toBe(true);
+		});
+
+		it("skips content:afterUnschedule without content:read capability", () => {
+			const plugin = createTestPlugin({
+				id: "no-cap",
+				capabilities: [],
+				hooks: {
+					"content:afterUnschedule": createTestHook("no-cap", vi.fn()),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin]);
+			expect(pipeline.hasHooks("content:afterUnschedule")).toBe(false);
+		});
+
+		it("registers content:afterUnschedule with content:read capability", () => {
+			const plugin = createTestPlugin({
+				id: "has-cap",
+				capabilities: ["content:read"],
+				hooks: {
+					"content:afterUnschedule": createTestHook("has-cap", vi.fn()),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin]);
+			expect(pipeline.hasHooks("content:afterUnschedule")).toBe(true);
 		});
 	});
 

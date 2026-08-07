@@ -35,6 +35,7 @@ import {
 	getFilenameFromUrl,
 	guessMimeType,
 	checkSchemaCompatibility,
+	relativizeContentLinks,
 } from "../utils.js";
 
 export const wxrSource: ImportSource = {
@@ -92,7 +93,7 @@ export const wxrSource: ImportSource = {
 			}
 
 			// Convert to normalized item
-			yield wxrPostToNormalizedItem(post, attachmentMap);
+			yield wxrPostToNormalizedItem(post, attachmentMap, wxr.site.link || "");
 
 			count++;
 			if (options.limit && count >= options.limit) {
@@ -281,8 +282,10 @@ function analyzeWxrData(
 function wxrPostToNormalizedItem(
 	post: WxrPost,
 	attachmentMap: Map<string, string>,
+	siteUrl: string,
 ): NormalizedItem {
 	const content = post.content ? gutenbergToPortableText(post.content) : [];
+	if (siteUrl) relativizeContentLinks(content, siteUrl);
 
 	// Resolve featured image: _thumbnail_id is the attachment ID, look up the URL
 	const thumbnailId = post.meta.get("_thumbnail_id");

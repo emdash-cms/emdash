@@ -347,7 +347,11 @@ export class RedirectRepository {
 	/**
 	 * Create an auto-redirect when a content slug changes.
 	 * Uses the collection's URL pattern to compute old/new URLs.
-	 * Collapses existing redirect chains pointing to the old URL.
+	 * Collapses existing redirect chains pointing to the old URL and
+	 * removes redirects that would shadow the now-live new URL, so a
+	 * rename that is later reverted cannot form a loop (#1986).
+	 *
+	 * Returns null when old and new URL are identical (nothing to redirect).
 	 */
 	async createAutoRedirect(
 		collection: string,
@@ -355,7 +359,7 @@ export class RedirectRepository {
 		newSlug: string,
 		contentId: string,
 		urlPattern: string | null,
-	): Promise<Redirect> {
+	): Promise<Redirect | null> {
 		const oldUrl = urlPattern
 			? urlPattern.replace("{slug}", oldSlug).replace("{id}", contentId)
 			: `/${collection}/${oldSlug}`;
@@ -363,8 +367,16 @@ export class RedirectRepository {
 			? urlPattern.replace("{slug}", newSlug).replace("{id}", contentId)
 			: `/${collection}/${newSlug}`;
 
+		// A redirect from a URL to itself would make the page unreachable
+		if (oldUrl === newUrl) return null;
+
 		// Collapse chains: update any existing redirects pointing to the old URL
 		await this.collapseChains(oldUrl, newUrl);
+
+		// The new URL serves live content again — any redirect from it would
+		// shadow the page. This also removes the self-redirect that chain
+		// collapsing produces when a rename A → B is reverted (A → A).
+		await this.db.deleteFrom("_emdash_redirects").where("source", "=", newUrl).execute();
 
 		// Check if a redirect from this source already exists
 		const existing = await this.findBySource(oldUrl);

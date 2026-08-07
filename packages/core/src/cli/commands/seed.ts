@@ -108,7 +108,7 @@ export const seedCommand = defineCommand({
 		},
 		"no-content": {
 			type: "boolean",
-			description: "Skip sample content",
+			description: "Skip sample data (content entries, bylines, taxonomy terms)",
 			default: false,
 		},
 		"on-conflict": {

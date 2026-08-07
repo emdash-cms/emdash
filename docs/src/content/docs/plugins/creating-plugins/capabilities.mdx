@@ -31,6 +31,7 @@ Declare only what the plugin actually needs. Capability declarations are also wh
 | ----------------------------------- | --------------------------------------------------------------------------------- |
 | `content:read`                      | `ctx.content.get()`, `ctx.content.list()`                                         |
 | `content:write`                     | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` (implies `content:read`) |
+| `taxonomies:read`                   | `ctx.taxonomies.getAll()`, `ctx.taxonomies.getTerms()`, `ctx.taxonomies.getEntryTerms()` |
 | `media:read`                        | `ctx.media.get()`, `ctx.media.list()`                                             |
 | `media:write`                       | `ctx.media.getUploadUrl()`, `ctx.media.upload()`, `ctx.media.delete()` (implies `media:read`) |
 | `network:request`                   | `ctx.http.fetch()` — restricted to `allowedHosts`                                 |
@@ -44,6 +45,7 @@ Declare only what the plugin actually needs. Capability declarations are also wh
 A few things worth knowing:
 
 - **Implications.** `content:write` automatically implies `content:read`; `media:write` implies `media:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
+- **Taxonomies are a separate, read-only surface.** `taxonomies:read` grants access to taxonomy definitions, their terms, and the terms assigned to an entry via `ctx.taxonomies`. It is independent of `content:read` — declare both if the plugin reads content *and* its classification. There is no taxonomy *write* access from plugins.
 - **`network:request:unrestricted` exists for user-configured URLs.** A webhook plugin where the operator types in the destination URL needs to reach hosts that aren't in the manifest. Plugins that always call known APIs should use `network:request` + `allowedHosts`.
 - **`email:send` is gated by configuration, not just the capability.** A plugin can declare `email:send`, but `ctx.email` will only be populated if some other plugin has registered an `email:deliver` transport.
 
@@ -69,7 +71,7 @@ When a sandbox runner is active, the runtime enforces:
 
 <Steps>
 
-1. **Capability gating.** The PluginContext factory only populates `ctx.content`, `ctx.media`, `ctx.http`, `ctx.users`, `ctx.email` when the corresponding capability is declared. Calling a method on an undeclared capability isn't possible — there's no object there.
+1. **Capability gating.** The PluginContext factory only populates `ctx.content`, `ctx.taxonomies`, `ctx.media`, `ctx.http`, `ctx.users`, `ctx.email` when the corresponding capability is declared. Calling a method on an undeclared capability isn't possible — there's no object there.
 
 2. **Storage and KV scoping.** Every storage and KV operation is scoped to the plugin's slug. A plugin can't read another plugin's KV or its storage collections, and it can only access storage collections it declared in the manifest.
 

@@ -226,6 +226,142 @@ describe("Bridge Handler Conformance", () => {
 			expect(result.error).toContain("Missing capability: read:content");
 		});
 
+		it("rejects taxonomy read without taxonomies:read capability", async () => {
+			// content:read does not grant taxonomy access — it's a separate
+			// capability (and a new one, so the canonical name is checked).
+			const handler = makeHandler({ capabilities: ["read:content"] });
+			const result = await call(handler, "taxonomy/list", {});
+			expect(result.error).toContain("Missing capability: taxonomies:read");
+		});
+
+		it("allows taxonomy read with taxonomies:read", async () => {
+			await db.schema
+				.createTable("_emdash_taxonomy_defs")
+				.addColumn("id", "text", (col) => col.primaryKey())
+				.addColumn("name", "text", (col) => col.notNull())
+				.addColumn("label", "text", (col) => col.notNull())
+				.addColumn("label_singular", "text")
+				.addColumn("hierarchical", "integer", (col) => col.notNull().defaultTo(0))
+				.addColumn("collections", "text")
+				.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
+				.addColumn("translation_group", "text")
+				.execute();
+			await db
+				.insertInto("_emdash_taxonomy_defs" as any)
+				.values({
+					id: "def-genre",
+					name: "genre",
+					label: "Genres",
+					label_singular: "Genre",
+					hierarchical: 1,
+					collections: '["posts"]',
+					locale: "en",
+					translation_group: "def-genre",
+				})
+				.execute();
+
+			const handler = makeHandler({ capabilities: ["taxonomies:read"] });
+			const result = await call(handler, "taxonomy/list", {});
+			expect(result.error).toBeUndefined();
+			const defs = result.result as Array<{ name: string; hierarchical: boolean }>;
+			expect(defs).toHaveLength(1);
+			expect(defs[0]).toMatchObject({ name: "genre", hierarchical: true, collections: ["posts"] });
+		});
+
+		it("resolves taxonomy terms and entry terms through the pivot join", async () => {
+			await db.schema
+				.createTable("taxonomies")
+				.addColumn("id", "text", (col) => col.primaryKey())
+				.addColumn("name", "text", (col) => col.notNull())
+				.addColumn("slug", "text", (col) => col.notNull())
+				.addColumn("label", "text", (col) => col.notNull())
+				.addColumn("parent_id", "text")
+				.addColumn("data", "text")
+				.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
+				.addColumn("translation_group", "text")
+				.execute();
+			await db.schema
+				.createTable("content_taxonomies")
+				.addColumn("collection", "text", (col) => col.notNull())
+				.addColumn("entry_id", "text", (col) => col.notNull())
+				.addColumn("taxonomy_id", "text", (col) => col.notNull())
+				.execute();
+			await db
+				.insertInto("taxonomies" as any)
+				.values([
+					{
+						id: "term-en",
+						name: "genre",
+						slug: "scifi",
+						label: "Sci-Fi",
+						data: '{"description":"Space"}',
+						locale: "en",
+						translation_group: "tg-scifi",
+					},
+					{
+						id: "term-de",
+						name: "genre",
+						slug: "scifi",
+						label: "Science-Fiction",
+						locale: "de",
+						translation_group: "tg-scifi",
+					},
+					{
+						id: "term-other",
+						name: "genre",
+						slug: "fantasy",
+						label: "Fantasy",
+						locale: "en",
+						translation_group: "tg-fantasy",
+					},
+				])
+				.execute();
+			// The pivot stores the term's translation_group, not a row id.
+			await db
+				.insertInto("content_taxonomies" as any)
+				.values({ collection: "posts", entry_id: "post-1", taxonomy_id: "tg-scifi" })
+				.execute();
+
+			const denied = makeHandler({ capabilities: ["read:content"] });
+			expect((await call(denied, "taxonomy/terms", { taxonomy: "genre" })).error).toContain(
+				"Missing capability: taxonomies:read",
+			);
+			expect(
+				(await call(denied, "taxonomy/entryTerms", { collection: "posts", entryId: "post-1" }))
+					.error,
+			).toContain("Missing capability: taxonomies:read");
+
+			const handler = makeHandler({ capabilities: ["taxonomies:read"] });
+
+			// terms: locale filter + data JSON parsing + translation group
+			const terms = await call(handler, "taxonomy/terms", { taxonomy: "genre", locale: "en" });
+			expect(terms.error).toBeUndefined();
+			const termRows = terms.result as Array<Record<string, unknown>>;
+			expect(termRows.map((t) => t.slug)).toEqual(["fantasy", "scifi"]);
+			expect(termRows[1]).toMatchObject({
+				id: "term-en",
+				data: { description: "Space" },
+				translationGroup: "tg-scifi",
+			});
+
+			// entryTerms: pivot join on translation_group resolves both locales
+			const entryTerms = await call(handler, "taxonomy/entryTerms", {
+				collection: "posts",
+				entryId: "post-1",
+			});
+			expect(entryTerms.error).toBeUndefined();
+			const entryRows = entryTerms.result as Array<Record<string, unknown>>;
+			expect(entryRows.map((t) => t.id)).toEqual(["term-de", "term-en"]);
+
+			// entryTerms: locale narrows to one row per assignment
+			const localized = await call(handler, "taxonomy/entryTerms", {
+				collection: "posts",
+				entryId: "post-1",
+				locale: "de",
+			});
+			expect((localized.result as unknown[]).length).toBe(1);
+		});
+
 		it("rejects user read without read:users capability", async () => {
 			const handler = makeHandler({ capabilities: [] });
 			const result = await call(handler, "users/get", { id: "user-1" });

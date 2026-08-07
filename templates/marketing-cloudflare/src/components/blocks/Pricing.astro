@@ -40,8 +40,8 @@ const plans = rawPlans.map((plan) => ({
 <section class="pricing section">
 	<div class="container">
 		{headline && (
-			<header class="pricing-header">
-				<h2 class="pricing-headline">{headline}</h2>
+			<header class="section-header pricing-header">
+				<h2 class="section-headline">{headline}</h2>
 			</header>
 		)}
 		<div class="pricing-grid">
@@ -82,13 +82,7 @@ const plans = rawPlans.map((plan) => ({
 
 <style>
 	.pricing-header {
-		text-align: center;
 		margin-bottom: var(--spacing-2xl);
-	}
-
-	.pricing-headline {
-		font-size: var(--font-size-3xl);
-		font-weight: 800;
 	}
 
 	.pricing-grid {
@@ -111,7 +105,7 @@ const plans = rawPlans.map((plan) => ({
 
 	.pricing-highlighted {
 		background: var(--color-bg);
-		border-color: var(--color-primary);
+		border-color: var(--color-brand);
 		box-shadow: var(--shadow-xl);
 		transform: scale(1.02);
 	}
@@ -124,8 +118,8 @@ const plans = rawPlans.map((plan) => ({
 		padding: var(--spacing-xs) var(--spacing-md);
 		font-size: var(--font-size-xs);
 		font-weight: 600;
-		color: white;
-		background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+		color: var(--color-on-brand);
+		background: var(--gradient-brand);
 		border-radius: var(--radius-full);
 	}
 
@@ -137,7 +131,7 @@ const plans = rawPlans.map((plan) => ({
 
 	.pricing-name {
 		font-size: var(--font-size-lg);
-		font-weight: 700;
+		font-weight: var(--font-weight-heading);
 		margin-bottom: var(--spacing-sm);
 	}
 
@@ -151,8 +145,8 @@ const plans = rawPlans.map((plan) => ({
 
 	.pricing-amount {
 		font-size: var(--font-size-4xl);
-		font-weight: 800;
-		letter-spacing: -0.03em;
+		font-weight: var(--font-weight-display);
+		letter-spacing: var(--tracking-tight);
 	}
 
 	.pricing-period {

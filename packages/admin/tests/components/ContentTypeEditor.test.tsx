@@ -85,12 +85,10 @@ function defaultProps(overrides: Partial<ContentTypeEditorProps> = {}): ContentT
 
 const DRAFTS_CHECKBOX_REGEX = /Drafts/i;
 const REVISIONS_CHECKBOX_REGEX = /Revisions/i;
-const SAVE_CHANGES_BUTTON_REGEX = /Save Changes/i;
 const CREATE_CONTENT_TYPE_BUTTON_REGEX = /Create Content Type/i;
 const EDIT_FIELD_BUTTON_REGEX = /Edit .* field/i;
 const DELETE_FIELD_BUTTON_REGEX = /Delete .* field/i;
 const ADD_FIELD_BUTTON_REGEX = /Add Field/i;
-const SAVING_BUTTON_REGEX = /Saving/i;
 const CODE_DEFINED_MSG_REGEX = /This collection is defined in code/i;
 const SYSTEM_FIELDS_REGEX = /6 system \+ 2 custom fields/;
 
@@ -161,7 +159,7 @@ describe("ContentTypeEditor", () => {
 		const collection = makeCollection();
 		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
 
-		const saveButton = screen.getByRole("button", { name: SAVE_CHANGES_BUTTON_REGEX });
+		const saveButton = screen.getByRole("button", { name: "Saved", exact: true }).last();
 		await expect.element(saveButton).toBeDisabled();
 	});
 
@@ -174,7 +172,7 @@ describe("ContentTypeEditor", () => {
 		const labelInput = screen.getByLabelText("Label (Plural)");
 		await labelInput.fill("Articles");
 
-		const saveButton = screen.getByRole("button", { name: SAVE_CHANGES_BUTTON_REGEX });
+		const saveButton = screen.getByRole("button", { name: "Save", exact: true }).last();
 		await expect.element(saveButton).toBeEnabled();
 	});
 
@@ -210,7 +208,7 @@ describe("ContentTypeEditor", () => {
 
 		await screen.getByLabelText("Label (Plural)").fill("Articles");
 
-		const saveButton = screen.getByRole("button", { name: SAVE_CHANGES_BUTTON_REGEX });
+		const saveButton = screen.getByRole("button", { name: "Save", exact: true }).last();
 		await saveButton.click();
 
 		expect(onSave).toHaveBeenCalledWith({
@@ -355,7 +353,7 @@ describe("ContentTypeEditor", () => {
 		await expect.element(descInput).toBeDisabled();
 
 		// Save button should not exist for code-source collections
-		const saveButton = screen.getByRole("button", { name: SAVE_CHANGES_BUTTON_REGEX });
+		const saveButton = screen.getByRole("button", { name: "Save", exact: true }).last();
 		await expect.element(saveButton).not.toBeInTheDocument();
 
 		// Add Field button should not exist
@@ -404,14 +402,10 @@ describe("ContentTypeEditor", () => {
 			<ContentTypeEditor {...defaultProps()} collection={collection} isSaving />,
 		);
 
-		// Both the sticky-header SaveButton and the in-form "Save Changes"
-		// button render their saving label when isSaving is true; we render
-		// two save buttons by design (top-right sticky for sighted/pointer
-		// users + bottom-of-form for keyboard / screen-reader users following
-		// DOM order). Assert at least one matches.
-		await expect
-			.element(screen.getByRole("button", { name: SAVING_BUTTON_REGEX }).first())
-			.toBeInTheDocument();
+		expect(screen.getByRole("status").element().textContent).toBe("Saving...");
+		for (const button of screen.getByRole("button", { name: "Saving...", exact: true }).all()) {
+			await expect.element(button).toBeDisabled();
+		}
 	});
 
 	// ---- Sticky-header save (issue #233) ----
@@ -420,17 +414,14 @@ describe("ContentTypeEditor", () => {
 		const collection = makeCollection();
 		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
 
-		// The sticky save button uses the SaveButton component, which renders
-		// "Saved" when there are no unsaved changes. The bottom-of-form button
-		// renders "Save Changes". Both should be present so users have a
-		// visible save action regardless of where they are on the page.
-		// Use exact: true so "Save Changes" doesn't shadow the sticky "Saved"
-		// match (Playwright role-name matching is partial by default).
+		// Both actions communicate their saved state directly. Saving remains
+		// reachable from the sticky header and at the end of the form.
 		await expect
-			.element(screen.getByRole("button", { name: "Saved", exact: true }))
+			.element(screen.getByRole("button", { name: "Saved", exact: true }).first())
 			.toBeInTheDocument();
+		expect(screen.getByRole("status").element().textContent).toBe("Saved");
 		await expect
-			.element(screen.getByRole("button", { name: SAVE_CHANGES_BUTTON_REGEX }))
+			.element(screen.getByRole("button", { name: "Saved", exact: true }).last())
 			.toBeInTheDocument();
 	});
 
@@ -438,13 +429,17 @@ describe("ContentTypeEditor", () => {
 		const collection = makeCollection({ label: "Posts" });
 		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
 
-		// Initially clean -> "Saved" disabled
-		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeDisabled();
+		// Initially clean -> disabled "Saved"
+		await expect
+			.element(screen.getByRole("button", { name: "Saved", exact: true }).first())
+			.toBeDisabled();
+		expect(screen.getByRole("status").element().textContent).toBe("Saved");
 
-		// Make a change -> sticky button should now read "Save" and be enabled.
-		// exact:true so it doesn't also match "Save Changes".
+		// Make a change -> sticky button remains "Save" and becomes enabled.
 		await screen.getByLabelText("Label (Plural)").fill("Articles");
-		await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }).first())
+			.toBeEnabled();
 	});
 
 	it("sticky-header save submits the form (calls onSave)", async () => {
@@ -455,7 +450,7 @@ describe("ContentTypeEditor", () => {
 		);
 
 		await screen.getByLabelText("Label (Plural)").fill("Articles");
-		await screen.getByRole("button", { name: "Save", exact: true }).click();
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
 
 		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ label: "Articles" }));
 	});
@@ -464,26 +459,18 @@ describe("ContentTypeEditor", () => {
 		const collection = makeCollection({ source: "code" });
 		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
 
-		// Neither sticky variant should appear (and the bottom Save Changes
-		// button is also hidden for code-source collections).
+		// Neither save action appears for code-source collections.
 		await expect
-			.element(screen.getByRole("button", { name: "Saved", exact: true }))
-			.not.toBeInTheDocument();
-		await expect
-			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.element(screen.getByRole("button", { name: "Save", exact: true }).first())
 			.not.toBeInTheDocument();
 	});
 
 	it("does not render sticky-header save when creating a new collection", async () => {
 		const screen = await render(<ContentTypeEditor {...defaultProps()} isNew />);
 
-		// On the new flow only the bottom 'Create Content Type' button is
-		// expected. No SaveButton ('Save'/'Saved') should render at the top.
+		// On the new flow only the bottom 'Create Content Type' button is expected.
 		await expect
-			.element(screen.getByRole("button", { name: "Saved", exact: true }))
-			.not.toBeInTheDocument();
-		await expect
-			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.element(screen.getByRole("button", { name: "Save", exact: true }).first())
 			.not.toBeInTheDocument();
 	});
 
@@ -515,7 +502,7 @@ describe("ContentTypeEditor", () => {
 
 		await screen.getByLabelText("URL Pattern").fill("/blog/{slug}");
 
-		const saveButton = screen.getByRole("button", { name: SAVE_CHANGES_BUTTON_REGEX });
+		const saveButton = screen.getByRole("button", { name: "Save", exact: true }).last();
 		await saveButton.click();
 
 		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ urlPattern: "/blog/{slug}" }));
@@ -536,7 +523,7 @@ describe("ContentTypeEditor", () => {
 
 		await screen.getByLabelText("URL Pattern").fill("/blog/broken");
 
-		const saveButton = screen.getByRole("button", { name: SAVE_CHANGES_BUTTON_REGEX });
+		const saveButton = screen.getByRole("button", { name: "Save", exact: true }).last();
 		await expect.element(saveButton).toBeDisabled();
 	});
 
@@ -546,7 +533,7 @@ describe("ContentTypeEditor", () => {
 
 		await screen.getByLabelText("URL Pattern").fill("/blog/{slug}");
 
-		const saveButton = screen.getByRole("button", { name: SAVE_CHANGES_BUTTON_REGEX });
+		const saveButton = screen.getByRole("button", { name: "Save", exact: true }).last();
 		await expect.element(saveButton).toBeEnabled();
 	});
 
@@ -560,7 +547,7 @@ describe("ContentTypeEditor", () => {
 		// Change label to enable save (urlPattern empty is fine)
 		await screen.getByLabelText("Label (Plural)").fill("Articles");
 
-		const saveButton = screen.getByRole("button", { name: SAVE_CHANGES_BUTTON_REGEX });
+		const saveButton = screen.getByRole("button", { name: "Save", exact: true }).last();
 		await expect.element(saveButton).toBeEnabled();
 		await saveButton.click();
 

@@ -53,6 +53,7 @@ export const API_TOKEN_SCOPES = {
 	MenusManage: "menus:manage",
 	SettingsRead: "settings:read",
 	SettingsManage: "settings:manage",
+	McpTools: "mcp:tools",
 	Admin: "admin",
 } as const;
 

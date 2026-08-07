@@ -36,6 +36,14 @@ export const GET: APIRoute = async ({ params, locals }) => {
 		return apiError("NOT_FOUND", "File not found", 404);
 	}
 
+	// Backup archives share the storage bucket but hold the site's full
+	// content export — they must never be reachable through the public,
+	// unauthenticated media route. Admins download them via the
+	// authenticated backups API.
+	if (key.startsWith("backups/")) {
+		return apiError("NOT_FOUND", "File not found", 404);
+	}
+
 	if (!emdash?.storage) {
 		return apiError("NOT_CONFIGURED", "Storage not configured", 500);
 	}

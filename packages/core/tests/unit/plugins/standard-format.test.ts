@@ -155,6 +155,36 @@ describe("generatePluginsModule() standard format", () => {
 		expect(code).toBe("export const plugins = [];");
 	});
 
+	it("throws an actionable error when a descriptor has no entrypoint (issue #1416)", () => {
+		// In-process plugins -- an inline `definePlugin({...})` result passed
+		// directly to `plugins: []` -- have no file entrypoint. The generator
+		// used to emit `import pluginDef0 from "undefined";`, which failed deep
+		// in Rollup with `failed to resolve import "undefined"`. It must instead
+		// fail fast with a message that names the offending plugin and explains
+		// the constraint. (The type bypass mirrors the reporter's scenario: a
+		// `PluginDescriptor` whose required `entrypoint` is missing at runtime.)
+		const descriptors = [
+			{
+				id: "misarico-resend-email",
+				version: "0.0.0",
+				capabilities: ["hooks.email-transport:register"],
+			},
+		] as unknown as PluginDescriptor[];
+
+		let error: Error | undefined;
+		try {
+			generatePluginsModule(descriptors);
+		} catch (e) {
+			error = e as Error;
+		}
+
+		expect(error).toBeDefined();
+		expect(error!.message).toContain("misarico-resend-email");
+		expect(error!.message).toMatch(/entrypoint/i);
+		// The cryptic failure mode must be gone.
+		expect(error!.message).not.toContain('"undefined"');
+	});
+
 	it("serializes descriptor metadata for standard plugins", () => {
 		const descriptors: PluginDescriptor[] = [
 			{

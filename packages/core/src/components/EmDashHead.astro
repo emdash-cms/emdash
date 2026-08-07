@@ -17,8 +17,16 @@
  * ```
  */
 import type { PublicPageContext, PageMetadataContribution } from "../plugins/types.js";
-import { resolvePageMetadata, renderPageMetadata } from "../page/metadata.js";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
+import {
+	registerJsonLdCspHashes,
+	resolvePageMetadata,
+	renderPageMetadata,
+	type ResolvedPageMetadata,
+} from "../page/metadata.js";
 import { renderFragments } from "../page/fragments.js";
+import JsonLdScript from "./JsonLdScript.astro";
 import {
 	generateBaseSeoContributions,
 	generateSiteSeoContributions,
@@ -27,6 +35,8 @@ import { renderSiteIdentity } from "../page/site-identity.js";
 import { getPageRuntime } from "../page/index.js";
 import { getSiteSettings } from "../settings/index.js";
 import { absolutizeMediaUrl } from "../page/absolute-url.js";
+import { getHreflangAlternates } from "../seo/hreflang.js";
+import { isI18nEnabled } from "../i18n/config.js";
 
 interface Props {
 	page: PublicPageContext;
@@ -38,6 +48,7 @@ const runtime = getPageRuntime(Astro.locals as Record<string, unknown>);
 let metadataHtml = "";
 let siteIdentityHtml = "";
 let fragmentsHtml = "";
+let jsonLdScripts: ResolvedPageMetadata["jsonld"] = [];
 
 if (runtime) {
 	// Run independent async loads in parallel: site settings (SEO meta
@@ -76,20 +87,51 @@ if (runtime) {
 		defaultOgImage,
 	);
 
+	// hreflang alternates for translated content entries (#1690). Only
+	// queried when i18n is enabled and this page renders a content entry;
+	// non-i18n sites skip this entirely. Contributions sit with the base
+	// layer, so plugins can override individual hreflang entries (dedup
+	// key is the hreflang value).
+	let hreflangContributions: PageMetadataContribution[] = [];
+	if (page.content && isI18nEnabled()) {
+		const siteUrl = page.siteUrl || siteSettings.url || new URL(page.url).origin;
+		const alternates = await getHreflangAlternates(page.content.collection, page.content.id, {
+			siteUrl,
+		});
+		hreflangContributions = alternates.map((a) => ({
+			kind: "link",
+			rel: "alternate",
+			href: a.href,
+			hreflang: a.hreflang,
+		}));
+	}
+
 	const siteContributions = generateSiteSeoContributions(siteSettings.seo);
-	const allContributions = [...pluginContributions, ...siteContributions, ...baseContributions];
+	const allContributions = [
+		...pluginContributions,
+		...siteContributions,
+		...baseContributions,
+		...hreflangContributions,
+	];
 	const resolved = resolvePageMetadata(allContributions);
-	metadataHtml = renderPageMetadata(resolved);
+	jsonLdScripts = resolved.jsonld;
+	metadataHtml = renderPageMetadata(resolved, { includeJsonLd: false });
 	siteIdentityHtml = renderSiteIdentity({ favicon: siteSettings.favicon });
 	fragmentsHtml = renderFragments(fragments, "head");
 } else {
 	// No runtime (EmDash not initialized) — still render base SEO
 	const baseContributions: PageMetadataContribution[] = generateBaseSeoContributions(page);
 	const resolved = resolvePageMetadata(baseContributions);
-	metadataHtml = renderPageMetadata(resolved);
+	jsonLdScripts = resolved.jsonld;
+	metadataHtml = renderPageMetadata(resolved, { includeJsonLd: false });
 }
+
+await registerJsonLdCspHashes(virtualConfig.astroCspEnabled === true, () => Astro.csp, jsonLdScripts);
 ---
 
 <Fragment set:html={metadataHtml} />
+{
+	jsonLdScripts.map(({ json }) => <JsonLdScript json={json} />)
+}
 <Fragment set:html={siteIdentityHtml} />
 <Fragment set:html={fragmentsHtml} />

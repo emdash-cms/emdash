@@ -525,6 +525,60 @@ describe("ContentRepository", () => {
 		});
 	});
 
+	describe("publish() staged slug conflict (#2034)", () => {
+		/** Stage a slug edit the way the runtime does: as `_slug` in a draft revision. */
+		async function stageSlug(entryId: string, data: Record<string, unknown>, newSlug: string) {
+			const revisionRepo = new RevisionRepository(db);
+			const draft = await revisionRepo.create({
+				collection: "post",
+				entryId,
+				data: { ...data, _slug: newSlug },
+			});
+			await repo.setDraftRevision("post", entryId, draft.id);
+		}
+
+		it("rejects a staged slug already held by another entry with an actionable error", async () => {
+			await repo.create(createPostFixture({ slug: "taken", status: "published" }));
+			const post = await repo.create(createPostFixture({ slug: "mine" }));
+			await stageSlug(post.id, post.data, "taken");
+
+			const error: unknown = await repo.publish("post", post.id).catch((e: unknown) => e);
+
+			expect(error).toBeInstanceOf(EmDashValidationError);
+			expect((error as Error).message).toContain("taken");
+			// The live row must be untouched — no partial publish.
+			const after = await repo.findById("post", post.id);
+			expect(after?.slug).toBe("mine");
+			expect(after?.status).toBe("draft");
+		});
+
+		it("rejects a staged slug held by a trashed entry (the unique index still covers it)", async () => {
+			const trashed = await repo.create(createPostFixture({ slug: "ghost" }));
+			await repo.delete("post", trashed.id);
+			const post = await repo.create(createPostFixture({ slug: "mine" }));
+			await stageSlug(post.id, post.data, "ghost");
+
+			await expect(repo.publish("post", post.id)).rejects.toThrow(EmDashValidationError);
+		});
+
+		it("allows republishing with the entry's own slug staged", async () => {
+			const post = await repo.create(createPostFixture({ slug: "stable", status: "published" }));
+			await stageSlug(post.id, post.data, "stable");
+
+			const published = await repo.publish("post", post.id);
+			expect(published.slug).toBe("stable");
+		});
+
+		it("allows the same slug in a different locale", async () => {
+			await repo.create(createPostFixture({ slug: "hallo", locale: "de" }));
+			const post = await repo.create(createPostFixture({ slug: "mine", locale: "en" }));
+			await stageSlug(post.id, post.data, "hallo");
+
+			const published = await repo.publish("post", post.id);
+			expect(published.slug).toBe("hallo");
+		});
+	});
+
 	describe("publish() clears schedule", () => {
 		it("should clear scheduled_at when publishing a scheduled draft", async () => {
 			const post = await repo.create(createPostFixture());

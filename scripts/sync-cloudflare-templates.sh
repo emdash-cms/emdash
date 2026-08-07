@@ -12,14 +12,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 TEMPLATES_DIR="$ROOT_DIR/templates"
 
-# Files/directories to sync from base template to cloudflare variant
+# Files/directories to sync from base template to cloudflare variant.
+# .gitignore stays per-template: the cloudflare variants carry extra
+# wrangler entries (.dev.vars) the base templates don't have.
 SYNC_ITEMS=(
 	"src"
 	"public"
 	"seed"
 	"tsconfig.json"
 	"emdash-env.d.ts"
-	".gitignore"
 )
 
 # Template pairs: base -> cloudflare variant

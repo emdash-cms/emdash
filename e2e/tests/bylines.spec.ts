@@ -204,7 +204,7 @@ test.describe("Bylines", () => {
 		// Move the secondary credit above the primary via its own row's "Up" button,
 		// then confirm the reorder committed before saving.
 		const secondaryCreditRow = bylinesSidebar
-			.locator("div.rounded.border.p-2")
+			.locator("div.rounded-lg.border.p-2")
 			.filter({ hasText: secondaryName });
 		await secondaryCreditRow.getByLabel("Role label").fill("Co-author");
 		await secondaryCreditRow.getByRole("button", { name: "Up" }).click();

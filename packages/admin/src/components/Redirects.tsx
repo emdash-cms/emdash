@@ -27,6 +27,7 @@ import type {
 	UpdateRedirectInput,
 } from "../lib/api/redirects.js";
 import { cn } from "../lib/utils.js";
+import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ArrowNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -355,8 +356,10 @@ export function Redirects() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold">{t`Redirects`}</h1>
-					<p className="text-kumo-subtle">{t`Manage URL redirects and view 404 errors.`}</p>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Redirects`}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+						{t`Manage URL redirects and view 404 errors.`}
+					</p>
 				</div>
 				<Button icon={<Plus />} onClick={() => setShowCreate(true)}>
 					{t`New Redirect`}
@@ -370,7 +373,7 @@ export function Redirects() {
 					className={cn(
 						"px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
 						tab === "redirects"
-							? "border-kumo-brand text-kumo-brand"
+							? "border-kumo-brand text-kumo-link"
 							: "border-transparent text-kumo-subtle hover:text-kumo-default",
 					)}
 				>
@@ -387,7 +390,7 @@ export function Redirects() {
 					className={cn(
 						"px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
 						tab === "404s"
-							? "border-kumo-brand text-kumo-brand"
+							? "border-kumo-brand text-kumo-link"
 							: "border-transparent text-kumo-subtle hover:text-kumo-default",
 					)}
 				>
@@ -456,7 +459,7 @@ export function Redirects() {
 						<div className="py-12 text-center text-kumo-subtle">{t`Loading redirects...`}</div>
 					) : redirects.length === 0 ? (
 						<div className="py-12 text-center text-kumo-subtle">
-							<ArrowsLeftRight size={48} className="mx-auto mb-4 opacity-30" />
+							<ADMIN_NAV_ICONS.redirects size={48} className="mx-auto mb-4 opacity-30" />
 							<p className="text-lg font-medium">{t`No redirects yet`}</p>
 							<p className="text-sm mt-1">{t`Create redirect rules to manage URL changes.`}</p>
 						</div>

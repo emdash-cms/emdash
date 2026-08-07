@@ -28,11 +28,34 @@ export class AdminPage {
 	 * Navigates through the bypass URLs which sets cookies in the browser context.
 	 */
 	async devBypassAuth(): Promise<void> {
-		// Navigate to setup bypass - this sets up the site AND creates a session
-		// The redirect param sends us to auth bypass to ensure cookies are set
-		await this.page.goto("/_emdash/api/setup/dev-bypass?redirect=/_emdash/admin/");
+		// Set up the site and establish a session, landing on the shell-free
+		// auth/me JSON endpoint instead of the admin shell. The shell opens
+		// the first-login welcome modal whenever its currentUser query
+		// resolves with isFirstLogin — on a cold workerd start that can be
+		// seconds after the sidebar renders, after dismissOnboardingModal()'s
+		// 2s visibility window has passed, leaving the modal covering the
+		// page (actions run 28678460523, E2E Cloudflare shard 3/8). Clearing
+		// the flag before the shell ever loads removes the race instead of
+		// retiming it.
+		// The bypass redirects via meta refresh, and its ?redirect= query
+		// contains the auth/me path — so match on pathname, not the full URL,
+		// or the wait resolves on the bypass page itself and the next goto
+		// races the pending redirect.
+		await this.page.goto("/_emdash/api/setup/dev-bypass?redirect=/_emdash/api/auth/me");
+		await this.page.waitForURL((url) => url.pathname === "/_emdash/api/auth/me", {
+			timeout: 30000,
+		});
 
-		// Wait for the redirect to complete and admin shell to appear
+		// page.request shares the session cookie; X-EmDash-Request is the
+		// CSRF header the auth middleware requires on state-changing routes.
+		const dismissed = await this.page.request.post("/_emdash/api/auth/me", {
+			headers: { "X-EmDash-Request": "1" },
+			data: { action: "dismissWelcome" },
+		});
+		expect(dismissed.status()).toBe(200);
+
+		// Load the admin shell with the first-login flag already cleared.
+		await this.page.goto(`${this.baseUrl}/`);
 		await this.page.waitForURL(ADMIN_URL_PATTERN, { timeout: 30000 });
 
 		// Wait for page to be usable. Race networkidle (Vite dep re-optimization) against

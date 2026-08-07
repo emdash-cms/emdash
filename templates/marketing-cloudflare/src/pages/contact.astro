@@ -71,7 +71,7 @@ const pageContent = page?.data.content;
 
 					<div class="contact-methods">
 						<div class="contact-method">
-							<div class="contact-icon">
+							<div class="icon-tile contact-icon">
 								<Icon name="ph:envelope" aria-hidden="true" />
 							</div>
 							<div class="contact-method-content">
@@ -80,7 +80,7 @@ const pageContent = page?.data.content;
 							</div>
 						</div>
 						<div class="contact-method">
-							<div class="contact-icon">
+							<div class="icon-tile contact-icon">
 								<Icon name="ph:lifebuoy" aria-hidden="true" />
 							</div>
 							<div class="contact-method-content">
@@ -89,7 +89,7 @@ const pageContent = page?.data.content;
 							</div>
 						</div>
 						<div class="contact-method">
-							<div class="contact-icon">
+							<div class="icon-tile contact-icon">
 								<Icon name="ph:currency-dollar" aria-hidden="true" />
 							</div>
 							<div class="contact-method-content">
@@ -213,20 +213,7 @@ const pageContent = page?.data.content;
 	}
 
 	.contact-icon {
-		width: 48px;
-		height: 48px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
 		font-size: 1.25rem;
-		color: white;
-		background: linear-gradient(
-			135deg,
-			var(--color-primary),
-			var(--color-accent)
-		);
-		border-radius: var(--radius);
-		flex-shrink: 0;
 	}
 
 	.contact-method-content h4 {
@@ -236,7 +223,7 @@ const pageContent = page?.data.content;
 	}
 
 	.contact-method-content a {
-		color: var(--color-primary);
+		color: var(--color-brand);
 		font-size: var(--font-size-lg);
 	}
 
@@ -291,8 +278,8 @@ const pageContent = page?.data.content;
 	.form-field input:focus,
 	.form-field textarea:focus {
 		outline: none;
-		border-color: var(--color-primary);
-		box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+		border-color: var(--color-brand);
+		box-shadow: 0 0 0 3px var(--color-brand-ring);
 	}
 
 	.form-field input::placeholder,
@@ -307,17 +294,11 @@ const pageContent = page?.data.content;
 
 	.form-error {
 		padding: var(--spacing-md);
-		background: rgba(239, 68, 68, 0.1);
-		border: 1px solid rgba(239, 68, 68, 0.3);
+		background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+		border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
 		border-radius: var(--radius-sm);
-		color: #dc2626;
+		color: var(--color-danger);
 		font-size: var(--font-size-sm);
-	}
-
-	@media (prefers-color-scheme: dark) {
-		.form-error {
-			color: #f87171;
-		}
 	}
 
 	.form-success {
@@ -332,7 +313,7 @@ const pageContent = page?.data.content;
 		align-items: center;
 		justify-content: center;
 		font-size: 2rem;
-		color: white;
+		color: var(--color-on-brand);
 		background: var(--color-success);
 		border-radius: var(--radius-full);
 		margin: 0 auto var(--spacing-lg);

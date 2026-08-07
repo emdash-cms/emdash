@@ -3,7 +3,8 @@ import { getViteConfig } from "astro/config";
 const stubs: Record<string, string> = {
 	"virtual:emdash/wait-until": "export const waitUntil = undefined;",
 	"virtual:emdash/config": "export default {};",
-	"virtual:emdash/media-providers": "export default {};",
+	"virtual:emdash/media-providers":
+		"export const mediaProviders = globalThis.__emdashTestMediaProviders ?? [];",
 	"virtual:emdash/block-components": "export const pluginBlockComponents = {};",
 };
 

@@ -28,6 +28,7 @@ export type {
 	FindManyResult,
 } from "./database/repositories/index.js";
 export type { MediaItem, CreateMediaInput } from "./database/repositories/media.js";
+export type { CompoundSelectLimitedAdapter } from "./database/dialect-helpers.js";
 
 // Fields
 export { portableText, image, file, reference } from "./fields/index.js";
@@ -247,6 +248,10 @@ export type {
 	MediaAccess,
 	HttpAccess,
 	LogAccess,
+	TaxonomyAccess,
+	TaxonomyDefInfo,
+	TaxonomyTermInfo,
+	TaxonomyReadOptions,
 	PluginHooks,
 	HookConfig,
 	HookName,
@@ -255,6 +260,9 @@ export type {
 	ContentHookEvent,
 	ContentDeleteEvent,
 	ContentPublishStateChangeEvent,
+	ContentRestoreStateChangeEvent,
+	ContentScheduleStateChangeEvent,
+	ContentStateChangeEvent,
 	MediaUploadEvent,
 	HookResult,
 	PluginRoute,
@@ -401,8 +409,8 @@ export type {
 } from "./settings/types.js";
 
 // SEO
-export { getSeoMeta, getContentSeo } from "./seo/index.js";
-export type { SeoMeta, SeoMetaOptions } from "./seo/index.js";
+export { getSeoMeta, getContentSeo, getHreflangAlternates } from "./seo/index.js";
+export type { SeoMeta, SeoMetaOptions, HreflangAlternate, HreflangOptions } from "./seo/index.js";
 
 // Public page contribution types
 export type {

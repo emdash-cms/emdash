@@ -6,7 +6,7 @@
  * - Tag input for flat taxonomies (tags)
  */
 
-import { Button, Checkbox, Input, Label, Toast } from "@cloudflare/kumo";
+import { Button, Checkbox, Input, Label, Text, Toast } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -17,7 +17,7 @@ import * as React from "react";
 import { apiFetch, parseApiResponse, throwResponseError } from "../lib/api/client.js";
 import { createTerm, withLocale } from "../lib/api/taxonomies.js";
 import { termExactMatches, termMatches } from "../lib/taxonomy-match.js";
-import { slugify } from "../lib/utils.js";
+import { cn, slugify } from "../lib/utils.js";
 
 interface TaxonomyTerm {
 	id: string;
@@ -44,6 +44,9 @@ interface TaxonomySidebarProps {
 	 * matching translation variants are shown — see issue #1218. */
 	entryLocale?: string;
 	onChange?: (taxonomyName: string, termIds: string[]) => void;
+	/** Applied to the root when the section renders. Omitted when the section
+	 * is empty so the caller doesn't need to guess whether to draw chrome. */
+	className?: string;
 }
 
 const EMPTY_TERMS: TaxonomyTerm[] = [];
@@ -60,12 +63,28 @@ async function fetchTaxonomyDefs(): Promise<TaxonomyDef[]> {
 	return data.taxonomies;
 }
 
+function useApplicableTaxonomies(collection: string): TaxonomyDef[] {
+	const { data: taxonomies = [] } = useQuery({
+		queryKey: ["taxonomy-defs"],
+		queryFn: fetchTaxonomyDefs,
+	});
+	return taxonomies.filter((taxonomy) => taxonomy.collections.includes(collection));
+}
+
+/** Whether the editor should include a taxonomy settings section. */
+export function useHasApplicableTaxonomies(collection: string): boolean {
+	return useApplicableTaxonomies(collection).length > 0;
+}
+
 /**
  * Fetch terms for a taxonomy, scoped to the entry's locale so only the matching
- * translation variants are offered.
+ * translation variants are offered. The picker shows no usage counts, so it
+ * opts out of the per-collection count aggregate the endpoint runs by default.
  */
 async function fetchTerms(taxonomyName: string, locale?: string): Promise<TaxonomyTerm[]> {
-	const res = await apiFetch(withLocale(`/_emdash/api/taxonomies/${taxonomyName}/terms`, locale));
+	const res = await apiFetch(
+		withLocale(`/_emdash/api/taxonomies/${taxonomyName}/terms?includeCounts=false`, locale),
+	);
 	const data = await parseApiResponse<{ terms: TaxonomyTerm[] }>(
 		res,
 		i18n._(msg`Failed to fetch terms`),
@@ -233,7 +252,7 @@ function TagInput({
 					{selectedTerms.map((term) => (
 						<span
 							key={term.id}
-							className="inline-flex items-center gap-1 px-2 py-1 text-sm bg-kumo-tint rounded"
+							className="inline-flex items-center gap-1 px-2 py-1 text-sm bg-kumo-tint rounded-md"
 						>
 							{term.label}
 							<button
@@ -261,12 +280,11 @@ function TagInput({
 					onKeyDown={handleKeyDown}
 					placeholder={t`Add tags...`}
 					aria-label={t`Add ${label}`}
-					className="text-sm"
+					className="w-full text-sm"
 				/>
 
-				{/* Suggestions dropdown */}
 				{isOpen && (suggestions.length > 0 || showCreateOption) && (
-					<div className="absolute top-full start-0 end-0 mt-1 bg-kumo-overlay border rounded-md shadow-lg z-10">
+					<div className="absolute top-full start-0 end-0 mt-1 overflow-hidden bg-kumo-overlay border rounded-lg shadow-lg z-10">
 						{suggestions.map((term) => (
 							<button
 								key={term.id}
@@ -319,8 +337,10 @@ function TaxonomySection({
 	const [newCategoryLabel, setNewCategoryLabel] = React.useState("");
 	const [showCategoryInput, setShowCategoryInput] = React.useState(false);
 
+	// The count mode belongs in the key: the Taxonomies settings page reads the
+	// same endpoint with counts and must not be served this count-free list.
 	const { data: terms = EMPTY_TERMS } = useQuery({
-		queryKey: ["taxonomy-terms", taxonomy.name, entryLocale],
+		queryKey: ["taxonomy-terms", taxonomy.name, entryLocale, { includeCounts: false }],
 		queryFn: () => fetchTerms(taxonomy.name, entryLocale),
 	});
 
@@ -434,7 +454,7 @@ function TaxonomySection({
 							{t`No ${taxonomy.label.toLowerCase()} available.`}
 						</p>
 					) : (
-						<div className="border rounded-md p-2 max-h-64 overflow-y-auto">
+						<div className="border rounded-lg p-2 max-h-64 overflow-y-auto">
 							{terms.map((term) => (
 								<CategoryCheckboxTree
 									key={term.id}
@@ -477,14 +497,16 @@ function TaxonomySection({
 							</Button>
 						</div>
 					) : (
-						<button
+						<Button
 							type="button"
+							variant="ghost"
+							size="sm"
+							className="-ms-2"
 							onClick={() => setShowCategoryInput(true)}
-							className="text-sm text-kumo-accent hover:underline flex items-center gap-1"
+							icon={<Plus />}
 						>
-							<Plus className="w-3 h-3" />
 							{t`Add new ${(taxonomy.labelSingular || taxonomy.label).toLowerCase()}`}
-						</button>
+						</Button>
 					)}
 					{createTermMutation.error && (
 						<p className="text-sm text-kumo-danger">
@@ -517,24 +539,21 @@ export function TaxonomySidebar({
 	entryId,
 	entryLocale,
 	onChange,
+	className,
 }: TaxonomySidebarProps) {
 	const { t } = useLingui();
-	const { data: taxonomies = [] } = useQuery({
-		queryKey: ["taxonomy-defs"],
-		queryFn: fetchTaxonomyDefs,
-	});
-
-	// Filter to taxonomies that apply to this collection
-	const applicableTaxonomies = taxonomies.filter((tax) => tax.collections.includes(collection));
+	const applicableTaxonomies = useApplicableTaxonomies(collection);
 
 	if (applicableTaxonomies.length === 0) {
 		return null;
 	}
 
 	return (
-		<div className="space-y-6">
+		<div className={cn(className)}>
 			<div>
-				<h3 className="font-semibold mb-4">{t`Taxonomies`}</h3>
+				<Text bold as="h3" DANGEROUS_className="mb-4">
+					{t`Taxonomies`}
+				</Text>
 				<div className="space-y-4">
 					{applicableTaxonomies.map((taxonomy) => (
 						<TaxonomySection

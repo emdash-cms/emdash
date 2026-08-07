@@ -17,6 +17,7 @@ import { Link, RouterProvider, type LinkProps } from "@tanstack/react-router";
 import * as React from "react";
 
 import { ThemeProvider } from "./components/ThemeProvider";
+import { AdminBrandingProvider, type AdminBranding } from "./lib/admin-branding-context";
 import { AuthProviderProvider, type AuthProviders } from "./lib/auth-provider-context";
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
 import { LocaleDirectionProvider } from "./locales/index.js";
@@ -36,12 +37,13 @@ const queryClient = new QueryClient({
 const router = createAdminRouter(queryClient);
 const ADMIN_BASEPATH = "/_emdash/admin";
 
-function normalizeAdminHref(href: string): string {
+export function normalizeAdminHref(href: string): string {
 	if (href === ADMIN_BASEPATH) return "/";
 	if (href.startsWith(`${ADMIN_BASEPATH}/`)) return href.slice(ADMIN_BASEPATH.length);
 	if (href.startsWith(`${ADMIN_BASEPATH}?`) || href.startsWith(`${ADMIN_BASEPATH}#`)) {
 		return `/${href.slice(ADMIN_BASEPATH.length)}`;
 	}
+	if (href.startsWith("/_emdash/")) return "";
 	return href;
 }
 
@@ -107,6 +109,8 @@ export interface AdminAppProps {
 	pluginAdmins?: PluginAdmins;
 	/** Auth provider UI modules keyed by provider ID */
 	authProviders?: AuthProviders;
+	/** Configured admin white-label branding (logo, site name) */
+	adminBranding?: AdminBranding;
 	/** Active locale code */
 	locale?: string;
 	/** Compiled Lingui messages for the active locale */
@@ -118,10 +122,12 @@ export interface AdminAppProps {
  */
 const EMPTY_PLUGINS: PluginAdmins = {};
 const EMPTY_AUTH_PROVIDERS: AuthProviders = {};
+const EMPTY_ADMIN_BRANDING: AdminBranding = {};
 
 export function AdminApp({
 	pluginAdmins = EMPTY_PLUGINS,
 	authProviders = EMPTY_AUTH_PROVIDERS,
+	adminBranding = EMPTY_ADMIN_BRANDING,
 	locale = "en",
 	messages = {},
 }: AdminAppProps) {
@@ -140,15 +146,17 @@ export function AdminApp({
 			<I18nProvider i18n={i18n}>
 				<LocaleDirectionProvider>
 					<Toasty>
-						<AuthProviderProvider authProviders={authProviders}>
-							<PluginAdminProvider pluginAdmins={pluginAdmins}>
-								<QueryClientProvider client={queryClient}>
-									<LinkProvider component={KumoRouterLink}>
-										<RouterProvider router={router} />
-									</LinkProvider>
-								</QueryClientProvider>
-							</PluginAdminProvider>
-						</AuthProviderProvider>
+						<AdminBrandingProvider adminBranding={adminBranding}>
+							<AuthProviderProvider authProviders={authProviders}>
+								<PluginAdminProvider pluginAdmins={pluginAdmins}>
+									<QueryClientProvider client={queryClient}>
+										<LinkProvider component={KumoRouterLink}>
+											<RouterProvider router={router} />
+										</LinkProvider>
+									</QueryClientProvider>
+								</PluginAdminProvider>
+							</AuthProviderProvider>
+						</AdminBrandingProvider>
 					</Toasty>
 				</LocaleDirectionProvider>
 			</I18nProvider>

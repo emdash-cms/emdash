@@ -8,6 +8,8 @@
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
+import type { Page } from "@playwright/test";
+
 import { test, expect } from "../fixtures";
 
 // Create a test image for uploads
@@ -39,6 +41,16 @@ function ensureTestAssets(): string {
 	return testImagePath;
 }
 
+async function uploadTestImage(page: Page) {
+	const testImagePath = ensureTestAssets();
+	const fileInput = page.locator('input[type="file"]');
+	await fileInput.setInputFiles(testImagePath);
+	await page.waitForResponse(
+		(res) => MEDIA_API_RESPONSE_PATTERN.test(res.url()) && res.status() === 200,
+		{ timeout: 10000 },
+	);
+}
+
 test.describe("Media Library", () => {
 	test.beforeAll(() => {
 		ensureTestAssets();
@@ -62,23 +74,24 @@ test.describe("Media Library", () => {
 			).toBeVisible();
 		});
 
-		test("shows grid view by default", async ({ admin }) => {
+		test("shows grid view by default", async ({ admin, page }) => {
 			await admin.goToMedia();
 			await admin.waitForLoading();
+			await uploadTestImage(page);
 
-			// Grid view button should be active
-			const gridButton = admin.page.locator('button[aria-label="Grid view"]');
-			await expect(gridButton).toBeVisible();
+			// Grid view tab should be active
+			const gridTab = admin.page.getByRole("tab", { name: "Grid view" });
+			await expect(gridTab).toBeVisible();
+			await expect(gridTab).toHaveAttribute("aria-selected", "true");
 		});
 
-		test("shows view toggle buttons", async ({ admin }) => {
+		test("shows view toggle tabs", async ({ admin, page }) => {
 			await admin.goToMedia();
 			await admin.waitForLoading();
+			await uploadTestImage(page);
 
-			// View toggle buttons should be visible (grid and list icons)
-			const buttons = admin.page.locator("button").filter({ has: admin.page.locator("svg") });
-			const count = await buttons.count();
-			expect(count).toBeGreaterThan(0);
+			await expect(admin.page.getByRole("tab", { name: "Grid view" })).toBeVisible();
+			await expect(admin.page.getByRole("tab", { name: "List view" })).toBeVisible();
 		});
 	});
 
@@ -88,15 +101,7 @@ test.describe("Media Library", () => {
 			await admin.waitForLoading();
 
 			// Upload file
-			const testImagePath = ensureTestAssets();
-			const fileInput = page.locator('input[type="file"]');
-			await fileInput.setInputFiles(testImagePath);
-
-			// Wait for upload
-			await page.waitForResponse(
-				(res) => MEDIA_API_RESPONSE_PATTERN.test(res.url()) && res.status() === 200,
-				{ timeout: 10000 },
-			);
+			await uploadTestImage(page);
 
 			// Wait for the uploaded image to appear in the media grid
 			const mediaGrid = page.locator(".grid.gap-4");
@@ -115,18 +120,12 @@ test.describe("Media Library", () => {
 			await admin.goToMedia();
 			await admin.waitForLoading();
 
-			const testImagePath = ensureTestAssets();
-			const fileInput = page.locator('input[type="file"]');
-			await fileInput.setInputFiles(testImagePath);
-			await page.waitForResponse(
-				(res) => MEDIA_API_RESPONSE_PATTERN.test(res.url()) && res.status() === 200,
-				{ timeout: 10000 },
-			);
+			await uploadTestImage(page);
 			await page.reload();
 			await admin.waitForLoading();
 
 			// Switch to list view
-			await page.click('button[aria-label="List view"]');
+			await page.getByRole("tab", { name: "List view" }).click();
 
 			// Should show table with columns
 			await expect(page.locator("th:has-text('Filename')")).toBeVisible();

@@ -20,6 +20,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { wpMediaImportBody } from "#api/schemas.js";
 import { validateExternalUrl, ssrfSafeFetch, SsrfError } from "#import/ssrf.js";
+import { enrichImageMetadata } from "#media/enrich.js";
 import type { EmDashHandlers } from "#types";
 
 import type { AttachmentInfo } from "./analyze.js";
@@ -125,7 +126,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	}
 };
 
-async function importMediaWithProgress(
+export async function importMediaWithProgress(
 	attachments: AttachmentInfo[],
 	db: NonNullable<EmDashHandlers["db"]>,
 	storage: NonNullable<EmDashHandlers["storage"]>,
@@ -273,6 +274,9 @@ async function importMediaWithProgress(
 				contentType,
 			});
 
+			// Derive dimensions + LQIP placeholders (no-op for non-images).
+			const enriched = await enrichImageMetadata(new Uint8Array(buffer), contentType);
+
 			// Create media record with content hash
 			const mediaItem = await repo.create({
 				filename: attachment.filename || `media-${attachment.id}${ext}`,
@@ -280,8 +284,10 @@ async function importMediaWithProgress(
 				size,
 				storageKey,
 				contentHash,
-				width: undefined,
-				height: undefined,
+				width: enriched.width,
+				height: enriched.height,
+				blurhash: enriched.blurhash,
+				dominantColor: enriched.dominantColor,
 			});
 
 			// Build the new URL

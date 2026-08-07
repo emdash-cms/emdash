@@ -302,7 +302,7 @@ function formatDate(date: Date | null | undefined) {
 
 	.featured-title {
 		font-size: clamp(var(--font-size-2xl), 4vw, var(--font-size-4xl));
-		font-weight: 700;
+		font-weight: var(--font-weight-display);
 		line-height: var(--leading-tight);
 		letter-spacing: var(--tracking-tight);
 		transition: color var(--transition-fast);
@@ -310,7 +310,7 @@ function formatDate(date: Date | null | undefined) {
 
 	.featured-title-link:hover .featured-title,
 	.featured-grid:has(.featured-image-link:hover) .featured-title {
-		color: var(--color-accent);
+		color: var(--color-brand);
 	}
 
 	.featured-excerpt {
@@ -364,13 +364,13 @@ function formatDate(date: Date | null | undefined) {
 
 	.section-link {
 		font-size: var(--font-size-sm);
-		color: var(--color-accent);
+		color: var(--color-brand);
 		text-decoration: none;
 		transition: color var(--transition-fast);
 	}
 
 	.section-link:hover {
-		color: var(--color-accent-hover);
+		color: var(--color-brand-hover);
 	}
 
 	/* Posts Grid */
@@ -397,7 +397,7 @@ function formatDate(date: Date | null | undefined) {
 
 	.empty-state h2 {
 		font-size: var(--font-size-2xl);
-		font-weight: 600;
+		font-weight: var(--font-weight-heading);
 	}
 
 	.empty-state p {
@@ -408,8 +408,8 @@ function formatDate(date: Date | null | undefined) {
 		display: inline-block;
 		margin-top: var(--spacing-4);
 		padding: var(--spacing-3) var(--spacing-6);
-		background: var(--color-accent);
-		color: var(--color-on-accent);
+		background: var(--color-brand);
+		color: var(--color-on-brand);
 		text-decoration: none;
 		border-radius: var(--radius);
 		font-size: var(--font-size-sm);
@@ -418,7 +418,7 @@ function formatDate(date: Date | null | undefined) {
 	}
 
 	.btn:hover {
-		background: var(--color-accent-hover);
+		background: var(--color-brand-hover);
 	}
 
 	/* Responsive */

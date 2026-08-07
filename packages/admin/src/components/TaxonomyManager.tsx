@@ -46,6 +46,26 @@ function flattenTerms(terms: TaxonomyTerm[]): TaxonomyTerm[] {
 }
 
 /**
+ * Return valid parent candidates in tree order.
+ *
+ * The current term and its complete subtree are excluded while editing so a
+ * parent change cannot create a taxonomy cycle.
+ */
+export function getAvailableParentTerms(
+	terms: TaxonomyTerm[],
+	currentTerm?: TaxonomyTerm,
+): TaxonomyTerm[] {
+	const flatTerms = flattenTerms(terms);
+	if (!currentTerm) return flatTerms;
+
+	const excludedIds = new Set([
+		currentTerm.id,
+		...flattenTerms(currentTerm.children).map((term) => term.id),
+	]);
+	return flatTerms.filter((term) => !excludedIds.has(term.id));
+}
+
+/**
  * Term row component (recursive for hierarchy)
  */
 function TermRow({
@@ -336,11 +356,7 @@ function TermFormDialog({
 		}
 	};
 
-	// Flatten terms for parent selector (exclude current term and its children)
-	const flatTerms = flattenTerms(allTerms);
-	const availableParents = term
-		? flatTerms.filter((item) => item.id !== term.id && item.parentId !== term.id)
-		: flatTerms;
+	const availableParents = getAvailableParentTerms(allTerms, term);
 
 	return (
 		<Dialog.Root
@@ -417,13 +433,19 @@ function TermFormDialog({
 								items={{
 									"": t`None (top level)`,
 									...Object.fromEntries(
-										availableParents.map((parentTerm) => [parentTerm.id, parentTerm.label]),
+										availableParents.map((parentTerm) => [
+											parentTerm.translationGroup ?? parentTerm.id,
+											parentTerm.label,
+										]),
 									),
 								}}
 							>
 								<Select.Option value="">{t`None (top level)`}</Select.Option>
 								{availableParents.map((parentTerm) => (
-									<Select.Option key={parentTerm.id} value={parentTerm.id}>
+									<Select.Option
+										key={parentTerm.id}
+										value={parentTerm.translationGroup ?? parentTerm.id}
+									>
 										{parentTerm.label}
 									</Select.Option>
 								))}
@@ -727,8 +749,10 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 		queryFn: () => fetchTaxonomyDef(taxonomyName),
 	});
 
+	// The count mode belongs in the key: the editor's taxonomy picker reads the
+	// same endpoint without counts, and this page renders them.
 	const { data: terms = [], isLoading: termsLoading } = useQuery({
-		queryKey: ["taxonomy-terms", taxonomyName, activeLocale],
+		queryKey: ["taxonomy-terms", taxonomyName, activeLocale, { includeCounts: true }],
 		queryFn: () => fetchTerms(taxonomyName, { locale: activeLocale }),
 	});
 
@@ -787,14 +811,12 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 		);
 	}
 
-	const flatTerms = flattenTerms(terms);
-
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center justify-between gap-4 flex-wrap">
 				<div>
-					<h1 className="text-3xl font-bold">{taxonomyDef.label}</h1>
-					<p className="text-kumo-subtle mt-1">
+					<h1 className="text-2xl font-semibold leading-tight">{taxonomyDef.label}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
 						{t`Manage ${taxonomyDef.label.toLowerCase()} for ${taxonomyDef.collections.join(", ")}`}
 					</p>
 				</div>
@@ -851,7 +873,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 				taxonomyName={taxonomyName}
 				taxonomyDef={taxonomyDef}
 				term={editingTerm}
-				allTerms={flatTerms}
+				allTerms={terms}
 				locale={activeLocale}
 				i18n={i18n}
 				onOpenTranslation={(tr) => setActiveLocale(tr.locale)}

@@ -38,13 +38,23 @@ import {
 	trashedContentListResponseSchema,
 } from "../schemas/content.js";
 import {
+	mediaUsageDetailsQuery,
+	mediaUsageDetailsResponseSchema,
+	mediaUsageRepairBody,
+	mediaUsageRepairResponseSchema,
+} from "../schemas/media-usage.js";
+import {
 	DEFAULT_MAX_UPLOAD_SIZE,
 	mediaConfirmBody,
 	mediaConfirmResponseSchema,
 	mediaExistingResponseSchema,
+	mediaGetQuery,
 	mediaListQuery,
+	mediaListReadResponseSchema,
 	mediaListResponseSchema,
+	mediaReadResponseSchema,
 	mediaResponseSchema,
+	mediaStreamUploadResponseSchema,
 	mediaUpdateBody,
 	mediaUploadUrlBody,
 	mediaUploadUrlResponseSchema,
@@ -104,6 +114,7 @@ import {
 	createTermBody,
 	taxonomyListResponseSchema,
 	termGetResponseSchema,
+	termListQuery,
 	termListResponseSchema,
 	termResponseSchema,
 	updateTermBody,
@@ -151,6 +162,7 @@ function standardErrors(
 		403: "Forbidden",
 		404: "Not Found",
 		409: "Conflict",
+		413: "Payload Too Large",
 		500: "Internal Server Error",
 	};
 	for (const code of codes) {
@@ -659,15 +671,19 @@ function buildMediaPaths(maxUploadSize: number) {
 			get: {
 				operationId: "listMedia",
 				summary: "List media items",
+				description:
+					"Lists media items. Set `includeUsage=1` to attach coverage-aware advisory usage counts; a count may be null when the caller cannot read draft-derived usage.",
 				tags: ["Media"],
 				requestParams: { query: mediaListQuery },
 				responses: {
 					"200": {
 						description: "Media list",
-						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaListResponseSchema) } },
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaListReadResponseSchema) },
+						},
 					},
 					...authErrors,
-					...standardErrors(500),
+					...standardErrors(400, 500),
 				},
 			},
 		},
@@ -675,17 +691,20 @@ function buildMediaPaths(maxUploadSize: number) {
 			get: {
 				operationId: "getMedia",
 				summary: "Get a media item",
+				description:
+					"Gets a media item. Set `includeUsage=1` to attach a coverage-aware advisory usage count; the count may be null when the caller cannot read draft-derived usage.",
 				tags: ["Media"],
 				requestParams: {
 					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
+					query: mediaGetQuery,
 				},
 				responses: {
 					"200": {
 						description: "Media item",
-						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaResponseSchema) } },
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaReadResponseSchema) } },
 					},
 					...authErrors,
-					...standardErrors(404, 500),
+					...standardErrors(400, 404, 500),
 				},
 			},
 			put: {
@@ -722,12 +741,58 @@ function buildMediaPaths(maxUploadSize: number) {
 				},
 			},
 		},
+		"/_emdash/api/media/{id}/usage": {
+			get: {
+				operationId: "getMediaUsage",
+				summary: "Get media usage details",
+				description:
+					"Returns paginated content entry groups whose current indexed sources reference a local media item. Results include aggregate coverage and are advisory during concurrent writes. Requires media read and draft-content read permission; token-authenticated callers also require admin scope.",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
+					query: mediaUsageDetailsQuery,
+				},
+				responses: {
+					"200": {
+						description: "Entry-grouped media usage details",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageDetailsResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/repair": {
+			post: {
+				operationId: "repairMediaUsage",
+				summary: "Repair media usage indexes",
+				description:
+					"Repairs content media usage indexes for one collection or all collections. The request succeeds with HTTP 200 when a structured repair result is produced; inspect `data.status` because it may be `failed` or `stale`.",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [JSON_CONTENT]: { schema: mediaUsageRepairBody } },
+				},
+				responses: {
+					"200": {
+						description: "Media usage repair result",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageRepairResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 413, 500),
+				},
+			},
+		},
 		"/_emdash/api/media/upload-url": {
 			post: {
 				operationId: "getMediaUploadUrl",
-				summary: "Get a signed URL for direct upload",
+				summary: "Get a media upload target",
 				description:
-					"Returns a signed URL for direct-to-storage upload. Creates a pending media record.",
+					"Returns either a signed direct-to-storage URL or a same-origin streaming target. Creates a pending media record.",
 				tags: ["Media"],
 				requestBody: { content: { [JSON_CONTENT]: { schema: mediaUploadUrlBody(maxUploadSize) } } },
 				responses: {
@@ -764,7 +829,37 @@ function buildMediaPaths(maxUploadSize: number) {
 						},
 					},
 					...authErrors,
-					...standardErrors(400, 404, 500),
+					...standardErrors(400, 404, 409, 500),
+				},
+			},
+		},
+		"/_emdash/api/media/{id}/upload": {
+			put: {
+				operationId: "uploadPendingMedia",
+				summary: "Upload a pending media file through EmDash",
+				description:
+					"Streams a file to storage when the configured adapter cannot provide a signed upload URL. The Content-Type and byte count must match the pending media item.",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
+				},
+				requestBody: {
+					required: true,
+					content: {
+						"*/*": {
+							schema: z.string().meta({ format: "binary" }),
+						},
+					},
+				},
+				responses: {
+					"200": {
+						description: "File uploaded and ready for confirmation",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaStreamUploadResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 413, 500),
 				},
 			},
 		},
@@ -1233,6 +1328,7 @@ const taxonomyPaths = {
 			tags: ["Taxonomies"],
 			requestParams: {
 				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+				query: termListQuery,
 			},
 			responses: {
 				"200": {
@@ -2326,7 +2422,7 @@ export function generateOpenApiDocument(
 			title: "EmDash CMS API",
 			version: "0.1.0",
 			description:
-				"REST API for the EmDash CMS. All endpoints require authentication and return responses wrapped in a `{ data }` envelope.",
+				"REST API for the EmDash CMS. All endpoints require authentication and return responses wrapped in a `{ success, data }` envelope.",
 		},
 		servers: [
 			{
@@ -2392,6 +2488,10 @@ export function generateOpenApiDocument(
 			},
 		],
 		components: {
+			schemas: {
+				// Preserve the previously published component while media reads use richer schemas.
+				MediaListResponse: mediaListResponseSchema,
+			},
 			securitySchemes: {
 				session: {
 					type: "apiKey",

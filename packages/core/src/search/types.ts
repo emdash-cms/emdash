@@ -101,6 +101,8 @@ export interface Suggestion {
 	collection: string;
 	/** Entry ID */
 	id: string;
+	/** Entry slug, when available */
+	slug?: string | null;
 	/** Entry title */
 	title: string;
 }

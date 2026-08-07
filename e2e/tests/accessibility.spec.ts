@@ -58,6 +58,93 @@ test.describe("Accessibility Audit", () => {
 			expect(results.violations).toEqual([]);
 		});
 
+		test("dashboard card headings and metric values share an inset", async ({ admin }) => {
+			await admin.goToDashboard();
+			await admin.waitForLoading();
+
+			const metricCards = admin.page.getByTestId("dashboard-metric");
+			expect(await metricCards.count()).toBeGreaterThanOrEqual(3);
+
+			const layout = await admin.page.locator("main").evaluate((main) => {
+				const textStart = (element: Element) => {
+					const textNode = [...element.childNodes].find(
+						(node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim(),
+					);
+					if (!textNode) throw new Error("Dashboard card text is missing");
+					const range = document.createRange();
+					range.selectNodeContents(textNode);
+					const rect = range.getBoundingClientRect();
+					return getComputedStyle(element).direction === "rtl" ? rect.right : rect.left;
+				};
+				const cardStart = (card: Element) => {
+					const rect = card.getBoundingClientRect();
+					return getComputedStyle(card).direction === "rtl" ? rect.right : rect.left;
+				};
+				const contentHeading = [...main.querySelectorAll("h2")].find(
+					(heading) => heading.textContent?.trim() === "Content",
+				);
+				const contentCard = contentHeading?.parentElement?.parentElement;
+				if (!contentHeading || !contentCard) throw new Error("Content card heading is missing");
+				const headingInset = Math.abs(textStart(contentHeading) - cardStart(contentCard));
+
+				const metrics = Array.from(
+					main.querySelectorAll('[data-testid="dashboard-metric"]'),
+					(card) => {
+						const heading = card.querySelector("h2");
+						const value = card.querySelector('[data-testid="dashboard-metric-value"]');
+						if (!heading || !value) throw new Error("Metric label or value is missing");
+
+						return {
+							headingInset: Math.abs(textStart(heading) - cardStart(card)),
+							labelValueGap: Math.abs(textStart(heading) - textStart(value)),
+						};
+					},
+				);
+
+				return { headingInset, metrics };
+			});
+
+			for (const metric of layout.metrics) {
+				expect(metric.headingInset).toBeCloseTo(layout.headingInset, 1);
+				expect(metric.labelValueGap).toBeLessThanOrEqual(0.5);
+			}
+		});
+
+		test("dashboard headings keep the font's default tracking across scripts", async ({
+			admin,
+		}) => {
+			await admin.goToDashboard();
+			await admin.waitForLoading();
+
+			const trackingByLocale = await admin.page.locator("main").evaluate((main) => {
+				const title = main.querySelector("h1");
+				const metricValues = main.querySelectorAll('[data-testid="dashboard-metric-value"]');
+				if (!title || metricValues.length === 0) throw new Error("Dashboard typography is missing");
+
+				const root = document.documentElement;
+				const originalLang = root.lang;
+				const locales = ["en", "ja", "zh-CN"];
+
+				try {
+					return locales.map((locale) => {
+						root.lang = locale;
+						return {
+							locale,
+							title: getComputedStyle(title).letterSpacing,
+							metrics: Array.from(metricValues, (value) => getComputedStyle(value).letterSpacing),
+						};
+					});
+				} finally {
+					root.lang = originalLang;
+				}
+			});
+
+			for (const tracking of trackingByLocale) {
+				expect(tracking.title, tracking.locale).toBe("normal");
+				expect(tracking.metrics, tracking.locale).toEqual(tracking.metrics.map(() => "normal"));
+			}
+		});
+
 		test("content list should have no WCAG 2.x AA violations", async ({ admin }) => {
 			await admin.goToContent("posts");
 			await admin.waitForLoading();
@@ -123,6 +210,55 @@ test.describe("Accessibility Audit", () => {
 				.analyze();
 
 			expect(results.violations).toEqual([]);
+		});
+
+		test("page descriptions meet regular-text contrast in the classic light theme", async ({
+			admin,
+			page,
+		}) => {
+			await page.emulateMedia({ colorScheme: "light" });
+			await admin.goto("/plugins-manager");
+			await admin.waitForShell();
+			await admin.waitForLoading();
+
+			const description = page.getByText(
+				"Manage installed plugins. Enable or disable plugins to control their functionality.",
+				{ exact: true },
+			);
+			await expect(description).toBeVisible();
+
+			const contrast = await description.evaluate((element) => {
+				const canvas = document.createElement("canvas");
+				canvas.width = 1;
+				canvas.height = 1;
+				const context = canvas.getContext("2d");
+				if (!context) throw new Error("Canvas context unavailable");
+
+				const toRgb = (color: string) => {
+					context.clearRect(0, 0, 1, 1);
+					context.fillStyle = color;
+					context.fillRect(0, 0, 1, 1);
+					return context.getImageData(0, 0, 1, 1).data;
+				};
+				const luminance = (rgb: Uint8ClampedArray) => {
+					const toLinear = (channel: number) => {
+						const value = channel / 255;
+						return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+					};
+					const red = toLinear(rgb[0] ?? 0);
+					const green = toLinear(rgb[1] ?? 0);
+					const blue = toLinear(rgb[2] ?? 0);
+					return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+				};
+
+				const foreground = luminance(toRgb(getComputedStyle(element).color));
+				const background = luminance(toRgb(getComputedStyle(document.body).backgroundColor));
+				return (
+					(Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
+				);
+			});
+
+			expect(contrast).toBeGreaterThanOrEqual(4.5);
 		});
 
 		test("content list should be keyboard navigable", async ({ admin }) => {
