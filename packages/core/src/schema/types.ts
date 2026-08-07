@@ -326,13 +326,9 @@ export interface CreateFieldInput {
 export interface UpdateFieldInput {
 	label?: string;
 	/**
-	 * Change the field's type. Only type changes that keep the same underlying
-	 * column type (per `FIELD_TYPE_TO_COLUMN`) are allowed — e.g. `string` to
-	 * `slug` (both TEXT). A change that would alter the column affinity (e.g.
-	 * `text` TEXT to `portableText` JSON) is rejected, because there is no
-	 * in-place column migration and silently rewriting the metadata would
-	 * desync `column_type` from the real `ec_*` column. Omit to keep the
-	 * current type.
+	 * Change the field's type. Only storage-compatible text aliases (`string`,
+	 * `text`, and `slug`) can be changed in place. Other changes require an
+	 * explicit content migration. Omit to keep the current type.
 	 */
 	type?: FieldType;
 	required?: boolean;

@@ -41,6 +41,7 @@ import {
 } from "./object-cache/index.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
+import { compileUrlPattern } from "./schema/url-pattern.js";
 import type { TaxonomyTerm } from "./taxonomies/types.js";
 import { isMissingTableError } from "./utils/db-errors.js";
 import {
@@ -1310,19 +1311,6 @@ export interface ResolvePathResult<T = Record<string, unknown>> {
 	params: Record<string, string>;
 }
 
-/** Matches `{paramName}` placeholders in URL patterns */
-const URL_PARAM_PATTERN = /\{(\w+)\}/g;
-
-/** Convert a URL pattern like "/blog/{slug}" to a regex and param name list */
-function patternToRegex(pattern: string): { regex: RegExp; paramNames: string[] } {
-	const paramNames: string[] = [];
-	const regexStr = pattern.replace(URL_PARAM_PATTERN, (_match, name: string) => {
-		paramNames.push(name);
-		return "([^/]+)";
-	});
-	return { regex: new RegExp(`^${regexStr}$`), paramNames };
-}
-
 /** Cached compiled URL patterns for resolveEmDashPath */
 interface CachedPattern {
 	slug: string;
@@ -1377,7 +1365,7 @@ export async function resolveEmDashPath<T = Record<string, unknown>>(
 		cachedUrlPatterns = [];
 		for (const collection of collections) {
 			if (!collection.urlPattern) continue;
-			const { regex, paramNames } = patternToRegex(collection.urlPattern);
+			const { regex, paramNames } = compileUrlPattern(collection.urlPattern);
 			cachedUrlPatterns.push({ slug: collection.slug, regex, paramNames });
 		}
 	}
