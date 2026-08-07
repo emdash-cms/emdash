@@ -4,7 +4,7 @@
  * Defines all admin routes and their components.
  */
 
-import { Button, Loader, Toast } from "@cloudflare/kumo";
+import { Button, Loader, Toast, useKumoToastManager } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
@@ -634,6 +634,8 @@ function ContentNewPage() {
 	const { locale } = useSearch({ from: "/_admin/content/$collection/new" });
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+	const { t } = useLingui();
+	const toastManager = useKumoToastManager();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
 
 	const { data: manifest } = useQuery({
@@ -661,6 +663,13 @@ function ContentNewPage() {
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
 				search: { locale: result.locale },
+			});
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to save`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				variant: "error",
 			});
 		},
 	});
