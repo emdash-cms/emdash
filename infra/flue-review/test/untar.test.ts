@@ -126,6 +126,62 @@ describe("untarInto", () => {
 		expect(r.files.has("/repo/ignored-name.txt")).toBe(false);
 	});
 
+	it("applies pax linkpath and GNU longlink overrides to symlink targets", async () => {
+		const longTarget = `deep/${"d/".repeat(40)}target.txt`;
+		const paxBody = `linkpath=${longTarget}\n`;
+		const paxLen = String(paxBody.length + 3).length + 1 + paxBody.length;
+		const paxBytes = encoder.encode(`${paxLen} ${paxBody}`);
+		const longLinkBytes = encoder.encode(longTarget);
+		const r = recorder();
+		await untarInto(
+			r.target,
+			tarball([
+				header({ name: "repo-abc/PaxHeader", type: "x", size: paxBytes.length }),
+				contentBlocks(paxBytes),
+				header({ name: "repo-abc/pax-link", type: "2", linkTarget: "short" }),
+				header({ name: "repo-abc/@LongLink", type: "K", size: longLinkBytes.length }),
+				contentBlocks(longLinkBytes),
+				header({ name: "repo-abc/gnu-link", type: "2", linkTarget: "short" }),
+				header({ name: "repo-abc/plain-link", type: "2", linkTarget: "short" }),
+			]),
+			"/repo",
+		);
+		expect(r.symlinks.get("/repo/pax-link")).toBe(longTarget);
+		expect(r.symlinks.get("/repo/gnu-link")).toBe(longTarget);
+		expect(r.symlinks.get("/repo/plain-link")).toBe("short");
+	});
+
+	it("rejects pax linkpath targets that escape the destination", async () => {
+		const paxBody = "linkpath=../../etc/passwd\n";
+		const paxLen = String(paxBody.length + 3).length + 1 + paxBody.length;
+		const paxBytes = encoder.encode(`${paxLen} ${paxBody}`);
+		const r = recorder();
+		await expect(
+			untarInto(
+				r.target,
+				tarball([
+					header({ name: "repo-abc/PaxHeader", type: "x", size: paxBytes.length }),
+					contentBlocks(paxBytes),
+					header({ name: "repo-abc/evil", type: "2", linkTarget: "harmless" }),
+				]),
+				"/repo",
+			),
+		).rejects.toThrow(/escapes the destination/);
+		expect(r.symlinks.size).toBe(0);
+	});
+
+	it("rejects entries whose declared size exceeds the cap", async () => {
+		const r = recorder();
+		await expect(
+			untarInto(
+				r.target,
+				tarball([header({ name: "repo-abc/huge.bin", size: 128 * 1024 * 1024 })]),
+				"/repo",
+			),
+		).rejects.toThrow(/size out of range/);
+		expect(r.files.size).toBe(0);
+	});
+
 	it("joins the ustar prefix field with the name", async () => {
 		const r = recorder();
 		await untarInto(

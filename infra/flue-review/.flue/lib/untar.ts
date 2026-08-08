@@ -10,6 +10,9 @@ export interface UntarTarget {
 	writeFileBytes(path: string, content: Uint8Array): Promise<void>;
 }
 
+/** Ceiling on a single entry's declared size; content is buffered in DO memory. */
+const MAX_ENTRY_SIZE = 64 * 1024 * 1024;
+
 function stripRoot(name: string): string | undefined {
 	const slash = name.indexOf("/");
 	if (slash === -1) return undefined;
@@ -38,9 +41,9 @@ function normalizeSegments(path: string): string[] | undefined {
 /**
  * Untar a ustar stream into `destDir`, stripping the archive's single
  * top-level directory. Handles regular files, directories, symlinks, GNU
- * longname ('L') and pax ('x') path overrides. One entry's content is
- * buffered at a time. Rejects any entry path or symlink target that would
- * resolve outside `destDir`.
+ * longname/longlink ('L'/'K') and pax ('x') path/linkpath overrides. One
+ * entry's content is buffered at a time, capped at MAX_ENTRY_SIZE. Rejects
+ * any entry path or symlink target that would resolve outside `destDir`.
  */
 export async function untarInto(
 	target: UntarTarget,
@@ -52,7 +55,9 @@ export async function untarInto(
 	let files = 0;
 	let bytes = 0;
 	let pendingLongName: string | undefined;
+	let pendingLongLink: string | undefined;
 	let pendingPaxPath: string | undefined;
+	let pendingPaxLink: string | undefined;
 	const dirsMade = new Set<string>();
 
 	const append = (chunk: Uint8Array) => {
@@ -94,8 +99,10 @@ export async function untarInto(
 		// Mode bytes (100-108) are ignored: the workspace has no chmod and the
 		// reviewer never executes files.
 		const type = String.fromCharCode(header[156] ?? 48);
-		const linkTarget = readCString(header.subarray(157, 257));
 
+		if (!Number.isFinite(size) || size < 0 || size > MAX_ENTRY_SIZE) {
+			throw new Error(`tar entry size out of range (${size} bytes): ${rawName}`);
+		}
 		const padded = Math.ceil(size / 512) * 512;
 		if (!(await need(padded)) && size > 0) {
 			throw new Error(`tar truncated: needed ${padded} bytes for entry ${rawName}`);
@@ -107,22 +114,30 @@ export async function untarInto(
 			pendingLongName = readCString(content);
 			continue;
 		}
+		if (type === "K") {
+			pendingLongLink = readCString(content);
+			continue;
+		}
 		if (type === "x" || type === "g") {
 			// pax records: "<len> key=value\n"
 			const text = decoder.decode(content);
 			for (const line of text.split("\n")) {
 				const eq = line.indexOf("=");
-				if (eq > 0 && line.slice(line.indexOf(" ") + 1, eq) === "path") {
-					pendingPaxPath = line.slice(eq + 1);
-				}
+				if (eq <= 0) continue;
+				const key = line.slice(line.indexOf(" ") + 1, eq);
+				if (key === "path") pendingPaxPath = line.slice(eq + 1);
+				else if (key === "linkpath") pendingPaxLink = line.slice(eq + 1);
 			}
 			continue;
 		}
 
 		const fullName =
 			pendingPaxPath ?? pendingLongName ?? (prefix ? `${prefix}/${rawName}` : rawName);
+		const linkTarget = pendingPaxLink ?? pendingLongLink ?? readCString(header.subarray(157, 257));
 		pendingLongName = undefined;
+		pendingLongLink = undefined;
 		pendingPaxPath = undefined;
+		pendingPaxLink = undefined;
 
 		if (fullName.startsWith("/")) {
 			throw new Error(`tar entry path is absolute: ${fullName}`);
