@@ -19,7 +19,7 @@
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "1.36.3",
 		"@cloudflare/vitest-pool-workers": "catalog:",
-		"@flue/vite": "0.4.0-nightly.202605171039",
+		"@flue/vite": "2.0.3",
 		"typescript": "catalog:",
 		"vite": "8.0.11",
 		"vitest": "catalog:",
@@ -27,8 +27,8 @@
 	},
 	"dependencies": {
 		"@cloudflare/sandbox": "^0.12.1",
-		"@flue/runtime": "0.4.0-nightly.202605171039",
-		"agents": "^0.14.5",
+		"@flue/runtime": "2.0.3",
+		"agents": "^0.20.1",
 		"hono": "4.12.27",
 		"valibot": "^1.4.1"
 	}
