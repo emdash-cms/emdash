@@ -189,13 +189,24 @@ export function adaptSandboxEntry(
 	}
 
 	// Resolve routes: sandboxed format uses (routeCtx, pluginCtx) two-arg
-	// pattern. Native format uses (ctx: RouteContext) single-arg pattern
-	// where RouteContext extends PluginContext with
-	// { input, request, requestMeta }. We wrap sandboxed route handlers
-	// to merge the two args into one.
+	// pattern. Standard format (`definePlugin(...)` as the default export)
+	// uses the public (ctx: RouteContext) single-arg pattern where
+	// RouteContext extends PluginContext with { input, request, requestMeta }.
+	//
+	// The two conventions disagree on the FIRST argument (`request` is a
+	// flattened plain object for sandboxed, a real WHATWG `Request` for
+	// standard), so the wrapper must know which contract the handler was
+	// written against. `definePlugin` requires `id`, and sandbox-format
+	// default exports never carry one (identity comes from the manifest's
+	// slug + publisher) — the same "no id" signal definePlugin itself
+	// documents. Calling a single-arg standard handler with the two-arg
+	// convention silently hands it the bare route context (JS drops the
+	// extra argument), so `ctx.storage` / `ctx.email` / etc. are all
+	// undefined at runtime (#2079).
 	//
 	// Route entries can be bare functions or `{ handler, public?, input? }`
 	// config objects; normalise to the config shape inside the loop.
+	const usesPublicRouteContext = "id" in definition && typeof definition.id === "string";
 	const resolvedRoutes: Record<string, PluginRoute> = {};
 	if (definition.routes) {
 		for (const [routeName, rawEntry] of Object.entries(definition.routes)) {
@@ -213,6 +224,13 @@ export function adaptSandboxEntry(
 				permission,
 				cacheControl,
 				handler: async (ctx) => {
+					if (usesPublicRouteContext) {
+						// The incoming ctx already IS the public RouteContext
+						// (full PluginContext + input / real Request /
+						// requestMeta) — pass it through unchanged.
+						// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- standard-format handlers are authored against the public single-arg PluginRoute contract; the sandbox RouteHandler type on `normalized` is the wider authoring union
+						return (handler as unknown as PluginRoute["handler"])(ctx);
+					}
 					// `ctx.request` is a real WHATWG `Request` (this is the
 					// in-process adapter; the worker-sandbox adapter handles
 					// the serialised case). Flatten `Headers` to the plain
