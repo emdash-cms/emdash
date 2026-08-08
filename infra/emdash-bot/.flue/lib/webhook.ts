@@ -180,6 +180,7 @@ export interface PullRequestReviewCommentEvent {
 
 export type NormalizeResult =
 	| { kind: "dispatch"; anchor: string; event: NormalizedEvent }
+	| { kind: "cleanup"; anchor: string; anchorNumber: number; deliveryId?: string }
 	| { kind: "skip"; reason: string }
 	| { kind: "pong" };
 
@@ -236,6 +237,20 @@ function normalizeIssues(
 	deliveryId?: string,
 ): NormalizeResult {
 	const action = readString(event?.action) ?? "";
+	// A closed issue reaps its fix-loop branches (bot-cleanup.yml's close path).
+	// PR-as-issue closes arrive as pull_request events too; skip them here.
+	if (action === "closed") {
+		const issue = asRecord(event?.issue);
+		const number = readNumber(issue?.number);
+		if (!number) return { kind: "skip", reason: "issues.closed missing issue.number" };
+		if (issue?.pull_request) return { kind: "skip", reason: "issues.closed on a PR-as-issue" };
+		return {
+			kind: "cleanup",
+			anchor: anchorForIssue(number),
+			anchorNumber: number,
+			...(deliveryId ? { deliveryId } : {}),
+		};
+	}
 	if (action !== "opened" && action !== "reopened") {
 		return { kind: "skip", reason: `issues.${action} not handled` };
 	}
