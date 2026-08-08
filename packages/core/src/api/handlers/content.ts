@@ -38,6 +38,7 @@ import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingColumnError, isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
+import { handleContentDuplicateMany } from "./content-duplicate.js";
 import { validateMediaFields } from "./validate-media-fields.js";
 
 /**
@@ -1095,10 +1096,10 @@ export async function handleContentUpdate(
 }
 
 /**
- * Duplicate content item.
- *
- * Only copies SEO data if the collection has SEO enabled.
- * Always returns consistent `seo` shape for SEO-enabled collections.
+ * Duplicate one content item within its collection, returning the hydrated
+ * copy. A straight copy through `handleContentDuplicateMany`, whose per-item
+ * permission checks are skipped: every caller of this signature has already
+ * authorized the request against the source.
  */
 export async function handleContentDuplicate(
 	db: Kysely<Database>,
@@ -1106,64 +1107,23 @@ export async function handleContentDuplicate(
 	id: string,
 	authorId?: string,
 ): Promise<ApiResult<{ item: ContentItem }>> {
-	try {
-		const hasSeo = await collectionHasSeo(db, collection);
+	const result = await handleContentDuplicateMany(db, collection, { ids: [id], authorId });
+	if (!result.success) return { success: false, error: result.error };
 
-		// Wrap duplicate + SEO copy in a transaction for atomicity
-		const duplicate = await withTransaction(db, async (trx) => {
-			const repo = new ContentRepository(trx);
-			const bylineRepo = new BylineRepository(trx);
-			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			const dup = await repo.duplicate(collection, resolvedId, authorId);
-
-			const existingBylines = await bylineRepo.getContentBylines(collection, resolvedId);
-			if (existingBylines.length > 0) {
-				await bylineRepo.setContentBylines(
-					collection,
-					dup.id,
-					existingBylines.map((entry) => ({
-						bylineId: entry.byline.id,
-						roleLabel: entry.roleLabel,
-					})),
-				);
-			}
-
-			if (hasSeo) {
-				// Copy SEO data from the original (clears canonical)
-				const seoRepo = new SeoRepository(trx);
-				await seoRepo.copyForDuplicate(collection, resolvedId, dup.id);
-				// Always hydrate SEO for consistent response shape
-				dup.seo = await seoRepo.get(collection, dup.id);
-			}
-
-			await hydrateBylines(trx, collection, dup);
-
-			return dup;
-		});
-
-		return {
-			success: true,
-			data: { item: duplicate },
-		};
-	} catch (err) {
-		if (err instanceof EmDashValidationError) {
-			return {
-				success: false,
-				error: {
-					code: "NOT_FOUND",
-					message: err.message,
-				},
-			};
-		}
-		console.error("Content duplicate error:", err);
+	const copy = result.data.results[0];
+	if (!copy || copy.status === "failed" || !copy.targetId) {
 		return {
 			success: false,
 			error: {
-				code: "CONTENT_DUPLICATE_ERROR",
-				message: "Failed to duplicate content",
+				code: copy?.error ? "CONTENT_DUPLICATE_ERROR" : "NOT_FOUND",
+				message: copy?.error ?? `Content item not found: ${id}`,
 			},
 		};
 	}
+
+	const created = await handleContentGet(db, collection, copy.targetId);
+	if (!created.success) return { success: false, error: created.error };
+	return { success: true, data: { item: created.data.item } };
 }
 
 /**

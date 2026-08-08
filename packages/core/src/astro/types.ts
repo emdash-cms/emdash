@@ -8,6 +8,11 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
+import type {
+	DuplicateMappingResponse,
+	DuplicateManyInput,
+	DuplicateItemResult,
+} from "../api/handlers/content-duplicate.js";
 import type { RouteMeta } from "../plugins/routes.js";
 
 // Re-export core types
@@ -321,6 +326,18 @@ export interface EmDashHandlers {
 		id: string,
 		authorId?: string,
 	) => Promise<HandlerResponse>;
+
+	// Cross-collection duplication
+	handleDuplicateMappingGet: (
+		collection: string,
+		targetCollection: string,
+		ids?: string[],
+	) => Promise<HandlerResponse<DuplicateMappingResponse>>;
+
+	handleContentDuplicateMany: (
+		collection: string,
+		input: DuplicateManyInput,
+	) => Promise<HandlerResponse<{ results: DuplicateItemResult[] }>>;
 
 	// Publishing & Scheduling handlers
 	handleContentPublish: (

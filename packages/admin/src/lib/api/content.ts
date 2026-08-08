@@ -337,6 +337,86 @@ export async function duplicateContent(collection: string, id: string): Promise<
 	return data.item;
 }
 
+/** Target field slug -> source field slug, or null when left unmapped. */
+export type DuplicateFieldMapping = Record<string, string | null>;
+
+export interface DuplicateMappingField {
+	slug: string;
+	label: string;
+	type: string;
+	columnType: string;
+	required: boolean;
+}
+
+export interface DuplicateMappingTargetField extends DuplicateMappingField {
+	compatibleSources: string[];
+}
+
+export interface DuplicateMapping {
+	source: "saved" | "derived";
+	sourceCollection: { slug: string; label: string; fields: DuplicateMappingField[] };
+	targetCollection: { slug: string; label: string; fields: DuplicateMappingTargetField[] };
+	mapping: DuplicateFieldMapping;
+	unmappableRequired: string[];
+	seo: { sourceEnabled: boolean; targetEnabled: boolean };
+	taxonomies: {
+		carried: Array<{ name: string; label: string }>;
+		dropped: Array<{ name: string; label: string }>;
+	};
+	referenceEdges?: { inbound: number; outbound: number };
+}
+
+export interface DuplicateResult {
+	id: string;
+	status: "copied" | "copied_not_trashed" | "failed";
+	targetId?: string;
+	error?: string;
+}
+
+/**
+ * Resolve the field mapping for a cross-collection duplicate. `ids` opts into
+ * the reference-edge counts for those entries.
+ */
+export async function fetchDuplicateMapping(
+	collection: string,
+	targetCollection: string,
+	ids: string[] = [],
+): Promise<DuplicateMapping> {
+	const params = new URLSearchParams({ target: targetCollection });
+	if (ids.length > 0) params.set("ids", ids.join(","));
+	const response = await apiFetch(
+		`${API_BASE}/content/${collection}/duplicate-mapping?${params.toString()}`,
+	);
+	return parseApiResponse<DuplicateMapping>(response, "Failed to load duplicate mapping");
+}
+
+/**
+ * Copy entries into a collection, which may be the source collection itself.
+ * Resolves with one result per id — a failure for one entry doesn't stop the
+ * others. Omitting `mapping` uses the saved mapping for the pair, falling back
+ * to a slug match.
+ */
+export async function duplicateContentMany(
+	collection: string,
+	body: {
+		ids: string[];
+		targetCollection: string;
+		mapping?: DuplicateFieldMapping;
+		saveMapping?: boolean;
+		trashSource?: boolean;
+	},
+): Promise<DuplicateResult[]> {
+	const response = await apiFetch(`${API_BASE}/content/${collection}/duplicate`, {
+		method: "POST",
+		body: JSON.stringify(body),
+	});
+	const data = await parseApiResponse<{ results: DuplicateResult[] }>(
+		response,
+		"Failed to duplicate content",
+	);
+	return data.results;
+}
+
 /**
  * Schedule content for future publishing
  */

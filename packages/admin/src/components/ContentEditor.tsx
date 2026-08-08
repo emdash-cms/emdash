@@ -178,6 +178,11 @@ export interface ContentEditorProps {
 	onDelete?: () => void;
 	/** Whether delete is in progress */
 	isDeleting?: boolean;
+	/**
+	 * Open the duplicate flow for this entry. The copy is taken from the saved
+	 * row, so the caller is told whether the editor has unsaved changes.
+	 */
+	onDuplicate?: (context: { unsavedChanges: boolean }) => void;
 	/** i18n config — present when multiple locales are configured */
 	i18n?: { defaultLocale: string; locales: string[] };
 	/** Existing translations for this content item */
@@ -233,6 +238,7 @@ export function ContentEditor({
 	onQuickEditByline,
 	onDelete,
 	isDeleting,
+	onDuplicate,
 	i18n,
 	translations,
 	onTranslate,
@@ -405,6 +411,16 @@ export function ContentEditor({
 		[formData, slug, activeBylines],
 	);
 	const isDirty = isNew || currentData !== lastSavedData;
+
+	// The settings panel is memoized, so the handler it gets must be stable —
+	// dirtiness is read through a ref at click time instead of closed over.
+	const isDirtyRef = React.useRef(isDirty);
+	isDirtyRef.current = isDirty;
+	const handleDuplicate = React.useCallback(
+		() => onDuplicate?.({ unsavedChanges: isDirtyRef.current }),
+		[onDuplicate],
+	);
+
 	const saveFeedbackActive = isSaveFeedbackActive ?? isSaving;
 	const autosaveFeedbackActive = isAutosaveFeedbackActive ?? isAutosaving;
 	const isContentOperationPending = Boolean(isSaving);
@@ -865,6 +881,7 @@ export function ContentEditor({
 							onDiscardDraft={onDiscardDraft}
 							onDelete={onDelete}
 							isDeleting={isDeleting}
+							onDuplicate={onDuplicate ? handleDuplicate : undefined}
 							currentUser={currentUser}
 							users={users}
 							onAuthorChange={onAuthorChange}

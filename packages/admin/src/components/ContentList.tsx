@@ -74,6 +74,11 @@ export interface ContentListProps {
 	isTrashedLoading?: boolean;
 	onDelete?: (id: string) => void;
 	onDuplicate?: (id: string) => void;
+	/**
+	 * Duplicate the selected entries. Like the other bulk handlers it resolves
+	 * with the ids that failed, so those rows stay selected.
+	 */
+	onBulkDuplicate?: BulkActionHandler;
 	onRestore?: (id: string) => void;
 	onPermanentDelete?: (id: string) => void;
 	onLoadMore?: () => void;
@@ -193,6 +198,7 @@ export function ContentList({
 	onBulkPublish,
 	onBulkUnpublish,
 	onBulkDelete,
+	onBulkDuplicate,
 }: ContentListProps) {
 	const { t } = useLingui();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
@@ -202,7 +208,7 @@ export function ContentList({
 
 	// Bulk selection is opt-in: the checkbox column + toolbar only render when
 	// the parent wired at least one bulk handler.
-	const bulkEnabled = !!(onBulkPublish || onBulkUnpublish || onBulkDelete);
+	const bulkEnabled = !!(onBulkPublish || onBulkUnpublish || onBulkDelete || onBulkDuplicate);
 
 	// Server-side search mode: the caller refetches based on the (debounced)
 	// query, so `items`/`total` already reflect the filter and we must not
@@ -430,6 +436,17 @@ export function ContentList({
 										onClick={() => runBulk(onBulkUnpublish)}
 									>
 										{t`Set to draft`}
+									</Button>
+								)}
+								{onBulkDuplicate && (
+									<Button
+										size="sm"
+										variant="secondary"
+										disabled={bulkBusy}
+										icon={<Copy />}
+										onClick={() => runBulk(onBulkDuplicate)}
+									>
+										{t`Duplicate…`}
 									</Button>
 								)}
 								{onBulkDelete && (

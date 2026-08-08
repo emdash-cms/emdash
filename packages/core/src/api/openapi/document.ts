@@ -26,6 +26,9 @@ import {
 	contentCompareResponseSchema,
 	contentAuthorsResponseSchema,
 	contentCreateBody,
+	contentDuplicateBody,
+	contentDuplicateManyBody,
+	contentDuplicateManyResponseSchema,
 	contentItemSchema,
 	contentListQuery,
 	contentListResponseSchema,
@@ -35,6 +38,8 @@ import {
 	contentTrashQuery,
 	contentTranslationsResponseSchema,
 	contentUpdateBody,
+	duplicateMappingQuery,
+	duplicateMappingResponseSchema,
 	trashedContentListResponseSchema,
 } from "../schemas/content.js";
 import {
@@ -427,12 +432,17 @@ const contentPaths = {
 		post: {
 			operationId: "duplicateContent",
 			summary: "Duplicate a content item",
+			description:
+				"Without a body, copies the item within its own collection. With a body, copies it into `targetCollection` through a field mapping.",
 			tags: ["Content"],
 			requestParams: {
 				path: z.object({
 					collection: z.string().meta({ description: "Collection slug" }),
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
+			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: contentDuplicateBody } },
 			},
 			responses: {
 				"201": {
@@ -441,6 +451,60 @@ const contentPaths = {
 						[JSON_CONTENT]: {
 							schema: successEnvelope(z.object({ item: contentItemSchema })),
 						},
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+	},
+
+	"/_emdash/api/content/{collection}/duplicate-mapping": {
+		get: {
+			operationId: "getDuplicateMapping",
+			summary: "Resolve the field mapping for a cross-collection duplicate",
+			description:
+				"Returns both field lists, the saved or derived mapping, which taxonomies carry to the target, and — when `ids` is supplied — reference-edge counts for those entries.",
+			tags: ["Content"],
+			requestParams: {
+				path: z.object({
+					collection: z.string().meta({ description: "Source collection slug" }),
+				}),
+				query: duplicateMappingQuery,
+			},
+			responses: {
+				"200": {
+					description: "Resolved mapping",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(duplicateMappingResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+	},
+
+	"/_emdash/api/content/{collection}/duplicate": {
+		post: {
+			operationId: "duplicateContentMany",
+			summary: "Duplicate entries",
+			description:
+				"Copies up to 50 entries, into `targetCollection` through a field mapping when it differs from the source. Results are per item: one entry failing validation does not stop the others.",
+			tags: ["Content"],
+			requestParams: {
+				path: z.object({
+					collection: z.string().meta({ description: "Source collection slug" }),
+				}),
+			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: contentDuplicateManyBody } },
+			},
+			responses: {
+				"200": {
+					description: "Per-item copy results",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(contentDuplicateManyResponseSchema) },
 					},
 				},
 				...authErrors,

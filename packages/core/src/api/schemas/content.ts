@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { bylineSummarySchema, bylineCreditSchema, contentBylineInputSchema } from "./bylines.js";
-import { cursorPaginationQuery, httpUrl, localeCode } from "./common.js";
+import { cursorPaginationQuery, httpUrl, localeCode, slugPattern } from "./common.js";
 
 // ---------------------------------------------------------------------------
 // Content: Input schemas
@@ -129,6 +129,97 @@ export const contentTermsBody = z
 	.meta({ id: "ContentTermsBody" });
 
 export const contentTrashQuery = cursorPaginationQuery;
+
+/** Maximum entries one bulk duplicate request may carry (D1 binds 100 parameters). */
+export const DUPLICATE_MAX_IDS = 50;
+
+const collectionSlug = z.string().min(1).max(63).regex(slugPattern, "Invalid collection slug");
+
+/** Target field slug -> source field slug, or null to leave the target field unmapped. */
+export const duplicateFieldMapping = z
+	.record(z.string(), z.string().nullable())
+	.meta({ id: "DuplicateFieldMapping" });
+
+export const duplicateMappingQuery = z
+	.object({
+		target: collectionSlug,
+		ids: z
+			.string()
+			.optional()
+			.meta({
+				description: `Comma-separated entry ids (max ${DUPLICATE_MAX_IDS}) to report reference-edge counts for.`,
+			}),
+	})
+	.meta({ id: "DuplicateMappingQuery" });
+
+/** Shared body fields for the per-item and bulk duplicate routes. */
+const duplicateFields = {
+	targetCollection: collectionSlug.optional().meta({
+		description: "Defaults to the source collection, which makes the copy a straight one.",
+	}),
+	mapping: duplicateFieldMapping.optional().meta({
+		description: "Omit to use the saved mapping for this collection pair, or a slug-match default.",
+	}),
+	saveMapping: z.boolean().optional(),
+	trashSource: z.boolean().optional().meta({
+		description: "Soft-delete each source entry after its copy succeeds.",
+	}),
+};
+
+/** Optional body on the per-item duplicate route. Absent = straight copy. */
+export const contentDuplicateBody = z.object(duplicateFields).meta({ id: "ContentDuplicateBody" });
+
+export const contentDuplicateManyBody = z
+	.object({
+		ids: z.array(z.string().min(1)).min(1).max(DUPLICATE_MAX_IDS),
+		...duplicateFields,
+	})
+	.meta({ id: "ContentDuplicateManyBody" });
+
+const duplicateMappingField = z.object({
+	slug: z.string(),
+	label: z.string(),
+	type: z.string(),
+	columnType: z.string(),
+	required: z.boolean(),
+});
+
+export const duplicateMappingResponseSchema = z
+	.object({
+		source: z.enum(["saved", "derived"]),
+		sourceCollection: z.object({
+			slug: z.string(),
+			label: z.string(),
+			fields: z.array(duplicateMappingField),
+		}),
+		targetCollection: z.object({
+			slug: z.string(),
+			label: z.string(),
+			fields: z.array(duplicateMappingField.extend({ compatibleSources: z.array(z.string()) })),
+		}),
+		mapping: duplicateFieldMapping,
+		unmappableRequired: z.array(z.string()),
+		seo: z.object({ sourceEnabled: z.boolean(), targetEnabled: z.boolean() }),
+		taxonomies: z.object({
+			carried: z.array(z.object({ name: z.string(), label: z.string() })),
+			dropped: z.array(z.object({ name: z.string(), label: z.string() })),
+		}),
+		referenceEdges: z.object({ inbound: z.number().int(), outbound: z.number().int() }).optional(),
+	})
+	.meta({ id: "DuplicateMappingResponse" });
+
+export const contentDuplicateManyResponseSchema = z
+	.object({
+		results: z.array(
+			z.object({
+				id: z.string(),
+				status: z.enum(["copied", "copied_not_trashed", "failed"]),
+				targetId: z.string().optional(),
+				error: z.string().optional(),
+			}),
+		),
+	})
+	.meta({ id: "ContentDuplicateManyResponse" });
 
 // ---------------------------------------------------------------------------
 // Content: Response schemas

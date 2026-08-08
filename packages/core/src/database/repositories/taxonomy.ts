@@ -429,6 +429,48 @@ export class TaxonomyRepository {
 	}
 
 	/**
+	 * Copy term assignments from an entry in one collection to an entry in
+	 * another, keeping only the taxonomies named in `allowedNames`. A taxonomy
+	 * def declares which collections it applies to, so a term the target isn't
+	 * attached to must not follow the copy.
+	 */
+	async copyEntryTermsAcross(
+		sourceCollection: string,
+		sourceEntryId: string,
+		targetCollection: string,
+		targetEntryId: string,
+		allowedNames: ReadonlySet<string>,
+	): Promise<void> {
+		if (allowedNames.size === 0) return;
+
+		const rows = await this.db
+			.selectFrom("content_taxonomies")
+			.innerJoin("taxonomies", "taxonomies.translation_group", "content_taxonomies.taxonomy_id")
+			.select(["content_taxonomies.taxonomy_id as taxonomy_id"])
+			.distinct()
+			.where("content_taxonomies.collection", "=", sourceCollection)
+			.where("content_taxonomies.entry_id", "=", sourceEntryId)
+			.where("taxonomies.name", "in", [...allowedNames])
+			.execute();
+		if (rows.length === 0) return;
+
+		const denorm = await this.fetchEntryDenorm(targetCollection, targetEntryId);
+		await this.db
+			.insertInto("content_taxonomies")
+			.values(
+				rows.map((r) => ({
+					collection: targetCollection,
+					entry_id: targetEntryId,
+					taxonomy_id: r.taxonomy_id,
+					...denorm,
+				})),
+			)
+			.onConflict((oc) => oc.doNothing())
+			.execute();
+		invalidateTaxonomyObjectCache();
+	}
+
+	/**
 	 * Read the denormalized filter + sort columns from an entry's `ec_*` row so
 	 * they can be stamped onto new pivot rows (migration 051). A missing table or
 	 * missing row yields all-nulls: the pivot columns are advisory, and the

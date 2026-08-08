@@ -40,6 +40,8 @@ const { MOCK_RUNTIME, mockGetPublicUrl } = vi.hoisted(() => {
 			handleContentCountTrashed: ok,
 			handleContentGetIncludingTrashed: ok,
 			handleContentDuplicate: ok,
+			handleDuplicateMappingGet: ok,
+			handleContentDuplicateMany: ok,
 			handleContentPublish: ok,
 			handleContentUnpublish: ok,
 			handleContentSchedule: ok,

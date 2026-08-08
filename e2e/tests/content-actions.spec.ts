@@ -16,7 +16,7 @@ import { test, expect } from "../fixtures";
 // ---------- regex patterns ----------
 
 const SCHEDULE_API_PATTERN = /\/api\/content\/posts\/[A-Z0-9]+\/schedule/;
-const DUPLICATE_API_PATTERN = /\/api\/content\/posts\/[A-Z0-9]+\/duplicate/;
+const DUPLICATE_API_PATTERN = /\/api\/content\/posts\/duplicate$/;
 const DISCARD_DRAFT_API_PATTERN = /\/api\/content\/posts\/[A-Z0-9]+\/discard-draft/;
 const RESTORE_API_PATTERN = /\/api\/content\/posts\/[A-Z0-9]+\/restore/;
 const PERMANENT_DELETE_API_PATTERN = /\/api\/content\/posts\/[A-Z0-9]+\/permanent/;
@@ -240,6 +240,14 @@ test.describe("Duplicate content", () => {
 		const row = page.locator("tr", { hasText: "Duplicate Source Post" });
 		await expect(row).toBeVisible({ timeout: 5000 });
 
+		await row.getByRole("button", { name: "Duplicate Duplicate Source Post" }).click();
+
+		// The action always confirms first, so nothing is copied on the click alone.
+		const confirm = page
+			.getByRole("dialog")
+			.getByRole("button", { name: "Duplicate", exact: true });
+		await expect(confirm).toBeEnabled({ timeout: 10000 });
+
 		const duplicateResponse = page.waitForResponse(
 			(res) =>
 				DUPLICATE_API_PATTERN.test(res.url()) &&
@@ -247,11 +255,10 @@ test.describe("Duplicate content", () => {
 				(res.status() === 200 || res.status() === 201),
 			{ timeout: 10000 },
 		);
-
-		await row.getByRole("button", { name: "Duplicate Duplicate Source Post" }).click();
+		await confirm.click();
 		const response = await duplicateResponse;
 		const body = await response.json();
-		duplicateId = body.data?.item?.id ?? body.data?.id;
+		duplicateId = body.data?.results?.[0]?.targetId;
 
 		// Wait for the list to refresh
 		await admin.waitForLoading();
@@ -268,6 +275,30 @@ test.describe("Duplicate content", () => {
 			headers,
 		});
 		expect(getRes.ok).toBe(true);
+	});
+
+	test("duplicate a post from the editor", async ({ admin, page }) => {
+		await admin.goToEditContent("posts", postId);
+		await admin.waitForLoading();
+
+		await page.getByRole("button", { name: "Duplicate…" }).click();
+
+		const confirm = page
+			.getByRole("dialog")
+			.getByRole("button", { name: "Duplicate", exact: true });
+		await expect(confirm).toBeEnabled({ timeout: 10000 });
+
+		const duplicateResponse = page.waitForResponse(
+			(res) => DUPLICATE_API_PATTERN.test(res.url()) && res.request().method() === "POST",
+			{ timeout: 10000 },
+		);
+		await confirm.click();
+		const body = await (await duplicateResponse).json();
+		duplicateId = body.data?.results?.[0]?.targetId;
+		expect(duplicateId).toBeTruthy();
+
+		// The editor follows the copy rather than leaving the original open.
+		await expect(page).toHaveURL(new RegExp(`/content/posts/${duplicateId}`), { timeout: 10000 });
 	});
 });
 

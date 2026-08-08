@@ -10,7 +10,7 @@ import {
 	Text,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowSquareOut, Eye, EyeSlash, Trash, Upload, X } from "@phosphor-icons/react";
+import { ArrowSquareOut, Copy, Eye, EyeSlash, Trash, Upload, X } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
@@ -309,6 +309,8 @@ export interface ContentSettingsPanelProps {
 	onDiscardDraft?: () => void;
 	onDelete?: () => void;
 	isDeleting?: boolean;
+	/** Opens the duplicate dialog for this entry. */
+	onDuplicate?: () => void;
 	currentUser?: CurrentUserInfo;
 	users?: UserListItem[];
 	onAuthorChange?: (authorId: string | null) => void;
@@ -364,6 +366,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onDiscardDraft,
 	onDelete,
 	isDeleting,
+	onDuplicate,
 	currentUser,
 	users,
 	onAuthorChange,
@@ -701,50 +704,66 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				)}
 			</SortableContentSettingsSections>
 
-			{!isNew && onDelete && (
+			{!isNew && (onDuplicate || onDelete) && (
 				<div
 					data-testid="content-trash-actions"
 					aria-hidden={isReorderingSections || undefined}
-					className={cn("border-t p-4", isReorderingSections && "invisible pointer-events-none")}
+					className={cn(
+						"flex flex-col gap-2 border-t p-4",
+						isReorderingSections && "invisible pointer-events-none",
+					)}
 				>
-					<Dialog.Root disablePointerDismissal>
-						<Dialog.Trigger
-							render={(p) => (
-								<Button
-									{...p}
-									type="button"
-									variant="outline"
-									className="w-full text-kumo-danger hover:text-kumo-danger"
-									disabled={isDeleting}
-									icon={isDeleting ? <Loader size="sm" /> : <Trash />}
-								>
-									{t`Move to Trash`}
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-							<Dialog.Description className="text-kumo-subtle">
-								{t`This will move the item to trash. You can restore it later from the trash.`}
-							</Dialog.Description>
-							<div className="mt-6 flex justify-end gap-2">
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="secondary">
-											{t`Cancel`}
-										</Button>
-									)}
-								/>
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="destructive" onClick={onDelete}>
-											{t`Move to Trash`}
-										</Button>
-									)}
-								/>
-							</div>
-						</Dialog>
-					</Dialog.Root>
+					{onDuplicate && (
+						<Button
+							type="button"
+							variant="outline"
+							className="w-full"
+							onClick={onDuplicate}
+							icon={<Copy />}
+						>
+							{t`Duplicate…`}
+						</Button>
+					)}
+					{onDelete && (
+						<Dialog.Root disablePointerDismissal>
+							<Dialog.Trigger
+								render={(p) => (
+									<Button
+										{...p}
+										type="button"
+										variant="outline"
+										className="w-full text-kumo-danger hover:text-kumo-danger"
+										disabled={isDeleting}
+										icon={isDeleting ? <Loader size="sm" /> : <Trash />}
+									>
+										{t`Move to Trash`}
+									</Button>
+								)}
+							/>
+							<Dialog className="p-6" size="sm">
+								<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
+								<Dialog.Description className="text-kumo-subtle">
+									{t`This will move the item to trash. You can restore it later from the trash.`}
+								</Dialog.Description>
+								<div className="mt-6 flex justify-end gap-2">
+									<Dialog.Close
+										render={(p) => (
+											<Button {...p} variant="secondary">
+												{t`Cancel`}
+											</Button>
+										)}
+									/>
+									<Dialog.Close
+										render={(p) => (
+											<Button {...p} variant="destructive" onClick={onDelete}>
+												{t`Move to Trash`}
+											</Button>
+										)}
+									/>
+								</div>
+							</Dialog>
+						</Dialog.Root>
+					)}
 				</div>
 			)}
 		</div>

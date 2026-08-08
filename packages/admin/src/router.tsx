@@ -34,6 +34,7 @@ import { ContentTypeEditor } from "./components/ContentTypeEditor";
 import { ContentTypeList } from "./components/ContentTypeList";
 import { Dashboard } from "./components/Dashboard";
 import { DeviceAuthorizePage } from "./components/DeviceAuthorizePage";
+import { DuplicateDialog } from "./components/DuplicateDialog";
 import { InviteAcceptPage } from "./components/InviteAcceptPage";
 import { LoginPage } from "./components/LoginPage";
 import { MarketplaceBrowse } from "./components/MarketplaceBrowse";
@@ -98,7 +99,7 @@ import {
 	fetchTrashedContent,
 	restoreContent,
 	permanentDeleteContent,
-	duplicateContent,
+	type DuplicateResult,
 	scheduleContent,
 	unscheduleContent,
 	publishContent,
@@ -456,19 +457,65 @@ function ContentListPage() {
 		},
 	});
 
-	const duplicateMutation = useMutation({
-		mutationFn: (id: string) => duplicateContent(collection, id),
-		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-		},
-		onError: (mutationError) => {
+	// Every duplicate runs behind the dialog, so the promise ContentList awaits
+	// (to decide which rows stay selected) is settled by the dialog rather than
+	// by a request: cancelling keeps every row selected, completing keeps only
+	// the failures.
+	const [duplicateIds, setDuplicateIds] = React.useState<string[]>([]);
+	const duplicateResolve = React.useRef<((failedIds: string[]) => void) | null>(null);
+
+	const settleDuplicate = (failedIds: string[]) => {
+		duplicateResolve.current?.(failedIds);
+		duplicateResolve.current = null;
+		setDuplicateIds([]);
+	};
+
+	const handleDuplicate = (ids: string[]) => {
+		setDuplicateIds(ids);
+		return new Promise<string[]>((resolve) => {
+			duplicateResolve.current = resolve;
+		});
+	};
+
+	const handleDuplicateComplete = (results: DuplicateResult[]) => {
+		const copied = results.filter((r) => r.status !== "failed");
+		const failed = results.filter((r) => r.status === "failed");
+		const orphaned = results.filter((r) => r.status === "copied_not_trashed");
+
+		if (copied.length > 0) {
+			toastManager.add({
+				title: plural(copied.length, { one: "Copied # item", other: "Copied # items" }),
+				type: "success",
+			});
+		}
+		if (failed.length > 0) {
 			toastManager.add({
 				title: t`Failed to duplicate`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
+				description:
+					failed[0]?.error ??
+					plural(failed.length, {
+						one: "# item could not be copied",
+						other: "# items could not be copied",
+					}),
 				type: "error",
 			});
-		},
-	});
+		}
+		if (orphaned.length > 0) {
+			toastManager.add({
+				title: t`Copied, but not trashed`,
+				description: plural(orphaned.length, {
+					one: "# original could not be moved to trash — trash it by hand. Retrying would create a second copy.",
+					other:
+						"# originals could not be moved to trash — trash them by hand. Retrying would create a second copy.",
+				}),
+				type: "error",
+			});
+		}
+
+		// `copied_not_trashed` is not retryable: a retry would copy again.
+		settleDuplicate(failed.map((r) => r.id));
+		void queryClient.invalidateQueries({ queryKey: ["content"] });
+	};
 
 	// Bulk actions run the existing per-entry endpoints through a
 	// concurrency-limited queue (runBulkAction) — selection persists across
@@ -581,40 +628,59 @@ function ContentListPage() {
 		});
 	};
 
+	const duplicateTargets = Object.entries(manifest.collections).map(([slug, config]) => ({
+		slug,
+		label: config.label,
+	}));
+
 	return (
-		<ContentList
-			collection={collection}
-			collectionLabel={collectionConfig.label}
-			items={items}
-			trashedItems={trashedData?.items || []}
-			isLoading={isLoading || isFetchingNextPage}
-			isTrashedLoading={isTrashedLoading}
-			hasMore={!!hasNextPage}
-			onLoadMore={handleLoadMore}
-			trashedCount={trashedData?.items?.length || 0}
-			onDelete={(id) => deleteMutation.mutate(id)}
-			onRestore={(id) => restoreMutation.mutate(id)}
-			onPermanentDelete={(id) => permanentDeleteMutation.mutate(id)}
-			onDuplicate={(id) => duplicateMutation.mutate(id)}
-			i18n={i18n}
-			activeLocale={activeLocale}
-			onLocaleChange={handleLocaleChange}
-			urlPattern={collectionConfig.urlPattern}
-			sort={sort}
-			onSortChange={setSort}
-			total={total}
-			onSearchChange={setSearchTerm}
-			statusFilter={statusFilter}
-			onStatusFilterChange={setStatusFilter}
-			authors={authors}
-			authorFilter={authorFilter}
-			onAuthorFilterChange={setAuthorFilter}
-			dateFilter={dateFilter}
-			onDateFilterChange={setDateFilter}
-			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
-			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
-			onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
-		/>
+		<>
+			<ContentList
+				collection={collection}
+				collectionLabel={collectionConfig.label}
+				items={items}
+				trashedItems={trashedData?.items || []}
+				isLoading={isLoading || isFetchingNextPage}
+				isTrashedLoading={isTrashedLoading}
+				hasMore={!!hasNextPage}
+				onLoadMore={handleLoadMore}
+				trashedCount={trashedData?.items?.length || 0}
+				onDelete={(id) => deleteMutation.mutate(id)}
+				onRestore={(id) => restoreMutation.mutate(id)}
+				onPermanentDelete={(id) => permanentDeleteMutation.mutate(id)}
+				onDuplicate={(id) => void handleDuplicate([id])}
+				i18n={i18n}
+				activeLocale={activeLocale}
+				onLocaleChange={handleLocaleChange}
+				urlPattern={collectionConfig.urlPattern}
+				sort={sort}
+				onSortChange={setSort}
+				total={total}
+				onSearchChange={setSearchTerm}
+				statusFilter={statusFilter}
+				onStatusFilterChange={setStatusFilter}
+				authors={authors}
+				authorFilter={authorFilter}
+				onAuthorFilterChange={setAuthorFilter}
+				dateFilter={dateFilter}
+				onDateFilterChange={setDateFilter}
+				onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
+				onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
+				onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
+				onBulkDuplicate={handleDuplicate}
+			/>
+			<DuplicateDialog
+				open={duplicateIds.length > 0}
+				onOpenChange={(open) => {
+					// Cancelling keeps every row selected so the run can be retried.
+					if (!open) settleDuplicate(duplicateIds);
+				}}
+				collection={collection}
+				ids={duplicateIds}
+				targets={duplicateTargets}
+				onComplete={handleDuplicateComplete}
+			/>
+		</>
 	);
 }
 
@@ -1246,6 +1312,36 @@ function ContentEditPage() {
 		(locale: string) => translateMutation.mutate(locale),
 		[translateMutation.mutate],
 	);
+
+	// Non-null while the duplicate dialog is open, carrying the editor's dirty
+	// state — the copy is made from the saved row, not from the open form.
+	const [duplicateContext, setDuplicateContext] = React.useState<{
+		unsavedChanges: boolean;
+	} | null>(null);
+	const handleDuplicate = React.useCallback(
+		(context: { unsavedChanges: boolean }) => setDuplicateContext(context),
+		[],
+	);
+
+	const handleDuplicateComplete = (results: DuplicateResult[], targetCollection: string) => {
+		const copy = results[0];
+		if (!copy || copy.status === "failed") {
+			toastManager.add({
+				title: t`Failed to duplicate`,
+				description: copy?.error ?? t`An error occurred`,
+				type: "error",
+			});
+			return;
+		}
+		void queryClient.invalidateQueries({ queryKey: ["content"] });
+		toastManager.add({ title: t`Duplicated`, type: "success" });
+		if (copy.targetId) {
+			void navigate({
+				to: "/content/$collection/$id",
+				params: { collection: targetCollection, id: copy.targetId },
+			});
+		}
+	};
 	const handleQuickCreateByline = React.useCallback(
 		(input: { slug: string; displayName: string }) => createBylineMutation.mutateAsync(input),
 		[createBylineMutation.mutateAsync],
@@ -1270,49 +1366,68 @@ function ContentEditPage() {
 		return <LoadingScreen />;
 	}
 
+	const duplicateTargets = Object.entries(manifest.collections).map(([slug, config]) => ({
+		slug,
+		label: config.label,
+	}));
+
 	return (
-		<ContentEditor
-			collection={collection}
-			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
-			item={item}
-			fields={collectionConfig.fields}
-			isSaving={updateMutation.isPending || publishedAtMutation.isPending}
-			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
-			onSave={handleSave}
-			onAutosave={handleAutosave}
-			isAutosaving={autosaveMutation.isPending}
-			isAutosaveFeedbackActive={
-				autosaveMutation.isPending && autosaveMutation.variables?.targetId === id
-			}
-			autosaveCompletionToken={autosaveCompletion.entryId === id ? autosaveCompletion.token : 0}
-			onPublish={handlePublish}
-			onUnpublish={handleUnpublish}
-			onDiscardDraft={handleDiscardDraft}
-			onSchedule={handleSchedule}
-			onUnschedule={handleUnschedule}
-			isScheduling={scheduleMutation.isPending}
-			onPublishedAtChange={handlePublishedAtChange}
-			isUpdatingPublishedAt={publishedAtMutation.isPending}
-			onDelete={handleDelete}
-			isDeleting={deleteMutation.isPending}
-			supportsDrafts={collectionConfig.supports.includes("drafts")}
-			supportsRevisions={collectionConfig.supports.includes("revisions")}
-			supportsPreview={collectionConfig.supports.includes("preview")}
-			currentUser={currentUser}
-			users={usersData?.items}
-			onAuthorChange={handleAuthorChange}
-			i18n={i18n}
-			translations={translationsData?.translations}
-			onTranslate={handleTranslate}
-			pluginBlocks={pluginBlocks}
-			hasSeo={collectionConfig.hasSeo}
-			onSeoChange={handleSeoChange}
-			availableBylines={bylinesData?.items}
-			availableBylinesLoaded={bylinesLoaded}
-			onQuickCreateByline={handleQuickCreateByline}
-			onQuickEditByline={handleQuickEditByline}
-			manifest={manifest ?? null}
-		/>
+		<>
+			<ContentEditor
+				collection={collection}
+				collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
+				item={item}
+				fields={collectionConfig.fields}
+				isSaving={updateMutation.isPending || publishedAtMutation.isPending}
+				isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
+				onSave={handleSave}
+				onAutosave={handleAutosave}
+				isAutosaving={autosaveMutation.isPending}
+				isAutosaveFeedbackActive={
+					autosaveMutation.isPending && autosaveMutation.variables?.targetId === id
+				}
+				autosaveCompletionToken={autosaveCompletion.entryId === id ? autosaveCompletion.token : 0}
+				onPublish={handlePublish}
+				onUnpublish={handleUnpublish}
+				onDiscardDraft={handleDiscardDraft}
+				onSchedule={handleSchedule}
+				onUnschedule={handleUnschedule}
+				isScheduling={scheduleMutation.isPending}
+				onPublishedAtChange={handlePublishedAtChange}
+				isUpdatingPublishedAt={publishedAtMutation.isPending}
+				onDelete={handleDelete}
+				isDeleting={deleteMutation.isPending}
+				onDuplicate={handleDuplicate}
+				supportsDrafts={collectionConfig.supports.includes("drafts")}
+				supportsRevisions={collectionConfig.supports.includes("revisions")}
+				supportsPreview={collectionConfig.supports.includes("preview")}
+				currentUser={currentUser}
+				users={usersData?.items}
+				onAuthorChange={handleAuthorChange}
+				i18n={i18n}
+				translations={translationsData?.translations}
+				onTranslate={handleTranslate}
+				pluginBlocks={pluginBlocks}
+				hasSeo={collectionConfig.hasSeo}
+				onSeoChange={handleSeoChange}
+				availableBylines={bylinesData?.items}
+				availableBylinesLoaded={bylinesLoaded}
+				onQuickCreateByline={handleQuickCreateByline}
+				onQuickEditByline={handleQuickEditByline}
+				manifest={manifest ?? null}
+			/>
+			<DuplicateDialog
+				open={duplicateContext !== null}
+				onOpenChange={(open) => {
+					if (!open) setDuplicateContext(null);
+				}}
+				collection={collection}
+				ids={[id]}
+				targets={duplicateTargets}
+				unsavedChanges={duplicateContext?.unsavedChanges}
+				onComplete={handleDuplicateComplete}
+			/>
+		</>
 	);
 }
 
