@@ -13,6 +13,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
+import { RelationRepository } from "../../../src/database/repositories/relation.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
@@ -114,6 +115,55 @@ describe("applySeed", () => {
 				name: string;
 			}>`PRAGMA table_info(${sql.ref("ec_site_info")})`.execute(db);
 			expect(tableInfo.rows.map((column) => column.name)).toContain("field_73");
+		});
+
+		it("creates reference fields that target a later seed collection", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [
+							{
+								slug: "author",
+								label: "Author",
+								type: "reference",
+								validation: { targetCollection: "authors" },
+							},
+						],
+					},
+					{ slug: "authors", label: "Authors", fields: [] },
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const field = await new SchemaRegistry(db).getField("posts", "author");
+			const relation = await new RelationRepository(db).findByName("posts_author");
+			expect(relation?.childCollection).toBe("authors");
+			expect(field?.validation?.relation).toBe(relation?.translationGroup);
+		});
+
+		it("creates reference-heavy schemas within the D1 query budget", async () => {
+			const counter = new QueryCountingPlugin();
+			const fields = Array.from({ length: 20 }, (_, index) => ({
+				slug: `related_${index}`,
+				label: `Related ${index}`,
+				type: "reference" as const,
+				validation: { targetCollection: "posts" },
+			}));
+			const seed: SeedFile = {
+				version: "1",
+				collections: [{ slug: "posts", label: "Posts", fields }],
+			};
+
+			const result = await applySeed(db.withPlugin(counter), seed);
+
+			expect(result.fields.created).toBe(20);
+			expect(counter.count).toBeLessThan(50);
+			const relations = await new RelationRepository(db).list();
+			expect(relations).toHaveLength(20);
 		});
 
 		it("should create collections and fields", async () => {
@@ -1007,22 +1057,28 @@ describe("applySeed", () => {
 			expect(entry?.data.title).toBe("Existing");
 		});
 
-		it("should resolve $ref: references between content", async () => {
-			const registry = new SchemaRegistry(db);
-			await registry.createCollection({ slug: "posts", label: "Posts" });
-			await registry.createField("posts", {
-				slug: "title",
-				label: "Title",
-				type: "string",
-			});
-			await registry.createField("posts", {
-				slug: "related_post",
-				label: "Related Post",
-				type: "reference",
-			});
-
+		it("should resolve $ref: references between content into reference edges", async () => {
+			// Reference fields are storage-less (migration 043): a seed defines the
+			// field (with its target collection), apply creates the backing relation,
+			// and a `$ref:` value in the field's data is written as a content-reference
+			// edge rather than a column value.
 			const seed: SeedFile = {
 				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [
+							{ slug: "title", label: "Title", type: "string" },
+							{
+								slug: "related_post",
+								label: "Related Post",
+								type: "reference",
+								validation: { targetCollection: "posts" },
+							},
+						],
+					},
+				],
 				content: {
 					posts: [
 						{ id: "post-1", slug: "first", data: { title: "First" } },
@@ -1043,8 +1099,18 @@ describe("applySeed", () => {
 			const first = await contentRepo.findBySlug("posts", "first");
 			const second = await contentRepo.findBySlug("posts", "second");
 
-			// The reference should be resolved to the real ID
-			expect(second?.data.related_post).toBe(first?.id);
+			// Storage-less: the reference value is not persisted as a column.
+			expect(second?.data).not.toHaveProperty("related_post");
+
+			// It is stored as an edge, keyed at the translation group on both ends.
+			const relationRepo = new RelationRepository(db);
+			const relation = await relationRepo.findByName("posts_related_post");
+			expect(relation).toBeTruthy();
+			const edges = await relationRepo.getChildrenPage(
+				relation!.translationGroup,
+				second!.translationGroup!,
+			);
+			expect(edges.items.map((e) => e.childGroup)).toEqual([first!.translationGroup]);
 		});
 
 		it("should assign taxonomy terms to content", async () => {

@@ -6,6 +6,7 @@ export const DEFAULT_CONTENT_SETTINGS_SECTION_ORDER = [
 	"bylines",
 	"translations",
 	"taxonomies",
+	"references",
 	"seo",
 	"outline",
 	"revisions",
