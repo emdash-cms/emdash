@@ -502,6 +502,30 @@ const marketplaceManifestCache = new Map<
 const sandboxedRouteMetaCache = new Map<string, Map<string, RouteMeta>>();
 let sandboxRunner: SandboxRunner | null = null;
 
+const SANDBOX_RUNNER_AVAILABILITY_KEY = Symbol.for("emdash:sandbox-runner-availability");
+
+function getSandboxRunnerAvailabilityCache(): WeakMap<SandboxRunner, boolean> {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
+	let cache = globalSymbolStore[SANDBOX_RUNNER_AVAILABILITY_KEY] as
+		| WeakMap<SandboxRunner, boolean>
+		| undefined;
+	if (!cache) {
+		cache = new WeakMap();
+		globalSymbolStore[SANDBOX_RUNNER_AVAILABILITY_KEY] = cache;
+	}
+	return cache;
+}
+
+function isSandboxRunnerAvailable(): boolean {
+	if (!sandboxRunner) return false;
+	const cache = getSandboxRunnerAvailabilityCache();
+	const cached = cache.get(sandboxRunner);
+	if (cached !== undefined) return cached;
+	const available = sandboxRunner.isAvailable();
+	cache.set(sandboxRunner, available);
+	return available;
+}
+
 /**
  * EmDashRuntime - singleton per worker
  */
@@ -811,7 +835,7 @@ export class EmDashRuntime {
 	 */
 	private async syncSandboxedSourcePlugins(source: "marketplace" | "registry"): Promise<void> {
 		if (!this.storage) return;
-		if (!sandboxRunner || !sandboxRunner.isAvailable()) return;
+		if (!sandboxRunner || !isSandboxRunnerAvailable()) return;
 
 		const keySet = source === "marketplace" ? marketplacePluginKeys : registryPluginKeys;
 
@@ -1946,7 +1970,7 @@ export class EmDashRuntime {
 		// Check if the runner is actually available (has required bindings).
 		// Warn regardless of whether there are plugins to load, so operators
 		// see the issue even if no marketplace plugins are installed yet.
-		if (!sandboxRunner.isAvailable()) {
+		if (!isSandboxRunnerAvailable()) {
 			console.warn(
 				"EmDash: Plugin sandbox is configured but not available on this platform. " +
 					"Sandboxed plugins will not be loaded. " +
@@ -2052,7 +2076,7 @@ export class EmDashRuntime {
 		// BEFORE pipeline creation by EmDashRuntime.create(). Skip here.
 		if (deps.sandboxBypassed) return;
 
-		if (!sandboxRunner || !sandboxRunner.isAvailable()) {
+		if (!sandboxRunner || !isSandboxRunnerAvailable()) {
 			return;
 		}
 
@@ -2539,6 +2563,15 @@ export class EmDashRuntime {
 			i18n,
 			marketplace: !!this.config.marketplace,
 			registry,
+			// Whether dynamic plugins can actually run here. The sandbox runner
+			// is instantiated eagerly during create() (loadSandboxedPlugins), so
+			// this reflects real binding availability, not a lazy-init miss. The
+			// bypass term keeps `sandbox: false` dev mode reporting available,
+			// since it loads dynamic plugins in-process instead. Availability is
+			// memoized (isSandboxRunnerAvailable) so this manifest hot path never
+			// re-runs the runner probe, which is a blocking subprocess spawn on
+			// Node's workerd runner.
+			sandboxAvailable: this.isSandboxBypassed() || isSandboxRunnerAvailable(),
 		};
 	}
 

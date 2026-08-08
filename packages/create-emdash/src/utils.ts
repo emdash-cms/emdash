@@ -86,3 +86,77 @@ export function isDirNonEmpty(dir: string): boolean {
 export function parseTargetArg(argv: string[]): string | undefined {
 	return argv.slice(2).find((a) => !a.startsWith("-"));
 }
+
+/**
+ * Canonical single-line form of the Cloudflare Worker Loader binding.
+ *
+ * Worker Loader ("dynamic workers") is a Workers *paid-plan* feature used only
+ * for dynamic plugins (marketplace + sandboxed plugins). Templates ship with
+ * this commented out so free-tier deploys succeed; the scaffolder uncomments it
+ * when the user opts in.
+ */
+const WORKER_LOADER_LINE = `"worker_loaders": [{ "binding": "LOADER" }],`;
+const WORKER_LOADER_COMMENT =
+	"Dynamic plugins need the Cloudflare Workers paid plan (Worker Loader).";
+
+/** The worker_loaders key line, whether commented or not. */
+const WORKER_LOADER_DECL = /^(\s*)(?:\/\/\s*)?"worker_loaders"\s*:/;
+/** A preceding comment line that belongs to the worker_loaders block. */
+const WORKER_LOADER_OWN_COMMENT = /^\s*\/\/.*worker loader/i;
+/** Split on either Unix or Windows line endings. */
+const NEWLINE_SPLIT = /\r?\n/;
+
+/**
+ * Enable or disable the Worker Loader binding in a project's `wrangler.jsonc`.
+ *
+ * Normalises whatever form is present — the legacy multi-line block that older
+ * published templates carry, or the canonical single-line form — into the
+ * requested state. Disabling comments the binding out (free-tier safe);
+ * enabling leaves an active single-line declaration.
+ *
+ * Idempotent, and a no-op returning `"absent"` when there is no
+ * `wrangler.jsonc` (Node templates) or no `worker_loaders` declaration.
+ */
+export function setWorkerLoader(
+	projectDir: string,
+	enabled: boolean,
+): "enabled" | "disabled" | "absent" {
+	const target = resolve(projectDir, "wrangler.jsonc");
+	if (!existsSync(target)) return "absent";
+
+	const original = readFileSync(target, "utf-8");
+	const newline = original.includes("\r\n") ? "\r\n" : "\n";
+	const lines = original.split(NEWLINE_SPLIT);
+
+	const declIdx = lines.findIndex((line) => WORKER_LOADER_DECL.test(line));
+	if (declIdx === -1) return "absent";
+
+	// Extend past a legacy multi-line block: the array value spans until a line
+	// whose trimmed content starts with the closing "]". A single-line form has
+	// the "]" on the declaration line itself.
+	let endIdx = declIdx;
+	if (!lines[declIdx].includes("]")) {
+		while (endIdx < lines.length - 1 && !lines[endIdx].trim().startsWith("]")) {
+			endIdx++;
+		}
+	}
+
+	// Absorb a single immediately-preceding comment line that belongs to the
+	// block (legacy "// Worker Loader for plugin sandboxing" or our own).
+	let startIdx = declIdx;
+	if (declIdx > 0 && WORKER_LOADER_OWN_COMMENT.test(lines[declIdx - 1])) {
+		startIdx = declIdx - 1;
+	}
+
+	const indent = WORKER_LOADER_DECL.exec(lines[declIdx])?.[1] ?? "\t";
+	const replacement = enabled
+		? [`${indent}// ${WORKER_LOADER_COMMENT}`, `${indent}${WORKER_LOADER_LINE}`]
+		: [
+				`${indent}// ${WORKER_LOADER_COMMENT} Uncomment to enable:`,
+				`${indent}// ${WORKER_LOADER_LINE}`,
+			];
+
+	lines.splice(startIdx, endIdx - startIdx + 1, ...replacement);
+	writeFileSync(target, lines.join(newline));
+	return enabled ? "enabled" : "disabled";
+}

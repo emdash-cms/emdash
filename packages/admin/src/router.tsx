@@ -34,6 +34,7 @@ import { ContentTypeEditor } from "./components/ContentTypeEditor";
 import { ContentTypeList } from "./components/ContentTypeList";
 import { Dashboard } from "./components/Dashboard";
 import { DeviceAuthorizePage } from "./components/DeviceAuthorizePage";
+import { DynamicPluginsUnavailable } from "./components/DynamicPluginsUnavailable";
 import { InviteAcceptPage } from "./components/InviteAcceptPage";
 import { LoginPage } from "./components/LoginPage";
 import { MarketplaceBrowse } from "./components/MarketplaceBrowse";
@@ -1643,6 +1644,14 @@ function MarketplaceBrowsePage() {
 		return new Set(plugins.map((p) => p.id));
 	}, [plugins]);
 
+	// Dynamic plugins run sandboxed — on Cloudflare via Worker Loader (a paid
+	// feature). When the runner isn't available, browsing would only lead to a
+	// 503 at install time, so show the how-to-enable prompt instead. Wait for
+	// the manifest before deciding so we don't flash the prompt on load.
+	if (manifest && manifest.sandboxAvailable === false) {
+		return <DynamicPluginsUnavailable />;
+	}
+
 	// When `experimental.registry` is configured, the registry browse
 	// replaces the centralized marketplace browse on this route. Existing
 	// sidebar / deep links stay valid; users see the registry without any
@@ -1693,6 +1702,13 @@ function MarketplaceDetailPage() {
 		if (!plugins) return new Set<string>();
 		return new Set(plugins.map((p) => p.id));
 	}, [plugins]);
+
+	// Same gate as the browse route: no sandbox runner means install can't
+	// succeed, so surface the how-to-enable prompt rather than a detail page
+	// whose only action would 503.
+	if (manifest && manifest.sandboxAvailable === false) {
+		return <DynamicPluginsUnavailable />;
+	}
 
 	// Discriminate by param shape, not by the manifest flag. A registry
 	// pluginId is always `${handle}/${slug}` and contains exactly one `/`;

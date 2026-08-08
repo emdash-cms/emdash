@@ -10,6 +10,7 @@ import {
 	isDirNonEmpty,
 	parseTargetArg,
 	sanitizePackageName,
+	setWorkerLoader,
 	writeEncryptionKey,
 } from "../src/utils.js";
 
@@ -301,5 +302,152 @@ describe("writeEncryptionKey", () => {
 		expect(result).toBe("wrote");
 		const content = read();
 		expect(content.endsWith("\n")).toBe(true);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// setWorkerLoader — toggling the Cloudflare Worker Loader binding
+// ---------------------------------------------------------------------------
+//
+// Worker Loader ("dynamic workers") is a Workers *paid-plan* feature used only
+// for dynamic plugins. Templates ship with it commented out so free-tier
+// deploys work; the scaffolder uncomments it when the user opts in.
+//
+// The toggle must also normalise the *legacy* multi-line block that older
+// published templates still carry: during the release window a new
+// create-emdash can download an old template, and disabling must comment the
+// binding out or the free-tier deploy the user asked for would still fail.
+describe("setWorkerLoader", () => {
+	let tempDir: string;
+	const fileName = "wrangler.jsonc";
+
+	// The legacy shape older published templates carry (uncommented, active).
+	const LEGACY = `{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "my-emdash-site",
+	"main": "./src/worker.ts",
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "my-emdash-site",
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "my-emdash-media",
+		},
+	],
+	// Worker Loader for plugin sandboxing
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
+		},
+	],
+	"triggers": {
+		"crons": ["* * * * *"],
+	},
+}
+`;
+
+	// The canonical commented shape new templates ship.
+	const COMMENTED = `{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "my-emdash-site",
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "my-emdash-media",
+		},
+	],
+	// Dynamic plugins need the Cloudflare Workers paid plan (Worker Loader). Uncomment to enable:
+	// "worker_loaders": [{ "binding": "LOADER" }],
+	"triggers": {
+		"crons": ["* * * * *"],
+	},
+}
+`;
+
+	/** Matches an *active* (uncommented) worker_loaders declaration. */
+	const ACTIVE = /^\s*"worker_loaders"\s*:/m;
+	/** Matches a *commented-out* worker_loaders declaration. */
+	const INACTIVE = /^\s*\/\/\s*"worker_loaders"\s*:/m;
+
+	beforeEach(() => {
+		tempDir = mkdtempSync(join(tmpdir(), "create-emdash-loader-"));
+	});
+
+	afterEach(() => {
+		rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	function write(content: string): void {
+		writeFileSync(join(tempDir, fileName), content);
+	}
+	function read(): string {
+		return readFileSync(join(tempDir, fileName), "utf-8");
+	}
+
+	it("returns 'absent' and does nothing when wrangler.jsonc is missing (Node template)", () => {
+		expect(setWorkerLoader(tempDir, true)).toBe("absent");
+		expect(setWorkerLoader(tempDir, false)).toBe("absent");
+	});
+
+	it("returns 'absent' when the file has no worker_loaders declaration", () => {
+		write(`{\n\t"name": "x",\n\t"triggers": { "crons": ["* * * * *"] },\n}\n`);
+		expect(setWorkerLoader(tempDir, false)).toBe("absent");
+	});
+
+	it("disables the legacy multi-line block (rollout window: old template, opt out)", () => {
+		write(LEGACY);
+		expect(setWorkerLoader(tempDir, false)).toBe("disabled");
+		const out = read();
+		expect(out).not.toMatch(ACTIVE);
+		expect(out).toMatch(INACTIVE);
+		// Unrelated config preserved.
+		expect(out).toContain(`"binding": "MEDIA"`);
+		expect(out).toContain(`"crons": ["* * * * *"]`);
+	});
+
+	it("enables the legacy multi-line block (opt in on an old template)", () => {
+		write(LEGACY);
+		expect(setWorkerLoader(tempDir, true)).toBe("enabled");
+		const out = read();
+		expect(out).toMatch(ACTIVE);
+		expect(out).not.toMatch(INACTIVE);
+	});
+
+	it("enables the canonical commented form", () => {
+		write(COMMENTED);
+		expect(setWorkerLoader(tempDir, true)).toBe("enabled");
+		const out = read();
+		expect(out).toMatch(ACTIVE);
+		expect(out).not.toMatch(INACTIVE);
+	});
+
+	it("disabling an already-commented form is idempotent (stays commented)", () => {
+		write(COMMENTED);
+		expect(setWorkerLoader(tempDir, false)).toBe("disabled");
+		const out = read();
+		expect(out).not.toMatch(ACTIVE);
+		expect(out).toMatch(INACTIVE);
+	});
+
+	it("round-trips: enable then disable returns to a commented binding", () => {
+		write(COMMENTED);
+		setWorkerLoader(tempDir, true);
+		expect(read()).toMatch(ACTIVE);
+		setWorkerLoader(tempDir, false);
+		const out = read();
+		expect(out).not.toMatch(ACTIVE);
+		expect(out).toMatch(INACTIVE);
+		// No duplicate declarations left behind.
+		expect(out.match(/worker_loaders/g)?.length).toBe(1);
+	});
+
+	it("preserves the trailing newline", () => {
+		write(COMMENTED);
+		setWorkerLoader(tempDir, true);
+		expect(read().endsWith("\n")).toBe(true);
 	});
 });

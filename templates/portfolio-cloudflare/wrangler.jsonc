@@ -16,12 +16,8 @@
 			"bucket_name": "my-portfolio-media",
 		},
 	],
-	// Worker Loader for plugin sandboxing
-	"worker_loaders": [
-		{
-			"binding": "LOADER",
-		},
-	],
+	// Dynamic plugins need the Cloudflare Workers paid plan (Worker Loader). Uncomment to enable:
+	// "worker_loaders": [{ "binding": "LOADER" }],
 	// Drives scheduled publishing, plugin cron, and maintenance (see src/worker.ts)
 	"triggers": {
 		"crons": ["* * * * *"],

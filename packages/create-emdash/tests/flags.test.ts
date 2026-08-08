@@ -218,6 +218,24 @@ describe("parseFlags — install toggle", () => {
 	});
 });
 
+describe("parseFlags — dynamic-plugins toggle", () => {
+	it("--dynamic-plugins sets dynamicPlugins: true", () => {
+		expect(parseFlags(argv("--dynamic-plugins")).dynamicPlugins).toBe(true);
+	});
+
+	it("--no-dynamic-plugins sets dynamicPlugins: false", () => {
+		expect(parseFlags(argv("--no-dynamic-plugins")).dynamicPlugins).toBe(false);
+	});
+
+	it("dynamicPlugins is undefined when neither flag is passed", () => {
+		expect(parseFlags(argv()).dynamicPlugins).toBeUndefined();
+	});
+
+	it("errors when both --dynamic-plugins and --no-dynamic-plugins are passed", () => {
+		expect(() => parseFlags(argv("--dynamic-plugins", "--no-dynamic-plugins"))).toThrow(FlagError);
+	});
+});
+
 describe("parseFlags — --yes / -y", () => {
 	it("--yes sets yes: true", () => {
 		expect(parseFlags(argv("--yes")).yes).toBe(true);
@@ -343,6 +361,12 @@ describe("parseFlags — full one-shot install line", () => {
 });
 
 describe("HELP_TEXT", () => {
+	it("describes --dynamic-plugins as enabling the Worker Loader capability", () => {
+		expect(HELP_TEXT).toContain("Enable the Worker Loader capability");
+		expect(HELP_TEXT).toContain("required by dynamic plugins");
+		expect(HELP_TEXT).not.toContain("Enable dynamic plugins");
+	});
+
 	it("documents every supported flag", () => {
 		// Cheap lint to keep HELP_TEXT in sync with parseFlags. If you
 		// add a new flag and don't document it, this fails.
