@@ -37,9 +37,9 @@ export function withSandboxDeadlines(
 ): SandboxFactory {
 	return {
 		...factory,
-		async createSessionEnv(context) {
+		async createSandbox(context) {
 			const env = await withDeadline(
-				factory.createSessionEnv(context),
+				factory.createSandbox(context),
 				options.defaultTimeoutMs,
 				"Sandbox session creation",
 			);

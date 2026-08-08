@@ -23,7 +23,7 @@ describe("withSandboxDeadlines", () => {
 				defaultTimeoutMs: 10,
 				execGraceMs: 5,
 			},
-		).createSessionEnv({ id: "test" });
+		).createSandbox({ id: "test" });
 
 		await expect(sandbox.readFile("stuck.txt")).rejects.toThrow(
 			"Sandbox readFile timed out after 10ms",
@@ -34,7 +34,7 @@ describe("withSandboxDeadlines", () => {
 		const sandbox = await withSandboxDeadlines(factoryWith({ exec: () => new Promise(() => {}) }), {
 			defaultTimeoutMs: 100,
 			execGraceMs: 5,
-		}).createSessionEnv({ id: "test" });
+		}).createSandbox({ id: "test" });
 
 		await expect(sandbox.exec("sleep forever", { timeoutMs: 10 })).rejects.toThrow(
 			"Sandbox exec timed out after 15ms",
@@ -57,5 +57,5 @@ function factoryWith(overrides: Partial<SessionEnv>): SandboxFactory {
 		resolvePath: (path) => path,
 		...overrides,
 	};
-	return { createSessionEnv: async () => session };
+	return { createSandbox: async () => session };
 }
