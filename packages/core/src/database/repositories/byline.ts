@@ -601,6 +601,86 @@ export class BylineRepository {
 	}
 
 	/**
+	 * Alphabetical, byline-table-driven list. Backs the public `getBylines()`.
+	 *
+	 * Three deliberate differences from `findMany`, which serves the admin list:
+	 *
+	 * - `LEFT JOIN media`, so a page rendering avatars doesn't issue a
+	 *   `MediaRepository.findById` per byline. Same join the content-credit
+	 *   reads perform.
+	 * - Ordered by `(display_name, id)` rather than `created_at DESC`, with a
+	 *   cursor keyed on the same pair.
+	 * - No custom-field hydration: every row comes back with
+	 *   `customFields = {}`, as `skipHydration` does elsewhere.
+	 *
+	 * Rows are per-locale, so a `locale` filter yields one row per person and
+	 * needs no translation-group dedupe.
+	 */
+	async findManyAlphabetical(options?: {
+		locale?: string;
+		cursor?: string;
+		limit?: number;
+	}): Promise<FindManyResult<BylineSummary>> {
+		const limit = Math.min(Math.max(options?.limit ?? 50, 1), 100);
+
+		let query = this.db
+			.selectFrom("_emdash_bylines as b")
+			.leftJoin("media as m", "m.id", "b.avatar_media_id")
+			.select([
+				"b.id as id",
+				"b.slug as slug",
+				"b.display_name as display_name",
+				"b.bio as bio",
+				"b.avatar_media_id as avatar_media_id",
+				"m.storage_key as avatar_storage_key",
+				"m.alt as avatar_alt",
+				"m.blurhash as avatar_blurhash",
+				"m.dominant_color as avatar_dominant_color",
+				"b.website_url as website_url",
+				"b.user_id as user_id",
+				"b.is_guest as is_guest",
+				"b.created_at as created_at",
+				"b.updated_at as updated_at",
+				"b.locale as locale",
+				"b.translation_group as translation_group",
+			])
+			.orderBy("b.display_name", "asc")
+			.orderBy("b.id", "asc")
+			.limit(limit + 1);
+
+		if (options?.locale !== undefined) {
+			query = query.where("b.locale", "=", options.locale);
+		}
+
+		if (options?.cursor) {
+			const decoded = decodeCursor(options.cursor);
+			query = query.where((eb) =>
+				eb.or([
+					eb("b.display_name", ">", decoded.orderValue),
+					eb.and([eb("b.display_name", "=", decoded.orderValue), eb("b.id", ">", decoded.id)]),
+				]),
+			);
+		}
+
+		const rows = await query.execute();
+		const items = rows.slice(0, limit).map((row) => {
+			const byline = rowToByline(row);
+			byline.customFields = {};
+			return byline;
+		});
+
+		const result: FindManyResult<BylineSummary> = { items };
+		if (rows.length > limit) {
+			const last = items.at(-1);
+			if (last) {
+				result.nextCursor = encodeCursor(last.displayName, last.id);
+			}
+		}
+
+		return result;
+	}
+
+	/**
 	 * List every sibling row in `translation_group`. Used by the admin
 	 * `TranslationsPanel` to render one entry per configured locale.
 	 */

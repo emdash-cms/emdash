@@ -361,11 +361,17 @@ Bylines are automatically attached to every entry by the query layer:
 ### Standalone query functions
 
 ```typescript
-import { getByline, getBylineBySlug } from "emdash";
+import { getByline, getBylineBySlug, getBylines } from "emdash";
 
 // Look up a specific byline
 const byline = await getBylineBySlug("jane-doe");
+
+// List every byline on the site, alphabetically -- for an author index,
+// a contributor list, or a sitemap. One query; avatar media is joined in.
+const { items, nextCursor } = await getBylines({ limit: 100 });
 ```
+
+Use `getBylines()` rather than fetching entries and deduping `entry.data.bylines`: the derived list is bounded by whichever entries you fetched, and it drops anyone with no resolvable credits (a guest author added before publication, an author whose posts are all drafts). `customFields` comes back `{}` -- use `getByline` / `getBylineBySlug` when you need those.
 
 ### BylineSummary shape
 

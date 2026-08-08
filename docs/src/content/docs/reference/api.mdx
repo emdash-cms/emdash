@@ -302,6 +302,35 @@ const postCategories = await getEntryTerms("posts", "post-123", "category");
 const newsPosts = await getEntriesByTerm("posts", "category", "news");
 ```
 
+## Bylines
+
+Fetch a single byline, or list every byline on the site:
+
+```ts
+import { getByline, getBylineBySlug, getBylines, getEntriesByByline } from "emdash";
+
+// List bylines alphabetically by display name -- author index, contributor
+// list, sitemap. Cursor-paginated; avatar media is joined in, so rendering
+// avatars costs no extra query per byline.
+const { items, nextCursor } = await getBylines({ limit: 100 });
+
+// Single byline
+const jane = await getBylineBySlug("jane-doe");
+
+// Entries credited to a byline, in any credit position
+if (jane) {
+	const posts = await getEntriesByByline("posts", jane.translationGroup ?? jane.id);
+}
+```
+
+`getBylines()` reads the byline table directly, so it includes bylines with no
+published credits -- a guest author added ahead of publication, or an author
+whose entries are all drafts. Deriving the list from `entry.data.bylines`
+misses those, and is bounded by whichever entries you fetched.
+
+Bylines returned by `getBylines()` have `customFields` set to `{}`; use
+`getByline()` or `getBylineBySlug()` when you need custom field values.
+
 ## Widget areas
 
 Fetch widget areas and the widgets they contain:

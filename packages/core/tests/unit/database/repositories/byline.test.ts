@@ -279,6 +279,128 @@ describe("BylineRepository", () => {
 		expect(byId?.avatarStorageKey).toBeNull();
 	});
 
+	describe("findManyAlphabetical", () => {
+		it("orders by display name and paginates each row exactly once", async () => {
+			const names = ["Zoe Vance", "Adam Bell", "Mina Cole", "Bea North"];
+			for (const [i, displayName] of names.entries()) {
+				await bylineRepo.create({ slug: `author-${i}`, displayName });
+			}
+
+			const first = await bylineRepo.findManyAlphabetical({ limit: 2 });
+			expect(first.items.map((b) => b.displayName)).toEqual(["Adam Bell", "Bea North"]);
+			expect(first.nextCursor).toBeTruthy();
+
+			const second = await bylineRepo.findManyAlphabetical({
+				limit: 2,
+				cursor: first.nextCursor!,
+			});
+			expect(second.items.map((b) => b.displayName)).toEqual(["Mina Cole", "Zoe Vance"]);
+			expect(second.nextCursor).toBeUndefined();
+
+			const seen = [...first.items, ...second.items].map((b) => b.id);
+			expect(new Set(seen).size).toBe(names.length);
+		});
+
+		it("splits a display-name tie across pages without dropping or repeating a row", async () => {
+			// Two people with the same display name straddling a page boundary:
+			// the id half of the cursor is what keeps the seek unambiguous.
+			for (let i = 0; i < 3; i++) {
+				await bylineRepo.create({ slug: `jsmith-${i}`, displayName: "John Smith" });
+			}
+
+			const first = await bylineRepo.findManyAlphabetical({ limit: 2 });
+			const second = await bylineRepo.findManyAlphabetical({
+				limit: 2,
+				cursor: first.nextCursor!,
+			});
+
+			const ids = [...first.items, ...second.items].map((b) => b.id);
+			expect(ids).toHaveLength(3);
+			expect(new Set(ids).size).toBe(3);
+		});
+
+		it("hydrates avatar media columns via the join", async () => {
+			await db
+				.insertInto("media")
+				.values({
+					id: "media-list-avatar",
+					filename: "list.png",
+					mime_type: "image/png",
+					storage_key: "media-list-avatar.png",
+					status: "ready",
+					alt: "List avatar",
+					blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+					dominant_color: "#aabbcc",
+				})
+				.execute();
+			await bylineRepo.create({
+				slug: "list-avatar",
+				displayName: "List Avatar",
+				avatarMediaId: "media-list-avatar",
+			});
+			await bylineRepo.create({ slug: "no-avatar", displayName: "No Avatar" });
+
+			const { items } = await bylineRepo.findManyAlphabetical();
+			const withAvatar = items.find((b) => b.slug === "list-avatar")!;
+			const without = items.find((b) => b.slug === "no-avatar")!;
+
+			expect(withAvatar.avatarStorageKey).toBe("media-list-avatar.png");
+			expect(withAvatar.avatarAlt).toBe("List avatar");
+			expect(withAvatar.avatarBlurhash).toBe("LEHV6nWB2yk8pyo0adR*.7kCMdnj");
+			expect(withAvatar.avatarDominantColor).toBe("#aabbcc");
+			expect(without.avatarStorageKey).toBeNull();
+		});
+
+		it("returns one row per person when filtered by locale", async () => {
+			const en = await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jane",
+				locale: "en",
+			});
+			await bylineRepo.create({
+				slug: "jeanne",
+				displayName: "Jeanne",
+				locale: "fr",
+				translationOf: en.id,
+			});
+
+			const fr = await bylineRepo.findManyAlphabetical({ locale: "fr" });
+			expect(fr.items.map((b) => b.displayName)).toEqual(["Jeanne"]);
+
+			const all = await bylineRepo.findManyAlphabetical();
+			expect(all.items).toHaveLength(2);
+		});
+
+		it("returns customFields as {} without reading the value tables", async () => {
+			resetBylineFieldDefsCacheForTests();
+			const registry = new BylineSchemaRegistry(db);
+			const byline = await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jane",
+				locale: "en",
+			});
+			await registry.createField({
+				slug: "job_title",
+				label: "Job title",
+				type: "string",
+				translatable: true,
+			});
+			const field = await registry.getField("job_title");
+			await sql`
+				INSERT INTO _emdash_byline_field_values (byline_id, field_id, value)
+				VALUES (${byline.id}, ${field?.id}, '"Editor"')
+			`.execute(db);
+			resetBylineFieldDefsCacheForTests();
+
+			const { items } = await bylineRepo.findManyAlphabetical();
+			expect(items[0]?.customFields).toEqual({});
+
+			// The value is there — findById reads it; the list deliberately doesn't.
+			const hydrated = await bylineRepo.findById(byline.id);
+			expect(hydrated?.customFields?.job_title).toBe("Editor");
+		});
+	});
+
 	it("getContentBylinesMany handles more IDs than SQL_BATCH_SIZE", async () => {
 		const byline = await bylineRepo.create({
 			slug: "batch-author",

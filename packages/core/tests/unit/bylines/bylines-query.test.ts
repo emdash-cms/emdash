@@ -17,6 +17,7 @@ vi.mock("../../../src/loader.js", () => ({
 import {
 	getByline,
 	getBylineBySlug,
+	getBylines,
 	getEntryBylines,
 	getBylinesForEntries,
 } from "../../../src/bylines/index.js";
@@ -126,6 +127,95 @@ describe("Byline query functions", () => {
 			} finally {
 				setI18nConfig(null);
 			}
+		});
+	});
+
+	describe("getBylines", () => {
+		it("lists bylines that no published entry credits", async () => {
+			// The gap this closes: deriving the author list from entries misses
+			// a guest author added ahead of publication, and anyone whose only
+			// entries are drafts.
+			const credited = await bylineRepo.create({
+				slug: "credited",
+				displayName: "Credited Author",
+			});
+			await bylineRepo.create({ slug: "guest", displayName: "Awaiting Guest" });
+			const draftOnly = await bylineRepo.create({
+				slug: "draft-only",
+				displayName: "Draft Only",
+			});
+
+			const published = await contentRepo.create({
+				type: "post",
+				slug: "published",
+				data: { title: "Published" },
+				status: "published",
+			});
+			await bylineRepo.setContentBylines("post", published.id, [{ bylineId: credited.id }]);
+			const draft = await contentRepo.create({
+				type: "post",
+				slug: "draft",
+				data: { title: "Draft" },
+			});
+			await bylineRepo.setContentBylines("post", draft.id, [{ bylineId: draftOnly.id }]);
+
+			const { items } = await getBylines();
+			expect(items.map((b) => b.displayName)).toEqual([
+				"Awaiting Guest",
+				"Credited Author",
+				"Draft Only",
+			]);
+		});
+
+		it("resolves the locale the same way as content queries", async () => {
+			setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+			try {
+				const anchor = await bylineRepo.create({
+					slug: "jane",
+					displayName: "Jane Doe",
+					locale: "en",
+				});
+				await bylineRepo.create({
+					slug: "jane",
+					displayName: "Jeanne Doe",
+					locale: "fr",
+					translationOf: anchor.id,
+				});
+
+				// No locale passed -> the configured default, not both rows.
+				const implicit = await getBylines();
+				expect(implicit.items.map((b) => b.displayName)).toEqual(["Jane Doe"]);
+
+				const explicit = await getBylines({ locale: "fr" });
+				expect(explicit.items.map((b) => b.displayName)).toEqual(["Jeanne Doe"]);
+			} finally {
+				setI18nConfig(null);
+			}
+		});
+
+		it("omits a byline with no row at the requested locale rather than falling back", async () => {
+			setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+			try {
+				await bylineRepo.create({ slug: "en-only", displayName: "English Only", locale: "en" });
+
+				const { items } = await getBylines({ locale: "fr" });
+				expect(items).toEqual([]);
+			} finally {
+				setI18nConfig(null);
+			}
+		});
+
+		it("paginates with a cursor", async () => {
+			for (const displayName of ["Cara", "Alba", "Bruno"]) {
+				await bylineRepo.create({ slug: displayName.toLowerCase(), displayName });
+			}
+
+			const first = await getBylines({ limit: 2 });
+			expect(first.items.map((b) => b.displayName)).toEqual(["Alba", "Bruno"]);
+
+			const second = await getBylines({ limit: 2, cursor: first.nextCursor! });
+			expect(second.items.map((b) => b.displayName)).toEqual(["Cara"]);
+			expect(second.nextCursor).toBeUndefined();
 		});
 	});
 

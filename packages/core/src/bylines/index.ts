@@ -19,9 +19,13 @@
 import { sql } from "kysely";
 
 import { BylineRepository } from "../database/repositories/byline.js";
-import type { BylineSummary, ContentBylineCredit } from "../database/repositories/types.js";
+import type {
+	BylineSummary,
+	ContentBylineCredit,
+	FindManyResult,
+} from "../database/repositories/types.js";
 import { validateIdentifier } from "../database/validate.js";
-import { resolveLocaleChain } from "../i18n/resolve.js";
+import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
 import { requestCached } from "../request-cache.js";
 import { isMissingTableError } from "../utils/db-errors.js";
@@ -104,6 +108,53 @@ export async function getBylineBySlug(
 			if (row) return row;
 		}
 		return null;
+	});
+}
+
+/**
+ * List the bylines on this site, alphabetically by display name.
+ *
+ * Reads `_emdash_bylines` directly, so the result is every byline at the
+ * resolved locale — including ones with no resolvable credits (a guest author
+ * added ahead of publication, an author whose entries are all draft, an author
+ * whose entries exist only in another locale). Deriving the list from
+ * `entry.data.bylines` misses those, and is bounded by whichever entries the
+ * content query happened to fetch.
+ *
+ * The avatar's media columns come from a join, so rendering avatars costs no
+ * extra query per byline. `customFields` is always `{}` — a name-and-avatar
+ * list doesn't need the EAV reads. Use `getByline` / `getBylineBySlug` for a
+ * single byline with its custom fields.
+ *
+ * Locale is strict, resolved the same way as `getTaxonomyTerms`: byline rows
+ * are per-locale, so filtering yields one row per person with no
+ * translation-group dedupe.
+ *
+ * @example
+ * ```ts
+ * import { getBylines } from "emdash";
+ *
+ * const { items, nextCursor } = await getBylines({ limit: 100 });
+ * for (const byline of items) {
+ *   console.log(byline.displayName, byline.avatarStorageKey);
+ * }
+ * ```
+ */
+export async function getBylines(
+	options: { locale?: string; limit?: number; cursor?: string } = {},
+): Promise<FindManyResult<BylineSummary>> {
+	const locale = resolveLocale(options.locale);
+	const cacheKey = `bylines:${locale ?? "*"}:${options.limit ?? "*"}:${options.cursor ?? "*"}`;
+	return requestCached(cacheKey, async () => {
+		const db = await getDb();
+		const repo = new BylineRepository(db);
+
+		const repoOptions: { locale?: string; limit?: number; cursor?: string } = {};
+		if (locale !== undefined) repoOptions.locale = locale;
+		if (options.limit !== undefined) repoOptions.limit = options.limit;
+		if (options.cursor !== undefined) repoOptions.cursor = options.cursor;
+
+		return repo.findManyAlphabetical(repoOptions);
 	});
 }
 
