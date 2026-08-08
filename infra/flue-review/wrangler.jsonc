@@ -114,10 +114,5 @@
 	},
 	"observability": {
 		"enabled": true,
-		// Workers runtime spans only until the app is on Flue 2, which is the
-		// floor for automatic agent-turn/model/tool trace emission.
-		"traces": {
-			"enabled": true,
-		},
 	},
 }
