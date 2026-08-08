@@ -128,6 +128,19 @@ describe("SchemaRegistry", () => {
 			expect(updated.supports).toEqual(["drafts"]);
 		});
 
+		it("persists collection admin list columns", async () => {
+			const created = await registry.createCollection({
+				slug: "tickets",
+				label: "Tickets",
+				admin: { listColumns: ["ticket_number", "priority"] },
+			});
+
+			expect(created.admin?.listColumns).toEqual(["ticket_number", "priority"]);
+
+			const updated = await registry.updateCollection("tickets", { label: "Support tickets" });
+			expect(updated.admin?.listColumns).toEqual(["ticket_number", "priority"]);
+		});
+
 		it("should throw when updating non-existent collection", async () => {
 			await expect(registry.updateCollection("nonexistent", { label: "Test" })).rejects.toThrow(
 				SchemaError,
@@ -194,6 +207,125 @@ describe("SchemaRegistry", () => {
 			expect(field.type).toBe("string");
 			expect(field.columnType).toBe("TEXT");
 			expect(field.required).toBe(true);
+		});
+
+		it("keeps an indexed field's physical index in sync", async () => {
+			const listFieldIndexes = async () =>
+				(
+					await sql<{ name: string }>`
+						SELECT name
+						FROM sqlite_master
+						WHERE type = 'index'
+							AND tbl_name = 'ec_posts'
+							AND name LIKE 'idx_cf_%'
+					`.execute(db)
+				).rows;
+
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+				indexed: true,
+			});
+
+			expect(field.indexed).toBe(true);
+			expect(await listFieldIndexes()).toHaveLength(1);
+
+			await registry.updateField("posts", "priority", { indexed: false });
+			expect(await listFieldIndexes()).toHaveLength(0);
+
+			await registry.updateField("posts", "priority", { indexed: true });
+			expect(await listFieldIndexes()).toHaveLength(1);
+
+			await registry.deleteField("posts", "priority");
+			expect(await listFieldIndexes()).toHaveLength(0);
+		});
+
+		it("drops the index when an indexed field moves to a type that cannot carry one", async () => {
+			await registry.createField("posts", {
+				slug: "summary",
+				label: "Summary",
+				type: "string",
+				indexed: true,
+			});
+
+			await expect(
+				registry.updateField("posts", "summary", { type: "text" }),
+			).rejects.toMatchObject({ code: "FIELD_NOT_INDEXABLE" });
+
+			const updated = await registry.updateField("posts", "summary", {
+				type: "text",
+				indexed: false,
+			});
+
+			expect(updated.type).toBe("text");
+			expect(updated.indexed).toBe(false);
+		});
+
+		it("reuses an existing generated index when enabling indexed metadata", async () => {
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+			});
+			const indexName = `idx_cf_${field.id.toLowerCase()}`;
+
+			await sql`
+				CREATE INDEX ${sql.ref(indexName)}
+				ON ec_posts (deleted_at, (priority IS NOT NULL), priority, id)
+				WHERE deleted_at IS NULL
+			`.execute(db);
+
+			await expect(
+				registry.updateField("posts", "priority", { indexed: true }),
+			).resolves.toMatchObject({ indexed: true });
+
+			const indexes = await sql<{ name: string }>`
+				SELECT name FROM sqlite_master WHERE type = 'index' AND name = ${indexName}
+			`.execute(db);
+			expect(indexes.rows).toHaveLength(1);
+		});
+
+		it("uses the generated index for indexed custom field ordering", async () => {
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+				indexed: true,
+			});
+			const indexName = `idx_cf_${field.id.toLowerCase()}`;
+
+			const ascending = await sql<{ detail: string }>`
+				EXPLAIN QUERY PLAN
+				SELECT * FROM ec_posts
+				WHERE deleted_at IS NULL
+				ORDER BY (priority IS NOT NULL) ASC, priority ASC, id ASC
+				LIMIT 51
+			`.execute(db);
+			const descending = await sql<{ detail: string }>`
+				EXPLAIN QUERY PLAN
+				SELECT * FROM ec_posts
+				WHERE deleted_at IS NULL
+				ORDER BY (priority IS NOT NULL) DESC, priority DESC, id DESC
+				LIMIT 51
+			`.execute(db);
+
+			for (const plan of [ascending, descending]) {
+				const details = plan.rows.map((row) => row.detail).join("\n");
+				expect(details).toContain(indexName);
+				expect(details).not.toContain("USE TEMP B-TREE");
+			}
+		});
+
+		it("rejects indexes for non-scalar fields", async () => {
+			await expect(
+				registry.createField("posts", {
+					slug: "body",
+					label: "Body",
+					type: "portableText",
+					indexed: true,
+				}),
+			).rejects.toMatchObject({ code: "FIELD_NOT_INDEXABLE" });
 		});
 
 		it("should add column to content table when creating field", async () => {

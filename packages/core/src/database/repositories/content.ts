@@ -1,7 +1,9 @@
 import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content-list-query.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
+import { isIndexableFieldType, type FieldType } from "../../schema/types.js";
 import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
@@ -20,6 +22,7 @@ import type {
 import {
 	ContentMutationConflictError,
 	EmDashValidationError,
+	InvalidCursorError,
 	ScheduledNotDueError,
 	encodeCursor,
 	decodeCursor,
@@ -31,6 +34,21 @@ const SQLSTATE_PATTERN = /^[0-9A-Z]{5}$/;
 
 // LIKE wildcards that must be escaped so user search input is matched literally.
 const LIKE_WILDCARD_RE = /[\\%_]/g;
+const MAX_INDEXED_FIELD_FILTERS = 20;
+const MAX_IN_FILTER_VALUES = SQL_BATCH_SIZE;
+const MAX_FILTER_STRING_LENGTH = 2048;
+
+type NormalizedFilterScalar = string | number;
+
+type ResolvedFieldFilter =
+	| { column: string; kind: "null" }
+	| { column: string; kind: "exact"; value: NormalizedFilterScalar }
+	| { column: string; kind: "in"; values: NormalizedFilterScalar[] }
+	| {
+			column: string;
+			kind: "range";
+			bounds: Partial<Record<"gt" | "gte" | "lt" | "lte", NormalizedFilterScalar>>;
+	  };
 
 function nullableColumnMatch(column: string, value: string | null): ReturnType<typeof sql> {
 	validateIdentifier(column, "content column");
@@ -83,6 +101,51 @@ function isConfirmedStatementFailure(error: unknown): boolean {
 	if (typeof error !== "object" || error === null || !("code" in error)) return false;
 	const code = (error as { code?: unknown }).code;
 	return typeof code === "string" && (code.startsWith("SQLITE_") || SQLSTATE_PATTERN.test(code));
+}
+
+interface ResolvedOrderField {
+	column: string;
+	indexedCustomField: boolean;
+}
+
+type IndexedOrderValue = string | number | null;
+
+interface IndexedFieldCursorPayload {
+	version: 1;
+	field: string;
+	value: IndexedOrderValue;
+}
+
+function encodeIndexedFieldCursor(field: string, value: IndexedOrderValue, id: string): string {
+	const payload: IndexedFieldCursorPayload = { version: 1, field, value };
+	return encodeCursor(JSON.stringify(payload), id);
+}
+
+function decodeIndexedFieldCursor(
+	cursor: string,
+	field: string,
+): { value: IndexedOrderValue; id: string } {
+	const { orderValue, id } = decodeCursor(cursor);
+	let payload: unknown;
+	try {
+		payload = JSON.parse(orderValue);
+	} catch {
+		throw new InvalidCursorError(cursor);
+	}
+
+	if (payload === null || typeof payload !== "object") {
+		throw new InvalidCursorError(cursor);
+	}
+	const candidate = payload as Partial<IndexedFieldCursorPayload>;
+	const validValue =
+		candidate.value === null ||
+		typeof candidate.value === "string" ||
+		typeof candidate.value === "number";
+	if (candidate.version !== 1 || candidate.field !== field || !validValue) {
+		throw new InvalidCursorError(cursor);
+	}
+
+	return { value: candidate.value as IndexedOrderValue, id };
 }
 
 /**
@@ -557,7 +620,9 @@ export class ContentRepository {
 		// Determine ordering
 		const orderField = options.orderBy?.field || "createdAt";
 		const orderDirection = options.orderBy?.direction || "desc";
-		const dbField = this.mapOrderField(orderField);
+		const resolvedOrderField = await this.resolveOrderField(type, orderField);
+		const dbField = resolvedOrderField.column;
+		const resolvedFieldFilters = await this.resolveFieldFilters(type, options.where?.fieldFilters);
 
 		// Validate order direction to prevent injection
 		const safeOrderDirection = orderDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
@@ -584,40 +649,88 @@ export class ContentRepository {
 
 		query = this.applySearchFilter(query, options.where, type);
 		query = this.applyDateFilter(query, options.where);
+		query = this.applyFieldFilters(query, resolvedFieldFilters);
 
 		// Handle cursor pagination — decodeCursor throws InvalidCursorError
 		// on malformed input; let it propagate so handlers surface a
 		// structured INVALID_CURSOR rather than silently returning page 1.
 		if (options.cursor) {
-			const { orderValue, id: cursorId } = decodeCursor(options.cursor);
-
-			if (safeOrderDirection === "DESC") {
-				query = query.where((eb) =>
-					eb.or([
-						eb(dbField as any, "<", orderValue),
-						eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
-					]),
-				);
+			if (resolvedOrderField.indexedCustomField) {
+				const { value, id: cursorId } = decodeIndexedFieldCursor(options.cursor, orderField);
+				const isPresent = sql<boolean>`${sql.ref(dbField)} IS NOT NULL`;
+				const falseLiteral = sql<boolean>`FALSE`;
+				const trueLiteral = sql<boolean>`TRUE`;
+				if (safeOrderDirection === "ASC" && value === null) {
+					query = query.where(sql<boolean>`
+						(${isPresent}) > ${falseLiteral}
+						OR ((${isPresent}) = ${falseLiteral} AND ${sql.ref("id")} > ${cursorId})
+					`);
+				} else if (safeOrderDirection === "DESC" && value === null) {
+					query = query.where(sql<boolean>`
+						(${isPresent}) = ${falseLiteral} AND ${sql.ref("id")} < ${cursorId}
+					`);
+				} else if (safeOrderDirection === "ASC") {
+					query = query.where(sql<boolean>`
+						(${isPresent}, ${sql.ref(dbField)}, ${sql.ref("id")})
+							> (${trueLiteral}, ${value}, ${cursorId})
+					`);
+				} else {
+					query = query.where(sql<boolean>`
+						(${isPresent}, ${sql.ref(dbField)}, ${sql.ref("id")})
+							< (${trueLiteral}, ${value}, ${cursorId})
+					`);
+				}
 			} else {
-				query = query.where((eb) =>
-					eb.or([
-						eb(dbField as any, ">", orderValue),
-						eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
-					]),
-				);
+				const { orderValue, id: cursorId } = decodeCursor(options.cursor);
+
+				if (safeOrderDirection === "DESC") {
+					query = query.where((eb) =>
+						eb.or([
+							eb(dbField as any, "<", orderValue),
+							eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
+						]),
+					);
+				} else {
+					query = query.where((eb) =>
+						eb.or([
+							eb(dbField as any, ">", orderValue),
+							eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
+						]),
+					);
+				}
 			}
 		}
 
 		// Apply ordering and limit
-		query = query
-			.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc")
-			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
-			.limit(limit + 1);
+		const indexedOrderFilter = resolvedOrderField.indexedCustomField
+			? resolvedFieldFilters.find((filter) => filter.column === dbField)
+			: undefined;
+		if (resolvedOrderField.indexedCustomField && !indexedOrderFilter) {
+			query = query.orderBy(
+				sql<boolean>`${sql.ref(dbField)} IS NOT NULL`,
+				safeOrderDirection === "ASC" ? "asc" : "desc",
+			);
+		}
+		if (indexedOrderFilter?.kind !== "null") {
+			query = query.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc");
+		}
+		query = query.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc").limit(limit + 1);
 
 		// Run the page fetch and the unbounded count together — the UI needs
 		// both to render a stable denominator (kept on every page intentionally),
 		// and issuing them in parallel on SQLite is essentially free.
-		const [rows, total] = await Promise.all([query.execute(), this.count(type, options.where)]);
+		//
+		// A collection whose table is missing rejects both. The query that loses
+		// the race stays in flight holding a pooled connection, and a Postgres
+		// pool destroyed in that window never finishes closing.
+		const [rowsResult, countResult] = await Promise.allSettled([
+			query.execute(),
+			this.countWithResolvedFilters(type, options.where, resolvedFieldFilters),
+		]);
+		if (rowsResult.status === "rejected") throw rowsResult.reason;
+		if (countResult.status === "rejected") throw countResult.reason;
+		const rows = rowsResult.value;
+		const total = countResult.value;
 		const hasMore = rows.length > limit;
 		const items = rows.slice(0, limit);
 
@@ -629,11 +742,26 @@ export class ContentRepository {
 		if (hasMore && items.length > 0) {
 			const lastRow = items.at(-1) as Record<string, unknown>;
 			const lastOrderValue = lastRow[dbField];
-			const orderStr =
-				typeof lastOrderValue === "string" || typeof lastOrderValue === "number"
-					? String(lastOrderValue)
-					: "";
-			mappedResult.nextCursor = encodeCursor(orderStr, String(lastRow.id));
+			if (resolvedOrderField.indexedCustomField) {
+				if (
+					lastOrderValue !== null &&
+					typeof lastOrderValue !== "string" &&
+					typeof lastOrderValue !== "number"
+				) {
+					throw new EmDashValidationError(`Invalid indexed value for order field: ${orderField}`);
+				}
+				mappedResult.nextCursor = encodeIndexedFieldCursor(
+					orderField,
+					lastOrderValue,
+					String(lastRow.id),
+				);
+			} else {
+				const orderStr =
+					typeof lastOrderValue === "string" || typeof lastOrderValue === "number"
+						? String(lastOrderValue)
+						: "";
+				mappedResult.nextCursor = encodeCursor(orderStr, String(lastRow.id));
+			}
 		}
 
 		return mappedResult;
@@ -988,6 +1116,15 @@ export class ContentRepository {
 	 * Count content items
 	 */
 	async count(type: string, where?: FindManyOptions["where"]): Promise<number> {
+		const resolvedFieldFilters = await this.resolveFieldFilters(type, where?.fieldFilters);
+		return this.countWithResolvedFilters(type, where, resolvedFieldFilters);
+	}
+
+	private async countWithResolvedFilters(
+		type: string,
+		where: FindManyOptions["where"] | undefined,
+		resolvedFieldFilters: ResolvedFieldFilter[],
+	): Promise<number> {
 		const tableName = getTableName(type);
 
 		let query = this.db
@@ -1009,6 +1146,7 @@ export class ContentRepository {
 
 		query = this.applySearchFilter(query, where, type);
 		query = this.applyDateFilter(query, where);
+		query = this.applyFieldFilters(query, resolvedFieldFilters);
 
 		const result = await query.executeTakeFirst();
 		return Number(result?.count || 0);
@@ -1688,6 +1826,199 @@ export class ContentRepository {
 		};
 	}
 
+	private normalizeFilterScalar(
+		field: string,
+		type: FieldType,
+		value: unknown,
+	): NormalizedFilterScalar {
+		if (type === "number" || type === "integer") {
+			if (typeof value !== "number" || !Number.isFinite(value)) {
+				throw new EmDashValidationError(`Filter for field "${field}" must use a finite number`);
+			}
+			if (type === "integer" && !Number.isInteger(value)) {
+				throw new EmDashValidationError(`Filter for field "${field}" must use an integer`);
+			}
+			return value;
+		}
+
+		if (type === "boolean") {
+			if (typeof value !== "boolean") {
+				throw new EmDashValidationError(`Filter for field "${field}" must use a boolean`);
+			}
+			return value ? 1 : 0;
+		}
+
+		if (typeof value !== "string") {
+			throw new EmDashValidationError(`Filter for field "${field}" must use a string`);
+		}
+		if (value.length > MAX_FILTER_STRING_LENGTH) {
+			throw new EmDashValidationError(
+				`Filter value for field "${field}" exceeds ${MAX_FILTER_STRING_LENGTH} characters`,
+			);
+		}
+		return value;
+	}
+
+	private normalizeFieldFilter(
+		field: string,
+		type: FieldType,
+		value: ContentFieldFilterValue,
+	): ResolvedFieldFilter {
+		if (value === null) return { column: field, kind: "null" };
+		if (typeof value !== "object") {
+			return {
+				column: field,
+				kind: "exact",
+				value: this.normalizeFilterScalar(field, type, value),
+			};
+		}
+		if (Array.isArray(value)) {
+			throw new EmDashValidationError(`Invalid filter for field "${field}"`);
+		}
+
+		const record = value as Record<string, unknown>;
+		const keys = Object.keys(record);
+		if (keys.length === 1 && keys[0] === "in") {
+			if (!Array.isArray(record.in) || record.in.length === 0) {
+				throw new EmDashValidationError(`IN filter for field "${field}" must not be empty`);
+			}
+			if (record.in.length > MAX_IN_FILTER_VALUES) {
+				throw new EmDashValidationError(
+					`IN filter for field "${field}" exceeds ${MAX_IN_FILTER_VALUES} values`,
+				);
+			}
+			return {
+				column: field,
+				kind: "in",
+				values: record.in.map((entry) => this.normalizeFilterScalar(field, type, entry)),
+			};
+		}
+
+		const rangeKeys = new Set(["gt", "gte", "lt", "lte"]);
+		if (keys.length === 0 || keys.some((key) => !rangeKeys.has(key))) {
+			throw new EmDashValidationError(`Invalid filter operator for field "${field}"`);
+		}
+		if (type === "boolean") {
+			throw new EmDashValidationError(`Boolean field "${field}" does not support range filters`);
+		}
+
+		const bounds: Partial<Record<"gt" | "gte" | "lt" | "lte", NormalizedFilterScalar>> = {};
+		for (const key of keys as Array<"gt" | "gte" | "lt" | "lte">) {
+			if (record[key] === undefined) continue;
+			bounds[key] = this.normalizeFilterScalar(field, type, record[key]);
+		}
+		if (Object.keys(bounds).length === 0) {
+			throw new EmDashValidationError(`Range filter for field "${field}" has no bounds`);
+		}
+		return { column: field, kind: "range", bounds };
+	}
+
+	private async resolveFieldFilters(
+		type: string,
+		filters: ContentFieldFilters | undefined,
+	): Promise<ResolvedFieldFilter[]> {
+		const resolvedFilters = filters ?? {};
+		const fields = Object.keys(resolvedFilters);
+		if (fields.length === 0) return [];
+		if (fields.length > MAX_INDEXED_FIELD_FILTERS) {
+			throw new EmDashValidationError(
+				`Content list queries support at most ${MAX_INDEXED_FIELD_FILTERS} indexed field filters`,
+			);
+		}
+		const rows = await this.db
+			.selectFrom("_emdash_fields as field")
+			.innerJoin("_emdash_collections as collection", "collection.id", "field.collection_id")
+			.where("collection.slug", "=", type)
+			.where("field.slug", "in", fields)
+			.where("field.indexed", "=", 1)
+			.select(["field.slug", "field.type"])
+			.execute();
+		const metadata = new Map(rows.map((row) => [row.slug, row.type as FieldType]));
+
+		if (metadata.size === 0) {
+			const collection = await this.db
+				.selectFrom("_emdash_collections")
+				.where("slug", "=", type)
+				.select("id")
+				.executeTakeFirst();
+			if (!collection) return [];
+		}
+
+		for (const field of fields) {
+			try {
+				validateIdentifier(field, "content filter field");
+			} catch {
+				throw new EmDashValidationError(`Invalid content filter field: ${field}`);
+			}
+		}
+
+		const normalized = fields.map((field) => {
+			const fieldType = metadata.get(field);
+			if (!fieldType || !isIndexableFieldType(fieldType)) {
+				throw new EmDashValidationError(
+					`Cannot filter by field "${field}". Custom fields must be indexed before filtering.`,
+				);
+			}
+			return this.normalizeFieldFilter(field, fieldType, resolvedFilters[field]);
+		});
+		const operandCount = normalized.reduce((total, filter) => {
+			if (filter.kind === "null") return total;
+			if (filter.kind === "exact") return total + 1;
+			if (filter.kind === "in") return total + filter.values.length;
+			return total + Object.keys(filter.bounds).length;
+		}, 0);
+		if (operandCount > SQL_BATCH_SIZE) {
+			throw new EmDashValidationError(
+				`Indexed field filters have a total operand budget of ${SQL_BATCH_SIZE}`,
+			);
+		}
+		return normalized;
+	}
+
+	private applyFieldFilters<QB extends { where: (cb: (eb: any) => unknown) => QB }>(
+		query: QB,
+		filters: ResolvedFieldFilter[],
+	): QB {
+		let next = query;
+		for (const filter of filters) {
+			const column = sql.ref(filter.column);
+			const isPresent = sql<boolean>`${column} IS NOT NULL`;
+			if (filter.kind === "null") {
+				next = next.where(() => sql<boolean>`(${isPresent}) = FALSE AND ${column} IS NULL`);
+				continue;
+			}
+			if (filter.kind === "exact") {
+				next = next.where(
+					() => sql<boolean>`(${isPresent}) = TRUE AND ${column} = ${filter.value}`,
+				);
+				continue;
+			}
+			if (filter.kind === "in") {
+				const values = sql.join(
+					filter.values.map((value) => sql`${value}`),
+					sql`, `,
+				);
+				next = next.where(() => sql<boolean>`(${isPresent}) = TRUE AND ${column} IN (${values})`);
+				continue;
+			}
+
+			next = next.where(() => sql<boolean>`(${isPresent}) = TRUE`);
+			if (filter.bounds.gt !== undefined) {
+				next = next.where(() => sql<boolean>`${column} > ${filter.bounds.gt}`);
+			}
+			if (filter.bounds.gte !== undefined) {
+				next = next.where(() => sql<boolean>`${column} >= ${filter.bounds.gte}`);
+			}
+			if (filter.bounds.lt !== undefined) {
+				next = next.where(() => sql<boolean>`${column} < ${filter.bounds.lt}`);
+			}
+			if (filter.bounds.lte !== undefined) {
+				next = next.where(() => sql<boolean>`${column} <= ${filter.bounds.lte}`);
+			}
+		}
+		return next;
+	}
+
 	/**
 	 * Map order field names to database columns.
 	 * Only allows known fields to prevent column enumeration via crafted orderBy values.
@@ -1711,5 +2042,31 @@ export class ContentRepository {
 			throw new EmDashValidationError(`Invalid order field: ${field}`);
 		}
 		return mapped;
+	}
+
+	private async resolveOrderField(type: string, field: string): Promise<ResolvedOrderField> {
+		try {
+			return { column: this.mapOrderField(field), indexedCustomField: false };
+		} catch (error) {
+			if (!(error instanceof EmDashValidationError)) throw error;
+		}
+
+		const customField = await this.db
+			.selectFrom("_emdash_fields as field")
+			.innerJoin("_emdash_collections as collection", "collection.id", "field.collection_id")
+			.where("collection.slug", "=", type)
+			.where("field.slug", "=", field)
+			.where("field.indexed", "=", 1)
+			.select("field.slug")
+			.executeTakeFirst();
+
+		if (!customField) {
+			throw new EmDashValidationError(
+				`Invalid order field: ${field}. Custom fields must be indexed before sorting.`,
+			);
+		}
+
+		validateIdentifier(customField.slug, "content order field");
+		return { column: customField.slug, indexedCustomField: true };
 	}
 }

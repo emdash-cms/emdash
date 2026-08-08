@@ -10,6 +10,12 @@ const collectionSupportValues = z.enum(["drafts", "revisions", "preview", "sched
 
 const collectionSourcePattern = /^(template:.+|import:.+|manual|discovered|seed)$/;
 
+const collectionAdminConfig = z.object({
+	listColumns: z
+		.array(z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format"))
+		.optional(),
+});
+
 const fieldTypeValues = z.enum([
 	"string",
 	"text",
@@ -82,6 +88,7 @@ export const createCollectionBody = z
 		labelSingular: z.string().optional(),
 		description: z.string().optional(),
 		icon: z.string().optional(),
+		admin: collectionAdminConfig.optional(),
 		supports: z.array(collectionSupportValues).optional(),
 		source: z.string().regex(collectionSourcePattern).optional(),
 		urlPattern: z.string().optional(),
@@ -95,6 +102,7 @@ export const updateCollectionBody = z
 		labelSingular: z.string().optional(),
 		description: z.string().optional(),
 		icon: z.string().optional(),
+		admin: collectionAdminConfig.optional(),
 		supports: z.array(collectionSupportValues).optional(),
 		urlPattern: z.string().nullish(),
 		hasSeo: z.boolean().optional(),
@@ -118,6 +126,7 @@ export const createFieldBody = z
 		options: fieldWidgetOptions,
 		sortOrder: z.number().int().min(0).optional(),
 		searchable: z.boolean().optional(),
+		indexed: z.boolean().optional(),
 		translatable: z.boolean().optional(),
 	})
 	.meta({ id: "CreateFieldBody" });
@@ -134,6 +143,7 @@ export const updateFieldBody = z
 		options: fieldWidgetOptions,
 		sortOrder: z.number().int().min(0).optional(),
 		searchable: z.boolean().optional(),
+		indexed: z.boolean().optional(),
 		translatable: z.boolean().optional(),
 	})
 	.meta({ id: "UpdateFieldBody" });
@@ -175,6 +185,7 @@ export const collectionSchema = z
 		labelSingular: z.string().nullable(),
 		description: z.string().nullable(),
 		icon: z.string().nullable(),
+		admin: collectionAdminConfig.optional(),
 		supports: z.array(z.string()),
 		source: z.string().nullable(),
 		urlPattern: z.string().nullable(),
@@ -199,6 +210,7 @@ export const fieldSchema = z
 		options: z.record(z.string(), z.unknown()).nullable(),
 		sortOrder: z.number().int(),
 		searchable: z.boolean(),
+		indexed: z.boolean(),
 		translatable: z.boolean(),
 		createdAt: z.string(),
 		updatedAt: z.string(),
