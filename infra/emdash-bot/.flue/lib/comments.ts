@@ -1,4 +1,5 @@
 import type { StateId } from "./machine.js";
+import { artifactsBranch, fixBranch, previewInstallCommand } from "./preview.js";
 import type { Decision } from "./router.js";
 
 export function shouldPostReadonlyReply(dryRun?: boolean): boolean {
@@ -93,4 +94,95 @@ export function renderAgentComment(
 		default:
 			return summary;
 	}
+}
+
+/** A reproduction screenshot the fix agent pushed to the artifacts branch. */
+export interface PreviewScreenshot {
+	filename: string;
+	description?: string;
+}
+
+// Defense in depth on the agent's structured output: only render screenshots
+// whose filename is a plain basename (no path traversal, no URL injection), and
+// escape the markdown metacharacters in the alt text so a description can't
+// break out of the image span.
+const SCREENSHOT_FILENAME_RE = /^[a-zA-Z0-9._-]{1,80}$/;
+const MD_ESCAPE_RE = /([\\[\]()])/g;
+
+function mdEscape(text: string): string {
+	return text.replace(MD_ESCAPE_RE, "\\$1");
+}
+
+/**
+ * Compose the ask comment posted when a candidate fix's preview has published.
+ * The reporter verifies the change against their own site via the pkg.pr.new
+ * install command, then replies to confirm or reject.
+ *
+ * Shape mirrors the gen-1 ask: a hidden `bot-ask` marker (the reply-staleness
+ * anchor), the investigation notes, the full-ref install command, the
+ * reproduction screenshots served from the artifacts branch, and the reporter
+ * ask. Unlike gen-1 there is no "the preview may 404, retry" caveat -- the DO
+ * polled pkg.pr.new to a 200 before posting this, so the URL already resolves.
+ */
+export function renderPreviewReadyAsk(input: {
+	owner: string;
+	repo: string;
+	issueNumber: number;
+	at: string;
+	notes?: string | null;
+	screenshots?: readonly PreviewScreenshot[];
+	reporterLogin?: string | null;
+}): string {
+	const shots = (input.screenshots ?? [])
+		.filter((shot) => SCREENSHOT_FILENAME_RE.test(shot.filename))
+		.map(
+			(shot) =>
+				`![${mdEscape(shot.description ?? shot.filename)}](https://raw.githubusercontent.com/${input.owner}/${input.repo}/${artifactsBranch(input.issueNumber)}/.bot-artifacts/${shot.filename})`,
+		);
+	const reporterAsk = input.reporterLogin
+		? `@${input.reporterLogin} could you try this and reply here with whether it resolves the issue? A simple "yes, fixed" or "no, still broken" is enough.`
+		: "Could the reporter please try this and reply with whether it resolves the issue?";
+	return [
+		`<!-- bot-ask: ${input.at} -->`,
+		"The investigation reproduced this issue and pushed a candidate fix.",
+		"",
+		input.notes?.trim() ?? "",
+		"",
+		"Try the fix against your own site:",
+		"",
+		"```bash",
+		previewInstallCommand(input.issueNumber),
+		"```",
+		"",
+		...(shots.length > 0 ? ["**Screenshots:**", "", shots.join("\n\n"), ""] : []),
+		reporterAsk,
+		"",
+		"<sub>Maintainers can act on the reporter's behalf: `@emdashbot confirm` to accept the fix and open a draft PR, or `@emdashbot reject` (with details) to reap the branch and revise.</sub>",
+		"",
+		`Fix branch: \`${fixBranch(input.issueNumber)}\` · Artifacts branch: \`${artifactsBranch(input.issueNumber)}\``,
+	]
+		.filter((line, index, lines) => !(line === "" && lines[index - 1] === ""))
+		.join("\n");
+}
+
+/**
+ * Body for the draft PR opened when the reporter confirms the fix. References
+ * the issue (so merging closes it), points at the preview the reporter just
+ * verified, and flags that a maintainer must review before merge. The fix run
+ * left a regression test on the branch; the reviewer confirms it on the diff.
+ */
+export function renderDraftPrBody(issueNumber: number): string {
+	return [
+		`Closes #${issueNumber}.`,
+		"",
+		"A candidate fix the reporter confirmed against their own site via the preview build:",
+		"",
+		"```bash",
+		previewInstallCommand(issueNumber),
+		"```",
+		"",
+		"The fix run left a regression test on the branch -- confirm it covers the reported case on review.",
+		"",
+		"<sub>Opened automatically by emdashbot as a draft. A maintainer must review before merge.</sub>",
+	].join("\n");
 }

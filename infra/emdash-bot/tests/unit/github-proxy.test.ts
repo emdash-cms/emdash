@@ -102,6 +102,22 @@ describe("gateGithubRequest", () => {
 		).resolves.toMatch(/current issue/);
 	});
 
+	test("allows pushes to the issue's artifacts branch", async () => {
+		const url = "https://github.com/emdash-cms/emdash.git/git-receive-pack";
+		await expect(
+			gate(url, {
+				method: "POST",
+				body: `${pktLine("old new refs/heads/bot/artifacts-123\0 report-status\n")}0000PACKpayload`,
+			}),
+		).resolves.toBeNull();
+		await expect(
+			gate(url, {
+				method: "POST",
+				body: `${pktLine("old new refs/heads/bot/artifacts-456\0 report-status\n")}0000PACKpayload`,
+			}),
+		).resolves.toMatch(/current issue/);
+	});
+
 	test("rejects an unbounded receive-pack command prefix", async () => {
 		const url = "https://github.com/emdash-cms/emdash.git/git-receive-pack";
 		const oversizedPrefix = "f".repeat(64 * 1024);
