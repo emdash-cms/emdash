@@ -201,6 +201,16 @@ export interface StatItem {
 	trend?: "up" | "down" | "neutral";
 }
 
+export interface CardGridItem {
+	title: string;
+	description?: string;
+	image_url?: string;
+	image_alt?: string;
+	badge?: string;
+	meta?: string;
+	actions?: ButtonElement[];
+}
+
 /** A single data series for a timeseries chart. */
 export interface ChartSeries {
 	/** Display name shown in tooltips and legends */
@@ -364,6 +374,13 @@ export interface AccordionBlock extends BlockBase {
 	default_open?: boolean;
 }
 
+export interface CardGridBlock extends BlockBase {
+	type: "card_grid";
+	cards: CardGridItem[];
+	columns?: 1 | 2 | 3;
+	empty_text?: string;
+}
+
 export type Block =
 	| HeaderBlock
 	| SectionBlock
@@ -382,7 +399,8 @@ export type Block =
 	| CodeBlock
 	| TabBlock
 	| EmptyBlock
-	| AccordionBlock;
+	| AccordionBlock
+	| CardGridBlock;
 
 // ── Interactions ─────────────────────────────────────────────────────────────
 
