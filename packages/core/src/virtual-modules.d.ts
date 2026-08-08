@@ -170,6 +170,16 @@ declare module "virtual:emdash/env" {
 	export const env: Record<string, unknown> | undefined;
 }
 
+declare module "virtual:emdash/build" {
+	/**
+	 * Epoch milliseconds at which this build's virtual modules were generated.
+	 * Folded into the route cache validator so a code-only deploy — which
+	 * renames `/_astro/*` without touching content — still invalidates HTML a
+	 * browser cached from an earlier deployment.
+	 */
+	export const buildTime: number;
+}
+
 declare module "virtual:emdash/scheduler" {
 	import type { CreateSchedulerFn } from "./emdash-runtime.js";
 	/**

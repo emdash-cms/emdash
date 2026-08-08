@@ -16,6 +16,9 @@ const virtualStubs: Record<string, string> = {
 	// No Cloudflare bindings under test — like a Node build. Callers fall
 	// back to `import.meta.env`.
 	"virtual:emdash/env": "export const env = undefined;",
+	// Nothing was built under test, so there is no build dimension to fold
+	// into cache validators. Tests that need one still `vi.mock(...)`.
+	"virtual:emdash/build": "export const buildTime = 0;",
 };
 
 export default defineConfig({
