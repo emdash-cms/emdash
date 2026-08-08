@@ -7,7 +7,7 @@ description: Implement diagnose's proposed fix when verify says bug, the cause i
 
 You are here because a maintainer issued a **fix** directive, verify returned `bug`, diagnose pinned the cause with at least `medium` confidence, and diagnose rated the fix `mechanical` or `clear-best-option`. Diagnose handed you a **proposed fix** -- a concrete plan naming the file and the change. Implement that plan, prove it works, and leave the change verified. The hard reasoning is done; do not re-litigate the diagnosis unless reading the code convinces you it is wrong (then abandon -- see below).
 
-**What your output is, and is not.** You are not merging and not opening a PR. Your change goes onto a candidate branch; the workflow pushes it and posts a **preview build** to the issue; the reporter is asked to confirm it fixes *their* case. **Only after the reporter confirms** does a draft PR open, and a maintainer reviews before anything reaches `main`. So the bar is "a correct, conventions-respecting change that makes the repro test pass" -- not "a perfect, unimprovable patch." A clear, test-backed fix is worth shipping for verification even when it is more than a one-liner. Equally: do not gold-plate, do not expand scope, do not refactor beyond the diagnosed bug.
+**What your output is, and is not.** You are not merging and not opening a PR. Your change goes onto a candidate branch; the workflow pushes it and posts a **preview build** to the issue; the reporter is asked to confirm it fixes _their_ case. **Only after the reporter confirms** does a draft PR open, and a maintainer reviews before anything reaches `main`. So the bar is "a correct, conventions-respecting change that makes the repro test pass" -- not "a perfect, unimprovable patch." A clear, test-backed fix is worth shipping for verification even when it is more than a one-liner. Equally: do not gold-plate, do not expand scope, do not refactor beyond the diagnosed bug.
 
 ## Environment
 
@@ -19,14 +19,14 @@ You are here because a maintainer issued a **fix** directive, verify returned `b
 - No `git commit`, `git push`, `git tag`, or PR creation from this skill. The workflow owns the branch, the push, the preview, and the PR.
 - No GitHub writes. Read-only API GETs only.
 - No network beyond the clone, the proxy-signed GitHub API, and the npm registry.
-- No `pnpm publish` / `npm publish`. No committing a changeset (you may *create* the changeset file -- the workflow commits it).
+- No `pnpm publish` / `npm publish`. No committing a changeset (you may _create_ the changeset file -- the workflow commits it).
 - No drive-by edits. Touch only the files the diagnosed bug and its test need. A problem in a nearby file is a human's -- scope discipline.
 - Do not modify Lingui catalogs (`packages/admin/src/locales/*/messages.po`); the extract workflow handles them on merge.
 
 ## Procedure
 
 1. **Re-read diagnose's root cause and proposed fix.** That is your target and your spec. The change should land in the file and approximate line diagnose named. If your work drifts to a different file, stop -- diagnose may be wrong, in which case abandon, do not wander.
-2. **Establish a regression test where feasible.** Reproduce usually confirmed the bug without a test on disk. If the bug is unit- or integration-testable (a handler, a query, a pure function, an API route), write a `vitest` test now that fails for the reported reason, and confirm it fails in the container (`pnpm --filter <package> test <path>`) *before* you touch the fix. A testable bug with no regression test is not fixed. If the bug only manifests in the browser (admin interaction, rendered output), do not write a browser test -- you cannot run one reliably here; verify through `agent-browser` instead and describe that manual verification so the maintainer can add a durable test when landing.
+2. **Establish a regression test where feasible.** Reproduce usually confirmed the bug without a test on disk. If the bug is unit- or integration-testable (a handler, a query, a pure function, an API route), write a `vitest` test now that fails for the reported reason, and confirm it fails in the container (`pnpm --filter <package> test <path>`) _before_ you touch the fix. A testable bug with no regression test is not fixed. If the bug only manifests in the browser (admin interaction, rendered output), do not write a browser test -- you cannot run one reliably here; verify through `agent-browser` instead and describe that manual verification so the maintainer can add a durable test when landing.
 3. **Implement the proposed fix -- the smallest change that fully resolves the bug.** Follow EmDash conventions:
    - Internal imports end `.js`; type-only imports use `import type`.
    - State-changing routes start with `export const prerender = false;`.
