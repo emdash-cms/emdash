@@ -806,7 +806,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await this.ctx.storage.transaction(async (transaction) => {
 				if ((await transaction.get<string>(STORAGE.currentRunId)) !== prepared.runId) return;
 				if ((await transaction.get<string>(STORAGE.currentDispatchAttempt)) !== attemptId) return;
-				await transaction.put(STORAGE.currentDispatchId, receipt.dispatchId);
+				await transaction.put(STORAGE.currentDispatchId, receipt.submissionId);
 				await transaction.delete(STORAGE.currentDispatchAttempt);
 				const pending = await transaction.get<PendingDispatch>(STORAGE.pendingDispatch);
 				if (pending?.runId === prepared.runId) {

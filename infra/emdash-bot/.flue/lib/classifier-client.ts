@@ -37,30 +37,29 @@ export async function classifyComment(input: ClassifyInput): Promise<ClassifyRes
 
 	let reply;
 	try {
-		reply = await init(ClassifyCommand, {
+		const handle = init(ClassifyCommand, {
 			id: `classify-${crypto.randomUUID()}`,
 			uid: null,
-		}).dispatch(
-			{
-				message: {
-					kind: "signal",
-					type: "github.comment",
-					body: `Classify this comment: ${input.comment}`,
-				},
-				initialData: {
-					issueNumber: input.issueNumber,
-					state: input.state ?? "unmanaged",
-					comment: input.comment,
-					...(input.botContext ? { botContext: input.botContext } : {}),
-					commands: commands.map((command) => ({
-						event: command.event,
-						description: command.description,
-						...(command.arg ? { arg: command.arg } : {}),
-					})),
-				},
+		});
+		const receipt = await handle.dispatch({
+			message: {
+				kind: "signal",
+				type: "github.comment",
+				body: `Classify this comment: ${input.comment}`,
 			},
-			{ signal: AbortSignal.timeout(CLASSIFY_TIMEOUT_MS) },
-		);
+			initialData: {
+				issueNumber: input.issueNumber,
+				state: input.state ?? "unmanaged",
+				comment: input.comment,
+				...(input.botContext ? { botContext: input.botContext } : {}),
+				commands: commands.map((command) => ({
+					event: command.event,
+					description: command.description,
+					...(command.arg ? { arg: command.arg } : {}),
+				})),
+			},
+		});
+		reply = await handle.read(receipt, { signal: AbortSignal.timeout(CLASSIFY_TIMEOUT_MS) });
 	} catch (err) {
 		return { kind: "error", error: errorMessage(err) };
 	}
