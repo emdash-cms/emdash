@@ -8,6 +8,7 @@ import * as v from "valibot";
 import { ClassifyCommand, classifyResultSchema } from "../agents/classify-command.js";
 import type { EventId, StateId } from "./machine.js";
 import { classifierCommands } from "./router.js";
+import { withDeadline } from "./sandbox-deadline.js";
 
 const CLASSIFY_TIMEOUT_MS = 10_000;
 
@@ -41,25 +42,35 @@ export async function classifyComment(input: ClassifyInput): Promise<ClassifyRes
 			id: `classify-${crypto.randomUUID()}`,
 			uid: null,
 		});
-		const receipt = await handle.dispatch({
-			message: {
-				kind: "signal",
-				type: "github.comment",
-				body: `Classify this comment: ${input.comment}`,
-			},
-			initialData: {
-				issueNumber: input.issueNumber,
-				state: input.state ?? "unmanaged",
-				comment: input.comment,
-				...(input.botContext ? { botContext: input.botContext } : {}),
-				commands: commands.map((command) => ({
-					event: command.event,
-					description: command.description,
-					...(command.arg ? { arg: command.arg } : {}),
-				})),
-			},
+		// dispatch() only resolves on admission; without its own deadline an
+		// admission stall would hang past GitHub's webhook ack window. Share one
+		// budget across admission + settlement so the total stays within it.
+		const deadline = Date.now() + CLASSIFY_TIMEOUT_MS;
+		const receipt = await withDeadline(
+			handle.dispatch({
+				message: {
+					kind: "signal",
+					type: "github.comment",
+					body: `Classify this comment: ${input.comment}`,
+				},
+				initialData: {
+					issueNumber: input.issueNumber,
+					state: input.state ?? "unmanaged",
+					comment: input.comment,
+					...(input.botContext ? { botContext: input.botContext } : {}),
+					commands: commands.map((command) => ({
+						event: command.event,
+						description: command.description,
+						...(command.arg ? { arg: command.arg } : {}),
+					})),
+				},
+			}),
+			CLASSIFY_TIMEOUT_MS,
+			"Classifier dispatch",
+		);
+		reply = await handle.read(receipt, {
+			signal: AbortSignal.timeout(Math.max(0, deadline - Date.now())),
 		});
-		reply = await handle.read(receipt, { signal: AbortSignal.timeout(CLASSIFY_TIMEOUT_MS) });
 	} catch (err) {
 		return { kind: "error", error: errorMessage(err) };
 	}
