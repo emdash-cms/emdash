@@ -85,6 +85,9 @@ export type {
 	RevisionListResponse,
 	RevisionResponse,
 	ManifestResponse,
+	ManifestCollectionMap,
+	ManifestCollectionDescriptor,
+	ManifestFieldDescriptor,
 	FieldDescriptor,
 	ApiContext,
 } from "./api/index.js";

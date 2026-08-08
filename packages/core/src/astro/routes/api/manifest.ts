@@ -4,7 +4,7 @@
  * GET /_emdash/api/manifest
  *
  * Returns the admin manifest with collection definitions and plugin info.
- * The manifest is generated from the user's live.config.ts at runtime.
+ * The manifest is generated from live database schema plus runtime plugin state.
  */
 
 import type { APIRoute } from "astro";

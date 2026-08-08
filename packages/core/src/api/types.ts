@@ -35,15 +35,7 @@ export interface ContentResponse {
 export interface ManifestResponse {
 	version: string;
 	hash: string;
-	collections: Record<
-		string,
-		{
-			label: string;
-			labelSingular: string;
-			supports: string[];
-			fields: Record<string, FieldDescriptor>;
-		}
-	>;
+	collections: ManifestCollectionMap;
 	plugins: Record<
 		string,
 		{
@@ -51,6 +43,23 @@ export interface ManifestResponse {
 			widgets?: string[];
 		}
 	>;
+}
+
+export type ManifestCollectionMap = Record<string, ManifestCollectionDescriptor>;
+
+export interface ManifestCollectionDescriptor {
+	label: string;
+	labelSingular: string;
+	supports: string[];
+	hasSeo: boolean;
+	urlPattern?: string;
+	fields: Record<string, ManifestFieldDescriptor>;
+}
+
+export interface ManifestFieldDescriptor extends FieldDescriptor {
+	id?: string;
+	widget?: string;
+	validation?: Record<string, unknown>;
 }
 
 export interface FieldDescriptor {
