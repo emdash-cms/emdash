@@ -64,7 +64,7 @@ deletion list is four workflows:
 - It also keys off the **old `triage/*` label vocabulary**, which the new worker
   no longer emits (the machine emits `bot:*` state labels, each carrying a
   `boardColumn`). So board sync is effectively **paused** after cutover until
-  either this workflow's label→column map *and* the Projects v2 board's option
+  either this workflow's label→column map _and_ the Projects v2 board's option
   set are migrated to the new `bot:*` vocabulary, or the sync is absorbed into a
   worker singleton. Leaving the workflow in place keeps its working GraphQL
   plumbing (option lookup, archive/unarchive) available for that migration.
@@ -101,7 +101,7 @@ updating at cutover** until the follow-up lands.
    read by the worker.
 
 4. **Global artifacts sweep** (singleton-cron gap, documented).
-   `bot-cleanup.yml`'s daily job swept *all* `bot/artifacts-*` branches older
+   `bot-cleanup.yml`'s daily job swept _all_ `bot/artifacts-*` branches older
    than 90 days — a global operation a per-issue DO cannot do. The per-issue
    close/expire/reject reaping is absorbed; the global sweep is not. Follow-up:
    a worker `scheduled()` cron singleton that lists and prunes stale

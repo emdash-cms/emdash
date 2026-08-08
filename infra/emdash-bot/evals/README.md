@@ -36,11 +36,11 @@ Diagnose-mode outcome mirrors the machine's `outcomeFromResult`
 (`reproduced` / `not_reproduced` / `needs_info` / `by_design` / `skipped` /
 `failed`). Per category:
 
-| Category            | Pass                              | Confident-wrong (the gate) |
-| ------------------- | --------------------------------- | -------------------------- |
-| `CONFIRMED_BUG`     | `reproduced` **and** the summary names a known fault-area term | — |
-| `NOT_REPRODUCIBLE`  | `not_reproduced` (with transcript) | `reproduced` |
-| `NEEDS_INFO`        | `needs_info`                       | `reproduced` |
+| Category           | Pass                                                           | Confident-wrong (the gate) |
+| ------------------ | -------------------------------------------------------------- | -------------------------- |
+| `CONFIRMED_BUG`    | `reproduced` **and** the summary names a known fault-area term | —                          |
+| `NOT_REPRODUCIBLE` | `not_reproduced` (with transcript)                             | `reproduced`               |
+| `NEEDS_INFO`       | `needs_info`                                                   | `reproduced`               |
 
 - A confirmed bug that the agent fails to reproduce is a **miss** (false
   negative), never confident-wrong.
@@ -62,14 +62,14 @@ pnpm evals -- --all
 
 ### Environment
 
-| Variable      | Meaning                                                          |
-| ------------- | --------------------------------------------------------------- |
-| `WORKER_URL`  | Base URL of the deployed bot worker                             |
+| Variable      | Meaning                                                             |
+| ------------- | ------------------------------------------------------------------- |
+| `WORKER_URL`  | Base URL of the deployed bot worker                                 |
 | `ADMIN_TOKEN` | Bearer token for `/agents/*` (the worker's `GITHUB_WEBHOOK_SECRET`) |
-| `GH_TOKEN`    | GitHub token to read issue titles/bodies (read-only)            |
-| `REPO`        | `owner/name` to investigate (default `emdash-cms/emdash`)       |
-| `TIMEOUT_MS`  | Per-case verdict timeout (default 1800000 = 30 min)             |
-| `POLL_MS`     | Snapshot poll interval (default 15000)                          |
+| `GH_TOKEN`    | GitHub token to read issue titles/bodies (read-only)                |
+| `REPO`        | `owner/name` to investigate (default `emdash-cms/emdash`)           |
+| `TIMEOUT_MS`  | Per-case verdict timeout (default 1800000 = 30 min)                 |
+| `POLL_MS`     | Snapshot poll interval (default 15000)                              |
 
 Results print as a table plus a gate banner and are written to
 `evals/results/<timestamp>.json` (gitignored). The process exits non-zero if the

@@ -6,14 +6,15 @@ read-only; nothing posted to GitHub.
 
 ## Counts
 
-| Category | Count | Share | Target |
-| --- | --- | --- | --- |
-| CONFIRMED_BUG | 17 | 65% | ~60% |
-| NOT_REPRODUCIBLE / INVALID | 5 | 19% | ~25% |
-| NEEDS_INFO | 4 | 15% | ~15% |
-| **Total** | **26** | | 20–30 |
+| Category                   | Count  | Share | Target |
+| -------------------------- | ------ | ----- | ------ |
+| CONFIRMED_BUG              | 17     | 65%   | ~60%   |
+| NOT_REPRODUCIBLE / INVALID | 5      | 19%   | ~25%   |
+| NEEDS_INFO                 | 4      | 15%   | ~15%   |
+| **Total**                  | **26** |       | 20–30  |
 
 Category definitions used:
+
 - **CONFIRMED_BUG** — reproduced and fixed, linked to a merging PR. A correct
   investigation reproduces it and lands (or points at) the fix.
 - **NOT_REPRODUCIBLE** — closed as cannot-reproduce, already-resolved on main, or
@@ -46,48 +47,51 @@ buckets add the "don't overreach" pressure.
 ## Full case list
 
 ### CONFIRMED_BUG (17)
-| # | Title (short) | PR | Diff | Path |
-| --- | --- | --- | --- | --- |
-| 2344 | Ordered-list numbering resets to 1. | 2348 | easy | admin |
-| 2330 | Taxonomy terms 500 (compound-SELECT on D1) | 2331 | med | api |
-| 2245 | FTS5 tokenizer breaks CJK/Thai search | 2257 | hard | api |
-| 2210 | Term-count prefetch full-scans D1 per render | 2219 | hard | public |
-| 2034 | Publish opaque D1 UNIQUE on slug collision | 2036 | med | api |
-| 1986 | Slug rename+revert circular redirect | 1992 | med | public |
-| 1884 | Blockquote splits on reload | 1905 | med | admin |
-| 1671 | Google OAuth doubled `_emdash` URL 404 | 1720 | easy | admin |
-| 1607 | Primary button invisible (Tailwind v4 miss) | 1630 | med | admin |
-| 1551 | localeCode lowercases uppercase subtags | 1552 | med | api |
-| 1421 | CLI seed round-trip rewrites default locale to en | 1426 | hard | build |
-| 1080 | WXR import drops WPML translations | 1087 | hard | build |
-| 1021 | Migration 036 wipes content_taxonomies on D1 | 1086 | hard | build |
-| 917 | Scheduled posts never publish on SQLite/D1 | 1157 | med | public |
-| 895 | Dashboard 500 (UNION ALL on D1) | 896 | med | admin |
-| 808 | Redirects skipped for anonymous visitors | 817 | med | public |
-| 696 | MediaValue.src holds bare id, not URL | 701 | easy | public |
+
+| #    | Title (short)                                     | PR   | Diff | Path   |
+| ---- | ------------------------------------------------- | ---- | ---- | ------ |
+| 2344 | Ordered-list numbering resets to 1.               | 2348 | easy | admin  |
+| 2330 | Taxonomy terms 500 (compound-SELECT on D1)        | 2331 | med  | api    |
+| 2245 | FTS5 tokenizer breaks CJK/Thai search             | 2257 | hard | api    |
+| 2210 | Term-count prefetch full-scans D1 per render      | 2219 | hard | public |
+| 2034 | Publish opaque D1 UNIQUE on slug collision        | 2036 | med  | api    |
+| 1986 | Slug rename+revert circular redirect              | 1992 | med  | public |
+| 1884 | Blockquote splits on reload                       | 1905 | med  | admin  |
+| 1671 | Google OAuth doubled `_emdash` URL 404            | 1720 | easy | admin  |
+| 1607 | Primary button invisible (Tailwind v4 miss)       | 1630 | med  | admin  |
+| 1551 | localeCode lowercases uppercase subtags           | 1552 | med  | api    |
+| 1421 | CLI seed round-trip rewrites default locale to en | 1426 | hard | build  |
+| 1080 | WXR import drops WPML translations                | 1087 | hard | build  |
+| 1021 | Migration 036 wipes content_taxonomies on D1      | 1086 | hard | build  |
+| 917  | Scheduled posts never publish on SQLite/D1        | 1157 | med  | public |
+| 895  | Dashboard 500 (UNION ALL on D1)                   | 896  | med  | admin  |
+| 808  | Redirects skipped for anonymous visitors          | 817  | med  | public |
+| 696  | MediaValue.src holds bare id, not URL             | 701  | easy | public |
 
 ### NOT_REPRODUCIBLE / INVALID (5)
-| # | Title (short) | Why | Diff | Path |
-| --- | --- | --- | --- | --- |
-| 1413 | 9 MB admin bundle on public islands | React already own chunk; ~27 KB actual; unreachable admin chunks | hard | build |
-| 1193 | publishedAt overwritten each edit | admin no longer sends it; COALESCE preserves it | med | api |
-| 1190 | Admin list stops at 50 | current admin sends limit=100 + nextCursor; older build symptom | med | admin |
-| 1022 | autosave 'seo' unknown field | not repro on fresh entries; only legacy pre-0.5 revisions | hard | admin |
-| 914 | emdashcms.com SSL error | transient infra/TLS, not a codebase bug | easy | public |
+
+| #    | Title (short)                       | Why                                                              | Diff | Path   |
+| ---- | ----------------------------------- | ---------------------------------------------------------------- | ---- | ------ |
+| 1413 | 9 MB admin bundle on public islands | React already own chunk; ~27 KB actual; unreachable admin chunks | hard | build  |
+| 1193 | publishedAt overwritten each edit   | admin no longer sends it; COALESCE preserves it                  | med  | api    |
+| 1190 | Admin list stops at 50              | current admin sends limit=100 + nextCursor; older build symptom  | med  | admin  |
+| 1022 | autosave 'seo' unknown field        | not repro on fresh entries; only legacy pre-0.5 revisions        | hard | admin  |
+| 914  | emdashcms.com SSL error             | transient infra/TLS, not a codebase bug                          | easy | public |
 
 ### NEEDS_INFO (4)
-| # | Title (short) | Why | Diff | Path |
-| --- | --- | --- | --- | --- |
-| 959 | HTTP 500 on front end | one-line trace, v0.0.3, no repro; dup of #945 | easy | public |
-| 1113 | "Astro is not defined" | usage error (ran dev, needed build+preview) | easy | build |
-| 1272 | Media library capped at 100 | thin report; needs version; resolved on 0.16.1 upgrade | med | admin |
-| 1124 | Repeater-only edits don't save | screenshots only, no versions/schema/config | med | admin |
+
+| #    | Title (short)                  | Why                                                    | Diff | Path   |
+| ---- | ------------------------------ | ------------------------------------------------------ | ---- | ------ |
+| 959  | HTTP 500 on front end          | one-line trace, v0.0.3, no repro; dup of #945          | easy | public |
+| 1113 | "Astro is not defined"         | usage error (ran dev, needed build+preview)            | easy | build  |
+| 1272 | Media library capped at 100    | thin report; needs version; resolved on 0.16.1 upgrade | med  | admin  |
+| 1124 | Repeater-only edits don't save | screenshots only, no versions/schema/config            | med  | admin  |
 
 ## Top 5 cases (strongest evals)
 
 1. **#917 — scheduled posts never publish on SQLite/D1.** Textbook dialect bug: a
    lexicographic text compare of ISO `T…Z` vs space-separated `CURRENT_TIMESTAMP`
-   that is *always false*. Body has a full `npm create emdash` repro, exact file/line,
+   that is _always false_. Body has a full `npm create emdash` repro, exact file/line,
    and the correct `datetime()` fix. Tests dialect awareness and read-path reasoning.
 
 2. **#1021 — migration 036 wipes content_taxonomies on D1.** Silent data loss from
@@ -108,7 +112,7 @@ buckets add the "don't overreach" pressure.
 5. **#808 — redirects skipped for anonymous visitors.** High-value correctness bug
    invisible to logged-in testing (only fires for real public traffic). The body even
    lays out the middleware branch and two candidate fixes, so it tests whether the bot
-   reproduces on the *anonymous* path rather than the admin one.
+   reproduces on the _anonymous_ path rather than the admin one.
 
 ## Notes / gaps
 
@@ -120,7 +124,7 @@ buckets add the "don't overreach" pressure.
 - **Watch stale triage labels.** Several `triage/awaiting-reporter` /
   `triage/not-reproduced` issues were later reproduced and fixed (e.g. 1046→#1662,
   1042→#1345, 1191 reproduced+fixed, 1201→#1396). Category was assigned from the
-  *closing rationale* (comments + linked PR + stateReason), not the label.
+  _closing rationale_ (comments + linked PR + stateReason), not the label.
 - **Some NOT_REPRODUCIBLE cases have no single fixing PR** because the underlying fix
   predated the report or landed diffusely; ground truth for those is explicitly
   "cannot reproduce on current main," which is the behavior the bot should emit.
