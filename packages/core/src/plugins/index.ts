@@ -114,6 +114,8 @@ export type {
 	SiteInfo,
 	UserInfo,
 	UserAccess,
+	CollectionFieldInfo,
+	CollectionInfo,
 	ContentItem,
 	MediaItem,
 	ContentListOptions,
