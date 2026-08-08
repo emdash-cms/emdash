@@ -109,9 +109,6 @@ describeEachDialect("content list filters (#1288)", (dialect) => {
 	});
 
 	it("reports a missing collection the same way with and without field filters", async () => {
-		// The filters resolve against `_emdash_fields`, which exists, so an
-		// unknown collection would otherwise surface as a filter problem and
-		// hide the real cause.
 		const withFilters = await handleContentList(ctx.db, "ghosts", {
 			fieldFilters: { priority: "urgent" },
 		});
@@ -122,6 +119,26 @@ describeEachDialect("content list filters (#1288)", (dialect) => {
 		if (withFilters.success || withoutFilters.success) throw new Error("expected failures");
 		expect(withFilters.error.code).toBe("COLLECTION_NOT_FOUND");
 		expect(withFilters.error.code).toBe(withoutFilters.error.code);
+	});
+
+	it("reports a missing collection ahead of an invalid field filter name", async () => {
+		const result = await handleContentList(ctx.db, "ghosts", {
+			fieldFilters: { "not a field": "urgent" },
+		});
+
+		expect(result.success).toBe(false);
+		if (result.success) throw new Error("expected a failure");
+		expect(result.error.code).toBe("COLLECTION_NOT_FOUND");
+	});
+
+	it("rejects an invalid field filter name on a collection that exists", async () => {
+		const result = await handleContentList(ctx.db, "posts", {
+			fieldFilters: { "not a field": "urgent" },
+		});
+
+		expect(result.success).toBe(false);
+		if (result.success) throw new Error("expected a failure");
+		expect(result.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	it("passes indexed custom-field filters through plugin content access", async () => {

@@ -1926,14 +1926,6 @@ export class ContentRepository {
 				`Content list queries support at most ${MAX_INDEXED_FIELD_FILTERS} indexed field filters`,
 			);
 		}
-		for (const field of fields) {
-			try {
-				validateIdentifier(field, "content filter field");
-			} catch {
-				throw new EmDashValidationError(`Invalid content filter field: ${field}`);
-			}
-		}
-
 		const rows = await this.db
 			.selectFrom("_emdash_fields as field")
 			.innerJoin("_emdash_collections as collection", "collection.id", "field.collection_id")
@@ -1944,11 +1936,6 @@ export class ContentRepository {
 			.execute();
 		const metadata = new Map(rows.map((row) => [row.slug, row.type as FieldType]));
 
-		// A missing collection produces the same empty result as an unindexed
-		// field, and reporting it as a filter problem would hide the real cause:
-		// the same request without `fieldFilters` answers COLLECTION_NOT_FOUND.
-		// Returning no filters lets the query reach its missing backing table,
-		// which is where that error is raised.
 		if (metadata.size === 0) {
 			const collection = await this.db
 				.selectFrom("_emdash_collections")
@@ -1956,6 +1943,14 @@ export class ContentRepository {
 				.select("id")
 				.executeTakeFirst();
 			if (!collection) return [];
+		}
+
+		for (const field of fields) {
+			try {
+				validateIdentifier(field, "content filter field");
+			} catch {
+				throw new EmDashValidationError(`Invalid content filter field: ${field}`);
+			}
 		}
 
 		const normalized = fields.map((field) => {
