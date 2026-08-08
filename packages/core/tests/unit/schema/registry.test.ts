@@ -263,12 +263,12 @@ describe("SchemaRegistry", () => {
 
 			const updated = await registry.updateField("posts", "title", {
 				label: "Post Title",
-				required: true,
+				sortOrder: 3,
 				widget: "text",
 			});
 
 			expect(updated.label).toBe("Post Title");
-			expect(updated.required).toBe(true);
+			expect(updated.sortOrder).toBe(3);
 			expect(updated.widget).toBe("text");
 		});
 

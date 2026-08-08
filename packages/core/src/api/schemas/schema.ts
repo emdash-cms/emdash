@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { compileUrlPattern } from "../../schema/url-pattern.js";
 import { slugPattern } from "./common.js";
 
 // ---------------------------------------------------------------------------
@@ -49,6 +50,17 @@ const repeaterSubFieldSchema = z.object({
 	options: z.array(z.string()).optional(),
 });
 
+const urlPatternValue = z.string().superRefine((pattern, ctx) => {
+	try {
+		compileUrlPattern(pattern);
+	} catch {
+		ctx.addIssue({
+			code: "custom",
+			message: "Invalid URL pattern",
+		});
+	}
+});
+
 const fieldValidation = z
 	.object({
 		required: z.boolean().optional(),
@@ -71,6 +83,35 @@ const fieldValidation = z
 			.max(64, "allowedMimeTypes may contain at most 64 entries")
 			.optional(),
 	})
+	.superRefine((validation, ctx) => {
+		for (const [minimum, maximum] of [
+			["min", "max"],
+			["minLength", "maxLength"],
+			["minItems", "maxItems"],
+		] as const) {
+			const minimumValue = validation[minimum];
+			const maximumValue = validation[maximum];
+			if (minimumValue !== undefined && maximumValue !== undefined && minimumValue > maximumValue) {
+				ctx.addIssue({
+					code: "custom",
+					path: [maximum],
+					message: `${maximum} must be greater than or equal to ${minimum}`,
+				});
+			}
+		}
+
+		if (validation.pattern !== undefined) {
+			try {
+				RegExp(validation.pattern);
+			} catch {
+				ctx.addIssue({
+					code: "custom",
+					path: ["pattern"],
+					message: "Invalid validation pattern",
+				});
+			}
+		}
+	})
 	.optional();
 
 const fieldWidgetOptions = z.record(z.string(), z.unknown()).optional();
@@ -84,7 +125,7 @@ export const createCollectionBody = z
 		icon: z.string().optional(),
 		supports: z.array(collectionSupportValues).optional(),
 		source: z.string().regex(collectionSourcePattern).optional(),
-		urlPattern: z.string().optional(),
+		urlPattern: urlPatternValue.optional(),
 		hasSeo: z.boolean().optional(),
 	})
 	.meta({ id: "CreateCollectionBody" });
@@ -96,7 +137,7 @@ export const updateCollectionBody = z
 		description: z.string().optional(),
 		icon: z.string().optional(),
 		supports: z.array(collectionSupportValues).optional(),
-		urlPattern: z.string().nullish(),
+		urlPattern: urlPatternValue.nullish(),
 		hasSeo: z.boolean().optional(),
 		commentsEnabled: z.boolean().optional(),
 		commentsModeration: z.enum(["all", "first_time", "none"]).optional(),
