@@ -53,6 +53,12 @@ const initialDataSchema = v.object({
 	issueTitle: v.pipe(v.string(), v.minLength(1)),
 	issueBody: v.string(),
 	previousBranchSha: v.nullable(v.string()),
+	/**
+	 * Explicit base ref (branch, tag, or commit SHA) to stand the workspace up
+	 * at, overriding the mode default. The eval harness sets this to a fixing
+	 * PR's pre-fix commit so a confirmed bug reproduces.
+	 */
+	baseRef: v.optional(v.nullable(v.string())),
 });
 
 const screenshotSchema = v.object({
@@ -351,7 +357,7 @@ async function attachContainer(id: string, input: InvestigateData): Promise<Cont
 	const container = fromSandbox(getSandbox(workerEnv.Sandbox, id));
 	const repo = readRepoContext(workerEnv);
 	if (!repo) throw new Error("repository context is not configured");
-	const branch = cloneRef(input);
+	const ref = cloneRef(input);
 	// Diagnose mode is investigation-only: no push capability enters the
 	// container, so a fix push is impossible rather than merely instructed against.
 	const pushCapability =
@@ -363,16 +369,20 @@ async function attachContainer(id: string, input: InvestigateData): Promise<Cont
 					repo.repo,
 					input.issueNumber,
 				);
+	// Fetch the target ref and detach onto FETCH_HEAD. This resolves a branch,
+	// a tag, or a bare commit SHA the same way, so an eval run pinned to a
+	// fixing PR's pre-fix commit checks out just like a normal branch run.
 	const steps: Array<{ command: string; timeoutMs?: number }> = [
 		{ command: 'git config --global user.email "emdashbot[bot]@users.noreply.github.com"' },
 		{ command: 'git config --global user.name "emdashbot[bot]"' },
 		{ command: "mkdir -p /workspace" },
 		{
-			command: `if [ -d ${REPO_DIR}/.git ]; then cd ${REPO_DIR} && git fetch --all --prune; else git clone --depth ${CLONE_DEPTH} --branch '${branch}' '${cloneUrl()}' ${REPO_DIR}; fi`,
+			command: `if [ ! -d ${REPO_DIR}/.git ]; then git clone --depth ${CLONE_DEPTH} '${cloneUrl()}' ${REPO_DIR}; fi`,
 			timeoutMs: 5 * 60_000,
 		},
 		{
-			command: `cd ${REPO_DIR} && git checkout '${branch}' && git reset --hard 'origin/${branch}'`,
+			command: `cd ${REPO_DIR} && git fetch --depth ${CLONE_DEPTH} origin '${ref}' && git checkout --detach FETCH_HEAD`,
+			timeoutMs: 5 * 60_000,
 		},
 		...(pushCapability
 			? [
@@ -401,6 +411,7 @@ function cloneUrl(): string {
 }
 
 function cloneRef(input: InvestigateData): string {
+	if (input.baseRef) return input.baseRef;
 	return input.mode === "revise" ? `bot/fix-${input.issueNumber}` : "main";
 }
 

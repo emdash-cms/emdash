@@ -103,6 +103,8 @@ export interface ContainerBackend {
 export const ISOLATE_SHELL_BACKEND = "worker-shell";
 
 const PATH_SEPARATOR = /[/\\]/;
+/** A full git commit SHA -- clone targets that need fetch-then-detach, not `--branch`. */
+const COMMIT_SHA = /^[0-9a-f]{40}$/i;
 
 export interface ExecEnvOptions {
 	readonly isolate: IsolateBackend;
@@ -131,15 +133,40 @@ export class ExecEnv {
 	 * Clone the repo into the VFS for isolate inspection and edit tracking.
 	 * Runs through the worker-shell `git` command, which the DO's in-VFS
 	 * isomorphic-git services -- no auth, since the repo is public.
+	 *
+	 * A branch/tag `ref` is a `--branch` clone target. A full commit SHA cannot
+	 * be a `--branch` target and won't be in the default shallow history, so it
+	 * is fetched explicitly and checked out detached -- the path the eval harness
+	 * uses to stand the investigation up at a fixing PR's pre-fix commit.
 	 */
 	async cloneRepo(options: CloneOptions): Promise<void> {
 		if (await this.#hasUsableClone(options.dir)) return;
-		const args = ["git", "clone", "--depth", String(options.depth ?? 50)];
-		if (options.ref) args.push("--branch", options.ref);
+		const depth = options.depth ?? 50;
+		const ref = options.ref;
+		const bySha = ref !== undefined && COMMIT_SHA.test(ref);
+		const args = ["git", "clone", "--depth", String(depth)];
+		if (ref !== undefined && !bySha) args.push("--branch", ref);
 		args.push(quote(options.url), quote(options.dir));
-		const result = await this.exec(args.join(" "), { target: "isolate" });
-		if (result.exitCode !== 0) {
-			throw new Error(`git clone failed (${result.exitCode}): ${result.stderr.slice(-500)}`);
+		const cloned = await this.exec(args.join(" "), { target: "isolate" });
+		if (cloned.exitCode !== 0) {
+			throw new Error(`git clone failed (${cloned.exitCode}): ${cloned.stderr.slice(-500)}`);
+		}
+		if (!bySha || ref === undefined) return;
+		const fetched = await this.exec(`git fetch --depth ${depth} origin ${quote(ref)}`, {
+			target: "isolate",
+			cwd: options.dir,
+		});
+		if (fetched.exitCode !== 0) {
+			throw new Error(
+				`git fetch ${ref} failed (${fetched.exitCode}): ${fetched.stderr.slice(-500)}`,
+			);
+		}
+		const checked = await this.exec(`git checkout --detach ${quote(ref)}`, {
+			target: "isolate",
+			cwd: options.dir,
+		});
+		if (checked.exitCode !== 0) {
+			throw new Error(`git checkout failed (${checked.exitCode}): ${checked.stderr.slice(-500)}`);
 		}
 	}
 
