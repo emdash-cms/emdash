@@ -220,9 +220,10 @@ function buildCodeToolDescription(): string {
 	].join("\n");
 }
 
-// Temporary R2 diagnostics (2026-08-08 review-stall incident). Wrapped once and
-// cached per underlying bucket: Workspace fingerprints construction options per
-// storage, so every construction site must receive the identical instance.
+// R2 operations log start/end so a stalled call is visible as an unmatched
+// start line. Wrapped once and cached per underlying bucket: Workspace
+// fingerprints construction options per storage, so every construction site
+// must receive the identical instance.
 const instrumentedBuckets = new WeakMap<R2Bucket, R2Bucket>();
 let r2OpSeq = 0;
 function instrumentR2(bucket: R2Bucket): R2Bucket {
