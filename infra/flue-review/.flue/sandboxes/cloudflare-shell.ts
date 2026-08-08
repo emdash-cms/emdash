@@ -237,9 +237,7 @@ function instrumentR2(bucket: R2Bucket): R2Bucket {
 			try {
 				// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 				const result = await (bucket as unknown as Record<string, Function>)[method](...args);
-				console.log(
-					JSON.stringify({ message: "r2 op end", id, method, key, ms: Date.now() - t0 }),
-				);
+				console.log(JSON.stringify({ message: "r2 op end", id, method, key, ms: Date.now() - t0 }));
 				return result;
 			} catch (error) {
 				console.error(
