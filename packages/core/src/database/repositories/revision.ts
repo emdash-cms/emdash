@@ -1,7 +1,8 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { monotonicFactory } from "ulidx";
 
 import type { Database, RevisionTable } from "../types.js";
+import { validateIdentifier } from "../validate.js";
 
 const monotonic = monotonicFactory();
 
@@ -139,6 +140,8 @@ export class RevisionRepository {
 	 * Delete old revisions, keeping the most recent N
 	 */
 	async pruneOldRevisions(collection: string, entryId: string, keepCount: number): Promise<number> {
+		validateIdentifier(collection, "collection");
+		const tableName = `ec_${collection}`;
 		// Get IDs of revisions to keep
 		const keep = await this.db
 			.selectFrom("revisions")
@@ -154,27 +157,40 @@ export class RevisionRepository {
 
 		if (keepIds.length === 0) return 0;
 
-		// Delete everything else for this entry
-		const result = await this.db
-			.deleteFrom("revisions")
-			.where("collection", "=", collection)
-			.where("entry_id", "=", entryId)
-			.where("id", "not in", keepIds)
-			.executeTakeFirst();
+		const result = await sql`
+			DELETE FROM revisions
+			WHERE collection = ${collection}
+			AND entry_id = ${entryId}
+			AND id NOT IN (${sql.join(keepIds.map((id) => sql`${id}`))})
+			AND NOT EXISTS (
+				SELECT 1 FROM ${sql.ref(tableName)} AS content
+				WHERE content.live_revision_id = revisions.id
+				OR content.draft_revision_id = revisions.id
+			)
+		`.execute(this.db);
 
-		return Number(result.numDeletedRows ?? 0);
+		return Number(result.numAffectedRows ?? 0);
 	}
 
-	/**
-	 * Update revision data in place
-	 * Used for autosave to avoid creating many small revisions.
-	 */
-	async updateData(id: string, data: Record<string, unknown>): Promise<void> {
-		await this.db
-			.updateTable("revisions")
-			.set({ data: JSON.stringify(data) })
-			.where("id", "=", id)
-			.execute();
+	async deleteIfUnreferenced(
+		collection: string,
+		entryId: string,
+		revisionId: string,
+	): Promise<boolean> {
+		validateIdentifier(collection, "collection");
+		const tableName = `ec_${collection}`;
+		const result = await sql`
+			DELETE FROM revisions
+			WHERE id = ${revisionId}
+			AND collection = ${collection}
+			AND entry_id = ${entryId}
+			AND NOT EXISTS (
+				SELECT 1 FROM ${sql.ref(tableName)} AS content
+				WHERE content.live_revision_id = revisions.id
+				OR content.draft_revision_id = revisions.id
+			)
+		`.execute(this.db);
+		return (result.numAffectedRows ?? 0n) > 0n;
 	}
 
 	/**

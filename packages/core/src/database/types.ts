@@ -81,6 +81,15 @@ export interface MediaTable {
 	author_id: string | null;
 }
 
+export interface MediaUploadAttemptTable {
+	storage_key: string;
+	// No foreign key: this row must survive media deletion until storage cleanup succeeds.
+	media_id: string;
+	status: string; // 'active' | 'cleanup'
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
 export interface MediaUsageSourceTable {
 	source_key: string;
 	source_type: string;
@@ -293,7 +302,7 @@ export interface CollectionTable {
 	icon: string | null;
 	supports: string | null; // JSON array
 	source: string | null;
-	search_config: string | null; // JSON: { enabled: boolean, weights: Record<string, number> }
+	search_config: string | null; // JSON: SearchConfig
 	has_seo: number; // 0 or 1 — opt-in SEO fields for this collection
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")
 	comments_enabled: Generated<number>; // 0 or 1
@@ -495,6 +504,7 @@ export interface Database {
 	content_taxonomies: ContentTaxonomyTable;
 	_emdash_taxonomy_defs: TaxonomyDefTable;
 	media: MediaTable;
+	_emdash_media_upload_attempts: MediaUploadAttemptTable;
 	_emdash_media_usage_sources: MediaUsageSourceTable;
 	_emdash_media_usage: MediaUsageTable;
 	_emdash_media_usage_index_status: MediaUsageIndexStatusTable;

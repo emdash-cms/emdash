@@ -37,8 +37,10 @@ export function ContentTypeList({
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">{t`Content Types`}</h1>
-					<p className="text-kumo-subtle text-sm">{t`Define the structure of your content`}</p>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Content Types`}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+						{t`Define the structure of your content`}
+					</p>
 				</div>
 				<RouterLinkButton to="/content-types/new" icon={<Plus />}>
 					{t`New Content Type`}
@@ -118,7 +120,7 @@ export function ContentTypeList({
 							<tr>
 								<td colSpan={5} className="px-4 py-8 text-center text-kumo-subtle">
 									{t`No content types yet.`}{" "}
-									<Link to="/content-types/new" className="text-kumo-brand underline">
+									<Link to="/content-types/new" className="text-kumo-link underline">
 										{t`Create your first one`}
 									</Link>
 								</td>
@@ -185,7 +187,7 @@ function ContentTypeRow({ collection, onRequestDelete }: ContentTypeRowProps) {
 						<Link
 							to="/content-types/$slug"
 							params={{ slug: collection.slug }}
-							className="font-medium hover:text-kumo-brand"
+							className="font-medium hover:text-kumo-link"
 						>
 							{collection.label}
 						</Link>

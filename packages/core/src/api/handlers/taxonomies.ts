@@ -50,7 +50,8 @@ export interface TermData {
 }
 
 export interface TermWithCount extends TermData {
-	count: number;
+	/** Absent when the caller opted out of counts (`includeCounts: false`). */
+	count?: number;
 	children: TermWithCount[];
 }
 
@@ -384,7 +385,7 @@ export async function handleTaxonomyDefTranslations(
 export async function handleTermList(
 	db: Kysely<Database>,
 	taxonomyName: string,
-	options: { locale?: string } = {},
+	options: { locale?: string; includeCounts?: boolean } = {},
 ): Promise<ApiResult<TermListResponse>> {
 	try {
 		// Definitions are per-locale but terms aren't bound to the def's locale —
@@ -401,11 +402,10 @@ export async function handleTermList(
 		// taxonomy's declared collections — one query for the whole list.
 		// content_taxonomies.taxonomy_id stores the translation_group, so we
 		// look up by group and map back to each term's id.
-		const countsByGroup = await fetchVisibleTermCounts(
-			db,
-			taxonomyName,
-			defCollections(lookup.def),
-		);
+		const includeCounts = options.includeCounts ?? true;
+		const countsByGroup = includeCounts
+			? await fetchVisibleTermCounts(db, taxonomyName, defCollections(lookup.def))
+			: undefined;
 
 		const termData: TermWithCount[] = terms.map((term) => ({
 			id: term.id,
@@ -415,7 +415,7 @@ export async function handleTermList(
 			parentId: term.parentId,
 			description: typeof term.data?.description === "string" ? term.data.description : undefined,
 			children: [],
-			count: countsByGroup.get(term.translationGroup ?? term.id) ?? 0,
+			...(countsByGroup && { count: countsByGroup.get(term.translationGroup ?? term.id) ?? 0 }),
 			locale: term.locale,
 			translationGroup: term.translationGroup,
 		}));
@@ -423,7 +423,8 @@ export async function handleTermList(
 		const isHierarchical = lookup.def.hierarchical === 1;
 		const result = isHierarchical ? buildTree(termData) : termData;
 		return { success: true, data: { terms: result } };
-	} catch {
+	} catch (error) {
+		console.error("[taxonomies] term list failed:", error);
 		return {
 			success: false,
 			error: { code: "TERM_LIST_ERROR", message: "Failed to list terms" },

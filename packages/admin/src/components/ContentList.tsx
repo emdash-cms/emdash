@@ -22,6 +22,7 @@ import {
 	CaretUp,
 	CaretDown,
 	CaretUpDown,
+	Upload,
 	X,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
@@ -32,6 +33,11 @@ import { useDebouncedValue } from "../lib/hooks.js";
 import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
+import {
+	ContentStatusBadge,
+	ContentStatusLabel,
+	isContentStatusState,
+} from "./ContentStatusBadge.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
@@ -322,7 +328,7 @@ export function ContentList({
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-4">
-					<h1 className="text-2xl font-bold">{collectionLabel}</h1>
+					<h1 className="text-2xl font-semibold leading-tight">{collectionLabel}</h1>
 					{i18n && activeLocale && onLocaleChange && (
 						<LocaleSwitcher
 							locales={i18n.locales}
@@ -411,6 +417,7 @@ export function ContentList({
 										variant="secondary"
 										disabled={bulkBusy}
 										onClick={() => runBulk(onBulkPublish)}
+										icon={<Upload />}
 									>
 										{t`Publish`}
 									</Button>
@@ -551,7 +558,7 @@ export function ContentList({
 														to="/content/$collection/new"
 														params={{ collection }}
 														search={{ locale: activeLocale }}
-														className="text-kumo-brand underline"
+														className="text-kumo-link underline"
 													>
 														{t`Create your first one`}
 													</Link>
@@ -724,13 +731,15 @@ function FilterBar({
 	const showAuthorFilter = !!onAuthorFilterChange && !!authors && authors.length > 0;
 	const showDateFilter = !!onDateFilterChange;
 
-	const statusItems: Record<string, string> = {
+	const statusItems: Record<ContentStatusFilter, string> = {
 		all: t`All statuses`,
-		published: t`Published`,
+		published: t`Publish`,
 		draft: t`Draft`,
 		scheduled: t`Scheduled`,
 		archived: t`Archived`,
 	};
+	const renderStatusLabel = (value: ContentStatusFilter) =>
+		value === "all" ? statusItems.all : <ContentStatusLabel state={value} />;
 
 	const dateFieldItems: Record<string, string> = {
 		createdAt: t`Created`,
@@ -754,11 +763,14 @@ function FilterBar({
 				aria-label={t`Filter by status`}
 				value={statusFilter}
 				onValueChange={(v) => onStatusFilterChange((v as ContentStatusFilter) ?? "all")}
+				renderValue={(v) =>
+					renderStatusLabel(typeof v === "string" && Object.hasOwn(statusItems, v) ? v : "all")
+				}
 				items={statusItems}
 			>
-				{Object.entries(statusItems).map(([value, label]) => (
+				{Object.entries(statusItems).map(([value]) => (
 					<Select.Option key={value} value={value}>
-						{label}
+						{renderStatusLabel(value as ContentStatusFilter)}
 					</Select.Option>
 				))}
 			</Select>
@@ -883,7 +895,7 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 				type="button"
 				onClick={handleClick}
 				className={cn(
-					"inline-flex items-center gap-1 rounded text-kumo-default hover:text-kumo-brand",
+					"inline-flex items-center gap-1 rounded text-kumo-default hover:text-kumo-link",
 					"focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand",
 				)}
 			>
@@ -979,7 +991,7 @@ function ContentListItem({
 					to="/content/$collection/$id"
 					params={{ collection, id: item.id }}
 					search={{ locale: item.locale }}
-					className="font-medium hover:text-kumo-brand"
+					className="font-medium hover:text-kumo-link"
 				>
 					{title}
 				</Link>
@@ -1096,7 +1108,7 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 						aria-label={t`Restore ${title}`}
 						onClick={() => onRestore?.(item.id)}
 					>
-						<ArrowCounterClockwise className="h-4 w-4 text-kumo-brand" aria-hidden="true" />
+						<ArrowCounterClockwise className="h-4 w-4 text-kumo-link" aria-hidden="true" />
 					</Button>
 					<Dialog.Root disablePointerDismissal>
 						<Dialog.Trigger
@@ -1153,36 +1165,12 @@ function StatusBadge({
 	status: string;
 	hasPendingChanges?: boolean;
 }) {
-	const { t } = useLingui();
-
-	const statusLabel =
-		status === "published"
-			? t`published`
-			: status === "draft"
-				? t`draft`
-				: status === "scheduled"
-					? t`scheduled`
-					: status === "archived"
-						? t`archived`
-						: status;
+	const state = isContentStatusState(status) ? status : undefined;
 
 	return (
 		<span className="inline-flex items-center gap-1.5">
-			<span
-				className={cn(
-					"inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
-					status === "published" &&
-						"bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-					status === "draft" &&
-						"bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-					status === "scheduled" &&
-						"bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-					status === "archived" && "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-				)}
-			>
-				{statusLabel}
-			</span>
-			{hasPendingChanges && <Badge variant="secondary">{t`pending`}</Badge>}
+			{state ? <ContentStatusBadge state={state} /> : <Badge variant="neutral">{status}</Badge>}
+			{hasPendingChanges && <ContentStatusBadge state="pendingChanges" />}
 		</span>
 	);
 }

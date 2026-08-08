@@ -485,7 +485,7 @@ describe("Bubble Menu", () => {
 		expect(beforeIcon?.getAttribute("class")).toContain("rtl:-scale-x-100");
 	});
 
-	it("shows formatting buttons: Bold, Italic, Underline, Strikethrough, Code", async () => {
+	it("shows inline formatting buttons", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusAndSelectAll(editor, pm);
 
@@ -495,6 +495,8 @@ describe("Bubble Menu", () => {
 		expect(getBubbleButton(menu, "Italic")).toBeTruthy();
 		expect(getBubbleButton(menu, "Underline")).toBeTruthy();
 		expect(getBubbleButton(menu, "Strikethrough")).toBeTruthy();
+		expect(getBubbleButton(menu, "Subscript")).toBeTruthy();
+		expect(getBubbleButton(menu, "Superscript")).toBeTruthy();
 		expect(getBubbleButton(menu, "Code")).toBeTruthy();
 	});
 

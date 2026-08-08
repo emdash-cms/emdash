@@ -55,6 +55,21 @@ export const updateTermBody = z
 	})
 	.meta({ id: "UpdateTermBody" });
 
+export const termListQuery = z
+	.object({
+		locale: localeCode.optional(),
+		includeCounts: z
+			.enum(["true", "false"])
+			.transform((v) => v === "true")
+			.optional()
+			.default(true)
+			.meta({
+				description:
+					"Include each term's visible-usage count. Pass false to skip the aggregate; `count` is then absent from every term.",
+			}),
+	})
+	.meta({ id: "TermListQuery" });
+
 // ---------------------------------------------------------------------------
 // Taxonomies: Response schemas
 // ---------------------------------------------------------------------------
@@ -125,7 +140,7 @@ export const termWithCountSchema: z.ZodType = z
 		label: z.string(),
 		parentId: z.string().nullable(),
 		description: z.string().optional(),
-		count: z.number().int(),
+		count: z.number().int().optional(),
 		children: z.array(z.lazy(() => termWithCountSchema)),
 		locale: z.string(),
 		translationGroup: z.string().nullable(),

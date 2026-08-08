@@ -525,7 +525,20 @@ export const CacheNamespace = {
 
 /** Namespace for a content collection's cached queries. */
 export function contentNamespace(collection: string): string {
+	return `content:v2:${collection}`;
+}
+
+function legacyContentNamespace(collection: string): string {
 	return `content:${collection}`;
+}
+
+/**
+ * Content epochs carried by current cache entries. The legacy epoch keeps
+ * invalidation compatible with publishers from the previous release during a
+ * rolling deployment; the versioned epoch makes old cached values unreachable.
+ */
+export function contentCacheNamespaces(collection: string): readonly string[] {
+	return [contentNamespace(collection), legacyContentNamespace(collection)];
 }
 
 /**
@@ -533,7 +546,7 @@ export function contentNamespace(collection: string): string {
  * byline/taxonomy data folded into each entry.
  */
 export function contentNamespaces(collection: string): readonly string[] {
-	return [contentNamespace(collection), CacheNamespace.BYLINES, CacheNamespace.TAXONOMIES];
+	return [...contentCacheNamespaces(collection), CacheNamespace.BYLINES, CacheNamespace.TAXONOMIES];
 }
 
 /**
@@ -541,7 +554,9 @@ export function contentNamespaces(collection: string): readonly string[] {
  * Call from every write path that mutates rows in `ec_<collection>`.
  */
 export function invalidateCollectionCache(collection: string): void {
-	invalidateObjectCache(contentNamespace(collection));
+	for (const namespace of contentCacheNamespaces(collection)) {
+		invalidateObjectCache(namespace);
+	}
 }
 
 /** Invalidate cached taxonomy definitions/terms and all content that hydrates them. */

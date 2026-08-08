@@ -80,7 +80,7 @@ export function TranslationsPanel({
 								{locale === defaultLocale && (
 									<span className="text-[10px] text-kumo-subtle">{t` (default)`}</span>
 								)}
-								{isCurrent && <span className="text-[10px] text-kumo-brand">{t`current`}</span>}
+								{isCurrent && <span className="text-[10px] text-kumo-link">{t`current`}</span>}
 							</div>
 							{isCurrent ? null : translation && onOpen ? (
 								<Button

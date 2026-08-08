@@ -1,24 +1,30 @@
 /**
  * Visible term counts (#581): term usage counts must reflect only entries
- * that are currently visible on the public site — published or
- * scheduled-and-due, not soft-deleted — across every count path (public
+ * that are currently visible on the public site — committed published rows,
+ * not scheduled or soft-deleted — across every count path (public
  * widget, single-term page, admin term list/get), scoped to the taxonomy's
  * declared collections.
  */
 
+import type { Kysely } from "kysely";
 import { sql } from "kysely";
 import { ulid } from "ulidx";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { handleTermGet, handleTermList } from "../../../src/api/handlers/taxonomies.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
+import type { Database as DatabaseSchema } from "../../../src/database/types.js";
 import { runWithContext } from "../../../src/request-context.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { fetchVisibleTermCounts } from "../../../src/taxonomies/term-counts.js";
 import {
+	D1_COMPOUND_SELECT_LIMIT,
 	describeEachDialect,
 	setupForDialectWithCollections,
+	setupTestDatabaseWithCompoundSelectLimit,
 	teardownForDialect,
+	teardownTestDatabase,
 	type DialectTestContext,
 } from "../../utils/test-db.js";
 
@@ -115,32 +121,30 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 			await taxRepo.attachToEntry("post", entry.id, term.id);
 		}
 
-		// Published + scheduled-and-due are visible; draft, scheduled-future,
-		// and soft-deleted are not. The scheduled-and-due case proves the count
-		// computes visibility (buildStatusCondition) rather than comparing the
-		// literal status value.
+		// Only the committed published row is visible. Elapsed scheduling makes
+		// a row eligible for promotion but does not expose it.
 		const group = term.translationGroup ?? term.id;
 		const counts = await fetchVisibleTermCounts(ctx.db, "category", ["post"]);
-		expect(counts.get(group)).toBe(2);
+		expect(counts.get(group)).toBe(1);
 
 		// Public widget (getTaxonomyTerms).
 		const widgetTerms = await getTaxonomyTerms("category");
 		expect(widgetTerms).toHaveLength(1);
-		expect(widgetTerms[0]!.count).toBe(2);
+		expect(widgetTerms[0]!.count).toBe(1);
 
 		// Public single-term page (getTerm).
 		const termPage = await getTerm("category", "tech");
-		expect(termPage?.count).toBe(2);
+		expect(termPage?.count).toBe(1);
 
 		// Admin term list.
 		const list = await handleTermList(ctx.db, "category");
 		if (!list.success) throw new Error(list.error.message);
-		expect(list.data.terms[0]!.count).toBe(2);
+		expect(list.data.terms[0]!.count).toBe(1);
 
 		// Admin single-term get.
 		const get = await handleTermGet(ctx.db, "category", "tech");
 		if (!get.success) throw new Error(get.error.message);
-		expect(get.data.term.count).toBe(2);
+		expect(get.data.term.count).toBe(1);
 	});
 
 	it("aggregates across the taxonomy's declared collections in one map", async () => {
@@ -323,5 +327,103 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 
 		const counts = await fetchVisibleTermCounts(ctx.db, "empty_tax", []);
 		expect(counts.size).toBe(0);
+	});
+});
+
+describe("visible term counts past the compound-SELECT ceiling", () => {
+	let db: Kysely<DatabaseSchema>;
+	let statements: string[];
+
+	/** Back the test by a database that declares `limit` (null: no ceiling). */
+	async function useDatabase(limit: number | null): Promise<void> {
+		({ db, statements } = await setupTestDatabaseWithCompoundSelectLimit(limit));
+	}
+
+	/** How many statements the count query took; its subquery alias is unique to it. */
+	function countStatements(): number {
+		return statements.filter((source) => source.includes("per_collection")).length;
+	}
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	/**
+	 * Declare `collections` on a taxonomy, create a table and one published,
+	 * term-tagged entry for each of `existing`, and return the term.
+	 */
+	async function seedTaxonomy(collections: string[], existing: string[]) {
+		const registry = new SchemaRegistry(db);
+		const contentRepo = new ContentRepository(db);
+		const taxRepo = new TaxonomyRepository(db);
+
+		for (const slug of existing) {
+			await registry.createCollection({ slug, label: slug, labelSingular: slug });
+			await registry.createField(slug, { slug: "title", label: "Title", type: "string" });
+		}
+
+		const defId = ulid();
+		await db
+			.insertInto("_emdash_taxonomy_defs")
+			.values({
+				id: defId,
+				name: "topic",
+				label: "Topics",
+				label_singular: null,
+				hierarchical: 0,
+				collections: JSON.stringify(collections),
+				locale: "en",
+				translation_group: defId,
+			})
+			.execute();
+
+		const term = await taxRepo.create({ name: "topic", slug: "science", label: "Science" });
+		for (const slug of existing) {
+			const entry = await contentRepo.create({
+				type: slug,
+				slug: `${slug}-entry`,
+				status: "published",
+				data: { title: slug },
+			});
+			await taxRepo.attachToEntry(slug, entry.id, term.id);
+		}
+		return term;
+	}
+
+	function collectionSlugs(count: number): string[] {
+		return Array.from({ length: count }, (_, i) => `coll_${String(i)}`);
+	}
+
+	it("aggregates every declared collection when there are more than one statement can carry", async () => {
+		await useDatabase(D1_COMPOUND_SELECT_LIMIT);
+		const slugs = collectionSlugs(D1_COMPOUND_SELECT_LIMIT + 1);
+		const term = await seedTaxonomy(slugs, slugs);
+
+		const counts = await fetchVisibleTermCounts(db, "topic", slugs);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(slugs.length);
+		expect(countStatements()).toBe(2);
+
+		const list = await handleTermList(db, "topic");
+		if (!list.success) throw new Error(list.error.code);
+		expect(list.data.terms[0]!.count).toBe(slugs.length);
+	});
+
+	it("still skips a missing ec_* table when it falls beyond the first batch", async () => {
+		await useDatabase(D1_COMPOUND_SELECT_LIMIT);
+		const existing = collectionSlugs(D1_COMPOUND_SELECT_LIMIT);
+		const term = await seedTaxonomy([...existing, "ghost"], existing);
+
+		const counts = await fetchVisibleTermCounts(db, "topic", [...existing, "ghost"]);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(existing.length);
+	});
+
+	it("takes a single statement on a backend that declares no ceiling", async () => {
+		await useDatabase(null);
+		const slugs = collectionSlugs(D1_COMPOUND_SELECT_LIMIT + 1);
+		const term = await seedTaxonomy(slugs, slugs);
+
+		const counts = await fetchVisibleTermCounts(db, "topic", slugs);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(slugs.length);
+		expect(countStatements()).toBe(1);
 	});
 });
