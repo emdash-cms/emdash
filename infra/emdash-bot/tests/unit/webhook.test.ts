@@ -219,6 +219,30 @@ describe("normalizeWebhook", () => {
 			const r = normalizeWebhook({ eventType: "issues", payload });
 			expect(r.kind).toBe("skip");
 		});
+
+		test("closed reaps the fix-loop branches for that issue", () => {
+			const payload: IssuesEvent = {
+				action: "closed",
+				issue: { number: 7, user: { login: "alice" } },
+				sender: { login: "alice" },
+			};
+			const r = normalizeWebhook({ eventType: "issues", payload });
+			expect(r.kind).toBe("cleanup");
+			if (r.kind === "cleanup") {
+				expect(r.anchor).toBe("issue-7");
+				expect(r.anchorNumber).toBe(7);
+			}
+		});
+
+		test("closed on a PR-as-issue is skipped (handled by pull_request)", () => {
+			const payload: IssuesEvent = {
+				action: "closed",
+				issue: { number: 7, user: { login: "alice" }, pull_request: {} },
+				sender: { login: "alice" },
+			};
+			const r = normalizeWebhook({ eventType: "issues", payload });
+			expect(r.kind).toBe("skip");
+		});
 	});
 
 	describe("pull_request", () => {

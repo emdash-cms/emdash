@@ -240,6 +240,24 @@ describe("POST /webhook/github (workers-pool)", () => {
 		expect(secondJson.admission.kind).toBe("duplicate");
 	});
 
+	test("issues.closed drives the branch-cleanup path", async () => {
+		const issueNumber = uniqueIssueNumber();
+		const res = await postWebhook({
+			eventType: "issues",
+			delivery: `close-${issueNumber}`,
+			payload: {
+				action: "closed",
+				issue: { number: issueNumber, user: { login: "alice" } },
+				sender: { login: "alice" },
+			},
+		});
+		expect(res.status).toBe(202);
+		const json = (await res.json()) as { anchor: string; cleanup: { kind: string } };
+		expect(json.anchor).toBe(`issue-${issueNumber}`);
+		// No live private key in the test pool, so the reap no-ops but the path runs.
+		expect(json.cleanup.kind).toBe("skipped");
+	});
+
 	test("invalid JSON returns 400", async () => {
 		const body = "{this is not json";
 		const signature = await sign(body);

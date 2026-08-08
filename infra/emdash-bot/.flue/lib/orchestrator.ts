@@ -9,7 +9,14 @@ import { DurableObject } from "cloudflare:workers";
 
 import { Investigate } from "../agents/investigate.js";
 import { classifyComment, type ClassifyResult } from "./classifier-client.js";
-import { renderAgentComment, renderReadonlyReply, shouldPostReadonlyReply } from "./comments.js";
+import {
+	type PreviewScreenshot,
+	renderAgentComment,
+	renderDraftPrBody,
+	renderPreviewReadyAsk,
+	renderReadonlyReply,
+	shouldPostReadonlyReply,
+} from "./comments.js";
 import {
 	addLabels,
 	closePullRequest,
@@ -25,8 +32,10 @@ import {
 	readAppCreds,
 	readRepoContext,
 	removeLabels,
+	type RepoContext,
 } from "./github.js";
 import { STATES, type EventId, type Kind, type StateId } from "./machine.js";
+import { branchesToReap, previewUrl, probePreviewReady } from "./preview.js";
 import {
 	currentState,
 	type Decision,
@@ -98,6 +107,20 @@ export interface NormalizedEvent {
 	readonly dryRun?: boolean;
 	/** Agent's structured summary, surfaced in the post-run comment. */
 	readonly agentSummary?: string;
+	/** Reproduction screenshots the fix run pushed, carried into the ask comment. */
+	readonly agentScreenshots?: readonly PreviewScreenshot[];
+	/**
+	 * Precomposed comment body that replaces the default `renderComment` output
+	 * for this transition. Used for the preview-ready ask, whose body needs data
+	 * (install URL, screenshots, reporter login) the generic renderer lacks.
+	 */
+	readonly commentBodyOverride?: string;
+	/**
+	 * Post the comment BEFORE flipping labels for this transition. The fix-loop
+	 * ask must land first: a failed comment post must not leave the issue labeled
+	 * awaiting-reporter with no ask for the reporter to act on.
+	 */
+	readonly commentFirst?: boolean;
 	/** Internal callback metadata: this event's projection completes the run. */
 	readonly settlesRunId?: string;
 }
@@ -111,6 +134,7 @@ export interface AgentResult {
 	readonly reproduced?: boolean;
 	readonly fixed?: boolean;
 	readonly verdict?: string;
+	readonly screenshots?: readonly PreviewScreenshot[];
 	readonly [key: string]: unknown;
 }
 
@@ -171,12 +195,22 @@ const STORAGE = {
 	pendingDispatch: "o:pendingDispatch",
 	pendingSideEffects: "o:pendingSideEffects",
 	awaitingReporterSince: "o:awaitingReporterSince",
+	previewBuildDeadline: "o:previewBuildDeadline",
+	previewPollNextAt: "o:previewPollNextAt",
+	previewNotes: "o:previewNotes",
+	previewScreenshots: "o:previewScreenshots",
 } as const;
 
 const TICK_INTERVAL_MS = 60 * 60 * 1000;
 /** Reporter-confirmation window for the fix loop. After this, the alarm fires
  * `expire`, which reaps the candidate branch and falls back to `reproduced`. */
 const REPORTER_SILENCE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+/** Overall budget for a candidate preview to publish on pkg.pr.new before we
+ * give up and fire `preview.failed`. Publishing normally lands within ~60s. */
+const PREVIEW_BUILD_TIMEOUT_MS = 10 * 60 * 1000;
+/** First poll waits for the push→publish lag; later polls back off to this. */
+const PREVIEW_POLL_INITIAL_MS = 45 * 1000;
+const PREVIEW_POLL_INTERVAL_MS = 30 * 1000;
 const STALE_RUN_THRESHOLD_MS = 30 * 60 * 1000;
 const DISPATCH_TIMEOUT_MS = 30_000;
 const INBOX_RETRY_MS = 60_000;
@@ -216,6 +250,8 @@ interface PendingSideEffect {
 	readonly commentBody: string;
 	readonly commentMarker: string;
 	readonly commentMayExist: boolean;
+	/** Post the comment before flipping labels (fix-loop ask ordering). */
+	readonly commentFirst?: boolean;
 }
 
 /** Bounded delivery-id dedupe window. */
@@ -410,6 +446,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const labels = await this.projectLabels();
 		const agentSummary =
 			typeof input.result?.summary === "string" ? input.result.summary : undefined;
+		const agentScreenshots = Array.isArray(input.result?.screenshots)
+			? input.result.screenshots
+			: undefined;
 		const outcome = await this.processEvent({
 			event,
 			arg: null,
@@ -418,9 +457,30 @@ export class OrchestratorDO extends DurableObject<Env> {
 			needsClassify: false,
 			settlesRunId: input.runId,
 			...(agentSummary ? { agentSummary } : {}),
+			...(agentScreenshots ? { agentScreenshots } : {}),
 		});
 		await this.clearRun(input.runId);
 		return outcome;
+	}
+
+	/**
+	 * Reap the fix loop's branches when the anchoring issue closes. Mirrors
+	 * bot-cleanup.yml's close path: always delete bot/artifacts-<n>, delete
+	 * bot/fix-<n> only when no open PR references it. Does not touch machine
+	 * state -- a closed issue may legitimately keep its in_review/PR state, and
+	 * the branches are a projection we clean up regardless.
+	 */
+	cleanupOnClose(anchorNumber: number): Promise<CleanupOutcome> {
+		return this.runExclusive(() => this.processCleanupOnClose(anchorNumber));
+	}
+
+	private async processCleanupOnClose(anchorNumber: number): Promise<CleanupOutcome> {
+		await this.ctx.storage.put(STORAGE.anchorNumber, anchorNumber);
+		const creds = readAppCreds(this.env);
+		const repo = readRepoContext(this.env);
+		if (!creds || !repo) return { kind: "skipped", reason: "credentials or repository missing" };
+		const error = await this.runReapBranch(creds, repo, anchorNumber);
+		return error ? { kind: "error", error } : { kind: "reaped" };
 	}
 
 	/**
@@ -467,6 +527,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 			recoveryError ??= message;
 			console.error("[orchestrator] reporter-wait expiry failed", { error: message });
 		}
+		let previewPoll: PreviewPollOutcome = "idle";
+		try {
+			previewPoll = await this.pollPreviewBuild(now);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			recoveryError ??= message;
+			console.error("[orchestrator] preview poll failed", { error: message });
+		}
 		const labelDrift = await this.reconcileLabels();
 
 		return {
@@ -477,7 +545,99 @@ export class OrchestratorDO extends DurableObject<Env> {
 			recoveryError,
 			labelDrift,
 			expiredReporterWait,
+			previewPoll,
 		};
+	}
+
+	/**
+	 * Poll pkg.pr.new for the candidate fix's preview while the item sits in
+	 * `preview_building`. One probe per alarm tick (the alarm cadence IS the
+	 * poll interval -- no unbounded loop in the DO). A 200 fires `preview.ready`
+	 * and advances to the reporter ask; exhausting the overall budget fires
+	 * `preview.failed`, which retains the branch and falls back to the diagnosis.
+	 */
+	private async pollPreviewBuild(now: number): Promise<PreviewPollOutcome> {
+		const [state, deadline, nextAt] = await Promise.all([
+			this.ctx.storage.get<StateId>(STORAGE.state),
+			this.ctx.storage.get<number>(STORAGE.previewBuildDeadline),
+			this.ctx.storage.get<number>(STORAGE.previewPollNextAt),
+		]);
+		if (state !== "preview_building" || deadline === undefined) return "idle";
+		if (nextAt !== undefined && now < nextAt) return "waiting";
+		const anchorNumber = await this.ctx.storage.get<number>(STORAGE.anchorNumber);
+		if (anchorNumber === undefined) return "idle";
+
+		const ready = await probePreviewReady(previewUrl(anchorNumber));
+		if (ready) {
+			await this.firePreviewReady(anchorNumber);
+			return "ready";
+		}
+		if (now >= deadline) {
+			await this.firePreviewEvent(anchorNumber, "preview.failed");
+			return "failed";
+		}
+		await this.ctx.storage.put(STORAGE.previewPollNextAt, now + PREVIEW_POLL_INTERVAL_MS);
+		return "polling";
+	}
+
+	/**
+	 * Fire `preview.ready`, composing the ask comment first so it can post ahead
+	 * of the label flip. Composition needs the persisted fix notes/screenshots
+	 * and the reporter's login; without live creds (dev/tests) we still advance
+	 * the state, just without a comment.
+	 */
+	private async firePreviewReady(anchorNumber: number): Promise<void> {
+		const labels = await this.projectLabels();
+		const creds = readAppCreds(this.env);
+		const repo = readRepoContext(this.env);
+		let override: string | undefined;
+		if (creds && repo) {
+			const [notes, screenshots] = await Promise.all([
+				this.ctx.storage.get<string>(STORAGE.previewNotes),
+				this.ctx.storage.get<PreviewScreenshot[]>(STORAGE.previewScreenshots),
+			]);
+			let reporterLogin: string | null = null;
+			try {
+				const token = await this.getInstallationToken(creds);
+				reporterLogin = (await getIssue(token, repo, anchorNumber)).authorLogin;
+			} catch (err) {
+				console.error("[orchestrator] preview ask: reporter lookup failed", err);
+			}
+			override = renderPreviewReadyAsk({
+				owner: repo.owner,
+				repo: repo.repo,
+				issueNumber: anchorNumber,
+				at: new Date().toISOString(),
+				notes,
+				...(screenshots ? { screenshots } : {}),
+				reporterLogin,
+			});
+		}
+		await this.processEvent({
+			event: "preview.ready",
+			arg: null,
+			actor: "system",
+			labels,
+			needsClassify: false,
+			...(override ? { commentBodyOverride: override, commentFirst: true } : {}),
+		});
+	}
+
+	private async firePreviewEvent(anchorNumber: number, event: EventId): Promise<void> {
+		const labels = await this.projectLabels();
+		const commentBodyOverride =
+			event === "preview.failed"
+				? `The preview build for the candidate fix didn't publish within ${Math.round(PREVIEW_BUILD_TIMEOUT_MS / 60_000)} minutes. The diagnosis still holds -- a maintainer can \`@emdashbot fix\` to rebuild the candidate.`
+				: undefined;
+		await this.processEvent({
+			event,
+			arg: null,
+			actor: "system",
+			labels,
+			needsClassify: false,
+			anchorNumber,
+			...(commentBodyOverride ? { commentBodyOverride } : {}),
+		});
 	}
 
 	/**
@@ -561,19 +721,25 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	private async armAlarm(): Promise<void> {
-		const [current, runStartedAt, inbox, pendingSideEffects] = await Promise.all([
-			this.ctx.storage.getAlarm(),
-			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
-			this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox),
-			this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects),
-		]);
+		const [current, runStartedAt, inbox, pendingSideEffects, previewPollNextAt] = await Promise.all(
+			[
+				this.ctx.storage.getAlarm(),
+				this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
+				this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox),
+				this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects),
+				this.ctx.storage.get<number>(STORAGE.previewPollNextAt),
+			],
+		);
 		const now = Date.now();
-		const desired =
+		let desired =
 			inbox?.length || pendingSideEffects?.length
 				? now + INBOX_RETRY_MS
 				: runStartedAt
 					? Math.max(now + 1_000, runStartedAt + STALE_RUN_THRESHOLD_MS)
 					: now + TICK_INTERVAL_MS;
+		if (previewPollNextAt !== undefined) {
+			desired = Math.min(desired, Math.max(now + 1_000, previewPollNextAt));
+		}
 		if (current === null || current <= now || current > desired) {
 			await this.ctx.storage.setAlarm(desired);
 		}
@@ -978,7 +1144,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 					headBranch,
 					baseBranch: "main",
 					title: `Fix #${anchorNumber}`,
-					body: `Fixes #${anchorNumber}.\n\nAutomated PR opened by emdashbot.`,
+					body: draft
+						? renderDraftPrBody(anchorNumber)
+						: `Fixes #${anchorNumber}.\n\nAutomated PR opened by emdashbot.`,
 					draft,
 				}));
 			await this.ctx.storage.put(STORAGE.prNumber, created.number);
@@ -988,6 +1156,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 	}
 
+	/**
+	 * Reap the fix loop's bot branches. The artifacts branch is always deleted;
+	 * the fix branch is spared when an open PR references it (deleting the ref
+	 * would silently close that PR). Shared by the reject/expire/decline reap
+	 * edges and the issue-close cleanup path.
+	 */
 	private async runReapBranch(
 		creds: Parameters<typeof mintInstallationToken>[0],
 		repo: Parameters<typeof deleteBranch>[1],
@@ -995,7 +1169,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 	): Promise<string | null> {
 		try {
 			const token = await this.getInstallationToken(creds);
-			await deleteBranch(token, repo, `bot/fix-${anchorNumber}`);
+			const openPr = await getOpenPullRequest(token, repo, `bot/fix-${anchorNumber}`);
+			for (const branch of branchesToReap(anchorNumber, openPr !== null)) {
+				await deleteBranch(token, repo, branch);
+			}
 			return null;
 		} catch (err) {
 			return `reapBranch failed: ${errorMessage(err)}`;
@@ -1048,7 +1225,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 	// ---------------- Side effects (GitHub) ----------------
 
 	private async flushPendingSideEffect(id: string): Promise<void> {
-		let pending = (
+		const pending = (
 			(await this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects)) ?? []
 		).find((effect) => effect.id === id);
 		if (!pending) return;
@@ -1063,33 +1240,63 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 
 		const token = await this.getInstallationToken(creds);
-		await addLabels(token, repo, pending.anchorNumber, pending.addLabels);
-		await removeLabels(token, repo, pending.anchorNumber, pending.removeLabels);
-
-		if (pending.commentBody) {
-			let exists = false;
-			if (pending.commentMayExist) {
-				exists = await hasIssueCommentMarker(
-					token,
-					repo,
-					pending.anchorNumber,
-					pending.commentMarker,
-				);
-			} else {
-				await this.markCommentMayExist(pending.id);
-				pending = { ...pending, commentMayExist: true };
-			}
-			if (!exists) {
-				await postIssueComment(
-					token,
-					repo,
-					pending.anchorNumber,
-					`${pending.commentBody}\n\n${pending.commentMarker}`,
-				);
-			}
+		let current: PendingSideEffect = pending;
+		const applyLabels = () => this.applySideEffectLabels(token, repo, current);
+		const postComment = async () => {
+			current = await this.postSideEffectComment(token, repo, current);
+		};
+		// The fix-loop ask posts first: if it fails, the labels stay put so the
+		// item never advertises awaiting-reporter without an ask on the thread.
+		if (current.commentFirst) {
+			await postComment();
+			await applyLabels();
+		} else {
+			await applyLabels();
+			await postComment();
 		}
 
-		await this.completePendingSideEffect(pending);
+		await this.completePendingSideEffect(current);
+	}
+
+	private async applySideEffectLabels(
+		token: string,
+		repo: RepoContext,
+		pending: PendingSideEffect,
+	): Promise<void> {
+		await addLabels(token, repo, pending.anchorNumber, pending.addLabels);
+		await removeLabels(token, repo, pending.anchorNumber, pending.removeLabels);
+	}
+
+	/** Post the effect's comment at-most-once, returning the effect with the
+	 * marker-may-exist flag persisted so a retry doesn't double-post. */
+	private async postSideEffectComment(
+		token: string,
+		repo: RepoContext,
+		pending: PendingSideEffect,
+	): Promise<PendingSideEffect> {
+		if (!pending.commentBody) return pending;
+		let exists = false;
+		let updated = pending;
+		if (pending.commentMayExist) {
+			exists = await hasIssueCommentMarker(
+				token,
+				repo,
+				pending.anchorNumber,
+				pending.commentMarker,
+			);
+		} else {
+			await this.markCommentMayExist(pending.id);
+			updated = { ...pending, commentMayExist: true };
+		}
+		if (!exists) {
+			await postIssueComment(
+				token,
+				repo,
+				pending.anchorNumber,
+				`${pending.commentBody}\n\n${pending.commentMarker}`,
+			);
+		}
+		return updated;
 	}
 
 	private async getInstallationToken(creds: Parameters<typeof mintInstallationToken>[0]) {
@@ -1129,6 +1336,24 @@ export class OrchestratorDO extends DurableObject<Env> {
 					? transaction.put(STORAGE.awaitingReporterSince, Date.now())
 					: transaction.delete(STORAGE.awaitingReporterSince),
 			];
+			if (decision.to === "preview_building") {
+				const startedAt = Date.now();
+				puts.push(
+					transaction.put(STORAGE.previewBuildDeadline, startedAt + PREVIEW_BUILD_TIMEOUT_MS),
+					transaction.put(STORAGE.previewPollNextAt, startedAt + PREVIEW_POLL_INITIAL_MS),
+					transaction.put(STORAGE.previewNotes, input.agentSummary ?? ""),
+					input.agentScreenshots?.length
+						? transaction.put(STORAGE.previewScreenshots, input.agentScreenshots)
+						: transaction.delete(STORAGE.previewScreenshots),
+				);
+			} else {
+				puts.push(
+					transaction.delete(STORAGE.previewBuildDeadline),
+					transaction.delete(STORAGE.previewPollNextAt),
+					transaction.delete(STORAGE.previewNotes),
+					transaction.delete(STORAGE.previewScreenshots),
+				);
+			}
 			const kindLabel = decision.addLabels.find(
 				(label) => label.startsWith("bot:") && label !== decision.addLabel,
 			);
@@ -1165,9 +1390,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 							anchorNumber,
 							addLabels: decision.addLabels,
 							removeLabels: decision.removeLabels,
-							commentBody: renderComment(decision, anchorNumber, input.agentSummary),
+							commentBody:
+								input.commentBodyOverride ??
+								renderComment(decision, anchorNumber, input.agentSummary),
 							commentMarker: `<!-- emdashbot-event:${sideEffectId} -->`,
 							commentMayExist: false,
+							...(input.commentFirst ? { commentFirst: true } : {}),
 						} satisfies PendingSideEffect,
 					]),
 				);
@@ -1256,7 +1484,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 			]);
 			const effect = effects?.[0];
 			if (!effect) return settledRuns;
-			if (!effect.settlesRun && effect.runId === pendingDispatch?.runId) return settledRuns;
+			// Defer only a launch effect belonging to the still-pending dispatch.
+			// A standalone effect (runId undefined) must not be held back -- and
+			// `undefined === pendingDispatch?.runId` when no dispatch is pending
+			// would otherwise wedge it here forever.
+			if (
+				!effect.settlesRun &&
+				effect.runId !== undefined &&
+				effect.runId === pendingDispatch?.runId
+			)
+				return settledRuns;
 
 			await this.flushPendingSideEffect(effect.id);
 			if (effect.settlesRun && effect.runId) settledRuns.add(effect.runId);
@@ -1449,6 +1686,32 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.ctx.storage.put(STORAGE.awaitingReporterSince, since);
 	}
 
+	/** Test-only: force the preview-poll schedule so a tick probes immediately. */
+	async debugSetPreviewPoll(deadline: number, nextAt: number): Promise<void> {
+		await Promise.all([
+			this.ctx.storage.put(STORAGE.previewBuildDeadline, deadline),
+			this.ctx.storage.put(STORAGE.previewPollNextAt, nextAt),
+		]);
+	}
+
+	/** Test-only: seed the installation-token cache so side effects skip the JWT
+	 * mint (which needs a real private key) and go straight to the fake GitHub. */
+	async debugSetTokenCache(token: string, expiresAt: number): Promise<void> {
+		await this.ctx.storage.put<CachedToken>(STORAGE.tokenCache, { token, expiresAt });
+	}
+
+	/** Test-only: land directly in `preview_building` with the ask's persisted
+	 * inputs, so the preview-poll path can be exercised without dispatching the
+	 * (runtime-less in tests) investigate agent through fixing. */
+	async debugPrimePreviewBuilding(anchorNumber: number, notes: string): Promise<void> {
+		await Promise.all([
+			this.ctx.storage.put(STORAGE.state, "preview_building" satisfies StateId),
+			this.ctx.storage.put(STORAGE.kind, "bug" satisfies Kind),
+			this.ctx.storage.put(STORAGE.anchorNumber, anchorNumber),
+			this.ctx.storage.put(STORAGE.previewNotes, notes),
+		]);
+	}
+
 	/** Test-only: inject dispatch recovery state without invoking Flue. */
 	async debugSetPendingDispatch(input: {
 		runId: string;
@@ -1502,6 +1765,10 @@ export type EnqueueOutcome =
 	| { kind: "admitted"; id: string }
 	| { kind: "duplicate"; deliveryId: string };
 
+/** One preview poll's outcome: idle (not building), waiting (before next poll),
+ * polling (probed, not yet published), ready, or failed (budget exhausted). */
+export type PreviewPollOutcome = "idle" | "waiting" | "polling" | "ready" | "failed";
+
 export interface TickOutcome {
 	ranAt: number;
 	processedInboxItem: boolean;
@@ -1510,7 +1777,13 @@ export interface TickOutcome {
 	recoveryError: string | null;
 	labelDrift: { added: number; removed: number } | null;
 	expiredReporterWait: boolean;
+	previewPoll: PreviewPollOutcome;
 }
+
+export type CleanupOutcome =
+	| { kind: "reaped" }
+	| { kind: "skipped"; reason: string }
+	| { kind: "error"; error: string };
 
 class ClassifierProcessingError extends Error {
 	constructor(reason: string) {
