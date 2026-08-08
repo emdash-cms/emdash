@@ -429,6 +429,101 @@ describe("ContentRepository", () => {
 		});
 
 		describe("orderBy", () => {
+			it("paginates indexed custom fields with stable null ordering", async () => {
+				await registry.createField("post", {
+					slug: "priority",
+					label: "Priority",
+					type: "number",
+					indexed: true,
+				});
+
+				const seeded = await repo.findMany("post");
+				const priorities = [null, 2, 1, 2, null];
+				for (const [index, item] of seeded.items.entries()) {
+					await repo.update("post", item.id, { data: { priority: priorities[index] } });
+				}
+
+				const collect = async (direction: "asc" | "desc") => {
+					const items = [];
+					let cursor: string | undefined;
+					do {
+						const page = await repo.findMany("post", {
+							limit: 2,
+							cursor,
+							orderBy: { field: "priority", direction },
+						});
+						items.push(...page.items);
+						cursor = page.nextCursor;
+					} while (cursor);
+					return items;
+				};
+
+				const ascending = await collect("asc");
+				const descending = await collect("desc");
+				const values = (items: typeof ascending) => items.map((item) => item.data.priority ?? null);
+
+				expect(values(ascending)).toEqual([null, null, 1, 2, 2]);
+				expect(values(descending)).toEqual([2, 2, 1, null, null]);
+				expect(new Set(ascending.map((item) => item.id)).size).toBe(5);
+				expect(new Set(descending.map((item) => item.id)).size).toBe(5);
+			});
+
+			it("paginates indexed datetime fields without skipping equal values", async () => {
+				await registry.createField("post", {
+					slug: "starts_at",
+					label: "Starts at",
+					type: "datetime",
+					indexed: true,
+				});
+
+				const seeded = await repo.findMany("post");
+				const startsAt = [
+					null,
+					"2026-08-02T12:00:00.000Z",
+					"2026-07-01T08:30:00.000Z",
+					"2026-08-02T12:00:00.000Z",
+					null,
+				];
+				for (const [index, item] of seeded.items.entries()) {
+					await repo.update("post", item.id, { data: { starts_at: startsAt[index] } });
+				}
+
+				const items = [];
+				let cursor: string | undefined;
+				do {
+					const page = await repo.findMany("post", {
+						limit: 2,
+						cursor,
+						orderBy: { field: "starts_at", direction: "asc" },
+					});
+					items.push(...page.items);
+					cursor = page.nextCursor;
+				} while (cursor);
+
+				expect(items.map((item) => item.data.starts_at ?? null)).toEqual([
+					null,
+					null,
+					"2026-07-01T08:30:00.000Z",
+					"2026-08-02T12:00:00.000Z",
+					"2026-08-02T12:00:00.000Z",
+				]);
+				expect(new Set(items.map((item) => item.id)).size).toBe(5);
+			});
+
+			it("rejects unindexed custom order fields", async () => {
+				await registry.createField("post", {
+					slug: "priority",
+					label: "Priority",
+					type: "number",
+				});
+
+				await expect(
+					repo.findMany("post", {
+						orderBy: { field: "priority", direction: "asc" },
+					}),
+				).rejects.toThrow(EmDashValidationError);
+			});
+
 			// Regression guard for "table headers aren't sort controls": the
 			// admin now sends orderBy={field,direction} — the repo must accept
 			// the columns the UI wants to expose, not just dates.

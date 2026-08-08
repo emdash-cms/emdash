@@ -197,6 +197,25 @@ describe("validateSeed", () => {
 			expect(result.valid).toBe(true);
 			expect(result.errors).toHaveLength(0);
 		});
+
+		it("should reject list columns that do not reference collection fields", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						admin: { listColumns: ["priority"] },
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				'collections[0].admin.listColumns[0]: references unknown field "priority"',
+			);
+		});
 	});
 
 	describe("taxonomy validation", () => {

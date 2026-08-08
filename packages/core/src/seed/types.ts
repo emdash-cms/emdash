@@ -5,7 +5,7 @@
  * collections, fields, menus, settings, taxonomies, redirects, widget areas, and optional sample content.
  */
 
-import type { FieldType } from "../schema/types.js";
+import type { CollectionAdminConfig, FieldType } from "../schema/types.js";
 import type { SiteSettings } from "../settings/types.js";
 import type { Storage } from "../storage/types.js";
 
@@ -72,6 +72,7 @@ export interface SeedCollection {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: ("drafts" | "revisions" | "preview" | "scheduling" | "search" | "seo")[];
 	urlPattern?: string;
 	/** Enable comments on this collection */
@@ -89,6 +90,7 @@ export interface SeedField {
 	required?: boolean;
 	unique?: boolean;
 	searchable?: boolean;
+	indexed?: boolean;
 	defaultValue?: unknown;
 	validation?: Record<string, unknown>;
 	widget?: string;
