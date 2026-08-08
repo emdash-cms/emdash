@@ -390,6 +390,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/taxonomies/[name]/reorder",
+		entrypoint: resolveRoute("api/taxonomies/[name]/reorder.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/taxonomies/[name]/terms",
 		entrypoint: resolveRoute("api/taxonomies/[name]/terms/index.ts"),
 	});

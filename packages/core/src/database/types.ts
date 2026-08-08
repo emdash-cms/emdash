@@ -22,6 +22,9 @@ export interface TaxonomyTable {
 	data: string | null; // JSON
 	locale: Generated<string>; // e.g. 'en', 'es', 'fr'
 	translation_group: string | null; // shared across translations of the same term
+	// Manual order within a sibling group. 0 for terms that were never
+	// explicitly reordered, so listings fall back to alphabetical.
+	sort_order: Generated<number>;
 }
 
 export interface ContentTaxonomyTable {

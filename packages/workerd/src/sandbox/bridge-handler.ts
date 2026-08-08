@@ -1008,12 +1008,13 @@ async function taxonomyList(db: Kysely<Database>, locale?: string) {
 }
 
 async function taxonomyTerms(db: Kysely<Database>, taxonomy: string, locale?: string) {
-	// `id asc` is a stable tiebreaker for terms sharing a label, matching
-	// core's TaxonomyRepository.findByName ordering.
+	// Manual order first, then label with `id asc` as a stable tiebreaker for
+	// terms sharing both — matching core's TaxonomyRepository.findByName.
 	let query = db
 		.selectFrom("taxonomies")
 		.selectAll()
 		.where("name", "=", taxonomy)
+		.orderBy("sort_order", "asc")
 		.orderBy("label", "asc")
 		.orderBy("id", "asc");
 	if (locale !== undefined) query = query.where("locale", "=", locale);

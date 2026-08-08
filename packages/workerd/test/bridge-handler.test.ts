@@ -279,6 +279,7 @@ describe("Bridge Handler Conformance", () => {
 				.addColumn("data", "text")
 				.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
 				.addColumn("translation_group", "text")
+				.addColumn("sort_order", "integer", (col) => col.notNull().defaultTo(0))
 				.execute();
 			await db.schema
 				.createTable("content_taxonomies")

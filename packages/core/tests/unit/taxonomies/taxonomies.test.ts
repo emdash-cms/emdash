@@ -240,16 +240,31 @@ describe("TaxonomyRepository", () => {
 			expect(roots).toHaveLength(2); // tech and design
 		});
 
-		it("should return terms ordered by label", async () => {
-			await repo.create({ name: "tags", slug: "z", label: "Zebra" });
+		it("should return terms in their manual order, not by label", async () => {
+			const zebra = await repo.create({ name: "tags", slug: "z", label: "Zebra" });
 			await repo.create({ name: "tags", slug: "a", label: "Apple" });
-			await repo.create({ name: "tags", slug: "m", label: "Mango" });
+			const mango = await repo.create({ name: "tags", slug: "m", label: "Mango" });
 
-			const tags = await repo.findByName("tags");
+			// Each term appends, so the group starts out in creation order.
+			expect((await repo.findByName("tags")).map((tag) => tag.label)).toEqual([
+				"Zebra",
+				"Apple",
+				"Mango",
+			]);
 
-			expect(tags[0].label).toBe("Apple");
-			expect(tags[1].label).toBe("Mango");
-			expect(tags[2].label).toBe("Zebra");
+			await repo.reorder(
+				[mango.translationGroup!, zebra.translationGroup!],
+				new Map([
+					[mango.translationGroup!, mango.sortOrder],
+					[zebra.translationGroup!, zebra.sortOrder],
+				]),
+			);
+
+			expect((await repo.findByName("tags")).map((tag) => tag.label)).toEqual([
+				"Mango",
+				"Apple",
+				"Zebra",
+			]);
 		});
 	});
 

@@ -142,6 +142,7 @@ describe("Database Migrations (Integration)", () => {
 			"053_plugin_mcp_tools",
 			"054_media_upload_attempts",
 			"055_content_translation_group_locale_index",
+			"056_taxonomy_term_sort_order",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
@@ -426,7 +427,7 @@ describe("Database Migrations (Integration)", () => {
 			EXPLAIN QUERY PLAN
 			SELECT * FROM "taxonomies"
 			WHERE "name" = ${"category"} AND "locale" = ${"en"}
-			ORDER BY "label" ASC, "id" ASC
+			ORDER BY "sort_order" ASC, "label" ASC, "id" ASC
 		`.execute(db);
 		const details = plan.rows.map((r) => r.detail).join("\n");
 
