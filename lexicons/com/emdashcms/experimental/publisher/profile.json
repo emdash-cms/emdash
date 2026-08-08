@@ -1,0 +1,71 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.publisher.profile",
+	"description": "Identity-level metadata for a plugin publisher. One record per publisher DID, located at rkey `self`. Optional: a DID may publish packages without ever publishing a publisher.profile, in which case clients fall back to the publisher's handle and per-package metadata for display. EXPERIMENTAL: this NSID is part of the experimental phase of the EmDash plugin registry. The shape is expected to migrate to either pm.fair.publisher.profile (if FAIR adopts it) or com.emdashcms.publisher.profile once stable.",
+	"defs": {
+		"main": {
+			"type": "record",
+			"description": "A publisher's identity-level profile. Distinct from `com.emdashcms.experimental.package.profile`, which carries per-package metadata. The publisher profile is the canonical landing page for the entity behind a DID: 'who is publishing these packages?'. The record key is the literal string `self`. Per-package fields like `authors[]` and `security[]` on package profile records remain authoritative for their respective packages and MAY differ from the values here; clients render package-level fields when present, falling back to publisher profile values otherwise. The publisher profile's `displayName` is the value that `com.emdashcms.experimental.publisher.verification` records bind against — see that lexicon's docs for the validity rules.",
+			"key": "literal:self",
+			"record": {
+				"type": "object",
+				"required": ["displayName"],
+				"properties": {
+					"displayName": {
+						"type": "string",
+						"description": "Human-readable name for the publisher (e.g. 'Acme Plugin Co.'). Displayed alongside packages and verification badges. Verification records bind against this value: a change to displayName invalidates any unexpired verification claims targeting this DID until the issuer re-attests.",
+						"maxLength": 1024,
+						"maxGraphemes": 100
+					},
+					"description": {
+						"type": "string",
+						"description": "Short description / bio of the publisher. SHOULD NOT exceed 280 characters per UI convention. Plain text; no Markdown.",
+						"maxLength": 2048,
+						"maxGraphemes": 280
+					},
+					"url": {
+						"type": "string",
+						"format": "uri",
+						"description": "Publisher's primary homepage. Distinct from per-package repo or homepage URLs.",
+						"maxLength": 2048
+					},
+					"contact": {
+						"type": "array",
+						"description": "Identity-level contact channels for the publisher (general / security). Per-package security contacts on package profile records remain authoritative for their respective packages; this list is for the publisher entity itself.",
+						"maxLength": 8,
+						"items": {
+							"type": "ref",
+							"ref": "#contact"
+						}
+					},
+					"updatedAt": {
+						"type": "string",
+						"format": "datetime",
+						"description": "When this profile was last updated."
+					}
+				}
+			}
+		},
+		"contact": {
+			"type": "object",
+			"description": "Identity-level publisher contact. At least one of url or email MUST be present; Lexicon cannot express required-one-of, so aggregators MUST validate this and reject records carrying a contact with neither field. Same shape as `com.emdashcms.experimental.package.profile#contact`.",
+			"properties": {
+				"kind": {
+					"type": "string",
+					"description": "Channel role. 'general' for ordinary contact, 'security' for vulnerability reporting.",
+					"knownValues": ["general", "security"],
+					"maxLength": 32
+				},
+				"url": {
+					"type": "string",
+					"format": "uri",
+					"maxLength": 1024
+				},
+				"email": {
+					"type": "string",
+					"maxLength": 256
+				}
+			}
+		}
+	}
+}
