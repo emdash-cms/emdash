@@ -431,6 +431,30 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect((await stub.getPersistedState()).state).toBe("reproduced");
 	});
 
+	test("a fix run that reports skipped rests in blocked, not wedged in fixing", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ event: "investigate", arg: "diagnose it", anchorNumber: 42 }));
+		await stub.debugSetStaleRun("diag-run", Date.now(), "investigate-42-diag-run", "diagnose");
+		await stub.applyAgentResult({
+			runId: "diag-run",
+			result: { reproduced: true, summary: "Reproduced it." },
+			pushed: false,
+			ok: true,
+		});
+		await stub.event(makeEvent({ event: "fix", arg: "fix it", anchorNumber: 42 }));
+		expect((await stub.getPersistedState()).state).toBe("fixing");
+
+		await stub.debugSetStaleRun("fix-run", Date.now(), "investigate-42-fix-run", "fix");
+		const outcome = await stub.applyAgentResult({
+			runId: "fix-run",
+			result: { skipped: true, summary: "This needs a product decision, not a code fix." },
+			pushed: false,
+			ok: true,
+		});
+		expect(outcome.kind).toBe("transition");
+		expect((await stub.getPersistedState()).state).toBe("blocked");
+	});
+
 	test("reporter silence past the window expires the wait and reaps the branch", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await stub.event(makeEvent({ event: "investigate", arg: "diagnose it", anchorNumber: 42 }));

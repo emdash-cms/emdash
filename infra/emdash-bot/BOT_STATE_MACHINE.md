@@ -138,6 +138,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `fixing` | `agent.fix_ready` | `preview_building` | — |
 | `fixing` | `agent.failed` | `failed` | — |
 | `fixing` | `agent.by_design` | `blocked` | — |
+| `fixing` | `agent.skipped` | `blocked` | — |
 | `preview_building` | `preview.ready` | `awaiting_reporter` | — |
 | `preview_building` | `preview.failed` | `reproduced` | — |
 | `awaiting_reporter` | `confirm` | `in_review` | `openDraftPr` |
@@ -231,6 +232,7 @@ stateDiagram-v2
     fixing --> preview_building: agent.fix_ready
     fixing --> failed: agent.failed
     fixing --> blocked: agent.by_design
+    fixing --> blocked: agent.skipped
     preview_building --> awaiting_reporter: preview.ready
     preview_building --> reproduced: preview.failed
     awaiting_reporter --> in_review: confirm / openDraftPr
