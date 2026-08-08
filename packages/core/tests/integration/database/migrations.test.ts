@@ -142,6 +142,7 @@ describe("Database Migrations (Integration)", () => {
 			"053_plugin_mcp_tools",
 			"054_media_upload_attempts",
 			"055_content_translation_group_locale_index",
+			"056_fts_plain_text",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
