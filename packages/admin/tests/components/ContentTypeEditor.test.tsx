@@ -119,6 +119,18 @@ describe("ContentTypeEditor", () => {
 		await expect.element(slugInput).toHaveValue("blog_posts");
 	});
 
+	// ---- Manual slug normalized on blur (#1567) ----
+
+	it("normalizes a manually-typed slug to snake_case on blur", async () => {
+		const screen = await render(<ContentTypeEditor {...defaultProps()} isNew />);
+
+		const slugInput = screen.getByLabelText("Slug");
+		await slugInput.fill("Blog Posts!");
+		// Blur by moving focus elsewhere, same as a real user tabbing away.
+		await screen.getByLabelText("Label (Plural)").click();
+		await expect.element(slugInput).toHaveValue("blog_posts");
+	});
+
 	// ---- Slug disabled when editing ----
 
 	it("does not show slug input when editing existing collection", async () => {

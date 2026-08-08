@@ -42,6 +42,15 @@ import { SaveButton } from "./SaveButton";
 const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g;
 const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g;
 
+// Collection slugs are snake_case (/^[a-z][a-z0-9_]*$/, see schema/registry.ts),
+// unlike content-item slugs which are kebab-case via the shared slugify().
+function normalizeCollectionSlug(value: string): string {
+	return value
+		.toLowerCase()
+		.replace(SLUG_INVALID_CHARS_PATTERN, "_")
+		.replace(SLUG_LEADING_TRAILING_PATTERN, "");
+}
+
 export interface ContentTypeEditorProps {
 	collection?: SchemaCollectionWithFields;
 	isNew?: boolean;
@@ -228,12 +237,7 @@ export function ContentTypeEditor({
 	const handleLabelChange = (value: string) => {
 		setLabel(value);
 		if (isNew) {
-			setSlug(
-				value
-					.toLowerCase()
-					.replace(SLUG_INVALID_CHARS_PATTERN, "_")
-					.replace(SLUG_LEADING_TRAILING_PATTERN, ""),
-			);
+			setSlug(normalizeCollectionSlug(value));
 		}
 	};
 
@@ -402,6 +406,7 @@ export function ContentTypeEditor({
 										label={t`Slug`}
 										value={slug}
 										onChange={(e) => setSlug(e.target.value)}
+										onBlur={() => setSlug((current) => normalizeCollectionSlug(current))}
 										placeholder="posts"
 										disabled={!isNew}
 									/>
