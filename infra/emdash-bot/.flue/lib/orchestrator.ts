@@ -721,13 +721,15 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	private async armAlarm(): Promise<void> {
-		const [current, runStartedAt, inbox, pendingSideEffects, previewPollNextAt] = await Promise.all([
-			this.ctx.storage.getAlarm(),
-			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
-			this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox),
-			this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects),
-			this.ctx.storage.get<number>(STORAGE.previewPollNextAt),
-		]);
+		const [current, runStartedAt, inbox, pendingSideEffects, previewPollNextAt] = await Promise.all(
+			[
+				this.ctx.storage.getAlarm(),
+				this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
+				this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox),
+				this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects),
+				this.ctx.storage.get<number>(STORAGE.previewPollNextAt),
+			],
+		);
 		const now = Date.now();
 		let desired =
 			inbox?.length || pendingSideEffects?.length
@@ -1276,7 +1278,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 		let exists = false;
 		let updated = pending;
 		if (pending.commentMayExist) {
-			exists = await hasIssueCommentMarker(token, repo, pending.anchorNumber, pending.commentMarker);
+			exists = await hasIssueCommentMarker(
+				token,
+				repo,
+				pending.anchorNumber,
+				pending.commentMarker,
+			);
 		} else {
 			await this.markCommentMayExist(pending.id);
 			updated = { ...pending, commentMayExist: true };
@@ -1481,7 +1488,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 			// A standalone effect (runId undefined) must not be held back -- and
 			// `undefined === pendingDispatch?.runId` when no dispatch is pending
 			// would otherwise wedge it here forever.
-			if (!effect.settlesRun && effect.runId !== undefined && effect.runId === pendingDispatch?.runId)
+			if (
+				!effect.settlesRun &&
+				effect.runId !== undefined &&
+				effect.runId === pendingDispatch?.runId
+			)
 				return settledRuns;
 
 			await this.flushPendingSideEffect(effect.id);
