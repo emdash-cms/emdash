@@ -43,5 +43,8 @@ export default defineConfig({
 	],
 	test: {
 		include: ["tests/integration/**/*.test.ts"],
+		// The AI binding forces the pool onto a remote proxy; the first test to
+		// run pays the connection warmup, which overruns the 5s default.
+		testTimeout: 20_000,
 	},
 });
