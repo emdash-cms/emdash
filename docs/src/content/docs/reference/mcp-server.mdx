@@ -53,7 +53,7 @@ The `admin` scope grants access to core operations, but it does not grant plugin
 
 In addition to scopes, some tools require a minimum RBAC role. Both must be satisfied -- a token with the right scope still fails if the calling user's role is too low.
 
-Plugin tools use the permission declared by their underlying route. They are absent from `tools/list` until an administrator enables that plugin's MCP surface. Tool names use the deterministic `<pluginId>__<localName>` form, and invocations are recorded in the audit log with plugin, tool, route, and actor provenance.
+Plugin tools use the permission declared by their underlying route. They are absent from `tools/list` until an administrator enables that plugin's MCP surface. Tool names use deterministic MCP-safe plugin ID segments followed by `__<localName>` (for example, `@emdash-cms/plugin-forms` becomes `emdash_cms__plugin_forms__submit_form`), and invocations are recorded in the audit log with plugin, tool, route, and actor provenance.
 
 | Operation | Minimum role |
 | --- | --- |
