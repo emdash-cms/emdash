@@ -39,7 +39,6 @@ function fakeIsolate(overrides: Partial<IsolateBackend["fs"]> = {}): {
 			grep: async () => [{ path: "/repo/a.ts", line: 3, text: "TODO" }],
 			...overrides,
 		},
-		git: { clone: async () => {} },
 		runtime: {
 			exec: async (source, options) => {
 				execs.push({ source, options });
@@ -261,11 +260,10 @@ describe("ExecEnv artifact egress", () => {
 });
 
 describe("ExecEnv clone", () => {
-	test("cloneRepo forwards the auth header to the VFS clone", async () => {
-		const clone = vi.fn(async () => {});
+	test("cloneRepo runs a shallow isolate git clone of the public repo", async () => {
 		const iso = fakeIsolate();
 		const env = new ExecEnv({
-			isolate: { ...iso.isolate, git: { clone } },
+			isolate: iso.isolate,
 			attachContainer: async () => fakeContainer().container,
 			deadlines,
 			repoDir: "/repo",
@@ -273,19 +271,31 @@ describe("ExecEnv clone", () => {
 
 		await env.cloneRepo({
 			url: "https://github.com/emdash-cms/emdash.git",
-			dir: "/repo",
+			dir: "/workspace/repo",
 			ref: "main",
 			depth: 50,
-			authHeader: "Basic xyz",
 		});
 
-		expect(clone).toHaveBeenCalledWith({
-			url: "https://github.com/emdash-cms/emdash.git",
-			dir: "/repo",
-			ref: "main",
-			depth: 50,
-			headers: { Authorization: "Basic xyz" },
+		expect(iso.execs).toHaveLength(1);
+		expect(iso.execs[0]?.source).toBe(
+			"git clone --depth 50 --branch main 'https://github.com/emdash-cms/emdash.git' '/workspace/repo'",
+		);
+		expect(iso.execs[0]?.options.backend).toBe(ISOLATE_SHELL_BACKEND);
+	});
+
+	test("cloneRepo throws when the clone exits non-zero", async () => {
+		const iso = fakeIsolate();
+		iso.setExecResult({ exitCode: 128, stdout: "", stderr: "fatal: repository not found" });
+		const env = new ExecEnv({
+			isolate: iso.isolate,
+			attachContainer: async () => fakeContainer().container,
+			deadlines,
+			repoDir: "/repo",
 		});
+
+		await expect(
+			env.cloneRepo({ url: "https://github.com/x/y.git", dir: "/workspace/repo" }),
+		).rejects.toThrow("git clone failed (128)");
 	});
 });
 

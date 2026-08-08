@@ -31,11 +31,13 @@
 // FS (`.bot-artifacts/`); `readArtifact` reads them back from the container
 // substrate for the orchestrator to attach. (Under a future pure-computer
 // setup this becomes a `workspace.fs` read after the VFS sync.)
-// Q(c) GitHub reads: the VFS clone runs in the DO via `fetch` with a minted
-// token in the `Authorization` header, so no token reaches the isolate; the
-// container keeps the existing outbound proxy, so no token reaches it either.
+// Q(c) GitHub reads: emdash is a public repo, so the VFS read-clone needs no
+// credential at all -- it runs through the DO's in-VFS isomorphic-git (the
+// worker-shell `git` command forwards to the host), so no token reaches the
+// isolate. The container keeps the existing outbound proxy, so the only place
+// a token is minted (the fix push) still never exposes it to the sandbox.
 
-import type { Workspace } from "@cloudflare/computer";
+import type { WorkspaceClient } from "@cloudflare/computer";
 import type { Sandbox } from "@cloudflare/sandbox";
 
 import { withDeadline } from "./sandbox-deadline.js";
@@ -65,8 +67,6 @@ export interface CloneOptions {
 	readonly dir: string;
 	readonly ref?: string;
 	readonly depth?: number;
-	/** Authorization header value for the in-DO clone fetch (Q(c)). */
-	readonly authHeader?: string;
 }
 
 export interface ExecEnvDeadlines {
@@ -77,8 +77,9 @@ export interface ExecEnvDeadlines {
 }
 
 /**
- * Isolate + VFS + git substrate. A structural subset of computer's
- * `Workspace`; `fromWorkspace` adapts the real instance, tests pass a fake.
+ * Isolate + VFS substrate. A structural subset of computer's `getWorkspace()`
+ * client (`fs` + `runtime` reach the DO over RPC through their stubs);
+ * `fromWorkspaceClient` adapts the real client, tests pass a fake.
  */
 export interface IsolateBackend {
 	readonly fs: {
@@ -88,15 +89,6 @@ export interface IsolateBackend {
 		readdir(path: string): Promise<Array<{ name: string; isDirectory: boolean }>>;
 		rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void>;
 		grep(pattern: string, path: string, options?: { ignoreCase?: boolean }): Promise<GrepMatch[]>;
-	};
-	readonly git: {
-		clone(options: {
-			url: string;
-			dir?: string;
-			ref?: string;
-			depth?: number;
-			headers?: Record<string, string>;
-		}): Promise<void>;
 	};
 	readonly runtime: {
 		exec(
@@ -153,18 +145,19 @@ export class ExecEnv {
 		this.#repoDir = options.repoDir;
 	}
 
-	/** Clone the repo into the VFS for isolate inspection and edit tracking. */
+	/**
+	 * Clone the repo into the VFS for isolate inspection and edit tracking.
+	 * Runs through the worker-shell `git` command, which the DO's in-VFS
+	 * isomorphic-git services -- no auth, since the repo is public.
+	 */
 	async cloneRepo(options: CloneOptions): Promise<void> {
-		await this.#bounded(
-			this.#isolate.git.clone({
-				url: options.url,
-				dir: options.dir,
-				...(options.ref ? { ref: options.ref } : {}),
-				...(options.depth !== undefined ? { depth: options.depth } : {}),
-				...(options.authHeader ? { headers: { Authorization: options.authHeader } } : {}),
-			}),
-			"git clone",
-		);
+		const args = ["git", "clone", "--depth", String(options.depth ?? 50)];
+		if (options.ref) args.push("--branch", options.ref);
+		args.push(quote(options.url), quote(options.dir));
+		const result = await this.exec(args.join(" "), { target: "isolate" });
+		if (result.exitCode !== 0) {
+			throw new Error(`git clone failed (${result.exitCode}): ${result.stderr.slice(-500)}`);
+		}
 	}
 
 	readFile(path: string): Promise<string> {
@@ -282,28 +275,29 @@ export class ExecEnv {
 }
 
 /**
- * Adapt the in-DO computer `Workspace` (typed fs/git/runtime). The only
- * structural computer touchpoint. Git's typed methods (`clone` with a
- * `headers` auth option) exist only on this instance, not on the
- * `getWorkspace()` RPC client, so the seam runs where the Workspace lives.
+ * Adapt the computer `getWorkspace()` client. The only structural computer
+ * touchpoint. `fs` and `runtime` reach the DO over RPC through their stubs; the
+ * seam therefore runs agent-side, not in the DO.
  */
-export function fromWorkspace(workspace: Workspace): IsolateBackend {
+export function fromWorkspaceClient(client: WorkspaceClient): IsolateBackend {
 	return {
 		fs: {
-			readFile: (path, encoding) => workspace.fs.readFile(path, encoding),
-			writeFile: (path, content) => workspace.fs.writeFile(path, content),
-			mkdir: (path, options) => workspace.fs.mkdir(path, options),
-			readdir: (path) => workspace.fs.readdir(path),
-			rm: (path, options) => workspace.fs.rm(path, options),
-			grep: (pattern, path, options) => workspace.fs.grep(pattern, path, options),
-		},
-		git: {
-			clone: (options) => workspace.git.clone(options),
+			readFile: (path, encoding) => client.fs.readFile(path, encoding),
+			writeFile: (path, content) => client.fs.writeFile(path, content),
+			mkdir: (path, options) => client.fs.mkdir(path, options),
+			readdir: (path) => client.fs.readdir(path),
+			rm: (path, options) => client.fs.rm(path, options),
+			grep: (pattern, path, options) => client.fs.grep(pattern, path, options),
 		},
 		runtime: {
-			exec: (source, options) => workspace.runtime.exec(source, options),
+			exec: (source, options) => client.runtime.exec(source, options),
 		},
 	};
+}
+
+/** Single-quote a shell argument for the isolate command line. */
+function quote(value: string): string {
+	return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
 /** Adapt the real sandbox. The only structural sandbox touchpoint. */
