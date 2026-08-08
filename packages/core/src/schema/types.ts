@@ -115,6 +115,7 @@ export interface RepeaterSubField {
 	label: string;
 	required?: boolean;
 	options?: string[]; // For select sub-fields
+	hidden?: boolean; // Not rendered in the editor; value preserved on save
 }
 
 /** Allowed types for repeater sub-fields (no nesting, no complex types) */
