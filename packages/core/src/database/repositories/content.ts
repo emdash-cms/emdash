@@ -2125,6 +2125,20 @@ export class ContentRepository {
 			.execute();
 		const metadata = new Map(rows.map((row) => [row.slug, row.type as FieldType]));
 
+		// A missing collection produces the same empty result as an unindexed
+		// field, and reporting it as a filter problem would hide the real cause:
+		// the same request without `fieldFilters` answers COLLECTION_NOT_FOUND.
+		// Returning no filters lets the query reach its missing backing table,
+		// which is where that error is raised.
+		if (metadata.size === 0) {
+			const collection = await this.db
+				.selectFrom("_emdash_collections")
+				.where("slug", "=", type)
+				.select("id")
+				.executeTakeFirst();
+			if (!collection) return [];
+		}
+
 		const normalized = fields.map((field) => {
 			const fieldType = metadata.get(field);
 			if (!fieldType || !isIndexableFieldType(fieldType)) {
