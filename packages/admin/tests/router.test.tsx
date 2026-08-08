@@ -923,3 +923,193 @@ describe("ContentEditPage – autosave cache patching", () => {
 		}
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Tests: ContentListPage – list view state survives back-navigation
+// ---------------------------------------------------------------------------
+
+const PAGINATED_MANIFEST: AdminManifest = { ...MANIFEST, i18n: undefined };
+
+/** 45 entries — three pages at the list's 20-per-page client pagination. */
+const PAGINATED_ITEMS = Array.from({ length: 45 }, (_, i) => ({
+	id: `post_${i + 1}`,
+	type: "posts",
+	slug: `post-${i + 1}`,
+	status: "draft",
+	locale: "en",
+	translationGroup: null,
+	data: { title: `Post ${i + 1}` },
+	authorId: null,
+	primaryBylineId: null,
+	createdAt: "2025-01-01T00:00:00Z",
+	updatedAt: "2025-01-01T00:00:00Z",
+	publishedAt: null,
+	scheduledAt: null,
+	liveRevisionId: null,
+	draftRevisionId: null,
+}));
+
+describe("ContentListPage – view state survives back-navigation", () => {
+	let mockFetch: ReturnType<typeof createMockFetch>;
+
+	beforeEach(() => {
+		mockFetch = createMockFetch();
+
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: PAGINATED_MANIFEST })
+			.on("GET", "/_emdash/api/auth/me", { data: { id: "user_01", role: 60 } })
+			.on("GET", "/_emdash/api/bylines", { data: { items: [] } })
+			// Registered before the bare collection URL: the mock falls back to
+			// prefix matching for URLs carrying a query string, first match wins.
+			.on("GET", "/_emdash/api/content/posts/authors", { data: { items: [] } })
+			.on("GET", "/_emdash/api/content/posts/trash", { data: { items: [] } })
+			.on("GET", "/_emdash/api/content/posts/post_1", {
+				data: { item: PAGINATED_ITEMS[0] },
+			})
+			.on("GET", "/_emdash/api/content/posts/post_21", {
+				data: { item: PAGINATED_ITEMS[20] },
+			})
+			.on("GET", "/_emdash/api/content/posts", {
+				data: { items: PAGINATED_ITEMS, nextCursor: undefined, total: 45 },
+			});
+	});
+
+	afterEach(() => {
+		mockFetch.restore();
+	});
+
+	it("returns to the page the editor left from, not page 1", async () => {
+		const { router, TestApp } = buildRouter();
+
+		await router.navigate({ to: "/content/$collection", params: { collection: "posts" } });
+		const screen = await render(<TestApp />);
+
+		// The mocked editor renders the entry title too, so assert on the page
+		// indicator and row links rather than bare item text.
+		await expect.element(screen.getByText("1 / 3", { exact: true })).toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "Next page" }).click();
+		await expect.element(screen.getByText("2 / 3", { exact: true })).toBeInTheDocument();
+
+		await screen.getByRole("link", { name: "Post 21", exact: true }).click();
+		await expect.element(screen.getByTestId("content-editor")).toBeInTheDocument();
+
+		router.history.back();
+
+		await expect.element(screen.getByText("2 / 3", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: "Post 21", exact: true })).toBeVisible();
+	});
+
+	it("returns to the filters and sort the editor left from", async () => {
+		const { router, TestApp } = buildRouter();
+
+		await router.navigate({
+			to: "/content/$collection",
+			params: { collection: "posts" },
+			search: { status: "draft" },
+		});
+		const screen = await render(<TestApp />);
+
+		await expect.element(screen.getByText("Post 1", { exact: true })).toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "Title" }).click();
+		await screen.getByRole("link", { name: "Post 1", exact: true }).click();
+		await expect.element(screen.getByTestId("content-editor")).toBeInTheDocument();
+
+		router.history.back();
+
+		await expect
+			.element(screen.getByRole("columnheader", { name: "Title" }))
+			.toHaveAttribute("aria-sort", "descending");
+		await waitFor(() => {
+			expect(router.state.location.search).toMatchObject({ status: "draft", sort: "title" });
+		});
+	});
+
+	it("keeps a pristine list free of query params, and drops them again when cleared", async () => {
+		const { router, TestApp } = buildRouter();
+
+		await router.navigate({ to: "/content/$collection", params: { collection: "posts" } });
+		const screen = await render(<TestApp />);
+
+		await expect.element(screen.getByText("1 / 3", { exact: true })).toBeInTheDocument();
+		expect(router.state.location.searchStr).toBe("");
+
+		await screen.getByRole("button", { name: "Next page" }).click();
+		await waitFor(() => {
+			expect(router.state.location.searchStr).toBe("?page=2");
+		});
+
+		await screen.getByRole("button", { name: "Previous page" }).click();
+		await waitFor(() => {
+			expect(router.state.location.searchStr).toBe("");
+		});
+	});
+
+	it("restores a page and a search term together", async () => {
+		const { router, TestApp } = buildRouter();
+
+		await router.navigate({
+			to: "/content/$collection",
+			params: { collection: "posts" },
+			search: { page: 2, q: "Post" },
+		});
+		const screen = await render(<TestApp />);
+
+		await expect.element(screen.getByRole("searchbox")).toHaveValue("Post");
+		await expect.element(screen.getByText("2 / 3", { exact: true })).toBeInTheDocument();
+
+		// The list reports its seeded query once the debounce settles. Treating
+		// that as a user edit would reset the page we just restored.
+		await new Promise((resolve) => setTimeout(resolve, 800));
+		expect(router.state.location.search).toMatchObject({ page: 2, q: "Post" });
+		await expect.element(screen.getByText("2 / 3", { exact: true })).toBeInTheDocument();
+	});
+
+	it("lets back-navigation win over a search edit still inside the debounce", async () => {
+		const { router, TestApp } = buildRouter();
+
+		await router.navigate({ to: "/content/$collection", params: { collection: "posts" } });
+		const screen = await render(<TestApp />);
+
+		await screen.getByRole("button", { name: "Next page" }).click();
+		await expect.element(screen.getByText("2 / 3", { exact: true })).toBeInTheDocument();
+
+		// Typing sends the list back to page 1; back undoes that while the term
+		// is still sitting in the debounce.
+		await screen.getByRole("searchbox").fill("Post 3");
+		await waitFor(() => {
+			expect(router.state.location.searchStr).toBe("");
+		});
+		router.history.back();
+
+		await new Promise((resolve) => setTimeout(resolve, 800));
+		expect(router.state.location.searchStr).toBe("?page=2");
+		await expect.element(screen.getByText("2 / 3", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByRole("searchbox")).toHaveValue("");
+	});
+
+	it("follows a search term that changes in the URL while the list stays mounted", async () => {
+		const { router, TestApp } = buildRouter();
+
+		await router.navigate({
+			to: "/content/$collection",
+			params: { collection: "posts" },
+			search: { q: "Post" },
+		});
+		const screen = await render(<TestApp />);
+
+		await expect.element(screen.getByRole("searchbox")).toHaveValue("Post");
+
+		await router.navigate({
+			to: "/content/$collection",
+			params: { collection: "posts" },
+			search: {},
+		});
+
+		await expect.element(screen.getByRole("searchbox")).toHaveValue("");
+
+		await new Promise((resolve) => setTimeout(resolve, 800));
+		expect(router.state.location.searchStr).toBe("");
+	});
+});
