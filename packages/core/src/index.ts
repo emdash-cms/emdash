@@ -28,6 +28,7 @@ export type {
 	FindManyResult,
 } from "./database/repositories/index.js";
 export type { MediaItem, CreateMediaInput } from "./database/repositories/media.js";
+export type { CompoundSelectLimitedAdapter } from "./database/dialect-helpers.js";
 
 // Fields
 export { portableText, image, file, reference } from "./fields/index.js";

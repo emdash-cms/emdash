@@ -310,17 +310,6 @@ function dataStr(data: Record<string, unknown>, key: string, fallback = ""): str
 	return typeof val === "string" ? val : fallback;
 }
 
-/** Safely read a date-like field from a Record */
-function dataDate(data: Record<string, unknown>, key: string): Date | undefined {
-	const val = data[key];
-	if (val instanceof Date) {
-		return Number.isNaN(val.getTime()) ? undefined : val;
-	}
-	if (typeof val !== "string" && typeof val !== "number") return undefined;
-	const date = new Date(val);
-	return Number.isNaN(date.getTime()) ? undefined : date;
-}
-
 /** Type guard for Record<string, unknown> */
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -345,6 +334,23 @@ function entryEditOptions(entry: { data?: unknown }): EditableOptions {
 	const liveRevisionId = dataStr(data, "liveRevisionId") || undefined;
 	const hasDraft = !!draftRevisionId && draftRevisionId !== liveRevisionId;
 	return { status, hasDraft };
+}
+
+function stripRevisionMetadata(entry: { data?: unknown }): void {
+	const data = entryData(entry);
+	delete data.draftRevisionId;
+	delete data.liveRevisionId;
+}
+
+function canExposeRevisionMetadata(
+	entry: { id: string; data?: unknown },
+	collection: string,
+): boolean {
+	const ctx = getRequestContext();
+	if (ctx?.editMode) return true;
+	if (ctx?.preview?.collection !== collection) return false;
+	const dbId = entryDatabaseId(entry);
+	return ctx.preview.id === dbId || ctx.preview.id === entry.id;
 }
 
 /**
@@ -441,7 +447,11 @@ async function loadCollectionCached<T extends string, D = InferCollectionData<T>
 		return { entries: [], error: snapshot.error, cacheHint: snapshot.cacheHint };
 	}
 	return {
-		entries: snapshot.value.entries.map((entry) => reviveEntry<D>(entry)),
+		entries: snapshot.value.entries.map((entry) => {
+			const revived = reviveEntry<D>(entry);
+			if (!canExposeRevisionMetadata(revived, type)) stripRevisionMetadata(revived);
+			return revived;
+		}),
 		nextCursor: snapshot.value.nextCursor,
 		hasMore: snapshot.value.hasMore,
 		cacheHint: snapshot.value.cacheHint,
@@ -729,6 +739,9 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 		if (isEditMode) {
 			tagEditableFields(entryData(entry), type, dbId);
 		}
+		if (!canExposeRevisionMetadata(entry, type)) {
+			stripRevisionMetadata(entry);
+		}
 		return {
 			...entry,
 			edit: isEditMode ? createEditable(type, dbId, entryEditOptions(entry)) : createNoop(),
@@ -804,23 +817,9 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 		};
 	}
 
-	/** Check if an entry is publicly visible (published or scheduled past its time) */
+	/** Check if an entry has completed publication. */
 	function isVisible(entry: ContentEntry<D>): boolean {
-		const data = entryData(entry);
-		const status = dataStr(data, "status");
-		const scheduledAt = dataDate(data, "scheduledAt");
-		const isPublished = status === "published";
-		const isScheduledAndReady =
-			status === "scheduled" && scheduledAt !== undefined && scheduledAt.getTime() <= Date.now();
-		return isPublished || !!isScheduledAndReady;
-	}
-
-	/** True when an entry is scheduled to become visible at a future time. */
-	function isPendingScheduled(entry: ContentEntry<D>): boolean {
-		const data = entryData(entry);
-		if (dataStr(data, "status") !== "scheduled") return false;
-		const scheduledAt = dataDate(data, "scheduledAt");
-		return scheduledAt !== undefined && scheduledAt.getTime() > Date.now();
+		return dataStr(entryData(entry), "status") === "published";
 	}
 
 	// Build the fallback chain: [requestedLocale, fallback1, ..., defaultLocale]
@@ -833,6 +832,7 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 		wrapped: ContentEntry<D>,
 		opts: { isPreview: boolean; fallbackLocale?: string; cacheHint: CacheHint },
 	): Promise<EntryResult<D>> {
+		if (!opts.isPreview) stripRevisionMetadata(wrapped);
 		// Hydrate terms in the entry's resolved locale (fallback-aware) so a
 		// localized entry never picks up default-locale taxonomy terms (#1441).
 		// When i18n is disabled we leave the locale unset to preserve the
@@ -929,11 +929,6 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 	// hydration) is wrapped in the distributed L2 cache, keyed by the requested
 	// locale. Preview/edit requests took the `serveDrafts` branch above and
 	// never reach here; the object cache additionally bypasses them.
-	// A scheduled entry becomes visible on a future clock tick, not on a write,
-	// so an L2 snapshot taken before its time would keep it hidden past go-live
-	// (until the publish sweep bumps the epoch or the TTL lapses). Mark such a
-	// resolution time-sensitive and skip caching it.
-	let timeSensitive = false;
 
 	const resolveNormal = async (): Promise<EntryResult<D>> => {
 		for (let i = 0; i < localeChain.length; i++) {
@@ -951,9 +946,6 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 					fallbackLocale,
 					cacheHint: cacheHint ?? {},
 				});
-			}
-			if (entry && isPendingScheduled(entry)) {
-				timeSensitive = true;
 			}
 			// Entry not found or not visible in this locale — try next
 		}
@@ -978,14 +970,16 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 				},
 			};
 		},
-		cacheable: (snap) => snap.ok && !timeSensitive,
+		cacheable: (snap) => snap.ok,
 	});
 
 	if (!snapshot.ok) {
 		return { entry: null, error: snapshot.error, isPreview: false, cacheHint: snapshot.cacheHint };
 	}
+	const revived = snapshot.value.entry ? reviveEntry<D>(snapshot.value.entry) : null;
+	if (revived && !canExposeRevisionMetadata(revived, type)) stripRevisionMetadata(revived);
 	return {
-		entry: snapshot.value.entry ? reviveEntry<D>(snapshot.value.entry) : null,
+		entry: revived,
 		isPreview: snapshot.value.isPreview,
 		fallbackLocale: snapshot.value.fallbackLocale,
 		cacheHint: snapshot.value.cacheHint,

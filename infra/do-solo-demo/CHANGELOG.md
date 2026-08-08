@@ -1,5 +1,29 @@
 # @emdash-cms/do-solo-demo-site
 
+## 0.0.35
+
+### Patch Changes
+
+- Updated dependencies [[`215f36e`](https://github.com/emdash-cms/emdash/commit/215f36ebbd6d1193c10dd229b789a9a70c8b367e), [`8d46fd2`](https://github.com/emdash-cms/emdash/commit/8d46fd29506f9164583853909fce8db705b020f3), [`c1f6768`](https://github.com/emdash-cms/emdash/commit/c1f6768adf2ffb4e09c664d684fc3d49e2b885f0), [`ecebade`](https://github.com/emdash-cms/emdash/commit/ecebade8fb3ff4976c88787595fcb2922c3ee469), [`e1ab8f0`](https://github.com/emdash-cms/emdash/commit/e1ab8f08ca262a0b7c981b044cbc52d86f2b7ffe), [`121b333`](https://github.com/emdash-cms/emdash/commit/121b3339b6a2aa1ac86e01bb9ccb5d642af1b620), [`3aabb7b`](https://github.com/emdash-cms/emdash/commit/3aabb7bff8173efabb56ae878a6c2578a7219a10), [`b0c7880`](https://github.com/emdash-cms/emdash/commit/b0c7880c74994e229b4cf4e9a0247452df2bc640), [`4a49262`](https://github.com/emdash-cms/emdash/commit/4a4926267ea625b31975eb22b5c03474e1487eab)]:
+  - @emdash-cms/cloudflare@0.32.0
+  - emdash@0.32.0
+
+## 0.0.34
+
+### Patch Changes
+
+- Updated dependencies [[`f81aa68`](https://github.com/emdash-cms/emdash/commit/f81aa6842c659799eb8952f7f40869b537e340df)]:
+  - emdash@0.31.1
+  - @emdash-cms/cloudflare@0.31.1
+
+## 0.0.33
+
+### Patch Changes
+
+- Updated dependencies [[`15d5a45`](https://github.com/emdash-cms/emdash/commit/15d5a454c4bdde456819b04ef67fcd846f191ead), [`c568876`](https://github.com/emdash-cms/emdash/commit/c568876d78bfcb90d170e03212544a2bda81ddf2), [`f8e41cd`](https://github.com/emdash-cms/emdash/commit/f8e41cdddae07859b1854719fb15536533916f8b), [`c4d790e`](https://github.com/emdash-cms/emdash/commit/c4d790e9025b3fdba53953ec720e5e043fd153ab), [`0eb389f`](https://github.com/emdash-cms/emdash/commit/0eb389f7a297d197e4f537eae44bfdee87e39396), [`791c0eb`](https://github.com/emdash-cms/emdash/commit/791c0eb2836af9fbe3069c75dd1acfb901288592)]:
+  - emdash@0.31.0
+  - @emdash-cms/cloudflare@0.31.0
+
 ## 0.0.32
 
 ### Patch Changes

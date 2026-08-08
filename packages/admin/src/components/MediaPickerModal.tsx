@@ -66,6 +66,10 @@ export interface MediaPickerModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onSelect: (item: MediaItem) => void;
+	/** Allow selecting several items at once; confirms through `onSelectMany`. */
+	multiple?: boolean;
+	/** Called instead of `onSelect` when `multiple` is set. */
+	onSelectMany?: (items: MediaItem[]) => void;
 	/** Filter by mime type prefix, e.g. "image/" */
 	mimeTypeFilter?: string;
 	title?: string;
@@ -122,6 +126,8 @@ export function MediaPickerModal({
 	open,
 	onOpenChange,
 	onSelect,
+	multiple = false,
+	onSelectMany,
 	mimeTypeFilter = "image/",
 	mimeTypeFilters,
 	fieldId,
@@ -149,6 +155,8 @@ export function MediaPickerModal({
 	const EmptyStateIcon = isFileKind ? Paperclip : Image;
 	const queryClient = useQueryClient();
 	const [selectedItem, setSelectedItem] = React.useState<SelectedMedia | null>(null);
+	// Multi-select mode keeps items in click order — it becomes the gallery order.
+	const [selectedItems, setSelectedItems] = React.useState<SelectedMedia[]>([]);
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	// Debounced for the local library's server-side filename search.
@@ -173,6 +181,7 @@ export function MediaPickerModal({
 	React.useEffect(() => {
 		if (open) {
 			setSelectedItem(null);
+			setSelectedItems([]);
 			setActiveProvider("local");
 			setSearchQuery("");
 			setImageUrl("");
@@ -257,7 +266,11 @@ export function MediaPickerModal({
 		mutationFn: (file: File) => uploadMedia(file, { fieldId }),
 		onSuccess: (item) => {
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
-			setSelectedItem({ providerId: "local", item });
+			if (multiple) {
+				setSelectedItems((prev) => [...prev, { providerId: "local", item }]);
+			} else {
+				setSelectedItem({ providerId: "local", item });
+			}
 			setUploadError(null);
 		},
 		onError: (err: Error) => {
@@ -271,7 +284,11 @@ export function MediaPickerModal({
 			uploadToProvider(providerId, file),
 		onSuccess: (item, { providerId }) => {
 			void queryClient.invalidateQueries({ queryKey: ["provider-media", providerId] });
-			setSelectedItem({ providerId, item });
+			if (multiple) {
+				setSelectedItems((prev) => [...prev, { providerId, item }]);
+			} else {
+				setSelectedItem({ providerId, item });
+			}
 			setUploadError(null);
 		},
 		onError: (err: Error) => {
@@ -356,25 +373,51 @@ export function MediaPickerModal({
 		}
 	};
 
+	// When providerId is "local", item is always MediaItem; otherwise MediaProviderItem
+	const toMediaItem = (selected: SelectedMedia): MediaItem => {
+		if (selected.providerId === "local") {
+			return selected.item as MediaItem;
+		}
+		const providerItem = selected.item as MediaProviderItem;
+		const dims = providerDimensions[providerItem.id];
+		const itemWithDims = dims
+			? {
+					...providerItem,
+					width: providerItem.width ?? dims.width,
+					height: providerItem.height ?? dims.height,
+				}
+			: providerItem;
+		return providerItemToMediaItem(selected.providerId, itemWithDims);
+	};
+
+	const isItemSelected = (providerId: string, id: string) =>
+		multiple
+			? selectedItems.some((s) => s.providerId === providerId && s.item.id === id)
+			: selectedItem?.providerId === providerId && selectedItem.item.id === id;
+
+	const handleItemClick = (providerId: string, item: MediaItem | MediaProviderItem) => {
+		if (multiple) {
+			setSelectedItems((prev) =>
+				prev.some((s) => s.providerId === providerId && s.item.id === item.id)
+					? prev.filter((s) => !(s.providerId === providerId && s.item.id === item.id))
+					: [...prev, { providerId, item }],
+			);
+		} else {
+			setSelectedItem({ providerId, item });
+		}
+	};
+
 	const handleConfirm = () => {
+		if (multiple) {
+			if (selectedItems.length === 0) return;
+			onSelectMany?.(selectedItems.map(toMediaItem));
+			onOpenChange(false);
+			setSelectedItems([]);
+			setImageUrl("");
+			return;
+		}
 		if (selectedItem) {
-			if (selectedItem.providerId === "local") {
-				// When providerId is "local", item is always MediaItem
-				onSelect(selectedItem.item as MediaItem);
-			} else {
-				// When providerId is not "local", item is always MediaProviderItem
-				const providerItem = selectedItem.item as MediaProviderItem;
-				const dims = providerDimensions[providerItem.id];
-				const itemWithDims = dims
-					? {
-							...providerItem,
-							width: providerItem.width ?? dims.width,
-							height: providerItem.height ?? dims.height,
-						}
-					: providerItem;
-				const mediaItem = providerItemToMediaItem(selectedItem.providerId, itemWithDims);
-				onSelect(mediaItem);
-			}
+			onSelect(toMediaItem(selectedItem));
 			onOpenChange(false);
 			setSelectedItem(null);
 			setImageUrl("");
@@ -384,6 +427,7 @@ export function MediaPickerModal({
 	const handleClose = () => {
 		onOpenChange(false);
 		setSelectedItem(null);
+		setSelectedItems([]);
 		setImageUrl("");
 		setUrlError(null);
 	};
@@ -431,7 +475,11 @@ export function MediaPickerModal({
 				createdAt: new Date().toISOString(),
 			};
 
-			onSelect(externalItem);
+			if (multiple) {
+				onSelectMany?.([externalItem]);
+			} else {
+				onSelect(externalItem);
+			}
 			onOpenChange(false);
 			setImageUrl("");
 		} catch {
@@ -544,6 +592,7 @@ export function MediaPickerModal({
 								onClick={() => {
 									setActiveProvider(tab.id);
 									setSelectedItem(null);
+									setSelectedItems([]);
 									setSearchQuery("");
 								}}
 								className={cn(
@@ -665,11 +714,14 @@ export function MediaPickerModal({
 										<MediaPickerItem
 											key={item.id}
 											item={item}
-											selected={
-												selectedItem?.providerId === "local" && selectedItem.item.id === item.id
-											}
-											onClick={() => setSelectedItem({ providerId: "local", item })}
+											selected={isItemSelected("local", item.id)}
+											onClick={() => handleItemClick("local", item)}
 											onDoubleClick={() => {
+												// Multi-select: double-click is just a toggle, no instant insert
+												if (multiple) {
+													handleItemClick("local", item);
+													return;
+												}
 												onSelect(item);
 												onOpenChange(false);
 											}}
@@ -680,12 +732,13 @@ export function MediaPickerModal({
 										<ProviderMediaItem
 											key={item.id}
 											item={item}
-											selected={
-												selectedItem?.providerId === activeProvider &&
-												selectedItem.item.id === item.id
-											}
-											onClick={() => setSelectedItem({ providerId: activeProvider, item })}
+											selected={isItemSelected(activeProvider, item.id)}
+											onClick={() => handleItemClick(activeProvider, item)}
 											onDoubleClick={() => {
+												if (multiple) {
+													handleItemClick(activeProvider, item);
+													return;
+												}
 												// Merge loaded dimensions for double-click select
 												const dims = providerDimensions[item.id];
 												const itemWithDims = dims
@@ -728,21 +781,33 @@ export function MediaPickerModal({
 				{/* Footer */}
 				<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 border-t pt-4">
 					<div className="flex-1 text-sm text-kumo-subtle">
-						{selectedItem && (
-							<span>
-								{t`Selected:`} <strong>{selectedItem.item.filename}</strong>
-								{selectedItem.providerId !== "local" && (
-									<span className="ms-2 text-xs">
-										{t`(from ${providers?.find((p) => p.id === selectedItem.providerId)?.name})`}
+						{multiple
+							? selectedItems.length > 0 && (
+									<span>
+										{plural(selectedItems.length, {
+											one: "# item selected",
+											other: "# items selected",
+										})}
+									</span>
+								)
+							: selectedItem && (
+									<span>
+										{t`Selected:`} <strong>{selectedItem.item.filename}</strong>
+										{selectedItem.providerId !== "local" && (
+											<span className="ms-2 text-xs">
+												{t`(from ${providers?.find((p) => p.id === selectedItem.providerId)?.name})`}
+											</span>
+										)}
 									</span>
 								)}
-							</span>
-						)}
 					</div>
 					<Button variant="outline" onClick={handleClose}>
 						{t`Cancel`}
 					</Button>
-					<Button onClick={handleConfirm} disabled={!selectedItem}>
+					<Button
+						onClick={handleConfirm}
+						disabled={multiple ? selectedItems.length === 0 : !selectedItem}
+					>
 						{t`Insert`}
 					</Button>
 				</div>

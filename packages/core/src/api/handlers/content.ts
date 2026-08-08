@@ -15,6 +15,7 @@ import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import {
+	ContentMutationConflictError,
 	EmDashValidationError,
 	ScheduledNotDueError,
 	InvalidCursorError,
@@ -30,7 +31,7 @@ import { UserRepository } from "../../database/repositories/user.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
-import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
+import { getI18nConfig, isI18nEnabled, resolveConfiguredLocale } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { FTSManager } from "../../search/fts-manager.js";
 import { invalidateTermCache } from "../../taxonomies/index.js";
@@ -269,7 +270,11 @@ async function resolveId(
 	identifier: string,
 	locale?: string,
 ): Promise<string | null> {
-	const item = await repo.findByIdOrSlug(collection, identifier, locale);
+	const item = await repo.findByIdOrSlug(
+		collection,
+		identifier,
+		locale ? resolveConfiguredLocale(locale) : undefined,
+	);
 	return item?.id ?? null;
 }
 
@@ -283,7 +288,11 @@ async function resolveIdIncludingTrashed(
 	identifier: string,
 	locale?: string,
 ): Promise<string | null> {
-	const item = await repo.findByIdOrSlugIncludingTrashed(collection, identifier, locale);
+	const item = await repo.findByIdOrSlugIncludingTrashed(
+		collection,
+		identifier,
+		locale ? resolveConfiguredLocale(locale) : undefined,
+	);
 	return item?.id ?? null;
 }
 
@@ -427,7 +436,7 @@ export async function handleContentList(
 		const repo = new ContentRepository(db);
 		const where: FindManyOptions["where"] = {};
 		if (params.status) where.status = params.status;
-		if (params.locale) where.locale = params.locale;
+		if (params.locale) where.locale = resolveConfiguredLocale(params.locale);
 		if (params.authorId) where.authorId = params.authorId;
 
 		// A date range requires a target column; ignore stray from/to without
@@ -579,7 +588,11 @@ export async function handleContentGet(
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const repo = new ContentRepository(db);
-		const item = await repo.findByIdOrSlug(collection, id, locale);
+		const item = await repo.findByIdOrSlug(
+			collection,
+			id,
+			locale ? resolveConfiguredLocale(locale) : undefined,
+		);
 
 		if (!item) {
 			return {
@@ -624,7 +637,11 @@ export async function handleContentGetIncludingTrashed(
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const repo = new ContentRepository(db);
-		const item = await repo.findByIdOrSlugIncludingTrashed(collection, id, locale);
+		const item = await repo.findByIdOrSlugIncludingTrashed(
+			collection,
+			id,
+			locale ? resolveConfiguredLocale(locale) : undefined,
+		);
 
 		if (!item) {
 			return {
@@ -706,7 +723,9 @@ export async function handleContentCreate(
 			// Default to the configured site locale rather than the repo's
 			// hard-coded "en" — otherwise non-English default-locale sites
 			// silently create entries in a locale the editor never chose.
-			const effectiveLocale = body.locale ?? getI18nConfig()?.defaultLocale;
+			const effectiveLocale = body.locale
+				? resolveConfiguredLocale(body.locale)
+				: getI18nConfig()?.defaultLocale;
 
 			let slug: string | null | undefined = body.slug;
 			if (!slug) {
@@ -1432,15 +1451,18 @@ export async function handleContentUnschedule(
 /**
  * Publish content immediately.
  *
- * Wrapped in a transaction because publish performs multiple writes
- * (syncDataColumns, slug sync, status/revision update) that must
- * be atomic to prevent FTS shadow table corruption on crash.
+ * Publication is one atomic content-row statement. On databases that support
+ * transactions, the existing slug-redirect side write remains grouped with it.
  */
 export async function handleContentPublish(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-	options: { publishedAt?: string; requireScheduledDue?: boolean } = {},
+	options: {
+		publishedAt?: string;
+		requireScheduledDue?: boolean;
+		expectedScheduledAt?: string;
+	} = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const item = await withTransaction(db, async (trx) => {
@@ -1459,6 +1481,7 @@ export async function handleContentPublish(
 				resolvedId,
 				options.publishedAt,
 				options.requireScheduledDue,
+				options.expectedScheduledAt,
 			);
 
 			// Leave a 301 behind when publishing changed the slug of an entry that
@@ -1484,6 +1507,15 @@ export async function handleContentPublish(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: error.message,
+				},
+			};
+		}
 		// The scheduled sweep gates publish on the row still being due; a row
 		// unscheduled in the meantime is a silent skip, not a failure.
 		if (error instanceof ScheduledNotDueError) {

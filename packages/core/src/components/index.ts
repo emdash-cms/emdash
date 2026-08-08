@@ -73,6 +73,7 @@ import HtmlBlockComponent from "./HtmlBlock.astro";
 // Pre-configured components object for PortableText
 import ImageComponent from "./Image.astro";
 import { emdashMarkComponents } from "./marks.js";
+import OrderedListComponent from "./OrderedList.astro";
 import PullquoteComponent from "./Pullquote.astro";
 import TableComponent from "./Table.astro";
 
@@ -88,6 +89,9 @@ import TableComponent from "./Table.astro";
  */
 export const emdashComponents = {
 	block: BlockComponent,
+	list: {
+		number: OrderedListComponent,
+	},
 	type: {
 		blockquoteGroup: BlockquoteGroupComponent,
 		image: ImageComponent,

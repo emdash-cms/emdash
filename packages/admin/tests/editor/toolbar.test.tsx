@@ -177,7 +177,7 @@ function expectAlignmentState(
 
 async function getHeadingMenuItem(
 	screen: Awaited<ReturnType<typeof render>>,
-	name: "Heading 1" | "Heading 2" | "Heading 3",
+	name: "Heading 1" | "Heading 2" | "Heading 3" | "Heading 4" | "Heading 5" | "Heading 6",
 ) {
 	const trigger = getToolbarButton(screen, "Headings");
 	trigger.element().click();
@@ -224,6 +224,9 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 1" })).toBeVisible();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 2" })).toBeVisible();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 3" })).toBeVisible();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 4" })).toBeVisible();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 5" })).toBeVisible();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 6" })).toBeVisible();
 		expect(
 			screen
 				.getByRole("menuitem", { name: "Heading 1" })
@@ -235,7 +238,16 @@ describe("Toolbar Presence and Structure", () => {
 			document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
 			(item) => item.textContent?.trim(),
 		);
-		expect(headingLabels).not.toContain("Heading 4");
+		expect(headingLabels).toEqual(
+			expect.arrayContaining([
+				"Heading 1",
+				"Heading 2",
+				"Heading 3",
+				"Heading 4",
+				"Heading 5",
+				"Heading 6",
+			]),
+		);
 	});
 
 	it("has all list buttons", async () => {
@@ -499,6 +511,19 @@ describe("Formatting Button Toggle States", () => {
 		});
 	});
 
+	it("Heading 6: click changes to h6", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.commands.focus();
+
+		const { trigger, item } = await getHeadingMenuItem(screen, "Heading 6");
+		item.element().click();
+
+		await vi.waitFor(() => {
+			expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
+			expect(editor.isActive("heading", { level: 6 })).toBe(true);
+		});
+	});
+
 	it("Bullet List: click toggles aria-pressed to true", async () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
@@ -521,6 +546,63 @@ describe("Formatting Button Toggle States", () => {
 		await vi.waitFor(() => {
 			expect(btn.element().getAttribute("aria-pressed")).toBe("true");
 		});
+	});
+
+	it("continues or restarts the selected numbered-list segment in RTL", async () => {
+		const previousDir = document.documentElement.dir;
+		document.documentElement.dir = "rtl";
+		try {
+			const { screen, editor } = await renderEditor({
+				value: [
+					{
+						_type: "block",
+						_key: "one",
+						style: "normal",
+						listItem: "number",
+						level: 1,
+						listId: "first",
+						listStart: 1,
+						children: [{ _type: "span", _key: "s1", text: "One" }],
+					},
+					{
+						_type: "block",
+						_key: "between",
+						style: "normal",
+						children: [{ _type: "span", _key: "s2", text: "Between" }],
+					},
+					{
+						_type: "block",
+						_key: "independent",
+						style: "normal",
+						listItem: "number",
+						level: 1,
+						listId: "second",
+						listStart: 1,
+						children: [{ _type: "span", _key: "s3", text: "Independent" }],
+					},
+				],
+			});
+			editor.commands.setTextSelection(getTextPosition(editor, "Independent"));
+
+			const continueButton = getToolbarButton(screen, "Continue numbering");
+			const restartButton = getToolbarButton(screen, "Restart numbering");
+			await expect.element(continueButton).toBeVisible();
+			await expect.element(restartButton).toBeVisible();
+			expect(continueButton.element().hasAttribute("disabled")).toBe(false);
+			expect(restartButton.element().hasAttribute("disabled")).toBe(false);
+
+			continueButton.element().click();
+			await vi.waitFor(() => {
+				const starts: number[] = [];
+				editor.state.doc.descendants((node) => {
+					if (node.type.name === "orderedList") starts.push(node.attrs.start);
+				});
+				expect(starts).toEqual([1, 2]);
+				expect(continueButton.element().hasAttribute("disabled")).toBe(true);
+			});
+		} finally {
+			document.documentElement.dir = previousDir;
+		}
 	});
 
 	it("Quote: click toggles aria-pressed to true", async () => {

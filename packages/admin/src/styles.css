@@ -29,13 +29,6 @@
  * Overrides kumo CSS custom properties with classic CMS admin values.
  * Applied via data-theme="classic" on <html> so portals inherit too.
  */
-[data-theme="classic"] {
-	/* Primary brand blue */
-	--color-kumo-brand: #2271b1;
-	--color-kumo-brand-hover: #135e96;
-	--text-color-kumo-brand: #2271b1;
-}
-
 [data-theme="classic"]:not([data-mode="dark"]) {
 	/* Surfaces */
 	--color-kumo-canvas: oklch(98.75% 0 0);
@@ -52,14 +45,12 @@
 
 	/* Borders */
 	--color-kumo-line: oklch(14.5% 0 0 / 0.1);
-	--color-kumo-ring: #2271b1;
 
 	/* Text hierarchy */
 	--text-color-kumo-default: #1d2327;
 	--text-color-kumo-strong: #50575e;
-	--text-color-kumo-subtle: #787c82;
+	--text-color-kumo-subtle: #646970;
 	--text-color-kumo-inactive: #a7aaad;
-	--text-color-kumo-link: #2271b1;
 
 	/* Semantic colors */
 	--color-kumo-info: #72aee6;
@@ -108,6 +99,8 @@
 body {
 	background-color: var(--color-kumo-elevated);
 	color: var(--text-color-kumo-default);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 /*
@@ -153,8 +146,9 @@ body {
 	}
 }
 
-/* Keep heading choices visibly distinct from the dropdown surface. */
-[data-emdash-heading-item][data-highlighted] {
+/* Keep editor menu choices visibly distinct from their dropdown surfaces. */
+[data-emdash-heading-item][data-highlighted],
+[data-emdash-block-menu-item][data-highlighted] {
 	background-color: var(--color-kumo-interact) !important;
 }
 
@@ -307,7 +301,10 @@ body {
 	margin-bottom: 0.4em !important;
 }
 
-.ProseMirror.prose > h3 {
+.ProseMirror.prose > h3,
+.ProseMirror.prose > h4,
+.ProseMirror.prose > h5,
+.ProseMirror.prose > h6 {
 	margin-top: 0.3em !important;
 	margin-bottom: 0.3em !important;
 }

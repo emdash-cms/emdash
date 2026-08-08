@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { gateGithubRequest, githubAuthHeader } from "../../.flue/lib/github-proxy.js";
+import {
+	createPushCapability,
+	gateGithubRequest,
+	githubAuthHeader,
+	verifyPushCapability,
+} from "../../.flue/lib/github-proxy.js";
 
 const OWNER = "emdash-cms";
 const REPO = "emdash";
@@ -25,6 +30,33 @@ describe("githubAuthHeader", () => {
 		expect(githubAuthHeader("raw.githubusercontent.com", "tok_abc")).toBe(
 			`Basic ${btoa("x-access-token:tok_abc")}`,
 		);
+	});
+});
+
+describe("push capabilities", () => {
+	test("round-trips only with the signing secret", async () => {
+		const capability = await createPushCapability("webhook-secret", OWNER, REPO, 123);
+
+		await expect(verifyPushCapability(capability, "webhook-secret", OWNER, REPO)).resolves.toBe(
+			123,
+		);
+		await expect(
+			verifyPushCapability(capability, "different-secret", OWNER, REPO),
+		).resolves.toBeNull();
+		await expect(
+			verifyPushCapability(`456.${capability.split(".")[1]}`, "webhook-secret", OWNER, REPO),
+		).resolves.toBeNull();
+		await expect(verifyPushCapability("123.!", "webhook-secret", OWNER, REPO)).resolves.toBeNull();
+	});
+
+	test("fails closed without a secret or for another repository", async () => {
+		const capability = await createPushCapability("webhook-secret", OWNER, REPO, 123);
+
+		await expect(createPushCapability("", OWNER, REPO, 123)).rejects.toThrow(/secret/);
+		await expect(verifyPushCapability(capability, "", OWNER, REPO)).resolves.toBeNull();
+		await expect(
+			verifyPushCapability(capability, "webhook-secret", OWNER, "another-repo"),
+		).resolves.toBeNull();
 	});
 });
 

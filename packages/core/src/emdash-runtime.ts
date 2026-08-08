@@ -9,7 +9,7 @@
 
 import { Permissions } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
-import { Kysely, sql, type Dialect } from "kysely";
+import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
@@ -31,12 +31,15 @@ import {
 	runMigrations,
 } from "./database/migrations/runner.js";
 import { AuditRepository } from "./database/repositories/audit.js";
+import { ContentRepository } from "./database/repositories/content.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
+import { ContentMutationConflictError } from "./database/repositories/types.js";
 import type {
 	ContentItem as ContentItemInternal,
 	ContentDateField,
 } from "./database/repositories/types.js";
-import { validateIdentifier } from "./database/validate.js";
+import { getI18nConfig } from "./i18n/config.js";
+import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
 import {
@@ -71,6 +74,12 @@ import { createSingleFlightCache, singleFlightCached } from "./utils/single-flig
 import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
+const LOCALE_CASING_REPAIR_OPTION = "emdash:repair_locale_casing";
+
+function getLocaleCasingRepairVersion(locales: readonly string[]): string | null {
+	if (locales.length === 0) return null;
+	return `1:${locales.toSorted().join(",")}`;
+}
 
 /**
  * Parse a JSON column expected to contain an array of strings.
@@ -194,6 +203,9 @@ import { getRequestContext } from "./request-context.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
+
+const DRAFT_ONLY_UPDATE_KEYS = new Set(["data", "slug", "locale", "skipRevision"]);
+const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 
 /**
  * Sandboxed plugin entry from virtual module
@@ -1108,6 +1120,10 @@ export class EmDashRuntime {
 		const storage = EmDashRuntime.getStorage(deps);
 
 		let pluginStates: Map<string, string> = new Map();
+		const configuredLocales: string[] =
+			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
+		const localeCasingRepairVersion = getLocaleCasingRepairVersion(configuredLocales);
+		let storedLocaleCasingRepairVersion: string | undefined;
 		let siteInfo:
 			| {
 					siteName?: string;
@@ -1153,7 +1169,9 @@ export class EmDashRuntime {
 				"emdash:site_title",
 				"emdash:site_url",
 				"emdash:locale",
+				LOCALE_CASING_REPAIR_OPTION,
 			]);
+			storedLocaleCasingRepairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
 			return {
 				siteName: siteOpts.get("emdash:site_title") ?? undefined,
 				siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
@@ -1218,6 +1236,20 @@ export class EmDashRuntime {
 		}
 
 		await Promise.all(coldStartReads);
+
+		if (
+			localeCasingRepairVersion &&
+			(configuredLocales.some(
+				(locale) => locale.includes("-") || locale !== locale.toLowerCase(),
+			) ||
+				storedLocaleCasingRepairVersion !== undefined) &&
+			storedLocaleCasingRepairVersion !== localeCasingRepairVersion
+		) {
+			await phase("rt.locale", "Repair locale casing", async () => {
+				await repairLocaleCasing(db, configuredLocales);
+				await new OptionsRepository(db).set(LOCALE_CASING_REPAIR_OPTION, localeCasingRepairVersion);
+			});
+		}
 
 		// Auto-seed the default schema for a first load that skipped the setup
 		// wizard (the wizard and dev-bypass apply seeds explicitly). Run under a
@@ -2652,13 +2684,12 @@ export class EmDashRuntime {
 			taxonomies?: Record<string, string[]>;
 			publishedAt?: string | null;
 			locale?: string;
-			/** Skip revision creation (used by autosave) */
+			/** Replace the previous autosave revision after staging this save. */
 			skipRevision?: boolean;
 			_rev?: string;
 		},
 	) {
 		// Resolve slug → ID if needed (before any lookups)
-		const { ContentRepository } = await import("./database/repositories/content.js");
 		const repo = new ContentRepository(this.db);
 		const resolvedItem = await repo.findByIdOrSlug(collection, id, body.locale);
 		const resolvedId = resolvedItem?.id ?? id;
@@ -2721,76 +2752,113 @@ export class EmDashRuntime {
 		let usesDraftRevisions = false;
 		let draftStorageChanged = false;
 		if (processedData) {
-			try {
-				const collectionInfo = await this.schemaRegistry.getCollectionWithFields(collection);
-				if (collectionInfo?.supports?.includes("revisions")) {
-					usesDraftRevisions = true;
-					const revisionRepo = new RevisionRepository(this.db);
-					// Re-fetch to get latest state (resolvedItem may be stale after _rev check)
-					const existing = await repo.findById(collection, resolvedId);
+			const collectionInfo = await this.schemaRegistry.getCollectionWithFields(collection);
+			if (collectionInfo?.supports?.includes("revisions")) {
+				usesDraftRevisions = true;
+				const revisionRepo = new RevisionRepository(this.db);
+				let existing = await repo.findById(collection, resolvedId);
 
-					if (existing) {
-						// Build the draft data: merge with existing draft revision if one exists,
-						// otherwise merge with the published data from the content table
-						let baseData: Record<string, unknown>;
-						if (existing.draftRevisionId) {
-							const draftRevision = await revisionRepo.findById(existing.draftRevisionId);
-							baseData = draftRevision?.data ?? existing.data;
-						} else {
-							baseData = existing.data;
-						}
-
-						// Include slug in the revision data if it changed
-						const mergedData = { ...baseData, ...processedData };
-						if (bodyWithoutRev.slug !== undefined) {
-							mergedData._slug = bodyWithoutRev.slug;
-						}
-
-						if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
-							// Autosave: update existing draft revision in place
-							await revisionRepo.updateData(existing.draftRevisionId, mergedData);
-							draftStorageChanged = true;
-						} else {
-							// Create new draft revision
-							const revision = await revisionRepo.create({
-								collection,
-								entryId: resolvedId,
-								data: mergedData,
-								authorId: bodyWithoutRev.authorId ?? undefined,
-							});
-
-							// Update entry to point to new draft (metadata only, not data columns).
-							// No updated_at stamp: draft staging leaves live content untouched,
-							// so public "last modified" consumers must not see a change (#2143).
-							validateIdentifier(collection, "collection");
-							const tableName = `ec_${collection}`;
-							await sql`
-								UPDATE ${sql.ref(tableName)}
-								SET draft_revision_id = ${revision.id}
-								WHERE id = ${resolvedId}
-							`.execute(this.db);
-							draftStorageChanged = true;
-
-							// Fire-and-forget: prune old revisions to prevent unbounded growth
-							void revisionRepo.pruneOldRevisions(collection, resolvedId, 50).catch(() => {});
-						}
+				for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
+					let baseData: Record<string, unknown>;
+					if (existing.draftRevisionId) {
+						const draftRevision = await revisionRepo.findById(existing.draftRevisionId);
+						baseData = draftRevision?.data ?? existing.data;
+					} else {
+						baseData = existing.data;
 					}
+
+					const mergedData = { ...baseData, ...processedData };
+					if (bodyWithoutRev.slug !== undefined) {
+						mergedData._slug = bodyWithoutRev.slug;
+					}
+
+					const revision = await revisionRepo.create({
+						collection,
+						entryId: resolvedId,
+						data: mergedData,
+						authorId: bodyWithoutRev.authorId ?? undefined,
+					});
+
+					let staged: boolean;
+					try {
+						staged = await repo.replaceDraftRevision(collection, resolvedId, revision.id, existing);
+					} catch (error) {
+						try {
+							await revisionRepo.deleteIfUnreferenced(collection, resolvedId, revision.id);
+						} catch (cleanupError) {
+							console.error(
+								`[emdash] Failed to clean up unstaged revision ${revision.id}:`,
+								cleanupError,
+							);
+						}
+						throw error;
+					}
+
+					if (!staged) {
+						try {
+							await revisionRepo.deleteIfUnreferenced(collection, resolvedId, revision.id);
+						} catch (cleanupError) {
+							console.error(
+								`[emdash] Failed to clean up unstaged revision ${revision.id}:`,
+								cleanupError,
+							);
+						}
+						if (body._rev || attempt === MAX_DRAFT_STAGE_ATTEMPTS - 1) {
+							const error = new ContentMutationConflictError();
+							return {
+								success: false as const,
+								error: { code: "CONFLICT", message: error.message },
+							};
+						}
+						existing = await repo.findById(collection, resolvedId);
+						continue;
+					}
+
+					draftStorageChanged = true;
+
+					if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
+						try {
+							await revisionRepo.deleteIfUnreferenced(
+								collection,
+								resolvedId,
+								existing.draftRevisionId,
+							);
+						} catch (error) {
+							console.error(
+								`[emdash] Failed to clean up superseded revision ${existing.draftRevisionId}:`,
+								error,
+							);
+						}
+					} else {
+						void revisionRepo.pruneOldRevisions(collection, resolvedId, 50).catch(() => {});
+					}
+					break;
 				}
-			} catch {
-				// Don't fail the update if revision creation fails
 			}
 		}
+
+		// Public HTML comes from live columns / SEO / taxonomies, not draft revisions.
+		const liveMetaTouched = Object.entries(bodyWithoutRev).some(
+			([key, value]) => value !== undefined && !DRAFT_ONLY_UPDATE_KEYS.has(key),
+		);
 
 		// Update the content table:
 		// - If collection uses draft revisions: only update metadata (no data fields, no slug)
 		// - Otherwise: update everything as before
-		const result = await handleContentUpdate(this.db, collection, resolvedId, {
-			...bodyWithoutRev,
-			data: usesDraftRevisions ? undefined : processedData,
-			slug: usesDraftRevisions ? undefined : bodyWithoutRev.slug,
-			authorId: bodyWithoutRev.authorId,
-			bylines: bodyWithoutRev.bylines,
-		});
+		const result =
+			usesDraftRevisions && !liveMetaTouched
+				? await handleContentGet(this.db, collection, resolvedId)
+				: await handleContentUpdate(this.db, collection, resolvedId, {
+						...bodyWithoutRev,
+						data: usesDraftRevisions ? undefined : processedData,
+						slug: usesDraftRevisions ? undefined : bodyWithoutRev.slug,
+						authorId: bodyWithoutRev.authorId,
+						bylines: bodyWithoutRev.bylines,
+					});
+
+		const liveContentChanged = usesDraftRevisions
+			? liveMetaTouched
+			: Boolean(processedData || bodyWithoutRev.slug !== undefined || liveMetaTouched);
 
 		// Hydrate draft data BEFORE firing afterSave hooks so the hook sees
 		// the same effective data the response surfaces — for revision-
@@ -2840,6 +2908,9 @@ export class EmDashRuntime {
 			this.runAfterSaveHooks(contentItemToRecord(hydrated.data.item), collection, false);
 		}
 
+		if (hydrated.success) {
+			return { ...hydrated, liveContentChanged };
+		}
 		return hydrated;
 	}
 
@@ -2876,7 +2947,7 @@ export class EmDashRuntime {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.id]);
 		}
 
-		// Run afterDelete hooks (fire-and-forget)
+		// Run afterDelete hooks (deferred past the response via after())
 		if (result.success) {
 			this.runAfterDeleteHooks(id, collection, false);
 		}
@@ -2942,7 +3013,11 @@ export class EmDashRuntime {
 	async handleContentPublish(
 		collection: string,
 		id: string,
-		options: { publishedAt?: string; requireScheduledDue?: boolean } = {},
+		options: {
+			publishedAt?: string;
+			requireScheduledDue?: boolean;
+			expectedScheduledAt?: string;
+		} = {},
 	) {
 		const result = await handleContentPublish(this.db, collection, id, options);
 		if (result.success && result.data) {
@@ -2963,7 +3038,7 @@ export class EmDashRuntime {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
 
-		// Run afterUnpublish hooks (fire-and-forget)
+		// Run afterUnpublish hooks (deferred past the response via after())
 		if (result.success && result.data) {
 			this.runAfterUnpublishHooks(contentItemToRecord(result.data.item), collection);
 		}
@@ -3165,6 +3240,18 @@ export class EmDashRuntime {
 		// must then `content_publish` to promote the restored draft to
 		// live, matching the documented tool contract.
 		try {
+			const contentRepo = new ContentRepository(this.db);
+			const existing = await contentRepo.findById(revision.collection, revision.entryId);
+			if (!existing) {
+				return {
+					success: false as const,
+					error: {
+						code: "NOT_FOUND",
+						message: `Content item not found: ${revision.entryId}`,
+					},
+				};
+			}
+
 			const newDraft = await revisionRepo.create({
 				collection: revision.collection,
 				entryId: revision.entryId,
@@ -3172,13 +3259,29 @@ export class EmDashRuntime {
 				authorId: callerUserId,
 			});
 
-			validateIdentifier(revision.collection, "collection");
-			const tableName = `ec_${revision.collection}`;
-			await sql`
-				UPDATE ${sql.ref(tableName)}
-				SET draft_revision_id = ${newDraft.id}
-				WHERE id = ${revision.entryId}
-			`.execute(this.db);
+			try {
+				const staged = await contentRepo.replaceDraftRevision(
+					revision.collection,
+					revision.entryId,
+					newDraft.id,
+					existing,
+				);
+				if (!staged) throw new ContentMutationConflictError();
+			} catch (error) {
+				try {
+					await revisionRepo.deleteIfUnreferenced(
+						revision.collection,
+						revision.entryId,
+						newDraft.id,
+					);
+				} catch (cleanupError) {
+					console.error(
+						`[emdash] Failed to clean up unrestored revision ${newDraft.id}:`,
+						cleanupError,
+					);
+				}
+				throw error;
+			}
 
 			// Fire-and-forget: prune old revisions to prevent unbounded growth
 			void revisionRepo
@@ -3196,6 +3299,12 @@ export class EmDashRuntime {
 			}
 			return hydrated;
 		} catch (error) {
+			if (error instanceof ContentMutationConflictError) {
+				return {
+					success: false as const,
+					error: { code: "CONFLICT", message: error.message },
+				};
+			}
 			console.error("[emdash] revision restore failed:", error);
 			return {
 				success: false as const,
@@ -3657,24 +3766,34 @@ export class EmDashRuntime {
 	}
 
 	private runAfterDeleteHooks(id: string, collection: string, permanent: boolean): void {
-		// Trusted plugins
-		if (this.hooks.hasHooks("content:afterDelete")) {
-			this.hooks
-				.runContentAfterDelete(id, collection, permanent)
-				.catch((err) => console.error("EmDash afterDelete hook error:", err));
-		}
+		after(async () => {
+			// Trusted plugins
+			if (this.hooks.hasHooks("content:afterDelete")) {
+				try {
+					await this.hooks.runContentAfterDelete(id, collection, permanent);
+				} catch (err) {
+					console.error("EmDash afterDelete hook error:", err);
+				}
+			}
 
-		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [pluginId] = pluginKey.split(":");
-			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
+			// Sandboxed plugins
+			const tasks: Promise<void>[] = [];
+			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
+				const [pluginId] = pluginKey.split(":");
+				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
 
-			plugin
-				.invokeHook("content:afterDelete", { id, collection, permanent })
-				.catch((err) =>
-					console.error(`EmDash: Sandboxed plugin ${pluginId} afterDelete error:`, err),
+				tasks.push(
+					(async () => {
+						try {
+							await plugin.invokeHook("content:afterDelete", { id, collection, permanent });
+						} catch (err) {
+							console.error(`EmDash: Sandboxed plugin ${pluginId} afterDelete error:`, err);
+						}
+					})(),
 				);
-		}
+			}
+			await Promise.allSettled(tasks);
+		});
 	}
 
 	private runDeferredContentHook(

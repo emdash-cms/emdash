@@ -1,5 +1,65 @@
 # emdash
 
+## 0.32.0
+
+### Patch Changes
+
+- [#2298](https://github.com/emdash-cms/emdash/pull/2298) [`8d46fd2`](https://github.com/emdash-cms/emdash/commit/8d46fd29506f9164583853909fce8db705b020f3) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Allows inline code and links on the same text in the content editor, including in headings.
+
+- [#2279](https://github.com/emdash-cms/emdash/pull/2279) [`c1f6768`](https://github.com/emdash-cms/emdash/commit/c1f6768adf2ffb4e09c664d684fc3d49e2b885f0) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Stops draft-only content saves from purging public caches and removes internal revision IDs from anonymous content query results. Public caches are invalidated when live content changes, while preview and edit requests retain the revision metadata needed to load drafts.
+
+- [#2303](https://github.com/emdash-cms/emdash/pull/2303) [`ecebade`](https://github.com/emdash-cms/emdash/commit/ecebade8fb3ff4976c88787595fcb2922c3ee469) Thanks [@edrpls](https://github.com/edrpls)! - Fixes the Duplicate action creating the copy in the default locale instead of the source entry's locale. Duplicates of non-English entries now stay in their locale — so they appear in the locale-filtered admin list they were duplicated from — and no longer fail with a unique-constraint error when the generated slug already exists in the default locale.
+
+- [#2198](https://github.com/emdash-cms/emdash/pull/2198) [`e1ab8f0`](https://github.com/emdash-cms/emdash/commit/e1ab8f08ca262a0b7c981b044cbc52d86f2b7ffe) Thanks [@masonjames](https://github.com/masonjames)! - Fixes missing hreflang links when EmDash UI components are used in bundled Astro deployments.
+
+- [#2331](https://github.com/emdash-cms/emdash/pull/2331) [`121b333`](https://github.com/emdash-cms/emdash/commit/121b3339b6a2aa1ac86e01bb9ccb5d642af1b620) Thanks [@MA2153](https://github.com/MA2153)! - Fixes the taxonomy term list returning a 500 and rendering empty on Cloudflare D1 when a taxonomy declares six or more collections.
+
+- [#2238](https://github.com/emdash-cms/emdash/pull/2238) [`3aabb7b`](https://github.com/emdash-cms/emdash/commit/3aabb7bff8173efabb56ae878a6c2578a7219a10) Thanks [@MA2153](https://github.com/MA2153)! - Fixes taxonomy term counts reading a near-quadratic number of rows on sites with many entries and terms, causing multi-second delays on pages that render term counts or taxonomy filters. Counts are unchanged.
+
+- [#2273](https://github.com/emdash-cms/emdash/pull/2273) [`b0c7880`](https://github.com/emdash-cms/emdash/commit/b0c7880c74994e229b4cf4e9a0247452df2bc640) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes media uploads with native R2 storage, keeps client-side hashing optional, and prevents deduplication from returning media with a different type or size.
+  Images larger than 8 MiB skip server-generated placeholders in signed and streamed upload flows.
+
+- [#2243](https://github.com/emdash-cms/emdash/pull/2243) [`4a49262`](https://github.com/emdash-cms/emdash/commit/4a4926267ea625b31975eb22b5c03474e1487eab) Thanks [@MA2153](https://github.com/MA2153)! - Fixes the content editor recomputing taxonomy term usage counts every time it opens. The editor's taxonomy picker never shows counts, but it shares the terms endpoint with the Taxonomies settings page, which does — so opening an entry aggregated the whole content–term assignment table once per applicable taxonomy. `GET /_emdash/api/taxonomies/:name/terms` now takes an `includeCounts` query param (default `true`, so existing callers are unaffected); pass `includeCounts=false` to skip the aggregate, and `count` is then omitted from each term in the response.
+
+- Updated dependencies [[`0d2d313`](https://github.com/emdash-cms/emdash/commit/0d2d3138f0fef4c43439ee4aa632ffd602173909), [`5a997e3`](https://github.com/emdash-cms/emdash/commit/5a997e3080b67ee1a5c82d67beba7c643efb15a3), [`2f1219e`](https://github.com/emdash-cms/emdash/commit/2f1219e1771415cc0bc28781146e4a2834cdcbbe), [`6a0e93a`](https://github.com/emdash-cms/emdash/commit/6a0e93a69200fb3e88555b0aa700a6dfb0a5f162), [`8d46fd2`](https://github.com/emdash-cms/emdash/commit/8d46fd29506f9164583853909fce8db705b020f3), [`f81f720`](https://github.com/emdash-cms/emdash/commit/f81f72000be411cd7e0a7f3c26fb388249e8a610), [`f81f720`](https://github.com/emdash-cms/emdash/commit/f81f72000be411cd7e0a7f3c26fb388249e8a610), [`087a825`](https://github.com/emdash-cms/emdash/commit/087a8254512a00fc248af55f8b4bd478d0871c9c), [`d2c259c`](https://github.com/emdash-cms/emdash/commit/d2c259cb7f043d5e81dba0fd7b8711693fe65742), [`087a825`](https://github.com/emdash-cms/emdash/commit/087a8254512a00fc248af55f8b4bd478d0871c9c), [`08c8f2b`](https://github.com/emdash-cms/emdash/commit/08c8f2b68cc789f037daa4c118faa212a6b71f5a), [`1d7c063`](https://github.com/emdash-cms/emdash/commit/1d7c06395b666fbcbad96d8e7e6aaa744d9f87fe), [`b0c7880`](https://github.com/emdash-cms/emdash/commit/b0c7880c74994e229b4cf4e9a0247452df2bc640)]:
+  - @emdash-cms/admin@0.32.0
+  - @emdash-cms/auth@0.32.0
+  - @emdash-cms/gutenberg-to-portable-text@0.32.0
+
+## 0.31.1
+
+### Patch Changes
+
+- [#2219](https://github.com/emdash-cms/emdash/pull/2219) [`f81aa68`](https://github.com/emdash-cms/emdash/commit/f81aa6842c659799eb8952f7f40869b537e340df) Thanks [@logelog](https://github.com/logelog)! - Fixes taxonomy term counts being recomputed on every page render even when nothing displays them. Counting term usage aggregates the whole content–term assignment table for each taxonomy, and the layout prefetch ran it for every taxonomy on every HTML response — on Cloudflare D1 this could read millions of rows per page view. Counts are now computed only when a consumer asks for them: the prefetch never does, and the Tags and Categories widgets only when their `showCount` prop is on. `getTaxonomyTerms()` takes a new `includeCounts` option (default `true`) to opt out explicitly, and terms are cached separately from their counts so both callers share one term lookup.
+
+- Updated dependencies []:
+  - @emdash-cms/admin@0.31.1
+  - @emdash-cms/auth@0.31.1
+  - @emdash-cms/gutenberg-to-portable-text@0.31.1
+
+## 0.31.0
+
+### Minor Changes
+
+- [#1967](https://github.com/emdash-cms/emdash/pull/1967) [`f8e41cd`](https://github.com/emdash-cms/emdash/commit/f8e41cdddae07859b1854719fb15536533916f8b) Thanks [@Rimander](https://github.com/Rimander)! - Makes the Portable Text gallery block editable in the admin editor. Galleries imported from WordPress now load and stay editable instead of being invisible and lost on save, and you can insert new galleries from the toolbar or with /gallery: pick several images at once reorder them by drag and drop, set the column count, and click any image in the gallery to edit its alt text and caption or replace it. Multiple galleries per document are supported, and gallery blocks render on the public site as before.
+
+### Patch Changes
+
+- [#1588](https://github.com/emdash-cms/emdash/pull/1588) [`15d5a45`](https://github.com/emdash-cms/emdash/commit/15d5a454c4bdde456819b04ef67fcd846f191ead) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Fixes plugin `content:afterDelete` and `content:afterUnpublish` hooks being dropped on Cloudflare Workers. Cleanup work in these hooks — removing uploaded files, clearing search indexes — now runs to completion after content is deleted or unpublished, instead of being canceled the moment the response is sent. Previously this could also leave plugin storage in a wedged state that hung later admin requests.
+
+- [#2174](https://github.com/emdash-cms/emdash/pull/2174) [`c568876`](https://github.com/emdash-cms/emdash/commit/c568876d78bfcb90d170e03212544a2bda81ddf2) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes locale-filtered content and search results for locales with uppercase region or script subtags. Existing content rows saved with lowercased locale values are repaired automatically.
+
+- [#2140](https://github.com/emdash-cms/emdash/pull/2140) [`c4d790e`](https://github.com/emdash-cms/emdash/commit/c4d790e9025b3fdba53953ec720e5e043fd153ab) Thanks [@dchaudhari7177](https://github.com/dchaudhari7177)! - Security: site secrets (`EMDASH_ENCRYPTION_KEY`, `EMDASH_PREVIEW_SECRET`, `EMDASH_IP_SALT`, and their legacy aliases) are no longer read through `import.meta.env`. In production builds Vite statically replaced that expression with the env loaded at build time, which embedded any secret present in `.env` on the build machine into the server bundle and made the stale build-time value silently shadow the real runtime secret (e.g. one set with `wrangler secret put`). The secrets module now reads only the runtime `process.env`. If you previously relied on a secret being baked in at build time, set it as a runtime secret/env var on your deployment platform instead — and rotate any key that shipped inside a bundle.
+
+- [#2188](https://github.com/emdash-cms/emdash/pull/2188) [`0eb389f`](https://github.com/emdash-cms/emdash/commit/0eb389f7a297d197e4f537eae44bfdee87e39396) Thanks [@saariuslystoned](https://github.com/saariuslystoned)! - Fixes OAuth authorization so users can remove unnecessary requested permissions before granting an MCP client access.
+
+- [#2193](https://github.com/emdash-cms/emdash/pull/2193) [`791c0eb`](https://github.com/emdash-cms/emdash/commit/791c0eb2836af9fbe3069c75dd1acfb901288592) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes PostgreSQL migrations failing in production builds that rename database adapter classes.
+
+- Updated dependencies [[`1614e2a`](https://github.com/emdash-cms/emdash/commit/1614e2ad77a467e382fec51fb312e13e26b42d10), [`d62a302`](https://github.com/emdash-cms/emdash/commit/d62a3024b597da976de8561b12826dc0f691b0a2), [`4f58eec`](https://github.com/emdash-cms/emdash/commit/4f58eec7ac510864d10af085fcf3b7d03026d81b), [`f8e41cd`](https://github.com/emdash-cms/emdash/commit/f8e41cdddae07859b1854719fb15536533916f8b)]:
+  - @emdash-cms/admin@0.31.0
+  - @emdash-cms/auth@0.31.0
+  - @emdash-cms/gutenberg-to-portable-text@0.31.0
+
 ## 0.30.0
 
 ### Minor Changes

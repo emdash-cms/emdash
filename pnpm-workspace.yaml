@@ -119,6 +119,7 @@ catalog:
   "@tanstack/react-router": 1.163.2
   "@tiptap/core": ^3.20.0
   "@tiptap/extension-character-count": ^3.20.0
+  "@tiptap/extension-code": ^3.20.0
   "@tiptap/extension-code-block": ^3.20.0
   "@tiptap/extension-collaboration": ^3.20.0
   "@tiptap/extension-drag-handle": ^3.20.0
@@ -127,8 +128,11 @@ catalog:
   "@tiptap/extension-focus": ^3.20.0
   "@tiptap/extension-image": ^3.20.0
   "@tiptap/extension-link": ^3.20.0
+  "@tiptap/extension-list": ^3.20.0
   "@tiptap/extension-node-range": ^3.20.0
   "@tiptap/extension-placeholder": ^3.20.0
+  "@tiptap/extension-subscript": ^3.20.0
+  "@tiptap/extension-superscript": ^3.20.0
   "@tiptap/extension-table": ^3.20.0
   "@tiptap/extension-table-cell": ^3.20.0
   "@tiptap/extension-table-header": ^3.20.0

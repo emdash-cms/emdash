@@ -189,6 +189,53 @@ describe("i18n (Integration)", () => {
 			).rejects.toThrow();
 		});
 
+		// ── duplicate ─────────────────────────────────────────────────
+
+		it("duplicate() preserves the source item's locale", async () => {
+			const original = await repo.create(
+				createPostFixture({ slug: "hola-mundo", locale: "es", data: { title: "Hola Mundo" } }),
+			);
+
+			const copy = await repo.duplicate("post", original.id);
+
+			expect(copy.locale).toBe("es");
+		});
+
+		it("duplicate() assigns a fresh translation group", async () => {
+			const enPost = await repo.create(createPostFixture({ slug: "hello", locale: "en" }));
+			const esPost = await repo.create(
+				createPostFixture({
+					slug: "hola",
+					locale: "es",
+					translationOf: enPost.id,
+					data: { title: "Hola" },
+				}),
+			);
+
+			const copy = await repo.duplicate("post", esPost.id);
+
+			expect(copy.translationGroup).toBe(copy.id);
+			expect(copy.translationGroup).not.toBe(esPost.translationGroup);
+		});
+
+		it("duplicate() does not collide with the generated slug in another locale", async () => {
+			await repo.create(
+				createPostFixture({
+					slug: "hola-mundo-copy",
+					locale: "en",
+					data: { title: "Unrelated EN Post" },
+				}),
+			);
+			const original = await repo.create(
+				createPostFixture({ slug: "hola-mundo", locale: "es", data: { title: "Hola Mundo" } }),
+			);
+
+			const copy = await repo.duplicate("post", original.id);
+
+			expect(copy.locale).toBe("es");
+			expect(copy.slug).toBe("hola-mundo-copy");
+		});
+
 		// ── findBySlug ────────────────────────────────────────────────
 
 		it("findBySlug() without locale returns any match", async () => {

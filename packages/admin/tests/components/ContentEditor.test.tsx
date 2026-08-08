@@ -85,6 +85,7 @@ vi.mock("../../src/components/RevisionHistory", () => ({
 
 vi.mock("../../src/components/TaxonomySidebar", () => ({
 	TaxonomySidebar: () => <div data-testid="taxonomy-sidebar">Taxonomy</div>,
+	useHasApplicableTaxonomies: () => true,
 }));
 
 vi.mock("../../src/components/MediaPickerModal", () => ({
@@ -450,7 +451,7 @@ describe("ContentEditor", () => {
 			const screen = await renderEditor({
 				fields: { order: { kind: "number", label: "Order" } },
 			});
-			const input = screen.getByLabelText("Order");
+			const input = screen.getByLabelText("Order", { exact: true });
 			await expect.element(input).toHaveAttribute("type", "number");
 		});
 
@@ -926,7 +927,7 @@ describe("ContentEditor", () => {
 			const screen = await renderEditor({ isNew: false, item });
 			const saveBtn = screen.getByRole("button", { name: "Saved" }).first();
 			await expect.element(saveBtn).toBeDisabled();
-			expect(screen.getByRole("status").element().textContent).toBe("Saved");
+			expect(saveBtn.getByRole("status").element().textContent).toBe("Saved");
 		});
 
 		// Strict per-locale hydration (migration 040) can return
@@ -1100,7 +1101,7 @@ describe("ContentEditor", () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
-			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
 			await expect.element(publishBtn).toBeInTheDocument();
 		});
 
@@ -1108,7 +1109,7 @@ describe("ContentEditor", () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
-			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
 			await publishBtn.click();
 			expect(onPublish).toHaveBeenCalled();
 		});
@@ -1128,9 +1129,7 @@ describe("ContentEditor", () => {
 
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
 				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
-				const publishButtons = screen
-					.getByRole("button", { name: "Publish Post", exact: true })
-					.all();
+				const publishButtons = screen.getByRole("button", { name: "Publish", exact: true }).all();
 				expect(publishButtons).toHaveLength(1);
 				await expect.element(publishButtons[0]!).toBeVisible();
 			} finally {
@@ -1166,6 +1165,67 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("navigation", { name: "Settings" }))
 					.not.toBeInTheDocument();
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("keeps the settings sheet open when a sortable handle restores focus after drop", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+
+				await screen.getByRole("button", { name: "Settings" }).click();
+				const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+				handle.focus();
+				handle.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: null }));
+
+				await vi.waitFor(() => {
+					const sheet = document.querySelector('nav[data-sidebar="sidebar"][data-mobile="true"]');
+					expect(sheet?.getAttribute("data-state")).toBe("expanded");
+				});
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("keeps the settings sheet open when keyboard sorting is cancelled", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+
+				await screen.getByRole("button", { name: "Settings" }).click();
+				const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+				handle.focus();
+				await userEvent.keyboard(" ");
+
+				await vi.waitFor(() => expect(handle.dataset.sorting).toBe("true"));
+				await userEvent.keyboard("{Escape}");
+
+				await vi.waitFor(() => {
+					const sheet = document.querySelector('nav[data-sidebar="sidebar"][data-mobile="true"]');
+					expect(sheet?.getAttribute("data-state")).toBe("expanded");
+					expect(handle.dataset.sorting).toBe("false");
+				});
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("lets Escape close the settings sheet when sorting is idle", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+
+				await screen.getByRole("button", { name: "Settings" }).click();
+				const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+				handle.focus();
+				await userEvent.keyboard("{Escape}");
+
+				await vi.waitFor(() => {
+					const sheet = document.querySelector('nav[data-sidebar="sidebar"][data-mobile="true"]');
+					expect(sheet?.getAttribute("data-state")).toBe("collapsed");
+				});
 			} finally {
 				media.restore();
 			}
@@ -1275,7 +1335,7 @@ describe("ContentEditor", () => {
 					.element(screen.getByRole("button", { name: "Settings" }))
 					.not.toBeInTheDocument();
 				await expect
-					.element(screen.getByRole("button", { name: "Publish Post", exact: true }))
+					.element(screen.getByRole("button", { name: "Publish", exact: true }))
 					.toBeVisible();
 			} finally {
 				media.restore();
@@ -1503,7 +1563,7 @@ describe("ContentEditor", () => {
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
 
-			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
 			await expect.element(publishBtn).toBeInTheDocument();
 		});
 
@@ -1512,7 +1572,7 @@ describe("ContentEditor", () => {
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
 
-			const publishBtn = screen.getByRole("button", { name: "Publish Post", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
 			await publishBtn.click();
 			expect(onPublish).toHaveBeenCalled();
 		});

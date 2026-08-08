@@ -40,7 +40,11 @@ export const SCHEDULED_PUBLISH_BATCH_LIMIT = 100;
 export type ScheduledPublishFn = (
 	collection: string,
 	id: string,
-	options: { publishedAt?: string; requireScheduledDue?: boolean },
+	options: {
+		publishedAt?: string;
+		requireScheduledDue?: boolean;
+		expectedScheduledAt?: string;
+	},
 ) => Promise<{ success: boolean; error?: { code?: string } }>;
 
 export interface PublishDueContentOptions {
@@ -114,6 +118,7 @@ export async function publishDueContent(
 				const result = await doPublish(collection.slug, item.id, {
 					publishedAt,
 					requireScheduledDue: true,
+					expectedScheduledAt: item.scheduledAt ?? undefined,
 				});
 				if (result.success) {
 					batch.push({ collection: collection.slug, id: item.id });

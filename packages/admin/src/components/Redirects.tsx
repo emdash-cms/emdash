@@ -356,8 +356,10 @@ export function Redirects() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold">{t`Redirects`}</h1>
-					<p className="text-kumo-subtle">{t`Manage URL redirects and view 404 errors.`}</p>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Redirects`}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+						{t`Manage URL redirects and view 404 errors.`}
+					</p>
 				</div>
 				<Button icon={<Plus />} onClick={() => setShowCreate(true)}>
 					{t`New Redirect`}
@@ -371,7 +373,7 @@ export function Redirects() {
 					className={cn(
 						"px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
 						tab === "redirects"
-							? "border-kumo-brand text-kumo-brand"
+							? "border-kumo-brand text-kumo-link"
 							: "border-transparent text-kumo-subtle hover:text-kumo-default",
 					)}
 				>
@@ -388,7 +390,7 @@ export function Redirects() {
 					className={cn(
 						"px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
 						tab === "404s"
-							? "border-kumo-brand text-kumo-brand"
+							? "border-kumo-brand text-kumo-link"
 							: "border-transparent text-kumo-subtle hover:text-kumo-default",
 					)}
 				>

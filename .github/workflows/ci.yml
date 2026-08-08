@@ -81,12 +81,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Validate changesets
+        # GitHub tests pull_request events as a merge commit, so the working tree
+        # can contain changesets already on main. Diff against the merge base.
         run: |
-          shopt -s extglob
-          if compgen -G ".changeset/!(README).md" > /dev/null; then
+          base=$(git merge-base origin/main HEAD)
+          added=$(git diff --name-only --diff-filter=d "$base" -- '.changeset/*.md' ':(exclude).changeset/README.md')
+          if [ -n "$added" ]; then
             pnpm changeset status --since=origin/main
           else
-            echo "No changesets present; skipping validation."
+            echo "No changesets added since origin/main; skipping validation."
           fi
 
   test:

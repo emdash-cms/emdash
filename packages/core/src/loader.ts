@@ -703,8 +703,8 @@ function buildPivotLimitOffset(
  * Options for {@link buildTaxonomyPivotQuery}.
  *
  * Parameterized on the `deletedIsNull` predicate and `status` condition so the
- * same builder serves the public live path (`deleted_at IS NULL` + published/
- * scheduled) and, without any schema change, an admin trash (`deleted_at IS NOT
+ * same builder serves the public live path (`deleted_at IS NULL` + published)
+ * and, without any schema change, an admin trash (`deleted_at IS NOT
  * NULL`) or all-statuses shape. Admin wiring is out of scope today; the
  * parameters exist so `ContentRepository` can adopt this if it gains taxonomy
  * filtering.
@@ -727,7 +727,7 @@ export interface TaxonomyPivotQueryOptions {
 	locale: string | undefined;
 	/**
 	 * Status shape. A concrete value (`published`/`draft`/…) applies the same
-	 * condition `buildStatusCondition` produces (public: published-or-scheduled).
+	 * condition `buildStatusCondition` produces (public: published only).
 	 * `undefined` drops the status filter entirely — the admin all-statuses shape.
 	 */
 	status: string | undefined;
