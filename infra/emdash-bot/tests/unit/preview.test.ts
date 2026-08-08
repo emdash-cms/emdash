@@ -31,7 +31,9 @@ describe("branchesToReap", () => {
 describe("probePreviewReady", () => {
 	test("resolves true on a 2xx", async () => {
 		const fake = (() => Promise.resolve(new Response("", { status: 200 }))) as typeof fetch;
-		await expect(probePreviewReady("https://pkg.pr.new/emdash@bot/fix-1", fake)).resolves.toBe(true);
+		await expect(probePreviewReady("https://pkg.pr.new/emdash@bot/fix-1", fake)).resolves.toBe(
+			true,
+		);
 	});
 
 	test("resolves false while the preview is still publishing (404)", async () => {

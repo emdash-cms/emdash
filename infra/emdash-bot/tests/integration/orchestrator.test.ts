@@ -518,7 +518,12 @@ describe("OrchestratorDO (workers-pool)", () => {
 		anchorNumber: number,
 	): Promise<void> {
 		await stub.event(makeEvent({ event: "investigate", arg: "diagnose it", anchorNumber }));
-		await stub.debugSetStaleRun("diag-run", Date.now(), `investigate-${anchorNumber}-diag`, "diagnose");
+		await stub.debugSetStaleRun(
+			"diag-run",
+			Date.now(),
+			`investigate-${anchorNumber}-diag`,
+			"diagnose",
+		);
 		await stub.applyAgentResult({
 			runId: "diag-run",
 			result: { reproduced: true, summary: "Reproduced it." },
