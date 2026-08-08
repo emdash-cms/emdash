@@ -4,38 +4,70 @@
  * Title separator, search engine verification codes, and robots.txt.
  */
 
-import { Button, Input, InputArea, Label, useKumoToastManager } from "@cloudflare/kumo";
+import {
+	Banner,
+	Button,
+	Field,
+	Input,
+	InputArea,
+	Loader,
+	useKumoToastManager,
+} from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { FloppyDisk, WarningCircle, MagnifyingGlass, Upload, X } from "@phosphor-icons/react";
+import { Upload, WarningCircle, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { fetchSettings, updateSettings, type SiteSettings, type MediaItem } from "../../lib/api";
-import { EditorHeader } from "../EditorHeader";
+import { fetchSettings, updateSettings, type MediaItem, type SiteSettings } from "../../lib/api";
 import { MediaPickerModal } from "../MediaPickerModal";
-import { BackToSettingsLink } from "./BackToSettingsLink.js";
+import { SaveButton } from "../SaveButton.js";
+import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
+
+function seoSettingsSnapshot(settings: Partial<SiteSettings>) {
+	return JSON.stringify({
+		titleSeparator: settings.seo?.titleSeparator || "|",
+		defaultOgImage: settings.seo?.defaultOgImage ?? null,
+		googleVerification: settings.seo?.googleVerification ?? "",
+		bingVerification: settings.seo?.bingVerification ?? "",
+		robotsTxt: settings.seo?.robotsTxt ?? "",
+	});
+}
 
 export function SeoSettings() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = useKumoToastManager();
 
-	const { data: settings, isLoading } = useQuery({
+	const {
+		data: settings,
+		isLoading,
+		error: loadError,
+	} = useQuery({
 		queryKey: ["settings"],
 		queryFn: fetchSettings,
 		staleTime: Infinity,
 	});
 
 	const [formData, setFormData] = React.useState<Partial<SiteSettings>>({});
+	const [savedFormData, setSavedFormData] = React.useState<Partial<SiteSettings>>({});
 	const [ogImagePickerOpen, setOgImagePickerOpen] = React.useState(false);
 
 	React.useEffect(() => {
-		if (settings) setFormData(settings);
+		if (settings) {
+			setFormData(settings);
+			setSavedFormData(settings);
+		}
 	}, [settings]);
+
+	const isDirty = React.useMemo(
+		() => seoSettingsSnapshot(formData) !== seoSettingsSnapshot(savedFormData),
+		[formData, savedFormData],
+	);
 
 	const saveMutation = useMutation({
 		mutationFn: (data: Partial<SiteSettings>) => updateSettings(data),
-		onSuccess: () => {
+		onSuccess: (_savedSettings, submittedSettings) => {
+			setSavedFormData(submittedSettings);
 			void queryClient.invalidateQueries({ queryKey: ["settings"] });
 			toastManager.add({ title: t`SEO settings saved`, variant: "success", timeout: 3000 });
 		},
@@ -82,81 +114,85 @@ export function SeoSettings() {
 		}));
 	};
 
+	const title = t`SEO Settings`;
+	const description = t`Search engine optimization and verification`;
+
 	if (isLoading) {
 		return (
-			<div className="space-y-6">
-				<div className="flex items-center gap-3">
-					<BackToSettingsLink />
-					<h1 className="text-2xl font-semibold leading-tight">{t`SEO Settings`}</h1>
+			<SettingsFrame title={title} description={description}>
+				<div
+					className="flex items-center gap-2 rounded-xl border border-kumo-line bg-kumo-base px-4 py-4 text-sm text-kumo-subtle"
+					role="status"
+				>
+					<Loader size="sm" />
+					<span>{t`Loading settings...`}</span>
 				</div>
-				<div className="rounded-lg border bg-kumo-base p-6">
-					<p className="text-kumo-subtle">{t`Loading settings...`}</p>
-				</div>
-			</div>
+			</SettingsFrame>
+		);
+	}
+
+	if (loadError && settings === undefined) {
+		return (
+			<SettingsFrame title={title} description={description}>
+				<Banner
+					variant="error"
+					title={t`An error occurred`}
+					description={loadError instanceof Error ? loadError.message : t`An error occurred`}
+					role="alert"
+				/>
+			</SettingsFrame>
 		);
 	}
 
 	return (
-		<div className="space-y-6">
-			{/* Sticky header — see GeneralSettings for the same pattern. */}
-			<EditorHeader
-				leading={<BackToSettingsLink />}
-				actions={
-					<Button
-						type="submit"
-						form="seo-settings-form"
-						disabled={saveMutation.isPending}
-						icon={<FloppyDisk />}
-					>
-						{saveMutation.isPending ? t`Saving...` : t`Save SEO Settings`}
-					</Button>
-				}
-			>
-				<h1 className="truncate text-2xl font-semibold">{t`SEO Settings`}</h1>
-			</EditorHeader>
-
-			<form id="seo-settings-form" onSubmit={handleSubmit} className="space-y-6">
-				<div className="rounded-lg border bg-kumo-base p-6">
-					<div className="flex items-center gap-2 mb-4">
-						<MagnifyingGlass className="h-5 w-5 text-kumo-subtle" />
-						<h2 className="text-lg font-semibold">{t`Search Engine Optimization`}</h2>
-					</div>
-					<div className="space-y-4">
+		<SettingsFrame
+			title={title}
+			description={description}
+			actions={
+				<SaveButton
+					type="submit"
+					form="seo-settings-form"
+					isDirty={isDirty}
+					isSaving={saveMutation.isPending}
+				/>
+			}
+		>
+			<form id="seo-settings-form" onSubmit={handleSubmit} className="grid gap-8">
+				<SettingsSection title={t`Search Engine Optimization`}>
+					<SettingRow>
 						<Input
 							label={t`Title Separator`}
 							value={formData.seo?.titleSeparator || "|"}
 							onChange={(e) => handleSeoChange("titleSeparator", e.target.value)}
 							description={t`Character between page title and site name (e.g., "My Post | My Site")`}
 						/>
-
-						{/* Default OG Image Picker --
-						    "configured" is determined by presence of `mediaId`, not `url`.
-						    When the referenced media row is deleted, the resolver returns the
-						    bare ref without a URL; we still need to show Remove so the user can
-						    clear the dangling reference. */}
-						<div>
-							<Label>{t`Default Social Image`}</Label>
-							<p className="mt-1 text-sm text-kumo-subtle">
-								{t`Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630.`}
-							</p>
+					</SettingRow>
+					<SettingRow>
+						<Field
+							label={t`Default Social Image`}
+							description={t`Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630.`}
+						>
+							{/* A missing URL can represent an orphaned media reference, so mediaId remains the configured-state signal. */}
 							{formData.seo?.defaultOgImage?.mediaId ? (
-								<div className="mt-2 space-y-2">
+								<div className="grid gap-3">
 									{formData.seo.defaultOgImage.url ? (
 										<img
 											src={formData.seo.defaultOgImage.url}
 											alt={formData.seo.defaultOgImage.alt || t`Default social image`}
-											className="h-32 rounded border bg-kumo-tint object-contain p-2"
+											className="h-32 max-w-full rounded border border-kumo-line bg-kumo-tint object-contain p-2"
 										/>
 									) : (
 										<div
-											className="flex min-h-32 items-center gap-2 rounded border border-dashed bg-kumo-tint px-3 py-2 text-sm text-kumo-subtle"
+											className="flex min-h-32 items-start gap-2 rounded border border-dashed border-kumo-line bg-kumo-tint px-3 py-2 text-sm leading-5 text-kumo-subtle"
 											role="status"
 										>
-											<WarningCircle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+											<span className="flex h-5 shrink-0 items-center" aria-hidden="true">
+												<WarningCircle className="h-4 w-4" />
+											</span>
 											<span>{t`The referenced image is no longer available. Pick a new one or remove the reference.`}</span>
 										</div>
 									)}
-									<div className="flex gap-2">
+									<div className="flex flex-wrap gap-3">
 										<Button
 											type="button"
 											variant="outline"
@@ -183,49 +219,62 @@ export function SeoSettings() {
 									variant="outline"
 									icon={<Upload />}
 									onClick={() => setOgImagePickerOpen(true)}
-									className="mt-2"
 								>
 									{t`Select Image`}
 								</Button>
 							)}
-						</div>
+						</Field>
+					</SettingRow>
+				</SettingsSection>
 
+				<SettingsSection
+					title={
+						<>
+							{t`Google Verification`} / {t`Bing Verification`}
+						</>
+					}
+				>
+					<SettingRow>
 						<Input
 							label={t`Google Verification`}
 							value={formData.seo?.googleVerification || ""}
 							onChange={(e) => handleSeoChange("googleVerification", e.target.value)}
 							description={t`Meta tag content for Google Search Console verification`}
 						/>
+					</SettingRow>
+					<SettingRow>
 						<Input
 							label={t`Bing Verification`}
 							value={formData.seo?.bingVerification || ""}
 							onChange={(e) => handleSeoChange("bingVerification", e.target.value)}
 							description={t`Meta tag content for Bing Webmaster Tools verification`}
 						/>
+					</SettingRow>
+				</SettingsSection>
+
+				<SettingsSection title={t`robots.txt`}>
+					<SettingRow>
 						<InputArea
-							label="robots.txt"
+							label={t`robots.txt`}
 							value={formData.seo?.robotsTxt || ""}
 							onChange={(e) => handleSeoChange("robotsTxt", e.target.value)}
 							rows={5}
 							description={t`Custom robots.txt content. Leave empty to use the default.`}
 						/>
-					</div>
-				</div>
+					</SettingRow>
+				</SettingsSection>
 
-				{/* Save Button */}
 				<div className="flex justify-end">
-					<Button type="submit" disabled={saveMutation.isPending} icon={<FloppyDisk />}>
-						{saveMutation.isPending ? t`Saving...` : t`Save SEO Settings`}
-					</Button>
+					<SaveButton
+						type="submit"
+						isDirty={isDirty}
+						isSaving={saveMutation.isPending}
+						announce={false}
+					/>
 				</div>
 			</form>
 
-			{/* Media Picker Modal --
-			    localOnly: storage shape is `{ mediaId }`, so URL/provider selections would
-			    yield references the server cannot resolve. See MediaPickerModalProps.localOnly.
-			    mimeTypeFilters: social-card scrapers expect rasterised content; SVG also gets
-			    served as `Content-Disposition: attachment` by the media file route, making it
-			    unusable as an OG image. */}
+			{/* Local raster images produce resolvable stored references suitable for social-card scrapers. */}
 			<MediaPickerModal
 				open={ogImagePickerOpen}
 				onOpenChange={setOgImagePickerOpen}
@@ -234,7 +283,7 @@ export function SeoSettings() {
 				localOnly
 				title={t`Select Default Social Image`}
 			/>
-		</div>
+		</SettingsFrame>
 	);
 }
 

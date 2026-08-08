@@ -5,16 +5,16 @@
  * is configured, this page shows an informational message instead.
  */
 
-import { Button, useKumoToastManager } from "@cloudflare/kumo";
+import { Banner, Button, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Shield, Plus, Info } from "@phosphor-icons/react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "@phosphor-icons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { fetchPasskeys, renamePasskey, deletePasskey, fetchManifest } from "../../lib/api";
-import { PasskeyRegistration } from "../auth/PasskeyRegistration";
-import { BackToSettingsLink } from "./BackToSettingsLink.js";
-import { PasskeyList } from "./PasskeyList";
+import { deletePasskey, fetchManifest, fetchPasskeys, renamePasskey } from "../../lib/api";
+import { PasskeyRegistration } from "../auth/PasskeyRegistration.js";
+import { PasskeyList } from "./PasskeyList.js";
+import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
 export function SecuritySettings() {
 	const { t } = useLingui();
@@ -22,7 +22,6 @@ export function SecuritySettings() {
 	const toastManager = useKumoToastManager();
 	const [isAdding, setIsAdding] = React.useState(false);
 
-	// Fetch manifest for auth mode
 	const { data: manifest, isLoading: manifestLoading } = useQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
@@ -30,7 +29,6 @@ export function SecuritySettings() {
 
 	const isExternalAuth = manifest?.authMode && manifest.authMode !== "passkey";
 
-	// Fetch passkeys (only when using passkey auth)
 	const {
 		data: passkeys,
 		isLoading,
@@ -41,7 +39,6 @@ export function SecuritySettings() {
 		enabled: !isExternalAuth && !manifestLoading,
 	});
 
-	// Rename mutation
 	const renameMutation = useMutation({
 		mutationFn: ({ id, name }: { id: string; name: string }) => renamePasskey(id, name),
 		onSuccess: () => {
@@ -58,7 +55,6 @@ export function SecuritySettings() {
 		},
 	});
 
-	// Delete mutation
 	const deleteMutation = useMutation({
 		mutationFn: (id: string) => deletePasskey(id),
 		onSuccess: () => {
@@ -89,120 +85,112 @@ export function SecuritySettings() {
 		toastManager.add({ title: t`Passkey added successfully`, variant: "success", timeout: 3000 });
 	};
 
-	const settingsHeader = (
-		<div className="flex items-center gap-3">
-			<BackToSettingsLink />
-			<h1 className="text-2xl font-semibold leading-tight">{t`Security Settings`}</h1>
-		</div>
-	);
+	const title = t`Security Settings`;
+	const description = t`Manage your passkeys and authentication`;
 
 	if (manifestLoading || isLoading) {
 		return (
-			<div className="space-y-6">
-				{settingsHeader}
-				<div className="rounded-lg border bg-kumo-base p-6">
-					<p className="text-kumo-subtle">{t`Loading...`}</p>
+			<SettingsFrame title={title} description={description}>
+				<div
+					className="flex items-center gap-2 rounded-xl border border-kumo-line bg-kumo-base px-4 py-4 text-sm text-kumo-subtle"
+					role="status"
+				>
+					<Loader size="sm" />
+					<span>{t`Loading...`}</span>
 				</div>
-			</div>
+			</SettingsFrame>
 		);
 	}
 
-	// Show message when external auth is configured
 	if (isExternalAuth) {
 		return (
-			<div className="space-y-6">
-				{settingsHeader}
-				<div className="rounded-lg border bg-kumo-base p-6">
-					<div className="flex items-start gap-3">
-						<Info className="h-5 w-5 text-kumo-subtle mt-0.5 flex-shrink-0" />
-						<div className="space-y-2">
-							<p className="text-kumo-subtle">
-								{t`Authentication is managed by an external provider (${manifest?.authMode}). Passkey settings are not available when using external authentication.`}
-							</p>
-						</div>
-					</div>
-				</div>
-			</div>
+			<SettingsFrame title={title} description={description}>
+				<Banner
+					variant="secondary"
+					title={t`Security Settings`}
+					description={t`Authentication is managed by an external provider (${manifest?.authMode}). Passkey settings are not available when using external authentication.`}
+					role="status"
+				/>
+			</SettingsFrame>
 		);
 	}
 
 	if (error) {
 		return (
-			<div className="space-y-6">
-				{settingsHeader}
-				<div className="rounded-lg border bg-kumo-base p-6">
-					<p className="text-kumo-danger">
-						{error instanceof Error ? error.message : t`Failed to load passkeys`}
-					</p>
-				</div>
-			</div>
+			<SettingsFrame title={title} description={description}>
+				<Banner
+					variant="error"
+					title={t`Failed to load passkeys`}
+					description={error instanceof Error ? error.message : t`An error occurred`}
+					role="alert"
+				/>
+			</SettingsFrame>
 		);
 	}
 
 	return (
-		<div className="space-y-6">
-			{settingsHeader}
-
-			{/* Passkeys Section */}
-			<div className="rounded-lg border bg-kumo-base p-6">
-				<div className="flex items-center gap-2 mb-4">
-					<Shield className="h-5 w-5 text-kumo-subtle" />
-					<h2 className="text-lg font-semibold">{t`Passkeys`}</h2>
-				</div>
-
-				<p className="text-sm text-kumo-subtle mb-6">
-					{t`Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices.`}
-				</p>
-
-				{/* Passkey list */}
-				{passkeys && passkeys.length > 0 ? (
-					<PasskeyList
-						passkeys={passkeys}
-						onRename={handleRename}
-						onDelete={handleDelete}
-						isDeleting={deleteMutation.isPending}
-						isRenaming={renameMutation.isPending}
-					/>
-				) : (
-					<div className="rounded-lg border border-dashed p-6 text-center text-kumo-subtle">
-						{t`No passkeys registered yet.`}
-					</div>
-				)}
-
-				{/* Add passkey section */}
-				<div className="mt-6 pt-6 border-t">
-					{isAdding ? (
-						<div className="space-y-4">
-							<div className="flex items-center justify-between">
-								<h3 className="font-medium">{t`Add a new passkey`}</h3>
-								<Button variant="ghost" size="sm" onClick={() => setIsAdding(false)}>
-									{t`Cancel`}
-								</Button>
-							</div>
-							<PasskeyRegistration
-								optionsEndpoint="/_emdash/api/auth/passkey/register/options"
-								verifyEndpoint="/_emdash/api/auth/passkey/register/verify"
-								onSuccess={handleAddSuccess}
-								onError={(registrationError) =>
-									toastManager.add({
-										title: t`Failed to add passkey`,
-										description: registrationError.message,
-										variant: "error",
-										timeout: 3000,
-									})
-								}
-								showNameInput
-								buttonText={t`Register Passkey`}
+		<SettingsFrame title={title} description={description}>
+			<div className="grid gap-8">
+				<SettingsSection
+					title={t`Passkeys`}
+					description={t`Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices.`}
+					contentClassName={
+						passkeys && passkeys.length > 0
+							? undefined
+							: "border-2 border-dashed border-kumo-subtle/60"
+					}
+				>
+					<SettingRow className="p-0">
+						{passkeys && passkeys.length > 0 ? (
+							<PasskeyList
+								passkeys={passkeys}
+								onRename={handleRename}
+								onDelete={handleDelete}
+								isDeleting={deleteMutation.isPending}
+								isRenaming={renameMutation.isPending}
 							/>
-						</div>
-					) : (
-						<Button onClick={() => setIsAdding(true)} icon={<Plus />}>
-							{t`Add Passkey`}
-						</Button>
-					)}
-				</div>
+						) : (
+							<div className="px-4 py-8 text-center text-sm text-kumo-subtle">
+								{t`No passkeys registered yet.`}
+							</div>
+						)}
+					</SettingRow>
+				</SettingsSection>
+
+				<SettingsSection title={t`Add a new passkey`}>
+					<SettingRow>
+						{isAdding ? (
+							<div className="grid gap-4">
+								<div className="flex justify-end">
+									<Button variant="ghost" size="sm" onClick={() => setIsAdding(false)}>
+										{t`Cancel`}
+									</Button>
+								</div>
+								<PasskeyRegistration
+									optionsEndpoint="/_emdash/api/auth/passkey/register/options"
+									verifyEndpoint="/_emdash/api/auth/passkey/register/verify"
+									onSuccess={handleAddSuccess}
+									onError={(registrationError) =>
+										toastManager.add({
+											title: t`Failed to add passkey`,
+											description: registrationError.message,
+											variant: "error",
+											timeout: 3000,
+										})
+									}
+									showNameInput
+									buttonText={t`Register Passkey`}
+								/>
+							</div>
+						) : (
+							<Button onClick={() => setIsAdding(true)} icon={<Plus />}>
+								{t`Add Passkey`}
+							</Button>
+						)}
+					</SettingRow>
+				</SettingsSection>
 			</div>
-		</div>
+		</SettingsFrame>
 	);
 }
 

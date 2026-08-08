@@ -57,6 +57,7 @@ import * as m051 from "./051_content_taxonomies_denorm.js";
 import * as m052 from "./052_media_usage_read_index.js";
 import * as m053 from "./053_plugin_mcp_tools.js";
 import * as m054 from "./054_media_upload_attempts.js";
+import * as m055 from "./055_content_translation_group_locale_index.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -112,6 +113,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"052_media_usage_read_index": m052,
 	"053_plugin_mcp_tools": m053,
 	"054_media_upload_attempts": m054,
+	"055_content_translation_group_locale_index": m055,
 });
 
 /** Total number of registered migrations. Exported for use in tests. */

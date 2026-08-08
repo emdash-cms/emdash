@@ -1,7 +1,7 @@
 import { Badge, Banner, LayerCard, SkeletonLine } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Upload, CircleDashed, CheckCircle, PencilSimple } from "@phosphor-icons/react";
+import { Plus, Upload } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
@@ -11,8 +11,23 @@ import { fetchDashboardStats } from "../lib/api/dashboard";
 import { usePluginWidget } from "../lib/plugin-context";
 import { cn, formatRelativeTime } from "../lib/utils";
 import { ArrowNext } from "./ArrowIcons";
+import {
+	ContentStatusIcon,
+	CONTENT_STATUS_ICONS,
+	type ContentStatusState,
+} from "./ContentStatusBadge.js";
 import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
+
+const DASHBOARD_STATUS_STATES: Record<string, ContentStatusState> = {
+	published: "published",
+	draft: "draft",
+	scheduled: "scheduled",
+	pending: "pendingChanges",
+	pending_changes: "pendingChanges",
+	private: "private",
+	archived: "archived",
+};
 
 export interface DashboardProps {
 	manifest: AdminManifest;
@@ -242,15 +257,15 @@ function CollectionList({
 									</span>
 									<span className="flex shrink-0 items-center gap-2">
 										<CountBadge
-											icon={CheckCircle}
+											icon={CONTENT_STATUS_ICONS.published}
 											count={col.published}
 											variant="success"
-											label={t`Published`}
+											label={t`Publish`}
 										/>
 										<CountBadge
-											icon={PencilSimple}
+											icon={CONTENT_STATUS_ICONS.draft}
 											count={col.draft}
-											variant="secondary"
+											variant="warning"
 											label={t`Drafts`}
 										/>
 										<ArrowNext
@@ -276,7 +291,7 @@ function CountBadge({
 }: {
 	icon: React.ElementType;
 	count: number;
-	variant: "success" | "secondary";
+	variant: "success" | "warning";
 	label: string;
 }) {
 	if (count === 0) return null;
@@ -339,27 +354,17 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 
 function StatusDot({ status }: { status: string }) {
 	const { t } = useLingui();
+	const state = Object.hasOwn(DASHBOARD_STATUS_STATES, status)
+		? DASHBOARD_STATUS_STATES[status]
+		: undefined;
 
-	// Semantic Kumo tokens (not raw text-green/amber/blue) render the same colors.
-	const colors: Record<string, string> = {
-		published: "text-kumo-success",
-		draft: "text-kumo-warning",
-		scheduled: "text-kumo-info",
-	};
-	const labels: Record<string, string> = {
-		published: t`Published`,
-		draft: t`Draft`,
-		scheduled: t`Scheduled`,
-		pending: t`Pending`,
-		private: t`Private`,
-		archived: t`Archived`,
-	};
-
-	const Icon = status === "published" ? CheckCircle : CircleDashed;
-	return (
-		<Icon
-			className={`h-3.5 w-3.5 shrink-0 ${colors[status] ?? "text-kumo-subtle"}`}
-			aria-label={labels[status] ?? t`Status: ${status}`}
+	return state ? (
+		<ContentStatusIcon state={state} className="shrink-0" />
+	) : (
+		<span
+			className="h-3.5 w-3.5 shrink-0 rounded-full bg-kumo-fill"
+			role="img"
+			aria-label={t`Status: ${status}`}
 		/>
 	);
 }

@@ -40,10 +40,7 @@ test.describe("Social Settings", () => {
 			await expect(page.locator(`label:has-text("${label}")`)).toBeVisible({ timeout: 5000 });
 		}
 
-		// Save button should exist. Two are rendered (sticky header + bottom-of-form,
-		// both submit the same form via `form="social-settings-form"`); use .first()
-		// to avoid Playwright strict-mode locator violations.
-		await expect(page.locator("button", { hasText: "Save Social Links" }).first()).toBeVisible();
+		await expect(page.getByRole("button", { name: "Saved", exact: true }).first()).toBeVisible();
 	});
 
 	test("saves a social link and persists across reload", async ({ admin, page }) => {
@@ -66,9 +63,7 @@ test.describe("Social Settings", () => {
 			{ timeout: 15000 },
 		);
 
-		// Click save. Two buttons match (sticky header + bottom-of-form); either
-		// submits the same form, so use .first() for strict-mode compatibility.
-		await page.locator("button", { hasText: "Save Social Links" }).first().click();
+		await page.getByRole("button", { name: "Save", exact: true }).first().click();
 		await saveResponse;
 
 		// Success banner should appear
@@ -99,7 +94,9 @@ test.describe("SEO Settings", () => {
 		await expect(page.locator("h1")).toContainText("SEO Settings");
 
 		// Should show the SEO section
-		await expect(page.locator("text=Search Engine Optimization")).toBeVisible({ timeout: 10000 });
+		await expect(
+			page.getByRole("heading", { name: "Search Engine Optimization", exact: true }),
+		).toBeVisible({ timeout: 10000 });
 	});
 
 	test("displays expected SEO fields", async ({ admin, page }) => {
@@ -107,20 +104,18 @@ test.describe("SEO Settings", () => {
 		await admin.waitForShell();
 		await admin.waitForLoading();
 
-		// Expected fields from SeoSettings.tsx
 		for (const label of [
 			"Title Separator",
 			"Google Verification",
 			"Bing Verification",
 			"robots.txt",
 		]) {
-			await expect(page.locator(`label:has-text("${label}")`)).toBeVisible({ timeout: 5000 });
+			await expect(page.getByRole("textbox", { name: label, exact: true })).toBeVisible({
+				timeout: 5000,
+			});
 		}
 
-		// Save button. Two are rendered (sticky header + bottom-of-form, both submit
-		// the same form via `form="seo-settings-form"`); use .first() to avoid
-		// Playwright strict-mode locator violations.
-		await expect(page.locator("button", { hasText: "Save SEO Settings" }).first()).toBeVisible();
+		await expect(page.getByRole("button", { name: "Saved", exact: true }).first()).toBeVisible();
 	});
 
 	test("saves SEO settings and persists across reload", async ({ admin, page }) => {
@@ -131,10 +126,10 @@ test.describe("SEO Settings", () => {
 		const testVerification = `e2e-verify-${Date.now()}`;
 
 		// Fill the Google Verification field
-		const googleInput = page
-			.locator("label:has-text('Google Verification')")
-			.locator("..")
-			.locator("input");
+		const googleInput = page.getByRole("textbox", {
+			name: "Google Verification",
+			exact: true,
+		});
 		await googleInput.fill(testVerification);
 
 		// Wait for save response
@@ -146,9 +141,7 @@ test.describe("SEO Settings", () => {
 			{ timeout: 15000 },
 		);
 
-		// Click save. Two buttons match (sticky header + bottom-of-form); either
-		// submits the same form, so use .first() for strict-mode compatibility.
-		await page.locator("button", { hasText: "Save SEO Settings" }).first().click();
+		await page.getByRole("button", { name: "Save", exact: true }).first().click();
 		await saveResponse;
 
 		// Success banner
@@ -160,10 +153,10 @@ test.describe("SEO Settings", () => {
 		await admin.waitForLoading();
 
 		// Value should persist
-		const googleInputAfterReload = page
-			.locator("label:has-text('Google Verification')")
-			.locator("..")
-			.locator("input");
+		const googleInputAfterReload = page.getByRole("textbox", {
+			name: "Google Verification",
+			exact: true,
+		});
 		await expect(googleInputAfterReload).toHaveValue(testVerification, { timeout: 10000 });
 	});
 });
@@ -177,7 +170,7 @@ test.describe("Language Switcher", () => {
 		await admin.goto("/settings");
 		await admin.waitForShell();
 
-		const languageSelect = page.locator('[aria-label="Language"]');
+		const languageSelect = page.getByRole("combobox", { name: "Language", exact: true });
 		await expect(languageSelect).toBeVisible();
 	});
 
@@ -186,13 +179,13 @@ test.describe("Language Switcher", () => {
 		await admin.waitForShell();
 
 		// Switch to German
-		await page.locator('[aria-label="Language"]').click();
+		await page.getByRole("combobox", { name: "Language", exact: true }).click();
 		await page.getByRole("option", { name: "Deutsch", exact: true }).click();
 
 		await expect(page.locator("h1")).toContainText("Einstellungen", { timeout: 5000 });
 
 		// Switch back — the select now shows "Deutsch" as its value
-		await page.locator("[role='combobox']", { hasText: "Deutsch" }).click();
+		await page.getByRole("combobox").filter({ hasText: "Deutsch" }).click();
 		await page.getByRole("option", { name: "English", exact: true }).click();
 
 		await expect(page.locator("h1")).toContainText("Settings", { timeout: 5000 });

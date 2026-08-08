@@ -1,7 +1,12 @@
 import { CompiledQuery, Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
 
-import { EmDashD1Dialect, RawBindingD1Dialect } from "../../src/db/d1-dialect.js";
+import { CoalescingD1Dialect } from "../../src/db/coalescing-d1.js";
+import {
+	D1_COMPOUND_SELECT_LIMIT,
+	EmDashD1Dialect,
+	RawBindingD1Dialect,
+} from "../../src/db/d1-dialect.js";
 
 /**
  * Regression tests for #2040: with the default D1 config the singleton
@@ -107,6 +112,22 @@ describe("EmDashD1Dialect (session path keeps the mutex)", () => {
 		]);
 
 		expect(maxInFlight()).toBe(1);
+	});
+});
+
+describe("D1 compound-SELECT ceiling", () => {
+	it.each([
+		["raw binding", RawBindingD1Dialect],
+		["session", EmDashD1Dialect],
+		["coalescing", CoalescingD1Dialect],
+	])("declares the ceiling on the %s adapter so core splits statements", (_name, Dialect) => {
+		const { database } = createMockD1();
+		const adapter = new Dialect({ database }).createAdapter();
+
+		// Core reads the ceiling off the adapter and leaves undeclaring backends
+		// on a single statement, so an adapter that drops it sends D1 compound
+		// SELECTs it rejects outright.
+		expect(adapter).toHaveProperty("compoundSelectLimit", D1_COMPOUND_SELECT_LIMIT);
 	});
 });
 

@@ -114,6 +114,7 @@ import {
 	createTermBody,
 	taxonomyListResponseSchema,
 	termGetResponseSchema,
+	termListQuery,
 	termListResponseSchema,
 	termResponseSchema,
 	updateTermBody,
@@ -1327,6 +1328,7 @@ const taxonomyPaths = {
 			tags: ["Taxonomies"],
 			requestParams: {
 				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+				query: termListQuery,
 			},
 			responses: {
 				"200": {
