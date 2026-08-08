@@ -55,12 +55,19 @@ const initialDataSchema = v.object({
 	previousBranchSha: v.nullable(v.string()),
 });
 
+const screenshotSchema = v.object({
+	filename: v.pipe(v.string(), v.minLength(1), v.maxLength(80)),
+	description: v.optional(v.string()),
+});
+
 const resultSchema = v.object({
 	skipped: v.optional(v.boolean()),
 	reproduced: v.optional(v.boolean()),
 	fixed: v.optional(v.boolean()),
 	verdict: v.optional(v.picklist(["bug", "intended-behavior", "unclear"])),
 	summary: v.pipe(v.string(), v.minLength(10), v.maxLength(400)),
+	/** Reproduction screenshots pushed to bot/artifacts-<n>, rendered in the ask comment. */
+	screenshots: v.optional(v.array(screenshotSchema)),
 });
 
 const reportedResultSchema = v.object({
@@ -437,6 +444,7 @@ function buildPrompt(input: InvestigateData): string {
 				"- Write tests where they make sense.",
 				"- Touch only files relevant to the issue. Do not bulk-format or modify .github/workflows.",
 				`- When done, commit and push from a container: \`exec\` with target container running \`git checkout -B bot/fix-${input.issueNumber} && git add <files> && git commit -m '<message>' && git push -u origin HEAD --force-with-lease\`.`,
+				`- If you captured reproduction screenshots in \`.bot-artifacts/\`, keep them off the fix branch (\`git reset HEAD .bot-artifacts\` before committing) and push them to an orphan artifacts branch from a scratch tree: copy \`.bot-artifacts\` aside, \`git init -b bot/artifacts-${input.issueNumber}\`, add and commit only \`.bot-artifacts\`, then \`git push -u origin HEAD --force\`. Report each screenshot's basename and a one-line description in \`screenshots\`.`,
 			];
 	const closing = diagnose
 		? "Call report_result exactly once when finished. Do not set fixed; report reproduced and your verdict with the diagnosis in summary."

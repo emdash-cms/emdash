@@ -163,8 +163,11 @@ async function hasOnlyBotBranchUpdates(request: Request, issueNumber: number): P
 				if (!PKT_LINE_HEADER.test(header)) return false;
 				const length = Number.parseInt(header, 16);
 				if (length === 0) {
-					const expected = `refs/heads/bot/fix-${issueNumber}`;
-					return refs.length > 0 && refs.every((ref) => ref === expected);
+					const allowed = new Set([
+						`refs/heads/bot/fix-${issueNumber}`,
+						`refs/heads/bot/artifacts-${issueNumber}`,
+					]);
+					return refs.length > 0 && refs.every((ref) => allowed.has(ref));
 				}
 				if (length < 4 || length > MAX_RECEIVE_PACK_COMMAND_BYTES) return false;
 				if (buffer.length - offset < length) break;
