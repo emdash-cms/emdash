@@ -13,6 +13,8 @@
 // Core routes live in `routes.ts` so the workers-pool test entry can mount
 // just those without pulling in Flue's routing.
 
+import { instrument } from "@flue/runtime";
+import { createCloudflareTracing } from "@flue/runtime/cloudflare";
 import { createAgentRouter } from "@flue/runtime/routing";
 import { Hono } from "hono";
 
@@ -20,6 +22,9 @@ import { Investigate } from "./agents/investigate.js";
 import { installAgentObserver } from "./lib/observer.js";
 import { registerCoreRoutes } from "./routes.js";
 
+// Module scope: registers before (and overrides) Flue's default tracing install.
+// Omitting `content` captures payloads; `content: false` would drop them.
+instrument(createCloudflareTracing());
 installAgentObserver();
 
 const app = new Hono<{ Bindings: Env }>();
