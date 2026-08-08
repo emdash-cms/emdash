@@ -48,6 +48,13 @@ export interface ContentListSort {
 	direction: "asc" | "desc";
 }
 
+export interface ContentListColumn {
+	slug: string;
+	label: string;
+	kind: string;
+	options?: Array<{ value: string; label: string }>;
+}
+
 /** Status filter values. `"all"` clears the status filter. */
 export type ContentStatusFilter = "all" | "published" | "draft" | "scheduled" | "archived";
 
@@ -69,6 +76,8 @@ export interface ContentListProps {
 	collection: string;
 	collectionLabel: string;
 	items: ContentItem[];
+	/** Validated custom-field columns from the collection manifest. */
+	listColumns?: ContentListColumn[];
 	trashedItems?: TrashedContentItem[];
 	isLoading?: boolean;
 	isTrashedLoading?: boolean;
@@ -163,6 +172,7 @@ export function ContentList({
 	collection,
 	collectionLabel,
 	items,
+	listColumns = [],
 	trashedItems = [],
 	isLoading,
 	isTrashedLoading,
@@ -321,7 +331,7 @@ export function ContentList({
 			}
 		})();
 	};
-	const colSpan = (i18n ? 5 : 4) + (bulkEnabled ? 1 : 0);
+	const colSpan = (i18n ? 5 : 4) + listColumns.length + (bulkEnabled ? 1 : 0);
 
 	return (
 		<div className="space-y-4">
@@ -511,6 +521,15 @@ export function ContentList({
 										onSortChange={onSortChange}
 										label={t`Title`}
 									/>
+									{listColumns.map((column) => (
+										<th
+											key={column.slug}
+											scope="col"
+											className="px-4 py-3 text-start text-sm font-medium"
+										>
+											{column.label}
+										</th>
+									))}
 									<SortableTh
 										field="status"
 										sort={sort}
@@ -582,6 +601,7 @@ export function ContentList({
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
 											urlPattern={urlPattern}
+											listColumns={listColumns}
 											selectable={bulkEnabled}
 											selected={selectedIds.has(item.id)}
 											onToggleSelect={toggleOne}
@@ -955,6 +975,7 @@ interface ContentListItemProps {
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
 	urlPattern?: string;
+	listColumns: ContentListColumn[];
 	selectable?: boolean;
 	selected?: boolean;
 	onToggleSelect?: (id: string) => void;
@@ -967,6 +988,7 @@ function ContentListItem({
 	onDuplicate,
 	showLocale,
 	urlPattern,
+	listColumns,
 	selectable,
 	selected,
 	onToggleSelect,
@@ -996,6 +1018,9 @@ function ContentListItem({
 					{title}
 				</Link>
 			</td>
+			{listColumns.map((column) => (
+				<ContentListCustomCell key={column.slug} column={column} value={item.data[column.slug]} />
+			))}
 			<td className="px-4 py-3">
 				<StatusBadge
 					status={item.status}
@@ -1081,6 +1106,102 @@ function ContentListItem({
 			</td>
 		</tr>
 	);
+}
+
+function ContentListCustomCell({
+	column,
+	value,
+}: {
+	column: ContentListColumn;
+	value: unknown;
+}): React.ReactNode {
+	const { i18n, t } = useLingui();
+	const text = formatListColumnValue(column, value, {
+		emptyLabel: t`Not set`,
+		falseLabel: t`No`,
+		locale: i18n.locale,
+		trueLabel: t`Yes`,
+	});
+	return (
+		<td className="max-w-48 px-4 py-3 text-sm">
+			<span className="block truncate" title={text}>
+				{text}
+			</span>
+		</td>
+	);
+}
+
+interface ListColumnFormatOptions {
+	emptyLabel: string;
+	falseLabel: string;
+	locale: string;
+	trueLabel: string;
+}
+
+function formatListColumnValue(
+	column: ContentListColumn,
+	value: unknown,
+	{ emptyLabel, falseLabel, locale, trueLabel }: ListColumnFormatOptions,
+): string {
+	if (value === null || value === undefined || value === "") return emptyLabel;
+
+	const optionLabel = (optionValue: unknown): string => {
+		const text = scalarListColumnValue(optionValue);
+		if (text === undefined) return emptyLabel;
+		return column.options?.find((option) => option.value === text)?.label ?? text;
+	};
+
+	switch (column.kind) {
+		case "select":
+			return optionLabel(value);
+		case "multiSelect": {
+			let values: unknown[];
+			if (Array.isArray(value)) {
+				values = value;
+			} else if (typeof value === "string") {
+				try {
+					const parsed: unknown = JSON.parse(value);
+					values = Array.isArray(parsed) ? parsed : [value];
+				} catch {
+					values = [value];
+				}
+			} else {
+				values = [value];
+			}
+			return values.length > 0
+				? new Intl.ListFormat(locale, { style: "short", type: "unit" }).format(
+						values.map(optionLabel),
+					)
+				: emptyLabel;
+		}
+		case "boolean":
+			return value === true || value === 1 || value === "1" || value === "true"
+				? trueLabel
+				: falseLabel;
+		case "datetime": {
+			const text = scalarListColumnValue(value);
+			if (text === undefined) return emptyLabel;
+			const date = new Date(text);
+			return Number.isNaN(date.getTime()) ? text : new Intl.DateTimeFormat(locale).format(date);
+		}
+		case "number": {
+			if (typeof value === "number" || typeof value === "bigint") {
+				return new Intl.NumberFormat(locale).format(value);
+			}
+			return scalarListColumnValue(value) ?? emptyLabel;
+		}
+		case "string":
+		default:
+			return scalarListColumnValue(value) ?? emptyLabel;
+	}
+}
+
+function scalarListColumnValue(value: unknown): string | undefined {
+	if (typeof value === "string") return value;
+	if (typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
+		return String(value);
+	}
+	return undefined;
 }
 
 interface TrashedListItemProps {
