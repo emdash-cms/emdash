@@ -282,6 +282,7 @@ export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
 	"media:read": msg`Access your media library`,
 	"media:write": msg`Upload and manage media`,
 	"users:read": msg`Read user accounts`,
+	"cache:purge": msg`Clear the CMS object cache and Workers Cache`,
 	"network:request": msg`Make network requests`,
 	"network:request:unrestricted": msg`Make network requests to any host (unrestricted)`,
 	// Legacy aliases (still emitted by older installed manifests)

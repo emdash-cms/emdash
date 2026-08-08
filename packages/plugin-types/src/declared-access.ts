@@ -29,6 +29,7 @@ export interface CanonicalDeclaredAccess {
 	}>;
 	readonly page?: Readonly<{ fragments?: CanonicalAccessConstraints }>;
 	readonly users?: Readonly<{ read?: CanonicalAccessConstraints }>;
+	readonly cache?: Readonly<{ purge?: CanonicalAccessConstraints }>;
 }
 
 export type AccessChangeKind =

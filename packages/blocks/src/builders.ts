@@ -246,6 +246,8 @@ function button(
 		style?: "primary" | "danger" | "secondary";
 		value?: unknown;
 		confirm?: ConfirmDialog;
+		disabled?: boolean;
+		title?: string;
 	},
 ): ButtonElement {
 	return {
@@ -255,6 +257,8 @@ function button(
 		...(opts?.style !== undefined && { style: opts.style }),
 		...(opts?.value !== undefined && { value: opts.value }),
 		...(opts?.confirm !== undefined && { confirm: opts.confirm }),
+		...(opts?.disabled !== undefined && { disabled: opts.disabled }),
+		...(opts?.title !== undefined && { title: opts.title }),
 	};
 }
 

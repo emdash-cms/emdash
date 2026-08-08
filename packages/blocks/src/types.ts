@@ -17,6 +17,10 @@ export interface ButtonElement {
 	style?: "primary" | "danger" | "secondary";
 	value?: unknown;
 	confirm?: ConfirmDialog;
+	/** When true, the button does not fire actions. */
+	disabled?: boolean;
+	/** Native tooltip shown on hover (e.g. why the button is disabled). */
+	title?: string;
 }
 
 export interface TextInputElement {

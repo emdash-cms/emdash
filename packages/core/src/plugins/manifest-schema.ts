@@ -32,6 +32,7 @@ export const CURRENT_PLUGIN_CAPABILITIES = [
 	"media:read",
 	"media:write",
 	"users:read",
+	"cache:purge",
 	"email:send",
 	"hooks.email-transport:register",
 	"hooks.email-events:register",
@@ -291,6 +292,7 @@ const declaredAccessSchema = z.object({
 		.optional(),
 	page: z.object({ fragments: accessConstraints.optional() }).optional(),
 	users: z.object({ read: accessConstraints.optional() }).optional(),
+	cache: z.object({ purge: accessConstraints.optional() }).optional(),
 });
 
 // ── Main schema ─────────────────────────────────────────────────

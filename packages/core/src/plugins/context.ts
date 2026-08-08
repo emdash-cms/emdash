@@ -8,6 +8,11 @@
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { handleObjectCachePurge, handleObjectCacheStatus } from "../api/handlers/object-cache.js";
+import {
+	handleWorkersCachePurge,
+	handleWorkersCacheStatus,
+} from "../api/handlers/workers-cache.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
@@ -36,6 +41,7 @@ import type {
 	KVAccess,
 	CronAccess,
 	EmailAccess,
+	CacheAccess,
 	ContentAccess,
 	ContentAccessWithWrite,
 	MediaAccess,
@@ -946,6 +952,46 @@ function toUserInfo(user: {
 }
 
 /**
+ * Create cache purge access for plugins with `cache:purge`.
+ */
+export function createCacheAccess(db: Kysely<Database>): CacheAccess {
+	return {
+		async getObjectCacheStatus() {
+			const result = await handleObjectCacheStatus();
+			if (!result.success) {
+				throw new Error(result.error.message);
+			}
+			return result.data;
+		},
+		async purgeObjectCache(options) {
+			const result = await handleObjectCachePurge(db, {
+				namespaces: options?.namespaces,
+			});
+			if (!result.success) {
+				throw new Error(result.error.message);
+			}
+			return result.data;
+		},
+		async getWorkersCacheStatus() {
+			const result = await handleWorkersCacheStatus();
+			if (!result.success) {
+				throw new Error(result.error.message);
+			}
+			return result.data;
+		},
+		async purgeWorkersCache(options) {
+			const result = await handleWorkersCachePurge({
+				pathPrefixes: options?.pathPrefixes,
+			});
+			if (!result.success) {
+				throw new Error(result.error.message);
+			}
+			return result.data;
+		},
+	};
+}
+
+/**
  * Create read-only user access for plugins.
  * Excludes sensitive fields (password hashes, sessions, passkeys, avatar URL, data).
  */
@@ -1161,6 +1207,12 @@ export class PluginContextFactory {
 			};
 		}
 
+		// Object-cache purge — requires cache:purge
+		let cache: CacheAccess | undefined;
+		if (capabilities.has("cache:purge")) {
+			cache = createCacheAccess(db);
+		}
+
 		return {
 			plugin: {
 				id: plugin.id,
@@ -1178,6 +1230,7 @@ export class PluginContextFactory {
 			users,
 			cron,
 			email,
+			cache,
 		};
 	}
 }

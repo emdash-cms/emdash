@@ -10,7 +10,14 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import type { SandboxEmailSendCallback } from "emdash";
-import { ulid, PluginStorageRepository } from "emdash";
+import {
+	handleObjectCachePurge,
+	handleObjectCacheStatus,
+	handleWorkersCachePurge,
+	handleWorkersCacheStatus,
+	ulid,
+	PluginStorageRepository,
+} from "emdash";
 import { Kysely } from "kysely";
 import { D1Dialect } from "kysely-d1";
 
@@ -1171,6 +1178,70 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error("Email is not configured. No email provider is available.");
 		}
 		await emailSendCallback(message, pluginId);
+	}
+
+	// =========================================================================
+	// Object cache — capability-gated (cache:purge)
+	// =========================================================================
+
+	async getObjectCacheStatus(): Promise<{ configured: boolean }> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("cache:purge")) {
+			throw new Error("Missing capability: cache:purge");
+		}
+		const result = await handleObjectCacheStatus();
+		if (!result.success) {
+			throw new Error(result.error.message);
+		}
+		return result.data;
+	}
+
+	async purgeObjectCache(options?: {
+		namespaces?: string[];
+	}): Promise<{ configured: boolean; active: boolean; purged: string[] }> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("cache:purge")) {
+			throw new Error("Missing capability: cache:purge");
+		}
+		const db = new Kysely<unknown>({
+			dialect: new D1Dialect({ database: this.env.DB }),
+		});
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- D1 dialect matches core handler db shape
+		const result = await handleObjectCachePurge(db as never, {
+			namespaces: options?.namespaces,
+		});
+		if (!result.success) {
+			throw new Error(result.error.message);
+		}
+		return result.data;
+	}
+
+	async getWorkersCacheStatus(): Promise<{ configured: boolean }> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("cache:purge")) {
+			throw new Error("Missing capability: cache:purge");
+		}
+		const result = await handleWorkersCacheStatus();
+		if (!result.success) {
+			throw new Error(result.error.message);
+		}
+		return result.data;
+	}
+
+	async purgeWorkersCache(options?: {
+		pathPrefixes?: string[];
+	}): Promise<{ configured: boolean; purged: boolean; pathPrefixes?: string[] }> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("cache:purge")) {
+			throw new Error("Missing capability: cache:purge");
+		}
+		const result = await handleWorkersCachePurge({
+			pathPrefixes: options?.pathPrefixes,
+		});
+		if (!result.success) {
+			throw new Error(result.error.message);
+		}
+		return result.data;
 	}
 
 	// =========================================================================
