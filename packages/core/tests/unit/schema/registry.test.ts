@@ -128,6 +128,19 @@ describe("SchemaRegistry", () => {
 			expect(updated.supports).toEqual(["drafts"]);
 		});
 
+		it("persists collection admin list columns", async () => {
+			const created = await registry.createCollection({
+				slug: "tickets",
+				label: "Tickets",
+				admin: { listColumns: ["ticket_number", "priority"] },
+			});
+
+			expect(created.admin?.listColumns).toEqual(["ticket_number", "priority"]);
+
+			const updated = await registry.updateCollection("tickets", { label: "Support tickets" });
+			expect(updated.admin?.listColumns).toEqual(["ticket_number", "priority"]);
+		});
+
 		it("should throw when updating non-existent collection", async () => {
 			await expect(registry.updateCollection("nonexistent", { label: "Test" })).rejects.toThrow(
 				SchemaError,

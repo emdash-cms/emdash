@@ -3,6 +3,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { ContentList } from "../../src/components/ContentList";
 import type { ContentItem, TrashedContentItem } from "../../src/lib/api";
+import type {
+	ContentListColumnCellContext,
+	ContentListColumnExtension,
+} from "../../src/lib/content-list-columns.js";
+import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context.js";
 import { render } from "../utils/render.tsx";
 
 const NO_RESULTS_PATTERN = /No results for/;
@@ -110,6 +115,98 @@ describe("ContentList", () => {
 			await expect.element(screen.getByText("First")).toBeInTheDocument();
 			await expect.element(screen.getByText("Second")).toBeInTheDocument();
 			await expect.element(screen.getByText("Third")).toBeInTheDocument();
+		});
+
+		it("renders configured custom fields using their field metadata", async () => {
+			const items = [
+				makeItem({
+					data: {
+						title: "Support request",
+						ticket_number: "SUP-1042",
+						priority: "urgent",
+						labels: ["bug", "unknown"],
+						vip: true,
+					},
+				}),
+			];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					listColumns={[
+						{ slug: "ticket_number", label: "Ticket", kind: "string" },
+						{
+							slug: "priority",
+							label: "Priority",
+							kind: "select",
+							options: [{ value: "urgent", label: "Urgent" }],
+						},
+						{
+							slug: "labels",
+							label: "Labels",
+							kind: "multiSelect",
+							options: [{ value: "bug", label: "Bug" }],
+						},
+						{ slug: "vip", label: "VIP", kind: "boolean" },
+					]}
+				/>,
+			);
+
+			await expect.element(screen.getByText("SUP-1042")).toBeInTheDocument();
+			await expect.element(screen.getByText("Urgent")).toBeInTheDocument();
+			await expect.element(screen.getByText("Bug, unknown")).toBeInTheDocument();
+			await expect.element(screen.getByText("Yes")).toBeInTheDocument();
+		});
+
+		it("formats numeric, datetime, boolean, and missing custom-field values", async () => {
+			const openedAt = "2025-01-02T00:00:00.000Z";
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[
+						makeItem({
+							updatedAt: "2025-03-04T00:00:00.000Z",
+							data: {
+								title: "Invoice",
+								amount: 12345.67,
+								opened_at: openedAt,
+								paid: false,
+								owner: null,
+							},
+						}),
+					]}
+					listColumns={[
+						{ slug: "amount", label: "Amount", kind: "number" },
+						{ slug: "opened_at", label: "Opened", kind: "datetime" },
+						{ slug: "paid", label: "Paid", kind: "boolean" },
+						{ slug: "owner", label: "Owner", kind: "string" },
+					]}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByText(new Intl.NumberFormat("en").format(12345.67)))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByText(new Intl.DateTimeFormat("en").format(new Date(openedAt))))
+				.toBeInTheDocument();
+			await expect.element(screen.getByText("No", { exact: true })).toBeInTheDocument();
+			await expect.element(screen.getByText("Not set")).toBeInTheDocument();
+		});
+
+		it("does not expose unconfigured custom-field data", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[
+						makeItem({ data: { title: "Support request", priority: "urgent", secret: "Hidden" } }),
+					]}
+					listColumns={[{ slug: "priority", label: "Priority", kind: "string" }]}
+				/>,
+			);
+
+			await expect.element(screen.getByText("urgent")).toBeInTheDocument();
+			expect(screen.getByText("Hidden").query()).toBeNull();
 		});
 	});
 
@@ -665,6 +762,187 @@ describe("ContentList", () => {
 
 			// The header must not render as a button — it's just a label.
 			expect(screen.getByRole("button", { name: "Title" }).query()).toBeNull();
+		});
+
+		it("keeps configured custom columns display-only", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[makeItem({ data: { title: "Post", priority: "urgent" } })]}
+					listColumns={[{ slug: "priority", label: "Priority", kind: "string" }]}
+					sort={{ field: "title", direction: "asc" }}
+					onSortChange={vi.fn()}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByRole("columnheader", { name: "Priority" }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Priority" }).query()).toBeNull();
+		});
+	});
+
+	describe("trusted plugin columns", () => {
+		function listWithColumns(
+			columns: readonly ContentListColumnExtension[],
+			props: Partial<React.ComponentProps<typeof ContentList>> = {},
+		) {
+			const pluginAdmins: PluginAdmins = { seo: { contentListColumns: columns } };
+			return (
+				<PluginAdminProvider pluginAdmins={pluginAdmins}>
+					<ContentList
+						{...defaultProps}
+						items={[makeItem({ data: { title: "Plugin Post", score: 82 } })]}
+						pluginStates={{ seo: { enabled: true } }}
+						{...props}
+					/>
+				</PluginAdminProvider>
+			);
+		}
+
+		function renderWithColumns(
+			columns: readonly ContentListColumnExtension[],
+			props: Partial<React.ComponentProps<typeof ContentList>> = {},
+		) {
+			return render(listWithColumns(columns, props));
+		}
+
+		it("renders contributed headers and cells inside the host table", async () => {
+			function ScoreCell({ item }: { item: ContentItem }) {
+				return <span>{String(item.data.score)}</span>;
+			}
+
+			const screen = await renderWithColumns([
+				{ id: "score", label: "SEO score", align: "end", cell: ScoreCell },
+			]);
+
+			await expect.element(screen.getByRole("columnheader", { name: "SEO score" })).toBeVisible();
+			await expect.element(screen.getByText("82")).toBeVisible();
+			await expect.element(screen.getByText("Plugin Post")).toBeVisible();
+		});
+
+		it("passes the current visible page to contributed cells", async () => {
+			const pages: string[][] = [];
+			const items = Array.from({ length: 21 }, (_, index) =>
+				makeItem({
+					id: `item-${index}`,
+					data: { title: `Post ${index + 1}` },
+				}),
+			);
+			function PageCell({ item, visibleItems }: ContentListColumnCellContext) {
+				if (item.id === "item-0" || item.id === "item-20") {
+					pages.push(visibleItems.map((visibleItem) => visibleItem.id));
+				}
+				return null;
+			}
+
+			const screen = await renderWithColumns(
+				[{ id: "page", label: "Page context", cell: PageCell }],
+				{ items },
+			);
+
+			expect(pages).toContainEqual(items.slice(0, 20).map((item) => item.id));
+			await screen.getByRole("button", { name: "Next page" }).click();
+			await expect.element(screen.getByText("Post 21")).toBeVisible();
+			expect(pages).toContainEqual(["item-20"]);
+		});
+
+		it("keeps configured and plugin columns aligned in rows and empty states", async () => {
+			function ScoreCell({ item }: { item: ContentItem }) {
+				return <span>{String(item.data.score)}</span>;
+			}
+			const columns = [{ id: "score", label: "SEO score", align: "end", cell: ScoreCell }] as const;
+			const listColumns = [{ slug: "ticket_number", label: "Ticket", kind: "string" }];
+			const screen = await renderWithColumns(columns, {
+				items: [
+					makeItem({
+						data: { title: "Plugin Post", ticket_number: "SUP-1042", score: 82 },
+					}),
+				],
+				listColumns,
+			});
+
+			await expect.element(screen.getByRole("columnheader", { name: "Ticket" })).toBeVisible();
+			await expect.element(screen.getByRole("columnheader", { name: "SEO score" })).toBeVisible();
+			await expect.element(screen.getByText("SUP-1042")).toBeVisible();
+			await expect.element(screen.getByText("82")).toBeVisible();
+
+			await screen.rerender(listWithColumns(columns, { items: [], isLoading: true, listColumns }));
+			await expect
+				.element(screen.getByRole("cell", { name: "Loading..." }))
+				.toHaveAttribute("colspan", "6");
+		});
+
+		it("isolates broken headers and cells while healthy columns and core rows remain", async () => {
+			const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+			function Broken(): React.ReactNode {
+				throw new Error("render failed");
+			}
+			function HealthyCell() {
+				return <span>Healthy value</span>;
+			}
+
+			const screen = await renderWithColumns([
+				{ id: "broken", label: "Broken fallback", header: Broken, cell: Broken },
+				{ id: "healthy", label: "Healthy", cell: HealthyCell },
+			]);
+
+			await expect.element(screen.getByText("Broken fallback")).toBeVisible();
+			await expect.element(screen.getByText("Plugin column unavailable")).toBeInTheDocument();
+			await expect.element(screen.getByText("Healthy value")).toBeVisible();
+			await expect.element(screen.getByText("Plugin Post")).toBeVisible();
+			expect(error).toHaveBeenCalled();
+			error.mockRestore();
+		});
+
+		it("retries a failed cell when the row locale changes", async () => {
+			const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+			let shouldThrow = true;
+			function LocaleCell({ item }: { item: ContentItem }) {
+				if (shouldThrow) throw new Error("render failed");
+				return <span>{item.locale}</span>;
+			}
+			const columns = [{ id: "locale", label: "Locale", cell: LocaleCell }] as const;
+			const screen = await renderWithColumns(columns, {
+				items: [makeItem({ locale: "en" })],
+			});
+
+			await expect.element(screen.getByText("Plugin column unavailable")).toBeInTheDocument();
+			shouldThrow = false;
+			await screen.rerender(listWithColumns(columns, { items: [makeItem({ locale: "fr" })] }));
+
+			await expect.element(screen.getByText("fr")).toBeVisible();
+			error.mockRestore();
+		});
+
+		it("extends loading and empty-state colspans", async () => {
+			function Cell(): React.ReactNode {
+				return null;
+			}
+			const screen = await renderWithColumns([{ id: "score", label: "Score", cell: Cell }], {
+				items: [],
+				isLoading: true,
+			});
+
+			await expect
+				.element(screen.getByRole("cell", { name: "Loading..." }))
+				.toHaveAttribute("colspan", "5");
+		});
+
+		it("does not render contributed columns in Trash", async () => {
+			function Cell() {
+				return <span>Plugin value</span>;
+			}
+			const screen = await renderWithColumns([{ id: "score", label: "Score", cell: Cell }], {
+				trashedItems: [makeTrashedItem({ data: { title: "Deleted" } })],
+			});
+
+			await screen.getByText("Trash").click();
+			await expect
+				.element(screen.getByRole("cell", { name: "Deleted", exact: true }))
+				.toBeVisible();
+			expect(screen.getByRole("columnheader", { name: "Score" }).query()).toBeNull();
+			expect(screen.getByText("Plugin value").query()).toBeNull();
 		});
 	});
 });
