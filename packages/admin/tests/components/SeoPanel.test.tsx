@@ -295,8 +295,6 @@ describe("SeoPanel", () => {
 		expect(onChange.mock.lastCall?.[0]).toEqual(expectedSeo);
 	});
 	it("shows the derived title and description as placeholders", async () => {
-	it("shows the derived title and description as placeholders", async () => {
-		const screen = await render(
 		const screen = await render(
 			<QueryWrapper>
 				<SeoPanel
@@ -329,6 +327,8 @@ describe("SeoPanel", () => {
 		);
 
 		await expect.element(screen.getByLabelText("SEO Title")).not.toHaveAttribute("placeholder");
-		await expect.element(screen.getByLabelText("Meta Description")).not.toHaveAttribute("placeholder");
+		await expect
+			.element(screen.getByLabelText("Meta Description"))
+			.not.toHaveAttribute("placeholder");
 	});
 });
