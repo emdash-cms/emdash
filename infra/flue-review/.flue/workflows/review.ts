@@ -16,8 +16,6 @@
 // agent initializer and the clone performed in the Action target the exact same
 // DO SQLite + R2 namespace.
 
-import { WorkspaceFileSystem } from "@cloudflare/shell";
-import { createGit } from "@cloudflare/shell/git";
 import {
 	defineAgent,
 	defineWorkflow,
@@ -158,35 +156,168 @@ function buildPrContext(payload: ReviewPayload, priorReview?: string): string {
 	return lines.join("\n");
 }
 
-// Hydrate the PR into the durable Workspace via JS git (shallow clone of base,
-// then fetch + checkout the PR head -- refs/pull/N/head covers fork PRs). Large
-// objects (the git packfile) spill to R2 under the workspace name. Idempotent:
-// a HYDRATED marker skips re-cloning on workflow re-entry.
-async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
-	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
-	if (await workspace.exists(HYDRATED)) return;
+// Temporary hydration diagnostics (2026-08-08 review-stall incident): brackets
+// every stage so a hang shows as a start line with no matching end line. R2
+// operations are instrumented in the shared getDefaultWorkspace. Remove once
+// the stall is diagnosed.
+function hydrateStep(payload: ReviewPayload, step: string, startedAt: number): void {
+	console.log(
+		JSON.stringify({
+			message: "hydrate step",
+			step,
+			ms: Date.now() - startedAt,
+			attemptId: payload.attemptId,
+			prNumber: payload.prNumber,
+		}),
+	);
+}
 
-	const fs = new WorkspaceFileSystem(workspace);
-	const cloneUrl = `https://github.com/${payload.owner}/${payload.repo}.git`;
-	const git = createGit(fs);
-	await git.clone({
-		url: cloneUrl,
-		dir: REPO_DIR,
-		branch: payload.baseRef,
-		singleBranch: true,
-		depth: 1,
-	});
-	const fetched = await git.fetch({
-		ref: `pull/${payload.prNumber}/head`,
-		depth: 1,
-		dir: REPO_DIR,
-	});
-	if (!fetched.fetchHead) throw new Error("PR head fetch did not return a commit");
-	if (payload.headSha && fetched.fetchHead.toLowerCase() !== payload.headSha.toLowerCase()) {
-		throw new Error("PR head changed after the review was requested");
+// Untar a gzip'd GitHub tarball stream into the workspace under `destDir`,
+// stripping the archive's single top-level directory. Handles ustar regular
+// files, directories, symlinks, GNU longname ('L') and pax ('x') path
+// overrides. Entries are processed incrementally; only one entry's content is
+// buffered at a time.
+async function untarInto(
+	workspace: ReturnType<typeof getDefaultWorkspace>,
+	stream: ReadableStream<Uint8Array>,
+	destDir: string,
+): Promise<{ files: number; bytes: number }> {
+	const decoder = new TextDecoder();
+	let buffer = new Uint8Array(0);
+	let files = 0;
+	let bytes = 0;
+	let pendingLongName: string | undefined;
+	let pendingPaxPath: string | undefined;
+	const dirsMade = new Set<string>();
+
+	const append = (chunk: Uint8Array) => {
+		const next = new Uint8Array(buffer.length + chunk.length);
+		next.set(buffer, 0);
+		next.set(chunk, buffer.length);
+		buffer = next;
+	};
+	const readCString = (view: Uint8Array): string => {
+		const end = view.indexOf(0);
+		return decoder.decode(end === -1 ? view : view.subarray(0, end));
+	};
+	const stripRoot = (name: string): string | undefined => {
+		const slash = name.indexOf("/");
+		if (slash === -1) return undefined;
+		const rest = name.slice(slash + 1);
+		return rest.length > 0 ? rest : undefined;
+	};
+	const ensureDir = async (path: string) => {
+		if (dirsMade.has(path)) return;
+		await workspace.mkdir(path, { recursive: true });
+		dirsMade.add(path);
+	};
+	const parentOf = (path: string): string => path.slice(0, path.lastIndexOf("/"));
+
+	const reader = stream.getReader();
+	let done = false;
+	const need = async (n: number): Promise<boolean> => {
+		while (buffer.length < n && !done) {
+			const r = await reader.read();
+			if (r.done) done = true;
+			else append(r.value);
+		}
+		return buffer.length >= n;
+	};
+
+	while (await need(512)) {
+		const header = buffer.subarray(0, 512);
+		buffer = buffer.subarray(512);
+		// Two consecutive zero blocks terminate the archive.
+		if (header.every((b) => b === 0)) break;
+
+		const rawName = readCString(header.subarray(0, 100));
+		const prefix = readCString(header.subarray(345, 500));
+		const size = parseInt(readCString(header.subarray(124, 136)).trim() || "0", 8);
+		// Mode bytes (100-108) are ignored: the Workspace has no chmod and the
+		// reviewer never executes files.
+		const type = String.fromCharCode(header[156] ?? 48);
+		const linkTarget = readCString(header.subarray(157, 257));
+
+		const padded = Math.ceil(size / 512) * 512;
+		if (!(await need(padded)) && size > 0) {
+			throw new Error(`tar truncated: needed ${padded} bytes for entry ${rawName}`);
+		}
+		const content = buffer.subarray(0, size);
+		buffer = buffer.subarray(Math.min(padded, buffer.length));
+
+		if (type === "L") {
+			pendingLongName = readCString(content);
+			continue;
+		}
+		if (type === "x" || type === "g") {
+			// pax records: "<len> key=value\n"
+			const text = decoder.decode(content);
+			for (const line of text.split("\n")) {
+				const eq = line.indexOf("=");
+				if (eq > 0 && line.slice(line.indexOf(" ") + 1, eq) === "path") {
+					pendingPaxPath = line.slice(eq + 1);
+				}
+			}
+			continue;
+		}
+
+		const fullName =
+			pendingPaxPath ?? pendingLongName ?? (prefix ? `${prefix}/${rawName}` : rawName);
+		pendingLongName = undefined;
+		pendingPaxPath = undefined;
+
+		const relative = stripRoot(fullName);
+		if (!relative) continue;
+		const dest = `${destDir}/${relative}`;
+
+		if (type === "5") {
+			await ensureDir(dest);
+		} else if (type === "2") {
+			await ensureDir(parentOf(dest));
+			await workspace.symlink(linkTarget, dest);
+		} else if (type === "0" || type === "\0" || type === "7") {
+			await ensureDir(parentOf(dest));
+			// Copy out of the rolling buffer: content is a subarray view.
+			await workspace.writeFileBytes(dest, new Uint8Array(content));
+			files += 1;
+			bytes += size;
+		}
+		// Hardlinks and other exotic types don't occur in GitHub tarballs; skip.
 	}
-	await git.checkout({ ref: fetched.fetchHead, dir: REPO_DIR, force: true });
+	return { files, bytes };
+}
+
+// Hydrate the PR into the durable Workspace from the GitHub tarball of the PR
+// head SHA (reachable in the base repo for fork PRs too). No git objects, no
+// pack indexing -- pack inflation in the DO stalled past ~16MB repo size,
+// which is what took reviews down on 2026-08-08. gzip decompression is the
+// runtime-native DecompressionStream. Idempotent: a HYDRATED marker skips
+// re-fetching on workflow re-entry.
+async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
+	const t0 = Date.now();
+	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
+	hydrateStep(payload, "workspace created", t0);
+	if (await workspace.exists(HYDRATED)) {
+		hydrateStep(payload, "already hydrated", t0);
+		return;
+	}
+	if (!payload.headSha) throw new Error("hydrate requires the PR head SHA");
+
+	const url = `https://api.github.com/repos/${payload.owner}/${payload.repo}/tarball/${payload.headSha}`;
+	const response = await fetch(url, {
+		headers: { "User-Agent": "emdash-flue-review", Accept: "application/vnd.github+json" },
+	});
+	if (!response.ok || !response.body) {
+		throw new Error(`tarball fetch failed: ${response.status} ${await response.text()}`);
+	}
+	hydrateStep(payload, "tarball response", t0);
+
+	const tarStream = response.body.pipeThrough(new DecompressionStream("gzip"));
+	const { files, bytes } = await untarInto(workspace, tarStream, REPO_DIR);
+	hydrateStep(payload, `untarred ${files} files ${bytes} bytes`, t0);
+
 	await workspace.writeFile(HYDRATED, new Date().toISOString());
+	hydrateStep(payload, "hydrated", t0);
 }
 
 function logReviewEvent(
