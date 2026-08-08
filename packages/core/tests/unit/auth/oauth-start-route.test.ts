@@ -3,16 +3,10 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { GET as startOAuth } from "../../../src/astro/routes/api/auth/oauth/[provider].js";
 
 /**
- * Regression for #1736: the route used to read
- * `locals.runtime?.env` for Cloudflare bindings. Astro 6+ makes
- * `locals.runtime.env` a getter that *throws* rather than returning
- * undefined, so `?.` optional-chaining didn't protect the fallback --
- * the throw propagated into the route's outer try/catch and surfaced as
- * a generic "oauth_error", masking `provider_not_configured` even when
- * running on Node (where `locals.runtime` never exists at all in
- * practice, but a throwing getter is exactly what real Cloudflare
- * deployments hit). The route no longer touches `locals.runtime` --
- * it reads through the `virtual:emdash/env` module instead.
+ * Regression for the Astro 6+ Cloudflare case where `locals.runtime.env`
+ * is a throwing getter. `resolveOAuthEnv` reads it safely and falls back
+ * through the configured env sources, so the route reaches the provider
+ * check instead of crashing with a generic oauth_error.
  */
 function makeThrowingRuntimeLocals() {
 	return {
@@ -29,7 +23,7 @@ function makeThrowingRuntimeLocals() {
 	};
 }
 
-describe("OAuth start route (#1736)", () => {
+describe("OAuth start route", () => {
 	afterEach(() => {
 		vi.doUnmock("virtual:emdash/env");
 		vi.resetModules();
