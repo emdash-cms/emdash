@@ -750,13 +750,47 @@ GET /_emdash/api/search/suggest?q=hel&limit=5
 
 Returns prefix-matched titles for autocomplete.
 
+### Configure Collection Search
+
+```http
+POST /_emdash/api/search/enable
+Content-Type: application/json
+
+{
+  "collection": "posts",
+  "enabled": true,
+  "tokenize": "trigram",
+  "weights": {
+    "title": 10,
+    "content": 1
+  }
+}
+```
+
+The optional `tokenize` field controls how SQLite FTS5 indexes the collection. Changing it on an
+enabled collection rebuilds and repopulates that collection's search index.
+
+| Value                | When to use |
+| -------------------- | ----------- |
+| `porter unicode61`   | Default. English-language content that benefits from Porter stemming, such as matching related word forms. Porter stemming is English-specific. |
+| `unicode61`          | Languages that use word separators but should not use English stemming. |
+| `trigram`            | Languages with text that is not separated by spaces, including Japanese, Chinese, Thai, Khmer, Lao, and Burmese, or when substring matching is needed. Queries shorter than three Unicode characters return no matches. |
+
+Omitting `tokenize` on a collection without a stored tokenizer uses `porter unicode61`. Disabling
+search preserves the configured tokenizer for the next enable operation.
+
 ### Rebuild Search Index
 
 ```http
 POST /_emdash/api/search/rebuild
+Content-Type: application/json
+
+{
+  "collection": "posts"
+}
 ```
 
-Rebuild FTS index for all or specific collections.
+Rebuilds the FTS index for the specified collection using its stored tokenizer and field weights.
 
 ### Search Stats
 

@@ -48,18 +48,22 @@ vi.mock("../src/components/ContentEditor", () => ({
 		onSave,
 		onAutosave,
 		onSeoChange,
+		onPublishedAtChange,
 		isSaving,
 		isAutosaving,
 		isSaveFeedbackActive,
+		isUpdatingPublishedAt,
 		autosaveCompletionToken,
 	}: {
 		item?: { data?: { title?: string }; slug?: string | null };
 		onSave?: (payload: { data: Record<string, unknown> }) => void;
 		onAutosave?: (payload: { data: Record<string, unknown>; slug?: string }) => void;
 		onSeoChange?: (seo: { title: string }) => void;
+		onPublishedAtChange?: (publishedAt: string) => void;
 		isSaving?: boolean;
 		isAutosaving?: boolean;
 		isSaveFeedbackActive?: boolean;
+		isUpdatingPublishedAt?: boolean;
 		autosaveCompletionToken?: number;
 	}) => (
 		<div data-testid="content-editor">
@@ -93,6 +97,13 @@ vi.mock("../src/components/ContentEditor", () => ({
 			</button>
 			<button type="button" onClick={() => onSeoChange?.({ title: "Search title" })}>
 				Trigger SEO Sync
+			</button>
+			<button
+				type="button"
+				disabled={isUpdatingPublishedAt}
+				onClick={() => onPublishedAtChange?.("2020-06-01T08:45:00.000Z")}
+			>
+				Trigger Publish Date Sync
 			</button>
 		</div>
 	),
@@ -482,6 +493,80 @@ describe("ContentNewPage – locale passed to createContent", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Tests: ContentNewPage – a rejected create surfaces an error toast
+// ---------------------------------------------------------------------------
+
+describe("ContentNewPage – create failure surfaces the server's error", () => {
+	let mockFetch: ReturnType<typeof createMockFetch>;
+
+	beforeEach(() => {
+		mockFetch = createMockFetch();
+
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: MANIFEST })
+			.on("GET", "/_emdash/api/auth/me", {
+				data: { id: "user_01", role: 60 },
+			})
+			.on("GET", "/_emdash/api/bylines", { data: { items: [] } })
+			// A canned 409 SLUG_CONFLICT — the response shape the server
+			// returns when the entry's slug is already taken in the
+			// collection (slug derivation itself is server-side and not
+			// exercised here).
+			.on(
+				"POST",
+				"/_emdash/api/content/posts",
+				{
+					success: false,
+					error: {
+						code: "SLUG_CONFLICT",
+						message: "Slug 'test-post' already exists in collection 'posts'",
+					},
+				},
+				409,
+			);
+	});
+
+	afterEach(() => {
+		mockFetch.restore();
+	});
+
+	it("shows a toast with the server's message on a slug conflict (and stays on /new)", async () => {
+		const { router, TestApp } = buildRouter();
+
+		await router.navigate({
+			to: "/content/$collection/new",
+			params: { collection: "posts" },
+			search: { locale: undefined },
+		});
+
+		const screen = await render(<TestApp />);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+
+		// The UI surfaces WHAT happened — the server's human-readable
+		// conflict message.
+		await expect.element(screen.getByText("Failed to save")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Slug 'test-post' already exists in collection 'posts'"))
+			.toBeInTheDocument();
+
+		// And with the error affordance: Kumo styles severity off `variant`
+		// (Base UI's `type` is inert for styling), and the toast icon only
+		// renders for a non-default variant.
+		await expect
+			.poll(() => document.querySelectorAll("[data-toast-icon]").length)
+			.toBeGreaterThan(0);
+
+		// And the failed create must not navigate anywhere.
+		expect(router.state.location.pathname).toContain("/content/posts/new");
+	});
+});
+
+// ---------------------------------------------------------------------------
 // Tests: ContentEditPage – autosave cache stays in sync
 // ---------------------------------------------------------------------------
 
@@ -610,6 +695,90 @@ describe("ContentEditPage – autosave cache patching", () => {
 			expect(screen.getByTestId("mock-title").element().textContent).toBe("Autosaved Title");
 			expect(screen.getByTestId("mock-slug").element().textContent).toBe("autosaved-title");
 		});
+	});
+
+	it("sends publish-date changes through the auxiliary update payload", async () => {
+		const fetchWithMocks = globalThis.fetch;
+		let updateBody: Record<string, unknown> | undefined;
+		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (init?.method === "PUT" && url.includes("/content/posts/post_1")) {
+				if (typeof init.body !== "string") throw new TypeError("Expected a JSON request body");
+				updateBody = JSON.parse(init.body) as Record<string, unknown>;
+			}
+			return fetchWithMocks(input, init);
+		}) as typeof fetch;
+
+		try {
+			const { router, TestApp } = buildRouter();
+			await router.navigate({
+				to: "/content/$collection/$id",
+				params: { collection: "posts", id: "post_1" },
+			});
+			const screen = await render(<TestApp />);
+			await waitFor(() => {
+				expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+			});
+
+			await screen.getByRole("button", { name: "Trigger Publish Date Sync" }).click();
+
+			await waitFor(() => {
+				expect(updateBody).toEqual({ publishedAt: "2020-06-01T08:45:00.000Z" });
+			});
+		} finally {
+			globalThis.fetch = fetchWithMocks;
+		}
+	});
+
+	it("keeps publish-date editing disabled while its update remains pending", async () => {
+		const fetchWithMocks = globalThis.fetch;
+		let releasePublishedAt: (() => void) | undefined;
+		let seoRequestSeen = false;
+		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (init?.method !== "PUT" || !url.includes("/content/posts/post_1")) {
+				return fetchWithMocks(input, init);
+			}
+			if (typeof init.body !== "string") throw new TypeError("Expected a JSON request body");
+			const body = JSON.parse(init.body) as Record<string, unknown>;
+			const response = fetchWithMocks(input, init);
+			if (body.publishedAt !== undefined) {
+				return new Promise<Response>((resolve) => {
+					releasePublishedAt = () => void response.then(resolve);
+				});
+			}
+			seoRequestSeen = body.seo !== undefined;
+			return response;
+		}) as typeof fetch;
+
+		try {
+			const { router, TestApp } = buildRouter();
+			await router.navigate({
+				to: "/content/$collection/$id",
+				params: { collection: "posts", id: "post_1" },
+			});
+			const screen = await render(<TestApp />);
+			await waitFor(() => {
+				expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+			});
+
+			const publishDateButton = screen.getByRole("button", {
+				name: "Trigger Publish Date Sync",
+			});
+			await publishDateButton.click();
+			await expect.element(publishDateButton).toBeDisabled();
+
+			await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+			await waitFor(() => {
+				expect(seoRequestSeen).toBe(true);
+			});
+			await expect.element(publishDateButton).toBeDisabled();
+		} finally {
+			releasePublishedAt?.();
+			globalThis.fetch = fetchWithMocks;
+		}
 	});
 
 	it("does not report auxiliary writes as saving; editor saves still do", async () => {

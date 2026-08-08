@@ -22,6 +22,7 @@ import {
 	CaretUp,
 	CaretDown,
 	CaretUpDown,
+	Upload,
 	X,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
@@ -32,6 +33,11 @@ import { useDebouncedValue } from "../lib/hooks.js";
 import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
+import {
+	ContentStatusBadge,
+	ContentStatusLabel,
+	isContentStatusState,
+} from "./ContentStatusBadge.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
@@ -411,6 +417,7 @@ export function ContentList({
 										variant="secondary"
 										disabled={bulkBusy}
 										onClick={() => runBulk(onBulkPublish)}
+										icon={<Upload />}
 									>
 										{t`Publish`}
 									</Button>
@@ -724,13 +731,15 @@ function FilterBar({
 	const showAuthorFilter = !!onAuthorFilterChange && !!authors && authors.length > 0;
 	const showDateFilter = !!onDateFilterChange;
 
-	const statusItems: Record<string, string> = {
+	const statusItems: Record<ContentStatusFilter, string> = {
 		all: t`All statuses`,
-		published: t`Published`,
+		published: t`Publish`,
 		draft: t`Draft`,
 		scheduled: t`Scheduled`,
 		archived: t`Archived`,
 	};
+	const renderStatusLabel = (value: ContentStatusFilter) =>
+		value === "all" ? statusItems.all : <ContentStatusLabel state={value} />;
 
 	const dateFieldItems: Record<string, string> = {
 		createdAt: t`Created`,
@@ -754,11 +763,14 @@ function FilterBar({
 				aria-label={t`Filter by status`}
 				value={statusFilter}
 				onValueChange={(v) => onStatusFilterChange((v as ContentStatusFilter) ?? "all")}
+				renderValue={(v) =>
+					renderStatusLabel(typeof v === "string" && Object.hasOwn(statusItems, v) ? v : "all")
+				}
 				items={statusItems}
 			>
-				{Object.entries(statusItems).map(([value, label]) => (
+				{Object.entries(statusItems).map(([value]) => (
 					<Select.Option key={value} value={value}>
-						{label}
+						{renderStatusLabel(value as ContentStatusFilter)}
 					</Select.Option>
 				))}
 			</Select>
@@ -1153,36 +1165,12 @@ function StatusBadge({
 	status: string;
 	hasPendingChanges?: boolean;
 }) {
-	const { t } = useLingui();
-
-	const statusLabel =
-		status === "published"
-			? t`published`
-			: status === "draft"
-				? t`draft`
-				: status === "scheduled"
-					? t`scheduled`
-					: status === "archived"
-						? t`archived`
-						: status;
+	const state = isContentStatusState(status) ? status : undefined;
 
 	return (
 		<span className="inline-flex items-center gap-1.5">
-			<span
-				className={cn(
-					"inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
-					status === "published" &&
-						"bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-					status === "draft" &&
-						"bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-					status === "scheduled" &&
-						"bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-					status === "archived" && "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-				)}
-			>
-				{statusLabel}
-			</span>
-			{hasPendingChanges && <Badge variant="secondary">{t`pending`}</Badge>}
+			{state ? <ContentStatusBadge state={state} /> : <Badge variant="neutral">{status}</Badge>}
+			{hasPendingChanges && <ContentStatusBadge state="pendingChanges" />}
 		</span>
 	);
 }

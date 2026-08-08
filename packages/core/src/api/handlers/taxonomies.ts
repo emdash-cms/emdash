@@ -423,7 +423,8 @@ export async function handleTermList(
 		const isHierarchical = lookup.def.hierarchical === 1;
 		const result = isHierarchical ? buildTree(termData) : termData;
 		return { success: true, data: { terms: result } };
-	} catch {
+	} catch (error) {
+		console.error("[taxonomies] term list failed:", error);
 		return {
 			success: false,
 			error: { code: "TERM_LIST_ERROR", message: "Failed to list terms" },

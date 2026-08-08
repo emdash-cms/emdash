@@ -549,5 +549,7 @@ export function kvCache(config: KVCacheConfig): ObjectCacheDescriptor {
 export { cloudflareImages, type CloudflareImagesConfig } from "./media/images.js";
 export { cloudflareStream, type CloudflareStreamConfig } from "./media/stream.js";
 
-// Re-export cache provider config helper (config-time)
+// Legacy Cache API + zone REST purge provider (config-time). Prefer
+// cacheCloudflare() from @astrojs/cloudflare/cache with wrangler
+// "cache": { "enabled": true } for native Workers Caching.
 export { cloudflareCache, type CloudflareCacheConfig } from "./cache/config.js";
