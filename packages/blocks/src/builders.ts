@@ -38,6 +38,8 @@ import type {
 	ToggleElement,
 	TabBlock,
 	TabPanel,
+	TimelineBlock,
+	TimelineItem,
 } from "./types.js";
 
 // ── Block Builders ───────────────────────────────────────────────────────────
@@ -495,6 +497,19 @@ function accordion(opts: {
 	};
 }
 
+function timeline(opts: {
+	blockId?: string;
+	items: TimelineItem[];
+	emptyText?: string;
+}): TimelineBlock {
+	return {
+		type: "timeline",
+		items: opts.items,
+		...(opts.emptyText !== undefined && { empty_text: opts.emptyText }),
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
 // ── Exports ──────────────────────────────────────────────────────────────────
 
 export const blocks = {
@@ -517,6 +532,7 @@ export const blocks = {
 	tab: tabBlock,
 	empty,
 	accordion,
+	timeline,
 };
 
 export const elements = {
