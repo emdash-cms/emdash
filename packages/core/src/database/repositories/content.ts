@@ -720,10 +720,9 @@ export class ContentRepository {
 		// both to render a stable denominator (kept on every page intentionally),
 		// and issuing them in parallel on SQLite is essentially free.
 		//
-		// Settled rather than raced: a collection whose table is missing rejects
-		// both, and `Promise.all` returns on the first. The loser stays in flight
-		// holding a pooled connection, so a Postgres pool destroyed in that window
-		// never finishes closing.
+		// A collection whose table is missing rejects both. The query that loses
+		// the race stays in flight holding a pooled connection, and a Postgres
+		// pool destroyed in that window never finishes closing.
 		const [rowsResult, countResult] = await Promise.allSettled([
 			query.execute(),
 			this.countWithResolvedFilters(type, options.where, resolvedFieldFilters),
