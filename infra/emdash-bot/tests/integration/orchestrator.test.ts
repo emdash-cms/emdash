@@ -327,6 +327,164 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(await stub.getPendingSideEffectCount()).toBe(0);
 	});
 
+	test("investigate is rejected for a non-maintainer actor", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		const outcome = await stub.event(
+			makeEvent({
+				event: "investigate",
+				arg: "look at the loader",
+				actor: "reporter",
+				anchorNumber: 42,
+			}),
+		);
+		expect(outcome.kind).toBe("noop");
+		expect((await stub.getPersistedState()).state).toBe(null);
+	});
+
+	test("a diagnose run blocked on reporter info lands on needs_info", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ event: "investigate", arg: "diagnose it", anchorNumber: 42 }));
+		expect((await stub.getPersistedState()).state).toBe("investigating");
+
+		await stub.debugSetStaleRun("diag-run", Date.now(), "investigate-42-diag-run", "diagnose");
+		const outcome = await stub.applyAgentResult({
+			runId: "diag-run",
+			result: { verdict: "unclear", summary: "I need the exact steps that fail for you." },
+			pushed: false,
+			ok: true,
+		});
+		expect(outcome.kind).toBe("transition");
+		expect((await stub.getPersistedState()).state).toBe("needs_info");
+	});
+
+	test("the fix loop runs from a diagnosis to a confirmed draft PR", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ event: "investigate", arg: "diagnose it", anchorNumber: 42 }));
+
+		await stub.debugSetStaleRun("diag-run", Date.now(), "investigate-42-diag-run", "diagnose");
+		await stub.applyAgentResult({
+			runId: "diag-run",
+			result: { reproduced: true, summary: "Reproduced: the loader drops the locale." },
+			pushed: false,
+			ok: true,
+		});
+		expect((await stub.getPersistedState()).state).toBe("reproduced");
+
+		await stub.event(makeEvent({ event: "fix", arg: "fix the loader", anchorNumber: 42 }));
+		expect((await stub.getPersistedState()).state).toBe("fixing");
+
+		await stub.debugSetStaleRun("fix-run", Date.now(), "investigate-42-fix-run", "fix");
+		await stub.applyAgentResult({
+			runId: "fix-run",
+			result: { fixed: true, summary: "Fixed the loader; added a test." },
+			pushed: true,
+			ok: true,
+		});
+		expect((await stub.getPersistedState()).state).toBe("preview_building");
+
+		await stub.event(
+			makeEvent({ event: "preview.ready", arg: null, actor: "system", anchorNumber: 42 }),
+		);
+		expect((await stub.getPersistedState()).state).toBe("awaiting_reporter");
+
+		const confirm = await stub.event(
+			makeEvent({ event: "confirm", arg: null, actor: "reporter", anchorNumber: 42 }),
+		);
+		expect(confirm.kind).toBe("transition");
+		if (confirm.kind === "transition") expect(confirm.decision.action).toBe("openDraftPr");
+		expect((await stub.getPersistedState()).state).toBe("in_review");
+	});
+
+	test("a reporter rejection reaps the branch back to the reproduced verdict", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ event: "investigate", arg: "diagnose it", anchorNumber: 42 }));
+		await stub.debugSetStaleRun("diag-run", Date.now(), "investigate-42-diag-run", "diagnose");
+		await stub.applyAgentResult({
+			runId: "diag-run",
+			result: { reproduced: true, summary: "Reproduced it." },
+			pushed: false,
+			ok: true,
+		});
+		await stub.event(makeEvent({ event: "fix", arg: "fix it", anchorNumber: 42 }));
+		await stub.debugSetStaleRun("fix-run", Date.now(), "investigate-42-fix-run", "fix");
+		await stub.applyAgentResult({
+			runId: "fix-run",
+			result: { fixed: true, summary: "Built a candidate." },
+			pushed: true,
+			ok: true,
+		});
+		await stub.event(
+			makeEvent({ event: "preview.ready", arg: null, actor: "system", anchorNumber: 42 }),
+		);
+		expect((await stub.getPersistedState()).state).toBe("awaiting_reporter");
+
+		const reject = await stub.event(
+			makeEvent({
+				event: "reject",
+				arg: "still broken on my end",
+				actor: "reporter",
+				anchorNumber: 42,
+			}),
+		);
+		expect(reject.kind).toBe("transition");
+		if (reject.kind === "transition") expect(reject.decision.action).toBe("reapBranch");
+		expect((await stub.getPersistedState()).state).toBe("reproduced");
+	});
+
+	test("a fix run that reports skipped rests in blocked, not wedged in fixing", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ event: "investigate", arg: "diagnose it", anchorNumber: 42 }));
+		await stub.debugSetStaleRun("diag-run", Date.now(), "investigate-42-diag-run", "diagnose");
+		await stub.applyAgentResult({
+			runId: "diag-run",
+			result: { reproduced: true, summary: "Reproduced it." },
+			pushed: false,
+			ok: true,
+		});
+		await stub.event(makeEvent({ event: "fix", arg: "fix it", anchorNumber: 42 }));
+		expect((await stub.getPersistedState()).state).toBe("fixing");
+
+		await stub.debugSetStaleRun("fix-run", Date.now(), "investigate-42-fix-run", "fix");
+		const outcome = await stub.applyAgentResult({
+			runId: "fix-run",
+			result: { skipped: true, summary: "This needs a product decision, not a code fix." },
+			pushed: false,
+			ok: true,
+		});
+		expect(outcome.kind).toBe("transition");
+		expect((await stub.getPersistedState()).state).toBe("blocked");
+	});
+
+	test("reporter silence past the window expires the wait and reaps the branch", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ event: "investigate", arg: "diagnose it", anchorNumber: 42 }));
+		await stub.debugSetStaleRun("diag-run", Date.now(), "investigate-42-diag-run", "diagnose");
+		await stub.applyAgentResult({
+			runId: "diag-run",
+			result: { reproduced: true, summary: "Reproduced it." },
+			pushed: false,
+			ok: true,
+		});
+		await stub.event(makeEvent({ event: "fix", arg: "fix it", anchorNumber: 42 }));
+		await stub.debugSetStaleRun("fix-run", Date.now(), "investigate-42-fix-run", "fix");
+		await stub.applyAgentResult({
+			runId: "fix-run",
+			result: { fixed: true, summary: "Built a candidate." },
+			pushed: true,
+			ok: true,
+		});
+		await stub.event(
+			makeEvent({ event: "preview.ready", arg: null, actor: "system", anchorNumber: 42 }),
+		);
+		expect((await stub.getPersistedState()).state).toBe("awaiting_reporter");
+
+		// Backdate the confirmation window past 14 days, then run the alarm.
+		await stub.debugBackdateReporterWait(Date.now() - 15 * 24 * 60 * 60 * 1000);
+		const tick = await stub.tick();
+		expect(tick.expiredReporterWait).toBe(true);
+		expect((await stub.getPersistedState()).state).toBe("reproduced");
+	});
+
 	test("concurrent events on the same DO yield a deterministic end state", async () => {
 		// workerd single-threads DO message processing; this test pins that
 		// two events fired in parallel observe each other's effects rather

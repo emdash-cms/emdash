@@ -37,7 +37,7 @@ const SANDBOX_EXEC_GRACE_MS = 30_000;
 const initialDataSchema = v.object({
 	runId: v.pipe(v.string(), v.minLength(1)),
 	issueNumber: v.number(),
-	mode: v.picklist(["repro", "implement", "revise"]),
+	mode: v.picklist(["repro", "implement", "revise", "diagnose", "fix"]),
 	arg: v.optional(v.nullable(v.string())),
 	issueTitle: v.pipe(v.string(), v.minLength(1)),
 	issueBody: v.string(),
@@ -268,6 +268,22 @@ async function detectPush(issueNumber: number, previousBranchSha: string | null)
 
 function buildPrompt(input: InvestigateData): string {
 	const argSection = input.arg ? ["", "## Directive", "", input.arg, ""].join("\n") : "";
+	const diagnose = input.mode === "diagnose";
+	const method = diagnose
+		? [
+				"- Read AGENTS.md, find the relevant code, and attempt to reproduce the bug.",
+				"- Diagnose the root cause. Do NOT write or push a fix -- this is investigation only.",
+				"- Report `reproduced` and put the diagnosis in `summary`. Use verdict `unclear` only when you are blocked on information that only the reporter can supply.",
+			]
+		: [
+				"- Read AGENTS.md, find the relevant code, attempt to reproduce, build, or revise.",
+				"- Write tests where they make sense.",
+				"- Touch only files relevant to the issue. Do not bulk-format or modify .github/workflows.",
+				`- When done, commit and push: \`git checkout -B bot/fix-${input.issueNumber} && git add <files> && git commit -m '<message>' && git push -u origin HEAD --force-with-lease\`.`,
+			];
+	const closing = diagnose
+		? "Call report_result exactly once when finished. Do not set fixed; report reproduced and your verdict with the diagnosis in summary."
+		: "Call report_result exactly once when finished. fixed may only be true if a fix and test passed and the branch was pushed.";
 	return [
 		`Investigate issue #${input.issueNumber} in mode: ${input.mode}.`,
 		"",
@@ -279,11 +295,8 @@ function buildPrompt(input: InvestigateData): string {
 		argSection,
 		"## Method",
 		"",
-		"- Read AGENTS.md, find the relevant code, attempt to reproduce, build, or revise.",
-		"- Write tests where they make sense.",
-		"- Touch only files relevant to the issue. Do not bulk-format or modify .github/workflows.",
-		`- When done, commit and push: \`git checkout -B bot/fix-${input.issueNumber} && git add <files> && git commit -m '<message>' && git push -u origin HEAD --force-with-lease\`.`,
+		...method,
 		"",
-		"Call report_result exactly once when finished. fixed may only be true if a fix and test passed and the branch was pushed.",
+		closing,
 	].join("\n");
 }

@@ -14,6 +14,7 @@ import {
 	addLabels,
 	closePullRequest,
 	createPullRequest,
+	deleteBranch,
 	getBranchSha,
 	getIssue,
 	getIssueLabels,
@@ -169,9 +170,13 @@ const STORAGE = {
 	inbox: "o:inbox",
 	pendingDispatch: "o:pendingDispatch",
 	pendingSideEffects: "o:pendingSideEffects",
+	awaitingReporterSince: "o:awaitingReporterSince",
 } as const;
 
 const TICK_INTERVAL_MS = 60 * 60 * 1000;
+/** Reporter-confirmation window for the fix loop. After this, the alarm fires
+ * `expire`, which reaps the candidate branch and falls back to `reproduced`. */
+const REPORTER_SILENCE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 const STALE_RUN_THRESHOLD_MS = 30 * 60 * 1000;
 const DISPATCH_TIMEOUT_MS = 30_000;
 const INBOX_RETRY_MS = 60_000;
@@ -189,7 +194,7 @@ interface PreparedInvestigation {
 	runId: string;
 	agentId: string;
 	issueNumber: number;
-	mode: "repro" | "implement" | "revise";
+	mode: InvestigationMode;
 	arg: string | null;
 	issueTitle: string;
 	issueBody: string;
@@ -454,6 +459,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 			recoveryError = error instanceof Error ? error.message : String(error);
 			console.error("[orchestrator] stale-run recovery failed", { error: recoveryError });
 		}
+		let expiredReporterWait = false;
+		try {
+			expiredReporterWait = await this.reapExpiredReporterWait(now);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			recoveryError ??= message;
+			console.error("[orchestrator] reporter-wait expiry failed", { error: message });
+		}
 		const labelDrift = await this.reconcileLabels();
 
 		return {
@@ -463,7 +476,31 @@ export class OrchestratorDO extends DurableObject<Env> {
 			droppedStaleRun,
 			recoveryError,
 			labelDrift,
+			expiredReporterWait,
 		};
+	}
+
+	/**
+	 * Fire the fix loop's `expire` timer when the reporter has been silent past
+	 * the confirmation window. The transition reaps the candidate branch and
+	 * falls back to the `reproduced` verdict.
+	 */
+	private async reapExpiredReporterWait(now: number): Promise<boolean> {
+		const [state, since] = await Promise.all([
+			this.ctx.storage.get<StateId>(STORAGE.state),
+			this.ctx.storage.get<number>(STORAGE.awaitingReporterSince),
+		]);
+		if (state !== "awaiting_reporter" || since === undefined) return false;
+		if (now - since < REPORTER_SILENCE_WINDOW_MS) return false;
+		const labels = await this.projectLabels();
+		await this.processEvent({
+			event: "expire",
+			arg: null,
+			actor: "system",
+			labels,
+			needsClassify: false,
+		});
+		return true;
 	}
 
 	private async processInboxHead(): Promise<boolean> {
@@ -726,8 +763,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (decision.action === "openPr") {
 			return this.runOpenPr(creds, repo, anchorNumber);
 		}
+		if (decision.action === "openDraftPr") {
+			return this.runOpenPr(creds, repo, anchorNumber, true);
+		}
 		if (decision.action === "closePr") {
 			return this.runClosePr(creds, repo);
+		}
+		if (decision.action === "reapBranch") {
+			return this.runReapBranch(creds, repo, anchorNumber);
 		}
 		return `unknown action "${decision.action}"`;
 	}
@@ -924,6 +967,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		creds: Parameters<typeof mintInstallationToken>[0],
 		repo: Parameters<typeof createPullRequest>[1],
 		anchorNumber: number,
+		draft = false,
 	): Promise<string | null> {
 		const token = await this.getInstallationToken(creds);
 		const headBranch = `bot/fix-${anchorNumber}`;
@@ -935,11 +979,26 @@ export class OrchestratorDO extends DurableObject<Env> {
 					baseBranch: "main",
 					title: `Fix #${anchorNumber}`,
 					body: `Fixes #${anchorNumber}.\n\nAutomated PR opened by emdashbot.`,
+					draft,
 				}));
 			await this.ctx.storage.put(STORAGE.prNumber, created.number);
 			return null;
 		} catch (err) {
 			return `openPr failed: ${errorMessage(err)}`;
+		}
+	}
+
+	private async runReapBranch(
+		creds: Parameters<typeof mintInstallationToken>[0],
+		repo: Parameters<typeof deleteBranch>[1],
+		anchorNumber: number,
+	): Promise<string | null> {
+		try {
+			const token = await this.getInstallationToken(creds);
+			await deleteBranch(token, repo, `bot/fix-${anchorNumber}`);
+			return null;
+		} catch (err) {
+			return `reapBranch failed: ${errorMessage(err)}`;
 		}
 	}
 
@@ -1066,6 +1125,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 			const puts: Promise<unknown>[] = [
 				transaction.put(STORAGE.state, decision.to),
 				transaction.put(STORAGE.eventLog, eventLog),
+				decision.to === "awaiting_reporter"
+					? transaction.put(STORAGE.awaitingReporterSince, Date.now())
+					: transaction.delete(STORAGE.awaitingReporterSince),
 			];
 			const kindLabel = decision.addLabels.find(
 				(label) => label.startsWith("bot:") && label !== decision.addLabel,
@@ -1382,6 +1444,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 		]);
 	}
 
+	/** Test-only: backdate the reporter-confirmation window to force expiry. */
+	async debugBackdateReporterWait(since: number): Promise<void> {
+		await this.ctx.storage.put(STORAGE.awaitingReporterSince, since);
+	}
+
 	/** Test-only: inject dispatch recovery state without invoking Flue. */
 	async debugSetPendingDispatch(input: {
 		runId: string;
@@ -1442,6 +1509,7 @@ export interface TickOutcome {
 	droppedStaleRun: boolean;
 	recoveryError: string | null;
 	labelDrift: { added: number; removed: number } | null;
+	expiredReporterWait: boolean;
 }
 
 class ClassifierProcessingError extends Error {
@@ -1455,8 +1523,15 @@ function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
-function parseInvestigateMode(value: string): "repro" | "implement" | "revise" | null {
-	if (value === "repro" || value === "implement" || value === "revise") return value;
+function parseInvestigateMode(value: string): InvestigationMode | null {
+	if (
+		value === "repro" ||
+		value === "implement" ||
+		value === "revise" ||
+		value === "diagnose" ||
+		value === "fix"
+	)
+		return value;
 	return null;
 }
 
