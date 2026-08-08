@@ -108,6 +108,22 @@ describeEachDialect("content list filters (#1288)", (dialect) => {
 		expect(result.data.total).toBe(2);
 	});
 
+	it("reports a missing collection the same way with and without field filters", async () => {
+		// The filters resolve against `_emdash_fields`, which exists, so an
+		// unknown collection would otherwise surface as a filter problem and
+		// hide the real cause.
+		const withFilters = await handleContentList(ctx.db, "ghosts", {
+			fieldFilters: { priority: "urgent" },
+		});
+		const withoutFilters = await handleContentList(ctx.db, "ghosts", {});
+
+		expect(withFilters.success).toBe(false);
+		expect(withoutFilters.success).toBe(false);
+		if (withFilters.success || withoutFilters.success) throw new Error("expected failures");
+		expect(withFilters.error.code).toBe("COLLECTION_NOT_FOUND");
+		expect(withFilters.error.code).toBe(withoutFilters.error.code);
+	});
+
 	it("passes indexed custom-field filters through plugin content access", async () => {
 		const content = createContentAccess(ctx.db);
 		const result = await content.list("posts", {
