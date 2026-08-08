@@ -201,18 +201,12 @@
 			"actors": [
 				"maintainer"
 			],
-			"labelTriggers": [
-				"bot:repro"
-			],
 			"defaultKind": "bug"
 		},
 		"investigate": {
 			"description": "Reproduce and diagnose the issue as a bug, with evidence. Does not attempt a fix.",
 			"actors": [
 				"maintainer"
-			],
-			"labelTriggers": [
-				"bot:investigate"
 			],
 			"arg": "directive",
 			"defaultKind": "bug"
@@ -222,9 +216,6 @@
 			"actors": [
 				"maintainer"
 			],
-			"labelTriggers": [
-				"bot:implement"
-			],
 			"arg": "directive",
 			"defaultKind": "enhancement"
 		},
@@ -232,9 +223,6 @@
 			"description": "Build a candidate fix on a bot branch and post a preview for the reporter to try.",
 			"actors": [
 				"maintainer"
-			],
-			"labelTriggers": [
-				"bot:fix"
 			],
 			"arg": "directive"
 		},
