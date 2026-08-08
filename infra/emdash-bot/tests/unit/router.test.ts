@@ -512,6 +512,16 @@ describe("router: investigation + fix loop", () => {
 		expect(previewReady.to).toBe("awaiting_reporter");
 	});
 
+	test("a fix run that skips rests in blocked rather than wedging in fixing", () => {
+		const d = resolve({
+			labels: ["bot:bug", "bot:fixing"],
+			event: "agent.skipped",
+			actor: "system",
+		});
+		assertTransition(d);
+		expect(d.to).toBe("blocked");
+	});
+
 	test("a preview failure falls back to the reproduced verdict", () => {
 		const d = resolve({
 			labels: ["bot:bug", "bot:preview-building"],

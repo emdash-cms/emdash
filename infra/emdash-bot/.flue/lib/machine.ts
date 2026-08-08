@@ -726,6 +726,12 @@ export const TRANSITIONS: Transition[] = [
 		to: "blocked",
 		note: "fix run concluded the behaviour is intended",
 	},
+	{
+		from: "fixing",
+		event: "agent.skipped",
+		to: "blocked",
+		note: "fix run skipped rather than building a candidate; rest in blocked for a maintainer",
+	},
 
 	{ from: "preview_building", event: "preview.ready", to: "awaiting_reporter" },
 	{
