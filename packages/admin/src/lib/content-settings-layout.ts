@@ -11,21 +11,15 @@ export const DEFAULT_CONTENT_SETTINGS_SECTION_ORDER = [
 	"revisions",
 ] as const;
 
-export type ContentSettingsSectionId = (typeof DEFAULT_CONTENT_SETTINGS_SECTION_ORDER)[number];
+export type ContentSettingsSectionId = string;
 
 export interface ContentSettingsLayout {
 	version: typeof CONTENT_SETTINGS_LAYOUT_VERSION;
 	order: ContentSettingsSectionId[];
 }
 
-const KNOWN_SECTION_IDS = new Set<string>(DEFAULT_CONTENT_SETTINGS_SECTION_ORDER);
-
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null;
-}
-
-function isKnownSectionId(value: unknown): value is ContentSettingsSectionId {
-	return typeof value === "string" && KNOWN_SECTION_IDS.has(value);
 }
 
 /** Parse a browser preference without allowing malformed state to break the editor. */
@@ -44,7 +38,7 @@ export function parseContentSettingsLayout(raw: string | null): ContentSettingsL
 
 		return {
 			version: CONTENT_SETTINGS_LAYOUT_VERSION,
-			order: value.order.filter(isKnownSectionId),
+			order: value.order.filter((id): id is ContentSettingsSectionId => typeof id === "string"),
 		};
 	} catch {
 		return null;
@@ -52,20 +46,22 @@ export function parseContentSettingsLayout(raw: string | null): ContentSettingsL
 }
 
 /**
- * Reconcile saved order with the current defaults. Duplicate and unknown ids
- * disappear, while sections introduced by a later EmDash version append.
+ * Reconcile saved order with the sections available in the current editor.
+ * Duplicate and unavailable ids disappear, while newly registered sections append.
  */
 export function resolveContentSettingsLayout(
 	stored: ContentSettingsLayout | null,
+	availableSectionIds: readonly ContentSettingsSectionId[] = DEFAULT_CONTENT_SETTINGS_SECTION_ORDER,
 ): ContentSettingsLayout {
 	const seen = new Set<ContentSettingsSectionId>();
+	const available = new Set(availableSectionIds);
 	const order = (stored?.order ?? []).filter((id) => {
-		if (seen.has(id)) return false;
+		if (!available.has(id) || seen.has(id)) return false;
 		seen.add(id);
 		return true;
 	});
 
-	for (const id of DEFAULT_CONTENT_SETTINGS_SECTION_ORDER) {
+	for (const id of availableSectionIds) {
 		if (seen.has(id)) continue;
 		order.push(id);
 		seen.add(id);
