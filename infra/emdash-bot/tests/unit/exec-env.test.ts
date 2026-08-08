@@ -12,7 +12,12 @@ interface RecordedExec {
 	options: { backend?: string; cwd?: string; encoding: "utf8"; timeoutMs?: number };
 }
 
-function fakeIsolate(overrides: Partial<IsolateBackend["fs"]> = {}): {
+const GIT_STATUS = "git status --porcelain --untracked-files=all";
+
+function fakeIsolate(
+	overrides: Partial<IsolateBackend["fs"]> = {},
+	sharedFiles?: Map<string, string>,
+): {
 	isolate: IsolateBackend;
 	execs: RecordedExec[];
 	files: Map<string, string>;
@@ -20,7 +25,7 @@ function fakeIsolate(overrides: Partial<IsolateBackend["fs"]> = {}): {
 	hangExec: () => void;
 } {
 	const execs: RecordedExec[] = [];
-	const files = new Map<string, string>();
+	const files = sharedFiles ?? new Map<string, string>();
 	let execResult = { exitCode: 0, stdout: "", stderr: "" };
 	let hang = false;
 	const isolate: IsolateBackend = {
@@ -104,7 +109,7 @@ describe("ExecEnv exec routing", () => {
 		expect(attach).not.toHaveBeenCalled();
 	});
 
-	test("container exec routes to the container substrate, not the isolate", async () => {
+	test("container exec runs the command on the container; the isolate only runs the sync probe", async () => {
 		const iso = fakeIsolate();
 		const con = fakeContainer();
 		const env = new ExecEnv({
@@ -118,7 +123,7 @@ describe("ExecEnv exec routing", () => {
 
 		expect(result.stdout).toBe("container-ran");
 		expect(con.execs).toEqual(["pnpm install"]);
-		expect(iso.execs).toHaveLength(0);
+		expect(iso.execs.map((e) => e.source)).toEqual([GIT_STATUS]);
 	});
 });
 
@@ -188,10 +193,10 @@ describe("ExecEnv container lifecycle", () => {
 	});
 });
 
-describe("ExecEnv edit bridge", () => {
-	test("edits made before attach are replayed into the container checkout", async () => {
+describe("ExecEnv VFS->container materialization", () => {
+	test("materializes the current VFS content of paths git reports, not a memory snapshot", async () => {
 		const iso = fakeIsolate();
-		iso.files.set("/repo/src/x.ts", "old body");
+		iso.files.set("/repo/src/x.ts", "v1");
 		const con = fakeContainer();
 		const env = new ExecEnv({
 			isolate: iso.isolate,
@@ -200,17 +205,72 @@ describe("ExecEnv edit bridge", () => {
 			repoDir: "/repo",
 		});
 
-		await env.edit("/repo/src/x.ts", "old", "new");
-		expect(iso.files.get("/repo/src/x.ts")).toBe("new body");
-		expect(con.writes).toHaveLength(0);
+		await env.edit("/repo/src/x.ts", "v1", "v2");
+		iso.setExecResult({ exitCode: 0, stdout: " M src/x.ts\n", stderr: "" });
 
 		await env.exec("pnpm test", { target: "container" });
-		expect(con.writes).toEqual([{ path: "/repo/src/x.ts", content: "new body" }]);
+
+		expect(con.writes).toEqual([{ path: "/repo/src/x.ts", content: "v2" }]);
 	});
 
-	test("edits made after attach are written through immediately", async () => {
+	test("an edit in one instance is materialized when another attaches over the same VFS", async () => {
+		const files = new Map<string, string>([["/repo/src/x.ts", "old"]]);
+		const con = fakeContainer();
+		const envA = new ExecEnv({
+			isolate: fakeIsolate({}, files).isolate,
+			attachContainer: async () => con.container,
+			deadlines,
+			repoDir: "/repo",
+		});
+		await envA.edit("/repo/src/x.ts", "old", "new");
+
+		const isoB = fakeIsolate({}, files);
+		isoB.setExecResult({ exitCode: 0, stdout: " M src/x.ts\n", stderr: "" });
+		const envB = new ExecEnv({
+			isolate: isoB.isolate,
+			attachContainer: async () => con.container,
+			deadlines,
+			repoDir: "/repo",
+		});
+
+		await envB.exec("pnpm test", { target: "container" });
+
+		expect(con.writes).toEqual([{ path: "/repo/src/x.ts", content: "new" }]);
+	});
+
+	test("an edit after attach lands on a fresh instance's re-attach, past the reset", async () => {
+		const files = new Map<string, string>([["/repo/src/y.ts", "base"]]);
+		const con = fakeContainer();
+		const isoA = fakeIsolate({}, files);
+		const envA = new ExecEnv({
+			isolate: isoA.isolate,
+			attachContainer: async () => con.container,
+			deadlines,
+			repoDir: "/repo",
+		});
+		await envA.exec("pnpm install", { target: "container" });
+		await envA.writeFile("/repo/src/y.ts", "fixed");
+		expect(con.writes).toHaveLength(0);
+
+		const isoB = fakeIsolate({}, files);
+		isoB.setExecResult({ exitCode: 0, stdout: " M src/y.ts\n", stderr: "" });
+		const attachB = vi.fn(async () => con.container);
+		const envB = new ExecEnv({
+			isolate: isoB.isolate,
+			attachContainer: attachB,
+			deadlines,
+			repoDir: "/repo",
+		});
+
+		await envB.exec("pnpm test", { target: "container" });
+
+		expect(attachB).toHaveBeenCalledTimes(1);
+		expect(con.writes).toEqual([{ path: "/repo/src/y.ts", content: "fixed" }]);
+	});
+
+	test("a git-reported deletion is removed from the container", async () => {
 		const iso = fakeIsolate();
-		iso.files.set("/repo/src/y.ts", "a");
+		iso.setExecResult({ exitCode: 0, stdout: " D src/gone.ts\n", stderr: "" });
 		const con = fakeContainer();
 		const env = new ExecEnv({
 			isolate: iso.isolate,
@@ -219,10 +279,10 @@ describe("ExecEnv edit bridge", () => {
 			repoDir: "/repo",
 		});
 
-		await env.exec("pnpm install", { target: "container" });
-		await env.writeFile("/repo/src/y.ts", "b");
+		await env.exec("pnpm test", { target: "container" });
 
-		expect(con.writes).toEqual([{ path: "/repo/src/y.ts", content: "b" }]);
+		expect(con.execs).toEqual(["rm -f -- '/repo/src/gone.ts'", "pnpm test"]);
+		expect(con.writes).toHaveLength(0);
 	});
 
 	test("edit throws when the target is absent or ambiguous", async () => {
@@ -241,21 +301,50 @@ describe("ExecEnv edit bridge", () => {
 });
 
 describe("ExecEnv artifact egress", () => {
-	test("readArtifact reads bytes from the container substrate", async () => {
-		const iso = fakeIsolate();
+	test("reads a bare artifact name from under .bot-artifacts", async () => {
 		const con = fakeContainer();
-		const attach = vi.fn(async () => con.container);
 		const env = new ExecEnv({
-			isolate: iso.isolate,
+			isolate: fakeIsolate().isolate,
+			attachContainer: async () => con.container,
+			deadlines,
+			repoDir: "/repo",
+		});
+
+		const bytes = await env.readArtifact("step-1.png");
+
+		expect([...bytes]).toEqual([1, 2, 3]);
+		expect(con.execs[0]).toContain("/repo/.bot-artifacts/step-1.png");
+	});
+
+	test("rejects any name that could escape the artifacts directory", async () => {
+		const attach = vi.fn(async () => fakeContainer().container);
+		const env = new ExecEnv({
+			isolate: fakeIsolate().isolate,
 			attachContainer: attach,
 			deadlines,
 			repoDir: "/repo",
 		});
 
-		const bytes = await env.readArtifact("/repo/.bot-artifacts/step-1.png");
+		for (const bad of ["../secrets", "a/b.png", "/etc/passwd", "..", ".", "", "a\\b"]) {
+			await expect(env.readArtifact(bad)).rejects.toThrow("invalid artifact name");
+		}
+		expect(attach).not.toHaveBeenCalled();
+	});
 
-		expect([...bytes]).toEqual([1, 2, 3]);
-		expect(attach).toHaveBeenCalledTimes(1);
+	test("refuses a symlinked artifact", async () => {
+		const container: ContainerBackend = {
+			exec: async () => ({ exitCode: 1, stdout: "", stderr: "" }),
+			writeFile: async () => {},
+			readFileBytes: async () => new Uint8Array([9]),
+		};
+		const env = new ExecEnv({
+			isolate: fakeIsolate().isolate,
+			attachContainer: async () => container,
+			deadlines,
+			repoDir: "/repo",
+		});
+
+		await expect(env.readArtifact("evil.png")).rejects.toThrow("not a regular file");
 	});
 });
 

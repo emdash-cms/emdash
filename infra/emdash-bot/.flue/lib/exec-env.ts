@@ -1,41 +1,26 @@
-// execEnv: the single seam over the investigation's execution substrates.
+// execEnv: the single seam over the investigation's two execution substrates.
+// Every @cloudflare/computer and @cloudflare/sandbox touchpoint lives here.
 //
-// Hybrid substrate model (decided in slice 3):
-//   - Isolate + VFS + git: @cloudflare/computer 0.1.1 `Workspace`. Owns the
-//     repo clone, all reads/greps/git inspection, and the authoritative copy
-//     of agent edits. This is the >90% path and never starts a container.
-//   - Container: @cloudflare/sandbox. Owns the toolchain -- pnpm install,
-//     astro build, vitest, agent-browser -- because computer's own container
-//     backend needs a `computerd` image that is not published to npm and must
-//     be built from the cloudflare/computer monorepo (unshippable here).
+//   - Isolate + VFS: @cloudflare/computer 0.1.1 `Workspace` (fs + worker-shell
+//     exec). Holds the repo clone and every agent edit. Reads/greps/git run
+//     here without a container.
+//   - Container: @cloudflare/sandbox. Runs the toolchain (pnpm, astro, vitest,
+//     agent-browser). computer's own container backend needs a `computerd`
+//     image that isn't published, so the sandbox stands in. Swapping to
+//     computer's CloudflareContainerBackend later changes only `fromSandbox`
+//     and the `ContainerBackend` adapter.
 //
-// THE FLIP-POINT. When Cloudflare publishes `@cloudflare/computerd` (or a
-// pullable image), the container substrate becomes computer's
-// CloudflareContainerBackend routed by `runtime.exec(cmd, { backend })`, and
-// `fromSandbox` / the `ContainerBackend` adapter is the only code that
-// changes -- the ExecEnv surface and its callers stay put. Every
-// @cloudflare/computer and @cloudflare/sandbox touchpoint is confined to this
-// file for exactly that reason.
+// The VFS is authoritative for source: before every container exec, the
+// container's working tree is re-synced from the VFS via `git status` against
+// the checkout. Because the set is re-derived from the VFS each time -- never
+// from in-memory bookkeeping -- an edit is materialized whether it was made
+// before or after the container attached, and in this isolate or a resumed
+// one. Container-only files (node_modules, build output) are untracked in the
+// VFS and never touched. The one-time `git reset` that seeds the container
+// checkout is owned by the injected `attachContainer`, which runs once.
 //
-// Filesystem coherence (the hybrid's one real seam). The VFS and the
-// container are separate filesystems, so edits made against the VFS are not
-// visible to a container test run on their own. ExecEnv bridges them: every
-// write/edit is recorded and, once a container is attached, replayed into the
-// container checkout, and any write after attach is written through
-// immediately. The isolate reads stay VFS-only (fast, no container).
-//
-// Q(a) agent-browser <-> dev server: both run inside the one attached
-// container and share its localhost (e.g. :4321), exactly as the gen-1
-// sandbox did -- there is no cross-substrate networking to arrange.
-// Q(b) artifact egress: agent-browser writes screenshots into the container
-// FS (`.bot-artifacts/`); `readArtifact` reads them back from the container
-// substrate for the orchestrator to attach. (Under a future pure-computer
-// setup this becomes a `workspace.fs` read after the VFS sync.)
-// Q(c) GitHub reads: emdash is a public repo, so the VFS read-clone needs no
-// credential at all -- it runs through the DO's in-VFS isomorphic-git (the
-// worker-shell `git` command forwards to the host), so no token reaches the
-// isolate. The container keeps the existing outbound proxy, so the only place
-// a token is minted (the fix push) still never exposes it to the sandbox.
+// GitHub reads: emdash is public, so the VFS clone needs no credential; token
+// minting is confined to the container's fix-push through the existing proxy.
 
 import type { WorkspaceClient } from "@cloudflare/computer";
 import type { Sandbox } from "@cloudflare/sandbox";
@@ -120,6 +105,8 @@ export interface ContainerBackend {
 /** Backend id the isolate shell registers under (WorkerShellBackend). */
 export const ISOLATE_SHELL_BACKEND = "worker-shell";
 
+const PATH_SEPARATOR = /[/\\]/;
+
 export interface ExecEnvOptions {
 	readonly isolate: IsolateBackend;
 	/** Lazily attaches the container; called at most once, result reused. */
@@ -135,8 +122,6 @@ export class ExecEnv {
 	readonly #deadlines: ExecEnvDeadlines;
 	readonly #repoDir: string;
 	#containerPromise: Promise<ContainerBackend> | undefined;
-	/** Repo-relative paths edited in the VFS but not yet in the container. */
-	readonly #dirtyPaths = new Set<string>();
 
 	constructor(options: ExecEnvOptions) {
 		this.#isolate = options.isolate;
@@ -164,9 +149,8 @@ export class ExecEnv {
 		return this.#bounded(this.#isolate.fs.readFile(path, "utf8"), "readFile");
 	}
 
-	async writeFile(path: string, content: string): Promise<void> {
-		await this.#bounded(this.#isolate.fs.writeFile(path, content), "writeFile");
-		await this.#recordEdit(path, content);
+	writeFile(path: string, content: string): Promise<void> {
+		return this.#bounded(this.#isolate.fs.writeFile(path, content), "writeFile");
 	}
 
 	/** Replace an exact substring; the file must contain it exactly once. */
@@ -201,6 +185,7 @@ export class ExecEnv {
 			return this.#execIsolate(command, cwd, timeoutMs, deadlineMs);
 		}
 		const container = await this.container();
+		await this.#materializeVfsChanges(container);
 		return withDeadline(
 			container.exec(command, { cwd, ...(timeoutMs ? { timeoutMs } : {}) }),
 			deadlineMs,
@@ -209,22 +194,31 @@ export class ExecEnv {
 	}
 
 	/**
-	 * Attach the container (once) and bring its checkout up to date with any
-	 * VFS edits made before attach. Reused across execs for the run's life.
+	 * Attach the container once and reuse it. Attach owns the one-time base
+	 * checkout (via the injected `attachContainer`); working-tree sync is done
+	 * per exec by `#materializeVfsChanges`, not here.
 	 */
 	container(): Promise<ContainerBackend> {
-		if (!this.#containerPromise) {
-			this.#containerPromise = this.#attachContainer().then(async (container) => {
-				await this.#replayDirtyPaths(container);
-				return container;
-			});
-		}
-		return this.#containerPromise;
+		return (this.#containerPromise ??= this.#attachContainer());
 	}
 
-	/** Read a container-produced artifact (screenshots) for egress (Q(b)). */
-	async readArtifact(path: string): Promise<Uint8Array> {
+	/**
+	 * Read a container-produced artifact (a screenshot) for egress. `name` is a
+	 * bare filename under `<repo>/.bot-artifacts/`; a path separator, `.`, `..`,
+	 * or an absolute form is rejected and a symlink is refused, so a name can't
+	 * escape the artifacts directory.
+	 */
+	async readArtifact(name: string): Promise<Uint8Array> {
+		if (name === "" || name === "." || name === ".." || PATH_SEPARATOR.test(name)) {
+			throw new Error(`invalid artifact name: ${name}`);
+		}
+		const path = `${this.#repoDir}/.bot-artifacts/${name}`;
 		const container = await this.container();
+		const check = await this.#bounded(
+			container.exec(`test -f ${quote(path)} && test ! -L ${quote(path)}`),
+			"readArtifact check",
+		);
+		if (check.exitCode !== 0) throw new Error(`artifact is not a regular file: ${name}`);
 		return this.#bounded(container.readFileBytes(path), "readArtifact");
 	}
 
@@ -252,21 +246,31 @@ export class ExecEnv {
 		}
 	}
 
-	async #recordEdit(path: string, content: string): Promise<void> {
-		if (this.#containerPromise) {
-			const container = await this.#containerPromise;
-			await this.#bounded(container.writeFile(path, content), "container writeFile");
-			return;
+	/**
+	 * Bring the container's working tree in line with the VFS. The change set is
+	 * re-derived from the VFS on every call (`git status` against the checkout),
+	 * so no edit is missed regardless of when or in which isolate it was made.
+	 */
+	async #materializeVfsChanges(container: ContainerBackend): Promise<void> {
+		const status = await this.exec("git status --porcelain --untracked-files=all", {
+			target: "isolate",
+			cwd: this.#repoDir,
+		});
+		if (status.exitCode !== 0) {
+			throw new Error(`git status failed (${status.exitCode}): ${status.stderr.slice(-500)}`);
 		}
-		this.#dirtyPaths.add(path);
-	}
-
-	async #replayDirtyPaths(container: ContainerBackend): Promise<void> {
-		for (const path of this.#dirtyPaths) {
-			const content = await this.#bounded(this.#isolate.fs.readFile(path, "utf8"), "readFile");
-			await this.#bounded(container.writeFile(path, content), "container writeFile");
+		for (const change of parsePorcelain(status.stdout)) {
+			const path = `${this.#repoDir}/${change.path}`;
+			if (change.op === "delete") {
+				await this.#bounded(container.exec(`rm -f -- ${quote(path)}`), "materialize rm");
+				continue;
+			}
+			const content = await this.#bounded(
+				this.#isolate.fs.readFile(path, "utf8"),
+				"materialize read",
+			);
+			await this.#bounded(container.writeFile(path, content), "materialize write");
 		}
-		this.#dirtyPaths.clear();
 	}
 
 	#bounded<T>(operation: Promise<T>, label: string): Promise<T> {
@@ -298,6 +302,40 @@ export function fromWorkspaceClient(client: WorkspaceClient): IsolateBackend {
 /** Single-quote a shell argument for the isolate command line. */
 function quote(value: string): string {
 	return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+interface VfsChange {
+	readonly path: string;
+	readonly op: "materialize" | "delete";
+}
+
+/**
+ * Parse `git status --porcelain` into per-path sync ops. A rename yields a
+ * delete of the old path and a materialize of the new; a `D` in either status
+ * column is a delete; everything else (modified, added, untracked) materializes.
+ */
+function parsePorcelain(output: string): VfsChange[] {
+	const changes: VfsChange[] = [];
+	for (const line of output.split("\n")) {
+		if (line.length < 4) continue;
+		const index = line[0];
+		const worktree = line[1];
+		const rest = line.slice(3);
+		const arrow = rest.indexOf(" -> ");
+		if (arrow !== -1) {
+			changes.push({ path: dequote(rest.slice(0, arrow)), op: "delete" });
+			changes.push({ path: dequote(rest.slice(arrow + 4)), op: "materialize" });
+			continue;
+		}
+		const deleted = index === "D" || worktree === "D";
+		changes.push({ path: dequote(rest), op: deleted ? "delete" : "materialize" });
+	}
+	return changes;
+}
+
+/** git wraps paths with special characters in double quotes; unwrap them. */
+function dequote(path: string): string {
+	return path.startsWith('"') && path.endsWith('"') ? path.slice(1, -1) : path;
 }
 
 /** Adapt the real sandbox. The only structural sandbox touchpoint. */
