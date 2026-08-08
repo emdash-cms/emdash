@@ -1,9 +1,9 @@
 "use agent";
 
+import { getWorkspace, type WorkspaceStubHost } from "@cloudflare/computer";
 import { getSandbox } from "@cloudflare/sandbox";
 import {
 	defineTool,
-	defineSkill,
 	type AgentProps,
 	useAgentFinish,
 	useAgentStart,
@@ -11,14 +11,18 @@ import {
 	useInitialData,
 	useModel,
 	usePersistentState,
-	useSandbox,
 	useSkill,
 	useTool,
 } from "@flue/runtime";
-import { cloudflareSandbox } from "@flue/runtime/cloudflare";
 import { env as workerEnv } from "cloudflare:workers";
 import * as v from "valibot";
 
+import {
+	type ContainerBackend,
+	ExecEnv,
+	fromSandbox,
+	fromWorkspaceClient,
+} from "../lib/exec-env.js";
 import { createPushCapability, PUSH_CAPABILITY_HEADER } from "../lib/github-proxy.js";
 import {
 	getBranchSha,
@@ -27,12 +31,19 @@ import {
 	readRepoContext,
 } from "../lib/github.js";
 import { applyInvestigationResult } from "../lib/investigation-result.js";
-import { withSandboxDeadlines } from "../lib/sandbox-deadline.js";
-import investigateDocument from "../skills/investigate/instructions.md?raw";
+import diagnoseSkill from "../skills/diagnose/SKILL.md";
+import fixSkill from "../skills/fix/SKILL.md";
+import investigateSkill from "../skills/investigate/SKILL.md";
+import reproAdminSkill from "../skills/repro-admin/SKILL.md";
+import reproApiSkill from "../skills/repro-api/SKILL.md";
+import reproPublicSkill from "../skills/repro-public/SKILL.md";
+import verifySkill from "../skills/verify/SKILL.md";
 
 const REPO_DIR = "/workspace/repo";
-const DEFAULT_SANDBOX_RPC_TIMEOUT_MS = 2 * 60_000;
-const SANDBOX_EXEC_GRACE_MS = 30_000;
+const DEFAULT_RPC_TIMEOUT_MS = 2 * 60_000;
+const EXEC_GRACE_MS = 30_000;
+const CLONE_DEPTH = 50;
+const DEADLINES = { defaultTimeoutMs: DEFAULT_RPC_TIMEOUT_MS, execGraceMs: EXEC_GRACE_MS };
 
 const initialDataSchema = v.object({
 	runId: v.pipe(v.string(), v.minLength(1)),
@@ -61,46 +72,135 @@ const reportedResultSchema = v.object({
 type InvestigateData = v.InferOutput<typeof initialDataSchema>;
 type InvestigationResult = v.InferOutput<typeof resultSchema>;
 
-const investigate = defineSkill({
-	name: "investigate",
-	description:
-		"Investigate an EmDash issue, verify the result, and push a fix branch when appropriate.",
-	instructions: investigateDocument.trim(),
-});
-
 export function Investigate({ id }: AgentProps) {
 	const input = useInitialData<InvestigateData>();
 	const [setupComplete, setSetupComplete] = usePersistentState("setup-complete", false);
 	const [reported, setReported] = usePersistentState("reported", false);
 	const [reminded, setReminded] = usePersistentState("report-reminded", false);
 	const writeResult = useDataWriter("investigation", { schema: reportedResultSchema });
-	const sandbox = getSandbox(workerEnv.Sandbox, id);
+	const env = execEnvFor(id, input);
 
 	useModel("cloudflare/@cf/moonshotai/kimi-k2.7-code");
-	useSandbox(
-		withSandboxDeadlines(cloudflareSandbox(sandbox), {
-			defaultTimeoutMs: DEFAULT_SANDBOX_RPC_TIMEOUT_MS,
-			execGraceMs: SANDBOX_EXEC_GRACE_MS,
-		}),
-		{ cwd: REPO_DIR },
-	);
-	useSkill(investigate);
 
-	useAgentStart(async ({ harness, log }) => {
+	useSkill(investigateSkill);
+	useSkill(diagnoseSkill);
+	useSkill(verifySkill);
+	useSkill(reproApiSkill);
+	useSkill(reproAdminSkill);
+	useSkill(reproPublicSkill);
+	if (input.mode === "fix" || input.mode === "implement" || input.mode === "revise") {
+		useSkill(fixSkill);
+	}
+
+	useAgentStart(async ({ log }) => {
 		if (setupComplete || reported) return;
 		try {
-			await setupSandbox(harness, input, log);
+			await env.cloneRepo({
+				url: cloneUrl(),
+				dir: REPO_DIR,
+				ref: cloneRef(input),
+				depth: CLONE_DEPTH,
+			});
 			setSetupComplete(true);
 		} catch (error) {
 			const result = failedResult(
-				`I couldn't prepare the investigation sandbox: ${errorMessage(error)}`,
+				`I couldn't prepare the investigation workspace: ${errorMessage(error)}`,
 			);
 			await applyInvestigationResult(input, result, false, false);
 			writeResult({ result, ok: false, pushed: false });
 			setReported(true);
-			log.error("sandbox setup failed", { error: errorMessage(error) });
+			log.error("workspace setup failed", { error: errorMessage(error) });
 		}
 	});
+
+	useTool(
+		defineTool({
+			name: "read_file",
+			description: "Read a file from the workspace (VFS). Prefer this over shelling out to `cat`.",
+			input: v.object({ path: v.string() }),
+			async run({ data }) {
+				return await env.readFile(data.path);
+			},
+		}),
+	);
+
+	useTool(
+		defineTool({
+			name: "write_file",
+			description: "Write (create or overwrite) a file in the workspace.",
+			input: v.object({ path: v.string(), content: v.string() }),
+			async run({ data }) {
+				await env.writeFile(data.path, data.content);
+				return `wrote ${data.path}`;
+			},
+		}),
+	);
+
+	useTool(
+		defineTool({
+			name: "edit_file",
+			description: "Replace an exact, unique substring in a file.",
+			input: v.object({ path: v.string(), oldString: v.string(), newString: v.string() }),
+			async run({ data }) {
+				await env.edit(data.path, data.oldString, data.newString);
+				return `edited ${data.path}`;
+			},
+		}),
+	);
+
+	useTool(
+		defineTool({
+			name: "ls",
+			description: "List a directory in the workspace.",
+			input: v.object({ path: v.string() }),
+			async run({ data }) {
+				const entries = await env.ls(data.path);
+				return entries.map((e) => (e.isDirectory ? `${e.name}/` : e.name)).join("\n");
+			},
+		}),
+	);
+
+	useTool(
+		defineTool({
+			name: "grep",
+			description: "Search the workspace for a pattern. Fast; runs in the isolate.",
+			input: v.object({
+				pattern: v.string(),
+				path: v.string(),
+				ignoreCase: v.optional(v.boolean()),
+			}),
+			async run({ data }) {
+				const matches = await env.grep(
+					data.pattern,
+					data.path,
+					data.ignoreCase === undefined ? undefined : { ignoreCase: data.ignoreCase },
+				);
+				return matches.map((m) => `${m.path}:${m.line}: ${m.text}`).join("\n") || "(no matches)";
+			},
+		}),
+	);
+
+	useTool(
+		defineTool({
+			name: "exec",
+			description:
+				"Run a shell command. target 'isolate' (default) is fast bash-in-isolate for grep/git/inspection; target 'container' attaches a Linux container for pnpm/astro/vitest/agent-browser -- slow, use only to run the project.",
+			input: v.object({
+				command: v.string(),
+				target: v.picklist(["isolate", "container"]),
+				cwd: v.optional(v.string()),
+				timeoutMs: v.optional(v.number()),
+			}),
+			async run({ data }) {
+				const result = await env.exec(data.command, {
+					target: data.target,
+					...(data.cwd ? { cwd: data.cwd } : {}),
+					...(data.timeoutMs ? { timeoutMs: data.timeoutMs } : {}),
+				});
+				return [`exit ${result.exitCode}`, result.stdout, result.stderr].filter(Boolean).join("\n");
+			},
+		}),
+	);
 
 	useTool(
 		defineTool({
@@ -154,7 +254,7 @@ export function Investigate({ id }: AgentProps) {
 	});
 
 	if (reported && !setupComplete) {
-		return "Sandbox setup failed and the failure has already been reported. Briefly acknowledge that the run could not start.";
+		return "Workspace setup failed and the failure has already been reported. Briefly acknowledge that the run could not start.";
 	}
 
 	return buildPrompt(input);
@@ -164,80 +264,120 @@ Investigate.agentName = "investigate";
 Investigate.initialData = initialDataSchema;
 Investigate.durability = { maxAttempts: 5, timeoutMs: 30 * 60_000 };
 
-async function setupSandbox(
-	harness: Parameters<Parameters<typeof useAgentStart>[0]>[0]["harness"],
-	input: InvestigateData,
-	log: Parameters<Parameters<typeof useAgentStart>[0]>[0]["log"],
-): Promise<void> {
+/**
+ * Per-run ExecEnv, cached on `globalThis` so it survives the agent's re-renders
+ * within one isolate (Vite duplicates modules across SSR chunks, so a plain
+ * module `let` would not be shared). The container is attached lazily on first
+ * container exec; the VFS/isolate side needs no attach.
+ */
+const EXEC_ENV_REGISTRY = Symbol.for("emdash-bot.execEnvs");
+
+function execEnvRegistry(): Map<string, ExecEnv> {
+	const store = globalThis as typeof globalThis & { [EXEC_ENV_REGISTRY]?: Map<string, ExecEnv> };
+	return (store[EXEC_ENV_REGISTRY] ??= new Map());
+}
+
+function execEnvFor(id: string, input: InvestigateData): ExecEnv {
+	const registry = execEnvRegistry();
+	const existing = registry.get(id);
+	if (existing) return existing;
+	let clientPromise: ReturnType<typeof getWorkspace> | undefined;
+	const isolate = fromWorkspaceClientLazy(() => {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer the withWorkspace stub-host type.
+		const stub = workerEnv.WorkspaceDO.get(
+			workerEnv.WorkspaceDO.idFromName(id),
+		) as unknown as WorkspaceStubHost;
+		return (clientPromise ??= getWorkspace(stub));
+	});
+	const env = new ExecEnv({
+		isolate,
+		attachContainer: () => attachContainer(id, input),
+		deadlines: DEADLINES,
+		repoDir: REPO_DIR,
+	});
+	registry.set(id, env);
+	return env;
+}
+
+/** Defer resolving the RPC client until the first fs/runtime call. */
+function fromWorkspaceClientLazy(getClient: () => ReturnType<typeof getWorkspace>) {
+	let backend: ReturnType<typeof fromWorkspaceClient> | undefined;
+	const resolve = async () => (backend ??= fromWorkspaceClient(await getClient()));
+	return {
+		fs: {
+			readFile: async (path: string, encoding: "utf8") =>
+				(await resolve()).fs.readFile(path, encoding),
+			writeFile: async (path: string, content: string) =>
+				(await resolve()).fs.writeFile(path, content),
+			mkdir: async (path: string, options?: { recursive?: boolean }) =>
+				(await resolve()).fs.mkdir(path, options),
+			readdir: async (path: string) => (await resolve()).fs.readdir(path),
+			rm: async (path: string, options?: { recursive?: boolean; force?: boolean }) =>
+				(await resolve()).fs.rm(path, options),
+			grep: async (pattern: string, path: string, options?: { ignoreCase?: boolean }) =>
+				(await resolve()).fs.grep(pattern, path, options),
+		},
+		runtime: {
+			exec: async (
+				source: string,
+				options: { backend?: string; cwd?: string; encoding: "utf8"; timeoutMs?: number },
+			) => (await resolve()).runtime.exec(source, options),
+		},
+	};
+}
+
+/**
+ * Attach the container substrate and reproduce the base checkout the toolchain
+ * runs against: git identity, a clone (or fetch) at the run's ref, and the
+ * issue-scoped push capability the outbound proxy verifies. pnpm install is
+ * left to the repro/fix skills -- isolate-first, container work on demand.
+ */
+async function attachContainer(id: string, input: InvestigateData): Promise<ContainerBackend> {
+	const container = fromSandbox(getSandbox(workerEnv.Sandbox, id));
 	const repo = readRepoContext(workerEnv);
 	if (!repo) throw new Error("repository context is not configured");
-	const cloneUrl = `https://github.com/${repo.owner}/${repo.repo}.git`;
-	const branch = input.mode === "revise" ? `bot/fix-${input.issueNumber}` : "main";
+	const branch = cloneRef(input);
 	const pushCapability = await createPushCapability(
 		workerEnv.GITHUB_WEBHOOK_SECRET,
 		repo.owner,
 		repo.repo,
 		input.issueNumber,
 	);
-	const steps: Array<{ name: string; command: string; timeoutMs?: number; nonFatal?: boolean }> = [
+	const steps: Array<{ command: string; timeoutMs?: number }> = [
+		{ command: 'git config --global user.email "emdashbot[bot]@users.noreply.github.com"' },
+		{ command: 'git config --global user.name "emdashbot[bot]"' },
+		{ command: "mkdir -p /workspace" },
 		{
-			name: "git-identity-email",
-			command: 'git config --global user.email "emdashbot[bot]@users.noreply.github.com"',
-		},
-		{ name: "git-identity-name", command: 'git config --global user.name "emdashbot[bot]"' },
-		{ name: "mkdir-workspace", command: "mkdir -p /workspace" },
-		{
-			name: "clone-or-fetch",
-			command: `if [ -d ${REPO_DIR}/.git ]; then cd ${REPO_DIR} && git fetch --all --prune; else git clone --depth 50 '${cloneUrl}' ${REPO_DIR}; fi`,
+			command: `if [ -d ${REPO_DIR}/.git ]; then cd ${REPO_DIR} && git fetch --all --prune; else git clone --depth ${CLONE_DEPTH} --branch '${branch}' '${cloneUrl()}' ${REPO_DIR}; fi`,
 			timeoutMs: 5 * 60_000,
 		},
-		input.mode === "revise"
-			? {
-					name: "checkout-revise",
-					command: `cd ${REPO_DIR} && git fetch origin '${branch}':'refs/remotes/origin/${branch}' && git checkout '${branch}'`,
-				}
-			: {
-					name: "checkout-main",
-					command: `cd ${REPO_DIR} && git checkout main && git reset --hard origin/main`,
-				},
 		{
-			name: "git-push-capability",
+			command: `cd ${REPO_DIR} && git checkout '${branch}' && git reset --hard 'origin/${branch}'`,
+		},
+		{
 			command: `cd ${REPO_DIR} && git config http.https://github.com/.extraHeader '${PUSH_CAPABILITY_HEADER}: ${pushCapability}'`,
 		},
-		{
-			name: "pnpm-install",
-			command: `cd ${REPO_DIR} && pnpm install --frozen-lockfile --prefer-offline`,
-			timeoutMs: 15 * 60_000,
-			nonFatal: true,
-		},
 	];
-
-	for (const setupStep of steps) {
-		try {
-			const result = await harness.sandbox.exec(setupStep.command, {
-				cwd: "/",
-				...(setupStep.timeoutMs ? { timeoutMs: setupStep.timeoutMs } : {}),
-			});
-			if (result.exitCode === 0) {
-				log.info(`setupSandbox: ${setupStep.name} ok`);
-				continue;
-			}
-			const message = `${setupStep.name} exited ${result.exitCode}: ${result.stderr.slice(-500)}`;
-			if (setupStep.nonFatal) {
-				log.warn(message);
-				continue;
-			}
-			throw new Error(message);
-		} catch (error) {
-			if (setupStep.nonFatal) {
-				log.warn(`setupSandbox: ${setupStep.name} failed non-fatally`, {
-					error: errorMessage(error),
-				});
-				continue;
-			}
-			throw error;
+	for (const step of steps) {
+		const result = await container.exec(step.command, {
+			cwd: "/",
+			...(step.timeoutMs ? { timeoutMs: step.timeoutMs } : {}),
+		});
+		if (result.exitCode !== 0) {
+			throw new Error(`container setup failed (${result.exitCode}): ${result.stderr.slice(-500)}`);
 		}
 	}
+	return container;
+}
+
+function cloneUrl(): string {
+	const repo = readRepoContext(workerEnv);
+	if (!repo) throw new Error("repository context is not configured");
+	return `https://github.com/${repo.owner}/${repo.repo}.git`;
+}
+
+function cloneRef(input: InvestigateData): string {
+	return input.mode === "revise" ? `bot/fix-${input.issueNumber}` : "main";
 }
 
 function failedResult(summary: string): InvestigationResult {
@@ -250,7 +390,7 @@ function failedResult(summary: string): InvestigationResult {
 }
 
 function truncateSummary(text: string): string {
-	return text.length <= 400 ? text : `${text.slice(0, 399)}\u2026`;
+	return text.length <= 400 ? text : `${text.slice(0, 399)}…`;
 }
 
 function errorMessage(error: unknown): string {
@@ -279,7 +419,7 @@ function buildPrompt(input: InvestigateData): string {
 				"- Read AGENTS.md, find the relevant code, attempt to reproduce, build, or revise.",
 				"- Write tests where they make sense.",
 				"- Touch only files relevant to the issue. Do not bulk-format or modify .github/workflows.",
-				`- When done, commit and push: \`git checkout -B bot/fix-${input.issueNumber} && git add <files> && git commit -m '<message>' && git push -u origin HEAD --force-with-lease\`.`,
+				`- When done, commit and push from a container: \`exec\` with target container running \`git checkout -B bot/fix-${input.issueNumber} && git add <files> && git commit -m '<message>' && git push -u origin HEAD --force-with-lease\`.`,
 			];
 	const closing = diagnose
 		? "Call report_result exactly once when finished. Do not set fixed; report reproduced and your verdict with the diagnosis in summary."
