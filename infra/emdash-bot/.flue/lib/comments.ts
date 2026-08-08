@@ -27,6 +27,20 @@ export function renderReadonlyReply(state: StateId | null): string {
 			return "I declined this. Reopen with `@emdashbot reopen` if circumstances change.";
 		case "failed":
 			return "My last attempt failed. A maintainer can `@emdashbot retry` or take it over.";
+		case "investigating":
+			return "Investigating now (reproduce + diagnose). I'll report a verdict with evidence.";
+		case "reproduced":
+			return "Reproduced it -- diagnosis in my last comment. A maintainer can `@emdashbot fix` to try a fix, or `@emdashbot decline`.";
+		case "not_reproduced":
+			return "I couldn't reproduce this; transcript above. Reply with steps that fail for you, or a maintainer can `@emdashbot decline`.";
+		case "needs_info":
+			return "I need more to go on -- see my last comment for what's missing.";
+		case "fixing":
+			return "Building a candidate fix.";
+		case "preview_building":
+			return "Building a preview so you can try the fix.";
+		case "awaiting_reporter":
+			return "Try the preview from my last comment. Reply `@emdashbot confirm` if it's fixed, or describe what's still wrong.";
 		default: {
 			const _exhaustive: never = state;
 			return `State: \`${String(_exhaustive)}\`.`;
@@ -52,6 +66,11 @@ export function renderAgentComment(
 
 	switch (decision.event) {
 		case "agent.fix_ready":
+			// The fix loop routes fix_ready into preview_building, where the preview
+			// pipeline posts a deployed-preview link on preview.ready; a pkg.pr.new
+			// install line is the legacy awaiting_feedback lane only.
+			if (decision.to === "preview_building")
+				return `${summary}\n\nBuilding a preview so you can try the change before I open a PR.`;
 			return [
 				summary,
 				"",
@@ -64,9 +83,13 @@ export function renderAgentComment(
 				"Reply `@emdashbot confirm` if it works and I'll open the PR, or `@emdashbot revise <feedback>` to push changes.",
 			].join("\n");
 		case "agent.reproduced":
+			if (decision.to === "reproduced")
+				return `${summary}\n\nA maintainer can \`@emdashbot fix\` to try a fix, or \`@emdashbot decline\`.`;
 			return `${summary}\n\nReply \`@emdashbot implement <directive>\` if you want me to take another swing with guidance.`;
 		case "agent.not_reproduced":
 			return `${summary}\n\nReply with steps that fail for you, or close if it's no longer relevant.`;
+		case "agent.needs_info":
+			return `${summary}\n\nReply with the details above; a maintainer can \`@emdashbot investigate\` again once they arrive.`;
 		default:
 			return summary;
 	}
