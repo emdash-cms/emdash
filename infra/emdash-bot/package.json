@@ -27,6 +27,7 @@
 		"wrangler": "catalog:"
 	},
 	"dependencies": {
+		"@cloudflare/computer": "0.1.1",
 		"@cloudflare/sandbox": "^0.12.1",
 		"@flue/runtime": "2.0.3",
 		"agents": "^0.20.1",
