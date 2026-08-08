@@ -1,5 +1,25 @@
 # @emdash-cms/admin
 
+## 0.33.0
+
+### Patch Changes
+
+- [#2363](https://github.com/emdash-cms/emdash/pull/2363) [`6215e93`](https://github.com/emdash-cms/emdash/commit/6215e93d4fde9529816c0ed0fffc79ecb9a08ec2) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the publish button not appearing after an autosave on sites without i18n configured. The edit was saved, but the editor kept showing the entry as fully published until a reload.
+
+- [#2366](https://github.com/emdash-cms/emdash/pull/2366) [`28b17fd`](https://github.com/emdash-cms/emdash/commit/28b17fd0fd0e77b177f48c2542e97082658a2aeb) Thanks [@edrpls](https://github.com/edrpls)! - Fixes silent save failures when creating content in the admin: a rejected create — for example a slug that already exists in the collection — now shows a "Failed to save" toast with the server's message instead of doing nothing.
+
+- [#2258](https://github.com/emdash-cms/emdash/pull/2258) [`d9b76be`](https://github.com/emdash-cms/emdash/commit/d9b76bec4903d8f7185bf79dd348e87f78626e46) Thanks [@thefrana](https://github.com/thefrana)! - Adds Czech (Čeština) to the admin UI. Select it from the language picker on the
+  login page or in Settings.
+
+- [#2348](https://github.com/emdash-cms/emdash/pull/2348) [`640da63`](https://github.com/emdash-cms/emdash/commit/640da63dd06c307cf4d533d63c10da1feadb36f5) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes numbered lists restarting at 1 after intervening content blocks in the editor and rendered pages.
+
+- [#2301](https://github.com/emdash-cms/emdash/pull/2301) [`e61cb63`](https://github.com/emdash-cms/emdash/commit/e61cb63a94efefde7e0b33c3e26d693d1fce9ae7) Thanks [@ankit-fastcurveservices](https://github.com/ankit-fastcurveservices)! - Enables Hindi (हिन्दी) locale in the admin UI
+
+- [#2236](https://github.com/emdash-cms/emdash/pull/2236) [`2400a3e`](https://github.com/emdash-cms/emdash/commit/2400a3e8943beb77ccf11fa332c6648f95b419cc) Thanks [@bimsonz](https://github.com/bimsonz)! - Shows the derived title and description as placeholders in the SEO panel. `getSeoMeta` already falls back to an entry's own `data.title` and `data.excerpt` when the panel is empty, but the panel gave no sign of it, so empty inputs read as "unset". Editors either retyped the page title into the SEO title or concluded the page had no SEO at all. The SEO Title and Meta Description fields now show the value that will actually be used, so an empty field reads as inheriting it. No change to the generated meta.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.33.0
+
 ## 0.32.0
 
 ### Patch Changes
