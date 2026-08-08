@@ -842,10 +842,12 @@ export function injectCoreRoutes(
 		});
 	}
 
-	injectRoute({
-		pattern: "/sitemap-[collection].xml",
-		entrypoint: resolveRoute("sitemap-[collection].xml.ts"),
-	});
+	if (!options.srcDir || !hasUserDefinedPublicRoute(options.srcDir, "sitemap-[collection].xml")) {
+		injectRoute({
+			pattern: "/sitemap-[collection].xml",
+			entrypoint: resolveRoute("sitemap-[collection].xml.ts"),
+		});
+	}
 
 	if (!options.srcDir || !hasUserDefinedPublicRoute(options.srcDir, "robots.txt")) {
 		injectRoute({
