@@ -407,6 +407,32 @@ describe("ExecEnv clone", () => {
 		expect(iso.execs[0]?.options.backend).toBe(ISOLATE_SHELL_BACKEND);
 	});
 
+	test("cloneRepo fetches and detaches a full commit SHA instead of using --branch", async () => {
+		const iso = fakeIsolate();
+		const env = new ExecEnv({
+			isolate: iso.isolate,
+			attachContainer: async () => fakeContainer().container,
+			deadlines,
+			repoDir: "/repo",
+		});
+		const sha = "c0c6c72e0a75e9560f204e3780cafb5baf6a9b4b";
+
+		await env.cloneRepo({
+			url: "https://github.com/emdash-cms/emdash.git",
+			dir: "/workspace/repo",
+			ref: sha,
+			depth: 50,
+		});
+
+		expect(iso.execs.map((e) => e.source)).toEqual([
+			"git clone --depth 50 'https://github.com/emdash-cms/emdash.git' '/workspace/repo'",
+			`git fetch --depth 50 origin '${sha}'`,
+			`git checkout --detach '${sha}'`,
+		]);
+		expect(iso.execs[1]?.options.cwd).toBe("/workspace/repo");
+		expect(iso.execs[2]?.options.cwd).toBe("/workspace/repo");
+	});
+
 	test("cloneRepo throws when the clone exits non-zero", async () => {
 		const iso = fakeIsolate();
 		iso.setExecResult({ exitCode: 128, stdout: "", stderr: "fatal: repository not found" });

@@ -230,7 +230,8 @@ export function normalizeWebhook(ctx: NormalizeContext): NormalizeResult {
  * entry points to the lifecycle, and only when the body carries an
  * `@emdashbot` mention (a pre-classification, mirrors the comment path).
  * `labeled` / `unlabeled` are skipped because the DO is the source of truth
- * for state; label drift is reconciled by the cron tick, not by webhooks.
+ * for state; label drift is reconciled by the Orchestrator DO's periodic alarm
+ * tick (`reconcileLabels`), not by webhooks.
  */
 function normalizeIssues(
 	event: Record<string, unknown> | undefined,

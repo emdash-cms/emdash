@@ -300,8 +300,6 @@ export type EventId = CommandVerb | AgentEvent | PrEvent | PreviewEvent | TimerE
 export interface EventMeta {
 	description: string;
 	actors: Actor[];
-	/** Verb labels that fire this event in addition to the `@emdashbot` grammar. */
-	labelTriggers?: string[];
 	/** True for status/help: render the item's state, never mutate it. */
 	readOnly?: boolean;
 	/** Free-text argument the verb carries (a directive, feedback, etc.). */
@@ -325,7 +323,6 @@ export const EVENTS: Record<EventId, EventMeta> = {
 	repro: {
 		description: "Reproduce the issue as a bug and attempt a fix.",
 		actors: ["maintainer"],
-		labelTriggers: ["bot:repro"],
 		defaultKind: "bug",
 	},
 	// Next-generation split of `repro`: reproduce + diagnose only, no auto-fix.
@@ -334,7 +331,6 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description:
 			"Reproduce and diagnose the issue as a bug, with evidence. Does not attempt a fix.",
 		actors: ["maintainer"],
-		labelTriggers: ["bot:investigate"],
 		arg: "directive",
 		defaultKind: "bug",
 	},
@@ -342,7 +338,6 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description:
 			"Build the described change (feature or directed fix), skipping the bug-repro gate.",
 		actors: ["maintainer"],
-		labelTriggers: ["bot:implement"],
 		arg: "directive",
 		defaultKind: "enhancement",
 	},
@@ -352,7 +347,6 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description:
 			"Build a candidate fix on a bot branch and post a preview for the reporter to try.",
 		actors: ["maintainer"],
-		labelTriggers: ["bot:fix"],
 		arg: "directive",
 	},
 	// NB: `retry` is always wired to `investigate.repro` in the transition
