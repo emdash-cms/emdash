@@ -252,7 +252,7 @@ export class ExecEnv {
 	 * so no edit is missed regardless of when or in which isolate it was made.
 	 */
 	async #materializeVfsChanges(container: ContainerBackend): Promise<void> {
-		const status = await this.exec("git status --porcelain --untracked-files=all", {
+		const status = await this.exec("git status --porcelain -z --untracked-files=all", {
 			target: "isolate",
 			cwd: this.#repoDir,
 		});
@@ -310,32 +310,38 @@ interface VfsChange {
 }
 
 /**
- * Parse `git status --porcelain` into per-path sync ops. A rename yields a
- * delete of the old path and a materialize of the new; a `D` in either status
- * column is a delete; everything else (modified, added, untracked) materializes.
+ * Parse `git status --porcelain -z` into per-path sync ops. The `-z` format is
+ * NUL-delimited and never quotes or C-escapes paths, so special characters and
+ * spaces are carried verbatim. A rename/copy entry (`R`/`C`) is followed by a
+ * second NUL field carrying the old path (new-path-then-old-path order): a
+ * rename deletes the old path and materializes the new, a copy only
+ * materializes. A `D` in either status column deletes; everything else
+ * (modified, added, untracked) materializes.
  */
 function parsePorcelain(output: string): VfsChange[] {
+	const fields = output.split("\0");
 	const changes: VfsChange[] = [];
-	for (const line of output.split("\n")) {
-		if (line.length < 4) continue;
-		const index = line[0];
-		const worktree = line[1];
-		const rest = line.slice(3);
-		const arrow = rest.indexOf(" -> ");
-		if (arrow !== -1) {
-			changes.push({ path: dequote(rest.slice(0, arrow)), op: "delete" });
-			changes.push({ path: dequote(rest.slice(arrow + 4)), op: "materialize" });
+	let i = 0;
+	while (i < fields.length) {
+		const field = fields[i];
+		i += 1;
+		if (field === undefined || field.length < 4) continue;
+		const index = field[0];
+		const worktree = field[1];
+		const path = field.slice(3);
+		if (index === "R" || index === "C" || worktree === "R" || worktree === "C") {
+			const oldPath = fields[i];
+			i += 1;
+			if ((index === "R" || worktree === "R") && oldPath) {
+				changes.push({ path: oldPath, op: "delete" });
+			}
+			changes.push({ path, op: "materialize" });
 			continue;
 		}
 		const deleted = index === "D" || worktree === "D";
-		changes.push({ path: dequote(rest), op: deleted ? "delete" : "materialize" });
+		changes.push({ path, op: deleted ? "delete" : "materialize" });
 	}
 	return changes;
-}
-
-/** git wraps paths with special characters in double quotes; unwrap them. */
-function dequote(path: string): string {
-	return path.startsWith('"') && path.endsWith('"') ? path.slice(1, -1) : path;
 }
 
 /** Adapt the real sandbox. The only structural sandbox touchpoint. */

@@ -12,7 +12,7 @@ interface RecordedExec {
 	options: { backend?: string; cwd?: string; encoding: "utf8"; timeoutMs?: number };
 }
 
-const GIT_STATUS = "git status --porcelain --untracked-files=all";
+const GIT_STATUS = "git status --porcelain -z --untracked-files=all";
 
 function fakeIsolate(
 	overrides: Partial<IsolateBackend["fs"]> = {},
@@ -206,7 +206,7 @@ describe("ExecEnv VFS->container materialization", () => {
 		});
 
 		await env.edit("/repo/src/x.ts", "v1", "v2");
-		iso.setExecResult({ exitCode: 0, stdout: " M src/x.ts\n", stderr: "" });
+		iso.setExecResult({ exitCode: 0, stdout: " M src/x.ts\0", stderr: "" });
 
 		await env.exec("pnpm test", { target: "container" });
 
@@ -225,7 +225,7 @@ describe("ExecEnv VFS->container materialization", () => {
 		await envA.edit("/repo/src/x.ts", "old", "new");
 
 		const isoB = fakeIsolate({}, files);
-		isoB.setExecResult({ exitCode: 0, stdout: " M src/x.ts\n", stderr: "" });
+		isoB.setExecResult({ exitCode: 0, stdout: " M src/x.ts\0", stderr: "" });
 		const envB = new ExecEnv({
 			isolate: isoB.isolate,
 			attachContainer: async () => con.container,
@@ -253,7 +253,7 @@ describe("ExecEnv VFS->container materialization", () => {
 		expect(con.writes).toHaveLength(0);
 
 		const isoB = fakeIsolate({}, files);
-		isoB.setExecResult({ exitCode: 0, stdout: " M src/y.ts\n", stderr: "" });
+		isoB.setExecResult({ exitCode: 0, stdout: " M src/y.ts\0", stderr: "" });
 		const attachB = vi.fn(async () => con.container);
 		const envB = new ExecEnv({
 			isolate: isoB.isolate,
@@ -270,7 +270,7 @@ describe("ExecEnv VFS->container materialization", () => {
 
 	test("a git-reported deletion is removed from the container", async () => {
 		const iso = fakeIsolate();
-		iso.setExecResult({ exitCode: 0, stdout: " D src/gone.ts\n", stderr: "" });
+		iso.setExecResult({ exitCode: 0, stdout: " D src/gone.ts\0", stderr: "" });
 		const con = fakeContainer();
 		const env = new ExecEnv({
 			isolate: iso.isolate,
@@ -283,6 +283,41 @@ describe("ExecEnv VFS->container materialization", () => {
 
 		expect(con.execs).toEqual(["rm -f -- '/repo/src/gone.ts'", "pnpm test"]);
 		expect(con.writes).toHaveLength(0);
+	});
+
+	test("a rename deletes the old path and materializes the new (-z new-then-old order)", async () => {
+		const iso = fakeIsolate();
+		iso.files.set("/repo/src/new.ts", "moved");
+		iso.setExecResult({ exitCode: 0, stdout: "R  src/new.ts\0src/old.ts\0", stderr: "" });
+		const con = fakeContainer();
+		const env = new ExecEnv({
+			isolate: iso.isolate,
+			attachContainer: async () => con.container,
+			deadlines,
+			repoDir: "/repo",
+		});
+
+		await env.exec("pnpm test", { target: "container" });
+
+		expect(con.execs).toEqual(["rm -f -- '/repo/src/old.ts'", "pnpm test"]);
+		expect(con.writes).toEqual([{ path: "/repo/src/new.ts", content: "moved" }]);
+	});
+
+	test("a non-ASCII path is materialized verbatim (-z carries it unescaped)", async () => {
+		const iso = fakeIsolate();
+		iso.files.set("/repo/café.ts", "☕");
+		iso.setExecResult({ exitCode: 0, stdout: " M café.ts\0", stderr: "" });
+		const con = fakeContainer();
+		const env = new ExecEnv({
+			isolate: iso.isolate,
+			attachContainer: async () => con.container,
+			deadlines,
+			repoDir: "/repo",
+		});
+
+		await env.exec("pnpm test", { target: "container" });
+
+		expect(con.writes).toEqual([{ path: "/repo/café.ts", content: "☕" }]);
 	});
 
 	test("edit throws when the target is absent or ambiguous", async () => {
