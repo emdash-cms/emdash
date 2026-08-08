@@ -124,7 +124,7 @@ export function Investigate({ id }: AgentProps) {
 					issueNumber: input.issueNumber,
 					pushed,
 				});
-				return reportedResult;
+				return { output: reportedResult };
 			},
 		}),
 	);
