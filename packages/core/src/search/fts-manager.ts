@@ -126,7 +126,11 @@ export class FTSManager {
 	 * the index with structural tokens (`_type`, style values like `normal`,
 	 * `_key` ULIDs) and makes snippets show JSON fragments. Extract the prose
 	 * instead: every JSON string under a `text`, `alt`, `caption`, or `code`
-	 * key (span text, image alt/caption, code blocks). Only JSON documents
+	 * key (span text, image alt/caption, code blocks). This is a superset of
+	 * `extractPlainText` in text-extraction.ts, which walks only known block
+	 * shapes — the SQL variant takes those keys at any depth, so search and
+	 * the extractPlainText consumers (vectorize/ai-search) can see different
+	 * text for the same document. Only JSON documents
 	 * (arrays/objects) are extracted; legacy rows holding a bare string or a
 	 * JSON scalar (`Some title`, `2024`) are indexed as-is. Extraction must
 	 * live in SQL because the sync triggers cannot call into JS.
