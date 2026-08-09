@@ -269,7 +269,7 @@ export type CommandVerb =
 
 // Events the agent action workflow emits after a run, derived from the flat
 // gating fields in the Flue result (skipped / reproduced / fixed / verdict).
-// These names map 1:1 to the agent contract in .flue/workflows/investigate.ts.
+// These names map 1:1 to the agent contract in .flue/agents/investigate.ts.
 export type AgentEvent =
 	| "agent.skipped" // result.skipped === true
 	| "agent.not_reproduced" // !skipped && !reproduced

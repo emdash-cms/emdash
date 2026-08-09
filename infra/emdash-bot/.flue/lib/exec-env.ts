@@ -341,8 +341,8 @@ export function fromWorkspaceClient(client: WorkspaceClient): IsolateBackend {
 	};
 }
 
-/** Single-quote a shell argument for the isolate command line. */
-function quote(value: string): string {
+/** Single-quote a shell argument for an isolate or container command line. */
+export function quote(value: string): string {
 	return `'${value.replaceAll("'", "'\\''")}'`;
 }
 

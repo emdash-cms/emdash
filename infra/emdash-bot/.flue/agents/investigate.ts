@@ -22,6 +22,7 @@ import {
 	ExecEnv,
 	fromSandbox,
 	fromWorkspaceClient,
+	quote,
 } from "../lib/exec-env.js";
 import { createPushCapability, PUSH_CAPABILITY_HEADER } from "../lib/github-proxy.js";
 import {
@@ -377,17 +378,17 @@ async function attachContainer(id: string, input: InvestigateData): Promise<Cont
 		{ command: 'git config --global user.name "emdashbot[bot]"' },
 		{ command: "mkdir -p /workspace" },
 		{
-			command: `if [ ! -d ${REPO_DIR}/.git ]; then git clone --depth ${CLONE_DEPTH} '${cloneUrl()}' ${REPO_DIR}; fi`,
+			command: `if [ ! -d ${REPO_DIR}/.git ]; then git clone --depth ${CLONE_DEPTH} ${quote(cloneUrl())} ${REPO_DIR}; fi`,
 			timeoutMs: 5 * 60_000,
 		},
 		{
-			command: `cd ${REPO_DIR} && git fetch --depth ${CLONE_DEPTH} origin '${ref}' && git checkout --detach FETCH_HEAD`,
+			command: `cd ${REPO_DIR} && git fetch --depth ${CLONE_DEPTH} origin ${quote(ref)} && git checkout --detach FETCH_HEAD`,
 			timeoutMs: 5 * 60_000,
 		},
 		...(pushCapability
 			? [
 					{
-						command: `cd ${REPO_DIR} && git config http.https://github.com/.extraHeader '${PUSH_CAPABILITY_HEADER}: ${pushCapability}'`,
+						command: `cd ${REPO_DIR} && git config http.https://github.com/.extraHeader ${quote(`${PUSH_CAPABILITY_HEADER}: ${pushCapability}`)}`,
 					},
 				]
 			: []),
