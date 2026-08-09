@@ -414,12 +414,12 @@ const READ_STATE_METHODS: ReadonlySet<string> = new Set([
  * that drives container materialization sees them.
  */
 function readOnlyState(backend: FileSystemStateBackend): StateBackend {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- delegating by method name over the backend's own surface.
+	const surface = backend as unknown as Record<string, (...a: unknown[]) => unknown>;
 	const wrapped: Record<string, unknown> = {};
 	for (const method of Object.keys(STATE_METHODS)) {
 		wrapped[method] = READ_STATE_METHODS.has(method)
-			? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- delegating by method name over the backend's own surface.
-				(...args: unknown[]) =>
-					(backend as unknown as Record<string, (...a: unknown[]) => unknown>)[method]?.(...args)
+			? (...args: unknown[]) => surface[method]?.(...args)
 			: () => {
 					throw new Error(
 						`state.${method} is disabled in the code tool; use the write_file/edit_file tools to change files`,
@@ -555,9 +555,15 @@ async function detectPush(issueNumber: number, previousBranchSha: string | null)
 	const repo = readRepoContext(workerEnv);
 	const creds = readAppCreds(workerEnv);
 	if (!repo || !creds) return false;
-	const token = await mintInstallationToken(creds);
-	const currentBranchSha = await getBranchSha(token, repo, `bot/fix-${issueNumber}`);
-	return currentBranchSha !== null && currentBranchSha !== previousBranchSha;
+	try {
+		const token = await mintInstallationToken(creds);
+		const currentBranchSha = await getBranchSha(token, repo, `bot/fix-${issueNumber}`);
+		return currentBranchSha !== null && currentBranchSha !== previousBranchSha;
+	} catch (error) {
+		// An unusable App credential must not fail the report itself.
+		console.warn("[investigate] push detection failed", { error: errorMessage(error) });
+		return false;
+	}
 }
 
 function buildPrompt(input: InvestigateData): string {
