@@ -39,8 +39,7 @@ import { DeadlineExceededError, withDeadline } from "./sandbox-deadline.js";
 /**
  * Inert states cannot be advanced by a late-arriving agent result. If a run
  * lands here, the issue was reset, declined, or hand-taken since it started;
- * discard the result rather than re-animate a dead lifecycle. Mirrors the
- * cycle 6/7 fix from PR #1606, but operating on DO state instead of labels.
+ * discard the result rather than re-animate a dead lifecycle.
  */
 const INERT_STATES: ReadonlySet<StateId> = new Set<StateId>([
 	"unmanaged",
@@ -251,12 +250,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 	/**
 	 * Entry point from the webhook handler. Single-threaded per DO instance,
-	 * so concurrent events for the same issue queue here -- the PR-comment /
-	 * issue-comment race from PR #1606 cycle 4 cannot occur.
-	 *
-	 * This skeleton version resolves the decision and persists state. The full
-	 * version also runs side effects (label flip, comment, PR ops) and
-	 * invokes the investigate workflow for transitions with `action`.
+	 * so concurrent events for the same issue queue here without racing.
 	 */
 	event(input: NormalizedEvent): Promise<EventOutcome> {
 		return this.runExclusive(() => this.processEvent(input));
@@ -362,11 +356,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	/**
-	 * Map an investigate workflow's result to a follow-up machine event.
+	 * Map an investigate run's result to a follow-up machine event.
 	 * Late-result discard: if the run id no longer matches the current
 	 * in-flight run, the issue was advanced or reset since the run started;
-	 * drop the result silently. Mirrors PR #1606's cycle 6/7 fix but operates
-	 * on DO state, not labels.
+	 * drop the result silently.
 	 */
 	applyAgentResult(input: {
 		runId: string;
@@ -958,10 +951,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	/**
-	 * Open the bot PR from the pushed fix branch (`bot/fix-<n>`). Phase 1
-	 * sees no branches yet -- the investigate workflow's push step is
-	 * Phase 2 -- so this returns an error string that surfaces as runError
-	 * in the EventOutcome. The DO still advances state.
+	 * Open (or reuse) the bot PR from the pushed fix branch `bot/fix-<n>`.
 	 */
 	private async runOpenPr(
 		creds: Parameters<typeof mintInstallationToken>[0],

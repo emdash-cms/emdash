@@ -599,7 +599,7 @@ export const TRANSITIONS: Transition[] = [
 	// from every state where the PR may still be open: bot:working (during a
 	// revise run) and bot:awaiting-feedback (right after a revise produced a
 	// new fix and is awaiting reporter confirmation). Late agent results that
-	// arrive after the merge no-op via investigate-run.yml's terminal guard.
+	// arrive after the merge no-op via the orchestrator's inert-state guard.
 	{ from: "working", event: "pr.merged", to: "done", note: "merged mid-revise" },
 	{ from: "awaiting_feedback", event: "pr.merged", to: "done", note: "merged before confirm" },
 

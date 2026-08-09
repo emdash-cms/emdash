@@ -9,7 +9,7 @@
 		"build": "vite build",
 		"deploy": "vite build && wrangler deploy",
 		"cf-typegen": "wrangler types",
-		"bot:generate": "node scripts/generate-machine.ts",
+		"bot:generate": "node --experimental-strip-types scripts/generate-machine.ts",
 		"pretypecheck": "wrangler types",
 		"typecheck": "tsc --noEmit",
 		"test": "pnpm test:unit && pnpm test:workers",
