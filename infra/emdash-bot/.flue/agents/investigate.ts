@@ -282,12 +282,18 @@ function execEnvFor(id: string, input: InvestigateData): ExecEnv {
 	const existing = registry.get(id);
 	if (existing) return existing;
 	let clientPromise: ReturnType<typeof getWorkspace> | undefined;
-	const isolate = fromWorkspaceClientLazy(() => {
+	const isolate = fromWorkspaceClientLazy(async () => {
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer the withWorkspace stub-host type.
 		const stub = workerEnv.WorkspaceDO.get(
 			workerEnv.WorkspaceDO.idFromName(id),
 		) as unknown as WorkspaceStubHost;
-		return (clientPromise ??= getWorkspace(stub));
+		try {
+			return await (clientPromise ??= getWorkspace(stub));
+		} catch (error) {
+			// A rejected promise must not stay cached: the next call retries.
+			clientPromise = undefined;
+			throw error;
+		}
 	});
 	const env = new ExecEnv({
 		isolate,

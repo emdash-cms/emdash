@@ -1,26 +1,23 @@
 // execEnv: the single seam over the investigation's two execution substrates.
 // Every @cloudflare/computer and @cloudflare/sandbox touchpoint lives here.
 //
-//   - Isolate + VFS: @cloudflare/computer 0.1.1 `Workspace` (fs + worker-shell
+//   - Isolate + VFS: @cloudflare/computer `Workspace` (fs + worker-shell
 //     exec). Holds the repo clone and every agent edit. Reads/greps/git run
 //     here without a container.
 //   - Container: @cloudflare/sandbox. Runs the toolchain (pnpm, astro, vitest,
-//     agent-browser). computer's own container backend needs a `computerd`
-//     image that isn't published, so the sandbox stands in. Swapping to
-//     computer's CloudflareContainerBackend later changes only `fromSandbox`
-//     and the `ContainerBackend` adapter.
+//     agent-browser).
 //
 // The VFS is authoritative for source: before every container exec, the
 // container's working tree is re-synced from the VFS via `git status` against
-// the checkout. Because the set is re-derived from the VFS each time -- never
-// from in-memory bookkeeping -- an edit is materialized whether it was made
-// before or after the container attached, and in this isolate or a resumed
-// one. Container-only files (node_modules, build output) are untracked in the
-// VFS and never touched. The one-time `git reset` that seeds the container
-// checkout is owned by the injected `attachContainer`, which runs once.
+// the checkout -- never from in-memory bookkeeping -- so an edit is
+// materialized whether it was made before or after the container attached,
+// and in this isolate or a resumed one. Container-only files (node_modules,
+// build output) are untracked in the VFS and never touched. The one-time
+// `git reset` that seeds the container checkout is owned by the injected
+// `attachContainer`, which runs once.
 //
-// GitHub reads: emdash is public, so the VFS clone needs no credential; token
-// minting is confined to the container's fix-push through the existing proxy.
+// The VFS clone is unauthenticated; token minting is confined to the
+// container's fix-push through the proxy.
 
 import type { WorkspaceClient } from "@cloudflare/computer";
 import type { Sandbox } from "@cloudflare/sandbox";

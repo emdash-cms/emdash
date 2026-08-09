@@ -123,12 +123,11 @@ function errorMessage(error: unknown): string {
 export { ContainerProxy } from "@cloudflare/sandbox";
 export { OrchestratorDO } from "./lib/orchestrator.js";
 
-// Isolate + VFS substrate for the investigation (execEnv's `IsolateBackend`).
-// @cloudflare/computer 0.1.1 Workspace on a SQLite DO: `fs` and the built-in
-// `git` command back the read/grep/inspect path; the worker-shell backend runs
+// Isolate + VFS substrate for execEnv's `IsolateBackend`: a
+// @cloudflare/computer Workspace on a SQLite DO. `fs` and the built-in `git`
+// command back the read/grep/inspect path; the worker-shell backend runs
 // isolate exec in a Dynamic Worker via the LOADER binding. The container half
-// stays on `Sandbox` above -- see exec-env.ts for why (computerd is not
-// shippable yet) and the flip-point when it becomes so.
+// stays on `Sandbox` above; exec-env.ts owns that seam.
 //
 // `ctx`/`env` are re-exposed publicly because the mixin's options callback
 // reads them from outside the class body, where the base's protected members

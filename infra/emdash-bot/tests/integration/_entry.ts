@@ -14,7 +14,7 @@ import { Hono } from "hono";
 
 import { registerCoreRoutes } from "../../.flue/routes.js";
 
-export { Sandbox, ContainerProxy } from "../../.flue/cloudflare.js";
+export { Sandbox, ContainerProxy, WorkspaceDO } from "../../.flue/cloudflare.js";
 export { OrchestratorDO } from "../../.flue/lib/orchestrator.js";
 
 const app = registerCoreRoutes(new Hono<{ Bindings: Env }>());
