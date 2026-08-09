@@ -17,7 +17,7 @@ Every stage produces a verdict, and **every verdict carries its evidence** -- th
 
 Two corollaries when you report:
 
-- **"Reproduced" means demonstrated.** A failing test you ran, an error in command output, a browser transcript. A root cause you are sure of from reading the code is a diagnosis, not a reproduction -- report it with `reproduced: false` and let the diagnosis speak.
+- **"Reproduced" means demonstrated -- so demonstrate.** A failing test you ran, an error in command output, a browser transcript: any one of these is a full demonstration, and when you have it you report `reproduced: true` without hedging. If the bug looks testable, write and run the failing test before you report; a root cause you are sure of from reading the code alone is a diagnosis, not a reproduction, and goes out as `reproduced: false`.
 - **Distinguish "tried and could not" from "could not try."** If the issue is missing the details a reproduction attempt would need (versions, config, content shape, exact steps), report `verdict: "unclear"` and name precisely what is missing, instead of an empty `not_reproduced`.
 
 ## Execution environment

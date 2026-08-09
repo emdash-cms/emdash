@@ -52,11 +52,11 @@ const DEADLINES = { defaultTimeoutMs: DEFAULT_RPC_TIMEOUT_MS, execGraceMs: EXEC_
  * output accumulates across a long investigation until the conversation
  * exceeds the model's context window and the run dies mid-flight.
  */
-const TOOL_RESULT_LIMIT = 24_576;
+const TOOL_RESULT_LIMIT = 49_152;
 
 function truncateToolResult(text: string): string {
 	if (text.length <= TOOL_RESULT_LIMIT) return text;
-	return `${text.slice(0, TOOL_RESULT_LIMIT)}\n… [truncated: showing ${TOOL_RESULT_LIMIT} of ${text.length} characters. Narrow the request: read a specific range, grep with a tighter pattern, or aggregate with the code tool.]`;
+	return `${text.slice(0, TOOL_RESULT_LIMIT)}\n… [truncated: showing ${TOOL_RESULT_LIMIT} of ${text.length} characters. Continue with read_file offset/limit, grep with a tighter pattern, or aggregate with the code tool.]`;
 }
 
 const initialDataSchema = v.object({
@@ -140,10 +140,24 @@ export function Investigate({ id }: AgentProps) {
 	useTool(
 		defineTool({
 			name: "read_file",
-			description: "Read a file from the workspace (VFS). Prefer this over shelling out to `cat`.",
-			input: v.object({ path: v.string() }),
+			description:
+				"Read a file from the workspace (VFS). Prefer this over shelling out to `cat`. Large files truncate; pass offset (1-based start line) and limit (line count) to read a specific range.",
+			input: v.object({
+				path: v.string(),
+				offset: v.optional(v.pipe(v.number(), v.minValue(1))),
+				limit: v.optional(v.pipe(v.number(), v.minValue(1))),
+			}),
 			async run({ data }) {
-				return truncateToolResult(await env.readFile(data.path));
+				const content = await env.readFile(data.path);
+				if (data.offset === undefined && data.limit === undefined) {
+					return truncateToolResult(content);
+				}
+				const lines = content.split("\n");
+				const start = (data.offset ?? 1) - 1;
+				const slice = lines.slice(start, data.limit === undefined ? undefined : start + data.limit);
+				return truncateToolResult(
+					`[lines ${start + 1}-${start + slice.length} of ${lines.length}]\n${slice.join("\n")}`,
+				);
 			},
 		}),
 	);
@@ -256,7 +270,7 @@ export function Investigate({ id }: AgentProps) {
 		defineTool({
 			name: "report_result",
 			description:
-				"Report the final structured investigation result to the issue orchestrator. Set reproduced=true ONLY when you actually demonstrated the failure (a failing test run, an error in command output, a browser transcript) -- never from reading code alone. A root cause found by static analysis without a demonstrated failure reports reproduced=false with the diagnosis in summary. When the issue lacks the information a reproduction would need, report verdict='unclear' and say what is missing.",
+				"Report the final structured investigation result to the issue orchestrator. reproduced=true requires a demonstration you ran -- and a failing test, an error in command output, or a browser transcript IS a demonstration; when you have one, report reproduced=true, do not underclaim. If the bug looks testable, attempt the demonstration before reporting rather than settling for analysis. Never set reproduced=true from reading code alone. When the issue lacks the information an attempt would need, report verdict='unclear' and say what is missing.",
 			input: resultSchema,
 			output: reportedResultSchema,
 			durable: true,
