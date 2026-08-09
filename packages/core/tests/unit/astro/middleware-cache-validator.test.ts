@@ -1,13 +1,3 @@
-/**
- * `CacheHint.lastModified` carries the content's `updated_at`, and Astro emits it
- * as the response `Last-Modified`. A deploy that changes only code therefore
- * leaves the validator untouched: a returning visitor revalidates, gets 304, and
- * keeps HTML referencing `/_astro/*` files the new deployment no longer has —
- * 404 on Workers, so the page renders without CSS or JS.
- *
- * The middleware folds the build timestamp into the validator, so the response
- * date reflects the response rather than only the content.
- */
 import { beforeEach, describe, it, expect, vi } from "vitest";
 
 vi.mock("astro:middleware", () => ({
