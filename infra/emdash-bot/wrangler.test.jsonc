@@ -15,7 +15,7 @@
 	"name": "emdash-bot-test",
 	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
 	"compatibility_date": "2026-04-01",
-	"compatibility_flags": ["nodejs_compat", "experimental"],
+	"compatibility_flags": ["nodejs_compat"],
 
 	// The test pool dispatches to this entry. It re-exports the DOs and
 	// provides a minimal fetch handler so SELF.fetch() works in tests.
