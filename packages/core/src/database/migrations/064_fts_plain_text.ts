@@ -150,7 +150,7 @@ function searchValueExpr(ref: string, fieldType: string): string {
 	if (fieldType !== "portableText") return ref;
 	return (
 		`CASE WHEN ${ref} IS NULL THEN NULL ` +
-		`WHEN json_valid(${ref}) THEN (` +
+		`WHEN json_valid(${ref}) AND json_type(${ref}) IN ('array', 'object') THEN (` +
 		`SELECT group_concat(j.value, ' ') FROM json_tree(${ref}) AS j ` +
 		`WHERE j.key IN ('text', 'alt', 'caption', 'code') AND j.type = 'text') ` +
 		`ELSE ${ref} END`

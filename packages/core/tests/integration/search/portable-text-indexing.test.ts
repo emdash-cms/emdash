@@ -9,6 +9,7 @@
  */
 
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
@@ -99,6 +100,24 @@ describe("Portable Text FTS indexing", () => {
 			const { items } = await searchWithDb(db, term, { collections: ["pages"] });
 			expect(items, `"${term}" must match`).toHaveLength(1);
 		}
+	});
+
+	it("keeps legacy scalar values searchable", async () => {
+		await repo.create({
+			type: "pages",
+			slug: "legacy-scalar",
+			status: "published",
+			data: { title: "Archive", content: null },
+		});
+		// Legacy rows can hold a JSON scalar in a portableText column; those
+		// must stay raw-indexed rather than extract to NULL.
+		await sql`UPDATE ec_pages SET content = '2024' WHERE slug = 'legacy-scalar'`.execute(db);
+		await sql`UPDATE ec_pages SET content = '"velvet curtain"' WHERE slug = 'haunted-cinema'`.execute(
+			db,
+		);
+
+		expect((await searchWithDb(db, "2024", { collections: ["pages"] })).items).toHaveLength(1);
+		expect((await searchWithDb(db, "velvet", { collections: ["pages"] })).items).toHaveLength(1);
 	});
 
 	it("returns prose snippets, not JSON fragments", async () => {
