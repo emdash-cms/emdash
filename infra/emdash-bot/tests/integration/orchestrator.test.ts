@@ -584,7 +584,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 	function githubCallRecorder(
 		calls: string[],
 		commentStatus: number,
-	): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> {
+	): (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => Promise<Response> {
 		return (input, init) => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 			const method = (init?.method ?? "GET").toUpperCase();
