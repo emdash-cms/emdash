@@ -170,6 +170,16 @@ describe("untarInto", () => {
 		expect(r.symlinks.size).toBe(0);
 	});
 
+	it("rejects entries whose size field is not strictly octal", async () => {
+		for (const sizeField of ["10x", "size!", "-0000001"]) {
+			const block = header({ name: "repo-abc/bad.bin" });
+			block.set(encoder.encode(sizeField), 124);
+			const r = recorder();
+			await expect(untarInto(r.target, tarball([block]), "/repo")).rejects.toThrow(/not octal/);
+			expect(r.files.size).toBe(0);
+		}
+	});
+
 	it("rejects entries whose declared size exceeds the cap", async () => {
 		const r = recorder();
 		await expect(

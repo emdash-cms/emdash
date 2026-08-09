@@ -13,6 +13,8 @@ export interface UntarTarget {
 /** Ceiling on a single entry's declared size; content is buffered in DO memory. */
 const MAX_ENTRY_SIZE = 64 * 1024 * 1024;
 
+const OCTAL_FIELD = /^[0-7]*$/;
+
 function stripRoot(name: string): string | undefined {
 	const slash = name.indexOf("/");
 	if (slash === -1) return undefined;
@@ -95,12 +97,16 @@ export async function untarInto(
 
 		const rawName = readCString(header.subarray(0, 100));
 		const prefix = readCString(header.subarray(345, 500));
-		const size = parseInt(readCString(header.subarray(124, 136)).trim() || "0", 8);
+		const sizeField = readCString(header.subarray(124, 136)).trim();
+		if (!OCTAL_FIELD.test(sizeField)) {
+			throw new Error(`tar entry size is not octal ("${sizeField}"): ${rawName}`);
+		}
+		const size = sizeField ? parseInt(sizeField, 8) : 0;
 		// Mode bytes (100-108) are ignored: the workspace has no chmod and the
 		// reviewer never executes files.
 		const type = String.fromCharCode(header[156] ?? 48);
 
-		if (!Number.isFinite(size) || size < 0 || size > MAX_ENTRY_SIZE) {
+		if (size > MAX_ENTRY_SIZE) {
 			throw new Error(`tar entry size out of range (${size} bytes): ${rawName}`);
 		}
 		const padded = Math.ceil(size / 512) * 512;
