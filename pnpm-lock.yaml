@@ -1029,13 +1029,16 @@ importers:
     dependencies:
       '@cloudflare/computer':
         specifier: 0.1.1
-        version: 0.1.1(zod@4.4.1)
+        version: 0.1.1(@platformatic/vfs@0.4.0)(zod@4.4.1)
       '@cloudflare/sandbox':
         specifier: ^0.12.1
         version: 0.12.3
       '@flue/runtime':
         specifier: 2.0.3
         version: 2.0.3(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.1))(typescript@6.0.3)(ws@8.21.1)(zod@4.4.1)
+      '@platformatic/vfs':
+        specifier: ^0.4.0
+        version: 0.4.0
       agents:
         specifier: ^0.20.1
         version: 0.20.1(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@cloudflare/workers-types@4.20260305.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.1))(@modelcontextprotocol/server@2.0.0)(@x402/core@2.8.0)(@x402/evm@2.8.0(typescript@6.0.3))(just-bash@3.0.1)(react@19.2.4)(rolldown@1.0.3)(vite@8.0.11(@types/node@25.9.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))(zod@4.4.1)
@@ -6049,6 +6052,10 @@ packages:
       react: '>= 16.8'
       react-dom: '>= 16.8'
 
+  '@platformatic/vfs@0.4.0':
+    resolution: {integrity: sha512-JwRxSIG63e/VaDSkYXkSBajySt5MJzxYIKuknYda28fhhmJMqyUGf5rbKrGW+vO9L83nIjQH3+YI12fp7EKICQ==}
+    engines: {node: '>= 22'}
+
   '@playwright/test@1.61.1':
     resolution: {integrity: sha512-8nKv6+0RJSL9FE4jYOEGXnPeM/Hg12qZpmqzZjRh3qM0Y7c3z1mrOTfFLids72RDQYVh9WpLEfR5WdpNX4fkig==}
     engines: {node: '>=18'}
@@ -9479,10 +9486,6 @@ packages:
 
   iconv-lite@0.6.3:
     resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
-    engines: {node: '>=0.10.0'}
-
-  iconv-lite@0.7.2:
-    resolution: {integrity: sha512-im9DjEDQ55s9fL4EYzOAv0yMqmMBSZp6G0VvFyTMPKWxiSBHUj9NW/qqLmXUwXrrM7AvqSlTCfvqRb0cM8yYqw==}
     engines: {node: '>=0.10.0'}
 
   iconv-lite@0.7.3:
@@ -14602,12 +14605,13 @@ snapshots:
       ai: 6.0.172(zod@4.4.1)
       zod: 4.4.1
 
-  '@cloudflare/computer@0.1.1(zod@4.4.1)':
+  '@cloudflare/computer@0.1.1(@platformatic/vfs@0.4.0)(zod@4.4.1)':
     dependencies:
       acorn: 8.17.0
       capnweb: 0.8.0
       just-bash: 3.0.1
     optionalDependencies:
+      '@platformatic/vfs': 0.4.0
       zod: 4.4.1
     transitivePeerDependencies:
       - supports-color
@@ -16610,6 +16614,8 @@ snapshots:
     dependencies:
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
+
+  '@platformatic/vfs@0.4.0': {}
 
   '@playwright/test@1.61.1':
     dependencies:
@@ -19377,7 +19383,7 @@ snapshots:
       content-type: 1.0.5
       debug: 4.4.3
       http-errors: 2.0.1
-      iconv-lite: 0.7.2
+      iconv-lite: 0.7.3
       on-finished: 2.4.1
       qs: 6.15.0
       raw-body: 3.0.2
@@ -20698,10 +20704,6 @@ snapshots:
       '@babel/runtime': 7.28.6
 
   iconv-lite@0.6.3:
-    dependencies:
-      safer-buffer: 2.1.2
-
-  iconv-lite@0.7.2:
     dependencies:
       safer-buffer: 2.1.2
 
@@ -22583,7 +22585,7 @@ snapshots:
     dependencies:
       bytes: 3.1.2
       http-errors: 2.0.1
-      iconv-lite: 0.7.2
+      iconv-lite: 0.7.3
       unpipe: 1.0.0
 
   rc@1.2.8:
