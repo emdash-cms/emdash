@@ -121,6 +121,9 @@ function errorMessage(error: unknown): string {
 }
 
 export { ContainerProxy } from "@cloudflare/sandbox";
+// The worker-shell backend loopback-RPCs this entrypoint via
+// `ctx.exports.WorkspaceServiceProxy`; it must be a top-level worker export.
+export { WorkspaceServiceProxy } from "@cloudflare/computer";
 export { OrchestratorDO } from "./lib/orchestrator.js";
 
 // Isolate + VFS substrate for execEnv's `IsolateBackend`: a
