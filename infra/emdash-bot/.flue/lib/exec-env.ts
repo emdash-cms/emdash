@@ -45,10 +45,8 @@ export interface GrepMatch {
 }
 
 export interface CloneOptions {
-	readonly url: string;
 	readonly dir: string;
 	readonly ref?: string;
-	readonly depth?: number;
 }
 
 export interface ExecEnvDeadlines {
@@ -103,13 +101,16 @@ export interface ContainerBackend {
 export const ISOLATE_SHELL_BACKEND = "worker-shell";
 
 const PATH_SEPARATOR = /[/\\]/;
-/** A full git commit SHA -- clone targets that need fetch-then-detach, not `--branch`. */
-const COMMIT_SHA = /^[0-9a-f]{40}$/i;
 
 export interface ExecEnvOptions {
 	readonly isolate: IsolateBackend;
 	/** Lazily attaches the container; called at most once, result reused. */
 	readonly attachContainer: () => Promise<ContainerBackend>;
+	/**
+	 * Streams the repo source tree for `ref` into the VFS at `dir` (no git
+	 * metadata). `cloneRepo` builds the git baseline on top of it.
+	 */
+	readonly hydrateRepo: (dir: string, ref: string) => Promise<void>;
 	readonly deadlines: ExecEnvDeadlines;
 	/** Working-tree root, shared by both substrates (e.g. /workspace/repo). */
 	readonly repoDir: string;
@@ -118,6 +119,7 @@ export interface ExecEnvOptions {
 export class ExecEnv {
 	readonly #isolate: IsolateBackend;
 	readonly #attachContainer: () => Promise<ContainerBackend>;
+	readonly #hydrateRepo: (dir: string, ref: string) => Promise<void>;
 	readonly #deadlines: ExecEnvDeadlines;
 	readonly #repoDir: string;
 	#containerPromise: Promise<ContainerBackend> | undefined;
@@ -125,48 +127,32 @@ export class ExecEnv {
 	constructor(options: ExecEnvOptions) {
 		this.#isolate = options.isolate;
 		this.#attachContainer = options.attachContainer;
+		this.#hydrateRepo = options.hydrateRepo;
 		this.#deadlines = options.deadlines;
 		this.#repoDir = options.repoDir;
 	}
 
 	/**
-	 * Clone the repo into the VFS for isolate inspection and edit tracking.
-	 * Runs through the worker-shell `git` command, which the DO's in-VFS
-	 * isomorphic-git services -- no auth, since the repo is public.
-	 *
-	 * A branch/tag `ref` is a `--branch` clone target. A full commit SHA cannot
-	 * be a `--branch` target and won't be in the default shallow history, so it
-	 * is fetched explicitly and checked out detached -- the path the eval harness
-	 * uses to stand the investigation up at a fixing PR's pre-fix commit.
+	 * Stand the repo up in the VFS for isolate inspection and edit tracking:
+	 * hydrate the source tree at `ref` (branch, tag, or commit SHA), then
+	 * `git init`/`add`/`commit` a baseline so `git status` reports the agent's
+	 * edits for container materialization. A `git clone` is not an option here
+	 * -- pack inflation exceeds the workspace DO's isolate memory limit.
+	 * History archaeology belongs in the container's native clone.
 	 */
 	async cloneRepo(options: CloneOptions): Promise<void> {
 		if (await this.#hasUsableClone(options.dir)) return;
-		const depth = options.depth ?? 50;
-		const ref = options.ref;
-		const bySha = ref !== undefined && COMMIT_SHA.test(ref);
-		const args = ["git", "clone", "--depth", String(depth)];
-		if (ref !== undefined && !bySha) args.push("--branch", ref);
-		args.push(quote(options.url), quote(options.dir));
-		const cloned = await this.exec(args.join(" "), { target: "isolate" });
-		if (cloned.exitCode !== 0) {
-			throw new Error(`git clone failed (${cloned.exitCode}): ${cloned.stderr.slice(-500)}`);
-		}
-		if (!bySha || ref === undefined) return;
-		const fetched = await this.exec(`git fetch --depth ${depth} origin ${quote(ref)}`, {
-			target: "isolate",
-			cwd: options.dir,
-		});
-		if (fetched.exitCode !== 0) {
-			throw new Error(
-				`git fetch ${ref} failed (${fetched.exitCode}): ${fetched.stderr.slice(-500)}`,
-			);
-		}
-		const checked = await this.exec(`git checkout --detach ${quote(ref)}`, {
-			target: "isolate",
-			cwd: options.dir,
-		});
-		if (checked.exitCode !== 0) {
-			throw new Error(`git checkout failed (${checked.exitCode}): ${checked.stderr.slice(-500)}`);
+		await this.#hydrateRepo(options.dir, options.ref ?? "main");
+		const steps = [
+			"git init",
+			"git add .",
+			`git commit -m baseline --author ${quote("emdashbot[bot] <emdashbot[bot]@users.noreply.github.com>")}`,
+		];
+		for (const step of steps) {
+			const result = await this.exec(step, { target: "isolate", cwd: options.dir });
+			if (result.exitCode !== 0) {
+				throw new Error(`${step} failed (${result.exitCode}): ${result.stderr.slice(-500)}`);
+			}
 		}
 	}
 

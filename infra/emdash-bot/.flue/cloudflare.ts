@@ -15,6 +15,7 @@ import {
 	verifyPushCapability,
 } from "./lib/github-proxy.js";
 import { mintInstallationToken, readAppCreds } from "./lib/github.js";
+import { untarInto } from "./lib/untar.js";
 
 // Subclass so we can attach an outbound proxy to github.com. The handler runs
 // in the Worker runtime (outside the sandbox) with full env access; the
@@ -157,4 +158,30 @@ export class WorkspaceDO extends withWorkspace(WorkspaceBase, (self) => ({
 			ctx: self.doCtx,
 		}),
 	],
-})) {}
+})) {
+	/**
+	 * Stream a GitHub source tarball straight into this DO's workspace.
+	 * A `git clone` through in-VFS isomorphic-git inflates the repo's pack in
+	 * memory and exceeds the DO isolate's limit; the tarball path never builds
+	 * a pack. The caller creates the git baseline afterwards.
+	 */
+	async hydrateFromTarball(
+		url: string,
+		destDir: string,
+	): Promise<{ files: number; bytes: number }> {
+		const response = await fetch(url, {
+			headers: { "User-Agent": "emdash-bot", Accept: "application/vnd.github+json" },
+		});
+		if (!response.ok || !response.body) {
+			throw new Error(`tarball fetch failed: ${response.status}`);
+		}
+		const stub = await this.__getWorkspaceStub();
+		const fs = stub.fs;
+		const target = {
+			mkdir: (path: string, options?: { recursive?: boolean }) => fs.mkdir(path, options),
+			symlink: (linkTarget: string, path: string) => fs.symlink(linkTarget, path),
+			writeFileBytes: (path: string, content: Uint8Array) => fs.writeFile(path, content),
+		};
+		return untarInto(target, response.body.pipeThrough(new DecompressionStream("gzip")), destDir);
+	}
+}

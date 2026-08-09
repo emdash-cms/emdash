@@ -111,12 +111,7 @@ export function Investigate({ id }: AgentProps) {
 	useAgentStart(async ({ log }) => {
 		if (setupComplete || reported) return;
 		try {
-			await env.cloneRepo({
-				url: cloneUrl(),
-				dir: REPO_DIR,
-				ref: cloneRef(input),
-				depth: CLONE_DEPTH,
-			});
+			await env.cloneRepo({ dir: REPO_DIR, ref: cloneRef(input) });
 			setSetupComplete(true);
 		} catch (error) {
 			const result = failedResult(
@@ -314,11 +309,29 @@ function execEnvFor(id: string, input: InvestigateData): ExecEnv {
 	const env = new ExecEnv({
 		isolate,
 		attachContainer: () => attachContainer(id, input),
+		hydrateRepo: (dir, ref) => hydrateWorkspace(id, dir, ref),
 		deadlines: DEADLINES,
 		repoDir: REPO_DIR,
 	});
 	registry.set(id, env);
 	return env;
+}
+
+interface WorkspaceHydrator {
+	hydrateFromTarball(url: string, destDir: string): Promise<{ files: number; bytes: number }>;
+}
+
+async function hydrateWorkspace(id: string, dir: string, ref: string): Promise<void> {
+	const repo = readRepoContext(workerEnv);
+	if (!repo) throw new Error("repository context is not configured");
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer the WorkspaceDO method surface.
+	const stub = workerEnv.WorkspaceDO.get(
+		workerEnv.WorkspaceDO.idFromName(id),
+	) as unknown as WorkspaceHydrator;
+	await stub.hydrateFromTarball(
+		`https://api.github.com/repos/${repo.owner}/${repo.repo}/tarball/${encodeURIComponent(ref)}`,
+		dir,
+	);
 }
 
 /** Defer resolving the RPC client until the first fs/runtime call. */

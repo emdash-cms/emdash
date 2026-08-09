@@ -86,6 +86,7 @@ function fakeContainer(): {
 }
 
 const deadlines = { defaultTimeoutMs: 10_000, execGraceMs: 500 };
+const noHydrate = async () => {};
 
 describe("ExecEnv exec routing", () => {
 	test("isolate exec runs on the worker-shell backend and normalizes the handle result", async () => {
@@ -95,6 +96,7 @@ describe("ExecEnv exec routing", () => {
 		const env = new ExecEnv({
 			isolate: iso.isolate,
 			attachContainer: attach,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -115,6 +117,7 @@ describe("ExecEnv exec routing", () => {
 		const env = new ExecEnv({
 			isolate: iso.isolate,
 			attachContainer: async () => con.container,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -136,6 +139,7 @@ describe("ExecEnv deadlines", () => {
 			const env = new ExecEnv({
 				isolate: iso.isolate,
 				attachContainer: async () => fakeContainer().container,
+				hydrateRepo: noHydrate,
 				deadlines: { defaultTimeoutMs: 50, execGraceMs: 5 },
 				repoDir: "/repo",
 			});
@@ -159,6 +163,7 @@ describe("ExecEnv deadlines", () => {
 					writeFile: async () => {},
 					readFileBytes: async () => new Uint8Array(),
 				}),
+				hydrateRepo: noHydrate,
 				deadlines: { defaultTimeoutMs: 1_000, execGraceMs: 5 },
 				repoDir: "/repo",
 			});
@@ -180,6 +185,7 @@ describe("ExecEnv container lifecycle", () => {
 		const env = new ExecEnv({
 			isolate: iso.isolate,
 			attachContainer: attach,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -201,6 +207,7 @@ describe("ExecEnv VFS->container materialization", () => {
 		const env = new ExecEnv({
 			isolate: iso.isolate,
 			attachContainer: async () => con.container,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -219,6 +226,7 @@ describe("ExecEnv VFS->container materialization", () => {
 		const envA = new ExecEnv({
 			isolate: fakeIsolate({}, files).isolate,
 			attachContainer: async () => con.container,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -229,6 +237,7 @@ describe("ExecEnv VFS->container materialization", () => {
 		const envB = new ExecEnv({
 			isolate: isoB.isolate,
 			attachContainer: async () => con.container,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -245,6 +254,7 @@ describe("ExecEnv VFS->container materialization", () => {
 		const envA = new ExecEnv({
 			isolate: isoA.isolate,
 			attachContainer: async () => con.container,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -258,6 +268,7 @@ describe("ExecEnv VFS->container materialization", () => {
 		const envB = new ExecEnv({
 			isolate: isoB.isolate,
 			attachContainer: attachB,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -275,6 +286,7 @@ describe("ExecEnv VFS->container materialization", () => {
 		const env = new ExecEnv({
 			isolate: iso.isolate,
 			attachContainer: async () => con.container,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -293,6 +305,7 @@ describe("ExecEnv VFS->container materialization", () => {
 		const env = new ExecEnv({
 			isolate: iso.isolate,
 			attachContainer: async () => con.container,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -311,6 +324,7 @@ describe("ExecEnv VFS->container materialization", () => {
 		const env = new ExecEnv({
 			isolate: iso.isolate,
 			attachContainer: async () => con.container,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -326,6 +340,7 @@ describe("ExecEnv VFS->container materialization", () => {
 		const env = new ExecEnv({
 			isolate: iso.isolate,
 			attachContainer: async () => fakeContainer().container,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -341,6 +356,7 @@ describe("ExecEnv artifact egress", () => {
 		const env = new ExecEnv({
 			isolate: fakeIsolate().isolate,
 			attachContainer: async () => con.container,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -356,6 +372,7 @@ describe("ExecEnv artifact egress", () => {
 		const env = new ExecEnv({
 			isolate: fakeIsolate().isolate,
 			attachContainer: attach,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -375,6 +392,7 @@ describe("ExecEnv artifact egress", () => {
 		const env = new ExecEnv({
 			isolate: fakeIsolate().isolate,
 			attachContainer: async () => container,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
@@ -390,50 +408,83 @@ describe("ExecEnv clone", () => {
 		},
 	};
 
-	test("cloneRepo runs a shallow isolate git clone of the public repo", async () => {
+	function hydrateRecorder(): {
+		calls: Array<{ dir: string; ref: string }>;
+		hydrate: (dir: string, ref: string) => Promise<void>;
+	} {
+		const calls: Array<{ dir: string; ref: string }> = [];
+		return {
+			calls,
+			hydrate: async (dir, ref) => {
+				calls.push({ dir, ref });
+			},
+		};
+	}
+
+	test("cloneRepo hydrates the tree and commits a git baseline", async () => {
 		const iso = fakeIsolate(emptyVfs);
+		const hyd = hydrateRecorder();
 		const env = new ExecEnv({
 			isolate: iso.isolate,
 			attachContainer: async () => fakeContainer().container,
+			hydrateRepo: hyd.hydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
 
-		await env.cloneRepo({
-			url: "https://github.com/emdash-cms/emdash.git",
-			dir: "/workspace/repo",
-			ref: "main",
-			depth: 50,
-		});
+		await env.cloneRepo({ dir: "/workspace/repo", ref: "main" });
 
-		expect(iso.execs).toHaveLength(1);
-		expect(iso.execs[0]?.source).toBe(
-			"git clone --depth 50 --branch main 'https://github.com/emdash-cms/emdash.git' '/workspace/repo'",
-		);
+		expect(hyd.calls).toEqual([{ dir: "/workspace/repo", ref: "main" }]);
+		expect(iso.execs.map((e) => e.source)).toEqual([
+			"git init",
+			"git add .",
+			"git commit -m baseline --author 'emdashbot[bot] <emdashbot[bot]@users.noreply.github.com>'",
+		]);
+		expect(iso.execs.every((e) => e.options.cwd === "/workspace/repo")).toBe(true);
 		expect(iso.execs[0]?.options.backend).toBe(ISOLATE_SHELL_BACKEND);
 	});
 
-	test("cloneRepo skips the clone when the durable VFS already holds a usable one", async () => {
-		const iso = fakeIsolate({
-			readdir: async () => [{ name: "HEAD", isDirectory: false }],
-		});
+	test("cloneRepo hydrates a commit SHA ref as-is and defaults to main without one", async () => {
+		const sha = "c0c6c72e0a75e9560f204e3780cafb5baf6a9b4b";
+		const hyd = hydrateRecorder();
 		const env = new ExecEnv({
-			isolate: iso.isolate,
+			isolate: fakeIsolate(emptyVfs).isolate,
 			attachContainer: async () => fakeContainer().container,
+			hydrateRepo: hyd.hydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
 
-		await env.cloneRepo({
-			url: "https://github.com/emdash-cms/emdash.git",
-			dir: "/workspace/repo",
+		await env.cloneRepo({ dir: "/workspace/repo", ref: sha });
+		await env.cloneRepo({ dir: "/workspace/other" });
+
+		expect(hyd.calls).toEqual([
+			{ dir: "/workspace/repo", ref: sha },
+			{ dir: "/workspace/other", ref: "main" },
+		]);
+	});
+
+	test("cloneRepo skips hydration when the durable VFS already holds a usable clone", async () => {
+		const iso = fakeIsolate({
+			readdir: async () => [{ name: "HEAD", isDirectory: false }],
+		});
+		const hyd = hydrateRecorder();
+		const env = new ExecEnv({
+			isolate: iso.isolate,
+			attachContainer: async () => fakeContainer().container,
+			hydrateRepo: hyd.hydrate,
+			deadlines,
+			repoDir: "/repo",
 		});
 
+		await env.cloneRepo({ dir: "/workspace/repo" });
+
+		expect(hyd.calls).toEqual([]);
 		expect(iso.execs.map((e) => e.source)).toEqual(["git status --porcelain"]);
 		expect(iso.execs[0]?.options.cwd).toBe("/workspace/repo");
 	});
 
-	test("cloneRepo discards an unusable partial clone and re-clones", async () => {
+	test("cloneRepo discards an unusable partial clone and rehydrates", async () => {
 		const removed: string[] = [];
 		const iso = fakeIsolate({
 			readdir: async () => [{ name: "HEAD", isDirectory: false }],
@@ -442,62 +493,36 @@ describe("ExecEnv clone", () => {
 			},
 		});
 		iso.setExecResult({ exitCode: 128, stdout: "", stderr: "fatal: not a git repository" });
+		const hyd = hydrateRecorder();
 		const env = new ExecEnv({
 			isolate: iso.isolate,
 			attachContainer: async () => fakeContainer().container,
+			hydrateRepo: hyd.hydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
 
-		await expect(
-			env.cloneRepo({ url: "https://github.com/x/y.git", dir: "/workspace/repo" }),
-		).rejects.toThrow("git clone failed (128)");
+		await expect(env.cloneRepo({ dir: "/workspace/repo" })).rejects.toThrow(
+			"git init failed (128)",
+		);
 		expect(removed).toEqual(["/workspace/repo"]);
-		expect(iso.execs.map((e) => e.source)).toEqual([
-			"git status --porcelain",
-			"git clone --depth 50 'https://github.com/x/y.git' '/workspace/repo'",
-		]);
+		expect(hyd.calls).toHaveLength(1);
 	});
 
-	test("cloneRepo fetches and detaches a full commit SHA instead of using --branch", async () => {
+	test("cloneRepo surfaces a failing baseline step", async () => {
 		const iso = fakeIsolate(emptyVfs);
+		iso.setExecResult({ exitCode: 1, stdout: "", stderr: "corrupt object" });
 		const env = new ExecEnv({
 			isolate: iso.isolate,
 			attachContainer: async () => fakeContainer().container,
-			deadlines,
-			repoDir: "/repo",
-		});
-		const sha = "c0c6c72e0a75e9560f204e3780cafb5baf6a9b4b";
-
-		await env.cloneRepo({
-			url: "https://github.com/emdash-cms/emdash.git",
-			dir: "/workspace/repo",
-			ref: sha,
-			depth: 50,
-		});
-
-		expect(iso.execs.map((e) => e.source)).toEqual([
-			"git clone --depth 50 'https://github.com/emdash-cms/emdash.git' '/workspace/repo'",
-			`git fetch --depth 50 origin '${sha}'`,
-			`git checkout --detach '${sha}'`,
-		]);
-		expect(iso.execs[1]?.options.cwd).toBe("/workspace/repo");
-		expect(iso.execs[2]?.options.cwd).toBe("/workspace/repo");
-	});
-
-	test("cloneRepo throws when the clone exits non-zero", async () => {
-		const iso = fakeIsolate(emptyVfs);
-		iso.setExecResult({ exitCode: 128, stdout: "", stderr: "fatal: repository not found" });
-		const env = new ExecEnv({
-			isolate: iso.isolate,
-			attachContainer: async () => fakeContainer().container,
+			hydrateRepo: noHydrate,
 			deadlines,
 			repoDir: "/repo",
 		});
 
-		await expect(
-			env.cloneRepo({ url: "https://github.com/x/y.git", dir: "/workspace/repo" }),
-		).rejects.toThrow("git clone failed (128)");
+		await expect(env.cloneRepo({ dir: "/workspace/repo" })).rejects.toThrow(
+			"git init failed (1): corrupt object",
+		);
 	});
 });
 
