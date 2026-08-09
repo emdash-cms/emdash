@@ -148,6 +148,7 @@ describe("Database Migrations (Integration)", () => {
 			"059_revision_prune_queue",
 			"060_collection_admin_config",
 			"061_fts_plain_text",
+			"062_media_usage_created_at_index",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
