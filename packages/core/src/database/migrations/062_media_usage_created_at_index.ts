@@ -1,9 +1,7 @@
 import type { Kysely } from "kysely";
 
-// The maintenance sweep (cleanupMediaUsageGenerations) selects and deletes
-// media-usage rows by age, ordered on created_at. The table's other indexes
-// (046, 052) all lead with identity columns, so age-gated scans read the
-// whole table once a backlog builds up.
+// Cleanup queries filter and order `_emdash_media_usage` rows by `created_at`,
+// but the existing identity-leading indexes cannot satisfy those scans directly.
 
 export async function up(db: Kysely<unknown>): Promise<void> {
 	await db.schema
