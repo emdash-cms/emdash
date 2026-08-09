@@ -21,6 +21,7 @@ const input = { issueNumber: 42, state: "working" as const, comment: "@emdashbot
 
 describe("classifyComment", () => {
 	afterEach(() => {
+		vi.restoreAllMocks();
 		vi.resetAllMocks();
 		vi.useRealTimers();
 	});
@@ -75,11 +76,12 @@ describe("classifyComment", () => {
 	});
 
 	test("fails deterministically when dispatch consumes the whole budget", async () => {
-		vi.useFakeTimers();
+		let now = 0;
+		vi.spyOn(performance, "now").mockImplementation(() => now);
 		let read = 0;
 		mockHandle({
 			dispatch: async () => {
-				vi.setSystemTime(Date.now() + 10_000);
+				now = 10_000;
 				return { id: "receipt" };
 			},
 			read: async () => {

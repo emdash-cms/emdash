@@ -22,8 +22,7 @@ import { Investigate } from "./agents/investigate.js";
 import { installAgentObserver } from "./lib/observer.js";
 import { registerCoreRoutes } from "./routes.js";
 
-// Module scope: registers before (and overrides) Flue's default tracing install.
-// Omitting `content` captures payloads; `content: false` would drop them.
+// Must run at module scope, before Flue's default tracing install.
 instrument(createCloudflareTracing());
 installAgentObserver();
 

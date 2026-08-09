@@ -42,10 +42,7 @@ export async function classifyComment(input: ClassifyInput): Promise<ClassifyRes
 			id: `classify-${crypto.randomUUID()}`,
 			uid: null,
 		});
-		// dispatch() only resolves on admission; without its own deadline an
-		// admission stall would hang past GitHub's webhook ack window. Share one
-		// budget across admission + settlement so the total stays within it.
-		const deadline = Date.now() + CLASSIFY_TIMEOUT_MS;
+		const startedAt = performance.now();
 		const receipt = await withDeadline(
 			handle.dispatch({
 				message: {
@@ -68,11 +65,11 @@ export async function classifyComment(input: ClassifyInput): Promise<ClassifyRes
 			CLASSIFY_TIMEOUT_MS,
 			"Classifier dispatch",
 		);
-		const remainingMs = deadline - Date.now();
+		const remainingMs = CLASSIFY_TIMEOUT_MS - (performance.now() - startedAt);
 		if (remainingMs <= 0) {
 			throw new DeadlineExceededError("Classifier read", CLASSIFY_TIMEOUT_MS);
 		}
-		reply = await handle.read(receipt, { signal: AbortSignal.timeout(remainingMs) });
+		reply = await handle.read(receipt, { signal: AbortSignal.timeout(Math.ceil(remainingMs)) });
 	} catch (err) {
 		return { kind: "error", error: errorMessage(err) };
 	}

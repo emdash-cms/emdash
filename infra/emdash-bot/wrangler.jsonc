@@ -87,8 +87,6 @@
 		"required": ["GITHUB_WEBHOOK_SECRET", "GITHUB_APP_PRIVATE_KEY"],
 	},
 
-	// Flue 2's generated Worker entry installs content-on Cloudflare tracing;
-	// this flag activates collection on the account.
 	"observability": {
 		"enabled": true,
 		"traces": {
