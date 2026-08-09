@@ -733,7 +733,7 @@ function FilterBar({
 
 	const statusItems: Record<ContentStatusFilter, string> = {
 		all: t`All statuses`,
-		published: t`Publish`,
+		published: t`Published`,
 		draft: t`Draft`,
 		scheduled: t`Scheduled`,
 		archived: t`Archived`,
