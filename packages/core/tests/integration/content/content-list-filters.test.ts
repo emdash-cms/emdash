@@ -131,6 +131,28 @@ describeEachDialect("content list filters (#1288)", (dialect) => {
 		expect(result.error.code).toBe("COLLECTION_NOT_FOUND");
 	});
 
+	it("reports a missing collection ahead of an oversized filter set", async () => {
+		const fieldFilters = Object.fromEntries(
+			Array.from({ length: 21 }, (_, index) => [`field_${index}`, "value"]),
+		);
+		const result = await handleContentList(ctx.db, "ghosts", { fieldFilters });
+
+		expect(result.success).toBe(false);
+		if (result.success) throw new Error("expected a failure");
+		expect(result.error.code).toBe("COLLECTION_NOT_FOUND");
+	});
+
+	it("rejects an oversized filter set on a collection that exists", async () => {
+		const fieldFilters = Object.fromEntries(
+			Array.from({ length: 21 }, (_, index) => [`field_${index}`, "value"]),
+		);
+		const result = await handleContentList(ctx.db, "posts", { fieldFilters });
+
+		expect(result.success).toBe(false);
+		if (result.success) throw new Error("expected a failure");
+		expect(result.error.code).toBe("VALIDATION_ERROR");
+	});
+
 	it("rejects an invalid field filter name on a collection that exists", async () => {
 		const result = await handleContentList(ctx.db, "posts", {
 			fieldFilters: { "not a field": "urgent" },

@@ -2104,6 +2104,15 @@ export class ContentRepository {
 		return { column: field, kind: "range", bounds };
 	}
 
+	private async collectionExists(type: string): Promise<boolean> {
+		const collection = await this.db
+			.selectFrom("_emdash_collections")
+			.where("slug", "=", type)
+			.select("id")
+			.executeTakeFirst();
+		return collection !== undefined;
+	}
+
 	private async resolveFieldFilters(
 		type: string,
 		filters: ContentFieldFilters | undefined,
@@ -2112,6 +2121,9 @@ export class ContentRepository {
 		const fields = Object.keys(resolvedFilters);
 		if (fields.length === 0) return [];
 		if (fields.length > MAX_INDEXED_FIELD_FILTERS) {
+			// Moving this cap below the lookup would let an oversized filter set
+			// reach it as bound parameters, so the collection check repeats here.
+			if (!(await this.collectionExists(type))) return [];
 			throw new EmDashValidationError(
 				`Content list queries support at most ${MAX_INDEXED_FIELD_FILTERS} indexed field filters`,
 			);
@@ -2126,14 +2138,7 @@ export class ContentRepository {
 			.execute();
 		const metadata = new Map(rows.map((row) => [row.slug, row.type as FieldType]));
 
-		if (metadata.size === 0) {
-			const collection = await this.db
-				.selectFrom("_emdash_collections")
-				.where("slug", "=", type)
-				.select("id")
-				.executeTakeFirst();
-			if (!collection) return [];
-		}
+		if (metadata.size === 0 && !(await this.collectionExists(type))) return [];
 
 		for (const field of fields) {
 			try {
