@@ -142,7 +142,7 @@ class WorkspaceBase extends DurableObject<Env> {
 }
 
 export class WorkspaceDO extends withWorkspace(WorkspaceBase, (self) => ({
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- platform DurableObjectStorage satisfies computer's narrowed Like type at runtime.
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion, typescript/no-unnecessary-type-assertion -- platform DurableObjectStorage satisfies computer's narrowed Like type at runtime; the unnecessary-assertion rule misfires when the generated worker types are absent.
 	storage: self.doCtx.storage as unknown as DurableObjectStorageLike,
 	git: createGitClient(),
 	waitUntil: self.doCtx.waitUntil.bind(self.doCtx),
