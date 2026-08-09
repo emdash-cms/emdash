@@ -5,7 +5,7 @@ description: Investigate a single EmDash issue end to end -- classify, choose a 
 
 # Investigate an EmDash issue
 
-You investigate one issue on `emdash-cms/emdash`. You run inside an `@cloudflare/computer` Workspace attached to the Orchestrator DO for this issue. The EmDash repo is cloned into the Workspace filesystem via `git.clone` (shallow) at `/workspace/repo` -- that is your working root. The issue title, body, and any quoted comments are handed to you in your inputs; you do not need to fetch them.
+You investigate one issue on `emdash-cms/emdash`. You run inside a durable Workspace filesystem owned by your agent. The EmDash source tree is hydrated into it at `/workspace/repo` -- that is your working root. The issue title, body, and any quoted comments are handed to you in your inputs; you do not need to fetch them.
 
 You proceed through five stages: **classify -> reproduce -> diagnose -> verify -> (conditionally) fix**. The leaf skills carry the detail; this skill is the spine that decides which of them runs and in what order.
 
@@ -17,16 +17,16 @@ Every stage produces a verdict, and **every verdict carries its evidence** -- th
 
 ## Execution environment
 
-Your Workspace tools are `read`, `write`, `edit`, `ls`, and `exec`, over a SQLite-backed virtual filesystem.
+Your Workspace tools are `read_file`, `write_file`, `edit_file`, `ls`, `grep`, and `code`, over a durable virtual filesystem holding the repo checkout. There is no shell and no git in the VFS.
 
-- **`read` / `ls` / `edit` / `write`** operate on the VFS directly. Prefer them over shelling out to `cat`, `sed`, or `echo`.
-- **`exec` runs in the isolate by default** (bash-in-isolate via just-bash). The isolate is fast and cheap and spins up instantly. Use it for the overwhelming majority of the work: `grep`/`rg`, `git log`/`show`/`diff`/`grep`, listing and slicing files, walking the tree -- anything that inspects the checkout without running the project's own toolchain.
-- **The isolate cannot run the project.** There is no `node`, `pnpm`, `astro`, `vitest`, or browser there. When you need any of those, **attach a container** and run `exec` inside it. Container attach is the slow, heavyweight path -- it is where and only where you run `pnpm install`, `astro build`, the dev server, `vitest`, and `agent-browser`.
+- **`read_file` / `ls` / `edit_file` / `write_file` / `grep`** operate on the VFS directly. They are fast and cheap; use them for the overwhelming majority of the work.
+- **`code`** runs a JavaScript snippet against the VFS for anything the flat tools can't express -- multi-file analysis, structured searches, tree walks. It is read-only: change files with `write_file`/`edit_file`.
+- **`exec` runs in the Linux container.** That is where the shell, git, `node`, `pnpm`, `astro`, `vitest`, and `agent-browser` live -- and the only place. Container attach is the slow, heavyweight path; it is where you run the toolchain, and where any `git log`/`show`/`diff` archaeology happens against the container's native clone. For commit/PR metadata, the read-only GitHub API is often cheaper than attaching.
 - **Dev servers background natively.** For an admin or public repro, start the demo with `astro dev --background` (`astro preview --background` since 7.2) -- it detaches, enables JSON logging, and returns once ready; check `astro dev status` / `.astro/dev.json`, tail `astro dev logs --follow`, stop with `astro dev stop`. No external process manager. The server persists for the lifetime of the attached container, so start it once and reuse it across steps.
 
-The discipline: **isolate-first, container on demand.** Do every read, grep, and git inspection in the isolate. Escalate to a container the moment -- and only the moment -- you need to install, build, run tests, or drive a browser. Each leaf skill states which path it needs; follow it.
+The discipline: **VFS-first, container on demand.** Do every read, grep, and analysis in the VFS. Escalate to the container the moment -- and only the moment -- you need to install, build, run tests, drive a browser, or inspect git history. Each leaf skill states which path it needs; follow it.
 
-The design target is that fewer than one investigation step in ten needs a container. If you find yourself in a container for grep or file reads, you are doing it wrong -- drop back to the isolate.
+The design target is that fewer than one investigation step in ten needs the container. If you find yourself in the container for grep or file reads, you are doing it wrong -- drop back to the VFS tools.
 
 ## GitHub access
 

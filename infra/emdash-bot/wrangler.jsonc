@@ -35,15 +35,11 @@
 				"class_name": "OrchestratorDO",
 				"name": "Orchestrator",
 			},
-			{
-				"class_name": "WorkspaceDO",
-				"name": "WorkspaceDO",
-			},
 		],
 	},
 
-	// Dynamic Worker loader for @cloudflare/computer's worker-shell isolate
-	// backend (bash-in-isolate).
+	// Dynamic Worker loader for the read-only `code` analysis tool
+	// (@cloudflare/codemode's DynamicWorkerExecutor).
 	"worker_loaders": [
 		{
 			"binding": "LOADER",
@@ -79,6 +75,10 @@
 		{
 			"tag": "v4",
 			"new_sqlite_classes": ["WorkspaceDO"],
+		},
+		{
+			"tag": "v5",
+			"deleted_classes": ["WorkspaceDO"],
 		},
 	],
 

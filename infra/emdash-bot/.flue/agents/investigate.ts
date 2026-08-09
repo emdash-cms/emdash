@@ -1,7 +1,18 @@
 "use agent";
 
-import { getWorkspace, type WorkspaceStubHost } from "@cloudflare/computer";
+import {
+	DynamicWorkerExecutor,
+	type ResolvedProvider,
+	resolveProvider,
+} from "@cloudflare/codemode";
 import { getSandbox } from "@cloudflare/sandbox";
+import {
+	FileSystemStateBackend,
+	STATE_TYPES,
+	Workspace,
+	WorkspaceFileSystem,
+} from "@cloudflare/shell";
+import { STATE_METHODS, type StateBackend, stateToolsFromBackend } from "@cloudflare/shell/workers";
 import {
 	defineTool,
 	type AgentProps,
@@ -14,16 +25,11 @@ import {
 	useSkill,
 	useTool,
 } from "@flue/runtime";
+import { getCloudflareContext } from "@flue/runtime/cloudflare";
 import { env as workerEnv } from "cloudflare:workers";
 import * as v from "valibot";
 
-import {
-	type ContainerBackend,
-	ExecEnv,
-	fromSandbox,
-	fromWorkspaceClient,
-	quote,
-} from "../lib/exec-env.js";
+import { type ContainerBackend, ExecEnv, fromSandbox, quote } from "../lib/exec-env.js";
 import { createPushCapability, PUSH_CAPABILITY_HEADER } from "../lib/github-proxy.js";
 import {
 	getBranchSha,
@@ -32,6 +38,7 @@ import {
 	readRepoContext,
 } from "../lib/github.js";
 import { applyInvestigationResult } from "../lib/investigation-result.js";
+import { untarInto } from "../lib/untar.js";
 import diagnoseSkill from "../skills/diagnose/SKILL.md";
 import fixSkill from "../skills/fix/SKILL.md";
 import investigateSkill from "../skills/investigate/SKILL.md";
@@ -111,7 +118,7 @@ export function Investigate({ id }: AgentProps) {
 	useAgentStart(async ({ log }) => {
 		if (setupComplete || reported) return;
 		try {
-			await env.cloneRepo({ dir: REPO_DIR, ref: cloneRef(input) });
+			await env.ensureRepo({ dir: REPO_DIR, ref: cloneRef(input) });
 			setSetupComplete(true);
 		} catch (error) {
 			const result = failedResult(
@@ -166,7 +173,7 @@ export function Investigate({ id }: AgentProps) {
 			input: v.object({ path: v.string() }),
 			async run({ data }) {
 				const entries = await env.ls(data.path);
-				return entries.map((e) => (e.isDirectory ? `${e.name}/` : e.name)).join("\n");
+				return entries.map((e) => (e.type === "directory" ? `${e.name}/` : e.name)).join("\n");
 			},
 		}),
 	);
@@ -195,20 +202,38 @@ export function Investigate({ id }: AgentProps) {
 		defineTool({
 			name: "exec",
 			description:
-				"Run a shell command. target 'isolate' (default) is fast bash-in-isolate for grep/git/inspection; target 'container' attaches a Linux container for pnpm/astro/vitest/agent-browser -- slow, use only to run the project.",
+				"Run a shell command in the Linux container (git, pnpm, astro, vitest, agent-browser). Attaching the container is slow; prefer the VFS tools and `code` for reads and searches, and use exec only to run the project or its toolchain.",
 			input: v.object({
 				command: v.string(),
-				target: v.optional(v.picklist(["isolate", "container"]), "isolate"),
 				cwd: v.optional(v.string()),
 				timeoutMs: v.optional(v.number()),
 			}),
 			async run({ data }) {
 				const result = await env.exec(data.command, {
-					target: data.target,
 					...(data.cwd ? { cwd: data.cwd } : {}),
 					...(data.timeoutMs ? { timeoutMs: data.timeoutMs } : {}),
 				});
 				return [`exit ${result.exitCode}`, result.stdout, result.stderr].filter(Boolean).join("\n");
+			},
+		}),
+	);
+
+	useTool(
+		defineTool({
+			name: "code",
+			description: buildCodeToolDescription(),
+			input: v.object({
+				code: v.pipe(v.string(), v.minLength(1)),
+			}),
+			async run({ data }) {
+				const { executor, provider } = codeRuntimeFor(id);
+				const { result, error, logs } = await executor.execute(data.code, [provider]);
+				if (error) {
+					const logsTail = logs?.length ? `\n\nlogs:\n${logs.join("\n")}` : "";
+					throw new Error(`code tool failed: ${error}${logsTail}`);
+				}
+				const resultText = formatCodeResult(result);
+				return logs?.length ? `${resultText}\n\n--- logs ---\n${logs.join("\n")}` : resultText;
 			},
 		}),
 	);
@@ -292,22 +317,8 @@ function execEnvFor(id: string, input: InvestigateData): ExecEnv {
 	const registry = execEnvRegistry();
 	const existing = registry.get(id);
 	if (existing) return existing;
-	let clientPromise: ReturnType<typeof getWorkspace> | undefined;
-	const isolate = fromWorkspaceClientLazy(async () => {
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer the withWorkspace stub-host type.
-		const stub = workerEnv.WorkspaceDO.get(
-			workerEnv.WorkspaceDO.idFromName(id),
-		) as unknown as WorkspaceStubHost;
-		try {
-			return await (clientPromise ??= getWorkspace(stub));
-		} catch (error) {
-			// A rejected promise must not stay cached: the next call retries.
-			clientPromise = undefined;
-			throw error;
-		}
-	});
 	const env = new ExecEnv({
-		isolate,
+		state: new FileSystemStateBackend(new WorkspaceFileSystem(agentWorkspace(id))),
 		attachContainer: () => attachContainer(id, input),
 		hydrateRepo: (dir, ref) => hydrateWorkspace(id, dir, ref),
 		deadlines: DEADLINES,
@@ -317,48 +328,142 @@ function execEnvFor(id: string, input: InvestigateData): ExecEnv {
 	return env;
 }
 
-interface WorkspaceHydrator {
-	hydrateFromTarball(url: string, destDir: string): Promise<{ files: number; bytes: number }>;
+/**
+ * The agent's VFS: a @cloudflare/shell Workspace in this agent DO's own
+ * SQLite, spilling large files to R2 under the agent id. Same-id
+ * constructions must pass identical options -- the Workspace fingerprints
+ * them per (sql, name).
+ */
+function agentWorkspace(name: string): Workspace {
+	const context = getCloudflareContext();
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Flue exposes the DO's SqlStorage behind a narrowed structural type.
+	const sql = context.storage.sql as SqlStorage;
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Flue types env as Record<string, unknown>.
+	const env = context.env as unknown as Env;
+	return new Workspace({ sql, name, ...(env.BOT_WORKSPACE ? { r2: env.BOT_WORKSPACE } : {}) });
 }
 
 async function hydrateWorkspace(id: string, dir: string, ref: string): Promise<void> {
 	const repo = readRepoContext(workerEnv);
 	if (!repo) throw new Error("repository context is not configured");
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer the WorkspaceDO method surface.
-	const stub = workerEnv.WorkspaceDO.get(
-		workerEnv.WorkspaceDO.idFromName(id),
-	) as unknown as WorkspaceHydrator;
-	await stub.hydrateFromTarball(
-		`https://api.github.com/repos/${repo.owner}/${repo.repo}/tarball/${encodeURIComponent(ref)}`,
+	const url = `https://api.github.com/repos/${repo.owner}/${repo.repo}/tarball/${encodeURIComponent(ref)}`;
+	const response = await fetch(url, {
+		headers: { "User-Agent": "emdash-bot", Accept: "application/vnd.github+json" },
+	});
+	if (!response.ok || !response.body) {
+		throw new Error(`tarball fetch failed: ${response.status}`);
+	}
+	await untarInto(
+		agentWorkspace(id),
+		response.body.pipeThrough(new DecompressionStream("gzip")),
 		dir,
 	);
 }
 
-/** Defer resolving the RPC client until the first fs/runtime call. */
-function fromWorkspaceClientLazy(getClient: () => ReturnType<typeof getWorkspace>) {
-	let backend: ReturnType<typeof fromWorkspaceClient> | undefined;
-	const resolve = async () => (backend ??= fromWorkspaceClient(await getClient()));
-	return {
-		fs: {
-			readFile: async (path: string, encoding: "utf8") =>
-				(await resolve()).fs.readFile(path, encoding),
-			writeFile: async (path: string, content: string) =>
-				(await resolve()).fs.writeFile(path, content),
-			mkdir: async (path: string, options?: { recursive?: boolean }) =>
-				(await resolve()).fs.mkdir(path, options),
-			readdir: async (path: string) => (await resolve()).fs.readdir(path),
-			rm: async (path: string, options?: { recursive?: boolean; force?: boolean }) =>
-				(await resolve()).fs.rm(path, options),
-			grep: async (pattern: string, path: string, options?: { ignoreCase?: boolean }) =>
-				(await resolve()).fs.grep(pattern, path, options),
-		},
-		runtime: {
-			exec: async (
-				source: string,
-				options: { backend?: string; cwd?: string; encoding: "utf8"; timeoutMs?: number },
-			) => (await resolve()).runtime.exec(source, options),
-		},
+interface CodeRuntime {
+	executor: DynamicWorkerExecutor;
+	provider: ResolvedProvider;
+}
+
+const CODE_RUNTIME_REGISTRY = Symbol.for("emdash-bot.codeRuntimes");
+
+function codeRuntimeFor(id: string): CodeRuntime {
+	const store = globalThis as typeof globalThis & {
+		[CODE_RUNTIME_REGISTRY]?: Map<string, CodeRuntime>;
 	};
+	const registry = (store[CODE_RUNTIME_REGISTRY] ??= new Map());
+	const existing = registry.get(id);
+	if (existing) return existing;
+	const runtime: CodeRuntime = {
+		executor: new DynamicWorkerExecutor({ loader: workerEnv.LOADER }),
+		provider: resolveProvider(
+			stateToolsFromBackend(
+				readOnlyState(new FileSystemStateBackend(new WorkspaceFileSystem(agentWorkspace(id)))),
+			),
+		),
+	};
+	registry.set(id, runtime);
+	return runtime;
+}
+
+const READ_STATE_METHODS: ReadonlySet<string> = new Set([
+	"getCapabilities",
+	"readFile",
+	"readFileBytes",
+	"readJson",
+	"exists",
+	"stat",
+	"readdir",
+	"readdirWithFileTypes",
+	"find",
+	"walkTree",
+	"summarizeTree",
+	"searchText",
+	"searchFiles",
+	"glob",
+	"diff",
+	"diffContent",
+	"readlink",
+	"realpath",
+	"resolvePath",
+]);
+
+/**
+ * The code tool is an analysis surface: expose only reading and searching.
+ * Edits must flow through the write_file/edit_file tools so the change log
+ * that drives container materialization sees them.
+ */
+function readOnlyState(backend: FileSystemStateBackend): StateBackend {
+	const wrapped: Record<string, unknown> = {};
+	for (const method of Object.keys(STATE_METHODS)) {
+		wrapped[method] = READ_STATE_METHODS.has(method)
+			? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- delegating by method name over the backend's own surface.
+				(...args: unknown[]) =>
+					(backend as unknown as Record<string, (...a: unknown[]) => unknown>)[method]?.(...args)
+			: () => {
+					throw new Error(
+						`state.${method} is disabled in the code tool; use the write_file/edit_file tools to change files`,
+					);
+				};
+	}
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- structurally covers every STATE_METHODS entry.
+	return wrapped as unknown as StateBackend;
+}
+
+function formatCodeResult(result: unknown): string {
+	if (result === undefined) return "(no result)";
+	if (typeof result === "string") return result;
+	if (typeof result === "bigint") return result.toString();
+	try {
+		return JSON.stringify(result, null, 2);
+	} catch {
+		return "[unserializable result]";
+	}
+}
+
+function buildCodeToolDescription(): string {
+	return [
+		"Run a snippet of JavaScript in an isolated Worker against the workspace",
+		"filesystem, for search and analysis. The snippet must be a single async",
+		"arrow function:",
+		"",
+		"  async () => {",
+		'    const hits = await state.searchFiles("/workspace/repo/**/*.ts", "TODO");',
+		"    return hits.length;",
+		"  }",
+		"",
+		"Rules:",
+		"- Write JavaScript, not TypeScript. No `import` statements; everything is on `state`.",
+		"- Always `return` the value you want back. Network access is disabled.",
+		"- The state surface is READ-ONLY here: write methods throw. Change files",
+		"  with the write_file/edit_file tools instead.",
+		"",
+		"The `state` API (TypeScript declaration; the runtime is JavaScript):",
+		"",
+		"```typescript",
+		STATE_TYPES,
+		"```",
+	].join("\n");
 }
 
 /**

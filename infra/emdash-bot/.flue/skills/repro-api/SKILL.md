@@ -9,7 +9,7 @@ The bug does not need a browser. It lives in a handler, the CLI, the MCP server,
 
 ## Environment
 
-- **Read and search in the isolate.** Use `read`, `ls`, and `exec` with `grep`/`rg`/`git grep` to find the package, read the handler in full, and trace call sites. This is most of the work and none of it needs a container.
+- **Read and search in the VFS.** Use `read_file`, `ls`, `grep`, and `code` to find the package, read the handler in full, and trace call sites. This is most of the work and none of it needs a container.
 - **Attach a container only to run the project.** `pnpm install`, `pnpm build`, and `vitest` do not exist in the isolate. When you are ready to actually execute a reproduction, attach a container and run those there.
 
 ## Do not
