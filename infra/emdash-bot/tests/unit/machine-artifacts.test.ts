@@ -5,11 +5,16 @@
 
 import { describe, expect, test } from "vitest";
 
+import { validateMachine } from "../../.flue/lib/machine.ts";
 import committedMachineJson from "../../.flue/lib/machine.json?raw";
 import committedMachineDoc from "../../BOT_STATE_MACHINE.md?raw";
 import { renderMachineDoc, renderMachineJson } from "../../scripts/machine-artifacts.ts";
 
 describe("machine artifacts", () => {
+	test("machine.ts passes structural validation", () => {
+		expect(validateMachine()).toEqual([]);
+	});
+
 	test("machine.json matches machine.ts (run `pnpm bot:generate`)", () => {
 		expect(committedMachineJson).toBe(renderMachineJson());
 	});

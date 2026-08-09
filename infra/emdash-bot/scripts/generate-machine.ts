@@ -6,7 +6,14 @@
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { validateMachine } from "../.flue/lib/machine.ts";
 import { renderMachineDoc, renderMachineJson } from "./machine-artifacts.ts";
+
+const problems = validateMachine();
+if (problems.length > 0) {
+	for (const problem of problems) console.error(`machine.ts: ${problem.message}`);
+	process.exit(1);
+}
 
 const botRoot = fileURLToPath(new URL("..", import.meta.url));
 
