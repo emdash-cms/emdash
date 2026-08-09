@@ -88,7 +88,9 @@ export function Investigate({ id }: AgentProps) {
 	useSkill(reproApiSkill);
 	useSkill(reproAdminSkill);
 	useSkill(reproPublicSkill);
-	if (input.mode === "fix" || input.mode === "implement" || input.mode === "revise") {
+	// Every mode but diagnose may end in a fix attempt (`repro` is
+	// "reproduce and attempt a fix" in machine.ts).
+	if (input.mode !== "diagnose") {
 		useSkill(fixSkill);
 	}
 

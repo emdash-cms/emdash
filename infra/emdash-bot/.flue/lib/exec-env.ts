@@ -133,11 +133,7 @@ export class ExecEnv {
 	 * isomorphic-git services -- no auth, since the repo is public.
 	 */
 	async cloneRepo(options: CloneOptions): Promise<void> {
-		// The durable VFS may already hold the clone from an earlier attempt.
-		try {
-			await this.#bounded(this.#isolate.fs.readdir(`${options.dir}/.git`), "readdir");
-			return;
-		} catch {}
+		if (await this.#hasUsableClone(options.dir)) return;
 		const args = ["git", "clone", "--depth", String(options.depth ?? 50)];
 		if (options.ref) args.push("--branch", options.ref);
 		args.push(quote(options.url), quote(options.dir));
@@ -145,6 +141,23 @@ export class ExecEnv {
 		if (result.exitCode !== 0) {
 			throw new Error(`git clone failed (${result.exitCode}): ${result.stderr.slice(-500)}`);
 		}
+	}
+
+	/**
+	 * The durable VFS may hold a clone from an earlier attempt -- but only
+	 * trust one git can actually read. A partial clone is removed so the
+	 * caller re-clones.
+	 */
+	async #hasUsableClone(dir: string): Promise<boolean> {
+		try {
+			await this.#bounded(this.#isolate.fs.readdir(`${dir}/.git`), "readdir");
+		} catch {
+			return false;
+		}
+		const probe = await this.exec("git status --porcelain", { target: "isolate", cwd: dir });
+		if (probe.exitCode === 0) return true;
+		await this.#bounded(this.#isolate.fs.rm(dir, { recursive: true, force: true }), "rm");
+		return false;
 	}
 
 	readFile(path: string): Promise<string> {

@@ -413,7 +413,7 @@ describe("ExecEnv clone", () => {
 		expect(iso.execs[0]?.options.backend).toBe(ISOLATE_SHELL_BACKEND);
 	});
 
-	test("cloneRepo skips the clone when the durable VFS already holds one", async () => {
+	test("cloneRepo skips the clone when the durable VFS already holds a usable one", async () => {
 		const iso = fakeIsolate({
 			readdir: async () => [{ name: "HEAD", isDirectory: false }],
 		});
@@ -429,7 +429,34 @@ describe("ExecEnv clone", () => {
 			dir: "/workspace/repo",
 		});
 
-		expect(iso.execs).toHaveLength(0);
+		expect(iso.execs.map((e) => e.source)).toEqual(["git status --porcelain"]);
+		expect(iso.execs[0]?.options.cwd).toBe("/workspace/repo");
+	});
+
+	test("cloneRepo discards an unusable partial clone and re-clones", async () => {
+		const removed: string[] = [];
+		const iso = fakeIsolate({
+			readdir: async () => [{ name: "HEAD", isDirectory: false }],
+			rm: async (path) => {
+				removed.push(path);
+			},
+		});
+		iso.setExecResult({ exitCode: 128, stdout: "", stderr: "fatal: not a git repository" });
+		const env = new ExecEnv({
+			isolate: iso.isolate,
+			attachContainer: async () => fakeContainer().container,
+			deadlines,
+			repoDir: "/repo",
+		});
+
+		await expect(
+			env.cloneRepo({ url: "https://github.com/x/y.git", dir: "/workspace/repo" }),
+		).rejects.toThrow("git clone failed (128)");
+		expect(removed).toEqual(["/workspace/repo"]);
+		expect(iso.execs.map((e) => e.source)).toEqual([
+			"git status --porcelain",
+			"git clone --depth 50 'https://github.com/x/y.git' '/workspace/repo'",
+		]);
 	});
 
 	test("cloneRepo throws when the clone exits non-zero", async () => {
