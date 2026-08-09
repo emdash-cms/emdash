@@ -2121,8 +2121,6 @@ export class ContentRepository {
 		const fields = Object.keys(resolvedFilters);
 		if (fields.length === 0) return [];
 		if (fields.length > MAX_INDEXED_FIELD_FILTERS) {
-			// Moving this cap below the lookup would let an oversized filter set
-			// reach it as bound parameters, so the collection check repeats here.
 			if (!(await this.collectionExists(type))) return [];
 			throw new EmDashValidationError(
 				`Content list queries support at most ${MAX_INDEXED_FIELD_FILTERS} indexed field filters`,
