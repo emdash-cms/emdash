@@ -720,7 +720,11 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									<Text bold as="h3" DANGEROUS_className="mb-4">
 										{extension.title}
 									</Text>
-									<ContentEditorPanelBoundary pluginId={pluginId} panelId={extension.id}>
+									<ContentEditorPanelBoundary
+										key={`${collection}:${item.id}`}
+										pluginId={pluginId}
+										panelId={extension.id}
+									>
 										<div className="min-w-0 max-w-full">
 											<Panel
 												collection={collection}

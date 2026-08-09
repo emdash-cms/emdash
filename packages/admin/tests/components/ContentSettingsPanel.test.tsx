@@ -286,12 +286,15 @@ describe("ContentSettingsPanel", () => {
 
 	it("recovers a failed plugin panel when Retry is pressed", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-		// Driven by the test rather than a render counter: React invokes the
-		// component more than once per mount, so a counter would recover on its
-		// own and never reach the boundary.
-		let shouldFail = true;
+		let failPanel: (() => void) | undefined;
+		let mountCount = 0;
 		function FlakyPanel(): React.ReactNode {
-			if (shouldFail) throw new Error("panel failed");
+			const [failed, setFailed] = React.useState(false);
+			React.useEffect(() => {
+				mountCount += 1;
+			}, []);
+			failPanel = () => setFailed(true);
+			if (failed) throw new Error("panel failed");
 			return <div data-testid="flaky-panel">Recovered</div>;
 		}
 		const pluginAdmins: PluginAdmins = {
@@ -304,13 +307,142 @@ describe("ContentSettingsPanel", () => {
 			{ wrapper: pluginWrapper(pluginAdmins) },
 		);
 
+		await expect.element(screen.getByTestId("flaky-panel")).toBeInTheDocument();
+		await act(async () => failPanel?.());
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Plugin panel unavailable.");
 
-		shouldFail = false;
 		await screen.getByRole("button", { name: "Retry" }).click();
 
 		await expect.element(screen.getByTestId("flaky-panel")).toBeInTheDocument();
 		expect(screen.getByRole("alert").query()).toBeNull();
+		expect(mountCount).toBe(2);
+		expect(errorSpy).toHaveBeenCalled();
+	});
+
+	it("remounts plugin panels when the content identity changes", async () => {
+		let nextMount = 0;
+		function IdentityPanel({ entry }: ContentEditorPanelContext) {
+			const [mount] = React.useState(() => ++nextMount);
+			return (
+				<div data-testid="identity-panel">
+					{entry.id}:mount-{mount}
+				</div>
+			);
+		}
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [{ id: "identity", title: "Identity", component: IdentityPanel }],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await expect.element(screen.getByTestId("identity-panel")).toHaveTextContent("item-1:mount-1");
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ id: "item-2", slug: "second-post" }),
+					manifest: TEST_MANIFEST,
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByTestId("identity-panel")).toHaveTextContent("item-2:mount-2");
+	});
+
+	it("remounts plugin panels when the collection changes", async () => {
+		let nextMount = 0;
+		function CollectionPanel({ collection }: ContentEditorPanelContext) {
+			const [mount] = React.useState(() => ++nextMount);
+			return (
+				<div data-testid="collection-panel">
+					{collection}:mount-{mount}
+				</div>
+			);
+		}
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{ id: "collection", title: "Collection", component: CollectionPanel },
+				],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await expect.element(screen.getByTestId("collection-panel")).toHaveTextContent("posts:mount-1");
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					collection: "pages",
+					item: makeItem({ type: "pages" }),
+					manifest: TEST_MANIFEST,
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByTestId("collection-panel")).toHaveTextContent("pages:mount-2");
+	});
+
+	it("resets failed plugin panels when their content context changes", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		let nextMount = 0;
+		function ContextPanel({ collection, entry }: ContentEditorPanelContext) {
+			const [failed, setFailed] = React.useState(false);
+			const [mount] = React.useState(() => ++nextMount);
+			if (failed) throw new Error("context panel failed");
+			return (
+				<button type="button" data-testid="context-panel" onClick={() => setFailed(true)}>
+					{collection}:{entry.id}:mount-{mount}
+				</button>
+			);
+		}
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [{ id: "context", title: "Context", component: ContextPanel }],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await expect
+			.element(screen.getByTestId("context-panel"))
+			.toHaveTextContent("posts:item-1:mount-1");
+		await screen.getByTestId("context-panel").click();
+		await expect.element(screen.getByRole("alert")).toBeInTheDocument();
+
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ id: "item-2", slug: "second-post" }),
+					manifest: TEST_MANIFEST,
+				})}
+			/>,
+		);
+		await expect
+			.element(screen.getByTestId("context-panel"))
+			.toHaveTextContent("posts:item-2:mount-2");
+
+		await screen.getByTestId("context-panel").click();
+		await expect.element(screen.getByRole("alert")).toBeInTheDocument();
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					collection: "pages",
+					item: makeItem({ id: "item-2", slug: "second-page", type: "pages" }),
+					manifest: TEST_MANIFEST,
+				})}
+			/>,
+		);
+		await expect
+			.element(screen.getByTestId("context-panel"))
+			.toHaveTextContent("pages:item-2:mount-3");
 		expect(errorSpy).toHaveBeenCalled();
 	});
 
