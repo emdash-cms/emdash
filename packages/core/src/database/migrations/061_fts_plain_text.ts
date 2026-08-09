@@ -1,7 +1,6 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import { SEARCH_TOKENIZERS } from "../../search/types.js";
 import { isSqlite } from "../dialect-helpers.js";
 import { validateIdentifier } from "../validate.js";
 
@@ -106,6 +105,14 @@ function isSearchEnabled(searchConfig: string | null): boolean {
 }
 
 /**
+ * Tokenizers this migration knows how to carry across the rebuild — a frozen
+ * copy of SEARCH_TOKENIZERS as of this migration, not an import: a replay
+ * after the live allowlist changes must not reinterpret configs this
+ * migration never shipped with.
+ */
+const KNOWN_TOKENIZERS = ["porter unicode61", "unicode61", "trigram"];
+
+/**
  * Tokenizer for the rebuilt table, from the collection's search_config.
  * Values outside the allowlist (or unparsable config) fall back to the
  * default rather than reaching the raw CREATE VIRTUAL TABLE statement.
@@ -115,7 +122,7 @@ function searchTokenizer(searchConfig: string | null): string {
 	try {
 		const parsed: unknown = JSON.parse(searchConfig);
 		if (typeof parsed === "object" && parsed !== null && "tokenize" in parsed) {
-			const configured = SEARCH_TOKENIZERS.find((tokenizer) => tokenizer === parsed.tokenize);
+			const configured = KNOWN_TOKENIZERS.find((tokenizer) => tokenizer === parsed.tokenize);
 			if (configured !== undefined) return configured;
 		}
 	} catch {
