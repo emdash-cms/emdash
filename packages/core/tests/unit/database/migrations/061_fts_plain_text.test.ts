@@ -97,6 +97,14 @@ describe("migration 061: FTS indexes extracted Portable Text prose", () => {
 		return Number(result.rows[0]?.count ?? 0);
 	}
 
+	/** Byte-level dump of the FTS index segments; identical dumps prove no re-tokenization. */
+	async function segments(): Promise<string[]> {
+		const result = await sql<{ id: number; block: string }>`
+			SELECT id, quote(block) as block FROM "_emdash_fts_pages_data" ORDER BY id
+		`.execute(db);
+		return result.rows.map((r) => `${r.id}:${r.block}`);
+	}
+
 	async function runMigration061(): Promise<void> {
 		const { up } = await import("../../../../src/database/migrations/061_fts_plain_text.js");
 		await up(db as unknown as Kysely<unknown>);
@@ -139,6 +147,17 @@ describe("migration 061: FTS indexes extracted Portable Text prose", () => {
 		expect(await matches("normal")).toBe(0);
 	});
 
+	it("installs the update-trigger WHEN guard alongside the rebuild", async () => {
+		await installPreFixFts();
+		await runMigration061();
+
+		const before = await segments();
+		await sql`
+			UPDATE ec_pages SET updated_at = datetime('now', '+1 hour') WHERE slug = 'haunted'
+		`.execute(db);
+		expect(await segments()).toEqual(before);
+	});
+
 	it("keeps legacy scalar values searchable across the rebuild", async () => {
 		await repo.create({
 			type: "pages",
@@ -150,7 +169,7 @@ describe("migration 061: FTS indexes extracted Portable Text prose", () => {
 		await installPreFixFts();
 		expect(await matches("2024")).toBe(1);
 
-		await runMigration059();
+		await runMigration061();
 
 		expect(await matches("2024")).toBe(1);
 	});
