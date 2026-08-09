@@ -24,7 +24,7 @@ export function artifactsBranch(issueNumber: number): string {
  * branch is always safe -- it is never a PR head. The fix branch is spared when
  * an open PR references it: deleting the ref would silently close that PR and
  * lose the bot's work with no recovery (a maintainer may have closed the issue
- * while the bot PR was still open). Mirrors bot-cleanup.yml's close guard.
+ * while the bot PR was still open).
  */
 export function branchesToReap(issueNumber: number, hasOpenFixPr: boolean): string[] {
 	return hasOpenFixPr

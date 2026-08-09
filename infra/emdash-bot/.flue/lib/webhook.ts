@@ -238,7 +238,7 @@ function normalizeIssues(
 	deliveryId?: string,
 ): NormalizeResult {
 	const action = readString(event?.action) ?? "";
-	// A closed issue reaps its fix-loop branches (bot-cleanup.yml's close path).
+	// A closed issue reaps its fix-loop branches.
 	// PR-as-issue closes arrive as pull_request events too; skip them here.
 	if (action === "closed") {
 		const issue = asRecord(event?.issue);

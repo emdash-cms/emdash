@@ -153,7 +153,7 @@ For bugs, a confirmed reproduction is the most useful evidence for priority. If 
 
 ### The Investigation Bot and `bot:*` Labels
 
-A maintainer can hand an issue to the investigation bot with an `@emdashbot` comment. The bot classifies and routes every new issue automatically, but the expensive work — reproducing, diagnosing, building a fix — only runs on an explicit **maintainer** directive, so you will not trigger it yourself:
+A maintainer can hand an issue to the investigation bot with an `@emdashbot` comment. The bot classifies and routes issues when they mention `@emdashbot`, and the expensive work — reproducing, diagnosing, building a fix — only runs on an explicit **maintainer** directive, so you will not trigger it yourself:
 
 - `@emdashbot investigate` — reproduce the bug and diagnose it, with evidence. It does not attempt a fix; it posts a verdict.
 - `@emdashbot fix` — on an issue the bot already reproduced, build a candidate fix on a `bot/fix-<n>` branch and publish a preview for the reporter to try (see below). No pull request opens until the reporter confirms.
