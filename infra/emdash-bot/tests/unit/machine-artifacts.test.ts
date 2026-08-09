@@ -5,8 +5,8 @@
 
 import { describe, expect, test } from "vitest";
 
-import { validateMachine } from "../../.flue/lib/machine.ts";
 import committedMachineJson from "../../.flue/lib/machine.json?raw";
+import { validateMachine } from "../../.flue/lib/machine.ts";
 import committedMachineDoc from "../../BOT_STATE_MACHINE.md?raw";
 import { renderMachineDoc, renderMachineJson } from "../../scripts/machine-artifacts.ts";
 
