@@ -44,7 +44,7 @@ Read the issue body and any quoted comments in your inputs.
    - `migration` -- migrations (`packages/core/src/database/migrations/`), schema registry, content tables.
    - `build` -- bundling, tsdown, Vite, type generation, package exports, monorepo wiring.
    - `other` -- infra, meta, anything that fits nothing above.
-   - A migration or build bug that only *surfaces* through the admin UI is classified by its underlying area, not the surface.
+   - A migration or build bug that only _surfaces_ through the admin UI is classified by its underlying area, not the surface.
 3. **`requiresBrowser`**: true when `area` is `admin` or `public`; false otherwise.
 
 **If `kind` is not `bug`, stop here.** Return the classification with a one-line note on what kind of issue it is. Reproduce/diagnose/verify/fix do not run for enhancements, docs, or questions -- the DO posts a short acknowledgement, not a triage report.
@@ -66,7 +66,7 @@ Each repro skill returns: whether it reproduced, the approach it used, a replaya
 
 ## Stage 3 -- Diagnose
 
-Follow **`diagnose`**. Feed it the repro transcript. It returns a root cause (file + approximate line + prose), a confidence rating in that *cause*, a fix approach (`mechanical`, `clear-best-option`, or `needs-design-decision`) rating the *fix*, a concrete proposed fix, and hypothesis notes on alternative causes. Confidence and fix approach are independent axes -- a confidently located bug with one obvious backwards-compatible change is `high` + `clear-best-option`.
+Follow **`diagnose`**. Feed it the repro transcript. It returns a root cause (file + approximate line + prose), a confidence rating in that _cause_, a fix approach (`mechanical`, `clear-best-option`, or `needs-design-decision`) rating the _fix_, a concrete proposed fix, and hypothesis notes on alternative causes. Confidence and fix approach are independent axes -- a confidently located bug with one obvious backwards-compatible change is `high` + `clear-best-option`.
 
 ## Stage 4 -- Verify
 
@@ -83,7 +83,7 @@ Run **`fix`** only when **all** hold:
 
 Any other combination: stop after verify. Post the diagnosis (proposed fix, or the options for a design decision) and the verify reasoning; a human takes it from there.
 
-**The fix loop does not open a PR.** Fix produces a verified change on a candidate branch, the workflow pushes it and posts a **preview build** to the issue, and the reporter is asked to confirm it resolves *their* case. **Only after the reporter confirms** does a draft PR open (carrying the repro test, referencing the issue). Reporter denial or silence reaps the branch. Nothing you do here lands on `main`; a maintainer reviews the eventual PR.
+**The fix loop does not open a PR.** Fix produces a verified change, committed and pushed to the issue's `bot/fix-<n>` candidate branch -- the only ref the push capability can update. The push triggers a **preview build** the workflow posts to the issue, and the reporter is asked to confirm it resolves _their_ case. **Only after the reporter confirms** does a draft PR open (carrying the repro test, referencing the issue). Reporter denial or silence reaps the branch. Nothing you do here lands on `main`; a maintainer reviews the eventual PR.
 
 ## Output
 

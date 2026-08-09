@@ -187,7 +187,7 @@ export function Investigate({ id }: AgentProps) {
 				"Run a shell command. target 'isolate' (default) is fast bash-in-isolate for grep/git/inspection; target 'container' attaches a Linux container for pnpm/astro/vitest/agent-browser -- slow, use only to run the project.",
 			input: v.object({
 				command: v.string(),
-				target: v.picklist(["isolate", "container"]),
+				target: v.optional(v.picklist(["isolate", "container"]), "isolate"),
 				cwd: v.optional(v.string()),
 				timeoutMs: v.optional(v.number()),
 			}),
@@ -343,12 +343,17 @@ async function attachContainer(id: string, input: InvestigateData): Promise<Cont
 	const repo = readRepoContext(workerEnv);
 	if (!repo) throw new Error("repository context is not configured");
 	const branch = cloneRef(input);
-	const pushCapability = await createPushCapability(
-		workerEnv.GITHUB_WEBHOOK_SECRET,
-		repo.owner,
-		repo.repo,
-		input.issueNumber,
-	);
+	// Diagnose mode is investigation-only: no push capability enters the
+	// container, so a fix push is impossible rather than merely instructed against.
+	const pushCapability =
+		input.mode === "diagnose"
+			? null
+			: await createPushCapability(
+					workerEnv.GITHUB_WEBHOOK_SECRET,
+					repo.owner,
+					repo.repo,
+					input.issueNumber,
+				);
 	const steps: Array<{ command: string; timeoutMs?: number }> = [
 		{ command: 'git config --global user.email "emdashbot[bot]@users.noreply.github.com"' },
 		{ command: 'git config --global user.name "emdashbot[bot]"' },
@@ -360,9 +365,13 @@ async function attachContainer(id: string, input: InvestigateData): Promise<Cont
 		{
 			command: `cd ${REPO_DIR} && git checkout '${branch}' && git reset --hard 'origin/${branch}'`,
 		},
-		{
-			command: `cd ${REPO_DIR} && git config http.https://github.com/.extraHeader '${PUSH_CAPABILITY_HEADER}: ${pushCapability}'`,
-		},
+		...(pushCapability
+			? [
+					{
+						command: `cd ${REPO_DIR} && git config http.https://github.com/.extraHeader '${PUSH_CAPABILITY_HEADER}: ${pushCapability}'`,
+					},
+				]
+			: []),
 	];
 	for (const step of steps) {
 		const result = await container.exec(step.command, {

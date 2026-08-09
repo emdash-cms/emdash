@@ -133,6 +133,11 @@ export class ExecEnv {
 	 * isomorphic-git services -- no auth, since the repo is public.
 	 */
 	async cloneRepo(options: CloneOptions): Promise<void> {
+		// The durable VFS may already hold the clone from an earlier attempt.
+		try {
+			await this.#bounded(this.#isolate.fs.readdir(`${options.dir}/.git`), "readdir");
+			return;
+		} catch {}
 		const args = ["git", "clone", "--depth", String(options.depth ?? 50)];
 		if (options.ref) args.push("--branch", options.ref);
 		args.push(quote(options.url), quote(options.dir));

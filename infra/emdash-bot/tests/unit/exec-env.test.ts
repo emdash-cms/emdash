@@ -384,8 +384,14 @@ describe("ExecEnv artifact egress", () => {
 });
 
 describe("ExecEnv clone", () => {
+	const emptyVfs = {
+		readdir: async (path: string): Promise<Array<{ name: string; isDirectory: boolean }>> => {
+			throw new Error(`no such directory ${path}`);
+		},
+	};
+
 	test("cloneRepo runs a shallow isolate git clone of the public repo", async () => {
-		const iso = fakeIsolate();
+		const iso = fakeIsolate(emptyVfs);
 		const env = new ExecEnv({
 			isolate: iso.isolate,
 			attachContainer: async () => fakeContainer().container,
@@ -407,8 +413,27 @@ describe("ExecEnv clone", () => {
 		expect(iso.execs[0]?.options.backend).toBe(ISOLATE_SHELL_BACKEND);
 	});
 
+	test("cloneRepo skips the clone when the durable VFS already holds one", async () => {
+		const iso = fakeIsolate({
+			readdir: async () => [{ name: "HEAD", isDirectory: false }],
+		});
+		const env = new ExecEnv({
+			isolate: iso.isolate,
+			attachContainer: async () => fakeContainer().container,
+			deadlines,
+			repoDir: "/repo",
+		});
+
+		await env.cloneRepo({
+			url: "https://github.com/emdash-cms/emdash.git",
+			dir: "/workspace/repo",
+		});
+
+		expect(iso.execs).toHaveLength(0);
+	});
+
 	test("cloneRepo throws when the clone exits non-zero", async () => {
-		const iso = fakeIsolate();
+		const iso = fakeIsolate(emptyVfs);
 		iso.setExecResult({ exitCode: 128, stdout: "", stderr: "fatal: repository not found" });
 		const env = new ExecEnv({
 			isolate: iso.isolate,
