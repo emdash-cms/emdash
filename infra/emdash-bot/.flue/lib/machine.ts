@@ -240,7 +240,7 @@ export type Actor =
 	| "reporter"
 	// Any account with a live write/triage/maintain/admin role on the repo.
 	| "maintainer"
-	// Emitted by an agent action workflow reporting its own result. Not a human.
+	// Emitted by an agent run reporting its own result. Not a human.
 	| "system";
 
 // ---------------------------------------------------------------------------
@@ -267,7 +267,7 @@ export type CommandVerb =
 	| "investigate"
 	| "fix";
 
-// Events the agent action workflow emits after a run, derived from the flat
+// Events the agent run emits on completion, derived from the flat
 // gating fields in the Flue result (skipped / reproduced / fixed / verdict).
 // These names map 1:1 to the agent contract in .flue/agents/investigate.ts.
 export type AgentEvent =
@@ -473,9 +473,8 @@ export const EVENTS: Record<EventId, EventMeta> = {
 // Actions (opaque agent runs a transition can kick off)
 // ---------------------------------------------------------------------------
 
-// The router dispatches these; the implementing workflow is the EXISTING
-// agent (investigate.yml) whose internals we do not touch. `mode` selects the
-// entry behaviour the agent already supports.
+// The router dispatches these; the implementation is the investigate agent
+// (.flue/agents/investigate.ts). `mode` selects the entry behaviour.
 export type ActionId =
 	| "investigate.repro" // bug repro -> diagnose -> verify -> fix
 	| "investigate.implement" // directed build/fix (sets maintainerDirective)
