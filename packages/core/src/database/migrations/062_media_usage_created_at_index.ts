@@ -2,7 +2,7 @@ import type { Kysely } from "kysely";
 
 // The maintenance sweep (cleanupMediaUsageGenerations) selects and deletes
 // media-usage rows by age, ordered on created_at. The table's other indexes
-// (046, 050, 052) all lead with identity columns, so age-gated scans read the
+// (046, 052) all lead with identity columns, so age-gated scans read the
 // whole table once a backlog builds up.
 
 export async function up(db: Kysely<unknown>): Promise<void> {
