@@ -372,10 +372,6 @@ describe("SchemaRegistry", () => {
 		});
 
 		it("drops the index when an indexed field moves to a type that cannot carry one", async () => {
-			// The admin has to send `indexed: false` here. Omitting it means
-			// "keep the stored value", which would leave the flag set on a type
-			// that rejects it, and the update would fail its own validation with
-			// no way for the editor to clear the flag first.
 			await registry.createField("posts", {
 				slug: "summary",
 				label: "Summary",
