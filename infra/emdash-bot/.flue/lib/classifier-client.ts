@@ -8,7 +8,7 @@ import * as v from "valibot";
 import { ClassifyCommand, classifyResultSchema } from "../agents/classify-command.js";
 import type { EventId, StateId } from "./machine.js";
 import { classifierCommands } from "./router.js";
-import { withDeadline } from "./sandbox-deadline.js";
+import { DeadlineExceededError, withDeadline } from "./sandbox-deadline.js";
 
 const CLASSIFY_TIMEOUT_MS = 10_000;
 
@@ -68,9 +68,11 @@ export async function classifyComment(input: ClassifyInput): Promise<ClassifyRes
 			CLASSIFY_TIMEOUT_MS,
 			"Classifier dispatch",
 		);
-		reply = await handle.read(receipt, {
-			signal: AbortSignal.timeout(Math.max(0, deadline - Date.now())),
-		});
+		const remainingMs = deadline - Date.now();
+		if (remainingMs <= 0) {
+			throw new DeadlineExceededError("Classifier read", CLASSIFY_TIMEOUT_MS);
+		}
+		reply = await handle.read(receipt, { signal: AbortSignal.timeout(remainingMs) });
 	} catch (err) {
 		return { kind: "error", error: errorMessage(err) };
 	}
