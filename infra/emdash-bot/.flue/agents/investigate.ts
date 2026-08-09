@@ -173,12 +173,17 @@ async function setupSandbox(
 	if (!repo) throw new Error("repository context is not configured");
 	const cloneUrl = `https://github.com/${repo.owner}/${repo.repo}.git`;
 	const branch = input.mode === "revise" ? `bot/fix-${input.issueNumber}` : "main";
-	const pushCapability = await createPushCapability(
-		workerEnv.GITHUB_WEBHOOK_SECRET,
-		repo.owner,
-		repo.repo,
-		input.issueNumber,
-	);
+	// Diagnose mode is investigation-only: no push capability enters the
+	// sandbox, so a fix push is impossible rather than merely instructed against.
+	const pushCapability =
+		input.mode === "diagnose"
+			? null
+			: await createPushCapability(
+					workerEnv.GITHUB_WEBHOOK_SECRET,
+					repo.owner,
+					repo.repo,
+					input.issueNumber,
+				);
 	const steps: Array<{ name: string; command: string; timeoutMs?: number; nonFatal?: boolean }> = [
 		{
 			name: "git-identity-email",
@@ -200,10 +205,14 @@ async function setupSandbox(
 					name: "checkout-main",
 					command: `cd ${REPO_DIR} && git checkout main && git reset --hard origin/main`,
 				},
-		{
-			name: "git-push-capability",
-			command: `cd ${REPO_DIR} && git config http.https://github.com/.extraHeader '${PUSH_CAPABILITY_HEADER}: ${pushCapability}'`,
-		},
+		...(pushCapability
+			? [
+					{
+						name: "git-push-capability",
+						command: `cd ${REPO_DIR} && git config http.https://github.com/.extraHeader '${PUSH_CAPABILITY_HEADER}: ${pushCapability}'`,
+					},
+				]
+			: []),
 		{
 			name: "pnpm-install",
 			command: `cd ${REPO_DIR} && pnpm install --frozen-lockfile --prefer-offline`,

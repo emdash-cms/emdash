@@ -15,7 +15,7 @@ if (problems.length > 0) {
 	process.exit(1);
 }
 
-const botRoot = fileURLToPath(new URL("..", import.meta.url));
+const botRoot = fileURLToPath(new URL("..", import.meta.url).href);
 
 writeFileSync(`${botRoot}.flue/lib/machine.json`, renderMachineJson());
 writeFileSync(`${botRoot}BOT_STATE_MACHINE.md`, renderMachineDoc());
