@@ -37,6 +37,10 @@
       "types": "./dist/astro/middleware/auth.d.mts",
       "default": "./dist/astro/middleware/auth.mjs"
     },
+    "./middleware/media-usage-write-fence": {
+      "types": "./dist/astro/middleware/media-usage-write-fence.d.mts",
+      "default": "./dist/astro/middleware/media-usage-write-fence.mjs"
+    },
     "./middleware/redirect": {
       "types": "./dist/astro/middleware/redirect.d.mts",
       "default": "./dist/astro/middleware/redirect.mjs"

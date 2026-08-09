@@ -3,6 +3,7 @@ import { ulid } from "ulidx";
 
 import { isPostgres } from "../../database/dialect-helpers.js";
 import type { Database, MediaUsageActivationTable } from "../../database/types.js";
+import { isMissingTableError } from "../../utils/db-errors.js";
 import {
 	installMediaUsageCaptureTriggers,
 	verifyMediaUsageCaptureTriggers,
@@ -26,6 +27,188 @@ export type MediaUsageActivationResult =
 	  }
 	| { outcome: "lease_active"; leaseExpiresAt: string }
 	| { outcome: "conflict"; processedCollections: number };
+
+export interface MediaUsageCollectionCapturePreparation {
+	captureRequired: boolean;
+	collectionId: string;
+	registrationExists: boolean;
+	resuming: boolean;
+}
+
+export async function canResumeMediaUsageCollectionCapture(
+	db: Kysely<Database>,
+	identity: { collectionId: string; collectionSlug: string; creationFingerprint?: string },
+): Promise<boolean> {
+	const activation = await findActivationIfAvailable(db);
+	if (!activation) return false;
+	assertRuntimeGeneration(activation);
+	if (activation.state !== "active") return false;
+
+	const lifecycle = await db
+		.selectFrom("_emdash_media_usage_index_status")
+		.select(["collection_id", "cursor"])
+		.where("adapter_id", "=", "content-media")
+		.where("scope_type", "=", "collection")
+		.where("scope_key", "=", identity.collectionSlug)
+		.where("collection_id", "=", identity.collectionId)
+		.where("capture_state", "in", ["installing", "ready"])
+		.executeTakeFirst();
+	return (
+		lifecycle?.collection_id === identity.collectionId &&
+		(identity.creationFingerprint
+			? lifecycle.cursor === identity.creationFingerprint
+			: lifecycle.cursor === null)
+	);
+}
+
+export async function prepareMediaUsageCollectionCapture(
+	db: Kysely<Database>,
+	input: {
+		collectionId: string;
+		collectionSlug: string;
+		creationFingerprint?: string;
+		registeredCollectionId?: string;
+	},
+): Promise<MediaUsageCollectionCapturePreparation> {
+	const activation = await findActivationIfAvailable(db);
+	if (!activation) {
+		return {
+			captureRequired: false,
+			collectionId: input.collectionId,
+			registrationExists: input.registeredCollectionId !== undefined,
+			resuming: false,
+		};
+	}
+	assertRuntimeGeneration(activation);
+	if (activation.state !== "active") {
+		return {
+			captureRequired: false,
+			collectionId: input.collectionId,
+			registrationExists: input.registeredCollectionId !== undefined,
+			resuming: false,
+		};
+	}
+
+	const existing = await db
+		.selectFrom("_emdash_media_usage_index_status")
+		.select(["collection_id", "capture_state", "cursor"])
+		.where("adapter_id", "=", "content-media")
+		.where("scope_type", "=", "collection")
+		.where("scope_key", "=", input.collectionSlug)
+		.executeTakeFirst();
+	if (existing) {
+		if (
+			existing.collection_id &&
+			(existing.capture_state === "installing" || existing.capture_state === "ready") &&
+			(input.creationFingerprint
+				? existing.cursor === input.creationFingerprint
+				: existing.cursor === null) &&
+			(input.registeredCollectionId === undefined ||
+				input.registeredCollectionId === existing.collection_id)
+		) {
+			return {
+				captureRequired: true,
+				collectionId: existing.collection_id,
+				registrationExists: input.registeredCollectionId !== undefined,
+				resuming: true,
+			};
+		}
+		throw new Error("Media usage collection lifecycle identity conflict");
+	}
+	if (input.registeredCollectionId !== undefined) {
+		throw new Error("Media usage collection lifecycle is missing");
+	}
+
+	await db
+		.insertInto("_emdash_media_usage_index_status")
+		.values({
+			adapter_id: "content-media",
+			scope_type: "collection",
+			scope_key: input.collectionSlug,
+			status: "never",
+			collection_id: input.collectionId,
+			reconciliation_required: 1,
+			capture_state: "installing",
+			cursor: input.creationFingerprint ?? null,
+			updated_at: timestampOffset(db, 0),
+		})
+		.execute();
+	return {
+		captureRequired: true,
+		collectionId: input.collectionId,
+		registrationExists: false,
+		resuming: false,
+	};
+}
+
+export async function installPreparedMediaUsageCollectionCapture(
+	db: Kysely<Database>,
+	identity: { collectionId: string; collectionSlug: string },
+): Promise<void> {
+	await installMediaUsageCaptureTriggers(db, identity, { replaceExisting: false });
+	if (!(await verifyMediaUsageCaptureTriggers(db, identity))) {
+		throw new Error("Media usage capture trigger verification failed");
+	}
+}
+
+export async function markMediaUsageCollectionCaptureReady(
+	db: Kysely<Database>,
+	identity: { collectionId: string; collectionSlug: string },
+): Promise<void> {
+	const result = await db
+		.updateTable("_emdash_media_usage_index_status")
+		.set({ capture_state: "ready", updated_at: timestampOffset(db, 0) })
+		.where("adapter_id", "=", "content-media")
+		.where("scope_type", "=", "collection")
+		.where("scope_key", "=", identity.collectionSlug)
+		.where("collection_id", "=", identity.collectionId)
+		.where("capture_state", "in", ["installing", "ready"])
+		.where(
+			sql<boolean>`EXISTS (
+				SELECT 1 FROM _emdash_media_usage_activation AS activation
+				WHERE activation.task_key = ${ACTIVATION_KEY}
+					AND activation.state = 'active'
+					AND activation.runtime_generation = ${MEDIA_USAGE_ACTIVATION_RUNTIME_GENERATION}
+			)`,
+		)
+		.executeTakeFirst();
+	if (Number(result.numUpdatedRows ?? 0) === 0) {
+		throw new Error("Media usage collection readiness lost its fence");
+	}
+}
+
+export async function finalizeMediaUsageCollectionCapture(
+	db: Kysely<Database>,
+	identity: { collectionId: string; collectionSlug: string },
+): Promise<void> {
+	const result = await db
+		.updateTable("_emdash_media_usage_index_status")
+		.set({ capture_state: "active", cursor: null, updated_at: timestampOffset(db, 0) })
+		.where("adapter_id", "=", "content-media")
+		.where("scope_type", "=", "collection")
+		.where("scope_key", "=", identity.collectionSlug)
+		.where("collection_id", "=", identity.collectionId)
+		.where("capture_state", "=", "ready")
+		.where(
+			sql<boolean>`EXISTS (
+				SELECT 1 FROM _emdash_collections AS collection
+				WHERE collection.id = ${identity.collectionId}
+					AND collection.slug = ${identity.collectionSlug}
+			)`,
+		)
+		.where(
+			sql<boolean>`EXISTS (
+				SELECT 1 FROM _emdash_media_usage_activation AS activation
+				WHERE activation.task_key = ${ACTIVATION_KEY}
+					AND activation.state = 'active'
+					AND activation.runtime_generation = ${MEDIA_USAGE_ACTIVATION_RUNTIME_GENERATION}
+			)`,
+		)
+		.executeTakeFirst();
+	if (Number(result.numUpdatedRows ?? 0) === 0) {
+		throw new Error("Media usage collection activation lost its fence");
+	}
+}
 
 export async function activateMediaUsageCapture(
 	db: Kysely<Database>,
@@ -117,6 +300,17 @@ async function findActivation(
 		.selectAll()
 		.where("task_key", "=", ACTIVATION_KEY)
 		.executeTakeFirstOrThrow();
+}
+
+async function findActivationIfAvailable(
+	db: Kysely<Database>,
+): Promise<Selectable<MediaUsageActivationTable> | null> {
+	try {
+		return await findActivation(db);
+	} catch (error) {
+		if (isMissingTableError(error)) return null;
+		throw error;
+	}
 }
 
 function assertRuntimeGeneration(activation: Selectable<MediaUsageActivationTable>): void {

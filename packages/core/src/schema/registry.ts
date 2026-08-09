@@ -7,7 +7,15 @@ import { withTransaction } from "../database/transaction.js";
 import type { CollectionTable, Database, FieldTable } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import {
+	canResumeMediaUsageCollectionCapture,
+	finalizeMediaUsageCollectionCapture,
+	installPreparedMediaUsageCollectionCapture,
+	markMediaUsageCollectionCaptureReady,
+	prepareMediaUsageCollectionCapture,
+} from "../media/usage/activation.js";
+import {
 	deleteContentMediaUsageCollection,
+	invalidateContentMediaUsageSchemaChange,
 	markContentMediaUsageCollectionStaleSafely,
 } from "../media/usage/content-refresh.js";
 import { FTSManager } from "../search/fts-manager.js";
@@ -120,6 +128,70 @@ function parseCollectionAdmin(raw: string | null | undefined): CollectionAdminCo
 			? listColumns.filter((value): value is string => typeof value === "string")
 			: undefined,
 	};
+}
+
+export async function buildSeedCollectionCaptureFingerprint(
+	input: Omit<CreateCollectionInput, "source">,
+	fields: readonly CreateFieldInput[],
+): Promise<string> {
+	const supports = input.supports ?? ["drafts", "revisions"];
+	const hasSeo = input.hasSeo ?? supports.includes("seo") ?? false;
+	let maxSortOrder = -1;
+	const definitions = fields.map((field) => {
+		const sortOrder = field.sortOrder ?? maxSortOrder + 1;
+		maxSortOrder = Math.max(maxSortOrder, sortOrder);
+		return {
+			slug: field.slug,
+			label: field.label,
+			type: field.type,
+			required: field.required ?? false,
+			unique: field.unique ?? false,
+			defaultValue: field.defaultValue === undefined ? null : JSON.stringify(field.defaultValue),
+			validation: field.validation ? JSON.stringify(field.validation) : null,
+			widget: field.widget ?? null,
+			options: field.options ? JSON.stringify(field.options) : null,
+			sortOrder,
+			searchable: field.searchable ?? false,
+			translatable: field.translatable ?? true,
+		};
+	});
+	const payload = JSON.stringify(
+		canonicalizeFingerprintValue({
+			version: 1,
+			collection: {
+				slug: input.slug,
+				label: input.label,
+				labelSingular: input.labelSingular ?? null,
+				description: input.description ?? null,
+				icon: input.icon ?? null,
+				admin: input.admin ?? null,
+				supports,
+				hasSeo,
+				hidden: input.hidden ?? false,
+				sortOrder: input.sortOrder ?? null,
+				commentsEnabled: input.commentsEnabled ?? false,
+				urlPattern: input.urlPattern ?? null,
+			},
+			fields: definitions,
+		}),
+	);
+	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
+	const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(
+		"",
+	);
+	return `media-usage-seed:v1:sha256:${hex}`;
+}
+
+function canonicalizeFingerprintValue(value: unknown): unknown {
+	if (value === undefined) return { __emdashUndefined: true };
+	if (Array.isArray(value)) return value.map(canonicalizeFingerprintValue);
+	if (typeof value !== "object" || value === null) return value;
+
+	const canonical: Record<string, unknown> = {};
+	for (const [key, entry] of Object.entries(value).toSorted(([a], [b]) => a.localeCompare(b))) {
+		canonical[key] = canonicalizeFingerprintValue(entry);
+	}
+	return canonical;
 }
 
 /**
@@ -256,11 +328,17 @@ export class SchemaRegistry {
 
 		// Check if collection already exists
 		const existing = await this.getCollection(input.slug);
-		if (existing) {
+		if (
+			existing &&
+			!(await canResumeMediaUsageCollectionCapture(this.db, {
+				collectionId: existing.id,
+				collectionSlug: existing.slug,
+			}))
+		) {
 			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
 		}
 
-		const id = ulid();
+		const proposedId = existing?.id ?? ulid();
 
 		// Default `supports` to drafts + revisions when the caller didn't
 		// specify it. Explicit empty array (`[]`) is preserved as an opt-out
@@ -276,27 +354,51 @@ export class SchemaRegistry {
 		const hasSeo = input.hasSeo ?? supports.includes("seo") ?? false;
 
 		await withTransaction(this.db, async (trx) => {
-			await trx
-				.insertInto("_emdash_collections")
-				.values({
-					id,
-					slug: input.slug,
-					label: input.label,
-					label_singular: input.labelSingular ?? null,
-					description: input.description ?? null,
-					icon: input.icon ?? null,
-					admin_config: input.admin ? JSON.stringify(input.admin) : null,
-					supports: JSON.stringify(supports),
-					source: input.source ?? "manual",
-					has_seo: hasSeo ? 1 : 0,
-					hidden: input.hidden ? 1 : 0,
-					sort_order: input.sortOrder ?? null,
-					comments_enabled: input.commentsEnabled ? 1 : 0,
-					url_pattern: input.urlPattern ?? null,
-				})
-				.execute();
+			const capture = await prepareMediaUsageCollectionCapture(trx, {
+				collectionId: proposedId,
+				collectionSlug: input.slug,
+				registeredCollectionId: existing?.id,
+			});
+			const values: Insertable<CollectionTable> = {
+				id: capture.collectionId,
+				slug: input.slug,
+				label: input.label,
+				label_singular: input.labelSingular ?? null,
+				description: input.description ?? null,
+				icon: input.icon ?? null,
+				admin_config: input.admin ? JSON.stringify(input.admin) : null,
+				supports: JSON.stringify(supports),
+				source: input.source ?? "manual",
+				has_seo: hasSeo ? 1 : 0,
+				hidden: input.hidden ? 1 : 0,
+				sort_order: input.sortOrder ?? null,
+				comments_enabled: input.commentsEnabled ? 1 : 0,
+				url_pattern: input.urlPattern ?? null,
+			};
 
-			// Create the content table for this collection
+			if (capture.captureRequired) {
+				await this.createContentTable(input.slug, trx, [], {
+					ifNotExists: capture.resuming,
+				});
+				await installPreparedMediaUsageCollectionCapture(trx, {
+					collectionId: capture.collectionId,
+					collectionSlug: input.slug,
+				});
+				await markMediaUsageCollectionCaptureReady(trx, {
+					collectionId: capture.collectionId,
+					collectionSlug: input.slug,
+				});
+				if (!capture.registrationExists) {
+					await trx.insertInto("_emdash_collections").values(values).execute();
+				}
+				await finalizeMediaUsageCollectionCapture(trx, {
+					collectionId: capture.collectionId,
+					collectionSlug: input.slug,
+				});
+				return;
+			}
+
+			await trx.insertInto("_emdash_collections").values(values).execute();
 			await this.createContentTable(input.slug, trx);
 		});
 
@@ -327,11 +429,6 @@ export class SchemaRegistry {
 			throw new SchemaError(`Collection slug "${input.slug}" is reserved`, "RESERVED_SLUG");
 		}
 
-		const existing = await this.getCollection(input.slug);
-		if (existing) {
-			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
-		}
-
 		const fieldSlugs = new Set<string>();
 		for (const field of fields) {
 			this.validateSlug(field.slug, "field");
@@ -347,9 +444,22 @@ export class SchemaRegistry {
 			fieldSlugs.add(field.slug);
 		}
 
-		const collectionId = ulid();
 		const supports = input.supports ?? ["drafts", "revisions"];
 		const hasSeo = input.hasSeo ?? supports.includes("seo") ?? false;
+		const creationFingerprint = await buildSeedCollectionCaptureFingerprint(input, fields);
+		const existing = await this.getCollection(input.slug);
+		if (
+			existing &&
+			!(await canResumeMediaUsageCollectionCapture(this.db, {
+				collectionId: existing.id,
+				collectionSlug: existing.slug,
+				creationFingerprint,
+			}))
+		) {
+			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
+		}
+
+		const proposedCollectionId = existing?.id ?? ulid();
 		let maxSortOrder = -1;
 		const fieldRows: Insertable<FieldTable>[] = fields.map((field) => {
 			const sortOrder = field.sortOrder ?? maxSortOrder + 1;
@@ -357,7 +467,7 @@ export class SchemaRegistry {
 
 			return {
 				id: ulid(),
-				collection_id: collectionId,
+				collection_id: proposedCollectionId,
 				slug: field.slug,
 				label: field.label,
 				type: field.type,
@@ -377,31 +487,72 @@ export class SchemaRegistry {
 		let schemaMutated = false;
 		try {
 			await withTransaction(this.db, async (trx) => {
-				await trx
-					.insertInto("_emdash_collections")
-					.values({
-						id: collectionId,
-						slug: input.slug,
-						label: input.label,
-						label_singular: input.labelSingular ?? null,
-						description: input.description ?? null,
-						icon: input.icon ?? null,
-						admin_config: input.admin ? JSON.stringify(input.admin) : null,
-						supports: JSON.stringify(supports),
-						source: "seed",
-						has_seo: hasSeo ? 1 : 0,
-						hidden: input.hidden ? 1 : 0,
-						sort_order: input.sortOrder ?? null,
-						comments_enabled: input.commentsEnabled ? 1 : 0,
-						url_pattern: input.urlPattern ?? null,
-					})
-					.execute();
-				schemaMutated = true;
+				const capture = await prepareMediaUsageCollectionCapture(trx, {
+					collectionId: proposedCollectionId,
+					collectionSlug: input.slug,
+					creationFingerprint,
+					registeredCollectionId: existing?.id,
+				});
+				const collectionValues: Insertable<CollectionTable> = {
+					id: capture.collectionId,
+					slug: input.slug,
+					label: input.label,
+					label_singular: input.labelSingular ?? null,
+					description: input.description ?? null,
+					icon: input.icon ?? null,
+					admin_config: input.admin ? JSON.stringify(input.admin) : null,
+					supports: JSON.stringify(supports),
+					source: "seed",
+					has_seo: hasSeo ? 1 : 0,
+					hidden: input.hidden ? 1 : 0,
+					sort_order: input.sortOrder ?? null,
+					comments_enabled: input.commentsEnabled ? 1 : 0,
+					url_pattern: input.urlPattern ?? null,
+				};
+				const rows = fieldRows.map((row) => ({
+					...row,
+					collection_id: capture.collectionId,
+				}));
 
-				await this.createContentTable(input.slug, trx, fields);
+				if (capture.captureRequired) {
+					await this.createContentTable(input.slug, trx, fields, {
+						ifNotExists: capture.resuming,
+					});
+					await installPreparedMediaUsageCollectionCapture(trx, {
+						collectionId: capture.collectionId,
+						collectionSlug: input.slug,
+					});
+					await markMediaUsageCollectionCaptureReady(trx, {
+						collectionId: capture.collectionId,
+						collectionSlug: input.slug,
+					});
+					if (!capture.registrationExists) {
+						await trx.insertInto("_emdash_collections").values(collectionValues).execute();
+						schemaMutated = true;
+					}
+				} else {
+					await trx.insertInto("_emdash_collections").values(collectionValues).execute();
+					schemaMutated = true;
+					await this.createContentTable(input.slug, trx, fields);
+				}
 
-				for (const fieldBatch of chunks(fieldRows, SEED_FIELD_INSERT_BATCH_SIZE)) {
-					await trx.insertInto("_emdash_fields").values(fieldBatch).execute();
+				for (const fieldBatch of chunks(rows, SEED_FIELD_INSERT_BATCH_SIZE)) {
+					let insert = trx.insertInto("_emdash_fields").values(fieldBatch);
+					if (capture.resuming) {
+						insert = insert.onConflict((conflict) =>
+							conflict.columns(["collection_id", "slug"]).doNothing(),
+						);
+					}
+					await insert.execute();
+				}
+				if (capture.resuming) {
+					await this.assertSeedFieldDefinitions(capture.collectionId, fields, trx);
+				}
+				if (capture.captureRequired) {
+					await finalizeMediaUsageCollectionCapture(trx, {
+						collectionId: capture.collectionId,
+						collectionSlug: input.slug,
+					});
 				}
 			});
 
@@ -415,6 +566,46 @@ export class SchemaRegistry {
 				);
 			}
 			throw error;
+		}
+	}
+
+	private async assertSeedFieldDefinitions(
+		collectionId: string,
+		fields: readonly CreateFieldInput[],
+		db: Kysely<Database>,
+	): Promise<void> {
+		const stored = await db
+			.selectFrom("_emdash_fields")
+			.selectAll()
+			.where("collection_id", "=", collectionId)
+			.execute();
+		if (stored.length !== fields.length) {
+			throw new SchemaError("Interrupted seed collection fields do not match", "CREATE_FAILED");
+		}
+
+		let maxSortOrder = -1;
+		for (const field of fields) {
+			const sortOrder = field.sortOrder ?? maxSortOrder + 1;
+			maxSortOrder = Math.max(maxSortOrder, sortOrder);
+			const row = stored.find((candidate) => candidate.slug === field.slug);
+			if (
+				!row ||
+				row.label !== field.label ||
+				row.type !== field.type ||
+				row.column_type !== FIELD_TYPE_TO_COLUMN[field.type] ||
+				row.required !== (field.required ? 1 : 0) ||
+				row.unique !== (field.unique ? 1 : 0) ||
+				row.default_value !==
+					(field.defaultValue !== undefined ? JSON.stringify(field.defaultValue) : null) ||
+				row.validation !== (field.validation ? JSON.stringify(field.validation) : null) ||
+				row.widget !== (field.widget ?? null) ||
+				row.options !== (field.options ? JSON.stringify(field.options) : null) ||
+				row.sort_order !== sortOrder ||
+				row.searchable !== (field.searchable ? 1 : 0) ||
+				row.translatable !== (field.translatable === false ? 0 : 1)
+			) {
+				throw new SchemaError("Interrupted seed collection fields do not match", "CREATE_FAILED");
+			}
 		}
 	}
 
@@ -627,6 +818,10 @@ export class SchemaRegistry {
 			.executeTakeFirst();
 
 		const sortOrder = input.sortOrder ?? (maxSort?.max ?? -1) + 1;
+		const activeCoverageInvalidated = await invalidateContentMediaUsageSchemaChange(
+			this.db,
+			collectionSlug,
+		);
 
 		let schemaMutated = false;
 		try {
@@ -688,19 +883,27 @@ export class SchemaRegistry {
 
 				return field;
 			});
-			await markContentMediaUsageCollectionStaleSafely(
-				this.db,
-				collectionSlug,
-				"CONTENT_USAGE_STALE",
-			);
-			return created;
-		} catch (error) {
-			if (schemaMutated) {
+			if (activeCoverageInvalidated) {
+				await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
+			} else {
 				await markContentMediaUsageCollectionStaleSafely(
 					this.db,
 					collectionSlug,
 					"CONTENT_USAGE_STALE",
 				);
+			}
+			return created;
+		} catch (error) {
+			if (schemaMutated) {
+				if (activeCoverageInvalidated) {
+					await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
+				} else {
+					await markContentMediaUsageCollectionStaleSafely(
+						this.db,
+						collectionSlug,
+						"CONTENT_USAGE_STALE",
+					);
+				}
 			}
 			throw error;
 		}
@@ -748,6 +951,10 @@ export class SchemaRegistry {
 			nextType = input.type;
 			nextColumnType = newColumnType;
 		}
+		const activeCoverageInvalidated = await invalidateContentMediaUsageSchemaChange(
+			this.db,
+			collectionSlug,
+		);
 
 		let schemaMutated = false;
 		try {
@@ -819,19 +1026,27 @@ export class SchemaRegistry {
 
 				return updated;
 			});
-			await markContentMediaUsageCollectionStaleSafely(
-				this.db,
-				collectionSlug,
-				"CONTENT_USAGE_STALE",
-			);
-			return updatedField;
-		} catch (error) {
-			if (schemaMutated) {
+			if (activeCoverageInvalidated) {
+				await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
+			} else {
 				await markContentMediaUsageCollectionStaleSafely(
 					this.db,
 					collectionSlug,
 					"CONTENT_USAGE_STALE",
 				);
+			}
+			return updatedField;
+		} catch (error) {
+			if (schemaMutated) {
+				if (activeCoverageInvalidated) {
+					await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
+				} else {
+					await markContentMediaUsageCollectionStaleSafely(
+						this.db,
+						collectionSlug,
+						"CONTENT_USAGE_STALE",
+					);
+				}
 			}
 			throw error;
 		}
@@ -891,6 +1106,10 @@ export class SchemaRegistry {
 				"FIELD_NOT_FOUND",
 			);
 		}
+		const activeCoverageInvalidated = await invalidateContentMediaUsageSchemaChange(
+			this.db,
+			collectionSlug,
+		);
 
 		let schemaMutated = false;
 		try {
@@ -911,18 +1130,26 @@ export class SchemaRegistry {
 				// Drop column from content table — safe now because FTS triggers are gone
 				await this.dropColumn(collectionSlug, fieldSlug, trx);
 			});
-			await markContentMediaUsageCollectionStaleSafely(
-				this.db,
-				collectionSlug,
-				"CONTENT_USAGE_STALE",
-			);
-		} catch (error) {
-			if (schemaMutated) {
+			if (activeCoverageInvalidated) {
+				await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
+			} else {
 				await markContentMediaUsageCollectionStaleSafely(
 					this.db,
 					collectionSlug,
 					"CONTENT_USAGE_STALE",
 				);
+			}
+		} catch (error) {
+			if (schemaMutated) {
+				if (activeCoverageInvalidated) {
+					await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
+				} else {
+					await markContentMediaUsageCollectionStaleSafely(
+						this.db,
+						collectionSlug,
+						"CONTENT_USAGE_STALE",
+					);
+				}
 			}
 			throw error;
 		}
@@ -1013,6 +1240,7 @@ export class SchemaRegistry {
 		slug: string,
 		db?: Kysely<Database>,
 		fields: readonly CreateFieldInput[] = [],
+		options: { ifNotExists?: boolean } = {},
 	): Promise<void> {
 		const conn = db ?? this.db;
 		const tableName = this.getTableName(slug);
@@ -1034,6 +1262,7 @@ export class SchemaRegistry {
 			.addColumn("draft_revision_id", "text", (col) => col.references("revisions.id"))
 			.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
 			.addColumn("translation_group", "text");
+		if (options.ifNotExists) table = table.ifNotExists();
 
 		for (const field of fields) {
 			const columnName = this.getColumnName(field.slug);
@@ -1053,40 +1282,42 @@ export class SchemaRegistry {
 			.addUniqueConstraint(`${tableName}_slug_locale_unique`, ["slug", "locale"])
 			.execute();
 
+		const createIndex = options.ifNotExists ? sql`CREATE INDEX IF NOT EXISTS` : sql`CREATE INDEX`;
+
 		// Create standard indexes
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_slug`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_slug`)}
 			ON ${sql.ref(tableName)} (slug)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_scheduled`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_scheduled`)}
 			ON ${sql.ref(tableName)} (scheduled_at)
 			WHERE scheduled_at IS NOT NULL
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_live_revision`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_live_revision`)}
 			ON ${sql.ref(tableName)} (live_revision_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_draft_revision`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_draft_revision`)}
 			ON ${sql.ref(tableName)} (draft_revision_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_author`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_author`)}
 			ON ${sql.ref(tableName)} (author_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_primary_byline`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_primary_byline`)}
 			ON ${sql.ref(tableName)} (primary_byline_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_locale`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_locale`)}
 			ON ${sql.ref(tableName)} (locale)
 		`.execute(conn);
 
@@ -1095,33 +1326,33 @@ export class SchemaRegistry {
 		// (menu and reference resolution) need the first; reads that do need the
 		// second.
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_tg_locale`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_tg_locale`)}
 			ON ${sql.ref(tableName)} (translation_group, locale)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_del_tg_locale`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_del_tg_locale`)}
 			ON ${sql.ref(tableName)} (deleted_at, translation_group, locale)
 		`.execute(conn);
 
 		// Composite indexes for optimized query performance (see migration 033)
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_updated_id`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_deleted_updated_id`)}
 			ON ${sql.ref(tableName)} (deleted_at, updated_at DESC, id DESC)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_status`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_deleted_status`)}
 			ON ${sql.ref(tableName)} (deleted_at, status)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_created_id`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_deleted_created_id`)}
 			ON ${sql.ref(tableName)} (deleted_at, created_at DESC, id DESC)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_published_id`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_deleted_published_id`)}
 			ON ${sql.ref(tableName)} (deleted_at, published_at DESC, id DESC)
 		`.execute(conn);
 
@@ -1130,12 +1361,12 @@ export class SchemaRegistry {
 		// inside Postgres's 63-byte identifier limit for long slugs; keep these
 		// names identical to migration 041.
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_loc_upd`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_loc_upd`)}
 			ON ${sql.ref(tableName)} (deleted_at, locale, updated_at DESC, id DESC)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_loc_crt`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_loc_crt`)}
 			ON ${sql.ref(tableName)} (deleted_at, locale, created_at DESC, id DESC)
 		`.execute(conn);
 	}
@@ -1464,32 +1695,61 @@ export class SchemaRegistry {
 
 		// Check if already registered
 		const existing = await this.getCollection(slug);
-		if (existing) {
+		if (
+			existing &&
+			!(await canResumeMediaUsageCollectionCapture(this.db, {
+				collectionId: existing.id,
+				collectionSlug: existing.slug,
+			}))
+		) {
 			throw new SchemaError(`Collection "${slug}" is already registered`, "COLLECTION_EXISTS");
 		}
 
 		// Create collection entry
-		const id = ulid();
+		const proposedId = existing?.id ?? ulid();
 		const label = options?.label || this.slugToLabel(slug);
 
 		let collectionRegistered = false;
 		try {
-			await this.db
-				.insertInto("_emdash_collections")
-				.values({
-					id,
-					slug,
-					label,
-					label_singular: options?.labelSingular ?? null,
-					description: options?.description ?? null,
-					icon: null,
-					supports: JSON.stringify([]),
-					source: "discovered",
-					has_seo: 0,
-					url_pattern: null,
-				})
-				.execute();
-			collectionRegistered = true;
+			const capture = await prepareMediaUsageCollectionCapture(this.db, {
+				collectionId: proposedId,
+				collectionSlug: slug,
+				registeredCollectionId: existing?.id,
+			});
+			if (capture.captureRequired) {
+				await installPreparedMediaUsageCollectionCapture(this.db, {
+					collectionId: capture.collectionId,
+					collectionSlug: slug,
+				});
+				await markMediaUsageCollectionCaptureReady(this.db, {
+					collectionId: capture.collectionId,
+					collectionSlug: slug,
+				});
+			}
+			if (!capture.registrationExists) {
+				await this.db
+					.insertInto("_emdash_collections")
+					.values({
+						id: capture.collectionId,
+						slug,
+						label,
+						label_singular: options?.labelSingular ?? null,
+						description: options?.description ?? null,
+						icon: null,
+						supports: JSON.stringify([]),
+						source: "discovered",
+						has_seo: 0,
+						url_pattern: null,
+					})
+					.execute();
+				collectionRegistered = true;
+			}
+			if (capture.captureRequired) {
+				await finalizeMediaUsageCollectionCapture(this.db, {
+					collectionId: capture.collectionId,
+					collectionSlug: slug,
+				});
+			}
 
 			const collection = await this.getCollection(slug);
 			if (!collection) {

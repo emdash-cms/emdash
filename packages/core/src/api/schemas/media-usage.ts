@@ -167,22 +167,20 @@ export const mediaUsageWorkRetryResponseSchema = z
 	})
 	.meta({ id: "MediaUsageWorkRetryResponse" });
 
-export const mediaUsageWorkRetryConflictSchema = z
-	.object({
-		success: z.literal(false),
-		error: z.discriminatedUnion("code", [
-			z.object({
-				code: z.literal("WORK_LEASE_ACTIVE"),
-				message: z.string(),
-				details: z.object({ leaseExpiresAt: z.string() }),
-			}),
-			z.object({
-				code: z.literal("WORK_CHANGED"),
-				message: z.string(),
-			}),
-		]),
-	})
-	.meta({ id: "MediaUsageWorkRetryConflict" });
+export const mediaUsageWorkRetryConflictSchema = z.object({
+	success: z.literal(false),
+	error: z.discriminatedUnion("code", [
+		z.object({
+			code: z.literal("WORK_LEASE_ACTIVE"),
+			message: z.string(),
+			details: z.object({ leaseExpiresAt: z.string() }),
+		}),
+		z.object({
+			code: z.literal("WORK_CHANGED"),
+			message: z.string(),
+		}),
+	]),
+});
 
 export type MediaUsageRepairRequest = z.infer<typeof mediaUsageRepairBody>;
 export type MediaUsageRepairResponse = z.infer<typeof mediaUsageRepairResponseSchema>;

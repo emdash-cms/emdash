@@ -608,7 +608,10 @@ export class MediaUsageWorkRepository {
 		column: "next_attempt_at" | "lease_expires_at" | "work.lease_expires_at",
 	): RawBuilder<boolean> {
 		return isPostgres(this.db)
-			? sql<boolean>`${sql.ref(column)}::timestamptz <= clock_timestamp()`
+			? sql<boolean>`${sql.ref(column)} <= to_char(
+				statement_timestamp() AT TIME ZONE 'UTC',
+				'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
+			)`
 			: sql<boolean>`${sql.ref(column)} <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
 	}
 

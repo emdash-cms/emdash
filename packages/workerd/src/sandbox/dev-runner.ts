@@ -23,6 +23,7 @@ import type {
 	SandboxOptions,
 	SerializedRequest,
 } from "emdash";
+import { createSandboxRouteError, getSandboxRouteErrorEnvelope } from "emdash";
 
 const DEFAULT_WALL_TIME_MS = 30_000;
 import type { PluginManifest } from "emdash";
@@ -174,6 +175,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 				storageCollections: Object.keys(manifest.storage || {}),
 				storageConfig: manifest.storage,
 				db: this.options.db,
+				beforeContentWrite: this.options.beforeContentWrite,
 				emailSend: () => this.emailSendCallback,
 				storage: this.options.mediaStorage,
 			});
@@ -298,6 +300,15 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 			});
 			if (!res.ok) {
 				const text = await res.text();
+				let envelope = null;
+				try {
+					envelope = getSandboxRouteErrorEnvelope(JSON.parse(text));
+				} catch {
+					// The generic route error below preserves non-protocol failures.
+				}
+				if (envelope) {
+					throw createSandboxRouteError(envelope.error.code);
+				}
 				throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
 			}
 			return res.json();

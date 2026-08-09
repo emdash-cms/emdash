@@ -13,6 +13,7 @@ import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
+import { assertMediaUsageActivationWriteAllowed } from "./api/media-usage-write-fence.js";
 import { validateRev } from "./api/rev.js";
 import type {
 	EmDashConfig,
@@ -52,6 +53,7 @@ import {
 	processMediaUsageWorkAfterWrite,
 } from "./media/usage/work-processor.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
+import { getSandboxRouteErrorDetails } from "./plugins/sandbox/types.js";
 import type {
 	SandboxedPluginInstance,
 	SandboxRunner,
@@ -397,6 +399,7 @@ export interface EmDashRuntimeParts {
 	pipelineFactoryOptions: {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
+		beforeContentWrite?: () => Promise<void>;
 		storage?: Storage;
 		siteInfo?: {
 			siteName?: string;
@@ -600,6 +603,7 @@ export class EmDashRuntime {
 	private pipelineFactoryOptions: {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
+		beforeContentWrite?: () => Promise<void>;
 		storage?: Storage;
 		siteInfo?: {
 			siteName?: string;
@@ -672,8 +676,16 @@ export class EmDashRuntime {
 	 * Returns the items promoted so callers can invalidate their cache tags.
 	 */
 	async publishScheduled(): Promise<PublishedRef[]> {
+		return this.publishScheduledWithFence();
+	}
+
+	private async publishScheduledWithFence(
+		onPublished?: (refs: PublishedRef[]) => Promise<void>,
+	): Promise<PublishedRef[]> {
+		await assertMediaUsageActivationWriteAllowed(this.db);
 		return publishDueContent(this.db, {
 			publish: (collection, id, options) => this.handleContentPublish(collection, id, options),
+			onPublished,
 		});
 	}
 
@@ -711,11 +723,7 @@ export class EmDashRuntime {
 
 		let published: PublishedRef[] = [];
 		try {
-			// Route through the runtime wrapper so content:afterPublish hooks fire.
-			published = await publishDueContent(this.db, {
-				publish: (collection, id, opts) => this.handleContentPublish(collection, id, opts),
-				onPublished: options.onPublished,
-			});
+			published = await this.publishScheduledWithFence(options.onPublished);
 		} catch (error) {
 			console.error("[scheduled-publish] Sweep failed:", error);
 		}
@@ -1512,6 +1520,7 @@ export class EmDashRuntime {
 		const pipelineFactoryOptions = {
 			db,
 			getDb: resolveDb,
+			beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(resolveDb()),
 			storage: storage ?? undefined,
 			siteInfo,
 		};
@@ -1666,12 +1675,12 @@ export class EmDashRuntime {
 							// Falls back to the raw handler if (improbably) the tick beats
 							// the post-construction ref assignment.
 							const runtime = runtimeRef.current;
-							await publishDueContent(db, {
-								publish: runtime
-									? (collection, id, options) =>
-											runtime.handleContentPublish(collection, id, options)
-									: undefined,
-							});
+							if (runtime) {
+								await runtime.publishScheduled();
+							} else {
+								await assertMediaUsageActivationWriteAllowed(db);
+								await publishDueContent(db);
+							}
 						} catch (error) {
 							console.error("[scheduled-publish] Sweep failed:", error);
 						}
@@ -1994,6 +2003,7 @@ export class EmDashRuntime {
 				createSandboxRunnerOptions(
 					{
 						db,
+						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
 						mediaStorage: mediaStorage
 							? {
 									upload: (opts) =>
@@ -2117,6 +2127,7 @@ export class EmDashRuntime {
 				createSandboxRunnerOptions(
 					{
 						db,
+						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
 						mediaStorage: {
 							upload: (opts) =>
 								storage.upload({
@@ -4137,6 +4148,7 @@ export class EmDashRuntime {
 		success: boolean;
 		data?: unknown;
 		error?: { code: string; message: string };
+		status?: number;
 	}> {
 		const routeName = path.replace(LEADING_SLASH_PATTERN, "");
 
@@ -4155,6 +4167,17 @@ export class EmDashRuntime {
 			return { success: true, data: result };
 		} catch (error) {
 			console.error(`EmDash: Sandboxed plugin route error:`, error);
+			const sandboxRouteError = getSandboxRouteErrorDetails(error);
+			if (sandboxRouteError) {
+				return {
+					success: false,
+					status: sandboxRouteError.status,
+					error: {
+						code: sandboxRouteError.code,
+						message: sandboxRouteError.message,
+					},
+				};
+			}
 			return {
 				success: false,
 				error: {

@@ -6,7 +6,10 @@ import {
 	MEDIA_USAGE_ACTIVATION_LIMITS,
 } from "../../../src/media/usage/activation.js";
 import { installMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
-import { SchemaRegistry } from "../../../src/schema/registry.js";
+import {
+	buildSeedCollectionCaptureFingerprint,
+	SchemaRegistry,
+} from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
 	setupForDialect,
@@ -57,6 +60,390 @@ describeEachDialect("media usage production activation", (dialect) => {
 		const second = await activateMediaUsageCapture(ctx.db, { writersDrained: true });
 		expect(second).toEqual({ outcome: "active", processedCollections: 0 });
 		expect(await activationRow()).toEqual(activated);
+	});
+
+	it("activates durable capture for collections created after global activation", async () => {
+		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
+		const registry = new SchemaRegistry(ctx.db);
+
+		const collection = await registry.createCollection({ slug: "posts", label: "Posts" });
+
+		expect(await statusRow(collection.id)).toEqual(
+			expect.objectContaining({
+				collection_id: collection.id,
+				capture_state: "active",
+				reconciliation_required: 1,
+			}),
+		);
+		await sql`INSERT INTO ${sql.ref("ec_posts")} (id, slug) VALUES ('post-1', 'post-1')`.execute(
+			ctx.db,
+		);
+		expect(await workRows()).toEqual([
+			expect.objectContaining({ collection_id: collection.id, content_id: "post-1" }),
+		]);
+	});
+
+	it("activates durable capture for seed collections created after global activation", async () => {
+		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
+		const registry = new SchemaRegistry(ctx.db);
+
+		await registry.createSeedCollection({ slug: "posts", label: "Posts" }, []);
+		const collection = await registry.getCollection("posts");
+		if (!collection) throw new Error("Expected seed collection");
+
+		expect(await statusRow(collection.id)).toEqual(
+			expect.objectContaining({
+				collection_id: collection.id,
+				capture_state: "active",
+				reconciliation_required: 1,
+			}),
+		);
+		await sql`INSERT INTO ${sql.ref("ec_posts")} (id, slug) VALUES ('post-1', 'post-1')`.execute(
+			ctx.db,
+		);
+		expect(await workRows()).toEqual([
+			expect.objectContaining({ collection_id: collection.id, content_id: "post-1" }),
+		]);
+	});
+
+	it("rejects seed writes until field metadata and capture publication are complete", async () => {
+		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
+		const registry = new SchemaRegistry(ctx.db);
+		const input = { slug: "posts", label: "Posts" };
+		const fields = [{ slug: "hero", label: "Hero", type: "image" as const }];
+		await registry.createSeedCollection(input, fields);
+		const collection = await registry.getCollection("posts");
+		if (!collection) throw new Error("Expected seed collection");
+
+		await ctx.db.deleteFrom("_emdash_fields").where("collection_id", "=", collection.id).execute();
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({
+				capture_state: "ready",
+				cursor: await buildSeedCollectionCaptureFingerprint(input, fields),
+			})
+			.where("collection_id", "=", collection.id)
+			.execute();
+
+		await expect(
+			sql`
+				INSERT INTO ${sql.ref("ec_posts")} (id, slug, hero)
+				VALUES (
+					'post-during-publication',
+					'post-during-publication',
+					${JSON.stringify({ id: "media-hero", provider: "local" })}
+				)
+			`.execute(ctx.db),
+		).rejects.toThrow(/media usage capture inactive/i);
+		expect(await workRows()).toEqual([]);
+
+		await registry.createSeedCollection(input, fields);
+		await sql`
+			INSERT INTO ${sql.ref("ec_posts")} (id, slug, hero)
+			VALUES (
+				'post-after-publication',
+				'post-after-publication',
+				${JSON.stringify({ id: "media-hero", provider: "local" })}
+			)
+		`.execute(ctx.db);
+		expect(await workRows()).toEqual([
+			expect.objectContaining({
+				collection_id: collection.id,
+				content_id: "post-after-publication",
+			}),
+		]);
+	});
+
+	it("activates durable capture when registering an orphan after global activation", async () => {
+		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
+		await sql`CREATE TABLE ${sql.ref("ec_orphan_posts")} (id text primary key)`.execute(ctx.db);
+		const registry = new SchemaRegistry(ctx.db);
+
+		const collection = await registry.registerOrphanedTable("orphan_posts");
+
+		expect(await statusRow(collection.id)).toEqual(
+			expect.objectContaining({
+				collection_id: collection.id,
+				capture_state: "active",
+				reconciliation_required: 1,
+			}),
+		);
+		await sql`INSERT INTO ${sql.ref("ec_orphan_posts")} (id) VALUES ('post-1')`.execute(ctx.db);
+		expect(await workRows()).toEqual([
+			expect.objectContaining({ collection_id: collection.id, content_id: "post-1" }),
+		]);
+	});
+
+	it("rejects orphan writes until collection publication is active and resumes registration", async () => {
+		if (dialect !== "sqlite") return;
+		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
+		await sql`CREATE TABLE ${sql.ref("ec_orphan_posts")} (id text primary key)`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER write_after_collection_publication
+			AFTER INSERT ON _emdash_collections
+			WHEN NEW.slug = 'orphan_posts'
+			BEGIN
+				INSERT INTO ec_orphan_posts (id) VALUES ('post-during-publication');
+			END
+		`.execute(ctx.db);
+		const registry = new SchemaRegistry(ctx.db);
+
+		await expect(registry.registerOrphanedTable("orphan_posts")).rejects.toThrow(
+			/media usage capture inactive/i,
+		);
+		expect(await registry.getCollection("orphan_posts")).toBeNull();
+		expect(await workRows()).toEqual([]);
+		const orphanContent = await sql<{ id: string }>`
+			SELECT id FROM ${sql.ref("ec_orphan_posts")}
+		`.execute(ctx.db);
+		expect(orphanContent.rows).toEqual([]);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_index_status")
+				.select("capture_state")
+				.where("adapter_id", "=", "content-media")
+				.where("scope_type", "=", "collection")
+				.where("scope_key", "=", "orphan_posts")
+				.executeTakeFirst(),
+		).toEqual({ capture_state: "ready" });
+
+		await sql`DROP TRIGGER write_after_collection_publication`.execute(ctx.db);
+		const collection = await registry.registerOrphanedTable("orphan_posts");
+
+		expect(await statusRow(collection.id)).toEqual(
+			expect.objectContaining({ capture_state: "active" }),
+		);
+		await sql`INSERT INTO ${sql.ref("ec_orphan_posts")} (id) VALUES ('post-after-publication')`.execute(
+			ctx.db,
+		);
+		expect(await workRows()).toEqual([
+			expect.objectContaining({
+				collection_id: collection.id,
+				content_id: "post-after-publication",
+			}),
+		]);
+	});
+
+	it("resumes collection capture after the content table commits before registration", async () => {
+		const registry = new SchemaRegistry(ctx.db);
+		const interrupted = await registry.createCollection({ slug: "posts", label: "Posts" });
+		await ctx.db.deleteFrom("_emdash_collections").where("id", "=", interrupted.id).execute();
+		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
+		await ctx.db
+			.insertInto("_emdash_media_usage_index_status")
+			.values({
+				adapter_id: "content-media",
+				scope_type: "collection",
+				scope_key: "posts",
+				status: "never",
+				collection_id: interrupted.id,
+				reconciliation_required: 1,
+				capture_state: "installing",
+			})
+			.execute();
+
+		const resumed = await registry.createCollection({ slug: "posts", label: "Posts" });
+
+		expect(resumed.id).toBe(interrupted.id);
+		expect(await statusRow(resumed.id)).toEqual(
+			expect.objectContaining({ capture_state: "active" }),
+		);
+	});
+
+	it("resumes collection publication after verified capture reaches ready", async () => {
+		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
+		const registry = new SchemaRegistry(ctx.db);
+		const interrupted = await registry.createCollection({ slug: "posts", label: "Posts" });
+		await ctx.db.deleteFrom("_emdash_collections").where("id", "=", interrupted.id).execute();
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ capture_state: "ready" })
+			.where("collection_id", "=", interrupted.id)
+			.execute();
+
+		const resumed = await registry.createCollection({ slug: "posts", label: "Posts" });
+
+		expect(resumed.id).toBe(interrupted.id);
+		expect(await statusRow(resumed.id)).toEqual(
+			expect.objectContaining({ capture_state: "active" }),
+		);
+	});
+
+	it("resumes collection capture after registration commits before finalization", async () => {
+		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
+		const registry = new SchemaRegistry(ctx.db);
+		const interrupted = await registry.createCollection({ slug: "posts", label: "Posts" });
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ capture_state: "installing" })
+			.where("collection_id", "=", interrupted.id)
+			.execute();
+
+		const resumed = await registry.createCollection({ slug: "posts", label: "Posts" });
+
+		expect(resumed.id).toBe(interrupted.id);
+		expect(await statusRow(resumed.id)).toEqual(
+			expect.objectContaining({ capture_state: "active" }),
+		);
+	});
+
+	it("resumes seed capture and restores missing field metadata before finalization", async () => {
+		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
+		const registry = new SchemaRegistry(ctx.db);
+		const input = { slug: "posts", label: "Posts" };
+		const fields = [{ slug: "hero", label: "Hero", type: "image" as const }];
+		await registry.createSeedCollection(input, fields);
+		const interrupted = await registry.getCollection("posts");
+		if (!interrupted) throw new Error("Expected seed collection");
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({
+				capture_state: "installing",
+				cursor: await buildSeedCollectionCaptureFingerprint(input, fields),
+			})
+			.where("collection_id", "=", interrupted.id)
+			.execute();
+		await ctx.db
+			.deleteFrom("_emdash_fields")
+			.where("collection_id", "=", interrupted.id)
+			.where("slug", "=", "hero")
+			.execute();
+
+		await registry.createSeedCollection(input, fields);
+
+		expect((await registry.listFields(interrupted.id)).map((field) => field.slug)).toEqual([
+			"hero",
+		]);
+		expect(await statusRow(interrupted.id)).toEqual(
+			expect.objectContaining({ capture_state: "active" }),
+		);
+	});
+
+	it("rejects a conflicting seed definition while capture installation is incomplete", async () => {
+		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
+		const registry = new SchemaRegistry(ctx.db);
+		const input = { slug: "posts", label: "Posts" };
+		const fields = [{ slug: "hero", label: "Hero", type: "image" as const }];
+		await registry.createSeedCollection(input, fields);
+		const interrupted = await registry.getCollection("posts");
+		if (!interrupted) throw new Error("Expected seed collection");
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({
+				capture_state: "installing",
+				cursor: await buildSeedCollectionCaptureFingerprint(input, fields),
+			})
+			.where("collection_id", "=", interrupted.id)
+			.execute();
+		await ctx.db.deleteFrom("_emdash_fields").where("collection_id", "=", interrupted.id).execute();
+
+		await expect(
+			registry.createSeedCollection({ slug: "posts", label: "Posts" }, [
+				{ slug: "title", label: "Title", type: "string" },
+			]),
+		).rejects.toThrow();
+		expect(await registry.listFields(interrupted.id)).toEqual([]);
+		expect(await statusRow(interrupted.id)).toEqual(
+			expect.objectContaining({ capture_state: "installing" }),
+		);
+	});
+
+	it("does not resume a cursorless collection lifecycle as seed creation", async () => {
+		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
+		const registry = new SchemaRegistry(ctx.db);
+		const interrupted = await registry.createCollection({ slug: "posts", label: "Posts" });
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ capture_state: "installing", cursor: null })
+			.where("collection_id", "=", interrupted.id)
+			.execute();
+
+		await expect(
+			registry.createSeedCollection({ slug: "posts", label: "Posts" }, [
+				{ slug: "hero", label: "Hero", type: "image" },
+			]),
+		).rejects.toThrow();
+		expect(await registry.listFields(interrupted.id)).toEqual([]);
+		expect(await statusRow(interrupted.id)).toEqual(
+			expect.objectContaining({ capture_state: "installing", cursor: null }),
+		);
+	});
+
+	it("does not resume a fingerprinted seed lifecycle as ordinary collection creation", async () => {
+		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
+		const registry = new SchemaRegistry(ctx.db);
+		const input = { slug: "posts", label: "Posts" };
+		const fields = [{ slug: "hero", label: "Hero", type: "image" as const }];
+		await registry.createSeedCollection(input, fields);
+		const interrupted = await registry.getCollection("posts");
+		if (!interrupted) throw new Error("Expected seed collection");
+		const fingerprint = await buildSeedCollectionCaptureFingerprint(input, fields);
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ capture_state: "installing", cursor: fingerprint })
+			.where("collection_id", "=", interrupted.id)
+			.execute();
+
+		await expect(registry.createCollection(input)).rejects.toThrow();
+		expect(await statusRow(interrupted.id)).toEqual(
+			expect.objectContaining({ capture_state: "installing", cursor: fingerprint }),
+		);
+	});
+
+	it("distinguishes an omitted seed default from an explicit null default", async () => {
+		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
+		const registry = new SchemaRegistry(ctx.db);
+		const input = { slug: "posts", label: "Posts" };
+		const originalFields = [
+			{ slug: "settings", label: "Settings", type: "json" as const, required: true },
+		];
+		await registry.createSeedCollection(input, originalFields);
+		const interrupted = await registry.getCollection("posts");
+		if (!interrupted) throw new Error("Expected seed collection");
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({
+				capture_state: "installing",
+				cursor: await buildSeedCollectionCaptureFingerprint(input, originalFields),
+			})
+			.where("collection_id", "=", interrupted.id)
+			.execute();
+		await ctx.db.deleteFrom("_emdash_fields").where("collection_id", "=", interrupted.id).execute();
+
+		await expect(
+			registry.createSeedCollection(input, [
+				{
+					slug: "settings",
+					label: "Settings",
+					type: "json",
+					required: true,
+					defaultValue: null,
+				},
+			]),
+		).rejects.toThrow();
+		expect(await registry.listFields(interrupted.id)).toEqual([]);
+		expect(await statusRow(interrupted.id)).toEqual(
+			expect.objectContaining({ capture_state: "installing" }),
+		);
+	});
+
+	it("resumes orphan registration after publication commits before finalization", async () => {
+		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
+		await sql`CREATE TABLE ${sql.ref("ec_orphan_posts")} (id text primary key)`.execute(ctx.db);
+		const registry = new SchemaRegistry(ctx.db);
+		const interrupted = await registry.registerOrphanedTable("orphan_posts");
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ capture_state: "installing" })
+			.where("collection_id", "=", interrupted.id)
+			.execute();
+
+		const resumed = await registry.registerOrphanedTable("orphan_posts");
+
+		expect(resumed.id).toBe(interrupted.id);
+		expect(await statusRow(resumed.id)).toEqual(
+			expect.objectContaining({ capture_state: "active" }),
+		);
 	});
 
 	it("activates one bounded collection per call and captures writes only after each exact lifecycle", async () => {

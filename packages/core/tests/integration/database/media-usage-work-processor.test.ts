@@ -21,6 +21,7 @@ import {
 	processMediaUsageWorkAfterWrite,
 } from "../../../src/media/usage/work-processor.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
+import type { CreateFieldInput } from "../../../src/schema/types.js";
 import {
 	describeEachDialect,
 	setupForDialect,
@@ -456,11 +457,16 @@ class QueryCountingPlugin implements KyselyPlugin {
 	}
 }
 
-async function createActiveFixture(ctx: DialectTestContext, collectionSlug: string) {
+async function createActiveFixture(
+	ctx: DialectTestContext,
+	collectionSlug: string,
+	extraFields: readonly CreateFieldInput[] = [],
+) {
 	const registry = new SchemaRegistry(ctx.db);
 	await registry.createCollection({ slug: collectionSlug, label: collectionSlug });
 	await registry.createField(collectionSlug, { slug: "title", label: "Title", type: "string" });
 	await registry.createField(collectionSlug, { slug: "hero", label: "Hero", type: "image" });
+	for (const field of extraFields) await registry.createField(collectionSlug, field);
 	const collection = await registry.getCollection(collectionSlug);
 	if (!collection) throw new Error(`Expected ${collectionSlug} collection`);
 
@@ -499,16 +505,15 @@ async function createActiveFixture(ctx: DialectTestContext, collectionSlug: stri
 }
 
 async function createResourceFixture(ctx: DialectTestContext, collectionSlug: string) {
-	const fixture = await createActiveFixture(ctx, collectionSlug);
-	const registry = new SchemaRegistry(ctx.db);
-	await registry.createField(collectionSlug, { slug: "body", label: "Body", type: "portableText" });
-	await registry.createField(collectionSlug, {
-		slug: "sections",
-		label: "Sections",
-		type: "repeater",
-		validation: { subFields: [{ slug: "image", type: "image", label: "Image" }] },
-	});
-	return fixture;
+	return createActiveFixture(ctx, collectionSlug, [
+		{ slug: "body", label: "Body", type: "portableText" },
+		{
+			slug: "sections",
+			label: "Sections",
+			type: "repeater",
+			validation: { subFields: [{ slug: "image", type: "image", label: "Image" }] },
+		},
+	]);
 }
 
 async function insertEntry(

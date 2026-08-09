@@ -4,6 +4,7 @@ import { MediaUsageRepository } from "../../database/repositories/media-usage.js
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { isI18nEnabled } from "../../i18n/config.js";
+import { isMissingTableError } from "../../utils/db-errors.js";
 import { loadContentMediaUsageFields } from "./content-fields.js";
 import {
 	CONTENT_SOURCE_SCHEMA_VERSION,
@@ -471,6 +472,33 @@ export async function markContentMediaUsageCollectionStale(
 		failedSourceCount: existing?.failedSourceCount ?? 0,
 		lastErrorCode,
 	});
+}
+
+export async function invalidateContentMediaUsageSchemaChange(
+	db: Kysely<Database>,
+	collectionSlug: string,
+): Promise<boolean> {
+	validateIdentifier(collectionSlug, "collection slug");
+	let activation: { state: string } | undefined;
+	try {
+		activation = await db
+			.selectFrom("_emdash_media_usage_activation")
+			.select("state")
+			.where("task_key", "=", "incremental_capture")
+			.executeTakeFirst();
+	} catch (error) {
+		if (isMissingTableError(error)) return false;
+		throw error;
+	}
+	if (activation?.state !== "active") return false;
+
+	const invalidated = await new MediaUsageRepository(db).invalidateIndexStatusForSchemaChange(
+		collectionSlug,
+	);
+	if (!invalidated) {
+		throw new Error(`Cannot invalidate media usage coverage for collection ${collectionSlug}`);
+	}
+	return true;
 }
 
 export async function findNonTranslatableSiblingContentIds(

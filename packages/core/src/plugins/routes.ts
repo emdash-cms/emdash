@@ -8,6 +8,7 @@
  *
  */
 
+import { MediaUsageActivationWriteBlockedError } from "../api/media-usage-write-fence.js";
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
 import { extractRequestMeta } from "./request-meta.js";
 import type { ResolvedPlugin, RouteContext, PluginRoute } from "./types.js";
@@ -212,6 +213,13 @@ export class PluginRouteHandler {
 				status: 200,
 			};
 		} catch (error) {
+			if (error instanceof MediaUsageActivationWriteBlockedError) {
+				return {
+					success: false,
+					error: { code: error.code, message: error.message },
+					status: error.status,
+				};
+			}
 			// Handle known error types
 			if (error instanceof PluginRouteError) {
 				return {

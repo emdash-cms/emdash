@@ -69,10 +69,32 @@ const CONTENT_SOURCE_ELIGIBILITY = sql<boolean>`(
 					AND overlay.collection_slug = s.collection_slug
 					AND overlay.content_id = s.content_id
 					AND overlay.source_variant = 'draft_overlay'
+					AND ${contentSourceMatchesActiveCollection("overlay", "s.collection_id")}
 			)
 		)
 	)
 )`;
+
+type ContentSourceAlias = "deleted_source" | "overlay" | "s" | "state";
+type CurrentCollectionIdReference = "collection.id" | "page.collection_id" | "s.collection_id";
+
+function contentSourceMatchesActiveCollection(
+	source: ContentSourceAlias,
+	currentCollectionId: CurrentCollectionIdReference,
+): RawBuilder<boolean> {
+	return sql<boolean>`(
+		NOT EXISTS (
+			SELECT 1
+			FROM _emdash_media_usage_activation AS activation
+			WHERE activation.task_key = 'incremental_capture'
+				AND activation.state = 'active'
+		)
+		OR (
+			${sql.ref(`${source}.collection_id`)} = ${sql.ref(currentCollectionId)}
+			AND ${sql.ref(`${source}.identity_version`)} = 1
+		)
+	)`;
+}
 
 export interface MediaUsageSourceInput {
 	sourceKey: string;
@@ -310,6 +332,7 @@ export interface MediaUsageCollectionIndexStatusScope {
 	collectionSlug: string;
 	status: string | null;
 	schemaVersion: number | null;
+	reconciliationRequired: boolean;
 }
 
 export interface MediaUsageEntrySource {
@@ -632,6 +655,7 @@ export class MediaUsageRepository {
 								.whereRef("deleted_source.collection_slug", "=", "s.collection_slug")
 								.whereRef("deleted_source.content_id", "=", "s.content_id")
 								.where("deleted_source.source_variant", "in", ["columns", "draft_overlay"])
+								.where(contentSourceMatchesActiveCollection("deleted_source", "collection.id"))
 								.where("deleted_source.content_deleted_at", "is not", null),
 						),
 					),
@@ -669,6 +693,7 @@ export class MediaUsageRepository {
 				"collection.slug as collection_slug",
 				"status.status as status",
 				"status.schema_version as schema_version",
+				"status.reconciliation_required as reconciliation_required",
 			])
 			.orderBy("collection.slug", "asc")
 			.execute();
@@ -677,6 +702,8 @@ export class MediaUsageRepository {
 			collectionSlug: row.collection_slug,
 			status: row.status,
 			schemaVersion: row.schema_version === null ? null : Number(row.schema_version),
+			reconciliationRequired:
+				row.reconciliation_required !== null && Number(row.reconciliation_required) !== 0,
 		}));
 	}
 
@@ -691,7 +718,11 @@ export class MediaUsageRepository {
 			throw new InvalidCursorError(options.cursor ?? "");
 		}
 		let matchedGroups = this.currentContentMediaUsageBaseQuery()
-			.select(["s.collection_slug as collection_slug", "s.content_id as content_id"])
+			.select([
+				"collection.id as collection_id",
+				"s.collection_slug as collection_slug",
+				"s.content_id as content_id",
+			])
 			.where("u.media_id", "=", mediaId)
 			.distinct();
 		if (cursor) {
@@ -724,7 +755,7 @@ export class MediaUsageRepository {
 				db
 					.selectFrom("page_groups as page")
 					.crossJoin("_emdash_media_usage_sources as state")
-					.select(["page.collection_slug", "page.content_id"])
+					.select(["page.collection_id", "page.collection_slug", "page.content_id"])
 					.select((eb) =>
 						eb.fn.max<string | null>("state.content_deleted_at").as("entry_deleted_at"),
 					)
@@ -732,13 +763,15 @@ export class MediaUsageRepository {
 					.whereRef("page.content_id", "=", "state.content_id")
 					.where("state.source_type", "=", "content")
 					.where("state.source_variant", "in", ["columns", "draft_overlay"])
-					.groupBy(["page.collection_slug", "page.content_id"]),
+					.where(contentSourceMatchesActiveCollection("state", "page.collection_id"))
+					.groupBy(["page.collection_id", "page.collection_slug", "page.content_id"]),
 			)
 			.selectFrom("entry_state as page")
 			.crossJoin("_emdash_media_usage_sources as s")
 			.crossJoin("_emdash_media_usage as u")
 			.whereRef("page.collection_slug", "=", "s.collection_slug")
 			.whereRef("page.content_id", "=", "s.content_id")
+			.where(contentSourceMatchesActiveCollection("s", "page.collection_id"))
 			.whereRef("s.source_key", "=", "u.source_key")
 			.whereRef("s.current_generation", "=", "u.generation")
 			.select(currentUsageSelect)
@@ -1362,6 +1395,43 @@ export class MediaUsageRepository {
 		return status;
 	}
 
+	async invalidateIndexStatusForSchemaChange(collectionSlug: string): Promise<boolean> {
+		const result = await this.db
+			.updateTable("_emdash_media_usage_index_status as status")
+			.set({
+				change_epoch: sql<number>`change_epoch + 1`,
+				status: "stale",
+				completed_at: null,
+				cursor: null,
+				last_error_code: "CONTENT_USAGE_STALE",
+				reconciliation_required: 1,
+				updated_at: this.sortableUtcTimestamp(),
+			})
+			.where("status.adapter_id", "=", "content-media")
+			.where("status.scope_type", "=", "collection")
+			.where("status.scope_key", "=", collectionSlug)
+			.where("status.capture_state", "=", "active")
+			.where((eb) =>
+				eb.exists(
+					eb
+						.selectFrom("_emdash_collections as collection")
+						.select("collection.id")
+						.whereRef("collection.id", "=", "status.collection_id")
+						.whereRef("collection.slug", "=", "status.scope_key"),
+				),
+			)
+			.where(
+				sql<boolean>`EXISTS (
+					SELECT 1
+					FROM _emdash_media_usage_activation AS activation
+					WHERE activation.task_key = 'incremental_capture'
+						AND activation.state = 'active'
+				)`,
+			)
+			.executeTakeFirst();
+		return Number(result.numUpdatedRows ?? 0) === 1;
+	}
+
 	async beginIndexStatusRepair(
 		input: MediaUsageIndexStatusRepairInput,
 	): Promise<MediaUsageIndexStatus> {
@@ -1740,6 +1810,7 @@ export class MediaUsageRepository {
 			.where("s.collection_slug", "is not", null)
 			.where("s.content_id", "is not", null)
 			.where("s.source_variant", "in", ["columns", "draft_overlay"])
+			.where(contentSourceMatchesActiveCollection("s", "collection.id"))
 			.where(CONTENT_SOURCE_ELIGIBILITY);
 	}
 
