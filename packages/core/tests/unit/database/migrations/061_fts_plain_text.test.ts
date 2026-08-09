@@ -139,6 +139,22 @@ describe("migration 061: FTS indexes extracted Portable Text prose", () => {
 		expect(await matches("normal")).toBe(0);
 	});
 
+	it("keeps legacy scalar values searchable across the rebuild", async () => {
+		await repo.create({
+			type: "pages",
+			slug: "legacy-scalar",
+			status: "published",
+			data: { content: null },
+		});
+		await sql`UPDATE ec_pages SET content = '2024' WHERE slug = 'legacy-scalar'`.execute(db);
+		await installPreFixFts();
+		expect(await matches("2024")).toBe(1);
+
+		await runMigration059();
+
+		expect(await matches("2024")).toBe(1);
+	});
+
 	it("honors a configured non-default tokenizer when rebuilding", async () => {
 		await new FTSManager(db).enableSearch("pages", { tokenize: "trigram" });
 		await installPreFixFts("trigram");

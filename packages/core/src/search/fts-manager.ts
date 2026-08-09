@@ -126,10 +126,10 @@ export class FTSManager {
 	 * the index with structural tokens (`_type`, style values like `normal`,
 	 * `_key` ULIDs) and makes snippets show JSON fragments. Extract the prose
 	 * instead: every JSON string under a `text`, `alt`, `caption`, or `code`
-	 * key (span text, image alt/caption, code blocks — mirroring
-	 * `extractPlainText` in text-extraction.ts). `json_valid` guards legacy
-	 * rows holding a bare string, which is indexed as-is; extraction must live
-	 * in SQL because the sync triggers cannot call into JS.
+	 * key (span text, image alt/caption, code blocks). Only JSON documents
+	 * (arrays/objects) are extracted; legacy rows holding a bare string or a
+	 * JSON scalar (`Some title`, `2024`) are indexed as-is. Extraction must
+	 * live in SQL because the sync triggers cannot call into JS.
 	 *
 	 * `ref` must be a validated column reference (`NEW.x`, `OLD.x`, `"x"`).
 	 */
@@ -137,7 +137,7 @@ export class FTSManager {
 		if (fieldType !== "portableText") return ref;
 		return (
 			`CASE WHEN ${ref} IS NULL THEN NULL ` +
-			`WHEN json_valid(${ref}) THEN (` +
+			`WHEN json_valid(${ref}) AND json_type(${ref}) IN ('array', 'object') THEN (` +
 			`SELECT group_concat(j.value, ' ') FROM json_tree(${ref}) AS j ` +
 			`WHERE j.key IN ('text', 'alt', 'caption', 'code') AND j.type = 'text') ` +
 			`ELSE ${ref} END`
