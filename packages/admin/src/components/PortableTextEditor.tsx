@@ -41,7 +41,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { Element } from "@emdash-cms/blocks";
 import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
+import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	TextB,
@@ -2486,20 +2486,20 @@ function EditorFooter({ editor }: { editor: Editor }) {
 		},
 	});
 
+	const { t } = useLingui();
 	const readingTime = calculateReadingTime(text);
 
 	return (
 		<div className="border-t px-4 py-2 flex items-center gap-4 text-xs text-kumo-subtle">
-			<span>
-				{words} {words === 1 ? "word" : "words"}
-			</span>
-			<span>
-				{characters} {characters === 1 ? "character" : "characters"}
-			</span>
-			<span>{readingTime} min read</span>
+			<span>{plural(words, { one: "# word", other: "# words" })}</span>
+			<span>{plural(characters, { one: "# character", other: "# characters" })}</span>
+			<span>{t`${readingTime} min read`}</span>
 		</div>
 	);
 }
+
+// Exported for unit testing
+export { EditorFooter as _EditorFooter };
 
 /** Focus mode state for the editor */
 export type FocusMode = "normal" | "spotlight";
