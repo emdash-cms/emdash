@@ -15,6 +15,11 @@ Every stage produces a verdict, and **every verdict carries its evidence** -- th
 
 "I could not reproduce this" **with** a transcript of what you tried is a first-class success. "I could not reproduce this" with nothing behind it is a failure. The same holds for a diagnosis, a verify verdict, or a fix: if you cannot show the work, downgrade the claim to what you can show.
 
+Two corollaries when you report:
+
+- **"Reproduced" means demonstrated.** A failing test you ran, an error in command output, a browser transcript. A root cause you are sure of from reading the code is a diagnosis, not a reproduction -- report it with `reproduced: false` and let the diagnosis speak.
+- **Distinguish "tried and could not" from "could not try."** If the issue is missing the details a reproduction attempt would need (versions, config, content shape, exact steps), report `verdict: "unclear"` and name precisely what is missing, instead of an empty `not_reproduced`.
+
 ## Execution environment
 
 Your Workspace tools are `read_file`, `write_file`, `edit_file`, `ls`, `grep`, and `code`, over a durable virtual filesystem holding the repo checkout. There is no shell and no git in the VFS.

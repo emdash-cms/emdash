@@ -6,12 +6,7 @@ import {
 	resolveProvider,
 } from "@cloudflare/codemode";
 import { getSandbox } from "@cloudflare/sandbox";
-import {
-	FileSystemStateBackend,
-	STATE_TYPES,
-	Workspace,
-	WorkspaceFileSystem,
-} from "@cloudflare/shell";
+import { FileSystemStateBackend, Workspace, WorkspaceFileSystem } from "@cloudflare/shell";
 import { STATE_METHODS, type StateBackend, stateToolsFromBackend } from "@cloudflare/shell/workers";
 import {
 	defineTool,
@@ -52,6 +47,17 @@ const DEFAULT_RPC_TIMEOUT_MS = 2 * 60_000;
 const EXEC_GRACE_MS = 30_000;
 const CLONE_DEPTH = 50;
 const DEADLINES = { defaultTimeoutMs: DEFAULT_RPC_TIMEOUT_MS, execGraceMs: EXEC_GRACE_MS };
+/**
+ * Ceiling on any single tool result returned to the model. Unbounded tool
+ * output accumulates across a long investigation until the conversation
+ * exceeds the model's context window and the run dies mid-flight.
+ */
+const TOOL_RESULT_LIMIT = 24_576;
+
+function truncateToolResult(text: string): string {
+	if (text.length <= TOOL_RESULT_LIMIT) return text;
+	return `${text.slice(0, TOOL_RESULT_LIMIT)}\n… [truncated: showing ${TOOL_RESULT_LIMIT} of ${text.length} characters. Narrow the request: read a specific range, grep with a tighter pattern, or aggregate with the code tool.]`;
+}
 
 const initialDataSchema = v.object({
 	runId: v.pipe(v.string(), v.minLength(1)),
@@ -137,7 +143,7 @@ export function Investigate({ id }: AgentProps) {
 			description: "Read a file from the workspace (VFS). Prefer this over shelling out to `cat`.",
 			input: v.object({ path: v.string() }),
 			async run({ data }) {
-				return await env.readFile(data.path);
+				return truncateToolResult(await env.readFile(data.path));
 			},
 		}),
 	);
@@ -173,7 +179,9 @@ export function Investigate({ id }: AgentProps) {
 			input: v.object({ path: v.string() }),
 			async run({ data }) {
 				const entries = await env.ls(data.path);
-				return entries.map((e) => (e.type === "directory" ? `${e.name}/` : e.name)).join("\n");
+				return truncateToolResult(
+					entries.map((e) => (e.type === "directory" ? `${e.name}/` : e.name)).join("\n"),
+				);
 			},
 		}),
 	);
@@ -193,7 +201,9 @@ export function Investigate({ id }: AgentProps) {
 					data.path,
 					data.ignoreCase === undefined ? undefined : { ignoreCase: data.ignoreCase },
 				);
-				return matches.map((m) => `${m.path}:${m.line}: ${m.text}`).join("\n") || "(no matches)";
+				return truncateToolResult(
+					matches.map((m) => `${m.path}:${m.line}: ${m.text}`).join("\n") || "(no matches)",
+				);
 			},
 		}),
 	);
@@ -213,7 +223,9 @@ export function Investigate({ id }: AgentProps) {
 					...(data.cwd ? { cwd: data.cwd } : {}),
 					...(data.timeoutMs ? { timeoutMs: data.timeoutMs } : {}),
 				});
-				return [`exit ${result.exitCode}`, result.stdout, result.stderr].filter(Boolean).join("\n");
+				return truncateToolResult(
+					[`exit ${result.exitCode}`, result.stdout, result.stderr].filter(Boolean).join("\n"),
+				);
 			},
 		}),
 	);
@@ -233,7 +245,9 @@ export function Investigate({ id }: AgentProps) {
 					throw new Error(`code tool failed: ${error}${logsTail}`);
 				}
 				const resultText = formatCodeResult(result);
-				return logs?.length ? `${resultText}\n\n--- logs ---\n${logs.join("\n")}` : resultText;
+				return truncateToolResult(
+					logs?.length ? `${resultText}\n\n--- logs ---\n${logs.join("\n")}` : resultText,
+				);
 			},
 		}),
 	);
@@ -241,7 +255,8 @@ export function Investigate({ id }: AgentProps) {
 	useTool(
 		defineTool({
 			name: "report_result",
-			description: "Report the final structured investigation result to the issue orchestrator.",
+			description:
+				"Report the final structured investigation result to the issue orchestrator. Set reproduced=true ONLY when you actually demonstrated the failure (a failing test run, an error in command output, a browser transcript) -- never from reading code alone. A root cause found by static analysis without a demonstrated failure reports reproduced=false with the diagnosis in summary. When the issue lacks the information a reproduction would need, report verdict='unclear' and say what is missing.",
 			input: resultSchema,
 			output: reportedResultSchema,
 			durable: true,
@@ -454,15 +469,19 @@ function buildCodeToolDescription(): string {
 		"",
 		"Rules:",
 		"- Write JavaScript, not TypeScript. No `import` statements; everything is on `state`.",
-		"- Always `return` the value you want back. Network access is disabled.",
+		"- Always `return` the value you want back — keep it small (counts, paths,",
+		"  short excerpts), not whole files. Network access is disabled.",
 		"- The state surface is READ-ONLY here: write methods throw. Change files",
 		"  with the write_file/edit_file tools instead.",
 		"",
-		"The `state` API (TypeScript declaration; the runtime is JavaScript):",
-		"",
-		"```typescript",
-		STATE_TYPES,
-		"```",
+		"Available `state` methods (all async):",
+		"- readFile(path) / readFileBytes(path) / readJson(path)",
+		"- exists(path) / stat(path) / readlink(path) / realpath(path) / resolvePath(base, path)",
+		"- readdir(path) / readdirWithFileTypes(path) / find(path, opts) / glob(pattern)",
+		"- walkTree(path, opts) / summarizeTree(path, opts)",
+		"- searchText(path, query, { regex?, caseSensitive?, maxMatches?, contextBefore?, contextAfter? })",
+		"- searchFiles(globPattern, query, opts) -> [{ path, matches: [{ line, lineText }] }]",
+		"- diff(pathA, pathB) / diffContent(path, newContent)",
 	].join("\n");
 }
 
