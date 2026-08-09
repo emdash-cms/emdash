@@ -260,7 +260,7 @@ function CollectionList({
 											icon={CONTENT_STATUS_ICONS.published}
 											count={col.published}
 											variant="success"
-											label={t`Publish`}
+											label={t`Published`}
 										/>
 										<CountBadge
 											icon={CONTENT_STATUS_ICONS.draft}
