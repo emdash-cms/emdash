@@ -20,7 +20,10 @@ import { validateIdentifier } from "../validate.js";
  * self-contained FTS5 table (no `content=` option) whose Portable Text
  * columns hold extracted prose — every JSON string under a `text`, `alt`,
  * `caption`, or `code` key — with sync triggers computing the same
- * extraction in SQL. Self-contained tables also retire the external-content
+ * extraction in SQL. The update trigger carries a WHEN guard so only real
+ * value changes re-tokenize; shipping the guard inside this rebuild spares
+ * existing sites a second full re-tokenization from a follow-up migration.
+ * Self-contained tables also retire the external-content
  * `'delete'` choreography and its corruption modes (see migration 039).
  * The rebuilt table keeps the collection's configured `tokenize` from
  * search_config rather than resetting it to the default.
@@ -169,6 +172,14 @@ async function rebuildIndex(
 	const columnList = ["id UNINDEXED", "locale UNINDEXED", ...slugs].join(", ");
 	const fieldList = slugs.join(", ");
 	const newValueList = fields.map((f) => searchValueExpr(`NEW.${f.slug}`, f.type)).join(", ");
+	// The WHEN guard compares raw column values (null-safe IS NOT) so the
+	// update trigger fires only when an indexed value, the row's locale, or
+	// its trash state actually changed; without it every UPDATE re-tokenizes
+	// the whole document. deleted_at must stay in the guard or trash and
+	// restore stop syncing the index.
+	const changedCondition = ["deleted_at", "locale", ...slugs]
+		.map((f) => `OLD.${f} IS NOT NEW.${f}`)
+		.join(" OR ");
 	// Table-qualified: a bare column reference inside the json_tree extraction
 	// subquery binds to json_tree's own key/value/type/... columns.
 	const selectValueList = fields
@@ -205,6 +216,7 @@ async function rebuildIndex(
 		.raw(`
 		CREATE TRIGGER IF NOT EXISTS "${ftsTable}_update"
 		AFTER UPDATE ON "${contentTable}"
+		WHEN ${changedCondition}
 		BEGIN
 			DELETE FROM "${ftsTable}" WHERE rowid = OLD.rowid;
 			INSERT INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
