@@ -13,6 +13,12 @@ export interface RevisionTable {
 	created_at: Generated<string>;
 }
 
+export interface RevisionPruneQueueTable {
+	collection: string;
+	entry_id: string;
+	revision_id: string;
+}
+
 export interface TaxonomyTable {
 	id: string;
 	name: string;
@@ -505,6 +511,7 @@ export interface SectionTable {
 // Note: ec_* content tables are dynamic and not part of this type
 export interface Database {
 	revisions: RevisionTable;
+	_emdash_revision_prune_queue: RevisionPruneQueueTable;
 	taxonomies: TaxonomyTable;
 	content_taxonomies: ContentTaxonomyTable;
 	_emdash_taxonomy_defs: TaxonomyDefTable;

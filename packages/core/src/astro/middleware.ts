@@ -63,7 +63,7 @@ import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.
 import type { EmDashConfig } from "./integration/runtime.js";
 import {
 	ASTRO_COOKIES_SYMBOL,
-	deferScopedCloseUntilSettled,
+	coordinateScopedDbLifecycle,
 	finishScoped,
 } from "./middleware/scoped-db.js";
 import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
@@ -366,26 +366,33 @@ async function runOutsideRequest<T>(
 		// outside a request. Any close-less scope created above is discarded.
 		return fn(runtime);
 	}
+	const { closed, deferredTasks, lifecycle } = coordinateScopedDbLifecycle(scoped);
 
 	const parent = getRequestContext();
 	const ctx = parent
-		? { ...parent, db: scoped.db }
-		: { editMode: false, db: scoped.db, metrics: createRequestMetrics(performance.now()) };
+		? { ...parent, db: scoped.db, deferredTasks }
+		: {
+				editMode: false,
+				db: scoped.db,
+				metrics: createRequestMetrics(performance.now()),
+				deferredTasks,
+			};
 	try {
 		return await runWithContext(ctx, () => fn(runtime));
 	} finally {
 		// Guard both so a throw in teardown can't mask the callback result or
-		// skip close() and leak the connection. Mirrors closeSafely() in scoped-db.ts.
+		// skip lifecycle settlement and leak the connection.
 		try {
-			scoped.commit();
+			lifecycle.commit();
 		} catch (error) {
 			console.error("[emdash] event-scoped db commit failed:", error);
 		}
 		try {
-			scoped.close();
+			lifecycle.close?.();
 		} catch (error) {
 			console.error("[emdash] event-scoped db close failed:", error);
 		}
+		await closed;
 	}
 }
 
@@ -687,10 +694,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					return wrapBodyForStreamMetrics(finalizeResponse(response, timings));
 				};
 				if (anonScoped) {
+					const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle(anonScoped);
 					const parent = getRequestContext();
 					const ctx = parent
-						? { ...parent, db: anonScoped.db }
-						: { editMode: false, db: anonScoped.db, metrics };
+						? { ...parent, db: anonScoped.db, deferredTasks }
+						: { editMode: false, db: anonScoped.db, metrics, deferredTasks };
 					// Eagerly warm site-global layout data (menus, widget areas,
 					// taxonomy terms, settings) concurrently so the layout's
 					// per-component reads overlap into ~one wall-clock round trip and
@@ -710,13 +718,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						.trim()
 						.startsWith("text/html");
 					return runWithContext(ctx, async () => {
-						const scopedLifecycle = acceptsHtml
-							? deferScopedCloseUntilSettled(anonScoped, prefetchLayoutData(), after)
-							: anonScoped;
+						if (acceptsHtml) after(() => prefetchLayoutData());
 						// commit() persists per-request state (e.g. the D1 bookmark cookie)
 						// before the response is returned, even if render throws; close()
-						// (connection teardown) is deferred to stream-end. See finishScoped.
-						return finishScoped(scopedLifecycle, runAnon);
+						// waits for stream-end and request-owned deferred work. See finishScoped.
+						return finishScoped(lifecycle, runAnon);
 					});
 				}
 				return runAnon();
@@ -903,15 +909,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			};
 
 			if (scoped) {
+				const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle(scoped);
 				const parent = getRequestContext();
 				const ctx = parent
-					? { ...parent, db: scoped.db }
-					: { editMode: false, db: scoped.db, metrics };
+					? { ...parent, db: scoped.db, deferredTasks }
+					: { editMode: false, db: scoped.db, metrics, deferredTasks };
 				return runWithContext(ctx, () =>
 					// commit() persists per-request state (e.g. the D1 bookmark cookie)
 					// before the response returns, even if render throws; close()
-					// (connection teardown) is deferred to stream-end. See finishScoped.
-					finishScoped(scoped, renderAndFinalize),
+					// waits for stream-end and request-owned deferred work. See finishScoped.
+					finishScoped(lifecycle, renderAndFinalize),
 				);
 			}
 

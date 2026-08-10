@@ -6,6 +6,9 @@
  * request-scoped db adapter's lifecycle around the response.
  */
 
+import { createDeferredTaskTracker } from "../../deferred-tasks.js";
+import type { DeferredTaskTracker } from "../../deferred-tasks.js";
+
 /**
  * Astro attaches AstroCookies to outgoing responses via a well-known global
  * symbol. Cloning a Response (`new Response(body, init)`) drops non-header
@@ -21,36 +24,27 @@ interface ScopedDbLifecycle {
 	close?: () => void;
 }
 
-type DeferredTaskScheduler = (task: () => void | Promise<void>) => void;
+/** Hold the real adapter close behind both response and deferred-task completion. */
+export function coordinateScopedDbLifecycle(scoped: ScopedDbLifecycle): {
+	closed?: Promise<void>;
+	deferredTasks?: DeferredTaskTracker;
+	lifecycle: ScopedDbLifecycle;
+} {
+	if (!scoped.close) return { lifecycle: scoped };
 
-/**
- * Keep teardown alive while both the response and request-owned background
- * work finish. The returned close callback only signals response completion;
- * the adapter's real close runs afterward inside the deferred task.
- */
-export function deferScopedCloseUntilSettled(
-	scoped: ScopedDbLifecycle,
-	pending: Promise<unknown>,
-	defer: DeferredTaskScheduler,
-): ScopedDbLifecycle {
-	if (!scoped.close) {
-		defer(async () => {
-			await pending;
-		});
-		return scoped;
-	}
-
-	let settleResponse!: () => void;
-	const responseSettled = new Promise<void>((resolve) => {
-		settleResponse = resolve;
-	});
 	const close = scoped.close;
-	defer(async () => {
-		await Promise.allSettled([pending, responseSettled]);
-		close();
+	const deferredTasks = createDeferredTaskTracker(() => {
+		try {
+			close();
+		} catch (error) {
+			console.error("[emdash] request-scoped db close failed:", error);
+		}
 	});
-
-	return { commit: scoped.commit, close: settleResponse };
+	return {
+		closed: deferredTasks.settled,
+		deferredTasks,
+		lifecycle: { commit: scoped.commit, close: deferredTasks.settle },
+	};
 }
 
 /**
@@ -99,9 +93,9 @@ export function wrapResponseForScopedClose(response: Response, close: () => void
  * Run the request body under a request-scoped db, then settle its lifecycle:
  * `commit()` runs before the response is returned (so per-request state like a
  * D1 bookmark cookie is persisted in the headers, even if render throws), while
- * `close()` (if any) is deferred to stream-end so a connection-backed adapter
- * isn't torn down mid-render. On error the connection is closed immediately
- * before rethrowing so it never leaks.
+ * `close()` (if any) is deferred to lifecycle settlement so a
+ * connection-backed adapter isn't torn down mid-render or mid-task. On error
+ * the lifecycle is settled before rethrowing so it never leaks.
  *
  * On the error path both `commit()` and `close()` are defended: a throw from
  * either is logged and swallowed so it can't replace the propagating render
