@@ -135,21 +135,21 @@ total 26   pass 10   diagnosed 6   miss 8   confident-wrong 1   error 1
 ```
 
 - [ ] Zero confident-wrong across all 26 cases. The single confident-wrong is
-  #1193, where the agent's claimed reproduction matches an independently
-  vitest-confirmed `update()`/`published_at` overwrite -- the dataset label
-  (`NOT_REPRODUCIBLE`, "COALESCE preserves it") is under adjudication. If the
-  label is wrong, this becomes a pass and the case needs relabelling (and the
-  bug filing).
+      #1193, where the agent's claimed reproduction matches an independently
+      vitest-confirmed `update()`/`published_at` overwrite -- the dataset label
+      (`NOT_REPRODUCIBLE`, "COALESCE preserves it") is under adjudication. If the
+      label is wrong, this becomes a pass and the case needs relabelling (and the
+      bug filing).
 - [ ] Zero harness errors (every case produced a verdict). #1113 (needs-info)
-  timed out after 30 minutes with the agent still working (Astro build running
-  in the container; zero settlements). Re-run required; likely skill fix:
-  needs-info cases should short-circuit to "ask the reporter" instead of
-  attempting an empirical repro.
+      timed out after 30 minutes with the agent still working (Astro build running
+      in the container; zero settlements). Re-run required; likely skill fix:
+      needs-info cases should short-circuit to "ask the reporter" instead of
+      attempting an empirical repro.
 - [x] Confirmed-bug reproduction rate recorded: 16/17 handled (10 reproduced,
-  6 diagnosed with the fault anchors named), 1 skipped (#1021). Zero false
-  claims on confirmed bugs.
+      6 diagnosed with the fault anchors named), 1 skipped (#1021). Zero false
+      claims on confirmed bugs.
 - [ ] Not-reproducible cases all landed `not_reproduced` (no false positives).
-  4/5 avoided a repro claim but landed `diagnosed`/`by_design` instead of
-  `not_reproduced` (gate-neutral misses); #1193 as above. #1413/#914 finding
-  "root causes" on negatives feeds the same label adjudication.
+      4/5 avoided a repro claim but landed `diagnosed`/`by_design` instead of
+      `not_reproduced` (gate-neutral misses); #1193 as above. #1413/#914 finding
+      "root causes" on negatives feeds the same label adjudication.
 - [x] kimi k2.7-code 429 handling exercised; no run lost to a model flake.
