@@ -288,14 +288,6 @@ export function __setObjectCacheBackendForTests(
 	contentWritePersist.pending = false;
 }
 
-/**
- * Test-only local stamp of the last content-namespace invalidation.
- * @internal
- */
-export function __getLastContentWriteAtForTests(): number {
-	return lastContentWrite.value;
-}
-
 /** Build the backend key for a namespace's epoch anchor. */
 function epochKey(namespace: string): string {
 	return `${holder.config.keyPrefix}:epoch:${namespace}`;

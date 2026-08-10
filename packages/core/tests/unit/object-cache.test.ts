@@ -4,7 +4,6 @@ vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual
 
 import { decode, encode } from "../../src/object-cache/codec.js";
 import {
-	__getLastContentWriteAtForTests,
 	__setObjectCacheBackendForTests,
 	cachedQuery,
 	getLastContentWriteAt,
@@ -453,35 +452,34 @@ describe("last content write stamp", () => {
 	});
 
 	it("stamps lastContentWriteAt when invalidating a content: namespace", async () => {
-		expect(__getLastContentWriteAtForTests()).toBe(0);
+		expect(await getLastContentWriteAt()).toBe(0);
 		const before = Date.now();
 		invalidateObjectCache("content:posts");
-		const local = __getLastContentWriteAtForTests();
+		const local = await getLastContentWriteAt();
 		expect(local).toBeGreaterThanOrEqual(before);
-		expect(await getLastContentWriteAt()).toBe(local);
 		await flush();
 	});
 
 	it("stamps via invalidateCollectionCache", async () => {
 		invalidateCollectionCache("posts");
-		expect(__getLastContentWriteAtForTests()).toBeGreaterThan(0);
+		expect(await getLastContentWriteAt()).toBeGreaterThan(0);
 	});
 
-	it("does not stamp on non-content namespaces", () => {
+	it("does not stamp on non-content namespaces", async () => {
 		invalidateObjectCache("settings");
 		invalidateObjectCache("menus");
 		invalidateObjectCache("bylines");
 		invalidateObjectCache("taxonomies");
 		invalidateObjectCache("schema");
 		invalidateObjectCache("comments");
-		expect(__getLastContentWriteAtForTests()).toBe(0);
+		expect(await getLastContentWriteAt()).toBe(0);
 	});
 
 	it("persists the stamp to the backend under a stable key", async () => {
 		const backend = spyBackend();
 		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
 		invalidateObjectCache("content:posts");
-		const local = __getLastContentWriteAtForTests();
+		const local = await getLastContentWriteAt();
 		await flush();
 		const setKeys = vi.mocked(backend.set).mock.calls.map((c) => c[0]);
 		expect(setKeys).toContain("em:last-content-write-at");
@@ -501,10 +499,8 @@ describe("last content write stamp", () => {
 		const backend = spyBackend();
 		backend.store.set("em:last-content-write-at", "1700000000000");
 		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
-		expect(__getLastContentWriteAtForTests()).toBe(0);
 		const got = await getLastContentWriteAt();
 		expect(got).toBe(1_700_000_000_000);
-		expect(__getLastContentWriteAtForTests()).toBe(1_700_000_000_000);
 	});
 
 	it("does not let a stale backend read lower a fresher local stamp", async () => {
@@ -512,9 +508,7 @@ describe("last content write stamp", () => {
 		backend.store.set("em:last-content-write-at", "100");
 		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
 		invalidateObjectCache("content:posts");
-		const local = __getLastContentWriteAtForTests();
+		const local = await getLastContentWriteAt();
 		expect(local).toBeGreaterThan(100);
-		const got = await getLastContentWriteAt();
-		expect(got).toBe(local);
 	});
 });
