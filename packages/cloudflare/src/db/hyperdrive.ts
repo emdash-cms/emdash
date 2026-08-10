@@ -155,6 +155,7 @@ export interface RequestScopedDbOpts {
 	config: HyperdriveConfig;
 	isAuthenticated: boolean;
 	isWrite: boolean;
+	canUseCachedBinding?: boolean;
 	cookies: CookieJar;
 	url: URL;
 	/** ms-epoch of last content-namespace invalidation; from core object-cache. */
@@ -195,6 +196,7 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 	const bindingName = selectBindingName(opts.config, {
 		isAuthenticated: opts.isAuthenticated,
 		isWrite: opts.isWrite,
+		canUseCachedBinding: opts.canUseCachedBinding,
 		url: opts.url,
 		lastContentWriteAt: opts.lastContentWriteAt,
 		now: opts.now ?? Date.now(),
@@ -293,6 +295,7 @@ export function selectBindingName(
 	opts: {
 		isAuthenticated: boolean;
 		isWrite: boolean;
+		canUseCachedBinding?: boolean;
 		url: URL;
 		lastContentWriteAt?: number;
 		now: number;
@@ -300,9 +303,8 @@ export function selectBindingName(
 ): string {
 	if (
 		config.cachedBinding &&
-		!opts.isAuthenticated &&
-		!opts.isWrite &&
-		!isEmDashInternalPath(opts.url)
+		(opts.canUseCachedBinding ??
+			(!opts.isAuthenticated && !opts.isWrite && !isEmDashInternalPath(opts.url)))
 	) {
 		const duration = preferUncachedDurationMs(config);
 		const lastWrite = opts.lastContentWriteAt ?? 0;

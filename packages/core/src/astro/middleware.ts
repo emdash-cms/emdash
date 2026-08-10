@@ -562,6 +562,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const hasBearerAuth = (request.headers.get("authorization") ?? "")
 			.toLowerCase()
 			.startsWith("bearer ");
+		const isWrite = request.method !== "GET" && request.method !== "HEAD";
+		const isAuthenticated = !!sessionUser || hasBearerAuth;
+		const canUseCachedBinding =
+			!isAuthenticated &&
+			!isWrite &&
+			!playgroundDb &&
+			!isEmDashRoute &&
+			!hasEditCookie &&
+			!hasPreviewToken;
 
 		if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 			if (!sessionUser && !playgroundDb) {
@@ -648,13 +657,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Even on the anonymous fast path we ask the adapter for a per-request
 				// scoped db. For D1 with read replication this routes anonymous reads
 				// to the nearest replica; for other adapters it's a no-op.
-				const lastContentWriteAt = config?.database?.needsLastContentWriteAt
-					? await getLastContentWriteAt()
-					: undefined;
+				const lastContentWriteAt =
+					canUseCachedBinding && config?.database?.needsLastContentWriteAt
+						? await getLastContentWriteAt()
+						: undefined;
 				const anonScoped = createRequestScopedDb({
 					config: config?.database?.config,
-					isAuthenticated: false,
-					isWrite: request.method !== "GET" && request.method !== "HEAD",
+					isAuthenticated,
+					isWrite,
+					canUseCachedBinding,
 					cookies,
 					url,
 					lastContentWriteAt,
@@ -860,13 +871,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// it in ALS so the runtime's db getter and loader's getDb() pick it up,
 			// then call commit() after next() so the adapter can persist any
 			// per-request state (e.g. a D1 bookmark cookie for read-your-writes).
-			const lastContentWriteAt = config?.database?.needsLastContentWriteAt
-				? await getLastContentWriteAt()
-				: undefined;
+			const lastContentWriteAt =
+				canUseCachedBinding && config?.database?.needsLastContentWriteAt
+					? await getLastContentWriteAt()
+					: undefined;
 			const scoped = createRequestScopedDb({
 				config: config?.database?.config,
-				isAuthenticated: !!sessionUser || hasBearerAuth,
-				isWrite: request.method !== "GET" && request.method !== "HEAD",
+				isAuthenticated,
+				isWrite,
+				canUseCachedBinding,
 				cookies: context.cookies,
 				url,
 				lastContentWriteAt,

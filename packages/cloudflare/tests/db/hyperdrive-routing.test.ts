@@ -75,6 +75,17 @@ describe("selectBindingName", () => {
 		expect(name).toBe("HYPERDRIVE");
 	});
 
+	it("uses the primary binding when middleware excludes a read from public caching", () => {
+		const name = selectBindingName(cfg, {
+			isAuthenticated: false,
+			isWrite: false,
+			canUseCachedBinding: false,
+			url: publicUrl,
+			now,
+		});
+		expect(name).toBe("HYPERDRIVE");
+	});
+
 	it("uses the primary binding for anonymous GETs under /_emdash (setup/auth/admin APIs)", () => {
 		for (const path of [
 			"/_emdash",
