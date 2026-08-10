@@ -298,7 +298,7 @@ export function selectBindingName(
 		canUseCachedBinding?: boolean;
 		url: URL;
 		lastContentWriteAt?: number;
-		now: number;
+		now?: number;
 	},
 ): string {
 	if (
@@ -308,7 +308,8 @@ export function selectBindingName(
 	) {
 		const duration = preferUncachedDurationMs(config);
 		const lastWrite = opts.lastContentWriteAt ?? 0;
-		if (duration > 0 && lastWrite > 0 && opts.now - lastWrite < duration) {
+		const now = opts.now ?? Date.now();
+		if (duration > 0 && lastWrite > 0 && now - lastWrite < duration) {
 			return config.binding;
 		}
 		return config.cachedBinding;

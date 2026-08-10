@@ -140,6 +140,22 @@ describe("selectBindingName", () => {
 		expect(name).toBe("HYPERDRIVE");
 	});
 
+	it("uses the current time when callers omit now", () => {
+		const currentTime = 10_000_000;
+		const nowSpy = vi.spyOn(Date, "now").mockReturnValue(currentTime);
+		try {
+			const name = selectBindingName(cfg, {
+				isAuthenticated: false,
+				isWrite: false,
+				url: publicUrl,
+				lastContentWriteAt: currentTime - 1_000,
+			});
+			expect(name).toBe("HYPERDRIVE");
+		} finally {
+			nowSpy.mockRestore();
+		}
+	});
+
 	it("uses the cached binding once the prefer-uncached window has elapsed", () => {
 		const name = selectBindingName(cfg, {
 			isAuthenticated: false,

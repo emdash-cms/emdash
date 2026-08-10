@@ -55,7 +55,7 @@ declare module "virtual:emdash/dialect" {
 		isAuthenticated: boolean;
 		isWrite: boolean;
 		/** Whether core routing allows this request to use an anonymous public-read cache. */
-		canUseCachedBinding: boolean;
+		canUseCachedBinding?: boolean;
 		cookies: {
 			get(name: string): { value: string } | undefined;
 			set(name: string, value: string, options: Record<string, unknown>): void;
