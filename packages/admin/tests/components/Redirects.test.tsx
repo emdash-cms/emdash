@@ -12,7 +12,7 @@ vi.mock("../../src/lib/api/redirects.js", () => ({
 }));
 
 import { Redirects } from "../../src/components/Redirects.js";
-import { fetchRedirects } from "../../src/lib/api/redirects.js";
+import { fetchRedirects, updateRedirect } from "../../src/lib/api/redirects.js";
 
 function makeRedirect(index: number): Redirect {
 	return {
@@ -34,6 +34,7 @@ function makeRedirect(index: number): Redirect {
 describe("Redirects", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		vi.mocked(updateRedirect).mockResolvedValue(makeRedirect(1));
 		vi.mocked(fetchRedirects).mockImplementation(async ({ cursor } = {}) => {
 			if (cursor === "page-2") {
 				return { items: [makeRedirect(101)] };
@@ -57,5 +58,18 @@ describe("Redirects", () => {
 		expect(fetchRedirects).toHaveBeenLastCalledWith(
 			expect.objectContaining({ cursor: "page-2", limit: 100 }),
 		);
+	});
+
+	it("restarts pagination after a redirect mutation", async () => {
+		const screen = await render(<Redirects />);
+
+		await expect.element(screen.getByText("/source-100")).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Load more" }).click();
+		await expect.element(screen.getByText("/source-101")).toBeInTheDocument();
+
+		await screen.getByRole("switch", { name: "Disable redirect" }).first().click();
+
+		await expect.element(screen.getByRole("button", { name: "Load more" })).toBeInTheDocument();
+		expect(screen.getByText("/source-101").query()).toBeNull();
 	});
 });

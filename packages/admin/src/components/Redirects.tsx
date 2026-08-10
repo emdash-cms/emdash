@@ -65,7 +65,7 @@ function RedirectFormDialog({
 	const createMutation = useMutation({
 		mutationFn: (input: CreateRedirectInput) => createRedirect(input),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 			onClose();
 		},
 	});
@@ -73,7 +73,7 @@ function RedirectFormDialog({
 	const updateMutation = useMutation({
 		mutationFn: (input: UpdateRedirectInput) => updateRedirect(redirect!.id, input),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 			onClose();
 		},
 	});
@@ -319,7 +319,7 @@ export function Redirects() {
 	const deleteMutation = useMutation({
 		mutationFn: (id: string) => deleteRedirect(id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 			setDeleteId(null);
 		},
 	});
@@ -329,10 +329,10 @@ export function Redirects() {
 		mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
 			updateRedirect(id, { enabled }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 		},
 		onError: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 		},
 	});
 
@@ -341,7 +341,7 @@ export function Redirects() {
 		mutationFn: (path: string) =>
 			createRedirect({ source: path, destination: "", type: 410, enabled: true }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 		},
 	});
 
