@@ -5,7 +5,7 @@
  */
 
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
-import { FIELD_TYPES } from "../schema/types.js";
+import { FIELD_TYPES, MAX_COLLECTION_LIST_COLUMNS } from "../schema/types.js";
 import type { SeedFile, SeedMenuItem, ValidationResult } from "./types.js";
 
 const COLLECTION_FIELD_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -123,6 +123,11 @@ export function validateSeed(data: unknown): ValidationResult {
 						if (!Array.isArray(collection.admin.listColumns)) {
 							errors.push(`${prefix}.admin.listColumns: must be an array`);
 						} else {
+							if (collection.admin.listColumns.length > MAX_COLLECTION_LIST_COLUMNS) {
+								errors.push(
+									`${prefix}.admin.listColumns: must contain at most ${MAX_COLLECTION_LIST_COLUMNS} items`,
+								);
+							}
 							for (let j = 0; j < collection.admin.listColumns.length; j++) {
 								const slug = collection.admin.listColumns[j];
 								if (typeof slug !== "string" || !COLLECTION_FIELD_SLUG_PATTERN.test(slug)) {

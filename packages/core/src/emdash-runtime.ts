@@ -67,7 +67,7 @@ import type {
 	FieldWidgetConfig,
 	SettingField,
 } from "./plugins/types.js";
-import type { FieldType } from "./schema/types.js";
+import { MAX_COLLECTION_LIST_COLUMNS, type FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
 import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
 import { createSingleFlightCache, singleFlightCached } from "./utils/single-flight-cache.js";
@@ -245,7 +245,6 @@ const LIST_COLUMN_FIELD_TYPES: ReadonlySet<FieldType> = new Set([
 	"select",
 	"multiSelect",
 ]);
-const MAX_LIST_COLUMNS = 4;
 
 /**
  * Sandboxed plugin entry from virtual module
@@ -2441,9 +2440,9 @@ export class EmDashRuntime {
 						);
 						continue;
 					}
-					if (listColumns.length >= MAX_LIST_COLUMNS) {
+					if (listColumns.length >= MAX_COLLECTION_LIST_COLUMNS) {
 						console.warn(
-							`EmDash: Collection "${collection.slug}" declares more than ${MAX_LIST_COLUMNS} list columns; extra columns are ignored.`,
+							`EmDash: Collection "${collection.slug}" declares more than ${MAX_COLLECTION_LIST_COLUMNS} list columns; extra columns are ignored.`,
 						);
 						break;
 					}

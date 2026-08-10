@@ -155,6 +155,8 @@ export interface FieldWidgetOptions {
 	[key: string]: unknown;
 }
 
+export const MAX_COLLECTION_LIST_COLUMNS = 4;
+
 /** Collection-level admin presentation options. */
 export interface CollectionAdminConfig {
 	/** Custom field slugs to show in the content list. */
