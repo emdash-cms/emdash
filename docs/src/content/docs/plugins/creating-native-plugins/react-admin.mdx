@@ -273,7 +273,7 @@ import type {
 
 function ScoreCell({ item }: ContentListColumnCellContext) {
 	const score = item.data.seoScore;
-	return typeof score === "number" ? <span>{score}</span> : <span>—</span>;
+	return typeof score === "number" ? <span>{score}</span> : <span>-</span>;
 }
 
 export const contentListColumns = [

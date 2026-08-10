@@ -208,7 +208,7 @@ export class ContentListColumnBoundary extends React.Component<
 
 		return (
 			<span className="text-kumo-subtle">
-				<span aria-hidden="true">—</span>
+				<span aria-hidden="true">-</span>
 				<span className="sr-only">
 					<Trans>Plugin column unavailable</Trans>
 				</span>

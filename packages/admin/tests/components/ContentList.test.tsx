@@ -888,7 +888,12 @@ describe("ContentList", () => {
 			]);
 
 			await expect.element(screen.getByText("Broken fallback")).toBeVisible();
-			await expect.element(screen.getByText("Plugin column unavailable")).toBeInTheDocument();
+			const unavailableCell = screen.getByRole("cell", {
+				name: "Plugin column unavailable",
+			});
+			await expect.element(unavailableCell).toHaveTextContent("-");
+			const visualFallback = unavailableCell.element().querySelector('[aria-hidden="true"]');
+			expect(visualFallback).toHaveTextContent("-");
 			await expect.element(screen.getByText("Healthy value")).toBeVisible();
 			await expect.element(screen.getByText("Plugin Post")).toBeVisible();
 			expect(error).toHaveBeenCalled();
