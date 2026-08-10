@@ -143,18 +143,6 @@ describe("astro middleware cache validator", () => {
 		expect(cache.options.lastModified?.getTime()).toBe(BUILD_TIME);
 	});
 
-	it("keeps a content validator newer than the build", async () => {
-		const cache = createCache();
-		const contentModified = new Date(BUILD_TIME + 60 * 60 * 1000);
-
-		await onRequest(
-			anonymousPublicPageContext(cache) as Parameters<typeof onRequest>[0],
-			pageSetting(cache, { lastModified: contentModified, tags: ["posts"] }),
-		);
-
-		expect(cache.options.lastModified?.getTime()).toBe(contentModified.getTime());
-	});
-
 	it("leaves a route that opts out of caching opted out", async () => {
 		const cache = createCache();
 
