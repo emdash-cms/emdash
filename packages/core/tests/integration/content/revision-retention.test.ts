@@ -20,11 +20,6 @@ import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
-async function flushDeferred(): Promise<void> {
-	const tasks = deferred.splice(0);
-	for (const task of tasks) await task();
-}
-
 describe("revision retention without scheduled cleanup", () => {
 	let db: Kysely<Database>;
 	let runtime: EmDashRuntime;
@@ -43,7 +38,7 @@ describe("revision retention without scheduled cleanup", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("bounds history through request-lifetime work without a scheduled tick", async () => {
+	it("bounds history before an update returns without a scheduled tick", async () => {
 		const created = await runtime.handleContentCreate("posts", {
 			data: { title: "Initial" },
 			slug: "bounded-history",
@@ -64,10 +59,6 @@ describe("revision retention without scheduled cleanup", () => {
 			data: { title: "Version 50" },
 		});
 		expect(saved.success).toBe(true);
-		expect(await revisions.countByEntry("posts", entryId)).toBe(51);
-
-		await flushDeferred();
-
 		expect(await revisions.countByEntry("posts", entryId)).toBe(50);
 	});
 });
