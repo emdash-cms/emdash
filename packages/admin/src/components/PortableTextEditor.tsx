@@ -42,6 +42,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { Element } from "@emdash-cms/blocks";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg, plural } from "@lingui/core/macro";
+import { useLingui as useLinguiContext } from "@lingui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
 	TextB,
@@ -2486,14 +2487,15 @@ function EditorFooter({ editor }: { editor: Editor }) {
 		},
 	});
 
-	const { t } = useLingui();
+	// Subscribes to locale changes so the plural messages below re-render.
+	useLinguiContext();
 	const readingTime = calculateReadingTime(text);
 
 	return (
 		<div className="border-t px-4 py-2 flex items-center gap-4 text-xs text-kumo-subtle">
 			<span>{plural(words, { one: "# word", other: "# words" })}</span>
 			<span>{plural(characters, { one: "# character", other: "# characters" })}</span>
-			<span>{t`${readingTime} min read`}</span>
+			<span>{plural(readingTime, { one: "# min read", other: "# min read" })}</span>
 		</div>
 	);
 }

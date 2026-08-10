@@ -5,7 +5,7 @@ import CharacterCount from "@tiptap/extension-character-count";
 import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import * as React from "react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { _EditorFooter, countWords } from "../../src/components/PortableTextEditor";
 import { render } from "../utils/render.tsx";
@@ -18,7 +18,8 @@ const deMessages = {
 		"{words, plural, one {# Wort} other {# Wörter}}",
 	[msg`{characters, plural, one {# character} other {# characters}}`.id!]:
 		"{characters, plural, one {# Zeichen} other {# Zeichen}}",
-	[msg`{readingTime} min read`.id!]: "{readingTime} Min. Lesezeit",
+	[msg`{readingTime, plural, one {# min read} other {# min read}}`.id!]:
+		"{readingTime, plural, one {# Minute Lesezeit} other {# Min. Lesezeit}}",
 };
 
 beforeAll(() => {
@@ -48,7 +49,7 @@ describe("EditorFooter localization", () => {
 			expect(screen.getByText("3 Wörter")).toBeTruthy();
 		});
 		expect(screen.getByText("17 Zeichen")).toBeTruthy();
-		expect(screen.getByText("1 Min. Lesezeit")).toBeTruthy();
+		expect(screen.getByText("1 Minute Lesezeit")).toBeTruthy();
 	});
 
 	it("uses the catalog's plural rules for the singular branch", async () => {
