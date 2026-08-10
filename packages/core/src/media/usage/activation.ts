@@ -403,6 +403,8 @@ async function prepareCollectionForActivation(
 	const now = timestampOffset(db, 0);
 	const existingStatus = sql.ref("_emdash_media_usage_index_status.status");
 	const existingCompletedAt = sql.ref("_emdash_media_usage_index_status.completed_at");
+	const existingCollectionId = sql.ref("_emdash_media_usage_index_status.collection_id");
+	const existingCaptureState = sql.ref("_emdash_media_usage_index_status.capture_state");
 	const row = await db
 		.insertInto("_emdash_media_usage_index_status")
 		.values({
@@ -431,8 +433,14 @@ async function prepareCollectionForActivation(
 				})
 				.where((eb) =>
 					eb.and([
-						eb.or([eb("collection_id", "is", null), eb("collection_id", "=", collection.id)]),
-						eb.or([eb("capture_state", "is", null), eb("capture_state", "!=", "deleting")]),
+						eb.or([
+							eb(existingCollectionId, "is", null),
+							eb(existingCollectionId, "=", collection.id),
+						]),
+						eb.or([
+							eb(existingCaptureState, "is", null),
+							eb(existingCaptureState, "!=", "deleting"),
+						]),
 						activeActivationLease(db, leaseToken),
 					]),
 				),
