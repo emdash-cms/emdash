@@ -8,7 +8,6 @@
  * Commands:
  * - init: Bootstrap database from template config, or interactive setup
  * - types: Generate TypeScript types from schema
- * - dev: Run dev server with local D1
  * - seed: Apply a seed file to the database
  * - export-seed: Export database schema and content as a seed file
  * - secrets: Generate and inspect EmDash secrets (encryption keys, etc.)
@@ -27,7 +26,6 @@ import { defineCommand, runMain } from "citty";
 
 import { authCommand } from "./commands/auth.js";
 import { contentCommand } from "./commands/content.js";
-import { devCommand } from "./commands/dev.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { exportSeedCommand } from "./commands/export-seed.js";
 import { initCommand } from "./commands/init.js";
@@ -51,7 +49,6 @@ const main = defineCommand({
 	subCommands: {
 		init: initCommand,
 		types: typesCommand,
-		dev: devCommand,
 		doctor: doctorCommand,
 		seed: seedCommand,
 		"export-seed": exportSeedCommand,
