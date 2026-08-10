@@ -68,6 +68,7 @@ vi.mock("../../../src/object-cache/index.js", async (importOriginal) => ({
 
 import { createRequestScopedDb } from "virtual:emdash/dialect";
 
+import { after } from "../../../src/after.js";
 import { withEmDashRuntime } from "../../../src/astro/middleware.js";
 import { getRequestContext } from "../../../src/request-context.js";
 
@@ -147,6 +148,39 @@ describe("withEmDashRuntime (#1887)", () => {
 		).rejects.toThrow("job failed");
 
 		expect(commit).toHaveBeenCalledTimes(1);
+		expect(close).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not finish an event before deferred work releases its scoped db", async () => {
+		let release!: () => void;
+		let returned = false;
+		const close = vi.fn();
+		vi.mocked(createRequestScopedDb).mockReturnValue({
+			db: { _marker: "scoped" } as never,
+			commit: vi.fn(),
+			close,
+		});
+
+		const resultPromise = withEmDashRuntime(async () => {
+			after(
+				() =>
+					new Promise<void>((resolve) => {
+						release = resolve;
+					}),
+			);
+			return "ok";
+		}).then((result) => {
+			returned = true;
+			return result;
+		});
+
+		await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+		await Promise.resolve();
+		expect(returned).toBe(false);
+		expect(close).not.toHaveBeenCalled();
+
+		release();
+		await expect(resultPromise).resolves.toBe("ok");
 		expect(close).toHaveBeenCalledTimes(1);
 	});
 

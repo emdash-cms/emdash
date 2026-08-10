@@ -1,4 +1,5 @@
 export interface DeferredTaskTracker {
+	settled: Promise<void>;
 	track<T>(promise: Promise<T>): Promise<T>;
 	settle(): void;
 }
@@ -36,14 +37,23 @@ export function createDeferredTaskTracker(onSettled: () => void): DeferredTaskTr
 	let pending = 0;
 	let responseSettled = false;
 	let completed = false;
+	let resolveSettled!: () => void;
+	const settled = new Promise<void>((resolve) => {
+		resolveSettled = resolve;
+	});
 
 	const completeIfSettled = () => {
 		if (completed || !responseSettled || pending > 0) return;
 		completed = true;
-		onSettled();
+		try {
+			onSettled();
+		} finally {
+			resolveSettled();
+		}
 	};
 
 	return {
+		settled,
 		track<T>(promise: Promise<T>): Promise<T> {
 			pending++;
 			return promise.finally(() => {

@@ -366,7 +366,7 @@ async function runOutsideRequest<T>(
 		// outside a request. Any close-less scope created above is discarded.
 		return fn(runtime);
 	}
-	const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle(scoped);
+	const { closed, deferredTasks, lifecycle } = coordinateScopedDbLifecycle(scoped);
 
 	const parent = getRequestContext();
 	const ctx = parent
@@ -392,6 +392,9 @@ async function runOutsideRequest<T>(
 		} catch (error) {
 			console.error("[emdash] event-scoped db close failed:", error);
 		}
+		// An event handler's returned promise owns its lifetime; unlike an HTTP
+		// response, there is no later stream completion to anchor adapter teardown.
+		await closed;
 	}
 }
 

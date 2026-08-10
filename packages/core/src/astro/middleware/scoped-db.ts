@@ -26,6 +26,7 @@ interface ScopedDbLifecycle {
 
 /** Hold the real adapter close behind both response and deferred-task completion. */
 export function coordinateScopedDbLifecycle(scoped: ScopedDbLifecycle): {
+	closed?: Promise<void>;
 	deferredTasks?: DeferredTaskTracker;
 	lifecycle: ScopedDbLifecycle;
 } {
@@ -40,6 +41,7 @@ export function coordinateScopedDbLifecycle(scoped: ScopedDbLifecycle): {
 		}
 	});
 	return {
+		closed: deferredTasks.settled,
 		deferredTasks,
 		lifecycle: { commit: scoped.commit, close: deferredTasks.settle },
 	};
