@@ -2498,7 +2498,7 @@ function EditorFooter({ editor }: { editor: Editor }) {
 	);
 }
 
-// Exported for unit testing
+export { EditorFooter as _EditorFooter };
 export { EditorFooter as _EditorFooter };
 
 /** Focus mode state for the editor */

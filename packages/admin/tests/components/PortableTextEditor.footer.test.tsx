@@ -25,6 +25,10 @@ beforeAll(() => {
 	i18n.loadAndActivate({ locale: "de", messages: deMessages });
 });
 
+afterAll(() => {
+	i18n.loadAndActivate({ locale: "en", messages: {} });
+});
+
 function FooterHarness({ content }: { content: string }) {
 	const editor = useEditor({
 		extensions: [StarterKit, CharacterCount.configure({ wordCounter: countWords })],
