@@ -45,6 +45,7 @@ interface RedirectCacheState {
 }
 
 const REDIRECT_CACHE_TTL_MS = 30_000;
+const REDIRECT_CACHE_MAX_REFRESH_ATTEMPTS = 3;
 const REDIRECT_CACHE_KEY = Symbol.for("emdash:redirect-cache");
 const g = globalThis as Record<symbol, unknown>;
 const cacheState: RedirectCacheState =
@@ -102,15 +103,10 @@ function installCachedRedirects(redirects: CachedRedirects): CachedRedirects {
 	return cacheState.redirects;
 }
 
-export function setCachedRedirects(redirects: Redirect[]): CachedRedirects {
-	invalidateRedirectCache();
-	return installCachedRedirects(compileRedirects(redirects));
-}
-
 export async function loadCachedRedirects(
 	load: () => Promise<Redirect[]>,
 ): Promise<CachedRedirects> {
-	while (true) {
+	for (let attempt = 0; attempt < REDIRECT_CACHE_MAX_REFRESH_ATTEMPTS; attempt++) {
 		const cached = getCachedRedirects();
 		if (cached) return cached;
 
@@ -124,7 +120,13 @@ export async function loadCachedRedirects(
 		if (generation === cacheState.generation) {
 			return installCachedRedirects(loaded);
 		}
+
+		if (attempt === REDIRECT_CACHE_MAX_REFRESH_ATTEMPTS - 1) {
+			return loaded;
+		}
 	}
+
+	throw new Error("Redirect cache refresh exhausted without loading rules");
 }
 
 /**

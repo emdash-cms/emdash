@@ -168,8 +168,8 @@ describe("redirect middleware — issue #808", () => {
 
 	it("refreshes redirect rules after another Worker isolate changes them", async () => {
 		vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00Z") });
+		const findAllEnabled = vi.spyOn(RedirectRepository.prototype, "findAllEnabled");
 		try {
-			const findAllEnabled = vi.spyOn(RedirectRepository.prototype, "findAllEnabled");
 			const repo = new RedirectRepository(db);
 
 			const first = buildContext({ pathname: "/old" });
@@ -203,8 +203,8 @@ describe("redirect middleware — issue #808", () => {
 
 			expect(refreshed.redirect).toHaveBeenCalledWith("/newer", 301);
 			expect(findAllEnabled).toHaveBeenCalledTimes(2);
-			findAllEnabled.mockRestore();
 		} finally {
+			findAllEnabled.mockRestore();
 			vi.useRealTimers();
 		}
 	});
@@ -290,6 +290,43 @@ describe("redirect middleware — issue #808", () => {
 
 			expect(request.redirect).toHaveBeenCalledWith("/newer", 301);
 			expect(findAllEnabled).toHaveBeenCalledTimes(2);
+		} finally {
+			findAllEnabled.mockRestore();
+		}
+	});
+
+	it("bounds refresh retries when writes keep invalidating the cache", async () => {
+		const originalFindAllEnabled = RedirectRepository.prototype.findAllEnabled;
+		let invalidationsRemaining = 3;
+		const findAllEnabled = vi
+			.spyOn(RedirectRepository.prototype, "findAllEnabled")
+			.mockImplementation(async function () {
+				const rows = await originalFindAllEnabled.call(this);
+				if (invalidationsRemaining > 0) {
+					invalidationsRemaining--;
+					invalidateRedirectCache();
+				}
+				return rows;
+			});
+
+		try {
+			const first = buildContext({ pathname: "/old" });
+			await runMiddleware(
+				first.context,
+				vi.fn(async () => new Response("not found", { status: 404 })),
+			);
+
+			expect(first.redirect).toHaveBeenCalledWith("/new", 301);
+			expect(findAllEnabled).toHaveBeenCalledTimes(3);
+
+			const second = buildContext({ pathname: "/old" });
+			await runMiddleware(
+				second.context,
+				vi.fn(async () => new Response("not found", { status: 404 })),
+			);
+
+			expect(second.redirect).toHaveBeenCalledWith("/new", 301);
+			expect(findAllEnabled).toHaveBeenCalledTimes(4);
 		} finally {
 			findAllEnabled.mockRestore();
 		}
