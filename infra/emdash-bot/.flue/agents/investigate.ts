@@ -270,7 +270,7 @@ export function Investigate({ id }: AgentProps) {
 		defineTool({
 			name: "report_result",
 			description:
-				"Report the final structured investigation result to the issue orchestrator. reproduced=true requires a demonstration you ran -- and a failing test, an error in command output, or a browser transcript IS a demonstration; when you have one, report reproduced=true, do not underclaim. If the bug looks testable, attempt the demonstration before reporting rather than settling for analysis. Never set reproduced=true from reading code alone. When the issue lacks the information an attempt would need, report verdict='unclear' and say what is missing.",
+				"Report the final structured investigation result to the issue orchestrator. reproduced=true means you demonstrated THE REPORTED ISSUE -- the failure the reporter described, triggered the way they described it, in this checkout. A failing test, an error in command output, or a browser transcript of that failure is a demonstration; when you have one, report reproduced=true without hedging. reproduced=false covers everything else, including real findings that are not the reported issue: an adjacent or latent defect you demonstrated, an out-of-repo infrastructure symptom, or a root cause from reading code alone -- describe those in summary as findings, not reproductions. If demonstration attempts are not converging after a couple of tries, stop and report the diagnosis honestly. When the issue lacks the information an attempt would need, report verdict='unclear' and say what is missing.",
 			input: resultSchema,
 			output: reportedResultSchema,
 			durable: true,

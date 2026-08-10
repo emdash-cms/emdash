@@ -17,7 +17,8 @@ Every stage produces a verdict, and **every verdict carries its evidence** -- th
 
 Two corollaries when you report:
 
-- **"Reproduced" means demonstrated -- so demonstrate.** A failing test you ran, an error in command output, a browser transcript: any one of these is a full demonstration, and when you have it you report `reproduced: true` without hedging. If the bug looks testable, write and run the failing test before you report; a root cause you are sure of from reading the code alone is a diagnosis, not a reproduction, and goes out as `reproduced: false`.
+- **"Reproduced" means you demonstrated the reported issue -- so demonstrate it.** A failing test you ran, an error in command output, a browser transcript: any one of these is a full demonstration, and when you have it you report `reproduced: true` without hedging. If the bug looks testable, write and run the failing test before you report; a root cause you are sure of from reading the code alone is a diagnosis, not a reproduction, and goes out as `reproduced: false`. Time-box it: if a demonstration is not converging after a couple of angles, report the diagnosis honestly instead of grinding.
+- **Reproducing something is not reproducing the issue.** Investigations surface real adjacent findings -- a latent defect the reported path never triggers, an infrastructure symptom outside this repo, a different bug nearby. Those are valuable: put them in the summary as findings. They are still `reproduced: false`, because the question is always the reported issue, as reported, at this checkout.
 - **Distinguish "tried and could not" from "could not try."** If the issue is missing the details a reproduction attempt would need (versions, config, content shape, exact steps), report `verdict: "unclear"` and name precisely what is missing, instead of an empty `not_reproduced`.
 
 ## Execution environment
