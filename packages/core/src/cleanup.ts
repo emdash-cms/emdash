@@ -42,8 +42,8 @@ const REVISION_PRUNE_BATCH_SIZE = 10;
 /**
  * Run all system cleanup tasks.
  *
- * Safe to call frequently -- each task is a single DELETE with a WHERE clause,
- * so repeated calls with nothing to clean are cheap (no-op queries).
+ * Safe to call frequently -- each subsystem tolerates repeated calls, and
+ * repeated calls with nothing to clean are cheap.
  *
  * @param db - The database instance
  * @param storage - Optional storage backend for deleting orphaned files.

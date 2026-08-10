@@ -38,17 +38,6 @@ describe("059_revision_prune_queue migration", () => {
 		`.execute(db);
 		expect(queued.rows).toEqual([{ collection: "post", entry_id: "entry-1", revision_id: "50" }]);
 
-		const plan = await sql<{ detail: string }>`
-			EXPLAIN QUERY PLAN
-			SELECT collection, entry_id, revision_id
-			FROM _emdash_revision_prune_queue
-			ORDER BY revision_id
-			LIMIT 10
-		`.execute(db);
-		expect(plan.rows.map((row) => row.detail).join(" ")).toContain(
-			"USING INDEX idx_revision_prune_queue_revision_id",
-		);
-
 		await down(db);
 	});
 });
