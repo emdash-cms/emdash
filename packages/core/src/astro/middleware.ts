@@ -392,8 +392,6 @@ async function runOutsideRequest<T>(
 		} catch (error) {
 			console.error("[emdash] event-scoped db close failed:", error);
 		}
-		// An event handler's returned promise owns its lifetime; unlike an HTTP
-		// response, there is no later stream completion to anchor adapter teardown.
 		await closed;
 	}
 }
