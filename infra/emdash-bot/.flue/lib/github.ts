@@ -183,6 +183,16 @@ export async function getBranchSha(
 	return json.commit?.sha ?? null;
 }
 
+/** Deletes a branch ref. A 404/422 means it is already gone, which is fine. */
+export async function deleteBranch(token: string, ctx: RepoContext, branch: string): Promise<void> {
+	const res = await githubFetch(
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/git/refs/heads/${encodeURIComponent(branch)}`,
+		{ method: "DELETE", headers: authHeaders(token) },
+	);
+	if (res.status === 404 || res.status === 422) return;
+	if (!res.ok) throw new Error(`deleteBranch(${branch}) failed: ${res.status} ${await res.text()}`);
+}
+
 export async function addLabels(
 	token: string,
 	ctx: RepoContext,
@@ -252,7 +262,7 @@ export async function getOpenPullRequest(
 export async function createPullRequest(
 	token: string,
 	ctx: RepoContext,
-	args: { headBranch: string; baseBranch: string; title: string; body: string },
+	args: { headBranch: string; baseBranch: string; title: string; body: string; draft?: boolean },
 ): Promise<CreatedPullRequest> {
 	const res = await githubFetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls`, {
 		method: "POST",
@@ -262,6 +272,7 @@ export async function createPullRequest(
 			base: args.baseBranch,
 			title: args.title,
 			body: args.body,
+			draft: args.draft === true,
 		}),
 	});
 	if (!res.ok) {

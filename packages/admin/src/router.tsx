@@ -88,6 +88,7 @@ import {
 	updateField,
 	deleteField,
 	reorderFields,
+	reorderCollections,
 	fetchOrphanedTables,
 	registerOrphanedTable,
 	fetchUsers,
@@ -1881,6 +1882,16 @@ function ContentTypesListPage() {
 		},
 	});
 
+	const reorderMutation = useMutation({
+		mutationFn: (slugs: string[]) => reorderCollections(slugs),
+		// The manifest drives the sidebar order, so it has to be refetched
+		// alongside the collection list for the move to show up in the nav.
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+	});
+
 	const error = collectionsError || orphansError;
 	if (error) {
 		return <ErrorScreen error={error.message} />;
@@ -1893,6 +1904,7 @@ function ContentTypesListPage() {
 			isLoading={collectionsLoading || orphansLoading}
 			onDelete={(slug) => deleteMutation.mutate(slug)}
 			onRegisterOrphan={(slug) => registerOrphanMutation.mutate(slug)}
+			onReorder={(slugs) => reorderMutation.mutate(slugs)}
 		/>
 	);
 }

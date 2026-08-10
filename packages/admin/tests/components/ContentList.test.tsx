@@ -161,7 +161,7 @@ describe("ContentList", () => {
 	describe("status badges", () => {
 		it.each([
 			["draft", "Draft"],
-			["published", "Publish"],
+			["published", "Published"],
 			["scheduled", "Scheduled"],
 			["archived", "Archived"],
 		] as const)("shows the normalized %s status with its icon", async (status, label) => {
@@ -245,7 +245,7 @@ describe("ContentList", () => {
 			expect(filter.element().querySelector("svg")).not.toBeNull();
 			await filter.click();
 
-			for (const label of ["Publish", "Draft", "Scheduled", "Archived"]) {
+			for (const label of ["Published", "Draft", "Scheduled", "Archived"]) {
 				const option = screen.getByRole("option", { name: label });
 				await expect.element(option).toBeInTheDocument();
 				expect(option.element().querySelector("svg")).not.toBeNull();

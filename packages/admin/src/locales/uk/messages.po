@@ -73,7 +73,7 @@ msgstr "(з вашим dev-портом)."
 
 #. placeholder {0}: items.length
 #. placeholder {0}: orphan.rowCount
-#: packages/admin/src/components/ContentTypeList.tsx:71
+#: packages/admin/src/components/ContentTypeList.tsx:147
 #: packages/admin/src/components/RepeaterField.tsx:152
 msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# елемент)} few {(# елементи)} many {(# елементів)} other {(# елементів)}}"
@@ -89,7 +89,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# коментар імпортовано} few {# коментарі імпортовано} many {# коментарів імпортовано} other {# коментарів імпортовано}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1492
+#: packages/admin/src/router.tsx:1493
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# коментар оновлено} few {# коментарі оновлено} many {# коментарів оновлено} other {# коментарів оновлено}}"
 
@@ -157,7 +157,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# допис} few {# дописи} many {# дописів} other {# дописів}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:447
+#: packages/admin/src/components/Redirects.tsx:452
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {# перенаправлення утворює цикл.} few {# перенаправлення утворюють цикл.} many {# перенаправлень утворюють цикл.} other {# перенаправлень утворюють цикл.}}"
 
@@ -214,6 +214,11 @@ msgstr "{0} • {1}"
 msgid "{0} banner"
 msgstr "{0} банер"
 
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:228
+msgid "{0} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to."
+msgstr ""
+
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
 #: packages/admin/src/components/WordPressImport.tsx:1303
 msgid "{0} detected"
@@ -256,17 +261,17 @@ msgid "{0} items will be imported"
 msgstr "{0} елементів буде імпортовано"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:536
+#: packages/admin/src/router.tsx:537
 msgid "{0} of {total} could not be deleted"
 msgstr "{0} з {total} не вдалося видалити"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:492
+#: packages/admin/src/router.tsx:493
 msgid "{0} of {total} could not be published"
 msgstr "{0} з {total} не вдалося опублікувати"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:515
+#: packages/admin/src/router.tsx:516
 msgid "{0} of {total} could not be updated"
 msgstr "{0} з {total} не вдалося оновити"
 
@@ -513,7 +518,7 @@ msgstr "4. Натисніть \"Завантажити файл експорту
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. Введіть \"EmDash\" і натисніть \"Додати\""
 
-#: packages/admin/src/components/Redirects.tsx:397
+#: packages/admin/src/components/Redirects.tsx:402
 msgid "404 Errors"
 msgstr "Помилки 404"
 
@@ -569,7 +574,7 @@ msgstr "Прийняти запрошення"
 msgid "Access denied"
 msgstr "Доступ заборонено"
 
-#: packages/admin/src/router.tsx:1512
+#: packages/admin/src/router.tsx:1513
 msgid "Access Denied"
 msgstr "Доступ заборонено"
 
@@ -601,8 +606,8 @@ msgstr "Поля ACF"
 #: packages/admin/src/components/comments/CommentInbox.tsx:300
 #: packages/admin/src/components/ContentList.tsx:535
 #: packages/admin/src/components/ContentList.tsx:656
-#: packages/admin/src/components/ContentTypeList.tsx:108
-#: packages/admin/src/components/TaxonomyManager.tsx:845
+#: packages/admin/src/components/ContentTypeList.tsx:190
+#: packages/admin/src/components/TaxonomyManager.tsx:1050
 #: packages/admin/src/routes/byline-schema.tsx:249
 msgid "Actions"
 msgstr "Дії"
@@ -622,8 +627,8 @@ msgstr "Додати"
 #. placeholder {0}: field.item_label
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/PortableTextEditor.tsx:2108
-#: packages/admin/src/components/TaxonomyManager.tsx:378
-#: packages/admin/src/components/TaxonomyManager.tsx:836
+#: packages/admin/src/components/TaxonomyManager.tsx:540
+#: packages/admin/src/components/TaxonomyManager.tsx:1041
 msgid "Add {0}"
 msgstr "Додати {0}"
 
@@ -780,12 +785,12 @@ msgid "admin"
 msgstr "адмін"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:101
-#: packages/admin/src/components/Sidebar.tsx:383
+#: packages/admin/src/components/Sidebar.tsx:398
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Адмін"
 
-#: packages/admin/src/components/Sidebar.tsx:329
+#: packages/admin/src/components/Sidebar.tsx:344
 msgid "Admin navigation"
 msgstr "Навігація адмін-панелі"
 
@@ -870,12 +875,12 @@ msgid "All Sources"
 msgstr "Усі джерела"
 
 #: packages/admin/src/components/ContentList.tsx:735
-#: packages/admin/src/components/Redirects.tsx:421
+#: packages/admin/src/components/Redirects.tsx:426
 msgid "All statuses"
 msgstr "Усі статуси"
 
 #: packages/admin/src/components/MediaLibrary.tsx:433
-#: packages/admin/src/components/Redirects.tsx:427
+#: packages/admin/src/components/Redirects.tsx:432
 msgid "All types"
 msgstr "Усі типи"
 
@@ -959,24 +964,24 @@ msgstr "Або експортуйте з WordPress (Інструменти → �
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
 #: packages/admin/src/components/TaxonomySidebar.tsx:370
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:424
-#: packages/admin/src/router.tsx:439
-#: packages/admin/src/router.tsx:453
-#: packages/admin/src/router.tsx:467
-#: packages/admin/src/router.tsx:671
-#: packages/admin/src/router.tsx:953
-#: packages/admin/src/router.tsx:1013
-#: packages/admin/src/router.tsx:1031
-#: packages/admin/src/router.tsx:1049
-#: packages/admin/src/router.tsx:1070
-#: packages/admin/src/router.tsx:1091
-#: packages/admin/src/router.tsx:1112
-#: packages/admin/src/router.tsx:1143
-#: packages/admin/src/router.tsx:1163
-#: packages/admin/src/router.tsx:1457
-#: packages/admin/src/router.tsx:1473
-#: packages/admin/src/router.tsx:1498
-#: packages/admin/src/router.tsx:1987
+#: packages/admin/src/router.tsx:425
+#: packages/admin/src/router.tsx:440
+#: packages/admin/src/router.tsx:454
+#: packages/admin/src/router.tsx:468
+#: packages/admin/src/router.tsx:672
+#: packages/admin/src/router.tsx:954
+#: packages/admin/src/router.tsx:1014
+#: packages/admin/src/router.tsx:1032
+#: packages/admin/src/router.tsx:1050
+#: packages/admin/src/router.tsx:1071
+#: packages/admin/src/router.tsx:1092
+#: packages/admin/src/router.tsx:1113
+#: packages/admin/src/router.tsx:1144
+#: packages/admin/src/router.tsx:1164
+#: packages/admin/src/router.tsx:1458
+#: packages/admin/src/router.tsx:1474
+#: packages/admin/src/router.tsx:1499
+#: packages/admin/src/router.tsx:1999
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1067,7 +1072,7 @@ msgid "Are you sure you want to delete \"{0}\"? No stored values reference this 
 msgstr "Ви впевнені, що хочете видалити \"{0}\"? Жодне збережене значення не посилається на це поле."
 
 #. placeholder {0}: deleteTarget.label
-#: packages/admin/src/components/ContentTypeList.tsx:147
+#: packages/admin/src/components/ContentTypeList.tsx:233
 msgid "Are you sure you want to delete \"{0}\"? This will also delete all content in this collection."
 msgstr "Ви впевнені, що хочете видалити \"{0}\"? Це також видалить увесь вміст у цій колекції."
 
@@ -1156,11 +1161,11 @@ msgstr "Авторизація..."
 msgid "Authors"
 msgstr "Автори"
 
-#: packages/admin/src/components/Redirects.tsx:524
+#: packages/admin/src/components/Redirects.tsx:530
 msgid "auto"
 msgstr "авто"
 
-#: packages/admin/src/components/Redirects.tsx:427
+#: packages/admin/src/components/Redirects.tsx:432
 msgid "Auto (slug change)"
 msgstr "Авто (зміна slug)"
 
@@ -1168,7 +1173,7 @@ msgstr "Авто (зміна slug)"
 msgid "Auto-approve authenticated users"
 msgstr "Автосхвалення автентифікованих користувачів"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:424
+#: packages/admin/src/components/TaxonomyManager.tsx:586
 msgid "Auto-generated from name (you can edit)"
 msgstr "Автогенерація з назви (можна редагувати)"
 
@@ -1182,7 +1187,7 @@ msgstr "Автоматичні резервні копії"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Автоматичні резервні копії потребують сховища (R2, S3 або локальне). Налаштуйте сховище в конфігурації EmDash, щоб увімкнути їх."
 
-#: packages/admin/src/router.tsx:1012
+#: packages/admin/src/router.tsx:1013
 msgid "Autosave failed"
 msgstr "Автозбереження не вдалося"
 
@@ -1344,13 +1349,13 @@ msgstr "Маркований список"
 msgid "Byline schema"
 msgstr "Схема підпису"
 
-#: packages/admin/src/components/Sidebar.tsx:252
+#: packages/admin/src/components/Sidebar.tsx:267
 msgid "Byline Schema"
 msgstr "Схема підпису"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:613
 #: packages/admin/src/components/ContentSettingsPanel.tsx:616
-#: packages/admin/src/components/Sidebar.tsx:242
+#: packages/admin/src/components/Sidebar.tsx:257
 #: packages/admin/src/routes/bylines.tsx:375
 msgid "Bylines"
 msgstr "Підписи"
@@ -1415,9 +1420,9 @@ msgstr "Може переглядати вміст"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:207
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:233
 #: packages/admin/src/components/settings/SecuritySettings.tsx:166
-#: packages/admin/src/components/TaxonomyManager.tsx:207
-#: packages/admin/src/components/TaxonomyManager.tsx:494
-#: packages/admin/src/components/TaxonomyManager.tsx:708
+#: packages/admin/src/components/TaxonomyManager.tsx:369
+#: packages/admin/src/components/TaxonomyManager.tsx:656
+#: packages/admin/src/components/TaxonomyManager.tsx:870
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:451
 #: packages/admin/src/components/WordPressImport.tsx:1917
@@ -1515,7 +1520,7 @@ msgstr "Змінити логотип"
 msgid "Changelog"
 msgstr "Журнал змін"
 
-#: packages/admin/src/router.tsx:1063
+#: packages/admin/src/router.tsx:1064
 msgid "Changes discarded"
 msgstr "Зміни скасовано"
 
@@ -1632,13 +1637,13 @@ msgstr "Перейдіть за посиланням у листі, щоб ув�
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:328
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:334
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:338
-#: packages/admin/src/components/TaxonomyManager.tsx:184
-#: packages/admin/src/components/TaxonomyManager.tsx:387
-#: packages/admin/src/components/TaxonomyManager.tsx:393
-#: packages/admin/src/components/TaxonomyManager.tsx:397
-#: packages/admin/src/components/TaxonomyManager.tsx:627
-#: packages/admin/src/components/TaxonomyManager.tsx:633
-#: packages/admin/src/components/TaxonomyManager.tsx:637
+#: packages/admin/src/components/TaxonomyManager.tsx:346
+#: packages/admin/src/components/TaxonomyManager.tsx:549
+#: packages/admin/src/components/TaxonomyManager.tsx:555
+#: packages/admin/src/components/TaxonomyManager.tsx:559
+#: packages/admin/src/components/TaxonomyManager.tsx:789
+#: packages/admin/src/components/TaxonomyManager.tsx:795
+#: packages/admin/src/components/TaxonomyManager.tsx:799
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
 #: packages/admin/src/components/users/InviteUserModal.tsx:94
@@ -1666,9 +1671,9 @@ msgstr "Закрити панель"
 msgid "Close settings"
 msgstr "Закрити налаштування"
 
-#: packages/admin/src/components/ContentTypeList.tsx:244
+#: packages/admin/src/components/ContentTypeList.tsx:356
 #: packages/admin/src/components/PortableTextEditor.tsx:3560
-#: packages/admin/src/components/Redirects.tsx:472
+#: packages/admin/src/components/Redirects.tsx:478
 msgid "Code"
 msgstr "Код"
 
@@ -1698,7 +1703,7 @@ msgstr "Колекція"
 msgid "Collection:"
 msgstr "Колекція:"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:678
+#: packages/admin/src/components/TaxonomyManager.tsx:840
 msgid "Collections"
 msgstr "Колекції"
 
@@ -1725,7 +1730,7 @@ msgstr "Деталі коментаря"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:485
-#: packages/admin/src/components/Sidebar.tsx:221
+#: packages/admin/src/components/Sidebar.tsx:236
 msgid "Comments"
 msgstr "Коментарі"
 
@@ -1782,7 +1787,7 @@ msgstr ""
 #: packages/admin/src/components/Dashboard.tsx:235
 #: packages/admin/src/components/PortableTextEditor.tsx:2706
 #: packages/admin/src/components/SectionEditor.tsx:195
-#: packages/admin/src/components/Sidebar.tsx:365
+#: packages/admin/src/components/Sidebar.tsx:380
 #: packages/admin/src/components/Widgets.tsx:899
 msgid "Content"
 msgstr "Вміст"
@@ -1800,7 +1805,7 @@ msgstr "Помилки вмісту ({0})"
 msgid "Content found:"
 msgstr "Знайдено вмісту:"
 
-#: packages/admin/src/router.tsx:1085
+#: packages/admin/src/router.tsx:1086
 msgid "Content has been scheduled for publishing"
 msgstr "Вміст заплановано до публікації"
 
@@ -1812,7 +1817,7 @@ msgstr "Вміст оновлено до обраної ревізії."
 msgid "Content ID:"
 msgstr "ID вмісту:"
 
-#: packages/admin/src/router.tsx:1026
+#: packages/admin/src/router.tsx:1027
 msgid "Content is now live"
 msgstr "Вміст тепер опубліковано"
 
@@ -1824,11 +1829,11 @@ msgstr "елементи вмісту"
 msgid "Content Read"
 msgstr "Читання вмісту"
 
-#: packages/admin/src/router.tsx:1044
+#: packages/admin/src/router.tsx:1045
 msgid "Content removed from public view"
 msgstr "Вміст прибрано з публічного перегляду"
 
-#: packages/admin/src/router.tsx:1106
+#: packages/admin/src/router.tsx:1107
 msgid "Content reverted to draft"
 msgstr "Вміст повернуто до чернетки"
 
@@ -1841,8 +1846,8 @@ msgid "Content to Import"
 msgstr "Вміст для імпорту"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:184
-#: packages/admin/src/components/ContentTypeList.tsx:40
-#: packages/admin/src/components/Sidebar.tsx:248
+#: packages/admin/src/components/ContentTypeList.tsx:116
+#: packages/admin/src/components/Sidebar.tsx:263
 msgid "Content Types"
 msgstr "Типи вмісту"
 
@@ -1946,7 +1951,7 @@ msgstr "Не вдалося шукати підписи. Спробуйте ще
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
 msgstr "Не вдалося перевірити, скільки значень посилаються на \"{0}\". Видалення все одно прибере всі збережені значення для цього поля — але кількість вище не вдалося перевірити."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:844
+#: packages/admin/src/components/TaxonomyManager.tsx:1049
 msgid "Count"
 msgstr "Кількість"
 
@@ -1954,7 +1959,7 @@ msgstr "Кількість"
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/TaxonomyManager.tsx:501
+#: packages/admin/src/components/TaxonomyManager.tsx:663
 #: packages/admin/src/components/Widgets.tsx:454
 #: packages/admin/src/routes/bylines.tsx:579
 msgid "Create"
@@ -1969,7 +1974,7 @@ msgid "Create a bullet list"
 msgstr "Створити маркований список"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
-#: packages/admin/src/components/TaxonomyManager.tsx:383
+#: packages/admin/src/components/TaxonomyManager.tsx:545
 msgid "Create a new {0}"
 msgstr "Створити новий {0}"
 
@@ -2036,7 +2041,7 @@ msgstr "Створити перенаправлення для {0}"
 msgid "Create redirect for this path"
 msgstr "Створити перенаправлення для цього шляху"
 
-#: packages/admin/src/components/Redirects.tsx:464
+#: packages/admin/src/components/Redirects.tsx:469
 msgid "Create redirect rules to manage URL changes."
 msgstr "Створюйте правила перенаправлення для керування змінами URL."
 
@@ -2053,8 +2058,8 @@ msgstr "Створити секцію"
 msgid "Create sections in the Sections library to use them here"
 msgstr "Створіть секції в бібліотеці секцій, щоб використовувати їх тут"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:620
-#: packages/admin/src/components/TaxonomyManager.tsx:711
+#: packages/admin/src/components/TaxonomyManager.tsx:782
+#: packages/admin/src/components/TaxonomyManager.tsx:873
 msgid "Create Taxonomy"
 msgstr "Створити таксономію"
 
@@ -2076,7 +2081,7 @@ msgid "Create your first navigation menu to get started"
 msgstr "Створіть перше навігаційне меню, щоб почати"
 
 #: packages/admin/src/components/ContentList.tsx:563
-#: packages/admin/src/components/ContentTypeList.tsx:124
+#: packages/admin/src/components/ContentTypeList.tsx:206
 msgid "Create your first one"
 msgstr "Створіть перший"
 
@@ -2124,7 +2129,7 @@ msgid "Created {0}"
 msgstr "Створено {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1137
+#: packages/admin/src/router.tsx:1138
 msgid "Created {0} translation"
 msgstr "Створено переклад {0}"
 
@@ -2141,7 +2146,7 @@ msgstr "Створення колекцій і полів..."
 #: packages/admin/src/components/Redirects.tsx:189
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:539
-#: packages/admin/src/components/TaxonomyManager.tsx:711
+#: packages/admin/src/components/TaxonomyManager.tsx:873
 #: packages/admin/src/components/TaxonomySidebar.tsx:308
 msgid "Creating..."
 msgstr "Створення..."
@@ -2195,10 +2200,10 @@ msgid "Dark"
 msgstr "Темна"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:130
-#: packages/admin/src/components/ContentTypeList.tsx:246
+#: packages/admin/src/components/ContentTypeList.tsx:358
 #: packages/admin/src/components/Dashboard.tsx:56
-#: packages/admin/src/components/Sidebar.tsx:206
-#: packages/admin/src/components/Sidebar.tsx:356
+#: packages/admin/src/components/Sidebar.tsx:221
+#: packages/admin/src/components/Sidebar.tsx:371
 msgid "Dashboard"
 msgstr "Панель керування"
 
@@ -2249,7 +2254,7 @@ msgstr "Зображення соцмереж за замовчуванням"
 msgid "Default Social Image"
 msgstr "Зображення соцмереж за замовчуванням"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:623
+#: packages/admin/src/components/TaxonomyManager.tsx:785
 msgid "Define a new taxonomy for classifying content"
 msgstr "Визначте нову таксономію для класифікації вмісту"
 
@@ -2257,7 +2262,7 @@ msgstr "Визначте нову таксономію для класифіка
 msgid "Define custom fields stored on every byline — job title, pronouns, social handles, and more."
 msgstr "Визначте власні поля для кожного підпису — посада, займенники, соцмережі тощо."
 
-#: packages/admin/src/components/ContentTypeList.tsx:42
+#: packages/admin/src/components/ContentTypeList.tsx:118
 msgid "Define the structure of your content"
 msgstr "Визначте структуру вашого вмісту"
 
@@ -2268,7 +2273,7 @@ msgstr "Визначено в коді"
 #: packages/admin/src/components/comments/CommentInbox.tsx:268
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
 #: packages/admin/src/components/ContentTypeEditor.tsx:672
-#: packages/admin/src/components/ContentTypeList.tsx:150
+#: packages/admin/src/components/ContentTypeList.tsx:236
 #: packages/admin/src/components/editor/BlockMenu.tsx:318
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
@@ -2276,11 +2281,11 @@ msgstr "Визначено в коді"
 #: packages/admin/src/components/MediaDetailPanel.tsx:453
 #: packages/admin/src/components/MenuEditor.tsx:549
 #: packages/admin/src/components/MenuList.tsx:258
-#: packages/admin/src/components/Redirects.tsx:585
+#: packages/admin/src/components/Redirects.tsx:603
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
 #: packages/admin/src/components/settings/BackupSettings.tsx:352
-#: packages/admin/src/components/TaxonomyManager.tsx:908
+#: packages/admin/src/components/TaxonomyManager.tsx:1112
 #: packages/admin/src/components/Widgets.tsx:716
 #: packages/admin/src/routes/byline-schema.tsx:378
 #: packages/admin/src/routes/bylines.tsx:588
@@ -2296,11 +2301,11 @@ msgstr "Видалити \"{0}\"? Цю дію не можна скасувати
 #. placeholder {0}: archive.name
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
-#: packages/admin/src/components/ContentTypeList.tsx:229
+#: packages/admin/src/components/ContentTypeList.tsx:341
 #: packages/admin/src/components/Sections.tsx:408
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:266
 #: packages/admin/src/components/settings/BackupSettings.tsx:312
-#: packages/admin/src/components/TaxonomyManager.tsx:117
+#: packages/admin/src/components/TaxonomyManager.tsx:280
 #: packages/admin/src/components/Widgets.tsx:817
 #: packages/admin/src/routes/byline-schema.tsx:458
 msgid "Delete {0}"
@@ -2322,7 +2327,7 @@ msgid "Delete {0} widget area"
 msgstr "Видалити область віджетів {0}"
 
 #. placeholder {0}: taxonomyDef.labelSingular || "Term"
-#: packages/admin/src/components/TaxonomyManager.tsx:904
+#: packages/admin/src/components/TaxonomyManager.tsx:1108
 msgid "Delete {0}?"
 msgstr "Видалити {0}?"
 
@@ -2346,7 +2351,7 @@ msgstr "Видалити стовпець"
 msgid "Delete Comment?"
 msgstr "Видалити коментар?"
 
-#: packages/admin/src/components/ContentTypeList.tsx:144
+#: packages/admin/src/components/ContentTypeList.tsx:230
 msgid "Delete Content Type?"
 msgstr "Видалити тип вмісту?"
 
@@ -2394,16 +2399,16 @@ msgstr "Видалити назавжди"
 msgid "Delete Permanently?"
 msgstr "Видалити назавжди?"
 
-#: packages/admin/src/components/Redirects.tsx:538
+#: packages/admin/src/components/Redirects.tsx:544
 msgid "Delete redirect"
 msgstr "Видалити перенаправлення"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:539
+#: packages/admin/src/components/Redirects.tsx:545
 msgid "Delete redirect {0}"
 msgstr "Видалити перенаправлення {0}"
 
-#: packages/admin/src/components/Redirects.tsx:583
+#: packages/admin/src/components/Redirects.tsx:601
 msgid "Delete Redirect?"
 msgstr "Видалити перенаправлення?"
 
@@ -2435,14 +2440,14 @@ msgstr "Видалення \"{0}\" також прибере {1, plural, one {# 
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:409
 #: packages/admin/src/components/ContentTypeEditor.tsx:673
-#: packages/admin/src/components/ContentTypeList.tsx:151
+#: packages/admin/src/components/ContentTypeList.tsx:237
 #: packages/admin/src/components/MediaDetailPanel.tsx:410
 #: packages/admin/src/components/MediaDetailPanel.tsx:454
 #: packages/admin/src/components/MenuList.tsx:259
-#: packages/admin/src/components/Redirects.tsx:586
+#: packages/admin/src/components/Redirects.tsx:604
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/settings/BackupSettings.tsx:353
-#: packages/admin/src/components/TaxonomyManager.tsx:909
+#: packages/admin/src/components/TaxonomyManager.tsx:1113
 #: packages/admin/src/components/Widgets.tsx:717
 #: packages/admin/src/routes/bylines.tsx:625
 msgid "Deleting..."
@@ -2496,11 +2501,11 @@ msgstr "Опишіть, для чого ця секція..."
 msgid "Description"
 msgstr "Опис"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:456
+#: packages/admin/src/components/TaxonomyManager.tsx:618
 msgid "Description (optional)"
 msgstr "Опис (необов'язково)"
 
-#: packages/admin/src/components/Redirects.tsx:471
+#: packages/admin/src/components/Redirects.tsx:477
 msgid "Destination"
 msgstr "Призначення"
 
@@ -2557,7 +2562,7 @@ msgstr "Вимкнути плагін"
 msgid "Disable plugin MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:507
+#: packages/admin/src/components/Redirects.tsx:513
 msgid "Disable redirect"
 msgstr "Вимкнути перенаправлення"
 
@@ -2570,7 +2575,7 @@ msgid "Disable User?"
 msgstr "Вимкнути користувача?"
 
 #: packages/admin/src/components/PluginManager.tsx:383
-#: packages/admin/src/components/Redirects.tsx:421
+#: packages/admin/src/components/Redirects.tsx:426
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
@@ -2825,11 +2830,11 @@ msgstr "Редагувати"
 #. placeholder {0}: block?.label || ""
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
-#: packages/admin/src/components/ContentTypeList.tsx:220
+#: packages/admin/src/components/ContentTypeList.tsx:332
 #: packages/admin/src/components/PortableTextEditor.tsx:1889
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:254
-#: packages/admin/src/components/TaxonomyManager.tsx:109
-#: packages/admin/src/components/TaxonomyManager.tsx:377
+#: packages/admin/src/components/TaxonomyManager.tsx:272
+#: packages/admin/src/components/TaxonomyManager.tsx:539
 #: packages/admin/src/routes/byline-schema.tsx:449
 #: packages/admin/src/routes/bylines.tsx:476
 msgid "Edit {0}"
@@ -2881,7 +2886,7 @@ msgstr "Редагувати елемент меню"
 msgid "Edit menu items"
 msgstr "Редагувати елементи меню"
 
-#: packages/admin/src/components/Redirects.tsx:530
+#: packages/admin/src/components/Redirects.tsx:536
 msgid "Edit redirect"
 msgstr "Редагувати перенаправлення"
 
@@ -2890,7 +2895,7 @@ msgid "Edit Redirect"
 msgstr "Редагувати перенаправлення"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:531
+#: packages/admin/src/components/Redirects.tsx:537
 msgid "Edit redirect {0}"
 msgstr "Редагувати перенаправлення {0}"
 
@@ -3006,12 +3011,12 @@ msgstr "Увімкнути плагін"
 msgid "Enable plugin MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:507
+#: packages/admin/src/components/Redirects.tsx:513
 msgid "Enable redirect"
 msgstr "Увімкнути перенаправлення"
 
 #: packages/admin/src/components/Redirects.tsx:176
-#: packages/admin/src/components/Redirects.tsx:421
+#: packages/admin/src/components/Redirects.tsx:426
 msgid "Enabled"
 msgstr "Увімкнено"
 
@@ -3073,8 +3078,9 @@ msgstr "Введіть URL сайту WordPress"
 #: packages/admin/src/components/MenuEditor.tsx:193
 #: packages/admin/src/components/MenuEditor.tsx:233
 #: packages/admin/src/components/SetupWizard.tsx:539
+#: packages/admin/src/components/TaxonomyManager.tsx:941
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2201
+#: packages/admin/src/router.tsx:2213
 msgid "Error"
 msgstr "Помилка"
 
@@ -3209,14 +3215,14 @@ msgstr "Не вдалося створити деякі колекції"
 msgid "Failed to create term"
 msgstr "Не вдалося створити термін"
 
-#: packages/admin/src/router.tsx:1142
+#: packages/admin/src/router.tsx:1143
 msgid "Failed to create translation"
 msgstr "Не вдалося створити переклад"
 
-#: packages/admin/src/router.tsx:423
-#: packages/admin/src/router.tsx:452
-#: packages/admin/src/router.tsx:535
-#: packages/admin/src/router.tsx:1162
+#: packages/admin/src/router.tsx:424
+#: packages/admin/src/router.tsx:453
+#: packages/admin/src/router.tsx:536
+#: packages/admin/src/router.tsx:1163
 msgid "Failed to delete"
 msgstr "Не вдалося видалити"
 
@@ -3236,12 +3242,12 @@ msgstr "Не вдалося видалити підпис"
 msgid "Failed to delete byline field"
 msgstr "Не вдалося видалити поле підпису"
 
-#: packages/admin/src/lib/api/schema.ts:222
+#: packages/admin/src/lib/api/schema.ts:230
 msgid "Failed to delete collection"
 msgstr "Не вдалося видалити колекцію"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1472
+#: packages/admin/src/router.tsx:1473
 msgid "Failed to delete comment"
 msgstr "Не вдалося видалити коментар"
 
@@ -3249,7 +3255,7 @@ msgstr "Не вдалося видалити коментар"
 msgid "Failed to delete content"
 msgstr "Не вдалося видалити вміст"
 
-#: packages/admin/src/lib/api/schema.ts:278
+#: packages/admin/src/lib/api/schema.ts:286
 #: packages/admin/src/routes/byline-schema.tsx:138
 msgid "Failed to delete field"
 msgstr "Не вдалося видалити поле"
@@ -3282,7 +3288,7 @@ msgstr "Не вдалося видалити перенаправлення"
 msgid "Failed to delete section"
 msgstr "Не вдалося видалити секцію"
 
-#: packages/admin/src/lib/api/taxonomies.ts:201
+#: packages/admin/src/lib/api/taxonomies.ts:221
 msgid "Failed to delete term"
 msgstr "Не вдалося видалити термін"
 
@@ -3307,7 +3313,7 @@ msgstr "Не вдалося вимкнути пошук"
 msgid "Failed to disable user"
 msgstr "Не вдалося вимкнути користувача"
 
-#: packages/admin/src/router.tsx:1069
+#: packages/admin/src/router.tsx:1070
 msgid "Failed to discard changes"
 msgstr "Не вдалося скасувати зміни"
 
@@ -3315,7 +3321,7 @@ msgstr "Не вдалося скасувати зміни"
 msgid "Failed to dismiss welcome"
 msgstr "Не вдалося закрити привітання"
 
-#: packages/admin/src/router.tsx:466
+#: packages/admin/src/router.tsx:467
 msgid "Failed to duplicate"
 msgstr "Не вдалося дублювати"
 
@@ -3336,7 +3342,7 @@ msgstr "Не вдалося увімкнути користувача"
 msgid "Failed to execute import"
 msgstr "Не вдалося виконати імпорт"
 
-#: packages/admin/src/lib/api/client.ts:255
+#: packages/admin/src/lib/api/client.ts:256
 msgid "Failed to fetch auth mode"
 msgstr "Не вдалося отримати режим автентифікації"
 
@@ -3344,8 +3350,8 @@ msgstr "Не вдалося отримати режим автентифікац
 msgid "Failed to fetch backup settings"
 msgstr "Не вдалося отримати налаштування резервного копіювання"
 
-#: packages/admin/src/lib/api/schema.ts:170
-#: packages/admin/src/lib/api/schema.ts:174
+#: packages/admin/src/lib/api/schema.ts:178
+#: packages/admin/src/lib/api/schema.ts:182
 msgid "Failed to fetch collection"
 msgstr "Не вдалося отримати колекцію"
 
@@ -3361,7 +3367,7 @@ msgstr "Не вдалося отримати налаштування email"
 msgid "Failed to fetch entry terms"
 msgstr "Не вдалося отримати терміни запису"
 
-#: packages/admin/src/lib/api/client.ts:238
+#: packages/admin/src/lib/api/client.ts:239
 msgid "Failed to fetch manifest"
 msgstr "Не вдалося отримати маніфест"
 
@@ -3422,8 +3428,8 @@ msgstr "Не вдалося отримати терміни"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:862
-#: packages/admin/src/router.tsx:1403
+#: packages/admin/src/router.tsx:863
+#: packages/admin/src/router.tsx:1404
 msgid "Failed to fetch user"
 msgstr "Не вдалося отримати користувача"
 
@@ -3465,7 +3471,7 @@ msgstr "Не вдалося встановити плагін"
 msgid "Failed to list byline fields"
 msgstr "Не вдалося отримати список полів підпису"
 
-#: packages/admin/src/router.tsx:283
+#: packages/admin/src/router.tsx:284
 msgid "Failed to load admin"
 msgstr "Не вдалося завантажити адмін-панель"
 
@@ -3534,7 +3540,7 @@ msgstr "Не вдалося завантажити користувачів: {0}
 msgid "Failed to load widget"
 msgstr "Не вдалося завантажити віджет"
 
-#: packages/admin/src/router.tsx:1497
+#: packages/admin/src/router.tsx:1498
 msgid "Failed to perform bulk action"
 msgstr "Не вдалося виконати масову дію"
 
@@ -3546,8 +3552,8 @@ msgstr "Не вдалося остаточно видалити вміст"
 msgid "Failed to prepare import"
 msgstr "Не вдалося підготувати імпорт"
 
-#: packages/admin/src/router.tsx:491
-#: packages/admin/src/router.tsx:1030
+#: packages/admin/src/router.tsx:492
+#: packages/admin/src/router.tsx:1031
 msgid "Failed to publish"
 msgstr "Не вдалося опублікувати"
 
@@ -3572,7 +3578,11 @@ msgstr "Не вдалося перейменувати passkey"
 msgid "Failed to reorder byline fields"
 msgstr "Не вдалося змінити порядок полів підпису"
 
-#: packages/admin/src/lib/api/schema.ts:293
+#: packages/admin/src/lib/api/schema.ts:318
+msgid "Failed to reorder content types"
+msgstr ""
+
+#: packages/admin/src/lib/api/schema.ts:301
 #: packages/admin/src/routes/byline-schema.tsx:152
 msgid "Failed to reorder fields"
 msgstr "Не вдалося змінити порядок полів"
@@ -3581,7 +3591,7 @@ msgstr "Не вдалося змінити порядок полів"
 msgid "Failed to reorder widgets"
 msgstr "Не вдалося змінити порядок віджетів"
 
-#: packages/admin/src/router.tsx:438
+#: packages/admin/src/router.tsx:439
 msgid "Failed to restore"
 msgstr "Не вдалося відновити"
 
@@ -3602,9 +3612,9 @@ msgstr "Не вдалося відкликати API-токен"
 msgid "Failed to rewrite URLs"
 msgstr "Не вдалося переписати URL"
 
-#: packages/admin/src/router.tsx:670
-#: packages/admin/src/router.tsx:952
-#: packages/admin/src/router.tsx:1986
+#: packages/admin/src/router.tsx:671
+#: packages/admin/src/router.tsx:953
+#: packages/admin/src/router.tsx:1998
 msgid "Failed to save"
 msgstr "Не вдалося зберегти"
 
@@ -3623,7 +3633,7 @@ msgstr "Не вдалося зберегти поле"
 msgid "Failed to save settings"
 msgstr "Не вдалося зберегти налаштування"
 
-#: packages/admin/src/router.tsx:1090
+#: packages/admin/src/router.tsx:1091
 msgid "Failed to schedule"
 msgstr "Не вдалося запланувати"
 
@@ -3654,15 +3664,15 @@ msgstr "Не вдалося встановити терміни запису"
 msgid "Failed to uninstall plugin"
 msgstr "Не вдалося видалити плагін"
 
-#: packages/admin/src/router.tsx:1048
+#: packages/admin/src/router.tsx:1049
 msgid "Failed to unpublish"
 msgstr "Не вдалося зняти з публікації"
 
-#: packages/admin/src/router.tsx:1111
+#: packages/admin/src/router.tsx:1112
 msgid "Failed to unschedule"
 msgstr "Не вдалося скасувати планування"
 
-#: packages/admin/src/router.tsx:514
+#: packages/admin/src/router.tsx:515
 msgid "Failed to update"
 msgstr "Не вдалося оновити"
 
@@ -3712,7 +3722,7 @@ msgstr "Не вдалося оновити секцію"
 msgid "Failed to update settings"
 msgstr "Не вдалося оновити налаштування"
 
-#: packages/admin/src/router.tsx:1456
+#: packages/admin/src/router.tsx:1457
 msgid "Failed to update status"
 msgstr "Не вдалося оновити статус"
 
@@ -3754,7 +3764,7 @@ msgid "Featured Images"
 msgstr "Головні зображення"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:440
-#: packages/admin/src/components/ContentTypeList.tsx:105
+#: packages/admin/src/components/ContentTypeList.tsx:187
 msgid "Features"
 msgstr "Функції"
 
@@ -3846,12 +3856,12 @@ msgid "Filter by source"
 msgstr "Фільтр за джерелом"
 
 #: packages/admin/src/components/ContentList.tsx:763
-#: packages/admin/src/components/Redirects.tsx:422
+#: packages/admin/src/components/Redirects.tsx:427
 msgid "Filter by status"
 msgstr "Фільтр за статусом"
 
 #: packages/admin/src/components/MediaLibrary.tsx:439
-#: packages/admin/src/components/Redirects.tsx:428
+#: packages/admin/src/components/Redirects.tsx:433
 msgid "Filter by type"
 msgstr "Фільтр за типом"
 
@@ -3910,7 +3920,7 @@ msgstr "Загальні"
 msgid "General Settings"
 msgstr "Загальні налаштування"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:648
+#: packages/admin/src/components/TaxonomyManager.tsx:810
 msgid "Genres"
 msgstr "Жанри"
 
@@ -3931,7 +3941,7 @@ msgid "Go"
 msgstr "Перейти"
 
 #: packages/admin/src/components/WordPressImport.tsx:2418
-#: packages/admin/src/router.tsx:2221
+#: packages/admin/src/router.tsx:2233
 msgid "Go to Dashboard"
 msgstr "Перейти до панелі"
 
@@ -4028,12 +4038,12 @@ msgstr "Приховати від пошукових систем"
 msgid "Hide token"
 msgstr "Приховати токен"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:671
+#: packages/admin/src/components/TaxonomyManager.tsx:833
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "Ієрархічна (як категорії, з батьківсько-дочірніми зв'язками)"
 
 #: packages/admin/src/components/Redirects.tsx:226
-#: packages/admin/src/components/Redirects.tsx:473
+#: packages/admin/src/components/Redirects.tsx:479
 msgid "Hits"
 msgstr "Переходи"
 
@@ -4142,7 +4152,7 @@ msgid "Images"
 msgstr "Зображення"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:226
-#: packages/admin/src/components/Sidebar.tsx:290
+#: packages/admin/src/components/Sidebar.tsx:305
 #: packages/admin/src/components/WordPressImport.tsx:738
 msgid "Import"
 msgstr "Імпорт"
@@ -4487,7 +4497,7 @@ msgstr "Kotlin"
 #: packages/admin/src/components/MenuEditor.tsx:416
 #: packages/admin/src/components/MenuEditor.tsx:593
 #: packages/admin/src/components/MenuList.tsx:169
-#: packages/admin/src/components/TaxonomyManager.tsx:645
+#: packages/admin/src/components/TaxonomyManager.tsx:807
 #: packages/admin/src/components/Widgets.tsx:436
 #: packages/admin/src/routes/byline-schema.tsx:234
 msgid "Label"
@@ -4624,6 +4634,7 @@ msgstr "Перегляд наживо"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:229
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
+#: packages/admin/src/components/Redirects.tsx:560
 #: packages/admin/src/components/RegistryBrowse.tsx:146
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/routes/bylines.tsx:468
@@ -4638,7 +4649,7 @@ msgstr "Завантажити ще"
 msgid "Load More"
 msgstr "Завантажити ще"
 
-#: packages/admin/src/router.tsx:2176
+#: packages/admin/src/router.tsx:2188
 msgid "Loading"
 msgstr ""
 
@@ -4646,7 +4657,7 @@ msgstr ""
 msgid "Loading byline fields…"
 msgstr "Завантаження полів підпису…"
 
-#: packages/admin/src/components/ContentTypeList.tsx:116
+#: packages/admin/src/components/ContentTypeList.tsx:198
 msgid "Loading collections..."
 msgstr "Завантаження колекцій..."
 
@@ -4654,8 +4665,8 @@ msgstr "Завантаження колекцій..."
 msgid "Loading comments..."
 msgstr "Завантаження коментарів..."
 
-#: packages/admin/src/router.tsx:2178
 #: packages/admin/src/router.tsx:2190
+#: packages/admin/src/router.tsx:2202
 msgid "Loading configuration..."
 msgstr "Завантаження конфігурації..."
 
@@ -4679,7 +4690,7 @@ msgstr "Завантаження меню..."
 msgid "Loading plugins..."
 msgstr "Завантаження плагінів..."
 
-#: packages/admin/src/components/Redirects.tsx:459
+#: packages/admin/src/components/Redirects.tsx:464
 msgid "Loading redirects..."
 msgstr "Завантаження перенаправлень..."
 
@@ -4699,7 +4710,7 @@ msgstr "Завантаження налаштувань..."
 msgid "Loading setup..."
 msgstr "Завантаження налаштування..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:849
+#: packages/admin/src/components/TaxonomyManager.tsx:1054
 msgid "Loading terms..."
 msgstr "Завантаження термінів..."
 
@@ -4716,13 +4727,14 @@ msgstr "Завантаження віджетів..."
 #: packages/admin/src/components/MediaLibrary.tsx:635
 #: packages/admin/src/components/MediaPickerModal.tsx:775
 #: packages/admin/src/components/PortableTextEditor.tsx:2397
+#: packages/admin/src/components/Redirects.tsx:560
 #: packages/admin/src/components/RegistryBrowse.tsx:146
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:160
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:205
 #: packages/admin/src/components/settings/BackupSettings.tsx:154
 #: packages/admin/src/components/settings/EmailSettings.tsx:69
 #: packages/admin/src/components/settings/SecuritySettings.tsx:99
-#: packages/admin/src/components/TaxonomyManager.tsx:803
+#: packages/admin/src/components/TaxonomyManager.tsx:1008
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
@@ -4773,7 +4785,7 @@ msgstr "Довгий текст"
 msgid "Lowercase letters, numbers, and hyphens only"
 msgstr "Лише малі літери, цифри та дефіси"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:663
+#: packages/admin/src/components/TaxonomyManager.tsx:825
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "Лише малі літери, цифри та підкреслення, починаючи з літери"
 
@@ -4791,13 +4803,13 @@ msgstr "Виконувати мережеві запити"
 msgid "Make network requests to any host (unrestricted)"
 msgstr "Виконувати мережеві запити до будь-якого хоста (без обмежень)"
 
-#: packages/admin/src/components/Sidebar.tsx:375
+#: packages/admin/src/components/Sidebar.tsx:390
 msgid "Manage"
 msgstr "Керувати"
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
 #. placeholder {1}: taxonomyDef.collections.join(", ")
-#: packages/admin/src/components/TaxonomyManager.tsx:820
+#: packages/admin/src/components/TaxonomyManager.tsx:1025
 msgid "Manage {0} for {1}"
 msgstr "Керувати {0} для {1}"
 
@@ -4817,7 +4829,7 @@ msgstr "Керуйте встановленими плагінами. Увімк
 msgid "Manage navigation menus for your site"
 msgstr "Керуйте навігаційними меню вашого сайту"
 
-#: packages/admin/src/components/Redirects.tsx:361
+#: packages/admin/src/components/Redirects.tsx:366
 msgid "Manage URL redirects and view 404 errors."
 msgstr "Керуйте URL-перенаправленнями та переглядайте помилки 404."
 
@@ -4834,7 +4846,7 @@ msgstr "Керується {providerName}"
 msgid "Managed by an external media provider"
 msgstr "Керується зовнішнім медіа-провайдером"
 
-#: packages/admin/src/components/Redirects.tsx:427
+#: packages/admin/src/components/Redirects.tsx:432
 msgid "Manual"
 msgstr "Вручну"
 
@@ -4871,7 +4883,7 @@ msgstr "маркетплейс"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
 #: packages/admin/src/components/PluginManager.tsx:176
 #: packages/admin/src/components/PluginManager.tsx:384
-#: packages/admin/src/components/Sidebar.tsx:272
+#: packages/admin/src/components/Sidebar.tsx:287
 msgid "Marketplace"
 msgstr "Маркетплейс"
 
@@ -4897,7 +4909,7 @@ msgstr "MDX"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2676
 #: packages/admin/src/components/PortableTextEditor.tsx:2691
-#: packages/admin/src/components/Sidebar.tsx:216
+#: packages/admin/src/components/Sidebar.tsx:231
 #: packages/admin/src/components/WordPressImport.tsx:752
 #: packages/admin/src/components/WordPressImport.tsx:1145
 #: packages/admin/src/components/WordPressImport.tsx:1334
@@ -4988,7 +5000,7 @@ msgstr "Порядок меню оновлено."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:160
 #: packages/admin/src/components/MenuList.tsx:104
-#: packages/admin/src/components/Sidebar.tsx:226
+#: packages/admin/src/components/Sidebar.tsx:241
 #: packages/admin/src/components/WordPressImport.tsx:1149
 msgid "Menus"
 msgstr "Меню"
@@ -5081,6 +5093,26 @@ msgstr "Перемістити \"{0}\" вгору"
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "Перемістити \"{title}\" до кошика? Пізніше можна відновити."
 
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:251
+msgid "Move {0} down"
+msgstr ""
+
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:250
+msgid "Move {0} down — unavailable, its parent has no translation in this locale"
+msgstr ""
+
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:238
+msgid "Move {0} up"
+msgstr ""
+
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:237
+msgid "Move {0} up — unavailable, its parent has no translation in this locale"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:1051
 msgid "Move {title} to trash"
 msgstr "Перемістити {title} у кошик"
@@ -5110,11 +5142,11 @@ msgstr "Перемістити в кошик?"
 msgid "Move up"
 msgstr "Перемістити вгору"
 
-#: packages/admin/src/router.tsx:511
+#: packages/admin/src/router.tsx:512
 msgid "Moved {total} items to draft"
 msgstr "Переміщено {total} елементів у чернетки"
 
-#: packages/admin/src/router.tsx:532
+#: packages/admin/src/router.tsx:533
 msgid "Moved {total} items to trash"
 msgstr "Переміщено {total} елементів у кошик"
 
@@ -5134,23 +5166,23 @@ msgstr "Множинний вибір із варіантів"
 msgid "My Awesome Blog"
 msgstr "Мій чудовий блог"
 
-#: packages/admin/src/components/ContentTypeList.tsx:96
+#: packages/admin/src/components/ContentTypeList.tsx:178
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MenuList.tsx:157
-#: packages/admin/src/components/TaxonomyManager.tsx:405
-#: packages/admin/src/components/TaxonomyManager.tsx:654
-#: packages/admin/src/components/TaxonomyManager.tsx:843
+#: packages/admin/src/components/TaxonomyManager.tsx:567
+#: packages/admin/src/components/TaxonomyManager.tsx:816
+#: packages/admin/src/components/TaxonomyManager.tsx:1048
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:148
 #: packages/admin/src/components/Widgets.tsx:430
 msgid "Name"
 msgstr "Ім'я"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:580
+#: packages/admin/src/components/TaxonomyManager.tsx:742
 msgid "Name and label are required"
 msgstr "Ім'я та мітка обов'язкові"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:586
+#: packages/admin/src/components/TaxonomyManager.tsx:748
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "Ім'я має починатися з літери і містити лише малі літери, цифри та підкреслення"
 
@@ -5163,7 +5195,7 @@ msgstr "Навігація"
 msgid "Never"
 msgstr "Ніколи"
 
-#: packages/admin/src/router.tsx:1137
+#: packages/admin/src/router.tsx:1138
 msgid "new"
 msgstr "новий"
 
@@ -5193,7 +5225,7 @@ msgid "New collection"
 msgstr "Нова колекція"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:355
-#: packages/admin/src/components/ContentTypeList.tsx:46
+#: packages/admin/src/components/ContentTypeList.tsx:122
 msgid "New Content Type"
 msgstr "Новий тип вмісту"
 
@@ -5206,7 +5238,7 @@ msgid "New public routes"
 msgstr "Нові публічні маршрути"
 
 #: packages/admin/src/components/Redirects.tsx:106
-#: packages/admin/src/components/Redirects.tsx:365
+#: packages/admin/src/components/Redirects.tsx:370
 msgid "New Redirect"
 msgstr "Нове перенаправлення"
 
@@ -5218,7 +5250,7 @@ msgstr "Нова секція"
 msgid "new tab"
 msgstr "нова вкладка"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:833
+#: packages/admin/src/components/TaxonomyManager.tsx:1038
 msgid "New Taxonomy"
 msgstr "Нова таксономія"
 
@@ -5234,7 +5266,7 @@ msgstr "Нове вікно"
 msgid "Newest"
 msgstr "Найновіші"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:408
+#: packages/admin/src/components/TaxonomyManager.tsx:570
 msgid "News"
 msgstr "Новини"
 
@@ -5271,7 +5303,7 @@ msgid "No {0} yet."
 msgstr "Ще немає {0}."
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:852
+#: packages/admin/src/components/TaxonomyManager.tsx:1057
 msgid "No {0} yet. Create one to get started."
 msgstr "Ще немає {0}. Створіть, щоб почати."
 
@@ -5332,7 +5364,7 @@ msgstr "Вміст не знайдено"
 msgid "No content in this collection"
 msgstr "Немає вмісту в цій колекції"
 
-#: packages/admin/src/components/ContentTypeList.tsx:122
+#: packages/admin/src/components/ContentTypeList.tsx:204
 msgid "No content types yet."
 msgstr "Ще немає типів вмісту."
 
@@ -5490,7 +5522,7 @@ msgstr "Публічний URL недоступний"
 msgid "No recent activity"
 msgstr "Немає недавньої активності"
 
-#: packages/admin/src/components/Redirects.tsx:463
+#: packages/admin/src/components/Redirects.tsx:468
 msgid "No redirects yet"
 msgstr "Ще немає перенаправлень"
 
@@ -5555,8 +5587,8 @@ msgstr "Ще немає областей віджетів. Створіть, щ�
 msgid "None"
 msgstr "Немає"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:434
-#: packages/admin/src/components/TaxonomyManager.tsx:443
+#: packages/admin/src/components/TaxonomyManager.tsx:596
+#: packages/admin/src/components/TaxonomyManager.tsx:605
 msgid "None (top level)"
 msgstr "Немає (верхній рівень)"
 
@@ -5656,7 +5688,7 @@ msgstr "Необов'язковий підпис під зображенням"
 msgid "Optional caption for display"
 msgstr "Необов'язковий підпис для відображення"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:459
+#: packages/admin/src/components/TaxonomyManager.tsx:621
 msgid "Optional description"
 msgstr "Необов'язковий опис"
 
@@ -5724,7 +5756,7 @@ msgstr "Власність"
 msgid "Package"
 msgstr "Пакет"
 
-#: packages/admin/src/router.tsx:2216
+#: packages/admin/src/router.tsx:2228
 msgid "Page Not Found"
 msgstr "Сторінку не знайдено"
 
@@ -5738,12 +5770,12 @@ msgid "Paragraph"
 msgstr "Абзац"
 
 #: packages/admin/src/components/MenuEditor.tsx:615
-#: packages/admin/src/components/TaxonomyManager.tsx:430
+#: packages/admin/src/components/TaxonomyManager.tsx:592
 msgid "Parent"
 msgstr "Батьківський"
 
-#: packages/admin/src/components/Redirects.tsx:512
 #: packages/admin/src/components/Redirects.tsx:518
+#: packages/admin/src/components/Redirects.tsx:524
 msgid "Part of a redirect loop"
 msgstr "Частина циклу перенаправлення"
 
@@ -5997,8 +6029,8 @@ msgstr "Помилка віджета плагіна"
 #: packages/admin/src/components/PluginManager.tsx:139
 #: packages/admin/src/components/PluginManager.tsx:148
 #: packages/admin/src/components/PluginManager.tsx:158
-#: packages/admin/src/components/Sidebar.tsx:256
-#: packages/admin/src/components/Sidebar.tsx:391
+#: packages/admin/src/components/Sidebar.tsx:271
+#: packages/admin/src/components/Sidebar.tsx:406
 msgid "Plugins"
 msgstr "Плагіни"
 
@@ -6084,13 +6116,10 @@ msgid "Provider:"
 msgstr "Провайдер:"
 
 #: packages/admin/src/components/ContentList.tsx:422
-#: packages/admin/src/components/ContentList.tsx:736
 #: packages/admin/src/components/ContentSettingsPanel.tsx:191
 #: packages/admin/src/components/ContentSettingsPanel.tsx:198
 #: packages/admin/src/components/ContentSettingsPanel.tsx:455
 #: packages/admin/src/components/ContentSettingsPanel.tsx:458
-#: packages/admin/src/components/ContentStatusBadge.tsx:59
-#: packages/admin/src/components/Dashboard.tsx:263
 msgid "Publish"
 msgstr "Опублікувати"
 
@@ -6098,8 +6127,11 @@ msgstr "Опублікувати"
 msgid "Publish date"
 msgstr ""
 
+#: packages/admin/src/components/ContentList.tsx:736
 #: packages/admin/src/components/ContentList.tsx:747
-#: packages/admin/src/router.tsx:1026
+#: packages/admin/src/components/ContentStatusBadge.tsx:59
+#: packages/admin/src/components/Dashboard.tsx:263
+#: packages/admin/src/router.tsx:1027
 msgid "Published"
 msgstr "Опубліковано"
 
@@ -6108,7 +6140,7 @@ msgstr "Опубліковано"
 msgid "Published {0}"
 msgstr "Опубліковано {0}"
 
-#: packages/admin/src/router.tsx:488
+#: packages/admin/src/router.tsx:489
 msgid "Published {total} items"
 msgstr "Опубліковано елементів: {total}"
 
@@ -6203,7 +6235,7 @@ msgstr "Email одержувача"
 msgid "Recovery link sent to {0}"
 msgstr "Посилання для відновлення надіслано на {0}"
 
-#: packages/admin/src/components/Redirects.tsx:445
+#: packages/admin/src/components/Redirects.tsx:450
 msgid "Redirect loop detected"
 msgstr "Виявлено цикл перенаправлення"
 
@@ -6211,9 +6243,9 @@ msgstr "Виявлено цикл перенаправлення"
 msgid "Redirecting to login..."
 msgstr "Перенаправлення на вхід..."
 
-#: packages/admin/src/components/Redirects.tsx:359
-#: packages/admin/src/components/Redirects.tsx:380
-#: packages/admin/src/components/Sidebar.tsx:229
+#: packages/admin/src/components/Redirects.tsx:364
+#: packages/admin/src/components/Redirects.tsx:385
+#: packages/admin/src/components/Sidebar.tsx:244
 msgid "Redirects"
 msgstr "Перенаправлення"
 
@@ -6233,7 +6265,7 @@ msgstr "Посилання на favicon недоступне."
 msgid "Refresh the page or try again."
 msgstr "Оновіть сторінку або спробуйте ще раз."
 
-#: packages/admin/src/components/ContentTypeList.tsx:80
+#: packages/admin/src/components/ContentTypeList.tsx:156
 msgid "Register"
 msgstr "Зареєструвати"
 
@@ -6254,7 +6286,7 @@ msgstr "Реєстрація не вдалася"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "Реєстрацію скасовано або час очікування минув. Спробуйте ще раз."
 
-#: packages/admin/src/components/Sidebar.tsx:265
+#: packages/admin/src/components/Sidebar.tsx:280
 msgid "Registry"
 msgstr "Реєстр"
 
@@ -6364,6 +6396,15 @@ msgstr "Перейменувати {0}"
 msgid "Rename passkey"
 msgstr "Перейменувати passkey"
 
+#: packages/admin/src/components/ContentTypeList.tsx:174
+msgid "Reorder"
+msgstr ""
+
+#. placeholder {0}: collection.label
+#: packages/admin/src/components/ContentTypeList.tsx:281
+msgid "Reorder {0}"
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:240
 msgid "Repeater"
 msgstr "Повторювач"
@@ -6395,7 +6436,7 @@ msgstr "Репозиторій"
 msgid "Request a new link"
 msgstr "Запросити нове посилання"
 
-#: packages/admin/src/lib/api/client.ts:226
+#: packages/admin/src/lib/api/client.ts:227
 msgid "Request failed"
 msgstr "Запит не вдався"
 
@@ -6471,7 +6512,7 @@ msgstr "Відновлення..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:2204
+#: packages/admin/src/router.tsx:2216
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Повторити"
@@ -6480,7 +6521,7 @@ msgstr "Повторити"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Багаторазові блоки вмісту, які можна вставляти в будь-який вміст"
 
-#: packages/admin/src/router.tsx:1064
+#: packages/admin/src/router.tsx:1065
 msgid "Reverted to published version"
 msgstr "Повернуто до опублікованої версії"
 
@@ -6644,7 +6685,7 @@ msgstr "Збережено \"{0}\"."
 #: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/Redirects.tsx:188
 #: packages/admin/src/components/SaveButton.tsx:33
-#: packages/admin/src/components/TaxonomyManager.tsx:498
+#: packages/admin/src/components/TaxonomyManager.tsx:660
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:983
 #: packages/admin/src/routes/bylines.tsx:579
@@ -6678,7 +6719,7 @@ msgstr "Запланувати на пізніше"
 
 #: packages/admin/src/components/ContentList.tsx:738
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1084
+#: packages/admin/src/router.tsx:1085
 msgid "Scheduled"
 msgstr "Заплановано"
 
@@ -6825,7 +6866,7 @@ msgstr "Шукати плагіни..."
 msgid "Search sections..."
 msgstr "Шукати секції..."
 
-#: packages/admin/src/components/Redirects.tsx:412
+#: packages/admin/src/components/Redirects.tsx:417
 msgid "Search source or destination..."
 msgstr "Шукати джерело або призначення..."
 
@@ -6885,7 +6926,7 @@ msgstr "Назва секції"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:176
 #: packages/admin/src/components/Sections.tsx:134
-#: packages/admin/src/components/Sidebar.tsx:234
+#: packages/admin/src/components/Sidebar.tsx:249
 msgid "Sections"
 msgstr "Секції"
 
@@ -7157,7 +7198,7 @@ msgstr "Налаштування..."
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:472
 #: packages/admin/src/components/Settings.tsx:40
-#: packages/admin/src/components/Sidebar.tsx:294
+#: packages/admin/src/components/Sidebar.tsx:309
 #: packages/admin/src/components/WordPressImport.tsx:1811
 msgid "Settings"
 msgstr "Налаштування"
@@ -7342,12 +7383,12 @@ msgstr "Пропущено"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1082
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
 #: packages/admin/src/components/ContentTypeEditor.tsx:402
-#: packages/admin/src/components/ContentTypeList.tsx:99
+#: packages/admin/src/components/ContentTypeList.tsx:181
 #: packages/admin/src/components/FieldEditor.tsx:228
 #: packages/admin/src/components/FieldEditor.tsx:418
 #: packages/admin/src/components/SectionEditor.tsx:259
 #: packages/admin/src/components/Sections.tsx:184
-#: packages/admin/src/components/TaxonomyManager.tsx:414
+#: packages/admin/src/components/TaxonomyManager.tsx:576
 #: packages/admin/src/routes/byline-schema.tsx:237
 #: packages/admin/src/routes/bylines.tsx:486
 msgid "Slug"
@@ -7408,12 +7449,12 @@ msgstr "Сортувати плагіни"
 msgid "Sort themes"
 msgstr "Сортувати теми"
 
-#: packages/admin/src/components/ContentTypeList.tsx:102
+#: packages/admin/src/components/ContentTypeList.tsx:184
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:560
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:225
 #: packages/admin/src/components/PluginManager.tsx:580
-#: packages/admin/src/components/Redirects.tsx:469
+#: packages/admin/src/components/Redirects.tsx:475
 #: packages/admin/src/components/SectionEditor.tsx:294
 msgid "Source"
 msgstr "Джерело"
@@ -7457,7 +7498,7 @@ msgstr "Почніть писати або введіть «/» для кома�
 #: packages/admin/src/components/ContentList.tsx:518
 #: packages/admin/src/components/ContentSettingsPanel.tsx:469
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
-#: packages/admin/src/components/Redirects.tsx:474
+#: packages/admin/src/components/Redirects.tsx:480
 #: packages/admin/src/components/users/UserList.tsx:104
 msgid "Status"
 msgstr "Статус"
@@ -7570,7 +7611,7 @@ msgstr "Теги ({0})"
 msgid "Target"
 msgstr "Ціль"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:192
+#: packages/admin/src/components/TaxonomyManager.tsx:354
 msgid "Target locale"
 msgstr "Цільова локаль"
 
@@ -7583,15 +7624,15 @@ msgstr "Таксономії"
 msgid "Taxonomies Manage"
 msgstr "Керування таксономіями"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:920
+#: packages/admin/src/components/TaxonomyManager.tsx:1124
 msgid "Taxonomy created"
 msgstr "Таксономію створено"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:809
+#: packages/admin/src/components/TaxonomyManager.tsx:1014
 msgid "Taxonomy not found:"
 msgstr "Таксономію не знайдено:"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:179
+#: packages/admin/src/components/TaxonomyManager.tsx:341
 msgid "Taxonomy: {taxonomyName}"
 msgstr "Таксономія: {taxonomyName}"
 
@@ -7599,19 +7640,19 @@ msgstr "Таксономія: {taxonomyName}"
 msgid "Template:"
 msgstr "Шаблон:"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:377
-#: packages/admin/src/components/TaxonomyManager.tsx:378
-#: packages/admin/src/components/TaxonomyManager.tsx:836
+#: packages/admin/src/components/TaxonomyManager.tsx:539
+#: packages/admin/src/components/TaxonomyManager.tsx:540
+#: packages/admin/src/components/TaxonomyManager.tsx:1041
 msgid "Term"
 msgstr "Термін"
 
 #. placeholder {0}: term.label
 #. placeholder {1}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:783
+#: packages/admin/src/components/TaxonomyManager.tsx:988
 msgid "Term \"{0}\" created in {1}."
 msgstr "Термін \"{0}\" створено в {1}."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:765
+#: packages/admin/src/components/TaxonomyManager.tsx:928
 msgid "Term deleted"
 msgstr "Термін видалено"
 
@@ -7631,7 +7672,7 @@ msgstr "Доступ пристрою не буде надано."
 msgid "The existing collection has fields with incompatible types."
 msgstr "Існуюча колекція містить поля з несумісними типами."
 
-#: packages/admin/src/components/ContentTypeList.tsx:60
+#: packages/admin/src/components/ContentTypeList.tsx:136
 msgid "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
 msgstr "Наступні таблиці містять контент, але не зареєстровані як колекції. Зареєструйте їх, щоб керувати цим контентом в адмін-панелі."
 
@@ -7656,7 +7697,7 @@ msgstr "Меню видалено."
 msgid "The name of your site, used in the header and metadata"
 msgstr "Назва вашого сайту, що використовується в заголовку та метаданих"
 
-#: packages/admin/src/router.tsx:2218
+#: packages/admin/src/router.tsx:2230
 msgid "The page you're looking for doesn't exist."
 msgstr "Сторінку, яку ви шукаєте, не знайдено."
 
@@ -7705,7 +7746,7 @@ msgstr "Розділи від теми не можна видалити. Від�
 msgid "Theme: {label}"
 msgstr "Тема: {label}"
 
-#: packages/admin/src/components/Sidebar.tsx:281
+#: packages/admin/src/components/Sidebar.tsx:296
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
 msgid "Themes"
 msgstr "Теми"
@@ -7768,7 +7809,7 @@ msgstr "Цей плагін не потребує спеціальних доз�
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
 msgstr "Цей видавець стверджує право на ім’я, яке не зміг підтвердити — можливо, видає себе за іншу особу. Встановлення вимкнено. Якщо ви знаєте видавця і довіряєте йому, попросіть виправити налаштування ідентичності перед повторною спробою."
 
-#: packages/admin/src/components/Redirects.tsx:584
+#: packages/admin/src/components/Redirects.tsx:602
 msgid "This redirect rule will be permanently removed."
 msgstr "Це правило перенаправлення буде остаточно видалено."
 
@@ -7805,7 +7846,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr "Елемент буде переміщено в кошик. Пізніше його можна відновити з кошика."
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:906
+#: packages/admin/src/components/TaxonomyManager.tsx:1110
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "Це назавжди видалить \"{0}\" і прибере його з усього вмісту."
 
@@ -7910,30 +7951,30 @@ msgstr "Відстежувати історію контенту"
 msgid "Translatable"
 msgstr "Перекладний"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:103
-#: packages/admin/src/components/TaxonomyManager.tsx:214
+#: packages/admin/src/components/TaxonomyManager.tsx:266
+#: packages/admin/src/components/TaxonomyManager.tsx:376
 #: packages/admin/src/components/TranslationsPanel.tsx:104
 msgid "Translate"
 msgstr "Перекласти"
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:176
+#: packages/admin/src/components/TaxonomyManager.tsx:338
 msgid "Translate \"{0}\""
 msgstr "Перекласти \"{0}\""
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:100
+#: packages/admin/src/components/TaxonomyManager.tsx:263
 msgid "Translate {0}"
 msgstr "Перекласти {0}"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:214
+#: packages/admin/src/components/TaxonomyManager.tsx:376
 #: packages/admin/src/components/TranslationsPanel.tsx:104
 msgid "Translating..."
 msgstr "Переклад..."
 
 #: packages/admin/src/components/MenuEditor.tsx:143
-#: packages/admin/src/components/TaxonomyManager.tsx:782
-#: packages/admin/src/router.tsx:1136
+#: packages/admin/src/components/TaxonomyManager.tsx:987
+#: packages/admin/src/router.tsx:1137
 msgid "Translation created"
 msgstr "Переклад створено"
 
@@ -8112,11 +8153,11 @@ msgstr "Passkey без назви"
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1044
+#: packages/admin/src/router.tsx:1045
 msgid "Unpublished"
 msgstr "Неопубліковано"
 
-#: packages/admin/src/components/ContentTypeList.tsx:57
+#: packages/admin/src/components/ContentTypeList.tsx:133
 msgid "Unregistered Content Tables Found"
 msgstr "Знайдено незареєстровані таблиці контенту"
 
@@ -8124,7 +8165,7 @@ msgstr "Знайдено незареєстровані таблиці конт�
 msgid "Unschedule"
 msgstr "Скасувати публікацію за розкладом"
 
-#: packages/admin/src/router.tsx:1105
+#: packages/admin/src/router.tsx:1106
 msgid "Unscheduled"
 msgstr "Без розкладу"
 
@@ -8154,7 +8195,7 @@ msgstr "Неперевірений видавець"
 msgid "Up"
 msgstr "Вгору"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:500
+#: packages/admin/src/components/TaxonomyManager.tsx:662
 msgid "Update"
 msgstr "Оновити"
 
@@ -8176,7 +8217,7 @@ msgid "Update site settings"
 msgstr "Оновити налаштування сайту"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
-#: packages/admin/src/components/TaxonomyManager.tsx:382
+#: packages/admin/src/components/TaxonomyManager.tsx:544
 msgid "Update the {0} details"
 msgstr "Оновити дані {0}"
 
@@ -8347,7 +8388,7 @@ msgstr "Увійдіть безпечно за допомогою зареєст
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "Використовується як резервне зображення Open Graph, якщо на сторінці його немає. Рекомендований розмір: 1200×630."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:666
+#: packages/admin/src/components/TaxonomyManager.tsx:828
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Використовується як ідентифікатор. Лише малі літери, цифри та підкреслення."
 
@@ -8389,7 +8430,7 @@ msgid "User not found"
 msgstr "Користувача не знайдено"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:253
+#: packages/admin/src/components/Sidebar.tsx:268
 #: packages/admin/src/components/users/UserList.tsx:54
 msgid "Users"
 msgstr "Користувачі"
@@ -8486,7 +8527,7 @@ msgstr "Переглянути код"
 msgid "View the {license} license on spdx.org"
 msgstr "Переглянути ліцензію {license} на spdx.org"
 
-#: packages/admin/src/components/Redirects.tsx:451
+#: packages/admin/src/components/Redirects.tsx:456
 msgid "Visitors hitting these paths will see an error."
 msgstr "Відвідувачі за цими шляхами побачать помилку."
 
@@ -8570,7 +8611,7 @@ msgstr "Коли запис востаннє змінено"
 msgid "When the entry was published"
 msgstr "Коли запис опубліковано"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:680
+#: packages/admin/src/components/TaxonomyManager.tsx:842
 msgid "Which content types can use this taxonomy"
 msgstr "Які типи контенту можуть використовувати цю таксономію"
 
@@ -8641,7 +8682,7 @@ msgstr "Віджет оновлено"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:168
 #: packages/admin/src/components/PluginManager.tsx:408
-#: packages/admin/src/components/Sidebar.tsx:233
+#: packages/admin/src/components/Sidebar.tsx:248
 #: packages/admin/src/components/Widgets.tsx:388
 #: packages/admin/src/components/WordPressImport.tsx:1157
 msgid "Widgets"
@@ -8746,7 +8787,7 @@ msgstr "У вас повний доступ до керування сайтом
 msgid "You need admin permissions to manage byline schema."
 msgstr "Для керування схемою підписів авторів потрібні права адміністратора."
 
-#: packages/admin/src/router.tsx:1513
+#: packages/admin/src/router.tsx:1514
 msgid "You need Editor permissions to moderate comments."
 msgstr "Для модерації коментарів потрібні права редактора."
 

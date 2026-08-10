@@ -88,6 +88,7 @@ import {
 	createCollectionBody,
 	createFieldBody,
 	fieldListResponseSchema,
+	collectionReorderBody,
 	fieldReorderBody,
 	fieldResponseSchema,
 	orphanedTableListResponseSchema,
@@ -112,10 +113,12 @@ import {
 import { settingsUpdateBody, siteSettingsSchema } from "../schemas/settings.js";
 import {
 	createTermBody,
+	reorderTermsBody,
 	taxonomyListResponseSchema,
 	termGetResponseSchema,
 	termListQuery,
 	termListResponseSchema,
+	termReorderResponseSchema,
 	termResponseSchema,
 	updateTermBody,
 } from "../schemas/taxonomies.js";
@@ -1062,6 +1065,28 @@ const schemaPaths = {
 			},
 		},
 	},
+	"/_emdash/api/schema/collections/reorder": {
+		post: {
+			operationId: "reorderCollections",
+			summary: "Reorder collections in the admin sidebar",
+			description:
+				"Sets the sidebar order. Collections omitted from the list lose their explicit position and fall back to alphabetical order after the ordered ones.",
+			tags: ["Schema"],
+			requestBody: { content: { [JSON_CONTENT]: { schema: collectionReorderBody } } },
+			responses: {
+				"200": {
+					description: "Reordered",
+					content: {
+						[JSON_CONTENT]: {
+							schema: successEnvelope(z.object({ success: z.literal(true) })),
+						},
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+	},
 	"/_emdash/api/schema/collections/{slug}/fields/reorder": {
 		post: {
 			operationId: "reorderFields",
@@ -1317,6 +1342,29 @@ const taxonomyPaths = {
 				},
 				...authErrors,
 				...standardErrors(500),
+			},
+		},
+	},
+	"/_emdash/api/taxonomies/{name}/reorder": {
+		post: {
+			operationId: "reorderTerms",
+			summary: "Set the manual order of one sibling group of terms",
+			description:
+				"`ids` names the terms to move, in the desired order, and may be a subset of the group — the listed terms are permuted within the positions they already occupy. A position belongs to a term across every locale, so there is no `locale` parameter. Ordering never reparents — use the term update endpoint to change a parent.",
+			tags: ["Taxonomies"],
+			requestParams: {
+				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+			},
+			requestBody: { content: { [JSON_CONTENT]: { schema: reorderTermsBody } } },
+			responses: {
+				"200": {
+					description: "The group in its new order",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(termReorderResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
 			},
 		},
 	},

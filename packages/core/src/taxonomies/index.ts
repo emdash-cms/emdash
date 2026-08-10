@@ -301,6 +301,7 @@ async function loadTaxonomyTerms(
 		.selectFrom("taxonomies")
 		.selectAll()
 		.where("name", "=", def.name)
+		.orderBy("sort_order", "asc")
 		.orderBy("label", "asc");
 	if (locale !== undefined) termsQuery = termsQuery.where("locale", "=", locale);
 
@@ -419,6 +420,7 @@ async function loadTerm(
 		// Children store the parent's translation_group in parent_id (not a row
 		// id), so a translated parent still owns its children in its own locale.
 		.where("parent_id", "=", row.translation_group ?? row.id)
+		.orderBy("sort_order", "asc")
 		.orderBy("label", "asc");
 	const termLocale = row.locale;
 	if (termLocale) childrenQuery = childrenQuery.where("locale", "=", termLocale);

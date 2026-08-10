@@ -38,6 +38,14 @@
 		],
 	},
 
+	// Dynamic Worker loader for the read-only `code` analysis tool
+	// (@cloudflare/codemode's DynamicWorkerExecutor).
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
+		},
+	],
+
 	// Every Durable Object class the worker uses must be declared sqlite-enabled.
 	// Flue's run-index (FlueRegistry) and per-workflow DOs (FlueClassifyCommand-
 	// Workflow, FlueInvestigateWorkflow) all use SQL storage internally, so they
@@ -64,6 +72,14 @@
 			"new_sqlite_classes": ["FlueClassifyCommandAgent", "FlueInvestigateAgent"],
 			"deleted_classes": ["FlueRegistry", "FlueClassifyCommandWorkflow", "FlueInvestigateWorkflow"],
 		},
+		{
+			"tag": "v4",
+			"new_sqlite_classes": ["WorkspaceDO"],
+		},
+		{
+			"tag": "v5",
+			"deleted_classes": ["WorkspaceDO"],
+		},
 	],
 
 	// Workspace storage for the sandbox (repo clone, build cache, agent files
@@ -89,5 +105,8 @@
 
 	"observability": {
 		"enabled": true,
+		"traces": {
+			"enabled": true,
+		},
 	},
 }

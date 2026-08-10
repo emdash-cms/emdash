@@ -238,7 +238,7 @@
     "astro-portabletext": "^0.11.0",
     "better-sqlite3": "catalog:",
     "blurhash": "^2.0.5",
-    "citty": "^0.1.6",
+    "citty": "^0.2.2",
     "consola": "^3.4.2",
     "croner": "^10.0.1",
     "image-size": "^2.0.2",

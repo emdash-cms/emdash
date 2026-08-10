@@ -54,11 +54,19 @@ declare module "virtual:emdash/dialect" {
 		config: unknown;
 		isAuthenticated: boolean;
 		isWrite: boolean;
+		/** Whether core routing allows this request to use an anonymous public-read cache. */
+		canUseCachedBinding?: boolean;
 		cookies: {
 			get(name: string): { value: string } | undefined;
 			set(name: string, value: string, options: Record<string, unknown>): void;
 		};
 		url: URL;
+		/**
+		 * ms-epoch of the last content-namespace object-cache invalidation.
+		 * Hyperdrive uses this (with `preferUncachedAfterWriteMs`) to briefly
+		 * prefer the primary uncached binding after a publish.
+		 */
+		lastContentWriteAt?: number;
 	}
 	export interface RequestScopedDb {
 		db: Kysely<unknown>;
