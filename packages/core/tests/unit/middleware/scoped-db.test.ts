@@ -128,6 +128,26 @@ describe("deferScopedCloseUntilSettled", () => {
 		expect(close).toHaveBeenCalledTimes(1);
 	});
 
+	it("keeps teardown behind a streaming response after request work settles", async () => {
+		const close = vi.fn();
+		let deferredTask!: Promise<void>;
+		const scoped = deferScopedCloseUntilSettled(
+			{ commit: vi.fn(), close },
+			Promise.resolve(),
+			(task) => {
+				deferredTask = Promise.resolve().then(task);
+			},
+		);
+
+		const response = await finishScoped(scoped, async () => streamingResponse(["body"]));
+		await Promise.resolve();
+
+		expect(close).not.toHaveBeenCalled();
+		await drain(response);
+		await deferredTask;
+		expect(close).toHaveBeenCalledTimes(1);
+	});
+
 	it("keeps background work deferred for an adapter without teardown", async () => {
 		const scoped = { commit: vi.fn() };
 		let deferredTask!: () => void | Promise<void>;
