@@ -69,3 +69,18 @@ const alignClass = textAlignClassName(node.textAlign);
 		</p>
 	)
 }
+
+{/* Converting this to `is:global` would restyle any `has-text-align-*`
+markup the site renders outside Portable Text. `left` maps to no class and
+needs no rule. */}
+<style>
+	.has-text-align-center {
+		text-align: center;
+	}
+	.has-text-align-right {
+		text-align: right;
+	}
+	.has-text-align-justify {
+		text-align: justify;
+	}
+</style>
