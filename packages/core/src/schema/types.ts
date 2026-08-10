@@ -48,10 +48,7 @@ export const FIELD_TYPES: readonly FieldType[] = [
 	"repeater",
 ] as const;
 
-/**
- * Scalar field types that can be backed by a content-list query index.
- * Complex JSON values and large free-form text are intentionally excluded.
- */
+/** Scalar field types that can be backed by a content-list query index. */
 export const INDEXABLE_FIELD_TYPES: ReadonlySet<FieldType> = new Set([
 	"string",
 	"url",
