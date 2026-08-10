@@ -2499,7 +2499,6 @@ function EditorFooter({ editor }: { editor: Editor }) {
 }
 
 export { EditorFooter as _EditorFooter };
-export { EditorFooter as _EditorFooter };
 
 /** Focus mode state for the editor */
 export type FocusMode = "normal" | "spotlight";
