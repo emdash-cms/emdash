@@ -126,13 +126,30 @@ updating at cutover** until the follow-up lands.
 Run `pnpm evals -- --all` against the staging worker (see `evals/README.md`),
 then paste the summary here. **Do not merge until this reads GATE PASSED.**
 
+Latest full run (2026-08-10, results
+`evals/results/2026-08-10T10-52-56-854Z.json`):
+
 ```
-GATE: <PASSED|FAILED>  --  zero confident-wrong: <yes|NO (n)>
-total <n>   pass <n>   diagnosed <n>   miss <n>   confident-wrong <n>   error <n>
+GATE: FAILED  --  zero confident-wrong: NO (1)
+total 26   pass 10   diagnosed 6   miss 8   confident-wrong 1   error 1
 ```
 
-- [ ] Zero confident-wrong across all 26 cases.
-- [ ] Zero harness errors (every case produced a verdict).
-- [ ] Confirmed-bug reproduction rate recorded (misses are acceptable; note them).
+- [ ] Zero confident-wrong across all 26 cases. The single confident-wrong is
+  #1193, where the agent's claimed reproduction matches an independently
+  vitest-confirmed `update()`/`published_at` overwrite -- the dataset label
+  (`NOT_REPRODUCIBLE`, "COALESCE preserves it") is under adjudication. If the
+  label is wrong, this becomes a pass and the case needs relabelling (and the
+  bug filing).
+- [ ] Zero harness errors (every case produced a verdict). #1113 (needs-info)
+  timed out after 30 minutes with the agent still working (Astro build running
+  in the container; zero settlements). Re-run required; likely skill fix:
+  needs-info cases should short-circuit to "ask the reporter" instead of
+  attempting an empirical repro.
+- [x] Confirmed-bug reproduction rate recorded: 16/17 handled (10 reproduced,
+  6 diagnosed with the fault anchors named), 1 skipped (#1021). Zero false
+  claims on confirmed bugs.
 - [ ] Not-reproducible cases all landed `not_reproduced` (no false positives).
-- [ ] kimi k2.7-code 429 handling exercised; no run lost to a model flake.
+  4/5 avoided a repro claim but landed `diagnosed`/`by_design` instead of
+  `not_reproduced` (gate-neutral misses); #1193 as above. #1413/#914 finding
+  "root causes" on negatives feeds the same label adjudication.
+- [x] kimi k2.7-code 429 handling exercised; no run lost to a model flake.
