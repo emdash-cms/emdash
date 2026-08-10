@@ -106,7 +106,7 @@ describe("committed dataset.json", () => {
 			acc[c.category] = (acc[c.category] ?? 0) + 1;
 			return acc;
 		}, {});
-		expect(byCat).toEqual({ CONFIRMED_BUG: 18, NOT_REPRODUCIBLE: 4, NEEDS_INFO: 4 });
+		expect(byCat).toEqual({ CONFIRMED_BUG: 19, NOT_REPRODUCIBLE: 3, NEEDS_INFO: 4 });
 	});
 
 	test("every fixed confirmed bug resolves a 40-hex pre-fix ref equal to its first parent", () => {

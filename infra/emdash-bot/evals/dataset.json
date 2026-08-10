@@ -1,8 +1,8 @@
 {
 	"$schema_comment": "Evaluation dataset for emdash's next-gen investigation bot. Each case is a real closed issue from emdash-cms/emdash, selected so the issue body alone carries enough context to attempt (or correctly decline) a reproduction. Fields: number (GitHub issue #); title; category (CONFIRMED_BUG = reproduced and fixed, linked to a merging PR; NOT_REPRODUCIBLE = closed as cannot-reproduce / already-resolved / not-a-code-bug, no fix warranted; NEEDS_INFO = body lacks the specifics to attempt a repro, correct first move is to ask the reporter); ground_truth (one line: what a correct investigation should conclude, citing the fixing PR where applicable); fixing_pr (PR number that resolved it, or null); difficulty (easy/medium/hard, judged by how much setup + insight a correct investigation needs); repro_path (primary surface the bot must drive: 'public site' | 'admin' | 'api' | 'build'); area (subsystem, for coverage diversity). All source data gathered read-only via gh; nothing was posted to GitHub.",
 	"counts": {
-		"CONFIRMED_BUG": 18,
-		"NOT_REPRODUCIBLE": 4,
+		"CONFIRMED_BUG": 19,
+		"NOT_REPRODUCIBLE": 3,
 		"NEEDS_INFO": 4
 	},
 	"cases": [
@@ -325,14 +325,14 @@
 		{
 			"number": 1022,
 			"title": "autosave includes 'seo' in data payload, fails validation on collections with seo support",
-			"category": "NOT_REPRODUCIBLE",
-			"ground_truth": "Not reproducible on fresh entries (0.14/0.15): create->update(top-level seo)->publish->edit returns clean data with no seo key. The reporter later confirmed it only affects the two oldest pages whose pre-0.5 draft revisions had seo baked into the data JSON. Correct conclusion: cannot reproduce via normal flow; data-specific to legacy revisions (closed not-planned).",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible on main: validateContentData rejects any non-underscore key that is not among the collection defined field slugs, so legacy revisions carrying a seo envelope fail autosave/publish with VALIDATION_ERROR. Fresh entries never send seo, which is why the issue was closed, but pre-0.5 content on upgraded sites still hits it. Unfixed -- no fixing PR yet.",
 			"fixing_pr": null,
 			"difficulty": "hard",
 			"repro_path": "admin",
 			"area": "admin / autosave / legacy data",
 			"pre_fix": null,
-			"fault_anchors": []
+			"fault_anchors": ["validation", "seo", "unknown field", "autosave"]
 		},
 		{
 			"number": 914,

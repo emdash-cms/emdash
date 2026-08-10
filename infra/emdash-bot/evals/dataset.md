@@ -8,8 +8,8 @@ read-only; nothing posted to GitHub.
 
 | Category                   | Count  | Share | Target |
 | -------------------------- | ------ | ----- | ------ |
-| CONFIRMED_BUG              | 18     | 69%   | ~60%   |
-| NOT_REPRODUCIBLE / INVALID | 4      | 15%   | ~25%   |
+| CONFIRMED_BUG              | 19     | 73%   | ~60%   |
+| NOT_REPRODUCIBLE / INVALID | 3      | 12%   | ~25%   |
 | NEEDS_INFO                 | 4      | 15%   | ~15%   |
 | **Total**                  | **26** |       | 20–30  |
 
@@ -43,12 +43,12 @@ Deliberately spread across subsystems and both DB dialects:
 Repro paths: public site (696, 917, 1986, 808, 2210), api (2330, 2034, 2245, 1551,
 1193), admin (2344, 1671, 1607, 1884, 895), build (1421, 1080, 1021).
 
-Difficulty spread: easy 3, medium 9, hard 6 (confirmed); the not-repro/needs-info
+Difficulty spread: easy 3, medium 9, hard 7 (confirmed); the not-repro/needs-info
 buckets add the "don't overreach" pressure.
 
 ## Full case list
 
-### CONFIRMED_BUG (18)
+### CONFIRMED_BUG (19)
 
 | #    | Title (short)                                     | PR   | Diff | Path   |
 | ---- | ------------------------------------------------- | ---- | ---- | ------ |
@@ -70,14 +70,14 @@ buckets add the "don't overreach" pressure.
 | 808  | Redirects skipped for anonymous visitors          | 817  | med  | public |
 | 696  | MediaValue.src holds bare id, not URL             | 701  | easy | public |
 | 1193 | update() overwrites published_at via API          | none | med  | api    |
+| 1022 | Legacy seo data rejected as unknown field         | none | hard | admin  |
 
-### NOT_REPRODUCIBLE / INVALID (4)
+### NOT_REPRODUCIBLE / INVALID (3)
 
 | #    | Title (short)                       | Why                                                              | Diff | Path   |
 | ---- | ----------------------------------- | ---------------------------------------------------------------- | ---- | ------ |
 | 1413 | 9 MB admin bundle on public islands | React already own chunk; ~27 KB actual; unreachable admin chunks | hard | build  |
 | 1190 | Admin list stops at 50              | current admin sends limit=100 + nextCursor; older build symptom  | med  | admin  |
-| 1022 | autosave 'seo' unknown field        | not repro on fresh entries; only legacy pre-0.5 revisions        | hard | admin  |
 | 914  | emdashcms.com SSL error             | transient infra/TLS, not a codebase bug                          | easy | public |
 
 ### NEEDS_INFO (4)
