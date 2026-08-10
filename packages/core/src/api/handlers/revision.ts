@@ -4,6 +4,7 @@
 
 import type { Kysely } from "kysely";
 
+import { after } from "../../after.js";
 import { ContentRepository } from "../../database/repositories/content.js";
 import { RevisionRepository, type Revision } from "../../database/repositories/revision.js";
 import { withTransaction } from "../../database/transaction.js";
@@ -135,14 +136,21 @@ export async function handleRevisionRestore(
 		});
 
 		const pruneRepo = new RevisionRepository(db);
-		try {
-			await pruneRepo.pruneQueuedEntry(revision.collection, revision.entryId, queuedRevisionId, 50);
-		} catch (error) {
-			console.error(
-				`[revisions] Failed to prune revisions for ${revision.collection}/${revision.entryId}:`,
-				error,
-			);
-		}
+		after(async () => {
+			try {
+				await pruneRepo.pruneQueuedEntry(
+					revision.collection,
+					revision.entryId,
+					queuedRevisionId,
+					50,
+				);
+			} catch (error) {
+				console.error(
+					`[revisions] Failed to prune revisions for ${revision.collection}/${revision.entryId}:`,
+					error,
+				);
+			}
+		});
 
 		return {
 			success: true,
