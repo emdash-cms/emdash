@@ -127,29 +127,40 @@ Run `pnpm evals -- --all` against the staging worker (see `evals/README.md`),
 then paste the summary here. **Do not merge until this reads GATE PASSED.**
 
 Latest full run (2026-08-10, results
-`evals/results/2026-08-10T10-52-56-854Z.json`):
+`evals/results/2026-08-10T15-59-35-436Z.json`; the prior run's #1193
+confident-wrong was adjudicated as a wrong dataset label and the case
+relabelled CONFIRMED_BUG/unfixed):
 
 ```
 GATE: FAILED  --  zero confident-wrong: NO (1)
-total 26   pass 10   diagnosed 6   miss 8   confident-wrong 1   error 1
+total 26   pass 15   diagnosed 1   miss 9   confident-wrong 1   error 0
 ```
 
 - [ ] Zero confident-wrong across all 26 cases. The single confident-wrong is
-      #1193, where the agent's claimed reproduction matches an independently
-      vitest-confirmed `update()`/`published_at` overwrite -- the dataset label
-      (`NOT_REPRODUCIBLE`, "COALESCE preserves it") is under adjudication. If the
-      label is wrong, this becomes a pass and the case needs relabelling (and the
-      bug filing).
-- [ ] Zero harness errors (every case produced a verdict). #1113 (needs-info)
-      timed out after 30 minutes with the agent still working (Astro build running
-      in the container; zero settlements). Re-run required; likely skill fix:
-      needs-info cases should short-circuit to "ask the reporter" instead of
-      attempting an empirical repro.
-- [x] Confirmed-bug reproduction rate recorded: 16/17 handled (10 reproduced,
-      6 diagnosed with the fault anchors named), 1 skipped (#1021). Zero false
-      claims on confirmed bugs.
+      #1022: the agent asserted a reproduction (failing integration test;
+      `validateContentData` rejects any non-underscore key not among the
+      collection's field slugs, so legacy `seo` data fails autosave) on a case
+      labelled not-reproducible. The rejection mechanism is verified in current
+      `validation.ts`, and the label's own rationale concedes the failure for
+      legacy pre-0.5 revisions -- the label is under adjudication as likely
+      wrong (same shape as the #1193 relabel).
+- [x] Zero harness errors: every case produced a verdict. The run-7 #1113
+      timeout is fixed by the needs-info gate in the investigate skill.
+- [x] Confirmed-bug reproduction rate recorded: 16/18 landed (15 reproduced --
+      including previously-shaky #1021, #1884, #895 -- and 1 diagnosed,
+      #1607). Two misses: #696 (real miss: the fault is in the content-loader
+      path `loader.ts`, the agent audited only the editor/normalize layer and
+      concluded by-design; pre-fix pin verified correct) and #1193 (the agent
+      argues the `publishedAt` overwrite is gated, intentional backdating --
+      a defensible-but-overruled reading of a case adjudicated as a real bug).
+      Zero false claims on confirmed bugs.
 - [ ] Not-reproducible cases all landed `not_reproduced` (no false positives).
-      4/5 avoided a repro claim but landed `diagnosed`/`by_design` instead of
-      `not_reproduced` (gate-neutral misses); #1193 as above. #1413/#914 finding
-      "root causes" on negatives feeds the same label adjudication.
+      None did: #1413 diagnosed (asserts a concrete bundling defect against
+      the label), #1190 by_design, #1022 as above, #914 needs_info. All but
+      #1022 gate-neutral. Needs-info cases: #959/#1113 diagnosed (each names a
+      real-looking cause: unguarded `Astro.cache.set` in demos; the Astro
+      7.0.0/@astrojs/cloudflare 14.0.0 workerd regression allowed by the
+      create-emdash catalog -- both worth maintainer eyes), #1272 by_design,
+      #1124 not_reproduced. #1272/#1124 browser verification was blocked by
+      Chrome install failing (SSL) inside the sandbox -- environment follow-up.
 - [x] kimi k2.7-code 429 handling exercised; no run lost to a model flake.
