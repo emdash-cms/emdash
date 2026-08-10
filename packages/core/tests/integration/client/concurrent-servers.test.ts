@@ -15,6 +15,9 @@
  * its own copied fixture root) both succeed.
  */
 
+import { realpathSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, it, expect, afterAll } from "vitest";
 
 import type { TestServerContext } from "../server.js";
@@ -48,6 +51,12 @@ describe("Concurrent dev servers (#1604)", () => {
 		// Distinct roots -- the fix gives each server its own copied fixture.
 		expect(a.cwd).not.toBe(b.cwd);
 
+		// The Vite dependency optimizer must not follow both node_modules symlinks
+		// back to the same physical cache directory.
+		const viteCacheA = realpathSync(join(a.cwd, ".vite-cache"));
+		const viteCacheB = realpathSync(join(b.cwd, ".vite-cache"));
+		expect(viteCacheA).not.toBe(viteCacheB);
+
 		// Both must actually serve their independently seeded content.
 		const [collectionsA, collectionsB] = await Promise.all([
 			a.client.collections(),
@@ -58,5 +67,5 @@ describe("Concurrent dev servers (#1604)", () => {
 			expect(slugs).toContain("posts");
 			expect(slugs).toContain("pages");
 		}
-	});
+	}, 120_000);
 });
