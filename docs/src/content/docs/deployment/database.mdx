@@ -363,6 +363,10 @@ This is the [two-configuration pattern](https://developers.cloudflare.com/hyperd
 	Both configurations must point at the **same** database, or anonymous visitors see a different dataset than editors. Set `preferUncachedAfterWriteMs` to your cached config's `max_age` (default 60s) so post-publish public rebuilds read fresh SQL. Outside that window, anonymous public reads can still be up to `max_age` stale relative to non-content writes. Only opt in if that trade-off is acceptable; otherwise omit `cachedBinding` and keep caching disabled.
 </Aside>
 
+<Aside type="note">
+	Cross-isolate post-write routing uses the configured distributed Object Cache backend to share the last-content-write timestamp. Without a distributed Object Cache, the prefer-uncached window is known only to the Worker isolate that handled the write.
+</Aside>
+
 <Aside>
 	**Sandboxed plugins are D1-only.** The sandbox plugin bridge talks to a D1 binding directly, independent of the configured adapter, so sandboxed plugins aren't available on a Hyperdrive deployment.
 </Aside>

@@ -161,7 +161,9 @@ export interface HyperdriveConfig {
 	 * How long (ms) after a content write anonymous public reads should use the
 	 * primary uncached `binding` instead of `cachedBinding`. Set this equal to
 	 * your cached Hyperdrive configuration's `max_age` so the prefer-uncached
-	 * window covers the query-cache TTL.
+	 * window covers the query-cache TTL. Cross-isolate coordination uses the
+	 * configured distributed Object Cache backend; without one, the timestamp
+	 * is known only inside the Worker isolate that handled the write.
 	 *
 	 * Only applies when `cachedBinding` is set. Default: `60_000` (Hyperdrive's
 	 * default `max_age`) when `cachedBinding` is set; ignored otherwise.
