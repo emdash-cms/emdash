@@ -11,7 +11,7 @@ You **read code only.** No edits, no test runs, no dev servers. The working tree
 
 ## Environment
 
-This is pure inspection, so it is **entirely isolate work.** Use `read`, `ls`, and `exec` with `grep`/`rg`/`git grep`/`git log`/`git show` to walk from symptom to source. Do not attach a container -- you are not running anything.
+This is pure inspection, so it is **entirely VFS work.** Use `read_file`, `ls`, `grep`, and `code` to walk from symptom to source. Attach a container only if the diagnosis genuinely hinges on git history (`git log`/`show` run there); prefer the read-only GitHub API for commit and PR metadata.
 
 ## Do not
 

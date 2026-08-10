@@ -3,9 +3,7 @@
 	"name": "emdash-bot",
 	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
 	"compatibility_date": "2026-07-17",
-	// `experimental` is required by @cloudflare/computer's worker-shell backend
-	// (Dynamic Workers via the Worker Loader binding).
-	"compatibility_flags": ["nodejs_compat", "experimental"],
+	"compatibility_flags": ["nodejs_compat"],
 
 	// Workers AI: structural binding, no API key. Every model the bot uses
 	// (classify, investigate, fix) resolves through `cloudflare/@cf/...`
@@ -37,15 +35,11 @@
 				"class_name": "OrchestratorDO",
 				"name": "Orchestrator",
 			},
-			{
-				"class_name": "WorkspaceDO",
-				"name": "WorkspaceDO",
-			},
 		],
 	},
 
-	// Dynamic Worker loader for @cloudflare/computer's worker-shell isolate
-	// backend (bash-in-isolate). Requires the `experimental` compat flag above.
+	// Dynamic Worker loader for the read-only `code` analysis tool
+	// (@cloudflare/codemode's DynamicWorkerExecutor).
 	"worker_loaders": [
 		{
 			"binding": "LOADER",
@@ -81,6 +75,10 @@
 		{
 			"tag": "v4",
 			"new_sqlite_classes": ["WorkspaceDO"],
+		},
+		{
+			"tag": "v5",
+			"deleted_classes": ["WorkspaceDO"],
 		},
 	],
 

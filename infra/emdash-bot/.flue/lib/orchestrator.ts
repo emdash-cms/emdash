@@ -457,11 +457,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	/**
-	 * Reap the fix loop's branches when the anchoring issue closes. Mirrors
-	 * bot-cleanup.yml's close path: always delete bot/artifacts-<n>, delete
-	 * bot/fix-<n> only when no open PR references it. Does not touch machine
-	 * state -- a closed issue may legitimately keep its in_review/PR state, and
-	 * the branches are a projection we clean up regardless.
+	 * Reap the fix loop's branches when the anchoring issue closes: always
+	 * delete bot/artifacts-<n>, delete bot/fix-<n> only when no open PR
+	 * references it. Does not touch machine state -- a closed issue may
+	 * legitimately keep its in_review/PR state, and the branches are a
+	 * projection we clean up regardless.
 	 */
 	cleanupOnClose(anchorNumber: number): Promise<CleanupOutcome> {
 		return this.runExclusive(() => this.processCleanupOnClose(anchorNumber));

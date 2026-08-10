@@ -1,13 +1,8 @@
 // Cloudflare-target Durable Object exports. Flue's Vite plugin composes these
 // user-owned classes with its generated agent classes in the final Worker.
 
-import { type DurableObjectStorageLike, withWorkspace } from "@cloudflare/computer";
-import { WorkerShellBackend } from "@cloudflare/computer/backends/worker-shell";
-import { createGitClient } from "@cloudflare/computer/git";
 import { Sandbox as BaseSandbox } from "@cloudflare/sandbox";
-import { DurableObject } from "cloudflare:workers";
 
-import { ISOLATE_SHELL_BACKEND } from "./lib/exec-env.js";
 import {
 	gateGithubRequest,
 	githubAuthHeader,
@@ -91,17 +86,21 @@ async function handleAuthenticatedGithub(request: Request, env: Env): Promise<Re
 		path: url.pathname,
 	});
 
+	// The repo is public: when no usable App credential exists, forward the
+	// (already gated) request anonymously. Reads work; a push fails upstream.
 	const creds = readAppCreds(env);
-	if (!creds) return new Response("github access not configured", { status: 403 });
-	let token: string;
-	try {
-		token = await mintInstallationToken(creds);
-	} catch (err) {
-		console.error("[sandbox/outbound] token mint failed", { error: errorMessage(err) });
-		return new Response("token mint failed", { status: 502 });
+	let token: string | null = null;
+	if (creds) {
+		try {
+			token = await mintInstallationToken(creds);
+		} catch (err) {
+			console.warn("[sandbox/outbound] token mint failed; forwarding anonymously", {
+				error: errorMessage(err),
+			});
+		}
 	}
 	const authed = new Request(forwarded);
-	authed.headers.set("authorization", githubAuthHeader(url.host, token));
+	if (token) authed.headers.set("authorization", githubAuthHeader(url.host, token));
 	authed.headers.set("user-agent", "emdash-bot");
 	try {
 		const res = await fetch(authed, { signal: AbortSignal.timeout(2 * 60_000) });
@@ -122,36 +121,3 @@ function errorMessage(error: unknown): string {
 
 export { ContainerProxy } from "@cloudflare/sandbox";
 export { OrchestratorDO } from "./lib/orchestrator.js";
-
-// Isolate + VFS substrate for execEnv's `IsolateBackend`: a
-// @cloudflare/computer Workspace on a SQLite DO. `fs` and the built-in `git`
-// command back the read/grep/inspect path; the worker-shell backend runs
-// isolate exec in a Dynamic Worker via the LOADER binding. The container half
-// stays on `Sandbox` above; exec-env.ts owns that seam.
-//
-// `ctx`/`env` are re-exposed publicly because the mixin's options callback
-// reads them from outside the class body, where the base's protected members
-// are unreachable.
-class WorkspaceBase extends DurableObject<Env> {
-	get doCtx(): DurableObjectState {
-		return this.ctx;
-	}
-	get doEnv(): Env {
-		return this.env;
-	}
-}
-
-export class WorkspaceDO extends withWorkspace(WorkspaceBase, (self) => ({
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion, typescript/no-unnecessary-type-assertion -- platform DurableObjectStorage satisfies computer's narrowed Like type at runtime; the unnecessary-assertion rule misfires when the generated worker types are absent.
-	storage: self.doCtx.storage as unknown as DurableObjectStorageLike,
-	git: createGitClient(),
-	waitUntil: self.doCtx.waitUntil.bind(self.doCtx),
-	backends: [
-		new WorkerShellBackend({
-			id: ISOLATE_SHELL_BACKEND,
-			loader: self.doEnv.LOADER,
-			workspace: { binding: "WorkspaceDO", id: self.doCtx.id.toString() },
-			ctx: self.doCtx,
-		}),
-	],
-})) {}
