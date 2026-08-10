@@ -214,8 +214,18 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/media/[id]/usage",
+		entrypoint: resolveRoute("api/media/[id]/usage.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/media/[id]/confirm",
 		entrypoint: resolveRoute("api/media/[id]/confirm.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/media/[id]/upload",
+		entrypoint: resolveRoute("api/media/[id]/upload.ts"),
 	});
 
 	// Media provider routes
@@ -232,6 +242,11 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/media/providers/[providerId]/[itemId]",
 		entrypoint: resolveRoute("api/media/providers/[providerId]/[itemId].ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/media-usage/repair",
+		entrypoint: resolveRoute("api/admin/media-usage/repair.ts"),
 	});
 
 	// Import API routes
@@ -298,6 +313,15 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/schema/collections/index.ts"),
 	});
 
+	// Order matters: the static `reorder` route must precede the dynamic
+	// `[slug]` route so Astro's resolver dispatches POST
+	// /schema/collections/reorder to the reorder handler instead of treating
+	// "reorder" as a collection slug.
+	injectRoute({
+		pattern: "/_emdash/api/schema/collections/reorder",
+		entrypoint: resolveRoute("api/schema/collections/reorder.ts"),
+	});
+
 	injectRoute({
 		pattern: "/_emdash/api/schema/collections/[slug]",
 		entrypoint: resolveRoute("api/schema/collections/[slug]/index.ts"),
@@ -341,6 +365,27 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/settings/email.ts"),
 	});
 
+	// Backup routes
+	injectRoute({
+		pattern: "/_emdash/api/settings/backups",
+		entrypoint: resolveRoute("api/settings/backups/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/settings/backups/export",
+		entrypoint: resolveRoute("api/settings/backups/export.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/settings/backups/archives",
+		entrypoint: resolveRoute("api/settings/backups/archives/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/settings/backups/archives/[name]",
+		entrypoint: resolveRoute("api/settings/backups/archives/[name].ts"),
+	});
+
 	// Snapshot route (for DO preview database population)
 	injectRoute({
 		pattern: "/_emdash/api/snapshot",
@@ -351,6 +396,11 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/taxonomies",
 		entrypoint: resolveRoute("api/taxonomies/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/taxonomies/[name]/reorder",
+		entrypoint: resolveRoute("api/taxonomies/[name]/reorder.ts"),
 	});
 
 	injectRoute({
@@ -392,6 +442,15 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/admin/plugins/[id]/disable",
 		entrypoint: resolveRoute("api/admin/plugins/[id]/disable.ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/[id]/mcp",
+		entrypoint: resolveRoute("api/admin/plugins/[id]/mcp.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/[id]/settings",
+		entrypoint: resolveRoute("api/admin/plugins/[id]/settings.ts"),
 	});
 
 	// Marketplace plugin routes

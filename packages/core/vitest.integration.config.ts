@@ -5,6 +5,7 @@ export default defineConfig({
 		globals: true,
 		environment: "node",
 		include: ["tests/integration/cli/**/*.test.ts", "tests/integration/client/**/*.test.ts"],
+		globalSetup: ["tests/integration/global-setup.ts"],
 		// These tests boot real Astro dev servers in beforeAll hooks.
 		// Default hookTimeout (10s) is too short -- server startup +
 		// migrations + seed can take 30-60s.

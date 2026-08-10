@@ -7,7 +7,7 @@
  * @see PLUGIN-SYSTEM.md § Plugin Storage > Full API Reference
  */
 
-import type { Kysely } from "kysely";
+import type { Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
 
 import {
@@ -15,7 +15,7 @@ import {
 	validateWhereClause,
 	validateOrderByClause,
 	getIndexedFields,
-	jsonExtract,
+	jsonOrderExtract,
 } from "../../plugins/storage-query.js";
 import type {
 	StorageCollection,
@@ -26,6 +26,26 @@ import type {
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { encodeCursor, decodeCursor } from "./types.js";
+
+/**
+ * Interleave a `?`-placeholder SQL string with its params into a single
+ * boolean raw expression. Used as a WHERE predicate directly — wrapping it
+ * in `(...) = 1` breaks on Postgres, which has a strict boolean type (#920).
+ */
+function rawWhereExpr(sqlText: string, params: unknown[]): RawBuilder<boolean> {
+	const parts: ReturnType<typeof sql>[] = [];
+	let paramIndex = 0;
+	const sqlParts = sqlText.split("?");
+	for (let i = 0; i < sqlParts.length; i++) {
+		if (i > 0) {
+			parts.push(sql`${params[paramIndex++]}`);
+		}
+		if (sqlParts[i]) {
+			parts.push(sql.raw(sqlParts[i]));
+		}
+	}
+	return sql<boolean>`(${sql.join(parts, sql.raw(""))})`;
+}
 
 /**
  * Plugin Storage Repository
@@ -211,19 +231,7 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 		// Add JSON extraction WHERE conditions
 		const whereResult = buildWhereClause(this.db, where);
 		if (whereResult.sql) {
-			// Use sql template to add the raw WHERE conditions with params
-			const whereSqlParts: ReturnType<typeof sql>[] = [];
-			let paramIndex = 0;
-			const sqlParts = whereResult.sql.split("?");
-			for (let i = 0; i < sqlParts.length; i++) {
-				if (i > 0) {
-					whereSqlParts.push(sql`${whereResult.params[paramIndex++]}`);
-				}
-				if (sqlParts[i]) {
-					whereSqlParts.push(sql.raw(sqlParts[i]));
-				}
-			}
-			query = query.where(({ eb }) => eb(sql.join(whereSqlParts, sql.raw("")), "=", sql.raw("1")));
+			query = query.where(rawWhereExpr(whereResult.sql, whereResult.params));
 		}
 
 		// Handle cursor-based pagination — throws on invalid cursor.
@@ -237,7 +245,9 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 		// Build ORDER BY using sql template
 		if (Object.keys(orderBy).length > 0) {
 			for (const [field, direction] of Object.entries(orderBy)) {
-				const extract = jsonExtract(this.db, field);
+				// Order over the jsonb-native value on Postgres so numeric fields sort
+				// numerically, not lexically. See pluginDataOrderExpr.
+				const extract = jsonOrderExtract(this.db, field);
 				const orderExpr =
 					direction === "desc" ? sql`${sql.raw(extract)} desc` : sql`${sql.raw(extract)} asc`;
 				query = query.orderBy(orderExpr);
@@ -289,26 +299,13 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 		if (where && Object.keys(where).length > 0) {
 			const whereResult = buildWhereClause(this.db, where);
 			if (whereResult.sql) {
-				// Use sql template to add the raw WHERE conditions with params
-				const whereSqlParts: ReturnType<typeof sql>[] = [];
-				let paramIndex = 0;
-				const sqlParts = whereResult.sql.split("?");
-				for (let i = 0; i < sqlParts.length; i++) {
-					if (i > 0) {
-						whereSqlParts.push(sql`${whereResult.params[paramIndex++]}`);
-					}
-					if (sqlParts[i]) {
-						whereSqlParts.push(sql.raw(sqlParts[i]));
-					}
-				}
-				query = query.where(({ eb }) =>
-					eb(sql.join(whereSqlParts, sql.raw("")), "=", sql.raw("1")),
-				);
+				query = query.where(rawWhereExpr(whereResult.sql, whereResult.params));
 			}
 		}
 
 		const result = await query.executeTakeFirst();
-		return result?.count ?? 0;
+		// Number() because the pg driver returns COUNT(*) (bigint) as a string.
+		return Number(result?.count ?? 0);
 	}
 }
 

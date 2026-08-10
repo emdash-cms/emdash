@@ -149,29 +149,18 @@ describe("extractMediaUsageOccurrences", () => {
 		]);
 	});
 
-	it("extracts repeater image and defensive file subfields with stable paths", () => {
+	it("extracts repeater image subfields with stable paths", () => {
 		const occurrences = extractMediaUsageOccurrences({
 			fields: [
 				field("sections", "repeater", {
-					subFields: [
-						{ slug: "image", type: "image", label: "Image" },
-						{ slug: "download", type: "file", label: "Download" },
-					],
+					subFields: [{ slug: "image", type: "image", label: "Image" }],
 				}),
 			],
 			data: {
 				sections: [
-					{
-						image: { id: "image-1", mimeType: "image/webp" },
-						download: { id: "file-1", mimeType: "application/zip" },
-					},
+					{ image: { id: "image-1", mimeType: "image/webp" } },
 					{
 						image: "image-2",
-						download: {
-							id: "video-1",
-							provider: "mux",
-							mimeType: "video/mp4",
-						},
 					},
 				],
 			},
@@ -191,17 +180,6 @@ describe("extractMediaUsageOccurrences", () => {
 			},
 			{
 				fieldSlug: "sections",
-				fieldPath: "sections[0].download",
-				occurrenceIndex: 0,
-				referenceType: "file_field",
-				mediaId: "file-1",
-				provider: "local",
-				providerAssetId: "file-1",
-				mediaKind: "archive",
-				mimeType: "application/zip",
-			},
-			{
-				fieldSlug: "sections",
 				fieldPath: "sections[1].image",
 				occurrenceIndex: 0,
 				referenceType: "image_field",
@@ -211,18 +189,31 @@ describe("extractMediaUsageOccurrences", () => {
 				mediaKind: "image",
 				mimeType: null,
 			},
-			{
-				fieldSlug: "sections",
-				fieldPath: "sections[1].download",
-				occurrenceIndex: 0,
-				referenceType: "file_field",
-				mediaId: null,
-				provider: "mux",
-				providerAssetId: "video-1",
-				mediaKind: "video",
-				mimeType: "video/mp4",
-			},
 		]);
+	});
+
+	it("ignores unsupported repeater file subfields", () => {
+		const occurrences = extractMediaUsageOccurrences({
+			fields: [
+				field("sections", "repeater", {
+					subFields: [{ slug: "download", type: "file", label: "Download" }],
+				}),
+			],
+			data: {
+				sections: [
+					{ download: { id: "file-1", mimeType: "application/zip" } },
+					{
+						download: {
+							id: "video-1",
+							provider: "mux",
+							mimeType: "video/mp4",
+						},
+					},
+				],
+			},
+		});
+
+		expect(occurrences).toEqual([]);
 	});
 
 	it("extracts Portable Text image block asset refs", () => {

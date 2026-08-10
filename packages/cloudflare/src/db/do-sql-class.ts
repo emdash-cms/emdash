@@ -73,8 +73,7 @@ export class EmDashDB extends DurableObject {
 
 	/** The replication surface on `ctx.storage` (experimental, feature-detected). */
 	get #replication(): ReplicationStorage {
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- experimental replication API not yet in workers-types
-		return this.ctx.storage as unknown as ReplicationStorage;
+		return this.ctx.storage;
 	}
 
 	/** The primary stub when this instance is a replica; `undefined` on the primary. */
@@ -168,8 +167,7 @@ export class EmDashDB extends DurableObject {
 
 		const rows: Record<string, unknown>[] = [];
 		for (const row of cursor) {
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SqlStorageCursor yields record-like objects
-			rows.push(row as Record<string, unknown>);
+			rows.push(row);
 		}
 
 		// Treat the statement as a write if the prefix heuristic said so, it
@@ -219,8 +217,7 @@ export class EmDashDB extends DurableObject {
 				: this.ctx.storage.sql.exec(statement.sql);
 			const rows: Record<string, unknown>[] = [];
 			for (const row of cursor) {
-				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SqlStorageCursor yields record-like objects
-				rows.push(row as Record<string, unknown>);
+				rows.push(row);
 			}
 			return { rows };
 		});

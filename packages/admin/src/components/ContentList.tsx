@@ -1,4 +1,14 @@
-import { Badge, Button, Dialog, Input, LinkButton, Loader, Select, Tabs } from "@cloudflare/kumo";
+import {
+	Badge,
+	Button,
+	Checkbox,
+	Dialog,
+	Input,
+	LinkButton,
+	Loader,
+	Select,
+	Tabs,
+} from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -12,6 +22,7 @@ import {
 	CaretUp,
 	CaretDown,
 	CaretUpDown,
+	Upload,
 	X,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
@@ -22,6 +33,11 @@ import { useDebouncedValue } from "../lib/hooks.js";
 import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
+import {
+	ContentStatusBadge,
+	ContentStatusLabel,
+	isContentStatusState,
+} from "./ContentStatusBadge.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
@@ -111,7 +127,19 @@ export interface ContentListProps {
 	/** Controlled date-range filter state. */
 	dateFilter?: ContentDateFilter;
 	onDateFilterChange?: (filter: ContentDateFilter) => void;
+	/**
+	 * Bulk actions. Each is opt-in: the selection checkboxes only appear when at
+	 * least one bulk handler is provided, and each toolbar button renders only
+	 * when its handler is present. Handlers receive the selected entry ids and
+	 * resolve with the ids that failed (empty array on full success); those
+	 * rows stay selected so a partial failure can be retried.
+	 */
+	onBulkPublish?: BulkActionHandler;
+	onBulkUnpublish?: BulkActionHandler;
+	onBulkDelete?: BulkActionHandler;
 }
+
+type BulkActionHandler = (ids: string[]) => Promise<string[]>;
 
 type ViewTab = "all" | "trash";
 
@@ -162,11 +190,19 @@ export function ContentList({
 	onAuthorFilterChange,
 	dateFilter = EMPTY_DATE_FILTER,
 	onDateFilterChange,
+	onBulkPublish,
+	onBulkUnpublish,
+	onBulkDelete,
 }: ContentListProps) {
 	const { t } = useLingui();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
+	const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set());
+
+	// Bulk selection is opt-in: the checkbox column + toolbar only render when
+	// the parent wired at least one bulk handler.
+	const bulkEnabled = !!(onBulkPublish || onBulkUnpublish || onBulkDelete);
 
 	// Server-side search mode: the caller refetches based on the (debounced)
 	// query, so `items`/`total` already reflect the filter and we must not
@@ -231,12 +267,68 @@ export function ContentList({
 		}
 	}, [clampedPage, filteredItems.length, hasMore, onLoadMore, searchQuery, serverSearch]);
 
+	// Drop selections for rows that left the current result set (filter/locale
+	// change, deletion) so a bulk action never targets a now-hidden id.
+	React.useEffect(() => {
+		setSelectedIds((prev) => {
+			if (prev.size === 0) return prev;
+			const present = new Set(items.map((i) => i.id));
+			let changed = false;
+			const next = new Set<string>();
+			for (const id of prev) {
+				if (present.has(id)) next.add(id);
+				else changed = true;
+			}
+			return changed ? next : prev;
+		});
+	}, [items]);
+
+	const clearSelection = React.useCallback(() => setSelectedIds(new Set()), []);
+	const toggleOne = (id: string) =>
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	const pageIds = paginatedItems.map((i) => i.id);
+	const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+	const togglePage = () =>
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (allPageSelected) for (const id of pageIds) next.delete(id);
+			else for (const id of pageIds) next.add(id);
+			return next;
+		});
+	const selectedCount = selectedIds.size;
+	const [bulkBusy, setBulkBusy] = React.useState(false);
+	const runBulk = (fn?: BulkActionHandler) => {
+		if (!fn || selectedCount === 0 || bulkBusy) return;
+		const ids = [...selectedIds];
+		setBulkBusy(true);
+		void (async () => {
+			try {
+				// Clear only after the batch settles, keeping the failed ids
+				// selected — a partial failure stays retryable instead of the
+				// selection vanishing while requests are still in flight.
+				const failedIds = await fn(ids);
+				setSelectedIds(new Set(failedIds));
+			} catch {
+				// Unexpected (non-per-item) error: keep the selection for a retry.
+				// The parent's mutation surfaces the error toast.
+			} finally {
+				setBulkBusy(false);
+			}
+		})();
+	};
+	const colSpan = (i18n ? 5 : 4) + (bulkEnabled ? 1 : 0);
+
 	return (
 		<div className="space-y-4">
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-4">
-					<h1 className="text-2xl font-bold">{collectionLabel}</h1>
+					<h1 className="text-2xl font-semibold leading-tight">{collectionLabel}</h1>
 					{i18n && activeLocale && onLocaleChange && (
 						<LocaleSwitcher
 							locales={i18n.locales}
@@ -310,11 +402,109 @@ export function ContentList({
 						/>
 					)}
 
+					{/* Bulk action toolbar — appears once one or more rows are selected */}
+					{bulkEnabled && selectedCount > 0 && (
+						<div className="flex flex-wrap items-center gap-3 rounded-md border bg-kumo-tint/40 px-4 py-2">
+							<span className="text-sm font-medium">
+								{bulkBusy
+									? t`Working on ${selectedCount} items…`
+									: plural(selectedCount, { one: "# selected", other: "# selected" })}
+							</span>
+							<div className="flex flex-wrap items-center gap-2">
+								{onBulkPublish && (
+									<Button
+										size="sm"
+										variant="secondary"
+										disabled={bulkBusy}
+										onClick={() => runBulk(onBulkPublish)}
+										icon={<Upload />}
+									>
+										{t`Publish`}
+									</Button>
+								)}
+								{onBulkUnpublish && (
+									<Button
+										size="sm"
+										variant="secondary"
+										disabled={bulkBusy}
+										onClick={() => runBulk(onBulkUnpublish)}
+									>
+										{t`Set to draft`}
+									</Button>
+								)}
+								{onBulkDelete && (
+									<Dialog.Root disablePointerDismissal>
+										<Dialog.Trigger
+											render={(p) => (
+												<Button
+													{...p}
+													size="sm"
+													variant="destructive"
+													icon={<Trash />}
+													disabled={bulkBusy}
+												>
+													{t`Move to trash`}
+												</Button>
+											)}
+										/>
+										<Dialog className="p-6" size="sm">
+											<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
+											<Dialog.Description className="text-kumo-subtle">
+												{plural(selectedCount, {
+													one: "Move # item to trash? You can restore it later.",
+													other: "Move # items to trash? You can restore them later.",
+												})}
+											</Dialog.Description>
+											<div className="mt-6 flex justify-end gap-2">
+												<Dialog.Close
+													render={(p) => (
+														<Button {...p} variant="secondary">
+															{t`Cancel`}
+														</Button>
+													)}
+												/>
+												<Dialog.Close
+													render={(p) => (
+														<Button
+															{...p}
+															variant="destructive"
+															onClick={() => runBulk(onBulkDelete)}
+														>
+															{t`Move to Trash`}
+														</Button>
+													)}
+												/>
+											</div>
+										</Dialog>
+									</Dialog.Root>
+								)}
+								<Button
+									size="sm"
+									variant="ghost"
+									icon={<X />}
+									disabled={bulkBusy}
+									onClick={clearSelection}
+								>
+									{t`Clear`}
+								</Button>
+							</div>
+						</div>
+					)}
+
 					{/* Table */}
 					<div className="rounded-md border bg-kumo-base overflow-x-auto">
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
+									{bulkEnabled && (
+										<th scope="col" className="w-10 px-4 py-3">
+											<Checkbox
+												checked={allPageSelected}
+												onCheckedChange={togglePage}
+												aria-label={t`Select all on this page`}
+											/>
+										</th>
+									)}
 									<SortableTh
 										field="title"
 										sort={sort}
@@ -349,7 +539,7 @@ export function ContentList({
 							<tbody className="divide-y divide-kumo-line">
 								{isLoading && items.length === 0 ? (
 									<tr>
-										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
+										<td colSpan={colSpan} className="px-4 py-8 text-center text-kumo-subtle">
 											<span className="inline-flex items-center gap-2">
 												<Loader size="sm" />
 												{t`Loading...`}
@@ -358,7 +548,7 @@ export function ContentList({
 									</tr>
 								) : items.length === 0 ? (
 									<tr>
-										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
+										<td colSpan={colSpan} className="px-4 py-8 text-center text-kumo-subtle">
 											{activeSearch ? (
 												t`No results for "${activeSearch}"`
 											) : (
@@ -368,7 +558,7 @@ export function ContentList({
 														to="/content/$collection/new"
 														params={{ collection }}
 														search={{ locale: activeLocale }}
-														className="text-kumo-brand underline"
+														className="text-kumo-link underline"
 													>
 														{t`Create your first one`}
 													</Link>
@@ -378,7 +568,7 @@ export function ContentList({
 									</tr>
 								) : paginatedItems.length === 0 ? (
 									<tr>
-										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
+										<td colSpan={colSpan} className="px-4 py-8 text-center text-kumo-subtle">
 											{t`No results for "${activeSearch}"`}
 										</td>
 									</tr>
@@ -392,6 +582,9 @@ export function ContentList({
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
 											urlPattern={urlPattern}
+											selectable={bulkEnabled}
+											selected={selectedIds.has(item.id)}
+											onToggleSelect={toggleOne}
 										/>
 									))
 								)}
@@ -538,13 +731,15 @@ function FilterBar({
 	const showAuthorFilter = !!onAuthorFilterChange && !!authors && authors.length > 0;
 	const showDateFilter = !!onDateFilterChange;
 
-	const statusItems: Record<string, string> = {
+	const statusItems: Record<ContentStatusFilter, string> = {
 		all: t`All statuses`,
 		published: t`Published`,
 		draft: t`Draft`,
 		scheduled: t`Scheduled`,
 		archived: t`Archived`,
 	};
+	const renderStatusLabel = (value: ContentStatusFilter) =>
+		value === "all" ? statusItems.all : <ContentStatusLabel state={value} />;
 
 	const dateFieldItems: Record<string, string> = {
 		createdAt: t`Created`,
@@ -568,11 +763,14 @@ function FilterBar({
 				aria-label={t`Filter by status`}
 				value={statusFilter}
 				onValueChange={(v) => onStatusFilterChange((v as ContentStatusFilter) ?? "all")}
+				renderValue={(v) =>
+					renderStatusLabel(typeof v === "string" && Object.hasOwn(statusItems, v) ? v : "all")
+				}
 				items={statusItems}
 			>
-				{Object.entries(statusItems).map(([value, label]) => (
+				{Object.entries(statusItems).map(([value]) => (
 					<Select.Option key={value} value={value}>
-						{label}
+						{renderStatusLabel(value as ContentStatusFilter)}
 					</Select.Option>
 				))}
 			</Select>
@@ -697,7 +895,7 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 				type="button"
 				onClick={handleClick}
 				className={cn(
-					"inline-flex items-center gap-1 rounded text-kumo-default hover:text-kumo-brand",
+					"inline-flex items-center gap-1 rounded text-kumo-default hover:text-kumo-link",
 					"focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand",
 				)}
 			>
@@ -757,6 +955,9 @@ interface ContentListItemProps {
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
 	urlPattern?: string;
+	selectable?: boolean;
+	selected?: boolean;
+	onToggleSelect?: (id: string) => void;
 }
 
 function ContentListItem({
@@ -766,19 +967,31 @@ function ContentListItem({
 	onDuplicate,
 	showLocale,
 	urlPattern,
+	selectable,
+	selected,
+	onToggleSelect,
 }: ContentListItemProps) {
 	const { t } = useLingui();
 	const title = getItemTitle(item);
 	const date = new Date(item.updatedAt || item.createdAt);
 
 	return (
-		<tr className="hover:bg-kumo-tint/25">
+		<tr className={cn("hover:bg-kumo-tint/25", selected && "bg-kumo-tint/40")}>
+			{selectable && (
+				<td className="px-4 py-3">
+					<Checkbox
+						checked={!!selected}
+						onCheckedChange={() => onToggleSelect?.(item.id)}
+						aria-label={t`Select ${title}`}
+					/>
+				</td>
+			)}
 			<td className="px-4 py-3">
 				<Link
 					to="/content/$collection/$id"
 					params={{ collection, id: item.id }}
 					search={{ locale: item.locale }}
-					className="font-medium hover:text-kumo-brand"
+					className="font-medium hover:text-kumo-link"
 				>
 					{title}
 				</Link>
@@ -796,7 +1009,9 @@ function ContentListItem({
 					</span>
 				</td>
 			)}
-			<td className="px-4 py-3 text-sm text-kumo-subtle">{date.toLocaleDateString()}</td>
+			<td data-testid="content-updated" className="px-4 py-3 text-sm text-kumo-subtle">
+				{date.toLocaleDateString()}
+			</td>
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					{item.status === "published" && item.slug && (
@@ -893,7 +1108,7 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 						aria-label={t`Restore ${title}`}
 						onClick={() => onRestore?.(item.id)}
 					>
-						<ArrowCounterClockwise className="h-4 w-4 text-kumo-brand" aria-hidden="true" />
+						<ArrowCounterClockwise className="h-4 w-4 text-kumo-link" aria-hidden="true" />
 					</Button>
 					<Dialog.Root disablePointerDismissal>
 						<Dialog.Trigger
@@ -950,36 +1165,12 @@ function StatusBadge({
 	status: string;
 	hasPendingChanges?: boolean;
 }) {
-	const { t } = useLingui();
-
-	const statusLabel =
-		status === "published"
-			? t`published`
-			: status === "draft"
-				? t`draft`
-				: status === "scheduled"
-					? t`scheduled`
-					: status === "archived"
-						? t`archived`
-						: status;
+	const state = isContentStatusState(status) ? status : undefined;
 
 	return (
 		<span className="inline-flex items-center gap-1.5">
-			<span
-				className={cn(
-					"inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
-					status === "published" &&
-						"bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-					status === "draft" &&
-						"bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-					status === "scheduled" &&
-						"bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-					status === "archived" && "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-				)}
-			>
-				{statusLabel}
-			</span>
-			{hasPendingChanges && <Badge variant="secondary">{t`pending`}</Badge>}
+			{state ? <ContentStatusBadge state={state} /> : <Badge variant="neutral">{status}</Badge>}
+			{hasPendingChanges && <ContentStatusBadge state="pendingChanges" />}
 		</span>
 	);
 }

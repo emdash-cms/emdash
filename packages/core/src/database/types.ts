@@ -22,12 +22,36 @@ export interface TaxonomyTable {
 	data: string | null; // JSON
 	locale: Generated<string>; // e.g. 'en', 'es', 'fr'
 	translation_group: string | null; // shared across translations of the same term
+	// Manual order within a sibling group. 0 for terms that were never
+	// explicitly reordered, so listings fall back to alphabetical.
+	sort_order: Generated<number>;
 }
 
 export interface ContentTaxonomyTable {
 	collection: string; // e.g., 'posts'
 	entry_id: string; // ID in the ec_* table
 	taxonomy_id: string; // stores taxonomies.translation_group (locale-agnostic)
+	// Denormalized filter + sort columns mirrored from the entry's ec_* row
+	// (migration 051). They let a taxonomy-filtered listing seek the matching
+	// entries directly on the pivot instead of scanning the whole collection.
+	//
+	// ADVISORY, not authoritative: D1 has no transactions, so the write-path
+	// re-stamp (ContentRepository / TaxonomyRepository) is a separate statement
+	// from the ec_* mutation and can be transiently stale. The read path narrows
+	// the candidate set with these columns but re-checks the real filter
+	// predicates on the joined ec_* row. `updated_at` is deliberately NOT
+	// denormalized — it moves on every edit, so denormalizing it would force a
+	// pivot re-stamp on the common edit path for little read value.
+	//
+	// Nullable/Generated so inserts that predate a re-stamp (or the migration
+	// backfill) leave them NULL; every insert site in the repositories stamps
+	// them explicitly.
+	status: Generated<string | null>;
+	scheduled_at: Generated<string | null>;
+	deleted_at: Generated<string | null>;
+	locale: Generated<string | null>;
+	published_at: Generated<string | null>;
+	created_at: Generated<string | null>;
 }
 
 export interface TaxonomyDefTable {
@@ -60,6 +84,15 @@ export interface MediaTable {
 	author_id: string | null;
 }
 
+export interface MediaUploadAttemptTable {
+	storage_key: string;
+	// No foreign key: this row must survive media deletion until storage cleanup succeeds.
+	media_id: string;
+	status: string; // 'active' | 'cleanup'
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
 export interface MediaUsageSourceTable {
 	source_key: string;
 	source_type: string;
@@ -76,6 +109,12 @@ export interface MediaUsageSourceTable {
 	revision_id: string | null;
 	current_generation: string;
 	schema_version: Generated<number>;
+	source_updated_at: Generated<string | null>;
+	source_version: Generated<number | null>;
+	source_fingerprint: Generated<string | null>;
+	source_completeness: Generated<string>;
+	last_attempted_at: Generated<string | null>;
+	last_error_code: Generated<string | null>;
 	indexed_at: Generated<string>;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
@@ -95,6 +134,21 @@ export interface MediaUsageTable {
 	media_kind: string | null;
 	mime_type: string | null;
 	created_at: Generated<string>;
+}
+
+export interface MediaUsageIndexStatusTable {
+	adapter_id: string;
+	scope_type: string;
+	scope_key: string;
+	status: string;
+	schema_version: Generated<number>;
+	started_at: Generated<string | null>;
+	completed_at: Generated<string | null>;
+	cursor: Generated<string | null>;
+	indexed_source_count: Generated<number>;
+	failed_source_count: Generated<number>;
+	last_error_code: Generated<string | null>;
+	updated_at: Generated<string>;
 }
 
 export interface UserTable {
@@ -251,9 +305,11 @@ export interface CollectionTable {
 	icon: string | null;
 	supports: string | null; // JSON array
 	source: string | null;
-	search_config: string | null; // JSON: { enabled: boolean, weights: Record<string, number> }
+	search_config: string | null; // JSON: SearchConfig
 	has_seo: number; // 0 or 1 — opt-in SEO fields for this collection
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")
+	hidden: Generated<number>; // 0 or 1 — omit the auto-generated admin sidebar entry
+	sort_order: number | null; // explicit admin sidebar position; NULL = alphabetical fallback
 	comments_enabled: Generated<number>; // 0 or 1
 	comments_moderation: Generated<string>; // 'all' | 'first_time' | 'none'
 	comments_closed_after_days: Generated<number>; // 0 = never close
@@ -320,6 +376,8 @@ export interface PluginStateTable {
 	// `source = 'config' | 'marketplace'`; populated for `source = 'registry'`.
 	registry_publisher_did: string | null;
 	registry_slug: string | null;
+	mcp_tools_enabled: Generated<number>;
+	mcp_tools_consent: string | null;
 }
 
 export interface PluginIndexTable {
@@ -451,8 +509,10 @@ export interface Database {
 	content_taxonomies: ContentTaxonomyTable;
 	_emdash_taxonomy_defs: TaxonomyDefTable;
 	media: MediaTable;
+	_emdash_media_upload_attempts: MediaUploadAttemptTable;
 	_emdash_media_usage_sources: MediaUsageSourceTable;
 	_emdash_media_usage: MediaUsageTable;
+	_emdash_media_usage_index_status: MediaUsageIndexStatusTable;
 	users: UserTable;
 	credentials: CredentialTable;
 	auth_tokens: AuthTokenTable;

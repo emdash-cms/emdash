@@ -4,6 +4,7 @@
  * Validates a seed file structure before applying it.
  */
 
+import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
 import { FIELD_TYPES } from "../schema/types.js";
 import type { SeedFile, SeedMenuItem, ValidationResult } from "./types.js";
 
@@ -49,6 +50,9 @@ export function validateSeed(data: unknown): ValidationResult {
 	}
 
 	const seed = data as Partial<SeedFile>;
+	const defaultLocale =
+		getI18nConfig()?.defaultLocale ??
+		(typeof seed.defaultLocale === "string" ? seed.defaultLocale : "en");
 
 	// Required fields
 	if (!seed.version) {
@@ -163,7 +167,8 @@ export function validateSeed(data: unknown): ValidationResult {
 					errors.push(`${prefix}: name is required`);
 				} else {
 					// Uniqueness is per (name, locale).
-					const key = `${taxonomy.name}::${taxonomy.locale ?? ""}`;
+					const locale = resolveConfiguredLocale(taxonomy.locale ?? defaultLocale);
+					const key = `${taxonomy.name}::${locale}`;
 					if (taxonomyNames.has(key)) {
 						errors.push(
 							taxonomy.locale
@@ -206,7 +211,10 @@ export function validateSeed(data: unknown): ValidationResult {
 							} else {
 								// Uniqueness is per (slug, locale) so the same slug can repeat
 								// across locale variants of the def.
-								const key = `${term.slug}::${term.locale ?? taxonomy.locale ?? ""}`;
+								const locale = resolveConfiguredLocale(
+									term.locale ?? taxonomy.locale ?? defaultLocale,
+								);
+								const key = `${term.slug}::${locale}`;
 								if (termSlugs.has(key)) {
 									errors.push(
 										`${termPrefix}.slug: duplicate term slug "${term.slug}" in taxonomy "${taxonomy.name}"`,
@@ -233,7 +241,9 @@ export function validateSeed(data: unknown): ValidationResult {
 						if (taxonomy.hierarchical && taxonomy.terms) {
 							for (let j = 0; j < taxonomy.terms.length; j++) {
 								const term = taxonomy.terms[j];
-								const termLocale = term.locale ?? taxonomy.locale ?? "";
+								const termLocale = resolveConfiguredLocale(
+									term.locale ?? taxonomy.locale ?? defaultLocale,
+								);
 								if (term.parent && !termSlugs.has(`${term.parent}::${termLocale}`)) {
 									errors.push(
 										`${prefix}.terms[${j}].parent: parent term "${term.parent}" not found in taxonomy`,
@@ -268,7 +278,8 @@ export function validateSeed(data: unknown): ValidationResult {
 				} else {
 					// Uniqueness is per (name, locale) — siblings of a translation
 					// group share name but differ in locale.
-					const key = `${menu.name}::${menu.locale ?? ""}`;
+					const locale = resolveConfiguredLocale(menu.locale ?? defaultLocale);
+					const key = `${menu.name}::${locale}`;
 					if (menuNames.has(key)) {
 						errors.push(
 							menu.locale

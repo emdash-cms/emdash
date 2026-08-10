@@ -51,6 +51,7 @@ describe("Database Migrations (Integration)", () => {
 			"_emdash_byline_field_group_values",
 			"_emdash_media_usage_sources",
 			"_emdash_media_usage",
+			"_emdash_media_usage_index_status",
 		];
 
 		for (const table of tables) {
@@ -135,6 +136,15 @@ describe("Database Migrations (Integration)", () => {
 			"047_restore_taxonomy_parent_index",
 			"048_restore_content_taxonomies_term_index",
 			"049_taxonomies_name_locale_index",
+			"050_media_usage_index_status",
+			"051_content_taxonomies_denorm",
+			"052_media_usage_read_index",
+			"053_plugin_mcp_tools",
+			"054_media_upload_attempts",
+			"055_content_translation_group_locale_index",
+			"056_taxonomy_term_sort_order",
+			"057_collection_hidden",
+			"058_collection_sort_order",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
@@ -419,7 +429,7 @@ describe("Database Migrations (Integration)", () => {
 			EXPLAIN QUERY PLAN
 			SELECT * FROM "taxonomies"
 			WHERE "name" = ${"category"} AND "locale" = ${"en"}
-			ORDER BY "label" ASC, "id" ASC
+			ORDER BY "sort_order" ASC, "label" ASC, "id" ASC
 		`.execute(db);
 		const details = plan.rows.map((r) => r.detail).join("\n");
 

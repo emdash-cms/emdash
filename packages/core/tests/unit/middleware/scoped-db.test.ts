@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 
 import {
 	ASTRO_COOKIES_SYMBOL,
+	deferScopedCloseUntilSettled,
 	finishScoped,
 	wrapResponseForScopedClose,
 } from "../../../src/astro/middleware/scoped-db.js";
@@ -100,6 +101,63 @@ describe("wrapResponseForScopedClose", () => {
 		const wrapped = wrapResponseForScopedClose(response, close);
 
 		expect(wrapped.headers.has("content-length")).toBe(false);
+	});
+});
+
+describe("deferScopedCloseUntilSettled", () => {
+	it("keeps a bodyless response teardown behind in-flight request work", async () => {
+		let settleWork!: () => void;
+		const inFlightWork = new Promise<void>((resolve) => {
+			settleWork = resolve;
+		});
+		const close = vi.fn();
+		let deferredTask!: Promise<void>;
+		const scoped = deferScopedCloseUntilSettled(
+			{ commit: vi.fn(), close },
+			inFlightWork,
+			(task) => {
+				deferredTask = Promise.resolve().then(task);
+			},
+		);
+
+		await finishScoped(scoped, async () => new Response(null, { status: 204 }));
+
+		expect(close).not.toHaveBeenCalled();
+		settleWork();
+		await deferredTask;
+		expect(close).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps teardown behind a streaming response after request work settles", async () => {
+		const close = vi.fn();
+		let deferredTask!: Promise<void>;
+		const scoped = deferScopedCloseUntilSettled(
+			{ commit: vi.fn(), close },
+			Promise.resolve(),
+			(task) => {
+				deferredTask = Promise.resolve().then(task);
+			},
+		);
+
+		const response = await finishScoped(scoped, async () => streamingResponse(["body"]));
+		await Promise.resolve();
+
+		expect(close).not.toHaveBeenCalled();
+		await drain(response);
+		await deferredTask;
+		expect(close).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps background work deferred for an adapter without teardown", async () => {
+		const scoped = { commit: vi.fn() };
+		let deferredTask!: () => void | Promise<void>;
+
+		const result = deferScopedCloseUntilSettled(scoped, Promise.resolve(), (task) => {
+			deferredTask = task;
+		});
+
+		expect(result).toBe(scoped);
+		await deferredTask();
 	});
 });
 

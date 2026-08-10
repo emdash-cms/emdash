@@ -349,6 +349,100 @@ describe("Marketplace handlers", () => {
 			expect(state?.status).toBe("active");
 		});
 
+		it("materializes declared storage indexes on install and drops them on uninstall", async () => {
+			const manifest: PluginManifest = {
+				...mockManifest("audit-log", "1.0.0"),
+				storage: { entries: { indexes: ["timestamp", "action"] } },
+			};
+			const bundleBytes = await createMockBundle(manifest);
+			const detail = mockPluginDetail("audit-log", "1.0.0");
+			detail.latestVersion!.checksum = "";
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response("OK", { status: 200 }));
+
+			const result = await handleMarketplaceInstall(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"audit-log",
+			);
+			expect(result.success).toBe(true);
+
+			const indexNames = () =>
+				sqliteDb
+					.prepare(
+						"SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_plugin_audit-log_%'",
+					)
+					.all()
+					.map((row) => (row as { name: string }).name);
+			expect(indexNames()).toEqual(
+				expect.arrayContaining([
+					"idx_plugin_audit-log_entries_timestamp",
+					"idx_plugin_audit-log_entries_action",
+				]),
+			);
+			const tracked = await db
+				.selectFrom("_plugin_indexes")
+				.select("index_name")
+				.where("plugin_id", "=", "audit-log")
+				.execute();
+			expect(tracked).toHaveLength(2);
+
+			const uninstall = await handleMarketplaceUninstall(db, storage, "audit-log");
+			expect(uninstall.success).toBe(true);
+			expect(indexNames()).toEqual([]);
+			expect(
+				await db
+					.selectFrom("_plugin_indexes")
+					.select("index_name")
+					.where("plugin_id", "=", "audit-log")
+					.execute(),
+			).toEqual([]);
+		});
+
+		it("requires explicit consent before installing plugin MCP tools", async () => {
+			const manifest: PluginManifest = {
+				...mockManifest("test-seo", "1.0.0"),
+				routes: [{ name: "events/create", permission: "content:create" }],
+				mcp: {
+					tools: [
+						{
+							name: "createEvent",
+							description: "Create a calendar event.",
+							route: "events/create",
+							permission: "content:create",
+							destructive: false,
+							inputSchema: { type: "object" },
+						},
+					],
+				},
+			};
+			const bundleBytes = await createMockBundle(manifest);
+			const detail = mockPluginDetail("test-seo", "1.0.0");
+			detail.latestVersion!.checksum = "";
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+
+			const result = await handleMarketplaceInstall(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+			);
+
+			expect(result).toMatchObject({
+				success: false,
+				error: {
+					code: "MCP_TOOL_CONSENT_REQUIRED",
+					details: { mcpTools: [expect.objectContaining({ name: "createEvent" })] },
+				},
+			});
+			expect(await new PluginStateRepository(db).get("test-seo")).toBeNull();
+		});
+
 		it("rejects install if plugin already installed", async () => {
 			// Pre-install the plugin
 			const repo = new PluginStateRepository(db);

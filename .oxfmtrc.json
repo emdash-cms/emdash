@@ -9,6 +9,8 @@
 		"**/emdash-env.d.ts",
 		"**/worker-configuration.d.ts",
 		"packages/registry-lexicons/src/generated/**",
-		"packages/plugin-cli/schemas/**"
+		"packages/plugin-cli/schemas/**",
+		"infra/emdash-bot/.flue/lib/machine.json",
+		"infra/emdash-bot/BOT_STATE_MACHINE.md"
 	]
 }

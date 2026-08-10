@@ -18,7 +18,7 @@ export { AdminPage } from "./admin";
 
 const SERVER_INFO_PATH = join(tmpdir(), "emdash-pw-server.json");
 
-interface ServerInfo {
+export interface ServerInfo {
 	pid: number;
 	workDir: string;
 	baseUrl: string;

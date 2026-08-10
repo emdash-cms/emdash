@@ -59,6 +59,10 @@ export const contentCreateBody = z
 		locale: localeCode.optional(),
 		translationOf: z.string().optional(),
 		seo: contentSeoInput.optional(),
+		taxonomies: z.record(z.string(), z.array(z.string())).optional().meta({
+			description:
+				"Taxonomy term assignments as { taxonomyName: [termSlug, ...] }, resolved in the entry's locale.",
+		}),
 		publishedAt: contentDateOverride,
 		createdAt: contentDateOverride,
 	})
@@ -77,6 +81,10 @@ export const contentUpdateBody = z
 			.meta({ description: "Opaque revision token for optimistic concurrency" }),
 		skipRevision: z.boolean().optional(),
 		seo: contentSeoInput.optional(),
+		taxonomies: z.record(z.string(), z.array(z.string())).optional().meta({
+			description:
+				"Replace taxonomy assignments as { taxonomyName: [termSlug, ...] }. Only named taxonomies are touched; pass an empty array to clear a taxonomy.",
+		}),
 		publishedAt: contentDateOverride,
 	})
 	.meta({ id: "ContentUpdateBody" });

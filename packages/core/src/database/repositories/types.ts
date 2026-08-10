@@ -158,6 +158,14 @@ export interface FindManyOptions {
 		 * repository stays generic. Each name is validated as a SQL identifier.
 		 */
 		searchColumns?: string[];
+		/**
+		 * Serve `q` from the collection's FTS5 index (`_emdash_fts_<slug>`)
+		 * instead of an unindexable substring LIKE. Set by the handler only
+		 * when the collection has search enabled and the index exists
+		 * (SQLite only). The repository combines a token-prefix MATCH with
+		 * an index-served slug prefix so slug lookups keep working.
+		 */
+		useFts?: boolean;
 		/** Inclusive date range over a whitelisted timestamp column. */
 		dateFilter?: ContentDateFilter;
 	};
@@ -280,5 +288,12 @@ export class ScheduledNotDueError extends Error {
 	constructor(message = "Content is no longer scheduled to publish") {
 		super(message);
 		this.name = "ScheduledNotDueError";
+	}
+}
+
+export class ContentMutationConflictError extends Error {
+	constructor(message = "Content changed while the operation was in progress") {
+		super(message);
+		this.name = "ContentMutationConflictError";
 	}
 }

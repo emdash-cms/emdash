@@ -20,6 +20,11 @@ declare module "virtual:emdash/config" {
 		auth?: AuthDescriptor;
 		authProviders?: AuthProviderDescriptor[];
 		i18n?: I18nConfig | null;
+		toolbar?: "server" | "client" | false;
+		/** Public origin from astro.config.mjs, origin-normalized at startup. */
+		siteUrl?: string;
+		astroCspEnabled?: boolean;
+		trailingSlash?: "always" | "never" | "ignore";
 	}
 
 	const config: VirtualConfig;
@@ -49,11 +54,19 @@ declare module "virtual:emdash/dialect" {
 		config: unknown;
 		isAuthenticated: boolean;
 		isWrite: boolean;
+		/** Whether core routing allows this request to use an anonymous public-read cache. */
+		canUseCachedBinding?: boolean;
 		cookies: {
 			get(name: string): { value: string } | undefined;
 			set(name: string, value: string, options: Record<string, unknown>): void;
 		};
 		url: URL;
+		/**
+		 * ms-epoch of the last content-namespace object-cache invalidation.
+		 * Hyperdrive uses this (with `preferUncachedAfterWriteMs`) to briefly
+		 * prefer the primary uncached binding after a publish.
+		 */
+		lastContentWriteAt?: number;
 	}
 	export interface RequestScopedDb {
 		db: Kysely<unknown>;
@@ -154,6 +167,15 @@ declare module "virtual:emdash/wait-until" {
 	 * `undefined` on Node (fire-and-forget is safe on a long-lived process).
 	 */
 	export const waitUntil: ((promise: Promise<unknown>) => void) | undefined;
+}
+
+declare module "virtual:emdash/env" {
+	/**
+	 * Worker bindings/secrets. Resolves to Cloudflare's `env` (from
+	 * `cloudflare:workers`) under @astrojs/cloudflare; `undefined` on Node,
+	 * where callers should fall back to `import.meta.env`.
+	 */
+	export const env: Record<string, unknown> | undefined;
 }
 
 declare module "virtual:emdash/scheduler" {

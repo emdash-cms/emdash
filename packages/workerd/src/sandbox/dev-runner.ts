@@ -51,7 +51,12 @@ const EMDASH_SHIM = "export const definePlugin = (d) => d;\n";
  */
 export class MiniflareDevRunner implements SandboxRunner {
 	private options: SandboxOptions;
-	private siteInfo?: { name: string; url: string; locale: string };
+	private siteInfo?: {
+		name: string;
+		url: string;
+		locale: string;
+		trailingSlash?: "always" | "never" | "ignore";
+	};
 	private emailSendCallback: SandboxEmailSendCallback | null = null;
 
 	/** Miniflare instance (lazily created) */
@@ -167,9 +172,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 				capabilities: manifest.capabilities || [],
 				allowedHosts: manifest.allowedHosts || [],
 				storageCollections: Object.keys(manifest.storage || {}),
-				storageConfig: manifest.storage as
-					| Record<string, { indexes?: Array<string | string[]> }>
-					| undefined,
+				storageConfig: manifest.storage,
 				db: this.options.db,
 				emailSend: () => this.emailSendCallback,
 				storage: this.options.mediaStorage,

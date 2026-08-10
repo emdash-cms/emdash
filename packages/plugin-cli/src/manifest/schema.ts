@@ -346,6 +346,7 @@ const CURRENT_CAPABILITIES = new Set<string>([
 	"network:request:unrestricted",
 	"content:read",
 	"content:write",
+	"taxonomies:read",
 	"media:read",
 	"media:write",
 	"users:read",

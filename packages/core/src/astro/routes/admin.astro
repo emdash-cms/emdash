@@ -17,6 +17,7 @@ import { Font } from "astro:assets";
 export const prerender = false;
 
 import { resolveLocale, loadMessages, getLocaleDir } from "@emdash-cms/admin/locales";
+import { getSiteSettingsWithDb } from "#settings/index.js";
 
 const resolvedLocale = resolveLocale(Astro.request);
 const resolvedDir = getLocaleDir(resolvedLocale);
@@ -24,17 +25,68 @@ const messages = await loadMessages(resolvedLocale);
 
 const adminConfig = Astro.locals.emdash?.config?.admin;
 const pageTitle = adminConfig?.siteName ? `${adminConfig.siteName} Admin` : "EmDash Admin";
+
+// The admin shell must never be stored by a shared cache. Without an explicit
+// Cache-Control, caches fall back to RFC 9111 heuristic freshness — e.g.
+// Cloudflare's Workers Cache stores header-less 200s for 2 hours — so an
+// authenticated editor's 200 could be replayed to anonymous visitors instead
+// of the login redirect. The shell is also personalized per request (locale
+// via cookie/Accept-Language). API routes already send `private, no-store`
+// (API_CACHE_HEADERS); this closes the same gap for the admin HTML.
+Astro.response.headers.set("Cache-Control", "private, no-store");
+
+// Favicon precedence: an explicit build-time `admin.favicon` is admin-specific
+// and always wins — in that case the settings read is skipped entirely.
+// Otherwise fall back to the Site Icon configured in Settings → General, so
+// the admin shell is branded like the public site (WordPress-style Site Icon,
+// which also brands wp-admin), and finally the bundled EmDash mark below.
+const emdash = Astro.locals.emdash;
+let siteFavicon: string | undefined;
+let siteFaviconType: string | undefined;
+if (!adminConfig?.favicon && emdash?.db) {
+	try {
+		const settings = await getSiteSettingsWithDb(emdash.db, emdash.storage ?? null);
+		siteFavicon = settings.favicon?.url ?? undefined;
+		siteFaviconType = settings.favicon?.contentType ?? undefined;
+	} catch {
+		// Settings unavailable (e.g. pre-setup) — fall back to the config/default.
+	}
+}
+const favicon = adminConfig?.favicon ?? siteFavicon;
+// The media-file URL has no extension, so browsers need the MIME type —
+// Chromium ignores SVG favicons without type="image/svg+xml". Only set for
+// Site Icons; build-time `admin.favicon` strings keep their current behavior.
+const faviconType = adminConfig?.favicon ? undefined : siteFaviconType;
 ---
 
 <!doctype html>
-<html lang={resolvedLocale} dir={resolvedDir}>
+<html lang={resolvedLocale} dir={resolvedDir} data-theme="classic">
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<script is:inline>
+			(() => {
+				let preference = "system";
+
+				try {
+					const storedPreference = localStorage.getItem("emdash-theme");
+					if (storedPreference === "light" || storedPreference === "dark") {
+						preference = storedPreference;
+					}
+				} catch {
+					// Storage can be unavailable in privacy-restricted contexts. Use the system theme.
+				}
+
+				const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+				const mode =
+					preference === "dark" || (preference === "system" && prefersDark) ? "dark" : "light";
+				document.documentElement.setAttribute("data-mode", mode);
+			})();
+		</script>
 		<link rel="stylesheet" href={adminStylesUrl} />
 		<Font cssVariable="--font-emdash" />
-		{adminConfig?.favicon ? (
-			<link rel="icon" href={adminConfig.favicon} />
+		{favicon ? (
+			<link rel="icon" href={favicon} type={faviconType} />
 		) : (
 			<link
 				rel="icon"
@@ -52,8 +104,7 @@ const pageTitle = adminConfig?.siteName ? `${adminConfig.siteName} Admin` : "EmD
 						align-items: center;
 						justify-content: center;
 						min-height: 100vh;
-						color-scheme: light dark;
-						background: light-dark(hsl(0 0% 100%), hsl(222.2 84% 4.9%));
+						background: var(--color-kumo-elevated);
 					}
 					#emdash-boot-loader .loader-inner {
 						text-align: center;
@@ -62,15 +113,8 @@ const pageTitle = adminConfig?.siteName ? `${adminConfig.siteName} Admin` : "EmD
 						width: 24px;
 						height: 24px;
 						margin: 0 auto;
-						border: 2.5px solid
-							light-dark(
-								hsl(215.4 16.3% 46.9% / 0.3),
-								hsl(215 20.2% 65.1% / 0.3)
-							);
-						border-top-color: light-dark(
-							hsl(215.4 16.3% 46.9%),
-							hsl(215 20.2% 65.1%)
-						);
+						border: 2.5px solid var(--color-kumo-line);
+						border-top-color: var(--text-color-kumo-subtle);
 						border-radius: 50%;
 						animation: emdash-spin 0.8s linear infinite;
 					}
@@ -83,7 +127,7 @@ const pageTitle = adminConfig?.siteName ? `${adminConfig.siteName} Admin` : "EmD
 							sans-serif
 						);
 						font-size: 0.875rem;
-						color: light-dark(hsl(215.4 16.3% 46.9%), hsl(215 20.2% 65.1%));
+						color: var(--text-color-kumo-subtle);
 					}
 					@keyframes emdash-spin {
 						to {
@@ -96,7 +140,12 @@ const pageTitle = adminConfig?.siteName ? `${adminConfig.siteName} Admin` : "EmD
 					<p>{adminConfig?.siteName ? `Loading ${adminConfig.siteName}...` : "Loading EmDash..."}</p>
 				</div>
 			</div>
-			<AdminWrapper client:only="react" locale={resolvedLocale} messages={messages} />
+			<AdminWrapper
+				client:only="react"
+				locale={resolvedLocale}
+				messages={messages}
+				adminBranding={{ logo: adminConfig?.logo, siteName: adminConfig?.siteName }}
+			/>
 		</div>
 	</body>
 </html>

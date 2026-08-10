@@ -1,15 +1,19 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import type { Plugin } from "vite";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { PluginDescriptor } from "../../../../src/astro/integration/runtime.js";
 import {
 	generateConfigModule,
 	generateDialectModule,
+	generateEnvModule,
 	generateSchedulerModule,
 	generateSeedModule,
+	RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID,
 	RESOLVED_VIRTUAL_SCHEDULER_ID,
 } from "../../../../src/astro/integration/virtual-modules.js";
 import {
@@ -37,7 +41,10 @@ describe("generateConfigModule", () => {
 
 describe("generateDialectModule", () => {
 	it("emits undefined createDialect and null stub when no entrypoint is configured", () => {
-		const out = generateDialectModule({ supportsRequestScope: false });
+		const out = generateDialectModule({
+			supportsRequestScope: false,
+			supportsCoalescing: false,
+		});
 		expect(out).toContain("export const createDialect = undefined");
 		expect(out).toContain("export const createRequestScopedDb = (_opts) => null");
 	});
@@ -47,9 +54,12 @@ describe("generateDialectModule", () => {
 			entrypoint: "some-adapter/dialect",
 			type: "sqlite",
 			supportsRequestScope: false,
+			supportsCoalescing: false,
 		});
 		expect(out).toContain(`import { createDialect as _createDialect } from "some-adapter/dialect"`);
 		expect(out).toContain("export const createRequestScopedDb = (_opts) => null");
+		expect(out).toContain("export const createCoalescingDialect = undefined");
+		expect(out).not.toContain("_dialectModule.createCoalescingDialect");
 		expect(out).not.toContain(`export { createRequestScopedDb } from`);
 	});
 
@@ -58,8 +68,13 @@ describe("generateDialectModule", () => {
 			entrypoint: "@emdash-cms/cloudflare/db/d1",
 			type: "sqlite",
 			supportsRequestScope: true,
+			supportsCoalescing: true,
 		});
 		expect(out).toContain(`export { createRequestScopedDb } from "@emdash-cms/cloudflare/db/d1"`);
+		expect(out).toContain(
+			`import { createCoalescingDialect as _createCoalescingDialect } from "@emdash-cms/cloudflare/db/d1"`,
+		);
+		expect(out).toContain("export const createCoalescingDialect = _createCoalescingDialect");
 		expect(out).not.toContain("= () => null");
 		expect(out).not.toContain("= (_opts) => null");
 	});
@@ -69,6 +84,7 @@ describe("generateDialectModule", () => {
 			entrypoint: "emdash/db/postgres",
 			type: "postgres",
 			supportsRequestScope: false,
+			supportsCoalescing: false,
 		});
 		expect(out).toContain(`export const dialectType = "postgres"`);
 	});
@@ -104,11 +120,34 @@ describe("generateSchedulerModule", () => {
 	});
 });
 
+describe("generateEnvModule", () => {
+	it("re-exports cloudflare:workers' env under the Cloudflare adapter", () => {
+		const out = generateEnvModule("@astrojs/cloudflare");
+		expect(out).toBe('export { env } from "cloudflare:workers";');
+	});
+
+	it("exports undefined for non-Cloudflare adapters (#1736)", () => {
+		const out = generateEnvModule("@astrojs/node");
+		expect(out).toBe("export const env = undefined;");
+		expect(out).not.toContain("cloudflare:workers");
+	});
+
+	it("exports undefined when no adapter is configured", () => {
+		const out = generateEnvModule(undefined);
+		expect(out).toBe("export const env = undefined;");
+	});
+});
+
 describe("createVirtualModulesPlugin scheduler wiring", () => {
 	// Invoke a Vite plugin hook that may be a function or { handler } object.
 	function callHook<T>(hook: unknown, ...args: unknown[]): T {
 		const fn = typeof hook === "function" ? hook : (hook as { handler: unknown }).handler;
 		return (fn as (...a: unknown[]) => T)(...args);
+	}
+
+	function callHookWithContext<T>(hook: unknown, context: unknown, ...args: unknown[]): T {
+		const fn = typeof hook === "function" ? hook : (hook as { handler: unknown }).handler;
+		return (fn as (...a: unknown[]) => T).call(context, ...args);
 	}
 
 	function buildPlugin(
@@ -144,6 +183,56 @@ describe("createVirtualModulesPlugin scheduler wiring", () => {
 		const out = callHook<string>(plugin.load, RESOLVED_VIRTUAL_SCHEDULER_ID);
 		expect(out).toContain("export const createScheduler = null");
 		expect(out).not.toContain("NodeCronScheduler");
+	});
+
+	it("watches resolved sandbox plugin entries", () => {
+		const projectRoot = mkdtempSync(join(tmpdir(), "emdash-sandbox-watch-test-"));
+		try {
+			const pluginDir = join(projectRoot, "node_modules", "@test", "watch-plugin");
+			const entryPath = join(pluginDir, "dist", "sandbox-entry.mjs");
+			mkdirSync(join(pluginDir, "dist"), { recursive: true });
+			writeFileSync(join(projectRoot, "package.json"), JSON.stringify({ name: "test-project" }));
+			writeFileSync(entryPath, "export default { hooks: {} };");
+			writeFileSync(
+				join(pluginDir, "package.json"),
+				JSON.stringify({
+					name: "@test/watch-plugin",
+					exports: { "./sandbox": "./dist/sandbox-entry.mjs" },
+				}),
+			);
+
+			const descriptor: PluginDescriptor = {
+				id: "watch-plugin",
+				version: "1.0.0",
+				entrypoint: "@test/watch-plugin/sandbox",
+				format: "standard",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+				adminPages: [],
+				adminWidgets: [],
+			};
+			const options = {
+				serializableConfig: {},
+				resolvedConfig: { sandboxed: [descriptor] },
+				pluginDescriptors: [],
+				astroConfig: { root: pathToFileURL(`${projectRoot}/`) },
+			} as unknown as VitePluginOptions;
+			const plugin = createVirtualModulesPlugin(options, "dev");
+			const addWatchFile = vi.fn();
+
+			const source = callHookWithContext<string>(
+				plugin.load,
+				{ addWatchFile },
+				RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID,
+			);
+
+			expect(source).toContain("export default { hooks: {} };");
+			expect(addWatchFile).toHaveBeenCalledOnce();
+			expect(addWatchFile).toHaveBeenCalledWith(entryPath);
+		} finally {
+			rmSync(projectRoot, { recursive: true, force: true });
+		}
 	});
 });
 

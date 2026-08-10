@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { localeCode } from "./common.js";
+
 // ---------------------------------------------------------------------------
 // Taxonomy definitions: Input schemas
 // ---------------------------------------------------------------------------
@@ -24,7 +26,7 @@ export const createTaxonomyDefBody = z
 			.max(100)
 			.optional()
 			.default([]),
-		locale: z.string().min(1).optional(),
+		locale: localeCode.optional(),
 		translationOf: z.string().min(1).optional(),
 	})
 	.meta({ id: "CreateTaxonomyDefBody" });
@@ -39,7 +41,7 @@ export const createTermBody = z
 		label: z.string().min(1),
 		parentId: z.string().nullish(),
 		description: z.string().optional(),
-		locale: z.string().min(1).optional(),
+		locale: localeCode.optional(),
 		translationOf: z.string().min(1).optional(),
 	})
 	.meta({ id: "CreateTermBody" });
@@ -52,6 +54,35 @@ export const updateTermBody = z
 		description: z.string().optional(),
 	})
 	.meta({ id: "UpdateTermBody" });
+
+export const reorderTermsBody = z
+	.object({
+		parentId: z.string().min(1).nullish().meta({
+			description:
+				"Parent term whose children are being ordered (translation_group or row id). Omit or null for the top level, which for a flat taxonomy is every term.",
+		}),
+		ids: z.array(z.string().min(1)).max(100).meta({
+			description:
+				"Terms to move, in the desired order — each a row id or translation_group. May be a subset of the group: the listed terms are permuted within the positions they already occupy and every other member keeps its place. An id outside the group is rejected with REORDER_MISMATCH.",
+		}),
+	})
+	.strict()
+	.meta({ id: "ReorderTermsBody" });
+
+export const termListQuery = z
+	.object({
+		locale: localeCode.optional(),
+		includeCounts: z
+			.enum(["true", "false"])
+			.transform((v) => v === "true")
+			.optional()
+			.default(true)
+			.meta({
+				description:
+					"Include each term's visible-usage count. Pass false to skip the aggregate; `count` is then absent from every term.",
+			}),
+	})
+	.meta({ id: "TermListQuery" });
 
 // ---------------------------------------------------------------------------
 // Taxonomies: Response schemas
@@ -123,7 +154,7 @@ export const termWithCountSchema: z.ZodType = z
 		label: z.string(),
 		parentId: z.string().nullable(),
 		description: z.string().optional(),
-		count: z.number().int(),
+		count: z.number().int().optional(),
 		children: z.array(z.lazy(() => termWithCountSchema)),
 		locale: z.string(),
 		translationGroup: z.string().nullable(),
@@ -135,6 +166,10 @@ export const termListResponseSchema = z
 	.meta({ id: "TermListResponse" });
 
 export const termResponseSchema = z.object({ term: termSchema }).meta({ id: "TermResponse" });
+
+export const termReorderResponseSchema = z
+	.object({ reordered: z.literal(true) })
+	.meta({ id: "TermReorderResponse" });
 
 export const termGetResponseSchema = z
 	.object({

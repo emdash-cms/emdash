@@ -25,7 +25,7 @@ import {
 	type UpdateMenuItemInput as UpdateMenuItemRepoInput,
 } from "../../database/repositories/menu.js";
 import type { Database } from "../../database/types.js";
-import { getI18nConfig } from "../../i18n/config.js";
+import { getI18nConfig, resolveConfiguredLocale } from "../../i18n/config.js";
 import type { ApiResult } from "../types.js";
 
 // Re-export entity types so route files and tests can import them from the
@@ -89,7 +89,8 @@ async function resolveMenu(
 	name: string,
 	options: { locale?: string },
 ): Promise<ResolveMenuResult> {
-	const matches = await repo.findByName(name, options);
+	const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+	const matches = await repo.findByName(name, { locale });
 	if (matches.length === 0) {
 		return {
 			success: false,
@@ -124,7 +125,8 @@ export async function handleMenuList(
 ): Promise<ApiResult<MenuListItem[]>> {
 	try {
 		const repo = new MenuRepository(db);
-		const items = await repo.findMany(options);
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const items = await repo.findMany({ locale });
 		return { success: true, data: items };
 	} catch {
 		return {
@@ -175,7 +177,9 @@ export async function handleMenuCreate(
 
 		// Duplicate guard: same (name, locale). Falls back to the configured
 		// defaultLocale to match the column DEFAULT set by migration 036.
-		const effectiveLocale = input.locale ?? getI18nConfig()?.defaultLocale ?? "en";
+		const effectiveLocale = input.locale
+			? resolveConfiguredLocale(input.locale)
+			: (getI18nConfig()?.defaultLocale ?? "en");
 		if (await repo.existsByNameAndLocale(input.name, effectiveLocale)) {
 			return {
 				success: false,
@@ -188,7 +192,7 @@ export async function handleMenuCreate(
 			};
 		}
 
-		const menu = await repo.create(input);
+		const menu = await repo.create({ ...input, locale: effectiveLocale });
 		return { success: true, data: menu };
 	} catch {
 		return {
@@ -212,7 +216,8 @@ export async function handleMenuGet(
 ): Promise<ApiResult<MenuWithItems>> {
 	try {
 		const repo = new MenuRepository(db);
-		const matches = await repo.findByName(name, options);
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const matches = await repo.findByName(name, { locale });
 		if (matches.length === 0) {
 			return {
 				success: false,

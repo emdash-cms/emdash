@@ -9,6 +9,7 @@ import {
 	hasUserDefinedPublicRoute,
 	injectCoreRoutes,
 } from "../../../src/astro/integration/routes.js";
+import * as mediaUploadRoute from "../../../src/astro/routes/api/media/[id]/upload.js";
 import { GET as getMediaFile } from "../../../src/astro/routes/api/media/file/[...key].js";
 
 function mockMediaContext(key: string | undefined) {
@@ -71,6 +72,19 @@ describe("core media route injection", () => {
 				entrypoint: expect.stringContaining("api/media/file/_...key_"),
 			}),
 		);
+	});
+
+	it("registers the pending-media upload route with PUT only", () => {
+		const routes: Array<{ pattern: string; entrypoint: string }> = [];
+		injectCoreRoutes((route) => routes.push(route));
+
+		expect(routes).toContainEqual(
+			expect.objectContaining({ pattern: "/_emdash/api/media/[id]/upload" }),
+		);
+		expect(mediaUploadRoute.PUT).toBeTypeOf("function");
+		for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
+			expect(mediaUploadRoute).not.toHaveProperty(method);
+		}
 	});
 
 	it("injects default root SEO routes when the site does not define them", () => {

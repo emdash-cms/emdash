@@ -39,6 +39,8 @@ export function renderToolbar(config: ToolbarConfig): string {
     </a>
 
     <button class="emdash-tb-publish" id="emdash-tb-publish" style="display:none">Publish</button>
+
+    <button class="emdash-tb-dismiss" id="emdash-tb-dismiss" title="Hide toolbar" aria-label="Hide toolbar">&times;</button>
   </div>
 </div>
 
@@ -231,6 +233,23 @@ export function renderToolbar(config: ToolbarConfig): string {
   .emdash-tb-publish:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  /* Dismiss button */
+  .emdash-tb-dismiss {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    font-family: inherit;
+    transition: color 0.15s;
+  }
+
+  .emdash-tb-dismiss:hover {
+    color: #fff;
   }
 
   /* Edit mode: editable hover styles — uses :has() to check toolbar state */
@@ -518,7 +537,34 @@ export function renderToolbar(config: ToolbarConfig): string {
   var publishBtn = document.getElementById("emdash-tb-publish");
   if (!toolbar || !toggle || !statusEl || !publishBtn || !saveStatusEl) return;
 
+  // Dismissed in this browser (localStorage flag, cleared on the next admin
+  // visit). Remove the toolbar entirely instead of rendering it.
+  try {
+    if (localStorage.getItem("emdash-toolbar-dismissed")) {
+      toolbar.remove();
+      return;
+    }
+  } catch (e) {
+    // localStorage unavailable — render normally
+  }
+
   var isEditMode = toolbar.getAttribute("data-edit-mode") === "true";
+
+  var dismissBtn = document.getElementById("emdash-tb-dismiss");
+  if (dismissBtn) {
+    dismissBtn.addEventListener("click", function() {
+      try { localStorage.setItem("emdash-toolbar-dismissed", "1"); } catch (e) {}
+      // Dismissing while edit mode is on would strand the user in edit mode
+      // with no UI to leave it — clear the cookie too.
+      if (isEditMode) {
+        document.cookie = "emdash-edit-mode=;path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        toolbar.remove();
+        location.replace(location.href);
+        return;
+      }
+      toolbar.remove();
+    });
+  }
 
   // CSRF-protected fetch — adds X-EmDash-Request header to all API calls
   function ecFetch(url, init) {
@@ -684,7 +730,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     manifestPromise = ecFetch("/_emdash/api/manifest", { credentials: "same-origin" })
       .then(function(r) { return r.json(); })
       .then(function(m) {
-        // The manifest endpoint wraps the payload in a { data } envelope (ApiResponse shape).
+        // The manifest endpoint wraps the payload in a { success, data } envelope (ApiResponse shape).
         // Unwrap it so getFieldKind can read manifest.collections directly.
         manifestCache = m && m.data ? m.data : m;
         return manifestCache;

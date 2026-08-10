@@ -1,25 +1,65 @@
-import type { Kysely, Selectable, Transaction } from "kysely";
+import {
+	sql,
+	type ExpressionBuilder,
+	type Insertable,
+	type Kysely,
+	type Selectable,
+	type Transaction,
+	type Updateable,
+} from "kysely";
 import { ulid } from "ulidx";
 
+import type { MediaUsageContentSourceVariant } from "../../media/usage/source-key.js";
 import type { MediaKind, MediaUsageReferenceType } from "../../media/usage/types.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { withTransaction } from "../transaction.js";
-import type { Database, MediaUsageSourceTable, MediaUsageTable } from "../types.js";
+import type {
+	Database,
+	MediaUsageIndexStatusTable,
+	MediaUsageSourceTable,
+	MediaUsageTable,
+} from "../types.js";
+import { validateIdentifier } from "../validate.js";
+import { decodeCursor, encodeCursor, InvalidCursorError, type FindManyResult } from "./types.js";
 
 type DatabaseExecutor = Kysely<Database> | Transaction<Database>;
+type MediaUsageSourceNullableStringColumn =
+	| "source_fingerprint"
+	| "source_updated_at"
+	| "revision_id"
+	| "updated_at"
+	| "last_attempted_at"
+	| "last_error_code";
 
-const OCCURRENCE_BIND_COLUMNS = 12;
+const OCCURRENCE_BIND_COLUMNS = 13;
 const OCCURRENCE_INSERT_BATCH_SIZE = Math.max(
 	1,
 	Math.floor(SQL_BATCH_SIZE / OCCURRENCE_BIND_COLUMNS),
 );
+const CONTENT_SOURCE_ELIGIBILITY = sql<boolean>`(
+	s.source_variant = 'draft_overlay'
+	OR (
+		s.source_variant = 'columns'
+		AND (
+			s.content_status = 'published'
+			OR NOT EXISTS (
+				SELECT 1
+				FROM _emdash_media_usage_sources AS overlay
+				WHERE overlay.source_type = 'content'
+					AND overlay.collection_slug = s.collection_slug
+					AND overlay.content_id = s.content_id
+					AND overlay.source_variant = 'draft_overlay'
+			)
+		)
+	)
+)`;
 
 export interface MediaUsageSourceInput {
 	sourceKey: string;
 	sourceType: string;
 	collectionSlug?: string | null;
 	contentId?: string | null;
-	sourceVariant: string;
+	sourceVariant: MediaUsageContentSourceVariant;
 	locale?: string | null;
 	translationGroup?: string | null;
 	contentSlug?: string | null;
@@ -29,6 +69,12 @@ export interface MediaUsageSourceInput {
 	contentDeletedAt?: string | null;
 	revisionId?: string | null;
 	schemaVersion?: number;
+	sourceUpdatedAt?: string | null;
+	sourceVersion?: number | null;
+	sourceFingerprint?: string | null;
+	sourceCompleteness?: MediaUsageSourceCompleteness;
+	lastAttemptedAt?: string | null;
+	lastErrorCode?: string | null;
 }
 
 export interface MediaUsageOccurrenceInput {
@@ -59,9 +105,154 @@ export interface MediaUsageSource {
 	revisionId: string | null;
 	currentGeneration: string;
 	schemaVersion: number;
+	sourceUpdatedAt: string | null;
+	sourceVersion: number | null;
+	sourceFingerprint: string | null;
+	sourceCompleteness: string;
+	lastAttemptedAt: string | null;
+	lastErrorCode: string | null;
 	indexedAt: string;
 	createdAt: string;
 	updatedAt: string;
+}
+
+export interface MediaUsageGuardedReplaceResult {
+	replaced: boolean;
+	/** Populated only when a guarded replacement did not win the current source row. */
+	source: MediaUsageSource | null;
+}
+
+export interface MediaUsageGuardedDeleteResult {
+	deleted: boolean;
+	source: MediaUsageSource | null;
+}
+
+export interface MediaUsageGuardedAbsentDeleteResult extends MediaUsageGuardedDeleteResult {
+	contentPresent: boolean;
+}
+
+export interface MediaUsageGuardedAttemptResult {
+	attempted: boolean;
+	/** Populated only when a guarded attempted mark did not win the current source row. */
+	source: MediaUsageSource | null;
+}
+
+export interface MediaUsageIndexStatusRepairInput extends MediaUsageIndexStatusIdentity {
+	runToken: string;
+	schemaVersion?: number;
+	startedAt: string;
+	updatedAt?: string;
+}
+
+export interface MediaUsageIndexStatusFinalizeInput extends MediaUsageIndexStatusIdentity {
+	runToken: string;
+	status: Exclude<MediaUsageIndexStatusValue, "never" | "running" | "stale">;
+	schemaVersion?: number;
+	completedAt: string;
+	indexedSourceCount?: number;
+	failedSourceCount?: number;
+	lastErrorCode?: string | null;
+	updatedAt?: string;
+}
+
+export interface MediaUsageGuardedIndexStatusResult {
+	finalized: boolean;
+	status: MediaUsageIndexStatus | null;
+}
+
+export type MediaUsageSourceCompleteness =
+	| "unknown"
+	| "complete"
+	| "partial"
+	| "failed"
+	| "unsupported";
+
+export type MediaUsageIndexStatusValue =
+	| "never"
+	| "running"
+	| "complete"
+	| "partial"
+	| "failed"
+	| "stale";
+
+export interface MediaUsageIndexStatusIdentity {
+	adapterId: string;
+	scopeType: string;
+	scopeKey: string;
+}
+
+export interface MediaUsageIndexStatusInput extends MediaUsageIndexStatusIdentity {
+	status: MediaUsageIndexStatusValue;
+	schemaVersion?: number;
+	startedAt?: string | null;
+	completedAt?: string | null;
+	cursor?: string | null;
+	indexedSourceCount?: number;
+	failedSourceCount?: number;
+	lastErrorCode?: string | null;
+	updatedAt?: string;
+}
+
+export interface MediaUsageIndexStatus extends MediaUsageIndexStatusIdentity {
+	status: string;
+	schemaVersion: number;
+	startedAt: string | null;
+	completedAt: string | null;
+	cursor: string | null;
+	indexedSourceCount: number;
+	failedSourceCount: number;
+	lastErrorCode: string | null;
+	updatedAt: string;
+}
+
+export interface FindMediaUsageOptions {
+	limit?: number;
+	cursor?: string;
+}
+
+export interface MediaUsageCollectionIndexStatusScope {
+	collectionSlug: string;
+	status: string | null;
+	schemaVersion: number | null;
+}
+
+export interface MediaUsageEntrySource {
+	source: MediaUsageSource;
+	occurrences: MediaUsageOccurrence[];
+}
+
+export interface MediaUsageEntryGroup {
+	collectionSlug: string;
+	contentId: string;
+	contentDeletedAt: string | null;
+	sources: MediaUsageEntrySource[];
+}
+
+interface MediaUsageSourceRow {
+	source_key: string;
+	source_type: string;
+	collection_slug: string | null;
+	content_id: string | null;
+	source_variant: string;
+	locale: string | null;
+	translation_group: string | null;
+	content_slug: string | null;
+	content_title: string | null;
+	content_status: string | null;
+	content_scheduled_at: string | null;
+	content_deleted_at: string | null;
+	revision_id: string | null;
+	current_generation: string;
+	schema_version: number;
+	source_updated_at: string | null;
+	source_version: number | null;
+	source_fingerprint: string | null;
+	source_completeness: string;
+	last_attempted_at: string | null;
+	last_error_code: string | null;
+	indexed_at: string;
+	created_at: string;
+	updated_at: string;
 }
 
 export interface MediaUsageOccurrence {
@@ -101,9 +292,15 @@ interface JoinedUsageRow {
 	revision_id: string | null;
 	current_generation: string;
 	schema_version: number;
+	source_updated_at: string | null;
+	source_version: number | null;
+	source_fingerprint: string | null;
+	source_completeness: string;
+	last_attempted_at: string | null;
+	last_error_code: string | null;
 	indexed_at: string;
 	source_created_at: string;
-	source_updated_at: string;
+	source_row_updated_at: string;
 	occurrence_id: string;
 	generation: string;
 	field_slug: string;
@@ -118,6 +315,11 @@ interface JoinedUsageRow {
 	occurrence_created_at: string;
 }
 
+interface GroupedUsageRow extends JoinedUsageRow {
+	entry_deleted_at: string | null;
+	has_more: number;
+}
+
 /** Persistence-only repository for the internal media usage projection tables. */
 export class MediaUsageRepository {
 	constructor(private db: Kysely<Database>) {}
@@ -130,14 +332,8 @@ export class MediaUsageRepository {
 		const now = new Date().toISOString();
 
 		await withTransaction(this.db, async (trx) => {
-			await this.insertOccurrences(trx, source.sourceKey, generation, occurrences);
+			await this.insertOccurrences(trx, source.sourceKey, generation, occurrences, now);
 			await this.upsertSource(trx, source, generation, now);
-
-			try {
-				await this.deleteStaleGenerations(trx, source.sourceKey, generation);
-			} catch (error) {
-				console.error("[media-usage] failed to delete stale generations:", error);
-			}
 		});
 
 		const replaced = await this.findSource(source.sourceKey);
@@ -145,6 +341,30 @@ export class MediaUsageRepository {
 			throw new Error(`Media usage source ${source.sourceKey} was not persisted`);
 		}
 		return replaced;
+	}
+	async replaceSourceIfCurrent(
+		source: MediaUsageSourceInput,
+		occurrences: readonly MediaUsageOccurrenceInput[],
+		expectedCurrentGeneration: string | null,
+	): Promise<MediaUsageGuardedReplaceResult> {
+		const generation = ulid();
+		const now = new Date().toISOString();
+		const row = this.buildSourceRow(source, generation, now);
+		let replaced = false;
+
+		await withTransaction(this.db, async (trx) => {
+			await this.insertOccurrences(trx, source.sourceKey, generation, occurrences, now);
+			if (expectedCurrentGeneration === null) {
+				replaced = await this.insertSourceIfAbsent(trx, row);
+				return;
+			}
+			replaced = await this.updateSourceIfGeneration(trx, row, expectedCurrentGeneration);
+		});
+
+		return {
+			replaced,
+			source: replaced ? null : await this.findSource(source.sourceKey),
+		};
 	}
 
 	async findSource(sourceKey: string): Promise<MediaUsageSource | null> {
@@ -155,6 +375,252 @@ export class MediaUsageRepository {
 			.executeTakeFirst();
 
 		return row ? rowToSource(row) : null;
+	}
+
+	async findSources(sourceKeys: readonly string[]): Promise<Map<string, MediaUsageSource>> {
+		const uniqueSourceKeys = [...new Set(sourceKeys)];
+		const sources = new Map<string, MediaUsageSource>();
+		if (uniqueSourceKeys.length === 0) return sources;
+
+		for (const sourceKeyBatch of chunks(uniqueSourceKeys, SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("_emdash_media_usage_sources")
+				.selectAll()
+				.where("source_key", "in", sourceKeyBatch)
+				.execute();
+			for (const row of rows) {
+				const source = rowToSource(row);
+				sources.set(source.sourceKey, source);
+			}
+		}
+
+		return sources;
+	}
+
+	async replaceSourceIfMatching(
+		source: MediaUsageSourceInput,
+		occurrences: readonly MediaUsageOccurrenceInput[],
+		expectedSource: MediaUsageSource | null,
+	): Promise<MediaUsageGuardedReplaceResult> {
+		const generation = ulid();
+		const now = new Date().toISOString();
+		const row = this.buildSourceRow(source, generation, now);
+		let replaced = false;
+
+		await withTransaction(this.db, async (trx) => {
+			await this.insertOccurrences(trx, source.sourceKey, generation, occurrences, now);
+			if (expectedSource === null) {
+				replaced = await this.insertSourceIfAbsent(trx, row);
+				return;
+			}
+			replaced = await this.updateSourceIfMatching(trx, row, expectedSource);
+		});
+
+		return {
+			replaced,
+			source: replaced ? null : await this.findSource(source.sourceKey),
+		};
+	}
+
+	async markSourceAttempted(source: MediaUsageSourceInput): Promise<MediaUsageSource> {
+		const now = new Date().toISOString();
+		const row = this.buildAttemptedSourceRow(source, now);
+		const updates = this.attemptedSourceUpdateSet(source, row);
+
+		await this.db
+			.insertInto("_emdash_media_usage_sources")
+			.values(row)
+			.onConflict((oc) => oc.column("source_key").doUpdateSet(updates))
+			.execute();
+
+		const attempted = await this.findSource(source.sourceKey);
+		if (!attempted) {
+			throw new Error(`Media usage source ${source.sourceKey} was not persisted`);
+		}
+		return attempted;
+	}
+
+	async markSourceAttemptedIfMatching(
+		source: MediaUsageSourceInput,
+		expectedSource: MediaUsageSource | null,
+	): Promise<MediaUsageGuardedAttemptResult> {
+		const now = new Date().toISOString();
+		const row = this.buildAttemptedSourceRow(source, now);
+		let attempted = false;
+
+		if (expectedSource === null) {
+			attempted = await this.insertSourceIfAbsent(this.db, row);
+		} else {
+			attempted = await this.updateAttemptedSourceIfMatching(this.db, source, row, expectedSource);
+		}
+
+		return {
+			attempted,
+			source: attempted ? null : await this.findSource(source.sourceKey),
+		};
+	}
+
+	async findActiveEntryCountsByMediaIds(mediaIds: readonly string[]): Promise<Map<string, number>> {
+		const uniqueMediaIds = [...new Set(mediaIds)];
+		const counts = new Map(uniqueMediaIds.map((mediaId) => [mediaId, 0]));
+
+		for (const mediaIdBatch of chunks(uniqueMediaIds, SQL_BATCH_SIZE)) {
+			const visibleEntries = this.currentContentMediaUsageBaseQuery()
+				.select([
+					"u.media_id as media_id",
+					"s.collection_slug as collection_slug",
+					"s.content_id as content_id",
+				])
+				.where("u.media_id", "in", mediaIdBatch)
+				.where((eb) =>
+					eb.not(
+						eb.exists(
+							eb
+								.selectFrom("_emdash_media_usage_sources as deleted_source")
+								.select("deleted_source.source_key")
+								.where("deleted_source.source_type", "=", "content")
+								.whereRef("deleted_source.collection_slug", "=", "s.collection_slug")
+								.whereRef("deleted_source.content_id", "=", "s.content_id")
+								.where("deleted_source.source_variant", "in", ["columns", "draft_overlay"])
+								.where("deleted_source.content_deleted_at", "is not", null),
+						),
+					),
+				)
+				.distinct()
+				.as("visible_entries");
+
+			const rows = await this.db
+				.selectFrom(visibleEntries)
+				.select("media_id")
+				.select((eb) => eb.fn.countAll<number>().as("usage_count"))
+				.groupBy("media_id")
+				.execute();
+
+			for (const row of rows) {
+				if (row.media_id !== null) counts.set(row.media_id, Number(row.usage_count));
+			}
+		}
+
+		return counts;
+	}
+
+	async findCollectionIndexStatusScopes(
+		identity: Pick<MediaUsageIndexStatusIdentity, "adapterId" | "scopeType">,
+	): Promise<MediaUsageCollectionIndexStatusScope[]> {
+		const rows = await this.db
+			.selectFrom("_emdash_collections as collection")
+			.leftJoin("_emdash_media_usage_index_status as status", (join) =>
+				join
+					.on("status.adapter_id", "=", identity.adapterId)
+					.on("status.scope_type", "=", identity.scopeType)
+					.onRef("status.scope_key", "=", "collection.slug"),
+			)
+			.select([
+				"collection.slug as collection_slug",
+				"status.status as status",
+				"status.schema_version as schema_version",
+			])
+			.orderBy("collection.slug", "asc")
+			.execute();
+
+		return rows.map((row) => ({
+			collectionSlug: row.collection_slug,
+			status: row.status,
+			schemaVersion: row.schema_version === null ? null : Number(row.schema_version),
+		}));
+	}
+
+	async findCurrentEntryUsagePageByMediaId(
+		mediaId: string,
+		options: FindMediaUsageOptions = {},
+	): Promise<FindManyResult<MediaUsageEntryGroup>> {
+		const requestedLimit = Math.floor(options.limit ?? 50);
+		const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(1, requestedLimit), 100) : 50;
+		const cursor = options.cursor ? decodeCursor(options.cursor) : null;
+		if (cursor && (cursor.orderValue.length === 0 || cursor.id.length === 0)) {
+			throw new InvalidCursorError(options.cursor ?? "");
+		}
+		let matchedGroups = this.currentContentMediaUsageBaseQuery()
+			.select(["s.collection_slug as collection_slug", "s.content_id as content_id"])
+			.where("u.media_id", "=", mediaId)
+			.distinct();
+		if (cursor) {
+			matchedGroups = matchedGroups.where((eb) =>
+				eb.or([
+					eb("s.collection_slug", ">", cursor.orderValue),
+					eb.and([
+						eb("s.collection_slug", "=", cursor.orderValue),
+						eb("s.content_id", ">", cursor.id),
+					]),
+				]),
+			);
+		}
+		matchedGroups = matchedGroups
+			.orderBy("s.collection_slug", "asc")
+			.orderBy("s.content_id", "asc")
+			.limit(limit + 1);
+
+		const rows: GroupedUsageRow[] = await this.db
+			.with("matched_groups", () => matchedGroups)
+			.with("page_groups", (db) =>
+				db
+					.selectFrom("matched_groups")
+					.selectAll()
+					.orderBy("collection_slug", "asc")
+					.orderBy("content_id", "asc")
+					.limit(limit),
+			)
+			.with("entry_state", (db) =>
+				db
+					.selectFrom("page_groups as page")
+					.crossJoin("_emdash_media_usage_sources as state")
+					.select(["page.collection_slug", "page.content_id"])
+					.select((eb) =>
+						eb.fn.max<string | null>("state.content_deleted_at").as("entry_deleted_at"),
+					)
+					.whereRef("page.collection_slug", "=", "state.collection_slug")
+					.whereRef("page.content_id", "=", "state.content_id")
+					.where("state.source_type", "=", "content")
+					.where("state.source_variant", "in", ["columns", "draft_overlay"])
+					.groupBy(["page.collection_slug", "page.content_id"]),
+			)
+			.selectFrom("entry_state as page")
+			.crossJoin("_emdash_media_usage_sources as s")
+			.crossJoin("_emdash_media_usage as u")
+			.whereRef("page.collection_slug", "=", "s.collection_slug")
+			.whereRef("page.content_id", "=", "s.content_id")
+			.whereRef("s.source_key", "=", "u.source_key")
+			.whereRef("s.current_generation", "=", "u.generation")
+			.select(currentUsageSelect)
+			.select("page.entry_deleted_at")
+			.select(
+				sql<number>`CASE
+					WHEN (SELECT COUNT(*) FROM matched_groups) > ${limit} THEN 1
+					ELSE 0
+				END`.as("has_more"),
+			)
+			.where("u.media_id", "=", mediaId)
+			.where("s.source_type", "=", "content")
+			.where("s.collection_slug", "is not", null)
+			.where("s.content_id", "is not", null)
+			.where("s.source_variant", "in", ["columns", "draft_overlay"])
+			.where(CONTENT_SOURCE_ELIGIBILITY)
+			.orderBy("s.collection_slug", "asc")
+			.orderBy("s.content_id", "asc")
+			.orderBy("s.source_variant", "asc")
+			.orderBy("s.source_key", "asc")
+			.orderBy("u.field_path", "asc")
+			.orderBy("u.occurrence_index", "asc")
+			.orderBy("u.id", "asc")
+			.execute();
+
+		const items = groupUsageRows(rows);
+		const result: FindManyResult<MediaUsageEntryGroup> = { items };
+		if (Number(rows[0]?.has_more ?? 0) === 1 && items.length > 0) {
+			const last = items.at(-1)!;
+			result.nextCursor = encodeCursor(last.collectionSlug, last.contentId);
+		}
+		return result;
 	}
 
 	async findCurrentUsageByMediaId(mediaId: string): Promise<MediaUsageRecord[]> {
@@ -197,15 +663,114 @@ export class MediaUsageRepository {
 		return rows.map(rowToUsageRecord);
 	}
 
+	async findCurrentUsagePageByMediaId(
+		mediaId: string,
+		options: FindMediaUsageOptions = {},
+	): Promise<FindManyResult<MediaUsageRecord>> {
+		return this.findCurrentUsagePage((query) => query.where("u.media_id", "=", mediaId), options);
+	}
+
+	async findCurrentUsagePageByProviderAsset(
+		provider: string,
+		providerAssetId: string,
+		options: FindMediaUsageOptions = {},
+	): Promise<FindManyResult<MediaUsageRecord>> {
+		return this.findCurrentUsagePage(
+			(query) =>
+				query.where("u.provider", "=", provider).where("u.provider_asset_id", "=", providerAssetId),
+			options,
+		);
+	}
+
 	async deleteSource(sourceKey: string): Promise<number> {
-		return withTransaction(this.db, async (trx) => {
-			await trx.deleteFrom("_emdash_media_usage").where("source_key", "=", sourceKey).execute();
+		return this.deleteSources([sourceKey]);
+	}
+
+	async deleteSourceIfCurrent(
+		sourceKey: string,
+		expectedCurrentGeneration: string,
+	): Promise<MediaUsageGuardedDeleteResult> {
+		let deleted = false;
+		await withTransaction(this.db, async (trx) => {
 			const result = await trx
 				.deleteFrom("_emdash_media_usage_sources")
 				.where("source_key", "=", sourceKey)
+				.where("current_generation", "=", expectedCurrentGeneration)
 				.executeTakeFirst();
-			return Number(result.numDeletedRows ?? 0);
+			deleted = Number(result.numDeletedRows ?? 0) > 0;
+			if (!deleted) return;
+			await this.deleteSourceGenerationOccurrences(trx, sourceKey, expectedCurrentGeneration);
 		});
+
+		return {
+			deleted,
+			source: await this.findSource(sourceKey),
+		};
+	}
+
+	async deleteSourceIfMatching(
+		sourceKey: string,
+		expectedSource: MediaUsageSource,
+	): Promise<MediaUsageGuardedDeleteResult> {
+		let deleted = false;
+		await withTransaction(this.db, async (trx) => {
+			const result = await trx
+				.deleteFrom("_emdash_media_usage_sources")
+				.where("source_key", "=", sourceKey)
+				.where(this.sourceMatchExpression(expectedSource))
+				.executeTakeFirst();
+			deleted = Number(result.numDeletedRows ?? 0) > 0;
+			if (!deleted) return;
+			await this.deleteSourceGenerationOccurrences(
+				trx,
+				sourceKey,
+				expectedSource.currentGeneration,
+			);
+		});
+
+		return {
+			deleted,
+			source: await this.findSource(sourceKey),
+		};
+	}
+
+	async deleteSourceIfMatchingContentAbsent(
+		sourceKey: string,
+		expectedSource: MediaUsageSource,
+		collectionSlug: string,
+		contentId: string,
+	): Promise<MediaUsageGuardedAbsentDeleteResult> {
+		validateIdentifier(collectionSlug, "collection slug");
+		const tableName = `ec_${collectionSlug}`;
+		let deleted = false;
+		await withTransaction(this.db, async (trx) => {
+			const result = await trx
+				.deleteFrom("_emdash_media_usage_sources")
+				.where("source_key", "=", sourceKey)
+				.where(this.sourceMatchExpression(expectedSource))
+				.where(
+					sql<boolean>`NOT EXISTS (SELECT 1 FROM ${sql.ref(tableName)} WHERE id = ${contentId})`,
+				)
+				.executeTakeFirst();
+			deleted = Number(result.numDeletedRows ?? 0) > 0;
+			if (!deleted) return;
+			await this.deleteSourceGenerationOccurrences(
+				trx,
+				sourceKey,
+				expectedSource.currentGeneration,
+			);
+		});
+		const contentPresent = deleted ? false : await this.contentRowExists(tableName, contentId);
+
+		return {
+			deleted,
+			contentPresent,
+			source: deleted || contentPresent ? null : await this.findSource(sourceKey),
+		};
+	}
+
+	async deleteSources(sourceKeys: readonly string[]): Promise<number> {
+		return this.deleteSourceKeys(sourceKeys);
 	}
 
 	async deleteContentSources(collectionSlug: string, contentId: string): Promise<number> {
@@ -217,23 +782,364 @@ export class MediaUsageRepository {
 			.where("content_id", "=", contentId)
 			.execute();
 		const sourceKeys = sourceRows.map((row) => row.source_key);
-		if (sourceKeys.length === 0) return 0;
+		return this.deleteSourceKeys(sourceKeys);
+	}
+
+	async deleteCollectionSources(collectionSlug: string): Promise<number> {
+		let deleted = 0;
+		while (true) {
+			const sourceRows = await this.db
+				.selectFrom("_emdash_media_usage_sources")
+				.select("source_key")
+				.where("source_type", "=", "content")
+				.where("collection_slug", "=", collectionSlug)
+				.orderBy("source_key", "asc")
+				.limit(SQL_BATCH_SIZE)
+				.execute();
+			if (sourceRows.length === 0) break;
+
+			deleted += await this.deleteSourceKeys(sourceRows.map((row) => row.source_key));
+		}
+		return deleted;
+	}
+
+	async findCollectionContentSources(collectionSlug: string): Promise<MediaUsageSource[]> {
+		const rows = await this.db
+			.selectFrom("_emdash_media_usage_sources")
+			.selectAll()
+			.where("source_type", "=", "content")
+			.where("collection_slug", "=", collectionSlug)
+			.orderBy("source_key", "asc")
+			.execute();
+		return rows.map((row) => rowToSource(row));
+	}
+
+	async deleteOrphanOccurrencesOlderThan(cutoff: string, limit: number): Promise<number> {
+		const batchLimit = Math.floor(limit);
+		if (batchLimit <= 0) return 0;
+
+		const rows = await this.db
+			.selectFrom("_emdash_media_usage as u")
+			.leftJoin("_emdash_media_usage_sources as s", (join) =>
+				join.onRef("s.source_key", "=", "u.source_key"),
+			)
+			.select("u.id")
+			.where("s.source_key", "is", null)
+			.where("u.created_at", "<", cutoff)
+			.orderBy("u.created_at", "asc")
+			.orderBy("u.id", "asc")
+			.limit(batchLimit)
+			.execute();
+
+		let deleted = 0;
+		for (const idBatch of chunks(
+			rows.map((row) => row.id),
+			SQL_BATCH_SIZE,
+		)) {
+			const result = await this.db
+				.deleteFrom("_emdash_media_usage")
+				.where("id", "in", idBatch)
+				.where("created_at", "<", cutoff)
+				.where(
+					sql<boolean>`NOT EXISTS (SELECT 1 FROM _emdash_media_usage_sources s WHERE s.source_key = _emdash_media_usage.source_key)`,
+				)
+				.executeTakeFirst();
+			deleted += Number(result.numDeletedRows ?? 0);
+		}
+		return deleted;
+	}
+
+	async deleteStaleGenerationsOlderThan(cutoff: string, limit: number): Promise<number> {
+		const batchLimit = Math.floor(limit);
+		if (batchLimit <= 0) return 0;
+
+		const rows = await this.db
+			.selectFrom("_emdash_media_usage as u")
+			.innerJoin("_emdash_media_usage_sources as s", (join) =>
+				join.onRef("s.source_key", "=", "u.source_key"),
+			)
+			.select("u.id")
+			.where("u.created_at", "<", cutoff)
+			.whereRef("u.generation", "!=", "s.current_generation")
+			.whereRef("u.created_at", "<", "s.indexed_at")
+			.orderBy("u.created_at", "asc")
+			.orderBy("u.id", "asc")
+			.limit(batchLimit)
+			.execute();
+
+		const ids = rows.map((row) => row.id);
+		if (ids.length === 0) return 0;
+
+		let deleted = 0;
+		for (const idBatch of chunks(ids, SQL_BATCH_SIZE)) {
+			const result = await this.db
+				.deleteFrom("_emdash_media_usage")
+				.where("id", "in", idBatch)
+				.where("created_at", "<", cutoff)
+				.where((eb) =>
+					eb.exists(
+						eb
+							.selectFrom("_emdash_media_usage_sources as s")
+							.select("s.source_key")
+							.whereRef("s.source_key", "=", "_emdash_media_usage.source_key")
+							.whereRef("s.current_generation", "!=", "_emdash_media_usage.generation")
+							.whereRef("_emdash_media_usage.created_at", "<", "s.indexed_at"),
+					),
+				)
+				.executeTakeFirst();
+			deleted += Number(result.numDeletedRows ?? 0);
+		}
+		return deleted;
+	}
+
+	async deleteAbandonedGenerationsOlderThan(cutoff: string, limit: number): Promise<number> {
+		const batchLimit = Math.floor(limit);
+		if (batchLimit <= 0) return 0;
+
+		const rows = await this.db
+			.selectFrom("_emdash_media_usage as u")
+			.innerJoin("_emdash_media_usage_sources as s", (join) =>
+				join.onRef("s.source_key", "=", "u.source_key"),
+			)
+			.select("u.id")
+			.where("u.created_at", "<", cutoff)
+			.whereRef("u.generation", "!=", "s.current_generation")
+			.whereRef("u.created_at", ">=", "s.indexed_at")
+			.orderBy("u.created_at", "asc")
+			.orderBy("u.id", "asc")
+			.limit(batchLimit)
+			.execute();
+
+		let deleted = 0;
+		for (const idBatch of chunks(
+			rows.map((row) => row.id),
+			SQL_BATCH_SIZE,
+		)) {
+			const result = await this.db
+				.deleteFrom("_emdash_media_usage")
+				.where("id", "in", idBatch)
+				.where("created_at", "<", cutoff)
+				.where((eb) =>
+					eb.exists(
+						eb
+							.selectFrom("_emdash_media_usage_sources as s")
+							.select("s.source_key")
+							.whereRef("s.source_key", "=", "_emdash_media_usage.source_key")
+							.whereRef("s.current_generation", "!=", "_emdash_media_usage.generation")
+							.whereRef("_emdash_media_usage.created_at", ">=", "s.indexed_at"),
+					),
+				)
+				.executeTakeFirst();
+			deleted += Number(result.numDeletedRows ?? 0);
+		}
+		return deleted;
+	}
+
+	async upsertIndexStatus(input: MediaUsageIndexStatusInput): Promise<MediaUsageIndexStatus> {
+		const now = input.updatedAt ?? new Date().toISOString();
+		const row = {
+			adapter_id: input.adapterId,
+			scope_type: input.scopeType,
+			scope_key: input.scopeKey,
+			status: input.status,
+			schema_version: input.schemaVersion ?? 1,
+			started_at: input.startedAt ?? null,
+			completed_at: input.completedAt ?? null,
+			cursor: input.cursor ?? null,
+			indexed_source_count: input.indexedSourceCount ?? 0,
+			failed_source_count: input.failedSourceCount ?? 0,
+			last_error_code: input.lastErrorCode ?? null,
+			updated_at: now,
+		};
+
+		await this.db
+			.insertInto("_emdash_media_usage_index_status")
+			.values(row)
+			.onConflict((oc) =>
+				oc.columns(["adapter_id", "scope_type", "scope_key"]).doUpdateSet({
+					status: row.status,
+					schema_version: row.schema_version,
+					started_at: row.started_at,
+					completed_at: row.completed_at,
+					cursor: row.cursor,
+					indexed_source_count: row.indexed_source_count,
+					failed_source_count: row.failed_source_count,
+					last_error_code: row.last_error_code,
+					updated_at: row.updated_at,
+				}),
+			)
+			.execute();
+
+		const status = await this.findIndexStatus(input);
+		if (!status) {
+			throw new Error(
+				`Media usage index status ${input.adapterId}:${input.scopeType}:${input.scopeKey} was not persisted`,
+			);
+		}
+		return status;
+	}
+
+	async beginIndexStatusRepair(
+		input: MediaUsageIndexStatusRepairInput,
+	): Promise<MediaUsageIndexStatus> {
+		return this.upsertIndexStatus({
+			adapterId: input.adapterId,
+			scopeType: input.scopeType,
+			scopeKey: input.scopeKey,
+			status: "running",
+			schemaVersion: input.schemaVersion,
+			startedAt: input.startedAt,
+			completedAt: null,
+			cursor: input.runToken,
+			indexedSourceCount: 0,
+			failedSourceCount: 0,
+			lastErrorCode: null,
+			updatedAt: input.updatedAt,
+		});
+	}
+
+	async finalizeIndexStatusRepairIfRunning(
+		input: MediaUsageIndexStatusFinalizeInput,
+	): Promise<MediaUsageGuardedIndexStatusResult> {
+		const updates: Updateable<MediaUsageIndexStatusTable> = {
+			status: input.status,
+			completed_at: input.completedAt,
+			cursor: null,
+			indexed_source_count: input.indexedSourceCount ?? 0,
+			failed_source_count: input.failedSourceCount ?? 0,
+			last_error_code: input.lastErrorCode ?? null,
+			updated_at: input.updatedAt ?? new Date().toISOString(),
+		};
+		if (input.schemaVersion !== undefined) updates.schema_version = input.schemaVersion;
+
+		const result = await this.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set(updates)
+			.where("adapter_id", "=", input.adapterId)
+			.where("scope_type", "=", input.scopeType)
+			.where("scope_key", "=", input.scopeKey)
+			.where("status", "=", "running")
+			.where("cursor", "=", input.runToken)
+			.executeTakeFirst();
+		const finalized = Number(result.numUpdatedRows ?? 0) > 0;
+
+		return {
+			finalized,
+			status: await this.findIndexStatus(input),
+		};
+	}
+
+	async findIndexStatus(
+		identity: MediaUsageIndexStatusIdentity,
+	): Promise<MediaUsageIndexStatus | null> {
+		const row = await this.db
+			.selectFrom("_emdash_media_usage_index_status")
+			.selectAll()
+			.where("adapter_id", "=", identity.adapterId)
+			.where("scope_type", "=", identity.scopeType)
+			.where("scope_key", "=", identity.scopeKey)
+			.executeTakeFirst();
+
+		return row ? rowToIndexStatus(row) : null;
+	}
+
+	async deleteIndexStatus(identity: MediaUsageIndexStatusIdentity): Promise<number> {
+		const result = await this.db
+			.deleteFrom("_emdash_media_usage_index_status")
+			.where("adapter_id", "=", identity.adapterId)
+			.where("scope_type", "=", identity.scopeType)
+			.where("scope_key", "=", identity.scopeKey)
+			.executeTakeFirst();
+		return Number(result.numDeletedRows ?? 0);
+	}
+
+	private async findCurrentUsagePage(
+		applyFilter: (
+			query: ReturnType<MediaUsageRepository["currentUsageBaseQuery"]>,
+		) => ReturnType<MediaUsageRepository["currentUsageBaseQuery"]>,
+		options: FindMediaUsageOptions,
+	): Promise<FindManyResult<MediaUsageRecord>> {
+		const limit = Math.min(Math.max(1, options.limit ?? 50), 100);
+		let query = applyFilter(this.currentUsageBaseQuery())
+			.orderBy("u.id", "asc")
+			.limit(limit + 1);
+
+		if (options.cursor) {
+			const { id } = decodeCursor(options.cursor);
+			query = query.where("u.id", ">", id);
+		}
+
+		const rows = await query.execute();
+		const items = rows.slice(0, limit).map(rowToUsageRecord);
+		const result: FindManyResult<MediaUsageRecord> = { items };
+
+		if (rows.length > limit && items.length > 0) {
+			const last = items.at(-1)!;
+			result.nextCursor = encodeCursor(last.occurrence.id, last.occurrence.id);
+		}
+
+		return result;
+	}
+
+	private currentUsageBaseQuery() {
+		return this.db
+			.selectFrom("_emdash_media_usage_sources as s")
+			.innerJoin("_emdash_media_usage as u", (join) =>
+				join
+					.onRef("u.source_key", "=", "s.source_key")
+					.onRef("u.generation", "=", "s.current_generation"),
+			)
+			.select(currentUsageSelect);
+	}
+
+	private currentContentMediaUsageBaseQuery() {
+		return this.db
+			.selectFrom("_emdash_media_usage as u")
+			.crossJoin("_emdash_media_usage_sources as s")
+			.innerJoin("_emdash_collections as collection", "collection.slug", "s.collection_slug")
+			.whereRef("s.source_key", "=", "u.source_key")
+			.whereRef("s.current_generation", "=", "u.generation")
+			.where("s.source_type", "=", "content")
+			.where("s.collection_slug", "is not", null)
+			.where("s.content_id", "is not", null)
+			.where("s.source_variant", "in", ["columns", "draft_overlay"])
+			.where(CONTENT_SOURCE_ELIGIBILITY);
+	}
+
+	private async deleteSourceKeys(sourceKeys: readonly string[]): Promise<number> {
+		const uniqueSourceKeys = [...new Set(sourceKeys)];
+		if (uniqueSourceKeys.length === 0) return 0;
 
 		return withTransaction(this.db, async (trx) => {
 			let deleted = 0;
-			for (const sourceKeyBatch of chunks(sourceKeys, SQL_BATCH_SIZE)) {
-				await trx
-					.deleteFrom("_emdash_media_usage")
-					.where("source_key", "in", sourceKeyBatch)
-					.execute();
+			for (const sourceKeyBatch of chunks(uniqueSourceKeys, SQL_BATCH_SIZE)) {
 				const result = await trx
 					.deleteFrom("_emdash_media_usage_sources")
 					.where("source_key", "in", sourceKeyBatch)
 					.executeTakeFirst();
 				deleted += Number(result.numDeletedRows ?? 0);
+
+				await trx
+					.deleteFrom("_emdash_media_usage")
+					.where("source_key", "in", sourceKeyBatch)
+					.execute();
 			}
 			return deleted;
 		});
+	}
+
+	private async deleteSourceGenerationOccurrences(
+		db: DatabaseExecutor,
+		sourceKey: string,
+		generation: string,
+	): Promise<void> {
+		// Guarded source deletes remove only the generation that won the source CAS;
+		// unmatched generations become invisible orphans reclaimed by age-gated cleanup.
+		await db
+			.deleteFrom("_emdash_media_usage")
+			.where("source_key", "=", sourceKey)
+			.where("generation", "=", generation)
+			.execute();
 	}
 
 	private async insertOccurrences(
@@ -241,6 +1147,7 @@ export class MediaUsageRepository {
 		sourceKey: string,
 		generation: string,
 		occurrences: readonly MediaUsageOccurrenceInput[],
+		now: string,
 	): Promise<void> {
 		if (occurrences.length === 0) return;
 
@@ -257,6 +1164,7 @@ export class MediaUsageRepository {
 			provider_asset_id: occurrence.providerAssetId,
 			media_kind: occurrence.mediaKind ?? null,
 			mime_type: occurrence.mimeType ?? null,
+			created_at: now,
 		}));
 
 		for (const rowBatch of chunks(rows, OCCURRENCE_INSERT_BATCH_SIZE)) {
@@ -270,7 +1178,113 @@ export class MediaUsageRepository {
 		generation: string,
 		now: string,
 	): Promise<void> {
-		const row = {
+		const row = this.buildSourceRow(source, generation, now);
+
+		await db
+			.insertInto("_emdash_media_usage_sources")
+			.values(row)
+			.onConflict((oc) => oc.column("source_key").doUpdateSet(this.sourceUpdateSet(row)))
+			.execute();
+	}
+
+	private async insertSourceIfAbsent(
+		db: DatabaseExecutor,
+		row: Insertable<MediaUsageSourceTable>,
+	): Promise<boolean> {
+		const result = await db
+			.insertInto("_emdash_media_usage_sources")
+			.values(row)
+			.onConflict((oc) => oc.column("source_key").doNothing())
+			.executeTakeFirst();
+		return (result.numInsertedOrUpdatedRows ?? 0n) > 0n;
+	}
+
+	private async updateSourceIfGeneration(
+		db: DatabaseExecutor,
+		row: ReturnType<MediaUsageRepository["buildSourceRow"]>,
+		expectedCurrentGeneration: string,
+	): Promise<boolean> {
+		const result = await db
+			.updateTable("_emdash_media_usage_sources")
+			.set(this.sourceUpdateSet(row))
+			.where("source_key", "=", row.source_key)
+			.where("current_generation", "=", expectedCurrentGeneration)
+			.executeTakeFirst();
+		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
+	private async updateSourceIfMatching(
+		db: DatabaseExecutor,
+		row: ReturnType<MediaUsageRepository["buildSourceRow"]>,
+		expectedSource: MediaUsageSource,
+	): Promise<boolean> {
+		const result = await db
+			.updateTable("_emdash_media_usage_sources")
+			.set(this.sourceUpdateSet(row))
+			.where("source_key", "=", row.source_key)
+			.where(this.sourceMatchExpression(expectedSource))
+			.executeTakeFirst();
+		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
+	private async updateAttemptedSourceIfMatching(
+		db: DatabaseExecutor,
+		source: MediaUsageSourceInput,
+		row: ReturnType<MediaUsageRepository["buildAttemptedSourceRow"]>,
+		expectedSource: MediaUsageSource,
+	): Promise<boolean> {
+		const result = await db
+			.updateTable("_emdash_media_usage_sources")
+			.set(this.attemptedSourceUpdateSet(source, row))
+			.where("source_key", "=", row.source_key)
+			.where(this.sourceMatchExpression(expectedSource))
+			.executeTakeFirst();
+		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
+	private sourceMatchExpression(expectedSource: MediaUsageSource) {
+		return (eb: ExpressionBuilder<Database, "_emdash_media_usage_sources">) =>
+			eb.and([
+				eb("current_generation", "=", expectedSource.currentGeneration),
+				eb("source_completeness", "=", expectedSource.sourceCompleteness),
+				this.nullableStringExpression(eb, "updated_at", expectedSource.updatedAt),
+				this.nullableStringExpression(eb, "source_fingerprint", expectedSource.sourceFingerprint),
+				this.nullableStringExpression(eb, "source_updated_at", expectedSource.sourceUpdatedAt),
+				this.nullableNumberExpression(eb, "source_version", expectedSource.sourceVersion),
+				this.nullableStringExpression(eb, "revision_id", expectedSource.revisionId),
+				this.nullableStringExpression(eb, "last_attempted_at", expectedSource.lastAttemptedAt),
+				this.nullableStringExpression(eb, "last_error_code", expectedSource.lastErrorCode),
+			]);
+	}
+
+	private nullableStringExpression(
+		eb: ExpressionBuilder<Database, "_emdash_media_usage_sources">,
+		column: MediaUsageSourceNullableStringColumn,
+		value: string | null,
+	) {
+		return value === null ? eb(column, "is", null) : eb(column, "=", value);
+	}
+
+	private nullableNumberExpression(
+		eb: ExpressionBuilder<Database, "_emdash_media_usage_sources">,
+		column: "source_version",
+		value: number | null,
+	) {
+		return value === null ? eb(column, "is", null) : eb(column, "=", value);
+	}
+
+	private async contentRowExists(tableName: string, contentId: string): Promise<boolean> {
+		const result = await sql<{ id: string }>`
+			SELECT id
+			FROM ${sql.ref(tableName)}
+			WHERE id = ${contentId}
+			LIMIT 1
+		`.execute(this.db);
+		return result.rows.length > 0;
+	}
+
+	private buildSourceRow(source: MediaUsageSourceInput, generation: string, now: string) {
+		return {
 			source_key: source.sourceKey,
 			source_type: source.sourceType,
 			collection_slug: source.collectionSlug ?? null,
@@ -286,46 +1300,110 @@ export class MediaUsageRepository {
 			revision_id: source.revisionId ?? null,
 			current_generation: generation,
 			schema_version: source.schemaVersion ?? 1,
+			source_updated_at: source.sourceUpdatedAt ?? null,
+			source_version: source.sourceVersion ?? null,
+			source_fingerprint: source.sourceFingerprint ?? null,
+			// Complete means this source was fully refreshed for the extractor's current
+			// schema/version coverage, not that every possible reference shape is known.
+			source_completeness: source.sourceCompleteness ?? "complete",
+			last_attempted_at: source.lastAttemptedAt ?? now,
+			last_error_code: null,
 			indexed_at: now,
 			updated_at: now,
 		};
-
-		await db
-			.insertInto("_emdash_media_usage_sources")
-			.values(row)
-			.onConflict((oc) =>
-				oc.column("source_key").doUpdateSet({
-					source_type: row.source_type,
-					collection_slug: row.collection_slug,
-					content_id: row.content_id,
-					source_variant: row.source_variant,
-					locale: row.locale,
-					translation_group: row.translation_group,
-					content_slug: row.content_slug,
-					content_title: row.content_title,
-					content_status: row.content_status,
-					content_scheduled_at: row.content_scheduled_at,
-					content_deleted_at: row.content_deleted_at,
-					revision_id: row.revision_id,
-					current_generation: row.current_generation,
-					schema_version: row.schema_version,
-					indexed_at: row.indexed_at,
-					updated_at: row.updated_at,
-				}),
-			)
-			.execute();
 	}
 
-	private async deleteStaleGenerations(
-		db: DatabaseExecutor,
-		sourceKey: string,
-		currentGeneration: string,
-	): Promise<void> {
-		await db
-			.deleteFrom("_emdash_media_usage")
-			.where("source_key", "=", sourceKey)
-			.where("generation", "!=", currentGeneration)
-			.execute();
+	private buildAttemptedSourceRow(source: MediaUsageSourceInput, now: string) {
+		return {
+			source_key: source.sourceKey,
+			source_type: source.sourceType,
+			collection_slug: source.collectionSlug ?? null,
+			content_id: source.contentId ?? null,
+			source_variant: source.sourceVariant,
+			locale: source.locale ?? null,
+			translation_group: source.translationGroup ?? null,
+			content_slug: source.contentSlug ?? null,
+			content_title: source.contentTitle ?? null,
+			content_status: source.contentStatus ?? null,
+			content_scheduled_at: source.contentScheduledAt ?? null,
+			content_deleted_at: source.contentDeletedAt ?? null,
+			revision_id: source.revisionId ?? null,
+			current_generation: ulid(),
+			schema_version: source.schemaVersion ?? 1,
+			source_updated_at: source.sourceUpdatedAt ?? null,
+			source_version: source.sourceVersion ?? null,
+			source_fingerprint: source.sourceFingerprint ?? null,
+			source_completeness:
+				source.sourceCompleteness ?? (source.lastErrorCode ? "failed" : "unknown"),
+			last_attempted_at: source.lastAttemptedAt ?? now,
+			last_error_code: source.lastErrorCode ?? null,
+			indexed_at: now,
+			updated_at: now,
+		};
+	}
+
+	private attemptedSourceUpdateSet(
+		source: MediaUsageSourceInput,
+		row: ReturnType<MediaUsageRepository["buildAttemptedSourceRow"]>,
+	): Updateable<MediaUsageSourceTable> {
+		const updates: Updateable<MediaUsageSourceTable> = {
+			source_type: row.source_type,
+			source_variant: row.source_variant,
+			source_completeness: row.source_completeness,
+			last_attempted_at: row.last_attempted_at,
+			last_error_code: row.last_error_code,
+			updated_at: row.updated_at,
+		};
+
+		if (source.collectionSlug !== undefined) updates.collection_slug = row.collection_slug;
+		if (source.contentId !== undefined) updates.content_id = row.content_id;
+		if (source.locale !== undefined) updates.locale = row.locale;
+		if (source.translationGroup !== undefined) updates.translation_group = row.translation_group;
+		if (source.contentSlug !== undefined) updates.content_slug = row.content_slug;
+		if (source.contentTitle !== undefined) updates.content_title = row.content_title;
+		if (source.contentStatus !== undefined) updates.content_status = row.content_status;
+		if (source.contentScheduledAt !== undefined) {
+			updates.content_scheduled_at = row.content_scheduled_at;
+		}
+		if (source.contentDeletedAt !== undefined) updates.content_deleted_at = row.content_deleted_at;
+		if (source.revisionId !== undefined) updates.revision_id = row.revision_id;
+		if (source.schemaVersion !== undefined) updates.schema_version = row.schema_version;
+		if (source.sourceUpdatedAt !== undefined) updates.source_updated_at = row.source_updated_at;
+		if (source.sourceVersion !== undefined) updates.source_version = row.source_version;
+		if (source.sourceFingerprint !== undefined) {
+			updates.source_fingerprint = row.source_fingerprint;
+		}
+
+		return updates;
+	}
+
+	private sourceUpdateSet(
+		row: ReturnType<MediaUsageRepository["buildSourceRow"]>,
+	): Updateable<MediaUsageSourceTable> {
+		return {
+			source_type: row.source_type,
+			collection_slug: row.collection_slug,
+			content_id: row.content_id,
+			source_variant: row.source_variant,
+			locale: row.locale,
+			translation_group: row.translation_group,
+			content_slug: row.content_slug,
+			content_title: row.content_title,
+			content_status: row.content_status,
+			content_scheduled_at: row.content_scheduled_at,
+			content_deleted_at: row.content_deleted_at,
+			revision_id: row.revision_id,
+			current_generation: row.current_generation,
+			schema_version: row.schema_version,
+			source_updated_at: row.source_updated_at,
+			source_version: row.source_version,
+			source_fingerprint: row.source_fingerprint,
+			source_completeness: row.source_completeness,
+			last_attempted_at: row.last_attempted_at,
+			last_error_code: row.last_error_code,
+			indexed_at: row.indexed_at,
+			updated_at: row.updated_at,
+		};
 	}
 }
 
@@ -345,9 +1423,15 @@ const currentUsageSelect = [
 	"s.revision_id as revision_id",
 	"s.current_generation as current_generation",
 	"s.schema_version as schema_version",
+	"s.source_updated_at as source_updated_at",
+	"s.source_version as source_version",
+	"s.source_fingerprint as source_fingerprint",
+	"s.source_completeness as source_completeness",
+	"s.last_attempted_at as last_attempted_at",
+	"s.last_error_code as last_error_code",
 	"s.indexed_at as indexed_at",
 	"s.created_at as source_created_at",
-	"s.updated_at as source_updated_at",
+	"s.updated_at as source_row_updated_at",
 	"u.id as occurrence_id",
 	"u.generation as generation",
 	"u.field_slug as field_slug",
@@ -362,7 +1446,39 @@ const currentUsageSelect = [
 	"u.created_at as occurrence_created_at",
 ] as const;
 
-function rowToSource(row: Selectable<MediaUsageSourceTable>): MediaUsageSource {
+function groupUsageRows(rows: readonly GroupedUsageRow[]): MediaUsageEntryGroup[] {
+	const groups: MediaUsageEntryGroup[] = [];
+
+	for (const row of rows) {
+		if (row.collection_slug === null || row.content_id === null) continue;
+		const record = rowToUsageRecord(row);
+		let group = groups.at(-1);
+		if (
+			!group ||
+			group.collectionSlug !== row.collection_slug ||
+			group.contentId !== row.content_id
+		) {
+			group = {
+				collectionSlug: row.collection_slug,
+				contentId: row.content_id,
+				contentDeletedAt: row.entry_deleted_at,
+				sources: [],
+			};
+			groups.push(group);
+		}
+
+		let source = group.sources.at(-1);
+		if (!source || source.source.sourceKey !== record.source.sourceKey) {
+			source = { source: record.source, occurrences: [] };
+			group.sources.push(source);
+		}
+		source.occurrences.push(record.occurrence);
+	}
+
+	return groups;
+}
+
+function rowToSource(row: MediaUsageSourceRow): MediaUsageSource {
 	return {
 		sourceKey: row.source_key,
 		sourceType: row.source_type,
@@ -379,6 +1495,12 @@ function rowToSource(row: Selectable<MediaUsageSourceTable>): MediaUsageSource {
 		revisionId: row.revision_id,
 		currentGeneration: row.current_generation,
 		schemaVersion: Number(row.schema_version),
+		sourceUpdatedAt: row.source_updated_at,
+		sourceVersion: row.source_version === null ? null : Number(row.source_version),
+		sourceFingerprint: row.source_fingerprint,
+		sourceCompleteness: row.source_completeness,
+		lastAttemptedAt: row.last_attempted_at,
+		lastErrorCode: row.last_error_code,
 		indexedAt: row.indexed_at,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
@@ -421,9 +1543,15 @@ function rowToUsageRecord(row: JoinedUsageRow): MediaUsageRecord {
 			revision_id: row.revision_id,
 			current_generation: row.current_generation,
 			schema_version: row.schema_version,
+			source_updated_at: row.source_updated_at,
+			source_version: row.source_version,
+			source_fingerprint: row.source_fingerprint,
+			source_completeness: row.source_completeness,
+			last_attempted_at: row.last_attempted_at,
+			last_error_code: row.last_error_code,
 			indexed_at: row.indexed_at,
 			created_at: row.source_created_at,
-			updated_at: row.source_updated_at,
+			updated_at: row.source_row_updated_at,
 		}),
 		occurrence: rowToOccurrence({
 			id: row.occurrence_id,
@@ -440,5 +1568,22 @@ function rowToUsageRecord(row: JoinedUsageRow): MediaUsageRecord {
 			mime_type: row.mime_type,
 			created_at: row.occurrence_created_at,
 		}),
+	};
+}
+
+function rowToIndexStatus(row: Selectable<MediaUsageIndexStatusTable>): MediaUsageIndexStatus {
+	return {
+		adapterId: row.adapter_id,
+		scopeType: row.scope_type,
+		scopeKey: row.scope_key,
+		status: row.status,
+		schemaVersion: Number(row.schema_version),
+		startedAt: row.started_at,
+		completedAt: row.completed_at,
+		cursor: row.cursor,
+		indexedSourceCount: Number(row.indexed_source_count),
+		failedSourceCount: Number(row.failed_source_count),
+		lastErrorCode: row.last_error_code,
+		updatedAt: row.updated_at,
 	};
 }

@@ -108,7 +108,9 @@ function resolveSandboxedHook(entry: AnyHookEntry, pluginId: string): ResolvedHo
 function normalizeRouteEntry(entry: RouteEntry): {
 	handler: RouteHandler;
 	public?: boolean;
+	cacheControl?: string;
 	input?: PluginRoute["input"];
+	permission?: PluginRoute["permission"];
 } {
 	if (typeof entry === "function") {
 		return { handler: entry };
@@ -116,6 +118,8 @@ function normalizeRouteEntry(entry: RouteEntry): {
 	return {
 		handler: entry.handler,
 		public: entry.public,
+		permission: entry.permission,
+		cacheControl: entry.cacheControl,
 		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- RouteEntry.input is intentionally `unknown` (sandboxed plugins) and validated by the runtime at invocation time
 		input: entry.input as PluginRoute["input"],
 	};
@@ -196,10 +200,18 @@ export function adaptSandboxEntry(
 	if (definition.routes) {
 		for (const [routeName, rawEntry] of Object.entries(definition.routes)) {
 			const normalized = normalizeRouteEntry(rawEntry);
-			const { handler, public: publicFlag, input: inputSchema } = normalized;
+			const {
+				handler,
+				public: publicFlag,
+				cacheControl,
+				input: inputSchema,
+				permission,
+			} = normalized;
 			resolvedRoutes[routeName] = {
 				input: inputSchema,
 				public: publicFlag,
+				permission,
+				cacheControl,
 				handler: async (ctx) => {
 					// `ctx.request` is a real WHATWG `Request` (this is the
 					// in-process adapter; the worker-sandbox adapter handles
@@ -290,6 +302,9 @@ export function adaptSandboxEntry(
 	if (descriptor.adminWidgets) {
 		admin.widgets = descriptor.adminWidgets;
 	}
+	if (descriptor.settingsSchema) {
+		admin.settingsSchema = descriptor.settingsSchema;
+	}
 	if (descriptor.portableTextBlocks) {
 		admin.portableTextBlocks = descriptor.portableTextBlocks;
 	}
@@ -305,6 +320,20 @@ export function adaptSandboxEntry(
 		storage,
 		hooks: resolvedHooks,
 		routes: resolvedRoutes,
+		mcp: {
+			tools: Object.fromEntries(
+				Object.entries(definition.mcp?.tools ?? {}).map(([name, tool]) => [
+					name,
+					{
+						description: tool.description,
+						route: tool.route,
+						input: tool.input,
+						output: tool.output,
+						destructive: tool.destructive,
+					},
+				]),
+			),
+		},
 		admin,
 	};
 }

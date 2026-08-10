@@ -22,6 +22,7 @@ import {
 	findNodeBuiltinImports,
 	findBuildOutput,
 	findSourceExports,
+	toFileImportSpecifier,
 } from "../../../src/cli/commands/bundle-utils.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 
@@ -83,6 +84,23 @@ describe("extractManifest", () => {
 
 		const manifest = extractManifest(plugin);
 		expect(manifest.routes).toEqual(["sync", "webhook"]);
+	});
+
+	it("emits structured route entries for public and cacheControl metadata", () => {
+		const plugin = mockPlugin({
+			routes: {
+				sync: { handler: vi.fn() },
+				webhook: { handler: vi.fn(), public: true },
+				catalog: { handler: vi.fn(), public: true, cacheControl: "public, max-age=60" },
+			},
+		});
+
+		const manifest = extractManifest(plugin);
+		expect(manifest.routes).toEqual([
+			"sync",
+			{ name: "webhook", public: true },
+			{ name: "catalog", public: true, cacheControl: "public, max-age=60" },
+		]);
 	});
 
 	it("strips admin.entry (host-only concern, not in bundles)", () => {
@@ -274,6 +292,16 @@ describe("findBuildOutput", () => {
 
 	it("returns undefined when no match", async () => {
 		expect(await findBuildOutput(tempDir, "index")).toBeUndefined();
+	});
+});
+
+describe("toFileImportSpecifier", () => {
+	it("returns a file URL for an absolute build artifact path", () => {
+		const artifactPath = join(tmpdir(), "emdash-plugin", "index.mjs");
+		const specifier = toFileImportSpecifier(artifactPath);
+
+		expect(new URL(specifier).protocol).toBe("file:");
+		expect(specifier).not.toBe(artifactPath);
 	});
 });
 

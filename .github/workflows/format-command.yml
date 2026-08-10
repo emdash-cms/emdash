@@ -87,7 +87,7 @@ jobs:
           node-version: 22
 
       - name: Run formatter
-        run: npx oxfmt --ignore-path .gitignore
+        run: npx oxfmt@0.58.0 --ignore-path .gitignore
 
       - name: Check for changes
         id: diff

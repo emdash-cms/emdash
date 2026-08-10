@@ -77,11 +77,62 @@ interface EpochEntry {
 	at: number;
 	/** In-flight read, so concurrent callers share one backend round-trip. */
 	promise?: Promise<number>;
+	/**
+	 * `Date.now()` at which the in-flight read started. Callers use it to
+	 * decide whether the read's owner can still be alive (see
+	 * {@link epochReadDeadline}) — past the deadline the promise is presumed
+	 * dead and the next caller reclaims by starting a fresh read.
+	 */
+	promiseAt?: number;
+}
+
+/**
+ * Extra time past the configured read timeout before an in-flight epoch read
+ * is presumed dead. A live owner's read settles within `timeout` (enforced by
+ * {@link withTimeout}), so the grace only needs to absorb scheduling jitter.
+ */
+const EPOCH_READ_GRACE_MS = 1_000;
+
+/**
+ * How long an in-flight epoch read may be trusted. A read older than this can
+ * only exist because its owning request was cancelled mid-await — on workerd
+ * a cancelled request's continuations never run, *including the timeout's own
+ * `setTimeout` callback*, so the shared promise never settles and is never
+ * replaced. With the timeout disabled (`timeout: 0`) the default is used as
+ * the deadline; the worst case of guessing too short is one duplicate
+ * backend read.
+ */
+function epochReadDeadline(): number {
+	const timeout = holder.config.timeout > 0 ? holder.config.timeout : DEFAULT_TIMEOUT_MS;
+	return timeout + EPOCH_READ_GRACE_MS;
+}
+
+/**
+ * Await another request's in-flight epoch read, bounded by the waiter's own
+ * timer. The bare promise must never be awaited across requests: if the
+ * owning request is cancelled, the promise never settles (see
+ * {@link epochReadDeadline}) and an unguarded waiter hangs until the isolate
+ * is evicted. The race timer below belongs to the *waiter's* request context
+ * and therefore always fires; on timeout the waiter degrades to `fallback`
+ * (the last known epoch), the same contract as a failed backend read.
+ */
+function raceInFlightEpochRead(
+	promise: Promise<number>,
+	ms: number,
+	fallback: number,
+): Promise<number> {
+	let timer: ReturnType<typeof setTimeout>;
+	const timeout = new Promise<number>((resolve) => {
+		timer = setTimeout(resolve, Math.max(ms, 1), fallback);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 const BACKEND_KEY = Symbol.for("emdash:object-cache:backend");
 const EPOCH_KEY = Symbol.for("emdash:object-cache:epochs");
 const PENDING_KEY = Symbol.for("emdash:object-cache:pending-bumps");
+const LAST_CONTENT_WRITE_KEY = Symbol.for("emdash:object-cache:last-content-write");
+const PENDING_CONTENT_WRITE_KEY = Symbol.for("emdash:object-cache:pending-content-write");
 const g = globalThis as Record<symbol, unknown>;
 
 const holder: BackendHolder =
@@ -122,6 +173,39 @@ const pendingBumps: Set<string> =
 		return s;
 	})();
 
+/**
+ * Isolate-local ms-epoch of the last content-namespace invalidation, plus a
+ * cached backend read (same revalidate window as epochs). Adapters that need
+ * to prefer fresh SQL after a publish (e.g. Hyperdrive `cachedBinding`) read
+ * this via {@link getLastContentWriteAt}.
+ */
+interface LastContentWriteState {
+	/** Local / merged stamp; 0 if never set in this isolate. */
+	value: number;
+	/** `Date.now()` when `value` was last confirmed from the backend (or local stamp). */
+	at: number;
+	promise?: Promise<number>;
+	promiseAt?: number;
+}
+
+const lastContentWrite: LastContentWriteState =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	(g[LAST_CONTENT_WRITE_KEY] as LastContentWriteState | undefined) ??
+	(() => {
+		const s: LastContentWriteState = { value: 0, at: 0 };
+		g[LAST_CONTENT_WRITE_KEY] = s;
+		return s;
+	})();
+
+/** Whether a backend persist of the content-write stamp is already scheduled. */
+const contentWritePersist: { pending: boolean } =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	(g[PENDING_CONTENT_WRITE_KEY] as { pending: boolean } | undefined) ??
+	(() => {
+		const s = { pending: false };
+		g[PENDING_CONTENT_WRITE_KEY] = s;
+		return s;
+	})();
 /**
  * Resolve (once per isolate) the configured object-cache backend.
  *
@@ -197,6 +281,11 @@ export function __setObjectCacheBackendForTests(
 	holder.backend = backend;
 	holder.config = { ...holder.config, ...config };
 	epochCache.clear();
+	lastContentWrite.value = 0;
+	lastContentWrite.at = 0;
+	lastContentWrite.promise = undefined;
+	lastContentWrite.promiseAt = undefined;
+	contentWritePersist.pending = false;
 }
 
 /** Build the backend key for a namespace's epoch anchor. */
@@ -204,6 +293,14 @@ function epochKey(namespace: string): string {
 	return `${holder.config.keyPrefix}:epoch:${namespace}`;
 }
 
+/** Backend key for the shared "last content write" stamp (no short TTL). */
+function lastContentWriteKey(): string {
+	return `${holder.config.keyPrefix}:last-content-write-at`;
+}
+
+function isContentNamespace(namespace: string): boolean {
+	return namespace.startsWith("content:");
+}
 /**
  * Build the (epoch-independent) backend key for a cached value.
  *
@@ -263,7 +360,17 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 	if (cached && now - cached.at < holder.config.revalidate) {
 		return cached.value;
 	}
-	if (cached?.promise) return cached.promise;
+	if (cached?.promise) {
+		// Share the in-flight read only while its owner can still be alive,
+		// and never await it bare (a cancelled owner's promise never settles;
+		// see epochReadDeadline). Past the deadline, fall through and reclaim
+		// with a fresh read — the dead entry is overwritten below.
+		const age = now - (cached.promiseAt ?? 0);
+		const deadline = epochReadDeadline();
+		if (age < deadline) {
+			return raceInFlightEpochRead(cached.promise, deadline - age, cached.value);
+		}
+	}
 
 	const promise = (async () => {
 		let value: number;
@@ -287,12 +394,28 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 		return merged;
 	})();
 
-	// Concurrent callers share this in-flight read (dedup). The timeout above
-	// guarantees `promise` settles — its success/catch handler then replaces
-	// this entry with a fresh, promise-free one — so a stalled backend can no
-	// longer pin the namespace to a never-settling promise (the bug that
-	// poisoned an isolate until it was recycled).
-	epochCache.set(namespace, { value: cached?.value ?? 0, at: cached?.at ?? 0, promise });
+	// Anchor the read on the host's lifetime extender: if the owning request
+	// is cancelled mid-await, the anchored copy keeps the read alive so it
+	// still settles and its handler replaces this entry with a fresh,
+	// promise-free one. Where no extender exists, the deadline reclaim above
+	// recovers instead.
+	after(() =>
+		promise.then(
+			() => undefined,
+			() => undefined,
+		),
+	);
+
+	// Concurrent callers share this in-flight read (dedup) — bounded by their
+	// own timers via raceInFlightEpochRead, never awaited bare. The timeout
+	// above makes a live owner's read settle; `promiseAt` lets callers detect
+	// a dead one (cancelled owner) and reclaim.
+	epochCache.set(namespace, {
+		value: cached?.value ?? 0,
+		at: cached?.at ?? 0,
+		promise,
+		promiseAt: now,
+	});
 	return promise;
 }
 
@@ -395,12 +518,103 @@ export async function isObjectCacheActive(): Promise<boolean> {
 }
 
 /**
+ * Stamp the isolate-local + backend "last content write" marker when a
+ * content collection namespace is invalidated. Used by DB adapters (Hyperdrive)
+ * to briefly prefer uncached SQL after a publish so edge/object caches are not
+ * reseeded from a stale query-cache hit.
+ */
+function stampLastContentWrite(): void {
+	const stamp = Math.max(lastContentWrite.value + 1, Date.now());
+	lastContentWrite.value = stamp;
+	lastContentWrite.at = stamp;
+	// Drop any in-flight backend read so it cannot lower a fresher local stamp.
+	lastContentWrite.promise = undefined;
+	lastContentWrite.promiseAt = undefined;
+
+	if (contentWritePersist.pending) return;
+	contentWritePersist.pending = true;
+	after(async () => {
+		contentWritePersist.pending = false;
+		try {
+			const backend = await getBackend();
+			if (!backend) return;
+			const latest = lastContentWrite.value;
+			// Persistent (no TTL) — same contract as epoch anchors.
+			await backend.set(lastContentWriteKey(), String(latest));
+		} catch (error) {
+			console.error("[object-cache] last-content-write stamp failed:", error);
+		}
+	});
+}
+
+/**
+ * ms-epoch of the last content-namespace invalidation (`content:*`), or `0`
+ * if unknown. Returns `max(local, backend)` so a warm isolate that just
+ * published is immediately correct, and cold isolates learn within their
+ * `revalidate` window after another isolate stamped the backend.
+ */
+export async function getLastContentWriteAt(): Promise<number> {
+	const local = lastContentWrite.value;
+	const now = Date.now();
+	// Cache a confirmed miss (`0`) the same way as a positive stamp — otherwise
+	// every logged-out request re-reads the backend until the first content write.
+	if (now - lastContentWrite.at < holder.config.revalidate) {
+		return local;
+	}
+
+	const backend = await getBackend();
+	if (!backend) return local;
+
+	if (lastContentWrite.promise) {
+		const age = now - (lastContentWrite.promiseAt ?? 0);
+		const deadline = epochReadDeadline();
+		if (age < deadline) {
+			return raceInFlightEpochRead(lastContentWrite.promise, deadline - age, local);
+		}
+	}
+
+	const promise = (async () => {
+		let value: number;
+		try {
+			const raw = await withTimeout(
+				backend.get(lastContentWriteKey()),
+				holder.config.timeout,
+				"last-content-write read",
+			);
+			const parsed = raw === null ? 0 : Number(raw);
+			value = Number.isFinite(parsed) ? parsed : 0;
+		} catch {
+			value = lastContentWrite.value;
+		}
+		const merged = Math.max(value, lastContentWrite.value);
+		lastContentWrite.value = merged;
+		lastContentWrite.at = Date.now();
+		lastContentWrite.promise = undefined;
+		lastContentWrite.promiseAt = undefined;
+		return merged;
+	})();
+
+	after(() =>
+		promise.then(
+			() => undefined,
+			() => undefined,
+		),
+	);
+
+	lastContentWrite.promise = promise;
+	lastContentWrite.promiseAt = now;
+	return promise;
+}
+
+/**
  * Invalidate every cached value in `namespace` by bumping its epoch.
  *
  * Sync and non-blocking: the local epoch is stamped immediately (so the
  * writing isolate is instantly consistent) and the backend write is deferred
  * via `after`. Other isolates pick up the new epoch within their `revalidate`
  * window. No-ops when the cache is disabled.
+ *
+ * Content namespaces (`content:*`) also stamp {@link getLastContentWriteAt}.
  */
 export function invalidateObjectCache(namespace: string): void {
 	// Monotonic so two writes in the same millisecond still produce distinct
@@ -410,6 +624,10 @@ export function invalidateObjectCache(namespace: string): void {
 	const stamp = Math.max(prev + 1, Date.now());
 	// Optimistic local bump: keep this isolate consistent without a round-trip.
 	epochCache.set(namespace, { value: stamp, at: stamp });
+
+	if (isContentNamespace(namespace)) {
+		stampLastContentWrite();
+	}
 
 	// Coalesce repeated bumps of the same namespace within a tick (e.g. a bulk
 	// publish loop) into a single backend write that persists the latest epoch.
@@ -429,7 +647,6 @@ export function invalidateObjectCache(namespace: string): void {
 		}
 	});
 }
-
 /**
  * Fixed namespaces for data shared across collections. Content reads fold the
  * `BYLINES` and `TAXONOMIES` epochs into their keys (via {@link cachedQuery})
@@ -450,7 +667,20 @@ export const CacheNamespace = {
 
 /** Namespace for a content collection's cached queries. */
 export function contentNamespace(collection: string): string {
+	return `content:v2:${collection}`;
+}
+
+function legacyContentNamespace(collection: string): string {
 	return `content:${collection}`;
+}
+
+/**
+ * Content epochs carried by current cache entries. The legacy epoch keeps
+ * invalidation compatible with publishers from the previous release during a
+ * rolling deployment; the versioned epoch makes old cached values unreachable.
+ */
+export function contentCacheNamespaces(collection: string): readonly string[] {
+	return [contentNamespace(collection), legacyContentNamespace(collection)];
 }
 
 /**
@@ -458,7 +688,7 @@ export function contentNamespace(collection: string): string {
  * byline/taxonomy data folded into each entry.
  */
 export function contentNamespaces(collection: string): readonly string[] {
-	return [contentNamespace(collection), CacheNamespace.BYLINES, CacheNamespace.TAXONOMIES];
+	return [...contentCacheNamespaces(collection), CacheNamespace.BYLINES, CacheNamespace.TAXONOMIES];
 }
 
 /**
@@ -466,7 +696,9 @@ export function contentNamespaces(collection: string): readonly string[] {
  * Call from every write path that mutates rows in `ec_<collection>`.
  */
 export function invalidateCollectionCache(collection: string): void {
-	invalidateObjectCache(contentNamespace(collection));
+	for (const namespace of contentCacheNamespaces(collection)) {
+		invalidateObjectCache(namespace);
+	}
 }
 
 /** Invalidate cached taxonomy definitions/terms and all content that hydrates them. */

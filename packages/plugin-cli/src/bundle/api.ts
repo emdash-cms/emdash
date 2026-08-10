@@ -134,7 +134,7 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 		build = await buildPlugin({ dir: pluginDir, outDir, logger: log });
 	} catch (error) {
 		if (error instanceof BuildError) {
-			throw new BundleError(error.code as BundleErrorCode, error.message);
+			throw new BundleError(error.code, error.message);
 		}
 		throw error;
 	}

@@ -35,6 +35,9 @@ export {
 	type AuthProviders,
 } from "./lib/auth-provider-context";
 
+// Admin branding context (for accessing configured white-label logo/site name)
+export type { AdminBranding } from "./lib/admin-branding-context";
+
 // Locales
 export {
 	useLocale,

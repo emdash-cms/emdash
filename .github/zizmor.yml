@@ -40,6 +40,12 @@ rules:
       # query-counts-label labels PRs based on path filters; it does not
       # check out PR code.
       - query-counts-label.yml
+      # visual-report uses workflow_run to comment on PRs after the untrusted
+      # `visual` measure workflow completes. The trusted job only consumes the
+      # inert PNG + metadata artifact, verifies the PR head SHA matches the
+      # workflow_run head SHA, publishes diff images to a snapshots branch, and
+      # upserts a sticky comment. It never checks out or executes PR code.
+      - visual-report.yml
 
   # The CLA assistant action (contributor-assistant/github-action) requires
   # write access to actions, contents (cla-signatures branch), issues, PRs,

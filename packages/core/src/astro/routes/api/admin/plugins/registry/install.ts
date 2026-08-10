@@ -57,6 +57,7 @@ const installBodySchema = z.object({
 	 * dialog and the install POST.
 	 */
 	acknowledgedDeclaredAccess: z.unknown().optional(),
+	acknowledgedMcpTools: z.unknown().optional(),
 });
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -93,6 +94,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				slug: body.slug,
 				version: body.version,
 				acknowledgedDeclaredAccess: body.acknowledgedDeclaredAccess,
+				acknowledgedMcpTools: body.acknowledgedMcpTools,
 			},
 			{
 				configuredPluginIds: reservedPluginIds,
