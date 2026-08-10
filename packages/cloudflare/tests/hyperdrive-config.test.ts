@@ -42,18 +42,4 @@ describe("hyperdrive()", () => {
 			cachedBinding: "HYPERDRIVE_CACHED",
 		});
 	});
-
-	it("passes through preferUncachedAfterWriteMs", () => {
-		const result = hyperdrive({
-			binding: "HYPERDRIVE",
-			cachedBinding: "HYPERDRIVE_CACHED",
-			preferUncachedAfterWriteMs: 120_000,
-		});
-		expect(result.config).toEqual({
-			binding: "HYPERDRIVE",
-			max: undefined,
-			cachedBinding: "HYPERDRIVE_CACHED",
-			preferUncachedAfterWriteMs: 120_000,
-		});
-	});
 });

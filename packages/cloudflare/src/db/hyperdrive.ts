@@ -159,6 +159,8 @@ export interface RequestScopedDbOpts {
 	url: URL;
 	/** ms-epoch of last content-namespace invalidation; from core object-cache. */
 	lastContentWriteAt?: number;
+	/** Wall-clock sample used for post-write binding selection. */
+	now?: number;
 }
 
 export interface RequestScopedDb {
@@ -195,6 +197,7 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 		isWrite: opts.isWrite,
 		url: opts.url,
 		lastContentWriteAt: opts.lastContentWriteAt,
+		now: opts.now ?? Date.now(),
 	});
 	let binding = getBinding(bindingName);
 	// If the cached binding was selected but isn't present at runtime (e.g.
@@ -292,6 +295,7 @@ export function selectBindingName(
 		isWrite: boolean;
 		url: URL;
 		lastContentWriteAt?: number;
+		now: number;
 	},
 ): string {
 	if (
@@ -302,7 +306,7 @@ export function selectBindingName(
 	) {
 		const duration = preferUncachedDurationMs(config);
 		const lastWrite = opts.lastContentWriteAt ?? 0;
-		if (duration > 0 && lastWrite > 0 && Date.now() - lastWrite < duration) {
+		if (duration > 0 && lastWrite > 0 && opts.now - lastWrite < duration) {
 			return config.binding;
 		}
 		return config.cachedBinding;

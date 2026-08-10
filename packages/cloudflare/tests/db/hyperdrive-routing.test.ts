@@ -32,6 +32,7 @@ vi.mock("emdash/database/instrumentation", () => ({
 }));
 
 import { createRequestScopedDb, selectBindingName } from "../../src/db/hyperdrive.js";
+import { hyperdrive } from "../../src/index.js";
 
 const cookies = {
 	get: () => undefined,
@@ -41,6 +42,7 @@ const url = new URL("https://example.com/");
 
 const publicUrl = new URL("https://example.com/posts");
 const cfg = { binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" };
+const now = 10_000_000;
 
 describe("selectBindingName", () => {
 	it("uses the cached binding for anonymous reads of public paths", () => {
@@ -48,6 +50,7 @@ describe("selectBindingName", () => {
 			isAuthenticated: false,
 			isWrite: false,
 			url: publicUrl,
+			now,
 		});
 		expect(name).toBe("HYPERDRIVE_CACHED");
 	});
@@ -57,6 +60,7 @@ describe("selectBindingName", () => {
 			isAuthenticated: true,
 			isWrite: false,
 			url: publicUrl,
+			now,
 		});
 		expect(name).toBe("HYPERDRIVE");
 	});
@@ -66,6 +70,7 @@ describe("selectBindingName", () => {
 			isAuthenticated: false,
 			isWrite: true,
 			url: publicUrl,
+			now,
 		});
 		expect(name).toBe("HYPERDRIVE");
 	});
@@ -82,6 +87,7 @@ describe("selectBindingName", () => {
 				isAuthenticated: false,
 				isWrite: false,
 				url: new URL(`https://example.com${path}`),
+				now,
 			});
 			expect(name, `path ${path} must use the primary binding`).toBe("HYPERDRIVE");
 		}
@@ -92,6 +98,7 @@ describe("selectBindingName", () => {
 			isAuthenticated: false,
 			isWrite: false,
 			url: new URL("https://example.com/posts/about-_emdash"),
+			now,
 		});
 		expect(name).toBe("HYPERDRIVE_CACHED");
 	});
@@ -100,13 +107,13 @@ describe("selectBindingName", () => {
 		expect(
 			selectBindingName(
 				{ binding: "HYPERDRIVE" },
-				{ isAuthenticated: false, isWrite: false, url: publicUrl },
+				{ isAuthenticated: false, isWrite: false, url: publicUrl, now },
 			),
 		).toBe("HYPERDRIVE");
 		expect(
 			selectBindingName(
 				{ binding: "HYPERDRIVE" },
-				{ isAuthenticated: true, isWrite: true, url: publicUrl },
+				{ isAuthenticated: true, isWrite: true, url: publicUrl, now },
 			),
 		).toBe("HYPERDRIVE");
 	});
@@ -116,7 +123,8 @@ describe("selectBindingName", () => {
 			isAuthenticated: false,
 			isWrite: false,
 			url: publicUrl,
-			lastContentWriteAt: Date.now() - 1_000,
+			lastContentWriteAt: now - 1_000,
+			now,
 		});
 		expect(name).toBe("HYPERDRIVE");
 	});
@@ -126,7 +134,8 @@ describe("selectBindingName", () => {
 			isAuthenticated: false,
 			isWrite: false,
 			url: publicUrl,
-			lastContentWriteAt: Date.now() - 61_000,
+			lastContentWriteAt: now - 61_000,
+			now,
 		});
 		expect(name).toBe("HYPERDRIVE_CACHED");
 	});
@@ -138,6 +147,7 @@ describe("selectBindingName", () => {
 				isWrite: false,
 				url: publicUrl,
 				lastContentWriteAt: 0,
+				now,
 			}),
 		).toBe("HYPERDRIVE_CACHED");
 		expect(
@@ -145,6 +155,7 @@ describe("selectBindingName", () => {
 				isAuthenticated: false,
 				isWrite: false,
 				url: publicUrl,
+				now,
 			}),
 		).toBe("HYPERDRIVE_CACHED");
 	});
@@ -160,7 +171,8 @@ describe("selectBindingName", () => {
 				isAuthenticated: false,
 				isWrite: false,
 				url: publicUrl,
-				lastContentWriteAt: Date.now() - 2_000,
+				lastContentWriteAt: now - 2_000,
+				now,
 			}),
 		).toBe("HYPERDRIVE");
 		expect(
@@ -168,7 +180,8 @@ describe("selectBindingName", () => {
 				isAuthenticated: false,
 				isWrite: false,
 				url: publicUrl,
-				lastContentWriteAt: Date.now() - 6_000,
+				lastContentWriteAt: now - 6_000,
+				now,
 			}),
 		).toBe("HYPERDRIVE_CACHED");
 	});
@@ -181,7 +194,8 @@ describe("selectBindingName", () => {
 					isAuthenticated: false,
 					isWrite: false,
 					url: publicUrl,
-					lastContentWriteAt: Date.now(),
+					lastContentWriteAt: now,
+					now,
 				},
 			),
 		).toBe("HYPERDRIVE");
@@ -189,6 +203,27 @@ describe("selectBindingName", () => {
 });
 
 describe("createRequestScopedDb binding routing", () => {
+	it("routes builder configuration through the primary binding inside a custom window", () => {
+		poolCalls.length = 0;
+		const descriptor = hyperdrive({
+			binding: "HYPERDRIVE",
+			cachedBinding: "HYPERDRIVE_CACHED",
+			preferUncachedAfterWriteMs: 5_000,
+		});
+
+		createRequestScopedDb({
+			config: descriptor.config as Parameters<typeof createRequestScopedDb>[0]["config"],
+			isAuthenticated: false,
+			isWrite: false,
+			cookies,
+			url,
+			lastContentWriteAt: 8_000,
+			now: 10_000,
+		});
+
+		expect(poolCalls[0]!.connectionString).toBe("postgres://primary/uncached");
+	});
+
 	it("builds the pool from the cached binding for anonymous reads", () => {
 		poolCalls.length = 0;
 		const scoped = createRequestScopedDb({

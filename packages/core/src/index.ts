@@ -196,7 +196,6 @@ export { EmDashStorageError } from "./storage/types.js";
 // Object cache (distributed read-through query cache)
 export {
 	cachedQuery,
-	getLastContentWriteAt,
 	invalidateObjectCache,
 	invalidateCollectionCache,
 	invalidateTaxonomyObjectCache,

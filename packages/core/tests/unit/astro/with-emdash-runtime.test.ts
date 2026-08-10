@@ -12,12 +12,13 @@ vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
 }));
 
-const { MOCK_RUNTIME } = vi.hoisted(() => ({
+const { MOCK_RUNTIME, mockGetLastContentWriteAt } = vi.hoisted(() => ({
 	MOCK_RUNTIME: {
 		_marker: "runtime",
 		handlePluginApiRoute: vi.fn(async () => ({ success: true, data: { done: true } })),
 		runScheduledTasks: vi.fn(async () => ({ published: [] })),
 	},
+	mockGetLastContentWriteAt: vi.fn(async () => 123_456),
 }));
 
 vi.mock(
@@ -60,6 +61,11 @@ vi.mock("../../../src/emdash-runtime.js", () => ({
 	},
 }));
 
+vi.mock("../../../src/object-cache/index.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../../src/object-cache/index.js")>()),
+	getLastContentWriteAt: mockGetLastContentWriteAt,
+}));
+
 import { createRequestScopedDb } from "virtual:emdash/dialect";
 
 import { withEmDashRuntime } from "../../../src/astro/middleware.js";
@@ -72,6 +78,13 @@ describe("withEmDashRuntime (#1887)", () => {
 		// Reset the globalThis runtime singleton so each test builds fresh
 		delete (globalThis as Record<symbol, unknown>)[RUNTIME_HOLDER_KEY];
 		vi.mocked(createRequestScopedDb).mockReset().mockReturnValue(null);
+		mockGetLastContentWriteAt.mockClear();
+	});
+
+	it("does not read the content-write marker for write workloads", async () => {
+		await withEmDashRuntime(() => "ok");
+
+		expect(mockGetLastContentWriteAt).not.toHaveBeenCalled();
 	});
 
 	it("passes the runtime to the callback and returns its result (stateless adapter)", async () => {

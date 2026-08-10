@@ -7,9 +7,17 @@ vi.mock("astro:middleware", () => ({
 // vi.mock factories are hoisted above normal `const` declarations; use
 // vi.hoisted so the marker object is available both to the mock factory and
 // to assertions below.
-const { DB_CONFIG_MARKER } = vi.hoisted(() => ({
-	DB_CONFIG_MARKER: { binding: "DB", session: "auto" },
-}));
+const { DB_CONFIG_MARKER, DB_DESCRIPTOR_MARKER, mockGetLastContentWriteAt } = vi.hoisted(() => {
+	const config = { binding: "DB", session: "auto" };
+	return {
+		DB_CONFIG_MARKER: config,
+		DB_DESCRIPTOR_MARKER: {
+			config,
+			needsLastContentWriteAt: undefined as boolean | undefined,
+		},
+		mockGetLastContentWriteAt: vi.fn(async () => 123_456),
+	};
+});
 
 const {
 	MOCK_RUNTIME,
@@ -94,7 +102,7 @@ vi.mock(
 	"virtual:emdash/config",
 	() => ({
 		default: {
-			database: { config: DB_CONFIG_MARKER },
+			database: DB_DESCRIPTOR_MARKER,
 			auth: { mode: "none" },
 		},
 	}),
@@ -145,6 +153,11 @@ vi.mock("../../../src/loader.js", () => ({
 			}),
 		}),
 	})),
+}));
+
+vi.mock("../../../src/object-cache/index.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../../src/object-cache/index.js")>()),
+	getLastContentWriteAt: mockGetLastContentWriteAt,
 }));
 
 import { createRequestScopedDb } from "virtual:emdash/dialect";
@@ -447,9 +460,30 @@ describe("astro middleware anonymous session reads", () => {
 describe("astro middleware request-scoped db", () => {
 	beforeEach(() => {
 		vi.mocked(createRequestScopedDb).mockReset().mockReturnValue(null);
+		mockGetLastContentWriteAt.mockClear();
+		DB_DESCRIPTOR_MARKER.needsLastContentWriteAt = undefined;
 		mockGetPluginRouteMeta.mockClear();
 		mockHandlePluginApiRoute.mockClear();
 		mockGetPublicUrl.mockClear();
+	});
+
+	it("does not read the content-write marker when the adapter does not request it", async () => {
+		const { context } = createAnonymousPublicPageContext();
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		expect(mockGetLastContentWriteAt).not.toHaveBeenCalled();
+		expect(vi.mocked(createRequestScopedDb).mock.calls[0]?.[0].lastContentWriteAt).toBeUndefined();
+	});
+
+	it("passes the content-write marker to adapters that request it", async () => {
+		DB_DESCRIPTOR_MARKER.needsLastContentWriteAt = true;
+		const { context } = createAnonymousPublicPageContext();
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		expect(mockGetLastContentWriteAt).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(createRequestScopedDb).mock.calls[0]?.[0].lastContentWriteAt).toBe(123_456);
 	});
 
 	it("asks the adapter for a scoped db on anonymous public pages and exposes it via ALS", async () => {
@@ -540,6 +574,7 @@ describe("astro middleware request-scoped db", () => {
 			isAuthenticated: true,
 			isWrite: false,
 		});
+		expect(mockGetLastContentWriteAt).not.toHaveBeenCalled();
 	});
 
 	it("forces isWrite true for POST requests on public pages", async () => {

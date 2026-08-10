@@ -363,6 +363,10 @@ export function hyperdrive(config: HyperdriveConfig = {}): DatabaseDescriptor {
 		// Each request gets a fresh pg connection that is closed afterwards —
 		// connections cannot be reused across Worker requests.
 		supportsRequestScope: true,
+		...(config.cachedBinding &&
+		(config.preferUncachedAfterWriteMs === undefined || config.preferUncachedAfterWriteMs > 0)
+			? { needsLastContentWriteAt: true }
+			: {}),
 	};
 }
 
