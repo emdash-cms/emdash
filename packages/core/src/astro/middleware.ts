@@ -526,6 +526,10 @@ const buildDate = virtualBuildTime ? new Date(virtualBuildTime) : null;
  * Prerendered pages are served by the host's static layer, which manages its
  * own validators — only on-demand responses need the build dimension.
  *
+ * Only forward moves are covered. `Last-Modified` expresses newer, not
+ * different, so after a rollback the earlier build still answers a conditional
+ * request with 304 and the browser stays on the newer build's HTML.
+ *
  * Must run before next(): Astro keeps the later of two dates, so a route's own
  * hint still wins when content is newer, and a route that opts out with
  * `Astro.cache.set(false)` stays opted out — calling set() afterwards would
