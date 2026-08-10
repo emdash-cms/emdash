@@ -76,7 +76,7 @@ export function invalidateRedirectCache(): void {
 /**
  * Get the cached redirects, or null if the cache is cold.
  */
-export function getCachedRedirects(): CachedRedirects | null {
+function getCachedRedirects(): CachedRedirects | null {
 	if (cacheState.redirects && Date.now() >= cacheState.expiresAt) {
 		invalidateRedirectCache();
 	}
