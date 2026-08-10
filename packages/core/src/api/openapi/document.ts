@@ -800,7 +800,7 @@ function buildMediaPaths(maxUploadSize: number) {
 				operationId: "listMediaUsageWork",
 				summary: "List durable media usage work",
 				description:
-					"Returns one bounded cursor page of durable entry-indexing work for a current collection. Requires `schema:manage`; bearer tokens also require the `admin` scope. The response omits lease tokens, work versions, indexed content, media references, raw errors, and an exact backlog count. `MEDIA_USAGE_RESOURCE_LIMIT` identifies a changed live or draft projection over the 14-occurrence automatic-indexing limit; it fails before projection writes.",
+					"Returns one bounded cursor page of durable entry-indexing work for a current collection. Requires `schema:manage`; bearer tokens also require the `admin` scope. The response omits lease tokens, work versions, indexed content, media references, raw errors, and an exact backlog count.",
 				tags: ["Media"],
 				requestParams: { query: mediaUsageWorkListQuery },
 				responses: {
@@ -820,7 +820,7 @@ function buildMediaPaths(maxUploadSize: number) {
 				operationId: "retryMediaUsageWork",
 				summary: "Retry one durable media usage job",
 				description:
-					"Idempotently reopens or creates one entry-indexing job for a current immutable collection identity. Requires `schema:manage`; bearer tokens also require the `admin` scope. A live worker lease or a concurrent work change returns a stable conflict without exposing ownership tokens. Retrying `MEDIA_USAGE_RESOURCE_LIMIT` without reducing the changed live or draft projection to 14 occurrences or fewer, or reconciling it through operator-controlled repair, returns the job to the same terminal state.",
+					"Idempotently reopens or creates one entry-indexing job for a current immutable collection identity. Requires `schema:manage`; bearer tokens also require the `admin` scope. A live worker lease or a concurrent work change returns a stable conflict without exposing ownership tokens.",
 				tags: ["Media"],
 				requestBody: {
 					required: true,

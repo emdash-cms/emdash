@@ -1,10 +1,10 @@
 import { sql, type Kysely } from "kysely";
 
+import { tableExists } from "../../database/dialect-helpers.js";
 import { MediaUsageRepository } from "../../database/repositories/media-usage.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { isI18nEnabled } from "../../i18n/config.js";
-import { isMissingTableError } from "../../utils/db-errors.js";
 import { loadContentMediaUsageFields } from "./content-fields.js";
 import {
 	CONTENT_SOURCE_SCHEMA_VERSION,
@@ -21,7 +21,6 @@ export const CONTENT_MEDIA_USAGE_COLLECTION_SCOPE = "collection";
 const CONTENT_USAGE_LOCKS_KEY = Symbol.for("emdash.mediaUsage.contentLocks");
 const CONTENT_USAGE_COLLECTION_LOCKS_KEY = Symbol.for("emdash.mediaUsage.collectionLocks");
 const CONTENT_USAGE_REFRESH_MAX_ATTEMPTS = 2;
-export const CONTENT_MEDIA_USAGE_MAX_CHANGED_OCCURRENCES = 14;
 
 // These maps only de-dupe usage work inside the current isolate/process. Cross-worker
 // correctness comes from expected-generation guards on repository writes.
@@ -34,7 +33,6 @@ export type ContentMediaUsageRefreshErrorCode =
 	| "CONTENT_USAGE_REFRESH_ERROR"
 	| "CONTENT_USAGE_DELETE_ERROR"
 	| "CONTENT_USAGE_GENERATION_CONFLICT"
-	| "CONTENT_USAGE_RESOURCE_LIMIT"
 	| "CONTENT_USAGE_STALE";
 
 interface ContentMediaUsageRefreshOptions {
@@ -182,25 +180,8 @@ async function refreshContentMediaUsageAttempt(
 		const deletedSourceCount = await repo.deleteContentSources(collectionSlug, contentId);
 		return { ...ZERO_RESULT, deletedSourceCount };
 	}
-	const oversizedUnchangedSourceKeys = options.durableWork
-		? await preflightOversizedSnapshots(repo, snapshotsResult.snapshots, observedSources)
-		: new Set<string>();
-	if (!oversizedUnchangedSourceKeys) {
-		return {
-			success: false,
-			refreshedSourceCount: 0,
-			deletedSourceCount: 0,
-			failedSourceCount: 1,
-			errorCode: "CONTENT_USAGE_RESOURCE_LIMIT",
-		};
-	}
-
 	let refreshedSourceCount = 0;
 	for (const snapshot of snapshotsResult.snapshots) {
-		if (oversizedUnchangedSourceKeys.has(snapshot.source.sourceKey)) {
-			refreshedSourceCount++;
-			continue;
-		}
 		const result = await repo.replaceSourceIfMatching(
 			snapshot.source,
 			snapshot.occurrences,
@@ -261,28 +242,6 @@ async function refreshContentMediaUsageAttempt(
 		deletedSourceCount,
 		failedSourceCount: 0,
 	};
-}
-
-async function preflightOversizedSnapshots(
-	repo: MediaUsageRepository,
-	snapshots: Awaited<
-		Extract<Awaited<ReturnType<typeof loadContentMediaUsageSnapshots>>, { success: true }>
-	>["snapshots"],
-	observedSources: Awaited<ReturnType<MediaUsageRepository["findSources"]>>,
-): Promise<Set<string> | null> {
-	const unchangedSourceKeys = new Set<string>();
-	for (const snapshot of snapshots) {
-		if (snapshot.occurrences.length <= CONTENT_MEDIA_USAGE_MAX_CHANGED_OCCURRENCES) continue;
-		const expectedSource = observedSources.get(snapshot.source.sourceKey);
-		if (
-			!expectedSource ||
-			!(await repo.projectionMatchesExpectedSource(snapshot.source, expectedSource))
-		) {
-			return null;
-		}
-		unchangedSourceKeys.add(snapshot.source.sourceKey);
-	}
-	return unchangedSourceKeys;
 }
 
 async function loadObservedContentSources(
@@ -479,17 +438,12 @@ export async function invalidateContentMediaUsageSchemaChange(
 	collectionSlug: string,
 ): Promise<boolean> {
 	validateIdentifier(collectionSlug, "collection slug");
-	let activation: { state: string } | undefined;
-	try {
-		activation = await db
-			.selectFrom("_emdash_media_usage_activation")
-			.select("state")
-			.where("task_key", "=", "incremental_capture")
-			.executeTakeFirst();
-	} catch (error) {
-		if (isMissingTableError(error)) return false;
-		throw error;
-	}
+	if (!(await tableExists(db, "_emdash_media_usage_activation"))) return false;
+	const activation = await db
+		.selectFrom("_emdash_media_usage_activation")
+		.select("state")
+		.where("task_key", "=", "incremental_capture")
+		.executeTakeFirst();
 	if (activation?.state !== "active") return false;
 
 	const invalidated = await new MediaUsageRepository(db).invalidateIndexStatusForSchemaChange(

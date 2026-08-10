@@ -1,9 +1,8 @@
 import { sql, type Kysely, type RawBuilder, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
-import { isPostgres } from "../../database/dialect-helpers.js";
+import { isPostgres, tableExists } from "../../database/dialect-helpers.js";
 import type { Database, MediaUsageActivationTable } from "../../database/types.js";
-import { isMissingTableError } from "../../utils/db-errors.js";
 import {
 	installMediaUsageCaptureTriggers,
 	verifyMediaUsageCaptureTriggers,
@@ -305,12 +304,8 @@ async function findActivation(
 async function findActivationIfAvailable(
 	db: Kysely<Database>,
 ): Promise<Selectable<MediaUsageActivationTable> | null> {
-	try {
-		return await findActivation(db);
-	} catch (error) {
-		if (isMissingTableError(error)) return null;
-		throw error;
-	}
+	if (!(await tableExists(db, "_emdash_media_usage_activation"))) return null;
+	return findActivation(db);
 }
 
 function assertRuntimeGeneration(activation: Selectable<MediaUsageActivationTable>): void {
@@ -406,6 +401,8 @@ async function prepareCollectionForActivation(
 	leaseToken: string,
 ): Promise<void> {
 	const now = timestampOffset(db, 0);
+	const existingStatus = sql.ref("_emdash_media_usage_index_status.status");
+	const existingCompletedAt = sql.ref("_emdash_media_usage_index_status.completed_at");
 	const row = await db
 		.insertInto("_emdash_media_usage_index_status")
 		.values({
@@ -422,10 +419,10 @@ async function prepareCollectionForActivation(
 			conflict
 				.columns(["adapter_id", "scope_type", "scope_key"])
 				.doUpdateSet({
-					status: sql<string>`CASE WHEN status IN ('complete', 'running') THEN 'stale' ELSE status END`,
+					status: sql<string>`CASE WHEN ${existingStatus} IN ('complete', 'running') THEN 'stale' ELSE ${existingStatus} END`,
 					completed_at: sql<
 						string | null
-					>`CASE WHEN status IN ('complete', 'running') THEN NULL ELSE completed_at END`,
+					>`CASE WHEN ${existingStatus} IN ('complete', 'running') THEN NULL ELSE ${existingCompletedAt} END`,
 					cursor: null,
 					collection_id: collection.id,
 					reconciliation_required: 1,

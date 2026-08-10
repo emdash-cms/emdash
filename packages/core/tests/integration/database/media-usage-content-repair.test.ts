@@ -157,12 +157,16 @@ describeEachDialect("content media usage repair", (dialect) => {
 			}),
 		);
 		expect(
-			await ctx.db
-				.selectFrom("_emdash_media_usage_work")
-				.select((eb) => eb.fn.countAll<number>().as("count"))
-				.where("collection_id", "=", collectionId)
-				.executeTakeFirstOrThrow(),
-		).toEqual(expect.objectContaining({ count: 0 }));
+			Number(
+				(
+					await ctx.db
+						.selectFrom("_emdash_media_usage_work")
+						.select((eb) => eb.fn.countAll<number>().as("count"))
+						.where("collection_id", "=", collectionId)
+						.executeTakeFirstOrThrow()
+				).count,
+			),
+		).toBe(0);
 		expect(
 			await ctx.db
 				.selectFrom("_emdash_media_usage_index_status")

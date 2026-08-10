@@ -175,16 +175,6 @@ export async function down(db: Kysely<unknown>): Promise<void> {
 	}
 
 	for (const columnName of [
-		"cleanup_last_error_code",
-		"cleanup_next_attempt_at",
-		"cleanup_attempt_count",
-		"cleanup_lease_expires_at",
-		"cleanup_lease_token",
-		"cleanup_occurrence_cursor",
-		"cleanup_source_key",
-		"cleanup_work_cursor",
-		"cleanup_phase",
-		"cleanup_state",
 		"capture_state",
 		"last_incremental_success_at",
 		"reconciliation_required",
@@ -221,21 +211,6 @@ async function addStatusColumns(db: Kysely<unknown>): Promise<void> {
 	);
 	await addStatusTextColumn(db, "last_incremental_success_at");
 	await addStatusTextColumn(db, "capture_state");
-	await addStatusTextColumn(db, "cleanup_state");
-	await addStatusTextColumn(db, "cleanup_phase");
-	await addStatusTextColumn(db, "cleanup_work_cursor");
-	await addStatusTextColumn(db, "cleanup_source_key");
-	await addStatusTextColumn(db, "cleanup_occurrence_cursor");
-	await addStatusTextColumn(db, "cleanup_lease_token");
-	await addStatusTextColumn(db, "cleanup_lease_expires_at");
-	await addColumnIfMissing(db, "_emdash_media_usage_index_status", "cleanup_attempt_count", () =>
-		db.schema
-			.alterTable("_emdash_media_usage_index_status")
-			.addColumn("cleanup_attempt_count", "integer", (column) => column.notNull().defaultTo(0))
-			.execute(),
-	);
-	await addStatusTextColumn(db, "cleanup_next_attempt_at");
-	await addStatusTextColumn(db, "cleanup_last_error_code");
 }
 
 async function assertRollbackIsEmptyAndInactive(db: Kysely<unknown>): Promise<void> {
@@ -323,13 +298,6 @@ async function assertRollbackIsEmptyAndInactive(db: Kysely<unknown>): Promise<vo
 			WHERE last_incremental_success_at IS NOT NULL LIMIT 1
 		`.execute(db);
 		if (success.rows.length > 0) throwRollbackLifecycleError();
-	}
-	if (await columnExists(db, "_emdash_media_usage_index_status", "cleanup_state")) {
-		const cleanup = await sql<{ present: number }>`
-			SELECT 1 AS present FROM _emdash_media_usage_index_status
-			WHERE cleanup_state IS NOT NULL LIMIT 1
-		`.execute(db);
-		if (cleanup.rows.length > 0) throwRollbackLifecycleError();
 	}
 }
 

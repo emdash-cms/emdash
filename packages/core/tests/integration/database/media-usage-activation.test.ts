@@ -1,11 +1,14 @@
 import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
+import { findMediaUsageActivationWriteFenceError } from "../../../src/api/media-usage-write-fence.js";
 import {
 	activateMediaUsageCapture,
+	canResumeMediaUsageCollectionCapture,
 	MEDIA_USAGE_ACTIVATION_LIMITS,
 } from "../../../src/media/usage/activation.js";
 import { installMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
+import { invalidateContentMediaUsageSchemaChange } from "../../../src/media/usage/content-refresh.js";
 import {
 	buildSeedCollectionCaptureFingerprint,
 	SchemaRegistry,
@@ -39,6 +42,36 @@ describeEachDialect("media usage production activation", (dialect) => {
 		).rejects.toThrow(/writers.*drained/i);
 
 		expect(await activationRow()).toEqual(before);
+	});
+
+	it("treats a missing activation table as inactive without aborting the transaction", async () => {
+		await ctx.db.schema.dropTable("_emdash_media_usage_activation").execute();
+
+		const result = await ctx.db.transaction().execute(async (trx) => {
+			const resumable = await canResumeMediaUsageCollectionCapture(trx, {
+				collectionId: "missing-collection",
+				collectionSlug: "missing_collection",
+			});
+			const writeFence = await findMediaUsageActivationWriteFenceError(trx);
+			const schemaInvalidated = await invalidateContentMediaUsageSchemaChange(
+				trx,
+				"missing_collection",
+			);
+			const probe = await sql<{ value: number | string }>`SELECT 1 AS value`.execute(trx);
+			return {
+				resumable,
+				schemaInvalidated,
+				transactionValue: Number(probe.rows[0]?.value),
+				writeFence,
+			};
+		});
+
+		expect(result).toEqual({
+			resumable: false,
+			schemaInvalidated: false,
+			transactionValue: 1,
+			writeFence: null,
+		});
 	});
 
 	it("activates an empty installation explicitly and is then an idempotent no-op", async () => {

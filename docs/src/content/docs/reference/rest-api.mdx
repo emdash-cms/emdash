@@ -195,6 +195,7 @@ GET /_emdash/api/media?includeUsage=1
 
 ```json
 {
+	"success": true,
 	"data": {
 		"items": [
 			{
@@ -378,6 +379,7 @@ page's `nextCursor`. The endpoint does not calculate an exact backlog count.
 
 ```json
 {
+	"success": true,
 	"data": {
 		"items": [
 			{
@@ -399,9 +401,7 @@ page's `nextCursor`. The endpoint does not calculate an exact backlog count.
 ```
 
 Responses omit work versions, lease tokens, raw database errors, indexed content, media
-references, and exact counts. A failed item with `lastErrorCode: "MEDIA_USAGE_RESOURCE_LIMIT"`
-contains a changed live or draft projection with more than 14 extracted media occurrences. It
-failed before any projection writes and did not consume the normal retry sequence.
+references, and exact counts.
 
 ### Retry Media Usage Work
 
@@ -424,14 +424,11 @@ as the list endpoint.
 A successful response returns `changed` and the current pending item. `changed: false` means the
 job was already pending. A non-expired worker lease returns `409 WORK_LEASE_ACTIVE` with
 `details.leaseExpiresAt`; a concurrent mutation returns `409 WORK_CHANGED`. Neither conflict
-replaces newer work or exposes its lease token. Retrying `MEDIA_USAGE_RESOURCE_LIMIT` without first
-reducing the changed projection to 14 occurrences or fewer, or reconciling it through
-operator-controlled collection repair after assessing that collection-wide operation's cost,
-returns the job to the same terminal state. Oversized projections that already match the stored
-index remain valid no-ops.
+replaces newer work or exposes its lease token.
 
-These endpoints operate only on durable work already known for an entry. They do not scan for
-historical gaps. Use collection-scoped Media Usage repair after imports or direct database writes.
+The list returns only known durable work. Retry can create work for the supplied identity in an
+active collection even when no work row exists, but it does not scan for historical gaps. Use
+collection-scoped Media Usage repair after imports or direct database writes.
 When scheduled maintenance is disabled, failed jobs remain visible and manually retryable, but no
 automatic freshness deadline is promised.
 

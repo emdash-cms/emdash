@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
 
+import { tableExists } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
-import { isMissingTableError } from "../utils/db-errors.js";
 import { apiError } from "./error.js";
 
 export interface MediaUsageActivationWriteFenceError {
@@ -38,6 +38,7 @@ export async function assertMediaUsageActivationWriteAllowed(db: Kysely<Database
 export async function findMediaUsageActivationWriteFenceError(
 	db: Kysely<Database>,
 ): Promise<MediaUsageActivationWriteFenceError | null> {
+	if (!(await tableExists(db, "_emdash_media_usage_activation"))) return null;
 	try {
 		const row = await db
 			.selectFrom("_emdash_media_usage_activation")
@@ -52,7 +53,6 @@ export async function findMediaUsageActivationWriteFenceError(
 			};
 		}
 	} catch (error) {
-		if (isMissingTableError(error)) return null;
 		console.error("[media-usage] Failed to check the activation write fence:", error);
 		return {
 			code: "MEDIA_USAGE_ACTIVATION_CHECK_FAILED",

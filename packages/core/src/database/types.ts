@@ -200,16 +200,6 @@ export interface MediaUsageIndexStatusTable {
 	reconciliation_required: Generated<number>;
 	last_incremental_success_at: Generated<string | null>;
 	capture_state: Generated<string | null>;
-	cleanup_state: Generated<string | null>;
-	cleanup_phase: Generated<string | null>;
-	cleanup_work_cursor: Generated<string | null>;
-	cleanup_source_key: Generated<string | null>;
-	cleanup_occurrence_cursor: Generated<string | null>;
-	cleanup_lease_token: Generated<string | null>;
-	cleanup_lease_expires_at: Generated<string | null>;
-	cleanup_attempt_count: Generated<number>;
-	cleanup_next_attempt_at: Generated<string | null>;
-	cleanup_last_error_code: Generated<string | null>;
 }
 
 export interface MediaUsageActivationTable {

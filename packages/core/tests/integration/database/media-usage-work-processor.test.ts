@@ -10,18 +10,15 @@ import type {
 import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
-import { MediaUsageWorkRepository } from "../../../src/database/repositories/media-usage-work.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import type { Database } from "../../../src/database/types.js";
 import { installMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
-import { loadContentMediaUsageSnapshots } from "../../../src/media/usage/content-snapshots.js";
 import {
 	MEDIA_USAGE_WORK_PROCESSING_LIMITS,
 	processDueMediaUsageWork,
 	processMediaUsageWorkAfterWrite,
 } from "../../../src/media/usage/work-processor.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
-import type { CreateFieldInput } from "../../../src/schema/types.js";
 import {
 	describeEachDialect,
 	setupForDialect,
@@ -253,143 +250,6 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 		);
 	});
 
-	it("publishes changed live and draft projections at the 14-occurrence boundary", async () => {
-		const fixture = await createResourceFixture(ctx, "bounded_usage");
-		await insertResourceEntry(ctx, fixture, "entry-1", mediaData(14, "live"));
-		await addResourceDraft(ctx, fixture, "entry-1", mediaData(14, "draft"));
-
-		const result = await processMediaUsageWorkAfterWrite(ctx.db, "bounded_usage", "entry-1");
-
-		expect(result.outcome).toBe("completed");
-		expect(await countWork(ctx.db)).toBe(0);
-		expect(
-			await countCurrentOccurrences(ctx.db, canonicalSourceKey(fixture.collectionId, "entry-1")),
-		).toBe(14);
-		expect(
-			await countCurrentOccurrences(
-				ctx.db,
-				canonicalSourceKey(fixture.collectionId, "entry-1", "draft_overlay"),
-			),
-		).toBe(14);
-	});
-
-	it("fails changed oversized work terminally before publishing either projection", async () => {
-		const fixture = await createResourceFixture(ctx, "oversized_usage");
-		await insertResourceEntry(ctx, fixture, "entry-1", mediaData(1, "initial-live"));
-		await addResourceDraft(ctx, fixture, "entry-1", mediaData(1, "initial-draft"));
-		expect(
-			(await processMediaUsageWorkAfterWrite(ctx.db, "oversized_usage", "entry-1")).outcome,
-		).toBe("completed");
-
-		const usageRepo = new MediaUsageRepository(ctx.db);
-		const columnsKey = canonicalSourceKey(fixture.collectionId, "entry-1");
-		const draftKey = canonicalSourceKey(fixture.collectionId, "entry-1", "draft_overlay");
-		const columnsBefore = await usageRepo.findSource(columnsKey);
-		const draftBefore = await usageRepo.findSource(draftKey);
-		const storedColumnsBefore = await countStoredOccurrences(ctx.db, columnsKey);
-		const storedDraftBefore = await countStoredOccurrences(ctx.db, draftKey);
-		await updateResourceEntry(ctx, fixture, "entry-1", mediaData(14, "changed-live"));
-		await updateResourceDraft(ctx, "entry-1", mediaData(15, "changed-draft"));
-
-		const result = await processMediaUsageWorkAfterWrite(ctx.db, "oversized_usage", "entry-1");
-
-		expect(result.outcome).toBe("failed");
-		expect((await usageRepo.findSource(columnsKey))?.currentGeneration).toBe(
-			columnsBefore?.currentGeneration,
-		);
-		expect((await usageRepo.findSource(draftKey))?.currentGeneration).toBe(
-			draftBefore?.currentGeneration,
-		);
-		expect(await countCurrentOccurrences(ctx.db, columnsKey)).toBe(1);
-		expect(await countCurrentOccurrences(ctx.db, draftKey)).toBe(1);
-		expect(await countStoredOccurrences(ctx.db, columnsKey)).toBe(storedColumnsBefore);
-		expect(await countStoredOccurrences(ctx.db, draftKey)).toBe(storedDraftBefore);
-		expect(await findWork(ctx.db)).toEqual(
-			expect.objectContaining({
-				state: "failed",
-				attempt_count: 1,
-				last_error_code: "MEDIA_USAGE_RESOURCE_LIMIT",
-			}),
-		);
-		expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
-			expect.objectContaining({
-				status: "partial",
-				reconciliation_required: 0,
-				last_error_code: "MEDIA_USAGE_RESOURCE_LIMIT",
-			}),
-		);
-
-		const reopened = await new MediaUsageWorkRepository(ctx.db).retryOperatorWork({
-			collectionId: fixture.collectionId,
-			contentId: "entry-1",
-		});
-		expect(reopened).toEqual(expect.objectContaining({ outcome: "pending", changed: true }));
-		expect(
-			(await processMediaUsageWorkAfterWrite(ctx.db, "oversized_usage", "entry-1")).outcome,
-		).toBe("failed");
-		expect(await findWork(ctx.db)).toEqual(
-			expect.objectContaining({
-				state: "failed",
-				attempt_count: 1,
-				last_error_code: "MEDIA_USAGE_RESOURCE_LIMIT",
-			}),
-		);
-		expect((await usageRepo.findSource(columnsKey))?.currentGeneration).toBe(
-			columnsBefore?.currentGeneration,
-		);
-		expect((await usageRepo.findSource(draftKey))?.currentGeneration).toBe(
-			draftBefore?.currentGeneration,
-		);
-	});
-
-	it("completes an oversized projection only when the stored projection is an unchanged no-op", async () => {
-		const fixture = await createResourceFixture(ctx, "oversized_noop");
-		await insertResourceEntry(ctx, fixture, "entry-1", mediaData(15, "unchanged"));
-		const snapshots = await loadContentMediaUsageSnapshots(
-			ctx.db,
-			fixture.collectionSlug,
-			"entry-1",
-			undefined,
-			{ collectionId: fixture.collectionId, identityVersion: 1 },
-		);
-		if (!snapshots.success) throw new Error(`Expected snapshots, received ${snapshots.error}`);
-		const usageRepo = new MediaUsageRepository(ctx.db);
-		for (const snapshot of snapshots.snapshots) {
-			await usageRepo.replaceSource(snapshot.source, snapshot.occurrences);
-		}
-		const sourceKey = canonicalSourceKey(fixture.collectionId, "entry-1");
-		const before = await usageRepo.findSource(sourceKey);
-
-		const result = await processMediaUsageWorkAfterWrite(ctx.db, "oversized_noop", "entry-1");
-
-		expect(result.outcome).toBe("completed");
-		expect(await countWork(ctx.db)).toBe(0);
-		expect((await usageRepo.findSource(sourceKey))?.currentGeneration).toBe(
-			before?.currentGeneration,
-		);
-		expect(await countCurrentOccurrences(ctx.db, sourceKey)).toBe(15);
-
-		await ctx.db
-			.updateTable("_emdash_media_usage_sources")
-			.set({ last_error_code: "PROJECTION_INVALID" })
-			.where("source_key", "=", sourceKey)
-			.execute();
-		await sql`
-			UPDATE ${sql.ref(fixture.tableName)}
-			SET title = title
-			WHERE id = 'entry-1'
-		`.execute(ctx.db);
-		expect(
-			(await processMediaUsageWorkAfterWrite(ctx.db, "oversized_noop", "entry-1")).outcome,
-		).toBe("failed");
-		expect(await findWork(ctx.db)).toEqual(
-			expect.objectContaining({ last_error_code: "MEDIA_USAGE_RESOURCE_LIMIT" }),
-		);
-		expect((await usageRepo.findSource(sourceKey))?.currentGeneration).toBe(
-			before?.currentGeneration,
-		);
-	});
-
 	it("reconciles permanent entry absence without leaving work", async () => {
 		const fixture = await createActiveFixture(ctx, "documents");
 		await insertEntry(ctx, fixture, "entry-1", "media-1");
@@ -457,16 +317,11 @@ class QueryCountingPlugin implements KyselyPlugin {
 	}
 }
 
-async function createActiveFixture(
-	ctx: DialectTestContext,
-	collectionSlug: string,
-	extraFields: readonly CreateFieldInput[] = [],
-) {
+async function createActiveFixture(ctx: DialectTestContext, collectionSlug: string) {
 	const registry = new SchemaRegistry(ctx.db);
 	await registry.createCollection({ slug: collectionSlug, label: collectionSlug });
 	await registry.createField(collectionSlug, { slug: "title", label: "Title", type: "string" });
 	await registry.createField(collectionSlug, { slug: "hero", label: "Hero", type: "image" });
-	for (const field of extraFields) await registry.createField(collectionSlug, field);
 	const collection = await registry.getCollection(collectionSlug);
 	if (!collection) throw new Error(`Expected ${collectionSlug} collection`);
 
@@ -504,18 +359,6 @@ async function createActiveFixture(
 	};
 }
 
-async function createResourceFixture(ctx: DialectTestContext, collectionSlug: string) {
-	return createActiveFixture(ctx, collectionSlug, [
-		{ slug: "body", label: "Body", type: "portableText" },
-		{
-			slug: "sections",
-			label: "Sections",
-			type: "repeater",
-			validation: { subFields: [{ slug: "image", type: "image", label: "Image" }] },
-		},
-	]);
-}
-
 async function insertEntry(
 	ctx: DialectTestContext,
 	fixture: Awaited<ReturnType<typeof createActiveFixture>>,
@@ -534,124 +377,12 @@ async function insertEntry(
 	`.execute(ctx.db);
 }
 
-async function insertResourceEntry(
-	ctx: DialectTestContext,
-	fixture: Awaited<ReturnType<typeof createResourceFixture>>,
-	contentId: string,
-	data: ReturnType<typeof mediaData>,
-): Promise<void> {
-	await sql`
-		INSERT INTO ${sql.ref(fixture.tableName)} (id, slug, status, title, hero, body, sections)
-		VALUES (
-			${contentId},
-			${contentId},
-			'published',
-			${contentId},
-			NULL,
-			${JSON.stringify(data.body)},
-			${JSON.stringify(data.sections)}
-		)
-	`.execute(ctx.db);
-}
-
-async function updateResourceEntry(
-	ctx: DialectTestContext,
-	fixture: Awaited<ReturnType<typeof createResourceFixture>>,
-	contentId: string,
-	data: ReturnType<typeof mediaData>,
-): Promise<void> {
-	await sql`
-		UPDATE ${sql.ref(fixture.tableName)}
-		SET body = ${JSON.stringify(data.body)}, sections = ${JSON.stringify(data.sections)}
-		WHERE id = ${contentId}
-	`.execute(ctx.db);
-}
-
-async function addResourceDraft(
-	ctx: DialectTestContext,
-	fixture: Awaited<ReturnType<typeof createResourceFixture>>,
-	contentId: string,
-	data: ReturnType<typeof mediaData>,
-): Promise<void> {
-	const revisionId = `revision-${contentId}`;
-	await ctx.db
-		.insertInto("revisions")
-		.values({
-			id: revisionId,
-			collection: fixture.collectionSlug,
-			entry_id: contentId,
-			data: JSON.stringify(data),
-			author_id: null,
-		})
-		.execute();
-	await sql`
-		UPDATE ${sql.ref(fixture.tableName)}
-		SET draft_revision_id = ${revisionId}
-		WHERE id = ${contentId}
-	`.execute(ctx.db);
-}
-
-async function updateResourceDraft(
-	ctx: DialectTestContext,
-	contentId: string,
-	data: ReturnType<typeof mediaData>,
-): Promise<void> {
-	await ctx.db
-		.updateTable("revisions")
-		.set({ data: JSON.stringify(data) })
-		.where("id", "=", `revision-${contentId}`)
-		.execute();
-}
-
-function mediaData(count: number, prefix: string) {
-	const portableTextCount = Math.ceil(count / 2);
-	const repeaterCount = Math.floor(count / 2);
-	return {
-		body: Array.from({ length: portableTextCount }, (_, index) => ({
-			_type: "image",
-			_key: `body-${index}`,
-			asset: { _ref: `${prefix}-body-${index}` },
-		})),
-		sections: Array.from({ length: repeaterCount }, (_, index) => ({
-			_key: `section-${index}`,
-			image: {
-				id: `${prefix}-section-${index}`,
-				provider: "local",
-				mimeType: "image/webp",
-			},
-		})),
-	};
-}
-
 function canonicalSourceKey(
 	collectionId: string,
 	contentId: string,
 	sourceVariant = "columns",
 ): string {
 	return `content:${collectionId}:${contentId}:${sourceVariant}`;
-}
-
-async function countCurrentOccurrences(db: Kysely<Database>, sourceKey: string): Promise<number> {
-	const result = await db
-		.selectFrom("_emdash_media_usage as usage")
-		.innerJoin("_emdash_media_usage_sources as source", (join) =>
-			join
-				.onRef("source.source_key", "=", "usage.source_key")
-				.onRef("source.current_generation", "=", "usage.generation"),
-		)
-		.select((eb) => eb.fn.countAll<number>().as("count"))
-		.where("source.source_key", "=", sourceKey)
-		.executeTakeFirstOrThrow();
-	return Number(result.count);
-}
-
-async function countStoredOccurrences(db: Kysely<Database>, sourceKey: string): Promise<number> {
-	const result = await db
-		.selectFrom("_emdash_media_usage")
-		.select((eb) => eb.fn.countAll<number>().as("count"))
-		.where("source_key", "=", sourceKey)
-		.executeTakeFirstOrThrow();
-	return Number(result.count);
 }
 
 async function countWork(db: Kysely<Database>): Promise<number> {
