@@ -80,15 +80,33 @@ const screenshotSchema = v.object({
 	description: v.optional(v.string()),
 });
 
-const resultSchema = v.object({
-	skipped: v.optional(v.boolean()),
-	reproduced: v.optional(v.boolean()),
-	fixed: v.optional(v.boolean()),
-	verdict: v.optional(v.picklist(["bug", "intended-behavior", "unclear"])),
-	summary: v.pipe(v.string(), v.minLength(10), v.maxLength(400)),
-	/** Reproduction screenshots pushed to bot/artifacts-<n>, rendered in the ask comment. */
-	screenshots: v.optional(v.array(screenshotSchema)),
-});
+const resultSchema = v.pipe(
+	v.object({
+		skipped: v.optional(v.boolean()),
+		reproduced: v.optional(v.boolean()),
+		/** How the failure was demonstrated. Required evidence for `reproduced`. */
+		demonstration: v.optional(
+			v.picklist(["failing-test", "command-error", "browser-transcript", "none"]),
+			"none",
+		),
+		/**
+		 * Whether the demonstrated failure is the defect the reporter described
+		 * (through any faithful path), as opposed to an adjacent finding.
+		 */
+		demonstratedReportedIssue: v.optional(v.boolean(), false),
+		fixed: v.optional(v.boolean()),
+		verdict: v.optional(v.picklist(["bug", "intended-behavior", "unclear"])),
+		summary: v.pipe(v.string(), v.minLength(10), v.maxLength(400)),
+		/** Reproduction screenshots pushed to bot/artifacts-<n>, rendered in the ask comment. */
+		screenshots: v.optional(v.array(screenshotSchema)),
+	}),
+	v.check(
+		(result) =>
+			result.reproduced !== true ||
+			(result.demonstration !== "none" && result.demonstratedReportedIssue === true),
+		"reproduced=true requires demonstration != 'none' and demonstratedReportedIssue=true. If you demonstrated something other than the reported issue, or nothing, set reproduced=false and describe the finding in summary.",
+	),
+);
 
 const reportedResultSchema = v.object({
 	result: resultSchema,
@@ -270,7 +288,7 @@ export function Investigate({ id }: AgentProps) {
 		defineTool({
 			name: "report_result",
 			description:
-				"Report the final structured investigation result to the issue orchestrator. reproduced=true means you demonstrated THE REPORTED ISSUE -- the failure the reporter described, triggered the way they described it, in this checkout. A failing test, an error in command output, or a browser transcript of that failure is a demonstration; when you have one, report reproduced=true without hedging. reproduced=false covers everything else, including real findings that are not the reported issue: an adjacent or latent defect you demonstrated, an out-of-repo infrastructure symptom, or a root cause from reading code alone -- describe those in summary as findings, not reproductions. If demonstration attempts are not converging after a couple of tries, stop and report the diagnosis honestly. When the issue lacks the information an attempt would need, report verdict='unclear' and say what is missing.",
+				"Report the final structured investigation result to the issue orchestrator. reproduced=true means you demonstrated the defect the reporter described, in this checkout. The demonstration does NOT need to copy their exact steps: a failing unit test that exercises the same defect a UI report describes is a full reproduction of the issue -- report it as one, without hedging. It must be the same defect, though: an adjacent or latent bug you demonstrated, an out-of-repo infrastructure symptom, or a root cause from reading code alone is a finding, not a reproduction -- reproduced=false, describe it in summary. Fill demonstration and demonstratedReportedIssue truthfully; they are how you distinguish the two. If demonstration attempts are not converging after a couple of angles, stop and report the diagnosis honestly. When the issue lacks the information an attempt would need, report verdict='unclear' and say what is missing.",
 			input: resultSchema,
 			output: reportedResultSchema,
 			durable: true,
