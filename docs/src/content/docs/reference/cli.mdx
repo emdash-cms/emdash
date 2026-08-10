@@ -47,6 +47,14 @@ When stdout is a TTY, the CLI pretty-prints results with consola. When piped or 
 
 ## Commands
 
+### `emdash dev` (deprecated)
+
+<Aside type="caution" title="Deprecated command">
+	`emdash dev` remains available for backwards compatibility but is hidden from CLI help. Start the site with its package script, such as `pnpm dev`, or run `astro dev` directly.
+</Aside>
+
+The legacy command initializes and migrates a local SQLite database before starting Astro. That behavior does not use the database adapter configured by the site and is incompatible with Cloudflare D1 development. Existing invocations now print a deprecation warning before doing any database work.
+
 ### `emdash types`
 
 Generate TypeScript types from a running EmDash instance's schema.
