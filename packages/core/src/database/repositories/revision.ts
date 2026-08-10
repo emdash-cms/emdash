@@ -51,6 +51,26 @@ export class RevisionRepository {
 		if (!revision) {
 			throw new Error("Failed to create revision");
 		}
+
+		try {
+			await this.db
+				.insertInto("_emdash_revision_prune_queue")
+				.values({
+					collection: input.collection,
+					entry_id: input.entryId,
+					revision_id: id,
+				})
+				.onConflict((conflict) =>
+					conflict.columns(["collection", "entry_id"]).doUpdateSet({ revision_id: id }),
+				)
+				.execute();
+		} catch (error) {
+			console.error(
+				`[revisions] Failed to queue revision pruning for ${input.collection}/${input.entryId}:`,
+				error,
+			);
+		}
+
 		return revision;
 	}
 
@@ -133,6 +153,19 @@ export class RevisionRepository {
 			.where("entry_id", "=", entryId)
 			.executeTakeFirst();
 
+		try {
+			await this.db
+				.deleteFrom("_emdash_revision_prune_queue")
+				.where("collection", "=", collection)
+				.where("entry_id", "=", entryId)
+				.execute();
+		} catch (error) {
+			console.error(
+				`[revisions] Failed to clear queued revision pruning for ${collection}/${entryId}:`,
+				error,
+			);
+		}
+
 		return Number(result.numDeletedRows ?? 0);
 	}
 
@@ -170,6 +203,22 @@ export class RevisionRepository {
 		`.execute(this.db);
 
 		return Number(result.numAffectedRows ?? 0);
+	}
+
+	async pruneQueuedEntry(
+		collection: string,
+		entryId: string,
+		queuedRevisionId: string,
+		keepCount: number,
+	): Promise<number> {
+		const pruned = await this.pruneOldRevisions(collection, entryId, keepCount);
+		await this.db
+			.deleteFrom("_emdash_revision_prune_queue")
+			.where("collection", "=", collection)
+			.where("entry_id", "=", entryId)
+			.where("revision_id", "=", queuedRevisionId)
+			.execute();
+		return pruned;
 	}
 
 	async deleteIfUnreferenced(

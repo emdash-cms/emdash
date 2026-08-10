@@ -10,7 +10,7 @@
  */
 
 import { createKyselyAdapter, type AuthTables } from "@emdash-cms/auth/adapters/kysely";
-import { sql, type Kysely } from "kysely";
+import type { Kysely } from "kysely";
 
 import { cleanupExpiredChallenges } from "./auth/challenge-store.js";
 import { MediaRepository } from "./database/repositories/media.js";
@@ -36,11 +36,8 @@ export interface CleanupResult {
 	mediaUsageOrphanOccurrences: number;
 }
 
-/** Max revisions to keep per entry during periodic pruning */
 const REVISION_KEEP_COUNT = 50;
-
-/** Only prune entries that exceed this threshold */
-const REVISION_PRUNE_THRESHOLD = REVISION_KEEP_COUNT;
+const REVISION_PRUNE_BATCH_SIZE = 10;
 
 /**
  * Run all system cleanup tasks.
@@ -136,9 +133,8 @@ export async function runSystemCleanup(
 		console.error("[cleanup] Failed to clean media upload attempts:", error);
 	}
 
-	// 5. Revision pruning -- trim entries with excessive revision counts
 	try {
-		result.revisionsPruned = await pruneExcessiveRevisions(db);
+		result.revisionsPruned = await pruneQueuedRevisions(db);
 	} catch (error) {
 		console.error("[cleanup] Failed to prune revisions:", error);
 	}
@@ -155,31 +151,24 @@ export async function runSystemCleanup(
 	return result;
 }
 
-/**
- * Find entries with more than REVISION_PRUNE_THRESHOLD revisions and prune
- * them down to REVISION_KEEP_COUNT.
- */
-async function pruneExcessiveRevisions(db: Kysely<Database>): Promise<number> {
-	const entries = await sql<{ collection: string; entry_id: string }>`
-		SELECT collection, entry_id
-		FROM revisions
-		GROUP BY collection, entry_id
-		HAVING COUNT(*) > ${REVISION_PRUNE_THRESHOLD}
-	`.execute(db);
-
-	if (entries.rows.length === 0) return 0;
-
+async function pruneQueuedRevisions(db: Kysely<Database>): Promise<number> {
+	const queued = await db
+		.selectFrom("_emdash_revision_prune_queue")
+		.selectAll()
+		.orderBy("revision_id")
+		.limit(REVISION_PRUNE_BATCH_SIZE)
+		.execute();
 	const revisionRepo = new RevisionRepository(db);
 	let totalPruned = 0;
 
-	for (const row of entries.rows) {
+	for (const row of queued) {
 		try {
-			const pruned = await revisionRepo.pruneOldRevisions(
+			totalPruned += await revisionRepo.pruneQueuedEntry(
 				row.collection,
 				row.entry_id,
+				row.revision_id,
 				REVISION_KEEP_COUNT,
 			);
-			totalPruned += pruned;
 		} catch (error) {
 			console.error(
 				`[cleanup] Failed to prune revisions for ${row.collection}/${row.entry_id}:`,

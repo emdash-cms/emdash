@@ -2973,7 +2973,16 @@ export class EmDashRuntime {
 							);
 						}
 					} else {
-						void revisionRepo.pruneOldRevisions(collection, resolvedId, 50).catch(() => {});
+						after(async () => {
+							try {
+								await revisionRepo.pruneQueuedEntry(collection, resolvedId, revision.id, 50);
+							} catch (error) {
+								console.error(
+									`[revisions] Failed to prune revisions for ${collection}/${resolvedId}:`,
+									error,
+								);
+							}
+						});
 					}
 					break;
 				}
@@ -3426,10 +3435,21 @@ export class EmDashRuntime {
 				throw error;
 			}
 
-			// Fire-and-forget: prune old revisions to prevent unbounded growth
-			void revisionRepo
-				.pruneOldRevisions(revision.collection, revision.entryId, 50)
-				.catch(() => {});
+			after(async () => {
+				try {
+					await revisionRepo.pruneQueuedEntry(
+						revision.collection,
+						revision.entryId,
+						newDraft.id,
+						50,
+					);
+				} catch (error) {
+					console.error(
+						`[revisions] Failed to prune revisions for ${revision.collection}/${revision.entryId}:`,
+						error,
+					);
+				}
+			});
 
 			// Return the freshly-fetched item with the new draft hydrated
 			// onto `data`. Without this the response would echo the live
