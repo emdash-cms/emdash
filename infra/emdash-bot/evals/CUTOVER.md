@@ -128,7 +128,7 @@ then paste the summary here. **Do not merge until this reads GATE PASSED.**
 
 ```
 GATE: <PASSED|FAILED>  --  zero confident-wrong: <yes|NO (n)>
-total <n>   pass <n>   miss <n>   confident-wrong <n>   error <n>
+total <n>   pass <n>   diagnosed <n>   miss <n>   confident-wrong <n>   error <n>
 ```
 
 - [ ] Zero confident-wrong across all 26 cases.

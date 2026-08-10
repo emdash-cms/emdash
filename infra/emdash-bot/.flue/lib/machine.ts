@@ -47,6 +47,7 @@ export type StateId =
 	// --- next-generation: investigation lifecycle (maintainer-triggered) ---
 	| "investigating"
 	| "reproduced"
+	| "diagnosed"
 	| "not_reproduced"
 	| "needs_info"
 	// --- next-generation: fix loop (maintainer-triggered) ---
@@ -187,6 +188,14 @@ export const STATES: Record<StateId, StateMeta> = {
 		terminal: false,
 		offeredCommands: ["fix", "investigate", "decline", "take_over"],
 	},
+	diagnosed: {
+		label: "bot:diagnosed",
+		boardColumn: "Diagnosed",
+		description:
+			"Verdict: root cause identified, but not confirmed by a reproduction (environment limits). Actionable like reproduced; the fix loop verifies with a failing test before changing anything.",
+		terminal: false,
+		offeredCommands: ["fix", "investigate", "decline", "take_over"],
+	},
 	not_reproduced: {
 		label: "bot:not-reproduced",
 		boardColumn: "Not reproduced",
@@ -275,6 +284,7 @@ export type AgentEvent =
 	| "agent.not_reproduced" // !skipped && !reproduced
 	| "agent.by_design" // verdict === "intended-behavior"
 	| "agent.reproduced" // reproduced && !fixed
+	| "agent.diagnosed" // root cause found, no confirming reproduction
 	| "agent.fix_ready" // reproduced && fixed
 	| "agent.needs_info" // reproduced/unclear but blocked on reporter-only info
 	| "agent.failed"; // nonzero exit / no result file
@@ -421,6 +431,10 @@ export const EVENTS: Record<EventId, EventMeta> = {
 	},
 	"agent.reproduced": {
 		description: "Reproduced, but the fix needs a human decision.",
+		actors: ["system"],
+	},
+	"agent.diagnosed": {
+		description: "Root cause identified without a confirming reproduction.",
 		actors: ["system"],
 	},
 	"agent.fix_ready": {
@@ -681,6 +695,7 @@ export const TRANSITIONS: Transition[] = [
 
 	// --- investigation outcomes (from investigating) ---
 	{ from: "investigating", event: "agent.reproduced", to: "reproduced" },
+	{ from: "investigating", event: "agent.diagnosed", to: "diagnosed" },
 	{ from: "investigating", event: "agent.not_reproduced", to: "not_reproduced" },
 	{ from: "investigating", event: "agent.needs_info", to: "needs_info" },
 	{
@@ -701,6 +716,16 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "reproduced", event: "fix", to: "fixing", action: "investigate.fix" },
 	{ from: "reproduced", event: "decline", to: "declined" },
 	{ from: "reproduced", event: "take_over", to: "human_owned" },
+	{ from: "diagnosed", event: "fix", to: "fixing", action: "investigate.fix" },
+	{ from: "diagnosed", event: "decline", to: "declined" },
+	{ from: "diagnosed", event: "take_over", to: "human_owned" },
+	{
+		from: "diagnosed",
+		event: "investigate",
+		to: "investigating",
+		action: "investigate.diagnose",
+		note: "re-diagnose",
+	},
 	{ from: "not_reproduced", event: "decline", to: "declined" },
 	{ from: "not_reproduced", event: "take_over", to: "human_owned" },
 	{ from: "needs_info", event: "decline", to: "declined" },

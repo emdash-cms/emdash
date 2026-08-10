@@ -28,7 +28,8 @@ export function diagnoseOutcome(reported: ReportedResult | null): DiagnoseOutcom
 	if (r.skipped === true) return "skipped";
 	if (r.verdict === "intended-behavior") return "by_design";
 	if (r.verdict === "unclear") return "needs_info";
-	return r.reproduced === true ? "reproduced" : "not_reproduced";
+	if (r.reproduced === true) return "reproduced";
+	return r.rootCauseFound === true ? "diagnosed" : "not_reproduced";
 }
 
 /** Fault anchors (case-insensitive substring) present in the agent's summary. */
@@ -78,6 +79,15 @@ export function scoreCase(evalCase: EvalCase, input: ReportedResult | HarnessErr
 				grade = "miss";
 				reason = "reproduced but the summary named no known fault-area term";
 			}
+		} else if (outcome === "diagnosed") {
+			anchorsMatched = matchAnchors(summary ?? undefined, evalCase.fault_anchors);
+			if (anchorsMatched.length > 0) {
+				grade = "diagnosed";
+				reason = `root cause named without a confirming repro (${anchorsMatched.join(", ")})`;
+			} else {
+				grade = "miss";
+				reason = "claimed a root cause but named no known fault-area term";
+			}
 		} else {
 			grade = "miss";
 			reason = `expected reproduced, got ${outcome}`;
@@ -110,6 +120,7 @@ export function scoreCase(evalCase: EvalCase, input: ReportedResult | HarnessErr
 export interface Summary {
 	readonly total: number;
 	readonly pass: number;
+	readonly diagnosed: number;
 	readonly miss: number;
 	readonly confidentWrong: number;
 	readonly error: number;
@@ -124,6 +135,7 @@ export function summarize(results: readonly ScoredResult[]): Summary {
 	return {
 		total: results.length,
 		pass: count("pass"),
+		diagnosed: count("diagnosed"),
 		miss: count("miss"),
 		confidentWrong,
 		error,

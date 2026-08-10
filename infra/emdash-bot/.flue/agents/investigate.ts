@@ -94,6 +94,12 @@ const resultSchema = v.pipe(
 		 * (through any faithful path), as opposed to an adjacent finding.
 		 */
 		demonstratedReportedIssue: v.optional(v.boolean(), false),
+		/**
+		 * Root cause identified without a confirming reproduction (environment
+		 * limits, browser-only path). With reproduced=false this reports the
+		 * distinct `diagnosed` verdict rather than `not_reproduced`.
+		 */
+		rootCauseFound: v.optional(v.boolean(), false),
 		fixed: v.optional(v.boolean()),
 		verdict: v.optional(v.picklist(["bug", "intended-behavior", "unclear"])),
 		summary: v.pipe(v.string(), v.minLength(10), v.maxLength(400)),
@@ -288,7 +294,7 @@ export function Investigate({ id }: AgentProps) {
 		defineTool({
 			name: "report_result",
 			description:
-				"Report the final structured investigation result to the issue orchestrator. reproduced=true means you demonstrated the defect the reporter described, in this checkout. The demonstration does NOT need to copy their exact steps: a failing unit test that exercises the same defect a UI report describes is a full reproduction of the issue -- report it as one, without hedging. It must be the same defect, though: an adjacent or latent bug you demonstrated, an out-of-repo infrastructure symptom, or a root cause from reading code alone is a finding, not a reproduction -- reproduced=false, describe it in summary. Fill demonstration and demonstratedReportedIssue truthfully; they are how you distinguish the two. If demonstration attempts are not converging after a couple of angles, stop and report the diagnosis honestly. When the issue lacks the information an attempt would need, report verdict='unclear' and say what is missing.",
+				"Report the final structured investigation result to the issue orchestrator. reproduced=true means you demonstrated the defect the reporter described, in this checkout. The demonstration does NOT need to copy their exact steps: a failing unit test that exercises the same defect a UI report describes is a full reproduction of the issue -- report it as one, without hedging. It must be the same defect, though: an adjacent or latent bug you demonstrated, an out-of-repo infrastructure symptom, or a root cause from reading code alone is not a reproduction. Three distinct non-reproduced outcomes -- pick the honest one: rootCauseFound=true when you identified the reporter's defect but could not confirm it with a demonstration (environment limits, browser-only path) -- this is a first-class 'diagnosed' verdict; plain reproduced=false when you investigated and found nothing wrong or a different/adjacent issue (describe findings in summary); verdict='unclear' when the issue lacks the information an attempt would need -- say what is missing. Fill demonstration and demonstratedReportedIssue truthfully. If demonstration attempts are not converging after a couple of angles, stop and report the diagnosis with rootCauseFound rather than grinding.",
 			input: resultSchema,
 			output: reportedResultSchema,
 			durable: true,

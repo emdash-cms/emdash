@@ -33,14 +33,20 @@ container checkout resolve a branch, tag, or bare commit SHA uniformly.
 ## Scoring
 
 Diagnose-mode outcome mirrors the machine's `outcomeFromResult`
-(`reproduced` / `not_reproduced` / `needs_info` / `by_design` / `skipped` /
-`failed`). Per category:
+(`reproduced` / `diagnosed` / `not_reproduced` / `needs_info` / `by_design` /
+`skipped` / `failed`). Per category:
 
 | Category           | Pass                                                           | Confident-wrong (the gate) |
 | ------------------ | -------------------------------------------------------------- | -------------------------- |
 | `CONFIRMED_BUG`    | `reproduced` **and** the summary names a known fault-area term | —                          |
 | `NOT_REPRODUCIBLE` | `not_reproduced` (with transcript)                             | `reproduced`               |
 | `NEEDS_INFO`       | `needs_info`                                                   | `reproduced`               |
+
+A confirmed bug where the agent names the fault area with `rootCauseFound` but
+no confirming reproduction grades **diagnosed** — counted separately from both
+pass and miss. A `diagnosed` claim on a negative case is a miss, not
+confident-wrong: it is hedged, and the fix loop would still demand a failing
+test before changing anything.
 
 - A confirmed bug that the agent fails to reproduce is a **miss** (false
   negative), never confident-wrong.

@@ -167,6 +167,7 @@ Like the PR labels, the bot's state labels are managed by the bot — you read t
 
 - `bot:investigating` — a reproduce-and-diagnose run is in flight.
 - `bot:reproduced` — reproduced, with a diagnosis attached; resting until a maintainer triggers a fix or disposes of it.
+- `bot:diagnosed` — root cause identified but not confirmed by a reproduction (environment limits). Actionable like `bot:reproduced`; the fix loop verifies with a failing test before changing anything.
 - `bot:not-reproduced` — could not reproduce, transcript attached. Add steps and a maintainer can re-investigate.
 - `bot:needs-info` — the investigation needs information only the reporter has.
 - `bot:fixing` / `bot:preview-building` / `bot:awaiting-reporter` — the fix loop: building a candidate, publishing its preview, and waiting for the reporter to confirm it.

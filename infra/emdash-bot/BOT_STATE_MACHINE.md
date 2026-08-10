@@ -20,6 +20,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `failed` | `bot:failed` | Failed | no | no | `retry`, `implement`, `repro`, `investigate`, `decline` |
 | `investigating` | `bot:investigating` | Investigating | no | yes | `status` |
 | `reproduced` | `bot:reproduced` | Reproduced | no | no | `fix`, `investigate`, `decline`, `take_over` |
+| `diagnosed` | `bot:diagnosed` | Diagnosed | no | no | `fix`, `investigate`, `decline`, `take_over` |
 | `not_reproduced` | `bot:not-reproduced` | Not reproduced | no | no | `investigate`, `decline`, `take_over` |
 | `needs_info` | `bot:needs-info` | Needs info | no | no | `investigate`, `decline`, `take_over` |
 | `fixing` | `bot:fixing` | Fixing | no | yes | `status` |
@@ -49,6 +50,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `agent.not_reproduced` | agent result | system | — | Agent could not reproduce the issue. |
 | `agent.by_design` | agent result | system | — | Agent verified the behaviour as intended. |
 | `agent.reproduced` | agent result | system | — | Reproduced, but the fix needs a human decision. |
+| `agent.diagnosed` | agent result | system | — | Root cause identified without a confirming reproduction. |
 | `agent.fix_ready` | agent result | system | — | Reproduced and fixed; a verified change is staged on bot/fix-<n>. |
 | `agent.needs_info` | agent result | system | — | Investigation is blocked on information only the reporter can supply. |
 | `agent.failed` | agent result | system | — | Agent run errored or produced no usable result. |
@@ -123,6 +125,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `needs_info` | `investigate` | `investigating` | `investigate.diagnose` |
 | `reproduced` | `investigate` | `investigating` | `investigate.diagnose` |
 | `investigating` | `agent.reproduced` | `reproduced` | — |
+| `investigating` | `agent.diagnosed` | `diagnosed` | — |
 | `investigating` | `agent.not_reproduced` | `not_reproduced` | — |
 | `investigating` | `agent.needs_info` | `needs_info` | — |
 | `investigating` | `agent.by_design` | `blocked` | — |
@@ -131,6 +134,10 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `reproduced` | `fix` | `fixing` | `investigate.fix` |
 | `reproduced` | `decline` | `declined` | — |
 | `reproduced` | `take_over` | `human_owned` | — |
+| `diagnosed` | `fix` | `fixing` | `investigate.fix` |
+| `diagnosed` | `decline` | `declined` | — |
+| `diagnosed` | `take_over` | `human_owned` | — |
+| `diagnosed` | `investigate` | `investigating` | `investigate.diagnose` |
 | `not_reproduced` | `decline` | `declined` | — |
 | `not_reproduced` | `take_over` | `human_owned` | — |
 | `needs_info` | `decline` | `declined` | — |
@@ -217,6 +224,7 @@ stateDiagram-v2
     needs_info --> investigating: investigate / investigate.diagnose
     reproduced --> investigating: investigate / investigate.diagnose
     investigating --> reproduced: agent.reproduced
+    investigating --> diagnosed: agent.diagnosed
     investigating --> not_reproduced: agent.not_reproduced
     investigating --> needs_info: agent.needs_info
     investigating --> blocked: agent.by_design
@@ -225,6 +233,10 @@ stateDiagram-v2
     reproduced --> fixing: fix / investigate.fix
     reproduced --> declined: decline
     reproduced --> human_owned: take_over
+    diagnosed --> fixing: fix / investigate.fix
+    diagnosed --> declined: decline
+    diagnosed --> human_owned: take_over
+    diagnosed --> investigating: investigate / investigate.diagnose
     not_reproduced --> declined: decline
     not_reproduced --> human_owned: take_over
     needs_info --> declined: decline

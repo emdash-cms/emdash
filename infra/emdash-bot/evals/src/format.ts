@@ -12,6 +12,7 @@ const CATEGORY_SHORT: Record<ScoredResult["category"], string> = {
 
 const GRADE_MARK: Record<ScoredResult["grade"], string> = {
 	pass: "PASS",
+	diagnosed: "DIAGNOSED",
 	miss: "MISS",
 	confident_wrong: "CONFIDENT-WRONG",
 	error: "ERROR",
@@ -69,7 +70,7 @@ export function formatSummary(summary: Summary): string {
 		"",
 		`  ${gate}  --  ${banner}`,
 		"",
-		`  total ${summary.total}   pass ${summary.pass}   miss ${summary.miss}   confident-wrong ${summary.confidentWrong}   error ${summary.error}`,
+		`  total ${summary.total}   pass ${summary.pass}   diagnosed ${summary.diagnosed}   miss ${summary.miss}   confident-wrong ${summary.confidentWrong}   error ${summary.error}`,
 		summary.error > 0
 			? `  ${summary.error} case(s) errored (no verdict obtained) -- fix and re-run before trusting the gate.`
 			: "",

@@ -50,6 +50,7 @@ export interface ReportedResult {
 export interface AgentResult {
 	readonly skipped?: boolean;
 	readonly reproduced?: boolean;
+	readonly rootCauseFound?: boolean;
 	readonly fixed?: boolean;
 	readonly verdict?: string;
 	readonly summary?: string;
@@ -58,11 +59,12 @@ export interface AgentResult {
 
 /**
  * Diagnose-mode outcome. Mirrors the machine event `outcomeFromResult` derives
- * for `mode: "diagnose"` (agent.reproduced / not_reproduced / needs_info /
- * by_design / skipped / failed), minus the `agent.` prefix.
+ * for `mode: "diagnose"` (agent.reproduced / diagnosed / not_reproduced /
+ * needs_info / by_design / skipped / failed), minus the `agent.` prefix.
  */
 export type DiagnoseOutcome =
 	| "reproduced"
+	| "diagnosed"
 	| "not_reproduced"
 	| "needs_info"
 	| "by_design"
@@ -78,7 +80,7 @@ export type DiagnoseOutcome =
  * - `error`  — the harness could not obtain a verdict (dispatch/timeout/no
  *   result). An infra failure to fix and re-run, not a bot verdict.
  */
-export type Grade = "pass" | "miss" | "confident_wrong" | "error";
+export type Grade = "pass" | "diagnosed" | "miss" | "confident_wrong" | "error";
 
 export interface ScoredResult {
 	readonly number: number;
