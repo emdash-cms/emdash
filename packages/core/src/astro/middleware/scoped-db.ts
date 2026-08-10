@@ -16,6 +16,43 @@
  */
 export const ASTRO_COOKIES_SYMBOL = Symbol.for("astro.cookies");
 
+interface ScopedDbLifecycle {
+	commit: () => void;
+	close?: () => void;
+}
+
+type DeferredTaskScheduler = (task: () => void | Promise<void>) => void;
+
+/**
+ * Keep teardown alive while both the response and request-owned background
+ * work finish. The returned close callback only signals response completion;
+ * the adapter's real close runs afterward inside the deferred task.
+ */
+export function deferScopedCloseUntilSettled(
+	scoped: ScopedDbLifecycle,
+	pending: Promise<unknown>,
+	defer: DeferredTaskScheduler,
+): ScopedDbLifecycle {
+	if (!scoped.close) {
+		defer(async () => {
+			await pending;
+		});
+		return scoped;
+	}
+
+	let settleResponse!: () => void;
+	const responseSettled = new Promise<void>((resolve) => {
+		settleResponse = resolve;
+	});
+	const close = scoped.close;
+	defer(async () => {
+		await Promise.allSettled([pending, responseSettled]);
+		close();
+	});
+
+	return { commit: scoped.commit, close: settleResponse };
+}
+
 /**
  * Run a request-scoped db's `close()` once the response body has finished
  * streaming. Astro streams HTML and components issue DB queries during that
@@ -77,7 +114,7 @@ export function wrapResponseForScopedClose(response: Response, close: () => void
  * or mask.
  */
 export async function finishScoped(
-	scoped: { commit: () => void; close?: () => void },
+	scoped: ScopedDbLifecycle,
 	run: () => Promise<Response>,
 ): Promise<Response> {
 	let response: Response;

@@ -60,7 +60,11 @@ import type { PublishedRef } from "../scheduled-publish.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
 import type { EmDashConfig } from "./integration/runtime.js";
-import { ASTRO_COOKIES_SYMBOL, finishScoped } from "./middleware/scoped-db.js";
+import {
+	ASTRO_COOKIES_SYMBOL,
+	deferScopedCloseUntilSettled,
+	finishScoped,
+} from "./middleware/scoped-db.js";
 import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
 import { prefetchLayoutData } from "./prefetch.js";
 import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
@@ -678,10 +682,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					//    pointless on synchronous local SQLite.
 					//  - HTML navigations only -- feeds/sitemaps/JSON don't render the
 					//    layout, so prefetching their chrome is pure waste.
-					//  - via after(): it runs immediately (still warms the render) but
-					//    hands the promise to waitUntil, so the surplus warm-up (chrome a
-					//    given page doesn't render) is kept alive past the response rather
-					//    than erroring on workerd as orphaned request I/O.
+					//  - the work starts immediately, then after() keeps both it and the
+					//    request-scoped connection alive until the response also finishes.
 					// Gate on the CLIENT'S PREFERRED type (leading media range), not a
 					// substring -- browser navigations lead with `text/html`, while feed
 					// readers lead with `application/rss+xml` etc. and only list
@@ -691,11 +693,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						.trim()
 						.startsWith("text/html");
 					return runWithContext(ctx, async () => {
-						if (acceptsHtml) after(() => prefetchLayoutData());
+						const scopedLifecycle = acceptsHtml
+							? deferScopedCloseUntilSettled(anonScoped, prefetchLayoutData(), after)
+							: anonScoped;
 						// commit() persists per-request state (e.g. the D1 bookmark cookie)
 						// before the response is returned, even if render throws; close()
 						// (connection teardown) is deferred to stream-end. See finishScoped.
-						return finishScoped(anonScoped, runAnon);
+						return finishScoped(scopedLifecycle, runAnon);
 					});
 				}
 				return runAnon();
