@@ -45,6 +45,17 @@ describe("elideLargeDiffSections", () => {
 		expect(out).not.toContain(b);
 	});
 
+	it("skips an unreducible headerless section instead of looping on it", () => {
+		const headerless = `diff --git a/blob.bin b/blob.bin\nBinary files differ\n${"x\n".repeat(1_000)}`;
+		const small = fileSection("src/a.ts", 5);
+		const out = elideLargeDiffSections(small + headerless, {
+			perFileBytes: 500,
+			totalBytes: 600,
+		});
+		expect(out).toContain("Binary files differ");
+		expect(out).toContain("+++ b/src/a.ts");
+	});
+
 	it("leaves a header-only section (no hunks) alone", () => {
 		const rename = [
 			"diff --git a/old.ts b/new.ts",

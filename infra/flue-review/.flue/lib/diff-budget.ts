@@ -24,7 +24,7 @@ export function elideLargeDiffSections(diff: string, budget: DiffBudget = {}): s
 
 	const sections = splitSections(diff);
 	for (const section of sections) {
-		if (section.text.length > perFileBytes) elide(section);
+		if (!section.elided && section.text.length > perFileBytes) elide(section);
 	}
 	// Still over the total budget: elide the largest remaining sections until
 	// under it (or nothing left to elide).
@@ -56,6 +56,9 @@ function splitSections(diff: string): Section[] {
 }
 
 function elide(section: Section): void {
+	// Mark unconditionally: a section this function cannot reduce must still
+	// leave the total-budget loop's candidate pool, or the loop never shrinks.
+	section.elided = true;
 	const lines = section.text.split("\n");
 	// Keep the file header: everything up to and including the `+++` line (or
 	// the whole header for binary/rename-only sections with no hunks).
@@ -68,5 +71,4 @@ function elide(section: Section): void {
 		`(diff content elided: ${body} lines over the size budget -- read this file from the checkout instead)`,
 		"",
 	].join("\n");
-	section.elided = true;
 }
