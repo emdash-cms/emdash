@@ -31,6 +31,12 @@ export interface ManifestCollection {
 	supports: string[];
 	hasSeo: boolean;
 	urlPattern?: string;
+	/**
+	 * Omit the auto-generated sidebar entry in the admin. The collection is
+	 * still listed in the manifest so its routes, editor, and API keep working
+	 * — only the navigation link is dropped.
+	 */
+	hidden?: boolean;
 	fields: Record<
 		string,
 		{

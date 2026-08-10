@@ -1,5 +1,38 @@
 # @emdash-cms/admin
 
+## 0.32.0
+
+### Patch Changes
+
+- [#2200](https://github.com/emdash-cms/emdash/pull/2200) [`0d2d313`](https://github.com/emdash-cms/emdash/commit/0d2d3138f0fef4c43439ee4aa632ffd602173909) Thanks [@masonjames](https://github.com/masonjames)! - Adds heading levels 4 through 6 to the content editor menus and stored content.
+
+- [#2199](https://github.com/emdash-cms/emdash/pull/2199) [`5a997e3`](https://github.com/emdash-cms/emdash/commit/5a997e3080b67ee1a5c82d67beba7c643efb15a3) Thanks [@masonjames](https://github.com/masonjames)! - Adds subscript and superscript formatting controls to the content editor.
+
+- [#2201](https://github.com/emdash-cms/emdash/pull/2201) [`2f1219e`](https://github.com/emdash-cms/emdash/commit/2f1219e1771415cc0bc28781146e4a2834cdcbbe) Thanks [@masonjames](https://github.com/masonjames)! - Adds a publish-date field for editors to backdate existing published content.
+
+- [#2262](https://github.com/emdash-cms/emdash/pull/2262) [`6a0e93a`](https://github.com/emdash-cms/emdash/commit/6a0e93a69200fb3e88555b0aa700a6dfb0a5f162) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the admin to Kumo's brand colours: primary buttons and fills become a brighter blue, and links and accent icons pick up Kumo's link colour.
+
+- [#2298](https://github.com/emdash-cms/emdash/pull/2298) [`8d46fd2`](https://github.com/emdash-cms/emdash/commit/8d46fd29506f9164583853909fce8db705b020f3) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Allows inline code and links on the same text in the content editor, including in headings.
+
+- [#2252](https://github.com/emdash-cms/emdash/pull/2252) [`f81f720`](https://github.com/emdash-cms/emdash/commit/f81f72000be411cd7e0a7f3c26fb388249e8a610) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the admin Dashboard typography for clearer hierarchy and stable metric and activity values.
+
+- [#2252](https://github.com/emdash-cms/emdash/pull/2252) [`f81f720`](https://github.com/emdash-cms/emdash/commit/f81f72000be411cd7e0a7f3c26fb388249e8a610) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates admin typography with consistent page headings, descriptions, and media library text hierarchy.
+
+- [#2272](https://github.com/emdash-cms/emdash/pull/2272) [`087a825`](https://github.com/emdash-cms/emdash/commit/087a8254512a00fc248af55f8b4bd478d0871c9c) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes deleting tables from the portable text editor's block actions menu.
+
+- [#2340](https://github.com/emdash-cms/emdash/pull/2340) [`d2c259c`](https://github.com/emdash-cms/emdash/commit/d2c259cb7f043d5e81dba0fd7b8711693fe65742) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates content lifecycle badges and status labels with consistent wording, icons, and semantic colors.
+
+- [#2272](https://github.com/emdash-cms/emdash/pull/2272) [`087a825`](https://github.com/emdash-cms/emdash/commit/087a8254512a00fc248af55f8b4bd478d0871c9c) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the portable text editor's block actions menu with animated transitions, clearer hover feedback, accessible keyboard navigation, and stable positioning while moving between blocks.
+
+- [#2341](https://github.com/emdash-cms/emdash/pull/2341) [`08c8f2b`](https://github.com/emdash-cms/emdash/commit/08c8f2b68cc789f037daa4c118faa212a6b71f5a) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the admin Settings pages with a consistent responsive layout, clearer visual hierarchy, and refined controls.
+
+- [#2263](https://github.com/emdash-cms/emdash/pull/2263) [`1d7c063`](https://github.com/emdash-cms/emdash/commit/1d7c06395b666fbcbad96d8e7e6aaa744d9f87fe) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Refines the first-login welcome dialog: left-aligned layout, a smaller logo, the role shown as a badge instead of a tinted card, and a full-width primary action.
+
+- [#2273](https://github.com/emdash-cms/emdash/pull/2273) [`b0c7880`](https://github.com/emdash-cms/emdash/commit/b0c7880c74994e229b4cf4e9a0247452df2bc640) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes media uploads with native R2 storage, keeps client-side hashing optional, and prevents deduplication from returning media with a different type or size.
+  Images larger than 8 MiB skip server-generated placeholders in signed and streamed upload flows.
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.32.0
+
 ## 0.31.1
 
 ### Patch Changes

@@ -93,6 +93,7 @@ export interface AdminManifest {
 			supports: string[];
 			hasSeo: boolean;
 			urlPattern?: string;
+			hidden?: boolean;
 			fields: Record<
 				string,
 				{

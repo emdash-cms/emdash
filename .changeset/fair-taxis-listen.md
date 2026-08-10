@@ -1,6 +1,6 @@
 ---
 "@emdash-cms/admin": patch
-"emdash": patch
+"emdash": minor
 ---
 
-Fixes localized taxonomy navigation, editor choices, and visible term counts so each surface follows the active content locale.
+Fixes localized taxonomy navigation and editor choices so each admin surface follows the active content locale. Public taxonomy helpers now report visible term counts for the active content locale instead of combining assignments across translations.

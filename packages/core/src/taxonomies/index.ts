@@ -16,7 +16,7 @@ import { getDb, resetTaxonomyNamesCache } from "../loader.js";
 import {
 	cachedQuery,
 	CacheNamespace,
-	contentNamespace,
+	contentCacheNamespaces,
 	invalidateTaxonomyObjectCache,
 	isObjectCacheActive,
 } from "../object-cache/index.js";
@@ -228,12 +228,14 @@ export async function getTaxonomyDef(
  * Object-cache namespaces for values that embed visible term counts: the
  * taxonomy epoch (term/assignment writes) plus each counted collection's
  * content epoch, so publishing, unpublishing, or trashing an entry
- * invalidates the cached count promptly. A scheduled entry becoming due
- * flips visibility without a write, so that staleness stays bounded by the
- * cache entry's TTL.
+ * invalidates the cached count promptly. Both content namespace generations
+ * participate so rolling deployments preserve invalidation in either direction.
  */
 function termCountNamespaces(collections: string[]): string[] {
-	return [...Array.from(new Set(collections), contentNamespace), CacheNamespace.TAXONOMIES];
+	return [
+		...[...new Set(collections)].flatMap((collection) => contentCacheNamespaces(collection)),
+		CacheNamespace.TAXONOMIES,
+	];
 }
 
 /**
@@ -299,6 +301,7 @@ async function loadTaxonomyTerms(
 		.selectFrom("taxonomies")
 		.selectAll()
 		.where("name", "=", def.name)
+		.orderBy("sort_order", "asc")
 		.orderBy("label", "asc");
 	if (locale !== undefined) termsQuery = termsQuery.where("locale", "=", locale);
 
@@ -419,6 +422,7 @@ async function loadTerm(
 		// Children store the parent's translation_group in parent_id (not a row
 		// id), so a translated parent still owns its children in its own locale.
 		.where("parent_id", "=", row.translation_group ?? row.id)
+		.orderBy("sort_order", "asc")
 		.orderBy("label", "asc");
 	const termLocale = row.locale;
 	if (termLocale) childrenQuery = childrenQuery.where("locale", "=", termLocale);
@@ -477,7 +481,7 @@ export function getEntryTerms(
 		`terms:${collection}:${entryId}:${taxonomyName ?? "*"}:${locale ?? "*"}`,
 		() =>
 			cachedQuery({
-				namespace: [contentNamespace(collection), CacheNamespace.TAXONOMIES],
+				namespace: [...contentCacheNamespaces(collection), CacheNamespace.TAXONOMIES],
 				key: `entryTerms:${collection}:${entryId}:${taxonomyName ?? "*"}:${locale ?? "*"}`,
 				load: async () => {
 					const db = await getDb();
@@ -633,7 +637,7 @@ export async function getTermsForEntries(
 	const pairs =
 		idKey.length <= 256
 			? await cachedQuery({
-					namespace: [contentNamespace(collection), CacheNamespace.TAXONOMIES],
+					namespace: [...contentCacheNamespaces(collection), CacheNamespace.TAXONOMIES],
 					key: `termsForEntries:${collection}:${taxonomyName}:${locale ?? "*"}:${idKey}`,
 					load,
 				})

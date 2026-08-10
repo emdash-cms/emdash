@@ -4,7 +4,7 @@
  * Defines all admin routes and their components.
  */
 
-import { Button, Loader, Toast } from "@cloudflare/kumo";
+import { Button, Loader, Toast, useKumoToastManager } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
@@ -88,6 +88,7 @@ import {
 	updateField,
 	deleteField,
 	reorderFields,
+	reorderCollections,
 	fetchOrphanedTables,
 	registerOrphanedTable,
 	fetchUsers,
@@ -167,10 +168,9 @@ function patchAutosaveQueries(
 			data?: Record<string, unknown>;
 			slug?: string;
 		};
-		locale?: string;
 	},
 ) {
-	const { collection, id, savedItem, payload, locale } = params;
+	const { collection, id, savedItem, payload } = params;
 	const draftRevisionId = savedItem.draftRevisionId;
 
 	if (draftRevisionId) {
@@ -195,10 +195,11 @@ function patchAutosaveQueries(
 		});
 	}
 
-	queryClient.setQueryData<ContentItem>(
-		locale ? ["content", collection, id, { locale }] : ["content", collection, id],
-		savedItem,
-	);
+	// Match by (collection, id) prefix rather than an exact locale-scoped key: the
+	// editor reads `{ locale: activeLocale }`, undefined when i18n is off, while the
+	// saved item carries the DB default "en". An exact key would write to an entry
+	// nobody observes, leaving the editor on stale revision pointers.
+	queryClient.setQueriesData<ContentItem>({ queryKey: ["content", collection, id] }, savedItem);
 }
 
 // Create a base root route without Shell for setup
@@ -634,6 +635,8 @@ function ContentNewPage() {
 	const { locale } = useSearch({ from: "/_admin/content/$collection/new" });
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+	const { t } = useLingui();
+	const toastManager = useKumoToastManager();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
 
 	const { data: manifest } = useQuery({
@@ -661,6 +664,13 @@ function ContentNewPage() {
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
 				search: { locale: result.locale },
+			});
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to save`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				variant: "error",
 			});
 		},
 	});
@@ -994,7 +1004,6 @@ function ContentEditPage() {
 					data: variables.changes.data,
 					slug: variables.changes.slug,
 				},
-				locale: variables.targetLocale,
 			});
 			// Keep the cache fresh without refetching older server state back into the form
 			// while the user is still typing.
@@ -1873,6 +1882,16 @@ function ContentTypesListPage() {
 		},
 	});
 
+	const reorderMutation = useMutation({
+		mutationFn: (slugs: string[]) => reorderCollections(slugs),
+		// The manifest drives the sidebar order, so it has to be refetched
+		// alongside the collection list for the move to show up in the nav.
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+	});
+
 	const error = collectionsError || orphansError;
 	if (error) {
 		return <ErrorScreen error={error.message} />;
@@ -1885,6 +1904,7 @@ function ContentTypesListPage() {
 			isLoading={collectionsLoading || orphansLoading}
 			onDelete={(slug) => deleteMutation.mutate(slug)}
 			onRegisterOrphan={(slug) => registerOrphanMutation.mutate(slug)}
+			onReorder={(slugs) => reorderMutation.mutate(slugs)}
 		/>
 	);
 }

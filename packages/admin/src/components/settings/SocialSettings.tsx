@@ -4,36 +4,60 @@
  * Social media profile links (Twitter, GitHub, Facebook, Instagram, LinkedIn, YouTube).
  */
 
-import { Button, Input, useKumoToastManager } from "@cloudflare/kumo";
+import { Banner, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { FloppyDisk } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchSettings, updateSettings, type SiteSettings } from "../../lib/api";
-import { EditorHeader } from "../EditorHeader";
-import { BackToSettingsLink } from "./BackToSettingsLink.js";
+import { SaveButton } from "../SaveButton.js";
+import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
+
+function socialSettingsSnapshot(settings: Partial<SiteSettings>) {
+	return JSON.stringify({
+		twitter: settings.social?.twitter ?? "",
+		github: settings.social?.github ?? "",
+		facebook: settings.social?.facebook ?? "",
+		instagram: settings.social?.instagram ?? "",
+		linkedin: settings.social?.linkedin ?? "",
+		youtube: settings.social?.youtube ?? "",
+	});
+}
 
 export function SocialSettings() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = useKumoToastManager();
 
-	const { data: settings, isLoading } = useQuery({
+	const {
+		data: settings,
+		isLoading,
+		error: loadError,
+	} = useQuery({
 		queryKey: ["settings"],
 		queryFn: fetchSettings,
 		staleTime: Infinity,
 	});
 
 	const [formData, setFormData] = React.useState<Partial<SiteSettings>>({});
+	const [savedFormData, setSavedFormData] = React.useState<Partial<SiteSettings>>({});
 
 	React.useEffect(() => {
-		if (settings) setFormData(settings);
+		if (settings) {
+			setFormData(settings);
+			setSavedFormData(settings);
+		}
 	}, [settings]);
+
+	const isDirty = React.useMemo(
+		() => socialSettingsSnapshot(formData) !== socialSettingsSnapshot(savedFormData),
+		[formData, savedFormData],
+	);
 
 	const saveMutation = useMutation({
 		mutationFn: (data: Partial<SiteSettings>) => updateSettings(data),
-		onSuccess: () => {
+		onSuccess: (_savedSettings, submittedSettings) => {
+			setSavedFormData(submittedSettings);
 			void queryClient.invalidateQueries({ queryKey: ["settings"] });
 			toastManager.add({ title: t`Social links saved`, variant: "success", timeout: 3000 });
 		},
@@ -62,93 +86,114 @@ export function SocialSettings() {
 		}));
 	};
 
+	const title = t`Social Links`;
+	const description = t`Social media profile links`;
+
 	if (isLoading) {
 		return (
-			<div className="space-y-6">
-				<div className="flex items-center gap-3">
-					<BackToSettingsLink />
-					<h1 className="text-2xl font-semibold leading-tight">{t`Social Links`}</h1>
+			<SettingsFrame title={title} description={description}>
+				<div
+					className="flex items-center gap-2 rounded-xl border border-kumo-line bg-kumo-base px-4 py-4 text-sm text-kumo-subtle"
+					role="status"
+				>
+					<Loader size="sm" />
+					<span>{t`Loading settings...`}</span>
 				</div>
-				<div className="rounded-lg border bg-kumo-base p-6">
-					<p className="text-kumo-subtle">{t`Loading settings...`}</p>
-				</div>
-			</div>
+			</SettingsFrame>
+		);
+	}
+
+	if (loadError && settings === undefined) {
+		return (
+			<SettingsFrame title={title} description={description}>
+				<Banner
+					variant="error"
+					title={t`An error occurred`}
+					description={loadError instanceof Error ? loadError.message : t`An error occurred`}
+					role="alert"
+				/>
+			</SettingsFrame>
 		);
 	}
 
 	return (
-		<div className="space-y-6">
-			{/* Sticky header — see GeneralSettings for the same pattern. */}
-			<EditorHeader
-				leading={<BackToSettingsLink />}
-				actions={
-					<Button
-						type="submit"
-						form="social-settings-form"
-						disabled={saveMutation.isPending}
-						icon={<FloppyDisk />}
-					>
-						{saveMutation.isPending ? t`Saving...` : t`Save Social Links`}
-					</Button>
-				}
-			>
-				<h1 className="truncate text-2xl font-semibold">{t`Social Links`}</h1>
-			</EditorHeader>
-
-			<form id="social-settings-form" onSubmit={handleSubmit} className="space-y-6">
-				<div className="rounded-lg border bg-kumo-base p-6">
-					<h2 className="mb-4 text-lg font-semibold">{t`Social Profiles`}</h2>
-					<p className="text-sm text-kumo-subtle mb-6">
-						{t`Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios.`}
-					</p>
-					<div className="space-y-4">
+		<SettingsFrame
+			title={title}
+			description={description}
+			actions={
+				<SaveButton
+					type="submit"
+					form="social-settings-form"
+					isDirty={isDirty}
+					isSaving={saveMutation.isPending}
+				/>
+			}
+		>
+			<form id="social-settings-form" onSubmit={handleSubmit} className="grid gap-8">
+				<SettingsSection
+					title={t`Social Profiles`}
+					description={t`Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios.`}
+				>
+					<SettingRow>
 						<Input
 							label={t`Twitter`}
-							value={formData.social?.twitter || ""}
+							value={formData.social?.twitter ?? ""}
 							onChange={(e) => handleSocialChange("twitter", e.target.value)}
 							description={t`Your Twitter/X handle (e.g., @username)`}
 						/>
+					</SettingRow>
+					<SettingRow>
 						<Input
 							label={t`GitHub`}
-							value={formData.social?.github || ""}
+							value={formData.social?.github ?? ""}
 							onChange={(e) => handleSocialChange("github", e.target.value)}
 							description={t`Your GitHub username`}
 						/>
+					</SettingRow>
+					<SettingRow>
 						<Input
 							label={t`Facebook`}
-							value={formData.social?.facebook || ""}
+							value={formData.social?.facebook ?? ""}
 							onChange={(e) => handleSocialChange("facebook", e.target.value)}
 							description={t`Your Facebook page or profile username`}
 						/>
+					</SettingRow>
+					<SettingRow>
 						<Input
 							label={t`Instagram`}
-							value={formData.social?.instagram || ""}
+							value={formData.social?.instagram ?? ""}
 							onChange={(e) => handleSocialChange("instagram", e.target.value)}
 							description={t`Your Instagram username`}
 						/>
+					</SettingRow>
+					<SettingRow>
 						<Input
 							label={t`LinkedIn`}
-							value={formData.social?.linkedin || ""}
+							value={formData.social?.linkedin ?? ""}
 							onChange={(e) => handleSocialChange("linkedin", e.target.value)}
 							description={t`Your LinkedIn profile username`}
 						/>
+					</SettingRow>
+					<SettingRow>
 						<Input
 							label={t`YouTube`}
-							value={formData.social?.youtube || ""}
+							value={formData.social?.youtube ?? ""}
 							onChange={(e) => handleSocialChange("youtube", e.target.value)}
 							description={t`Your YouTube channel ID or handle`}
 						/>
-					</div>
-				</div>
+					</SettingRow>
+				</SettingsSection>
 
-				{/* Save Button */}
 				<div className="flex justify-end">
-					<Button type="submit" disabled={saveMutation.isPending} icon={<FloppyDisk />}>
-						{saveMutation.isPending ? t`Saving...` : t`Save Social Links`}
-					</Button>
+					<SaveButton
+						type="submit"
+						isDirty={isDirty}
+						isSaving={saveMutation.isPending}
+						announce={false}
+					/>
 				</div>
 			</form>
-		</div>
+		</SettingsFrame>
 	);
 }
 

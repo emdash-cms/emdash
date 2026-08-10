@@ -102,13 +102,12 @@ import { getByline, getBylineBySlug } from "emdash";
 import {
 	PortableText,
 	Image,
-	Comments,
-	CommentForm,
 	WidgetArea,
 	EmDashHead,
 	EmDashBodyStart,
 	EmDashBodyEnd,
 } from "emdash/ui";
+import { Comments, CommentForm } from "emdash/ui/comments";
 import LiveSearch from "emdash/ui/search";
 
 // Page context (for plugin contributions)

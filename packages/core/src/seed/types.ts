@@ -74,6 +74,16 @@ export interface SeedCollection {
 	icon?: string;
 	supports?: ("drafts" | "revisions" | "preview" | "scheduling" | "search" | "seo")[];
 	urlPattern?: string;
+	/**
+	 * Omit this collection from the admin sidebar. It stays reachable through
+	 * the API, MCP, plugin hooks, and direct `/content/:collection` URLs.
+	 */
+	hidden?: boolean;
+	/**
+	 * Explicit position in the admin sidebar (ascending). Collections without
+	 * a `sortOrder` keep the alphabetical order and follow the ordered ones.
+	 */
+	sortOrder?: number;
 	/** Enable comments on this collection */
 	commentsEnabled?: boolean;
 	fields: SeedField[];

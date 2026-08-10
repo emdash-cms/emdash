@@ -1,8 +1,13 @@
 // Cloudflare-target Durable Object exports. Flue's Vite plugin composes these
 // user-owned classes with its generated agent classes in the final Worker.
 
+import { type DurableObjectStorageLike, withWorkspace } from "@cloudflare/computer";
+import { WorkerShellBackend } from "@cloudflare/computer/backends/worker-shell";
+import { createGitClient } from "@cloudflare/computer/git";
 import { Sandbox as BaseSandbox } from "@cloudflare/sandbox";
+import { DurableObject } from "cloudflare:workers";
 
+import { ISOLATE_SHELL_BACKEND } from "./lib/exec-env.js";
 import {
 	gateGithubRequest,
 	githubAuthHeader,
@@ -117,3 +122,36 @@ function errorMessage(error: unknown): string {
 
 export { ContainerProxy } from "@cloudflare/sandbox";
 export { OrchestratorDO } from "./lib/orchestrator.js";
+
+// Isolate + VFS substrate for execEnv's `IsolateBackend`: a
+// @cloudflare/computer Workspace on a SQLite DO. `fs` and the built-in `git`
+// command back the read/grep/inspect path; the worker-shell backend runs
+// isolate exec in a Dynamic Worker via the LOADER binding. The container half
+// stays on `Sandbox` above; exec-env.ts owns that seam.
+//
+// `ctx`/`env` are re-exposed publicly because the mixin's options callback
+// reads them from outside the class body, where the base's protected members
+// are unreachable.
+class WorkspaceBase extends DurableObject<Env> {
+	get doCtx(): DurableObjectState {
+		return this.ctx;
+	}
+	get doEnv(): Env {
+		return this.env;
+	}
+}
+
+export class WorkspaceDO extends withWorkspace(WorkspaceBase, (self) => ({
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion, typescript/no-unnecessary-type-assertion -- platform DurableObjectStorage satisfies computer's narrowed Like type at runtime; the unnecessary-assertion rule misfires when the generated worker types are absent.
+	storage: self.doCtx.storage as unknown as DurableObjectStorageLike,
+	git: createGitClient(),
+	waitUntil: self.doCtx.waitUntil.bind(self.doCtx),
+	backends: [
+		new WorkerShellBackend({
+			id: ISOLATE_SHELL_BACKEND,
+			loader: self.doEnv.LOADER,
+			workspace: { binding: "WorkspaceDO", id: self.doCtx.id.toString() },
+			ctx: self.doCtx,
+		}),
+	],
+})) {}

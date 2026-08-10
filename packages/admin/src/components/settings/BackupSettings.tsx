@@ -6,16 +6,17 @@
  * D1 Time Travel for point-in-time restore on Cloudflare.
  */
 
-import { Button, Input, LinkButton, Loader, Switch, useKumoToastManager } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import {
-	Archive,
-	ClockCounterClockwise,
-	CloudArrowUp,
-	DownloadSimple,
-	Trash,
-	WarningCircle,
-} from "@phosphor-icons/react";
+	Banner,
+	Button,
+	Input,
+	LinkButton,
+	Loader,
+	Switch,
+	useKumoToastManager,
+} from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
+import { DownloadSimple, Trash } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -29,13 +30,18 @@ import {
 	type BackupArchive,
 } from "../../lib/api/backups.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
-import { DialogError, getMutationError } from "../DialogError.js";
-import { BackToSettingsLink } from "./BackToSettingsLink.js";
+import { getMutationError } from "../DialogError.js";
+import { SaveButton } from "../SaveButton.js";
+import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
 function formatBytes(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
 	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function backupSettingsSnapshot(enabled: boolean, retention: string) {
+	return JSON.stringify({ enabled, retention });
 }
 
 export function BackupSettings() {
@@ -53,29 +59,41 @@ export function BackupSettings() {
 		queryFn: fetchBackupOverview,
 	});
 
-	// Local form state seeded from the server once loaded
 	const [enabled, setEnabled] = React.useState(false);
 	const [retention, setRetention] = React.useState("7");
+	const [savedEnabled, setSavedEnabled] = React.useState(false);
+	const [savedRetention, setSavedRetention] = React.useState("7");
 	const seeded = React.useRef(false);
 	React.useEffect(() => {
 		if (overview && !seeded.current) {
 			seeded.current = true;
+			const loadedRetention = String(overview.settings.retention);
 			setEnabled(overview.settings.enabled);
-			setRetention(String(overview.settings.retention));
+			setRetention(loadedRetention);
+			setSavedEnabled(overview.settings.enabled);
+			setSavedRetention(loadedRetention);
 		}
 	}, [overview]);
 
+	const isDirty = React.useMemo(
+		() =>
+			backupSettingsSnapshot(enabled, retention) !==
+			backupSettingsSnapshot(savedEnabled, savedRetention),
+		[enabled, retention, savedEnabled, savedRetention],
+	);
+
 	const saveMutation = useMutation({
 		mutationFn: () => {
-			// Clamp to the server's accepted range so out-of-range input saves
-			// the nearest valid value instead of failing validation.
 			const parsed = Number.parseInt(retention, 10);
 			const clamped = Number.isNaN(parsed) ? 7 : Math.min(30, Math.max(1, parsed));
 			return updateBackupSettings({ enabled, retention: clamped });
 		},
 		onSuccess: (settings) => {
+			const savedRetentionValue = String(settings.retention);
 			setEnabled(settings.enabled);
-			setRetention(String(settings.retention));
+			setRetention(savedRetentionValue);
+			setSavedEnabled(settings.enabled);
+			setSavedRetention(savedRetentionValue);
 			void queryClient.invalidateQueries({ queryKey: ["backup-overview"] });
 			toastManager.add({ title: t`Backup settings saved`, variant: "success", timeout: 4000 });
 		},
@@ -117,168 +135,218 @@ export function BackupSettings() {
 		},
 	});
 
+	const handleSave = (event: React.FormEvent) => {
+		event.preventDefault();
+		saveMutation.mutate();
+	};
+
+	const title = t`Backups`;
+	const description = t`Download backups and schedule automatic backups to storage`;
+
 	if (isLoading) {
 		return (
-			<div className="flex items-center justify-center py-12">
-				<Loader size="lg" />
-			</div>
+			<SettingsFrame title={title} description={description}>
+				<div
+					className="flex items-center gap-2 rounded-xl border border-kumo-line bg-kumo-base px-4 py-4 text-sm text-kumo-subtle"
+					role="status"
+				>
+					<Loader size="sm" />
+					<span>{t`Loading...`}</span>
+				</div>
+			</SettingsFrame>
 		);
 	}
 
 	if (fetchError) {
 		return (
-			<div className="space-y-6">
-				<div className="flex items-center gap-3">
-					<BackToSettingsLink />
-					<h1 className="text-2xl font-semibold leading-tight">{t`Backups`}</h1>
-				</div>
-				<DialogError message={getMutationError(fetchError) || t`Failed to load backup settings`} />
-			</div>
+			<SettingsFrame title={title} description={description}>
+				<Banner
+					variant="error"
+					title={t`Failed to load backup settings`}
+					description={getMutationError(fetchError) || t`An error occurred`}
+					role="alert"
+				/>
+			</SettingsFrame>
 		);
 	}
 
 	const storageAvailable = overview?.storageAvailable ?? false;
 	const archives = overview?.archives ?? [];
+	const saveAction = storageAvailable ? (
+		<SaveButton
+			type="submit"
+			form="automatic-backups-form"
+			isDirty={isDirty}
+			isSaving={saveMutation.isPending}
+		/>
+	) : undefined;
 
 	return (
-		<div className="space-y-6">
-			{/* Header */}
-			<div className="flex items-center gap-3">
-				<BackToSettingsLink />
-				<h1 className="text-2xl font-semibold leading-tight">{t`Backups`}</h1>
-			</div>
-
-			{/* One-click download */}
-			<div className="rounded-lg border bg-kumo-base p-6">
-				<div className="flex items-center gap-2 mb-4">
-					<DownloadSimple className="h-5 w-5 text-kumo-subtle" />
-					<h2 className="text-lg font-semibold">{t`Download Backup`}</h2>
-				</div>
-				<p className="text-sm text-kumo-subtle mb-4">
-					{t`Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included.`}
-				</p>
-				<LinkButton href={BACKUP_EXPORT_URL}>{t`Download backup`}</LinkButton>
-			</div>
-
-			{/* Scheduled backups */}
-			<div className="rounded-lg border bg-kumo-base p-6">
-				<div className="flex items-center gap-2 mb-4">
-					<CloudArrowUp className="h-5 w-5 text-kumo-subtle" />
-					<h2 className="text-lg font-semibold">{t`Automatic Backups`}</h2>
-				</div>
-
-				{storageAvailable ? (
-					<div className="space-y-4">
-						<p className="text-sm text-kumo-subtle">
-							{t`Store a daily backup in your site's storage bucket. Old backups are removed automatically.`}
-						</p>
-						<Switch
-							label={t`Daily automatic backups`}
-							checked={enabled}
-							onCheckedChange={setEnabled}
-						/>
-						<div className="max-w-48">
-							<Input
-								label={t`Backups to keep`}
-								type="number"
-								min={1}
-								max={30}
-								value={retention}
-								onChange={(e) => setRetention(e.target.value)}
-							/>
+		<SettingsFrame title={title} description={description} actions={saveAction}>
+			<div className="grid gap-8">
+				<SettingsSection title={t`Download Backup`}>
+					<SettingRow>
+						<div className="grid gap-4 sm:grid-cols-2 sm:items-center">
+							<p className="text-sm leading-5 text-pretty text-kumo-subtle">
+								{t`Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included.`}
+							</p>
+							<div className="flex justify-end">
+								<LinkButton href={BACKUP_EXPORT_URL} variant="outline" icon={<DownloadSimple />}>
+									{t`Download backup`}
+								</LinkButton>
+							</div>
 						</div>
-						<div className="flex items-center gap-3">
-							<Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-								{saveMutation.isPending ? t`Saving...` : t`Save`}
-							</Button>
-							<Button
-								variant="secondary"
-								onClick={() => backupNowMutation.mutate()}
-								disabled={backupNowMutation.isPending}
-							>
-								{backupNowMutation.isPending ? t`Backing up...` : t`Back up now`}
-							</Button>
-						</div>
-					</div>
-				) : (
-					<div className="flex items-start gap-3 rounded-lg border border-kumo-warning/50 bg-kumo-warning-tint p-4">
-						<WarningCircle className="h-5 w-5 text-kumo-warning mt-0.5 flex-shrink-0" />
-						<p className="text-sm">
+					</SettingRow>
+				</SettingsSection>
+
+				<form id="automatic-backups-form" onSubmit={handleSave} noValidate>
+					<SettingsSection
+						title={t`Automatic Backups`}
+						description={t`Store a daily backup in your site's storage bucket. Old backups are removed automatically.`}
+						actions={
+							storageAvailable ? (
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => backupNowMutation.mutate()}
+									disabled={backupNowMutation.isPending}
+								>
+									{backupNowMutation.isPending ? t`Backing up...` : t`Back up now`}
+								</Button>
+							) : undefined
+						}
+					>
+						{storageAvailable ? (
+							<>
+								<SettingRow>
+									<Switch
+										label={t`Daily automatic backups`}
+										controlFirst={false}
+										className="ms-auto"
+										checked={enabled}
+										onCheckedChange={setEnabled}
+									/>
+								</SettingRow>
+								<SettingRow>
+									<div className="grid gap-4 sm:grid-cols-2 sm:items-center">
+										<div className="grid gap-1">
+											<label
+												id="backup-retention-label"
+												htmlFor="backup-retention"
+												className="text-sm font-medium"
+											>
+												{t`Backups to keep`}
+											</label>
+										</div>
+										<div className="flex justify-end">
+											<Input
+												id="backup-retention"
+												aria-labelledby="backup-retention-label"
+												className="w-full max-w-48"
+												type="number"
+												min={1}
+												max={30}
+												value={retention}
+												onChange={(event) => setRetention(event.target.value)}
+											/>
+										</div>
+									</div>
+								</SettingRow>
+							</>
+						) : (
+							<SettingRow>
+								<Banner
+									variant="alert"
+									title={t`Automatic Backups`}
+									description={t`Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them.`}
+									role="status"
+								/>
+							</SettingRow>
+						)}
+					</SettingsSection>
+				</form>
+
+				<SettingsSection
+					title={t`Stored Backups`}
+					contentClassName={
+						storageAvailable && archives.length === 0
+							? "border-2 border-dashed border-kumo-subtle/60"
+							: undefined
+					}
+				>
+					{!storageAvailable ? (
+						<SettingRow className="py-8 text-center text-sm text-kumo-subtle">
 							{t`Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them.`}
-						</p>
-					</div>
-				)}
-			</div>
-
-			{/* Stored archives */}
-			{storageAvailable && archives.length > 0 && (
-				<div className="rounded-lg border bg-kumo-base p-6">
-					<div className="flex items-center gap-2 mb-4">
-						<Archive className="h-5 w-5 text-kumo-subtle" />
-						<h2 className="text-lg font-semibold">{t`Stored Backups`}</h2>
-					</div>
-					<ul className="divide-y">
-						{archives.map((archive) => (
-							<li key={archive.name} className="flex items-center justify-between gap-3 py-3">
-								<div className="min-w-0">
-									<div className="font-mono text-sm truncate">{archive.name}</div>
-									<div className="text-sm text-kumo-subtle">
-										{i18n.date(new Date(archive.lastModified), {
-											dateStyle: "medium",
-											timeStyle: "short",
-										})}{" "}
-										· {formatBytes(archive.size)}
+						</SettingRow>
+					) : archives.length === 0 ? (
+						<SettingRow className="py-8 text-center text-sm text-kumo-subtle">
+							{t`No items yet`}
+						</SettingRow>
+					) : (
+						archives.map((archive) => (
+							<SettingRow key={archive.name}>
+								<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+									<div className="min-w-0 text-sm">
+										<div className="break-all font-mono text-[0.9em] leading-5">{archive.name}</div>
+										<div className="leading-5 text-kumo-subtle">
+											{i18n.date(new Date(archive.lastModified), {
+												dateStyle: "medium",
+												timeStyle: "short",
+											})}{" "}
+											· {formatBytes(archive.size)}
+										</div>
+									</div>
+									<div className="flex shrink-0 self-end items-center gap-2 sm:self-center">
+										<LinkButton
+											variant="outline"
+											size="sm"
+											href={backupArchiveUrl(archive.name)}
+											aria-label={t`Download ${archive.name}`}
+										>
+											<DownloadSimple className="h-4 w-4" />
+										</LinkButton>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											aria-label={t`Delete ${archive.name}`}
+											onClick={() => {
+												deleteMutation.reset();
+												setArchiveToDelete(archive);
+											}}
+										>
+											<Trash className="h-4 w-4 text-kumo-danger" />
+										</Button>
 									</div>
 								</div>
-								<div className="flex items-center gap-2 flex-shrink-0">
-									<LinkButton
-										variant="secondary"
-										size="sm"
-										href={backupArchiveUrl(archive.name)}
-										aria-label={t`Download ${archive.name}`}
-									>
-										<DownloadSimple className="h-4 w-4" />
-									</LinkButton>
-									<Button
-										variant="secondary"
-										size="sm"
-										aria-label={t`Delete ${archive.name}`}
-										onClick={() => {
-											deleteMutation.reset();
-											setArchiveToDelete(archive);
-										}}
-									>
-										<Trash className="h-4 w-4" />
-									</Button>
-								</div>
-							</li>
-						))}
-					</ul>
-				</div>
-			)}
+							</SettingRow>
+						))
+					)}
+				</SettingsSection>
 
-			{/* Time Travel hint */}
-			<div className="rounded-lg border bg-kumo-base p-6">
-				<div className="flex items-center gap-2 mb-2">
-					<ClockCounterClockwise className="h-5 w-5 text-kumo-subtle" />
-					<h2 className="text-lg font-semibold">{t`Point-in-Time Restore`}</h2>
-				</div>
-				<p className="text-sm text-kumo-subtle">
-					{t`Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required.`}{" "}
-					<a
-						className="underline"
-						href="https://developers.cloudflare.com/d1/reference/time-travel/"
-						target="_blank"
-						rel="noreferrer"
-					>
-						{t`Learn more`}
-					</a>
-				</p>
+				<SettingsSection title={t`Point-in-Time Restore`}>
+					<SettingRow>
+						<p className="max-w-2xl text-sm leading-5 text-kumo-subtle">
+							{t`Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required.`}{" "}
+							<a
+								className="font-medium text-kumo-link underline underline-offset-2"
+								href="https://developers.cloudflare.com/d1/reference/time-travel/"
+								target="_blank"
+								rel="noreferrer"
+							>
+								{t`Learn more`}
+							</a>
+						</p>
+					</SettingRow>
+				</SettingsSection>
 			</div>
 
 			<ConfirmDialog
 				open={archiveToDelete !== null}
-				onClose={() => setArchiveToDelete(null)}
+				onClose={() => {
+					setArchiveToDelete(null);
+					deleteMutation.reset();
+				}}
 				title={t`Delete backup?`}
 				description={t`This permanently deletes ${archiveToDelete?.name ?? ""} from storage.`}
 				confirmLabel={t`Delete`}
@@ -289,6 +357,6 @@ export function BackupSettings() {
 					if (archiveToDelete) deleteMutation.mutate(archiveToDelete.name);
 				}}
 			/>
-		</div>
+		</SettingsFrame>
 	);
 }

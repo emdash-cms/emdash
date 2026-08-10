@@ -43,7 +43,16 @@ export type StateId =
 	| "human_owned"
 	| "done"
 	| "declined"
-	| "failed";
+	| "failed"
+	// --- next-generation: investigation lifecycle (maintainer-triggered) ---
+	| "investigating"
+	| "reproduced"
+	| "not_reproduced"
+	| "needs_info"
+	// --- next-generation: fix loop (maintainer-triggered) ---
+	| "fixing"
+	| "preview_building"
+	| "awaiting_reporter";
 
 export interface StateMeta {
 	/** GitHub label that encodes this state. One per item, always. */
@@ -76,20 +85,21 @@ export const STATES: Record<StateId, StateMeta> = {
 		// The implicit starting point: an issue the bot has never touched. It
 		// carries no state label, so it is not provisioned and never appears on
 		// the board until a command moves it in. Entry commands (repro /
-		// implement / decline) work here directly -- triage is not a prerequisite.
+		// investigate / implement / decline) work here directly -- triage is not
+		// a prerequisite.
 		label: "",
 		boardColumn: "(none)",
 		description:
 			"No bot labels yet. An issue nobody has handed to the bot. Entry commands work directly.",
 		terminal: false,
-		offeredCommands: ["repro", "implement", "decline"],
+		offeredCommands: ["investigate", "repro", "implement", "decline"],
 	},
 	triage: {
 		label: "bot:triage",
 		boardColumn: "Triage",
 		description: "Filed and awaiting a decision on whether/how the bot should act.",
 		terminal: false,
-		offeredCommands: ["repro", "implement", "decline"],
+		offeredCommands: ["investigate", "repro", "implement", "decline"],
 	},
 	working: {
 		label: "bot:working",
@@ -105,7 +115,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"The bot stopped and needs a human decision. Covers the old skipped / not-reproduced / reproduced-no-fix / by-design outcomes; the reason is in the bot's comment.",
 		terminal: false,
-		offeredCommands: ["implement", "repro", "retry", "decline", "take_over"],
+		offeredCommands: ["investigate", "implement", "repro", "retry", "decline", "take_over"],
 	},
 	awaiting_feedback: {
 		label: "bot:awaiting-feedback",
@@ -151,7 +161,73 @@ export const STATES: Record<StateId, StateMeta> = {
 		boardColumn: "Failed",
 		description: "An agent run errored or produced no usable result. Retryable -- not a dead end.",
 		terminal: false,
-		offeredCommands: ["retry", "implement", "repro", "decline"],
+		offeredCommands: ["retry", "implement", "repro", "investigate", "decline"],
+	},
+
+	// -----------------------------------------------------------------------
+	// Next-generation states. Investigation is repro+diagnose in one run with
+	// no auto-fix; the fix loop is a separate maintainer-gated trigger. Both
+	// are expensive (kimi k2.7-code) so their entry events are maintainer-only.
+	// -----------------------------------------------------------------------
+
+	investigating: {
+		label: "bot:investigating",
+		boardColumn: "Investigating",
+		description:
+			"A maintainer-triggered investigation is in flight: reproduce + diagnose, no fix. Emits an evidence-carrying verdict.",
+		terminal: false,
+		transient: true,
+		offeredCommands: ["status"],
+	},
+	reproduced: {
+		label: "bot:reproduced",
+		boardColumn: "Reproduced",
+		description:
+			"Verdict: reproduced with a diagnosis attached. Resting until a maintainer triggers the fix loop or disposes of it.",
+		terminal: false,
+		offeredCommands: ["fix", "investigate", "decline", "take_over"],
+	},
+	not_reproduced: {
+		label: "bot:not-reproduced",
+		boardColumn: "Not reproduced",
+		description:
+			"Verdict: could not reproduce, transcript attached. A first-class outcome, not a failure. Reporter can add steps; a maintainer can re-investigate.",
+		terminal: false,
+		offeredCommands: ["investigate", "decline", "take_over"],
+	},
+	needs_info: {
+		label: "bot:needs-info",
+		boardColumn: "Needs info",
+		description:
+			"Verdict: the investigation needs information only the reporter has. Evidence records what was tried and what is missing.",
+		terminal: false,
+		offeredCommands: ["investigate", "decline", "take_over"],
+	},
+	fixing: {
+		label: "bot:fixing",
+		boardColumn: "Fixing",
+		description:
+			"A maintainer-triggered fix run is in flight: build a candidate change on bot/fix-<n>. No PR yet.",
+		terminal: false,
+		transient: true,
+		offeredCommands: ["status"],
+	},
+	preview_building: {
+		label: "bot:preview-building",
+		boardColumn: "Building preview",
+		description:
+			"The candidate fix is pushed; a preview deploy is building so the reporter can try the change before a PR exists.",
+		terminal: false,
+		transient: true,
+		offeredCommands: ["status"],
+	},
+	awaiting_reporter: {
+		label: "bot:awaiting-reporter",
+		boardColumn: "Awaiting reporter",
+		description:
+			"Preview link posted; waiting for the reporter to confirm the fix. On confirm a draft PR opens; on denial or 14-day silence the branch is reaped.",
+		terminal: false,
+		offeredCommands: ["confirm", "reject", "decline", "take_over"],
 	},
 };
 
@@ -186,7 +262,10 @@ export type CommandVerb =
 	| "hand_back"
 	| "reset"
 	| "status"
-	| "help";
+	| "help"
+	// --- next-generation maintainer triggers ---
+	| "investigate"
+	| "fix";
 
 // Events the agent action workflow emits after a run, derived from the flat
 // gating fields in the Flue result (skipped / reproduced / fixed / verdict).
@@ -197,6 +276,7 @@ export type AgentEvent =
 	| "agent.by_design" // verdict === "intended-behavior"
 	| "agent.reproduced" // reproduced && !fixed
 	| "agent.fix_ready" // reproduced && fixed
+	| "agent.needs_info" // reproduced/unclear but blocked on reporter-only info
 	| "agent.failed"; // nonzero exit / no result file
 
 // GitHub PR lifecycle events that propagate onto the anchoring issue.
@@ -207,7 +287,15 @@ export type PrEvent =
 	| "pr.changes_requested"
 	| "pr.approved";
 
-export type EventId = CommandVerb | AgentEvent | PrEvent;
+// Preview-deploy lifecycle events, emitted by the preview-build pipeline.
+export type PreviewEvent =
+	| "preview.ready" // deploy succeeded; link ready to post
+	| "preview.failed"; // deploy errored; no link
+
+// Timer/alarm events, emitted by the DO cleanup alarm.
+export type TimerEvent = "expire"; // reporter silence window elapsed
+
+export type EventId = CommandVerb | AgentEvent | PrEvent | PreviewEvent | TimerEvent;
 
 export interface EventMeta {
 	description: string;
@@ -240,6 +328,16 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		labelTriggers: ["bot:repro"],
 		defaultKind: "bug",
 	},
+	// Next-generation split of `repro`: reproduce + diagnose only, no auto-fix.
+	// The fix loop is a separate `fix` trigger. Maintainer-only (expensive run).
+	investigate: {
+		description:
+			"Reproduce and diagnose the issue as a bug, with evidence. Does not attempt a fix.",
+		actors: ["maintainer"],
+		labelTriggers: ["bot:investigate"],
+		arg: "directive",
+		defaultKind: "bug",
+	},
 	implement: {
 		description:
 			"Build the described change (feature or directed fix), skipping the bug-repro gate.",
@@ -247,6 +345,15 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		labelTriggers: ["bot:implement"],
 		arg: "directive",
 		defaultKind: "enhancement",
+	},
+	// Next-generation: start the gated fix loop on a reproduced+diagnosed issue.
+	// Produces a candidate branch and a preview build, not a PR. Maintainer-only.
+	fix: {
+		description:
+			"Build a candidate fix on a bot branch and post a preview for the reporter to try.",
+		actors: ["maintainer"],
+		labelTriggers: ["bot:fix"],
+		arg: "directive",
 	},
 	// NB: `retry` is always wired to `investigate.repro` in the transition
 	// table (we don't persist the previous run's mode), so the user-facing
@@ -326,6 +433,13 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description: "Reproduced and fixed; a verified change is staged on bot/fix-<n>.",
 		actors: ["system"],
 	},
+	// Next-generation: the investigation ran but is blocked on reporter-only
+	// information (missing repro details it could not infer). Carries evidence
+	// of what was attempted and what is still needed.
+	"agent.needs_info": {
+		description: "Investigation is blocked on information only the reporter can supply.",
+		actors: ["system"],
+	},
 	"agent.failed": {
 		description: "Agent run errored or produced no usable result.",
 		actors: ["system"],
@@ -345,6 +459,20 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description: "A reviewer approved the PR (review sub-state).",
 		actors: ["system"],
 	},
+	// --- preview-deploy lifecycle (next-generation fix loop) ---
+	"preview.ready": {
+		description: "The preview deploy for the candidate fix is live; link ready to post.",
+		actors: ["system"],
+	},
+	"preview.failed": {
+		description: "The preview deploy failed to build.",
+		actors: ["system"],
+	},
+	// --- timers (next-generation cleanup alarm) ---
+	expire: {
+		description: "The reporter-confirmation window elapsed without a reply.",
+		actors: ["system"],
+	},
 };
 
 // ---------------------------------------------------------------------------
@@ -359,7 +487,12 @@ export type ActionId =
 	| "investigate.implement" // directed build/fix (sets maintainerDirective)
 	| "investigate.revise" // re-run against existing bot/fix-<n> with PR feedback
 	| "openPr" // push branch (already done) + gh pr create
-	| "closePr"; // close the bot PR
+	| "closePr" // close the bot PR
+	// --- next-generation actions ---
+	| "investigate.diagnose" // bug repro -> diagnose only, no fix; emits a verdict
+	| "investigate.fix" // build candidate fix on bot/fix-<n>, push, kick preview
+	| "openDraftPr" // open a DRAFT PR from the reporter-confirmed fix branch
+	| "reapBranch"; // delete the unvalidated bot/fix-<n> branch
 
 // ---------------------------------------------------------------------------
 // Transitions
@@ -466,7 +599,7 @@ export const TRANSITIONS: Transition[] = [
 	// from every state where the PR may still be open: bot:working (during a
 	// revise run) and bot:awaiting-feedback (right after a revise produced a
 	// new fix and is awaiting reporter confirmation). Late agent results that
-	// arrive after the merge no-op via investigate-run.yml's terminal guard.
+	// arrive after the merge no-op via the orchestrator's inert-state guard.
 	{ from: "working", event: "pr.merged", to: "done", note: "merged mid-revise" },
 	{ from: "awaiting_feedback", event: "pr.merged", to: "done", note: "merged before confirm" },
 
@@ -509,6 +642,137 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "failed", event: "implement", to: "working", action: "investigate.implement" },
 	{ from: "failed", event: "repro", to: "working", action: "investigate.repro" },
 	{ from: "failed", event: "decline", to: "declined" },
+
+	// =======================================================================
+	// Next-generation: investigation lifecycle (maintainer-triggered).
+	// `investigate` = reproduce + diagnose, no fix. It enters from every place
+	// a maintainer might trigger it: cold issues, the triage rest state, the
+	// generic blocked/failed buckets, and its own verdict states (re-run).
+	// =======================================================================
+	{
+		from: "unmanaged",
+		event: "investigate",
+		to: "investigating",
+		action: "investigate.diagnose",
+		note: "cold trigger; applies bot:bug",
+	},
+	{
+		from: "triage",
+		event: "investigate",
+		to: "investigating",
+		action: "investigate.diagnose",
+	},
+	{ from: "blocked", event: "investigate", to: "investigating", action: "investigate.diagnose" },
+	{ from: "failed", event: "investigate", to: "investigating", action: "investigate.diagnose" },
+	{
+		from: "not_reproduced",
+		event: "investigate",
+		to: "investigating",
+		action: "investigate.diagnose",
+		note: "re-run after the reporter adds steps",
+	},
+	{
+		from: "needs_info",
+		event: "investigate",
+		to: "investigating",
+		action: "investigate.diagnose",
+		note: "re-run once the missing info arrives",
+	},
+	{
+		from: "reproduced",
+		event: "investigate",
+		to: "investigating",
+		action: "investigate.diagnose",
+		note: "re-diagnose",
+	},
+
+	// --- investigation outcomes (from investigating) ---
+	{ from: "investigating", event: "agent.reproduced", to: "reproduced" },
+	{ from: "investigating", event: "agent.not_reproduced", to: "not_reproduced" },
+	{ from: "investigating", event: "agent.needs_info", to: "needs_info" },
+	{
+		from: "investigating",
+		event: "agent.by_design",
+		to: "blocked",
+		note: "by-design verdict rests in blocked for a maintainer to decline",
+	},
+	{
+		from: "investigating",
+		event: "agent.skipped",
+		to: "blocked",
+		note: "repro needs external/prod-only conditions",
+	},
+	{ from: "investigating", event: "agent.failed", to: "failed" },
+
+	// --- verdict disposal edges (maintainer disposes; humans dispose) ---
+	{ from: "reproduced", event: "fix", to: "fixing", action: "investigate.fix" },
+	{ from: "reproduced", event: "decline", to: "declined" },
+	{ from: "reproduced", event: "take_over", to: "human_owned" },
+	{ from: "not_reproduced", event: "decline", to: "declined" },
+	{ from: "not_reproduced", event: "take_over", to: "human_owned" },
+	{ from: "needs_info", event: "decline", to: "declined" },
+	{ from: "needs_info", event: "take_over", to: "human_owned" },
+
+	// =======================================================================
+	// Next-generation: fix loop (maintainer-triggered).
+	// candidate fix (fixing) -> preview build (preview_building) -> reporter
+	// confirmation (awaiting_reporter) -> draft PR (in_review) or reap.
+	// =======================================================================
+	{ from: "fixing", event: "agent.fix_ready", to: "preview_building" },
+	{ from: "fixing", event: "agent.failed", to: "failed" },
+	{
+		from: "fixing",
+		event: "agent.by_design",
+		to: "blocked",
+		note: "fix run concluded the behaviour is intended",
+	},
+	{
+		from: "fixing",
+		event: "agent.skipped",
+		to: "blocked",
+		note: "fix run skipped rather than building a candidate; rest in blocked for a maintainer",
+	},
+
+	{ from: "preview_building", event: "preview.ready", to: "awaiting_reporter" },
+	{
+		from: "preview_building",
+		event: "preview.failed",
+		to: "reproduced",
+		note: "candidate branch retained; the diagnosis still holds, so fall back to the reproduced verdict",
+	},
+
+	{ from: "awaiting_reporter", event: "confirm", to: "in_review", action: "openDraftPr" },
+	{
+		from: "awaiting_reporter",
+		event: "reject",
+		to: "reproduced",
+		action: "reapBranch",
+		note: "denial reaps the unvalidated branch; feedback is recorded for the next fix",
+	},
+	{
+		from: "awaiting_reporter",
+		event: "expire",
+		to: "reproduced",
+		action: "reapBranch",
+		note: "14-day silence reaps the branch; the reproduced verdict survives",
+	},
+	{ from: "awaiting_reporter", event: "take_over", to: "human_owned" },
+	{
+		from: "awaiting_reporter",
+		event: "decline",
+		to: "declined",
+		action: "reapBranch",
+		note: "maintainer disposal reaps the branch",
+	},
+
+	// --- reset: maintainer recovery from every next-generation state ---
+	{ from: "investigating", event: "reset", to: "triage" },
+	{ from: "reproduced", event: "reset", to: "triage" },
+	{ from: "not_reproduced", event: "reset", to: "triage" },
+	{ from: "needs_info", event: "reset", to: "triage" },
+	{ from: "fixing", event: "reset", to: "triage" },
+	{ from: "preview_building", event: "reset", to: "triage" },
+	{ from: "awaiting_reporter", event: "reset", to: "triage" },
 ];
 
 // ---------------------------------------------------------------------------

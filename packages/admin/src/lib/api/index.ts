@@ -94,6 +94,7 @@ export {
 	updateField,
 	deleteField,
 	reorderFields,
+	reorderCollections,
 	fetchOrphanedTables,
 	registerOrphanedTable,
 } from "./schema.js";

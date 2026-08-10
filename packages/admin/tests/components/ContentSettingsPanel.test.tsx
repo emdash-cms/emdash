@@ -135,6 +135,43 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByRole("button", { name: "Move to Trash" })).toBeInTheDocument();
 	});
 
+	it("shows the normalized pending changes label", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ isLive: true, hasPendingChanges: true })} />,
+		);
+
+		await expect.element(screen.getByText("Pending changes")).toBeInTheDocument();
+	});
+
+	it("shows Scheduled without a Draft companion", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ hasSchedule: true })} />,
+		);
+
+		await expect.element(screen.getByText("Scheduled", { exact: true })).toBeInTheDocument();
+		expect(screen.container.textContent).not.toContain("Draft");
+	});
+
+	it("normalizes recognized statuses for collections without draft support", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ status: "published", supportsDrafts: false })} />,
+		);
+		const statusRow = screen.getByText("Status", { exact: true }).element().parentElement!;
+
+		expect(statusRow.textContent).toContain("Published");
+		expect(statusRow.querySelector("svg")).not.toBeNull();
+	});
+
+	it("preserves custom statuses for collections without draft support", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ status: "reviewing", supportsDrafts: false })} />,
+		);
+		const statusRow = screen.getByText("Status", { exact: true }).element().parentElement!;
+
+		expect(statusRow.textContent).toContain("Reviewing");
+		expect(statusRow.querySelector("svg")).toBeNull();
+	});
+
 	it("hides Ownership and Bylines for users below the editor role", async () => {
 		const screen = await render(
 			<ContentSettingsPanel {...makePanelProps({ currentUser: AUTHOR_ROLE })} />,
@@ -303,30 +340,30 @@ describe("SettingsActionBar", () => {
 		vi.clearAllMocks();
 	});
 
-	it("shows Publish Post for an unpublished draft", async () => {
+	it("shows Publish for an unpublished draft", async () => {
 		const screen = await render(<SettingsActionBar {...makeBarProps()} />);
-		const publish = screen.getByRole("button", { name: "Publish Post" });
+		const publish = screen.getByRole("button", { name: "Publish", exact: true });
 
 		await expect.element(publish).toBeInTheDocument();
 		expect(publish.element().className).toContain("button-emphasis-bg");
 		expect(screen.container.textContent).not.toContain("Unpublish Post");
 	});
 
-	it("preserves configured collection label casing", async () => {
+	it("uses the normalized Publish label for every collection", async () => {
 		const screen = await render(
 			<SettingsActionBar {...makeBarProps({ collectionLabel: "API Docs" })} />,
 		);
 
 		await expect
-			.element(screen.getByRole("button", { name: "Publish API Docs", exact: true }))
+			.element(screen.getByRole("button", { name: "Publish", exact: true }))
 			.toBeInTheDocument();
 	});
 
-	it("shows Publish updates for a live item with edits", async () => {
+	it("shows Publish for a live item with edits", async () => {
 		const props = makeBarProps({ isLive: true, hasPendingChanges: true });
 		const screen = await render(<SettingsActionBar {...props} />);
 
-		const publishChanges = screen.getByRole("button", { name: "Publish updates" });
+		const publishChanges = screen.getByRole("button", { name: "Publish", exact: true });
 		await expect.element(publishChanges).toBeInTheDocument();
 		expect(publishChanges.element().className).toContain("button-emphasis-bg");
 
@@ -380,7 +417,7 @@ describe("SettingsActionBar", () => {
 			screen.getByRole("button", { name: "Saved" }).element(),
 			screen.getByRole("link", { name: "Live View" }).element(),
 			screen.getByRole("button", { name: "Preview draft" }).element(),
-			screen.getByRole("button", { name: "Publish updates" }).element(),
+			screen.getByRole("button", { name: "Publish", exact: true }).element(),
 		];
 		const slots = actions.map((action) => action.parentElement);
 

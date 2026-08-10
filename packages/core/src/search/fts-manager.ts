@@ -10,7 +10,22 @@ import { sql } from "kysely";
 import { isSqlite, tableExists as dialectTableExists } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
-import type { SearchConfig } from "./types.js";
+import { SEARCH_TOKENIZERS } from "./types.js";
+import type { SearchConfig, SearchTokenizer } from "./types.js";
+
+const DEFAULT_SEARCH_TOKENIZER: SearchTokenizer = "porter unicode61";
+
+function isSearchTokenizer(value: unknown): value is SearchTokenizer {
+	return SEARCH_TOKENIZERS.some((tokenizer) => tokenizer === value);
+}
+
+function resolveSearchTokenizer(tokenize?: SearchTokenizer): SearchTokenizer {
+	if (tokenize === undefined) return DEFAULT_SEARCH_TOKENIZER;
+	if (!isSearchTokenizer(tokenize)) {
+		throw new Error(`Unsupported FTS5 tokenizer: "${String(tokenize)}"`);
+	}
+	return tokenize;
+}
 
 /**
  * FTS5 Manager
@@ -66,12 +81,15 @@ export class FTSManager {
 	 * @param collectionSlug - The collection slug
 	 * @param searchableFields - Array of field names to index
 	 * @param weights - Optional field weights for ranking
+	 * @param tokenize - Optional FTS5 tokenizer configuration
 	 */
 	async createFtsTable(
 		collectionSlug: string,
 		searchableFields: string[],
 		_weights?: Record<string, number>,
+		tokenize?: SearchTokenizer,
 	): Promise<void> {
+		const tokenizer = resolveSearchTokenizer(tokenize);
 		if (!isSqlite(this.db)) return;
 		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
@@ -88,14 +106,13 @@ export class FTSManager {
 		// `createTriggers` keep the index in sync; they MUST use the
 		// external-content-safe `'delete'` command (see notes there) to
 		// avoid `SQLITE_CORRUPT_VTAB` on UPDATE/DELETE.
-		// tokenize='porter unicode61' enables stemming (run matches running, ran, etc.)
 		await sql
 			.raw(`
 			CREATE VIRTUAL TABLE IF NOT EXISTS "${ftsTable}" USING fts5(
 				${columns},
 				content='${contentTable}',
 				content_rowid='rowid',
-				tokenize='porter unicode61'
+				tokenize='${tokenizer}'
 			)
 		`)
 			.execute(this.db);
@@ -247,13 +264,15 @@ export class FTSManager {
 		collectionSlug: string,
 		searchableFields: string[],
 		weights?: Record<string, number>,
+		tokenize?: SearchTokenizer,
 	): Promise<void> {
+		resolveSearchTokenizer(tokenize);
 		if (!isSqlite(this.db)) return;
 		// Drop existing table and triggers
 		await this.dropFtsTable(collectionSlug);
 
 		// Recreate table and triggers
-		await this.createFtsTable(collectionSlug, searchableFields, weights);
+		await this.createFtsTable(collectionSlug, searchableFields, weights, tokenize);
 
 		// Populate from existing content
 		await this.populateFromContent(collectionSlug, searchableFields);
@@ -314,6 +333,12 @@ export class FTSManager {
 				}
 				config.weights = weights;
 			}
+			if ("tokenize" in parsed) {
+				if (!isSearchTokenizer(parsed.tokenize)) {
+					return null;
+				}
+				config.tokenize = parsed.tokenize;
+			}
 			return config;
 		} catch {
 			return null;
@@ -324,6 +349,9 @@ export class FTSManager {
 	 * Update the search configuration for a collection
 	 */
 	async setSearchConfig(collectionSlug: string, config: SearchConfig): Promise<void> {
+		if (config.tokenize !== undefined) {
+			resolveSearchTokenizer(config.tokenize);
+		}
 		await this.db
 			.updateTable("_emdash_collections")
 			.set({ search_config: JSON.stringify(config) })
@@ -399,8 +427,11 @@ export class FTSManager {
 	 */
 	async enableSearch(
 		collectionSlug: string,
-		options?: { weights?: Record<string, number> },
+		options?: { weights?: Record<string, number>; tokenize?: SearchTokenizer },
 	): Promise<void> {
+		if (options?.tokenize !== undefined) {
+			resolveSearchTokenizer(options.tokenize);
+		}
 		if (!isSqlite(this.db)) {
 			throw new Error("Full-text search is only available with SQLite databases");
 		}
@@ -414,13 +445,18 @@ export class FTSManager {
 			);
 		}
 
+		const existing = await this.getSearchConfig(collectionSlug);
+		const weights = options?.weights ?? existing?.weights;
+		const tokenize = options?.tokenize ?? existing?.tokenize;
+
 		// Rebuild from scratch to ensure clean state (no duplicate rows)
-		await this.rebuildIndex(collectionSlug, searchableFields, options?.weights);
+		await this.rebuildIndex(collectionSlug, searchableFields, weights, tokenize);
 
 		// Update search config
 		await this.setSearchConfig(collectionSlug, {
 			enabled: true,
-			weights: options?.weights,
+			weights,
+			tokenize,
 		});
 	}
 
@@ -433,7 +469,11 @@ export class FTSManager {
 		if (!isSqlite(this.db)) return;
 		await this.dropFtsTable(collectionSlug);
 		const existing = await this.getSearchConfig(collectionSlug);
-		await this.setSearchConfig(collectionSlug, { enabled: false, weights: existing?.weights });
+		await this.setSearchConfig(collectionSlug, {
+			enabled: false,
+			weights: existing?.weights,
+			tokenize: existing?.tokenize,
+		});
 	}
 
 	/**
@@ -490,7 +530,7 @@ export class FTSManager {
 			}
 
 			console.warn(`FTS index for "${collectionSlug}" is missing. Rebuilding.`);
-			await this.rebuildIndex(collectionSlug, fields, config.weights);
+			await this.rebuildIndex(collectionSlug, fields, config.weights, config.tokenize);
 			return true;
 		}
 
@@ -515,7 +555,7 @@ export class FTSManager {
 				`FTS index for "${collectionSlug}" has ${ftsRows} rows but content table has ${contentRows}. Rebuilding.`,
 			);
 			if (fields.length > 0) {
-				await this.rebuildIndex(collectionSlug, fields, config?.weights);
+				await this.rebuildIndex(collectionSlug, fields, config?.weights, config?.tokenize);
 			}
 			return true;
 		}

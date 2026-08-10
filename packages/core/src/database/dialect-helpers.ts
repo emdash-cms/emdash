@@ -38,6 +38,44 @@ export function isPostgres(db: Kysely<any>): boolean {
 }
 
 /**
+ * Declared by an adapter whose backend caps the number of terms in a compound
+ * SELECT (`UNION ALL`, `INTERSECT`, `EXCEPT`). SQLite's own
+ * SQLITE_LIMIT_COMPOUND_SELECT default is 500 — high enough that no query
+ * EmDash builds approaches it — but Cloudflare D1 sets it to 5 and rejects
+ * anything larger with "too many terms in compound SELECT".
+ */
+export interface CompoundSelectLimitedAdapter {
+	/** Maximum terms per compound SELECT. Must be a positive integer. */
+	readonly compoundSelectLimit: number;
+}
+
+/**
+ * The backend's compound-SELECT ceiling, or null when it has none worth
+ * splitting statements for. Only the adapter knows: the limit is a property of
+ * the SQLite build behind the dialect, not of the SQL flavour, so two "sqlite"
+ * dialects can answer differently.
+ *
+ * A declared ceiling must be a positive integer — callers batch by it, and
+ * every other value silently misbehaves rather than failing: 0 and negatives
+ * never advance the batch cursor, fractions overlap batches and double-count,
+ * NaN yields an empty batch. A malformed declaration throws here, where the
+ * message can name the adapter.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export function compoundSelectLimit(db: Kysely<any>): number | null {
+	const adapter: object = db.getExecutor().adapter;
+	if (!("compoundSelectLimit" in adapter)) return null;
+
+	const limit: unknown = adapter.compoundSelectLimit;
+	if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1) {
+		throw new Error(
+			`${adapter.constructor.name} declares compoundSelectLimit ${String(limit)}; it must be a positive integer.`,
+		);
+	}
+	return limit;
+}
+
+/**
  * Default timestamp expression for column defaults.
  * Wrapped in parens for use in CREATE TABLE ... DEFAULT (...).
  *
@@ -69,35 +107,16 @@ export function currentTimestampValue(db: Kysely<any>): RawBuilder<string> {
 
 /**
  * Build WHERE clause for status filtering on a content table.
- * When filtering for 'published' status, also include scheduled content
- * whose scheduled_at time has passed (treating it as effectively published).
- *
- * Visibility is computed, not flipped by cron, so a literal
- * `status = 'published'` comparison undercounts scheduled-and-due entries —
- * every "publicly visible" filter must go through this helper.
+ * Scheduled content becomes public only after the publication sweep commits
+ * the row with a literal `published` status.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function buildStatusCondition(
-	db: Kysely<any>,
+	_db: Kysely<any>,
 	status: string,
 	tablePrefix?: string,
 ): ReturnType<typeof sql> {
 	const statusField = tablePrefix ? `${tablePrefix}.status` : "status";
-	const scheduledAtField = tablePrefix ? `${tablePrefix}.scheduled_at` : "scheduled_at";
-
-	if (status === "published") {
-		// Include both published content AND scheduled content past its publish time.
-		// scheduled_at is stored as text (ISO 8601). On Postgres, we must cast it
-		// to timestamptz for the comparison with CURRENT_TIMESTAMP to work.
-		const scheduledAtExpr = isPostgres(db)
-			? sql`${sql.ref(scheduledAtField)}::timestamptz`
-			: sql.ref(scheduledAtField);
-		const nowExpr = isPostgres(db)
-			? currentTimestampValue(db)
-			: sql`strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
-		return sql`(${sql.ref(statusField)} = 'published' OR (${sql.ref(statusField)} = 'scheduled' AND ${scheduledAtExpr} <= ${nowExpr}))`;
-	}
-
 	return sql`${sql.ref(statusField)} = ${status}`;
 }
 

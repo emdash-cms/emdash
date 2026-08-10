@@ -279,6 +279,7 @@ describe("Bridge Handler Conformance", () => {
 				.addColumn("data", "text")
 				.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
 				.addColumn("translation_group", "text")
+				.addColumn("sort_order", "integer", (col) => col.notNull().defaultTo(0))
 				.execute();
 			await db.schema
 				.createTable("content_taxonomies")
@@ -297,6 +298,7 @@ describe("Bridge Handler Conformance", () => {
 						data: '{"description":"Space"}',
 						locale: "en",
 						translation_group: "tg-scifi",
+						sort_order: 0,
 					},
 					{
 						id: "term-de",
@@ -305,6 +307,8 @@ describe("Bridge Handler Conformance", () => {
 						label: "Science-Fiction",
 						locale: "de",
 						translation_group: "tg-scifi",
+						// Same group as term-en, so the same position.
+						sort_order: 0,
 					},
 					{
 						id: "term-other",
@@ -313,6 +317,9 @@ describe("Bridge Handler Conformance", () => {
 						label: "Fantasy",
 						locale: "en",
 						translation_group: "tg-fantasy",
+						// Placed after Sci-Fi by hand, against its label — so the
+						// assertion below fails if the manual order stops leading.
+						sort_order: 1,
 					},
 				])
 				.execute();
@@ -337,8 +344,8 @@ describe("Bridge Handler Conformance", () => {
 			const terms = await call(handler, "taxonomy/terms", { taxonomy: "genre", locale: "en" });
 			expect(terms.error).toBeUndefined();
 			const termRows = terms.result as Array<Record<string, unknown>>;
-			expect(termRows.map((t) => t.slug)).toEqual(["fantasy", "scifi"]);
-			expect(termRows[1]).toMatchObject({
+			expect(termRows.map((t) => t.slug)).toEqual(["scifi", "fantasy"]);
+			expect(termRows[0]).toMatchObject({
 				id: "term-en",
 				data: { description: "Space" },
 				translationGroup: "tg-scifi",

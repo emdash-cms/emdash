@@ -29,6 +29,7 @@ import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/d
 import { useDebouncedValue } from "../lib/hooks.js";
 import { cn, slugify } from "../lib/utils";
 import type { CurrentUserInfo } from "./ContentEditor.js";
+import { ContentStatusBadge, isContentStatusState } from "./ContentStatusBadge.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
 import type { GalleryAttributes } from "./editor/GalleryNode";
@@ -187,14 +188,14 @@ export function PublishActions({
 	if (!isLive) {
 		return (
 			<Button type="button" variant="primary" size={size} onClick={onPublish} icon={<Upload />}>
-				{t`Publish ${itemLabel}`}
+				{t`Publish`}
 			</Button>
 		);
 	}
 	if (hasPendingChanges) {
 		return (
 			<Button type="button" variant="primary" size={size} onClick={onPublish} icon={<Upload />}>
-				{t`Publish updates`}
+				{t`Publish`}
 			</Button>
 		);
 	}
@@ -473,11 +474,13 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									<Label>{t`Status`}</Label>
 									{supportsDrafts ? (
 										<>
-											{isLive && <Badge variant="success">{t`Published`}</Badge>}
-											{hasPendingChanges && <Badge variant="secondary">{t`Pending changes`}</Badge>}
-											{!isLive && !hasSchedule && <Badge variant="secondary">{t`Draft`}</Badge>}
-											{hasSchedule && <Badge variant="outline">{t`Scheduled`}</Badge>}
+											{isLive && <ContentStatusBadge state="published" />}
+											{hasPendingChanges && <ContentStatusBadge state="pendingChanges" />}
+											{!isLive && !hasSchedule && <ContentStatusBadge state="draft" />}
+											{hasSchedule && <ContentStatusBadge state="scheduled" />}
 										</>
+									) : isContentStatusState(status) ? (
+										<ContentStatusBadge state={status} />
 									) : (
 										<Badge variant="secondary">
 											{status.charAt(0).toUpperCase() + status.slice(1)}
@@ -678,6 +681,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								contentKey={item?.id ?? `new:${collection}`}
 								seo={item?.seo}
 								onChange={onSeoChange}
+								defaultTitle={typeof item?.data?.title === "string" ? item.data.title : null}
+								defaultDescription={
+									typeof item?.data?.excerpt === "string" ? item.data.excerpt : null
+								}
 							/>
 						</div>
 					</SortableContentSettingsSection>
