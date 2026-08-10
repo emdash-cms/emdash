@@ -353,6 +353,7 @@ async function runOutsideRequest<T>(
 		// Event handlers publish, clean up, or run jobs — a write workload —
 		// so a connection-backed adapter routes them to the primary.
 		isWrite: true,
+		canUseCachedBinding: false,
 		cookies: NOOP_COOKIE_JAR,
 		url: CRON_EVENT_URL,
 	});

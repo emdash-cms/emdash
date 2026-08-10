@@ -85,6 +85,9 @@ describe("withEmDashRuntime (#1887)", () => {
 		await withEmDashRuntime(() => "ok");
 
 		expect(mockGetLastContentWriteAt).not.toHaveBeenCalled();
+		expect(createRequestScopedDb).toHaveBeenCalledWith(
+			expect.objectContaining({ canUseCachedBinding: false }),
+		);
 	});
 
 	it("passes the runtime to the callback and returns its result (stateless adapter)", async () => {
