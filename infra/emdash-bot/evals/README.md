@@ -92,8 +92,10 @@ through the issue's DO.
 
 ## Dataset
 
-`dataset.json` — 26 curated closed issues (17 confirmed bugs with fixing PRs, 5
-not-reproducible, 4 needs-info). Each confirmed-bug case carries `pre_fix`
-(the fixing merge commit + its parents) and `fault_anchors` (fault-area terms a
-correct diagnosis should name). See `dataset.md` for the human-readable rationale
-and per-case notes.
+`dataset.json` — 26 curated closed issues (18 confirmed bugs, 4
+not-reproducible, 4 needs-info). Each confirmed-bug case carries `fault_anchors`
+(fault-area terms a correct diagnosis should name) and, when the bug has been
+fixed, `pre_fix` (the fixing merge commit + its parents) so the run checks out
+the pre-fix commit; an unfixed confirmed bug (`fixing_pr: null`, e.g. #1193)
+runs at `main`, where the bug is still live. See `dataset.md` for the
+human-readable rationale and per-case notes.

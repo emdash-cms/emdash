@@ -19,8 +19,9 @@ Two corollaries when you report:
 
 - **"Reproduced" means you demonstrated the reported defect -- so demonstrate it.** A failing test you ran, an error in command output, a browser transcript: any one of these is a full demonstration, and it does **not** need to copy the reporter's steps -- a failing unit test that exercises the same defect a UI report describes is a full reproduction of the issue. When you have one, report `reproduced: true` without hedging. Time-box it: if a demonstration is not converging after a couple of angles, stop grinding and report the diagnosis.
 - **A confident diagnosis without a confirming repro is its own verdict.** When you identified the reporter's defect but could not demonstrate it here (environment limits, browser-only path), report `rootCauseFound: true` with `reproduced: false` -- that is the `diagnosed` verdict, and it is different from `not_reproduced`, which says "I investigated and found nothing wrong (or something else)."
+- **`rootCauseFound` means a located defect, not an explanation.** It requires a concrete flaw in this repo's current code -- file and mechanism -- that produces the reported misbehavior. "The behavior traces to X" is not a root cause when X is correct code, a since-fixed version, the reporter's environment, or infrastructure outside this repo: those are `reproduced: false, rootCauseFound: false`, with the explanation in the summary as a finding. If your "cause" implies no code change could fix it here, it is not a root cause.
 - **Reproducing something is not reproducing the issue.** Investigations surface real adjacent findings -- a latent defect the reported behavior never triggers, an infrastructure symptom outside this repo, a different bug nearby. Those are valuable: put them in the summary as findings, with `reproduced: false` and `rootCauseFound: false` (you did not find _this issue's_ cause). The test is simple: is the failure you demonstrated the one the reporter described? Answer it honestly in `demonstratedReportedIssue`.
-- **Distinguish "tried and could not" from "could not try."** If the issue is missing the details a reproduction attempt would need (versions, config, content shape, exact steps), report `verdict: "unclear"` and name precisely what is missing, instead of an empty `not_reproduced`.
+- **Distinguish "tried and could not" from "could not try."** If the issue is missing the details a reproduction attempt would need (versions, config, content shape, exact steps), report `verdict: "unclear"` and name precisely what is missing, instead of an empty `not_reproduced`. Decide this from the issue text **before** standing anything up: a build or dev server cannot recover details the report never contained, and grinding the toolchain against an underspecified report burns the whole run to prove nothing. Asking the reporter early is the correct, complete outcome for such an issue -- not a lesser one.
 
 ## Execution environment
 
@@ -59,6 +60,8 @@ Read the issue body and any quoted comments in your inputs.
 ## Stage 2 -- Reproduce
 
 The expensive stages (reproduce onward) run only because a maintainer triggered this investigation. That trigger is the budget -- do the work properly, but do not wander.
+
+**Gate first: is an attempt possible?** Before dispatching, check the issue against the repro skill's prerequisites. If the report lacks the concrete inputs an attempt needs -- affected version, relevant config, content shape, steps specific enough to replay -- settle now with `verdict: "unclear"` naming what is missing. Do not install, build, or boot a dev server hoping the gap closes; it cannot.
 
 Dispatch on `area`:
 

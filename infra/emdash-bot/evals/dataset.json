@@ -1,10 +1,9 @@
 {
 	"$schema_comment": "Evaluation dataset for emdash's next-gen investigation bot. Each case is a real closed issue from emdash-cms/emdash, selected so the issue body alone carries enough context to attempt (or correctly decline) a reproduction. Fields: number (GitHub issue #); title; category (CONFIRMED_BUG = reproduced and fixed, linked to a merging PR; NOT_REPRODUCIBLE = closed as cannot-reproduce / already-resolved / not-a-code-bug, no fix warranted; NEEDS_INFO = body lacks the specifics to attempt a repro, correct first move is to ask the reporter); ground_truth (one line: what a correct investigation should conclude, citing the fixing PR where applicable); fixing_pr (PR number that resolved it, or null); difficulty (easy/medium/hard, judged by how much setup + insight a correct investigation needs); repro_path (primary surface the bot must drive: 'public site' | 'admin' | 'api' | 'build'); area (subsystem, for coverage diversity). All source data gathered read-only via gh; nothing was posted to GitHub.",
 	"counts": {
-		"CONFIRMED_BUG": 17,
-		"NOT_REPRODUCIBLE": 5,
-		"NEEDS_INFO": 4,
-		"total": 26
+		"CONFIRMED_BUG": 18,
+		"NOT_REPRODUCIBLE": 4,
+		"NEEDS_INFO": 4
 	},
 	"cases": [
 		{
@@ -302,14 +301,14 @@
 		{
 			"number": 1193,
 			"title": "publishedAt is overwritten with current timestamp on every update/edit in Admin UI",
-			"category": "NOT_REPRODUCIBLE",
-			"ground_truth": "Not reproducible on current main: the admin edit payload no longer sends publishedAt and the publish path preserves published_at via COALESCE(published_at, now), so edits/re-publishes keep the original timestamp. Correct conclusion: cannot reproduce on current main (already resolved; no single referencing PR).",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible on main: ContentRepository.update() overwrites published_at whenever the update payload carries publishedAt, discarding the original publication timestamp (content.ts update path; the admin UI no longer sends publishedAt, but the API path still loses the timestamp). Unfixed -- no fixing PR yet; a fix must preserve the deliberate backdating support.",
 			"fixing_pr": null,
 			"difficulty": "medium",
 			"repro_path": "api",
 			"area": "core / publishing / admin",
 			"pre_fix": null,
-			"fault_anchors": []
+			"fault_anchors": ["published_at", "publishedAt", "update", "overwrit"]
 		},
 		{
 			"number": 1190,

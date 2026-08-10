@@ -41,15 +41,18 @@ const datasetSchema = v.object({
 
 /**
  * Validate a raw object into a typed `Dataset`, enforcing the cross-field
- * invariants the harness relies on: a confirmed bug always carries a pre-fix
- * commit and at least one fault anchor; a negative case never carries a
- * pre-fix. A malformed dataset throws here rather than mis-scoring later.
+ * invariants the harness relies on: a fixed confirmed bug always carries a
+ * pre-fix commit; an unfixed one (`fixing_pr: null`) checks out `main`, where
+ * the bug is still present. Every confirmed bug carries at least one fault
+ * anchor; a negative case never carries a pre-fix. A malformed dataset throws
+ * here rather than mis-scoring later.
  */
 export function parseDataset(raw: unknown): Dataset {
 	const parsed = v.parse(datasetSchema, raw);
 	for (const c of parsed.cases) {
 		if (c.category === "CONFIRMED_BUG") {
-			if (!c.pre_fix) throw new Error(`case #${c.number}: CONFIRMED_BUG without pre_fix`);
+			if (!c.pre_fix && c.fixing_pr !== null)
+				throw new Error(`case #${c.number}: CONFIRMED_BUG without pre_fix`);
 			if (c.fault_anchors.length === 0)
 				throw new Error(`case #${c.number}: CONFIRMED_BUG without fault_anchors`);
 		} else if (c.pre_fix) {
@@ -67,9 +70,10 @@ export function resolvePreFixRef(preFix: PreFix): string {
 }
 
 /**
- * The ref the investigation should stand up at. Confirmed bugs check out the
- * pre-fix commit so the bug is present; negatives check out `main`, where a
- * correct investigation should fail to reproduce (or ask for info).
+ * The ref the investigation should stand up at. Fixed confirmed bugs check out
+ * the pre-fix commit so the bug is present; unfixed confirmed bugs and
+ * negatives check out `main` -- the bug is still live there, or (for
+ * negatives) a correct investigation should fail to reproduce / ask for info.
  */
 export function checkoutRefFor(evalCase: EvalCase): string {
 	if (evalCase.category === "CONFIRMED_BUG" && evalCase.pre_fix) {

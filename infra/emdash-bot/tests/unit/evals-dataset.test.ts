@@ -38,10 +38,16 @@ describe("parseDataset", () => {
 		expect(parsed.cases[0]?.pre_fix?.parents[0]).toBe(SHA_A);
 	});
 
-	test("rejects a confirmed bug missing its pre_fix", () => {
+	test("rejects a fixed confirmed bug missing its pre_fix", () => {
 		expect(() => parseDataset(dataset([confirmedRaw({ pre_fix: null })]))).toThrow(
 			/without pre_fix/,
 		);
+	});
+
+	test("accepts an unfixed confirmed bug with no pre_fix", () => {
+		const raw = confirmedRaw({ pre_fix: null, fixing_pr: null });
+		const parsed = parseDataset(dataset([raw]));
+		expect(checkoutRefFor(parsed.cases[0] as EvalCase)).toBe("main");
 	});
 
 	test("rejects a confirmed bug with no fault anchors", () => {
@@ -100,14 +106,25 @@ describe("committed dataset.json", () => {
 			acc[c.category] = (acc[c.category] ?? 0) + 1;
 			return acc;
 		}, {});
-		expect(byCat).toEqual({ CONFIRMED_BUG: 17, NOT_REPRODUCIBLE: 5, NEEDS_INFO: 4 });
+		expect(byCat).toEqual({ CONFIRMED_BUG: 18, NOT_REPRODUCIBLE: 4, NEEDS_INFO: 4 });
 	});
 
-	test("every confirmed bug resolves a 40-hex pre-fix ref equal to its first parent", () => {
-		for (const c of ds.cases.filter((x) => x.category === "CONFIRMED_BUG")) {
+	test("every fixed confirmed bug resolves a 40-hex pre-fix ref equal to its first parent", () => {
+		for (const c of ds.cases.filter(
+			(x) => x.category === "CONFIRMED_BUG" && x.fixing_pr !== null,
+		)) {
 			const ref = checkoutRefFor(c);
 			expect(ref).toMatch(/^[0-9a-f]{40}$/i);
 			expect(ref).toBe(c.pre_fix?.parents[0]);
+		}
+	});
+
+	test("every unfixed confirmed bug checks out main", () => {
+		for (const c of ds.cases.filter(
+			(x) => x.category === "CONFIRMED_BUG" && x.fixing_pr === null,
+		)) {
+			expect(c.pre_fix).toBeNull();
+			expect(checkoutRefFor(c)).toBe("main");
 		}
 	});
 

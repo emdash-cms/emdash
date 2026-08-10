@@ -8,15 +8,17 @@ read-only; nothing posted to GitHub.
 
 | Category                   | Count  | Share | Target |
 | -------------------------- | ------ | ----- | ------ |
-| CONFIRMED_BUG              | 17     | 65%   | ~60%   |
-| NOT_REPRODUCIBLE / INVALID | 5      | 19%   | ~25%   |
+| CONFIRMED_BUG              | 18     | 69%   | ~60%   |
+| NOT_REPRODUCIBLE / INVALID | 4      | 15%   | ~25%   |
 | NEEDS_INFO                 | 4      | 15%   | ~15%   |
 | **Total**                  | **26** |       | 20–30  |
 
 Category definitions used:
 
-- **CONFIRMED_BUG** — reproduced and fixed, linked to a merging PR. A correct
-  investigation reproduces it and lands (or points at) the fix.
+- **CONFIRMED_BUG** — a real, reproducible defect. Usually fixed and linked to a
+  merging PR (the run checks out the pre-fix commit); #1193 is confirmed but
+  still unfixed, so it runs at `main`. A correct investigation reproduces it
+  and lands (or points at) the fault.
 - **NOT_REPRODUCIBLE** — closed as cannot-reproduce, already-resolved on main, or
   not-a-code-bug. A correct investigation says "could not reproduce" instead of
   hallucinating a repro/patch.
@@ -29,7 +31,7 @@ Deliberately spread across subsystems and both DB dialects:
 
 - **admin UI:** 2344 (editor), 1671 (auth link), 1607 (Kumo/Tailwind build), 895 (dashboard)
 - **rendering / portable-text:** 1884 (blockquote), 696 (media value)
-- **api / core:** 2330, 2034, 1551
+- **api / core:** 2330, 2034, 1551, 1193 (publishing timestamps)
 - **search:** 2245 (FTS5 tokenizer)
 - **caching / perf:** 2210
 - **routing / redirects:** 1986, 808
@@ -38,15 +40,15 @@ Deliberately spread across subsystems and both DB dialects:
 - **build / CLI / import:** 1421, 1080, 1021
 - **media:** 696
 
-Repro paths: public site (696, 917, 1986, 808, 2210), api (2330, 2034, 2245, 1551),
-admin (2344, 1671, 1607, 1884, 895), build (1421, 1080, 1021).
+Repro paths: public site (696, 917, 1986, 808, 2210), api (2330, 2034, 2245, 1551,
+1193), admin (2344, 1671, 1607, 1884, 895), build (1421, 1080, 1021).
 
-Difficulty spread: easy 3, medium 8, hard 6 (confirmed); the not-repro/needs-info
+Difficulty spread: easy 3, medium 9, hard 6 (confirmed); the not-repro/needs-info
 buckets add the "don't overreach" pressure.
 
 ## Full case list
 
-### CONFIRMED_BUG (17)
+### CONFIRMED_BUG (18)
 
 | #    | Title (short)                                     | PR   | Diff | Path   |
 | ---- | ------------------------------------------------- | ---- | ---- | ------ |
@@ -67,13 +69,13 @@ buckets add the "don't overreach" pressure.
 | 895  | Dashboard 500 (UNION ALL on D1)                   | 896  | med  | admin  |
 | 808  | Redirects skipped for anonymous visitors          | 817  | med  | public |
 | 696  | MediaValue.src holds bare id, not URL             | 701  | easy | public |
+| 1193 | update() overwrites published_at via API          | none | med  | api    |
 
-### NOT_REPRODUCIBLE / INVALID (5)
+### NOT_REPRODUCIBLE / INVALID (4)
 
 | #    | Title (short)                       | Why                                                              | Diff | Path   |
 | ---- | ----------------------------------- | ---------------------------------------------------------------- | ---- | ------ |
 | 1413 | 9 MB admin bundle on public islands | React already own chunk; ~27 KB actual; unreachable admin chunks | hard | build  |
-| 1193 | publishedAt overwritten each edit   | admin no longer sends it; COALESCE preserves it                  | med  | api    |
 | 1190 | Admin list stops at 50              | current admin sends limit=100 + nextCursor; older build symptom  | med  | admin  |
 | 1022 | autosave 'seo' unknown field        | not repro on fresh entries; only legacy pre-0.5 revisions        | hard | admin  |
 | 914  | emdashcms.com SSL error             | transient infra/TLS, not a codebase bug                          | easy | public |
