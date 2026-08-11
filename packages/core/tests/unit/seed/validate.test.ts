@@ -162,6 +162,31 @@ describe("validateSeed", () => {
 			expect(result.errors[0]).toContain('unsupported field type "invalid"');
 		});
 
+		it("should reject indexed fields whose type cannot be indexed", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [
+							{
+								slug: "content",
+								label: "Content",
+								type: "portableText",
+								indexed: true,
+							},
+						],
+					},
+				],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				'collections[0].fields[0].indexed: type "portableText" cannot be indexed',
+			);
+		});
+
 		it("should reject duplicate field slugs", () => {
 			const result = validateSeed({
 				version: "1",
@@ -188,7 +213,13 @@ describe("validateSeed", () => {
 						slug: "posts",
 						label: "Posts",
 						fields: [
-							{ slug: "title", label: "Title", type: "string", required: true },
+							{
+								slug: "title",
+								label: "Title",
+								type: "string",
+								required: true,
+								indexed: true,
+							},
 							{ slug: "content", label: "Content", type: "portableText" },
 						],
 					},
