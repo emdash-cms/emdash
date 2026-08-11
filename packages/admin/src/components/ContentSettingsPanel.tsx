@@ -391,7 +391,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onBlockSidebarClose,
 	onBlockSidebarDelete,
 }: ContentSettingsPanelProps) {
-	const { t } = useLingui();
+	const { t, i18n: lingui } = useLingui();
 	const navigate = useNavigate();
 	const pluginAdmins = usePluginAdmins();
 	const extensionPanels = React.useMemo(
@@ -709,16 +709,13 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 					extensionPanels.map(({ pluginId, extension }) => {
 						const Panel = extension.component;
 						const sectionId = `plugin:${pluginId}:${extension.id}`;
+						const title = lingui._({ id: extension.title, message: extension.title });
 
 						return (
-							<SortableContentSettingsSection
-								key={sectionId}
-								id={sectionId}
-								label={extension.title}
-							>
+							<SortableContentSettingsSection key={sectionId} id={sectionId} label={title}>
 								<div className="min-w-0 p-4">
 									<Text bold as="h3" DANGEROUS_className="mb-4">
-										{extension.title}
+										{title}
 									</Text>
 									<ContentEditorPanelBoundary
 										key={`${collection}:${item.id}`}

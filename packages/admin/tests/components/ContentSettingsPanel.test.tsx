@@ -229,6 +229,39 @@ describe("ContentSettingsPanel", () => {
 			.toHaveTextContent("Insights for my-post (en)");
 	});
 
+	it("localizes trusted plugin panel titles in host-owned UI", async () => {
+		const previousLocale = i18n.locale;
+		i18n.load("nl", { "Content insights": "Inhoudsinzichten" });
+		i18n.activate("nl");
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{
+						id: "summary",
+						title: "Content insights",
+						component: InsightsPanel,
+					},
+				],
+			},
+		};
+
+		try {
+			const screen = await render(
+				<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+				{ wrapper: pluginWrapper(pluginAdmins) },
+			);
+
+			await expect
+				.element(screen.getByRole("heading", { name: "Inhoudsinzichten" }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Drag to reorder Inhoudsinzichten" }))
+				.toBeInTheDocument();
+		} finally {
+			i18n.activate(previousLocale);
+		}
+	});
+
 	it("omits panels when their plugin is disabled or the entry is new", async () => {
 		const pluginAdmins: PluginAdmins = {
 			insights: {
