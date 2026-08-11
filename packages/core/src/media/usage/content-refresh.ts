@@ -59,11 +59,13 @@ export type ContentMediaUsageRefreshErrorCode =
 	| "CONTENT_USAGE_REFRESH_ERROR"
 	| "CONTENT_USAGE_DELETE_ERROR"
 	| "CONTENT_USAGE_GENERATION_CONFLICT"
+	| "CONTENT_USAGE_RESOURCE_LIMIT"
 	| "CONTENT_USAGE_STALE";
 
 interface ContentMediaUsageRefreshOptions {
 	collectionId?: string;
 	durableWork?: boolean;
+	admissionBudget?: ContentMediaUsageAdmissionBudget;
 }
 
 export interface ContentMediaUsageRefreshResult {
@@ -247,10 +249,12 @@ async function refreshContentMediaUsageUnlocked(
 ): Promise<ContentMediaUsageRefreshResult> {
 	try {
 		let conflictResult: ContentMediaUsageRefreshResult | null = null;
+		if (options.durableWork) options.admissionBudget = createContentMediaUsageAdmissionBudget();
 		for (let attempt = 0; attempt < CONTENT_USAGE_REFRESH_MAX_ATTEMPTS; attempt++) {
 			const result = await refreshContentMediaUsageAttempt(db, collectionSlug, contentId, options);
 			if (result.errorCode !== "CONTENT_USAGE_GENERATION_CONFLICT") return result;
 			conflictResult = result;
+			if (options.admissionBudget?.hasReservedMutation) break;
 		}
 
 		if (options.durableWork) {
@@ -289,12 +293,8 @@ async function refreshContentMediaUsageAttempt(
 	options: ContentMediaUsageRefreshOptions,
 ): Promise<ContentMediaUsageRefreshResult> {
 	const repo = new MediaUsageRepository(db);
-	const observedSources = await loadObservedContentSources(
-		repo,
-		collectionSlug,
-		contentId,
-		options.collectionId,
-	);
+	const canonicalSourceKeys = contentSourceKeys(collectionSlug, contentId, options.collectionId);
+	const observedSources = await repo.findSources(canonicalSourceKeys);
 	const snapshotsResult = await loadContentMediaUsageSnapshots(
 		db,
 		collectionSlug,
@@ -307,9 +307,19 @@ async function refreshContentMediaUsageAttempt(
 			if (!(await contentCollectionExists(db, collectionSlug, options.collectionId))) {
 				return generationConflictResult({ refreshedSourceCount: 0, deletedSourceCount: 0 });
 			}
+			if (!options.admissionBudget)
+				throw new Error("Durable media usage work requires an admission budget");
+			const admission = await planContentMediaUsageProjectionAdmission(
+				repo,
+				[],
+				observedSources,
+				canonicalSourceKeys,
+				options.admissionBudget,
+			);
+			if (admission.outcome !== "admitted") return admissionFailureResult(admission.outcome);
 			return deleteCanonicalContentSourcesIfAbsent(
 				repo,
-				observedSources,
+				admission.absentSources,
 				collectionSlug,
 				contentId,
 			);
@@ -333,8 +343,27 @@ async function refreshContentMediaUsageAttempt(
 		const deletedSourceCount = await repo.deleteContentSources(collectionSlug, contentId);
 		return { ...ZERO_RESULT, deletedSourceCount };
 	}
+	const admission = options.admissionBudget
+		? await planContentMediaUsageProjectionAdmission(
+				repo,
+				snapshotsResult.snapshots,
+				observedSources,
+				canonicalSourceKeys,
+				options.admissionBudget,
+			)
+		: null;
+	if (admission && admission.outcome !== "admitted") {
+		return admissionFailureResult(admission.outcome);
+	}
 	let refreshedSourceCount = 0;
 	for (const snapshot of snapshotsResult.snapshots) {
+		if (
+			admission?.outcome === "admitted" &&
+			admission.noOpSourceKeys.has(snapshot.source.sourceKey)
+		) {
+			refreshedSourceCount++;
+			continue;
+		}
 		const result = await repo.replaceSourceIfMatching(
 			snapshot.source,
 			snapshot.occurrences,
@@ -363,20 +392,16 @@ async function refreshContentMediaUsageAttempt(
 	const expectedSourceKeys = new Set(
 		snapshotsResult.snapshots.map((snapshot) => snapshot.source.sourceKey),
 	);
-	const absentSourceKeys = MEDIA_USAGE_CONTENT_SOURCE_VARIANTS.map((sourceVariant) =>
-		buildContentMediaUsageSourceKey({
-			collectionId: options.collectionId,
-			collectionSlug,
-			contentId,
-			sourceVariant,
-		}),
-	).filter((sourceKey) => !expectedSourceKeys.has(sourceKey));
+	const absentSources =
+		admission?.outcome === "admitted"
+			? admission.absentSources
+			: canonicalSourceKeys
+					.filter((sourceKey) => !expectedSourceKeys.has(sourceKey))
+					.map((sourceKey) => observedSources.get(sourceKey))
+					.filter((source): source is MediaUsageSource => source !== undefined);
 	let deletedSourceCount = 0;
-	for (const sourceKey of absentSourceKeys) {
-		const expectedSource = observedSources.get(sourceKey);
-		if (!expectedSource) continue;
-
-		const result = await repo.deleteSourceIfMatching(sourceKey, expectedSource);
+	for (const expectedSource of absentSources) {
+		const result = await repo.deleteSourceIfMatching(expectedSource.sourceKey, expectedSource);
 		if (result.deleted) {
 			deletedSourceCount++;
 			continue;
@@ -397,13 +422,12 @@ async function refreshContentMediaUsageAttempt(
 	};
 }
 
-async function loadObservedContentSources(
-	repo: MediaUsageRepository,
+function contentSourceKeys(
 	collectionSlug: string,
 	contentId: string,
 	collectionId?: string,
-): Promise<Awaited<ReturnType<MediaUsageRepository["findSources"]>>> {
-	const sourceKeys = MEDIA_USAGE_CONTENT_SOURCE_VARIANTS.map((sourceVariant) =>
+): string[] {
+	return MEDIA_USAGE_CONTENT_SOURCE_VARIANTS.map((sourceVariant) =>
 		buildContentMediaUsageSourceKey({
 			collectionId,
 			collectionSlug,
@@ -411,7 +435,18 @@ async function loadObservedContentSources(
 			sourceVariant,
 		}),
 	);
-	return repo.findSources(sourceKeys);
+}
+
+function admissionFailureResult(
+	outcome: "intrinsic_resource_limit" | "claim_budget_deferred",
+): ContentMediaUsageRefreshResult {
+	return {
+		...generationConflictResult({ refreshedSourceCount: 0, deletedSourceCount: 0 }),
+		errorCode:
+			outcome === "intrinsic_resource_limit"
+				? "CONTENT_USAGE_RESOURCE_LIMIT"
+				: "CONTENT_USAGE_GENERATION_CONFLICT",
+	};
 }
 
 async function markGenerationConflict(
@@ -693,12 +728,12 @@ function snapshotFailureResult(
 
 async function deleteCanonicalContentSourcesIfAbsent(
 	repo: MediaUsageRepository,
-	observedSources: Awaited<ReturnType<MediaUsageRepository["findSources"]>>,
+	observedSources: readonly MediaUsageSource[],
 	collectionSlug: string,
 	contentId: string,
 ): Promise<ContentMediaUsageRefreshResult> {
 	let deletedSourceCount = 0;
-	for (const source of observedSources.values()) {
+	for (const source of observedSources) {
 		const result = await repo.deleteSourceIfMatchingContentAbsent(
 			source.sourceKey,
 			source,

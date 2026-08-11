@@ -83,7 +83,8 @@ it("reports current projection costs at occurrence and byte boundaries", async (
 			const result = await measure(() =>
 				processMediaUsageWorkAfterWrite(db, fixture.collectionSlug, contentId),
 			);
-			expect(result.value.outcome).toBe("completed");
+			const expectedOutcome = totalOccurrences <= 12 ? "completed" : "failed";
+			expect(result.value.outcome).toBe(expectedOutcome);
 			rows.push({
 				path: "processor",
 				totalOccurrences,
@@ -101,7 +102,8 @@ it("reports current projection costs at occurrence and byte boundaries", async (
 		const result = await measure(() =>
 			processMediaUsageWorkAfterWrite(db, fixture.collectionSlug, contentId),
 		);
-		expect(result.value.outcome).toBe("completed");
+		const expectedOutcome = payloadBytes < 512 * 1024 ? "completed" : "failed";
+		expect(result.value.outcome).toBe(expectedOutcome);
 		rows.push({
 			path: "processor-bytes",
 			totalOccurrences: 0,
@@ -123,12 +125,15 @@ it("reports current projection costs at occurrence and byte boundaries", async (
 			}),
 		);
 		expect(created.value.success).toBe(true);
+		if (!created.value.success) throw new Error(created.value.error.message);
+		const createOutcome = await workOutcome(created.value.data.item.id);
+		expect(createOutcome).toBe(totalOccurrences <= 12 ? "completed" : "failed");
 		rows.push({
 			path: "runtime-create",
 			totalOccurrences,
 			liveOccurrences: totalOccurrences,
 			draftOccurrences: null,
-			outcome: created.value.success ? "completed" : created.value.error.code,
+			outcome: createOutcome,
 			...created.measurement,
 		});
 
@@ -148,12 +153,16 @@ it("reports current projection costs at occurrence and byte boundaries", async (
 				}),
 			);
 			expect(updated.value.success).toBe(true);
+			const updateOutcome = await workOutcome(initial.data.item.id);
+			expect(updateOutcome).toBe(
+				liveOccurrences <= 12 && draftOccurrences <= 12 ? "completed" : "failed",
+			);
 			rows.push({
 				path: "runtime-update",
 				totalOccurrences,
 				liveOccurrences,
 				draftOccurrences,
-				outcome: updated.value.success ? "completed" : updated.value.error.code,
+				outcome: updateOutcome,
 				...updated.measurement,
 			});
 		}
@@ -197,12 +206,14 @@ it("reports current projection costs at occurrence and byte boundaries", async (
 				}),
 			);
 			expect(result.value.success).toBe(true);
+			const conflictOutcome = await workOutcome(created.data.item.id);
+			expect(conflictOutcome).toBe("retry");
 			rows.push({
 				path: "runtime-conflict",
 				totalOccurrences: draftOccurrences,
 				liveOccurrences: 0,
 				draftOccurrences,
-				outcome: result.value.success ? "retry" : result.value.error.code,
+				outcome: conflictOutcome,
 				...result.measurement,
 			});
 		} finally {
@@ -272,4 +283,13 @@ async function measure<T>(operation: () => Promise<T>): Promise<{
 
 function totalChanges(): number {
 	return (sqlite.prepare("SELECT total_changes() AS count").get() as { count: number }).count;
+}
+
+async function workOutcome(contentId: string): Promise<string> {
+	const work = await db
+		.selectFrom("_emdash_media_usage_work")
+		.select("state")
+		.where("content_id", "=", contentId)
+		.executeTakeFirst();
+	return work?.state ?? "completed";
 }

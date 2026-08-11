@@ -46,6 +46,7 @@ export default defineConfig({
 		// The fixture has symlinked node_modules that contain test files
 		// from transitive deps (zod, emdash) — exclude them too.
 		exclude: [
+			"tests/workerd/**",
 			// Render tests import .astro components and need the Astro Vite
 			// plugin -- run them via the dedicated repro config (test:repro),
 			// not this plain-node config which cannot transform .astro.
