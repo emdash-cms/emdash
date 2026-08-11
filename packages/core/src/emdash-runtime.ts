@@ -9,7 +9,7 @@
 
 import { Permissions } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
-import { Kysely, sql, type Dialect } from "kysely";
+import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
@@ -30,12 +30,13 @@ import {
 	runMigrations,
 } from "./database/migrations/runner.js";
 import { AuditRepository } from "./database/repositories/audit.js";
+import { ContentRepository } from "./database/repositories/content.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
+import { ContentMutationConflictError } from "./database/repositories/types.js";
 import type {
 	ContentItem as ContentItemInternal,
 	ContentDateField,
 } from "./database/repositories/types.js";
-import { validateIdentifier } from "./database/validate.js";
 import { getI18nConfig } from "./i18n/config.js";
 import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { normalizeMediaValue } from "./media/normalize.js";
@@ -182,6 +183,7 @@ import {
 	type Storage,
 } from "./index.js";
 import { getDb } from "./loader.js";
+import { isRecord } from "./plugin-utils.js";
 import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
@@ -193,9 +195,15 @@ import {
 } from "./plugins/hooks.js";
 import { normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
-import { buildRouteMeta, PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
+import {
+	buildRouteMeta,
+	parseRouteInput,
+	PluginRouteRegistry,
+	type RouteMeta,
+} from "./plugins/routes.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
+import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
@@ -225,6 +233,9 @@ const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 	repeater: "repeater",
 };
 
+const DRAFT_ONLY_UPDATE_KEYS = new Set(["data", "slug", "locale", "skipRevision"]);
+const MAX_DRAFT_STAGE_ATTEMPTS = 32;
+
 /**
  * Sandboxed plugin entry from virtual module
  */
@@ -241,6 +252,10 @@ export interface SandboxedPluginEntry {
 	storage: PluginStorageConfig;
 	/** Serialized MCP declarations emitted at plugin build time. */
 	mcp?: PluginMcpManifestConfig;
+	/** Route declarations (name + public/permission/cacheControl), used for route auth decisions */
+	routes?: PluginManifest["routes"];
+	/** Hook declarations this plugin implements */
+	hooks?: PluginManifest["hooks"];
 	/** Admin pages */
 	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 	/** Dashboard widgets */
@@ -492,6 +507,7 @@ const marketplaceManifestCache = new Map<
 			settingsSchema?: Record<string, SettingField>;
 		};
 		mcp?: PluginMcpManifestConfig;
+		storage?: PluginManifest["storage"];
 	}
 >();
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
@@ -553,6 +569,8 @@ export class EmDashRuntime {
 	/** All plugins eligible for the hook pipeline (includes built-in plugins).
 	 *  Stored so we can rebuild the pipeline when plugins are enabled/disabled. */
 	private allPipelinePlugins: ResolvedPlugin[];
+	/** Guards the once-per-process plugin storage-index sync. */
+	private storageIndexesSynced = false;
 	/** Factory options for the hook pipeline context factory */
 	private pipelineFactoryOptions: {
 		db: Kysely<Database>;
@@ -683,10 +701,34 @@ export class EmDashRuntime {
 			console.error("[cleanup] System cleanup failed:", error);
 		}
 
+		try {
+			await this.syncPluginStorageIndexesOnce();
+		} catch (error) {
+			console.error("[plugins] Storage index sync failed:", error);
+		}
+
 		// Never throws; no-op unless scheduled backups are enabled and due.
 		await maybeRunScheduledBackup(this.db, this.storage ?? undefined);
 
 		return { published };
+	}
+
+	/**
+	 * Materialize plugin-declared storage indexes, once per process.
+	 *
+	 * Called from the scheduler path, not from request handlers — configured
+	 * plugins have no install handler, so the tick is their only sync moment.
+	 */
+	async syncPluginStorageIndexesOnce(): Promise<void> {
+		if (this.storageIndexesSynced) return;
+		this.storageIndexesSynced = true;
+		// Sandboxed marketplace/registry plugins never join allPipelinePlugins;
+		// their manifests are cached at bundle load. Without them, plugins
+		// installed before this feature shipped would never get their indexes.
+		await syncDeclaredStorageIndexes(this.db, [
+			...this.allPipelinePlugins,
+			...marketplaceManifestCache.values(),
+		]);
 	}
 
 	/**
@@ -896,6 +938,7 @@ export class EmDashRuntime {
 					version: bundle.manifest.version,
 					admin: bundle.manifest.admin,
 					mcp: bundle.manifest.mcp,
+					storage: bundle.manifest.storage,
 				});
 
 				// Cache route metadata from manifest for auth decisions
@@ -1011,6 +1054,7 @@ export class EmDashRuntime {
 					version: bundle.manifest.version,
 					admin: bundle.manifest.admin,
 					mcp: bundle.manifest.mcp,
+					storage: bundle.manifest.storage,
 				});
 				if (bundle.manifest.routes.length > 0) {
 					const routeMetaMap = new Map<string, RouteMeta>();
@@ -1612,6 +1656,11 @@ export class EmDashRuntime {
 							// by runSystemCleanup. This catches unexpected errors.
 							console.error("[cleanup] System cleanup failed:", error);
 						}
+						try {
+							await runtimeRef.current?.syncPluginStorageIndexesOnce();
+						} catch (error) {
+							console.error("[plugins] Storage index sync failed:", error);
+						}
 						// Never throws; no-op unless scheduled backups are enabled and due.
 						await maybeRunScheduledBackup(db, storage ?? undefined);
 					});
@@ -1977,8 +2026,8 @@ export class EmDashRuntime {
 					capabilities: entry.capabilities ?? [],
 					allowedHosts: entry.allowedHosts ?? [],
 					storage: entry.storage ?? {},
-					hooks: [],
-					routes: [],
+					hooks: entry.hooks ?? [],
+					routes: entry.routes ?? [],
 					admin: {},
 					mcp: entry.mcp,
 				};
@@ -1988,6 +2037,17 @@ export class EmDashRuntime {
 				console.log(
 					`EmDash: Loaded sandboxed plugin ${pluginKey} with capabilities: [${manifest.capabilities.join(", ")}]`,
 				);
+
+				if (manifest.routes.length > 0) {
+					const routeMetaMap = new Map<string, RouteMeta>();
+					for (const routeEntry of manifest.routes) {
+						const normalized = normalizeManifestRoute(routeEntry);
+						routeMetaMap.set(normalized.name, buildRouteMeta(normalized));
+					}
+					sandboxedRouteMetaCache.set(entry.id, routeMetaMap);
+				} else {
+					sandboxedRouteMetaCache.delete(entry.id);
+				}
 			} catch (error) {
 				console.error(`EmDash: Failed to load sandboxed plugin ${entry.id}:`, error);
 			}
@@ -2090,6 +2150,7 @@ export class EmDashRuntime {
 						version: bundle.manifest.version,
 						admin: bundle.manifest.admin,
 						mcp: bundle.manifest.mcp,
+						storage: bundle.manifest.storage,
 					});
 
 					// Cache route metadata from manifest for auth decisions
@@ -2162,6 +2223,7 @@ export class EmDashRuntime {
 						version: bundle.manifest.version,
 						admin: bundle.manifest.admin,
 						mcp: bundle.manifest.mcp,
+						storage: bundle.manifest.storage,
 					});
 					if (bundle.manifest.routes.length > 0) {
 						const routeMeta = new Map<string, RouteMeta>();
@@ -2362,6 +2424,7 @@ export class EmDashRuntime {
 					supports: collection.supports || [],
 					hasSeo: collection.hasSeo,
 					urlPattern: collection.urlPattern,
+					...(collection.hidden ? { hidden: true } : {}),
 					fields,
 				};
 			}
@@ -2769,13 +2832,12 @@ export class EmDashRuntime {
 			taxonomies?: Record<string, string[]>;
 			publishedAt?: string | null;
 			locale?: string;
-			/** Skip revision creation (used by autosave) */
+			/** Replace the previous autosave revision after staging this save. */
 			skipRevision?: boolean;
 			_rev?: string;
 		},
 	) {
 		// Resolve slug → ID if needed (before any lookups)
-		const { ContentRepository } = await import("./database/repositories/content.js");
 		const repo = new ContentRepository(this.db);
 		const resolvedItem = await repo.findByIdOrSlug(collection, id, body.locale);
 		const resolvedId = resolvedItem?.id ?? id;
@@ -2838,76 +2900,122 @@ export class EmDashRuntime {
 		let usesDraftRevisions = false;
 		let draftStorageChanged = false;
 		if (processedData) {
-			try {
-				const collectionInfo = await this.schemaRegistry.getCollectionWithFields(collection);
-				if (collectionInfo?.supports?.includes("revisions")) {
-					usesDraftRevisions = true;
-					const revisionRepo = new RevisionRepository(this.db);
-					// Re-fetch to get latest state (resolvedItem may be stale after _rev check)
-					const existing = await repo.findById(collection, resolvedId);
+			const collectionInfo = await this.schemaRegistry.getCollectionWithFields(collection);
+			if (collectionInfo?.supports?.includes("revisions")) {
+				usesDraftRevisions = true;
+				const revisionRepo = new RevisionRepository(this.db);
+				let existing = await repo.findById(collection, resolvedId);
 
-					if (existing) {
-						// Build the draft data: merge with existing draft revision if one exists,
-						// otherwise merge with the published data from the content table
-						let baseData: Record<string, unknown>;
-						if (existing.draftRevisionId) {
-							const draftRevision = await revisionRepo.findById(existing.draftRevisionId);
-							baseData = draftRevision?.data ?? existing.data;
-						} else {
-							baseData = existing.data;
-						}
-
-						// Include slug in the revision data if it changed
-						const mergedData = { ...baseData, ...processedData };
-						if (bodyWithoutRev.slug !== undefined) {
-							mergedData._slug = bodyWithoutRev.slug;
-						}
-
-						if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
-							// Autosave: update existing draft revision in place
-							await revisionRepo.updateData(existing.draftRevisionId, mergedData);
-							draftStorageChanged = true;
-						} else {
-							// Create new draft revision
-							const revision = await revisionRepo.create({
-								collection,
-								entryId: resolvedId,
-								data: mergedData,
-								authorId: bodyWithoutRev.authorId ?? undefined,
-							});
-
-							// Update entry to point to new draft (metadata only, not data columns).
-							// No updated_at stamp: draft staging leaves live content untouched,
-							// so public "last modified" consumers must not see a change (#2143).
-							validateIdentifier(collection, "collection");
-							const tableName = `ec_${collection}`;
-							await sql`
-								UPDATE ${sql.ref(tableName)}
-								SET draft_revision_id = ${revision.id}
-								WHERE id = ${resolvedId}
-							`.execute(this.db);
-							draftStorageChanged = true;
-
-							// Fire-and-forget: prune old revisions to prevent unbounded growth
-							void revisionRepo.pruneOldRevisions(collection, resolvedId, 50).catch(() => {});
-						}
+				for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
+					let baseData: Record<string, unknown>;
+					if (existing.draftRevisionId) {
+						const draftRevision = await revisionRepo.findById(existing.draftRevisionId);
+						baseData = draftRevision?.data ?? existing.data;
+					} else {
+						baseData = existing.data;
 					}
+
+					const mergedData = { ...baseData, ...processedData };
+					if (bodyWithoutRev.slug !== undefined) {
+						mergedData._slug = bodyWithoutRev.slug;
+					}
+
+					const revision = await revisionRepo.create({
+						collection,
+						entryId: resolvedId,
+						data: mergedData,
+						authorId: bodyWithoutRev.authorId ?? undefined,
+					});
+
+					let staged: boolean;
+					try {
+						staged = await repo.replaceDraftRevision(collection, resolvedId, revision.id, existing);
+					} catch (error) {
+						try {
+							await revisionRepo.deleteIfUnreferenced(collection, resolvedId, revision.id);
+						} catch (cleanupError) {
+							console.error(
+								`[emdash] Failed to clean up unstaged revision ${revision.id}:`,
+								cleanupError,
+							);
+						}
+						throw error;
+					}
+
+					if (!staged) {
+						try {
+							await revisionRepo.deleteIfUnreferenced(collection, resolvedId, revision.id);
+						} catch (cleanupError) {
+							console.error(
+								`[emdash] Failed to clean up unstaged revision ${revision.id}:`,
+								cleanupError,
+							);
+						}
+						if (body._rev || attempt === MAX_DRAFT_STAGE_ATTEMPTS - 1) {
+							const error = new ContentMutationConflictError();
+							return {
+								success: false as const,
+								error: { code: "CONFLICT", message: error.message },
+							};
+						}
+						existing = await repo.findById(collection, resolvedId);
+						continue;
+					}
+
+					draftStorageChanged = true;
+
+					if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
+						try {
+							await revisionRepo.deleteIfUnreferenced(
+								collection,
+								resolvedId,
+								existing.draftRevisionId,
+							);
+						} catch (error) {
+							console.error(
+								`[emdash] Failed to clean up superseded revision ${existing.draftRevisionId}:`,
+								error,
+							);
+						}
+					} else {
+						after(async () => {
+							try {
+								await revisionRepo.pruneQueuedEntry(collection, resolvedId, revision.id, 50);
+							} catch (error) {
+								console.error(
+									`[revisions] Failed to prune revisions for ${collection}/${resolvedId}:`,
+									error,
+								);
+							}
+						});
+					}
+					break;
 				}
-			} catch {
-				// Don't fail the update if revision creation fails
 			}
 		}
+
+		// Public HTML comes from live columns / SEO / taxonomies, not draft revisions.
+		const liveMetaTouched = Object.entries(bodyWithoutRev).some(
+			([key, value]) => value !== undefined && !DRAFT_ONLY_UPDATE_KEYS.has(key),
+		);
 
 		// Update the content table:
 		// - If collection uses draft revisions: only update metadata (no data fields, no slug)
 		// - Otherwise: update everything as before
-		const result = await handleContentUpdate(this.db, collection, resolvedId, {
-			...bodyWithoutRev,
-			data: usesDraftRevisions ? undefined : processedData,
-			slug: usesDraftRevisions ? undefined : bodyWithoutRev.slug,
-			authorId: bodyWithoutRev.authorId,
-			bylines: bodyWithoutRev.bylines,
-		});
+		const result =
+			usesDraftRevisions && !liveMetaTouched
+				? await handleContentGet(this.db, collection, resolvedId)
+				: await handleContentUpdate(this.db, collection, resolvedId, {
+						...bodyWithoutRev,
+						data: usesDraftRevisions ? undefined : processedData,
+						slug: usesDraftRevisions ? undefined : bodyWithoutRev.slug,
+						authorId: bodyWithoutRev.authorId,
+						bylines: bodyWithoutRev.bylines,
+					});
+
+		const liveContentChanged = usesDraftRevisions
+			? liveMetaTouched
+			: Boolean(processedData || bodyWithoutRev.slug !== undefined || liveMetaTouched);
 
 		// Hydrate draft data BEFORE firing afterSave hooks so the hook sees
 		// the same effective data the response surfaces — for revision-
@@ -2957,6 +3065,9 @@ export class EmDashRuntime {
 			this.runAfterSaveHooks(contentItemToRecord(hydrated.data.item), collection, false);
 		}
 
+		if (hydrated.success) {
+			return { ...hydrated, liveContentChanged };
+		}
 		return hydrated;
 	}
 
@@ -3059,7 +3170,11 @@ export class EmDashRuntime {
 	async handleContentPublish(
 		collection: string,
 		id: string,
-		options: { publishedAt?: string; requireScheduledDue?: boolean } = {},
+		options: {
+			publishedAt?: string;
+			requireScheduledDue?: boolean;
+			expectedScheduledAt?: string;
+		} = {},
 	) {
 		const result = await handleContentPublish(this.db, collection, id, options);
 		if (result.success && result.data) {
@@ -3282,6 +3397,18 @@ export class EmDashRuntime {
 		// must then `content_publish` to promote the restored draft to
 		// live, matching the documented tool contract.
 		try {
+			const contentRepo = new ContentRepository(this.db);
+			const existing = await contentRepo.findById(revision.collection, revision.entryId);
+			if (!existing) {
+				return {
+					success: false as const,
+					error: {
+						code: "NOT_FOUND",
+						message: `Content item not found: ${revision.entryId}`,
+					},
+				};
+			}
+
 			const newDraft = await revisionRepo.create({
 				collection: revision.collection,
 				entryId: revision.entryId,
@@ -3289,18 +3416,45 @@ export class EmDashRuntime {
 				authorId: callerUserId,
 			});
 
-			validateIdentifier(revision.collection, "collection");
-			const tableName = `ec_${revision.collection}`;
-			await sql`
-				UPDATE ${sql.ref(tableName)}
-				SET draft_revision_id = ${newDraft.id}
-				WHERE id = ${revision.entryId}
-			`.execute(this.db);
+			try {
+				const staged = await contentRepo.replaceDraftRevision(
+					revision.collection,
+					revision.entryId,
+					newDraft.id,
+					existing,
+				);
+				if (!staged) throw new ContentMutationConflictError();
+			} catch (error) {
+				try {
+					await revisionRepo.deleteIfUnreferenced(
+						revision.collection,
+						revision.entryId,
+						newDraft.id,
+					);
+				} catch (cleanupError) {
+					console.error(
+						`[emdash] Failed to clean up unrestored revision ${newDraft.id}:`,
+						cleanupError,
+					);
+				}
+				throw error;
+			}
 
-			// Fire-and-forget: prune old revisions to prevent unbounded growth
-			void revisionRepo
-				.pruneOldRevisions(revision.collection, revision.entryId, 50)
-				.catch(() => {});
+			after(async () => {
+				try {
+					await revisionRepo.pruneQueuedEntry(
+						revision.collection,
+						revision.entryId,
+						newDraft.id,
+						50,
+					);
+				} catch (error) {
+					console.error(
+						`[revisions] Failed to prune revisions for ${revision.collection}/${revision.entryId}:`,
+						error,
+					);
+				}
+			});
 
 			// Return the freshly-fetched item with the new draft hydrated
 			// onto `data`. Without this the response would echo the live
@@ -3313,6 +3467,12 @@ export class EmDashRuntime {
 			}
 			return hydrated;
 		} catch (error) {
+			if (error instanceof ContentMutationConflictError) {
+				return {
+					success: false as const,
+					error: { code: "CONFLICT", message: error.message },
+				};
+			}
 			console.error("[emdash] revision restore failed:", error);
 			return {
 				success: false as const,
@@ -3446,12 +3606,8 @@ export class EmDashRuntime {
 
 			const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
 
-			let body: unknown = undefined;
-			try {
-				body = await request.json();
-			} catch {
-				// No body or not JSON
-			}
+			// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
+			const body = await parseRouteInput(request);
 
 			return routeRegistry.invoke(pluginId, routeKey, { request, body });
 		}
@@ -3662,7 +3818,13 @@ export class EmDashRuntime {
 		const imageFields = collectionInfo.fields.filter(
 			(f) => f.type === "image" || f.type === "file",
 		);
-		if (imageFields.length === 0) return data;
+		// Repeater fields can contain image sub-fields, whose values need the same normalization
+		// (a bare media id posted inside a repeater item would otherwise be stored verbatim and
+		// render as "Image not found" in the admin).
+		const repeaterFields = collectionInfo.fields.filter(
+			(f) => f.type === "repeater" && Array.isArray(f.validation?.subFields),
+		);
+		if (imageFields.length === 0 && repeaterFields.length === 0) return data;
 
 		const getProvider = (id: string) => this.getMediaProvider(id);
 		const result = { ...data };
@@ -3679,6 +3841,37 @@ export class EmDashRuntime {
 			} catch {
 				// Don't fail the save if normalization fails for a single field
 			}
+		}
+
+		for (const field of repeaterFields) {
+			const value = result[field.slug];
+			if (!Array.isArray(value)) continue;
+
+			const mediaSubFieldSlugs = (field.validation?.subFields ?? [])
+				.filter((sub) => sub.type === "image")
+				.map((sub) => sub.slug);
+			if (mediaSubFieldSlugs.length === 0) continue;
+
+			const items: unknown[] = value;
+			result[field.slug] = await Promise.all(
+				items.map(async (item) => {
+					if (!isRecord(item)) return item;
+					const normalizedItem: Record<string, unknown> = { ...item };
+					for (const slug of mediaSubFieldSlugs) {
+						const subValue = normalizedItem[slug];
+						if (subValue == null) continue;
+						try {
+							const normalized = await normalizeMediaValue(subValue, getProvider);
+							if (normalized) {
+								normalizedItem[slug] = normalized;
+							}
+						} catch {
+							// Don't fail the save if normalization fails for a single sub-field
+						}
+					}
+					return normalizedItem;
+				}),
+			);
 		}
 
 		return result;
@@ -3893,12 +4086,8 @@ export class EmDashRuntime {
 	}> {
 		const routeName = path.replace(LEADING_SLASH_PATTERN, "");
 
-		let body: unknown = undefined;
-		try {
-			body = await request.json();
-		} catch {
-			// No body or not JSON
-		}
+		// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
+		const body = await parseRouteInput(request);
 
 		try {
 			const headers = sanitizeHeadersForSandbox(request.headers);

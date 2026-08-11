@@ -81,7 +81,17 @@ interface HyperdriveConfig {
 	 * authenticated requests and all writes stay on `binding`.
 	 */
 	cachedBinding?: string;
+	/**
+	 * After a content publish, prefer the primary uncached binding for this
+	 * many ms on anonymous public reads. Defaults to 60_000 when
+	 * `cachedBinding` is set (Hyperdrive's default `max_age`); 0 otherwise.
+	 * Set equal to your cached Hyperdrive config's `max_age`.
+	 */
+	preferUncachedAfterWriteMs?: number;
 }
+
+/** Hyperdrive default query-cache max_age when caching is enabled. */
+const DEFAULT_PREFER_UNCACHED_AFTER_WRITE_MS = 60_000;
 
 /**
  * Minimal shape of a Hyperdrive binding. Workers inject `connectionString`
@@ -145,8 +155,13 @@ export interface RequestScopedDbOpts {
 	config: HyperdriveConfig;
 	isAuthenticated: boolean;
 	isWrite: boolean;
+	canUseCachedBinding?: boolean;
 	cookies: CookieJar;
 	url: URL;
+	/** ms-epoch of last content-namespace invalidation; from core object-cache. */
+	lastContentWriteAt?: number;
+	/** Wall-clock sample used for post-write binding selection. */
+	now?: number;
 }
 
 export interface RequestScopedDb {
@@ -181,7 +196,10 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 	const bindingName = selectBindingName(opts.config, {
 		isAuthenticated: opts.isAuthenticated,
 		isWrite: opts.isWrite,
+		canUseCachedBinding: opts.canUseCachedBinding,
 		url: opts.url,
+		lastContentWriteAt: opts.lastContentWriteAt,
+		now: opts.now ?? Date.now(),
 	});
 	let binding = getBinding(bindingName);
 	// If the cached binding was selected but isn't present at runtime (e.g.
@@ -242,6 +260,17 @@ function isEmDashInternalPath(url: URL): boolean {
 }
 
 /**
+ * Effective window (ms) to prefer the primary binding after a content write.
+ * Defaults to Hyperdrive's 60s `max_age` when `cachedBinding` is set.
+ */
+function preferUncachedDurationMs(config: HyperdriveConfig): number {
+	if (config.preferUncachedAfterWriteMs !== undefined) {
+		return config.preferUncachedAfterWriteMs;
+	}
+	return config.cachedBinding ? DEFAULT_PREFER_UNCACHED_AFTER_WRITE_MS : 0;
+}
+
+/**
  * Decide which binding a given request should use.
  *
  * The cache-enabled binding (when configured) is used only for **anonymous
@@ -255,19 +284,34 @@ function isEmDashInternalPath(url: URL): boolean {
  *   even an anonymous GET → primary. The setup-status and login-state reads
  *   are anonymous GETs that must see writes made moments earlier; routing them
  *   to the cache would loop the setup wizard and show stale auth state.
+ * - anonymous public reads within `preferUncachedAfterWriteMs` of the last
+ *   content-namespace invalidation → primary, so a post-publish rebuild does
+ *   not reseed edge/object caches from Hyperdrive's still-stale query cache.
  *
  * Pure (no I/O) so the routing rule can be unit-tested directly.
  */
 export function selectBindingName(
 	config: HyperdriveConfig,
-	opts: { isAuthenticated: boolean; isWrite: boolean; url: URL },
+	opts: {
+		isAuthenticated: boolean;
+		isWrite: boolean;
+		canUseCachedBinding?: boolean;
+		url: URL;
+		lastContentWriteAt?: number;
+		now?: number;
+	},
 ): string {
 	if (
 		config.cachedBinding &&
-		!opts.isAuthenticated &&
-		!opts.isWrite &&
-		!isEmDashInternalPath(opts.url)
+		(opts.canUseCachedBinding ??
+			(!opts.isAuthenticated && !opts.isWrite && !isEmDashInternalPath(opts.url)))
 	) {
+		const duration = preferUncachedDurationMs(config);
+		const lastWrite = opts.lastContentWriteAt ?? 0;
+		const now = opts.now ?? Date.now();
+		if (duration > 0 && lastWrite > 0 && now - lastWrite < duration) {
+			return config.binding;
+		}
 		return config.cachedBinding;
 	}
 	return config.binding;

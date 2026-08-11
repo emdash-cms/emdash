@@ -1,8 +1,7 @@
 # Container image for the emdash-bot investigate agent's sandbox.
 #
-# Phase 0 (this spike): minimal. Node 22 + pnpm + git, so the agent can clone
-# the repo and run JS commands. No browser yet — Chromium + agent-browser land
-# in Phase 2 once we know the simpler agent path works end-to-end.
+# Node 22 + pnpm + git for repo installs and JS commands, plus agent-browser
+# with a pre-baked Chrome for the browser-driven repro skills.
 #
 # Multi-stage build: copy Node from the official Node Slim image rather than
 # downloading it inside the cloudflare/sandbox base. The sandbox base ships
@@ -24,6 +23,15 @@ RUN npm install -g pnpm@11.1.3 bgproc@0.3.0 agent-browser@0.30.1 \
     && pnpm --version \
     && bgproc --version || true \
     && agent-browser --version || true
+
+# Bake Chrome at build time. At runtime the sandbox egress allowlist only
+# passes GitHub/npm hosts, so `agent-browser install` (Chrome for Testing,
+# served from Google hosts) can never succeed inside a running container --
+# the browser must already be in the image. The Chrome version is pinned by
+# the image build: agent-browser 0.30.1 fetches the stable channel at build
+# time and the daemon auto-detects the single baked copy under
+# /root/.agent-browser/browsers.
+RUN agent-browser install
 
 FROM cloudflare/sandbox:0.12.1
 
@@ -78,6 +86,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=node-source /usr/local/bin/node /usr/local/bin/node
 COPY --from=node-source /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=node-source /usr/local/include/node /usr/local/include/node
+
+# The Chrome that `agent-browser install` baked in the source stage. The
+# daemon looks here first, so no runtime download is ever attempted.
+COPY --from=node-source /root/.agent-browser /root/.agent-browser
 
 # Recreate the CLI symlinks the slim image had (Docker COPY flattens symlinks
 # to file copies). Then chmod the .cjs/.js entry points so they're executable.

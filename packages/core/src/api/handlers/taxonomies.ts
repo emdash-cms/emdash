@@ -10,7 +10,7 @@
 import type { Kysely, Selectable } from "kysely";
 import { ulid } from "ulidx";
 
-import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
+import { TaxonomyRepository, type SiblingPosition } from "../../database/repositories/taxonomy.js";
 import type { Database, TaxonomyDefTable } from "../../database/types.js";
 import { resolveConfiguredLocale } from "../../i18n/config.js";
 import { invalidateTaxonomyDefsCache, invalidateTermCache } from "../../taxonomies/index.js";
@@ -50,12 +50,17 @@ export interface TermData {
 }
 
 export interface TermWithCount extends TermData {
-	count: number;
+	/** Absent when the caller opted out of counts (`includeCounts: false`). */
+	count?: number;
 	children: TermWithCount[];
 }
 
 export interface TermListResponse {
 	terms: TermWithCount[];
+}
+
+export interface TermReorderResponse {
+	reordered: true;
 }
 
 export interface TermResponse {
@@ -384,7 +389,7 @@ export async function handleTaxonomyDefTranslations(
 export async function handleTermList(
 	db: Kysely<Database>,
 	taxonomyName: string,
-	options: { locale?: string } = {},
+	options: { locale?: string; includeCounts?: boolean } = {},
 ): Promise<ApiResult<TermListResponse>> {
 	try {
 		// Definitions are per-locale but terms aren't bound to the def's locale —
@@ -401,11 +406,10 @@ export async function handleTermList(
 		// taxonomy's declared collections — one query for the whole list.
 		// content_taxonomies.taxonomy_id stores the translation_group, so we
 		// look up by group and map back to each term's id.
-		const countsByGroup = await fetchVisibleTermCounts(
-			db,
-			taxonomyName,
-			defCollections(lookup.def),
-		);
+		const includeCounts = options.includeCounts ?? true;
+		const countsByGroup = includeCounts
+			? await fetchVisibleTermCounts(db, taxonomyName, defCollections(lookup.def))
+			: undefined;
 
 		const termData: TermWithCount[] = terms.map((term) => ({
 			id: term.id,
@@ -415,7 +419,7 @@ export async function handleTermList(
 			parentId: term.parentId,
 			description: typeof term.data?.description === "string" ? term.data.description : undefined,
 			children: [],
-			count: countsByGroup.get(term.translationGroup ?? term.id) ?? 0,
+			...(countsByGroup && { count: countsByGroup.get(term.translationGroup ?? term.id) ?? 0 }),
 			locale: term.locale,
 			translationGroup: term.translationGroup,
 		}));
@@ -423,10 +427,107 @@ export async function handleTermList(
 		const isHierarchical = lookup.def.hierarchical === 1;
 		const result = isHierarchical ? buildTree(termData) : termData;
 		return { success: true, data: { terms: result } };
-	} catch {
+	} catch (error) {
+		console.error("[taxonomies] term list failed:", error);
 		return {
 			success: false,
 			error: { code: "TERM_LIST_ERROR", message: "Failed to list terms" },
+		};
+	}
+}
+
+/**
+ * Set the manual order of one sibling group.
+ *
+ * `ids` names the terms to move, in the desired order; each is a row id or a
+ * translation_group and resolves to the latter, because a position belongs to a
+ * term rather than to one of its locales. Reordering never reparents — moving a
+ * term under a different parent is a term update.
+ *
+ * The group is `(taxonomy, parentId)` and has no locale: `parentId` is the
+ * parent's translation_group (a row id is accepted and resolved), and `null`
+ * selects the top level — which for a flat taxonomy is every term.
+ *
+ * `ids` may be a *subset* of the group, and the listed terms are permuted
+ * within the positions they already occupy. A locale only renders the terms
+ * translated into it, so a caller often cannot name every member; a member left
+ * out keeps its place, which is also what makes a stale list harmless.
+ */
+export async function handleTermReorder(
+	db: Kysely<Database>,
+	taxonomyName: string,
+	input: { parentId?: string | null; ids: string[] },
+): Promise<ApiResult<TermReorderResponse>> {
+	try {
+		const lookup = await requireTaxonomyDef(db, taxonomyName);
+		if (!lookup.success) return lookup;
+
+		const repo = new TaxonomyRepository(db);
+
+		let parentId = input.parentId ?? null;
+		if (parentId !== null) {
+			// Children store the parent's translation_group, so a caller passing a
+			// row id still addresses the right group. A parent whose anchor row is
+			// gone keeps the value as given (see TaxonomyRepository.resolveParentRef).
+			const parent = await repo.findById(parentId);
+			if (parent) parentId = parent.translationGroup ?? parent.id;
+		}
+
+		// Every locale's rows: membership is locale-agnostic, and a term the
+		// caller can't see still holds its slot.
+		// The order carries into how ties are resolved, so it must be stable
+		// across calls; with locales interleaved a tie falls to whichever
+		// locale's label sorts first, not to the order the caller rendered.
+		const members = await repo.findByName(taxonomyName, { parentId });
+		const siblings: SiblingPosition[] = [];
+		const seen = new Set<string>();
+		const resolve = new Map<string, string>();
+		for (const term of members) {
+			const group = term.translationGroup ?? term.id;
+			if (!seen.has(group)) {
+				seen.add(group);
+				siblings.push({ group, position: term.sortOrder });
+			}
+			// Both spellings resolve to the group: a row id, and the group itself for
+			// a caller that already holds one — including when its anchor row is gone
+			// and no member's id matches it.
+			resolve.set(group, group);
+			resolve.set(term.id, group);
+		}
+
+		const groups: string[] = [];
+		for (const id of input.ids) {
+			const group = resolve.get(id);
+			if (!group) {
+				return {
+					success: false,
+					error: {
+						code: "REORDER_MISMATCH",
+						message: `Term "${id}" is not in the sibling group being reordered`,
+					},
+				};
+			}
+			if (groups.includes(group)) {
+				return {
+					success: false,
+					error: {
+						code: "REORDER_MISMATCH",
+						message: `Term "${id}" is listed more than once`,
+					},
+				};
+			}
+			groups.push(group);
+		}
+
+		await repo.reorder(groups, siblings);
+		invalidateTermCache();
+
+		return { success: true, data: { reordered: true } };
+	} catch (error) {
+		console.error("[taxonomies] term reorder failed:", error);
+		return {
+			success: false,
+			error: { code: "TERM_REORDER_ERROR", message: "Failed to reorder terms" },
 		};
 	}
 }

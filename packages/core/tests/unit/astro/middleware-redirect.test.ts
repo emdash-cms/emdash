@@ -166,6 +166,172 @@ describe("redirect middleware — issue #808", () => {
 		findAllEnabled.mockRestore();
 	});
 
+	it("refreshes redirect rules after another Worker isolate changes them", async () => {
+		vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00Z") });
+		const findAllEnabled = vi.spyOn(RedirectRepository.prototype, "findAllEnabled");
+		try {
+			const repo = new RedirectRepository(db);
+
+			const first = buildContext({ pathname: "/old" });
+			await runMiddleware(
+				first.context,
+				vi.fn(async () => new Response("not found", { status: 404 })),
+			);
+			expect(first.redirect).toHaveBeenCalledWith("/new", 301);
+
+			const existing = await repo.findBySource("/old");
+			expect(existing).not.toBeNull();
+			await repo.update(existing!.id, { destination: "/newer" });
+
+			vi.advanceTimersByTime(29_999);
+
+			const stillCached = buildContext({ pathname: "/old" });
+			await runMiddleware(
+				stillCached.context,
+				vi.fn(async () => new Response("not found", { status: 404 })),
+			);
+			expect(stillCached.redirect).toHaveBeenCalledWith("/new", 301);
+			expect(findAllEnabled).toHaveBeenCalledTimes(1);
+
+			vi.advanceTimersByTime(1);
+
+			const refreshed = buildContext({ pathname: "/old" });
+			await runMiddleware(
+				refreshed.context,
+				vi.fn(async () => new Response("not found", { status: 404 })),
+			);
+
+			expect(refreshed.redirect).toHaveBeenCalledWith("/newer", 301);
+			expect(findAllEnabled).toHaveBeenCalledTimes(2);
+		} finally {
+			findAllEnabled.mockRestore();
+			vi.useRealTimers();
+		}
+	});
+
+	it("coalesces concurrent cache refreshes into one database query", async () => {
+		const originalFindAllEnabled = RedirectRepository.prototype.findAllEnabled;
+		let releaseRefresh!: () => void;
+		const refreshGate = new Promise<void>((resolve) => {
+			releaseRefresh = resolve;
+		});
+		let markRefreshStarted!: () => void;
+		const refreshStarted = new Promise<void>((resolve) => {
+			markRefreshStarted = resolve;
+		});
+		const findAllEnabled = vi
+			.spyOn(RedirectRepository.prototype, "findAllEnabled")
+			.mockImplementation(async function () {
+				markRefreshStarted();
+				await refreshGate;
+				return originalFindAllEnabled.call(this);
+			});
+
+		try {
+			const first = buildContext({ pathname: "/old" });
+			const firstResponse = runMiddleware(
+				first.context,
+				vi.fn(async () => new Response("not found", { status: 404 })),
+			);
+			await refreshStarted;
+
+			const second = buildContext({ pathname: "/old" });
+			const secondResponse = runMiddleware(
+				second.context,
+				vi.fn(async () => new Response("not found", { status: 404 })),
+			);
+
+			releaseRefresh();
+			await Promise.all([firstResponse, secondResponse]);
+
+			expect(findAllEnabled).toHaveBeenCalledTimes(1);
+			expect(first.redirect).toHaveBeenCalledWith("/new", 301);
+			expect(second.redirect).toHaveBeenCalledWith("/new", 301);
+		} finally {
+			findAllEnabled.mockRestore();
+		}
+	});
+
+	it("does not restore stale rules when a write invalidates an in-flight refresh", async () => {
+		const originalFindAllEnabled = RedirectRepository.prototype.findAllEnabled;
+		let releaseRefresh!: () => void;
+		const refreshGate = new Promise<void>((resolve) => {
+			releaseRefresh = resolve;
+		});
+		let markSnapshotLoaded!: () => void;
+		const snapshotLoaded = new Promise<void>((resolve) => {
+			markSnapshotLoaded = resolve;
+		});
+		const findAllEnabled = vi
+			.spyOn(RedirectRepository.prototype, "findAllEnabled")
+			.mockImplementation(async function () {
+				const rows = await originalFindAllEnabled.call(this);
+				markSnapshotLoaded();
+				await refreshGate;
+				return rows;
+			});
+
+		try {
+			const request = buildContext({ pathname: "/old" });
+			const response = runMiddleware(
+				request.context,
+				vi.fn(async () => new Response("not found", { status: 404 })),
+			);
+			await snapshotLoaded;
+
+			const repo = new RedirectRepository(db);
+			const existing = await repo.findBySource("/old");
+			expect(existing).not.toBeNull();
+			await repo.update(existing!.id, { destination: "/newer" });
+			invalidateRedirectCache();
+			releaseRefresh();
+
+			await response;
+
+			expect(request.redirect).toHaveBeenCalledWith("/newer", 301);
+			expect(findAllEnabled).toHaveBeenCalledTimes(2);
+		} finally {
+			findAllEnabled.mockRestore();
+		}
+	});
+
+	it("bounds refresh retries when writes keep invalidating the cache", async () => {
+		const originalFindAllEnabled = RedirectRepository.prototype.findAllEnabled;
+		let invalidationsRemaining = 3;
+		const findAllEnabled = vi
+			.spyOn(RedirectRepository.prototype, "findAllEnabled")
+			.mockImplementation(async function () {
+				const rows = await originalFindAllEnabled.call(this);
+				if (invalidationsRemaining > 0) {
+					invalidationsRemaining--;
+					invalidateRedirectCache();
+				}
+				return rows;
+			});
+
+		try {
+			const first = buildContext({ pathname: "/old" });
+			await runMiddleware(
+				first.context,
+				vi.fn(async () => new Response("not found", { status: 404 })),
+			);
+
+			expect(first.redirect).toHaveBeenCalledWith("/new", 301);
+			expect(findAllEnabled).toHaveBeenCalledTimes(3);
+
+			const second = buildContext({ pathname: "/old" });
+			await runMiddleware(
+				second.context,
+				vi.fn(async () => new Response("not found", { status: 404 })),
+			);
+
+			expect(second.redirect).toHaveBeenCalledWith("/new", 301);
+			expect(findAllEnabled).toHaveBeenCalledTimes(4);
+		} finally {
+			findAllEnabled.mockRestore();
+		}
+	});
+
 	it("does not intercept /_emdash routes", async () => {
 		const { context, redirect } = buildContext({ pathname: "/_emdash/admin" });
 

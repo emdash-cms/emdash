@@ -108,7 +108,7 @@ export function LocaleBadges({
 						className={cn(
 							"rounded px-1 py-0.5 text-[10px] font-semibold uppercase leading-none transition-colors",
 							exists
-								? "bg-kumo-brand/10 text-kumo-brand hover:bg-kumo-brand/20"
+								? "bg-kumo-brand/10 text-kumo-link hover:bg-kumo-brand/20"
 								: "bg-kumo-tint text-kumo-subtle/50",
 							onLocaleClick && exists && "cursor-pointer",
 							(!onLocaleClick || !exists) && "cursor-default",

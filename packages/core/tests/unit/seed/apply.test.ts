@@ -163,6 +163,80 @@ describe("applySeed", () => {
 			expect(row.rows[0]?.title).toBe("Untitled");
 		});
 
+		it("applies the hidden flag from the seed", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "contact_submissions",
+						label: "Contact Submissions",
+						hidden: true,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("contact_submissions"))?.hidden).toBe(true);
+			expect((await registry.getCollection("posts"))?.hidden).toBe(false);
+		});
+
+		it("updates the hidden flag when re-applying with onConflict update", async () => {
+			const collection = {
+				slug: "contact_submissions",
+				label: "Contact Submissions",
+				fields: [{ slug: "title", label: "Title", type: "string" as const }],
+			};
+			await applySeed(db, { version: "1", collections: [collection] });
+
+			await applySeed(
+				db,
+				{ version: "1", collections: [{ ...collection, hidden: true }] },
+				{
+					onConflict: "update",
+				},
+			);
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("contact_submissions"))?.hidden).toBe(true);
+		});
+
+		it("applies sortOrder from the seed and orders the list by it", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "education",
+						label: "Education",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+					{
+						slug: "projects",
+						label: "Projects",
+						sortOrder: 0,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("projects"))?.sortOrder).toBe(0);
+			expect((await registry.getCollection("education"))?.sortOrder).toBeUndefined();
+			expect((await registry.listCollections()).map((c) => c.slug)).toEqual([
+				"projects",
+				"education",
+			]);
+		});
+
 		it("should skip existing collections", async () => {
 			// Create collection first
 			const registry = new SchemaRegistry(db);

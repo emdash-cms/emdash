@@ -753,9 +753,9 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			sql += " AND locale = ?";
 			params.push(opts.locale);
 		}
-		// `id ASC` is a stable tiebreaker for terms sharing a label, matching
-		// core's TaxonomyRepository.findByName ordering.
-		sql += " ORDER BY label ASC, id ASC";
+		// Manual order first, then label with `id ASC` as a stable tiebreaker for
+		// terms sharing both — matching core's TaxonomyRepository.findByName.
+		sql += " ORDER BY sort_order ASC, label ASC, id ASC";
 		const results = await this.env.DB.prepare(sql)
 			.bind(...params)
 			.all();

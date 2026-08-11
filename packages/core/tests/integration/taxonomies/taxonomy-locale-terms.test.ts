@@ -537,6 +537,64 @@ describeEachDialect("taxonomy parent stays nested across locales (#1347)", (dial
 		const frParent = findInTree(frList.data.terms, "actus");
 		expect(frParent?.children.map((c) => c.slug)).toEqual(["actualites"]);
 	});
+
+	it("leaves a group where only one row has a parent split across locales", async () => {
+		// The shape `handleTermUpdate` produces: a reparent applied to one row.
+		// 045 rewrites parent_id values, so it converges rows that all point at
+		// some parent; a row still holding NULL is outside its WHERE clause.
+		const parentId = ulid();
+		const enChildId = ulid();
+		const frChildId = ulid();
+		const childGroup = enChildId;
+
+		await ctx.db
+			.insertInto("taxonomies")
+			.values([
+				{
+					id: parentId,
+					name: "categories",
+					slug: "news",
+					label: "News",
+					parent_id: null,
+					data: null,
+					locale: "en",
+					translation_group: parentId,
+				},
+				{
+					id: enChildId,
+					name: "categories",
+					slug: "breaking",
+					label: "Breaking",
+					parent_id: parentId,
+					data: null,
+					locale: "en",
+					translation_group: childGroup,
+				},
+				{
+					id: frChildId,
+					name: "categories",
+					slug: "actualites",
+					label: "Actualités",
+					parent_id: null, // never reparented — the update named the EN row
+					data: null,
+					locale: "fr",
+					translation_group: childGroup,
+				},
+			])
+			.execute();
+
+		await up045(ctx.db);
+
+		const repo = new TaxonomyRepository(ctx.db);
+		const rows = await repo.findTranslations(childGroup);
+		// 045 cannot converge this: the group still holds two parents.
+		expect(new Set(rows.map((row) => row.parentId))).toEqual(new Set([parentId, null]));
+
+		// So the term is a child in EN and a root in FR.
+		const frList = await handleTermList(ctx.db, "categories", { locale: "fr" });
+		if (!frList.success) throw new Error(frList.error.message);
+		expect(frList.data.terms.map((term) => term.slug)).toEqual(["actualites"]);
+	});
 });
 
 async function unwrap<T>(

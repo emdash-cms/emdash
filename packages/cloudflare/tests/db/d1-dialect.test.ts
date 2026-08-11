@@ -1,7 +1,12 @@
 import { CompiledQuery, Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
 
-import { EmDashD1Dialect, RawBindingD1Dialect } from "../../src/db/d1-dialect.js";
+import { CoalescingD1Dialect } from "../../src/db/coalescing-d1.js";
+import {
+	D1_COMPOUND_SELECT_LIMIT,
+	EmDashD1Dialect,
+	RawBindingD1Dialect,
+} from "../../src/db/d1-dialect.js";
 
 /**
  * Regression tests for #2040: with the default D1 config the singleton
@@ -24,7 +29,7 @@ interface MockStatement {
 	all: () => Promise<unknown>;
 }
 
-function createMockD1() {
+function createMockD1(rows: Record<string, unknown>[] = []) {
 	const allCalls: string[] = [];
 	let inFlight = 0;
 	let maxInFlight = 0;
@@ -45,7 +50,7 @@ function createMockD1() {
 					await new Promise((resolve) => setTimeout(resolve, 5));
 					inFlight--;
 					allCalls.push(sql);
-					return { success: true, results: [], meta: { changes: 0, last_row_id: 0 } };
+					return { success: true, results: rows, meta: { changes: 0, last_row_id: 0 } };
 				},
 			};
 			return stmt;
@@ -107,5 +112,40 @@ describe("EmDashD1Dialect (session path keeps the mutex)", () => {
 		]);
 
 		expect(maxInFlight()).toBe(1);
+	});
+});
+
+describe("D1 compound-SELECT ceiling", () => {
+	it.each([
+		["raw binding", RawBindingD1Dialect],
+		["session", EmDashD1Dialect],
+		["coalescing", CoalescingD1Dialect],
+	])("declares the ceiling on the %s adapter so core splits statements", (_name, Dialect) => {
+		const { database } = createMockD1();
+		const adapter = new Dialect({ database }).createAdapter();
+
+		// Core reads the ceiling off the adapter and leaves undeclaring backends
+		// on a single statement, so an adapter that drops it sends D1 compound
+		// SELECTs it rejects outright.
+		expect(adapter).toHaveProperty("compoundSelectLimit", D1_COMPOUND_SELECT_LIMIT);
+	});
+});
+
+describe("D1 write results", () => {
+	it.each([
+		["raw binding", RawBindingD1Dialect],
+		["session", EmDashD1Dialect],
+	])("preserves DELETE RETURNING rows through the %s dialect", async (_name, Dialect) => {
+		const rows = [{ storage_key: "expired.png" }];
+		const { database } = createMockD1(rows);
+		const db = new Kysely<any>({ dialect: new Dialect({ database }) });
+
+		const result = await db.executeQuery(
+			CompiledQuery.raw('delete from "media" where "status" = ? returning "storage_key"', [
+				"pending",
+			]),
+		);
+
+		expect(result.rows).toEqual(rows);
 	});
 });

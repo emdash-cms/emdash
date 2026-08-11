@@ -86,17 +86,21 @@ async function handleAuthenticatedGithub(request: Request, env: Env): Promise<Re
 		path: url.pathname,
 	});
 
+	// The repo is public: when no usable App credential exists, forward the
+	// (already gated) request anonymously. Reads work; a push fails upstream.
 	const creds = readAppCreds(env);
-	if (!creds) return new Response("github access not configured", { status: 403 });
-	let token: string;
-	try {
-		token = await mintInstallationToken(creds);
-	} catch (err) {
-		console.error("[sandbox/outbound] token mint failed", { error: errorMessage(err) });
-		return new Response("token mint failed", { status: 502 });
+	let token: string | null = null;
+	if (creds) {
+		try {
+			token = await mintInstallationToken(creds);
+		} catch (err) {
+			console.warn("[sandbox/outbound] token mint failed; forwarding anonymously", {
+				error: errorMessage(err),
+			});
+		}
 	}
 	const authed = new Request(forwarded);
-	authed.headers.set("authorization", githubAuthHeader(url.host, token));
+	if (token) authed.headers.set("authorization", githubAuthHeader(url.host, token));
 	authed.headers.set("user-agent", "emdash-bot");
 	try {
 		const res = await fetch(authed, { signal: AbortSignal.timeout(2 * 60_000) });

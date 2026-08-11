@@ -1,7 +1,8 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { monotonicFactory } from "ulidx";
 
 import type { Database, RevisionTable } from "../types.js";
+import { validateIdentifier } from "../validate.js";
 
 const monotonic = monotonicFactory();
 
@@ -50,6 +51,26 @@ export class RevisionRepository {
 		if (!revision) {
 			throw new Error("Failed to create revision");
 		}
+
+		try {
+			await this.db
+				.insertInto("_emdash_revision_prune_queue")
+				.values({
+					collection: input.collection,
+					entry_id: input.entryId,
+					revision_id: id,
+				})
+				.onConflict((conflict) =>
+					conflict.columns(["collection", "entry_id"]).doUpdateSet({ revision_id: id }),
+				)
+				.execute();
+		} catch (error) {
+			console.error(
+				`[revisions] Failed to queue revision pruning for ${input.collection}/${input.entryId}:`,
+				error,
+			);
+		}
+
 		return revision;
 	}
 
@@ -132,6 +153,19 @@ export class RevisionRepository {
 			.where("entry_id", "=", entryId)
 			.executeTakeFirst();
 
+		try {
+			await this.db
+				.deleteFrom("_emdash_revision_prune_queue")
+				.where("collection", "=", collection)
+				.where("entry_id", "=", entryId)
+				.execute();
+		} catch (error) {
+			console.error(
+				`[revisions] Failed to clear queued revision pruning for ${collection}/${entryId}:`,
+				error,
+			);
+		}
+
 		return Number(result.numDeletedRows ?? 0);
 	}
 
@@ -139,6 +173,8 @@ export class RevisionRepository {
 	 * Delete old revisions, keeping the most recent N
 	 */
 	async pruneOldRevisions(collection: string, entryId: string, keepCount: number): Promise<number> {
+		validateIdentifier(collection, "collection");
+		const tableName = `ec_${collection}`;
 		// Get IDs of revisions to keep
 		const keep = await this.db
 			.selectFrom("revisions")
@@ -154,27 +190,56 @@ export class RevisionRepository {
 
 		if (keepIds.length === 0) return 0;
 
-		// Delete everything else for this entry
-		const result = await this.db
-			.deleteFrom("revisions")
-			.where("collection", "=", collection)
-			.where("entry_id", "=", entryId)
-			.where("id", "not in", keepIds)
-			.executeTakeFirst();
+		const result = await sql`
+			DELETE FROM revisions
+			WHERE collection = ${collection}
+			AND entry_id = ${entryId}
+			AND id NOT IN (${sql.join(keepIds.map((id) => sql`${id}`))})
+			AND NOT EXISTS (
+				SELECT 1 FROM ${sql.ref(tableName)} AS content
+				WHERE content.live_revision_id = revisions.id
+				OR content.draft_revision_id = revisions.id
+			)
+		`.execute(this.db);
 
-		return Number(result.numDeletedRows ?? 0);
+		return Number(result.numAffectedRows ?? 0);
 	}
 
-	/**
-	 * Update revision data in place
-	 * Used for autosave to avoid creating many small revisions.
-	 */
-	async updateData(id: string, data: Record<string, unknown>): Promise<void> {
+	async pruneQueuedEntry(
+		collection: string,
+		entryId: string,
+		queuedRevisionId: string,
+		keepCount: number,
+	): Promise<number> {
+		const pruned = await this.pruneOldRevisions(collection, entryId, keepCount);
 		await this.db
-			.updateTable("revisions")
-			.set({ data: JSON.stringify(data) })
-			.where("id", "=", id)
+			.deleteFrom("_emdash_revision_prune_queue")
+			.where("collection", "=", collection)
+			.where("entry_id", "=", entryId)
+			.where("revision_id", "=", queuedRevisionId)
 			.execute();
+		return pruned;
+	}
+
+	async deleteIfUnreferenced(
+		collection: string,
+		entryId: string,
+		revisionId: string,
+	): Promise<boolean> {
+		validateIdentifier(collection, "collection");
+		const tableName = `ec_${collection}`;
+		const result = await sql`
+			DELETE FROM revisions
+			WHERE id = ${revisionId}
+			AND collection = ${collection}
+			AND entry_id = ${entryId}
+			AND NOT EXISTS (
+				SELECT 1 FROM ${sql.ref(tableName)} AS content
+				WHERE content.live_revision_id = revisions.id
+				OR content.draft_revision_id = revisions.id
+			)
+		`.execute(this.db);
+		return (result.numAffectedRows ?? 0n) > 0n;
 	}
 
 	/**

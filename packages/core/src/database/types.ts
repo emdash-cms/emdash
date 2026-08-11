@@ -13,6 +13,12 @@ export interface RevisionTable {
 	created_at: Generated<string>;
 }
 
+export interface RevisionPruneQueueTable {
+	collection: string;
+	entry_id: string;
+	revision_id: string;
+}
+
 export interface TaxonomyTable {
 	id: string;
 	name: string;
@@ -22,6 +28,9 @@ export interface TaxonomyTable {
 	data: string | null; // JSON
 	locale: Generated<string>; // e.g. 'en', 'es', 'fr'
 	translation_group: string | null; // shared across translations of the same term
+	// Manual order within a sibling group. 0 for terms that were never
+	// explicitly reordered, so listings fall back to alphabetical.
+	sort_order: Generated<number>;
 }
 
 export interface ContentTaxonomyTable {
@@ -79,6 +88,15 @@ export interface MediaTable {
 	dominant_color: string | null;
 	created_at: Generated<string>;
 	author_id: string | null;
+}
+
+export interface MediaUploadAttemptTable {
+	storage_key: string;
+	// No foreign key: this row must survive media deletion until storage cleanup succeeds.
+	media_id: string;
+	status: string; // 'active' | 'cleanup'
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
 }
 
 export interface MediaUsageSourceTable {
@@ -293,9 +311,11 @@ export interface CollectionTable {
 	icon: string | null;
 	supports: string | null; // JSON array
 	source: string | null;
-	search_config: string | null; // JSON: { enabled: boolean, weights: Record<string, number> }
+	search_config: string | null; // JSON: SearchConfig
 	has_seo: number; // 0 or 1 — opt-in SEO fields for this collection
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")
+	hidden: Generated<number>; // 0 or 1 — omit the auto-generated admin sidebar entry
+	sort_order: number | null; // explicit admin sidebar position; NULL = alphabetical fallback
 	comments_enabled: Generated<number>; // 0 or 1
 	comments_moderation: Generated<string>; // 'all' | 'first_time' | 'none'
 	comments_closed_after_days: Generated<number>; // 0 = never close
@@ -491,10 +511,12 @@ export interface SectionTable {
 // Note: ec_* content tables are dynamic and not part of this type
 export interface Database {
 	revisions: RevisionTable;
+	_emdash_revision_prune_queue: RevisionPruneQueueTable;
 	taxonomies: TaxonomyTable;
 	content_taxonomies: ContentTaxonomyTable;
 	_emdash_taxonomy_defs: TaxonomyDefTable;
 	media: MediaTable;
+	_emdash_media_upload_attempts: MediaUploadAttemptTable;
 	_emdash_media_usage_sources: MediaUsageSourceTable;
 	_emdash_media_usage: MediaUsageTable;
 	_emdash_media_usage_index_status: MediaUsageIndexStatusTable;

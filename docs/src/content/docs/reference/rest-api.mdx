@@ -750,13 +750,47 @@ GET /_emdash/api/search/suggest?q=hel&limit=5
 
 Returns prefix-matched titles for autocomplete.
 
+### Configure Collection Search
+
+```http
+POST /_emdash/api/search/enable
+Content-Type: application/json
+
+{
+  "collection": "posts",
+  "enabled": true,
+  "tokenize": "trigram",
+  "weights": {
+    "title": 10,
+    "content": 1
+  }
+}
+```
+
+The optional `tokenize` field controls how SQLite FTS5 indexes the collection. Changing it on an
+enabled collection rebuilds and repopulates that collection's search index.
+
+| Value                | When to use |
+| -------------------- | ----------- |
+| `porter unicode61`   | Default. English-language content that benefits from Porter stemming, such as matching related word forms. Porter stemming is English-specific. |
+| `unicode61`          | Languages that use word separators but should not use English stemming. |
+| `trigram`            | Languages with text that is not separated by spaces, including Japanese, Chinese, Thai, Khmer, Lao, and Burmese, or when substring matching is needed. Queries shorter than three Unicode characters return no matches. |
+
+Omitting `tokenize` on a collection without a stored tokenizer uses `porter unicode61`. Disabling
+search preserves the configured tokenizer for the next enable operation.
+
 ### Rebuild Search Index
 
 ```http
 POST /_emdash/api/search/rebuild
+Content-Type: application/json
+
+{
+  "collection": "posts"
+}
 ```
 
-Rebuild FTS index for all or specific collections.
+Rebuilds the FTS index for the specified collection using its stored tokenizer and field weights.
 
 ### Search Stats
 
@@ -925,6 +959,9 @@ Content-Type: application/json
 GET /_emdash/api/taxonomies/:name/terms
 ```
 
+Terms come back in their manual order (see [Reorder Terms](#reorder-terms)). A
+new term is added to the end of its sibling group.
+
 ### Create Term
 
 ```http
@@ -950,6 +987,41 @@ PUT /_emdash/api/taxonomies/:name/terms/:slug
 ```http
 DELETE /_emdash/api/taxonomies/:name/terms/:slug
 ```
+
+### Reorder Terms
+
+```http
+POST /_emdash/api/taxonomies/:name/reorder
+Content-Type: application/json
+
+{
+  "parentId": "term_abc",
+  "ids": ["term_news", "term_featured"]
+}
+```
+
+Sets the order of one sibling group. `parentId` names the parent whose children
+are being ordered; omit it (or send `null`) for the top level, which for a flat
+taxonomy is every term. Reordering never changes a term's parent — use
+[Update Term](#update-term) for that.
+
+`ids` may be a subset of the group: the terms you list are permuted within the
+positions they already occupy, and every other member keeps its place. That
+matters when a locale doesn't render the whole group, and it means a stale list
+can't bury the terms it left out. An id outside the group is rejected with
+`REORDER_MISMATCH`, and at most 100 ids may be sent at once.
+
+Because the terms you leave out hold their absolute positions, a one-step move
+in a partial list can carry a term past siblings that list didn't include. If
+`[A, B, C]` is the full group and you send `["C", "A"]` — because `B` isn't
+translated into the locale you're working in — the result is `[C, B, A]`: `A`
+and `C` swapped as asked, and a listing that does show `B` sees `A` move two
+places rather than one.
+
+There is no `locale` parameter. A term holds one position across every locale it
+is translated into, so an id may be either a term id or a translation group, and
+ordering a taxonomy in one locale orders it in all of them. Sites that need
+different orders per locale should use separate taxonomies.
 
 ### Set Entry Terms
 

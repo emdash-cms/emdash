@@ -152,7 +152,7 @@ function typeIntoEditor(editor: Editor, text: string) {
 function textBlock(
 	text: string,
 	opts: {
-		style?: "normal" | "h1" | "h2" | "h3" | "blockquote";
+		style?: "normal" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "blockquote";
 		marks?: string[];
 		listItem?: "bullet" | "number";
 		level?: number;
@@ -313,6 +313,14 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(h1!.textContent).toBe("Title");
 	});
 
+	it("renders an h6 heading", async () => {
+		await render(<PortableTextEditor value={[textBlock("Detail", { style: "h6" })]} />);
+		const pm = await waitForEditor();
+		const h6 = pm.querySelector("h6");
+		expect(h6).toBeTruthy();
+		expect(h6!.textContent).toBe("Detail");
+	});
+
 	it("renders bold text", async () => {
 		await render(<PortableTextEditor value={[textBlock("Bold text", { marks: ["strong"] })]} />);
 		const pm = await waitForEditor();
@@ -338,6 +346,88 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(anchor).toBeTruthy();
 		expect(anchor!.textContent).toBe("Click me");
 		expect(anchor!.getAttribute("href")).toBe("https://example.com");
+	});
+
+	it("renders linked inline code in body text", async () => {
+		const linkKey = "lnk-code";
+		await render(
+			<PortableTextEditor
+				value={[
+					textBlock("fetch", {
+						marks: ["code", linkKey],
+						markDefs: [{ _type: "link", _key: linkKey, href: "https://example.com/fetch" }],
+					}),
+				]}
+			/>,
+		);
+		const pm = await waitForEditor();
+		const code = pm.querySelector("code");
+		const anchor = pm.querySelector("a");
+		expect(code).toBeTruthy();
+		expect(anchor).toBeTruthy();
+		expect(code!.textContent).toBe("fetch");
+		expect(anchor!.getAttribute("href")).toBe("https://example.com/fetch");
+		expect(anchor!.querySelector("code") || code!.closest("a")).toBeTruthy();
+	});
+
+	it("renders linked inline code in headings", async () => {
+		const linkKey = "lnk-h-code";
+		await render(
+			<PortableTextEditor
+				value={[
+					textBlock("useState", {
+						style: "h2",
+						marks: ["code", linkKey],
+						markDefs: [
+							{ _type: "link", _key: linkKey, href: "https://react.dev/reference/react/useState" },
+						],
+					}),
+				]}
+			/>,
+		);
+		const pm = await waitForEditor();
+		const heading = pm.querySelector("h2");
+		expect(heading).toBeTruthy();
+		expect(heading!.querySelector("code")).toBeTruthy();
+		expect(heading!.querySelector("a")?.getAttribute("href")).toBe(
+			"https://react.dev/reference/react/useState",
+		);
+	});
+
+	it("keeps code and link marks together when both are toggled", async () => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({
+			onChange,
+			value: [textBlock("API")],
+		});
+
+		editor
+			.chain()
+			.focus()
+			.selectAll()
+			.toggleCode()
+			.setLink({ href: "https://api.example.com" })
+			.run();
+
+		await vi.waitFor(() => {
+			expect(editor.isActive("code")).toBe(true);
+			expect(editor.isActive("link")).toBe(true);
+		});
+
+		await vi.waitFor(() => {
+			expect(onChange).toHaveBeenCalled();
+		});
+
+		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
+			children?: Array<{ text?: string; marks?: string[] }>;
+			markDefs?: Array<{ _type: string; _key: string; href?: string }>;
+		}>;
+		const span = blocks[0]?.children?.[0];
+		expect(span?.text).toBe("API");
+		expect(span?.marks).toContain("code");
+		const linkDef = blocks[0]?.markDefs?.find((d) => d._type === "link");
+		expect(linkDef?.href).toBe("https://api.example.com");
+		expect(span?.marks).toContain(linkDef?._key);
 	});
 
 	it("renders a bullet list", async () => {
@@ -482,6 +572,21 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(em).toBeTruthy();
 		// The text is wrapped in both marks
 		expect(pm.textContent).toContain("Bold italic");
+	});
+
+	it("renders subscript and superscript Portable Text marks", async () => {
+		await render(
+			<PortableTextEditor
+				value={[
+					textBlock("Subscript", { marks: ["subscript"] }),
+					textBlock("Superscript", { marks: ["superscript"] }),
+				]}
+			/>,
+		);
+		const pm = await waitForEditor();
+
+		expect(pm.querySelector("sub")?.textContent).toBe("Subscript");
+		expect(pm.querySelector("sup")?.textContent).toBe("Superscript");
 	});
 
 	it("fires onChange with valid PT blocks when typing", async () => {
@@ -681,7 +786,26 @@ describe("Toolbar", () => {
 		await expect.element(screen.getByRole("button", { name: "Italic" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Underline" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Strikethrough" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Subscript" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Superscript" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Inline Code" })).toBeInTheDocument();
+	});
+
+	it.each([
+		["Subscript", "subscript"],
+		["Superscript", "superscript"],
+	] as const)("persists %s formatting as a Portable Text mark", async (label, mark) => {
+		const onChange = vi.fn();
+		const { screen, editor } = await renderAndGetEditor({ onChange, value: [] });
+
+		await screen.getByRole("button", { name: label }).click();
+		typeIntoEditor(editor, "2");
+
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
+		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
+			children?: Array<{ marks?: string[] }>;
+		}>;
+		expect(blocks[0]?.children?.[0]?.marks).toContain(mark);
 	});
 
 	it("has a heading menu", async () => {
@@ -691,6 +815,9 @@ describe("Toolbar", () => {
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 1" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 2" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 3" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 4" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 5" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 6" })).toBeInTheDocument();
 	});
 
 	it("has list buttons", async () => {

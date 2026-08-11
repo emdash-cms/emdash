@@ -1,10 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 
+import { after } from "../../../src/after.js";
 import {
 	ASTRO_COOKIES_SYMBOL,
+	coordinateScopedDbLifecycle,
 	finishScoped,
 	wrapResponseForScopedClose,
 } from "../../../src/astro/middleware/scoped-db.js";
+import { runWithContext } from "../../../src/request-context.js";
 
 /** Build a streaming Response whose body emits the given chunks. */
 function streamingResponse(chunks: string[], init?: ResponseInit): Response {
@@ -102,8 +105,113 @@ describe("wrapResponseForScopedClose", () => {
 		expect(wrapped.headers.has("content-length")).toBe(false);
 	});
 });
-
 describe("finishScoped", () => {
+	it("keeps a bodyless response connection open for request deferred work", async () => {
+		let settleWork!: () => void;
+		const close = vi.fn();
+		const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle({
+			commit: vi.fn(),
+			close,
+		});
+
+		await runWithContext({ editMode: false, deferredTasks }, async () => {
+			after(async () => {
+				await new Promise<void>((resolve) => {
+					settleWork = resolve;
+				});
+			});
+			await Promise.resolve();
+			await finishScoped(lifecycle, async () => new Response(null, { status: 204 }));
+		});
+
+		expect(close).not.toHaveBeenCalled();
+		settleWork();
+		await vi.waitFor(() => expect(close).toHaveBeenCalledTimes(1));
+	});
+
+	it("waits for stream completion after deferred work settles", async () => {
+		let settleWork!: () => void;
+		const close = vi.fn();
+		const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle({
+			commit: vi.fn(),
+			close,
+		});
+		const response = await runWithContext({ editMode: false, deferredTasks }, async () => {
+			after(
+				() =>
+					new Promise<void>((resolve) => {
+						settleWork = resolve;
+					}),
+			);
+			await Promise.resolve();
+			return finishScoped(lifecycle, async () => streamingResponse(["body"]));
+		});
+
+		settleWork();
+		await Promise.resolve();
+		expect(close).not.toHaveBeenCalled();
+
+		await drain(response);
+		expect(close).toHaveBeenCalledTimes(1);
+	});
+
+	it("waits for deferred work after the response stream is cancelled", async () => {
+		let settleWork!: () => void;
+		const close = vi.fn();
+		const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle({
+			commit: vi.fn(),
+			close,
+		});
+		const response = await runWithContext({ editMode: false, deferredTasks }, async () => {
+			after(
+				() =>
+					new Promise<void>((resolve) => {
+						settleWork = resolve;
+					}),
+			);
+			await Promise.resolve();
+			return finishScoped(lifecycle, async () => streamingResponse(["body"]));
+		});
+
+		await response.body!.cancel();
+		expect(close).not.toHaveBeenCalled();
+
+		settleWork();
+		await vi.waitFor(() => expect(close).toHaveBeenCalledTimes(1));
+	});
+
+	it("waits for nested deferred work after render failure", async () => {
+		let settleNested!: () => void;
+		const close = vi.fn();
+		const renderError = new Error("render failed");
+		const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle({
+			commit: vi.fn(),
+			close,
+		});
+
+		await expect(
+			runWithContext({ editMode: false, deferredTasks }, async () => {
+				after(async () => {
+					after(
+						() =>
+							new Promise<void>((resolve) => {
+								settleNested = resolve;
+							}),
+					);
+				});
+				await Promise.resolve();
+				return finishScoped(lifecycle, async () => {
+					throw renderError;
+				});
+			}),
+		).rejects.toBe(renderError);
+		await vi.waitFor(() => expect(settleNested).toBeTypeOf("function"));
+		expect(close).not.toHaveBeenCalled();
+
+		settleNested();
+		await vi.waitFor(() => expect(close).toHaveBeenCalledTimes(1));
+	});
+
 	it("commits then defers close to stream-end for a streaming response", async () => {
 		const order: string[] = [];
 		const commit = vi.fn(() => order.push("commit"));

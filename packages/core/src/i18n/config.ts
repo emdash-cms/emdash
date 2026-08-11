@@ -12,14 +12,18 @@ export interface I18nConfig {
 	prefixDefaultLocale?: boolean;
 }
 
-let _config: I18nConfig | null | undefined;
+const I18N_CONFIG_KEY = Symbol.for("emdash:i18n-config");
+
+function configStore(): Record<symbol, I18nConfig | null | undefined> {
+	return globalThis;
+}
 
 /**
  * Initialize i18n config from virtual module data.
  * Called during runtime initialization.
  */
 export function setI18nConfig(config: I18nConfig | null): void {
-	_config = config;
+	configStore()[I18N_CONFIG_KEY] = config;
 }
 
 /**
@@ -27,13 +31,14 @@ export function setI18nConfig(config: I18nConfig | null): void {
  * Returns null if i18n is not configured.
  */
 export function getI18nConfig(): I18nConfig | null {
-	return _config ?? null;
+	return configStore()[I18N_CONFIG_KEY] ?? null;
 }
 
 /** Match a locale to the exact casing used by the site configuration. */
 export function resolveConfiguredLocale(locale: string): string {
+	const config = getI18nConfig();
 	return (
-		_config?.locales.find((configured) => configured.toLowerCase() === locale.toLowerCase()) ??
+		config?.locales.find((configured) => configured.toLowerCase() === locale.toLowerCase()) ??
 		locale
 	);
 }
@@ -43,7 +48,8 @@ export function resolveConfiguredLocale(locale: string): string {
  * Returns true when multiple locales are configured.
  */
 export function isI18nEnabled(): boolean {
-	return _config != null && _config.locales.length > 1;
+	const config = getI18nConfig();
+	return config != null && config.locales.length > 1;
 }
 
 /**
@@ -52,15 +58,16 @@ export function isI18nEnabled(): boolean {
  * Always ends with defaultLocale.
  */
 export function getFallbackChain(locale: string): string[] {
-	if (!_config) return [locale];
+	const config = getI18nConfig();
+	if (!config) return [locale];
 
 	const chain: string[] = [locale];
 	let current = locale;
 	const visited = new Set<string>([locale]);
 
-	while (_config.fallback?.[current]) {
+	while (config.fallback?.[current]) {
 		// eslint-disable-next-line typescript/no-unnecessary-type-assertion -- noUncheckedIndexedAccess
-		const next = _config.fallback[current]!;
+		const next = config.fallback[current]!;
 		if (visited.has(next)) break; // prevent cycles
 		chain.push(next);
 		visited.add(next);
@@ -68,8 +75,8 @@ export function getFallbackChain(locale: string): string[] {
 	}
 
 	// Always end with defaultLocale if not already in chain
-	if (!visited.has(_config.defaultLocale)) {
-		chain.push(_config.defaultLocale);
+	if (!visited.has(config.defaultLocale)) {
+		chain.push(config.defaultLocale);
 	}
 
 	return chain;

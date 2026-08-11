@@ -196,7 +196,7 @@ export function getSiteSetting(key: string) {
 
 **Module-scope singletons must live on `globalThis`.** Vite duplicates modules across SSR chunks; a plain `let cache = null` becomes two variables. Use a `Symbol.for` key on `globalThis`. See `packages/core/src/settings/index.ts` (versioned) and `packages/core/src/request-context.ts` / `request-cache.ts` (per-request).
 
-**Prefer the batch query to a "has any" probe.** Don't add a `SELECT id FROM foo LIMIT 1` to skip work on empty sites -- on live sites you pay the extra query every request for no gain. Handle missing tables with `isMissingTableError`.
+**Prefer the batch query to a "has any" probe.** Don't add a `SELECT id FROM foo LIMIT 1` to skip work on empty sites -- on live sites you pay the extra query every request for no gain. Handle missing tables with `isMissingTableError`. The exception is a probe folded into a query the request already runs (an uncorrelated scalar subquery in an existing select list): that adds zero round trips, so it's fine when an empty table lets the request skip follow-up queries entirely.
 
 **Defer bookkeeping with `after(fn)`.** Maintenance writes don't need to block TTFB. `after()` uses workerd's `waitUntil` when available, fire-and-forgets on Node. Wrap your function body in try/catch with a module-specific log prefix.
 
