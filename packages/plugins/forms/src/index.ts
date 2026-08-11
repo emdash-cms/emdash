@@ -72,7 +72,7 @@ export function formsPlugin(
 		adminEntry: "@emdash-cms/plugin-forms/admin",
 		componentsEntry: "@emdash-cms/plugin-forms/astro",
 		options,
-		capabilities: ["email:send", "media:write", "network:request"],
+		capabilities: ["content:write", "email:send", "media:write", "network:request"],
 		allowedHosts: ["*"],
 		adminPages: [
 			{ path: "/", label: "Forms", icon: "list" },
@@ -93,7 +93,9 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 	return definePlugin({
 		id: "emdash-forms",
 		version,
-		capabilities: ["email:send", "media:write", "network:request"],
+		// content:write powers the optional per-form content mapping — it is
+		// only exercised for forms that have `contentMapping` configured.
+		capabilities: ["content:write", "email:send", "media:write", "network:request"],
 		allowedHosts: ["*"],
 
 		storage: FORMS_STORAGE_CONFIG,
