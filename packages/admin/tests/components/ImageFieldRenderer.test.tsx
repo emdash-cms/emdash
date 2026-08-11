@@ -57,9 +57,12 @@ describe("ImageFieldRenderer", () => {
 		const metadata = screen.getByText("1200 × 800 · image/jpeg");
 		await expect.element(metadata).toBeVisible();
 		expect(metadata.element()).toHaveAttribute("dir", "ltr");
-		const changeButton = screen.getByRole("button", { name: "Change" });
-		await expect.element(changeButton).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Remove image" })).toBeVisible();
+		const replaceButton = screen.getByRole("button", { name: "Replace" });
+		await expect.element(replaceButton).toBeVisible();
+		expect(replaceButton.element().querySelector("svg")).not.toBeNull();
+		const removeButton = screen.getByRole("button", { name: "Remove image" });
+		await expect.element(removeButton).toBeVisible();
+		expect(removeButton.element()).toHaveTextContent("Remove");
 
 		const image = screen.container.querySelector("img");
 		expect(image).toHaveAttribute("src", "/_emdash/api/media/file/featured-image.jpg");
@@ -108,7 +111,7 @@ describe("ImageFieldRenderer", () => {
 			/>,
 		);
 
-		await screen.getByRole("button", { name: "Change" }).click();
+		await screen.getByRole("button", { name: "Replace" }).click();
 		await screen.getByRole("button", { name: "Choose replacement" }).click();
 
 		expect(onChange).toHaveBeenCalledWith(
@@ -153,7 +156,7 @@ describe("ImageFieldRenderer", () => {
 
 		await expect.element(screen.getByText("Image not found")).toBeVisible();
 		await expect.element(screen.getByText("notes-on-simplicity.jpg")).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Change" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Replace" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Remove image" })).toBeVisible();
 	});
 

@@ -10,7 +10,7 @@
 
 import { Button, Label, LayerCard, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Image as ImageIcon, ImageBroken, X } from "@phosphor-icons/react";
+import { Image as ImageIcon, ImageBroken, ImageSquare, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
@@ -140,7 +140,7 @@ export function ImageFieldRenderer({
 					/>
 				)}
 			</div>
-			<div className="flex min-w-0 flex-col justify-center gap-2 px-4 py-3">
+			<div className="flex min-w-0 flex-col justify-center gap-3 px-4 py-3">
 				<div className="grid min-w-0 gap-1">
 					<Text as="p" bold truncate>
 						{selectedFilename}
@@ -152,18 +152,24 @@ export function ImageFieldRenderer({
 					)}
 				</div>
 				<div className="flex shrink-0 items-center gap-2">
-					<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
-						{t`Change`}
+					<Button
+						type="button"
+						size="sm"
+						variant="secondary"
+						icon={<ImageSquare />}
+						onClick={() => setPickerOpen(true)}
+					>
+						{t`Replace`}
 					</Button>
 					<Button
 						type="button"
 						size="sm"
-						shape="square"
 						variant="secondary-destructive"
+						icon={<X />}
 						onClick={handleRemove}
 						aria-label={t`Remove image`}
 					>
-						<X className="h-4 w-4" aria-hidden="true" />
+						{t`Remove`}
 					</Button>
 				</div>
 			</div>
