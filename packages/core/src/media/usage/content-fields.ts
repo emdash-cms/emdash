@@ -58,7 +58,7 @@ export async function loadContentMediaUsageFields(
 
 		if (row.type === "repeater") {
 			validateIdentifier(row.slug, "media usage field slug");
-			const subFields = normalizeRepeaterImageSubFields(row.validation);
+			const subFields = normalizeRepeaterMediaSubFields(row.validation);
 			if (subFields.length > 0) {
 				extractionFields.push({
 					slug: row.slug,
@@ -81,7 +81,7 @@ export async function loadContentMediaUsageFields(
 	};
 }
 
-function normalizeRepeaterImageSubFields(
+function normalizeRepeaterMediaSubFields(
 	rawValidation: string | null,
 ): MediaUsageExtractionSubField[] {
 	const validation = parseValidation(rawValidation);
@@ -89,10 +89,10 @@ function normalizeRepeaterImageSubFields(
 
 	const subFields: MediaUsageExtractionSubField[] = [];
 	for (const subField of validation.subFields) {
-		if (!isRecord(subField) || subField.type !== "image") continue;
+		if (!isRecord(subField) || (subField.type !== "image" && subField.type !== "file")) continue;
 		if (typeof subField.slug !== "string") continue;
 		validateIdentifier(subField.slug, "media usage repeater sub-field slug");
-		subFields.push({ slug: subField.slug, type: "image" });
+		subFields.push({ slug: subField.slug, type: subField.type });
 	}
 
 	return subFields.toSorted((a, b) => a.slug.localeCompare(b.slug));

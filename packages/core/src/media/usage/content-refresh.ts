@@ -29,6 +29,7 @@ export type ContentMediaUsageRefreshErrorCode =
 	| "DRAFT_REVISION_NOT_FOUND"
 	| "DRAFT_REVISION_MISMATCH"
 	| "DRAFT_REVISION_INVALID"
+	| "LOCAL_MEDIA_NOT_FOUND"
 	| "CONTENT_USAGE_REFRESH_ERROR"
 	| "CONTENT_USAGE_DELETE_ERROR"
 	| "CONTENT_USAGE_GENERATION_CONFLICT"
@@ -159,6 +160,11 @@ async function refreshContentMediaUsageAttempt(
 				deletedSourceCount,
 			});
 		}
+	}
+	if (
+		snapshotsResult.snapshots.some((snapshot) => snapshot.source.sourceCompleteness === "partial")
+	) {
+		await markContentMediaUsageCollectionPartial(db, collectionSlug);
 	}
 
 	return {
@@ -368,6 +374,31 @@ export async function markContentMediaUsageCollectionStale(
 		indexedSourceCount: existing?.indexedSourceCount ?? 0,
 		failedSourceCount: existing?.failedSourceCount ?? 0,
 		lastErrorCode,
+	});
+}
+
+async function markContentMediaUsageCollectionPartial(
+	db: Kysely<Database>,
+	collectionSlug: string,
+): Promise<void> {
+	validateIdentifier(collectionSlug, "collection slug");
+	const repo = new MediaUsageRepository(db);
+	const identity = {
+		adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+		scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+		scopeKey: collectionSlug,
+	};
+	const existing = await repo.findIndexStatus(identity);
+	await repo.upsertIndexStatus({
+		...identity,
+		status: "partial",
+		schemaVersion: CONTENT_SOURCE_SCHEMA_VERSION,
+		startedAt: existing?.startedAt ?? null,
+		completedAt: existing?.completedAt ?? null,
+		cursor: existing?.cursor ?? null,
+		indexedSourceCount: existing?.indexedSourceCount ?? 0,
+		failedSourceCount: existing?.failedSourceCount ?? 0,
+		lastErrorCode: null,
 	});
 }
 

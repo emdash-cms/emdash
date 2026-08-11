@@ -41,6 +41,7 @@ describeEachDialect("content media usage field discovery", (dialect) => {
 			validation: {
 				subFields: [
 					{ slug: "caption", type: "text", label: "Caption" },
+					{ slug: "download", type: "file", label: "Download" },
 					{ slug: "image", type: "image", label: "Image" },
 				],
 			},
@@ -56,12 +57,17 @@ describeEachDialect("content media usage field discovery", (dialect) => {
 			{
 				slug: "sections",
 				type: "repeater",
-				validation: { subFields: [{ slug: "image", type: "image" }] },
+				validation: {
+					subFields: [
+						{ slug: "download", type: "file" },
+						{ slug: "image", type: "image" },
+					],
+				},
 			},
 		]);
 	});
 
-	it("filters unsupported repeater subfields and excludes repeaters without images", async () => {
+	it("filters unsupported repeater subfields and excludes repeaters without media", async () => {
 		await registry.createField("posts", {
 			slug: "sections",
 			label: "Sections",
@@ -102,9 +108,19 @@ describeEachDialect("content media usage field discovery", (dialect) => {
 
 		expect(discovery.extractionFields).toEqual([
 			{
+				slug: "downloads",
+				type: "repeater",
+				validation: { subFields: [{ slug: "download", type: "file" }] },
+			},
+			{
 				slug: "sections",
 				type: "repeater",
-				validation: { subFields: [{ slug: "image", type: "image" }] },
+				validation: {
+					subFields: [
+						{ slug: "download", type: "file" },
+						{ slug: "image", type: "image" },
+					],
+				},
 			},
 		]);
 	});

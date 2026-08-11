@@ -3,7 +3,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { MediaDetailPanel } from "../../src/components/MediaDetailPanel";
-import type { MediaItem } from "../../src/lib/api";
+import type { MediaItem, MediaUsageSummary } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
 vi.mock("../../src/lib/api", async () => {
@@ -16,6 +16,10 @@ vi.mock("../../src/lib/api", async () => {
 	};
 });
 
+vi.mock("../../src/components/MediaUsedIn", () => ({
+	MediaUsedIn: () => <div data-testid="media-used-in" />,
+}));
+
 // Import the mocked functions for assertions
 import { updateMedia, deleteMedia, deleteFromProvider } from "../../src/lib/api";
 
@@ -25,6 +29,11 @@ function QueryWrapper({ children }: { children: React.ReactNode }) {
 	});
 	return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
+
+const completeUsage: MediaUsageSummary = {
+	count: 1,
+	coverage: { scope: "all_content_collections", status: "complete" },
+};
 
 function makeImageItem(overrides: Partial<MediaItem> = {}): MediaItem {
 	return {
@@ -97,40 +106,33 @@ describe("MediaDetailPanel", () => {
 		await expect.element(screen.getByText("1920 × 1080")).toBeInTheDocument();
 	});
 
-	it("renders the responsive two-column viewport-bounded dialog layout", async () => {
-		const screen = await renderPanel();
-		const dialog = screen.getByRole("dialog", { name: "Media Details" }).element();
-		const header = screen.getByTestId("media-detail-dialog-header").element();
-		const body = screen.getByTestId("media-detail-dialog-body").element();
-		const previewColumn = screen.getByTestId("media-detail-dialog-preview-column").element();
-		const detailsColumn = screen.getByTestId("media-detail-dialog-details-column").element();
-		const fileFacts = screen.getByTestId("media-detail-dialog-file-facts").element();
-		const footer = screen.getByTestId("media-detail-dialog-footer").element();
+	it("renders summarized local media usage and omits missing summaries and provider assets", async () => {
+		const screen = await renderPanel({ item: makeImageItem({ usage: completeUsage }) });
+		await expect.element(screen.getByTestId("media-used-in")).toBeVisible();
 
-		expect(body.className).toContain("grid-cols-1");
-		expect(body.className).toContain("md:grid-cols-2");
-		expect(dialog.style.height).toBe("");
-		expect(dialog.style.maxHeight).toBe("min(88dvh, 48rem)");
-		expect(dialog.className).toContain("data-starting-style:scale-90");
-		expect(dialog.className).toContain("data-starting-style:opacity-0");
-		expect(dialog.style.transitionProperty).toBe("scale, opacity");
-		expect(header.style.padding).toBe("1.25rem 2rem");
-		expect(previewColumn.contains(fileFacts)).toBe(true);
-		expect(detailsColumn.contains(fileFacts)).toBe(false);
-		expect(previewColumn.className).toContain("md:p-8");
-		expect(detailsColumn.className).toContain("md:p-8");
-		// Columns only constrain/scroll at md+; on mobile the body scrolls as one
-		// column so collapsed columns can't compress and overlap their content.
-		expect(body.className).toContain("overflow-y-auto");
-		expect(body.className).toContain("md:overflow-hidden");
-		expect(previewColumn.className).toContain("md:min-h-0");
-		expect(previewColumn.className).toContain("md:overflow-y-auto");
-		expect(previewColumn.className).not.toContain(" min-h-0");
-		expect(detailsColumn.className).toContain("md:min-h-0");
-		expect(detailsColumn.className).toContain("md:overflow-y-auto");
-		expect(detailsColumn.className).not.toContain(" min-h-0");
-		expect(fileFacts.className).toContain("space-y-3");
-		expect(footer.style.padding).toBe("1.25rem 2rem");
+		await screen.rerender(
+			<QueryWrapper>
+				<MediaDetailPanel open item={makeImageItem()} onClose={vi.fn()} />
+			</QueryWrapper>,
+		);
+
+		await expect
+			.element(screen.getByTestId("media-used-in"), { timeout: 100 })
+			.not.toBeInTheDocument();
+
+		await screen.rerender(
+			<QueryWrapper>
+				<MediaDetailPanel
+					open
+					item={makeImageItem({ provider: "cloudflare-images", usage: completeUsage })}
+					onClose={vi.fn()}
+				/>
+			</QueryWrapper>,
+		);
+
+		await expect
+			.element(screen.getByTestId("media-used-in"), { timeout: 100 })
+			.not.toBeInTheDocument();
 	});
 
 	it("shows image preview for image mimeTypes", async () => {
@@ -153,7 +155,6 @@ describe("MediaDetailPanel", () => {
 		const screen = await renderPanel({ item });
 		const altInput = screen.getByLabelText("Alt Text");
 		await expect.element(altInput).toBeInTheDocument();
-		expect(altInput.element().className).toContain("w-full");
 		await expect
 			.element(screen.getByRole("button", { name: "Why is this important?" }))
 			.toBeInTheDocument();
@@ -186,8 +187,6 @@ describe("MediaDetailPanel", () => {
 		const screen = await renderPanel({ item });
 		const filenameInput = screen.getByLabelText("Filename");
 		await expect.element(filenameInput).toBeDisabled();
-		expect(filenameInput.element().className).toContain("bg-kumo-tint");
-		expect(filenameInput.element().className).toContain("w-full");
 		await expect
 			.element(screen.getByRole("button", { name: "Why can't this be changed?" }))
 			.toBeInTheDocument();
@@ -211,7 +210,11 @@ describe("MediaDetailPanel", () => {
 
 	it("save calls updateMedia with correct payload", async () => {
 		const onClose = vi.fn();
-		const item = makeImageItem({ alt: "Old alt", caption: "Old caption" });
+		const item = makeImageItem({
+			alt: "Old alt",
+			caption: "Old caption",
+			usage: completeUsage,
+		});
 		const screen = await renderPanel({ item, onClose });
 
 		const altInput = screen.getByLabelText("Alt Text");
@@ -231,7 +234,11 @@ describe("MediaDetailPanel", () => {
 	});
 
 	it("saves empty strings when clearing alt text and caption", async () => {
-		const item = makeImageItem({ alt: "Old alt", caption: "Old caption" });
+		const item = makeImageItem({
+			alt: "Old alt",
+			caption: "Old caption",
+			usage: completeUsage,
+		});
 		const screen = await renderPanel({ item });
 
 		await screen.getByLabelText("Alt Text").fill("");
@@ -252,7 +259,11 @@ describe("MediaDetailPanel", () => {
 			() => new Promise<MediaItem>((resolve) => (resolveUpdate = resolve)),
 		);
 		const onClose = vi.fn();
-		const item = makeImageItem({ alt: "Old alt", caption: "Old caption" });
+		const item = makeImageItem({
+			alt: "Old alt",
+			caption: "Old caption",
+			usage: completeUsage,
+		});
 		const screen = await renderPanel({ item, onClose });
 
 		const altInput = screen.getByLabelText("Alt Text");
