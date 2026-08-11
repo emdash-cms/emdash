@@ -15,9 +15,14 @@ export interface MediaUsageProjectionFingerprintInput {
 	extractionFields: readonly MediaUsageExtractionField[];
 }
 
+export interface MediaUsageProjectionFingerprint {
+	fingerprint: string;
+	byteLength: number;
+}
+
 export async function buildMediaUsageProjectionFingerprint(
 	input: MediaUsageProjectionFingerprintInput,
-): Promise<string> {
+): Promise<MediaUsageProjectionFingerprint> {
 	if (!input.collectionId) {
 		throw new Error("Media usage projection fingerprints require a collection identity");
 	}
@@ -59,11 +64,15 @@ export async function buildMediaUsageProjectionFingerprint(
 		},
 		occurrences: canonicalOccurrences,
 	});
-	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
+	const encodedPayload = new TextEncoder().encode(payload);
+	const digest = await crypto.subtle.digest("SHA-256", encodedPayload);
 	const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(
 		"",
 	);
-	return `${FINGERPRINT_PREFIX}${hex}`;
+	return {
+		fingerprint: `${FINGERPRINT_PREFIX}${hex}`,
+		byteLength: encodedPayload.byteLength,
+	};
 }
 
 function normalizeExtractionFields(

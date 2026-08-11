@@ -440,6 +440,10 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 		expect(firstOverlay.source.sourceFingerprint).not.toBe(firstColumns.source.sourceFingerprint);
 		expect(secondColumns.source.sourceFingerprint).toBe(firstColumns.source.sourceFingerprint);
 		expect(secondOverlay.source.sourceFingerprint).toBe(firstOverlay.source.sourceFingerprint);
+		expect(firstColumns.projectionByteLength).toBeGreaterThan(0);
+		expect(firstOverlay.projectionByteLength).toBeGreaterThan(0);
+		expect(secondColumns.projectionByteLength).toBe(firstColumns.projectionByteLength);
+		expect(secondOverlay.projectionByteLength).toBe(firstOverlay.projectionByteLength);
 	});
 
 	it("changes fingerprints when V1-visible source metadata changes", async () => {

@@ -54,6 +54,7 @@ export interface ContentMediaUsageSnapshot {
 	source: MediaUsageSourceInput;
 	occurrences: MediaUsageOccurrenceInput[];
 	fields: readonly ContentMediaUsageField[];
+	projectionByteLength: number;
 }
 
 export interface LoadContentMediaUsageSnapshotsOptions {
@@ -106,17 +107,19 @@ export async function loadContentMediaUsageSnapshots(
 		sourceVariant: "columns",
 		revisionId: columnsRevisionId,
 	});
-	columnsSource.sourceFingerprint = await buildMediaUsageProjectionFingerprint({
+	const columnsProjection = await buildMediaUsageProjectionFingerprint({
 		collectionId,
 		source: columnsSource,
 		occurrences,
 		extractionFields: discovery.extractionFields,
 	});
+	columnsSource.sourceFingerprint = columnsProjection.fingerprint;
 	const snapshots: ContentMediaUsageSnapshot[] = [
 		{
 			source: columnsSource,
 			occurrences,
 			fields: discovery.extractionFields,
+			projectionByteLength: columnsProjection.byteLength,
 		},
 	];
 
@@ -180,16 +183,18 @@ export async function loadContentMediaUsageSnapshots(
 			revisionId: draftRevisionId,
 			contentSlug: draftContentSlug,
 		});
-		draftSource.sourceFingerprint = await buildMediaUsageProjectionFingerprint({
+		const draftProjection = await buildMediaUsageProjectionFingerprint({
 			collectionId,
 			source: draftSource,
 			occurrences: draftOccurrences,
 			extractionFields: discovery.extractionFields,
 		});
+		draftSource.sourceFingerprint = draftProjection.fingerprint;
 		snapshots.push({
 			source: draftSource,
 			occurrences: draftOccurrences,
 			fields: discovery.extractionFields,
+			projectionByteLength: draftProjection.byteLength,
 		});
 	}
 

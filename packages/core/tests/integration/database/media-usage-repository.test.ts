@@ -1503,6 +1503,35 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 		expect(rows).toHaveLength(SQL_BATCH_SIZE + 7);
 		expect(rows.every((row) => row.generation === source.currentGeneration)).toBe(true);
 	});
+
+	it("bounds current-generation deletion measurement without counting stale generations", async () => {
+		const sourceInput = contentSource("entry-admission", "draft_overlay");
+		await repo.replaceSource(
+			sourceInput,
+			Array.from({ length: 30 }, (_, index) =>
+				occurrence(`stale-${index}`, `stale-media-${index}`),
+			),
+		);
+		const current = await repo.replaceSource(
+			sourceInput,
+			Array.from({ length: 13 }, (_, index) =>
+				occurrence(`current-${index}`, `current-media-${index}`),
+			),
+		);
+
+		const measurement = await repo.measureSourceGenerationDeletion(
+			current.sourceKey,
+			current.currentGeneration,
+			12,
+		);
+
+		expect(measurement).toEqual({
+			occurrenceCount: 13,
+			occurrenceBytes: expect.any(Number),
+			exceedsOccurrenceLimit: true,
+		});
+		expect(measurement.occurrenceBytes).toBeGreaterThan(0);
+	});
 });
 
 function contentSource(

@@ -1,7 +1,10 @@
 import { sql, type Kysely } from "kysely";
 
 import { tableExists } from "../../database/dialect-helpers.js";
-import { MediaUsageRepository } from "../../database/repositories/media-usage.js";
+import {
+	MediaUsageRepository,
+	type MediaUsageSource,
+} from "../../database/repositories/media-usage.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { isI18nEnabled } from "../../i18n/config.js";
@@ -9,6 +12,7 @@ import { loadContentMediaUsageFields } from "./content-fields.js";
 import {
 	CONTENT_SOURCE_SCHEMA_VERSION,
 	loadContentMediaUsageSnapshots,
+	type ContentMediaUsageSnapshot,
 } from "./content-snapshots.js";
 import {
 	buildContentMediaUsageSourceKey,
@@ -21,6 +25,28 @@ export const CONTENT_MEDIA_USAGE_COLLECTION_SCOPE = "collection";
 const CONTENT_USAGE_LOCKS_KEY = Symbol.for("emdash.mediaUsage.contentLocks");
 const CONTENT_USAGE_COLLECTION_LOCKS_KEY = Symbol.for("emdash.mediaUsage.collectionLocks");
 const CONTENT_USAGE_REFRESH_MAX_ATTEMPTS = 2;
+
+export const MEDIA_USAGE_PROJECTION_ADMISSION_LIMITS = Object.freeze({
+	maxOccurrenceMutationUnitsPerClaim: 12,
+	maxProjectionMutationBytesPerClaim: 512 * 1024,
+});
+
+export interface ContentMediaUsageAdmissionBudget {
+	remainingOccurrenceMutationUnits: number;
+	remainingProjectionMutationBytes: number;
+	hasReservedMutation: boolean;
+}
+
+export type ContentMediaUsageProjectionAdmissionResult =
+	| {
+			outcome: "admitted";
+			noOpSourceKeys: ReadonlySet<string>;
+			absentSources: MediaUsageSource[];
+			occurrenceMutationUnits: number;
+			projectionMutationBytes: number;
+	  }
+	| { outcome: "intrinsic_resource_limit" }
+	| { outcome: "claim_budget_deferred" };
 
 // These maps only de-dupe usage work inside the current isolate/process. Cross-worker
 // correctness comes from expected-generation guards on repository writes.
@@ -54,6 +80,133 @@ const ZERO_RESULT: ContentMediaUsageRefreshResult = {
 	deletedSourceCount: 0,
 	failedSourceCount: 0,
 };
+
+export function createContentMediaUsageAdmissionBudget(): ContentMediaUsageAdmissionBudget {
+	return {
+		remainingOccurrenceMutationUnits:
+			MEDIA_USAGE_PROJECTION_ADMISSION_LIMITS.maxOccurrenceMutationUnitsPerClaim,
+		remainingProjectionMutationBytes:
+			MEDIA_USAGE_PROJECTION_ADMISSION_LIMITS.maxProjectionMutationBytesPerClaim,
+		hasReservedMutation: false,
+	};
+}
+
+export async function planContentMediaUsageProjectionAdmission(
+	repo: MediaUsageRepository,
+	snapshots: readonly ContentMediaUsageSnapshot[],
+	observedSources: ReadonlyMap<string, MediaUsageSource>,
+	canonicalSourceKeys: readonly string[],
+	budget: ContentMediaUsageAdmissionBudget,
+): Promise<ContentMediaUsageProjectionAdmissionResult> {
+	const snapshotSourceKeys = new Set(snapshots.map((snapshot) => snapshot.source.sourceKey));
+	const absentSources = canonicalSourceKeys
+		.filter((sourceKey) => !snapshotSourceKeys.has(sourceKey))
+		.map((sourceKey) => observedSources.get(sourceKey))
+		.filter((source): source is MediaUsageSource => source !== undefined);
+	let deletionOccurrenceUnits = 0;
+	let deletionBytes = 0;
+	for (const source of absentSources) {
+		const measurement = await repo.measureSourceGenerationDeletion(
+			source.sourceKey,
+			source.currentGeneration,
+			MEDIA_USAGE_PROJECTION_ADMISSION_LIMITS.maxOccurrenceMutationUnitsPerClaim,
+		);
+		if (measurement.exceedsOccurrenceLimit) {
+			return budget.hasReservedMutation
+				? { outcome: "claim_budget_deferred" }
+				: { outcome: "intrinsic_resource_limit" };
+		}
+		deletionOccurrenceUnits += measurement.occurrenceCount;
+		deletionBytes += storedMediaUsageSourceByteLength(source) + measurement.occurrenceBytes * 2;
+	}
+
+	const noOpSourceKeys = new Set<string>();
+	let cost = projectionAdmissionCost(
+		snapshots,
+		noOpSourceKeys,
+		deletionOccurrenceUnits,
+		deletionBytes,
+	);
+	if (exceedsProjectionAdmissionLimits(cost)) {
+		for (const snapshot of snapshots) {
+			const expectedSource = observedSources.get(snapshot.source.sourceKey);
+			if (
+				expectedSource &&
+				(await repo.projectionMatchesExpectedSource(snapshot.source, expectedSource))
+			) {
+				noOpSourceKeys.add(snapshot.source.sourceKey);
+			}
+		}
+		cost = projectionAdmissionCost(
+			snapshots,
+			noOpSourceKeys,
+			deletionOccurrenceUnits,
+			deletionBytes,
+		);
+	}
+
+	if (exceedsProjectionAdmissionLimits(cost)) {
+		return budget.hasReservedMutation
+			? { outcome: "claim_budget_deferred" }
+			: { outcome: "intrinsic_resource_limit" };
+	}
+	if (
+		cost.occurrenceMutationUnits > budget.remainingOccurrenceMutationUnits ||
+		cost.projectionMutationBytes > budget.remainingProjectionMutationBytes
+	) {
+		return { outcome: "claim_budget_deferred" };
+	}
+
+	budget.remainingOccurrenceMutationUnits -= cost.occurrenceMutationUnits;
+	budget.remainingProjectionMutationBytes -= cost.projectionMutationBytes;
+	if (cost.occurrenceMutationUnits > 0 || cost.projectionMutationBytes > 0) {
+		budget.hasReservedMutation = true;
+	}
+	return {
+		outcome: "admitted",
+		noOpSourceKeys,
+		absentSources,
+		...cost,
+	};
+}
+
+interface ProjectionAdmissionCost {
+	occurrenceMutationUnits: number;
+	projectionMutationBytes: number;
+}
+
+function projectionAdmissionCost(
+	snapshots: readonly ContentMediaUsageSnapshot[],
+	noOpSourceKeys: ReadonlySet<string>,
+	deletionOccurrenceUnits: number,
+	deletionBytes: number,
+): ProjectionAdmissionCost {
+	return snapshots.reduce<ProjectionAdmissionCost>(
+		(cost, snapshot) => {
+			if (noOpSourceKeys.has(snapshot.source.sourceKey)) return cost;
+			cost.occurrenceMutationUnits += snapshot.occurrences.length;
+			cost.projectionMutationBytes += snapshot.projectionByteLength;
+			return cost;
+		},
+		{
+			occurrenceMutationUnits: deletionOccurrenceUnits,
+			projectionMutationBytes: deletionBytes,
+		},
+	);
+}
+
+function exceedsProjectionAdmissionLimits(cost: ProjectionAdmissionCost): boolean {
+	return (
+		cost.occurrenceMutationUnits >
+			MEDIA_USAGE_PROJECTION_ADMISSION_LIMITS.maxOccurrenceMutationUnitsPerClaim ||
+		cost.projectionMutationBytes >
+			MEDIA_USAGE_PROJECTION_ADMISSION_LIMITS.maxProjectionMutationBytesPerClaim
+	);
+}
+
+function storedMediaUsageSourceByteLength(source: MediaUsageSource): number {
+	return new TextEncoder().encode(JSON.stringify(source)).byteLength;
+}
 
 export async function refreshContentMediaUsage(
 	db: Kysely<Database>,

@@ -33,7 +33,6 @@ type MediaUsageSourceNullableStringColumn =
 	| "updated_at"
 	| "last_attempted_at"
 	| "last_error_code";
-
 const OCCURRENCE_BIND_COLUMNS = 13;
 export const MEDIA_USAGE_GENERATION_WRITE_LEASE_MS = 60 * 60 * 1000;
 const OCCURRENCE_INSERT_BATCH_SIZE = Math.max(
@@ -182,6 +181,12 @@ export interface MediaUsageGuardedAttemptResult {
 	attempted: boolean;
 	/** Populated only when a guarded attempted mark did not win the current source row. */
 	source: MediaUsageSource | null;
+}
+
+export interface MediaUsageSourceGenerationDeletionMeasurement {
+	occurrenceCount: number;
+	occurrenceBytes: number;
+	exceedsOccurrenceLimit: boolean;
 }
 
 export interface MediaUsageCleanupCursor {
@@ -535,6 +540,38 @@ export class MediaUsageRepository {
 		}
 
 		return sources;
+	}
+
+	async measureSourceGenerationDeletion(
+		sourceKey: string,
+		generation: string,
+		maxOccurrences: number,
+	): Promise<MediaUsageSourceGenerationDeletionMeasurement> {
+		if (!Number.isSafeInteger(maxOccurrences) || maxOccurrences < 0) {
+			throw new Error("Media usage deletion measurement requires a non-negative row limit");
+		}
+		const payload = sql<string>`
+			COALESCE(field_slug, '') || COALESCE(field_path, '') ||
+			COALESCE(reference_type, '') || COALESCE(media_id, '') ||
+			COALESCE(provider, '') || COALESCE(provider_asset_id, '') ||
+			COALESCE(media_kind, '') || COALESCE(mime_type, '')
+		`;
+		const occurrenceBytes = isPostgres(this.db)
+			? sql<number>`octet_length(${payload})`
+			: sql<number>`length(CAST(${payload} AS BLOB))`;
+		const rows = await this.db
+			.selectFrom("_emdash_media_usage")
+			.select(occurrenceBytes.as("occurrence_bytes"))
+			.where("source_key", "=", sourceKey)
+			.where("generation", "=", generation)
+			.limit(maxOccurrences + 1)
+			.execute();
+
+		return {
+			occurrenceCount: rows.length,
+			occurrenceBytes: rows.reduce((total, row) => total + Number(row.occurrence_bytes), 0),
+			exceedsOccurrenceLimit: rows.length > maxOccurrences,
+		};
 	}
 
 	async replaceSourceIfMatching(
