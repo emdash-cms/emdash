@@ -280,22 +280,10 @@ function isAiSearchNamespace(value: unknown): value is AiSearchNamespace {
 	return isRecord(value) && typeof value.get === "function" && typeof value.create === "function";
 }
 
-const WORKERS_MODULE_KEY = Symbol.for("emdash.ai-search.workers-module");
-
 type WorkersModule = typeof import("cloudflare:workers");
 
-/**
- * Import `cloudflare:workers` once per isolate. Several call sites need it, and
- * a rejected import is not cached so a later call can retry.
- */
 function loadWorkersModule(): Promise<WorkersModule> {
-	const globals = globalThis as typeof globalThis & {
-		[WORKERS_MODULE_KEY]?: Promise<WorkersModule>;
-	};
-	return (globals[WORKERS_MODULE_KEY] ??= import("cloudflare:workers").catch((error: unknown) => {
-		delete globals[WORKERS_MODULE_KEY];
-		throw error;
-	}));
+	return import("cloudflare:workers");
 }
 
 /** Get Cloudflare runtime env via cloudflare:workers. */
@@ -305,17 +293,6 @@ async function getCloudflareEnv(): Promise<object | null> {
 	} catch {
 		return null;
 	}
-}
-
-/**
- * Keep the Worker isolate alive for the given promise.
- * Uses cloudflare:workers waitUntil — safe to call after the response is sent.
- * Silently no-ops outside Workers (e.g. during local dev).
- */
-function cfWaitUntil(promise: Promise<unknown>): void {
-	loadWorkersModule()
-		.then(({ waitUntil }) => waitUntil(promise))
-		.catch(() => {});
 }
 
 const SYSTEM_CONTENT_KEYS = new Set([
@@ -1026,12 +1003,6 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 		return removeFromIndex(collection, String(content.id), ctx);
 	}
 
-	/** Keep the worker alive until the index write settles, then surface it. */
-	function waitForSync(work: Promise<void>): Promise<void> {
-		cfWaitUntil(work);
-		return work;
-	}
-
 	/** Process exactly one content page so every request stays bounded. */
 	async function processReindexBatch(job: ReindexJob, ctx: PluginContext) {
 		if (job.status === "complete") return reindexResult(job);
@@ -1172,7 +1143,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 					// Sync based on the current status: published content is visible
 					// immediately (visible_after=0), scheduled content is indexed but
 					// gated until its scheduledAt timestamp, and drafts are removed.
-					return waitForSync(syncSearchIndex(content, collection, ctx));
+					return syncSearchIndex(content, collection, ctx);
 				},
 			},
 
@@ -1184,7 +1155,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 					const { content, collection } = event;
 					if (!(await shouldSync(collection, ctx))) return;
 
-					return waitForSync(indexContent(content, collection, ctx));
+					return indexContent(content, collection, ctx);
 				},
 			},
 
@@ -1195,7 +1166,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 				): Promise<void> => {
 					const { content, collection } = event;
 
-					return waitForSync(removeFromIndex(collection, String(content.id), ctx));
+					return removeFromIndex(collection, String(content.id), ctx);
 				},
 			},
 
@@ -1209,7 +1180,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 
 					// Index the item with its `visible_after` gate so it stays hidden
 					// from search results until the scheduled time arrives.
-					return waitForSync(syncSearchIndex(content, collection, ctx));
+					return syncSearchIndex(content, collection, ctx);
 				},
 			},
 
@@ -1222,7 +1193,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 
 					// Unscheduling returns the item to a draft state — drop it from
 					// the index.
-					return waitForSync(removeFromIndex(collection, String(content.id), ctx));
+					return removeFromIndex(collection, String(content.id), ctx);
 				},
 			},
 
@@ -1240,7 +1211,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 
 					// Restored content re-enters the index according to its restored
 					// status (published/scheduled index, otherwise remove).
-					return waitForSync(syncSearchIndex(content, collection, ctx));
+					return syncSearchIndex(content, collection, ctx);
 				},
 			},
 
@@ -1248,7 +1219,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 				handler: async (event: ContentDeleteEvent, ctx: PluginContext): Promise<void> => {
 					const { id, collection } = event;
 
-					return waitForSync(removeFromIndex(collection, id, ctx));
+					return removeFromIndex(collection, id, ctx);
 				},
 			},
 		},
