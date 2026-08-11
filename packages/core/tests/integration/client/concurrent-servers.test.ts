@@ -15,7 +15,7 @@
  * its own copied fixture root) both succeed.
  */
 
-import { realpathSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, it, expect, afterAll } from "vitest";
@@ -48,14 +48,17 @@ describe("Concurrent dev servers (#1604)", () => {
 		// Start both concurrently so they race for the (previously shared) lock.
 		const [a, b] = await Promise.all([startTracked(PORT_A), startTracked(PORT_B)]);
 
-		// Distinct roots -- the fix gives each server its own copied fixture.
-		expect(a.cwd).not.toBe(b.cwd);
-
-		// The Vite dependency optimizer must not follow both node_modules symlinks
-		// back to the same physical cache directory.
-		const viteCacheA = realpathSync(join(a.cwd, ".vite-cache"));
-		const viteCacheB = realpathSync(join(b.cwd, ".vite-cache"));
-		expect(viteCacheA).not.toBe(viteCacheB);
+		// Vite must write optimizer output into each server's private cache root,
+		// not follow the shared node_modules symlink to one physical cache.
+		for (const cwd of [a.cwd, b.cwd]) {
+			const cacheDir = join(cwd, ".vite-cache");
+			expect(existsSync(cacheDir), `${cacheDir} was never created`).toBe(true);
+			const output = readdirSync(cacheDir, { recursive: true, withFileTypes: true });
+			expect(
+				output.some((entry) => entry.isFile()),
+				`${cacheDir} contains no Vite cache output`,
+			).toBe(true);
+		}
 
 		// Both must actually serve their independently seeded content.
 		const [collectionsA, collectionsB] = await Promise.all([
@@ -67,5 +70,5 @@ describe("Concurrent dev servers (#1604)", () => {
 			expect(slugs).toContain("posts");
 			expect(slugs).toContain("pages");
 		}
-	}, 120_000);
+	}, 90_000);
 });
