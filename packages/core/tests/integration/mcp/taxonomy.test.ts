@@ -16,8 +16,11 @@ import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { handleTaxonomyCreate } from "../../../src/api/handlers/taxonomies.js";
+import { TaxonomyRepository as TaxonomyRepo } from "../../../src/database/repositories/taxonomy.js";
+import { decodeCursor, encodeCursor } from "../../../src/database/repositories/types.js";
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
+import { decodeBase64, encodeBase64 } from "../../../src/utils/base64.js";
 import {
 	connectMcpHarness,
 	extractJson,
@@ -240,12 +243,35 @@ describe("taxonomy_list_terms", () => {
 		for (const t of p2.items) expect(p1Slugs).not.toContain(t.slug);
 	});
 
+	it("paginates in manual term order", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		for (const [slug, label] of [
+			["first", "Zulu"],
+			["second", "Alpha"],
+		] as const) {
+			await harness.client.callTool({
+				name: "taxonomy_create_term",
+				arguments: { taxonomy: "categories", slug, label },
+			});
+		}
+
+		const page1 = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", limit: 1 },
+		});
+		const p1 = extractJson<{ items: Array<{ slug: string }>; nextCursor?: string }>(page1);
+		expect(p1.items.map((item) => item.slug)).toEqual(["first"]);
+		expect(p1.nextCursor).toBeTruthy();
+
+		const page2 = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", limit: 1, cursor: p1.nextCursor },
+		});
+		const p2 = extractJson<{ items: Array<{ slug: string }> }>(page2);
+		expect(p2.items.map((item) => item.slug)).toEqual(["second"]);
+	});
+
 	it("paginates correctly when multiple terms share the same label", async () => {
-		// Keyset pagination over (label, id) needs a stable id tiebreaker
-		// at the SQL layer or tied-label rows can swap order between calls
-		// — producing duplicates or skipped items. Three terms share
-		// label "shared"; pagination must walk through them in a stable
-		// order with no duplicates and no gaps.
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 		const slugs = ["shared-1", "shared-2", "shared-3", "unique-a"];
 		for (const slug of slugs) {
@@ -259,11 +285,8 @@ describe("taxonomy_list_terms", () => {
 			});
 		}
 
-		// Walk one item at a time so every cursor transition exercises the
-		// (label, id) keyset.
 		const collected: string[] = [];
 		let cursor: string | undefined;
-		// Hard cap to prevent the test hanging if pagination loops.
 		for (let i = 0; i < 10; i++) {
 			const page = await harness.client.callTool({
 				name: "taxonomy_list_terms",
@@ -279,16 +302,10 @@ describe("taxonomy_list_terms", () => {
 			cursor = data.nextCursor;
 		}
 
-		// Each slug appears exactly once. Order doesn't matter for this
-		// assertion — just no duplicates and no missing entries.
 		expect(collected.toSorted()).toEqual(slugs.toSorted());
 	});
 
 	it("survives concurrent deletion of the cursor-term", async () => {
-		// The base64 keyset cursor encodes a (label, id) position rather
-		// than a row reference, so deleting the cursor-term between pages
-		// must not error — the next page just continues from the next
-		// position in sort order.
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 		for (const slug of ["alpha", "bravo", "charlie", "delta"]) {
 			await harness.client.callTool({
@@ -307,20 +324,17 @@ describe("taxonomy_list_terms", () => {
 		}>(page1);
 		expect(p1.items.map((i) => i.slug)).toEqual(["alpha", "bravo"]);
 		expect(p1.nextCursor).toBeTruthy();
+		expect(JSON.parse(decodeBase64(p1.nextCursor!))).toMatchObject({
+			v: 2,
+			sortOrder: 1,
+			label: "bravo",
+		});
 
-		// Delete the cursor-term ('bravo') out of band.
-		const { TaxonomyRepository } = await import("../../../src/database/repositories/taxonomy.js");
-		const repo = new TaxonomyRepository(db);
+		const repo = new TaxonomyRepo(db);
 		const bravo = await repo.findBySlug("categories", "bravo");
-		if (!bravo) throw new Error("bravo missing — fixture broken");
+		if (!bravo) throw new Error("bravo fixture is missing");
 		await db.deleteFrom("taxonomies").where("id", "=", bravo.id).execute();
 
-		// Page 2 must still work and return the items strictly after the
-		// cursor's position. Pre-fix the cursor stored 'bravo's id and
-		// findIndex would have returned -1 → INVALID_CURSOR. Post-fix the
-		// cursor stores ('bravo', '<bravo-id>') and the keyset comparison
-		// finds the first term with (label, id) > ('bravo', '<bravo-id>')
-		// — that's 'charlie'.
 		const page2 = await harness.client.callTool({
 			name: "taxonomy_list_terms",
 			arguments: { taxonomy: "categories", limit: 2, cursor: p1.nextCursor },
@@ -330,6 +344,53 @@ describe("taxonomy_list_terms", () => {
 		expect(p2.items.map((i) => i.slug)).toEqual(["charlie", "delta"]);
 	});
 
+	it("continues legacy label-order cursor chains after cursor-term deletion", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		for (const [slug, label] of [
+			["zulu", "Zulu"],
+			["alpha", "Alpha"],
+			["bravo", "Bravo"],
+		] as const) {
+			await harness.client.callTool({
+				name: "taxonomy_create_term",
+				arguments: { taxonomy: "categories", slug, label },
+			});
+		}
+
+		const repo = new TaxonomyRepo(db);
+		const alpha = await repo.findBySlug("categories", "alpha");
+		if (!alpha) throw new Error("alpha fixture is missing");
+
+		const page1 = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: {
+				taxonomy: "categories",
+				limit: 1,
+				cursor: encodeCursor(alpha.label, alpha.id),
+			},
+		});
+		const p1 = extractJson<{
+			items: Array<{ id: string; slug: string }>;
+			nextCursor?: string;
+		}>(page1);
+		expect(p1.items.map((item) => item.slug)).toEqual(["bravo"]);
+		expect(p1.nextCursor).toBeTruthy();
+		expect(decodeCursor(p1.nextCursor!)).toEqual({
+			orderValue: "Bravo",
+			id: p1.items[0]!.id,
+		});
+
+		await db.deleteFrom("taxonomies").where("id", "=", p1.items[0]!.id).execute();
+
+		const page2 = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", limit: 1, cursor: p1.nextCursor },
+		});
+		const p2 = extractJson<{ items: Array<{ slug: string }>; nextCursor?: string }>(page2);
+		expect(p2.items.map((item) => item.slug)).toEqual(["zulu"]);
+		expect(p2.nextCursor).toBeUndefined();
+	});
+
 	it("malformed cursor returns INVALID_CURSOR", async () => {
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 		await harness.client.callTool({
@@ -337,9 +398,6 @@ describe("taxonomy_list_terms", () => {
 			arguments: { taxonomy: "categories", slug: "t1", label: "T1" },
 		});
 
-		// taxonomy_list_terms uses a base64 keyset cursor over (label, id).
-		// A completely bogus value fails decodeCursor and surfaces as a
-		// structured INVALID_CURSOR error.
 		const result = await harness.client.callTool({
 			name: "taxonomy_list_terms",
 			arguments: { taxonomy: "categories", cursor: "garbage_cursor_xyz" },
@@ -347,6 +405,39 @@ describe("taxonomy_list_terms", () => {
 		expect(result.isError).toBe(true);
 		const meta = (result as { _meta?: { code?: string } })._meta;
 		expect(meta?.code).toBe("INVALID_CURSOR");
+	});
+
+	it.each([
+		["unknown version", { v: 3, sortOrder: 0, label: "T1", id: "term-1" }],
+		["non-integer sort order", { v: 2, sortOrder: "0", label: "T1", id: "term-1" }],
+		["missing label", { v: 2, sortOrder: 0, id: "term-1" }],
+		["out-of-range sort order", { v: 2, sortOrder: 2_147_483_648, label: "T1", id: "term-1" }],
+		["NUL label", { v: 2, sortOrder: 0, label: "T\0", id: "term-1" }],
+		["NUL id", { v: 2, sortOrder: 0, label: "T1", id: "term\0" }],
+	])("rejects a cursor with %s", async (_name, payload) => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const result = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: {
+				taxonomy: "categories",
+				cursor: encodeBase64(JSON.stringify(payload)),
+			},
+		});
+		expect(result.isError).toBe(true);
+		expect((result as { _meta?: { code?: string } })._meta?.code).toBe("INVALID_CURSOR");
+	});
+
+	it.each([
+		["NUL label", encodeCursor("T\0", "term-1")],
+		["NUL id", encodeCursor("T1", "term\0")],
+	])("rejects a legacy cursor with %s", async (_name, cursor) => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const result = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", cursor },
+		});
+		expect(result.isError).toBe(true);
+		expect((result as { _meta?: { code?: string } })._meta?.code).toBe("INVALID_CURSOR");
 	});
 
 	it("any logged-in user (SUBSCRIBER) can read terms", async () => {

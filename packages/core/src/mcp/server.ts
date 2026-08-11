@@ -27,10 +27,15 @@ import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
+import { decodeCursor, encodeCursor, InvalidCursorError } from "../database/repositories/types.js";
+import { decodeBase64, encodeBase64 } from "../utils/base64.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 /** http(s) scheme matcher used by `settings_update` URL validation. */
 const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
+const TAXONOMY_CURSOR_VERSION = 2;
+const MAX_TAXONOMY_CURSOR_LENGTH = 4096;
+const POSTGRES_INTEGER_MAX = 2_147_483_647;
 
 // ---------------------------------------------------------------------------
 // Shared schemas — kept in sync with `api/schemas/settings.ts` (which the
@@ -128,6 +133,69 @@ type ErrorEnvelope = {
 	isError: true;
 	_meta: { code: string; details?: Record<string, unknown> };
 };
+
+type TaxonomyListCursor =
+	| { order: "manual"; sortOrder: number; label: string; id: string }
+	| { order: "label"; label: string; id: string };
+
+function encodeTaxonomyCursor(term: { sortOrder: number; label: string; id: string }): string {
+	return encodeBase64(
+		JSON.stringify({
+			v: TAXONOMY_CURSOR_VERSION,
+			sortOrder: term.sortOrder,
+			label: term.label,
+			id: term.id,
+		}),
+	);
+}
+
+function decodeTaxonomyCursor(cursor: string): TaxonomyListCursor {
+	if (!cursor || cursor.length > MAX_TAXONOMY_CURSOR_LENGTH) {
+		throw new InvalidCursorError(cursor);
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(decodeBase64(cursor));
+	} catch {
+		throw new InvalidCursorError(cursor);
+	}
+
+	if (parsed === null || typeof parsed !== "object") {
+		throw new InvalidCursorError(cursor);
+	}
+
+	const candidate = parsed as Record<string, unknown>;
+	if ("v" in candidate) {
+		const { v, sortOrder, label, id } = candidate;
+		if (
+			v !== TAXONOMY_CURSOR_VERSION ||
+			typeof sortOrder !== "number" ||
+			!Number.isSafeInteger(sortOrder) ||
+			sortOrder < 0 ||
+			sortOrder > POSTGRES_INTEGER_MAX ||
+			typeof label !== "string" ||
+			label.includes("\0") ||
+			typeof id !== "string" ||
+			id.length === 0 ||
+			id.includes("\0")
+		) {
+			throw new InvalidCursorError(cursor);
+		}
+		return {
+			order: "manual",
+			sortOrder,
+			label,
+			id,
+		};
+	}
+
+	const legacy = decodeCursor(cursor);
+	if (legacy.orderValue.includes("\0") || legacy.id.length === 0 || legacy.id.includes("\0")) {
+		throw new InvalidCursorError(cursor);
+	}
+	return { order: "label", label: legacy.orderValue, id: legacy.id };
+}
 
 /**
  * Return a successful tool response with the data as pretty-printed JSON.
@@ -2255,46 +2323,52 @@ export function createMcpServer(
 				if (!taxonomy) return respondError("NOT_FOUND", `Taxonomy '${args.taxonomy}' not found`);
 
 				const { TaxonomyRepository } = await import("../database/repositories/taxonomy.js");
-				const { decodeCursor, encodeCursor, InvalidCursorError } =
-					await import("../database/repositories/types.js");
 				const repo = new TaxonomyRepository(ec.db);
 				const limit = Math.min(args.limit ?? 50, 100);
-				const terms = await repo.findByName(args.taxonomy, { locale: args.locale });
-
-				// Manual keyset pagination over the sorted-by-label results.
-				// Using a base64-encoded `(label, id)` cursor matches the
-				// scheme other list endpoints use and tolerates concurrent
-				// deletion of the cursor-term — the cursor is a position,
-				// not a row reference, so a missing row just means we skip
-				// past it rather than erroring.
-				let startIdx = 0;
+				let cursor: TaxonomyListCursor | undefined;
 				if (args.cursor) {
-					let decoded: { orderValue: string; id: string };
 					try {
-						decoded = decodeCursor(args.cursor);
+						cursor = decodeTaxonomyCursor(args.cursor);
 					} catch (error) {
 						if (error instanceof InvalidCursorError) {
 							return respondError("INVALID_CURSOR", error.message);
 						}
 						throw error;
 					}
-					// Find the first term that sorts strictly after the cursor
-					// position. Stable order is `(label asc, id asc)` so a
-					// `(label, id)` tuple comparison is the keyset.
-					startIdx = terms.findIndex(
-						(t) =>
-							t.label > decoded.orderValue || (t.label === decoded.orderValue && t.id > decoded.id),
-					);
-					if (startIdx < 0) startIdx = terms.length;
 				}
 
-				const page = terms.slice(startIdx, startIdx + limit);
-				const hasMore = startIdx + limit < terms.length;
-				const last = page.at(-1);
-				const nextCursor = hasMore && last ? encodeCursor(last.label, last.id) : undefined;
+				const page =
+					cursor?.order === "label"
+						? await repo.findPageByName(args.taxonomy, {
+								locale: args.locale,
+								limit,
+								order: "label",
+								cursor: { label: cursor.label, id: cursor.id },
+							})
+						: await repo.findPageByName(args.taxonomy, {
+								locale: args.locale,
+								limit,
+								order: "manual",
+								...(cursor
+									? {
+											cursor: {
+												sortOrder: cursor.sortOrder,
+												label: cursor.label,
+												id: cursor.id,
+											},
+										}
+									: {}),
+							});
+				const last = page.items.at(-1);
+				const nextCursor =
+					page.hasMore && last
+						? cursor?.order === "label"
+							? encodeCursor(last.label, last.id)
+							: encodeTaxonomyCursor(last)
+						: undefined;
 
 				return jsonResult({
-					items: page.map((t) => ({
+					items: page.items.map((t) => ({
 						id: t.id,
 						name: t.name,
 						slug: t.slug,
