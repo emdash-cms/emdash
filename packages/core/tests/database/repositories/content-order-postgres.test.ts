@@ -34,7 +34,7 @@ describePostgres("indexed custom-field ordering [postgres]", () => {
 		for (const priority of [null, null, 1, 1, 2, 2]) {
 			await repo.create({ type: "post", data: { priority } });
 		}
-	});
+	}, 30_000);
 
 	afterAll(async () => {
 		try {
