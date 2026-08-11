@@ -39,6 +39,7 @@
  */
 
 import type { APIRoute } from "astro";
+import { env } from "cloudflare:workers";
 import type {
 	ContentDeleteEvent,
 	ContentHookEvent,
@@ -278,21 +279,6 @@ function isMissingAISearchInstanceError(error: unknown): boolean {
 
 function isAiSearchNamespace(value: unknown): value is AiSearchNamespace {
 	return isRecord(value) && typeof value.get === "function" && typeof value.create === "function";
-}
-
-type WorkersModule = typeof import("cloudflare:workers");
-
-function loadWorkersModule(): Promise<WorkersModule> {
-	return import("cloudflare:workers");
-}
-
-/** Get Cloudflare runtime env via cloudflare:workers. */
-async function getCloudflareEnv(): Promise<object | null> {
-	try {
-		return (await loadWorkersModule()).env;
-	} catch {
-		return null;
-	}
 }
 
 const SYSTEM_CONTENT_KEYS = new Set([
@@ -643,9 +629,7 @@ function renderResultUrl(
 		.replaceAll("{locale}", encodeURIComponent(locale));
 }
 
-async function resolveBinding(config: AISearchConfig): Promise<AiSearchNamespace | null> {
-	const env = await getCloudflareEnv();
-	if (!env) return null;
+function resolveBinding(config: AISearchConfig): AiSearchNamespace | null {
 	const candidate: unknown = Reflect.get(env, config.binding ?? "AI_SEARCH");
 	return isAiSearchNamespace(candidate) ? candidate : null;
 }
@@ -687,7 +671,7 @@ export async function searchAISearch(
 	kv: KVReader,
 	defaultLocale: string,
 ): Promise<AISearchSnippetResponse> {
-	const ns = await resolveBinding(config);
+	const ns = resolveBinding(config);
 	if (!ns) {
 		throw new PluginRouteError("SEARCH_UNAVAILABLE", "Search is not available", 503);
 	}
@@ -887,7 +871,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 		return (await getEffectiveCollections(ctx)).includes(collection);
 	}
 
-	async function getBinding(): Promise<AiSearchNamespace | null> {
+	function getBinding(): AiSearchNamespace | null {
 		return resolveBinding(config);
 	}
 
@@ -908,8 +892,9 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 		collection: string,
 		ctx: PluginContext,
 		visibleAfter: number = 0,
+		binding: AiSearchNamespace | null = getBinding(),
 	): Promise<void> {
-		const ns = await getBinding();
+		const ns = binding;
 		if (!ns) {
 			console.warn("[ai-search] indexContent: binding not available");
 			return;
@@ -953,7 +938,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 	 * Throws, so callers decide whether a failure is fatal.
 	 */
 	async function deleteIndexedItem(key: string, itemId: string, ctx: PluginContext): Promise<void> {
-		const ns = await getBinding();
+		const ns = getBinding();
 		if (!ns) return;
 
 		const instance = await ensureInstance(ns);
@@ -992,13 +977,14 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 		content: Record<string, unknown>,
 		collection: string,
 		ctx: PluginContext,
+		binding: AiSearchNamespace | null = getBinding(),
 	): Promise<void> {
 		const status = typeof content.status === "string" ? content.status : "";
 		if (status === "published") {
-			return indexContent(content, collection, ctx, 0);
+			return indexContent(content, collection, ctx, 0, binding);
 		}
 		if (status === "scheduled") {
-			return indexContent(content, collection, ctx, getVisibleAfter(content));
+			return indexContent(content, collection, ctx, getVisibleAfter(content), binding);
 		}
 		return removeFromIndex(collection, String(content.id), ctx);
 	}
@@ -1007,7 +993,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 	async function processReindexBatch(job: ReindexJob, ctx: PluginContext) {
 		if (job.status === "complete") return reindexResult(job);
 		if (!ctx.content) throw new Error("Content access not available");
-		const ns = await getBinding();
+		const ns = getBinding();
 		if (!ns) throw new Error("AI Search binding not available");
 		const instance = await ensureInstance(ns);
 		const collection = job.collections[job.collectionIndex];
@@ -1128,6 +1114,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 
 			"content:afterSave": {
 				handler: async (event: ContentHookEvent, ctx: PluginContext): Promise<void> => {
+					const binding = getBinding();
 					const { content, collection } = event;
 					const hasPendingDraft =
 						content.status === "published" &&
@@ -1143,7 +1130,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 					// Sync based on the current status: published content is visible
 					// immediately (visible_after=0), scheduled content is indexed but
 					// gated until its scheduledAt timestamp, and drafts are removed.
-					return syncSearchIndex(content, collection, ctx);
+					return syncSearchIndex(content, collection, ctx, binding);
 				},
 			},
 
@@ -1232,7 +1219,7 @@ export function createPlugin(config: AISearchConfig = {}): ResolvedPlugin {
 						throw new PluginRouteError("METHOD_NOT_ALLOWED", "Method not allowed", 405);
 					}
 
-					const ns = await getBinding();
+					const ns = getBinding();
 					if (!ns) {
 						throw new PluginRouteError(
 							"AI_SEARCH_UNAVAILABLE",
