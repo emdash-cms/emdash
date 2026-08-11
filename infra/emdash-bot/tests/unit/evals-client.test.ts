@@ -10,6 +10,9 @@ const REPORTED = {
 	result: { reproduced: true, summary: "reproduced the bug" },
 	ok: true,
 	pushed: false,
+	runId: "run-1",
+	publication: null,
+	verification: [],
 };
 
 describe("extractInvestigationResult", () => {

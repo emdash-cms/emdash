@@ -48,6 +48,11 @@ function makeEvent(overrides: Partial<NormalizedEvent> = {}): NormalizedEvent {
 	};
 }
 
+function parseJsonBody(body: unknown): unknown {
+	if (typeof body !== "string") throw new Error("expected a string request body");
+	return JSON.parse(body);
+}
+
 describe("OrchestratorDO (workers-pool)", () => {
 	// The credential-injecting tests below mutate shared env and global fetch;
 	// reset both after every test so nothing leaks into a later case.
@@ -76,7 +81,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(outcome.kind).toBe("transition");
 
 		const persisted = await stub.getPersistedState();
-		expect(persisted.state).toBe("working");
+		expect(persisted.state).toBe("fixing");
 		// `implement` from unmanaged is an entry transition with default kind.
 		// machine.ts's implement event sets defaultKind: "enhancement"
 		// (verified separately in router tests).
@@ -94,7 +99,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(entry.event).toBe("implement");
 		expect(entry.actor).toBe("maintainer");
 		expect(entry.from).toBe("unmanaged");
-		expect(entry.to).toBe("working");
+		expect(entry.to).toBe("fixing");
 		expect(entry.deliveryId).toBe("delivery-abc");
 		expect(typeof entry.t).toBe("number");
 	});
@@ -153,12 +158,12 @@ describe("OrchestratorDO (workers-pool)", () => {
 	test("applyAgentResult commits the transition before clearing run markers", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await stub.event(makeEvent());
-		await stub.debugSetStaleRun("active-run", Date.now());
+		await stub.debugSetStaleRun("active-run", Date.now(), undefined, "implement");
 
 		const outcome = await stub.applyAgentResult({
 			runId: "active-run",
-			result: { reproduced: true, fixed: false, summary: "The issue reproduces." },
-			pushed: false,
+			result: { implemented: true, summary: "Implemented the requested change." },
+			pushed: true,
 			ok: true,
 		});
 		expect(outcome.kind).toBe("transition");
@@ -177,13 +182,44 @@ describe("OrchestratorDO (workers-pool)", () => {
 
 		const outcome = await stub.applyAgentResult({
 			runId: "implement-run",
-			result: { fixed: true, summary: "Implemented the requested change." },
+			result: { implemented: true, summary: "Implemented the requested change." },
 			pushed: true,
 			ok: true,
 		});
 
 		expect(outcome.kind).toBe("transition");
-		expect((await stub.getPersistedState()).state).toBe("awaiting_feedback");
+		expect((await stub.getPersistedState()).state).toBe("preview_building");
+	});
+
+	test("a failed run comment carries its stage and durable run id", async () => {
+		const calls: string[] = [];
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.debugPrimeFixing(42);
+		await stub.debugSetStaleRun(
+			"implement-run-123",
+			Date.now(),
+			"investigate-42-implement-run-123",
+			"implement",
+		);
+
+		await stub.applyAgentResult({
+			runId: "implement-run-123",
+			result: {
+				implemented: false,
+				failureStage: "verification",
+				summary: "The required typecheck failed.",
+			},
+			pushed: false,
+			ok: true,
+		});
+
+		expect((await stub.getPersistedState()).state).toBe("failed");
+		expect(comments.at(-1)).toContain("Failed stage: `verification`");
+		expect(comments.at(-1)).toContain("Run: `implement-run-123`");
 	});
 
 	test("tick recovers a stale run", async () => {
@@ -508,7 +544,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 		]);
 
 		const persisted = await stub.getPersistedState();
-		expect(persisted.state).toBe("working");
+		expect(persisted.state).toBe("fixing");
 		const log = await stub.getEventLog();
 		expect(log.length).toBe(1);
 	});
@@ -584,6 +620,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 	function githubCallRecorder(
 		calls: string[],
 		commentStatus: number,
+		comments: string[] = [],
 	): (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => Promise<Response> {
 		return (input, init) => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
@@ -604,6 +641,15 @@ describe("OrchestratorDO (workers-pool)", () => {
 			}
 			if (method === "POST" && url.endsWith("/comments")) {
 				calls.push("comment");
+				const body = parseJsonBody(init?.body);
+				if (
+					typeof body === "object" &&
+					body !== null &&
+					"body" in body &&
+					typeof body.body === "string"
+				) {
+					comments.push(body.body);
+				}
 				return Promise.resolve(new Response("{}", { status: commentStatus }));
 			}
 			if (url.includes("/labels")) {

@@ -68,7 +68,7 @@ describe("router", () => {
 		});
 		assertTransition(d);
 		expect(d.from).toBe("unmanaged");
-		expect(d.to).toBe("working");
+		expect(d.to).toBe("fixing");
 		expect(d.action).toBe("investigate.implement");
 	});
 
@@ -120,11 +120,11 @@ describe("router", () => {
 			actor: "maintainer",
 		});
 		assertTransition(d);
-		expect(d.to).toBe("working");
+		expect(d.to).toBe("fixing");
 		expect(d.action).toBe("investigate.implement");
-		expect(d.addLabel).toBe("bot:working");
+		expect(d.addLabel).toBe("bot:fixing");
 		expect(d.removeLabels).toContain("bot:blocked");
-		expect(d.removeLabels).not.toContain("bot:working");
+		expect(d.removeLabels).not.toContain("bot:fixing");
 	});
 
 	test("resolve: in_review accepts revise (PR feedback bridge)", () => {
@@ -146,7 +146,7 @@ describe("router", () => {
 			actor: "maintainer",
 		});
 		assertTransition(d);
-		expect(d.to).toBe("working");
+		expect(d.to).toBe("fixing");
 		expect(d.action).toBe("investigate.implement");
 	});
 
@@ -406,16 +406,15 @@ describe("router", () => {
 		);
 	});
 
-	test("outcomeFromResult allows implement and revise runs to produce a fix", () => {
-		for (const mode of ["implement", "revise"] as const) {
-			const input = {
+	test("outcomeFromResult allows revise runs to produce a fix", () => {
+		expect(
+			outcomeFromResult({
 				ok: true,
 				result: { fixed: true },
 				pushed: true,
-				mode,
-			};
-			expect(outcomeFromResult(input)).toBe("agent.fix_ready");
-		}
+				mode: "revise",
+			}),
+		).toBe("agent.fix_ready");
 	});
 
 	test("outcomeFromResult feeds resolve to advance the machine end-to-end", () => {
@@ -591,5 +590,27 @@ describe("router: investigation + fix loop", () => {
 		expect(outcomeFromResult({ ok: true, result: { fixed: false }, mode: "fix" })).toBe(
 			"agent.failed",
 		);
+	});
+
+	test("outcomeFromResult implement mode uses implementation fields and verified publication", () => {
+		expect(
+			outcomeFromResult({
+				ok: true,
+				result: { implemented: true },
+				pushed: true,
+				mode: "implement",
+			}),
+		).toBe("agent.fix_ready");
+		expect(
+			outcomeFromResult({
+				ok: true,
+				result: { implemented: true },
+				pushed: false,
+				mode: "implement",
+			}),
+		).toBe("agent.failed");
+		expect(
+			outcomeFromResult({ ok: true, result: { fixed: true }, pushed: true, mode: "implement" }),
+		).toBe("agent.failed");
 	});
 });

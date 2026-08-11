@@ -325,6 +325,7 @@ export interface AgentResult {
 	reproduced?: boolean;
 	rootCauseFound?: boolean;
 	fixed?: boolean;
+	implemented?: boolean;
 	verdict?: string;
 	[key: string]: unknown;
 }
@@ -364,6 +365,9 @@ export function outcomeFromResult({
 	}
 	if (effectiveMode === "fix") {
 		return result.fixed === true && pushed === true ? "agent.fix_ready" : "agent.failed";
+	}
+	if (effectiveMode === "implement") {
+		return result.implemented === true && pushed === true ? "agent.fix_ready" : "agent.failed";
 	}
 	if (effectiveMode === "repro" && result.reproduced !== true) {
 		return result.rootCauseFound === true ? "agent.diagnosed" : "agent.not_reproduced";

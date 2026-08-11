@@ -106,6 +106,9 @@ export interface NormalizedEvent {
 	readonly dryRun?: boolean;
 	/** Agent's structured summary, surfaced in the post-run comment. */
 	readonly agentSummary?: string;
+	/** Durable run metadata appended to failed comments for operational lookup. */
+	readonly agentRunId?: string;
+	readonly agentFailureStage?: string;
 	/** Reproduction screenshots the fix run pushed, carried into the ask comment. */
 	readonly agentScreenshots?: readonly PreviewScreenshot[];
 	/**
@@ -132,7 +135,9 @@ export interface AgentResult {
 	readonly skipped?: boolean;
 	readonly reproduced?: boolean;
 	readonly fixed?: boolean;
+	readonly implemented?: boolean;
 	readonly verdict?: string;
+	readonly failureStage?: string;
 	readonly screenshots?: readonly PreviewScreenshot[];
 	readonly [key: string]: unknown;
 }
@@ -449,7 +454,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 			labels,
 			needsClassify: false,
 			settlesRunId: input.runId,
+			agentRunId: input.runId,
 			...(agentSummary ? { agentSummary } : {}),
+			...(typeof input.result.failureStage === "string"
+				? { agentFailureStage: input.result.failureStage }
+				: {}),
 			...(agentScreenshots ? { agentScreenshots } : {}),
 		});
 		await this.clearRun(input.runId);
@@ -543,11 +552,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	/**
-	 * Poll pkg.pr.new for the candidate fix's preview while the item sits in
+	 * Poll pkg.pr.new for the candidate change's preview while the item sits in
 	 * `preview_building`. One probe per alarm tick (the alarm cadence IS the
 	 * poll interval -- no unbounded loop in the DO). A 200 fires `preview.ready`
 	 * and advances to the reporter ask; exhausting the overall budget fires
-	 * `preview.failed`, which retains the branch and falls back to the diagnosis.
+	 * `preview.failed`, which retains the branch for inspection.
 	 */
 	private async pollPreviewBuild(now: number): Promise<PreviewPollOutcome> {
 		const [state, deadline, nextAt] = await Promise.all([
@@ -560,7 +569,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const anchorNumber = await this.ctx.storage.get<number>(STORAGE.anchorNumber);
 		if (anchorNumber === undefined) return "idle";
 
-		const ready = await probePreviewReady(previewUrl(anchorNumber));
+		const ready = await probePreviewReady(previewUrl(anchorNumber, this.env.PREVIEW_PACKAGE));
 		if (ready) {
 			await this.firePreviewReady(anchorNumber);
 			return "ready";
@@ -600,6 +609,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				owner: repo.owner,
 				repo: repo.repo,
 				issueNumber: anchorNumber,
+				previewPackage: this.env.PREVIEW_PACKAGE,
 				at: new Date().toISOString(),
 				notes,
 				...(screenshots ? { screenshots } : {}),
@@ -620,7 +630,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const labels = await this.projectLabels();
 		const commentBodyOverride =
 			event === "preview.failed"
-				? `The preview build for the candidate fix didn't publish within ${Math.round(PREVIEW_BUILD_TIMEOUT_MS / 60_000)} minutes. The diagnosis still holds -- a maintainer can \`@emdashbot fix\` to rebuild the candidate.`
+				? `The preview build for the candidate change didn't publish within ${Math.round(PREVIEW_BUILD_TIMEOUT_MS / 60_000)} minutes. The candidate branch was retained for inspection.`
 				: undefined;
 		await this.processEvent({
 			event,
@@ -1135,7 +1145,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					baseBranch: "main",
 					title: `Fix #${anchorNumber}`,
 					body: draft
-						? renderDraftPrBody(anchorNumber)
+						? renderDraftPrBody(anchorNumber, this.env.PREVIEW_PACKAGE)
 						: `Fixes #${anchorNumber}.\n\nAutomated PR opened by emdashbot.`,
 					draft,
 				}));
@@ -1382,7 +1392,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 							removeLabels: decision.removeLabels,
 							commentBody:
 								input.commentBodyOverride ??
-								renderComment(decision, anchorNumber, input.agentSummary),
+								renderComment(decision, anchorNumber, input.agentSummary, {
+									runId: input.agentRunId,
+									failureStage: input.agentFailureStage,
+								}),
 							commentMarker: `<!-- emdashbot-event:${sideEffectId} -->`,
 							commentMayExist: false,
 							...(input.commentFirst ? { commentFirst: true } : {}),
@@ -1702,6 +1715,15 @@ export class OrchestratorDO extends DurableObject<Env> {
 		]);
 	}
 
+	/** Test-only: land in `fixing` without dispatching the investigate agent. */
+	async debugPrimeFixing(anchorNumber: number): Promise<void> {
+		await Promise.all([
+			this.ctx.storage.put(STORAGE.state, "fixing" satisfies StateId),
+			this.ctx.storage.put(STORAGE.kind, "enhancement" satisfies Kind),
+			this.ctx.storage.put(STORAGE.anchorNumber, anchorNumber),
+		]);
+	}
+
 	/** Test-only: inject dispatch recovery state without invoking Flue. */
 	async debugSetPendingDispatch(input: {
 		runId: string;
@@ -1807,6 +1829,7 @@ function renderComment(
 	decision: Extract<Decision, { kind: "transition" }>,
 	anchorNumber: number,
 	agentSummary?: string,
+	failure?: { runId?: string; failureStage?: string },
 ): string {
-	return renderAgentComment(decision, anchorNumber, agentSummary);
+	return renderAgentComment(decision, anchorNumber, agentSummary, failure);
 }

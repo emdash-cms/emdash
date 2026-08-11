@@ -215,8 +215,7 @@ export const STATES: Record<StateId, StateMeta> = {
 	fixing: {
 		label: "bot:fixing",
 		boardColumn: "Fixing",
-		description:
-			"A maintainer-triggered fix run is in flight: build a candidate change on bot/fix-<n>. No PR yet.",
+		description: "A maintainer-triggered delivery run is building a candidate on bot/fix-<n>.",
 		terminal: false,
 		transient: true,
 		offeredCommands: ["status"],
@@ -225,7 +224,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		label: "bot:preview-building",
 		boardColumn: "Building preview",
 		description:
-			"The candidate fix is pushed; a preview deploy is building so the reporter can try the change before a PR exists.",
+			"The candidate change is published; a preview is building so the reporter can try it before a PR exists.",
 		terminal: false,
 		transient: true,
 		offeredCommands: ["status"],
@@ -234,7 +233,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		label: "bot:awaiting-reporter",
 		boardColumn: "Awaiting reporter",
 		description:
-			"Preview link posted; waiting for the reporter to confirm the fix. On confirm a draft PR opens; on denial or 14-day silence the branch is reaped.",
+			"Preview link posted; waiting for the reporter to confirm the change. On confirm a draft PR opens; on denial or 14-day silence the branch is reaped.",
 		terminal: false,
 		offeredCommands: ["confirm", "reject", "decline", "take_over"],
 	},
@@ -438,7 +437,7 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		actors: ["system"],
 	},
 	"agent.fix_ready": {
-		description: "Reproduced and fixed; a verified change is staged on bot/fix-<n>.",
+		description: "A verified candidate change is published on bot/fix-<n>.",
 		actors: ["system"],
 	},
 	// Next-generation: the investigation ran but is blocked on reporter-only
@@ -469,7 +468,7 @@ export const EVENTS: Record<EventId, EventMeta> = {
 	},
 	// --- preview-deploy lifecycle (next-generation fix loop) ---
 	"preview.ready": {
-		description: "The preview deploy for the candidate fix is live; link ready to post.",
+		description: "The preview deploy for the candidate change is live; link ready to post.",
 		actors: ["system"],
 	},
 	"preview.failed": {
@@ -521,9 +520,9 @@ export const TRANSITIONS: Transition[] = [
 	{
 		from: "unmanaged",
 		event: "implement",
-		to: "working",
+		to: "fixing",
 		action: "investigate.implement",
-		note: "implement works straight from an untriaged issue",
+		note: "implement works straight from an untriaged issue and enters the preview-gated delivery lane",
 	},
 	{ from: "unmanaged", event: "decline", to: "declined" },
 
@@ -532,7 +531,7 @@ export const TRANSITIONS: Transition[] = [
 	{
 		from: "triage",
 		event: "implement",
-		to: "working",
+		to: "fixing",
 		action: "investigate.implement",
 		note: "enhancement/feature lane -- no repro gate",
 	},
@@ -562,7 +561,7 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "working", event: "agent.failed", to: "failed" },
 
 	// --- blocked: every reason accepts the same overrides (kills the sinks) ---
-	{ from: "blocked", event: "implement", to: "working", action: "investigate.implement" },
+	{ from: "blocked", event: "implement", to: "fixing", action: "investigate.implement" },
 	{ from: "blocked", event: "repro", to: "working", action: "investigate.repro" },
 	{ from: "blocked", event: "retry", to: "working", action: "investigate.repro" },
 	{ from: "blocked", event: "decline", to: "declined" },
@@ -646,7 +645,7 @@ export const TRANSITIONS: Transition[] = [
 
 	// --- failed: retryable ---
 	{ from: "failed", event: "retry", to: "working", action: "investigate.repro" },
-	{ from: "failed", event: "implement", to: "working", action: "investigate.implement" },
+	{ from: "failed", event: "implement", to: "fixing", action: "investigate.implement" },
 	{ from: "failed", event: "repro", to: "working", action: "investigate.repro" },
 	{ from: "failed", event: "decline", to: "declined" },
 
