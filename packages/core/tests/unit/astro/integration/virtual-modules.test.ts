@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -229,7 +229,9 @@ describe("createVirtualModulesPlugin scheduler wiring", () => {
 
 			expect(source).toContain("export default { hooks: {} };");
 			expect(addWatchFile).toHaveBeenCalledOnce();
-			expect(addWatchFile).toHaveBeenCalledWith(entryPath);
+			// Module resolution canonicalizes macOS' /var -> /private/var symlink.
+			// Compare the physical path so this contract is portable across hosts.
+			expect(addWatchFile).toHaveBeenCalledWith(realpathSync(entryPath));
 		} finally {
 			rmSync(projectRoot, { recursive: true, force: true });
 		}
