@@ -309,6 +309,13 @@ export class EmDashValidationError extends Error {
 	}
 }
 
+export class ContentCollectionNotFoundError extends Error {
+	constructor(collection: string) {
+		super(`Collection '${collection}' not found`);
+		this.name = "ContentCollectionNotFoundError";
+	}
+}
+
 /**
  * Thrown by `publish()` when called with `requireDue` for a row that is no
  * longer due (its `scheduled_at` was cleared or pushed into the future between

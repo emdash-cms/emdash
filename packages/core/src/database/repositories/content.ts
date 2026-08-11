@@ -19,6 +19,7 @@ import type {
 	ContentBylineFilter,
 } from "./types.js";
 import {
+	ContentCollectionNotFoundError,
 	ContentMutationConflictError,
 	EmDashValidationError,
 	InvalidCursorError,
@@ -1928,21 +1929,28 @@ export class ContentRepository {
 		}
 
 		const customField = await this.db
-			.selectFrom("_emdash_fields as field")
-			.innerJoin("_emdash_collections as collection", "collection.id", "field.collection_id")
+			.selectFrom("_emdash_collections as collection")
+			.leftJoin("_emdash_fields as field", (join) =>
+				join
+					.onRef("field.collection_id", "=", "collection.id")
+					.on("field.slug", "=", field)
+					.on("field.indexed", "=", 1),
+			)
 			.where("collection.slug", "=", type)
-			.where("field.slug", "=", field)
-			.where("field.indexed", "=", 1)
-			.select("field.slug")
+			.select(["collection.id as collectionId", "field.slug as fieldSlug"])
 			.executeTakeFirst();
 
 		if (!customField) {
+			throw new ContentCollectionNotFoundError(type);
+		}
+
+		if (!customField.fieldSlug) {
 			throw new EmDashValidationError(
 				`Invalid order field: ${field}. Custom fields must be indexed before sorting.`,
 			);
 		}
 
-		validateIdentifier(customField.slug, "content order field");
-		return { column: customField.slug, indexedCustomField: true };
+		validateIdentifier(customField.fieldSlug, "content order field");
+		return { column: customField.fieldSlug, indexedCustomField: true };
 	}
 }

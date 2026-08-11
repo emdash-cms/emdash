@@ -1032,7 +1032,7 @@ export class SchemaRegistry {
 								: field.searchable
 									? 1
 									: 0,
-						indexed: nextIndexed ? 1 : 0,
+						...(input.indexed === undefined ? {} : { indexed: input.indexed ? 1 : 0 }),
 						translatable:
 							input.translatable !== undefined
 								? input.translatable
@@ -1060,8 +1060,8 @@ export class SchemaRegistry {
 					.execute();
 				schemaMutated = true;
 
-				if (nextIndexed !== field.indexed) {
-					if (nextIndexed) {
+				if (input.indexed !== undefined) {
+					if (input.indexed) {
 						await this.createFieldIndex(collectionSlug, field.id, fieldSlug, trx);
 					} else {
 						await this.dropFieldIndex(field.id, trx);

@@ -371,6 +371,35 @@ describe("SchemaRegistry", () => {
 			expect(await listFieldIndexes()).toHaveLength(0);
 		});
 
+		it.each([
+			[true, false],
+			[false, true],
+		] as const)(
+			"keeps metadata and its physical index aligned when indexed changes from %s to %s during concurrent updates",
+			async (indexed, nextIndexed) => {
+				const field = await registry.createField("posts", {
+					slug: "priority",
+					label: "Priority",
+					type: "number",
+					indexed,
+				});
+				const indexName = `idx_cf_${field.id.toLowerCase()}`;
+
+				await Promise.all([
+					registry.updateField("posts", "priority", { indexed: nextIndexed }),
+					registry.updateField("posts", "priority", { label: "Updated priority" }),
+				]);
+
+				const updated = await registry.getField("posts", "priority");
+				const indexes = await sql<{ name: string }>`
+					SELECT name FROM sqlite_master WHERE type = 'index' AND name = ${indexName}
+				`.execute(db);
+
+				expect(updated).toMatchObject({ label: "Updated priority", indexed: nextIndexed });
+				expect(indexes.rows).toHaveLength(nextIndexed ? 1 : 0);
+			},
+		);
+
 		it("drops the index when an indexed field moves to a type that cannot carry one", async () => {
 			await registry.createField("posts", {
 				slug: "summary",

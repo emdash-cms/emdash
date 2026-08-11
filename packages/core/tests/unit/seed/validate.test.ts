@@ -187,6 +187,52 @@ describe("validateSeed", () => {
 			);
 		});
 
+		it("should reject non-boolean indexed values", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [
+							{
+								slug: "title",
+								label: "Title",
+								type: "string",
+								indexed: "false",
+							},
+						],
+					},
+				],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain("collections[0].fields[0].indexed: must be a boolean");
+		});
+
+		it("should accept indexed false for non-indexable fields", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [
+							{
+								slug: "title",
+								label: "Title",
+								type: "portableText",
+								indexed: false,
+							},
+						],
+					},
+				],
+			});
+
+			expect(result.valid).toBe(true);
+			expect(result.errors).toHaveLength(0);
+		});
+
 		it("should reject duplicate field slugs", () => {
 			const result = validateSeed({
 				version: "1",

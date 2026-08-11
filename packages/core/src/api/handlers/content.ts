@@ -15,6 +15,7 @@ import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import {
+	ContentCollectionNotFoundError,
 	ContentMutationConflictError,
 	EmDashValidationError,
 	ScheduledNotDueError,
@@ -544,7 +545,7 @@ export async function handleContentList(
 				error: { code: "INVALID_CURSOR", message: error.message },
 			};
 		}
-		if (isMissingTableError(error)) {
+		if (error instanceof ContentCollectionNotFoundError || isMissingTableError(error)) {
 			return {
 				success: false,
 				error: {
