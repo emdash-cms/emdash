@@ -43,6 +43,7 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	const capabilities = normalizeCapabilities(manifest.capabilities ?? []);
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
+	const hasCachePurge = capabilities.includes("cache:purge");
 
 	return `
 // =============================================================================
@@ -173,6 +174,14 @@ function createContext(env) {
 	const email = ${hasEmailSend} ? {
 		send: (message) => bridge.emailSend(message)
 	} : undefined;
+
+	// Cache purge - proxies to bridge (capability enforced by bridge)
+	const cache = ${hasCachePurge} ? {
+		getObjectCacheStatus: () => bridge.getObjectCacheStatus(),
+		purgeObjectCache: (options) => bridge.purgeObjectCache(options),
+		getWorkersCacheStatus: () => bridge.getWorkersCacheStatus(),
+		purgeWorkersCache: (options) => bridge.purgeWorkersCache(options)
+	} : undefined;
 	
 	return {
 		plugin: {
@@ -189,7 +198,8 @@ function createContext(env) {
 		site,
 		url,
 		users,
-		email
+		email,
+		cache
 	};
 }
 

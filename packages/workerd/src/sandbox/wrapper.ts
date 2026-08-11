@@ -38,8 +38,10 @@ export interface WrapperOptions {
 
 export function generatePluginWrapper(manifest: PluginManifest, options: WrapperOptions): string {
 	const site = options.site ?? { name: "", url: "", locale: "en" };
-	const hasReadUsers = manifest.capabilities.includes("read:users");
+	const hasReadUsers =
+		manifest.capabilities.includes("read:users") || manifest.capabilities.includes("users:read");
 	const hasEmailSend = manifest.capabilities.includes("email:send");
+	const hasCachePurge = manifest.capabilities.includes("cache:purge");
 
 	return `
 // =============================================================================
@@ -321,6 +323,13 @@ function createContext() {
 		send: (message) => bridgeCall("email/send", { message }),
 	} : undefined;
 
+	const cache = ${hasCachePurge} ? {
+		getObjectCacheStatus: () => bridgeCall("cache/getObjectCacheStatus", {}),
+		purgeObjectCache: (options) => bridgeCall("cache/purgeObjectCache", options || {}),
+		getWorkersCacheStatus: () => bridgeCall("cache/getWorkersCacheStatus", {}),
+		purgeWorkersCache: (options) => bridgeCall("cache/purgeWorkersCache", options || {}),
+	} : undefined;
+
 	return {
 		plugin: {
 			id: ${JSON.stringify(manifest.id)},
@@ -337,6 +346,7 @@ function createContext() {
 		url,
 		users,
 		email,
+		cache,
 	};
 }
 

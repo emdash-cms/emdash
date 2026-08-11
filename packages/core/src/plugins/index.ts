@@ -36,6 +36,7 @@ export {
 	createBlockedHttpAccess,
 	createLogAccess,
 	createUserAccess,
+	createCacheAccess,
 	createUrlHelper,
 	createSiteInfo,
 } from "./context.js";
@@ -140,6 +141,9 @@ export type {
 	LifecycleEvent,
 	UninstallEvent,
 
+	// Cache types
+	CacheAccess,
+
 	// Email types
 	EmailAccess,
 	EmailMessage,
@@ -208,4 +212,4 @@ export {
 	normalizeCapability,
 	normalizeCapabilities,
 } from "./types.js";
-export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./types.js";
+export type { CacheAccess, CurrentPluginCapability, DeprecatedPluginCapability } from "./types.js";

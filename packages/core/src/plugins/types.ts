@@ -510,6 +510,50 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 
 	/** Email access - only if email:send capability and a provider is configured */
 	email?: EmailAccess;
+
+	/**
+	 * Cache purge — only if `cache:purge` capability is declared.
+	 * Covers CMS object cache (KV / memory) and Workers Cache (edge pages).
+	 */
+	cache?: CacheAccess;
+}
+
+/**
+ * Plugin access to CMS + edge cache invalidation.
+ */
+export interface CacheAccess {
+	/** Whether an object-cache backend is configured for this site. */
+	getObjectCacheStatus(): Promise<{ configured: boolean }>;
+
+	/**
+	 * Purge object-cache namespaces.
+	 * Omit `namespaces` (or pass `["*"]`) to purge every known namespace.
+	 */
+	purgeObjectCache(options?: { namespaces?: string[] }): Promise<{
+		configured: boolean;
+		/** @deprecated Use {@link configured}. */
+		active: boolean;
+		purged: string[];
+	}>;
+
+	/**
+	 * Whether native Workers Caching purge is available
+	 * (`cache.purge` from `cloudflare:workers`, with wrangler
+	 * `"cache": { "enabled": true }`).
+	 */
+	getWorkersCacheStatus(): Promise<{ configured: boolean }>;
+
+	/**
+	 * Purge Workers Caching for this Worker.
+	 * Omit options (or empty pathPrefixes) for purgeEverything; pass
+	 * pathPrefixes to invalidate matching path prefixes only.
+	 * Returns `configured: false` when native purge is unavailable.
+	 */
+	purgeWorkersCache(options?: { pathPrefixes?: string[] }): Promise<{
+		configured: boolean;
+		purged: boolean;
+		pathPrefixes?: string[];
+	}>;
 }
 
 // =============================================================================

@@ -55,6 +55,8 @@ export type PluginCapability =
 	| "media:write"
 	// Users
 	| "users:read"
+	// Cache — purge CMS object-cache namespaces (KV / memory)
+	| "cache:purge"
 	// Email
 	| "email:send"
 	// Hook registration
@@ -189,6 +191,7 @@ export interface DeclaredAccess {
 	email?: { send?: AccessConstraints; events?: AccessConstraints; transport?: AccessConstraints };
 	page?: { fragments?: AccessConstraints };
 	users?: { read?: AccessConstraints };
+	cache?: { purge?: AccessConstraints };
 }
 
 /**
@@ -236,6 +239,7 @@ export function capabilitiesToDeclaredAccess(
 	if (caps.has("hooks.email-transport:register")) (out.email ??= {}).transport = {};
 	if (caps.has("hooks.page-fragments:register")) out.page = { fragments: {} };
 	if (caps.has("users:read")) out.users = { read: {} };
+	if (caps.has("cache:purge")) out.cache = { purge: {} };
 
 	return out;
 }
@@ -284,6 +288,7 @@ export function declaredAccessToCapabilities(declaredAccess: DeclaredAccess): {
 	if (declaredAccess.email?.transport) caps.add("hooks.email-transport:register");
 	if (declaredAccess.page?.fragments) caps.add("hooks.page-fragments:register");
 	if (declaredAccess.users?.read) caps.add("users:read");
+	if (declaredAccess.cache?.purge) caps.add("cache:purge");
 
 	return { capabilities: [...caps], allowedHosts };
 }

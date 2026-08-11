@@ -159,6 +159,30 @@ export {
 // Settings handlers
 export { handleSettingsGet, handleSettingsUpdate } from "./settings.js";
 
+// Object-cache purge
+export {
+	FIXED_OBJECT_CACHE_NAMESPACES,
+	handleObjectCachePurge,
+	handleObjectCacheStatus,
+	resolveObjectCacheNamespaces,
+	type FixedObjectCacheNamespace,
+	type ObjectCachePurgeInput,
+	type ObjectCachePurgeResult,
+	type ObjectCacheStatus,
+} from "./object-cache.js";
+
+// Workers Cache (native Workers Caching) purge
+export {
+	handleWorkersCachePurge,
+	handleWorkersCacheStatus,
+	normalizeWorkersCachePathPrefix,
+	resolveWorkersCachePurgeApi,
+	type WorkersCachePurgeApi,
+	type WorkersCachePurgeInput,
+	type WorkersCachePurgeResult,
+	type WorkersCacheStatus,
+} from "./workers-cache.js";
+
 // Taxonomy handlers
 export {
 	handleTaxonomyList,
