@@ -1023,13 +1023,15 @@ interface ExtensionColumnHeaderProps {
 }
 
 function ExtensionColumnHeader({ column, collection, locale }: ExtensionColumnHeaderProps) {
+	const { i18n } = useLingui();
 	const { pluginId, extension } = column;
 	const Header = extension.header;
+	const label = i18n._(extension.label);
 
 	return (
 		<th
 			scope="col"
-			aria-label={extension.label}
+			aria-label={label}
 			className={cn(
 				"px-4 py-3 text-sm font-medium",
 				extension.align === "end" ? "text-end" : "text-start",
@@ -1039,9 +1041,9 @@ function ExtensionColumnHeader({ column, collection, locale }: ExtensionColumnHe
 				key={`${collection}:${locale ?? ""}:${pluginId}:${extension.id}`}
 				pluginId={pluginId}
 				columnId={extension.id}
-				fallback={extension.label}
+				fallback={label}
 			>
-				{Header ? <Header collection={collection} locale={locale} /> : extension.label}
+				{Header ? <Header collection={collection} locale={locale} /> : label}
 			</ContentListColumnBoundary>
 		</th>
 	);

@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -819,6 +820,51 @@ describe("ContentList", () => {
 			await expect.element(screen.getByRole("columnheader", { name: "SEO score" })).toBeVisible();
 			await expect.element(screen.getByText("82")).toBeVisible();
 			await expect.element(screen.getByText("Plugin Post")).toBeVisible();
+		});
+
+		it("updates contributed header labels when the shared catalog changes", async () => {
+			const previousLocale = i18n.locale;
+			const translatedLabel = "نتيجة تحسين محركات البحث";
+
+			try {
+				const screen = await renderWithColumns([
+					{ id: "score", label: "SEO score", cell: () => null },
+				]);
+				await expect.element(screen.getByRole("columnheader", { name: "SEO score" })).toBeVisible();
+
+				i18n.load("ar", { "SEO score": translatedLabel });
+				i18n.activate("ar");
+
+				await expect
+					.element(screen.getByRole("columnheader", { name: translatedLabel }))
+					.toBeVisible();
+				await expect.element(screen.getByText(translatedLabel)).toBeVisible();
+			} finally {
+				i18n.activate(previousLocale);
+			}
+		});
+
+		it("localizes a contributed header's render fallback", async () => {
+			const previousLocale = i18n.locale;
+			const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+			const translatedLabel = "نتيجة تحسين محركات البحث";
+			i18n.load("ar", { "SEO score": translatedLabel });
+			i18n.activate("ar");
+
+			function BrokenHeader(): React.ReactNode {
+				throw new Error("render failed");
+			}
+
+			try {
+				const screen = await renderWithColumns([
+					{ id: "score", label: "SEO score", header: BrokenHeader, cell: () => null },
+				]);
+
+				await expect.element(screen.getByText(translatedLabel)).toBeVisible();
+			} finally {
+				i18n.activate(previousLocale);
+				error.mockRestore();
+			}
 		});
 
 		it("passes the current visible page to contributed cells", async () => {

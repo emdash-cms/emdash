@@ -270,9 +270,29 @@ import type {
 	ContentListColumnCellContext,
 	ContentListColumnExtension,
 } from "@emdash-cms/admin";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch, parseApiResponse } from "emdash/plugin-utils";
 
-function ScoreCell({ item }: ContentListColumnCellContext) {
-	const score = item.data.seoScore;
+async function fetchScores(
+	collection: string,
+	locale: string | undefined,
+	ids: readonly string[],
+) {
+	const response = await apiFetch("/_emdash/api/plugins/my-seo-plugin/scores/batch", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ collection, locale, ids }),
+	});
+	return parseApiResponse<Record<string, number>>(response, "Failed to load SEO scores");
+}
+
+function ScoreCell({ item, visibleItems, collection, locale }: ContentListColumnCellContext) {
+	const itemIds = visibleItems.map((visibleItem) => visibleItem.id);
+	const { data: scores } = useQuery({
+		queryKey: ["my-seo-plugin", "scores", collection, locale ?? null, itemIds],
+		queryFn: () => fetchScores(collection, locale, itemIds),
+	});
+	const score = scores?.[item.id];
 	return typeof score === "number" ? <span>{score}</span> : <span>-</span>;
 }
 
@@ -287,6 +307,12 @@ export const contentListColumns = [
 	},
 ] satisfies readonly ContentListColumnExtension[];
 ```
+
+Every cell component mounts once per visible row. When a column needs data that is not already on `item`, use `visibleItems` to request the whole page in one batch. All cells in the example share the same React Query key, so they reuse one request instead of issuing one request per item.
+
+<Aside type="caution">
+	Do not fetch metadata using only `item.id` from inside a cell. A 20-row page would issue 20 requests. Add a batch plugin route and key the shared query by the visible item ids, collection, and locale.
+</Aside>
 
 Column ids only need to be unique within the plugin. Contributions are ordered by `order`, then plugin id and column id. A plugin can also provide:
 

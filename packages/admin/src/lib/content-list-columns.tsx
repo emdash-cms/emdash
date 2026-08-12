@@ -12,7 +12,10 @@ export interface ContentListColumnHeaderContext {
 /** Context passed to a trusted plugin's content-list column cell. */
 export interface ContentListColumnCellContext extends ContentListColumnHeaderContext {
 	item: ContentItem;
-	/** Items rendered on the current page after host filtering and pagination. */
+	/**
+	 * Items rendered on the current page after host filtering and pagination.
+	 * Batch remote data for these items under one shared query key; cells mount once per row.
+	 */
 	visibleItems: readonly ContentItem[];
 }
 
@@ -20,7 +23,7 @@ export interface ContentListColumnCellContext extends ContentListColumnHeaderCon
 export interface ContentListColumnExtension {
 	/** Stable identifier, unique within this plugin's list columns. */
 	id: string;
-	/** Host-rendered fallback label for the column header. */
+	/** Host-rendered fallback label and shared Lingui message id for the column header. */
 	label: string;
 	cell: React.ComponentType<ContentListColumnCellContext>;
 	/** Optional custom header content. The host still owns the table header. */
