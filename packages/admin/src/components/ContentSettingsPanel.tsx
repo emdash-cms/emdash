@@ -51,7 +51,7 @@ const ROLE_EDITOR = 40;
 /** Format scheduled date for display */
 function formatScheduledDate(dateStr: string | null) {
 	if (!dateStr) return null;
-	const date = new Date(dateStr);
+	const date = parseTimestamp(dateStr);
 	return date.toLocaleString();
 }
 
