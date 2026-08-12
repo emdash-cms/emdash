@@ -22,7 +22,7 @@ When writing, revising, or reviewing documentation, load the `writing-emdash-doc
 
 ## Workflow
 
-Run `pnpm lint:json | jq '.diagnostics | length'` before starting and confirm it's clean -- if it's failing after your edits, your changes caused it.
+Before starting any work that involves editing code, run `pnpm lint:json | jq '.diagnostics | length'` and confirm it's clean -- if it's failing after your edits, your changes caused it.
 
 During work:
 
@@ -151,6 +151,12 @@ Migrations live in `packages/core/src/database/migrations/`.
 - **Column types:** SQLite -- `text`, `integer`, `real`, `blob`. Booleans are `integer` defaulting to 0. Timestamps are `text` with ``defaultTo(sql`(datetime('now'))`)``. IDs are `text` primary keys (ULIDs from `ulidx`).
 - **Registration:** Migrations are statically imported in `runner.ts` and added to `StaticMigrationProvider`. Not auto-discovered (Workers bundler compatibility). When adding: create the file, add a static import in `runner.ts`, add it to `getMigrations()`.
 - **Multi-table migrations:** When altering all content tables, query `_emdash_collections` and loop. See `013_scheduled_publishing.ts`.
+
+Published migrations are immutable. Never edit or reorder one that has shipped; add the next monotonically increasing, zero-padded migration as a correction. Write `up` so it can restart after any completed statement, especially on D1 where a lost response can leave an ambiguous outcome.
+
+Preserve expand/deploy/contract compatibility: old application code must tolerate the expanded schema during a rolling deploy, and new code must tolerate incomplete backfills. When a migration changes existing `ec_*` tables, update `SchemaRegistry` so newly created tables receive the same shape. Use parameterized Kysely SQL, validated identifiers, bounded batches, portable dialect behavior, and the repository's index conventions.
+
+Test representative upgrades from existing data, retry after partial completion, every supported dialect, and realistically large data shapes. Add a user-facing changeset for each affected published package.
 
 ## Indexes
 
