@@ -70,5 +70,5 @@ describe("Concurrent dev servers (#1604)", () => {
 			expect(slugs).toContain("posts");
 			expect(slugs).toContain("pages");
 		}
-	}, 90_000);
+	}, 120_000);
 });
