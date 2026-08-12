@@ -569,7 +569,22 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const anchorNumber = await this.ctx.storage.get<number>(STORAGE.anchorNumber);
 		if (anchorNumber === undefined) return "idle";
 
-		const ready = await probePreviewReady(previewUrl(anchorNumber, this.env.PREVIEW_PACKAGE));
+		let candidatePreviewUrl: string;
+		try {
+			candidatePreviewUrl = previewUrl(anchorNumber, this.env.PREVIEW_PACKAGE);
+		} catch (error) {
+			console.error("[orchestrator] invalid preview configuration", {
+				error: errorMessage(error),
+			});
+			await this.firePreviewEvent(
+				anchorNumber,
+				"preview.failed",
+				"The preview package configuration is invalid. The candidate branch was retained for inspection.",
+			);
+			return "failed";
+		}
+
+		const ready = await probePreviewReady(candidatePreviewUrl);
 		if (ready) {
 			await this.firePreviewReady(anchorNumber);
 			return "ready";
@@ -626,11 +641,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 	}
 
-	private async firePreviewEvent(anchorNumber: number, event: EventId): Promise<void> {
+	private async firePreviewEvent(
+		anchorNumber: number,
+		event: EventId,
+		failureComment?: string,
+	): Promise<void> {
 		const labels = await this.projectLabels();
 		const commentBodyOverride =
 			event === "preview.failed"
-				? `The preview build for the candidate change didn't publish within ${Math.round(PREVIEW_BUILD_TIMEOUT_MS / 60_000)} minutes. The candidate branch was retained for inspection.`
+				? (failureComment ??
+					`The preview build for the candidate change didn't publish within ${Math.round(PREVIEW_BUILD_TIMEOUT_MS / 60_000)} minutes. The candidate branch was retained for inspection.`)
 				: undefined;
 		await this.processEvent({
 			event,
@@ -1392,10 +1412,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 							removeLabels: decision.removeLabels,
 							commentBody:
 								input.commentBodyOverride ??
-								renderComment(decision, anchorNumber, input.agentSummary, {
-									runId: input.agentRunId,
-									failureStage: input.agentFailureStage,
-								}),
+								renderComment(
+									decision,
+									anchorNumber,
+									input.agentSummary,
+									{
+										runId: input.agentRunId,
+										failureStage: input.agentFailureStage,
+									},
+									this.env.PREVIEW_PACKAGE,
+								),
 							commentMarker: `<!-- emdashbot-event:${sideEffectId} -->`,
 							commentMayExist: false,
 							...(input.commentFirst ? { commentFirst: true } : {}),
@@ -1830,6 +1856,7 @@ function renderComment(
 	anchorNumber: number,
 	agentSummary?: string,
 	failure?: { runId?: string; failureStage?: string },
+	previewPackage?: string,
 ): string {
-	return renderAgentComment(decision, anchorNumber, agentSummary, failure);
+	return renderAgentComment(decision, anchorNumber, agentSummary, failure, previewPackage);
 }

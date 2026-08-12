@@ -372,7 +372,7 @@ export function Investigate({ id }: AgentProps) {
 			defineTool({
 				name: "run_check",
 				description:
-					"Run a required verification command and bind its real exit status to the exact candidate tree. Do not add output pipelines or success fallbacks; the tool rejects them. Reuse a stable name such as test, lint, typecheck, or format when rerunning a check after a fix. Rerun every required check after any source change.",
+					"Run a required read-only verification command and bind its real exit status to the exact candidate tree. The command must not modify source files; use edit_file/write_file for changes and check-only formatter commands. Do not add output pipelines or success fallbacks; the tool rejects them. Reuse a stable name such as test, lint, typecheck, or format when rerunning a check after a fix. Rerun every required check after any source change.",
 				input: v.object({
 					name: v.pipe(v.string(), v.minLength(1), v.maxLength(40)),
 					command: v.pipe(v.string(), v.minLength(1), v.maxLength(1_000)),
@@ -384,11 +384,10 @@ export function Investigate({ id }: AgentProps) {
 					let candidateTreeSha: string;
 					try {
 						assertVerificationCommand(data.command);
-						result = await env.exec(data.command, {
+						({ result, candidateTreeSha } = await env.runCheck(data.command, {
 							...(data.cwd ? { cwd: data.cwd } : {}),
 							...(data.timeoutMs ? { timeoutMs: data.timeoutMs } : {}),
-						});
-						candidateTreeSha = await env.candidateTreeSha({ materialize: false });
+						}));
 					} catch (error) {
 						setLastFailure({ stage: "verification", message: safeFailureMessage(error) });
 						throw error;

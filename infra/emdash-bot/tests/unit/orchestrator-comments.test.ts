@@ -38,10 +38,22 @@ function failedDecision(): Extract<Decision, { kind: "transition" }> {
 }
 
 describe("renderAgentComment", () => {
-	test("agent.fix_ready uses the canonical pkg.pr.new owner/repo URL", () => {
+	test("agent.fix_ready uses the default production preview package", () => {
 		const body = renderAgentComment(fixReadyDecision(), 1234, "Fixed the bug.");
-		expect(body).toContain("pnpm add https://pkg.pr.new/emdash-cms/emdash@bot/fix-1234");
-		expect(body).not.toContain("https://pkg.pr.new/emdash@bot/fix-");
+		expect(body).toContain("npm i https://pkg.pr.new/emdash@bot/fix-1234");
+		expect(body).not.toContain("https://pkg.pr.new/emdash-cms/emdash@bot/fix-");
+	});
+
+	test("agent.fix_ready uses the configured staging preview package", () => {
+		const body = renderAgentComment(
+			fixReadyDecision(),
+			1234,
+			"Fixed the bug.",
+			undefined,
+			"owner/canary/package",
+		);
+		expect(body).toContain("npm i https://pkg.pr.new/owner/canary/package@bot/fix-1234");
+		expect(body).not.toContain("https://pkg.pr.new/emdash-cms/emdash@bot/fix-1234");
 	});
 
 	test("failed comments identify the failed stage and durable run", () => {

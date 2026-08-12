@@ -12,7 +12,7 @@ You are here because a maintainer issued a **fix** directive, verify returned `b
 ## Environment
 
 - **Edit in the VFS** with the `edit_file` / `write_file` tools; read surrounding code with `read_file` and `grep`. Every VFS edit is replayed onto the container checkout before each container command.
-- **Run final tests, lint, typecheck, and format through `run_check`** -- none of the toolchain exists in the VFS. Use `exec` only for exploratory commands whose result is not a release gate.
+- **Run final tests, lint, typecheck, and format checks through `run_check`** -- none of the toolchain exists in the VFS. Verification commands must not modify source files. Apply formatting with `edit_file`/`write_file`, then use a check-only formatter command. Use `exec` only for exploratory commands whose result is not a release gate.
 
 ## Do not
 
@@ -44,7 +44,7 @@ You are here because a maintainer issued a **fix** directive, verify returned `b
 5. **Run the affected package's suite with `run_check`.** `pnpm --filter <package> test`. New failures in tests you did not write are regressions -- fix them or abandon the whole change.
 6. **Typecheck with `run_check`.** `pnpm typecheck` for packages, `pnpm typecheck:demos` if a demo was involved. No new errors.
 7. **Lint with `run_check`.** Run `pnpm lint:quick`; a clean baseline stays clean.
-8. **Format with `run_check`.** Run the narrow formatting command appropriate to the files you touched. Do not bulk-format unrelated files.
+8. **Check formatting with `run_check`.** Apply any needed formatting with `edit_file`/`write_file`, then run `pnpm format:check` or the narrow check-only formatter command appropriate to the files you touched. Do not bulk-format unrelated files.
 9. **Add a changeset when a published package changed.** Create the file under `.changeset/` (patch bump for a bug fix unless diagnosis says otherwise). Write it as release notes for someone upgrading -- lead with a verb, describe the observable effect, reference the issue -- not as a commit message. Include it in your fix commit.
 10. **Publish with `publish_candidate`.** Do not reproduce its work with shell commands. Report `fixed: true` only after it succeeds.
 

@@ -171,6 +171,41 @@ describe("ExecEnv container exec", () => {
 		expect(con.execs).toEqual(["bash -o pipefail -c 'pnpm test 2>&1 | tail -20'"]);
 	});
 
+	test("rejects and discards source changes made by a verification command", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "before-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: "formatted", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "after-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+		);
+		const env = makeEnv({ container: con.container });
+
+		await expect(env.runCheck("pnpm format")).rejects.toThrow(
+			/verification command modified the candidate/,
+		);
+		expect(con.execs.at(-1)).toContain("git reset --hard HEAD");
+	});
+
+	test("returns the verified candidate tree for a read-only check", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: "passed", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+		);
+		const env = makeEnv({ container: con.container });
+
+		await expect(env.runCheck("pnpm format:check")).resolves.toEqual({
+			result: { exitCode: 0, stdout: "passed", stderr: "" },
+			candidateTreeSha: "candidate-tree",
+		});
+	});
+
 	test("an edit in one instance is materialized when another execs over the same VFS", async () => {
 		const fs = fakeState({ "/repo/src/x.ts": "old" });
 		const con = fakeContainer();

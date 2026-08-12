@@ -26,6 +26,7 @@ import type { NormalizedEvent } from "../../.flue/lib/orchestrator.js";
 interface TestEnv {
 	Orchestrator: Env["Orchestrator"];
 	GITHUB_APP_PRIVATE_KEY: string;
+	PREVIEW_PACKAGE: string;
 }
 
 const testEnv = env as unknown as TestEnv;
@@ -58,6 +59,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 	// reset both after every test so nothing leaks into a later case.
 	afterEach(() => {
 		testEnv.GITHUB_APP_PRIVATE_KEY = "";
+		testEnv.PREVIEW_PACKAGE = "emdash";
 		vi.unstubAllGlobals();
 	});
 
@@ -600,6 +602,19 @@ describe("OrchestratorDO (workers-pool)", () => {
 		vi.unstubAllGlobals();
 
 		expect(tick.previewPoll).toBe("failed");
+		expect((await stub.getPersistedState()).state).toBe("reproduced");
+	});
+
+	test("invalid preview package configuration fails instead of retrying forever", async () => {
+		testEnv.PREVIEW_PACKAGE = "../invalid";
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await driveToPreviewBuilding(stub, 42);
+
+		await stub.debugSetPreviewPoll(Date.now() + 60_000, Date.now() - 1_000);
+		const tick = await stub.tick();
+
+		expect(tick.previewPoll).toBe("failed");
+		expect(tick.recoveryError).toBeNull();
 		expect((await stub.getPersistedState()).state).toBe("reproduced");
 	});
 

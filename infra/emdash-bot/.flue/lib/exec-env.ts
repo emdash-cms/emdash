@@ -203,6 +203,33 @@ export class ExecEnv {
 		);
 	}
 
+	async runCheck(
+		command: string,
+		options: ExecOptions = {},
+	): Promise<{ result: ExecResult; candidateTreeSha: string }> {
+		const timeoutMs = options.timeoutMs;
+		const deadlineMs = timeoutMs
+			? timeoutMs + this.#deadlines.execGraceMs
+			: this.#deadlines.defaultTimeoutMs;
+		const cwd = options.cwd ?? this.#repoDir;
+		const container = await this.container();
+		await this.#materializeChanges(container);
+		const beforeTreeSha = await this.#candidateTreeSha(container);
+		const result = await withDeadline(
+			container.exec(pipefailCommand(command), { cwd, ...(timeoutMs ? { timeoutMs } : {}) }),
+			deadlineMs,
+			"container check",
+		);
+		const candidateTreeSha = await this.#candidateTreeSha(container);
+		if (candidateTreeSha !== beforeTreeSha) {
+			await this.#restoreContainerCandidate(container);
+			throw new Error(
+				"verification command modified the candidate; apply source changes with edit_file/write_file and rerun a check-only command",
+			);
+		}
+		return { result, candidateTreeSha };
+	}
+
 	/** Stage the working tree and return a bounded snapshot for Worker-owned publication. */
 	async snapshotCandidate(): Promise<CandidateSnapshot> {
 		const container = await this.container();
@@ -266,6 +293,10 @@ export class ExecEnv {
 	async candidateTreeSha(options: { materialize?: boolean } = {}): Promise<string> {
 		const container = await this.container();
 		if (options.materialize !== false) await this.#materializeChanges(container);
+		return this.#candidateTreeSha(container);
+	}
+
+	async #candidateTreeSha(container: ContainerBackend): Promise<string> {
 		await this.#stageCandidate(container);
 		const tree = await this.#bounded(
 			container.exec(pipefailCommand("git write-tree"), { cwd: this.#repoDir }),
@@ -273,6 +304,20 @@ export class ExecEnv {
 		);
 		if (tree.exitCode !== 0) throw new Error(`candidate tree lookup failed: ${lastOutput(tree)}`);
 		return tree.stdout.trim();
+	}
+
+	async #restoreContainerCandidate(container: ContainerBackend): Promise<void> {
+		const restore = await this.#bounded(
+			container.exec(
+				pipefailCommand("git reset --hard HEAD && git clean -fd --exclude=.bot-artifacts/ -- ."),
+				{ cwd: this.#repoDir },
+			),
+			"candidate restore",
+		);
+		if (restore.exitCode !== 0) {
+			throw new Error(`candidate restore failed: ${lastOutput(restore)}`);
+		}
+		await this.#materializeChanges(container);
 	}
 
 	async #stageCandidate(container: ContainerBackend): Promise<void> {

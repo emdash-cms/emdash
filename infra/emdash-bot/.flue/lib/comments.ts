@@ -63,6 +63,7 @@ export function renderAgentComment(
 	anchorNumber: number,
 	agentSummary?: string,
 	failure?: { runId?: string; failureStage?: string },
+	previewPackage = "emdash",
 ): string {
 	const summary = agentSummary?.trim();
 	if (!decision.event.startsWith("agent.")) return "";
@@ -88,7 +89,7 @@ export function renderAgentComment(
 				"Try it:",
 				"",
 				"```sh",
-				`pnpm add https://pkg.pr.new/emdash-cms/emdash@bot/fix-${anchorNumber}`,
+				previewInstallCommand(anchorNumber, previewPackage),
 				"```",
 				"",
 				"Reply `@emdashbot confirm` if it works and I'll open the PR, or `@emdashbot revise <feedback>` to push changes.",
