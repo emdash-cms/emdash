@@ -37,7 +37,11 @@ import type {
 } from "emdash";
 import type { PluginManifest } from "emdash";
 // @ts-ignore -- SandboxUnavailableError is a class export, not type-only
-import { SandboxUnavailableError } from "emdash";
+import {
+	createSandboxRouteError,
+	getSandboxRouteErrorEnvelope,
+	SandboxUnavailableError,
+} from "emdash";
 
 import { createBackingServiceHandler } from "./backing-service.js";
 import type { BackingServiceHandler } from "./backing-service.js";
@@ -869,6 +873,11 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		return this.options.db;
 	}
 
+	/** Get the pre-content-write activation guard */
+	get beforeContentWrite() {
+		return this.options.beforeContentWrite;
+	}
+
 	/** Get the email send callback */
 	get emailSend() {
 		return this.emailSendCallback;
@@ -985,6 +994,15 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 			});
 			if (!res.ok) {
 				const text = await res.text();
+				let envelope = null;
+				try {
+					envelope = getSandboxRouteErrorEnvelope(JSON.parse(text));
+				} catch {
+					// The generic route error below preserves non-protocol failures.
+				}
+				if (envelope) {
+					throw createSandboxRouteError(envelope.error.code);
+				}
 				throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
 			}
 			return res.json();

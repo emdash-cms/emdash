@@ -13,6 +13,7 @@ import {
 	generateEnvModule,
 	generateSchedulerModule,
 	generateSeedModule,
+	RESOLVED_VIRTUAL_BUILD_ID,
 	RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID,
 	RESOLVED_VIRTUAL_SCHEDULER_ID,
 } from "../../../../src/astro/integration/virtual-modules.js";
@@ -183,6 +184,17 @@ describe("createVirtualModulesPlugin scheduler wiring", () => {
 		const out = callHook<string>(plugin.load, RESOLVED_VIRTUAL_SCHEDULER_ID);
 		expect(out).toContain("export const createScheduler = null");
 		expect(out).not.toContain("NodeCronScheduler");
+	});
+
+	it("keeps the build timestamp stable across repeated loads", () => {
+		const plugin = buildPlugin("@astrojs/cloudflare", "build");
+		callHook(plugin.configResolved, { command: "build" });
+
+		const first = callHook<string>(plugin.load, RESOLVED_VIRTUAL_BUILD_ID);
+		const second = callHook<string>(plugin.load, RESOLVED_VIRTUAL_BUILD_ID);
+
+		expect(first).toBe(second);
+		expect(Number(/buildTime = (\d+)/.exec(first)?.[1])).toBeGreaterThan(0);
 	});
 
 	it("watches resolved sandbox plugin entries", () => {

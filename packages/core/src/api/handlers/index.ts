@@ -77,6 +77,16 @@ export {
 	type MediaUsageSummary,
 } from "./media-usage.js";
 
+export {
+	handleMediaUsageWorkList,
+	handleMediaUsageWorkRetry,
+	type MediaUsageWorkItem,
+	type MediaUsageWorkListQuery,
+	type MediaUsageWorkListResponse,
+	type MediaUsageWorkRetryRequest,
+	type MediaUsageWorkRetryResponse,
+} from "./media-usage-work.js";
+
 // Schema handlers
 export {
 	handleSchemaCollectionList,

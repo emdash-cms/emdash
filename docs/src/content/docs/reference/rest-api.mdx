@@ -195,6 +195,7 @@ GET /_emdash/api/media?includeUsage=1
 
 ```json
 {
+	"success": true,
 	"data": {
 		"items": [
 			{
@@ -362,6 +363,74 @@ Content-Type: application/json
 ```http
 DELETE /_emdash/api/media/:id
 ```
+
+### List Media Usage Work
+
+```http
+GET /_emdash/api/admin/media-usage/work?collection=posts&state=failed&limit=50&cursor=...
+```
+
+Returns a bounded page of durable entry-indexing work for one current collection. The endpoint
+requires `schema:manage`; bearer tokens also require the `admin` scope.
+
+`collection` is required. `state` optionally filters `pending`, `retry`, `leased`, or `failed`
+work. `limit` defaults to 50 and is capped at 100. `cursor` is opaque and comes from the previous
+page's `nextCursor`. The endpoint does not calculate an exact backlog count.
+
+```json
+{
+	"success": true,
+	"data": {
+		"items": [
+			{
+				"collectionId": "01COLLECTION...",
+				"collectionSlug": "posts",
+				"contentId": "01CONTENT...",
+				"state": "failed",
+				"attemptCount": 5,
+				"nextAttemptAt": "2026-08-07T12:00:00.000Z",
+				"leaseExpiresAt": null,
+				"lastAttemptedAt": "2026-08-07T11:45:00.000Z",
+				"lastErrorCode": "MEDIA_USAGE_PROCESSING_FAILED",
+				"updatedAt": "2026-08-07T11:45:00.000Z"
+			}
+		],
+		"nextCursor": "eyJvcmRlclZhbHVlIjoiLi4uIn0"
+	}
+}
+```
+
+Responses omit work versions, lease tokens, raw database errors, indexed content, media
+references, and exact counts.
+
+### Retry Media Usage Work
+
+```http
+POST /_emdash/api/admin/media-usage/work/retry
+Content-Type: application/json
+X-EmDash-Request: 1
+```
+
+Idempotently reopens or creates one durable entry job. It has the same authorization requirements
+as the list endpoint.
+
+```json
+{
+	"collectionId": "01COLLECTION...",
+	"contentId": "01CONTENT..."
+}
+```
+
+A successful response returns `changed` and the current pending item. `changed: false` means the
+job was already pending. A non-expired worker lease returns `409 WORK_LEASE_ACTIVE` with
+`details.leaseExpiresAt`; a concurrent mutation returns `409 WORK_CHANGED`. Neither conflict
+replaces newer work or exposes its lease token.
+
+The list returns only known durable work. Retry can create work for the supplied identity in an
+active collection even when no work row exists, but it does not scan for historical gaps. Use
+collection-scoped Media Usage repair after imports or direct database writes.
+When scheduled maintenance is disabled, failed jobs remain visible and manually retryable, but no
+automatic freshness deadline is promised.
 
 ### Repair Media Usage
 

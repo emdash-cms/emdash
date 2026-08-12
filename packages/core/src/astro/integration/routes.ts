@@ -249,6 +249,16 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/admin/media-usage/repair.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/admin/media-usage/work",
+		entrypoint: resolveRoute("api/admin/media-usage/work/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/media-usage/work/retry",
+		entrypoint: resolveRoute("api/admin/media-usage/work/retry.ts"),
+	});
+
 	// Import API routes
 	injectRoute({
 		pattern: "/_emdash/api/import/probe",
@@ -856,10 +866,12 @@ export function injectCoreRoutes(
 		});
 	}
 
-	injectRoute({
-		pattern: "/sitemap-[collection].xml",
-		entrypoint: resolveRoute("sitemap-[collection].xml.ts"),
-	});
+	if (!options.srcDir || !hasUserDefinedPublicRoute(options.srcDir, "sitemap-[collection].xml")) {
+		injectRoute({
+			pattern: "/sitemap-[collection].xml",
+			entrypoint: resolveRoute("sitemap-[collection].xml.ts"),
+		});
+	}
 
 	if (!options.srcDir || !hasUserDefinedPublicRoute(options.srcDir, "robots.txt")) {
 		injectRoute({

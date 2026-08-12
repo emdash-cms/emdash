@@ -140,6 +140,18 @@
 				"take_over"
 			]
 		},
+		"diagnosed": {
+			"label": "bot:diagnosed",
+			"boardColumn": "Diagnosed",
+			"description": "Verdict: root cause identified, but not confirmed by a reproduction (environment limits). Actionable like reproduced; the fix loop verifies with a failing test before changing anything.",
+			"terminal": false,
+			"offeredCommands": [
+				"fix",
+				"investigate",
+				"decline",
+				"take_over"
+			]
+		},
 		"not_reproduced": {
 			"label": "bot:not-reproduced",
 			"boardColumn": "Not reproduced",
@@ -165,7 +177,7 @@
 		"fixing": {
 			"label": "bot:fixing",
 			"boardColumn": "Fixing",
-			"description": "A maintainer-triggered fix run is in flight: build a candidate change on bot/fix-<n>. No PR yet.",
+			"description": "A maintainer-triggered delivery run is building a candidate on bot/fix-<n>.",
 			"terminal": false,
 			"transient": true,
 			"offeredCommands": [
@@ -175,7 +187,7 @@
 		"preview_building": {
 			"label": "bot:preview-building",
 			"boardColumn": "Building preview",
-			"description": "The candidate fix is pushed; a preview deploy is building so the reporter can try the change before a PR exists.",
+			"description": "The candidate change is published; a preview is building so the reporter can try it before a PR exists.",
 			"terminal": false,
 			"transient": true,
 			"offeredCommands": [
@@ -185,7 +197,7 @@
 		"awaiting_reporter": {
 			"label": "bot:awaiting-reporter",
 			"boardColumn": "Awaiting reporter",
-			"description": "Preview link posted; waiting for the reporter to confirm the fix. On confirm a draft PR opens; on denial or 14-day silence the branch is reaped.",
+			"description": "Preview link posted; waiting for the reporter to confirm the change. On confirm a draft PR opens; on denial or 14-day silence the branch is reaped.",
 			"terminal": false,
 			"offeredCommands": [
 				"confirm",
@@ -201,18 +213,12 @@
 			"actors": [
 				"maintainer"
 			],
-			"labelTriggers": [
-				"bot:repro"
-			],
 			"defaultKind": "bug"
 		},
 		"investigate": {
 			"description": "Reproduce and diagnose the issue as a bug, with evidence. Does not attempt a fix.",
 			"actors": [
 				"maintainer"
-			],
-			"labelTriggers": [
-				"bot:investigate"
 			],
 			"arg": "directive",
 			"defaultKind": "bug"
@@ -222,9 +228,6 @@
 			"actors": [
 				"maintainer"
 			],
-			"labelTriggers": [
-				"bot:implement"
-			],
 			"arg": "directive",
 			"defaultKind": "enhancement"
 		},
@@ -232,9 +235,6 @@
 			"description": "Build a candidate fix on a bot branch and post a preview for the reporter to try.",
 			"actors": [
 				"maintainer"
-			],
-			"labelTriggers": [
-				"bot:fix"
 			],
 			"arg": "directive"
 		},
@@ -340,8 +340,14 @@
 				"system"
 			]
 		},
+		"agent.diagnosed": {
+			"description": "Root cause identified without a confirming reproduction.",
+			"actors": [
+				"system"
+			]
+		},
 		"agent.fix_ready": {
-			"description": "Reproduced and fixed; a verified change is staged on bot/fix-<n>.",
+			"description": "A verified candidate change is published on bot/fix-<n>.",
 			"actors": [
 				"system"
 			]
@@ -389,7 +395,7 @@
 			]
 		},
 		"preview.ready": {
-			"description": "The preview deploy for the candidate fix is live; link ready to post.",
+			"description": "The preview deploy for the candidate change is live; link ready to post.",
 			"actors": [
 				"system"
 			]
@@ -417,9 +423,9 @@
 		{
 			"from": "unmanaged",
 			"event": "implement",
-			"to": "working",
+			"to": "fixing",
 			"action": "investigate.implement",
-			"note": "implement works straight from an untriaged issue"
+			"note": "implement works straight from an untriaged issue and enters the preview-gated delivery lane"
 		},
 		{
 			"from": "unmanaged",
@@ -435,7 +441,7 @@
 		{
 			"from": "triage",
 			"event": "implement",
-			"to": "working",
+			"to": "fixing",
 			"action": "investigate.implement",
 			"note": "enhancement/feature lane -- no repro gate"
 		},
@@ -482,7 +488,7 @@
 		{
 			"from": "blocked",
 			"event": "implement",
-			"to": "working",
+			"to": "fixing",
 			"action": "investigate.implement"
 		},
 		{
@@ -676,7 +682,7 @@
 		{
 			"from": "failed",
 			"event": "implement",
-			"to": "working",
+			"to": "fixing",
 			"action": "investigate.implement"
 		},
 		{
@@ -743,6 +749,11 @@
 		},
 		{
 			"from": "investigating",
+			"event": "agent.diagnosed",
+			"to": "diagnosed"
+		},
+		{
+			"from": "investigating",
 			"event": "agent.not_reproduced",
 			"to": "not_reproduced"
 		},
@@ -783,6 +794,29 @@
 			"from": "reproduced",
 			"event": "take_over",
 			"to": "human_owned"
+		},
+		{
+			"from": "diagnosed",
+			"event": "fix",
+			"to": "fixing",
+			"action": "investigate.fix"
+		},
+		{
+			"from": "diagnosed",
+			"event": "decline",
+			"to": "declined"
+		},
+		{
+			"from": "diagnosed",
+			"event": "take_over",
+			"to": "human_owned"
+		},
+		{
+			"from": "diagnosed",
+			"event": "investigate",
+			"to": "investigating",
+			"action": "investigate.diagnose",
+			"note": "re-diagnose"
 		},
 		{
 			"from": "not_reproduced",
@@ -835,7 +869,11 @@
 			"from": "preview_building",
 			"event": "preview.failed",
 			"to": "reproduced",
-			"note": "candidate branch retained; the diagnosis still holds, so fall back to the reproduced verdict"
+			"toByKind": {
+				"enhancement": "blocked",
+				"task": "blocked"
+			},
+			"note": "bugs return to the reproduced verdict; directed changes rest in blocked so implement can retry"
 		},
 		{
 			"from": "awaiting_reporter",
@@ -847,15 +885,23 @@
 			"from": "awaiting_reporter",
 			"event": "reject",
 			"to": "reproduced",
+			"toByKind": {
+				"enhancement": "blocked",
+				"task": "blocked"
+			},
 			"action": "reapBranch",
-			"note": "denial reaps the unvalidated branch; feedback is recorded for the next fix"
+			"note": "denial reaps the unvalidated branch; directed changes remain retryable through implement"
 		},
 		{
 			"from": "awaiting_reporter",
 			"event": "expire",
 			"to": "reproduced",
+			"toByKind": {
+				"enhancement": "blocked",
+				"task": "blocked"
+			},
 			"action": "reapBranch",
-			"note": "14-day silence reaps the branch; the reproduced verdict survives"
+			"note": "14-day silence reaps the branch; bugs retain their verdict and directed changes remain retryable"
 		},
 		{
 			"from": "awaiting_reporter",

@@ -94,6 +94,7 @@ export interface AdminManifest {
 			hasSeo: boolean;
 			urlPattern?: string;
 			hidden?: boolean;
+			listColumns?: string[];
 			fields: Record<
 				string,
 				{

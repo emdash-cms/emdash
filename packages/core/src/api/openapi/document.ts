@@ -42,6 +42,11 @@ import {
 	mediaUsageDetailsResponseSchema,
 	mediaUsageRepairBody,
 	mediaUsageRepairResponseSchema,
+	mediaUsageWorkListQuery,
+	mediaUsageWorkListResponseSchema,
+	mediaUsageWorkRetryBody,
+	mediaUsageWorkRetryConflictSchema,
+	mediaUsageWorkRetryResponseSchema,
 } from "../schemas/media-usage.js";
 import {
 	DEFAULT_MAX_UPLOAD_SIZE,
@@ -787,6 +792,53 @@ function buildMediaPaths(maxUploadSize: number) {
 					},
 					...authErrors,
 					...standardErrors(400, 413, 500),
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/work": {
+			get: {
+				operationId: "listMediaUsageWork",
+				summary: "List durable media usage work",
+				description:
+					"Returns one bounded cursor page of durable entry-indexing work for a current collection. Requires `schema:manage`; bearer tokens also require the `admin` scope. The response omits lease tokens, work versions, indexed content, media references, raw errors, and an exact backlog count.",
+				tags: ["Media"],
+				requestParams: { query: mediaUsageWorkListQuery },
+				responses: {
+					"200": {
+						description: "Bounded media usage work page",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageWorkListResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/work/retry": {
+			post: {
+				operationId: "retryMediaUsageWork",
+				summary: "Retry one durable media usage job",
+				description:
+					"Idempotently reopens or creates one entry-indexing job for a current immutable collection identity. Requires `schema:manage`; bearer tokens also require the `admin` scope. A live worker lease or a concurrent work change returns a stable conflict without exposing ownership tokens.",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [JSON_CONTENT]: { schema: mediaUsageWorkRetryBody } },
+				},
+				responses: {
+					"200": {
+						description: "Current pending work state",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageWorkRetryResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+					"409": {
+						description: "The job has a live lease or changed concurrently",
+						content: { [JSON_CONTENT]: { schema: mediaUsageWorkRetryConflictSchema } },
+					},
 				},
 			},
 		},

@@ -48,10 +48,13 @@ import {
 	RESOLVED_VIRTUAL_SCHEDULER_ID,
 	VIRTUAL_ENV_ID,
 	RESOLVED_VIRTUAL_ENV_ID,
+	VIRTUAL_BUILD_ID,
+	RESOLVED_VIRTUAL_BUILD_ID,
 	generateSeedModule,
 	generateWaitUntilModule,
 	generateSchedulerModule,
 	generateEnvModule,
+	generateBuildModule,
 	generateConfigModule,
 	generateDialectModule,
 	generateStorageModule,
@@ -179,6 +182,11 @@ export function createVirtualModulesPlugin(
 
 	let viteCommand: "build" | "serve" | undefined;
 
+	// Captured once per plugin instance rather than inside load(): Vite may load
+	// the module more than once (client and server passes, dev reloads), and a
+	// validator that moved between those loads would invalidate at random.
+	const buildTime = Date.now();
+
 	return {
 		name: "emdash-virtual-modules",
 		configResolved(config) {
@@ -232,6 +240,9 @@ export function createVirtualModulesPlugin(
 			}
 			if (id === VIRTUAL_ENV_ID) {
 				return RESOLVED_VIRTUAL_ENV_ID;
+			}
+			if (id === VIRTUAL_BUILD_ID) {
+				return RESOLVED_VIRTUAL_BUILD_ID;
 			}
 		},
 		load(id: string) {
@@ -332,6 +343,9 @@ export function createVirtualModulesPlugin(
 			// the Cloudflare adapter, undefined otherwise (#1736).
 			if (id === RESOLVED_VIRTUAL_ENV_ID) {
 				return generateEnvModule(astroConfig.adapter?.name);
+			}
+			if (id === RESOLVED_VIRTUAL_BUILD_ID) {
+				return generateBuildModule(buildTime);
 			}
 		},
 	};

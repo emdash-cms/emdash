@@ -579,6 +579,11 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					});
 				}
 
+				addMiddleware({
+					entrypoint: "emdash/middleware/media-usage-write-fence",
+					order: "pre",
+				});
+
 				// Add request context middleware (runs after auth, on ALL routes)
 				// Sets up ALS-based context for query functions (edit mode, preview)
 				addMiddleware({

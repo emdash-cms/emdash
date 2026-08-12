@@ -1,6 +1,7 @@
 import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { MediaUsageWorkRepository } from "../../database/repositories/media-usage-work.js";
 import {
 	MediaUsageRepository,
 	type MediaUsageSource,
@@ -90,6 +91,11 @@ interface ContentMediaUsageInitialCollectionResult {
 	result: ContentMediaUsageRepairCollectionResult;
 }
 
+interface ContentMediaUsageRepairExecution {
+	collectionId: string;
+	startingEpoch: number | string;
+}
+
 export async function repairContentMediaUsageAll(
 	db: Kysely<Database>,
 ): Promise<ContentMediaUsageRepairAllResult> {
@@ -99,7 +105,7 @@ export async function repairContentMediaUsageAll(
 	for (const collection of collections) {
 		results.push({
 			collection,
-			result: await repairContentMediaUsageCollectionSafely(db, collection.slug),
+			result: await repairContentMediaUsageCollectionSafely(db, collection),
 		});
 	}
 
@@ -111,20 +117,30 @@ export async function repairContentMediaUsageAll(
 export async function scanContentMediaUsageCollection(
 	db: Kysely<Database>,
 	collectionSlug: string,
+	expectedCollectionId?: string,
 ): Promise<ContentMediaUsageCollectionScan | null> {
 	validateIdentifier(collectionSlug, "collection slug");
-	const collection = await db
+	let collectionQuery = db
 		.selectFrom("_emdash_collections")
 		.select("id")
-		.where("slug", "=", collectionSlug)
-		.executeTakeFirst();
+		.where("slug", "=", collectionSlug);
+	if (expectedCollectionId !== undefined) {
+		collectionQuery = collectionQuery.where("id", "=", expectedCollectionId);
+	}
+	const collection = await collectionQuery.executeTakeFirst();
 	if (!collection) return null;
 
 	const tableName = getContentTableName(collectionSlug);
 	const rows = await sql<{ id: string }>`
-		SELECT id
-		FROM ${sql.ref(tableName)}
-		ORDER BY id ASC
+		SELECT content.id
+		FROM ${sql.ref(tableName)} AS content
+		WHERE EXISTS (
+			SELECT 1
+			FROM _emdash_collections AS collection
+			WHERE collection.id = ${collection.id}
+				AND collection.slug = ${collectionSlug}
+		)
+		ORDER BY content.id ASC
 	`.execute(db);
 
 	return {
@@ -155,15 +171,17 @@ async function loadContentMediaUsageCollectionRecords(
 
 async function repairContentMediaUsageCollectionSafely(
 	db: Kysely<Database>,
-	collectionSlug: string,
+	collection: ContentMediaUsageCollectionRecord,
 ): Promise<ContentMediaUsageRepairCollectionResult> {
 	try {
-		return await repairContentMediaUsageCollection(db, { collectionSlug });
+		return await withContentUsageCollectionLock(collection.slug, () =>
+			repairContentMediaUsageCollectionUnlocked(db, collection.slug, collection.id),
+		);
 	} catch (error) {
-		console.error(`[media-usage] Failed to repair collection ${collectionSlug}:`, error);
+		console.error(`[media-usage] Failed to repair collection ${collection.slug}:`, error);
 		const now = new Date().toISOString();
 		return {
-			scope: contentMediaUsageCollectionScope(collectionSlug),
+			scope: contentMediaUsageCollectionScope(collection.slug),
 			status: "failed",
 			indexedSourceCount: 0,
 			failedSourceCount: 0,
@@ -180,25 +198,29 @@ async function filterExistingContentMediaUsageCollectionResults(
 	db: Kysely<Database>,
 	results: readonly ContentMediaUsageInitialCollectionResult[],
 ): Promise<ContentMediaUsageRepairCollectionResult[]> {
+	const identityBound = await isIncrementalCaptureActive(db);
 	const currentCollections = await loadContentMediaUsageCollectionRecordsSafely(db);
 	const currentIdsBySlug = new Map(
 		currentCollections.map((collection) => [collection.slug, collection.id]),
 	);
 	const includedResults: ContentMediaUsageRepairCollectionResult[] = [];
-	const excludedResults: ContentMediaUsageRepairCollectionResult[] = [];
+	const excludedResults: ContentMediaUsageInitialCollectionResult[] = [];
 
 	for (const { collection, result } of results) {
 		if (currentIdsBySlug.get(collection.slug) === collection.id) {
 			includedResults.push(result);
 		} else {
-			excludedResults.push(result);
+			excludedResults.push({ collection, result });
 		}
 	}
 
 	if (excludedResults.length > 0) {
 		const repo = new MediaUsageRepository(db);
-		for (const result of excludedResults) {
-			await repo.deleteIndexStatus(result.scope);
+		for (const excluded of excludedResults) {
+			await repo.deleteIndexStatus(
+				excluded.result.scope,
+				identityBound ? excluded.collection.id : undefined,
+			);
 		}
 	}
 
@@ -256,10 +278,16 @@ function sumCollectionRepairCount(
 async function repairContentMediaUsageCollectionUnlocked(
 	db: Kysely<Database>,
 	collectionSlug: string,
+	expectedCollectionId?: string,
 ): Promise<ContentMediaUsageRepairCollectionResult> {
-	const startedAt = new Date().toISOString();
+	const requestedAt = new Date().toISOString();
 	const scope = contentMediaUsageCollectionScope(collectionSlug);
-	if (!(await contentCollectionExists(db, collectionSlug))) {
+	const identityBound = await isIncrementalCaptureActive(db);
+	const collection = await loadContentMediaUsageCollectionRecord(db, collectionSlug);
+	if (
+		!collection ||
+		(identityBound && expectedCollectionId && collection.id !== expectedCollectionId)
+	) {
 		return {
 			scope,
 			status: "failed",
@@ -268,25 +296,51 @@ async function repairContentMediaUsageCollectionUnlocked(
 			skippedSourceCount: 0,
 			deletedSourceCount: 0,
 			lastErrorCode: CONTENT_MEDIA_USAGE_REPAIR_ERROR.COLLECTION_NOT_FOUND,
-			startedAt,
-			completedAt: startedAt,
+			startedAt: requestedAt,
+			completedAt: requestedAt,
 		};
 	}
 
 	const repo = new MediaUsageRepository(db);
 	const runToken = ulid();
-	await repo.beginIndexStatusRepair({
-		...scope,
-		runToken,
-		schemaVersion: CONTENT_SOURCE_SCHEMA_VERSION,
-		startedAt,
-	});
+	let startedAt = requestedAt;
+	let execution: ContentMediaUsageRepairExecution | undefined;
+	if (identityBound) {
+		const run = await repo.beginIndexStatusRepairAtCurrentEpoch({
+			...scope,
+			collectionId: collection.id,
+			runToken,
+			schemaVersion: CONTENT_SOURCE_SCHEMA_VERSION,
+		});
+		if (!run) {
+			return {
+				scope,
+				status: "failed",
+				indexedSourceCount: 0,
+				failedSourceCount: 0,
+				skippedSourceCount: 0,
+				deletedSourceCount: 0,
+				lastErrorCode: CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_ERROR,
+				startedAt,
+				completedAt: requestedAt,
+			};
+		}
+		startedAt = run.startedAt;
+		execution = { collectionId: collection.id, startingEpoch: run.changeEpoch };
+	} else {
+		await repo.beginIndexStatusRepair({
+			...scope,
+			runToken,
+			schemaVersion: CONTENT_SOURCE_SCHEMA_VERSION,
+			startedAt,
+		});
+	}
 
 	try {
-		const scan = await scanContentMediaUsageCollection(db, collectionSlug);
+		const scan = await scanContentMediaUsageCollection(db, collectionSlug, execution?.collectionId);
 		if (!scan) {
 			const completedAt = new Date().toISOString();
-			return await finalizeRepairStatus(repo, {
+			return await finalizeRepairStatus(db, repo, {
 				...scope,
 				runToken,
 				counts: {
@@ -300,10 +354,15 @@ async function repairContentMediaUsageCollectionUnlocked(
 				status: "failed",
 				startedAt,
 				completedAt,
+				execution,
 			});
 		}
-		const counts = await repairScannedContentSources(db, repo, scan);
-		const finalScan = await scanContentMediaUsageCollection(db, collectionSlug);
+		const counts = await repairScannedContentSources(db, repo, scan, execution?.collectionId);
+		const finalScan = await scanContentMediaUsageCollection(
+			db,
+			collectionSlug,
+			execution?.collectionId,
+		);
 		if (!finalScan) {
 			counts.failedSourceCount++;
 			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.COLLECTION_NOT_FOUND;
@@ -312,13 +371,14 @@ async function repairContentMediaUsageCollectionUnlocked(
 		}
 		const completedAt = new Date().toISOString();
 		const status = determineRepairStatus(counts);
-		return await finalizeRepairStatus(repo, {
+		return await finalizeRepairStatus(db, repo, {
 			...scope,
 			runToken,
 			counts,
 			status,
 			startedAt,
 			completedAt,
+			execution,
 		});
 	} catch (error) {
 		if (!(error instanceof MediaUsageFieldDiscoveryError)) {
@@ -329,7 +389,7 @@ async function repairContentMediaUsageCollectionUnlocked(
 			error instanceof MediaUsageFieldDiscoveryError
 				? error.code
 				: CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_ERROR;
-		return finalizeRepairStatus(repo, {
+		return finalizeRepairStatus(db, repo, {
 			...scope,
 			runToken,
 			counts: {
@@ -343,6 +403,7 @@ async function repairContentMediaUsageCollectionUnlocked(
 			status: "failed",
 			startedAt,
 			completedAt,
+			execution,
 		});
 	}
 }
@@ -360,6 +421,7 @@ async function repairScannedContentSources(
 	db: Kysely<Database>,
 	repo: MediaUsageRepository,
 	scan: ContentMediaUsageCollectionScan,
+	collectionId?: string,
 ): Promise<RepairCounts> {
 	const counts: RepairCounts = {
 		indexedSourceCount: 0,
@@ -370,8 +432,8 @@ async function repairScannedContentSources(
 		missingContentIds: new Set(),
 	};
 
-	const fieldDiscovery = await loadContentMediaUsageFields(db, scan.collectionSlug);
-	const observedSources = await repo.findSources(buildContentSourceKeysForScan(scan));
+	const fieldDiscovery = await loadContentMediaUsageFields(db, scan.collectionSlug, collectionId);
+	const observedSources = await repo.findSources(buildContentSourceKeysForScan(scan, collectionId));
 
 	for (const contentId of scan.contentIds) {
 		await repairContentSource(
@@ -382,10 +444,11 @@ async function repairScannedContentSources(
 			fieldDiscovery,
 			observedSources,
 			counts,
+			collectionId,
 		);
 	}
 
-	await reconcileOrphanedContentSources(db, repo, scan.collectionSlug, counts);
+	await reconcileOrphanedContentSources(db, repo, scan.collectionSlug, counts, collectionId);
 	return counts;
 }
 
@@ -397,13 +460,15 @@ async function repairContentSource(
 	fieldDiscovery: ContentMediaUsageFieldDiscovery,
 	observedSources: Map<string, MediaUsageSource>,
 	counts: RepairCounts,
+	collectionId?: string,
 ): Promise<void> {
-	const sourceKeys = buildContentSourceKeys(collectionSlug, contentId);
+	const sourceKeys = buildContentSourceKeys(collectionSlug, contentId, collectionId);
 	const snapshotsResult = await loadContentMediaUsageSnapshots(
 		db,
 		collectionSlug,
 		contentId,
 		fieldDiscovery,
+		collectionId ? { collectionId, identityVersion: 1 } : undefined,
 	);
 	if (!snapshotsResult.success) {
 		if (snapshotsResult.error === CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_NOT_FOUND) {
@@ -466,7 +531,7 @@ async function repairSnapshotSources(
 			snapshot.occurrences,
 			observedSources.get(snapshot.source.sourceKey) ?? null,
 		);
-		if (result.replaced) {
+		if (result.replaced || result.unchanged) {
 			counts.indexedSourceCount++;
 		} else {
 			markRepairConflict(counts);
@@ -485,12 +550,14 @@ async function reconcileOrphanedContentSources(
 	repo: MediaUsageRepository,
 	collectionSlug: string,
 	counts: RepairCounts,
+	collectionId?: string,
 ): Promise<void> {
-	const sources = await repo.findCollectionContentSources(collectionSlug);
+	const sources = await repo.findCollectionContentSources(collectionSlug, collectionId);
 	const existingContentIds = await findExistingContentIds(
 		db,
 		collectionSlug,
 		sources.flatMap((source) => (source.contentId ? [source.contentId] : [])),
+		collectionId,
 	);
 
 	for (const source of sources) {
@@ -507,6 +574,7 @@ async function findExistingContentIds(
 	db: Kysely<Database>,
 	collectionSlug: string,
 	contentIds: readonly string[],
+	collectionId?: string,
 ): Promise<Set<string>> {
 	validateIdentifier(collectionSlug, "collection slug");
 	const existingContentIds = new Set<string>();
@@ -516,9 +584,19 @@ async function findExistingContentIds(
 	const tableName = getContentTableName(collectionSlug);
 	for (const contentIdBatch of chunks(uniqueContentIds, SQL_BATCH_SIZE)) {
 		const result = await sql<{ id: string }>`
-			SELECT id
-			FROM ${sql.ref(tableName)}
-			WHERE id IN (${sql.join(contentIdBatch)})
+			SELECT content.id
+			FROM ${sql.ref(tableName)} AS content
+			WHERE content.id IN (${sql.join(contentIdBatch)})
+			${
+				collectionId
+					? sql`AND EXISTS (
+						SELECT 1
+						FROM _emdash_collections AS collection
+						WHERE collection.id = ${collectionId}
+							AND collection.slug = ${collectionSlug}
+					)`
+					: sql``
+			}
 		`.execute(db);
 		for (const row of result.rows) {
 			existingContentIds.add(row.id);
@@ -573,24 +651,49 @@ interface FinalizeInput extends ContentMediaUsageRepairScope {
 	status: Exclude<ContentMediaUsageRepairStatus, "stale">;
 	startedAt: string;
 	completedAt: string;
+	execution?: ContentMediaUsageRepairExecution;
 }
 
 async function finalizeRepairStatus(
+	db: Kysely<Database>,
 	repo: MediaUsageRepository,
 	input: FinalizeInput,
 ): Promise<ContentMediaUsageRepairCollectionResult> {
-	const result = await repo.finalizeIndexStatusRepairIfRunning({
-		adapterId: input.adapterId,
-		scopeType: input.scopeType,
-		scopeKey: input.scopeKey,
-		runToken: input.runToken,
-		status: input.status,
-		schemaVersion: CONTENT_SOURCE_SCHEMA_VERSION,
-		completedAt: input.completedAt,
-		indexedSourceCount: input.counts.indexedSourceCount,
-		failedSourceCount: input.counts.failedSourceCount,
-		lastErrorCode: input.counts.lastErrorCode,
-	});
+	let result;
+	if (input.execution) {
+		if (input.status === "complete") {
+			await new MediaUsageWorkRepository(db).deleteWorkThroughEpoch(
+				input.execution.collectionId,
+				input.execution.startingEpoch,
+			);
+		}
+		result = await repo.finalizeIndexStatusRepairAtEpoch({
+			adapterId: input.adapterId,
+			scopeType: input.scopeType,
+			scopeKey: input.scopeKey,
+			collectionId: input.execution.collectionId,
+			runToken: input.runToken,
+			startingEpoch: input.execution.startingEpoch,
+			status: input.status,
+			schemaVersion: CONTENT_SOURCE_SCHEMA_VERSION,
+			indexedSourceCount: input.counts.indexedSourceCount,
+			failedSourceCount: input.counts.failedSourceCount,
+			lastErrorCode: input.counts.lastErrorCode,
+		});
+	} else {
+		result = await repo.finalizeIndexStatusRepairIfRunning({
+			adapterId: input.adapterId,
+			scopeType: input.scopeType,
+			scopeKey: input.scopeKey,
+			runToken: input.runToken,
+			status: input.status,
+			schemaVersion: CONTENT_SOURCE_SCHEMA_VERSION,
+			completedAt: input.completedAt,
+			indexedSourceCount: input.counts.indexedSourceCount,
+			failedSourceCount: input.counts.failedSourceCount,
+			lastErrorCode: input.counts.lastErrorCode,
+		});
+	}
 
 	return {
 		scope: {
@@ -608,7 +711,7 @@ async function finalizeRepairStatus(
 			: (result.status?.lastErrorCode ??
 				CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_REPAIR_CONFLICT),
 		startedAt: input.startedAt,
-		completedAt: result.finalized ? input.completedAt : null,
+		completedAt: result.finalized ? (result.status?.completedAt ?? input.completedAt) : null,
 	};
 }
 
@@ -623,28 +726,44 @@ function determineRepairStatus(
 	return "partial";
 }
 
-function buildContentSourceKeys(collectionSlug: string, contentId: string): string[] {
+function buildContentSourceKeys(
+	collectionSlug: string,
+	contentId: string,
+	collectionId?: string,
+): string[] {
 	return MEDIA_USAGE_CONTENT_SOURCE_VARIANTS.map((sourceVariant) =>
-		buildContentMediaUsageSourceKey({ collectionSlug, contentId, sourceVariant }),
+		buildContentMediaUsageSourceKey({ collectionId, collectionSlug, contentId, sourceVariant }),
 	);
 }
 
-function buildContentSourceKeysForScan(scan: ContentMediaUsageCollectionScan): string[] {
+function buildContentSourceKeysForScan(
+	scan: ContentMediaUsageCollectionScan,
+	collectionId?: string,
+): string[] {
 	return scan.contentIds.flatMap((contentId) =>
-		buildContentSourceKeys(scan.collectionSlug, contentId),
+		buildContentSourceKeys(scan.collectionSlug, contentId, collectionId),
 	);
 }
 
-async function contentCollectionExists(
+async function loadContentMediaUsageCollectionRecord(
 	db: Kysely<Database>,
 	collectionSlug: string,
-): Promise<boolean> {
+): Promise<ContentMediaUsageCollectionRecord | null> {
 	const row = await db
 		.selectFrom("_emdash_collections")
-		.select("id")
+		.select(["id", "slug"])
 		.where("slug", "=", collectionSlug)
 		.executeTakeFirst();
-	return row !== undefined;
+	return row ?? null;
+}
+
+async function isIncrementalCaptureActive(db: Kysely<Database>): Promise<boolean> {
+	const row = await db
+		.selectFrom("_emdash_media_usage_activation")
+		.select("state")
+		.where("task_key", "=", "incremental_capture")
+		.executeTakeFirst();
+	return row?.state === "active";
 }
 
 function sameContentIds(left: readonly string[], right: readonly string[]): boolean {
