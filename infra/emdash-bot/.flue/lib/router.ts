@@ -323,6 +323,7 @@ export function replyFooter(state: StateId | null): string {
 export interface AgentResult {
 	skipped?: boolean;
 	reproduced?: boolean;
+	rootCauseFound?: boolean;
 	fixed?: boolean;
 	verdict?: string;
 	[key: string]: unknown;
@@ -358,12 +359,15 @@ export function outcomeFromResult({
 	const effectiveMode = mode ?? "repro";
 	if (effectiveMode === "diagnose") {
 		if (result.verdict === "unclear") return "agent.needs_info";
-		return result.reproduced === true ? "agent.reproduced" : "agent.not_reproduced";
+		if (result.reproduced === true) return "agent.reproduced";
+		return result.rootCauseFound === true ? "agent.diagnosed" : "agent.not_reproduced";
 	}
 	if (effectiveMode === "fix") {
 		return result.fixed === true && pushed === true ? "agent.fix_ready" : "agent.failed";
 	}
-	if (effectiveMode === "repro" && result.reproduced !== true) return "agent.not_reproduced";
+	if (effectiveMode === "repro" && result.reproduced !== true) {
+		return result.rootCauseFound === true ? "agent.diagnosed" : "agent.not_reproduced";
+	}
 	if (result.fixed === true) return pushed === true ? "agent.fix_ready" : "agent.failed";
 	return effectiveMode === "repro" ? "agent.reproduced" : "agent.failed";
 }

@@ -60,6 +60,27 @@ import pluginModule from "sandbox-plugin.js";
 const hooks = pluginModule?.hooks || pluginModule?.default?.hooks || {};
 const routes = pluginModule?.routes || pluginModule?.default?.routes || {};
 
+function sandboxRouteErrorDetails(value) {
+	if (!value || typeof value !== "object") return null;
+	const code =
+		value.code === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS" ||
+		value.code === "MEDIA_USAGE_ACTIVATION_CHECK_FAILED"
+			? value.code
+			: value.name === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS" ||
+				  value.name === "MEDIA_USAGE_ACTIVATION_CHECK_FAILED"
+				? value.name
+				: null;
+	if (!code || (value.status !== undefined && value.status !== 503)) return null;
+	return {
+		code,
+		message:
+			code === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS"
+				? "Media usage activation is in progress"
+				: "Unable to verify media usage activation state",
+		status: 503,
+	};
+}
+
 // -----------------------------------------------------------------------------
 // Context Factory - creates ctx that proxies to BRIDGE
 // -----------------------------------------------------------------------------
@@ -238,7 +259,18 @@ export default class PluginEntrypoint extends WorkerEntrypoint {
 		}
 		
 		// Execute the route handler with input, request metadata, and context
-		return handler({ input, request: serializedRequest, requestMeta: serializedRequest.meta }, ctx);
+		try {
+			return await handler(
+				{ input, request: serializedRequest, requestMeta: serializedRequest.meta },
+				ctx,
+			);
+		} catch (error) {
+			const details = sandboxRouteErrorDetails(error);
+			if (details) {
+				return { __emdashSandboxRouteError: true, error: details };
+			}
+			throw error;
+		}
 	}
 }
 `;

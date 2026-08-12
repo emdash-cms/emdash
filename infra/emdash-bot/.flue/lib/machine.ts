@@ -47,6 +47,7 @@ export type StateId =
 	// --- next-generation: investigation lifecycle (maintainer-triggered) ---
 	| "investigating"
 	| "reproduced"
+	| "diagnosed"
 	| "not_reproduced"
 	| "needs_info"
 	// --- next-generation: fix loop (maintainer-triggered) ---
@@ -187,6 +188,14 @@ export const STATES: Record<StateId, StateMeta> = {
 		terminal: false,
 		offeredCommands: ["fix", "investigate", "decline", "take_over"],
 	},
+	diagnosed: {
+		label: "bot:diagnosed",
+		boardColumn: "Diagnosed",
+		description:
+			"Verdict: root cause identified, but not confirmed by a reproduction (environment limits). Actionable like reproduced; the fix loop verifies with a failing test before changing anything.",
+		terminal: false,
+		offeredCommands: ["fix", "investigate", "decline", "take_over"],
+	},
 	not_reproduced: {
 		label: "bot:not-reproduced",
 		boardColumn: "Not reproduced",
@@ -240,7 +249,7 @@ export type Actor =
 	| "reporter"
 	// Any account with a live write/triage/maintain/admin role on the repo.
 	| "maintainer"
-	// Emitted by an agent action workflow reporting its own result. Not a human.
+	// Emitted by an agent run reporting its own result. Not a human.
 	| "system";
 
 // ---------------------------------------------------------------------------
@@ -267,14 +276,15 @@ export type CommandVerb =
 	| "investigate"
 	| "fix";
 
-// Events the agent action workflow emits after a run, derived from the flat
+// Events the agent run emits on completion, derived from the flat
 // gating fields in the Flue result (skipped / reproduced / fixed / verdict).
-// These names map 1:1 to the agent contract in .flue/workflows/investigate.ts.
+// These names map 1:1 to the agent contract in .flue/agents/investigate.ts.
 export type AgentEvent =
 	| "agent.skipped" // result.skipped === true
 	| "agent.not_reproduced" // !skipped && !reproduced
 	| "agent.by_design" // verdict === "intended-behavior"
 	| "agent.reproduced" // reproduced && !fixed
+	| "agent.diagnosed" // root cause found, no confirming reproduction
 	| "agent.fix_ready" // reproduced && fixed
 	| "agent.needs_info" // reproduced/unclear but blocked on reporter-only info
 	| "agent.failed"; // nonzero exit / no result file
@@ -300,8 +310,6 @@ export type EventId = CommandVerb | AgentEvent | PrEvent | PreviewEvent | TimerE
 export interface EventMeta {
 	description: string;
 	actors: Actor[];
-	/** Verb labels that fire this event in addition to the `@emdashbot` grammar. */
-	labelTriggers?: string[];
 	/** True for status/help: render the item's state, never mutate it. */
 	readOnly?: boolean;
 	/** Free-text argument the verb carries (a directive, feedback, etc.). */
@@ -325,7 +333,6 @@ export const EVENTS: Record<EventId, EventMeta> = {
 	repro: {
 		description: "Reproduce the issue as a bug and attempt a fix.",
 		actors: ["maintainer"],
-		labelTriggers: ["bot:repro"],
 		defaultKind: "bug",
 	},
 	// Next-generation split of `repro`: reproduce + diagnose only, no auto-fix.
@@ -334,7 +341,6 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description:
 			"Reproduce and diagnose the issue as a bug, with evidence. Does not attempt a fix.",
 		actors: ["maintainer"],
-		labelTriggers: ["bot:investigate"],
 		arg: "directive",
 		defaultKind: "bug",
 	},
@@ -342,7 +348,6 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description:
 			"Build the described change (feature or directed fix), skipping the bug-repro gate.",
 		actors: ["maintainer"],
-		labelTriggers: ["bot:implement"],
 		arg: "directive",
 		defaultKind: "enhancement",
 	},
@@ -352,7 +357,6 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description:
 			"Build a candidate fix on a bot branch and post a preview for the reporter to try.",
 		actors: ["maintainer"],
-		labelTriggers: ["bot:fix"],
 		arg: "directive",
 	},
 	// NB: `retry` is always wired to `investigate.repro` in the transition
@@ -429,6 +433,10 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description: "Reproduced, but the fix needs a human decision.",
 		actors: ["system"],
 	},
+	"agent.diagnosed": {
+		description: "Root cause identified without a confirming reproduction.",
+		actors: ["system"],
+	},
 	"agent.fix_ready": {
 		description: "Reproduced and fixed; a verified change is staged on bot/fix-<n>.",
 		actors: ["system"],
@@ -479,9 +487,8 @@ export const EVENTS: Record<EventId, EventMeta> = {
 // Actions (opaque agent runs a transition can kick off)
 // ---------------------------------------------------------------------------
 
-// The router dispatches these; the implementing workflow is the EXISTING
-// agent (investigate.yml) whose internals we do not touch. `mode` selects the
-// entry behaviour the agent already supports.
+// The router dispatches these; the implementation is the investigate agent
+// (.flue/agents/investigate.ts). `mode` selects the entry behaviour.
 export type ActionId =
 	| "investigate.repro" // bug repro -> diagnose -> verify -> fix
 	| "investigate.implement" // directed build/fix (sets maintainerDirective)
@@ -688,6 +695,7 @@ export const TRANSITIONS: Transition[] = [
 
 	// --- investigation outcomes (from investigating) ---
 	{ from: "investigating", event: "agent.reproduced", to: "reproduced" },
+	{ from: "investigating", event: "agent.diagnosed", to: "diagnosed" },
 	{ from: "investigating", event: "agent.not_reproduced", to: "not_reproduced" },
 	{ from: "investigating", event: "agent.needs_info", to: "needs_info" },
 	{
@@ -708,6 +716,16 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "reproduced", event: "fix", to: "fixing", action: "investigate.fix" },
 	{ from: "reproduced", event: "decline", to: "declined" },
 	{ from: "reproduced", event: "take_over", to: "human_owned" },
+	{ from: "diagnosed", event: "fix", to: "fixing", action: "investigate.fix" },
+	{ from: "diagnosed", event: "decline", to: "declined" },
+	{ from: "diagnosed", event: "take_over", to: "human_owned" },
+	{
+		from: "diagnosed",
+		event: "investigate",
+		to: "investigating",
+		action: "investigate.diagnose",
+		note: "re-diagnose",
+	},
 	{ from: "not_reproduced", event: "decline", to: "declined" },
 	{ from: "not_reproduced", event: "take_over", to: "human_owned" },
 	{ from: "needs_info", event: "decline", to: "declined" },

@@ -10,6 +10,7 @@ import { getMigrationStatus, runMigrations } from "../../src/database/migrations
 import type { MigrationStatus } from "../../src/database/migrations/runner.js";
 import { FailFastPostgresDialect } from "../../src/database/pg-migration-lock.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
+import { waitForDeferredTasks } from "../../src/deferred-tasks.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 import { resetTaxonomyDefsCacheForTests } from "../../src/taxonomies/index.js";
 
@@ -119,6 +120,7 @@ export async function setupTestDatabaseWithCollections(): Promise<Kysely<Databas
  * Cleanup and destroy a test database
  */
 export async function teardownTestDatabase(db: Kysely<DatabaseSchema>): Promise<void> {
+	await waitForDeferredTasks();
 	await db.destroy();
 }
 
@@ -418,6 +420,7 @@ export async function setupTestPostgresDatabaseWithCollections(): Promise<PgTest
  * Tear down a Postgres test database — drops the schema and closes the pool.
  */
 export async function teardownTestPostgresDatabase(ctx: PgTestContext): Promise<void> {
+	await waitForDeferredTasks();
 	// Destroy the test pool first
 	await ctx.db.destroy();
 

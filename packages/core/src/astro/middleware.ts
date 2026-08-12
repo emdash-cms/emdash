@@ -47,6 +47,7 @@ import {
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
+import { getLastContentWriteAt } from "../object-cache/index.js";
 import type { SandboxRunnerFactory } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { invalidateUrlPatternCache } from "../query.js";
@@ -60,7 +61,11 @@ import type { PublishedRef } from "../scheduled-publish.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
 import type { EmDashConfig } from "./integration/runtime.js";
-import { ASTRO_COOKIES_SYMBOL, finishScoped } from "./middleware/scoped-db.js";
+import {
+	ASTRO_COOKIES_SYMBOL,
+	coordinateScopedDbLifecycle,
+	finishScoped,
+} from "./middleware/scoped-db.js";
 import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
 import { prefetchLayoutData } from "./prefetch.js";
 import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
@@ -352,6 +357,7 @@ async function runOutsideRequest<T>(
 		// Event handlers publish, clean up, or run jobs — a write workload —
 		// so a connection-backed adapter routes them to the primary.
 		isWrite: true,
+		canUseCachedBinding: false,
 		cookies: NOOP_COOKIE_JAR,
 		url: CRON_EVENT_URL,
 	});
@@ -360,26 +366,33 @@ async function runOutsideRequest<T>(
 		// outside a request. Any close-less scope created above is discarded.
 		return fn(runtime);
 	}
+	const { closed, deferredTasks, lifecycle } = coordinateScopedDbLifecycle(scoped);
 
 	const parent = getRequestContext();
 	const ctx = parent
-		? { ...parent, db: scoped.db }
-		: { editMode: false, db: scoped.db, metrics: createRequestMetrics(performance.now()) };
+		? { ...parent, db: scoped.db, deferredTasks }
+		: {
+				editMode: false,
+				db: scoped.db,
+				metrics: createRequestMetrics(performance.now()),
+				deferredTasks,
+			};
 	try {
 		return await runWithContext(ctx, () => fn(runtime));
 	} finally {
 		// Guard both so a throw in teardown can't mask the callback result or
-		// skip close() and leak the connection. Mirrors closeSafely() in scoped-db.ts.
+		// skip lifecycle settlement and leak the connection.
 		try {
-			scoped.commit();
+			lifecycle.commit();
 		} catch (error) {
 			console.error("[emdash] event-scoped db commit failed:", error);
 		}
 		try {
-			scoped.close();
+			lifecycle.close?.();
 		} catch (error) {
 			console.error("[emdash] event-scoped db close failed:", error);
 		}
+		await closed;
 	}
 }
 
@@ -561,6 +574,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const hasBearerAuth = (request.headers.get("authorization") ?? "")
 			.toLowerCase()
 			.startsWith("bearer ");
+		const isWrite = request.method !== "GET" && request.method !== "HEAD";
+		const isAuthenticated = !!sessionUser || hasBearerAuth;
+		const canUseCachedBinding =
+			!isAuthenticated &&
+			!isWrite &&
+			!playgroundDb &&
+			!isEmDashRoute &&
+			!hasEditCookie &&
+			!hasPreviewToken;
 
 		if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 			if (!sessionUser && !playgroundDb) {
@@ -647,12 +669,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Even on the anonymous fast path we ask the adapter for a per-request
 				// scoped db. For D1 with read replication this routes anonymous reads
 				// to the nearest replica; for other adapters it's a no-op.
+				const lastContentWriteAt =
+					canUseCachedBinding && config?.database?.needsLastContentWriteAt
+						? await getLastContentWriteAt()
+						: undefined;
 				const anonScoped = createRequestScopedDb({
 					config: config?.database?.config,
-					isAuthenticated: false,
-					isWrite: request.method !== "GET" && request.method !== "HEAD",
+					isAuthenticated,
+					isWrite,
+					canUseCachedBinding,
 					cookies,
 					url,
+					lastContentWriteAt,
 				});
 				const runAnon = async () => {
 					const t0 = performance.now();
@@ -666,10 +694,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					return wrapBodyForStreamMetrics(finalizeResponse(response, timings));
 				};
 				if (anonScoped) {
+					const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle(anonScoped);
 					const parent = getRequestContext();
 					const ctx = parent
-						? { ...parent, db: anonScoped.db }
-						: { editMode: false, db: anonScoped.db, metrics };
+						? { ...parent, db: anonScoped.db, deferredTasks }
+						: { editMode: false, db: anonScoped.db, metrics, deferredTasks };
 					// Eagerly warm site-global layout data (menus, widget areas,
 					// taxonomy terms, settings) concurrently so the layout's
 					// per-component reads overlap into ~one wall-clock round trip and
@@ -678,10 +707,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					//    pointless on synchronous local SQLite.
 					//  - HTML navigations only -- feeds/sitemaps/JSON don't render the
 					//    layout, so prefetching their chrome is pure waste.
-					//  - via after(): it runs immediately (still warms the render) but
-					//    hands the promise to waitUntil, so the surplus warm-up (chrome a
-					//    given page doesn't render) is kept alive past the response rather
-					//    than erroring on workerd as orphaned request I/O.
+					//  - the work starts immediately, then after() keeps both it and the
+					//    request-scoped connection alive until the response also finishes.
 					// Gate on the CLIENT'S PREFERRED type (leading media range), not a
 					// substring -- browser navigations lead with `text/html`, while feed
 					// readers lead with `application/rss+xml` etc. and only list
@@ -694,8 +721,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						if (acceptsHtml) after(() => prefetchLayoutData());
 						// commit() persists per-request state (e.g. the D1 bookmark cookie)
 						// before the response is returned, even if render throws; close()
-						// (connection teardown) is deferred to stream-end. See finishScoped.
-						return finishScoped(anonScoped, runAnon);
+						// waits for stream-end and request-owned deferred work. See finishScoped.
+						return finishScoped(lifecycle, runAnon);
 					});
 				}
 				return runAnon();
@@ -855,12 +882,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// it in ALS so the runtime's db getter and loader's getDb() pick it up,
 			// then call commit() after next() so the adapter can persist any
 			// per-request state (e.g. a D1 bookmark cookie for read-your-writes).
+			const lastContentWriteAt =
+				canUseCachedBinding && config?.database?.needsLastContentWriteAt
+					? await getLastContentWriteAt()
+					: undefined;
 			const scoped = createRequestScopedDb({
 				config: config?.database?.config,
-				isAuthenticated: !!sessionUser || hasBearerAuth,
-				isWrite: request.method !== "GET" && request.method !== "HEAD",
+				isAuthenticated,
+				isWrite,
+				canUseCachedBinding,
 				cookies: context.cookies,
 				url,
+				lastContentWriteAt,
 			});
 
 			const renderAndFinalize = async () => {
@@ -876,15 +909,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			};
 
 			if (scoped) {
+				const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle(scoped);
 				const parent = getRequestContext();
 				const ctx = parent
-					? { ...parent, db: scoped.db }
-					: { editMode: false, db: scoped.db, metrics };
+					? { ...parent, db: scoped.db, deferredTasks }
+					: { editMode: false, db: scoped.db, metrics, deferredTasks };
 				return runWithContext(ctx, () =>
 					// commit() persists per-request state (e.g. the D1 bookmark cookie)
 					// before the response returns, even if render throws; close()
-					// (connection teardown) is deferred to stream-end. See finishScoped.
-					finishScoped(scoped, renderAndFinalize),
+					// waits for stream-end and request-owned deferred work. See finishScoped.
+					finishScoped(lifecycle, renderAndFinalize),
 				);
 			}
 

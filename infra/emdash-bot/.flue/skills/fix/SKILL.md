@@ -11,8 +11,8 @@ You are here because a maintainer issued a **fix** directive, verify returned `b
 
 ## Environment
 
-- **Edit in the VFS** with the `edit` / `write` tools; read surrounding code with `read` in the isolate.
-- **Run tests, lint, typecheck, and format in an attached container** -- none of the toolchain exists in the isolate. Attach once you are ready to verify, and do all `pnpm` work there.
+- **Edit in the VFS** with the `edit_file` / `write_file` tools; read surrounding code with `read_file` and `grep`. Every VFS edit is replayed onto the container checkout before each container command.
+- **Run tests, lint, typecheck, and format in an attached container** -- none of the toolchain exists in the VFS. Attach once you are ready to verify, and do all `pnpm` and git work there.
 
 ## Do not
 

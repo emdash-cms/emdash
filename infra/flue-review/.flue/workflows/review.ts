@@ -27,6 +27,7 @@ import { getCloudflareContext, getDurableObjectIdentity } from "@flue/runtime/cl
 import * as v from "valibot";
 
 import { withCapacityRetry } from "../lib/capacity.js";
+import { elideLargeDiffSections } from "../lib/diff-budget.js";
 import {
 	readAppCreds,
 	mintInstallationToken,
@@ -358,7 +359,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			payload.baseSha,
 			payload.headSha,
 		);
-		await context.harness.fs.writeFile(DIFF_PATH, diff);
+		await context.harness.fs.writeFile(DIFF_PATH, elideLargeDiffSections(diff));
 
 		stage = "model_review";
 		if (

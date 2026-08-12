@@ -32,6 +32,8 @@ export function renderReadonlyReply(state: StateId | null): string {
 			return "Investigating now (reproduce + diagnose). I'll report a verdict with evidence.";
 		case "reproduced":
 			return "Reproduced it -- diagnosis in my last comment. A maintainer can `@emdashbot fix` to try a fix, or `@emdashbot decline`.";
+		case "diagnosed":
+			return "Root cause identified (couldn't confirm with a reproduction here) -- diagnosis in my last comment. A maintainer can `@emdashbot fix` to try a fix, or `@emdashbot decline`.";
 		case "not_reproduced":
 			return "I couldn't reproduce this; transcript above. Reply with steps that fail for you, or a maintainer can `@emdashbot decline`.";
 		case "needs_info":
@@ -87,6 +89,8 @@ export function renderAgentComment(
 			if (decision.to === "reproduced")
 				return `${summary}\n\nA maintainer can \`@emdashbot fix\` to try a fix, or \`@emdashbot decline\`.`;
 			return `${summary}\n\nReply \`@emdashbot implement <directive>\` if you want me to take another swing with guidance.`;
+		case "agent.diagnosed":
+			return `${summary}\n\nI couldn't confirm this with a reproduction in my environment, but the diagnosis above is specific. A maintainer can \`@emdashbot fix\` to try a fix (the fix run verifies with a failing test first), or \`@emdashbot decline\`.`;
 		case "agent.not_reproduced":
 			return `${summary}\n\nReply with steps that fail for you, or close if it's no longer relevant.`;
 		case "agent.needs_info":

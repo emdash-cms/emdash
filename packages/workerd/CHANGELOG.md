@@ -1,5 +1,22 @@
 # @emdash-cms/sandbox-workerd
 
+## 0.4.0
+
+### Minor Changes
+
+- [#2353](https://github.com/emdash-cms/emdash/pull/2353) [`ea4c39b`](https://github.com/emdash-cms/emdash/commit/ea4c39bb184daf35f98eeb32dc9828bceaff77f0) Thanks [@MA2153](https://github.com/MA2153)! - Adds manual ordering for taxonomy terms. Move terms up and down from the Taxonomies screen, and term listings — `getTerms()` and the terms REST endpoint — return them in that order. The terms attached to a single entry are still listed alphabetically.
+
+  Existing terms keep the order they display in today, now stored explicitly instead of derived from their labels. Terms added afterwards go to the end of their sibling group rather than slotting in alphabetically — if you want a taxonomy alphabetical, order it that way once and it stays.
+
+  A term's position is shared by all of its translations, so ordering a taxonomy in one locale orders it everywhere. On upgrade that means each taxonomy keeps the alphabetical order of the locale its terms were first written in, and other locales are re-sorted to match; reorder once from the Taxonomies screen if you want something different. Sites that need a genuinely different order per language should use separate taxonomies.
+
+  Also fixes moving a term to a new parent only taking effect in the locale you moved it in, which left the term nested in that locale and still at the top level in the others. Moving a term now moves it in every locale, and terms already split this way are repaired on upgrade.
+
+### Patch Changes
+
+- Updated dependencies [[`85dd99d`](https://github.com/emdash-cms/emdash/commit/85dd99d34810261bf25702d2798a9cab2ceeae58), [`e8048e4`](https://github.com/emdash-cms/emdash/commit/e8048e40b41e57bfaf9bf12faedaca5df3dcfe4e), [`534f238`](https://github.com/emdash-cms/emdash/commit/534f23884fa1b79ab78a54a382f9acf381919dc6), [`f6385da`](https://github.com/emdash-cms/emdash/commit/f6385dab2c03ad2da360215c88dac23ff70b9749), [`72660da`](https://github.com/emdash-cms/emdash/commit/72660dabdb4a164f01d152741f89c0b7163c4314), [`969c6cb`](https://github.com/emdash-cms/emdash/commit/969c6cb3a50f0d5a951ea98730e2f8133446f44e), [`0c3af01`](https://github.com/emdash-cms/emdash/commit/0c3af01baf8263ac744486c6ac481cb0791f6eb5), [`640da63`](https://github.com/emdash-cms/emdash/commit/640da63dd06c307cf4d533d63c10da1feadb36f5), [`e7c445c`](https://github.com/emdash-cms/emdash/commit/e7c445ca0ee5bc3970909a1c07d41b14de5d3d79), [`ef78aa1`](https://github.com/emdash-cms/emdash/commit/ef78aa1dca816f1e47067554427ac325e73b22b1), [`0237678`](https://github.com/emdash-cms/emdash/commit/023767805bbcf6e96fc787a02d52413e460d5257), [`741c40c`](https://github.com/emdash-cms/emdash/commit/741c40cad671ece2fe4fabf69b08b0a3467527ed), [`e07f0c8`](https://github.com/emdash-cms/emdash/commit/e07f0c842a086dc0f2a8729f5c07ac8f1584af56), [`425e7c0`](https://github.com/emdash-cms/emdash/commit/425e7c0fee0e0219bae5cf0e4aa7c8e45dbad19f), [`7099d13`](https://github.com/emdash-cms/emdash/commit/7099d13062c9a36ff68aac2e1e4e85998199481d), [`f586100`](https://github.com/emdash-cms/emdash/commit/f58610074b4729a77c032913d21125067d56bf26), [`1dd7f13`](https://github.com/emdash-cms/emdash/commit/1dd7f135a043701effeb164be4f5ae95d106fc78), [`447647d`](https://github.com/emdash-cms/emdash/commit/447647df53098a7c58779f716fd811ffe248271e), [`aec4fa1`](https://github.com/emdash-cms/emdash/commit/aec4fa175a244912e5c1df412d20645ce50365b5), [`ea4c39b`](https://github.com/emdash-cms/emdash/commit/ea4c39bb184daf35f98eeb32dc9828bceaff77f0), [`8040e27`](https://github.com/emdash-cms/emdash/commit/8040e2792f469ce918ac52e73a2487c284be0d98)]:
+  - emdash@0.33.0
+
 ## 0.3.3
 
 ### Patch Changes

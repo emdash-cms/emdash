@@ -89,7 +89,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1493
+#: packages/admin/src/router.tsx:1507
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr ""
 
@@ -157,7 +157,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {#件の投稿} other {#件の投稿}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:447
+#: packages/admin/src/components/Redirects.tsx:452
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {#件のリダイレクトがループしています。} other {#件のリダイレクトがループしています。}}"
 
@@ -338,7 +338,7 @@ msgstr "{current}/{total}"
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:945
+#: packages/admin/src/components/ContentList.tsx:965
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr ""
 
@@ -350,7 +350,7 @@ msgstr "{label} — 翻訳なし"
 msgid "{label} — view translation"
 msgstr "{label} — 翻訳を表示"
 
-#: packages/admin/src/components/ContentList.tsx:934
+#: packages/admin/src/components/ContentList.tsx:954
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr ""
 
@@ -388,15 +388,15 @@ msgstr ""
 msgid "{resultCount, plural, one {# item} other {# items}}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:411
+#: packages/admin/src/components/ContentList.tsx:421
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:453
+#: packages/admin/src/components/ContentList.tsx:463
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:940
+#: packages/admin/src/components/ContentList.tsx:960
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr ""
 
@@ -518,7 +518,7 @@ msgstr "4. 「エクスポートファイルをダウンロード」をクリッ
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. 「EmDash」と入力し「新規追加」をクリック"
 
-#: packages/admin/src/components/Redirects.tsx:397
+#: packages/admin/src/components/Redirects.tsx:402
 msgid "404 Errors"
 msgstr "404エラー"
 
@@ -574,7 +574,7 @@ msgstr ""
 msgid "Access denied"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1513
+#: packages/admin/src/router.tsx:1527
 msgid "Access Denied"
 msgstr ""
 
@@ -604,8 +604,8 @@ msgid "ACF Fields"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:300
-#: packages/admin/src/components/ContentList.tsx:535
-#: packages/admin/src/components/ContentList.tsx:656
+#: packages/admin/src/components/ContentList.tsx:554
+#: packages/admin/src/components/ContentList.tsx:676
 #: packages/admin/src/components/ContentTypeList.tsx:190
 #: packages/admin/src/components/TaxonomyManager.tsx:1050
 #: packages/admin/src/routes/byline-schema.tsx:249
@@ -722,7 +722,7 @@ msgstr "ナビゲーションメニューを構築するためにリンクを追
 msgid "Add MIME type or extension"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:348
+#: packages/admin/src/components/ContentList.tsx:358
 msgid "Add New"
 msgstr "新規追加"
 
@@ -832,12 +832,12 @@ msgstr ""
 msgid "Alignment"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:375
+#: packages/admin/src/components/ContentList.tsx:385
 msgid "All"
 msgstr "すべて"
 
-#: packages/admin/src/components/ContentList.tsx:785
-#: packages/admin/src/components/ContentList.tsx:789
+#: packages/admin/src/components/ContentList.tsx:805
+#: packages/admin/src/components/ContentList.tsx:809
 msgid "All authors"
 msgstr ""
 
@@ -874,13 +874,13 @@ msgstr "すべてのロール"
 msgid "All Sources"
 msgstr "すべてのソース"
 
-#: packages/admin/src/components/ContentList.tsx:735
-#: packages/admin/src/components/Redirects.tsx:421
+#: packages/admin/src/components/ContentList.tsx:755
+#: packages/admin/src/components/Redirects.tsx:426
 msgid "All statuses"
 msgstr "すべてのステータス"
 
 #: packages/admin/src/components/MediaLibrary.tsx:433
-#: packages/admin/src/components/Redirects.tsx:427
+#: packages/admin/src/components/Redirects.tsx:432
 msgid "All types"
 msgstr "すべてのタイプ"
 
@@ -968,20 +968,20 @@ msgstr "または、WordPressからエクスポート（ツール → エクス�
 #: packages/admin/src/router.tsx:440
 #: packages/admin/src/router.tsx:454
 #: packages/admin/src/router.tsx:468
-#: packages/admin/src/router.tsx:672
-#: packages/admin/src/router.tsx:954
-#: packages/admin/src/router.tsx:1014
-#: packages/admin/src/router.tsx:1032
-#: packages/admin/src/router.tsx:1050
-#: packages/admin/src/router.tsx:1071
-#: packages/admin/src/router.tsx:1092
-#: packages/admin/src/router.tsx:1113
-#: packages/admin/src/router.tsx:1144
-#: packages/admin/src/router.tsx:1164
-#: packages/admin/src/router.tsx:1458
-#: packages/admin/src/router.tsx:1474
-#: packages/admin/src/router.tsx:1499
-#: packages/admin/src/router.tsx:1999
+#: packages/admin/src/router.tsx:686
+#: packages/admin/src/router.tsx:968
+#: packages/admin/src/router.tsx:1028
+#: packages/admin/src/router.tsx:1046
+#: packages/admin/src/router.tsx:1064
+#: packages/admin/src/router.tsx:1085
+#: packages/admin/src/router.tsx:1106
+#: packages/admin/src/router.tsx:1127
+#: packages/admin/src/router.tsx:1158
+#: packages/admin/src/router.tsx:1178
+#: packages/admin/src/router.tsx:1472
+#: packages/admin/src/router.tsx:1488
+#: packages/admin/src/router.tsx:1513
+#: packages/admin/src/router.tsx:2013
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1056,7 +1056,7 @@ msgstr "承認済み"
 msgid "Arbitrary JSON data"
 msgstr "任意のJSONデータ"
 
-#: packages/admin/src/components/ContentList.tsx:739
+#: packages/admin/src/components/ContentList.tsx:759
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr ""
@@ -1161,11 +1161,11 @@ msgstr "認可中..."
 msgid "Authors"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:524
+#: packages/admin/src/components/Redirects.tsx:530
 msgid "auto"
 msgstr "自動"
 
-#: packages/admin/src/components/Redirects.tsx:427
+#: packages/admin/src/components/Redirects.tsx:432
 msgid "Auto (slug change)"
 msgstr "自動（スラッグ変更）"
 
@@ -1187,7 +1187,7 @@ msgstr ""
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1013
+#: packages/admin/src/router.tsx:1027
 msgid "Autosave failed"
 msgstr ""
 
@@ -1391,9 +1391,9 @@ msgstr "コンテンツを閲覧可能"
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:192
 #: packages/admin/src/components/ConfirmDialog.tsx:57
-#: packages/admin/src/components/ContentList.tsx:462
-#: packages/admin/src/components/ContentList.tsx:1066
-#: packages/admin/src/components/ContentList.tsx:1137
+#: packages/admin/src/components/ContentList.tsx:472
+#: packages/admin/src/components/ContentList.tsx:1091
+#: packages/admin/src/components/ContentList.tsx:1258
 #: packages/admin/src/components/ContentPickerModal.tsx:241
 #: packages/admin/src/components/ContentSettingsPanel.tsx:92
 #: packages/admin/src/components/ContentSettingsPanel.tsx:534
@@ -1520,7 +1520,7 @@ msgstr "ロゴを変更"
 msgid "Changelog"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1064
+#: packages/admin/src/router.tsx:1078
 msgid "Changes discarded"
 msgstr ""
 
@@ -1563,11 +1563,11 @@ msgstr ""
 msgid "Choose your preferred admin language"
 msgstr "管理画面の言語を選択"
 
-#: packages/admin/src/components/ContentList.tsx:488
+#: packages/admin/src/components/ContentList.tsx:498
 msgid "Clear"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:837
+#: packages/admin/src/components/ContentList.tsx:857
 #: packages/admin/src/components/MediaLibrary.tsx:497
 #: packages/admin/src/components/users/UserList.tsx:129
 msgid "Clear filters"
@@ -1673,7 +1673,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:356
 #: packages/admin/src/components/PortableTextEditor.tsx:3560
-#: packages/admin/src/components/Redirects.tsx:472
+#: packages/admin/src/components/Redirects.tsx:478
 msgid "Code"
 msgstr "コード"
 
@@ -1805,7 +1805,7 @@ msgstr "コンテンツエラー ({0})"
 msgid "Content found:"
 msgstr "検出されたコンテンツ:"
 
-#: packages/admin/src/router.tsx:1086
+#: packages/admin/src/router.tsx:1100
 msgid "Content has been scheduled for publishing"
 msgstr ""
 
@@ -1817,7 +1817,7 @@ msgstr "コンテンツが選択したリビジョンに更新されました。
 msgid "Content ID:"
 msgstr "コンテンツID:"
 
-#: packages/admin/src/router.tsx:1027
+#: packages/admin/src/router.tsx:1041
 msgid "Content is now live"
 msgstr ""
 
@@ -1829,11 +1829,11 @@ msgstr "コンテンツ"
 msgid "Content Read"
 msgstr "コンテンツ読み取り"
 
-#: packages/admin/src/router.tsx:1045
+#: packages/admin/src/router.tsx:1059
 msgid "Content removed from public view"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1107
+#: packages/admin/src/router.tsx:1121
 msgid "Content reverted to draft"
 msgstr ""
 
@@ -2041,7 +2041,7 @@ msgstr "{0}のリダイレクトを作成"
 msgid "Create redirect for this path"
 msgstr "このパスのリダイレクトを作成"
 
-#: packages/admin/src/components/Redirects.tsx:464
+#: packages/admin/src/components/Redirects.tsx:469
 msgid "Create redirect rules to manage URL changes."
 msgstr "URL変更を管理するリダイレクトルールを作成できます。"
 
@@ -2080,7 +2080,7 @@ msgstr "アカウントを作成"
 msgid "Create your first navigation menu to get started"
 msgstr "最初のナビゲーションメニューを作成して始めましょう"
 
-#: packages/admin/src/components/ContentList.tsx:563
+#: packages/admin/src/components/ContentList.tsx:582
 #: packages/admin/src/components/ContentTypeList.tsx:206
 msgid "Create your first one"
 msgstr "最初のコンテンツを作成しましょう"
@@ -2111,7 +2111,7 @@ msgstr ""
 msgid "Create, update, delete content"
 msgstr "コンテンツの作成・更新・削除"
 
-#: packages/admin/src/components/ContentList.tsx:745
+#: packages/admin/src/components/ContentList.tsx:765
 #: packages/admin/src/components/ContentSettingsPanel.tsx:585
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:357
 #: packages/admin/src/components/users/UserDetail.tsx:219
@@ -2129,7 +2129,7 @@ msgid "Created {0}"
 msgstr "作成日: {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1138
+#: packages/admin/src/router.tsx:1152
 msgid "Created {0} translation"
 msgstr ""
 
@@ -2208,7 +2208,7 @@ msgid "Dashboard"
 msgstr "ダッシュボード"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:297
-#: packages/admin/src/components/ContentList.tsx:532
+#: packages/admin/src/components/ContentList.tsx:551
 msgid "Date"
 msgstr "日付"
 
@@ -2221,7 +2221,7 @@ msgstr "日時"
 msgid "Date and time picker"
 msgstr "日時ピッカー"
 
-#: packages/admin/src/components/ContentList.tsx:802
+#: packages/admin/src/components/ContentList.tsx:822
 msgid "Date field to filter on"
 msgstr ""
 
@@ -2281,7 +2281,7 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:453
 #: packages/admin/src/components/MenuEditor.tsx:549
 #: packages/admin/src/components/MenuList.tsx:258
-#: packages/admin/src/components/Redirects.tsx:585
+#: packages/admin/src/components/Redirects.tsx:603
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
 #: packages/admin/src/components/settings/BackupSettings.tsx:352
@@ -2391,24 +2391,24 @@ msgid "Delete permanently"
 msgstr "完全に削除"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:1148
+#: packages/admin/src/components/ContentList.tsx:1269
 msgid "Delete Permanently"
 msgstr "完全に削除"
 
-#: packages/admin/src/components/ContentList.tsx:1128
+#: packages/admin/src/components/ContentList.tsx:1249
 msgid "Delete Permanently?"
 msgstr "完全に削除しますか？"
 
-#: packages/admin/src/components/Redirects.tsx:538
+#: packages/admin/src/components/Redirects.tsx:544
 msgid "Delete redirect"
 msgstr "リダイレクトを削除"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:539
+#: packages/admin/src/components/Redirects.tsx:545
 msgid "Delete redirect {0}"
 msgstr "リダイレクト{0}を削除"
 
-#: packages/admin/src/components/Redirects.tsx:583
+#: packages/admin/src/components/Redirects.tsx:601
 msgid "Delete Redirect?"
 msgstr "リダイレクトを削除しますか？"
 
@@ -2428,7 +2428,7 @@ msgstr "テーブルを削除"
 msgid "Delete Widget Area?"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:653
+#: packages/admin/src/components/ContentList.tsx:673
 msgid "Deleted"
 msgstr "削除済み"
 
@@ -2444,7 +2444,7 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:410
 #: packages/admin/src/components/MediaDetailPanel.tsx:454
 #: packages/admin/src/components/MenuList.tsx:259
-#: packages/admin/src/components/Redirects.tsx:586
+#: packages/admin/src/components/Redirects.tsx:604
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/settings/BackupSettings.tsx:353
 #: packages/admin/src/components/TaxonomyManager.tsx:1113
@@ -2505,7 +2505,7 @@ msgstr "説明"
 msgid "Description (optional)"
 msgstr "説明（任意）"
 
-#: packages/admin/src/components/Redirects.tsx:471
+#: packages/admin/src/components/Redirects.tsx:477
 msgid "Destination"
 msgstr "転送先"
 
@@ -2562,7 +2562,7 @@ msgstr "プラグインを無効にする"
 msgid "Disable plugin MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:507
+#: packages/admin/src/components/Redirects.tsx:513
 msgid "Disable redirect"
 msgstr "リダイレクトを無効にする"
 
@@ -2575,7 +2575,7 @@ msgid "Disable User?"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:383
-#: packages/admin/src/components/Redirects.tsx:421
+#: packages/admin/src/components/Redirects.tsx:426
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
@@ -2731,7 +2731,7 @@ msgstr ""
 msgid "Downloading"
 msgstr "ダウンロード中"
 
-#: packages/admin/src/components/ContentList.tsx:737
+#: packages/admin/src/components/ContentList.tsx:757
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "下書き"
@@ -2797,7 +2797,7 @@ msgstr "WordPressのエクスポートファイルをここにドロップ"
 msgid "Duplicate"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1039
+#: packages/admin/src/components/ContentList.tsx:1064
 msgid "Duplicate {title}"
 msgstr "{title}を複製"
 
@@ -2849,7 +2849,7 @@ msgstr ""
 msgid "Edit {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1031
+#: packages/admin/src/components/ContentList.tsx:1056
 msgid "Edit {title}"
 msgstr "{title}を編集"
 
@@ -2886,7 +2886,7 @@ msgstr "メニュー項目を編集"
 msgid "Edit menu items"
 msgstr "メニュー項目を編集"
 
-#: packages/admin/src/components/Redirects.tsx:530
+#: packages/admin/src/components/Redirects.tsx:536
 msgid "Edit redirect"
 msgstr "リダイレクトを編集"
 
@@ -2895,7 +2895,7 @@ msgid "Edit Redirect"
 msgstr "リダイレクトを編集"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:531
+#: packages/admin/src/components/Redirects.tsx:537
 msgid "Edit redirect {0}"
 msgstr "リダイレクト{0}を編集"
 
@@ -3008,12 +3008,12 @@ msgstr "プラグインを有効にする"
 msgid "Enable plugin MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:507
+#: packages/admin/src/components/Redirects.tsx:513
 msgid "Enable redirect"
 msgstr "リダイレクトを有効にする"
 
 #: packages/admin/src/components/Redirects.tsx:176
-#: packages/admin/src/components/Redirects.tsx:421
+#: packages/admin/src/components/Redirects.tsx:426
 msgid "Enabled"
 msgstr "有効"
 
@@ -3077,7 +3077,7 @@ msgstr "WordPressサイトのURLを入力"
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/TaxonomyManager.tsx:941
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2213
+#: packages/admin/src/router.tsx:2227
 msgid "Error"
 msgstr "エラー"
 
@@ -3212,14 +3212,14 @@ msgstr "一部のコレクションの作成に失敗しました"
 msgid "Failed to create term"
 msgstr "タームの作成に失敗しました"
 
-#: packages/admin/src/router.tsx:1143
+#: packages/admin/src/router.tsx:1157
 msgid "Failed to create translation"
 msgstr ""
 
 #: packages/admin/src/router.tsx:424
 #: packages/admin/src/router.tsx:453
 #: packages/admin/src/router.tsx:536
-#: packages/admin/src/router.tsx:1163
+#: packages/admin/src/router.tsx:1177
 msgid "Failed to delete"
 msgstr ""
 
@@ -3239,12 +3239,12 @@ msgstr ""
 msgid "Failed to delete byline field"
 msgstr ""
 
-#: packages/admin/src/lib/api/schema.ts:230
+#: packages/admin/src/lib/api/schema.ts:237
 msgid "Failed to delete collection"
 msgstr ""
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1473
+#: packages/admin/src/router.tsx:1487
 msgid "Failed to delete comment"
 msgstr ""
 
@@ -3252,7 +3252,7 @@ msgstr ""
 msgid "Failed to delete content"
 msgstr ""
 
-#: packages/admin/src/lib/api/schema.ts:286
+#: packages/admin/src/lib/api/schema.ts:293
 #: packages/admin/src/routes/byline-schema.tsx:138
 msgid "Failed to delete field"
 msgstr ""
@@ -3310,7 +3310,7 @@ msgstr ""
 msgid "Failed to disable user"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1070
+#: packages/admin/src/router.tsx:1084
 msgid "Failed to discard changes"
 msgstr ""
 
@@ -3339,7 +3339,7 @@ msgstr ""
 msgid "Failed to execute import"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:256
+#: packages/admin/src/lib/api/client.ts:257
 msgid "Failed to fetch auth mode"
 msgstr ""
 
@@ -3347,8 +3347,8 @@ msgstr ""
 msgid "Failed to fetch backup settings"
 msgstr ""
 
-#: packages/admin/src/lib/api/schema.ts:178
-#: packages/admin/src/lib/api/schema.ts:182
+#: packages/admin/src/lib/api/schema.ts:185
+#: packages/admin/src/lib/api/schema.ts:189
 msgid "Failed to fetch collection"
 msgstr ""
 
@@ -3364,7 +3364,7 @@ msgstr ""
 msgid "Failed to fetch entry terms"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:239
+#: packages/admin/src/lib/api/client.ts:240
 msgid "Failed to fetch manifest"
 msgstr ""
 
@@ -3425,8 +3425,8 @@ msgstr ""
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:863
-#: packages/admin/src/router.tsx:1404
+#: packages/admin/src/router.tsx:877
+#: packages/admin/src/router.tsx:1418
 msgid "Failed to fetch user"
 msgstr ""
 
@@ -3537,7 +3537,7 @@ msgstr ""
 msgid "Failed to load widget"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1498
+#: packages/admin/src/router.tsx:1512
 msgid "Failed to perform bulk action"
 msgstr ""
 
@@ -3550,7 +3550,7 @@ msgid "Failed to prepare import"
 msgstr ""
 
 #: packages/admin/src/router.tsx:492
-#: packages/admin/src/router.tsx:1031
+#: packages/admin/src/router.tsx:1045
 msgid "Failed to publish"
 msgstr ""
 
@@ -3575,11 +3575,11 @@ msgstr "パスキーの名前変更に失敗しました"
 msgid "Failed to reorder byline fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/schema.ts:318
+#: packages/admin/src/lib/api/schema.ts:325
 msgid "Failed to reorder content types"
 msgstr ""
 
-#: packages/admin/src/lib/api/schema.ts:301
+#: packages/admin/src/lib/api/schema.ts:308
 #: packages/admin/src/routes/byline-schema.tsx:152
 msgid "Failed to reorder fields"
 msgstr ""
@@ -3609,9 +3609,9 @@ msgstr ""
 msgid "Failed to rewrite URLs"
 msgstr ""
 
-#: packages/admin/src/router.tsx:671
-#: packages/admin/src/router.tsx:953
-#: packages/admin/src/router.tsx:1998
+#: packages/admin/src/router.tsx:685
+#: packages/admin/src/router.tsx:967
+#: packages/admin/src/router.tsx:2012
 msgid "Failed to save"
 msgstr "保存に失敗しました"
 
@@ -3630,7 +3630,7 @@ msgstr ""
 msgid "Failed to save settings"
 msgstr "設定の保存に失敗しました"
 
-#: packages/admin/src/router.tsx:1091
+#: packages/admin/src/router.tsx:1105
 msgid "Failed to schedule"
 msgstr ""
 
@@ -3661,11 +3661,11 @@ msgstr ""
 msgid "Failed to uninstall plugin"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1049
+#: packages/admin/src/router.tsx:1063
 msgid "Failed to unpublish"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1112
+#: packages/admin/src/router.tsx:1126
 msgid "Failed to unschedule"
 msgstr ""
 
@@ -3719,7 +3719,7 @@ msgstr ""
 msgid "Failed to update settings"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1457
+#: packages/admin/src/router.tsx:1471
 msgid "Failed to update status"
 msgstr ""
 
@@ -3832,7 +3832,7 @@ msgstr "ファイル名はアップロード後に変更できません"
 msgid "files imported"
 msgstr "ファイルをインポート済み"
 
-#: packages/admin/src/components/ContentList.tsx:781
+#: packages/admin/src/components/ContentList.tsx:801
 msgid "Filter by author"
 msgstr ""
 
@@ -3852,13 +3852,13 @@ msgstr ""
 msgid "Filter by source"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:763
-#: packages/admin/src/components/Redirects.tsx:422
+#: packages/admin/src/components/ContentList.tsx:783
+#: packages/admin/src/components/Redirects.tsx:427
 msgid "Filter by status"
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:439
-#: packages/admin/src/components/Redirects.tsx:428
+#: packages/admin/src/components/Redirects.tsx:433
 msgid "Filter by type"
 msgstr ""
 
@@ -3882,7 +3882,7 @@ msgstr "下書きやすべてのコンテンツを含む完全なインポート
 msgid "For the best import experience, install the"
 msgstr "最適なインポートのために、以下をインストールしてください:"
 
-#: packages/admin/src/components/ContentList.tsx:818
+#: packages/admin/src/components/ContentList.tsx:838
 msgid "From date"
 msgstr ""
 
@@ -3938,7 +3938,7 @@ msgid "Go"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2418
-#: packages/admin/src/router.tsx:2233
+#: packages/admin/src/router.tsx:2247
 msgid "Go to Dashboard"
 msgstr "ダッシュボードへ"
 
@@ -4040,7 +4040,7 @@ msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "階層型（カテゴリのような親子関係）"
 
 #: packages/admin/src/components/Redirects.tsx:226
-#: packages/admin/src/components/Redirects.tsx:473
+#: packages/admin/src/components/Redirects.tsx:479
 msgid "Hits"
 msgstr "ヒット数"
 
@@ -4631,21 +4631,22 @@ msgstr "ライブビュー"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:229
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
+#: packages/admin/src/components/Redirects.tsx:560
 #: packages/admin/src/components/RegistryBrowse.tsx:146
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/routes/bylines.tsx:468
 msgid "Load more"
 msgstr "もっと読み込む"
 
-#: packages/admin/src/components/ContentList.tsx:637
-#: packages/admin/src/components/ContentList.tsx:694
+#: packages/admin/src/components/ContentList.tsx:657
+#: packages/admin/src/components/ContentList.tsx:714
 #: packages/admin/src/components/MediaLibrary.tsx:635
 #: packages/admin/src/components/MediaPickerModal.tsx:775
 #: packages/admin/src/components/users/UserList.tsx:169
 msgid "Load More"
 msgstr "もっと読み込む"
 
-#: packages/admin/src/router.tsx:2188
+#: packages/admin/src/router.tsx:2202
 msgid "Loading"
 msgstr ""
 
@@ -4661,8 +4662,8 @@ msgstr "コレクションを読み込み中..."
 msgid "Loading comments..."
 msgstr "コメントを読み込み中..."
 
-#: packages/admin/src/router.tsx:2190
-#: packages/admin/src/router.tsx:2202
+#: packages/admin/src/router.tsx:2204
+#: packages/admin/src/router.tsx:2216
 msgid "Loading configuration..."
 msgstr ""
 
@@ -4686,7 +4687,7 @@ msgstr "メニューを読み込み中..."
 msgid "Loading plugins..."
 msgstr "プラグインを読み込み中..."
 
-#: packages/admin/src/components/Redirects.tsx:459
+#: packages/admin/src/components/Redirects.tsx:464
 msgid "Loading redirects..."
 msgstr "リダイレクトを読み込み中..."
 
@@ -4714,15 +4715,16 @@ msgstr "タームを読み込み中..."
 msgid "Loading widgets..."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:545
-#: packages/admin/src/components/ContentList.tsx:637
-#: packages/admin/src/components/ContentList.tsx:666
-#: packages/admin/src/components/ContentList.tsx:694
+#: packages/admin/src/components/ContentList.tsx:564
+#: packages/admin/src/components/ContentList.tsx:657
+#: packages/admin/src/components/ContentList.tsx:686
+#: packages/admin/src/components/ContentList.tsx:714
 #: packages/admin/src/components/ContentPickerModal.tsx:226
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaLibrary.tsx:635
 #: packages/admin/src/components/MediaPickerModal.tsx:775
 #: packages/admin/src/components/PortableTextEditor.tsx:2397
+#: packages/admin/src/components/Redirects.tsx:560
 #: packages/admin/src/components/RegistryBrowse.tsx:146
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:160
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:205
@@ -4738,7 +4740,7 @@ msgstr ""
 msgid "Loading..."
 msgstr "読み込み中..."
 
-#: packages/admin/src/components/ContentList.tsx:525
+#: packages/admin/src/components/ContentList.tsx:544
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "ロケール"
@@ -4824,7 +4826,7 @@ msgstr "インストール済みプラグインを管理します。プラグイ
 msgid "Manage navigation menus for your site"
 msgstr "サイトのナビゲーションメニューを管理"
 
-#: packages/admin/src/components/Redirects.tsx:361
+#: packages/admin/src/components/Redirects.tsx:366
 msgid "Manage URL redirects and view 404 errors."
 msgstr "URLリダイレクトの管理と404エラーの確認ができます。"
 
@@ -4841,7 +4843,7 @@ msgstr ""
 msgid "Managed by an external media provider"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:427
+#: packages/admin/src/components/Redirects.tsx:432
 msgid "Manual"
 msgstr "手動"
 
@@ -5084,7 +5086,7 @@ msgstr ""
 msgid "Move \"{0}\" up"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1060
+#: packages/admin/src/components/ContentList.tsx:1085
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "\"{title}\"をゴミ箱に移動しますか？後で復元できます。"
 
@@ -5108,7 +5110,7 @@ msgstr ""
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1051
+#: packages/admin/src/components/ContentList.tsx:1076
 msgid "Move {title} to trash"
 msgstr "{title}をゴミ箱に移動"
 
@@ -5116,19 +5118,19 @@ msgstr "{title}をゴミ箱に移動"
 msgid "Move down"
 msgstr "下に移動"
 
-#: packages/admin/src/components/ContentList.tsx:446
+#: packages/admin/src/components/ContentList.tsx:456
 msgid "Move to trash"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:473
-#: packages/admin/src/components/ContentList.tsx:1073
+#: packages/admin/src/components/ContentList.tsx:483
+#: packages/admin/src/components/ContentList.tsx:1098
 #: packages/admin/src/components/ContentSettingsPanel.tsx:721
 #: packages/admin/src/components/ContentSettingsPanel.tsx:741
 msgid "Move to Trash"
 msgstr "ゴミ箱に移動"
 
-#: packages/admin/src/components/ContentList.tsx:451
-#: packages/admin/src/components/ContentList.tsx:1058
+#: packages/admin/src/components/ContentList.tsx:461
+#: packages/admin/src/components/ContentList.tsx:1083
 #: packages/admin/src/components/ContentSettingsPanel.tsx:726
 msgid "Move to Trash?"
 msgstr "ゴミ箱に移動しますか？"
@@ -5190,7 +5192,7 @@ msgstr "ナビゲーション"
 msgid "Never"
 msgstr "なし"
 
-#: packages/admin/src/router.tsx:1138
+#: packages/admin/src/router.tsx:1152
 msgid "new"
 msgstr ""
 
@@ -5233,7 +5235,7 @@ msgid "New public routes"
 msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:106
-#: packages/admin/src/components/Redirects.tsx:365
+#: packages/admin/src/components/Redirects.tsx:370
 msgid "New Redirect"
 msgstr "新しいリダイレクト"
 
@@ -5270,7 +5272,7 @@ msgid "Next"
 msgstr "次へ"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:372
-#: packages/admin/src/components/ContentList.tsx:625
+#: packages/admin/src/components/ContentList.tsx:645
 msgid "Next page"
 msgstr "次のページ"
 
@@ -5278,6 +5280,7 @@ msgstr "次のページ"
 msgid "Next screenshot"
 msgstr "次のスクリーンショット"
 
+#: packages/admin/src/components/ContentList.tsx:1121
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:422
 msgid "No"
@@ -5293,7 +5296,7 @@ msgid "No {0} available."
 msgstr "利用可能な{0}がありません。"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:556
+#: packages/admin/src/components/ContentList.tsx:575
 msgid "No {0} yet."
 msgstr "まだ{0}がありません。"
 
@@ -5517,7 +5520,7 @@ msgstr ""
 msgid "No recent activity"
 msgstr "最近のアクティビティはありません"
 
-#: packages/admin/src/components/Redirects.tsx:463
+#: packages/admin/src/components/Redirects.tsx:468
 msgid "No redirects yet"
 msgstr "リダイレクトはまだありません"
 
@@ -5526,8 +5529,8 @@ msgstr "リダイレクトはまだありません"
 msgid "No results"
 msgstr "結果なし"
 
-#: packages/admin/src/components/ContentList.tsx:553
 #: packages/admin/src/components/ContentList.tsx:572
+#: packages/admin/src/components/ContentList.tsx:591
 msgid "No results for \"{activeSearch}\""
 msgstr ""
 
@@ -5591,6 +5594,7 @@ msgstr "なし（トップレベル）"
 msgid "Not compatible with this environment"
 msgstr ""
 
+#: packages/admin/src/components/ContentList.tsx:1120
 #: packages/admin/src/components/PluginSettings.tsx:341
 msgid "Not set"
 msgstr ""
@@ -5748,7 +5752,7 @@ msgstr "所有者"
 msgid "Package"
 msgstr "パッケージ"
 
-#: packages/admin/src/router.tsx:2228
+#: packages/admin/src/router.tsx:2242
 msgid "Page Not Found"
 msgstr ""
 
@@ -5766,8 +5770,8 @@ msgstr "段落"
 msgid "Parent"
 msgstr "親"
 
-#: packages/admin/src/components/Redirects.tsx:512
 #: packages/admin/src/components/Redirects.tsx:518
+#: packages/admin/src/components/Redirects.tsx:524
 msgid "Part of a redirect loop"
 msgstr "リダイレクトループの一部"
 
@@ -5875,11 +5879,11 @@ msgstr "保留中"
 msgid "Pending changes"
 msgstr "未保存の変更"
 
-#: packages/admin/src/components/ContentList.tsx:1131
+#: packages/admin/src/components/ContentList.tsx:1252
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "\"{title}\"を完全に削除しますか？この操作は取り消せません。"
 
-#: packages/admin/src/components/ContentList.tsx:1120
+#: packages/admin/src/components/ContentList.tsx:1241
 msgid "Permanently delete {title}"
 msgstr "{title}を完全に削除"
 
@@ -6087,7 +6091,7 @@ msgid "Previous"
 msgstr "前へ"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:353
-#: packages/admin/src/components/ContentList.tsx:613
+#: packages/admin/src/components/ContentList.tsx:633
 msgid "Previous page"
 msgstr "前のページ"
 
@@ -6107,7 +6111,7 @@ msgstr ""
 msgid "Provider:"
 msgstr "プロバイダー:"
 
-#: packages/admin/src/components/ContentList.tsx:422
+#: packages/admin/src/components/ContentList.tsx:432
 #: packages/admin/src/components/ContentSettingsPanel.tsx:191
 #: packages/admin/src/components/ContentSettingsPanel.tsx:198
 #: packages/admin/src/components/ContentSettingsPanel.tsx:455
@@ -6119,11 +6123,11 @@ msgstr "公開"
 msgid "Publish date"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:736
-#: packages/admin/src/components/ContentList.tsx:747
+#: packages/admin/src/components/ContentList.tsx:756
+#: packages/admin/src/components/ContentList.tsx:767
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:263
-#: packages/admin/src/router.tsx:1027
+#: packages/admin/src/router.tsx:1041
 msgid "Published"
 msgstr "公開済み"
 
@@ -6227,7 +6231,7 @@ msgstr "受信者メールアドレス"
 msgid "Recovery link sent to {0}"
 msgstr "回復リンクを{0}に送信しました"
 
-#: packages/admin/src/components/Redirects.tsx:445
+#: packages/admin/src/components/Redirects.tsx:450
 msgid "Redirect loop detected"
 msgstr "リダイレクトループを検出"
 
@@ -6235,8 +6239,8 @@ msgstr "リダイレクトループを検出"
 msgid "Redirecting to login..."
 msgstr "ログインにリダイレクト中..."
 
-#: packages/admin/src/components/Redirects.tsx:359
-#: packages/admin/src/components/Redirects.tsx:380
+#: packages/admin/src/components/Redirects.tsx:364
+#: packages/admin/src/components/Redirects.tsx:385
 #: packages/admin/src/components/Sidebar.tsx:244
 msgid "Redirects"
 msgstr "リダイレクト"
@@ -6428,7 +6432,7 @@ msgstr "リポジトリ"
 msgid "Request a new link"
 msgstr "新しいリンクをリクエスト"
 
-#: packages/admin/src/lib/api/client.ts:227
+#: packages/admin/src/lib/api/client.ts:228
 msgid "Request failed"
 msgstr ""
 
@@ -6475,7 +6479,7 @@ msgstr ""
 msgid "Restore"
 msgstr "復元"
 
-#: packages/admin/src/components/ContentList.tsx:1108
+#: packages/admin/src/components/ContentList.tsx:1229
 msgid "Restore {title}"
 msgstr "{title}を復元"
 
@@ -6504,7 +6508,7 @@ msgstr "復元中..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:2216
+#: packages/admin/src/router.tsx:2230
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "再試行"
@@ -6513,7 +6517,7 @@ msgstr "再試行"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "任意のコンテンツに挿入できる再利用可能なコンテンツブロック"
 
-#: packages/admin/src/router.tsx:1065
+#: packages/admin/src/router.tsx:1079
 msgid "Reverted to published version"
 msgstr ""
 
@@ -6709,9 +6713,9 @@ msgstr "公開予約日時"
 msgid "Schedule for later"
 msgstr "後で公開予約"
 
-#: packages/admin/src/components/ContentList.tsx:738
+#: packages/admin/src/components/ContentList.tsx:758
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1085
+#: packages/admin/src/router.tsx:1099
 msgid "Scheduled"
 msgstr "予約済み"
 
@@ -6782,12 +6786,12 @@ msgid "Search"
 msgstr "検索"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:359
+#: packages/admin/src/components/ContentList.tsx:369
 msgid "Search {0}"
 msgstr "{0}を検索"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:358
+#: packages/admin/src/components/ContentList.tsx:368
 msgid "Search {0}..."
 msgstr "{0}を検索..."
 
@@ -6858,7 +6862,7 @@ msgstr "プラグインを検索..."
 msgid "Search sections..."
 msgstr "セクションを検索..."
 
-#: packages/admin/src/components/Redirects.tsx:412
+#: packages/admin/src/components/Redirects.tsx:417
 msgid "Search source or destination..."
 msgstr "ソースまたは転送先を検索..."
 
@@ -6991,7 +6995,7 @@ msgstr "選択"
 msgid "Select {label}"
 msgstr "{label}を選択"
 
-#: packages/admin/src/components/ContentList.tsx:985
+#: packages/admin/src/components/ContentList.tsx:1007
 msgid "Select {title}"
 msgstr ""
 
@@ -7007,7 +7011,7 @@ msgstr ""
 msgid "Select all"
 msgstr "すべて選択"
 
-#: packages/admin/src/components/ContentList.tsx:504
+#: packages/admin/src/components/ContentList.tsx:514
 msgid "Select all on this page"
 msgstr ""
 
@@ -7171,7 +7175,7 @@ msgstr ""
 msgid "Set to 0 to never close comments automatically."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:432
+#: packages/admin/src/components/ContentList.tsx:442
 msgid "Set to draft"
 msgstr ""
 
@@ -7446,7 +7450,7 @@ msgstr "テーマを並べ替え"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:560
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:225
 #: packages/admin/src/components/PluginManager.tsx:580
-#: packages/admin/src/components/Redirects.tsx:469
+#: packages/admin/src/components/Redirects.tsx:475
 #: packages/admin/src/components/SectionEditor.tsx:294
 msgid "Source"
 msgstr "ソース"
@@ -7487,10 +7491,10 @@ msgstr "インポートを開始"
 msgid "Start writing, or type '/' for commands"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:518
+#: packages/admin/src/components/ContentList.tsx:537
 #: packages/admin/src/components/ContentSettingsPanel.tsx:469
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
-#: packages/admin/src/components/Redirects.tsx:474
+#: packages/admin/src/components/Redirects.tsx:480
 #: packages/admin/src/components/users/UserList.tsx:104
 msgid "Status"
 msgstr "ステータス"
@@ -7689,7 +7693,7 @@ msgstr "メニューを削除しました。"
 msgid "The name of your site, used in the header and metadata"
 msgstr "サイトの名前。ヘッダーとメタデータに使用されます"
 
-#: packages/admin/src/router.tsx:2230
+#: packages/admin/src/router.tsx:2244
 msgid "The page you're looking for doesn't exist."
 msgstr ""
 
@@ -7801,7 +7805,7 @@ msgstr "このプラグインに特別な権限は不要です。"
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:584
+#: packages/admin/src/components/Redirects.tsx:602
 msgid "This redirect rule will be permanently removed."
 msgstr "このリダイレクトルールは完全に削除されます。"
 
@@ -7871,8 +7875,8 @@ msgstr "タイムゾーン"
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "日付表示のタイムゾーン（例: Asia/Tokyo）"
 
-#: packages/admin/src/components/ContentList.tsx:512
-#: packages/admin/src/components/ContentList.tsx:650
+#: packages/admin/src/components/ContentList.tsx:522
+#: packages/admin/src/components/ContentList.tsx:670
 #: packages/admin/src/components/SectionEditor.tsx:251
 #: packages/admin/src/components/Sections.tsx:170
 #: packages/admin/src/components/Widgets.tsx:891
@@ -7888,7 +7892,7 @@ msgstr "タイトル（ツールチップ）"
 msgid "Title Separator"
 msgstr "タイトル区切り文字"
 
-#: packages/admin/src/components/ContentList.tsx:823
+#: packages/admin/src/components/ContentList.tsx:843
 msgid "to"
 msgstr ""
 
@@ -7896,7 +7900,7 @@ msgstr ""
 msgid "to close"
 msgstr "閉じる"
 
-#: packages/admin/src/components/ContentList.tsx:827
+#: packages/admin/src/components/ContentList.tsx:847
 msgid "To date"
 msgstr ""
 
@@ -7966,7 +7970,7 @@ msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:987
-#: packages/admin/src/router.tsx:1137
+#: packages/admin/src/router.tsx:1151
 msgid "Translation created"
 msgstr ""
 
@@ -7983,11 +7987,11 @@ msgstr "ゴミ箱"
 #: packages/admin/src/components/comments/CommentInbox.tsx:217
 #: packages/admin/src/components/comments/CommentInbox.tsx:258
 #: packages/admin/src/components/comments/CommentInbox.tsx:514
-#: packages/admin/src/components/ContentList.tsx:381
+#: packages/admin/src/components/ContentList.tsx:391
 msgid "Trash"
 msgstr "ゴミ箱"
 
-#: packages/admin/src/components/ContentList.tsx:673
+#: packages/admin/src/components/ContentList.tsx:693
 msgid "Trash is empty"
 msgstr "ゴミ箱は空です"
 
@@ -8145,7 +8149,7 @@ msgstr "無名のパスキー"
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1045
+#: packages/admin/src/router.tsx:1059
 msgid "Unpublished"
 msgstr ""
 
@@ -8157,7 +8161,7 @@ msgstr "未登録のコンテンツテーブルが見つかりました"
 msgid "Unschedule"
 msgstr "予約を解除"
 
-#: packages/admin/src/router.tsx:1106
+#: packages/admin/src/router.tsx:1120
 msgid "Unscheduled"
 msgstr ""
 
@@ -8222,7 +8226,7 @@ msgstr "このリダイレクトルールを更新します。"
 msgid "Update to v{0}"
 msgstr "v{0}に更新"
 
-#: packages/admin/src/components/ContentList.tsx:746
+#: packages/admin/src/components/ContentList.tsx:766
 #: packages/admin/src/components/ContentSettingsPanel.tsx:589
 #: packages/admin/src/components/RegistryPluginDetail.tsx:501
 msgid "Updated"
@@ -8503,7 +8507,7 @@ msgstr "マーケットプレイスで表示"
 msgid "View mode"
 msgstr "表示モード"
 
-#: packages/admin/src/components/ContentList.tsx:1023
+#: packages/admin/src/components/ContentList.tsx:1048
 msgid "View published {title}"
 msgstr "公開済みの{title}を表示"
 
@@ -8519,7 +8523,7 @@ msgstr ""
 msgid "View the {license} license on spdx.org"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:451
+#: packages/admin/src/components/Redirects.tsx:456
 msgid "Visitors hitting these paths will see an error."
 msgstr "これらのパスにアクセスしたユーザーにはエラーが表示されます。"
 
@@ -8709,7 +8713,7 @@ msgstr ""
 msgid "WordPress Username"
 msgstr "WordPressユーザー名"
 
-#: packages/admin/src/components/ContentList.tsx:410
+#: packages/admin/src/components/ContentList.tsx:420
 msgid "Working on {selectedCount} items…"
 msgstr ""
 
@@ -8737,6 +8741,7 @@ msgstr ""
 msgid "Yearly"
 msgstr ""
 
+#: packages/admin/src/components/ContentList.tsx:1123
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:420
 #: packages/admin/src/routes/byline-schema.tsx:422
@@ -8779,7 +8784,7 @@ msgstr "ユーザー、設定、すべてのコンテンツを含む、サイト
 msgid "You need admin permissions to manage byline schema."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1514
+#: packages/admin/src/router.tsx:1528
 msgid "You need Editor permissions to moderate comments."
 msgstr ""
 

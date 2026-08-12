@@ -1,30 +1,21 @@
 // execEnv: the single seam over the investigation's two execution substrates.
-// Every @cloudflare/computer and @cloudflare/sandbox touchpoint lives here.
 //
-//   - Isolate + VFS: @cloudflare/computer `Workspace` (fs + worker-shell
-//     exec). Holds the repo clone and every agent edit. Reads/greps/git run
-//     here without a container.
-//   - Container: @cloudflare/sandbox. Runs the toolchain (pnpm, astro, vitest,
-//     agent-browser).
+//   - Isolate + VFS: a @cloudflare/shell Workspace living in the agent DO's
+//     own SQLite (large files spill to R2). Holds the hydrated repo tree and
+//     every agent edit. Reads, searches, and edits run here with no container.
+//   - Container: @cloudflare/sandbox. Runs the toolchain (git, pnpm, astro,
+//     vitest, agent-browser) against its own native checkout.
 //
-// The VFS is authoritative for source: before every container exec, the
-// container's working tree is re-synced from the VFS via `git status` against
-// the checkout -- never from in-memory bookkeeping -- so an edit is
-// materialized whether it was made before or after the container attached,
-// and in this isolate or a resumed one. Container-only files (node_modules,
-// build output) are untracked in the VFS and never touched. The one-time
-// `git reset` that seeds the container checkout is owned by the injected
-// `attachContainer`, which runs once.
-//
-// The VFS clone is unauthenticated; token minting is confined to the
-// container's fix-push through the proxy.
+// The VFS is authoritative for source. Every agent write goes through this
+// seam and is recorded in a durable change log next to the workspace; before
+// each container exec the logged paths are replayed onto the container
+// checkout. Container-only files (node_modules, build output) are never
+// touched. The one-time checkout that seeds the container is owned by the
+// injected `attachContainer`, which runs once.
 
-import type { WorkspaceClient } from "@cloudflare/computer";
 import type { Sandbox } from "@cloudflare/sandbox";
 
 import { withDeadline } from "./sandbox-deadline.js";
-
-export type ExecTarget = "isolate" | "container";
 
 export interface ExecResult {
 	readonly exitCode: number;
@@ -33,7 +24,6 @@ export interface ExecResult {
 }
 
 export interface ExecOptions {
-	readonly target: ExecTarget;
 	readonly cwd?: string;
 	readonly timeoutMs?: number;
 }
@@ -44,46 +34,35 @@ export interface GrepMatch {
 	readonly text: string;
 }
 
-export interface CloneOptions {
-	readonly url: string;
+export interface RepoOptions {
 	readonly dir: string;
 	readonly ref?: string;
-	readonly depth?: number;
 }
 
 export interface ExecEnvDeadlines {
-	/** Ceiling for fs/git RPCs and for an exec with no explicit timeout. */
+	/** Ceiling for VFS calls and for an exec with no explicit timeout. */
 	readonly defaultTimeoutMs: number;
 	/** Added to an exec's own timeout so the substrate kills before we do. */
 	readonly execGraceMs: number;
 }
 
 /**
- * Isolate + VFS substrate. A structural subset of computer's `getWorkspace()`
- * client (`fs` + `runtime` reach the DO over RPC through their stubs);
- * `fromWorkspaceClient` adapts the real client, tests pass a fake.
+ * Isolate + VFS substrate. A structural subset of @cloudflare/shell's
+ * `StateBackend`; the agent passes a `FileSystemStateBackend` over its
+ * workspace, tests pass a fake.
  */
-export interface IsolateBackend {
-	readonly fs: {
-		readFile(path: string, encoding: "utf8"): Promise<string>;
-		writeFile(path: string, content: string): Promise<void>;
-		mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
-		readdir(path: string): Promise<Array<{ name: string; isDirectory: boolean }>>;
-		rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void>;
-		grep(pattern: string, path: string, options?: { ignoreCase?: boolean }): Promise<GrepMatch[]>;
-	};
-	readonly runtime: {
-		exec(
-			source: string,
-			options: { backend?: string; cwd?: string; encoding: "utf8"; timeoutMs?: number },
-		): Promise<IsolateExecHandle>;
-	};
-}
-
-/** Minimal view of computer's `WorkspaceRuntimeExecHandle`. */
-export interface IsolateExecHandle {
-	result(): Promise<{ exitCode: number; stdout: string; stderr: string }>;
-	[Symbol.dispose]?(): void;
+export interface IsolateState {
+	readFile(path: string): Promise<string>;
+	writeFile(path: string, content: string): Promise<void>;
+	mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
+	readdirWithFileTypes(path: string): Promise<Array<{ name: string; type: string }>>;
+	exists(path: string): Promise<boolean>;
+	rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void>;
+	searchFiles(
+		pattern: string,
+		query: string,
+		options?: { maxMatches?: number; caseSensitive?: boolean },
+	): Promise<Array<{ path: string; matches: Array<{ line: number; lineText: string }> }>>;
 }
 
 /**
@@ -99,73 +78,72 @@ export interface ContainerBackend {
 	readFileBytes(path: string): Promise<Uint8Array>;
 }
 
-/** Backend id the isolate shell registers under (WorkerShellBackend). */
-export const ISOLATE_SHELL_BACKEND = "worker-shell";
-
-const PATH_SEPARATOR = /[/\\]/;
-
 export interface ExecEnvOptions {
-	readonly isolate: IsolateBackend;
+	readonly state: IsolateState;
 	/** Lazily attaches the container; called at most once, result reused. */
 	readonly attachContainer: () => Promise<ContainerBackend>;
+	/**
+	 * Streams the repo source tree for `ref` into the VFS at `dir`.
+	 * `ensureRepo` records the hydration marker and change log around it.
+	 */
+	readonly hydrateRepo: (dir: string, ref: string) => Promise<void>;
 	readonly deadlines: ExecEnvDeadlines;
 	/** Working-tree root, shared by both substrates (e.g. /workspace/repo). */
 	readonly repoDir: string;
 }
 
+/** VFS bookkeeping directory, outside the repo tree. */
+const META_DIR = "/.emdash-bot";
+const HYDRATED_MARKER = `${META_DIR}/hydrated`;
+const CHANGE_LOG = `${META_DIR}/changes.json`;
+const GREP_MATCH_LIMIT = 200;
+
 export class ExecEnv {
-	readonly #isolate: IsolateBackend;
+	readonly #state: IsolateState;
 	readonly #attachContainer: () => Promise<ContainerBackend>;
+	readonly #hydrateRepo: (dir: string, ref: string) => Promise<void>;
 	readonly #deadlines: ExecEnvDeadlines;
 	readonly #repoDir: string;
 	#containerPromise: Promise<ContainerBackend> | undefined;
 
 	constructor(options: ExecEnvOptions) {
-		this.#isolate = options.isolate;
+		this.#state = options.state;
 		this.#attachContainer = options.attachContainer;
+		this.#hydrateRepo = options.hydrateRepo;
 		this.#deadlines = options.deadlines;
 		this.#repoDir = options.repoDir;
 	}
 
 	/**
-	 * Clone the repo into the VFS for isolate inspection and edit tracking.
-	 * Runs through the worker-shell `git` command, which the DO's in-VFS
-	 * isomorphic-git services -- no auth, since the repo is public.
+	 * Stand the repo up in the VFS at `ref` (branch, tag, or commit SHA).
+	 * Idempotent per ref: a marker records what was hydrated, and a re-entry
+	 * with the same ref reuses the tree along with any recorded agent edits.
 	 */
-	async cloneRepo(options: CloneOptions): Promise<void> {
-		if (await this.#hasUsableClone(options.dir)) return;
-		const args = ["git", "clone", "--depth", String(options.depth ?? 50)];
-		if (options.ref) args.push("--branch", options.ref);
-		args.push(quote(options.url), quote(options.dir));
-		const result = await this.exec(args.join(" "), { target: "isolate" });
-		if (result.exitCode !== 0) {
-			throw new Error(`git clone failed (${result.exitCode}): ${result.stderr.slice(-500)}`);
-		}
+	async ensureRepo(options: RepoOptions): Promise<void> {
+		const ref = options.ref ?? "main";
+		if ((await this.#readMarker()) === ref) return;
+		await this.#bounded(this.#state.rm(options.dir, { recursive: true, force: true }), "rm");
+		await this.#hydrateRepo(options.dir, ref);
+		await this.#bounded(this.#state.mkdir(META_DIR, { recursive: true }), "mkdir");
+		await this.#bounded(this.#state.writeFile(CHANGE_LOG, "[]"), "writeFile");
+		await this.#bounded(this.#state.writeFile(HYDRATED_MARKER, ref), "writeFile");
 	}
 
-	/**
-	 * The durable VFS may hold a clone from an earlier attempt -- but only
-	 * trust one git can actually read. A partial clone is removed so the
-	 * caller re-clones.
-	 */
-	async #hasUsableClone(dir: string): Promise<boolean> {
+	async #readMarker(): Promise<string | null> {
 		try {
-			await this.#bounded(this.#isolate.fs.readdir(`${dir}/.git`), "readdir");
+			return await this.#bounded(this.#state.readFile(HYDRATED_MARKER), "readFile");
 		} catch {
-			return false;
+			return null;
 		}
-		const probe = await this.exec("git status --porcelain", { target: "isolate", cwd: dir });
-		if (probe.exitCode === 0) return true;
-		await this.#bounded(this.#isolate.fs.rm(dir, { recursive: true, force: true }), "rm");
-		return false;
 	}
 
 	readFile(path: string): Promise<string> {
-		return this.#bounded(this.#isolate.fs.readFile(path, "utf8"), "readFile");
+		return this.#bounded(this.#state.readFile(path), "readFile");
 	}
 
-	writeFile(path: string, content: string): Promise<void> {
-		return this.#bounded(this.#isolate.fs.writeFile(path, content), "writeFile");
+	async writeFile(path: string, content: string): Promise<void> {
+		await this.#bounded(this.#state.writeFile(path, content), "writeFile");
+		await this.#recordChange(path);
 	}
 
 	/** Replace an exact substring; the file must contain it exactly once. */
@@ -182,39 +160,41 @@ export class ExecEnv {
 		);
 	}
 
-	ls(path: string): Promise<Array<{ name: string; isDirectory: boolean }>> {
-		return this.#bounded(this.#isolate.fs.readdir(path), "readdir");
+	ls(path: string): Promise<Array<{ name: string; type: string }>> {
+		return this.#bounded(this.#state.readdirWithFileTypes(path), "readdir");
 	}
 
-	grep(pattern: string, path: string, options?: { ignoreCase?: boolean }): Promise<GrepMatch[]> {
-		return this.#bounded(this.#isolate.fs.grep(pattern, path, options), "grep");
+	async grep(
+		pattern: string,
+		path: string,
+		options?: { ignoreCase?: boolean },
+	): Promise<GrepMatch[]> {
+		const files = await this.#bounded(
+			this.#state.searchFiles(`${path.replace(TRAILING_SLASH, "")}/**/*`, pattern, {
+				maxMatches: GREP_MATCH_LIMIT,
+				caseSensitive: options?.ignoreCase !== true,
+			}),
+			"searchFiles",
+		);
+		return files.flatMap((file) =>
+			file.matches.map((match) => ({ path: file.path, line: match.line, text: match.lineText })),
+		);
 	}
 
-	async exec(command: string, options: ExecOptions): Promise<ExecResult> {
+	/** Run a shell command in the container, materializing VFS edits first. */
+	async exec(command: string, options: ExecOptions = {}): Promise<ExecResult> {
 		const timeoutMs = options.timeoutMs;
 		const deadlineMs = timeoutMs
 			? timeoutMs + this.#deadlines.execGraceMs
 			: this.#deadlines.defaultTimeoutMs;
 		const cwd = options.cwd ?? this.#repoDir;
-		if (options.target === "isolate") {
-			return this.#execIsolate(command, cwd, timeoutMs, deadlineMs);
-		}
 		const container = await this.container();
-		await this.#materializeVfsChanges(container);
+		await this.#materializeChanges(container);
 		return withDeadline(
 			container.exec(command, { cwd, ...(timeoutMs ? { timeoutMs } : {}) }),
 			deadlineMs,
 			"container exec",
 		);
-	}
-
-	/**
-	 * Attach the container once and reuse it. Attach owns the one-time base
-	 * checkout (via the injected `attachContainer`); working-tree sync is done
-	 * per exec by `#materializeVfsChanges`, not here.
-	 */
-	container(): Promise<ContainerBackend> {
-		return (this.#containerPromise ??= this.#attachContainer());
 	}
 
 	/**
@@ -237,129 +217,62 @@ export class ExecEnv {
 		return this.#bounded(container.readFileBytes(path), "readArtifact");
 	}
 
-	async #execIsolate(
-		command: string,
-		cwd: string,
-		timeoutMs: number | undefined,
-		deadlineMs: number,
-	): Promise<ExecResult> {
-		const handle = await withDeadline(
-			this.#isolate.runtime.exec(command, {
-				backend: ISOLATE_SHELL_BACKEND,
-				encoding: "utf8",
-				cwd,
-				...(timeoutMs ? { timeoutMs } : {}),
-			}),
+	/** Attach the container once and reuse it. */
+	container(): Promise<ContainerBackend> {
+		return (this.#containerPromise ??= withDeadline(
+			this.#attachContainer(),
 			this.#deadlines.defaultTimeoutMs,
-			"isolate exec start",
-		);
+			"container attach",
+		).catch((error: unknown) => {
+			this.#containerPromise = undefined;
+			throw error;
+		}));
+	}
+
+	async #recordChange(path: string): Promise<void> {
+		if (!path.startsWith(`${this.#repoDir}/`)) return;
+		const changed = await this.#readChangeLog();
+		if (changed.includes(path)) return;
+		changed.push(path);
+		await this.#bounded(this.#state.mkdir(META_DIR, { recursive: true }), "mkdir");
+		await this.#bounded(this.#state.writeFile(CHANGE_LOG, JSON.stringify(changed)), "writeFile");
+	}
+
+	async #readChangeLog(): Promise<string[]> {
 		try {
-			const result = await withDeadline(handle.result(), deadlineMs, "isolate exec");
-			return { exitCode: result.exitCode, stdout: result.stdout, stderr: result.stderr };
-		} finally {
-			handle[Symbol.dispose]?.();
+			const raw = await this.#bounded(this.#state.readFile(CHANGE_LOG), "readFile");
+			const parsed: unknown = JSON.parse(raw);
+			return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === "string") : [];
+		} catch {
+			return [];
 		}
 	}
 
 	/**
-	 * Bring the container's working tree in line with the VFS. The change set is
-	 * re-derived from the VFS on every call (`git status` against the checkout),
-	 * so no edit is missed regardless of when or in which isolate it was made.
+	 * Replay the change log onto the container checkout. Re-reads each path
+	 * from the VFS at replay time, so the container always receives the
+	 * current content no matter which isolate recorded the change.
 	 */
-	async #materializeVfsChanges(container: ContainerBackend): Promise<void> {
-		const status = await this.exec("git status --porcelain -z --untracked-files=all", {
-			target: "isolate",
-			cwd: this.#repoDir,
-		});
-		if (status.exitCode !== 0) {
-			throw new Error(`git status failed (${status.exitCode}): ${status.stderr.slice(-500)}`);
-		}
-		for (const change of parsePorcelain(status.stdout)) {
-			const path = `${this.#repoDir}/${change.path}`;
-			if (change.op === "delete") {
-				await this.#bounded(container.exec(`rm -f -- ${quote(path)}`), "materialize rm");
-				continue;
-			}
-			const content = await this.#bounded(
-				this.#isolate.fs.readFile(path, "utf8"),
-				"materialize read",
-			);
-			await this.#bounded(container.writeFile(path, content), "materialize write");
+	async #materializeChanges(container: ContainerBackend): Promise<void> {
+		for (const path of await this.#readChangeLog()) {
+			await container.writeFile(path, await this.readFile(path));
 		}
 	}
 
-	#bounded<T>(operation: Promise<T>, label: string): Promise<T> {
-		return withDeadline(operation, this.#deadlines.defaultTimeoutMs, label);
+	#bounded<T>(operation: PromiseLike<T>, operationName: string): Promise<T> {
+		return withDeadline(operation, this.#deadlines.defaultTimeoutMs, `VFS ${operationName}`);
 	}
 }
 
-/**
- * Adapt the computer `getWorkspace()` client. The only structural computer
- * touchpoint. `fs` and `runtime` reach the DO over RPC through their stubs; the
- * seam therefore runs agent-side, not in the DO.
- */
-export function fromWorkspaceClient(client: WorkspaceClient): IsolateBackend {
-	return {
-		fs: {
-			readFile: (path, encoding) => client.fs.readFile(path, encoding),
-			writeFile: (path, content) => client.fs.writeFile(path, content),
-			mkdir: (path, options) => client.fs.mkdir(path, options),
-			readdir: (path) => client.fs.readdir(path),
-			rm: (path, options) => client.fs.rm(path, options),
-			grep: (pattern, path, options) => client.fs.grep(pattern, path, options),
-		},
-		runtime: {
-			exec: (source, options) => client.runtime.exec(source, options),
-		},
-	};
-}
+const TRAILING_SLASH = /\/+$/;
+const PATH_SEPARATOR = /[/\\]/;
 
-/** Single-quote a shell argument for the isolate command line. */
-function quote(value: string): string {
+/** Single-quote a shell argument for a container command line. */
+export function quote(value: string): string {
 	return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-interface VfsChange {
-	readonly path: string;
-	readonly op: "materialize" | "delete";
-}
-
-/**
- * Parse `git status --porcelain -z` into per-path sync ops. The `-z` format is
- * NUL-delimited and never quotes or C-escapes paths, so special characters and
- * spaces are carried verbatim. A rename/copy entry (`R`/`C`) is followed by a
- * second NUL field carrying the old path (new-path-then-old-path order): a
- * rename deletes the old path and materializes the new, a copy only
- * materializes. A `D` in either status column deletes; everything else
- * (modified, added, untracked) materializes.
- */
-function parsePorcelain(output: string): VfsChange[] {
-	const fields = output.split("\0");
-	const changes: VfsChange[] = [];
-	let i = 0;
-	while (i < fields.length) {
-		const field = fields[i];
-		i += 1;
-		if (field === undefined || field.length < 4) continue;
-		const index = field[0];
-		const worktree = field[1];
-		const path = field.slice(3);
-		if (index === "R" || index === "C" || worktree === "R" || worktree === "C") {
-			const oldPath = fields[i];
-			i += 1;
-			if ((index === "R" || worktree === "R") && oldPath) {
-				changes.push({ path: oldPath, op: "delete" });
-			}
-			changes.push({ path, op: "materialize" });
-			continue;
-		}
-		const deleted = index === "D" || worktree === "D";
-		changes.push({ path, op: deleted ? "delete" : "materialize" });
-	}
-	return changes;
-}
-
-/** Adapt the real sandbox. The only structural sandbox touchpoint. */
+/** Adapt a @cloudflare/sandbox session to the ContainerBackend seam. */
 export function fromSandbox(sandbox: Sandbox): ContainerBackend {
 	return {
 		async exec(command, options) {

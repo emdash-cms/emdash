@@ -140,6 +140,18 @@
 				"take_over"
 			]
 		},
+		"diagnosed": {
+			"label": "bot:diagnosed",
+			"boardColumn": "Diagnosed",
+			"description": "Verdict: root cause identified, but not confirmed by a reproduction (environment limits). Actionable like reproduced; the fix loop verifies with a failing test before changing anything.",
+			"terminal": false,
+			"offeredCommands": [
+				"fix",
+				"investigate",
+				"decline",
+				"take_over"
+			]
+		},
 		"not_reproduced": {
 			"label": "bot:not-reproduced",
 			"boardColumn": "Not reproduced",
@@ -201,18 +213,12 @@
 			"actors": [
 				"maintainer"
 			],
-			"labelTriggers": [
-				"bot:repro"
-			],
 			"defaultKind": "bug"
 		},
 		"investigate": {
 			"description": "Reproduce and diagnose the issue as a bug, with evidence. Does not attempt a fix.",
 			"actors": [
 				"maintainer"
-			],
-			"labelTriggers": [
-				"bot:investigate"
 			],
 			"arg": "directive",
 			"defaultKind": "bug"
@@ -222,9 +228,6 @@
 			"actors": [
 				"maintainer"
 			],
-			"labelTriggers": [
-				"bot:implement"
-			],
 			"arg": "directive",
 			"defaultKind": "enhancement"
 		},
@@ -232,9 +235,6 @@
 			"description": "Build a candidate fix on a bot branch and post a preview for the reporter to try.",
 			"actors": [
 				"maintainer"
-			],
-			"labelTriggers": [
-				"bot:fix"
 			],
 			"arg": "directive"
 		},
@@ -336,6 +336,12 @@
 		},
 		"agent.reproduced": {
 			"description": "Reproduced, but the fix needs a human decision.",
+			"actors": [
+				"system"
+			]
+		},
+		"agent.diagnosed": {
+			"description": "Root cause identified without a confirming reproduction.",
 			"actors": [
 				"system"
 			]
@@ -743,6 +749,11 @@
 		},
 		{
 			"from": "investigating",
+			"event": "agent.diagnosed",
+			"to": "diagnosed"
+		},
+		{
+			"from": "investigating",
 			"event": "agent.not_reproduced",
 			"to": "not_reproduced"
 		},
@@ -783,6 +794,29 @@
 			"from": "reproduced",
 			"event": "take_over",
 			"to": "human_owned"
+		},
+		{
+			"from": "diagnosed",
+			"event": "fix",
+			"to": "fixing",
+			"action": "investigate.fix"
+		},
+		{
+			"from": "diagnosed",
+			"event": "decline",
+			"to": "declined"
+		},
+		{
+			"from": "diagnosed",
+			"event": "take_over",
+			"to": "human_owned"
+		},
+		{
+			"from": "diagnosed",
+			"event": "investigate",
+			"to": "investigating",
+			"action": "investigate.diagnose",
+			"note": "re-diagnose"
 		},
 		{
 			"from": "not_reproduced",

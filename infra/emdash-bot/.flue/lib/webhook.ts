@@ -230,14 +230,15 @@ export function normalizeWebhook(ctx: NormalizeContext): NormalizeResult {
  * entry points to the lifecycle, and only when the body carries an
  * `@emdashbot` mention (a pre-classification, mirrors the comment path).
  * `labeled` / `unlabeled` are skipped because the DO is the source of truth
- * for state; label drift is reconciled by the cron tick, not by webhooks.
+ * for state; label drift is reconciled by the Orchestrator DO's periodic alarm
+ * tick (`reconcileLabels`), not by webhooks.
  */
 function normalizeIssues(
 	event: Record<string, unknown> | undefined,
 	deliveryId?: string,
 ): NormalizeResult {
 	const action = readString(event?.action) ?? "";
-	// A closed issue reaps its fix-loop branches (bot-cleanup.yml's close path).
+	// A closed issue reaps its fix-loop branches.
 	// PR-as-issue closes arrive as pull_request events too; skip them here.
 	if (action === "closed") {
 		const issue = asRecord(event?.issue);

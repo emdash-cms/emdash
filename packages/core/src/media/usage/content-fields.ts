@@ -35,15 +35,17 @@ type SupportedTopLevelType = (typeof SUPPORTED_TOP_LEVEL_TYPES)[number];
 export async function loadContentMediaUsageFields(
 	db: Kysely<Database>,
 	collectionSlug: string,
+	collectionId?: string,
 ): Promise<ContentMediaUsageFieldDiscovery> {
 	validateIdentifier(collectionSlug, "collection slug");
 
-	const rows = await db
+	let query = db
 		.selectFrom("_emdash_fields")
 		.innerJoin("_emdash_collections", "_emdash_collections.id", "_emdash_fields.collection_id")
 		.select(["_emdash_fields.slug", "_emdash_fields.type", "_emdash_fields.validation"])
-		.where("_emdash_collections.slug", "=", collectionSlug)
-		.execute();
+		.where("_emdash_collections.slug", "=", collectionSlug);
+	if (collectionId !== undefined) query = query.where("_emdash_collections.id", "=", collectionId);
+	const rows = await query.execute();
 
 	const extractionFields: ContentMediaUsageField[] = [];
 	const rowBySlug = new Map<string, FieldDiscoveryRow>();

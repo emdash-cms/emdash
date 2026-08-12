@@ -18,11 +18,7 @@ import { defineMiddleware } from "astro:middleware";
 
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { getDb } from "../../loader.js";
-import {
-	getCachedRedirects,
-	matchCachedPatterns,
-	setCachedRedirects,
-} from "../../redirects/cache.js";
+import { loadCachedRedirects, matchCachedPatterns } from "../../redirects/cache.js";
 import { isTerminalStatus } from "../../redirects/status.js";
 
 /** Paths that should never be intercepted by redirects */
@@ -68,11 +64,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// One query loads both exact and pattern rules into the cache; warm
 		// requests issue zero queries. Empty-redirect sites cache an empty
 		// Map + array, so the next request returns immediately without probing.
-		let cached = getCachedRedirects();
-		if (!cached) {
-			const all = await repo.findAllEnabled();
-			cached = setCachedRedirects(all);
-		}
+		const cached = await loadCachedRedirects(() => repo.findAllEnabled());
 
 		// 1. Exact match (O(1) Map lookup)
 		let exact = cached.exact.get(pathname);

@@ -8,7 +8,7 @@
  * Commands:
  * - init: Bootstrap database from template config, or interactive setup
  * - types: Generate TypeScript types from schema
- * - dev: Run dev server with local D1
+ * - dev: [DEPRECATED, hidden] Run dev server with a local SQLite database
  * - seed: Apply a seed file to the database
  * - export-seed: Export database schema and content as a seed file
  * - secrets: Generate and inspect EmDash secrets (encryption keys, etc.)

@@ -1,5 +1,12 @@
 # @emdash-cms/plugin-embeds
 
+## 0.1.41
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.33.0
+
 ## 0.1.40
 
 ### Patch Changes
