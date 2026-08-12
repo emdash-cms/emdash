@@ -11,6 +11,7 @@
 		"cf-typegen": "wrangler types",
 		"bot:generate": "node --experimental-strip-types scripts/generate-machine.ts",
 		"evals": "node --experimental-strip-types evals/bin/run.ts",
+		"evals:implementation": "node --experimental-strip-types evals/bin/implementation-smoke.ts",
 		"pretypecheck": "wrangler types",
 		"typecheck": "tsc --noEmit",
 		"test": "pnpm test:unit && pnpm test:workers",

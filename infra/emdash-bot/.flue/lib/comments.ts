@@ -1,4 +1,4 @@
-import type { StateId } from "./machine.js";
+import type { Kind, StateId } from "./machine.js";
 import { artifactsBranch, fixBranch, previewInstallCommand } from "./preview.js";
 import type { Decision } from "./router.js";
 
@@ -39,11 +39,11 @@ export function renderReadonlyReply(state: StateId | null): string {
 		case "needs_info":
 			return "I need more to go on -- see my last comment for what's missing.";
 		case "fixing":
-			return "Building a candidate fix.";
+			return "Building a candidate change.";
 		case "preview_building":
-			return "Building a preview so you can try the fix.";
+			return "Building a preview so you can try the change.";
 		case "awaiting_reporter":
-			return "Try the preview from my last comment. Reply `@emdashbot confirm` if it's fixed, or describe what's still wrong.";
+			return "Try the preview from my last comment. Reply `@emdashbot confirm` if it works, or describe what needs to change.";
 		default: {
 			const _exhaustive: never = state;
 			return `State: \`${String(_exhaustive)}\`.`;
@@ -62,10 +62,19 @@ export function renderAgentComment(
 	decision: Extract<Decision, { kind: "transition" }>,
 	anchorNumber: number,
 	agentSummary?: string,
+	failure?: { runId?: string; failureStage?: string },
+	previewPackage = "emdash",
 ): string {
 	const summary = agentSummary?.trim();
 	if (!decision.event.startsWith("agent.")) return "";
 	if (!summary) return "";
+	if (decision.event === "agent.failed") {
+		const details = [
+			failure?.failureStage ? `Failed stage: \`${failure.failureStage}\`` : "",
+			failure?.runId ? `Run: \`${failure.runId}\`` : "",
+		].filter(Boolean);
+		return details.length > 0 ? `${summary}\n\n${details.join(" · ")}` : summary;
+	}
 
 	switch (decision.event) {
 		case "agent.fix_ready":
@@ -80,7 +89,7 @@ export function renderAgentComment(
 				"Try it:",
 				"",
 				"```sh",
-				`pnpm add https://pkg.pr.new/emdash-cms/emdash@bot/fix-${anchorNumber}`,
+				previewInstallCommand(anchorNumber, previewPackage),
 				"```",
 				"",
 				"Reply `@emdashbot confirm` if it works and I'll open the PR, or `@emdashbot revise <feedback>` to push changes.",
@@ -118,7 +127,7 @@ function mdEscape(text: string): string {
 }
 
 /**
- * Compose the ask comment posted when a candidate fix's preview has published.
+ * Compose the ask comment posted when a candidate change's preview has published.
  * The reporter verifies the change against their own site via the pkg.pr.new
  * install command, then replies to confirm or reject.
  *
@@ -132,6 +141,7 @@ export function renderPreviewReadyAsk(input: {
 	owner: string;
 	repo: string;
 	issueNumber: number;
+	previewPackage?: string;
 	at: string;
 	notes?: string | null;
 	screenshots?: readonly PreviewScreenshot[];
@@ -144,24 +154,24 @@ export function renderPreviewReadyAsk(input: {
 				`![${mdEscape(shot.description ?? shot.filename)}](https://raw.githubusercontent.com/${input.owner}/${input.repo}/${artifactsBranch(input.issueNumber)}/.bot-artifacts/${shot.filename})`,
 		);
 	const reporterAsk = input.reporterLogin
-		? `@${input.reporterLogin} could you try this and reply here with whether it resolves the issue? A simple "yes, fixed" or "no, still broken" is enough.`
-		: "Could the reporter please try this and reply with whether it resolves the issue?";
+		? `@${input.reporterLogin} could you try this and reply here with whether it works as requested? A simple "yes" or "no" is enough.`
+		: "Could the reporter please try this and reply with whether it works as requested?";
 	return [
 		`<!-- bot-ask: ${input.at} -->`,
-		"The investigation reproduced this issue and pushed a candidate fix.",
+		"A candidate change is ready to preview.",
 		"",
 		input.notes?.trim() ?? "",
 		"",
-		"Try the fix against your own site:",
+		"Try the change against your own site:",
 		"",
 		"```bash",
-		previewInstallCommand(input.issueNumber),
+		previewInstallCommand(input.issueNumber, input.previewPackage),
 		"```",
 		"",
 		...(shots.length > 0 ? ["**Screenshots:**", "", shots.join("\n\n"), ""] : []),
 		reporterAsk,
 		"",
-		"<sub>Maintainers can act on the reporter's behalf: `@emdashbot confirm` to accept the fix and open a draft PR, or `@emdashbot reject` (with details) to reap the branch and revise.</sub>",
+		"<sub>Maintainers can act on the reporter's behalf: `@emdashbot confirm` to accept the change and open a draft PR, or `@emdashbot reject` (with details) to reap the branch and revise.</sub>",
 		"",
 		`Fix branch: \`${fixBranch(input.issueNumber)}\` · Artifacts branch: \`${artifactsBranch(input.issueNumber)}\``,
 	]
@@ -170,23 +180,26 @@ export function renderPreviewReadyAsk(input: {
 }
 
 /**
- * Body for the draft PR opened when the reporter confirms the fix. References
+ * Body for the draft PR opened when the reporter confirms the change. References
  * the issue (so merging closes it), points at the preview the reporter just
- * verified, and flags that a maintainer must review before merge. The fix run
- * left a regression test on the branch; the reviewer confirms it on the diff.
+ * verified, and flags that a maintainer must review before merge.
  */
-export function renderDraftPrBody(issueNumber: number): string {
+export function renderDraftPrBody(issueNumber: number, previewPackage?: string): string {
 	return [
 		`Closes #${issueNumber}.`,
 		"",
-		"A candidate fix the reporter confirmed against their own site via the preview build:",
+		"A candidate change the reporter confirmed against their own site via the preview build:",
 		"",
 		"```bash",
-		previewInstallCommand(issueNumber),
+		previewInstallCommand(issueNumber, previewPackage),
 		"```",
 		"",
-		"The fix run left a regression test on the branch -- confirm it covers the reported case on review.",
+		"Review the candidate diff and its verification before merging.",
 		"",
 		"<sub>Opened automatically by emdashbot as a draft. A maintainer must review before merge.</sub>",
 	].join("\n");
+}
+
+export function renderPullRequestTitle(issueNumber: number, kind: Kind): string {
+	return `${kind === "bug" ? "Fix" : "Implement"} #${issueNumber}`;
 }

@@ -16,6 +16,16 @@ describe("preview branch + URL helpers", () => {
 		expect(previewUrl(42)).toBe("https://pkg.pr.new/emdash@bot/fix-42");
 		expect(previewInstallCommand(42)).toBe("npm i https://pkg.pr.new/emdash@bot/fix-42");
 	});
+
+	test("supports a staging package without probing the production preview", () => {
+		expect(previewUrl(42, "owner/canary-repo/canary-package")).toBe(
+			"https://pkg.pr.new/owner/canary-repo/canary-package@bot/fix-42",
+		);
+		expect(previewInstallCommand(42, "owner/canary-repo/canary-package")).toBe(
+			"npm i https://pkg.pr.new/owner/canary-repo/canary-package@bot/fix-42",
+		);
+		expect(() => previewUrl(42, "https://attacker.test/x")).toThrow(/invalid preview package/);
+	});
 });
 
 describe("branchesToReap", () => {

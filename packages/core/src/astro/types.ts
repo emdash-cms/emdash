@@ -37,6 +37,8 @@ export interface ManifestCollection {
 	 * — only the navigation link is dropped.
 	 */
 	hidden?: boolean;
+	/** Valid custom field slugs to render in the admin content list. */
+	listColumns?: string[];
 	fields: Record<
 		string,
 		{
@@ -247,6 +249,9 @@ export interface EmDashHandlers {
 			dateField?: "createdAt" | "updatedAt" | "publishedAt";
 			dateFrom?: string;
 			dateTo?: string;
+			bylines?: string[];
+			bylinesNone?: boolean;
+			includeInferredBylines?: boolean;
 		},
 	) => Promise<HandlerResponse>;
 

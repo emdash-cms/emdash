@@ -215,8 +215,7 @@ export const STATES: Record<StateId, StateMeta> = {
 	fixing: {
 		label: "bot:fixing",
 		boardColumn: "Fixing",
-		description:
-			"A maintainer-triggered fix run is in flight: build a candidate change on bot/fix-<n>. No PR yet.",
+		description: "A maintainer-triggered delivery run is building a candidate on bot/fix-<n>.",
 		terminal: false,
 		transient: true,
 		offeredCommands: ["status"],
@@ -225,7 +224,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		label: "bot:preview-building",
 		boardColumn: "Building preview",
 		description:
-			"The candidate fix is pushed; a preview deploy is building so the reporter can try the change before a PR exists.",
+			"The candidate change is published; a preview is building so the reporter can try it before a PR exists.",
 		terminal: false,
 		transient: true,
 		offeredCommands: ["status"],
@@ -234,7 +233,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		label: "bot:awaiting-reporter",
 		boardColumn: "Awaiting reporter",
 		description:
-			"Preview link posted; waiting for the reporter to confirm the fix. On confirm a draft PR opens; on denial or 14-day silence the branch is reaped.",
+			"Preview link posted; waiting for the reporter to confirm the change. On confirm a draft PR opens; on denial or 14-day silence the branch is reaped.",
 		terminal: false,
 		offeredCommands: ["confirm", "reject", "decline", "take_over"],
 	},
@@ -438,7 +437,7 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		actors: ["system"],
 	},
 	"agent.fix_ready": {
-		description: "Reproduced and fixed; a verified change is staged on bot/fix-<n>.",
+		description: "A verified candidate change is published on bot/fix-<n>.",
 		actors: ["system"],
 	},
 	// Next-generation: the investigation ran but is blocked on reporter-only
@@ -469,7 +468,7 @@ export const EVENTS: Record<EventId, EventMeta> = {
 	},
 	// --- preview-deploy lifecycle (next-generation fix loop) ---
 	"preview.ready": {
-		description: "The preview deploy for the candidate fix is live; link ready to post.",
+		description: "The preview deploy for the candidate change is live; link ready to post.",
 		actors: ["system"],
 	},
 	"preview.failed": {
@@ -509,6 +508,8 @@ export interface Transition {
 	from: StateId;
 	event: EventId;
 	to: StateId;
+	/** Kind-specific destinations; `to` remains the fallback when no override exists. */
+	toByKind?: Partial<Record<Kind, StateId>>;
 	/** Agent action the router dispatches on this transition, if any. */
 	action?: ActionId;
 	/** Human-readable note for the generated table. */
@@ -521,9 +522,9 @@ export const TRANSITIONS: Transition[] = [
 	{
 		from: "unmanaged",
 		event: "implement",
-		to: "working",
+		to: "fixing",
 		action: "investigate.implement",
-		note: "implement works straight from an untriaged issue",
+		note: "implement works straight from an untriaged issue and enters the preview-gated delivery lane",
 	},
 	{ from: "unmanaged", event: "decline", to: "declined" },
 
@@ -532,7 +533,7 @@ export const TRANSITIONS: Transition[] = [
 	{
 		from: "triage",
 		event: "implement",
-		to: "working",
+		to: "fixing",
 		action: "investigate.implement",
 		note: "enhancement/feature lane -- no repro gate",
 	},
@@ -562,7 +563,7 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "working", event: "agent.failed", to: "failed" },
 
 	// --- blocked: every reason accepts the same overrides (kills the sinks) ---
-	{ from: "blocked", event: "implement", to: "working", action: "investigate.implement" },
+	{ from: "blocked", event: "implement", to: "fixing", action: "investigate.implement" },
 	{ from: "blocked", event: "repro", to: "working", action: "investigate.repro" },
 	{ from: "blocked", event: "retry", to: "working", action: "investigate.repro" },
 	{ from: "blocked", event: "decline", to: "declined" },
@@ -646,7 +647,7 @@ export const TRANSITIONS: Transition[] = [
 
 	// --- failed: retryable ---
 	{ from: "failed", event: "retry", to: "working", action: "investigate.repro" },
-	{ from: "failed", event: "implement", to: "working", action: "investigate.implement" },
+	{ from: "failed", event: "implement", to: "fixing", action: "investigate.implement" },
 	{ from: "failed", event: "repro", to: "working", action: "investigate.repro" },
 	{ from: "failed", event: "decline", to: "declined" },
 
@@ -756,7 +757,8 @@ export const TRANSITIONS: Transition[] = [
 		from: "preview_building",
 		event: "preview.failed",
 		to: "reproduced",
-		note: "candidate branch retained; the diagnosis still holds, so fall back to the reproduced verdict",
+		toByKind: { enhancement: "blocked", task: "blocked" },
+		note: "bugs return to the reproduced verdict; directed changes rest in blocked so implement can retry",
 	},
 
 	{ from: "awaiting_reporter", event: "confirm", to: "in_review", action: "openDraftPr" },
@@ -764,15 +766,17 @@ export const TRANSITIONS: Transition[] = [
 		from: "awaiting_reporter",
 		event: "reject",
 		to: "reproduced",
+		toByKind: { enhancement: "blocked", task: "blocked" },
 		action: "reapBranch",
-		note: "denial reaps the unvalidated branch; feedback is recorded for the next fix",
+		note: "denial reaps the unvalidated branch; directed changes remain retryable through implement",
 	},
 	{
 		from: "awaiting_reporter",
 		event: "expire",
 		to: "reproduced",
+		toByKind: { enhancement: "blocked", task: "blocked" },
 		action: "reapBranch",
-		note: "14-day silence reaps the branch; the reproduced verdict survives",
+		note: "14-day silence reaps the branch; bugs retain their verdict and directed changes remain retryable",
 	},
 	{ from: "awaiting_reporter", event: "take_over", to: "human_owned" },
 	{
@@ -820,6 +824,14 @@ export function findTransition(from: StateId, event: EventId): Transition | unde
 	return TRANSITIONS.find((t) => t.from === from && t.event === event);
 }
 
+export function transitionTarget(transition: Transition, kind: Kind | null): StateId {
+	return (kind ? transition.toByKind?.[kind] : undefined) ?? transition.to;
+}
+
+export function transitionTargets(transition: Transition): StateId[] {
+	return [...new Set([transition.to, ...Object.values(transition.toByKind ?? {})])];
+}
+
 /** Events that are valid commands from a given state (for status/help replies). */
 export function commandsFrom(from: StateId): CommandVerb[] {
 	return STATES[from].offeredCommands;
@@ -850,11 +862,13 @@ export function validateMachine(): MachineProblem[] {
 				message: `Non-deterministic: two transitions for ${key}`,
 			});
 		seen.add(key);
-		if (!STATES[t.to])
-			problems.push({
-				severity: "error",
-				message: `Transition ${key} targets unknown state ${t.to}`,
-			});
+		for (const target of transitionTargets(t)) {
+			if (!STATES[target])
+				problems.push({
+					severity: "error",
+					message: `Transition ${key} targets unknown state ${target}`,
+				});
+		}
 	}
 
 	// Unique labels across kinds + states.
@@ -884,9 +898,12 @@ export function validateMachine(): MachineProblem[] {
 	while (grew) {
 		grew = false;
 		for (const t of TRANSITIONS) {
-			if (reachable.has(t.from) && !reachable.has(t.to)) {
-				reachable.add(t.to);
-				grew = true;
+			if (!reachable.has(t.from)) continue;
+			for (const target of transitionTargets(t)) {
+				if (!reachable.has(target)) {
+					reachable.add(target);
+					grew = true;
+				}
 			}
 		}
 	}
@@ -920,7 +937,9 @@ function canReachTerminal(start: StateId): boolean {
 		if (seen.has(id)) continue;
 		seen.add(id);
 		if (STATES[id].terminal) return true;
-		for (const next of TRANSITIONS.filter((t) => t.from === id)) stack.push(next.to);
+		for (const next of TRANSITIONS.filter((t) => t.from === id)) {
+			stack.push(...transitionTargets(next));
+		}
 	}
 	return false;
 }

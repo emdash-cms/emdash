@@ -69,6 +69,8 @@ export interface SandboxOptions {
 	storage?: PluginCodeStorage;
 	/** Database for bridge operations */
 	db: Kysely<Database>;
+	/** Called immediately before a sandboxed plugin content mutation. */
+	beforeContentWrite?: () => Promise<void>;
 	/** Default resource limits */
 	limits?: ResourceLimits;
 	/** Site info for plugin context (injected into wrapper at generation time) */
@@ -138,6 +140,76 @@ export interface SerializedRequest {
 	headers: Record<string, string>;
 	/** Normalized request metadata extracted before RPC serialization */
 	meta: RequestMeta;
+}
+
+const SANDBOX_ROUTE_ERROR_DEFINITIONS = {
+	MEDIA_USAGE_ACTIVATION_IN_PROGRESS: {
+		message: "Media usage activation is in progress",
+		status: 503,
+	},
+	MEDIA_USAGE_ACTIVATION_CHECK_FAILED: {
+		message: "Unable to verify media usage activation state",
+		status: 503,
+	},
+} as const;
+
+export type SandboxRouteErrorCode = keyof typeof SANDBOX_ROUTE_ERROR_DEFINITIONS;
+
+export interface SandboxRouteErrorDetails {
+	code: SandboxRouteErrorCode;
+	message: string;
+	status: 503;
+}
+
+export interface SandboxRouteErrorEnvelope {
+	__emdashSandboxRouteError: true;
+	error: SandboxRouteErrorDetails;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+function isSandboxRouteErrorCode(value: unknown): value is SandboxRouteErrorCode {
+	return typeof value === "string" && value in SANDBOX_ROUTE_ERROR_DEFINITIONS;
+}
+
+export function getSandboxRouteErrorDetails(error: unknown): SandboxRouteErrorDetails | null {
+	if (!isRecord(error)) return null;
+
+	const propertyCode = isSandboxRouteErrorCode(error.code) ? error.code : null;
+	const nameCode =
+		error instanceof Error && isSandboxRouteErrorCode(error.name) ? error.name : null;
+	if (propertyCode && nameCode && propertyCode !== nameCode) return null;
+
+	const code = propertyCode ?? nameCode;
+	if (!code || (error.status !== undefined && error.status !== 503)) return null;
+
+	return {
+		code,
+		...SANDBOX_ROUTE_ERROR_DEFINITIONS[code],
+	};
+}
+
+export function createSandboxRouteError(
+	code: SandboxRouteErrorCode,
+): Error & SandboxRouteErrorDetails {
+	const details: SandboxRouteErrorDetails = {
+		code,
+		...SANDBOX_ROUTE_ERROR_DEFINITIONS[code],
+	};
+	return Object.assign(new Error(details.message), details, { name: code });
+}
+
+export function createSandboxRouteErrorEnvelope(error: unknown): SandboxRouteErrorEnvelope | null {
+	const details = getSandboxRouteErrorDetails(error);
+	return details ? { __emdashSandboxRouteError: true, error: details } : null;
+}
+
+export function getSandboxRouteErrorEnvelope(value: unknown): SandboxRouteErrorEnvelope | null {
+	if (!isRecord(value) || value.__emdashSandboxRouteError !== true) return null;
+	const details = getSandboxRouteErrorDetails(value.error);
+	return details ? { __emdashSandboxRouteError: true, error: details } : null;
 }
 
 /**

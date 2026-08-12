@@ -197,6 +197,49 @@ describe("validateSeed", () => {
 			expect(result.valid).toBe(true);
 			expect(result.errors).toHaveLength(0);
 		});
+
+		it("should reject list columns that do not reference collection fields", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						admin: { listColumns: ["priority"] },
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				'collections[0].admin.listColumns[0]: references unknown field "priority"',
+			);
+		});
+
+		it("should reject more than four list columns", () => {
+			const fields = ["title", "priority", "owner", "region", "category"].map((slug) => ({
+				slug,
+				label: slug,
+				type: "string",
+			}));
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						admin: { listColumns: fields.map((field) => field.slug) },
+						fields,
+					},
+				],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				"collections[0].admin.listColumns: must contain at most 4 items",
+			);
+		});
 	});
 
 	describe("taxonomy validation", () => {

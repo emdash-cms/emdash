@@ -9,6 +9,12 @@ import { localeCode } from "./common.js";
 /** Collection slug format: lowercase alphanumeric + underscores, starts with letter */
 const collectionSlugPattern = /^[a-z][a-z0-9_]*$/;
 
+const collectionSlug = z
+	.string()
+	.min(1)
+	.max(63)
+	.regex(collectionSlugPattern, "Invalid collection slug format");
+
 export const createTaxonomyDefBody = z
 	.object({
 		name: z
@@ -19,17 +25,26 @@ export const createTaxonomyDefBody = z
 		label: z.string().min(1).max(200),
 		labelSingular: z.string().min(1).max(200).optional(),
 		hierarchical: z.boolean().optional().default(false),
-		collections: z
-			.array(
-				z.string().min(1).max(63).regex(collectionSlugPattern, "Invalid collection slug format"),
-			)
-			.max(100)
-			.optional()
-			.default([]),
+		collections: z.array(collectionSlug).max(100).optional().default([]),
 		locale: localeCode.optional(),
 		translationOf: z.string().min(1).optional(),
 	})
 	.meta({ id: "CreateTaxonomyDefBody" });
+
+/**
+ * `name` and `locale` are absent on purpose: both identify the definition row
+ * being written, and `.strict()` turns an attempt to change either into a 400
+ * rather than a silently ignored field.
+ */
+export const updateTaxonomyDefBody = z
+	.object({
+		label: z.string().min(1).max(200).optional(),
+		labelSingular: z.string().min(1).max(200).nullish(),
+		hierarchical: z.boolean().optional(),
+		collections: z.array(collectionSlug).max(100).optional(),
+	})
+	.strict()
+	.meta({ id: "UpdateTaxonomyDefBody" });
 
 // ---------------------------------------------------------------------------
 // Taxonomy terms: Input schemas
@@ -118,6 +133,10 @@ export const taxonomyDefTranslationsSchema = z
 export const taxonomyListResponseSchema = z
 	.object({ taxonomies: z.array(taxonomyDefSchema) })
 	.meta({ id: "TaxonomyListResponse" });
+
+export const taxonomyResponseSchema = z
+	.object({ taxonomy: taxonomyDefSchema })
+	.meta({ id: "TaxonomyResponse" });
 
 export const termSchema = z
 	.object({

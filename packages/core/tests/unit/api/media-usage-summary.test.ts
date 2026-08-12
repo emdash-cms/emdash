@@ -101,11 +101,13 @@ describe("media usage coverage aggregation", () => {
 		collectionSlug: "posts",
 		status,
 		schemaVersion: status === null ? null : schemaVersion,
+		reconciliationRequired: false,
 	});
 
 	it.each([
 		["no collections", [], "complete"],
 		["all complete", [scope("complete")], "complete"],
+		["reconciliation required", [{ ...scope("complete"), reconciliationRequired: true }], "stale"],
 		["all missing", [scope(null), { ...scope(null), collectionSlug: "pages" }], "never"],
 		["complete and missing", [scope("complete"), scope(null)], "partial"],
 		["old complete", [scope("complete", CONTENT_SOURCE_SCHEMA_VERSION - 1)], "stale"],
@@ -244,6 +246,37 @@ describe("media usage summary handler and routes", () => {
 		);
 		expect(queries).toHaveLength(2);
 		expect(queries.filter((query) => query.includes("visible_entries"))).toHaveLength(1);
+	});
+
+	it("returns unknown counts without querying entries while reconciliation is required", async () => {
+		await db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ status: "complete", reconciliation_required: 1 })
+			.where("adapter_id", "=", CONTENT_MEDIA_USAGE_ADAPTER_ID)
+			.where("scope_type", "=", CONTENT_MEDIA_USAGE_COLLECTION_SCOPE)
+			.where("scope_key", "=", "posts")
+			.execute();
+		queries = [];
+
+		const result = await handleMediaUsageSummaries(db, [usedMedia.id, unusedMedia.id], {
+			includeCount: true,
+		});
+
+		expect(result).toEqual({
+			success: true,
+			data: {
+				[usedMedia.id]: {
+					count: null,
+					coverage: { scope: "all_content_collections", status: "stale" },
+				},
+				[unusedMedia.id]: {
+					count: null,
+					coverage: { scope: "all_content_collections", status: "stale" },
+				},
+			},
+		});
+		expect(queries).toHaveLength(1);
+		expect(queries.some((query) => query.includes("visible_entries"))).toBe(false);
 	});
 
 	it("chunks more than 50 media IDs without becoming N+1", async () => {

@@ -34,6 +34,12 @@ import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import {
+	BylineFilter,
+	EMPTY_BYLINE_FILTER,
+	isBylineFilterActive,
+	type BylineFilterState,
+} from "./BylineFilter.js";
+import {
 	ContentStatusBadge,
 	ContentStatusLabel,
 	isContentStatusState,
@@ -46,6 +52,13 @@ export type ContentListSortField = "title" | "status" | "locale" | "updatedAt";
 export interface ContentListSort {
 	field: ContentListSortField;
 	direction: "asc" | "desc";
+}
+
+export interface ContentListColumn {
+	slug: string;
+	label: string;
+	kind: string;
+	options?: Array<{ value: string; label: string }>;
 }
 
 /** Status filter values. `"all"` clears the status filter. */
@@ -69,6 +82,8 @@ export interface ContentListProps {
 	collection: string;
 	collectionLabel: string;
 	items: ContentItem[];
+	/** Validated custom-field columns from the collection manifest. */
+	listColumns?: ContentListColumn[];
 	trashedItems?: TrashedContentItem[];
 	isLoading?: boolean;
 	isTrashedLoading?: boolean;
@@ -127,6 +142,9 @@ export interface ContentListProps {
 	/** Controlled date-range filter state. */
 	dateFilter?: ContentDateFilter;
 	onDateFilterChange?: (filter: ContentDateFilter) => void;
+	/** Controlled byline filter state. */
+	bylineFilter?: BylineFilterState;
+	onBylineFilterChange?: (filter: BylineFilterState) => void;
 	/**
 	 * Bulk actions. Each is opt-in: the selection checkboxes only appear when at
 	 * least one bulk handler is provided, and each toolbar button renders only
@@ -163,6 +181,7 @@ export function ContentList({
 	collection,
 	collectionLabel,
 	items,
+	listColumns = [],
 	trashedItems = [],
 	isLoading,
 	isTrashedLoading,
@@ -190,6 +209,8 @@ export function ContentList({
 	onAuthorFilterChange,
 	dateFilter = EMPTY_DATE_FILTER,
 	onDateFilterChange,
+	bylineFilter = EMPTY_BYLINE_FILTER,
+	onBylineFilterChange,
 	onBulkPublish,
 	onBulkUnpublish,
 	onBulkDelete,
@@ -321,7 +342,7 @@ export function ContentList({
 			}
 		})();
 	};
-	const colSpan = (i18n ? 5 : 4) + (bulkEnabled ? 1 : 0);
+	const colSpan = (i18n ? 5 : 4) + listColumns.length + (bulkEnabled ? 1 : 0);
 
 	return (
 		<div className="space-y-4">
@@ -399,6 +420,9 @@ export function ContentList({
 							onAuthorFilterChange={onAuthorFilterChange}
 							dateFilter={dateFilter}
 							onDateFilterChange={onDateFilterChange}
+							bylineFilter={bylineFilter}
+							onBylineFilterChange={onBylineFilterChange}
+							locale={activeLocale ?? undefined}
 						/>
 					)}
 
@@ -511,6 +535,15 @@ export function ContentList({
 										onSortChange={onSortChange}
 										label={t`Title`}
 									/>
+									{listColumns.map((column) => (
+										<th
+											key={column.slug}
+											scope="col"
+											className="px-4 py-3 text-start text-sm font-medium"
+										>
+											{column.label}
+										</th>
+									))}
 									<SortableTh
 										field="status"
 										sort={sort}
@@ -582,6 +615,7 @@ export function ContentList({
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
 											urlPattern={urlPattern}
+											listColumns={listColumns}
 											selectable={bulkEnabled}
 											selected={selectedIds.has(item.id)}
 											onToggleSelect={toggleOne}
@@ -709,13 +743,18 @@ interface FilterBarProps {
 	onAuthorFilterChange?: (authorId: string) => void;
 	dateFilter: ContentDateFilter;
 	onDateFilterChange?: (filter: ContentDateFilter) => void;
+	bylineFilter: BylineFilterState;
+	onBylineFilterChange?: (filter: BylineFilterState) => void;
+	/** Locale the list is showing, so the byline picker offers matching rows. */
+	locale?: string;
 }
 
 /**
- * Filter controls for the content list: status, author, and a date range over
- * a chosen timestamp column (#1288). All controls report changes to the
- * parent, which owns the state and refetches. Filtering happens server-side,
- * so it works across the whole collection rather than the loaded page.
+ * Filter controls for the content list: status, author, byline, and a date
+ * range over a chosen timestamp column. All controls report changes to
+ * the parent, which owns the state and refetches. Filtering happens
+ * server-side, so it works across the whole collection rather than the loaded
+ * page.
  */
 function FilterBar({
 	statusFilter,
@@ -725,6 +764,9 @@ function FilterBar({
 	onAuthorFilterChange,
 	dateFilter,
 	onDateFilterChange,
+	bylineFilter,
+	onBylineFilterChange,
+	locale,
 }: FilterBarProps) {
 	const { t } = useLingui();
 
@@ -748,12 +790,22 @@ function FilterBar({
 	};
 
 	const hasActiveFilter =
-		statusFilter !== "all" || authorFilter !== "" || !!dateFilter.from || !!dateFilter.to;
+		statusFilter !== "all" ||
+		authorFilter !== "" ||
+		!!dateFilter.from ||
+		!!dateFilter.to ||
+		isBylineFilterActive(bylineFilter);
 
 	const handleClear = () => {
 		onStatusFilterChange("all");
 		onAuthorFilterChange?.("");
 		onDateFilterChange?.(EMPTY_DATE_FILTER);
+		// Clearing drops the selection but keeps the inferred-byline
+		// preference, which is a display choice rather than an active filter.
+		onBylineFilterChange?.({
+			...EMPTY_BYLINE_FILTER,
+			includeInferred: bylineFilter.includeInferred,
+		});
 	};
 
 	return (
@@ -793,6 +845,10 @@ function FilterBar({
 						</Select.Option>
 					))}
 				</Select>
+			)}
+
+			{onBylineFilterChange && (
+				<BylineFilter value={bylineFilter} onChange={onBylineFilterChange} locale={locale} />
 			)}
 
 			{showDateFilter && (
@@ -955,6 +1011,7 @@ interface ContentListItemProps {
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
 	urlPattern?: string;
+	listColumns: ContentListColumn[];
 	selectable?: boolean;
 	selected?: boolean;
 	onToggleSelect?: (id: string) => void;
@@ -967,6 +1024,7 @@ function ContentListItem({
 	onDuplicate,
 	showLocale,
 	urlPattern,
+	listColumns,
 	selectable,
 	selected,
 	onToggleSelect,
@@ -996,6 +1054,9 @@ function ContentListItem({
 					{title}
 				</Link>
 			</td>
+			{listColumns.map((column) => (
+				<ContentListCustomCell key={column.slug} column={column} value={item.data[column.slug]} />
+			))}
 			<td className="px-4 py-3">
 				<StatusBadge
 					status={item.status}
@@ -1081,6 +1142,102 @@ function ContentListItem({
 			</td>
 		</tr>
 	);
+}
+
+function ContentListCustomCell({
+	column,
+	value,
+}: {
+	column: ContentListColumn;
+	value: unknown;
+}): React.ReactNode {
+	const { i18n, t } = useLingui();
+	const text = formatListColumnValue(column, value, {
+		emptyLabel: t`Not set`,
+		falseLabel: t`No`,
+		locale: i18n.locale,
+		trueLabel: t`Yes`,
+	});
+	return (
+		<td className="max-w-48 px-4 py-3 text-sm">
+			<span className="block truncate" title={text}>
+				{text}
+			</span>
+		</td>
+	);
+}
+
+interface ListColumnFormatOptions {
+	emptyLabel: string;
+	falseLabel: string;
+	locale: string;
+	trueLabel: string;
+}
+
+function formatListColumnValue(
+	column: ContentListColumn,
+	value: unknown,
+	{ emptyLabel, falseLabel, locale, trueLabel }: ListColumnFormatOptions,
+): string {
+	if (value === null || value === undefined || value === "") return emptyLabel;
+
+	const optionLabel = (optionValue: unknown): string => {
+		const text = scalarListColumnValue(optionValue);
+		if (text === undefined) return emptyLabel;
+		return column.options?.find((option) => option.value === text)?.label ?? text;
+	};
+
+	switch (column.kind) {
+		case "select":
+			return optionLabel(value);
+		case "multiSelect": {
+			let values: unknown[];
+			if (Array.isArray(value)) {
+				values = value;
+			} else if (typeof value === "string") {
+				try {
+					const parsed: unknown = JSON.parse(value);
+					values = Array.isArray(parsed) ? parsed : [value];
+				} catch {
+					values = [value];
+				}
+			} else {
+				values = [value];
+			}
+			return values.length > 0
+				? new Intl.ListFormat(locale, { style: "short", type: "unit" }).format(
+						values.map(optionLabel),
+					)
+				: emptyLabel;
+		}
+		case "boolean":
+			return value === true || value === 1 || value === "1" || value === "true"
+				? trueLabel
+				: falseLabel;
+		case "datetime": {
+			const text = scalarListColumnValue(value);
+			if (text === undefined) return emptyLabel;
+			const date = new Date(text);
+			return Number.isNaN(date.getTime()) ? text : new Intl.DateTimeFormat(locale).format(date);
+		}
+		case "number": {
+			if (typeof value === "number" || typeof value === "bigint") {
+				return new Intl.NumberFormat(locale).format(value);
+			}
+			return scalarListColumnValue(value) ?? emptyLabel;
+		}
+		case "string":
+		default:
+			return scalarListColumnValue(value) ?? emptyLabel;
+	}
+}
+
+function scalarListColumnValue(value: unknown): string | undefined {
+	if (typeof value === "string") return value;
+	if (typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
+		return String(value);
+	}
+	return undefined;
 }
 
 interface TrashedListItemProps {

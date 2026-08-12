@@ -11,7 +11,7 @@
 
 import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { createBridgeHandler } from "../src/sandbox/bridge-handler.js";
 
@@ -80,6 +80,7 @@ describe("Bridge Handler Conformance", () => {
 		capabilities?: string[];
 		allowedHosts?: string[];
 		storageCollections?: string[];
+		beforeContentWrite?: () => Promise<void>;
 	}) {
 		return createBridgeHandler({
 			pluginId: "test-plugin",
@@ -89,6 +90,7 @@ describe("Bridge Handler Conformance", () => {
 			storageCollections: opts.storageCollections ?? [],
 			db,
 			emailSend: () => null,
+			beforeContentWrite: opts.beforeContentWrite,
 		});
 	}
 
@@ -606,6 +608,41 @@ describe("Bridge Handler Conformance", () => {
 	});
 
 	// ── Batch transactionality ────────────────────────────────────────────
+
+	it("checks the activation fence at the sandbox content-write boundary", async () => {
+		const beforeContentWrite = vi.fn(async () => {
+			throw Object.assign(new Error("Media usage activation is in progress"), {
+				name: "MEDIA_USAGE_ACTIVATION_IN_PROGRESS",
+				code: "MEDIA_USAGE_ACTIVATION_IN_PROGRESS",
+				status: 503,
+			});
+		});
+		const handler = makeHandler({
+			capabilities: ["write:content"],
+			beforeContentWrite,
+		});
+
+		const response = await handler(
+			new Request("http://bridge/content/create", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					collection: "posts",
+					data: { slug: "blocked" },
+				}),
+			}),
+		);
+
+		expect(response.status).toBe(503);
+		expect((await response.json()) as unknown).toEqual({
+			error: {
+				code: "MEDIA_USAGE_ACTIVATION_IN_PROGRESS",
+				message: "Media usage activation is in progress",
+				status: 503,
+			},
+		});
+		expect(beforeContentWrite).toHaveBeenCalledOnce();
+	});
 
 	describe("batch operations are transactional", () => {
 		beforeEach(async () => {

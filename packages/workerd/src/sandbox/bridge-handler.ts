@@ -14,7 +14,12 @@
  * must produce same outputs, same return shapes, same error messages.
  */
 
-import { createHttpAccess, createUnrestrictedHttpAccess, PluginStorageRepository } from "emdash";
+import {
+	createHttpAccess,
+	createSandboxRouteErrorEnvelope,
+	createUnrestrictedHttpAccess,
+	PluginStorageRepository,
+} from "emdash";
 import type { Database, SandboxEmailSendCallback } from "emdash";
 import { sql, type Kysely, type RawBuilder } from "kysely";
 
@@ -97,6 +102,7 @@ export interface BridgeHandlerOptions {
 	/** Full storage config (with indexes) for proper query/count delegation */
 	storageConfig?: Record<string, BridgeStorageCollectionConfig>;
 	db: Kysely<Database>;
+	beforeContentWrite?: () => Promise<void>;
 	emailSend: () => SandboxEmailSendCallback | null;
 	/** Storage for media uploads. Optional; media/upload throws if not provided. */
 	storage?: BridgeStorage | null;
@@ -129,6 +135,13 @@ export function createBridgeHandler(
 			const result = await dispatch(opts, method, body);
 			return Response.json({ result });
 		} catch (error) {
+			const sandboxRouteError = createSandboxRouteErrorEnvelope(error);
+			if (sandboxRouteError) {
+				return Response.json(
+					{ error: sandboxRouteError.error },
+					{ status: sandboxRouteError.error.status },
+				);
+			}
 			const message = error instanceof Error ? error.message : "Internal error";
 			return new Response(JSON.stringify({ error: message }), {
 				status: 500,
@@ -167,9 +180,11 @@ async function dispatch(
 			return contentList(db, requireString(body, "collection"), body);
 		case "content/create":
 			requireCapability(opts, "write:content");
+			await opts.beforeContentWrite?.();
 			return contentCreate(db, requireString(body, "collection"), requireRecord(body, "data"));
 		case "content/update":
 			requireCapability(opts, "write:content");
+			await opts.beforeContentWrite?.();
 			return contentUpdate(
 				db,
 				requireString(body, "collection"),
@@ -178,9 +193,11 @@ async function dispatch(
 			);
 		case "content/delete":
 			requireCapability(opts, "write:content");
+			await opts.beforeContentWrite?.();
 			return contentDelete(db, requireString(body, "collection"), requireString(body, "id"));
 		case "content/createMany":
 			requireCapability(opts, "write:content");
+			await opts.beforeContentWrite?.();
 			return contentCreateMany(
 				db,
 				requireString(body, "collection"),
@@ -188,6 +205,7 @@ async function dispatch(
 			);
 		case "content/updateMany":
 			requireCapability(opts, "write:content");
+			await opts.beforeContentWrite?.();
 			return contentUpdateMany(
 				db,
 				requireString(body, "collection"),
@@ -195,6 +213,7 @@ async function dispatch(
 			);
 		case "content/deleteMany":
 			requireCapability(opts, "write:content");
+			await opts.beforeContentWrite?.();
 			return contentDeleteMany(
 				db,
 				requireString(body, "collection"),

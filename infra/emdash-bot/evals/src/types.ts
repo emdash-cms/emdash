@@ -39,12 +39,28 @@ export interface Dataset {
 
 /**
  * The investigate agent's structured result, reported via `report_result`.
- * Mirrors the agent's `reportedResultSchema` ({ result, ok, pushed }).
+ * Mirrors the agent's `reportedResultSchema`.
  */
 export interface ReportedResult {
 	readonly result: AgentResult;
 	readonly ok: boolean;
 	readonly pushed: boolean;
+	readonly runId: string;
+	readonly publication: CandidatePublication | null;
+	readonly verification: readonly VerificationRecord[];
+}
+
+export interface CandidatePublication {
+	readonly branch: string;
+	readonly commitSha: string;
+	readonly files: readonly string[];
+}
+
+export interface VerificationRecord {
+	readonly name: string;
+	readonly command: string;
+	readonly exitCode: number;
+	readonly candidateTreeSha: string;
 }
 
 export interface AgentResult {
@@ -52,8 +68,10 @@ export interface AgentResult {
 	readonly reproduced?: boolean;
 	readonly rootCauseFound?: boolean;
 	readonly fixed?: boolean;
+	readonly implemented?: boolean;
 	readonly verdict?: string;
 	readonly summary?: string;
+	readonly failureStage?: "workspace" | "verification" | "publication" | "reporting";
 	readonly screenshots?: readonly unknown[];
 }
 

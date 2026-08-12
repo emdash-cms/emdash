@@ -111,6 +111,21 @@ describe("core media route injection", () => {
 		);
 	});
 
+	it("skips the collection sitemap route when the site defines its own", async () => {
+		await withTempSrcDir(
+			{
+				"pages/sitemap-[collection].xml.ts": "export const GET = () => new Response('');",
+			},
+			(srcDir) => {
+				const routes = collectRoutePatterns(srcDir);
+
+				expect(routes).not.toContain("/sitemap-[collection].xml");
+				expect(routes).toContain("/sitemap.xml");
+				expect(routes).toContain("/robots.txt");
+			},
+		);
+	});
+
 	it("detects index route files for root public route overrides", async () => {
 		await withTempSrcDir(
 			{

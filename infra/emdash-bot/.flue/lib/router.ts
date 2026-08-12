@@ -14,6 +14,7 @@ import {
 	findTransition,
 	KINDS,
 	STATES,
+	transitionTarget,
 	type Actor,
 	type EventId,
 	type Kind,
@@ -218,7 +219,8 @@ export function resolve({ labels, event, arg, actor }: ResolveInput): Decision {
 	if (!from) return { kind: "noop", reason: "item has conflicting state labels" };
 	const t = findTransition(from, event);
 	if (!t) return { kind: "noop", reason: `no transition for ${from} + ${event}`, from };
-	const toLabel = STATES[t.to].label;
+	const to = transitionTarget(t, currentKind(labels));
+	const toLabel = STATES[to].label;
 	const removeLabels = STATE_LABELS.filter((l) => l !== toLabel);
 
 	// Entry from unmanaged or triage: ensure the kind label matches the verb.
@@ -243,7 +245,7 @@ export function resolve({ labels, event, arg, actor }: ResolveInput): Decision {
 	return {
 		kind: "transition",
 		from,
-		to: t.to,
+		to,
 		action: t.action ?? null,
 		addLabel: toLabel,
 		addLabels,
@@ -325,6 +327,7 @@ export interface AgentResult {
 	reproduced?: boolean;
 	rootCauseFound?: boolean;
 	fixed?: boolean;
+	implemented?: boolean;
 	verdict?: string;
 	[key: string]: unknown;
 }
@@ -364,6 +367,9 @@ export function outcomeFromResult({
 	}
 	if (effectiveMode === "fix") {
 		return result.fixed === true && pushed === true ? "agent.fix_ready" : "agent.failed";
+	}
+	if (effectiveMode === "implement") {
+		return result.implemented === true && pushed === true ? "agent.fix_ready" : "agent.failed";
 	}
 	if (effectiveMode === "repro" && result.reproduced !== true) {
 		return result.rootCauseFound === true ? "agent.diagnosed" : "agent.not_reproduced";

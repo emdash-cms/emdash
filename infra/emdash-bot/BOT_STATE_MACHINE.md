@@ -51,7 +51,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `agent.by_design` | agent result | system | — | Agent verified the behaviour as intended. |
 | `agent.reproduced` | agent result | system | — | Reproduced, but the fix needs a human decision. |
 | `agent.diagnosed` | agent result | system | — | Root cause identified without a confirming reproduction. |
-| `agent.fix_ready` | agent result | system | — | Reproduced and fixed; a verified change is staged on bot/fix-<n>. |
+| `agent.fix_ready` | agent result | system | — | A verified candidate change is published on bot/fix-<n>. |
 | `agent.needs_info` | agent result | system | — | Investigation is blocked on information only the reporter can supply. |
 | `agent.failed` | agent result | system | — | Agent run errored or produced no usable result. |
 | `pr.opened` | pr lifecycle | system | — | A bot PR was opened for this item. |
@@ -59,7 +59,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `pr.closed` | pr lifecycle | system | — | The bot PR was closed without merging. |
 | `pr.changes_requested` | pr lifecycle | system | — | A reviewer requested changes (review sub-state). |
 | `pr.approved` | pr lifecycle | system | — | A reviewer approved the PR (review sub-state). |
-| `preview.ready` | preview | system | — | The preview deploy for the candidate fix is live; link ready to post. |
+| `preview.ready` | preview | system | — | The preview deploy for the candidate change is live; link ready to post. |
 | `preview.failed` | preview | system | — | The preview deploy failed to build. |
 | `expire` | timer | system | — | The reporter-confirmation window elapsed without a reply. |
 
@@ -68,10 +68,10 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | From | Event | To | Action |
 | --- | --- | --- | --- |
 | `unmanaged` | `repro` | `working` | `investigate.repro` |
-| `unmanaged` | `implement` | `working` | `investigate.implement` |
+| `unmanaged` | `implement` | `fixing` | `investigate.implement` |
 | `unmanaged` | `decline` | `declined` | — |
 | `triage` | `repro` | `working` | `investigate.repro` |
-| `triage` | `implement` | `working` | `investigate.implement` |
+| `triage` | `implement` | `fixing` | `investigate.implement` |
 | `triage` | `decline` | `declined` | — |
 | `working` | `agent.skipped` | `blocked` | — |
 | `working` | `agent.not_reproduced` | `blocked` | — |
@@ -79,7 +79,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `working` | `agent.reproduced` | `blocked` | — |
 | `working` | `agent.fix_ready` | `awaiting_feedback` | — |
 | `working` | `agent.failed` | `failed` | — |
-| `blocked` | `implement` | `working` | `investigate.implement` |
+| `blocked` | `implement` | `fixing` | `investigate.implement` |
 | `blocked` | `repro` | `working` | `investigate.repro` |
 | `blocked` | `retry` | `working` | `investigate.repro` |
 | `blocked` | `decline` | `declined` | — |
@@ -114,7 +114,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `done` | `reopen` | `triage` | — |
 | `declined` | `reopen` | `triage` | — |
 | `failed` | `retry` | `working` | `investigate.repro` |
-| `failed` | `implement` | `working` | `investigate.implement` |
+| `failed` | `implement` | `fixing` | `investigate.implement` |
 | `failed` | `repro` | `working` | `investigate.repro` |
 | `failed` | `decline` | `declined` | — |
 | `unmanaged` | `investigate` | `investigating` | `investigate.diagnose` |
@@ -147,10 +147,10 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `fixing` | `agent.by_design` | `blocked` | — |
 | `fixing` | `agent.skipped` | `blocked` | — |
 | `preview_building` | `preview.ready` | `awaiting_reporter` | — |
-| `preview_building` | `preview.failed` | `reproduced` | — |
+| `preview_building` | `preview.failed` | default: `reproduced`; `enhancement`: `blocked`; `task`: `blocked` | — |
 | `awaiting_reporter` | `confirm` | `in_review` | `openDraftPr` |
-| `awaiting_reporter` | `reject` | `reproduced` | `reapBranch` |
-| `awaiting_reporter` | `expire` | `reproduced` | `reapBranch` |
+| `awaiting_reporter` | `reject` | default: `reproduced`; `enhancement`: `blocked`; `task`: `blocked` | `reapBranch` |
+| `awaiting_reporter` | `expire` | default: `reproduced`; `enhancement`: `blocked`; `task`: `blocked` | `reapBranch` |
 | `awaiting_reporter` | `take_over` | `human_owned` | — |
 | `awaiting_reporter` | `decline` | `declined` | `reapBranch` |
 | `investigating` | `reset` | `triage` | — |
@@ -167,10 +167,10 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 stateDiagram-v2
     [*] --> unmanaged
     unmanaged --> working: repro / investigate.repro
-    unmanaged --> working: implement / investigate.implement
+    unmanaged --> fixing: implement / investigate.implement
     unmanaged --> declined: decline
     triage --> working: repro / investigate.repro
-    triage --> working: implement / investigate.implement
+    triage --> fixing: implement / investigate.implement
     triage --> declined: decline
     working --> blocked: agent.skipped
     working --> blocked: agent.not_reproduced
@@ -178,7 +178,7 @@ stateDiagram-v2
     working --> blocked: agent.reproduced
     working --> awaiting_feedback: agent.fix_ready
     working --> failed: agent.failed
-    blocked --> working: implement / investigate.implement
+    blocked --> fixing: implement / investigate.implement
     blocked --> working: repro / investigate.repro
     blocked --> working: retry / investigate.repro
     blocked --> declined: decline
@@ -213,7 +213,7 @@ stateDiagram-v2
     done --> triage: reopen
     declined --> triage: reopen
     failed --> working: retry / investigate.repro
-    failed --> working: implement / investigate.implement
+    failed --> fixing: implement / investigate.implement
     failed --> working: repro / investigate.repro
     failed --> declined: decline
     unmanaged --> investigating: investigate / investigate.diagnose
@@ -246,10 +246,13 @@ stateDiagram-v2
     fixing --> blocked: agent.by_design
     fixing --> blocked: agent.skipped
     preview_building --> awaiting_reporter: preview.ready
-    preview_building --> reproduced: preview.failed
+    preview_building --> reproduced: preview.failed [default]
+    preview_building --> blocked: preview.failed [enhancement, task]
     awaiting_reporter --> in_review: confirm / openDraftPr
-    awaiting_reporter --> reproduced: reject / reapBranch
-    awaiting_reporter --> reproduced: expire / reapBranch
+    awaiting_reporter --> reproduced: reject [default] / reapBranch
+    awaiting_reporter --> blocked: reject [enhancement, task] / reapBranch
+    awaiting_reporter --> reproduced: expire [default] / reapBranch
+    awaiting_reporter --> blocked: expire [enhancement, task] / reapBranch
     awaiting_reporter --> human_owned: take_over
     awaiting_reporter --> declined: decline / reapBranch
     investigating --> triage: reset

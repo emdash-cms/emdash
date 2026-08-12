@@ -8,6 +8,7 @@
 // ask comment only advertises a preview that has actually resolved.
 
 const PREVIEW_PROBE_TIMEOUT_MS = 10_000;
+const PREVIEW_PACKAGE_CHARS = /^[a-zA-Z0-9@._/-]+$/;
 
 /** The fix branch pkg.pr.new keys the preview to. */
 export function fixBranch(issueNumber: number): string {
@@ -38,13 +39,22 @@ export function branchesToReap(issueNumber: number, hasOpenFixPr: boolean): stri
  * that 404s. This same URL is what the readiness probe polls and what the ask
  * comment advertises, so there is one source of truth.
  */
-export function previewUrl(issueNumber: number): string {
-	return `https://pkg.pr.new/emdash@${fixBranch(issueNumber)}`;
+export function previewUrl(issueNumber: number, previewPackage = "emdash"): string {
+	if (
+		previewPackage === "" ||
+		previewPackage.startsWith("/") ||
+		previewPackage.endsWith("/") ||
+		!PREVIEW_PACKAGE_CHARS.test(previewPackage) ||
+		previewPackage.split("/").some((part) => part === "." || part === "..")
+	) {
+		throw new Error(`invalid preview package: ${previewPackage}`);
+	}
+	return `https://pkg.pr.new/${previewPackage}@${fixBranch(issueNumber)}`;
 }
 
 /** The one-line install command posted in the ask comment. */
-export function previewInstallCommand(issueNumber: number): string {
-	return `npm i ${previewUrl(issueNumber)}`;
+export function previewInstallCommand(issueNumber: number, previewPackage = "emdash"): string {
+	return `npm i ${previewUrl(issueNumber, previewPackage)}`;
 }
 
 /**

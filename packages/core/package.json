@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.32.0",
+  "version": "0.33.0",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -36,6 +36,10 @@
     "./middleware/auth": {
       "types": "./dist/astro/middleware/auth.d.mts",
       "default": "./dist/astro/middleware/auth.mjs"
+    },
+    "./middleware/media-usage-write-fence": {
+      "types": "./dist/astro/middleware/media-usage-write-fence.d.mts",
+      "default": "./dist/astro/middleware/media-usage-write-fence.mjs"
     },
     "./middleware/redirect": {
       "types": "./dist/astro/middleware/redirect.d.mts",
@@ -201,6 +205,7 @@
     "typecheck": "tsgo --noEmit",
     "check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution --ignore-rules=internal-resolution-error",
     "test": "vitest",
+    "test:workerd": "vitest run --config vitest.workerd.config.ts",
     "test:smoke": "vitest run --config vitest.smoke.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:repro": "vitest run --config vitest.repro.config.ts"
@@ -274,6 +279,7 @@
   "devDependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
     "@arethetypeswrong/cli": "catalog:",
+    "@cloudflare/vitest-pool-workers": "catalog:",
     "@emdash-cms/blocks": "workspace:*",
     "@types/better-sqlite3": "^7.6.12",
     "@types/pg": "^8.16.0",
