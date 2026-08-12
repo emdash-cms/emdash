@@ -25,6 +25,10 @@
       "types": "./dist/db/hyperdrive.d.mts",
       "default": "./dist/db/hyperdrive.mjs"
     },
+    "./db/hyperdrive-migrations": {
+      "types": "./dist/db/hyperdrive-migrations.d.mts",
+      "default": "./dist/db/hyperdrive-migrations.mjs"
+    },
     "./db/do": {
       "types": "./dist/db/do.d.mts",
       "default": "./dist/db/do.mjs"
