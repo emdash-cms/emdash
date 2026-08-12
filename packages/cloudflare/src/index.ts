@@ -274,6 +274,10 @@ export function d1(config: D1Config): DatabaseDescriptor {
 		entrypoint: "@emdash-cms/cloudflare/db/d1",
 		config,
 		type: "sqlite",
+		migrations: {
+			entrypoint: "@emdash-cms/cloudflare/db/d1-migrations",
+			manifestConfig: { binding: config.binding },
+		},
 		supportsRequestScope: true,
 		supportsCoalescing: true,
 		supportsCollectionDeletionGuard: true,

@@ -17,6 +17,10 @@
       "types": "./dist/db/d1.d.mts",
       "default": "./dist/db/d1.mjs"
     },
+    "./db/d1-migrations": {
+      "types": "./dist/db/d1-migrations.d.mts",
+      "default": "./dist/db/d1-migrations.mjs"
+    },
     "./db/hyperdrive": {
       "types": "./dist/db/hyperdrive.d.mts",
       "default": "./dist/db/hyperdrive.mjs"
