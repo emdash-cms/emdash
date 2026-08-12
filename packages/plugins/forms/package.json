@@ -8,6 +8,7 @@
 		".": "./src/index.ts",
 		"./admin": "./src/admin.tsx",
 		"./astro": "./src/astro/index.ts",
+		"./ui": "./src/astro/ui.ts",
 		"./client": "./src/client/index.ts",
 		"./styles": "./src/styles/forms.css"
 	},
