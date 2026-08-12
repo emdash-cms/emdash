@@ -214,31 +214,29 @@ database: postgres({
 
 ### Database role requirements
 
-EmDash creates and updates its own PostgreSQL tables. Core migrations create and alter system tables, content types create `ec_*` tables, and adding or removing a field alters its collection table. The configured PostgreSQL role therefore needs schema authority for the lifetime of the site, not only during initial setup.
+EmDash creates and updates its own PostgreSQL tables. Core migrations create and alter system and collection tables, content types create `ec_*` tables, and adding or removing a field alters its collection table. The configured PostgreSQL role therefore needs schema authority for the lifetime of the site, not only during initial setup.
 
 Use one canonical role for EmDash. It needs:
 
 - `CONNECT` on the database;
 - `USAGE` and `CREATE` on the active schema;
-- ownership of every EmDash table and function, or inherited privileges from the role that owns it; and
+- ownership of every EmDash table and function, either directly or through membership with `INHERIT` in the owning role; and
 - `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on those tables.
 
-It does not need to be a superuser or have `CREATEDB`, `CREATEROLE`, or `CREATE EXTENSION`. PostgreSQL does not provide an `ALTER` or `DROP` table grant: those operations belong to the object owner and roles that inherit its privileges. Granting `ALL` on a table to a different role does not make that role an owner. EmDash does not run `SET ROLE`, so membership configured without inheritance is not sufficient.
+It does not need to be a superuser, have `CREATEDB` or `CREATEROLE`, or create extensions. PostgreSQL does not provide an `ALTER` or `DROP` table grant: those operations belong to the object owner and roles that inherit its privileges. Granting `ALL` on a table to a different role does not make that role an owner. EmDash does not run `SET ROLE`, so membership configured without inheritance is not sufficient.
 
 <Aside type="caution" title="Keep the role stable">
 	PostgreSQL assigns each table to the role that creates it. Changing the user in `DATABASE_URL` or a Hyperdrive configuration does not transfer existing tables. A replacement role may be able to read and write rows but still fail on the next migration or content-type change with `must be owner of table`.
 </Aside>
 
-#### Dedicated schema
-
-A dedicated schema keeps EmDash objects and ownership separate from other applications. Create it with an administrative connection before starting EmDash:
+Most installations can use the database's existing schema, commonly `public`. This is the simplest option when the database is dedicated to EmDash. In the examples below, `emdash_app` is the login role in EmDash's connection string; use an existing provider role or create a dedicated login. Grant it access with an administrative connection, substituting your database, schema, and role names:
 
 ```sql
-CREATE ROLE emdash_app LOGIN PASSWORD 'replace-with-a-secret';
 GRANT CONNECT ON DATABASE app TO emdash_app;
-CREATE SCHEMA emdash AUTHORIZATION emdash_app;
-ALTER ROLE emdash_app IN DATABASE app SET search_path = emdash;
+GRANT USAGE, CREATE ON SCHEMA public TO emdash_app;
 ```
+
+These grants let the role create new objects. They do not change the owner of existing tables; see [Repair mixed PostgreSQL ownership](#repair-mixed-postgresql-ownership).
 
 EmDash uses PostgreSQL's active `current_schema()`. It does not create a schema or set `search_path`, so verify the connection before deployment:
 
@@ -251,14 +249,19 @@ SELECT
   current_setting('search_path');
 ```
 
-If you use an existing schema instead, grant the canonical role access explicitly:
+#### Optional: use a dedicated schema
+
+Use a dedicated schema when EmDash shares a database with another application or when you want its objects isolated from `public`. This is optional and is easiest to configure before the first EmDash setup. A database dedicated to EmDash does not need a separate schema.
+
+Assuming the canonical `emdash_app` role already exists, create and select its schema with an administrative connection:
 
 ```sql
 GRANT CONNECT ON DATABASE app TO emdash_app;
-GRANT USAGE, CREATE ON SCHEMA public TO emdash_app;
+CREATE SCHEMA emdash AUTHORIZATION emdash_app;
+ALTER ROLE emdash_app IN DATABASE app SET search_path = emdash;
 ```
 
-These grants let the role create new objects. They do not change the owner of existing tables; see [Repair mixed ownership](#repair-mixed-ownership).
+This does not move an existing installation from `public` or repair mixed ownership. Existing sites should keep their current schema and follow [Repair mixed PostgreSQL ownership](#repair-mixed-postgresql-ownership) instead.
 
 ### Connection Pooling
 
@@ -411,13 +414,21 @@ This is the [two-configuration pattern](https://developers.cloudflare.com/hyperd
 	Both configurations should use the **same PostgreSQL role**, database, and schema. If you later replace the primary configuration with a different role, PostgreSQL does not transfer the existing objects with it. Set `preferUncachedAfterWriteMs` to your cached config's `max_age` (default 60s) so post-publish public rebuilds read fresh SQL. Outside that window, anonymous public reads can still be up to `max_age` stale relative to non-content writes. Only opt in if that trade-off is acceptable; otherwise omit `cachedBinding` and keep caching disabled.
 </Aside>
 
-#### Using a separate cached role
+<Aside type="note">
+	Cross-isolate post-write routing uses the configured distributed Object Cache backend to share the last-content-write timestamp. Without a distributed Object Cache, the prefer-uncached window is known only to the Worker isolate that handled the write.
+</Aside>
+
+<Aside>
+	**Sandboxed plugins are D1-only.** The sandbox plugin bridge talks to a D1 binding directly, independent of the configured adapter, so sandboxed plugins aren't available on a Hyperdrive deployment.
+</Aside>
+
+#### Optional: use a separate cached role
 
 Migrations, setup, authenticated requests, and explicit write requests always use the primary `binding`. A separate role for `cachedBinding` does not need schema ownership or `CREATE`, but it needs `CONNECT`, schema `USAGE`, and `SELECT` on every table used by the public site.
 
 Anonymous public `GET` and `HEAD` requests can also record redirect hits and 404s. To preserve those features, the cached role additionally needs `UPDATE` on `_emdash_redirects` and `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on `_emdash_404_log`. Plugins or application code that writes during a public `GET` or `HEAD` may require more. Use the same role for both bindings unless you have tested the site with a restricted cached role.
 
-Add the cached role after EmDash has completed its initial migrations. Create the login and database settings with your provider's administrative role:
+Add the cached role after EmDash has completed its initial migrations. The examples below use the optional `emdash` schema; substitute your active schema, such as `public`. Create the login and database settings with your provider's administrative role:
 
 ```sql
 CREATE ROLE emdash_cached LOGIN PASSWORD 'replace-with-a-secret';
@@ -439,7 +450,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA emdash
 
 Connect with both roles and verify they report the same `current_database()` and `current_schema()` before enabling `cachedBinding`. On a shared schema, `GRANT SELECT ON ALL TABLES` also exposes unrelated tables. Grant access to individual EmDash tables instead, and update those grants when collections or other schema objects are added.
 
-### Repair mixed ownership
+## Repair mixed PostgreSQL ownership
 
 If a site has used multiple PostgreSQL users, first choose the canonical role that the primary EmDash connection will continue using. Take a backup and stop schema changes while repairing ownership.
 
@@ -487,14 +498,6 @@ For a non-superuser to transfer ownership, it must own or inherit ownership of t
 
 <Aside type="caution" title="Do not reassign unrelated objects">
 	`REASSIGN OWNED` changes every object owned by a role in the current database, including objects unrelated to EmDash, and can also affect shared objects. Use targeted `ALTER TABLE ... OWNER TO ...` statements unless the old role was dedicated exclusively to this EmDash database.
-</Aside>
-
-<Aside type="note">
-	Cross-isolate post-write routing uses the configured distributed Object Cache backend to share the last-content-write timestamp. Without a distributed Object Cache, the prefer-uncached window is known only to the Worker isolate that handled the write.
-</Aside>
-
-<Aside>
-	**Sandboxed plugins are D1-only.** The sandbox plugin bridge talks to a D1 binding directly, independent of the configured adapter, so sandboxed plugins aren't available on a Hyperdrive deployment.
 </Aside>
 
 ## SQLite
