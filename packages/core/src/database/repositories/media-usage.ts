@@ -458,18 +458,25 @@ export class MediaUsageRepository {
 	): Promise<MediaUsageSource> {
 		const generation = ulid();
 
-		await this.withGenerationWriteLease(source.sourceKey, generation, async (leaseToken, now) => {
-			await withTransaction(this.db, async (trx) => {
-				if (!(await this.lockCanonicalSourceCollection(trx, source))) {
-					throw new Error(`Media usage collection is no longer current for ${source.sourceKey}`);
-				}
-				await this.insertOccurrences(trx, source.sourceKey, generation, occurrences, now);
-				const promoted = await this.upsertSource(trx, source, generation, now, leaseToken);
-				if (!promoted) {
-					throw new Error(`Media usage generation lease expired for ${source.sourceKey}`);
-				}
-			});
-		});
+		const admitted = await this.withGenerationWriteLease(
+			source,
+			generation,
+			async (leaseToken, now) => {
+				await withTransaction(this.db, async (trx) => {
+					if (!(await this.lockCanonicalSourceCollection(trx, source))) {
+						throw new Error(`Media usage collection is no longer current for ${source.sourceKey}`);
+					}
+					await this.insertOccurrences(trx, source.sourceKey, generation, occurrences, now);
+					const promoted = await this.upsertSource(trx, source, generation, now, leaseToken);
+					if (!promoted) {
+						throw new Error(`Media usage generation lease expired for ${source.sourceKey}`);
+					}
+				});
+			},
+		);
+		if (!admitted) {
+			throw new Error(`Media usage collection is no longer current for ${source.sourceKey}`);
+		}
 
 		const replaced = await this.findSource(source.sourceKey);
 		if (!replaced) {
@@ -491,7 +498,7 @@ export class MediaUsageRepository {
 		const generation = ulid();
 		let replaced = false;
 
-		await this.withGenerationWriteLease(source.sourceKey, generation, async (leaseToken, now) => {
+		await this.withGenerationWriteLease(source, generation, async (leaseToken, now) => {
 			const row = this.buildSourceRow(source, generation, now);
 			await withTransaction(this.db, async (trx) => {
 				if (!(await this.lockCanonicalSourceCollection(trx, source))) return;
@@ -592,7 +599,7 @@ export class MediaUsageRepository {
 		const generation = ulid();
 		let replaced = false;
 
-		await this.withGenerationWriteLease(source.sourceKey, generation, async (leaseToken, now) => {
+		await this.withGenerationWriteLease(source, generation, async (leaseToken, now) => {
 			const row = this.buildSourceRow(source, generation, now);
 			await withTransaction(this.db, async (trx) => {
 				if (!(await this.lockCanonicalSourceCollection(trx, source))) return;
@@ -627,7 +634,7 @@ export class MediaUsageRepository {
 		}
 
 		const generation = ulid();
-		await this.withGenerationWriteLease(source.sourceKey, generation, async (leaseToken, now) => {
+		await this.withGenerationWriteLease(source, generation, async (leaseToken, now) => {
 			const row = this.buildAttemptedSourceRow(source, generation, now);
 			const updates = this.attemptedSourceUpdateSet(source, row);
 			const result = await this.db
@@ -655,7 +662,7 @@ export class MediaUsageRepository {
 		let attempted = false;
 
 		if (expectedSource === null) {
-			await this.withGenerationWriteLease(source.sourceKey, generation, async (leaseToken, now) => {
+			await this.withGenerationWriteLease(source, generation, async (leaseToken, now) => {
 				const row = this.buildAttemptedSourceRow(source, generation, now);
 				await withTransaction(this.db, async (trx) => {
 					if (!(await this.lockCanonicalSourceCollection(trx, source))) return;
@@ -2360,33 +2367,39 @@ export class MediaUsageRepository {
 			: sql<boolean>`${leaseExpiresAt} > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
 	}
 
-	private async withGenerationWriteLease<T>(
-		sourceKey: string,
+	private async withGenerationWriteLease(
+		source: Pick<MediaUsageSourceInput, "sourceKey" | "collectionId" | "collectionSlug">,
 		generation: string,
-		write: (leaseToken: string, startedAt: string) => Promise<T>,
-	): Promise<T> {
+		write: (leaseToken: string, startedAt: string) => Promise<void>,
+	): Promise<boolean> {
 		const leaseToken = ulid();
-		const lease = await this.db
-			.insertInto("_emdash_media_usage_generation_writes")
-			.values({
-				source_key: sourceKey,
-				generation,
-				lease_token: leaseToken,
-				expires_at: this.generationWriteLeaseTimestampOffset(
-					MEDIA_USAGE_GENERATION_WRITE_LEASE_MS / 1000,
-				),
-				created_at: this.generationWriteLeaseTimestampOffset(0),
-			})
-			.returning("created_at")
-			.executeTakeFirstOrThrow();
+		const lease = await sql<{ created_at: string }>`
+			INSERT INTO _emdash_media_usage_generation_writes (
+				source_key, generation, lease_token, expires_at, created_at
+			)
+			SELECT
+				${source.sourceKey},
+				${generation},
+				${leaseToken},
+				${this.generationWriteLeaseTimestampOffset(MEDIA_USAGE_GENERATION_WRITE_LEASE_MS / 1000)},
+				${this.generationWriteLeaseTimestampOffset(0)}
+			WHERE ${this.currentCollectionExists(
+				source.collectionId ?? null,
+				source.collectionSlug ?? null,
+			)}
+			RETURNING created_at
+		`.execute(this.db);
+		const owner = lease.rows[0];
+		if (!owner) return false;
 
 		try {
-			return await write(leaseToken, lease.created_at);
+			await write(leaseToken, owner.created_at);
+			return true;
 		} finally {
 			try {
 				await this.db
 					.deleteFrom("_emdash_media_usage_generation_writes")
-					.where("source_key", "=", sourceKey)
+					.where("source_key", "=", source.sourceKey)
 					.where("generation", "=", generation)
 					.where("lease_token", "=", leaseToken)
 					.execute();

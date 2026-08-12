@@ -5,8 +5,10 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { RawBindingD1Dialect } from "../../../cloudflare/src/db/d1-dialect.js";
 import { executeCollectionDeletionGuard } from "../../../cloudflare/src/db/d1.js";
 import { runMigrations } from "../../src/database/migrations/runner.js";
+import { MediaUsageRepository } from "../../src/database/repositories/media-usage.js";
 import type { Database } from "../../src/database/types.js";
 import { processDueMediaUsageCollectionDeletions } from "../../src/media/usage/collection-deletion-processor.js";
+import { buildContentMediaUsageSourceKey } from "../../src/media/usage/source-key.js";
 
 declare module "cloudflare:test" {
 	interface ProvidedEnv {
@@ -37,6 +39,62 @@ it("rejects interpolated collection identifiers before issuing D1 SQL", async ()
 			},
 		),
 	).rejects.toThrow(/valid collection slug/i);
+});
+
+it("does not leave projection rows after collection identity disappears", async () => {
+	const collectionId = "collection-d1-stale-projection";
+	const collectionSlug = "d1_stale_projection";
+	const contentId = "entry-1";
+	const sourceKey = buildContentMediaUsageSourceKey({
+		collectionId,
+		collectionSlug,
+		contentId,
+		sourceVariant: "columns",
+	});
+	await db
+		.insertInto("_emdash_collections")
+		.values({ id: collectionId, slug: collectionSlug, label: "D1 stale projection" })
+		.execute();
+	await db.deleteFrom("_emdash_collections").where("id", "=", collectionId).execute();
+
+	await expect(
+		new MediaUsageRepository(db).replaceSource(
+			{
+				sourceKey,
+				sourceType: "content",
+				collectionId,
+				collectionSlug,
+				contentId,
+				sourceVariant: "columns",
+				identityVersion: 1,
+			},
+			[
+				{
+					fieldSlug: "hero",
+					fieldPath: "hero",
+					referenceType: "local",
+					mediaId: "media-1",
+					provider: "local",
+					providerAssetId: "media-1",
+				},
+			],
+		),
+	).rejects.toThrow();
+
+	expect(
+		await db
+			.selectFrom("_emdash_media_usage_sources")
+			.select("source_key")
+			.where("source_key", "=", sourceKey)
+			.execute(),
+	).toEqual([]);
+	expect(
+		await db
+			.selectFrom("_emdash_media_usage")
+			.select("source_key")
+			.where("source_key", "=", sourceKey)
+			.execute(),
+	).toEqual([]);
 });
 
 it("rolls back a stale guarded batch before any collection DDL", async () => {
