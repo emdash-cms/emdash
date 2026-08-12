@@ -2600,16 +2600,17 @@ export class MediaUsageRepository {
 					: null;
 		if (!revisionColumn) return sql<boolean>`1 = 0`;
 		const revision = sql.ref(`content.${revisionColumn}`);
+		const revisionMatches =
+			row.revision_id === null
+				? sql<boolean>`${revision} IS NULL`
+				: sql<boolean>`${revision} = ${row.revision_id}`;
 		return sql<boolean>`EXISTS (
 			SELECT 1
 			FROM ${sql.ref(tableName)} AS content
 			WHERE content.id = ${row.content_id}
 				AND content.version = ${row.source_version}
 				AND content.updated_at = ${row.source_updated_at}
-				AND (
-					${revision} = ${row.revision_id}
-					OR (${revision} IS NULL AND ${row.revision_id} IS NULL)
-				)
+				AND ${revisionMatches}
 		)`;
 	}
 

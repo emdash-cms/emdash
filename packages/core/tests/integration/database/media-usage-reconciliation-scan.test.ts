@@ -55,19 +55,18 @@ describeEachDialect("media usage reconciliation scan", (dialect) => {
 			.select(["target_epoch", "field_fingerprint", "scan_upper_id", "scan_cursor"])
 			.where("collection_id", "=", collection.id)
 			.executeTakeFirstOrThrow();
+		expect(Number(coordinator.target_epoch)).toBe(1);
 		expect(coordinator).toMatchObject({
-			target_epoch: 1,
 			scan_upper_id: "entry-050",
 			scan_cursor: "entry-049",
 		});
 		expect(coordinator.field_fingerprint).toMatch(/^media-usage-fields:v1:sha256:[a-f0-9]{64}$/);
-		expect(
-			await ctx.db
-				.selectFrom("_emdash_media_usage_work")
-				.select((eb) => eb.fn.countAll<number>().as("count"))
-				.where("collection_id", "=", collection.id)
-				.executeTakeFirstOrThrow(),
-		).toEqual({ count: 50 });
+		const workCount = await ctx.db
+			.selectFrom("_emdash_media_usage_work")
+			.select((eb) => eb.fn.countAll<number>().as("count"))
+			.where("collection_id", "=", collection.id)
+			.executeTakeFirstOrThrow();
+		expect(Number(workCount.count)).toBe(50);
 		expect(await workState(ctx, collection.id, "entry-001")).toMatchObject({
 			change_epoch: 1,
 			work_version: 2,
@@ -302,12 +301,17 @@ function canonicalSource(
 }
 
 async function workState(ctx: DialectTestContext, collectionId: string, contentId: string) {
-	return ctx.db
+	const row = await ctx.db
 		.selectFrom("_emdash_media_usage_work")
 		.select(["change_epoch", "work_version", "state", "last_error_code"])
 		.where("collection_id", "=", collectionId)
 		.where("content_id", "=", contentId)
 		.executeTakeFirstOrThrow();
+	return {
+		...row,
+		change_epoch: Number(row.change_epoch),
+		work_version: Number(row.work_version),
+	};
 }
 
 async function workVersions(ctx: DialectTestContext, collectionId: string) {

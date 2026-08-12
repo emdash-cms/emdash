@@ -339,6 +339,11 @@ describeEachDialect("media usage activated collection deletion", (dialect) => {
 				slug: "projecting",
 				label: "Projecting",
 			});
+			const sourceUpdatedAt = "2026-08-12T10:00:00.000Z";
+			await sql`
+				INSERT INTO ${sql.ref("ec_projecting")} (id, slug, version, updated_at)
+				VALUES ('entry-1', 'entry-1', 1, ${sourceUpdatedAt})
+			`.execute(ctx.db);
 			const advisoryKey = 8642031;
 			await sql
 				.raw(`
@@ -386,6 +391,9 @@ describeEachDialect("media usage activated collection deletion", (dialect) => {
 					collectionSlug: collection.slug,
 					contentId: "entry-1",
 					sourceVariant: "columns",
+					revisionId: null,
+					sourceVersion: 1,
+					sourceUpdatedAt,
 					identityVersion: 1,
 				},
 				[
