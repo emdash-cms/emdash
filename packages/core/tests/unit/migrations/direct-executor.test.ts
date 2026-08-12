@@ -1,7 +1,14 @@
 import Database from "better-sqlite3";
-import type { Dialect } from "kysely";
-import { SqliteDialect } from "kysely";
-import { afterEach, describe, expect, it } from "vitest";
+import type {
+	CompiledQuery,
+	DatabaseConnection,
+	DatabaseIntrospector,
+	Dialect,
+	Driver,
+	QueryResult,
+} from "kysely";
+import { SqliteAdapter, SqliteDialect, SqliteQueryCompiler } from "kysely";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MIGRATION_NAMES } from "../../../src/database/migrations/runner.js";
 import { getI18nConfig, setI18nConfig, type I18nConfig } from "../../../src/i18n/config.js";
@@ -262,6 +269,52 @@ describe("createDirectMigrationExecutor", () => {
 		await executor.dispose?.();
 		await expect(executor.execute(await migrationRequest("check"))).rejects.toThrow(/disposed/i);
 		expect(tracker.factoryCalls).toBe(0);
+	});
+
+	it("destroys an active database when disposed during execution", async () => {
+		let rejectQuery!: (error: Error) => void;
+		const destroy = vi.fn(async () => rejectQuery(new Error("execution interrupted")));
+		const queryStarted = vi.fn();
+		const connection: DatabaseConnection = {
+			executeQuery<Row>(_query: CompiledQuery): Promise<QueryResult<Row>> {
+				queryStarted();
+				return new Promise((_resolve, reject) => {
+					rejectQuery = reject;
+				});
+			},
+			// eslint-disable-next-line require-yield -- the test driver does not stream
+			async *streamQuery<Row>(): AsyncIterableIterator<QueryResult<Row>> {
+				throw new Error("Streaming is not supported");
+			},
+		};
+		const driver: Driver = {
+			init: async () => undefined,
+			acquireConnection: async () => connection,
+			beginTransaction: async () => undefined,
+			commitTransaction: async () => undefined,
+			rollbackTransaction: async () => undefined,
+			releaseConnection: async () => undefined,
+			destroy,
+		};
+		const dialect: Dialect = {
+			createAdapter: () => new SqliteAdapter(),
+			createDriver: () => driver,
+			createIntrospector: (): DatabaseIntrospector => {
+				throw new Error("Introspection is not supported");
+			},
+			createQueryCompiler: () => new SqliteQueryCompiler(),
+		};
+		const executor = createDirectMigrationExecutor({
+			target: TARGET,
+			createDialect: () => dialect,
+		});
+		const execution = executor.execute(await migrationRequest("check"));
+		await vi.waitFor(() => expect(queryStarted).toHaveBeenCalledOnce());
+
+		await executor.dispose?.();
+
+		await expect(execution).rejects.toThrow("execution interrupted");
+		expect(destroy).toHaveBeenCalledOnce();
 	});
 
 	it("snapshots its target before it can be confirmed or reported", async () => {

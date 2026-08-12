@@ -76,6 +76,14 @@ export function createDirectMigrationExecutor(
 	const target = Object.freeze({ ...options.target });
 	let used = false;
 	let disposed = false;
+	let activeDb: Kysely<Database> | undefined;
+	let closePromise: Promise<void> | undefined;
+
+	const closeActiveDb = (): Promise<void> => {
+		if (!activeDb) return Promise.resolve();
+		closePromise ??= activeDb.destroy();
+		return closePromise;
+	};
 
 	return {
 		target,
@@ -95,6 +103,11 @@ export function createDirectMigrationExecutor(
 
 			const dialect = await options.createDialect();
 			const db = new Kysely<Database>({ dialect });
+			activeDb = db;
+			if (disposed) {
+				await closeActiveDb();
+				throw new Error("Migration executor has been disposed.");
+			}
 			const previousI18n = getI18nConfig();
 			let executionFailed = false;
 			let executionError: unknown;
@@ -109,7 +122,7 @@ export function createDirectMigrationExecutor(
 			} finally {
 				setI18nConfig(previousI18n);
 				try {
-					await db.destroy();
+					await closeActiveDb();
 				} catch (error) {
 					if (!executionFailed) {
 						executionFailed = true;
@@ -124,7 +137,7 @@ export function createDirectMigrationExecutor(
 		},
 		dispose() {
 			disposed = true;
-			return Promise.resolve();
+			return closeActiveDb();
 		},
 	};
 }
