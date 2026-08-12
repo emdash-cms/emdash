@@ -2,7 +2,8 @@
 //
 // Reviews one pull request and returns structured findings plus a verdict. No
 // firecracker container: the PR is hydrated into a durable cf-shell Workspace
-// (DO SQLite + R2 for large files) via JS git, and the agent inspects it with a
+// (DO SQLite + R2 for large files) from the GitHub tarball of the PR head, and
+// the agent inspects it with a
 // Worker-Loader-backed `code` tool. It does NOT post to GitHub: the workflow's
 // trusted Action code posts with a write-scoped installation token, so no
 // secret is ever reachable by the model.
@@ -16,8 +17,6 @@
 // agent initializer and the clone performed in the Action target the exact same
 // DO SQLite + R2 namespace.
 
-import { WorkspaceFileSystem } from "@cloudflare/shell";
-import { createGit } from "@cloudflare/shell/git";
 import {
 	defineAgent,
 	defineWorkflow,
@@ -28,6 +27,7 @@ import { getCloudflareContext, getDurableObjectIdentity } from "@flue/runtime/cl
 import * as v from "valibot";
 
 import { withCapacityRetry } from "../lib/capacity.js";
+import { elideLargeDiffSections } from "../lib/diff-budget.js";
 import {
 	readAppCreds,
 	mintInstallationToken,
@@ -45,6 +45,7 @@ import {
 	type ReviewStage,
 	type ReviewTerminal,
 } from "../lib/review-watchdog.js";
+import { untarInto } from "../lib/untar.js";
 import { getDefaultWorkspace, getShellSandbox } from "../sandboxes/cloudflare-shell.js";
 import review from "../skills/review/SKILL.md" with { type: "skill" };
 
@@ -158,35 +159,52 @@ function buildPrContext(payload: ReviewPayload, priorReview?: string): string {
 	return lines.join("\n");
 }
 
-// Hydrate the PR into the durable Workspace via JS git (shallow clone of base,
-// then fetch + checkout the PR head -- refs/pull/N/head covers fork PRs). Large
-// objects (the git packfile) spill to R2 under the workspace name. Idempotent:
-// a HYDRATED marker skips re-cloning on workflow re-entry.
-async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
-	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
-	if (await workspace.exists(HYDRATED)) return;
+// Hydration stage logs bracket each phase so a hang shows as a start line
+// with no matching end line. R2 operations are instrumented in the shared
+// getDefaultWorkspace.
+function hydrateStep(payload: ReviewPayload, step: string, startedAt: number): void {
+	console.log(
+		JSON.stringify({
+			message: "hydrate step",
+			step,
+			ms: Date.now() - startedAt,
+			attemptId: payload.attemptId,
+			prNumber: payload.prNumber,
+		}),
+	);
+}
 
-	const fs = new WorkspaceFileSystem(workspace);
-	const cloneUrl = `https://github.com/${payload.owner}/${payload.repo}.git`;
-	const git = createGit(fs);
-	await git.clone({
-		url: cloneUrl,
-		dir: REPO_DIR,
-		branch: payload.baseRef,
-		singleBranch: true,
-		depth: 1,
-	});
-	const fetched = await git.fetch({
-		ref: `pull/${payload.prNumber}/head`,
-		depth: 1,
-		dir: REPO_DIR,
-	});
-	if (!fetched.fetchHead) throw new Error("PR head fetch did not return a commit");
-	if (payload.headSha && fetched.fetchHead.toLowerCase() !== payload.headSha.toLowerCase()) {
-		throw new Error("PR head changed after the review was requested");
+// Hydrate the PR into the durable Workspace from the GitHub tarball of the PR
+// head SHA (reachable in the base repo for fork PRs too). No git objects and
+// no pack indexing: pure-JS pack inflation in the DO stops completing once
+// the repo's shallow pack grows past roughly 16MB, so hydration must not
+// depend on git. gzip decompression is the runtime-native DecompressionStream.
+// Idempotent: a HYDRATED marker skips re-fetching on workflow re-entry.
+async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
+	const t0 = Date.now();
+	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
+	hydrateStep(payload, "workspace created", t0);
+	if (await workspace.exists(HYDRATED)) {
+		hydrateStep(payload, "already hydrated", t0);
+		return;
 	}
-	await git.checkout({ ref: fetched.fetchHead, dir: REPO_DIR, force: true });
+	if (!payload.headSha) throw new Error("hydrate requires the PR head SHA");
+
+	const url = `https://api.github.com/repos/${payload.owner}/${payload.repo}/tarball/${payload.headSha}`;
+	const response = await fetch(url, {
+		headers: { "User-Agent": "emdash-flue-review", Accept: "application/vnd.github+json" },
+	});
+	if (!response.ok || !response.body) {
+		throw new Error(`tarball fetch failed: ${response.status} ${await response.text()}`);
+	}
+	hydrateStep(payload, "tarball response", t0);
+
+	const tarStream = response.body.pipeThrough(new DecompressionStream("gzip"));
+	const { files, bytes } = await untarInto(workspace, tarStream, REPO_DIR);
+	hydrateStep(payload, `untarred ${files} files ${bytes} bytes`, t0);
+
 	await workspace.writeFile(HYDRATED, new Date().toISOString());
+	hydrateStep(payload, "hydrated", t0);
 }
 
 function logReviewEvent(
@@ -341,7 +359,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			payload.baseSha,
 			payload.headSha,
 		);
-		await context.harness.fs.writeFile(DIFF_PATH, diff);
+		await context.harness.fs.writeFile(DIFF_PATH, elideLargeDiffSections(diff));
 
 		stage = "model_review";
 		if (

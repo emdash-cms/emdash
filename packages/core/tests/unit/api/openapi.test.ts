@@ -35,7 +35,9 @@ describe("OpenAPI document generation", () => {
 		expect(paths).toContain("/_emdash/api/media/{id}/usage");
 		expect(paths).toContain("/_emdash/api/media/upload-url");
 		expect(paths).toContain("/_emdash/api/media/{id}/confirm");
+		expect(paths).toContain("/_emdash/api/media/{id}/upload");
 		expect(paths).toContain("/_emdash/api/admin/media-usage/repair");
+		expect(doc.paths?.["/_emdash/api/media/{id}/confirm"]?.post?.responses).toHaveProperty("409");
 	});
 
 	it("documents media usage summary opt-in parameters and read responses", () => {
@@ -281,6 +283,8 @@ describe("OpenAPI document generation", () => {
 		expect(operationIds).toContain("deleteMedia");
 		expect(operationIds).toContain("getMediaUploadUrl");
 		expect(operationIds).toContain("repairMediaUsage");
+		expect(operationIds).toContain("listMediaUsageWork");
+		expect(operationIds).toContain("retryMediaUsageWork");
 
 		// Schema operations
 		expect(operationIds).toContain("listCollections");

@@ -28,6 +28,7 @@ export type {
 	FindManyResult,
 } from "./database/repositories/index.js";
 export type { MediaItem, CreateMediaInput } from "./database/repositories/media.js";
+export type { CompoundSelectLimitedAdapter } from "./database/dialect-helpers.js";
 
 // Fields
 export { portableText, image, file, reference } from "./fields/index.js";
@@ -230,6 +231,10 @@ export {
 	NoopSandboxRunner,
 	SandboxNotAvailableError,
 	SandboxUnavailableError,
+	createSandboxRouteError,
+	createSandboxRouteErrorEnvelope,
+	getSandboxRouteErrorDetails,
+	getSandboxRouteErrorEnvelope,
 	createNoopSandboxRunner,
 	// HTTP access for plugins (shared between in-process, Cloudflare, and workerd runners)
 	createHttpAccess,
@@ -299,6 +304,9 @@ export type {
 	PluginManifest,
 	ValidatedPluginManifest,
 	SerializedRequest,
+	SandboxRouteErrorCode,
+	SandboxRouteErrorDetails,
+	SandboxRouteErrorEnvelope,
 } from "./plugins/index.js";
 
 // Capability normalization (legacy → canonical alias layer)
@@ -509,6 +517,7 @@ export type {
 
 // Search
 export {
+	SEARCH_TOKENIZERS,
 	FTSManager,
 	search,
 	searchWithDb,
@@ -520,6 +529,7 @@ export {
 } from "./search/index.js";
 export type {
 	SearchConfig,
+	SearchTokenizer,
 	SearchOptions,
 	CollectionSearchOptions,
 	SearchResult,

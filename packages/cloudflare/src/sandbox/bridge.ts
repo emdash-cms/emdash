@@ -10,7 +10,12 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import type { SandboxEmailSendCallback } from "emdash";
-import { ulid, PluginStorageRepository } from "emdash";
+import {
+	createSandboxRouteError,
+	getSandboxRouteErrorDetails,
+	ulid,
+	PluginStorageRepository,
+} from "emdash";
 import { Kysely } from "kysely";
 import { D1Dialect } from "kysely-d1";
 
@@ -18,6 +23,7 @@ import { sandboxHttpFetch } from "./bridge-http.js";
 
 /** Regex to validate collection names (prevent SQL injection) */
 const COLLECTION_NAME_REGEX = /^[a-z][a-z0-9_]*$/;
+const MISSING_MEDIA_USAGE_ACTIVATION_TABLE_REGEX = /no such table.*_emdash_media_usage_activation/i;
 
 /** Regex to validate file extensions (simple alphanumeric, 1-10 chars) */
 const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
@@ -214,6 +220,25 @@ export interface PluginBridgeProps {
  * 3. Plugins call bridge methods which validate and proxy to the database
  */
 export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridgeProps> {
+	private async assertMediaUsageActivationWriteAllowed(): Promise<void> {
+		try {
+			const activation = await this.env.DB.prepare(
+				"SELECT state FROM _emdash_media_usage_activation WHERE task_key = ? LIMIT 1",
+			)
+				.bind("incremental_capture")
+				.first<{ state: string }>();
+			if (activation?.state === "activating") {
+				throw createSandboxRouteError("MEDIA_USAGE_ACTIVATION_IN_PROGRESS");
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			if (MISSING_MEDIA_USAGE_ACTIVATION_TABLE_REGEX.test(message)) return;
+			if (getSandboxRouteErrorDetails(error)) throw error;
+			console.error("[media-usage] Failed to check the sandbox write fence:", error);
+			throw createSandboxRouteError("MEDIA_USAGE_ACTIVATION_CHECK_FAILED");
+		}
+	}
+
 	/**
 	 * Construct a PluginStorageRepository for the requested collection.
 	 * Uses the indexes from the plugin's storage config (if provided) so
@@ -549,6 +574,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
+		await this.assertMediaUsageActivationWriteAllowed();
 
 		const id = ulid();
 		const now = new Date().toISOString();
@@ -621,6 +647,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
+		await this.assertMediaUsageActivationWriteAllowed();
 
 		const now = new Date().toISOString();
 		// Quote identifiers to avoid SQL keyword collisions
@@ -679,6 +706,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
+		await this.assertMediaUsageActivationWriteAllowed();
 
 		// Soft-delete: set deleted_at timestamp
 		const now = new Date().toISOString();
@@ -753,9 +781,9 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			sql += " AND locale = ?";
 			params.push(opts.locale);
 		}
-		// `id ASC` is a stable tiebreaker for terms sharing a label, matching
-		// core's TaxonomyRepository.findByName ordering.
-		sql += " ORDER BY label ASC, id ASC";
+		// Manual order first, then label with `id ASC` as a stable tiebreaker for
+		// terms sharing both — matching core's TaxonomyRepository.findByName.
+		sql += " ORDER BY sort_order ASC, label ASC, id ASC";
 		const results = await this.env.DB.prepare(sql)
 			.bind(...params)
 			.all();

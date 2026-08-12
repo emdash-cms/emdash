@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { MAX_COLLECTION_LIST_COLUMNS } from "../../schema/types.js";
 import { slugPattern } from "./common.js";
 
 // ---------------------------------------------------------------------------
@@ -9,6 +10,23 @@ import { slugPattern } from "./common.js";
 const collectionSupportValues = z.enum(["drafts", "revisions", "preview", "scheduling", "search"]);
 
 const collectionSourcePattern = /^(template:.+|import:.+|manual|discovered|seed)$/;
+
+const collectionListColumns = z.array(
+	z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format"),
+);
+
+const collectionAdminInputConfig = z.object({
+	listColumns: collectionListColumns
+		.max(
+			MAX_COLLECTION_LIST_COLUMNS,
+			`At most ${MAX_COLLECTION_LIST_COLUMNS} list columns are allowed`,
+		)
+		.optional(),
+});
+
+const collectionAdminResponseConfig = z.object({
+	listColumns: collectionListColumns.optional(),
+});
 
 const fieldTypeValues = z.enum([
 	"string",
@@ -82,10 +100,13 @@ export const createCollectionBody = z
 		labelSingular: z.string().optional(),
 		description: z.string().optional(),
 		icon: z.string().optional(),
+		admin: collectionAdminInputConfig.optional(),
 		supports: z.array(collectionSupportValues).optional(),
 		source: z.string().regex(collectionSourcePattern).optional(),
 		urlPattern: z.string().optional(),
 		hasSeo: z.boolean().optional(),
+		hidden: z.boolean().optional(),
+		sortOrder: z.number().int().nullish(),
 	})
 	.meta({ id: "CreateCollectionBody" });
 
@@ -95,9 +116,12 @@ export const updateCollectionBody = z
 		labelSingular: z.string().optional(),
 		description: z.string().optional(),
 		icon: z.string().optional(),
+		admin: collectionAdminInputConfig.optional(),
 		supports: z.array(collectionSupportValues).optional(),
 		urlPattern: z.string().nullish(),
 		hasSeo: z.boolean().optional(),
+		hidden: z.boolean().optional(),
+		sortOrder: z.number().int().nullish(),
 		commentsEnabled: z.boolean().optional(),
 		commentsModeration: z.enum(["all", "first_time", "none"]).optional(),
 		commentsClosedAfterDays: z.number().int().min(0).optional(),
@@ -144,6 +168,13 @@ export const fieldReorderBody = z
 	})
 	.meta({ id: "FieldReorderBody" });
 
+export const collectionReorderBody = z
+	.object({
+		/** Full desired sidebar order. Collections left out fall back to alphabetical. */
+		slugs: z.array(z.string().min(1)),
+	})
+	.meta({ id: "CollectionReorderBody" });
+
 export const orphanRegisterBody = z
 	.object({
 		label: z.string().optional(),
@@ -175,10 +206,13 @@ export const collectionSchema = z
 		labelSingular: z.string().nullable(),
 		description: z.string().nullable(),
 		icon: z.string().nullable(),
+		admin: collectionAdminResponseConfig.optional(),
 		supports: z.array(z.string()),
 		source: z.string().nullable(),
 		urlPattern: z.string().nullable(),
 		hasSeo: z.boolean(),
+		hidden: z.boolean(),
+		sortOrder: z.number().int().nullable(),
 		createdAt: z.string(),
 		updatedAt: z.string(),
 	})

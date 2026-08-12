@@ -17,6 +17,8 @@ npm install emdash
 
 Run commands with `npx emdash` or add scripts to `package.json`. The binary is also available as `em` for brevity.
 
+Start your site with its package script, such as `pnpm dev`. The package script starts Astro; the EmDash integration generates `emdash-env.d.ts`, while the runtime runs pending migrations on the first request and applies the bundled seed when the database is empty and setup has not been completed.
+
 ## Authentication
 
 Commands using the shared remote client resolve authentication in this order:
@@ -45,41 +47,13 @@ When stdout is a TTY, the CLI pretty-prints results with consola. When piped or 
 
 ## Commands
 
-### `emdash dev`
+### `emdash dev` (deprecated)
 
-Start the development server with automatic database setup.
+<Aside type="caution" title="Deprecated command">
+	`emdash dev` remains available for backwards compatibility but is hidden from CLI help. Start the site with its package script, such as `pnpm dev`, or run `astro dev` directly.
+</Aside>
 
-```bash
-npx emdash dev [options]
-```
-
-#### Options
-
-| Option       | Alias | Description                              | Default           |
-| ------------ | ----- | ---------------------------------------- | ----------------- |
-| `--database` | `-d`  | Database file path                       | `./data.db`       |
-| `--types`    | `-t`  | Generate types from remote before starting | `false`         |
-| `--port`     | `-p`  | Dev server port                          | `4321`            |
-| `--cwd`      |       | Working directory                        | Current directory  |
-
-#### Examples
-
-```bash
-# Start dev server
-npx emdash dev
-
-# Custom port
-npx emdash dev --port 3000
-
-# Generate types from remote before starting
-npx emdash dev --types
-```
-
-#### Behavior
-
-1. Checks for and runs pending database migrations
-2. If `--types` is set, generates TypeScript types from a remote instance (URL from `EMDASH_URL` env or `emdash.url` in `package.json`)
-3. Starts Astro dev server with `EMDASH_DATABASE_URL` set
+The legacy command initializes and migrates a local SQLite database before starting Astro. That behavior does not use the database adapter configured by the site and is incompatible with Cloudflare D1 development. Existing invocations now print a deprecation warning before doing any database work.
 
 ### `emdash types`
 
@@ -577,7 +551,7 @@ The command also writes a raw schema export for tooling:
 
 | Variable                  | Description                              |
 | ------------------------- | ---------------------------------------- |
-| `EMDASH_DATABASE_URL`     | Database URL (set automatically by `dev`) |
+| `EMDASH_DATABASE_URL`     | Override database URL                      |
 | `EMDASH_TOKEN`            | Auth token for remote operations          |
 | `EMDASH_URL`              | Default URL for commands using the shared remote client |
 | `EMDASH_HEADERS`          | Newline-separated custom request headers for the shared remote client and `login` |
@@ -588,12 +562,12 @@ The command also writes a raw schema export for tooling:
 
 ## Package scripts
 
-Add the CLI commands as `package.json` scripts for convenience:
+Add common commands as `package.json` scripts for convenience:
 
 ```json title="package.json"
 {
 	"scripts": {
-		"dev": "emdash dev",
+		"dev": "astro dev",
 		"types": "emdash types",
 		"export-seed": "emdash export-seed",
 		"db:reset": "rm -f data.db"

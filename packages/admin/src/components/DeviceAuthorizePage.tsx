@@ -171,7 +171,7 @@ export function DeviceAuthorizePage() {
 				{/* Header */}
 				<div className="text-center mb-8">
 					<div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-kumo-brand/10 mb-4">
-						<TerminalIcon className="w-6 h-6 text-kumo-brand" />
+						<TerminalIcon className="w-6 h-6 text-kumo-link" />
 					</div>
 					<h1 className="text-xl font-semibold tracking-tight">{t`Authorize Device`}</h1>
 					<p className="text-kumo-subtle text-sm mt-1.5">{t`Enter the code from your terminal`}</p>

@@ -306,7 +306,7 @@ export class S3Storage implements Storage {
 				method: "PUT",
 				headers: {
 					"Content-Type": options.contentType,
-					...(options.size ? { "Content-Length": String(options.size) } : {}),
+					...(options.size !== undefined ? { "Content-Length": String(options.size) } : {}),
 				},
 				expiresAt,
 			};

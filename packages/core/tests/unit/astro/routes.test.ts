@@ -9,6 +9,7 @@ import {
 	hasUserDefinedPublicRoute,
 	injectCoreRoutes,
 } from "../../../src/astro/integration/routes.js";
+import * as mediaUploadRoute from "../../../src/astro/routes/api/media/[id]/upload.js";
 import { GET as getMediaFile } from "../../../src/astro/routes/api/media/file/[...key].js";
 
 function mockMediaContext(key: string | undefined) {
@@ -73,6 +74,19 @@ describe("core media route injection", () => {
 		);
 	});
 
+	it("registers the pending-media upload route with PUT only", () => {
+		const routes: Array<{ pattern: string; entrypoint: string }> = [];
+		injectCoreRoutes((route) => routes.push(route));
+
+		expect(routes).toContainEqual(
+			expect.objectContaining({ pattern: "/_emdash/api/media/[id]/upload" }),
+		);
+		expect(mediaUploadRoute.PUT).toBeTypeOf("function");
+		for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
+			expect(mediaUploadRoute).not.toHaveProperty(method);
+		}
+	});
+
 	it("injects default root SEO routes when the site does not define them", () => {
 		const routes = collectRoutePatterns();
 
@@ -93,6 +107,21 @@ describe("core media route injection", () => {
 				expect(routes).not.toContain("/robots.txt");
 				expect(routes).not.toContain("/sitemap.xml");
 				expect(routes).toContain("/sitemap-[collection].xml");
+			},
+		);
+	});
+
+	it("skips the collection sitemap route when the site defines its own", async () => {
+		await withTempSrcDir(
+			{
+				"pages/sitemap-[collection].xml.ts": "export const GET = () => new Response('');",
+			},
+			(srcDir) => {
+				const routes = collectRoutePatterns(srcDir);
+
+				expect(routes).not.toContain("/sitemap-[collection].xml");
+				expect(routes).toContain("/sitemap.xml");
+				expect(routes).toContain("/robots.txt");
 			},
 		);
 	});
