@@ -146,8 +146,11 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"070_collection_routable": m070,
 });
 
+/** Ordered names from the statically registered migration set. */
+export const MIGRATION_NAMES: readonly string[] = Object.freeze(Object.keys(MIGRATIONS));
+
 /** Total number of registered migrations. Exported for use in tests. */
-export const MIGRATION_COUNT = Object.keys(MIGRATIONS).length;
+export const MIGRATION_COUNT = MIGRATION_NAMES.length;
 
 /**
  * Migration provider that uses statically imported migrations.
@@ -162,6 +165,12 @@ class StaticMigrationProvider implements MigrationProvider {
 export interface MigrationStatus {
 	applied: string[];
 	pending: string[];
+}
+
+export interface ExactMigrationStatus {
+	knownApplied: string[];
+	pending: string[];
+	unknownApplied: string[];
 }
 
 /**
@@ -286,8 +295,8 @@ const MIGRATION_RACE_POLL_MS = 100;
  * built from `MIGRATION_TABLE` so a rename cannot drift.
  */
 const MIGRATION_TABLE_MISSING_PATTERN = new RegExp(
-	`(?:no such table:\\s*${escapeRegExp(MIGRATION_TABLE)}\\b` +
-		`|(?:relation|table)\\s+"?${escapeRegExp(MIGRATION_TABLE)}"?\\s+does(?:n't| not) exist\\b)`,
+	`(?:no such table:\\s*(?:[a-z][a-z0-9_]*\\.)?${escapeRegExp(MIGRATION_TABLE)}\\b` +
+		`|(?:relation|table)\\s+"?(?:[a-z][a-z0-9_]*\\.)?${escapeRegExp(MIGRATION_TABLE)}"?\\s+does(?:n't| not) exist\\b)`,
 	"i",
 );
 
@@ -357,6 +366,43 @@ function deepErrorMessage(error: unknown): string {
 	} catch {
 		return String(error);
 	}
+}
+
+/**
+ * Read exact migration status without invoking Kysely's migration
+ * introspection. Registered names retain execution order; unknown database
+ * records are sorted so reports remain stable across dialects.
+ */
+export async function getExactMigrationStatus(
+	db: Kysely<Database>,
+	options?: MigrationOptions,
+): Promise<ExactMigrationStatus> {
+	const table = options?.migrationTableSchema
+		? sql`${sql.ref(options.migrationTableSchema)}.${sql.ref(MIGRATION_TABLE)}`
+		: sql.ref(MIGRATION_TABLE);
+
+	let rows: readonly { name: string }[];
+	try {
+		const result = await sql<{ name: string }>`SELECT name FROM ${table}`.execute(db);
+		rows = result.rows;
+	} catch (error) {
+		if (MIGRATION_TABLE_MISSING_PATTERN.test(deepErrorMessage(error))) {
+			return {
+				knownApplied: [],
+				pending: [...MIGRATION_NAMES],
+				unknownApplied: [],
+			};
+		}
+		throw error;
+	}
+
+	const appliedNames = new Set(rows.map((row) => row.name));
+	const knownApplied = MIGRATION_NAMES.filter((name) => appliedNames.has(name));
+	const pending = MIGRATION_NAMES.filter((name) => !appliedNames.has(name));
+	const knownNames = new Set(MIGRATION_NAMES);
+	const unknownApplied = [...appliedNames].filter((name) => !knownNames.has(name)).toSorted();
+
+	return { knownApplied, pending, unknownApplied };
 }
 
 /**

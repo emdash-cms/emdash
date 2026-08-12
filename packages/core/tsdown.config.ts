@@ -87,6 +87,7 @@ export default defineConfig({
 		"src/db/sqlite.ts",
 		"src/db/libsql.ts",
 		"src/db/postgres.ts",
+		"src/migrations/index.ts",
 		// Query instrumentation (used by first-party adapters like @emdash-cms/cloudflare)
 		"src/database/instrumentation.ts",
 		// Fail-fast Postgres migration lock (used by @emdash-cms/cloudflare's Hyperdrive adapter)
