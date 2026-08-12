@@ -51,8 +51,8 @@ describe("resolveContentListColumns", () => {
 		const plugins = {
 			alpha: {
 				contentListColumns: [
-					column("score"),
-					column("score"),
+					column("review-status"),
+					column("review-status"),
 					["array-is-not-a-column"],
 					{ id: "broken", label: "Broken" },
 				],
@@ -67,7 +67,7 @@ describe("resolveContentListColumns", () => {
 		);
 
 		expect(result).toHaveLength(1);
-		expect(result[0]?.extension.id).toBe("score");
+		expect(result[0]?.extension.id).toBe("review-status");
 		expect(warn).toHaveBeenCalled();
 		warn.mockRestore();
 	});

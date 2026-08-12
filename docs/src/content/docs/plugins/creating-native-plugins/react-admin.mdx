@@ -273,37 +273,45 @@ import type {
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, parseApiResponse } from "emdash/plugin-utils";
 
-async function fetchScores(
+async function fetchReviewStatuses(
 	collection: string,
 	locale: string | undefined,
 	ids: readonly string[],
 ) {
-	const response = await apiFetch("/_emdash/api/plugins/my-seo-plugin/scores/batch", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ collection, locale, ids }),
-	});
-	return parseApiResponse<Record<string, number>>(response, "Failed to load SEO scores");
+	const response = await apiFetch(
+		"/_emdash/api/plugins/editorial-workflow/review-statuses/batch",
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ collection, locale, ids }),
+		},
+	);
+	return parseApiResponse<Record<string, string>>(response, "Failed to load review statuses");
 }
 
-function ScoreCell({ item, visibleItems, collection, locale }: ContentListColumnCellContext) {
+function ReviewStatusCell({
+	item,
+	visibleItems,
+	collection,
+	locale,
+}: ContentListColumnCellContext) {
 	const itemIds = visibleItems.map((visibleItem) => visibleItem.id);
-	const { data: scores } = useQuery({
-		queryKey: ["my-seo-plugin", "scores", collection, locale ?? null, itemIds],
-		queryFn: () => fetchScores(collection, locale, itemIds),
+	const { data: reviewStatuses } = useQuery({
+		queryKey: ["editorial-workflow", "review-statuses", collection, locale ?? null, itemIds],
+		queryFn: () => fetchReviewStatuses(collection, locale, itemIds),
 	});
-	const score = scores?.[item.id];
-	return typeof score === "number" ? <span>{score}</span> : <span>-</span>;
+	const reviewStatus = reviewStatuses?.[item.id];
+	return reviewStatus ? <span>{reviewStatus}</span> : <span>-</span>;
 }
 
 export const contentListColumns = [
 	{
-		id: "score",
-		label: "SEO score",
+		id: "review-status",
+		label: "Review status",
 		collections: ["posts", "pages"],
 		order: 10,
 		align: "end",
-		cell: ScoreCell,
+		cell: ReviewStatusCell,
 	},
 ] satisfies readonly ContentListColumnExtension[];
 ```
@@ -333,7 +341,7 @@ import { SettingsPage } from "./components/SettingsPage";
 import { ReportsPage } from "./components/ReportsPage";
 import { StatusWidget } from "./components/StatusWidget";
 import { OverviewWidget } from "./components/OverviewWidget";
-import { ScoreCell } from "./components/ScoreCell";
+import { ReviewStatusCell } from "./components/ReviewStatusCell";
 
 export const pages = {
 	"/settings": SettingsPage,
@@ -346,7 +354,12 @@ export const widgets = {
 };
 
 export const contentListColumns = [
-	{ id: "score", label: "Score", collections: ["posts"], cell: ScoreCell },
+	{
+		id: "review-status",
+		label: "Review status",
+		collections: ["posts"],
+		cell: ReviewStatusCell,
+	},
 ];
 ```
 

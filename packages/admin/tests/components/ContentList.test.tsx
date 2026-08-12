@@ -788,13 +788,15 @@ describe("ContentList", () => {
 			columns: readonly ContentListColumnExtension[],
 			props: Partial<React.ComponentProps<typeof ContentList>> = {},
 		) {
-			const pluginAdmins: PluginAdmins = { seo: { contentListColumns: columns } };
+			const pluginAdmins: PluginAdmins = {
+				"editorial-workflow": { contentListColumns: columns },
+			};
 			return (
 				<PluginAdminProvider pluginAdmins={pluginAdmins}>
 					<ContentList
 						{...defaultProps}
-						items={[makeItem({ data: { title: "Plugin Post", score: 82 } })]}
-						pluginStates={{ seo: { enabled: true } }}
+						items={[makeItem({ data: { title: "Plugin Post", reviewStatus: "Needs review" } })]}
+						pluginStates={{ "editorial-workflow": { enabled: true } }}
 						{...props}
 					/>
 				</PluginAdminProvider>
@@ -809,30 +811,38 @@ describe("ContentList", () => {
 		}
 
 		it("renders contributed headers and cells inside the host table", async () => {
-			function ScoreCell({ item }: { item: ContentItem }) {
-				return <span>{String(item.data.score)}</span>;
+			function ReviewStatusCell({ item }: { item: ContentItem }) {
+				return <span>{String(item.data.reviewStatus)}</span>;
 			}
 
 			const screen = await renderWithColumns([
-				{ id: "score", label: "SEO score", align: "end", cell: ScoreCell },
+				{
+					id: "review-status",
+					label: "Review status",
+					cell: ReviewStatusCell,
+				},
 			]);
 
-			await expect.element(screen.getByRole("columnheader", { name: "SEO score" })).toBeVisible();
-			await expect.element(screen.getByText("82")).toBeVisible();
+			await expect
+				.element(screen.getByRole("columnheader", { name: "Review status" }))
+				.toBeVisible();
+			await expect.element(screen.getByText("Needs review")).toBeVisible();
 			await expect.element(screen.getByText("Plugin Post")).toBeVisible();
 		});
 
 		it("updates contributed header labels when the shared catalog changes", async () => {
 			const previousLocale = i18n.locale;
-			const translatedLabel = "نتيجة تحسين محركات البحث";
+			const translatedLabel = "حالة المراجعة";
 
 			try {
 				const screen = await renderWithColumns([
-					{ id: "score", label: "SEO score", cell: () => null },
+					{ id: "review-status", label: "Review status", cell: () => null },
 				]);
-				await expect.element(screen.getByRole("columnheader", { name: "SEO score" })).toBeVisible();
+				await expect
+					.element(screen.getByRole("columnheader", { name: "Review status" }))
+					.toBeVisible();
 
-				i18n.load("ar", { "SEO score": translatedLabel });
+				i18n.load("ar", { "Review status": translatedLabel });
 				i18n.activate("ar");
 
 				await expect
@@ -847,8 +857,8 @@ describe("ContentList", () => {
 		it("localizes a contributed header's render fallback", async () => {
 			const previousLocale = i18n.locale;
 			const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
-			const translatedLabel = "نتيجة تحسين محركات البحث";
-			i18n.load("ar", { "SEO score": translatedLabel });
+			const translatedLabel = "حالة المراجعة";
+			i18n.load("ar", { "Review status": translatedLabel });
 			i18n.activate("ar");
 
 			function BrokenHeader(): React.ReactNode {
@@ -857,7 +867,12 @@ describe("ContentList", () => {
 
 			try {
 				const screen = await renderWithColumns([
-					{ id: "score", label: "SEO score", header: BrokenHeader, cell: () => null },
+					{
+						id: "review-status",
+						label: "Review status",
+						header: BrokenHeader,
+						cell: () => null,
+					},
 				]);
 
 				await expect.element(screen.getByText(translatedLabel)).toBeVisible();
@@ -894,24 +909,36 @@ describe("ContentList", () => {
 		});
 
 		it("keeps configured and plugin columns aligned in rows and empty states", async () => {
-			function ScoreCell({ item }: { item: ContentItem }) {
-				return <span>{String(item.data.score)}</span>;
+			function ReviewStatusCell({ item }: { item: ContentItem }) {
+				return <span>{String(item.data.reviewStatus)}</span>;
 			}
-			const columns = [{ id: "score", label: "SEO score", align: "end", cell: ScoreCell }] as const;
+			const columns = [
+				{
+					id: "review-status",
+					label: "Review status",
+					cell: ReviewStatusCell,
+				},
+			] as const;
 			const listColumns = [{ slug: "ticket_number", label: "Ticket", kind: "string" }];
 			const screen = await renderWithColumns(columns, {
 				items: [
 					makeItem({
-						data: { title: "Plugin Post", ticket_number: "SUP-1042", score: 82 },
+						data: {
+							title: "Plugin Post",
+							ticket_number: "SUP-1042",
+							reviewStatus: "Needs review",
+						},
 					}),
 				],
 				listColumns,
 			});
 
 			await expect.element(screen.getByRole("columnheader", { name: "Ticket" })).toBeVisible();
-			await expect.element(screen.getByRole("columnheader", { name: "SEO score" })).toBeVisible();
+			await expect
+				.element(screen.getByRole("columnheader", { name: "Review status" }))
+				.toBeVisible();
 			await expect.element(screen.getByText("SUP-1042")).toBeVisible();
-			await expect.element(screen.getByText("82")).toBeVisible();
+			await expect.element(screen.getByText("Needs review")).toBeVisible();
 
 			await screen.rerender(listWithColumns(columns, { items: [], isLoading: true, listColumns }));
 			await expect
@@ -970,10 +997,13 @@ describe("ContentList", () => {
 			function Cell(): React.ReactNode {
 				return null;
 			}
-			const screen = await renderWithColumns([{ id: "score", label: "Score", cell: Cell }], {
-				items: [],
-				isLoading: true,
-			});
+			const screen = await renderWithColumns(
+				[{ id: "review-status", label: "Review status", cell: Cell }],
+				{
+					items: [],
+					isLoading: true,
+				},
+			);
 
 			await expect
 				.element(screen.getByRole("cell", { name: "Loading..." }))
@@ -984,15 +1014,18 @@ describe("ContentList", () => {
 			function Cell() {
 				return <span>Plugin value</span>;
 			}
-			const screen = await renderWithColumns([{ id: "score", label: "Score", cell: Cell }], {
-				trashedItems: [makeTrashedItem({ data: { title: "Deleted" } })],
-			});
+			const screen = await renderWithColumns(
+				[{ id: "review-status", label: "Review status", cell: Cell }],
+				{
+					trashedItems: [makeTrashedItem({ data: { title: "Deleted" } })],
+				},
+			);
 
 			await screen.getByText("Trash").click();
 			await expect
 				.element(screen.getByRole("cell", { name: "Deleted", exact: true }))
 				.toBeVisible();
-			expect(screen.getByRole("columnheader", { name: "Score" }).query()).toBeNull();
+			expect(screen.getByRole("columnheader", { name: "Review status" }).query()).toBeNull();
 			expect(screen.getByText("Plugin value").query()).toBeNull();
 		});
 	});
