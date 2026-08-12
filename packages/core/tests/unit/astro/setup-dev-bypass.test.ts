@@ -49,12 +49,29 @@ const fixtureSeed: SeedFile = {
 
 vi.mock("virtual:emdash/seed", () => ({ seed: fixtureSeed, userSeed: null }), { virtual: true });
 
+import { GET as AUTH_GET } from "../../../src/astro/routes/api/auth/dev-bypass.js";
 import { GET } from "../../../src/astro/routes/api/setup/dev-bypass.js";
+import { POST as SETUP_POST } from "../../../src/astro/routes/api/setup/index.js";
+import { MIGRATION_NAMES } from "../../../src/database/migrations/runner.js";
 
 function makeContext(db: Kysely<Database>, search = ""): APIContext {
 	return {
 		locals: { emdash: { db, storage: null, config: {} } },
 		url: new URL(`http://localhost:4321/_emdash/api/setup/dev-bypass${search}`),
+		session: undefined,
+	} as unknown as APIContext;
+}
+
+function makeSetupContext(db: Kysely<Database>): APIContext {
+	const url = new URL("http://localhost:4321/_emdash/api/setup");
+	return {
+		locals: { emdash: { db, storage: null, config: { migrations: { runtime: "manual" } } } },
+		url,
+		request: new Request(url, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ title: "Manual Site", tagline: "", includeContent: false }),
+		}),
 		session: undefined,
 	} as unknown as APIContext;
 }
@@ -125,5 +142,24 @@ describe("setup dev-bypass seed gating", () => {
 		expect(response.status).toBe(200);
 
 		expect(await countPosts(db)).toBe(0);
+	});
+
+	it.each([
+		["setup dev bypass", (database: Kysely<Database>) => GET(makeContext(database, "?content=0"))],
+		["auth dev bypass", (database: Kysely<Database>) => AUTH_GET(makeContext(database))],
+		["setup wizard", (database: Kysely<Database>) => SETUP_POST(makeSetupContext(database))],
+	])("does not migrate from the %s route", async (_name, invoke) => {
+		const pending = MIGRATION_NAMES.at(-1)!;
+		await db.deleteFrom("_emdash_migrations").where("name", "=", pending).execute();
+
+		const response = await invoke(db);
+
+		expect(response.status).toBe(200);
+		const record = await db
+			.selectFrom("_emdash_migrations")
+			.select("name")
+			.where("name", "=", pending)
+			.executeTakeFirst();
+		expect(record).toBeUndefined();
 	});
 });

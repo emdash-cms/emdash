@@ -16,6 +16,7 @@ declare module "virtual:emdash/config" {
 
 	interface VirtualConfig {
 		database?: DatabaseDescriptor;
+		migrations?: import("./database/migrations/policy.js").RuntimeMigrationConfig;
 		storage?: StorageDescriptor;
 		auth?: AuthDescriptor;
 		authProviders?: AuthProviderDescriptor[];

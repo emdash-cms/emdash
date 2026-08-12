@@ -15,6 +15,7 @@ import { createRequire } from "node:module";
 import type { AstroIntegration, AstroIntegrationLogger, AstroIntegrationMiddleware } from "astro";
 
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
+import { normalizeMigrationConfig } from "../../database/migrations/policy.js";
 import { INTERNAL_MEDIA_PREFIX } from "../../media/normalize.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import { VERSION } from "../../version.js";
@@ -313,6 +314,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	const resolvedConfig: EmDashConfig = {
 		...config,
 		storage: config.storage ?? DEFAULT_STORAGE,
+		migrations: normalizeMigrationConfig(config.migrations),
 	};
 
 	// Validate marketplace URL
@@ -421,6 +423,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	// i18n is populated in astro:config:setup from astroConfig.i18n
 	const serializableConfig: Record<string, unknown> = {
 		database: resolvedConfig.database,
+		migrations: resolvedConfig.migrations,
 		storage: resolvedConfig.storage,
 		auth: resolvedConfig.auth,
 		authProviders: resolvedConfig.authProviders,

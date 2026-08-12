@@ -27,9 +27,13 @@ import type { ContentFieldFilters } from "./content-list-query.js";
 import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import {
+	enforceRuntimeMigrationPolicy,
+	PendingMigrationsError,
+	type RuntimeMigrationMode,
+} from "./database/migrations/policy.js";
+import {
 	ConcurrentMigrationTimeoutError,
 	MIGRATION_RACE_WAIT_MS,
-	runMigrations,
 } from "./database/migrations/runner.js";
 import { AuditRepository } from "./database/repositories/audit.js";
 import { ContentRepository } from "./database/repositories/content.js";
@@ -347,6 +351,8 @@ export type CreateSchedulerFn = (executor: CronExecutor) => CronScheduler;
  */
 export interface RuntimeDependencies {
 	config: EmDashConfig;
+	/** Effective migration mode, resolved once by the runtime entrypoint. */
+	migrationMode?: RuntimeMigrationMode;
 	plugins: ResolvedPlugin[];
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	createDialect: (config: any) => Dialect;
@@ -1247,8 +1253,10 @@ export class EmDashRuntime {
 			}
 		};
 
-		// Initialize database (connects, runs migrations if needed)
-		const db = await phase("rt.db", "DB init + migrations", () => EmDashRuntime.getDatabase(deps));
+		// Initialize the database and enforce its configured migration policy.
+		const db = await phase("rt.db", "DB init + migration policy", () =>
+			EmDashRuntime.getDatabase(deps),
+		);
 
 		// Resolver for the live connection, mirroring the `get db()` getter
 		// below (which can't be used here — the runtime instance doesn't exist
@@ -1911,13 +1919,16 @@ export class EmDashRuntime {
 				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
 				try {
-					await runMigrations(db);
+					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto");
 				} catch (error) {
 					// Timing out behind another instance's in-flight migrations
 					// is not a failure of OUR migration — the holder may just be
 					// slow. Don't back off for it: the next request waits again
 					// and init recovers the moment the holder finishes.
-					if (!(error instanceof ConcurrentMigrationTimeoutError)) {
+					if (
+						!(error instanceof ConcurrentMigrationTimeoutError) &&
+						!(error instanceof PendingMigrationsError)
+					) {
 						holder.failures.set(cacheKey, {
 							at: Date.now(),
 							message: error instanceof Error ? error.message : String(error),
