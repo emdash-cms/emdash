@@ -16,6 +16,7 @@ import {
 	machineSnapshot,
 	STATES,
 	TRANSITIONS,
+	transitionTargets,
 } from "../.flue/lib/machine.ts";
 
 export function renderMachineJson(): string {
@@ -73,7 +74,7 @@ function eventsTable(): string {
 function transitionsTable(): string {
 	const rows = TRANSITIONS.map(
 		(t) =>
-			`| ${code(t.from)} | ${code(t.event)} | ${code(t.to)} | ${t.action ? code(t.action) : "—"} |`,
+			`| ${code(t.from)} | ${code(t.event)} | ${transitionDestination(t)} | ${t.action ? code(t.action) : "—"} |`,
 	);
 	return [
 		"## Transitions",
@@ -84,9 +85,29 @@ function transitionsTable(): string {
 	].join("\n");
 }
 
+function transitionDestination(transition: (typeof TRANSITIONS)[number]): string {
+	const overrides = Object.entries(transition.toByKind ?? {});
+	if (overrides.length === 0) return code(transition.to);
+	return [
+		`default: ${code(transition.to)}`,
+		...overrides.map(([kind, target]) => `${code(kind)}: ${code(target)}`),
+	].join("; ");
+}
+
 function diagram(): string {
-	const edges = TRANSITIONS.map(
-		(t) => `    ${t.from} --> ${t.to}: ${t.event}${t.action ? ` / ${t.action}` : ""}`,
+	const edges = TRANSITIONS.flatMap((transition) =>
+		transitionTargets(transition).map((target) => {
+			const kinds = Object.entries(transition.toByKind ?? {})
+				.filter(([, kindTarget]) => kindTarget === target)
+				.map(([kind]) => kind);
+			const qualifier =
+				target === transition.to
+					? transition.toByKind
+						? " [default]"
+						: ""
+					: ` [${kinds.join(", ")}]`;
+			return `    ${transition.from} --> ${target}: ${transition.event}${qualifier}${transition.action ? ` / ${transition.action}` : ""}`;
+		}),
 	);
 	return [
 		"## Diagram",

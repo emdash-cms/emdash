@@ -13,6 +13,7 @@ import {
 	type PreviewScreenshot,
 	renderAgentComment,
 	renderDraftPrBody,
+	renderPullRequestTitle,
 	renderPreviewReadyAsk,
 	renderReadonlyReply,
 	shouldPostReadonlyReply,
@@ -106,6 +107,9 @@ export interface NormalizedEvent {
 	readonly dryRun?: boolean;
 	/** Agent's structured summary, surfaced in the post-run comment. */
 	readonly agentSummary?: string;
+	/** Durable run metadata appended to failed comments for operational lookup. */
+	readonly agentRunId?: string;
+	readonly agentFailureStage?: string;
 	/** Reproduction screenshots the fix run pushed, carried into the ask comment. */
 	readonly agentScreenshots?: readonly PreviewScreenshot[];
 	/**
@@ -132,7 +136,9 @@ export interface AgentResult {
 	readonly skipped?: boolean;
 	readonly reproduced?: boolean;
 	readonly fixed?: boolean;
+	readonly implemented?: boolean;
 	readonly verdict?: string;
+	readonly failureStage?: string;
 	readonly screenshots?: readonly PreviewScreenshot[];
 	readonly [key: string]: unknown;
 }
@@ -449,7 +455,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 			labels,
 			needsClassify: false,
 			settlesRunId: input.runId,
+			agentRunId: input.runId,
 			...(agentSummary ? { agentSummary } : {}),
+			...(typeof input.result.failureStage === "string"
+				? { agentFailureStage: input.result.failureStage }
+				: {}),
 			...(agentScreenshots ? { agentScreenshots } : {}),
 		});
 		await this.clearRun(input.runId);
@@ -543,11 +553,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	/**
-	 * Poll pkg.pr.new for the candidate fix's preview while the item sits in
+	 * Poll pkg.pr.new for the candidate change's preview while the item sits in
 	 * `preview_building`. One probe per alarm tick (the alarm cadence IS the
 	 * poll interval -- no unbounded loop in the DO). A 200 fires `preview.ready`
 	 * and advances to the reporter ask; exhausting the overall budget fires
-	 * `preview.failed`, which retains the branch and falls back to the diagnosis.
+	 * `preview.failed`, which retains the branch for inspection.
 	 */
 	private async pollPreviewBuild(now: number): Promise<PreviewPollOutcome> {
 		const [state, deadline, nextAt] = await Promise.all([
@@ -560,7 +570,22 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const anchorNumber = await this.ctx.storage.get<number>(STORAGE.anchorNumber);
 		if (anchorNumber === undefined) return "idle";
 
-		const ready = await probePreviewReady(previewUrl(anchorNumber));
+		let candidatePreviewUrl: string;
+		try {
+			candidatePreviewUrl = previewUrl(anchorNumber, this.env.PREVIEW_PACKAGE);
+		} catch (error) {
+			console.error("[orchestrator] invalid preview configuration", {
+				error: errorMessage(error),
+			});
+			await this.firePreviewEvent(
+				anchorNumber,
+				"preview.failed",
+				"The preview package configuration is invalid. The candidate branch was retained for inspection.",
+			);
+			return "failed";
+		}
+
+		const ready = await probePreviewReady(candidatePreviewUrl);
 		if (ready) {
 			await this.firePreviewReady(anchorNumber);
 			return "ready";
@@ -600,6 +625,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				owner: repo.owner,
 				repo: repo.repo,
 				issueNumber: anchorNumber,
+				previewPackage: this.env.PREVIEW_PACKAGE,
 				at: new Date().toISOString(),
 				notes,
 				...(screenshots ? { screenshots } : {}),
@@ -616,11 +642,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 	}
 
-	private async firePreviewEvent(anchorNumber: number, event: EventId): Promise<void> {
+	private async firePreviewEvent(
+		anchorNumber: number,
+		event: EventId,
+		failureComment?: string,
+	): Promise<void> {
 		const labels = await this.projectLabels();
 		const commentBodyOverride =
 			event === "preview.failed"
-				? `The preview build for the candidate fix didn't publish within ${Math.round(PREVIEW_BUILD_TIMEOUT_MS / 60_000)} minutes. The diagnosis still holds -- a maintainer can \`@emdashbot fix\` to rebuild the candidate.`
+				? (failureComment ??
+					`The preview build for the candidate change didn't publish within ${Math.round(PREVIEW_BUILD_TIMEOUT_MS / 60_000)} minutes. The candidate branch was retained for inspection.`)
 				: undefined;
 		await this.processEvent({
 			event,
@@ -1127,15 +1158,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 	): Promise<string | null> {
 		const token = await this.getInstallationToken(creds);
 		const headBranch = `bot/fix-${anchorNumber}`;
+		const kind = (await this.ctx.storage.get<Kind>(STORAGE.kind)) ?? "bug";
 		try {
 			const created =
 				(await getOpenPullRequest(token, repo, headBranch)) ??
 				(await createPullRequest(token, repo, {
 					headBranch,
 					baseBranch: "main",
-					title: `Fix #${anchorNumber}`,
+					title: renderPullRequestTitle(anchorNumber, kind),
 					body: draft
-						? renderDraftPrBody(anchorNumber)
+						? renderDraftPrBody(anchorNumber, this.env.PREVIEW_PACKAGE)
 						: `Fixes #${anchorNumber}.\n\nAutomated PR opened by emdashbot.`,
 					draft,
 				}));
@@ -1382,7 +1414,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 							removeLabels: decision.removeLabels,
 							commentBody:
 								input.commentBodyOverride ??
-								renderComment(decision, anchorNumber, input.agentSummary),
+								renderComment(
+									decision,
+									anchorNumber,
+									input.agentSummary,
+									{
+										runId: input.agentRunId,
+										failureStage: input.agentFailureStage,
+									},
+									this.env.PREVIEW_PACKAGE,
+								),
 							commentMarker: `<!-- emdashbot-event:${sideEffectId} -->`,
 							commentMayExist: false,
 							...(input.commentFirst ? { commentFirst: true } : {}),
@@ -1693,12 +1734,25 @@ export class OrchestratorDO extends DurableObject<Env> {
 	/** Test-only: land directly in `preview_building` with the ask's persisted
 	 * inputs, so the preview-poll path can be exercised without dispatching the
 	 * (runtime-less in tests) investigate agent through fixing. */
-	async debugPrimePreviewBuilding(anchorNumber: number, notes: string): Promise<void> {
+	async debugPrimePreviewBuilding(
+		anchorNumber: number,
+		notes: string,
+		kind: Kind = "bug",
+	): Promise<void> {
 		await Promise.all([
 			this.ctx.storage.put(STORAGE.state, "preview_building" satisfies StateId),
-			this.ctx.storage.put(STORAGE.kind, "bug" satisfies Kind),
+			this.ctx.storage.put(STORAGE.kind, kind),
 			this.ctx.storage.put(STORAGE.anchorNumber, anchorNumber),
 			this.ctx.storage.put(STORAGE.previewNotes, notes),
+		]);
+	}
+
+	/** Test-only: land in `fixing` without dispatching the investigate agent. */
+	async debugPrimeFixing(anchorNumber: number): Promise<void> {
+		await Promise.all([
+			this.ctx.storage.put(STORAGE.state, "fixing" satisfies StateId),
+			this.ctx.storage.put(STORAGE.kind, "enhancement" satisfies Kind),
+			this.ctx.storage.put(STORAGE.anchorNumber, anchorNumber),
 		]);
 	}
 
@@ -1807,6 +1861,8 @@ function renderComment(
 	decision: Extract<Decision, { kind: "transition" }>,
 	anchorNumber: number,
 	agentSummary?: string,
+	failure?: { runId?: string; failureStage?: string },
+	previewPackage?: string,
 ): string {
-	return renderAgentComment(decision, anchorNumber, agentSummary);
+	return renderAgentComment(decision, anchorNumber, agentSummary, failure, previewPackage);
 }

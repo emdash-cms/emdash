@@ -93,25 +93,23 @@ export class FTSManager {
 		if (!isSqlite(this.db)) return;
 		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
-		const contentTable = this.getContentTableName(collectionSlug);
 
 		// Build the column list for FTS5
 		// id and locale are UNINDEXED (used for joining/filtering, not searched)
 		const columns = ["id UNINDEXED", "locale UNINDEXED", ...searchableFields].join(", ");
 
-		// Create the FTS5 virtual table.
-		// `content='<table>'` makes this an *external content* FTS5 table:
-		// the inverted index lives in the FTS shadow tables, but the actual
-		// row data lives in the backing content table. The triggers in
-		// `createTriggers` keep the index in sync; they MUST use the
-		// external-content-safe `'delete'` command (see notes there) to
-		// avoid `SQLITE_CORRUPT_VTAB` on UPDATE/DELETE.
+		// Create the FTS5 virtual table. The table stores its own copy of the
+		// indexed values (no `content=` option): Portable Text fields are
+		// indexed as extracted plain text — see searchValueExpr — which cannot
+		// mirror the raw JSON in the ec_* column, and external-content FTS5
+		// requires the index to exactly mirror the backing table's values
+		// (snippet() reads them, and the 'delete' command must be fed the
+		// inserted values or the index corrupts — see migration 039's history).
+		// Storing the extracted text also makes snippet() return prose.
 		await sql
 			.raw(`
 			CREATE VIRTUAL TABLE IF NOT EXISTS "${ftsTable}" USING fts5(
 				${columns},
-				content='${contentTable}',
-				content_rowid='rowid',
 				tokenize='${tokenizer}'
 			)
 		`)
@@ -122,6 +120,55 @@ export class FTSManager {
 	}
 
 	/**
+	 * SQL expression producing the indexed value for one searchable field.
+	 *
+	 * Portable Text fields are stored as JSON; indexing the raw JSON pollutes
+	 * the index with structural tokens (`_type`, style values like `normal`,
+	 * `_key` ULIDs) and makes snippets show JSON fragments. Extract the prose
+	 * instead: every JSON string under a `text`, `alt`, `caption`, or `code`
+	 * key (span text, image alt/caption, code blocks). This is a superset of
+	 * `extractPlainText` in text-extraction.ts, which walks only known block
+	 * shapes — the SQL variant takes those keys at any depth, so search and
+	 * the extractPlainText consumers (vectorize/ai-search) can see different
+	 * text for the same document. Only JSON documents
+	 * (arrays/objects) are extracted; legacy rows holding a bare string or a
+	 * JSON scalar (`Some title`, `2024`) are indexed as-is. Extraction must
+	 * live in SQL because the sync triggers cannot call into JS.
+	 *
+	 * `ref` must be a validated column reference (`NEW.x`, `OLD.x`, `"x"`).
+	 */
+	private searchValueExpr(ref: string, fieldType: string | undefined): string {
+		if (fieldType !== "portableText") return ref;
+		return (
+			`CASE WHEN ${ref} IS NULL THEN NULL ` +
+			`WHEN json_valid(${ref}) AND json_type(${ref}) IN ('array', 'object') THEN (` +
+			`SELECT group_concat(j.value, ' ') FROM json_tree(${ref}) AS j ` +
+			`WHERE j.key IN ('text', 'alt', 'caption', 'code') AND j.type = 'text') ` +
+			`ELSE ${ref} END`
+		);
+	}
+
+	/**
+	 * Field type per slug for a collection, for choosing the indexed-value
+	 * expression. Fields missing from the schema fall back to raw indexing.
+	 */
+	private async getFieldTypes(collectionSlug: string): Promise<Map<string, string>> {
+		const collection = await this.db
+			.selectFrom("_emdash_collections")
+			.select("id")
+			.where("slug", "=", collectionSlug)
+			.executeTakeFirst();
+		if (!collection) return new Map();
+
+		const rows = await this.db
+			.selectFrom("_emdash_fields")
+			.select(["slug", "type"])
+			.where("collection_id", "=", collection.id)
+			.execute();
+		return new Map(rows.map((r) => [r.slug, r.type]));
+	}
+
+	/**
 	 * Create triggers to keep FTS table in sync with content table.
 	 *
 	 * The insert and update triggers only add rows to the FTS index when
@@ -129,31 +176,20 @@ export class FTSManager {
 	 * search index and ensures the FTS row count matches the non-deleted
 	 * content count (which `verifyAndRepairIndex` relies on).
 	 *
-	 * IMPORTANT: The FTS5 virtual table is created with `content='ec_<slug>'`
-	 * which makes it an *external content* FTS5 table. For external-content
-	 * tables, removing a row must use the documented `'delete'` command and
-	 * supply the OLD column values explicitly, e.g.:
+	 * The FTS table stores its own values (no `content=` option), so removal
+	 * is a plain `DELETE FROM fts WHERE rowid = OLD.rowid` — a harmless no-op
+	 * for rows that were never indexed (soft-deleted content). The
+	 * external-content `'delete'`-command choreography and its corruption
+	 * modes (migration 039) do not apply to self-contained tables.
 	 *
-	 *     INSERT INTO fts(fts, rowid, col1, col2)
-	 *     VALUES('delete', OLD.rowid, OLD.col1, OLD.col2);
+	 * `INSERT OR REPLACE` keeps the insert path idempotent: re-running a
+	 * populate (D1 has no migration lock, so two isolates can race) converges
+	 * on one index row per content row instead of failing on the rowid
+	 * constraint.
 	 *
-	 * Using `DELETE FROM fts WHERE rowid = OLD.rowid` is the correct form
-	 * for *contentless* tables but is unsafe for external-content tables:
-	 * FTS5 then reads column values from the backing content table, which
-	 * in an AFTER UPDATE trigger already holds the NEW values. The wrong
-	 * tokens get removed and the inverted index drifts out of sync until
-	 * SQLite raises `SQLITE_CORRUPT_VTAB` on the next mutation. See
-	 * https://www.sqlite.org/fts5.html#external_content_tables.
-	 *
-	 * The UPDATE and DELETE triggers gate the `'delete'` on
-	 * `OLD.deleted_at IS NULL` because the INSERT trigger never indexed
-	 * rows that were already soft-deleted. Issuing `'delete'` for a rowid
-	 * that was never inserted into the FTS index is itself a corruption
-	 * trigger -- FTS5's `'delete'` is not a no-op on missing rowids and
-	 * raises `SQLITE_CORRUPT_VTAB`. Affected paths include restore-from-
-	 * trash (UPDATE where `OLD.deleted_at IS NOT NULL`), permanent-delete
-	 * from trash (DELETE on a soft-deleted row), and any edit on a row
-	 * that's currently in the trash.
+	 * The trigger SQL emitted here MUST stay in lock-step with migration
+	 * `064_fts_plain_text.ts`. If this changes again, add a new migration
+	 * rather than editing that one — migrations are forward-only.
 	 */
 	private async createTriggers(collectionSlug: string, searchableFields: string[]): Promise<void> {
 		this.validateInputs(collectionSlug, searchableFields);
@@ -165,64 +201,48 @@ export class FTSManager {
 		}
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const contentTable = this.getContentTableName(collectionSlug);
+		const fieldTypes = await this.getFieldTypes(collectionSlug);
 		const fieldList = searchableFields.join(", ");
-		const newFieldList = searchableFields.map((f) => `NEW.${f}`).join(", ");
-		// `'delete'` takes the FTS5 virtual table name as the first column,
-		// then the rowid being removed, then the OLD value of every column
-		// declared on the FTS5 table (in declaration order: id, locale,
-		// then each searchable field).
-		const oldFieldList = searchableFields.map((f) => `OLD.${f}`).join(", ");
+		const newValueList = searchableFields
+			.map((f) => this.searchValueExpr(`NEW.${f}`, fieldTypes.get(f)))
+			.join(", ");
 
 		// Insert trigger - only index non-deleted content
 		await sql
 			.raw(`
-			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_insert" 
-			AFTER INSERT ON "${contentTable}" 
+			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_insert"
+			AFTER INSERT ON "${contentTable}"
 			WHEN NEW.deleted_at IS NULL
 			BEGIN
-				INSERT INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
-				VALUES (NEW.rowid, NEW.id, NEW.locale, ${newFieldList});
+				INSERT OR REPLACE INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
+				VALUES (NEW.rowid, NEW.id, NEW.locale, ${newValueList});
 			END
 		`)
 			.execute(this.db);
 
-		// Update trigger - remove the old row from the FTS index using the
-		// external-content-safe `'delete'` command (which uses OLD column
-		// values, captured before the row was modified), then re-insert
-		// the new values when the row is still visible.
-		//
-		// `'delete'` is gated on `OLD.deleted_at IS NULL` because rows that
-		// were soft-deleted are not in the FTS index (the INSERT trigger
-		// skips them). Issuing `'delete'` for a missing rowid raises
-		// `SQLITE_CORRUPT_VTAB`, which would break restore-from-trash and
-		// edits to soft-deleted rows.
+		// Update trigger - drop the old index row, re-insert when the row is
+		// still visible. Trash (deleted_at set) ends at DELETE only; restore
+		// ends at DELETE (no-op) + re-insert.
 		await sql
 			.raw(`
-			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_update" 
-			AFTER UPDATE ON "${contentTable}" 
+			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_update"
+			AFTER UPDATE ON "${contentTable}"
 			BEGIN
-				INSERT INTO "${ftsTable}"("${ftsTable}", rowid, id, locale, ${fieldList})
-				SELECT 'delete', OLD.rowid, OLD.id, OLD.locale, ${oldFieldList}
-				WHERE OLD.deleted_at IS NULL;
+				DELETE FROM "${ftsTable}" WHERE rowid = OLD.rowid;
 				INSERT INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
-				SELECT NEW.rowid, NEW.id, NEW.locale, ${newFieldList}
+				SELECT NEW.rowid, NEW.id, NEW.locale, ${newValueList}
 				WHERE NEW.deleted_at IS NULL;
 			END
 		`)
 			.execute(this.db);
 
-		// Delete trigger - same external-content-safe `'delete'` form,
-		// gated on `OLD.deleted_at IS NULL` for the same reason as the
-		// UPDATE trigger: permanent-delete from trash hits a row whose
-		// `deleted_at` is already set and which was never indexed.
+		// Delete trigger
 		await sql
 			.raw(`
-			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_delete" 
-			AFTER DELETE ON "${contentTable}" 
+			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_delete"
+			AFTER DELETE ON "${contentTable}"
 			BEGIN
-				INSERT INTO "${ftsTable}"("${ftsTable}", rowid, id, locale, ${fieldList})
-				SELECT 'delete', OLD.rowid, OLD.id, OLD.locale, ${oldFieldList}
-				WHERE OLD.deleted_at IS NULL;
+				DELETE FROM "${ftsTable}" WHERE rowid = OLD.rowid;
 			END
 		`)
 			.execute(this.db);
@@ -279,20 +299,30 @@ export class FTSManager {
 	}
 
 	/**
-	 * Populate the FTS table from existing content
+	 * Populate the FTS table from existing content.
+	 *
+	 * `INSERT OR REPLACE` so a concurrent double-populate (D1 has no
+	 * migration lock) converges instead of failing on the rowid constraint.
 	 */
 	async populateFromContent(collectionSlug: string, searchableFields: string[]): Promise<void> {
 		if (!isSqlite(this.db)) return;
 		this.validateInputs(collectionSlug, searchableFields);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const contentTable = this.getContentTableName(collectionSlug);
+		const fieldTypes = await this.getFieldTypes(collectionSlug);
 		const fieldList = searchableFields.join(", ");
+		// Table-qualified references: json_tree exposes columns named
+		// key/value/type/path/..., and inside the extraction subquery a bare
+		// column reference binds to those instead of the ec_* column.
+		const valueList = searchableFields
+			.map((f) => this.searchValueExpr(`"${contentTable}"."${f}"`, fieldTypes.get(f)))
+			.join(", ");
 
 		// Insert all existing content into FTS table
 		await sql
 			.raw(`
-			INSERT INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
-			SELECT rowid, id, locale, ${fieldList} FROM "${contentTable}"
+			INSERT OR REPLACE INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
+			SELECT rowid, id, locale, ${valueList} FROM "${contentTable}"
 			WHERE deleted_at IS NULL
 		`)
 			.execute(this.db);
@@ -534,10 +564,8 @@ export class FTSManager {
 			return true;
 		}
 
-		// Row count parity check. For external-content FTS tables, COUNT(*)
-		// on the virtual table is answered from the backing content table
-		// (including soft-deleted rows), so we use the docsize shadow table
-		// which tracks rows actually present in the full-text index.
+		// Row count parity check against the docsize shadow table, which
+		// tracks rows actually present in the full-text index.
 		const contentCount = await sql<{ count: number }>`
 			SELECT COUNT(*) as count FROM ${sql.ref(contentTable)}
 			WHERE deleted_at IS NULL

@@ -136,6 +136,7 @@ describe("Database Migrations", () => {
 			expect(columns).toContain("label_singular");
 			expect(columns).toContain("description");
 			expect(columns).toContain("icon");
+			expect(columns).toContain("admin_config");
 			expect(columns).toContain("supports");
 			expect(columns).toContain("source");
 			expect(columns).toContain("created_at");

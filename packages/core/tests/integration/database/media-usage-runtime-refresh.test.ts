@@ -352,7 +352,7 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 			success: true,
 			data: {
 				[mediaId]: {
-					count: 0,
+					count: null,
 					coverage: { scope: "all_content_collections", status: "stale" },
 				},
 			},

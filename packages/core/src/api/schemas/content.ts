@@ -32,7 +32,7 @@ export const contentListQuery = cursorPaginationQuery
 		orderBy: z.string().optional(),
 		order: z.enum(["asc", "desc"]).optional(),
 		locale: localeCode.optional(),
-		/** Case-insensitive substring search across the collection's title/name/slug. */
+		/** Search across the collection's display fields, slug, and searchable custom fields. */
 		q: z.string().trim().min(1).max(200).optional(),
 		/** Filter to entries authored by this user (the `author_id` column). */
 		authorId: z.string().min(1).max(64).optional(),

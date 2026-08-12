@@ -26,7 +26,7 @@ function makeCase(overrides: Partial<EvalCase> = {}): EvalCase {
 }
 
 function reported(result: ReportedResult["result"], ok = true, pushed = false): ReportedResult {
-	return { result, ok, pushed };
+	return { result, ok, pushed, runId: "eval-run", publication: null, verification: [] };
 }
 
 describe("diagnoseOutcome mirrors the machine's outcomeFromResult (diagnose mode)", () => {

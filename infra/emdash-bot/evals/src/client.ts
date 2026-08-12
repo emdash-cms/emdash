@@ -131,12 +131,14 @@ export async function waitForResult(
 function looksLikeReported(value: unknown): value is ReportedResult {
 	if (!isRecord(value)) return false;
 	if (typeof value.ok !== "boolean" || typeof value.pushed !== "boolean") return false;
+	if (typeof value.runId !== "string" || !Array.isArray(value.verification)) return false;
+	if (value.publication !== null && !isRecord(value.publication)) return false;
 	return isRecord(value.result) && typeof value.result.summary === "string";
 }
 
 /**
  * Find the reported investigation result anywhere in a conversation snapshot.
- * The agent emits `{ result, ok, pushed }` via both a data writer and the
+ * The agent emits the reported result via both a data writer and the
  * `report_result` tool output; rather than couple to Flue's exact snapshot
  * envelope, this scans for that payload shape and returns the last one emitted
  * (the final report). Stringified JSON payloads are parsed and searched too.

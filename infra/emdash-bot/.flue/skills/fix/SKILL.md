@@ -7,21 +7,22 @@ description: Implement diagnose's proposed fix when verify says bug, the cause i
 
 You are here because a maintainer issued a **fix** directive, verify returned `bug`, diagnose pinned the cause with at least `medium` confidence, and diagnose rated the fix `mechanical` or `clear-best-option`. Diagnose handed you a **proposed fix** -- a concrete plan naming the file and the change. Implement that plan, prove it works, and leave the change verified. The hard reasoning is done; do not re-litigate the diagnosis unless reading the code convinces you it is wrong (then abandon -- see below).
 
-**What your output is, and is not.** You are not merging and not opening a PR. You commit and push your change to the issue's `bot/fix-<n>` candidate branch as the spine instructs; the push triggers a **preview build** the workflow posts to the issue; the reporter is asked to confirm it fixes _their_ case. **Only after the reporter confirms** does a draft PR open, and a maintainer reviews before anything reaches `main`. So the bar is "a correct, conventions-respecting change that makes the repro test pass" -- not "a perfect, unimprovable patch." A clear, test-backed fix is worth shipping for verification even when it is more than a one-liner. Equally: do not gold-plate, do not expand scope, do not refactor beyond the diagnosed bug.
+**What your output is, and is not.** You are not merging and not opening a PR. The trusted `publish_candidate` tool publishes your change to the issue's `bot/fix-<n>` candidate branch; that triggers a **preview build** the workflow posts to the issue. **Only after the reporter confirms** does a draft PR open, and a maintainer reviews before anything reaches `main`. So the bar is "a correct, conventions-respecting change that makes the repro test pass" -- not "a perfect, unimprovable patch." A clear, test-backed fix is worth shipping for verification even when it is more than a one-liner. Equally: do not gold-plate, do not expand scope, do not refactor beyond the diagnosed bug.
 
 ## Environment
 
 - **Edit in the VFS** with the `edit_file` / `write_file` tools; read surrounding code with `read_file` and `grep`. Every VFS edit is replayed onto the container checkout before each container command.
-- **Run tests, lint, typecheck, and format in an attached container** -- none of the toolchain exists in the VFS. Attach once you are ready to verify, and do all `pnpm` and git work there.
+- **Run final tests, lint, typecheck, and format checks through `run_check`** -- none of the toolchain exists in the VFS. Verification commands must not modify source files. Apply formatting with `edit_file`/`write_file`, then use a check-only formatter command. Use `exec` only for exploratory commands whose result is not a release gate.
 
 ## Do not
 
-- No `git tag` and no PR creation. Push only the issue's `bot/fix-<n>` branch, with `--force-with-lease`, exactly as the spine instructs -- the push capability rejects every other ref. The workflow owns the preview and the PR.
+- No `git commit`, `git push`, `git tag`, or PR creation. `publish_candidate` owns the issue's candidate branch. The workflow owns the preview and the PR.
 - No GitHub writes. Read-only API GETs only.
 - No network beyond the clone, the proxy-signed GitHub API, and the npm registry.
 - No `pnpm publish` / `npm publish`.
 - No drive-by edits. Touch only the files the diagnosed bug and its test need. A problem in a nearby file is a human's -- scope discipline.
 - Do not modify Lingui catalogs (`packages/admin/src/locales/*/messages.po`); the extract workflow handles them on merge.
+- Do not edit after final verification. Publication requires every latest named `run_check` result to match the exact candidate tree; rerun all required checks after any source change.
 
 ## Procedure
 
@@ -39,12 +40,13 @@ You are here because a maintainer issued a **fix** directive, verify returned `b
    - `import.meta.env.DEV`, never `process.env.NODE_ENV`.
    - Migrations are forward-only and additive; register in `runner.ts` via `StaticMigrationProvider`.
    - Prefer additive changes. A breaking change needs an explicit changeset -- do not introduce one for an automated fix without compelling justification.
-4. **Run the repro test (container).** It must now pass. If not, your fix is wrong or incomplete -- investigate, adjust, or abandon. Never weaken the test to make it pass.
-5. **Run the affected package's suite (container).** `pnpm --filter <package> test`. Read the output. New failures in tests you did not write are regressions -- fix them or abandon the whole change. Do not push regressions through.
-6. **Typecheck (container).** `pnpm typecheck` for packages, `pnpm typecheck:demos` if a demo was involved. No new errors.
-7. **Lint (container).** `pnpm lint:quick`. If the count looks off, snapshot with `pnpm lint:json | jq '.diagnostics | length'` -- a clean baseline stays clean.
-8. **Format (container).** `pnpm format` (oxfmt, tabs). Do not bypass it. Format only the files you touched -- a repo-wide format reformats already-committed files and blows scope.
+4. **Run the repro test with `run_check`.** It must now pass. If not, your fix is wrong or incomplete -- investigate, adjust, or abandon. Never weaken the test to make it pass.
+5. **Run the affected package's suite with `run_check`.** `pnpm --filter <package> test`. New failures in tests you did not write are regressions -- fix them or abandon the whole change.
+6. **Typecheck with `run_check`.** `pnpm typecheck` for packages, `pnpm typecheck:demos` if a demo was involved. No new errors.
+7. **Lint with `run_check`.** Run `pnpm lint:quick`; a clean baseline stays clean.
+8. **Check formatting with `run_check`.** Apply any needed formatting with `edit_file`/`write_file`, then run `pnpm format:check` or the narrow check-only formatter command appropriate to the files you touched. Do not bulk-format unrelated files.
 9. **Add a changeset when a published package changed.** Create the file under `.changeset/` (patch bump for a bug fix unless diagnosis says otherwise). Write it as release notes for someone upgrading -- lead with a verb, describe the observable effect, reference the issue -- not as a commit message. Include it in your fix commit.
+10. **Publish with `publish_candidate`.** Do not reproduce its work with shell commands. Report `fixed: true` only after it succeeds.
 
 ## When to abandon
 

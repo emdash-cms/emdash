@@ -42,6 +42,11 @@ import {
 	mediaUsageDetailsResponseSchema,
 	mediaUsageRepairBody,
 	mediaUsageRepairResponseSchema,
+	mediaUsageWorkListQuery,
+	mediaUsageWorkListResponseSchema,
+	mediaUsageWorkRetryBody,
+	mediaUsageWorkRetryConflictSchema,
+	mediaUsageWorkRetryResponseSchema,
 } from "../schemas/media-usage.js";
 import {
 	DEFAULT_MAX_UPLOAD_SIZE,
@@ -114,12 +119,15 @@ import { settingsUpdateBody, siteSettingsSchema } from "../schemas/settings.js";
 import {
 	createTermBody,
 	reorderTermsBody,
+	taxonomyDefTranslationsSchema,
 	taxonomyListResponseSchema,
+	taxonomyResponseSchema,
 	termGetResponseSchema,
 	termListQuery,
 	termListResponseSchema,
 	termReorderResponseSchema,
 	termResponseSchema,
+	updateTaxonomyDefBody,
 	updateTermBody,
 } from "../schemas/taxonomies.js";
 import {
@@ -790,6 +798,53 @@ function buildMediaPaths(maxUploadSize: number) {
 				},
 			},
 		},
+		"/_emdash/api/admin/media-usage/work": {
+			get: {
+				operationId: "listMediaUsageWork",
+				summary: "List durable media usage work",
+				description:
+					"Returns one bounded cursor page of durable entry-indexing work for a current collection. Requires `schema:manage`; bearer tokens also require the `admin` scope. The response omits lease tokens, work versions, indexed content, media references, raw errors, and an exact backlog count.",
+				tags: ["Media"],
+				requestParams: { query: mediaUsageWorkListQuery },
+				responses: {
+					"200": {
+						description: "Bounded media usage work page",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageWorkListResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/work/retry": {
+			post: {
+				operationId: "retryMediaUsageWork",
+				summary: "Retry one durable media usage job",
+				description:
+					"Idempotently reopens or creates one entry-indexing job for a current immutable collection identity. Requires `schema:manage`; bearer tokens also require the `admin` scope. A live worker lease or a concurrent work change returns a stable conflict without exposing ownership tokens.",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [JSON_CONTENT]: { schema: mediaUsageWorkRetryBody } },
+				},
+				responses: {
+					"200": {
+						description: "Current pending work state",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageWorkRetryResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+					"409": {
+						description: "The job has a live lease or changed concurrently",
+						content: { [JSON_CONTENT]: { schema: mediaUsageWorkRetryConflictSchema } },
+					},
+				},
+			},
+		},
 		"/_emdash/api/media/upload-url": {
 			post: {
 				operationId: "getMediaUploadUrl",
@@ -1342,6 +1397,97 @@ const taxonomyPaths = {
 				},
 				...authErrors,
 				...standardErrors(500),
+			},
+		},
+	},
+	"/_emdash/api/taxonomies/{name}": {
+		get: {
+			operationId: "getTaxonomy",
+			summary: "Get a taxonomy definition",
+			description:
+				"Definitions are per-locale; `locale` picks one, and without it the lowest-locale match is returned.",
+			tags: ["Taxonomies"],
+			requestParams: {
+				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+				query: z.object({
+					locale: z.string().optional().meta({ description: "Locale filter" }),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "Taxonomy definition",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(taxonomyResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+		put: {
+			operationId: "updateTaxonomy",
+			summary: "Update a taxonomy definition",
+			description:
+				"Writes the single definition `name` + `locale` resolves to. `name` and `locale` cannot be changed — terms are keyed on `name`, and each locale is its own definition row.",
+			tags: ["Taxonomies"],
+			requestParams: {
+				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+				query: z.object({
+					locale: z.string().optional().meta({ description: "Locale of the definition to update" }),
+				}),
+			},
+			requestBody: { content: { [JSON_CONTENT]: { schema: updateTaxonomyDefBody } } },
+			responses: {
+				"200": {
+					description: "Updated taxonomy definition",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(taxonomyResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+		delete: {
+			operationId: "deleteTaxonomy",
+			summary: "Delete a taxonomy, its terms, and their content assignments",
+			description:
+				"Destructive and unscoped: every locale's definition goes, along with every term under the name and the assignments those terms hold. There is no locale parameter and no guard on a taxonomy that is still in use.",
+			tags: ["Taxonomies"],
+			requestParams: {
+				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+			},
+			responses: {
+				"200": {
+					description: "Deleted",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(deleteResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+	},
+	"/_emdash/api/taxonomies/{name}/translations": {
+		get: {
+			operationId: "listTaxonomyTranslations",
+			summary: "List every locale variant of a taxonomy definition",
+			description:
+				"Create a translation with `POST /_emdash/api/taxonomies` and `translationOf` set to a definition id from this list.",
+			tags: ["Taxonomies"],
+			requestParams: {
+				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+				query: z.object({
+					locale: z
+						.string()
+						.optional()
+						.meta({ description: "Locale of the definition to resolve the group from" }),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "Translations sharing a translation_group",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(taxonomyDefTranslationsSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
 			},
 		},
 	},
