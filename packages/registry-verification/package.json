@@ -41,7 +41,7 @@
 		"@sigstore/bundle": "5.0.0",
 		"@sigstore/core": "4.0.1",
 		"@sigstore/protobuf-specs": "0.5.1",
-		"@sigstore/verify": "4.1.0",
+		"@sigstore/verify": "4.1.2",
 		"publint": "catalog:",
 		"tsdown": "catalog:",
 		"typescript": "catalog:",
