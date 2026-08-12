@@ -124,7 +124,6 @@ it("bounds manual keyset pages while seeking the taxonomy index", async () => {
 	await repo.findPageByName("category", {
 		locale: "en",
 		limit: 2,
-		order: "manual",
 		cursor: {
 			sortOrder: cursor.sortOrder,
 			label: cursor.label,

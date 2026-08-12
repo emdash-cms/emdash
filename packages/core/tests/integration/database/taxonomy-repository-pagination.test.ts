@@ -62,7 +62,6 @@ describeEachDialect("TaxonomyRepository pagination", (dialect) => {
 		const page1 = await repo.findPageByName(TAXONOMY, {
 			locale: "en",
 			limit: 2,
-			order: "manual",
 		});
 		expect(page1.items.map((term) => term.slug)).toEqual(["first", "tie-a"]);
 		expect(page1.hasMore).toBe(true);
@@ -72,35 +71,9 @@ describeEachDialect("TaxonomyRepository pagination", (dialect) => {
 		const page2 = await repo.findPageByName(TAXONOMY, {
 			locale: "en",
 			limit: 2,
-			order: "manual",
 			cursor: { sortOrder: last.sortOrder, label: last.label, id: last.id },
 		});
 		expect(page2.items.map((term) => term.slug)).toEqual(["tie-b", "last"]);
-		expect(page2.hasMore).toBe(false);
-	});
-
-	it("continues label-ordered pages after the cursor row is deleted", async () => {
-		await insertTerms([
-			{ id: "term-zulu", slug: "zulu", label: "Zulu", sortOrder: 0 },
-			{ id: "term-alpha", slug: "alpha", label: "Alpha", sortOrder: 1 },
-			{ id: "term-bravo", slug: "bravo", label: "Bravo", sortOrder: 2 },
-		]);
-
-		const page1 = await repo.findPageByName(TAXONOMY, {
-			limit: 1,
-			order: "label",
-			cursor: { label: "Alpha", id: "term-alpha" },
-		});
-		expect(page1.items.map((term) => term.slug)).toEqual(["bravo"]);
-		expect(page1.hasMore).toBe(true);
-
-		await ctx.db.deleteFrom("taxonomies").where("id", "=", "term-bravo").execute();
-		const page2 = await repo.findPageByName(TAXONOMY, {
-			limit: 1,
-			order: "label",
-			cursor: { label: "Bravo", id: "term-bravo" },
-		});
-		expect(page2.items.map((term) => term.slug)).toEqual(["zulu"]);
 		expect(page2.hasMore).toBe(false);
 	});
 
@@ -114,7 +87,7 @@ describeEachDialect("TaxonomyRepository pagination", (dialect) => {
 			})),
 		);
 
-		const page = await repo.findPageByName(TAXONOMY, { limit: 1000, order: "manual" });
+		const page = await repo.findPageByName(TAXONOMY, { limit: 1000 });
 		expect(page.items).toHaveLength(100);
 		expect(page.hasMore).toBe(true);
 	});

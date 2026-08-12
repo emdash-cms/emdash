@@ -27,15 +27,14 @@ import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
-import { decodeCursor, encodeCursor, InvalidCursorError } from "../database/repositories/types.js";
+import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
 import { decodeBase64, encodeBase64 } from "../utils/base64.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 /** http(s) scheme matcher used by `settings_update` URL validation. */
 const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
 const TAXONOMY_CURSOR_VERSION = 2;
-const MAX_TAXONOMY_CURSOR_LENGTH = 4096;
-const POSTGRES_INTEGER_MAX = 2_147_483_647;
+const MAX_TAXONOMY_CURSOR_LENGTH = 2048;
 
 // ---------------------------------------------------------------------------
 // Shared schemas — kept in sync with `api/schemas/settings.ts` (which the
@@ -134,19 +133,19 @@ type ErrorEnvelope = {
 	_meta: { code: string; details?: Record<string, unknown> };
 };
 
-type TaxonomyListCursor =
-	| { order: "manual"; sortOrder: number; label: string; id: string }
-	| { order: "label"; label: string; id: string };
+type TaxonomyListCursor = { id: string };
 
-function encodeTaxonomyCursor(term: { sortOrder: number; label: string; id: string }): string {
-	return encodeBase64(
+function encodeTaxonomyCursor(term: { id: string }): string {
+	const cursor = encodeBase64(
 		JSON.stringify({
 			v: TAXONOMY_CURSOR_VERSION,
-			sortOrder: term.sortOrder,
-			label: term.label,
 			id: term.id,
 		}),
 	);
+	if (cursor.length > MAX_TAXONOMY_CURSOR_LENGTH) {
+		throw new InvalidCursorError(cursor);
+	}
+	return cursor;
 }
 
 function decodeTaxonomyCursor(cursor: string): TaxonomyListCursor {
@@ -167,34 +166,23 @@ function decodeTaxonomyCursor(cursor: string): TaxonomyListCursor {
 
 	const candidate = parsed as Record<string, unknown>;
 	if ("v" in candidate) {
-		const { v, sortOrder, label, id } = candidate;
+		const { v, id } = candidate;
 		if (
 			v !== TAXONOMY_CURSOR_VERSION ||
-			typeof sortOrder !== "number" ||
-			!Number.isSafeInteger(sortOrder) ||
-			sortOrder < 0 ||
-			sortOrder > POSTGRES_INTEGER_MAX ||
-			typeof label !== "string" ||
-			label.includes("\0") ||
 			typeof id !== "string" ||
 			id.length === 0 ||
 			id.includes("\0")
 		) {
 			throw new InvalidCursorError(cursor);
 		}
-		return {
-			order: "manual",
-			sortOrder,
-			label,
-			id,
-		};
+		return { id };
 	}
 
 	const legacy = decodeCursor(cursor);
 	if (legacy.orderValue.includes("\0") || legacy.id.length === 0 || legacy.id.includes("\0")) {
 		throw new InvalidCursorError(cursor);
 	}
-	return { order: "label", label: legacy.orderValue, id: legacy.id };
+	return { id: legacy.id };
 }
 
 /**
@@ -2304,7 +2292,12 @@ export function createMcpServer(
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
 				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
-				cursor: z.string().min(1).max(2048).optional().describe("Pagination cursor"),
+				cursor: z
+					.string()
+					.min(1)
+					.max(MAX_TAXONOMY_CURSOR_LENGTH)
+					.optional()
+					.describe("Pagination cursor"),
 				locale: z.string().optional().describe("Filter by locale (omit for all)"),
 			}),
 			annotations: { readOnlyHint: true },
@@ -2337,35 +2330,30 @@ export function createMcpServer(
 					}
 				}
 
-				const page =
-					cursor?.order === "label"
-						? await repo.findPageByName(args.taxonomy, {
-								locale: args.locale,
-								limit,
-								order: "label",
-								cursor: { label: cursor.label, id: cursor.id },
-							})
-						: await repo.findPageByName(args.taxonomy, {
-								locale: args.locale,
-								limit,
-								order: "manual",
-								...(cursor
-									? {
-											cursor: {
-												sortOrder: cursor.sortOrder,
-												label: cursor.label,
-												id: cursor.id,
-											},
-										}
-									: {}),
-							});
+				let pageCursor: { sortOrder: number; label: string; id: string } | undefined;
+				if (cursor) {
+					const cursorTerm = await repo.findById(cursor.id);
+					if (
+						!cursorTerm ||
+						cursorTerm.name !== args.taxonomy ||
+						(args.locale !== undefined && cursorTerm.locale !== args.locale)
+					) {
+						return respondError("INVALID_CURSOR", "Pagination cursor no longer identifies a term");
+					}
+					pageCursor = {
+						sortOrder: cursorTerm.sortOrder,
+						label: cursorTerm.label,
+						id: cursorTerm.id,
+					};
+				}
+
+				const page = await repo.findPageByName(args.taxonomy, {
+					locale: args.locale,
+					limit,
+					...(pageCursor ? { cursor: pageCursor } : {}),
+				});
 				const last = page.items.at(-1);
-				const nextCursor =
-					page.hasMore && last
-						? cursor?.order === "label"
-							? encodeCursor(last.label, last.id)
-							: encodeTaxonomyCursor(last)
-						: undefined;
+				const nextCursor = page.hasMore && last ? encodeTaxonomyCursor(last) : undefined;
 
 				return jsonResult({
 					items: page.items.map((t) => ({

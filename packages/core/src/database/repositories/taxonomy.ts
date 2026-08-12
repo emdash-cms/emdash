@@ -129,24 +129,10 @@ export interface TaxonomyManualPageCursor {
 	id: string;
 }
 
-export interface TaxonomyLabelPageCursor {
-	label: string;
-	id: string;
+export interface TaxonomyPageOptions extends FindOptions {
+	cursor?: TaxonomyManualPageCursor;
+	limit?: number;
 }
-
-export type TaxonomyPageOptions = FindOptions &
-	(
-		| {
-				order?: "manual";
-				cursor?: TaxonomyManualPageCursor;
-				limit?: number;
-		  }
-		| {
-				order: "label";
-				cursor?: TaxonomyLabelPageCursor;
-				limit?: number;
-		  }
-	);
 
 export interface TaxonomyPage {
 	items: Taxonomy[];
@@ -298,34 +284,21 @@ export class TaxonomyRepository {
 					: query.where("parent_id", "=", options.parentId);
 		}
 
-		if (options.order === "label") {
-			if (options.cursor) {
-				const cursor = options.cursor;
-				query = query.where((eb) =>
-					eb.or([
-						eb("label", ">", cursor.label),
-						eb.and([eb("label", "=", cursor.label), eb("id", ">", cursor.id)]),
+		if (options.cursor) {
+			const cursor = options.cursor;
+			query = query.where((eb) =>
+				eb.or([
+					eb("sort_order", ">", cursor.sortOrder),
+					eb.and([eb("sort_order", "=", cursor.sortOrder), eb("label", ">", cursor.label)]),
+					eb.and([
+						eb("sort_order", "=", cursor.sortOrder),
+						eb("label", "=", cursor.label),
+						eb("id", ">", cursor.id),
 					]),
-				);
-			}
-			query = query.orderBy("label", "asc").orderBy("id", "asc");
-		} else {
-			if (options.cursor) {
-				const cursor = options.cursor;
-				query = query.where((eb) =>
-					eb.or([
-						eb("sort_order", ">", cursor.sortOrder),
-						eb.and([eb("sort_order", "=", cursor.sortOrder), eb("label", ">", cursor.label)]),
-						eb.and([
-							eb("sort_order", "=", cursor.sortOrder),
-							eb("label", "=", cursor.label),
-							eb("id", ">", cursor.id),
-						]),
-					]),
-				);
-			}
-			query = query.orderBy("sort_order", "asc").orderBy("label", "asc").orderBy("id", "asc");
+				]),
+			);
 		}
+		query = query.orderBy("sort_order", "asc").orderBy("label", "asc").orderBy("id", "asc");
 
 		const rows = await query.limit(limit + 1).execute();
 		return {
