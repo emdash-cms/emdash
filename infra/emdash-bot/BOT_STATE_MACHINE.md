@@ -147,10 +147,10 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `fixing` | `agent.by_design` | `blocked` | — |
 | `fixing` | `agent.skipped` | `blocked` | — |
 | `preview_building` | `preview.ready` | `awaiting_reporter` | — |
-| `preview_building` | `preview.failed` | `reproduced` | — |
+| `preview_building` | `preview.failed` | default: `reproduced`; `enhancement`: `blocked`; `task`: `blocked` | — |
 | `awaiting_reporter` | `confirm` | `in_review` | `openDraftPr` |
-| `awaiting_reporter` | `reject` | `reproduced` | `reapBranch` |
-| `awaiting_reporter` | `expire` | `reproduced` | `reapBranch` |
+| `awaiting_reporter` | `reject` | default: `reproduced`; `enhancement`: `blocked`; `task`: `blocked` | `reapBranch` |
+| `awaiting_reporter` | `expire` | default: `reproduced`; `enhancement`: `blocked`; `task`: `blocked` | `reapBranch` |
 | `awaiting_reporter` | `take_over` | `human_owned` | — |
 | `awaiting_reporter` | `decline` | `declined` | `reapBranch` |
 | `investigating` | `reset` | `triage` | — |
@@ -246,10 +246,13 @@ stateDiagram-v2
     fixing --> blocked: agent.by_design
     fixing --> blocked: agent.skipped
     preview_building --> awaiting_reporter: preview.ready
-    preview_building --> reproduced: preview.failed
+    preview_building --> reproduced: preview.failed [default]
+    preview_building --> blocked: preview.failed [enhancement, task]
     awaiting_reporter --> in_review: confirm / openDraftPr
-    awaiting_reporter --> reproduced: reject / reapBranch
-    awaiting_reporter --> reproduced: expire / reapBranch
+    awaiting_reporter --> reproduced: reject [default] / reapBranch
+    awaiting_reporter --> blocked: reject [enhancement, task] / reapBranch
+    awaiting_reporter --> reproduced: expire [default] / reapBranch
+    awaiting_reporter --> blocked: expire [enhancement, task] / reapBranch
     awaiting_reporter --> human_owned: take_over
     awaiting_reporter --> declined: decline / reapBranch
     investigating --> triage: reset

@@ -1,4 +1,4 @@
-import type { StateId } from "./machine.js";
+import type { Kind, StateId } from "./machine.js";
 import { artifactsBranch, fixBranch, previewInstallCommand } from "./preview.js";
 import type { Decision } from "./router.js";
 
@@ -198,4 +198,8 @@ export function renderDraftPrBody(issueNumber: number, previewPackage?: string):
 		"",
 		"<sub>Opened automatically by emdashbot as a draft. A maintainer must review before merge.</sub>",
 	].join("\n");
+}
+
+export function renderPullRequestTitle(issueNumber: number, kind: Kind): string {
+	return `${kind === "bug" ? "Fix" : "Implement"} #${issueNumber}`;
 }

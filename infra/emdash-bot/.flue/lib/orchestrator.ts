@@ -13,6 +13,7 @@ import {
 	type PreviewScreenshot,
 	renderAgentComment,
 	renderDraftPrBody,
+	renderPullRequestTitle,
 	renderPreviewReadyAsk,
 	renderReadonlyReply,
 	shouldPostReadonlyReply,
@@ -1157,13 +1158,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 	): Promise<string | null> {
 		const token = await this.getInstallationToken(creds);
 		const headBranch = `bot/fix-${anchorNumber}`;
+		const kind = (await this.ctx.storage.get<Kind>(STORAGE.kind)) ?? "bug";
 		try {
 			const created =
 				(await getOpenPullRequest(token, repo, headBranch)) ??
 				(await createPullRequest(token, repo, {
 					headBranch,
 					baseBranch: "main",
-					title: `Fix #${anchorNumber}`,
+					title: renderPullRequestTitle(anchorNumber, kind),
 					body: draft
 						? renderDraftPrBody(anchorNumber, this.env.PREVIEW_PACKAGE)
 						: `Fixes #${anchorNumber}.\n\nAutomated PR opened by emdashbot.`,
@@ -1732,10 +1734,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 	/** Test-only: land directly in `preview_building` with the ask's persisted
 	 * inputs, so the preview-poll path can be exercised without dispatching the
 	 * (runtime-less in tests) investigate agent through fixing. */
-	async debugPrimePreviewBuilding(anchorNumber: number, notes: string): Promise<void> {
+	async debugPrimePreviewBuilding(
+		anchorNumber: number,
+		notes: string,
+		kind: Kind = "bug",
+	): Promise<void> {
 		await Promise.all([
 			this.ctx.storage.put(STORAGE.state, "preview_building" satisfies StateId),
-			this.ctx.storage.put(STORAGE.kind, "bug" satisfies Kind),
+			this.ctx.storage.put(STORAGE.kind, kind),
 			this.ctx.storage.put(STORAGE.anchorNumber, anchorNumber),
 			this.ctx.storage.put(STORAGE.previewNotes, notes),
 		]);

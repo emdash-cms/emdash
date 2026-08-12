@@ -531,6 +531,30 @@ describe("router: investigation + fix loop", () => {
 		expect(d.to).toBe("reproduced");
 	});
 
+	test("enhancement delivery failures return to a retryable implementation state", () => {
+		const previewFailed = resolve({
+			labels: ["bot:enhancement", "bot:preview-building"],
+			event: "preview.failed",
+			actor: "system",
+		});
+		assertTransition(previewFailed);
+		expect(previewFailed.to).toBe("blocked");
+
+		for (const event of ["reject", "expire"] as const) {
+			const decision = resolve({
+				labels: ["bot:enhancement", "bot:awaiting-reporter"],
+				event,
+				actor: event === "reject" ? "reporter" : "system",
+			});
+			assertTransition(decision);
+			expect(decision.to).toBe("blocked");
+			expect(decision.action).toBe("reapBranch");
+		}
+
+		const commands = new Set(classifierCommands("blocked").map((command) => command.event));
+		expect(commands.has("implement")).toBe(true);
+	});
+
 	test("confirm opens a draft PR; reject and expire reap the branch", () => {
 		const confirm = resolve({
 			labels: ["bot:bug", "bot:awaiting-reporter"],

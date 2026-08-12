@@ -193,6 +193,33 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect((await stub.getPersistedState()).state).toBe("preview_building");
 	});
 
+	test("a rejected implementation returns to a state where implement can be retried", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent());
+		await stub.debugSetStaleRun("implement-run", Date.now(), undefined, "implement");
+		await stub.applyAgentResult({
+			runId: "implement-run",
+			result: { implemented: true, summary: "Implemented the requested change." },
+			pushed: true,
+			ok: true,
+		});
+		await stub.event(
+			makeEvent({ event: "preview.ready", arg: null, actor: "system", anchorNumber: 42 }),
+		);
+
+		const rejected = await stub.event(
+			makeEvent({ event: "reject", arg: "needs revision", actor: "reporter", anchorNumber: 42 }),
+		);
+
+		expect(rejected.kind).toBe("transition");
+		expect((await stub.getPersistedState()).state).toBe("blocked");
+		const retry = await stub.event(
+			makeEvent({ event: "implement", arg: "apply the feedback", anchorNumber: 42 }),
+		);
+		expect(retry.kind).toBe("transition");
+		if (retry.kind === "transition") expect(retry.decision.action).toBe("investigate.implement");
+	});
+
 	test("a failed run comment carries its stage and durable run id", async () => {
 		const calls: string[] = [];
 		const comments: string[] = [];
@@ -710,6 +737,57 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(calls).toContain("comment");
 		expect(calls).not.toContain("labels");
 		expect(await stub.getPendingSideEffectCount()).toBe(1);
+	});
+
+	test("draft PR titles distinguish bug fixes from directed implementations", async () => {
+		const pullRequests: unknown[] = [];
+		let pullNumber = 100;
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal(
+			"fetch",
+			(input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+				const url =
+					typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+				const method = (init?.method ?? "GET").toUpperCase();
+				if (method === "GET" && url.includes("/pulls?")) {
+					return Promise.resolve(
+						new Response("[]", { headers: { "content-type": "application/json" } }),
+					);
+				}
+				if (method === "POST" && url.endsWith("/pulls")) {
+					pullRequests.push(parseJsonBody(init?.body));
+					pullNumber += 1;
+					return Promise.resolve(
+						new Response(
+							JSON.stringify({ number: pullNumber, html_url: "https://example.test/pr" }),
+							{
+								status: 201,
+								headers: { "content-type": "application/json" },
+							},
+						),
+					);
+				}
+				return Promise.resolve(new Response("{}", { status: 200 }));
+			},
+		);
+
+		for (const [anchorNumber, kind] of [
+			[42, "bug"],
+			[43, "enhancement"],
+		] as const) {
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+			await stub.debugPrimePreviewBuilding(anchorNumber, "Candidate notes.", kind);
+			await stub.event(
+				makeEvent({ event: "preview.ready", arg: null, actor: "system", anchorNumber }),
+			);
+			await stub.event(makeEvent({ event: "confirm", arg: null, actor: "reporter", anchorNumber }));
+		}
+
+		expect(pullRequests).toMatchObject([
+			{ title: "Fix #42", draft: true },
+			{ title: "Implement #43", draft: true },
+		]);
 	});
 
 	test("cleanupOnClose is a no-op without live credentials", async () => {

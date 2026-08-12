@@ -869,7 +869,11 @@
 			"from": "preview_building",
 			"event": "preview.failed",
 			"to": "reproduced",
-			"note": "candidate branch retained; the diagnosis still holds, so fall back to the reproduced verdict"
+			"toByKind": {
+				"enhancement": "blocked",
+				"task": "blocked"
+			},
+			"note": "bugs return to the reproduced verdict; directed changes rest in blocked so implement can retry"
 		},
 		{
 			"from": "awaiting_reporter",
@@ -881,15 +885,23 @@
 			"from": "awaiting_reporter",
 			"event": "reject",
 			"to": "reproduced",
+			"toByKind": {
+				"enhancement": "blocked",
+				"task": "blocked"
+			},
 			"action": "reapBranch",
-			"note": "denial reaps the unvalidated branch; feedback is recorded for the next fix"
+			"note": "denial reaps the unvalidated branch; directed changes remain retryable through implement"
 		},
 		{
 			"from": "awaiting_reporter",
 			"event": "expire",
 			"to": "reproduced",
+			"toByKind": {
+				"enhancement": "blocked",
+				"task": "blocked"
+			},
 			"action": "reapBranch",
-			"note": "14-day silence reaps the branch; the reproduced verdict survives"
+			"note": "14-day silence reaps the branch; bugs retain their verdict and directed changes remain retryable"
 		},
 		{
 			"from": "awaiting_reporter",
