@@ -382,20 +382,20 @@ export class MediaUsageCollectionDeletionRepository {
 							.where("deletion.state", "=", "leased")
 							.where("deletion.phase", "=", "registry")
 							.where("deletion.lease_token", "=", input.leaseToken)
-							.where(liveLease(this.db, "deletion.lease_expires_at")),
+							.where(liveLease(trx, "deletion.lease_expires_at")),
 					),
 				)
 				.execute();
 
 			const checkpoint = await trx
 				.updateTable("_emdash_media_usage_collection_deletions")
-				.set({ phase: "table", updated_at: timestampOffset(this.db, 0) })
+				.set({ phase: "table", updated_at: timestampOffset(trx, 0) })
 				.where("collection_id", "=", input.collectionId)
 				.where("collection_slug", "=", input.collectionSlug)
 				.where("state", "=", "leased")
 				.where("phase", "=", "registry")
 				.where("lease_token", "=", input.leaseToken)
-				.where(liveLease(this.db))
+				.where(liveLease(trx))
 				.executeTakeFirst();
 			return Number(checkpoint.numUpdatedRows ?? 0) === 1;
 		});
