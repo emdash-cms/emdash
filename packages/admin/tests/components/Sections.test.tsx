@@ -132,6 +132,20 @@ describe("Sections", () => {
 		await expect.element(screen.getByLabelText("Slug")).toHaveValue("my-great-section");
 	});
 
+	it("normalizes a manually-typed slug on blur in create dialog", async () => {
+		const screen = await render(
+			<Wrapper>
+				<Sections />
+			</Wrapper>,
+		);
+		await screen.getByText("New Section").click();
+		const slugInput = screen.getByLabelText("Slug");
+		await slugInput.fill("My Custom Slug!");
+		// Blur by moving focus elsewhere, same as a real user tabbing away.
+		await screen.getByLabelText("Title").click();
+		await expect.element(slugInput).toHaveValue("my-custom-slug");
+	});
+
 	it("search input filters sections", async () => {
 		const screen = await render(
 			<Wrapper>

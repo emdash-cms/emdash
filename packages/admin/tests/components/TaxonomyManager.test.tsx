@@ -217,6 +217,22 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByText("Description (optional)")).toBeInTheDocument();
 	});
 
+	it("normalizes a manually-typed slug on blur in create dialog", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+
+		await expect.element(screen.getByRole("heading", { name: "Categories" })).toBeInTheDocument();
+
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+
+		const slugInput = screen.getByLabelText("Slug");
+		await slugInput.fill("My New Term!");
+		// Blur by moving focus elsewhere, same as a real user tabbing away.
+		await screen.getByLabelText("Name").click();
+		await expect.element(slugInput).toHaveValue("my-new-term");
+	});
+
 	it("shows parent selector for hierarchical taxonomies", async () => {
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
 			wrapper: Wrapper,

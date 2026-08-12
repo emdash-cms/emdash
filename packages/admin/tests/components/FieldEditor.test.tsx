@@ -297,6 +297,16 @@ describe("FieldEditor", () => {
 			await expect.element(screen.getByLabelText("Slug")).toHaveValue("title");
 		});
 
+		it("normalizes a manually-typed slug on blur when adding a new field", async () => {
+			const screen = await render(<FieldEditor {...defaultProps} />);
+			await screen.getByRole("button", { name: SHORT_TEXT_REGEX }).click({ force: true });
+			const slugInput = screen.getByLabelText("Slug");
+			await slugInput.fill("My Custom Field!");
+			// Blur by moving focus elsewhere, same as a real user tabbing away.
+			await screen.getByLabelText("Label").click();
+			await expect.element(slugInput).toHaveValue("my_custom_field");
+		});
+
 		it("shows type indicator with field type info", async () => {
 			const screen = await render(<FieldEditor {...defaultProps} field={existingField} />);
 			await expect.element(screen.getByText("Short Text")).toBeInTheDocument();
