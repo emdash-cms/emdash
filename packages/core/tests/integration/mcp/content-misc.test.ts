@@ -7,6 +7,7 @@
  *   - content_translations + locale handling on create/get
  *   - _rev optimistic concurrency (happy + race)
  *   - Soft-delete visibility (content_get / content_list filtering)
+ *   - content_list search by `q`
  *   - Edit-while-trashed
  *   - Idempotency (publish twice, unpublish-on-draft, schedule + publish)
  */

@@ -152,7 +152,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 						</div>
 					) : filteredItems.length === 0 ? (
 						<div className="flex flex-col items-center justify-center h-32 text-center">
-							{searchQuery ? (
+							{searchParam ? (
 								<>
 									<MagnifyingGlass className="h-8 w-8 text-kumo-subtle mb-2" />
 									<p className="text-kumo-subtle">{t`No content found`}</p>
@@ -199,8 +199,6 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 									</button>
 								);
 							})}
-							{/* Search is server-side and paginated, so results can span
-							    multiple pages too — keep load-more available while searching. */}
 							{hasNextPage && (
 								<div className="pt-2 text-center">
 									<Button
