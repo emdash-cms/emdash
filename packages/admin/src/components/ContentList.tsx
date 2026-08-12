@@ -107,6 +107,21 @@ export interface ContentListProps {
 	sort?: ContentListSort;
 	onSortChange?: (sort: ContentListSort) => void;
 	/**
+	 * Controlled pagination (0-based). Pass both to hold the current page
+	 * outside the component — the router keeps it in the URL so the browser's
+	 * back button returns to the page the user left. Without `onPageChange`
+	 * the component keeps its own page state and the pager still works.
+	 */
+	page?: number;
+	onPageChange?: (page: number) => void;
+	/**
+	 * The search term the caller holds (the URL, typically). The input keeps
+	 * its own state while typing so keystrokes aren't lagged by the debounce
+	 * round-trip, and re-syncs whenever this changes on its own — a deep link
+	 * or a back-navigation to a different query.
+	 */
+	searchQuery?: string;
+	/**
 	 * Total rows matching the current filters (ignoring pagination). When
 	 * set, the pagination denominator reflects this stable count instead of
 	 * growing as more API pages are fetched.
@@ -191,6 +206,9 @@ export function ContentList({
 	urlPattern,
 	sort,
 	onSortChange,
+	page: controlledPage,
+	onPageChange,
+	searchQuery: controlledSearchQuery = "",
 	total,
 	onSearchChange,
 	statusFilter = "all",
@@ -206,8 +224,18 @@ export function ContentList({
 }: ContentListProps) {
 	const { t } = useLingui();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
-	const [searchQuery, setSearchQuery] = React.useState("");
-	const [page, setPage] = React.useState(0);
+	const [searchQuery, setSearchQuery] = React.useState(controlledSearchQuery);
+	const [internalPage, setInternalPage] = React.useState(0);
+	const page = controlledPage ?? internalPage;
+	const requestedPage = React.useRef(controlledPage);
+	const setPage = React.useCallback(
+		(next: number) => {
+			requestedPage.current = next;
+			if (onPageChange) onPageChange(next);
+			else setInternalPage(next);
+		},
+		[onPageChange],
+	);
 	const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set());
 
 	// Bulk selection is opt-in: the checkbox column + toolbar only render when
@@ -220,14 +248,37 @@ export function ContentList({
 	// loaded page" bug for non-title columns).
 	const serverSearch = !!onSearchChange;
 	const debouncedSearch = useDebouncedValue(searchQuery, 300);
+	const reportedQuery = React.useRef(controlledSearchQuery);
 	React.useEffect(() => {
-		if (onSearchChange) onSearchChange(debouncedSearch.trim());
+		reportedQuery.current = debouncedSearch.trim();
+		if (onSearchChange) onSearchChange(reportedQuery.current);
 	}, [debouncedSearch, onSearchChange]);
 
-	// Reset page when search changes
+	// Adopt a query the caller changed on its own. Comparing against what we
+	// last reported keeps the caller's echo of our own term from resetting the
+	// input mid-word.
+	React.useEffect(() => {
+		if (controlledSearchQuery === reportedQuery.current) return;
+		reportedQuery.current = controlledSearchQuery;
+		setSearchQuery(controlledSearchQuery);
+	}, [controlledSearchQuery]);
+
+	// A page the caller moved on its own (back/forward, a deep link) replaces
+	// the view wholesale, so an edit still waiting out the debounce belongs to
+	// a view that is gone. Re-seeding the input drops the pending timer with it.
+	React.useEffect(() => {
+		if (controlledPage === undefined || controlledPage === requestedPage.current) return;
+		requestedPage.current = controlledPage;
+		reportedQuery.current = controlledSearchQuery;
+		setSearchQuery(controlledSearchQuery);
+	}, [controlledPage, controlledSearchQuery]);
+
+	// Reset page when search changes. Guarded because `setPage` may write to
+	// the URL, and an unconditional reset would push a history entry per
+	// keystroke.
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setSearchQuery(e.target.value);
-		setPage(0);
+		if (page !== 0) setPage(0);
 	};
 
 	const filteredItems = React.useMemo(() => {

@@ -25,9 +25,9 @@ import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor } from "./components/ContentEditor";
 import {
 	ContentList,
-	EMPTY_DATE_FILTER,
 	type ContentDateFilter,
 	type ContentListSort,
+	type ContentListSortField,
 	type ContentStatusFilter,
 } from "./components/ContentList";
 import { ContentTypeEditor } from "./components/ContentTypeEditor";
@@ -111,6 +111,7 @@ import {
 	type CreateFieldInput,
 	type BylineCreditInput,
 	type ContentSeoInput,
+	type ContentDateField,
 	type ContentItem,
 	type Revision,
 } from "./lib/api";
@@ -311,19 +312,82 @@ function DashboardPage() {
 }
 
 // Content list route
+
+const DEFAULT_SORT: ContentListSort = { field: "updatedAt", direction: "desc" };
+const DEFAULT_DATE_FIELD: ContentDateField = "createdAt";
+
+const SORT_FIELDS: ContentListSortField[] = ["title", "status", "locale", "updatedAt"];
+const STATUS_FILTERS = ["published", "draft", "scheduled", "archived"] as const;
+const DATE_FIELDS: ContentDateField[] = ["createdAt", "updatedAt", "publishedAt"];
+
+/** `YYYY-MM-DD`, the shape the date inputs emit. */
+const CALENDAR_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+export interface ContentListSearch {
+	locale?: string | undefined;
+	/** 1-based, and only ever set when past the first page. */
+	page?: number | undefined;
+	q?: string | undefined;
+	status?: (typeof STATUS_FILTERS)[number] | undefined;
+	author?: string | undefined;
+	sort?: ContentListSortField | undefined;
+	dir?: "asc" | "desc" | undefined;
+	dateField?: ContentDateField | undefined;
+	dateFrom?: string | undefined;
+	dateTo?: string | undefined;
+}
+
+function readString(value: unknown): string | undefined {
+	return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function readOneOf<T extends string>(value: unknown, allowed: readonly T[]): T | undefined {
+	return typeof value === "string" && (allowed as readonly string[]).includes(value)
+		? (value as T)
+		: undefined;
+}
+
+function readCalendarDate(value: unknown): string | undefined {
+	const raw = readString(value);
+	if (!raw || !CALENDAR_DATE_REGEX.test(raw)) return undefined;
+	// `Date` rolls impossible days forward — `2025-02-31` becomes March 3 —
+	// so only the round-trip rejects a date the calendar doesn't have.
+	const parsed = new Date(`${raw}T00:00:00.000Z`);
+	if (Number.isNaN(parsed.getTime())) return undefined;
+	return parsed.toISOString().startsWith(raw) ? raw : undefined;
+}
+
+export function parseContentListSearch(search: Record<string, unknown>): ContentListSearch {
+	const sort = readOneOf(search.sort, SORT_FIELDS);
+
+	const rawPage = Number(search.page);
+	const page = Number.isInteger(rawPage) && rawPage > 1 ? rawPage : undefined;
+
+	return {
+		locale: readString(search.locale),
+		page,
+		q: readString(search.q),
+		status: readOneOf(search.status, STATUS_FILTERS),
+		author: readString(search.author),
+		sort,
+		dir: sort ? (readOneOf(search.dir, ["asc", "desc"] as const) ?? "desc") : undefined,
+		dateField: readOneOf(search.dateField, DATE_FIELDS),
+		dateFrom: readCalendarDate(search.dateFrom),
+		dateTo: readCalendarDate(search.dateTo),
+	};
+}
+
 const contentListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection",
 	component: ContentListPage,
-	validateSearch: (search: Record<string, unknown>) => ({
-		locale: typeof search.locale === "string" ? search.locale : undefined,
-	}),
+	validateSearch: parseContentListSearch,
 });
 
 function ContentListPage() {
 	const { t } = useLingui();
 	const { collection } = useParams({ from: "/_admin/content/$collection" });
-	const { locale: localeParam } = useSearch({ from: "/_admin/content/$collection" });
+	const search = useSearch({ from: "/_admin/content/$collection" });
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const toastManager = Toast.useToastManager();
@@ -336,24 +400,98 @@ function ContentListPage() {
 	const i18n = manifest?.i18n;
 
 	// Default to defaultLocale when i18n is enabled and no locale specified
-	const activeLocale = i18n ? (localeParam ?? i18n.defaultLocale) : undefined;
+	const activeLocale = i18n ? (search.locale ?? i18n.defaultLocale) : undefined;
 
-	// Controlled sort state — passed to the list, and included in the query
-	// key so changing direction invalidates the current cursor chain.
-	const [sort, setSort] = React.useState<ContentListSort>({
-		field: "updatedAt",
-		direction: "desc",
-	});
+	const updateSearch = React.useCallback(
+		(patch: Partial<ContentListSearch>, options?: { replace?: boolean }) => {
+			void navigate({
+				to: "/content/$collection",
+				params: { collection },
+				search: (prev) => ({ ...prev, ...patch }),
+				replace: options?.replace,
+			});
+		},
+		[navigate, collection],
+	);
 
-	// Server-side search term (debounced inside ContentList). Part of the query
-	// key so a new term restarts the cursor chain from a filtered first page.
-	const [searchTerm, setSearchTerm] = React.useState("");
+	const sort: ContentListSort = React.useMemo(
+		() => ({
+			field: search.sort ?? DEFAULT_SORT.field,
+			direction: search.dir ?? DEFAULT_SORT.direction,
+		}),
+		[search.sort, search.dir],
+	);
+	const handleSortChange = React.useCallback(
+		(next: ContentListSort) => {
+			const isDefault =
+				next.field === DEFAULT_SORT.field && next.direction === DEFAULT_SORT.direction;
+			updateSearch({
+				sort: isDefault ? undefined : next.field,
+				dir: isDefault ? undefined : next.direction,
+				page: undefined,
+			});
+		},
+		[updateSearch],
+	);
 
-	// Filter state (#1288). All are part of the query key so changing any of
-	// them restarts the cursor chain from a filtered first page.
-	const [statusFilter, setStatusFilter] = React.useState<ContentStatusFilter>("all");
-	const [authorFilter, setAuthorFilter] = React.useState("");
-	const [dateFilter, setDateFilter] = React.useState<ContentDateFilter>(EMPTY_DATE_FILTER);
+	const searchTerm = search.q ?? "";
+	const handleSearchChange = React.useCallback(
+		(q: string) => {
+			void navigate({
+				to: "/content/$collection",
+				params: { collection },
+				// ContentList reports the seeded query once on mount; treating that
+				// as a change would clear the very page we just restored.
+				search: (prev) =>
+					(prev.q ?? "") === q ? prev : { ...prev, q: q || undefined, page: undefined },
+				replace: true,
+			});
+		},
+		[navigate, collection],
+	);
+
+	const statusFilter: ContentStatusFilter = search.status ?? "all";
+	const handleStatusFilterChange = React.useCallback(
+		(status: ContentStatusFilter) =>
+			updateSearch({ status: status === "all" ? undefined : status, page: undefined }),
+		[updateSearch],
+	);
+
+	const authorFilter = search.author ?? "";
+	const handleAuthorFilterChange = React.useCallback(
+		(author: string) => updateSearch({ author: author || undefined, page: undefined }),
+		[updateSearch],
+	);
+
+	const dateFilter: ContentDateFilter = React.useMemo(
+		() => ({
+			field: search.dateField ?? DEFAULT_DATE_FIELD,
+			from: search.dateFrom ?? "",
+			to: search.dateTo ?? "",
+		}),
+		[search.dateField, search.dateFrom, search.dateTo],
+	);
+	const handleDateFilterChange = React.useCallback(
+		(next: ContentDateFilter) =>
+			updateSearch(
+				{
+					dateField: next.field === DEFAULT_DATE_FIELD ? undefined : next.field,
+					dateFrom: next.from || undefined,
+					dateTo: next.to || undefined,
+					page: undefined,
+				},
+				// `<input type="date">` fires per edited segment, not per commit.
+				{ replace: true },
+			),
+		[updateSearch],
+	);
+
+	// ContentList counts pages from 0; the URL counts from 1 and omits page 1.
+	const page = (search.page ?? 1) - 1;
+	const handlePageChange = React.useCallback(
+		(next: number) => updateSearch({ page: next > 0 ? next + 1 : undefined }),
+		[updateSearch],
+	);
 
 	// The date inputs yield calendar dates; widen them to UTC day boundaries so
 	// the inclusive `dateTo` covers the whole day (timestamps are stored in UTC).
@@ -546,7 +684,7 @@ function ContentListPage() {
 	});
 
 	const items = React.useMemo(() => {
-		return data?.pages.flatMap((page) => page.items) || [];
+		return data?.pages.flatMap((apiPage) => apiPage.items) || [];
 	}, [data]);
 
 	// Server returns `total` on every page; the first page is authoritative
@@ -587,12 +725,7 @@ function ContentListPage() {
 	});
 
 	const handleLocaleChange = (locale: string) => {
-		// Update URL search params without full navigation
-		void navigate({
-			to: "/content/$collection",
-			params: { collection },
-			search: { locale: locale || undefined },
-		});
+		updateSearch({ locale: locale || undefined, page: undefined });
 	};
 
 	return (
@@ -616,16 +749,19 @@ function ContentListPage() {
 			onLocaleChange={handleLocaleChange}
 			urlPattern={collectionConfig.urlPattern}
 			sort={sort}
-			onSortChange={setSort}
+			onSortChange={handleSortChange}
+			page={page}
+			onPageChange={handlePageChange}
 			total={total}
-			onSearchChange={setSearchTerm}
+			searchQuery={searchTerm}
+			onSearchChange={handleSearchChange}
 			statusFilter={statusFilter}
-			onStatusFilterChange={setStatusFilter}
+			onStatusFilterChange={handleStatusFilterChange}
 			authors={authors}
 			authorFilter={authorFilter}
-			onAuthorFilterChange={setAuthorFilter}
+			onAuthorFilterChange={handleAuthorFilterChange}
 			dateFilter={dateFilter}
-			onDateFilterChange={setDateFilter}
+			onDateFilterChange={handleDateFilterChange}
 			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
