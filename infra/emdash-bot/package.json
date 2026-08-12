@@ -9,6 +9,9 @@
 		"build": "vite build",
 		"deploy": "vite build && wrangler deploy",
 		"cf-typegen": "wrangler types",
+		"bot:generate": "node --experimental-strip-types scripts/generate-machine.ts",
+		"evals": "node --experimental-strip-types evals/bin/run.ts",
+		"evals:implementation": "node --experimental-strip-types evals/bin/implementation-smoke.ts",
 		"pretypecheck": "wrangler types",
 		"typecheck": "tsc --noEmit",
 		"test": "pnpm test:unit && pnpm test:workers",
@@ -19,16 +22,18 @@
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "1.36.3",
 		"@cloudflare/vitest-pool-workers": "catalog:",
-		"@flue/vite": "0.4.0-nightly.202605171039",
+		"@flue/vite": "2.0.3",
 		"typescript": "catalog:",
 		"vite": "8.0.11",
 		"vitest": "catalog:",
 		"wrangler": "catalog:"
 	},
 	"dependencies": {
+		"@cloudflare/codemode": "^0.4.1",
 		"@cloudflare/sandbox": "^0.12.1",
-		"@flue/runtime": "0.4.0-nightly.202605171039",
-		"agents": "^0.14.5",
+		"@cloudflare/shell": "^0.4.0",
+		"@flue/runtime": "2.0.3",
+		"agents": "^0.20.1",
 		"hono": "4.12.27",
 		"valibot": "^1.4.1"
 	}

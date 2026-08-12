@@ -95,6 +95,19 @@ describe("Dashboard", () => {
 		await expect.element(screen.getByText("Scheduled")).not.toBeInTheDocument();
 	});
 
+	it("labels the published count for screen readers with the state, not the action", async () => {
+		mockFetchDashboardStats.mockResolvedValue(
+			makeStats([
+				{ slug: "pages", label: "Pages", total: 5, published: 2, draft: 3, scheduled: 0 },
+			]),
+		);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect.element(screen.getByText("Published", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("Publish", { exact: true })).not.toBeInTheDocument();
+	});
+
 	it("links collection quick actions to new content forms", async () => {
 		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
 

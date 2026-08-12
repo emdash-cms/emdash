@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { validateIdentifier } from "../../../src/database/validate.js";
+import { installMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
 import {
 	CONTENT_MEDIA_USAGE_ADAPTER_ID,
 	CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
@@ -122,6 +123,140 @@ describeEachDialect("content media usage repair", (dialect) => {
 				lastErrorCode: null,
 			}),
 		);
+	});
+
+	it("uses canonical identity and clears only proven work after activation", async () => {
+		const item = await insertPost(ctx, {
+			id: "post_canonical",
+			slug: "canonical-post",
+			status: "published",
+			data: {
+				title: "Before activation",
+				hero: { id: "media-canonical", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		const legacySource = await usageRepo.replaceSource(contentSource(item.id, "columns"), [
+			occurrence("hero", "media-legacy"),
+		]);
+		const collectionId = await activateIncrementalRepair(ctx, "posts");
+		await sql`UPDATE ec_posts SET title = 'After activation' WHERE id = ${item.id}`.execute(ctx.db);
+
+		const result = await repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" });
+
+		expect(result.status).toBe("complete");
+		expect(await usageRepo.findSource(sourceKey(item.id, "columns"))).toEqual(
+			expect.objectContaining({ currentGeneration: legacySource.currentGeneration }),
+		);
+		expect(
+			await usageRepo.findSource(canonicalContentSourceKey(collectionId, item.id, "columns")),
+		).toEqual(
+			expect.objectContaining({
+				collectionId,
+				identityVersion: 1,
+				contentTitle: "After activation",
+			}),
+		);
+		expect(
+			Number(
+				(
+					await ctx.db
+						.selectFrom("_emdash_media_usage_work")
+						.select((eb) => eb.fn.countAll<number>().as("count"))
+						.where("collection_id", "=", collectionId)
+						.executeTakeFirstOrThrow()
+				).count,
+			),
+		).toBe(0);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_index_status")
+				.select(["status", "reconciliation_required", "collection_id"])
+				.where("collection_id", "=", collectionId)
+				.executeTakeFirstOrThrow(),
+		).toEqual({ status: "complete", reconciliation_required: 0, collection_id: collectionId });
+	});
+
+	it("retains newer work and refuses complete coverage when repair loses its epoch", async () => {
+		const collectionId = await activateIncrementalRepair(ctx, "posts");
+		await insertPost(ctx, {
+			id: "post_epoch_race",
+			slug: "epoch-race",
+			status: "published",
+			data: {
+				title: "Before concurrent update",
+				hero: { id: "media-first", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		await installConcurrentPostUpdateTrigger(ctx);
+
+		const result = await repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" });
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "stale",
+				lastErrorCode: "CONTENT_USAGE_REPAIR_CONFLICT",
+				completedAt: null,
+			}),
+		);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_index_status")
+				.select(["status", "reconciliation_required", "change_epoch", "cursor"])
+				.where("collection_id", "=", collectionId)
+				.executeTakeFirstOrThrow(),
+		).toEqual(
+			expect.objectContaining({
+				status: "stale",
+				reconciliation_required: 1,
+				change_epoch: expect.toSatisfy((value) => Number(value) === 2),
+				cursor: null,
+			}),
+		);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_work")
+				.select(["content_id", "change_epoch"])
+				.where("collection_id", "=", collectionId)
+				.execute(),
+		).toEqual([
+			expect.objectContaining({
+				content_id: "post_epoch_race",
+				change_epoch: expect.toSatisfy((value) => Number(value) === 2),
+			}),
+		]);
+	});
+
+	it("requires reconciliation after a failed active repair of trusted coverage", async () => {
+		await registry.createField("posts", {
+			slug: "sections",
+			label: "Sections",
+			type: "repeater",
+		});
+		await ctx.db
+			.updateTable("_emdash_fields")
+			.set({ validation: "{" })
+			.where("slug", "=", "sections")
+			.execute();
+		const collectionId = await activateIncrementalRepair(ctx, "posts", {
+			status: "complete",
+			reconciliationRequired: 0,
+		});
+
+		const result = await repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" });
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "failed",
+				lastErrorCode: "INVALID_REPEATER_VALIDATION",
+			}),
+		);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_index_status")
+				.select(["status", "reconciliation_required"])
+				.where("collection_id", "=", collectionId)
+				.executeTakeFirstOrThrow(),
+		).toEqual({ status: "failed", reconciliation_required: 1 });
 	});
 
 	it("repairs empty collection scopes as complete", async () => {
@@ -1401,6 +1536,89 @@ function collectionSourceKey(
 		contentId,
 		sourceVariant,
 	});
+}
+
+function canonicalContentSourceKey(
+	collectionId: string,
+	contentId: string,
+	sourceVariant: MediaUsageContentSourceVariant,
+): string {
+	return buildContentMediaUsageSourceKey({
+		collectionId,
+		collectionSlug: "posts",
+		contentId,
+		sourceVariant,
+	});
+}
+
+async function activateIncrementalRepair(
+	ctx: DialectTestContext,
+	collectionSlug: string,
+	options: { status?: string; reconciliationRequired?: number } = {},
+): Promise<string> {
+	const collectionId = await getCollectionId(ctx, collectionSlug);
+	await ctx.db
+		.updateTable("_emdash_media_usage_index_status")
+		.set({
+			collection_id: collectionId,
+			status: options.status ?? "stale",
+			reconciliation_required: options.reconciliationRequired ?? 1,
+			capture_state: "installing",
+		})
+		.where("adapter_id", "=", CONTENT_MEDIA_USAGE_ADAPTER_ID)
+		.where("scope_type", "=", CONTENT_MEDIA_USAGE_COLLECTION_SCOPE)
+		.where("scope_key", "=", collectionSlug)
+		.execute();
+	await installMediaUsageCaptureTriggers(ctx.db, { collectionId, collectionSlug });
+	await ctx.db
+		.updateTable("_emdash_media_usage_index_status")
+		.set({ capture_state: "active" })
+		.where("collection_id", "=", collectionId)
+		.execute();
+	await ctx.db
+		.updateTable("_emdash_media_usage_activation")
+		.set({ state: "active", activated_at: "2026-08-06T00:00:00.000Z" })
+		.where("task_key", "=", "incremental_capture")
+		.execute();
+	return collectionId;
+}
+
+async function installConcurrentPostUpdateTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE FUNCTION media_usage_update_concurrent_post()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
+				IF NEW.media_id = 'media-first' THEN
+					UPDATE ec_posts
+					SET title = 'Concurrent update'
+					WHERE id = 'post_epoch_race';
+				END IF;
+				RETURN NEW;
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER media_usage_update_concurrent_post
+			AFTER INSERT ON _emdash_media_usage
+			FOR EACH ROW
+			EXECUTE FUNCTION media_usage_update_concurrent_post()
+		`.execute(ctx.db);
+		return;
+	}
+
+	await sql`
+		CREATE TRIGGER media_usage_update_concurrent_post
+		AFTER INSERT ON _emdash_media_usage
+		WHEN NEW.media_id = 'media-first'
+		BEGIN
+			UPDATE ec_posts
+			SET title = 'Concurrent update'
+			WHERE id = 'post_epoch_race';
+		END
+	`.execute(ctx.db);
 }
 
 async function installConcurrentPostInsertTrigger(ctx: DialectTestContext): Promise<void> {

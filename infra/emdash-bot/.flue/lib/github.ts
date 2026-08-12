@@ -183,6 +183,128 @@ export async function getBranchSha(
 	return json.commit?.sha ?? null;
 }
 
+export async function getGitCommit(
+	token: string,
+	ctx: RepoContext,
+	sha: string,
+): Promise<{ treeSha: string; message: string }> {
+	const res = await githubFetch(
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/git/commits/${encodeURIComponent(sha)}`,
+		{ headers: authHeaders(token) },
+	);
+	if (!res.ok) throw new Error(`getGitCommit failed: ${res.status} ${await res.text()}`);
+	const json = await res.json<{ tree?: { sha?: string }; message?: string }>();
+	if (!json.tree?.sha) throw new Error("getGitCommit response had no tree SHA");
+	return { treeSha: json.tree.sha, message: json.message ?? "" };
+}
+
+export async function createGitBlob(
+	token: string,
+	ctx: RepoContext,
+	content: Uint8Array,
+): Promise<string> {
+	const res = await githubFetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/git/blobs`, {
+		method: "POST",
+		headers: authHeaders(token, { "content-type": "application/json" }),
+		body: JSON.stringify({ content: bytesToBase64(content), encoding: "base64" }),
+	});
+	if (!res.ok) throw new Error(`createGitBlob failed: ${res.status} ${await res.text()}`);
+	const json = await res.json<{ sha?: string }>();
+	if (!json.sha) throw new Error("createGitBlob response had no SHA");
+	return json.sha;
+}
+
+export interface GitTreeInput {
+	path: string;
+	mode: "100644" | "100755" | "120000";
+	type: "blob";
+	sha: string | null;
+}
+
+export async function createGitTree(
+	token: string,
+	ctx: RepoContext,
+	baseTreeSha: string,
+	entries: readonly GitTreeInput[],
+): Promise<string> {
+	const res = await githubFetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/git/trees`, {
+		method: "POST",
+		headers: authHeaders(token, { "content-type": "application/json" }),
+		body: JSON.stringify({ base_tree: baseTreeSha, tree: entries }),
+	});
+	if (!res.ok) throw new Error(`createGitTree failed: ${res.status} ${await res.text()}`);
+	const json = await res.json<{ sha?: string }>();
+	if (!json.sha) throw new Error("createGitTree response had no SHA");
+	return json.sha;
+}
+
+export async function createGitCommit(
+	token: string,
+	ctx: RepoContext,
+	message: string,
+	treeSha: string,
+	parentSha: string,
+): Promise<string> {
+	const res = await githubFetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/git/commits`, {
+		method: "POST",
+		headers: authHeaders(token, { "content-type": "application/json" }),
+		body: JSON.stringify({ message, tree: treeSha, parents: [parentSha] }),
+	});
+	if (!res.ok) throw new Error(`createGitCommit failed: ${res.status} ${await res.text()}`);
+	const json = await res.json<{ sha?: string }>();
+	if (!json.sha) throw new Error("createGitCommit response had no SHA");
+	return json.sha;
+}
+
+export async function createBranch(
+	token: string,
+	ctx: RepoContext,
+	branch: string,
+	commitSha: string,
+): Promise<void> {
+	const res = await githubFetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/git/refs`, {
+		method: "POST",
+		headers: authHeaders(token, { "content-type": "application/json" }),
+		body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: commitSha }),
+	});
+	if (!res.ok) throw new Error(`createBranch failed: ${res.status} ${await res.text()}`);
+}
+
+export async function updateBranch(
+	token: string,
+	ctx: RepoContext,
+	branch: string,
+	commitSha: string,
+): Promise<void> {
+	const res = await githubFetch(
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/git/refs/heads/${encodeURIComponent(branch)}`,
+		{
+			method: "PATCH",
+			headers: authHeaders(token, { "content-type": "application/json" }),
+			body: JSON.stringify({ sha: commitSha, force: false }),
+		},
+	);
+	if (!res.ok) throw new Error(`updateBranch failed: ${res.status} ${await res.text()}`);
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+	const chunks: string[] = [];
+	for (let offset = 0; offset < bytes.length; offset += 32_768) {
+		chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 32_768)));
+	}
+	return btoa(chunks.join(""));
+}
+
+/** Deletes a branch ref. A 404/422 means it is already gone, which is fine. */
+export async function deleteBranch(token: string, ctx: RepoContext, branch: string): Promise<void> {
+	const res = await githubFetch(
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/git/refs/heads/${encodeURIComponent(branch)}`,
+		{ method: "DELETE", headers: authHeaders(token) },
+	);
+	if (res.status === 404 || res.status === 422) return;
+	if (!res.ok) throw new Error(`deleteBranch(${branch}) failed: ${res.status} ${await res.text()}`);
+}
+
 export async function addLabels(
 	token: string,
 	ctx: RepoContext,
@@ -252,7 +374,7 @@ export async function getOpenPullRequest(
 export async function createPullRequest(
 	token: string,
 	ctx: RepoContext,
-	args: { headBranch: string; baseBranch: string; title: string; body: string },
+	args: { headBranch: string; baseBranch: string; title: string; body: string; draft?: boolean },
 ): Promise<CreatedPullRequest> {
 	const res = await githubFetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls`, {
 		method: "POST",
@@ -262,6 +384,7 @@ export async function createPullRequest(
 			base: args.baseBranch,
 			title: args.title,
 			body: args.body,
+			draft: args.draft === true,
 		}),
 	});
 	if (!res.ok) {

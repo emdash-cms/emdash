@@ -6,6 +6,9 @@
  * request-scoped db adapter's lifecycle around the response.
  */
 
+import { createDeferredTaskTracker } from "../../deferred-tasks.js";
+import type { DeferredTaskTracker } from "../../deferred-tasks.js";
+
 /**
  * Astro attaches AstroCookies to outgoing responses via a well-known global
  * symbol. Cloning a Response (`new Response(body, init)`) drops non-header
@@ -15,6 +18,34 @@
  * middleware.ts.
  */
 export const ASTRO_COOKIES_SYMBOL = Symbol.for("astro.cookies");
+
+interface ScopedDbLifecycle {
+	commit: () => void;
+	close?: () => void;
+}
+
+/** Hold the real adapter close behind both response and deferred-task completion. */
+export function coordinateScopedDbLifecycle(scoped: ScopedDbLifecycle): {
+	closed?: Promise<void>;
+	deferredTasks?: DeferredTaskTracker;
+	lifecycle: ScopedDbLifecycle;
+} {
+	if (!scoped.close) return { lifecycle: scoped };
+
+	const close = scoped.close;
+	const deferredTasks = createDeferredTaskTracker(() => {
+		try {
+			close();
+		} catch (error) {
+			console.error("[emdash] request-scoped db close failed:", error);
+		}
+	});
+	return {
+		closed: deferredTasks.settled,
+		deferredTasks,
+		lifecycle: { commit: scoped.commit, close: deferredTasks.settle },
+	};
+}
 
 /**
  * Run a request-scoped db's `close()` once the response body has finished
@@ -62,9 +93,9 @@ export function wrapResponseForScopedClose(response: Response, close: () => void
  * Run the request body under a request-scoped db, then settle its lifecycle:
  * `commit()` runs before the response is returned (so per-request state like a
  * D1 bookmark cookie is persisted in the headers, even if render throws), while
- * `close()` (if any) is deferred to stream-end so a connection-backed adapter
- * isn't torn down mid-render. On error the connection is closed immediately
- * before rethrowing so it never leaks.
+ * `close()` (if any) is deferred to lifecycle settlement so a
+ * connection-backed adapter isn't torn down mid-render or mid-task. On error
+ * the lifecycle is settled before rethrowing so it never leaks.
  *
  * On the error path both `commit()` and `close()` are defended: a throw from
  * either is logged and swallowed so it can't replace the propagating render
@@ -77,7 +108,7 @@ export function wrapResponseForScopedClose(response: Response, close: () => void
  * or mask.
  */
 export async function finishScoped(
-	scoped: { commit: () => void; close?: () => void },
+	scoped: ScopedDbLifecycle,
 	run: () => Promise<Response>,
 ): Promise<Response> {
 	let response: Response;

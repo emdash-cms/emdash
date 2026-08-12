@@ -111,6 +111,98 @@ describe("ContentList", () => {
 			await expect.element(screen.getByText("Second")).toBeInTheDocument();
 			await expect.element(screen.getByText("Third")).toBeInTheDocument();
 		});
+
+		it("renders configured custom fields using their field metadata", async () => {
+			const items = [
+				makeItem({
+					data: {
+						title: "Support request",
+						ticket_number: "SUP-1042",
+						priority: "urgent",
+						labels: ["bug", "unknown"],
+						vip: true,
+					},
+				}),
+			];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					listColumns={[
+						{ slug: "ticket_number", label: "Ticket", kind: "string" },
+						{
+							slug: "priority",
+							label: "Priority",
+							kind: "select",
+							options: [{ value: "urgent", label: "Urgent" }],
+						},
+						{
+							slug: "labels",
+							label: "Labels",
+							kind: "multiSelect",
+							options: [{ value: "bug", label: "Bug" }],
+						},
+						{ slug: "vip", label: "VIP", kind: "boolean" },
+					]}
+				/>,
+			);
+
+			await expect.element(screen.getByText("SUP-1042")).toBeInTheDocument();
+			await expect.element(screen.getByText("Urgent")).toBeInTheDocument();
+			await expect.element(screen.getByText("Bug, unknown")).toBeInTheDocument();
+			await expect.element(screen.getByText("Yes")).toBeInTheDocument();
+		});
+
+		it("formats numeric, datetime, boolean, and missing custom-field values", async () => {
+			const openedAt = "2025-01-02T00:00:00.000Z";
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[
+						makeItem({
+							updatedAt: "2025-03-04T00:00:00.000Z",
+							data: {
+								title: "Invoice",
+								amount: 12345.67,
+								opened_at: openedAt,
+								paid: false,
+								owner: null,
+							},
+						}),
+					]}
+					listColumns={[
+						{ slug: "amount", label: "Amount", kind: "number" },
+						{ slug: "opened_at", label: "Opened", kind: "datetime" },
+						{ slug: "paid", label: "Paid", kind: "boolean" },
+						{ slug: "owner", label: "Owner", kind: "string" },
+					]}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByText(new Intl.NumberFormat("en").format(12345.67)))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByText(new Intl.DateTimeFormat("en").format(new Date(openedAt))))
+				.toBeInTheDocument();
+			await expect.element(screen.getByText("No", { exact: true })).toBeInTheDocument();
+			await expect.element(screen.getByText("Not set")).toBeInTheDocument();
+		});
+
+		it("does not expose unconfigured custom-field data", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[
+						makeItem({ data: { title: "Support request", priority: "urgent", secret: "Hidden" } }),
+					]}
+					listColumns={[{ slug: "priority", label: "Priority", kind: "string" }]}
+				/>,
+			);
+
+			await expect.element(screen.getByText("urgent")).toBeInTheDocument();
+			expect(screen.getByText("Hidden").query()).toBeNull();
+		});
 	});
 
 	describe("empty states", () => {
@@ -161,7 +253,7 @@ describe("ContentList", () => {
 	describe("status badges", () => {
 		it.each([
 			["draft", "Draft"],
-			["published", "Publish"],
+			["published", "Published"],
 			["scheduled", "Scheduled"],
 			["archived", "Archived"],
 		] as const)("shows the normalized %s status with its icon", async (status, label) => {
@@ -245,7 +337,7 @@ describe("ContentList", () => {
 			expect(filter.element().querySelector("svg")).not.toBeNull();
 			await filter.click();
 
-			for (const label of ["Publish", "Draft", "Scheduled", "Archived"]) {
+			for (const label of ["Published", "Draft", "Scheduled", "Archived"]) {
 				const option = screen.getByRole("option", { name: label });
 				await expect.element(option).toBeInTheDocument();
 				expect(option.element().querySelector("svg")).not.toBeNull();
@@ -665,6 +757,23 @@ describe("ContentList", () => {
 
 			// The header must not render as a button — it's just a label.
 			expect(screen.getByRole("button", { name: "Title" }).query()).toBeNull();
+		});
+
+		it("keeps configured custom columns display-only", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[makeItem({ data: { title: "Post", priority: "urgent" } })]}
+					listColumns={[{ slug: "priority", label: "Priority", kind: "string" }]}
+					sort={{ field: "title", direction: "asc" }}
+					onSortChange={vi.fn()}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByRole("columnheader", { name: "Priority" }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Priority" }).query()).toBeNull();
 		});
 	});
 });

@@ -11,7 +11,7 @@ export function installAgentObserver(): void {
 	installed = true;
 
 	observe((event) => {
-		const correlationId = event.submissionId ?? event.dispatchId ?? event.instanceId;
+		const correlationId = event.submissionId ?? event.instanceId;
 		const tag = correlationId ? `[flue/${correlationId.slice(-8)}]` : "[flue]";
 
 		switch (event.type) {

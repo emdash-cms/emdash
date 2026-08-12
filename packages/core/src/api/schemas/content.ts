@@ -26,13 +26,47 @@ const contentDateBound = z
 	])
 	.optional();
 
+/**
+ * Byline ids for the content-list filter: either the literal `none` or a
+ * comma-separated list, parsed into an array.
+ *
+ * The 25-id cap keeps the `IN (...)` clause clear of D1's bound-parameter
+ * ceiling once the rest of the list query's placeholders are counted
+ * (`SQL_BATCH_SIZE` is 50 for a query binding nothing else).
+ */
+const bylineFilterParam = z
+	.string()
+	.trim()
+	.min(1)
+	.max(2000)
+	.optional()
+	.transform((value) =>
+		value === undefined
+			? undefined
+			: value === "none"
+				? ("none" as const)
+				: [...new Set(value.split(",").map((id) => id.trim()))].filter((id) => id.length > 0),
+	)
+	.refine((value) => value === undefined || value === "none" || value.length <= 25, {
+		message: "at most 25 bylines may be selected",
+	})
+	.refine((value) => value === undefined || value === "none" || value.length > 0, {
+		message: "must contain at least one byline id",
+	});
+
+/** Query-string boolean. Explicit values only — `z.coerce.boolean()` reads "false" as true. */
+const booleanParam = z
+	.enum(["1", "0", "true", "false"])
+	.optional()
+	.transform((value) => value === "1" || value === "true");
+
 export const contentListQuery = cursorPaginationQuery
 	.extend({
 		status: z.string().optional(),
 		orderBy: z.string().optional(),
 		order: z.enum(["asc", "desc"]).optional(),
 		locale: localeCode.optional(),
-		/** Case-insensitive substring search across the collection's title/name/slug. */
+		/** Search across the collection's display fields, slug, and searchable custom fields. */
 		q: z.string().trim().min(1).max(200).optional(),
 		/** Filter to entries authored by this user (the `author_id` column). */
 		authorId: z.string().min(1).max(64).optional(),
@@ -42,7 +76,23 @@ export const contentListQuery = cursorPaginationQuery
 		dateFrom: contentDateBound,
 		/** Inclusive upper bound for the date range. Requires `dateField`. */
 		dateTo: contentDateBound,
+		/**
+		 * Comma-separated byline ids; an entry matches if it is credited to any
+		 * of them. The literal `none` (alone) matches entries with no byline.
+		 */
+		bylines: bylineFilterParam,
+		/**
+		 * Also match the byline inferred from an entry's author when it has no
+		 * explicit credit — i.e. filter on the byline the list renders rather
+		 * than on the credits stored against the entry. Off by default.
+		 */
+		includeInferredBylines: booleanParam,
 	})
+	.transform(({ bylines, ...rest }) => ({
+		...rest,
+		bylinesNone: bylines === "none",
+		bylines: bylines === "none" ? undefined : bylines,
+	}))
 	.meta({ id: "ContentListQuery" });
 
 /** ISO 8601 datetime for `publishedAt` / `createdAt`. Routes gate writes behind `content:publish_any`. */

@@ -68,7 +68,7 @@ describe("router", () => {
 		});
 		assertTransition(d);
 		expect(d.from).toBe("unmanaged");
-		expect(d.to).toBe("working");
+		expect(d.to).toBe("fixing");
 		expect(d.action).toBe("investigate.implement");
 	});
 
@@ -120,11 +120,11 @@ describe("router", () => {
 			actor: "maintainer",
 		});
 		assertTransition(d);
-		expect(d.to).toBe("working");
+		expect(d.to).toBe("fixing");
 		expect(d.action).toBe("investigate.implement");
-		expect(d.addLabel).toBe("bot:working");
+		expect(d.addLabel).toBe("bot:fixing");
 		expect(d.removeLabels).toContain("bot:blocked");
-		expect(d.removeLabels).not.toContain("bot:working");
+		expect(d.removeLabels).not.toContain("bot:fixing");
 	});
 
 	test("resolve: in_review accepts revise (PR feedback bridge)", () => {
@@ -146,7 +146,7 @@ describe("router", () => {
 			actor: "maintainer",
 		});
 		assertTransition(d);
-		expect(d.to).toBe("working");
+		expect(d.to).toBe("fixing");
 		expect(d.action).toBe("investigate.implement");
 	});
 
@@ -406,16 +406,15 @@ describe("router", () => {
 		);
 	});
 
-	test("outcomeFromResult allows implement and revise runs to produce a fix", () => {
-		for (const mode of ["implement", "revise"] as const) {
-			const input = {
+	test("outcomeFromResult allows revise runs to produce a fix", () => {
+		expect(
+			outcomeFromResult({
 				ok: true,
 				result: { fixed: true },
 				pushed: true,
-				mode,
-			};
-			expect(outcomeFromResult(input)).toBe("agent.fix_ready");
-		}
+				mode: "revise",
+			}),
+		).toBe("agent.fix_ready");
 	});
 
 	test("outcomeFromResult feeds resolve to advance the machine end-to-end", () => {
@@ -434,5 +433,208 @@ describe("router", () => {
 		const footer = replyFooter("blocked");
 		expect(footer).toMatch(FOOTER_IMPLEMENT_RE);
 		expect(footer).toMatch(FOOTER_DECLINE_RE);
+	});
+});
+
+describe("router: investigation + fix loop", () => {
+	test("investigate and fix are maintainer-only", () => {
+		assertNoop(resolve({ labels: [], event: "investigate", arg: "look at X", actor: "reporter" }));
+		assertNoop(
+			resolve({
+				labels: ["bot:bug", "bot:reproduced"],
+				event: "fix",
+				actor: "reporter",
+			}),
+		);
+	});
+
+	test("investigate from a cold issue enters investigating and applies the bug kind", () => {
+		const d = resolve({
+			labels: [],
+			event: "investigate",
+			arg: "repro steps",
+			actor: "maintainer",
+		});
+		assertTransition(d);
+		expect(d.to).toBe("investigating");
+		expect(d.action).toBe("investigate.diagnose");
+		expect(d.addLabels).toContain("bot:investigating");
+		expect(d.addLabels).toContain("bot:bug");
+	});
+
+	test("investigation verdicts branch on the agent event", () => {
+		const cases = [
+			["agent.reproduced", "reproduced"],
+			["agent.not_reproduced", "not_reproduced"],
+			["agent.needs_info", "needs_info"],
+			["agent.by_design", "blocked"],
+		] as const;
+		for (const [event, to] of cases) {
+			const d = resolve({
+				labels: ["bot:bug", "bot:investigating"],
+				event,
+				actor: "system",
+			});
+			assertTransition(d);
+			expect(d.to).toBe(to);
+			expect(d.action).toBe(null);
+		}
+	});
+
+	test("fix starts the fix loop from a reproduced verdict", () => {
+		const d = resolve({
+			labels: ["bot:bug", "bot:reproduced"],
+			event: "fix",
+			arg: "try the loader path",
+			actor: "maintainer",
+		});
+		assertTransition(d);
+		expect(d.to).toBe("fixing");
+		expect(d.action).toBe("investigate.fix");
+	});
+
+	test("the fix loop advances through preview to the reporter wait", () => {
+		const fixReady = resolve({
+			labels: ["bot:bug", "bot:fixing"],
+			event: "agent.fix_ready",
+			actor: "system",
+		});
+		assertTransition(fixReady);
+		expect(fixReady.to).toBe("preview_building");
+
+		const previewReady = resolve({
+			labels: ["bot:bug", "bot:preview-building"],
+			event: "preview.ready",
+			actor: "system",
+		});
+		assertTransition(previewReady);
+		expect(previewReady.to).toBe("awaiting_reporter");
+	});
+
+	test("a fix run that skips rests in blocked rather than wedging in fixing", () => {
+		const d = resolve({
+			labels: ["bot:bug", "bot:fixing"],
+			event: "agent.skipped",
+			actor: "system",
+		});
+		assertTransition(d);
+		expect(d.to).toBe("blocked");
+	});
+
+	test("a preview failure falls back to the reproduced verdict", () => {
+		const d = resolve({
+			labels: ["bot:bug", "bot:preview-building"],
+			event: "preview.failed",
+			actor: "system",
+		});
+		assertTransition(d);
+		expect(d.to).toBe("reproduced");
+	});
+
+	test("enhancement delivery failures return to a retryable implementation state", () => {
+		const previewFailed = resolve({
+			labels: ["bot:enhancement", "bot:preview-building"],
+			event: "preview.failed",
+			actor: "system",
+		});
+		assertTransition(previewFailed);
+		expect(previewFailed.to).toBe("blocked");
+
+		for (const event of ["reject", "expire"] as const) {
+			const decision = resolve({
+				labels: ["bot:enhancement", "bot:awaiting-reporter"],
+				event,
+				actor: event === "reject" ? "reporter" : "system",
+			});
+			assertTransition(decision);
+			expect(decision.to).toBe("blocked");
+			expect(decision.action).toBe("reapBranch");
+		}
+
+		const commands = new Set(classifierCommands("blocked").map((command) => command.event));
+		expect(commands.has("implement")).toBe(true);
+	});
+
+	test("confirm opens a draft PR; reject and expire reap the branch", () => {
+		const confirm = resolve({
+			labels: ["bot:bug", "bot:awaiting-reporter"],
+			event: "confirm",
+			actor: "reporter",
+		});
+		assertTransition(confirm);
+		expect(confirm.to).toBe("in_review");
+		expect(confirm.action).toBe("openDraftPr");
+
+		const reject = resolve({
+			labels: ["bot:bug", "bot:awaiting-reporter"],
+			event: "reject",
+			actor: "reporter",
+		});
+		assertTransition(reject);
+		expect(reject.to).toBe("reproduced");
+		expect(reject.action).toBe("reapBranch");
+
+		const expire = resolve({
+			labels: ["bot:bug", "bot:awaiting-reporter"],
+			event: "expire",
+			actor: "system",
+		});
+		assertTransition(expire);
+		expect(expire.to).toBe("reproduced");
+		expect(expire.action).toBe("reapBranch");
+	});
+
+	test("fix is offered to the classifier from a reproduced verdict", () => {
+		const events = new Set(classifierCommands("reproduced").map((c) => c.event));
+		expect(events.has("fix")).toBe(true);
+		expect(events.has("investigate")).toBe(true);
+		expect(events.has("decline")).toBe(false); // destructive
+		expect(events.has("take_over")).toBe(false); // destructive
+	});
+
+	test("outcomeFromResult diagnose mode lands on a verdict without a fix", () => {
+		expect(outcomeFromResult({ ok: true, result: { reproduced: true }, mode: "diagnose" })).toBe(
+			"agent.reproduced",
+		);
+		expect(outcomeFromResult({ ok: true, result: { reproduced: false }, mode: "diagnose" })).toBe(
+			"agent.not_reproduced",
+		);
+		expect(outcomeFromResult({ ok: true, result: { verdict: "unclear" }, mode: "diagnose" })).toBe(
+			"agent.needs_info",
+		);
+	});
+
+	test("outcomeFromResult fix mode only advances when the branch was pushed", () => {
+		expect(
+			outcomeFromResult({ ok: true, result: { fixed: true }, pushed: true, mode: "fix" }),
+		).toBe("agent.fix_ready");
+		expect(
+			outcomeFromResult({ ok: true, result: { fixed: true }, pushed: false, mode: "fix" }),
+		).toBe("agent.failed");
+		expect(outcomeFromResult({ ok: true, result: { fixed: false }, mode: "fix" })).toBe(
+			"agent.failed",
+		);
+	});
+
+	test("outcomeFromResult implement mode uses implementation fields and verified publication", () => {
+		expect(
+			outcomeFromResult({
+				ok: true,
+				result: { implemented: true },
+				pushed: true,
+				mode: "implement",
+			}),
+		).toBe("agent.fix_ready");
+		expect(
+			outcomeFromResult({
+				ok: true,
+				result: { implemented: true },
+				pushed: false,
+				mode: "implement",
+			}),
+		).toBe("agent.failed");
+		expect(
+			outcomeFromResult({ ok: true, result: { fixed: true }, pushed: true, mode: "implement" }),
+		).toBe("agent.failed");
 	});
 });

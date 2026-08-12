@@ -59,6 +59,14 @@ import * as m053 from "./053_plugin_mcp_tools.js";
 import * as m054 from "./054_media_upload_attempts.js";
 import * as m055 from "./055_content_translation_group_locale_index.js";
 import * as m056 from "./056_taxonomy_term_sort_order.js";
+import * as m057 from "./057_collection_hidden.js";
+import * as m058 from "./058_collection_sort_order.js";
+import * as m059 from "./059_revision_prune_queue.js";
+import * as m060 from "./060_collection_admin_config.js";
+import * as m061 from "./061_media_usage_cleanup.js";
+import * as m062 from "./062_media_usage_cleanup_fence.js";
+import * as m063 from "./063_media_usage_incremental_work.js";
+import * as m064 from "./064_fts_plain_text.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -116,6 +124,14 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"054_media_upload_attempts": m054,
 	"055_content_translation_group_locale_index": m055,
 	"056_taxonomy_term_sort_order": m056,
+	"057_collection_hidden": m057,
+	"058_collection_sort_order": m058,
+	"059_revision_prune_queue": m059,
+	"060_collection_admin_config": m060,
+	"061_media_usage_cleanup": m061,
+	"062_media_usage_cleanup_fence": m062,
+	"063_media_usage_incremental_work": m063,
+	"064_fts_plain_text": m064,
 });
 
 /** Total number of registered migrations. Exported for use in tests. */

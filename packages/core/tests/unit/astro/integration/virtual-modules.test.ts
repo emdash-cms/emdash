@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -13,6 +13,7 @@ import {
 	generateEnvModule,
 	generateSchedulerModule,
 	generateSeedModule,
+	RESOLVED_VIRTUAL_BUILD_ID,
 	RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID,
 	RESOLVED_VIRTUAL_SCHEDULER_ID,
 } from "../../../../src/astro/integration/virtual-modules.js";
@@ -185,6 +186,17 @@ describe("createVirtualModulesPlugin scheduler wiring", () => {
 		expect(out).not.toContain("NodeCronScheduler");
 	});
 
+	it("keeps the build timestamp stable across repeated loads", () => {
+		const plugin = buildPlugin("@astrojs/cloudflare", "build");
+		callHook(plugin.configResolved, { command: "build" });
+
+		const first = callHook<string>(plugin.load, RESOLVED_VIRTUAL_BUILD_ID);
+		const second = callHook<string>(plugin.load, RESOLVED_VIRTUAL_BUILD_ID);
+
+		expect(first).toBe(second);
+		expect(Number(/buildTime = (\d+)/.exec(first)?.[1])).toBeGreaterThan(0);
+	});
+
 	it("watches resolved sandbox plugin entries", () => {
 		const projectRoot = mkdtempSync(join(tmpdir(), "emdash-sandbox-watch-test-"));
 		try {
@@ -229,7 +241,9 @@ describe("createVirtualModulesPlugin scheduler wiring", () => {
 
 			expect(source).toContain("export default { hooks: {} };");
 			expect(addWatchFile).toHaveBeenCalledOnce();
-			expect(addWatchFile).toHaveBeenCalledWith(entryPath);
+			// Module resolution canonicalizes macOS' /var -> /private/var symlink.
+			// Compare the physical path so this contract is portable across hosts.
+			expect(addWatchFile).toHaveBeenCalledWith(realpathSync(entryPath));
 		} finally {
 			rmSync(projectRoot, { recursive: true, force: true });
 		}

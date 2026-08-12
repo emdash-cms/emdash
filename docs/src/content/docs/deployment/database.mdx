@@ -307,11 +307,14 @@ wrangler hyperdrive create emdash-db \
 
 ### Configuration
 
-| Option          | Type     | Default       | Description                                                          |
-| --------------- | -------- | ------------- | -------------------------------------------------------------------- |
-| `binding`       | `string` | `"HYPERDRIVE"` | Primary (caching-disabled) Hyperdrive binding name                  |
-| `cachedBinding` | `string` | —             | Optional caching-enabled binding for anonymous reads (see below)     |
-| `max`           | `number` | `5`           | Max size of the in-Worker connection pool to Hyperdrive              |
+| Option                         | Type     | Default        | Description                                                                                                      |
+| ------------------------------ | -------- | -------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `binding`                      | `string` | `"HYPERDRIVE"` | Primary (caching-disabled) Hyperdrive binding name                                                               |
+| `cachedBinding`                | `string` | —              | Optional caching-enabled binding for anonymous reads (see below)                                                 |
+| `preferUncachedAfterWriteMs`   | `number` | `60000`\*      | After a content publish, prefer `binding` for this many ms on anonymous public reads (match Hyperdrive `max_age`) |
+| `max`                          | `number` | `5`            | Max size of the in-Worker connection pool to Hyperdrive                                                          |
+
+\*Default `60000` applies only when `cachedBinding` is set; ignored otherwise.
 
 ### Serving anonymous reads from cache
 
@@ -343,7 +346,7 @@ database: hyperdrive({ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED"
 
 This is the [two-configuration pattern](https://developers.cloudflare.com/hyperdrive/configuration/query-caching/#disable-caching) Cloudflare documents for caching. EmDash decides which binding to use per request:
 
-- **Anonymous reads of public-site paths** (`GET`/`HEAD`, no session, not under `/_emdash`) → cache-enabled `cachedBinding`.
+- **Anonymous reads of public-site paths** (`GET`/`HEAD`, no session, not under `/_emdash`) → cache-enabled `cachedBinding`, **except** for a short window after a content publish (default 60s; set `preferUncachedAfterWriteMs` to your Hyperdrive `max_age`) when EmDash prefers the uncached `binding` so a rebuild cannot reseed edge/object caches from still-stale Hyperdrive results.
 - **Authenticated requests** (editors, authors) → uncached `binding`.
 - **Writes** (`POST`, `PUT`, `DELETE`, including anonymous ones) → uncached `binding`.
 - **Any request under `/_emdash`** (admin, setup, auth, internal APIs), even an anonymous `GET` → uncached `binding`.
@@ -357,7 +360,11 @@ This is the [two-configuration pattern](https://developers.cloudflare.com/hyperd
 </Aside>
 
 <Aside type="caution">
-	Both configurations must point at the **same** database, or anonymous visitors see a different dataset than editors. Anonymous reads of just-published content can be up to the cache's `max_age` stale (Hyperdrive default 60s, max 1h), and this cache is independent of EmDash's own cache invalidation. Only opt in if a short public-read staleness window is acceptable; otherwise omit `cachedBinding` and keep caching disabled.
+	Both configurations must point at the **same** database, or anonymous visitors see a different dataset than editors. Set `preferUncachedAfterWriteMs` to your cached config's `max_age` (default 60s) so post-publish public rebuilds read fresh SQL. Outside that window, anonymous public reads can still be up to `max_age` stale relative to non-content writes. Only opt in if that trade-off is acceptable; otherwise omit `cachedBinding` and keep caching disabled.
+</Aside>
+
+<Aside type="note">
+	Cross-isolate post-write routing uses the configured distributed Object Cache backend to share the last-content-write timestamp. Without a distributed Object Cache, the prefer-uncached window is known only to the Worker isolate that handled the write.
 </Aside>
 
 <Aside>

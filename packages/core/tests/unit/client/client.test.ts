@@ -986,6 +986,141 @@ describe("EmDashClient", () => {
 		});
 	});
 
+	describe("media usage work operators", () => {
+		it("serializes a bounded work-list query and returns the cursor page", async () => {
+			let capturedUrl: URL | undefined;
+			const page = {
+				items: [
+					{
+						collectionId: "collection-posts",
+						collectionSlug: "posts",
+						contentId: "entry-1",
+						state: "failed" as const,
+						attemptCount: 5,
+						nextAttemptAt: "2026-08-07T12:00:00.000Z",
+						leaseExpiresAt: null,
+						lastAttemptedAt: "2026-08-07T11:59:00.000Z",
+						lastErrorCode: "MEDIA_USAGE_PROCESSING_FAILED",
+						updatedAt: "2026-08-07T12:00:00.000Z",
+					},
+				],
+				nextCursor: "next / page",
+			};
+			const backend: Interceptor = async (request) => {
+				capturedUrl = new URL(request.url);
+				expect(request.method).toBe("GET");
+				return jsonResponse(page);
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaListUsageWork({
+				collection: "posts",
+				state: "failed",
+				limit: 25,
+				cursor: "after / entry",
+			});
+
+			expect(capturedUrl?.pathname).toBe("/_emdash/api/admin/media-usage/work");
+			expect(Object.fromEntries(capturedUrl?.searchParams ?? [])).toEqual({
+				collection: "posts",
+				state: "failed",
+				limit: "25",
+				cursor: "after / entry",
+			});
+			expect(result).toEqual(page);
+		});
+
+		it("sends an exact retry identity and returns the pending item", async () => {
+			let capturedBody: unknown;
+			const backend = createMockBackend([
+				{
+					method: "POST",
+					path: "/admin/media-usage/work/retry",
+					handler: async (request) => {
+						expect(request.headers.get("X-EmDash-Request")).toBe("1");
+						capturedBody = await request.json();
+						return jsonResponse({
+							changed: true,
+							item: {
+								collectionId: "collection-posts",
+								collectionSlug: "posts",
+								contentId: "entry-1",
+								state: "pending",
+								attemptCount: 0,
+								nextAttemptAt: "2026-08-07T12:00:00.000Z",
+								leaseExpiresAt: null,
+								lastAttemptedAt: null,
+								lastErrorCode: null,
+								updatedAt: "2026-08-07T12:00:00.000Z",
+							},
+						});
+					},
+				},
+			]);
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaRetryUsageWork({
+				collectionId: "collection-posts",
+				contentId: "entry-1",
+			});
+
+			expect(capturedBody).toEqual({
+				collectionId: "collection-posts",
+				contentId: "entry-1",
+			});
+			expect(result).toEqual(
+				expect.objectContaining({
+					changed: true,
+					item: expect.objectContaining({ state: "pending", attemptCount: 0 }),
+				}),
+			);
+		});
+
+		it("propagates a lease conflict and its redacted retry time", async () => {
+			const backend = createMockBackend([
+				{
+					method: "POST",
+					path: "/admin/media-usage/work/retry",
+					handler: () =>
+						jsonResponse(
+							{
+								error: {
+									code: "WORK_LEASE_ACTIVE",
+									message: "Media usage work is currently leased",
+									details: { leaseExpiresAt: "2100-01-01T00:00:00.000Z" },
+								},
+							},
+							409,
+						),
+				},
+			]);
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await expect(
+				client.mediaRetryUsageWork({
+					collectionId: "collection-posts",
+					contentId: "entry-1",
+				}),
+			).rejects.toMatchObject<Partial<EmDashApiError>>({
+				status: 409,
+				code: "WORK_LEASE_ACTIVE",
+				details: { leaseExpiresAt: "2100-01-01T00:00:00.000Z" },
+			});
+		});
+	});
+
 	describe("PT <-> Markdown auto-conversion", () => {
 		it("converts PT fields to markdown on get()", async () => {
 			const backend = createMockBackend([

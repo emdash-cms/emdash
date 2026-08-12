@@ -63,7 +63,7 @@ test.describe("Accessibility Audit", () => {
 			await admin.waitForLoading();
 
 			const metricCards = admin.page.getByTestId("dashboard-metric");
-			expect(await metricCards.count()).toBeGreaterThanOrEqual(3);
+			await expect.poll(() => metricCards.count()).toBeGreaterThanOrEqual(3);
 
 			const layout = await admin.page.locator("main").evaluate((main) => {
 				const textStart = (element: Element) => {
@@ -115,6 +115,7 @@ test.describe("Accessibility Audit", () => {
 		}) => {
 			await admin.goToDashboard();
 			await admin.waitForLoading();
+			await expect(admin.page.getByTestId("dashboard-metric-value").first()).toBeVisible();
 
 			const trackingByLocale = await admin.page.locator("main").evaluate((main) => {
 				const title = main.querySelector("h1");

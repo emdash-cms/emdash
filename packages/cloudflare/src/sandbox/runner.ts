@@ -13,6 +13,8 @@
 
 import { env, exports } from "cloudflare:workers";
 import {
+	createSandboxRouteError,
+	getSandboxRouteErrorEnvelope,
 	normalizeCapabilities,
 	type SandboxRunner,
 	type SandboxedPluginInstance,
@@ -356,10 +358,13 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		input: unknown,
 		request: SerializedRequest,
 	): Promise<unknown> {
-		return this.withWallTimeLimit(`route:${routeName}`, () => {
+		return this.withWallTimeLimit(`route:${routeName}`, async () => {
 			const worker = this.createWorker();
 			const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
-			return entrypoint.invokeRoute(routeName, input, request);
+			const result = await entrypoint.invokeRoute(routeName, input, request);
+			const envelope = getSandboxRouteErrorEnvelope(result);
+			if (envelope) throw createSandboxRouteError(envelope.error.code);
+			return result;
 		});
 	}
 

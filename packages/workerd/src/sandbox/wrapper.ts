@@ -57,6 +57,37 @@ const BACKING_URL = ${JSON.stringify(options.backingServiceUrl)};
 const AUTH_TOKEN = ${JSON.stringify(options.authToken)};
 const INVOKE_TOKEN = ${JSON.stringify(options.invokeToken)};
 
+function sandboxRouteErrorDetails(value) {
+	if (!value || typeof value !== "object") return null;
+	const code =
+		value.code === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS" ||
+		value.code === "MEDIA_USAGE_ACTIVATION_CHECK_FAILED"
+			? value.code
+			: value.name === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS" ||
+				  value.name === "MEDIA_USAGE_ACTIVATION_CHECK_FAILED"
+				? value.name
+				: null;
+	if (!code || (value.status !== undefined && value.status !== 503)) return null;
+	return {
+		code,
+		message:
+			code === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS"
+				? "Media usage activation is in progress"
+				: "Unable to verify media usage activation state",
+		status: 503,
+	};
+}
+
+function sandboxRouteErrorResponse(error) {
+	const details = sandboxRouteErrorDetails(error);
+	return details
+		? Response.json(
+				{ __emdashSandboxRouteError: true, error: details },
+				{ status: details.status },
+			)
+		: null;
+}
+
 // -----------------------------------------------------------------------------
 // Bridge - HTTP calls to Node backing service
 // -----------------------------------------------------------------------------
@@ -72,6 +103,18 @@ async function bridgeCall(method, body) {
 	});
 	if (!res.ok) {
 		const text = await res.text();
+		try {
+			const payload = JSON.parse(text);
+			const details = sandboxRouteErrorDetails(payload?.error);
+			if (details) {
+				const error = Object.assign(new Error(details.message), details, {
+					name: details.code,
+				});
+				throw error;
+			}
+		} catch (error) {
+			if (sandboxRouteErrorDetails(error)) throw error;
+		}
 		throw new Error("Bridge call " + method + " failed: " + text);
 	}
 	const data = await res.json();
@@ -424,6 +467,8 @@ export default {
 				);
 				return Response.json(result);
 			} catch (err) {
+				const sandboxError = sandboxRouteErrorResponse(err);
+				if (sandboxError) return sandboxError;
 				return new Response(err.message || "Route error", { status: 500 });
 			}
 		}

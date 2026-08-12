@@ -10,6 +10,7 @@ import { z } from "zod";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, unwrapResult } from "#api/error.js";
 import { handleMarketplaceUpdate } from "#api/index.js";
+import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
 
 export const prerender = false;
@@ -31,6 +32,9 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 	const denied = requirePerm(user, "plugins:manage");
 	if (denied) return denied;
+
+	const activationFence = await checkMediaUsageActivationWriteFence(emdash.db);
+	if (activationFence) return activationFence;
 
 	if (!id) {
 		return apiError("INVALID_REQUEST", "Plugin ID required", 400);
