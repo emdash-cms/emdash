@@ -33,3 +33,27 @@ export interface MigrationExecutor {
 	execute(request: MigrationRequest): Promise<MigrationReport>;
 	dispose?(): Promise<void>;
 }
+
+export interface MigrationTargetOverrides {
+	database?: string;
+	databaseUrlEnv?: string;
+	d1?: string;
+	accountId?: string;
+	wranglerConfig?: string;
+	wranglerEnv?: string;
+}
+
+export interface MigrationExecutorFactoryContext {
+	projectRoot: string;
+	env: Readonly<Record<string, string | undefined>>;
+	overrides?: Readonly<MigrationTargetOverrides>;
+}
+
+export type MigrationExecutorFactory<ManifestConfig = unknown> = (
+	manifestConfig: ManifestConfig,
+	context: MigrationExecutorFactoryContext,
+) => MigrationExecutor | Promise<MigrationExecutor>;
+
+export interface MigrationExecutorModule<ManifestConfig = unknown> {
+	createMigrationExecutor: MigrationExecutorFactory<ManifestConfig>;
+}

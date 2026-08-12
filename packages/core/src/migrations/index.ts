@@ -9,7 +9,11 @@ export type { CoreMigrationIdentity } from "./identity.js";
 export type {
 	MigrationAction,
 	MigrationExecutor,
+	MigrationExecutorFactory,
+	MigrationExecutorFactoryContext,
+	MigrationExecutorModule,
 	MigrationReport,
 	MigrationRequest,
 	MigrationTarget,
+	MigrationTargetOverrides,
 } from "./protocol.js";
