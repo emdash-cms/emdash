@@ -7,10 +7,11 @@
  * so assignments span every locale of a post.
  */
 
-import type { Kysely, Selectable } from "kysely";
+import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
-import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
+import { TaxonomyRepository, type SiblingPosition } from "../../database/repositories/taxonomy.js";
+import { withTransaction } from "../../database/transaction.js";
 import type { Database, TaxonomyDefTable } from "../../database/types.js";
 import { resolveConfiguredLocale } from "../../i18n/config.js";
 import { invalidateTaxonomyDefsCache, invalidateTermCache } from "../../taxonomies/index.js";
@@ -38,6 +39,10 @@ export interface TaxonomyListResponse {
 	taxonomies: TaxonomyDef[];
 }
 
+export interface TaxonomyResponse {
+	taxonomy: TaxonomyDef;
+}
+
 export interface TermData {
 	id: string;
 	name: string;
@@ -57,6 +62,10 @@ export interface TermWithCount extends TermData {
 
 export interface TermListResponse {
 	terms: TermWithCount[];
+}
+
+export interface TermReorderResponse {
+	reordered: true;
 }
 
 export interface TermResponse {
@@ -138,10 +147,64 @@ async function requireTaxonomyDef(
 	if (!def) {
 		return {
 			success: false,
-			error: { code: "NOT_FOUND", message: `Taxonomy '${name}' not found` },
+			error: {
+				code: "NOT_FOUND",
+				message: `Taxonomy '${name}' not found${locale !== undefined ? ` in locale '${locale}'` : ""}`,
+			},
 		};
 	}
 	return { success: true, def };
+}
+
+/** The subset of `slugs` that still has a row in `_emdash_collections`. */
+async function findExistingCollections(
+	db: Kysely<Database>,
+	slugs: readonly string[],
+): Promise<Set<string>> {
+	if (slugs.length === 0) return new Set();
+	const rows = await db
+		.selectFrom("_emdash_collections")
+		.select("slug")
+		.where("slug", "in", [...slugs])
+		.execute();
+	return new Set(rows.map((r) => r.slug));
+}
+
+/**
+ * Reject a `collections` list naming collections that don't exist. Shared by
+ * create and update so both fail the same way instead of storing a reference
+ * that reads back filtered out.
+ */
+async function validateCollections(
+	db: Kysely<Database>,
+	collections: readonly string[],
+): Promise<{ code: "VALIDATION_ERROR"; message: string } | null> {
+	const existing = await findExistingCollections(db, collections);
+	const invalid = collections.filter((slug) => !existing.has(slug));
+	if (invalid.length === 0) return null;
+	return {
+		code: "VALIDATION_ERROR",
+		message: `Unknown collection(s): ${invalid.join(", ")}`,
+	};
+}
+
+/**
+ * Shape one definition row for a response, dropping collection references whose
+ * collection is gone. Storage is untouched — re-creating the collection
+ * re-links automatically, same as `handleTaxonomyList`.
+ */
+async function toTaxonomyResponse(
+	db: Kysely<Database>,
+	row: Selectable<TaxonomyDefTable>,
+): Promise<TaxonomyResponse> {
+	const def = rowToDef(row);
+	const realCollections = await findExistingCollections(db, def.collections);
+	return {
+		taxonomy: {
+			...def,
+			collections: def.collections.filter((slug) => realCollections.has(slug)),
+		},
+	};
 }
 
 /** Declared collections of a taxonomy def row (deduped, parsed from JSON). */
@@ -204,6 +267,31 @@ export async function handleTaxonomyList(
 }
 
 /**
+ * Get a single taxonomy definition by name.
+ *
+ * Definitions are per-locale, so `locale` picks which one; without it the
+ * lowest-locale match wins (same rule as `handleMenuGet`).
+ */
+export async function handleTaxonomyGet(
+	db: Kysely<Database>,
+	name: string,
+	options: { locale?: string } = {},
+): Promise<ApiResult<TaxonomyResponse>> {
+	try {
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const lookup = await requireTaxonomyDef(db, name, locale);
+		if (!lookup.success) return lookup;
+
+		return { success: true, data: await toTaxonomyResponse(db, lookup.def) };
+	} catch {
+		return {
+			success: false,
+			error: { code: "TAXONOMY_GET_ERROR", message: "Failed to get taxonomy" },
+		};
+	}
+}
+
+/**
  * Create a new taxonomy definition
  */
 export async function handleTaxonomyCreate(
@@ -217,7 +305,7 @@ export async function handleTaxonomyCreate(
 		locale?: string;
 		translationOf?: string;
 	},
-): Promise<ApiResult<{ taxonomy: TaxonomyDef }>> {
+): Promise<ApiResult<TaxonomyResponse>> {
 	try {
 		const locale = input.locale ? resolveConfiguredLocale(input.locale) : undefined;
 		if (!NAME_PATTERN.test(input.name)) {
@@ -232,23 +320,9 @@ export async function handleTaxonomyCreate(
 		}
 
 		const collections = [...new Set(input.collections ?? [])];
-		if (collections.length > 0) {
-			const existingCollections = await db
-				.selectFrom("_emdash_collections")
-				.select("slug")
-				.where("slug", "in", collections)
-				.execute();
-			const existingSlugs = new Set(existingCollections.map((c) => c.slug));
-			const invalid = collections.filter((c) => !existingSlugs.has(c));
-			if (invalid.length > 0) {
-				return {
-					success: false,
-					error: {
-						code: "VALIDATION_ERROR",
-						message: `Unknown collection(s): ${invalid.join(", ")}`,
-					},
-				};
-			}
+		const collectionError = await validateCollections(db, collections);
+		if (collectionError) {
+			return { success: false, error: collectionError };
 		}
 
 		let translationGroup: string | null = null;
@@ -322,6 +396,119 @@ export async function handleTaxonomyCreate(
 		return {
 			success: false,
 			error: { code: "TAXONOMY_CREATE_ERROR", message: "Failed to create taxonomy" },
+		};
+	}
+}
+
+/**
+ * Update a taxonomy definition.
+ *
+ * Writes the one row `(name, locale)` resolves to — every field here belongs to
+ * a single locale's definition, so translating a taxonomy and then editing the
+ * translation leaves the other locales alone. `name` and `locale` are immutable
+ * (renaming would strand the terms, which are keyed on `name`).
+ */
+export async function handleTaxonomyUpdate(
+	db: Kysely<Database>,
+	name: string,
+	input: {
+		label?: string;
+		labelSingular?: string | null;
+		hierarchical?: boolean;
+		collections?: string[];
+		locale?: string;
+	},
+): Promise<ApiResult<TaxonomyResponse>> {
+	try {
+		const locale = input.locale ? resolveConfiguredLocale(input.locale) : undefined;
+		const lookup = await requireTaxonomyDef(db, name, locale);
+		if (!lookup.success) return lookup;
+
+		const collections = input.collections ? [...new Set(input.collections)] : undefined;
+		if (collections !== undefined) {
+			const collectionError = await validateCollections(db, collections);
+			if (collectionError) {
+				return { success: false, error: collectionError };
+			}
+		}
+
+		const updates: {
+			label?: string;
+			label_singular?: string | null;
+			hierarchical?: number;
+			collections?: string;
+		} = {};
+		if (input.label !== undefined) updates.label = input.label;
+		if (input.labelSingular !== undefined) updates.label_singular = input.labelSingular;
+		if (input.hierarchical !== undefined) updates.hierarchical = input.hierarchical ? 1 : 0;
+		if (collections !== undefined) updates.collections = JSON.stringify(collections);
+
+		if (Object.keys(updates).length > 0) {
+			await db
+				.updateTable("_emdash_taxonomy_defs")
+				.set(updates)
+				.where("id", "=", lookup.def.id)
+				.execute();
+			invalidateTaxonomyDefsCache();
+		}
+
+		const row = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.selectAll()
+			.where("id", "=", lookup.def.id)
+			.executeTakeFirstOrThrow();
+
+		return { success: true, data: await toTaxonomyResponse(db, row) };
+	} catch {
+		return {
+			success: false,
+			error: { code: "TAXONOMY_UPDATE_ERROR", message: "Failed to update taxonomy" },
+		};
+	}
+}
+
+/**
+ * Delete a taxonomy: every locale's definition, every term under that name in
+ * every locale, and the term assignments those terms hold.
+ *
+ * There is no locale scope and no non-empty guard. Terms are keyed on `name`
+ * rather than on a definition row, so leaving one locale's definition behind
+ * would leave the taxonomy half-deleted — a definition with no terms, or terms
+ * no definition describes.
+ */
+export async function handleTaxonomyDelete(
+	db: Kysely<Database>,
+	name: string,
+): Promise<ApiResult<{ deleted: true }>> {
+	try {
+		const lookup = await requireTaxonomyDef(db, name);
+		if (!lookup.success) return lookup;
+
+		await withTransaction(db, async (trx) => {
+			// `content_taxonomies.taxonomy_id` holds a term's translation_group, so
+			// the assignments have to go before the terms they are matched against.
+			await trx
+				.deleteFrom("content_taxonomies")
+				.where("taxonomy_id", "in", (eb) =>
+					eb
+						.selectFrom("taxonomies")
+						.select(sql<string>`coalesce(translation_group, id)`.as("group"))
+						.where("name", "=", name),
+				)
+				.execute();
+			await trx.deleteFrom("taxonomies").where("name", "=", name).execute();
+			await trx.deleteFrom("_emdash_taxonomy_defs").where("name", "=", name).execute();
+		});
+
+		// Covers the term caches too — see `invalidateTaxonomyDefsCache`.
+		invalidateTaxonomyDefsCache();
+
+		return { success: true, data: { deleted: true } };
+	} catch (error) {
+		console.error("[taxonomies] delete failed:", error);
+		return {
+			success: false,
+			error: { code: "TAXONOMY_DELETE_ERROR", message: "Failed to delete taxonomy" },
 		};
 	}
 }
@@ -428,6 +615,102 @@ export async function handleTermList(
 		return {
 			success: false,
 			error: { code: "TERM_LIST_ERROR", message: "Failed to list terms" },
+		};
+	}
+}
+
+/**
+ * Set the manual order of one sibling group.
+ *
+ * `ids` names the terms to move, in the desired order; each is a row id or a
+ * translation_group and resolves to the latter, because a position belongs to a
+ * term rather than to one of its locales. Reordering never reparents — moving a
+ * term under a different parent is a term update.
+ *
+ * The group is `(taxonomy, parentId)` and has no locale: `parentId` is the
+ * parent's translation_group (a row id is accepted and resolved), and `null`
+ * selects the top level — which for a flat taxonomy is every term.
+ *
+ * `ids` may be a *subset* of the group, and the listed terms are permuted
+ * within the positions they already occupy. A locale only renders the terms
+ * translated into it, so a caller often cannot name every member; a member left
+ * out keeps its place, which is also what makes a stale list harmless.
+ */
+export async function handleTermReorder(
+	db: Kysely<Database>,
+	taxonomyName: string,
+	input: { parentId?: string | null; ids: string[] },
+): Promise<ApiResult<TermReorderResponse>> {
+	try {
+		const lookup = await requireTaxonomyDef(db, taxonomyName);
+		if (!lookup.success) return lookup;
+
+		const repo = new TaxonomyRepository(db);
+
+		let parentId = input.parentId ?? null;
+		if (parentId !== null) {
+			// Children store the parent's translation_group, so a caller passing a
+			// row id still addresses the right group. A parent whose anchor row is
+			// gone keeps the value as given (see TaxonomyRepository.resolveParentRef).
+			const parent = await repo.findById(parentId);
+			if (parent) parentId = parent.translationGroup ?? parent.id;
+		}
+
+		// Every locale's rows: membership is locale-agnostic, and a term the
+		// caller can't see still holds its slot.
+		// The order carries into how ties are resolved, so it must be stable
+		// across calls; with locales interleaved a tie falls to whichever
+		// locale's label sorts first, not to the order the caller rendered.
+		const members = await repo.findByName(taxonomyName, { parentId });
+		const siblings: SiblingPosition[] = [];
+		const seen = new Set<string>();
+		const resolve = new Map<string, string>();
+		for (const term of members) {
+			const group = term.translationGroup ?? term.id;
+			if (!seen.has(group)) {
+				seen.add(group);
+				siblings.push({ group, position: term.sortOrder });
+			}
+			// Both spellings resolve to the group: a row id, and the group itself for
+			// a caller that already holds one — including when its anchor row is gone
+			// and no member's id matches it.
+			resolve.set(group, group);
+			resolve.set(term.id, group);
+		}
+
+		const groups: string[] = [];
+		for (const id of input.ids) {
+			const group = resolve.get(id);
+			if (!group) {
+				return {
+					success: false,
+					error: {
+						code: "REORDER_MISMATCH",
+						message: `Term "${id}" is not in the sibling group being reordered`,
+					},
+				};
+			}
+			if (groups.includes(group)) {
+				return {
+					success: false,
+					error: {
+						code: "REORDER_MISMATCH",
+						message: `Term "${id}" is listed more than once`,
+					},
+				};
+			}
+			groups.push(group);
+		}
+
+		await repo.reorder(groups, siblings);
+		invalidateTermCache();
+
+		return { success: true, data: { reordered: true } };
+	} catch (error) {
+		console.error("[taxonomies] term reorder failed:", error);
+		return {
+			success: false,
+			error: { code: "TERM_REORDER_ERROR", message: "Failed to reorder terms" },
 		};
 	}
 }

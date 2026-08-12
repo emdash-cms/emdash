@@ -88,12 +88,19 @@ const SYSTEM_COLUMNS = new Set([
 	// SEO_ALIAS_COLUMNS, never as flat fields.
 	"_emdash_terms",
 	"_emdash_bylines",
+	"_emdash_bylines_exist",
 	SEO_FOLDED_COLUMN,
 ]);
 
 /** Markers for byline/taxonomy hydration folded into the content query. */
 export const FOLDED_TERMS = Symbol.for("emdash:foldedTerms");
 export const FOLDED_BYLINES = Symbol.for("emdash:foldedBylines");
+/**
+ * Marker for whether `_emdash_bylines` has any rows at all (`false` = table
+ * empty). Lets byline hydration trust an empty fold instead of re-checking
+ * via the byline query path on sites that never use bylines.
+ */
+export const FOLDED_BYLINES_EXIST = Symbol.for("emdash:foldedBylinesExist");
 
 /**
  * Correlated JSON-array subqueries that fold taxonomy-term and byline hydration
@@ -144,7 +151,12 @@ function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
 		: sql.raw("json_object('roleLabel', cb.role_label, 'sortOrder', cb.sort_order, 'byline', ");
 	const credit = sql`${creditObj}${bylineInner})`;
 	const bylines = sql`(SELECT ${agg(credit)} FROM ${sql.ref("_emdash_content_bylines")} AS cb ${foldJoin} ${sql.ref("_emdash_bylines")} AS b ON b.translation_group = cb.byline_id LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id WHERE cb.collection_slug = ${type} AND cb.content_id = ${o}.id AND b.locale = ${o}.locale) AS ${sql.ref("_emdash_bylines")}`;
-	return { terms, bylines };
+	// Uncorrelated existence probe (evaluated once per statement, not per row):
+	// 1 when `_emdash_bylines` has any row, NULL when empty. An empty table
+	// means an empty fold is authoritative — no credit in any locale, no
+	// author-fallback byline — so hydration can skip the byline query path.
+	const bylinesExist = sql`(SELECT 1 FROM ${sql.ref("_emdash_bylines")} LIMIT 1) AS ${sql.ref("_emdash_bylines_exist")}`;
+	return { terms, bylines, bylinesExist };
 }
 
 /**
@@ -226,6 +238,16 @@ function stashFolded(data: Record<string, unknown>, row: Record<string, unknown>
 			continue;
 		}
 		Object.defineProperty(data, sym, { value, enumerable: false, configurable: true });
+	}
+	// Existence probe: 1 = table has rows, NULL = empty (both dialects). A row
+	// without the column (e.g. a cached snapshot) leaves the marker unset,
+	// which hydration treats as "unknown" and falls back conservatively.
+	if ("_emdash_bylines_exist" in row) {
+		Object.defineProperty(data, FOLDED_BYLINES_EXIST, {
+			value: row["_emdash_bylines_exist"] != null,
+			enumerable: false,
+			configurable: true,
+		});
 	}
 }
 
@@ -826,11 +848,11 @@ export function buildTaxonomyPivotQuery(
 		: sql``;
 
 	const firstGroupCond = pivotGroupCondition("ct.taxonomy_id", firstGroups);
-	const { terms: termsSelect, bylines: bylinesSelect } = foldedHydrationSelects(
-		db,
-		collection,
-		"r",
-	);
+	const {
+		terms: termsSelect,
+		bylines: bylinesSelect,
+		bylinesExist: bylinesExistSelect,
+	} = foldedHydrationSelects(db, collection, "r");
 
 	// Authoritative re-check on the joined `ec_*` row.
 	const deletedR = deletedIsNull ? sql`r.deleted_at IS NULL` : sql`r.deleted_at IS NOT NULL`;
@@ -871,7 +893,7 @@ export function buildTaxonomyPivotQuery(
 				ORDER BY sortval ${dir}, ct.entry_id ${dir}
 				${limitClause}
 			)
-			SELECT r.*, ${termsSelect}, ${bylinesSelect}
+			SELECT r.*, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}
 			FROM picked JOIN ${sql.ref(tableName)} AS r ON r.id = picked.entry_id
 			WHERE ${deletedR} ${statusR} ${localeR}
 			ORDER BY picked.sortval ${dir}, picked.entry_id ${dir}
@@ -894,7 +916,7 @@ export function buildTaxonomyPivotQuery(
 				${residual}
 				${bylineCt}
 		)
-		SELECT r.*, ${termsSelect}, ${bylinesSelect}
+		SELECT r.*, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}
 		FROM picked JOIN ${sql.ref(tableName)} AS r ON r.id = picked.entry_id
 		WHERE ${deletedR} ${statusR} ${localeR}
 			${cursorCond}
@@ -1257,11 +1279,11 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						: sql``;
 
 					// Fold byline + taxonomy hydration into the list query.
-					const { terms: termsSelect, bylines: bylinesSelect } = foldedHydrationSelects(
-						db,
-						type,
-						tableName,
-					);
+					const {
+						terms: termsSelect,
+						bylines: bylinesSelect,
+						bylinesExist: bylinesExistSelect,
+					} = foldedHydrationSelects(db, type, tableName);
 
 					// LIMIT/OFFSET clause. SQLite only accepts OFFSET when a
 					// LIMIT is present, so a bare offset uses `LIMIT -1`
@@ -1277,7 +1299,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							: sql`LIMIT -1 OFFSET ${offset}`;
 					}
 					result = await sql<Record<string, unknown>>`
-						SELECT *, ${termsSelect}, ${bylinesSelect} FROM ${sql.ref(tableName)}
+						SELECT *, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect} FROM ${sql.ref(tableName)}
 						WHERE deleted_at IS NULL
 						AND ${statusCondition}
 						${localeFilter}
@@ -1413,22 +1435,22 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				// per-result-set column limit, surfacing as a silent null entry. One
 				// JSON column is one column, so the join stays safe at any width and
 				// we keep the single round trip.
-				const { terms: termsSelect, bylines: bylinesSelect } = foldedHydrationSelects(
-					db,
-					type,
-					"c",
-				);
+				const {
+					terms: termsSelect,
+					bylines: bylinesSelect,
+					bylinesExist: bylinesExistSelect,
+				} = foldedHydrationSelects(db, type, "c");
 				const seoSelect = foldedSeoSelect(db, type, "c");
 				const result = locale
 					? await sql<Record<string, unknown>>`
-							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}
+							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
 							AND ((c.slug = ${id} AND c.locale = ${locale}) OR c.id = ${id})
 							LIMIT 1
 						`.execute(db)
 					: await sql<Record<string, unknown>>`
-							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}
+							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
 							AND (c.slug = ${id} OR c.id = ${id})

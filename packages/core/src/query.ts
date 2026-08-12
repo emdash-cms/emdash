@@ -29,6 +29,7 @@ import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js
 import {
 	CURSOR_RAW_VALUES,
 	FOLDED_BYLINES,
+	FOLDED_BYLINES_EXIST,
 	FOLDED_TERMS,
 	type WhereRange,
 	type WhereValue,
@@ -1030,18 +1031,29 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 			return { data, credits };
 		});
 
+		// An empty `_emdash_bylines` table makes an empty fold authoritative: no
+		// credit can exist in any locale and the author fallback has no byline
+		// to resolve to, so skip the query path and the custom-fields probe
+		// entirely. A missing marker (older cached rows) means "unknown" and
+		// keeps the conservative fallback below.
+		const knownEmpty = entries.every(
+			(e) => Reflect.get(entryData(e), FOLDED_BYLINES_EXIST) === false,
+		);
+
 		// Fall back to the full query path when the fold can't be trusted to be
 		// complete: an entry with a byline reference (explicit primary, or an
 		// author for the author-fallback) but no folded credits — e.g. a credit
 		// in a different locale than the row, which the locale-correlated subquery
 		// skips, or the author-fallback path which the fold doesn't express.
-		let needsQueryPath = parsed.some(
-			(p) =>
-				p.credits.length === 0 &&
-				(dataStr(p.data, "authorId") !== "" || dataStr(p.data, "primaryBylineId") !== ""),
-		);
+		let needsQueryPath =
+			!knownEmpty &&
+			parsed.some(
+				(p) =>
+					p.credits.length === 0 &&
+					(dataStr(p.data, "authorId") !== "" || dataStr(p.data, "primaryBylineId") !== ""),
+			);
 		let hasCustomFields = false;
-		if (!needsQueryPath) {
+		if (!needsQueryPath && !knownEmpty) {
 			try {
 				const { getDb } = await import("./loader.js");
 				const db = await getDb();

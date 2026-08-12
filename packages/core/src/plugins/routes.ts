@@ -8,6 +8,7 @@
  *
  */
 
+import { MediaUsageActivationWriteBlockedError } from "../api/media-usage-write-fence.js";
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
 import { extractRequestMeta } from "./request-meta.js";
 import type { ResolvedPlugin, RouteContext, PluginRoute } from "./types.js";
@@ -80,6 +81,40 @@ export function buildRouteMeta(route: {
 		meta.cacheControl = route.cacheControl;
 	}
 	return meta;
+}
+
+/**
+ * HTTP methods that carry a request body. Everything else (GET, HEAD, DELETE)
+ * takes its route input from the URL query string.
+ */
+const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
+
+/**
+ * Parse a plugin route's input from the request, by method.
+ *
+ * Body methods (POST/PUT/PATCH) parse the JSON body as before. Bodyless
+ * methods (GET/HEAD/DELETE) have no body, so `request.json()` resolves to
+ * undefined and fails schema validation (#2146) — parse the query string into
+ * an object instead. Repeated keys (`?tag=a&tag=b`) become an array so array
+ * schemas work; a single key stays a scalar.
+ */
+export async function parseRouteInput(request: Request): Promise<unknown> {
+	if (BODY_METHODS.has(request.method.toUpperCase())) {
+		try {
+			return await request.json();
+		} catch {
+			// No body or not JSON
+			return undefined;
+		}
+	}
+
+	const params = new URL(request.url).searchParams;
+	const input: Record<string, string | string[]> = {};
+	for (const key of new Set(params.keys())) {
+		const values = params.getAll(key);
+		input[key] = values.length > 1 ? values : values[0];
+	}
+	return input;
 }
 
 /**
@@ -178,6 +213,13 @@ export class PluginRouteHandler {
 				status: 200,
 			};
 		} catch (error) {
+			if (error instanceof MediaUsageActivationWriteBlockedError) {
+				return {
+					success: false,
+					error: { code: error.code, message: error.message },
+					status: error.status,
+				};
+			}
 			// Handle known error types
 			if (error instanceof PluginRouteError) {
 				return {

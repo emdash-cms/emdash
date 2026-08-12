@@ -4,8 +4,8 @@
 import { Sandbox as BaseSandbox } from "@cloudflare/sandbox";
 
 import {
-	gateGithubRequest,
 	githubAuthHeader,
+	inspectGithubRequest,
 	PUSH_CAPABILITY_HEADER,
 	verifyPushCapability,
 } from "./lib/github-proxy.js";
@@ -62,22 +62,28 @@ async function handleAuthenticatedGithub(request: Request, env: Env): Promise<Re
 	}
 
 	const forwarded = new Request(request);
+	const capability = forwarded.headers.get(PUSH_CAPABILITY_HEADER);
 	const issueNumber = await verifyPushCapability(
-		forwarded.headers.get(PUSH_CAPABILITY_HEADER),
+		capability,
 		env.GITHUB_WEBHOOK_SECRET,
 		owner,
 		repo,
 	);
 	forwarded.headers.delete(PUSH_CAPABILITY_HEADER);
-	const denial = await gateGithubRequest(forwarded, url, owner, repo, issueNumber ?? undefined);
-	if (denial) {
+	const gate = await inspectGithubRequest(forwarded, url, owner, repo, issueNumber ?? undefined);
+	if (!gate.allowed) {
 		console.warn("[sandbox/outbound] denying", {
 			method: request.method,
 			host: url.host,
 			path: url.pathname,
-			reason: denial,
+			stage: gate.stage,
+			reason: gate.reason,
+			capabilityPresent: capability !== null,
+			capabilityValid: issueNumber !== null,
+			...(gate.refs ? { refs: gate.refs } : {}),
+			...(gate.parseError ? { parseError: gate.parseError } : {}),
 		});
-		return new Response(`forbidden: ${denial}`, { status: 403 });
+		return new Response(`forbidden: ${gate.reason}`, { status: 403 });
 	}
 
 	console.log("[sandbox/outbound] allow", {
@@ -86,17 +92,21 @@ async function handleAuthenticatedGithub(request: Request, env: Env): Promise<Re
 		path: url.pathname,
 	});
 
+	// The repo is public: when no usable App credential exists, forward the
+	// (already gated) request anonymously. Reads work; a push fails upstream.
 	const creds = readAppCreds(env);
-	if (!creds) return new Response("github access not configured", { status: 403 });
-	let token: string;
-	try {
-		token = await mintInstallationToken(creds);
-	} catch (err) {
-		console.error("[sandbox/outbound] token mint failed", { error: errorMessage(err) });
-		return new Response("token mint failed", { status: 502 });
+	let token: string | null = null;
+	if (creds) {
+		try {
+			token = await mintInstallationToken(creds);
+		} catch (err) {
+			console.warn("[sandbox/outbound] token mint failed; forwarding anonymously", {
+				error: errorMessage(err),
+			});
+		}
 	}
 	const authed = new Request(forwarded);
-	authed.headers.set("authorization", githubAuthHeader(url.host, token));
+	if (token) authed.headers.set("authorization", githubAuthHeader(url.host, token));
 	authed.headers.set("user-agent", "emdash-bot");
 	try {
 		const res = await fetch(authed, { signal: AbortSignal.timeout(2 * 60_000) });

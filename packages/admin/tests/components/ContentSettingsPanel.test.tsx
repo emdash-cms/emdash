@@ -158,8 +158,7 @@ describe("ContentSettingsPanel", () => {
 		);
 		const statusRow = screen.getByText("Status", { exact: true }).element().parentElement!;
 
-		expect(statusRow.textContent).toContain("Publish");
-		expect(statusRow.textContent).not.toContain("Published");
+		expect(statusRow.textContent).toContain("Published");
 		expect(statusRow.querySelector("svg")).not.toBeNull();
 	});
 

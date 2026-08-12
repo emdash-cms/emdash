@@ -74,9 +74,10 @@ export async function handleMediaUsageSummaries(
 	try {
 		const repository = new MediaUsageRepository(db);
 		const coverage = await loadMediaUsageCoverage(repository);
-		const counts = options.includeCount
-			? await repository.findActiveEntryCountsByMediaIds(mediaIds)
-			: null;
+		const counts =
+			options.includeCount && coverage.status === "complete"
+				? await repository.findActiveEntryCountsByMediaIds(mediaIds)
+				: null;
 		const summaries: Record<string, MediaUsageSummary> = {};
 
 		for (const mediaId of new Set(mediaIds)) {
@@ -212,6 +213,7 @@ function normalizeMediaUsageCoverageStatus(
 ): MediaUsageCoverageStatus {
 	if (scope.status === null) return "never";
 	if (scope.status === "complete") {
+		if (scope.reconciliationRequired) return "stale";
 		return scope.schemaVersion === CONTENT_SOURCE_SCHEMA_VERSION ? "complete" : "stale";
 	}
 	if (

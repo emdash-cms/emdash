@@ -51,10 +51,9 @@ export function invalidateTermCache(): void {
  * Taxonomy *definitions* (the "category"/"tag" taxonomies themselves, not
  * their terms) are read on every public render that hydrates entry terms —
  * `getAllTermsForEntries` → `getCollectionTaxonomyNames` → `getTaxonomyDefs` —
- * but change extremely rarely: they're created via the admin API or applied
- * from a seed, and there is no edit/delete-def path. Caching them across the
- * isolate lifetime drops the per-render `SELECT * FROM _emdash_taxonomy_defs`
- * to once-per-isolate.
+ * but change extremely rarely: they're written only by the admin API and by
+ * seed application. Caching them across the isolate lifetime drops the
+ * per-render `SELECT * FROM _emdash_taxonomy_defs` to once-per-isolate.
  *
  * Stored on globalThis behind a Symbol key (same pattern as
  * `settings/index.ts`) so the bundler duplicating this module across SSR
@@ -89,8 +88,8 @@ const defsHolder: TaxonomyDefsHolder =
 /**
  * Invalidate the isolate-wide taxonomy-definitions cache (and the related
  * loader taxonomy-names cache). Called from every taxonomy-def write path
- * (`handleTaxonomyCreate`, seed application). Other isolates refresh on their
- * next recycle — staleness bounded by isolate lifetime.
+ * (`handleTaxonomyCreate`/`Update`/`Delete`, seed application). Other isolates
+ * refresh on their next recycle — staleness bounded by isolate lifetime.
  */
 export function invalidateTaxonomyDefsCache(): void {
 	defsHolder.version++;
@@ -301,6 +300,7 @@ async function loadTaxonomyTerms(
 		.selectFrom("taxonomies")
 		.selectAll()
 		.where("name", "=", def.name)
+		.orderBy("sort_order", "asc")
 		.orderBy("label", "asc");
 	if (locale !== undefined) termsQuery = termsQuery.where("locale", "=", locale);
 
@@ -419,6 +419,7 @@ async function loadTerm(
 		// Children store the parent's translation_group in parent_id (not a row
 		// id), so a translated parent still owns its children in its own locale.
 		.where("parent_id", "=", row.translation_group ?? row.id)
+		.orderBy("sort_order", "asc")
 		.orderBy("label", "asc");
 	const termLocale = row.locale;
 	if (termLocale) childrenQuery = childrenQuery.where("locale", "=", termLocale);

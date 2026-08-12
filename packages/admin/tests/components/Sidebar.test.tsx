@@ -39,6 +39,7 @@ import {
 	resolveNavIcon,
 	resolvePluginPageLabel,
 	toPhosphorIconName,
+	visibleCollectionEntries,
 } from "../../src/components/Sidebar";
 import { render } from "../utils/render.tsx";
 
@@ -102,6 +103,30 @@ describe("filterNavItemsByRole", () => {
 		// must strip every gated entry at role=0.
 		const visible = filterNavItemsByRole(items, 0).map((i) => i.to);
 		expect(visible).toEqual(["/"]);
+	});
+});
+
+describe("visibleCollectionEntries", () => {
+	const collections = {
+		posts: { label: "Posts" },
+		contact_submissions: { label: "Contact Submissions", hidden: true },
+		lead_notes: { label: "Lead Notes", hidden: true },
+		pages: { label: "Pages", hidden: false },
+	};
+
+	it("drops collections flagged hidden", () => {
+		expect(visibleCollectionEntries(collections).map(([slug]) => slug)).toEqual(["posts", "pages"]);
+	});
+
+	it("keeps manifest order for visible collections", () => {
+		expect(visibleCollectionEntries({ b: { label: "B" }, a: { label: "A" } })).toEqual([
+			["b", { label: "B" }],
+			["a", { label: "A" }],
+		]);
+	});
+
+	it("treats a missing hidden flag as visible", () => {
+		expect(visibleCollectionEntries({ posts: { label: "Posts" } })).toHaveLength(1);
 	});
 });
 

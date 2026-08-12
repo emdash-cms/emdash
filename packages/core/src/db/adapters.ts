@@ -49,6 +49,14 @@ export interface DatabaseDescriptor {
 	 */
 	supportsRequestScope?: boolean;
 	/**
+	 * When true, request middleware resolves the last content-namespace
+	 * invalidation timestamp and passes it to `createRequestScopedDb`.
+	 *
+	 * Keep this unset unless request routing depends on that timestamp: reading
+	 * it may require an object-cache backend round trip.
+	 */
+	needsLastContentWriteAt?: boolean;
+	/**
 	 * When true, the adapter's runtime entrypoint MUST export a named
 	 * `createCoalescingDialect` function. The runtime uses this fresh dialect
 	 * only for its cold-start read batch.

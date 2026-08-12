@@ -311,3 +311,84 @@ describe("ContentEditPage – publish button appears after saving an edit (#1557
 			.toBeInTheDocument();
 	});
 });
+
+// ---------------------------------------------------------------------------
+
+describe("ContentEditPage – publish button appears after an autosave", () => {
+	let mockFetch: ReturnType<typeof createMockFetch>;
+
+	beforeEach(() => {
+		mockFetch = createMockFetch();
+
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: MANIFEST })
+			.on("GET", "/_emdash/api/auth/me", { data: { id: "user_01", role: 30 } })
+			.on("GET", "/_emdash/api/bylines", { data: { items: [] } })
+			.on("GET", "/_emdash/api/users", { data: { items: [] } })
+			// The GET keeps reporting the clean state for the whole test, so the only
+			// route to the button is the cache patch built from the PUT response.
+			.on("GET", "/_emdash/api/content/posts/post_1", { data: { item: publishedClean() } })
+			.on("GET", "/_emdash/api/revisions/rev_1", {
+				data: {
+					item: {
+						id: "rev_1",
+						collection: "posts",
+						entryId: "post_1",
+						data: { title: "Published Title" },
+						authorId: null,
+						createdAt: "2025-01-01T00:00:00Z",
+					},
+				},
+			})
+			.on("GET", "/_emdash/api/revisions/rev_2", {
+				data: {
+					item: {
+						id: "rev_2",
+						collection: "posts",
+						entryId: "post_1",
+						data: { title: "Published Title edited" },
+						authorId: null,
+						createdAt: "2025-01-02T00:00:00Z",
+					},
+				},
+			})
+			// Autosave on a published entry with no pending draft makes the server
+			// create one, so the response carries live !== draft. The query string is
+			// part of the key: without it the mock's prefix fallback would serve the
+			// GET handler's clean item to the PUT.
+			.on("PUT", "/_emdash/api/content/posts/post_1?locale=en", {
+				data: { item: publishedDirty() },
+			});
+	});
+
+	afterEach(() => {
+		mockFetch.restore();
+	});
+
+	it("shows 'Publish' after editing the title and letting autosave fire", async () => {
+		const { router, TestApp } = buildRouter();
+
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+
+		const screen = await render(<TestApp />);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Unpublish Post" }))
+			.toBeInTheDocument();
+
+		const titleInput = screen.getByRole("textbox", { name: "Title" });
+		await titleInput.fill("Published Title edited");
+
+		// Autosave patches the item into the cache instead of refetching. It writes
+		// the key `{ locale: rawItem.locale }` — the DB default "en" — while the
+		// editor reads `{ locale: activeLocale }`, which is undefined with i18n off.
+		// The patch lands on a key nobody observes, so this assertion fails: the
+		// editor keeps the stale revision pointers and never offers to publish.
+		await expect
+			.element(screen.getByRole("button", { name: "Publish", exact: true }), { timeout: 8000 })
+			.toBeInTheDocument();
+	});
+});

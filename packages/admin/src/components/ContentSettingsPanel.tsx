@@ -675,6 +675,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								contentKey={item?.id ?? `new:${collection}`}
 								seo={item?.seo}
 								onChange={onSeoChange}
+								defaultTitle={typeof item?.data?.title === "string" ? item.data.title : null}
+								defaultDescription={
+									typeof item?.data?.excerpt === "string" ? item.data.excerpt : null
+								}
 							/>
 						</div>
 					</SortableContentSettingsSection>

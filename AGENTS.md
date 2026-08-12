@@ -196,7 +196,7 @@ export function getSiteSetting(key: string) {
 
 **Module-scope singletons must live on `globalThis`.** Vite duplicates modules across SSR chunks; a plain `let cache = null` becomes two variables. Use a `Symbol.for` key on `globalThis`. See `packages/core/src/settings/index.ts` (versioned) and `packages/core/src/request-context.ts` / `request-cache.ts` (per-request).
 
-**Prefer the batch query to a "has any" probe.** Don't add a `SELECT id FROM foo LIMIT 1` to skip work on empty sites -- on live sites you pay the extra query every request for no gain. Handle missing tables with `isMissingTableError`.
+**Prefer the batch query to a "has any" probe.** Don't add a `SELECT id FROM foo LIMIT 1` to skip work on empty sites -- on live sites you pay the extra query every request for no gain. Handle missing tables with `isMissingTableError`. The exception is a probe folded into a query the request already runs (an uncorrelated scalar subquery in an existing select list): that adds zero round trips, so it's fine when an empty table lets the request skip follow-up queries entirely.
 
 **Defer bookkeeping with `after(fn)`.** Maintenance writes don't need to block TTFB. `after()` uses workerd's `waitUntil` when available, fire-and-forgets on Node. Wrap your function body in try/catch with a module-specific log prefix.
 
@@ -367,7 +367,7 @@ In libraries used in a Worker but not themselves Workers, install `@cloudflare/w
 # Testing
 
 - **Framework:** vitest. Tests in `packages/core/tests/`.
-- **No mocks for the DB.** SQLite (`better-sqlite3`) by default. PostgreSQL parity tests via a real `pg` connection with per-test schema isolation (set `PG_CONNECTION_STRING` to opt in).
+- **No mocks for the DB.** SQLite (`better-sqlite3`) by default. PostgreSQL parity tests via a real `pg` connection with per-test schema isolation (set `EMDASH_TEST_PG` to a connection string for a role with `CREATEDB` to opt in).
 - **Utilities:** `tests/utils/test-db.ts` exposes `setupTestDatabase()`, `setupTestDatabaseWithCollections()`, `teardownTestDatabase()` for SQLite and `setupTestPostgresDatabase()` etc. for Postgres. Dialect-agnostic: `setupForDialect`, `setupForDialectWithCollections`, `teardownForDialect`, plus `describeEachDialect(name, fn)`. Use the dialect wrapper for query-builder code -- regressions tend to be dialect-specific.
 - **Structure:** `tests/unit/`, `tests/integration/`, `tests/e2e/` (Playwright). Test files mirror source structure. Each test gets a fresh DB.
 

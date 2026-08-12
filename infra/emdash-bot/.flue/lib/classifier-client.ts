@@ -8,6 +8,7 @@ import * as v from "valibot";
 import { ClassifyCommand, classifyResultSchema } from "../agents/classify-command.js";
 import type { EventId, StateId } from "./machine.js";
 import { classifierCommands } from "./router.js";
+import { DeadlineExceededError, withDeadline } from "./sandbox-deadline.js";
 
 const CLASSIFY_TIMEOUT_MS = 10_000;
 
@@ -37,11 +38,13 @@ export async function classifyComment(input: ClassifyInput): Promise<ClassifyRes
 
 	let reply;
 	try {
-		reply = await init(ClassifyCommand, {
+		const handle = init(ClassifyCommand, {
 			id: `classify-${crypto.randomUUID()}`,
 			uid: null,
-		}).dispatch(
-			{
+		});
+		const startedAt = performance.now();
+		const receipt = await withDeadline(
+			handle.dispatch({
 				message: {
 					kind: "signal",
 					type: "github.comment",
@@ -58,9 +61,15 @@ export async function classifyComment(input: ClassifyInput): Promise<ClassifyRes
 						...(command.arg ? { arg: command.arg } : {}),
 					})),
 				},
-			},
-			{ signal: AbortSignal.timeout(CLASSIFY_TIMEOUT_MS) },
+			}),
+			CLASSIFY_TIMEOUT_MS,
+			"Classifier dispatch",
 		);
+		const remainingMs = CLASSIFY_TIMEOUT_MS - (performance.now() - startedAt);
+		if (remainingMs <= 0) {
+			throw new DeadlineExceededError("Classifier read", CLASSIFY_TIMEOUT_MS);
+		}
+		reply = await handle.read(receipt, { signal: AbortSignal.timeout(Math.ceil(remainingMs)) });
 	} catch (err) {
 		return { kind: "error", error: errorMessage(err) };
 	}

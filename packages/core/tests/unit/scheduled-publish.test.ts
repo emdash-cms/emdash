@@ -258,6 +258,33 @@ describe("EmDashRuntime.runScheduledTasks()", () => {
 		const updated = await repo.findById("post", post.id);
 		expect(updated?.status).toBe("published");
 	});
+
+	it("leaves due content untouched while media usage activation is incomplete", async () => {
+		const post = await repo.create(createPostFixture());
+		const past = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+		await db
+			.updateTable("_emdash_media_usage_activation")
+			.set({ state: "activating" })
+			.where("task_key", "=", "incremental_capture")
+			.execute();
+		const runtime = buildRuntime(db);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		try {
+			await expect(runtime.publishScheduled()).rejects.toMatchObject({
+				code: "MEDIA_USAGE_ACTIVATION_IN_PROGRESS",
+				status: 503,
+			});
+
+			await expect(runtime.runScheduledTasks()).resolves.toEqual({ published: [] });
+			const unchanged = await repo.findById("post", post.id);
+			expect(unchanged?.status).toBe("scheduled");
+			expect(unchanged?.scheduledAt).toBe(past);
+		} finally {
+			consoleError.mockRestore();
+		}
+	});
 });
 
 describe("ContentRepository.publish() requireDue gate", () => {

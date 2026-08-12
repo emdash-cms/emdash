@@ -13,6 +13,7 @@ import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
+import { assertMediaUsageActivationWriteAllowed } from "./api/media-usage-write-fence.js";
 import { validateRev } from "./api/rev.js";
 import type {
 	EmDashConfig,
@@ -47,7 +48,12 @@ import {
 	markContentMediaUsageCollectionStale,
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
+import {
+	processDueMediaUsageWork,
+	processMediaUsageWorkAfterWrite,
+} from "./media/usage/work-processor.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
+import { getSandboxRouteErrorDetails } from "./plugins/sandbox/types.js";
 import type {
 	SandboxedPluginInstance,
 	SandboxRunner,
@@ -67,7 +73,7 @@ import type {
 	FieldWidgetConfig,
 	SettingField,
 } from "./plugins/types.js";
-import type { FieldType } from "./schema/types.js";
+import { MAX_COLLECTION_LIST_COLUMNS, type FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
 import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
 import { createSingleFlightCache, singleFlightCached } from "./utils/single-flight-cache.js";
@@ -183,6 +189,7 @@ import {
 	type Storage,
 } from "./index.js";
 import { getDb } from "./loader.js";
+import { isRecord } from "./plugin-utils.js";
 import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
@@ -194,9 +201,15 @@ import {
 } from "./plugins/hooks.js";
 import { normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
-import { buildRouteMeta, PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
+import {
+	buildRouteMeta,
+	parseRouteInput,
+	PluginRouteRegistry,
+	type RouteMeta,
+} from "./plugins/routes.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
+import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
@@ -229,6 +242,16 @@ const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 const DRAFT_ONLY_UPDATE_KEYS = new Set(["data", "slug", "locale", "skipRevision"]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 
+const LIST_COLUMN_FIELD_TYPES: ReadonlySet<FieldType> = new Set([
+	"string",
+	"number",
+	"integer",
+	"boolean",
+	"datetime",
+	"select",
+	"multiSelect",
+]);
+
 /**
  * Sandboxed plugin entry from virtual module
  */
@@ -245,6 +268,10 @@ export interface SandboxedPluginEntry {
 	storage: PluginStorageConfig;
 	/** Serialized MCP declarations emitted at plugin build time. */
 	mcp?: PluginMcpManifestConfig;
+	/** Route declarations (name + public/permission/cacheControl), used for route auth decisions */
+	routes?: PluginManifest["routes"];
+	/** Hook declarations this plugin implements */
+	hooks?: PluginManifest["hooks"];
 	/** Admin pages */
 	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 	/** Dashboard widgets */
@@ -372,6 +399,7 @@ export interface EmDashRuntimeParts {
 	pipelineFactoryOptions: {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
+		beforeContentWrite?: () => Promise<void>;
 		storage?: Storage;
 		siteInfo?: {
 			siteName?: string;
@@ -496,11 +524,23 @@ const marketplaceManifestCache = new Map<
 			settingsSchema?: Record<string, SettingField>;
 		};
 		mcp?: PluginMcpManifestConfig;
+		storage?: PluginManifest["storage"];
 	}
 >();
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
 const sandboxedRouteMetaCache = new Map<string, Map<string, RouteMeta>>();
 let sandboxRunner: SandboxRunner | null = null;
+
+async function runScheduledMediaUsageWork(db: Kysely<Database>): Promise<void> {
+	try {
+		const result = await processDueMediaUsageWork(db);
+		if (result.candidateCount > 0) {
+			console.info("[media-usage:work] Scheduled processing", result);
+		}
+	} catch (error) {
+		console.error("[media-usage:work] Scheduled processing failed:", error);
+	}
+}
 
 /**
  * EmDashRuntime - singleton per worker
@@ -557,10 +597,13 @@ export class EmDashRuntime {
 	/** All plugins eligible for the hook pipeline (includes built-in plugins).
 	 *  Stored so we can rebuild the pipeline when plugins are enabled/disabled. */
 	private allPipelinePlugins: ResolvedPlugin[];
+	/** Guards the once-per-process plugin storage-index sync. */
+	private storageIndexesSynced = false;
 	/** Factory options for the hook pipeline context factory */
 	private pipelineFactoryOptions: {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
+		beforeContentWrite?: () => Promise<void>;
 		storage?: Storage;
 		siteInfo?: {
 			siteName?: string;
@@ -633,8 +676,16 @@ export class EmDashRuntime {
 	 * Returns the items promoted so callers can invalidate their cache tags.
 	 */
 	async publishScheduled(): Promise<PublishedRef[]> {
+		return this.publishScheduledWithFence();
+	}
+
+	private async publishScheduledWithFence(
+		onPublished?: (refs: PublishedRef[]) => Promise<void>,
+	): Promise<PublishedRef[]> {
+		await assertMediaUsageActivationWriteAllowed(this.db);
 		return publishDueContent(this.db, {
 			publish: (collection, id, options) => this.handleContentPublish(collection, id, options),
+			onPublished,
 		});
 	}
 
@@ -672,11 +723,7 @@ export class EmDashRuntime {
 
 		let published: PublishedRef[] = [];
 		try {
-			// Route through the runtime wrapper so content:afterPublish hooks fire.
-			published = await publishDueContent(this.db, {
-				publish: (collection, id, opts) => this.handleContentPublish(collection, id, opts),
-				onPublished: options.onPublished,
-			});
+			published = await this.publishScheduledWithFence(options.onPublished);
 		} catch (error) {
 			console.error("[scheduled-publish] Sweep failed:", error);
 		}
@@ -687,10 +734,35 @@ export class EmDashRuntime {
 			console.error("[cleanup] System cleanup failed:", error);
 		}
 
+		await runScheduledMediaUsageWork(this.db);
+		try {
+			await this.syncPluginStorageIndexesOnce();
+		} catch (error) {
+			console.error("[plugins] Storage index sync failed:", error);
+		}
+
 		// Never throws; no-op unless scheduled backups are enabled and due.
 		await maybeRunScheduledBackup(this.db, this.storage ?? undefined);
 
 		return { published };
+	}
+
+	/**
+	 * Materialize plugin-declared storage indexes, once per process.
+	 *
+	 * Called from the scheduler path, not from request handlers — configured
+	 * plugins have no install handler, so the tick is their only sync moment.
+	 */
+	async syncPluginStorageIndexesOnce(): Promise<void> {
+		if (this.storageIndexesSynced) return;
+		this.storageIndexesSynced = true;
+		// Sandboxed marketplace/registry plugins never join allPipelinePlugins;
+		// their manifests are cached at bundle load. Without them, plugins
+		// installed before this feature shipped would never get their indexes.
+		await syncDeclaredStorageIndexes(this.db, [
+			...this.allPipelinePlugins,
+			...marketplaceManifestCache.values(),
+		]);
 	}
 
 	/**
@@ -900,6 +972,7 @@ export class EmDashRuntime {
 					version: bundle.manifest.version,
 					admin: bundle.manifest.admin,
 					mcp: bundle.manifest.mcp,
+					storage: bundle.manifest.storage,
 				});
 
 				// Cache route metadata from manifest for auth decisions
@@ -1015,6 +1088,7 @@ export class EmDashRuntime {
 					version: bundle.manifest.version,
 					admin: bundle.manifest.admin,
 					mcp: bundle.manifest.mcp,
+					storage: bundle.manifest.storage,
 				});
 				if (bundle.manifest.routes.length > 0) {
 					const routeMetaMap = new Map<string, RouteMeta>();
@@ -1446,6 +1520,7 @@ export class EmDashRuntime {
 		const pipelineFactoryOptions = {
 			db,
 			getDb: resolveDb,
+			beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(resolveDb()),
 			storage: storage ?? undefined,
 			siteInfo,
 		};
@@ -1600,12 +1675,12 @@ export class EmDashRuntime {
 							// Falls back to the raw handler if (improbably) the tick beats
 							// the post-construction ref assignment.
 							const runtime = runtimeRef.current;
-							await publishDueContent(db, {
-								publish: runtime
-									? (collection, id, options) =>
-											runtime.handleContentPublish(collection, id, options)
-									: undefined,
-							});
+							if (runtime) {
+								await runtime.publishScheduled();
+							} else {
+								await assertMediaUsageActivationWriteAllowed(db);
+								await publishDueContent(db);
+							}
 						} catch (error) {
 							console.error("[scheduled-publish] Sweep failed:", error);
 						}
@@ -1615,6 +1690,12 @@ export class EmDashRuntime {
 							// Non-fatal -- individual cleanup failures are already logged
 							// by runSystemCleanup. This catches unexpected errors.
 							console.error("[cleanup] System cleanup failed:", error);
+						}
+						await runScheduledMediaUsageWork(db);
+						try {
+							await runtimeRef.current?.syncPluginStorageIndexesOnce();
+						} catch (error) {
+							console.error("[plugins] Storage index sync failed:", error);
 						}
 						// Never throws; no-op unless scheduled backups are enabled and due.
 						await maybeRunScheduledBackup(db, storage ?? undefined);
@@ -1922,6 +2003,7 @@ export class EmDashRuntime {
 				createSandboxRunnerOptions(
 					{
 						db,
+						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
 						mediaStorage: mediaStorage
 							? {
 									upload: (opts) =>
@@ -1981,8 +2063,8 @@ export class EmDashRuntime {
 					capabilities: entry.capabilities ?? [],
 					allowedHosts: entry.allowedHosts ?? [],
 					storage: entry.storage ?? {},
-					hooks: [],
-					routes: [],
+					hooks: entry.hooks ?? [],
+					routes: entry.routes ?? [],
 					admin: {},
 					mcp: entry.mcp,
 				};
@@ -1992,6 +2074,17 @@ export class EmDashRuntime {
 				console.log(
 					`EmDash: Loaded sandboxed plugin ${pluginKey} with capabilities: [${manifest.capabilities.join(", ")}]`,
 				);
+
+				if (manifest.routes.length > 0) {
+					const routeMetaMap = new Map<string, RouteMeta>();
+					for (const routeEntry of manifest.routes) {
+						const normalized = normalizeManifestRoute(routeEntry);
+						routeMetaMap.set(normalized.name, buildRouteMeta(normalized));
+					}
+					sandboxedRouteMetaCache.set(entry.id, routeMetaMap);
+				} else {
+					sandboxedRouteMetaCache.delete(entry.id);
+				}
 			} catch (error) {
 				console.error(`EmDash: Failed to load sandboxed plugin ${entry.id}:`, error);
 			}
@@ -2034,6 +2127,7 @@ export class EmDashRuntime {
 				createSandboxRunnerOptions(
 					{
 						db,
+						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
 						mediaStorage: {
 							upload: (opts) =>
 								storage.upload({
@@ -2094,6 +2188,7 @@ export class EmDashRuntime {
 						version: bundle.manifest.version,
 						admin: bundle.manifest.admin,
 						mcp: bundle.manifest.mcp,
+						storage: bundle.manifest.storage,
 					});
 
 					// Cache route metadata from manifest for auth decisions
@@ -2166,6 +2261,7 @@ export class EmDashRuntime {
 						version: bundle.manifest.version,
 						admin: bundle.manifest.admin,
 						mcp: bundle.manifest.mcp,
+						storage: bundle.manifest.storage,
 					});
 					if (bundle.manifest.routes.length > 0) {
 						const routeMeta = new Map<string, RouteMeta>();
@@ -2360,12 +2456,35 @@ export class EmDashRuntime {
 					fields[field.slug] = entry;
 				}
 
+				const configuredListColumns = collection.admin?.listColumns ?? [];
+				const fieldTypes = new Map(collection.fields.map((field) => [field.slug, field.type]));
+				const listColumns: string[] = [];
+				for (const slug of configuredListColumns) {
+					if (listColumns.includes(slug)) continue;
+					const fieldType = fieldTypes.get(slug);
+					if (!fieldType || !LIST_COLUMN_FIELD_TYPES.has(fieldType)) {
+						console.warn(
+							`EmDash: Ignoring unsupported or unknown list column "${slug}" in collection "${collection.slug}".`,
+						);
+						continue;
+					}
+					if (listColumns.length >= MAX_COLLECTION_LIST_COLUMNS) {
+						console.warn(
+							`EmDash: Collection "${collection.slug}" declares more than ${MAX_COLLECTION_LIST_COLUMNS} list columns; extra columns are ignored.`,
+						);
+						break;
+					}
+					listColumns.push(slug);
+				}
+
 				manifestCollections[collection.slug] = {
 					label: collection.label,
 					labelSingular: collection.labelSingular || collection.label,
 					supports: collection.supports || [],
 					hasSeo: collection.hasSeo,
 					urlPattern: collection.urlPattern,
+					...(collection.hidden ? { hidden: true } : {}),
+					listColumns: listColumns.length > 0 ? listColumns : undefined,
 					fields,
 				};
 			}
@@ -2614,6 +2733,9 @@ export class EmDashRuntime {
 			dateField?: ContentDateField;
 			dateFrom?: string;
 			dateTo?: string;
+			bylines?: string[];
+			bylinesNone?: boolean;
+			includeInferredBylines?: boolean;
 		},
 	) {
 		return handleContentList(this.db, collection, params);
@@ -2919,7 +3041,16 @@ export class EmDashRuntime {
 							);
 						}
 					} else {
-						void revisionRepo.pruneOldRevisions(collection, resolvedId, 50).catch(() => {});
+						after(async () => {
+							try {
+								await revisionRepo.pruneQueuedEntry(collection, resolvedId, revision.id, 50);
+							} catch (error) {
+								console.error(
+									`[revisions] Failed to prune revisions for ${collection}/${resolvedId}:`,
+									error,
+								);
+							}
+						});
 					}
 					break;
 				}
@@ -3372,10 +3503,21 @@ export class EmDashRuntime {
 				throw error;
 			}
 
-			// Fire-and-forget: prune old revisions to prevent unbounded growth
-			void revisionRepo
-				.pruneOldRevisions(revision.collection, revision.entryId, 50)
-				.catch(() => {});
+			after(async () => {
+				try {
+					await revisionRepo.pruneQueuedEntry(
+						revision.collection,
+						revision.entryId,
+						newDraft.id,
+						50,
+					);
+				} catch (error) {
+					console.error(
+						`[revisions] Failed to prune revisions for ${revision.collection}/${revision.entryId}:`,
+						error,
+					);
+				}
+			});
 
 			// Return the freshly-fetched item with the new draft hydrated
 			// onto `data`. Without this the response would echo the live
@@ -3411,12 +3553,15 @@ export class EmDashRuntime {
 	): Promise<void> {
 		for (const contentId of new Set(contentIds)) {
 			try {
+				const work = await processMediaUsageWorkAfterWrite(this.db, collection, contentId);
+				if (work.outcome !== "inactive") return;
 				await refreshContentMediaUsageAfterWrite(this.db, collection, contentId);
 			} catch (error) {
 				console.error(
 					`[media-usage] Failed after content write ${collection}/${contentId}:`,
 					error,
 				);
+				return;
 			}
 		}
 	}
@@ -3426,6 +3571,8 @@ export class EmDashRuntime {
 		contentId: string,
 	): Promise<void> {
 		try {
+			const work = await processMediaUsageWorkAfterWrite(this.db, collection, contentId);
+			if (work.outcome !== "inactive") return;
 			const result = await deleteContentMediaUsage(this.db, collection, contentId);
 			if (!result.success) {
 				console.error(
@@ -3527,12 +3674,8 @@ export class EmDashRuntime {
 
 			const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
 
-			let body: unknown = undefined;
-			try {
-				body = await request.json();
-			} catch {
-				// No body or not JSON
-			}
+			// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
+			const body = await parseRouteInput(request);
 
 			return routeRegistry.invoke(pluginId, routeKey, { request, body });
 		}
@@ -3743,7 +3886,13 @@ export class EmDashRuntime {
 		const imageFields = collectionInfo.fields.filter(
 			(f) => f.type === "image" || f.type === "file",
 		);
-		if (imageFields.length === 0) return data;
+		// Repeater fields can contain image sub-fields, whose values need the same normalization
+		// (a bare media id posted inside a repeater item would otherwise be stored verbatim and
+		// render as "Image not found" in the admin).
+		const repeaterFields = collectionInfo.fields.filter(
+			(f) => f.type === "repeater" && Array.isArray(f.validation?.subFields),
+		);
+		if (imageFields.length === 0 && repeaterFields.length === 0) return data;
 
 		const getProvider = (id: string) => this.getMediaProvider(id);
 		const result = { ...data };
@@ -3760,6 +3909,37 @@ export class EmDashRuntime {
 			} catch {
 				// Don't fail the save if normalization fails for a single field
 			}
+		}
+
+		for (const field of repeaterFields) {
+			const value = result[field.slug];
+			if (!Array.isArray(value)) continue;
+
+			const mediaSubFieldSlugs = (field.validation?.subFields ?? [])
+				.filter((sub) => sub.type === "image")
+				.map((sub) => sub.slug);
+			if (mediaSubFieldSlugs.length === 0) continue;
+
+			const items: unknown[] = value;
+			result[field.slug] = await Promise.all(
+				items.map(async (item) => {
+					if (!isRecord(item)) return item;
+					const normalizedItem: Record<string, unknown> = { ...item };
+					for (const slug of mediaSubFieldSlugs) {
+						const subValue = normalizedItem[slug];
+						if (subValue == null) continue;
+						try {
+							const normalized = await normalizeMediaValue(subValue, getProvider);
+							if (normalized) {
+								normalizedItem[slug] = normalized;
+							}
+						} catch {
+							// Don't fail the save if normalization fails for a single sub-field
+						}
+					}
+					return normalizedItem;
+				}),
+			);
 		}
 
 		return result;
@@ -3971,15 +4151,12 @@ export class EmDashRuntime {
 		success: boolean;
 		data?: unknown;
 		error?: { code: string; message: string };
+		status?: number;
 	}> {
 		const routeName = path.replace(LEADING_SLASH_PATTERN, "");
 
-		let body: unknown = undefined;
-		try {
-			body = await request.json();
-		} catch {
-			// No body or not JSON
-		}
+		// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
+		const body = await parseRouteInput(request);
 
 		try {
 			const headers = sanitizeHeadersForSandbox(request.headers);
@@ -3993,6 +4170,17 @@ export class EmDashRuntime {
 			return { success: true, data: result };
 		} catch (error) {
 			console.error(`EmDash: Sandboxed plugin route error:`, error);
+			const sandboxRouteError = getSandboxRouteErrorDetails(error);
+			if (sandboxRouteError) {
+				return {
+					success: false,
+					status: sandboxRouteError.status,
+					error: {
+						code: sandboxRouteError.code,
+						message: sandboxRouteError.message,
+					},
+				};
+			}
 			return {
 				success: false,
 				error: {

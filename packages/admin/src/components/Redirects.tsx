@@ -10,7 +10,7 @@ import {
 	WarningCircle,
 	X,
 } from "@phosphor-icons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import {
@@ -65,7 +65,7 @@ function RedirectFormDialog({
 	const createMutation = useMutation({
 		mutationFn: (input: CreateRedirectInput) => createRedirect(input),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 			onClose();
 		},
 	});
@@ -73,7 +73,7 @@ function RedirectFormDialog({
 	const updateMutation = useMutation({
 		mutationFn: (input: UpdateRedirectInput) => updateRedirect(redirect!.id, input),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 			onClose();
 		},
 	});
@@ -295,15 +295,18 @@ export function Redirects() {
 	const enabledFilter = filterEnabled === "all" ? undefined : filterEnabled === "true";
 	const autoFilter = filterAuto === "all" ? undefined : filterAuto === "true";
 
-	const redirectsQuery = useQuery({
+	const redirectsQuery = useInfiniteQuery({
 		queryKey: ["redirects", debouncedSearch, enabledFilter, autoFilter],
-		queryFn: () =>
+		queryFn: ({ pageParam }) =>
 			fetchRedirects({
 				search: debouncedSearch || undefined,
 				enabled: enabledFilter,
 				auto: autoFilter,
+				cursor: pageParam,
 				limit: 100,
 			}),
+		initialPageParam: undefined as string | undefined,
+		getNextPageParam: (lastPage) => lastPage.nextCursor,
 	});
 
 	const notFoundQuery = useQuery({
@@ -316,7 +319,7 @@ export function Redirects() {
 	const deleteMutation = useMutation({
 		mutationFn: (id: string) => deleteRedirect(id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 			setDeleteId(null);
 		},
 	});
@@ -326,10 +329,10 @@ export function Redirects() {
 		mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
 			updateRedirect(id, { enabled }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 		},
 		onError: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 		},
 	});
 
@@ -338,7 +341,7 @@ export function Redirects() {
 		mutationFn: (path: string) =>
 			createRedirect({ source: path, destination: "", type: 410, enabled: true }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 		},
 	});
 
@@ -348,8 +351,10 @@ export function Redirects() {
 		setTab("redirects");
 	}
 
-	const redirects = redirectsQuery.data?.items ?? [];
-	const loopRedirectIds = new Set(redirectsQuery.data?.loopRedirectIds ?? []);
+	const redirects = redirectsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+	const loopRedirectIds = new Set(
+		redirectsQuery.data?.pages.flatMap((page) => page.loopRedirectIds ?? []) ?? [],
+	);
 
 	return (
 		<div className="space-y-6">
@@ -380,8 +385,8 @@ export function Redirects() {
 					{t`Redirects`}
 					{redirectsQuery.data && (
 						<Badge variant="secondary" className="ms-2">
-							{redirectsQuery.data.items.length}
-							{redirectsQuery.data.nextCursor ? "+" : ""}
+							{redirects.length}
+							{redirectsQuery.hasNextPage ? "+" : ""}
 						</Badge>
 					)}
 				</button>
@@ -464,86 +469,99 @@ export function Redirects() {
 							<p className="text-sm mt-1">{t`Create redirect rules to manage URL changes.`}</p>
 						</div>
 					) : (
-						<div className="border rounded-lg">
-							<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 text-sm font-medium text-kumo-subtle">
-								<div className="flex-1">{t`Source`}</div>
-								<div className="w-8 text-center" />
-								<div className="flex-1">{t`Destination`}</div>
-								<div className="w-14 text-center">{t`Code`}</div>
-								<div className="w-16 text-end">{t`Hits`}</div>
-								<div className="w-20 text-center">{t`Status`}</div>
-								<div className="w-20" />
-							</div>
-							{redirects.map((r) => (
-								<div
-									key={r.id}
-									className={cn(
-										"flex items-center gap-4 py-2 px-4 border-b last:border-0 text-sm",
-										!r.enabled && "opacity-50",
-									)}
-								>
-									<div className="flex-1 font-mono text-xs truncate" title={r.source}>
-										{r.source}
-									</div>
-									<div className="w-8 text-center text-kumo-subtle">
-										<ArrowNext size={14} />
-									</div>
-									<div className="flex-1 font-mono text-xs truncate" title={r.destination}>
-										{r.destination}
-									</div>
-									<div className="w-14 text-center">
-										<Badge variant="secondary">{r.type}</Badge>
-									</div>
-									<div className="w-16 text-end tabular-nums text-kumo-subtle">{r.hits}</div>
-									<div className="w-20 text-center">
-										<Switch
-											checked={r.enabled}
-											onCheckedChange={(checked) =>
-												toggleMutation.mutate({
-													id: r.id,
-													enabled: checked,
-												})
-											}
-											aria-label={r.enabled ? t`Disable redirect` : t`Enable redirect`}
-										/>
-									</div>
-									<div className="w-20 flex items-center justify-end gap-1">
-										{loopRedirectIds.has(r.id) && (
-											<span title={t`Part of a redirect loop`} className="me-1 inline-flex">
-												<WarningCircle
-													size={14}
-													weight="fill"
-													className="text-kumo-warning"
-													role="img"
-													aria-label={t`Part of a redirect loop`}
-												/>
-											</span>
-										)}
-										{r.auto && (
-											<Badge variant="outline" className="me-1 text-xs">
-												{t`auto`}
-											</Badge>
-										)}
-										<button
-											onClick={() => setEditRedirect(r)}
-											className="p-1 text-kumo-subtle hover:text-kumo-default"
-											title={t`Edit redirect`}
-											aria-label={t`Edit redirect ${r.source}`}
-										>
-											<PencilSimple size={14} />
-										</button>
-										<button
-											onClick={() => setDeleteId(r.id)}
-											className="p-1 text-kumo-subtle hover:text-kumo-danger"
-											title={t`Delete redirect`}
-											aria-label={t`Delete redirect ${r.source}`}
-										>
-											<Trash size={14} />
-										</button>
-									</div>
+						<>
+							<div className="border rounded-lg">
+								<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 text-sm font-medium text-kumo-subtle">
+									<div className="flex-1">{t`Source`}</div>
+									<div className="w-8 text-center" />
+									<div className="flex-1">{t`Destination`}</div>
+									<div className="w-14 text-center">{t`Code`}</div>
+									<div className="w-16 text-end">{t`Hits`}</div>
+									<div className="w-20 text-center">{t`Status`}</div>
+									<div className="w-20" />
 								</div>
-							))}
-						</div>
+								{redirects.map((r) => (
+									<div
+										key={r.id}
+										className={cn(
+											"flex items-center gap-4 py-2 px-4 border-b last:border-0 text-sm",
+											!r.enabled && "opacity-50",
+										)}
+									>
+										<div className="flex-1 font-mono text-xs truncate" title={r.source}>
+											{r.source}
+										</div>
+										<div className="w-8 text-center text-kumo-subtle">
+											<ArrowNext size={14} />
+										</div>
+										<div className="flex-1 font-mono text-xs truncate" title={r.destination}>
+											{r.destination}
+										</div>
+										<div className="w-14 text-center">
+											<Badge variant="secondary">{r.type}</Badge>
+										</div>
+										<div className="w-16 text-end tabular-nums text-kumo-subtle">{r.hits}</div>
+										<div className="w-20 text-center">
+											<Switch
+												checked={r.enabled}
+												onCheckedChange={(checked) =>
+													toggleMutation.mutate({
+														id: r.id,
+														enabled: checked,
+													})
+												}
+												aria-label={r.enabled ? t`Disable redirect` : t`Enable redirect`}
+											/>
+										</div>
+										<div className="w-20 flex items-center justify-end gap-1">
+											{loopRedirectIds.has(r.id) && (
+												<span title={t`Part of a redirect loop`} className="me-1 inline-flex">
+													<WarningCircle
+														size={14}
+														weight="fill"
+														className="text-kumo-warning"
+														role="img"
+														aria-label={t`Part of a redirect loop`}
+													/>
+												</span>
+											)}
+											{r.auto && (
+												<Badge variant="outline" className="me-1 text-xs">
+													{t`auto`}
+												</Badge>
+											)}
+											<button
+												onClick={() => setEditRedirect(r)}
+												className="p-1 text-kumo-subtle hover:text-kumo-default"
+												title={t`Edit redirect`}
+												aria-label={t`Edit redirect ${r.source}`}
+											>
+												<PencilSimple size={14} />
+											</button>
+											<button
+												onClick={() => setDeleteId(r.id)}
+												className="p-1 text-kumo-subtle hover:text-kumo-danger"
+												title={t`Delete redirect`}
+												aria-label={t`Delete redirect ${r.source}`}
+											>
+												<Trash size={14} />
+											</button>
+										</div>
+									</div>
+								))}
+							</div>
+							{redirectsQuery.hasNextPage && (
+								<div className="flex justify-center">
+									<Button
+										variant="outline"
+										onClick={() => void redirectsQuery.fetchNextPage()}
+										disabled={redirectsQuery.isFetchingNextPage}
+									>
+										{redirectsQuery.isFetchingNextPage ? t`Loading...` : t`Load more`}
+									</Button>
+								</div>
+							)}
+						</>
 					)}
 				</>
 			)}

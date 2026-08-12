@@ -31,6 +31,14 @@ export interface ManifestCollection {
 	supports: string[];
 	hasSeo: boolean;
 	urlPattern?: string;
+	/**
+	 * Omit the auto-generated sidebar entry in the admin. The collection is
+	 * still listed in the manifest so its routes, editor, and API keep working
+	 * — only the navigation link is dropped.
+	 */
+	hidden?: boolean;
+	/** Valid custom field slugs to render in the admin content list. */
+	listColumns?: string[];
 	fields: Record<
 		string,
 		{
@@ -241,6 +249,9 @@ export interface EmDashHandlers {
 			dateField?: "createdAt" | "updatedAt" | "publishedAt";
 			dateFrom?: string;
 			dateTo?: string;
+			bylines?: string[];
+			bylinesNone?: boolean;
+			includeInferredBylines?: boolean;
 		},
 	) => Promise<HandlerResponse>;
 
