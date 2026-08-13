@@ -75,7 +75,7 @@ class MigrateCommandError extends Error {
 }
 
 function isRecord(value: unknown): value is Record<PropertyKey, unknown> {
-	return typeof value === "object" && value !== null;
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function moduleExport(module: unknown, name: string): unknown {
@@ -298,8 +298,21 @@ function safeReport(value: unknown, target: Readonly<MigrationTarget>): Migratio
 	if (!isRecord(value)) {
 		throw new MigrateCommandError("The migration executor returned an invalid report.");
 	}
+	const reportTarget = immutableTarget(value.target);
+	if (
+		reportTarget.kind !== target.kind ||
+		reportTarget.label !== target.label ||
+		reportTarget.fingerprint !== target.fingerprint ||
+		reportTarget.accountId !== target.accountId ||
+		reportTarget.environment !== target.environment ||
+		reportTarget.resourceId !== target.resourceId
+	) {
+		throw new MigrateCommandError(
+			"The migration executor report target does not match the confirmed target.",
+		);
+	}
 	return {
-		target: { ...target },
+		target: { ...reportTarget },
 		knownApplied: safeMigrationNames(value.knownApplied, "knownApplied"),
 		pending: safeMigrationNames(value.pending, "pending"),
 		unknownApplied: safeMigrationNames(value.unknownApplied, "unknownApplied"),

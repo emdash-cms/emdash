@@ -249,6 +249,43 @@ describe("runMigrateCommand", () => {
 		expect(context.stderr.join("\n")).toContain(context.target.fingerprint);
 	});
 
+	it("rejects array-shaped executor reports", async () => {
+		const context = await fixture();
+		const report = Object.assign([], {
+			target: context.target,
+			knownApplied: [],
+			pending: [],
+			unknownApplied: [],
+			executed: [],
+		});
+		context.execute.mockResolvedValueOnce(report);
+
+		const exitCode = await runMigrateCommand({ status: true, json: true }, context.dependencies);
+
+		expect(exitCode).toBe(MIGRATE_EXIT_CODES.error);
+		expect(context.stdout).toEqual([]);
+		expect(context.stderr.join("\n")).toContain("invalid report");
+		expect(context.dispose).toHaveBeenCalledOnce();
+	});
+
+	it("rejects reports for a different migration target", async () => {
+		const context = await fixture();
+		context.execute.mockResolvedValueOnce({
+			target: { ...context.target, fingerprint: "b".repeat(64) },
+			knownApplied: [],
+			pending: [],
+			unknownApplied: [],
+			executed: [],
+		});
+
+		const exitCode = await runMigrateCommand({ status: true, json: true }, context.dependencies);
+
+		expect(exitCode).toBe(MIGRATE_EXIT_CODES.error);
+		expect(context.stdout).toEqual([]);
+		expect(context.stderr.join("\n")).toContain("report target does not match");
+		expect(context.dispose).toHaveBeenCalledOnce();
+	});
+
 	it("warns before D1 applies without warning for read-only or non-D1 operations", async () => {
 		const apply = await fixture({ pending: ["001_initial"], targetKind: "d1" });
 		const check = await fixture({ pending: ["001_initial"], targetKind: "d1" });
