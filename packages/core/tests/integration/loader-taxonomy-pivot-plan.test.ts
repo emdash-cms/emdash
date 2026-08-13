@@ -21,7 +21,7 @@ import { runMigrations } from "../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
-import { emdashLoader } from "../../src/loader.js";
+import { emdashLoader, resetTaxonomyNamesCache } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 
@@ -48,6 +48,12 @@ beforeEach(async () => {
 
 	// Deliberately no ANALYZE: matches D1, which never maintains sqlite_stat1.
 	await runMigrations(db);
+	await db
+		.updateTable("_emdash_taxonomy_defs")
+		.set({ collections: JSON.stringify(["post"]) })
+		.where("name", "in", ["category", "tag"])
+		.execute();
+	resetTaxonomyNamesCache();
 	const registry = new SchemaRegistry(db);
 	await registry.createCollection({ slug: "post", label: "Posts", labelSingular: "Post" });
 	await registry.createField("post", { slug: "title", label: "Title", type: "string" });
