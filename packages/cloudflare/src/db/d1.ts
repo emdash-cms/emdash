@@ -14,8 +14,8 @@ import { kyselyLogOption } from "emdash/database/instrumentation";
 import { type Dialect, Kysely } from "kysely";
 
 import { CoalescingD1Dialect } from "./coalescing-d1.js";
-import { createD1SessionGuard, type D1SessionGuard } from "./d1-session-guard.js";
 import { EmDashD1Dialect, RawBindingD1Dialect } from "./d1-dialect.js";
+import { createD1SessionGuard, type D1SessionGuard } from "./d1-session-guard.js";
 
 /**
  * D1 configuration (runtime type — matches the config-time type in index.ts)
