@@ -156,7 +156,7 @@ Published migrations are immutable. Never edit or reorder one that has shipped; 
 
 Preserve expand/deploy/contract compatibility: old application code must tolerate the expanded schema during a rolling deploy, and new code must tolerate incomplete backfills. When a migration changes existing `ec_*` tables, update `SchemaRegistry` so newly created tables receive the same shape. Use parameterized Kysely SQL, validated identifiers, bounded batches, portable dialect behavior, and the repository's index conventions.
 
-Test representative upgrades from existing data, retry after partial completion, every supported dialect, and realistically large data shapes. Add a user-facing changeset for each affected published package.
+Test representative upgrades from existing data, retry after partial completion, test every supported dialect, and test with realistically large data shapes. Add a user-facing changeset for each affected published package.
 
 ## Indexes
 
