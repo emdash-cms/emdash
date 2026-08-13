@@ -6,14 +6,6 @@
  * Usage lane without request side effects. Re-exports the `PluginBridge`
  * Durable Object so the sandbox binding resolves against the entry module.
  *
- * Existing sites can keep the default scheduled handler:
- *
- *   export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";
- *
- * By default the every-two-minutes expression runs Media Usage maintenance
- * and every other expression runs general maintenance. Sites only pass
- * options when changing either expression.
- *
  * The `@astrojs/cloudflare/entrypoints/server` import is resolved by the
  * consuming app's Astro build (it pulls the build-time `virtual:astro:app`
  * module), so this package keeps the adapter external.
