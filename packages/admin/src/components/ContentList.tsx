@@ -1182,9 +1182,10 @@ function ContentListItem({
 						)}
 					>
 						<ContentListColumnBoundary
-							key={`${collection}:${item.locale}:${item.id}:${item.updatedAt}:${pluginId}:${extension.id}`}
+							key={`${collection}:${item.locale}:${item.id}:${pluginId}:${extension.id}`}
 							pluginId={pluginId}
 							columnId={extension.id}
+							resetKey={item.updatedAt}
 						>
 							<Cell
 								collection={collection}

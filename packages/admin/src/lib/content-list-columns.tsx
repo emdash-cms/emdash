@@ -180,6 +180,7 @@ interface ContentListColumnBoundaryProps {
 	columnId: string;
 	children: React.ReactNode;
 	fallback?: React.ReactNode;
+	resetKey?: string;
 }
 
 interface ContentListColumnBoundaryState {
@@ -203,6 +204,12 @@ export class ContentListColumnBoundary extends React.Component<
 			error,
 			info,
 		);
+	}
+
+	override componentDidUpdate(previousProps: ContentListColumnBoundaryProps): void {
+		if (this.state.hasError && previousProps.resetKey !== this.props.resetKey) {
+			this.setState({ hasError: false });
+		}
 	}
 
 	override render(): React.ReactNode {

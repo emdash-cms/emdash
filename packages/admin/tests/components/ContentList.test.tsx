@@ -908,6 +908,80 @@ describe("ContentList", () => {
 			expect(pages).toContainEqual(["item-20"]);
 		});
 
+		it("preserves contributed cell state when an existing row updates", async () => {
+			let mounts = 0;
+			function StatefulCell({ item }: ContentListColumnCellContext) {
+				const [mount] = React.useState(() => ++mounts);
+				return (
+					<span>
+						{String(item.data.title)}:mount-{mount}
+					</span>
+				);
+			}
+			const columns = [{ id: "stateful", label: "Stateful", cell: StatefulCell }] as const;
+			const screen = await renderWithColumns(columns, {
+				items: [
+					makeItem({
+						id: "item-1",
+						updatedAt: "2025-01-02T00:00:00Z",
+						data: { title: "Before update" },
+					}),
+				],
+			});
+
+			await expect.element(screen.getByText("Before update:mount-1")).toBeVisible();
+			await screen.rerender(
+				listWithColumns(columns, {
+					items: [
+						makeItem({
+							id: "item-1",
+							updatedAt: "2025-01-03T00:00:00Z",
+							data: { title: "After update" },
+						}),
+					],
+				}),
+			);
+
+			await expect.element(screen.getByText("After update:mount-1")).toBeVisible();
+			expect(mounts).toBe(1);
+		});
+
+		it("retries a failed cell when an existing row updates", async () => {
+			const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+			let shouldThrow = true;
+			function FlakyCell({ item }: ContentListColumnCellContext) {
+				if (shouldThrow) throw new Error("render failed");
+				return <span data-testid="flaky-cell">{String(item.data.title)}</span>;
+			}
+			const columns = [{ id: "flaky", label: "Flaky", cell: FlakyCell }] as const;
+			const screen = await renderWithColumns(columns, {
+				items: [
+					makeItem({
+						id: "item-1",
+						updatedAt: "2025-01-02T00:00:00Z",
+						data: { title: "Before update" },
+					}),
+				],
+			});
+
+			await expect.element(screen.getByText("Plugin column unavailable")).toBeInTheDocument();
+			shouldThrow = false;
+			await screen.rerender(
+				listWithColumns(columns, {
+					items: [
+						makeItem({
+							id: "item-1",
+							updatedAt: "2025-01-03T00:00:00Z",
+							data: { title: "After update" },
+						}),
+					],
+				}),
+			);
+
+			await expect.element(screen.getByTestId("flaky-cell")).toHaveTextContent("After update");
+			error.mockRestore();
+		});
+
 		it("keeps configured and plugin columns aligned in rows and empty states", async () => {
 			function ReviewStatusCell({ item }: { item: ContentItem }) {
 				return <span>{String(item.data.reviewStatus)}</span>;
