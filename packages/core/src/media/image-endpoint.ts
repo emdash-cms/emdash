@@ -48,6 +48,33 @@ function stripWeakEtagPrefix(value: string): string {
 /** A format string accepted by {@link ImageTransformOptions.format}. */
 export type ImageTransformFormat = (typeof ALLOWED_TRANSFORM_FORMATS)[number];
 
+/**
+ * The `fit` values Astro's image service emits. Astro's `ImageFit` is
+ * open-ended (`string & {}`), so this is an allowlist: an unrecognised fit is
+ * dropped rather than forwarded to a backend that would reject it.
+ *
+ * `inside` and `outside` are not in `ImageFit` but are accepted by Astro's
+ * sharp service, so a site can already use them on Node. `none` is absent on
+ * purpose: Astro deletes it before building the URL, so it never reaches an
+ * endpoint.
+ */
+export const ALLOWED_TRANSFORM_FITS = [
+	"fill",
+	"contain",
+	"cover",
+	"scale-down",
+	"inside",
+	"outside",
+] as const;
+
+/** A fit string accepted by {@link ImageTransformOptions.fit}. */
+export type ImageTransformFit = (typeof ALLOWED_TRANSFORM_FITS)[number];
+
+/** Type guard for {@link ImageTransformFit}. */
+export function isTransformFit(value: string): value is ImageTransformFit {
+	return (ALLOWED_TRANSFORM_FITS as readonly string[]).includes(value);
+}
+
 /** Validated options for a single transform. */
 export interface ImageTransformOptions {
 	width?: number;
@@ -59,6 +86,19 @@ export interface ImageTransformOptions {
 	 * {@link DEFAULT_TRANSFORM_QUALITY}); lossless PNG deliberately gets none.
 	 */
 	quality?: number;
+	/**
+	 * How the rendition fills the requested box, from Astro's `fit`. Left
+	 * `undefined` when the request carried none or carried a value outside
+	 * {@link ALLOWED_TRANSFORM_FITS}, so callers keep their backend's default.
+	 */
+	fit?: ImageTransformFit;
+	/**
+	 * Which part of the image survives a crop, from Astro's `position`. Only
+	 * meaningful for fits that crop. Kept as the raw string: the vocabulary is
+	 * the backend's (a keyword like `center`, or coordinates), so mapping it is
+	 * the adapter's job.
+	 */
+	position?: string;
 }
 
 /** Long-lived cache for content-addressed image URLs. */
@@ -255,14 +295,16 @@ export function resolveTransformQuality(
 }
 
 /**
- * Parse and validate `?w=&h=&f=&q=` query params. Width is required (it sizes
- * the rendition); dimensions are bounded so a request can't ask for an
- * unbounded or nonsensical transform. Format falls back to
- * {@link DEFAULT_TRANSFORM_FORMAT} when not requested. `q` accepts Astro presets
- * or finite numbers rounded and clamped to 1-100. It is otherwise left
- * `undefined` so the caller can apply a per-format
- * default (lossy formats get one, lossless PNG does not — see
+ * Parse and validate `?w=&h=&f=&q=&fit=&position=` query params. Width is
+ * required (it sizes the rendition); dimensions are bounded so a request can't
+ * ask for an unbounded or nonsensical transform. Format falls back to
+ * {@link DEFAULT_TRANSFORM_FORMAT} when not requested. `q` is validated when
+ * present but otherwise left `undefined` so the caller can apply a per-format
+ * default (lossy formats get one, lossless PNG does not; see
  * {@link DEFAULT_TRANSFORM_QUALITY}).
+ *
+ * `fit` and `position` are optional transform hints. Backends map them to
+ * their own supported values.
  */
 export function parseTransformParams(params: URLSearchParams): ParsedTransformParams {
 	const width = parseDimension(params.get("w"));
@@ -295,7 +337,16 @@ export function parseTransformParams(params: URLSearchParams): ParsedTransformPa
 		}
 	}
 
-	return { ok: true, options: { width, height, format, quality } };
+	// `fit` and `position` come straight from Astro's image service. Both are
+	// advisory: an unrecognised value is dropped rather than failing the
+	// request, so a rendition still resolves on a backend that doesn't know it.
+	const fitRaw = params.get("fit");
+	const fit = fitRaw !== null && isTransformFit(fitRaw) ? fitRaw : undefined;
+
+	const positionRaw = params.get("position");
+	const position = positionRaw !== null && positionRaw !== "" ? positionRaw : undefined;
+
+	return { ok: true, options: { width, height, format, quality, fit, position } };
 }
 
 /**

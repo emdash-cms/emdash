@@ -24,6 +24,7 @@ import {
 	resolveTransformQuality,
 	validatorHeaders,
 	isNotModified,
+	type ImageTransformFit,
 	type ImageTransformFormat,
 } from "emdash/media/image-endpoint";
 
@@ -35,6 +36,60 @@ const FORMAT_MIME: Record<ImageTransformFormat, ImageOutputOptions["format"]> = 
 	jpeg: "image/jpeg",
 	png: "image/png",
 };
+
+/**
+ * Astro's `fit` vocabulary mapped onto the Images binding's.
+ *
+ * Most names line up. Astro's `fill` distorts the image to fill the box, which
+ * the binding calls `squeeze`. `inside` (accepted by Astro's sharp service)
+ * resizes to fit within the box, which is the binding's `contain`. `outside`
+ * has no binding equivalent -- nothing there resizes to *exceed* the box
+ * without cropping -- so it is dropped and the dimensions apply on their own,
+ * rather than substituting a fit that would crop.
+ */
+const FIT_TO_BINDING: Record<ImageTransformFit, ImageTransform["fit"] | undefined> = {
+	fill: "squeeze",
+	contain: "contain",
+	cover: "cover",
+	"scale-down": "scale-down",
+	inside: "contain",
+	outside: undefined,
+};
+
+/**
+ * Astro's `position` mapped onto the binding's `gravity`.
+ *
+ * Astro passes sharp's vocabulary straight through, and the two only partly
+ * overlap. The shared keywords pass unchanged; sharp's compass names mean the
+ * same edges under different words; `centre` is the same as `center`; and
+ * `attention` (sharp's saliency-based crop) is the binding's `auto`.
+ *
+ * A compound position such as `left top` names a corner, which the binding can
+ * only express as coordinates. Rather than guess at them, it is dropped and the
+ * binding keeps its own gravity -- the same outcome as before this mapping
+ * existed, and better than cropping to a confidently wrong edge.
+ */
+const GRAVITY_BY_POSITION = new Map<string, ImageTransform["gravity"]>([
+	["face", "face"],
+	["left", "left"],
+	["right", "right"],
+	["top", "top"],
+	["bottom", "bottom"],
+	["center", "center"],
+	["centre", "center"],
+	["auto", "auto"],
+	["entropy", "entropy"],
+	["attention", "auto"],
+	// sharp's compass vocabulary.
+	["north", "top"],
+	["south", "bottom"],
+	["east", "right"],
+	["west", "left"],
+]);
+
+function toBindingGravity(position: string): ImageTransform["gravity"] | undefined {
+	return GRAVITY_BY_POSITION.get(position.trim().toLowerCase());
+}
 
 /** Resolve the Images binding by the name the Cloudflare adapter configured. */
 function resolveImagesBinding(): ImagesBinding | undefined {
@@ -133,11 +188,22 @@ export const GET: APIRoute = async (ctx) => {
 			return notModifiedResponse(source.contentType, source.size, source.lastModified, fingerprint);
 		}
 
-		const { width, height, format, quality } = parsed.options;
+		const { width, height, format, quality, fit, position } = parsed.options;
 		const outputMime = FORMAT_MIME[format] ?? "image/webp";
 		const transform: ImageTransform = {};
 		if (width) transform.width = width;
 		if (height) transform.height = height;
+		// Without these the binding falls back to its own default fit, so a
+		// square `fit=cover` request came back scaled-down and letterboxed
+		// instead of cropped.
+		if (fit) {
+			const bindingFit = FIT_TO_BINDING[fit];
+			if (bindingFit) transform.fit = bindingFit;
+		}
+		if (position) {
+			const gravity = toBindingGravity(position);
+			if (gravity) transform.gravity = gravity;
+		}
 		// Lossy formats get an explicit quality: the Images binding has no
 		// default of its own and encodes near-losslessly without one, producing
 		// renditions several times the size of the original. PNG is exempt —

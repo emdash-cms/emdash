@@ -159,6 +159,38 @@ describe("parseTransformParams", () => {
 		expect(result.ok).toBe(false);
 	});
 
+	it("parses fit and position from Astro's image service", () => {
+		const r = parse("w=32&h=32&f=webp&fit=cover&position=center");
+		expect(r.ok).toBe(true);
+		if (r.ok) {
+			expect(r.options.fit).toBe("cover");
+			expect(r.options.position).toBe("center");
+		}
+	});
+
+	it("drops an unrecognised fit instead of failing the request", () => {
+		const r = parse("w=32&fit=lopsided");
+		expect(r.ok).toBe(true);
+		if (r.ok) expect(r.options.fit).toBeUndefined();
+	});
+
+	it("accepts the fits Astro's sharp service adds beyond ImageFit", () => {
+		for (const fit of ["inside", "outside"]) {
+			const r = parse(`w=32&fit=${fit}`);
+			expect(r.ok).toBe(true);
+			if (r.ok) expect(r.options.fit).toBe(fit);
+		}
+	});
+
+	it("leaves fit and position undefined when not requested", () => {
+		const r = parse("w=800");
+		expect(r.ok).toBe(true);
+		if (r.ok) {
+			expect(r.options.fit).toBeUndefined();
+			expect(r.options.position).toBeUndefined();
+		}
+	});
+
 	it("rejects unsupported format", () => {
 		expect(parse("w=640&f=gif").ok).toBe(false);
 	});
