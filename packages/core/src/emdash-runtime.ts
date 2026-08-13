@@ -91,6 +91,7 @@ import type {
 } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
 import { MAX_COLLECTION_LIST_COLUMNS, type FieldType } from "./schema/types.js";
+import { isMissingTableError } from "./utils/db-errors.js";
 import { hashString } from "./utils/hash.js";
 import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
 import { createSingleFlightCache, singleFlightCached } from "./utils/single-flight-cache.js";
@@ -1319,6 +1320,16 @@ export class EmDashRuntime {
 		// fall back to the singleton, where serialization costs nothing.
 		let readDb = db;
 		let readDbDisposable: Kysely<Database> | undefined;
+		const disposeReadDb = async () => {
+			const disposable = readDbDisposable;
+			readDbDisposable = undefined;
+			if (!disposable) return;
+			try {
+				await disposable.destroy();
+			} catch {
+				// Non-fatal — the underlying binding is shared and needs no teardown.
+			}
+		};
 		if (ownsConfiguredDb && deps.createCoalescingDialect && deps.config.database) {
 			try {
 				const dialect = deps.createCoalescingDialect(deps.config.database.config);
@@ -1331,6 +1342,12 @@ export class EmDashRuntime {
 			}
 		}
 		const optionsRepo = new OptionsRepository(readDb);
+		let missingManualSchemaError: unknown;
+		const captureMissingManualSchema = (error: unknown) => {
+			if ((deps.migrationMode ?? "auto") === "manual" && isMissingTableError(error)) {
+				missingManualSchemaError ??= error;
+			}
+		};
 
 		const readSiteInfo = async () => {
 			const siteOpts = await optionsRepo.getMany<string>([
@@ -1359,14 +1376,16 @@ export class EmDashRuntime {
 						.select(["plugin_id", "status"])
 						.execute();
 					pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
-				} catch {
+				} catch (error) {
+					captureMissingManualSchema(error);
 					// _plugin_state may not exist yet on a pre-migration db.
 				}
 			}),
 			phase("rt.site", "Site info options", async () => {
 				try {
 					siteInfo = await readSiteInfo();
-				} catch {
+				} catch (error) {
+					captureMissingManualSchema(error);
 					// options may not exist yet on a pre-migration db.
 				}
 			}),
@@ -1395,7 +1414,8 @@ export class EmDashRuntime {
 							}
 						})();
 						seedGate = { collectionCount: collectionCount.count, setupDone };
-					} catch {
+					} catch (error) {
+						captureMissingManualSchema(error);
 						// Leave the "already set up" default so a read failure never
 						// triggers a seed onto a half-built db.
 					}
@@ -1404,6 +1424,10 @@ export class EmDashRuntime {
 		}
 
 		await Promise.all(coldStartReads);
+		if (missingManualSchemaError) {
+			await disposeReadDb();
+			throw missingManualSchemaError;
+		}
 
 		if (
 			localeCasingRepairVersion &&
@@ -1460,13 +1484,7 @@ export class EmDashRuntime {
 		}
 
 		// The read connection is single-use; everything below uses the singleton.
-		if (readDbDisposable) {
-			try {
-				await readDbDisposable.destroy();
-			} catch {
-				// Non-fatal — the underlying binding is shared and needs no teardown.
-			}
-		}
+		await disposeReadDb();
 
 		const enabledPlugins = new Set<string>();
 		for (const plugin of deps.plugins) {

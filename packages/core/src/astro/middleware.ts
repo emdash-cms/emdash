@@ -39,12 +39,12 @@ import {
 	flushRecorder,
 	isInstrumentationEnabled,
 } from "../database/instrumentation.js";
-import { createDeferredTaskTracker } from "../deferred-tasks.js";
 import {
 	PendingMigrationsError,
 	resolveRuntimeMigrationMode,
 	type RuntimeMigrationMode,
 } from "../database/migrations/policy.js";
+import { createDeferredTaskTracker } from "../deferred-tasks.js";
 import {
 	DB_INIT_DEADLINE_MS,
 	EmDashRuntime,

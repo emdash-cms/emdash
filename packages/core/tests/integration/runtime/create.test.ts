@@ -426,6 +426,15 @@ describe("EmDashRuntime.create — cold boot", () => {
 		expect(dialectCalls).toBe(2);
 	});
 
+	it("rejects an empty database in manual migration mode", async () => {
+		const deps: RuntimeDependencies = {
+			...createDeps(),
+			migrationMode: "manual",
+		};
+
+		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/no such table/i);
+	});
+
 	// A per-request isolated db (playground / DO preview) must never be
 	// auto-seeded. With an isolated, empty, not-set-up db, a broken guard would
 	// run the gate (rt.seedcheck appears) and attempt a seed; assert neither
