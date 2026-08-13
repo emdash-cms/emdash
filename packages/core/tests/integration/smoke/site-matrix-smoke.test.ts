@@ -23,12 +23,12 @@ interface SiteCase {
 
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../../..");
 const execAsync = promisify(execFile);
-const FONT_FETCH_RETRY_IMPORT = pathToFileURL(
-	resolve(import.meta.dirname, "retry-font-fetch.mjs"),
+const SMOKE_FONT_PROVIDER_IMPORT = pathToFileURL(
+	resolve(import.meta.dirname, "smoke-font-provider.mjs"),
 ).href;
 
-function nodeOptionsWithFontFetchRetry(): string {
-	return [process.env.NODE_OPTIONS, `--import=${FONT_FETCH_RETRY_IMPORT}`]
+function nodeOptionsWithSmokeFontProvider(): string {
+	return [process.env.NODE_OPTIONS, `--import=${SMOKE_FONT_PROVIDER_IMPORT}`]
 		.filter(Boolean)
 		.join(" ");
 }
@@ -132,9 +132,9 @@ async function fetchWithRetry(url: string, retries = 10, delayMs = 1500): Promis
 
 // ---------------------------------------------------------------------------
 // Build verification — runs a single recursive `pnpm build` across templates
-// and the playground demo in parallel. The child process imports a test-only
-// fetch retry shim for Astro's remote Google font-file downloads so transient
-// network errors don't make smoke tests flaky.
+// and the playground demo in parallel. The child process replaces Astro's
+// Google provider with a local font so the smoke suite exercises the font
+// pipeline without depending on Google's CSS and asset rollouts being in sync.
 // ---------------------------------------------------------------------------
 
 describe("Site build verification", () => {
@@ -159,7 +159,7 @@ describe("Site build verification", () => {
 					env: {
 						...process.env,
 						CI: "true",
-						NODE_OPTIONS: nodeOptionsWithFontFetchRetry(),
+						NODE_OPTIONS: nodeOptionsWithSmokeFontProvider(),
 					},
 				},
 			);
@@ -199,7 +199,7 @@ async function bootSite(site: SiteCase): Promise<BootedServer> {
 		env: {
 			...process.env,
 			CI: "true",
-			NODE_OPTIONS: nodeOptionsWithFontFetchRetry(),
+			NODE_OPTIONS: nodeOptionsWithSmokeFontProvider(),
 		},
 		stdio: "pipe",
 	});
