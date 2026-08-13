@@ -32,16 +32,25 @@ export interface SchemaCollection {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports: string[];
 	source?: string;
 	urlPattern?: string;
 	hasSeo: boolean;
+	/** Sidebar entry omitted in the admin; the collection stays reachable by URL */
+	hidden: boolean;
+	/** Explicit sidebar position; absent means the alphabetical fallback */
+	sortOrder?: number;
 	commentsEnabled: boolean;
 	commentsModeration: "all" | "first_time" | "none";
 	commentsClosedAfterDays: number;
 	commentsAutoApproveUsers: boolean;
 	createdAt: string;
 	updatedAt: string;
+}
+
+export interface CollectionAdminConfig {
+	listColumns?: string[];
 }
 
 export interface SchemaField {
@@ -54,6 +63,7 @@ export interface SchemaField {
 	required: boolean;
 	unique: boolean;
 	searchable: boolean;
+	indexed: boolean;
 	defaultValue?: unknown;
 	validation?: {
 		min?: number;
@@ -80,9 +90,12 @@ export interface CreateCollectionInput {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: string[];
 	urlPattern?: string;
 	hasSeo?: boolean;
+	hidden?: boolean;
+	sortOrder?: number | null;
 }
 
 export interface UpdateCollectionInput {
@@ -90,9 +103,12 @@ export interface UpdateCollectionInput {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: string[];
 	urlPattern?: string;
 	hasSeo?: boolean;
+	hidden?: boolean;
+	sortOrder?: number | null;
 	commentsEnabled?: boolean;
 	commentsModeration?: "all" | "first_time" | "none";
 	commentsClosedAfterDays?: number;
@@ -106,6 +122,7 @@ export interface CreateFieldInput {
 	required?: boolean;
 	unique?: boolean;
 	searchable?: boolean;
+	indexed?: boolean;
 	defaultValue?: unknown;
 	validation?: {
 		min?: number;
@@ -125,6 +142,7 @@ export interface UpdateFieldInput {
 	required?: boolean;
 	unique?: boolean;
 	searchable?: boolean;
+	indexed?: boolean;
 	defaultValue?: unknown;
 	validation?: {
 		min?: number;
@@ -291,6 +309,23 @@ export async function reorderFields(collectionSlug: string, fieldSlugs: string[]
 		},
 	);
 	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to reorder fields`));
+}
+
+/**
+ * Reorder collections in the admin sidebar.
+ *
+ * `slugs` is the full desired order — collections left out lose their
+ * explicit position and fall back to alphabetical order after the ordered
+ * ones.
+ */
+export async function reorderCollections(slugs: string[]): Promise<void> {
+	const response = await apiFetch(`${API_BASE}/schema/collections/reorder`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ slugs }),
+	});
+	if (!response.ok)
+		await throwResponseError(response, i18n._(msg`Failed to reorder content types`));
 }
 
 // ============================================

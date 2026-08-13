@@ -1,11 +1,14 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { handleContentPublish } from "../../src/api/handlers/content.js";
 import type { EmDashConfig } from "../../src/astro/integration/runtime.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
-import { ScheduledNotDueError } from "../../src/database/repositories/types.js";
+import {
+	ContentMutationConflictError,
+	ScheduledNotDueError,
+} from "../../src/database/repositories/types.js";
 import type { Database } from "../../src/database/types.js";
 import { EmDashRuntime } from "../../src/emdash-runtime.js";
 import { createHookPipeline } from "../../src/plugins/hooks.js";
@@ -66,6 +69,7 @@ describe("publishDueContent()", () => {
 	});
 
 	afterEach(async () => {
+		vi.restoreAllMocks();
 		await teardownTestDatabase(db);
 	});
 
@@ -129,6 +133,7 @@ describe("publishDueContent()", () => {
 		expect(calls[0]?.options).toEqual({
 			publishedAt: scheduledFor,
 			requireScheduledDue: true,
+			expectedScheduledAt: scheduledFor,
 		});
 	});
 
@@ -253,6 +258,33 @@ describe("EmDashRuntime.runScheduledTasks()", () => {
 		const updated = await repo.findById("post", post.id);
 		expect(updated?.status).toBe("published");
 	});
+
+	it("leaves due content untouched while media usage activation is incomplete", async () => {
+		const post = await repo.create(createPostFixture());
+		const past = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+		await db
+			.updateTable("_emdash_media_usage_activation")
+			.set({ state: "activating" })
+			.where("task_key", "=", "incremental_capture")
+			.execute();
+		const runtime = buildRuntime(db);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		try {
+			await expect(runtime.publishScheduled()).rejects.toMatchObject({
+				code: "MEDIA_USAGE_ACTIVATION_IN_PROGRESS",
+				status: 503,
+			});
+
+			await expect(runtime.runScheduledTasks()).resolves.toEqual({ published: [] });
+			const unchanged = await repo.findById("post", post.id);
+			expect(unchanged?.status).toBe("scheduled");
+			expect(unchanged?.scheduledAt).toBe(past);
+		} finally {
+			consoleError.mockRestore();
+		}
+	});
 });
 
 describe("ContentRepository.publish() requireDue gate", () => {
@@ -265,6 +297,7 @@ describe("ContentRepository.publish() requireDue gate", () => {
 	});
 
 	afterEach(async () => {
+		vi.restoreAllMocks();
 		await teardownTestDatabase(db);
 	});
 
@@ -292,20 +325,44 @@ describe("ContentRepository.publish() requireDue gate", () => {
 		expect(updated?.status).toBe("draft");
 	});
 
-	it("claims the schedule so a second (overlapping) publish bails — no double publish", async () => {
+	it("allows only one publisher prepared from the same scheduled snapshot", async () => {
 		const post = await repo.create(createPostFixture());
 		const past = new Date(Date.now() - 60_000).toISOString();
 		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+		const revisionRepo = new RevisionRepository(db);
+		const originalFind = RevisionRepository.prototype.findById;
+		let releaseFirst!: () => void;
+		let markFirstReady!: () => void;
+		const firstReady = new Promise<void>((resolve) => {
+			markFirstReady = resolve;
+		});
+		const firstBlocked = new Promise<void>((resolve) => {
+			releaseFirst = resolve;
+		});
+		let firstCall = true;
+		const find = vi
+			.spyOn(RevisionRepository.prototype, "findById")
+			.mockImplementation(async function (revisionId) {
+				const revision = await originalFind.call(this, revisionId);
+				if (firstCall) {
+					firstCall = false;
+					markFirstReady();
+					await firstBlocked;
+				}
+				return revision;
+			});
 
-		// First claim wins and publishes.
-		const first = await repo.publish("post", post.id, undefined, true);
-		expect(first.status).toBe("published");
+		const firstResult = repo
+			.publish("post", post.id, undefined, true, past)
+			.catch((error: unknown) => error);
+		await firstReady;
+		const second = await repo.publish("post", post.id, undefined, true, past);
+		releaseFirst();
 
-		// A concurrent/duplicate sweep that already selected this row before the
-		// first claim cleared scheduled_at must now affect 0 rows and bail.
-		await expect(repo.publish("post", post.id, undefined, true)).rejects.toBeInstanceOf(
-			ScheduledNotDueError,
-		);
+		expect(second.status).toBe("published");
+		expect(await firstResult).toBeInstanceOf(ScheduledNotDueError);
+		expect(await revisionRepo.countByEntry("post", post.id)).toBe(1);
+		find.mockRestore();
 	});
 
 	it("refuses to publish an item rescheduled into the future", async () => {
@@ -321,19 +378,174 @@ describe("ContentRepository.publish() requireDue gate", () => {
 		);
 	});
 
-	it("restores the schedule if publish work fails after the claim (no-transaction path)", async () => {
+	it("rejects a schedule changed after sweep selection even when the new time is also due", async () => {
+		const post = await repo.create(createPostFixture());
+		const selectedSchedule = new Date(Date.now() - 120_000).toISOString();
+		const replacementSchedule = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, {
+			status: "scheduled",
+			scheduledAt: selectedSchedule,
+		});
+		await repo.update("post", post.id, { scheduledAt: replacementSchedule });
+
+		await expect(
+			repo.publish("post", post.id, selectedSchedule, true, selectedSchedule),
+		).rejects.toBeInstanceOf(ScheduledNotDueError);
+
+		const after = await repo.findById("post", post.id);
+		expect(after?.scheduledAt).toBe(replacementSchedule);
+		expect(after?.status).toBe("scheduled");
+	});
+
+	it("rejects publication when a draft swap wins during revision preparation", async () => {
+		const post = await repo.create(createPostFixture());
+		const revisionRepo = new RevisionRepository(db);
+		const firstDraft = await revisionRepo.create({
+			collection: "post",
+			entryId: post.id,
+			data: { ...post.data, title: "First draft" },
+		});
+		await repo.setDraftRevision("post", post.id, firstDraft.id);
+		const expected = await repo.findById("post", post.id);
+		expect(expected).not.toBeNull();
+
+		const originalFind = RevisionRepository.prototype.findById;
+		let releasePublish!: () => void;
+		let markPublishReady!: () => void;
+		const publishReady = new Promise<void>((resolve) => {
+			markPublishReady = resolve;
+		});
+		const publishBlocked = new Promise<void>((resolve) => {
+			releasePublish = resolve;
+		});
+		const find = vi
+			.spyOn(RevisionRepository.prototype, "findById")
+			.mockImplementationOnce(async function (revisionId) {
+				const revision = await originalFind.call(this, revisionId);
+				markPublishReady();
+				await publishBlocked;
+				return revision;
+			});
+
+		const publishResult = repo.publish("post", post.id).catch((error: unknown) => error);
+		await publishReady;
+		const replacement = await revisionRepo.create({
+			collection: "post",
+			entryId: post.id,
+			data: { ...post.data, title: "Replacement draft" },
+		});
+		expect(await repo.replaceDraftRevision("post", post.id, replacement.id, expected!)).toBe(true);
+		releasePublish();
+
+		expect(await publishResult).toBeInstanceOf(ContentMutationConflictError);
+		const after = await repo.findById("post", post.id);
+		expect(after?.status).toBe("draft");
+		expect(after?.liveRevisionId).toBeNull();
+		expect(after?.draftRevisionId).toBe(replacement.id);
+		find.mockRestore();
+	});
+
+	it("rejects a stale draft swap after publication wins", async () => {
+		const post = await repo.create(createPostFixture());
+		const revisionRepo = new RevisionRepository(db);
+		const staged = await revisionRepo.create({
+			collection: "post",
+			entryId: post.id,
+			data: { ...post.data, title: "Published draft" },
+		});
+		await repo.setDraftRevision("post", post.id, staged.id);
+		const expected = await repo.findById("post", post.id);
+		expect(expected).not.toBeNull();
+		const losingDraft = await revisionRepo.create({
+			collection: "post",
+			entryId: post.id,
+			data: { ...post.data, title: "Losing draft" },
+		});
+
+		const published = await repo.publish("post", post.id);
+		const swapped = await repo.replaceDraftRevision("post", post.id, losingDraft.id, expected!);
+		const cleaned = await revisionRepo.deleteIfUnreferenced("post", post.id, losingDraft.id);
+
+		expect(swapped).toBe(false);
+		expect(cleaned).toBe(true);
+		expect(published.liveRevisionId).toBe(staged.id);
+		expect(await revisionRepo.findById(losingDraft.id)).toBeNull();
+	});
+
+	it("does not publish when the entry is rescheduled during revision preparation", async () => {
+		const post = await repo.create(createPostFixture());
+		const revisionRepo = new RevisionRepository(db);
+		const draft = await revisionRepo.create({
+			collection: "post",
+			entryId: post.id,
+			data: { ...post.data, title: "Prepared draft" },
+		});
+		await repo.setDraftRevision("post", post.id, draft.id);
+		const past = new Date(Date.now() - 60_000).toISOString();
+		const future = new Date(Date.now() + 86_400_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+		const originalFind = RevisionRepository.prototype.findById;
+		const find = vi
+			.spyOn(RevisionRepository.prototype, "findById")
+			.mockImplementationOnce(async function (revisionId) {
+				const revision = await originalFind.call(this, revisionId);
+				await repo.update("post", post.id, { scheduledAt: future });
+				return revision;
+			});
+
+		await expect(repo.publish("post", post.id, undefined, true)).rejects.toBeInstanceOf(
+			ScheduledNotDueError,
+		);
+		find.mockRestore();
+
+		const after = await repo.findById("post", post.id);
+		expect(after?.status).toBe("scheduled");
+		expect(after?.scheduledAt).toBe(future);
+		expect(after?.draftRevisionId).toBe(draft.id);
+	});
+
+	it("does not leak staged fields when the promotion statement fails", async () => {
+		const post = await repo.create(createPostFixture({ slug: "initial-slug" }));
+		const revisionRepo = new RevisionRepository(db);
+		const draft = await revisionRepo.create({
+			collection: "post",
+			entryId: post.id,
+			data: { ...post.data, title: "Final title", _slug: "approved-slug" },
+		});
+		await repo.setDraftRevision("post", post.id, draft.id);
+		const past = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+		await sql`
+			CREATE TRIGGER reject_test_publication
+			BEFORE UPDATE OF status ON ec_post
+			WHEN NEW.status = 'published'
+			BEGIN
+				SELECT RAISE(ABORT, 'test publication failure');
+			END
+		`.execute(db);
+
+		await expect(repo.publish("post", post.id, undefined, true)).rejects.toThrow(
+			"test publication failure",
+		);
+
+		const after = await repo.findById("post", post.id);
+		expect(after).toMatchObject({
+			slug: "initial-slug",
+			status: "scheduled",
+			scheduledAt: past,
+			draftRevisionId: draft.id,
+		});
+		expect(after?.data.title).toBe("Hello World");
+	});
+
+	it("leaves a scheduled draft unchanged when publication preparation fails", async () => {
 		const post = await repo.create(createPostFixture());
 		const past = new Date(Date.now() - 60_000).toISOString();
 		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
 
-		// Capture the pre-claim updated_at; the failed claim must not leave it
-		// advanced (phantom modification for "changed since" consumers).
 		const before = await repo.findById("post", post.id);
 		const beforeUpdatedAt = before?.updatedAt;
 
-		// Force a failure AFTER the atomic claim has cleared scheduled_at. This
-		// repo is unwrapped (no withTransaction), mimicking D1 where the claim is
-		// already durable when later work throws.
 		const spy = vi
 			.spyOn(RevisionRepository.prototype, "findById")
 			.mockRejectedValueOnce(new Error("boom"));
@@ -342,19 +554,14 @@ describe("ContentRepository.publish() requireDue gate", () => {
 		spy.mockRestore();
 
 		const after = await repo.findById("post", post.id);
-		// Schedule put back so a later sweep retries — not silently dropped.
 		expect(after?.scheduledAt).toBe(past);
 		expect(after?.status).toBe("scheduled");
-		// updated_at restored to its pre-claim value, not the claim's bumped time.
 		expect(after?.updatedAt).toBe(beforeUpdatedAt);
 	});
 
-	it("does not re-add a schedule when the row was fully published in the failure window", async () => {
+	it("leaves a published replacement schedule unchanged when preparation fails", async () => {
 		const post = await repo.create(createPostFixture());
-		// Publish it: status=published, draft_revision_id cleared. This is the
-		// state a concurrent manual publish would leave the row in.
 		await repo.publish("post", post.id);
-		// A stray schedule on an already-published row with no pending draft.
 		const past = new Date(Date.now() - 60_000).toISOString();
 		await repo.update("post", post.id, { scheduledAt: past });
 
@@ -366,8 +573,7 @@ describe("ContentRepository.publish() requireDue gate", () => {
 		spy.mockRestore();
 
 		const after = await repo.findById("post", post.id);
-		// Restore is suppressed — no redundant republish next sweep.
-		expect(after?.scheduledAt).toBeNull();
+		expect(after?.scheduledAt).toBe(past);
 		expect(after?.status).toBe("published");
 	});
 
@@ -376,5 +582,16 @@ describe("ContentRepository.publish() requireDue gate", () => {
 		// Plain draft, never scheduled.
 		const result = await repo.publish("post", post.id);
 		expect(result.status).toBe("published");
+	});
+
+	it("maps a lost manual publication CAS to CONFLICT", async () => {
+		const post = await repo.create(createPostFixture());
+		vi.spyOn(ContentRepository.prototype, "publish").mockRejectedValueOnce(
+			new ContentMutationConflictError(),
+		);
+
+		const result = await handleContentPublish(db, "post", post.id);
+
+		expect(result).toMatchObject({ success: false, error: { code: "CONFLICT" } });
 	});
 });

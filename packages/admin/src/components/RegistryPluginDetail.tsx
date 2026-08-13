@@ -444,7 +444,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				</div>
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2">
-						<h1 className="truncate text-3xl font-bold">{displayName ?? slug}</h1>
+						<h1 className="truncate text-2xl font-semibold">{displayName ?? slug}</h1>
 						{verified ? (
 							<Tooltip
 								content={
@@ -462,7 +462,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 												: t`Verified publisher`
 										}
 									>
-										<ShieldCheck className="h-5 w-5 text-kumo-brand" aria-hidden />
+										<ShieldCheck className="h-5 w-5 text-kumo-link" aria-hidden />
 									</button>
 								}
 							/>
@@ -487,7 +487,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 									target="_blank"
 									rel="noopener noreferrer"
 									download
-									className="text-xs text-kumo-brand hover:underline"
+									className="text-xs text-kumo-link hover:underline"
 								>
 									{t`Download SBOM`}
 								</a>
@@ -696,13 +696,13 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 										href={a.url}
 										target="_blank"
 										rel="noreferrer"
-										className="text-kumo-brand hover:underline"
+										className="text-kumo-link hover:underline"
 									>
 										{t`Website`}
 									</a>
 								) : null}
 								{a.email ? (
-									<a href={`mailto:${a.email}`} className="text-kumo-brand hover:underline">
+									<a href={`mailto:${a.email}`} className="text-kumo-link hover:underline">
 										{a.email}
 									</a>
 								) : null}
@@ -724,7 +724,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 								className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
 							>
 								{c.email ? (
-									<a href={`mailto:${c.email}`} className="text-kumo-brand hover:underline">
+									<a href={`mailto:${c.email}`} className="text-kumo-link hover:underline">
 										{c.email}
 									</a>
 								) : null}
@@ -733,7 +733,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 										href={c.url}
 										target="_blank"
 										rel="noreferrer"
-										className="text-kumo-brand hover:underline"
+										className="text-kumo-link hover:underline"
 									>
 										{c.url}
 									</a>

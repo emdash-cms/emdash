@@ -367,13 +367,17 @@ export function createTaxonomyAccess(db: Kysely<Database>): TaxonomyAccess {
  * the content write. The returned `ContentItem.seo` reflects the resulting
  * SEO state for SEO-enabled collections.
  */
-export function createContentAccessWithWrite(db: Kysely<Database>): ContentAccessWithWrite {
+export function createContentAccessWithWrite(
+	db: Kysely<Database>,
+	beforeContentWrite?: () => Promise<void>,
+): ContentAccessWithWrite {
 	const readAccess = createContentAccess(db);
 
 	return {
 		...readAccess,
 
 		async create(collection: string, data: ContentWriteInput): Promise<ContentItem> {
+			await beforeContentWrite?.();
 			const { fields, seo } = splitSeoFromInput(data);
 			let contentMutated = false;
 
@@ -423,6 +427,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 		},
 
 		async update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem> {
+			await beforeContentWrite?.();
 			const { fields, seo } = splitSeoFromInput(data);
 			const hasFieldUpdates = Object.keys(fields).length > 0;
 			let contentMutated = false;
@@ -483,6 +488,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 		},
 
 		async delete(collection: string, id: string): Promise<boolean> {
+			await beforeContentWrite?.();
 			const contentRepo = new ContentRepository(db);
 			const deleted = await contentRepo.delete(collection, id);
 			if (deleted) {
@@ -990,6 +996,7 @@ export function createUserAccess(db: Kysely<Database>): UserAccess {
 
 export interface PluginContextFactoryOptions {
 	db: Kysely<Database>;
+	beforeContentWrite?: () => Promise<void>;
 	/**
 	 * Resolver for the database connection, preferred over `db` when present.
 	 * Called per `createContext()` so connection-backed adapters (e.g. Postgres
@@ -1044,6 +1051,7 @@ export interface PluginContextFactoryOptions {
  */
 export class PluginContextFactory {
 	private resolveDb: () => Kysely<Database>;
+	private beforeContentWrite?: () => Promise<void>;
 	private storage?: Storage;
 	private getUploadUrl?: (
 		filename: string,
@@ -1063,6 +1071,7 @@ export class PluginContextFactory {
 	constructor(options: PluginContextFactoryOptions) {
 		const fixedDb = options.db;
 		this.resolveDb = options.getDb ?? (() => fixedDb);
+		this.beforeContentWrite = options.beforeContentWrite;
 		this.storage = options.storage;
 		this.getUploadUrl = options.getUploadUrl;
 		this.site = createSiteInfo(options.siteInfo ?? {});
@@ -1095,7 +1104,7 @@ export class PluginContextFactory {
 		// names ("read:content", "write:content") never appear here.
 		let content: ContentAccess | ContentAccessWithWrite | undefined;
 		if (capabilities.has("content:write")) {
-			content = createContentAccessWithWrite(db);
+			content = createContentAccessWithWrite(db, this.beforeContentWrite);
 		} else if (capabilities.has("content:read")) {
 			content = createContentAccess(db);
 		}

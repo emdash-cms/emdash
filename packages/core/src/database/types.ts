@@ -13,6 +13,12 @@ export interface RevisionTable {
 	created_at: Generated<string>;
 }
 
+export interface RevisionPruneQueueTable {
+	collection: string;
+	entry_id: string;
+	revision_id: string;
+}
+
 export interface TaxonomyTable {
 	id: string;
 	name: string;
@@ -22,6 +28,9 @@ export interface TaxonomyTable {
 	data: string | null; // JSON
 	locale: Generated<string>; // e.g. 'en', 'es', 'fr'
 	translation_group: string | null; // shared across translations of the same term
+	// Manual order within a sibling group. 0 for terms that were never
+	// explicitly reordered, so listings fall back to alphabetical.
+	sort_order: Generated<number>;
 }
 
 export interface ContentTaxonomyTable {
@@ -81,9 +90,19 @@ export interface MediaTable {
 	author_id: string | null;
 }
 
+export interface MediaUploadAttemptTable {
+	storage_key: string;
+	// No foreign key: this row must survive media deletion until storage cleanup succeeds.
+	media_id: string;
+	status: string; // 'active' | 'cleanup'
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
 export interface MediaUsageSourceTable {
 	source_key: string;
 	source_type: string;
+	collection_id: Generated<string | null>;
 	collection_slug: string | null;
 	content_id: string | null;
 	source_variant: string;
@@ -100,6 +119,7 @@ export interface MediaUsageSourceTable {
 	source_updated_at: Generated<string | null>;
 	source_version: Generated<number | null>;
 	source_fingerprint: Generated<string | null>;
+	identity_version: Generated<number | null>;
 	source_completeness: Generated<string>;
 	last_attempted_at: Generated<string | null>;
 	last_error_code: Generated<string | null>;
@@ -122,6 +142,44 @@ export interface MediaUsageTable {
 	media_kind: string | null;
 	mime_type: string | null;
 	created_at: Generated<string>;
+	cleanup_lease_token: Generated<string | null>;
+}
+
+export interface MediaUsageCleanupTable {
+	task_key: string;
+	lease_token: string | null;
+	lease_expires_at: string | null;
+	next_eligible_at: string;
+	cursor_created_at: string | null;
+	cursor_id: string | null;
+	scan_before_at: string | null;
+	consecutive_failures: Generated<number>;
+	last_started_at: string | null;
+	last_completed_at: string | null;
+	last_candidate_count: Generated<number>;
+	last_deleted_orphans: Generated<number>;
+	last_deleted_stale: Generated<number>;
+	last_deleted_abandoned: Generated<number>;
+	last_deleted_write_leases: Generated<number>;
+	last_backlog_lower_bound: Generated<number>;
+	last_scan_has_more: Generated<number>;
+	last_duration_ms: Generated<number>;
+	last_error_code: string | null;
+	updated_at: Generated<string>;
+}
+
+export interface MediaUsageGenerationWriteTable {
+	source_key: string;
+	generation: string;
+	lease_token: string;
+	expires_at: string;
+	created_at: Generated<string>;
+}
+
+export interface MediaUsageGenerationFenceTable {
+	task_key: string;
+	generation_floor: string;
+	updated_at: Generated<string>;
 }
 
 export interface MediaUsageIndexStatusTable {
@@ -136,6 +194,84 @@ export interface MediaUsageIndexStatusTable {
 	indexed_source_count: Generated<number>;
 	failed_source_count: Generated<number>;
 	last_error_code: Generated<string | null>;
+	updated_at: Generated<string>;
+	collection_id: Generated<string | null>;
+	change_epoch: Generated<number | string>;
+	reconciliation_required: Generated<number>;
+	last_incremental_success_at: Generated<string | null>;
+	capture_state: Generated<string | null>;
+}
+
+export interface MediaUsageActivationTable {
+	task_key: string;
+	state: Generated<string>;
+	runtime_generation: Generated<number>;
+	collection_cursor: Generated<string | null>;
+	drain_confirmed_at: Generated<string | null>;
+	lease_token: Generated<string | null>;
+	lease_expires_at: Generated<string | null>;
+	attempt_count: Generated<number>;
+	last_attempted_at: Generated<string | null>;
+	last_error_code: Generated<string | null>;
+	activated_at: Generated<string | null>;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+	media_usage_maintenance_turn: Generated<number>;
+}
+
+export interface MediaUsageWorkTable {
+	collection_id: string;
+	collection_slug: string;
+	content_id: string;
+	change_epoch: number | string;
+	work_version: Generated<number | string>;
+	state: Generated<string>;
+	attempt_count: Generated<number>;
+	next_attempt_at: string;
+	lease_token: Generated<string | null>;
+	lease_expires_at: Generated<string | null>;
+	last_attempted_at: Generated<string | null>;
+	last_error_code: Generated<string | null>;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface MediaUsageCollectionDeletionTable {
+	collection_id: string;
+	collection_slug: string;
+	force_delete: number;
+	state: Generated<string>;
+	phase: Generated<string>;
+	work_cursor: Generated<string | null>;
+	source_key: Generated<string | null>;
+	occurrence_cursor: Generated<string | null>;
+	attempt_count: Generated<number>;
+	next_attempt_at: string;
+	lease_token: Generated<string | null>;
+	lease_expires_at: Generated<string | null>;
+	last_error_code: Generated<string | null>;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface MediaUsageReconciliationTable {
+	collection_id: string;
+	collection_slug: string;
+	run_token: string;
+	target_epoch: Generated<number | string | null>;
+	field_fingerprint: Generated<string | null>;
+	state: Generated<string>;
+	phase: Generated<string>;
+	scan_cursor: Generated<string | null>;
+	scan_upper_id: Generated<string | null>;
+	source_cursor: Generated<string | null>;
+	source_upper_key: Generated<string | null>;
+	attempt_count: Generated<number>;
+	next_attempt_at: string;
+	lease_token: Generated<string | null>;
+	lease_expires_at: Generated<string | null>;
+	last_error_code: Generated<string | null>;
+	created_at: Generated<string>;
 	updated_at: Generated<string>;
 }
 
@@ -291,11 +427,14 @@ export interface CollectionTable {
 	label_singular: string | null;
 	description: string | null;
 	icon: string | null;
+	admin_config: Generated<string | null>; // JSON: { listColumns?: string[] }
 	supports: string | null; // JSON array
 	source: string | null;
-	search_config: string | null; // JSON: { enabled: boolean, weights: Record<string, number> }
+	search_config: string | null; // JSON: SearchConfig
 	has_seo: number; // 0 or 1 — opt-in SEO fields for this collection
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")
+	hidden: Generated<number>; // 0 or 1 — omit the auto-generated admin sidebar entry
+	sort_order: number | null; // explicit admin sidebar position; NULL = alphabetical fallback
 	comments_enabled: Generated<number>; // 0 or 1
 	comments_moderation: Generated<string>; // 'all' | 'first_time' | 'none'
 	comments_closed_after_days: Generated<number>; // 0 = never close
@@ -331,6 +470,7 @@ export interface FieldTable {
 	options: string | null; // JSON
 	sort_order: number;
 	searchable: Generated<number>; // boolean as 0/1, defaults to 0
+	indexed: Generated<number>; // boolean as 0/1, defaults to 0
 	translatable: Generated<number>; // boolean as 0/1, defaults to 1
 	created_at: Generated<string>;
 }
@@ -491,13 +631,22 @@ export interface SectionTable {
 // Note: ec_* content tables are dynamic and not part of this type
 export interface Database {
 	revisions: RevisionTable;
+	_emdash_revision_prune_queue: RevisionPruneQueueTable;
 	taxonomies: TaxonomyTable;
 	content_taxonomies: ContentTaxonomyTable;
 	_emdash_taxonomy_defs: TaxonomyDefTable;
 	media: MediaTable;
+	_emdash_media_upload_attempts: MediaUploadAttemptTable;
 	_emdash_media_usage_sources: MediaUsageSourceTable;
 	_emdash_media_usage: MediaUsageTable;
+	_emdash_media_usage_cleanup: MediaUsageCleanupTable;
+	_emdash_media_usage_generation_writes: MediaUsageGenerationWriteTable;
+	_emdash_media_usage_cleanup_fence: MediaUsageGenerationFenceTable;
 	_emdash_media_usage_index_status: MediaUsageIndexStatusTable;
+	_emdash_media_usage_activation: MediaUsageActivationTable;
+	_emdash_media_usage_work: MediaUsageWorkTable;
+	_emdash_media_usage_collection_deletions: MediaUsageCollectionDeletionTable;
+	_emdash_media_usage_reconciliations: MediaUsageReconciliationTable;
 	users: UserTable;
 	credentials: CredentialTable;
 	auth_tokens: AuthTokenTable;

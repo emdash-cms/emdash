@@ -13,10 +13,6 @@ import {
 	type FindManyResult,
 } from "./client.js";
 
-/**
- * Maximum length of the media filename search term. Mirrors the server-side
- * zod schema (`q: z.string().trim().min(1).max(200)`); keep in sync.
- */
 export const MEDIA_SEARCH_MAX_LENGTH = 200;
 
 /** Trim and clamp a search term to the server-accepted range. */
@@ -103,6 +99,29 @@ interface UploadUrlResponse {
 	expiresAt: string;
 }
 
+interface ExistingMediaResponse {
+	existing: true;
+	mediaId: string;
+	storageKey: string;
+	url: string;
+}
+
+const MAX_CLIENT_HASH_BYTES = 8 * 1024 * 1024;
+
+async function computeContentHash(file: File): Promise<string | undefined> {
+	const subtle = globalThis.crypto?.subtle;
+	if (!subtle || file.size === 0 || file.size > MAX_CLIENT_HASH_BYTES) return undefined;
+	try {
+		const hash = await subtle.digest("SHA-1", await file.arrayBuffer());
+		const hex = Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join(
+			"",
+		);
+		return `sha1:${hex}`;
+	} catch {
+		return undefined;
+	}
+}
+
 /**
  * Try to get a signed upload URL
  * Returns null if signed URLs are not supported (e.g., local storage)
@@ -110,8 +129,9 @@ interface UploadUrlResponse {
 async function getUploadUrl(
 	file: File,
 	opts?: { fieldId?: string },
-): Promise<UploadUrlResponse | null> {
+): Promise<UploadUrlResponse | ExistingMediaResponse | null> {
 	try {
+		const contentHash = await computeContentHash(file);
 		const response = await apiFetch(`${API_BASE}/media/upload-url`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -119,6 +139,7 @@ async function getUploadUrl(
 				filename: file.name,
 				contentType: file.type,
 				size: file.size,
+				...(contentHash ? { contentHash } : {}),
 				...(opts?.fieldId ? { fieldId: opts.fieldId } : {}),
 			}),
 		});
@@ -128,7 +149,10 @@ async function getUploadUrl(
 			return null;
 		}
 
-		return parseApiResponse<UploadUrlResponse>(response, i18n._(msg`Failed to get upload URL`));
+		return parseApiResponse<UploadUrlResponse | ExistingMediaResponse>(
+			response,
+			i18n._(msg`Failed to get upload URL`),
+		);
 	} catch (error) {
 		// If the endpoint doesn't exist, fall back to direct upload
 		if (error instanceof TypeError && error.message.includes("fetch")) {
@@ -233,6 +257,9 @@ export async function uploadMedia(file: File, opts?: { fieldId?: string }): Prom
 	if (!uploadInfo) {
 		// Signed URLs not supported, use direct upload
 		return uploadMediaDirect(file, opts);
+	}
+	if ("existing" in uploadInfo) {
+		return fetchMediaItem(uploadInfo.mediaId);
 	}
 
 	// Upload directly to storage via signed URL

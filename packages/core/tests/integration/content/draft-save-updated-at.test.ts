@@ -14,9 +14,11 @@
  * timestamp when a draft-only update request resolves to a metadata no-op.
  */
 
-import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { sql, type Kysely } from "kysely";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { Database } from "../../../src/database/types.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
@@ -48,6 +50,7 @@ describe("draft saves on published entries keep updated_at (#2143)", () => {
 	});
 
 	afterEach(async () => {
+		vi.restoreAllMocks();
 		await teardownTestDatabase(db);
 	});
 
@@ -89,13 +92,111 @@ describe("draft saves on published entries keep updated_at (#2143)", () => {
 		expect(firstSave.success).toBe(true);
 		expect(firstSave.data!.item.updatedAt).toBe(publishedUpdatedAt);
 
-		// Autosave: updates the existing draft revision in place.
+		// Autosave replaces the previous draft without changing the live row.
 		const autosaved = await runtime.handleContentUpdate("posts", id, {
 			data: { title: "Draft v2" },
 			skipRevision: true,
 		});
 		expect(autosaved.success).toBe(true);
 		expect(autosaved.data!.item.updatedAt).toBe(publishedUpdatedAt);
+	});
+
+	it("Autosave removes the superseded draft after the pointer swap", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			data: { title: "Live Post" },
+			slug: "autosave-cleanup",
+		});
+		const id = created.data!.item.id;
+		await runtime.handleContentPublish("posts", id);
+		const firstSave = await runtime.handleContentUpdate("posts", id, {
+			data: { title: "Draft v1" },
+		});
+		const firstDraftId = firstSave.data!.item.draftRevisionId!;
+		const revisionRepo = new RevisionRepository(db);
+
+		const autosaved = await runtime.handleContentUpdate("posts", id, {
+			data: { title: "Draft v2" },
+			skipRevision: true,
+		});
+
+		expect(autosaved.success).toBe(true);
+		expect(autosaved.data!.item.draftRevisionId).not.toBe(firstDraftId);
+		expect(await revisionRepo.findById(firstDraftId)).toBeNull();
+	});
+
+	it("Autosave never mutates a revision that is also live", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			data: { title: "Live Post" },
+			slug: "immutable-live",
+		});
+		const id = created.data!.item.id;
+		const published = await runtime.handleContentPublish("posts", id);
+		const liveRevisionId = published.data!.item.liveRevisionId!;
+		const repo = new ContentRepository(db);
+		const revisionRepo = new RevisionRepository(db);
+		await repo.setDraftRevision("posts", id, liveRevisionId);
+
+		const autosaved = await runtime.handleContentUpdate("posts", id, {
+			data: { title: "Draft edit" },
+			skipRevision: true,
+		});
+
+		expect(autosaved.success).toBe(true);
+		expect(autosaved.data!.item.draftRevisionId).not.toBe(liveRevisionId);
+		expect((await revisionRepo.findById(liveRevisionId))?.data.title).toBe("Live Post");
+	});
+
+	it("returns CONFLICT and removes the new revision when the draft pointer CAS loses", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			data: { title: "Initial" },
+			slug: "draft-race",
+		});
+		const id = created.data!.item.id;
+		const revisionRepo = new RevisionRepository(db);
+		const beforeCount = await revisionRepo.countByEntry("posts", id);
+		const originalCreate = RevisionRepository.prototype.create;
+		const create = vi
+			.spyOn(RevisionRepository.prototype, "create")
+			.mockImplementationOnce(async function (input) {
+				const revision = await originalCreate.call(this, input);
+				await sql`UPDATE ec_posts SET version = version + 1 WHERE id = ${id}`.execute(db);
+				return revision;
+			});
+
+		const result = await runtime.handleContentUpdate("posts", id, {
+			data: { title: "Losing draft" },
+			_rev: Buffer.from(`${created.data!.item.version}:${created.data!.item.updatedAt}`).toString(
+				"base64",
+			),
+		});
+		create.mockRestore();
+
+		expect(result).toMatchObject({ success: false, error: { code: "CONFLICT" } });
+		expect(await revisionRepo.countByEntry("posts", id)).toBe(beforeCount);
+		expect((await new ContentRepository(db).findById("posts", id))?.draftRevisionId).toBeNull();
+	});
+
+	it("rebases a blind save after a draft pointer CAS loss without leaving an orphan", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			data: { title: "Initial" },
+			slug: "draft-retry",
+		});
+		const id = created.data!.item.id;
+		const revisionRepo = new RevisionRepository(db);
+		const originalCreate = RevisionRepository.prototype.create;
+		vi.spyOn(RevisionRepository.prototype, "create").mockImplementationOnce(async function (input) {
+			const revision = await originalCreate.call(this, input);
+			await sql`UPDATE ec_posts SET version = version + 1 WHERE id = ${id}`.execute(db);
+			return revision;
+		});
+
+		const result = await runtime.handleContentUpdate("posts", id, {
+			data: { title: "Retried draft" },
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.data!.item.data.title).toBe("Retried draft");
+		expect(await revisionRepo.countByEntry("posts", id)).toBe(1);
 	});
 
 	it("Discard Draft restores updated_at from before the draft saves", async () => {
@@ -191,6 +292,30 @@ describe("draft saves on published entries keep updated_at (#2143)", () => {
 		expect(restored.success).toBe(true);
 		expect(restored.data!.item.updatedAt).toBe(publishedUpdatedAt);
 		expect(restored.data!.item.draftRevisionId).not.toBeNull();
+	});
+
+	it("Restore returns CONFLICT and removes its new revision when the pointer CAS loses", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			data: { title: "Original" },
+			slug: "restore-race",
+		});
+		const id = created.data!.item.id;
+		const published = await runtime.handleContentPublish("posts", id);
+		const targetRevisionId = published.data!.item.liveRevisionId!;
+		const revisionRepo = new RevisionRepository(db);
+		const beforeCount = await revisionRepo.countByEntry("posts", id);
+		const originalCreate = RevisionRepository.prototype.create;
+		vi.spyOn(RevisionRepository.prototype, "create").mockImplementationOnce(async function (input) {
+			const revision = await originalCreate.call(this, input);
+			await sql`UPDATE ec_posts SET version = version + 1 WHERE id = ${id}`.execute(db);
+			return revision;
+		});
+
+		const restored = await runtime.handleRevisionRestore(targetRevisionId, "author-1");
+
+		expect(restored).toMatchObject({ success: false, error: { code: "CONFLICT" } });
+		expect(await revisionRepo.countByEntry("posts", id)).toBe(beforeCount);
+		expect((await new ContentRepository(db).findById("posts", id))?.draftRevisionId).toBeNull();
 	});
 
 	it("collections without revision support keep the bump-on-write behavior", async () => {

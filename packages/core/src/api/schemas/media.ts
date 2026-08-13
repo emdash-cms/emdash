@@ -74,7 +74,7 @@ export function mediaUploadUrlBody(maxSize: number) {
 			size: z
 				.number()
 				.int()
-				.positive()
+				.nonnegative()
 				.max(maxSize, `File size must not exceed ${formatFileSize(maxSize)}`),
 			contentHash: z.string().optional(),
 			fieldId: z.string().optional(),
@@ -84,7 +84,7 @@ export function mediaUploadUrlBody(maxSize: number) {
 
 export const mediaConfirmBody = z
 	.object({
-		size: z.number().int().positive().optional(),
+		size: z.number().int().nonnegative().optional(),
 		width: z.number().int().positive().optional(),
 		height: z.number().int().positive().optional(),
 	})
@@ -178,3 +178,10 @@ export const mediaConfirmResponseSchema = z
 		item: mediaItemSchema.extend({ url: z.string() }),
 	})
 	.meta({ id: "MediaConfirmResponse" });
+
+export const mediaStreamUploadResponseSchema = z
+	.object({
+		uploaded: z.literal(true),
+		size: z.number().int().nonnegative(),
+	})
+	.meta({ id: "MediaStreamUploadResponse" });

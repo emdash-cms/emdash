@@ -351,7 +351,7 @@ export function ContentTypeEditor({
 					) : null
 				}
 			>
-				<h1 className="text-2xl font-bold truncate">
+				<h1 className="truncate text-2xl font-semibold">
 					{isNew ? t`New Content Type` : collection?.label}
 				</h1>
 				{!isNew && (

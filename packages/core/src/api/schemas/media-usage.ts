@@ -109,8 +109,141 @@ export const mediaUsageRepairResponseSchema = z
 	})
 	.meta({ id: "MediaUsageRepairResponse" });
 
+export const mediaUsageWorkStateSchema = z
+	.enum(["pending", "retry", "leased", "failed"])
+	.meta({ id: "MediaUsageWorkState" });
+
+export const mediaUsageWorkListQuery = z.object({
+	collection: z.string().min(1).max(63).regex(slugPattern, "Invalid collection slug"),
+	state: mediaUsageWorkStateSchema.optional(),
+	cursor: z.string().min(1).max(2048).optional().meta({
+		description: "Opaque work-page cursor",
+	}),
+	limit: z.coerce.number().int().min(1).max(100).optional().default(50).meta({
+		description: "Maximum number of work items to return (1-100, default 50)",
+	}),
+});
+
+export const mediaUsageWorkItemSchema = z
+	.object({
+		collectionId: z.string(),
+		collectionSlug: z.string(),
+		contentId: z.string(),
+		state: mediaUsageWorkStateSchema,
+		attemptCount: z.number().int().min(0),
+		nextAttemptAt: z.string(),
+		leaseExpiresAt: z.string().nullable(),
+		lastAttemptedAt: z.string().nullable(),
+		lastErrorCode: z.string().nullable(),
+		updatedAt: z.string(),
+	})
+	.meta({ id: "MediaUsageWorkItem" });
+
+export const mediaUsageWorkListResponseSchema = z
+	.object({
+		items: z.array(mediaUsageWorkItemSchema),
+		nextCursor: z.string().optional(),
+	})
+	.meta({ id: "MediaUsageWorkListResponse" });
+
+const boundedOpaqueMediaUsageId = z.string().min(1).max(2048);
+
+export const mediaUsageWorkRetryBody = z
+	.object({
+		collectionId: boundedOpaqueMediaUsageId.meta({
+			description: "Current immutable collection identity",
+		}),
+		contentId: boundedOpaqueMediaUsageId.meta({
+			description: "Content entry identity, including a deleted entry",
+		}),
+	})
+	.strict()
+	.meta({ id: "MediaUsageWorkRetryBody" });
+
+export const mediaUsageWorkRetryResponseSchema = z
+	.object({
+		changed: z.boolean(),
+		item: mediaUsageWorkItemSchema,
+	})
+	.meta({ id: "MediaUsageWorkRetryResponse" });
+
+export const mediaUsageWorkRetryConflictSchema = z.object({
+	success: z.literal(false),
+	error: z.discriminatedUnion("code", [
+		z.object({
+			code: z.literal("WORK_LEASE_ACTIVE"),
+			message: z.string(),
+			details: z.object({ leaseExpiresAt: z.string() }),
+		}),
+		z.object({
+			code: z.literal("WORK_CHANGED"),
+			message: z.string(),
+		}),
+	]),
+});
+
+export const mediaUsageCollectionDeletionStateSchema = z
+	.enum(["pending", "retry", "leased", "failed"])
+	.meta({ id: "MediaUsageCollectionDeletionState" });
+export const mediaUsageCollectionDeletionPhaseSchema = z
+	.enum(["fence", "registry", "table", "work", "sources", "status", "finalize"])
+	.meta({ id: "MediaUsageCollectionDeletionPhase" });
+export const mediaUsageCollectionDeletionListQuery = z
+	.object({
+		state: mediaUsageCollectionDeletionStateSchema.optional().default("failed"),
+		cursor: z.string().min(1).max(2048).optional(),
+		limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+	})
+	.meta({ id: "MediaUsageCollectionDeletionListQuery" });
+export const mediaUsageCollectionDeletionItemSchema = z
+	.object({
+		collectionId: z.string(),
+		collectionSlug: z.string(),
+		state: mediaUsageCollectionDeletionStateSchema,
+		phase: mediaUsageCollectionDeletionPhaseSchema,
+		attemptCount: z.number().int().min(0),
+		nextAttemptAt: z.string(),
+		leaseExpiresAt: z.string().nullable(),
+		lastErrorCode: z.string().nullable(),
+		updatedAt: z.string(),
+	})
+	.meta({ id: "MediaUsageCollectionDeletionItem" });
+export const mediaUsageCollectionDeletionListResponseSchema = z
+	.object({
+		items: z.array(mediaUsageCollectionDeletionItemSchema),
+		nextCursor: z.string().optional(),
+	})
+	.meta({ id: "MediaUsageCollectionDeletionListResponse" });
+export const mediaUsageCollectionDeletionRetryBody = z
+	.object({ collectionId: boundedOpaqueMediaUsageId })
+	.strict()
+	.meta({ id: "MediaUsageCollectionDeletionRetryBody" });
+export const mediaUsageCollectionDeletionRetryResponseSchema = z
+	.object({
+		changed: z.boolean(),
+		item: mediaUsageCollectionDeletionItemSchema,
+	})
+	.meta({ id: "MediaUsageCollectionDeletionRetryResponse" });
+
 export type MediaUsageRepairRequest = z.infer<typeof mediaUsageRepairBody>;
 export type MediaUsageRepairResponse = z.infer<typeof mediaUsageRepairResponseSchema>;
+export type MediaUsageWorkListQuery = z.infer<typeof mediaUsageWorkListQuery>;
+export type MediaUsageWorkItem = z.infer<typeof mediaUsageWorkItemSchema>;
+export type MediaUsageWorkListResponse = z.infer<typeof mediaUsageWorkListResponseSchema>;
+export type MediaUsageWorkRetryRequest = z.infer<typeof mediaUsageWorkRetryBody>;
+export type MediaUsageWorkRetryResponse = z.infer<typeof mediaUsageWorkRetryResponseSchema>;
+export type MediaUsageCollectionDeletionListQuery = z.infer<
+	typeof mediaUsageCollectionDeletionListQuery
+>;
+export type MediaUsageCollectionDeletionListResponse = z.infer<
+	typeof mediaUsageCollectionDeletionListResponseSchema
+>;
+export type MediaUsageCollectionDeletionRetryRequest = z.infer<
+	typeof mediaUsageCollectionDeletionRetryBody
+>;
+export type MediaUsageCollectionDeletionRetryResponse = z.infer<
+	typeof mediaUsageCollectionDeletionRetryResponseSchema
+>;
 export type MediaUsageCoverageStatus = z.infer<typeof mediaUsageCoverageStatusSchema>;
 export type MediaUsageCoverage = z.infer<typeof mediaUsageCoverageSchema>;
 export type MediaUsageSummary = z.infer<typeof mediaUsageSummarySchema>;

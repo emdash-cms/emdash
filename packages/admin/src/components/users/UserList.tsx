@@ -51,7 +51,7 @@ export function UserList({
 		<div className="space-y-4">
 			{/* Header */}
 			<div className="flex items-center justify-between">
-				<h1 className="text-2xl font-bold">{t`Users`}</h1>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Users`}</h1>
 				<Button onClick={onInviteUser} icon={<UserPlus />}>
 					{t`Invite User`}
 				</Button>
@@ -120,7 +120,7 @@ export function UserList({
 											{t`No users found matching your filters.`}{" "}
 											<button
 												type="button"
-												className="text-kumo-brand underline"
+												className="text-kumo-link underline"
 												onClick={() => {
 													onSearchChange("");
 													onRoleFilterChange(undefined);
@@ -134,7 +134,7 @@ export function UserList({
 											{t`No users yet.`}{" "}
 											<button
 												type="button"
-												className="text-kumo-brand underline"
+												className="text-kumo-link underline"
 												onClick={onInviteUser}
 											>
 												{t`Invite your first team member`}

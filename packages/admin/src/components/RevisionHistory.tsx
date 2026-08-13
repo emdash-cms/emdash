@@ -361,7 +361,7 @@ function RevisionDiffView({ older, newer }: RevisionDiffViewProps) {
 					<button
 						type="button"
 						onClick={() => setShowUnchanged(!showUnchanged)}
-						className="text-xs text-kumo-brand hover:underline"
+						className="text-xs text-kumo-link hover:underline"
 					>
 						{showUnchanged
 							? plural(unchangedCount, { one: "Hide # unchanged", other: "Hide # unchanged" })

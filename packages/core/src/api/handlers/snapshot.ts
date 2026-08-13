@@ -312,7 +312,7 @@ export async function generateSnapshot(
 						await sql<Record<string, unknown>>`
 						SELECT * FROM ${sql.raw(`"${tableName}"`)}
 						WHERE deleted_at IS NULL
-						AND (status = 'published' OR (status = 'scheduled' AND scheduled_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now')))
+						AND status = 'published'
 					`.execute(db)
 					).rows;
 				}

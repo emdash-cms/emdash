@@ -21,7 +21,7 @@ import {
 } from "kysely";
 import type { D1DialectConfig } from "kysely-d1";
 
-import { EmDashD1Dialect } from "./d1-dialect.js";
+import { D1Adapter, EmDashD1Dialect } from "./d1-dialect.js";
 
 /**
  * Statements safe to coalesce: plain SELECTs. Deliberately conservative —
@@ -284,7 +284,7 @@ export class CoalescingD1Driver implements Driver {
  * `executeQuery` calls — that is the whole point — so report `true`.
  * Transactions are rejected by the driver regardless.
  */
-class CoalescingD1Adapter extends SqliteAdapter {
+class CoalescingD1Adapter extends D1Adapter {
 	override get supportsMultipleConnections(): boolean {
 		return true;
 	}

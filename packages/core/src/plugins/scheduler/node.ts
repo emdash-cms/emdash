@@ -29,11 +29,16 @@ export class NodeCronScheduler implements CronScheduler {
 	private timer: ReturnType<typeof setTimeout> | null = null;
 	private running = false;
 	private systemCleanup: SystemCleanupFn | null = null;
+	private mediaUsageMaintenance: SystemCleanupFn | null = null;
 
 	constructor(private executor: CronExecutor) {}
 
 	setSystemCleanup(fn: SystemCleanupFn): void {
 		this.systemCleanup = fn;
+	}
+
+	setMediaUsageMaintenance(fn: SystemCleanupFn): void {
+		this.mediaUsageMaintenance = fn;
 	}
 
 	start(): void {
@@ -112,10 +117,17 @@ export class NodeCronScheduler implements CronScheduler {
 		}
 
 		void Promise.allSettled(tasks)
-			.then((results) => {
+			.then(async (results) => {
 				for (const r of results) {
 					if (r.status === "rejected") {
 						console.error("[cron:node] Tick task failed:", r.reason);
+					}
+				}
+				if (this.mediaUsageMaintenance) {
+					try {
+						await this.mediaUsageMaintenance();
+					} catch (error) {
+						console.error("[cron:node] Media Usage maintenance failed:", error);
 					}
 				}
 				return undefined;

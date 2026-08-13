@@ -5,7 +5,7 @@ description: Change the schema and content model of a live EmDash site, and keep
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-EmDash stores collections, fields, and taxonomies in the database, next to the content itself. Deploying new code does not change them: a deploy replaces the Worker (or server) code, while the schema and content in the database stay as they are. This page explains how to change the content model of a site that is already deployed, using Cloudflare D1 as the running example. The same workflows apply to the other [database options](/deployment/database/).
+EmDash stores collections, fields, and taxonomies in the database, next to the content itself. Deploying new code does not change that content model, but a new EmDash version may migrate EmDash-managed database tables on the first request. This page explains how to change the content model of a site that is already deployed, using Cloudflare D1 as the running example. The same workflows apply to the other [database options](/deployment/database/).
 
 ## What changes what
 
@@ -14,16 +14,17 @@ A site goes through four distinct workflows. Each one touches a different layer:
 | Workflow                       | What changes                       | How                                                                    |
 | ------------------------------ | ---------------------------------- | ---------------------------------------------------------------------- |
 | Content editing                | Entries, media, settings           | Admin panel or [content API](/reference/api/)                          |
-| Code deploy                    | Templates, config, EmDash version  | `wrangler deploy` — leaves schema and content untouched                |
+| Code deploy                    | Templates, config, EmDash version  | `wrangler deploy` — may migrate EmDash-managed database tables         |
 | First-time bootstrap           | Everything, from empty             | Migrations + seed file + setup wizard, automatic on first boot         |
 | Schema evolution               | Collections, fields, taxonomies    | Admin panel or `emdash schema` against the live site (this page)       |
 
 The seed file only participates in the third row. It is applied once, when the database is empty and the setup wizard has not been completed. Deploying a changed seed file against an existing database does nothing — evolving a live site's schema always happens through the admin panel or the API.
 
 <Aside type="note">
-	EmDash's internal tables (users, revisions, redirects, options) are migrated automatically: pending
-	migrations run on the first request after a deploy. Your content model is never changed by a
-	migration — it belongs to you.
+	Pending core migrations run on the first request after a deploy. They can change EmDash system tables
+	and the physical layout of collection tables, but they do not add or remove your collections, fields,
+	or taxonomies. PostgreSQL deployments must retain the [required schema ownership and
+	permissions](/deployment/database/#database-role-requirements) for these migrations.
 </Aside>
 
 ## Change the schema in the admin panel

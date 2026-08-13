@@ -43,6 +43,21 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			return c.text(`skipped: ${result.reason}`, 202);
 		}
 
+		// Issue-close cleanup reaps the fix-loop branches directly (a few fast
+		// GitHub calls, well within the ack budget); it is not a machine event,
+		// so it bypasses the DO inbox and runs synchronously.
+		if (result.kind === "cleanup") {
+			const stub = c.env.Orchestrator.getByName(result.anchor);
+			const cleanup = await stub.cleanupOnClose(result.anchorNumber);
+			console.log("[webhook] cleanup", {
+				event: eventType,
+				delivery: deliveryId,
+				anchor: result.anchor,
+				cleanup: cleanup.kind,
+			});
+			return c.json({ anchor: result.anchor, cleanup }, 202);
+		}
+
 		// Persist into the per-anchor OrchestratorDO inbox before acknowledging.
 		// Classification, dispatch, and GitHub effects run from the DO alarm so
 		// GitHub does not time out while the bot performs external work.
