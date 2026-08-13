@@ -1,28 +1,5 @@
 #!/usr/bin/env node
 
-/**
- * EmDash CLI
- *
- * Built with citty + clack (same stack as Nuxt CLI)
- *
- * Commands:
- * - init: Bootstrap database from template config, or interactive setup
- * - types: Generate TypeScript types from schema
- * - dev: [DEPRECATED, hidden] Run dev server with a local SQLite database
- * - seed: Apply a seed file to the database
- * - export-seed: Export database schema and content as a seed file
- * - secrets: Generate and inspect EmDash secrets (encryption keys, etc.)
- * - auth: [DEPRECATED] Generate auth secret (use `secrets` instead)
- * - login/logout/whoami: Session management
- * - content: Create, read, update, delete content
- * - schema: Manage collections and fields
- * - media: Upload and manage media
- * - search: Full-text search
- * - taxonomy: Manage taxonomies and terms
- * - menu: Manage navigation menus
- * - plugin: Plugin management (init, bundle, validate, publish, login, logout)
- */
-
 import { defineCommand, runMain } from "citty";
 
 import { authCommand } from "./commands/auth.js";
