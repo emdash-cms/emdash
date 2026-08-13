@@ -67,6 +67,7 @@ import * as m061 from "./061_media_usage_cleanup.js";
 import * as m062 from "./062_media_usage_cleanup_fence.js";
 import * as m063 from "./063_media_usage_incremental_work.js";
 import * as m064 from "./064_fts_plain_text.js";
+import * as m065 from "./065_media_usage_collection_deletion.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -132,6 +133,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"062_media_usage_cleanup_fence": m062,
 	"063_media_usage_incremental_work": m063,
 	"064_fts_plain_text": m064,
+	"065_media_usage_collection_deletion": m065,
 });
 
 /** Total number of registered migrations. Exported for use in tests. */

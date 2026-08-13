@@ -337,16 +337,16 @@ export async function withEmDashRuntime<T>(
 /**
  * Shared plumbing for request-free entry points (`runScheduledTasks`,
  * `withEmDashRuntime`): resolve the runtime singleton, then run the callback
- * under an event-scoped db connection when the adapter needs one.
+ * under an event-scoped db when the adapter needs one.
  *
  * Connection-backed adapters (e.g. Postgres over Hyperdrive) cannot reuse
  * the per-isolate singleton from a platform event: its socket belongs to the
  * request that opened it, and workerd rejects cross-event I/O. Open an
  * event-scoped connection and run the callback under it in ALS — the
  * runtime's db getter, the cron executor, and plugin contexts all resolve
- * the connection from ALS — then close it. Gated on the adapter being
- * connection-backed (it exposes `close()`); stateless adapters (D1, Node
- * SQLite) return null or a close-less scope and keep using the singleton.
+ * the connection from ALS — then close it when required. Stateless adapters
+ * that need primary routing can return a close-less scope; adapters with no
+ * event scoping return null and keep using the singleton.
  */
 async function runOutsideRequest<T>(
 	config: EmDashConfig,
@@ -364,9 +364,8 @@ async function runOutsideRequest<T>(
 		cookies: NOOP_COOKIE_JAR,
 		url: CRON_EVENT_URL,
 	});
-	if (!scoped?.close) {
-		// Stateless adapter (or no per-request scoping): the singleton is safe
-		// outside a request. Any close-less scope created above is discarded.
+	if (!scoped) {
+		// This adapter needs no event-specific routing or connection.
 		return fn(runtime);
 	}
 	const { closed, deferredTasks, lifecycle } = coordinateScopedDbLifecycle(scoped);

@@ -235,6 +235,24 @@ export interface MediaUsageWorkTable {
 	updated_at: Generated<string>;
 }
 
+export interface MediaUsageCollectionDeletionTable {
+	collection_id: string;
+	collection_slug: string;
+	force_delete: number;
+	state: Generated<string>;
+	phase: Generated<string>;
+	work_cursor: Generated<string | null>;
+	source_key: Generated<string | null>;
+	occurrence_cursor: Generated<string | null>;
+	attempt_count: Generated<number>;
+	next_attempt_at: string;
+	lease_token: Generated<string | null>;
+	lease_expires_at: Generated<string | null>;
+	last_error_code: Generated<string | null>;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
 export interface UserTable {
 	id: string;
 	email: string;
@@ -604,6 +622,7 @@ export interface Database {
 	_emdash_media_usage_index_status: MediaUsageIndexStatusTable;
 	_emdash_media_usage_activation: MediaUsageActivationTable;
 	_emdash_media_usage_work: MediaUsageWorkTable;
+	_emdash_media_usage_collection_deletions: MediaUsageCollectionDeletionTable;
 	users: UserTable;
 	credentials: CredentialTable;
 	auth_tokens: AuthTokenTable;

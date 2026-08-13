@@ -16,6 +16,7 @@ import type {
 	FindManyResult,
 	ContentItem,
 	ContentDateField,
+	ContentBylineFilter,
 } from "./types.js";
 import {
 	ContentMutationConflictError,
@@ -584,6 +585,7 @@ export class ContentRepository {
 
 		query = this.applySearchFilter(query, options.where, type);
 		query = this.applyDateFilter(query, options.where);
+		query = this.applyBylineFilter(query, options.where, type);
 
 		// Handle cursor pagination — decodeCursor throws InvalidCursorError
 		// on malformed input; let it propagate so handlers surface a
@@ -985,6 +987,115 @@ export class ContentRepository {
 	}
 
 	/**
+	 * Apply the optional byline filter as a correlated (NOT) EXISTS against
+	 * `_emdash_content_bylines`.
+	 *
+	 * Correlating from the content table preserves the outer sort index so
+	 * `LIMIT` can short-circuit. `mode: "none"` tests the junction rather than
+	 * `primary_byline_id` because the two are written in the same call but
+	 * are not atomically consistent, so the junction is authoritative.
+	 *
+	 * Whether a credit *renders* is locale-scoped; whether one *exists* is
+	 * not. Both are needed: the first decides what the filter matches, the
+	 * second decides whether the author fallback applies at all.
+	 */
+	private applyBylineFilter<QB extends { where: (cb: (eb: any) => unknown) => QB }>(
+		query: QB,
+		where: { bylineFilter?: ContentBylineFilter } | undefined,
+		type: string,
+	): QB {
+		const filter = where?.bylineFilter;
+		if (!filter) return query;
+		const tableName = getTableName(type);
+		const idColumn = `${tableName}.id`;
+		const authorColumn = `${tableName}.author_id`;
+		const localeColumn = `${tableName}.locale`;
+
+		// An explicit credit that actually renders — optionally within a given
+		// set of translation groups. The junction stores a group, but a credit
+		// resolves only where that group has a byline row at the locale the
+		// list is scoped to, so this repeats the join `getContentBylinesMany`
+		// makes. `locale` falls back to each entry's own when the list spans
+		// locales.
+		const creditRenders = (eb: any, bylineIds?: string[]) => {
+			let sub = eb
+				.selectFrom("_emdash_content_bylines as cb")
+				.innerJoin("_emdash_bylines as b", "b.translation_group", "cb.byline_id")
+				.select("cb.id")
+				.where("cb.collection_slug", "=", type)
+				.whereRef("cb.content_id", "=", idColumn);
+			sub = filter.locale
+				? sub.where("b.locale", "=", filter.locale)
+				: sub.whereRef("b.locale", "=", localeColumn);
+			if (bylineIds) sub = sub.where("cb.byline_id", "in", bylineIds);
+			return eb.exists(sub);
+		};
+
+		// Whether the entry carries an explicit credit at all, at any locale.
+		// Deliberately not locale-scoped: the author fallback is suppressed by
+		// the presence of a junction row, even one that renders nothing here
+		// (`hydrateBylinesMany` gates inference on `primaryBylineId`).
+		const hasExplicitCredit = (eb: any) =>
+			eb.exists(
+				eb
+					.selectFrom("_emdash_content_bylines as cb")
+					.select("cb.id")
+					.where("cb.collection_slug", "=", type)
+					.whereRef("cb.content_id", "=", idColumn),
+			);
+
+		// The entry's author owns a byline row — optionally within a given set
+		// of translation groups — at the locale the list is scoped to. Matching
+		// the locale is what keeps the filter agreeing with the list: an
+		// inferred credit renders only when the author's byline has a row at
+		// that locale (`hydrateBylinesMany` -> `findByUserIds`), and byline
+		// translations start life with a null `user_id`, so a group translated
+		// into the locale but not re-linked resolves to no credit. `locale`
+		// falls back to each entry's own when the list spans locales.
+		const authorHasByline = (eb: any, bylineIds?: string[]) => {
+			let sub = eb
+				.selectFrom("_emdash_bylines as b")
+				.select("b.id")
+				.whereRef("b.user_id", "=", authorColumn);
+			sub = filter.locale
+				? sub.where("b.locale", "=", filter.locale)
+				: sub.whereRef("b.locale", "=", localeColumn);
+			if (bylineIds) sub = sub.where("b.translation_group", "in", bylineIds);
+			return eb.exists(sub);
+		};
+
+		if (filter.mode === "none") {
+			return query.where((eb: any) => {
+				const uncredited = eb.not(creditRenders(eb));
+				// With inference on, "no byline" means none is rendered, so an
+				// entry that falls through to an author byline is excluded too.
+				return filter.includeInferred
+					? eb.and([uncredited, eb.or([hasExplicitCredit(eb), eb.not(authorHasByline(eb))])])
+					: uncredited;
+			});
+		}
+
+		const bylineIds = filter.bylineIds ?? [];
+		if (bylineIds.length === 0) {
+			// A filter that resolved to no ids must match nothing rather than
+			// silently degrade to "no filter" and return the whole collection.
+			// `1 = 0` rather than a bound `false`: better-sqlite3 refuses to
+			// bind JS booleans.
+			return query.where(() => sql<boolean>`1 = 0`);
+		}
+
+		return query.where((eb: any) => {
+			if (!filter.includeInferred) return creditRenders(eb, bylineIds);
+			// Inference applies only where no explicit credit exists, so an
+			// entry credited to someone else never matches on its author.
+			return eb.or([
+				creditRenders(eb, bylineIds),
+				eb.and([eb.not(hasExplicitCredit(eb)), authorHasByline(eb, bylineIds)]),
+			]);
+		});
+	}
+
+	/**
 	 * Count content items
 	 */
 	async count(type: string, where?: FindManyOptions["where"]): Promise<number> {
@@ -1009,6 +1120,7 @@ export class ContentRepository {
 
 		query = this.applySearchFilter(query, where, type);
 		query = this.applyDateFilter(query, where);
+		query = this.applyBylineFilter(query, where, type);
 
 		const result = await query.executeTakeFirst();
 		return Number(result?.count || 0);

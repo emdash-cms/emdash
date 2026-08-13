@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -45,6 +45,7 @@ describe("generateDialectModule", () => {
 		const out = generateDialectModule({
 			supportsRequestScope: false,
 			supportsCoalescing: false,
+			supportsCollectionDeletionGuard: false,
 		});
 		expect(out).toContain("export const createDialect = undefined");
 		expect(out).toContain("export const createRequestScopedDb = (_opts) => null");
@@ -56,6 +57,7 @@ describe("generateDialectModule", () => {
 			type: "sqlite",
 			supportsRequestScope: false,
 			supportsCoalescing: false,
+			supportsCollectionDeletionGuard: false,
 		});
 		expect(out).toContain(`import { createDialect as _createDialect } from "some-adapter/dialect"`);
 		expect(out).toContain("export const createRequestScopedDb = (_opts) => null");
@@ -70,12 +72,16 @@ describe("generateDialectModule", () => {
 			type: "sqlite",
 			supportsRequestScope: true,
 			supportsCoalescing: true,
+			supportsCollectionDeletionGuard: true,
 		});
 		expect(out).toContain(`export { createRequestScopedDb } from "@emdash-cms/cloudflare/db/d1"`);
 		expect(out).toContain(
 			`import { createCoalescingDialect as _createCoalescingDialect } from "@emdash-cms/cloudflare/db/d1"`,
 		);
 		expect(out).toContain("export const createCoalescingDialect = _createCoalescingDialect");
+		expect(out).toContain(
+			`export { executeCollectionDeletionGuard } from "@emdash-cms/cloudflare/db/d1"`,
+		);
 		expect(out).not.toContain("= () => null");
 		expect(out).not.toContain("= (_opts) => null");
 	});
@@ -86,6 +92,7 @@ describe("generateDialectModule", () => {
 			type: "postgres",
 			supportsRequestScope: false,
 			supportsCoalescing: false,
+			supportsCollectionDeletionGuard: false,
 		});
 		expect(out).toContain(`export const dialectType = "postgres"`);
 	});
@@ -241,7 +248,9 @@ describe("createVirtualModulesPlugin scheduler wiring", () => {
 
 			expect(source).toContain("export default { hooks: {} };");
 			expect(addWatchFile).toHaveBeenCalledOnce();
-			expect(addWatchFile).toHaveBeenCalledWith(entryPath);
+			// Module resolution canonicalizes macOS' /var -> /private/var symlink.
+			// Compare the physical path so this contract is portable across hosts.
+			expect(addWatchFile).toHaveBeenCalledWith(realpathSync(entryPath));
 		} finally {
 			rmSync(projectRoot, { recursive: true, force: true });
 		}

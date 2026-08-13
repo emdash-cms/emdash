@@ -276,6 +276,7 @@ export function d1(config: D1Config): DatabaseDescriptor {
 		type: "sqlite",
 		supportsRequestScope: true,
 		supportsCoalescing: true,
+		supportsCollectionDeletionGuard: true,
 	};
 }
 
@@ -398,6 +399,7 @@ export function durableObjects(config: DurableObjectsConfig): DatabaseDescriptor
 		type: "sqlite",
 		supportsRequestScope: true,
 		supportsCoalescing: true,
+		supportsCollectionDeletionGuard: true,
 	};
 }
 

@@ -48,7 +48,25 @@ describeEachDialect("media usage incremental work migration", (dialect) => {
 		expect(work).toEqual([]);
 	});
 
+	it("keeps V1 collection deletion available after rolling back incremental capture", async () => {
+		const collectionDeletionMigration =
+			await import("../../../src/database/migrations/065_media_usage_collection_deletion.js");
+		await collectionDeletionMigration.down(ctx.db);
+		const incrementalMigration =
+			await import("../../../src/database/migrations/063_media_usage_incremental_work.js");
+		await incrementalMigration.down(ctx.db);
+		const registry = new SchemaRegistry(ctx.db);
+		await registry.createCollection({ slug: "legacy", label: "Legacy" });
+
+		await registry.deleteCollection("legacy", { force: true });
+
+		expect(await registry.getCollection("legacy")).toBeNull();
+	});
+
 	it("upgrades and reruns without rewriting legacy evidence or inventing work", async () => {
+		const collectionDeletionMigration =
+			await import("../../../src/database/migrations/065_media_usage_collection_deletion.js");
+		await collectionDeletionMigration.down(ctx.db);
 		const migration =
 			await import("../../../src/database/migrations/063_media_usage_incremental_work.js");
 		await migration.down(ctx.db);
@@ -191,6 +209,9 @@ describeEachDialect("media usage incremental work migration", (dialect) => {
 	});
 
 	it("purges a partially bound status if its collection is deleted or recreated before retry", async () => {
+		const collectionDeletionMigration =
+			await import("../../../src/database/migrations/065_media_usage_collection_deletion.js");
+		await collectionDeletionMigration.down(ctx.db);
 		const migration =
 			await import("../../../src/database/migrations/063_media_usage_incremental_work.js");
 		await migration.down(ctx.db);

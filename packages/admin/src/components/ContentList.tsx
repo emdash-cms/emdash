@@ -34,6 +34,12 @@ import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import {
+	BylineFilter,
+	EMPTY_BYLINE_FILTER,
+	isBylineFilterActive,
+	type BylineFilterState,
+} from "./BylineFilter.js";
+import {
 	ContentStatusBadge,
 	ContentStatusLabel,
 	isContentStatusState,
@@ -136,6 +142,9 @@ export interface ContentListProps {
 	/** Controlled date-range filter state. */
 	dateFilter?: ContentDateFilter;
 	onDateFilterChange?: (filter: ContentDateFilter) => void;
+	/** Controlled byline filter state. */
+	bylineFilter?: BylineFilterState;
+	onBylineFilterChange?: (filter: BylineFilterState) => void;
 	/**
 	 * Bulk actions. Each is opt-in: the selection checkboxes only appear when at
 	 * least one bulk handler is provided, and each toolbar button renders only
@@ -200,6 +209,8 @@ export function ContentList({
 	onAuthorFilterChange,
 	dateFilter = EMPTY_DATE_FILTER,
 	onDateFilterChange,
+	bylineFilter = EMPTY_BYLINE_FILTER,
+	onBylineFilterChange,
 	onBulkPublish,
 	onBulkUnpublish,
 	onBulkDelete,
@@ -409,6 +420,9 @@ export function ContentList({
 							onAuthorFilterChange={onAuthorFilterChange}
 							dateFilter={dateFilter}
 							onDateFilterChange={onDateFilterChange}
+							bylineFilter={bylineFilter}
+							onBylineFilterChange={onBylineFilterChange}
+							locale={activeLocale ?? undefined}
 						/>
 					)}
 
@@ -729,13 +743,18 @@ interface FilterBarProps {
 	onAuthorFilterChange?: (authorId: string) => void;
 	dateFilter: ContentDateFilter;
 	onDateFilterChange?: (filter: ContentDateFilter) => void;
+	bylineFilter: BylineFilterState;
+	onBylineFilterChange?: (filter: BylineFilterState) => void;
+	/** Locale the list is showing, so the byline picker offers matching rows. */
+	locale?: string;
 }
 
 /**
- * Filter controls for the content list: status, author, and a date range over
- * a chosen timestamp column (#1288). All controls report changes to the
- * parent, which owns the state and refetches. Filtering happens server-side,
- * so it works across the whole collection rather than the loaded page.
+ * Filter controls for the content list: status, author, byline, and a date
+ * range over a chosen timestamp column. All controls report changes to
+ * the parent, which owns the state and refetches. Filtering happens
+ * server-side, so it works across the whole collection rather than the loaded
+ * page.
  */
 function FilterBar({
 	statusFilter,
@@ -745,6 +764,9 @@ function FilterBar({
 	onAuthorFilterChange,
 	dateFilter,
 	onDateFilterChange,
+	bylineFilter,
+	onBylineFilterChange,
+	locale,
 }: FilterBarProps) {
 	const { t } = useLingui();
 
@@ -768,12 +790,22 @@ function FilterBar({
 	};
 
 	const hasActiveFilter =
-		statusFilter !== "all" || authorFilter !== "" || !!dateFilter.from || !!dateFilter.to;
+		statusFilter !== "all" ||
+		authorFilter !== "" ||
+		!!dateFilter.from ||
+		!!dateFilter.to ||
+		isBylineFilterActive(bylineFilter);
 
 	const handleClear = () => {
 		onStatusFilterChange("all");
 		onAuthorFilterChange?.("");
 		onDateFilterChange?.(EMPTY_DATE_FILTER);
+		// Clearing drops the selection but keeps the inferred-byline
+		// preference, which is a display choice rather than an active filter.
+		onBylineFilterChange?.({
+			...EMPTY_BYLINE_FILTER,
+			includeInferred: bylineFilter.includeInferred,
+		});
 	};
 
 	return (
@@ -813,6 +845,10 @@ function FilterBar({
 						</Select.Option>
 					))}
 				</Select>
+			)}
+
+			{onBylineFilterChange && (
+				<BylineFilter value={bylineFilter} onChange={onBylineFilterChange} locale={locale} />
 			)}
 
 			{showDateFilter && (

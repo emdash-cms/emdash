@@ -14,6 +14,10 @@ import {
 	prepareMediaUsageCollectionCapture,
 } from "../media/usage/activation.js";
 import {
+	deleteActivatedMediaUsageCollection,
+	isMediaUsageCollectionSlugDeleting,
+} from "../media/usage/collection-deletion.js";
+import {
 	deleteContentMediaUsageCollection,
 	invalidateContentMediaUsageSchemaChange,
 	markContentMediaUsageCollectionStaleSafely,
@@ -325,9 +329,15 @@ export class SchemaRegistry {
 		if (RESERVED_COLLECTION_SLUGS.includes(input.slug)) {
 			throw new SchemaError(`Collection slug "${input.slug}" is reserved`, "RESERVED_SLUG");
 		}
+		if (await isMediaUsageCollectionSlugDeleting(this.db, input.slug)) {
+			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
+		}
 
 		// Check if collection already exists
 		const existing = await this.getCollection(input.slug);
+		if (await isMediaUsageCollectionSlugDeleting(this.db, input.slug)) {
+			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
+		}
 		if (
 			existing &&
 			!(await canResumeMediaUsageCollectionCapture(this.db, {
@@ -428,6 +438,9 @@ export class SchemaRegistry {
 		if (RESERVED_COLLECTION_SLUGS.includes(input.slug)) {
 			throw new SchemaError(`Collection slug "${input.slug}" is reserved`, "RESERVED_SLUG");
 		}
+		if (await isMediaUsageCollectionSlugDeleting(this.db, input.slug)) {
+			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
+		}
 
 		const fieldSlugs = new Set<string>();
 		for (const field of fields) {
@@ -448,6 +461,9 @@ export class SchemaRegistry {
 		const hasSeo = input.hasSeo ?? supports.includes("seo") ?? false;
 		const creationFingerprint = await buildSeedCollectionCaptureFingerprint(input, fields);
 		const existing = await this.getCollection(input.slug);
+		if (await isMediaUsageCollectionSlugDeleting(this.db, input.slug)) {
+			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
+		}
 		if (
 			existing &&
 			!(await canResumeMediaUsageCollectionCapture(this.db, {
@@ -708,19 +724,29 @@ export class SchemaRegistry {
 	 */
 	async deleteCollection(slug: string, options?: { force?: boolean }): Promise<void> {
 		const existing = await this.getCollection(slug);
+		if (existing && !options?.force && (await this.collectionHasContent(slug))) {
+			throw new SchemaError(
+				`Collection "${slug}" has content. Use force: true to delete.`,
+				"COLLECTION_HAS_CONTENT",
+			);
+		}
+		const activated = await deleteActivatedMediaUsageCollection(this.db, {
+			collectionId: existing?.id,
+			collectionSlug: slug,
+			forceDelete: options?.force === true,
+		});
+		if (activated === "has_content") {
+			throw new SchemaError(
+				`Collection "${slug}" has content. Use force: true to delete.`,
+				"COLLECTION_HAS_CONTENT",
+			);
+		}
+		if (activated === "in_progress") {
+			throw new SchemaError(`Collection "${slug}" deletion is already in progress`, "CONFLICT");
+		}
+		if (activated === "deleted") return;
 		if (!existing) {
 			throw new SchemaError(`Collection "${slug}" not found`, "COLLECTION_NOT_FOUND");
-		}
-
-		// Check if collection has content
-		if (!options?.force) {
-			const hasContent = await this.collectionHasContent(slug);
-			if (hasContent) {
-				throw new SchemaError(
-					`Collection "${slug}" has content. Use force: true to delete.`,
-					"COLLECTION_HAS_CONTENT",
-				);
-			}
 		}
 
 		let contentTableDropped = false;
@@ -1687,6 +1713,9 @@ export class SchemaRegistry {
 	): Promise<Collection> {
 		// Verify table exists
 		const tableName = this.getTableName(slug);
+		if (await isMediaUsageCollectionSlugDeleting(this.db, slug)) {
+			throw new SchemaError(`Collection "${slug}" is already registered`, "COLLECTION_EXISTS");
+		}
 		const exists = await tableExists(this.db, tableName);
 
 		if (!exists) {
@@ -1695,6 +1724,9 @@ export class SchemaRegistry {
 
 		// Check if already registered
 		const existing = await this.getCollection(slug);
+		if (await isMediaUsageCollectionSlugDeleting(this.db, slug)) {
+			throw new SchemaError(`Collection "${slug}" is already registered`, "COLLECTION_EXISTS");
+		}
 		if (
 			existing &&
 			!(await canResumeMediaUsageCollectionCapture(this.db, {

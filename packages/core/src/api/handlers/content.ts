@@ -21,6 +21,7 @@ import {
 	InvalidCursorError,
 	type BylineSummary,
 	type ContentBylineCredit,
+	type ContentBylineFilter,
 	type ContentDateField,
 	type ContentItem,
 	type ContentSeo,
@@ -443,6 +444,27 @@ function normalizeDateBound(value: string | undefined, edge: "start" | "end"): s
 }
 
 /**
+ * Build the repository's byline filter from the wire params.
+ *
+ * `locale` is the locale the list is scoped to, which is the locale an
+ * inferred credit has to resolve at — the admin list is always scoped to the
+ * locale picked in its switcher.
+ */
+function resolveBylineFilter(
+	params: { bylines?: string[]; bylinesNone?: boolean; includeInferredBylines?: boolean },
+	locale: string | undefined,
+): ContentBylineFilter | undefined {
+	const includeInferred = params.includeInferredBylines === true;
+
+	if (params.bylinesNone) return { mode: "none", includeInferred, locale };
+
+	const bylineIds = params.bylines ?? [];
+	if (bylineIds.length === 0) return undefined;
+
+	return { mode: "any", bylineIds, includeInferred, locale };
+}
+
+/**
  * Create content list handler
  */
 export async function handleContentList(
@@ -460,14 +482,21 @@ export async function handleContentList(
 		dateField?: ContentDateField;
 		dateFrom?: string;
 		dateTo?: string;
+		bylines?: string[];
+		bylinesNone?: boolean;
+		includeInferredBylines?: boolean;
 	},
 ): Promise<ApiResult<ContentListResponse>> {
 	try {
 		const repo = new ContentRepository(db);
 		const where: FindManyOptions["where"] = {};
 		if (params.status) where.status = params.status;
-		if (params.locale) where.locale = resolveConfiguredLocale(params.locale);
+		const locale = params.locale ? resolveConfiguredLocale(params.locale) : undefined;
+		if (locale) where.locale = locale;
 		if (params.authorId) where.authorId = params.authorId;
+
+		const bylineFilter = resolveBylineFilter(params, locale);
+		if (bylineFilter) where.bylineFilter = bylineFilter;
 
 		// A date range requires a target column; ignore stray from/to without
 		// a field so a half-specified filter doesn't silently drop all rows.

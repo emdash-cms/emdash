@@ -172,6 +172,10 @@ export { handleSettingsGet, handleSettingsUpdate } from "./settings.js";
 // Taxonomy handlers
 export {
 	handleTaxonomyList,
+	handleTaxonomyGet,
+	handleTaxonomyUpdate,
+	handleTaxonomyDelete,
+	handleTaxonomyDefTranslations,
 	handleTermList,
 	handleTermCreate,
 	handleTermGet,
@@ -179,6 +183,8 @@ export {
 	handleTermDelete,
 	type TaxonomyDef,
 	type TaxonomyListResponse,
+	type TaxonomyResponse,
+	type TaxonomyDefTranslationsResponse,
 	type TermData,
 	type TermWithCount,
 	type TermListResponse,

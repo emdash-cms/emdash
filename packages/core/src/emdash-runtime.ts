@@ -42,6 +42,7 @@ import { getI18nConfig } from "./i18n/config.js";
 import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
+import { processDueMediaUsageCollectionDeletions } from "./media/usage/collection-deletion-processor.js";
 import {
 	deleteContentMediaUsage,
 	findNonTranslatableSiblingContentIds,
@@ -539,6 +540,14 @@ async function runScheduledMediaUsageWork(db: Kysely<Database>): Promise<void> {
 		}
 	} catch (error) {
 		console.error("[media-usage:work] Scheduled processing failed:", error);
+	}
+	try {
+		const result = await processDueMediaUsageCollectionDeletions(db);
+		if (result.candidateCount > 0) {
+			console.info("[media-usage:collection-deletion] Scheduled processing", result);
+		}
+	} catch (error) {
+		console.error("[media-usage:collection-deletion] Scheduled processing failed:", error);
 	}
 }
 
@@ -2733,6 +2742,9 @@ export class EmDashRuntime {
 			dateField?: ContentDateField;
 			dateFrom?: string;
 			dateTo?: string;
+			bylines?: string[];
+			bylinesNone?: boolean;
+			includeInferredBylines?: boolean;
 		},
 	) {
 		return handleContentList(this.db, collection, params);

@@ -100,14 +100,17 @@ export function generateDialectModule(opts: {
 	type?: string;
 	supportsRequestScope: boolean;
 	supportsCoalescing: boolean;
+	supportsCollectionDeletionGuard: boolean;
 }): string {
-	const { entrypoint, supportsRequestScope, supportsCoalescing } = opts;
+	const { entrypoint, supportsRequestScope, supportsCoalescing, supportsCollectionDeletionGuard } =
+		opts;
 	if (!entrypoint) {
 		return [
 			`export const createDialect = undefined;`,
 			`export const dialectType = "sqlite";`,
 			`export const createRequestScopedDb = (_opts) => null;`,
 			`export const createCoalescingDialect = undefined;`,
+			`export const executeCollectionDeletionGuard = undefined;`,
 		].join("\n");
 	}
 	const type = opts.type ?? "sqlite";
@@ -116,12 +119,16 @@ export function generateDialectModule(opts: {
 		? `import { createCoalescingDialect as _createCoalescingDialect } from "${entrypoint}";
 export const createCoalescingDialect = _createCoalescingDialect;`
 		: `export const createCoalescingDialect = undefined;`;
+	const collectionDeletionExport = supportsCollectionDeletionGuard
+		? `export { executeCollectionDeletionGuard } from "${entrypoint}";`
+		: `export const executeCollectionDeletionGuard = undefined;`;
 
 	if (supportsRequestScope) {
 		return `
 import { createDialect as _createDialect } from "${entrypoint}";
 export { createRequestScopedDb } from "${entrypoint}";
 ${coalescingExport}
+${collectionDeletionExport}
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 `;
@@ -130,6 +137,7 @@ export const dialectType = ${JSON.stringify(type)};
 	return `
 import { createDialect as _createDialect } from "${entrypoint}";
 ${coalescingExport}
+${collectionDeletionExport}
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 export const createRequestScopedDb = (_opts) => null;

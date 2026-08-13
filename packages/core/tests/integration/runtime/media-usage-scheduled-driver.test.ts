@@ -48,6 +48,27 @@ describe("media usage scheduled drivers", () => {
 		).not.toBeNull();
 	});
 
+	it("advances bounded collection deletion from the Cloudflare scheduled entry point", async () => {
+		runtime = await EmDashRuntime.create(createDeps(null));
+		const fixture = await activateCollection(runtime, "cloudflare_delete");
+		await runtime.schemaRegistry.deleteCollection("cloudflare_delete", { force: true });
+
+		await runtime.runScheduledTasks();
+
+		expect(await deletionPhase(runtime, fixture.collectionId)).toBe("sources");
+	});
+
+	it("advances bounded collection deletion from the Node maintenance callback", async () => {
+		const scheduler = new CapturingScheduler();
+		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
+		const fixture = await activateCollection(runtime, "node_delete");
+		await runtime.schemaRegistry.deleteCollection("node_delete", { force: true });
+
+		await scheduler.runMaintenance();
+
+		expect(await deletionPhase(runtime, fixture.collectionId)).toBe("sources");
+	});
+
 	it("processes a trigger-created job before returning from an authenticated write", async () => {
 		runtime = await EmDashRuntime.create(createDeps(null));
 		const fixture = await activateCollection(runtime, "fast_posts");
@@ -163,6 +184,15 @@ async function countWork(runtime: EmDashRuntime): Promise<number> {
 		.select((eb) => eb.fn.countAll<number>().as("count"))
 		.executeTakeFirstOrThrow();
 	return Number(row.count);
+}
+
+async function deletionPhase(runtime: EmDashRuntime, collectionId: string): Promise<string | null> {
+	const row = await runtime.db
+		.selectFrom("_emdash_media_usage_collection_deletions")
+		.select("phase")
+		.where("collection_id", "=", collectionId)
+		.executeTakeFirst();
+	return row?.phase ?? null;
 }
 
 function canonicalSourceKey(collectionId: string, contentId: string): string {
