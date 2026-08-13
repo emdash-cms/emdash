@@ -45,10 +45,7 @@ export {
 export {
 	// Main Image component for EmDash media
 	EmDashImage as Image,
-	// Main Media component for EmDash media. Unlike `Image`, this resolves the
-	// media provider via `getEmbed()`, so it can render video/audio whose URLs
-	// are not a flat `src` — e.g. Cloudflare Stream, where playback lives in
-	// `meta.playback` as HLS/DASH and `Image` would emit a broken <img>.
+	// Unified media component that delegates rendering to the provider's getEmbed()
 	EmDashMedia as Media,
 	// Main component (wrapper with EmDash defaults)
 	PortableText,

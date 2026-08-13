@@ -252,8 +252,7 @@ export function MediaDetailPanel({
 										className="max-h-full max-w-full object-contain"
 									/>
 								) : isVideo && playback ? (
-									// Streaming: `item.url` is the poster, so play the provider's
-									// sources. Browsers demux HLS natively; DASH is a fallback.
+									// Streaming: `item.url` is the poster, not the media.
 									<video
 										poster={item.url || undefined}
 										controls

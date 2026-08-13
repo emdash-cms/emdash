@@ -30,6 +30,7 @@ import {
 	getMediaThumbnailUrl,
 	fallbackToOriginalThumbnail,
 	MEDIA_THUMBNAIL_WIDTH,
+	metaNumber,
 } from "../lib/media-utils";
 import { cn } from "../lib/utils";
 import { MediaDetailPanel } from "./MediaDetailPanel";
@@ -767,8 +768,6 @@ function ProviderGridItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 			)}
 		>
 			<div className="aspect-square">
-				{/* Not gated on mime type: `previewUrl` is the provider's poster
-				    thumbnail, which streaming video items have too. */}
 				{item.previewUrl ? (
 					<img
 						src={item.previewUrl}
@@ -849,6 +848,7 @@ interface ProviderListItemProps {
 
 function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: ProviderListItemProps) {
 	const { t } = useLingui();
+	const size = item.size ?? metaNumber(item.meta, "size");
 
 	const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
 		const img = e.currentTarget;
@@ -867,7 +867,6 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 		>
 			<td className="px-4 py-3">
 				<div className="h-10 w-10 overflow-hidden rounded">
-					{/* Not gated on mime type — see grid item above. */}
 					{item.previewUrl ? (
 						<img
 							src={item.previewUrl}
@@ -885,7 +884,7 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 			<td className="px-4 py-3 text-base font-medium leading-5">{item.filename}</td>
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{item.mimeType}</td>
 			<td className="px-4 py-3 text-sm text-kumo-subtle tabular-nums">
-				{item.size ? formatFileSize(item.size) : "—"}
+				{size ? formatFileSize(size) : "—"}
 			</td>
 			<td className="px-4 py-3 text-end">
 				<span className="text-sm text-kumo-subtle">
