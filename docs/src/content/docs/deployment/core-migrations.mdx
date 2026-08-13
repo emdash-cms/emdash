@@ -24,13 +24,13 @@ After reviewing the reported target and recording its fingerprint, apply the mig
 
 ```bash
 pnpm exec emdash migrate --expected-target-fingerprint "$EMDASH_TARGET_FINGERPRINT"
-pnpm deploy
+pnpm exec wrangler deploy
 pnpm exec emdash migrate --check
 ```
 
 `emdash migrate` prints the immutable target before issuing SQL. An interactive, human-readable apply asks for confirmation. Non-interactive apply and every `--json` apply require `--expected-target-fingerprint`; the command fails if it does not match the resolved target.
 
-`--check` never applies migrations and exits non-zero when known migrations are pending or the database contains migration records unknown to the build. The [CLI reference](/reference/cli/#exit-codes) distinguishes pending, unknown, confirmation, interruption, and operational exit codes. The following command inspects all sets without using check's non-zero "work required" exit status.
+`--check` never applies migrations and exits non-zero when known migrations are pending or the database contains migration records unknown to the build. The [CLI reference](/reference/cli/#emdash-migrate) distinguishes pending, unknown, confirmation, interruption, and operational exit codes. The following command inspects all sets without using check's non-zero "work required" exit status.
 
 ```bash
 pnpm exec emdash migrate --status --json
@@ -136,7 +136,7 @@ jobs:
             --account-id "${{ vars.CLOUDFLARE_ACCOUNT_ID }}" \
             --d1 "${{ vars.D1_DATABASE_ID }}" \
             --expected-target-fingerprint "$EMDASH_TARGET_FINGERPRINT"
-      - run: pnpm deploy
+      - run: pnpm exec wrangler deploy
       - name: Check EmDash migrations
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -169,7 +169,7 @@ emdash({
 ```
 
 - `auto` is the backwards-compatible default. Runtime startup checks and applies pending migrations.
-- `check` performs one directional status query and returns 503 before repositories use an older schema when known migrations are pending. It tolerates records from a newer compatible build during a rolling deployment.
+- `check` performs one directional status query and returns 503 before serving a request when known migrations are pending. It tolerates records from a newer compatible build during a rolling deployment.
 - `manual` performs no runtime migration or status query. Use it only after the deployment pipeline applies and checks every build reliably.
 
 `EMDASH_MIGRATIONS_MODE` can override the runtime mode when the same artifact is promoted through multiple environments. Setup and development bypass routes obey the effective mode; they cannot silently migrate behind `check` or `manual`.

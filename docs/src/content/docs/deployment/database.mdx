@@ -66,8 +66,9 @@ export default defineConfig({
 </Tabs>
 
 <Aside>
-	EmDash runs migrations on D1 automatically on the first request after deployment. Wrangler
-	provisions the D1 database itself on first deploy if it doesn't already exist.
+	EmDash runs core migrations automatically by default on the first request after deployment, or a
+	deployment can apply them from the build manifest before traffic. You must provision the D1
+	database separately; see [Manage Core Database Migrations](/deployment/core-migrations/).
 </Aside>
 
 ### Read Replicas
