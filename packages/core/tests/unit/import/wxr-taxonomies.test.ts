@@ -6,7 +6,7 @@
  * never wrote anything to `taxonomies` or `content_taxonomies`.
  */
 
-import type { Kysely } from "kysely";
+import type { Kysely, KyselyPlugin } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { WxrCategory, WxrPost, WxrTag, WxrTerm } from "../../../src/cli/wxr/parser.js";
@@ -35,6 +35,29 @@ function makePost(overrides: Partial<WxrPost> = {}): WxrPost {
 		meta: new Map(),
 		...overrides,
 	};
+}
+
+function createAssignmentReadCountingPlugin(): {
+	plugin: KyselyPlugin;
+	counter: { count: number };
+} {
+	const counter = { count: 0 };
+	const plugin: KyselyPlugin = {
+		transformQuery(args) {
+			if (
+				args.node.kind === "SelectQueryNode" &&
+				JSON.stringify(args.node).includes("content_taxonomies") &&
+				JSON.stringify(args.node).includes("taxonomies")
+			) {
+				counter.count += 1;
+			}
+			return args.node;
+		},
+		transformResult(args) {
+			return Promise.resolve(args.result);
+		},
+	};
+	return { plugin, counter };
 }
 
 /**
@@ -351,6 +374,29 @@ describe("attachPostTaxonomies", () => {
 			.where("entry_id", "=", entryId)
 			.execute();
 		expect(pivotRows).toHaveLength(1);
+	});
+
+	it("counts inserts without re-fetching all assignments for every term", async () => {
+		const entryId = await createPostsCollectionWithEntry(db);
+		const plan = await preImportWxrTaxonomies(
+			db,
+			[],
+			[
+				{ id: 5, nicename: "patents", name: "Patents" },
+				{ id: 6, nicename: "research", name: "Research" },
+				{ id: 7, nicename: "science", name: "Science" },
+			],
+			[],
+			[],
+			undefined,
+		);
+		const post = makePost({ categories: ["patents", "research", "science"] });
+		const { plugin, counter } = createAssignmentReadCountingPlugin();
+		const instrumentedDb = db.withPlugin(plugin);
+
+		expect(await attachPostTaxonomies(instrumentedDb, "posts", entryId, post, plan)).toBe(3);
+		expect(await attachPostTaxonomies(instrumentedDb, "posts", entryId, post, plan)).toBe(0);
+		expect(counter.count).toBe(0);
 	});
 
 	it("silently skips terms with no matching def (custom taxonomies)", async () => {

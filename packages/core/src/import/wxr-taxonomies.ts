@@ -549,15 +549,14 @@ export async function attachPostTaxonomies(
 ): Promise<number> {
 	const repo = new TaxonomyRepository(db);
 	const resolved = resolvePostTermAssignments(collection, post, plan);
-
-	let attached = 0;
+	const groups = new Set<string>();
 	for (const [, termIds] of resolved) {
 		for (const termId of termIds) {
-			const wrote = await attachToEntryCountingInserts(repo, plan, collection, entryId, termId);
-			if (wrote) attached++;
+			const group = await termTranslationGroup(repo, plan, termId);
+			if (group) groups.add(group);
 		}
 	}
-	return attached;
+	return repo.attachGroupsToEntry(collection, entryId, [...groups]);
 }
 
 /**
@@ -606,34 +605,6 @@ async function termTranslationGroup(
 	const group = term?.translationGroup ?? null;
 	plan.translationGroupByTermId.set(termId, group);
 	return group;
-}
-
-/**
- * Wrapper around `TaxonomyRepository.attachToEntry` that returns whether
- * an actual row was inserted (vs. silently skipped by the `ON CONFLICT DO
- * NOTHING` branch). Lets the importer's `assignments` counter reflect real
- * writes rather than re-import no-ops.
- *
- * Best-effort: we check pivot existence first, then call `attachToEntry`.
- * A concurrent insert between the check and the attach would make us
- * report `false` while a row was in fact inserted -- the count is for
- * summary display only, never correctness.
- */
-async function attachToEntryCountingInserts(
-	repo: TaxonomyRepository,
-	plan: TaxonomyImportPlan,
-	collection: string,
-	entryId: string,
-	termId: string,
-): Promise<boolean> {
-	const group = await termTranslationGroup(repo, plan, termId);
-	if (!group) return false;
-
-	const existing = await repo.getTermsForEntry(collection, entryId);
-	if (existing.some((term) => term.translationGroup === group)) return false;
-
-	await repo.attachToEntry(collection, entryId, termId);
-	return true;
 }
 
 /**

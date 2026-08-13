@@ -494,18 +494,39 @@ export class TaxonomyRepository {
 	// --- Content-Taxonomy Junction (both ids store translation_groups) ---
 
 	async attachToEntry(collection: string, entryId: string, taxonomyId: string): Promise<void> {
-		const [entryGroup, taxonomyGroup] = await Promise.all([
-			this.resolveEntryTranslationGroup(collection, entryId),
-			this.resolveTranslationGroup(taxonomyId),
-		]);
-		if (!entryGroup || !taxonomyGroup) return;
+		const taxonomyGroup = await this.resolveTranslationGroup(taxonomyId);
+		if (!taxonomyGroup) return;
+		await this.attachGroupsToEntry(collection, entryId, [taxonomyGroup]);
+	}
 
-		await this.db
+	/**
+	 * Attach already-resolved term translation groups in one insert and return
+	 * the number of assignments that did not already exist.
+	 */
+	async attachGroupsToEntry(
+		collection: string,
+		entryId: string,
+		taxonomyGroups: string[],
+	): Promise<number> {
+		const uniqueGroups = [...new Set(taxonomyGroups)];
+		if (uniqueGroups.length === 0) return 0;
+		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
+		if (!entryGroup) return 0;
+
+		const result = await this.db
 			.insertInto("content_taxonomies")
-			.values({ collection, entry_id: entryGroup, taxonomy_id: taxonomyGroup })
+			.values(
+				uniqueGroups.map((taxonomy_id) => ({
+					collection,
+					entry_id: entryGroup,
+					taxonomy_id,
+				})),
+			)
 			.onConflict((oc) => oc.doNothing())
-			.execute();
-		invalidateTaxonomyObjectCache();
+			.executeTakeFirst();
+		const inserted = Number(result.numInsertedOrUpdatedRows ?? 0n);
+		if (inserted > 0) invalidateTaxonomyObjectCache();
+		return inserted;
 	}
 
 	async detachFromEntry(collection: string, entryId: string, taxonomyId: string): Promise<void> {
