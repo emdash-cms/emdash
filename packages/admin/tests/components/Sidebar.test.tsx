@@ -37,6 +37,7 @@ import {
 	BYLINE_SCHEMA_NAV_ITEM,
 	filterNavItemsByRole,
 	getSidebarTaxonomies,
+	isItemActive,
 	resolveItemPath,
 	resolveNavIcon,
 	resolvePluginPageLabel,
@@ -89,6 +90,12 @@ describe("resolveItemPath", () => {
 				search: { locale: "de" },
 			}),
 		).toBe("/taxonomies/course?locale=de");
+	});
+});
+
+describe("isItemActive", () => {
+	it("matches taxonomy links independently of their locale query", () => {
+		expect(isItemActive("/taxonomies/course?locale=de", "/taxonomies/course")).toBe(true);
 	});
 });
 

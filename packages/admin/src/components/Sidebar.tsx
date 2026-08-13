@@ -209,10 +209,12 @@ export function resolveItemPath(item: NavItem): string {
 }
 
 /** Checks if a nav item is active based on the current router path. */
-function isItemActive(itemPath: string, currentPath: string): boolean {
-	return itemPath === "/"
+export function isItemActive(itemPath: string, currentPath: string): boolean {
+	const queryIndex = itemPath.indexOf("?");
+	const path = queryIndex === -1 ? itemPath : itemPath.slice(0, queryIndex);
+	return path === "/"
 		? currentPath === "/"
-		: currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
+		: currentPath === path || currentPath.startsWith(`${path}/`);
 }
 
 /**
