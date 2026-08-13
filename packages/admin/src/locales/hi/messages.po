@@ -637,7 +637,7 @@ msgid "Active"
 msgstr "सक्रिय"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:171
-#: packages/admin/src/components/ContentSettingsPanel.tsx:923
+#: packages/admin/src/components/ContentSettingsPanel.tsx:974
 #: packages/admin/src/components/MenuEditor.tsx:441
 #: packages/admin/src/components/TaxonomySidebar.tsx:496
 msgid "Add"
@@ -1151,7 +1151,7 @@ msgstr "प्रमाणीकरण रद्द कर दिया गय�
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:288
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1133
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1184
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
@@ -1378,8 +1378,8 @@ msgid "Byline Schema"
 msgstr "बाइलाइन स्कीमा"
 
 #: packages/admin/src/components/BylineFilter.tsx:135
-#: packages/admin/src/components/ContentSettingsPanel.tsx:613
-#: packages/admin/src/components/ContentSettingsPanel.tsx:616
+#: packages/admin/src/components/ContentSettingsPanel.tsx:634
+#: packages/admin/src/components/ContentSettingsPanel.tsx:637
 #: packages/admin/src/components/Sidebar.tsx:257
 #: packages/admin/src/routes/bylines.tsx:375
 msgid "Bylines"
@@ -1420,11 +1420,11 @@ msgstr "सामग्री देख सकते हैं"
 #: packages/admin/src/components/ContentList.tsx:1127
 #: packages/admin/src/components/ContentList.tsx:1294
 #: packages/admin/src/components/ContentPickerModal.tsx:241
-#: packages/admin/src/components/ContentSettingsPanel.tsx:92
-#: packages/admin/src/components/ContentSettingsPanel.tsx:534
-#: packages/admin/src/components/ContentSettingsPanel.tsx:734
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1037
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1090
+#: packages/admin/src/components/ContentSettingsPanel.tsx:98
+#: packages/admin/src/components/ContentSettingsPanel.tsx:555
+#: packages/admin/src/components/ContentSettingsPanel.tsx:785
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1088
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1141
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:193
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:194
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:586
@@ -1514,7 +1514,7 @@ msgstr "केंद्र"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:1691
+#: packages/admin/src/components/ContentEditor.tsx:1692
 #: packages/admin/src/components/FieldEditor.tsx:402
 #: packages/admin/src/components/ImageFieldRenderer.tsx:208
 #: packages/admin/src/components/ImageFieldRenderer.tsx:237
@@ -1692,7 +1692,7 @@ msgstr "गैलरी सेटिंग बंद करें"
 msgid "Close panel"
 msgstr "पैनल बंद करें"
 
-#: packages/admin/src/components/ContentEditor.tsx:1061
+#: packages/admin/src/components/ContentEditor.tsx:1062
 msgid "Close settings"
 msgstr "सेटिंग्स बंद करें"
 
@@ -1802,7 +1802,7 @@ msgstr "वर्डप्रेस से जुड़ें"
 msgid "Connected {0}"
 msgstr "कनेक्टेड {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:185
+#: packages/admin/src/components/ContentSettingsPanel.tsx:191
 msgid "content"
 msgstr "सामग्री"
 
@@ -1967,7 +1967,7 @@ msgstr "कस्टम फ़ील्ड लोड नहीं किया �
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "\"{draft}\" को MIME प्रकार में मैप नहीं किया जा सका। सीधे MIME टाइप करें."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:929
+#: packages/admin/src/components/ContentSettingsPanel.tsx:980
 msgid "Couldn't search bylines. Please try again."
 msgstr "बायलाइन नहीं खोजी जा सकी. कृपया पुन: प्रयास करें।"
 
@@ -1980,7 +1980,7 @@ msgstr "सत्यापित नहीं किया जा सका क�
 msgid "Count"
 msgstr "गिनती करना"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1061
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1112
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/Sections.tsx:212
@@ -2016,7 +2016,7 @@ msgstr "खाता बनाएं"
 msgid "Create an account"
 msgstr "खाता बनाएं"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1009
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1060
 #: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
 msgstr "बायलाइन बनाएं"
@@ -2137,7 +2137,7 @@ msgid "Create, update, delete content"
 msgstr "सामग्री बनाएँ, अद्यतन करें, हटाएँ"
 
 #: packages/admin/src/components/ContentList.tsx:787
-#: packages/admin/src/components/ContentSettingsPanel.tsx:585
+#: packages/admin/src/components/ContentSettingsPanel.tsx:606
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:357
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
@@ -2166,7 +2166,7 @@ msgstr "पर बनाया गया"
 msgid "Creating collections and fields..."
 msgstr "संग्रह और फ़ील्ड बनाए जा रहे हैं..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1061
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1112
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:189
 #: packages/admin/src/components/Sections.tsx:212
@@ -2623,8 +2623,8 @@ msgstr "अक्षम किया जा रहा है..."
 msgid "Discard"
 msgstr "खारिज करना"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:79
-#: packages/admin/src/components/ContentSettingsPanel.tsx:99
+#: packages/admin/src/components/ContentSettingsPanel.tsx:85
+#: packages/admin/src/components/ContentSettingsPanel.tsx:105
 msgid "Discard changes"
 msgstr "परिवर्तनों को निरस्त करें"
 
@@ -2632,7 +2632,7 @@ msgstr "परिवर्तनों को निरस्त करें"
 msgid "Discard changes?"
 msgstr "परिवर्तनों को निरस्त करें?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:84
+#: packages/admin/src/components/ContentSettingsPanel.tsx:90
 msgid "Discard draft changes?"
 msgstr "ड्राफ्ट परिवर्तन खारिज करें?"
 
@@ -2656,8 +2656,8 @@ msgstr "एक नेविगेशन मेनू प्रदर्शित
 msgid "Display category list"
 msgstr "श्रेणी सूची प्रदर्शित करें"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1012
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1074
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1063
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1125
 #: packages/admin/src/routes/bylines.tsx:481
 msgid "Display name"
 msgstr "प्रदर्शित होने वाला नाम"
@@ -2722,7 +2722,7 @@ msgstr "कोई खाता नहीं है? <0>साइन अप क�
 msgid "Done"
 msgstr "हो गया"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:955
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1006
 msgid "Down"
 msgstr "नीचे"
 
@@ -2793,8 +2793,8 @@ msgstr "पुन: व्यवस्थित करने के लिए ख
 msgid "Drag to reorder {0}"
 msgstr "पुनः व्यवस्थित करने के लिए खींचें {0}"
 
-#: packages/admin/src/components/SortableContentSettingsSections.tsx:215
-#: packages/admin/src/components/SortableContentSettingsSections.tsx:216
+#: packages/admin/src/components/SortableContentSettingsSections.tsx:219
+#: packages/admin/src/components/SortableContentSettingsSections.tsx:220
 msgid "Drag to reorder {label}"
 msgstr "पुनः व्यवस्थित करने के लिए खींचें {label}"
 
@@ -2842,7 +2842,7 @@ msgstr "उदाहरण के लिए, सीआई/सीडी पाइ
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "उदाहरण के लिए, मैकबुक प्रो, आईफोन"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:964
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1015
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:544
@@ -2878,7 +2878,7 @@ msgstr "संपादित करें {itemLabel}"
 msgid "Edit {title}"
 msgstr "संपादित करें {title}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1071
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1122
 msgid "Edit byline"
 msgstr "बायलाइन संपादित करें"
 
@@ -3050,7 +3050,7 @@ msgstr "सक्रिय"
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "एक URL (https://…) या एक संबंधित पथ (/…) दर्ज करें"
 
-#: packages/admin/src/components/ContentEditor.tsx:1469
+#: packages/admin/src/components/ContentEditor.tsx:1470
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "एक मान्य URL दर्ज करें (उदा. https://example.com)"
 
@@ -3070,7 +3070,7 @@ msgstr "ईमेल दर्ज करें"
 msgid "Enter HTML..."
 msgstr "HTML दर्ज करें..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1242
+#: packages/admin/src/components/ContentEditor.tsx:1243
 msgid "Enter markdown content..."
 msgstr "मार्कडाउन सामग्री दर्ज करें..."
 
@@ -3216,7 +3216,7 @@ msgstr "व्यवस्थापक बनाने में विफल"
 msgid "Failed to create backup"
 msgstr "बैकअप बनाने में विफल"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1055
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1106
 msgid "Failed to create byline"
 msgstr "बायलाइन बनाने में विफल"
 
@@ -3710,7 +3710,7 @@ msgstr "{0} को अपडेट करने में विफल"
 msgid "Failed to update backup settings"
 msgstr "बैकअप सेटिंग अपडेट करने में विफल"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1105
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1156
 msgid "Failed to update byline"
 msgstr "बायलाइन अपडेट करने में विफल"
 
@@ -4417,7 +4417,7 @@ msgstr "पूर्णांक"
 msgid "Invalid invite link"
 msgstr "अमान्य आमंत्रण लिंक"
 
-#: packages/admin/src/components/ContentEditor.tsx:1538
+#: packages/admin/src/components/ContentEditor.tsx:1539
 msgid "Invalid JSON"
 msgstr "अमान्य JSON"
 
@@ -4511,7 +4511,7 @@ msgstr "जेएसएक्स"
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr "इस टैब को खुला रखें. आयात छोटे चरणों में चलता है और बाधित होने पर इसे सुरक्षित रूप से पुनः चलाया जा सकता है।"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:934
+#: packages/admin/src/components/ContentSettingsPanel.tsx:985
 msgid "Keep typing to narrow down more bylines."
 msgstr "अधिक बाइलाइन कम करने के लिए टाइप करते रहें।"
 
@@ -4662,7 +4662,7 @@ msgstr "लिस्ट व्यू"
 
 #: packages/admin/src/components/ContentEditor.tsx:683
 #: packages/admin/src/components/ContentEditor.tsx:726
-#: packages/admin/src/components/ContentSettingsPanel.tsx:258
+#: packages/admin/src/components/ContentSettingsPanel.tsx:264
 msgid "Live View"
 msgstr "लाइव देखें"
 
@@ -4851,7 +4851,7 @@ msgstr "प्रबंधित करना"
 msgid "Manage {0} for {1}"
 msgstr "{1} के लिए {0} प्रबंधित करें"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:896
+#: packages/admin/src/components/ContentSettingsPanel.tsx:947
 msgid "Manage bylines in {entryLocale}"
 msgstr "{entryLocale} में बायलाइन प्रबंधित करें"
 
@@ -5165,14 +5165,14 @@ msgstr "कूड़ेदान में ले जाएं"
 
 #: packages/admin/src/components/ContentList.tsx:497
 #: packages/admin/src/components/ContentList.tsx:1134
-#: packages/admin/src/components/ContentSettingsPanel.tsx:721
-#: packages/admin/src/components/ContentSettingsPanel.tsx:741
+#: packages/admin/src/components/ContentSettingsPanel.tsx:772
+#: packages/admin/src/components/ContentSettingsPanel.tsx:792
 msgid "Move to Trash"
 msgstr "कूड़ेदान में ले जाएं"
 
 #: packages/admin/src/components/ContentList.tsx:475
 #: packages/admin/src/components/ContentList.tsx:1119
-#: packages/admin/src/components/ContentSettingsPanel.tsx:726
+#: packages/admin/src/components/ContentSettingsPanel.tsx:777
 msgid "Move to Trash?"
 msgstr "कूड़ेदान में ले जाएं?"
 
@@ -5375,7 +5375,7 @@ msgstr ""
 msgid "No byline fields yet."
 msgstr "अभी तक कोई बायलाइन फ़ील्ड नहीं."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:888
+#: packages/admin/src/components/ContentSettingsPanel.tsx:939
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "{entryLocale} में कोई बायलाइन उपलब्ध नहीं है। इस प्रविष्टि पर किसी एक को श्रेय देने से पहले बायलाइन्स पृष्ठ से एक संस्करण बनाएं।"
 
@@ -5384,7 +5384,7 @@ msgstr "{entryLocale} में कोई बायलाइन उपलब्�
 msgid "No bylines found"
 msgstr "कोई बायलाइन नहीं मिली"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:996
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1047
 msgid "No bylines selected."
 msgstr "कोई बायलाइन चयनित नहीं."
 
@@ -5482,7 +5482,7 @@ msgstr "कोई लिंक किया हुआ उपयोगकर्�
 msgid "No matches"
 msgstr "कोई मेल नहीं"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:931
+#: packages/admin/src/components/ContentSettingsPanel.tsx:982
 msgid "No matching bylines."
 msgstr "कोई मेल खाती बायलाइन नहीं."
 
@@ -5787,7 +5787,7 @@ msgstr "ऑर्डर सहेजा गया"
 msgid "Original:"
 msgstr "मूल:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:688
+#: packages/admin/src/components/ContentSettingsPanel.tsx:739
 #: packages/admin/src/components/editor/DocumentOutline.tsx:191
 msgid "Outline"
 msgstr "रूपरेखा"
@@ -5796,8 +5796,8 @@ msgstr "रूपरेखा"
 msgid "Overrides the page title in search engine results"
 msgstr "खोज इंजन परिणामों में पृष्ठ शीर्षक को ओवरराइड करता है"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:598
-#: packages/admin/src/components/ContentSettingsPanel.tsx:601
+#: packages/admin/src/components/ContentSettingsPanel.tsx:619
+#: packages/admin/src/components/ContentSettingsPanel.tsx:622
 msgid "Ownership"
 msgstr "स्वामित्व"
 
@@ -6039,6 +6039,10 @@ msgstr "अपनी वर्डप्रेस साइट पर प्ल�
 msgid "Plugin pages"
 msgstr "प्लगइन पेज"
 
+#: packages/admin/src/lib/content-editor-panels.tsx:192
+msgid "Plugin panel unavailable."
+msgstr ""
+
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:79
 msgid "Plugin Permissions"
 msgstr "प्लगइन अनुमतियाँ"
@@ -6125,7 +6129,7 @@ msgstr "वर्डप्रेस से फ़ाइलें डाउनल
 msgid "Preparing..."
 msgstr "तैयारी..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:160
+#: packages/admin/src/components/ContentSettingsPanel.tsx:166
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
 #: packages/admin/src/components/MediaLibrary.tsx:585
 msgid "Preview"
@@ -6135,7 +6139,7 @@ msgstr "पूर्व दर्शन"
 msgid "Preview content before publishing"
 msgstr "प्रकाशन से पहले सामग्री का पूर्वावलोकन करें"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:160
+#: packages/admin/src/components/ContentSettingsPanel.tsx:166
 msgid "Preview draft"
 msgstr "ड्राफ्ट का पूर्वावलोकन करें"
 
@@ -6165,14 +6169,14 @@ msgid "Provider:"
 msgstr "प्रदाता:"
 
 #: packages/admin/src/components/ContentList.tsx:446
-#: packages/admin/src/components/ContentSettingsPanel.tsx:191
-#: packages/admin/src/components/ContentSettingsPanel.tsx:198
-#: packages/admin/src/components/ContentSettingsPanel.tsx:455
-#: packages/admin/src/components/ContentSettingsPanel.tsx:458
+#: packages/admin/src/components/ContentSettingsPanel.tsx:197
+#: packages/admin/src/components/ContentSettingsPanel.tsx:204
+#: packages/admin/src/components/ContentSettingsPanel.tsx:476
+#: packages/admin/src/components/ContentSettingsPanel.tsx:479
 msgid "Publish"
 msgstr "प्रकाशित करना"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:555
+#: packages/admin/src/components/ContentSettingsPanel.tsx:576
 msgid "Publish date"
 msgstr ""
 
@@ -6205,7 +6209,7 @@ msgstr "द्वारा प्रकाशित"
 msgid "Python"
 msgstr "अजगर"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1004
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1055
 msgid "Quick create byline"
 msgstr "त्वरित बायलाइन बनाएं"
 
@@ -6345,7 +6349,7 @@ msgstr "इंस्टॉल करने के लिए रिलीज़ �
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentSettingsPanel.tsx:973
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1024
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
 #: packages/admin/src/components/ImageFieldRenderer.tsx:172
 #: packages/admin/src/components/PortableTextEditor.tsx:4130
@@ -6368,7 +6372,7 @@ msgstr "{0} हटाएं"
 msgid "Remove {entry}"
 msgstr "{entry} हटाएं"
 
-#: packages/admin/src/components/ContentEditor.tsx:1699
+#: packages/admin/src/components/ContentEditor.tsx:1700
 msgid "Remove {label}"
 msgstr "{label} हटाएं"
 
@@ -6567,6 +6571,7 @@ msgstr "पुनर्स्थापित किया जा रहा ह�
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
+#: packages/admin/src/lib/content-editor-panels.tsx:201
 #: packages/admin/src/router.tsx:2247
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
@@ -6592,7 +6597,7 @@ msgstr "नई अनुमतियों की समीक्षा कर�
 msgid "Revision restored"
 msgstr "पुनरीक्षण बहाल"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:696
+#: packages/admin/src/components/ContentSettingsPanel.tsx:747
 #: packages/admin/src/components/ContentTypeEditor.tsx:76
 #: packages/admin/src/components/RevisionHistory.tsx:168
 msgid "Revisions"
@@ -6654,7 +6659,7 @@ msgstr "भूमिका"
 msgid "Role {role}"
 msgstr "भूमिका {role}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:978
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1029
 msgid "Role label"
 msgstr "भूमिका लेबल"
 
@@ -6680,7 +6685,7 @@ msgstr "जंग"
 msgid "Same window"
 msgstr "वही खिड़की"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1162
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:395
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:589
 #: packages/admin/src/components/editor/ImageNode.tsx:264
@@ -6732,7 +6737,7 @@ msgstr "सहेजा गया"
 msgid "Saved \"{0}\"."
 msgstr "\"{0}\" सहेजा गया।"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1162
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
@@ -6760,15 +6765,15 @@ msgstr "एस.बी.ओ.एम"
 msgid "SBOM · {0}"
 msgstr "एसबीओएम · {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:523
+#: packages/admin/src/components/ContentSettingsPanel.tsx:544
 msgid "Schedule"
 msgstr "अनुसूची"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:509
+#: packages/admin/src/components/ContentSettingsPanel.tsx:530
 msgid "Schedule for"
 msgstr "के लिए शेड्यूल करें"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:546
+#: packages/admin/src/components/ContentSettingsPanel.tsx:567
 msgid "Schedule for later"
 msgstr "बाद के लिए शेड्यूल करें"
 
@@ -6779,7 +6784,7 @@ msgid "Scheduled"
 msgstr "अनुसूचित"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:497
+#: packages/admin/src/components/ContentSettingsPanel.tsx:518
 msgid "Scheduled for: {0}"
 msgstr "इसके लिए शेड्यूल किया गया: {0}"
 
@@ -6864,12 +6869,12 @@ msgid "Search by name or email..."
 msgstr "नाम या ईमेल से खोजें..."
 
 #: packages/admin/src/components/BylineFilter.tsx:121
-#: packages/admin/src/components/ContentSettingsPanel.tsx:905
+#: packages/admin/src/components/ContentSettingsPanel.tsx:956
 #: packages/admin/src/routes/bylines.tsx:401
 msgid "Search bylines"
 msgstr "बायलाइन खोजें"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:904
+#: packages/admin/src/components/ContentSettingsPanel.tsx:955
 msgid "Search bylines to add..."
 msgstr "जोड़ने के लिए बायलाइन खोजें..."
 
@@ -6956,7 +6961,7 @@ msgstr "खोज..."
 msgid "Searchable"
 msgstr "खोज सकने"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:909
+#: packages/admin/src/components/ContentSettingsPanel.tsx:960
 msgid "Searching..."
 msgstr "खोज रहे हैं..."
 
@@ -7057,8 +7062,8 @@ msgid "Select"
 msgstr "चुनना"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:1711
-#: packages/admin/src/components/ContentEditor.tsx:1727
+#: packages/admin/src/components/ContentEditor.tsx:1712
+#: packages/admin/src/components/ContentEditor.tsx:1728
 #: packages/admin/src/components/ImageFieldRenderer.tsx:273
 msgid "Select {label}"
 msgstr "{label} चुनें"
@@ -7101,7 +7106,7 @@ msgstr "डिफ़ॉल्ट सामाजिक छवि का चय�
 msgid "Select Favicon"
 msgstr "फ़ेविकॉन चुनें"
 
-#: packages/admin/src/components/ContentEditor.tsx:1715
+#: packages/admin/src/components/ContentEditor.tsx:1716
 msgid "Select file"
 msgstr "फ़ाइल का चयन करें"
 
@@ -7205,8 +7210,8 @@ msgstr "परीक्षण ईमेल भेजें"
 msgid "Sending..."
 msgstr "भेजा जा रहा है..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:669
-#: packages/admin/src/components/ContentSettingsPanel.tsx:672
+#: packages/admin/src/components/ContentSettingsPanel.tsx:690
+#: packages/admin/src/components/ContentSettingsPanel.tsx:693
 #: packages/admin/src/components/ContentTypeEditor.tsx:472
 #: packages/admin/src/components/Settings.tsx:60
 msgid "SEO"
@@ -7261,7 +7266,7 @@ msgstr "की स्थापना..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:234
 #: packages/admin/src/components/ContentEditor.tsx:815
-#: packages/admin/src/components/ContentEditor.tsx:1047
+#: packages/admin/src/components/ContentEditor.tsx:1048
 #: packages/admin/src/components/ContentTypeEditor.tsx:381
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:472
@@ -7446,9 +7451,9 @@ msgid "Skipped"
 msgstr "छोड़ा गया"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:239
-#: packages/admin/src/components/ContentSettingsPanel.tsx:462
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1020
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1082
+#: packages/admin/src/components/ContentSettingsPanel.tsx:483
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1071
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1133
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
 #: packages/admin/src/components/ContentTypeEditor.tsx:402
 #: packages/admin/src/components/ContentTypeList.tsx:181
@@ -7557,14 +7562,14 @@ msgstr "एसक्यूएल"
 msgid "Start Import"
 msgstr "आयात प्रारंभ करें"
 
-#: packages/admin/src/components/ContentEditor.tsx:1216
+#: packages/admin/src/components/ContentEditor.tsx:1217
 #: packages/admin/src/components/PortableTextEditor.tsx:2564
 #: packages/admin/src/components/PortableTextEditor.tsx:2565
 msgid "Start writing, or type '/' for commands"
 msgstr "लिखना प्रारंभ करें, या आदेशों के लिए '/' टाइप करें"
 
 #: packages/admin/src/components/ContentList.tsx:551
-#: packages/admin/src/components/ContentSettingsPanel.tsx:469
+#: packages/admin/src/components/ContentSettingsPanel.tsx:490
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
 #: packages/admin/src/components/Redirects.tsx:480
 #: packages/admin/src/components/users/UserList.tsx:104
@@ -7683,7 +7688,7 @@ msgstr "लक्ष्य"
 msgid "Target locale"
 msgstr "लक्ष्य स्थान"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:658
+#: packages/admin/src/components/ContentSettingsPanel.tsx:679
 #: packages/admin/src/components/TaxonomySidebar.tsx:555
 msgid "Taxonomies"
 msgstr "taxonomies"
@@ -7835,7 +7840,7 @@ msgstr "यह वैध माइग्रेशन कुंजी की त�
 msgid "This field does not accept {sniffedMime} files."
 msgstr "यह फ़ील्ड {sniffedMime} फ़ाइलें स्वीकार नहीं करता है."
 
-#: packages/admin/src/components/ContentEditor.tsx:1730
+#: packages/admin/src/components/ContentEditor.tsx:1731
 #: packages/admin/src/components/ImageFieldRenderer.tsx:276
 msgid "This field is required"
 msgstr "यह फ़ील्ड आवश्यक है"
@@ -7909,7 +7914,7 @@ msgstr "इससे विजेट क्षेत्र और उसके �
 msgid "This will grant CLI access with your permissions."
 msgstr "यह आपकी अनुमतियों के साथ सीएलआई पहुंच प्रदान करेगा।"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:728
+#: packages/admin/src/components/ContentSettingsPanel.tsx:779
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "यह आइटम को कूड़ेदान में ले जाएगा। आप इसे बाद में कूड़ेदान से पुनर्स्थापित कर सकते हैं।"
 
@@ -7931,7 +7936,7 @@ msgstr "इससे यह टिप्पणी स्थायी रूप �
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "यह आपकी साइट से प्लगइन और उसके बंडल को हटा देगा।"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:86
+#: packages/admin/src/components/ContentSettingsPanel.tsx:92
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "यह प्रकाशित संस्करण पर वापस आ जाएगा. आपके ड्राफ्ट परिवर्तन खो जाएंगे."
 
@@ -8046,7 +8051,7 @@ msgstr "अनुवाद हो रहा है..."
 msgid "Translation created"
 msgstr "अनुवाद बनाया गया"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:636
+#: packages/admin/src/components/ContentSettingsPanel.tsx:657
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "अनुवाद"
@@ -8155,8 +8160,8 @@ msgstr "टाइपप्रति"
 msgid "Unable to reach marketplace"
 msgstr "बाज़ार तक पहुंचने में असमर्थ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1125
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1142
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1176
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1193
 msgid "Unassigned"
 msgstr "सौंपे नहीं गए"
 
@@ -8217,7 +8222,7 @@ msgstr "पहलू अनुपात अनलॉक करें"
 msgid "Unnamed passkey"
 msgstr "अनाम पासकी"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:204
+#: packages/admin/src/components/ContentSettingsPanel.tsx:210
 msgid "Unpublish {itemLabel}"
 msgstr "अप्रकाशित करें {itemLabel}"
 
@@ -8229,7 +8234,7 @@ msgstr "अप्रकाशित"
 msgid "Unregistered Content Tables Found"
 msgstr "अपंजीकृत सामग्री तालिकाएँ मिलीं"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:499
+#: packages/admin/src/components/ContentSettingsPanel.tsx:520
 msgid "Unschedule"
 msgstr "गैर अनुसूचित"
 
@@ -8246,7 +8251,7 @@ msgstr "असमर्थित विजेट तत्व प्रकार
 msgid "Untitled"
 msgstr "शीर्षकहीन"
 
-#: packages/admin/src/components/ContentEditor.tsx:1633
+#: packages/admin/src/components/ContentEditor.tsx:1634
 msgid "Untitled file"
 msgstr "शीर्षक रहित फ़ाइल"
 
@@ -8259,7 +8264,7 @@ msgstr "शीर्षक रहित विजेट"
 msgid "Unverified publisher"
 msgstr "असत्यापित प्रकाशक"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:952
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1003
 msgid "Up"
 msgstr "ऊपर"
 
@@ -8275,7 +8280,7 @@ msgstr "अद्यतन"
 msgid "Update Field"
 msgstr "फ़ील्ड अद्यतन करें"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:573
+#: packages/admin/src/components/ContentSettingsPanel.tsx:594
 msgid "Update publish date"
 msgstr ""
 
@@ -8303,7 +8308,7 @@ msgid "Update to v{0}"
 msgstr "v{0} पर अद्यतन करें"
 
 #: packages/admin/src/components/ContentList.tsx:788
-#: packages/admin/src/components/ContentSettingsPanel.tsx:589
+#: packages/admin/src/components/ContentSettingsPanel.tsx:610
 #: packages/admin/src/components/RegistryPluginDetail.tsx:501
 msgid "Updated"
 msgstr "अद्यतन"
@@ -8464,7 +8469,7 @@ msgstr "जब किसी पृष्ठ पर कोई नहीं हो
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "पहचानकर्ता के रूप में उपयोग किया जाता है। केवल छोटे अक्षर, संख्याएँ और अंडरस्कोर।"
 
-#: packages/admin/src/components/ContentEditor.tsx:1319
+#: packages/admin/src/components/ContentEditor.tsx:1320
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "इस पोस्ट के लिए लिस्टिंग पृष्ठों और पोस्ट के शीर्ष पर मुख्य दृश्य के रूप में उपयोग किया जाता है"
 

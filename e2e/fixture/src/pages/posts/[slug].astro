@@ -10,6 +10,9 @@ if (!post) return new Response("Not found", { status: 404 });
 ---
 
 <html>
+	<head>
+		<title>{post.data.title}</title>
+	</head>
 	<body>
 		<article>
 			<h1 id="title">{post.data.title}</h1>

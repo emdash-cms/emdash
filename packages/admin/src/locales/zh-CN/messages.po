@@ -637,7 +637,7 @@ msgid "Active"
 msgstr "活跃"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:171
-#: packages/admin/src/components/ContentSettingsPanel.tsx:923
+#: packages/admin/src/components/ContentSettingsPanel.tsx:974
 #: packages/admin/src/components/MenuEditor.tsx:441
 #: packages/admin/src/components/TaxonomySidebar.tsx:496
 msgid "Add"
@@ -1151,7 +1151,7 @@ msgstr "认证已取消或超时。请重试。"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:288
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1133
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1184
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
@@ -1378,8 +1378,8 @@ msgid "Byline Schema"
 msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:135
-#: packages/admin/src/components/ContentSettingsPanel.tsx:613
-#: packages/admin/src/components/ContentSettingsPanel.tsx:616
+#: packages/admin/src/components/ContentSettingsPanel.tsx:634
+#: packages/admin/src/components/ContentSettingsPanel.tsx:637
 #: packages/admin/src/components/Sidebar.tsx:257
 #: packages/admin/src/routes/bylines.tsx:375
 msgid "Bylines"
@@ -1420,11 +1420,11 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/ContentList.tsx:1127
 #: packages/admin/src/components/ContentList.tsx:1294
 #: packages/admin/src/components/ContentPickerModal.tsx:241
-#: packages/admin/src/components/ContentSettingsPanel.tsx:92
-#: packages/admin/src/components/ContentSettingsPanel.tsx:534
-#: packages/admin/src/components/ContentSettingsPanel.tsx:734
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1037
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1090
+#: packages/admin/src/components/ContentSettingsPanel.tsx:98
+#: packages/admin/src/components/ContentSettingsPanel.tsx:555
+#: packages/admin/src/components/ContentSettingsPanel.tsx:785
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1088
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1141
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:193
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:194
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:586
@@ -1514,7 +1514,7 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:1691
+#: packages/admin/src/components/ContentEditor.tsx:1692
 #: packages/admin/src/components/FieldEditor.tsx:402
 #: packages/admin/src/components/ImageFieldRenderer.tsx:208
 #: packages/admin/src/components/ImageFieldRenderer.tsx:237
@@ -1692,7 +1692,7 @@ msgstr ""
 msgid "Close panel"
 msgstr "关闭面板"
 
-#: packages/admin/src/components/ContentEditor.tsx:1061
+#: packages/admin/src/components/ContentEditor.tsx:1062
 msgid "Close settings"
 msgstr ""
 
@@ -1802,7 +1802,7 @@ msgstr "连接 WordPress"
 msgid "Connected {0}"
 msgstr "已连接 {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:185
+#: packages/admin/src/components/ContentSettingsPanel.tsx:191
 msgid "content"
 msgstr ""
 
@@ -1967,7 +1967,7 @@ msgstr "无法加载自定义字段。"
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "无法将 \"{draft}\" 映射到 MIME 类型。请直接输入 MIME。"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:929
+#: packages/admin/src/components/ContentSettingsPanel.tsx:980
 msgid "Couldn't search bylines. Please try again."
 msgstr "无法搜索署名。请重试。"
 
@@ -1980,7 +1980,7 @@ msgstr "无法验证有多少值引用了 \"{0}\"。删除仍将移除此字段�
 msgid "Count"
 msgstr "数量"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1061
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1112
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/Sections.tsx:212
@@ -2016,7 +2016,7 @@ msgstr "创建账户"
 msgid "Create an account"
 msgstr "创建账户"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1009
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1060
 #: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
 msgstr "创建署名"
@@ -2137,7 +2137,7 @@ msgid "Create, update, delete content"
 msgstr "创建、更新、删除内容"
 
 #: packages/admin/src/components/ContentList.tsx:787
-#: packages/admin/src/components/ContentSettingsPanel.tsx:585
+#: packages/admin/src/components/ContentSettingsPanel.tsx:606
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:357
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
@@ -2166,7 +2166,7 @@ msgstr "创建时间"
 msgid "Creating collections and fields..."
 msgstr "正在创建合集和字段..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1061
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1112
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:189
 #: packages/admin/src/components/Sections.tsx:212
@@ -2623,8 +2623,8 @@ msgstr "正在禁用..."
 msgid "Discard"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:79
-#: packages/admin/src/components/ContentSettingsPanel.tsx:99
+#: packages/admin/src/components/ContentSettingsPanel.tsx:85
+#: packages/admin/src/components/ContentSettingsPanel.tsx:105
 msgid "Discard changes"
 msgstr "放弃更改"
 
@@ -2632,7 +2632,7 @@ msgstr "放弃更改"
 msgid "Discard changes?"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:84
+#: packages/admin/src/components/ContentSettingsPanel.tsx:90
 msgid "Discard draft changes?"
 msgstr "放弃草稿更改？"
 
@@ -2656,8 +2656,8 @@ msgstr "显示导航菜单"
 msgid "Display category list"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1012
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1074
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1063
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1125
 #: packages/admin/src/routes/bylines.tsx:481
 msgid "Display name"
 msgstr "显示名称"
@@ -2722,7 +2722,7 @@ msgstr "还没有账号？<0>立即注册</0>"
 msgid "Done"
 msgstr "完成"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:955
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1006
 msgid "Down"
 msgstr "下移"
 
@@ -2793,8 +2793,8 @@ msgstr "拖动以重新排序"
 msgid "Drag to reorder {0}"
 msgstr "拖动以重新排序 {0}"
 
-#: packages/admin/src/components/SortableContentSettingsSections.tsx:215
-#: packages/admin/src/components/SortableContentSettingsSections.tsx:216
+#: packages/admin/src/components/SortableContentSettingsSections.tsx:219
+#: packages/admin/src/components/SortableContentSettingsSections.tsx:220
 msgid "Drag to reorder {label}"
 msgstr ""
 
@@ -2842,7 +2842,7 @@ msgstr "例如：CI/CD 流水线"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "例如：MacBook Pro、iPhone"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:964
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1015
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:544
@@ -2878,7 +2878,7 @@ msgstr ""
 msgid "Edit {title}"
 msgstr "编辑 {title}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1071
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1122
 msgid "Edit byline"
 msgstr "编辑署名"
 
@@ -3050,7 +3050,7 @@ msgstr "已启用"
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "输入 URL (https://…) 或相对路径 (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:1469
+#: packages/admin/src/components/ContentEditor.tsx:1470
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "输入有效的 URL（例如 https://example.com）"
 
@@ -3070,7 +3070,7 @@ msgstr "输入邮箱"
 msgid "Enter HTML..."
 msgstr "输入 HTML..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1242
+#: packages/admin/src/components/ContentEditor.tsx:1243
 msgid "Enter markdown content..."
 msgstr "输入 Markdown 内容..."
 
@@ -3216,7 +3216,7 @@ msgstr "创建管理员失败"
 msgid "Failed to create backup"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1055
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1106
 msgid "Failed to create byline"
 msgstr "创建署名失败"
 
@@ -3710,7 +3710,7 @@ msgstr "更新 {0} 失败"
 msgid "Failed to update backup settings"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1105
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1156
 msgid "Failed to update byline"
 msgstr "更新署名失败"
 
@@ -4417,7 +4417,7 @@ msgstr "整数"
 msgid "Invalid invite link"
 msgstr "无效的邀请链接"
 
-#: packages/admin/src/components/ContentEditor.tsx:1538
+#: packages/admin/src/components/ContentEditor.tsx:1539
 msgid "Invalid JSON"
 msgstr "无效的 JSON"
 
@@ -4511,7 +4511,7 @@ msgstr "JSX"
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:934
+#: packages/admin/src/components/ContentSettingsPanel.tsx:985
 msgid "Keep typing to narrow down more bylines."
 msgstr "继续输入以缩小署名范围。"
 
@@ -4662,7 +4662,7 @@ msgstr "列表视图"
 
 #: packages/admin/src/components/ContentEditor.tsx:683
 #: packages/admin/src/components/ContentEditor.tsx:726
-#: packages/admin/src/components/ContentSettingsPanel.tsx:258
+#: packages/admin/src/components/ContentSettingsPanel.tsx:264
 msgid "Live View"
 msgstr "实时预览"
 
@@ -4851,7 +4851,7 @@ msgstr "管理"
 msgid "Manage {0} for {1}"
 msgstr "管理 {1} 的 {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:896
+#: packages/admin/src/components/ContentSettingsPanel.tsx:947
 msgid "Manage bylines in {entryLocale}"
 msgstr "在 {entryLocale} 中管理署名"
 
@@ -5165,14 +5165,14 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:497
 #: packages/admin/src/components/ContentList.tsx:1134
-#: packages/admin/src/components/ContentSettingsPanel.tsx:721
-#: packages/admin/src/components/ContentSettingsPanel.tsx:741
+#: packages/admin/src/components/ContentSettingsPanel.tsx:772
+#: packages/admin/src/components/ContentSettingsPanel.tsx:792
 msgid "Move to Trash"
 msgstr "移至回收站"
 
 #: packages/admin/src/components/ContentList.tsx:475
 #: packages/admin/src/components/ContentList.tsx:1119
-#: packages/admin/src/components/ContentSettingsPanel.tsx:726
+#: packages/admin/src/components/ContentSettingsPanel.tsx:777
 msgid "Move to Trash?"
 msgstr "移至回收站？"
 
@@ -5375,7 +5375,7 @@ msgstr ""
 msgid "No byline fields yet."
 msgstr "暂无署名字段。"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:888
+#: packages/admin/src/components/ContentSettingsPanel.tsx:939
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "在 {entryLocale} 中没有可用的署名。请先从署名页面创建一个变体，然后再在此条目中署名。"
 
@@ -5384,7 +5384,7 @@ msgstr "在 {entryLocale} 中没有可用的署名。请先从署名页面创建
 msgid "No bylines found"
 msgstr "未找到署名"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:996
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1047
 msgid "No bylines selected."
 msgstr "未选择任何署名。"
 
@@ -5482,7 +5482,7 @@ msgstr "无关联用户"
 msgid "No matches"
 msgstr "无匹配项"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:931
+#: packages/admin/src/components/ContentSettingsPanel.tsx:982
 msgid "No matching bylines."
 msgstr "没有匹配的署名。"
 
@@ -5787,7 +5787,7 @@ msgstr "顺序已保存"
 msgid "Original:"
 msgstr "原始："
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:688
+#: packages/admin/src/components/ContentSettingsPanel.tsx:739
 #: packages/admin/src/components/editor/DocumentOutline.tsx:191
 msgid "Outline"
 msgstr "大纲"
@@ -5796,8 +5796,8 @@ msgstr "大纲"
 msgid "Overrides the page title in search engine results"
 msgstr "覆盖搜索引擎结果中的页面标题"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:598
-#: packages/admin/src/components/ContentSettingsPanel.tsx:601
+#: packages/admin/src/components/ContentSettingsPanel.tsx:619
+#: packages/admin/src/components/ContentSettingsPanel.tsx:622
 msgid "Ownership"
 msgstr "所有权"
 
@@ -6039,6 +6039,10 @@ msgstr "在您的 WordPress 站点上的插件。"
 msgid "Plugin pages"
 msgstr ""
 
+#: packages/admin/src/lib/content-editor-panels.tsx:192
+msgid "Plugin panel unavailable."
+msgstr ""
+
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:79
 msgid "Plugin Permissions"
 msgstr "插件权限"
@@ -6125,7 +6129,7 @@ msgstr "正在准备从 WordPress 下载文件..."
 msgid "Preparing..."
 msgstr "正在准备..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:160
+#: packages/admin/src/components/ContentSettingsPanel.tsx:166
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
 #: packages/admin/src/components/MediaLibrary.tsx:585
 msgid "Preview"
@@ -6135,7 +6139,7 @@ msgstr "预览"
 msgid "Preview content before publishing"
 msgstr "发布前预览内容"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:160
+#: packages/admin/src/components/ContentSettingsPanel.tsx:166
 msgid "Preview draft"
 msgstr "预览草稿"
 
@@ -6165,14 +6169,14 @@ msgid "Provider:"
 msgstr "提供商："
 
 #: packages/admin/src/components/ContentList.tsx:446
-#: packages/admin/src/components/ContentSettingsPanel.tsx:191
-#: packages/admin/src/components/ContentSettingsPanel.tsx:198
-#: packages/admin/src/components/ContentSettingsPanel.tsx:455
-#: packages/admin/src/components/ContentSettingsPanel.tsx:458
+#: packages/admin/src/components/ContentSettingsPanel.tsx:197
+#: packages/admin/src/components/ContentSettingsPanel.tsx:204
+#: packages/admin/src/components/ContentSettingsPanel.tsx:476
+#: packages/admin/src/components/ContentSettingsPanel.tsx:479
 msgid "Publish"
 msgstr "发布"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:555
+#: packages/admin/src/components/ContentSettingsPanel.tsx:576
 msgid "Publish date"
 msgstr ""
 
@@ -6205,7 +6209,7 @@ msgstr "发布者"
 msgid "Python"
 msgstr "Python"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1004
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1055
 msgid "Quick create byline"
 msgstr "快速创建署名"
 
@@ -6345,7 +6349,7 @@ msgstr "版本太新，无法安装"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentSettingsPanel.tsx:973
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1024
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
 #: packages/admin/src/components/ImageFieldRenderer.tsx:172
 #: packages/admin/src/components/PortableTextEditor.tsx:4130
@@ -6368,7 +6372,7 @@ msgstr "移除 {0}"
 msgid "Remove {entry}"
 msgstr "移除 {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1699
+#: packages/admin/src/components/ContentEditor.tsx:1700
 msgid "Remove {label}"
 msgstr "移除 {label}"
 
@@ -6567,6 +6571,7 @@ msgstr "正在恢复..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
+#: packages/admin/src/lib/content-editor-panels.tsx:201
 #: packages/admin/src/router.tsx:2247
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
@@ -6592,7 +6597,7 @@ msgstr "查看新权限"
 msgid "Revision restored"
 msgstr "修订版本已恢复"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:696
+#: packages/admin/src/components/ContentSettingsPanel.tsx:747
 #: packages/admin/src/components/ContentTypeEditor.tsx:76
 #: packages/admin/src/components/RevisionHistory.tsx:168
 msgid "Revisions"
@@ -6654,7 +6659,7 @@ msgstr "角色"
 msgid "Role {role}"
 msgstr "角色 {role}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:978
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1029
 msgid "Role label"
 msgstr "角色标签"
 
@@ -6680,7 +6685,7 @@ msgstr "Rust"
 msgid "Same window"
 msgstr "同一窗口"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1162
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:395
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:589
 #: packages/admin/src/components/editor/ImageNode.tsx:264
@@ -6732,7 +6737,7 @@ msgstr "已保存"
 msgid "Saved \"{0}\"."
 msgstr "已保存 \"{0}\"."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1162
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
@@ -6760,15 +6765,15 @@ msgstr "SBOM"
 msgid "SBOM · {0}"
 msgstr "SBOM · {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:523
+#: packages/admin/src/components/ContentSettingsPanel.tsx:544
 msgid "Schedule"
 msgstr "定时发布"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:509
+#: packages/admin/src/components/ContentSettingsPanel.tsx:530
 msgid "Schedule for"
 msgstr "定时发布于"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:546
+#: packages/admin/src/components/ContentSettingsPanel.tsx:567
 msgid "Schedule for later"
 msgstr "稍后定时发布"
 
@@ -6779,7 +6784,7 @@ msgid "Scheduled"
 msgstr "已定时"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:497
+#: packages/admin/src/components/ContentSettingsPanel.tsx:518
 msgid "Scheduled for: {0}"
 msgstr "计划发布于：{0}"
 
@@ -6864,12 +6869,12 @@ msgid "Search by name or email..."
 msgstr "按名称或邮箱搜索..."
 
 #: packages/admin/src/components/BylineFilter.tsx:121
-#: packages/admin/src/components/ContentSettingsPanel.tsx:905
+#: packages/admin/src/components/ContentSettingsPanel.tsx:956
 #: packages/admin/src/routes/bylines.tsx:401
 msgid "Search bylines"
 msgstr "搜索署名"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:904
+#: packages/admin/src/components/ContentSettingsPanel.tsx:955
 msgid "Search bylines to add..."
 msgstr "搜索要添加的署名..."
 
@@ -6956,7 +6961,7 @@ msgstr "搜索..."
 msgid "Searchable"
 msgstr "可搜索"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:909
+#: packages/admin/src/components/ContentSettingsPanel.tsx:960
 msgid "Searching..."
 msgstr "搜索中..."
 
@@ -7057,8 +7062,8 @@ msgid "Select"
 msgstr "选择"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:1711
-#: packages/admin/src/components/ContentEditor.tsx:1727
+#: packages/admin/src/components/ContentEditor.tsx:1712
+#: packages/admin/src/components/ContentEditor.tsx:1728
 #: packages/admin/src/components/ImageFieldRenderer.tsx:273
 msgid "Select {label}"
 msgstr "选择 {label}"
@@ -7101,7 +7106,7 @@ msgstr "选择默认社交图片"
 msgid "Select Favicon"
 msgstr "选择网站图标"
 
-#: packages/admin/src/components/ContentEditor.tsx:1715
+#: packages/admin/src/components/ContentEditor.tsx:1716
 msgid "Select file"
 msgstr "选择文件"
 
@@ -7205,8 +7210,8 @@ msgstr "发送测试邮件"
 msgid "Sending..."
 msgstr "发送中..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:669
-#: packages/admin/src/components/ContentSettingsPanel.tsx:672
+#: packages/admin/src/components/ContentSettingsPanel.tsx:690
+#: packages/admin/src/components/ContentSettingsPanel.tsx:693
 #: packages/admin/src/components/ContentTypeEditor.tsx:472
 #: packages/admin/src/components/Settings.tsx:60
 msgid "SEO"
@@ -7261,7 +7266,7 @@ msgstr "正在设置..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:234
 #: packages/admin/src/components/ContentEditor.tsx:815
-#: packages/admin/src/components/ContentEditor.tsx:1047
+#: packages/admin/src/components/ContentEditor.tsx:1048
 #: packages/admin/src/components/ContentTypeEditor.tsx:381
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:472
@@ -7446,9 +7451,9 @@ msgid "Skipped"
 msgstr "已跳过"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:239
-#: packages/admin/src/components/ContentSettingsPanel.tsx:462
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1020
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1082
+#: packages/admin/src/components/ContentSettingsPanel.tsx:483
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1071
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1133
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
 #: packages/admin/src/components/ContentTypeEditor.tsx:402
 #: packages/admin/src/components/ContentTypeList.tsx:181
@@ -7557,14 +7562,14 @@ msgstr "SQL"
 msgid "Start Import"
 msgstr "开始导入"
 
-#: packages/admin/src/components/ContentEditor.tsx:1216
+#: packages/admin/src/components/ContentEditor.tsx:1217
 #: packages/admin/src/components/PortableTextEditor.tsx:2564
 #: packages/admin/src/components/PortableTextEditor.tsx:2565
 msgid "Start writing, or type '/' for commands"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:551
-#: packages/admin/src/components/ContentSettingsPanel.tsx:469
+#: packages/admin/src/components/ContentSettingsPanel.tsx:490
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
 #: packages/admin/src/components/Redirects.tsx:480
 #: packages/admin/src/components/users/UserList.tsx:104
@@ -7683,7 +7688,7 @@ msgstr "目标"
 msgid "Target locale"
 msgstr "目标语言区域"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:658
+#: packages/admin/src/components/ContentSettingsPanel.tsx:679
 #: packages/admin/src/components/TaxonomySidebar.tsx:555
 msgid "Taxonomies"
 msgstr "分类"
@@ -7835,7 +7840,7 @@ msgstr ""
 msgid "This field does not accept {sniffedMime} files."
 msgstr "此字段不接受 {sniffedMime} 文件。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1730
+#: packages/admin/src/components/ContentEditor.tsx:1731
 #: packages/admin/src/components/ImageFieldRenderer.tsx:276
 msgid "This field is required"
 msgstr "此字段为必填项"
@@ -7909,7 +7914,7 @@ msgstr "这将删除小部件区域及其所有小部件。此操作无法撤销
 msgid "This will grant CLI access with your permissions."
 msgstr "这将授予 CLI 访问权限以及您的权限。"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:728
+#: packages/admin/src/components/ContentSettingsPanel.tsx:779
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "这将把项目移至回收站。您可以稍后从回收站恢复它。"
 
@@ -7931,7 +7936,7 @@ msgstr "这将永久删除此评论。此操作无法撤销。"
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "这将从您的站点移除插件及其包。"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:86
+#: packages/admin/src/components/ContentSettingsPanel.tsx:92
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "这将恢复到已发布的版本。您的草稿更改将会丢失。"
 
@@ -8046,7 +8051,7 @@ msgstr "翻译中..."
 msgid "Translation created"
 msgstr "翻译已创建"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:636
+#: packages/admin/src/components/ContentSettingsPanel.tsx:657
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "翻译"
@@ -8155,8 +8160,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "无法访问市场"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1125
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1142
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1176
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1193
 msgid "Unassigned"
 msgstr "未分配"
 
@@ -8217,7 +8222,7 @@ msgstr "解锁宽高比"
 msgid "Unnamed passkey"
 msgstr "未命名通行密钥"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:204
+#: packages/admin/src/components/ContentSettingsPanel.tsx:210
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
@@ -8229,7 +8234,7 @@ msgstr "已取消发布"
 msgid "Unregistered Content Tables Found"
 msgstr "发现未注册的内容表"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:499
+#: packages/admin/src/components/ContentSettingsPanel.tsx:520
 msgid "Unschedule"
 msgstr "取消定时发布"
 
@@ -8246,7 +8251,7 @@ msgstr "不支持的小部件元素类型：{0}"
 msgid "Untitled"
 msgstr "无标题"
 
-#: packages/admin/src/components/ContentEditor.tsx:1633
+#: packages/admin/src/components/ContentEditor.tsx:1634
 msgid "Untitled file"
 msgstr "无标题文件"
 
@@ -8259,7 +8264,7 @@ msgstr "无标题小部件"
 msgid "Unverified publisher"
 msgstr "未验证的发布者"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:952
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1003
 msgid "Up"
 msgstr "上移"
 
@@ -8275,7 +8280,7 @@ msgstr "更新"
 msgid "Update Field"
 msgstr "更新字段"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:573
+#: packages/admin/src/components/ContentSettingsPanel.tsx:594
 msgid "Update publish date"
 msgstr ""
 
@@ -8303,7 +8308,7 @@ msgid "Update to v{0}"
 msgstr "更新至 v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:788
-#: packages/admin/src/components/ContentSettingsPanel.tsx:589
+#: packages/admin/src/components/ContentSettingsPanel.tsx:610
 #: packages/admin/src/components/RegistryPluginDetail.tsx:501
 msgid "Updated"
 msgstr "已更新"
@@ -8464,7 +8469,7 @@ msgstr "当页面没有 Open Graph 图片时作为默认图片。推荐尺寸：
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "用作标识符。仅限小写字母、数字和下划线。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1319
+#: packages/admin/src/components/ContentEditor.tsx:1320
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "用于在列表页和文章顶部作为主要视觉展示"
 

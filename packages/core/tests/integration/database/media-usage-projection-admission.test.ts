@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import {
@@ -38,6 +39,15 @@ describeEachDialect("content media usage projection admission", (dialect) => {
 			.insertInto("_emdash_collections")
 			.values({ id: COLLECTION_ID, slug: COLLECTION_SLUG, label: "Admission" })
 			.execute();
+		await sql`
+			CREATE TABLE ${sql.ref("ec_admission")} (
+				id TEXT PRIMARY KEY,
+				version INTEGER NOT NULL,
+				updated_at TEXT NOT NULL,
+				live_revision_id TEXT,
+				draft_revision_id TEXT
+			)
+		`.execute(ctx.db);
 	});
 
 	afterEach(async () => {
@@ -60,6 +70,7 @@ describeEachDialect("content media usage projection admission", (dialect) => {
 
 	it("recomputes an oversized mixed plan after proving its replacement is unchanged", async () => {
 		const contentId = "mixed-no-op-delete";
+		await insertContentIdentity(ctx, contentId, true);
 		const unchangedColumns = await snapshot(contentId, "columns", 0, "é".repeat(270_000));
 		const absentDraft = await snapshot(contentId, "draft_overlay", 1, "Small draft");
 		await repo.replaceSource(unchangedColumns.source, unchangedColumns.occurrences);
@@ -89,6 +100,7 @@ describeEachDialect("content media usage projection admission", (dialect) => {
 
 	it("rejects deletion when the stored source row alone exceeds the byte limit", async () => {
 		const contentId = "oversized-source-delete";
+		await insertContentIdentity(ctx, contentId, true);
 		const absentDraft = await snapshot(contentId, "draft_overlay", 0, "é".repeat(300_000));
 		await repo.replaceSource(absentDraft.source, []);
 		const observedSources = await repo.findSources(canonicalSourceKeys(contentId));
@@ -150,6 +162,24 @@ describeEachDialect("content media usage projection admission", (dialect) => {
 		);
 	}
 });
+
+async function insertContentIdentity(
+	ctx: DialectTestContext,
+	contentId: string,
+	withDraft: boolean,
+): Promise<void> {
+	await sql`
+		INSERT INTO ${sql.ref("ec_admission")} (
+			id, version, updated_at, live_revision_id, draft_revision_id
+		) VALUES (
+			${contentId},
+			1,
+			'2026-08-11T00:00:00.000Z',
+			NULL,
+			${withDraft ? `revision-${contentId}` : null}
+		)
+	`.execute(ctx.db);
+}
 
 async function snapshot(
 	contentId: string,

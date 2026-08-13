@@ -39,9 +39,11 @@ import {
 	flushRecorder,
 	isInstrumentationEnabled,
 } from "../database/instrumentation.js";
+import { createDeferredTaskTracker } from "../deferred-tasks.js";
 import {
 	DB_INIT_DEADLINE_MS,
 	EmDashRuntime,
+	type MediaUsageMaintenanceResult,
 	type RuntimeDependencies,
 	type SandboxedPluginEntry,
 	type MediaProviderEntry,
@@ -287,6 +289,12 @@ export async function runScheduledTasks(
 	return runOutsideRequest(config, (runtime) => runtime.runScheduledTasks(options));
 }
 
+export async function runScheduledMediaUsageTasks(): Promise<MediaUsageMaintenanceResult> {
+	const config = getConfig();
+	if (!config) return { outcome: "inactive", taskClass: null, turn: null };
+	return runOutsideRequest(config, (runtime) => runtime.runScheduledMediaUsageTasks());
+}
+
 /**
  * Run a callback against the EmDash runtime outside any HTTP request — from a
  * Cloudflare Queue consumer, a `scheduled()` handler, or any other
@@ -337,23 +345,50 @@ export async function withEmDashRuntime<T>(
 /**
  * Shared plumbing for request-free entry points (`runScheduledTasks`,
  * `withEmDashRuntime`): resolve the runtime singleton, then run the callback
- * under an event-scoped db connection when the adapter needs one.
+ * under an event-scoped db when the adapter needs one.
  *
  * Connection-backed adapters (e.g. Postgres over Hyperdrive) cannot reuse
  * the per-isolate singleton from a platform event: its socket belongs to the
  * request that opened it, and workerd rejects cross-event I/O. Open an
  * event-scoped connection and run the callback under it in ALS — the
  * runtime's db getter, the cron executor, and plugin contexts all resolve
- * the connection from ALS — then close it. Gated on the adapter being
- * connection-backed (it exposes `close()`); stateless adapters (D1, Node
- * SQLite) return null or a close-less scope and keep using the singleton.
+ * the connection from ALS — then close it when required. Stateless adapters
+ * that need primary routing can return a close-less scope; adapters with no
+ * event scoping return null and keep using the singleton.
  */
 async function runOutsideRequest<T>(
 	config: EmDashConfig,
 	fn: (runtime: EmDashRuntime) => Promise<T>,
 ): Promise<T> {
-	const runtime = await getRuntime(config);
+	if (getRequestContext()) {
+		const runtime = await getRuntime(config);
+		return runOutsideRequestWithRuntime(config, runtime, fn);
+	}
 
+	const deferredTasks = createDeferredTaskTracker(() => {});
+	const context = {
+		editMode: false,
+		metrics: createRequestMetrics(performance.now()),
+		deferredTasks,
+	};
+	return runWithContext(context, async () => {
+		const runtime = await (async () => {
+			try {
+				return await getRuntime(config);
+			} finally {
+				deferredTasks.settle();
+				await deferredTasks.settled;
+			}
+		})();
+		return runOutsideRequestWithRuntime(config, runtime, fn);
+	});
+}
+
+async function runOutsideRequestWithRuntime<T>(
+	config: EmDashConfig,
+	runtime: EmDashRuntime,
+	fn: (runtime: EmDashRuntime) => Promise<T>,
+): Promise<T> {
 	const scoped = createRequestScopedDb({
 		config: config.database?.config,
 		isAuthenticated: false,
@@ -364,9 +399,8 @@ async function runOutsideRequest<T>(
 		cookies: NOOP_COOKIE_JAR,
 		url: CRON_EVENT_URL,
 	});
-	if (!scoped?.close) {
-		// Stateless adapter (or no per-request scoping): the singleton is safe
-		// outside a request. Any close-less scope created above is discarded.
+	if (!scoped) {
+		// This adapter needs no event-specific routing or connection.
 		return fn(runtime);
 	}
 	const { closed, deferredTasks, lifecycle } = coordinateScopedDbLifecycle(scoped);

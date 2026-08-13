@@ -271,6 +271,31 @@ export interface MediaUsageWorkRetryResponse {
 	item: MediaUsageWorkItem;
 }
 
+export type MediaUsageCollectionDeletionState = "pending" | "retry" | "leased" | "failed";
+export type MediaUsageCollectionDeletionPhase =
+	| "fence"
+	| "registry"
+	| "table"
+	| "work"
+	| "sources"
+	| "status"
+	| "finalize";
+export interface MediaUsageCollectionDeletionItem {
+	collectionId: string;
+	collectionSlug: string;
+	state: MediaUsageCollectionDeletionState;
+	phase: MediaUsageCollectionDeletionPhase;
+	attemptCount: number;
+	nextAttemptAt: string;
+	leaseExpiresAt: string | null;
+	lastErrorCode: string | null;
+	updatedAt: string;
+}
+export interface MediaUsageCollectionDeletionListResponse {
+	items: MediaUsageCollectionDeletionItem[];
+	nextCursor?: string;
+}
+
 /** Search result */
 export interface SearchResult {
 	id: string;
@@ -879,6 +904,29 @@ export class EmDashClient {
 			"/admin/media-usage/work/retry",
 			input,
 		);
+	}
+
+	async mediaListCollectionDeletions(
+		options: {
+			state?: MediaUsageCollectionDeletionState;
+			limit?: number;
+			cursor?: string;
+		} = {},
+	): Promise<MediaUsageCollectionDeletionListResponse> {
+		const params = new URLSearchParams();
+		if (options.state) params.set("state", options.state);
+		if (options.limit !== undefined) params.set("limit", String(options.limit));
+		if (options.cursor) params.set("cursor", options.cursor);
+		return this.request("GET", `/admin/media-usage/collection-deletions?${params}`);
+	}
+
+	async mediaRetryCollectionDeletion(collectionId: string): Promise<{
+		changed: boolean;
+		item: MediaUsageCollectionDeletionItem;
+	}> {
+		return this.request("POST", "/admin/media-usage/collection-deletions/retry", {
+			collectionId,
+		});
 	}
 
 	// -----------------------------------------------------------------------

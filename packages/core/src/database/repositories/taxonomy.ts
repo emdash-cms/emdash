@@ -123,6 +123,22 @@ export interface FindOptions {
 	locale?: string;
 }
 
+export interface TaxonomyManualPageCursor {
+	sortOrder: number;
+	label: string;
+	id: string;
+}
+
+export interface TaxonomyPageOptions extends FindOptions {
+	cursor?: TaxonomyManualPageCursor;
+	limit?: number;
+}
+
+export interface TaxonomyPage {
+	items: Taxonomy[];
+	hasMore: boolean;
+}
+
 /**
  * Taxonomy repository for categories, tags, and other classification.
  *
@@ -230,8 +246,7 @@ export class TaxonomyRepository {
 	 * `sort_order` carries the manual order set from the admin; it is 0 for
 	 * terms nobody has reordered, so an untouched taxonomy still comes back
 	 * alphabetically. `id asc` is a stable tiebreaker for terms that share both
-	 * — without it the SQL ordering is implementation-defined when they match,
-	 * which breaks keyset pagination over `(label, id)`.
+	 * values. Without it the SQL ordering is implementation-defined when they match.
 	 */
 	async findByName(name: string, options: FindOptions = {}): Promise<Taxonomy[]> {
 		let query = this.db
@@ -254,6 +269,42 @@ export class TaxonomyRepository {
 
 		const rows = await query.execute();
 		return rows.map((row) => this.rowToTaxonomy(row));
+	}
+
+	async findPageByName(name: string, options: TaxonomyPageOptions = {}): Promise<TaxonomyPage> {
+		const limit = Math.max(1, Math.min(options.limit ?? 50, 100));
+		let query = this.db.selectFrom("taxonomies").selectAll().where("name", "=", name);
+
+		if (options.locale !== undefined) query = query.where("locale", "=", options.locale);
+
+		if (options.parentId !== undefined) {
+			query =
+				options.parentId === null
+					? query.where("parent_id", "is", null)
+					: query.where("parent_id", "=", options.parentId);
+		}
+
+		if (options.cursor) {
+			const cursor = options.cursor;
+			query = query.where((eb) =>
+				eb.or([
+					eb("sort_order", ">", cursor.sortOrder),
+					eb.and([eb("sort_order", "=", cursor.sortOrder), eb("label", ">", cursor.label)]),
+					eb.and([
+						eb("sort_order", "=", cursor.sortOrder),
+						eb("label", "=", cursor.label),
+						eb("id", ">", cursor.id),
+					]),
+				]),
+			);
+		}
+		query = query.orderBy("sort_order", "asc").orderBy("label", "asc").orderBy("id", "asc");
+
+		const rows = await query.limit(limit + 1).execute();
+		return {
+			items: rows.slice(0, limit).map((row) => this.rowToTaxonomy(row)),
+			hasMore: rows.length > limit,
+		};
 	}
 
 	/**

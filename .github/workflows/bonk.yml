@@ -134,6 +134,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
           OPENCODE_CONFIG_CONTENT: ${{ steps.model.outputs.opencode_config }}
         with:
+          oidc_base_url: https://ask-bonk.cloudflare-exponent.workers.dev/auth
           model: ${{ steps.model.outputs.model }}
           mentions: "/bonk,@ask-bonk"
           opencode_version: "1.4.11"

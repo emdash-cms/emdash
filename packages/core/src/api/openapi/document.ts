@@ -40,6 +40,10 @@ import {
 import {
 	mediaUsageDetailsQuery,
 	mediaUsageDetailsResponseSchema,
+	mediaUsageCollectionDeletionListQuery,
+	mediaUsageCollectionDeletionListResponseSchema,
+	mediaUsageCollectionDeletionRetryBody,
+	mediaUsageCollectionDeletionRetryResponseSchema,
 	mediaUsageRepairBody,
 	mediaUsageRepairResponseSchema,
 	mediaUsageWorkListQuery,
@@ -840,6 +844,55 @@ function buildMediaPaths(maxUploadSize: number) {
 					...standardErrors(400, 404, 500),
 					"409": {
 						description: "The job has a live lease or changed concurrently",
+						content: { [JSON_CONTENT]: { schema: mediaUsageWorkRetryConflictSchema } },
+					},
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/collection-deletions": {
+			get: {
+				operationId: "listMediaUsageCollectionDeletions",
+				summary: "List durable collection deletions",
+				description:
+					"Returns a bounded, redacted cursor page of collection deletion work. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				requestParams: { query: mediaUsageCollectionDeletionListQuery },
+				responses: {
+					"200": {
+						description: "Bounded collection deletion page",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(mediaUsageCollectionDeletionListResponseSchema),
+							},
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 500),
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/collection-deletions/retry": {
+			post: {
+				operationId: "retryMediaUsageCollectionDeletion",
+				summary: "Retry one collection deletion",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [JSON_CONTENT]: { schema: mediaUsageCollectionDeletionRetryBody } },
+				},
+				responses: {
+					"200": {
+						description: "Pending collection deletion state",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(mediaUsageCollectionDeletionRetryResponseSchema),
+							},
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+					"409": {
+						description: "The deletion has a live lease or changed concurrently",
 						content: { [JSON_CONTENT]: { schema: mediaUsageWorkRetryConflictSchema } },
 					},
 				},

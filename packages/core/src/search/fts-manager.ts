@@ -189,7 +189,7 @@ export class FTSManager {
 	 *
 	 * The trigger SQL emitted here MUST stay in lock-step with migration
 	 * `064_fts_plain_text.ts`. If this changes again, add a new migration
-	 * rather than editing that one — migrations are forward-only.
+	 * rather than editing shipped ones — migrations are forward-only.
 	 */
 	private async createTriggers(collectionSlug: string, searchableFields: string[]): Promise<void> {
 		this.validateInputs(collectionSlug, searchableFields);
@@ -223,10 +223,22 @@ export class FTSManager {
 		// Update trigger - drop the old index row, re-insert when the row is
 		// still visible. Trash (deleted_at set) ends at DELETE only; restore
 		// ends at DELETE (no-op) + re-insert.
+		//
+		// The WHEN guard compares raw column values (null-safe IS NOT) so the
+		// trigger fires only when an indexed value, the row's locale, or its
+		// trash state actually changed. Without it every UPDATE re-tokenizes
+		// the whole document — metadata-only saves (status flips, scheduling,
+		// version bumps) and the publish path's rewrite-identical-values
+		// UPDATEs dominate save CPU and WAL volume. deleted_at must stay in
+		// the guard or trash/restore stop syncing the index.
+		const changedCondition = ["deleted_at", "locale", ...searchableFields]
+			.map((f) => `OLD.${f} IS NOT NEW.${f}`)
+			.join(" OR ");
 		await sql
 			.raw(`
 			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_update"
 			AFTER UPDATE ON "${contentTable}"
+			WHEN ${changedCondition}
 			BEGIN
 				DELETE FROM "${ftsTable}" WHERE rowid = OLD.rowid;
 				INSERT INTO "${ftsTable}"(rowid, id, locale, ${fieldList})

@@ -98,6 +98,7 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 			.insertInto("_emdash_collections")
 			.values({ id: collectionId, slug: "posts", label: "Posts" })
 			.execute();
+		await installCanonicalContentFixture(ctx, "posts", "entry1", "rev-entry1-columns");
 		const sourceKey = buildContentMediaUsageSourceKey({
 			collectionId,
 			collectionSlug: "posts",
@@ -110,6 +111,8 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 				sourceKey,
 				collectionId,
 				identityVersion: 1,
+				sourceVersion: 1,
+				sourceUpdatedAt: "2026-08-12T00:00:00.000Z",
 			}),
 			[occurrence("hero", "media-old")],
 		);
@@ -131,6 +134,7 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 			.insertInto("_emdash_collections")
 			.values({ id: collectionId, slug: "posts", label: "Posts" })
 			.execute();
+		await installCanonicalContentFixture(ctx, "posts", "entry1", "rev-entry1-columns");
 		const source = contentSource("entry1", "columns", {
 			sourceKey: buildContentMediaUsageSourceKey({
 				collectionId,
@@ -140,6 +144,8 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 			}),
 			collectionId,
 			identityVersion: 1,
+			sourceVersion: 1,
+			sourceUpdatedAt: "2026-08-12T00:00:00.000Z",
 		});
 		const observed = await repo.replaceSource(source, [occurrence("hero", "media-old")]);
 		await ctx.db.deleteFrom("_emdash_collections").where("id", "=", collectionId).execute();
@@ -1579,6 +1585,31 @@ function occurrence(
 		mimeType: null,
 		...overrides,
 	};
+}
+
+async function installCanonicalContentFixture(
+	ctx: DialectTestContext,
+	collectionSlug: string,
+	contentId: string,
+	liveRevisionId: string,
+): Promise<void> {
+	const tableName = `ec_${collectionSlug}`;
+	await sql`
+		CREATE TABLE IF NOT EXISTS ${sql.ref(tableName)} (
+			id TEXT PRIMARY KEY,
+			version INTEGER NOT NULL,
+			updated_at TEXT NOT NULL,
+			live_revision_id TEXT,
+			draft_revision_id TEXT
+		)
+	`.execute(ctx.db);
+	await sql`
+		INSERT INTO ${sql.ref(tableName)} (
+			id, version, updated_at, live_revision_id, draft_revision_id
+		) VALUES (
+			${contentId}, 1, '2026-08-12T00:00:00.000Z', ${liveRevisionId}, NULL
+		)
+	`.execute(ctx.db);
 }
 
 async function insertOccurrenceGeneration(

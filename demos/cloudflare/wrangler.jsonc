@@ -36,7 +36,7 @@
 	],
 	// Cron trigger drives the AI Search reindex queue flush.
 	"triggers": {
-		"crons": ["* * * * *"],
+		"crons": ["* * * * *", "*/2 * * * *"],
 	},
 	// Observability
 	"observability": {

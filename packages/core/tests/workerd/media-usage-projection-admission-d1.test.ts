@@ -65,7 +65,9 @@ it("reports real D1 metadata for the approved full runtime boundary", async () =
 	);
 	expect(measurement.value.success).toBe(true);
 	expect(measurement.d1Queries).toBeLessThanOrEqual(40);
-	expect(measurement.rowsWritten).toBeLessThanOrEqual(122);
+	// The collection/source cleanup cursors add one index write for this source
+	// and each of its 12 occurrences; keep the bound exact so further growth fails.
+	expect(measurement.rowsWritten).toBeLessThanOrEqual(135);
 	expect(measurement.maxBinds).toBeLessThanOrEqual(100);
 	expect(measurement.maxSqlBytes).toBeLessThan(100 * 1024);
 	const { value: _value, ...evidence } = measurement;

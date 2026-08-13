@@ -17,6 +17,7 @@ import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
 import type {
+	AdminManifest,
 	BylineCreditInput,
 	BylineSummary,
 	ContentItem,
@@ -25,8 +26,13 @@ import type {
 	UserListItem,
 } from "../lib/api";
 import { fetchBylines } from "../lib/api";
+import {
+	ContentEditorPanelBoundary,
+	resolveContentEditorPanels,
+} from "../lib/content-editor-panels";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { useDebouncedValue } from "../lib/hooks.js";
+import { usePluginAdmins } from "../lib/plugin-context";
 import { cn, slugify } from "../lib/utils";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { ContentStatusBadge, isContentStatusState } from "./ContentStatusBadge.js";
@@ -290,6 +296,7 @@ export interface ContentSettingsPanelProps {
 	collection: string;
 	item?: ContentItem | null;
 	isNew?: boolean;
+	manifest?: AdminManifest | null;
 	/** Locale this entry is bound to (URL `?locale=` for new entries). */
 	entryLocale?: string | null;
 	slug: string;
@@ -346,6 +353,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	collection,
 	item,
 	isNew,
+	manifest,
 	entryLocale,
 	slug,
 	onSlugChange,
@@ -383,8 +391,21 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onBlockSidebarClose,
 	onBlockSidebarDelete,
 }: ContentSettingsPanelProps) {
-	const { t } = useLingui();
+	const { t, i18n: lingui } = useLingui();
 	const navigate = useNavigate();
+	const pluginAdmins = usePluginAdmins();
+	const extensionPanels = React.useMemo(
+		() =>
+			!isNew && item
+				? resolveContentEditorPanels(
+						pluginAdmins,
+						collection,
+						currentUser?.role ?? 0,
+						manifest?.plugins,
+					)
+				: [],
+		[collection, currentUser?.role, isNew, item, manifest?.plugins, pluginAdmins],
+	);
 
 	const [scheduleDate, setScheduleDate] = React.useState<string>("");
 	const [showScheduler, setShowScheduler] = React.useState(false);
@@ -683,6 +704,36 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						</div>
 					</SortableContentSettingsSection>
 				)}
+
+				{item &&
+					extensionPanels.map(({ pluginId, extension }) => {
+						const Panel = extension.component;
+						const sectionId = `plugin:${pluginId}:${extension.id}`;
+						const title = lingui._({ id: extension.title, message: extension.title });
+
+						return (
+							<SortableContentSettingsSection key={sectionId} id={sectionId} label={title}>
+								<div className="min-w-0 p-4">
+									<Text bold as="h3" DANGEROUS_className="mb-4">
+										{title}
+									</Text>
+									<ContentEditorPanelBoundary
+										key={`${collection}:${item.id}`}
+										pluginId={pluginId}
+										panelId={extension.id}
+									>
+										<div className="min-w-0 max-w-full">
+											<Panel
+												collection={collection}
+												entry={item}
+												locale={item.locale ?? entryLocale ?? undefined}
+											/>
+										</div>
+									</ContentEditorPanelBoundary>
+								</div>
+							</SortableContentSettingsSection>
+						);
+					})}
 
 				{portableTextEditor && (
 					<SortableContentSettingsSection id="outline" label={t`Outline`} disclosure>
