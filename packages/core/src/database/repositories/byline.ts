@@ -1,6 +1,7 @@
 import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
+import { BYLINE_LIST_CACHE_PREFIX } from "../../bylines/cache-keys.js";
 import { getBylineFieldDefs } from "../../bylines/field-defs-cache.js";
 import {
 	invalidateBylineObjectCache,
@@ -8,11 +9,13 @@ import {
 } from "../../object-cache/index.js";
 import {
 	clearRequestCacheEntry,
+	clearRequestCachePrefix,
 	peekRequestCache,
 	setRequestCacheEntry,
 } from "../../request-cache.js";
 import type { BylineFieldDefinition, CustomFieldValue } from "../../schema/types.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import { sortKey } from "../../utils/sort-key.js";
 import { listTablesLike } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
 import type { BylineTable, Database } from "../types.js";
@@ -34,7 +37,9 @@ type BylineRow = Selectable<BylineTable>;
  * `selectAll()` finders produce rows without these keys, so they're optional
  * and `rowToByline` defaults them to null.
  */
-type BylineRowWithAvatar = BylineRow & {
+type BylineRowWithAvatar = Omit<BylineRow, "display_name_sort"> & {
+	/** Selected only by the ordered list, which seeks its cursor on it. */
+	display_name_sort?: string;
 	avatar_storage_key?: string | null;
 	avatar_alt?: string | null;
 	avatar_blurhash?: string | null;
@@ -298,7 +303,7 @@ export class BylineRepository {
 	 * same way `BylineRepository` doesn't resolve locale fallback for
 	 * the base byline lookup.
 	 */
-	private async withCustomFields(rows: BylineRow[]): Promise<BylineSummary[]> {
+	private async withCustomFields(rows: BylineRowWithAvatar[]): Promise<BylineSummary[]> {
 		const summaries = rows.map(rowToByline);
 		// Always populate `customFields = {}` (PR plan AC #6) — even when
 		// no fields are registered, every BylineSummary carries the empty
@@ -601,6 +606,92 @@ export class BylineRepository {
 	}
 
 	/**
+	 * Alphabetical, byline-table-driven list. Backs the public `getBylines()`.
+	 *
+	 * Three deliberate differences from `findMany`, which serves the admin list:
+	 *
+	 * - `LEFT JOIN media`, so a page rendering avatars doesn't issue a
+	 *   `MediaRepository.findById` per byline. Same join the content-credit
+	 *   reads perform.
+	 * - Ordered by `(display_name_sort, id)` rather than `created_at DESC`,
+	 *   with a cursor keyed on the same pair. Ordering on `display_name`
+	 *   itself would use the database's collation, which on SQLite files
+	 *   `Zoe` before `alice` and `Álvaro` after both.
+	 * - No custom-field hydration: every row comes back with
+	 *   `customFields = {}`, as `skipHydration` does elsewhere.
+	 *
+	 * Rows are per-locale, so a `locale` filter yields one row per person and
+	 * needs no translation-group dedupe.
+	 */
+	async findManyAlphabetical(options?: {
+		locale?: string;
+		cursor?: string;
+		limit?: number;
+	}): Promise<FindManyResult<BylineSummary>> {
+		const limit = Math.min(Math.max(options?.limit ?? 50, 1), 100);
+
+		let query = this.db
+			.selectFrom("_emdash_bylines as b")
+			.leftJoin("media as m", "m.id", "b.avatar_media_id")
+			.select([
+				"b.id as id",
+				"b.slug as slug",
+				"b.display_name as display_name",
+				"b.bio as bio",
+				"b.avatar_media_id as avatar_media_id",
+				"m.storage_key as avatar_storage_key",
+				"m.alt as avatar_alt",
+				"m.blurhash as avatar_blurhash",
+				"m.dominant_color as avatar_dominant_color",
+				"b.website_url as website_url",
+				"b.user_id as user_id",
+				"b.is_guest as is_guest",
+				"b.created_at as created_at",
+				"b.updated_at as updated_at",
+				"b.locale as locale",
+				"b.translation_group as translation_group",
+				"b.display_name_sort as display_name_sort",
+			])
+			.orderBy("b.display_name_sort", "asc")
+			.orderBy("b.id", "asc")
+			.limit(limit + 1);
+
+		if (options?.locale !== undefined) {
+			query = query.where("b.locale", "=", options.locale);
+		}
+
+		if (options?.cursor) {
+			const decoded = decodeCursor(options.cursor);
+			query = query.where((eb) =>
+				eb.or([
+					eb("b.display_name_sort", ">", decoded.orderValue),
+					eb.and([eb("b.display_name_sort", "=", decoded.orderValue), eb("b.id", ">", decoded.id)]),
+				]),
+			);
+		}
+
+		const rows = await query.execute();
+		const page = rows.slice(0, limit);
+		const items = page.map((row) => {
+			const byline = rowToByline(row);
+			byline.customFields = {};
+			return byline;
+		});
+
+		const result: FindManyResult<BylineSummary> = { items };
+		if (rows.length > limit) {
+			// From the row, not the summary: the cursor seeks on the stored key,
+			// which `BylineSummary` doesn't carry.
+			const last = page.at(-1);
+			if (last) {
+				result.nextCursor = encodeCursor(last.display_name_sort, last.id);
+			}
+		}
+
+		return result;
+	}
+
+	/**
 	 * List every sibling row in `translation_group`. Used by the admin
 	 * `TranslationsPanel` to render one entry per configured locale.
 	 */
@@ -755,6 +846,7 @@ export class BylineRepository {
 					id,
 					slug: input.slug,
 					display_name: input.displayName,
+					display_name_sort: sortKey(input.displayName),
 					bio: input.bio ?? null,
 					avatar_media_id: input.avatarMediaId ?? null,
 					website_url: input.websiteUrl ?? null,
@@ -782,6 +874,7 @@ export class BylineRepository {
 			clearRequestCacheEntry(`byline-field-group-values:${translationGroup}`);
 		}
 		invalidateBylineObjectCache();
+		clearRequestCachePrefix(BYLINE_LIST_CACHE_PREFIX);
 
 		const byline = await this.findById(id);
 		if (!byline) {
@@ -802,7 +895,10 @@ export class BylineRepository {
 		const updates: Record<string, unknown> = { updated_at: now };
 
 		if (input.slug !== undefined) updates.slug = input.slug;
-		if (input.displayName !== undefined) updates.display_name = input.displayName;
+		if (input.displayName !== undefined) {
+			updates.display_name = input.displayName;
+			updates.display_name_sort = sortKey(input.displayName);
+		}
 		if (input.bio !== undefined) updates.bio = input.bio;
 		if (input.avatarMediaId !== undefined) updates.avatar_media_id = input.avatarMediaId;
 		if (input.websiteUrl !== undefined) updates.website_url = input.websiteUrl;
@@ -830,6 +926,7 @@ export class BylineRepository {
 			clearRequestCacheEntry(`byline-field-group-values:${group}`);
 		}
 		invalidateBylineObjectCache();
+		clearRequestCachePrefix(BYLINE_LIST_CACHE_PREFIX);
 
 		return await this.findById(id);
 	}
@@ -919,6 +1016,7 @@ export class BylineRepository {
 		});
 
 		invalidateBylineObjectCache();
+		clearRequestCachePrefix(BYLINE_LIST_CACHE_PREFIX);
 		return true;
 	}
 

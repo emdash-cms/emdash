@@ -742,6 +742,13 @@ export interface BylineTable {
 	id: string;
 	slug: string;
 	display_name: string;
+	/**
+	 * `display_name` folded for ordering (see `utils/sort-key.ts`). Added by
+	 * migration 065. The public byline list orders and seeks its cursor on this
+	 * column, because comparing `display_name` uses the database's collation —
+	 * BINARY on SQLite, which files `Zoe` before `alice`.
+	 */
+	display_name_sort: string;
 	bio: string | null;
 	avatar_media_id: string | null;
 	website_url: string | null;

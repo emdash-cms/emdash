@@ -134,3 +134,23 @@ export function clearRequestCacheEntry(key: string): void {
 	const cache = store.get(ctx);
 	cache?.delete(key);
 }
+
+/**
+ * Remove every key under a namespace from the request-scoped cache.
+ *
+ * Same purpose as {@link clearRequestCacheEntry}, for readers whose key carries
+ * query arguments a write path can't reconstruct — `getBylines()` keys on
+ * locale, limit, and cursor, so a byline write has to drop the whole `bylines:`
+ * namespace to keep a later read in the same request honest.
+ *
+ * No-ops outside a request context.
+ */
+export function clearRequestCachePrefix(prefix: string): void {
+	const ctx = getRequestContext();
+	if (!ctx) return;
+	const cache = store.get(ctx);
+	if (!cache) return;
+	for (const key of cache.keys()) {
+		if (key.startsWith(prefix)) cache.delete(key);
+	}
+}
