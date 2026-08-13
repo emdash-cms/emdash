@@ -87,13 +87,24 @@ function validateMessages(value: unknown, name: string): Array<{ code: number; m
 }
 
 function redactMessage(message: string, token: string): string {
-	const withoutToken = token ? message.replaceAll(token, "[redacted]") : message;
-	let safe = "";
-	for (const character of withoutToken) {
-		const code = character.charCodeAt(0);
-		safe += code < 0x20 || code === 0x7f ? " " : character;
+	const safe: string[] = [];
+	let length = 0;
+	for (let index = 0; index < message.length && length < 1_000;) {
+		let chunk: string;
+		if (token && message.startsWith(token, index)) {
+			chunk = "[redacted]";
+			index += token.length;
+		} else {
+			const code = message.codePointAt(index)!;
+			chunk = code < 0x20 || code === 0x7f ? " " : String.fromCodePoint(code);
+			index += code > 0xffff ? 2 : 1;
+		}
+		const remaining = 1_000 - length;
+		const bounded = chunk.slice(0, remaining);
+		safe.push(bounded);
+		length += bounded.length;
 	}
-	return safe.slice(0, 1000);
+	return safe.join("");
 }
 
 function validateStatementResponse(value: unknown, token: string): ValidatedStatementResult {

@@ -220,6 +220,39 @@ describe("D1RestDialect", () => {
 		await db.destroy();
 	});
 
+	it("bounds and sanitizes upstream error messages", async () => {
+		const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+			jsonResponse({
+				success: false,
+				errors: [
+					{
+						code: 10_000,
+						message: `before\t${TOKEN}\n${"x".repeat(2_000)}`,
+					},
+				],
+				messages: [],
+				result: [],
+			}),
+		);
+		const db = database(fetch);
+
+		let error: unknown;
+		try {
+			await sql`select 1`.execute(db);
+		} catch (caught) {
+			error = caught;
+		}
+
+		expect(error).toBeInstanceOf(Error);
+		expect((error as Error).message).toContain("before [redacted] ");
+		expect((error as Error).message).not.toContain(TOKEN);
+		expect((error as Error).message).not.toMatch(/[\r\n\t]/);
+		expect((error as Error).message.length).toBeLessThanOrEqual(
+			"D1 API request failed: ".length + 1_000,
+		);
+		await db.destroy();
+	});
+
 	it("does not retry an ambiguous write failure and never leaks the token", async () => {
 		const fetch = vi.fn<typeof globalThis.fetch>(async () => {
 			throw new TypeError(`network failed near ${TOKEN}`);
