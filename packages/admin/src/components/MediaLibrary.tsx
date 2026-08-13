@@ -749,8 +749,6 @@ interface ProviderGridItemProps {
 }
 
 function ProviderGridItem({ item, selected, onClick, onDimensionsLoaded }: ProviderGridItemProps) {
-	const isImage = item.mimeType.startsWith("image/");
-
 	const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
 		const img = e.currentTarget;
 		// Only report if we don't already have dimensions
@@ -769,7 +767,9 @@ function ProviderGridItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 			)}
 		>
 			<div className="aspect-square">
-				{isImage && item.previewUrl ? (
+				{/* Not gated on mime type: `previewUrl` is the provider's poster
+				    thumbnail, which streaming video items have too. */}
+				{item.previewUrl ? (
 					<img
 						src={item.previewUrl}
 						alt={item.alt || item.filename}
@@ -849,7 +849,6 @@ interface ProviderListItemProps {
 
 function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: ProviderListItemProps) {
 	const { t } = useLingui();
-	const isImage = item.mimeType.startsWith("image/");
 
 	const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
 		const img = e.currentTarget;
@@ -868,7 +867,8 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 		>
 			<td className="px-4 py-3">
 				<div className="h-10 w-10 overflow-hidden rounded">
-					{isImage && item.previewUrl ? (
+					{/* Not gated on mime type — see grid item above. */}
+					{item.previewUrl ? (
 						<img
 							src={item.previewUrl}
 							alt={item.alt || item.filename}
