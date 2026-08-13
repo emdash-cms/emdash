@@ -73,6 +73,7 @@ function matchesPublication(
 function matchesLifecyclePublication(
 	observed: ContentItem,
 	existing: ContentItem,
+	liveRevisionId: string,
 	publishedAt: string,
 	updatedAt: string,
 ): boolean {
@@ -80,8 +81,8 @@ function matchesLifecyclePublication(
 		observed.version !== existing.version + 1 ||
 		observed.status !== "published" ||
 		observed.slug !== existing.slug ||
-		observed.liveRevisionId !== existing.liveRevisionId ||
-		observed.draftRevisionId !== existing.draftRevisionId ||
+		observed.liveRevisionId !== liveRevisionId ||
+		observed.draftRevisionId !== null ||
 		observed.scheduledAt !== null ||
 		observed.publishedAt !== publishedAt ||
 		observed.updatedAt !== updatedAt
@@ -1492,62 +1493,97 @@ export class ContentRepository {
 		}
 
 		if (!promoteRevision) {
-			const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
-			const duePredicate = requireDue
-				? sql`AND scheduled_at IS NOT NULL AND scheduled_at <= ${now}`
-				: sql``;
-			let published = false;
+			const revisionRepo = new RevisionRepository(this.db);
+			let provisionalRevisionId: string | null = null;
 			try {
-				const result = await sql`
-					UPDATE ${sql.ref(tableName)}
-					SET status = 'published',
-						scheduled_at = NULL,
-						published_at = ${intendedPublishedAt},
-						updated_at = ${now},
-						version = version + 1
-					WHERE id = ${id}
-					AND deleted_at IS NULL
-					AND version = ${existing.version}
-					AND status = ${existing.status}
-					AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
-					AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
-					AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
-					${duePredicate}
-				`.execute(this.db);
-				published = (result.numAffectedRows ?? 0n) > 0n;
-			} catch (error) {
-				if (isConfirmedStatementFailure(error)) throw error;
-				let observed: ContentItem | null;
+				let liveRevisionId = existing.liveRevisionId;
+				if (!liveRevisionId) {
+					const revision = await revisionRepo.create({
+						collection: type,
+						entryId: id,
+						data: existing.data,
+					});
+					liveRevisionId = revision.id;
+					provisionalRevisionId = revision.id;
+				}
+
+				const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
+				const duePredicate = requireDue
+					? sql`AND scheduled_at IS NOT NULL AND scheduled_at <= ${now}`
+					: sql``;
+				let published = false;
 				try {
-					observed = await this.findById(type, id);
-				} catch (reconciliationError) {
-					throw new Error("Unable to confirm whether content publication completed", {
-						cause: reconciliationError,
-					});
+					const result = await sql`
+						UPDATE ${sql.ref(tableName)}
+						SET live_revision_id = ${liveRevisionId},
+							draft_revision_id = NULL,
+							status = 'published',
+							scheduled_at = NULL,
+							published_at = ${intendedPublishedAt},
+							updated_at = ${now},
+							version = version + 1
+						WHERE id = ${id}
+						AND deleted_at IS NULL
+						AND version = ${existing.version}
+						AND status = ${existing.status}
+						AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
+						AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
+						AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
+						${duePredicate}
+					`.execute(this.db);
+					published = (result.numAffectedRows ?? 0n) > 0n;
+				} catch (error) {
+					if (isConfirmedStatementFailure(error)) throw error;
+					let observed: ContentItem | null;
+					try {
+						observed = await this.findById(type, id);
+					} catch (reconciliationError) {
+						throw new Error("Unable to confirm whether content publication completed", {
+							cause: reconciliationError,
+						});
+					}
+					if (!observed) {
+						throw new Error("Unable to confirm whether content publication completed", {
+							cause: error,
+						});
+					}
+					published = matchesLifecyclePublication(
+						observed,
+						existing,
+						liveRevisionId,
+						intendedPublishedAt,
+						now,
+					);
+					if (!published && matchesPublicationFence(observed, existing)) throw error;
+					if (!published) {
+						throw new Error("Unable to confirm whether content publication completed", {
+							cause: error,
+						});
+					}
 				}
-				if (!observed) {
-					throw new Error("Unable to confirm whether content publication completed", {
-						cause: error,
-					});
-				}
-				published = matchesLifecyclePublication(observed, existing, intendedPublishedAt, now);
-				if (!published && matchesPublicationFence(observed, existing)) throw error;
+
 				if (!published) {
-					throw new Error("Unable to confirm whether content publication completed", {
-						cause: error,
-					});
+					throw requireDue ? new ScheduledNotDueError() : new ContentMutationConflictError();
 				}
-			}
 
-			if (!published) {
-				throw requireDue ? new ScheduledNotDueError() : new ContentMutationConflictError();
+				invalidateCollectionCache(type);
+				await this.restampEntryPivot(type, id);
+				const updated = await this.findById(type, id);
+				if (!updated) throw new Error("Content not found");
+				return updated;
+			} catch (error) {
+				if (provisionalRevisionId) {
+					try {
+						await revisionRepo.deleteIfUnreferenced(type, id, provisionalRevisionId);
+					} catch (cleanupError) {
+						console.error(
+							`[content] Failed to clean up provisional revision ${provisionalRevisionId}:`,
+							cleanupError,
+						);
+					}
+				}
+				throw error;
 			}
-
-			invalidateCollectionCache(type);
-			await this.restampEntryPivot(type, id);
-			const updated = await this.findById(type, id);
-			if (!updated) throw new Error("Content not found");
-			return updated;
 		}
 
 		const revisionRepo = new RevisionRepository(this.db);
