@@ -51,7 +51,7 @@ describe("migration integration metadata", () => {
 					manifestConfig: { password: "do-not-attach" },
 				},
 			}),
-		).toThrow("credential-bearing field");
+		).toThrow("database.migrations.manifestConfig.password is a credential-bearing field");
 	});
 });
 

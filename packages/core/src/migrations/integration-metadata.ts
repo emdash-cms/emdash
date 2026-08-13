@@ -39,7 +39,10 @@ export function createMigrationIntegrationMetadata(
 			migrations: database.migrations
 				? {
 						entrypoint: database.migrations.entrypoint,
-						manifestConfig: validateSecretFreeExecutorConfig(database.migrations.manifestConfig),
+						manifestConfig: validateSecretFreeExecutorConfig(
+							database.migrations.manifestConfig,
+							"database.migrations.manifestConfig",
+						),
 					}
 				: undefined,
 		},

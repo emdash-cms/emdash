@@ -123,11 +123,9 @@ export function createDirectMigrationExecutor(
 				setI18nConfig(previousI18n);
 				try {
 					await closeActiveDb();
-				} catch (error) {
-					if (!executionFailed) {
-						executionFailed = true;
-						executionError = error;
-					}
+				} catch {
+					console.error("[migrations] Database close failed.");
+					closePromise = Promise.resolve();
 				}
 			}
 

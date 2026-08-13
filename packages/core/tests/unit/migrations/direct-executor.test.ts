@@ -80,6 +80,7 @@ async function migrationRequest(action: MigrationRequest["action"]): Promise<Mig
 
 afterEach(() => {
 	setI18nConfig(null);
+	vi.restoreAllMocks();
 });
 
 describe("createDirectMigrationExecutor", () => {
@@ -226,6 +227,7 @@ describe("createDirectMigrationExecutor", () => {
 	});
 
 	it("does not replace an execution failure with a destroy failure", async () => {
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 		const { tracker, createDialect } = createTrackedDialectFactory({
 			setup(database) {
 				database.exec("CREATE TABLE _emdash_migrations (unexpected TEXT)");
@@ -237,6 +239,24 @@ describe("createDirectMigrationExecutor", () => {
 		await expect(executor.execute(await migrationRequest("check"))).rejects.toThrow(
 			/no such column.*name/i,
 		);
+		expect(consoleError).toHaveBeenCalledWith("[migrations] Database close failed.");
+		expect(JSON.stringify(consoleError.mock.calls)).not.toContain("destroy failure");
+		expect(tracker.closeCalls).toBe(1);
+	});
+
+	it("returns a successful report when destroy fails", async () => {
+		const destroyError = new Error("destroy failure");
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const { tracker, createDialect } = createTrackedDialectFactory({ closeError: destroyError });
+		const executor = createDirectMigrationExecutor({ target: TARGET, createDialect });
+
+		await expect(executor.execute(await migrationRequest("check"))).resolves.toMatchObject({
+			target: TARGET,
+			pending: MIGRATION_NAMES,
+		});
+		expect(consoleError).toHaveBeenCalledWith("[migrations] Database close failed.");
+		expect(tracker.closeCalls).toBe(1);
+		await expect(executor.dispose?.()).resolves.toBeUndefined();
 		expect(tracker.closeCalls).toBe(1);
 	});
 

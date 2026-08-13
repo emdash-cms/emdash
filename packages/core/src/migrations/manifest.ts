@@ -141,8 +141,11 @@ function cloneSecretFreeJson(value: unknown, path: string, ancestors: Set<object
 	}
 }
 
-export function validateSecretFreeExecutorConfig(value: unknown): unknown {
-	return cloneSecretFreeJson(value, "database.executorConfig", new Set());
+export function validateSecretFreeExecutorConfig(
+	value: unknown,
+	path = "database.executorConfig",
+): unknown {
+	return cloneSecretFreeJson(value, path, new Set());
 }
 
 function identitiesMatch(
