@@ -25,9 +25,8 @@ export function formatSubmissionText(
 		const value = data[field.name];
 		if (value === undefined || value === null || value === "") continue;
 
-		const display = Array.isArray(value)
-			? (value as string[]).join(", ")
-			: String(value as string | number | boolean);
+		// eslint-disable-next-line typescript/no-base-to-string -- form field value is a scalar at runtime
+		const display = Array.isArray(value) ? (value as string[]).join(", ") : String(value);
 		lines.push(`${field.label}: ${display}`);
 	}
 
@@ -120,7 +119,8 @@ export function formatCsv(
 			} else if (Array.isArray(v)) {
 				values.push(v.join("; "));
 			} else {
-				values.push(v === undefined || v === null ? "" : String(v as string | number | boolean));
+				// eslint-disable-next-line typescript/no-base-to-string -- form field value is a scalar at runtime
+				values.push(v === undefined || v === null ? "" : String(v));
 			}
 		}
 		return values;
@@ -146,7 +146,8 @@ function getSubmissionPreview(form: FormDefinition, sub: Submission): string {
 	for (const field of fields.slice(0, 3)) {
 		const v = sub.data[field.name];
 		if (v !== undefined && v !== null && v !== "") {
-			const str = String(v as string | number | boolean);
+			// eslint-disable-next-line typescript/no-base-to-string -- form field value is a scalar at runtime
+			const str = String(v);
 			previews.push(str.length > 50 ? `${str.slice(0, 47)}...` : str);
 		}
 	}

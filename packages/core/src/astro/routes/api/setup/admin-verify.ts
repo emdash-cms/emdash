@@ -33,18 +33,22 @@ export const POST: APIRoute = async ({ cookies, request, locals }) => {
 		// Check if setup is already complete
 		const options = new OptionsRepository(emdash.db);
 		const setupComplete = await options.get("emdash:setup_complete");
-
-		if (setupComplete === true || setupComplete === "true") {
-			return apiError("SETUP_COMPLETE", "Setup already complete", 400);
-		}
+		const isComplete = setupComplete === true || setupComplete === "true";
 
 		// Check if any users exist
 		const adapter = createKyselyAdapter(emdash.db);
 		const userCount = await adapter.countUsers();
 
 		if (userCount > 0) {
+			if (isComplete) {
+				return apiError("SETUP_COMPLETE", "Setup already complete", 400);
+			}
 			return apiError("ADMIN_EXISTS", "Admin user already exists", 400);
 		}
+
+		// `setup_complete` with ZERO users is a recoverable half-state —
+		// see the matching guard in ./admin.ts. The verify step must
+		// accept it too, or the wizard dies between its two calls.
 
 		// Get setup state
 		const setupState = await options.get<{

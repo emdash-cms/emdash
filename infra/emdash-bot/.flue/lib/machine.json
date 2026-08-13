@@ -1,0 +1,954 @@
+{
+	"kinds": [
+		"bug",
+		"enhancement",
+		"task"
+	],
+	"entryState": "unmanaged",
+	"states": {
+		"unmanaged": {
+			"label": "",
+			"boardColumn": "(none)",
+			"description": "No bot labels yet. An issue nobody has handed to the bot. Entry commands work directly.",
+			"terminal": false,
+			"offeredCommands": [
+				"investigate",
+				"repro",
+				"implement",
+				"decline"
+			]
+		},
+		"triage": {
+			"label": "bot:triage",
+			"boardColumn": "Triage",
+			"description": "Filed and awaiting a decision on whether/how the bot should act.",
+			"terminal": false,
+			"offeredCommands": [
+				"investigate",
+				"repro",
+				"implement",
+				"decline"
+			]
+		},
+		"working": {
+			"label": "bot:working",
+			"boardColumn": "Working",
+			"description": "An agent run is in flight (reproduce / diagnose / verify / fix / implement).",
+			"terminal": false,
+			"transient": true,
+			"offeredCommands": [
+				"status"
+			]
+		},
+		"blocked": {
+			"label": "bot:blocked",
+			"boardColumn": "Blocked",
+			"description": "The bot stopped and needs a human decision. Covers the old skipped / not-reproduced / reproduced-no-fix / by-design outcomes; the reason is in the bot's comment.",
+			"terminal": false,
+			"offeredCommands": [
+				"investigate",
+				"implement",
+				"repro",
+				"retry",
+				"decline",
+				"take_over"
+			]
+		},
+		"awaiting_feedback": {
+			"label": "bot:awaiting-feedback",
+			"boardColumn": "Awaiting feedback",
+			"description": "A fix is staged on bot/fix-<n>; waiting for the reporter or a maintainer to confirm or reject.",
+			"terminal": false,
+			"offeredCommands": [
+				"confirm",
+				"reject",
+				"retry",
+				"take_over"
+			]
+		},
+		"in_review": {
+			"label": "bot:in-review",
+			"boardColumn": "In review",
+			"description": "A PR is open. The review/* sub-states live on the PR and roll up here. On a bot PR, a plain `@emdashbot` comment is feedback; explicit verbs still win.",
+			"terminal": false,
+			"offeredCommands": [
+				"revise",
+				"decline",
+				"take_over"
+			],
+			"defaultCommentEvent": "revise"
+		},
+		"human_owned": {
+			"label": "bot:human-owned",
+			"boardColumn": "Human owned",
+			"description": "A maintainer took it over; the bot stays disengaged but the item stays on the board.",
+			"terminal": false,
+			"offeredCommands": [
+				"hand_back"
+			]
+		},
+		"done": {
+			"label": "bot:done",
+			"boardColumn": "Done",
+			"description": "Shipped (PR merged) or confirmed resolved.",
+			"terminal": true,
+			"offeredCommands": [
+				"reopen"
+			]
+		},
+		"declined": {
+			"label": "bot:declined",
+			"boardColumn": "Declined",
+			"description": "Won't be actioned (by design, out of scope, or a maintainer call).",
+			"terminal": true,
+			"offeredCommands": [
+				"reopen"
+			]
+		},
+		"failed": {
+			"label": "bot:failed",
+			"boardColumn": "Failed",
+			"description": "An agent run errored or produced no usable result. Retryable -- not a dead end.",
+			"terminal": false,
+			"offeredCommands": [
+				"retry",
+				"implement",
+				"repro",
+				"investigate",
+				"decline"
+			]
+		},
+		"investigating": {
+			"label": "bot:investigating",
+			"boardColumn": "Investigating",
+			"description": "A maintainer-triggered investigation is in flight: reproduce + diagnose, no fix. Emits an evidence-carrying verdict.",
+			"terminal": false,
+			"transient": true,
+			"offeredCommands": [
+				"status"
+			]
+		},
+		"reproduced": {
+			"label": "bot:reproduced",
+			"boardColumn": "Reproduced",
+			"description": "Verdict: reproduced with a diagnosis attached. Resting until a maintainer triggers the fix loop or disposes of it.",
+			"terminal": false,
+			"offeredCommands": [
+				"fix",
+				"investigate",
+				"decline",
+				"take_over"
+			]
+		},
+		"diagnosed": {
+			"label": "bot:diagnosed",
+			"boardColumn": "Diagnosed",
+			"description": "Verdict: root cause identified, but not confirmed by a reproduction (environment limits). Actionable like reproduced; the fix loop verifies with a failing test before changing anything.",
+			"terminal": false,
+			"offeredCommands": [
+				"fix",
+				"investigate",
+				"decline",
+				"take_over"
+			]
+		},
+		"not_reproduced": {
+			"label": "bot:not-reproduced",
+			"boardColumn": "Not reproduced",
+			"description": "Verdict: could not reproduce, transcript attached. A first-class outcome, not a failure. Reporter can add steps; a maintainer can re-investigate.",
+			"terminal": false,
+			"offeredCommands": [
+				"investigate",
+				"decline",
+				"take_over"
+			]
+		},
+		"needs_info": {
+			"label": "bot:needs-info",
+			"boardColumn": "Needs info",
+			"description": "Verdict: the investigation needs information only the reporter has. Evidence records what was tried and what is missing.",
+			"terminal": false,
+			"offeredCommands": [
+				"investigate",
+				"decline",
+				"take_over"
+			]
+		},
+		"fixing": {
+			"label": "bot:fixing",
+			"boardColumn": "Fixing",
+			"description": "A maintainer-triggered delivery run is building a candidate on bot/fix-<n>.",
+			"terminal": false,
+			"transient": true,
+			"offeredCommands": [
+				"status"
+			]
+		},
+		"preview_building": {
+			"label": "bot:preview-building",
+			"boardColumn": "Building preview",
+			"description": "The candidate change is published; a preview is building so the reporter can try it before a PR exists.",
+			"terminal": false,
+			"transient": true,
+			"offeredCommands": [
+				"status"
+			]
+		},
+		"awaiting_reporter": {
+			"label": "bot:awaiting-reporter",
+			"boardColumn": "Awaiting reporter",
+			"description": "Preview link posted; waiting for the reporter to confirm the change. On confirm a draft PR opens; on denial or 14-day silence the branch is reaped.",
+			"terminal": false,
+			"offeredCommands": [
+				"confirm",
+				"reject",
+				"decline",
+				"take_over"
+			]
+		}
+	},
+	"events": {
+		"repro": {
+			"description": "Reproduce the issue as a bug and attempt a fix.",
+			"actors": [
+				"maintainer"
+			],
+			"defaultKind": "bug"
+		},
+		"investigate": {
+			"description": "Reproduce and diagnose the issue as a bug, with evidence. Does not attempt a fix.",
+			"actors": [
+				"maintainer"
+			],
+			"arg": "directive",
+			"defaultKind": "bug"
+		},
+		"implement": {
+			"description": "Build the described change (feature or directed fix), skipping the bug-repro gate.",
+			"actors": [
+				"maintainer"
+			],
+			"arg": "directive",
+			"defaultKind": "enhancement"
+		},
+		"fix": {
+			"description": "Build a candidate fix on a bot branch and post a preview for the reporter to try.",
+			"actors": [
+				"maintainer"
+			],
+			"arg": "directive"
+		},
+		"retry": {
+			"description": "Re-run the bug reproduction pipeline.",
+			"actors": [
+				"maintainer"
+			]
+		},
+		"revise": {
+			"description": "Send review feedback back into the agent to update the open PR branch.",
+			"actors": [
+				"maintainer"
+			],
+			"arg": "feedback"
+		},
+		"confirm": {
+			"description": "Confirm the staged fix works; open a PR.",
+			"actors": [
+				"reporter",
+				"maintainer"
+			]
+		},
+		"reject": {
+			"description": "The staged fix does not work; retry with feedback.",
+			"actors": [
+				"reporter",
+				"maintainer"
+			],
+			"arg": "feedback"
+		},
+		"decline": {
+			"description": "Won't be actioned; move to declined.",
+			"actors": [
+				"maintainer"
+			],
+			"destructive": true,
+			"defaultKind": "task"
+		},
+		"reopen": {
+			"description": "Bring a terminal item back into triage.",
+			"actors": [
+				"maintainer"
+			]
+		},
+		"take_over": {
+			"description": "A maintainer takes the item; the bot disengages but stays on the board.",
+			"actors": [
+				"maintainer"
+			],
+			"destructive": true
+		},
+		"hand_back": {
+			"description": "Return a human-owned item to the bot.",
+			"actors": [
+				"maintainer"
+			]
+		},
+		"reset": {
+			"description": "Force-reset to triage. Maintainer recovery for conflicting state labels.",
+			"actors": [
+				"maintainer"
+			],
+			"destructive": true
+		},
+		"status": {
+			"description": "Render the item's current state and available commands.",
+			"actors": [
+				"reporter",
+				"maintainer"
+			],
+			"readOnly": true
+		},
+		"help": {
+			"description": "Show the command grammar.",
+			"actors": [
+				"reporter",
+				"maintainer"
+			],
+			"readOnly": true
+		},
+		"agent.skipped": {
+			"description": "Agent skipped (non-bug kind, or repro needs external/prod-only conditions).",
+			"actors": [
+				"system"
+			]
+		},
+		"agent.not_reproduced": {
+			"description": "Agent could not reproduce the issue.",
+			"actors": [
+				"system"
+			]
+		},
+		"agent.by_design": {
+			"description": "Agent verified the behaviour as intended.",
+			"actors": [
+				"system"
+			]
+		},
+		"agent.reproduced": {
+			"description": "Reproduced, but the fix needs a human decision.",
+			"actors": [
+				"system"
+			]
+		},
+		"agent.diagnosed": {
+			"description": "Root cause identified without a confirming reproduction.",
+			"actors": [
+				"system"
+			]
+		},
+		"agent.fix_ready": {
+			"description": "A verified candidate change is published on bot/fix-<n>.",
+			"actors": [
+				"system"
+			]
+		},
+		"agent.needs_info": {
+			"description": "Investigation is blocked on information only the reporter can supply.",
+			"actors": [
+				"system"
+			]
+		},
+		"agent.failed": {
+			"description": "Agent run errored or produced no usable result.",
+			"actors": [
+				"system"
+			]
+		},
+		"pr.opened": {
+			"description": "A bot PR was opened for this item.",
+			"actors": [
+				"system"
+			]
+		},
+		"pr.merged": {
+			"description": "The bot PR was merged.",
+			"actors": [
+				"system"
+			]
+		},
+		"pr.closed": {
+			"description": "The bot PR was closed without merging.",
+			"actors": [
+				"system"
+			]
+		},
+		"pr.changes_requested": {
+			"description": "A reviewer requested changes (review sub-state).",
+			"actors": [
+				"system"
+			]
+		},
+		"pr.approved": {
+			"description": "A reviewer approved the PR (review sub-state).",
+			"actors": [
+				"system"
+			]
+		},
+		"preview.ready": {
+			"description": "The preview deploy for the candidate change is live; link ready to post.",
+			"actors": [
+				"system"
+			]
+		},
+		"preview.failed": {
+			"description": "The preview deploy failed to build.",
+			"actors": [
+				"system"
+			]
+		},
+		"expire": {
+			"description": "The reporter-confirmation window elapsed without a reply.",
+			"actors": [
+				"system"
+			]
+		}
+	},
+	"transitions": [
+		{
+			"from": "unmanaged",
+			"event": "repro",
+			"to": "working",
+			"action": "investigate.repro"
+		},
+		{
+			"from": "unmanaged",
+			"event": "implement",
+			"to": "fixing",
+			"action": "investigate.implement",
+			"note": "implement works straight from an untriaged issue and enters the preview-gated delivery lane"
+		},
+		{
+			"from": "unmanaged",
+			"event": "decline",
+			"to": "declined"
+		},
+		{
+			"from": "triage",
+			"event": "repro",
+			"to": "working",
+			"action": "investigate.repro"
+		},
+		{
+			"from": "triage",
+			"event": "implement",
+			"to": "fixing",
+			"action": "investigate.implement",
+			"note": "enhancement/feature lane -- no repro gate"
+		},
+		{
+			"from": "triage",
+			"event": "decline",
+			"to": "declined"
+		},
+		{
+			"from": "working",
+			"event": "agent.skipped",
+			"to": "blocked",
+			"note": "reason: skipped (was a sink)"
+		},
+		{
+			"from": "working",
+			"event": "agent.not_reproduced",
+			"to": "blocked",
+			"note": "reason: not-reproduced (was a sink)"
+		},
+		{
+			"from": "working",
+			"event": "agent.by_design",
+			"to": "blocked",
+			"note": "reason: by-design"
+		},
+		{
+			"from": "working",
+			"event": "agent.reproduced",
+			"to": "blocked",
+			"note": "reason: fix needs a decision"
+		},
+		{
+			"from": "working",
+			"event": "agent.fix_ready",
+			"to": "awaiting_feedback",
+			"note": "executor pushes bot/fix-<n>; orchestrator asks the reporter to confirm. PR opens on confirm, not here."
+		},
+		{
+			"from": "working",
+			"event": "agent.failed",
+			"to": "failed"
+		},
+		{
+			"from": "blocked",
+			"event": "implement",
+			"to": "fixing",
+			"action": "investigate.implement"
+		},
+		{
+			"from": "blocked",
+			"event": "repro",
+			"to": "working",
+			"action": "investigate.repro"
+		},
+		{
+			"from": "blocked",
+			"event": "retry",
+			"to": "working",
+			"action": "investigate.repro"
+		},
+		{
+			"from": "blocked",
+			"event": "decline",
+			"to": "declined"
+		},
+		{
+			"from": "blocked",
+			"event": "take_over",
+			"to": "human_owned"
+		},
+		{
+			"from": "awaiting_feedback",
+			"event": "confirm",
+			"to": "in_review",
+			"action": "openPr"
+		},
+		{
+			"from": "awaiting_feedback",
+			"event": "reject",
+			"to": "working",
+			"action": "investigate.revise",
+			"note": "retry with reporter feedback"
+		},
+		{
+			"from": "awaiting_feedback",
+			"event": "retry",
+			"to": "working",
+			"action": "investigate.repro"
+		},
+		{
+			"from": "awaiting_feedback",
+			"event": "take_over",
+			"to": "human_owned"
+		},
+		{
+			"from": "in_review",
+			"event": "pr.opened",
+			"to": "in_review",
+			"note": "idempotent; sets review sub-state"
+		},
+		{
+			"from": "in_review",
+			"event": "pr.approved",
+			"to": "in_review",
+			"note": "review sub-state only"
+		},
+		{
+			"from": "in_review",
+			"event": "pr.changes_requested",
+			"to": "in_review",
+			"note": "review sub-state only"
+		},
+		{
+			"from": "in_review",
+			"event": "revise",
+			"to": "working",
+			"action": "investigate.revise",
+			"note": "PR feedback -> agent (was impossible)"
+		},
+		{
+			"from": "in_review",
+			"event": "pr.merged",
+			"to": "done"
+		},
+		{
+			"from": "working",
+			"event": "pr.merged",
+			"to": "done",
+			"note": "merged mid-revise"
+		},
+		{
+			"from": "awaiting_feedback",
+			"event": "pr.merged",
+			"to": "done",
+			"note": "merged before confirm"
+		},
+		{
+			"from": "in_review",
+			"event": "pr.closed",
+			"to": "blocked",
+			"note": "PR closed without merge"
+		},
+		{
+			"from": "working",
+			"event": "pr.closed",
+			"to": "blocked",
+			"note": "PR closed mid-revise"
+		},
+		{
+			"from": "awaiting_feedback",
+			"event": "pr.closed",
+			"to": "blocked",
+			"note": "PR closed while awaiting confirm"
+		},
+		{
+			"from": "unmanaged",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "triage",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "working",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "blocked",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "awaiting_feedback",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "in_review",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "human_owned",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "done",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "declined",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "failed",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "in_review",
+			"event": "decline",
+			"to": "declined",
+			"action": "closePr"
+		},
+		{
+			"from": "in_review",
+			"event": "take_over",
+			"to": "human_owned"
+		},
+		{
+			"from": "human_owned",
+			"event": "hand_back",
+			"to": "triage"
+		},
+		{
+			"from": "done",
+			"event": "reopen",
+			"to": "triage"
+		},
+		{
+			"from": "declined",
+			"event": "reopen",
+			"to": "triage"
+		},
+		{
+			"from": "failed",
+			"event": "retry",
+			"to": "working",
+			"action": "investigate.repro"
+		},
+		{
+			"from": "failed",
+			"event": "implement",
+			"to": "fixing",
+			"action": "investigate.implement"
+		},
+		{
+			"from": "failed",
+			"event": "repro",
+			"to": "working",
+			"action": "investigate.repro"
+		},
+		{
+			"from": "failed",
+			"event": "decline",
+			"to": "declined"
+		},
+		{
+			"from": "unmanaged",
+			"event": "investigate",
+			"to": "investigating",
+			"action": "investigate.diagnose",
+			"note": "cold trigger; applies bot:bug"
+		},
+		{
+			"from": "triage",
+			"event": "investigate",
+			"to": "investigating",
+			"action": "investigate.diagnose"
+		},
+		{
+			"from": "blocked",
+			"event": "investigate",
+			"to": "investigating",
+			"action": "investigate.diagnose"
+		},
+		{
+			"from": "failed",
+			"event": "investigate",
+			"to": "investigating",
+			"action": "investigate.diagnose"
+		},
+		{
+			"from": "not_reproduced",
+			"event": "investigate",
+			"to": "investigating",
+			"action": "investigate.diagnose",
+			"note": "re-run after the reporter adds steps"
+		},
+		{
+			"from": "needs_info",
+			"event": "investigate",
+			"to": "investigating",
+			"action": "investigate.diagnose",
+			"note": "re-run once the missing info arrives"
+		},
+		{
+			"from": "reproduced",
+			"event": "investigate",
+			"to": "investigating",
+			"action": "investigate.diagnose",
+			"note": "re-diagnose"
+		},
+		{
+			"from": "investigating",
+			"event": "agent.reproduced",
+			"to": "reproduced"
+		},
+		{
+			"from": "investigating",
+			"event": "agent.diagnosed",
+			"to": "diagnosed"
+		},
+		{
+			"from": "investigating",
+			"event": "agent.not_reproduced",
+			"to": "not_reproduced"
+		},
+		{
+			"from": "investigating",
+			"event": "agent.needs_info",
+			"to": "needs_info"
+		},
+		{
+			"from": "investigating",
+			"event": "agent.by_design",
+			"to": "blocked",
+			"note": "by-design verdict rests in blocked for a maintainer to decline"
+		},
+		{
+			"from": "investigating",
+			"event": "agent.skipped",
+			"to": "blocked",
+			"note": "repro needs external/prod-only conditions"
+		},
+		{
+			"from": "investigating",
+			"event": "agent.failed",
+			"to": "failed"
+		},
+		{
+			"from": "reproduced",
+			"event": "fix",
+			"to": "fixing",
+			"action": "investigate.fix"
+		},
+		{
+			"from": "reproduced",
+			"event": "decline",
+			"to": "declined"
+		},
+		{
+			"from": "reproduced",
+			"event": "take_over",
+			"to": "human_owned"
+		},
+		{
+			"from": "diagnosed",
+			"event": "fix",
+			"to": "fixing",
+			"action": "investigate.fix"
+		},
+		{
+			"from": "diagnosed",
+			"event": "decline",
+			"to": "declined"
+		},
+		{
+			"from": "diagnosed",
+			"event": "take_over",
+			"to": "human_owned"
+		},
+		{
+			"from": "diagnosed",
+			"event": "investigate",
+			"to": "investigating",
+			"action": "investigate.diagnose",
+			"note": "re-diagnose"
+		},
+		{
+			"from": "not_reproduced",
+			"event": "decline",
+			"to": "declined"
+		},
+		{
+			"from": "not_reproduced",
+			"event": "take_over",
+			"to": "human_owned"
+		},
+		{
+			"from": "needs_info",
+			"event": "decline",
+			"to": "declined"
+		},
+		{
+			"from": "needs_info",
+			"event": "take_over",
+			"to": "human_owned"
+		},
+		{
+			"from": "fixing",
+			"event": "agent.fix_ready",
+			"to": "preview_building"
+		},
+		{
+			"from": "fixing",
+			"event": "agent.failed",
+			"to": "failed"
+		},
+		{
+			"from": "fixing",
+			"event": "agent.by_design",
+			"to": "blocked",
+			"note": "fix run concluded the behaviour is intended"
+		},
+		{
+			"from": "fixing",
+			"event": "agent.skipped",
+			"to": "blocked",
+			"note": "fix run skipped rather than building a candidate; rest in blocked for a maintainer"
+		},
+		{
+			"from": "preview_building",
+			"event": "preview.ready",
+			"to": "awaiting_reporter"
+		},
+		{
+			"from": "preview_building",
+			"event": "preview.failed",
+			"to": "reproduced",
+			"toByKind": {
+				"enhancement": "blocked",
+				"task": "blocked"
+			},
+			"note": "bugs return to the reproduced verdict; directed changes rest in blocked so implement can retry"
+		},
+		{
+			"from": "awaiting_reporter",
+			"event": "confirm",
+			"to": "in_review",
+			"action": "openDraftPr"
+		},
+		{
+			"from": "awaiting_reporter",
+			"event": "reject",
+			"to": "reproduced",
+			"toByKind": {
+				"enhancement": "blocked",
+				"task": "blocked"
+			},
+			"action": "reapBranch",
+			"note": "denial reaps the unvalidated branch; directed changes remain retryable through implement"
+		},
+		{
+			"from": "awaiting_reporter",
+			"event": "expire",
+			"to": "reproduced",
+			"toByKind": {
+				"enhancement": "blocked",
+				"task": "blocked"
+			},
+			"action": "reapBranch",
+			"note": "14-day silence reaps the branch; bugs retain their verdict and directed changes remain retryable"
+		},
+		{
+			"from": "awaiting_reporter",
+			"event": "take_over",
+			"to": "human_owned"
+		},
+		{
+			"from": "awaiting_reporter",
+			"event": "decline",
+			"to": "declined",
+			"action": "reapBranch",
+			"note": "maintainer disposal reaps the branch"
+		},
+		{
+			"from": "investigating",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "reproduced",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "not_reproduced",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "needs_info",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "fixing",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "preview_building",
+			"event": "reset",
+			"to": "triage"
+		},
+		{
+			"from": "awaiting_reporter",
+			"event": "reset",
+			"to": "triage"
+		}
+	]
+}

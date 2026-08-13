@@ -111,6 +111,98 @@ describe("ContentList", () => {
 			await expect.element(screen.getByText("Second")).toBeInTheDocument();
 			await expect.element(screen.getByText("Third")).toBeInTheDocument();
 		});
+
+		it("renders configured custom fields using their field metadata", async () => {
+			const items = [
+				makeItem({
+					data: {
+						title: "Support request",
+						ticket_number: "SUP-1042",
+						priority: "urgent",
+						labels: ["bug", "unknown"],
+						vip: true,
+					},
+				}),
+			];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					listColumns={[
+						{ slug: "ticket_number", label: "Ticket", kind: "string" },
+						{
+							slug: "priority",
+							label: "Priority",
+							kind: "select",
+							options: [{ value: "urgent", label: "Urgent" }],
+						},
+						{
+							slug: "labels",
+							label: "Labels",
+							kind: "multiSelect",
+							options: [{ value: "bug", label: "Bug" }],
+						},
+						{ slug: "vip", label: "VIP", kind: "boolean" },
+					]}
+				/>,
+			);
+
+			await expect.element(screen.getByText("SUP-1042")).toBeInTheDocument();
+			await expect.element(screen.getByText("Urgent")).toBeInTheDocument();
+			await expect.element(screen.getByText("Bug, unknown")).toBeInTheDocument();
+			await expect.element(screen.getByText("Yes")).toBeInTheDocument();
+		});
+
+		it("formats numeric, datetime, boolean, and missing custom-field values", async () => {
+			const openedAt = "2025-01-02T00:00:00.000Z";
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[
+						makeItem({
+							updatedAt: "2025-03-04T00:00:00.000Z",
+							data: {
+								title: "Invoice",
+								amount: 12345.67,
+								opened_at: openedAt,
+								paid: false,
+								owner: null,
+							},
+						}),
+					]}
+					listColumns={[
+						{ slug: "amount", label: "Amount", kind: "number" },
+						{ slug: "opened_at", label: "Opened", kind: "datetime" },
+						{ slug: "paid", label: "Paid", kind: "boolean" },
+						{ slug: "owner", label: "Owner", kind: "string" },
+					]}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByText(new Intl.NumberFormat("en").format(12345.67)))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByText(new Intl.DateTimeFormat("en").format(new Date(openedAt))))
+				.toBeInTheDocument();
+			await expect.element(screen.getByText("No", { exact: true })).toBeInTheDocument();
+			await expect.element(screen.getByText("Not set")).toBeInTheDocument();
+		});
+
+		it("does not expose unconfigured custom-field data", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[
+						makeItem({ data: { title: "Support request", priority: "urgent", secret: "Hidden" } }),
+					]}
+					listColumns={[{ slug: "priority", label: "Priority", kind: "string" }]}
+				/>,
+			);
+
+			await expect.element(screen.getByText("urgent")).toBeInTheDocument();
+			expect(screen.getByText("Hidden").query()).toBeNull();
+		});
 	});
 
 	describe("empty states", () => {
@@ -159,19 +251,48 @@ describe("ContentList", () => {
 	});
 
 	describe("status badges", () => {
-		it("shows draft status", async () => {
-			const items = [makeItem({ id: "1", status: "draft" })];
+		it.each([
+			["draft", "Draft"],
+			["published", "Published"],
+			["scheduled", "Scheduled"],
+			["archived", "Archived"],
+		] as const)("shows the normalized %s status with its icon", async (status, label) => {
+			const items = [makeItem({ id: "1", status })];
 			const screen = await render(<ContentList {...defaultProps} items={items} />);
-			await expect.element(screen.getByText("draft")).toBeInTheDocument();
+			const badge = screen.getByText(label).element();
+
+			expect(badge.querySelector("svg")).not.toBeNull();
 		});
 
-		it("shows published status", async () => {
-			const items = [makeItem({ id: "1", status: "published" })];
-			const screen = await render(<ContentList {...defaultProps} items={items} />);
-			await expect.element(screen.getByText("published")).toBeInTheDocument();
+		it("keeps status icons before their labels in Arabic RTL mode", async () => {
+			const previousLanguage = document.documentElement.lang;
+			const previousDirection = document.documentElement.dir;
+			document.documentElement.lang = "ar";
+			document.documentElement.dir = "rtl";
+
+			try {
+				const items = [makeItem({ id: "1", status: "draft" })];
+				const screen = await render(<ContentList {...defaultProps} items={items} />);
+				const badge = screen.getByText("Draft").element();
+				const icon = badge.querySelector("svg");
+				const textNode = [...badge.childNodes].find(
+					(node) => node.nodeType === Node.TEXT_NODE && node.textContent?.includes("Draft"),
+				);
+
+				expect(icon).not.toBeNull();
+				expect(textNode).toBeDefined();
+				const textRange = document.createRange();
+				textRange.selectNode(textNode!);
+				expect(icon!.getBoundingClientRect().left).toBeGreaterThan(
+					textRange.getBoundingClientRect().left,
+				);
+			} finally {
+				document.documentElement.lang = previousLanguage;
+				document.documentElement.dir = previousDirection;
+			}
 		});
 
-		it("shows pending badge when draftRevisionId differs from liveRevisionId", async () => {
+		it("shows the Pending changes companion badge when revisions differ", async () => {
 			const items = [
 				makeItem({
 					id: "1",
@@ -181,7 +302,8 @@ describe("ContentList", () => {
 				}),
 			];
 			const screen = await render(<ContentList {...defaultProps} items={items} />);
-			await expect.element(screen.getByText("pending")).toBeInTheDocument();
+			const badge = screen.getByText("Pending changes").element();
+			expect(badge.querySelector("svg")).not.toBeNull();
 		});
 
 		it("does not show pending badge when revisions match", async () => {
@@ -194,7 +316,32 @@ describe("ContentList", () => {
 				}),
 			];
 			const screen = await render(<ContentList {...defaultProps} items={items} />);
-			expect(screen.getByText("pending").query()).toBeNull();
+			expect(screen.getByText("Pending changes").query()).toBeNull();
+		});
+
+		it("renders unknown status names without treating object properties as lifecycle states", async () => {
+			const items = [makeItem({ id: "1", status: "toString" })];
+			const screen = await render(<ContentList {...defaultProps} items={items} />);
+
+			await expect.element(screen.getByText("toString", { exact: true })).toBeInTheDocument();
+		});
+	});
+
+	describe("status filter", () => {
+		it("shows icons with the selected status and each lifecycle option", async () => {
+			const screen = await render(
+				<ContentList {...defaultProps} statusFilter="draft" onStatusFilterChange={vi.fn()} />,
+			);
+			const filter = screen.getByRole("combobox", { name: "Filter by status" });
+
+			expect(filter.element().querySelector("svg")).not.toBeNull();
+			await filter.click();
+
+			for (const label of ["Published", "Draft", "Scheduled", "Archived"]) {
+				const option = screen.getByRole("option", { name: label });
+				await expect.element(option).toBeInTheDocument();
+				expect(option.element().querySelector("svg")).not.toBeNull();
+			}
 		});
 	});
 
@@ -610,6 +757,23 @@ describe("ContentList", () => {
 
 			// The header must not render as a button — it's just a label.
 			expect(screen.getByRole("button", { name: "Title" }).query()).toBeNull();
+		});
+
+		it("keeps configured custom columns display-only", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[makeItem({ data: { title: "Post", priority: "urgent" } })]}
+					listColumns={[{ slug: "priority", label: "Priority", kind: "string" }]}
+					sort={{ field: "title", direction: "asc" }}
+					onSortChange={vi.fn()}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByRole("columnheader", { name: "Priority" }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Priority" }).query()).toBeNull();
 		});
 	});
 });

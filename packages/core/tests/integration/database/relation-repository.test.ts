@@ -64,6 +64,33 @@ describeEachDialect("RelationRepository", (dialect) => {
 		expect(fr.childLabel).toBe("Subordonné");
 	});
 
+	it("create with translationOf omits collections and inherits them from the source", async () => {
+		const anchor = await repo.create({ ...baseInput });
+		const fr = await repo.create({
+			name: "ignored-name",
+			parentLabel: "Responsable",
+			childLabel: "Subordonné",
+			locale: "fr",
+			translationOf: anchor.id,
+		});
+
+		expect(fr.translationGroup).toBe(anchor.translationGroup);
+		expect(fr.parentCollection).toBe("employees");
+		expect(fr.childCollection).toBe("employees");
+	});
+
+	it("create without translationOf and without collections throws", async () => {
+		await expect(
+			repo.create({
+				name: "manages",
+				parentLabel: "Manager",
+				childLabel: "Direct report",
+			}),
+		).rejects.toThrow(
+			"parentCollection and childCollection are required unless translationOf is set",
+		);
+	});
+
 	it("create with a missing translationOf source throws", async () => {
 		await expect(
 			repo.create({ ...baseInput, locale: "fr", translationOf: "does-not-exist" }),

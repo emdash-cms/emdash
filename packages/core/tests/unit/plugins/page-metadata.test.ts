@@ -8,7 +8,7 @@
  * - HTML attribute escaping
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import {
 	resolvePageMetadata,
@@ -16,6 +16,7 @@ import {
 	safeJsonLdSerialize,
 	escapeHtmlAttr,
 	createSha256CspHash,
+	registerJsonLdCspHashes,
 } from "../../../src/page/metadata.js";
 import type { PageMetadataContribution } from "../../../src/plugins/types.js";
 
@@ -314,6 +315,33 @@ describe("createSha256CspHash", () => {
 		await expect(createSha256CspHash(json)).resolves.toBe(
 			"sha256-jYad5jvuDVG3xtskggDVT0+GiHcapqamItZJ8eGfvCQ=",
 		);
+	});
+});
+
+describe("registerJsonLdCspHashes", () => {
+	it("does not access Astro's CSP getter when CSP is disabled", async () => {
+		const getCsp = vi.fn(() => {
+			throw new Error("CSP getter must stay lazy");
+		});
+
+		await registerJsonLdCspHashes(false, getCsp, [{ json: '{"@type":"WebSite"}' }]);
+
+		expect(getCsp).not.toHaveBeenCalled();
+	});
+
+	it("registers every JSON-LD hash when CSP is enabled", async () => {
+		const insertScriptHash = vi.fn();
+		const getCsp = vi.fn(() => ({ insertScriptHash }));
+		const scripts = [{ json: '{"@type":"WebSite"}' }, { json: '{"@type":"Organization"}' }];
+
+		await registerJsonLdCspHashes(true, getCsp, scripts);
+		const hash0 = await createSha256CspHash(scripts[0].json);
+		const hash1 = await createSha256CspHash(scripts[1].json);
+
+		expect(getCsp).toHaveBeenCalledOnce();
+		expect(insertScriptHash).toHaveBeenCalledTimes(2);
+		expect(insertScriptHash).toHaveBeenCalledWith(hash0);
+		expect(insertScriptHash).toHaveBeenCalledWith(hash1);
 	});
 });
 

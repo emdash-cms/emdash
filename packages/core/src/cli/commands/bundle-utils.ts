@@ -9,9 +9,11 @@ import { createWriteStream } from "node:fs";
 import { readdir, stat, access } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { pipeline } from "node:stream/promises";
+import { pathToFileURL } from "node:url";
 
 import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
+import { z } from "zod";
 
 import { capabilitiesToDeclaredAccess } from "../../plugins/types.js";
 import type {
@@ -19,6 +21,8 @@ import type {
 	ResolvedPlugin,
 	HookName,
 	ManifestHookEntry,
+	ManifestMcpTool,
+	ManifestRouteEntry,
 } from "../../plugins/types.js";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -33,6 +37,7 @@ export const MAX_SCREENSHOTS = 5;
 export const MAX_SCREENSHOT_WIDTH = 1920;
 export const MAX_SCREENSHOT_HEIGHT = 1080;
 export const ICON_SIZE = 256;
+const MCP_TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 // ── Regex patterns (module-scope to avoid re-compilation) ────────────────────
 
@@ -105,6 +110,11 @@ export async function fileExists(path: string): Promise<boolean> {
 	}
 }
 
+/** Convert an absolute build artifact path into a portable ESM import specifier. */
+export function toFileImportSpecifier(path: string): string {
+	return pathToFileURL(path).href;
+}
+
 // ── Image dimension readers ──────────────────────────────────────────────────
 
 /**
@@ -149,6 +159,44 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 		}
 	}
 
+	const routes: Array<ManifestRouteEntry | string> = Object.entries(plugin.routes).map(
+		([name, route]) => {
+			if (
+				route.public === undefined &&
+				route.permission === undefined &&
+				route.cacheControl === undefined
+			) {
+				return name;
+			}
+
+			const entry: ManifestRouteEntry = { name };
+			if (route.public !== undefined) entry.public = route.public;
+			if (route.permission !== undefined) entry.permission = route.permission;
+			if (route.cacheControl !== undefined) entry.cacheControl = route.cacheControl;
+			return entry;
+		},
+	);
+	const tools: ManifestMcpTool[] = Object.entries(plugin.mcp?.tools ?? {}).map(([name, tool]) => {
+		if (!MCP_TOOL_NAME_PATTERN.test(name)) throw new Error(`Invalid MCP tool name "${name}"`);
+		const route = plugin.routes[tool.route];
+		if (!route?.permission || route.public) {
+			throw new Error(`MCP tool "${name}" must reference a private route with a permission`);
+		}
+		return {
+			name,
+			description: tool.description,
+			route: tool.route,
+			permission: route.permission,
+			destructive: tool.destructive ?? false,
+			inputSchema: z.toJSONSchema(tool.input, { target: "draft-7" }),
+			...(tool.output
+				? {
+						outputSchema: z.toJSONSchema(tool.output, { target: "draft-7" }),
+					}
+				: {}),
+		};
+	});
+
 	return {
 		id: plugin.id,
 		version: plugin.version,
@@ -157,7 +205,8 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 		allowedHosts: plugin.allowedHosts,
 		storage: plugin.storage,
 		hooks,
-		routes: Object.keys(plugin.routes),
+		routes,
+		...(tools.length > 0 ? { mcp: { tools } } : {}),
 		admin: {
 			// Omit entry (it's a module specifier for the host, not relevant in bundles)
 			settingsSchema: plugin.admin.settingsSchema,

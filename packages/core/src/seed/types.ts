@@ -5,7 +5,7 @@
  * collections, fields, menus, settings, taxonomies, redirects, widget areas, and optional sample content.
  */
 
-import type { FieldType } from "../schema/types.js";
+import type { CollectionAdminConfig, FieldType } from "../schema/types.js";
 import type { SiteSettings } from "../settings/types.js";
 import type { Storage } from "../storage/types.js";
 
@@ -72,8 +72,19 @@ export interface SeedCollection {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: ("drafts" | "revisions" | "preview" | "scheduling" | "search" | "seo")[];
 	urlPattern?: string;
+	/**
+	 * Omit this collection from the admin sidebar. It stays reachable through
+	 * the API, MCP, plugin hooks, and direct `/content/:collection` URLs.
+	 */
+	hidden?: boolean;
+	/**
+	 * Explicit position in the admin sidebar (ascending). Collections without
+	 * a `sortOrder` keep the alphabetical order and follow the ordered ones.
+	 */
+	sortOrder?: number;
 	/** Enable comments on this collection */
 	commentsEnabled?: boolean;
 	fields: SeedField[];
@@ -89,6 +100,7 @@ export interface SeedField {
 	required?: boolean;
 	unique?: boolean;
 	searchable?: boolean;
+	indexed?: boolean;
 	defaultValue?: unknown;
 	validation?: Record<string, unknown>;
 	widget?: string;

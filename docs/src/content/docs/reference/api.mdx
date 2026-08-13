@@ -361,6 +361,16 @@ results.items.forEach(result => {
 	console.log(result.snippet); // Contains <mark> tags
 	console.log(result.score);
 });
+
+// Paginate: pass the previous nextCursor back as `cursor` to get the next page.
+// nextCursor is undefined once there are no more results.
+if (results.nextCursor) {
+	const next = await search("hello world", {
+		collections: ["posts", "pages"],
+		limit: 20,
+		cursor: results.nextCursor,
+	});
+}
 ```
 
 ## Error handling

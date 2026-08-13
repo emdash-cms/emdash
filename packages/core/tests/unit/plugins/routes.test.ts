@@ -15,6 +15,7 @@ import type { PluginContextFactoryOptions } from "../../../src/plugins/context.j
 import { EmailPipeline } from "../../../src/plugins/email.js";
 import { HookPipeline } from "../../../src/plugins/hooks.js";
 import {
+	parseRouteInput,
 	PluginRouteHandler,
 	PluginRouteRegistry,
 	PluginRouteError,
@@ -172,6 +173,33 @@ describe("PluginRouteHandler", () => {
 
 			const meta = handler.getRouteMeta("admin");
 			expect(meta).toEqual({ public: false });
+		});
+
+		it("exposes cacheControl for public routes", () => {
+			const plugin = createTestPlugin({
+				routes: {
+					catalog: { public: true, cacheControl: "public, max-age=60", handler: vi.fn() },
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			expect(handler.getRouteMeta("catalog")).toEqual({
+				public: true,
+				cacheControl: "public, max-age=60",
+			});
+		});
+
+		it("never exposes cacheControl for private routes", () => {
+			// Private responses are per-user; a route that sets both flags must
+			// not become cacheable.
+			const plugin = createTestPlugin({
+				routes: {
+					admin: { cacheControl: "public, max-age=60", handler: vi.fn() },
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			expect(handler.getRouteMeta("admin")).toEqual({ public: false });
 		});
 	});
 
@@ -568,5 +596,79 @@ describe("createRouteRegistry helper", () => {
 	it("creates a PluginRouteRegistry instance", () => {
 		const registry = createRouteRegistry(createMockFactoryOptions());
 		expect(registry).toBeInstanceOf(PluginRouteRegistry);
+	});
+});
+
+describe("parseRouteInput (#2146)", () => {
+	it("parses the query string for GET requests", async () => {
+		const input = await parseRouteInput(
+			new Request("http://test.com/plugins/p/search?limit=20&q=hello", { method: "GET" }),
+		);
+		expect(input).toEqual({ limit: "20", q: "hello" });
+	});
+
+	it("parses the query string for HEAD and DELETE requests", async () => {
+		expect(
+			await parseRouteInput(new Request("http://test.com/x?id=7", { method: "HEAD" })),
+		).toEqual({ id: "7" });
+		expect(
+			await parseRouteInput(new Request("http://test.com/x?id=7", { method: "DELETE" })),
+		).toEqual({ id: "7" });
+	});
+
+	it("collapses a repeated query key into an array", async () => {
+		const input = await parseRouteInput(
+			new Request("http://test.com/x?tag=a&tag=b&one=z", { method: "GET" }),
+		);
+		expect(input).toEqual({ tag: ["a", "b"], one: "z" });
+	});
+
+	it("returns an empty object for a GET with no query params", async () => {
+		expect(await parseRouteInput(new Request("http://test.com/x", { method: "GET" }))).toEqual({});
+	});
+
+	it("parses the JSON body for POST/PUT/PATCH", async () => {
+		for (const method of ["POST", "PUT", "PATCH"]) {
+			const input = await parseRouteInput(
+				new Request("http://test.com/x?ignored=1", {
+					method,
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ name: "Ada" }),
+				}),
+			);
+			expect(input).toEqual({ name: "Ada" });
+		}
+	});
+
+	it("returns undefined for a body method with no/invalid JSON", async () => {
+		expect(
+			await parseRouteInput(new Request("http://test.com/x", { method: "POST" })),
+		).toBeUndefined();
+	});
+
+	it("lets a GET route with an input schema validate query params end to end", async () => {
+		const plugin = createTestPlugin({
+			routes: {
+				search: {
+					input: z.object({
+						limit: z.coerce.number().min(1).default(50),
+						q: z.string().optional(),
+					}),
+					handler: async (ctx) => ({ received: ctx.input }),
+				},
+			},
+		});
+		const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+		const request = new Request("http://test.com/plugins/p/search?limit=20&q=hello", {
+			method: "GET",
+		});
+
+		const result = await handler.invoke("search", {
+			request,
+			body: await parseRouteInput(request),
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.data).toEqual({ received: { limit: 20, q: "hello" } });
 	});
 });

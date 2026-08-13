@@ -184,10 +184,8 @@ function evaluateCondition(
 	data: Record<string, unknown>,
 ): boolean {
 	const fieldValue = data[condition.field];
-	const strValue =
-		fieldValue === undefined || fieldValue === null
-			? ""
-			: String(fieldValue as string | number | boolean);
+	// eslint-disable-next-line typescript/no-base-to-string -- form field value is a scalar at runtime
+	const strValue = fieldValue === undefined || fieldValue === null ? "" : String(fieldValue);
 	const isFilled = strValue !== "";
 
 	switch (condition.op) {

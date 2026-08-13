@@ -1,7 +1,7 @@
 /**
  * Plugin Admin Context
  *
- * Provides plugin admin modules (widgets, pages, fields) to the admin UI
+ * Provides plugin admin modules (widgets, pages, fields, editor panels) to the admin UI
  * via React context. This avoids cross-module registry issues by keeping
  * everything in React's component tree.
  */
@@ -9,11 +9,14 @@
 import * as React from "react";
 import { createContext, useContext } from "react";
 
+import type { ContentEditorPanelExtension } from "./content-editor-panels";
+
 /** Shape of a plugin's admin exports */
 export interface PluginAdminModule {
 	widgets?: Record<string, React.ComponentType>;
 	pages?: Record<string, React.ComponentType>;
 	fields?: Record<string, React.ComponentType>;
+	contentEditorPanels?: readonly ContentEditorPanelExtension[];
 }
 
 /** All plugin admin modules keyed by plugin ID */

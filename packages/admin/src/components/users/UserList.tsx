@@ -51,7 +51,7 @@ export function UserList({
 		<div className="space-y-4">
 			{/* Header */}
 			<div className="flex items-center justify-between">
-				<h1 className="text-2xl font-bold">{t`Users`}</h1>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Users`}</h1>
 				<Button onClick={onInviteUser} icon={<UserPlus />}>
 					{t`Invite User`}
 				</Button>
@@ -120,7 +120,7 @@ export function UserList({
 											{t`No users found matching your filters.`}{" "}
 											<button
 												type="button"
-												className="text-kumo-brand underline"
+												className="text-kumo-link underline"
 												onClick={() => {
 													onSearchChange("");
 													onRoleFilterChange(undefined);
@@ -134,7 +134,7 @@ export function UserList({
 											{t`No users yet.`}{" "}
 											<button
 												type="button"
-												className="text-kumo-brand underline"
+												className="text-kumo-link underline"
 												onClick={onInviteUser}
 											>
 												{t`Invite your first team member`}
@@ -212,7 +212,7 @@ function UserListRow({ user, onSelect }: UserListRowProps) {
 						{t`Disabled`}
 					</span>
 				) : (
-					<span className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+					<span className="inline-flex items-center gap-1 text-sm text-kumo-success">
 						<CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
 						{t`Active`}
 					</span>

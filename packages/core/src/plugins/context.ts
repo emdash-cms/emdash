@@ -13,6 +13,7 @@ import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
 import { SeoRepository } from "../database/repositories/seo.js";
+import { TaxonomyRepository, type Taxonomy } from "../database/repositories/taxonomy.js";
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
@@ -52,6 +53,10 @@ import type {
 	QueryOptions,
 	ContentListOptions,
 	MediaListOptions,
+	TaxonomyAccess,
+	TaxonomyDefInfo,
+	TaxonomyTermInfo,
+	TaxonomyReadOptions,
 } from "./types.js";
 
 // =============================================================================
@@ -195,6 +200,37 @@ async function assertSeoEnabled(
 }
 
 /**
+ * Parse the `collections` JSON column into a string array (`[]` on anything
+ * else). Mirrors the guards in the Cloudflare/workerd bridges so an
+ * in-process plugin degrades on malformed data instead of crashing.
+ */
+function parseCollectionsColumn(value: string | null): string[] {
+	if (!value) return [];
+	try {
+		const parsed: unknown = JSON.parse(value);
+		return Array.isArray(parsed)
+			? parsed.filter((item): item is string => typeof item === "string")
+			: [];
+	} catch {
+		return [];
+	}
+}
+
+/** Map a repository `Taxonomy` row to the plugin-facing term shape. */
+function taxonomyToTermInfo(term: Taxonomy): TaxonomyTermInfo {
+	return {
+		id: term.id,
+		taxonomy: term.name,
+		slug: term.slug,
+		label: term.label,
+		parentId: term.parentId,
+		data: term.data,
+		locale: term.locale,
+		translationGroup: term.translationGroup,
+	};
+}
+
+/**
  * Create read-only content access
  */
 export function createContentAccess(db: Kysely<Database>): ContentAccess {
@@ -216,6 +252,7 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				updatedAt: item.updatedAt,
 				locale: item.locale,
 				publishedAt: item.publishedAt,
+				scheduledAt: item.scheduledAt,
 			};
 
 			if (await seoRepo.isEnabled(collection)) {
@@ -256,6 +293,7 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				updatedAt: item.updatedAt,
 				locale: item.locale,
 				publishedAt: item.publishedAt,
+				scheduledAt: item.scheduledAt,
 			}));
 
 			if (items.length > 0 && (await seoRepo.isEnabled(collection))) {
@@ -279,6 +317,48 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 }
 
 /**
+ * Create read-only taxonomy access (gated on `taxonomies:read`).
+ */
+export function createTaxonomyAccess(db: Kysely<Database>): TaxonomyAccess {
+	const taxonomyRepo = new TaxonomyRepository(db);
+
+	return {
+		async getAll(options?: TaxonomyReadOptions): Promise<TaxonomyDefInfo[]> {
+			let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
+			if (options?.locale !== undefined) query = query.where("locale", "=", options.locale);
+			const rows = await query.orderBy("name", "asc").execute();
+			return rows.map((row) => ({
+				name: row.name,
+				label: row.label,
+				labelSingular: row.label_singular,
+				hierarchical: row.hierarchical === 1,
+				collections: parseCollectionsColumn(row.collections),
+				locale: row.locale,
+			}));
+		},
+
+		async getTerms(taxonomy: string, options?: TaxonomyReadOptions): Promise<TaxonomyTermInfo[]> {
+			const terms = await taxonomyRepo.findByName(taxonomy, { locale: options?.locale });
+			return terms.map(taxonomyToTermInfo);
+		},
+
+		async getEntryTerms(
+			collection: string,
+			entryId: string,
+			options?: TaxonomyReadOptions & { taxonomy?: string },
+		): Promise<TaxonomyTermInfo[]> {
+			const terms = await taxonomyRepo.getTermsForEntry(
+				collection,
+				entryId,
+				options?.taxonomy,
+				options?.locale,
+			);
+			return terms.map(taxonomyToTermInfo);
+		},
+	};
+}
+
+/**
  * Create full content access with write operations.
  *
  * `create` and `update` accept a reserved `seo` key in their `data`
@@ -287,13 +367,17 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
  * the content write. The returned `ContentItem.seo` reflects the resulting
  * SEO state for SEO-enabled collections.
  */
-export function createContentAccessWithWrite(db: Kysely<Database>): ContentAccessWithWrite {
+export function createContentAccessWithWrite(
+	db: Kysely<Database>,
+	beforeContentWrite?: () => Promise<void>,
+): ContentAccessWithWrite {
 	const readAccess = createContentAccess(db);
 
 	return {
 		...readAccess,
 
 		async create(collection: string, data: ContentWriteInput): Promise<ContentItem> {
+			await beforeContentWrite?.();
 			const { fields, seo } = splitSeoFromInput(data);
 			let contentMutated = false;
 
@@ -320,6 +404,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 						updatedAt: item.updatedAt,
 						locale: item.locale,
 						publishedAt: item.publishedAt,
+						scheduledAt: item.scheduledAt,
 					};
 
 					if (hasSeo) {
@@ -342,6 +427,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 		},
 
 		async update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem> {
+			await beforeContentWrite?.();
 			const { fields, seo } = splitSeoFromInput(data);
 			const hasFieldUpdates = Object.keys(fields).length > 0;
 			let contentMutated = false;
@@ -377,6 +463,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 						updatedAt: item.updatedAt,
 						locale: item.locale,
 						publishedAt: item.publishedAt,
+						scheduledAt: item.scheduledAt,
 					};
 
 					if (hasSeo) {
@@ -401,6 +488,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 		},
 
 		async delete(collection: string, id: string): Promise<boolean> {
+			await beforeContentWrite?.();
 			const contentRepo = new ContentRepository(db);
 			const deleted = await contentRepo.delete(collection, id);
 			if (deleted) {
@@ -800,6 +888,8 @@ export interface SiteInfoOptions {
 	siteUrl?: string;
 	/** Site locale from options table */
 	locale?: string;
+	/** Astro's `trailingSlash` config (from `virtual:emdash/config`). */
+	trailingSlash?: "always" | "never" | "ignore";
 }
 
 /**
@@ -815,6 +905,7 @@ export function createSiteInfo(options: SiteInfoOptions): SiteInfo {
 		name: options.siteName ?? "",
 		url: (options.siteUrl ?? "").replace(TRAILING_SLASH_RE, ""), // strip trailing slash
 		locale: options.locale ?? "en",
+		trailingSlash: options.trailingSlash ?? "ignore", // Astro's default
 	};
 }
 
@@ -905,6 +996,7 @@ export function createUserAccess(db: Kysely<Database>): UserAccess {
 
 export interface PluginContextFactoryOptions {
 	db: Kysely<Database>;
+	beforeContentWrite?: () => Promise<void>;
 	/**
 	 * Resolver for the database connection, preferred over `db` when present.
 	 * Called per `createContext()` so connection-backed adapters (e.g. Postgres
@@ -959,6 +1051,7 @@ export interface PluginContextFactoryOptions {
  */
 export class PluginContextFactory {
 	private resolveDb: () => Kysely<Database>;
+	private beforeContentWrite?: () => Promise<void>;
 	private storage?: Storage;
 	private getUploadUrl?: (
 		filename: string,
@@ -978,6 +1071,7 @@ export class PluginContextFactory {
 	constructor(options: PluginContextFactoryOptions) {
 		const fixedDb = options.db;
 		this.resolveDb = options.getDb ?? (() => fixedDb);
+		this.beforeContentWrite = options.beforeContentWrite;
 		this.storage = options.storage;
 		this.getUploadUrl = options.getUploadUrl;
 		this.site = createSiteInfo(options.siteInfo ?? {});
@@ -1010,9 +1104,15 @@ export class PluginContextFactory {
 		// names ("read:content", "write:content") never appear here.
 		let content: ContentAccess | ContentAccessWithWrite | undefined;
 		if (capabilities.has("content:write")) {
-			content = createContentAccessWithWrite(db);
+			content = createContentAccessWithWrite(db, this.beforeContentWrite);
 		} else if (capabilities.has("content:read")) {
 			content = createContentAccess(db);
+		}
+
+		// Capability-gated: taxonomies (read-only)
+		let taxonomies: TaxonomyAccess | undefined;
+		if (capabilities.has("taxonomies:read")) {
+			taxonomies = createTaxonomyAccess(db);
 		}
 
 		// Capability-gated: media
@@ -1078,6 +1178,7 @@ export class PluginContextFactory {
 			storage,
 			kv,
 			content,
+			taxonomies,
 			media,
 			http,
 			log,

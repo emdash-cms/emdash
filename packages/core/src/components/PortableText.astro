@@ -17,17 +17,27 @@ import {
 	mergeComponents,
 	type PortableTextProps,
 } from "astro-portabletext";
+import {
+	buildPortableTextListTree,
+	clonePortableTextValue,
+} from "../content/portable-text-lists.js";
 import { getEditMeta } from "../query.js";
 // @ts-ignore - virtual module
 import { pluginBlockComponents } from "virtual:emdash/block-components";
 import { emdashComponents } from "./index.js";
 import InlineEditor from "./InlineEditor.astro";
+import { groupBlockquoteRuns } from "./portable-text-blockquote-group.js";
 
 export interface Props extends Omit<PortableTextProps, "value"> {
 	value: PortableTextProps["value"];
 }
 
-const { value, components: userComponents, ...rest } = Astro.props;
+const {
+	value,
+	components: userComponents,
+	listNestingMode = "html",
+	...rest
+} = Astro.props;
 
 // Check for edit metadata (attached as non-enumerable property by query functions)
 const editMeta = getEditMeta(value);
@@ -37,6 +47,19 @@ const withPlugins = mergeComponents(emdashComponents, { type: pluginBlockCompone
 const mergedComponents = userComponents
 	? mergeComponents(withPlugins, userComponents)
 	: withPlugins;
+
+// A multi-paragraph quote is stored as consecutive blockquote-styled blocks
+// (Portable Text is flat); merge each run into one blockquoteGroup node so
+// it renders as a single <blockquote> instead of several.
+let renderValue = value;
+if (!editMeta) {
+	const cloned = clonePortableTextValue(Array.isArray(value) ? value : value ? [value] : []);
+	const grouped = groupBlockquoteRuns(cloned);
+	renderValue = buildPortableTextListTree(
+		grouped as Array<Record<string, unknown>>,
+		listNestingMode,
+	) as typeof value;
+}
 ---
 
 {editMeta ? (
@@ -47,5 +70,10 @@ const mergedComponents = userComponents
 		field={editMeta.field}
 	/>
 ) : (
-	<BasePortableText value={value} components={mergedComponents} {...rest} />
+	<BasePortableText
+		value={renderValue}
+		components={mergedComponents}
+		listNestingMode={listNestingMode}
+		{...rest}
+	/>
 )}

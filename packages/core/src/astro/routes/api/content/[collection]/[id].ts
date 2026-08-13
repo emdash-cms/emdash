@@ -18,15 +18,14 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ params, url, locals }) => {
 	const { emdash, user } = locals;
+	if (!emdash?.handleContentGet) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const denied = requirePerm(user, "content:read");
 	if (denied) return denied;
 	const collection = params.collection!;
 	const id = params.id!;
 	const locale = url.searchParams.get("locale") || undefined;
-
-	if (!emdash?.handleContentGet) {
-		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
-	}
 
 	const result = await emdash.handleContentGet(collection, id, locale);
 
@@ -127,7 +126,9 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache?.enabled) await cache.invalidate({ tags: [collection, resolvedId] });
+	if (cache?.enabled && result.liveContentChanged !== false) {
+		await cache.invalidate({ tags: [collection, resolvedId] });
+	}
 
 	return unwrapResult(result);
 };

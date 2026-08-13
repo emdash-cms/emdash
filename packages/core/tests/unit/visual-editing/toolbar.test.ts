@@ -61,9 +61,9 @@ describe("renderToolbar", () => {
 		expect(html).toContain("/_emdash/api/manifest");
 	});
 
-	it("unwraps the { data } envelope returned by /_emdash/api/manifest", () => {
+	it("unwraps the { success, data } envelope returned by /_emdash/api/manifest", () => {
 		// Regression for #103 / #445: the manifest endpoint wraps the payload in
-		// { data: manifest } (ApiResponse shape), but getFieldKind reads
+		// { success, data: manifest } (ApiResponse shape), but getFieldKind reads
 		// manifest.collections directly. Without the unwrap, getFieldKind returns
 		// null for every field kind, and every click on an edit annotation opens
 		// the admin in a new tab instead of inline-editing.

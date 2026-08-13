@@ -8,6 +8,7 @@
  * - Marketplace ingest extends this with publishing-specific fields
  */
 
+import { Permissions } from "@emdash-cms/auth";
 import {
 	capabilitiesToDeclaredAccess,
 	declaredAccessToCapabilities,
@@ -27,6 +28,7 @@ export const CURRENT_PLUGIN_CAPABILITIES = [
 	"network:request:unrestricted",
 	"content:read",
 	"content:write",
+	"taxonomies:read",
 	"media:read",
 	"media:write",
 	"users:read",
@@ -136,6 +138,27 @@ const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
 const manifestRouteEntrySchema = z.object({
 	name: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
 	public: z.boolean().optional(),
+	permission: z
+		.string()
+		.refine((permission) => permission in Permissions)
+		.optional(),
+	cacheControl: z.string().min(1).optional(),
+});
+
+const pluginJsonSchema = z.record(z.string(), z.unknown());
+const mcpToolNamePattern = /^[a-zA-Z0-9_-]+$/;
+const pluginMcpConfigSchema = z.object({
+	tools: z.array(
+		z.object({
+			name: z.string().min(1).max(64).regex(mcpToolNamePattern, "Invalid MCP tool name"),
+			description: z.string().min(1),
+			route: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
+			permission: z.string().refine((permission) => permission in Permissions),
+			destructive: z.boolean(),
+			inputSchema: pluginJsonSchema,
+			outputSchema: pluginJsonSchema.optional(),
+		}),
+	),
 });
 
 // ── Sub-schemas ─────────────────────────────────────────────────
@@ -246,6 +269,7 @@ const declaredAccessSchema = z.object({
 	content: z
 		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
 		.optional(),
+	taxonomies: z.object({ read: accessConstraints.optional() }).optional(),
 	media: z
 		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
 		.optional(),
@@ -305,6 +329,7 @@ export const pluginManifestSchema = z.object({
 			manifestRouteEntrySchema,
 		]),
 	),
+	mcp: pluginMcpConfigSchema.optional(),
 	admin: pluginAdminConfigSchema,
 });
 
@@ -347,9 +372,13 @@ export function normalizeManifestHook(
 /**
  * Normalize a manifest route entry — plain strings become `{ name }` objects.
  */
-export function normalizeManifestRoute(entry: string | { name: string; public?: boolean }): {
+export function normalizeManifestRoute(
+	entry: string | { name: string; public?: boolean; permission?: string; cacheControl?: string },
+): {
 	name: string;
 	public?: boolean;
+	permission?: string;
+	cacheControl?: string;
 } {
 	if (typeof entry === "string") {
 		return { name: entry };

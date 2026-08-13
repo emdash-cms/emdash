@@ -78,6 +78,7 @@ export default defineConfig({
 		"src/astro/middleware.ts",
 		"src/astro/middleware/setup.ts",
 		"src/astro/middleware/auth.ts",
+		"src/astro/middleware/media-usage-write-fence.ts",
 		"src/astro/middleware/redirect.ts",
 		"src/astro/middleware/request-context.ts",
 		"src/astro/types.ts",
@@ -88,6 +89,8 @@ export default defineConfig({
 		"src/db/postgres.ts",
 		// Query instrumentation (used by first-party adapters like @emdash-cms/cloudflare)
 		"src/database/instrumentation.ts",
+		// Fail-fast Postgres migration lock (used by @emdash-cms/cloudflare's Hyperdrive adapter)
+		"src/database/pg-migration-lock.ts",
 		// Storage adapters (runtime - loaded via virtual:emdash/storage)
 		"src/storage/local.ts",
 		"src/storage/s3.ts",

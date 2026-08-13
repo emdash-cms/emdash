@@ -187,6 +187,26 @@ export async function updateTerm(
 }
 
 /**
+ * Set the manual order of one sibling group.
+ *
+ * `ids` and `parentId` are translation groups: a term holds one position across
+ * every locale, so there is no locale to pass. `ids` may name only the terms
+ * this locale renders — the server permutes them within the positions they
+ * already occupy and leaves untranslated members where they are.
+ */
+export async function reorderTerms(
+	taxonomyName: string,
+	input: { parentId: string | null; ids: string[] },
+): Promise<void> {
+	const response = await apiFetch(`${API_BASE}/taxonomies/${taxonomyName}/reorder`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(input),
+	});
+	await parseApiResponse<{ reordered: true }>(response, "Failed to reorder terms");
+}
+
+/**
  * Delete a term
  */
 export async function deleteTerm(

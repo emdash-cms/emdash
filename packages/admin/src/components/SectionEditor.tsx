@@ -13,6 +13,8 @@ import * as React from "react";
 import { fetchSection, updateSection, type Section, type UpdateSectionInput } from "../lib/api";
 import { slugify } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
+import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
+import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
 import { EditorHeader } from "./EditorHeader";
 import { PortableTextEditor, type BlockSidebarPanel } from "./PortableTextEditor";
@@ -41,7 +43,6 @@ export function SectionEditor() {
 		onSuccess: (updated) => {
 			void queryClient.invalidateQueries({ queryKey: ["sections"] });
 			void queryClient.invalidateQueries({ queryKey: ["sections", slug] });
-			toastManager.add({ title: t`Section saved` });
 			// If slug changed, navigate to new URL
 			if (updated.slug !== slug) {
 				void navigate({ to: "/sections/$slug", params: { slug: updated.slug } });
@@ -75,7 +76,7 @@ export function SectionEditor() {
 						shape="square"
 						icon={<ArrowPrev />}
 					/>
-					<h1 className="text-2xl font-bold">{t`Section Not Found`}</h1>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Section Not Found`}</h1>
 				</div>
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<p className="text-kumo-subtle">
@@ -179,7 +180,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 				}
 				actions={<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />}
 			>
-				<h1 className="text-2xl font-bold truncate">{section.title}</h1>
+				<h1 className="truncate text-2xl font-semibold">{section.title}</h1>
 				<p className="text-sm text-kumo-subtle">
 					{section.source === "theme" ? t`Theme Section` : t`Custom Section`} &middot;{" "}
 					{section.slug}
@@ -194,7 +195,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 						<Label className="text-lg font-semibold mb-4 block">{t`Content`}</Label>
 						<PortableTextEditor
 							value={content as Parameters<typeof PortableTextEditor>[0]["value"]}
-							onChange={(value) => setContent(value as unknown[])}
+							onChange={(value) => setContent(value)}
 							onBlockSidebarOpen={handleBlockSidebarOpen}
 							onBlockSidebarClose={handleBlockSidebarClose}
 						/>
@@ -203,8 +204,13 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 					{/* Save action at the bottom of the main column so users hit
 					    it naturally when they finish editing, without needing to
 					    scroll past the entire sidebar. */}
-					<div className="flex justify-end">
-						<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />
+					<div className="flex items-center justify-end gap-2">
+						<SaveButton
+							isSaving={isSaving}
+							isDirty={isDirty}
+							announce={false}
+							onClick={handleSave}
+						/>
 					</div>
 				</div>
 
@@ -213,12 +219,21 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 					{blockSidebarPanel?.type === "image" ? (
 						<ImageDetailPanel
 							attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
-							onUpdate={(attrs) =>
-								blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
-							}
+							onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
 							onReplace={(attrs) =>
 								blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
 							}
+							onDelete={() => {
+								blockSidebarPanel.onDelete();
+								setBlockSidebarPanel(null);
+							}}
+							onClose={handleBlockSidebarClose}
+							inline
+						/>
+					) : blockSidebarPanel?.type === "gallery" ? (
+						<GalleryDetailPanel
+							attributes={blockSidebarPanel.attrs as unknown as GalleryAttributes}
+							onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
 							onDelete={() => {
 								blockSidebarPanel.onDelete();
 								setBlockSidebarPanel(null);

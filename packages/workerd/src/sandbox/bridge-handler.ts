@@ -14,7 +14,12 @@
  * must produce same outputs, same return shapes, same error messages.
  */
 
-import { createHttpAccess, createUnrestrictedHttpAccess, PluginStorageRepository } from "emdash";
+import {
+	createHttpAccess,
+	createSandboxRouteErrorEnvelope,
+	createUnrestrictedHttpAccess,
+	PluginStorageRepository,
+} from "emdash";
 import type { Database, SandboxEmailSendCallback } from "emdash";
 import { sql, type Kysely, type RawBuilder } from "kysely";
 
@@ -97,6 +102,7 @@ export interface BridgeHandlerOptions {
 	/** Full storage config (with indexes) for proper query/count delegation */
 	storageConfig?: Record<string, BridgeStorageCollectionConfig>;
 	db: Kysely<Database>;
+	beforeContentWrite?: () => Promise<void>;
 	emailSend: () => SandboxEmailSendCallback | null;
 	/** Storage for media uploads. Optional; media/upload throws if not provided. */
 	storage?: BridgeStorage | null;
@@ -129,6 +135,13 @@ export function createBridgeHandler(
 			const result = await dispatch(opts, method, body);
 			return Response.json({ result });
 		} catch (error) {
+			const sandboxRouteError = createSandboxRouteErrorEnvelope(error);
+			if (sandboxRouteError) {
+				return Response.json(
+					{ error: sandboxRouteError.error },
+					{ status: sandboxRouteError.error.status },
+				);
+			}
 			const message = error instanceof Error ? error.message : "Internal error";
 			return new Response(JSON.stringify({ error: message }), {
 				status: 500,
@@ -167,9 +180,11 @@ async function dispatch(
 			return contentList(db, requireString(body, "collection"), body);
 		case "content/create":
 			requireCapability(opts, "write:content");
+			await opts.beforeContentWrite?.();
 			return contentCreate(db, requireString(body, "collection"), requireRecord(body, "data"));
 		case "content/update":
 			requireCapability(opts, "write:content");
+			await opts.beforeContentWrite?.();
 			return contentUpdate(
 				db,
 				requireString(body, "collection"),
@@ -178,9 +193,11 @@ async function dispatch(
 			);
 		case "content/delete":
 			requireCapability(opts, "write:content");
+			await opts.beforeContentWrite?.();
 			return contentDelete(db, requireString(body, "collection"), requireString(body, "id"));
 		case "content/createMany":
 			requireCapability(opts, "write:content");
+			await opts.beforeContentWrite?.();
 			return contentCreateMany(
 				db,
 				requireString(body, "collection"),
@@ -188,6 +205,7 @@ async function dispatch(
 			);
 		case "content/updateMany":
 			requireCapability(opts, "write:content");
+			await opts.beforeContentWrite?.();
 			return contentUpdateMany(
 				db,
 				requireString(body, "collection"),
@@ -195,10 +213,30 @@ async function dispatch(
 			);
 		case "content/deleteMany":
 			requireCapability(opts, "write:content");
+			await opts.beforeContentWrite?.();
 			return contentDeleteMany(
 				db,
 				requireString(body, "collection"),
 				requireStringArray(body, "ids"),
+			);
+
+		// ── Taxonomies (read-only) ──────────────────────────────────────
+		// `taxonomies:read` is a post-rename capability: it has no legacy
+		// alias, so the canonical name is checked directly.
+		case "taxonomy/list":
+			requireCapability(opts, "taxonomies:read");
+			return taxonomyList(db, optionalString(body, "locale"));
+		case "taxonomy/terms":
+			requireCapability(opts, "taxonomies:read");
+			return taxonomyTerms(db, requireString(body, "taxonomy"), optionalString(body, "locale"));
+		case "taxonomy/entryTerms":
+			requireCapability(opts, "taxonomies:read");
+			return taxonomyEntryTerms(
+				db,
+				requireString(body, "collection"),
+				requireString(body, "entryId"),
+				optionalString(body, "taxonomy"),
+				optionalString(body, "locale"),
 			);
 
 		// ── Media ───────────────────────────────────────────────────────
@@ -917,6 +955,112 @@ async function contentDeleteMany(
 		}
 		return count;
 	});
+}
+
+// ── Taxonomy Operations (read-only) ──────────────────────────────────────
+
+/** Type guard for plain JSON objects. */
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Parse the `collections` JSON column into a string array (`[]` on anything else). */
+function parseCollectionsColumn(value: string | null): string[] {
+	if (!value) return [];
+	try {
+		const parsed: unknown = JSON.parse(value);
+		return Array.isArray(parsed)
+			? parsed.filter((item): item is string => typeof item === "string")
+			: [];
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * Convert a `taxonomies` row to the term shape exposed over the bridge.
+ * Matches the Cloudflare PluginBridge and core's TaxonomyTermInfo.
+ */
+function rowToTaxonomyTerm(row: {
+	id: string;
+	name: string;
+	slug: string;
+	label: string;
+	parent_id: string | null;
+	data: string | null;
+	locale: string;
+	translation_group: string | null;
+}) {
+	let data: Record<string, unknown> | null = null;
+	if (row.data) {
+		try {
+			const parsed: unknown = JSON.parse(row.data);
+			if (isJsonObject(parsed)) data = parsed;
+		} catch {
+			data = null;
+		}
+	}
+	return {
+		id: row.id,
+		taxonomy: row.name,
+		slug: row.slug,
+		label: row.label,
+		parentId: row.parent_id,
+		data,
+		locale: row.locale,
+		translationGroup: row.translation_group,
+	};
+}
+
+async function taxonomyList(db: Kysely<Database>, locale?: string) {
+	let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
+	if (locale !== undefined) query = query.where("locale", "=", locale);
+	const rows = await query.orderBy("name", "asc").execute();
+	return rows.map((row) => ({
+		name: row.name,
+		label: row.label,
+		labelSingular: row.label_singular,
+		hierarchical: row.hierarchical === 1,
+		collections: parseCollectionsColumn(row.collections),
+		locale: row.locale,
+	}));
+}
+
+async function taxonomyTerms(db: Kysely<Database>, taxonomy: string, locale?: string) {
+	// Manual order first, then label with `id asc` as a stable tiebreaker for
+	// terms sharing both — matching core's TaxonomyRepository.findByName.
+	let query = db
+		.selectFrom("taxonomies")
+		.selectAll()
+		.where("name", "=", taxonomy)
+		.orderBy("sort_order", "asc")
+		.orderBy("label", "asc")
+		.orderBy("id", "asc");
+	if (locale !== undefined) query = query.where("locale", "=", locale);
+	const rows = await query.execute();
+	return rows.map(rowToTaxonomyTerm);
+}
+
+async function taxonomyEntryTerms(
+	db: Kysely<Database>,
+	collection: string,
+	entryId: string,
+	taxonomy?: string,
+	locale?: string,
+) {
+	// The pivot stores the term's translation_group in taxonomy_id, so the
+	// join resolves an assignment into each locale's term row.
+	let query = db
+		.selectFrom("content_taxonomies")
+		.innerJoin("taxonomies", "taxonomies.translation_group", "content_taxonomies.taxonomy_id")
+		.selectAll("taxonomies")
+		.where("content_taxonomies.collection", "=", collection)
+		.where("content_taxonomies.entry_id", "=", entryId)
+		.orderBy("taxonomies.locale", "asc");
+	if (taxonomy !== undefined) query = query.where("taxonomies.name", "=", taxonomy);
+	if (locale !== undefined) query = query.where("taxonomies.locale", "=", locale);
+	const rows = await query.execute();
+	return rows.map(rowToTaxonomyTerm);
 }
 
 // ── Media Operations ─────────────────────────────────────────────────────

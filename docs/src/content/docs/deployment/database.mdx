@@ -212,6 +212,57 @@ database: postgres({
 | `pool.min`         | `number`  | Minimum pool connections (default 0) |
 | `pool.max`         | `number`  | Maximum pool connections (default 10)|
 
+### Database role requirements
+
+EmDash creates and updates its own PostgreSQL tables. Core migrations create and alter system and collection tables, content types create `ec_*` tables, and adding or removing a field alters its collection table. The configured PostgreSQL role therefore needs schema authority for the lifetime of the site, not only during initial setup.
+
+Use one canonical role for EmDash. It needs:
+
+- `CONNECT` on the database;
+- `USAGE` and `CREATE` on the active schema;
+- ownership of every EmDash table and function, either directly or through membership with `INHERIT` in the owning role; and
+- `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on those tables.
+
+It does not need to be a superuser, have `CREATEDB` or `CREATEROLE`, or create extensions. PostgreSQL does not provide an `ALTER` or `DROP` table grant: those operations belong to the object owner and roles that inherit its privileges. Granting `ALL` on a table to a different role does not make that role an owner. EmDash does not run `SET ROLE`, so membership configured without inheritance is not sufficient.
+
+<Aside type="caution" title="Keep the role stable">
+	PostgreSQL assigns each object to the role that creates it. Use a non-expiring role for the primary EmDash connection: remove any TTL or automatic expiration that would delete the role and replace it with another. Rotating the password for the same role is safe after updating the connection credentials, but changing the user in `DATABASE_URL` or a Hyperdrive configuration does not transfer existing objects. A replacement role may be able to read and write rows but still fail on the next migration or content-type change with `must be owner of table`.
+</Aside>
+
+Most installations can use the database's existing schema, commonly `public`. This is the simplest option when the database is dedicated to EmDash. In the examples below, `emdash_app` is the login role in EmDash's connection string; use an existing provider role or create a dedicated login. Grant it access with an administrative connection, substituting your database, schema, and role names:
+
+```sql
+GRANT CONNECT ON DATABASE app TO emdash_app;
+GRANT USAGE, CREATE ON SCHEMA public TO emdash_app;
+```
+
+These grants let the role create new objects. They do not change the owner of existing tables; see [Repair mixed PostgreSQL ownership](#repair-mixed-postgresql-ownership).
+
+EmDash uses PostgreSQL's active `current_schema()`. It does not create a schema or set `search_path`, so verify the connection before deployment:
+
+```sql
+SELECT
+  current_database(),
+  session_user,
+  current_user,
+  current_schema(),
+  current_setting('search_path');
+```
+
+#### Optional: use a dedicated schema
+
+Use a dedicated schema when EmDash shares a database with another application or when you want its objects isolated from `public`. This is optional and is easiest to configure before the first EmDash setup. A database dedicated to EmDash does not need a separate schema.
+
+Assuming the canonical `emdash_app` role already exists, create and select its schema with an administrative connection:
+
+```sql
+GRANT CONNECT ON DATABASE app TO emdash_app;
+CREATE SCHEMA emdash AUTHORIZATION emdash_app;
+ALTER ROLE emdash_app IN DATABASE app SET search_path = emdash;
+```
+
+This does not move an existing installation from `public` or repair mixed ownership. Existing sites should keep their current schema and follow [Repair mixed PostgreSQL ownership](#repair-mixed-postgresql-ownership) instead.
+
 ### Connection Pooling
 
 The adapter uses `pg.Pool` under the hood. Tune pool size based on your deployment:
@@ -255,7 +306,7 @@ export default defineConfig({
 
 ### Setup
 
-Create the Hyperdrive configuration and add the binding to your Wrangler config:
+First [prepare the PostgreSQL role](#database-role-requirements). Then create the Hyperdrive configuration with that role's connection string and add the binding to your Wrangler config:
 
 ```sh
 wrangler hyperdrive create emdash-db \
@@ -307,15 +358,18 @@ wrangler hyperdrive create emdash-db \
 
 ### Configuration
 
-| Option          | Type     | Default       | Description                                                          |
-| --------------- | -------- | ------------- | -------------------------------------------------------------------- |
-| `binding`       | `string` | `"HYPERDRIVE"` | Primary (caching-disabled) Hyperdrive binding name                  |
-| `cachedBinding` | `string` | —             | Optional caching-enabled binding for anonymous reads (see below)     |
-| `max`           | `number` | `5`           | Max size of the in-Worker connection pool to Hyperdrive              |
+| Option                         | Type     | Default        | Description                                                                                                      |
+| ------------------------------ | -------- | -------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `binding`                      | `string` | `"HYPERDRIVE"` | Primary (caching-disabled) Hyperdrive binding name                                                               |
+| `cachedBinding`                | `string` | —              | Optional caching-enabled binding for anonymous reads (see below)                                                 |
+| `preferUncachedAfterWriteMs`   | `number` | `60000`\*      | After a content publish, prefer `binding` for this many ms on anonymous public reads (match Hyperdrive `max_age`) |
+| `max`                          | `number` | `5`            | Max size of the in-Worker connection pool to Hyperdrive                                                          |
+
+\*Default `60000` applies only when `cachedBinding` is set; ignored otherwise.
 
 ### Serving anonymous reads from cache
 
-By default you disable Hyperdrive caching entirely, because the admin and writes need read-after-write consistency. But **anonymous public reads** — no session, no write — can tolerate a short staleness window. If that trade-off is acceptable, run **two Hyperdrive configurations over the same database**: one with caching off (the primary `binding`) and one with caching on (`cachedBinding`). EmDash then routes anonymous read requests through the cache-enabled binding while every authenticated request and every write stays on the uncached primary, so read-after-write consistency is preserved.
+By default you disable Hyperdrive caching entirely, because the admin and writes need read-after-write consistency. But **anonymous public requests using `GET` or `HEAD`** can tolerate a short staleness window. If that trade-off is acceptable, run **two Hyperdrive configurations over the same database**: one with caching off (the primary `binding`) and one with caching on (`cachedBinding`). EmDash routes those anonymous public requests through the cache-enabled binding and every other request through the uncached primary.
 
 ```sh
 # Primary — caching OFF (used by admin, auth'd requests, writes, migrations)
@@ -323,7 +377,7 @@ wrangler hyperdrive create emdash-db \
   --connection-string "postgres://user:password@host/db?sslmode=verify-full" \
   --caching-disabled
 
-# Cached — SAME connection string, caching ON (used by anonymous reads only)
+# Cached — SAME database role and connection string, caching ON
 wrangler hyperdrive create emdash-db-cached \
   --connection-string "postgres://user:password@host/db?sslmode=verify-full"
 ```
@@ -343,11 +397,11 @@ database: hyperdrive({ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED"
 
 This is the [two-configuration pattern](https://developers.cloudflare.com/hyperdrive/configuration/query-caching/#disable-caching) Cloudflare documents for caching. EmDash decides which binding to use per request:
 
-- **Anonymous reads of public-site paths** (`GET`/`HEAD`, no session, not under `/_emdash`) → cache-enabled `cachedBinding`.
+- **Anonymous reads of public-site paths** (`GET`/`HEAD`, no session, not under `/_emdash`) → cache-enabled `cachedBinding`, **except** for a short window after a content publish (default 60s; set `preferUncachedAfterWriteMs` to your Hyperdrive `max_age`) when EmDash prefers the uncached `binding` so a rebuild cannot reseed edge/object caches from still-stale Hyperdrive results.
 - **Authenticated requests** (editors, authors) → uncached `binding`.
-- **Writes** (`POST`, `PUT`, `DELETE`, including anonymous ones) → uncached `binding`.
+- **Mutation requests** (`POST`, `PUT`, `PATCH`, `DELETE`, including anonymous ones) → uncached `binding`.
 - **Any request under `/_emdash`** (admin, setup, auth, internal APIs), even an anonymous `GET` → uncached `binding`.
-- **Migrations and cold-start** → always the primary `binding`.
+- **Migrations and runtime initialization** → always the primary `binding`.
 
 <Aside>
 	The `/_emdash` carve-out matters: the setup wizard and login-state checks are
@@ -357,11 +411,93 @@ This is the [two-configuration pattern](https://developers.cloudflare.com/hyperd
 </Aside>
 
 <Aside type="caution">
-	Both configurations must point at the **same** database, or anonymous visitors see a different dataset than editors. Anonymous reads of just-published content can be up to the cache's `max_age` stale (Hyperdrive default 60s, max 1h), and this cache is independent of EmDash's own cache invalidation. Only opt in if a short public-read staleness window is acceptable; otherwise omit `cachedBinding` and keep caching disabled.
+	Both configurations should use the **same PostgreSQL role**, database, and schema. If you later replace the primary configuration with a different role, PostgreSQL does not transfer the existing objects with it. Set `preferUncachedAfterWriteMs` to your cached config's `max_age` (default 60s) so post-publish public rebuilds read fresh SQL. Outside that window, anonymous public reads can still be up to `max_age` stale relative to non-content writes. Only opt in if that trade-off is acceptable; otherwise omit `cachedBinding` and keep caching disabled.
+</Aside>
+
+<Aside type="note">
+	Cross-isolate post-write routing uses the configured distributed Object Cache backend to share the last-content-write timestamp. Without a distributed Object Cache, the prefer-uncached window is known only to the Worker isolate that handled the write.
 </Aside>
 
 <Aside>
 	**Sandboxed plugins are D1-only.** The sandbox plugin bridge talks to a D1 binding directly, independent of the configured adapter, so sandboxed plugins aren't available on a Hyperdrive deployment.
+</Aside>
+
+#### Optional: use a separate cached role
+
+Migrations, setup, authenticated requests, and explicit write requests always use the primary `binding`. A separate role for `cachedBinding` does not need schema ownership or `CREATE`, but it needs `CONNECT`, schema `USAGE`, and `SELECT` on every table used by the public site.
+
+Anonymous public `GET` and `HEAD` requests can also record redirect hits and 404s. To preserve those features, the cached role additionally needs `UPDATE` on `_emdash_redirects` and `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on `_emdash_404_log`. Plugins or application code that writes during a public `GET` or `HEAD` may require more. Use the same role for both bindings unless you have tested the site with a restricted cached role.
+
+Add the cached role after EmDash has completed its initial migrations. The examples below use the optional `emdash` schema; substitute your active schema, such as `public`. Create the login and database settings with your provider's administrative role:
+
+```sql
+CREATE ROLE emdash_cached LOGIN PASSWORD 'replace-with-a-secret';
+GRANT CONNECT ON DATABASE app TO emdash_cached;
+ALTER ROLE emdash_cached IN DATABASE app SET search_path = emdash;
+```
+
+Then connect as `emdash_app`, the schema and table owner, to grant access to existing and future tables:
+
+```sql
+GRANT USAGE ON SCHEMA emdash TO emdash_cached;
+GRANT SELECT ON ALL TABLES IN SCHEMA emdash TO emdash_cached;
+GRANT UPDATE ON emdash._emdash_redirects TO emdash_cached;
+GRANT SELECT, INSERT, UPDATE, DELETE ON emdash._emdash_404_log TO emdash_cached;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA emdash
+  GRANT SELECT ON TABLES TO emdash_cached;
+```
+
+Connect with both roles and verify they report the same `current_database()` and `current_schema()` before enabling `cachedBinding`. On a shared schema, `GRANT SELECT ON ALL TABLES` also exposes unrelated tables. Grant access to individual EmDash tables instead, and update those grants when collections or other schema objects are added.
+
+## Repair mixed PostgreSQL ownership
+
+If a site has used multiple PostgreSQL users, first choose the canonical role that the primary EmDash connection will continue using. Take a backup and stop schema changes while repairing ownership.
+
+Inspect every table in the active schema:
+
+```sql
+SELECT
+  n.nspname AS schema_name,
+  c.relname AS table_name,
+  pg_get_userbyid(c.relowner) AS owner
+FROM pg_class AS c
+JOIN pg_namespace AS n ON n.oid = c.relnamespace
+WHERE n.nspname = current_schema()
+  AND c.relkind IN ('r', 'p')
+ORDER BY c.relname;
+```
+
+EmDash objects include `_emdash_*` and `_plugin_*` system tables, `ec_*` collection tables, and unprefixed tables such as `content_taxonomies`, `media`, `options`, `revisions`, and `taxonomies`. In a dedicated EmDash schema, every application table should have the canonical owner.
+
+EmDash also creates PostgreSQL functions used by media-usage triggers. Inspect function ownership and retain each function's argument signature for the repair command:
+
+```sql
+SELECT
+  n.nspname AS schema_name,
+  p.proname AS function_name,
+  pg_get_function_identity_arguments(p.oid) AS arguments,
+  pg_get_userbyid(p.proowner) AS owner
+FROM pg_proc AS p
+JOIN pg_namespace AS n ON n.oid = p.pronamespace
+WHERE n.nspname = current_schema()
+ORDER BY p.proname, arguments;
+```
+
+Transfer each mismatched object with a superuser or provider role that can change its ownership, always using schema-qualified names:
+
+```sql
+ALTER TABLE emdash.content_taxonomies OWNER TO emdash_app;
+ALTER TABLE emdash.ec_posts OWNER TO emdash_app;
+ALTER FUNCTION emdash.emdash_media_usage_capture_work() OWNER TO emdash_app;
+```
+
+Use the argument list returned by the inventory query inside each `ALTER FUNCTION` statement. Changing a table's owner also covers its attached indexes, constraints, and triggers, but not their independent trigger functions. Repeat both inventory queries until every EmDash table and function reports the canonical owner, then connect as that role and verify `current_schema()` before starting the application.
+
+For a non-superuser to transfer ownership, it must own or inherit ownership of the object, be able to `SET ROLE` to the new owner, and the new owner must have `CREATE` on the schema. Managed PostgreSQL providers may require their administrative role to perform the transfer.
+
+<Aside type="caution" title="Do not reassign unrelated objects">
+	`REASSIGN OWNED` changes every object owned by a role in the current database, including objects unrelated to EmDash, and can also affect shared objects. Use targeted `ALTER TABLE ... OWNER TO ...` statements unless the old role was dedicated exclusively to this EmDash database.
 </Aside>
 
 ## SQLite
@@ -409,6 +545,8 @@ database: sqlite({ url: `file:${process.env.DATABASE_PATH}` });
 ## Migrations
 
 EmDash runs migrations automatically on the first request, for every supported dialect (D1, SQLite, libSQL, PostgreSQL). Migrations are bundled with the `emdash` package and embedded into your build.
+
+For PostgreSQL, migrations run through the configured connection; Hyperdrive always uses its primary binding. They run before EmDash finishes runtime initialization and may create tables, indexes, and functions, alter or drop columns and constraints, and update existing rows. A role that can connect and modify rows but does not own the existing EmDash objects is not sufficient. The setup wizard cannot repair missing database privileges because migrations run before setup.
 
 If the database is empty (no collections) and the setup wizard has not been completed, EmDash also applies a seed file on first boot. The seed is read from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the build at compile time. If none is present, a built-in default seed is used. Subsequent boots against an existing database leave its content alone.
 

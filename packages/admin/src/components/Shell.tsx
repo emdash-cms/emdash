@@ -1,3 +1,4 @@
+import { useMatches } from "@tanstack/react-router";
 import * as React from "react";
 
 import { useCurrentUser } from "../lib/api/current-user";
@@ -7,6 +8,16 @@ import { AdminCommandPalette } from "./AdminCommandPalette";
 import { Header } from "./Header";
 import { Sidebar, SidebarNav } from "./Sidebar";
 import { WelcomeModal } from "./WelcomeModal";
+
+declare module "@tanstack/react-router" {
+	interface StaticDataRouteOption {
+		/**
+		 * Route renders edge-to-edge: the Shell's <main> drops its padding and
+		 * page scroll, and the route's component manages its own scroll regions.
+		 */
+		fullBleed?: boolean;
+	}
+}
 
 export interface ShellProps {
 	children: React.ReactNode;
@@ -39,6 +50,9 @@ export function Shell({ children, manifest }: ShellProps) {
 	const { data: user } = useCurrentUser();
 	const { locale } = useLocale();
 	const sidebarSide = getLocaleDir(locale) === "rtl" ? "right" : "left";
+	const fullBleed = useMatches({
+		select: (matches) => matches.some((match) => match.staticData.fullBleed),
+	});
 
 	// Show welcome modal on first login
 	React.useEffect(() => {
@@ -46,6 +60,26 @@ export function Shell({ children, manifest }: ShellProps) {
 			setWelcomeModalOpen(true);
 		}
 	}, [user?.isFirstLogin]);
+
+	// Maintain the non-secret "an editor session may exist in this browser"
+	// localStorage flag consumed by the public-site toolbar bootstrap
+	// (`toolbar: "client"`, Discussion #1742). Set here — not in the login
+	// flows — so every auth method (passkey, OAuth, magic link, dev bypass)
+	// is covered. Opening the admin also un-dismisses the toolbar.
+	// Key literals are duplicated in emdash core, which the admin can't import.
+	React.useEffect(() => {
+		if (!user) return;
+		try {
+			if (user.role >= 30) {
+				localStorage.setItem("emdash-editor", "1");
+				localStorage.removeItem("emdash-toolbar-dismissed");
+			} else {
+				localStorage.removeItem("emdash-editor");
+			}
+		} catch {
+			// localStorage unavailable — the toolbar pill just won't appear
+		}
+	}, [user]);
 
 	return (
 		<Sidebar.Provider
@@ -66,7 +100,15 @@ export function Shell({ children, manifest }: ShellProps) {
 			{/* Main content area — scrolls independently so sidebar stays full height */}
 			<div className="flex flex-1 flex-col overflow-hidden">
 				<Header />
-				<main className="flex-1 overflow-y-auto p-6">{children}</main>
+				<main
+					className={
+						fullBleed
+							? "flex-1 overflow-hidden bg-kumo-elevated"
+							: "flex-1 overflow-y-auto bg-kumo-elevated p-6"
+					}
+				>
+					{children}
+				</main>
 			</div>
 
 			{/* Welcome modal for first-time users */}

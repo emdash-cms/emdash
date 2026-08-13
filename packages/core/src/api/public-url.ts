@@ -10,7 +10,7 @@
  */
 
 /** Minimal config shape — avoids importing the full EmDashConfig type tree. */
-interface SiteUrlConfig {
+export interface SiteUrlConfig {
 	siteUrl?: string;
 }
 
@@ -22,8 +22,10 @@ interface SiteUrlConfig {
  * the build. Container deployments set env vars at runtime, so we must read
  * process.env which Vite leaves untouched.
  *
- * On Cloudflare Workers process.env is unavailable (returns undefined),
- * so the fallback chain continues to url.origin.
+ * On Cloudflare Workers process.env is empty by default, so the fallback
+ * chain continues to url.origin — unless the Worker enables the
+ * `nodejs_compat_populate_process_env` compatibility flag, in which case
+ * `vars`/secrets (e.g. EMDASH_SITE_URL) are readable here too.
  *
  * Caches after first call.
  */
@@ -72,7 +74,19 @@ function getEnvSiteUrl(): string | undefined {
  * @returns Origin string, e.g. `"https://mysite.example.com"`
  */
 export function getPublicOrigin(url: URL, config?: SiteUrlConfig): string {
-	return config?.siteUrl || getEnvSiteUrl() || url.origin;
+	return getConfiguredOrigin(config) || url.origin;
+}
+
+/**
+ * Return the operator-configured public origin, if any.
+ *
+ * The first two steps of {@link getPublicOrigin}'s resolution —
+ * `config.siteUrl`, then the `EMDASH_SITE_URL`/`SITE_URL` env vars — without
+ * the request-URL fallback. For callers that have a more trustworthy fallback
+ * than the request (e.g. the stored setup origin used for outbound emails).
+ */
+export function getConfiguredOrigin(config?: SiteUrlConfig): string | undefined {
+	return config?.siteUrl || getEnvSiteUrl() || undefined;
 }
 
 /**

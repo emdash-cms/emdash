@@ -9,7 +9,7 @@
 
 import type { APIRoute } from "astro";
 
-import { handleError } from "#api/error.js";
+import { apiSuccess, handleError } from "#api/error.js";
 import { getAuthMode } from "#auth/mode.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
@@ -94,14 +94,7 @@ export const GET: APIRoute = async ({ locals }) => {
 					admin: adminBranding,
 				};
 
-		return Response.json(
-			{ data: manifest },
-			{
-				headers: {
-					"Cache-Control": "private, no-store",
-				},
-			},
-		);
+		return apiSuccess(manifest);
 	} catch (error) {
 		return handleError(error, "Failed to build manifest", "MANIFEST_BUILD_ERROR");
 	}

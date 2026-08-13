@@ -28,6 +28,7 @@ export type {
 	FindManyResult,
 } from "./database/repositories/index.js";
 export type { MediaItem, CreateMediaInput } from "./database/repositories/media.js";
+export type { CompoundSelectLimitedAdapter } from "./database/dialect-helpers.js";
 
 // Fields
 export { portableText, image, file, reference } from "./fields/index.js";
@@ -230,6 +231,10 @@ export {
 	NoopSandboxRunner,
 	SandboxNotAvailableError,
 	SandboxUnavailableError,
+	createSandboxRouteError,
+	createSandboxRouteErrorEnvelope,
+	getSandboxRouteErrorDetails,
+	getSandboxRouteErrorEnvelope,
 	createNoopSandboxRunner,
 	// HTTP access for plugins (shared between in-process, Cloudflare, and workerd runners)
 	createHttpAccess,
@@ -247,6 +252,10 @@ export type {
 	MediaAccess,
 	HttpAccess,
 	LogAccess,
+	TaxonomyAccess,
+	TaxonomyDefInfo,
+	TaxonomyTermInfo,
+	TaxonomyReadOptions,
 	PluginHooks,
 	HookConfig,
 	HookName,
@@ -295,6 +304,9 @@ export type {
 	PluginManifest,
 	ValidatedPluginManifest,
 	SerializedRequest,
+	SandboxRouteErrorCode,
+	SandboxRouteErrorDetails,
+	SandboxRouteErrorEnvelope,
 } from "./plugins/index.js";
 
 // Capability normalization (legacy → canonical alias layer)
@@ -404,8 +416,8 @@ export type {
 } from "./settings/types.js";
 
 // SEO
-export { getSeoMeta, getContentSeo } from "./seo/index.js";
-export type { SeoMeta, SeoMetaOptions } from "./seo/index.js";
+export { getSeoMeta, getContentSeo, getHreflangAlternates } from "./seo/index.js";
+export type { SeoMeta, SeoMetaOptions, HreflangAlternate, HreflangOptions } from "./seo/index.js";
 
 // Public page contribution types
 export type {
@@ -505,6 +517,7 @@ export type {
 
 // Search
 export {
+	SEARCH_TOKENIZERS,
 	FTSManager,
 	search,
 	searchWithDb,
@@ -516,6 +529,7 @@ export {
 } from "./search/index.js";
 export type {
 	SearchConfig,
+	SearchTokenizer,
 	SearchOptions,
 	CollectionSearchOptions,
 	SearchResult,
@@ -543,4 +557,7 @@ export type {
 	SqliteConfig,
 	LibsqlConfig,
 	PostgresConfig,
+	CollectionDeletionGuardInput,
+	CollectionDeletionGuardResult,
+	ExecuteCollectionDeletionGuard,
 } from "./db/adapters.js";

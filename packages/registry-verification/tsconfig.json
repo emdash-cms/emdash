@@ -1,0 +1,11 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"outDir": "./dist",
+		"rootDir": "./src",
+		"lib": ["es2024", "dom", "esnext.typedarrays"],
+		"types": ["@cloudflare/vitest-pool-workers/types"]
+	},
+	"include": ["src/**/*", "tests/**/*"],
+	"exclude": ["node_modules", "dist", "tests"]
+}

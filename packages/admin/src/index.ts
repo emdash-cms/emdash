@@ -13,6 +13,11 @@ export * from "./lib/api";
 // Utilities
 export { cn } from "./lib/utils";
 
+export {
+	type ContentEditorPanelContext,
+	type ContentEditorPanelExtension,
+} from "./lib/content-editor-panels";
+
 // Plugin admin context (for accessing plugin components)
 export {
 	PluginAdminProvider,
@@ -34,6 +39,9 @@ export {
 	type AuthProviderModule,
 	type AuthProviders,
 } from "./lib/auth-provider-context";
+
+// Admin branding context (for accessing configured white-label logo/site name)
+export type { AdminBranding } from "./lib/admin-branding-context";
 
 // Locales
 export {

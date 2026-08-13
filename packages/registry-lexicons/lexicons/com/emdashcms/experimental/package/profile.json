@@ -84,6 +84,10 @@
 						"type": "string",
 						"format": "datetime",
 						"description": "ISO 8601 datetime for the package's last update."
+					},
+					"extensions": {
+						"type": "unknown",
+						"description": "Opaque extension container keyed by NSID. The base profile Lexicon does not validate entries; consumers dispatch known entries to their embedded extension schemas. EmDash delegated-release policy uses com.emdashcms.experimental.package.profileExtension here."
 					}
 				}
 			}

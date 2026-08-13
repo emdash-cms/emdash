@@ -10,7 +10,12 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import type { SandboxEmailSendCallback } from "emdash";
-import { ulid, PluginStorageRepository } from "emdash";
+import {
+	createSandboxRouteError,
+	getSandboxRouteErrorDetails,
+	ulid,
+	PluginStorageRepository,
+} from "emdash";
 import { Kysely } from "kysely";
 import { D1Dialect } from "kysely-d1";
 
@@ -18,6 +23,7 @@ import { sandboxHttpFetch } from "./bridge-http.js";
 
 /** Regex to validate collection names (prevent SQL injection) */
 const COLLECTION_NAME_REGEX = /^[a-z][a-z0-9_]*$/;
+const MISSING_MEDIA_USAGE_ACTIVATION_TABLE_REGEX = /no such table.*_emdash_media_usage_activation/i;
 
 /** Regex to validate file extensions (simple alphanumeric, 1-10 chars) */
 const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
@@ -113,6 +119,71 @@ function rowToContentItem(
 	};
 }
 
+/** Narrow an unknown D1 column value to a string ("" when it isn't one). */
+function columnString(value: unknown): string {
+	return typeof value === "string" ? value : "";
+}
+
+/** Narrow an unknown, nullable D1 column value to `string | null`. */
+function columnNullableString(value: unknown): string | null {
+	return typeof value === "string" ? value : null;
+}
+
+/** Parse a JSON string column into a string array (`[]` on anything else). */
+function columnStringArray(value: unknown): string[] {
+	if (typeof value !== "string" || !value) return [];
+	try {
+		const parsed: unknown = JSON.parse(value);
+		return Array.isArray(parsed)
+			? parsed.filter((item): item is string => typeof item === "string")
+			: [];
+	} catch {
+		return [];
+	}
+}
+
+/** Type guard for plain JSON objects. */
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Parse a JSON string column into an object (`null` on anything else). */
+function columnJsonObject(value: unknown): Record<string, unknown> | null {
+	if (typeof value !== "string" || !value) return null;
+	try {
+		const parsed: unknown = JSON.parse(value);
+		return isJsonObject(parsed) ? parsed : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Convert a `taxonomies` row to the term shape exposed over the bridge.
+ * Matches core's TaxonomyTermInfo from plugins/types.ts.
+ */
+function rowToTaxonomyTerm(row: Record<string, unknown>): {
+	id: string;
+	taxonomy: string;
+	slug: string;
+	label: string;
+	parentId: string | null;
+	data: Record<string, unknown> | null;
+	locale: string;
+	translationGroup: string | null;
+} {
+	return {
+		id: columnString(row.id),
+		taxonomy: columnString(row.name),
+		slug: columnString(row.slug),
+		label: columnString(row.label),
+		parentId: columnNullableString(row.parent_id),
+		data: columnJsonObject(row.data),
+		locale: columnString(row.locale),
+		translationGroup: columnNullableString(row.translation_group),
+	};
+}
+
 /**
  * Environment bindings required by PluginBridge
  */
@@ -149,6 +220,25 @@ export interface PluginBridgeProps {
  * 3. Plugins call bridge methods which validate and proxy to the database
  */
 export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridgeProps> {
+	private async assertMediaUsageActivationWriteAllowed(): Promise<void> {
+		try {
+			const activation = await this.env.DB.prepare(
+				"SELECT state FROM _emdash_media_usage_activation WHERE task_key = ? LIMIT 1",
+			)
+				.bind("incremental_capture")
+				.first<{ state: string }>();
+			if (activation?.state === "activating") {
+				throw createSandboxRouteError("MEDIA_USAGE_ACTIVATION_IN_PROGRESS");
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			if (MISSING_MEDIA_USAGE_ACTIVATION_TABLE_REGEX.test(message)) return;
+			if (getSandboxRouteErrorDetails(error)) throw error;
+			console.error("[media-usage] Failed to check the sandbox write fence:", error);
+			throw createSandboxRouteError("MEDIA_USAGE_ACTIVATION_CHECK_FAILED");
+		}
+	}
+
 	/**
 	 * Construct a PluginStorageRepository for the requested collection.
 	 * Uses the indexes from the plugin's storage config (if provided) so
@@ -484,6 +574,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
+		await this.assertMediaUsageActivationWriteAllowed();
 
 		const id = ulid();
 		const now = new Date().toISOString();
@@ -556,6 +647,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
+		await this.assertMediaUsageActivationWriteAllowed();
 
 		const now = new Date().toISOString();
 		// Quote identifiers to avoid SQL keyword collisions
@@ -614,6 +706,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
+		await this.assertMediaUsageActivationWriteAllowed();
 
 		// Soft-delete: set deleted_at timestamp
 		const now = new Date().toISOString();
@@ -623,6 +716,120 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			.bind(now, now, id)
 			.run();
 		return (result.meta?.changes ?? 0) > 0;
+	}
+
+	// =========================================================================
+	// Taxonomy Operations (read-only) - gated on taxonomies:read
+	// =========================================================================
+
+	async taxonomyList(opts: { locale?: string } = {}): Promise<
+		Array<{
+			name: string;
+			label: string;
+			labelSingular: string | null;
+			hierarchical: boolean;
+			collections: string[];
+			locale: string;
+		}>
+	> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("taxonomies:read")) {
+			throw new Error("Missing capability: taxonomies:read");
+		}
+		let sql = "SELECT * FROM _emdash_taxonomy_defs";
+		const params: unknown[] = [];
+		if (opts.locale !== undefined) {
+			sql += " WHERE locale = ?";
+			params.push(opts.locale);
+		}
+		sql += " ORDER BY name ASC";
+		const results = await this.env.DB.prepare(sql)
+			.bind(...params)
+			.all();
+		return (results.results ?? []).map((row) => ({
+			name: columnString(row.name),
+			label: columnString(row.label),
+			labelSingular: columnNullableString(row.label_singular),
+			hierarchical: row.hierarchical === 1,
+			collections: columnStringArray(row.collections),
+			locale: columnString(row.locale),
+		}));
+	}
+
+	async taxonomyTerms(
+		taxonomy: string,
+		opts: { locale?: string } = {},
+	): Promise<
+		Array<{
+			id: string;
+			taxonomy: string;
+			slug: string;
+			label: string;
+			parentId: string | null;
+			data: Record<string, unknown> | null;
+			locale: string;
+			translationGroup: string | null;
+		}>
+	> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("taxonomies:read")) {
+			throw new Error("Missing capability: taxonomies:read");
+		}
+		let sql = "SELECT * FROM taxonomies WHERE name = ?";
+		const params: unknown[] = [taxonomy];
+		if (opts.locale !== undefined) {
+			sql += " AND locale = ?";
+			params.push(opts.locale);
+		}
+		// Manual order first, then label with `id ASC` as a stable tiebreaker for
+		// terms sharing both — matching core's TaxonomyRepository.findByName.
+		sql += " ORDER BY sort_order ASC, label ASC, id ASC";
+		const results = await this.env.DB.prepare(sql)
+			.bind(...params)
+			.all();
+		return (results.results ?? []).map(rowToTaxonomyTerm);
+	}
+
+	async taxonomyEntryTerms(
+		collection: string,
+		entryId: string,
+		opts: { taxonomy?: string; locale?: string } = {},
+	): Promise<
+		Array<{
+			id: string;
+			taxonomy: string;
+			slug: string;
+			label: string;
+			parentId: string | null;
+			data: Record<string, unknown> | null;
+			locale: string;
+			translationGroup: string | null;
+		}>
+	> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("taxonomies:read")) {
+			throw new Error("Missing capability: taxonomies:read");
+		}
+		// The pivot stores the term's translation_group in taxonomy_id, so the
+		// join resolves an assignment into each locale's term row.
+		let sql =
+			"SELECT taxonomies.* FROM content_taxonomies " +
+			"JOIN taxonomies ON taxonomies.translation_group = content_taxonomies.taxonomy_id " +
+			"WHERE content_taxonomies.collection = ? AND content_taxonomies.entry_id = ?";
+		const params: unknown[] = [collection, entryId];
+		if (opts.taxonomy !== undefined) {
+			sql += " AND taxonomies.name = ?";
+			params.push(opts.taxonomy);
+		}
+		if (opts.locale !== undefined) {
+			sql += " AND taxonomies.locale = ?";
+			params.push(opts.locale);
+		}
+		sql += " ORDER BY taxonomies.locale ASC";
+		const results = await this.env.DB.prepare(sql)
+			.bind(...params)
+			.all();
+		return (results.results ?? []).map(rowToTaxonomyTerm);
 	}
 
 	// =========================================================================

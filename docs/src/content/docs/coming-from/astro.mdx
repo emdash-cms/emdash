@@ -73,12 +73,14 @@ The following configuration registers EmDash as an Astro integration in server o
 
 ```ts title="astro.config.mjs"
 import { defineConfig } from "astro/config";
+import react from "@astrojs/react";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 
 export default defineConfig({
 	output: "server", // Required for EmDash
 	integrations: [
+		react(), // Required — the admin UI is a React app
 		emdash({
 			database: sqlite({ url: "file:./data.db" }),
 			storage: local({
@@ -89,6 +91,12 @@ export default defineConfig({
 	],
 });
 ```
+
+<Aside>
+	Adding EmDash to an existing Astro project? Follow the [dedicated
+	guide](/existing-project/) — it covers the peer dependencies, required
+	integrations, and deployment caveats step by step.
+</Aside>
 
 ### Live Collections Loader
 
@@ -291,11 +299,13 @@ const title = await getSiteSetting("title");
 Extend EmDash with plugins that add hooks, storage, settings, and admin UI:
 
 ```ts title="astro.config.mjs"
+import react from "@astrojs/react";
 import emdash from "emdash/astro";
 import seoPlugin from "@emdash-cms/plugin-seo";
 
 export default defineConfig({
 	integrations: [
+		react(),
 		emdash({
 			// ...
 			plugins: [seoPlugin({ generateSitemap: true })],

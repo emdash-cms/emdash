@@ -83,6 +83,28 @@ admin: {
 }
 ```
 
+Declare labels in English. The admin runs them through its shared [Lingui](https://lingui.dev/) instance before rendering the sidebar and command palette, so a plugin that loads its own message catalog — with the English label as the message id — gets localized navigation for free. Labels that match one of the admin's own messages (`Settings`, `Dashboard`, …) pick up the admin's translations even without a plugin catalog; labels with no catalog entry anywhere render as declared.
+
+```typescript title="src/admin.tsx"
+import { i18n } from "@lingui/core";
+
+// Merge the plugin's compiled catalog into the admin's i18n instance.
+// "Reports" now renders as "Berichte" when the admin locale is German.
+const catalogs: Record<string, Record<string, string>> = {
+	de: { Reports: "Berichte", Settings: "Einstellungen" },
+};
+
+function mergeCatalog() {
+	const messages = catalogs[i18n.locale];
+	if (messages && !("Reports" in i18n.messages)) i18n.load(i18n.locale, messages);
+}
+
+mergeCatalog();
+// The admin's locale switcher *replaces* the catalog on change, so re-merge.
+// The sentinel check above keeps this from recursing (load() fires "change").
+i18n.on("change", mergeCatalog);
+```
+
 ### Page component
 
 The following component reads and saves settings through the plugin API hook:
@@ -202,9 +224,46 @@ export function SEOWidget() {
 
 Widgets wrap automatically based on screen width.
 
+## Content editor panels
+
+A trusted React plugin can add host-framed sections to the settings sidebar for saved content entries. EmDash owns the section heading and placement, applies collection and role filters, and isolates rendering failures so one plugin panel cannot unmount the editor.
+
+Export a `contentEditorPanels` array from the plugin admin entry:
+
+```tsx title="src/admin.tsx"
+import type { ContentEditorPanelContext } from "@emdash-cms/admin";
+
+function ContentInsights({ entry, locale }: ContentEditorPanelContext) {
+	return (
+		<p>
+			Analysis for {entry.slug} in {locale ?? "the default locale"}
+		</p>
+	);
+}
+
+export const contentEditorPanels = [
+	{
+		id: "content-insights",
+		title: "Content insights",
+		component: ContentInsights,
+		collections: ["posts", "pages"],
+		minRole: 40,
+		order: 10,
+	},
+];
+```
+
+Each panel receives the saved `entry`, its `collection`, and resolved `locale`. Panels are not mounted for new, unsaved entries. `collections` may be an array or a predicate and can be omitted to support every collection. Lower `order` values render first among contributed panels; ties are resolved deterministically by plugin and panel ID.
+
+Panel IDs must be unique within the plugin. Keep panel content responsive to the narrow settings sidebar and perform authorization in plugin API routes rather than relying on `minRole`, which only controls visibility.
+
+<Aside type="note">
+	This extension point is available only to trusted React plugins. Sandboxed plugins cannot execute React components inside the host admin.
+</Aside>
+
 ## Export structure
 
-The admin entry point exports two objects:
+The admin entry point exports the objects used by the features it implements:
 
 ```typescript title="src/admin.tsx"
 import { SettingsPage } from "./components/SettingsPage";

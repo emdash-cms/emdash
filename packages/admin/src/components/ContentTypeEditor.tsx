@@ -351,24 +351,22 @@ export function ContentTypeEditor({
 					) : null
 				}
 			>
-				<h1 className="text-2xl font-bold truncate">
+				<h1 className="truncate text-2xl font-semibold">
 					{isNew ? t`New Content Type` : collection?.label}
 				</h1>
 				{!isNew && (
 					<p className="text-kumo-subtle text-sm">
 						<code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code>
-						{isFromCode && (
-							<span className="ms-2 text-purple-600 dark:text-purple-400">{t`Defined in code`}</span>
-						)}
+						{isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>}
 					</p>
 				)}
 			</EditorHeader>
 
 			{isFromCode && (
-				<div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950 p-4">
+				<div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4">
 					<div className="flex items-center space-x-2">
-						<FileText className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-						<p className="text-sm text-purple-700 dark:text-purple-300">
+						<FileText className="h-5 w-5 text-kumo-info" />
+						<p className="text-sm text-kumo-subtle">
 							{t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`}
 						</p>
 					</div>
@@ -551,15 +549,26 @@ export function ContentTypeEditor({
 							</div>
 						)}
 
-						{!isFromCode && (
-							<Button
-								type="submit"
-								disabled={!hasChanges || !urlPatternValid || isSaving}
-								className="w-full"
-							>
-								{isSaving ? t`Saving...` : isNew ? t`Create Content Type` : t`Save Changes`}
-							</Button>
-						)}
+						{!isFromCode &&
+							(isNew ? (
+								<Button
+									type="submit"
+									disabled={!hasChanges || !urlPatternValid}
+									loading={isSaving}
+									className="w-full justify-center"
+								>
+									{t`Create Content Type`}
+								</Button>
+							) : (
+								<SaveButton
+									type="submit"
+									isDirty={!!hasChanges}
+									isSaving={!!isSaving}
+									announce={false}
+									disabled={!urlPatternValid}
+									className="w-full justify-center"
+								/>
+							))}
 					</form>
 				</div>
 

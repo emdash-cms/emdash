@@ -131,7 +131,7 @@ Once connected, you can ask the AI assistant to perform any of these operations 
 
 - **Inspect** -- "What's the current site title?" or "Show me the social links"
 - **Update identity** -- "Set the site title to 'Acme Blog' and tagline to 'Stories from the team'"
-- **Set logo / favicon** -- "Use this image as the site logo" (after registering it with `media_create`)
+- **Set logo / favicon** -- "Use this image as the site logo" (after uploading it with `media_upload`)
 - **SEO defaults** -- "Set the default OG image to the new banner" or "Update the title separator to a vertical bar"
 - **Social handles** -- "Add our Mastodon and YouTube links to the social settings"
 
@@ -156,7 +156,7 @@ Once connected, you can ask the AI assistant to perform any of these operations 
 
 ## Permissions
 
-What you can do through an AI tool depends on your EmDash role. The AI assistant operates with the same permissions you have in the admin panel:
+When an MCP client opens the OAuth consent page, every permission it requested is selected by default. Clear any permission the client does not need before approving access. The resulting token is limited to the permissions you keep selected and the permissions allowed by your EmDash role, so granting fewer permissions never increases what the client can do.
 
 | Role | What the AI can do |
 | --- | --- |
