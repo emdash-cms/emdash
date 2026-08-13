@@ -3136,7 +3136,7 @@ msgstr "Exemple : {0} → 23 janvier 2026"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:285
 msgid "example.com"
-msgstr "exemple.com"
+msgstr "example.com"
 
 #: packages/admin/src/components/WordPressImport.tsx:2010
 msgid "Exists"
