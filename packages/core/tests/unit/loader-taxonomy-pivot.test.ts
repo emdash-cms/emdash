@@ -20,7 +20,11 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../src/database/types.js";
-import { buildTaxonomyPivotQuery, emdashLoader } from "../../src/loader.js";
+import {
+	buildTaxonomyPivotQuery,
+	emdashLoader,
+	resetTaxonomyNamesCache,
+} from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import {
 	describeEachDialect,
@@ -40,6 +44,12 @@ describeEachDialect("Loader taxonomy pivot-drive", (dialectName: DialectName) =>
 	beforeEach(async () => {
 		ctx = await setupForDialectWithCollections(dialectName);
 		db = ctx.db;
+		await db
+			.updateTable("_emdash_taxonomy_defs")
+			.set({ collections: JSON.stringify(["post"]) })
+			.where("name", "in", ["category", "tag"])
+			.execute();
+		resetTaxonomyNamesCache();
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- schema vs Database type
 		content = new ContentRepository(db as any);
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- schema vs Database type

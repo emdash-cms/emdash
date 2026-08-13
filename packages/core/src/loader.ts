@@ -293,37 +293,55 @@ function getTableName(type: string): string {
 }
 
 /**
- * Cache for taxonomy names (only used for the primary database).
+ * Cache for taxonomy names by collection (only used for the primary database).
  * Skipped when a per-request DB override is active (e.g. preview mode)
  * because the override DB may have different taxonomies.
  */
-let taxonomyNames: Set<string> | null = null;
+let taxonomyNamesByCollection: Map<string, Set<string>> | null = null;
 
 /**
- * Get all taxonomy names (cached for the primary DB, bypassed only when
- * the per-request DB is an isolated instance — playground / DO preview).
- * Plain D1 Sessions routing shares schema with the singleton, so the
- * module-scoped cache stays valid.
+ * Get taxonomy names attached to a collection (cached for the primary DB,
+ * bypassed only when the per-request DB is an isolated instance — playground /
+ * DO preview). Plain D1 Sessions routing shares schema with the singleton, so
+ * the module-scoped cache stays valid.
  */
-async function getTaxonomyNames(db: Kysely<Database>): Promise<Set<string>> {
+async function getTaxonomyNames(db: Kysely<Database>, collection: string): Promise<Set<string>> {
 	const hasIsolatedDb = getRequestContext()?.dbIsIsolated === true;
 
-	if (!hasIsolatedDb && taxonomyNames) {
-		return taxonomyNames;
+	if (!hasIsolatedDb && taxonomyNamesByCollection) {
+		return taxonomyNamesByCollection.get(collection) ?? new Set();
 	}
 
 	try {
-		const defs = await db.selectFrom("_emdash_taxonomy_defs").select("name").execute();
-		const names = new Set(defs.map((d) => d.name));
-		if (!hasIsolatedDb) {
-			taxonomyNames = names;
+		const defs = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.select(["name", "collections"])
+			.execute();
+		const namesByCollection = new Map<string, Set<string>>();
+		for (const def of defs) {
+			let collections: unknown;
+			try {
+				collections = JSON.parse(def.collections ?? "[]");
+			} catch {
+				continue;
+			}
+			if (!Array.isArray(collections)) continue;
+			for (const attachedCollection of collections) {
+				if (typeof attachedCollection !== "string") continue;
+				const names = namesByCollection.get(attachedCollection) ?? new Set<string>();
+				names.add(def.name);
+				namesByCollection.set(attachedCollection, names);
+			}
 		}
-		return names;
+		if (!hasIsolatedDb) {
+			taxonomyNamesByCollection = namesByCollection;
+		}
+		return namesByCollection.get(collection) ?? new Set();
 	} catch {
 		// Table doesn't exist yet, return empty set
 		const empty = new Set<string>();
 		if (!hasIsolatedDb) {
-			taxonomyNames = empty;
+			taxonomyNamesByCollection = new Map();
 		}
 		return empty;
 	}
@@ -338,7 +356,7 @@ async function getTaxonomyNames(db: Kysely<Database>): Promise<Set<string>> {
  * isolate-wide taxonomy-defs cache in `taxonomies/index.ts`.
  */
 export function resetTaxonomyNamesCache(): void {
-	taxonomyNames = null;
+	taxonomyNamesByCollection = null;
 }
 
 /**
@@ -1153,7 +1171,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const fieldFilters: Record<string, WhereValue> = {};
 
 				if (where && Object.keys(where).length > 0) {
-					const taxNames = await getTaxonomyNames(db);
+					const taxNames = await getTaxonomyNames(db, type);
 
 					for (const [key, value] of Object.entries(where)) {
 						if (value == null) continue;
