@@ -88,6 +88,19 @@ async function collectionHasSeo(db: Kysely<Database>, collection: string): Promi
 	return row?.has_seo === 1;
 }
 
+async function collectionSupportsRevisions(
+	db: Kysely<Database>,
+	collection: string,
+): Promise<boolean> {
+	const row = await db
+		.selectFrom("_emdash_collections")
+		.select("supports")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+	const supports: unknown = row?.supports ? JSON.parse(row.supports) : [];
+	return Array.isArray(supports) && supports.includes("revisions");
+}
+
 /**
  * Hydrate SEO data on a single content item if the collection has SEO enabled.
  */
@@ -1527,6 +1540,7 @@ export async function handleContentPublish(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
+			const supportsRevisions = await collectionSupportsRevisions(trx, collection);
 
 			// Capture the pre-publish state. For revision-supporting collections a
 			// slug edit is staged as `_slug` in the draft revision and only lands
@@ -1541,6 +1555,7 @@ export async function handleContentPublish(
 				options.publishedAt,
 				options.requireScheduledDue,
 				options.expectedScheduledAt,
+				supportsRevisions,
 			);
 
 			// Leave a 301 behind when publishing changed the slug of an entry that
