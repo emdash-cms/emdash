@@ -294,22 +294,40 @@ function getTableName(type: string): string {
 
 /**
  * Cache for taxonomy names by collection (only used for the primary database).
- * Skipped when a per-request DB override is active (e.g. preview mode)
+ * Stored on globalThis so Vite SSR chunk duplication cannot create independent
+ * caches. Skipped when a per-request DB override is active (e.g. preview mode)
  * because the override DB may have different taxonomies.
  */
-let taxonomyNamesByCollection: Map<string, Set<string>> | null = null;
+interface TaxonomyNamesHolder {
+	cache: Map<string, Set<string>> | null;
+}
+
+const TAXONOMY_NAMES_CACHE_KEY = Symbol.for("emdash:taxonomy-names");
+const taxonomyNamesStore = globalThis as Record<symbol, unknown>;
+const taxonomyNamesHolder: TaxonomyNamesHolder =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see taxonomies/index.ts)
+	(taxonomyNamesStore[TAXONOMY_NAMES_CACHE_KEY] as TaxonomyNamesHolder | undefined) ??
+	(() => {
+		const holder: TaxonomyNamesHolder = { cache: null };
+		taxonomyNamesStore[TAXONOMY_NAMES_CACHE_KEY] = holder;
+		return holder;
+	})();
+
+function setTaxonomyNamesCache(cache: Map<string, Set<string>> | null): void {
+	taxonomyNamesHolder.cache = cache;
+}
 
 /**
  * Get taxonomy names attached to a collection (cached for the primary DB,
  * bypassed only when the per-request DB is an isolated instance — playground /
  * DO preview). Plain D1 Sessions routing shares schema with the singleton, so
- * the module-scoped cache stays valid.
+ * the isolate-wide cache stays valid.
  */
 async function getTaxonomyNames(db: Kysely<Database>, collection: string): Promise<Set<string>> {
 	const hasIsolatedDb = getRequestContext()?.dbIsIsolated === true;
 
-	if (!hasIsolatedDb && taxonomyNamesByCollection) {
-		return taxonomyNamesByCollection.get(collection) ?? new Set();
+	if (!hasIsolatedDb && taxonomyNamesHolder.cache) {
+		return taxonomyNamesHolder.cache.get(collection) ?? new Set();
 	}
 
 	try {
@@ -334,21 +352,22 @@ async function getTaxonomyNames(db: Kysely<Database>, collection: string): Promi
 			}
 		}
 		if (!hasIsolatedDb) {
-			taxonomyNamesByCollection = namesByCollection;
+			setTaxonomyNamesCache(namesByCollection);
 		}
 		return namesByCollection.get(collection) ?? new Set();
-	} catch {
-		// Table doesn't exist yet, return empty set
+	} catch (error) {
+		if (!isMissingTableError(error) && !isMissingColumnError(error)) throw error;
+
 		const empty = new Set<string>();
 		if (!hasIsolatedDb) {
-			taxonomyNamesByCollection = new Map();
+			setTaxonomyNamesCache(new Map());
 		}
 		return empty;
 	}
 }
 
 /**
- * Reset the module-scoped taxonomy-names cache.
+ * Reset the isolate-wide taxonomy-names cache.
  *
  * Called from `invalidateTaxonomyDefsCache()` so that creating or seeding a
  * taxonomy definition is reflected within the current isolate instead of
@@ -356,7 +375,7 @@ async function getTaxonomyNames(db: Kysely<Database>, collection: string): Promi
  * isolate-wide taxonomy-defs cache in `taxonomies/index.ts`.
  */
 export function resetTaxonomyNamesCache(): void {
-	taxonomyNamesByCollection = null;
+	setTaxonomyNamesCache(null);
 }
 
 /**

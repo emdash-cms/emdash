@@ -140,6 +140,42 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		expect(result.entries[0]!.data.title).toBe("News Page");
 	});
 
+	it("surfaces an unexpected definition-query failure without poisoning the cache", async () => {
+		const news = await term("category", "news");
+		const post = await createPost("In News");
+		await tag(post.id, news);
+
+		let failNextQuery = true;
+		const flakyDb = db.withPlugin({
+			transformQuery(args) {
+				if (failNextQuery) {
+					failNextQuery = false;
+					throw new Error("temporary database outage");
+				}
+				return args.node;
+			},
+			async transformResult(args) {
+				return args.result;
+			},
+		});
+		const loader = emdashLoader();
+		const loadWithFlakyDb = () =>
+			runWithContext({ editMode: false, db: flakyDb }, () =>
+				loader.loadCollection!({
+					filter: { type: "post", where: { category: "news" } },
+				}),
+			);
+
+		const failed = await loadWithFlakyDb();
+		expect(failed).toMatchObject({
+			error: { message: "Failed to load collection: temporary database outage" },
+		});
+		const recovered = await loadWithFlakyDb();
+
+		expect(recovered.entries).toHaveLength(1);
+		expect(recovered.entries[0]!.data.title).toBe("In News");
+	});
+
 	it("ANDs across two taxonomies — only entries tagged in BOTH match (#1479)", async () => {
 		const news = await term("category", "news");
 		const featured = await term("tag", "featured");
