@@ -39,9 +39,11 @@ import {
 	flushRecorder,
 	isInstrumentationEnabled,
 } from "../database/instrumentation.js";
+import { createDeferredTaskTracker } from "../deferred-tasks.js";
 import {
 	DB_INIT_DEADLINE_MS,
 	EmDashRuntime,
+	type MediaUsageMaintenanceResult,
 	type RuntimeDependencies,
 	type SandboxedPluginEntry,
 	type MediaProviderEntry,
@@ -287,6 +289,12 @@ export async function runScheduledTasks(
 	return runOutsideRequest(config, (runtime) => runtime.runScheduledTasks(options));
 }
 
+export async function runScheduledMediaUsageTasks(): Promise<MediaUsageMaintenanceResult> {
+	const config = getConfig();
+	if (!config) return { outcome: "inactive", taskClass: null, turn: null };
+	return runOutsideRequest(config, (runtime) => runtime.runScheduledMediaUsageTasks());
+}
+
 /**
  * Run a callback against the EmDash runtime outside any HTTP request — from a
  * Cloudflare Queue consumer, a `scheduled()` handler, or any other
@@ -352,8 +360,35 @@ async function runOutsideRequest<T>(
 	config: EmDashConfig,
 	fn: (runtime: EmDashRuntime) => Promise<T>,
 ): Promise<T> {
-	const runtime = await getRuntime(config);
+	if (getRequestContext()) {
+		const runtime = await getRuntime(config);
+		return runOutsideRequestWithRuntime(config, runtime, fn);
+	}
 
+	const deferredTasks = createDeferredTaskTracker(() => {});
+	const context = {
+		editMode: false,
+		metrics: createRequestMetrics(performance.now()),
+		deferredTasks,
+	};
+	return runWithContext(context, async () => {
+		const runtime = await (async () => {
+			try {
+				return await getRuntime(config);
+			} finally {
+				deferredTasks.settle();
+				await deferredTasks.settled;
+			}
+		})();
+		return runOutsideRequestWithRuntime(config, runtime, fn);
+	});
+}
+
+async function runOutsideRequestWithRuntime<T>(
+	config: EmDashConfig,
+	runtime: EmDashRuntime,
+	fn: (runtime: EmDashRuntime) => Promise<T>,
+): Promise<T> {
 	const scoped = createRequestScopedDb({
 		config: config.database?.config,
 		isAuthenticated: false,

@@ -216,6 +216,7 @@ export interface MediaUsageActivationTable {
 	activated_at: Generated<string | null>;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
+	media_usage_maintenance_turn: Generated<number>;
 }
 
 export interface MediaUsageWorkTable {
@@ -244,6 +245,27 @@ export interface MediaUsageCollectionDeletionTable {
 	work_cursor: Generated<string | null>;
 	source_key: Generated<string | null>;
 	occurrence_cursor: Generated<string | null>;
+	attempt_count: Generated<number>;
+	next_attempt_at: string;
+	lease_token: Generated<string | null>;
+	lease_expires_at: Generated<string | null>;
+	last_error_code: Generated<string | null>;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface MediaUsageReconciliationTable {
+	collection_id: string;
+	collection_slug: string;
+	run_token: string;
+	target_epoch: Generated<number | string | null>;
+	field_fingerprint: Generated<string | null>;
+	state: Generated<string>;
+	phase: Generated<string>;
+	scan_cursor: Generated<string | null>;
+	scan_upper_id: Generated<string | null>;
+	source_cursor: Generated<string | null>;
+	source_upper_key: Generated<string | null>;
 	attempt_count: Generated<number>;
 	next_attempt_at: string;
 	lease_token: Generated<string | null>;
@@ -624,6 +646,7 @@ export interface Database {
 	_emdash_media_usage_activation: MediaUsageActivationTable;
 	_emdash_media_usage_work: MediaUsageWorkTable;
 	_emdash_media_usage_collection_deletions: MediaUsageCollectionDeletionTable;
+	_emdash_media_usage_reconciliations: MediaUsageReconciliationTable;
 	users: UserTable;
 	credentials: CredentialTable;
 	auth_tokens: AuthTokenTable;

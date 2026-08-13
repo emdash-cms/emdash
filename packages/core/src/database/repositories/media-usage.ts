@@ -1723,19 +1723,31 @@ export class MediaUsageRepository {
 		},
 	): Promise<boolean> {
 		const now = this.sortableUtcTimestamp();
+		const automaticRunOwnsCoverage = sql<boolean>`EXISTS (
+			SELECT 1
+			FROM _emdash_media_usage_reconciliations AS reconciliation
+			WHERE reconciliation.collection_id = ${input.collectionId}
+				AND reconciliation.run_token = cursor
+		)`;
 		const result = await this.db
 			.updateTable("_emdash_media_usage_index_status")
 			.set({
 				status: sql<string>`CASE
+					WHEN ${automaticRunOwnsCoverage} THEN status
 					WHEN reconciliation_required = 0 THEN 'partial'
 					WHEN status = 'running' THEN 'stale'
 					ELSE status
 				END`,
 				completed_at: sql<string | null>`CASE
+					WHEN ${automaticRunOwnsCoverage} THEN completed_at
 					WHEN reconciliation_required = 0 OR status = 'running' THEN NULL
 					ELSE completed_at
 				END`,
-				cursor: sql<string | null>`CASE WHEN status = 'running' THEN NULL ELSE cursor END`,
+				cursor: sql<string | null>`CASE
+					WHEN ${automaticRunOwnsCoverage} THEN cursor
+					WHEN status = 'running' THEN NULL
+					ELSE cursor
+				END`,
 				last_error_code: input.errorCode,
 				updated_at: now,
 			})
@@ -2335,6 +2347,7 @@ export class MediaUsageRepository {
 					AND ${this.generationWriteLeaseExpiryIsInFuture("expires_at")}
 			)
 			AND ${this.currentCollectionExists(row.collection_id, row.collection_slug)}
+			AND ${this.currentCanonicalContentExists(row)}
 			${conflict}
 		`.execute(db);
 		return Number(result.numAffectedRows ?? 0) > 0;
@@ -2436,6 +2449,7 @@ export class MediaUsageRepository {
 			.where("current_generation", "=", expectedCurrentGeneration)
 			.where(this.generationWriteLeaseExpression(row, leaseToken))
 			.where(this.currentCollectionExists(row.collection_id, row.collection_slug))
+			.where(this.currentCanonicalContentExists(row))
 			.executeTakeFirst();
 		return Number(result.numUpdatedRows ?? 0) > 0;
 	}
@@ -2453,6 +2467,7 @@ export class MediaUsageRepository {
 			.where(this.sourceMatchExpression(expectedSource))
 			.where(this.generationWriteLeaseExpression(row, leaseToken))
 			.where(this.currentCollectionExists(row.collection_id, row.collection_slug))
+			.where(this.currentCanonicalContentExists(row))
 			.executeTakeFirst();
 		return Number(result.numUpdatedRows ?? 0) > 0;
 	}
@@ -2469,6 +2484,7 @@ export class MediaUsageRepository {
 			.where("source_key", "=", row.source_key)
 			.where(this.sourceMatchExpression(expectedSource))
 			.where(this.currentCollectionExists(row.collection_id, row.collection_slug))
+			.where(this.currentCanonicalContentExists(row))
 			.executeTakeFirst();
 		return Number(result.numUpdatedRows ?? 0) > 0;
 	}
@@ -2554,6 +2570,47 @@ export class MediaUsageRepository {
 			FROM _emdash_collections
 			WHERE id = ${collectionId}
 				AND slug = ${collectionSlug}
+		)`;
+	}
+
+	private currentCanonicalContentExists(
+		row:
+			| ReturnType<MediaUsageRepository["buildSourceRow"]>
+			| ReturnType<MediaUsageRepository["buildAttemptedSourceRow"]>,
+	): RawBuilder<boolean> {
+		if (row.collection_id === null || row.identity_version !== 1 || row.source_type !== "content") {
+			return sql<boolean>`1 = 1`;
+		}
+		if (
+			!row.collection_slug ||
+			!row.content_id ||
+			row.source_version === null ||
+			row.source_updated_at === null
+		) {
+			return sql<boolean>`1 = 0`;
+		}
+		validateIdentifier(row.collection_slug, "collection slug");
+		const tableName = `ec_${row.collection_slug}`;
+		validateIdentifier(tableName, "content table");
+		const revisionColumn =
+			row.source_variant === "columns"
+				? "live_revision_id"
+				: row.source_variant === "draft_overlay"
+					? "draft_revision_id"
+					: null;
+		if (!revisionColumn) return sql<boolean>`1 = 0`;
+		const revision = sql.ref(`content.${revisionColumn}`);
+		const revisionMatches =
+			row.revision_id === null
+				? sql<boolean>`${revision} IS NULL`
+				: sql<boolean>`${revision} = ${row.revision_id}`;
+		return sql<boolean>`EXISTS (
+			SELECT 1
+			FROM ${sql.ref(tableName)} AS content
+			WHERE content.id = ${row.content_id}
+				AND content.version = ${row.source_version}
+				AND content.updated_at = ${row.source_updated_at}
+				AND ${revisionMatches}
 		)`;
 	}
 

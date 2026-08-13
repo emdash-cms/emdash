@@ -2,7 +2,7 @@ import { sql, type Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { createDatabase } from "../../src/database/connection.js";
-import * as indexedContentFields from "../../src/database/migrations/066_indexed_content_fields.js";
+import * as indexedContentFields from "../../src/database/migrations/067_indexed_content_fields.js";
 import {
 	runMigrations,
 	getMigrationStatus,

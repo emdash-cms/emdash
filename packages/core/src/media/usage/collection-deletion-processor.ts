@@ -18,6 +18,7 @@ export const MEDIA_USAGE_COLLECTION_DELETION_LIMITS = Object.freeze({
 	maxAttempts: 5,
 	retryBaseSeconds: 30,
 	retryMaxSeconds: 15 * 60,
+	maxQueriesPerTick: 30,
 });
 
 export interface MediaUsageCollectionDeletionTickResult {
@@ -221,6 +222,12 @@ async function processStatus(
 		if (await exactCleanupRowsRemain(trx, claim, false)) {
 			throw new Error("Collection deletion cleanup is incomplete");
 		}
+		await trx
+			.deleteFrom("_emdash_media_usage_reconciliations")
+			.where("collection_id", "=", claim.collectionId)
+			.where("collection_slug", "=", claim.collectionSlug)
+			.where(liveLeaseGuard(trx, claim))
+			.execute();
 		await trx
 			.deleteFrom("_emdash_media_usage_index_status")
 			.where("adapter_id", "=", "content-media")

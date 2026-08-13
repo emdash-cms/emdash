@@ -76,24 +76,36 @@ To change the schema or content model of a site that is already deployed, see [E
 
 ## Scheduled Publishing
 
-On Cloudflare Workers, scheduled publishing, plugin cron, and maintenance tasks run from a Worker Cron Trigger. New Cloudflare templates include this setup automatically. If you are adding updating an existing project, export the EmDash Worker entry from `@emdash-cms/cloudflare/worker`:
+On Cloudflare Workers, scheduled publishing, plugin cron, and maintenance tasks run from Worker Cron Triggers. New Cloudflare templates include both required schedules automatically. When updating an existing project, configure distinct general and Media Usage lanes:
 
 ```ts title="src/worker.ts"
-export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";
+import handler, {
+	createScheduledHandler,
+	PluginBridge,
+} from "@emdash-cms/cloudflare/worker";
+
+export { PluginBridge };
+
+export default {
+	...handler,
+	scheduled: createScheduledHandler(),
+} satisfies ExportedHandler;
 ```
 
-Then add a Cron Trigger to `wrangler.jsonc`:
+By default, `*/2 * * * *` runs Media Usage maintenance and every other expression runs general maintenance. Then add both Cron Triggers to `wrangler.jsonc`:
 
 ```jsonc title="wrangler.jsonc"
 {
 	"triggers": {
-		"crons": ["* * * * *"],
+		"crons": ["* * * * *", "*/2 * * * *"],
 	},
 }
 ```
 
+To use different schedules, set the corresponding `generalCron` or `mediaUsageCron` option in `createScheduledHandler()` and use the same expression in `wrangler.jsonc`.
+
 <Aside type="caution">
-	Without the Cron Trigger, content scheduled in the admin panel does not publish on Cloudflare Workers, and plugin cron jobs do not run. Local `astro dev` still uses the in-process scheduler.
+	Without the general trigger, scheduled publishing and plugin cron do not run. Without the dedicated Media Usage trigger, automatic historical reconciliation cannot progress. Local `astro dev` still uses the in-process scheduler.
 </Aside>
 
 ## Deploy

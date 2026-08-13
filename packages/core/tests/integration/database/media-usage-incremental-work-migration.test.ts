@@ -49,6 +49,9 @@ describeEachDialect("media usage incremental work migration", (dialect) => {
 	});
 
 	it("keeps V1 collection deletion available after rolling back incremental capture", async () => {
+		const reconciliationMigration =
+			await import("../../../src/database/migrations/066_media_usage_reconciliation.js");
+		await reconciliationMigration.down(ctx.db);
 		const collectionDeletionMigration =
 			await import("../../../src/database/migrations/065_media_usage_collection_deletion.js");
 		await collectionDeletionMigration.down(ctx.db);
@@ -64,6 +67,9 @@ describeEachDialect("media usage incremental work migration", (dialect) => {
 	});
 
 	it("upgrades and reruns without rewriting legacy evidence or inventing work", async () => {
+		const reconciliationMigration =
+			await import("../../../src/database/migrations/066_media_usage_reconciliation.js");
+		await reconciliationMigration.down(ctx.db);
 		const collectionDeletionMigration =
 			await import("../../../src/database/migrations/065_media_usage_collection_deletion.js");
 		await collectionDeletionMigration.down(ctx.db);
@@ -209,6 +215,9 @@ describeEachDialect("media usage incremental work migration", (dialect) => {
 	});
 
 	it("purges a partially bound status if its collection is deleted or recreated before retry", async () => {
+		const reconciliationMigration =
+			await import("../../../src/database/migrations/066_media_usage_reconciliation.js");
+		await reconciliationMigration.down(ctx.db);
 		const collectionDeletionMigration =
 			await import("../../../src/database/migrations/065_media_usage_collection_deletion.js");
 		await collectionDeletionMigration.down(ctx.db);
