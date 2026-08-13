@@ -158,6 +158,7 @@ describe("Database Migrations (Integration)", () => {
 			"065_media_usage_collection_deletion",
 			"066_media_usage_reconciliation",
 			"067_indexed_content_fields",
+			"068_content_taxonomy_entry_groups",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();

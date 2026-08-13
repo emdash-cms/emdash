@@ -35,23 +35,11 @@ export interface TaxonomyTable {
 
 export interface ContentTaxonomyTable {
 	collection: string; // e.g., 'posts'
-	entry_id: string; // ID in the ec_* table
+	entry_id: string; // stores the ec_* row's translation_group (locale-agnostic)
 	taxonomy_id: string; // stores taxonomies.translation_group (locale-agnostic)
-	// Denormalized filter + sort columns mirrored from the entry's ec_* row
-	// (migration 051). They let a taxonomy-filtered listing seek the matching
-	// entries directly on the pivot instead of scanning the whole collection.
-	//
-	// ADVISORY, not authoritative: D1 has no transactions, so the write-path
-	// re-stamp (ContentRepository / TaxonomyRepository) is a separate statement
-	// from the ec_* mutation and can be transiently stale. The read path narrows
-	// the candidate set with these columns but re-checks the real filter
-	// predicates on the joined ec_* row. `updated_at` is deliberately NOT
-	// denormalized — it moves on every edit, so denormalizing it would force a
-	// pivot re-stamp on the common edit path for little read value.
-	//
-	// Nullable/Generated so inserts that predate a re-stamp (or the migration
-	// backfill) leave them NULL; every insert site in the repositories stamps
-	// them explicitly.
+	// Legacy denormalized columns from migration 051. A group assignment spans
+	// locale rows whose status and dates may differ, so current reads use the
+	// authoritative ec_* rows and new pivot inserts leave these nullable.
 	status: Generated<string | null>;
 	scheduled_at: Generated<string | null>;
 	deleted_at: Generated<string | null>;

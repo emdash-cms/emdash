@@ -57,7 +57,7 @@ async function createPostsCollectionWithEntry(
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- ec_* tables aren't typed in Database
 		.insertInto("ec_posts" as never)
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- dynamic content table shape
-		.values({ id, slug, status: "published" } as never)
+		.values({ id, slug, status: "published", translation_group: id } as never)
 		.execute();
 	return id;
 }

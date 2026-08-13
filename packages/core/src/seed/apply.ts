@@ -1014,13 +1014,10 @@ async function applyContentTaxonomies(
 	entry: { taxonomies?: Record<string, string[]> },
 	isUpdate: boolean,
 ): Promise<void> {
+	const termRepo = new TaxonomyRepository(db);
 	// In update mode, clear existing taxonomy assignments first
 	if (isUpdate) {
-		await db
-			.deleteFrom("content_taxonomies")
-			.where("collection", "=", collectionSlug)
-			.where("entry_id", "=", contentId)
-			.execute();
+		await termRepo.clearEntryTerms(collectionSlug, contentId);
 	}
 
 	if (!entry.taxonomies) {
@@ -1034,8 +1031,6 @@ async function applyContentTaxonomies(
 	}
 
 	for (const [taxonomyName, termSlugs] of Object.entries(entry.taxonomies)) {
-		const termRepo = new TaxonomyRepository(db);
-
 		for (const termSlug of termSlugs) {
 			const term = await termRepo.findBySlug(taxonomyName, termSlug);
 			if (term) {

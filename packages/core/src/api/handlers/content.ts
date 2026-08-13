@@ -817,22 +817,12 @@ export async function handleContentCreate(
 				created.primaryBylineId = credits[0]?.byline.translationGroup ?? null;
 			}
 
-			// When this row is a translation of an existing item, inherit
-			// the source's taxonomy assignments AND byline credits. Both
-			// pivots store translation_groups (taxonomies post-mig 036,
-			// bylines post-mig 040), so a copied row applies across every
-			// locale of the credited identity — and the locale-strict
-			// hydration below renders the variant that matches the entry's
-			// locale (or nothing if no variant exists yet at this locale,
-			// which is the documented Phase 4 behaviour).
-			//
+			// Taxonomy assignments already belong to the content translation
+			// group. Byline credits remain per content row and need copying.
 			// Explicit `body.bylines` wins — `copyContentBylines` no-ops
 			// when the target already has credits, but the cleaner guard
 			// is to skip the call entirely.
 			if (body.translationOf) {
-				const taxRepo = new TaxonomyRepository(trx);
-				await taxRepo.copyEntryTerms(collection, body.translationOf, created.id);
-
 				if (body.bylines === undefined) {
 					await bylineRepo.copyContentBylines(collection, body.translationOf, created.id);
 					// `copyContentBylines` writes the source's primary

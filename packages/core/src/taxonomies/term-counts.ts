@@ -50,7 +50,7 @@ function collectionBranch(
 		SELECT ct.taxonomy_id AS taxonomy_id, COUNT(*) AS count
 		FROM content_taxonomies AS ct
 		CROSS JOIN ${sql.ref(`ec_${collection}`)} AS e
-		WHERE e.id = ct.entry_id
+		WHERE e.translation_group = ct.entry_id
 			AND ct.collection = ${collection}
 			AND ct.taxonomy_id IN (SELECT translation_group FROM taxonomies WHERE name = ${taxonomyName})
 			AND ${buildStatusCondition(db, "published", "e")}

@@ -70,6 +70,7 @@ import * as m064 from "./064_fts_plain_text.js";
 import * as m065 from "./065_media_usage_collection_deletion.js";
 import * as m066 from "./066_media_usage_reconciliation.js";
 import * as m067 from "./067_indexed_content_fields.js";
+import * as m068 from "./068_content_taxonomy_entry_groups.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -138,6 +139,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"065_media_usage_collection_deletion": m065,
 	"066_media_usage_reconciliation": m066,
 	"067_indexed_content_fields": m067,
+	"068_content_taxonomy_entry_groups": m068,
 });
 
 /** Total number of registered migrations. Exported for use in tests. */

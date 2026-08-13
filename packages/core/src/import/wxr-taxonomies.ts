@@ -553,7 +553,7 @@ export async function attachPostTaxonomies(
 	let attached = 0;
 	for (const [, termIds] of resolved) {
 		for (const termId of termIds) {
-			const wrote = await attachToEntryCountingInserts(db, repo, plan, collection, entryId, termId);
+			const wrote = await attachToEntryCountingInserts(repo, plan, collection, entryId, termId);
 			if (wrote) attached++;
 		}
 	}
@@ -562,13 +562,9 @@ export async function attachPostTaxonomies(
 
 /**
  * Replace assignments per-taxonomy from a parsed WXR post. Used for
- * translations: WPML's "Translate Independently" mode lets translators
- * override term assignments per-taxonomy, not per-post. A translation that
- * overrides `category` shouldn't lose its inherited `tag` or `genre`. We
- * only call `setTermsForEntry(name, ids)` for taxonomies where the
- * translation actually resolved at least one term -- taxonomies with no
- * resolvable+permitted terms are left alone so inherited rows from
- * `copyEntryTerms` stay intact.
+ * translations. Assignments belong to the content translation_group, so a
+ * translated item's explicit taxonomy replaces that taxonomy for every
+ * locale. Taxonomies with no resolvable permitted terms are left unchanged.
  *
  * Returns the number of pivot rows after replacement (sum of `termIds`
  * lists across taxonomies actually touched). Note this counts logical
@@ -624,7 +620,6 @@ async function termTranslationGroup(
  * summary display only, never correctness.
  */
 async function attachToEntryCountingInserts(
-	db: Kysely<Database>,
 	repo: TaxonomyRepository,
 	plan: TaxonomyImportPlan,
 	collection: string,
@@ -634,14 +629,8 @@ async function attachToEntryCountingInserts(
 	const group = await termTranslationGroup(repo, plan, termId);
 	if (!group) return false;
 
-	const existing = await db
-		.selectFrom("content_taxonomies")
-		.select("collection")
-		.where("collection", "=", collection)
-		.where("entry_id", "=", entryId)
-		.where("taxonomy_id", "=", group)
-		.executeTakeFirst();
-	if (existing) return false;
+	const existing = await repo.getTermsForEntry(collection, entryId);
+	if (existing.some((term) => term.translationGroup === group)) return false;
 
 	await repo.attachToEntry(collection, entryId, termId);
 	return true;

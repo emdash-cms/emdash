@@ -125,8 +125,8 @@ function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
 
 	// Pin the join order for the per-entry hydration subqueries on SQLite (#1722).
 	// SQLite honours `CROSS JOIN` ordering, forcing the join to drive from the
-	// pivot (`content_taxonomies` / `_emdash_content_bylines`) by
-	// `(collection, entry_id)` and probe the term/byline table by
+	// pivot (`content_taxonomies` / `_emdash_content_bylines`) by its content
+	// reference and probe the term/byline table by
 	// `translation_group`. Without it, a stats-blind D1 planner (D1 never runs
 	// ANALYZE / maintains `sqlite_stat1`) is free to drive the correlated
 	// subquery from `taxonomies`/`_emdash_bylines` by `locale`, scanning every
@@ -139,7 +139,7 @@ function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
 	);
 	// Filter terms to the entry's own locale (matches #1441: terms render in the
 	// entry's resolved locale, not all locale variants of the attached group).
-	const terms = sql`(SELECT ${agg(termObj)} FROM ${sql.ref("content_taxonomies")} AS ct ${foldJoin} ${sql.ref("taxonomies")} AS t ON t.translation_group = ct.taxonomy_id WHERE ct.collection = ${type} AND ct.entry_id = ${o}.id AND t.locale = ${o}.locale) AS ${sql.ref("_emdash_terms")}`;
+	const terms = sql`(SELECT ${agg(termObj)} FROM ${sql.ref("content_taxonomies")} AS ct ${foldJoin} ${sql.ref("taxonomies")} AS t ON t.translation_group = ct.taxonomy_id WHERE ct.collection = ${type} AND ct.entry_id = ${o}.translation_group AND t.locale = ${o}.locale) AS ${sql.ref("_emdash_terms")}`;
 
 	const bylineInner = obj(
 		"'id', b.id, 'slug', b.slug, 'displayName', b.display_name, 'bio', b.bio, 'avatarMediaId', b.avatar_media_id, 'avatarStorageKey', m.storage_key, 'avatarAlt', m.alt, 'avatarBlurhash', m.blurhash, 'avatarDominantColor', m.dominant_color, 'websiteUrl', b.website_url, 'userId', b.user_id, 'isGuest', b.is_guest, 'createdAt', b.created_at, 'updatedAt', b.updated_at, 'locale', b.locale, 'translationGroup', b.translation_group",
@@ -764,18 +764,13 @@ export interface TaxonomyPivotQueryOptions {
 /**
  * Build the pivot-driven taxonomy listing query (#1834).
  *
- * Drives from a pivot-only CTE (`picked`) that carries the sort column, seeks
- * the term on a `(taxonomy_id, collection, deleted_at, [locale,] <sort> DESC,
- * entry_id DESC)` index, and lets `LIMIT` short-circuit; then joins `ec_*` by primary
- * key to hydrate the page **and re-checks the real filter predicates on the
- * joined row** — the pivot columns are advisory (non-atomic re-stamp on D1), so
- * `ec_*` is authoritative for membership. Ordering stays pivot-driven to keep
- * the early-`LIMIT`.
+ * Drives from the term pivot and joins content translations through their
+ * shared translation_group. Content columns remain authoritative for locale,
+ * visibility, sorting, and cursor predicates.
  *
  * Two shapes:
  * - **Indexed sort** (`published_at`/`created_at`, single sort field): the
- *   pivot index is covering for `(entry_id, sortval)`, so `LIMIT` lives in
- *   `picked` and short-circuits.
+ *   `LIMIT` lives in `picked`.
  * - **Temp-sort** (`updated_at` or any other field, or multi-field sort): no
  *   pivot sort index applies, so `picked` collects the tagged candidate set and
  *   the outer query sorts the joined rows. Bounded to tagged rows — no
@@ -813,14 +808,6 @@ export function buildTaxonomyPivotQuery(
 	const restGroups = groupSets.slice(1);
 	const multiGroup = firstGroups.length > 1;
 
-	// Pivot-local narrowing predicates (advisory — re-checked on `ec_*` below).
-	// `status === undefined` means an all-statuses shape (admin), so the status
-	// condition is dropped entirely.
-	const deletedCt = deletedIsNull ? sql`ct.deleted_at IS NULL` : sql`ct.deleted_at IS NOT NULL`;
-	const statusCt =
-		status !== undefined ? sql`AND ${buildStatusCondition(db, status, "ct")}` : sql``;
-	const localeCt = locale ? sql`AND ct.locale = ${locale}` : sql``;
-
 	// Multi-term AND: one residual pivot-PK EXISTS per additional taxonomy.
 	const residual =
 		restGroups.length > 0
@@ -837,17 +824,18 @@ export function buildTaxonomyPivotQuery(
 				)}`
 			: sql``;
 
-	// Byline filter keeps its EXISTS, correlated on `ct.entry_id`.
+	// Byline assignments remain keyed to a locale-specific content row.
 	const bylineCt = bylineGroups
 		? sql`AND EXISTS (
 				SELECT 1 FROM _emdash_content_bylines cb
 				WHERE cb.collection_slug = ${collection}
-					AND cb.content_id = ct.entry_id
+					AND cb.content_id = r.id
 					AND cb.byline_id IN (${sql.join(bylineGroups.map((g) => sql`${g}`))})
 			)`
 		: sql``;
 
 	const firstGroupCond = pivotGroupCondition("ct.taxonomy_id", firstGroups);
+	const pivotContentJoin = isPostgres(db) ? sql`JOIN` : sql`CROSS JOIN`;
 	const {
 		terms: termsSelect,
 		bylines: bylinesSelect,
@@ -860,15 +848,15 @@ export function buildTaxonomyPivotQuery(
 	const localeR = locale ? sql`AND r.locale = ${locale}` : sql``;
 
 	if (isIndexedSort) {
-		const sortRef = sql.ref(`ct.${primary.field}`);
+		const sortRef = sql.ref(`r.${primary.field}`);
 		const sortval = multiGroup ? sql`MAX(${sortRef})` : sortRef;
-		const groupByClause = multiGroup ? sql`GROUP BY ct.entry_id` : sql``;
+		const groupByClause = multiGroup ? sql`GROUP BY r.id` : sql``;
 
 		let cursorClause = sql``;
 		let havingClause = sql``;
 		if (cursor) {
 			const { orderValue, id } = decodeCursor(cursor);
-			const cond = sql`(${sortval} ${cmp} ${orderValue} OR (${sortval} = ${orderValue} AND ct.entry_id ${cmp} ${id}))`;
+			const cond = sql`(${sortval} ${cmp} ${orderValue} OR (${sortval} = ${orderValue} AND r.id ${cmp} ${id}))`;
 			// A GROUP BY makes `sortval` an aggregate → cursor goes in HAVING.
 			if (multiGroup) havingClause = sql`HAVING ${cond}`;
 			else cursorClause = sql`AND ${cond}`;
@@ -878,19 +866,20 @@ export function buildTaxonomyPivotQuery(
 
 		return sql<Record<string, unknown>>`
 			WITH picked AS (
-				SELECT ct.entry_id AS entry_id, ${sortval} AS sortval
+				SELECT r.id AS entry_id, ${sortval} AS sortval
 				FROM content_taxonomies ct
+				${pivotContentJoin} ${sql.ref(tableName)} AS r ON r.translation_group = ct.entry_id
 				WHERE ct.collection = ${collection}
 					AND ${firstGroupCond}
-					AND ${deletedCt}
-					${statusCt}
-					${localeCt}
+					AND ${deletedR}
+					${statusR}
+					${localeR}
 					${residual}
 					${bylineCt}
 					${cursorClause}
 				${groupByClause}
 				${havingClause}
-				ORDER BY sortval ${dir}, ct.entry_id ${dir}
+				ORDER BY sortval ${dir}, r.id ${dir}
 				${limitClause}
 			)
 			SELECT r.*, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}
@@ -906,13 +895,14 @@ export function buildTaxonomyPivotQuery(
 	const limitClause = buildPivotLimitOffset(db, fetchLimit, offset);
 	return sql<Record<string, unknown>>`
 		WITH picked AS (
-			SELECT DISTINCT ct.entry_id AS entry_id
+			SELECT DISTINCT r.id AS entry_id
 			FROM content_taxonomies ct
+			${pivotContentJoin} ${sql.ref(tableName)} AS r ON r.translation_group = ct.entry_id
 			WHERE ct.collection = ${collection}
 				AND ${firstGroupCond}
-				AND ${deletedCt}
-				${statusCt}
-				${localeCt}
+				AND ${deletedR}
+				${statusR}
+				${localeR}
 				${residual}
 				${bylineCt}
 		)
@@ -1256,7 +1246,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							SELECT 1 FROM content_taxonomies ct
 							INNER JOIN taxonomies t ON t.translation_group = ct.taxonomy_id
 							WHERE ct.collection = ${type}
-								AND ct.entry_id = ${sql.ref(tableName)}.id
+								AND ct.entry_id = ${sql.ref(tableName)}.translation_group
 								AND t.name = ${f.name}
 								AND t.slug IN (${sql.join(f.slugs.map((s) => sql`${s}`))})
 							${locale ? sql`AND t.locale = ${locale}` : sql``}

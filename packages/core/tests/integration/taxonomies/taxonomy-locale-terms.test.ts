@@ -1,11 +1,9 @@
 /**
  * Locale-aware term resolution for content entries (issue #1218).
  *
- * The storage model is correct: `content_taxonomies` stores
- * `entry_id` = the per-locale content row id and `taxonomy_id` = the term's
- * `translation_group` (which spans every locale). Resolving the terms for an
- * entry must therefore scope to the entry's own locale, otherwise EVERY locale
- * variant of the term is returned.
+ * `content_taxonomies` stores translation groups for both content and terms.
+ * Resolving the terms for an entry must still scope to the entry's own locale,
+ * otherwise every locale variant of the term is returned.
  *
  * The bug was that the admin content-editor terms route
  * (`/content/:collection/:id/terms/:taxonomy`) never passed a locale, so a
@@ -87,9 +85,8 @@ async function seedLocalizedTags(db: Kysely<Database>): Promise<TermFixture> {
 		translationOf: enTag.id,
 	});
 
-	// Attach the tag (by group) to BOTH entries.
+	// One group assignment covers both content translations.
 	await taxRepo.attachToEntry("post", enContent.id, enTag.id);
-	await taxRepo.attachToEntry("post", frContent.id, enTag.id);
 
 	return {
 		enContentId: enContent.id,
