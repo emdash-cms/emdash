@@ -479,10 +479,13 @@ function pendingMigrationsResponse(error: PendingMigrationsError): Response {
 }
 
 function migrationRequiredResponse(): Response {
-	return new Response("Database migrations are required. Run `emdash migrate` and retry.", {
-		status: 503,
-		headers: { "Retry-After": "60" },
-	});
+	return new Response(
+		"Database migrations are required. Apply the deployment migration manifest and retry.",
+		{
+			status: 503,
+			headers: { "Retry-After": "60" },
+		},
+	);
 }
 
 /**

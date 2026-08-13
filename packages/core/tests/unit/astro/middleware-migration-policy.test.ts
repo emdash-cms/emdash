@@ -91,7 +91,7 @@ describe("middleware migration check failures", () => {
 			expect(response.status).toBe(503);
 			expect(response.headers.get("Retry-After")).toBe("60");
 			expect(await response.text()).toBe(
-				"Database migrations are required. Run `emdash migrate` and retry.",
+				"Database migrations are required. Apply the deployment migration manifest and retry.",
 			);
 			expect(next).not.toHaveBeenCalled();
 			expect(mockGetDb).not.toHaveBeenCalled();
@@ -109,7 +109,7 @@ describe("middleware migration check failures", () => {
 			const response = await onRequest(contextFor(pathname) as never, next);
 
 			expect(response.status).toBe(503);
-			expect(await response.text()).toContain("emdash migrate");
+			expect(await response.text()).toContain("deployment migration manifest");
 			expect(next).not.toHaveBeenCalled();
 			expect(mockGetDb).not.toHaveBeenCalled();
 		},
