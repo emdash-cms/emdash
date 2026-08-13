@@ -359,13 +359,13 @@ describe("SchemaRegistry", () => {
 			});
 
 			expect(field.indexed).toBe(true);
-			expect(await listFieldIndexes()).toHaveLength(1);
+			expect(await listFieldIndexes()).toHaveLength(2);
 
 			await registry.updateField("posts", "priority", { indexed: false });
 			expect(await listFieldIndexes()).toHaveLength(0);
 
 			await registry.updateField("posts", "priority", { indexed: true });
-			expect(await listFieldIndexes()).toHaveLength(1);
+			expect(await listFieldIndexes()).toHaveLength(2);
 
 			await registry.deleteField("posts", "priority");
 			expect(await listFieldIndexes()).toHaveLength(0);
@@ -392,11 +392,12 @@ describe("SchemaRegistry", () => {
 
 				const updated = await registry.getField("posts", "priority");
 				const indexes = await sql<{ name: string }>`
-					SELECT name FROM sqlite_master WHERE type = 'index' AND name = ${indexName}
+					SELECT name FROM sqlite_master
+					WHERE type = 'index' AND name LIKE ${`${indexName}%`}
 				`.execute(db);
 
 				expect(updated).toMatchObject({ label: "Updated priority", indexed: nextIndexed });
-				expect(indexes.rows).toHaveLength(nextIndexed ? 1 : 0);
+				expect(indexes.rows).toHaveLength(nextIndexed ? 2 : 0);
 			},
 		);
 
@@ -428,10 +429,11 @@ describe("SchemaRegistry", () => {
 				type: "number",
 			});
 			const indexName = `idx_cf_${field.id.toLowerCase()}`;
+			const localeIndexName = `${indexName}_loc`;
 
 			await sql`
 				CREATE INDEX ${sql.ref(indexName)}
-				ON ec_posts (deleted_at, (priority IS NOT NULL), priority, id)
+				ON ec_posts ((priority IS NOT NULL), priority, id)
 				WHERE deleted_at IS NULL
 			`.execute(db);
 
@@ -440,9 +442,12 @@ describe("SchemaRegistry", () => {
 			).resolves.toMatchObject({ indexed: true });
 
 			const indexes = await sql<{ name: string }>`
-				SELECT name FROM sqlite_master WHERE type = 'index' AND name = ${indexName}
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name LIKE ${`${indexName}%`}
 			`.execute(db);
-			expect(indexes.rows).toHaveLength(1);
+			expect(indexes.rows.map((row) => row.name).toSorted()).toEqual(
+				[indexName, localeIndexName].toSorted(),
+			);
 		});
 
 		it("uses the generated index for indexed custom field ordering", async () => {
@@ -453,11 +458,13 @@ describe("SchemaRegistry", () => {
 				indexed: true,
 			});
 			const indexName = `idx_cf_${field.id.toLowerCase()}`;
+			const localeIndexName = `${indexName}_loc`;
 
 			const ascending = await sql<{ detail: string }>`
 				EXPLAIN QUERY PLAN
 				SELECT * FROM ec_posts
 				WHERE deleted_at IS NULL
+					AND locale = 'en'
 				ORDER BY (priority IS NOT NULL) ASC, priority ASC, id ASC
 				LIMIT 51
 			`.execute(db);
@@ -465,13 +472,14 @@ describe("SchemaRegistry", () => {
 				EXPLAIN QUERY PLAN
 				SELECT * FROM ec_posts
 				WHERE deleted_at IS NULL
+					AND locale = 'en'
 				ORDER BY (priority IS NOT NULL) DESC, priority DESC, id DESC
 				LIMIT 51
 			`.execute(db);
 
 			for (const plan of [ascending, descending]) {
 				const details = plan.rows.map((row) => row.detail).join("\n");
-				expect(details).toContain(indexName);
+				expect(details).toContain(`USING INDEX ${localeIndexName}`);
 				expect(details).not.toContain("USE TEMP B-TREE");
 			}
 		});

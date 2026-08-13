@@ -83,6 +83,7 @@ describe("Database Migrations", () => {
 
 			const fieldId = "01J00000000000000000000000";
 			const indexName = `idx_cf_${fieldId.toLowerCase()}`;
+			const localeIndexName = `${indexName}_loc`;
 
 			await db
 				.insertInto("_emdash_collections")
@@ -108,11 +109,13 @@ describe("Database Migrations", () => {
 				})
 				.execute();
 			await sql`CREATE INDEX ${sql.ref(indexName)} ON _emdash_fields (id)`.execute(db);
+			await sql`CREATE INDEX ${sql.ref(localeIndexName)} ON _emdash_fields (id)`.execute(db);
 
 			await indexedContentFields.down(db);
 
 			const indexes = await sql<{ name: string }>`
-				SELECT name FROM sqlite_master WHERE type = 'index' AND name = ${indexName}
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name IN (${indexName}, ${localeIndexName})
 			`.execute(db);
 			const fieldsTable = (await db.introspection.getTables()).find(
 				(table) => table.name === "_emdash_fields",

@@ -30,6 +30,9 @@ export async function down(db: Kysely<unknown>): Promise<void> {
 		await sql`
 			DROP INDEX IF EXISTS ${sql.ref(`idx_cf_${field.id.toLowerCase()}`)}
 		`.execute(db);
+		await sql`
+			DROP INDEX IF EXISTS ${sql.ref(`idx_cf_${field.id.toLowerCase()}_loc`)}
+		`.execute(db);
 	}
 
 	await db.schema.alterTable("_emdash_fields").dropColumn("indexed").execute();

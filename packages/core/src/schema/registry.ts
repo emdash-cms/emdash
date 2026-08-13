@@ -1447,6 +1447,10 @@ export class SchemaRegistry {
 		return `idx_cf_${fieldId.toLowerCase()}`;
 	}
 
+	private getLocaleFieldIndexName(fieldId: string): string {
+		return `${this.getFieldIndexName(fieldId)}_loc`;
+	}
+
 	private async createFieldIndex(
 		collectionSlug: string,
 		fieldId: string,
@@ -1457,11 +1461,22 @@ export class SchemaRegistry {
 		const tableName = this.getTableName(collectionSlug);
 		const columnName = this.getColumnName(fieldSlug);
 		const indexName = this.getFieldIndexName(fieldId);
+		const localeIndexName = this.getLocaleFieldIndexName(fieldId);
 
 		await sql`
 			CREATE INDEX IF NOT EXISTS ${sql.ref(indexName)}
 			ON ${sql.ref(tableName)} (
-				deleted_at,
+				(${sql.ref(columnName)} IS NOT NULL),
+				${sql.ref(columnName)},
+				id
+			)
+			WHERE deleted_at IS NULL
+		`.execute(conn);
+
+		await sql`
+			CREATE INDEX IF NOT EXISTS ${sql.ref(localeIndexName)}
+			ON ${sql.ref(tableName)} (
+				locale,
 				(${sql.ref(columnName)} IS NOT NULL),
 				${sql.ref(columnName)},
 				id
@@ -1473,6 +1488,7 @@ export class SchemaRegistry {
 	private async dropFieldIndex(fieldId: string, db?: Kysely<Database>): Promise<void> {
 		const conn = db ?? this.db;
 		await sql`DROP INDEX IF EXISTS ${sql.ref(this.getFieldIndexName(fieldId))}`.execute(conn);
+		await sql`DROP INDEX IF EXISTS ${sql.ref(this.getLocaleFieldIndexName(fieldId))}`.execute(conn);
 	}
 
 	/**

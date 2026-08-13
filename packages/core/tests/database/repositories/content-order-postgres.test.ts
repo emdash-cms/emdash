@@ -16,6 +16,9 @@ const describePostgres = hasPgTestDatabase ? describe : describe.skip;
 describePostgres("indexed custom-field ordering [postgres]", () => {
 	let ctx: PgTestContext | undefined;
 	let indexName: string;
+	let localeIndexName: string;
+	let planIndexName: string;
+	let planLocaleIndexName: string;
 	let repo: ContentRepository;
 
 	beforeAll(async () => {
@@ -29,7 +32,29 @@ describePostgres("indexed custom-field ordering [postgres]", () => {
 			indexed: true,
 		});
 		indexName = `idx_cf_${field.id.toLowerCase()}`;
+		localeIndexName = `${indexName}_loc`;
 		repo = new ContentRepository(ctx.db);
+
+		await registry.createCollection({ slug: "plan", label: "Plans", labelSingular: "Plan" });
+		const planField = await registry.createField("plan", {
+			slug: "priority",
+			label: "Priority",
+			type: "number",
+			indexed: true,
+		});
+		planIndexName = `idx_cf_${planField.id.toLowerCase()}`;
+		planLocaleIndexName = `${planIndexName}_loc`;
+		await sql`
+			INSERT INTO ec_plan (id, locale, priority)
+			SELECT 'plan-en-' || i::text, 'en', (i % 20)::double precision
+			FROM generate_series(1, 1100) AS series(i)
+		`.execute(ctx.db);
+		await sql`
+			INSERT INTO ec_plan (id, locale, priority)
+			SELECT 'plan-nl-' || i::text, 'nl', (i % 5)::double precision
+			FROM generate_series(1, 20) AS series(i)
+		`.execute(ctx.db);
+		await sql`ANALYZE ec_plan`.execute(ctx.db);
 
 		for (const priority of [null, null, 1, 1, 2, 2]) {
 			await repo.create({ type: "post", data: { priority } });
@@ -44,20 +69,56 @@ describePostgres("indexed custom-field ordering [postgres]", () => {
 		}
 	});
 
+	it("uses separate indexes for global and locale-scoped ordering", async () => {
+		const plans = await ctx!.db.transaction().execute(async (trx) => {
+			await sql`SET LOCAL enable_seqscan = off`.execute(trx);
+			await sql`SET LOCAL enable_bitmapscan = off`.execute(trx);
+			const global = await sql<{ "QUERY PLAN": string }>`
+				EXPLAIN (FORMAT TEXT)
+				SELECT * FROM ec_plan
+				WHERE deleted_at IS NULL
+				ORDER BY (priority IS NOT NULL) ASC, priority ASC, id ASC
+				LIMIT 4
+			`.execute(trx);
+			const localized = await sql<{ "QUERY PLAN": string }>`
+				EXPLAIN (FORMAT TEXT)
+				SELECT * FROM ec_plan
+				WHERE deleted_at IS NULL AND locale = 'nl'
+				ORDER BY (priority IS NOT NULL) ASC, priority ASC, id ASC
+				LIMIT 4
+			`.execute(trx);
+			return {
+				global: global.rows.map((row) => row["QUERY PLAN"]).join("\n"),
+				localized: localized.rows.map((row) => row["QUERY PLAN"]).join("\n"),
+			};
+		});
+
+		expect(plans.global).toContain(`Index Scan using ${planIndexName}`);
+		expect(plans.global).not.toContain("Sort");
+		expect(plans.localized).toContain(`Index Scan using ${planLocaleIndexName}`);
+		expect(plans.localized).toContain("locale = 'nl'::text");
+		expect(plans.localized).not.toContain("Sort");
+	});
+
 	it("creates the physical custom-field index", async () => {
-		const result = await sql<{ indexdef: string }>`
-			SELECT indexdef
+		const result = await sql<{ indexname: string; indexdef: string }>`
+			SELECT indexname, indexdef
 			FROM pg_indexes
 			WHERE schemaname = ${ctx!.schemaName}
 				AND tablename = 'ec_post'
-				AND indexname = ${indexName}
+				AND indexname IN (${indexName}, ${localeIndexName})
 		`.execute(ctx!.db);
 
-		expect(result.rows).toHaveLength(1);
-		const definition = result.rows[0]!.indexdef.replaceAll('"', "");
-		expect(definition).toContain("deleted_at");
-		expect(definition).toContain("(priority IS NOT NULL)");
-		expect(definition).toContain("priority, id");
+		expect(result.rows).toHaveLength(2);
+		const definitions = new Map(
+			result.rows.map((row) => [row.indexname, row.indexdef.replaceAll('"', "")]),
+		);
+		expect(definitions.get(indexName)).toContain(
+			"USING btree (((priority IS NOT NULL)), priority, id)",
+		);
+		expect(definitions.get(localeIndexName)).toContain(
+			"USING btree (locale, ((priority IS NOT NULL)), priority, id)",
+		);
 	});
 
 	it.each([
