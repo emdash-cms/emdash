@@ -40,6 +40,8 @@ Create `wrangler.jsonc` in your project root with D1 and R2 bindings. Wrangler p
 }
 ```
 
+These are the bindings you configure yourself. The `@astrojs/cloudflare` adapter adds more of its own when it generates the deployed Worker config. One of them is the `IMAGES` binding that media transforms use — see [Image Transformation](#image-transformation).
+
 ## Configure EmDash
 
 Update your Astro configuration to use D1 and R2:
@@ -240,6 +242,33 @@ storage: r2({
 <Aside type="tip">
 	For production, connect a custom domain to your R2 bucket for better URLs and caching control.
 </Aside>
+
+## Image Transformation
+
+EmDash resizes and re-encodes R2 media inside the Worker, through Cloudflare's `IMAGES` binding. The `Image` component from `emdash/ui` and images in rich text both render through the image endpoint EmDash installs under the Cloudflare adapter. For media on the internal `/_emdash/api/media/file/…` route, that endpoint reads the source bytes straight from the R2 binding, without an HTTP fetch. Those transforms keep working behind Cloudflare Access and with `global_fetch_strictly_public`. Media served from a bucket URL — see [Public R2 Access](#public-r2-access) — takes the adapter's own transform endpoint instead, which fetches the file over HTTP before transforming it.
+
+You do not have to declare the binding. `@astrojs/cloudflare` adds it to the Worker config it generates during `astro build`, the same way it adds `cache` for Workers Caching. It does so whenever the runtime image service is `cloudflare-binding`: `imageService` unset, the string itself, or `{ runtime: "cloudflare-binding" }`. Every other value — `"passthrough"`, `"compile"`, `"cloudflare"`, `"custom"` — leaves the binding out. Listing it in your own `wrangler.jsonc` keeps the intent obvious:
+
+```jsonc title="wrangler.jsonc"
+{
+	"images": {
+		"binding": "IMAGES",
+	},
+}
+```
+
+To see what a deploy actually gets, read the generated config rather than `wrangler.jsonc`. A build writes `.wrangler/deploy/config.json`, which points `wrangler deploy` at the merged file (`dist/server/wrangler.json` by default). Look for an `images` entry there.
+
+<Aside type="caution">
+	What a missing binding looks like depends on the media URL. On the internal route the endpoint
+	serves the original file unchanged: pages still render and nothing is logged, but every image is
+	the full-size original rather than a variant scaled to the space it occupies. From a bucket URL
+	the request fails with a 500 instead, because the adapter's transform endpoint calls the binding
+	without a fallback. `imageService: "passthrough"` is the deliberate way out — EmDash then leaves
+	the adapter's passthrough endpoint in place rather than wrapping it.
+</Aside>
+
+Cloudflare bills these transforms as [Images transformations](https://developers.cloudflare.com/images/pricing/#images-transformed). Each unique combination of source image and parameters is billed once per calendar month, and repeat requests within that month are free. The Images Free plan covers 5,000 unique transformations per month. Past that limit, cached transformations are still served, but new ones return a `9422` error and the image request fails.
 
 ## Cloudflare Access Authentication
 
