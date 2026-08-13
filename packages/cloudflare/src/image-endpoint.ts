@@ -38,14 +38,9 @@ const FORMAT_MIME: Record<ImageTransformFormat, ImageOutputOptions["format"]> = 
 };
 
 /**
- * Astro's `fit` vocabulary mapped onto the Images binding's.
- *
- * Most names line up. Astro's `fill` distorts the image to fill the box, which
- * the binding calls `squeeze`. `inside` (accepted by Astro's sharp service)
- * resizes to fit within the box, which is the binding's `contain`. `outside`
- * has no binding equivalent -- nothing there resizes to *exceed* the box
- * without cropping -- so it is dropped and the dimensions apply on their own,
- * rather than substituting a fit that would crop.
+ * Maps Astro `fit` values to the Cloudflare Images binding's fit vocabulary.
+ * Unmapped values (e.g. `outside`) become `undefined`, leaving the binding's
+ * default behaviour unchanged.
  */
 const FIT_TO_BINDING: Record<ImageTransformFit, ImageTransform["fit"] | undefined> = {
 	fill: "squeeze",
@@ -57,17 +52,8 @@ const FIT_TO_BINDING: Record<ImageTransformFit, ImageTransform["fit"] | undefine
 };
 
 /**
- * Astro's `position` mapped onto the binding's `gravity`.
- *
- * Astro passes sharp's vocabulary straight through, and the two only partly
- * overlap. The shared keywords pass unchanged; sharp's compass names mean the
- * same edges under different words; `centre` is the same as `center`; and
- * `attention` (sharp's saliency-based crop) is the binding's `auto`.
- *
- * A compound position such as `left top` names a corner, which the binding can
- * only express as coordinates. Rather than guess at them, it is dropped and the
- * binding keeps its own gravity -- the same outcome as before this mapping
- * existed, and better than cropping to a confidently wrong edge.
+ * Maps Astro `position` values to the Cloudflare Images binding's gravity
+ * vocabulary. Compound or unknown positions are dropped.
  */
 const GRAVITY_BY_POSITION = new Map<string, ImageTransform["gravity"]>([
 	["face", "face"],
@@ -80,7 +66,6 @@ const GRAVITY_BY_POSITION = new Map<string, ImageTransform["gravity"]>([
 	["auto", "auto"],
 	["entropy", "entropy"],
 	["attention", "auto"],
-	// sharp's compass vocabulary.
 	["north", "top"],
 	["south", "bottom"],
 	["east", "right"],
@@ -193,9 +178,6 @@ export const GET: APIRoute = async (ctx) => {
 		const transform: ImageTransform = {};
 		if (width) transform.width = width;
 		if (height) transform.height = height;
-		// Without these the binding falls back to its own default fit, so a
-		// square `fit=cover` request came back scaled-down and letterboxed
-		// instead of cropped.
 		if (fit) {
 			const bindingFit = FIT_TO_BINDING[fit];
 			if (bindingFit) transform.fit = bindingFit;

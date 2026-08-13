@@ -49,14 +49,8 @@ function stripWeakEtagPrefix(value: string): string {
 export type ImageTransformFormat = (typeof ALLOWED_TRANSFORM_FORMATS)[number];
 
 /**
- * The `fit` values Astro's image service emits. Astro's `ImageFit` is
- * open-ended (`string & {}`), so this is an allowlist: an unrecognised fit is
- * dropped rather than forwarded to a backend that would reject it.
- *
- * `inside` and `outside` are not in `ImageFit` but are accepted by Astro's
- * sharp service, so a site can already use them on Node. `none` is absent on
- * purpose: Astro deletes it before building the URL, so it never reaches an
- * endpoint.
+ * Fit values Astro's image service may emit. Unknown values are dropped so
+ * backends keep their default behaviour.
  */
 export const ALLOWED_TRANSFORM_FITS = [
 	"fill",
@@ -303,8 +297,10 @@ export function resolveTransformQuality(
  * default (lossy formats get one, lossless PNG does not; see
  * {@link DEFAULT_TRANSFORM_QUALITY}).
  *
- * `fit` and `position` are optional transform hints. Backends map them to
- * their own supported values.
+ * `fit` and `position` describe how the rendition fills its box. Unlike the
+ * others they are advisory: an unrecognised value is dropped rather than
+ * failing the request. The platform endpoint maps them onto its backend's
+ * vocabulary.
  */
 export function parseTransformParams(params: URLSearchParams): ParsedTransformParams {
 	const width = parseDimension(params.get("w"));
@@ -337,14 +333,11 @@ export function parseTransformParams(params: URLSearchParams): ParsedTransformPa
 		}
 	}
 
-	// `fit` and `position` come straight from Astro's image service. Both are
-	// advisory: an unrecognised value is dropped rather than failing the
-	// request, so a rendition still resolves on a backend that doesn't know it.
 	const fitRaw = params.get("fit");
 	const fit = fitRaw !== null && isTransformFit(fitRaw) ? fitRaw : undefined;
 
-	const positionRaw = params.get("position");
-	const position = positionRaw !== null && positionRaw !== "" ? positionRaw : undefined;
+	const positionRaw = params.get("position")?.trim();
+	const position = positionRaw ? positionRaw : undefined;
 
 	return { ok: true, options: { width, height, format, quality, fit, position } };
 }
