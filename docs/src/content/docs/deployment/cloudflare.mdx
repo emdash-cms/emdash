@@ -86,14 +86,11 @@ export { PluginBridge };
 
 export default {
 	...handler,
-	scheduled: createScheduledHandler({
-		generalCron: "* * * * *",
-		mediaUsageCron: "*/2 * * * *",
-	}),
+	scheduled: createScheduledHandler(),
 } satisfies ExportedHandler;
 ```
 
-Then add both Cron Triggers to `wrangler.jsonc` using the same expressions:
+By default, `*/2 * * * *` runs Media Usage maintenance and every other expression runs general maintenance. Then add both Cron Triggers to `wrangler.jsonc`:
 
 ```jsonc title="wrangler.jsonc"
 {
@@ -102,6 +99,8 @@ Then add both Cron Triggers to `wrangler.jsonc` using the same expressions:
 	},
 }
 ```
+
+To use different schedules, set the corresponding `generalCron` or `mediaUsageCron` option in `createScheduledHandler()` and use the same expression in `wrangler.jsonc`.
 
 <Aside type="caution">
 	Without the general trigger, scheduled publishing and plugin cron do not run. Without the dedicated Media Usage trigger, automatic historical reconciliation cannot progress. Local `astro dev` still uses the in-process scheduler.

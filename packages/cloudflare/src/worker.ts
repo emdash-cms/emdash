@@ -6,13 +6,13 @@
  * Usage lane without request side effects. Re-exports the `PluginBridge`
  * Durable Object so the sandbox binding resolves against the entry module.
  *
- * Existing sites can keep the default general-maintenance handler:
+ * Existing sites can keep the default scheduled handler:
  *
  *   export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";
  *
- * New sites configure distinct expressions through `createScheduledHandler`.
- *
- *   Configure one general expression and one distinct Media Usage expression.
+ * By default the every-two-minutes expression runs Media Usage maintenance
+ * and every other expression runs general maintenance. Sites only pass
+ * options when changing either expression.
  *
  * The `@astrojs/cloudflare/entrypoints/server` import is resolved by the
  * consuming app's Astro build (it pulls the build-time `virtual:astro:app`
@@ -48,28 +48,32 @@ async function invalidatePublishedTags(
 }
 
 /**
- * Build a Worker `scheduled()` handler. Without options every expression runs
- * the backwards-compatible general lane. Configured handlers dispatch exact,
- * distinct expressions to general or Media Usage maintenance.
+ * Build a Worker `scheduled()` handler. By default the every-two-minutes
+ * expression runs Media Usage maintenance and every other expression runs
+ * general maintenance. Configuring a general expression changes that lane
+ * from catch-all to exact.
  */
 export interface ScheduledHandlerOptions {
-	generalCron: string;
-	mediaUsageCron: string;
+	generalCron?: string;
+	mediaUsageCron?: string;
 }
+
+const DEFAULT_MEDIA_USAGE_CRON = "*/2 * * * *";
 
 export function createScheduledHandler(
 	options?: ScheduledHandlerOptions,
 ): ExportedHandlerScheduledHandler {
-	if (options) {
-		if (!options.generalCron.trim() || !options.mediaUsageCron.trim()) {
-			throw new Error("Configured scheduled-handler expressions must be non-empty");
-		}
-		if (options.generalCron === options.mediaUsageCron) {
-			throw new Error("General and Media Usage Cron expressions must differ");
-		}
+	const generalCron = options?.generalCron?.trim();
+	const mediaUsageCron = options?.mediaUsageCron?.trim() ?? DEFAULT_MEDIA_USAGE_CRON;
+	if ((options?.generalCron !== undefined && !generalCron) || !mediaUsageCron) {
+		throw new Error("Configured scheduled-handler expressions must be non-empty");
 	}
+	if (generalCron === mediaUsageCron) {
+		throw new Error("General and Media Usage Cron expressions must differ");
+	}
+
 	return (controller, _env, ctx) => {
-		if (options && controller.cron === options.mediaUsageCron) {
+		if (controller.cron === mediaUsageCron) {
 			ctx.waitUntil(
 				runScheduledMediaUsageTasks().catch((error: unknown) => {
 					console.error("[scheduled] Media Usage maintenance failed:", error);
@@ -77,16 +81,9 @@ export function createScheduledHandler(
 			);
 			return;
 		}
-		if (options && controller.cron !== options.generalCron) {
+		if (generalCron !== undefined && controller.cron !== generalCron) {
 			console.warn(`[scheduled] Ignoring unexpected Cron expression: ${controller.cron}`);
 			return;
-		}
-		if (!options) {
-			ctx.waitUntil(
-				runScheduledMediaUsageTasks().catch((error: unknown) => {
-					console.error("[scheduled] Media Usage maintenance failed:", error);
-				}),
-			);
 		}
 		ctx.waitUntil(
 			// Invalidate incrementally as each collection batch publishes, so a
