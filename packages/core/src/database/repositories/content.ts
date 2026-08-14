@@ -1622,7 +1622,6 @@ export class ContentRepository {
 				}
 
 				invalidateCollectionCache(type);
-				await this.restampEntryPivot(type, id);
 				const updated = await this.findById(type, id);
 				if (!updated) throw new Error("Content not found");
 				return updated;
