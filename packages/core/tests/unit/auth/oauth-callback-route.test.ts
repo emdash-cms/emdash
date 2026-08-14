@@ -3,36 +3,42 @@ import { describe, it, expect } from "vitest";
 import { GET as oauthCallback } from "../../../src/astro/routes/api/auth/oauth/[provider]/callback.js";
 
 /**
- * Regression for the Astro 6+ Cloudflare case where `locals.runtime.env`
- * is a throwing getter. `resolveOAuthEnv` reads it safely and falls back
- * through the configured env sources, so the callback reaches the provider
- * check instead of crashing with a generic oauth_error.
+ * Regression for the Cloudflare case where `locals.runtime.env` is a
+ * throwing getter. OAuth routes read the generated virtual env module instead,
+ * so this getter must never be touched.
  */
 function makeThrowingRuntimeLocals() {
+	let runtimeTouched = false;
+
 	return {
-		emdash: { db: {} as never, config: {} },
-		get runtime() {
-			return {
-				get env(): never {
-					throw new Error(
-						"Astro.locals.runtime.env has been removed in Astro v6. Use 'import { env } from \"cloudflare:workers\"' instead.",
-					);
-				},
-			};
+		locals: {
+			emdash: { db: {} as never, config: {} },
+			get runtime() {
+				runtimeTouched = true;
+				return {
+					get env(): never {
+						throw new Error(
+							"Astro.locals.runtime.env has been removed in Astro v6. Use 'import { env } from \"cloudflare:workers\"' instead.",
+						);
+					},
+				};
+			},
 		},
+		wasRuntimeTouched: () => runtimeTouched,
 	};
 }
 
 describe("OAuth callback route", () => {
-	it("does not throw when locals.runtime.env is a throwing getter (Astro 6+ Cloudflare)", async () => {
+	it("does not touch a throwing locals.runtime.env getter", async () => {
 		const request = new Request(
 			"http://localhost:4321/_emdash/api/auth/oauth/google/callback?code=abc&state=xyz",
 		);
+		const runtime = makeThrowingRuntimeLocals();
 
 		const response = await oauthCallback({
 			params: { provider: "google" },
 			request,
-			locals: makeThrowingRuntimeLocals(),
+			locals: runtime.locals,
 			redirect: (url: string) => new Response(null, { status: 302, headers: { Location: url } }),
 		} as unknown as Parameters<typeof oauthCallback>[0]);
 
@@ -42,5 +48,6 @@ describe("OAuth callback route", () => {
 		const location = response.headers.get("Location") ?? "";
 		expect(location).toContain("error=provider_not_configured");
 		expect(location).not.toContain("error=oauth_error");
+		expect(runtime.wasRuntimeTouched()).toBe(false);
 	});
 });

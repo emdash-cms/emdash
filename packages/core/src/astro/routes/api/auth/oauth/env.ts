@@ -15,35 +15,9 @@ async function loadVirtualEnv(): Promise<Record<string, unknown> | undefined> {
 	}
 }
 
-function readRuntimeEnv(locals: unknown): Record<string, unknown> | undefined {
-	try {
-		if (typeof locals !== "object" || locals === null) return undefined;
-
-		const runtime = Reflect.get(locals, "runtime");
-		if (!isRecord(runtime)) return undefined;
-
-		const env = Reflect.get(runtime, "env");
-		return isRecord(env) ? env : undefined;
-	} catch {
-		return undefined;
-	}
-}
-
 export async function resolveOAuthEnv(
-	locals: unknown,
 	fallbackEnv: Record<string, unknown>,
-	loadEnv: () => Promise<Record<string, unknown> | undefined> = async () => undefined,
 ): Promise<Record<string, unknown>> {
-	const runtimeEnv = readRuntimeEnv(locals);
-	if (runtimeEnv) return runtimeEnv;
-
 	const virtualEnv = await loadVirtualEnv();
-	if (virtualEnv) return virtualEnv;
-
-	try {
-		const injectedEnv = await loadEnv();
-		return injectedEnv ?? fallbackEnv;
-	} catch {
-		return fallbackEnv;
-	}
+	return virtualEnv ?? fallbackEnv;
 }

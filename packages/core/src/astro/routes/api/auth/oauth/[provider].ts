@@ -98,7 +98,7 @@ export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
 	try {
 		const url = new URL(request.url);
 
-		const env = await resolveOAuthEnv(locals, import.meta.env);
+		const env = await resolveOAuthEnv(import.meta.env);
 		const providers = getOAuthConfig(env);
 
 		if (!providers[provider]) {
