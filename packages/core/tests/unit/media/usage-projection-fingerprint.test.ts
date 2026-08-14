@@ -46,21 +46,38 @@ const extractionFields = [{ slug: "gallery", type: "image" as const }];
 
 it("is order-independent but changes for every projection input class", async () => {
 	const baseline = await fingerprint();
-	expect(await fingerprint({ occurrences: occurrences.toReversed() })).toBe(baseline);
-	expect(await fingerprint({ collectionId: "collection-2" })).not.toBe(baseline);
-	expect(await fingerprint({ source: { ...source, contentTitle: "Changed title" } })).not.toBe(
-		baseline,
+	expect((await fingerprint({ occurrences: occurrences.toReversed() })).fingerprint).toBe(
+		baseline.fingerprint,
+	);
+	expect((await fingerprint({ collectionId: "collection-2" })).fingerprint).not.toBe(
+		baseline.fingerprint,
 	);
 	expect(
-		await fingerprint({
-			occurrences: [{ ...occurrences[0]!, mediaId: "changed-media" }, occurrences[1]!],
-		}),
-	).not.toBe(baseline);
+		(await fingerprint({ source: { ...source, contentTitle: "Changed title" } })).fingerprint,
+	).not.toBe(baseline.fingerprint);
 	expect(
-		await fingerprint({
-			extractionFields: [...extractionFields, { slug: "hero", type: "image" as const }],
-		}),
-	).not.toBe(baseline);
+		(
+			await fingerprint({
+				occurrences: [{ ...occurrences[0]!, mediaId: "changed-media" }, occurrences[1]!],
+			})
+		).fingerprint,
+	).not.toBe(baseline.fingerprint);
+	expect(
+		(
+			await fingerprint({
+				extractionFields: [...extractionFields, { slug: "hero", type: "image" as const }],
+			})
+		).fingerprint,
+	).not.toBe(baseline.fingerprint);
+	expect(baseline.fingerprint).toMatch(/^media-usage-projection:v1:sha256:[a-f0-9]{64}$/);
+	expect(baseline.byteLength).toBeGreaterThan(0);
+});
+
+it("returns the reused UTF-8 payload length with the fingerprint", async () => {
+	const ascii = await fingerprint({ source: { ...source, contentTitle: "e" } });
+	const multibyte = await fingerprint({ source: { ...source, contentTitle: "é" } });
+
+	expect(multibyte.byteLength).toBe(ascii.byteLength + 1);
 });
 
 it("refuses to mint a current fingerprint without immutable collection identity", async () => {

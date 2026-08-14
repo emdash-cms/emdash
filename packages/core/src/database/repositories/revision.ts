@@ -172,28 +172,39 @@ export class RevisionRepository {
 	/**
 	 * Delete old revisions, keeping the most recent N
 	 */
-	async pruneOldRevisions(collection: string, entryId: string, keepCount: number): Promise<number> {
+	async pruneOldRevisions(
+		collection: string,
+		entryId: string,
+		keepCount: number,
+		throughRevisionId?: string,
+	): Promise<number> {
 		validateIdentifier(collection, "collection");
 		const tableName = `ec_${collection}`;
-		// Get IDs of revisions to keep
-		const keep = await this.db
+		let keepQuery = this.db
 			.selectFrom("revisions")
 			.select("id")
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
 			.orderBy("created_at", "desc")
 			.orderBy("id", "desc") // ULID tiebreaker
-			.limit(keepCount)
-			.execute();
+			.limit(keepCount);
+
+		if (throughRevisionId) {
+			keepQuery = keepQuery.where("id", "<=", throughRevisionId);
+		}
+
+		const keep = await keepQuery.execute();
 
 		const keepIds = keep.map((r) => r.id);
 
 		if (keepIds.length === 0) return 0;
+		const revisionBoundary = throughRevisionId ? sql`AND id <= ${throughRevisionId}` : sql``;
 
 		const result = await sql`
 			DELETE FROM revisions
 			WHERE collection = ${collection}
 			AND entry_id = ${entryId}
+			${revisionBoundary}
 			AND id NOT IN (${sql.join(keepIds.map((id) => sql`${id}`))})
 			AND NOT EXISTS (
 				SELECT 1 FROM ${sql.ref(tableName)} AS content
@@ -211,7 +222,7 @@ export class RevisionRepository {
 		queuedRevisionId: string,
 		keepCount: number,
 	): Promise<number> {
-		const pruned = await this.pruneOldRevisions(collection, entryId, keepCount);
+		const pruned = await this.pruneOldRevisions(collection, entryId, keepCount, queuedRevisionId);
 		await this.db
 			.deleteFrom("_emdash_revision_prune_queue")
 			.where("collection", "=", collection)

@@ -93,7 +93,7 @@ Run **`fix`** only when **all** hold:
 
 Any other combination: stop after verify. Post the diagnosis (proposed fix, or the options for a design decision) and the verify reasoning; a human takes it from there.
 
-**The fix loop does not open a PR.** Fix produces a verified change, committed and pushed to the issue's `bot/fix-<n>` candidate branch -- the only ref the push capability can update. The push triggers a **preview build** the workflow posts to the issue, and the reporter is asked to confirm it resolves _their_ case. **Only after the reporter confirms** does a draft PR open (carrying the repro test, referencing the issue). Reporter denial or silence reaps the branch. Nothing you do here lands on `main`; a maintainer reviews the eventual PR.
+**The fix loop does not open a PR.** Fix produces a verified change and hands it to `publish_candidate`, which updates only the issue's `bot/fix-<n>` candidate branch. The update triggers a **preview build** the workflow posts to the issue, and the reporter is asked to confirm it resolves _their_ case. **Only after the reporter confirms** does a draft PR open (carrying the repro test, referencing the issue). Reporter denial or silence reaps the branch. Nothing you do here lands on `main`; a maintainer reviews the eventual PR.
 
 ## Output
 

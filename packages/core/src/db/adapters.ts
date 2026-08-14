@@ -26,6 +26,32 @@
  */
 export type DatabaseDialectType = "sqlite" | "postgres";
 
+export type CollectionDeletionGuardInput =
+	| {
+			action: "fence";
+			collectionId: string;
+			collectionSlug: string;
+			leaseToken: string;
+			forceDelete: boolean;
+	  }
+	| {
+			action: "drop";
+			collectionId: string;
+			collectionSlug: string;
+			leaseToken: string;
+	  };
+
+export type CollectionDeletionGuardResult =
+	| { outcome: "fenced" }
+	| { outcome: "has_content" }
+	| { outcome: "stale" }
+	| { outcome: "dropped" };
+
+export type ExecuteCollectionDeletionGuard = (
+	config: unknown,
+	input: CollectionDeletionGuardInput,
+) => Promise<CollectionDeletionGuardResult>;
+
 /**
  * Database descriptor - serializable config for virtual modules
  */
@@ -65,6 +91,8 @@ export interface DatabaseDescriptor {
 	 * inspecting an optional entrypoint export.
 	 */
 	supportsCoalescing?: boolean;
+	/** The runtime entrypoint exports the deletion-specific atomic guard. */
+	supportsCollectionDeletionGuard?: boolean;
 }
 
 export interface SqliteConfig {

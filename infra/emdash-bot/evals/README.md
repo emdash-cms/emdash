@@ -99,3 +99,27 @@ fixed, `pre_fix` (the fixing merge commit + its parents) so the run checks out
 the pre-fix commit; an unfixed confirmed bug (`fixing_pr: null`, e.g. #1193)
 runs at `main`, where the bug is still live. See `dataset.md` for the
 human-readable rationale and per-case notes.
+
+## Implementation delivery smoke
+
+The diagnose corpus does not exercise writes. Before cutting over a publisher,
+run the full implementation smoke against a staging worker configured for a
+disposable repository and issue containing a deterministic fixture-edit task.
+Set the staging Worker's `PREVIEW_PACKAGE` variable to the pkg.pr.new package
+path that repository's preview workflow publishes; this keeps its readiness
+probe isolated from production previews.
+
+```sh
+ALLOW_GITHUB_WRITES=1 \
+WORKER_URL=https://emdash-bot-staging.example.workers.dev \
+ADMIN_TOKEN=... GH_TOKEN=... REPO=owner/disposable-repo \
+ISSUE_NUMBER=123 SMOKE_ACTOR=maintainer-login \
+DIRECTIVE='Update the implementation-canary fixture as this issue specifies' \
+pnpm evals:implementation
+```
+
+The test sends signed webhook commands through the real orchestrator and
+requires all of these outcomes: candidate branch creation, a changed remote
+SHA, preview readiness (`bot:awaiting-reporter`), reporter confirmation, and a
+draft PR. It deliberately leaves the draft PR and branch for inspection. It
+refuses `emdash-cms/emdash` unless `ALLOW_PRODUCTION_REPO=1` is also set.

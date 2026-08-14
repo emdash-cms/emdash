@@ -16,10 +16,13 @@ import type {
 	FindManyResult,
 	ContentItem,
 	ContentDateField,
+	ContentBylineFilter,
 } from "./types.js";
 import {
+	ContentCollectionNotFoundError,
 	ContentMutationConflictError,
 	EmDashValidationError,
+	InvalidCursorError,
 	ScheduledNotDueError,
 	encodeCursor,
 	decodeCursor,
@@ -69,6 +72,31 @@ function matchesPublication(
 	);
 }
 
+function matchesLifecyclePublication(
+	observed: ContentItem,
+	existing: ContentItem,
+	liveRevisionId: string,
+	publishedAt: string,
+	updatedAt: string,
+): boolean {
+	if (
+		observed.version !== existing.version + 1 ||
+		observed.status !== "published" ||
+		observed.slug !== existing.slug ||
+		observed.liveRevisionId !== liveRevisionId ||
+		observed.draftRevisionId !== null ||
+		observed.scheduledAt !== null ||
+		observed.publishedAt !== publishedAt ||
+		observed.updatedAt !== updatedAt
+	) {
+		return false;
+	}
+
+	return Object.entries(existing.data).every(([key, value]) =>
+		sameStoredValue(observed.data[key], value),
+	);
+}
+
 function matchesPublicationFence(observed: ContentItem, existing: ContentItem): boolean {
 	return (
 		observed.version === existing.version &&
@@ -83,6 +111,51 @@ function isConfirmedStatementFailure(error: unknown): boolean {
 	if (typeof error !== "object" || error === null || !("code" in error)) return false;
 	const code = (error as { code?: unknown }).code;
 	return typeof code === "string" && (code.startsWith("SQLITE_") || SQLSTATE_PATTERN.test(code));
+}
+
+interface ResolvedOrderField {
+	column: string;
+	indexedCustomField: boolean;
+}
+
+type IndexedOrderValue = string | number | null;
+
+interface IndexedFieldCursorPayload {
+	version: 1;
+	field: string;
+	value: IndexedOrderValue;
+}
+
+function encodeIndexedFieldCursor(field: string, value: IndexedOrderValue, id: string): string {
+	const payload: IndexedFieldCursorPayload = { version: 1, field, value };
+	return encodeCursor(JSON.stringify(payload), id);
+}
+
+function decodeIndexedFieldCursor(
+	cursor: string,
+	field: string,
+): { value: IndexedOrderValue; id: string } {
+	const { orderValue, id } = decodeCursor(cursor);
+	let payload: unknown;
+	try {
+		payload = JSON.parse(orderValue);
+	} catch {
+		throw new InvalidCursorError(cursor);
+	}
+
+	if (payload === null || typeof payload !== "object") {
+		throw new InvalidCursorError(cursor);
+	}
+	const candidate = payload as Partial<IndexedFieldCursorPayload>;
+	const validValue =
+		candidate.value === null ||
+		typeof candidate.value === "string" ||
+		typeof candidate.value === "number";
+	if (candidate.version !== 1 || candidate.field !== field || !validValue) {
+		throw new InvalidCursorError(cursor);
+	}
+
+	return { value: candidate.value as IndexedOrderValue, id };
 }
 
 /**
@@ -557,7 +630,8 @@ export class ContentRepository {
 		// Determine ordering
 		const orderField = options.orderBy?.field || "createdAt";
 		const orderDirection = options.orderBy?.direction || "desc";
-		const dbField = this.mapOrderField(orderField);
+		const resolvedOrderField = await this.resolveOrderField(type, orderField);
+		const dbField = resolvedOrderField.column;
 
 		// Validate order direction to prevent injection
 		const safeOrderDirection = orderDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
@@ -584,31 +658,65 @@ export class ContentRepository {
 
 		query = this.applySearchFilter(query, options.where, type);
 		query = this.applyDateFilter(query, options.where);
+		query = this.applyBylineFilter(query, options.where, type);
 
 		// Handle cursor pagination — decodeCursor throws InvalidCursorError
 		// on malformed input; let it propagate so handlers surface a
 		// structured INVALID_CURSOR rather than silently returning page 1.
 		if (options.cursor) {
-			const { orderValue, id: cursorId } = decodeCursor(options.cursor);
-
-			if (safeOrderDirection === "DESC") {
-				query = query.where((eb) =>
-					eb.or([
-						eb(dbField as any, "<", orderValue),
-						eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
-					]),
-				);
+			if (resolvedOrderField.indexedCustomField) {
+				const { value, id: cursorId } = decodeIndexedFieldCursor(options.cursor, orderField);
+				const isPresent = sql<boolean>`${sql.ref(dbField)} IS NOT NULL`;
+				const falseLiteral = sql<boolean>`FALSE`;
+				const trueLiteral = sql<boolean>`TRUE`;
+				if (safeOrderDirection === "ASC" && value === null) {
+					query = query.where(sql<boolean>`
+						(${isPresent}) > ${falseLiteral}
+						OR ((${isPresent}) = ${falseLiteral} AND ${sql.ref("id")} > ${cursorId})
+					`);
+				} else if (safeOrderDirection === "DESC" && value === null) {
+					query = query.where(sql<boolean>`
+						(${isPresent}) = ${falseLiteral} AND ${sql.ref("id")} < ${cursorId}
+					`);
+				} else if (safeOrderDirection === "ASC") {
+					query = query.where(sql<boolean>`
+						(${isPresent}, ${sql.ref(dbField)}, ${sql.ref("id")})
+							> (${trueLiteral}, ${value}, ${cursorId})
+					`);
+				} else {
+					query = query.where(sql<boolean>`
+						(${isPresent}, ${sql.ref(dbField)}, ${sql.ref("id")})
+							< (${trueLiteral}, ${value}, ${cursorId})
+					`);
+				}
 			} else {
-				query = query.where((eb) =>
-					eb.or([
-						eb(dbField as any, ">", orderValue),
-						eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
-					]),
-				);
+				const { orderValue, id: cursorId } = decodeCursor(options.cursor);
+
+				if (safeOrderDirection === "DESC") {
+					query = query.where((eb) =>
+						eb.or([
+							eb(dbField as any, "<", orderValue),
+							eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
+						]),
+					);
+				} else {
+					query = query.where((eb) =>
+						eb.or([
+							eb(dbField as any, ">", orderValue),
+							eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
+						]),
+					);
+				}
 			}
 		}
 
 		// Apply ordering and limit
+		if (resolvedOrderField.indexedCustomField) {
+			query = query.orderBy(
+				sql<boolean>`${sql.ref(dbField)} IS NOT NULL`,
+				safeOrderDirection === "ASC" ? "asc" : "desc",
+			);
+		}
 		query = query
 			.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc")
 			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
@@ -629,11 +737,26 @@ export class ContentRepository {
 		if (hasMore && items.length > 0) {
 			const lastRow = items.at(-1) as Record<string, unknown>;
 			const lastOrderValue = lastRow[dbField];
-			const orderStr =
-				typeof lastOrderValue === "string" || typeof lastOrderValue === "number"
-					? String(lastOrderValue)
-					: "";
-			mappedResult.nextCursor = encodeCursor(orderStr, String(lastRow.id));
+			if (resolvedOrderField.indexedCustomField) {
+				if (
+					lastOrderValue !== null &&
+					typeof lastOrderValue !== "string" &&
+					typeof lastOrderValue !== "number"
+				) {
+					throw new EmDashValidationError(`Invalid indexed value for order field: ${orderField}`);
+				}
+				mappedResult.nextCursor = encodeIndexedFieldCursor(
+					orderField,
+					lastOrderValue,
+					String(lastRow.id),
+				);
+			} else {
+				const orderStr =
+					typeof lastOrderValue === "string" || typeof lastOrderValue === "number"
+						? String(lastOrderValue)
+						: "";
+				mappedResult.nextCursor = encodeCursor(orderStr, String(lastRow.id));
+			}
 		}
 
 		return mappedResult;
@@ -697,18 +820,6 @@ export class ContentRepository {
 			.where("deleted_at" as never, "is", null)
 			.execute();
 
-		// Re-stamp the taxonomy pivot only when a denormalized column actually
-		// moved (status/publishedAt/scheduledAt). A plain content edit bumps
-		// `updated_at` — which is not denormalized — so it needs no pivot write,
-		// keeping the common edit path free of taxonomy write amplification.
-		if (
-			input.status !== undefined ||
-			input.publishedAt !== undefined ||
-			input.scheduledAt !== undefined
-		) {
-			await this.restampEntryPivot(type, id);
-		}
-
 		if (hasColumnWrites) invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -735,7 +846,6 @@ export class ContentRepository {
 
 		const changed = (result.numAffectedRows ?? 0n) > 0n;
 		if (changed) {
-			await this.restampEntryPivot(type, id);
 			invalidateCollectionCache(type);
 		}
 		return changed;
@@ -758,34 +868,8 @@ export class ContentRepository {
 		const restored = result.rows[0];
 		if (!restored) return null;
 
-		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 		return this.mapRow(type, restored);
-	}
-
-	/**
-	 * Re-stamp the denormalized filter + sort columns on every
-	 * `content_taxonomies` pivot row for an entry from its authoritative `ec_*`
-	 * row (migration 051). Called after any mutation that moves one of those
-	 * columns so a taxonomy-filtered listing can seek the entry directly.
-	 *
-	 * A single correlated `UPDATE` reads the post-mutation values from `ec_*`, so
-	 * the pivot converges to the authoritative row. This is NOT atomic with the
-	 * `ec_*` mutation on D1 (no transactions), which is why the read path
-	 * re-checks the real predicates on the joined `ec_*` row. Untagged entries
-	 * have no pivot rows, so the statement is a cheap no-op for them.
-	 */
-	private async restampEntryPivot(type: string, id: string): Promise<void> {
-		const tableName = getTableName(type);
-		await sql`
-			UPDATE content_taxonomies
-			SET (status, scheduled_at, deleted_at, locale, published_at, created_at) = (
-				SELECT status, scheduled_at, deleted_at, locale, published_at, created_at
-				FROM ${sql.ref(tableName)}
-				WHERE ${sql.ref(tableName)}.id = ${id}
-			)
-			WHERE collection = ${type} AND entry_id = ${id}
-		`.execute(this.db);
 	}
 
 	/**
@@ -985,6 +1069,115 @@ export class ContentRepository {
 	}
 
 	/**
+	 * Apply the optional byline filter as a correlated (NOT) EXISTS against
+	 * `_emdash_content_bylines`.
+	 *
+	 * Correlating from the content table preserves the outer sort index so
+	 * `LIMIT` can short-circuit. `mode: "none"` tests the junction rather than
+	 * `primary_byline_id` because the two are written in the same call but
+	 * are not atomically consistent, so the junction is authoritative.
+	 *
+	 * Whether a credit *renders* is locale-scoped; whether one *exists* is
+	 * not. Both are needed: the first decides what the filter matches, the
+	 * second decides whether the author fallback applies at all.
+	 */
+	private applyBylineFilter<QB extends { where: (cb: (eb: any) => unknown) => QB }>(
+		query: QB,
+		where: { bylineFilter?: ContentBylineFilter } | undefined,
+		type: string,
+	): QB {
+		const filter = where?.bylineFilter;
+		if (!filter) return query;
+		const tableName = getTableName(type);
+		const idColumn = `${tableName}.id`;
+		const authorColumn = `${tableName}.author_id`;
+		const localeColumn = `${tableName}.locale`;
+
+		// An explicit credit that actually renders — optionally within a given
+		// set of translation groups. The junction stores a group, but a credit
+		// resolves only where that group has a byline row at the locale the
+		// list is scoped to, so this repeats the join `getContentBylinesMany`
+		// makes. `locale` falls back to each entry's own when the list spans
+		// locales.
+		const creditRenders = (eb: any, bylineIds?: string[]) => {
+			let sub = eb
+				.selectFrom("_emdash_content_bylines as cb")
+				.innerJoin("_emdash_bylines as b", "b.translation_group", "cb.byline_id")
+				.select("cb.id")
+				.where("cb.collection_slug", "=", type)
+				.whereRef("cb.content_id", "=", idColumn);
+			sub = filter.locale
+				? sub.where("b.locale", "=", filter.locale)
+				: sub.whereRef("b.locale", "=", localeColumn);
+			if (bylineIds) sub = sub.where("cb.byline_id", "in", bylineIds);
+			return eb.exists(sub);
+		};
+
+		// Whether the entry carries an explicit credit at all, at any locale.
+		// Deliberately not locale-scoped: the author fallback is suppressed by
+		// the presence of a junction row, even one that renders nothing here
+		// (`hydrateBylinesMany` gates inference on `primaryBylineId`).
+		const hasExplicitCredit = (eb: any) =>
+			eb.exists(
+				eb
+					.selectFrom("_emdash_content_bylines as cb")
+					.select("cb.id")
+					.where("cb.collection_slug", "=", type)
+					.whereRef("cb.content_id", "=", idColumn),
+			);
+
+		// The entry's author owns a byline row — optionally within a given set
+		// of translation groups — at the locale the list is scoped to. Matching
+		// the locale is what keeps the filter agreeing with the list: an
+		// inferred credit renders only when the author's byline has a row at
+		// that locale (`hydrateBylinesMany` -> `findByUserIds`), and byline
+		// translations start life with a null `user_id`, so a group translated
+		// into the locale but not re-linked resolves to no credit. `locale`
+		// falls back to each entry's own when the list spans locales.
+		const authorHasByline = (eb: any, bylineIds?: string[]) => {
+			let sub = eb
+				.selectFrom("_emdash_bylines as b")
+				.select("b.id")
+				.whereRef("b.user_id", "=", authorColumn);
+			sub = filter.locale
+				? sub.where("b.locale", "=", filter.locale)
+				: sub.whereRef("b.locale", "=", localeColumn);
+			if (bylineIds) sub = sub.where("b.translation_group", "in", bylineIds);
+			return eb.exists(sub);
+		};
+
+		if (filter.mode === "none") {
+			return query.where((eb: any) => {
+				const uncredited = eb.not(creditRenders(eb));
+				// With inference on, "no byline" means none is rendered, so an
+				// entry that falls through to an author byline is excluded too.
+				return filter.includeInferred
+					? eb.and([uncredited, eb.or([hasExplicitCredit(eb), eb.not(authorHasByline(eb))])])
+					: uncredited;
+			});
+		}
+
+		const bylineIds = filter.bylineIds ?? [];
+		if (bylineIds.length === 0) {
+			// A filter that resolved to no ids must match nothing rather than
+			// silently degrade to "no filter" and return the whole collection.
+			// `1 = 0` rather than a bound `false`: better-sqlite3 refuses to
+			// bind JS booleans.
+			return query.where(() => sql<boolean>`1 = 0`);
+		}
+
+		return query.where((eb: any) => {
+			if (!filter.includeInferred) return creditRenders(eb, bylineIds);
+			// Inference applies only where no explicit credit exists, so an
+			// entry credited to someone else never matches on its author.
+			return eb.or([
+				creditRenders(eb, bylineIds),
+				eb.and([eb.not(hasExplicitCredit(eb)), authorHasByline(eb, bylineIds)]),
+			]);
+		});
+	}
+
+	/**
 	 * Count content items
 	 */
 	async count(type: string, where?: FindManyOptions["where"]): Promise<number> {
@@ -1009,6 +1202,7 @@ export class ContentRepository {
 
 		query = this.applySearchFilter(query, where, type);
 		query = this.applyDateFilter(query, where);
+		query = this.applyBylineFilter(query, where, type);
 
 		const result = await query.executeTakeFirst();
 		return Number(result?.count || 0);
@@ -1097,7 +1291,6 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
-		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -1137,7 +1330,6 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
-		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -1319,6 +1511,8 @@ export class ContentRepository {
 	 * Syncs the draft revision's data into the content table columns so the
 	 * content table always reflects the published version.
 	 * If no draft revision exists, creates one from current data and publishes it.
+	 * When `promoteRevision` is false, publishes the current content-table data
+	 * by changing lifecycle metadata only.
 	 *
 	 * `publishedAt` (optional) overrides the publication timestamp. If omitted,
 	 * the existing `published_at` is preserved (idempotent re-publish keeps the
@@ -1336,6 +1530,7 @@ export class ContentRepository {
 		publishedAt?: string,
 		requireDue = false,
 		expectedScheduledAt?: string,
+		promoteRevision = true,
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
@@ -1350,6 +1545,100 @@ export class ContentRepository {
 			existing.scheduledAt !== expectedScheduledAt
 		) {
 			throw new ScheduledNotDueError();
+		}
+
+		if (!promoteRevision) {
+			const revisionRepo = new RevisionRepository(this.db);
+			let provisionalRevisionId: string | null = null;
+			try {
+				let liveRevisionId = existing.liveRevisionId;
+				if (!liveRevisionId) {
+					const revision = await revisionRepo.create({
+						collection: type,
+						entryId: id,
+						data: existing.data,
+					});
+					liveRevisionId = revision.id;
+					provisionalRevisionId = revision.id;
+				}
+
+				const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
+				const duePredicate = requireDue
+					? sql`AND scheduled_at IS NOT NULL AND scheduled_at <= ${now}`
+					: sql``;
+				let published = false;
+				try {
+					const result = await sql`
+						UPDATE ${sql.ref(tableName)}
+						SET live_revision_id = ${liveRevisionId},
+							draft_revision_id = NULL,
+							status = 'published',
+							scheduled_at = NULL,
+							published_at = ${intendedPublishedAt},
+							updated_at = ${now},
+							version = version + 1
+						WHERE id = ${id}
+						AND deleted_at IS NULL
+						AND version = ${existing.version}
+						AND status = ${existing.status}
+						AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
+						AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
+						AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
+						${duePredicate}
+					`.execute(this.db);
+					published = (result.numAffectedRows ?? 0n) > 0n;
+				} catch (error) {
+					if (isConfirmedStatementFailure(error)) throw error;
+					let observed: ContentItem | null;
+					try {
+						observed = await this.findById(type, id);
+					} catch (reconciliationError) {
+						throw new Error("Unable to confirm whether content publication completed", {
+							cause: reconciliationError,
+						});
+					}
+					if (!observed) {
+						throw new Error("Unable to confirm whether content publication completed", {
+							cause: error,
+						});
+					}
+					published = matchesLifecyclePublication(
+						observed,
+						existing,
+						liveRevisionId,
+						intendedPublishedAt,
+						now,
+					);
+					if (!published && matchesPublicationFence(observed, existing)) throw error;
+					if (!published) {
+						throw new Error("Unable to confirm whether content publication completed", {
+							cause: error,
+						});
+					}
+				}
+
+				if (!published) {
+					throw requireDue ? new ScheduledNotDueError() : new ContentMutationConflictError();
+				}
+
+				invalidateCollectionCache(type);
+				await this.restampEntryPivot(type, id);
+				const updated = await this.findById(type, id);
+				if (!updated) throw new Error("Content not found");
+				return updated;
+			} catch (error) {
+				if (provisionalRevisionId) {
+					try {
+						await revisionRepo.deleteIfUnreferenced(type, id, provisionalRevisionId);
+					} catch (cleanupError) {
+						console.error(
+							`[content] Failed to clean up provisional revision ${provisionalRevisionId}:`,
+							cleanupError,
+						);
+					}
+				}
+				throw error;
+			}
 		}
 
 		const revisionRepo = new RevisionRepository(this.db);
@@ -1464,8 +1753,6 @@ export class ContentRepository {
 			}
 
 			invalidateCollectionCache(type);
-			await this.restampEntryPivot(type, id);
-
 			const updated = await this.findById(type, id);
 			if (!updated) {
 				throw new Error("Content not found");
@@ -1531,7 +1818,6 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
-		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -1711,5 +1997,38 @@ export class ContentRepository {
 			throw new EmDashValidationError(`Invalid order field: ${field}`);
 		}
 		return mapped;
+	}
+
+	private async resolveOrderField(type: string, field: string): Promise<ResolvedOrderField> {
+		try {
+			return { column: this.mapOrderField(field), indexedCustomField: false };
+		} catch (error) {
+			if (!(error instanceof EmDashValidationError)) throw error;
+		}
+
+		const customField = await this.db
+			.selectFrom("_emdash_collections as collection")
+			.leftJoin("_emdash_fields as field", (join) =>
+				join
+					.onRef("field.collection_id", "=", "collection.id")
+					.on("field.slug", "=", field)
+					.on("field.indexed", "=", 1),
+			)
+			.where("collection.slug", "=", type)
+			.select(["collection.id as collectionId", "field.slug as fieldSlug"])
+			.executeTakeFirst();
+
+		if (!customField) {
+			throw new ContentCollectionNotFoundError(type);
+		}
+
+		if (!customField.fieldSlug) {
+			throw new EmDashValidationError(
+				`Invalid order field: ${field}. Custom fields must be indexed before sorting.`,
+			);
+		}
+
+		validateIdentifier(customField.fieldSlug, "content order field");
+		return { column: customField.fieldSlug, indexedCustomField: true };
 	}
 }

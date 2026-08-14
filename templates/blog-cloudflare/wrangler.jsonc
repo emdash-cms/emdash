@@ -22,8 +22,8 @@
 			"binding": "LOADER",
 		},
 	],
-	// Drives scheduled publishing, plugin cron, and maintenance (see src/worker.ts)
+	// General maintenance plus the bounded Media Usage lane (see src/worker.ts)
 	"triggers": {
-		"crons": ["* * * * *"],
+		"crons": ["* * * * *", "*/2 * * * *"],
 	},
 }

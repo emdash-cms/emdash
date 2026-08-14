@@ -26,6 +26,9 @@ export type {
 	SqliteConfig,
 	LibsqlConfig,
 	PostgresConfig,
+	CollectionDeletionGuardInput,
+	CollectionDeletionGuardResult,
+	ExecuteCollectionDeletionGuard,
 } from "./adapters.js";
 
 // Migration utilities (used by playground, preview, and custom deployment scripts)

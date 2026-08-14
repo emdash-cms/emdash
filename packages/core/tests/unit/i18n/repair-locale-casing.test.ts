@@ -30,7 +30,7 @@ describe("repairLocaleCasing", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("rewrites content and taxonomy pivots to configured locale casing", async () => {
+	it("rewrites content locale casing without changing its taxonomy assignment", async () => {
 		const repo = new ContentRepository(db);
 		const post = await repo.create(
 			createPostFixture({ slug: "guide", status: "published", data: { title: "Guide" } }),
@@ -53,9 +53,8 @@ describe("repairLocaleCasing", () => {
 			.insertInto("content_taxonomies")
 			.values({
 				collection: "post",
-				entry_id: post.id,
+				entry_id: post.translationGroup,
 				taxonomy_id: "category-news",
-				locale: "zh-tw",
 			})
 			.execute();
 
@@ -68,11 +67,11 @@ describe("repairLocaleCasing", () => {
 			.executeTakeFirstOrThrow();
 		const pivotRow = await db
 			.selectFrom("content_taxonomies")
-			.select("locale")
-			.where("entry_id", "=", post.id)
+			.select("taxonomy_id")
+			.where("entry_id", "=", post.translationGroup)
 			.executeTakeFirstOrThrow();
 		expect(contentRow.locale).toBe("zh-TW");
-		expect(pivotRow.locale).toBe("zh-TW");
+		expect(pivotRow.taxonomy_id).toBe("category-news");
 	});
 
 	it("preserves case-variant rows when canonicalizing would violate slug uniqueness", async () => {

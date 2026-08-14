@@ -15,6 +15,7 @@
 
 import type { Sandbox } from "@cloudflare/sandbox";
 
+import type { CandidateChange, CandidateSnapshot, GitTreeMode } from "./candidate-publisher.js";
 import { withDeadline } from "./sandbox-deadline.js";
 
 export interface ExecResult {
@@ -97,6 +98,11 @@ const META_DIR = "/.emdash-bot";
 const HYDRATED_MARKER = `${META_DIR}/hydrated`;
 const CHANGE_LOG = `${META_DIR}/changes.json`;
 const GREP_MATCH_LIMIT = 200;
+const CANDIDATE_FILE_LIMIT = 200;
+const CANDIDATE_FILE_SIZE_LIMIT = 2 * 1024 * 1024;
+const CANDIDATE_TOTAL_SIZE_LIMIT = 10 * 1024 * 1024;
+const DISALLOWED_CANDIDATE_PATHS = [".git/", ".github/workflows/", ".bot-artifacts/"];
+const RAW_DIFF_HEADER = /^:([0-7]{6}) ([0-7]{6}) ([0-9a-f]+) ([0-9a-f]+) ([A-Z])$/;
 
 export class ExecEnv {
 	readonly #state: IsolateState;
@@ -191,10 +197,190 @@ export class ExecEnv {
 		const container = await this.container();
 		await this.#materializeChanges(container);
 		return withDeadline(
-			container.exec(command, { cwd, ...(timeoutMs ? { timeoutMs } : {}) }),
+			container.exec(pipefailCommand(command), { cwd, ...(timeoutMs ? { timeoutMs } : {}) }),
 			deadlineMs,
 			"container exec",
 		);
+	}
+
+	async runCheck(
+		command: string,
+		options: ExecOptions = {},
+	): Promise<{ result: ExecResult; candidateTreeSha: string }> {
+		const timeoutMs = options.timeoutMs;
+		const deadlineMs = timeoutMs
+			? timeoutMs + this.#deadlines.execGraceMs
+			: this.#deadlines.defaultTimeoutMs;
+		const cwd = options.cwd ?? this.#repoDir;
+		const container = await this.container();
+		await this.#materializeChanges(container);
+		const beforeTreeSha = await this.#candidateTreeSha(container);
+		const result = await withDeadline(
+			container.exec(pipefailCommand(command), { cwd, ...(timeoutMs ? { timeoutMs } : {}) }),
+			deadlineMs,
+			"container check",
+		);
+		const candidateTreeSha = await this.#candidateTreeSha(container);
+		if (candidateTreeSha !== beforeTreeSha) {
+			await this.#restoreContainerCandidate(container);
+			throw new Error(
+				"verification command modified the candidate; apply source changes with edit_file/write_file and rerun a check-only command",
+			);
+		}
+		return { result, candidateTreeSha };
+	}
+
+	/** Stage the working tree and return a bounded snapshot for Worker-owned publication. */
+	async snapshotCandidate(): Promise<CandidateSnapshot> {
+		const container = await this.container();
+		await this.#materializeChanges(container);
+		await this.#stageCandidate(container);
+		const [base, tree, diff] = await Promise.all([
+			this.#bounded(
+				container.exec(pipefailCommand("git rev-parse HEAD"), { cwd: this.#repoDir }),
+				"candidate base",
+			),
+			this.#bounded(
+				container.exec(pipefailCommand("git write-tree"), { cwd: this.#repoDir }),
+				"candidate tree",
+			),
+			this.#bounded(
+				container.exec(
+					pipefailCommand("git diff --cached --raw --abbrev=64 --no-renames -z HEAD --"),
+					{
+						cwd: this.#repoDir,
+					},
+				),
+				"candidate diff",
+			),
+		]);
+		if (base.exitCode !== 0) throw new Error(`candidate base lookup failed: ${lastOutput(base)}`);
+		if (tree.exitCode !== 0) throw new Error(`candidate tree lookup failed: ${lastOutput(tree)}`);
+		if (diff.exitCode !== 0) throw new Error(`candidate diff failed: ${lastOutput(diff)}`);
+		const entries = parseRawGitDiff(diff.stdout);
+		if (entries.length === 0) throw new Error("candidate has no staged changes");
+		if (entries.length > CANDIDATE_FILE_LIMIT) {
+			throw new Error(
+				`candidate changes ${entries.length} files; limit is ${CANDIDATE_FILE_LIMIT}`,
+			);
+		}
+
+		const changes: CandidateChange[] = [];
+		let totalBytes = 0;
+		for (const entry of entries) {
+			assertCandidatePath(entry.path);
+			if (entry.deleted) {
+				changes.push({ path: entry.path, mode: entry.mode, content: null });
+				continue;
+			}
+			if (!entry.blobSha) throw new Error(`candidate staged blob is missing for ${entry.path}`);
+			const content = await this.#readStagedBlob(container, entry.blobSha);
+			if (content.byteLength > CANDIDATE_FILE_SIZE_LIMIT) {
+				throw new Error(
+					`candidate file ${entry.path} is ${content.byteLength} bytes; limit is ${CANDIDATE_FILE_SIZE_LIMIT}`,
+				);
+			}
+			totalBytes += content.byteLength;
+			if (totalBytes > CANDIDATE_TOTAL_SIZE_LIMIT) {
+				throw new Error(`candidate content exceeds ${CANDIDATE_TOTAL_SIZE_LIMIT} bytes`);
+			}
+			await assertGitBlobContent(content, entry.blobSha, entry.path);
+			changes.push({ path: entry.path, mode: entry.mode, content });
+		}
+		return { baseCommitSha: base.stdout.trim(), treeSha: tree.stdout.trim(), changes };
+	}
+
+	async candidateTreeSha(options: { materialize?: boolean } = {}): Promise<string> {
+		const container = await this.container();
+		if (options.materialize !== false) await this.#materializeChanges(container);
+		return this.#candidateTreeSha(container);
+	}
+
+	async #candidateTreeSha(container: ContainerBackend): Promise<string> {
+		await this.#stageCandidate(container);
+		const tree = await this.#bounded(
+			container.exec(pipefailCommand("git write-tree"), { cwd: this.#repoDir }),
+			"candidate tree",
+		);
+		if (tree.exitCode !== 0) throw new Error(`candidate tree lookup failed: ${lastOutput(tree)}`);
+		return tree.stdout.trim();
+	}
+
+	async #restoreContainerCandidate(container: ContainerBackend): Promise<void> {
+		const restore = await this.#bounded(
+			container.exec(
+				pipefailCommand("git reset --hard HEAD && git clean -fd --exclude=.bot-artifacts/ -- ."),
+				{ cwd: this.#repoDir },
+			),
+			"candidate restore",
+		);
+		if (restore.exitCode !== 0) {
+			throw new Error(`candidate restore failed: ${lastOutput(restore)}`);
+		}
+		await this.#materializeChanges(container);
+	}
+
+	async #stageCandidate(container: ContainerBackend): Promise<void> {
+		const stage = await this.#bounded(
+			container.exec(
+				pipefailCommand("git add --all -- . && git reset --quiet HEAD -- .bot-artifacts"),
+				{
+					cwd: this.#repoDir,
+				},
+			),
+			"candidate stage",
+		);
+		if (stage.exitCode !== 0) {
+			throw new Error(`candidate staging failed: ${lastOutput(stage)}`);
+		}
+	}
+
+	async #readStagedBlob(container: ContainerBackend, blobSha: string): Promise<Uint8Array> {
+		const tempPath = `/tmp/emdash-candidate-${crypto.randomUUID()}`;
+		let content: Uint8Array | undefined;
+		let readFailure: unknown;
+		try {
+			const materialize = await this.#bounded(
+				container.exec(
+					pipefailCommand(`git cat-file blob ${quote(blobSha)} > ${quote(tempPath)}`),
+					{ cwd: this.#repoDir },
+				),
+				"candidate staged file",
+			);
+			if (materialize.exitCode !== 0) {
+				throw new Error(`candidate staged file read failed: ${lastOutput(materialize)}`);
+			}
+			content = await this.#bounded(
+				container.readFileBytes(tempPath),
+				"candidate staged file read",
+			);
+		} catch (error) {
+			readFailure = error;
+		}
+
+		let cleanupFailure: unknown;
+		try {
+			const cleanup = await this.#bounded(
+				container.exec(pipefailCommand(`rm -f -- ${quote(tempPath)}`), { cwd: "/" }),
+				"candidate staged file cleanup",
+			);
+			if (cleanup.exitCode !== 0) {
+				throw new Error(`candidate staged file cleanup failed: ${lastOutput(cleanup)}`);
+			}
+		} catch (error) {
+			cleanupFailure = error;
+		}
+
+		if (readFailure && cleanupFailure) {
+			throw new AggregateError(
+				[readFailure, cleanupFailure],
+				"candidate staged file read and cleanup failed",
+			);
+		}
+		if (readFailure) throw readFailure;
+		if (cleanupFailure) throw cleanupFailure;
+		if (!content) throw new Error("candidate staged file read returned no content");
+		return content;
 	}
 
 	/**
@@ -267,9 +453,85 @@ export class ExecEnv {
 const TRAILING_SLASH = /\/+$/;
 const PATH_SEPARATOR = /[/\\]/;
 
+interface RawDiffEntry {
+	path: string;
+	mode: GitTreeMode;
+	deleted: boolean;
+	blobSha: string | null;
+}
+
+export function parseRawGitDiff(raw: string): RawDiffEntry[] {
+	if (raw === "") return [];
+	const tokens = raw.split("\0");
+	if (tokens.at(-1) !== "" || tokens.length % 2 !== 1) {
+		throw new Error("malformed staged diff");
+	}
+	const entries: RawDiffEntry[] = [];
+	for (let index = 0; index < tokens.length - 1; index += 2) {
+		const header = tokens[index];
+		const path = tokens[index + 1];
+		if (!header || !path) throw new Error("malformed staged diff");
+		const match = RAW_DIFF_HEADER.exec(header);
+		if (!match) throw new Error(`unsupported staged diff entry: ${header}`);
+		const [, oldMode, newMode, , newSha, status] = match;
+		if (status === "U") throw new Error(`candidate contains an unresolved merge at ${path}`);
+		const deleted = status === "D";
+		const mode = gitTreeMode(deleted ? oldMode : newMode);
+		if (mode === "120000") throw new Error(`candidate cannot publish symlink: ${path}`);
+		entries.push({ path, mode, deleted, blobSha: deleted ? null : (newSha ?? null) });
+	}
+	return entries;
+}
+
+async function assertGitBlobContent(
+	content: Uint8Array,
+	expectedSha: string,
+	path: string,
+): Promise<void> {
+	const algorithm =
+		expectedSha.length === 40 ? "SHA-1" : expectedSha.length === 64 ? "SHA-256" : null;
+	if (!algorithm) throw new Error(`unsupported candidate blob SHA for ${path}`);
+	const header = new TextEncoder().encode(`blob ${content.byteLength}\0`);
+	const input = new Uint8Array(header.byteLength + content.byteLength);
+	input.set(header);
+	input.set(content, header.byteLength);
+	const digest = new Uint8Array(await crypto.subtle.digest(algorithm, input));
+	let actualSha = "";
+	for (const byte of digest) actualSha += byte.toString(16).padStart(2, "0");
+	if (actualSha !== expectedSha) {
+		throw new Error(`candidate content for ${path} does not match staged blob ${expectedSha}`);
+	}
+}
+
+function gitTreeMode(mode: string | undefined): GitTreeMode {
+	if (mode === "100644" || mode === "100755" || mode === "120000") return mode;
+	throw new Error(`unsupported candidate file mode: ${mode ?? "missing"}`);
+}
+
+function assertCandidatePath(path: string): void {
+	if (
+		path === "" ||
+		path.startsWith("/") ||
+		path.split("/").includes("..") ||
+		DISALLOWED_CANDIDATE_PATHS.some(
+			(prefix) => path === prefix.slice(0, -1) || path.startsWith(prefix),
+		)
+	) {
+		throw new Error(`candidate cannot publish path: ${path}`);
+	}
+}
+
+function lastOutput(result: ExecResult): string {
+	return (result.stderr || result.stdout || `exit ${result.exitCode}`).trim().slice(-500);
+}
+
 /** Single-quote a shell argument for a container command line. */
 export function quote(value: string): string {
 	return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+export function pipefailCommand(command: string): string {
+	return `bash -o pipefail -c ${quote(command)}`;
 }
 
 /** Adapt a @cloudflare/sandbox session to the ContainerBackend seam. */

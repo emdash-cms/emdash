@@ -911,4 +911,11 @@ describe("handleContentList — unknown orderBy column on a healthy collection",
 		if (res.success) return;
 		expect(res.error.code).not.toBe("COLLECTION_SCHEMA_MISMATCH");
 	});
+
+	it("keeps the missing-collection error when ordering by a custom field", async () => {
+		const res = await handleContentList(db, "missing", { orderBy: "priority" });
+		expect(res.success).toBe(false);
+		if (res.success) return;
+		expect(res.error.code).toBe("COLLECTION_NOT_FOUND");
+	});
 });

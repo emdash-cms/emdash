@@ -15,12 +15,14 @@ import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import {
+	ContentCollectionNotFoundError,
 	ContentMutationConflictError,
 	EmDashValidationError,
 	ScheduledNotDueError,
 	InvalidCursorError,
 	type BylineSummary,
 	type ContentBylineCredit,
+	type ContentBylineFilter,
 	type ContentDateField,
 	type ContentItem,
 	type ContentSeo,
@@ -85,6 +87,19 @@ async function collectionHasSeo(db: Kysely<Database>, collection: string): Promi
 		.where("slug", "=", collection)
 		.executeTakeFirst();
 	return row?.has_seo === 1;
+}
+
+async function collectionSupportsRevisions(
+	db: Kysely<Database>,
+	collection: string,
+): Promise<boolean> {
+	const row = await db
+		.selectFrom("_emdash_collections")
+		.select("supports")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+	const supports: unknown = row?.supports ? JSON.parse(row.supports) : [];
+	return Array.isArray(supports) && supports.includes("revisions");
 }
 
 /**
@@ -443,6 +458,27 @@ function normalizeDateBound(value: string | undefined, edge: "start" | "end"): s
 }
 
 /**
+ * Build the repository's byline filter from the wire params.
+ *
+ * `locale` is the locale the list is scoped to, which is the locale an
+ * inferred credit has to resolve at — the admin list is always scoped to the
+ * locale picked in its switcher.
+ */
+function resolveBylineFilter(
+	params: { bylines?: string[]; bylinesNone?: boolean; includeInferredBylines?: boolean },
+	locale: string | undefined,
+): ContentBylineFilter | undefined {
+	const includeInferred = params.includeInferredBylines === true;
+
+	if (params.bylinesNone) return { mode: "none", includeInferred, locale };
+
+	const bylineIds = params.bylines ?? [];
+	if (bylineIds.length === 0) return undefined;
+
+	return { mode: "any", bylineIds, includeInferred, locale };
+}
+
+/**
  * Create content list handler
  */
 export async function handleContentList(
@@ -460,14 +496,21 @@ export async function handleContentList(
 		dateField?: ContentDateField;
 		dateFrom?: string;
 		dateTo?: string;
+		bylines?: string[];
+		bylinesNone?: boolean;
+		includeInferredBylines?: boolean;
 	},
 ): Promise<ApiResult<ContentListResponse>> {
 	try {
 		const repo = new ContentRepository(db);
 		const where: FindManyOptions["where"] = {};
 		if (params.status) where.status = params.status;
-		if (params.locale) where.locale = resolveConfiguredLocale(params.locale);
+		const locale = params.locale ? resolveConfiguredLocale(params.locale) : undefined;
+		if (locale) where.locale = locale;
 		if (params.authorId) where.authorId = params.authorId;
+
+		const bylineFilter = resolveBylineFilter(params, locale);
+		if (bylineFilter) where.bylineFilter = bylineFilter;
 
 		// A date range requires a target column; ignore stray from/to without
 		// a field so a half-specified filter doesn't silently drop all rows.
@@ -515,7 +558,7 @@ export async function handleContentList(
 				error: { code: "INVALID_CURSOR", message: error.message },
 			};
 		}
-		if (isMissingTableError(error)) {
+		if (error instanceof ContentCollectionNotFoundError || isMissingTableError(error)) {
 			return {
 				success: false,
 				error: {
@@ -787,22 +830,12 @@ export async function handleContentCreate(
 				created.primaryBylineId = credits[0]?.byline.translationGroup ?? null;
 			}
 
-			// When this row is a translation of an existing item, inherit
-			// the source's taxonomy assignments AND byline credits. Both
-			// pivots store translation_groups (taxonomies post-mig 036,
-			// bylines post-mig 040), so a copied row applies across every
-			// locale of the credited identity — and the locale-strict
-			// hydration below renders the variant that matches the entry's
-			// locale (or nothing if no variant exists yet at this locale,
-			// which is the documented Phase 4 behaviour).
-			//
+			// Taxonomy assignments already belong to the content translation
+			// group. Byline credits remain per content row and need copying.
 			// Explicit `body.bylines` wins — `copyContentBylines` no-ops
 			// when the target already has credits, but the cleaner guard
 			// is to skip the call entirely.
 			if (body.translationOf) {
-				const taxRepo = new TaxonomyRepository(trx);
-				await taxRepo.copyEntryTerms(collection, body.translationOf, created.id);
-
 				if (body.bylines === undefined) {
 					await bylineRepo.copyContentBylines(collection, body.translationOf, created.id);
 					// `copyContentBylines` writes the source's primary
@@ -1498,6 +1531,7 @@ export async function handleContentPublish(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
+			const supportsRevisions = await collectionSupportsRevisions(trx, collection);
 
 			// Capture the pre-publish state. For revision-supporting collections a
 			// slug edit is staged as `_slug` in the draft revision and only lands
@@ -1512,6 +1546,7 @@ export async function handleContentPublish(
 				options.publishedAt,
 				options.requireScheduledDue,
 				options.expectedScheduledAt,
+				supportsRevisions,
 			);
 
 			// Leave a 301 behind when publishing changed the slug of an entry that

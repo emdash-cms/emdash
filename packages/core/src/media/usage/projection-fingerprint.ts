@@ -15,9 +15,14 @@ export interface MediaUsageProjectionFingerprintInput {
 	extractionFields: readonly MediaUsageExtractionField[];
 }
 
+export interface MediaUsageProjectionFingerprint {
+	fingerprint: string;
+	byteLength: number;
+}
+
 export async function buildMediaUsageProjectionFingerprint(
 	input: MediaUsageProjectionFingerprintInput,
-): Promise<string> {
+): Promise<MediaUsageProjectionFingerprint> {
 	if (!input.collectionId) {
 		throw new Error("Media usage projection fingerprints require a collection identity");
 	}
@@ -36,7 +41,7 @@ export async function buildMediaUsageProjectionFingerprint(
 		.map((occurrence) => ({ occurrence, key: canonicalJson(occurrence) }))
 		.toSorted((a, b) => compareCanonicalStrings(a.key, b.key))
 		.map(({ occurrence }) => occurrence);
-	const payload = canonicalJson({
+	return buildCanonicalSha256Fingerprint(FINGERPRINT_PREFIX, {
 		fingerprintVersion: MEDIA_USAGE_PROJECTION_FINGERPRINT_VERSION,
 		collectionId: input.collectionId,
 		extractionSchema: normalizeExtractionFields(input.extractionFields),
@@ -59,11 +64,21 @@ export async function buildMediaUsageProjectionFingerprint(
 		},
 		occurrences: canonicalOccurrences,
 	});
-	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
+}
+
+export async function buildCanonicalSha256Fingerprint(
+	prefix: string,
+	payload: unknown,
+): Promise<MediaUsageProjectionFingerprint> {
+	const encodedPayload = new TextEncoder().encode(canonicalJson(payload));
+	const digest = await crypto.subtle.digest("SHA-256", encodedPayload);
 	const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(
 		"",
 	);
-	return `${FINGERPRINT_PREFIX}${hex}`;
+	return {
+		fingerprint: `${prefix}${hex}`,
+		byteLength: encodedPayload.byteLength,
+	};
 }
 
 function normalizeExtractionFields(

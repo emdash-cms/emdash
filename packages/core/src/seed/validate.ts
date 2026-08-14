@@ -5,7 +5,7 @@
  */
 
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
-import { FIELD_TYPES, MAX_COLLECTION_LIST_COLUMNS } from "../schema/types.js";
+import { FIELD_TYPES, isIndexableFieldType, MAX_COLLECTION_LIST_COLUMNS } from "../schema/types.js";
 import type { SeedFile, SeedMenuItem, ValidationResult } from "./types.js";
 
 const COLLECTION_FIELD_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -175,10 +175,16 @@ export function validateSeed(data: unknown): ValidationResult {
 							errors.push(`${fieldPrefix}: label is required`);
 						}
 
+						if (field.indexed !== undefined && typeof field.indexed !== "boolean") {
+							errors.push(`${fieldPrefix}.indexed: must be a boolean`);
+						}
+
 						if (!field.type) {
 							errors.push(`${fieldPrefix}: type is required`);
 						} else if (!(FIELD_TYPES as readonly string[]).includes(field.type)) {
 							errors.push(`${fieldPrefix}.type: unsupported field type "${field.type}"`);
+						} else if (field.indexed === true && !isIndexableFieldType(field.type)) {
+							errors.push(`${fieldPrefix}.indexed: type "${field.type}" cannot be indexed`);
 						}
 					}
 				}

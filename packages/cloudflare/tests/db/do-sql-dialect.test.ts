@@ -157,4 +157,20 @@ describe("DOSqlConnection", () => {
 
 		expect(queryFn).toHaveBeenLastCalledWith("SELECT * FROM posts", [], { bookmark: "bm-cookie" });
 	});
+
+	it("forces reads to the primary when the scope mutates", async () => {
+		const queryFn = vi.fn().mockResolvedValue({ rows: [] });
+		const { config } = createConfig(queryFn, {
+			forcePrimary: true,
+			readBookmark: "bm-cookie",
+		});
+		const conn = await new DOSqlDialect(config).createDriver().acquireConnection();
+
+		await conn.executeQuery(CompiledQuery.raw("SELECT * FROM posts"));
+
+		expect(queryFn).toHaveBeenLastCalledWith("SELECT * FROM posts", [], {
+			bookmark: "bm-cookie",
+			primary: true,
+		});
+	});
 });

@@ -2,33 +2,9 @@ import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
-import { isMissingTableError } from "../../utils/db-errors.js";
 import { withTransaction } from "../transaction.js";
 import type { Database, TaxonomyTable } from "../types.js";
 import { validateIdentifier } from "../validate.js";
-
-/**
- * Filter + sort columns denormalized from an entry's `ec_*` row onto its
- * `content_taxonomies` pivot rows (migration 051). Stamped at insert time so a
- * newly-tagged entry is immediately seekable by a taxonomy-filtered listing.
- */
-interface PivotDenorm {
-	status: string | null;
-	scheduled_at: string | null;
-	deleted_at: string | null;
-	locale: string | null;
-	published_at: string | null;
-	created_at: string | null;
-}
-
-const EMPTY_DENORM: PivotDenorm = {
-	status: null,
-	scheduled_at: null,
-	deleted_at: null,
-	locale: null,
-	published_at: null,
-	created_at: null,
-};
 
 /** A member of one sibling group and the position it currently holds. */
 export interface SiblingPosition {
@@ -123,12 +99,28 @@ export interface FindOptions {
 	locale?: string;
 }
 
+export interface TaxonomyManualPageCursor {
+	sortOrder: number;
+	label: string;
+	id: string;
+}
+
+export interface TaxonomyPageOptions extends FindOptions {
+	cursor?: TaxonomyManualPageCursor;
+	limit?: number;
+}
+
+export interface TaxonomyPage {
+	items: Taxonomy[];
+	hasMore: boolean;
+}
+
 /**
  * Taxonomy repository for categories, tags, and other classification.
  *
  * Terms are per-locale. Translations of the same term share a `translation_group`
- * ULID. `content_taxonomies.taxonomy_id` stores the translation_group so a single
- * association spans every locale of a post.
+ * ULID. `content_taxonomies` stores translation_groups on both sides so a single
+ * association spans every locale of a post and term.
  *
  * The repository does not resolve locale fallbacks on its own — callers supply
  * the locale they want. Runtime helpers and handlers use `getFallbackChain()`
@@ -230,8 +222,7 @@ export class TaxonomyRepository {
 	 * `sort_order` carries the manual order set from the admin; it is 0 for
 	 * terms nobody has reordered, so an untouched taxonomy still comes back
 	 * alphabetically. `id asc` is a stable tiebreaker for terms that share both
-	 * — without it the SQL ordering is implementation-defined when they match,
-	 * which breaks keyset pagination over `(label, id)`.
+	 * values. Without it the SQL ordering is implementation-defined when they match.
 	 */
 	async findByName(name: string, options: FindOptions = {}): Promise<Taxonomy[]> {
 		let query = this.db
@@ -254,6 +245,42 @@ export class TaxonomyRepository {
 
 		const rows = await query.execute();
 		return rows.map((row) => this.rowToTaxonomy(row));
+	}
+
+	async findPageByName(name: string, options: TaxonomyPageOptions = {}): Promise<TaxonomyPage> {
+		const limit = Math.max(1, Math.min(options.limit ?? 50, 100));
+		let query = this.db.selectFrom("taxonomies").selectAll().where("name", "=", name);
+
+		if (options.locale !== undefined) query = query.where("locale", "=", options.locale);
+
+		if (options.parentId !== undefined) {
+			query =
+				options.parentId === null
+					? query.where("parent_id", "is", null)
+					: query.where("parent_id", "=", options.parentId);
+		}
+
+		if (options.cursor) {
+			const cursor = options.cursor;
+			query = query.where((eb) =>
+				eb.or([
+					eb("sort_order", ">", cursor.sortOrder),
+					eb.and([eb("sort_order", "=", cursor.sortOrder), eb("label", ">", cursor.label)]),
+					eb.and([
+						eb("sort_order", "=", cursor.sortOrder),
+						eb("label", "=", cursor.label),
+						eb("id", ">", cursor.id),
+					]),
+				]),
+			);
+		}
+		query = query.orderBy("sort_order", "asc").orderBy("label", "asc").orderBy("id", "asc");
+
+		const rows = await query.limit(limit + 1).execute();
+		return {
+			items: rows.slice(0, limit).map((row) => this.rowToTaxonomy(row)),
+			hasMore: rows.length > limit,
+		};
 	}
 
 	/**
@@ -464,30 +491,56 @@ export class TaxonomyRepository {
 		return (result.numDeletedRows ?? 0n) > 0n;
 	}
 
-	// --- Content-Taxonomy Junction (taxonomy_id stores the translation_group) ---
+	// --- Content-Taxonomy Junction (both ids store translation_groups) ---
 
 	async attachToEntry(collection: string, entryId: string, taxonomyId: string): Promise<void> {
-		const group = await this.resolveTranslationGroup(taxonomyId);
-		if (!group) return;
+		const taxonomyGroup = await this.resolveTranslationGroup(taxonomyId);
+		if (!taxonomyGroup) return;
+		await this.attachGroupsToEntry(collection, entryId, [taxonomyGroup]);
+	}
 
-		const denorm = await this.fetchEntryDenorm(collection, entryId);
-		await this.db
+	/**
+	 * Attach already-resolved term translation groups in one insert and return
+	 * the number of assignments that did not already exist.
+	 */
+	async attachGroupsToEntry(
+		collection: string,
+		entryId: string,
+		taxonomyGroups: string[],
+	): Promise<number> {
+		const uniqueGroups = [...new Set(taxonomyGroups)];
+		if (uniqueGroups.length === 0) return 0;
+		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
+		if (!entryGroup) return 0;
+
+		const result = await this.db
 			.insertInto("content_taxonomies")
-			.values({ collection, entry_id: entryId, taxonomy_id: group, ...denorm })
+			.values(
+				uniqueGroups.map((taxonomy_id) => ({
+					collection,
+					entry_id: entryGroup,
+					taxonomy_id,
+				})),
+			)
 			.onConflict((oc) => oc.doNothing())
-			.execute();
-		invalidateTaxonomyObjectCache();
+			.executeTakeFirst();
+		const inserted = Number(result.numInsertedOrUpdatedRows ?? 0n);
+		if (inserted > 0) invalidateTaxonomyObjectCache();
+		return inserted;
 	}
 
 	async detachFromEntry(collection: string, entryId: string, taxonomyId: string): Promise<void> {
-		const group = await this.resolveTranslationGroup(taxonomyId);
-		if (!group) return;
+		const [entryGroup, taxonomyGroup] = await Promise.all([
+			this.resolveEntryTranslationGroup(collection, entryId),
+			this.resolveTranslationGroup(taxonomyId),
+		]);
+		if (!entryGroup || !taxonomyGroup) return;
 
 		await this.db
 			.deleteFrom("content_taxonomies")
 			.where("collection", "=", collection)
-			.where("entry_id", "=", entryId)
-			.where("taxonomy_id", "=", group)
+			.where("entry_id", "=", entryGroup)
+			.where("taxonomy_id", "=", taxonomyGroup)
 			.execute();
 		invalidateTaxonomyObjectCache();
 	}
@@ -503,12 +556,15 @@ export class TaxonomyRepository {
 		taxonomyName?: string,
 		locale?: string,
 	): Promise<Taxonomy[]> {
+		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
+		if (!entryGroup) return [];
+
 		let query = this.db
 			.selectFrom("content_taxonomies")
 			.innerJoin("taxonomies", "taxonomies.translation_group", "content_taxonomies.taxonomy_id")
 			.selectAll("taxonomies")
 			.where("content_taxonomies.collection", "=", collection)
-			.where("content_taxonomies.entry_id", "=", entryId);
+			.where("content_taxonomies.entry_id", "=", entryGroup);
 
 		if (taxonomyName) query = query.where("taxonomies.name", "=", taxonomyName);
 		if (locale !== undefined) query = query.where("taxonomies.locale", "=", locale);
@@ -527,6 +583,9 @@ export class TaxonomyRepository {
 		taxonomyName: string,
 		termIds: string[],
 	): Promise<void> {
+		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
+		if (!entryGroup) return;
+
 		const groups: string[] = [];
 		for (const id of termIds) {
 			const group = await this.resolveTranslationGroup(id);
@@ -540,7 +599,7 @@ export class TaxonomyRepository {
 			.select(["content_taxonomies.taxonomy_id as group"])
 			.distinct()
 			.where("content_taxonomies.collection", "=", collection)
-			.where("content_taxonomies.entry_id", "=", entryId)
+			.where("content_taxonomies.entry_id", "=", entryGroup)
 			.where("taxonomies.name", "=", taxonomyName)
 			.execute();
 		const currentGroups = new Set(current.map((r) => r.group));
@@ -550,22 +609,20 @@ export class TaxonomyRepository {
 			await this.db
 				.deleteFrom("content_taxonomies")
 				.where("collection", "=", collection)
-				.where("entry_id", "=", entryId)
+				.where("entry_id", "=", entryGroup)
 				.where("taxonomy_id", "in", toRemove)
 				.execute();
 		}
 
 		const toAdd = [...newGroups].filter((g) => !currentGroups.has(g));
 		if (toAdd.length > 0) {
-			const denorm = await this.fetchEntryDenorm(collection, entryId);
 			await this.db
 				.insertInto("content_taxonomies")
 				.values(
 					toAdd.map((taxonomy_id) => ({
 						collection,
-						entry_id: entryId,
+						entry_id: entryGroup,
 						taxonomy_id,
-						...denorm,
 					})),
 				)
 				.onConflict((oc) => oc.doNothing())
@@ -576,72 +633,32 @@ export class TaxonomyRepository {
 	}
 
 	async clearEntryTerms(collection: string, entryId: string): Promise<number> {
+		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
+		if (!entryGroup) return 0;
+
 		const result = await this.db
 			.deleteFrom("content_taxonomies")
 			.where("collection", "=", collection)
-			.where("entry_id", "=", entryId)
+			.where("entry_id", "=", entryGroup)
 			.executeTakeFirst();
 		const removed = Number(result.numDeletedRows ?? 0);
 		if (removed > 0) invalidateTaxonomyObjectCache();
 		return removed;
 	}
 
-	/**
-	 * Copy every term assignment from one content entry to another. Used when
-	 * creating a translation of a post so the new translation inherits the
-	 * source's term assignments. Safe to call when the source has no terms.
-	 */
-	async copyEntryTerms(
+	private async resolveEntryTranslationGroup(
 		collection: string,
-		sourceEntryId: string,
-		targetEntryId: string,
-	): Promise<void> {
-		const rows = await this.db
-			.selectFrom("content_taxonomies")
-			.select(["taxonomy_id"])
-			.where("collection", "=", collection)
-			.where("entry_id", "=", sourceEntryId)
-			.execute();
-		if (rows.length === 0) return;
-
-		// Stamp the TARGET entry's current values — the copy inherits the source's
-		// term memberships but the target's own status/dates/locale.
-		const denorm = await this.fetchEntryDenorm(collection, targetEntryId);
-		await this.db
-			.insertInto("content_taxonomies")
-			.values(
-				rows.map((r) => ({
-					collection,
-					entry_id: targetEntryId,
-					taxonomy_id: r.taxonomy_id,
-					...denorm,
-				})),
-			)
-			.onConflict((oc) => oc.doNothing())
-			.execute();
-		invalidateTaxonomyObjectCache();
-	}
-
-	/**
-	 * Read the denormalized filter + sort columns from an entry's `ec_*` row so
-	 * they can be stamped onto new pivot rows (migration 051). A missing table or
-	 * missing row yields all-nulls: the pivot columns are advisory, and the
-	 * listing read path re-checks the authoritative `ec_*` row regardless.
-	 */
-	private async fetchEntryDenorm(collection: string, entryId: string): Promise<PivotDenorm> {
+		entryIdOrGroup: string,
+	): Promise<string | null> {
 		validateIdentifier(collection, "collection type");
 		const tableName = `ec_${collection}`;
-		try {
-			const result = await sql<PivotDenorm>`
-				SELECT status, scheduled_at, deleted_at, locale, published_at, created_at
-				FROM ${sql.ref(tableName)}
-				WHERE id = ${entryId}
-			`.execute(this.db);
-			return result.rows[0] ?? EMPTY_DENORM;
-		} catch (error) {
-			if (isMissingTableError(error)) return EMPTY_DENORM;
-			throw error;
-		}
+		const result = await sql<{ translation_group: string }>`
+			SELECT translation_group
+			FROM ${sql.ref(tableName)}
+			WHERE id = ${entryIdOrGroup} OR translation_group = ${entryIdOrGroup}
+			LIMIT 1
+		`.execute(this.db);
+		return result.rows[0]?.translation_group ?? null;
 	}
 
 	/**

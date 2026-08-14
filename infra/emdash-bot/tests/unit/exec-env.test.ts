@@ -1,6 +1,11 @@
 import { describe, expect, test, vi } from "vitest";
 
-import { type ContainerBackend, ExecEnv, type IsolateState } from "../../.flue/lib/exec-env.js";
+import {
+	type ContainerBackend,
+	ExecEnv,
+	type IsolateState,
+	parseRawGitDiff,
+} from "../../.flue/lib/exec-env.js";
 
 function fakeState(initial?: Record<string, string>): {
 	state: IsolateState;
@@ -72,22 +77,28 @@ function fakeContainer(): {
 	execs: string[];
 	writes: Array<{ path: string; content: string }>;
 	setExecResult: (result: { exitCode: number; stdout: string; stderr: string }) => void;
+	queueExecResults: (
+		...results: Array<{ exitCode: number; stdout: string; stderr: string }>
+	) => void;
+	setReadFileBytes: (read: (path: string) => Uint8Array) => void;
 	hangExec: () => void;
 } {
 	const execs: string[] = [];
 	const writes: Array<{ path: string; content: string }> = [];
 	let execResult = { exitCode: 0, stdout: "container-ran", stderr: "" };
+	const queuedExecResults: Array<{ exitCode: number; stdout: string; stderr: string }> = [];
+	let readFileBytes: (path: string) => Uint8Array = (_path) => new Uint8Array([1, 2, 3]);
 	let hang = false;
 	const container: ContainerBackend = {
 		exec: async (command) => {
 			execs.push(command);
 			if (hang) return new Promise<never>(() => {});
-			return execResult;
+			return queuedExecResults.shift() ?? execResult;
 		},
 		writeFile: async (path, content) => {
 			writes.push({ path, content });
 		},
-		readFileBytes: async () => new Uint8Array([1, 2, 3]),
+		readFileBytes: async (path) => readFileBytes(path),
 	};
 	return {
 		container,
@@ -95,6 +106,12 @@ function fakeContainer(): {
 		writes,
 		setExecResult: (result) => {
 			execResult = result;
+		},
+		queueExecResults: (...results) => {
+			queuedExecResults.push(...results);
+		},
+		setReadFileBytes: (read) => {
+			readFileBytes = read;
 		},
 		hangExec: () => {
 			hang = true;
@@ -130,7 +147,7 @@ describe("ExecEnv container exec", () => {
 		const result = await env.exec("pnpm test");
 
 		expect(result.stdout).toBe("container-ran");
-		expect(con.execs).toEqual(["pnpm test"]);
+		expect(con.execs).toEqual(["bash -o pipefail -c 'pnpm test'"]);
 	});
 
 	test("materializes logged VFS edits before the command runs", async () => {
@@ -142,7 +159,51 @@ describe("ExecEnv container exec", () => {
 		await env.exec("pnpm test");
 
 		expect(con.writes).toEqual([{ path: "/repo/src/x.ts", content: "v2" }]);
-		expect(con.execs).toEqual(["pnpm test"]);
+		expect(con.execs).toEqual(["bash -o pipefail -c 'pnpm test'"]);
+	});
+
+	test("runs pipelines with pipefail so a failed producer cannot look successful", async () => {
+		const con = fakeContainer();
+		const env = makeEnv({ container: con.container });
+
+		await env.exec("pnpm test 2>&1 | tail -20");
+
+		expect(con.execs).toEqual(["bash -o pipefail -c 'pnpm test 2>&1 | tail -20'"]);
+	});
+
+	test("rejects and discards source changes made by a verification command", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "before-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: "formatted", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "after-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+		);
+		const env = makeEnv({ container: con.container });
+
+		await expect(env.runCheck("pnpm format")).rejects.toThrow(
+			/verification command modified the candidate/,
+		);
+		expect(con.execs.at(-1)).toContain("git reset --hard HEAD");
+	});
+
+	test("returns the verified candidate tree for a read-only check", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: "passed", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+		);
+		const env = makeEnv({ container: con.container });
+
+		await expect(env.runCheck("pnpm format:check")).resolves.toEqual({
+			result: { exitCode: 0, stdout: "passed", stderr: "" },
+			candidateTreeSha: "candidate-tree",
+		});
 	});
 
 	test("an edit in one instance is materialized when another execs over the same VFS", async () => {
@@ -182,6 +243,125 @@ describe("ExecEnv container exec", () => {
 		await env.exec("pnpm test");
 
 		expect(con.writes).toEqual([]);
+	});
+});
+
+describe("ExecEnv candidate snapshots", () => {
+	const zeroSha = "0".repeat(40);
+	const blobSha = "1".repeat(40);
+
+	test("parses the null-delimited raw format emitted by git diff --cached", () => {
+		const raw = [
+			`:000000 100644 ${zeroSha} ${blobSha} A`,
+			"src/new file.ts",
+			`:100755 100755 ${blobSha} ${blobSha} M`,
+			"bin/run",
+			`:100644 000000 ${blobSha} ${zeroSha} D`,
+			"src/old.ts",
+			"",
+		].join("\0");
+
+		expect(parseRawGitDiff(raw)).toEqual([
+			{ path: "src/new file.ts", mode: "100644", deleted: false, blobSha },
+			{ path: "bin/run", mode: "100755", deleted: false, blobSha },
+			{ path: "src/old.ts", mode: "100644", deleted: true, blobSha: null },
+		]);
+	});
+
+	test("snapshots added and deleted files from the staged diff", async () => {
+		const stagedBlobSha = "3e757656cf36eca53338e520d134963a44f793f8";
+		const raw = [
+			`:000000 100644 ${zeroSha} ${stagedBlobSha} A`,
+			"src/new.ts",
+			`:100644 000000 ${blobSha} ${zeroSha} D`,
+			"src/old.ts",
+			"",
+		].join("\0");
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "base-commit\n", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: raw, stderr: "" },
+		);
+		con.setReadFileBytes(() => new TextEncoder().encode("new\n"));
+		const env = makeEnv({ container: con.container });
+
+		await expect(env.snapshotCandidate()).resolves.toEqual({
+			baseCommitSha: "base-commit",
+			treeSha: "candidate-tree",
+			changes: [
+				{ path: "src/new.ts", mode: "100644", content: new TextEncoder().encode("new\n") },
+				{ path: "src/old.ts", mode: "100644", content: null },
+			],
+		});
+		expect(
+			con.execs.some(
+				(command) => command.includes("git cat-file blob") && command.includes(stagedBlobSha),
+			),
+		).toBe(true);
+	});
+
+	test("rejects content that does not match the staged blob", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "base\n", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{
+				exitCode: 0,
+				stdout: `:000000 100644 ${zeroSha} 3e757656cf36eca53338e520d134963a44f793f8 A\0src/new.ts\0`,
+				stderr: "",
+			},
+		);
+		con.setReadFileBytes(() => new TextEncoder().encode("changed after staging\n"));
+
+		await expect(makeEnv({ container: con.container }).snapshotCandidate()).rejects.toThrow(
+			/does not match staged blob/,
+		);
+	});
+
+	test("rejects malformed raw diffs, symlinks, and workflow changes", async () => {
+		expect(() => parseRawGitDiff(`:000000 100644 ${zeroSha} ${blobSha} A\0src/x.ts`)).toThrow(
+			/malformed staged diff/,
+		);
+		expect(() => parseRawGitDiff(`:000000 120000 ${zeroSha} ${blobSha} A\0link\0`)).toThrow(
+			/symlink/,
+		);
+
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "base\n", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{
+				exitCode: 0,
+				stdout: `:000000 100644 ${zeroSha} ${blobSha} A\0.github/workflows/pwn.yml\0`,
+				stderr: "",
+			},
+		);
+		await expect(makeEnv({ container: con.container }).snapshotCandidate()).rejects.toThrow(
+			/cannot publish path/,
+		);
+	});
+
+	test("rejects a candidate file larger than the publication limit", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "base\n", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{
+				exitCode: 0,
+				stdout: `:000000 100644 ${zeroSha} ${blobSha} A\0large.bin\0`,
+				stderr: "",
+			},
+		);
+		con.setReadFileBytes(() => new Uint8Array(2 * 1024 * 1024 + 1));
+
+		await expect(makeEnv({ container: con.container }).snapshotCandidate()).rejects.toThrow(
+			/file large\.bin is .* limit/,
+		);
 	});
 });
 
@@ -234,7 +414,10 @@ describe("ExecEnv container lifecycle", () => {
 		await env.exec("pnpm test");
 
 		expect(attach).toHaveBeenCalledTimes(1);
-		expect(con.execs).toEqual(["pnpm install", "pnpm test"]);
+		expect(con.execs).toEqual([
+			"bash -o pipefail -c 'pnpm install'",
+			"bash -o pipefail -c 'pnpm test'",
+		]);
 	});
 });
 

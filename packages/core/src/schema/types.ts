@@ -48,6 +48,23 @@ export const FIELD_TYPES: readonly FieldType[] = [
 	"repeater",
 ] as const;
 
+/** Scalar field types that can be backed by a content-list query index. */
+export const INDEXABLE_FIELD_TYPES: ReadonlySet<FieldType> = new Set([
+	"string",
+	"url",
+	"number",
+	"integer",
+	"boolean",
+	"datetime",
+	"select",
+	"reference",
+	"slug",
+]);
+
+export function isIndexableFieldType(type: FieldType): boolean {
+	return INDEXABLE_FIELD_TYPES.has(type);
+}
+
 /**
  * SQLite column types that map from field types
  */
@@ -223,6 +240,8 @@ export interface Field {
 	options?: FieldWidgetOptions;
 	sortOrder: number;
 	searchable: boolean;
+	/** Whether this field has a physical index for structured list queries. */
+	indexed: boolean;
 	/** Whether this field is translatable (default true). Non-translatable fields are synced across locales. */
 	translatable: boolean;
 	createdAt: string;
@@ -287,6 +306,8 @@ export interface CreateFieldInput {
 	sortOrder?: number;
 	/** Whether this field should be indexed for search */
 	searchable?: boolean;
+	/** Create a physical index for structured sorting. */
+	indexed?: boolean;
 	/** Whether this field is translatable (default true). Non-translatable fields are synced across locales. */
 	translatable?: boolean;
 }
@@ -315,6 +336,8 @@ export interface UpdateFieldInput {
 	sortOrder?: number;
 	/** Whether this field should be indexed for search */
 	searchable?: boolean;
+	/** Create or remove the physical index used by structured sorting. */
+	indexed?: boolean;
 	/** Whether this field is translatable (default true). Non-translatable fields are synced across locales. */
 	translatable?: boolean;
 }

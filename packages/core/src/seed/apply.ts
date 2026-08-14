@@ -196,6 +196,7 @@ export async function applySeed(
 								required: field.required || false,
 								unique: field.unique || false,
 								searchable: field.searchable || false,
+								indexed: field.indexed || false,
 								defaultValue: field.defaultValue,
 								validation: field.validation,
 								widget: field.widget,
@@ -210,6 +211,7 @@ export async function applySeed(
 								required: field.required || false,
 								unique: field.unique || false,
 								searchable: field.searchable || false,
+								indexed: field.indexed || false,
 								defaultValue: field.defaultValue,
 								validation: field.validation,
 								widget: field.widget,
@@ -234,6 +236,7 @@ export async function applySeed(
 				required: field.required || false,
 				unique: field.unique || false,
 				searchable: field.searchable || false,
+				indexed: field.indexed || false,
 				defaultValue: field.defaultValue,
 				validation: field.validation,
 				widget: field.widget,
@@ -1011,13 +1014,10 @@ async function applyContentTaxonomies(
 	entry: { taxonomies?: Record<string, string[]> },
 	isUpdate: boolean,
 ): Promise<void> {
+	const termRepo = new TaxonomyRepository(db);
 	// In update mode, clear existing taxonomy assignments first
 	if (isUpdate) {
-		await db
-			.deleteFrom("content_taxonomies")
-			.where("collection", "=", collectionSlug)
-			.where("entry_id", "=", contentId)
-			.execute();
+		await termRepo.clearEntryTerms(collectionSlug, contentId);
 	}
 
 	if (!entry.taxonomies) {
@@ -1031,8 +1031,6 @@ async function applyContentTaxonomies(
 	}
 
 	for (const [taxonomyName, termSlugs] of Object.entries(entry.taxonomies)) {
-		const termRepo = new TaxonomyRepository(db);
-
 		for (const termSlug of termSlugs) {
 			const term = await termRepo.findBySlug(taxonomyName, termSlug);
 			if (term) {

@@ -40,6 +40,10 @@ import {
 import {
 	mediaUsageDetailsQuery,
 	mediaUsageDetailsResponseSchema,
+	mediaUsageCollectionDeletionListQuery,
+	mediaUsageCollectionDeletionListResponseSchema,
+	mediaUsageCollectionDeletionRetryBody,
+	mediaUsageCollectionDeletionRetryResponseSchema,
 	mediaUsageRepairBody,
 	mediaUsageRepairResponseSchema,
 	mediaUsageWorkListQuery,
@@ -119,12 +123,15 @@ import { settingsUpdateBody, siteSettingsSchema } from "../schemas/settings.js";
 import {
 	createTermBody,
 	reorderTermsBody,
+	taxonomyDefTranslationsSchema,
 	taxonomyListResponseSchema,
+	taxonomyResponseSchema,
 	termGetResponseSchema,
 	termListQuery,
 	termListResponseSchema,
 	termReorderResponseSchema,
 	termResponseSchema,
+	updateTaxonomyDefBody,
 	updateTermBody,
 } from "../schemas/taxonomies.js";
 import {
@@ -842,6 +849,55 @@ function buildMediaPaths(maxUploadSize: number) {
 				},
 			},
 		},
+		"/_emdash/api/admin/media-usage/collection-deletions": {
+			get: {
+				operationId: "listMediaUsageCollectionDeletions",
+				summary: "List durable collection deletions",
+				description:
+					"Returns a bounded, redacted cursor page of collection deletion work. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				requestParams: { query: mediaUsageCollectionDeletionListQuery },
+				responses: {
+					"200": {
+						description: "Bounded collection deletion page",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(mediaUsageCollectionDeletionListResponseSchema),
+							},
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 500),
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/collection-deletions/retry": {
+			post: {
+				operationId: "retryMediaUsageCollectionDeletion",
+				summary: "Retry one collection deletion",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [JSON_CONTENT]: { schema: mediaUsageCollectionDeletionRetryBody } },
+				},
+				responses: {
+					"200": {
+						description: "Pending collection deletion state",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(mediaUsageCollectionDeletionRetryResponseSchema),
+							},
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+					"409": {
+						description: "The deletion has a live lease or changed concurrently",
+						content: { [JSON_CONTENT]: { schema: mediaUsageWorkRetryConflictSchema } },
+					},
+				},
+			},
+		},
 		"/_emdash/api/media/upload-url": {
 			post: {
 				operationId: "getMediaUploadUrl",
@@ -1394,6 +1450,97 @@ const taxonomyPaths = {
 				},
 				...authErrors,
 				...standardErrors(500),
+			},
+		},
+	},
+	"/_emdash/api/taxonomies/{name}": {
+		get: {
+			operationId: "getTaxonomy",
+			summary: "Get a taxonomy definition",
+			description:
+				"Definitions are per-locale; `locale` picks one, and without it the lowest-locale match is returned.",
+			tags: ["Taxonomies"],
+			requestParams: {
+				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+				query: z.object({
+					locale: z.string().optional().meta({ description: "Locale filter" }),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "Taxonomy definition",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(taxonomyResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+		put: {
+			operationId: "updateTaxonomy",
+			summary: "Update a taxonomy definition",
+			description:
+				"Writes the single definition `name` + `locale` resolves to. `name` and `locale` cannot be changed — terms are keyed on `name`, and each locale is its own definition row.",
+			tags: ["Taxonomies"],
+			requestParams: {
+				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+				query: z.object({
+					locale: z.string().optional().meta({ description: "Locale of the definition to update" }),
+				}),
+			},
+			requestBody: { content: { [JSON_CONTENT]: { schema: updateTaxonomyDefBody } } },
+			responses: {
+				"200": {
+					description: "Updated taxonomy definition",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(taxonomyResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+		delete: {
+			operationId: "deleteTaxonomy",
+			summary: "Delete a taxonomy, its terms, and their content assignments",
+			description:
+				"Destructive and unscoped: every locale's definition goes, along with every term under the name and the assignments those terms hold. There is no locale parameter and no guard on a taxonomy that is still in use.",
+			tags: ["Taxonomies"],
+			requestParams: {
+				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+			},
+			responses: {
+				"200": {
+					description: "Deleted",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(deleteResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+	},
+	"/_emdash/api/taxonomies/{name}/translations": {
+		get: {
+			operationId: "listTaxonomyTranslations",
+			summary: "List every locale variant of a taxonomy definition",
+			description:
+				"Create a translation with `POST /_emdash/api/taxonomies` and `translationOf` set to a definition id from this list.",
+			tags: ["Taxonomies"],
+			requestParams: {
+				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+				query: z.object({
+					locale: z
+						.string()
+						.optional()
+						.meta({ description: "Locale of the definition to resolve the group from" }),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "Translations sharing a translation_group",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(taxonomyDefTranslationsSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
 			},
 		},
 	},

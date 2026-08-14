@@ -195,7 +195,7 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		expect(tagCounts.get(tag.translationGroup ?? tag.id)).toBe(1);
 	});
 
-	it("counts only entry rows in the requested locale, keyed by translation_group", async () => {
+	it("counts one logical content group once for each assigned term group", async () => {
 		// Defs are per-locale — translate the seeded `category` def into FR so
 		// the FR widget view resolves (same declared collections).
 		const enDef = await ctx.db
@@ -216,20 +216,6 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 				translation_group: enDef.translation_group ?? enDef.id,
 			})
 			.execute();
-		await ctx.db
-			.insertInto("_emdash_taxonomy_defs")
-			.values({
-				id: ulid(),
-				name: "category",
-				label: "Kategorien",
-				label_singular: null,
-				hierarchical: enDef.hierarchical,
-				collections: enDef.collections,
-				locale: "de",
-				translation_group: enDef.translation_group ?? enDef.id,
-			})
-			.execute();
-
 		const enTerm = await taxRepo.create({
 			name: "category",
 			slug: "news",
@@ -243,12 +229,11 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 			locale: "fr",
 			translationOf: enTerm.id,
 		});
-		const deTerm = await taxRepo.create({
+		const featured = await taxRepo.create({
 			name: "category",
-			slug: "nachrichten",
-			label: "Nachrichten",
-			locale: "de",
-			translationOf: enTerm.id,
+			slug: "featured",
+			label: "Featured",
+			locale: "en",
 		});
 
 		const enPost = await contentRepo.create({
@@ -266,31 +251,53 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 			locale: "fr",
 			translationOf: enPost.id,
 		});
-		const dePost = await contentRepo.create({
-			type: "post",
-			slug: "hallo",
-			status: "published",
-			data: { title: "Hallo" },
-			locale: "de",
-			translationOf: enPost.id,
-		});
 		// Attaching via either locale's term id resolves to the shared group.
 		await taxRepo.attachToEntry("post", enPost.id, enTerm.id);
-		await taxRepo.attachToEntry("post", frPost.id, frTerm.id);
-		await taxRepo.attachToEntry("post", dePost.id, deTerm.id);
+		await taxRepo.attachToEntry("post", frPost.id, featured.id);
 
-		for (const locale of ["en", "fr", "de"]) {
-			const counts = await fetchVisibleTermCounts(ctx.db, "category", ["post"], locale);
-			expect(counts.get(enTerm.translationGroup ?? enTerm.id)).toBe(1);
-		}
+		const counts = await fetchVisibleTermCounts(ctx.db, "category", ["post"]);
+		expect(counts.get(enTerm.translationGroup ?? enTerm.id)).toBe(1);
+		expect(counts.get(featured.translationGroup ?? featured.id)).toBe(1);
 
-		// Each locale view surfaces the count for entries visible in that locale.
+		// Both locale views of the taxonomy surface the same group count.
 		const enTerms = await getTaxonomyTerms("category", { locale: "en" });
 		const frTerms = await getTaxonomyTerms("category", { locale: "fr" });
-		const deTerms = await getTaxonomyTerms("category", { locale: "de" });
-		expect(enTerms[0]!.count).toBe(1);
-		expect(frTerms[0]!.count).toBe(1);
-		expect(deTerms[0]!.count).toBe(1);
+		expect(enTerms.find((term) => term.id === enTerm.id)?.count).toBe(1);
+		expect(frTerms.find((term) => term.id === frTerm.id)?.count).toBe(1);
+	});
+
+	it("counts only entry rows in the requested locale, keyed by translation_group", async () => {
+		const enTerm = await taxRepo.create({
+			name: "category",
+			slug: "news",
+			label: "News",
+			locale: "en",
+		});
+		const enPost = await contentRepo.create({
+			type: "post",
+			slug: "hello",
+			status: "published",
+			data: { title: "Hello" },
+			locale: "en",
+		});
+		await contentRepo.create({
+			type: "post",
+			slug: "bonjour",
+			status: "published",
+			data: { title: "Bonjour" },
+			locale: "fr",
+			translationOf: enPost.id,
+		});
+		await taxRepo.attachToEntry("post", enPost.id, enTerm.id);
+
+		const enCounts = await fetchVisibleTermCounts(ctx.db, "category", ["post"], "en");
+		const frCounts = await fetchVisibleTermCounts(ctx.db, "category", ["post"], "fr");
+		const deCounts = await fetchVisibleTermCounts(ctx.db, "category", ["post"], "de");
+		const group = enTerm.translationGroup ?? enTerm.id;
+
+		expect(enCounts.get(group)).toBe(1);
+		expect(frCounts.get(group)).toBe(1);
+		expect(deCounts.has(group)).toBe(false);
 	});
 
 	it("skips missing ec_* tables and returns a partial count", async () => {

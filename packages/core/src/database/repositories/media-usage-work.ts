@@ -15,6 +15,7 @@ const STABLE_ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 
 export const MEDIA_USAGE_WORK_OPERATOR_DEFAULT_LIMIT = 50;
 export const MEDIA_USAGE_WORK_OPERATOR_MAX_LIMIT = 100;
+export const MEDIA_USAGE_RECONCILIATION_PAGE_LIMIT = 50;
 const MEDIA_USAGE_WORK_STATES = ["pending", "retry", "leased", "failed"] as const;
 
 export interface MediaUsageWorkIdentity {
@@ -62,6 +63,92 @@ export type MediaUsageOperatorRetryResult =
 
 export class MediaUsageWorkRepository {
 	constructor(private db: Kysely<Database>) {}
+
+	async enqueueReconciliationPage(input: {
+		collectionId: string;
+		collectionSlug: string;
+		runToken: string;
+		leaseToken: string;
+		changeEpoch: number | string;
+		phase: "scan" | "sources";
+		contentIds: readonly string[];
+	}): Promise<void> {
+		if (!input.collectionId || !input.collectionSlug || !input.runToken || !input.leaseToken) {
+			throw new Error("Reconciliation enqueue requires exact collection and lease identity");
+		}
+		assertNonNegativeDecimal(input.changeEpoch, "change epoch");
+		const contentIds = [...new Set(input.contentIds)];
+		if (contentIds.length < 1 || contentIds.length > MEDIA_USAGE_RECONCILIATION_PAGE_LIMIT) {
+			throw new Error("Reconciliation enqueue requires from 1 to 50 content IDs");
+		}
+		if (contentIds.some((contentId) => !contentId)) {
+			throw new Error("Reconciliation enqueue content IDs must not be empty");
+		}
+		const now = this.timestampOffset(0);
+		const pageValues = sql.join(
+			contentIds.map((contentId) => sql`(${contentId})`),
+			sql`, `,
+		);
+		await sql`
+			WITH page(content_id) AS (VALUES ${pageValues})
+			INSERT INTO _emdash_media_usage_work (
+				collection_id, collection_slug, content_id, change_epoch, work_version,
+				state, attempt_count, next_attempt_at, lease_token, lease_expires_at,
+				last_attempted_at, last_error_code, created_at, updated_at
+			)
+			SELECT
+				${input.collectionId}, ${input.collectionSlug}, page.content_id, ${input.changeEpoch}, 1,
+				'pending', 0, ${now}, NULL, NULL, NULL, NULL, ${now}, ${now}
+			FROM page
+			WHERE EXISTS (
+				SELECT 1
+				FROM _emdash_media_usage_reconciliations AS reconciliation
+				INNER JOIN _emdash_media_usage_index_status AS status
+					ON status.collection_id = reconciliation.collection_id
+					AND status.scope_key = reconciliation.collection_slug
+				INNER JOIN _emdash_collections AS collection
+					ON collection.id = reconciliation.collection_id
+					AND collection.slug = reconciliation.collection_slug
+				WHERE reconciliation.collection_id = ${input.collectionId}
+					AND reconciliation.collection_slug = ${input.collectionSlug}
+					AND reconciliation.run_token = ${input.runToken}
+					AND reconciliation.target_epoch = ${input.changeEpoch}
+					AND reconciliation.state = 'leased'
+					AND reconciliation.phase = ${input.phase}
+					AND reconciliation.lease_token = ${input.leaseToken}
+					AND ${this.qualifiedLeaseIsLive("reconciliation.lease_expires_at")}
+					AND status.adapter_id = 'content-media'
+					AND status.scope_type = 'collection'
+					AND status.capture_state = 'active'
+					AND status.reconciliation_required = 1
+					AND status.status = 'running'
+					AND status.cursor = ${input.runToken}
+					AND status.change_epoch = ${input.changeEpoch}
+					AND EXISTS (
+						SELECT 1 FROM _emdash_media_usage_activation AS activation
+						WHERE activation.task_key = 'incremental_capture'
+							AND activation.state = 'active'
+					)
+					AND NOT EXISTS (
+						SELECT 1 FROM _emdash_media_usage_collection_deletions AS deletion
+						WHERE deletion.collection_id = reconciliation.collection_id
+					)
+			)
+			ON CONFLICT (collection_id, content_id) DO UPDATE SET
+				collection_slug = excluded.collection_slug,
+				change_epoch = excluded.change_epoch,
+				work_version = _emdash_media_usage_work.work_version + 1,
+				state = 'pending',
+				attempt_count = 0,
+				next_attempt_at = excluded.next_attempt_at,
+				lease_token = NULL,
+				lease_expires_at = NULL,
+				last_attempted_at = NULL,
+				last_error_code = NULL,
+				updated_at = excluded.updated_at
+			WHERE _emdash_media_usage_work.change_epoch < excluded.change_epoch
+		`.execute(this.db);
+	}
 
 	async findOperatorPage(options: {
 		collectionSlug: string;
@@ -602,6 +689,13 @@ export class MediaUsageWorkRepository {
 		return isPostgres(this.db)
 			? sql<boolean>`lease_expires_at::timestamptz > clock_timestamp()`
 			: sql<boolean>`lease_expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
+	}
+
+	private qualifiedLeaseIsLive(column: string): RawBuilder<boolean> {
+		const expiry = sql.ref(column);
+		return isPostgres(this.db)
+			? sql<boolean>`${expiry} > to_char(statement_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`
+			: sql<boolean>`${expiry} > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
 	}
 
 	private timestampIsDue(

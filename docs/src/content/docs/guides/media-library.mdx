@@ -252,6 +252,8 @@ const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
 
 `priority` is for the primary above-the-fold image. It sets `loading="eager"` and `fetchpriority="high"`: `loading` controls whether loading is deferred, and `fetchpriority` gives the browser a priority hint for the request.
 
+EmDash installs an image endpoint that produces the resized variants on request. On Cloudflare Workers that endpoint uses the `IMAGES` binding. [Image Transformation](/deployment/cloudflare/#image-transformation) covers where the binding comes from and what happens when it is absent.
+
 ## Deleting Media
 
 1. Select the file(s) you want to delete

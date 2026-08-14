@@ -24,18 +24,43 @@ import { getCloudflareContext } from "@flue/runtime/cloudflare";
 import { env as workerEnv } from "cloudflare:workers";
 import * as v from "valibot";
 
-import { type ContainerBackend, ExecEnv, fromSandbox, quote } from "../lib/exec-env.js";
+import {
+	publishCandidate,
+	requireCandidatePublication,
+	type CandidateGitHub,
+	type CandidatePublication,
+	type CandidateSnapshot,
+} from "../lib/candidate-publisher.js";
+import {
+	type ContainerBackend,
+	ExecEnv,
+	type ExecResult,
+	fromSandbox,
+	quote,
+} from "../lib/exec-env.js";
 import { createPushCapability, PUSH_CAPABILITY_HEADER } from "../lib/github-proxy.js";
 import {
+	createBranch,
+	createGitBlob,
+	createGitCommit,
+	createGitTree,
 	getBranchSha,
+	getGitCommit,
 	mintInstallationToken,
 	readAppCreds,
 	readRepoContext,
+	updateBranch,
 } from "../lib/github.js";
 import { applyInvestigationResult } from "../lib/investigation-result.js";
 import { untarInto } from "../lib/untar.js";
+import {
+	assertVerificationCommand,
+	passingVerificationRecords,
+	type VerificationRecord,
+} from "../lib/verification.js";
 import diagnoseSkill from "../skills/diagnose/SKILL.md";
 import fixSkill from "../skills/fix/SKILL.md";
+import implementSkill from "../skills/implement/SKILL.md";
 import investigateSkill from "../skills/investigate/SKILL.md";
 import reproAdminSkill from "../skills/repro-admin/SKILL.md";
 import reproApiSkill from "../skills/repro-api/SKILL.md";
@@ -53,6 +78,7 @@ const DEADLINES = { defaultTimeoutMs: DEFAULT_RPC_TIMEOUT_MS, execGraceMs: EXEC_
  * exceeds the model's context window and the run dies mid-flight.
  */
 const TOOL_RESULT_LIMIT = 49_152;
+const RESULT_SUMMARY_LIMIT = 2_000;
 
 function truncateToolResult(text: string): string {
 	if (text.length <= TOOL_RESULT_LIMIT) return text;
@@ -102,7 +128,8 @@ const resultSchema = v.pipe(
 		rootCauseFound: v.optional(v.boolean(), false),
 		fixed: v.optional(v.boolean()),
 		verdict: v.optional(v.picklist(["bug", "intended-behavior", "unclear"])),
-		summary: v.pipe(v.string(), v.minLength(10), v.maxLength(400)),
+		summary: v.pipe(v.string(), v.minLength(10), v.maxLength(RESULT_SUMMARY_LIMIT)),
+		failureStage: v.optional(v.picklist(["workspace", "verification", "publication", "reporting"])),
 		/** Reproduction screenshots pushed to bot/artifacts-<n>, rendered in the ask comment. */
 		screenshots: v.optional(v.array(screenshotSchema)),
 	}),
@@ -114,34 +141,75 @@ const resultSchema = v.pipe(
 	),
 );
 
+const implementationResultSchema = v.object({
+	skipped: v.optional(v.boolean()),
+	implemented: v.boolean(),
+	summary: v.pipe(v.string(), v.minLength(10), v.maxLength(RESULT_SUMMARY_LIMIT)),
+	failureStage: v.optional(v.picklist(["workspace", "verification", "publication", "reporting"])),
+	screenshots: v.optional(v.array(screenshotSchema)),
+});
+
+const publicationSchema = v.object({
+	branch: v.string(),
+	commitSha: v.string(),
+	files: v.array(v.string()),
+});
+
+const verificationRecordSchema = v.object({
+	name: v.string(),
+	command: v.string(),
+	exitCode: v.number(),
+	candidateTreeSha: v.string(),
+});
+
 const reportedResultSchema = v.object({
-	result: resultSchema,
+	result: v.union([resultSchema, implementationResultSchema]),
 	ok: v.boolean(),
 	pushed: v.boolean(),
+	runId: v.string(),
+	publication: v.nullable(publicationSchema),
+	verification: v.array(verificationRecordSchema),
 });
 
 type InvestigateData = v.InferOutput<typeof initialDataSchema>;
 type InvestigationResult = v.InferOutput<typeof resultSchema>;
+type ImplementationResult = v.InferOutput<typeof implementationResultSchema>;
+
+interface RunFailure {
+	stage: "workspace" | "verification" | "publication" | "reporting";
+	message: string;
+}
 
 export function Investigate({ id }: AgentProps) {
 	const input = useInitialData<InvestigateData>();
 	const [setupComplete, setSetupComplete] = usePersistentState("setup-complete", false);
 	const [reported, setReported] = usePersistentState("reported", false);
 	const [reminded, setReminded] = usePersistentState("report-reminded", false);
+	const [publication, setPublication] = usePersistentState<CandidatePublication | null>(
+		"publication",
+		null,
+	);
+	const [verification, setVerification] = usePersistentState<VerificationRecord[]>(
+		"verification",
+		[],
+	);
+	const [lastFailure, setLastFailure] = usePersistentState<RunFailure | null>("last-failure", null);
 	const writeResult = useDataWriter("investigation", { schema: reportedResultSchema });
 	const env = execEnvFor(id, input);
 
 	useModel("cloudflare/@cf/moonshotai/kimi-k2.7-code");
 
-	useSkill(investigateSkill);
-	useSkill(diagnoseSkill);
-	useSkill(verifySkill);
-	useSkill(reproApiSkill);
-	useSkill(reproAdminSkill);
-	useSkill(reproPublicSkill);
-	// Every mode but diagnose may end in a fix attempt (`repro` is
-	// "reproduce and attempt a fix" in machine.ts).
-	if (input.mode !== "diagnose") {
+	if (input.mode === "implement") {
+		useSkill(implementSkill);
+	} else {
+		useSkill(investigateSkill);
+		useSkill(diagnoseSkill);
+		useSkill(verifySkill);
+		useSkill(reproApiSkill);
+		useSkill(reproAdminSkill);
+		useSkill(reproPublicSkill);
+	}
+	if (input.mode !== "diagnose" && input.mode !== "implement") {
 		useSkill(fixSkill);
 	}
 
@@ -151,11 +219,20 @@ export function Investigate({ id }: AgentProps) {
 			await env.ensureRepo({ dir: REPO_DIR, ref: cloneRef(input) });
 			setSetupComplete(true);
 		} catch (error) {
+			setLastFailure({ stage: "workspace", message: safeFailureMessage(error) });
 			const result = failedResult(
 				`I couldn't prepare the investigation workspace: ${errorMessage(error)}`,
+				"workspace",
 			);
 			await applyInvestigationResult(input, result, false, false);
-			writeResult({ result, ok: false, pushed: false });
+			writeResult({
+				result,
+				ok: false,
+				pushed: false,
+				runId: input.runId,
+				publication: null,
+				verification: [],
+			});
 			setReported(true);
 			log.error("workspace setup failed", { error: errorMessage(error) });
 		}
@@ -290,54 +367,212 @@ export function Investigate({ id }: AgentProps) {
 		}),
 	);
 
-	useTool(
-		defineTool({
-			name: "report_result",
-			description:
-				"Report the final structured investigation result to the issue orchestrator. reproduced=true means you demonstrated the defect the reporter described, in this checkout. The demonstration does NOT need to copy their exact steps: a failing unit test that exercises the same defect a UI report describes is a full reproduction of the issue -- report it as one, without hedging. It must be the same defect, though: an adjacent or latent bug you demonstrated, an out-of-repo infrastructure symptom, or a root cause from reading code alone is not a reproduction. Three distinct non-reproduced outcomes -- pick the honest one: rootCauseFound=true when you identified the reporter's defect but could not confirm it with a demonstration (environment limits, browser-only path) -- this is a first-class 'diagnosed' verdict; plain reproduced=false when you investigated and found nothing wrong or a different/adjacent issue (describe findings in summary); verdict='unclear' when the issue lacks the information an attempt would need -- say what is missing. Fill demonstration and demonstratedReportedIssue truthfully. If demonstration attempts are not converging after a couple of angles, stop and report the diagnosis with rootCauseFound rather than grinding.",
-			input: resultSchema,
-			output: reportedResultSchema,
-			durable: true,
-			async run({ data, step, log }) {
-				const pushed = await step.do("detect-push", () =>
-					detectPush(input.issueNumber, input.previousBranchSha),
-				);
-				await step.do("apply-agent-result", () =>
-					applyInvestigationResult(input, data, true, pushed),
-				);
-				const reportedResult = { result: data, ok: true, pushed };
-				writeResult(reportedResult);
-				setReported(true);
-				log.info("investigation reported", {
-					runId: input.runId,
-					issueNumber: input.issueNumber,
-					pushed,
-				});
-				return { output: reportedResult };
-			},
-		}),
-	);
+	if (input.mode !== "diagnose") {
+		useTool(
+			defineTool({
+				name: "run_check",
+				description:
+					"Run a required read-only verification command and bind its real exit status to the exact candidate tree. The command must not modify source files; use edit_file/write_file for changes and check-only formatter commands. Do not add output pipelines or success fallbacks; the tool rejects them. Reuse a stable name such as test, lint, typecheck, or format when rerunning a check after a fix. Rerun every required check after any source change.",
+				input: v.object({
+					name: v.pipe(v.string(), v.minLength(1), v.maxLength(40)),
+					command: v.pipe(v.string(), v.minLength(1), v.maxLength(1_000)),
+					cwd: v.optional(v.string()),
+					timeoutMs: v.optional(v.number()),
+				}),
+				async run({ data }) {
+					let result: ExecResult;
+					let candidateTreeSha: string;
+					try {
+						assertVerificationCommand(data.command);
+						({ result, candidateTreeSha } = await env.runCheck(data.command, {
+							...(data.cwd ? { cwd: data.cwd } : {}),
+							...(data.timeoutMs ? { timeoutMs: data.timeoutMs } : {}),
+						}));
+					} catch (error) {
+						setLastFailure({ stage: "verification", message: safeFailureMessage(error) });
+						throw error;
+					}
+					const record = {
+						name: data.name,
+						command: data.command,
+						exitCode: result.exitCode,
+						candidateTreeSha,
+					} satisfies VerificationRecord;
+					setVerification((current) => [...current, record]);
+					if (result.exitCode !== 0) {
+						setLastFailure({
+							stage: "verification",
+							message: `${data.name} failed with exit ${result.exitCode}`,
+						});
+					}
+					return truncateToolResult(
+						[`exit ${result.exitCode}`, result.stdout, result.stderr].filter(Boolean).join("\n"),
+					);
+				},
+			}),
+		);
+
+		useTool(
+			defineTool({
+				name: "publish_candidate",
+				description:
+					"Publish the verified working tree to this issue's candidate branch. The trusted Worker snapshots the changes, creates the Git objects, updates only bot/fix-<issue>, and verifies the remote SHA. Do not run git commit or git push yourself.",
+				input: v.object({
+					commitMessage: v.pipe(v.string(), v.minLength(5), v.maxLength(200)),
+				}),
+				output: publicationSchema,
+				durable: true,
+				async run({ data, step }) {
+					try {
+						passingVerificationRecords(verification);
+					} catch (error) {
+						setLastFailure({ stage: "verification", message: safeFailureMessage(error) });
+						throw error;
+					}
+					let snapshot: CandidateSnapshot;
+					try {
+						snapshot = await env.snapshotCandidate();
+					} catch (error) {
+						setLastFailure({ stage: "publication", message: safeFailureMessage(error) });
+						throw error;
+					}
+					try {
+						passingVerificationRecords(verification, snapshot.treeSha);
+					} catch (error) {
+						setLastFailure({ stage: "verification", message: safeFailureMessage(error) });
+						throw error;
+					}
+					try {
+						const published = await step.do("publish-candidate", () =>
+							publishCandidateForRun(input, data.commitMessage, snapshot),
+						);
+						setPublication(published);
+						setLastFailure(null);
+						return { output: published };
+					} catch (error) {
+						setLastFailure({ stage: "publication", message: safeFailureMessage(error) });
+						throw error;
+					}
+				},
+			}),
+		);
+	}
+
+	if (input.mode === "implement") {
+		useTool(
+			defineTool({
+				name: "report_implementation",
+				description:
+					"Report the implementation outcome. Set implemented=true only after publish_candidate succeeds. The Worker attaches authoritative verification and publication details.",
+				input: implementationResultSchema,
+				output: reportedResultSchema,
+				durable: true,
+				async run({ data, step, log }) {
+					requireCandidatePublication(data.implemented, publication);
+					const pushed = await step.do("verify-publication", () =>
+						detectPublication(input.issueNumber, publication),
+					);
+					const failure =
+						data.implemented && !pushed
+							? (lastFailure ?? {
+									stage: "publication" as const,
+									message: "The candidate branch could not be verified at its published commit.",
+								})
+							: lastFailure;
+					const result = withRunFailure(data, failure);
+					await step.do("apply-agent-result", () =>
+						applyInvestigationResult(input, result, true, pushed),
+					);
+					const reportedResult = reportPayload(
+						input.runId,
+						result,
+						pushed,
+						publication,
+						verification,
+					);
+					writeResult(reportedResult);
+					setReported(true);
+					log.info("implementation reported", {
+						runId: input.runId,
+						issueNumber: input.issueNumber,
+						pushed,
+					});
+					return { output: reportedResult };
+				},
+			}),
+		);
+	} else {
+		useTool(
+			defineTool({
+				name: "report_result",
+				description:
+					"Report the final structured investigation result to the issue orchestrator. reproduced=true means you demonstrated the defect the reporter described, in this checkout. The demonstration does NOT need to copy their exact steps: a failing unit test that exercises the same defect a UI report describes is a full reproduction of the issue -- report it as one, without hedging. It must be the same defect, though: an adjacent or latent bug you demonstrated, an out-of-repo infrastructure symptom, or a root cause from reading code alone is not a reproduction. Three distinct non-reproduced outcomes -- pick the honest one: rootCauseFound=true when you identified the reporter's defect but could not confirm it with a demonstration (environment limits, browser-only path) -- this is a first-class 'diagnosed' verdict; plain reproduced=false when you investigated and found nothing wrong or a different/adjacent issue (describe findings in summary); verdict='unclear' when the issue lacks the information an attempt would need -- say what is missing. Fill demonstration and demonstratedReportedIssue truthfully. If demonstration attempts are not converging after a couple of angles, stop and report the diagnosis with rootCauseFound rather than grinding.",
+				input: resultSchema,
+				output: reportedResultSchema,
+				durable: true,
+				async run({ data, step, log }) {
+					requireCandidatePublication(data.fixed === true, publication);
+					const pushed = await step.do("verify-publication", () =>
+						detectPublication(input.issueNumber, publication),
+					);
+					const failure =
+						data.fixed && !pushed
+							? (lastFailure ?? {
+									stage: "publication" as const,
+									message: "The candidate branch could not be verified at its published commit.",
+								})
+							: lastFailure;
+					const result = withRunFailure(data, failure);
+					await step.do("apply-agent-result", () =>
+						applyInvestigationResult(input, result, true, pushed),
+					);
+					const reportedResult = reportPayload(
+						input.runId,
+						result,
+						pushed,
+						publication,
+						verification,
+					);
+					writeResult(reportedResult);
+					setReported(true);
+					log.info("investigation reported", {
+						runId: input.runId,
+						issueNumber: input.issueNumber,
+						pushed,
+					});
+					return { output: reportedResult };
+				},
+			}),
+		);
+	}
 
 	useAgentFinish(async ({ response, append, log }) => {
-		const reportCall = response.toolCalls.some(
-			(call) => call.tool === "report_result" && !call.isError,
-		);
+		const reportTool = input.mode === "implement" ? "report_implementation" : "report_result";
+		const reportCall = response.toolCalls.some((call) => call.tool === reportTool && !call.isError);
 		if (reported || reportCall) return;
 		if (!reminded) {
 			setReminded(true);
 			append({
 				kind: "signal",
 				type: "investigation.report-required",
-				body: "You have not reported the result. Call report_result now with your final findings. Do not do more investigation.",
+				body: `You have not reported the result. Call ${reportTool} now with your final findings. Do not do more investigation.`,
 			});
 			return;
 		}
 
 		const result = failedResult(
 			"I couldn't complete this run because the agent stopped without reporting a result.",
+			"reporting",
 		);
 		await applyInvestigationResult(input, result, false, false);
-		writeResult({ result, ok: false, pushed: false });
+		writeResult({
+			result,
+			ok: false,
+			pushed: false,
+			runId: input.runId,
+			publication,
+			verification,
+		});
 		setReported(true);
 		log.warn("agent stopped without reporting", { runId: input.runId });
 	});
@@ -591,57 +826,147 @@ function cloneRef(input: InvestigateData): string {
 	return input.mode === "revise" ? `bot/fix-${input.issueNumber}` : "main";
 }
 
-function failedResult(summary: string): InvestigationResult {
+function failedResult(summary: string, failureStage?: RunFailure["stage"]): InvestigationResult {
 	return {
 		summary: truncateSummary(summary),
 		fixed: false,
 		reproduced: false,
+		demonstration: "none",
+		demonstratedReportedIssue: false,
+		rootCauseFound: false,
 		verdict: "unclear",
+		...(failureStage ? { failureStage } : {}),
 	};
 }
 
 function truncateSummary(text: string): string {
-	return text.length <= 400 ? text : `${text.slice(0, 399)}…`;
+	return text.length <= RESULT_SUMMARY_LIMIT ? text : `${text.slice(0, RESULT_SUMMARY_LIMIT - 1)}…`;
 }
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
-async function detectPush(issueNumber: number, previousBranchSha: string | null): Promise<boolean> {
+async function detectPublication(
+	issueNumber: number,
+	publication: CandidatePublication | null,
+): Promise<boolean> {
+	if (!publication) return false;
 	const repo = readRepoContext(workerEnv);
 	const creds = readAppCreds(workerEnv);
 	if (!repo || !creds) return false;
 	try {
 		const token = await mintInstallationToken(creds);
 		const currentBranchSha = await getBranchSha(token, repo, `bot/fix-${issueNumber}`);
-		return currentBranchSha !== null && currentBranchSha !== previousBranchSha;
+		return currentBranchSha === publication.commitSha;
 	} catch (error) {
-		// An unusable App credential must not fail the report itself.
-		console.warn("[investigate] push detection failed", { error: errorMessage(error) });
+		console.warn("[investigate] publication verification failed", { error: errorMessage(error) });
 		return false;
 	}
+}
+
+async function publishCandidateForRun(
+	input: InvestigateData,
+	commitMessage: string,
+	snapshot: CandidateSnapshot,
+): Promise<CandidatePublication> {
+	const repo = readRepoContext(workerEnv);
+	const creds = readAppCreds(workerEnv);
+	if (!repo || !creds) throw new Error("GitHub App credentials or repository context missing");
+	const token = await mintInstallationToken(creds);
+	return publishCandidate(
+		{
+			branch: `bot/fix-${input.issueNumber}`,
+			runId: input.runId,
+			commitMessage,
+			expectedPreviousSha: input.previousBranchSha,
+			snapshot,
+		},
+		candidateGitHub(token, repo),
+	);
+}
+
+function candidateGitHub(
+	token: string,
+	repo: NonNullable<ReturnType<typeof readRepoContext>>,
+): CandidateGitHub {
+	return {
+		getBranchSha: (branch) => getBranchSha(token, repo, branch),
+		getCommit: (sha) => getGitCommit(token, repo, sha),
+		createBlob: (content) => createGitBlob(token, repo, content),
+		createTree: (baseTreeSha, entries) => createGitTree(token, repo, baseTreeSha, entries),
+		createCommit: (message, treeSha, parentSha) =>
+			createGitCommit(token, repo, message, treeSha, parentSha),
+		createBranch: (branch, commitSha) => createBranch(token, repo, branch, commitSha),
+		updateBranch: (branch, commitSha) => updateBranch(token, repo, branch, commitSha),
+	};
+}
+
+function reportPayload(
+	runId: string,
+	result: InvestigationResult | ImplementationResult,
+	pushed: boolean,
+	publication: CandidatePublication | null,
+	verification: readonly VerificationRecord[],
+) {
+	return {
+		result,
+		ok: true,
+		pushed,
+		runId,
+		publication,
+		verification: [...verification],
+	};
+}
+
+function withRunFailure<T extends InvestigationResult | ImplementationResult>(
+	result: T,
+	failure: RunFailure | null,
+): T & { failureStage?: RunFailure["stage"] } {
+	if (!failure) return result;
+	return {
+		...result,
+		failureStage: failure.stage,
+		summary: truncateSummary(`${result.summary}\n\n${failure.message}`),
+	};
+}
+
+function safeFailureMessage(error: unknown): string {
+	return errorMessage(error)
+		.replaceAll(/[\r\n]+/g, " ")
+		.slice(0, 500);
 }
 
 function buildPrompt(input: InvestigateData): string {
 	const argSection = input.arg ? ["", "## Directive", "", input.arg, ""].join("\n") : "";
 	const diagnose = input.mode === "diagnose";
+	const implement = input.mode === "implement";
 	const method = diagnose
 		? [
 				"- Read AGENTS.md, find the relevant code, and attempt to reproduce the bug.",
 				"- Diagnose the root cause. Do NOT write or push a fix -- this is investigation only.",
 				"- Report `reproduced` and put the diagnosis in `summary`. Use verdict `unclear` only when you are blocked on information that only the reporter can supply.",
 			]
-		: [
-				"- Read AGENTS.md, find the relevant code, attempt to reproduce, build, or revise.",
-				"- Write tests where they make sense.",
-				"- Touch only files relevant to the issue. Do not bulk-format or modify .github/workflows.",
-				`- When done, commit and push from a container: \`exec\` with target container running \`git checkout -B bot/fix-${input.issueNumber} && git add <files> && git commit -m '<message>' && git push -u origin HEAD --force-with-lease\`.`,
-				`- If you captured reproduction screenshots in \`.bot-artifacts/\`, keep them off the fix branch (\`git reset HEAD .bot-artifacts\` before committing) and push them to an orphan artifacts branch from a scratch tree: copy \`.bot-artifacts\` aside, \`git init -b bot/artifacts-${input.issueNumber}\`, add and commit only \`.bot-artifacts\`, then \`git push -u origin HEAD --force\`. Report each screenshot's basename and a one-line description in \`screenshots\`.`,
-			];
+		: implement
+			? [
+					"- Read AGENTS.md and implement the requested change directly; this mode has no bug-reproduction gate.",
+					"- Edit with edit_file/write_file. Use exec for exploration only and run every required final check with run_check.",
+					"- After all latest named checks pass, call publish_candidate with the commit message. Do not run git commit or git push.",
+					"- Call report_implementation exactly once. implemented=true is valid only after publish_candidate succeeds.",
+				]
+			: [
+					"- Read AGENTS.md, find the relevant code, attempt to reproduce, build, or revise.",
+					"- Write tests where they make sense.",
+					"- Touch only files relevant to the issue. Do not bulk-format or modify .github/workflows.",
+					"- Run every required final check with run_check; output pipelines and success fallbacks are rejected.",
+					"- When the change is verified, call publish_candidate. Do not run git commit or git push yourself.",
+					`- Reproduction screenshots may still be pushed only to \`bot/artifacts-${input.issueNumber}\`; keep \`.bot-artifacts/\` off the candidate branch and report each screenshot's basename and description.`,
+				];
 	const closing = diagnose
 		? "Call report_result exactly once when finished. Do not set fixed; report reproduced and your verdict with the diagnosis in summary."
-		: "Call report_result exactly once when finished. fixed may only be true if a fix and test passed and the branch was pushed.";
+		: implement
+			? "Call report_implementation exactly once when finished."
+			: "Call report_result exactly once when finished. fixed may only be true if the fix passed verification and publish_candidate succeeded.";
 	return [
 		`Investigate issue #${input.issueNumber} in mode: ${input.mode}.`,
 		"",

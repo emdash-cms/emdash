@@ -339,6 +339,162 @@ describe("SchemaRegistry", () => {
 			expect(field.required).toBe(true);
 		});
 
+		it("keeps an indexed field's physical index in sync", async () => {
+			const listFieldIndexes = async () =>
+				(
+					await sql<{ name: string }>`
+						SELECT name
+						FROM sqlite_master
+						WHERE type = 'index'
+							AND tbl_name = 'ec_posts'
+							AND name LIKE 'idx_cf_%'
+					`.execute(db)
+				).rows;
+
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+				indexed: true,
+			});
+
+			expect(field.indexed).toBe(true);
+			expect(await listFieldIndexes()).toHaveLength(2);
+
+			await registry.updateField("posts", "priority", { indexed: false });
+			expect(await listFieldIndexes()).toHaveLength(0);
+
+			await registry.updateField("posts", "priority", { indexed: true });
+			expect(await listFieldIndexes()).toHaveLength(2);
+
+			await registry.deleteField("posts", "priority");
+			expect(await listFieldIndexes()).toHaveLength(0);
+		});
+
+		it.each([
+			[true, false],
+			[false, true],
+		] as const)(
+			"keeps metadata and its physical index aligned when indexed changes from %s to %s during concurrent updates",
+			async (indexed, nextIndexed) => {
+				const field = await registry.createField("posts", {
+					slug: "priority",
+					label: "Priority",
+					type: "number",
+					indexed,
+				});
+				const indexName = `idx_cf_${field.id.toLowerCase()}`;
+
+				await Promise.all([
+					registry.updateField("posts", "priority", { indexed: nextIndexed }),
+					registry.updateField("posts", "priority", { label: "Updated priority" }),
+				]);
+
+				const updated = await registry.getField("posts", "priority");
+				const indexes = await sql<{ name: string }>`
+					SELECT name FROM sqlite_master
+					WHERE type = 'index' AND name LIKE ${`${indexName}%`}
+				`.execute(db);
+
+				expect(updated).toMatchObject({ label: "Updated priority", indexed: nextIndexed });
+				expect(indexes.rows).toHaveLength(nextIndexed ? 2 : 0);
+			},
+		);
+
+		it("drops the index when an indexed field moves to a type that cannot carry one", async () => {
+			await registry.createField("posts", {
+				slug: "summary",
+				label: "Summary",
+				type: "string",
+				indexed: true,
+			});
+
+			await expect(
+				registry.updateField("posts", "summary", { type: "text" }),
+			).rejects.toMatchObject({ code: "FIELD_NOT_INDEXABLE" });
+
+			const updated = await registry.updateField("posts", "summary", {
+				type: "text",
+				indexed: false,
+			});
+
+			expect(updated.type).toBe("text");
+			expect(updated.indexed).toBe(false);
+		});
+
+		it("reuses an existing generated index when enabling indexed metadata", async () => {
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+			});
+			const indexName = `idx_cf_${field.id.toLowerCase()}`;
+			const localeIndexName = `${indexName}_loc`;
+
+			await sql`
+				CREATE INDEX ${sql.ref(indexName)}
+				ON ec_posts ((priority IS NOT NULL), priority, id)
+				WHERE deleted_at IS NULL
+			`.execute(db);
+
+			await expect(
+				registry.updateField("posts", "priority", { indexed: true }),
+			).resolves.toMatchObject({ indexed: true });
+
+			const indexes = await sql<{ name: string }>`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name LIKE ${`${indexName}%`}
+			`.execute(db);
+			expect(indexes.rows.map((row) => row.name).toSorted()).toEqual(
+				[indexName, localeIndexName].toSorted(),
+			);
+		});
+
+		it("uses the generated index for indexed custom field ordering", async () => {
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+				indexed: true,
+			});
+			const indexName = `idx_cf_${field.id.toLowerCase()}`;
+			const localeIndexName = `${indexName}_loc`;
+
+			const ascending = await sql<{ detail: string }>`
+				EXPLAIN QUERY PLAN
+				SELECT * FROM ec_posts
+				WHERE deleted_at IS NULL
+					AND locale = 'en'
+				ORDER BY (priority IS NOT NULL) ASC, priority ASC, id ASC
+				LIMIT 51
+			`.execute(db);
+			const descending = await sql<{ detail: string }>`
+				EXPLAIN QUERY PLAN
+				SELECT * FROM ec_posts
+				WHERE deleted_at IS NULL
+					AND locale = 'en'
+				ORDER BY (priority IS NOT NULL) DESC, priority DESC, id DESC
+				LIMIT 51
+			`.execute(db);
+
+			for (const plan of [ascending, descending]) {
+				const details = plan.rows.map((row) => row.detail).join("\n");
+				expect(details).toContain(`USING INDEX ${localeIndexName}`);
+				expect(details).not.toContain("USE TEMP B-TREE");
+			}
+		});
+
+		it("rejects indexes for non-scalar fields", async () => {
+			await expect(
+				registry.createField("posts", {
+					slug: "body",
+					label: "Body",
+					type: "portableText",
+					indexed: true,
+				}),
+			).rejects.toMatchObject({ code: "FIELD_NOT_INDEXABLE" });
+		});
+
 		it("should add column to content table when creating field", async () => {
 			await registry.createField("posts", {
 				slug: "title",

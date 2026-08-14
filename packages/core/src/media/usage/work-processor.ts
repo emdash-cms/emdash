@@ -166,7 +166,10 @@ async function processCandidate(
 	}
 
 	const errorCode = processingErrorCode(refresh.errorCode);
-	if (claimed.attemptCount + 1 >= MEDIA_USAGE_WORK_PROCESSING_LIMITS.maxAttempts) {
+	const terminal =
+		errorCode === "MEDIA_USAGE_RESOURCE_LIMIT" ||
+		claimed.attemptCount + 1 >= MEDIA_USAGE_WORK_PROCESSING_LIMITS.maxAttempts;
+	if (terminal) {
 		const failed = await repo.failWork({ ...lease, errorCode });
 		if (failed) {
 			await new MediaUsageRepository(db).recordIncrementalFailure({
@@ -240,5 +243,6 @@ function processingErrorCode(errorCode: ContentMediaUsageRefreshErrorCode | unde
 	if (errorCode === "CONTENT_USAGE_GENERATION_CONFLICT") {
 		return "MEDIA_USAGE_GENERATION_CONFLICT";
 	}
+	if (errorCode === "CONTENT_USAGE_RESOURCE_LIMIT") return "MEDIA_USAGE_RESOURCE_LIMIT";
 	return "MEDIA_USAGE_PROCESSING_FAILED";
 }
