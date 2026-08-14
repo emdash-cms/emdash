@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchRevisions, restoreRevision, type Revision } from "../lib/api";
-import { cn, formatRelativeTime } from "../lib/utils";
+import { cn, formatRelativeTime, parseTimestamp } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 // =============================================================================
@@ -71,13 +71,15 @@ interface RevisionHistoryProps {
 	entryId: string;
 	/** Called when a revision is successfully restored */
 	onRestored?: () => void;
+	/** Reserve the inline end of the disclosure header for an external control. */
+	reserveHeaderEnd?: boolean;
 }
 
 /**
  * Format a date as a full timestamp
  */
 function formatFullDate(dateString: string): string {
-	return new Date(dateString).toLocaleString(undefined, {
+	return parseTimestamp(dateString).toLocaleString(undefined, {
 		weekday: "short",
 		year: "numeric",
 		month: "short",
@@ -91,7 +93,12 @@ function formatFullDate(dateString: string): string {
  * RevisionHistory component - displays revision history for a content item
  * with ability to restore previous versions.
  */
-export function RevisionHistory({ collection, entryId, onRestored }: RevisionHistoryProps) {
+export function RevisionHistory({
+	collection,
+	entryId,
+	onRestored,
+	reserveHeaderEnd = false,
+}: RevisionHistoryProps) {
 	const { t } = useLingui();
 	const [isExpanded, setIsExpanded] = React.useState(false);
 	const [selectedRevision, setSelectedRevision] = React.useState<Revision | null>(null);
@@ -149,7 +156,10 @@ export function RevisionHistory({ collection, entryId, onRestored }: RevisionHis
 							type="button"
 							variant="ghost"
 							className="relative justify-between"
-							style={{ width: "calc(100% + 1.5rem)", insetInlineStart: "-0.75rem" }}
+							style={{
+								width: reserveHeaderEnd ? "calc(100% - 1.5rem)" : "calc(100% + 1.5rem)",
+								insetInlineStart: "-0.75rem",
+							}}
 						/>
 					}
 				>
@@ -351,7 +361,7 @@ function RevisionDiffView({ older, newer }: RevisionDiffViewProps) {
 					<button
 						type="button"
 						onClick={() => setShowUnchanged(!showUnchanged)}
-						className="text-xs text-kumo-brand hover:underline"
+						className="text-xs text-kumo-link hover:underline"
 					>
 						{showUnchanged
 							? plural(unchangedCount, { one: "Hide # unchanged", other: "Hide # unchanged" })

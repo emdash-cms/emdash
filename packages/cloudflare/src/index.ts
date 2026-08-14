@@ -139,11 +139,11 @@ export interface HyperdriveConfig {
 	 * check, which must observe a write made moments earlier. Migrations and the
 	 * cold-start singleton always use `binding`.
 	 *
-	 * Anonymous reads of just-published content can be up to the cache's
-	 * `max_age` stale (Hyperdrive default 60s, max 1h), and this cache is
-	 * independent of EmDash's own cache invalidation — only opt in if a short
-	 * public-read staleness window is acceptable. Omit it and the adapter uses
-	 * the single primary binding as before.
+	 * After a content publish, EmDash prefers the primary uncached binding for
+	 * anonymous public reads for a short window (see
+	 * {@link preferUncachedAfterWriteMs}) so edge/object caches are not reseeded
+	 * from Hyperdrive's still-stale query results. Outside that window,
+	 * anonymous public reads use this cache-enabled binding.
 	 *
 	 * Bind both configs in wrangler:
 	 * ```jsonc
@@ -156,6 +156,19 @@ export interface HyperdriveConfig {
 	 * ```
 	 */
 	cachedBinding?: string;
+
+	/**
+	 * How long (ms) after a content write anonymous public reads should use the
+	 * primary uncached `binding` instead of `cachedBinding`. Set this equal to
+	 * your cached Hyperdrive configuration's `max_age` so the prefer-uncached
+	 * window covers the query-cache TTL. Cross-isolate coordination uses the
+	 * configured distributed Object Cache backend; without one, the timestamp
+	 * is known only inside the Worker isolate that handled the write.
+	 *
+	 * Only applies when `cachedBinding` is set. Default: `60_000` (Hyperdrive's
+	 * default `max_age`) when `cachedBinding` is set; ignored otherwise.
+	 */
+	preferUncachedAfterWriteMs?: number;
 
 	/**
 	 * Maximum size of the in-Worker node-postgres connection pool.
@@ -263,6 +276,7 @@ export function d1(config: D1Config): DatabaseDescriptor {
 		type: "sqlite",
 		supportsRequestScope: true,
 		supportsCoalescing: true,
+		supportsCollectionDeletionGuard: true,
 	};
 }
 
@@ -299,12 +313,18 @@ export function d1(config: D1Config): DatabaseDescriptor {
  *
  * **Optional: serve anonymous reads from cache.** If a short public-read
  * staleness window is acceptable, pass a second `cachedBinding` pointing at a
- * caching-enabled Hyperdrive config over the same database. Anonymous read
- * requests then route through the cache-enabled binding while authenticated
- * requests and writes stay on the uncached `binding`, keeping read-after-write
- * consistency intact:
+ * caching-enabled Hyperdrive config over the same database. Anonymous public
+ * reads then route through the cache-enabled binding while authenticated
+ * requests and writes stay on the uncached `binding`. For a short window after
+ * each content publish (default 60s; set `preferUncachedAfterWriteMs` to match
+ * your Hyperdrive `max_age`), anonymous public reads also use the primary so a
+ * rebuild cannot reseed edge caches from stale Hyperdrive results:
  * ```ts
- * database: hyperdrive({ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" })
+ * database: hyperdrive({
+ *   binding: "HYPERDRIVE",
+ *   cachedBinding: "HYPERDRIVE_CACHED",
+ *   // preferUncachedAfterWriteMs: 60_000, // default when cachedBinding is set
+ * })
  * ```
  *
  * For best latency, pair this with a Smart Placement hint so the Worker runs in
@@ -338,11 +358,18 @@ export function hyperdrive(config: HyperdriveConfig = {}): DatabaseDescriptor {
 			binding: config.binding ?? "HYPERDRIVE",
 			max: config.max,
 			...(config.cachedBinding !== undefined ? { cachedBinding: config.cachedBinding } : {}),
+			...(config.preferUncachedAfterWriteMs !== undefined
+				? { preferUncachedAfterWriteMs: config.preferUncachedAfterWriteMs }
+				: {}),
 		},
 		type: "postgres",
 		// Each request gets a fresh pg connection that is closed afterwards —
 		// connections cannot be reused across Worker requests.
 		supportsRequestScope: true,
+		...(config.cachedBinding &&
+		(config.preferUncachedAfterWriteMs === undefined || config.preferUncachedAfterWriteMs > 0)
+			? { needsLastContentWriteAt: true }
+			: {}),
 	};
 }
 
@@ -372,6 +399,7 @@ export function durableObjects(config: DurableObjectsConfig): DatabaseDescriptor
 		type: "sqlite",
 		supportsRequestScope: true,
 		supportsCoalescing: true,
+		supportsCollectionDeletionGuard: true,
 	};
 }
 
@@ -549,5 +577,7 @@ export function kvCache(config: KVCacheConfig): ObjectCacheDescriptor {
 export { cloudflareImages, type CloudflareImagesConfig } from "./media/images.js";
 export { cloudflareStream, type CloudflareStreamConfig } from "./media/stream.js";
 
-// Re-export cache provider config helper (config-time)
+// Legacy Cache API + zone REST purge provider (config-time). Prefer
+// cacheCloudflare() from @astrojs/cloudflare/cache with wrangler
+// "cache": { "enabled": true } for native Workers Caching.
 export { cloudflareCache, type CloudflareCacheConfig } from "./cache/config.js";

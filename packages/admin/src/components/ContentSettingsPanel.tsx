@@ -17,6 +17,7 @@ import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
 import type {
+	AdminManifest,
 	BylineCreditInput,
 	BylineSummary,
 	ContentItem,
@@ -25,10 +26,19 @@ import type {
 	UserListItem,
 } from "../lib/api";
 import { fetchBylines } from "../lib/api";
+import {
+	ContentEditorPanelBoundary,
+	resolveContentEditorPanels,
+} from "../lib/content-editor-panels";
+import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { useDebouncedValue } from "../lib/hooks.js";
-import { slugify } from "../lib/utils";
+import { usePluginAdmins } from "../lib/plugin-context";
+import { cn, parseTimestamp, slugify } from "../lib/utils";
 import type { CurrentUserInfo } from "./ContentEditor.js";
+import { ContentStatusBadge, isContentStatusState } from "./ContentStatusBadge.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
+import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
+import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
@@ -36,7 +46,11 @@ import { RevisionHistory } from "./RevisionHistory";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton";
 import { SeoPanel } from "./SeoPanel";
-import { TaxonomySidebar } from "./TaxonomySidebar";
+import {
+	SortableContentSettingsSection,
+	SortableContentSettingsSections,
+} from "./SortableContentSettingsSections.js";
+import { TaxonomySidebar, useHasApplicableTaxonomies } from "./TaxonomySidebar";
 import { TranslationsPanel } from "./TranslationsPanel.js";
 
 // Editor role level (40) from @emdash-cms/auth
@@ -45,7 +59,7 @@ const ROLE_EDITOR = 40;
 /** Format scheduled date for display */
 function formatScheduledDate(dateStr: string | null) {
 	if (!dateStr) return null;
-	const date = new Date(dateStr);
+	const date = parseTimestamp(dateStr);
 	return date.toLocaleString();
 }
 
@@ -180,14 +194,14 @@ export function PublishActions({
 	if (!isLive) {
 		return (
 			<Button type="button" variant="primary" size={size} onClick={onPublish} icon={<Upload />}>
-				{t`Publish ${itemLabel}`}
+				{t`Publish`}
 			</Button>
 		);
 	}
 	if (hasPendingChanges) {
 		return (
 			<Button type="button" variant="primary" size={size} onClick={onPublish} icon={<Upload />}>
-				{t`Publish updates`}
+				{t`Publish`}
 			</Button>
 		);
 	}
@@ -282,6 +296,7 @@ export interface ContentSettingsPanelProps {
 	collection: string;
 	item?: ContentItem | null;
 	isNew?: boolean;
+	manifest?: AdminManifest | null;
 	/** Locale this entry is bound to (URL `?locale=` for new entries). */
 	entryLocale?: string | null;
 	slug: string;
@@ -296,6 +311,8 @@ export interface ContentSettingsPanelProps {
 	onSchedule?: (scheduledAt: string) => void;
 	onUnschedule?: () => void;
 	isScheduling?: boolean;
+	onPublishedAtChange?: (publishedAt: string) => void;
+	isUpdatingPublishedAt?: boolean;
 	onDiscardDraft?: () => void;
 	onDelete?: () => void;
 	isDeleting?: boolean;
@@ -336,6 +353,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	collection,
 	item,
 	isNew,
+	manifest,
 	entryLocale,
 	slug,
 	onSlugChange,
@@ -349,6 +367,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onSchedule,
 	onUnschedule,
 	isScheduling,
+	onPublishedAtChange,
+	isUpdatingPublishedAt,
 	onDiscardDraft,
 	onDelete,
 	isDeleting,
@@ -371,12 +391,35 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onBlockSidebarClose,
 	onBlockSidebarDelete,
 }: ContentSettingsPanelProps) {
-	const { t } = useLingui();
+	const { t, i18n: lingui } = useLingui();
 	const navigate = useNavigate();
+	const pluginAdmins = usePluginAdmins();
+	const extensionPanels = React.useMemo(
+		() =>
+			!isNew && item
+				? resolveContentEditorPanels(
+						pluginAdmins,
+						collection,
+						currentUser?.role ?? 0,
+						manifest?.plugins,
+					)
+				: [],
+		[collection, currentUser?.role, isNew, item, manifest?.plugins, pluginAdmins],
+	);
 
 	const [scheduleDate, setScheduleDate] = React.useState<string>("");
 	const [showScheduler, setShowScheduler] = React.useState(false);
+	const storedPublishedDate = toDatetimeLocalInputValue(item?.publishedAt);
+	const [publishedDate, setPublishedDate] = React.useState(storedPublishedDate);
+	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
+	const hasApplicableTaxonomies = useHasApplicableTaxonomies(collection);
+	const canUpdatePublishedDate =
+		item?.publishedAt != null && (currentUser?.role ?? 0) >= ROLE_EDITOR && !!onPublishedAtChange;
+
+	React.useEffect(() => {
+		setPublishedDate(storedPublishedDate);
+	}, [item?.id, storedPublishedDate]);
 
 	const handleScheduleSubmit = () => {
 		if (scheduleDate && onSchedule) {
@@ -384,6 +427,12 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			onSchedule(date.toISOString());
 			setShowScheduler(false);
 			setScheduleDate("");
+		}
+	};
+
+	const handlePublishedDateSubmit = () => {
+		if (publishedDate && onPublishedAtChange) {
+			onPublishedAtChange(fromDatetimeLocalInputValue(publishedDate));
 		}
 	};
 
@@ -402,6 +451,16 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 					inline
 				/>
 			</div>
+		) : blockSidebarPanel.type === "gallery" ? (
+			<div className="p-4">
+				<GalleryDetailPanel
+					attributes={blockSidebarPanel.attrs as unknown as GalleryAttributes}
+					onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
+					onDelete={onBlockSidebarDelete}
+					onClose={onBlockSidebarClose}
+					inline
+				/>
+			</div>
 		) : null;
 	}
 
@@ -409,209 +468,296 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		// The Kumo Sidebar wrapper sets `whitespace-nowrap` for its collapse
 		// animation, which would stop long field descriptions from wrapping.
 		<div className="flex flex-col whitespace-normal">
-			<div className="p-4">
-				<Text bold as="h3" DANGEROUS_className="mb-4">
-					{t`Publish`}
-				</Text>
-				<div className="space-y-4">
-					<Input
-						label={t`Slug`}
-						value={slug}
-						onChange={(e) => onSlugChange(e.target.value)}
-						placeholder="my-post-slug"
-					/>
-					<div>
-						<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-							<Label>{t`Status`}</Label>
-							{supportsDrafts ? (
-								<>
-									{isLive && <Badge variant="success">{t`Published`}</Badge>}
-									{hasPendingChanges && <Badge variant="secondary">{t`Pending changes`}</Badge>}
-									{!isLive && !hasSchedule && <Badge variant="secondary">{t`Draft`}</Badge>}
-									{hasSchedule && <Badge variant="outline">{t`Scheduled`}</Badge>}
-								</>
-							) : (
-								<Badge variant="secondary">
-									{status.charAt(0).toUpperCase() + status.slice(1)}
-								</Badge>
-							)}
-						</div>
-						{showDiscard && (
-							<div className="mt-2">
-								<DiscardDraftDialog
-									onDiscard={onDiscardDraft}
-									triggerVariant="outline"
-									triggerSize="sm"
-								/>
+			<SortableContentSettingsSections
+				collection={collection}
+				userId={currentUser?.id}
+				onSortingChange={setIsReorderingSections}
+			>
+				<SortableContentSettingsSection id="publish" label={t`Publish`}>
+					<div className="p-4">
+						<Text bold as="h3" DANGEROUS_className="mb-4">
+							{t`Publish`}
+						</Text>
+						<div className="space-y-4">
+							<Input
+								label={t`Slug`}
+								value={slug}
+								onChange={(e) => onSlugChange(e.target.value)}
+								placeholder="my-post-slug"
+							/>
+							<div>
+								<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+									<Label>{t`Status`}</Label>
+									{supportsDrafts ? (
+										<>
+											{isLive && <ContentStatusBadge state="published" />}
+											{hasPendingChanges && <ContentStatusBadge state="pendingChanges" />}
+											{!isLive && !hasSchedule && <ContentStatusBadge state="draft" />}
+											{hasSchedule && <ContentStatusBadge state="scheduled" />}
+										</>
+									) : isContentStatusState(status) ? (
+										<ContentStatusBadge state={status} />
+									) : (
+										<Badge variant="secondary">
+											{status.charAt(0).toUpperCase() + status.slice(1)}
+										</Badge>
+									)}
+								</div>
+								{showDiscard && (
+									<div className="mt-2">
+										<DiscardDraftDialog
+											onDiscard={onDiscardDraft}
+											triggerVariant="outline"
+											triggerSize="sm"
+										/>
+									</div>
+								)}
 							</div>
-						)}
-					</div>
-					{item?.scheduledAt && (
-						<div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2">
-							<p className="text-xs text-kumo-subtle">{t`Scheduled for: ${formatScheduledDate(item.scheduledAt)}`}</p>
-							<Button type="button" variant="outline" size="sm" onClick={onUnschedule}>
-								{t`Unschedule`}
-							</Button>
-						</div>
-					)}
+							{item?.scheduledAt && (
+								<div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2">
+									<p className="text-xs text-kumo-subtle">{t`Scheduled for: ${formatScheduledDate(item.scheduledAt)}`}</p>
+									<Button type="button" variant="outline" size="sm" onClick={onUnschedule}>
+										{t`Unschedule`}
+									</Button>
+								</div>
+							)}
 
-					{canSchedule && (
-						<div className="pt-2">
-							{showScheduler ? (
-								<div className="space-y-2">
-									<Input
-										label={t`Schedule for`}
-										type="datetime-local"
-										value={scheduleDate}
-										onChange={(e) => setScheduleDate(e.target.value)}
-										min={new Date().toISOString().slice(0, 16)}
-									/>
-									<div className="flex gap-2">
-										<Button
-											type="button"
-											size="sm"
-											onClick={handleScheduleSubmit}
-											disabled={!scheduleDate || isScheduling}
-											icon={isScheduling ? <Loader size="sm" /> : undefined}
-										>
-											{t`Schedule`}
-										</Button>
+							{canSchedule && (
+								<div className="pt-2">
+									{showScheduler ? (
+										<div className="space-y-2">
+											<Input
+												label={t`Schedule for`}
+												type="datetime-local"
+												value={scheduleDate}
+												onChange={(e) => setScheduleDate(e.target.value)}
+												min={new Date().toISOString().slice(0, 16)}
+											/>
+											<div className="flex gap-2">
+												<Button
+													type="button"
+													size="sm"
+													onClick={handleScheduleSubmit}
+													disabled={!scheduleDate || isScheduling}
+													icon={isScheduling ? <Loader size="sm" /> : undefined}
+												>
+													{t`Schedule`}
+												</Button>
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() => {
+														setShowScheduler(false);
+														setScheduleDate("");
+													}}
+												>
+													{t`Cancel`}
+												</Button>
+											</div>
+										</div>
+									) : (
 										<Button
 											type="button"
 											variant="outline"
 											size="sm"
-											onClick={() => {
-												setShowScheduler(false);
-												setScheduleDate("");
-											}}
+											className="w-full"
+											onClick={() => setShowScheduler(true)}
 										>
-											{t`Cancel`}
+											{t`Schedule for later`}
 										</Button>
-									</div>
+									)}
 								</div>
-							) : (
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									className="w-full"
-									onClick={() => setShowScheduler(true)}
-								>
-									{t`Schedule for later`}
-								</Button>
+							)}
+
+							{canUpdatePublishedDate && (
+								<div className="space-y-2 pt-2">
+									<Input
+										label={t`Publish date`}
+										type="datetime-local"
+										value={publishedDate}
+										onChange={(event) => setPublishedDate(event.target.value)}
+										disabled={isUpdatingPublishedAt}
+									/>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={handlePublishedDateSubmit}
+										disabled={
+											!publishedDate ||
+											publishedDate === storedPublishedDate ||
+											isUpdatingPublishedAt
+										}
+										icon={isUpdatingPublishedAt ? <Loader size="sm" /> : undefined}
+									>
+										{t`Update publish date`}
+									</Button>
+								</div>
 							)}
 						</div>
-					)}
-				</div>
 
-				{item && (
-					<dl
-						data-testid="content-timestamps"
-						className="mt-4 border-t pt-4 space-y-1 text-xs text-kumo-subtle"
-					>
-						<div className="flex items-center justify-between gap-2">
-							<dt>{t`Created`}</dt>
-							<dd>{new Date(item.createdAt).toLocaleString()}</dd>
+						{item && (
+							<dl
+								data-testid="content-timestamps"
+								className="mt-4 border-t pt-4 space-y-1 text-xs text-kumo-subtle"
+							>
+								<div className="flex items-center justify-between gap-2">
+									<dt>{t`Created`}</dt>
+									<dd>{parseTimestamp(item.createdAt).toLocaleString()}</dd>
+								</div>
+								<div className="flex items-center justify-between gap-2">
+									<dt>{t`Updated`}</dt>
+									<dd>{parseTimestamp(item.updatedAt).toLocaleString()}</dd>
+								</div>
+							</dl>
+						)}
+					</div>
+				</SortableContentSettingsSection>
+
+				{currentUser && currentUser.role >= ROLE_EDITOR && users && users.length > 0 && (
+					<SortableContentSettingsSection id="ownership" label={t`Ownership`}>
+						<div className="p-4">
+							<Text bold as="h3" DANGEROUS_className="mb-4">
+								{t`Ownership`}
+							</Text>
+							<AuthorSelector
+								authorId={item?.authorId || null}
+								users={users}
+								onChange={onAuthorChange}
+							/>
 						</div>
-						<div className="flex items-center justify-between gap-2">
-							<dt>{t`Updated`}</dt>
-							<dd>{new Date(item.updatedAt).toLocaleString()}</dd>
-						</div>
-					</dl>
+					</SortableContentSettingsSection>
 				)}
-			</div>
 
-			{currentUser && currentUser.role >= ROLE_EDITOR && users && users.length > 0 && (
-				<div className="p-4 border-t">
-					<Text bold as="h3" DANGEROUS_className="mb-4">
-						{t`Ownership`}
-					</Text>
-					<AuthorSelector
-						authorId={item?.authorId || null}
-						users={users}
-						onChange={onAuthorChange}
-					/>
-				</div>
-			)}
+				{currentUser && currentUser.role >= ROLE_EDITOR && (
+					<SortableContentSettingsSection id="bylines" label={t`Bylines`}>
+						<div className="p-4">
+							<Text bold as="h3" DANGEROUS_className="mb-4">
+								{t`Bylines`}
+							</Text>
+							<BylineCreditsEditor
+								credits={activeBylines}
+								bylines={availableBylines ?? []}
+								selectedBylineDetails={item?.bylines?.map((entry) => entry.byline)}
+								bylinesLoaded={availableBylinesLoaded}
+								onChange={onBylinesChange}
+								onQuickCreate={onQuickCreateByline}
+								onQuickEdit={onQuickEditByline}
+								// Existing entry: use its own locale. New entry: use the
+								// URL `?locale=` (passed in via `entryLocale`).
+								entryLocale={item?.locale ?? entryLocale}
+								i18n={i18n}
+							/>
+						</div>
+					</SortableContentSettingsSection>
+				)}
 
-			{currentUser && currentUser.role >= ROLE_EDITOR && (
-				<div className="p-4 border-t">
-					<Text bold as="h3" DANGEROUS_className="mb-4">
-						{t`Bylines`}
-					</Text>
-					<BylineCreditsEditor
-						credits={activeBylines}
-						bylines={availableBylines ?? []}
-						selectedBylineDetails={item?.bylines?.map((entry) => entry.byline)}
-						bylinesLoaded={availableBylinesLoaded}
-						onChange={onBylinesChange}
-						onQuickCreate={onQuickCreateByline}
-						onQuickEdit={onQuickEditByline}
-						// Existing entry: use its own locale. New entry: use the
-						// URL `?locale=` (passed in via `entryLocale`).
-						entryLocale={item?.locale ?? entryLocale}
-						i18n={i18n}
-					/>
-				</div>
-			)}
+				{i18n && item && !isNew && (
+					<SortableContentSettingsSection id="translations" label={t`Translations`}>
+						<div className="p-4">
+							<TranslationsPanel
+								locales={i18n.locales}
+								defaultLocale={i18n.defaultLocale}
+								currentLocale={item.locale ?? undefined}
+								translations={translations ?? []}
+								onOpen={(tr) =>
+									navigate({
+										to: "/content/$collection/$id",
+										params: { collection, id: tr.id },
+										search: { locale: tr.locale },
+									})
+								}
+								onCreate={onTranslate}
+							/>
+						</div>
+					</SortableContentSettingsSection>
+				)}
 
-			{i18n && item && !isNew && (
-				<div className="p-4 border-t">
-					<TranslationsPanel
-						locales={i18n.locales}
-						defaultLocale={i18n.defaultLocale}
-						currentLocale={item.locale ?? undefined}
-						translations={translations ?? []}
-						onOpen={(tr) =>
-							navigate({
-								to: "/content/$collection/$id",
-								params: { collection, id: tr.id },
-								search: { locale: tr.locale },
-							})
-						}
-						onCreate={onTranslate}
-					/>
-				</div>
-			)}
+				{/* Do not register an empty sortable row when this collection has no taxonomies. */}
+				{item && hasApplicableTaxonomies && (
+					<SortableContentSettingsSection id="taxonomies" label={t`Taxonomies`}>
+						<TaxonomySidebar
+							className="p-4"
+							collection={collection}
+							entryId={item.id}
+							entryLocale={item.locale ?? entryLocale}
+						/>
+					</SortableContentSettingsSection>
+				)}
 
-			{/* Taxonomy selector — renders nothing (no chrome) when no taxonomies
-			    apply to this collection, so it owns its own section border. */}
-			{item && (
-				<TaxonomySidebar
-					className="p-4 border-t"
-					collection={collection}
-					entryId={item.id}
-					entryLocale={item.locale ?? entryLocale}
-				/>
-			)}
+				{hasSeo && !isNew && onSeoChange && (
+					<SortableContentSettingsSection id="seo" label={t`SEO`}>
+						<div className="p-4">
+							<Text bold as="h3" DANGEROUS_className="mb-4">
+								{t`SEO`}
+							</Text>
+							<SeoPanel
+								contentKey={item?.id ?? `new:${collection}`}
+								seo={item?.seo}
+								onChange={onSeoChange}
+								defaultTitle={typeof item?.data?.title === "string" ? item.data.title : null}
+								defaultDescription={
+									typeof item?.data?.excerpt === "string" ? item.data.excerpt : null
+								}
+							/>
+						</div>
+					</SortableContentSettingsSection>
+				)}
 
-			{hasSeo && !isNew && onSeoChange && (
-				<div className="p-4 border-t">
-					<Text bold as="h3" DANGEROUS_className="mb-4">
-						{t`SEO`}
-					</Text>
-					<SeoPanel
-						contentKey={item?.id ?? `new:${collection}`}
-						seo={item?.seo}
-						onChange={onSeoChange}
-					/>
-				</div>
-			)}
+				{item &&
+					extensionPanels.map(({ pluginId, extension }) => {
+						const Panel = extension.component;
+						const sectionId = `plugin:${pluginId}:${extension.id}`;
+						const title = lingui._({ id: extension.title, message: extension.title });
 
-			{portableTextEditor && (
-				<div className="p-4 border-t">
-					<DocumentOutline editor={portableTextEditor} />
-				</div>
-			)}
+						return (
+							<SortableContentSettingsSection key={sectionId} id={sectionId} label={title}>
+								<div className="min-w-0 p-4">
+									<Text bold as="h3" DANGEROUS_className="mb-4">
+										{title}
+									</Text>
+									<ContentEditorPanelBoundary
+										key={`${collection}:${item.id}`}
+										pluginId={pluginId}
+										panelId={extension.id}
+									>
+										<div className="min-w-0 max-w-full">
+											<Panel
+												collection={collection}
+												entry={item}
+												locale={item.locale ?? entryLocale ?? undefined}
+											/>
+										</div>
+									</ContentEditorPanelBoundary>
+								</div>
+							</SortableContentSettingsSection>
+						);
+					})}
 
-			{!isNew && item && supportsRevisions && (
-				<div className="p-4 border-t">
-					<RevisionHistory collection={collection} entryId={item.id} />
-				</div>
-			)}
+				{portableTextEditor && (
+					<SortableContentSettingsSection id="outline" label={t`Outline`} disclosure>
+						<div className="p-4">
+							<DocumentOutline editor={portableTextEditor} reserveHeaderEnd />
+						</div>
+					</SortableContentSettingsSection>
+				)}
+
+				{!isNew && item && supportsRevisions && (
+					<SortableContentSettingsSection id="revisions" label={t`Revisions`} disclosure>
+						<div className="p-4">
+							<RevisionHistory collection={collection} entryId={item.id} reserveHeaderEnd />
+						</div>
+					</SortableContentSettingsSection>
+				)}
+			</SortableContentSettingsSections>
 
 			{!isNew && onDelete && (
-				<div className="border-t p-4">
+				<div
+					data-testid="content-trash-actions"
+					aria-hidden={isReorderingSections || undefined}
+					className={cn("border-t p-4", isReorderingSections && "invisible pointer-events-none")}
+				>
 					<Dialog.Root disablePointerDismissal>
 						<Dialog.Trigger
 							render={(p) => (

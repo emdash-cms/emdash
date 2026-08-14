@@ -1,7 +1,7 @@
 import { z, type ZodTypeAny } from "zod";
 
 import { hashString } from "../utils/hash.js";
-import type { Field, FieldType, CollectionWithFields } from "./types.js";
+import type { CollectionWithFields, Field, FieldType, RepeaterSubField } from "./types.js";
 
 /** Pattern to split on underscores, hyphens, and spaces for PascalCase conversion */
 const PASCAL_CASE_SPLIT_PATTERN = /[_\-\s]+/;
@@ -58,7 +58,7 @@ export function generateFieldSchema(field: Field): ZodTypeAny {
 /**
  * Get base Zod schema for a field type
  */
-function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
+function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTypeAny {
 	switch (type) {
 		case "url":
 			return z.string().url();
@@ -114,6 +114,9 @@ function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 			return z.array(z.string());
 		}
 
+		case "repeater":
+			return z.array(generateRepeaterRowSchema(field.validation?.subFields ?? []));
+
 		case "portableText":
 			// Portable Text is an array of blocks. We require `_type` because
 			// renderers dispatch on it, but `_key` is intentionally optional:
@@ -139,6 +142,10 @@ function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 				alt: z.string().optional(),
 				width: z.number().optional(),
 				height: z.number().optional(),
+				filename: z.string().optional(),
+				mimeType: z.string().optional(),
+				blurhash: z.string().optional(),
+				dominantColor: z.string().optional(),
 				/** Provider ID (e.g. "local", "cloudflare-images") */
 				provider: z.string().optional(),
 				/** Admin-side preview URL for external providers (not persisted by plugins) */
@@ -169,6 +176,29 @@ function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 		default:
 			return z.unknown();
 	}
+}
+
+function generateRepeaterRowSchema(
+	subFields: readonly RepeaterSubField[],
+): z.ZodObject<Record<string, ZodTypeAny>> {
+	const shape: Record<string, ZodTypeAny> = {};
+
+	for (const subField of subFields) {
+		let schema = getBaseSchema(subField.type, {
+			validation: subField.options ? { options: subField.options } : undefined,
+		});
+
+		if (subField.required && schema instanceof z.ZodString) {
+			schema = schema.min(1, "required (empty value not allowed)");
+		}
+		if (!subField.required) {
+			schema = schema.nullish();
+		}
+
+		shape[subField.slug] = schema;
+	}
+
+	return z.object(shape).passthrough();
 }
 
 /**
@@ -203,6 +233,17 @@ function applyValidation(schema: ZodTypeAny, field: Field): ZodTypeAny {
 			numSchema = numSchema.max(validation.max);
 		}
 		return numSchema;
+	}
+
+	if (field.type === "repeater" && schema instanceof z.ZodArray) {
+		let arraySchema = schema;
+		if (validation.minItems !== undefined) {
+			arraySchema = arraySchema.min(validation.minItems);
+		}
+		if (validation.maxItems !== undefined) {
+			arraySchema = arraySchema.max(validation.maxItems);
+		}
+		return arraySchema;
 	}
 
 	return schema;
@@ -412,7 +453,7 @@ function fieldTypeToTypeScript(field: Field): string {
 			return "PortableTextBlock[]";
 
 		case "image":
-			return "{ id: string; src?: string; alt?: string; width?: number; height?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
+			return "{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
 
 		case "file":
 			return "{ id: string; src?: string; filename?: string; mimeType?: string; size?: number; provider?: string; meta?: Record<string, unknown> }";

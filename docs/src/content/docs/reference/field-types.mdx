@@ -386,11 +386,17 @@ All fields support these common properties:
 | `type`         | `FieldType` | Field type (required)               |
 | `required`     | `boolean`   | Require a value (default: false)    |
 | `unique`       | `boolean`   | Enforce uniqueness (default: false) |
+| `indexed`      | `boolean`   | Enable indexed custom-field sorting |
 | `defaultValue` | `unknown`   | Default value for new entries       |
 | `validation`   | `object`    | Type-specific validation rules      |
 | `widget`       | `string`    | Custom widget override              |
 | `options`      | `object`    | Widget configuration                |
 | `sortOrder`    | `number`    | Display order in admin              |
+
+`indexed` is available for scalar fields: `string`, `url`, `number`, `integer`, `boolean`,
+`datetime`, `select`, `reference`, and `slug`. An indexed field can be passed as the `orderBy`
+field in content list queries. Avoid indexing fields that are not used for sorting because every
+index adds storage and write overhead.
 
 ## Reserved field slugs
 

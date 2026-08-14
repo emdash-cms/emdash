@@ -395,16 +395,9 @@ export async function importContent(
 				// Anchors (no `translationOf`) get an additive attach -- the
 				// row is fresh, no inherited pivots to consider.
 				//
-				// Translations get per-taxonomy replace semantics. WPML's
-				// "Translate Independently" mode is per-taxonomy, not per-
-				// post: a translation that overrides `category` shouldn't
-				// lose its inherited `tag` or `genre`. The replace path
-				// only touches taxonomies the translation actually carries
-				// AND that resolve to at least one term that survives the
-				// def's `collections` filter; taxonomies with no resolved
-				// terms (missing-def, dropped by filter, or just absent
-				// from the WXR) fall through with the inherited set intact
-				// from `copyEntryTerms`.
+				// Translations replace only taxonomies they explicitly carry.
+				// Since assignments belong to the content translation_group,
+				// that replacement is reflected in every sibling locale.
 				if (createdItem) {
 					try {
 						const written = translationOf

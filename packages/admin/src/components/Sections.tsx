@@ -131,8 +131,8 @@ export function Sections() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold">{t`Sections`}</h1>
-					<p className="text-kumo-subtle">
+					<h1 className="text-2xl font-semibold leading-tight">{t`Sections`}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
 						{t`Reusable content blocks you can insert into any content`}
 					</p>
 				</div>

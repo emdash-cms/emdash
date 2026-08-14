@@ -101,8 +101,10 @@ export function MenuList() {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between gap-4 flex-wrap">
 				<div>
-					<h1 className="text-3xl font-bold">{t`Menus`}</h1>
-					<p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Menus`}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+						{t`Manage navigation menus for your site`}
+					</p>
 				</div>
 				<div className="flex items-center gap-2">
 					{i18n && activeLocale ? (

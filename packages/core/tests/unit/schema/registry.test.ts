@@ -95,6 +95,98 @@ describe("SchemaRegistry", () => {
 			expect(collections.map((c) => c.slug)).toEqual(["pages", "posts"]); // sorted
 		});
 
+		describe("sidebar sort order", () => {
+			it("has no explicit order by default", async () => {
+				const collection = await registry.createCollection({ slug: "posts", label: "Posts" });
+
+				expect(collection.sortOrder).toBeUndefined();
+			});
+
+			it("lists explicitly ordered collections first, then the rest alphabetically", async () => {
+				// `projects` sorts last alphabetically but is pinned first;
+				// `education`/`certifications` have no position and keep the
+				// alphabetical fallback behind it.
+				await registry.createCollection({ slug: "education", label: "Education" });
+				await registry.createCollection({ slug: "projects", label: "Projects", sortOrder: 0 });
+				await registry.createCollection({ slug: "certifications", label: "Certifications" });
+				await registry.createCollection({ slug: "positions", label: "Positions", sortOrder: 1 });
+
+				const collections = await registry.listCollections();
+
+				expect(collections.map((c) => c.slug)).toEqual([
+					"projects",
+					"positions",
+					"certifications",
+					"education",
+				]);
+			});
+
+			it("applies the same order to listCollectionsWithFields (the manifest path)", async () => {
+				await registry.createCollection({ slug: "education", label: "Education" });
+				await registry.createCollection({ slug: "projects", label: "Projects", sortOrder: 0 });
+
+				const collections = await registry.listCollectionsWithFields();
+
+				expect(collections.map((c) => c.slug)).toEqual(["projects", "education"]);
+			});
+
+			it("reorderCollections assigns positions in the given order", async () => {
+				await registry.createCollection({ slug: "posts", label: "Posts" });
+				await registry.createCollection({ slug: "pages", label: "Pages" });
+				await registry.createCollection({ slug: "authors", label: "Authors" });
+
+				await registry.reorderCollections(["posts", "authors", "pages"]);
+
+				const collections = await registry.listCollections();
+				expect(collections.map((c) => c.slug)).toEqual(["posts", "authors", "pages"]);
+				expect(collections.map((c) => c.sortOrder)).toEqual([0, 1, 2]);
+			});
+
+			it("reorderCollections clears the position of collections left out", async () => {
+				await registry.createCollection({ slug: "posts", label: "Posts", sortOrder: 0 });
+				await registry.createCollection({ slug: "pages", label: "Pages", sortOrder: 1 });
+
+				await registry.reorderCollections(["pages"]);
+
+				// `posts` loses its pin and falls back to the alphabetical tail,
+				// so it must sort *after* the still-ordered `pages`.
+				const collections = await registry.listCollections();
+				expect(collections.map((c) => c.slug)).toEqual(["pages", "posts"]);
+				expect(await registry.getCollection("posts").then((c) => c?.sortOrder)).toBeUndefined();
+			});
+
+			it("reorderCollections rejects unknown slugs without touching the order", async () => {
+				await registry.createCollection({ slug: "posts", label: "Posts" });
+				await registry.createCollection({ slug: "pages", label: "Pages" });
+
+				await expect(registry.reorderCollections(["posts", "ghosts"])).rejects.toThrow(SchemaError);
+
+				const collections = await registry.listCollections();
+				expect(collections.map((c) => c.sortOrder)).toEqual([undefined, undefined]);
+			});
+
+			it("reorderCollections rejects duplicate slugs", async () => {
+				await registry.createCollection({ slug: "posts", label: "Posts" });
+
+				await expect(registry.reorderCollections(["posts", "posts"])).rejects.toThrow(SchemaError);
+			});
+
+			it("update preserves the position when sortOrder is omitted, and clears it on null", async () => {
+				await registry.createCollection({ slug: "posts", label: "Posts", sortOrder: 3 });
+
+				expect((await registry.updateCollection("posts", { label: "Blog" })).sortOrder).toBe(3);
+				expect((await registry.updateCollection("posts", { sortOrder: null })).sortOrder).toBe(
+					undefined,
+				);
+			});
+
+			it("rejects `reorder` as a collection slug (shadowed by the reorder route)", async () => {
+				await expect(
+					registry.createCollection({ slug: "reorder", label: "Reorder" }),
+				).rejects.toThrow(SchemaError);
+			});
+		});
+
 		it("should get a collection by slug", async () => {
 			await registry.createCollection({
 				slug: "products",
@@ -126,6 +218,57 @@ describe("SchemaRegistry", () => {
 			expect(updated.label).toBe("Blog Posts");
 			expect(updated.description).toBe("All blog posts");
 			expect(updated.supports).toEqual(["drafts"]);
+		});
+
+		it("collections are visible in the sidebar by default", async () => {
+			const collection = await registry.createCollection({ slug: "posts", label: "Posts" });
+
+			expect(collection.hidden).toBe(false);
+		});
+
+		it("creates a collection hidden from the sidebar", async () => {
+			const collection = await registry.createCollection({
+				slug: "contact_submissions",
+				label: "Contact Submissions",
+				hidden: true,
+			});
+
+			expect(collection.hidden).toBe(true);
+			// A hidden collection is only hidden from the sidebar — it must still
+			// be listed by the registry so its routes, editor, API, and MCP tools
+			// keep resolving.
+			const listed = await registry.listCollections();
+			expect(listed.map((c) => c.slug)).toContain("contact_submissions");
+			expect(await registry.getCollection("contact_submissions")).not.toBeNull();
+		});
+
+		it("toggles hidden on an existing collection", async () => {
+			await registry.createCollection({ slug: "posts", label: "Posts" });
+
+			expect((await registry.updateCollection("posts", { hidden: true })).hidden).toBe(true);
+			expect((await registry.updateCollection("posts", { hidden: false })).hidden).toBe(false);
+		});
+
+		it("preserves hidden when an update omits it", async () => {
+			await registry.createCollection({ slug: "posts", label: "Posts", hidden: true });
+
+			const updated = await registry.updateCollection("posts", { label: "Blog Posts" });
+
+			expect(updated.label).toBe("Blog Posts");
+			expect(updated.hidden).toBe(true);
+		});
+
+		it("persists collection admin list columns", async () => {
+			const created = await registry.createCollection({
+				slug: "tickets",
+				label: "Tickets",
+				admin: { listColumns: ["ticket_number", "priority"] },
+			});
+
+			expect(created.admin?.listColumns).toEqual(["ticket_number", "priority"]);
+
+			const updated = await registry.updateCollection("tickets", { label: "Support tickets" });
+			expect(updated.admin?.listColumns).toEqual(["ticket_number", "priority"]);
 		});
 
 		it("should throw when updating non-existent collection", async () => {
@@ -194,6 +337,162 @@ describe("SchemaRegistry", () => {
 			expect(field.type).toBe("string");
 			expect(field.columnType).toBe("TEXT");
 			expect(field.required).toBe(true);
+		});
+
+		it("keeps an indexed field's physical index in sync", async () => {
+			const listFieldIndexes = async () =>
+				(
+					await sql<{ name: string }>`
+						SELECT name
+						FROM sqlite_master
+						WHERE type = 'index'
+							AND tbl_name = 'ec_posts'
+							AND name LIKE 'idx_cf_%'
+					`.execute(db)
+				).rows;
+
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+				indexed: true,
+			});
+
+			expect(field.indexed).toBe(true);
+			expect(await listFieldIndexes()).toHaveLength(2);
+
+			await registry.updateField("posts", "priority", { indexed: false });
+			expect(await listFieldIndexes()).toHaveLength(0);
+
+			await registry.updateField("posts", "priority", { indexed: true });
+			expect(await listFieldIndexes()).toHaveLength(2);
+
+			await registry.deleteField("posts", "priority");
+			expect(await listFieldIndexes()).toHaveLength(0);
+		});
+
+		it.each([
+			[true, false],
+			[false, true],
+		] as const)(
+			"keeps metadata and its physical index aligned when indexed changes from %s to %s during concurrent updates",
+			async (indexed, nextIndexed) => {
+				const field = await registry.createField("posts", {
+					slug: "priority",
+					label: "Priority",
+					type: "number",
+					indexed,
+				});
+				const indexName = `idx_cf_${field.id.toLowerCase()}`;
+
+				await Promise.all([
+					registry.updateField("posts", "priority", { indexed: nextIndexed }),
+					registry.updateField("posts", "priority", { label: "Updated priority" }),
+				]);
+
+				const updated = await registry.getField("posts", "priority");
+				const indexes = await sql<{ name: string }>`
+					SELECT name FROM sqlite_master
+					WHERE type = 'index' AND name LIKE ${`${indexName}%`}
+				`.execute(db);
+
+				expect(updated).toMatchObject({ label: "Updated priority", indexed: nextIndexed });
+				expect(indexes.rows).toHaveLength(nextIndexed ? 2 : 0);
+			},
+		);
+
+		it("drops the index when an indexed field moves to a type that cannot carry one", async () => {
+			await registry.createField("posts", {
+				slug: "summary",
+				label: "Summary",
+				type: "string",
+				indexed: true,
+			});
+
+			await expect(
+				registry.updateField("posts", "summary", { type: "text" }),
+			).rejects.toMatchObject({ code: "FIELD_NOT_INDEXABLE" });
+
+			const updated = await registry.updateField("posts", "summary", {
+				type: "text",
+				indexed: false,
+			});
+
+			expect(updated.type).toBe("text");
+			expect(updated.indexed).toBe(false);
+		});
+
+		it("reuses an existing generated index when enabling indexed metadata", async () => {
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+			});
+			const indexName = `idx_cf_${field.id.toLowerCase()}`;
+			const localeIndexName = `${indexName}_loc`;
+
+			await sql`
+				CREATE INDEX ${sql.ref(indexName)}
+				ON ec_posts ((priority IS NOT NULL), priority, id)
+				WHERE deleted_at IS NULL
+			`.execute(db);
+
+			await expect(
+				registry.updateField("posts", "priority", { indexed: true }),
+			).resolves.toMatchObject({ indexed: true });
+
+			const indexes = await sql<{ name: string }>`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name LIKE ${`${indexName}%`}
+			`.execute(db);
+			expect(indexes.rows.map((row) => row.name).toSorted()).toEqual(
+				[indexName, localeIndexName].toSorted(),
+			);
+		});
+
+		it("uses the generated index for indexed custom field ordering", async () => {
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+				indexed: true,
+			});
+			const indexName = `idx_cf_${field.id.toLowerCase()}`;
+			const localeIndexName = `${indexName}_loc`;
+
+			const ascending = await sql<{ detail: string }>`
+				EXPLAIN QUERY PLAN
+				SELECT * FROM ec_posts
+				WHERE deleted_at IS NULL
+					AND locale = 'en'
+				ORDER BY (priority IS NOT NULL) ASC, priority ASC, id ASC
+				LIMIT 51
+			`.execute(db);
+			const descending = await sql<{ detail: string }>`
+				EXPLAIN QUERY PLAN
+				SELECT * FROM ec_posts
+				WHERE deleted_at IS NULL
+					AND locale = 'en'
+				ORDER BY (priority IS NOT NULL) DESC, priority DESC, id DESC
+				LIMIT 51
+			`.execute(db);
+
+			for (const plan of [ascending, descending]) {
+				const details = plan.rows.map((row) => row.detail).join("\n");
+				expect(details).toContain(`USING INDEX ${localeIndexName}`);
+				expect(details).not.toContain("USE TEMP B-TREE");
+			}
+		});
+
+		it("rejects indexes for non-scalar fields", async () => {
+			await expect(
+				registry.createField("posts", {
+					slug: "body",
+					label: "Body",
+					type: "portableText",
+					indexed: true,
+				}),
+			).rejects.toMatchObject({ code: "FIELD_NOT_INDEXABLE" });
 		});
 
 		it("should add column to content table when creating field", async () => {

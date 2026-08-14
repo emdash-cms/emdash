@@ -145,6 +145,34 @@ export interface ContentDateFilter {
 	to?: string;
 }
 
+/**
+ * Byline filter for a content list.
+ *
+ * `mode: "any"` matches entries credited to at least one of `bylineIds`;
+ * `mode: "none"` matches entries with no credit at all.
+ *
+ * `bylineIds` are `translation_group` values — what
+ * `_emdash_content_bylines.byline_id` stores since migration 040 — so a filter
+ * matches a byline across every locale variant.
+ *
+ * By default only explicit credits count. `includeInferred` widens the filter
+ * to the byline the list actually renders, which for an entry with no credits
+ * is the one linked to its `author_id` (see `hydrateBylinesMany`).
+ */
+export interface ContentBylineFilter {
+	mode: "any" | "none";
+	/** Ignored when `mode` is `"none"`. An empty list matches nothing. */
+	bylineIds?: string[];
+	includeInferred?: boolean;
+	/**
+	 * Locale a credit has to resolve at — the locale the list is scoped to.
+	 * Applies to explicit credits as well as inferred ones, since a byline
+	 * group credited to an entry renders only where it has a row at that
+	 * locale. Defaults to each entry's own locale when the list spans locales.
+	 */
+	locale?: string;
+}
+
 export interface FindManyOptions {
 	where?: {
 		status?: string;
@@ -154,8 +182,9 @@ export interface FindManyOptions {
 		q?: string;
 		/**
 		 * Columns the `q` substring filter is applied to (OR'd together).
-		 * Resolved by the handler from the collection's display fields so the
-		 * repository stays generic. Each name is validated as a SQL identifier.
+		 * Resolved by the handler from the collection's display fields, slug,
+		 * and any field marked searchable. Each name is validated as a SQL
+		 * identifier.
 		 */
 		searchColumns?: string[];
 		/**
@@ -168,6 +197,8 @@ export interface FindManyOptions {
 		useFts?: boolean;
 		/** Inclusive date range over a whitelisted timestamp column. */
 		dateFilter?: ContentDateFilter;
+		/** Restrict to entries by their byline credits. */
+		bylineFilter?: ContentBylineFilter;
 	};
 	orderBy?: {
 		field: string;
@@ -278,6 +309,13 @@ export class EmDashValidationError extends Error {
 	}
 }
 
+export class ContentCollectionNotFoundError extends Error {
+	constructor(collection: string) {
+		super(`Collection '${collection}' not found`);
+		this.name = "ContentCollectionNotFoundError";
+	}
+}
+
 /**
  * Thrown by `publish()` when called with `requireDue` for a row that is no
  * longer due (its `scheduled_at` was cleared or pushed into the future between
@@ -288,5 +326,12 @@ export class ScheduledNotDueError extends Error {
 	constructor(message = "Content is no longer scheduled to publish") {
 		super(message);
 		this.name = "ScheduledNotDueError";
+	}
+}
+
+export class ContentMutationConflictError extends Error {
+	constructor(message = "Content changed while the operation was in progress") {
+		super(message);
+		this.name = "ContentMutationConflictError";
 	}
 }

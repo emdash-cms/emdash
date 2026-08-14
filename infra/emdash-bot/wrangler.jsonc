@@ -5,11 +5,6 @@
 	"compatibility_date": "2026-07-17",
 	"compatibility_flags": ["nodejs_compat"],
 
-	// Type-only entry for `wrangler types` / `pretypecheck`. Flue's Vite plugin
-	// owns the real deploy entry; this file only exports DO classes so Env
-	// namespaces get the right generics on a fresh checkout.
-	"main": "./.flue/wrangler-main.ts",
-
 	// Workers AI: structural binding, no API key. Every model the bot uses
 	// (classify, investigate, fix) resolves through `cloudflare/@cf/...`
 	// specifiers in Pi, which calls env.AI.run() under the hood.
@@ -43,6 +38,14 @@
 		],
 	},
 
+	// Dynamic Worker loader for the read-only `code` analysis tool
+	// (@cloudflare/codemode's DynamicWorkerExecutor).
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
+		},
+	],
+
 	// Every Durable Object class the worker uses must be declared sqlite-enabled.
 	// Flue's run-index (FlueRegistry) and per-workflow DOs (FlueClassifyCommand-
 	// Workflow, FlueInvestigateWorkflow) all use SQL storage internally, so they
@@ -69,6 +72,14 @@
 			"new_sqlite_classes": ["FlueClassifyCommandAgent", "FlueInvestigateAgent"],
 			"deleted_classes": ["FlueRegistry", "FlueClassifyCommandWorkflow", "FlueInvestigateWorkflow"],
 		},
+		{
+			"tag": "v4",
+			"new_sqlite_classes": ["WorkspaceDO"],
+		},
+		{
+			"tag": "v5",
+			"deleted_classes": ["WorkspaceDO"],
+		},
 	],
 
 	// Workspace storage for the sandbox (repo clone, build cache, agent files
@@ -85,6 +96,7 @@
 		"GITHUB_APP_INSTALLATION_ID": "120963314",
 		"GITHUB_OWNER": "emdash-cms",
 		"GITHUB_REPO": "emdash",
+		"PREVIEW_PACKAGE": "emdash",
 	},
 
 	// `wrangler secret put <NAME>` for production. Local dev reads .env.
@@ -94,5 +106,8 @@
 
 	"observability": {
 		"enabled": true,
+		"traces": {
+			"enabled": true,
+		},
 	},
 }

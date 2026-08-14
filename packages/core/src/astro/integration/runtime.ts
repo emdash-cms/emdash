@@ -7,6 +7,8 @@
  * DO NOT import Node.js-only modules here (fs, path, module, etc.)
  */
 
+import type { ManifestHookEntry, ManifestRouteEntry } from "@emdash-cms/plugin-types";
+
 import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
@@ -137,6 +139,17 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	storage?: Record<string, StorageCollectionDeclaration>;
 	/** Serialized MCP declarations emitted by the plugin build. */
 	mcp?: PluginMcpManifestConfig;
+	/**
+	 * Route declarations for sandboxed config-declared plugins. Mirrors
+	 * definePlugin({ routes }) and drives route auth decisions; omitted routes
+	 * default to non-public.
+	 */
+	routes?: Array<ManifestRouteEntry | string>;
+	/**
+	 * Hook declarations for sandboxed config-declared plugins. Mirrors
+	 * definePlugin({ hooks }).
+	 */
+	hooks?: Array<ManifestHookEntry | string>;
 }
 
 /**

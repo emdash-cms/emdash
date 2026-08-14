@@ -13,6 +13,7 @@
  */
 
 import { env } from "cloudflare:workers";
+import type { CollectionDeletionGuardInput, CollectionDeletionGuardResult } from "emdash";
 import { kyselyLogOption, recordRpc } from "emdash/database/instrumentation";
 import { type Dialect, Kysely } from "kysely";
 
@@ -59,6 +60,18 @@ function bindingError(binding: string): Error {
 			`For read replication also set:\n` +
 			`"compatibility_flags": ["experimental", "replica_routing"]`,
 	);
+}
+
+export async function executeCollectionDeletionGuard(
+	config: DurableObjectsConfig,
+	input: CollectionDeletionGuardInput,
+): Promise<CollectionDeletionGuardResult> {
+	const ns = getNamespace(config);
+	if (!ns) throw bindingError(config.binding);
+	const id = ns.idFromName(config.name ?? DEFAULT_NAME);
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Rpc type limitation with unknown row types
+	const stub = ns.get(id) as unknown as EmDashDBStub;
+	return stub.executeCollectionDeletionGuard(input);
 }
 
 /**
@@ -147,9 +160,9 @@ export function createCoalescingDialect(config: DurableObjectsConfig): Dialect {
 // Read-replica request scoping
 //
 // createRequestScopedDb is called by the core middleware on each request.
-// When session is "auto" it returns a per-request Kysely that holds one DO
-// stub for the whole request, plus a commit() that persists the resulting
-// replication bookmark as a cookie for authenticated users (read-your-writes).
+// Replica sessions get a per-request Kysely and authenticated bookmark cookie.
+// Mutation requests also get a scope when sessions are disabled so every
+// safety read is explicitly routed to the primary.
 // =========================================================================
 
 interface CookieJar {
@@ -161,13 +174,9 @@ export interface RequestScopedDbOpts {
 	config: DurableObjectsConfig;
 	isAuthenticated: boolean;
 	/**
-	 * Whether this request mutates. Part of the shared adapter contract (the D1
-	 * adapter pins writes to `first-primary`). The DO backend does NOT use it for
-	 * routing: DO exposes no Worker-side "give me the primary" handle -- a write
-	 * is proxied to the primary by the DO itself, and read-your-writes is
-	 * provided by the per-request bookmark feedback (a write records its bookmark
-	 * in the sink; later reads in the same request wait for it). So correctness
-	 * doesn't depend on knowing up front that the request writes.
+	 * Whether this request mutates. Mutation scopes route their reads through the
+	 * primary so destructive preconditions cannot be evaluated against a lagging
+	 * replica.
 	 */
 	isWrite: boolean;
 	cookies: CookieJar;
@@ -180,7 +189,8 @@ export interface RequestScopedDb {
 }
 
 export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedDb | null {
-	if (opts.config?.session !== "auto") return null;
+	const sessionEnabled = opts.config?.session === "auto";
+	if (!sessionEnabled && !opts.isWrite) return null;
 	const ns = getNamespace(opts.config);
 	if (!ns) return null;
 
@@ -200,7 +210,7 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 	// so a replica waits until it has caught up before serving. Anonymous
 	// readers can't resume across requests, so they always read nearest-replica.
 	let readBookmark: string | undefined;
-	if (opts.isAuthenticated) {
+	if (sessionEnabled && opts.isAuthenticated) {
 		const bookmark = opts.cookies.get(cookieName)?.value;
 		if (
 			bookmark &&
@@ -217,13 +227,17 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 	// createDialect uses the plain DOSqlDialect -- it must never coalesce, since
 	// concurrent requests would share a buffer.)
 	const bookmarkSink: BookmarkSink = {};
+	const dialectConfig = {
+		resolveStub,
+		readBookmark,
+		bookmarkSink,
+		onRpc: recordRpc,
+		forcePrimary: opts.isWrite,
+	};
 	const db = new Kysely<any>({
-		dialect: new CoalescingDOSqlDialect({
-			resolveStub,
-			readBookmark,
-			bookmarkSink,
-			onRpc: recordRpc,
-		}),
+		dialect: sessionEnabled
+			? new CoalescingDOSqlDialect(dialectConfig)
+			: new DOSqlDialect(dialectConfig),
 		log: kyselyLogOption(),
 	});
 
@@ -231,7 +245,7 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 		db,
 		commit() {
 			// Only authenticated users benefit from resuming a bookmark.
-			if (!opts.isAuthenticated) return;
+			if (!sessionEnabled || !opts.isAuthenticated) return;
 			const newBookmark = bookmarkSink.latest;
 			if (!newBookmark) return;
 			// Don't emit a cookie the browser will silently drop (~4 KB limit),

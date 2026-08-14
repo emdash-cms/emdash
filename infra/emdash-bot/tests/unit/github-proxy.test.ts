@@ -1,6 +1,12 @@
 import { describe, expect, test } from "vitest";
 
-import { gateGithubRequest, githubAuthHeader } from "../../.flue/lib/github-proxy.js";
+import {
+	createPushCapability,
+	gateGithubRequest,
+	githubAuthHeader,
+	inspectGithubRequest,
+	verifyPushCapability,
+} from "../../.flue/lib/github-proxy.js";
 
 const OWNER = "emdash-cms";
 const REPO = "emdash";
@@ -28,6 +34,33 @@ describe("githubAuthHeader", () => {
 	});
 });
 
+describe("push capabilities", () => {
+	test("round-trips only with the signing secret", async () => {
+		const capability = await createPushCapability("webhook-secret", OWNER, REPO, 123);
+
+		await expect(verifyPushCapability(capability, "webhook-secret", OWNER, REPO)).resolves.toBe(
+			123,
+		);
+		await expect(
+			verifyPushCapability(capability, "different-secret", OWNER, REPO),
+		).resolves.toBeNull();
+		await expect(
+			verifyPushCapability(`456.${capability.split(".")[1]}`, "webhook-secret", OWNER, REPO),
+		).resolves.toBeNull();
+		await expect(verifyPushCapability("123.!", "webhook-secret", OWNER, REPO)).resolves.toBeNull();
+	});
+
+	test("fails closed without a secret or for another repository", async () => {
+		const capability = await createPushCapability("webhook-secret", OWNER, REPO, 123);
+
+		await expect(createPushCapability("", OWNER, REPO, 123)).rejects.toThrow(/secret/);
+		await expect(verifyPushCapability(capability, "", OWNER, REPO)).resolves.toBeNull();
+		await expect(
+			verifyPushCapability(capability, "webhook-secret", OWNER, "another-repo"),
+		).resolves.toBeNull();
+	});
+});
+
 function pktLine(payload: string): string {
 	return `${(payload.length + 4).toString(16).padStart(4, "0")}${payload}`;
 }
@@ -48,14 +81,14 @@ describe("gateGithubRequest", () => {
 		).resolves.toMatch(/read-only/);
 	});
 
-	test("allows pushes only to bot fix branches", async () => {
+	test("rejects direct sandbox pushes to candidate and unrelated branches", async () => {
 		const url = "https://github.com/emdash-cms/emdash.git/git-receive-pack";
 		await expect(
 			gate(url, {
 				method: "POST",
 				body: `${pktLine("old new refs/heads/bot/fix-123\0 report-status\n")}0000PACKpayload`,
 			}),
-		).resolves.toBeNull();
+		).resolves.toMatch(/artifacts branch/);
 		await expect(
 			gate(url, {
 				method: "POST",
@@ -68,6 +101,50 @@ describe("gateGithubRequest", () => {
 				body: `${pktLine("old new refs/heads/bot/fix-456\0 report-status\n")}0000PACKpayload`,
 			}),
 		).resolves.toMatch(/current issue/);
+	});
+
+	test("distinguishes a missing capability from a rejected receive-pack body", async () => {
+		const url = new URL("https://github.com/emdash-cms/emdash.git/git-receive-pack");
+		const request = new Request(url, {
+			method: "POST",
+			body: `${pktLine("old new refs/heads/bot/fix-123\0 report-status\n")}0000`,
+		});
+
+		await expect(inspectGithubRequest(request, url, OWNER, REPO)).resolves.toMatchObject({
+			allowed: false,
+			stage: "capability",
+		});
+		await expect(inspectGithubRequest(request, url, OWNER, REPO, 456)).resolves.toMatchObject({
+			allowed: false,
+			stage: "receive-pack",
+			refs: ["refs/heads/bot/fix-123"],
+		});
+	});
+
+	test("allows pushes to the issue's artifacts branch", async () => {
+		const url = "https://github.com/emdash-cms/emdash.git/git-receive-pack";
+		await expect(
+			gate(url, {
+				method: "POST",
+				body: `${pktLine("old new refs/heads/bot/artifacts-123\0 report-status\n")}0000PACKpayload`,
+			}),
+		).resolves.toBeNull();
+		await expect(
+			gate(url, {
+				method: "POST",
+				body: `${pktLine("old new refs/heads/bot/artifacts-456\0 report-status\n")}0000PACKpayload`,
+			}),
+		).resolves.toMatch(/current issue/);
+	});
+
+	test("checks the command ref rather than ref-like capability text", async () => {
+		const url = "https://github.com/emdash-cms/emdash.git/git-receive-pack";
+		await expect(
+			gate(url, {
+				method: "POST",
+				body: `${pktLine("old new refs/meta/evil\0 refs/heads/bot/artifacts-123\n")}0000PACKpayload`,
+			}),
+		).resolves.toMatch(/artifacts branch/);
 	});
 
 	test("rejects an unbounded receive-pack command prefix", async () => {
@@ -88,7 +165,7 @@ describe("gateGithubRequest", () => {
 				if (pullCount === 1) {
 					controller.enqueue(
 						new TextEncoder().encode(
-							`${pktLine("old new refs/heads/bot/fix-123\0 report-status\n")}0000`,
+							`${pktLine("old new refs/heads/bot/artifacts-123\0 report-status\n")}0000`,
 						),
 					);
 					return;

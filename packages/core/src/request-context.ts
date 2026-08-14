@@ -20,6 +20,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { QueryRecorder } from "./database/instrumentation.js";
+import type { DeferredTaskTracker } from "./deferred-tasks.js";
 
 /**
  * Lightweight always-on counters surfaced in Server-Timing.
@@ -102,6 +103,8 @@ export interface EmDashRequestContext {
 	 * and `requestCached`.
 	 */
 	metrics?: RequestMetrics;
+	/** Deferred work that owns resources scoped to this request. */
+	deferredTasks?: DeferredTaskTracker;
 }
 
 const ALS_KEY = Symbol.for("emdash:request-context");

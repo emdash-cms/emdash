@@ -73,6 +73,10 @@ export {
 	NoopSandboxRunner,
 	SandboxNotAvailableError,
 	SandboxUnavailableError,
+	createSandboxRouteError,
+	createSandboxRouteErrorEnvelope,
+	getSandboxRouteErrorDetails,
+	getSandboxRouteErrorEnvelope,
 	createNoopSandboxRunner,
 } from "./sandbox/index.js";
 export type {
@@ -85,6 +89,9 @@ export type {
 	ResourceLimits,
 	PluginCodeStorage,
 	SerializedRequest,
+	SandboxRouteErrorCode,
+	SandboxRouteErrorDetails,
+	SandboxRouteErrorEnvelope,
 } from "./sandbox/index.js";
 
 // Types

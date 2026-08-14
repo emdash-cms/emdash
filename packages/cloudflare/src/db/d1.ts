@@ -9,11 +9,13 @@
  */
 
 import { env } from "cloudflare:workers";
+import type { CollectionDeletionGuardInput, CollectionDeletionGuardResult } from "emdash";
 import { kyselyLogOption } from "emdash/database/instrumentation";
 import { type Dialect, Kysely } from "kysely";
 
 import { CoalescingD1Dialect } from "./coalescing-d1.js";
 import { EmDashD1Dialect, RawBindingD1Dialect } from "./d1-dialect.js";
+import { createD1SessionGuard, type D1SessionGuard } from "./d1-session-guard.js";
 
 /**
  * D1 configuration (runtime type — matches the config-time type in index.ts)
@@ -26,12 +28,44 @@ interface D1Config {
 }
 
 const DEFAULT_BOOKMARK_COOKIE = "__em_d1_bookmark";
+const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
+const STALE_DELETION_GUARD_PATTERN =
+	/not null constraint failed:\s*_emdash_media_usage_collection_deletions\.collection_id/i;
 
 /**
  * One-shot guard so the "coalesce opted in but the binding can't do sessions
  * at runtime" warning fires once per worker, not on every request.
  */
 let warnedCoalesceNoRuntimeSession = false;
+
+/**
+ * Isolate-wide hang guard for the D1 Sessions API. In environments where
+ * session queries silently never settle (e.g. the
+ * `global_fetch_strictly_public` compatibility flag blocking the Sessions
+ * API's internal routing request — see
+ * https://github.com/emdash-cms/emdash/issues/1273), this detects the hang
+ * on the first session query, falls back to the direct binding for that
+ * request, and disables sessions for the rest of the isolate's life instead
+ * of letting every request hang until the Worker is killed.
+ *
+ * Lives on globalThis behind a Symbol.for key (not module scope) because
+ * Vite can duplicate this module across SSR chunks — every duplicate must
+ * resolve the SAME guard, or one copy could keep racing broken sessions
+ * after another has latched (same pattern as the DO bookmark sinks in
+ * do-sql.ts and core's request-cache.ts).
+ */
+const SESSION_GUARD_KEY = Symbol.for("emdash:d1-session-guard");
+
+function getSessionGuard(): D1SessionGuard {
+	const g = globalThis as Record<symbol, unknown>;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see do-sql.ts)
+	let guard = g[SESSION_GUARD_KEY] as D1SessionGuard | undefined;
+	if (!guard) {
+		guard = createD1SessionGuard();
+		g[SESSION_GUARD_KEY] = guard;
+	}
+	return guard;
+}
 
 /**
  * D1 bookmarks are opaque, minted by Cloudflare. We don't validate the shape
@@ -143,6 +177,184 @@ export interface RequestScopedDb {
 	commit: () => void;
 }
 
+export async function executeCollectionDeletionGuard(
+	config: D1Config,
+	input: CollectionDeletionGuardInput,
+): Promise<CollectionDeletionGuardResult> {
+	assertCollectionDeletionInput(input);
+	const binding = getBinding(config);
+	if (!binding) throw new Error(`D1 binding "${config.binding}" not found in environment.`);
+	return input.action === "fence"
+		? executeFenceBatch(binding, input)
+		: executeDropBatch(binding, input);
+}
+
+async function executeFenceBatch(
+	binding: D1Database,
+	input: Extract<CollectionDeletionGuardInput, { action: "fence" }>,
+): Promise<CollectionDeletionGuardResult> {
+	const tableName = `ec_${input.collectionSlug}`;
+	const contentPredicate = input.forceDelete
+		? ""
+		: `AND NOT EXISTS (SELECT 1 FROM "${tableName}" WHERE deleted_at IS NULL LIMIT 1)`;
+	const update = binding
+		.prepare(`
+			UPDATE _emdash_media_usage_index_status
+			SET capture_state = 'deleting',
+				updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+			WHERE adapter_id = 'content-media'
+				AND scope_type = 'collection'
+				AND scope_key = ?
+				AND collection_id = ?
+				AND capture_state = 'active'
+				AND EXISTS (
+					SELECT 1 FROM _emdash_collections
+					WHERE id = ? AND slug = ?
+				)
+				AND EXISTS (
+					SELECT 1 FROM _emdash_media_usage_collection_deletions
+					WHERE collection_id = ?
+						AND collection_slug = ?
+						AND state = 'leased'
+						AND phase = 'fence'
+						AND lease_token = ?
+						AND lease_expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+				)
+				${contentPredicate}
+			RETURNING collection_id
+		`)
+		.bind(
+			input.collectionSlug,
+			input.collectionId,
+			input.collectionId,
+			input.collectionSlug,
+			input.collectionId,
+			input.collectionSlug,
+			input.leaseToken,
+		);
+	const diagnostic = binding
+		.prepare(`
+			SELECT CASE
+				WHEN EXISTS (
+					SELECT 1 FROM _emdash_media_usage_collection_deletions
+					WHERE collection_id = ?
+						AND collection_slug = ?
+						AND state = 'leased'
+						AND phase = 'fence'
+						AND lease_token = ?
+						AND lease_expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+				)
+				AND EXISTS (
+					SELECT 1 FROM _emdash_media_usage_index_status
+					WHERE adapter_id = 'content-media'
+						AND scope_type = 'collection'
+						AND scope_key = ?
+						AND collection_id = ?
+						AND capture_state = 'active'
+				)
+				AND EXISTS (SELECT 1 FROM "${tableName}" WHERE deleted_at IS NULL LIMIT 1)
+				THEN 'has_content'
+				ELSE 'stale'
+			END AS outcome
+		`)
+		.bind(
+			input.collectionId,
+			input.collectionSlug,
+			input.leaseToken,
+			input.collectionSlug,
+			input.collectionId,
+		);
+	if (input.forceDelete) {
+		const updated = await update.all<{ collection_id: string }>();
+		return updated.results.length > 0 ? { outcome: "fenced" } : { outcome: "stale" };
+	}
+	const [updated, observed] = await binding.batch<{ collection_id: string } | { outcome: string }>([
+		update,
+		diagnostic,
+	]);
+	if (updated?.results.length) return { outcome: "fenced" };
+	const diagnosticRow = observed?.results[0];
+	return diagnosticRow && "outcome" in diagnosticRow && diagnosticRow.outcome === "has_content"
+		? { outcome: "has_content" }
+		: { outcome: "stale" };
+}
+
+async function executeDropBatch(
+	binding: D1Database,
+	input: Extract<CollectionDeletionGuardInput, { action: "drop" }>,
+): Promise<CollectionDeletionGuardResult> {
+	const contentTable = `ec_${input.collectionSlug}`;
+	const ftsTable = `_emdash_fts_${input.collectionSlug}`;
+	const guardId = `__emdash_guard:${input.collectionId}:${input.leaseToken}`;
+	const guardSlug = `__emdash_guard_slug:${input.collectionId}:${input.leaseToken}`;
+	try {
+		await binding.batch([
+			binding
+				.prepare(`
+					INSERT INTO _emdash_media_usage_collection_deletions (
+						collection_id, collection_slug, force_delete, state, phase,
+						next_attempt_at, lease_token, lease_expires_at
+					)
+					VALUES (
+						(
+							SELECT ?
+							FROM _emdash_media_usage_collection_deletions
+							WHERE collection_id = ?
+								AND collection_slug = ?
+								AND state = 'leased'
+								AND phase = 'table'
+								AND lease_token = ?
+								AND lease_expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+						),
+						?, 0, 'leased', 'table',
+						strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), ?,
+						strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+1 minute')
+					)
+				`)
+				.bind(
+					guardId,
+					input.collectionId,
+					input.collectionSlug,
+					input.leaseToken,
+					guardSlug,
+					input.leaseToken,
+				),
+			binding.prepare(`DROP TRIGGER IF EXISTS "${ftsTable}_insert"`),
+			binding.prepare(`DROP TRIGGER IF EXISTS "${ftsTable}_update"`),
+			binding.prepare(`DROP TRIGGER IF EXISTS "${ftsTable}_delete"`),
+			binding.prepare(`DROP TABLE IF EXISTS "${ftsTable}"`),
+			binding.prepare(`DROP TABLE IF EXISTS "${contentTable}"`),
+			binding
+				.prepare(
+					"DELETE FROM _emdash_media_usage_collection_deletions WHERE collection_id = ? AND collection_slug = ?",
+				)
+				.bind(guardId, guardSlug),
+		]);
+	} catch (error) {
+		if (STALE_DELETION_GUARD_PATTERN.test(deepErrorMessage(error))) {
+			return { outcome: "stale" };
+		}
+		throw error;
+	}
+	return { outcome: "dropped" };
+}
+
+function assertCollectionDeletionInput(input: CollectionDeletionGuardInput): void {
+	if (!input.collectionId || !input.leaseToken) {
+		throw new Error("Collection deletion guard requires a collection ID and lease token");
+	}
+	if (!COLLECTION_SLUG_PATTERN.test(input.collectionSlug) || input.collectionSlug.length > 63) {
+		throw new Error("Collection deletion guard requires a valid collection slug");
+	}
+}
+
+function deepErrorMessage(error: unknown): string {
+	if (error instanceof Error) {
+		return error.cause ? `${error.message}: ${deepErrorMessage(error.cause)}` : error.message;
+	}
+	return String(error);
+}
+
 /**
  * Create a per-request session-backed Kysely, or null when D1 sessions are
  * disabled or the binding is missing. Core middleware calls this once per
@@ -151,6 +363,11 @@ export interface RequestScopedDb {
  */
 export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedDb | null {
 	if (!isSessionEnabled(opts.config)) return null;
+	// A session query hung earlier in this isolate's life (see the guard).
+	// Sessions are considered broken here; route everything through the
+	// singleton (direct binding) instead of hanging every request.
+	const sessionGuard = getSessionGuard();
+	if (sessionGuard.isBroken()) return null;
 	const binding = getBinding(opts.config);
 	if (!binding || typeof binding.withSession !== "function") {
 		// Sessions are enabled in config, so createDialect's config-time warning
@@ -194,9 +411,12 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 
 	const session = binding.withSession(constraint);
 	// kysely-d1 only touches .prepare() and .batch() on the database argument,
-	// both of which D1DatabaseSession implements.
+	// both of which D1DatabaseSession implements. Hang-guarded: until the
+	// first session query settles in this isolate, queries are raced against
+	// a timeout and fall back to the direct binding if the Sessions API never
+	// responds (issue #1273).
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- session is structurally compatible with the subset D1Dialect uses
-	const sessionAsDatabase = session as unknown as D1Database;
+	const sessionAsDatabase = sessionGuard.wrap(session as unknown as D1Database, binding);
 	// Coalescing is per-request only by construction: this Kysely (and its
 	// driver buffer) lives for a single request, so there is no cross-request
 	// buffering. The shared singleton from createDialect must never coalesce.

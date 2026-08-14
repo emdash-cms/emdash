@@ -78,6 +78,7 @@ export default defineConfig({
 		"src/astro/middleware.ts",
 		"src/astro/middleware/setup.ts",
 		"src/astro/middleware/auth.ts",
+		"src/astro/middleware/media-usage-write-fence.ts",
 		"src/astro/middleware/redirect.ts",
 		"src/astro/middleware/request-context.ts",
 		"src/astro/types.ts",

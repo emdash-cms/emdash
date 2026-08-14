@@ -19,7 +19,7 @@ export interface PasskeyItemProps {
 	isRenaming?: boolean;
 }
 
-function formatRelativeTime(dateString: string): string {
+function formatRelativeTime(dateString: string, locale: string): string {
 	const date = new Date(dateString);
 	const now = new Date();
 	const diffMs = now.getTime() - date.getTime();
@@ -28,21 +28,16 @@ function formatRelativeTime(dateString: string): string {
 	const diffHours = Math.floor(diffMins / 60);
 	const diffDays = Math.floor(diffHours / 24);
 
-	if (diffSecs < 60) {
-		return "just now";
-	} else if (diffMins < 60) {
-		return `${diffMins} minute${diffMins === 1 ? "" : "s"} ago`;
-	} else if (diffHours < 24) {
-		return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
-	} else if (diffDays < 7) {
-		return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
-	} else {
-		return date.toLocaleDateString(undefined, {
-			month: "short",
-			day: "numeric",
-			year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-		});
-	}
+	const relativeTime = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+	if (diffSecs < 60) return relativeTime.format(0, "second");
+	if (diffMins < 60) return relativeTime.format(-diffMins, "minute");
+	if (diffHours < 24) return relativeTime.format(-diffHours, "hour");
+	if (diffDays < 7) return relativeTime.format(-diffDays, "day");
+	return date.toLocaleDateString(locale, {
+		month: "short",
+		day: "numeric",
+		year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+	});
 }
 
 export function PasskeyItem({
@@ -53,14 +48,13 @@ export function PasskeyItem({
 	isDeleting,
 	isRenaming,
 }: PasskeyItemProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const [isEditing, setIsEditing] = React.useState(false);
 	const [editName, setEditName] = React.useState(passkey.name || "");
 	const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
 	const [deleteError, setDeleteError] = React.useState<string | null>(null);
 	const inputRef = React.useRef<HTMLInputElement>(null);
 
-	// Focus input when editing starts
 	React.useEffect(() => {
 		if (isEditing && inputRef.current) {
 			inputRef.current.focus();
@@ -104,8 +98,8 @@ export function PasskeyItem({
 		passkey.deviceType === "multiDevice" ? t`Synced passkey` : t`Device-bound passkey`;
 
 	return (
-		<li className="flex items-center justify-between p-4 border rounded-lg bg-kumo-base">
-			<div className="flex items-start gap-3">
+		<li className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+			<div className="flex min-w-0 items-start gap-3">
 				{/* Icon */}
 				<div className="mt-0.5 p-2 rounded-md bg-kumo-tint">
 					{passkey.deviceType === "multiDevice" ? (
@@ -116,17 +110,18 @@ export function PasskeyItem({
 				</div>
 
 				{/* Info */}
-				<div>
+				<div className="min-w-0 flex-1">
 					{isEditing ? (
-						<div className="flex items-center gap-2">
+						<div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
 							<Input
 								ref={inputRef}
 								type="text"
 								value={editName}
 								onChange={(e) => setEditName(e.target.value)}
 								onKeyDown={handleKeyDown}
-								className="h-8 w-48"
+								className="h-8 w-full sm:w-48"
 								placeholder={t`Passkey name`}
+								aria-label={t`Passkey name`}
 								disabled={isRenaming}
 							/>
 							<Button
@@ -156,14 +151,14 @@ export function PasskeyItem({
 						{passkey.backedUp && <span className="text-kumo-success"> {t`(synced)`}</span>}
 					</div>
 					<div className="text-xs text-kumo-subtle mt-1">
-						{t`Last used`} {formatRelativeTime(passkey.lastUsedAt)}
+						{t`Last used`} {formatRelativeTime(passkey.lastUsedAt, i18n.locale)}
 					</div>
 				</div>
 			</div>
 
 			{/* Actions */}
 			{!isEditing && (
-				<div className="flex items-center gap-1">
+				<div className="flex self-end items-center gap-1 sm:self-center">
 					<Button
 						variant="ghost"
 						size="sm"

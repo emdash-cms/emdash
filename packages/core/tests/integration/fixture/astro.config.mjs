@@ -13,6 +13,7 @@ import { sqlite } from "emdash/db";
 
 const dbUrl = process.env.EMDASH_TEST_DB || "file:./test.db";
 const uploadsDir = process.env.EMDASH_TEST_UPLOADS || "./uploads";
+const viteCacheDir = process.env.EMDASH_TEST_VITE_CACHE || undefined;
 const _rawMaxUploadSize = process.env.EMDASH_MAX_UPLOAD_SIZE
 	? parseInt(process.env.EMDASH_MAX_UPLOAD_SIZE, 10)
 	: undefined;
@@ -40,6 +41,7 @@ export default defineConfig({
 	},
 	devToolbar: { enabled: false },
 	vite: {
+		cacheDir: viteCacheDir,
 		server: {
 			fs: {
 				// When running from a temp dir, node_modules is symlinked back to the

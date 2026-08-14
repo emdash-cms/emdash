@@ -86,21 +86,22 @@ function mockApiFetch({
 } = {}) {
 	vi.mocked(apiFetch).mockImplementation((url: string | URL | Request, init?: RequestInit) => {
 		const urlString = typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
+		const path = new URL(urlString, "http://localhost").pathname;
 		const method = init?.method ?? "GET";
 
-		if (method === "GET" && urlString === "/_emdash/api/taxonomies") {
+		if (method === "GET" && path === "/_emdash/api/taxonomies") {
 			return dataResponse({ taxonomies });
 		}
 
-		if (method === "GET" && urlString === "/_emdash/api/taxonomies/tags/terms") {
+		if (method === "GET" && path === "/_emdash/api/taxonomies/tags/terms") {
 			return dataResponse({ terms });
 		}
 
-		if (method === "GET" && urlString === "/_emdash/api/taxonomies/categories/terms") {
+		if (method === "GET" && path === "/_emdash/api/taxonomies/categories/terms") {
 			return dataResponse({ terms });
 		}
 
-		if (method === "GET" && urlString === "/_emdash/api/content/products/entry_1/terms/tags") {
+		if (method === "GET" && path === "/_emdash/api/content/products/entry_1/terms/tags") {
 			return dataResponse({ terms: entryTerms });
 		}
 

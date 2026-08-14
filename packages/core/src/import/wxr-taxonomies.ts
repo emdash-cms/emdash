@@ -549,26 +549,21 @@ export async function attachPostTaxonomies(
 ): Promise<number> {
 	const repo = new TaxonomyRepository(db);
 	const resolved = resolvePostTermAssignments(collection, post, plan);
-
-	let attached = 0;
+	const groups = new Set<string>();
 	for (const [, termIds] of resolved) {
 		for (const termId of termIds) {
-			const wrote = await attachToEntryCountingInserts(db, repo, plan, collection, entryId, termId);
-			if (wrote) attached++;
+			const group = await termTranslationGroup(repo, plan, termId);
+			if (group) groups.add(group);
 		}
 	}
-	return attached;
+	return repo.attachGroupsToEntry(collection, entryId, [...groups]);
 }
 
 /**
  * Replace assignments per-taxonomy from a parsed WXR post. Used for
- * translations: WPML's "Translate Independently" mode lets translators
- * override term assignments per-taxonomy, not per-post. A translation that
- * overrides `category` shouldn't lose its inherited `tag` or `genre`. We
- * only call `setTermsForEntry(name, ids)` for taxonomies where the
- * translation actually resolved at least one term -- taxonomies with no
- * resolvable+permitted terms are left alone so inherited rows from
- * `copyEntryTerms` stay intact.
+ * translations. Assignments belong to the content translation_group, so a
+ * translated item's explicit taxonomy replaces that taxonomy for every
+ * locale. Taxonomies with no resolvable permitted terms are left unchanged.
  *
  * Returns the number of pivot rows after replacement (sum of `termIds`
  * lists across taxonomies actually touched). Note this counts logical
@@ -610,41 +605,6 @@ async function termTranslationGroup(
 	const group = term?.translationGroup ?? null;
 	plan.translationGroupByTermId.set(termId, group);
 	return group;
-}
-
-/**
- * Wrapper around `TaxonomyRepository.attachToEntry` that returns whether
- * an actual row was inserted (vs. silently skipped by the `ON CONFLICT DO
- * NOTHING` branch). Lets the importer's `assignments` counter reflect real
- * writes rather than re-import no-ops.
- *
- * Best-effort: we check pivot existence first, then call `attachToEntry`.
- * A concurrent insert between the check and the attach would make us
- * report `false` while a row was in fact inserted -- the count is for
- * summary display only, never correctness.
- */
-async function attachToEntryCountingInserts(
-	db: Kysely<Database>,
-	repo: TaxonomyRepository,
-	plan: TaxonomyImportPlan,
-	collection: string,
-	entryId: string,
-	termId: string,
-): Promise<boolean> {
-	const group = await termTranslationGroup(repo, plan, termId);
-	if (!group) return false;
-
-	const existing = await db
-		.selectFrom("content_taxonomies")
-		.select("collection")
-		.where("collection", "=", collection)
-		.where("entry_id", "=", entryId)
-		.where("taxonomy_id", "=", group)
-		.executeTakeFirst();
-	if (existing) return false;
-
-	await repo.attachToEntry(collection, entryId, termId);
-	return true;
 }
 
 /**
