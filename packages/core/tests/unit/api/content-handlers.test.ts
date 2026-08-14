@@ -636,6 +636,36 @@ describe("Content Handlers — auto-slug generation", () => {
 		});
 	});
 
+	describe("handleContentUpdate — side-write concurrency", () => {
+		it("advances _rev for byline-only updates", async () => {
+			const bylineRepo = new BylineRepository(db);
+			const firstByline = await bylineRepo.create({
+				slug: "first-byline",
+				displayName: "First Byline",
+			});
+			const secondByline = await bylineRepo.create({
+				slug: "second-byline",
+				displayName: "Second Byline",
+			});
+			const created = await handleContentCreate(db, "post", { data: { title: "Hi" } });
+			expect(created.success).toBe(true);
+			const originalRev = created.data!._rev;
+
+			const first = await handleContentUpdate(db, "post", created.data!.item.id, {
+				bylines: [{ bylineId: firstByline.id }],
+				_rev: originalRev,
+			});
+			const stale = await handleContentUpdate(db, "post", created.data!.item.id, {
+				bylines: [{ bylineId: secondByline.id }],
+				_rev: originalRev,
+			});
+
+			expect(first.success).toBe(true);
+			expect(first.data?._rev).not.toBe(originalRev);
+			expect(stale).toMatchObject({ success: false, error: { code: "CONFLICT" } });
+		});
+	});
+
 	describe("handleContentUpdate — publishedAt override", () => {
 		it("persists publishedAt when provided", async () => {
 			const created = await handleContentCreate(db, "post", { data: { title: "Hi" } });
@@ -880,5 +910,12 @@ describe("handleContentList — unknown orderBy column on a healthy collection",
 		expect(res.success).toBe(false);
 		if (res.success) return;
 		expect(res.error.code).not.toBe("COLLECTION_SCHEMA_MISMATCH");
+	});
+
+	it("keeps the missing-collection error when ordering by a custom field", async () => {
+		const res = await handleContentList(db, "missing", { orderBy: "priority" });
+		expect(res.success).toBe(false);
+		if (res.success) return;
+		expect(res.error.code).toBe("COLLECTION_NOT_FOUND");
 	});
 });

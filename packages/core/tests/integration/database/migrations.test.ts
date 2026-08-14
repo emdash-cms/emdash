@@ -51,7 +51,11 @@ describe("Database Migrations (Integration)", () => {
 			"_emdash_byline_field_group_values",
 			"_emdash_media_usage_sources",
 			"_emdash_media_usage",
+			"_emdash_media_usage_cleanup",
+			"_emdash_media_usage_generation_writes",
+			"_emdash_media_usage_cleanup_fence",
 			"_emdash_media_usage_index_status",
+			"_emdash_media_usage_collection_deletions",
 		];
 
 		for (const table of tables) {
@@ -141,6 +145,20 @@ describe("Database Migrations (Integration)", () => {
 			"052_media_usage_read_index",
 			"053_plugin_mcp_tools",
 			"054_media_upload_attempts",
+			"055_content_translation_group_locale_index",
+			"056_taxonomy_term_sort_order",
+			"057_collection_hidden",
+			"058_collection_sort_order",
+			"059_revision_prune_queue",
+			"060_collection_admin_config",
+			"061_media_usage_cleanup",
+			"062_media_usage_cleanup_fence",
+			"063_media_usage_incremental_work",
+			"064_fts_plain_text",
+			"065_media_usage_collection_deletion",
+			"066_media_usage_reconciliation",
+			"067_indexed_content_fields",
+			"068_content_taxonomy_entry_groups",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
@@ -425,7 +443,7 @@ describe("Database Migrations (Integration)", () => {
 			EXPLAIN QUERY PLAN
 			SELECT * FROM "taxonomies"
 			WHERE "name" = ${"category"} AND "locale" = ${"en"}
-			ORDER BY "label" ASC, "id" ASC
+			ORDER BY "sort_order" ASC, "label" ASC, "id" ASC
 		`.execute(db);
 		const details = plan.rows.map((r) => r.detail).join("\n");
 

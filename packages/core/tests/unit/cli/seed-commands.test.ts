@@ -8,6 +8,7 @@ import { join } from "node:path";
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
+import { exportSeed } from "../../../src/cli/commands/export-seed.js";
 import { createDatabase } from "../../../src/database/connection.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { applySeed } from "../../../src/seed/apply.js";
@@ -213,6 +214,39 @@ describe("CLI Seed Commands", () => {
 	});
 
 	describe("export-seed output", () => {
+		it("preserves collection list columns through apply and export", async () => {
+			const dbPath = join(tempDir, "admin-config.db");
+			const db = createDatabase({ url: `file:${dbPath}` });
+
+			try {
+				await runMigrations(db);
+				await applySeed(db, {
+					version: "1",
+					collections: [
+						{
+							slug: "tickets",
+							label: "Tickets",
+							admin: { listColumns: ["ticket_number", "priority"] },
+							fields: [
+								{ slug: "ticket_number", label: "Ticket number", type: "string" },
+								{ slug: "priority", label: "Priority", type: "select" },
+							],
+						},
+					],
+				});
+
+				const exported = await exportSeed(db);
+				const tickets = exported.collections?.find((collection) => collection.slug === "tickets");
+
+				expect(tickets?.admin).toEqual({
+					listColumns: ["ticket_number", "priority"],
+				});
+				expect(validateSeed(exported)).toMatchObject({ valid: true, errors: [] });
+			} finally {
+				await db.destroy();
+			}
+		});
+
 		it("should produce valid seed from exported data", async () => {
 			const dbPath = join(tempDir, "test.db");
 			const db = createDatabase({ url: `file:${dbPath}` });

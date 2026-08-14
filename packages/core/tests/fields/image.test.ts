@@ -28,16 +28,30 @@ describe("image field", () => {
 		const field = image();
 		const minimal = {
 			id: "img-123",
-			src: "https://example.com/image.jpg",
 		};
 
 		expect(() => field.schema.parse(minimal)).not.toThrow();
 	});
 
+	it("should preserve cached media metadata", () => {
+		const field = image();
+		const value = {
+			id: "img-123",
+			provider: "local",
+			filename: "image.webp",
+			mimeType: "image/webp",
+			blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+			dominantColor: "#d9d2c5",
+			meta: { storageKey: "image.webp" },
+		};
+
+		expect(field.schema.parse(value)).toEqual(value);
+	});
+
 	it("should reject invalid image value", () => {
 		const field = image();
 
-		expect(() => field.schema.parse({ id: "missing-src" })).toThrow();
+		expect(() => field.schema.parse({ src: "https://example.com/image.jpg" })).toThrow();
 		expect(() => field.schema.parse("not an object")).toThrow();
 	});
 

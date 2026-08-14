@@ -41,7 +41,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { Element } from "@emdash-cms/blocks";
 import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
+import { msg, plural } from "@lingui/core/macro";
+import { useLingui as useLinguiContext } from "@lingui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
 	TextB,
@@ -124,6 +125,7 @@ import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
+import { EmDashOrderedList } from "./editor/ordered-list";
 import {
 	type PluginBlockDef,
 	PluginBlockExtension,
@@ -163,6 +165,8 @@ interface PortableTextTextBlock {
 	style?: "normal" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "blockquote";
 	listItem?: "bullet" | "number";
 	level?: number;
+	listId?: string;
+	listStart?: number;
 	children: PortableTextSpan[];
 	markDefs?: PortableTextMarkDef[];
 	textAlign?: "left" | "center" | "right" | "justify";
@@ -249,6 +253,160 @@ function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[]
 const attrStr = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
 const attrNum = (v: unknown): number | undefined => (typeof v === "number" && v ? v : undefined);
 
+const MAX_ORDERED_LIST_START = 2_147_483_647;
+
+type OrderedListMetadata = { listId: string; listStart: number };
+type PortableTextProseMirrorNode = {
+	type: string;
+	attrs?: Record<string, unknown>;
+	content?: PortableTextProseMirrorNode[];
+	marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
+	text?: string;
+};
+
+function normalizeListId(value: unknown): string | undefined {
+	if (typeof value !== "string") return undefined;
+	const normalized = value.trim();
+	return normalized.length > 0 && normalized.length <= 128 ? normalized : undefined;
+}
+
+function normalizeListStart(value: unknown): number | undefined {
+	return typeof value === "number" &&
+		Number.isInteger(value) &&
+		value >= 1 &&
+		value <= MAX_ORDERED_LIST_START
+		? value
+		: undefined;
+}
+
+function deriveLegacyListId(seed: string): string {
+	const readable = `legacy:${seed}`;
+	if (readable.length <= 128) return readable;
+	let hash = 2_166_136_261;
+	for (let i = 0; i < seed.length; i++) {
+		hash ^= seed.charCodeAt(i);
+		hash = Math.imul(hash, 16_777_619);
+	}
+	return `legacy:${seed.slice(0, 96)}:${(hash >>> 0).toString(36)}:${seed.length.toString(36)}`;
+}
+
+function readOrderedListMetadata(
+	attrs: Record<string, unknown> | undefined,
+	fallbackId: string,
+): OrderedListMetadata {
+	return {
+		listId: normalizeListId(attrs?.listId) ?? deriveLegacyListId(fallbackId),
+		listStart: normalizeListStart(attrs?.listStart) ?? normalizeListStart(attrs?.start) ?? 1,
+	};
+}
+
+function clonePortableTextProseMirrorNode(
+	node: PortableTextProseMirrorNode,
+): PortableTextProseMirrorNode {
+	return {
+		...node,
+		attrs: node.attrs ? { ...node.attrs } : undefined,
+		content: node.content?.map(clonePortableTextProseMirrorNode),
+		marks: node.marks?.map((mark) => ({
+			...mark,
+			attrs: mark.attrs ? { ...mark.attrs } : undefined,
+		})),
+	};
+}
+
+function normalizeOrderedListJson(doc: { type: "doc"; content: PortableTextProseMirrorNode[] }): {
+	type: "doc";
+	content: PortableTextProseMirrorNode[];
+} {
+	type Descriptor = {
+		node: PortableTextProseMirrorNode;
+		path: string;
+		depth: number;
+		context: string;
+	};
+	const normalized = {
+		...doc,
+		content: doc.content.map(clonePortableTextProseMirrorNode),
+	};
+	const lists: Descriptor[] = [];
+	const visit = (
+		node: PortableTextProseMirrorNode,
+		path: string,
+		depth: number,
+		context: string,
+	) => {
+		if (node.type === "orderedList") lists.push({ node, path, depth, context });
+		for (const [index, child] of (node.content ?? []).entries()) {
+			const childPath = `${path}:${index}`;
+			visit(
+				child,
+				childPath,
+				depth + 1,
+				child.type === "listItem" ? `listItem:${childPath}` : context,
+			);
+		}
+	};
+	for (const [index, node] of normalized.content.entries()) {
+		visit(node, `root:${index}`, 0, "root");
+	}
+
+	const canonicalBySourceScope = new Map<string, string>();
+	const assignedIds = new Set<string>();
+	const descriptors = lists.map((list) => {
+		const sourceId =
+			normalizeListId(list.node.attrs?.listId) ??
+			deriveLegacyListId(`pm-json:${list.path}:${list.depth}:${list.context}`);
+		const scope = JSON.stringify([list.depth, list.context]);
+		const sourceScope = JSON.stringify([sourceId, scope]);
+		let listId = canonicalBySourceScope.get(sourceScope);
+		if (!listId) {
+			if (!assignedIds.has(sourceId)) {
+				listId = sourceId;
+			} else {
+				let attempt = 0;
+				do {
+					const suffix = `:${attempt.toString(36)}`;
+					const base = deriveLegacyListId(`repair:${sourceId}:${scope}`);
+					listId = `${base.slice(0, 128 - suffix.length)}${suffix}`;
+					attempt++;
+				} while (assignedIds.has(listId));
+			}
+			canonicalBySourceScope.set(sourceScope, listId);
+			assignedIds.add(listId);
+		}
+		return {
+			...list,
+			listId,
+			scopeKey: JSON.stringify([listId, list.depth, list.context]),
+		};
+	});
+
+	const bases = new Map<string, number>();
+	for (const list of descriptors) {
+		const listStart = normalizeListStart(list.node.attrs?.listStart);
+		if (listStart !== undefined && !bases.has(list.scopeKey)) {
+			bases.set(list.scopeKey, listStart);
+		}
+	}
+	for (const list of descriptors) {
+		if (!bases.has(list.scopeKey)) {
+			bases.set(list.scopeKey, normalizeListStart(list.node.attrs?.start) ?? 1);
+		}
+	}
+
+	const counts = new Map<string, number>();
+	for (const list of descriptors) {
+		const listStart = bases.get(list.scopeKey)!;
+		const count = counts.get(list.scopeKey) ?? 0;
+		const start = normalizeListStart(listStart + count) ?? 1;
+		const directItemCount =
+			list.node.content?.filter((node) => node.type === "listItem").length ?? 0;
+		counts.set(list.scopeKey, count + directItemCount);
+		list.node.attrs = { ...list.node.attrs, listId: list.listId, listStart, start };
+	}
+	return normalized;
+}
+
 // ProseMirror to Portable Text converter
 function prosemirrorToPortableText(doc: {
 	type: string;
@@ -266,8 +424,8 @@ function prosemirrorToPortableText(doc: {
 
 	const blocks: PortableTextBlock[] = [];
 
-	for (const node of doc.content) {
-		const converted = convertPMNode(node);
+	for (let i = 0; i < doc.content.length; i++) {
+		const converted = convertPMNode(doc.content[i]!, `root:${i}`);
 		if (converted) {
 			if (Array.isArray(converted)) {
 				blocks.push(...converted);
@@ -280,13 +438,16 @@ function prosemirrorToPortableText(doc: {
 	return blocks;
 }
 
-function convertPMNode(node: {
-	type: string;
-	attrs?: Record<string, unknown>;
-	content?: unknown[];
-	marks?: unknown[];
-	text?: string;
-}): PortableTextBlock | PortableTextBlock[] | null {
+function convertPMNode(
+	node: {
+		type: string;
+		attrs?: Record<string, unknown>;
+		content?: unknown[];
+		marks?: unknown[];
+		text?: string;
+	},
+	path: string,
+): PortableTextBlock | PortableTextBlock[] | null {
 	switch (node.type) {
 		case "paragraph": {
 			const { children, markDefs } = convertInlineContent(node.content || []);
@@ -325,10 +486,10 @@ function convertPMNode(node: {
 		}
 
 		case "bulletList":
-			return convertList(node.content || [], "bullet");
+			return convertList(node.content || [], "bullet", 1, node.attrs, path);
 
 		case "orderedList":
-			return convertList(node.content || [], "number");
+			return convertList(node.content || [], "number", 1, node.attrs, path);
 
 		case "blockquote": {
 			const blocks: PortableTextTextBlock[] = [];
@@ -505,17 +666,23 @@ function convertList(
 	items: unknown[],
 	listItem: "bullet" | "number",
 	level = 1,
+	attrs?: Record<string, unknown>,
+	path = `list:${level}`,
 ): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
 	const typedItems = items as Array<{ type: string; content?: unknown[] }>;
+	const metadata = listItem === "number" ? readOrderedListMetadata(attrs, path) : undefined;
 
-	for (const item of typedItems) {
+	for (let itemIndex = 0; itemIndex < typedItems.length; itemIndex++) {
+		const item = typedItems[itemIndex]!;
 		if (item.type === "listItem") {
 			const listItemContent = (item.content || []) as Array<{
 				type: string;
+				attrs?: Record<string, unknown>;
 				content?: unknown[];
 			}>;
-			for (const child of listItemContent) {
+			for (let childIndex = 0; childIndex < listItemContent.length; childIndex++) {
+				const child = listItemContent[childIndex]!;
 				if (child.type === "paragraph") {
 					const { children, markDefs } = convertInlineContent(child.content || []);
 					if (children.length > 0) {
@@ -525,14 +692,31 @@ function convertList(
 							style: "normal",
 							listItem,
 							level,
+							...metadata,
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
 						});
 					}
 				} else if (child.type === "bulletList") {
-					blocks.push(...convertList(child.content || [], "bullet", level + 1));
+					blocks.push(
+						...convertList(
+							child.content || [],
+							"bullet",
+							level + 1,
+							child.attrs,
+							`${path}:${itemIndex}:${childIndex}`,
+						),
+					);
 				} else if (child.type === "orderedList") {
-					blocks.push(...convertList(child.content || [], "number", level + 1));
+					blocks.push(
+						...convertList(
+							child.content || [],
+							"number",
+							level + 1,
+							child.attrs,
+							`${path}:${itemIndex}:${childIndex}`,
+						),
+					);
 				}
 			}
 		}
@@ -670,6 +854,8 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 		if (isTextBlock(block) && block.listItem) {
 			const listBlocks: PortableTextTextBlock[] = [];
 			const listType = block.listItem;
+			const runStart = i;
+			const rootId = listType === "number" ? normalizeListId(block.listId) : undefined;
 
 			// A list "run" is a level=1 anchor block plus everything that nests
 			// under it (level > 1) or repeats it at the same root level/type.
@@ -678,7 +864,13 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 				const current = blocks[i]!;
 				if (!isTextBlock(current) || !current.listItem) break;
 				const level = current.level || 1;
-				if (level > 1 || current.listItem === listType) {
+				const currentId =
+					current.listItem === "number" ? normalizeListId(current.listId) : undefined;
+				const sameRootIdentity =
+					listType !== "number" ||
+					level > 1 ||
+					(rootId ? currentId === rootId : currentId === undefined);
+				if (level > 1 || (current.listItem === listType && sameRootIdentity)) {
 					listBlocks.push(current);
 					i++;
 				} else {
@@ -686,7 +878,7 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 				}
 			}
 
-			content.push(convertPTList(listBlocks, listType));
+			content.push(convertPTList(listBlocks, listType, `root:${runStart}`));
 		} else {
 			const converted = convertPTBlock(block);
 			if (converted) {
@@ -696,10 +888,38 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 		}
 	}
 
-	return {
+	return normalizeOrderedListJson({
 		type: "doc",
-		content: content.length > 0 ? content : [{ type: "paragraph" }],
+		content: (content.length > 0
+			? content
+			: [{ type: "paragraph" }]) as PortableTextProseMirrorNode[],
+	});
+}
+
+function getListMetadata(
+	item: PortableTextTextBlock,
+	fallbackSeed: string,
+): { listId: string; listStart?: number } {
+	const listId = normalizeListId(item.listId) ?? deriveLegacyListId(fallbackSeed);
+	const listStart = normalizeListStart(item.listStart);
+	return {
+		listId,
+		...(listStart === undefined ? {} : { listStart }),
 	};
+}
+
+function belongsToNestedGroup(
+	item: PortableTextTextBlock,
+	minLevel: number,
+	parentListType: "bullet" | "number",
+	anchorType: "bullet" | "number",
+	anchorId: string | undefined,
+): boolean {
+	if ((item.level || 2) > minLevel) return true;
+	if ((item.listItem || parentListType) !== anchorType) return false;
+	if (anchorType !== "number") return true;
+	const itemId = normalizeListId(item.listId);
+	return anchorId ? itemId === anchorId : itemId === undefined;
 }
 
 function convertPTBlock(block: PortableTextBlock): unknown {
@@ -918,7 +1138,11 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 	}
 }
 
-function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "number"): unknown {
+function convertPTList(
+	items: PortableTextTextBlock[],
+	listType: "bullet" | "number",
+	context: string,
+): unknown {
 	// Group items into root-level items (level === 1) and their nested
 	// descendants (level > 1). For each root item, all subsequent items with
 	// level > 1 belong to its nested subtree — recurse on them with level
@@ -937,17 +1161,24 @@ function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "num
 				nestedItems.push(items[i]!);
 				i++;
 			}
-			rootItems.push(convertPTListItem(item, nestedItems, listType));
+			rootItems.push(
+				convertPTListItem(item, nestedItems, listType, `${context}:${rootItems.length}`),
+			);
 		} else {
 			// Orphan nested item with no preceding level=1 anchor — treat as root
 			// so we don't drop content.
-			rootItems.push(convertPTListItem(item, [], listType));
+			rootItems.push(convertPTListItem(item, [], listType, `${context}:${rootItems.length}`));
 			i++;
 		}
 	}
 
+	const firstItem = items[0]!;
+	const metadata =
+		listType === "number" ? getListMetadata(firstItem, `${context}:${firstItem._key}`) : undefined;
+
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
+		attrs: metadata ? { ...metadata, start: metadata.listStart ?? 1 } : undefined,
 		content: rootItems,
 	};
 }
@@ -956,6 +1187,7 @@ function convertPTListItem(
 	item: PortableTextTextBlock,
 	nestedItems: PortableTextTextBlock[],
 	parentListType: "bullet" | "number",
+	context: string,
 ): unknown {
 	const content: unknown[] = [];
 
@@ -984,6 +1216,8 @@ function convertPTListItem(
 		let j = 0;
 		while (j < nestedItems.length) {
 			const anchorType: "bullet" | "number" = nestedItems[j]!.listItem || parentListType;
+			const anchorId =
+				anchorType === "number" ? normalizeListId(nestedItems[j]!.listId) : undefined;
 			const nestedGroup: PortableTextTextBlock[] = [];
 
 			do {
@@ -991,8 +1225,7 @@ function convertPTListItem(
 				j++;
 			} while (
 				j < nestedItems.length &&
-				((nestedItems[j]!.level || 2) > minLevel ||
-					(nestedItems[j]!.listItem || parentListType) === anchorType)
+				belongsToNestedGroup(nestedItems[j]!, minLevel, parentListType, anchorType, anchorId)
 			);
 
 			if (nestedGroup.length > 0) {
@@ -1000,7 +1233,9 @@ function convertPTListItem(
 					...ni,
 					level: (ni.level || 2) - 1,
 				}));
-				content.push(convertPTList(adjustedGroup, anchorType));
+				content.push(
+					convertPTList(adjustedGroup, anchorType, `${context}:nested:${j - nestedGroup.length}`),
+				);
 			}
 		}
 	}
@@ -2252,20 +2487,20 @@ function EditorFooter({ editor }: { editor: Editor }) {
 		},
 	});
 
+	// Subscribes to locale changes so the plural messages below re-render.
+	useLinguiContext();
 	const readingTime = calculateReadingTime(text);
 
 	return (
 		<div className="border-t px-4 py-2 flex items-center gap-4 text-xs text-kumo-subtle">
-			<span>
-				{words} {words === 1 ? "word" : "words"}
-			</span>
-			<span>
-				{characters} {characters === 1 ? "character" : "characters"}
-			</span>
-			<span>{readingTime} min read</span>
+			<span>{plural(words, { one: "# word", other: "# words" })}</span>
+			<span>{plural(characters, { one: "# character", other: "# characters" })}</span>
+			<span>{plural(readingTime, { one: "# min read", other: "# min read" })}</span>
 		</div>
 	);
 }
+
+export { EditorFooter as _EditorFooter };
 
 /** Focus mode state for the editor */
 export type FocusMode = "normal" | "spotlight";
@@ -2547,6 +2782,7 @@ export function PortableTextEditor({
 				codeBlock: false,
 				// Replaced with CodeMarkExtension so inline code can combine with link/etc.
 				code: false,
+				orderedList: false,
 				// StarterKit v3 includes Link and Underline
 				link: {
 					openOnClick: false,
@@ -2557,6 +2793,7 @@ export function PortableTextEditor({
 				},
 				underline: {},
 			}),
+			EmDashOrderedList,
 			CodeMarkExtension,
 			CodeBlockExtension,
 			HtmlBlockExtension,
@@ -3546,6 +3783,7 @@ function EditorToolbar({
 		editor,
 		selector: (ctx) => {
 			const textAlignment = getSelectionTextAlignment(ctx.editor);
+			const isOrderedList = ctx.editor.isActive("orderedList");
 			return {
 				isBold: ctx.editor.isActive("bold"),
 				isItalic: ctx.editor.isActive("italic"),
@@ -3555,7 +3793,9 @@ function EditorToolbar({
 				isSuperscript: ctx.editor.isActive("superscript"),
 				isCode: ctx.editor.isActive("code"),
 				isBulletList: ctx.editor.isActive("bulletList"),
-				isOrderedList: ctx.editor.isActive("orderedList"),
+				isOrderedList,
+				canContinueOrderedList: isOrderedList && ctx.editor.can().continueOrderedList(),
+				canRestartOrderedList: isOrderedList && ctx.editor.can().restartOrderedList(),
 				isBlockquote: ctx.editor.isActive("blockquote"),
 				isCodeBlock: ctx.editor.isActive("codeBlock"),
 				isAlignLeft: textAlignment === "left",
@@ -3754,6 +3994,24 @@ function EditorToolbar({
 				>
 					<ListNumbers className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
+				{editorState.isOrderedList && (
+					<>
+						<ToolbarButton
+							onClick={() => editor.chain().focus().continueOrderedList().run()}
+							disabled={!editorState.canContinueOrderedList}
+							title={t`Continue numbering`}
+						>
+							<ArrowUUpRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+						</ToolbarButton>
+						<ToolbarButton
+							onClick={() => editor.chain().focus().restartOrderedList().run()}
+							disabled={!editorState.canRestartOrderedList}
+							title={t`Restart numbering`}
+						>
+							<ArrowUUpLeft className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+						</ToolbarButton>
+					</>
+				)}
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBlockquote().run()}
 					active={editorState.isBlockquote}

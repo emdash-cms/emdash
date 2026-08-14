@@ -6,17 +6,20 @@
  * `i18n/resolve.ts`).
  *
  * Because `content_taxonomies.taxonomy_id` stores the translation_group (not a
- * specific term id), the joins here are `taxonomies.translation_group =
- * content_taxonomies.taxonomy_id` + filter by `taxonomies.locale`, which picks
- * the right per-locale term.
+ * specific term id), and `entry_id` stores the content translation_group, one
+ * assignment resolves to the requested locale on both sides.
  */
 
+import { sql, type Kysely } from "kysely";
+
+import type { Database } from "../database/types.js";
+import { validateIdentifier } from "../database/validate.js";
 import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb, resetTaxonomyNamesCache } from "../loader.js";
 import {
 	cachedQuery,
 	CacheNamespace,
-	contentNamespace,
+	contentCacheNamespaces,
 	invalidateTaxonomyObjectCache,
 	isObjectCacheActive,
 } from "../object-cache/index.js";
@@ -40,6 +43,48 @@ export interface TaxonomyTermsOptions extends TaxonomyQueryOptions {
 	includeCounts?: boolean;
 }
 
+interface EntryTermRow {
+	entry_id: string;
+	id: string;
+	name: string;
+	slug: string;
+	label: string;
+	parent_id: string | null;
+	locale: string;
+	translation_group: string | null;
+}
+
+async function selectEntryTermRows(
+	db: Kysely<Database>,
+	collection: string,
+	entryIds: string[],
+	taxonomyName?: string,
+	locale?: string,
+): Promise<EntryTermRow[]> {
+	validateIdentifier(collection, "collection slug");
+	const tableName = `ec_${collection}`;
+	const result = await sql<EntryTermRow>`
+		SELECT content.id AS entry_id,
+			terms.id,
+			terms.name,
+			terms.slug,
+			terms.label,
+			terms.parent_id,
+			terms.locale,
+			terms.translation_group
+		FROM ${sql.ref(tableName)} AS content
+		INNER JOIN content_taxonomies AS pivot
+			ON pivot.entry_id = content.translation_group
+			AND pivot.collection = ${collection}
+		INNER JOIN taxonomies AS terms ON terms.translation_group = pivot.taxonomy_id
+		WHERE content.id IN (${sql.join(entryIds.map((id) => sql`${id}`))})
+			${taxonomyName ? sql`AND terms.name = ${taxonomyName}` : sql``}
+			${locale ? sql`AND terms.locale = ${locale}` : sql``}
+		ORDER BY terms.label ASC
+	`.execute(db);
+	return result.rows;
+}
+
 /** Invalidate cached taxonomy term data and any content that hydrates terms. */
 export function invalidateTermCache(): void {
 	invalidateTaxonomyObjectCache();
@@ -51,10 +96,9 @@ export function invalidateTermCache(): void {
  * Taxonomy *definitions* (the "category"/"tag" taxonomies themselves, not
  * their terms) are read on every public render that hydrates entry terms —
  * `getAllTermsForEntries` → `getCollectionTaxonomyNames` → `getTaxonomyDefs` —
- * but change extremely rarely: they're created via the admin API or applied
- * from a seed, and there is no edit/delete-def path. Caching them across the
- * isolate lifetime drops the per-render `SELECT * FROM _emdash_taxonomy_defs`
- * to once-per-isolate.
+ * but change extremely rarely: they're written only by the admin API and by
+ * seed application. Caching them across the isolate lifetime drops the
+ * per-render `SELECT * FROM _emdash_taxonomy_defs` to once-per-isolate.
  *
  * Stored on globalThis behind a Symbol key (same pattern as
  * `settings/index.ts`) so the bundler duplicating this module across SSR
@@ -89,8 +133,8 @@ const defsHolder: TaxonomyDefsHolder =
 /**
  * Invalidate the isolate-wide taxonomy-definitions cache (and the related
  * loader taxonomy-names cache). Called from every taxonomy-def write path
- * (`handleTaxonomyCreate`, seed application). Other isolates refresh on their
- * next recycle — staleness bounded by isolate lifetime.
+ * (`handleTaxonomyCreate`/`Update`/`Delete`, seed application). Other isolates
+ * refresh on their next recycle — staleness bounded by isolate lifetime.
  */
 export function invalidateTaxonomyDefsCache(): void {
 	defsHolder.version++;
@@ -228,12 +272,14 @@ export async function getTaxonomyDef(
  * Object-cache namespaces for values that embed visible term counts: the
  * taxonomy epoch (term/assignment writes) plus each counted collection's
  * content epoch, so publishing, unpublishing, or trashing an entry
- * invalidates the cached count promptly. A scheduled entry becoming due
- * flips visibility without a write, so that staleness stays bounded by the
- * cache entry's TTL.
+ * invalidates the cached count promptly. Both content namespace generations
+ * participate so rolling deployments preserve invalidation in either direction.
  */
 function termCountNamespaces(collections: string[]): string[] {
-	return [...Array.from(new Set(collections), contentNamespace), CacheNamespace.TAXONOMIES];
+	return [
+		...[...new Set(collections)].flatMap((collection) => contentCacheNamespaces(collection)),
+		CacheNamespace.TAXONOMIES,
+	];
 }
 
 /**
@@ -299,6 +345,7 @@ async function loadTaxonomyTerms(
 		.selectFrom("taxonomies")
 		.selectAll()
 		.where("name", "=", def.name)
+		.orderBy("sort_order", "asc")
 		.orderBy("label", "asc");
 	if (locale !== undefined) termsQuery = termsQuery.where("locale", "=", locale);
 
@@ -417,6 +464,7 @@ async function loadTerm(
 		// Children store the parent's translation_group in parent_id (not a row
 		// id), so a translated parent still owns its children in its own locale.
 		.where("parent_id", "=", row.translation_group ?? row.id)
+		.orderBy("sort_order", "asc")
 		.orderBy("label", "asc");
 	const termLocale = row.locale;
 	if (termLocale) childrenQuery = childrenQuery.where("locale", "=", termLocale);
@@ -475,10 +523,12 @@ export function getEntryTerms(
 		`terms:${collection}:${entryId}:${taxonomyName ?? "*"}:${locale ?? "*"}`,
 		() =>
 			cachedQuery({
-				namespace: [contentNamespace(collection), CacheNamespace.TAXONOMIES],
+				namespace: [...contentCacheNamespaces(collection), CacheNamespace.TAXONOMIES],
 				key: `entryTerms:${collection}:${entryId}:${taxonomyName ?? "*"}:${locale ?? "*"}`,
 				load: async () => {
 					const db = await getDb();
+					validateIdentifier(collection, "collection slug");
+					const tableName = `ec_${collection}`;
 
 					let query = db
 						.selectFrom("content_taxonomies")
@@ -489,7 +539,11 @@ export function getEntryTerms(
 						)
 						.selectAll("taxonomies")
 						.where("content_taxonomies.collection", "=", collection)
-						.where("content_taxonomies.entry_id", "=", entryId);
+						.where(
+							sql<boolean>`content_taxonomies.entry_id = (
+								SELECT translation_group FROM ${sql.ref(tableName)} WHERE id = ${entryId}
+							)`,
+						);
 
 					if (taxonomyName) query = query.where("taxonomies.name", "=", taxonomyName);
 					if (locale !== undefined) query = query.where("taxonomies.locale", "=", locale);
@@ -579,27 +633,7 @@ export async function getTermsForEntries(
 		for (const chunk of chunks(missedIds, SQL_BATCH_SIZE)) {
 			let rows;
 			try {
-				let query = db
-					.selectFrom("content_taxonomies")
-					.innerJoin("taxonomies", "taxonomies.translation_group", "content_taxonomies.taxonomy_id")
-					.select([
-						"content_taxonomies.entry_id",
-						"taxonomies.id",
-						"taxonomies.name",
-						"taxonomies.slug",
-						"taxonomies.label",
-						"taxonomies.parent_id",
-						"taxonomies.locale",
-						"taxonomies.translation_group",
-					])
-					.where("content_taxonomies.collection", "=", collection)
-					.where("content_taxonomies.entry_id", "in", chunk)
-					.where("taxonomies.name", "=", taxonomyName)
-					// Match the order getAllTermsForEntries (the cache primer) uses, so
-					// cache-hit and DB-miss entries in one result are ordered consistently.
-					.orderBy("taxonomies.label", "asc");
-				if (locale !== undefined) query = query.where("taxonomies.locale", "=", locale);
-				rows = await query.execute();
+				rows = await selectEntryTermRows(db, collection, chunk, taxonomyName, locale);
 			} catch (error) {
 				if (isMissingTableError(error)) return [...result.entries()];
 				throw error;
@@ -631,7 +665,7 @@ export async function getTermsForEntries(
 	const pairs =
 		idKey.length <= 256
 			? await cachedQuery({
-					namespace: [contentNamespace(collection), CacheNamespace.TAXONOMIES],
+					namespace: [...contentCacheNamespaces(collection), CacheNamespace.TAXONOMIES],
 					key: `termsForEntries:${collection}:${taxonomyName}:${locale ?? "*"}:${idKey}`,
 					load,
 				})
@@ -661,24 +695,7 @@ export async function getAllTermsForEntries(
 	for (const chunk of chunks(uniqueIds, SQL_BATCH_SIZE)) {
 		let rows;
 		try {
-			let query = db
-				.selectFrom("content_taxonomies")
-				.innerJoin("taxonomies", "taxonomies.translation_group", "content_taxonomies.taxonomy_id")
-				.select([
-					"content_taxonomies.entry_id",
-					"taxonomies.id",
-					"taxonomies.name",
-					"taxonomies.slug",
-					"taxonomies.label",
-					"taxonomies.parent_id",
-					"taxonomies.locale",
-					"taxonomies.translation_group",
-				])
-				.where("content_taxonomies.collection", "=", collection)
-				.where("content_taxonomies.entry_id", "in", chunk)
-				.orderBy("taxonomies.label", "asc");
-			if (locale !== undefined) query = query.where("taxonomies.locale", "=", locale);
-			rows = await query.execute();
+			rows = await selectEntryTermRows(db, collection, chunk, undefined, locale);
 		} catch (error) {
 			if (isMissingTableError(error)) {
 				for (const id of uniqueIds) {

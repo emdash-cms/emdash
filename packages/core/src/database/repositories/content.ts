@@ -16,9 +16,13 @@ import type {
 	FindManyResult,
 	ContentItem,
 	ContentDateField,
+	ContentBylineFilter,
 } from "./types.js";
 import {
+	ContentCollectionNotFoundError,
+	ContentMutationConflictError,
 	EmDashValidationError,
+	InvalidCursorError,
 	ScheduledNotDueError,
 	encodeCursor,
 	decodeCursor,
@@ -26,9 +30,133 @@ import {
 
 // Regex pattern for ULID validation
 const ULID_PATTERN = /^[0-9A-Z]{26}$/;
+const SQLSTATE_PATTERN = /^[0-9A-Z]{5}$/;
 
 // LIKE wildcards that must be escaped so user search input is matched literally.
 const LIKE_WILDCARD_RE = /[\\%_]/g;
+
+function nullableColumnMatch(column: string, value: string | null): ReturnType<typeof sql> {
+	validateIdentifier(column, "content column");
+	return value === null ? sql`${sql.ref(column)} IS NULL` : sql`${sql.ref(column)} = ${value}`;
+}
+
+function sameStoredValue(left: unknown, right: unknown): boolean {
+	return Object.is(serializeValue(left), serializeValue(right));
+}
+
+function matchesPublication(
+	observed: ContentItem,
+	existing: ContentItem,
+	revision: { data: Record<string, unknown> },
+	revisionId: string,
+	slug: string | null,
+	publishedAt: string,
+	updatedAt: string,
+): boolean {
+	if (
+		observed.version !== existing.version + 1 ||
+		observed.status !== "published" ||
+		observed.slug !== slug ||
+		observed.liveRevisionId !== revisionId ||
+		observed.draftRevisionId !== null ||
+		observed.scheduledAt !== null ||
+		observed.publishedAt !== publishedAt ||
+		observed.updatedAt !== updatedAt
+	) {
+		return false;
+	}
+
+	return Object.entries(revision.data).every(
+		([key, value]) =>
+			SYSTEM_COLUMNS.has(key) || key.startsWith("_") || sameStoredValue(observed.data[key], value),
+	);
+}
+
+function matchesLifecyclePublication(
+	observed: ContentItem,
+	existing: ContentItem,
+	liveRevisionId: string,
+	publishedAt: string,
+	updatedAt: string,
+): boolean {
+	if (
+		observed.version !== existing.version + 1 ||
+		observed.status !== "published" ||
+		observed.slug !== existing.slug ||
+		observed.liveRevisionId !== liveRevisionId ||
+		observed.draftRevisionId !== null ||
+		observed.scheduledAt !== null ||
+		observed.publishedAt !== publishedAt ||
+		observed.updatedAt !== updatedAt
+	) {
+		return false;
+	}
+
+	return Object.entries(existing.data).every(([key, value]) =>
+		sameStoredValue(observed.data[key], value),
+	);
+}
+
+function matchesPublicationFence(observed: ContentItem, existing: ContentItem): boolean {
+	return (
+		observed.version === existing.version &&
+		observed.status === existing.status &&
+		observed.liveRevisionId === existing.liveRevisionId &&
+		observed.draftRevisionId === existing.draftRevisionId &&
+		observed.scheduledAt === existing.scheduledAt
+	);
+}
+
+function isConfirmedStatementFailure(error: unknown): boolean {
+	if (typeof error !== "object" || error === null || !("code" in error)) return false;
+	const code = (error as { code?: unknown }).code;
+	return typeof code === "string" && (code.startsWith("SQLITE_") || SQLSTATE_PATTERN.test(code));
+}
+
+interface ResolvedOrderField {
+	column: string;
+	indexedCustomField: boolean;
+}
+
+type IndexedOrderValue = string | number | null;
+
+interface IndexedFieldCursorPayload {
+	version: 1;
+	field: string;
+	value: IndexedOrderValue;
+}
+
+function encodeIndexedFieldCursor(field: string, value: IndexedOrderValue, id: string): string {
+	const payload: IndexedFieldCursorPayload = { version: 1, field, value };
+	return encodeCursor(JSON.stringify(payload), id);
+}
+
+function decodeIndexedFieldCursor(
+	cursor: string,
+	field: string,
+): { value: IndexedOrderValue; id: string } {
+	const { orderValue, id } = decodeCursor(cursor);
+	let payload: unknown;
+	try {
+		payload = JSON.parse(orderValue);
+	} catch {
+		throw new InvalidCursorError(cursor);
+	}
+
+	if (payload === null || typeof payload !== "object") {
+		throw new InvalidCursorError(cursor);
+	}
+	const candidate = payload as Partial<IndexedFieldCursorPayload>;
+	const validValue =
+		candidate.value === null ||
+		typeof candidate.value === "string" ||
+		typeof candidate.value === "number";
+	if (candidate.version !== 1 || candidate.field !== field || !validValue) {
+		throw new InvalidCursorError(cursor);
+	}
+
+	return { value: candidate.value as IndexedOrderValue, id };
+}
 
 /**
  * Whitelist mapping a public date-filter field to its physical column. Keeping
@@ -502,7 +630,8 @@ export class ContentRepository {
 		// Determine ordering
 		const orderField = options.orderBy?.field || "createdAt";
 		const orderDirection = options.orderBy?.direction || "desc";
-		const dbField = this.mapOrderField(orderField);
+		const resolvedOrderField = await this.resolveOrderField(type, orderField);
+		const dbField = resolvedOrderField.column;
 
 		// Validate order direction to prevent injection
 		const safeOrderDirection = orderDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
@@ -529,31 +658,65 @@ export class ContentRepository {
 
 		query = this.applySearchFilter(query, options.where, type);
 		query = this.applyDateFilter(query, options.where);
+		query = this.applyBylineFilter(query, options.where, type);
 
 		// Handle cursor pagination — decodeCursor throws InvalidCursorError
 		// on malformed input; let it propagate so handlers surface a
 		// structured INVALID_CURSOR rather than silently returning page 1.
 		if (options.cursor) {
-			const { orderValue, id: cursorId } = decodeCursor(options.cursor);
-
-			if (safeOrderDirection === "DESC") {
-				query = query.where((eb) =>
-					eb.or([
-						eb(dbField as any, "<", orderValue),
-						eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
-					]),
-				);
+			if (resolvedOrderField.indexedCustomField) {
+				const { value, id: cursorId } = decodeIndexedFieldCursor(options.cursor, orderField);
+				const isPresent = sql<boolean>`${sql.ref(dbField)} IS NOT NULL`;
+				const falseLiteral = sql<boolean>`FALSE`;
+				const trueLiteral = sql<boolean>`TRUE`;
+				if (safeOrderDirection === "ASC" && value === null) {
+					query = query.where(sql<boolean>`
+						(${isPresent}) > ${falseLiteral}
+						OR ((${isPresent}) = ${falseLiteral} AND ${sql.ref("id")} > ${cursorId})
+					`);
+				} else if (safeOrderDirection === "DESC" && value === null) {
+					query = query.where(sql<boolean>`
+						(${isPresent}) = ${falseLiteral} AND ${sql.ref("id")} < ${cursorId}
+					`);
+				} else if (safeOrderDirection === "ASC") {
+					query = query.where(sql<boolean>`
+						(${isPresent}, ${sql.ref(dbField)}, ${sql.ref("id")})
+							> (${trueLiteral}, ${value}, ${cursorId})
+					`);
+				} else {
+					query = query.where(sql<boolean>`
+						(${isPresent}, ${sql.ref(dbField)}, ${sql.ref("id")})
+							< (${trueLiteral}, ${value}, ${cursorId})
+					`);
+				}
 			} else {
-				query = query.where((eb) =>
-					eb.or([
-						eb(dbField as any, ">", orderValue),
-						eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
-					]),
-				);
+				const { orderValue, id: cursorId } = decodeCursor(options.cursor);
+
+				if (safeOrderDirection === "DESC") {
+					query = query.where((eb) =>
+						eb.or([
+							eb(dbField as any, "<", orderValue),
+							eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
+						]),
+					);
+				} else {
+					query = query.where((eb) =>
+						eb.or([
+							eb(dbField as any, ">", orderValue),
+							eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
+						]),
+					);
+				}
 			}
 		}
 
 		// Apply ordering and limit
+		if (resolvedOrderField.indexedCustomField) {
+			query = query.orderBy(
+				sql<boolean>`${sql.ref(dbField)} IS NOT NULL`,
+				safeOrderDirection === "ASC" ? "asc" : "desc",
+			);
+		}
 		query = query
 			.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc")
 			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
@@ -574,11 +737,26 @@ export class ContentRepository {
 		if (hasMore && items.length > 0) {
 			const lastRow = items.at(-1) as Record<string, unknown>;
 			const lastOrderValue = lastRow[dbField];
-			const orderStr =
-				typeof lastOrderValue === "string" || typeof lastOrderValue === "number"
-					? String(lastOrderValue)
-					: "";
-			mappedResult.nextCursor = encodeCursor(orderStr, String(lastRow.id));
+			if (resolvedOrderField.indexedCustomField) {
+				if (
+					lastOrderValue !== null &&
+					typeof lastOrderValue !== "string" &&
+					typeof lastOrderValue !== "number"
+				) {
+					throw new EmDashValidationError(`Invalid indexed value for order field: ${orderField}`);
+				}
+				mappedResult.nextCursor = encodeIndexedFieldCursor(
+					orderField,
+					lastOrderValue,
+					String(lastRow.id),
+				);
+			} else {
+				const orderStr =
+					typeof lastOrderValue === "string" || typeof lastOrderValue === "number"
+						? String(lastOrderValue)
+						: "";
+				mappedResult.nextCursor = encodeCursor(orderStr, String(lastRow.id));
+			}
 		}
 
 		return mappedResult;
@@ -591,15 +769,8 @@ export class ContentRepository {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
 
-		// Build update object with parameterized values. `version` bumps on
-		// every update so the _rev optimistic-concurrency token
-		// (version:updated_at) always moves — concurrent editors still get a
-		// 409 on stale saves. `updated_at` is stamped only when the request
-		// actually carries column writes: a draft-only save on a
-		// revision-supporting collection resolves to a column no-op here (all
-		// data went into draft storage), and stamping it anyway would register
-		// a phantom modification for public "last modified" consumers like
-		// sitemap <lastmod> and JSON-LD dateModified (#2143).
+		// Every update advances the optimistic-concurrency version. updated_at
+		// advances only when a content-row column actually changes.
 		const updates: Record<string, unknown> = {};
 
 		if (input.status !== undefined) {
@@ -649,18 +820,6 @@ export class ContentRepository {
 			.where("deleted_at" as never, "is", null)
 			.execute();
 
-		// Re-stamp the taxonomy pivot only when a denormalized column actually
-		// moved (status/publishedAt/scheduledAt). A plain content edit bumps
-		// `updated_at` — which is not denormalized — so it needs no pivot write,
-		// keeping the common edit path free of taxonomy write amplification.
-		if (
-			input.status !== undefined ||
-			input.publishedAt !== undefined ||
-			input.scheduledAt !== undefined
-		) {
-			await this.restampEntryPivot(type, id);
-		}
-
 		if (hasColumnWrites) invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -687,7 +846,6 @@ export class ContentRepository {
 
 		const changed = (result.numAffectedRows ?? 0n) > 0n;
 		if (changed) {
-			await this.restampEntryPivot(type, id);
 			invalidateCollectionCache(type);
 		}
 		return changed;
@@ -710,34 +868,8 @@ export class ContentRepository {
 		const restored = result.rows[0];
 		if (!restored) return null;
 
-		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 		return this.mapRow(type, restored);
-	}
-
-	/**
-	 * Re-stamp the denormalized filter + sort columns on every
-	 * `content_taxonomies` pivot row for an entry from its authoritative `ec_*`
-	 * row (migration 051). Called after any mutation that moves one of those
-	 * columns so a taxonomy-filtered listing can seek the entry directly.
-	 *
-	 * A single correlated `UPDATE` reads the post-mutation values from `ec_*`, so
-	 * the pivot converges to the authoritative row. This is NOT atomic with the
-	 * `ec_*` mutation on D1 (no transactions), which is why the read path
-	 * re-checks the real predicates on the joined `ec_*` row. Untagged entries
-	 * have no pivot rows, so the statement is a cheap no-op for them.
-	 */
-	private async restampEntryPivot(type: string, id: string): Promise<void> {
-		const tableName = getTableName(type);
-		await sql`
-			UPDATE content_taxonomies
-			SET (status, scheduled_at, deleted_at, locale, published_at, created_at) = (
-				SELECT status, scheduled_at, deleted_at, locale, published_at, created_at
-				FROM ${sql.ref(tableName)}
-				WHERE ${sql.ref(tableName)}.id = ${id}
-			)
-			WHERE collection = ${type} AND entry_id = ${id}
-		`.execute(this.db);
 	}
 
 	/**
@@ -905,7 +1037,7 @@ export class ContentRepository {
 			eb.or(
 				columns.map((col) => {
 					validateIdentifier(col, "search column");
-					return eb(sql`lower(${sql.ref(col)})`, "like", sql`lower(${pattern}) escape '\\'`);
+					return sql<boolean>`lower(CAST(${sql.ref(col)} AS TEXT)) LIKE lower(${pattern}) ESCAPE '\\'`;
 				}),
 			),
 		);
@@ -937,6 +1069,115 @@ export class ContentRepository {
 	}
 
 	/**
+	 * Apply the optional byline filter as a correlated (NOT) EXISTS against
+	 * `_emdash_content_bylines`.
+	 *
+	 * Correlating from the content table preserves the outer sort index so
+	 * `LIMIT` can short-circuit. `mode: "none"` tests the junction rather than
+	 * `primary_byline_id` because the two are written in the same call but
+	 * are not atomically consistent, so the junction is authoritative.
+	 *
+	 * Whether a credit *renders* is locale-scoped; whether one *exists* is
+	 * not. Both are needed: the first decides what the filter matches, the
+	 * second decides whether the author fallback applies at all.
+	 */
+	private applyBylineFilter<QB extends { where: (cb: (eb: any) => unknown) => QB }>(
+		query: QB,
+		where: { bylineFilter?: ContentBylineFilter } | undefined,
+		type: string,
+	): QB {
+		const filter = where?.bylineFilter;
+		if (!filter) return query;
+		const tableName = getTableName(type);
+		const idColumn = `${tableName}.id`;
+		const authorColumn = `${tableName}.author_id`;
+		const localeColumn = `${tableName}.locale`;
+
+		// An explicit credit that actually renders — optionally within a given
+		// set of translation groups. The junction stores a group, but a credit
+		// resolves only where that group has a byline row at the locale the
+		// list is scoped to, so this repeats the join `getContentBylinesMany`
+		// makes. `locale` falls back to each entry's own when the list spans
+		// locales.
+		const creditRenders = (eb: any, bylineIds?: string[]) => {
+			let sub = eb
+				.selectFrom("_emdash_content_bylines as cb")
+				.innerJoin("_emdash_bylines as b", "b.translation_group", "cb.byline_id")
+				.select("cb.id")
+				.where("cb.collection_slug", "=", type)
+				.whereRef("cb.content_id", "=", idColumn);
+			sub = filter.locale
+				? sub.where("b.locale", "=", filter.locale)
+				: sub.whereRef("b.locale", "=", localeColumn);
+			if (bylineIds) sub = sub.where("cb.byline_id", "in", bylineIds);
+			return eb.exists(sub);
+		};
+
+		// Whether the entry carries an explicit credit at all, at any locale.
+		// Deliberately not locale-scoped: the author fallback is suppressed by
+		// the presence of a junction row, even one that renders nothing here
+		// (`hydrateBylinesMany` gates inference on `primaryBylineId`).
+		const hasExplicitCredit = (eb: any) =>
+			eb.exists(
+				eb
+					.selectFrom("_emdash_content_bylines as cb")
+					.select("cb.id")
+					.where("cb.collection_slug", "=", type)
+					.whereRef("cb.content_id", "=", idColumn),
+			);
+
+		// The entry's author owns a byline row — optionally within a given set
+		// of translation groups — at the locale the list is scoped to. Matching
+		// the locale is what keeps the filter agreeing with the list: an
+		// inferred credit renders only when the author's byline has a row at
+		// that locale (`hydrateBylinesMany` -> `findByUserIds`), and byline
+		// translations start life with a null `user_id`, so a group translated
+		// into the locale but not re-linked resolves to no credit. `locale`
+		// falls back to each entry's own when the list spans locales.
+		const authorHasByline = (eb: any, bylineIds?: string[]) => {
+			let sub = eb
+				.selectFrom("_emdash_bylines as b")
+				.select("b.id")
+				.whereRef("b.user_id", "=", authorColumn);
+			sub = filter.locale
+				? sub.where("b.locale", "=", filter.locale)
+				: sub.whereRef("b.locale", "=", localeColumn);
+			if (bylineIds) sub = sub.where("b.translation_group", "in", bylineIds);
+			return eb.exists(sub);
+		};
+
+		if (filter.mode === "none") {
+			return query.where((eb: any) => {
+				const uncredited = eb.not(creditRenders(eb));
+				// With inference on, "no byline" means none is rendered, so an
+				// entry that falls through to an author byline is excluded too.
+				return filter.includeInferred
+					? eb.and([uncredited, eb.or([hasExplicitCredit(eb), eb.not(authorHasByline(eb))])])
+					: uncredited;
+			});
+		}
+
+		const bylineIds = filter.bylineIds ?? [];
+		if (bylineIds.length === 0) {
+			// A filter that resolved to no ids must match nothing rather than
+			// silently degrade to "no filter" and return the whole collection.
+			// `1 = 0` rather than a bound `false`: better-sqlite3 refuses to
+			// bind JS booleans.
+			return query.where(() => sql<boolean>`1 = 0`);
+		}
+
+		return query.where((eb: any) => {
+			if (!filter.includeInferred) return creditRenders(eb, bylineIds);
+			// Inference applies only where no explicit credit exists, so an
+			// entry credited to someone else never matches on its author.
+			return eb.or([
+				creditRenders(eb, bylineIds),
+				eb.and([eb.not(hasExplicitCredit(eb)), authorHasByline(eb, bylineIds)]),
+			]);
+		});
+	}
+
+	/**
 	 * Count content items
 	 */
 	async count(type: string, where?: FindManyOptions["where"]): Promise<number> {
@@ -961,6 +1202,7 @@ export class ContentRepository {
 
 		query = this.applySearchFilter(query, where, type);
 		query = this.applyDateFilter(query, where);
+		query = this.applyBylineFilter(query, where, type);
 
 		const result = await query.executeTakeFirst();
 		return Number(result?.count || 0);
@@ -1049,7 +1291,6 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
-		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -1089,7 +1330,6 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
-		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -1158,6 +1398,10 @@ export class ContentRepository {
 	 * Lets callers resolve many edge groups without an N+1 per group. The caller
 	 * groups the flat result by `translationGroup` itself.
 	 *
+	 * `translation_group` leads the sort so the ordering follows
+	 * `idx_{table}_del_tg_locale` past its `deleted_at` equality; callers group by
+	 * `translationGroup`, so the per-group locale order they rely on is preserved.
+	 *
 	 * `publishedOnly` restricts the result to `status = 'published'` — reference
 	 * reads pass this for callers without `content:read_drafts` so draft/scheduled
 	 * entries never leak through an edge traversal.
@@ -1184,7 +1428,7 @@ export class ContentRepository {
 					WHERE translation_group IN (${sql.join(chunk)})
 					AND deleted_at IS NULL
 					${publishedFilter}
-					ORDER BY locale ASC
+					ORDER BY translation_group ASC, locale ASC
 				`.execute(this.db);
 				for (const row of result.rows) items.push(this.mapRow(type, row));
 			}
@@ -1267,6 +1511,8 @@ export class ContentRepository {
 	 * Syncs the draft revision's data into the content table columns so the
 	 * content table always reflects the published version.
 	 * If no draft revision exists, creates one from current data and publishes it.
+	 * When `promoteRevision` is false, publishes the current content-table data
+	 * by changing lifecycle metadata only.
 	 *
 	 * `publishedAt` (optional) overrides the publication timestamp. If omitted,
 	 * the existing `published_at` is preserved (idempotent re-publish keeps the
@@ -1274,19 +1520,17 @@ export class ContentRepository {
 	 * an explicit value to backdate a publish (e.g. when migrating content from
 	 * another CMS).
 	 *
-	 * `requireDue` (optional) gates the publish on the row still being due:
-	 * `scheduled_at` non-null and in the past. Used by the scheduled-publishing
-	 * sweep to avoid publishing content an editor unscheduled or rescheduled
-	 * between selection and publish. It claims the row with a single conditional
-	 * UPDATE (clearing `scheduled_at`) before any other write, so it is atomic
-	 * even on D1 (no multi-statement transactions) and serialises against
-	 * `unschedule()` and concurrent sweeps — no TOCTOU and no double publish.
+	 * `requireDue` gates the final update on the row still being due.
+	 * `expectedScheduledAt` additionally fences changes made after a sweep
+	 * selected the row but before publication preparation began.
 	 */
 	async publish(
 		type: string,
 		id: string,
 		publishedAt?: string,
 		requireDue = false,
+		expectedScheduledAt?: string,
+		promoteRevision = true,
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
@@ -1295,167 +1539,234 @@ export class ContentRepository {
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
 		}
-
-		// Scheduled sweep: atomically claim the row before any other write. A
-		// single conditional UPDATE is atomic per-statement on every dialect
-		// (it doesn't depend on a wrapping transaction, which D1 lacks). If the
-		// schedule was cleared or pushed to the future (unschedule/reschedule)
-		// or another sweep already claimed it, this affects 0 rows and we bail
-		// before promoting any revision — so the row can't be double-published.
-		let claimedScheduledAt: string | null = null;
-		let claimedUpdatedAt: string | null = null;
-		if (requireDue) {
-			const claim = await sql`
-				UPDATE ${sql.ref(tableName)}
-				SET scheduled_at = NULL,
-					updated_at = ${now}
-				WHERE id = ${id}
-				AND scheduled_at IS NOT NULL
-				AND scheduled_at <= ${now}
-				AND deleted_at IS NULL
-			`.execute(this.db);
-			if ((claim.numAffectedRows ?? 0n) === 0n) {
-				throw new ScheduledNotDueError();
-			}
-			// Remember what we cleared so we can put it back if the publish work
-			// below fails on a driver without transactions (see catch). Both
-			// values come from the pre-claim snapshot: if a concurrent
-			// reschedule-to-a-different-past-time landed between findById and the
-			// claim, the restore writes the snapshot value rather than the one the
-			// claim actually cleared. That window is tiny and the restore is
-			// best-effort retry bookkeeping, so the imprecision is acceptable.
-			claimedScheduledAt = existing.scheduledAt;
-			claimedUpdatedAt = existing.updatedAt;
+		if (
+			requireDue &&
+			expectedScheduledAt !== undefined &&
+			existing.scheduledAt !== expectedScheduledAt
+		) {
+			throw new ScheduledNotDueError();
 		}
 
-		// Track whether the final publish write committed. On D1 the claim above
-		// is already durable (withTransaction is a no-op there), so if a later
-		// step throws we must restore the schedule — otherwise the row is left
-		// `scheduled` with `scheduled_at = NULL` and no sweep ever retries it.
-		let publishCommitted = false;
-		try {
+		if (!promoteRevision) {
 			const revisionRepo = new RevisionRepository(this.db);
+			let provisionalRevisionId: string | null = null;
+			try {
+				let liveRevisionId = existing.liveRevisionId;
+				if (!liveRevisionId) {
+					const revision = await revisionRepo.create({
+						collection: type,
+						entryId: id,
+						data: existing.data,
+					});
+					liveRevisionId = revision.id;
+					provisionalRevisionId = revision.id;
+				}
+
+				const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
+				const duePredicate = requireDue
+					? sql`AND scheduled_at IS NOT NULL AND scheduled_at <= ${now}`
+					: sql``;
+				let published = false;
+				try {
+					const result = await sql`
+						UPDATE ${sql.ref(tableName)}
+						SET live_revision_id = ${liveRevisionId},
+							draft_revision_id = NULL,
+							status = 'published',
+							scheduled_at = NULL,
+							published_at = ${intendedPublishedAt},
+							updated_at = ${now},
+							version = version + 1
+						WHERE id = ${id}
+						AND deleted_at IS NULL
+						AND version = ${existing.version}
+						AND status = ${existing.status}
+						AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
+						AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
+						AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
+						${duePredicate}
+					`.execute(this.db);
+					published = (result.numAffectedRows ?? 0n) > 0n;
+				} catch (error) {
+					if (isConfirmedStatementFailure(error)) throw error;
+					let observed: ContentItem | null;
+					try {
+						observed = await this.findById(type, id);
+					} catch (reconciliationError) {
+						throw new Error("Unable to confirm whether content publication completed", {
+							cause: reconciliationError,
+						});
+					}
+					if (!observed) {
+						throw new Error("Unable to confirm whether content publication completed", {
+							cause: error,
+						});
+					}
+					published = matchesLifecyclePublication(
+						observed,
+						existing,
+						liveRevisionId,
+						intendedPublishedAt,
+						now,
+					);
+					if (!published && matchesPublicationFence(observed, existing)) throw error;
+					if (!published) {
+						throw new Error("Unable to confirm whether content publication completed", {
+							cause: error,
+						});
+					}
+				}
+
+				if (!published) {
+					throw requireDue ? new ScheduledNotDueError() : new ContentMutationConflictError();
+				}
+
+				invalidateCollectionCache(type);
+				await this.restampEntryPivot(type, id);
+				const updated = await this.findById(type, id);
+				if (!updated) throw new Error("Content not found");
+				return updated;
+			} catch (error) {
+				if (provisionalRevisionId) {
+					try {
+						await revisionRepo.deleteIfUnreferenced(type, id, provisionalRevisionId);
+					} catch (cleanupError) {
+						console.error(
+							`[content] Failed to clean up provisional revision ${provisionalRevisionId}:`,
+							cleanupError,
+						);
+					}
+				}
+				throw error;
+			}
+		}
+
+		const revisionRepo = new RevisionRepository(this.db);
+		let provisionalRevisionId: string | null = null;
+		try {
 			let revisionToPublish = existing.draftRevisionId || existing.liveRevisionId;
 
 			if (!revisionToPublish) {
-				// No revision exists - create one from current data
 				const revision = await revisionRepo.create({
 					collection: type,
 					entryId: id,
 					data: existing.data,
 				});
 				revisionToPublish = revision.id;
+				provisionalRevisionId = revision.id;
 			}
 
-			// Sync the revision's data into the content table columns
-			// so the content table always holds the published version
 			const revision = await revisionRepo.findById(revisionToPublish);
-			if (revision) {
-				// A staged slug lands on the live column only here — it never
-				// passes through update(), so its uniqueness was never checked.
-				// Validate before any write: the `(slug, locale)` unique index
-				// covers every row (drafts and trashed entries included), and
-				// letting the constraint fire mid-publish would surface as an
-				// opaque 500 after draft data already hit the live columns.
-				// A NULL locale never collides (unique indexes treat NULLs as
-				// distinct), so the check only applies to localized rows.
-				const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
-				if (stagedSlug !== null && stagedSlug !== existing.slug && existing.locale !== null) {
-					const conflict = await this.findBySlugIncludingTrashed(type, stagedSlug, existing.locale);
-					if (conflict && conflict.id !== id) {
-						throw new EmDashValidationError(
-							`Cannot publish: slug '${stagedSlug}' is already used by another entry` +
-								` in this collection (id: ${conflict.id}). Choose a different slug.`,
-							{ code: "SLUG_CONFLICT" },
-						);
-					}
-				}
-
-				// Write the slug before the data columns: the slug UPDATE is the
-				// only statement here that can hit the unique constraint (if a
-				// concurrent write took the slug after the check above), and on
-				// D1 there is no transaction to roll back earlier statements.
-				if (stagedSlug !== null) {
-					await sql`
-						UPDATE ${sql.ref(tableName)}
-						SET slug = ${stagedSlug}
-						WHERE id = ${id}
-					`.execute(this.db);
-				}
-
-				await this.syncDataColumns(type, id, revision.data);
+			if (!revision || revision.collection !== type || revision.entryId !== id) {
+				throw new EmDashValidationError("Revision does not belong to the specified content item");
 			}
 
-			if (publishedAt !== undefined) {
-				// Caller supplied an explicit timestamp, so we overwrite published_at
-				// directly (used to backdate a publish, e.g. for content migrations).
-				await sql`
-					UPDATE ${sql.ref(tableName)}
-					SET live_revision_id = ${revisionToPublish},
-						draft_revision_id = NULL,
-						status = 'published',
-						scheduled_at = NULL,
-						published_at = ${publishedAt},
-						updated_at = ${now}
-					WHERE id = ${id}
-					AND deleted_at IS NULL
-				`.execute(this.db);
-			} else {
-				// No timestamp supplied — preserve existing published_at on
-				// idempotent re-publish, fall back to `now` on first publish.
-				await sql`
-					UPDATE ${sql.ref(tableName)}
-					SET live_revision_id = ${revisionToPublish},
-						draft_revision_id = NULL,
-						status = 'published',
-						scheduled_at = NULL,
-						published_at = COALESCE(published_at, ${now}),
-						updated_at = ${now}
-					WHERE id = ${id}
-					AND deleted_at IS NULL
-				`.execute(this.db);
+			const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
+			const intendedSlug = stagedSlug ?? existing.slug;
+			const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
+			if (stagedSlug !== null && stagedSlug !== existing.slug && existing.locale !== null) {
+				const conflict = await this.findBySlugIncludingTrashed(type, stagedSlug, existing.locale);
+				if (conflict && conflict.id !== id) {
+					throw new EmDashValidationError(
+						`Cannot publish: slug '${stagedSlug}' is already used by another entry` +
+							` in this collection (id: ${conflict.id}). Choose a different slug.`,
+						{ code: "SLUG_CONFLICT" },
+					);
+				}
 			}
-			publishCommitted = true;
 
-			await this.restampEntryPivot(type, id);
+			const assignments: ReturnType<typeof sql>[] = [];
+			if (stagedSlug !== null) assignments.push(sql`slug = ${stagedSlug}`);
+			for (const [key, value] of Object.entries(revision.data)) {
+				if (SYSTEM_COLUMNS.has(key) || key.startsWith("_")) continue;
+				validateIdentifier(key, "content field name");
+				assignments.push(sql`${sql.ref(key)} = ${serializeValue(value)}`);
+			}
+			assignments.push(
+				sql`live_revision_id = ${revisionToPublish}`,
+				sql`draft_revision_id = NULL`,
+				sql`status = 'published'`,
+				sql`scheduled_at = NULL`,
+				sql`published_at = ${intendedPublishedAt}`,
+				sql`updated_at = ${now}`,
+				sql`version = version + 1`,
+			);
 
+			const duePredicate = requireDue
+				? sql`AND scheduled_at IS NOT NULL AND scheduled_at <= ${now}`
+				: sql``;
+			let promoted = false;
+			try {
+				const result = await sql`
+					UPDATE ${sql.ref(tableName)}
+					SET ${sql.join(assignments, sql`, `)}
+					WHERE id = ${id}
+					AND deleted_at IS NULL
+					AND version = ${existing.version}
+					AND status = ${existing.status}
+					AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
+					AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
+					AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
+					${duePredicate}
+					AND EXISTS (
+						SELECT 1 FROM revisions
+						WHERE revisions.id = ${revisionToPublish}
+						AND revisions.collection = ${type}
+						AND revisions.entry_id = ${id}
+					)
+				`.execute(this.db);
+				promoted = (result.numAffectedRows ?? 0n) > 0n;
+			} catch (error) {
+				if (isConfirmedStatementFailure(error)) throw error;
+				let observed: ContentItem | null;
+				try {
+					observed = await this.findById(type, id);
+				} catch (reconciliationError) {
+					throw new Error("Unable to confirm whether content publication completed", {
+						cause: reconciliationError,
+					});
+				}
+				if (!observed) {
+					throw new Error("Unable to confirm whether content publication completed", {
+						cause: error,
+					});
+				}
+				promoted = matchesPublication(
+					observed,
+					existing,
+					revision,
+					revisionToPublish,
+					intendedSlug,
+					intendedPublishedAt,
+					now,
+				);
+				if (!promoted && matchesPublicationFence(observed, existing)) throw error;
+				if (!promoted) {
+					throw new Error("Unable to confirm whether content publication completed", {
+						cause: error,
+					});
+				}
+			}
+
+			if (!promoted) {
+				throw requireDue ? new ScheduledNotDueError() : new ContentMutationConflictError();
+			}
+
+			invalidateCollectionCache(type);
 			const updated = await this.findById(type, id);
 			if (!updated) {
 				throw new Error("Content not found");
 			}
 
-			invalidateCollectionCache(type);
 			return updated;
 		} catch (error) {
-			// Best-effort schedule restore for the no-transaction (D1) case so a
-			// failed publish stays retryable. Skipped when the publish actually
-			// committed (the failure was afterwards). On SQLite/Postgres the
-			// enclosing transaction rolls the claim back, so this restore also
-			// rolls back — a harmless no-op. Never mask the original error.
-			if (requireDue && claimedScheduledAt && !publishCommitted) {
+			if (provisionalRevisionId) {
 				try {
-					// Only restore if the row still has pending work: either it's not
-					// published, or it's a published row that still has a draft change
-					// queued. This avoids re-adding a stale schedule (and triggering a
-					// redundant republish) when another actor fully published the row
-					// in the failure window — that publish clears draft_revision_id.
-					// Restore updated_at to its pre-claim value too — the claim bumped
-					// it to `now`, and a failed publish made no real change, so leaving
-					// it advanced would be a phantom modification for "changed since"
-					// consumers (sync, ETags, incremental indexers).
-					await sql`
-						UPDATE ${sql.ref(tableName)}
-						SET scheduled_at = ${claimedScheduledAt},
-							updated_at = ${claimedUpdatedAt ?? now}
-						WHERE id = ${id}
-						AND scheduled_at IS NULL
-						AND deleted_at IS NULL
-						AND (status != 'published' OR draft_revision_id IS NOT NULL)
-					`.execute(this.db);
-				} catch (restoreError) {
+					await revisionRepo.deleteIfUnreferenced(type, id, provisionalRevisionId);
+				} catch (cleanupError) {
 					console.error(
-						`[content] Failed to restore schedule for ${type}/${id} after publish failure:`,
-						restoreError,
+						`[content] Failed to clean up provisional revision ${provisionalRevisionId}:`,
+						cleanupError,
 					);
 				}
 			}
@@ -1507,7 +1818,6 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
-		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -1530,8 +1840,6 @@ export class ContentRepository {
 	 * content row pointing at a missing or unrelated revision.
 	 */
 	async setDraftRevision(type: string, id: string, revisionId: string): Promise<void> {
-		const tableName = getTableName(type);
-
 		const existing = await this.findById(type, id);
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
@@ -1547,15 +1855,35 @@ export class ContentRepository {
 			throw new EmDashValidationError("Revision does not belong to the specified content item");
 		}
 
-		// Draft staging leaves live content untouched, so it must not bump
-		// updated_at — public "content last modified" consumers (sitemap
-		// <lastmod>, dateModified) would see a phantom modification (#2143).
-		await sql`
+		if (!(await this.replaceDraftRevision(type, id, revisionId, existing))) {
+			throw new ContentMutationConflictError();
+		}
+	}
+
+	async replaceDraftRevision(
+		type: string,
+		id: string,
+		revisionId: string,
+		expected: Pick<ContentItem, "version" | "liveRevisionId" | "draftRevisionId">,
+	): Promise<boolean> {
+		const tableName = getTableName(type);
+		const result = await sql`
 			UPDATE ${sql.ref(tableName)}
-			SET draft_revision_id = ${revisionId}
+			SET draft_revision_id = ${revisionId},
+				version = version + 1
 			WHERE id = ${id}
 			AND deleted_at IS NULL
+			AND version = ${expected.version}
+			AND ${nullableColumnMatch("live_revision_id", expected.liveRevisionId)}
+			AND ${nullableColumnMatch("draft_revision_id", expected.draftRevisionId)}
+			AND EXISTS (
+				SELECT 1 FROM revisions
+				WHERE revisions.id = ${revisionId}
+				AND revisions.collection = ${type}
+				AND revisions.entry_id = ${id}
+			)
 		`.execute(this.db);
+		return (result.numAffectedRows ?? 0n) > 0n;
 	}
 
 	/**
@@ -1593,35 +1921,6 @@ export class ContentRepository {
 		}
 
 		return updated;
-	}
-
-	/**
-	 * Sync data columns in the content table from a data object.
-	 * Used to promote revision data into the content table on publish.
-	 * Keys starting with _ are revision metadata (e.g. _slug) and are skipped.
-	 */
-	private async syncDataColumns(
-		type: string,
-		id: string,
-		data: Record<string, unknown>,
-	): Promise<void> {
-		const tableName = getTableName(type);
-		const updates: Record<string, unknown> = {};
-
-		for (const [key, value] of Object.entries(data)) {
-			if (SYSTEM_COLUMNS.has(key)) continue;
-			if (key.startsWith("_")) continue; // revision metadata
-			validateIdentifier(key, "content field name");
-			updates[key] = serializeValue(value);
-		}
-
-		if (Object.keys(updates).length === 0) return;
-
-		await this.db
-			.updateTable(tableName as keyof Database)
-			.set(updates)
-			.where("id", "=", id)
-			.execute();
 	}
 
 	/**
@@ -1698,5 +1997,38 @@ export class ContentRepository {
 			throw new EmDashValidationError(`Invalid order field: ${field}`);
 		}
 		return mapped;
+	}
+
+	private async resolveOrderField(type: string, field: string): Promise<ResolvedOrderField> {
+		try {
+			return { column: this.mapOrderField(field), indexedCustomField: false };
+		} catch (error) {
+			if (!(error instanceof EmDashValidationError)) throw error;
+		}
+
+		const customField = await this.db
+			.selectFrom("_emdash_collections as collection")
+			.leftJoin("_emdash_fields as field", (join) =>
+				join
+					.onRef("field.collection_id", "=", "collection.id")
+					.on("field.slug", "=", field)
+					.on("field.indexed", "=", 1),
+			)
+			.where("collection.slug", "=", type)
+			.select(["collection.id as collectionId", "field.slug as fieldSlug"])
+			.executeTakeFirst();
+
+		if (!customField) {
+			throw new ContentCollectionNotFoundError(type);
+		}
+
+		if (!customField.fieldSlug) {
+			throw new EmDashValidationError(
+				`Invalid order field: ${field}. Custom fields must be indexed before sorting.`,
+			);
+		}
+
+		validateIdentifier(customField.fieldSlug, "content order field");
+		return { column: customField.fieldSlug, indexedCustomField: true };
 	}
 }

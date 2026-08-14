@@ -493,6 +493,80 @@ describe("ContentNewPage – locale passed to createContent", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Tests: ContentNewPage – a rejected create surfaces an error toast
+// ---------------------------------------------------------------------------
+
+describe("ContentNewPage – create failure surfaces the server's error", () => {
+	let mockFetch: ReturnType<typeof createMockFetch>;
+
+	beforeEach(() => {
+		mockFetch = createMockFetch();
+
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: MANIFEST })
+			.on("GET", "/_emdash/api/auth/me", {
+				data: { id: "user_01", role: 60 },
+			})
+			.on("GET", "/_emdash/api/bylines", { data: { items: [] } })
+			// A canned 409 SLUG_CONFLICT — the response shape the server
+			// returns when the entry's slug is already taken in the
+			// collection (slug derivation itself is server-side and not
+			// exercised here).
+			.on(
+				"POST",
+				"/_emdash/api/content/posts",
+				{
+					success: false,
+					error: {
+						code: "SLUG_CONFLICT",
+						message: "Slug 'test-post' already exists in collection 'posts'",
+					},
+				},
+				409,
+			);
+	});
+
+	afterEach(() => {
+		mockFetch.restore();
+	});
+
+	it("shows a toast with the server's message on a slug conflict (and stays on /new)", async () => {
+		const { router, TestApp } = buildRouter();
+
+		await router.navigate({
+			to: "/content/$collection/new",
+			params: { collection: "posts" },
+			search: { locale: undefined },
+		});
+
+		const screen = await render(<TestApp />);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+
+		// The UI surfaces WHAT happened — the server's human-readable
+		// conflict message.
+		await expect.element(screen.getByText("Failed to save")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Slug 'test-post' already exists in collection 'posts'"))
+			.toBeInTheDocument();
+
+		// And with the error affordance: Kumo styles severity off `variant`
+		// (Base UI's `type` is inert for styling), and the toast icon only
+		// renders for a non-default variant.
+		await expect
+			.poll(() => document.querySelectorAll("[data-toast-icon]").length)
+			.toBeGreaterThan(0);
+
+		// And the failed create must not navigate anywhere.
+		expect(router.state.location.pathname).toContain("/content/posts/new");
+	});
+});
+
+// ---------------------------------------------------------------------------
 // Tests: ContentEditPage – autosave cache stays in sync
 // ---------------------------------------------------------------------------
 

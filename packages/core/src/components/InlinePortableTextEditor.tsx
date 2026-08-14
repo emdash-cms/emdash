@@ -25,9 +25,17 @@ import Suggestion from "@tiptap/suggestion";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import {
+	deriveLegacyListId,
+	normalizeProseMirrorOrderedListJson,
+	normalizeListId,
+	normalizeListStart,
+	readOrderedListMetadata,
+} from "../content/converters/numbered-list.js";
 import { computeThumbnailSize } from "../media/thumbnail.js";
 import { CodeMarkExtension } from "./code-mark.js";
 import { InlineCodeBlockExtension } from "./inline-code-block.js";
+import { EmDashOrderedList } from "./ordered-list.js";
 
 // ── Portable Text types ────────────────────────────────────────────
 
@@ -50,6 +58,8 @@ interface PTTextBlock {
 	style?: "normal" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "blockquote";
 	listItem?: "bullet" | "number";
 	level?: number;
+	listId?: string;
+	listStart?: number;
 	children: PTSpan[];
 	markDefs?: PTMarkDef[];
 	textAlign?: "left" | "center" | "right" | "justify";
@@ -106,8 +116,8 @@ function attrNum(attrs: Record<string, unknown> | undefined, key: string): numbe
 function pmToPortableText(doc: PMNode): PTBlock[] {
 	if (!doc || doc.type !== "doc" || !doc.content) return [];
 	const blocks: PTBlock[] = [];
-	for (const node of doc.content) {
-		const r = convertPMNode(node);
+	for (let i = 0; i < doc.content.length; i++) {
+		const r = convertPMNode(doc.content[i]!, `root:${i}`);
 		if (r) {
 			if (Array.isArray(r)) blocks.push(...r);
 			else blocks.push(r);
@@ -116,7 +126,7 @@ function pmToPortableText(doc: PMNode): PTBlock[] {
 	return blocks;
 }
 
-function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
+function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 	switch (node.type) {
 		case "paragraph": {
 			const { children, markDefs } = convertInline(node.content || []);
@@ -157,9 +167,9 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 			};
 		}
 		case "bulletList":
-			return convertPMList(node.content || [], "bullet");
+			return convertPMList(node.content || [], "bullet", 1, node.attrs, path);
 		case "orderedList":
-			return convertPMList(node.content || [], "number");
+			return convertPMList(node.content || [], "number", 1, node.attrs, path);
 		case "blockquote": {
 			const blocks: PTTextBlock[] = [];
 			for (const child of node.content || []) {
@@ -245,11 +255,20 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 	}
 }
 
-function convertPMList(items: PMNode[], listItem: "bullet" | "number"): PTTextBlock[] {
+function convertPMList(
+	items: PMNode[],
+	listItem: "bullet" | "number",
+	level: number,
+	attrs: Record<string, unknown> | undefined,
+	path: string,
+): PTTextBlock[] {
 	const blocks: PTTextBlock[] = [];
-	for (const item of items) {
+	const metadata = listItem === "number" ? readOrderedListMetadata(attrs, path) : undefined;
+	for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+		const item = items[itemIndex]!;
 		if (item.type === "listItem") {
-			for (const child of item.content || []) {
+			for (let childIndex = 0; childIndex < (item.content?.length ?? 0); childIndex++) {
+				const child = item.content![childIndex]!;
 				if (child.type === "paragraph") {
 					const { children, markDefs } = convertInline(child.content || []);
 					if (children.length > 0) {
@@ -258,11 +277,23 @@ function convertPMList(items: PMNode[], listItem: "bullet" | "number"): PTTextBl
 							_key: k(),
 							style: "normal",
 							listItem,
-							level: 1,
+							level,
+							...metadata,
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
 						});
 					}
+				} else if (child.type === "bulletList" || child.type === "orderedList") {
+					const childListItem = child.type === "bulletList" ? "bullet" : "number";
+					blocks.push(
+						...convertPMList(
+							child.content || [],
+							childListItem,
+							level + 1,
+							child.attrs,
+							`${path}:${itemIndex}:${childIndex}`,
+						),
+					);
 				}
 			}
 		}
@@ -346,7 +377,7 @@ function convertPMMark(
 function portableTextToPM(blocks: PTBlock[]): JSONContent {
 	if (!blocks || blocks.length === 0) return { type: "doc", content: [{ type: "paragraph" }] };
 
-	const content: JSONContent[] = [];
+	const content: PMNode[] = [];
 	let i = 0;
 
 	while (i < blocks.length) {
@@ -358,14 +389,23 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 		if (isPTTextBlock(block) && block.listItem) {
 			const listBlocks: PTTextBlock[] = [];
 			const listType = block.listItem;
+			const runStart = i;
+			const rootId = listType === "number" ? normalizeListId(block.listId) : undefined;
 			while (i < blocks.length) {
 				const cur = blocks[i];
-				if (cur && isPTTextBlock(cur) && cur.listItem === listType) {
+				if (!cur || !isPTTextBlock(cur) || !cur.listItem) break;
+				const level = cur.level || 1;
+				const currentId = cur.listItem === "number" ? normalizeListId(cur.listId) : undefined;
+				const sameIdentity =
+					listType !== "number" ||
+					level > 1 ||
+					(rootId ? currentId === rootId : currentId === undefined);
+				if (level > 1 || (cur.listItem === listType && sameIdentity)) {
 					listBlocks.push(cur);
 					i++;
 				} else break;
 			}
-			content.push(convertPTList(listBlocks, listType));
+			content.push(convertPTList(listBlocks, listType, `root:${runStart}`));
 		} else if (
 			isPTTextBlock(block) &&
 			block.style === "blockquote" &&
@@ -375,7 +415,7 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 			// PT is flat, so a multi-paragraph quote is stored as a run of
 			// blockquote-styled blocks. Mirrors the grouping in
 			// content/converters/portable-text-to-prosemirror.ts; without it
-			// merges revert on reload in the inline editor too (#1884).
+			// merges revert on reload in the inline editor too.
 			const quoteBlocks: PTTextBlock[] = [];
 			while (i < blocks.length) {
 				const cur = blocks[i];
@@ -407,10 +447,13 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 		}
 	}
 
-	return { type: "doc", content: content.length > 0 ? content : [{ type: "paragraph" }] };
+	return normalizeProseMirrorOrderedListJson({
+		type: "doc",
+		content: content.length > 0 ? content : [{ type: "paragraph" }],
+	});
 }
 
-function convertPTBlock(block: PTBlock): JSONContent | null {
+function convertPTBlock(block: PTBlock): PMNode | null {
 	if (isPTTextBlock(block)) {
 		const { style = "normal", children, markDefs = [], textAlign } = block;
 		const pmContent = convertPTSpans(children, markDefs);
@@ -530,23 +573,118 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 	};
 }
 
-function convertPTList(items: PTTextBlock[], listType: "bullet" | "number"): JSONContent {
+function convertPTList(
+	items: PTTextBlock[],
+	listType: "bullet" | "number",
+	context: string,
+): PMNode {
+	const rootItems: PMNode[] = [];
+	let index = 0;
+
+	while (index < items.length) {
+		const item = items[index]!;
+		const level = item.level || 1;
+		if (level === 1) {
+			const nestedItems: PTTextBlock[] = [];
+			index++;
+			while (index < items.length && (items[index]!.level || 1) > 1) {
+				nestedItems.push(items[index]!);
+				index++;
+			}
+			rootItems.push(
+				convertPTListItem(item, nestedItems, listType, `${context}:${rootItems.length}`),
+			);
+		} else {
+			rootItems.push(convertPTListItem(item, [], listType, `${context}:${rootItems.length}`));
+			index++;
+		}
+	}
+
+	const firstItem = items[0]!;
+	const listId =
+		normalizeListId(firstItem.listId) ?? deriveLegacyListId(`${context}:${firstItem._key}`);
+	const listStart = normalizeListStart(firstItem.listStart);
+	const metadata =
+		listType === "number"
+			? {
+					listId,
+					...(listStart === undefined ? {} : { listStart }),
+				}
+			: undefined;
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
-		content: items.map((item) => ({
-			type: "listItem",
-			content: [
-				{
-					type: "paragraph",
-					content: convertPTSpans(item.children, item.markDefs || []),
-				},
-			],
-		})),
+		attrs: metadata ? { ...metadata, start: metadata.listStart ?? 1 } : undefined,
+		content: rootItems,
 	};
 }
 
-function convertPTSpans(spans: PTSpan[], markDefs: PTMarkDef[]): JSONContent[] {
-	const nodes: JSONContent[] = [];
+function belongsToNestedPTGroup(
+	item: PTTextBlock,
+	minLevel: number,
+	parentListType: "bullet" | "number",
+	anchorType: "bullet" | "number",
+	anchorId: string | undefined,
+): boolean {
+	if ((item.level || 2) > minLevel) return true;
+	if ((item.listItem || parentListType) !== anchorType) return false;
+	if (anchorType !== "number") return true;
+	const itemId = normalizeListId(item.listId);
+	return anchorId ? itemId === anchorId : itemId === undefined;
+}
+
+function convertPTListItem(
+	item: PTTextBlock,
+	nestedItems: PTTextBlock[],
+	parentListType: "bullet" | "number",
+	context: string,
+): PMNode {
+	const content: PMNode[] = [
+		{
+			type: "paragraph",
+			content: convertPTSpans(item.children, item.markDefs || []),
+		},
+	];
+
+	if (nestedItems.length > 0) {
+		let minLevel = Infinity;
+		for (const nestedItem of nestedItems) {
+			const level = nestedItem.level || 2;
+			if (level < minLevel) minLevel = level;
+		}
+
+		let index = 0;
+		while (index < nestedItems.length) {
+			const groupStart = index;
+			const anchorType = nestedItems[index]!.listItem || parentListType;
+			const anchorId =
+				anchorType === "number" ? normalizeListId(nestedItems[index]!.listId) : undefined;
+			const nestedGroup: PTTextBlock[] = [];
+			do {
+				nestedGroup.push(nestedItems[index]!);
+				index++;
+			} while (
+				index < nestedItems.length &&
+				belongsToNestedPTGroup(nestedItems[index]!, minLevel, parentListType, anchorType, anchorId)
+			);
+
+			content.push(
+				convertPTList(
+					nestedGroup.map((nestedItem) => ({
+						...nestedItem,
+						level: (nestedItem.level || 2) - 1,
+					})),
+					anchorType,
+					`${context}:nested:${groupStart}`,
+				),
+			);
+		}
+	}
+
+	return { type: "listItem", content };
+}
+
+function convertPTSpans(spans: PTSpan[], markDefs: PTMarkDef[]): PMNode[] {
+	const nodes: PMNode[] = [];
 	const mdMap = new Map(markDefs.map((md) => [md._key, md]));
 
 	for (const span of spans) {
@@ -556,7 +694,7 @@ function convertPTSpans(spans: PTSpan[], markDefs: PTMarkDef[]): JSONContent[] {
 			const text = parts[i];
 			if (text && text.length > 0) {
 				const marks = convertPTMarks(span.marks || [], mdMap);
-				const node: JSONContent = {
+				const node: PMNode = {
 					type: "text",
 					text,
 				};
@@ -1869,7 +2007,7 @@ export function InlinePortableTextEditor({
 		async (options?: { keepalive?: boolean }) => {
 			// A pagehide flush must not be skipped: an in-flight blur save is
 			// cancelled by the navigation, so the keepalive request is the only
-			// one that can still land (#1582).
+			// one that can still land.
 			if (savingRef.current && !options?.keepalive) return;
 
 			const current = JSON.stringify(getBlocks());
@@ -1914,8 +2052,8 @@ export function InlinePortableTextEditor({
 	// Flush unsaved edits when the page goes away (browser back/forward,
 	// link click, tab close). The blur handler doesn't cover this: unload
 	// doesn't reliably fire React blur, and a plain fetch started during
-	// unload is cancelled by the navigation — edits were silently lost
-	// (#1582). `keepalive` lets the PUT outlive the page.
+	// unload is cancelled by the navigation — edits were silently lost.
+	// `keepalive` lets the PUT outlive the page.
 	// Caveat: keepalive caps the body at 64KB — a very long document
 	// can still be lost on unload. Upgrade path: debounced autosave
 	// while typing (like the admin editor) so unload flushes are rare.
@@ -1945,7 +2083,9 @@ export function InlinePortableTextEditor({
 				codeBlock: false,
 				// Replaced with CodeMarkExtension so inline code can combine with link/etc.
 				code: false,
+				orderedList: false,
 			}),
+			EmDashOrderedList,
 			CodeMarkExtension,
 			InlineCodeBlockExtension,
 			Image.extend({

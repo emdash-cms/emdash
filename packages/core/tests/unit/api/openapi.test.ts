@@ -283,6 +283,8 @@ describe("OpenAPI document generation", () => {
 		expect(operationIds).toContain("deleteMedia");
 		expect(operationIds).toContain("getMediaUploadUrl");
 		expect(operationIds).toContain("repairMediaUsage");
+		expect(operationIds).toContain("listMediaUsageWork");
+		expect(operationIds).toContain("retryMediaUsageWork");
 
 		// Schema operations
 		expect(operationIds).toContain("listCollections");

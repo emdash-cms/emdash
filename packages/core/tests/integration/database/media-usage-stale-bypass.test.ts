@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { rewriteUrls } from "../../../src/astro/routes/api/import/wordpress/rewrite-urls.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
+import { installMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
 import {
 	CONTENT_MEDIA_USAGE_ADAPTER_ID,
 	CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
@@ -137,6 +138,84 @@ describeEachDialect("media usage stale marking for bypass writes", (dialect) => 
 
 		await expectCollectionStatus("posts", "stale");
 	});
+
+	it("requires reconciliation after active schema field mutations", async () => {
+		const collectionId = await activateCollectionCapture("posts");
+
+		await registry.createField("posts", { slug: "deck", label: "Deck", type: "string" });
+		await expectSchemaReconciliation(collectionId, 2);
+
+		await trustCurrentSchema(collectionId);
+		await registry.updateField("posts", "hero", { type: "file" });
+		await expectSchemaReconciliation(collectionId, 4);
+
+		await trustCurrentSchema(collectionId);
+		await registry.deleteField("posts", "deck");
+		await expectSchemaReconciliation(collectionId, 6);
+
+		expect(
+			await usageRepo.recordIncrementalSuccess({ collectionId, collectionSlug: "posts" }),
+		).toBe(true);
+		await expectSchemaReconciliation(collectionId, 6);
+	});
+
+	it("does not mutate schema when active coverage cannot be invalidated", async () => {
+		const collectionId = await activateCollectionCapture("posts");
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ capture_state: "installing" })
+			.where("collection_id", "=", collectionId)
+			.execute();
+
+		await expect(
+			registry.createField("posts", { slug: "blocked", label: "Blocked", type: "image" }),
+		).rejects.toThrow();
+		await expect(registry.getField("posts", "blocked")).resolves.toBeNull();
+	});
+
+	it.runIf(dialect === "sqlite")(
+		"fences a repair that starts during an active schema mutation",
+		async () => {
+			const collectionId = await activateCollectionCapture("posts");
+			const runToken = "schema-race-repair";
+			await sql`
+				CREATE TRIGGER begin_media_usage_repair_during_schema_change
+				AFTER INSERT ON _emdash_fields
+				WHEN NEW.slug = 'race_field'
+				BEGIN
+					UPDATE _emdash_media_usage_index_status
+					SET status = 'running',
+						started_at = '2026-08-09T00:00:00.000Z',
+						completed_at = NULL,
+						cursor = ${sql.lit(runToken)},
+						reconciliation_required = 1
+					WHERE collection_id = ${sql.lit(collectionId)};
+				END
+			`.execute(ctx.db);
+
+			await registry.createField("posts", {
+				slug: "race_field",
+				label: "Race field",
+				type: "image",
+			});
+			const finalized = await usageRepo.finalizeIndexStatusRepairAtEpoch({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "posts",
+				collectionId,
+				runToken,
+				startingEpoch: 1,
+				status: "complete",
+				schemaVersion: 1,
+				indexedSourceCount: 0,
+				failedSourceCount: 0,
+				lastErrorCode: null,
+			});
+
+			expect(finalized.finalized).toBe(false);
+			await expectSchemaReconciliation(collectionId, 2);
+		},
+	);
 
 	it("marks registered orphaned tables stale", async () => {
 		await sql`CREATE TABLE ec_orphan_posts (id text primary key)`.execute(ctx.db);
@@ -286,6 +365,64 @@ describeEachDialect("media usage stale marking for bypass writes", (dialect) => 
 			schemaVersion: 1,
 			indexedSourceCount: 1,
 			failedSourceCount: 0,
+		});
+	}
+
+	async function activateCollectionCapture(collectionSlug: string): Promise<string> {
+		const collection = await registry.getCollection(collectionSlug);
+		if (!collection) throw new Error(`Expected ${collectionSlug} collection`);
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({
+				collection_id: collection.id,
+				status: "complete",
+				completed_at: "2026-08-01T00:00:00.000Z",
+				reconciliation_required: 0,
+				capture_state: "installing",
+			})
+			.where("adapter_id", "=", CONTENT_MEDIA_USAGE_ADAPTER_ID)
+			.where("scope_type", "=", CONTENT_MEDIA_USAGE_COLLECTION_SCOPE)
+			.where("scope_key", "=", collectionSlug)
+			.execute();
+		await installMediaUsageCaptureTriggers(ctx.db, {
+			collectionId: collection.id,
+			collectionSlug,
+		});
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ capture_state: "active" })
+			.where("collection_id", "=", collection.id)
+			.execute();
+		await ctx.db
+			.updateTable("_emdash_media_usage_activation")
+			.set({ state: "active", activated_at: "2026-08-05T00:00:00.000Z" })
+			.where("task_key", "=", "incremental_capture")
+			.execute();
+		return collection.id;
+	}
+
+	async function trustCurrentSchema(collectionId: string): Promise<void> {
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ status: "complete", reconciliation_required: 0 })
+			.where("collection_id", "=", collectionId)
+			.execute();
+	}
+
+	async function expectSchemaReconciliation(
+		collectionId: string,
+		changeEpoch: number,
+	): Promise<void> {
+		await expect(
+			ctx.db
+				.selectFrom("_emdash_media_usage_index_status")
+				.select(["status", "reconciliation_required", "change_epoch"])
+				.where("collection_id", "=", collectionId)
+				.executeTakeFirstOrThrow(),
+		).resolves.toEqual({
+			status: "stale",
+			reconciliation_required: 1,
+			change_epoch: expect.toSatisfy((value) => Number(value) === changeEpoch),
 		});
 	}
 

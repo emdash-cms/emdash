@@ -847,6 +847,7 @@ export function ContentEditor({
 							collection={collection}
 							item={item}
 							isNew={isNew}
+							manifest={manifest}
 							entryLocale={entryLocale}
 							slug={slug}
 							onSlugChange={handleSlugChange}
@@ -1328,6 +1329,7 @@ function FieldRenderer({
 							: undefined
 					}
 					fieldId={field.id}
+					variant={name === "featured_image" ? "featured" : "default"}
 				/>
 			);
 		}

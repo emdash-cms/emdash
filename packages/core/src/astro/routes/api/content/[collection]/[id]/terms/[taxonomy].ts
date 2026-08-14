@@ -34,10 +34,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	}
 
 	try {
-		// Terms are stored against the per-locale entry row but their
-		// translation_group spans every locale. Resolve the entry's own locale
-		// server-side (deterministic, not client-spoofable) so only the matching
-		// term variant is returned — see issue #1218.
+		// Assignments store content and term translation groups. Resolve the
+		// entry's locale server-side so the response includes only that locale's
+		// term variant.
 		const entry = await new ContentRepository(emdash.db).findByIdOrSlug(collection, id);
 		if (!entry) return apiError("NOT_FOUND", "Content not found", 404);
 		const locale = entry.locale ?? undefined;
@@ -108,8 +107,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	// Resolve the canonical content ID from the handler result.
 	// The URL `id` param may be a slug; we must use the real ID for term storage.
 	const canonicalId = typeof existingItem?.id === "string" ? existingItem.id : id;
-	// The entry is per-locale; scope the term read to its locale so only the
-	// matching translation variant is returned in the response — see #1218.
+	// The assignment spans the content translation group, while the response
+	// includes only the term variant matching this entry's locale.
 	const entryLocale = typeof existingItem?.locale === "string" ? existingItem.locale : undefined;
 
 	try {

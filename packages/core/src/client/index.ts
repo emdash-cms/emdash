@@ -228,6 +228,74 @@ export interface MediaUsageRepairResponse {
 	collections: MediaUsageRepairCollectionSummary[];
 }
 
+/** Durable media usage entry-work state */
+export type MediaUsageWorkState = "pending" | "retry" | "leased" | "failed";
+
+/** Redacted operator view of one durable media usage job */
+export interface MediaUsageWorkItem {
+	collectionId: string;
+	collectionSlug: string;
+	contentId: string;
+	state: MediaUsageWorkState;
+	attemptCount: number;
+	nextAttemptAt: string;
+	leaseExpiresAt: string | null;
+	lastAttemptedAt: string | null;
+	lastErrorCode: string | null;
+	updatedAt: string;
+}
+
+/** Filters and pagination for durable media usage work */
+export interface MediaUsageWorkListOptions {
+	collection: string;
+	state?: MediaUsageWorkState;
+	limit?: number;
+	cursor?: string;
+}
+
+/** One bounded page of durable media usage work */
+export interface MediaUsageWorkListResponse {
+	items: MediaUsageWorkItem[];
+	nextCursor?: string;
+}
+
+/** Identity for explicitly retrying one durable media usage job */
+export interface MediaUsageWorkRetryInput {
+	collectionId: string;
+	contentId: string;
+}
+
+/** Result of explicitly retrying one durable media usage job */
+export interface MediaUsageWorkRetryResponse {
+	changed: boolean;
+	item: MediaUsageWorkItem;
+}
+
+export type MediaUsageCollectionDeletionState = "pending" | "retry" | "leased" | "failed";
+export type MediaUsageCollectionDeletionPhase =
+	| "fence"
+	| "registry"
+	| "table"
+	| "work"
+	| "sources"
+	| "status"
+	| "finalize";
+export interface MediaUsageCollectionDeletionItem {
+	collectionId: string;
+	collectionSlug: string;
+	state: MediaUsageCollectionDeletionState;
+	phase: MediaUsageCollectionDeletionPhase;
+	attemptCount: number;
+	nextAttemptAt: string;
+	leaseExpiresAt: string | null;
+	lastErrorCode: string | null;
+	updatedAt: string;
+}
+export interface MediaUsageCollectionDeletionListResponse {
+	items: MediaUsageCollectionDeletionItem[];
+	nextCursor?: string;
+}
+
 /** Search result */
 export interface SearchResult {
 	id: string;
@@ -816,6 +884,49 @@ export class EmDashClient {
 	/** Repair content media usage indexes for one collection or all collections */
 	async mediaRepairUsage(input: MediaUsageRepairInput): Promise<MediaUsageRepairResponse> {
 		return this.request<MediaUsageRepairResponse>("POST", "/admin/media-usage/repair", input);
+	}
+
+	/** List a bounded page of durable media usage entry work */
+	async mediaListUsageWork(
+		options: MediaUsageWorkListOptions,
+	): Promise<MediaUsageWorkListResponse> {
+		const params = new URLSearchParams({ collection: options.collection });
+		if (options.state) params.set("state", options.state);
+		if (options.limit !== undefined) params.set("limit", String(options.limit));
+		if (options.cursor) params.set("cursor", options.cursor);
+		return this.request<MediaUsageWorkListResponse>("GET", `/admin/media-usage/work?${params}`);
+	}
+
+	/** Explicitly retry one durable media usage entry job */
+	async mediaRetryUsageWork(input: MediaUsageWorkRetryInput): Promise<MediaUsageWorkRetryResponse> {
+		return this.request<MediaUsageWorkRetryResponse>(
+			"POST",
+			"/admin/media-usage/work/retry",
+			input,
+		);
+	}
+
+	async mediaListCollectionDeletions(
+		options: {
+			state?: MediaUsageCollectionDeletionState;
+			limit?: number;
+			cursor?: string;
+		} = {},
+	): Promise<MediaUsageCollectionDeletionListResponse> {
+		const params = new URLSearchParams();
+		if (options.state) params.set("state", options.state);
+		if (options.limit !== undefined) params.set("limit", String(options.limit));
+		if (options.cursor) params.set("cursor", options.cursor);
+		return this.request("GET", `/admin/media-usage/collection-deletions?${params}`);
+	}
+
+	async mediaRetryCollectionDeletion(collectionId: string): Promise<{
+		changed: boolean;
+		item: MediaUsageCollectionDeletionItem;
+	}> {
+		return this.request("POST", "/admin/media-usage/collection-deletions/retry", {
+			collectionId,
+		});
 	}
 
 	// -----------------------------------------------------------------------

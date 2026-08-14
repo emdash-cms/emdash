@@ -77,6 +77,16 @@ export {
 	type MediaUsageSummary,
 } from "./media-usage.js";
 
+export {
+	handleMediaUsageWorkList,
+	handleMediaUsageWorkRetry,
+	type MediaUsageWorkItem,
+	type MediaUsageWorkListQuery,
+	type MediaUsageWorkListResponse,
+	type MediaUsageWorkRetryRequest,
+	type MediaUsageWorkRetryResponse,
+} from "./media-usage-work.js";
+
 // Schema handlers
 export {
 	handleSchemaCollectionList,
@@ -162,6 +172,10 @@ export { handleSettingsGet, handleSettingsUpdate } from "./settings.js";
 // Taxonomy handlers
 export {
 	handleTaxonomyList,
+	handleTaxonomyGet,
+	handleTaxonomyUpdate,
+	handleTaxonomyDelete,
+	handleTaxonomyDefTranslations,
 	handleTermList,
 	handleTermCreate,
 	handleTermGet,
@@ -169,6 +183,8 @@ export {
 	handleTermDelete,
 	type TaxonomyDef,
 	type TaxonomyListResponse,
+	type TaxonomyResponse,
+	type TaxonomyDefTranslationsResponse,
 	type TermData,
 	type TermWithCount,
 	type TermListResponse,

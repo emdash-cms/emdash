@@ -147,7 +147,7 @@ export async function fetchContentList(
 		orderBy?: string;
 		/** Sort direction; defaults to "desc" on the server. */
 		order?: "asc" | "desc";
-		/** Case-insensitive substring search across title/name/slug. */
+		/** Search across display fields, slug, and searchable custom fields. */
 		search?: string;
 		/** Filter to entries authored by this user (the `author_id` column). */
 		authorId?: string;
@@ -157,6 +157,18 @@ export async function fetchContentList(
 		dateFrom?: string;
 		/** Inclusive upper bound (ISO date or datetime). Requires `dateField`. */
 		dateTo?: string;
+		/**
+		 * Byline ids (translation groups) to match; an entry matches if it is
+		 * credited to any of them. Ignored when `bylinesNone` is set.
+		 */
+		bylines?: string[];
+		/** Match entries with no byline instead of a specific one. */
+		bylinesNone?: boolean;
+		/**
+		 * Count the byline inferred from an entry's author when it has no
+		 * explicit credit. Off by default: the filter matches real credits.
+		 */
+		includeInferredBylines?: boolean;
 	},
 ): Promise<FindManyResult<ContentItem>> {
 	const params = new URLSearchParams();
@@ -174,6 +186,16 @@ export async function fetchContentList(
 		params.set("dateField", options.dateField);
 		if (options.dateFrom) params.set("dateFrom", options.dateFrom);
 		if (options.dateTo) params.set("dateTo", options.dateTo);
+	}
+	// `none` is the server's sentinel for "no byline assigned"; it takes
+	// precedence over a stale selection so the two can't be sent together.
+	if (options?.bylinesNone) {
+		params.set("bylines", "none");
+	} else if (options?.bylines && options.bylines.length > 0) {
+		params.set("bylines", options.bylines.join(","));
+	}
+	if (options?.includeInferredBylines && (options.bylinesNone || options.bylines?.length)) {
+		params.set("includeInferredBylines", "1");
 	}
 
 	const url = `${API_BASE}/content/${collection}${params.toString() ? `?${params}` : ""}`;

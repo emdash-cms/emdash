@@ -11,12 +11,15 @@ import { getLiveCollection, getLiveEntry } from "astro:content";
 
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
+import { ScheduledNotDueError } from "../../src/database/repositories/types.js";
 import type { Database } from "../../src/database/types.js";
 import { CURSOR_RAW_VALUES } from "../../src/loader.js";
 import { encode } from "../../src/object-cache/codec.js";
 import {
 	__setObjectCacheBackendForTests,
+	cachedQuery,
 	invalidateCollectionCache,
+	invalidateObjectCache,
 	type ObjectCacheBackend,
 } from "../../src/object-cache/index.js";
 import { getEmDashCollection, getEmDashEntry } from "../../src/query.js";
@@ -40,9 +43,21 @@ function spyBackend(): ObjectCacheBackend {
 }
 
 function backendWithCachedValue(value: unknown): ObjectCacheBackend {
-	const encoded = encode({ e: [0, 0, 0], v: value });
+	const encoded = encode({ e: [0, 0, 0, 0], v: value });
 	return {
 		get: (key) => Promise.resolve(key.includes(":epoch:") ? null : encoded),
+		set: () => Promise.resolve(),
+		delete: () => Promise.resolve(),
+	};
+}
+
+function backendWithOldContentValue(value: unknown): ObjectCacheBackend {
+	const encoded = encode({ e: [0, 0, 0], v: value });
+	return {
+		get: (key) => {
+			if (key.includes(":epoch:")) return Promise.resolve(null);
+			return Promise.resolve(key.includes(":content:post,") ? encoded : null);
+		},
 		set: () => Promise.resolve(),
 		delete: () => Promise.resolve(),
 	};
@@ -182,6 +197,41 @@ describe("object cache: content read-through", () => {
 		expect(result.entry!.data).not.toHaveProperty("draftRevisionId");
 	});
 
+	it("does not read scheduled content cached under the previous namespace", async () => {
+		const stale = {
+			id: "db-due",
+			slug: "initial-slug",
+			data: { id: "db-due", title: "Initial title", status: "scheduled" },
+		};
+		__setObjectCacheBackendForTests(
+			backendWithOldContentValue({
+				ok: true,
+				value: {
+					entry: stale,
+					isPreview: false,
+					cacheHint: {},
+				},
+			}),
+		);
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			entry: {
+				id: "db-due",
+				slug: "approved-slug",
+				data: { id: "db-due", title: "Final title", status: "published" },
+			},
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		const result = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "approved-slug"),
+		);
+
+		expect(getLiveEntry).toHaveBeenCalledTimes(1);
+		expect(result.entry?.data.title).toBe("Final title");
+	});
+
 	it("retains revision metadata in preview entry results", async () => {
 		const [entry] = mockEntries();
 		vi.mocked(getLiveEntry).mockResolvedValue({
@@ -245,6 +295,45 @@ describe("object cache: content read-through", () => {
 		expect(getLiveCollection).toHaveBeenCalledTimes(2);
 	});
 
+	it("reloads new content caches after a legacy publisher invalidates the collection", async () => {
+		vi.mocked(getLiveCollection).mockResolvedValue({
+			entries: mockEntries(),
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+
+		invalidateObjectCache("content:post");
+		await flush();
+
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		expect(getLiveCollection).toHaveBeenCalledTimes(2);
+	});
+
+	it("invalidates legacy content caches after a current publisher writes", async () => {
+		let loads = 0;
+		const readLegacy = () =>
+			cachedQuery({
+				namespace: "content:post",
+				key: "legacy-entry",
+				load: () => Promise.resolve(++loads),
+			});
+
+		expect(await readLegacy()).toBe(1);
+		await flush();
+		expect(await readLegacy()).toBe(1);
+
+		invalidateCollectionCache("post");
+		await flush();
+
+		expect(await readLegacy()).toBe(2);
+	});
+
 	it("keeps cached public content after a version-only content update", async () => {
 		vi.mocked(getLiveCollection).mockResolvedValue({
 			entries: mockEntries(),
@@ -290,6 +379,52 @@ describe("object cache: content read-through", () => {
 		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
 
 		await repo.discardDraft("post", created.id);
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+
+		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+	});
+
+	it("invalidates cached collection content after publication succeeds", async () => {
+		vi.mocked(getLiveCollection).mockResolvedValue({
+			entries: mockEntries(),
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+		const repo = new ContentRepository(db);
+		const created = await repo.create(createPostFixture({ slug: "publish-cache" }));
+
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+
+		await repo.publish("post", created.id);
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+
+		expect(getLiveCollection).toHaveBeenCalledTimes(2);
+	});
+
+	it("keeps cached collection content after a scheduled publication CAS miss", async () => {
+		vi.mocked(getLiveCollection).mockResolvedValue({
+			entries: mockEntries(),
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+		const repo = new ContentRepository(db);
+		const created = await repo.create(createPostFixture({ slug: "missed-publish-cache" }));
+
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+
+		await expect(repo.publish("post", created.id, undefined, true)).rejects.toBeInstanceOf(
+			ScheduledNotDueError,
+		);
 		await flush();
 		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
 
@@ -345,34 +480,30 @@ describe("object cache: content read-through", () => {
 		expect(getLiveCollection).toHaveBeenCalledTimes(3);
 	});
 
-	it("does not cache a not-yet-visible scheduled entry", async () => {
-		// Scheduled for the future → currently hidden. Caching the "null" result
-		// would keep it hidden past its go-live time, since visibility flips on
-		// the clock rather than on a write.
+	it("keeps a due scheduled entry hidden until publication invalidates the cache", async () => {
 		const data: Record<string, unknown> = {
-			id: "db-future",
-			title: "Future",
+			id: "db-due",
+			title: "Initial title",
 			status: "scheduled",
-			scheduledAt: new Date(Date.now() + 60_000),
+			scheduledAt: new Date(Date.now() - 60_000),
 		};
 		vi.mocked(getLiveEntry).mockResolvedValue({
-			entry: { id: "future", slug: "future", status: "scheduled", data, cacheHint: {} },
+			entry: { id: "due", slug: "initial-slug", status: "scheduled", data, cacheHint: {} },
 			error: undefined,
 			cacheHint: {},
 			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
 		} as any);
 
 		const first = await runWithContext({ editMode: false, db }, () =>
-			getEmDashEntry("post", "future"),
+			getEmDashEntry("post", "initial-slug"),
 		);
 		await flush();
 		const second = await runWithContext({ editMode: false, db }, () =>
-			getEmDashEntry("post", "future"),
+			getEmDashEntry("post", "initial-slug"),
 		);
 
 		expect(first.entry).toBeNull();
 		expect(second.entry).toBeNull();
-		// Re-resolved rather than served from a stale cached "null".
-		expect(getLiveEntry).toHaveBeenCalledTimes(2);
+		expect(getLiveEntry).toHaveBeenCalledTimes(1);
 	});
 });
