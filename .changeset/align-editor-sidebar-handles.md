@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Fixes editor sidebar drag handles being vertically misaligned with collapsible section headings.
+Fixes vertical alignment of editor sidebar drag handles with standard and collapsible section headings.
