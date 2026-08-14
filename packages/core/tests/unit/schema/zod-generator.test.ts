@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 
-import type { CollectionWithFields, Field } from "../../../src/schema/types.js";
+import type { CollectionWithFields, Field, RepeaterSubField } from "../../../src/schema/types.js";
 import {
 	generateZodSchema,
 	generateFieldSchema,
@@ -670,6 +670,130 @@ describe("Zod Generator", () => {
 			expect(ts).toContain("book: Book;");
 			expect(ts).toContain("export interface BlogPost {");
 			expect(ts).toContain("blog_posts: BlogPost;");
+		});
+	});
+
+	describe("repeater fields in generated types", () => {
+		// The literal the top-level `image` case emits. An `image` sub-field must
+		// emit the same shape.
+		const MEDIA_LITERAL =
+			"{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
+
+		// A collection with a single `specs` repeater. Passing `undefined` omits
+		// `validation` entirely, which is how a repeater with no declared rows
+		// reaches the emitter.
+		function makeRepeaterCollection(
+			subFields: RepeaterSubField[] | undefined,
+			fieldOverrides: Partial<Field> = {},
+		): CollectionWithFields {
+			return {
+				id: "c1",
+				slug: "products",
+				label: "Products",
+				supports: [],
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				fields: [
+					{
+						id: "f1",
+						collectionId: "c1",
+						slug: "specs",
+						label: "Specs",
+						type: "repeater",
+						columnType: "JSON",
+						required: false,
+						unique: false,
+						sortOrder: 0,
+						createdAt: new Date().toISOString(),
+						...(subFields ? { validation: { subFields } } : {}),
+						...fieldOverrides,
+					},
+				],
+			};
+		}
+
+		it("builds a row object array from subFields", () => {
+			const ts = generateTypeScript(
+				makeRepeaterCollection([
+					{ slug: "name", label: "Name", type: "text", required: true },
+					{ slug: "value", label: "Value", type: "string" },
+				]),
+			);
+
+			expect(ts).toContain("specs?: { name: string; value?: string | null }[];");
+		});
+
+		it("types a sub-field that is not required as nullable", () => {
+			// `generateRepeaterRowSchema` applies `.nullish()` to a sub-field that is
+			// not required, so `null` is a legal stored value and a bare `note?: string`
+			// would be unsound.
+			const ts = generateTypeScript(
+				makeRepeaterCollection([{ slug: "note", label: "Note", type: "string" }]),
+			);
+
+			expect(ts).toContain("specs?: { note?: string | null }[];");
+		});
+
+		it("enumerates the options of a select sub-field", () => {
+			const ts = generateTypeScript(
+				makeRepeaterCollection([
+					{
+						slug: "unit",
+						label: "Unit",
+						type: "select",
+						required: true,
+						options: ["cm", "in"],
+					},
+				]),
+			);
+
+			expect(ts).toContain('specs?: { unit: "cm" | "in" }[];');
+		});
+
+		it("emits the media literal for an image sub-field", () => {
+			const ts = generateTypeScript(
+				makeRepeaterCollection([{ slug: "photo", label: "Photo", type: "image", required: true }]),
+			);
+
+			expect(ts).toContain(`specs?: { photo: ${MEDIA_LITERAL} }[];`);
+		});
+
+		it("maps every allowed sub-field type", () => {
+			const ts = generateTypeScript(
+				makeRepeaterCollection([
+					{ slug: "a", label: "A", type: "string", required: true },
+					{ slug: "b", label: "B", type: "text", required: true },
+					{ slug: "c", label: "C", type: "url", required: true },
+					{ slug: "d", label: "D", type: "number", required: true },
+					{ slug: "e", label: "E", type: "integer", required: true },
+					{ slug: "f", label: "F", type: "boolean", required: true },
+					{ slug: "g", label: "G", type: "datetime", required: true },
+				]),
+			);
+
+			expect(ts).toContain(
+				"specs?: { a: string; b: string; c: string; d: number; e: number; f: boolean; g: string }[];",
+			);
+		});
+
+		it("falls back to unknown when subFields is absent", () => {
+			// A repeater with no `subFields` describes no rows, and `{}[]` would be
+			// falsely permissive.
+			expect(generateTypeScript(makeRepeaterCollection(undefined))).toContain("specs?: unknown;");
+		});
+
+		it("falls back to unknown when subFields is empty", () => {
+			expect(generateTypeScript(makeRepeaterCollection([]))).toContain("specs?: unknown;");
+		});
+
+		it("keeps a required repeater non-optional", () => {
+			const ts = generateTypeScript(
+				makeRepeaterCollection([{ slug: "name", label: "Name", type: "text", required: true }], {
+					required: true,
+				}),
+			);
+
+			expect(ts).toContain("specs: { name: string }[];");
 		});
 	});
 });

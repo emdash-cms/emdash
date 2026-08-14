@@ -419,7 +419,10 @@ export async function generateSchemaHash(collections: CollectionWithFields[]): P
 /**
  * Map field type to TypeScript type
  */
-function fieldTypeToTypeScript(field: Field): string {
+function fieldTypeToTypeScript(field: {
+	type: Field["type"];
+	validation?: Field["validation"];
+}): string {
 	switch (field.type) {
 		case "string":
 		case "text":
@@ -448,6 +451,27 @@ function fieldTypeToTypeScript(field: Field): string {
 				return `(${multiOptions.map((o) => `"${o}"`).join(" | ")})[]`;
 			}
 			return "string[]";
+
+		case "repeater": {
+			const subFields = field.validation?.subFields;
+			// A repeater carrying no sub-fields describes no rows, so `{}[]` would
+			// be falsely permissive.
+			if (!subFields || subFields.length === 0) return "unknown";
+
+			const members = subFields.map((subField) => {
+				const type = fieldTypeToTypeScript({
+					type: subField.type,
+					validation: subField.options ? { options: subField.options } : undefined,
+				});
+				// `generateRepeaterRowSchema` applies `.nullish()` to a sub-field that
+				// is not required, so `null` is a legal stored value.
+				return subField.required
+					? `${subField.slug}: ${type}`
+					: `${subField.slug}?: ${type} | null`;
+			});
+
+			return `{ ${members.join("; ")} }[]`;
+		}
 
 		case "portableText":
 			return "PortableTextBlock[]";
