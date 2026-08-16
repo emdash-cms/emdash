@@ -227,8 +227,7 @@ export function creditsFromFoldedBylines(folded: unknown[]) {
 				byline: {
 					...byline,
 					isGuest: Boolean(byline.isGuest),
-					// Folded rows contain only byline-table columns. The query wrappers
-					// replace this map through full hydration when custom fields exist.
+					// Folded rows omit custom-field values.
 					customFields: {},
 				},
 			};

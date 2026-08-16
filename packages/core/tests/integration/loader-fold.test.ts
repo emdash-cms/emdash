@@ -18,6 +18,7 @@ import type { ContentBylineCredit } from "../../src/database/repositories/types.
 import { setI18nConfig } from "../../src/i18n/config.js";
 import { emdashLoader, FOLDED_BYLINES, FOLDED_TERMS } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
+import { BylineSchemaRegistry } from "../../src/schema/byline-registry.js";
 import {
 	type DialectTestContext,
 	describeEachDialect,
@@ -164,6 +165,38 @@ describeEachDialect("loader hydration fold", (dialect) => {
 			(entry.data.bylines as ContentBylineCredit[]).map((credit) => credit.byline.displayName),
 		).toEqual(["Grace Hopper", "Ada Lovelace"]);
 		expect(entry.data.byline.displayName).toBe("Grace Hopper");
+	});
+
+	it("uses the folded public shape when byline custom fields are registered", async () => {
+		// eslint-disable-next-line typescript/no-explicit-any -- schema type vs Database type
+		const db = ctx.db as any;
+		const content = new ContentRepository(db);
+		const bylines = new BylineRepository(db);
+		const fields = new BylineSchemaRegistry(ctx.db);
+		await fields.createField({ slug: "job_title", label: "Job title", type: "string" });
+		const author = await bylines.create({
+			displayName: "Ada Lovelace",
+			slug: "ada-custom",
+			customFields: { job_title: "Editor" },
+		});
+		const post = await content.create({
+			type: "post",
+			slug: "custom-fields",
+			data: { title: "Custom fields" },
+			locale: "en",
+		});
+		await bylines.setContentBylines("post", post.id, [
+			{ bylineId: author.id, roleLabel: "Author" },
+		]);
+		expect((await bylines.findById(author.id))?.customFields?.job_title).toBe("Editor");
+
+		const loader = emdashLoader();
+		const result = await runWithContext({ editMode: false, db: ctx.db }, () =>
+			loader.loadEntry({ filter: { type: "post", id: "custom-fields" } }),
+		);
+		// eslint-disable-next-line typescript/no-explicit-any -- loader result union
+		const data = (result as any).data as { bylines: ContentBylineCredit[] };
+		expect(data.bylines[0]?.byline.customFields).toEqual({});
 	});
 
 	it("folds terms in the entry's own locale (#1441)", async () => {
