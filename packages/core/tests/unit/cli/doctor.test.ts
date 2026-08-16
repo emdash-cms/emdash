@@ -8,18 +8,24 @@ import { checkDoctor, checkSchedulerWiring } from "../../../src/cli/commands/doc
 
 const temporaryDirectories: string[] = [];
 
-async function createSite(config: string, worker: string): Promise<string> {
+async function createSite(
+	config: string,
+	worker: string | null,
+	configName = "wrangler.jsonc",
+): Promise<string> {
 	const cwd = await mkdtemp(join(tmpdir(), "emdash-doctor-"));
 	temporaryDirectories.push(cwd);
 	await mkdir(join(cwd, "src"));
-	await writeFile(join(cwd, "wrangler.jsonc"), config);
-	await writeFile(join(cwd, "src/worker.ts"), worker);
+	await writeFile(join(cwd, configName), config);
+	if (worker !== null) await writeFile(join(cwd, "src/worker.ts"), worker);
 	return cwd;
 }
 
 afterEach(async () => {
 	await Promise.all(
-		temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true })),
+		temporaryDirectories
+			.splice(0)
+			.map((directory) => rm(directory, { recursive: true, force: true })),
 	);
 });
 
@@ -111,7 +117,32 @@ describe("doctor scheduler wiring", () => {
 		]);
 	});
 
-	it("skips the local SQLite check for a correctly wired Cloudflare deployment", async () => {
+	it("supports Wrangler TOML configurations", async () => {
+		const cwd = await createSite(
+			`main = "./src/worker.ts"
+
+			[triggers]
+			crons = ["* * * * *"]`,
+			`export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";`,
+			"wrangler.toml",
+		);
+
+		await expect(checkSchedulerWiring(cwd)).resolves.toEqual([
+			expect.objectContaining({ name: "scheduler wiring", status: "pass" }),
+		]);
+	});
+
+	it("does not treat an unrelated Worker without scheduler pieces as broken wiring", async () => {
+		const cwd = await createSite(
+			`{ "main": "./src/worker.ts" }`,
+			`import handler from "@astrojs/cloudflare/entrypoints/server";
+			export default handler;`,
+		);
+
+		await expect(checkSchedulerWiring(cwd)).resolves.toEqual([]);
+	});
+
+	it("keeps database checks additive for a Cloudflare deployment", async () => {
 		const cwd = await createSite(
 			`{
 				"main": "./src/worker.ts",
@@ -123,8 +154,10 @@ describe("doctor scheduler wiring", () => {
 
 		const results = await checkDoctor(cwd, join(cwd, "data.db"));
 
-		expect(results.some((result) => result.status === "fail")).toBe(false);
-		expect(results).toContainEqual(expect.objectContaining({ name: "database", status: "warn" }));
+		expect(results).toContainEqual(expect.objectContaining({ name: "database", status: "fail" }));
+		expect(results).toContainEqual(
+			expect.objectContaining({ name: "scheduler wiring", status: "pass" }),
+		);
 	});
 
 	it("keeps the local database check for a Node deployment", async () => {
@@ -134,5 +167,53 @@ describe("doctor scheduler wiring", () => {
 		const results = await checkDoctor(cwd, join(cwd, "missing.db"));
 
 		expect(results).toContainEqual(expect.objectContaining({ name: "database", status: "fail" }));
+	});
+
+	it("reports invalid Wrangler JSONC with a source location", async () => {
+		const cwd = await createSite(
+			`{
+				"main": "./src/worker.ts",
+				"triggers": { "crons": ["* * * * *"]
+				BROKEN
+			}`,
+			`export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";`,
+		);
+
+		const [result] = await checkSchedulerWiring(cwd);
+
+		expect(result).toMatchObject({ name: "scheduler config", status: "fail" });
+		expect(result!.message).toMatch(/line \d+, column \d+/);
+	});
+
+	it("reports a missing Worker main entry", async () => {
+		const cwd = await createSite(`{ "triggers": { "crons": ["* * * * *"] } }`, null);
+
+		const [result] = await checkSchedulerWiring(cwd);
+
+		expect(result).toMatchObject({ name: "scheduler handler", status: "fail" });
+		expect(result!.message).toContain('add "main": "./src/worker.ts"');
+	});
+
+	it("reports a missing Worker entry file", async () => {
+		const cwd = await createSite(
+			`{ "main": "./src/worker.ts", "triggers": { "crons": ["* * * * *"] } }`,
+			null,
+		);
+
+		const [result] = await checkSchedulerWiring(cwd);
+
+		expect(result!.message).toContain("Worker entry not found");
+	});
+
+	it("distinguishes unreadable Worker entries from missing files", async () => {
+		const cwd = await createSite(
+			`{ "main": "./src", "triggers": { "crons": ["* * * * *"] } }`,
+			`export default {};`,
+		);
+
+		const [result] = await checkSchedulerWiring(cwd);
+
+		expect(result!.message).toContain("could not read Worker entry");
+		expect(result!.message).not.toContain("not found");
 	});
 });

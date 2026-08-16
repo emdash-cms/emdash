@@ -10,6 +10,7 @@ import { resolve } from "node:path";
 import { defineCommand } from "citty";
 import consola from "consola";
 import { parse, printParseErrorCode, type ParseError } from "jsonc-parser";
+import { parse as parseToml } from "smol-toml";
 
 import { createDatabase } from "../../database/connection.js";
 import { listTablesLike } from "../../database/dialect-helpers.js";
@@ -21,7 +22,7 @@ export interface CheckResult {
 	message: string;
 }
 
-const WRANGLER_CONFIG_FILES = ["wrangler.jsonc", "wrangler.json"] as const;
+const WRANGLER_CONFIG_FILES = ["wrangler.jsonc", "wrangler.json", "wrangler.toml"] as const;
 const CLOUDFLARE_WORKER_MODULE = "@emdash-cms/cloudflare/worker";
 const WORKER_FIX = `export { default, PluginBridge } from "${CLOUDFLARE_WORKER_MODULE}";`;
 const TRIGGER_FIX = `"triggers": { "crons": ["* * * * *"] }`;
@@ -38,6 +39,14 @@ async function fileExists(path: string): Promise<boolean> {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sourcePosition(source: string, offset: number): { line: number; column: number } {
+	const prefix = source.slice(0, offset);
+	return {
+		line: prefix.split("\n").length,
+		column: offset - prefix.lastIndexOf("\n"),
+	};
 }
 
 async function findWranglerConfig(cwd: string): Promise<string | null> {
@@ -67,22 +76,41 @@ function workerExportsScheduledMaintenance(source: string): boolean {
 export async function checkSchedulerWiring(cwd: string): Promise<CheckResult[]> {
 	const configPath = await findWranglerConfig(cwd);
 	if (!configPath) return [];
+	return checkSchedulerWiringAtPath(cwd, configPath);
+}
 
+async function checkSchedulerWiringAtPath(cwd: string, configPath: string): Promise<CheckResult[]> {
 	const configSource = await readFile(configPath, "utf8");
-	const parseErrors: ParseError[] = [];
-	const parsed: unknown = parse(configSource, parseErrors, {
-		allowTrailingComma: true,
-		disallowComments: false,
-	});
-	if (parseErrors.length > 0) {
-		const error = parseErrors[0];
-		return [
-			{
-				name: "scheduler config",
-				status: "fail",
-				message: `could not parse ${configPath}: ${printParseErrorCode(error.error)} — fix the Wrangler configuration syntax`,
-			},
-		];
+	let parsed: unknown;
+	if (configPath.endsWith(".toml")) {
+		try {
+			parsed = parseToml(configSource);
+		} catch (error) {
+			return [
+				{
+					name: "scheduler config",
+					status: "fail",
+					message: `could not parse ${configPath}: ${error instanceof Error ? error.message : "invalid TOML"} — fix the Wrangler configuration syntax`,
+				},
+			];
+		}
+	} else {
+		const parseErrors: ParseError[] = [];
+		parsed = parse(configSource, parseErrors, {
+			allowTrailingComma: true,
+			disallowComments: false,
+		});
+		if (parseErrors.length > 0) {
+			const error = parseErrors[0];
+			const { line, column } = sourcePosition(configSource, error.offset);
+			return [
+				{
+					name: "scheduler config",
+					status: "fail",
+					message: `could not parse ${configPath}: ${printParseErrorCode(error.error)} at line ${line}, column ${column} — fix the Wrangler configuration syntax`,
+				},
+			];
+		}
 	}
 	if (!isRecord(parsed)) {
 		return [
@@ -114,7 +142,17 @@ export async function checkSchedulerWiring(cwd: string): Promise<CheckResult[]> 
 	try {
 		const workerSource = await readFile(workerPath, "utf8");
 		hasScheduledHandler = workerExportsScheduledMaintenance(workerSource);
-	} catch {
+	} catch (error) {
+		const code = isRecord(error) && typeof error.code === "string" ? error.code : null;
+		if (code !== "ENOENT") {
+			return [
+				{
+					name: "scheduler handler",
+					status: "fail",
+					message: `could not read Worker entry ${workerPath}: ${error instanceof Error ? error.message : "unknown I/O error"} — check the file path and permissions`,
+				},
+			];
+		}
 		return [
 			{
 				name: "scheduler handler",
@@ -145,13 +183,7 @@ export async function checkSchedulerWiring(cwd: string): Promise<CheckResult[]> 
 	}
 
 	if (!hasCronTrigger && !hasScheduledHandler) {
-		return [
-			{
-				name: "scheduler wiring",
-				status: "fail",
-				message: `EmDash scheduled maintenance is not wired — export ${WORKER_FIX} and add ${TRIGGER_FIX} to ${configPath}`,
-			},
-		];
+		return [];
 	}
 
 	return [
@@ -164,18 +196,11 @@ export async function checkSchedulerWiring(cwd: string): Promise<CheckResult[]> 
 }
 
 export async function checkDoctor(cwd: string, dbPath: string): Promise<CheckResult[]> {
-	if (await findWranglerConfig(cwd)) {
-		return [
-			{
-				name: "database",
-				status: "warn",
-				message: "Cloudflare deployment detected — local SQLite checks skipped",
-			},
-			...(await checkSchedulerWiring(cwd)),
-		];
-	}
+	const results = await checkDatabase(dbPath);
+	const configPath = await findWranglerConfig(cwd);
+	if (configPath) results.push(...(await checkSchedulerWiringAtPath(cwd, configPath)));
 
-	return checkDatabase(dbPath);
+	return results;
 }
 
 function printResult(result: CheckResult): void {

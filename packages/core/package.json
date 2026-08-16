@@ -256,6 +256,7 @@
     "picocolors": "^1.1.1",
     "sanitize-html": "^2.17.1",
     "sax": "^1.4.1",
+    "smol-toml": "^1.6.0",
     "ulidx": "^2.4.1",
     "upng-js": "^2.1.0",
     "zod": "catalog:",
