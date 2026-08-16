@@ -100,6 +100,15 @@ export const termListQuery = z
 				description:
 					"Include each term's visible-usage count. Pass false to skip the aggregate; `count` is then absent from every term.",
 			}),
+		resolveFallback: z
+			.enum(["true", "false"])
+			.transform((value) => value === "true")
+			.optional()
+			.default(false)
+			.meta({
+				description:
+					"Resolve one term per translation group, preferring the requested locale and then the configured default locale.",
+			}),
 	})
 	.meta({ id: "TermListQuery" });
 

@@ -180,6 +180,11 @@ export interface AdminManifest {
 		defaultLocale: string;
 		locales: string[];
 	};
+	/** Stored-content locale policy, independent from the admin UI language. */
+	contentLocale?: {
+		defaultLocale: string;
+		implicit: boolean;
+	};
 	/**
 	 * Taxonomy definitions for the admin sidebar.
 	 */

@@ -18,6 +18,7 @@ import { buildStatusCondition, isPostgres } from "./database/dialect-helpers.js"
 import { kyselyLogOption } from "./database/instrumentation.js";
 import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
+import { getI18nConfig } from "./i18n/config.js";
 import type { Database } from "./index.js";
 import { getRequestContext } from "./request-context.js";
 import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
@@ -137,9 +138,11 @@ function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
 	const termObj = obj(
 		"'id', t.id, 'name', t.name, 'slug', t.slug, 'label', t.label, 'parent_id', t.parent_id, 'locale', t.locale, 'translation_group', t.translation_group",
 	);
-	// Filter terms to the entry's own locale (matches #1441: terms render in the
-	// entry's resolved locale, not all locale variants of the attached group).
-	const terms = sql`(SELECT ${agg(termObj)} FROM ${sql.ref("content_taxonomies")} AS ct ${foldJoin} ${sql.ref("taxonomies")} AS t ON t.translation_group = ct.taxonomy_id WHERE ct.collection = ${type} AND ct.entry_id = ${o}.translation_group AND t.locale = ${o}.locale) AS ${sql.ref("_emdash_terms")}`;
+	const defaultLocale =
+		virtualConfig?.i18n?.defaultLocale ?? getI18nConfig()?.defaultLocale ?? "en";
+	// The EXISTS arm prevents the default sibling from joining when the group
+	// has an exact entry-locale row, so every assignment contributes at most one term.
+	const terms = sql`(SELECT ${agg(termObj)} FROM ${sql.ref("content_taxonomies")} AS ct ${foldJoin} ${sql.ref("taxonomies")} AS t ON t.translation_group = ct.taxonomy_id AND t.locale = CASE WHEN EXISTS (SELECT 1 FROM ${sql.ref("taxonomies")} AS exact_term WHERE exact_term.translation_group = ct.taxonomy_id AND exact_term.locale = ${o}.locale) THEN ${o}.locale ELSE ${defaultLocale} END WHERE ct.collection = ${type} AND ct.entry_id = ${o}.translation_group) AS ${sql.ref("_emdash_terms")}`;
 
 	const bylineInner = obj(
 		"'id', b.id, 'slug', b.slug, 'displayName', b.display_name, 'bio', b.bio, 'avatarMediaId', b.avatar_media_id, 'avatarStorageKey', m.storage_key, 'avatarAlt', m.alt, 'avatarBlurhash', m.blurhash, 'avatarDominantColor', m.dominant_color, 'websiteUrl', b.website_url, 'userId', b.user_id, 'isGuest', b.is_guest, 'createdAt', b.created_at, 'updatedAt', b.updated_at, 'locale', b.locale, 'translationGroup', b.translation_group",

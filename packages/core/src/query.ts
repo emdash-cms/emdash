@@ -756,8 +756,8 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	// round-trip cost on remote databases (D1 replicas, etc.).
 	await Promise.all([
 		hydrateEntryBylines(type, entriesWithEdit),
-		// Hydrate terms in the same locale the content rows were resolved to,
-		// otherwise localized entries get default-locale taxonomy terms (#1441).
+		// Use the content query locale as the preferred term locale; hydration
+		// falls back only to the configured default when a group lacks that variant.
 		hydrateEntryTerms(type, entriesWithEdit, resolvedLocale),
 	]);
 
@@ -836,10 +836,8 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 		opts: { isPreview: boolean; fallbackLocale?: string; cacheHint: CacheHint },
 	): Promise<EntryResult<D>> {
 		if (!opts.isPreview) stripRevisionMetadata(wrapped);
-		// Hydrate terms in the entry's resolved locale (fallback-aware) so a
-		// localized entry never picks up default-locale taxonomy terms (#1441).
-		// When i18n is disabled we leave the locale unset to preserve the
-		// legacy "do not filter by locale" behaviour.
+		// No-i18n callers use the legacy wildcard cache key. The query path still
+		// resolves against the stored content-row locale when this is undefined.
 		const termLocale = isI18nEnabled()
 			? dataStr(entryData(wrapped), "locale") || undefined
 			: undefined;
@@ -1132,10 +1130,9 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
  * results and call getEntryTerms() per entry. With hydration, the list page
  * stays at a single round-trip for term data.
  *
- * `locale` must be the locale the entries were resolved to. It is forwarded to
- * `getAllTermsForEntries` so terms are returned in the entry's locale rather
- * than falling back to the request-context / default locale (#1441). Pass
- * `undefined` to keep the legacy "do not filter by locale" behaviour.
+ * `locale` is the preferred locale the entries were resolved to. Each assigned
+ * group resolves that variant first, then the configured default. When it is
+ * omitted, the stored locale of each content row is preferred.
  *
  * Fails silently if the taxonomy tables don't exist yet (pre-migration).
  */

@@ -169,6 +169,54 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByText("Pending changes")).toBeInTheDocument();
 	});
 
+	it("shows the stored content locale separately from the admin language", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ locale: "ja" }),
+					manifest: {
+						...TEST_MANIFEST,
+						contentLocale: { defaultLocale: "ja", implicit: false },
+					},
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByText("Content locale")).toBeInTheDocument();
+		await expect.element(screen.getByText("JA", { exact: true })).toBeInTheDocument();
+		await expect
+			.element(
+				screen.getByText("This is stored with the entry and is separate from your admin language."),
+			)
+			.toBeInTheDocument();
+	});
+
+	it("warns when the stored content locale comes from the implicit English default", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ locale: "en" }),
+					i18n: undefined,
+					manifest: {
+						...TEST_MANIFEST,
+						contentLocale: { defaultLocale: "en", implicit: true },
+					},
+				})}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByText("Content locale defaults to English"))
+			.toBeInTheDocument();
+		await expect
+			.element(
+				screen.getByText(
+					"No content locale is configured, so EmDash stores new content as English (en). Changing the admin language does not change this value.",
+				),
+			)
+			.toBeInTheDocument();
+	});
+
 	it("shows Scheduled without a Draft companion", async () => {
 		const screen = await render(
 			<ContentSettingsPanel {...makePanelProps({ hasSchedule: true })} />,

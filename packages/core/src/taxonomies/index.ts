@@ -14,6 +14,7 @@ import { sql, type Kysely } from "kysely";
 
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
+import { getI18nConfig } from "../i18n/config.js";
 import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb, resetTaxonomyNamesCache } from "../loader.js";
 import {
@@ -63,6 +64,8 @@ async function selectEntryTermRows(
 ): Promise<EntryTermRow[]> {
 	validateIdentifier(collection, "collection slug");
 	const tableName = `ec_${collection}`;
+	const preferredLocale = locale ? sql`${locale}` : sql`content.locale`;
+	const defaultLocale = getI18nConfig()?.defaultLocale ?? "en";
 	const result = await sql<EntryTermRow>`
 		SELECT content.id AS entry_id,
 			terms.id,
@@ -76,10 +79,18 @@ async function selectEntryTermRows(
 		INNER JOIN content_taxonomies AS pivot
 			ON pivot.entry_id = content.translation_group
 			AND pivot.collection = ${collection}
-		INNER JOIN taxonomies AS terms ON terms.translation_group = pivot.taxonomy_id
+		INNER JOIN taxonomies AS terms
+			ON terms.translation_group = pivot.taxonomy_id
+			AND terms.locale = CASE
+				WHEN EXISTS (
+					SELECT 1 FROM taxonomies AS exact_term
+					WHERE exact_term.translation_group = pivot.taxonomy_id
+						AND exact_term.locale = ${preferredLocale}
+				) THEN ${preferredLocale}
+				ELSE ${defaultLocale}
+			END
 		WHERE content.id IN (${sql.join(entryIds.map((id) => sql`${id}`))})
 			${taxonomyName ? sql`AND terms.name = ${taxonomyName}` : sql``}
-			${locale ? sql`AND terms.locale = ${locale}` : sql``}
 		ORDER BY terms.label ASC
 	`.execute(db);
 	return result.rows;
@@ -505,8 +516,8 @@ async function loadTerm(
 }
 
 /**
- * Terms assigned to a content entry, resolved into the active locale. Terms
- * whose translation_group lacks a row in the requested locale are omitted.
+ * Terms assigned to a content entry, resolved into the active locale and then
+ * the configured default locale.
  */
 export function getEntryTerms(
 	collection: string,
@@ -527,28 +538,7 @@ export function getEntryTerms(
 				key: `entryTerms:${collection}:${entryId}:${taxonomyName ?? "*"}:${locale ?? "*"}`,
 				load: async () => {
 					const db = await getDb();
-					validateIdentifier(collection, "collection slug");
-					const tableName = `ec_${collection}`;
-
-					let query = db
-						.selectFrom("content_taxonomies")
-						.innerJoin(
-							"taxonomies",
-							"taxonomies.translation_group",
-							"content_taxonomies.taxonomy_id",
-						)
-						.selectAll("taxonomies")
-						.where("content_taxonomies.collection", "=", collection)
-						.where(
-							sql<boolean>`content_taxonomies.entry_id = (
-								SELECT translation_group FROM ${sql.ref(tableName)} WHERE id = ${entryId}
-							)`,
-						);
-
-					if (taxonomyName) query = query.where("taxonomies.name", "=", taxonomyName);
-					if (locale !== undefined) query = query.where("taxonomies.locale", "=", locale);
-
-					const rows = await query.execute();
+					const rows = await selectEntryTermRows(db, collection, [entryId], taxonomyName, locale);
 					return rows.map<TaxonomyTerm>((row) => ({
 						id: row.id,
 						name: row.name,

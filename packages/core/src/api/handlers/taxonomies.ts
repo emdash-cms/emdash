@@ -115,7 +115,7 @@ export interface TaxonomyDefTranslationsResponse {
 /**
  * Build tree structure from flat terms
  */
-function buildTree(flatTerms: TermWithCount[]): TermWithCount[] {
+function buildTree(flatTerms: TermWithCount[], resolveByGroup = false): TermWithCount[] {
 	// `parentId` holds the parent's translation_group, so resolve links by group.
 	// Key by (locale, group): a child's parent lives in the same locale, and an
 	// unfiltered list mixes locales whose translated siblings share a group —
@@ -123,11 +123,14 @@ function buildTree(flatTerms: TermWithCount[]): TermWithCount[] {
 	const byLocaleGroup = new Map<string, TermWithCount>();
 	const roots: TermWithCount[] = [];
 	for (const term of flatTerms) {
-		byLocaleGroup.set(`${term.locale}::${term.translationGroup ?? term.id}`, term);
+		const key = resolveByGroup
+			? (term.translationGroup ?? term.id)
+			: `${term.locale}::${term.translationGroup ?? term.id}`;
+		byLocaleGroup.set(key, term);
 	}
 	for (const term of flatTerms) {
 		const parent = term.parentId
-			? byLocaleGroup.get(`${term.locale}::${term.parentId}`)
+			? byLocaleGroup.get(resolveByGroup ? term.parentId : `${term.locale}::${term.parentId}`)
 			: undefined;
 		if (parent) {
 			parent.children.push(term);
@@ -579,7 +582,7 @@ export async function handleTaxonomyDefTranslations(
 export async function handleTermList(
 	db: Kysely<Database>,
 	taxonomyName: string,
-	options: { locale?: string; includeCounts?: boolean } = {},
+	options: { locale?: string; includeCounts?: boolean; resolveFallback?: boolean } = {},
 ): Promise<ApiResult<TermListResponse>> {
 	try {
 		// Definitions are per-locale but terms aren't bound to the def's locale —
@@ -589,7 +592,14 @@ export async function handleTermList(
 
 		const repo = new TaxonomyRepository(db);
 		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
-		const terms = await repo.findByName(taxonomyName, { locale });
+		const terms =
+			options.resolveFallback && locale
+				? await repo.findByNameResolved(
+						taxonomyName,
+						locale,
+						getI18nConfig()?.defaultLocale ?? "en",
+					)
+				: await repo.findByName(taxonomyName, { locale });
 
 		// Counts match what visitors see on the public site: published (or
 		// scheduled-and-due) entries that aren't soft-deleted, scoped to the
@@ -615,7 +625,9 @@ export async function handleTermList(
 		}));
 
 		const isHierarchical = lookup.def.hierarchical === 1;
-		const result = isHierarchical ? buildTree(termData) : termData;
+		const result = isHierarchical
+			? buildTree(termData, options.resolveFallback && !!locale)
+			: termData;
 		return { success: true, data: { terms: result } };
 	} catch (error) {
 		console.error("[taxonomies] term list failed:", error);
