@@ -81,6 +81,7 @@ async function runMigrations(db: Kysely<any>) {
 		.addColumn("deleted_at", "text")
 		.addColumn("version", "integer", (col) => col.notNull().defaultTo(1))
 		.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
+		.addColumn("translation_group", "text")
 		.addColumn("title", "text")
 		.addColumn("body", "text")
 		.execute();
@@ -271,6 +272,13 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			expect(created.data.title).toBe("New Post");
 			expect(created.locale).toBe("en");
 			expect(created.id).toBeTruthy();
+			await expect(
+				db
+					.selectFrom("ec_posts" as any)
+					.select("translation_group" as any)
+					.where("id", "=", created.id)
+					.executeTakeFirstOrThrow(),
+			).resolves.toEqual({ translation_group: created.id });
 
 			// Read
 			const readResult = await call(handler, "content/get", {
@@ -425,6 +433,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			.addColumn("deleted_at", "text")
 			.addColumn("version", "integer", (col) => col.notNull().defaultTo(1))
 			.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
+			.addColumn("translation_group", "text")
 			.addColumn("title", "text")
 			.execute();
 

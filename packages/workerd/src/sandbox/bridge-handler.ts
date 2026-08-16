@@ -799,6 +799,7 @@ async function contentCreate(
 		created_at: now,
 		updated_at: now,
 		version: 1,
+		translation_group: id,
 	};
 	if (locale !== undefined) values.locale = locale;
 

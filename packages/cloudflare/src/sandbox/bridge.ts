@@ -596,6 +596,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			'"updated_at"',
 			'"version"',
 			'"locale"',
+			'"translation_group"',
 		];
 		const values: unknown[] = [
 			id,
@@ -606,6 +607,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			now,
 			1,
 			locale,
+			id,
 		];
 
 		// Append user data fields (skip system columns, quote identifiers)

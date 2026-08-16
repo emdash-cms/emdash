@@ -202,6 +202,8 @@ describe("PluginBridge content write fence", () => {
 
 		expect(insert?.sql).toContain('"locale"');
 		expect(insert?.values).toContain(expected);
+		expect(insert?.sql).toContain('"translation_group"');
+		expect(insert?.values.at(-1)).toBe(insert?.values[0]);
 		expect(created).toMatchObject({ locale: expected });
 	});
 
