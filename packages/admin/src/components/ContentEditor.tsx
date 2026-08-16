@@ -1570,7 +1570,7 @@ function JsonFieldEditor({
 
 /**
  * File field value — matches the "file" shape validated by the Zod generator:
- * { id, provider?, src?, filename?, mimeType?, size?, meta? }
+ * { id, provider?, url?, src?, filename?, mimeType?, size?, meta? }
  */
 interface FileFieldValue {
 	id: string;
@@ -1578,6 +1578,8 @@ interface FileFieldValue {
 	provider?: string;
 	/** Direct URL for non-local media */
 	src?: string;
+	/** Legacy cached URL */
+	url?: string;
 	filename?: string;
 	mimeType?: string;
 	size?: number;
@@ -1624,8 +1626,11 @@ function FileFieldRenderer({
 		const isLocal = !value.provider || value.provider === "local";
 		const storageKey =
 			typeof value.meta?.storageKey === "string" ? value.meta.storageKey : undefined;
+		const directUrl = value.src ?? value.url;
 		const localSrc =
-			typeof value.src === "string" && value.src.startsWith("/_emdash/") ? value.src : undefined;
+			typeof directUrl === "string" && (directUrl.startsWith("/_emdash/") || isSafeUrl(directUrl))
+				? directUrl
+				: undefined;
 		// Storage keys come from server-controlled paths today, but the Zod schema
 		// now lets clients write arbitrary `meta.storageKey` strings via the content
 		// API. Encode before interpolating so attacker-shaped values can't escape
@@ -1635,7 +1640,7 @@ function FileFieldRenderer({
 				? `/_emdash/api/media/file/${encodeURIComponent(storageKey)}`
 				: (localSrc ?? `/_emdash/api/media/file/${encodeURIComponent(value.id)}`)
 			: undefined;
-		const externalUrl = !isLocal && value.src && isSafeUrl(value.src) ? value.src : undefined;
+		const externalUrl = !isLocal && directUrl && isSafeUrl(directUrl) ? directUrl : undefined;
 		return {
 			displayUrl: localUrl ?? externalUrl,
 			filename: value.filename || t`Untitled file`,
