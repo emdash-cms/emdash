@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
 	resolveContentListColumns,
+	type ContentListColumnCellContext,
 	type ContentListColumnExtension,
+	type ContentListColumnHeaderContext,
 } from "../../src/lib/content-list-columns.js";
 
 function Cell(): React.ReactNode {
@@ -18,6 +20,41 @@ function column(
 }
 
 describe("resolveContentListColumns", () => {
+	it("preserves memo and forwardRef components", () => {
+		const ForwardRefCell = React.forwardRef<HTMLSpanElement, ContentListColumnCellContext>(
+			function ForwardRefCell(_props, ref) {
+				return <span ref={ref} />;
+			},
+		);
+		const ForwardRefHeader = React.forwardRef<HTMLSpanElement, ContentListColumnHeaderContext>(
+			function ForwardRefHeader(_props, ref) {
+				return <span ref={ref} />;
+			},
+		);
+		const MemoCell = React.memo(function MemoCell(_props: ContentListColumnCellContext) {
+			return null;
+		});
+		const MemoHeader = React.memo(function MemoHeader(_props: ContentListColumnHeaderContext) {
+			return null;
+		});
+		const plugins = {
+			alpha: {
+				contentListColumns: [
+					column("forward-ref", { cell: ForwardRefCell, header: ForwardRefHeader }),
+					column("memo", { cell: MemoCell, header: MemoHeader }),
+				],
+			},
+		};
+
+		const result = resolveContentListColumns(plugins, "posts", 0);
+
+		expect(result).toHaveLength(2);
+		expect(result[0]?.extension.cell).toBe(ForwardRefCell);
+		expect(result[0]?.extension.header).toBe(ForwardRefHeader);
+		expect(result[1]?.extension.cell).toBe(MemoCell);
+		expect(result[1]?.extension.header).toBe(MemoHeader);
+	});
+
 	it("filters by manifest, collection, and role and orders deterministically", () => {
 		const plugins = {
 			zeta: { contentListColumns: [column("same", { order: 1 })] },

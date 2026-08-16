@@ -47,8 +47,21 @@ type ContentListColumnRegistry = Record<
 	{ contentListColumns?: readonly ContentListColumnExtension[] } | undefined
 >;
 
+const REACT_COMPONENT_WRAPPER_TYPES = new Set<unknown>([
+	Symbol.for("react.forward_ref"),
+	Symbol.for("react.lazy"),
+	Symbol.for("react.memo"),
+]);
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isReactComponentType(value: unknown): boolean {
+	return (
+		typeof value === "function" ||
+		(isRecord(value) && REACT_COMPONENT_WRAPPER_TYPES.has(value.$$typeof))
+	);
 }
 
 function warn(pluginId: string, message: string): void {
@@ -76,11 +89,11 @@ function isValidColumn(value: unknown, pluginId: string): value is ContentListCo
 		warn(pluginId, `ignored column "${value.id}" because its label is invalid.`);
 		return false;
 	}
-	if (typeof value.cell !== "function") {
+	if (!isReactComponentType(value.cell)) {
 		warn(pluginId, `ignored column "${value.id}" because its cell is invalid.`);
 		return false;
 	}
-	if (value.header !== undefined && typeof value.header !== "function") {
+	if (value.header !== undefined && !isReactComponentType(value.header)) {
 		warn(pluginId, `ignored column "${value.id}" because its header is invalid.`);
 		return false;
 	}
