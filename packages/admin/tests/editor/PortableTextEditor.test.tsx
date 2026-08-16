@@ -28,8 +28,12 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 	MediaPickerModal: () => null,
 }));
 
+const sectionPickerProps: { current: Record<string, any> | null } = { current: null };
 vi.mock("../../src/components/SectionPickerModal", () => ({
-	SectionPickerModal: () => null,
+	SectionPickerModal: (props: Record<string, any>) => {
+		sectionPickerProps.current = props;
+		return null;
+	},
 }));
 
 vi.mock("../../src/components/editor/DragHandleWrapper", () => ({
@@ -389,6 +393,37 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(document.querySelector(".ProseMirror")).toBeNull();
 		expect(onChange).not.toHaveBeenCalled();
 		expect(onEditorReady).not.toHaveBeenCalledWith(expect.anything());
+	});
+
+	it("keeps safe content editable when an unsupported section is rejected", async () => {
+		const onChange = vi.fn();
+		const { screen, editor, pm } = await renderAndGetEditor({
+			value: [textBlock("Safe content")],
+			onChange,
+		});
+		const unsafeSection = {
+			id: "section-1",
+			slug: "unsafe-section",
+			title: "Unsafe section",
+			keywords: [],
+			content: [textBlock("Unsafe insert", { marks: ["accent"] })],
+			source: "user",
+			createdAt: "2026-08-16T00:00:00.000Z",
+			updatedAt: "2026-08-16T00:00:00.000Z",
+		};
+
+		await React.act(async () => {
+			sectionPickerProps.current?.onSelect(unsafeSection);
+		});
+
+		const alert = screen.getByRole("alert");
+		await expect.element(alert).toBeInTheDocument();
+		expect(alert.element()).toHaveTextContent("accent");
+		expect(document.querySelector(".ProseMirror")).toBe(pm);
+		expect(editor.getText()).toBe("Safe content");
+
+		typeIntoEditor(editor, " still editable");
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
 	});
 
 	it("renders a paragraph from PT value", async () => {

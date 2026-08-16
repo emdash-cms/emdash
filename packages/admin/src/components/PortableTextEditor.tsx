@@ -2625,6 +2625,7 @@ export function PortableTextEditor({
 	// Multi-select media picker state (for gallery insertion)
 	const [galleryPickerOpen, setGalleryPickerOpen] = React.useState(false);
 	const [conversionErrorMarks, setConversionErrorMarks] = React.useState<string[]>([]);
+	const [sectionInsertErrorMarks, setSectionInsertErrorMarks] = React.useState<string[]>([]);
 
 	// Plugin block insertion/editing state
 	const [pluginBlockModal, setPluginBlockModal] = React.useState<PluginBlockDef | null>(null);
@@ -3293,11 +3294,12 @@ export function PortableTextEditor({
 				({ content: prosemirrorContent } = portableTextToProsemirror(ptContent));
 			} catch (error) {
 				if (error instanceof UnsupportedPortableTextMarksError) {
-					setConversionErrorMarks(error.marks);
+					setSectionInsertErrorMarks(error.marks);
 					return;
 				}
 				throw error;
 			}
+			setSectionInsertErrorMarks([]);
 
 			const insertPos = pendingBlockInsertPosRef.current;
 			const chain = editor.chain().focus();
@@ -3343,6 +3345,32 @@ export function PortableTextEditor({
 
 	return (
 		<div ref={floatingRootRef} className="relative min-w-0" data-emdash-editor-floating-root>
+			{sectionInsertErrorMarks.length > 0 && (
+				<div
+					role="alert"
+					className="mb-3 flex items-start justify-between gap-4 rounded-lg border border-kumo-error bg-kumo-error/10 p-4 text-start"
+				>
+					<div className="min-w-0">
+						<p className="font-medium text-kumo-error">{t`Could not insert section`}</p>
+						<p className="mt-1 text-sm text-kumo-subtle">
+							<Trans>
+								This section contains unsupported Portable Text marks:{" "}
+								<code dir="auto">{sectionInsertErrorMarks.join(", ")}</code>. Update the section
+								before inserting it.
+							</Trans>
+						</p>
+					</div>
+					<Button
+						type="button"
+						variant="ghost"
+						shape="square"
+						onClick={() => setSectionInsertErrorMarks([])}
+						aria-label={t`Dismiss section error`}
+					>
+						<X className="h-4 w-4" aria-hidden="true" />
+					</Button>
+				</div>
+			)}
 			<EditorBubbleMenu
 				editor={editor}
 				appendTo={appendBubbleMenu}
