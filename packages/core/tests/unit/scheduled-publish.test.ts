@@ -273,6 +273,24 @@ describe("EmDashRuntime.runScheduledTasks()", () => {
 		expect(Date.parse(heartbeat!)).toBeGreaterThanOrEqual(startedAt);
 	});
 
+	it("does not fail Cloudflare scheduled maintenance when the heartbeat write fails", async () => {
+		await sql`
+			CREATE TRIGGER fail_scheduler_heartbeat
+			BEFORE INSERT ON options
+			WHEN NEW.name = 'system:scheduler:last_completed_at'
+			BEGIN
+				SELECT RAISE(ABORT, 'heartbeat unavailable');
+			END
+		`.execute(db);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await expect(buildRuntime(db).runScheduledTasks()).resolves.toEqual({ published: [] });
+		expect(consoleError).toHaveBeenCalledWith(
+			"[scheduler] Failed to record heartbeat:",
+			expect.anything(),
+		);
+	});
+
 	it("leaves due content untouched while media usage activation is incomplete", async () => {
 		const post = await repo.create(createPostFixture());
 		const past = new Date(Date.now() - 60_000).toISOString();

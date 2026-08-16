@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import Database from "better-sqlite3";
 import { sql, SqliteDialect } from "kysely";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
@@ -71,6 +71,26 @@ describe("media usage scheduled drivers", () => {
 		);
 		expect(heartbeat).not.toBeNull();
 		expect(Number.isNaN(Date.parse(heartbeat!))).toBe(false);
+	});
+
+	it("does not fail Node maintenance when the heartbeat write fails", async () => {
+		const scheduler = new CapturingScheduler();
+		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
+		await sql`
+			CREATE TRIGGER fail_scheduler_heartbeat
+			BEFORE INSERT ON options
+			WHEN NEW.name = 'system:scheduler:last_completed_at'
+			BEGIN
+				SELECT RAISE(ABORT, 'heartbeat unavailable');
+			END
+		`.execute(runtime.db);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await expect(scheduler.runMaintenance()).resolves.toBeUndefined();
+		expect(consoleError).toHaveBeenCalledWith(
+			"[scheduler] Failed to record heartbeat:",
+			expect.anything(),
+		);
 	});
 
 	it("drains bounded work through a legacy Node scheduler cleanup callback", async () => {

@@ -18,6 +18,17 @@ export async function recordSchedulerHeartbeat(
 	await new OptionsRepository(db).set(SCHEDULER_HEARTBEAT_OPTION, completedAt.toISOString());
 }
 
+export async function recordSchedulerHeartbeatSafely(
+	db: Kysely<Database>,
+	completedAt = new Date(),
+): Promise<void> {
+	try {
+		await recordSchedulerHeartbeat(db, completedAt);
+	} catch (error) {
+		console.error("[scheduler] Failed to record heartbeat:", error);
+	}
+}
+
 export async function getSchedulerHealth(
 	db: Kysely<Database>,
 	now = new Date(),
