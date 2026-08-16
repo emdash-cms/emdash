@@ -17,7 +17,7 @@ const bridgeContext = {
 	props: {
 		pluginId: "test-plugin",
 		pluginVersion: "1.0.0",
-		capabilities: ["content:write"],
+		capabilities: ["content:read", "content:write"],
 		allowedHosts: [],
 		storageCollections: [],
 	},
@@ -34,6 +34,30 @@ function makeBridge(db: unknown, i18nConfig?: { defaultLocale: string; locales: 
 }
 
 describe("PluginBridge content write fence", () => {
+	it("returns locale from content reads", async () => {
+		const db = {
+			prepare() {
+				return {
+					bind() {
+						return this;
+					},
+					async first() {
+						return {
+							id: "post-id",
+							locale: "fr",
+							created_at: "2026-08-16T00:00:00.000Z",
+							updated_at: "2026-08-16T00:00:00.000Z",
+						};
+					},
+				};
+			},
+		};
+
+		const item = await makeBridge(db).contentGet("posts", "post-id");
+
+		expect(item?.locale).toBe("fr");
+	});
+
 	it("rejects content mutations while media usage activation is incomplete", async () => {
 		const queries: string[] = [];
 		const db = {

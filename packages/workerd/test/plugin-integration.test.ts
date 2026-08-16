@@ -265,9 +265,11 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				id: string;
 				type: string;
 				data: Record<string, unknown>;
+				locale: string;
 			};
 			expect(created.type).toBe("posts");
 			expect(created.data.title).toBe("New Post");
+			expect(created.locale).toBe("en");
 			expect(created.id).toBeTruthy();
 
 			// Read
@@ -276,8 +278,13 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				id: created.id,
 			});
 			expect(readResult.error).toBeUndefined();
-			const read = readResult.result as { id: string; data: Record<string, unknown> };
+			const read = readResult.result as {
+				id: string;
+				data: Record<string, unknown>;
+				locale: string;
+			};
 			expect(read.data.title).toBe("New Post");
+			expect(read.locale).toBe("en");
 
 			// Update
 			const updateResult = await call(handler, "content/update", {
@@ -286,8 +293,13 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				data: { title: "Updated Post" },
 			});
 			expect(updateResult.error).toBeUndefined();
-			const updated = updateResult.result as { id: string; data: Record<string, unknown> };
+			const updated = updateResult.result as {
+				id: string;
+				data: Record<string, unknown>;
+				locale: string;
+			};
 			expect(updated.data.title).toBe("Updated Post");
+			expect(updated.locale).toBe("en");
 
 			// Delete (soft-delete)
 			const deleteResult = await call(handler, "content/delete", {

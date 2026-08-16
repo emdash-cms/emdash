@@ -704,6 +704,7 @@ async function contentGet(
 	data: Record<string, unknown>;
 	createdAt: string;
 	updatedAt: string;
+	locale: string;
 } | null> {
 	validateCollectionName(collection);
 	const table = `ec_${collection}`;
@@ -732,6 +733,7 @@ async function contentList(
 		data: Record<string, unknown>;
 		createdAt: string;
 		updatedAt: string;
+		locale: string;
 	}>;
 	cursor?: string;
 	hasMore: boolean;
@@ -840,6 +842,7 @@ async function contentUpdate(
 	data: Record<string, unknown>;
 	createdAt: string;
 	updatedAt: string;
+	locale: string;
 }> {
 	validateCollectionName(collection);
 	const table = `ec_${collection}`;

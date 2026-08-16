@@ -79,13 +79,9 @@ function serializeValue(value: unknown): unknown {
 }
 
 /**
- * Deserialize a row from D1 into a content response shape.
- * Extracts system columns and bundles remaining columns into data.
- */
-/**
  * Deserialize a row from D1 into a ContentItem matching core's plugin API.
  * Extracts system columns, deserializes JSON fields, and returns the
- * canonical shape: { id, type, data, createdAt, updatedAt }.
+ * canonical shape: { id, type, data, createdAt, updatedAt, locale }.
  */
 function rowToContentItem(
 	collection: string,
@@ -482,6 +478,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		data: Record<string, unknown>;
 		createdAt: string;
 		updatedAt: string;
+		locale: string;
 	} | null> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("content:read")) {
@@ -516,6 +513,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			data: Record<string, unknown>;
 			createdAt: string;
 			updatedAt: string;
+			locale: string;
 		}>;
 		cursor?: string;
 		hasMore: boolean;
@@ -650,6 +648,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		data: Record<string, unknown>;
 		createdAt: string;
 		updatedAt: string;
+		locale: string;
 	}> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("content:write")) {
