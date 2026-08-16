@@ -249,6 +249,23 @@ function stashFolded(data: Record<string, unknown>, row: Record<string, unknown>
 			configurable: true,
 		});
 	}
+
+	const foldedBylines = Reflect.get(data, FOLDED_BYLINES);
+	if (!Array.isArray(foldedBylines)) return;
+	const credits = foldedBylines
+		.map((raw) => {
+			const credit = isPlainObject(raw) ? raw : {};
+			const byline = isPlainObject(credit.byline) ? credit.byline : {};
+			return {
+				roleLabel: typeof credit.roleLabel === "string" ? credit.roleLabel : null,
+				sortOrder: Number(credit.sortOrder ?? 0),
+				source: "explicit" as const,
+				byline: { ...byline, isGuest: Boolean(byline.isGuest), customFields: {} },
+			};
+		})
+		.toSorted((a, b) => a.sortOrder - b.sortOrder);
+	data.bylines = credits;
+	data.byline = credits[0]?.byline ?? null;
 }
 
 /** Resolved SEO shape attached to `entry.data.seo`. Mirrors `ContentSeo`. */
@@ -1546,6 +1563,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						};
 						const revSeo = extractSeo(row);
 						if (revSeo) revEntryData.seo = revSeo;
+						stashFolded(revEntryData, row);
 						return {
 							id: revId,
 							slug,

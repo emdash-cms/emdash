@@ -9,7 +9,6 @@
  * dialects to guard the fold end-to-end.
  */
 
-import { ulid } from "ulidx";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { BylineRepository } from "../../src/database/repositories/byline.js";
@@ -81,22 +80,17 @@ describeEachDialect("loader hydration fold", (dialect) => {
 			slug: "ada",
 			avatarMediaId: "media_ada_avatar",
 		});
-		// _emdash_content_bylines.byline_id stores the byline's translation_group.
-		await db
-			.insertInto("_emdash_content_bylines")
-			.values({
-				id: ulid(),
-				collection_slug: "post",
-				content_id: post.id,
-				byline_id: author.translationGroup,
-				sort_order: 0,
-				role_label: "Author",
-				created_at: new Date().toISOString(),
-			})
-			.execute();
+		const editor = await bylines.create({
+			displayName: "Grace Hopper",
+			slug: "grace",
+		});
+		await bylines.setContentBylines("post", post.id, [
+			{ bylineId: editor.id, roleLabel: "Editor" },
+			{ bylineId: author.id, roleLabel: "Author" },
+		]);
 		const tag = await tax.create({ name: "tag", slug: "news", label: "News", locale: "en" });
 		await tax.attachToEntry("post", post.id, tag.id);
-		return { post, author, tag };
+		return { post, author, editor, tag };
 	}
 
 	function read<T>(data: unknown, sym: symbol): T {
@@ -117,12 +111,48 @@ describeEachDialect("loader hydration fold", (dialect) => {
 		expect(terms[0]).toMatchObject({ name: "tag", slug: "news", label: "News" });
 
 		const credits = read<FoldedByline[]>(data, FOLDED_BYLINES);
-		expect(credits).toHaveLength(1);
-		expect(credits[0]!.roleLabel).toBe("Author");
-		expect(credits[0]!.byline.displayName).toBe("Ada Lovelace");
+		expect(credits).toHaveLength(2);
+		const ada = credits.find((credit) => credit.byline.slug === "ada");
+		expect(ada?.roleLabel).toBe("Author");
+		expect(ada?.byline.displayName).toBe("Ada Lovelace");
 		// avatarMediaId is a required BylineSummary field templates read to render
 		// author avatars; the fold must carry it (regression guard).
-		expect(credits[0]!.byline.avatarMediaId).toBe("media_ada_avatar");
+		expect(ada?.byline.avatarMediaId).toBe("media_ada_avatar");
+
+		const publicCredits = data.bylines as Array<{
+			roleLabel: string | null;
+			sortOrder: number;
+			source: string;
+			byline: { displayName: string; slug: string; isGuest: boolean; customFields: unknown };
+		}>;
+		expect(
+			publicCredits.map((credit) => ({
+				displayName: credit.byline.displayName,
+				roleLabel: credit.roleLabel,
+				sortOrder: credit.sortOrder,
+				source: credit.source,
+				isGuest: credit.byline.isGuest,
+				customFields: credit.byline.customFields,
+			})),
+		).toEqual([
+			{
+				displayName: "Grace Hopper",
+				roleLabel: "Editor",
+				sortOrder: 0,
+				source: "explicit",
+				isGuest: false,
+				customFields: {},
+			},
+			{
+				displayName: "Ada Lovelace",
+				roleLabel: "Author",
+				sortOrder: 1,
+				source: "explicit",
+				isGuest: false,
+				customFields: {},
+			},
+		]);
+		expect(data.byline).toBe(publicCredits[0]!.byline);
 	});
 
 	it("folds bylines + terms into loadCollection", async () => {
@@ -134,15 +164,17 @@ describeEachDialect("loader hydration fold", (dialect) => {
 		// eslint-disable-next-line typescript/no-explicit-any -- loader result union
 		const entry = (result as any).entries[0];
 		expect(read<FoldedTerm[]>(entry.data, FOLDED_TERMS)[0]!.slug).toBe("news");
-		expect(read<FoldedByline[]>(entry.data, FOLDED_BYLINES)[0]!.byline.displayName).toBe(
-			"Ada Lovelace",
-		);
+		expect(
+			(entry.data.bylines as FoldedByline[]).map((credit) => credit.byline.displayName),
+		).toEqual(["Grace Hopper", "Ada Lovelace"]);
+		expect(entry.data.byline.displayName).toBe("Grace Hopper");
 	});
 
 	it("folds terms in the entry's own locale (#1441)", async () => {
 		// eslint-disable-next-line typescript/no-explicit-any -- schema type vs Database type
 		const db = ctx.db as any;
 		const content = new ContentRepository(db);
+		const bylines = new BylineRepository(db);
 		const tax = new TaxonomyRepository(db);
 		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
 		try {
@@ -168,15 +200,34 @@ describeEachDialect("loader hydration fold", (dialect) => {
 				translationOf: enTag.id,
 			});
 			await tax.attachToEntry("post", fr.id, enTag.id);
+			const enAuthor = await bylines.create({
+				displayName: "English Author",
+				slug: "author",
+				locale: "en",
+			});
+			await bylines.create({
+				displayName: "Auteur français",
+				slug: "auteur",
+				locale: "fr",
+				translationOf: enAuthor.id,
+			});
+			await bylines.setContentBylines("post", fr.id, [
+				{ bylineId: enAuthor.id, roleLabel: "Author" },
+			]);
 
 			const loader = emdashLoader();
 			const result = await runWithContext({ editMode: false, db: ctx.db }, () =>
 				loader.loadEntry({ filter: { type: "post", id: "bonjour", locale: "fr" } }),
 			);
 			// eslint-disable-next-line typescript/no-explicit-any -- loader result union
-			const terms = read<FoldedTerm[]>((result as any).data, FOLDED_TERMS);
+			const data = (result as any).data;
+			const terms = read<FoldedTerm[]>(data, FOLDED_TERMS);
 			expect(terms).toHaveLength(1);
 			expect(terms[0]!.slug).toBe("actualites");
+			expect(data.bylines).toHaveLength(1);
+			expect(data.bylines[0].byline.displayName).toBe("Auteur français");
+			expect(data.bylines[0].byline.locale).toBe("fr");
+			expect(data.byline.displayName).toBe("Auteur français");
 		} finally {
 			setI18nConfig(null);
 		}
@@ -194,5 +245,7 @@ describeEachDialect("loader hydration fold", (dialect) => {
 		const data = (result as any).data as Record<string, unknown>;
 		expect(read<FoldedTerm[]>(data, FOLDED_TERMS)).toEqual([]);
 		expect(read<FoldedByline[]>(data, FOLDED_BYLINES)).toEqual([]);
+		expect(data.bylines).toEqual([]);
+		expect(data.byline).toBeNull();
 	});
 });
