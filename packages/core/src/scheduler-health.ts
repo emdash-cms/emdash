@@ -34,13 +34,13 @@ export async function getSchedulerHealth(
 	now = new Date(),
 ): Promise<SchedulerHealth> {
 	const lastCompletedAt = await new OptionsRepository(db).get<string>(SCHEDULER_HEARTBEAT_OPTION);
-	if (!lastCompletedAt || Number.isNaN(Date.parse(lastCompletedAt))) {
+	const lastCompletedAtMs = lastCompletedAt ? Date.parse(lastCompletedAt) : Number.NaN;
+	if (!lastCompletedAt || Number.isNaN(lastCompletedAtMs)) {
 		return { status: "unknown", lastCompletedAt: null };
 	}
 
 	return {
-		status:
-			now.getTime() - Date.parse(lastCompletedAt) > SCHEDULER_STALE_AFTER_MS ? "stale" : "healthy",
+		status: now.getTime() - lastCompletedAtMs > SCHEDULER_STALE_AFTER_MS ? "stale" : "healthy",
 		lastCompletedAt,
 	};
 }

@@ -76,10 +76,14 @@ describe("media usage scheduled drivers", () => {
 	it("does not fail Node maintenance when the heartbeat write fails", async () => {
 		const scheduler = new CapturingScheduler();
 		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
+		await new OptionsRepository(runtime.db).set(
+			SCHEDULER_HEARTBEAT_OPTION,
+			"2026-08-16T00:00:00.000Z",
+		);
 		await sql`
 			CREATE TRIGGER fail_scheduler_heartbeat
-			BEFORE INSERT ON options
-			WHEN NEW.name = 'system:scheduler:last_completed_at'
+			BEFORE UPDATE ON options
+			WHEN NEW.name = ${sql.lit(SCHEDULER_HEARTBEAT_OPTION)}
 			BEGIN
 				SELECT RAISE(ABORT, 'heartbeat unavailable');
 			END

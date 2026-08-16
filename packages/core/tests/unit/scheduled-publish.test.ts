@@ -277,7 +277,7 @@ describe("EmDashRuntime.runScheduledTasks()", () => {
 		await sql`
 			CREATE TRIGGER fail_scheduler_heartbeat
 			BEFORE INSERT ON options
-			WHEN NEW.name = 'system:scheduler:last_completed_at'
+			WHEN NEW.name = ${sql.lit(SCHEDULER_HEARTBEAT_OPTION)}
 			BEGIN
 				SELECT RAISE(ABORT, 'heartbeat unavailable');
 			END
