@@ -18,6 +18,7 @@ import { DEFAULT_COMMENT_MODERATOR_PLUGIN_ID } from "../../../src/comments/moder
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import type { RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { getI18nConfig, setI18nConfig } from "../../../src/i18n/config.js";
@@ -190,6 +191,36 @@ describe("EmDashRuntime.create — cold boot", () => {
 				"1:en",
 			);
 		} finally {
+			await runtime.stopCron();
+			await setupDb.destroy();
+			setI18nConfig(previousI18nConfig);
+		}
+	});
+
+	it("warns about historical taxonomy locales after the runtime is ready", async () => {
+		const previousI18nConfig = getI18nConfig();
+		setI18nConfig(null);
+		const sqlite = new Database(":memory:");
+		const setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		await new OptionsRepository(setupDb).set("emdash:setup_complete", true);
+		setI18nConfig({ defaultLocale: "ja", locales: ["ja"] });
+
+		const deps = createDeps();
+		deps.createDialect = () => new SqliteDialect({ database: sqlite });
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const runtime = await EmDashRuntime.create(deps);
+
+		try {
+			await waitForDeferredTasks();
+			expect(warn).toHaveBeenCalledWith(
+				expect.stringContaining("Taxonomy rows use locales outside the configured locales (ja)"),
+			);
+			expect(warn).toHaveBeenCalledWith(expect.stringContaining("definitions: en"));
+		} finally {
+			warn.mockRestore();
 			await runtime.stopCron();
 			await setupDb.destroy();
 			setI18nConfig(previousI18nConfig);

@@ -40,6 +40,7 @@ import type {
 } from "./database/repositories/types.js";
 import { getI18nConfig } from "./i18n/config.js";
 import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
+import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-diagnostic.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
 import {
@@ -1812,6 +1813,13 @@ export class EmDashRuntime {
 		// Hand the constructed instance to the scheduler-cleanup closure so the
 		// timer-driven sweep can fire publish hooks (see runtimeRef above).
 		runtimeRef.current = runtime;
+		after(async () => {
+			try {
+				await warnAboutUnconfiguredTaxonomyLocales(resolveDb(), configuredLocales);
+			} catch (error) {
+				console.warn("[i18n] taxonomy locale diagnostic failed:", error);
+			}
+		});
 		return runtime;
 	}
 

@@ -172,6 +172,66 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 		await teardownForDialect(ctx);
 	});
 
+	it("persists the configured default instead of the database column default", async () => {
+		setI18nConfig({ defaultLocale: "ja", locales: ["ja"] });
+
+		const definition = await handleTaxonomyCreate(ctx.db, {
+			name: "categories",
+			label: "Categories",
+		});
+		expect(definition.success).toBe(true);
+		if (!definition.success) throw new Error(definition.error.message);
+		expect(definition.data.taxonomy.locale).toBe("ja");
+
+		const term = await unwrap(
+			handleTermCreate(ctx.db, "categories", {
+				slug: "news",
+				label: "News",
+			}),
+		);
+		expect(term.locale).toBe("ja");
+
+		const controlId = ulid();
+		await ctx.db
+			.insertInto("taxonomies")
+			.values({
+				id: controlId,
+				name: "categories",
+				slug: "database-default",
+				label: "Database default",
+				parent_id: null,
+				data: null,
+				translation_group: controlId,
+			})
+			.execute();
+		const control = await ctx.db
+			.selectFrom("taxonomies")
+			.select("locale")
+			.where("id", "=", controlId)
+			.executeTakeFirstOrThrow();
+		expect(control.locale).toBe("en");
+	});
+
+	it("uses the implicit English locale when i18n is not configured", async () => {
+		setI18nConfig(null);
+
+		const definition = await handleTaxonomyCreate(ctx.db, {
+			name: "categories",
+			label: "Categories",
+		});
+		expect(definition.success).toBe(true);
+		if (!definition.success) throw new Error(definition.error.message);
+		expect(definition.data.taxonomy.locale).toBe("en");
+
+		const term = await unwrap(
+			handleTermCreate(ctx.db, "categories", {
+				slug: "news",
+				label: "News",
+			}),
+		);
+		expect(term.locale).toBe("en");
+	});
+
 	it("stores term locales with the configured casing", async () => {
 		setI18nConfig({ defaultLocale: "en", locales: ["en", "zh-TW"] });
 		await insertHierarchicalDef(ctx.db, "categories");
