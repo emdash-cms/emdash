@@ -480,6 +480,14 @@ describe("Capability Enforcement Integration (v2)", () => {
 				expect(created.locale).toBe("en");
 			});
 
+			it("persists a valid explicit locale when i18n is not configured", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", { title: "日本語" }, { locale: "ja" });
+
+				expect(created.locale).toBe("ja");
+			});
+
 			it("rejects malformed and unconfigured explicit locales", async () => {
 				setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
 				const access = createContentAccessWithWrite(db);

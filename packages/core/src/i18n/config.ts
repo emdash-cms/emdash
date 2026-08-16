@@ -45,7 +45,7 @@ export function resolveConfiguredLocale(locale: string): string {
 	);
 }
 
-/** Whether a string is a supported BCP 47 locale code. */
+/** Whether a string matches the locale-code subset accepted by EmDash. */
 export function isValidLocaleCode(locale: string): boolean {
 	return LOCALE_CODE_PATTERN.test(locale);
 }

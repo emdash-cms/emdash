@@ -61,7 +61,7 @@ const post = await ctx.content.create(
 );
 ```
 
-Locale matching is case-insensitive and stores the casing from the site's locale configuration, so `zh-tw` becomes `zh-TW` when that is the configured form. An unconfigured or malformed explicit locale throws. When the option is omitted, EmDash uses the site's configured default locale; sites without i18n configuration retain the `en` default.
+Locale matching is case-insensitive and stores the casing from the site's locale configuration, so `zh-tw` becomes `zh-TW` when that is the configured form. A malformed explicit locale always throws; when i18n is configured, an explicit locale outside the configured locale list also throws. When the option is omitted, EmDash uses the site's configured default locale; sites without i18n configuration retain the `en` default.
 
 ## Network host allowlists
 
