@@ -12,6 +12,20 @@ import {
 	type DialectTestContext,
 } from "../../utils/test-db.js";
 
+function portableText(text: string) {
+	return [
+		{
+			_type: "block",
+			style: "normal",
+			children: [{ _type: "span", text }],
+		},
+	];
+}
+
+const LIVE_BODY = portableText("Live body");
+const DRAFT_BODY = portableText("Draft body");
+const CONCURRENT_BODY = portableText("Concurrent body");
+
 describeEachDialect("plugin content updates with revisions", (dialect) => {
 	let ctx: DialectTestContext;
 	let contentRepo: ContentRepository;
@@ -27,7 +41,7 @@ describeEachDialect("plugin content updates with revisions", (dialect) => {
 
 	async function createPublishedPost() {
 		const created = await contentRepo.create(
-			createPostFixture({ status: "draft", data: { title: "Live title", content: "Live body" } }),
+			createPostFixture({ status: "draft", data: { title: "Live title", content: LIVE_BODY } }),
 		);
 		return contentRepo.publish("post", created.id);
 	}
@@ -39,17 +53,17 @@ describeEachDialect("plugin content updates with revisions", (dialect) => {
 		const result = await access.update("post", published.id, { title: "Plugin title" });
 		const staged = await contentRepo.findById("post", published.id);
 
-		expect(result.data).toEqual({ title: "Plugin title", content: "Live body" });
+		expect(result.data).toEqual({ title: "Plugin title", content: LIVE_BODY });
 		expect(result.updatedAt).toBe(published.updatedAt);
 		expect(staged).toMatchObject({
-			data: { title: "Live title", content: "Live body" },
+			data: { title: "Live title", content: LIVE_BODY },
 			liveRevisionId: published.liveRevisionId,
 			version: published.version + 1,
 		});
 		expect(staged?.draftRevisionId).not.toBeNull();
 
 		const promoted = await contentRepo.publish("post", published.id);
-		expect(promoted.data).toEqual({ title: "Plugin title", content: "Live body" });
+		expect(promoted.data).toEqual({ title: "Plugin title", content: LIVE_BODY });
 		expect(promoted.draftRevisionId).toBeNull();
 		expect(promoted.liveRevisionId).toBe(staged?.draftRevisionId);
 	});
@@ -60,7 +74,7 @@ describeEachDialect("plugin content updates with revisions", (dialect) => {
 		const draft = await revisionRepo.create({
 			collection: "post",
 			entryId: published.id,
-			data: { title: "Draft title", content: "Draft body" },
+			data: { title: "Draft title", content: DRAFT_BODY },
 		});
 		await contentRepo.setDraftRevision("post", published.id, draft.id);
 		const beforePluginUpdate = await contentRepo.findById("post", published.id);
@@ -69,13 +83,13 @@ describeEachDialect("plugin content updates with revisions", (dialect) => {
 		const result = await access.update("post", published.id, { title: "Plugin title" });
 		const staged = await contentRepo.findById("post", published.id);
 
-		expect(result.data).toEqual({ title: "Plugin title", content: "Draft body" });
-		expect(staged?.data).toEqual({ title: "Live title", content: "Live body" });
+		expect(result.data).toEqual({ title: "Plugin title", content: DRAFT_BODY });
+		expect(staged?.data).toEqual({ title: "Live title", content: LIVE_BODY });
 		expect(staged?.version).toBe(beforePluginUpdate!.version + 1);
 		expect(staged?.draftRevisionId).not.toBe(draft.id);
 
 		const promoted = await contentRepo.publish("post", published.id);
-		expect(promoted.data).toEqual({ title: "Plugin title", content: "Draft body" });
+		expect(promoted.data).toEqual({ title: "Plugin title", content: DRAFT_BODY });
 	});
 
 	it("leaves the published data intact when the plugin draft is discarded", async () => {
@@ -85,7 +99,7 @@ describeEachDialect("plugin content updates with revisions", (dialect) => {
 		await access.update("post", published.id, { title: "Discarded plugin title" });
 		const discarded = await contentRepo.discardDraft("post", published.id);
 
-		expect(discarded.data).toEqual({ title: "Live title", content: "Live body" });
+		expect(discarded.data).toEqual({ title: "Live title", content: LIVE_BODY });
 		expect(discarded.liveRevisionId).toBe(published.liveRevisionId);
 		expect(discarded.draftRevisionId).toBeNull();
 	});
@@ -122,18 +136,18 @@ describeEachDialect("plugin content updates with revisions", (dialect) => {
 
 		await Promise.all([
 			access.update("post", published.id, { title: "Concurrent title" }),
-			access.update("post", published.id, { content: "Concurrent body" }),
+			access.update("post", published.id, { content: CONCURRENT_BODY }),
 		]);
 
 		const staged = await contentRepo.findById("post", published.id);
 		expect(staged?.version).toBe(published.version + 2);
-		expect(staged?.data).toEqual({ title: "Live title", content: "Live body" });
+		expect(staged?.data).toEqual({ title: "Live title", content: LIVE_BODY });
 		expect(staged?.draftRevisionId).not.toBeNull();
 
 		const promoted = await contentRepo.publish("post", published.id);
 		expect(promoted.data).toEqual({
 			title: "Concurrent title",
-			content: "Concurrent body",
+			content: CONCURRENT_BODY,
 		});
 	});
 });
