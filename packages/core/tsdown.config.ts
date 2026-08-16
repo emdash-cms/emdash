@@ -137,8 +137,9 @@ export default defineConfig({
 	format: "esm",
 	dts: true,
 	clean: true,
-	// Deps are externalized via `external` + package.json deps; nothing is
-	// unintentionally bundled. Suppress tsdown's advisory (CI escalates it).
+	// The local security patch only exists while building this workspace, so
+	// every published entry that uses image-size must carry that implementation.
+	noExternal: ["image-size"],
 	inlineOnly: false,
 	inputOptions: (options) => {
 		// tsdown has already normalized the `entry` array into an input record

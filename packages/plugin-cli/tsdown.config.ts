@@ -11,6 +11,8 @@ export default defineConfig([
 		platform: "node",
 		target: "node22",
 		shims: false,
+		noExternal: ["image-size"],
+		inlineOnly: ["image-size"],
 	},
 	// Programmatic API entry. With tsdown's ESM defaults this emits
 	// `.mjs` + `.d.mts` (matching the `exports` field in package.json).
@@ -21,6 +23,8 @@ export default defineConfig([
 		clean: false,
 		platform: "node",
 		target: "node22",
+		noExternal: ["image-size"],
+		inlineOnly: ["image-size"],
 		external: [
 			"@atcute/client",
 			"@atcute/identity-resolver",
@@ -34,7 +38,6 @@ export default defineConfig([
 			"chokidar",
 			"citty",
 			"consola",
-			"image-size",
 			"jsonc-parser",
 			"modern-tar",
 			"picocolors",
