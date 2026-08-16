@@ -241,6 +241,39 @@ describe("CLI Seed Commands", () => {
 			}
 		});
 
+		it("falls back for unusable routable slugs while preserving a zero slug", async () => {
+			const dbPath = join(tempDir, "legacy-routable-content.db");
+			const db = createDatabase({ url: `file:${dbPath}` });
+
+			try {
+				await runMigrations(db);
+				const registry = new SchemaRegistry(db);
+				await registry.createCollection({ slug: "posts", label: "Posts" });
+				await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+				const contentRepo = new ContentRepository(db);
+				const whitespace = await contentRepo.create({
+					type: "posts",
+					slug: "   ",
+					status: "published",
+					data: { title: "Legacy" },
+				});
+				await contentRepo.create({
+					type: "posts",
+					slug: "0",
+					status: "published",
+					data: { title: "Zero" },
+				});
+
+				const exported = await exportSeed(db, "posts");
+				const slugs = exported.content?.posts?.map((entry) => entry.slug);
+				expect(slugs).toContain(whitespace.id);
+				expect(slugs).toContain("0");
+				expect(validateSeed(exported)).toMatchObject({ valid: true, errors: [] });
+			} finally {
+				await db.destroy();
+			}
+		});
+
 		it("preserves a non-routable collection", async () => {
 			const dbPath = join(tempDir, "routable.db");
 			const db = createDatabase({ url: `file:${dbPath}` });

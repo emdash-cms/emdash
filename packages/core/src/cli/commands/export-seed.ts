@@ -749,7 +749,7 @@ async function exportContent(
 
 				const entry: SeedContentEntry = {
 					id: seedId,
-					slug: item.slug ?? (collection.routable === false ? undefined : item.id),
+					slug: item.slug?.trim() ? item.slug : collection.routable === false ? undefined : item.id,
 					status: item.status === "published" || item.status === "draft" ? item.status : undefined,
 					data: processedData,
 				};
