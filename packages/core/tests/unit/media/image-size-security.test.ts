@@ -23,24 +23,11 @@ const ICNS_ZERO_LENGTH_ENTRY = new Uint8Array([
 	0x69, 0x63, 0x6e, 0x73, 0x00, 0x00, 0x00, 0x10, 0x69, 0x73, 0x33, 0x32, 0x00, 0x00, 0x00, 0x00,
 ]);
 
-const WORKER_SOURCE = String.raw`
-	const { parentPort, workerData } = require("node:worker_threads");
-
-	void import(workerData.moduleUrl)
-		.then(({ imageSize }) => {
-			const result = imageSize(Uint8Array.from(workerData.bytes));
-			parentPort.postMessage({
-				ok: true,
-				value: { width: result.width, height: result.height, type: result.type },
-			});
-		})
-		.catch((error) => {
-			parentPort.postMessage({
-				ok: false,
-				error: error instanceof Error ? error.message : String(error),
-			});
-		});
-`;
+const JXL_ZERO_LENGTH_JXLP = new Uint8Array([
+	0x00, 0x00, 0x00, 0x0c, 0x4a, 0x58, 0x4c, 0x20, 0x0d, 0x0a, 0x87, 0x0a, 0x00, 0x00, 0x00, 0x14,
+	0x66, 0x74, 0x79, 0x70, 0x6a, 0x78, 0x6c, 0x20, 0x00, 0x00, 0x00, 0x00, 0x6a, 0x78, 0x6c, 0x20,
+	0x00, 0x00, 0x00, 0x00, 0x6a, 0x78, 0x6c, 0x70,
+]);
 
 interface ParserResult {
 	width?: number;
@@ -52,8 +39,7 @@ type WorkerMessage = { ok: true; value: ParserResult } | { ok: false; error: str
 
 function parseWithTimeout(bytes: Uint8Array): Promise<ParserResult> {
 	return new Promise((resolve, reject) => {
-		const worker = new Worker(WORKER_SOURCE, {
-			eval: true,
+		const worker = new Worker(new URL("./image-size-security-worker.mjs", import.meta.url), {
 			workerData: {
 				moduleUrl: imageSizeModuleUrl,
 				bytes,
@@ -81,6 +67,7 @@ function parseWithTimeout(bytes: Uint8Array): Promise<ParserResult> {
 			if (settled) return;
 			settled = true;
 			clearTimeout(timer);
+			void worker.terminate();
 			reject(error);
 		});
 		worker.once("exit", (code) => {
@@ -107,5 +94,9 @@ describe("image-size malformed box handling", () => {
 			height: 16,
 			type: "icns",
 		});
+	});
+
+	it("settles for a JXL zero-length partial stream box", async () => {
+		await expect(parseWithTimeout(JXL_ZERO_LENGTH_JXLP)).rejects.toThrow("Reached end of input");
 	});
 });

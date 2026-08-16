@@ -137,8 +137,8 @@ export default defineConfig({
 	format: "esm",
 	dts: true,
 	clean: true,
-	// The local security patch only exists while building this workspace, so
-	// every published entry that uses image-size must carry that implementation.
+	// pnpm applies the image-size patch only inside this workspace, so bundle
+	// the patched implementation into every published entry that uses it.
 	noExternal: ["image-size"],
 	inlineOnly: false,
 	inputOptions: (options) => {
