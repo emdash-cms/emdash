@@ -31,6 +31,7 @@ import {
 // Regex pattern for ULID validation
 const ULID_PATTERN = /^[0-9A-Z]{26}$/;
 const SQLSTATE_PATTERN = /^[0-9A-Z]{5}$/;
+const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 
 // LIKE wildcards that must be escaped so user search input is matched literally.
 const LIKE_WILDCARD_RE = /[\\%_]/g;
@@ -238,6 +239,16 @@ function serializeValue(value: unknown): unknown {
 		return JSON.stringify(value);
 	}
 	return value;
+}
+
+function writableContentData(data: Record<string, unknown>): Record<string, unknown> {
+	const writable: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(data)) {
+		if (SYSTEM_COLUMNS.has(key)) continue;
+		validateIdentifier(key, "content field name");
+		writable[key] = value;
+	}
+	return writable;
 }
 
 /**
@@ -826,11 +837,8 @@ export class ContentRepository {
 
 		// Update data fields (skip system columns to prevent injection via data)
 		if (input.data !== undefined && typeof input.data === "object") {
-			for (const [key, value] of Object.entries(input.data)) {
-				if (!SYSTEM_COLUMNS.has(key)) {
-					validateIdentifier(key, "content field name");
-					updates[key] = serializeValue(value);
-				}
+			for (const [key, value] of Object.entries(writableContentData(input.data))) {
+				updates[key] = serializeValue(value);
 			}
 		}
 
@@ -855,6 +863,159 @@ export class ContentRepository {
 		}
 
 		return updated;
+	}
+
+	/**
+	 * Update plugin-authored fields without letting content columns diverge
+	 * from the revision pointers that publication promotes.
+	 */
+	async updateDraftAware(
+		type: string,
+		id: string,
+		input: UpdateContentInput,
+	): Promise<ContentItem> {
+		const data = input.data ? writableContentData(input.data) : {};
+		const stagedSlug = typeof input.slug === "string" ? input.slug : undefined;
+		const hasDraftUpdate = Object.keys(data).length > 0 || stagedSlug !== undefined;
+
+		if (!hasDraftUpdate) {
+			return this.update(type, id, { ...input, data });
+		}
+
+		const collectionRows = await this.db
+			.selectFrom("_emdash_collections as collection")
+			.leftJoin("_emdash_fields as field", "field.collection_id", "collection.id")
+			.select(["collection.supports", "field.slug as fieldSlug"])
+			.where("collection.slug", "=", type)
+			.execute();
+		const supportsRaw = collectionRows[0]?.supports;
+		const supports: unknown = supportsRaw ? JSON.parse(supportsRaw) : [];
+		if (!Array.isArray(supports) || !supports.includes("revisions")) {
+			return this.update(type, id, { ...input, data });
+		}
+
+		const fieldSlugs = new Set(collectionRows.map((row) => row.fieldSlug).filter(Boolean));
+		for (const field of Object.keys(data)) {
+			if (!fieldSlugs.has(field)) {
+				throw new EmDashValidationError(`Unknown field '${field}' in collection '${type}'`);
+			}
+		}
+
+		const revisionRepo = new RevisionRepository(this.db);
+		let existing = await this.findById(type, id);
+
+		for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
+			let baseData = existing.data;
+			if (existing.draftRevisionId) {
+				const draft = await revisionRepo.findById(existing.draftRevisionId);
+				if (draft) baseData = draft.data;
+			}
+
+			const mergedData = { ...baseData, ...data };
+			if (stagedSlug !== undefined) mergedData._slug = stagedSlug;
+			const revision = await revisionRepo.create({
+				collection: type,
+				entryId: id,
+				data: mergedData,
+				...(input.authorId ? { authorId: input.authorId } : {}),
+			});
+
+			let staged: boolean;
+			try {
+				staged = await this.replaceDraftRevisionForUpdate(type, id, revision.id, existing, input);
+			} catch (error) {
+				await this.deleteUnstagedRevision(revisionRepo, type, id, revision.id);
+				throw error;
+			}
+
+			if (staged) {
+				const updated = await this.findById(type, id);
+				if (!updated) throw new Error("Content not found");
+				const draftData: Record<string, unknown> = {};
+				for (const [key, value] of Object.entries(mergedData)) {
+					if (!key.startsWith("_")) draftData[key] = value;
+				}
+				return { ...updated, data: { ...updated.data, ...draftData } };
+			}
+
+			await this.deleteUnstagedRevision(revisionRepo, type, id, revision.id);
+			existing = await this.findById(type, id);
+		}
+
+		if (!existing) throw new Error("Content not found");
+		throw new ContentMutationConflictError();
+	}
+
+	private async deleteUnstagedRevision(
+		revisionRepo: RevisionRepository,
+		type: string,
+		id: string,
+		revisionId: string,
+	): Promise<void> {
+		try {
+			await revisionRepo.deleteIfUnreferenced(type, id, revisionId);
+		} catch (error) {
+			console.error(`[content] Failed to clean up unstaged revision ${revisionId}:`, error);
+		}
+	}
+
+	private async replaceDraftRevisionForUpdate(
+		type: string,
+		id: string,
+		revisionId: string,
+		expected: ContentItem,
+		input: UpdateContentInput,
+	): Promise<boolean> {
+		const tableName = getTableName(type);
+		const assignments = [sql`draft_revision_id = ${revisionId}`];
+		let liveMetadataChanged = false;
+
+		if (input.status !== undefined) {
+			assignments.push(sql`status = ${input.status}`);
+			liveMetadataChanged = true;
+		}
+		if (input.slug === null) {
+			assignments.push(sql`slug = NULL`);
+			liveMetadataChanged = true;
+		}
+		if (input.publishedAt !== undefined) {
+			assignments.push(sql`published_at = ${input.publishedAt}`);
+			liveMetadataChanged = true;
+		}
+		if (input.scheduledAt !== undefined) {
+			assignments.push(sql`scheduled_at = ${input.scheduledAt}`);
+			liveMetadataChanged = true;
+		}
+		if (input.authorId !== undefined) {
+			assignments.push(sql`author_id = ${input.authorId}`);
+			liveMetadataChanged = true;
+		}
+		if (input.primaryBylineId !== undefined) {
+			assignments.push(sql`primary_byline_id = ${input.primaryBylineId}`);
+			liveMetadataChanged = true;
+		}
+		if (liveMetadataChanged) assignments.push(sql`updated_at = ${new Date().toISOString()}`);
+		assignments.push(sql`version = version + 1`);
+
+		const result = await sql`
+			UPDATE ${sql.ref(tableName)}
+			SET ${sql.join(assignments, sql`, `)}
+			WHERE id = ${id}
+			AND deleted_at IS NULL
+			AND version = ${expected.version}
+			AND ${nullableColumnMatch("live_revision_id", expected.liveRevisionId)}
+			AND ${nullableColumnMatch("draft_revision_id", expected.draftRevisionId)}
+			AND EXISTS (
+				SELECT 1 FROM revisions
+				WHERE revisions.id = ${revisionId}
+				AND revisions.collection = ${type}
+				AND revisions.entry_id = ${id}
+			)
+		`.execute(this.db);
+
+		const changed = (result.numAffectedRows ?? 0n) > 0n;
+		if (changed && liveMetadataChanged) invalidateCollectionCache(type);
+		return changed;
 	}
 
 	/**

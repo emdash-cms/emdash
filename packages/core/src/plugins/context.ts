@@ -445,7 +445,7 @@ export function createContentAccessWithWrite(
 					// only the SEO table. ContentRepository.update handles the no-op
 					// path by returning the current row.
 					const item = hasFieldUpdates
-						? await trxContentRepo.update(collection, id, { data: fields })
+						? await trxContentRepo.updateDraftAware(collection, id, { data: fields })
 						: await (async () => {
 								const existing = await trxContentRepo.findById(collection, id);
 								if (!existing) throw new Error("Content not found");
