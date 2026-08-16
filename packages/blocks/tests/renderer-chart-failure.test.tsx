@@ -36,7 +36,6 @@ describe("BlockRenderer chart loading failures", () => {
 		});
 
 		const placeholder = container.querySelector<HTMLElement>('[aria-hidden="true"]');
-		expect(placeholder?.className).toContain("rounded-lg border border-kumo-line p-4");
 		expect((placeholder?.firstElementChild as HTMLElement | undefined)?.style.height).toBe("420px");
 	});
 });

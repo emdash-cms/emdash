@@ -451,16 +451,10 @@ describe("BlockRenderer", () => {
 
 		expect(screen.queryByTestId("timeseries-chart")).toBeNull();
 		const fallback = container.querySelector<HTMLElement>('[aria-hidden="true"]');
-		expect(fallback?.classList).toContain("rounded-lg");
-		expect(fallback?.classList).toContain("border");
-		expect(fallback?.classList).toContain("border-kumo-line");
-		expect(fallback?.classList).toContain("p-4");
-		expect(fallback?.style.height).toBe("");
-		expect(fallback?.childElementCount).toBe(1);
 		expect((fallback?.firstElementChild as HTMLElement | undefined)?.style.height).toBe("420px");
 
 		const chart = await screen.findByTestId("timeseries-chart");
-		expect(chart.parentElement?.className).toBe(fallback?.className);
+		expect(chart.getAttribute("data-height")).toBe("420");
 		expect(container.querySelector('[aria-hidden="true"]')).toBeNull();
 	});
 

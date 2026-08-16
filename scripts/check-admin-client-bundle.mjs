@@ -5,16 +5,11 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ANALYSIS_FILE = "emdash-client-bundle.json";
-// The entry and closure ceilings retain roughly 400 KB of normal bundle drift,
-// but less than one deferred chart payload. The definition cap is over twice
-// the optimized fixture count while remaining far below the full icon catalog.
 const MAX_PLUGIN_REGISTRY_BYTES = 2_250_000;
 const MAX_INITIAL_CLOSURE_BYTES = 3_150_000;
 const MAX_INITIAL_PHOSPHOR_DEFS = 350;
-// Feature chunks may carry a focused icon set; namespace imports exceed both caps by an order of magnitude.
 const MAX_NON_BUCKET_LAZY_PHOSPHOR_DEFS = 32;
 const MAX_TOTAL_NON_BUCKET_LAZY_PHOSPHOR_DEFS = 96;
-// A deferred bucket has about 25% growth room before one icon request becomes too large.
 const MAX_ICON_BUCKET_BYTES = 275_000;
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
