@@ -357,11 +357,26 @@ describe("TaxonomySidebar", () => {
 				"/_emdash/api/taxonomies/tags/terms",
 				expect.objectContaining({
 					method: "POST",
-					body: JSON.stringify({ slug: "gamma", label: "Gamma" }),
+					body: JSON.stringify({ label: "Gamma" }),
 				}),
 			);
 		});
 		expect(onChange).toHaveBeenCalledWith("tags", ["term_created"]);
+	});
+
+	it("lets the server derive the slug for an inline Unicode term", async () => {
+		mockApiFetch({ terms: [] });
+		const screen = await render(<TaxonomySidebar collection="products" />, { wrapper: Wrapper });
+
+		await screen.getByLabelText("Add Tags").fill("音楽");
+		await screen.getByText('Create "音楽"').click();
+
+		await vi.waitFor(() => {
+			const call = vi.mocked(apiFetch).mock.calls.find(([, init]) => init?.method === "POST");
+			expect(call).toBeDefined();
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toEqual({ label: "音楽" });
+		});
 	});
 
 	it("continues to render hierarchical taxonomies as a checkbox tree", async () => {

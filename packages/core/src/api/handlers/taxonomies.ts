@@ -812,7 +812,7 @@ export async function handleTermCreate(
 	db: Kysely<Database>,
 	taxonomyName: string,
 	input: {
-		slug: string;
+		slug?: string;
 		label: string;
 		parentId?: string | null;
 		description?: string;
@@ -829,19 +829,21 @@ export async function handleTermCreate(
 		if (!lookup.success) return lookup;
 
 		const repo = new TaxonomyRepository(db);
+		const generatedSlug = input.slug === undefined;
+		const slug = input.slug ?? (await repo.generateUniqueSlug(taxonomyName, input.label, locale));
 
 		// Coerce empty-string parentId to undefined (treat as "no parent").
 		const parentId =
 			input.parentId === "" || input.parentId === undefined ? undefined : input.parentId;
 
 		// Conflict check is scoped to locale (per-locale slugs are unique).
-		const existing = await repo.findBySlug(taxonomyName, input.slug, locale);
+		const existing = generatedSlug ? null : await repo.findBySlug(taxonomyName, slug, locale);
 		if (existing) {
 			return {
 				success: false,
 				error: {
 					code: "CONFLICT",
-					message: `Term '${input.slug}' already exists in '${taxonomyName}' (${locale})`,
+					message: `Term '${slug}' already exists in '${taxonomyName}' (${locale})`,
 				},
 			};
 		}
@@ -875,7 +877,7 @@ export async function handleTermCreate(
 
 		const term = await repo.create({
 			name: taxonomyName,
-			slug: input.slug,
+			slug,
 			label: input.label,
 			parentId: parentId ?? undefined,
 			data: input.description ? { description: input.description } : undefined,

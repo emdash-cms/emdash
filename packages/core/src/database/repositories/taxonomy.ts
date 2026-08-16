@@ -2,6 +2,7 @@ import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
+import { slugify } from "../../utils/slugify.js";
 import { withTransaction } from "../transaction.js";
 import type { Database, TaxonomyTable } from "../types.js";
 import { validateIdentifier } from "../validate.js";
@@ -18,6 +19,7 @@ export interface SiblingPosition {
  * statement inside D1's 100-parameter ceiling.
  */
 const GROUPS_PER_UPDATE = 32;
+const NUMERIC_SUFFIX_PATTERN = /^\d+$/;
 
 /** Deal the listed groups back out over the slots they hold, in the order given. */
 function permuteWithinSlots(
@@ -214,6 +216,29 @@ export class TaxonomyRepository {
 		if (locale !== undefined) query = query.where("locale", "=", locale);
 		const row = await query.orderBy("locale", "asc").executeTakeFirst();
 		return row ? this.rowToTaxonomy(row) : null;
+	}
+
+	/** Generate a locale-scoped term slug, adding a numeric suffix when needed. */
+	async generateUniqueSlug(name: string, text: string, locale?: string): Promise<string> {
+		const baseSlug = slugify(text);
+		let query = this.db
+			.selectFrom("taxonomies")
+			.select("slug")
+			.where("name", "=", name)
+			.where((eb) => eb.or([eb("slug", "=", baseSlug), eb("slug", "like", `${baseSlug}-%`)]));
+		if (locale !== undefined) query = query.where("locale", "=", locale);
+		const candidates = await query.execute();
+		if (!candidates.some((candidate) => candidate.slug === baseSlug)) return baseSlug;
+
+		let maxSuffix = 0;
+		const prefix = `${baseSlug}-`;
+		for (const candidate of candidates) {
+			if (!candidate.slug.startsWith(prefix)) continue;
+			const suffix = candidate.slug.slice(prefix.length);
+			if (!NUMERIC_SUFFIX_PATTERN.test(suffix)) continue;
+			maxSuffix = Math.max(maxSuffix, Number.parseInt(suffix, 10));
+		}
+		return `${baseSlug}-${maxSuffix + 1}`;
 	}
 
 	/**

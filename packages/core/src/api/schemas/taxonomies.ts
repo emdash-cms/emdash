@@ -52,7 +52,11 @@ export const updateTaxonomyDefBody = z
 
 export const createTermBody = z
 	.object({
-		slug: z.string().min(1),
+		slug: z
+			.string()
+			.min(1)
+			.optional()
+			.meta({ description: "Term slug. Omit to derive a unique slug from the label." }),
 		label: z.string().min(1),
 		parentId: z.string().nullish(),
 		description: z.string().optional(),

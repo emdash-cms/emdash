@@ -2528,7 +2528,11 @@ export function createMcpServer(
 				"new term beneath a chain of 100+ existing ancestors are rejected.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
-				slug: z.string().describe("URL-safe identifier for the term"),
+				slug: z
+					.string()
+					.min(1)
+					.optional()
+					.describe("URL identifier for the term; omit to derive it from the label"),
 				label: z.string().describe("Display name"),
 				parentId: z.string().optional().describe("Parent term ID for hierarchical taxonomies"),
 				description: z.string().optional().describe("Description of the term"),

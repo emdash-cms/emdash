@@ -17,7 +17,7 @@ import * as React from "react";
 import { apiFetch, parseApiResponse, throwResponseError } from "../lib/api/client.js";
 import { createTerm, withLocale } from "../lib/api/taxonomies.js";
 import { rankTermMatches, termExactMatches } from "../lib/taxonomy-match.js";
-import { cn, slugify } from "../lib/utils.js";
+import { cn } from "../lib/utils.js";
 
 interface TaxonomyTerm {
 	id: string;
@@ -367,7 +367,6 @@ function TaxonomySection({
 	const createTermMutation = useMutation({
 		mutationFn: (label: string) =>
 			createTerm(taxonomy.name, {
-				slug: slugify(label),
 				label,
 				// Create the term in the entry's locale so it resolves on this entry.
 				...(entryLocale ? { locale: entryLocale } : {}),
