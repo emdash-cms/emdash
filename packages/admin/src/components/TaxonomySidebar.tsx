@@ -6,7 +6,7 @@
  * - Tag input for flat taxonomies (tags)
  */
 
-import { Button, Checkbox, Input, Label, Text, Toast } from "@cloudflare/kumo";
+import { Autocomplete, Button, Checkbox, Input, Label, Text, Toast } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -16,7 +16,7 @@ import * as React from "react";
 
 import { apiFetch, parseApiResponse, throwResponseError } from "../lib/api/client.js";
 import { createTerm, withLocale } from "../lib/api/taxonomies.js";
-import { termExactMatches, termMatches } from "../lib/taxonomy-match.js";
+import { rankTermMatches, termExactMatches } from "../lib/taxonomy-match.js";
 import { cn, slugify } from "../lib/utils.js";
 
 interface TaxonomyTerm {
@@ -50,6 +50,8 @@ interface TaxonomySidebarProps {
 }
 
 const EMPTY_TERMS: TaxonomyTerm[] = [];
+
+type TagInputOption = { type: "term"; term: TaxonomyTerm } | { type: "create"; label: string };
 
 /**
  * Fetch taxonomy definitions
@@ -204,7 +206,7 @@ function TagInput({
 	const suggestions = React.useMemo(() => {
 		const availableTerms = terms.filter((term) => !selectedIds.has(term.id));
 		if (!trimmedInput) return availableTerms.slice(0, 5);
-		return availableTerms.filter((term) => termMatches(term, trimmedInput)).slice(0, 5);
+		return rankTermMatches(availableTerms, trimmedInput);
 	}, [trimmedInput, terms, selectedIds]);
 
 	const hasExactMatch = React.useMemo(() => {
@@ -213,6 +215,13 @@ function TagInput({
 	}, [trimmedInput, terms]);
 
 	const showCreateOption = trimmedInput.length > 0 && !hasExactMatch;
+	const options = React.useMemo<TagInputOption[]>(
+		() => [
+			...suggestions.map((term) => ({ type: "term" as const, term })),
+			...(showCreateOption ? [{ type: "create" as const, label: trimmedInput }] : []),
+		],
+		[suggestions, showCreateOption, trimmedInput],
+	);
 
 	const handleSelect = (term: TaxonomyTerm) => {
 		onAdd(term.id);
@@ -225,23 +234,6 @@ function TagInput({
 		onCreate(trimmedInput);
 		setInput("");
 		setIsOpen(false);
-	};
-
-	const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
-		const nextFocused = e.relatedTarget;
-		if (nextFocused instanceof Node && e.currentTarget.contains(nextFocused)) return;
-		setIsOpen(false);
-	};
-
-	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			if (suggestions.length === 1 && !showCreateOption) {
-				handleSelect(suggestions[0]!);
-			} else if (showCreateOption && suggestions.length === 0) {
-				handleCreate();
-			}
-		}
 	};
 
 	return (
@@ -268,48 +260,47 @@ function TagInput({
 				</div>
 			)}
 
-			{/* Input with autocomplete */}
-			<div className="relative" onBlur={handleBlur}>
-				<Input
+			<div onFocus={() => setIsOpen(true)}>
+				<Autocomplete
+					items={options}
 					value={input}
-					onChange={(e) => {
-						setInput(e.target.value);
-						setIsOpen(true);
-					}}
-					onFocus={() => setIsOpen(true)}
-					onKeyDown={handleKeyDown}
-					placeholder={t`Add tags...`}
-					aria-label={t`Add ${label}`}
-					className="w-full text-sm"
-				/>
-
-				{isOpen && (suggestions.length > 0 || showCreateOption) && (
-					<div className="absolute top-full start-0 end-0 mt-1 overflow-hidden bg-kumo-overlay border rounded-lg shadow-lg z-10">
-						{suggestions.map((term) => (
-							<button
-								key={term.id}
-								type="button"
-								onMouseDown={(e) => e.preventDefault()}
-								onClick={() => handleSelect(term)}
-								className="w-full text-start px-3 py-2 text-sm hover:bg-kumo-tint"
-							>
-								{term.label}
-							</button>
-						))}
-						{showCreateOption && (
-							<button
-								type="button"
-								onMouseDown={(e) => e.preventDefault()}
-								onClick={handleCreate}
-								disabled={isCreating}
-								className="w-full text-start px-3 py-2 text-sm hover:bg-kumo-tint text-kumo-accent flex items-center gap-1 border-t"
-							>
-								<Plus className="w-3 h-3" />
-								{isCreating ? t`Creating...` : t`Create "${trimmedInput}"`}
-							</button>
-						)}
-					</div>
-				)}
+					onValueChange={setInput}
+					open={isOpen && options.length > 0}
+					onOpenChange={setIsOpen}
+					mode="none"
+					autoHighlight="always"
+					openOnInputClick
+					itemToStringValue={(option: TagInputOption) =>
+						option.type === "term" ? option.term.label : option.label
+					}
+					label={<span className="sr-only">{t`Add ${label}`}</span>}
+				>
+					<Autocomplete.InputGroup placeholder={t`Add tags...`} className="text-sm" />
+					<Autocomplete.Content>
+						<Autocomplete.List style={{ maxHeight: "16rem", overflowY: "auto" }}>
+							{(option: TagInputOption) => (
+								<Autocomplete.Item
+									key={option.type === "term" ? option.term.id : "create"}
+									value={option}
+									disabled={option.type === "create" && isCreating}
+									onClick={() => {
+										if (option.type === "term") handleSelect(option.term);
+										else handleCreate();
+									}}
+								>
+									{option.type === "term" ? (
+										option.term.label
+									) : (
+										<span className="flex items-center gap-1 text-kumo-accent">
+											<Plus className="h-3 w-3" aria-hidden="true" />
+											{isCreating ? t`Creating...` : t`Create "${trimmedInput}"`}
+										</span>
+									)}
+								</Autocomplete.Item>
+							)}
+						</Autocomplete.List>
+					</Autocomplete.Content>
+				</Autocomplete>
 			</div>
 		</div>
 	);

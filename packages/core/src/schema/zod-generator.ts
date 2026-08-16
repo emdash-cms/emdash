@@ -157,6 +157,7 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 		case "file":
 			return z.object({
 				id: z.string(),
+				url: z.string().optional(),
 				src: z.string().optional(),
 				filename: z.string().optional(),
 				mimeType: z.string().optional(),
@@ -456,7 +457,7 @@ function fieldTypeToTypeScript(field: Field): string {
 			return "{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
 
 		case "file":
-			return "{ id: string; src?: string; filename?: string; mimeType?: string; size?: number; provider?: string; meta?: Record<string, unknown> }";
+			return "{ id: string; url?: string; src?: string; filename?: string; mimeType?: string; size?: number; provider?: string; meta?: Record<string, unknown> }";
 
 		case "reference":
 			// Could be enhanced to include the referenced collection type

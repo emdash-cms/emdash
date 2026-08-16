@@ -5,6 +5,10 @@
  */
 
 import { sanitizeGalleryImages } from "./gallery.js";
+import {
+	UnsupportedPortableTextMarksError,
+	assertProseMirrorMarksSupported,
+} from "./mark-safety.js";
 import { readOrderedListMetadata, type OrderedListMetadata } from "./numbered-list.js";
 import type {
 	ProseMirrorDocument,
@@ -34,6 +38,7 @@ export function prosemirrorToPortableText(doc: ProseMirrorDocument): PortableTex
 	if (!doc || doc.type !== "doc" || !doc.content) {
 		return [];
 	}
+	assertProseMirrorMarksSupported(doc);
 
 	const blocks: PortableTextBlock[] = [];
 
@@ -435,6 +440,12 @@ function convertMark(
 		case "strikethrough":
 			return "strike-through";
 
+		case "subscript":
+			return "subscript";
+
+		case "superscript":
+			return "superscript";
+
 		case "code":
 			return "code";
 
@@ -460,7 +471,6 @@ function convertMark(
 		}
 
 		default:
-			// Unknown mark - preserve as-is
-			return mark.type;
+			throw new UnsupportedPortableTextMarksError([mark.type]);
 	}
 }

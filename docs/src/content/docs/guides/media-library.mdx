@@ -451,6 +451,60 @@ The component automatically:
 - Renders an optimized `<img>` element
 - Applies provider-specific optimizations (e.g., Cloudflare Images transformations)
 
+### File Values and Current Metadata
+
+A file field stores a reference and a metadata snapshot. Cached fields such as `url`, `filename`,
+`mimeType`, and `size` are optional because persisted values may omit them:
+
+```ts
+interface FileValue {
+  id: string;
+  url?: string;        // Legacy cached URL
+  src?: string;        // Direct URL from an external provider
+  filename?: string;  // Cached original filename
+  mimeType?: string;  // Cached MIME type
+  size?: number;       // Cached size, when available
+  provider?: string;   // Defaults to "local"
+  meta?: Record<string, unknown>;
+}
+```
+
+`getEmDashEntry()` and `getEmDashCollection()` return this stored value without an extra media
+query. For current metadata, use the configured provider's `get()` method explicitly. Use
+`getEmbed()` for the provider-specific render URL:
+
+```astro
+---
+const file = post.data.attachment;
+const provider = file
+  ? Astro.locals.emdash?.getMediaProvider(file.provider ?? "local")
+  : undefined;
+const current = file ? await provider?.get?.(file.id) : null;
+const embed = file && provider ? await provider.getEmbed(file) : null;
+---
+```
+
+Authenticated HTTP clients can make the same explicit lookup through
+`GET /_emdash/api/media/:id` for local media or
+`GET /_emdash/api/media/providers/:providerId/:itemId` for another provider.
+
+For a local file URL, use the stored `meta.storageKey` with the public URL helper. This respects a
+configured R2 or S3 public domain without querying the media table:
+
+```astro
+---
+const storageKey =
+  typeof file?.meta?.storageKey === "string" ? file.meta.storageKey : undefined;
+const url = storageKey
+  ? Astro.locals.emdash?.getPublicMediaUrl?.(storageKey)
+  : file?.src ?? file?.url;
+---
+```
+
+Provider lookups may perform network or database work. Avoid one lookup per file on logged-out
+collection pages; use the stored snapshot and rendering components unless the request needs fresh
+metadata.
+
 ### MediaValue Type
 
 Media fields store a `MediaValue` object containing provider information:

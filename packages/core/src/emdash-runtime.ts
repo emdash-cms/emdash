@@ -41,6 +41,7 @@ import type {
 } from "./database/repositories/types.js";
 import { getI18nConfig } from "./i18n/config.js";
 import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
+import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-diagnostic.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
 import {
@@ -2683,12 +2684,14 @@ export class EmDashRuntime {
 			hierarchical: boolean;
 			collections: string[];
 		}> = [];
+		let taxonomyDefinitionLocales: string[] = [];
 		try {
 			const rows = await this.db
 				.selectFrom("_emdash_taxonomy_defs")
 				.selectAll()
 				.orderBy("name")
 				.execute();
+			taxonomyDefinitionLocales = rows.map((row) => row.locale);
 			manifestTaxonomies = rows.map((row) => ({
 				name: row.name,
 				label: row.label,
@@ -2698,6 +2701,17 @@ export class EmDashRuntime {
 			}));
 		} catch (error) {
 			console.debug("EmDash: Could not load taxonomy definitions:", error);
+		}
+
+		try {
+			const configuredLocales = virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
+			await warnAboutUnconfiguredTaxonomyLocales(
+				this.db,
+				configuredLocales,
+				taxonomyDefinitionLocales,
+			);
+		} catch (error) {
+			console.warn("[i18n] taxonomy locale diagnostic failed:", error);
 		}
 
 		// Build manifest hash
