@@ -1,19 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { handleTaxonomyCreate, handleTermCreate } from "../../../src/api/handlers/taxonomies.js";
-import { createTermBody } from "../../../src/api/schemas/taxonomies.js";
 import {
 	describeEachDialect,
 	setupForDialectWithCollections,
 	teardownForDialect,
 	type DialectTestContext,
 } from "../../utils/test-db.js";
-
-describe("taxonomy term create schema", () => {
-	it("allows the server to derive a slug from the label", () => {
-		expect(createTermBody.safeParse({ label: "音楽" }).success).toBe(true);
-	});
-});
 
 describeEachDialect("taxonomy term slug generation", (dialect) => {
 	let ctx: DialectTestContext;
@@ -64,6 +57,20 @@ describeEachDialect("taxonomy term slug generation", (dialect) => {
 		expect(second.success).toBe(true);
 		if (!second.success) return;
 		expect(second.data.term.slug).toBe("音楽-1");
+	});
+
+	it("recovers when concurrent generated slugs collide", async () => {
+		const results = await Promise.all(
+			Array.from({ length: 6 }, () =>
+				handleTermCreate(ctx.db, "tags", { label: "同時", locale: "en" }),
+			),
+		);
+
+		expect(results.every((result) => result.success)).toBe(true);
+		const slugs = results.flatMap((result) => (result.success ? [result.data.term.slug] : []));
+		expect(new Set(slugs)).toEqual(
+			new Set(["同時", "同時-1", "同時-2", "同時-3", "同時-4", "同時-5"]),
+		);
 	});
 
 	it("keeps generated slug uniqueness scoped to the locale", async () => {

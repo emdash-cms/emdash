@@ -19,6 +19,15 @@ import { fetchVisibleTermCounts } from "../../taxonomies/term-counts.js";
 import type { ApiResult } from "../types.js";
 
 const NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
+const MAX_GENERATED_TERM_SLUG_ATTEMPTS = 16;
+
+function isTermSlugUniqueViolation(error: unknown): boolean {
+	const message = error instanceof Error ? error.message.toLowerCase() : "";
+	return (
+		(message.includes("unique constraint failed") || message.includes("duplicate key")) &&
+		message.includes("slug")
+	);
+}
 
 // ---------------------------------------------------------------------------
 // Response types
@@ -820,6 +829,7 @@ export async function handleTermCreate(
 		translationOf?: string;
 	},
 ): Promise<ApiResult<TermResponse>> {
+	let attemptedSlug = input.slug;
 	try {
 		const locale = resolveConfiguredLocale(input.locale ?? getI18nConfig()?.defaultLocale ?? "en");
 		// Taxonomy definitions are per-locale, but terms can exist in any locale
@@ -829,21 +839,20 @@ export async function handleTermCreate(
 		if (!lookup.success) return lookup;
 
 		const repo = new TaxonomyRepository(db);
-		const generatedSlug = input.slug === undefined;
-		const slug = input.slug ?? (await repo.generateUniqueSlug(taxonomyName, input.label, locale));
 
 		// Coerce empty-string parentId to undefined (treat as "no parent").
 		const parentId =
 			input.parentId === "" || input.parentId === undefined ? undefined : input.parentId;
 
 		// Conflict check is scoped to locale (per-locale slugs are unique).
-		const existing = generatedSlug ? null : await repo.findBySlug(taxonomyName, slug, locale);
+		const existing =
+			input.slug === undefined ? null : await repo.findBySlug(taxonomyName, input.slug, locale);
 		if (existing) {
 			return {
 				success: false,
 				error: {
 					code: "CONFLICT",
-					message: `Term '${slug}' already exists in '${taxonomyName}' (${locale})`,
+					message: `Term '${input.slug}' already exists in '${taxonomyName}' (${locale})`,
 				},
 			};
 		}
@@ -875,15 +884,33 @@ export async function handleTermCreate(
 			return { success: false, error: parentError };
 		}
 
-		const term = await repo.create({
-			name: taxonomyName,
-			slug,
-			label: input.label,
-			parentId: parentId ?? undefined,
-			data: input.description ? { description: input.description } : undefined,
-			locale,
-			translationOf: input.translationOf,
-		});
+		const create = (slug: string) =>
+			repo.create({
+				name: taxonomyName,
+				slug,
+				label: input.label,
+				parentId: parentId ?? undefined,
+				data: input.description ? { description: input.description } : undefined,
+				locale,
+				translationOf: input.translationOf,
+			});
+		let term: Awaited<ReturnType<typeof create>> | undefined;
+		let lastSlugConflict: unknown;
+		if (input.slug !== undefined) {
+			term = await create(input.slug);
+		} else {
+			for (let attempt = 0; attempt < MAX_GENERATED_TERM_SLUG_ATTEMPTS; attempt++) {
+				attemptedSlug = await repo.generateUniqueSlug(taxonomyName, input.label, locale);
+				try {
+					term = await create(attemptedSlug);
+					break;
+				} catch (error) {
+					if (!isTermSlugUniqueViolation(error)) throw error;
+					lastSlugConflict = error;
+				}
+			}
+		}
+		if (!term) throw lastSlugConflict ?? new Error("Failed to create taxonomy term");
 
 		invalidateTermCache();
 
@@ -903,7 +930,16 @@ export async function handleTermCreate(
 				},
 			},
 		};
-	} catch {
+	} catch (error) {
+		if (isTermSlugUniqueViolation(error)) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: `Term with slug '${attemptedSlug ?? "(generated)"}' already exists in taxonomy '${taxonomyName}'`,
+				},
+			};
+		}
 		return {
 			success: false,
 			error: { code: "TERM_CREATE_ERROR", message: "Failed to create term" },
