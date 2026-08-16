@@ -231,6 +231,19 @@ describe("schema_create_collection", () => {
 		expect(created.supports.toSorted()).toEqual(["drafts", "revisions", "scheduling"].toSorted());
 	});
 
+	it("creates a collection with SEO support", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const result = await harness.client.callTool({
+			name: "schema_create_collection",
+			arguments: { slug: "landing", label: "Landing pages", supports: ["seo"] },
+		});
+
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const created = extractJson<{ supports: string[]; hasSeo: boolean }>(result);
+		expect(created.supports).toEqual(["seo"]);
+		expect(created.hasSeo).toBe(true);
+	});
+
 	it("rejects slug that doesn't match the collection slug pattern", async () => {
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 		const result = await harness.client.callTool({

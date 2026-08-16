@@ -20,6 +20,7 @@ import {
 	CONTENT_TYPE_RE,
 	contentBylineInputSchema,
 	contentSeoInput,
+	createCollectionBody,
 	updateCollectionBody,
 	updateFieldBody,
 } from "#api/schemas.js";
@@ -1797,7 +1798,8 @@ export function createMcpServer(
 				"table and schema definition. The slug must be lowercase alphanumeric " +
 				"with underscores, starting with a letter. Supports: 'drafts' (draft/" +
 				"publish workflow), 'revisions' (version history), 'preview' (live " +
-				"preview), 'scheduling' (timed publish), 'search' (full-text indexing).",
+				"preview), 'scheduling' (timed publish), 'search' (full-text indexing), " +
+				"and 'seo' (SEO metadata).",
 			inputSchema: z.object({
 				slug: z
 					.string()
@@ -1807,10 +1809,9 @@ export function createMcpServer(
 				labelSingular: z.string().optional().describe("Singular display name (e.g. 'Blog Post')"),
 				description: z.string().optional().describe("Description of this collection"),
 				icon: z.string().optional().describe("Icon name for the admin UI"),
-				supports: z
-					.array(z.enum(["drafts", "revisions", "preview", "scheduling", "search"]))
-					.optional()
-					.describe("Features to enable (default: ['drafts', 'revisions'])"),
+				supports: createCollectionBody.shape.supports.describe(
+					"Features to enable (default: ['drafts', 'revisions'])",
+				),
 			}),
 		},
 		async (args, extra) => {
