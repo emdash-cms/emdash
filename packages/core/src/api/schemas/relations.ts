@@ -93,11 +93,17 @@ export const entryRefSchema = z
 		id: z.string(),
 		slug: z.string().nullable(),
 		collection: z.string(),
+		// Display label sourced from the entry's `title`, then `name`, field —
+		// `null` when neither is set. Mirrors the runtime `EntryRef`.
+		title: z.string().nullable(),
 		// The actual locale of the resolved variant. When no variant matches the
 		// requesting entry's locale, the ref falls back to another locale's row;
 		// this field makes that substitution explicit instead of silently
 		// presenting a wrong-locale entry under the requested context.
 		locale: z.string().nullable(),
+		// The translation group the ref resolved from — the locale-stable identity
+		// of the referenced entry, which `id` is not.
+		translationGroup: z.string().nullable(),
 		sortOrder: z.number().int().optional(),
 	})
 	.meta({ id: "ReferenceEntryRef" });

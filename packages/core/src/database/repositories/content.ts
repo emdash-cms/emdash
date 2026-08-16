@@ -1463,6 +1463,24 @@ export class ContentRepository {
 	}
 
 	/**
+	 * Whether any row still shares `translationGroup`, trashed rows included.
+	 * Group-keyed satellite data (reference edges) is owned by the group, not by a
+	 * single locale row, so a purge may only cascade to it once nothing is left to
+	 * own it — and a trashed sibling is still restorable.
+	 */
+	async hasTranslationsIncludingTrashed(type: string, translationGroup: string): Promise<boolean> {
+		const tableName = getTableName(type);
+
+		const result = await sql<Record<string, unknown>>`
+			SELECT id FROM ${sql.ref(tableName)}
+			WHERE translation_group = ${translationGroup}
+			LIMIT 1
+		`.execute(this.db);
+
+		return result.rows.length > 0;
+	}
+
+	/**
 	 * Batch variant of {@link findTranslations}: every (non-deleted) locale
 	 * variant for any of `translationGroups`, in one `WHERE translation_group IN
 	 * (...)` query chunked at `SQL_BATCH_SIZE` for D1's bind-parameter limit.

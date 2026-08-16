@@ -7,7 +7,7 @@ import {
 	type FieldDescriptor,
 	type ContentEditorProps,
 } from "../../src/components/ContentEditor";
-import { fetchBylines } from "../../src/lib/api";
+import { fetchBylines, fetchReferenceChildren } from "../../src/lib/api";
 import type { BylineSummary, ContentItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
@@ -110,6 +110,7 @@ vi.mock("../../src/lib/api", async () => {
 		...actual,
 		getPreviewUrl: vi.fn().mockResolvedValue({ url: "https://example.com/preview" }),
 		fetchBylines: vi.fn(async () => ({ items: [], nextCursor: null })),
+		fetchReferenceChildren: vi.fn(async () => ({ children: [] })),
 	};
 });
 
@@ -1860,6 +1861,88 @@ describe("ContentEditor", () => {
 			});
 
 			await expect.element(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+		});
+	});
+
+	describe("reference field paging", () => {
+		const RELATION = "rel-group-1";
+
+		const referenceFields: Record<string, FieldDescriptor> = {
+			title: { kind: "string", label: "Title" },
+			related: {
+				kind: "reference",
+				label: "Related",
+				validation: { relation: RELATION, targetCollection: "posts", multiple: true },
+			},
+		};
+
+		/** An entry whose hydrated first page leaves a second page to auto-load. */
+		function itemWithPendingPage(): ContentItem {
+			return makeItem({
+				data: { title: "Hello" },
+				references: {
+					[RELATION]: {
+						children: [
+							{ id: "c-1", slug: "one", title: "One", locale: "en", translationGroup: "g-1" },
+						],
+						nextCursor: "cursor-1",
+					},
+				},
+			});
+		}
+
+		async function renderWithFailedPage() {
+			vi.mocked(fetchReferenceChildren).mockRejectedValue(new Error("network"));
+			const screen = await renderEditor({
+				isNew: false,
+				item: itemWithPendingPage(),
+				fields: referenceFields,
+			});
+			await expect.element(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+			return screen;
+		}
+
+		it("offers a retry instead of spinning forever when a page fails", async () => {
+			const screen = await renderWithFailedPage();
+
+			await expect.element(screen.getByText("Couldn't load all references.")).toBeInTheDocument();
+			expect(screen.getByText("Loading references...").query()).toBeNull();
+		});
+
+		it("retries the same cursor and recovers the field", async () => {
+			const screen = await renderWithFailedPage();
+			const before = vi.mocked(fetchReferenceChildren).mock.calls.length;
+
+			vi.mocked(fetchReferenceChildren).mockResolvedValue({
+				children: [
+					{
+						id: "c-2",
+						slug: "second-entry",
+						title: "Two",
+						locale: "en",
+						translationGroup: "g-2",
+					} as never,
+				],
+			});
+
+			await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+			await expect.element(screen.getByText("Two")).toBeInTheDocument();
+			const calls = vi.mocked(fetchReferenceChildren).mock.calls;
+			expect(calls.length).toBeGreaterThan(before);
+			// The failed page must be re-requested, not skipped past.
+			expect(calls[before]?.[3]).toEqual({ cursor: "cursor-1" });
+			expect(screen.getByText("Couldn't load all references.").query()).toBeNull();
+		});
+
+		it("re-enables editing once the retried page lands", async () => {
+			const screen = await renderWithFailedPage();
+			await expect.element(screen.getByRole("button", { name: "Add reference" })).toBeDisabled();
+
+			vi.mocked(fetchReferenceChildren).mockResolvedValue({ children: [] });
+			await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+			await expect.element(screen.getByRole("button", { name: "Add reference" })).toBeEnabled();
 		});
 	});
 });
