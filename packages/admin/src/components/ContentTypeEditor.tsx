@@ -330,10 +330,6 @@ export function ContentTypeEditor({
 
 	return (
 		<div className="space-y-6">
-			{/* Sticky header keeps the primary save action in view while users
-			    scroll through the settings + fields panels. The bottom-of-form
-			    save button is preserved below for keyboard / screen-reader users
-			    so DOM order still ends with a submit control. */}
 			<EditorHeader
 				leading={
 					<RouterLinkButton
