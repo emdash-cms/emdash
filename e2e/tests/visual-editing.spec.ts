@@ -195,6 +195,120 @@ test.describe("Inline Editor", () => {
 		await expect(picker.locator("text=Insert Image")).toBeVisible();
 	});
 
+	test("refuses file drop and paste without losing edits or breaking image insertion", async ({
+		page,
+	}) => {
+		await gotoWithRetry(page, POST_WITH_IMAGE_PATH);
+
+		const editor = page.locator(".emdash-inline-editor");
+		await expect(editor).toBeVisible({ timeout: 15000 });
+
+		await editor.locator("p").last().click();
+		await page.keyboard.press("End");
+		await page.keyboard.type(" SafeTransferEdits");
+
+		const dropResult = await editor.evaluate((element) => {
+			const transfer = new DataTransfer();
+			transfer.items.add(new File(["image"], "drop.png", { type: "image/png" }));
+			const dragEnter = new DragEvent("dragenter", {
+				bubbles: true,
+				cancelable: true,
+				dataTransfer: transfer,
+			});
+			const dragEnterDispatched = element.dispatchEvent(dragEnter);
+			const dragOver = new DragEvent("dragover", {
+				bubbles: true,
+				cancelable: true,
+				dataTransfer: transfer,
+			});
+			const dragOverDispatched = element.dispatchEvent(dragOver);
+			const event = new DragEvent("drop", {
+				bubbles: true,
+				cancelable: true,
+				dataTransfer: transfer,
+			});
+			const dispatched = element.dispatchEvent(event);
+			return {
+				dragEnterDefaultPrevented: dragEnter.defaultPrevented,
+				dragEnterDispatched,
+				dragOverDefaultPrevented: dragOver.defaultPrevented,
+				dragOverDispatched,
+				defaultPrevented: event.defaultPrevented,
+				dispatched,
+				fileCount: event.dataTransfer?.files.length,
+				itemCount: event.dataTransfer?.items.length,
+				itemKind: event.dataTransfer?.items[0]?.kind,
+			};
+		});
+
+		expect(dropResult).toEqual({
+			dragEnterDefaultPrevented: true,
+			dragEnterDispatched: false,
+			dragOverDefaultPrevented: true,
+			dragOverDispatched: false,
+			defaultPrevented: true,
+			dispatched: false,
+			fileCount: 1,
+			itemCount: 1,
+			itemKind: "file",
+		});
+		await expect(editor).toContainText("SafeTransferEdits");
+		const guidance = page.getByRole("status");
+		await expect(guidance).toContainText("Type /image");
+		const firstGuidance = await guidance.elementHandle();
+		expect(firstGuidance).not.toBeNull();
+
+		const pasteResult = await editor.evaluate((element) => {
+			const transfer = new DataTransfer();
+			transfer.items.add(new File(["document"], "paste.pdf", { type: "application/pdf" }));
+			const event = new ClipboardEvent("paste", { bubbles: true, cancelable: true });
+			Object.defineProperty(event, "clipboardData", { value: transfer });
+			const dispatched = element.dispatchEvent(event);
+			return { defaultPrevented: event.defaultPrevented, dispatched };
+		});
+
+		expect(pasteResult).toEqual({ defaultPrevented: true, dispatched: false });
+		await expect(editor).toContainText("SafeTransferEdits");
+		await expect(guidance).toContainText("Type /image");
+		expect(await firstGuidance!.evaluate((element) => element.isConnected)).toBe(false);
+
+		await editor.locator("p").last().click();
+		await page.keyboard.press("End");
+		await page.keyboard.press("Enter");
+		await page.keyboard.type("/image");
+		await page.keyboard.press("Enter");
+		await expect(page.locator(".emdash-media-picker")).toBeVisible({ timeout: 5000 });
+	});
+
+	test("shows file-transfer guidance in Arabic with RTL direction", async ({ page }) => {
+		await gotoWithRetry(page, POST_WITH_IMAGE_PATH);
+
+		const editor = page.locator(".emdash-inline-editor");
+		await expect(editor).toBeVisible({ timeout: 15000 });
+		await page.evaluate(() => {
+			document.documentElement.lang = "ar";
+			document.documentElement.dir = "rtl";
+		});
+
+		await editor.evaluate((element) => {
+			const transfer = new DataTransfer();
+			transfer.items.add(new File(["image"], "drop.png", { type: "image/png" }));
+			element.dispatchEvent(
+				new DragEvent("drop", {
+					bubbles: true,
+					cancelable: true,
+					dataTransfer: transfer,
+				}),
+			);
+		});
+
+		const guidance = page.locator(".emdash-inline-editor-guidance");
+		await expect(guidance).toHaveText(
+			"لا يمكن إفلات الملفات أو لصقها هنا. اكتب /image لاختيار صورة من مكتبة الوسائط.",
+		);
+		expect(await guidance.evaluate((element) => getComputedStyle(element).direction)).toBe("rtl");
+	});
+
 	test("media picker shows uploaded images", async ({ page }) => {
 		await gotoWithRetry(page, POST_WITH_IMAGE_PATH);
 

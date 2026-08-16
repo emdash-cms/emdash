@@ -12,6 +12,8 @@ export interface I18nConfig {
 	prefixDefaultLocale?: boolean;
 }
 
+export const LOCALE_CODE_PATTERN = /^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i;
+
 const I18N_CONFIG_KEY = Symbol.for("emdash:i18n-config");
 
 function configStore(): Record<symbol, I18nConfig | null | undefined> {
@@ -41,6 +43,36 @@ export function resolveConfiguredLocale(locale: string): string {
 		config?.locales.find((configured) => configured.toLowerCase() === locale.toLowerCase()) ??
 		locale
 	);
+}
+
+/** Whether a string matches the locale-code subset accepted by EmDash. */
+export function isValidLocaleCode(locale: string): boolean {
+	return LOCALE_CODE_PATTERN.test(locale);
+}
+
+/** Resolve the locale for a new content row. */
+export function resolveContentCreateLocale(
+	locale: unknown,
+	config: I18nConfig | null = getI18nConfig(),
+): string {
+	if (locale !== undefined) {
+		if (typeof locale !== "string") {
+			throw new Error("Invalid locale code: expected a string");
+		}
+		if (!isValidLocaleCode(locale)) {
+			throw new Error(`Invalid locale code: "${locale}"`);
+		}
+
+		const configured = config?.locales.find(
+			(candidate) => candidate.toLowerCase() === locale.toLowerCase(),
+		);
+		if (config && !configured) {
+			throw new Error(`Locale "${locale}" is not configured for this site`);
+		}
+		return configured ?? locale;
+	}
+
+	return config?.defaultLocale ?? "en";
 }
 
 /**

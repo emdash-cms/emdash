@@ -28,9 +28,21 @@ import {
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import type { ContentAuthor, ContentDateField, ContentItem, TrashedContentItem } from "../lib/api";
+import type {
+	AdminManifest,
+	ContentAuthor,
+	ContentDateField,
+	ContentItem,
+	TrashedContentItem,
+} from "../lib/api.js";
+import {
+	ContentListColumnBoundary,
+	resolveContentListColumns,
+	type ResolvedContentListColumn,
+} from "../lib/content-list-columns.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
 import { useDebouncedValue } from "../lib/hooks.js";
+import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
 import { cn, parseTimestamp } from "../lib/utils";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
@@ -164,6 +176,10 @@ export interface ContentListProps {
 	onBulkPublish?: BulkActionHandler;
 	onBulkUnpublish?: BulkActionHandler;
 	onBulkDelete?: BulkActionHandler;
+	/** Current role used only for contributed-column visibility, not authorization. */
+	userRole?: number;
+	/** Manifest state used to omit disabled or stale trusted-plugin contributions. */
+	pluginStates?: AdminManifest["plugins"];
 }
 
 type BulkActionHandler = (ids: string[]) => Promise<string[]>;
@@ -229,8 +245,11 @@ export function ContentList({
 	onBulkPublish,
 	onBulkUnpublish,
 	onBulkDelete,
+	userRole = 0,
+	pluginStates,
 }: ContentListProps) {
 	const { t } = useLingui();
+	const pluginAdmins = usePluginAdmins();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
@@ -337,6 +356,10 @@ export function ContentList({
 			return next;
 		});
 	const selectedCount = selectedIds.size;
+	const extensionColumns = React.useMemo(
+		() => resolveContentListColumns(pluginAdmins, collection, userRole, pluginStates),
+		[collection, pluginAdmins, pluginStates, userRole],
+	);
 	const [bulkBusy, setBulkBusy] = React.useState(false);
 	const runBulk = (fn?: BulkActionHandler) => {
 		if (!fn || selectedCount === 0 || bulkBusy) return;
@@ -357,7 +380,8 @@ export function ContentList({
 			}
 		})();
 	};
-	const colSpan = (i18n ? 5 : 4) + listColumns.length + (bulkEnabled ? 1 : 0);
+	const colSpan =
+		(i18n ? 5 : 4) + listColumns.length + extensionColumns.length + (bulkEnabled ? 1 : 0);
 
 	return (
 		<div className="space-y-4">
@@ -581,6 +605,14 @@ export function ContentList({
 										onSortChange={onSortChange}
 										label={t`Date`}
 									/>
+									{extensionColumns.map((column) => (
+										<ExtensionColumnHeader
+											key={`${column.pluginId}:${column.extension.id}`}
+											column={column}
+											collection={collection}
+											locale={activeLocale}
+										/>
+									))}
 									<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
 										{t`Actions`}
 									</th>
@@ -627,6 +659,7 @@ export function ContentList({
 										<ContentListItem
 											key={item.id}
 											item={item}
+											visibleItems={paginatedItems}
 											collection={collection}
 											onDelete={onDelete}
 											onDuplicate={onDuplicate}
@@ -638,6 +671,7 @@ export function ContentList({
 											selectable={bulkEnabled}
 											selected={selectedIds.has(item.id)}
 											onToggleSelect={toggleOne}
+											extensionColumns={extensionColumns}
 										/>
 									))
 								)}
@@ -982,6 +1016,39 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 	);
 }
 
+interface ExtensionColumnHeaderProps {
+	column: ResolvedContentListColumn;
+	collection: string;
+	locale?: string;
+}
+
+function ExtensionColumnHeader({ column, collection, locale }: ExtensionColumnHeaderProps) {
+	const { i18n } = useLingui();
+	const { pluginId, extension } = column;
+	const Header = extension.header;
+	const label = i18n._(extension.label);
+
+	return (
+		<th
+			scope="col"
+			aria-label={label}
+			className={cn(
+				"px-4 py-3 text-sm font-medium",
+				extension.align === "end" ? "text-end" : "text-start",
+			)}
+		>
+			<ContentListColumnBoundary
+				key={`${collection}:${locale ?? ""}:${pluginId}:${extension.id}`}
+				pluginId={pluginId}
+				columnId={extension.id}
+				fallback={label}
+			>
+				{Header ? <Header collection={collection} locale={locale} /> : label}
+			</ContentListColumnBoundary>
+		</th>
+	);
+}
+
 /**
  * Render the row-count line above pagination. The rules are:
  * - A search query always wins — say how many matches there are. In
@@ -1026,6 +1093,7 @@ function renderItemCount({
 
 interface ContentListItemProps {
 	item: ContentItem;
+	visibleItems: readonly ContentItem[];
 	collection: string;
 	onDelete?: (id: string) => void;
 	onDuplicate?: (id: string) => void;
@@ -1037,10 +1105,12 @@ interface ContentListItemProps {
 	selectable?: boolean;
 	selected?: boolean;
 	onToggleSelect?: (id: string) => void;
+	extensionColumns?: ResolvedContentListColumn[];
 }
 
 function ContentListItem({
 	item,
+	visibleItems,
 	collection,
 	onDelete,
 	onDuplicate,
@@ -1052,6 +1122,7 @@ function ContentListItem({
 	selectable,
 	selected,
 	onToggleSelect,
+	extensionColumns,
 }: ContentListItemProps) {
 	const { t } = useLingui();
 	const title = getEntryTitle(item, titleField);
@@ -1100,6 +1171,32 @@ function ContentListItem({
 			<td data-testid="content-updated" className="px-4 py-3 text-sm text-kumo-subtle">
 				{date.toLocaleDateString()}
 			</td>
+			{extensionColumns?.map(({ pluginId, extension }) => {
+				const Cell = extension.cell;
+				return (
+					<td
+						key={`${pluginId}:${extension.id}`}
+						className={cn(
+							"px-4 py-3 text-sm",
+							extension.align === "end" ? "text-end" : "text-start",
+						)}
+					>
+						<ContentListColumnBoundary
+							key={`${collection}:${item.locale}:${item.id}:${pluginId}:${extension.id}`}
+							pluginId={pluginId}
+							columnId={extension.id}
+							resetKey={item.updatedAt}
+						>
+							<Cell
+								collection={collection}
+								item={item}
+								locale={item.locale}
+								visibleItems={visibleItems}
+							/>
+						</ContentListColumnBoundary>
+					</td>
+				);
+			})}
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					{item.status === "published" && item.slug && (

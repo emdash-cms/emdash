@@ -43,7 +43,7 @@ import type { Element } from "@emdash-cms/blocks";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg, plural } from "@lingui/core/macro";
 import { useLingui as useLinguiContext } from "@lingui/react";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
 	TextB,
 	TextItalic,
@@ -113,6 +113,12 @@ import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
+import {
+	UnsupportedPortableTextMarksError,
+	assertPortableTextMarksSupported,
+	assertProseMirrorMarksSupported,
+	findUnsupportedPortableTextMarks,
+} from "../lib/portable-text-marks.js";
 import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
@@ -421,6 +427,7 @@ function prosemirrorToPortableText(doc: {
 	if (!doc || doc.type !== "doc" || !doc.content) {
 		return [];
 	}
+	assertProseMirrorMarksSupported(doc);
 
 	const blocks: PortableTextBlock[] = [];
 
@@ -797,6 +804,10 @@ function convertMark(
 		case "strike":
 		case "strikethrough":
 			return "strike-through";
+		case "subscript":
+			return "subscript";
+		case "superscript":
+			return "superscript";
 		case "code":
 			return "code";
 		case "link": {
@@ -816,7 +827,7 @@ function convertMark(
 			return key;
 		}
 		default:
-			return mark.type;
+			throw new UnsupportedPortableTextMarksError([mark.type]);
 	}
 }
 
@@ -844,6 +855,7 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 			content: [{ type: "paragraph" }],
 		};
 	}
+	assertPortableTextMarksSupported(blocks);
 
 	const content: unknown[] = [];
 	let i = 0;
@@ -1315,6 +1327,10 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkD
 							target: markDef.blank ? "_blank" : null,
 						},
 					});
+				} else {
+					throw new UnsupportedPortableTextMarksError([
+						typeof markDef?._type === "string" ? markDef._type : mark,
+					]);
 				}
 				break;
 			}
@@ -2608,6 +2624,8 @@ export function PortableTextEditor({
 
 	// Multi-select media picker state (for gallery insertion)
 	const [galleryPickerOpen, setGalleryPickerOpen] = React.useState(false);
+	const [conversionErrorMarks, setConversionErrorMarks] = React.useState<string[]>([]);
+	const [sectionInsertErrorMarks, setSectionInsertErrorMarks] = React.useState<string[]>([]);
 
 	// Plugin block insertion/editing state
 	const [pluginBlockModal, setPluginBlockModal] = React.useState<PluginBlockDef | null>(null);
@@ -2758,8 +2776,19 @@ export function PortableTextEditor({
 	};
 
 	// Convert initial value to ProseMirror format
+	const initialUnsupportedMarks = React.useMemo(
+		() => findUnsupportedPortableTextMarks(value || []),
+		[],
+	);
+	const unsupportedMarks = React.useMemo(
+		() => [...new Set([...initialUnsupportedMarks, ...conversionErrorMarks])].toSorted(),
+		[conversionErrorMarks, initialUnsupportedMarks],
+	);
 	const initialContent = React.useMemo(
-		() => portableTextToProsemirror(value || []),
+		() =>
+			initialUnsupportedMarks.length > 0
+				? { type: "doc" as const, content: [{ type: "paragraph" }] }
+				: portableTextToProsemirror(value || []),
 		[], // Only compute once on mount
 	);
 
@@ -2849,7 +2878,7 @@ export function PortableTextEditor({
 	const editor = useEditor({
 		extensions,
 		content: initialContent as Parameters<typeof useEditor>[0]["content"],
-		editable,
+		editable: editable && unsupportedMarks.length === 0,
 		immediatelyRender: true,
 		editorProps,
 		onUpdate: ({ editor: updatedEditor }) => {
@@ -2858,8 +2887,16 @@ export function PortableTextEditor({
 				const doc = updatedEditor.getJSON();
 				// TipTap's getJSON() returns JSONContent which is structurally compatible
 				const pmDoc = doc as Parameters<typeof prosemirrorToPortableText>[0];
-				const portableText = prosemirrorToPortableText(pmDoc);
-				cb(portableText);
+				try {
+					const portableText = prosemirrorToPortableText(pmDoc);
+					cb(portableText);
+				} catch (error) {
+					if (error instanceof UnsupportedPortableTextMarksError) {
+						setConversionErrorMarks(error.marks);
+						return;
+					}
+					throw error;
+				}
 			}
 		},
 	});
@@ -3038,14 +3075,14 @@ export function PortableTextEditor({
 	// reference before TipTap destroys the instance (e.g. when keying by item.id
 	// to switch translations).
 	React.useEffect(() => {
-		if (editor && onEditorReady) {
+		if (editor && onEditorReady && unsupportedMarks.length === 0) {
 			onEditorReady(editor);
 			return () => {
 				onEditorReady(null);
 			};
 		}
 		return undefined;
-	}, [editor, onEditorReady]);
+	}, [editor, onEditorReady, unsupportedMarks.length]);
 
 	React.useEffect(() => {
 		const viewport = window.visualViewport;
@@ -3252,7 +3289,17 @@ export function PortableTextEditor({
 			const ptContent = Array.isArray(section.content)
 				? (section.content as PortableTextBlock[])
 				: [];
-			const { content: prosemirrorContent } = portableTextToProsemirror(ptContent);
+			let prosemirrorContent: unknown[];
+			try {
+				({ content: prosemirrorContent } = portableTextToProsemirror(ptContent));
+			} catch (error) {
+				if (error instanceof UnsupportedPortableTextMarksError) {
+					setSectionInsertErrorMarks(error.marks);
+					return;
+				}
+				throw error;
+			}
+			setSectionInsertErrorMarks([]);
 
 			const insertPos = pendingBlockInsertPosRef.current;
 			const chain = editor.chain().focus();
@@ -3266,6 +3313,28 @@ export function PortableTextEditor({
 		[editor],
 	);
 
+	if (unsupportedMarks.length > 0) {
+		const markList = unsupportedMarks.join(", ");
+		return (
+			<div
+				role="alert"
+				className={cn(
+					className,
+					"rounded-lg border border-kumo-error bg-kumo-error/10 p-4 text-start",
+				)}
+				aria-labelledby={ariaLabelledby}
+			>
+				<p className="font-medium text-kumo-error">{t`This content cannot be edited safely`}</p>
+				<p className="mt-1 text-sm text-kumo-subtle">
+					<Trans>
+						This field contains unsupported Portable Text marks: <code dir="auto">{markList}</code>.
+						Remove them through the API before editing or saving this content.
+					</Trans>
+				</p>
+			</div>
+		);
+	}
+
 	if (!editor) {
 		return (
 			<div className={cn("border rounded-lg", className)}>
@@ -3276,6 +3345,32 @@ export function PortableTextEditor({
 
 	return (
 		<div ref={floatingRootRef} className="relative min-w-0" data-emdash-editor-floating-root>
+			{sectionInsertErrorMarks.length > 0 && (
+				<div
+					role="alert"
+					className="mb-3 flex items-start justify-between gap-4 rounded-lg border border-kumo-error bg-kumo-error/10 p-4 text-start"
+				>
+					<div className="min-w-0">
+						<p className="font-medium text-kumo-error">{t`Could not insert section`}</p>
+						<p className="mt-1 text-sm text-kumo-subtle">
+							<Trans>
+								This section contains unsupported Portable Text marks:{" "}
+								<code dir="auto">{sectionInsertErrorMarks.join(", ")}</code>. Update the section
+								before inserting it.
+							</Trans>
+						</p>
+					</div>
+					<Button
+						type="button"
+						variant="ghost"
+						shape="square"
+						onClick={() => setSectionInsertErrorMarks([])}
+						aria-label={t`Dismiss section error`}
+					>
+						<X className="h-4 w-4" aria-hidden="true" />
+					</Button>
+				</div>
+			)}
 			<EditorBubbleMenu
 				editor={editor}
 				appendTo={appendBubbleMenu}

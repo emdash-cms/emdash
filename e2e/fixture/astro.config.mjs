@@ -21,6 +21,7 @@ export default defineConfig({
 		react(),
 		emdash({
 			database: sqlite({ url: dbUrl }),
+			middleware: { outer: "./src/outer-middleware.ts" },
 			plugins: [colorPlugin()],
 			marketplace: marketplaceUrl,
 			sandboxRunner: marketplaceUrl ? "./noop-sandbox.mjs" : undefined,

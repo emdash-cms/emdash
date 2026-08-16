@@ -8,6 +8,7 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
+import type { ContentFieldFilters } from "../content-list-query.js";
 import type { RouteCallerInput, RouteMeta } from "../plugins/routes.js";
 
 // Re-export core types
@@ -254,6 +255,7 @@ export interface EmDashHandlers {
 			bylines?: string[];
 			bylinesNone?: boolean;
 			includeInferredBylines?: boolean;
+			fieldFilters?: ContentFieldFilters;
 		},
 	) => Promise<HandlerResponse>;
 

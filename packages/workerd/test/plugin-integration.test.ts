@@ -284,7 +284,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 	// ── Content lifecycle: create, read, update, soft-delete ─────────────
 
 	describe("content lifecycle (requires read:content + write:content)", () => {
-		function makeWriteHandler() {
+		function makeWriteHandler(i18nConfig?: { defaultLocale: string; locales: string[] } | null) {
 			// Bridge enforces capabilities strictly: write:content does NOT
 			// imply read:content. Plugins that need both must declare both.
 			return createBridgeHandler({
@@ -293,6 +293,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				capabilities: ["read:content", "write:content"],
 				allowedHosts: [],
 				storageCollections: [],
+				i18nConfig,
 				db,
 				emailSend: () => null,
 			});
@@ -311,10 +312,19 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				id: string;
 				type: string;
 				data: Record<string, unknown>;
+				locale: string;
 			};
 			expect(created.type).toBe("posts");
 			expect(created.data.title).toBe("New Post");
+			expect(created.locale).toBe("en");
 			expect(created.id).toBeTruthy();
+			await expect(
+				db
+					.selectFrom("ec_posts" as any)
+					.select("translation_group" as any)
+					.where("id", "=", created.id)
+					.executeTakeFirstOrThrow(),
+			).resolves.toEqual({ translation_group: created.id });
 
 			// Read
 			const readResult = await call(handler, "content/get", {
@@ -322,8 +332,13 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				id: created.id,
 			});
 			expect(readResult.error).toBeUndefined();
-			const read = readResult.result as { id: string; data: Record<string, unknown> };
+			const read = readResult.result as {
+				id: string;
+				data: Record<string, unknown>;
+				locale: string;
+			};
 			expect(read.data.title).toBe("New Post");
+			expect(read.locale).toBe("en");
 
 			// Update
 			const updateResult = await call(handler, "content/update", {
@@ -332,8 +347,13 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				data: { title: "Updated Post" },
 			});
 			expect(updateResult.error).toBeUndefined();
-			const updated = updateResult.result as { id: string; data: Record<string, unknown> };
+			const updated = updateResult.result as {
+				id: string;
+				data: Record<string, unknown>;
+				locale: string;
+			};
 			expect(updated.data.title).toBe("Updated Post");
+			expect(updated.locale).toBe("en");
 
 			// Delete (soft-delete)
 			const deleteResult = await call(handler, "content/delete", {
@@ -414,6 +434,87 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				.executeTakeFirstOrThrow();
 			expect(JSON.parse(draft.data)).toEqual({ title: "Plugin title", body: "Live body" });
 		});
+
+		it("forwards and normalizes an explicit locale", async () => {
+			const handler = makeWriteHandler({ defaultLocale: "en", locales: ["en", "zh-TW"] });
+
+			const result = await call(handler, "content/create", {
+				collection: "posts",
+				data: { title: "繁體中文" },
+				options: { locale: "zh-tw" },
+			});
+
+			expect(result.error).toBeUndefined();
+			expect(result.result).toMatchObject({ locale: "zh-TW" });
+			const row = await db
+				.selectFrom("ec_posts" as any)
+				.select("locale" as any)
+				.where("id", "=", (result.result as { id: string }).id)
+				.executeTakeFirstOrThrow();
+			expect(row.locale).toBe("zh-TW");
+		});
+
+		it("uses configured and no-i18n fallbacks when locale is omitted", async () => {
+			const configured = await call(
+				makeWriteHandler({ defaultLocale: "ja", locales: ["ja"] }),
+				"content/create",
+				{ collection: "posts", data: { title: "日本語" } },
+			);
+			const legacy = await call(makeWriteHandler(null), "content/create", {
+				collection: "posts",
+				data: { title: "English" },
+			});
+
+			expect(configured.result).toMatchObject({ locale: "ja" });
+			expect(legacy.result).toMatchObject({ locale: "en" });
+		});
+
+		it("uses the configured default locale for batch creates", async () => {
+			const result = await call(
+				makeWriteHandler({ defaultLocale: "ja", locales: ["ja"] }),
+				"content/createMany",
+				{
+					collection: "posts",
+					items: [{ title: "一" }, { title: "二" }],
+				},
+			);
+
+			expect(result.error).toBeUndefined();
+			expect(result.result).toEqual([
+				expect.objectContaining({ locale: "ja" }),
+				expect.objectContaining({ locale: "ja" }),
+			]);
+			expect(
+				await db
+					.selectFrom("ec_posts" as any)
+					.select("locale" as any)
+					.execute(),
+			).toEqual([{ locale: "ja" }, { locale: "ja" }]);
+		});
+
+		it("rejects invalid locale options before inserting", async () => {
+			const handler = makeWriteHandler({ defaultLocale: "en", locales: ["en", "fr"] });
+
+			const malformed = await call(handler, "content/create", {
+				collection: "posts",
+				data: { title: "Malformed" },
+				options: { locale: "en_US" },
+			});
+			const unknown = await call(handler, "content/create", {
+				collection: "posts",
+				data: { title: "Unknown" },
+				options: { locale: "de" },
+			});
+
+			expect(malformed.error).toMatch(/invalid locale code/i);
+			expect(unknown.error).toMatch(/not configured/i);
+			expect(
+				await db
+					.selectFrom("ec_posts" as any)
+					.selectAll()
+					.execute(),
+			).toHaveLength(0);
+		});
 	});
 
 	// ── Capability enforcement matches real plugin config ─────────────────
@@ -442,6 +543,8 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			.addColumn("updated_at", "text", (col) => col.notNull())
 			.addColumn("deleted_at", "text")
 			.addColumn("version", "integer", (col) => col.notNull().defaultTo(1))
+			.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
+			.addColumn("translation_group", "text")
 			.addColumn("title", "text")
 			.execute();
 

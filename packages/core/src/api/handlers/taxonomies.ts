@@ -13,7 +13,7 @@ import { ulid } from "ulidx";
 import { TaxonomyRepository, type SiblingPosition } from "../../database/repositories/taxonomy.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database, TaxonomyDefTable } from "../../database/types.js";
-import { resolveConfiguredLocale } from "../../i18n/config.js";
+import { getI18nConfig, resolveConfiguredLocale } from "../../i18n/config.js";
 import { invalidateTaxonomyDefsCache, invalidateTermCache } from "../../taxonomies/index.js";
 import { fetchVisibleTermCounts } from "../../taxonomies/term-counts.js";
 import type { ApiResult } from "../types.js";
@@ -307,7 +307,7 @@ export async function handleTaxonomyCreate(
 	},
 ): Promise<ApiResult<TaxonomyResponse>> {
 	try {
-		const locale = input.locale ? resolveConfiguredLocale(input.locale) : undefined;
+		const locale = resolveConfiguredLocale(input.locale ?? getI18nConfig()?.defaultLocale ?? "en");
 		if (!NAME_PATTERN.test(input.name)) {
 			return {
 				success: false,
@@ -343,22 +343,20 @@ export async function handleTaxonomyCreate(
 
 		// Duplicate guard scoped to locale (so the same name can exist in ES
 		// and EN).
-		if (locale !== undefined) {
-			const existing = await db
-				.selectFrom("_emdash_taxonomy_defs")
-				.select("id")
-				.where("name", "=", input.name)
-				.where("locale", "=", locale)
-				.executeTakeFirst();
-			if (existing) {
-				return {
-					success: false,
-					error: {
-						code: "CONFLICT",
-						message: `Taxonomy '${input.name}' already exists in locale '${locale}'`,
-					},
-				};
-			}
+		const existing = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.select("id")
+			.where("name", "=", input.name)
+			.where("locale", "=", locale)
+			.executeTakeFirst();
+		if (existing) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: `Taxonomy '${input.name}' already exists in locale '${locale}'`,
+				},
+			};
 		}
 
 		const id = ulid();
@@ -371,7 +369,7 @@ export async function handleTaxonomyCreate(
 				label_singular: input.labelSingular ?? null,
 				hierarchical: input.hierarchical ? 1 : 0,
 				collections: JSON.stringify(collections),
-				...(locale !== undefined ? { locale } : {}),
+				locale,
 				translation_group: translationGroup ?? id,
 			})
 			.execute();
@@ -823,7 +821,7 @@ export async function handleTermCreate(
 	},
 ): Promise<ApiResult<TermResponse>> {
 	try {
-		const locale = input.locale ? resolveConfiguredLocale(input.locale) : undefined;
+		const locale = resolveConfiguredLocale(input.locale ?? getI18nConfig()?.defaultLocale ?? "en");
 		// Taxonomy definitions are per-locale, but terms can exist in any locale
 		// regardless of whether the def has been translated there. Look up the
 		// def across all locales — we only care that it *exists*.
@@ -843,9 +841,7 @@ export async function handleTermCreate(
 				success: false,
 				error: {
 					code: "CONFLICT",
-					message: locale
-						? `Term '${input.slug}' already exists in '${taxonomyName}' (${locale})`
-						: `Term with slug '${input.slug}' already exists in taxonomy '${taxonomyName}'`,
+					message: `Term '${input.slug}' already exists in '${taxonomyName}' (${locale})`,
 				},
 			};
 		}

@@ -73,6 +73,7 @@ function serializeEditorState(input: {
 }
 
 import type { ContentSeoInput } from "../lib/api";
+import { findUnsupportedPortableTextMarks } from "../lib/portable-text-marks.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 import {
 	PortableTextEditor,
@@ -381,6 +382,19 @@ export function ContentEditor({
 	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
 
 	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
+	const unsupportedPortableTextMarks = React.useMemo(() => {
+		const unsupported = new Set<string>();
+		for (const [name, field] of Object.entries(fields)) {
+			if (field.kind !== "portableText" || field.widget) continue;
+			const value = formData[name];
+			if (!Array.isArray(value)) continue;
+			for (const mark of findUnsupportedPortableTextMarks(value)) {
+				unsupported.add(mark);
+			}
+		}
+		return [...unsupported].toSorted();
+	}, [fields, formData]);
+	const hasUnsupportedPortableTextMarks = unsupportedPortableTextMarks.length > 0;
 
 	const handleBylinesChange = React.useCallback(
 		(next: BylineCreditInput[]) => {
@@ -409,6 +423,7 @@ export function ContentEditor({
 	const saveFeedbackActive = isSaveFeedbackActive ?? isSaving;
 	const autosaveFeedbackActive = isAutosaveFeedbackActive ?? isAutosaving;
 	const isContentOperationPending = Boolean(isSaving);
+	const isContentSaveBlocked = isContentOperationPending || hasUnsupportedPortableTextMarks;
 
 	// Autosave with debounce
 	// Track pending autosave to cancel on manual save
@@ -442,7 +457,7 @@ export function ContentEditor({
 
 	React.useEffect(() => {
 		// Don't autosave for new items (no ID yet) or if autosave isn't configured
-		if (isNew || !onAutosave || !item?.id) {
+		if (isNew || !onAutosave || !item?.id || hasUnsupportedPortableTextMarks) {
 			return;
 		}
 
@@ -492,12 +507,13 @@ export function ContentEditor({
 		activeBylines,
 		bylinesTouched,
 		hasInvalidUrls,
+		hasUnsupportedPortableTextMarks,
 	]);
 
 	// Cancel pending autosave on manual save
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		if (hasInvalidUrls(formData)) return;
+		if (hasInvalidUrls(formData) || hasUnsupportedPortableTextMarks) return;
 		// Cancel pending autosave
 		if (autosaveTimeoutRef.current) {
 			clearTimeout(autosaveTimeoutRef.current);
@@ -678,7 +694,7 @@ export function ContentEditor({
 												type="submit"
 												isDirty={isDirty}
 												isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
-												disabled={isContentOperationPending}
+												disabled={isContentSaveBlocked}
 											/>
 											{liveViewUrl && (
 												<LinkButton
@@ -720,7 +736,7 @@ export function ContentEditor({
 										size="sm"
 										isDirty={isDirty}
 										isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
-										disabled={isContentOperationPending}
+										disabled={isContentSaveBlocked}
 									/>
 									{liveViewUrl && (
 										<LinkButton
@@ -829,7 +845,7 @@ export function ContentEditor({
 							isDirty={isDirty}
 							isSaving={Boolean(saveFeedbackActive)}
 							isAutosaving={autosaveFeedbackActive}
-							saveDisabled={isContentOperationPending}
+							saveDisabled={isContentSaveBlocked}
 							isLive={isLive}
 							hasPendingChanges={hasPendingChanges}
 							liveViewUrl={liveViewUrl}
@@ -1570,7 +1586,7 @@ function JsonFieldEditor({
 
 /**
  * File field value — matches the "file" shape validated by the Zod generator:
- * { id, provider?, src?, filename?, mimeType?, size?, meta? }
+ * { id, provider?, url?, src?, filename?, mimeType?, size?, meta? }
  */
 interface FileFieldValue {
 	id: string;
@@ -1578,6 +1594,8 @@ interface FileFieldValue {
 	provider?: string;
 	/** Direct URL for non-local media */
 	src?: string;
+	/** Legacy cached URL */
+	url?: string;
 	filename?: string;
 	mimeType?: string;
 	size?: number;
@@ -1613,29 +1631,24 @@ function FileFieldRenderer({
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 
-	// Normalize value to derive display info.
-	// For local files, prefer meta.storageKey; fall back to value.src when it's an
-	// internal media path; finally fall back to value.id so local files remain
-	// clickable even when metadata is sparse. For external providers, use value.src
-	// but only when it's an http(s) URL — a hostile provider plugin could otherwise
-	// return a data: or javascript: URL that gets rendered as a clickable link.
+	// Local snapshots may only reuse internal paths. External providers may link
+	// to HTTP(S) URLs, while unsafe schemes remain plain text.
 	const normalized = React.useMemo(() => {
 		if (!value) return null;
 		const isLocal = !value.provider || value.provider === "local";
 		const storageKey =
 			typeof value.meta?.storageKey === "string" ? value.meta.storageKey : undefined;
+		const directUrl = value.src ?? value.url;
 		const localSrc =
-			typeof value.src === "string" && value.src.startsWith("/_emdash/") ? value.src : undefined;
-		// Storage keys come from server-controlled paths today, but the Zod schema
-		// now lets clients write arbitrary `meta.storageKey` strings via the content
-		// API. Encode before interpolating so attacker-shaped values can't escape
-		// the path with `?` or `#`.
+			typeof directUrl === "string" && directUrl.startsWith("/_emdash/") ? directUrl : undefined;
+		// Clients can write meta.storageKey, so encode it before interpolation to
+		// keep query or fragment delimiters from escaping the route path.
 		const localUrl = isLocal
 			? storageKey
 				? `/_emdash/api/media/file/${encodeURIComponent(storageKey)}`
 				: (localSrc ?? `/_emdash/api/media/file/${encodeURIComponent(value.id)}`)
 			: undefined;
-		const externalUrl = !isLocal && value.src && isSafeUrl(value.src) ? value.src : undefined;
+		const externalUrl = !isLocal && directUrl && isSafeUrl(directUrl) ? directUrl : undefined;
 		return {
 			displayUrl: localUrl ?? externalUrl,
 			filename: value.filename || t`Untitled file`,

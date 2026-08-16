@@ -163,7 +163,7 @@ function createContext() {
 	const content = {
 		get: (collection, id) => bridgeCall("content/get", { collection, id }),
 		list: (collection, opts) => bridgeCall("content/list", { collection, ...opts }),
-		create: (collection, data) => bridgeCall("content/create", { collection, data }),
+		create: (collection, data, options) => bridgeCall("content/create", { collection, data, options }),
 		update: (collection, id, data) => bridgeCall("content/update", { collection, id, data }),
 		delete: (collection, id) => bridgeCall("content/delete", { collection, id }),
 		createMany: (collection, items) => bridgeCall("content/createMany", { collection, items }),

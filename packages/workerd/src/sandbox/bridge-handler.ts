@@ -20,8 +20,9 @@ import {
 	createSandboxRouteErrorEnvelope,
 	createUnrestrictedHttpAccess,
 	PluginStorageRepository,
+	resolveContentCreateLocale,
 } from "emdash";
-import type { Database, SandboxEmailSendCallback } from "emdash";
+import type { Database, I18nConfig, SandboxEmailSendCallback } from "emdash";
 import type { Kysely } from "kysely";
 
 /**
@@ -43,6 +44,8 @@ interface ContentTableRow {
 	version: number;
 	live_revision_id: string | null;
 	draft_revision_id: string | null;
+	locale: string;
+	translation_group: string | null;
 	// User-defined fields. kysely.set()/values() accept these because they're
 	// typed as unknown rather than never.
 	[key: string]: unknown;
@@ -79,6 +82,8 @@ const SYSTEM_COLUMNS = new Set([
 	"version",
 	"live_revision_id",
 	"draft_revision_id",
+	"locale",
+	"translation_group",
 ]);
 
 /** Minimal storage interface for media uploads and deletes */
@@ -102,6 +107,7 @@ export interface BridgeHandlerOptions {
 	storageCollections: string[];
 	/** Full storage config (with indexes) for proper query/count delegation */
 	storageConfig?: Record<string, BridgeStorageCollectionConfig>;
+	i18nConfig?: I18nConfig | null;
 	db: Kysely<Database>;
 	beforeContentWrite?: () => Promise<void>;
 	emailSend: () => SandboxEmailSendCallback | null;
@@ -181,8 +187,18 @@ async function dispatch(
 			return contentList(db, requireString(body, "collection"), body);
 		case "content/create":
 			requireCapability(opts, "write:content");
+			const createOptions = optionalRecord(body, "options");
+			const locale = resolveContentCreateLocale(
+				createOptions ? optionalString(createOptions, "locale") : undefined,
+				opts.i18nConfig ?? null,
+			);
 			await opts.beforeContentWrite?.();
-			return contentCreate(db, requireString(body, "collection"), requireRecord(body, "data"));
+			return contentCreate(
+				db,
+				requireString(body, "collection"),
+				requireRecord(body, "data"),
+				locale,
+			);
 		case "content/update":
 			requireCapability(opts, "write:content");
 			await opts.beforeContentWrite?.();
@@ -198,11 +214,13 @@ async function dispatch(
 			return contentDelete(db, requireString(body, "collection"), requireString(body, "id"));
 		case "content/createMany":
 			requireCapability(opts, "write:content");
+			const createManyLocale = resolveContentCreateLocale(undefined, opts.i18nConfig ?? null);
 			await opts.beforeContentWrite?.();
 			return contentCreateMany(
 				db,
 				requireString(body, "collection"),
 				requireRecordArray(body, "items"),
+				createManyLocale,
 			);
 		case "content/updateMany":
 			requireCapability(opts, "write:content");
@@ -575,6 +593,7 @@ function rowToContentItem(
 	data: Record<string, unknown>;
 	createdAt: string;
 	updatedAt: string;
+	locale: string;
 } {
 	const data: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(row)) {
@@ -597,6 +616,7 @@ function rowToContentItem(
 		data,
 		createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
 		updatedAt: typeof row.updated_at === "string" ? row.updated_at : new Date().toISOString(),
+		locale: typeof row.locale === "string" ? row.locale : "en",
 	};
 }
 
@@ -687,6 +707,7 @@ async function contentGet(
 	data: Record<string, unknown>;
 	createdAt: string;
 	updatedAt: string;
+	locale: string;
 } | null> {
 	validateCollectionName(collection);
 	const table = `ec_${collection}`;
@@ -715,6 +736,7 @@ async function contentList(
 		data: Record<string, unknown>;
 		createdAt: string;
 		updatedAt: string;
+		locale: string;
 	}>;
 	cursor?: string;
 	hasMore: boolean;
@@ -752,12 +774,14 @@ async function contentCreate(
 	db: Kysely<Database>,
 	collection: string,
 	data: Record<string, unknown>,
+	locale?: string,
 ): Promise<{
 	id: string;
 	type: string;
 	data: Record<string, unknown>;
 	createdAt: string;
 	updatedAt: string;
+	locale: string;
 }> {
 	validateCollectionName(collection);
 	const table = `ec_${collection}`;
@@ -776,7 +800,9 @@ async function contentCreate(
 		created_at: now,
 		updated_at: now,
 		version: 1,
+		translation_group: id,
 	};
+	if (locale !== undefined) values.locale = locale;
 
 	// Add user data fields (skip system columns, validate names)
 	for (const [key, value] of Object.entries(data)) {
@@ -797,7 +823,14 @@ async function contentCreate(
 		.executeTakeFirst();
 
 	if (!created) {
-		return { id, type: collection, data: {}, createdAt: now, updatedAt: now };
+		return {
+			id,
+			type: collection,
+			data: {},
+			createdAt: now,
+			updatedAt: now,
+			locale: locale ?? "en",
+		};
 	}
 	return rowToContentItem(collection, created);
 }
@@ -813,6 +846,7 @@ async function contentUpdate(
 	data: Record<string, unknown>;
 	createdAt: string;
 	updatedAt: string;
+	locale: string;
 }> {
 	validateCollectionName(collection);
 	const updated = await new ContentRepository(db).updateDraftAware(collection, id, {
@@ -826,6 +860,7 @@ async function contentUpdate(
 		data: updated.data,
 		createdAt: updated.createdAt,
 		updatedAt: updated.updatedAt,
+		locale: updated.locale ?? "en",
 	};
 }
 
@@ -857,6 +892,7 @@ async function contentCreateMany(
 	db: Kysely<Database>,
 	collection: string,
 	items: Array<Record<string, unknown>>,
+	locale: string,
 ): Promise<
 	Array<{
 		id: string;
@@ -864,6 +900,7 @@ async function contentCreateMany(
 		data: Record<string, unknown>;
 		createdAt: string;
 		updatedAt: string;
+		locale: string;
 	}>
 > {
 	if (items.length > MAX_BATCH_SIZE) {
@@ -872,7 +909,7 @@ async function contentCreateMany(
 	return db.transaction().execute(async (trx) => {
 		const results = [];
 		for (const data of items) {
-			results.push(await contentCreate(trx, collection, data));
+			results.push(await contentCreate(trx, collection, data, locale));
 		}
 		return results;
 	});
@@ -889,6 +926,7 @@ async function contentUpdateMany(
 		data: Record<string, unknown>;
 		createdAt: string;
 		updatedAt: string;
+		locale: string;
 	}>
 > {
 	if (items.length > MAX_BATCH_SIZE) {
