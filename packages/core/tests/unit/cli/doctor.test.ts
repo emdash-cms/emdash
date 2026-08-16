@@ -132,6 +132,20 @@ describe("doctor scheduler wiring", () => {
 		]);
 	});
 
+	it("provides a TOML Cron Trigger fix for a TOML Worker configuration", async () => {
+		const cwd = await createSite(
+			`main = "./src/worker.ts"`,
+			`export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";`,
+			"wrangler.toml",
+		);
+
+		const [result] = await checkSchedulerWiring(cwd);
+
+		expect(result).toMatchObject({ name: "scheduler trigger", status: "fail" });
+		expect(result!.message).toContain('[triggers]\ncrons = ["* * * * *"]');
+		expect(result!.message).not.toContain('"triggers":');
+	});
+
 	it("does not treat an unrelated Worker without scheduler pieces as broken wiring", async () => {
 		const cwd = await createSite(
 			`{ "main": "./src/worker.ts" }`,

@@ -1,7 +1,8 @@
 /**
  * emdash doctor
  *
- * Diagnose database health: connection, migrations, schema integrity.
+ * Diagnose database health (connection, migrations, schema integrity) and
+ * Cloudflare Worker scheduler wiring (Cron Trigger + scheduled() handler).
  */
 
 import { access, readFile } from "node:fs/promises";
@@ -25,8 +26,13 @@ export interface CheckResult {
 const WRANGLER_CONFIG_FILES = ["wrangler.jsonc", "wrangler.json", "wrangler.toml"] as const;
 const CLOUDFLARE_WORKER_MODULE = "@emdash-cms/cloudflare/worker";
 const WORKER_FIX = `export { default, PluginBridge } from "${CLOUDFLARE_WORKER_MODULE}";`;
-const TRIGGER_FIX = `"triggers": { "crons": ["* * * * *"] }`;
+const TRIGGER_FIX_JSONC = `"triggers": { "crons": ["* * * * *"] }`;
+const TRIGGER_FIX_TOML = `[triggers]\ncrons = ["* * * * *"]`;
 const SCHEDULED_HANDLER_PATTERN = /\bscheduled\s*:\s*createScheduledHandler\s*\(/m;
+
+function triggerFix(configPath: string): string {
+	return configPath.endsWith(".toml") ? TRIGGER_FIX_TOML : TRIGGER_FIX_JSONC;
+}
 
 async function fileExists(path: string): Promise<boolean> {
 	try {
@@ -177,7 +183,7 @@ async function checkSchedulerWiringAtPath(cwd: string, configPath: string): Prom
 			{
 				name: "scheduler trigger",
 				status: "fail",
-				message: `EmDash scheduled() handler is exported, but no Cron Trigger is configured — add this to ${configPath}: ${TRIGGER_FIX}`,
+				message: `EmDash scheduled() handler is exported, but no Cron Trigger is configured — add this to ${configPath}: ${triggerFix(configPath)}`,
 			},
 		];
 	}
