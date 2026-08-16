@@ -1317,7 +1317,21 @@ interface CachedPattern {
 	regex: RegExp;
 	paramNames: string[];
 }
-let cachedUrlPatterns: CachedPattern[] | null = null;
+
+interface UrlPatternCache {
+	patterns: CachedPattern[] | null;
+}
+
+const URL_PATTERN_CACHE_KEY = Symbol.for("emdash:url-pattern-cache");
+const queryGlobal = globalThis as Record<symbol, unknown>;
+const urlPatternCache: UrlPatternCache =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	(queryGlobal[URL_PATTERN_CACHE_KEY] as UrlPatternCache | undefined) ??
+	(() => {
+		const cache: UrlPatternCache = { patterns: null };
+		queryGlobal[URL_PATTERN_CACHE_KEY] = cache;
+		return cache;
+	})();
 
 /**
  * Invalidate the cached URL patterns used by resolveEmDashPath.
@@ -1328,7 +1342,7 @@ let cachedUrlPatterns: CachedPattern[] | null = null;
  * every schema-mutation path already routes through here.
  */
 export function invalidateUrlPatternCache(): void {
-	cachedUrlPatterns = null;
+	urlPatternCache.patterns = null;
 	invalidateSchemaObjectCache();
 }
 
@@ -1355,6 +1369,7 @@ export async function resolveEmDashPath<T = Record<string, unknown>>(
 	path: string,
 ): Promise<ResolvePathResult<T> | null> {
 	// Build and cache compiled patterns on first call
+	let cachedUrlPatterns = urlPatternCache.patterns;
 	if (!cachedUrlPatterns) {
 		const { getDb } = await import("./loader.js");
 		const { SchemaRegistry } = await import("./schema/registry.js");
@@ -1368,6 +1383,7 @@ export async function resolveEmDashPath<T = Record<string, unknown>>(
 			const { regex, paramNames } = compileUrlPattern(collection.urlPattern);
 			cachedUrlPatterns.push({ slug: collection.slug, regex, paramNames });
 		}
+		urlPatternCache.patterns = cachedUrlPatterns;
 	}
 
 	for (const pattern of cachedUrlPatterns) {
