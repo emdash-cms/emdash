@@ -271,8 +271,8 @@ export interface SeedContentEntry {
 	/** Seed-local ID for $ref resolution */
 	id: string;
 
-	/** URL slug */
-	slug: string;
+	/** URL slug. May be omitted for entries in non-routable collections. */
+	slug?: string | null;
 
 	/** Publication status */
 	status?: "published" | "draft";

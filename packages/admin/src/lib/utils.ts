@@ -28,11 +28,6 @@ export function parseTimestamp(value: string): Date {
 	return new Date(value);
 }
 
-/**
- * Convert a string to a URL-friendly slug.
- *
- * Handles unicode by normalizing to NFD and stripping diacritics.
- */
 export function formatRelativeTime(dateString: string): string {
 	const date = parseTimestamp(dateString);
 	const now = new Date();

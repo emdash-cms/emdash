@@ -11,6 +11,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { exportSeed } from "../../../src/cli/commands/export-seed.js";
 import { createDatabase } from "../../../src/database/connection.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
+import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { applySeed } from "../../../src/seed/apply.js";
 import type { SeedFile } from "../../../src/seed/types.js";
 import { validateSeed } from "../../../src/seed/validate.js";
@@ -214,6 +216,31 @@ describe("CLI Seed Commands", () => {
 	});
 
 	describe("export-seed output", () => {
+		it("preserves slugless content in a non-routable collection", async () => {
+			const dbPath = join(tempDir, "slugless-content.db");
+			const db = createDatabase({ url: `file:${dbPath}` });
+
+			try {
+				await runMigrations(db);
+				const registry = new SchemaRegistry(db);
+				await registry.createCollection({ slug: "blocks", label: "Blocks", routable: false });
+				await registry.createField("blocks", { slug: "title", label: "Title", type: "string" });
+				await new ContentRepository(db).create({
+					type: "blocks",
+					slug: null,
+					status: "published",
+					data: { title: "Hero" },
+				});
+
+				const exported = await exportSeed(db, "blocks");
+				const entry = exported.content?.blocks?.[0];
+				expect(entry?.slug).toBeUndefined();
+				expect(validateSeed(exported)).toMatchObject({ valid: true, errors: [] });
+			} finally {
+				await db.destroy();
+			}
+		});
+
 		it("preserves a non-routable collection", async () => {
 			const dbPath = join(tempDir, "routable.db");
 			const db = createDatabase({ url: `file:${dbPath}` });

@@ -309,7 +309,7 @@ export class ContentRepository {
 	 * Create a new content item
 	 */
 	async create(input: CreateContentInput): Promise<ContentItem> {
-		const id = ulid();
+		const id = input.id ?? ulid();
 		const now = new Date().toISOString();
 
 		const {

@@ -593,6 +593,9 @@ export function validateSeed(data: unknown): ValidationResult {
 					errors.push(`content.${collectionSlug}: must be an array`);
 					continue;
 				}
+				const collectionRoutable =
+					seed.collections?.find((collection) => collection.slug === collectionSlug)?.routable !==
+					false;
 
 				const entryIds = new Set<string>();
 
@@ -612,7 +615,11 @@ export function validateSeed(data: unknown): ValidationResult {
 						entryIds.add(entry.id);
 					}
 
-					if (!entry.slug) {
+					const hasSlug = typeof entry.slug === "string" && entry.slug.trim().length > 0;
+					if (entry.slug !== undefined && entry.slug !== null && typeof entry.slug !== "string") {
+						errors.push(`${prefix}.slug: must be a string`);
+					}
+					if (collectionRoutable && !hasSlug) {
 						errors.push(`${prefix}: slug is required`);
 					}
 
