@@ -428,15 +428,15 @@ describe("schema_update_collection", () => {
 		expect((await new SchemaRegistry(db).getCollection("post"))?.urlPattern).toBeUndefined();
 	});
 
-	it("preserves SEO when supports changes without hasSeo", async () => {
+	it("derives SEO when supports changes without hasSeo", async () => {
 		const result = await harness.client.callTool({
 			name: "schema_update_collection",
 			arguments: { slug: "post", supports: ["drafts", "preview"] },
 		});
 
 		expect(result.isError, extractText(result)).toBeFalsy();
-		expect(extractJson<{ item: { hasSeo: boolean } }>(result).item.hasSeo).toBe(true);
-		expect((await new SchemaRegistry(db).getCollection("post"))?.hasSeo).toBe(true);
+		expect(extractJson<{ item: { hasSeo: boolean } }>(result).item.hasSeo).toBe(false);
+		expect((await new SchemaRegistry(db).getCollection("post"))?.hasSeo).toBe(false);
 	});
 
 	it("preserves concurrent partial collection updates", async () => {

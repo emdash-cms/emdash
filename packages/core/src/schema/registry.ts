@@ -744,7 +744,11 @@ export class SchemaRegistry {
 			if (input.admin !== undefined) updates.admin_config = JSON.stringify(input.admin);
 			if (input.supports !== undefined) updates.supports = JSON.stringify(input.supports);
 			if (input.urlPattern !== undefined) updates.url_pattern = input.urlPattern;
-			if (input.hasSeo !== undefined) updates.has_seo = input.hasSeo ? 1 : 0;
+			if (input.hasSeo !== undefined) {
+				updates.has_seo = input.hasSeo ? 1 : 0;
+			} else if (input.supports !== undefined) {
+				updates.has_seo = input.supports.includes("seo") ? 1 : 0;
+			}
 			if (input.hidden !== undefined) updates.hidden = input.hidden ? 1 : 0;
 			if (input.sortOrder !== undefined) updates.sort_order = input.sortOrder;
 			if (input.titleField !== undefined) updates.title_field = input.titleField || null;
@@ -762,14 +766,12 @@ export class SchemaRegistry {
 				updates.comments_auto_approve_users = input.commentsAutoApproveUsers ? 1 : 0;
 			}
 
-			if (Object.keys(updates).length > 0) {
-				updates.updated_at = new Date().toISOString();
-				await trx
-					.updateTable("_emdash_collections")
-					.set(updates)
-					.where("id", "=", existing.id)
-					.execute();
-			}
+			updates.updated_at = new Date().toISOString();
+			await trx
+				.updateTable("_emdash_collections")
+				.set(updates)
+				.where("id", "=", existing.id)
+				.execute();
 
 			const row = await trx
 				.selectFrom("_emdash_collections")
