@@ -203,6 +203,7 @@ function TagInput({
 	onRemove,
 	onCreate,
 	isCreating,
+	createError,
 	label,
 	entryLocale,
 	canCreate,
@@ -213,6 +214,7 @@ function TagInput({
 	onRemove: (termId: string) => void;
 	onCreate: (label: string) => void;
 	isCreating: boolean;
+	createError?: Error | null;
 	label: string;
 	entryLocale?: string;
 	canCreate: boolean;
@@ -328,6 +330,7 @@ function TagInput({
 					</Autocomplete.Content>
 				</Autocomplete>
 			</div>
+			{createError ? <p className="text-sm text-kumo-danger">{createError.message}</p> : null}
 		</div>
 	);
 }
@@ -629,6 +632,7 @@ function TaxonomySection({
 					onRemove={handleRemove}
 					onCreate={(label) => createTermMutation.mutate(label)}
 					isCreating={createTermMutation.isPending}
+					createError={canManageTaxonomies ? createTermMutation.error : null}
 					label={taxonomy.label}
 					entryLocale={resolvedEntryLocale}
 					canCreate={canManageTaxonomies}

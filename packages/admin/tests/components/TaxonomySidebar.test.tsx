@@ -95,12 +95,14 @@ function mockApiFetch({
 	terms = [alphaTerm, betaTerm],
 	entryTerms = [],
 	createdTerm = makeTerm("term_created", "Gamma"),
+	createError,
 	unresolved = [],
 }: {
 	taxonomies?: TestTaxonomy[];
 	terms?: TestTerm[];
 	entryTerms?: TestTerm[];
 	createdTerm?: TestTerm;
+	createError?: string;
 	unresolved?: TestUnresolvedAssignment[];
 } = {}) {
 	vi.mocked(apiFetch).mockImplementation((url: string | URL | Request, init?: RequestInit) => {
@@ -135,6 +137,14 @@ function mockApiFetch({
 		}
 
 		if (method === "POST" && path === "/_emdash/api/taxonomies/tags/terms") {
+			if (createError) {
+				return Promise.resolve(
+					new Response(
+						JSON.stringify({ error: { code: "TERM_CREATE_ERROR", message: createError } }),
+						{ status: 500, headers: { "Content-Type": "application/json" } },
+					),
+				);
+			}
 			return dataResponse({ term: createdTerm });
 		}
 
@@ -402,7 +412,9 @@ describe("TaxonomySidebar", () => {
 
 	it("lets the server derive the slug for an inline Unicode term", async () => {
 		mockApiFetch({ terms: [] });
-		const screen = await render(<TaxonomySidebar collection="products" />, { wrapper: Wrapper });
+		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
+			wrapper: Wrapper,
+		});
 
 		await screen.getByLabelText("Add Tags").fill("音楽");
 		await screen.getByText('Create "音楽"').click();
@@ -413,6 +425,18 @@ describe("TaxonomySidebar", () => {
 			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
 			expect(body).toEqual({ label: "音楽" });
 		});
+	});
+
+	it("shows flat-term creation errors below the autocomplete", async () => {
+		mockApiFetch({ terms: [], createError: "Term could not be created" });
+		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
+			wrapper: Wrapper,
+		});
+
+		await screen.getByLabelText("Add Tags").fill("Gamma");
+		await screen.getByText('Create "Gamma"').click();
+
+		await expect.element(screen.getByText("Term could not be created")).toBeInTheDocument();
 	});
 
 	it("continues to render hierarchical taxonomies as a checkbox tree", async () => {
