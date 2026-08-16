@@ -122,6 +122,16 @@ describe("validateSeed", () => {
 			expect(result.errors).toContain('collections[1].slug: duplicate collection slug "posts"');
 		});
 
+		it("should reject a non-boolean routable value", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [{ slug: "posts", label: "Posts", routable: "false", fields: [] }],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain("collections[0].routable: must be a boolean");
+		});
+
 		it("should require fields to be an array", () => {
 			const result = validateSeed({
 				version: "1",

@@ -75,6 +75,8 @@ export interface SeedCollection {
 	admin?: CollectionAdminConfig;
 	supports?: ("drafts" | "revisions" | "preview" | "scheduling" | "search" | "seo")[];
 	urlPattern?: string;
+	/** Require a slug before an entry can be published. Defaults to true. */
+	routable?: boolean;
 	/**
 	 * Omit this collection from the admin sidebar. It stays reachable through
 	 * the API, MCP, plugin hooks, and direct `/content/:collection` URLs.

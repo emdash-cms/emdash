@@ -17,11 +17,15 @@
       "types": "./dist/locales/index.d.ts",
       "default": "./dist/locales/index.js"
     },
-    "./locales/*": "./dist/locales/*"
+    "./locales/*": "./dist/locales/*",
+    "./slugify": {
+      "types": "./dist/slugify.d.ts",
+      "default": "./dist/slugify.js"
+    }
   },
   "scripts": {
     "build": "node --run locale:compile && tsdown && node --run locale:copy && npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify",
-    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "dev": "tsdown --watch",
     "prepublishOnly": "node --run build",
     "check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution",
     "test": "vitest",

@@ -208,6 +208,26 @@ describe("applySeed", () => {
 			expect((await registry.getCollection("contact_submissions"))?.hidden).toBe(true);
 		});
 
+		it("applies and updates collection routability", async () => {
+			const collection = {
+				slug: "contact_submissions",
+				label: "Contact Submissions",
+				routable: false,
+				fields: [{ slug: "title", label: "Title", type: "string" as const }],
+			};
+			await applySeed(db, { version: "1", collections: [collection] });
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("contact_submissions"))?.routable).toBe(false);
+
+			await applySeed(
+				db,
+				{ version: "1", collections: [{ ...collection, routable: true }] },
+				{ onConflict: "update" },
+			);
+			expect((await registry.getCollection("contact_submissions"))?.routable).toBe(true);
+		});
+
 		it("applies sortOrder from the seed and orders the list by it", async () => {
 			const seed: SeedFile = {
 				version: "1",

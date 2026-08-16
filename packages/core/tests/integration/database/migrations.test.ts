@@ -160,6 +160,7 @@ describe("Database Migrations (Integration)", () => {
 			"067_indexed_content_fields",
 			"068_content_taxonomy_entry_groups",
 			"069_collection_title_date_fields",
+			"070_collection_routable",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();

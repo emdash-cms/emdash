@@ -407,7 +407,8 @@ export class ContentRepository {
 	 * (optionally scoped to a locale) and appends a numeric suffix (`-1`,
 	 * `-2`, etc.) on collision to guarantee uniqueness.
 	 *
-	 * Returns `null` if `baseSlug` is empty after slugification.
+	 * The null return is retained for compatibility as a defensive backstop if
+	 * slug normalization cannot produce a value.
 	 */
 	async generateUniqueSlug(type: string, text: string, locale?: string): Promise<string | null> {
 		const baseSlug = slugify(text);
@@ -1763,6 +1764,7 @@ export class ContentRepository {
 		requireDue = false,
 		expectedScheduledAt?: string,
 		promoteRevision = true,
+		requireSlug = true,
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
@@ -1777,6 +1779,9 @@ export class ContentRepository {
 			existing.scheduledAt !== expectedScheduledAt
 		) {
 			throw new ScheduledNotDueError();
+		}
+		if (!promoteRevision && requireSlug && !existing.slug?.trim()) {
+			throw new EmDashValidationError("Cannot publish routable content without a slug");
 		}
 
 		if (!promoteRevision) {
@@ -1894,6 +1899,9 @@ export class ContentRepository {
 
 			const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
 			const intendedSlug = stagedSlug ?? existing.slug;
+			if (requireSlug && !intendedSlug?.trim()) {
+				throw new EmDashValidationError("Cannot publish routable content without a slug");
+			}
 			const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
 			if (stagedSlug !== null && stagedSlug !== existing.slug && existing.locale !== null) {
 				const conflict = await this.findBySlugIncludingTrashed(type, stagedSlug, existing.locale);

@@ -88,6 +88,19 @@ describe("Content Handlers — auto-slug generation", () => {
 			expect(result.data?.item.slug).toBe("hello-world-1");
 		});
 
+		it("should preserve Unicode when resolving slug collisions", async () => {
+			await handleContentCreate(db, "post", {
+				data: { title: "你好世界" },
+			});
+
+			const result = await handleContentCreate(db, "post", {
+				data: { title: "你好世界" },
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.slug).toBe("你好世界-1");
+		});
+
 		it("should increment suffix on repeated collisions", async () => {
 			await handleContentCreate(db, "post", {
 				data: { title: "Hello World" },
@@ -130,7 +143,21 @@ describe("Content Handlers — auto-slug generation", () => {
 			});
 
 			expect(result.success).toBe(true);
-			expect(result.data?.item.slug).toBe("cafe-naive");
+			expect(result.data?.item.slug).toBe("café-naïve");
+		});
+
+		it("should generate a stable fallback slug for an emoji-only title", async () => {
+			const first = await handleContentCreate(db, "post", {
+				data: { title: "😀😀" },
+			});
+			const second = await handleContentCreate(db, "post", {
+				data: { title: "😀😀" },
+			});
+
+			expect(first.success).toBe(true);
+			expect(first.data?.item.slug).toMatch(/^untitled-[a-z0-9]+$/);
+			expect(second.success).toBe(true);
+			expect(second.data?.item.slug).toBe(`${first.data?.item.slug}-1`);
 		});
 
 		it("should allow same auto-slug in different collections", async () => {
@@ -822,6 +849,74 @@ describe("Content Handlers — slug-change auto-redirect on publish", () => {
 
 		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
 		expect(redirects).toHaveLength(0);
+	});
+
+	it("rejects publishing a routable entry without a slug", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: {},
+			status: "draft",
+		});
+		expect(created.success).toBe(true);
+
+		const published = await handleContentPublish(db, "post", created.data!.item.id);
+
+		expect(published.success).toBe(false);
+		if (published.success) return;
+		expect(published.error.code).toBe("VALIDATION_ERROR");
+		expect(published.error.message).toContain("slug");
+	});
+
+	it("allows a non-routable entry to publish without a slug", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.updateCollection("post", { routable: false });
+		const created = await handleContentCreate(db, "post", {
+			data: {},
+			status: "draft",
+		});
+		expect(created.success).toBe(true);
+
+		const published = await handleContentPublish(db, "post", created.data!.item.id);
+
+		expect(published.success).toBe(true);
+		expect(published.data?.item.slug).toBeNull();
+		expect(published.data?.item.status).toBe("published");
+	});
+
+	it("rejects a slugless routable publish without revision support", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.updateCollection("post", { supports: [] });
+		const created = await handleContentCreate(db, "post", {
+			data: {},
+			status: "draft",
+		});
+		expect(created.success).toBe(true);
+
+		const published = await handleContentPublish(db, "post", created.data!.item.id);
+
+		expect(published.success).toBe(false);
+		if (published.success) return;
+		expect(published.error.code).toBe("VALIDATION_ERROR");
+	});
+
+	it("does not replace a live slug with a staged empty slug", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Stable" },
+			slug: "stable",
+			status: "published",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await stageDraftSlugChange("post", id, { title: "Stable" }, "");
+
+		const published = await handleContentPublish(db, "post", id);
+		expect(published.success).toBe(false);
+		if (published.success) return;
+		expect(published.error.code).toBe("VALIDATION_ERROR");
+
+		const unchanged = await handleContentGet(db, "post", id);
+		expect(unchanged.success).toBe(true);
+		expect(unchanged.data?.item.slug).toBe("stable");
 	});
 
 	// #2034: a staged slug colliding with another entry's (slug, locale) used

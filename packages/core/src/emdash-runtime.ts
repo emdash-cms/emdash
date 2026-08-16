@@ -2560,6 +2560,7 @@ export class EmDashRuntime {
 					supports: collection.supports || [],
 					hasSeo: collection.hasSeo,
 					urlPattern: collection.urlPattern,
+					routable: collection.routable !== false,
 					titleField: collection.titleField,
 					dateField: collection.dateField,
 					...(collection.hidden ? { hidden: true } : {}),

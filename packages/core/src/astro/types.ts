@@ -32,6 +32,8 @@ export interface ManifestCollection {
 	supports: string[];
 	hasSeo: boolean;
 	urlPattern?: string;
+	/** Whether published entries require a slug. Defaults to true. */
+	routable?: boolean;
 	titleField?: string;
 	dateField?: string;
 	/**

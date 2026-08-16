@@ -132,6 +132,9 @@ const schemaUpdateCollectionToolSchema = z.object({
 	urlPattern: updateCollectionBody.shape.urlPattern.describe(
 		"New public URL pattern; pass null to clear it",
 	),
+	routable: updateCollectionBody.shape.routable.describe(
+		"Whether entries require a slug before they can be published",
+	),
 	hasSeo: updateCollectionBody.shape.hasSeo.describe(
 		"Whether the collection supports SEO metadata",
 	),
@@ -1815,6 +1818,9 @@ export function createMcpServer(
 				supports: createCollectionBody.shape.supports.describe(
 					"Features to enable (default: ['drafts', 'revisions'])",
 				),
+				routable: createCollectionBody.shape.routable.describe(
+					"Require a slug before publishing (default: true)",
+				),
 			}),
 		},
 		async (args, extra) => {
@@ -1833,6 +1839,7 @@ export function createMcpServer(
 					// SchemaRegistry.createCollection now defaults `supports` to
 					// ['drafts', 'revisions'] when undefined; pass through verbatim.
 					supports: args.supports,
+					routable: args.routable,
 				});
 				ec.invalidateUrlPatternCache();
 				return jsonResult(collection);

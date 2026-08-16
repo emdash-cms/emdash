@@ -107,6 +107,9 @@ export function validateSeed(data: unknown): ValidationResult {
 				if (!collection.label) {
 					errors.push(`${prefix}: label is required`);
 				}
+				if (collection.routable !== undefined && typeof collection.routable !== "boolean") {
+					errors.push(`${prefix}.routable: must be a boolean`);
+				}
 
 				const declaredFieldSlugs = new Set(
 					Array.isArray(collection.fields)

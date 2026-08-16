@@ -214,6 +214,32 @@ describe("CLI Seed Commands", () => {
 	});
 
 	describe("export-seed output", () => {
+		it("preserves a non-routable collection", async () => {
+			const dbPath = join(tempDir, "routable.db");
+			const db = createDatabase({ url: `file:${dbPath}` });
+
+			try {
+				await runMigrations(db);
+				await applySeed(db, {
+					version: "1",
+					collections: [
+						{
+							slug: "blocks",
+							label: "Blocks",
+							routable: false,
+							fields: [{ slug: "title", label: "Title", type: "string" }],
+						},
+					],
+				});
+
+				const exported = await exportSeed(db);
+				expect(exported.collections?.[0]?.routable).toBe(false);
+				expect(validateSeed(exported)).toMatchObject({ valid: true, errors: [] });
+			} finally {
+				await db.destroy();
+			}
+		});
+
 		it("preserves collection list columns through apply and export", async () => {
 			const dbPath = join(tempDir, "admin-config.db");
 			const db = createDatabase({ url: `file:${dbPath}` });
