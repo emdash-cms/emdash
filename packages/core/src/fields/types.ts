@@ -67,8 +67,10 @@ export interface FileValue {
 	url?: string;
 	/** Direct URL used by external media providers. */
 	src?: string;
-	filename: string;
-	mimeType: string;
+	/** Cached original filename, when available. */
+	filename?: string;
+	/** Cached MIME type, when available. */
+	mimeType?: string;
 	/** Cached file size in bytes, when persisted with the value. */
 	size?: number;
 	/** Media provider ID. Defaults to `local` when omitted. */

@@ -738,6 +738,33 @@ describe("ContentEditor", () => {
 				.toHaveAttribute("href", "https://files.example.com/report.pdf");
 		});
 
+		it("does not trust external URLs on local file snapshots", async () => {
+			const item = makeItem({
+				data: {
+					title: "Test",
+					body: "",
+					attachment: {
+						id: "local-file",
+						provider: "local",
+						url: "https://attacker.example/file.pdf",
+						filename: "report.pdf",
+					},
+				},
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					attachment: { kind: "file", label: "Attachment" },
+				},
+			});
+
+			await expect
+				.element(screen.getByRole("link", { name: "report.pdf" }))
+				.toHaveAttribute("href", "/_emdash/api/media/file/local-file");
+		});
+
 		it("does not render data: or javascript: URLs from external providers as links", async () => {
 			// A hostile external provider plugin could return src: "javascript:..." or
 			// "data:..."; the file field must not surface either as a clickable <a href>.

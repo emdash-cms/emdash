@@ -453,16 +453,16 @@ The component automatically:
 
 ### File Values and Current Metadata
 
-A file field stores a reference and a metadata snapshot. `FileValue.url` and `FileValue.size` are
-optional because persisted values may omit them:
+A file field stores a reference and a metadata snapshot. Cached fields such as `url`, `filename`,
+`mimeType`, and `size` are optional because persisted values may omit them:
 
 ```ts
 interface FileValue {
   id: string;
   url?: string;        // Legacy cached URL
   src?: string;        // Direct URL from an external provider
-  filename: string;
-  mimeType: string;
+  filename?: string;  // Cached original filename
+  mimeType?: string;  // Cached MIME type
   size?: number;       // Cached size, when available
   provider?: string;   // Defaults to "local"
   meta?: Record<string, unknown>;

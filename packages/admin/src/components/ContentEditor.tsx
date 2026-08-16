@@ -1615,12 +1615,8 @@ function FileFieldRenderer({
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 
-	// Normalize value to derive display info.
-	// For local files, prefer meta.storageKey; fall back to value.src when it's an
-	// internal media path; finally fall back to value.id so local files remain
-	// clickable even when metadata is sparse. For external providers, use value.src
-	// but only when it's an http(s) URL — a hostile provider plugin could otherwise
-	// return a data: or javascript: URL that gets rendered as a clickable link.
+	// Local snapshots may only reuse internal paths. External providers may link
+	// to HTTP(S) URLs, while unsafe schemes remain plain text.
 	const normalized = React.useMemo(() => {
 		if (!value) return null;
 		const isLocal = !value.provider || value.provider === "local";
@@ -1628,13 +1624,9 @@ function FileFieldRenderer({
 			typeof value.meta?.storageKey === "string" ? value.meta.storageKey : undefined;
 		const directUrl = value.src ?? value.url;
 		const localSrc =
-			typeof directUrl === "string" && (directUrl.startsWith("/_emdash/") || isSafeUrl(directUrl))
-				? directUrl
-				: undefined;
-		// Storage keys come from server-controlled paths today, but the Zod schema
-		// now lets clients write arbitrary `meta.storageKey` strings via the content
-		// API. Encode before interpolating so attacker-shaped values can't escape
-		// the path with `?` or `#`.
+			typeof directUrl === "string" && directUrl.startsWith("/_emdash/") ? directUrl : undefined;
+		// Clients can write meta.storageKey, so encode it before interpolation to
+		// keep query or fragment delimiters from escaping the route path.
 		const localUrl = isLocal
 			? storageKey
 				? `/_emdash/api/media/file/${encodeURIComponent(storageKey)}`

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { file, type FileValue } from "../../../src/fields/index.js";
+import { normalizeMediaValue } from "../../../src/media/normalize.js";
 import type { Field } from "../../../src/schema/types.js";
 import { generateFieldSchema } from "../../../src/schema/zod-generator.js";
 
@@ -46,5 +47,17 @@ describe("FileValue persistence", () => {
 		const storedValue = JSON.parse(JSON.stringify(value));
 
 		expect(generateFieldSchema(fileField).parse(storedValue)).toEqual(value);
+	});
+
+	it("round-trips a sparse external file produced by normalization", async () => {
+		const normalized = await normalizeMediaValue(
+			"https://files.example.com/report.pdf",
+			() => undefined,
+		);
+		if (!normalized) throw new Error("Expected a normalized file value");
+		const fileValue: FileValue = normalized;
+		const storedValue = JSON.parse(JSON.stringify(fileValue));
+
+		expect(file({ required: true }).schema.parse(storedValue)).toEqual(fileValue);
 	});
 });
