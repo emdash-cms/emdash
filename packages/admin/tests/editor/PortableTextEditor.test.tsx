@@ -14,6 +14,8 @@ import type { PluginBlockDef } from "../../src/components/PortableTextEditor";
 import {
 	_buildPluginBlockFormValues,
 	_hasPluginBlockFormData,
+	_portableTextToProsemirror,
+	_prosemirrorToPortableText,
 	PortableTextEditor,
 } from "../../src/components/PortableTextEditor";
 import { render } from "../utils/render";
@@ -297,6 +299,98 @@ describe("plugin block helpers", () => {
 // =============================================================================
 
 describe("Portable Text ↔ ProseMirror conversion", () => {
+	it("rejects mixed unsupported decorators across nested and spanning text", () => {
+		const blocks = [
+			{
+				_type: "block" as const,
+				_key: "quote",
+				style: "blockquote" as const,
+				children: [
+					{ _type: "span" as const, _key: "s1", text: "Brand", marks: ["strong", "accent"] },
+					{ _type: "span" as const, _key: "s2", text: " voice", marks: ["accent", "em"] },
+				],
+			},
+			{
+				_type: "block" as const,
+				_key: "nested-list",
+				style: "normal" as const,
+				listItem: "bullet" as const,
+				level: 2,
+				children: [
+					{ _type: "span" as const, _key: "s3", text: "Muted", marks: ["subtle", "code"] },
+				],
+			},
+		];
+
+		expect(() => _portableTextToProsemirror(blocks)).toThrow(/accent.*subtle/);
+	});
+
+	it("rejects unsupported markDefs annotations by type", () => {
+		const annotationKey = "annotation-9f31";
+		const blocks = [
+			textBlock("Highlighted", {
+				marks: ["strong", annotationKey],
+				markDefs: [{ _type: "brandColor", _key: annotationKey, token: "accent" }],
+			}),
+		];
+
+		let conversionError: Error | undefined;
+		try {
+			_portableTextToProsemirror(blocks);
+		} catch (error) {
+			conversionError = error as Error;
+		}
+		expect(conversionError?.message).toContain("brandColor");
+		expect(conversionError?.message).not.toContain("annotation-9f31");
+	});
+
+	it("rejects unsupported marks in nested outbound ProseMirror content", () => {
+		const document = {
+			type: "doc",
+			content: [
+				{
+					type: "blockquote",
+					content: [
+						{
+							type: "paragraph",
+							content: [
+								{
+									type: "text",
+									text: "Mixed",
+									marks: [{ type: "bold" }, { type: "accent" }],
+								},
+							],
+						},
+					],
+				},
+			],
+		};
+
+		expect(() => _prosemirrorToPortableText(document)).toThrow(/accent/);
+	});
+
+	it("blocks the editor with a localized mark-specific alert in RTL layouts", async () => {
+		const onChange = vi.fn();
+		const onEditorReady = vi.fn();
+		const screen = await render(
+			<div dir="rtl">
+				<PortableTextEditor
+					value={[textBlock("Unsafe", { marks: ["strong", "accent"] })]}
+					onChange={onChange}
+					onEditorReady={onEditorReady}
+				/>
+			</div>,
+		);
+		const alert = screen.getByRole("alert");
+
+		await expect.element(alert).toBeInTheDocument();
+		expect(alert.element()).toHaveTextContent("accent");
+		expect(getComputedStyle(alert.element()).direction).toBe("rtl");
+		expect(document.querySelector(".ProseMirror")).toBeNull();
+		expect(onChange).not.toHaveBeenCalled();
+		expect(onEditorReady).not.toHaveBeenCalledWith(expect.anything());
+	});
+
 	it("renders a paragraph from PT value", async () => {
 		await render(<PortableTextEditor value={[textBlock("Hello world")]} />);
 		const pm = await waitForEditor();

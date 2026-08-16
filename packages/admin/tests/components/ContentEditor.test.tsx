@@ -226,6 +226,48 @@ describe("ContentEditor", () => {
 		expect(portableTextProps.current?.placeholder).toBe("Start writing, or type '/' for commands");
 	});
 
+	it("blocks manual save and autosave while a Portable Text field has unsupported marks", async () => {
+		vi.useFakeTimers();
+		try {
+			const onSave = vi.fn();
+			const onAutosave = vi.fn();
+			const item = makeItem({
+				data: {
+					title: "My Post",
+					content: [
+						{
+							_type: "block",
+							_key: "b1",
+							style: "normal",
+							children: [{ _type: "span", _key: "s1", text: "Unsafe", marks: ["accent"] }],
+						},
+					],
+				},
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				fields: {
+					title: { kind: "string", label: "Title" },
+					content: { kind: "portableText", label: "Content" },
+				},
+				onSave,
+				onAutosave,
+			});
+
+			await screen.getByLabelText("Title").fill("Changed title");
+			const saveButton = screen.getByRole("button", { name: "Save" }).first();
+
+			await expect.element(saveButton).toBeDisabled();
+			await vi.advanceTimersByTimeAsync(2500);
+			expect(onAutosave).not.toHaveBeenCalled();
+			saveButton.element().click();
+			expect(onSave).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it("uses one label and spacing rhythm across editor field types", async () => {
 		const screen = await renderEditor({
 			isNew: false,

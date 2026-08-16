@@ -73,6 +73,7 @@ function serializeEditorState(input: {
 }
 
 import type { ContentSeoInput } from "../lib/api";
+import { findUnsupportedPortableTextMarks } from "../lib/portable-text-marks.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 import {
 	PortableTextEditor,
@@ -381,6 +382,19 @@ export function ContentEditor({
 	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
 
 	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
+	const unsupportedPortableTextMarks = React.useMemo(() => {
+		const unsupported = new Set<string>();
+		for (const [name, field] of Object.entries(fields)) {
+			if (field.kind !== "portableText" || field.widget) continue;
+			const value = formData[name];
+			if (!Array.isArray(value)) continue;
+			for (const mark of findUnsupportedPortableTextMarks(value)) {
+				unsupported.add(mark);
+			}
+		}
+		return [...unsupported].toSorted();
+	}, [fields, formData]);
+	const hasUnsupportedPortableTextMarks = unsupportedPortableTextMarks.length > 0;
 
 	const handleBylinesChange = React.useCallback(
 		(next: BylineCreditInput[]) => {
@@ -409,6 +423,7 @@ export function ContentEditor({
 	const saveFeedbackActive = isSaveFeedbackActive ?? isSaving;
 	const autosaveFeedbackActive = isAutosaveFeedbackActive ?? isAutosaving;
 	const isContentOperationPending = Boolean(isSaving);
+	const isContentSaveBlocked = isContentOperationPending || hasUnsupportedPortableTextMarks;
 
 	// Autosave with debounce
 	// Track pending autosave to cancel on manual save
@@ -442,7 +457,7 @@ export function ContentEditor({
 
 	React.useEffect(() => {
 		// Don't autosave for new items (no ID yet) or if autosave isn't configured
-		if (isNew || !onAutosave || !item?.id) {
+		if (isNew || !onAutosave || !item?.id || hasUnsupportedPortableTextMarks) {
 			return;
 		}
 
@@ -492,12 +507,13 @@ export function ContentEditor({
 		activeBylines,
 		bylinesTouched,
 		hasInvalidUrls,
+		hasUnsupportedPortableTextMarks,
 	]);
 
 	// Cancel pending autosave on manual save
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		if (hasInvalidUrls(formData)) return;
+		if (hasInvalidUrls(formData) || hasUnsupportedPortableTextMarks) return;
 		// Cancel pending autosave
 		if (autosaveTimeoutRef.current) {
 			clearTimeout(autosaveTimeoutRef.current);
@@ -678,7 +694,7 @@ export function ContentEditor({
 												type="submit"
 												isDirty={isDirty}
 												isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
-												disabled={isContentOperationPending}
+												disabled={isContentSaveBlocked}
 											/>
 											{liveViewUrl && (
 												<LinkButton
@@ -720,7 +736,7 @@ export function ContentEditor({
 										size="sm"
 										isDirty={isDirty}
 										isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
-										disabled={isContentOperationPending}
+										disabled={isContentSaveBlocked}
 									/>
 									{liveViewUrl && (
 										<LinkButton
@@ -829,7 +845,7 @@ export function ContentEditor({
 							isDirty={isDirty}
 							isSaving={Boolean(saveFeedbackActive)}
 							isAutosaving={autosaveFeedbackActive}
-							saveDisabled={isContentOperationPending}
+							saveDisabled={isContentSaveBlocked}
 							isLive={isLive}
 							hasPendingChanges={hasPendingChanges}
 							liveViewUrl={liveViewUrl}
