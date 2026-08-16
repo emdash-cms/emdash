@@ -462,7 +462,7 @@ export default {
 
 			try {
 				// user: authenticated caller for private routes, resolved by
-				// the host before dispatch (#812).
+				// the host before dispatch.
 				const result = await handler(
 					{
 						input,

@@ -259,7 +259,7 @@ export default class PluginEntrypoint extends WorkerEntrypoint {
 		}
 		
 		// Execute the route handler with input, request metadata, the
-		// authenticated caller (private routes only, #812), and context
+		// authenticated caller (private routes only), and context
 		try {
 			return await handler(
 				{

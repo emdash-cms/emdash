@@ -108,7 +108,7 @@ describe("plugin API catch-all auth (#1853)", () => {
 	});
 });
 
-describe("plugin API catch-all caller forwarding (#812)", () => {
+describe("plugin API catch-all caller forwarding", () => {
 	it("forwards the authenticated caller for private routes", async () => {
 		const { locals, handlePluginApiRoute } = createLocals(Role.ADMIN, false);
 		const res = await invoke(POST, "POST", locals);

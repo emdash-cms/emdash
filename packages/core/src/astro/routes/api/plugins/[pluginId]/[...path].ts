@@ -75,8 +75,8 @@ const handleRequest: APIRoute = async ({ params, request, locals }) => {
 
 	// Forward the caller only for private routes: it was validated by the
 	// requirePerm/requireScope checks above, so plugins can trust ctx.user.
-	// Public routes intentionally skip auth, so no caller is bound even when
-	// an ambient session happens to exist (#812).
+	// Public routes skip auth, so no caller is bound even when an ambient
+	// session happens to exist.
 	const caller = routeMeta.public ? undefined : user;
 
 	const result = await emdash.handlePluginApiRoute(pluginId, method, `/${path}`, request, caller);

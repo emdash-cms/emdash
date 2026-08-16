@@ -411,7 +411,7 @@ export interface EmDashHandlers {
 	handleRevisionRestore: (revisionId: string, callerUserId: string) => Promise<HandlerResponse>;
 
 	// Plugin API route handler. `user` is the authenticated caller for
-	// private routes, exposed to plugin handlers as `ctx.user` (#812).
+	// private routes, exposed to plugin handlers as `ctx.user`.
 	handlePluginApiRoute: (
 		pluginId: string,
 		method: string,
@@ -465,6 +465,7 @@ export interface EmDashHandlers {
 		input: unknown,
 		actorId: string,
 		request: Request,
+		caller?: RouteCallerInput | null,
 	) => Promise<HandlerResponse>;
 	handlePluginMcpDenied: (
 		pluginId: string,

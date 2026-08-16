@@ -442,7 +442,7 @@ describe("adaptSandboxEntry", () => {
 			expect(pluginCtx.storage).toBeDefined();
 		});
 
-		it("passes the authenticated caller into routeCtx.user, not pluginCtx (#812)", async () => {
+		it("passes the authenticated caller into routeCtx.user, not pluginCtx", async () => {
 			const standardHandler = vi.fn().mockResolvedValue({ ok: true });
 
 			const def: SandboxedPlugin = {

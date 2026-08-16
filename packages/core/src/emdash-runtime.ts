@@ -3745,7 +3745,7 @@ export class EmDashRuntime {
 
 		// Authenticated caller for `ctx.user`. Undefined for public routes
 		// (the catch-all only forwards the caller after private-route auth)
-		// and for machine tokens with no bound user (#812).
+		// and for machine tokens with no bound user.
 		const caller = user ? toRouteCallerInfo(user) : undefined;
 
 		// Check trusted (configured) plugins first — this must match the
@@ -3898,6 +3898,7 @@ export class EmDashRuntime {
 		input: unknown,
 		actorId: string,
 		request: Request,
+		caller?: RouteCallerInput | null,
 	) {
 		const requestMeta = extractRequestMeta(request, getTrustedProxyHeaders(this.config));
 		const audit = new AuditRepository(this.db);
@@ -3909,7 +3910,13 @@ export class EmDashRuntime {
 			headers,
 			body: JSON.stringify(input),
 		});
-		const result = await this.handlePluginApiRoute(pluginId, "POST", route, internalRequest);
+		const result = await this.handlePluginApiRoute(
+			pluginId,
+			"POST",
+			route,
+			internalRequest,
+			caller,
+		);
 		await audit.log({
 			actorId,
 			actorIp: requestMeta.ip ?? undefined,

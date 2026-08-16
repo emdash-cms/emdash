@@ -131,7 +131,7 @@ describe("PluginRouteError", () => {
 	});
 });
 
-describe("toRouteCallerInfo (#812)", () => {
+describe("toRouteCallerInfo", () => {
 	it("maps the host user to the plugin-facing UserInfo shape", () => {
 		const info = toRouteCallerInfo({
 			id: "u1",
@@ -405,7 +405,7 @@ describe("PluginRouteHandler", () => {
 			expect(result.data).toEqual({ hasEmail: true, hasSend: true });
 		});
 
-		it("exposes the authenticated caller as ctx.user (#812)", async () => {
+		it("exposes the authenticated caller as ctx.user", async () => {
 			const plugin = createTestPlugin({
 				routes: {
 					whoami: {
@@ -431,7 +431,7 @@ describe("PluginRouteHandler", () => {
 			expect(result.data).toEqual({ user: caller });
 		});
 
-		it("leaves ctx.user undefined when no caller is provided (#812)", async () => {
+		it("leaves ctx.user undefined when no caller is provided", async () => {
 			const plugin = createTestPlugin({
 				routes: {
 					whoami: {

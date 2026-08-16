@@ -31,6 +31,7 @@ import { hasScope } from "../auth/api-tokens.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
+import type { RouteCallerInput } from "../plugins/routes.js";
 import { decodeBase64, encodeBase64 } from "../utils/base64.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -408,11 +409,12 @@ function jsonResult(data: unknown): SuccessEnvelope {
 // ---------------------------------------------------------------------------
 // Context extraction
 //
-// The route handler passes emdash + userId in authInfo.extra.
+// The route handler passes the runtime and authenticated user in authInfo.extra.
 // ---------------------------------------------------------------------------
 
 interface EmDashExtra {
 	emdash: EmDashHandlers;
+	user: RouteCallerInput;
 	userId: string;
 	/** The authenticated user's RBAC role level. */
 	userRole: RoleLevel;
@@ -717,6 +719,7 @@ export function createMcpServer(
 					input,
 					payload.userId,
 					request,
+					payload.user,
 				);
 				if (!result.success) return unwrap(result);
 				if (tool.outputSchema) {

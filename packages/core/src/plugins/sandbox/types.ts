@@ -142,7 +142,7 @@ export interface SerializedRequest {
 	meta: RequestMeta;
 	/**
 	 * Authenticated caller for private routes, resolved by the host before
-	 * dispatch. Undefined for public routes and unbound machine tokens (#812).
+	 * dispatch. Undefined for public routes and unbound machine tokens.
 	 */
 	user?: UserInfo;
 }
