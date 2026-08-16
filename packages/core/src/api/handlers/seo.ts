@@ -151,7 +151,7 @@ export async function handleSitemapData(
 					WHERE c.status = 'published'
 					AND c.deleted_at IS NULL
 					AND c.slug IS NOT NULL
-					AND c.slug <> ''
+					AND TRIM(c.slug) <> ''
 					AND (s.seo_no_index IS NULL OR s.seo_no_index = 0)
 					ORDER BY c.updated_at DESC
 					LIMIT ${SITEMAP_MAX_ENTRIES}

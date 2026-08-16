@@ -103,6 +103,18 @@ describe("sitemap-[collection].xml route", () => {
 		expect(res.status).toBe(404);
 	});
 
+	it("does not advertise legacy published entries with a whitespace-only slug", async () => {
+		await repo.create({
+			type: "post",
+			slug: "   ",
+			data: { title: "Legacy" },
+			status: "published",
+		});
+
+		const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
+		expect(res.status).toBe(404);
+	});
+
 	it("renders a non-i18n sitemap with one <url> per row", async () => {
 		setI18nConfig(null);
 		await repo.create({
