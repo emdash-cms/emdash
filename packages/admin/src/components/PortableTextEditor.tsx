@@ -3789,8 +3789,6 @@ function EditorToolbar({
 				isItalic: ctx.editor.isActive("italic"),
 				isUnderline: ctx.editor.isActive("underline"),
 				isStrike: ctx.editor.isActive("strike"),
-				isSubscript: ctx.editor.isActive("subscript"),
-				isSuperscript: ctx.editor.isActive("superscript"),
 				isCode: ctx.editor.isActive("code"),
 				isBulletList: ctx.editor.isActive("bulletList"),
 				isOrderedList,
@@ -3945,20 +3943,6 @@ function EditorToolbar({
 					title={t`Strikethrough`}
 				>
 					<TextStrikethrough className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleSubscript().run()}
-					active={editorState.isSubscript}
-					title={t`Subscript`}
-				>
-					<TextSubscript className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleSuperscript().run()}
-					active={editorState.isSuperscript}
-					title={t`Superscript`}
-				>
-					<TextSuperscript className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleCode().run()}

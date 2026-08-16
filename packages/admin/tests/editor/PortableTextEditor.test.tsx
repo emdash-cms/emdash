@@ -782,13 +782,16 @@ describe("Toolbar", () => {
 
 	it("has inline formatting buttons", async () => {
 		const screen = await renderWithToolbar();
-		await expect.element(screen.getByRole("button", { name: "Bold" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Italic" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Underline" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Strikethrough" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Subscript" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Superscript" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Inline Code" })).toBeInTheDocument();
+		const toolbar = screen.getByRole("toolbar");
+		await expect.element(toolbar.getByRole("button", { name: "Bold" })).toBeInTheDocument();
+		await expect.element(toolbar.getByRole("button", { name: "Italic" })).toBeInTheDocument();
+		await expect.element(toolbar.getByRole("button", { name: "Underline" })).toBeInTheDocument();
+		await expect
+			.element(toolbar.getByRole("button", { name: "Strikethrough" }))
+			.toBeInTheDocument();
+		await expect.element(toolbar.getByRole("button", { name: "Inline Code" })).toBeInTheDocument();
+		expect(toolbar.element().querySelector('[aria-label="Subscript"]')).toBeNull();
+		expect(toolbar.element().querySelector('[aria-label="Superscript"]')).toBeNull();
 	});
 
 	it.each([
@@ -796,10 +799,17 @@ describe("Toolbar", () => {
 		["Superscript", "superscript"],
 	] as const)("persists %s formatting as a Portable Text mark", async (label, mark) => {
 		const onChange = vi.fn();
-		const { screen, editor } = await renderAndGetEditor({ onChange, value: [] });
+		const { editor } = await renderAndGetEditor({ onChange, value: [textBlock("2")] });
+		editor.chain().focus().selectAll().run();
 
-		await screen.getByRole("button", { name: label }).click();
-		typeIntoEditor(editor, "2");
+		let bubbleButton: HTMLButtonElement | null = null;
+		await vi.waitFor(() => {
+			bubbleButton = document.querySelector(
+				`[data-emdash-inline-bubble-menu] [aria-label="${label}"]`,
+			);
+			expect(bubbleButton).toBeTruthy();
+		});
+		bubbleButton!.click();
 
 		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
 		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
