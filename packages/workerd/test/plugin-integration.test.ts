@@ -350,6 +350,29 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			expect(legacy.result).toMatchObject({ locale: "en" });
 		});
 
+		it("uses the configured default locale for batch creates", async () => {
+			const result = await call(
+				makeWriteHandler({ defaultLocale: "ja", locales: ["ja"] }),
+				"content/createMany",
+				{
+					collection: "posts",
+					items: [{ title: "一" }, { title: "二" }],
+				},
+			);
+
+			expect(result.error).toBeUndefined();
+			expect(result.result).toEqual([
+				expect.objectContaining({ locale: "ja" }),
+				expect.objectContaining({ locale: "ja" }),
+			]);
+			expect(
+				await db
+					.selectFrom("ec_posts" as any)
+					.select("locale" as any)
+					.execute(),
+			).toEqual([{ locale: "ja" }, { locale: "ja" }]);
+		});
+
 		it("rejects invalid locale options before inserting", async () => {
 			const handler = makeWriteHandler({ defaultLocale: "en", locales: ["en", "fr"] });
 

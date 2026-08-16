@@ -213,11 +213,13 @@ async function dispatch(
 			return contentDelete(db, requireString(body, "collection"), requireString(body, "id"));
 		case "content/createMany":
 			requireCapability(opts, "write:content");
+			const createManyLocale = resolveContentCreateLocale(undefined, opts.i18nConfig ?? null);
 			await opts.beforeContentWrite?.();
 			return contentCreateMany(
 				db,
 				requireString(body, "collection"),
 				requireRecordArray(body, "items"),
+				createManyLocale,
 			);
 		case "content/updateMany":
 			requireCapability(opts, "write:content");
@@ -924,6 +926,7 @@ async function contentCreateMany(
 	db: Kysely<Database>,
 	collection: string,
 	items: Array<Record<string, unknown>>,
+	locale: string,
 ): Promise<
 	Array<{
 		id: string;
@@ -931,6 +934,7 @@ async function contentCreateMany(
 		data: Record<string, unknown>;
 		createdAt: string;
 		updatedAt: string;
+		locale: string;
 	}>
 > {
 	if (items.length > MAX_BATCH_SIZE) {
@@ -939,7 +943,7 @@ async function contentCreateMany(
 	return db.transaction().execute(async (trx) => {
 		const results = [];
 		for (const data of items) {
-			results.push(await contentCreate(trx, collection, data));
+			results.push(await contentCreate(trx, collection, data, locale));
 		}
 		return results;
 	});
@@ -956,6 +960,7 @@ async function contentUpdateMany(
 		data: Record<string, unknown>;
 		createdAt: string;
 		updatedAt: string;
+		locale: string;
 	}>
 > {
 	if (items.length > MAX_BATCH_SIZE) {
