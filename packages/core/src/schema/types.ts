@@ -195,6 +195,10 @@ export interface Collection {
 	source?: CollectionSource;
 	/** Whether this collection has SEO metadata fields enabled */
 	hasSeo: boolean;
+	/** Field slug powering the admin list Title column. Defaults to the standard title display. */
+	titleField?: string;
+	/** Field slug powering the admin list Date column. Must be a `datetime` field. Defaults to last-updated. */
+	dateField?: string;
 	/** URL pattern with {slug} placeholder (e.g. "/{slug}", "/blog/{slug}") */
 	urlPattern?: string;
 	/**
@@ -278,7 +282,7 @@ export interface UpdateCollectionInput {
 	icon?: string;
 	admin?: CollectionAdminConfig;
 	supports?: CollectionSupport[];
-	urlPattern?: string;
+	urlPattern?: string | null;
 	hasSeo?: boolean;
 	/** Omit the auto-generated admin sidebar entry */
 	hidden?: boolean;
@@ -288,6 +292,10 @@ export interface UpdateCollectionInput {
 	commentsModeration?: "all" | "first_time" | "none";
 	commentsClosedAfterDays?: number;
 	commentsAutoApproveUsers?: boolean;
+	/** Field slug for the Title column; `null`/`""` clears back to the default. */
+	titleField?: string | null;
+	/** Datetime field slug for the Date column; `null`/`""` clears back to the default. */
+	dateField?: string | null;
 }
 
 /**
@@ -318,13 +326,9 @@ export interface CreateFieldInput {
 export interface UpdateFieldInput {
 	label?: string;
 	/**
-	 * Change the field's type. Only type changes that keep the same underlying
-	 * column type (per `FIELD_TYPE_TO_COLUMN`) are allowed — e.g. `string` to
-	 * `slug` (both TEXT). A change that would alter the column affinity (e.g.
-	 * `text` TEXT to `portableText` JSON) is rejected, because there is no
-	 * in-place column migration and silently rewriting the metadata would
-	 * desync `column_type` from the real `ec_*` column. Omit to keep the
-	 * current type.
+	 * Change the field's type. Only storage-compatible text aliases (`string`,
+	 * `text`, and `slug`) can be changed in place. Other changes require an
+	 * explicit content migration. Omit to keep the current type.
 	 */
 	type?: FieldType;
 	required?: boolean;

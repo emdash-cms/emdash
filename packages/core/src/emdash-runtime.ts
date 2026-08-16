@@ -82,6 +82,7 @@ import type {
 	PortableTextBlockConfig,
 	FieldWidgetConfig,
 	SettingField,
+	UserInfo,
 } from "./plugins/types.js";
 import { MAX_COLLECTION_LIST_COLUMNS, type FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
@@ -215,6 +216,8 @@ import {
 	buildRouteMeta,
 	parseRouteInput,
 	PluginRouteRegistry,
+	toRouteCallerInfo,
+	type RouteCallerInput,
 	type RouteMeta,
 } from "./plugins/routes.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
@@ -2556,6 +2559,8 @@ export class EmDashRuntime {
 					supports: collection.supports || [],
 					hasSeo: collection.hasSeo,
 					urlPattern: collection.urlPattern,
+					titleField: collection.titleField,
+					dateField: collection.dateField,
 					...(collection.hidden ? { hidden: true } : {}),
 					listColumns: listColumns.length > 0 ? listColumns : undefined,
 					fields,
@@ -3726,13 +3731,24 @@ export class EmDashRuntime {
 		return meta.admin?.settingsSchema ?? {};
 	}
 
-	async handlePluginApiRoute(pluginId: string, _method: string, path: string, request: Request) {
+	async handlePluginApiRoute(
+		pluginId: string,
+		_method: string,
+		path: string,
+		request: Request,
+		user?: RouteCallerInput | null,
+	) {
 		if (!this.isPluginEnabled(pluginId)) {
 			return {
 				success: false,
 				error: { code: "NOT_FOUND", message: `Plugin not enabled: ${pluginId}` },
 			};
 		}
+
+		// Authenticated caller for `ctx.user`. Undefined for public routes
+		// (the catch-all only forwards the caller after private-route auth)
+		// and for machine tokens with no bound user.
+		const caller = user ? toRouteCallerInfo(user) : undefined;
 
 		// Check trusted (configured) plugins first — this must match the
 		// resolution order in getPluginRouteMeta to avoid auth/execution mismatches.
@@ -3751,13 +3767,13 @@ export class EmDashRuntime {
 			// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
 			const body = await parseRouteInput(request);
 
-			return routeRegistry.invoke(pluginId, routeKey, { request, body });
+			return routeRegistry.invoke(pluginId, routeKey, { request, body, user: caller });
 		}
 
 		// Check sandboxed (marketplace) plugins second
 		const sandboxedPlugin = this.findSandboxedPlugin(pluginId);
 		if (sandboxedPlugin) {
-			return this.handleSandboxedRoute(sandboxedPlugin, path, request);
+			return this.handleSandboxedRoute(sandboxedPlugin, path, request, caller);
 		}
 
 		return {
@@ -3884,6 +3900,7 @@ export class EmDashRuntime {
 		input: unknown,
 		actorId: string,
 		request: Request,
+		caller?: RouteCallerInput | null,
 	) {
 		const requestMeta = extractRequestMeta(request, getTrustedProxyHeaders(this.config));
 		const audit = new AuditRepository(this.db);
@@ -3895,7 +3912,13 @@ export class EmDashRuntime {
 			headers,
 			body: JSON.stringify(input),
 		});
-		const result = await this.handlePluginApiRoute(pluginId, "POST", route, internalRequest);
+		const result = await this.handlePluginApiRoute(
+			pluginId,
+			"POST",
+			route,
+			internalRequest,
+			caller,
+		);
 		await audit.log({
 			actorId,
 			actorIp: requestMeta.ip ?? undefined,
@@ -4221,6 +4244,7 @@ export class EmDashRuntime {
 		plugin: SandboxedPluginInstance,
 		path: string,
 		request: Request,
+		user?: UserInfo,
 	): Promise<{
 		success: boolean;
 		data?: unknown;
@@ -4240,6 +4264,7 @@ export class EmDashRuntime {
 				method: request.method,
 				headers,
 				meta,
+				user,
 			});
 			return { success: true, data: result };
 		} catch (error) {

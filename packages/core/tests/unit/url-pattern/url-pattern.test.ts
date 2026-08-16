@@ -1,14 +1,27 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 import { ulid } from "ulidx";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import type { Database } from "../../../src/database/types.js";
 import { getMenuWithDb } from "../../../src/menus/index.js";
+import { runWithContext } from "../../../src/request-context.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
+import { compileUrlPattern } from "../../../src/schema/url-pattern.js";
 import { applySeed } from "../../../src/seed/apply.js";
 import type { SeedFile } from "../../../src/seed/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+
+vi.mock("astro:content", () => ({
+	getLiveCollection: vi.fn(),
+	getLiveEntry: vi.fn().mockResolvedValue({
+		entry: {
+			id: "example",
+			data: { id: "entry-id", slug: "example", status: "published", locale: "en" },
+		},
+		cacheHint: {},
+	}),
+}));
 
 describe("urlPattern", () => {
 	let db: Kysely<Database>;
@@ -24,6 +37,46 @@ describe("urlPattern", () => {
 	});
 
 	describe("schema registry", () => {
+		it("treats URL-pattern punctuation as literals", () => {
+			const { regex } = compileUrlPattern("/posts/{slug}.html");
+
+			expect(regex.test("/posts/example.html")).toBe(true);
+			expect(regex.test("/posts/exampleXhtml")).toBe(false);
+		});
+
+		it("invalidates URL patterns across duplicated query modules", async () => {
+			const firstQueryModule = await import("../../../src/query.js");
+			firstQueryModule.invalidateUrlPatternCache();
+			await registry.createCollection({
+				slug: "posts",
+				label: "Posts",
+				urlPattern: "/old/{slug}",
+			});
+			await sql`
+				INSERT INTO ec_posts (id, slug, status) VALUES (${ulid()}, ${"example"}, ${"published"})
+			`.execute(db);
+			expect(
+				await runWithContext({ editMode: false, db }, () =>
+					firstQueryModule.resolveEmDashPath("/old/example"),
+				),
+			).not.toBeNull();
+
+			await db
+				.updateTable("_emdash_collections")
+				.set({ url_pattern: "/new/{slug}" })
+				.where("slug", "=", "posts")
+				.execute();
+			vi.resetModules();
+			const secondQueryModule = await import("../../../src/query.js");
+			secondQueryModule.invalidateUrlPatternCache();
+
+			expect(
+				await runWithContext({ editMode: false, db }, () =>
+					firstQueryModule.resolveEmDashPath("/new/example"),
+				),
+			).not.toBeNull();
+		});
+
 		it("should store urlPattern on create", async () => {
 			const collection = await registry.createCollection({
 				slug: "pages",

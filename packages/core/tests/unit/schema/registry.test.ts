@@ -220,6 +220,19 @@ describe("SchemaRegistry", () => {
 			expect(updated.supports).toEqual(["drafts"]);
 		});
 
+		it("touches updatedAt for an empty update", async () => {
+			await registry.createCollection({ slug: "posts", label: "Posts" });
+			await db
+				.updateTable("_emdash_collections")
+				.set({ updated_at: "2000-01-01T00:00:00.000Z" })
+				.where("slug", "=", "posts")
+				.execute();
+
+			const updated = await registry.updateCollection("posts", {});
+
+			expect(updated.updatedAt).not.toBe("2000-01-01T00:00:00.000Z");
+		});
+
 		it("collections are visible in the sidebar by default", async () => {
 			const collection = await registry.createCollection({ slug: "posts", label: "Posts" });
 
@@ -562,12 +575,12 @@ describe("SchemaRegistry", () => {
 
 			const updated = await registry.updateField("posts", "title", {
 				label: "Post Title",
-				required: true,
+				sortOrder: 3,
 				widget: "text",
 			});
 
 			expect(updated.label).toBe("Post Title");
-			expect(updated.required).toBe(true);
+			expect(updated.sortOrder).toBe(3);
 			expect(updated.widget).toBe("text");
 		});
 
