@@ -48,12 +48,15 @@ function getBucket(name: string): number {
 }
 
 export async function loadPhosphorIcon(name: string): Promise<unknown> {
-	const moduleName =
-		PHOSPHOR_ICON_MODULE_ALIASES[name] ?? (name.endsWith("Icon") ? name.slice(0, -4) : name);
+	const alias = Object.hasOwn(PHOSPHOR_ICON_MODULE_ALIASES, name)
+		? PHOSPHOR_ICON_MODULE_ALIASES[name]
+		: undefined;
+	const moduleName = alias ?? (name.endsWith("Icon") ? name.slice(0, -4) : name);
 	const loadBucket = PHOSPHOR_ICON_BUCKETS[getBucket(moduleName)];
 	if (!loadBucket) return undefined;
 	try {
-		return (await loadBucket())[name];
+		const bucket = await loadBucket();
+		return Object.hasOwn(bucket, name) ? bucket[name] : undefined;
 	} catch (error) {
 		console.error(`[admin] Failed to load Phosphor icon "${name}":`, error);
 		return Plug;

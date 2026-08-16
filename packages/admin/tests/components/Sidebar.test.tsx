@@ -259,4 +259,8 @@ describe("loadPhosphorIcon", () => {
 	it("returns undefined for names outside the installed Phosphor set", async () => {
 		await expect(loadPhosphorIcon("DefinitelyNotARealIconXyz")).resolves.toBeUndefined();
 	});
+
+	it("returns undefined for inherited object properties", async () => {
+		await expect(loadPhosphorIcon("constructor")).resolves.toBeUndefined();
+	});
 });
