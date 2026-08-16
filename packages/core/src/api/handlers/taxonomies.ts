@@ -585,6 +585,15 @@ export async function handleTermList(
 	options: { locale?: string; includeCounts?: boolean; resolveFallback?: boolean } = {},
 ): Promise<ApiResult<TermListResponse>> {
 	try {
+		if (options.resolveFallback && !options.locale) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: "A locale is required when resolving taxonomy fallbacks",
+				},
+			};
+		}
 		// Definitions are per-locale but terms aren't bound to the def's locale —
 		// just ensure the taxonomy exists somewhere.
 		const lookup = await requireTaxonomyDef(db, taxonomyName);

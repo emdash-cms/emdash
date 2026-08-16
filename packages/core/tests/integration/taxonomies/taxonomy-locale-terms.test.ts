@@ -553,6 +553,21 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 			expect.objectContaining({ id: frSports.id, locale: "fr" }),
 		]);
 	});
+
+	it("rejects fallback-resolved term lists without a requested locale", async () => {
+		const listed = await handleTermList(ctx.db, "tag", {
+			resolveFallback: true,
+			includeCounts: false,
+		});
+
+		expect(listed).toEqual({
+			success: false,
+			error: {
+				code: "VALIDATION_ERROR",
+				message: "A locale is required when resolving taxonomy fallbacks",
+			},
+		});
+	});
 });
 
 /**

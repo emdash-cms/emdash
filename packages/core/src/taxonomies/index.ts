@@ -68,30 +68,27 @@ async function selectEntryTermRows(
 	const defaultLocale = getI18nConfig()?.defaultLocale ?? "en";
 	const result = await sql<EntryTermRow>`
 		SELECT content.id AS entry_id,
-			terms.id,
-			terms.name,
-			terms.slug,
-			terms.label,
-			terms.parent_id,
-			terms.locale,
-			terms.translation_group
+			coalesce(exact_term.id, default_term.id) AS id,
+			coalesce(exact_term.name, default_term.name) AS name,
+			coalesce(exact_term.slug, default_term.slug) AS slug,
+			coalesce(exact_term.label, default_term.label) AS label,
+			coalesce(exact_term.parent_id, default_term.parent_id) AS parent_id,
+			coalesce(exact_term.locale, default_term.locale) AS locale,
+			coalesce(exact_term.translation_group, default_term.translation_group) AS translation_group
 		FROM ${sql.ref(tableName)} AS content
 		INNER JOIN content_taxonomies AS pivot
 			ON pivot.entry_id = content.translation_group
 			AND pivot.collection = ${collection}
-		INNER JOIN taxonomies AS terms
-			ON terms.translation_group = pivot.taxonomy_id
-			AND terms.locale = CASE
-				WHEN EXISTS (
-					SELECT 1 FROM taxonomies AS exact_term
-					WHERE exact_term.translation_group = pivot.taxonomy_id
-						AND exact_term.locale = ${preferredLocale}
-				) THEN ${preferredLocale}
-				ELSE ${defaultLocale}
-			END
+		LEFT JOIN taxonomies AS exact_term
+			ON exact_term.translation_group = pivot.taxonomy_id
+			AND exact_term.locale = ${preferredLocale}
+		LEFT JOIN taxonomies AS default_term
+			ON default_term.translation_group = pivot.taxonomy_id
+			AND default_term.locale = ${defaultLocale}
 		WHERE content.id IN (${sql.join(entryIds.map((id) => sql`${id}`))})
-			${taxonomyName ? sql`AND terms.name = ${taxonomyName}` : sql``}
-		ORDER BY terms.label ASC
+			AND coalesce(exact_term.id, default_term.id) IS NOT NULL
+			${taxonomyName ? sql`AND coalesce(exact_term.name, default_term.name) = ${taxonomyName}` : sql``}
+		ORDER BY coalesce(exact_term.label, default_term.label) ASC
 	`.execute(db);
 	return result.rows;
 }
