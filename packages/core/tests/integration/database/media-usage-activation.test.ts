@@ -423,6 +423,20 @@ describeEachDialect("media usage production activation", (dialect) => {
 		);
 	});
 
+	it("includes collection routability in the seed capture fingerprint", async () => {
+		const fields = [{ slug: "hero", label: "Hero", type: "image" as const }];
+		const routable = await buildSeedCollectionCaptureFingerprint(
+			{ slug: "posts", label: "Posts", routable: true },
+			fields,
+		);
+		const nonRoutable = await buildSeedCollectionCaptureFingerprint(
+			{ slug: "posts", label: "Posts", routable: false },
+			fields,
+		);
+
+		expect(nonRoutable).not.toBe(routable);
+	});
+
 	it("distinguishes an omitted seed default from an explicit null default", async () => {
 		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
 		const registry = new SchemaRegistry(ctx.db);

@@ -218,6 +218,70 @@ describe("Content Handlers — auto-slug generation", () => {
 		});
 	});
 
+	describe("direct status publishing", () => {
+		it("rejects creating slugless published content in a routable collection", async () => {
+			const result = await handleContentCreate(db, "post", {
+				data: {},
+				status: "published",
+			});
+
+			expect(result.success).toBe(false);
+			if (result.success) return;
+			expect(result.error.code).toBe("VALIDATION_ERROR");
+		});
+
+		it("allows creating slugless published content in a non-routable collection", async () => {
+			await new SchemaRegistry(db).updateCollection("post", { routable: false });
+
+			const result = await handleContentCreate(db, "post", {
+				data: {},
+				status: "published",
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.slug).toBeNull();
+		});
+
+		it("rejects updating a slugless routable draft to published", async () => {
+			const created = await handleContentCreate(db, "post", { data: {} });
+			expect(created.success).toBe(true);
+
+			const result = await handleContentUpdate(db, "post", created.data!.item.id, {
+				status: "published",
+			});
+
+			expect(result.success).toBe(false);
+			if (result.success) return;
+			expect(result.error.code).toBe("VALIDATION_ERROR");
+		});
+
+		it("allows publishing a routable draft when the update supplies a slug", async () => {
+			const created = await handleContentCreate(db, "post", { data: {} });
+			expect(created.success).toBe(true);
+
+			const result = await handleContentUpdate(db, "post", created.data!.item.id, {
+				slug: "published-directly",
+				status: "published",
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.slug).toBe("published-directly");
+		});
+
+		it("allows updating a slugless non-routable draft to published", async () => {
+			await new SchemaRegistry(db).updateCollection("post", { routable: false });
+			const created = await handleContentCreate(db, "post", { data: {} });
+			expect(created.success).toBe(true);
+
+			const result = await handleContentUpdate(db, "post", created.data!.item.id, {
+				status: "published",
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.status).toBe("published");
+		});
+	});
+
 	describe("handleContentDuplicate", () => {
 		it("should generate slug from duplicated title", async () => {
 			const original = await handleContentCreate(db, "post", {

@@ -197,6 +197,7 @@ export async function buildSeedCollectionCaptureFingerprint(
 				sortOrder: input.sortOrder ?? null,
 				commentsEnabled: input.commentsEnabled ?? false,
 				urlPattern: input.urlPattern ?? null,
+				routable: input.routable ?? true,
 			},
 			fields: definitions,
 		}),

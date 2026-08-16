@@ -106,6 +106,12 @@ async function getCollectionPublishConfig(
 	};
 }
 
+function requireRoutablePublishSlug(routable: boolean, slug: string | null | undefined): void {
+	if (routable && !slug?.trim()) {
+		throw new EmDashValidationError("Cannot publish routable content without a slug");
+	}
+}
+
 /**
  * Hydrate SEO data on a single content item if the collection has SEO enabled.
  */
@@ -837,6 +843,10 @@ export async function handleContentCreate(
 					slug = await repo.generateUniqueSlug(collection, slugSource, effectiveLocale);
 				}
 			}
+			if (body.status === "published") {
+				const publishConfig = await getCollectionPublishConfig(trx, collection);
+				requireRoutablePublishSlug(publishConfig.routable, slug);
+			}
 
 			const created = await repo.create({
 				type: collection,
@@ -1015,7 +1025,9 @@ export async function handleContentUpdate(
 
 			// Read existing item once for both _rev check and old slug capture
 			const existing =
-				body._rev || body.slug ? await trxRepo.findById(collection, resolvedId) : null;
+				body._rev || body.slug !== undefined || body.status === "published"
+					? await trxRepo.findById(collection, resolvedId)
+					: null;
 
 			// Validate _rev if provided (optimistic concurrency)
 			if (body._rev) {
@@ -1037,6 +1049,17 @@ export async function handleContentUpdate(
 			let oldSlug: string | undefined;
 			if (body.slug && existing?.slug && existing.slug !== body.slug) {
 				oldSlug = existing.slug;
+			}
+
+			if (body.status === "published") {
+				if (!existing) {
+					throw Object.assign(new Error(`Content item not found: ${id}`), {
+						apiError: { code: "NOT_FOUND" as const },
+					});
+				}
+				const publishConfig = await getCollectionPublishConfig(trx, collection);
+				const intendedSlug = typeof body.slug === "string" ? body.slug : existing.slug;
+				requireRoutablePublishSlug(publishConfig.routable, intendedSlug);
 			}
 
 			const updated = await trxRepo.update(collection, resolvedId, {
