@@ -2009,10 +2009,16 @@ export function InlinePortableTextEditor({
 
 	// Media picker state
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
-	const [unsupportedFileGuidance, setUnsupportedFileGuidance] = React.useState<string | null>(null);
+	const [unsupportedFileGuidance, setUnsupportedFileGuidance] = React.useState<{
+		message: string;
+		version: number;
+	} | null>(null);
 	const showUnsupportedFileGuidance = React.useCallback(() => {
 		const locale = document.documentElement.lang || navigator.language;
-		setUnsupportedFileGuidance(getUnsupportedFileGuidance(locale));
+		setUnsupportedFileGuidance((current) => ({
+			message: getUnsupportedFileGuidance(locale),
+			version: (current?.version ?? 0) + 1,
+		}));
 	}, []);
 	const unsupportedFileHandlers = React.useMemo(
 		() => createUnsupportedFileHandlers(showUnsupportedFileGuidance),
@@ -2251,8 +2257,14 @@ export function InlinePortableTextEditor({
 			<InlineBubbleMenu editor={editor} />
 			<EditorContent editor={editor} />
 			{unsupportedFileGuidance ? (
-				<div className="emdash-inline-editor-guidance" role="status" aria-live="polite" dir="auto">
-					{unsupportedFileGuidance}
+				<div
+					key={unsupportedFileGuidance.version}
+					className="emdash-inline-editor-guidance"
+					role="status"
+					aria-live="polite"
+					dir="auto"
+				>
+					{unsupportedFileGuidance.message}
 				</div>
 			) : null}
 			<InlineSlashMenu

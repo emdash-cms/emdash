@@ -253,7 +253,10 @@ test.describe("Inline Editor", () => {
 			itemKind: "file",
 		});
 		await expect(editor).toContainText("SafeTransferEdits");
-		await expect(page.getByRole("status")).toContainText("Type /image");
+		const guidance = page.getByRole("status");
+		await expect(guidance).toContainText("Type /image");
+		const firstGuidance = await guidance.elementHandle();
+		expect(firstGuidance).not.toBeNull();
 
 		const pasteResult = await editor.evaluate((element) => {
 			const transfer = new DataTransfer();
@@ -266,6 +269,8 @@ test.describe("Inline Editor", () => {
 
 		expect(pasteResult).toEqual({ defaultPrevented: true, dispatched: false });
 		await expect(editor).toContainText("SafeTransferEdits");
+		await expect(guidance).toContainText("Type /image");
+		expect(await firstGuidance!.evaluate((element) => element.isConnected)).toBe(false);
 
 		await editor.locator("p").last().click();
 		await page.keyboard.press("End");
