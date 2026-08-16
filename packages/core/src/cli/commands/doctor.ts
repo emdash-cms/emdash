@@ -75,7 +75,7 @@ export async function checkSchedulerWiring(cwd: string): Promise<CheckResult[]> 
 		disallowComments: false,
 	});
 	if (parseErrors.length > 0) {
-		const error = parseErrors[0]!;
+		const error = parseErrors[0];
 		return [
 			{
 				name: "scheduler config",
