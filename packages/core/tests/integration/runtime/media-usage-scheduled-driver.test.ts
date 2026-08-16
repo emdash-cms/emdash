@@ -5,6 +5,7 @@ import { sql, SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import {
 	EmDashRuntime,
 	MEDIA_USAGE_MAINTENANCE_QUERY_RESERVATIONS,
@@ -13,6 +14,7 @@ import {
 import { installMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
 import type { CronScheduler, SystemCleanupFn } from "../../../src/plugins/scheduler/types.js";
 import { createRequestMetrics, runWithContext } from "../../../src/request-context.js";
+import { SCHEDULER_HEARTBEAT_OPTION } from "../../../src/scheduler-health.js";
 
 describe("media usage scheduled drivers", () => {
 	let runtime: EmDashRuntime | null = null;
@@ -56,6 +58,19 @@ describe("media usage scheduled drivers", () => {
 				canonicalSourceKey(fixture.collectionId, "entry-1"),
 			),
 		).not.toBeNull();
+	});
+
+	it("records a heartbeat from the Node timer maintenance callback", async () => {
+		const scheduler = new CapturingScheduler();
+		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
+
+		await scheduler.runMaintenance();
+
+		const heartbeat = await new OptionsRepository(runtime.db).get<string>(
+			SCHEDULER_HEARTBEAT_OPTION,
+		);
+		expect(heartbeat).not.toBeNull();
+		expect(Number.isNaN(Date.parse(heartbeat!))).toBe(false);
 	});
 
 	it("drains bounded work through a legacy Node scheduler cleanup callback", async () => {

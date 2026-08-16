@@ -1302,8 +1302,16 @@ export class ContentRepository {
 	// get overall statistics for a content type in a single query
 	async getStats(
 		type: string,
-	): Promise<{ total: number; published: number; draft: number; scheduled: number }> {
+		now = new Date(),
+	): Promise<{
+		total: number;
+		published: number;
+		draft: number;
+		scheduled: number;
+		overdueScheduled: number;
+	}> {
 		const tableName = getTableName(type);
+		const nowIso = now.toISOString();
 
 		const result = await this.db
 			.selectFrom(tableName as keyof Database)
@@ -1312,6 +1320,9 @@ export class ContentRepository {
 				eb.fn.sum(eb.case().when("status", "=", "published").then(1).else(0).end()).as("published"),
 				eb.fn.sum(eb.case().when("status", "=", "draft").then(1).else(0).end()).as("draft"),
 				sql<number>`SUM(CASE WHEN scheduled_at IS NOT NULL THEN 1 ELSE 0 END)`.as("scheduled"),
+				sql<number>`SUM(CASE WHEN scheduled_at IS NOT NULL AND scheduled_at <= ${nowIso} THEN 1 ELSE 0 END)`.as(
+					"overdue_scheduled",
+				),
 			])
 			.where("deleted_at" as never, "is", null)
 			.executeTakeFirst();
@@ -1321,6 +1332,7 @@ export class ContentRepository {
 			published: Number(result?.published || 0),
 			draft: Number(result?.draft || 0),
 			scheduled: Number(result?.scheduled || 0),
+			overdueScheduled: Number(result?.overdue_scheduled || 0),
 		};
 	}
 
