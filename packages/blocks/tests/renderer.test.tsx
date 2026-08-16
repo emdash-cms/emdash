@@ -231,7 +231,10 @@ vi.mock("@cloudflare/kumo/components/chart", () => ({
 		<div data-testid="timeseries-chart" data-height={props.height} />
 	),
 	Chart: (props: any) => <div data-testid="custom-chart" data-height={props.height} />,
-	ChartPalette: { color: (i: number) => `#color${i}` },
+	ChartPalette: {
+		color: (i: number) => `#color${i}`,
+		categorical: (i: number) => `#color${i}`,
+	},
 }));
 
 // eslint-disable-next-line unicorn/consistent-function-scoping -- vi.mock is hoisted; cannot reference outer scope
@@ -266,6 +269,15 @@ vi.mock("@phosphor-icons/react", () => ({
 	WarningCircle: () => <span data-testid="icon-warning-circle" />,
 	Package: () => <span data-testid="icon-package" />,
 }));
+
+Object.defineProperty(window, "matchMedia", {
+	writable: true,
+	value: vi.fn().mockReturnValue({
+		matches: false,
+		addEventListener: vi.fn(),
+		removeEventListener: vi.fn(),
+	}),
+});
 
 afterEach(cleanup);
 
@@ -423,6 +435,33 @@ describe("BlockRenderer", () => {
 		expect(screen.getByTestId("arrow-up")).toBeTruthy();
 		expect(screen.getByTestId("arrow-down")).toBeTruthy();
 		expect(screen.getByTestId("minus")).toBeTruthy();
+	});
+
+	it("reserves the configured chart height until the chart is ready", async () => {
+		const { container } = renderBlocks([
+			{
+				type: "chart",
+				config: {
+					chart_type: "timeseries",
+					series: [{ name: "Requests", data: [[0, 1]] }],
+					height: 420,
+				},
+			},
+		]);
+
+		expect(screen.queryByTestId("timeseries-chart")).toBeNull();
+		const fallback = container.querySelector<HTMLElement>('[aria-hidden="true"]');
+		expect(fallback?.classList).toContain("rounded-lg");
+		expect(fallback?.classList).toContain("border");
+		expect(fallback?.classList).toContain("border-kumo-line");
+		expect(fallback?.classList).toContain("p-4");
+		expect(fallback?.style.height).toBe("");
+		expect(fallback?.childElementCount).toBe(1);
+		expect((fallback?.firstElementChild as HTMLElement | undefined)?.style.height).toBe("420px");
+
+		const chart = await screen.findByTestId("timeseries-chart");
+		expect(chart.parentElement?.className).toBe(fallback?.className);
+		expect(container.querySelector('[aria-hidden="true"]')).toBeNull();
 	});
 
 	it("form block renders fields and submit button", () => {

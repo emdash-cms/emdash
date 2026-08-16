@@ -1,7 +1,8 @@
+import { lazy, Suspense } from "react";
+
 import { AccordionBlockComponent } from "./blocks/accordion.js";
 import { ActionsBlockComponent } from "./blocks/actions.js";
 import { BannerBlockComponent } from "./blocks/banner.js";
-import { ChartBlockComponent } from "./blocks/chart.js";
 import { CodeBlockComponent } from "./blocks/code.js";
 import { ColumnsBlockComponent } from "./blocks/columns.js";
 import { ContextBlockComponent } from "./blocks/context.js";
@@ -16,7 +17,29 @@ import { SectionBlockComponent } from "./blocks/section.js";
 import { StatsBlockComponent } from "./blocks/stats.js";
 import { TabBlockComponent } from "./blocks/tab.js";
 import { TableBlockComponent } from "./blocks/table.js";
-import type { Block, BlockInteraction } from "./types.js";
+import type { Block, BlockInteraction, ChartBlock } from "./types.js";
+
+function ChartPlaceholder({ height }: { height?: number }) {
+	return (
+		<div className="rounded-lg border border-kumo-line p-4" aria-hidden="true">
+			<div style={{ height: height ?? 350 }} />
+		</div>
+	);
+}
+
+function UnavailableChartBlock({ block }: { block: ChartBlock }) {
+	return <ChartPlaceholder height={block.config.height} />;
+}
+
+const ChartBlockComponent = lazy(async () => {
+	try {
+		const { ChartBlockComponent: Component } = await import("./blocks/chart.js");
+		return { default: Component };
+	} catch (error) {
+		console.error("[blocks] Failed to load chart renderer:", error);
+		return { default: UnavailableChartBlock };
+	}
+});
 
 function renderBlock(
 	block: Block,
@@ -46,7 +69,11 @@ function renderBlock(
 		case "columns":
 			return <ColumnsBlockComponent block={block} onAction={onAction} />;
 		case "chart":
-			return <ChartBlockComponent block={block} />;
+			return (
+				<Suspense fallback={<ChartPlaceholder height={block.config.height} />}>
+					<ChartBlockComponent block={block} />
+				</Suspense>
+			);
 		case "meter":
 			return <MeterBlockComponent block={block} />;
 		case "banner":

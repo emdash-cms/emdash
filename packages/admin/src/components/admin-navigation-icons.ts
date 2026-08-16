@@ -42,6 +42,8 @@ import {
 import type { Icon } from "@phosphor-icons/react";
 import * as React from "react";
 
+import { loadPhosphorIcon } from "../lib/phosphor-icon-loader.js";
+
 /** Shared icon vocabulary for first-party admin entities and navigation surfaces. */
 export const ADMIN_NAV_ICONS = {
 	dashboard: SquaresFour,
@@ -143,8 +145,7 @@ export function resolveNavIcon(name?: string): React.ElementType {
 	let icon = lazyIconCache.get(componentName);
 	if (!icon) {
 		icon = React.lazy(async () => {
-			const mod = await import("@phosphor-icons/react");
-			const candidate: unknown = (mod as Record<string, unknown>)[componentName];
+			const candidate = await loadPhosphorIcon(componentName);
 			return { default: isIconComponent(candidate) ? candidate : ADMIN_NAV_ICONS.plugins };
 		});
 		lazyIconCache.set(componentName, icon);

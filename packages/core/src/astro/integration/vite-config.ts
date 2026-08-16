@@ -70,6 +70,7 @@ import {
 } from "./virtual-modules.js";
 
 const LOCALE_MESSAGES_RE = /[/\\]([a-z]{2}(?:-[A-Z]{2})?)[/\\]messages\.mjs$/;
+const PHOSPHOR_DEEP_IMPORT_RE = /^@phosphor-icons\/react\/([A-Z][A-Za-z0-9]*)$/;
 /**
  * Vite plugin that compiles Lingui macros in admin source files.
  * Only active in dev mode when the admin package is aliased to source for HMR.
@@ -117,6 +118,20 @@ function resolveAdminDist(): string {
 	const adminPath = require.resolve("@emdash-cms/admin");
 	// Return the directory containing the built package (dist/)
 	return dirname(adminPath);
+}
+
+function phosphorIconSourcePlugin(adminDistPath: string): Plugin {
+	const adminRequire = createRequire(resolve(adminDistPath, "index.js"));
+	const packageDir = dirname(adminRequire.resolve("@phosphor-icons/react/package.json"));
+	const csrDir = resolve(packageDir, "dist", "csr");
+	return {
+		name: "emdash-phosphor-icon-source",
+		enforce: "pre",
+		resolveId(id) {
+			const iconName = id.match(PHOSPHOR_DEEP_IMPORT_RE)?.[1];
+			if (iconName) return resolve(csrDir, `${iconName}.es.js`);
+		},
+	};
 }
 
 /**
@@ -454,6 +469,7 @@ export function createViteConfig(
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
 			createVirtualModulesPlugin(options, command),
+			...(useSource ? [phosphorIconSourcePlugin(adminDistPath)] : []),
 			// In dev mode with source alias, compile Lingui macros on the fly
 			// and redirect locale .mjs imports to dist/.
 			// In production, macros are pre-compiled by tsdown in the admin package.
