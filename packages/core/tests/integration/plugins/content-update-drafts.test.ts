@@ -111,6 +111,7 @@ describeEachDialect("plugin content updates with revisions", (dialect) => {
 		await registry.createField("plain_post", { slug: "content", label: "Content", type: "string" });
 		const created = await contentRepo.create({
 			type: "plain_post",
+			slug: "plain-post",
 			status: "published",
 			data: { title: "Original title", content: "Original body" },
 		});
