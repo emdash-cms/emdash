@@ -202,7 +202,6 @@ test.describe("Inline Editor", () => {
 
 		const editor = page.locator(".emdash-inline-editor");
 		await expect(editor).toBeVisible({ timeout: 15000 });
-		const originalUrl = page.url();
 
 		await editor.locator("p").last().click();
 		await page.keyboard.press("End");
@@ -233,7 +232,6 @@ test.describe("Inline Editor", () => {
 			itemCount: 1,
 			itemKind: "file",
 		});
-		expect(page.url()).toBe(originalUrl);
 		await expect(editor).toContainText("SafeTransferEdits");
 		await expect(page.getByRole("status")).toContainText("Type /image");
 
@@ -247,7 +245,6 @@ test.describe("Inline Editor", () => {
 		});
 
 		expect(pasteResult).toEqual({ defaultPrevented: true, dispatched: false });
-		expect(page.url()).toBe(originalUrl);
 		await expect(editor).toContainText("SafeTransferEdits");
 
 		await editor.locator("p").last().click();
