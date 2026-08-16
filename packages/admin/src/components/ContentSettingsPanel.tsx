@@ -704,6 +704,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							collection={collection}
 							entryId={item.id}
 							entryLocale={item.locale ?? entryLocale}
+							canManageTaxonomies={(currentUser?.role ?? 0) >= ROLE_EDITOR}
 						/>
 					</SortableContentSettingsSection>
 				)}

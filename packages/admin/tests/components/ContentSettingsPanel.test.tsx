@@ -24,7 +24,11 @@ vi.mock("../../src/components/RevisionHistory", () => ({
 }));
 
 vi.mock("../../src/components/TaxonomySidebar", () => ({
-	TaxonomySidebar: () => <div data-testid="taxonomy-sidebar">Taxonomy</div>,
+	TaxonomySidebar: ({ canManageTaxonomies }: { canManageTaxonomies: boolean }) => (
+		<div data-testid="taxonomy-sidebar" data-can-manage={String(canManageTaxonomies)}>
+			Taxonomy
+		</div>
+	),
 	useHasApplicableTaxonomies: () => true,
 }));
 
@@ -167,6 +171,20 @@ describe("ContentSettingsPanel", () => {
 		);
 
 		await expect.element(screen.getByText("Pending changes")).toBeInTheDocument();
+	});
+
+	it("only grants inline taxonomy management to editors", async () => {
+		const screen = await render(<ContentSettingsPanel {...makePanelProps()} />);
+		await expect
+			.element(screen.getByTestId("taxonomy-sidebar"))
+			.toHaveAttribute("data-can-manage", "true");
+
+		await screen.rerender(
+			<ContentSettingsPanel {...makePanelProps({ currentUser: AUTHOR_ROLE })} />,
+		);
+		await expect
+			.element(screen.getByTestId("taxonomy-sidebar"))
+			.toHaveAttribute("data-can-manage", "false");
 	});
 
 	it("shows the stored content locale separately from the admin language", async () => {

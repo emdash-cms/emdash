@@ -165,7 +165,9 @@ describe("TaxonomySidebar", () => {
 	});
 
 	it("shows existing flat taxonomy terms when the tag picker receives focus", async () => {
-		const screen = await render(<TaxonomySidebar collection="products" />, { wrapper: Wrapper });
+		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
+			wrapper: Wrapper,
+		});
 
 		await expect.element(screen.getByLabelText("Add Tags")).toBeInTheDocument();
 		expect(screen.getByRole("option", { name: /^Alpha$/ }).query()).toBeNull();
@@ -188,7 +190,9 @@ describe("TaxonomySidebar", () => {
 	});
 
 	it("filters flat taxonomy terms while preserving the create option for new input", async () => {
-		const screen = await render(<TaxonomySidebar collection="products" />, { wrapper: Wrapper });
+		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
+			wrapper: Wrapper,
+		});
 
 		const input = screen.getByLabelText("Add Tags");
 		await input.fill("Alp");
@@ -349,9 +353,10 @@ describe("TaxonomySidebar", () => {
 	it("does not suggest terms already assigned to the entry", async () => {
 		mockApiFetch({ entryTerms: [alphaTerm] });
 
-		const screen = await render(<TaxonomySidebar collection="products" entryId="entry_1" />, {
-			wrapper: Wrapper,
-		});
+		const screen = await render(
+			<TaxonomySidebar collection="products" entryId="entry_1" canManageTaxonomies />,
+			{ wrapper: Wrapper },
+		);
 
 		await expect.element(screen.getByLabelText("Remove Alpha")).toBeInTheDocument();
 		await screen.getByLabelText("Add Tags").click();
@@ -366,9 +371,12 @@ describe("TaxonomySidebar", () => {
 		const onChange = vi.fn();
 		mockApiFetch({ terms: [] });
 
-		const screen = await render(<TaxonomySidebar collection="products" onChange={onChange} />, {
-			wrapper: Wrapper,
-		});
+		const screen = await render(
+			<TaxonomySidebar collection="products" canManageTaxonomies onChange={onChange} />,
+			{
+				wrapper: Wrapper,
+			},
+		);
 
 		const input = screen.getByLabelText("Add Tags");
 		await input.click();
@@ -410,7 +418,9 @@ describe("TaxonomySidebar", () => {
 	it("continues to render hierarchical taxonomies as a checkbox tree", async () => {
 		mockApiFetch({ taxonomies: [categoriesTaxonomy], terms: [alphaTerm] });
 
-		const screen = await render(<TaxonomySidebar collection="products" />, { wrapper: Wrapper });
+		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
+			wrapper: Wrapper,
+		});
 
 		await expect.element(screen.getByText("Categories")).toBeInTheDocument();
 		await expect.element(screen.getByText("Alpha")).toBeInTheDocument();
@@ -449,7 +459,12 @@ describe("TaxonomySidebar", () => {
 		mockApiFetch({ entryTerms: [alphaTerm] });
 
 		const screen = await render(
-			<TaxonomySidebar collection="products" entryId="entry_1" entryLocale="fr" />,
+			<TaxonomySidebar
+				collection="products"
+				entryId="entry_1"
+				entryLocale="fr"
+				canManageTaxonomies
+			/>,
 			{ wrapper: Wrapper },
 		);
 
@@ -458,17 +473,19 @@ describe("TaxonomySidebar", () => {
 
 	it("labels fallback terms in flat suggestions before selection", async () => {
 		const screen = await render(
-			<TaxonomySidebar collection="products" entryId="entry_1" entryLocale="fr" />,
+			<TaxonomySidebar
+				collection="products"
+				entryId="entry_1"
+				entryLocale="fr"
+				canManageTaxonomies
+			/>,
 			{ wrapper: Wrapper },
 		);
 
 		await screen.getByLabelText("Add Tags").click();
-		await vi.waitFor(() => {
-			const alphaButton = [...screen.container.querySelectorAll("button")].find((button) =>
-				button.textContent?.includes("Alpha"),
-			);
-			expect(alphaButton?.textContent).toContain("EN fallback");
-		});
+		await expect
+			.element(screen.getByRole("option", { name: /^Alpha.*EN fallback$/ }))
+			.toBeInTheDocument();
 	});
 
 	it("keeps unresolved groups visible and preserves them when another term is assigned", async () => {
@@ -483,7 +500,12 @@ describe("TaxonomySidebar", () => {
 		});
 
 		const screen = await render(
-			<TaxonomySidebar collection="products" entryId="entry_1" entryLocale="fr" />,
+			<TaxonomySidebar
+				collection="products"
+				entryId="entry_1"
+				entryLocale="fr"
+				canManageTaxonomies
+			/>,
 			{ wrapper: Wrapper },
 		);
 
@@ -494,7 +516,7 @@ describe("TaxonomySidebar", () => {
 			.toBeInTheDocument();
 
 		await screen.getByLabelText("Add Tags").click();
-		await screen.getByRole("button", { name: /^Beta.*EN fallback$/ }).click();
+		await screen.getByRole("option", { name: /^Beta.*EN fallback$/ }).click();
 
 		await vi.waitFor(() => {
 			const save = vi
@@ -518,7 +540,12 @@ describe("TaxonomySidebar", () => {
 
 	it("requests exact/default resolution for the entry-locale picker", async () => {
 		const screen = await render(
-			<TaxonomySidebar collection="products" entryId="entry_1" entryLocale="fr" />,
+			<TaxonomySidebar
+				collection="products"
+				entryId="entry_1"
+				entryLocale="fr"
+				canManageTaxonomies
+			/>,
 			{ wrapper: Wrapper },
 		);
 		await expect.element(screen.getByLabelText("Add Tags")).toBeInTheDocument();
@@ -536,5 +563,42 @@ describe("TaxonomySidebar", () => {
 		expect(entryTermsCall).toBeDefined();
 		if (!entryTermsCall) throw new Error("Expected an entry-terms request");
 		expect(requestUrl(entryTermsCall[0])).not.toContain("locale=");
+	});
+
+	it("hides flat-term and translation creation without taxonomy management permission", async () => {
+		mockApiFetch({
+			unresolved: [
+				{
+					translationGroup: "group_ja",
+					availableLocales: ["ja"],
+					translations: [{ id: "term_ja", slug: "nyusu", locale: "ja" }],
+				},
+			],
+		});
+		const screen = await render(
+			<TaxonomySidebar
+				collection="products"
+				entryId="entry_1"
+				entryLocale="fr"
+				canManageTaxonomies={false}
+			/>,
+			{ wrapper: Wrapper },
+		);
+
+		await expect.element(screen.getByText("Unresolved assignment")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Create FR translation" }).query()).toBeNull();
+		await screen.getByLabelText("Add Tags").fill("Gamma");
+		expect(screen.getByText('Create "Gamma"').query()).toBeNull();
+	});
+
+	it("hides hierarchical term creation without taxonomy management permission", async () => {
+		mockApiFetch({ taxonomies: [categoriesTaxonomy], terms: [alphaTerm] });
+		const screen = await render(
+			<TaxonomySidebar collection="products" canManageTaxonomies={false} />,
+			{ wrapper: Wrapper },
+		);
+
+		await expect.element(screen.getByText("Categories")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Add new category" }).query()).toBeNull();
 	});
 });

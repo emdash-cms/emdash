@@ -56,6 +56,7 @@ interface TaxonomyDef {
 interface TaxonomySidebarProps {
 	collection: string;
 	entryId?: string;
+	canManageTaxonomies: boolean;
 	/** Locale of the entry being edited. Scopes term reads/writes so only the
 	 * matching translation variants are shown — see issue #1218. */
 	entryLocale?: string;
@@ -204,6 +205,7 @@ function TagInput({
 	isCreating,
 	label,
 	entryLocale,
+	canCreate,
 }: {
 	terms: TaxonomyTerm[];
 	selectedIds: Set<string>;
@@ -213,6 +215,7 @@ function TagInput({
 	isCreating: boolean;
 	label: string;
 	entryLocale?: string;
+	canCreate: boolean;
 }) {
 	const { t } = useLingui();
 	const [input, setInput] = React.useState("");
@@ -233,7 +236,7 @@ function TagInput({
 		return terms.some((term) => termExactMatches(term, trimmedInput));
 	}, [trimmedInput, terms]);
 
-	const showCreateOption = trimmedInput.length > 0 && !hasExactMatch;
+	const showCreateOption = canCreate && trimmedInput.length > 0 && !hasExactMatch;
 	const options = React.useMemo<TagInputOption[]>(
 		() => [
 			...suggestions.map((term) => ({ type: "term" as const, term })),
@@ -343,12 +346,14 @@ function TaxonomySection({
 	collection,
 	entryId,
 	entryLocale,
+	canManageTaxonomies,
 	onChange,
 }: {
 	taxonomy: TaxonomyDef;
 	collection: string;
 	entryId?: string;
 	entryLocale?: string;
+	canManageTaxonomies: boolean;
 	onChange?: (termIds: string[]) => void;
 }) {
 	const { t } = useLingui();
@@ -522,7 +527,7 @@ function TaxonomySection({
 							{t`Available in ${assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")}`}
 						</p>
 						<div className="flex flex-wrap gap-2">
-							{resolvedEntryLocale ? (
+							{canManageTaxonomies && resolvedEntryLocale ? (
 								<Button
 									type="button"
 									size="sm"
@@ -566,49 +571,49 @@ function TaxonomySection({
 						</div>
 					)}
 
-					{/* Add new category inline */}
-					{showCategoryInput ? (
-						<div className="flex gap-1">
-							<Input
-								value={newCategoryLabel}
-								onChange={(e) => setNewCategoryLabel(e.target.value)}
-								onKeyDown={(e) => {
-									if (e.key === "Enter") {
-										e.preventDefault();
-										handleCreateCategory();
-									} else if (e.key === "Escape") {
-										setShowCategoryInput(false);
-										setNewCategoryLabel("");
-									}
-								}}
-								placeholder={t`New ${(taxonomy.labelSingular || taxonomy.label).toLowerCase()}`}
-								className="text-sm flex-1"
-								autoFocus
-								disabled={createTermMutation.isPending}
-							/>
+					{canManageTaxonomies &&
+						(showCategoryInput ? (
+							<div className="flex gap-1">
+								<Input
+									value={newCategoryLabel}
+									onChange={(e) => setNewCategoryLabel(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter") {
+											e.preventDefault();
+											handleCreateCategory();
+										} else if (e.key === "Escape") {
+											setShowCategoryInput(false);
+											setNewCategoryLabel("");
+										}
+									}}
+									placeholder={t`New ${(taxonomy.labelSingular || taxonomy.label).toLowerCase()}`}
+									className="text-sm flex-1"
+									autoFocus
+									disabled={createTermMutation.isPending}
+								/>
+								<Button
+									type="button"
+									onClick={handleCreateCategory}
+									disabled={!newCategoryLabel.trim()}
+									loading={createTermMutation.isPending}
+									variant="primary"
+								>
+									{t`Add`}
+								</Button>
+							</div>
+						) : (
 							<Button
 								type="button"
-								onClick={handleCreateCategory}
-								disabled={!newCategoryLabel.trim()}
-								loading={createTermMutation.isPending}
-								variant="primary"
+								variant="ghost"
+								size="sm"
+								className="-ms-2"
+								onClick={() => setShowCategoryInput(true)}
+								icon={<Plus />}
 							>
-								{t`Add`}
+								{t`Add new ${(taxonomy.labelSingular || taxonomy.label).toLowerCase()}`}
 							</Button>
-						</div>
-					) : (
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							className="-ms-2"
-							onClick={() => setShowCategoryInput(true)}
-							icon={<Plus />}
-						>
-							{t`Add new ${(taxonomy.labelSingular || taxonomy.label).toLowerCase()}`}
-						</Button>
-					)}
-					{createTermMutation.error && (
+						))}
+					{canManageTaxonomies && createTermMutation.error && (
 						<p className="text-sm text-kumo-danger">
 							{createTermMutation.error instanceof Error
 								? createTermMutation.error.message
@@ -626,6 +631,7 @@ function TaxonomySection({
 					isCreating={createTermMutation.isPending}
 					label={taxonomy.label}
 					entryLocale={resolvedEntryLocale}
+					canCreate={canManageTaxonomies}
 				/>
 			)}
 		</div>
@@ -639,6 +645,7 @@ export function TaxonomySidebar({
 	collection,
 	entryId,
 	entryLocale,
+	canManageTaxonomies,
 	onChange,
 	className,
 }: TaxonomySidebarProps) {
@@ -663,6 +670,7 @@ export function TaxonomySidebar({
 							collection={collection}
 							entryId={entryId}
 							entryLocale={entryLocale}
+							canManageTaxonomies={canManageTaxonomies}
 							onChange={(termIds) => onChange?.(taxonomy.name, termIds)}
 						/>
 					))}
