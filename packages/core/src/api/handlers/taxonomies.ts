@@ -343,22 +343,20 @@ export async function handleTaxonomyCreate(
 
 		// Duplicate guard scoped to locale (so the same name can exist in ES
 		// and EN).
-		if (locale !== undefined) {
-			const existing = await db
-				.selectFrom("_emdash_taxonomy_defs")
-				.select("id")
-				.where("name", "=", input.name)
-				.where("locale", "=", locale)
-				.executeTakeFirst();
-			if (existing) {
-				return {
-					success: false,
-					error: {
-						code: "CONFLICT",
-						message: `Taxonomy '${input.name}' already exists in locale '${locale}'`,
-					},
-				};
-			}
+		const existing = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.select("id")
+			.where("name", "=", input.name)
+			.where("locale", "=", locale)
+			.executeTakeFirst();
+		if (existing) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: `Taxonomy '${input.name}' already exists in locale '${locale}'`,
+				},
+			};
 		}
 
 		const id = ulid();
@@ -843,9 +841,7 @@ export async function handleTermCreate(
 				success: false,
 				error: {
 					code: "CONFLICT",
-					message: locale
-						? `Term '${input.slug}' already exists in '${taxonomyName}' (${locale})`
-						: `Term with slug '${input.slug}' already exists in taxonomy '${taxonomyName}'`,
+					message: `Term '${input.slug}' already exists in '${taxonomyName}' (${locale})`,
 				},
 			};
 		}
