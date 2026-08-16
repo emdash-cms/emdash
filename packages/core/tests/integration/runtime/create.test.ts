@@ -18,7 +18,6 @@ import { DEFAULT_COMMENT_MODERATOR_PLUGIN_ID } from "../../../src/comments/moder
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
-import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import type { RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { getI18nConfig, setI18nConfig } from "../../../src/i18n/config.js";
@@ -197,7 +196,7 @@ describe("EmDashRuntime.create — cold boot", () => {
 		}
 	});
 
-	it("warns about historical taxonomy locales after the runtime is ready", async () => {
+	it("warns about historical taxonomy locales when the operator manifest is built", async () => {
 		const previousI18nConfig = getI18nConfig();
 		setI18nConfig(null);
 		const sqlite = new Database(":memory:");
@@ -214,7 +213,8 @@ describe("EmDashRuntime.create — cold boot", () => {
 		const runtime = await EmDashRuntime.create(deps);
 
 		try {
-			await waitForDeferredTasks();
+			expect(warn).not.toHaveBeenCalled();
+			await runtime.getManifest();
 			expect(warn).toHaveBeenCalledWith(
 				expect.stringContaining("Taxonomy rows use locales outside the configured locales (ja)"),
 			);

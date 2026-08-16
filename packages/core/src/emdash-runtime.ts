@@ -1813,13 +1813,6 @@ export class EmDashRuntime {
 		// Hand the constructed instance to the scheduler-cleanup closure so the
 		// timer-driven sweep can fire publish hooks (see runtimeRef above).
 		runtimeRef.current = runtime;
-		after(async () => {
-			try {
-				await warnAboutUnconfiguredTaxonomyLocales(resolveDb(), configuredLocales);
-			} catch (error) {
-				console.warn("[i18n] taxonomy locale diagnostic failed:", error);
-			}
-		});
 		return runtime;
 	}
 
@@ -2690,12 +2683,14 @@ export class EmDashRuntime {
 			hierarchical: boolean;
 			collections: string[];
 		}> = [];
+		let taxonomyDefinitionLocales: string[] = [];
 		try {
 			const rows = await this.db
 				.selectFrom("_emdash_taxonomy_defs")
 				.selectAll()
 				.orderBy("name")
 				.execute();
+			taxonomyDefinitionLocales = rows.map((row) => row.locale);
 			manifestTaxonomies = rows.map((row) => ({
 				name: row.name,
 				label: row.label,
@@ -2705,6 +2700,17 @@ export class EmDashRuntime {
 			}));
 		} catch (error) {
 			console.debug("EmDash: Could not load taxonomy definitions:", error);
+		}
+
+		try {
+			const configuredLocales = virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
+			await warnAboutUnconfiguredTaxonomyLocales(
+				this.db,
+				configuredLocales,
+				taxonomyDefinitionLocales,
+			);
+		} catch (error) {
+			console.warn("[i18n] taxonomy locale diagnostic failed:", error);
 		}
 
 		// Build manifest hash

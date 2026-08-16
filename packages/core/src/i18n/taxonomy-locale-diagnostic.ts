@@ -1,4 +1,4 @@
-import { sql, type Kysely } from "kysely";
+import type { Kysely } from "kysely";
 
 import type { Database } from "../database/types.js";
 
@@ -13,21 +13,30 @@ interface TaxonomyLocaleMismatch {
 export async function warnAboutUnconfiguredTaxonomyLocales(
 	db: Kysely<Database>,
 	configuredLocales: readonly string[],
+	definitionLocales?: readonly string[],
 ): Promise<void> {
 	const supportedLocales = configuredLocales.length > 0 ? configuredLocales : ["en"];
-	const localeList = sql.join(supportedLocales.map((locale) => sql`${locale}`));
-	const result = await sql<TaxonomyLocaleMismatch>`
-		SELECT DISTINCT 'definitions' AS source, locale
-		FROM _emdash_taxonomy_defs
-		WHERE locale NOT IN (${localeList})
-		UNION ALL
-		SELECT DISTINCT 'terms' AS source, locale
-		FROM taxonomies
-		WHERE locale NOT IN (${localeList})
-	`.execute(db);
-	const mismatches = result.rows.toSorted(
-		(a, b) => a.source.localeCompare(b.source) || a.locale.localeCompare(b.locale),
-	);
+	const definitionRows =
+		definitionLocales === undefined
+			? await db
+					.selectFrom("_emdash_taxonomy_defs")
+					.select("locale")
+					.distinct()
+					.where("locale", "not in", supportedLocales)
+					.execute()
+			: [...new Set(definitionLocales)]
+					.filter((locale) => !supportedLocales.includes(locale))
+					.map((locale) => ({ locale }));
+	const termRows = await db
+		.selectFrom("taxonomies")
+		.select("locale")
+		.distinct()
+		.where("locale", "not in", supportedLocales)
+		.execute();
+	const mismatches: TaxonomyLocaleMismatch[] = [
+		...definitionRows.map(({ locale }) => ({ source: "definitions" as const, locale })),
+		...termRows.map(({ locale }) => ({ source: "terms" as const, locale })),
+	].toSorted((a, b) => a.source.localeCompare(b.source) || a.locale.localeCompare(b.locale));
 	if (mismatches.length === 0) return;
 
 	const details = mismatches.map(({ source, locale }) => `${source}: ${locale}`).join("; ");
