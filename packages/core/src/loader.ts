@@ -215,6 +215,27 @@ function expandFoldedSeo(row: Record<string, unknown>): void {
 	}
 }
 
+export function creditsFromFoldedBylines(folded: unknown[]) {
+	return folded
+		.map((raw) => {
+			const credit = isPlainObject(raw) ? raw : {};
+			const byline = isPlainObject(credit.byline) ? credit.byline : {};
+			return {
+				roleLabel: typeof credit.roleLabel === "string" ? credit.roleLabel : null,
+				sortOrder: Number(credit.sortOrder ?? 0),
+				source: "explicit" as const,
+				byline: {
+					...byline,
+					isGuest: Boolean(byline.isGuest),
+					// Folded rows contain only byline-table columns. The query wrappers
+					// replace this map through full hydration when custom fields exist.
+					customFields: {},
+				},
+			};
+		})
+		.toSorted((a, b) => a.sortOrder - b.sortOrder);
+}
+
 /**
  * Stash folded hydration JSON (non-enumerable) for the query.ts fast paths.
  * SQLite returns a JSON string (parse it); Postgres returns already-parsed JSON.
@@ -252,18 +273,7 @@ function stashFolded(data: Record<string, unknown>, row: Record<string, unknown>
 
 	const foldedBylines = Reflect.get(data, FOLDED_BYLINES);
 	if (!Array.isArray(foldedBylines)) return;
-	const credits = foldedBylines
-		.map((raw) => {
-			const credit = isPlainObject(raw) ? raw : {};
-			const byline = isPlainObject(credit.byline) ? credit.byline : {};
-			return {
-				roleLabel: typeof credit.roleLabel === "string" ? credit.roleLabel : null,
-				sortOrder: Number(credit.sortOrder ?? 0),
-				source: "explicit" as const,
-				byline: { ...byline, isGuest: Boolean(byline.isGuest), customFields: {} },
-			};
-		})
-		.toSorted((a, b) => a.sortOrder - b.sortOrder);
+	const credits = creditsFromFoldedBylines(foldedBylines);
 	data.bylines = credits;
 	data.byline = credits[0]?.byline ?? null;
 }

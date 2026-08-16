@@ -27,6 +27,7 @@
 import { encodeCursor } from "./database/repositories/types.js";
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
 import {
+	creditsFromFoldedBylines,
 	CURSOR_RAW_VALUES,
 	FOLDED_BYLINES,
 	FOLDED_BYLINES_EXIST,
@@ -1018,17 +1019,7 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 			const data = entryData(entry);
 			const folded = Reflect.get(data, FOLDED_BYLINES);
 			const rows = Array.isArray(folded) ? folded : [];
-			const credits = rows
-				.map((raw) => {
-					const b = raw?.byline ?? {};
-					return {
-						roleLabel: raw?.roleLabel ?? null,
-						sortOrder: Number(raw?.sortOrder ?? 0),
-						source: "explicit" as const,
-						byline: { ...b, isGuest: Boolean(b.isGuest), customFields: {} },
-					};
-				})
-				.toSorted((a, b) => a.sortOrder - b.sortOrder);
+			const credits = creditsFromFoldedBylines(rows);
 			return { data, credits };
 		});
 
