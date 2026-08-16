@@ -11,6 +11,13 @@ const defaultEntries = [
 	{ entrypoint: "emdash/middleware/request-context", order: "pre" },
 ] as const;
 const root = new URL("file:///project/");
+const invalidMiddleware: Array<[string, unknown]> = [
+	["a missing outer entrypoint", {}],
+	["a null middleware config", null],
+	["an empty entrypoint", { outer: "" }],
+	["a whitespace-only entrypoint", { outer: " " }],
+	["a non-string entrypoint", { outer: 42 }],
+];
 
 describe("EmDash middleware registration order", () => {
 	it("preserves the existing middleware order when no outer middleware is configured", () => {
@@ -35,6 +42,12 @@ describe("EmDash middleware registration order", () => {
 		expect(
 			buildMiddlewareEntries({ middleware: { outer: "@example/outer-middleware" } }, root),
 		).toEqual([{ entrypoint: "@example/outer-middleware", order: "pre" }, ...defaultEntries]);
+	});
+
+	it.each(invalidMiddleware)("rejects %s", (_label, middleware) => {
+		// @ts-expect-error - runtime validation covers untyped JavaScript configuration
+		const build = () => buildMiddlewareEntries({ middleware }, root);
+		expect(build).toThrow("middleware.outer must be a non-empty module specifier string or URL");
 	});
 
 	it("places the outer middleware before the playground database middleware", () => {

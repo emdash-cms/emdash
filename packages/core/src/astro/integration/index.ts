@@ -259,8 +259,14 @@ export function buildMiddlewareEntries(
 ): AstroIntegrationMiddleware[] {
 	const entries: AstroIntegrationMiddleware[] = [];
 
-	if (config.middleware) {
-		const configuredEntrypoint = config.middleware.outer;
+	if (config.middleware !== undefined) {
+		const configuredEntrypoint = config.middleware?.outer;
+		if (
+			(typeof configuredEntrypoint !== "string" && !(configuredEntrypoint instanceof URL)) ||
+			(typeof configuredEntrypoint === "string" && configuredEntrypoint.trim() === "")
+		) {
+			throw new Error("middleware.outer must be a non-empty module specifier string or URL.");
+		}
 		const entrypoint =
 			typeof configuredEntrypoint === "string" &&
 			(configuredEntrypoint.startsWith("./") || configuredEntrypoint.startsWith("../"))

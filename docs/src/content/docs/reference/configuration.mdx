@@ -106,7 +106,7 @@ See [Object Cache](/deployment/object-cache/) for setup and options.
 
 ### `middleware.outer`
 
-**Optional.** Registers an Astro middleware module outside the complete EmDash middleware stack. Use it for request gates or full-response caches that must avoid runtime and database initialization on a hit, or for response headers that depend on EmDash's final HTML.
+**Optional.** Registers an Astro middleware module outside the complete EmDash middleware stack. Because the integration registers it with Astro `order: "pre"`, it also runs before middleware defined in `src/middleware.ts`. Use it for request gates or full-response caches that must avoid runtime and database initialization on a hit, or for response headers that depend on EmDash's final HTML.
 
 ```js title="astro.config.mjs"
 emdash({
