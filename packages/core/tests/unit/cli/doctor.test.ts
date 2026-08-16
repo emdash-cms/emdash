@@ -208,6 +208,15 @@ describe("doctor scheduler wiring", () => {
 		expect(result!.message).toContain('add "main": "./src/worker.ts"');
 	});
 
+	it("provides a TOML main entry fix for a TOML configuration", async () => {
+		const cwd = await createSite(`[triggers]\ncrons = ["* * * * *"]`, null, "wrangler.toml");
+
+		const [result] = await checkSchedulerWiring(cwd);
+
+		expect(result!.message).toContain('add main = "./src/worker.ts"');
+		expect(result!.message).not.toContain('"main":');
+	});
+
 	it("reports a missing Worker entry file", async () => {
 		const cwd = await createSite(
 			`{ "main": "./src/worker.ts", "triggers": { "crons": ["* * * * *"] } }`,

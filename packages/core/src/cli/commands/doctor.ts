@@ -26,12 +26,18 @@ export interface CheckResult {
 const WRANGLER_CONFIG_FILES = ["wrangler.jsonc", "wrangler.json", "wrangler.toml"] as const;
 const CLOUDFLARE_WORKER_MODULE = "@emdash-cms/cloudflare/worker";
 const WORKER_FIX = `export { default, PluginBridge } from "${CLOUDFLARE_WORKER_MODULE}";`;
+const MAIN_FIX_JSONC = `"main": "./src/worker.ts"`;
+const MAIN_FIX_TOML = `main = "./src/worker.ts"`;
 const TRIGGER_FIX_JSONC = `"triggers": { "crons": ["* * * * *"] }`;
 const TRIGGER_FIX_TOML = `[triggers]\ncrons = ["* * * * *"]`;
 const SCHEDULED_HANDLER_PATTERN = /\bscheduled\s*:\s*createScheduledHandler\s*\(/m;
 
 function triggerFix(configPath: string): string {
 	return configPath.endsWith(".toml") ? TRIGGER_FIX_TOML : TRIGGER_FIX_JSONC;
+}
+
+function mainFix(configPath: string): string {
+	return configPath.endsWith(".toml") ? MAIN_FIX_TOML : MAIN_FIX_JSONC;
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -138,7 +144,7 @@ async function checkSchedulerWiringAtPath(cwd: string, configPath: string): Prom
 			{
 				name: "scheduler handler",
 				status: "fail",
-				message: `Wrangler configuration has no Worker entry to inspect — add "main": "./src/worker.ts", then export: ${WORKER_FIX}`,
+				message: `Wrangler configuration has no Worker entry to inspect — add ${mainFix(configPath)}, then export: ${WORKER_FIX}`,
 			},
 		];
 	}
@@ -337,7 +343,7 @@ async function checkDatabase(dbPath: string): Promise<CheckResult[]> {
 export const doctorCommand = defineCommand({
 	meta: {
 		name: "doctor",
-		description: "Check database health and diagnose issues",
+		description: "Check database health, scheduler wiring, and diagnose issues",
 	},
 	args: {
 		database: {
