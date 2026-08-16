@@ -320,7 +320,7 @@ Create a new content collection. This creates a database table and schema defini
 | `labelSingular` | `string` | No | Singular display name |
 | `description` | `string` | No | Description of this collection |
 | `icon` | `string` | No | Icon name for the admin UI |
-| `supports` | `string[]` | No | Features: `drafts`, `revisions`, `preview`, `scheduling`, `search` (default: `['drafts', 'revisions']`) |
+| `supports` | `string[]` | No | Features: `drafts`, `revisions`, `preview`, `scheduling`, `search`, `seo` (default: `['drafts', 'revisions']`) |
 
 **Scope:** `schema:write` | **Minimum role:** Admin
 
@@ -335,7 +335,7 @@ Update an existing collection without deleting its table, fields, or content. On
 | `labelSingular` | `string` | No | New singular display name |
 | `description` | `string` | No | New collection description |
 | `icon` | `string` | No | New admin UI icon name |
-| `supports` | `string[]` | No | Complete feature list to enable; omitted preserves the current list |
+| `supports` | `string[]` | No | Complete feature list to enable: `drafts`, `revisions`, `preview`, `scheduling`, `search`, `seo`; omitted preserves the current list |
 | `urlPattern` | `string \| null` | No | New public URL pattern; `null` clears it |
 | `hasSeo` | `boolean` | No | Whether the collection supports SEO metadata |
 | `commentsEnabled` | `boolean` | No | Whether comments are enabled |

@@ -114,7 +114,12 @@ const mediaUsageRepairToolSchema = z
 	});
 
 const schemaUpdateCollectionToolSchema = z.object({
-	slug: z.string().describe("Collection slug to update; the slug itself cannot be changed"),
+	slug: z
+		.string()
+		.min(1)
+		.max(63)
+		.regex(COLLECTION_SLUG_PATTERN, "Invalid collection slug")
+		.describe("Collection slug to update; the slug itself cannot be changed"),
 	label: updateCollectionBody.shape.label.describe("New plural display name"),
 	labelSingular: updateCollectionBody.shape.labelSingular.describe("New singular display name"),
 	description: updateCollectionBody.shape.description.describe("New collection description"),
@@ -143,8 +148,18 @@ const schemaUpdateCollectionToolSchema = z.object({
 });
 
 const schemaUpdateFieldToolSchema = z.object({
-	collection: z.string().describe("Collection slug containing the field"),
-	fieldSlug: z.string().describe("Field slug to update; the slug itself cannot be changed"),
+	collection: z
+		.string()
+		.min(1)
+		.max(63)
+		.regex(COLLECTION_SLUG_PATTERN, "Invalid collection slug")
+		.describe("Collection slug containing the field"),
+	fieldSlug: z
+		.string()
+		.min(1)
+		.max(63)
+		.regex(COLLECTION_SLUG_PATTERN, "Invalid field slug")
+		.describe("Field slug to update; the slug itself cannot be changed"),
 	label: updateFieldBody.shape.label.describe("New display name"),
 	type: updateFieldBody.shape.type.describe(
 		"New field type; only string, text, and slug aliases can be changed in place",

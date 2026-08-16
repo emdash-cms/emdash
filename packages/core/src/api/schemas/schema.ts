@@ -8,7 +8,14 @@ import { slugPattern } from "./common.js";
 // Schema (collections & fields): Input schemas
 // ---------------------------------------------------------------------------
 
-const collectionSupportValues = z.enum(["drafts", "revisions", "preview", "scheduling", "search"]);
+const collectionSupportValues = z.enum([
+	"drafts",
+	"revisions",
+	"preview",
+	"scheduling",
+	"search",
+	"seo",
+]);
 
 const collectionSourcePattern = /^(template:.+|import:.+|manual|discovered|seed)$/;
 

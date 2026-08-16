@@ -420,7 +420,7 @@ describe("schema_update_collection", () => {
 	it("rejects malformed URL patterns without changing the collection", async () => {
 		const result = await harness.client.callTool({
 			name: "schema_update_collection",
-			arguments: { slug: "post", urlPattern: "(" },
+			arguments: { slug: "post", urlPattern: "/articles/{slug" },
 		});
 
 		expect(result.isError).toBe(true);
@@ -437,6 +437,24 @@ describe("schema_update_collection", () => {
 		expect(result.isError, extractText(result)).toBeFalsy();
 		expect(extractJson<{ item: { hasSeo: boolean } }>(result).item.hasSeo).toBe(false);
 		expect((await new SchemaRegistry(db).getCollection("post"))?.hasSeo).toBe(false);
+
+		const enableSeo = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "post", supports: ["drafts", "seo"] },
+		});
+
+		expect(enableSeo.isError, extractText(enableSeo)).toBeFalsy();
+		expect(extractJson<{ item: { hasSeo: boolean } }>(enableSeo).item.hasSeo).toBe(true);
+	});
+
+	it("validates the collection slug before lookup", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "Invalid!", label: "Invalid" },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/invalid collection slug/i);
 	});
 
 	it("preserves concurrent partial collection updates", async () => {
@@ -973,6 +991,21 @@ describe("schema_update_field", () => {
 		const field = await new SchemaRegistry(db).getField("post", "body");
 		expect(field?.label).toBe("Body");
 		expect(field?.sortOrder).toBe(0);
+	});
+
+	it("validates collection and field slugs before lookup", async () => {
+		for (const identifiers of [
+			{ collection: "Invalid!", fieldSlug: "body" },
+			{ collection: "post", fieldSlug: "Invalid!" },
+		]) {
+			const result = await harness.client.callTool({
+				name: "schema_update_field",
+				arguments: { ...identifiers, label: "Invalid" },
+			});
+
+			expect(result.isError).toBe(true);
+			expect(extractText(result)).toMatch(/invalid .* slug/i);
+		}
 	});
 
 	it("requires schema:write scope and ADMIN role", async () => {

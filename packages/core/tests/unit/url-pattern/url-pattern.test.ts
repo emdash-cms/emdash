@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { Database } from "../../../src/database/types.js";
 import { getMenuWithDb } from "../../../src/menus/index.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
+import { compileUrlPattern } from "../../../src/schema/url-pattern.js";
 import { applySeed } from "../../../src/seed/apply.js";
 import type { SeedFile } from "../../../src/seed/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
@@ -24,6 +25,13 @@ describe("urlPattern", () => {
 	});
 
 	describe("schema registry", () => {
+		it("treats URL-pattern punctuation as literals", () => {
+			const { regex } = compileUrlPattern("/posts/{slug}.html");
+
+			expect(regex.test("/posts/example.html")).toBe(true);
+			expect(regex.test("/posts/exampleXhtml")).toBe(false);
+		});
+
 		it("should store urlPattern on create", async () => {
 			const collection = await registry.createCollection({
 				slug: "pages",
