@@ -356,8 +356,10 @@ describe("TaxonomySidebar", () => {
 		await expect.element(screen.getByLabelText("Remove Alpha")).toBeInTheDocument();
 		await screen.getByLabelText("Add Tags").click();
 
-		expect(screen.getByRole("option", { name: /^Alpha$/ }).query()).toBeNull();
-		await expect.element(screen.getByRole("option", { name: /^Beta$/ })).toBeInTheDocument();
+		expect(screen.getByRole("option", { name: /^Alpha/ }).query()).toBeNull();
+		await expect
+			.element(screen.getByRole("option", { name: /^Beta.*EN fallback$/ }))
+			.toBeInTheDocument();
 	});
 
 	it("keeps the create prompt available when no flat taxonomy terms exist", async () => {
@@ -454,6 +456,21 @@ describe("TaxonomySidebar", () => {
 		await expect.element(screen.getByText("EN fallback")).toBeInTheDocument();
 	});
 
+	it("labels fallback terms in flat suggestions before selection", async () => {
+		const screen = await render(
+			<TaxonomySidebar collection="products" entryId="entry_1" entryLocale="fr" />,
+			{ wrapper: Wrapper },
+		);
+
+		await screen.getByLabelText("Add Tags").click();
+		await vi.waitFor(() => {
+			const alphaButton = [...screen.container.querySelectorAll("button")].find((button) =>
+				button.textContent?.includes("Alpha"),
+			);
+			expect(alphaButton?.textContent).toContain("EN fallback");
+		});
+	});
+
 	it("keeps unresolved groups visible and preserves them when another term is assigned", async () => {
 		mockApiFetch({
 			unresolved: [
@@ -477,7 +494,7 @@ describe("TaxonomySidebar", () => {
 			.toBeInTheDocument();
 
 		await screen.getByLabelText("Add Tags").click();
-		await screen.getByRole("button", { name: /^Beta$/ }).click();
+		await screen.getByRole("button", { name: /^Beta.*EN fallback$/ }).click();
 
 		await vi.waitFor(() => {
 			const save = vi
@@ -488,6 +505,8 @@ describe("TaxonomySidebar", () => {
 						init?.method === "POST",
 				);
 			expect(save).toBeDefined();
+			if (!save) throw new Error("Expected an entry-terms save request");
+			expect(requestUrl(save[0])).not.toContain("locale=");
 			const body = save?.[1]?.body;
 			expect(typeof body).toBe("string");
 			if (typeof body !== "string") throw new Error("Expected a JSON request body");
@@ -510,5 +529,12 @@ describe("TaxonomySidebar", () => {
 		expect(termListCall).toBeDefined();
 		if (!termListCall) throw new Error("Expected a taxonomy term-list request");
 		expect(requestUrl(termListCall[0])).toContain("resolveFallback=true");
+
+		const entryTermsCall = vi
+			.mocked(apiFetch)
+			.mock.calls.find(([url]) => requestUrl(url).includes("/content/products/entry_1/terms/tags"));
+		expect(entryTermsCall).toBeDefined();
+		if (!entryTermsCall) throw new Error("Expected an entry-terms request");
+		expect(requestUrl(entryTermsCall[0])).not.toContain("locale=");
 	});
 });

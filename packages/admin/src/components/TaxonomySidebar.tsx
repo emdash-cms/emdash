@@ -117,11 +117,8 @@ async function fetchEntryTerms(
 	collection: string,
 	entryId: string,
 	taxonomy: string,
-	locale?: string,
 ): Promise<EntryTermsResponse> {
-	const res = await apiFetch(
-		withLocale(`/_emdash/api/content/${collection}/${entryId}/terms/${taxonomy}`, locale),
-	);
+	const res = await apiFetch(`/_emdash/api/content/${collection}/${entryId}/terms/${taxonomy}`);
 	const data = await parseApiResponse<EntryTermsResponse>(
 		res,
 		i18n._(msg`Failed to fetch entry terms`),
@@ -137,16 +134,12 @@ async function setEntryTerms(
 	entryId: string,
 	taxonomy: string,
 	termIds: string[],
-	locale?: string,
 ): Promise<void> {
-	const res = await apiFetch(
-		withLocale(`/_emdash/api/content/${collection}/${entryId}/terms/${taxonomy}`, locale),
-		{
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ termIds }),
-		},
-	);
+	const res = await apiFetch(`/_emdash/api/content/${collection}/${entryId}/terms/${taxonomy}`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ termIds }),
+	});
 	if (!res.ok) await throwResponseError(res, i18n._(msg`Failed to set entry terms`));
 }
 
@@ -316,7 +309,10 @@ function TagInput({
 									}}
 								>
 									{option.type === "term" ? (
-										option.term.label
+										<span className="flex items-center gap-2">
+											{option.term.label}
+											<TermLocaleBadge term={option.term} entryLocale={entryLocale} />
+										</span>
 									) : (
 										<span className="flex items-center gap-1 text-kumo-accent">
 											<Plus className="h-3 w-3" aria-hidden="true" />
@@ -372,7 +368,7 @@ function TaxonomySection({
 		queryKey: ["entry-terms", collection, entryId, taxonomy.name, entryLocale],
 		queryFn: () => {
 			if (!entryId) return null;
-			return fetchEntryTerms(collection, entryId, taxonomy.name, entryLocale);
+			return fetchEntryTerms(collection, entryId, taxonomy.name);
 		},
 		enabled: !!entryId,
 	});
@@ -383,7 +379,7 @@ function TaxonomySection({
 	const saveMutation = useMutation({
 		mutationFn: (termIds: string[]) => {
 			if (!entryId) throw new Error("No entry ID");
-			return setEntryTerms(collection, entryId, taxonomy.name, termIds, entryLocale);
+			return setEntryTerms(collection, entryId, taxonomy.name, termIds);
 		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
