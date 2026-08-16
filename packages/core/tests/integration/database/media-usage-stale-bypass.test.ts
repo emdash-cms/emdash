@@ -168,6 +168,7 @@ describeEachDialect("media usage stale marking for bypass writes", (dialect) => 
 			.executeTakeFirstOrThrow();
 
 		await registry.updateField("posts", "hero", {});
+		await registry.updateField("posts", "hero", { indexed: false });
 		await expect(registry.updateField("posts", "hero", { required: true })).rejects.toThrow(
 			/manual content migration/,
 		);

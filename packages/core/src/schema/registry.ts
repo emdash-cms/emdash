@@ -1108,7 +1108,8 @@ export class SchemaRegistry {
 				if (input.required !== undefined) updates.required = input.required ? 1 : 0;
 				if (input.unique !== undefined) updates.unique = input.unique ? 1 : 0;
 				if (input.searchable !== undefined) updates.searchable = input.searchable ? 1 : 0;
-				if (input.indexed !== undefined) updates.indexed = input.indexed ? 1 : 0;
+				const indexedChanged = input.indexed !== undefined && input.indexed !== field.indexed;
+				if (indexedChanged) updates.indexed = input.indexed ? 1 : 0;
 				if (input.translatable !== undefined) {
 					updates.translatable = input.translatable ? 1 : 0;
 				}
@@ -1123,7 +1124,7 @@ export class SchemaRegistry {
 				if (input.sortOrder !== undefined) updates.sort_order = input.sortOrder;
 
 				assertIndexableField(nextType, input.indexed ?? field.indexed, fieldSlug);
-				if (Object.keys(updates).length === 0 && input.indexed === undefined) return field;
+				if (Object.keys(updates).length === 0) return field;
 
 				activeCoverageInvalidated = await invalidateContentMediaUsageSchemaChange(
 					trx,
@@ -1135,7 +1136,7 @@ export class SchemaRegistry {
 					schemaMutated = true;
 				}
 
-				if (input.indexed !== undefined) {
+				if (indexedChanged) {
 					if (input.indexed) {
 						await this.createFieldIndex(collectionSlug, field.id, fieldSlug, trx);
 					} else {
