@@ -1490,7 +1490,12 @@ export async function handleContentSchedule(
 	try {
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
-			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
+			const existing = await repo.findByIdOrSlug(collection, id);
+			const resolvedId = existing?.id ?? id;
+			if (existing) {
+				const publishConfig = await getCollectionPublishConfig(trx, collection);
+				requireRoutablePublishSlug(publishConfig.routable, existing.slug);
+			}
 			return repo.schedule(collection, resolvedId, scheduledAt);
 		});
 

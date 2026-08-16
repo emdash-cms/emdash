@@ -7,6 +7,7 @@ import {
 	handleContentGet,
 	handleContentList,
 	handleContentPublish,
+	handleContentSchedule,
 	handleContentUpdate,
 } from "../../../src/api/index.js";
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
@@ -322,6 +323,44 @@ describe("Content Handlers — auto-slug generation", () => {
 			});
 			expect(republished.success).toBe(true);
 			expect(republished.data?.item).toMatchObject({ slug: null, status: "published" });
+		});
+	});
+
+	describe("scheduling", () => {
+		it("rejects scheduling slugless content in a routable collection", async () => {
+			const created = await handleContentCreate(db, "post", { data: {} });
+			expect(created.success).toBe(true);
+
+			const scheduled = await handleContentSchedule(
+				db,
+				"post",
+				created.data!.item.id,
+				new Date(Date.now() + 60_000).toISOString(),
+			);
+
+			expect(scheduled.success).toBe(false);
+			if (scheduled.success) return;
+			expect(scheduled.error.code).toBe("VALIDATION_ERROR");
+			expect(scheduled.error.message).toContain("slug");
+
+			const unchanged = await handleContentGet(db, "post", created.data!.item.id);
+			expect(unchanged.data?.item).toMatchObject({ status: "draft", scheduledAt: null });
+		});
+
+		it("allows scheduling slugless content in a non-routable collection", async () => {
+			await new SchemaRegistry(db).updateCollection("post", { routable: false });
+			const created = await handleContentCreate(db, "post", { data: {} });
+			expect(created.success).toBe(true);
+
+			const scheduled = await handleContentSchedule(
+				db,
+				"post",
+				created.data!.item.id,
+				new Date(Date.now() + 60_000).toISOString(),
+			);
+
+			expect(scheduled.success).toBe(true);
+			expect(scheduled.data?.item).toMatchObject({ slug: null, status: "scheduled" });
 		});
 	});
 
@@ -1026,10 +1065,6 @@ describe("Content Handlers — slug-change auto-redirect on publish", () => {
 		expect(unchanged.data?.item.slug).toBe("stable");
 	});
 
-	// #2034: a staged slug colliding with another entry's (slug, locale) used
-	// to surface as an opaque 500 (raw D1/SQLite UNIQUE error). It must be the
-	// same SLUG_CONFLICT (409) as direct slug edits, naming the slug so the
-	// admin can show it inline.
 	it("returns SLUG_CONFLICT naming the slug when the staged slug is taken", async () => {
 		const taken = await handleContentCreate(db, "post", {
 			data: { title: "Owner" },
