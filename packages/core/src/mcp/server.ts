@@ -168,6 +168,9 @@ const schemaUpdateFieldToolSchema = z.object({
 	translatable: updateFieldBody.shape.translatable.describe(
 		"Whether values vary by locale; changing to false requires a manual content migration",
 	),
+	indexed: updateFieldBody.shape.indexed.describe(
+		"Create or remove a physical index for structured sorting",
+	),
 });
 
 // ---------------------------------------------------------------------------

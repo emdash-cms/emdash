@@ -834,6 +834,26 @@ describe("schema_update_field", () => {
 		expect(items.some((entry) => entry.data.body === "Kept body")).toBe(true);
 	});
 
+	it("updates the structured-sort index", async () => {
+		await new SchemaRegistry(db).createField("post", {
+			slug: "priority",
+			label: "Priority",
+			type: "string",
+		});
+		const result = await harness.client.callTool({
+			name: "schema_update_field",
+			arguments: {
+				collection: "post",
+				fieldSlug: "priority",
+				indexed: true,
+			},
+		});
+
+		expect(result.isError, extractText(result)).toBeFalsy();
+		expect(extractJson<{ item: { indexed: boolean } }>(result).item.indexed).toBe(true);
+		expect((await new SchemaRegistry(db).getField("post", "priority"))?.indexed).toBe(true);
+	});
+
 	it("rejects a type change that needs a content migration and preserves the field", async () => {
 		const result = await harness.client.callTool({
 			name: "schema_update_field",
