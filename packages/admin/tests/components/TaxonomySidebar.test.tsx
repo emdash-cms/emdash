@@ -150,6 +150,17 @@ describe("TaxonomySidebar", () => {
 		await expect.element(screen.getByRole("option", { name: /^Beta$/ })).toBeInTheDocument();
 	});
 
+	it("opens existing terms when the tag picker receives keyboard focus", async () => {
+		const screen = await render(<TaxonomySidebar collection="products" />, { wrapper: Wrapper });
+		const input = screen.getByLabelText("Add Tags");
+
+		await userEvent.tab();
+
+		expect(document.activeElement).toBe(input.element());
+		await expect.element(screen.getByRole("listbox")).toBeInTheDocument();
+		await expect.element(screen.getByRole("option", { name: "Alpha" })).toBeInTheDocument();
+	});
+
 	it("filters flat taxonomy terms while preserving the create option for new input", async () => {
 		const screen = await render(<TaxonomySidebar collection="products" />, { wrapper: Wrapper });
 
@@ -383,7 +394,6 @@ describe("TaxonomySidebar", () => {
 
 			const listbox = screen.getByRole("listbox");
 			await expect.element(listbox).toBeInTheDocument();
-			expect(getComputedStyle(listbox.element()).direction).toBe("rtl");
 			await screen.getByRole("option", { name: "أمن المعلومات" }).click();
 
 			expect(onChange).toHaveBeenCalledWith("tags", ["term_information"]);

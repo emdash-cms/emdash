@@ -260,46 +260,48 @@ function TagInput({
 				</div>
 			)}
 
-			<Autocomplete
-				items={options}
-				value={input}
-				onValueChange={setInput}
-				open={isOpen && options.length > 0}
-				onOpenChange={setIsOpen}
-				mode="none"
-				autoHighlight="always"
-				openOnInputClick
-				itemToStringValue={(option: TagInputOption) =>
-					option.type === "term" ? option.term.label : option.label
-				}
-				label={<span className="sr-only">{t`Add ${label}`}</span>}
-			>
-				<Autocomplete.InputGroup placeholder={t`Add tags...`} className="text-sm" />
-				<Autocomplete.Content>
-					<Autocomplete.List style={{ maxHeight: "16rem", overflowY: "auto" }}>
-						{(option: TagInputOption) => (
-							<Autocomplete.Item
-								key={option.type === "term" ? option.term.id : "create"}
-								value={option}
-								disabled={option.type === "create" && isCreating}
-								onClick={() => {
-									if (option.type === "term") handleSelect(option.term);
-									else handleCreate();
-								}}
-							>
-								{option.type === "term" ? (
-									option.term.label
-								) : (
-									<span className="flex items-center gap-1 text-kumo-accent">
-										<Plus className="h-3 w-3" aria-hidden="true" />
-										{isCreating ? t`Creating...` : t`Create "${trimmedInput}"`}
-									</span>
-								)}
-							</Autocomplete.Item>
-						)}
-					</Autocomplete.List>
-				</Autocomplete.Content>
-			</Autocomplete>
+			<div onFocus={() => setIsOpen(true)}>
+				<Autocomplete
+					items={options}
+					value={input}
+					onValueChange={setInput}
+					open={isOpen && options.length > 0}
+					onOpenChange={setIsOpen}
+					mode="none"
+					autoHighlight="always"
+					openOnInputClick
+					itemToStringValue={(option: TagInputOption) =>
+						option.type === "term" ? option.term.label : option.label
+					}
+					label={<span className="sr-only">{t`Add ${label}`}</span>}
+				>
+					<Autocomplete.InputGroup placeholder={t`Add tags...`} className="text-sm" />
+					<Autocomplete.Content>
+						<Autocomplete.List style={{ maxHeight: "16rem", overflowY: "auto" }}>
+							{(option: TagInputOption) => (
+								<Autocomplete.Item
+									key={option.type === "term" ? option.term.id : "create"}
+									value={option}
+									disabled={option.type === "create" && isCreating}
+									onClick={() => {
+										if (option.type === "term") handleSelect(option.term);
+										else handleCreate();
+									}}
+								>
+									{option.type === "term" ? (
+										option.term.label
+									) : (
+										<span className="flex items-center gap-1 text-kumo-accent">
+											<Plus className="h-3 w-3" aria-hidden="true" />
+											{isCreating ? t`Creating...` : t`Create "${trimmedInput}"`}
+										</span>
+									)}
+								</Autocomplete.Item>
+							)}
+						</Autocomplete.List>
+					</Autocomplete.Content>
+				</Autocomplete>
+			</div>
 		</div>
 	);
 }
