@@ -744,11 +744,7 @@ export class SchemaRegistry {
 			if (input.admin !== undefined) updates.admin_config = JSON.stringify(input.admin);
 			if (input.supports !== undefined) updates.supports = JSON.stringify(input.supports);
 			if (input.urlPattern !== undefined) updates.url_pattern = input.urlPattern;
-			if (input.hasSeo !== undefined) {
-				updates.has_seo = input.hasSeo ? 1 : 0;
-			} else if (input.supports !== undefined) {
-				updates.has_seo = input.supports.includes("seo") ? 1 : 0;
-			}
+			if (input.hasSeo !== undefined) updates.has_seo = input.hasSeo ? 1 : 0;
 			if (input.hidden !== undefined) updates.hidden = input.hidden ? 1 : 0;
 			if (input.sortOrder !== undefined) updates.sort_order = input.sortOrder;
 			if (input.titleField !== undefined) updates.title_field = input.titleField || null;
@@ -1028,10 +1024,7 @@ export class SchemaRegistry {
 		fieldSlug: string,
 		input: UpdateFieldInput,
 	): Promise<Field> {
-		const activeCoverageInvalidated = await invalidateContentMediaUsageSchemaChange(
-			this.db,
-			collectionSlug,
-		);
+		let activeCoverageInvalidated = false;
 		let schemaMutated = false;
 		try {
 			const updatedField = await withTransaction(this.db, async (trx) => {
@@ -1130,6 +1123,12 @@ export class SchemaRegistry {
 				if (input.sortOrder !== undefined) updates.sort_order = input.sortOrder;
 
 				assertIndexableField(nextType, input.indexed ?? field.indexed, fieldSlug);
+				if (Object.keys(updates).length === 0 && input.indexed === undefined) return field;
+
+				activeCoverageInvalidated = await invalidateContentMediaUsageSchemaChange(
+					trx,
+					collectionSlug,
+				);
 
 				if (Object.keys(updates).length > 0) {
 					await trx.updateTable("_emdash_fields").set(updates).where("id", "=", field.id).execute();
