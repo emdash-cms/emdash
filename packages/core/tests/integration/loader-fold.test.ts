@@ -11,6 +11,7 @@
 
 import { afterEach, beforeEach, expect, it } from "vitest";
 
+import { resetBylineFieldDefsCacheForTests } from "../../src/bylines/field-defs-cache.js";
 import { BylineRepository } from "../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
@@ -44,6 +45,7 @@ describeEachDialect("loader hydration fold", (dialect) => {
 		ctx = await setupForDialectWithCollections(dialect);
 	});
 	afterEach(async () => {
+		resetBylineFieldDefsCacheForTests();
 		await teardownForDialect(ctx);
 	});
 
@@ -174,6 +176,7 @@ describeEachDialect("loader hydration fold", (dialect) => {
 		const bylines = new BylineRepository(db);
 		const fields = new BylineSchemaRegistry(ctx.db);
 		await fields.createField({ slug: "job_title", label: "Job title", type: "string" });
+		resetBylineFieldDefsCacheForTests();
 		const author = await bylines.create({
 			displayName: "Ada Lovelace",
 			slug: "ada-custom",
