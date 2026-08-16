@@ -26,6 +26,8 @@
 		"knip": "knip --no-exit-code --exclude unlisted,unresolved,exports,types,duplicates",
 		"new": "create-emdash",
 		"screenshots": "node scripts/screenshot-all-templates.mjs",
+		"bundle:check": "node scripts/check-admin-client-bundle.mjs",
+		"bundle:check:ci": "node scripts/check-admin-client-bundle.mjs --ci-reuse-query-count-build",
 		"query-counts": "node scripts/query-counts.mjs",
 		"locale:extract": "pnpm --filter @emdash-cms/admin locale:extract",
 		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile"

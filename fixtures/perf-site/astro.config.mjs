@@ -6,6 +6,8 @@ import { defineConfig } from "astro/config";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 
+import { adminClientBundleMetadata } from "../../scripts/check-admin-client-bundle.mjs";
+
 const target = process.env.EMDASH_FIXTURE_TARGET ?? "sqlite";
 
 const sqliteIntegration = emdash({
@@ -33,4 +35,7 @@ export default defineConfig({
 				}),
 	integrations: [react(), target === "d1" ? d1Integration : sqliteIntegration],
 	devToolbar: { enabled: false },
+	vite: {
+		plugins: [adminClientBundleMetadata()],
+	},
 });

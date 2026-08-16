@@ -24,8 +24,11 @@
  */
 
 import {
+	ActivityIcon,
 	Plug,
 	Gear,
+	Heart,
+	HeartIcon,
 	Trophy,
 	ClockCounterClockwise,
 	IdentificationCard,
@@ -41,6 +44,7 @@ import {
 	toPhosphorIconName,
 	visibleCollectionEntries,
 } from "../../src/components/Sidebar";
+import { loadPhosphorIcon } from "../../src/lib/phosphor-icon-loader.js";
 import { render } from "../utils/render.tsx";
 
 // Mirror @emdash-cms/auth Role levels. Kept inline (matching Sidebar.tsx)
@@ -193,6 +197,30 @@ describe("resolveNavIcon", () => {
 		expect((first as { $$typeof?: symbol }).$$typeof).toBe(Symbol.for("react.lazy"));
 	});
 
+	it("renders uncommon Phosphor names and Icon aliases", async () => {
+		const ByName = resolveNavIcon("heart");
+		const ByAlias = resolveNavIcon("heart-icon");
+		const ByModuleAlias = resolveNavIcon("activity-icon");
+		const screen = await render(
+			<React.Suspense fallback={<span>loading</span>}>
+				<ByName data-testid="by-name" />
+				<ByAlias data-testid="by-alias" />
+				<ByModuleAlias data-testid="by-module-alias" />
+				<Heart data-testid="expected" />
+				<ActivityIcon data-testid="expected-module-alias" />
+			</React.Suspense>,
+		);
+		const byName = screen.getByTestId("by-name");
+		await expect.element(byName).toBeInTheDocument();
+		expect(byName.element().innerHTML).toBe(screen.getByTestId("expected").element().innerHTML);
+		expect(screen.getByTestId("by-alias").element().innerHTML).toBe(
+			screen.getByTestId("expected").element().innerHTML,
+		);
+		expect(screen.getByTestId("by-module-alias").element().innerHTML).toBe(
+			screen.getByTestId("expected-module-alias").element().innerHTML,
+		);
+	});
+
 	it("renders the Plug fallback for a name that doesn't exist in Phosphor", async () => {
 		// The lazy path resolves an unknown icon name to Plug. Drive
 		// it through a real render (not the Kumo Sidebar — just the icon) and
@@ -208,5 +236,31 @@ describe("resolveNavIcon", () => {
 		const resolved = screen.getByTestId("resolved");
 		await expect.element(resolved).toBeInTheDocument();
 		expect(resolved.element().innerHTML).toBe(screen.getByTestId("expected").element().innerHTML);
+	});
+});
+
+describe("loadPhosphorIcon", () => {
+	it("loads canonical names and Icon aliases from the same generated module", async () => {
+		const heart = await loadPhosphorIcon("Heart");
+		const heartAlias = await loadPhosphorIcon("HeartIcon");
+
+		expect(heart).toBe(heartAlias);
+		expect((heart as { displayName?: string }).displayName).toBe(HeartIcon.displayName);
+	});
+
+	it("loads aliases exported from differently named modules", async () => {
+		const activity = await loadPhosphorIcon("ActivityIcon");
+		const pulse = await loadPhosphorIcon("PulseIcon");
+
+		expect(activity).toBe(pulse);
+		expect((activity as { displayName?: string }).displayName).toBe(ActivityIcon.displayName);
+	});
+
+	it("returns undefined for names outside the installed Phosphor set", async () => {
+		await expect(loadPhosphorIcon("DefinitelyNotARealIconXyz")).resolves.toBeUndefined();
+	});
+
+	it("returns undefined for inherited object properties", async () => {
+		await expect(loadPhosphorIcon("constructor")).resolves.toBeUndefined();
 	});
 });
