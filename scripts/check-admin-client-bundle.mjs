@@ -11,6 +11,11 @@ const MAX_INITIAL_PHOSPHOR_DEFS = 350;
 const MAX_NON_BUCKET_LAZY_PHOSPHOR_DEFS = 32;
 const MAX_TOTAL_NON_BUCKET_LAZY_PHOSPHOR_DEFS = 96;
 const MAX_ICON_BUCKET_BYTES = 275_000;
+const ICON_BUCKET_MODULE_RE = /\/bucket-\d{2}(?:-[^/]+)?\.js$/;
+const CHART_MODULE_RE = /\/chart(?:-[^/]+)?\.js$/;
+const PHOSPHOR_DEFINITION_RE =
+	/\/node_modules\/@phosphor-icons\/react\/dist\/defs\/([^/]+)\.es\.js$/;
+const JAVASCRIPT_MODULE_RE = /\.m?js$/;
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const scriptPath = fileURLToPath(import.meta.url);
@@ -83,17 +88,15 @@ function isPackageDistModule(id, packagePath) {
 }
 
 function isIconBucketModule(id) {
-	return isPackageDistModule(id, "admin") && /\/bucket-\d{2}(?:-[^/]+)?\.js$/.test(normalizeId(id));
+	return isPackageDistModule(id, "admin") && ICON_BUCKET_MODULE_RE.test(normalizeId(id));
 }
 
 function isChartModule(id) {
-	return isPackageDistModule(id, "blocks") && /\/chart(?:-[^/]+)?\.js$/.test(normalizeId(id));
+	return isPackageDistModule(id, "blocks") && CHART_MODULE_RE.test(normalizeId(id));
 }
 
 function phosphorDefinitionName(id) {
-	return normalizeId(id).match(
-		/\/node_modules\/@phosphor-icons\/react\/dist\/defs\/([^/]+)\.es\.js$/,
-	)?.[1];
+	return normalizeId(id).match(PHOSPHOR_DEFINITION_RE)?.[1];
 }
 
 function getBundledPhosphorDefinitions(moduleIds, missingSourceMaps) {
@@ -104,7 +107,7 @@ function getBundledPhosphorDefinitions(moduleIds, missingSourceMaps) {
 		const workspacePackageModule = ["admin", "blocks", "core"].some((packageDir) =>
 			isWorkspacePackageDistModule(id, packageDir),
 		);
-		if (!workspacePackageModule || !/\.m?js$/.test(id)) continue;
+		if (!workspacePackageModule || !JAVASCRIPT_MODULE_RE.test(id)) continue;
 		const sourceMapPath = `${id}.map`;
 		if (!existsSync(sourceMapPath)) {
 			missingSourceMaps.add(sourceMapPath);
