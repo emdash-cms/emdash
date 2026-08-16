@@ -14,6 +14,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { BylineRepository } from "../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
+import type { ContentBylineCredit } from "../../src/database/repositories/types.js";
 import { setI18nConfig } from "../../src/i18n/config.js";
 import { emdashLoader, FOLDED_BYLINES, FOLDED_TERMS } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
@@ -119,12 +120,7 @@ describeEachDialect("loader hydration fold", (dialect) => {
 		// author avatars; the fold must carry it (regression guard).
 		expect(ada?.byline.avatarMediaId).toBe("media_ada_avatar");
 
-		const publicCredits = data.bylines as Array<{
-			roleLabel: string | null;
-			sortOrder: number;
-			source: string;
-			byline: { displayName: string; slug: string; isGuest: boolean; customFields: unknown };
-		}>;
+		const publicCredits = data.bylines as ContentBylineCredit[];
 		expect(
 			publicCredits.map((credit) => ({
 				displayName: credit.byline.displayName,
@@ -165,7 +161,7 @@ describeEachDialect("loader hydration fold", (dialect) => {
 		const entry = (result as any).entries[0];
 		expect(read<FoldedTerm[]>(entry.data, FOLDED_TERMS)[0]!.slug).toBe("news");
 		expect(
-			(entry.data.bylines as FoldedByline[]).map((credit) => credit.byline.displayName),
+			(entry.data.bylines as ContentBylineCredit[]).map((credit) => credit.byline.displayName),
 		).toEqual(["Grace Hopper", "Ada Lovelace"]);
 		expect(entry.data.byline.displayName).toBe("Grace Hopper");
 	});
