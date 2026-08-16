@@ -280,6 +280,49 @@ describe("Content Handlers — auto-slug generation", () => {
 			expect(result.success).toBe(true);
 			expect(result.data?.item.status).toBe("published");
 		});
+
+		it("rejects clearing the slug of published routable content", async () => {
+			const created = await handleContentCreate(db, "post", {
+				data: { title: "Published" },
+				slug: "published",
+				status: "published",
+			});
+			expect(created.success).toBe(true);
+
+			const result = await handleContentUpdate(db, "post", created.data!.item.id, {
+				slug: null,
+			});
+
+			expect(result.success).toBe(false);
+			if (result.success) return;
+			expect(result.error.code).toBe("VALIDATION_ERROR");
+			expect((await handleContentGet(db, "post", created.data!.item.id)).data?.item.slug).toBe(
+				"published",
+			);
+		});
+
+		it("allows clearing a slug when the resulting content is not routable and published", async () => {
+			const created = await handleContentCreate(db, "post", {
+				data: { title: "Published" },
+				slug: "published",
+				status: "published",
+			});
+			expect(created.success).toBe(true);
+
+			const draft = await handleContentUpdate(db, "post", created.data!.item.id, {
+				slug: null,
+				status: "draft",
+			});
+			expect(draft.success).toBe(true);
+			expect(draft.data?.item).toMatchObject({ slug: null, status: "draft" });
+
+			await new SchemaRegistry(db).updateCollection("post", { routable: false });
+			const republished = await handleContentUpdate(db, "post", created.data!.item.id, {
+				status: "published",
+			});
+			expect(republished.success).toBe(true);
+			expect(republished.data?.item).toMatchObject({ slug: null, status: "published" });
+		});
 	});
 
 	describe("handleContentDuplicate", () => {

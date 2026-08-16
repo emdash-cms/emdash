@@ -795,7 +795,7 @@ export async function handleContentCreate(
 	collection: string,
 	body: {
 		data: Record<string, unknown>;
-		slug?: string;
+		slug?: string | null;
 		status?: string;
 		authorId?: string;
 		bylines?: ContentBylineInput[];
@@ -981,7 +981,7 @@ export async function handleContentUpdate(
 	id: string,
 	body: {
 		data?: Record<string, unknown>;
-		slug?: string;
+		slug?: string | null;
 		status?: string;
 		authorId?: string | null;
 		bylines?: ContentBylineInput[];
@@ -1051,14 +1051,15 @@ export async function handleContentUpdate(
 				oldSlug = existing.slug;
 			}
 
-			if (body.status === "published") {
+			const resultingStatus = body.status ?? existing?.status;
+			if (resultingStatus === "published") {
 				if (!existing) {
 					throw Object.assign(new Error(`Content item not found: ${id}`), {
 						apiError: { code: "NOT_FOUND" as const },
 					});
 				}
 				const publishConfig = await getCollectionPublishConfig(trx, collection);
-				const intendedSlug = typeof body.slug === "string" ? body.slug : existing.slug;
+				const intendedSlug = body.slug !== undefined ? body.slug : existing.slug;
 				requireRoutablePublishSlug(publishConfig.routable, intendedSlug);
 			}
 
