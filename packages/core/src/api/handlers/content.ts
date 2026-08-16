@@ -9,7 +9,7 @@ import { isSqlite } from "../../database/dialect-helpers.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import type { ContentBylineInput } from "../../database/repositories/byline.js";
 import { CommentRepository } from "../../database/repositories/comment.js";
-import { ContentRepository } from "../../database/repositories/content.js";
+import { ContentRepository, isSystemOrderField } from "../../database/repositories/content.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
@@ -329,14 +329,16 @@ export interface TrashedContentItem {
 
 /**
  * Resolve the columns a content-list search should match against. Always
- * includes `slug` (a standard column), adds the `title`/`name` display fields
- * when they exist, and includes every field explicitly marked searchable.
- * Returning only schema-backed columns avoids "no such column" errors.
+ * includes `slug` (a standard column), adds the configured `titleField` plus
+ * the `title`/`name` display fields when the collection actually defines them,
+ * mirroring the admin's item-title resolution (titleField -> title -> name ->
+ * slug), and includes every field explicitly marked searchable. Returning only
+ * schema-backed columns avoids "no such column" errors.
  */
 async function resolveSearchColumns(db: Kysely<Database>, collection: string): Promise<string[]> {
 	const row = await db
 		.selectFrom("_emdash_collections")
-		.select("id")
+		.select(["id", "title_field"])
 		.where("slug", "=", collection)
 		.executeTakeFirst();
 	if (!row) return ["slug"];
@@ -349,6 +351,10 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 		.execute();
 	const columns = new Set(["slug"]);
 	const fieldSlugs = new Set(fields.map((f) => f.slug));
+
+	// A configured titleField takes precedence, then the conventional
+	// title/name fields. A null title_field falls through to those defaults.
+	if (row.title_field && fieldSlugs.has(row.title_field)) columns.add(row.title_field);
 	for (const candidate of ["title", "name"]) {
 		if (fieldSlugs.has(candidate)) columns.add(candidate);
 	}
@@ -529,6 +535,21 @@ export async function handleContentList(
 			where.useFts = await canUseFtsForListFilter(db, collection, where.searchColumns);
 		}
 
+		// Sorting by a non-system field (a collection's titleField/dateField)
+		// needs the collection's *actual* sort fields resolved server-side,
+		// so the orderBy set stays closed. Only query when it's not a system field.
+		let sortableExtras: string[] | undefined;
+		if (params.orderBy && !isSystemOrderField(params.orderBy)) {
+			const coll = await db
+				.selectFrom("_emdash_collections")
+				.select(["title_field", "date_field"])
+				.where("slug", "=", collection)
+				.executeTakeFirst();
+			sortableExtras = [coll?.title_field, coll?.date_field].filter(
+				(slug): slug is string => !!slug,
+			);
+		}
+
 		const result = await repo.findMany(collection, {
 			cursor: params.cursor,
 			limit: params.limit || 50,
@@ -536,6 +557,7 @@ export async function handleContentList(
 			orderBy: params.orderBy
 				? { field: params.orderBy, direction: params.order || "desc" }
 				: undefined,
+			sortableExtras,
 		});
 
 		// Hydrate SEO data if the collection has SEO enabled

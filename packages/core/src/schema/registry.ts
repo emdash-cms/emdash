@@ -60,6 +60,9 @@ const COLUMN_TYPE_TO_DATA_TYPE = {
 	JSON: "json",
 } satisfies Record<ColumnType, ColumnDataType>;
 
+/** Field types usable as a `titleField` — plain text that reads well as a title. */
+const TITLE_FIELD_TYPES: ReadonlySet<string> = new Set(["string", "text", "slug"]);
+
 /** Valid collection source prefixes/values */
 const VALID_SOURCES: ReadonlySet<string> = new Set(["manual", "discovered", "seed"]);
 
@@ -329,6 +332,60 @@ export class SchemaRegistry {
 			...this.mapCollectionRow(c),
 			fields: fieldsByCollection.get(c.id) ?? [],
 		}));
+	}
+
+	/**
+	 * Validate `titleField`/`dateField` against the collection's fields:
+	 * `titleField` must be a text-like field; `dateField` must be a `datetime` field.
+	 * Only truthy values are checked (undefined = unchanged, null/"" = cleared).
+	 */
+	private async validateTitleDateFields(
+		collectionId: string,
+		collectionSlug: string,
+		input: { titleField?: string | null; dateField?: string | null },
+	): Promise<void> {
+		const slugs = [input.titleField, input.dateField].filter((slug): slug is string => !!slug);
+		if (slugs.length === 0) return;
+
+		const rows = await this.db
+			.selectFrom("_emdash_fields")
+			.where("collection_id", "=", collectionId)
+			.where("slug", "in", slugs)
+			.select(["slug", "type"])
+			.execute();
+		const typeBySlug = new Map(rows.map((row) => [row.slug, row.type]));
+
+		if (input.titleField) {
+			const type = typeBySlug.get(input.titleField);
+			if (type === undefined) {
+				throw new SchemaError(
+					`titleField "${input.titleField}" is not a field on "${collectionSlug}"`,
+					"INVALID_TITLE_FIELD",
+				);
+			}
+			if (!TITLE_FIELD_TYPES.has(type)) {
+				throw new SchemaError(
+					`titleField "${input.titleField}" must be a text field (got "${type}")`,
+					"INVALID_TITLE_FIELD",
+				);
+			}
+		}
+
+		if (input.dateField) {
+			const type = typeBySlug.get(input.dateField);
+			if (type === undefined) {
+				throw new SchemaError(
+					`dateField "${input.dateField}" is not a field on "${collectionSlug}"`,
+					"INVALID_DATE_FIELD",
+				);
+			}
+			if (type !== "datetime") {
+				throw new SchemaError(
+					`dateField "${input.dateField}" must be a datetime field (got "${type}")`,
+					"INVALID_DATE_FIELD",
+				);
+			}
+		}
 	}
 
 	/**
@@ -655,6 +712,13 @@ export class SchemaRegistry {
 			throw new SchemaError(`Collection "${slug}" not found`, "COLLECTION_NOT_FOUND");
 		}
 
+		// Fields exist by update time, so this is where title/date fields are
+		// strictly validated (fail fast, before opening the transaction).
+		await this.validateTitleDateFields(existing.id, slug, {
+			titleField: input.titleField,
+			dateField: input.dateField,
+		});
+
 		const now = new Date().toISOString();
 
 		// Derive hasSeo from supports array if supports is being updated and hasSeo not explicitly set
@@ -687,6 +751,13 @@ export class SchemaRegistry {
 						input.urlPattern !== undefined
 							? (input.urlPattern ?? null)
 							: (existing.urlPattern ?? null),
+					// `|| null` (not `?? null`): "" clears back to the default.
+					title_field:
+						input.titleField !== undefined
+							? input.titleField || null
+							: (existing.titleField ?? null),
+					date_field:
+						input.dateField !== undefined ? input.dateField || null : (existing.dateField ?? null),
 					has_seo: hasSeo ? 1 : 0,
 					hidden: input.hidden !== undefined ? (input.hidden ? 1 : 0) : existing.hidden ? 1 : 0,
 					sort_order:
@@ -1001,6 +1072,24 @@ export class SchemaRegistry {
 					"FIELD_TYPE_COLUMN_CHANGE",
 				);
 			}
+
+			// A same-column-type change can still break the titleField/dateField
+			// type invariants. Read the collection only when a type change
+			// is actually requested, so the common path pays nothing.
+			const collection = await this.getCollection(collectionSlug);
+			if (collection?.titleField === fieldSlug && !TITLE_FIELD_TYPES.has(input.type)) {
+				throw new SchemaError(
+					`titleField "${fieldSlug}" must stay a text field, not "${input.type}"`,
+					"INVALID_TITLE_FIELD",
+				);
+			}
+			if (collection?.dateField === fieldSlug && input.type !== "datetime") {
+				throw new SchemaError(
+					`dateField "${fieldSlug}" must stay a datetime field, not "${input.type}"`,
+					"INVALID_DATE_FIELD",
+				);
+			}
+
 			nextType = input.type;
 			nextColumnType = newColumnType;
 		}
@@ -1176,6 +1265,13 @@ export class SchemaRegistry {
 			collectionSlug,
 		);
 
+		// If this field powers the collection's titleField/dateField,
+		// clear that reference in the same transaction — otherwise the metadata
+		// would point at a dropped column and later crash the content list sort.
+		const collection = await this.getCollection(collectionSlug);
+		const clearTitle = collection?.titleField === fieldSlug;
+		const clearDate = collection?.dateField === fieldSlug;
+
 		let schemaMutated = false;
 		try {
 			await withTransaction(this.db, async (trx) => {
@@ -1186,6 +1282,18 @@ export class SchemaRegistry {
 				// before we attempt the ALTER TABLE DROP COLUMN below.
 				await trx.deleteFrom("_emdash_fields").where("id", "=", field.id).execute();
 				schemaMutated = true;
+
+				if (clearTitle || clearDate) {
+					await trx
+						.updateTable("_emdash_collections")
+						.set({
+							...(clearTitle ? { title_field: null } : {}),
+							...(clearDate ? { date_field: null } : {}),
+							updated_at: new Date().toISOString(),
+						})
+						.where("slug", "=", collectionSlug)
+						.execute();
+				}
 
 				// If the deleted field was searchable, sync FTS state (removes old triggers)
 				if (field.searchable) {
@@ -1694,6 +1802,10 @@ export class SchemaRegistry {
 			supports: parseSupports(row.supports),
 			source: row.source && isCollectionSource(row.source) ? row.source : undefined,
 			hasSeo: row.has_seo === 1,
+			// Raw value; undefined when unset. The admin list resolves the
+			// default (title fallback chain / updatedAt) at the point of use.
+			titleField: row.title_field ?? undefined,
+			dateField: row.date_field ?? undefined,
 			urlPattern: row.url_pattern ?? undefined,
 			hidden: row.hidden === 1,
 			sortOrder: row.sort_order ?? undefined,

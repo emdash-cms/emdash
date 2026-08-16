@@ -341,10 +341,15 @@ function ContentListPage() {
 
 	// Controlled sort state — passed to the list, and included in the query
 	// key so changing direction invalidates the current cursor chain.
-	const [sort, setSort] = React.useState<ContentListSort>({
-		field: "updatedAt",
+	// Default sorts by the collection's dateField, else last-updated.
+	// `sortOverride` is the user's explicit choice (null until they click a
+	// column), keeping the default reactive as the manifest loads and per-collection.
+	const [sortOverride, setSortOverride] = React.useState<ContentListSort | null>(null);
+	const sort: ContentListSort = sortOverride ?? {
+		field: manifest?.collections[collection]?.dateField ?? "updatedAt",
 		direction: "desc",
-	});
+	};
+	React.useEffect(() => setSortOverride(null), [collection]);
 
 	// Server-side search term (debounced inside ContentList). Part of the query
 	// key so a new term restarts the cursor chain from a filtered first page.
@@ -630,8 +635,10 @@ function ContentListPage() {
 			activeLocale={activeLocale}
 			onLocaleChange={handleLocaleChange}
 			urlPattern={collectionConfig.urlPattern}
+			titleField={collectionConfig.titleField}
+			dateField={collectionConfig.dateField}
 			sort={sort}
-			onSortChange={setSort}
+			onSortChange={setSortOverride}
 			total={total}
 			onSearchChange={setSearchTerm}
 			statusFilter={statusFilter}

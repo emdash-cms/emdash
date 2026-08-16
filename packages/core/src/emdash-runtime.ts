@@ -2555,6 +2555,8 @@ export class EmDashRuntime {
 					supports: collection.supports || [],
 					hasSeo: collection.hasSeo,
 					urlPattern: collection.urlPattern,
+					titleField: collection.titleField,
+					dateField: collection.dateField,
 					...(collection.hidden ? { hidden: true } : {}),
 					listColumns: listColumns.length > 0 ? listColumns : undefined,
 					fields,

@@ -204,6 +204,12 @@ export interface FindManyOptions {
 		field: string;
 		direction: "asc" | "desc";
 	};
+	/**
+	 * Extra field slugs allowed as `orderBy` beyond the system columns — the
+	 * collection's configured titleField/dateField. Resolved by the
+	 * handler server-side so `orderBy` stays a closed set per request.
+	 */
+	sortableExtras?: string[];
 	limit?: number;
 	cursor?: string; // Base64-encoded JSON: {orderValue: string, id: string}
 }

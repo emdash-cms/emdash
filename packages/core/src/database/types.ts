@@ -420,6 +420,8 @@ export interface CollectionTable {
 	source: string | null;
 	search_config: string | null; // JSON: SearchConfig
 	has_seo: number; // 0 or 1 — opt-in SEO fields for this collection
+	title_field: string | null; // field slug for the admin list Title column (NULL = default)
+	date_field: string | null; // field slug (datetime) for the admin list Date column (NULL = default)
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")
 	hidden: Generated<number>; // 0 or 1 — omit the auto-generated admin sidebar entry
 	sort_order: number | null; // explicit admin sidebar position; NULL = alphabetical fallback
