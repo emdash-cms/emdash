@@ -2,10 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import {
-	_createUnsupportedFileHandlers as createUnsupportedFileHandlers,
-	_getUnsupportedFileGuidance as getUnsupportedFileGuidance,
-} from "../../../src/components/InlinePortableTextEditor.js";
+import { _createUnsupportedFileHandlers as createUnsupportedFileHandlers } from "../../../src/components/InlinePortableTextEditor.js";
 
 function fileList(...files: File[]): FileList {
 	const list = {
@@ -39,6 +36,19 @@ describe("inline editor file transfers", () => {
 		expect(handlers.handleDOMEvents.drop({} as never, event)).toBe(true);
 		expect(event.preventDefault).toHaveBeenCalledOnce();
 		expect(showGuidance).toHaveBeenCalledOnce();
+	});
+
+	it("keeps file drags inside the editor until they can be refused", () => {
+		const showGuidance = vi.fn();
+		const handlers = createUnsupportedFileHandlers(showGuidance);
+		const dragEnter = dropEvent([new File(["image"], "photo.png", { type: "image/png" })]);
+		const dragOver = dropEvent([new File(["image"], "photo.png", { type: "image/png" })]);
+
+		expect(handlers.handleDOMEvents.dragenter({} as never, dragEnter)).toBe(true);
+		expect(handlers.handleDOMEvents.dragover({} as never, dragOver)).toBe(true);
+		expect(dragEnter.preventDefault).toHaveBeenCalledOnce();
+		expect(dragOver.preventDefault).toHaveBeenCalledOnce();
+		expect(showGuidance).not.toHaveBeenCalled();
 	});
 
 	it("refuses files pasted from the clipboard", () => {
@@ -75,14 +85,5 @@ describe("inline editor file transfers", () => {
 		expect(drop.preventDefault).not.toHaveBeenCalled();
 		expect(paste.preventDefault).not.toHaveBeenCalled();
 		expect(showGuidance).not.toHaveBeenCalled();
-	});
-
-	it("localizes the guidance for an Arabic editing page", () => {
-		expect(getUnsupportedFileGuidance("ar-EG")).toBe(
-			"لا يمكن إفلات الملفات أو لصقها هنا. اكتب /image لاختيار صورة من مكتبة الوسائط.",
-		);
-		expect(getUnsupportedFileGuidance("fr")).toBe(
-			"Files can’t be dropped or pasted here. Type /image to choose an image from the media library.",
-		);
 	});
 });

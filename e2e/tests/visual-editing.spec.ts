@@ -210,6 +210,18 @@ test.describe("Inline Editor", () => {
 		const dropResult = await editor.evaluate((element) => {
 			const transfer = new DataTransfer();
 			transfer.items.add(new File(["image"], "drop.png", { type: "image/png" }));
+			const dragEnter = new DragEvent("dragenter", {
+				bubbles: true,
+				cancelable: true,
+				dataTransfer: transfer,
+			});
+			const dragEnterDispatched = element.dispatchEvent(dragEnter);
+			const dragOver = new DragEvent("dragover", {
+				bubbles: true,
+				cancelable: true,
+				dataTransfer: transfer,
+			});
+			const dragOverDispatched = element.dispatchEvent(dragOver);
 			const event = new DragEvent("drop", {
 				bubbles: true,
 				cancelable: true,
@@ -217,6 +229,10 @@ test.describe("Inline Editor", () => {
 			});
 			const dispatched = element.dispatchEvent(event);
 			return {
+				dragEnterDefaultPrevented: dragEnter.defaultPrevented,
+				dragEnterDispatched,
+				dragOverDefaultPrevented: dragOver.defaultPrevented,
+				dragOverDispatched,
 				defaultPrevented: event.defaultPrevented,
 				dispatched,
 				fileCount: event.dataTransfer?.files.length,
@@ -226,6 +242,10 @@ test.describe("Inline Editor", () => {
 		});
 
 		expect(dropResult).toEqual({
+			dragEnterDefaultPrevented: true,
+			dragEnterDispatched: false,
+			dragOverDefaultPrevented: true,
+			dragOverDispatched: false,
 			defaultPrevented: true,
 			dispatched: false,
 			fileCount: 1,

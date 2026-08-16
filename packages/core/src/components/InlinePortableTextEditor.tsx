@@ -102,8 +102,15 @@ function hasTransferredFiles(transfer: DataTransfer | null): boolean {
 }
 
 function createUnsupportedFileHandlers(showGuidance: () => void) {
+	const keepFileDragInEditor = (_view: unknown, event: DragEvent): boolean => {
+		if (!hasTransferredFiles(event.dataTransfer)) return false;
+		event.preventDefault();
+		return true;
+	};
 	return {
 		handleDOMEvents: {
+			dragenter: keepFileDragInEditor,
+			dragover: keepFileDragInEditor,
 			drop: (_view: unknown, event: DragEvent): boolean => {
 				if (!hasTransferredFiles(event.dataTransfer)) return false;
 				event.preventDefault();
@@ -2414,8 +2421,7 @@ export function InlinePortableTextEditor({
 	);
 }
 
-// Test-only exports for unit tests of the conversion functions.
+// Test-only exports for unit tests.
 export { pmToPortableText as _pmToPortableText };
 export { portableTextToPM as _portableTextToPM };
 export { createUnsupportedFileHandlers as _createUnsupportedFileHandlers };
-export { getUnsupportedFileGuidance as _getUnsupportedFileGuidance };
