@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { LOCALE_CODE_PATTERN } from "../../i18n/config.js";
+
 // ---------------------------------------------------------------------------
 // Role level
 // ---------------------------------------------------------------------------
@@ -58,7 +60,7 @@ export const httpUrl = z
  * Validation is case-insensitive, but the value is preserved verbatim because the site config, stored
  * `locale` columns, and public query path all keep the raw BCP-47 casing.
  */
-export const localeCode = z.string().regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i, "Invalid locale code");
+export const localeCode = z.string().regex(LOCALE_CODE_PATTERN, "Invalid locale code");
 
 /** Shared `?locale=xx` query shape for endpoints that filter by locale. */
 export const localeFilterQuery = z

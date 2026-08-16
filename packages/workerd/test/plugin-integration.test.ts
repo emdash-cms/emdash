@@ -80,6 +80,7 @@ async function runMigrations(db: Kysely<any>) {
 		.addColumn("published_at", "text")
 		.addColumn("deleted_at", "text")
 		.addColumn("version", "integer", (col) => col.notNull().defaultTo(1))
+		.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
 		.addColumn("title", "text")
 		.addColumn("body", "text")
 		.execute();
@@ -236,7 +237,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 	// ── Content lifecycle: create, read, update, soft-delete ─────────────
 
 	describe("content lifecycle (requires read:content + write:content)", () => {
-		function makeWriteHandler() {
+		function makeWriteHandler(i18nConfig?: { defaultLocale: string; locales: string[] } | null) {
 			// Bridge enforces capabilities strictly: write:content does NOT
 			// imply read:content. Plugins that need both must declare both.
 			return createBridgeHandler({
@@ -245,6 +246,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				capabilities: ["read:content", "write:content"],
 				allowedHosts: [],
 				storageCollections: [],
+				i18nConfig,
 				db,
 				emailSend: () => null,
 			});
@@ -301,6 +303,64 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			});
 			expect(afterDelete.result).toBeNull();
 		});
+
+		it("forwards and normalizes an explicit locale", async () => {
+			const handler = makeWriteHandler({ defaultLocale: "en", locales: ["en", "zh-TW"] });
+
+			const result = await call(handler, "content/create", {
+				collection: "posts",
+				data: { title: "繁體中文" },
+				options: { locale: "zh-tw" },
+			});
+
+			expect(result.error).toBeUndefined();
+			expect(result.result).toMatchObject({ locale: "zh-TW" });
+			const row = await db
+				.selectFrom("ec_posts" as any)
+				.select("locale" as any)
+				.where("id", "=", (result.result as { id: string }).id)
+				.executeTakeFirstOrThrow();
+			expect(row.locale).toBe("zh-TW");
+		});
+
+		it("uses configured and no-i18n fallbacks when locale is omitted", async () => {
+			const configured = await call(
+				makeWriteHandler({ defaultLocale: "ja", locales: ["ja"] }),
+				"content/create",
+				{ collection: "posts", data: { title: "日本語" } },
+			);
+			const legacy = await call(makeWriteHandler(null), "content/create", {
+				collection: "posts",
+				data: { title: "English" },
+			});
+
+			expect(configured.result).toMatchObject({ locale: "ja" });
+			expect(legacy.result).toMatchObject({ locale: "en" });
+		});
+
+		it("rejects invalid locale options before inserting", async () => {
+			const handler = makeWriteHandler({ defaultLocale: "en", locales: ["en", "fr"] });
+
+			const malformed = await call(handler, "content/create", {
+				collection: "posts",
+				data: { title: "Malformed" },
+				options: { locale: "en_US" },
+			});
+			const unknown = await call(handler, "content/create", {
+				collection: "posts",
+				data: { title: "Unknown" },
+				options: { locale: "de" },
+			});
+
+			expect(malformed.error).toMatch(/invalid locale code/i);
+			expect(unknown.error).toMatch(/not configured/i);
+			expect(
+				await db
+					.selectFrom("ec_posts" as any)
+					.selectAll()
+					.execute(),
+			).toHaveLength(0);
+		});
 	});
 
 	// ── Capability enforcement matches real plugin config ─────────────────
@@ -329,6 +389,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			.addColumn("updated_at", "text", (col) => col.notNull())
 			.addColumn("deleted_at", "text")
 			.addColumn("version", "integer", (col) => col.notNull().defaultTo(1))
+			.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
 			.addColumn("title", "text")
 			.execute();
 

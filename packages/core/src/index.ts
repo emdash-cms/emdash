@@ -144,7 +144,12 @@ export { after } from "./after.js";
 export type { WaitUntilFn } from "./after.js";
 
 // i18n configuration (from Astro config)
-export { getI18nConfig, isI18nEnabled, getFallbackChain } from "./i18n/config.js";
+export {
+	getI18nConfig,
+	isI18nEnabled,
+	getFallbackChain,
+	resolveContentCreateLocale,
+} from "./i18n/config.js";
 export type { I18nConfig } from "./i18n/config.js";
 
 // Visual editing
@@ -249,6 +254,7 @@ export type {
 	StorageCollection,
 	KVAccess,
 	ContentAccess,
+	ContentCreateOptions,
 	MediaAccess,
 	HttpAccess,
 	LogAccess,

@@ -17,6 +17,7 @@ import { TaxonomyRepository, type Taxonomy } from "../database/repositories/taxo
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
+import { resolveContentCreateLocale } from "../i18n/config.js";
 import {
 	resolveAndValidateExternalUrl,
 	SsrfError,
@@ -46,6 +47,7 @@ import type {
 	UserAccess,
 	UserInfo,
 	ContentItem,
+	ContentCreateOptions,
 	ContentItemSeoInput,
 	ContentWriteInput,
 	MediaItem,
@@ -376,7 +378,12 @@ export function createContentAccessWithWrite(
 	return {
 		...readAccess,
 
-		async create(collection: string, data: ContentWriteInput): Promise<ContentItem> {
+		async create(
+			collection: string,
+			data: ContentWriteInput,
+			options?: ContentCreateOptions,
+		): Promise<ContentItem> {
+			const locale = resolveContentCreateLocale(options?.locale);
 			await beforeContentWrite?.();
 			const { fields, seo } = splitSeoFromInput(data);
 			let contentMutated = false;
@@ -391,6 +398,7 @@ export function createContentAccessWithWrite(
 					const item = await trxContentRepo.create({
 						type: collection,
 						data: fields,
+						locale,
 					});
 					contentMutated = true;
 
