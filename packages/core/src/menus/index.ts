@@ -366,7 +366,9 @@ async function resolveContentReferences(
 						}
 					}
 				}
-				for (const [referenceGroup, row] of localized) lookup.set(referenceGroup, row);
+				for (const [referenceGroup, row] of localized) {
+					lookup.set(referenceGroup, { id: row.id, slug: row.slug });
+				}
 
 				const unresolved = [...referenceGroups].filter((id) => !lookup.has(id));
 				for (const batch of chunks(unresolved, SQL_BATCH_SIZE)) {
@@ -385,9 +387,14 @@ async function resolveContentReferences(
 	return new Map(entries);
 }
 
+interface LocalizedReference {
+	id: string;
+	locale: string;
+}
+
 function shouldPreferLocalizedRow(
-	candidate: ContentReferenceRow,
-	existing: ContentReferenceRow | undefined,
+	candidate: LocalizedReference,
+	existing: LocalizedReference | undefined,
 	locale: string,
 ): boolean {
 	if (!existing) return true;
@@ -456,7 +463,9 @@ async function resolveTaxonomyReferences(
 				}
 			}
 		}
-		for (const [referenceGroup, row] of localized) lookup.set(referenceGroup, row);
+		for (const [referenceGroup, row] of localized) {
+			lookup.set(referenceGroup, { name: row.name, slug: row.slug });
+		}
 
 		const unresolved = [...referenceGroups].filter((id) => !lookup.has(id));
 		for (const batch of chunks(unresolved, SQL_BATCH_SIZE)) {
@@ -465,7 +474,7 @@ async function resolveTaxonomyReferences(
 				.select(["id", "name", "slug"])
 				.where("id", "in", batch)
 				.execute();
-			for (const row of rows) lookup.set(row.id, row);
+			for (const row of rows) lookup.set(row.id, { name: row.name, slug: row.slug });
 		}
 	} catch (error) {
 		console.error("Failed to resolve taxonomy URLs:", error);
