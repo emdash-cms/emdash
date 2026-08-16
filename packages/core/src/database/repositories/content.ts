@@ -407,8 +407,7 @@ export class ContentRepository {
 	 * (optionally scoped to a locale) and appends a numeric suffix (`-1`,
 	 * `-2`, etc.) on collision to guarantee uniqueness.
 	 *
-	 * The null return is retained for compatibility as a defensive backstop if
-	 * slug normalization cannot produce a value.
+	 * Returns null when slug normalization cannot produce a value.
 	 */
 	async generateUniqueSlug(type: string, text: string, locale?: string): Promise<string | null> {
 		const baseSlug = slugify(text);
