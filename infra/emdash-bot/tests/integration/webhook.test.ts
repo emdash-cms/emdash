@@ -166,8 +166,8 @@ describe("POST /webhook/github (workers-pool)", () => {
 
 	test("classifier failure remains retryable and does not persist state", async () => {
 		// The webhook acknowledges durable admission before classifier work. The
-		// test entry has no Flue runtime, so processing fails and leaves the item
-		// queued for retry without persisting state.
+		// test entry returns a classifier error, so processing leaves the item
+		// queued for retry without persisting state or using remote inference.
 		const issueNumber = uniqueIssueNumber();
 		const res = await postWebhook({
 			eventType: "issue_comment",

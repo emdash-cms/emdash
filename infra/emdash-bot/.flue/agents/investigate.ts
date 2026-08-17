@@ -52,6 +52,7 @@ import {
 	updateBranch,
 } from "../lib/github.js";
 import { applyInvestigationResult } from "../lib/investigation-result.js";
+import { FLUE_RUN_TIMEOUT_MS, SANDBOX_SLEEP_AFTER_SECONDS } from "../lib/run-policy.js";
 import { untarInto } from "../lib/untar.js";
 import {
 	assertVerificationCommand,
@@ -69,9 +70,14 @@ import verifySkill from "../skills/verify/SKILL.md";
 
 const REPO_DIR = "/workspace/repo";
 const DEFAULT_RPC_TIMEOUT_MS = 2 * 60_000;
+const CONTAINER_ATTACH_TIMEOUT_MS = 11 * 60_000;
 const EXEC_GRACE_MS = 30_000;
 const CLONE_DEPTH = 50;
-const DEADLINES = { defaultTimeoutMs: DEFAULT_RPC_TIMEOUT_MS, execGraceMs: EXEC_GRACE_MS };
+const DEADLINES = {
+	defaultTimeoutMs: DEFAULT_RPC_TIMEOUT_MS,
+	attachTimeoutMs: CONTAINER_ATTACH_TIMEOUT_MS,
+	execGraceMs: EXEC_GRACE_MS,
+};
 /**
  * Ceiling on any single tool result returned to the model. Unbounded tool
  * output accumulates across a long investigation until the conversation
@@ -93,6 +99,7 @@ const initialDataSchema = v.object({
 	issueTitle: v.pipe(v.string(), v.minLength(1)),
 	issueBody: v.string(),
 	previousBranchSha: v.nullable(v.string()),
+	context: v.optional(v.string()),
 	/**
 	 * Explicit base ref (branch, tag, or commit SHA) to stand the workspace up
 	 * at, overriding the mode default. The eval harness sets this to a fixing
@@ -327,14 +334,14 @@ export function Investigate({ id }: AgentProps) {
 		defineTool({
 			name: "exec",
 			description:
-				"Run a shell command in the Linux container (git, pnpm, astro, vitest, agent-browser). Attaching the container is slow; prefer the VFS tools and `code` for reads and searches, and use exec only to run the project or its toolchain.",
+				"Run a read-only shell command in the Linux container (git, pnpm, astro, vitest, agent-browser). Attaching the container is slow; prefer the VFS tools and `code` for reads and searches. Commands that change tracked source are reverted and rejected; change source with edit_file/write_file.",
 			input: v.object({
 				command: v.string(),
 				cwd: v.optional(v.string()),
 				timeoutMs: v.optional(v.number()),
 			}),
 			async run({ data }) {
-				const result = await env.exec(data.command, {
+				const result = await env.execReadOnly(data.command, {
 					...(data.cwd ? { cwd: data.cwd } : {}),
 					...(data.timeoutMs ? { timeoutMs: data.timeoutMs } : {}),
 				});
@@ -586,7 +593,7 @@ export function Investigate({ id }: AgentProps) {
 
 Investigate.agentName = "investigate";
 Investigate.initialData = initialDataSchema;
-Investigate.durability = { maxAttempts: 5, timeoutMs: 30 * 60_000 };
+Investigate.durability = { maxAttempts: 5, timeoutMs: FLUE_RUN_TIMEOUT_MS };
 
 /**
  * Per-run ExecEnv, cached on `globalThis` so it survives the agent's re-renders
@@ -637,6 +644,7 @@ async function hydrateWorkspace(id: string, dir: string, ref: string): Promise<v
 	const url = `https://api.github.com/repos/${repo.owner}/${repo.repo}/tarball/${encodeURIComponent(ref)}`;
 	const response = await fetch(url, {
 		headers: { "User-Agent": "emdash-bot", Accept: "application/vnd.github+json" },
+		signal: AbortSignal.timeout(DEFAULT_RPC_TIMEOUT_MS),
 	});
 	if (!response.ok || !response.body) {
 		throw new Error(`tarball fetch failed: ${response.status}`);
@@ -765,7 +773,26 @@ function buildCodeToolDescription(): string {
  * left to the repro/fix skills -- isolate-first, container work on demand.
  */
 async function attachContainer(id: string, input: InvestigateData): Promise<ContainerBackend> {
-	const container = fromSandbox(getSandbox(workerEnv.Sandbox, id));
+	const container = fromSandbox(
+		getSandbox(workerEnv.Sandbox, id, { sleepAfter: SANDBOX_SLEEP_AFTER_SECONDS }),
+	);
+	await prepareContainer(container, input);
+	return {
+		...container,
+		async isReady() {
+			const result = await container.exec(
+				`git -C ${quote(REPO_DIR)} rev-parse --is-inside-work-tree`,
+				{ cwd: "/", timeoutMs: DEFAULT_RPC_TIMEOUT_MS },
+			);
+			return result.exitCode === 0 && result.stdout.trim() === "true";
+		},
+	};
+}
+
+async function prepareContainer(
+	container: ContainerBackend,
+	input: InvestigateData,
+): Promise<void> {
 	const repo = readRepoContext(workerEnv);
 	if (!repo) throw new Error("repository context is not configured");
 	const ref = cloneRef(input);
@@ -812,7 +839,6 @@ async function attachContainer(id: string, input: InvestigateData): Promise<Cont
 			throw new Error(`container setup failed (${result.exitCode}): ${result.stderr.slice(-500)}`);
 		}
 	}
-	return container;
 }
 
 function cloneUrl(): string {
@@ -939,6 +965,7 @@ function safeFailureMessage(error: unknown): string {
 
 function buildPrompt(input: InvestigateData): string {
 	const argSection = input.arg ? ["", "## Directive", "", input.arg, ""].join("\n") : "";
+	const contextSection = input.context ? ["", input.context, ""].join("\n") : argSection;
 	const diagnose = input.mode === "diagnose";
 	const implement = input.mode === "implement";
 	const method = diagnose
@@ -975,7 +1002,7 @@ function buildPrompt(input: InvestigateData): string {
 		`# ${input.issueTitle}`,
 		"",
 		input.issueBody || "(no body)",
-		argSection,
+		contextSection,
 		"## Method",
 		"",
 		...method,

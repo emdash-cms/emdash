@@ -2,7 +2,9 @@ This file provides guidance to agentic coding tools working in this repository.
 
 For human-facing contributor info (setup, repo layout, PR policy, changesets, i18n), see [CONTRIBUTING.md](CONTRIBUTING.md). This file focuses on the patterns and gotchas an agent needs to write correct code.
 
-`CLAUDE.md` is a symlink to this file. `.opencode/skills` and `.claude/skills` are symlinks to `skills/`. Don't try to sync between them.
+`CLAUDE.md` is a symlink to this file. `.agents/skills` and `.claude/skills` are symlinks to `skills/`. Don't try to sync between them.
+
+When writing, revising, or reviewing documentation, load the `writing-emdash-docs` skill. Use it for public docs, READMEs, contributor guidance, technical specifications, release notes and changesets, and skill instructions.
 
 # Rules
 
