@@ -104,6 +104,25 @@ describe("classifyComment", () => {
 });
 
 describe("resolveClassification", () => {
+	test("accepts resume when a failed run offers it", () => {
+		const failedCommands = classifierCommands("failed");
+		expect(
+			resolveClassification(
+				{
+					event: "resume",
+					arg: "continue from the saved work",
+					reasoning: "The maintainer asks the previous run to continue",
+				},
+				failedCommands,
+			),
+		).toEqual({
+			kind: "event",
+			event: "resume",
+			arg: "continue from the saved work",
+			reasoning: "The maintainer asks the previous run to continue",
+		});
+	});
+
 	test("rejects a missing structured result", () => {
 		expect(resolveClassification(undefined, commands)).toEqual({
 			kind: "error",

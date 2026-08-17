@@ -4,7 +4,7 @@
 // the canonical state for that issue's bot lifecycle. Labels on GitHub are a
 // projection of this state, not the source of truth.
 
-import { dispatch } from "@flue/runtime";
+import { dispatch, init } from "@flue/runtime";
 import { DurableObject } from "cloudflare:workers";
 
 import { Investigate } from "../agents/investigate.js";
@@ -54,6 +54,13 @@ import {
 } from "./router.js";
 import { DEADLINE_WARNING_MESSAGE, runBudgetMs, runSchedule } from "./run-policy.js";
 import { DeadlineExceededError, withDeadline } from "./sandbox-deadline.js";
+import {
+	normalizeTimeoutSummary,
+	RESUME_SIGNAL_TYPE,
+	resumeStateForMode,
+	TIMEOUT_SUMMARY_SIGNAL_TYPE,
+	TIMEOUT_SUMMARY_TIMEOUT_MS,
+} from "./timeout-recovery.js";
 
 /**
  * Inert states cannot be advanced by a late-arriving agent result. If a run
@@ -220,6 +227,8 @@ const STORAGE = {
 	lastDiagnosis: "o:lastDiagnosis",
 	deadlineWarningSentRunId: "o:deadlineWarningSentRunId",
 	deadlineWarningRetryAt: "o:deadlineWarningRetryAt",
+	resumableRun: "o:resumableRun",
+	pendingResume: "o:pendingResume",
 } as const;
 
 const TICK_INTERVAL_MS = 60 * 60 * 1000;
@@ -259,6 +268,26 @@ interface PreparedInvestigation {
 
 interface PendingDispatch extends PreparedInvestigation {
 	readonly deliveryId?: string;
+}
+
+export interface ResumableRunCheckpoint {
+	readonly runId: string;
+	readonly agentId: string;
+	readonly mode: InvestigationMode;
+	readonly state: StateId;
+	readonly attemptStartedAt: number;
+	readonly timedOutAt: number;
+	readonly summary: string | null;
+}
+
+interface PreparedResume {
+	readonly checkpoint: ResumableRunCheckpoint;
+	readonly directive: string | null;
+	readonly deliveryId?: string;
+}
+
+interface PendingResume extends PreparedResume {
+	readonly dryRun: boolean;
 }
 
 interface PendingSideEffect {
@@ -329,8 +358,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const resumedDispatch = input.deliveryId
 			? await this.resumePendingDispatch(input.deliveryId)
 			: false;
+		const resumedRun = input.deliveryId ? await this.resumePendingRun(input.deliveryId) : false;
 		await this.drainPendingSideEffects();
-		if (resumedDispatch && input.deliveryId) {
+		if ((resumedDispatch || resumedRun) && input.deliveryId) {
 			await this.recordDelivery(input.deliveryId);
 			return { kind: "recovered" };
 		}
@@ -361,12 +391,17 @@ export class OrchestratorDO extends DurableObject<Env> {
 		// back to the webhook's snapshot for first-time mentions.
 		const persistedLabels = await this.projectLabels();
 		const labels = persistedLabels.length > 0 ? persistedLabels : input.labels;
+		const resumableRun =
+			resolvedEvent === "resume"
+				? ((await this.ctx.storage.get<ResumableRunCheckpoint>(STORAGE.resumableRun)) ?? null)
+				: null;
 
 		const decision = resolve({
 			labels,
 			event: resolvedEvent,
 			arg: resolvedArg,
 			actor: input.actor,
+			...(resumableRun ? { resumeState: resumableRun.state } : {}),
 		});
 
 		if (decision.kind === "noop") {
@@ -378,10 +413,22 @@ export class OrchestratorDO extends DurableObject<Env> {
 			if (input.deliveryId) await this.recordDelivery(input.deliveryId);
 			return { kind: "readonly", state: decision.state, event: decision.event };
 		}
+		if (resolvedEvent === "resume" && !resumableRun) {
+			if (!input.dryRun) await this.postResumeUnavailable(input);
+			if (input.deliveryId) await this.recordDelivery(input.deliveryId);
+			return { kind: "noop", reason: "no saved timed-out run to resume" };
+		}
 
 		let runError: string | null = null;
 		let preparedInvestigation: PreparedInvestigation | null = null;
-		if (decision.action?.startsWith("investigate.")) {
+		let preparedResume: PreparedResume | null = null;
+		if (decision.action === "investigate.resume" && resumableRun) {
+			preparedResume = {
+				checkpoint: resumableRun,
+				directive: resolvedArg ?? input.arg,
+				...(input.deliveryId ? { deliveryId: input.deliveryId } : {}),
+			};
+		} else if (decision.action?.startsWith("investigate.")) {
 			const preparation = await this.prepareInvestigation(
 				decision,
 				resolvedArg ?? input.arg,
@@ -398,11 +445,18 @@ export class OrchestratorDO extends DurableObject<Env> {
 			throw new Error(runError);
 		}
 
-		const sideEffectId = await this.persistDecision(decision, input, preparedInvestigation);
+		const sideEffectId = await this.persistDecision(
+			decision,
+			input,
+			preparedInvestigation,
+			preparedResume,
+		);
 		await this.armAlarm();
 
 		if (preparedInvestigation) {
 			runError = await this.dispatchInvestigation(preparedInvestigation);
+		} else if (preparedResume) {
+			runError = await this.dispatchResumedRun(preparedResume, input.dryRun === true);
 		} else if (decision.action === "closePr") {
 			await this.ctx.storage.delete(STORAGE.prNumber);
 		}
@@ -446,6 +500,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (currentRunId !== input.runId) {
 			return { kind: "stale-run", runId: input.runId, currentRunId: currentRunId ?? null };
 		}
+		const savedRun = await this.ctx.storage.get<ResumableRunCheckpoint>(STORAGE.resumableRun);
+		if (savedRun?.runId === input.runId) await this.ctx.storage.delete(STORAGE.resumableRun);
 		await this.confirmDispatchAdmission(input.runId);
 		const settledRuns = await this.drainPendingSideEffects();
 		if (settledRuns.has(input.runId)) return { kind: "recovered" };
@@ -868,7 +924,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await withDeadline(
 			dispatch(Investigate, {
 				id: input.agentId,
-				idempotencyKey: `deadline-warning:${input.runId}`,
+				idempotencyKey: `deadline-warning:${input.runId}:${input.deadlineAt}`,
 				message: {
 					kind: "signal",
 					type: "investigation.deadline-warning",
@@ -899,10 +955,64 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 	}
 
+	private async requestTimeoutSummary(input: {
+		runId: string;
+		agentId: string;
+		mode: InvestigationMode;
+		attemptStartedAt: number;
+	}): Promise<string> {
+		const handle = init(Investigate, { id: input.agentId });
+		let receipt: Awaited<ReturnType<typeof handle.dispatch>>;
+		try {
+			receipt = await withDeadline(
+				handle.dispatch({
+					idempotencyKey: `timeout-summary:${input.runId}:${input.attemptStartedAt}`,
+					message: {
+						kind: "signal",
+						type: TIMEOUT_SUMMARY_SIGNAL_TYPE,
+						tagName: "timeout-summary",
+						attributes: { runId: input.runId, mode: input.mode },
+						body: "Execution has stopped. Provide the tool-free timeout checkpoint summary now.",
+					},
+				}),
+				DISPATCH_TIMEOUT_MS,
+				"Timeout summary admission",
+			);
+		} catch (error) {
+			console.error("[orchestrator] timeout summary admission failed", {
+				runId: input.runId,
+				error: errorMessage(error),
+			});
+			return normalizeTimeoutSummary("");
+		}
+
+		try {
+			const reply = await handle.read(receipt, {
+				signal: AbortSignal.timeout(TIMEOUT_SUMMARY_TIMEOUT_MS),
+			});
+			return normalizeTimeoutSummary(reply.text);
+		} catch (error) {
+			console.error("[orchestrator] timeout summary failed", {
+				runId: input.runId,
+				error: errorMessage(error),
+			});
+			try {
+				await handle.abort();
+			} catch (abortError) {
+				console.error("[orchestrator] timeout summary abort failed", {
+					runId: input.runId,
+					error: errorMessage(abortError),
+				});
+			}
+			return normalizeTimeoutSummary("");
+		}
+	}
+
 	private async recoverStaleRun(now: number): Promise<boolean> {
-		const [startedAt, mode] = await Promise.all([
+		const [startedAt, mode, state] = await Promise.all([
 			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
 			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
+			this.ctx.storage.get<StateId>(STORAGE.state),
 		]);
 		if (startedAt === undefined) return false;
 		if (now - startedAt < runBudgetMs(mode ?? "repro")) return false;
@@ -924,6 +1034,35 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await this.ctx.storage.put(STORAGE.abortConfirmedRunId, runId);
 		}
 		await this.discardLaunchSideEffects(runId);
+		const effectiveMode = mode ?? "repro";
+		const resumeState =
+			state === "working" || state === "investigating" || state === "fixing"
+				? state
+				: resumeStateForMode(effectiveMode);
+		const existing = await this.ctx.storage.get<ResumableRunCheckpoint>(STORAGE.resumableRun);
+		let checkpoint: ResumableRunCheckpoint =
+			existing?.runId === runId && existing.attemptStartedAt === startedAt
+				? existing
+				: {
+						runId,
+						agentId,
+						mode: effectiveMode,
+						state: resumeState,
+						attemptStartedAt: startedAt,
+						timedOutAt: now,
+						summary: null,
+					};
+		await this.ctx.storage.put(STORAGE.resumableRun, checkpoint);
+		if (checkpoint.summary === null) {
+			const summary = await this.requestTimeoutSummary({
+				runId,
+				agentId,
+				mode: effectiveMode,
+				attemptStartedAt: startedAt,
+			});
+			checkpoint = { ...checkpoint, summary };
+			await this.ctx.storage.put(STORAGE.resumableRun, checkpoint);
+		}
 
 		// Commit the failed transition before deleting retry evidence. If this
 		// throws, the run markers remain and the next alarm retries recovery.
@@ -934,7 +1073,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 			actor: "system",
 			labels,
 			needsClassify: false,
-			agentSummary: "I couldn't complete this run before its durability deadline.",
+			agentSummary: `${checkpoint.summary}\n\nThe conversation and workspace are saved. A maintainer can continue them with \`@emdashbot resume\`.`,
+			agentFailureStage: "timeout",
+			agentRunId: runId,
 			settlesRunId: runId,
 		});
 		await this.clearRun(runId);
@@ -1256,6 +1397,58 @@ export class OrchestratorDO extends DurableObject<Env> {
 		return null;
 	}
 
+	private async dispatchResumedRun(
+		prepared: PreparedResume,
+		dryRun: boolean,
+	): Promise<string | null> {
+		if (dryRun) {
+			await this.ctx.storage.transaction(async (transaction) => {
+				if ((await transaction.get<string>(STORAGE.currentRunId)) !== prepared.checkpoint.runId)
+					return;
+				await Promise.all([
+					transaction.delete(STORAGE.pendingResume),
+					transaction.delete(STORAGE.resumableRun),
+				]);
+			});
+			return null;
+		}
+
+		const idempotencyKey = `resume:${prepared.checkpoint.runId}:${prepared.deliveryId ?? prepared.checkpoint.timedOutAt}`;
+		let receipt: Awaited<ReturnType<typeof dispatch>>;
+		try {
+			receipt = await withDeadline(
+				dispatch(Investigate, {
+					id: prepared.checkpoint.agentId,
+					idempotencyKey,
+					message: {
+						kind: "signal",
+						type: RESUME_SIGNAL_TYPE,
+						tagName: "resume",
+						attributes: { runId: prepared.checkpoint.runId },
+						body: prepared.directive
+							? `Resume the saved run. Additional maintainer directive: ${prepared.directive}`
+							: "Resume the saved run from its timeout checkpoint and continue toward a verified report.",
+					},
+				}),
+				DISPATCH_TIMEOUT_MS,
+				"Investigation resume admission",
+			);
+		} catch (error) {
+			return `dispatch(resume) failed: ${errorMessage(error)}`;
+		}
+
+		await this.ctx.storage.transaction(async (transaction) => {
+			if ((await transaction.get<string>(STORAGE.currentRunId)) !== prepared.checkpoint.runId)
+				return;
+			await Promise.all([
+				transaction.put(STORAGE.currentDispatchId, receipt.submissionId),
+				transaction.delete(STORAGE.pendingResume),
+				transaction.delete(STORAGE.resumableRun),
+			]);
+		});
+		return null;
+	}
+
 	private async recordDispatchFailure(
 		runId: string,
 		attemptId: string,
@@ -1405,6 +1598,26 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 	}
 
+	private async postResumeUnavailable(input: NormalizedEvent): Promise<void> {
+		const anchorNumber =
+			input.anchorNumber ?? (await this.ctx.storage.get<number>(STORAGE.anchorNumber));
+		if (anchorNumber === undefined) {
+			if (import.meta.env.DEV) return;
+			throw new Error("no anchor number for resume reply");
+		}
+		const id = await this.persistStandaloneSideEffect({
+			anchorNumber,
+			commentBody:
+				"There isn't a saved timed-out run to resume. Start a fresh run with `@emdashbot retry`, `@emdashbot investigate`, or `@emdashbot implement <directive>`.",
+			...(input.deliveryId ? { deliveryId: input.deliveryId } : {}),
+		});
+		await this.armAlarm();
+		await this.drainPendingSideEffects();
+		if (await this.hasPendingSideEffect(id)) {
+			throw new Error("resume reply is queued behind an earlier GitHub projection");
+		}
+	}
+
 	// ---------------- Side effects (GitHub) ----------------
 
 	private async flushPendingSideEffect(id: string): Promise<void> {
@@ -1499,6 +1712,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		decision: Extract<Decision, { kind: "transition" }>,
 		input: NormalizedEvent,
 		preparedInvestigation: PreparedInvestigation | null = null,
+		preparedResume: PreparedResume | null = null,
 	): Promise<string | null> {
 		const sideEffectId = input.dryRun ? null : crypto.randomUUID();
 		return this.ctx.storage.transaction(async (transaction) => {
@@ -1556,11 +1770,35 @@ export class OrchestratorDO extends DurableObject<Env> {
 						...preparedInvestigation,
 						...(input.deliveryId ? { deliveryId: input.deliveryId } : {}),
 					} satisfies PendingDispatch),
+					transaction.delete(STORAGE.resumableRun),
 				);
+			}
+			if (preparedResume) {
+				puts.push(
+					transaction.put(STORAGE.currentRunId, preparedResume.checkpoint.runId),
+					transaction.put(STORAGE.currentRunMode, preparedResume.checkpoint.mode),
+					transaction.put(STORAGE.currentRunStartedAt, Date.now()),
+					transaction.put(STORAGE.currentAgentId, preparedResume.checkpoint.agentId),
+					transaction.delete(STORAGE.deadlineWarningSentRunId),
+					transaction.delete(STORAGE.deadlineWarningRetryAt),
+					transaction.put(STORAGE.pendingResume, {
+						...preparedResume,
+						dryRun: input.dryRun === true,
+					} satisfies PendingResume),
+				);
+			}
+			if (
+				!preparedResume &&
+				(decision.event === "reset" ||
+					decision.event === "decline" ||
+					decision.event === "take_over")
+			) {
+				puts.push(transaction.delete(STORAGE.resumableRun));
 			}
 			const anchorNumber =
 				input.anchorNumber ?? (await transaction.get<number>(STORAGE.anchorNumber));
-			const effectRunId = preparedInvestigation?.runId ?? input.settlesRunId;
+			const effectRunId =
+				preparedInvestigation?.runId ?? preparedResume?.checkpoint.runId ?? input.settlesRunId;
 			if (sideEffectId && anchorNumber !== undefined) {
 				const pending =
 					(await transaction.get<PendingSideEffect[]>(STORAGE.pendingSideEffects)) ?? [];
@@ -1654,6 +1892,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 			]);
 			const pending = await transaction.get<PendingDispatch>(STORAGE.pendingDispatch);
 			if (pending?.runId === expectedRunId) await transaction.delete(STORAGE.pendingDispatch);
+			const pendingResume = await transaction.get<PendingResume>(STORAGE.pendingResume);
+			if (pendingResume?.checkpoint.runId === expectedRunId) {
+				await transaction.delete(STORAGE.pendingResume);
+			}
 		});
 	}
 
@@ -1671,12 +1913,21 @@ export class OrchestratorDO extends DurableObject<Env> {
 		return true;
 	}
 
+	private async resumePendingRun(deliveryId: string): Promise<boolean> {
+		const pending = await this.ctx.storage.get<PendingResume>(STORAGE.pendingResume);
+		if (pending?.deliveryId !== deliveryId) return false;
+		const runError = await this.dispatchResumedRun(pending, pending.dryRun);
+		if (runError) throw new Error(runError);
+		return true;
+	}
+
 	private async drainPendingSideEffects(): Promise<Set<string>> {
 		const settledRuns = new Set<string>();
 		for (;;) {
-			const [effects, pendingDispatch] = await Promise.all([
+			const [effects, pendingDispatch, pendingResume] = await Promise.all([
 				this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects),
 				this.ctx.storage.get<PendingDispatch>(STORAGE.pendingDispatch),
+				this.ctx.storage.get<PendingResume>(STORAGE.pendingResume),
 			]);
 			const effect = effects?.[0];
 			if (!effect) return settledRuns;
@@ -1687,7 +1938,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 			if (
 				!effect.settlesRun &&
 				effect.runId !== undefined &&
-				effect.runId === pendingDispatch?.runId
+				(effect.runId === pendingDispatch?.runId ||
+					effect.runId === pendingResume?.checkpoint.runId)
 			)
 				return settledRuns;
 
@@ -1811,6 +2063,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					transaction.delete(STORAGE.currentDispatchError),
 					transaction.delete(STORAGE.currentDispatchAttempt),
 					transaction.delete(STORAGE.pendingDispatch),
+					transaction.delete(STORAGE.pendingResume),
 					transaction.delete(STORAGE.abortConfirmedRunId),
 					transaction.delete(STORAGE.deadlineWarningSentRunId),
 					transaction.delete(STORAGE.deadlineWarningRetryAt),
@@ -1886,6 +2139,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 		return (await this.ctx.storage.get<StoredDiagnosis>(STORAGE.lastDiagnosis)) ?? null;
 	}
 
+	/** Test-only: inspect the resumable checkpoint retained after a timeout. */
+	async debugGetResumableRun(): Promise<ResumableRunCheckpoint | null> {
+		return (await this.ctx.storage.get<ResumableRunCheckpoint>(STORAGE.resumableRun)) ?? null;
+	}
+
+	/** Test-only: seed a resumable checkpoint without invoking the model. */
+	async debugSetResumableRun(checkpoint: ResumableRunCheckpoint): Promise<void> {
+		await this.ctx.storage.put(STORAGE.resumableRun, checkpoint);
+	}
+
 	/** Test-only: inspect the current run's fixed deadline and warning marker. */
 	async debugGetRunSchedule(): Promise<{
 		deadlineAt: number | null;
@@ -1944,6 +2207,15 @@ export class OrchestratorDO extends DurableObject<Env> {
 	async debugPrimeFixing(anchorNumber: number): Promise<void> {
 		await Promise.all([
 			this.ctx.storage.put(STORAGE.state, "fixing" satisfies StateId),
+			this.ctx.storage.put(STORAGE.kind, "enhancement" satisfies Kind),
+			this.ctx.storage.put(STORAGE.anchorNumber, anchorNumber),
+		]);
+	}
+
+	/** Test-only: land in `failed` without dispatching an investigate run. */
+	async debugPrimeFailed(anchorNumber: number): Promise<void> {
+		await Promise.all([
+			this.ctx.storage.put(STORAGE.state, "failed" satisfies StateId),
 			this.ctx.storage.put(STORAGE.kind, "enhancement" satisfies Kind),
 			this.ctx.storage.put(STORAGE.anchorNumber, anchorNumber),
 		]);

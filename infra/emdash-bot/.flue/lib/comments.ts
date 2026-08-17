@@ -27,7 +27,7 @@ export function renderReadonlyReply(state: StateId | null): string {
 		case "declined":
 			return "I declined this. Reopen with `@emdashbot reopen` if circumstances change.";
 		case "failed":
-			return "My last attempt failed. A maintainer can `@emdashbot retry` or take it over.";
+			return "My last attempt failed. A maintainer can `@emdashbot resume` if it saved a timeout checkpoint, start a fresh `@emdashbot retry`, or take it over.";
 		case "investigating":
 			return "Investigating now (reproduce + diagnose). I'll report a verdict with evidence.";
 		case "reproduced":

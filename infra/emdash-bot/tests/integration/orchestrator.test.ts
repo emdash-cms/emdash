@@ -329,6 +329,92 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(comments.at(-1)).toContain("Run: `implement-run-123`");
 	});
 
+	test("resume without a saved timed-out run comments and leaves the issue failed", async () => {
+		const calls: string[] = [];
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.debugPrimeFailed(42);
+
+		const outcome = await stub.event(
+			makeEvent({
+				event: "resume",
+				arg: null,
+				anchorNumber: 42,
+				deliveryId: "resume-without-state",
+				dryRun: false,
+				labels: ["bot:enhancement", "bot:failed"],
+			}),
+		);
+
+		expect(outcome.kind).toBe("noop");
+		expect((await stub.getPersistedState()).state).toBe("failed");
+		expect(comments.at(-1)).toContain("There isn't a saved timed-out run to resume");
+	});
+
+	test("resume restores the saved run identity, mode, and active state", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugPrimeFailed(42);
+		await stub.debugSetResumableRun({
+			runId: "timed-out-run",
+			agentId: "investigate-42-timed-out-run",
+			mode: "implement",
+			state: "fixing",
+			attemptStartedAt: Date.now() - 60 * 60_000,
+			timedOutAt: Date.now(),
+			summary: "The implementation is complete but one focused test still fails.",
+		});
+
+		const outcome = await stub.event(
+			makeEvent({
+				event: "resume",
+				arg: "continue with the failing test",
+				anchorNumber: 42,
+				deliveryId: "resume-saved-run",
+				labels: ["bot:enhancement", "bot:failed"],
+			}),
+		);
+
+		expect(outcome.kind).toBe("transition");
+		if (outcome.kind === "transition") {
+			expect(outcome.decision.action).toBe("investigate.resume");
+			expect(outcome.decision.to).toBe("fixing");
+		}
+		expect(await stub.getPersistedState()).toMatchObject({
+			state: "fixing",
+			currentRunId: "timed-out-run",
+			currentAgentId: "investigate-42-timed-out-run",
+		});
+		expect(await stub.debugGetResumableRun()).toBeNull();
+	});
+
+	test("a timed-out run posts its checkpoint and resume command", async () => {
+		const calls: string[] = [];
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.debugPrimeFixing(42);
+		await stub.debugSetStaleRun(
+			"timed-out-comment-run",
+			Date.now() - 61 * 60_000,
+			"investigate-42-timed-out-comment-run",
+			"implement",
+		);
+
+		const outcome = await stub.tick();
+		expect(outcome.droppedStaleRun).toBe(true);
+		expect(comments.at(-1)).toContain(
+			"The run stopped at its execution deadline before it could provide a checkpoint summary.",
+		);
+		expect(comments.at(-1)).toContain("`@emdashbot resume`");
+		expect(comments.at(-1)).toContain("Failed stage: `timeout`");
+		expect(comments.at(-1)).toContain("Run: `timed-out-comment-run`");
+	});
+
 	test("tick recovers a stale run", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		// Run() the DO with a synthetic stale run set in storage. The stale-
@@ -349,6 +435,12 @@ describe("OrchestratorDO (workers-pool)", () => {
 		const persisted = await stub.getPersistedState();
 		expect(persisted.currentRunId).toBe(null);
 		expect(persisted.state).toBe("failed");
+		expect(await stub.debugGetResumableRun()).toMatchObject({
+			runId: "ghost-run",
+			agentId: "investigate-999-ghost-run",
+			mode: "repro",
+			state: "fixing",
+		});
 	});
 
 	test("a failing inbox head does not block stale-run recovery", async () => {

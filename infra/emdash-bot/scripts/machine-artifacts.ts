@@ -86,6 +86,9 @@ function transitionsTable(): string {
 }
 
 function transitionDestination(transition: (typeof TRANSITIONS)[number]): string {
+	if (transition.event === "resume") {
+		return `saved: ${code("working")}, ${code("investigating")}, or ${code("fixing")}`;
+	}
 	const overrides = Object.entries(transition.toByKind ?? {});
 	if (overrides.length === 0) return code(transition.to);
 	return [
@@ -96,7 +99,10 @@ function transitionDestination(transition: (typeof TRANSITIONS)[number]): string
 
 function diagram(): string {
 	const edges = TRANSITIONS.flatMap((transition) =>
-		transitionTargets(transition).map((target) => {
+		(transition.event === "resume"
+			? (["working", "investigating", "fixing"] as const)
+			: transitionTargets(transition)
+		).map((target) => {
 			const kinds = Object.entries(transition.toByKind ?? {})
 				.filter(([, kindTarget]) => kindTarget === target)
 				.map(([kind]) => kind);
@@ -106,7 +112,7 @@ function diagram(): string {
 						? " [default]"
 						: ""
 					: ` [${kinds.join(", ")}]`;
-			return `    ${transition.from} --> ${target}: ${transition.event}${qualifier}${transition.action ? ` / ${transition.action}` : ""}`;
+			return `    ${transition.from} --> ${target}: ${transition.event}${transition.event === "resume" ? " [saved]" : qualifier}${transition.action ? ` / ${transition.action}` : ""}`;
 		}),
 	);
 	return [

@@ -14,6 +14,7 @@ import {
 	useAgentFinish,
 	useAgentStart,
 	useDataWriter,
+	useDelivery,
 	useInitialData,
 	useModel,
 	usePersistentState,
@@ -53,6 +54,7 @@ import {
 } from "../lib/github.js";
 import { applyInvestigationResult } from "../lib/investigation-result.js";
 import { FLUE_RUN_TIMEOUT_MS, SANDBOX_SLEEP_AFTER_SECONDS } from "../lib/run-policy.js";
+import { buildTimeoutSummaryPrompt, isTimeoutSummaryDelivery } from "../lib/timeout-recovery.js";
 import { untarInto } from "../lib/untar.js";
 import {
 	assertVerificationCommand,
@@ -189,6 +191,7 @@ interface RunFailure {
 
 export function Investigate({ id }: AgentProps) {
 	const input = useInitialData<InvestigateData>();
+	const delivery = useDelivery();
 	const [setupComplete, setSetupComplete] = usePersistentState("setup-complete", false);
 	const [reported, setReported] = usePersistentState("reported", false);
 	const [reminded, setReminded] = usePersistentState("report-reminded", false);
@@ -202,9 +205,13 @@ export function Investigate({ id }: AgentProps) {
 	);
 	const [lastFailure, setLastFailure] = usePersistentState<RunFailure | null>("last-failure", null);
 	const writeResult = useDataWriter("investigation", { schema: reportedResultSchema });
-	const env = execEnvFor(id, input);
 
 	useModel("cloudflare/@cf/moonshotai/kimi-k2.7-code");
+	if (isTimeoutSummaryDelivery(delivery)) {
+		return buildTimeoutSummaryPrompt({ mode: input.mode, verification, lastFailure });
+	}
+
+	const env = execEnvFor(id, input);
 
 	if (input.mode === "implement") {
 		useSkill(implementSkill);
