@@ -24,16 +24,16 @@ State the intended outcome privately in one sentence: "After reading this, the r
 
 Classify the document before choosing its structure:
 
-| Document | Reader need | Default shape |
-| --- | --- | --- |
-| Tutorial | Learn through a reliable, guided experience | Visible goal, prerequisites, one path, expected results after each stage, recap |
-| Task guide | Complete one practical task | Outcome, prerequisites, ordered actions, result, optional next step |
-| Concept or explanation | Build an accurate mental model | Definition, relevant behavior, concrete example, implications |
-| Reference | Look up exact behavior | Signature or syntax, parameters, defaults, return value, errors, examples |
-| Troubleshooting | Diagnose and resolve a known failure | Exact symptom, context, cause or diagnostic checks, workaround or resolution, verification |
-| Upgrade or migration guide | Make an existing project work after a change | Previous behavior, current behavior, required action, minimal diff |
-| README or contributor guide | Start or contribute quickly | Short purpose, fastest working path, common operations, deeper links |
-| Technical specification | Evaluate and implement a decision | Goal, constraints, decision, interfaces and data flow, failure handling, rollout, verification, open decisions |
+| Document                    | Reader need                                  | Default shape                                                                                                  |
+| --------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Tutorial                    | Learn through a reliable, guided experience  | Visible goal, prerequisites, one path, expected results after each stage, recap                                |
+| Task guide                  | Complete one practical task                  | Outcome, prerequisites, ordered actions, result, optional next step                                            |
+| Concept or explanation      | Build an accurate mental model               | Definition, relevant behavior, concrete example, implications                                                  |
+| Reference                   | Look up exact behavior                       | Signature or syntax, parameters, defaults, return value, errors, examples                                      |
+| Troubleshooting             | Diagnose and resolve a known failure         | Exact symptom, context, cause or diagnostic checks, workaround or resolution, verification                     |
+| Upgrade or migration guide  | Make an existing project work after a change | Previous behavior, current behavior, required action, minimal diff                                             |
+| README or contributor guide | Start or contribute quickly                  | Short purpose, fastest working path, common operations, deeper links                                           |
+| Technical specification     | Evaluate and implement a decision            | Goal, constraints, decision, interfaces and data flow, failure handling, rollout, verification, open decisions |
 
 Do not force every section into the same size. Give common or risky tasks more space than incidental details.
 
