@@ -8,7 +8,7 @@ import { dispatch } from "@flue/runtime";
 import { DurableObject } from "cloudflare:workers";
 
 import { Investigate } from "../agents/investigate.js";
-import { classifyComment, type ClassifyResult } from "./classifier-client.js";
+import { classifyComment, type ClassifierInput, type ClassifyResult } from "./classifier-client.js";
 import {
 	type PreviewScreenshot,
 	renderAgentComment,
@@ -906,7 +906,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 		const persistedState = await this.ctx.storage.get<StateId>(STORAGE.state);
 		const state = persistedState ?? currentState(input.labels);
-		const result: ClassifyResult = await classifyComment({
+		const result = await this.requestClassification({
 			issueNumber: input.anchorNumber,
 			state,
 			comment: text,
@@ -922,6 +922,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 			case "event":
 				return { kind: "resolved", event: result.event, arg: result.arg };
 		}
+	}
+
+	protected requestClassification(input: ClassifierInput): Promise<ClassifyResult> {
+		return classifyComment(this.env.AI, input);
 	}
 
 	// ---------------- Workflow dispatch ----------------
