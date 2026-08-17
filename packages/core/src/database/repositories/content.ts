@@ -1,7 +1,9 @@
 import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content-list-query.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
+import { isIndexableFieldType, type FieldType } from "../../schema/types.js";
 import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
@@ -31,9 +33,25 @@ import {
 // Regex pattern for ULID validation
 const ULID_PATTERN = /^[0-9A-Z]{26}$/;
 const SQLSTATE_PATTERN = /^[0-9A-Z]{5}$/;
+const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 
 // LIKE wildcards that must be escaped so user search input is matched literally.
 const LIKE_WILDCARD_RE = /[\\%_]/g;
+const MAX_INDEXED_FIELD_FILTERS = 20;
+const MAX_IN_FILTER_VALUES = SQL_BATCH_SIZE;
+const MAX_FILTER_STRING_LENGTH = 2048;
+
+type NormalizedFilterScalar = string | number;
+
+type ResolvedFieldFilter =
+	| { column: string; kind: "null" }
+	| { column: string; kind: "exact"; value: NormalizedFilterScalar }
+	| { column: string; kind: "in"; values: NormalizedFilterScalar[] }
+	| {
+			column: string;
+			kind: "range";
+			bounds: Partial<Record<"gt" | "gte" | "lt" | "lte", NormalizedFilterScalar>>;
+	  };
 
 function nullableColumnMatch(column: string, value: string | null): ReturnType<typeof sql> {
 	validateIdentifier(column, "content column");
@@ -171,6 +189,29 @@ const DATE_FILTER_COLUMNS: Record<ContentDateField, "created_at" | "updated_at" 
 	};
 
 /**
+ * Built-in sort fields → their physical columns. A closed set that blocks
+ * sorting by arbitrary columns; per-collection fields are allowed
+ * separately via `mapOrderField`'s `sortableExtras`.
+ */
+const ORDER_FIELD_COLUMNS: Record<string, string> = {
+	createdAt: "created_at",
+	updatedAt: "updated_at",
+	publishedAt: "published_at",
+	scheduledAt: "scheduled_at",
+	deletedAt: "deleted_at",
+	title: "title",
+	name: "name",
+	slug: "slug",
+	status: "status",
+	locale: "locale",
+};
+
+/** True when `field` maps to a system column and needs no per-collection resolution. */
+export function isSystemOrderField(field: string): boolean {
+	return field in ORDER_FIELD_COLUMNS;
+}
+
+/**
  * System columns that exist in every ec_* table
  */
 const SYSTEM_COLUMNS = new Set([
@@ -217,6 +258,16 @@ function serializeValue(value: unknown): unknown {
 	return value;
 }
 
+function writableContentData(data: Record<string, unknown>): Record<string, unknown> {
+	const writable: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(data)) {
+		if (SYSTEM_COLUMNS.has(key)) continue;
+		validateIdentifier(key, "content field name");
+		writable[key] = value;
+	}
+	return writable;
+}
+
 /**
  * Deserialize a value from database storage
  * Attempts to parse JSON strings that look like objects/arrays
@@ -258,7 +309,7 @@ export class ContentRepository {
 	 * Create a new content item
 	 */
 	async create(input: CreateContentInput): Promise<ContentItem> {
-		const id = ulid();
+		const id = input.id ?? ulid();
 		const now = new Date().toISOString();
 
 		const {
@@ -356,7 +407,7 @@ export class ContentRepository {
 	 * (optionally scoped to a locale) and appends a numeric suffix (`-1`,
 	 * `-2`, etc.) on collision to guarantee uniqueness.
 	 *
-	 * Returns `null` if `baseSlug` is empty after slugification.
+	 * Returns null when slug normalization cannot produce a value.
 	 */
 	async generateUniqueSlug(type: string, text: string, locale?: string): Promise<string | null> {
 		const baseSlug = slugify(text);
@@ -630,8 +681,13 @@ export class ContentRepository {
 		// Determine ordering
 		const orderField = options.orderBy?.field || "createdAt";
 		const orderDirection = options.orderBy?.direction || "desc";
-		const resolvedOrderField = await this.resolveOrderField(type, orderField);
+		const resolvedOrderField = await this.resolveOrderField(
+			type,
+			orderField,
+			options.sortableExtras,
+		);
 		const dbField = resolvedOrderField.column;
+		const resolvedFieldFilters = await this.resolveFieldFilters(type, options.where?.fieldFilters);
 
 		// Validate order direction to prevent injection
 		const safeOrderDirection = orderDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
@@ -659,6 +715,7 @@ export class ContentRepository {
 		query = this.applySearchFilter(query, options.where, type);
 		query = this.applyDateFilter(query, options.where);
 		query = this.applyBylineFilter(query, options.where, type);
+		query = this.applyFieldFilters(query, resolvedFieldFilters);
 
 		// Handle cursor pagination — decodeCursor throws InvalidCursorError
 		// on malformed input; let it propagate so handlers surface a
@@ -711,21 +768,36 @@ export class ContentRepository {
 		}
 
 		// Apply ordering and limit
-		if (resolvedOrderField.indexedCustomField) {
+		const indexedOrderFilter = resolvedOrderField.indexedCustomField
+			? resolvedFieldFilters.find((filter) => filter.column === dbField)
+			: undefined;
+		if (resolvedOrderField.indexedCustomField && !indexedOrderFilter) {
 			query = query.orderBy(
 				sql<boolean>`${sql.ref(dbField)} IS NOT NULL`,
 				safeOrderDirection === "ASC" ? "asc" : "desc",
 			);
 		}
-		query = query
-			.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc")
-			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
-			.limit(limit + 1);
+		if (indexedOrderFilter?.kind !== "null") {
+			query = query.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc");
+		}
+		query = query.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc").limit(limit + 1);
 
 		// Run the page fetch and the unbounded count together — the UI needs
 		// both to render a stable denominator (kept on every page intentionally),
 		// and issuing them in parallel on SQLite is essentially free.
-		const [rows, total] = await Promise.all([query.execute(), this.count(type, options.where)]);
+		//
+		// Settled rather than raced: a collection whose table is missing rejects
+		// both, and `Promise.all` returns on the first. The loser stays in flight
+		// holding a pooled connection, so a Postgres pool destroyed in that window
+		// never finishes closing.
+		const [rowsResult, countResult] = await Promise.allSettled([
+			query.execute(),
+			this.countWithResolvedFilters(type, options.where, resolvedFieldFilters),
+		]);
+		if (rowsResult.status === "rejected") throw rowsResult.reason;
+		if (countResult.status === "rejected") throw countResult.reason;
+		const rows = rowsResult.value;
+		const total = countResult.value;
 		const hasMore = rows.length > limit;
 		const items = rows.slice(0, limit);
 
@@ -799,11 +871,8 @@ export class ContentRepository {
 
 		// Update data fields (skip system columns to prevent injection via data)
 		if (input.data !== undefined && typeof input.data === "object") {
-			for (const [key, value] of Object.entries(input.data)) {
-				if (!SYSTEM_COLUMNS.has(key)) {
-					validateIdentifier(key, "content field name");
-					updates[key] = serializeValue(value);
-				}
+			for (const [key, value] of Object.entries(writableContentData(input.data))) {
+				updates[key] = serializeValue(value);
 			}
 		}
 
@@ -820,18 +889,6 @@ export class ContentRepository {
 			.where("deleted_at" as never, "is", null)
 			.execute();
 
-		// Re-stamp the taxonomy pivot only when a denormalized column actually
-		// moved (status/publishedAt/scheduledAt). A plain content edit bumps
-		// `updated_at` — which is not denormalized — so it needs no pivot write,
-		// keeping the common edit path free of taxonomy write amplification.
-		if (
-			input.status !== undefined ||
-			input.publishedAt !== undefined ||
-			input.scheduledAt !== undefined
-		) {
-			await this.restampEntryPivot(type, id);
-		}
-
 		if (hasColumnWrites) invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -840,6 +897,159 @@ export class ContentRepository {
 		}
 
 		return updated;
+	}
+
+	/**
+	 * Update plugin-authored fields without letting content columns diverge
+	 * from the revision pointers that publication promotes.
+	 */
+	async updateDraftAware(
+		type: string,
+		id: string,
+		input: UpdateContentInput,
+	): Promise<ContentItem> {
+		const data = input.data ? writableContentData(input.data) : {};
+		const stagedSlug = typeof input.slug === "string" ? input.slug : undefined;
+		const hasDraftUpdate = Object.keys(data).length > 0 || stagedSlug !== undefined;
+
+		if (!hasDraftUpdate) {
+			return this.update(type, id, { ...input, data });
+		}
+
+		const collectionRows = await this.db
+			.selectFrom("_emdash_collections as collection")
+			.leftJoin("_emdash_fields as field", "field.collection_id", "collection.id")
+			.select(["collection.supports", "field.slug as fieldSlug"])
+			.where("collection.slug", "=", type)
+			.execute();
+		const supportsRaw = collectionRows[0]?.supports;
+		const supports: unknown = supportsRaw ? JSON.parse(supportsRaw) : [];
+		if (!Array.isArray(supports) || !supports.includes("revisions")) {
+			return this.update(type, id, { ...input, data });
+		}
+
+		const fieldSlugs = new Set(collectionRows.map((row) => row.fieldSlug).filter(Boolean));
+		for (const field of Object.keys(data)) {
+			if (!fieldSlugs.has(field)) {
+				throw new EmDashValidationError(`Unknown field '${field}' in collection '${type}'`);
+			}
+		}
+
+		const revisionRepo = new RevisionRepository(this.db);
+		let existing = await this.findById(type, id);
+
+		for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
+			let baseData = existing.data;
+			if (existing.draftRevisionId) {
+				const draft = await revisionRepo.findById(existing.draftRevisionId);
+				if (draft) baseData = draft.data;
+			}
+
+			const mergedData = { ...baseData, ...data };
+			if (stagedSlug !== undefined) mergedData._slug = stagedSlug;
+			const revision = await revisionRepo.create({
+				collection: type,
+				entryId: id,
+				data: mergedData,
+				...(input.authorId ? { authorId: input.authorId } : {}),
+			});
+
+			let staged: boolean;
+			try {
+				staged = await this.replaceDraftRevisionForUpdate(type, id, revision.id, existing, input);
+			} catch (error) {
+				await this.deleteUnstagedRevision(revisionRepo, type, id, revision.id);
+				throw error;
+			}
+
+			if (staged) {
+				const updated = await this.findById(type, id);
+				if (!updated) throw new Error("Content not found");
+				const draftData: Record<string, unknown> = {};
+				for (const [key, value] of Object.entries(mergedData)) {
+					if (!key.startsWith("_")) draftData[key] = value;
+				}
+				return { ...updated, data: { ...updated.data, ...draftData } };
+			}
+
+			await this.deleteUnstagedRevision(revisionRepo, type, id, revision.id);
+			existing = await this.findById(type, id);
+		}
+
+		if (!existing) throw new Error("Content not found");
+		throw new ContentMutationConflictError();
+	}
+
+	private async deleteUnstagedRevision(
+		revisionRepo: RevisionRepository,
+		type: string,
+		id: string,
+		revisionId: string,
+	): Promise<void> {
+		try {
+			await revisionRepo.deleteIfUnreferenced(type, id, revisionId);
+		} catch (error) {
+			console.error(`[content] Failed to clean up unstaged revision ${revisionId}:`, error);
+		}
+	}
+
+	private async replaceDraftRevisionForUpdate(
+		type: string,
+		id: string,
+		revisionId: string,
+		expected: ContentItem,
+		input: UpdateContentInput,
+	): Promise<boolean> {
+		const tableName = getTableName(type);
+		const assignments = [sql`draft_revision_id = ${revisionId}`];
+		let liveMetadataChanged = false;
+
+		if (input.status !== undefined) {
+			assignments.push(sql`status = ${input.status}`);
+			liveMetadataChanged = true;
+		}
+		if (input.slug === null) {
+			assignments.push(sql`slug = NULL`);
+			liveMetadataChanged = true;
+		}
+		if (input.publishedAt !== undefined) {
+			assignments.push(sql`published_at = ${input.publishedAt}`);
+			liveMetadataChanged = true;
+		}
+		if (input.scheduledAt !== undefined) {
+			assignments.push(sql`scheduled_at = ${input.scheduledAt}`);
+			liveMetadataChanged = true;
+		}
+		if (input.authorId !== undefined) {
+			assignments.push(sql`author_id = ${input.authorId}`);
+			liveMetadataChanged = true;
+		}
+		if (input.primaryBylineId !== undefined) {
+			assignments.push(sql`primary_byline_id = ${input.primaryBylineId}`);
+			liveMetadataChanged = true;
+		}
+		if (liveMetadataChanged) assignments.push(sql`updated_at = ${new Date().toISOString()}`);
+		assignments.push(sql`version = version + 1`);
+
+		const result = await sql`
+			UPDATE ${sql.ref(tableName)}
+			SET ${sql.join(assignments, sql`, `)}
+			WHERE id = ${id}
+			AND deleted_at IS NULL
+			AND version = ${expected.version}
+			AND ${nullableColumnMatch("live_revision_id", expected.liveRevisionId)}
+			AND ${nullableColumnMatch("draft_revision_id", expected.draftRevisionId)}
+			AND EXISTS (
+				SELECT 1 FROM revisions
+				WHERE revisions.id = ${revisionId}
+				AND revisions.collection = ${type}
+				AND revisions.entry_id = ${id}
+			)
+		`.execute(this.db);
+
+		const changed = (result.numAffectedRows ?? 0n) > 0n;
+		if (changed && liveMetadataChanged) invalidateCollectionCache(type);
+		return changed;
 	}
 
 	/**
@@ -858,7 +1068,6 @@ export class ContentRepository {
 
 		const changed = (result.numAffectedRows ?? 0n) > 0n;
 		if (changed) {
-			await this.restampEntryPivot(type, id);
 			invalidateCollectionCache(type);
 		}
 		return changed;
@@ -881,34 +1090,8 @@ export class ContentRepository {
 		const restored = result.rows[0];
 		if (!restored) return null;
 
-		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 		return this.mapRow(type, restored);
-	}
-
-	/**
-	 * Re-stamp the denormalized filter + sort columns on every
-	 * `content_taxonomies` pivot row for an entry from its authoritative `ec_*`
-	 * row (migration 051). Called after any mutation that moves one of those
-	 * columns so a taxonomy-filtered listing can seek the entry directly.
-	 *
-	 * A single correlated `UPDATE` reads the post-mutation values from `ec_*`, so
-	 * the pivot converges to the authoritative row. This is NOT atomic with the
-	 * `ec_*` mutation on D1 (no transactions), which is why the read path
-	 * re-checks the real predicates on the joined `ec_*` row. Untagged entries
-	 * have no pivot rows, so the statement is a cheap no-op for them.
-	 */
-	private async restampEntryPivot(type: string, id: string): Promise<void> {
-		const tableName = getTableName(type);
-		await sql`
-			UPDATE content_taxonomies
-			SET (status, scheduled_at, deleted_at, locale, published_at, created_at) = (
-				SELECT status, scheduled_at, deleted_at, locale, published_at, created_at
-				FROM ${sql.ref(tableName)}
-				WHERE ${sql.ref(tableName)}.id = ${id}
-			)
-			WHERE collection = ${type} AND entry_id = ${id}
-		`.execute(this.db);
 	}
 
 	/**
@@ -1220,6 +1403,15 @@ export class ContentRepository {
 	 * Count content items
 	 */
 	async count(type: string, where?: FindManyOptions["where"]): Promise<number> {
+		const resolvedFieldFilters = await this.resolveFieldFilters(type, where?.fieldFilters);
+		return this.countWithResolvedFilters(type, where, resolvedFieldFilters);
+	}
+
+	private async countWithResolvedFilters(
+		type: string,
+		where: FindManyOptions["where"] | undefined,
+		resolvedFieldFilters: ResolvedFieldFilter[],
+	): Promise<number> {
 		const tableName = getTableName(type);
 
 		let query = this.db
@@ -1242,6 +1434,7 @@ export class ContentRepository {
 		query = this.applySearchFilter(query, where, type);
 		query = this.applyDateFilter(query, where);
 		query = this.applyBylineFilter(query, where, type);
+		query = this.applyFieldFilters(query, resolvedFieldFilters);
 
 		const result = await query.executeTakeFirst();
 		return Number(result?.count || 0);
@@ -1270,8 +1463,16 @@ export class ContentRepository {
 	// get overall statistics for a content type in a single query
 	async getStats(
 		type: string,
-	): Promise<{ total: number; published: number; draft: number; scheduled: number }> {
+		now = new Date(),
+	): Promise<{
+		total: number;
+		published: number;
+		draft: number;
+		scheduled: number;
+		overdueScheduled: number;
+	}> {
 		const tableName = getTableName(type);
+		const nowIso = now.toISOString();
 
 		const result = await this.db
 			.selectFrom(tableName as keyof Database)
@@ -1280,6 +1481,9 @@ export class ContentRepository {
 				eb.fn.sum(eb.case().when("status", "=", "published").then(1).else(0).end()).as("published"),
 				eb.fn.sum(eb.case().when("status", "=", "draft").then(1).else(0).end()).as("draft"),
 				sql<number>`SUM(CASE WHEN scheduled_at IS NOT NULL THEN 1 ELSE 0 END)`.as("scheduled"),
+				sql<number>`SUM(CASE WHEN scheduled_at IS NOT NULL AND scheduled_at <= ${nowIso} THEN 1 ELSE 0 END)`.as(
+					"overdue_scheduled",
+				),
 			])
 			.where("deleted_at" as never, "is", null)
 			.executeTakeFirst();
@@ -1289,6 +1493,7 @@ export class ContentRepository {
 			published: Number(result?.published || 0),
 			draft: Number(result?.draft || 0),
 			scheduled: Number(result?.scheduled || 0),
+			overdueScheduled: Number(result?.overdue_scheduled || 0),
 		};
 	}
 
@@ -1330,7 +1535,6 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
-		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -1370,7 +1574,6 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
-		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -1572,6 +1775,7 @@ export class ContentRepository {
 		requireDue = false,
 		expectedScheduledAt?: string,
 		promoteRevision = true,
+		requireSlug = true,
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
@@ -1586,6 +1790,9 @@ export class ContentRepository {
 			existing.scheduledAt !== expectedScheduledAt
 		) {
 			throw new ScheduledNotDueError();
+		}
+		if (!promoteRevision && requireSlug && !existing.slug?.trim()) {
+			throw new EmDashValidationError("Cannot publish routable content without a slug");
 		}
 
 		if (!promoteRevision) {
@@ -1663,7 +1870,6 @@ export class ContentRepository {
 				}
 
 				invalidateCollectionCache(type);
-				await this.restampEntryPivot(type, id);
 				const updated = await this.findById(type, id);
 				if (!updated) throw new Error("Content not found");
 				return updated;
@@ -1704,6 +1910,9 @@ export class ContentRepository {
 
 			const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
 			const intendedSlug = stagedSlug ?? existing.slug;
+			if (requireSlug && !intendedSlug?.trim()) {
+				throw new EmDashValidationError("Cannot publish routable content without a slug");
+			}
 			const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
 			if (stagedSlug !== null && stagedSlug !== existing.slug && existing.locale !== null) {
 				const conflict = await this.findBySlugIncludingTrashed(type, stagedSlug, existing.locale);
@@ -1794,8 +2003,6 @@ export class ContentRepository {
 			}
 
 			invalidateCollectionCache(type);
-			await this.restampEntryPivot(type, id);
-
 			const updated = await this.findById(type, id);
 			if (!updated) {
 				throw new Error("Content not found");
@@ -1861,7 +2068,6 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
-		await this.restampEntryPivot(type, id);
 		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
@@ -2018,34 +2224,230 @@ export class ContentRepository {
 		};
 	}
 
+	private normalizeFilterScalar(
+		field: string,
+		type: FieldType,
+		value: unknown,
+	): NormalizedFilterScalar {
+		if (type === "number" || type === "integer") {
+			if (typeof value !== "number" || !Number.isFinite(value)) {
+				throw new EmDashValidationError(`Filter for field "${field}" must use a finite number`);
+			}
+			if (type === "integer" && !Number.isInteger(value)) {
+				throw new EmDashValidationError(`Filter for field "${field}" must use an integer`);
+			}
+			return value;
+		}
+
+		if (type === "boolean") {
+			if (typeof value !== "boolean") {
+				throw new EmDashValidationError(`Filter for field "${field}" must use a boolean`);
+			}
+			return value ? 1 : 0;
+		}
+
+		if (typeof value !== "string") {
+			throw new EmDashValidationError(`Filter for field "${field}" must use a string`);
+		}
+		if (value.length > MAX_FILTER_STRING_LENGTH) {
+			throw new EmDashValidationError(
+				`Filter value for field "${field}" exceeds ${MAX_FILTER_STRING_LENGTH} characters`,
+			);
+		}
+		return value;
+	}
+
+	private normalizeFieldFilter(
+		field: string,
+		type: FieldType,
+		value: ContentFieldFilterValue,
+	): ResolvedFieldFilter {
+		if (value === null) return { column: field, kind: "null" };
+		if (typeof value !== "object") {
+			return {
+				column: field,
+				kind: "exact",
+				value: this.normalizeFilterScalar(field, type, value),
+			};
+		}
+		if (Array.isArray(value)) {
+			throw new EmDashValidationError(`Invalid filter for field "${field}"`);
+		}
+
+		const record = value as Record<string, unknown>;
+		const keys = Object.keys(record);
+		if (keys.length === 1 && keys[0] === "in") {
+			if (!Array.isArray(record.in) || record.in.length === 0) {
+				throw new EmDashValidationError(`IN filter for field "${field}" must not be empty`);
+			}
+			if (record.in.length > MAX_IN_FILTER_VALUES) {
+				throw new EmDashValidationError(
+					`IN filter for field "${field}" exceeds ${MAX_IN_FILTER_VALUES} values`,
+				);
+			}
+			return {
+				column: field,
+				kind: "in",
+				values: record.in.map((entry) => this.normalizeFilterScalar(field, type, entry)),
+			};
+		}
+
+		const rangeKeys = new Set(["gt", "gte", "lt", "lte"]);
+		if (keys.length === 0 || keys.some((key) => !rangeKeys.has(key))) {
+			throw new EmDashValidationError(`Invalid filter operator for field "${field}"`);
+		}
+		if (type === "boolean") {
+			throw new EmDashValidationError(`Boolean field "${field}" does not support range filters`);
+		}
+
+		const bounds: Partial<Record<"gt" | "gte" | "lt" | "lte", NormalizedFilterScalar>> = {};
+		for (const key of keys as Array<"gt" | "gte" | "lt" | "lte">) {
+			if (record[key] === undefined) continue;
+			bounds[key] = this.normalizeFilterScalar(field, type, record[key]);
+		}
+		if (Object.keys(bounds).length === 0) {
+			throw new EmDashValidationError(`Range filter for field "${field}" has no bounds`);
+		}
+		return { column: field, kind: "range", bounds };
+	}
+
+	private async collectionExists(type: string): Promise<boolean> {
+		const collection = await this.db
+			.selectFrom("_emdash_collections")
+			.where("slug", "=", type)
+			.select("id")
+			.executeTakeFirst();
+		return collection !== undefined;
+	}
+
+	private async resolveFieldFilters(
+		type: string,
+		filters: ContentFieldFilters | undefined,
+	): Promise<ResolvedFieldFilter[]> {
+		const resolvedFilters = filters ?? {};
+		const fields = Object.keys(resolvedFilters);
+		if (fields.length === 0) return [];
+		if (fields.length > MAX_INDEXED_FIELD_FILTERS) {
+			if (!(await this.collectionExists(type))) return [];
+			throw new EmDashValidationError(
+				`Content list queries support at most ${MAX_INDEXED_FIELD_FILTERS} indexed field filters`,
+			);
+		}
+		const rows = await this.db
+			.selectFrom("_emdash_fields as field")
+			.innerJoin("_emdash_collections as collection", "collection.id", "field.collection_id")
+			.where("collection.slug", "=", type)
+			.where("field.slug", "in", fields)
+			.where("field.indexed", "=", 1)
+			.select(["field.slug", "field.type"])
+			.execute();
+		const metadata = new Map(rows.map((row) => [row.slug, row.type as FieldType]));
+
+		if (metadata.size === 0 && !(await this.collectionExists(type))) return [];
+
+		for (const field of fields) {
+			try {
+				validateIdentifier(field, "content filter field");
+			} catch {
+				throw new EmDashValidationError(`Invalid content filter field: ${field}`);
+			}
+		}
+
+		const normalized = fields.map((field) => {
+			const fieldType = metadata.get(field);
+			if (!fieldType || !isIndexableFieldType(fieldType)) {
+				throw new EmDashValidationError(
+					`Cannot filter by field "${field}". Custom fields must be indexed before filtering.`,
+				);
+			}
+			return this.normalizeFieldFilter(field, fieldType, resolvedFilters[field]);
+		});
+		const operandCount = normalized.reduce((total, filter) => {
+			if (filter.kind === "null") return total;
+			if (filter.kind === "exact") return total + 1;
+			if (filter.kind === "in") return total + filter.values.length;
+			return total + Object.keys(filter.bounds).length;
+		}, 0);
+		if (operandCount > SQL_BATCH_SIZE) {
+			throw new EmDashValidationError(
+				`Indexed field filters have a total operand budget of ${SQL_BATCH_SIZE}`,
+			);
+		}
+		return normalized;
+	}
+
+	private applyFieldFilters<QB extends { where: (cb: (eb: any) => unknown) => QB }>(
+		query: QB,
+		filters: ResolvedFieldFilter[],
+	): QB {
+		let next = query;
+		for (const filter of filters) {
+			const column = sql.ref(filter.column);
+			const isPresent = sql<boolean>`${column} IS NOT NULL`;
+			if (filter.kind === "null") {
+				next = next.where(() => sql<boolean>`(${isPresent}) = FALSE AND ${column} IS NULL`);
+				continue;
+			}
+			if (filter.kind === "exact") {
+				next = next.where(
+					() => sql<boolean>`(${isPresent}) = TRUE AND ${column} = ${filter.value}`,
+				);
+				continue;
+			}
+			if (filter.kind === "in") {
+				const values = sql.join(
+					filter.values.map((value) => sql`${value}`),
+					sql`, `,
+				);
+				next = next.where(() => sql<boolean>`(${isPresent}) = TRUE AND ${column} IN (${values})`);
+				continue;
+			}
+
+			next = next.where(() => sql<boolean>`(${isPresent}) = TRUE`);
+			if (filter.bounds.gt !== undefined) {
+				next = next.where(() => sql<boolean>`${column} > ${filter.bounds.gt}`);
+			}
+			if (filter.bounds.gte !== undefined) {
+				next = next.where(() => sql<boolean>`${column} >= ${filter.bounds.gte}`);
+			}
+			if (filter.bounds.lt !== undefined) {
+				next = next.where(() => sql<boolean>`${column} < ${filter.bounds.lt}`);
+			}
+			if (filter.bounds.lte !== undefined) {
+				next = next.where(() => sql<boolean>`${column} <= ${filter.bounds.lte}`);
+			}
+		}
+		return next;
+	}
+
 	/**
 	 * Map order field names to database columns.
 	 * Only allows known fields to prevent column enumeration via crafted orderBy values.
 	 */
-	private mapOrderField(field: string): string {
-		const mapping: Record<string, string> = {
-			createdAt: "created_at",
-			updatedAt: "updated_at",
-			publishedAt: "published_at",
-			scheduledAt: "scheduled_at",
-			deletedAt: "deleted_at",
-			title: "title",
-			name: "name",
-			slug: "slug",
-			status: "status",
-			locale: "locale",
-		};
+	private mapOrderField(field: string, sortableExtras: readonly string[] = []): string {
+		const mapped = ORDER_FIELD_COLUMNS[field];
+		if (mapped) return mapped;
 
-		const mapped = mapping[field];
-		if (!mapped) {
-			throw new EmDashValidationError(`Invalid order field: ${field}`);
+		// A collection's configured titleField/dateField are allowed as
+		// sort columns. The caller passes the collection's *actual* values (resolved
+		// server-side, never client-supplied), so this stays a closed set per
+		// request and doesn't reopen the column-enumeration hole. The slug is a
+		// validated identifier that maps directly to the column.
+		if (sortableExtras.includes(field)) {
+			validateIdentifier(field, "order field");
+			return field;
 		}
-		return mapped;
+
+		throw new EmDashValidationError(`Invalid order field: ${field}`);
 	}
 
-	private async resolveOrderField(type: string, field: string): Promise<ResolvedOrderField> {
+	private async resolveOrderField(
+		type: string,
+		field: string,
+		sortableExtras: readonly string[] = [],
+	): Promise<ResolvedOrderField> {
 		try {
-			return { column: this.mapOrderField(field), indexedCustomField: false };
+			return { column: this.mapOrderField(field, sortableExtras), indexedCustomField: false };
 		} catch (error) {
 			if (!(error instanceof EmDashValidationError)) throw error;
 		}

@@ -195,7 +195,7 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		expect(tagCounts.get(tag.translationGroup ?? tag.id)).toBe(1);
 	});
 
-	it("counts per entry row across locales, keyed by translation_group", async () => {
+	it("counts one logical content group once for each assigned term group", async () => {
 		// Defs are per-locale — translate the seeded `category` def into FR so
 		// the FR widget view resolves (same declared collections).
 		const enDef = await ctx.db
@@ -230,6 +230,12 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 			locale: "fr",
 			translationOf: enTerm.id,
 		});
+		const featured = await taxRepo.create({
+			name: "category",
+			slug: "featured",
+			label: "Featured",
+			locale: "en",
+		});
 
 		const enPost = await contentRepo.create({
 			type: "post",
@@ -248,17 +254,17 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		});
 		// Attaching via either locale's term id resolves to the shared group.
 		await taxRepo.attachToEntry("post", enPost.id, enTerm.id);
-		await taxRepo.attachToEntry("post", frPost.id, frTerm.id);
+		await taxRepo.attachToEntry("post", frPost.id, featured.id);
 
 		const counts = await fetchVisibleTermCounts(ctx.db, "category", ["post"]);
-		// One count per entry row, shared by every locale variant of the term.
-		expect(counts.get(enTerm.translationGroup ?? enTerm.id)).toBe(2);
+		expect(counts.get(enTerm.translationGroup ?? enTerm.id)).toBe(1);
+		expect(counts.get(featured.translationGroup ?? featured.id)).toBe(1);
 
 		// Both locale views of the taxonomy surface the same group count.
 		const enTerms = await getTaxonomyTerms("category", { locale: "en" });
 		const frTerms = await getTaxonomyTerms("category", { locale: "fr" });
-		expect(enTerms[0]!.count).toBe(2);
-		expect(frTerms[0]!.count).toBe(2);
+		expect(enTerms.find((term) => term.id === enTerm.id)?.count).toBe(1);
+		expect(frTerms.find((term) => term.id === frTerm.id)?.count).toBe(1);
 	});
 
 	it("skips missing ec_* tables and returns a partial count", async () => {

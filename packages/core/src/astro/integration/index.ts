@@ -12,7 +12,7 @@
 
 import { createRequire } from "node:module";
 
-import type { AstroIntegration, AstroIntegrationLogger } from "astro";
+import type { AstroIntegration, AstroIntegrationLogger, AstroIntegrationMiddleware } from "astro";
 
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
 import { INTERNAL_MEDIA_PREFIX } from "../../media/normalize.js";
@@ -251,6 +251,58 @@ function printDevServerInfo(baseUrl: string, mcpEnabled: boolean): void {
 	console.log(`  ${dim("›")} Dev bypass  ${cyan(devBypassUrl)}`);
 	console.log(`    ${dim("Skips passkey setup/auth and signs you in as a dev admin")}`);
 	console.log("");
+}
+
+export function buildMiddlewareEntries(
+	config: Pick<EmDashConfig, "middleware" | "playground">,
+	root: URL,
+): AstroIntegrationMiddleware[] {
+	const entries: AstroIntegrationMiddleware[] = [];
+
+	if (config.middleware !== undefined) {
+		const configuredEntrypoint = config.middleware?.outer;
+		if (
+			(typeof configuredEntrypoint !== "string" && !(configuredEntrypoint instanceof URL)) ||
+			(typeof configuredEntrypoint === "string" && configuredEntrypoint.trim() === "")
+		) {
+			throw new Error("middleware.outer must be a non-empty module specifier string or URL.");
+		}
+		const entrypoint =
+			typeof configuredEntrypoint === "string" &&
+			(configuredEntrypoint.startsWith("./") || configuredEntrypoint.startsWith("../"))
+				? new URL(configuredEntrypoint, root)
+				: configuredEntrypoint;
+		entries.push({
+			entrypoint,
+			order: "pre",
+		});
+	}
+
+	if (config.playground) {
+		entries.push({
+			entrypoint: config.playground.middlewareEntrypoint,
+			order: "pre",
+		});
+	}
+
+	entries.push(
+		{ entrypoint: "emdash/middleware", order: "pre" },
+		{ entrypoint: "emdash/middleware/redirect", order: "pre" },
+	);
+
+	if (!config.playground) {
+		entries.push(
+			{ entrypoint: "emdash/middleware/setup", order: "pre" },
+			{ entrypoint: "emdash/middleware/auth", order: "pre" },
+		);
+	}
+
+	entries.push(
+		{ entrypoint: "emdash/middleware/media-usage-write-fence", order: "pre" },
+		{ entrypoint: "emdash/middleware/request-context", order: "pre" },
+	);
+
+	return entries;
 }
 
 /**
@@ -543,53 +595,9 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					injectMcpRoute(injectRoute);
 				}
 
-				// In playground mode, inject the playground middleware FIRST.
-				// It sets up a per-session DO database in ALS before anything
-				// else runs, so the runtime init middleware sees a real DB.
-				if (resolvedConfig.playground) {
-					addMiddleware({
-						entrypoint: resolvedConfig.playground.middlewareEntrypoint,
-						order: "pre",
-					});
+				for (const middleware of buildMiddlewareEntries(resolvedConfig, astroConfig.root)) {
+					addMiddleware(middleware);
 				}
-
-				// Add middleware to provide database and manifest
-				addMiddleware({
-					entrypoint: "emdash/middleware",
-					order: "pre",
-				});
-
-				// Add redirect middleware (runs after runtime init, before setup/auth)
-				addMiddleware({
-					entrypoint: "emdash/middleware/redirect",
-					order: "pre",
-				});
-
-				// Skip setup and auth in playground mode -- the playground middleware
-				// handles session creation and injects an anonymous admin user.
-				if (!resolvedConfig.playground) {
-					addMiddleware({
-						entrypoint: "emdash/middleware/setup",
-						order: "pre",
-					});
-
-					addMiddleware({
-						entrypoint: "emdash/middleware/auth",
-						order: "pre",
-					});
-				}
-
-				addMiddleware({
-					entrypoint: "emdash/middleware/media-usage-write-fence",
-					order: "pre",
-				});
-
-				// Add request context middleware (runs after auth, on ALL routes)
-				// Sets up ALS-based context for query functions (edit mode, preview)
-				addMiddleware({
-					entrypoint: "emdash/middleware/request-context",
-					order: "pre",
-				});
 
 				// Route info is printed with absolute, clickable URLs once the
 				// dev server is listening (see astro:server:setup), since the

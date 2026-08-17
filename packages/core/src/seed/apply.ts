@@ -30,12 +30,28 @@ import type {
 	SeedFile,
 	SeedApplyOptions,
 	SeedApplyResult,
+	SeedCollection,
 	SeedTaxonomyTerm,
 	SeedMenuItem,
 	SeedWidget,
 	SeedMediaReference,
 	SeedBylineAvatar,
 } from "./types.js";
+
+/**
+ * Set a collection's `titleField`/`dateField`: a separate write run after the
+ * fields exist, so `updateCollection` can validate them. No-op when neither is set.
+ */
+async function applyDisplayDateFields(
+	registry: SchemaRegistry,
+	collection: SeedCollection,
+): Promise<void> {
+	if (collection.titleField === undefined && collection.dateField === undefined) return;
+	await registry.updateCollection(collection.slug, {
+		titleField: collection.titleField,
+		dateField: collection.dateField,
+	});
+}
 
 const FILE_EXTENSION_PATTERN = /\.([a-z0-9]+)(?:\?|$)/i;
 import { validateSeed } from "./validate.js";
@@ -180,6 +196,7 @@ export async function applySeed(
 						admin: collection.admin,
 						supports: collection.supports || [],
 						urlPattern: collection.urlPattern,
+						routable: collection.routable,
 						hidden: collection.hidden,
 						sortOrder: collection.sortOrder,
 						commentsEnabled: collection.commentsEnabled,
@@ -220,6 +237,9 @@ export async function applySeed(
 							result.fields.created++;
 						}
 					}
+
+					// Second write: display/date fields, now that fields exist.
+					await applyDisplayDateFields(registry, collection);
 					continue;
 				}
 
@@ -254,12 +274,16 @@ export async function applySeed(
 					admin: collection.admin,
 					supports: collection.supports || [],
 					urlPattern: collection.urlPattern,
+					routable: collection.routable,
 					hidden: collection.hidden,
 					sortOrder: collection.sortOrder,
 					commentsEnabled: collection.commentsEnabled,
 				},
 				fields,
 			);
+			// titleField/dateField reference existing fields, so set them after
+			// the schema exists.
+			await applyDisplayDateFields(registry, collection);
 			result.collections.created++;
 			result.fields.created += fields.length;
 		}
@@ -465,23 +489,31 @@ export async function applySeed(
 	// 7. Content (created before menus so refs can resolve)
 	if (includeContent && seed.content) {
 		const contentRepo = new ContentRepository(db);
+		const schemaRegistry = new SchemaRegistry(db);
 
 		try {
 			// Create content entries
 			for (const [collectionSlug, entries] of Object.entries(seed.content)) {
+				const collectionRoutable =
+					(await schemaRegistry.getCollection(collectionSlug))?.routable !== false;
 				for (const entry of entries) {
+					const entrySlug =
+						typeof entry.slug === "string" && entry.slug.trim().length > 0 ? entry.slug : null;
 					// Resolve the entry's locale up front so a non-`en` single-locale
 					// export (which omits `locale`) is filed under the project default
 					// rather than `en` (#1421).
 					const entryLocale = resolveConfiguredLocale(entry.locale ?? defaultLocale);
 
-					// Check if entry exists (by slug + locale for locale-aware lookup)
-					const existing = await contentRepo.findBySlug(collectionSlug, entry.slug, entryLocale);
+					// Slugful entries use the existing locale-aware key. Slugless seed
+					// entries persist their seed ID, which keeps re-application idempotent.
+					const existing = entrySlug
+						? await contentRepo.findBySlug(collectionSlug, entrySlug, entryLocale)
+						: await contentRepo.findById(collectionSlug, entry.id);
 
 					if (existing) {
 						if (onConflict === "error") {
 							throw new Error(
-								`Conflict: content "${entry.slug}" in "${collectionSlug}" already exists`,
+								`Conflict: content "${entrySlug ?? entry.id}" in "${collectionSlug}" already exists`,
 							);
 						}
 
@@ -534,7 +566,15 @@ export async function applySeed(
 										});
 										try {
 											await trxContentRepo.setDraftRevision(collectionSlug, existing.id, draft.id);
-											await trxContentRepo.publish(collectionSlug, existing.id);
+											await trxContentRepo.publish(
+												collectionSlug,
+												existing.id,
+												undefined,
+												false,
+												undefined,
+												true,
+												collectionRoutable,
+											);
 										} catch (error) {
 											try {
 												await trxRevisionRepo.deleteIfUnreferenced(
@@ -595,8 +635,9 @@ export async function applySeed(
 							const trxBylineRepo = new BylineRepository(trx);
 
 							const item = await trxContentRepo.create({
+								...(entrySlug ? {} : { id: entry.id }),
 								type: collectionSlug,
-								slug: entry.slug,
+								slug: entrySlug,
 								status,
 								data: resolvedData,
 								locale: entryLocale,
@@ -618,7 +659,15 @@ export async function applySeed(
 							// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
 							// and `live_revision_id` is populated for downstream queries.
 							if (status === "published") {
-								await trxContentRepo.publish(collectionSlug, item.id);
+								await trxContentRepo.publish(
+									collectionSlug,
+									item.id,
+									undefined,
+									false,
+									undefined,
+									true,
+									collectionRoutable,
+								);
 							}
 
 							return item;
@@ -966,7 +1015,11 @@ async function applyContentBylines(
 	bylineRepo: BylineRepository,
 	collectionSlug: string,
 	contentId: string,
-	entry: { slug: string; bylines?: Array<{ byline: string; roleLabel?: string }> },
+	entry: {
+		id: string;
+		slug?: string | null;
+		bylines?: Array<{ byline: string; roleLabel?: string }>;
+	},
 	seedBylineIdMap: Map<string, string>,
 	isUpdate = false,
 ): Promise<void> {
@@ -991,7 +1044,7 @@ async function applyContentBylines(
 
 	if (credits.length !== entry.bylines.length) {
 		console.warn(
-			`content.${collectionSlug}.${entry.slug}: one or more byline refs could not be resolved`,
+			`content.${collectionSlug}.${entry.slug ?? entry.id}: one or more byline refs could not be resolved`,
 		);
 	}
 
@@ -1014,13 +1067,10 @@ async function applyContentTaxonomies(
 	entry: { taxonomies?: Record<string, string[]> },
 	isUpdate: boolean,
 ): Promise<void> {
+	const termRepo = new TaxonomyRepository(db);
 	// In update mode, clear existing taxonomy assignments first
 	if (isUpdate) {
-		await db
-			.deleteFrom("content_taxonomies")
-			.where("collection", "=", collectionSlug)
-			.where("entry_id", "=", contentId)
-			.execute();
+		await termRepo.clearEntryTerms(collectionSlug, contentId);
 	}
 
 	if (!entry.taxonomies) {
@@ -1034,8 +1084,6 @@ async function applyContentTaxonomies(
 	}
 
 	for (const [taxonomyName, termSlugs] of Object.entries(entry.taxonomies)) {
-		const termRepo = new TaxonomyRepository(db);
-
 		for (const termSlug of termSlugs) {
 			const term = await termRepo.findBySlug(taxonomyName, termSlug);
 			if (term) {

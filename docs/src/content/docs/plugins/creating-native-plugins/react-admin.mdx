@@ -5,7 +5,7 @@ description: Ship custom React components for plugin admin pages and dashboard w
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Native plugins can extend the admin panel with custom React pages and dashboard widgets — sandboxed plugins describe their UI as [Block Kit](/plugins/creating-plugins/block-kit/) instead, because shipping plugin JavaScript into the admin would break sandbox isolation.
+Native plugins can extend the admin panel with custom React pages, dashboard widgets, field widgets, and content-list columns — sandboxed plugins describe their UI as [Block Kit](/plugins/creating-plugins/block-kit/) instead, because shipping plugin JavaScript into the admin would break sandbox isolation.
 
 If your plugin only needs a settings form, the auto-generated `admin.settingsSchema` form (see [Your first native plugin](/plugins/creating-native-plugins/your-first-native-plugin/#settings-ui)) covers most cases without writing any React. Reach for custom components when you need richer UI than `settingsSchema` provides.
 
@@ -261,15 +261,87 @@ Panel IDs must be unique within the plugin. Keep panel content responsive to the
 	This extension point is available only to trusted React plugins. Sandboxed plugins cannot execute React components inside the host admin.
 </Aside>
 
+## Content-list columns
+
+Trusted React plugins can add read-only columns to active content collection lists. EmDash keeps ownership of the table, pagination, row actions, and loading and empty states; the plugin supplies only the header metadata and cell content.
+
+```typescript title="src/admin.tsx"
+import type {
+	ContentListColumnCellContext,
+	ContentListColumnExtension,
+} from "@emdash-cms/admin";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch, parseApiResponse } from "emdash/plugin-utils";
+
+async function fetchReviewStatuses(
+	collection: string,
+	locale: string | undefined,
+	ids: readonly string[],
+) {
+	const response = await apiFetch(
+		"/_emdash/api/plugins/editorial-workflow/review-statuses/batch",
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ collection, locale, ids }),
+		},
+	);
+	return parseApiResponse<Record<string, string>>(response, "Failed to load review statuses");
+}
+
+function ReviewStatusCell({
+	item,
+	visibleItems,
+	collection,
+	locale,
+}: ContentListColumnCellContext) {
+	const itemIds = visibleItems.map((visibleItem) => visibleItem.id);
+	const { data: reviewStatuses } = useQuery({
+		queryKey: ["editorial-workflow", "review-statuses", collection, locale ?? null, itemIds],
+		queryFn: () => fetchReviewStatuses(collection, locale, itemIds),
+	});
+	const reviewStatus = reviewStatuses?.[item.id];
+	return reviewStatus ? <span>{reviewStatus}</span> : <span>-</span>;
+}
+
+export const contentListColumns = [
+	{
+		id: "review-status",
+		label: "Review status",
+		collections: ["posts", "pages"],
+		order: 10,
+		align: "end",
+		cell: ReviewStatusCell,
+	},
+] satisfies readonly ContentListColumnExtension[];
+```
+
+Every cell component mounts once per visible row. When a column needs data that is not already on `item`, use `visibleItems` to request the whole page in one batch. All cells in the example share the same React Query key, so they reuse one request instead of issuing one request per item.
+
+<Aside type="caution">
+	Do not fetch metadata using only `item.id` from inside a cell. A 20-row page would issue 20 requests. Add a batch plugin route and key the shared query by the visible item ids, collection, and locale.
+</Aside>
+
+Column ids only need to be unique within the plugin. Contributions are ordered by `order`, then plugin id and column id. A plugin can also provide:
+
+- `header`: a custom header component; `label` remains the host-rendered fallback.
+- `collections`: an array or predicate restricting where the column appears.
+- `minRole`: a visibility filter for the admin UI. This is not authorization; plugin API routes must still enforce access.
+
+Disabled or missing plugins are omitted. Invalid definitions, collection predicates that throw, and render failures are isolated so the host content list remains usable. Columns are not shown in Trash.
+
+Content-list columns are display-only. Server-backed sorting and filtering require a separate host data-provider contract; a browser comparator would only sort the currently loaded cursor pages and is therefore not supported by this API.
+
 ## Export structure
 
-The admin entry point exports the objects used by the features it implements:
+The admin entry point exports each contribution directly:
 
 ```typescript title="src/admin.tsx"
 import { SettingsPage } from "./components/SettingsPage";
 import { ReportsPage } from "./components/ReportsPage";
 import { StatusWidget } from "./components/StatusWidget";
 import { OverviewWidget } from "./components/OverviewWidget";
+import { ReviewStatusCell } from "./components/ReviewStatusCell";
 
 export const pages = {
 	"/settings": SettingsPage,
@@ -280,10 +352,19 @@ export const widgets = {
 	status: StatusWidget,
 	overview: OverviewWidget,
 };
+
+export const contentListColumns = [
+	{
+		id: "review-status",
+		label: "Review status",
+		collections: ["posts"],
+		cell: ReviewStatusCell,
+	},
+];
 ```
 
 <Aside type="caution">
-	Page paths in `pages` should match the `path` values in `admin.pages`. A trailing slash is treated as equivalent, so `/settings` and `/settings/` resolve to the same page. Opening a plugin at its root resolves to the first registered page. Widget keys must match the `id` values in `admin.widgets`.
+	Page paths in `pages` should match the `path` values in `admin.pages`. A trailing slash is treated as equivalent, so `/settings` and `/settings/` resolve to the same page. Opening a plugin at its root resolves to the first registered page. Widget keys must match the `id` values in `admin.widgets`. Content-list columns are discovered directly from the trusted admin entry point and do not need a separate descriptor entry.
 </Aside>
 
 ## Using admin components
@@ -381,6 +462,7 @@ When a plugin is disabled in the admin:
 
 - Sidebar links are hidden.
 - Dashboard widgets are not rendered.
+- Content-list columns are not rendered.
 - Admin pages return 404.
 - Backend hooks still execute (for data safety).
 

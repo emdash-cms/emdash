@@ -102,10 +102,11 @@ it("seeks the terms on a content_taxonomies index rather than probing the pivot 
 	expect(plan).not.toContain("SCAN ct");
 });
 
-it("touches the content table only by primary key", async () => {
+it("seeks content rows by translation group", async () => {
 	const plan = await countQueryPlan();
 
-	expect(plan).toContain("SEARCH e USING");
-	expect(plan).toMatch(/SEARCH e USING (COVERING )?INDEX sqlite_autoindex_ec_post_1 \(id=\?\)/);
+	expect(plan).toMatch(
+		/SEARCH e USING (COVERING )?INDEX idx_ec_post_tg_locale \(translation_group=\?\)/,
+	);
 	expect(plan).not.toContain("SCAN e");
 });

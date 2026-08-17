@@ -146,7 +146,7 @@ describeEachDialect("media usage stale marking for bypass writes", (dialect) => 
 		await expectSchemaReconciliation(collectionId, 2);
 
 		await trustCurrentSchema(collectionId);
-		await registry.updateField("posts", "hero", { type: "file" });
+		await registry.updateField("posts", "deck", { type: "text" });
 		await expectSchemaReconciliation(collectionId, 4);
 
 		await trustCurrentSchema(collectionId);
@@ -157,6 +157,29 @@ describeEachDialect("media usage stale marking for bypass writes", (dialect) => 
 			await usageRepo.recordIncrementalSuccess({ collectionId, collectionSlug: "posts" }),
 		).toBe(true);
 		await expectSchemaReconciliation(collectionId, 6);
+	});
+
+	it("keeps active coverage trusted when a field update makes no schema mutation", async () => {
+		const collectionId = await activateCollectionCapture("posts");
+		const statusBefore = await ctx.db
+			.selectFrom("_emdash_media_usage_index_status")
+			.select(["status", "reconciliation_required", "change_epoch", "capture_state"])
+			.where("collection_id", "=", collectionId)
+			.executeTakeFirstOrThrow();
+
+		await registry.updateField("posts", "hero", {});
+		await registry.updateField("posts", "hero", { indexed: false });
+		await expect(registry.updateField("posts", "hero", { required: true })).rejects.toThrow(
+			/manual content migration/,
+		);
+
+		await expect(
+			ctx.db
+				.selectFrom("_emdash_media_usage_index_status")
+				.select(["status", "reconciliation_required", "change_epoch", "capture_state"])
+				.where("collection_id", "=", collectionId)
+				.executeTakeFirstOrThrow(),
+		).resolves.toEqual(statusBefore);
 	});
 
 	it("does not mutate schema when active coverage cannot be invalidated", async () => {

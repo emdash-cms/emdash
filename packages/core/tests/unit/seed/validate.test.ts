@@ -122,6 +122,16 @@ describe("validateSeed", () => {
 			expect(result.errors).toContain('collections[1].slug: duplicate collection slug "posts"');
 		});
 
+		it("should reject a non-boolean routable value", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [{ slug: "posts", label: "Posts", routable: "false", fields: [] }],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain("collections[0].routable: must be a boolean");
+		});
+
 		it("should require fields to be an array", () => {
 			const result = validateSeed({
 				version: "1",
@@ -764,6 +774,45 @@ describe("validateSeed", () => {
 			});
 			expect(result.valid).toBe(false);
 			expect(result.errors).toContain("content.posts[0]: id is required");
+			expect(result.errors).toContain("content.posts[0]: slug is required");
+		});
+
+		it("allows a slugless entry in a non-routable collection", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "blocks",
+						label: "Blocks",
+						routable: false,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+				content: {
+					blocks: [{ id: "hero", data: { title: "Hero" }, status: "published" }],
+				},
+			});
+
+			expect(result.valid).toBe(true);
+			expect(result.errors).toEqual([]);
+		});
+
+		it("rejects a whitespace-only slug in a routable collection", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+				content: {
+					posts: [{ id: "empty", slug: "   ", data: { title: "Empty" } }],
+				},
+			});
+
+			expect(result.valid).toBe(false);
 			expect(result.errors).toContain("content.posts[0]: slug is required");
 		});
 

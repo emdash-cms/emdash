@@ -30,7 +30,8 @@ interface CountRow {
 /**
  * Per-collection count branch. `taxonomy_id` stores the term's
  * translation_group, so results are keyed by group (locale-independent) and
- * each assignment is counted once no matter how many locales the term has.
+ * each assignment is counted once no matter how many content or term locales
+ * belong to either translation group.
  *
  * Scoping to the taxonomy uses `translation_group IN (...)` rather than a
  * join on `taxonomies.id` — the anchor row (id == group) can be deleted while
@@ -39,7 +40,8 @@ interface CountRow {
  *
  * CROSS JOIN with the join predicate in WHERE keeps stats-blind SQLite/D1 from
  * reordering content_taxonomies out of the outer position; it touches ec_* only
- * by primary key. Postgres treats this as an ordinary inner join and plans freely.
+ * through the translation-group index. Postgres treats this as an ordinary
+ * inner join and plans freely.
  */
 function collectionBranch(
 	db: Kysely<Database>,
@@ -47,10 +49,10 @@ function collectionBranch(
 	collection: string,
 ): ReturnType<typeof sql> {
 	return sql`
-		SELECT ct.taxonomy_id AS taxonomy_id, COUNT(*) AS count
+		SELECT ct.taxonomy_id AS taxonomy_id, COUNT(DISTINCT e.translation_group) AS count
 		FROM content_taxonomies AS ct
 		CROSS JOIN ${sql.ref(`ec_${collection}`)} AS e
-		WHERE e.id = ct.entry_id
+		WHERE e.translation_group = ct.entry_id
 			AND ct.collection = ${collection}
 			AND ct.taxonomy_id IN (SELECT translation_group FROM taxonomies WHERE name = ${taxonomyName})
 			AND ${buildStatusCondition(db, "published", "e")}
