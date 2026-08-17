@@ -320,7 +320,10 @@ async function searchSingleCollection(
 			c.slug,
 			c.locale,
 			${titleExpr} as title,
-			snippet("${sql.raw(ftsTable)}", 2, '<mark>', '</mark>', '...', 32) as snippet,
+			-- Column -1 lets FTS5 pick the column the query actually matched.
+			-- Hard-coding 2 (the first searchable field) meant a match in any
+			-- other field returned that first field's text, unhighlighted.
+			snippet("${sql.raw(ftsTable)}", -1, '<mark>', '</mark>', '...', 32) as snippet,
 			${sql.raw(bm25Expr)} as score
 		FROM "${sql.raw(ftsTable)}" f
 		JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
@@ -352,10 +355,9 @@ async function searchSingleCollection(
 		slug: row.slug,
 		locale: row.locale,
 		title: row.title ?? undefined,
-		// SQLite's snippet() returns NULL when the targeted column is
-		// NULL for that row — even if the row matched via a different
-		// searchable column. Skip sanitization in that case so we don't
-		// throw on `null.replace`. The SearchResult.snippet field is
+		// SQLite's snippet() can still return NULL — for a row whose matched
+		// column holds no text, for instance. Skip sanitization in that case
+		// so we don't throw on `null.replace`. The SearchResult.snippet field is
 		// already optional, so omitting it is the documented contract.
 		snippet: row.snippet === null ? undefined : sanitizeSnippet(row.snippet),
 		score: Math.abs(row.score), // bm25 returns negative scores
