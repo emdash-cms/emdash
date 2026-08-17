@@ -21,6 +21,7 @@ export default defineConfig({
 		react(),
 		emdash({
 			database: d1({ binding: "DB" }),
+			middleware: { outer: "./src/outer-middleware.ts" },
 			storage: r2({ binding: "MEDIA" }),
 			plugins: [colorPlugin()],
 			marketplace: marketplaceUrl,

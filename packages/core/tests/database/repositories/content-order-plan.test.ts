@@ -39,7 +39,7 @@ beforeAll(async () => {
 	);
 	sqlite.transaction(() => {
 		for (let i = 0; i < 1_100; i++) {
-			insert.run(`post-en-${i.toString().padStart(4, "0")}`, "en", i % 20);
+			insert.run(`post-en-${i.toString().padStart(4, "0")}`, "en", i < 100 ? null : (i - 100) % 20);
 		}
 		for (let i = 0; i < 20; i++) {
 			insert.run(`post-nl-${i.toString().padStart(4, "0")}`, "nl", i % 5);
@@ -75,7 +75,48 @@ it("uses the custom-field index for ordered cursor pages", async () => {
 	captured.length = 0;
 	const firstPage = await repo.findMany("post", {
 		limit: 3,
+		orderBy: { field: "priority", direction: "desc" },
+	});
+	const firstPlan = getListPlan();
+
+	captured.length = 0;
+	const secondPage = await repo.findMany("post", {
+		limit: 3,
+		cursor: firstPage.nextCursor,
+		orderBy: { field: "priority", direction: "desc" },
+	});
+	const secondPlan = getListPlan();
+
+	expect(firstPage.items.map((item) => item.data.priority)).toEqual([19, 19, 19]);
+	expect(secondPage.items.map((item) => item.data.priority)).toEqual([19, 19, 19]);
+	expect(new Set([...firstPage.items, ...secondPage.items].map((item) => item.id)).size).toBe(6);
+	expect(firstPage.total).toBe(1_120);
+	expect(secondPage.total).toBe(1_120);
+	expectIndexSearch(firstPlan, indexName);
+	expectIndexSearch(secondPlan, indexName);
+});
+
+it.each([
+	["an exact", 7, 50],
+	["a membership", { in: [3, 7, 11] }, 154],
+	["a null", null, 100],
+])("uses the custom-field index for %s predicate", async (_label, filter, total) => {
+	captured.length = 0;
+	const result = await repo.findMany("post", {
 		orderBy: { field: "priority", direction: "asc" },
+		where: { fieldFilters: { priority: filter } },
+	});
+
+	expect(result.total).toBe(total);
+	expectIndexSearch(getListPlan(), indexName);
+});
+
+it("uses the custom-field index for range filtering and cursor pages", async () => {
+	captured.length = 0;
+	const firstPage = await repo.findMany("post", {
+		limit: 3,
+		orderBy: { field: "priority", direction: "asc" },
+		where: { fieldFilters: { priority: { gte: 10 } } },
 	});
 	const firstPlan = getListPlan();
 
@@ -84,14 +125,15 @@ it("uses the custom-field index for ordered cursor pages", async () => {
 		limit: 3,
 		cursor: firstPage.nextCursor,
 		orderBy: { field: "priority", direction: "asc" },
+		where: { fieldFilters: { priority: { gte: 10 } } },
 	});
 	const secondPlan = getListPlan();
 
-	expect(firstPage.items.map((item) => item.data.priority)).toEqual([0, 0, 0]);
-	expect(secondPage.items.map((item) => item.data.priority)).toEqual([0, 0, 0]);
+	expect(firstPage.items.map((item) => item.data.priority)).toEqual([10, 10, 10]);
+	expect(secondPage.items.map((item) => item.data.priority)).toEqual([10, 10, 10]);
 	expect(new Set([...firstPage.items, ...secondPage.items].map((item) => item.id)).size).toBe(6);
-	expect(firstPage.total).toBe(1_120);
-	expect(secondPage.total).toBe(1_120);
+	expect(firstPage.total).toBe(500);
+	expect(secondPage.total).toBe(500);
 	expectIndexSearch(firstPlan, indexName);
 	expectIndexSearch(secondPlan, indexName);
 });

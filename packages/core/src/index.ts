@@ -27,6 +27,13 @@ export type {
 	FindManyOptions,
 	FindManyResult,
 } from "./database/repositories/index.js";
+export type {
+	ContentFieldFilterScalar,
+	ContentFieldFilterValue,
+	ContentFieldFilters,
+	ContentFieldInFilter,
+	ContentFieldRangeFilter,
+} from "./content-list-query.js";
 export type { MediaItem, CreateMediaInput } from "./database/repositories/media.js";
 export type { CompoundSelectLimitedAdapter } from "./database/dialect-helpers.js";
 
@@ -109,7 +116,7 @@ export type {
 export { ulid } from "ulidx";
 export { computeContentHash, hashString } from "./utils/hash.js";
 export { sanitizeHref, isSafeHref } from "./utils/url.js";
-export { decodeSlug } from "./utils/slugify.js";
+export { decodeSlug, slugify } from "./utils/slugify.js";
 
 // Live Collections query functions (loader is in emdash/runtime)
 export {
@@ -144,7 +151,12 @@ export { after } from "./after.js";
 export type { WaitUntilFn } from "./after.js";
 
 // i18n configuration (from Astro config)
-export { getI18nConfig, isI18nEnabled, getFallbackChain } from "./i18n/config.js";
+export {
+	getI18nConfig,
+	isI18nEnabled,
+	getFallbackChain,
+	resolveContentCreateLocale,
+} from "./i18n/config.js";
 export type { I18nConfig } from "./i18n/config.js";
 
 // Visual editing
@@ -249,6 +261,7 @@ export type {
 	StorageCollection,
 	KVAccess,
 	ContentAccess,
+	ContentCreateOptions,
 	MediaAccess,
 	HttpAccess,
 	LogAccess,

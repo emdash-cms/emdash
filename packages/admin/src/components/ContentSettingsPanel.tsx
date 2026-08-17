@@ -1,5 +1,6 @@
 import {
 	Badge,
+	Banner,
 	Button,
 	Dialog,
 	Input,
@@ -416,6 +417,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const hasApplicableTaxonomies = useHasApplicableTaxonomies(collection);
 	const canUpdatePublishedDate =
 		item?.publishedAt != null && (currentUser?.role ?? 0) >= ROLE_EDITOR && !!onPublishedAtChange;
+	const contentLocale = item?.locale ?? entryLocale ?? manifest?.contentLocale?.defaultLocale;
+	const usesImplicitEnglish = manifest?.contentLocale?.implicit === true && contentLocale === "en";
 
 	React.useEffect(() => {
 		setPublishedDate(storedPublishedDate);
@@ -485,6 +488,25 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								onChange={(e) => onSlugChange(e.target.value)}
 								placeholder="my-post-slug"
 							/>
+							{contentLocale ? (
+								<div className="space-y-1">
+									<div className="flex flex-wrap items-center gap-2">
+										<Label>{t`Content locale`}</Label>
+										<Badge variant="secondary">{contentLocale.toUpperCase()}</Badge>
+									</div>
+									<p className="text-xs text-kumo-subtle">
+										{t`This is stored with the entry and is separate from your admin language.`}
+									</p>
+								</div>
+							) : null}
+							{usesImplicitEnglish ? (
+								<Banner
+									variant="alert"
+									title={t`Content locale defaults to English`}
+									description={t`No content locale is configured, so EmDash stores new content as English (en). Changing the admin language does not change this value.`}
+									role="alert"
+								/>
+							) : null}
 							<div>
 								<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
 									<Label>{t`Status`}</Label>
@@ -682,6 +704,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							collection={collection}
 							entryId={item.id}
 							entryLocale={item.locale ?? entryLocale}
+							canManageTaxonomies={(currentUser?.role ?? 0) >= ROLE_EDITOR}
 						/>
 					</SortableContentSettingsSection>
 				)}

@@ -210,6 +210,7 @@ declare module "virtual:emdash/admin-registry" {
 	 *   - widgets: Record<widgetId, ComponentType>
 	 *   - fields: Record<widgetName, ComponentType> (field widget renderers)
 	 *   - contentEditorPanels: Trusted content editor sidebar panels
+	 *   - contentListColumns: trusted-plugin content list column definitions
 	 */
 	export const pluginAdmins: Record<
 		string,
@@ -218,6 +219,7 @@ declare module "virtual:emdash/admin-registry" {
 			widgets?: Record<string, unknown>;
 			fields?: Record<string, unknown>;
 			contentEditorPanels?: readonly unknown[];
+			contentListColumns?: readonly unknown[];
 		}
 	>;
 }

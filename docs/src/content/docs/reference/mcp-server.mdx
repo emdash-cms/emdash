@@ -36,7 +36,7 @@ Tokens are scoped to limit what operations a client can perform. Scopes are requ
 | `media:read` | List and get media items. |
 | `media:write` | Register (create), update, and delete media metadata. |
 | `schema:read` | List collections and get collection schemas. |
-| `schema:write` | Create and delete collections and fields. |
+| `schema:write` | Create, update, and delete collections and fields. |
 | `taxonomies:manage` | Create, update, and delete taxonomy terms. |
 | `menus:manage` | Create, update, and delete navigation menus and their items. |
 | `settings:read` | Read site-wide settings. |
@@ -320,7 +320,28 @@ Create a new content collection. This creates a database table and schema defini
 | `labelSingular` | `string` | No | Singular display name |
 | `description` | `string` | No | Description of this collection |
 | `icon` | `string` | No | Icon name for the admin UI |
-| `supports` | `string[]` | No | Features: `drafts`, `revisions`, `preview`, `scheduling`, `search` (default: `['drafts', 'revisions']`) |
+| `supports` | `string[]` | No | Features: `drafts`, `revisions`, `preview`, `scheduling`, `search`, `seo` (default: `['drafts', 'revisions']`) |
+
+**Scope:** `schema:write` | **Minimum role:** Admin
+
+#### `schema_update_collection`
+
+Update an existing collection without deleting its table, fields, or content. Only provided settings change; omitted settings keep their current values. The collection slug cannot be changed.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `slug` | `string` | Yes | Collection slug to update |
+| `label` | `string` | No | New plural display name |
+| `labelSingular` | `string` | No | New singular display name |
+| `description` | `string` | No | New collection description |
+| `icon` | `string` | No | New admin UI icon name |
+| `supports` | `string[]` | No | Complete feature list to enable: `drafts`, `revisions`, `preview`, `scheduling`, `search`, `seo`; omitted preserves the current list |
+| `urlPattern` | `string \| null` | No | New public URL pattern; `null` clears it |
+| `hasSeo` | `boolean` | No | Whether the collection supports SEO metadata |
+| `commentsEnabled` | `boolean` | No | Whether comments are enabled |
+| `commentsModeration` | `string` | No | Moderation policy: `all`, `first_time`, or `none` |
+| `commentsClosedAfterDays` | `integer` | No | Close comments after this many days; `0` keeps them open |
+| `commentsAutoApproveUsers` | `boolean` | No | Automatically approve comments from authenticated users |
 
 **Scope:** `schema:write` | **Minimum role:** Admin
 
@@ -357,6 +378,29 @@ Add a new field to a collection's schema. This adds a column to the database tab
 Field types: `string`, `text`, `number`, `integer`, `boolean`, `datetime`, `select`, `multiSelect`, `portableText`, `image`, `file`, `reference`, `json`, `slug`.
 
 For `select` and `multiSelect` types, provide allowed values in `validation.options`.
+
+**Scope:** `schema:write` | **Minimum role:** Admin
+
+#### `schema_update_field`
+
+Update an existing field without deleting its column or stored values. Only provided settings change; omitted settings keep their current values. `string`, `text`, and `slug` may be changed between one another. Other type changes and settings that require content or column migration are rejected with migration guidance. Invalid regular expressions and contradictory validation ranges are rejected before any schema metadata changes.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `collection` | `string` | Yes | Collection containing the field |
+| `fieldSlug` | `string` | Yes | Field slug to update |
+| `label` | `string` | No | New display name |
+| `type` | `string` | No | New field type; only `string`, `text`, and `slug` aliases can be changed in place |
+| `required` | `boolean` | No | Whether the field is required; changing it requires a manual content migration |
+| `unique` | `boolean` | No | Whether field values must be unique; changing it requires a manual content migration |
+| `defaultValue` | `any` | No | Default value for new content |
+| `validation` | `object \| null` | No | Validation constraints; `null` clears them |
+| `widget` | `string` | No | Admin editor widget name |
+| `options` | `object` | No | Widget configuration |
+| `sortOrder` | `integer` | No | Field order in the content editor |
+| `searchable` | `boolean` | No | Whether full-text search indexes the field |
+| `indexed` | `boolean` | No | Create or remove a physical index for structured sorting |
+| `translatable` | `boolean` | No | Whether values vary by locale; changing to `false` requires a manual content migration |
 
 **Scope:** `schema:write` | **Minimum role:** Admin
 
