@@ -1032,7 +1032,7 @@ importers:
         specifier: ^0.4.1
         version: 0.4.1(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.1))(ai@6.0.172(zod@4.4.1))(zod@4.4.1)
       '@cloudflare/sandbox':
-        specifier: ^0.12.1
+        specifier: 0.12.3
         version: 0.12.3
       '@cloudflare/shell':
         specifier: ^0.4.0
