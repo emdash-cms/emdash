@@ -35,6 +35,7 @@ import {
 	removeLabels,
 	type RepoContext,
 } from "./github.js";
+import { investigationBaseRef } from "./investigation-base-ref.js";
 import { STATES, type EventId, type Kind, type StateId } from "./machine.js";
 import { branchesToReap, previewUrl, probePreviewReady } from "./preview.js";
 import {
@@ -238,6 +239,7 @@ interface PreparedInvestigation {
 	issueTitle: string;
 	issueBody: string;
 	previousBranchSha: string | null;
+	baseRef?: string;
 }
 
 interface PendingDispatch extends PreparedInvestigation {
@@ -990,10 +992,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (!mode) return `unknown investigation mode "${decision.action}"`;
 		const token = await this.getInstallationToken(creds);
 		try {
-			const [issue, previousBranchSha] = await Promise.all([
+			const [issue, previousBranchSha, mainBranchSha] = await Promise.all([
 				getIssue(token, repo, anchorNumber),
 				getBranchSha(token, repo, `bot/fix-${anchorNumber}`),
+				getBranchSha(token, repo, "main"),
 			]);
+			const baseRef = investigationBaseRef(mode, mainBranchSha, previousBranchSha);
 			const runId = crypto.randomUUID();
 			const agentId = `investigate-${anchorNumber}-${runId}`;
 			return {
@@ -1005,6 +1009,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				issueTitle: issue.title,
 				issueBody: issue.body,
 				previousBranchSha,
+				baseRef,
 			};
 		} catch (err) {
 			return `prepare investigation failed: ${errorMessage(err)}`;
@@ -1036,6 +1041,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					issueTitle: prepared.issueTitle,
 					issueBody: prepared.issueBody,
 					previousBranchSha: prepared.previousBranchSha,
+					...(prepared.baseRef ? { baseRef: prepared.baseRef } : {}),
 				},
 			}),
 		);
