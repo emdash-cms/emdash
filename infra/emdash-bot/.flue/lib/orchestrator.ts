@@ -25,6 +25,7 @@ import {
 	deleteBranch,
 	getBranchSha,
 	getIssue,
+	getIssueComments,
 	getIssueLabels,
 	getOpenPullRequest,
 	hasIssueCommentMarker,
@@ -36,6 +37,12 @@ import {
 	type RepoContext,
 } from "./github.js";
 import { investigationBaseRef } from "./investigation-base-ref.js";
+import {
+	buildIssueContext,
+	shouldStoreDiagnosis,
+	type StoredDiagnosis,
+	type TriggeringComment,
+} from "./issue-context.js";
 import { STATES, type EventId, type Kind, type StateId } from "./machine.js";
 import { branchesToReap, previewUrl, probePreviewReady } from "./preview.js";
 import {
@@ -45,6 +52,7 @@ import {
 	outcomeFromResult,
 	resolve,
 } from "./router.js";
+import { DEADLINE_WARNING_MESSAGE, runBudgetMs, runSchedule } from "./run-policy.js";
 import { DeadlineExceededError, withDeadline } from "./sandbox-deadline.js";
 
 /**
@@ -94,6 +102,8 @@ export interface NormalizedEvent {
 	readonly needsClassify: boolean;
 	/** Raw mention text, for the classifier prompt. */
 	readonly classifyText?: string | null;
+	/** Exact human comment that caused this event, retained for agent context. */
+	readonly triggeringComment?: TriggeringComment;
 	/** True only on a bot-authored PR (enables the in_review default). */
 	readonly allowDefault?: boolean;
 	/** Webhook delivery id; the DO dedupes by this. */
@@ -136,9 +146,11 @@ export interface NormalizedEvent {
 export interface AgentResult {
 	readonly skipped?: boolean;
 	readonly reproduced?: boolean;
+	readonly rootCauseFound?: boolean;
 	readonly fixed?: boolean;
 	readonly implemented?: boolean;
 	readonly verdict?: string;
+	readonly summary?: string;
 	readonly failureStage?: string;
 	readonly screenshots?: readonly PreviewScreenshot[];
 	readonly [key: string]: unknown;
@@ -205,6 +217,9 @@ const STORAGE = {
 	previewPollNextAt: "o:previewPollNextAt",
 	previewNotes: "o:previewNotes",
 	previewScreenshots: "o:previewScreenshots",
+	lastDiagnosis: "o:lastDiagnosis",
+	deadlineWarningSentRunId: "o:deadlineWarningSentRunId",
+	deadlineWarningRetryAt: "o:deadlineWarningRetryAt",
 } as const;
 
 const TICK_INTERVAL_MS = 60 * 60 * 1000;
@@ -217,7 +232,6 @@ const PREVIEW_BUILD_TIMEOUT_MS = 10 * 60 * 1000;
 /** First poll waits for the push→publish lag; later polls back off to this. */
 const PREVIEW_POLL_INITIAL_MS = 45 * 1000;
 const PREVIEW_POLL_INTERVAL_MS = 30 * 1000;
-const STALE_RUN_THRESHOLD_MS = 30 * 60 * 1000;
 const DISPATCH_TIMEOUT_MS = 30_000;
 const INBOX_RETRY_MS = 60_000;
 const INBOX_BATCH_LIMIT = 10;
@@ -239,6 +253,7 @@ interface PreparedInvestigation {
 	issueTitle: string;
 	issueBody: string;
 	previousBranchSha: string | null;
+	context: string;
 	baseRef?: string;
 }
 
@@ -367,7 +382,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 		let runError: string | null = null;
 		let preparedInvestigation: PreparedInvestigation | null = null;
 		if (decision.action?.startsWith("investigate.")) {
-			const preparation = await this.prepareInvestigation(decision, resolvedArg ?? input.arg);
+			const preparation = await this.prepareInvestigation(
+				decision,
+				resolvedArg ?? input.arg,
+				input,
+			);
 			if (typeof preparation === "string") runError = preparation;
 			else preparedInvestigation = preparation;
 		}
@@ -435,6 +454,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (state && INERT_STATES.has(state)) {
 			await this.clearRun(input.runId);
 			return { kind: "inert", state };
+		}
+		if (currentRunMode && shouldStoreDiagnosis(currentRunMode, input.result, input.ok)) {
+			await this.persistSuccessfulDiagnosis(input.runId, currentRunMode, input.result);
 		}
 
 		const event = outcomeFromResult({
@@ -515,8 +537,18 @@ export class OrchestratorDO extends DurableObject<Env> {
 				break;
 			}
 		}
-		let droppedStaleRun = false;
 		let recoveryError: string | null = null;
+		let sentDeadlineWarning = false;
+		try {
+			sentDeadlineWarning = await this.sendDeadlineWarningIfDue(now);
+		} catch (error) {
+			recoveryError = errorMessage(error);
+			await this.ctx.storage.put(STORAGE.deadlineWarningRetryAt, now + INBOX_RETRY_MS);
+			console.error("[orchestrator] deadline warning delivery failed", {
+				error: recoveryError,
+			});
+		}
+		let droppedStaleRun = false;
 		try {
 			await this.recoverRejectedDispatch();
 			droppedStaleRun = await this.recoverStaleRun(now);
@@ -546,6 +578,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			ranAt: now,
 			processedInboxItem,
 			inboxError,
+			sentDeadlineWarning,
 			droppedStaleRun,
 			recoveryError,
 			labelDrift,
@@ -747,22 +780,42 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	private async armAlarm(): Promise<void> {
-		const [current, runStartedAt, inbox, pendingSideEffects, previewPollNextAt] = await Promise.all(
-			[
-				this.ctx.storage.getAlarm(),
-				this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
-				this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox),
-				this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects),
-				this.ctx.storage.get<number>(STORAGE.previewPollNextAt),
-			],
-		);
+		const [
+			current,
+			runStartedAt,
+			runMode,
+			warningSentRunId,
+			warningRetryAt,
+			currentRunId,
+			inbox,
+			pendingSideEffects,
+			previewPollNextAt,
+		] = await Promise.all([
+			this.ctx.storage.getAlarm(),
+			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
+			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
+			this.ctx.storage.get<string>(STORAGE.deadlineWarningSentRunId),
+			this.ctx.storage.get<number>(STORAGE.deadlineWarningRetryAt),
+			this.ctx.storage.get<string>(STORAGE.currentRunId),
+			this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox),
+			this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects),
+			this.ctx.storage.get<number>(STORAGE.previewPollNextAt),
+		]);
 		const now = Date.now();
-		let desired =
-			inbox?.length || pendingSideEffects?.length
-				? now + INBOX_RETRY_MS
-				: runStartedAt
-					? Math.max(now + 1_000, runStartedAt + STALE_RUN_THRESHOLD_MS)
-					: now + TICK_INTERVAL_MS;
+		const scheduledRunAlarm = runStartedAt
+			? runSchedule(runMode ?? "repro", runStartedAt, warningSentRunId === currentRunId).nextAlarmAt
+			: null;
+		const runAlarmAt =
+			scheduledRunAlarm !== null && warningSentRunId !== currentRunId && warningRetryAt
+				? Math.max(scheduledRunAlarm, warningRetryAt)
+				: scheduledRunAlarm;
+		let desired = now + TICK_INTERVAL_MS;
+		if (inbox?.length || pendingSideEffects?.length) {
+			desired = Math.min(desired, now + INBOX_RETRY_MS);
+		}
+		if (runAlarmAt !== null) {
+			desired = Math.min(desired, Math.max(now + 1_000, runAlarmAt));
+		}
 		if (previewPollNextAt !== undefined) {
 			desired = Math.min(desired, Math.max(now + 1_000, previewPollNextAt));
 		}
@@ -771,10 +824,88 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 	}
 
+	private async sendDeadlineWarningIfDue(now: number): Promise<boolean> {
+		const [runId, agentId, mode, startedAt, warningSentRunId, state] = await Promise.all([
+			this.ctx.storage.get<string>(STORAGE.currentRunId),
+			this.ctx.storage.get<string>(STORAGE.currentAgentId),
+			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
+			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
+			this.ctx.storage.get<string>(STORAGE.deadlineWarningSentRunId),
+			this.ctx.storage.get<StateId>(STORAGE.state),
+		]);
+		if (
+			!runId ||
+			!agentId ||
+			!mode ||
+			startedAt === undefined ||
+			warningSentRunId === runId ||
+			(state !== undefined && INERT_STATES.has(state))
+		) {
+			return false;
+		}
+		const schedule = runSchedule(mode, startedAt, false);
+		if (schedule.warningAt === null || now < schedule.warningAt || now >= schedule.deadlineAt) {
+			return false;
+		}
+
+		await this.deliverDeadlineWarning({ agentId, runId, deadlineAt: schedule.deadlineAt });
+
+		return this.ctx.storage.transaction(async (transaction) => {
+			if ((await transaction.get<string>(STORAGE.currentRunId)) !== runId) return false;
+			await Promise.all([
+				transaction.put(STORAGE.deadlineWarningSentRunId, runId),
+				transaction.delete(STORAGE.deadlineWarningRetryAt),
+			]);
+			return true;
+		});
+	}
+
+	protected async deliverDeadlineWarning(input: {
+		agentId: string;
+		runId: string;
+		deadlineAt: number;
+	}): Promise<void> {
+		await withDeadline(
+			dispatch(Investigate, {
+				id: input.agentId,
+				idempotencyKey: `deadline-warning:${input.runId}`,
+				message: {
+					kind: "signal",
+					type: "investigation.deadline-warning",
+					tagName: "deadline-warning",
+					attributes: { runId: input.runId, deadlineAt: String(input.deadlineAt) },
+					body: DEADLINE_WARNING_MESSAGE,
+				},
+			}),
+			DISPATCH_TIMEOUT_MS,
+			"Deadline warning admission",
+		);
+	}
+
+	private async persistSuccessfulDiagnosis(
+		runId: string,
+		mode: "diagnose" | "repro",
+		result: AgentResult,
+	): Promise<void> {
+		await this.ctx.storage.transaction(async (transaction) => {
+			const existing = await transaction.get<StoredDiagnosis>(STORAGE.lastDiagnosis);
+			if (existing?.runId === runId) return;
+			await transaction.put<StoredDiagnosis>(STORAGE.lastDiagnosis, {
+				runId,
+				mode,
+				completedAt: new Date().toISOString(),
+				result,
+			});
+		});
+	}
+
 	private async recoverStaleRun(now: number): Promise<boolean> {
-		const startedAt = await this.ctx.storage.get<number>(STORAGE.currentRunStartedAt);
+		const [startedAt, mode] = await Promise.all([
+			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
+			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
+		]);
 		if (startedAt === undefined) return false;
-		if (now - startedAt < STALE_RUN_THRESHOLD_MS) return false;
+		if (now - startedAt < runBudgetMs(mode ?? "repro")) return false;
 		const runId = await this.ctx.storage.get<string>(STORAGE.currentRunId);
 		const agentId = await this.ctx.storage.get<string>(STORAGE.currentAgentId);
 		const pendingDispatch = await this.ctx.storage.get<PendingDispatch>(STORAGE.pendingDispatch);
@@ -974,6 +1105,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 	private async prepareInvestigation(
 		decision: Extract<Decision, { kind: "transition" }>,
 		arg: string | null,
+		input: NormalizedEvent,
 	): Promise<PreparedInvestigation | string | null> {
 		if (!decision.action?.startsWith("investigate.")) return "not an investigation action";
 		const anchorNumber = await this.ctx.storage.get<number>(STORAGE.anchorNumber);
@@ -992,11 +1124,28 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (!mode) return `unknown investigation mode "${decision.action}"`;
 		const token = await this.getInstallationToken(creds);
 		try {
-			const [issue, previousBranchSha, mainBranchSha] = await Promise.all([
+			const [issue, previousBranchSha, mainBranchSha, lastDiagnosis] = await Promise.all([
 				getIssue(token, repo, anchorNumber),
 				getBranchSha(token, repo, `bot/fix-${anchorNumber}`),
 				getBranchSha(token, repo, "main"),
+				this.ctx.storage.get<StoredDiagnosis>(STORAGE.lastDiagnosis),
 			]);
+			const comments = await getIssueComments(token, repo, anchorNumber, {
+				...(lastDiagnosis ? { since: lastDiagnosis.completedAt } : {}),
+				commentCount: issue.commentCount,
+			});
+			const trigger = input.triggeringComment ?? {
+				id: null,
+				body: arg ? `@emdashbot ${decision.event} ${arg}` : `@emdashbot ${decision.event}`,
+				authorLogin: null,
+				authorAssociation: null,
+				actor: input.actor,
+			};
+			const context = buildIssueContext({
+				diagnosis: lastDiagnosis ?? null,
+				trigger,
+				comments,
+			}).text;
 			const baseRef = investigationBaseRef(mode, mainBranchSha, previousBranchSha);
 			const runId = crypto.randomUUID();
 			const agentId = `investigate-${anchorNumber}-${runId}`;
@@ -1009,6 +1158,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				issueTitle: issue.title,
 				issueBody: issue.body,
 				previousBranchSha,
+				context,
 				baseRef,
 			};
 		} catch (err) {
@@ -1041,6 +1191,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					issueTitle: prepared.issueTitle,
 					issueBody: prepared.issueBody,
 					previousBranchSha: prepared.previousBranchSha,
+					context: prepared.context,
 					...(prepared.baseRef ? { baseRef: prepared.baseRef } : {}),
 				},
 			}),
@@ -1399,6 +1550,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 					transaction.put(STORAGE.currentRunMode, preparedInvestigation.mode),
 					transaction.put(STORAGE.currentRunStartedAt, Date.now()),
 					transaction.put(STORAGE.currentAgentId, preparedInvestigation.agentId),
+					transaction.delete(STORAGE.deadlineWarningSentRunId),
+					transaction.delete(STORAGE.deadlineWarningRetryAt),
 					transaction.put(STORAGE.pendingDispatch, {
 						...preparedInvestigation,
 						...(input.deliveryId ? { deliveryId: input.deliveryId } : {}),
@@ -1496,6 +1649,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 				transaction.delete(STORAGE.currentDispatchError),
 				transaction.delete(STORAGE.currentDispatchAttempt),
 				transaction.delete(STORAGE.abortConfirmedRunId),
+				transaction.delete(STORAGE.deadlineWarningSentRunId),
+				transaction.delete(STORAGE.deadlineWarningRetryAt),
 			]);
 			const pending = await transaction.get<PendingDispatch>(STORAGE.pendingDispatch);
 			if (pending?.runId === expectedRunId) await transaction.delete(STORAGE.pendingDispatch);
@@ -1657,6 +1812,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 					transaction.delete(STORAGE.currentDispatchAttempt),
 					transaction.delete(STORAGE.pendingDispatch),
 					transaction.delete(STORAGE.abortConfirmedRunId),
+					transaction.delete(STORAGE.deadlineWarningSentRunId),
+					transaction.delete(STORAGE.deadlineWarningRetryAt),
 				]);
 			}
 		});
@@ -1717,9 +1874,35 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await Promise.all([
 			this.ctx.storage.put(STORAGE.currentRunId, runId),
 			this.ctx.storage.put(STORAGE.currentRunStartedAt, startedAt),
+			this.ctx.storage.delete(STORAGE.deadlineWarningSentRunId),
+			this.ctx.storage.delete(STORAGE.deadlineWarningRetryAt),
 			...(agentId ? [this.ctx.storage.put(STORAGE.currentAgentId, agentId)] : []),
 			...(mode ? [this.ctx.storage.put(STORAGE.currentRunMode, mode)] : []),
 		]);
+	}
+
+	/** Test-only: inspect the diagnosis retained for a later write run. */
+	async debugGetLastDiagnosis(): Promise<StoredDiagnosis | null> {
+		return (await this.ctx.storage.get<StoredDiagnosis>(STORAGE.lastDiagnosis)) ?? null;
+	}
+
+	/** Test-only: inspect the current run's fixed deadline and warning marker. */
+	async debugGetRunSchedule(): Promise<{
+		deadlineAt: number | null;
+		warningAt: number | null;
+		warningSentRunId: string | null;
+	}> {
+		const [runId, mode, startedAt, warningSentRunId] = await Promise.all([
+			this.ctx.storage.get<string>(STORAGE.currentRunId),
+			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
+			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
+			this.ctx.storage.get<string>(STORAGE.deadlineWarningSentRunId),
+		]);
+		if (!runId || !mode || startedAt === undefined) {
+			return { deadlineAt: null, warningAt: null, warningSentRunId: warningSentRunId ?? null };
+		}
+		const schedule = runSchedule(mode, startedAt, warningSentRunId === runId);
+		return { ...schedule, warningSentRunId: warningSentRunId ?? null };
 	}
 
 	/** Test-only: backdate the reporter-confirmation window to force expiry. */
@@ -1790,6 +1973,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				issueTitle: "Test issue",
 				issueBody: "Test body",
 				previousBranchSha: null,
+				context: "## Triggering directive (authoritative)\n\nTest directive",
 			} satisfies PendingDispatch),
 			...(input.dispatchError
 				? [this.ctx.storage.put(STORAGE.currentDispatchError, input.dispatchError)]
@@ -1827,6 +2011,7 @@ export interface TickOutcome {
 	ranAt: number;
 	processedInboxItem: boolean;
 	inboxError: string | null;
+	sentDeadlineWarning: boolean;
 	droppedStaleRun: boolean;
 	recoveryError: string | null;
 	labelDrift: { added: number; removed: number } | null;

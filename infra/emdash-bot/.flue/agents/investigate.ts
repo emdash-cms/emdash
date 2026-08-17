@@ -52,6 +52,7 @@ import {
 	updateBranch,
 } from "../lib/github.js";
 import { applyInvestigationResult } from "../lib/investigation-result.js";
+import { FLUE_RUN_TIMEOUT_MS, SANDBOX_SLEEP_AFTER_SECONDS } from "../lib/run-policy.js";
 import { untarInto } from "../lib/untar.js";
 import {
 	assertVerificationCommand,
@@ -72,8 +73,6 @@ const DEFAULT_RPC_TIMEOUT_MS = 2 * 60_000;
 const CONTAINER_ATTACH_TIMEOUT_MS = 11 * 60_000;
 const EXEC_GRACE_MS = 30_000;
 const CLONE_DEPTH = 50;
-const INVESTIGATION_TIMEOUT_MS = 30 * 60_000;
-const SANDBOX_SLEEP_AFTER_SECONDS = (INVESTIGATION_TIMEOUT_MS + 5 * 60_000) / 1_000;
 const DEADLINES = {
 	defaultTimeoutMs: DEFAULT_RPC_TIMEOUT_MS,
 	attachTimeoutMs: CONTAINER_ATTACH_TIMEOUT_MS,
@@ -100,6 +99,7 @@ const initialDataSchema = v.object({
 	issueTitle: v.pipe(v.string(), v.minLength(1)),
 	issueBody: v.string(),
 	previousBranchSha: v.nullable(v.string()),
+	context: v.optional(v.string()),
 	/**
 	 * Explicit base ref (branch, tag, or commit SHA) to stand the workspace up
 	 * at, overriding the mode default. The eval harness sets this to a fixing
@@ -593,7 +593,7 @@ export function Investigate({ id }: AgentProps) {
 
 Investigate.agentName = "investigate";
 Investigate.initialData = initialDataSchema;
-Investigate.durability = { maxAttempts: 5, timeoutMs: INVESTIGATION_TIMEOUT_MS };
+Investigate.durability = { maxAttempts: 5, timeoutMs: FLUE_RUN_TIMEOUT_MS };
 
 /**
  * Per-run ExecEnv, cached on `globalThis` so it survives the agent's re-renders
@@ -965,6 +965,7 @@ function safeFailureMessage(error: unknown): string {
 
 function buildPrompt(input: InvestigateData): string {
 	const argSection = input.arg ? ["", "## Directive", "", input.arg, ""].join("\n") : "";
+	const contextSection = input.context ? ["", input.context, ""].join("\n") : argSection;
 	const diagnose = input.mode === "diagnose";
 	const implement = input.mode === "implement";
 	const method = diagnose
@@ -1001,7 +1002,7 @@ function buildPrompt(input: InvestigateData): string {
 		`# ${input.issueTitle}`,
 		"",
 		input.issueBody || "(no body)",
-		argSection,
+		contextSection,
 		"## Method",
 		"",
 		...method,

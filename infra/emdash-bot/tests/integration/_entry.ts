@@ -22,6 +22,10 @@ export class OrchestratorDO extends ProductionOrchestratorDO {
 	protected override requestClassification(_input: ClassifierInput): Promise<ClassifyResult> {
 		return Promise.resolve({ kind: "error", error: "classifier unavailable in workers-pool test" });
 	}
+
+	protected override deliverDeadlineWarning(): Promise<void> {
+		return Promise.resolve();
+	}
 }
 
 const app = registerCoreRoutes(new Hono<{ Bindings: Env }>());

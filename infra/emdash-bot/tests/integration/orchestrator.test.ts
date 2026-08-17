@@ -193,6 +193,84 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect((await stub.getPersistedState()).state).toBe("preview_building");
 	});
 
+	test("retains the last successful diagnosis across failed and stale results", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ event: "investigate", arg: "diagnose it", anchorNumber: 42 }));
+		await stub.debugSetStaleRun("good-diagnosis", Date.now(), undefined, "diagnose");
+		await stub.applyAgentResult({
+			runId: "good-diagnosis",
+			result: {
+				reproduced: true,
+				demonstration: "failing-test",
+				demonstratedReportedIssue: true,
+				summary: "The locale cache key omits the requested locale.",
+			},
+			pushed: false,
+			ok: true,
+		});
+		const stored = await stub.debugGetLastDiagnosis();
+		expect(stored?.runId).toBe("good-diagnosis");
+
+		await stub.debugSetStaleRun("failed-diagnosis", Date.now(), undefined, "diagnose");
+		await stub.applyAgentResult({
+			runId: "failed-diagnosis",
+			result: {
+				rootCauseFound: true,
+				summary: "This failed run must not replace the earlier diagnosis.",
+			},
+			pushed: false,
+			ok: false,
+		});
+		await stub.applyAgentResult({
+			runId: "stale-diagnosis",
+			result: {
+				rootCauseFound: true,
+				summary: "This stale run must not replace the earlier diagnosis.",
+			},
+			pushed: false,
+			ok: true,
+		});
+
+		expect(await stub.debugGetLastDiagnosis()).toEqual(stored);
+	});
+
+	test("delivers one warning for a write run without moving its deadline", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		const startedAt = Date.now() - 51 * 60_000;
+		await stub.event(makeEvent({ anchorNumber: 42 }));
+		await stub.debugSetStaleRun(
+			"warning-run",
+			startedAt,
+			"investigate-42-warning-run",
+			"implement",
+		);
+
+		const first = await stub.tick();
+		expect(first.sentDeadlineWarning).toBe(true);
+		const afterFirst = await stub.debugGetRunSchedule();
+		expect(afterFirst.warningSentRunId).toBe("warning-run");
+		expect(afterFirst.deadlineAt).toBe(startedAt + 60 * 60_000);
+
+		const second = await stub.tick();
+		expect(second.sentDeadlineWarning).toBe(false);
+		expect((await stub.debugGetRunSchedule()).deadlineAt).toBe(afterFirst.deadlineAt);
+	});
+
+	test("does not stale-recover a write run at the read-mode deadline", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ anchorNumber: 42 }));
+		await stub.debugSetStaleRun(
+			"write-run",
+			Date.now() - 31 * 60_000,
+			"investigate-42-write-run",
+			"implement",
+		);
+
+		const outcome = await stub.tick();
+		expect(outcome.droppedStaleRun).toBe(false);
+		expect((await stub.getPersistedState()).currentRunId).toBe("write-run");
+	});
+
 	test("a rejected implementation returns to a state where implement can be retried", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await stub.event(makeEvent());
