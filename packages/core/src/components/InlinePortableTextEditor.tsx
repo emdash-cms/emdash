@@ -85,6 +85,48 @@ function k(): string {
 	return Math.random().toString(36).substring(2, 11);
 }
 
+function getUnsupportedFileGuidance(locale: string): string {
+	if (locale.toLowerCase().startsWith("ar")) {
+		return "لا يمكن إفلات الملفات أو لصقها هنا. اكتب /image لاختيار صورة من مكتبة الوسائط.";
+	}
+	return "Files can’t be dropped or pasted here. Type /image to choose an image from the media library.";
+}
+
+function hasTransferredFiles(transfer: DataTransfer | null): boolean {
+	if (!transfer) return false;
+	if (transfer.files.length > 0) return true;
+	for (let index = 0; index < transfer.items.length; index++) {
+		if (transfer.items[index]?.kind === "file") return true;
+	}
+	return false;
+}
+
+function createUnsupportedFileHandlers(showGuidance: () => void) {
+	const keepFileDragInEditor = (_view: unknown, event: DragEvent): boolean => {
+		if (!hasTransferredFiles(event.dataTransfer)) return false;
+		event.preventDefault();
+		return true;
+	};
+	return {
+		handleDOMEvents: {
+			dragenter: keepFileDragInEditor,
+			dragover: keepFileDragInEditor,
+			drop: (_view: unknown, event: DragEvent): boolean => {
+				if (!hasTransferredFiles(event.dataTransfer)) return false;
+				event.preventDefault();
+				showGuidance();
+				return true;
+			},
+			paste: (_view: unknown, event: ClipboardEvent): boolean => {
+				if (!hasTransferredFiles(event.clipboardData)) return false;
+				event.preventDefault();
+				showGuidance();
+				return true;
+			},
+		},
+	};
+}
+
 // ── ProseMirror → Portable Text ────────────────────────────────────
 
 type PMNode = {
@@ -1967,6 +2009,21 @@ export function InlinePortableTextEditor({
 
 	// Media picker state
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
+	const [unsupportedFileGuidance, setUnsupportedFileGuidance] = React.useState<{
+		message: string;
+		version: number;
+	} | null>(null);
+	const showUnsupportedFileGuidance = React.useCallback(() => {
+		const locale = document.documentElement.lang || navigator.language;
+		setUnsupportedFileGuidance((current) => ({
+			message: getUnsupportedFileGuidance(locale),
+			version: (current?.version ?? 0) + 1,
+		}));
+	}, []);
+	const unsupportedFileHandlers = React.useMemo(
+		() => createUnsupportedFileHandlers(showUnsupportedFileGuidance),
+		[showUnsupportedFileGuidance],
+	);
 
 	// Listen for the slash command's media picker event
 	React.useEffect(() => {
@@ -2132,6 +2189,7 @@ export function InlinePortableTextEditor({
 				class: "prose prose-sm sm:prose-base dark:prose-invert max-w-none emdash-inline-editor",
 				dir: "auto",
 			},
+			...unsupportedFileHandlers,
 		},
 		onUpdate: () => {
 			document.dispatchEvent(new CustomEvent("emdash:save", { detail: { state: "unsaved" } }));
@@ -2198,6 +2256,17 @@ export function InlinePortableTextEditor({
 		<div onBlur={handleBlur}>
 			<InlineBubbleMenu editor={editor} />
 			<EditorContent editor={editor} />
+			{unsupportedFileGuidance ? (
+				<div
+					key={unsupportedFileGuidance.version}
+					className="emdash-inline-editor-guidance"
+					role="status"
+					aria-live="polite"
+					dir="auto"
+				>
+					{unsupportedFileGuidance.message}
+				</div>
+			) : null}
 			<InlineSlashMenu
 				state={slashMenuState}
 				onCommand={handleSlashCommand}
@@ -2323,6 +2392,19 @@ export function InlinePortableTextEditor({
 				.emdash-inline-editor:focus {
 					outline: none;
 				}
+				.emdash-inline-editor-guidance {
+					margin-block-start: 0.75rem;
+					padding-block: 0.625rem;
+					padding-inline: 0.875rem;
+					border: 1px solid #bfdbfe;
+					border-radius: 0.5rem;
+					background: #eff6ff;
+					color: #1e3a8a;
+					font-size: 0.875rem;
+					font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+					line-height: 1.4;
+					text-align: start;
+				}
 				.emdash-plugin-block-placeholder {
 					margin: 0.75rem 0;
 					padding: 0.625rem 0.875rem;
@@ -2335,6 +2417,11 @@ export function InlinePortableTextEditor({
 					user-select: none;
 				}
 				@media (prefers-color-scheme: dark) {
+					.emdash-inline-editor-guidance {
+						border-color: #1e40af;
+						background: #172554;
+						color: #dbeafe;
+					}
 					.emdash-plugin-block-placeholder {
 						border-color: #374151;
 						background: #111827;
@@ -2346,6 +2433,7 @@ export function InlinePortableTextEditor({
 	);
 }
 
-// Test-only exports for unit tests of the conversion functions.
+// Test-only exports for unit tests.
 export { pmToPortableText as _pmToPortableText };
 export { portableTextToPM as _portableTextToPM };
+export { createUnsupportedFileHandlers as _createUnsupportedFileHandlers };

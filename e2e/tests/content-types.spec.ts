@@ -182,7 +182,7 @@ test.describe("Content Types", () => {
 			await expect(pluralInput).toHaveValue(TEST_LABEL_PLURAL);
 
 			// Override slug with our unique test slug
-			const slugInput = admin.page.getByLabel("Slug");
+			const slugInput = admin.page.getByLabel("Slug", { exact: true });
 			await slugInput.fill(TEST_SLUG);
 
 			// Submit

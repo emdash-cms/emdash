@@ -128,7 +128,11 @@ describe("runtime defers lifecycle hooks through after()", () => {
 	});
 
 	it("schedules the afterUnpublish hook via after() on unpublish", async () => {
-		const item = await repo.create({ type: "post", data: { title: "Live then gone" } });
+		const item = await repo.create({
+			type: "post",
+			slug: "live-then-gone",
+			data: { title: "Live then gone" },
+		});
 		const published = await runtime.handleContentPublish("post", item.id);
 		expect(published.success).toBe(true);
 

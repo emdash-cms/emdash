@@ -18,6 +18,7 @@ import { buildStatusCondition, isPostgres } from "./database/dialect-helpers.js"
 import { kyselyLogOption } from "./database/instrumentation.js";
 import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
+import { getI18nConfig } from "./i18n/config.js";
 import type { Database } from "./index.js";
 import { getRequestContext } from "./request-context.js";
 import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
@@ -123,23 +124,22 @@ function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
 	const agg = (inner: RawBuilder<unknown>) =>
 		pg ? sql`coalesce(json_agg(${inner}), '[]'::json)` : sql`json_group_array(${inner})`;
 
-	// Pin the join order for the per-entry hydration subqueries on SQLite (#1722).
-	// SQLite honours `CROSS JOIN` ordering, forcing the join to drive from the
-	// pivot (`content_taxonomies` / `_emdash_content_bylines`) by its content
-	// reference and probe the term/byline table by
-	// `translation_group`. Without it, a stats-blind D1 planner (D1 never runs
-	// ANALYZE / maintains `sqlite_stat1`) is free to drive the correlated
-	// subquery from `taxonomies`/`_emdash_bylines` by `locale`, scanning every
-	// row in the locale per emitted entry. Postgres keeps statistics and rejects
-	// `CROSS JOIN … ON`, so it stays a plain `JOIN` there.
+	// Pin the byline join order on SQLite (#1722). Taxonomy hydration uses
+	// LEFT JOINs below, whose order is already fixed by SQL semantics. SQLite
+	// honours `CROSS JOIN` ordering, forcing the byline subquery to drive from
+	// its pivot by content reference and probe by translation_group. Postgres
+	// keeps statistics and rejects `CROSS JOIN … ON`, so it stays a plain JOIN.
 	const foldJoin = pg ? sql`JOIN` : sql`CROSS JOIN`;
 
 	const termObj = obj(
-		"'id', t.id, 'name', t.name, 'slug', t.slug, 'label', t.label, 'parent_id', t.parent_id, 'locale', t.locale, 'translation_group', t.translation_group",
+		"'id', coalesce(exact_term.id, default_term.id), 'name', coalesce(exact_term.name, default_term.name), 'slug', coalesce(exact_term.slug, default_term.slug), 'label', coalesce(exact_term.label, default_term.label), 'parent_id', coalesce(exact_term.parent_id, default_term.parent_id), 'locale', coalesce(exact_term.locale, default_term.locale), 'translation_group', coalesce(exact_term.translation_group, default_term.translation_group)",
 	);
-	// Filter terms to the entry's own locale (matches #1441: terms render in the
-	// entry's resolved locale, not all locale variants of the attached group).
-	const terms = sql`(SELECT ${agg(termObj)} FROM ${sql.ref("content_taxonomies")} AS ct ${foldJoin} ${sql.ref("taxonomies")} AS t ON t.translation_group = ct.taxonomy_id WHERE ct.collection = ${type} AND ct.entry_id = ${o}.translation_group AND t.locale = ${o}.locale) AS ${sql.ref("_emdash_terms")}`;
+	const defaultLocale = getI18nConfig()?.defaultLocale ?? "en";
+	const selectedTermId = sql`coalesce(exact_term.id, default_term.id)`;
+	const termAgg = pg
+		? sql`coalesce(json_agg(${termObj}) FILTER (WHERE ${selectedTermId} IS NOT NULL), '[]'::json)`
+		: sql`json_group_array(${termObj}) FILTER (WHERE ${selectedTermId} IS NOT NULL)`;
+	const terms = sql`(SELECT ${termAgg} FROM ${sql.ref("content_taxonomies")} AS ct LEFT JOIN ${sql.ref("taxonomies")} AS exact_term ON exact_term.translation_group = ct.taxonomy_id AND exact_term.locale = ${o}.locale LEFT JOIN ${sql.ref("taxonomies")} AS default_term ON default_term.translation_group = ct.taxonomy_id AND default_term.locale = ${defaultLocale} WHERE ct.collection = ${type} AND ct.entry_id = ${o}.translation_group) AS ${sql.ref("_emdash_terms")}`;
 
 	const bylineInner = obj(
 		"'id', b.id, 'slug', b.slug, 'displayName', b.display_name, 'bio', b.bio, 'avatarMediaId', b.avatar_media_id, 'avatarStorageKey', m.storage_key, 'avatarAlt', m.alt, 'avatarBlurhash', m.blurhash, 'avatarDominantColor', m.dominant_color, 'websiteUrl', b.website_url, 'userId', b.user_id, 'isGuest', b.is_guest, 'createdAt', b.created_at, 'updatedAt', b.updated_at, 'locale', b.locale, 'translationGroup', b.translation_group",
@@ -215,6 +215,26 @@ function expandFoldedSeo(row: Record<string, unknown>): void {
 	}
 }
 
+export function creditsFromFoldedBylines(folded: unknown[]) {
+	return folded
+		.map((raw) => {
+			const credit = isPlainObject(raw) ? raw : {};
+			const byline = isPlainObject(credit.byline) ? credit.byline : {};
+			return {
+				roleLabel: typeof credit.roleLabel === "string" ? credit.roleLabel : null,
+				sortOrder: Number(credit.sortOrder ?? 0),
+				source: "explicit" as const,
+				byline: {
+					...byline,
+					isGuest: Boolean(byline.isGuest),
+					// Folded rows omit custom-field values.
+					customFields: {},
+				},
+			};
+		})
+		.toSorted((a, b) => a.sortOrder - b.sortOrder);
+}
+
 /**
  * Stash folded hydration JSON (non-enumerable) for the query.ts fast paths.
  * SQLite returns a JSON string (parse it); Postgres returns already-parsed JSON.
@@ -249,6 +269,12 @@ function stashFolded(data: Record<string, unknown>, row: Record<string, unknown>
 			configurable: true,
 		});
 	}
+
+	const foldedBylines = Reflect.get(data, FOLDED_BYLINES);
+	if (!Array.isArray(foldedBylines)) return;
+	const credits = creditsFromFoldedBylines(foldedBylines);
+	data.bylines = credits;
+	data.byline = credits[0]?.byline ?? null;
 }
 
 /** Resolved SEO shape attached to `entry.data.seo`. Mirrors `ContentSeo`. */
@@ -1546,6 +1572,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						};
 						const revSeo = extractSeo(row);
 						if (revSeo) revEntryData.seo = revSeo;
+						stashFolded(revEntryData, row);
 						return {
 							id: revId,
 							slug,

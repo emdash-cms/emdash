@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { handleContentPublish } from "../../src/api/handlers/content.js";
 import type { EmDashConfig } from "../../src/astro/integration/runtime.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
+import { OptionsRepository } from "../../src/database/repositories/options.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
 import {
 	ContentMutationConflictError,
@@ -17,6 +18,7 @@ import {
 	type PublishedRef,
 	type ScheduledPublishFn,
 } from "../../src/scheduled-publish.js";
+import { SCHEDULER_HEARTBEAT_OPTION } from "../../src/scheduler-health.js";
 import { createPostFixture, createPageFixture } from "../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
 
@@ -257,6 +259,36 @@ describe("EmDashRuntime.runScheduledTasks()", () => {
 		expect(published).toEqual([{ collection: "post", id: post.id }]);
 		const updated = await repo.findById("post", post.id);
 		expect(updated?.status).toBe("published");
+	});
+
+	it("records a heartbeat after Cloudflare scheduled maintenance completes", async () => {
+		const runtime = buildRuntime(db);
+		const options = new OptionsRepository(db);
+		const startedAt = Date.now();
+
+		await runtime.runScheduledTasks();
+
+		const heartbeat = await options.get<string>(SCHEDULER_HEARTBEAT_OPTION);
+		expect(heartbeat).not.toBeNull();
+		expect(Date.parse(heartbeat!)).toBeGreaterThanOrEqual(startedAt);
+	});
+
+	it("does not fail Cloudflare scheduled maintenance when the heartbeat write fails", async () => {
+		await sql`
+			CREATE TRIGGER fail_scheduler_heartbeat
+			BEFORE INSERT ON options
+			WHEN NEW.name = ${sql.lit(SCHEDULER_HEARTBEAT_OPTION)}
+			BEGIN
+				SELECT RAISE(ABORT, 'heartbeat unavailable');
+			END
+		`.execute(db);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await expect(buildRuntime(db).runScheduledTasks()).resolves.toEqual({ published: [] });
+		expect(consoleError).toHaveBeenCalledWith(
+			"[scheduler] Failed to record heartbeat:",
+			expect.anything(),
+		);
 	});
 
 	it("leaves due content untouched while media usage activation is incomplete", async () => {

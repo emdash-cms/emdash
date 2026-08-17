@@ -31,6 +31,12 @@ export {
 	type PluginAdmins,
 } from "./lib/plugin-context";
 
+export type {
+	ContentListColumnHeaderContext,
+	ContentListColumnCellContext,
+	ContentListColumnExtension,
+} from "./lib/content-list-columns.js";
+
 // Auth provider context (for accessing pluggable auth provider components)
 export {
 	AuthProviderProvider,

@@ -20,6 +20,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EmDashConfig } from "../../../src/astro/integration/runtime.js";
 import type { Database } from "../../../src/database/types.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import { createHookPipeline } from "../../../src/plugins/hooks.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
@@ -68,10 +69,12 @@ describe("EmDashRuntime.getManifest()", () => {
 	let db: Kysely<Database>;
 
 	beforeEach(async () => {
+		setI18nConfig(null);
 		db = await setupTestDatabase();
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
 		vi.restoreAllMocks();
 		await teardownTestDatabase(db);
 	});
@@ -127,6 +130,23 @@ describe("EmDashRuntime.getManifest()", () => {
 		expect(posts).toBeDefined();
 		expect(posts?.fields.title?.kind).toBe("string");
 		expect(posts?.fields.body?.kind).toBe("json");
+	});
+
+	it("reports the implicit English content locale when i18n is not configured", async () => {
+		const runtime = buildRuntime(db);
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.contentLocale).toEqual({ defaultLocale: "en", implicit: true });
+	});
+
+	it("reports the configured content default independently of admin language", async () => {
+		setI18nConfig({ defaultLocale: "ja", locales: ["ja", "en"] });
+		const runtime = buildRuntime(db);
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.contentLocale).toEqual({ defaultLocale: "ja", implicit: false });
 	});
 
 	it("includes field definitions for many collections in two queries flat", async () => {
