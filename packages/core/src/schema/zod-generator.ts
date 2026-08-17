@@ -455,23 +455,29 @@ function fieldTypeToTypeScript(field: {
 
 		case "repeater": {
 			const subFields = field.validation?.subFields;
-			// A repeater carrying no sub-fields describes no rows, so `{}[]` would
-			// be falsely permissive.
-			if (!subFields || subFields.length === 0) return "unknown";
+			// `validation` is unvalidated JSON on the seed and registry paths.
+			if (!Array.isArray(subFields) || subFields.length === 0) return "unknown";
 
-			const members = subFields.map((subField) => {
+			// A duplicated slug keeps its first position and last declaration, as
+			// `generateRepeaterRowSchema`'s `shape[subField.slug]` does.
+			const members = new Map<string, string>();
+
+			for (const subField of subFields) {
 				const type = fieldTypeToTypeScript({
 					type: subField.type,
 					validation: subField.options ? { options: subField.options } : undefined,
 				});
-				// `generateRepeaterRowSchema` applies `.nullish()` to a sub-field that
-				// is not required, so `null` is a legal stored value.
-				return subField.required
-					? `${subField.slug}: ${type}`
-					: `${subField.slug}?: ${type} | null`;
-			});
+				// A sub-field slug is not guaranteed to be a valid identifier, so it is
+				// quoted rather than emitted bare.
+				const name = JSON.stringify(subField.slug);
+				// A sub-field that is not required may be null at runtime.
+				members.set(
+					subField.slug,
+					subField.required ? `${name}: ${type}` : `${name}?: ${type} | null`,
+				);
+			}
 
-			return `{ ${members.join("; ")} }[]`;
+			return `{ ${[...members.values()].join("; ")} }[]`;
 		}
 
 		case "portableText":
