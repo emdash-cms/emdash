@@ -8,6 +8,8 @@ import {
 	RawBindingD1Dialect,
 } from "../../src/db/d1-dialect.js";
 
+const TRANSACTIONS_UNSUPPORTED_MARKER = Symbol.for("emdash:transactions-unsupported");
+
 /**
  * Regression tests for #2040: with the default D1 config the singleton
  * Kysely serializes every query behind a ConnectionMutex (because
@@ -66,6 +68,13 @@ function createMockD1(rows: Record<string, unknown>[] = []) {
 }
 
 describe("RawBindingD1Dialect (#2040)", () => {
+	it("declares that D1 transactions are unsupported", () => {
+		const { database } = createMockD1();
+		const adapter = new RawBindingD1Dialect({ database }).createAdapter();
+
+		expect(Reflect.get(adapter, TRANSACTIONS_UNSUPPORTED_MARKER)).toBe(true);
+	});
+
 	it("reports supportsMultipleConnections: true so no ConnectionMutex serializes queries", () => {
 		const { database } = createMockD1();
 		const dialect = new RawBindingD1Dialect({ database });
@@ -88,6 +97,15 @@ describe("RawBindingD1Dialect (#2040)", () => {
 
 		expect(maxInFlight()).toBe(2);
 		expect(allCalls).toHaveLength(2);
+	});
+});
+
+describe("CoalescingD1Dialect", () => {
+	it("declares that D1 transactions are unsupported", () => {
+		const { database } = createMockD1();
+		const adapter = new CoalescingD1Dialect({ database }).createAdapter();
+
+		expect(Reflect.get(adapter, TRANSACTIONS_UNSUPPORTED_MARKER)).toBe(true);
 	});
 });
 

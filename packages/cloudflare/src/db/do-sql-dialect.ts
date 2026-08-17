@@ -31,6 +31,7 @@ import { SqliteAdapter, SqliteQueryCompiler } from "kysely";
 import { D1Introspector } from "./d1-introspector.js";
 import type { DOQueryOptions, EmDashDBStub } from "./do-sql-types.js";
 import { isReadStatement } from "./do-sql-types.js";
+import { markTransactionsUnsupported } from "./transaction-capability.js";
 
 /** Mutable holder for the latest write bookmark, read by the request `commit()`. */
 export interface BookmarkSink {
@@ -77,7 +78,7 @@ export class DOSqlDialect implements Dialect {
 	}
 
 	createAdapter(): SqliteAdapter {
-		return new SqliteAdapter();
+		return markTransactionsUnsupported(new SqliteAdapter());
 	}
 
 	createDriver(): Driver {
