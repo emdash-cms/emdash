@@ -115,6 +115,7 @@ export class ExecEnv {
 	readonly #repoDir: string;
 	#containerPromise: Promise<ContainerBackend> | undefined;
 	#containerRecoveryPromise: Promise<ContainerBackend> | undefined;
+	#mutationTail: Promise<void> = Promise.resolve();
 
 	constructor(options: ExecEnvOptions) {
 		this.#state = options.state;
@@ -148,23 +149,25 @@ export class ExecEnv {
 		return this.#bounded(this.#state.readFile(path), "readFile");
 	}
 
-	async writeFile(path: string, content: string): Promise<void> {
-		await this.#bounded(this.#state.writeFile(path, content), "writeFile");
-		await this.#recordChange(path);
+	writeFile(path: string, content: string): Promise<void> {
+		return this.#enqueueMutation(() => this.#writeFile(path, content));
 	}
 
 	/** Replace an exact substring; the file must contain it exactly once. */
-	async edit(path: string, oldString: string, newString: string): Promise<void> {
-		const current = await this.readFile(path);
-		if (!current.includes(oldString)) throw new Error(`edit target not found in ${path}`);
-		const first = current.indexOf(oldString);
-		if (current.slice(first + oldString.length).includes(oldString)) {
-			throw new Error(`edit target is not unique in ${path}`);
-		}
-		await this.writeFile(
-			path,
-			current.slice(0, first) + newString + current.slice(first + oldString.length),
-		);
+	edit(path: string, oldString: string, newString: string): Promise<void> {
+		return this.#enqueueMutation(async () => {
+			this.#assertEditablePath(path);
+			const current = await this.readFile(path);
+			if (!current.includes(oldString)) throw new Error(`edit target not found in ${path}`);
+			const first = current.indexOf(oldString);
+			if (current.slice(first + oldString.length).includes(oldString)) {
+				throw new Error(`edit target is not unique in ${path}`);
+			}
+			await this.#writeFile(
+				path,
+				current.slice(0, first) + newString + current.slice(first + oldString.length),
+			);
+		});
 	}
 
 	ls(path: string): Promise<Array<{ name: string; type: string }>> {
@@ -240,6 +243,7 @@ export class ExecEnv {
 		const container = await this.container();
 		await this.#materializeChanges(container);
 		await this.#stageCandidate(container);
+		// Sandbox exec returns text, so binary NUL-delimited Git output crosses the boundary as base64.
 		const [base, tree, diff] = await Promise.all([
 			this.#bounded(
 				container.exec(pipefailCommand("git rev-parse HEAD"), { cwd: this.#repoDir }),
@@ -251,7 +255,9 @@ export class ExecEnv {
 			),
 			this.#bounded(
 				container.exec(
-					pipefailCommand("git diff --cached --raw --abbrev=64 --no-renames -z HEAD --"),
+					pipefailCommand(
+						"git diff --cached --raw --abbrev=64 --no-renames -z HEAD -- | base64 -w0",
+					),
 					{
 						cwd: this.#repoDir,
 					},
@@ -262,7 +268,7 @@ export class ExecEnv {
 		if (base.exitCode !== 0) throw new Error(`candidate base lookup failed: ${lastOutput(base)}`);
 		if (tree.exitCode !== 0) throw new Error(`candidate tree lookup failed: ${lastOutput(tree)}`);
 		if (diff.exitCode !== 0) throw new Error(`candidate diff failed: ${lastOutput(diff)}`);
-		const entries = parseRawGitDiff(diff.stdout);
+		const entries = parseRawGitDiff(decodeBase64Utf8(diff.stdout, "candidate diff"));
 		if (entries.length === 0) throw new Error("candidate has no staged changes");
 		if (entries.length > CANDIDATE_FILE_LIMIT) {
 			throw new Error(
@@ -464,6 +470,31 @@ export class ExecEnv {
 		await this.#bounded(this.#state.writeFile(CHANGE_LOG, JSON.stringify(changed)), "writeFile");
 	}
 
+	async #writeFile(path: string, content: string): Promise<void> {
+		this.#assertEditablePath(path);
+		await this.#bounded(this.#state.writeFile(path, content), "writeFile");
+		await this.#recordChange(path);
+	}
+
+	#assertEditablePath(path: string): void {
+		const prefix = `${this.#repoDir.replace(TRAILING_SLASH, "")}/`;
+		if (!path.startsWith(prefix)) return;
+		try {
+			assertCandidatePath(path.slice(prefix.length));
+		} catch {
+			throw new Error(`cannot edit path: ${path}`);
+		}
+	}
+
+	#enqueueMutation<T>(operation: () => Promise<T>): Promise<T> {
+		const result = this.#mutationTail.then(operation, operation);
+		this.#mutationTail = result.then(
+			() => undefined,
+			() => undefined,
+		);
+		return result;
+	}
+
 	async #readChangeLog(): Promise<string[]> {
 		if (!(await this.#bounded(this.#state.exists(CHANGE_LOG), "exists"))) return [];
 		const raw = await this.#bounded(this.#state.readFile(CHANGE_LOG), "readFile");
@@ -531,6 +562,21 @@ export function parseRawGitDiff(raw: string): RawDiffEntry[] {
 	return entries;
 }
 
+function decodeBase64Utf8(encoded: string, label: string): string {
+	const value = encoded.trim();
+	if (value === "") return "";
+	try {
+		const binary = atob(value);
+		const bytes = new Uint8Array(binary.length);
+		for (let index = 0; index < binary.length; index += 1) {
+			bytes[index] = binary.charCodeAt(index);
+		}
+		return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+	} catch (error) {
+		throw new Error(`${label} was not valid base64-encoded UTF-8`, { cause: error });
+	}
+}
+
 async function assertGitBlobContent(
 	content: Uint8Array,
 	expectedSha: string,
@@ -557,10 +603,11 @@ function gitTreeMode(mode: string | undefined): GitTreeMode {
 }
 
 function assertCandidatePath(path: string): void {
+	const segments = path.split("/");
 	if (
 		path === "" ||
 		path.startsWith("/") ||
-		path.split("/").includes("..") ||
+		segments.some((segment) => segment === "" || segment === "." || segment === "..") ||
 		DISALLOWED_CANDIDATE_PATHS.some(
 			(prefix) => path === prefix.slice(0, -1) || path.startsWith(prefix),
 		)

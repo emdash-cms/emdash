@@ -149,6 +149,13 @@ function makeEnv(overrides?: {
 	});
 }
 
+function base64Utf8(value: string): string {
+	const bytes = new TextEncoder().encode(value);
+	let binary = "";
+	for (const byte of bytes) binary += String.fromCharCode(byte);
+	return btoa(binary);
+}
+
 describe("ExecEnv container exec", () => {
 	test("runs the command in the container with the repo cwd", async () => {
 		const con = fakeContainer();
@@ -270,6 +277,38 @@ describe("ExecEnv container exec", () => {
 
 		expect(con.writes).toEqual([]);
 	});
+
+	test("serializes parallel edits so every changed path is materialized", async () => {
+		const fs = fakeState({ "/repo/a.ts": "a", "/repo/b.ts": "b" });
+		const con = fakeContainer();
+		const env = makeEnv({ state: fs.state, container: con.container });
+
+		await Promise.all([
+			env.writeFile("/repo/a.ts", "changed-a"),
+			env.writeFile("/repo/b.ts", "changed-b"),
+		]);
+		await env.exec("pnpm test");
+
+		expect(con.writes).toEqual([
+			{ path: "/repo/a.ts", content: "changed-a" },
+			{ path: "/repo/b.ts", content: "changed-b" },
+		]);
+	});
+
+	test("rejects traversal and Git metadata paths before writing to the VFS", async () => {
+		const fs = fakeState();
+		const env = makeEnv({ state: fs.state });
+
+		await expect(env.writeFile("/repo/../escape", "x")).rejects.toThrow(/cannot edit path/);
+		await expect(env.writeFile("/repo/.git/config", "x")).rejects.toThrow(/cannot edit path/);
+		await expect(env.writeFile("/repo/./.git/config", "x")).rejects.toThrow(/cannot edit path/);
+		await expect(env.writeFile("/repo/.github//workflows/pwn.yml", "x")).rejects.toThrow(
+			/cannot edit path/,
+		);
+		expect(fs.files.has("/repo/../escape")).toBe(false);
+		expect(fs.files.has("/repo/.git/config")).toBe(false);
+		expect(fs.files.has("/repo/./.git/config")).toBe(false);
+	});
 });
 
 describe("ExecEnv candidate snapshots", () => {
@@ -308,7 +347,7 @@ describe("ExecEnv candidate snapshots", () => {
 			{ exitCode: 0, stdout: "", stderr: "" },
 			{ exitCode: 0, stdout: "base-commit\n", stderr: "" },
 			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
-			{ exitCode: 0, stdout: raw, stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8(raw)}\n`, stderr: "" },
 		);
 		con.setReadFileBytes(() => new TextEncoder().encode("new\n"));
 		const env = makeEnv({ container: con.container });
@@ -326,6 +365,21 @@ describe("ExecEnv candidate snapshots", () => {
 				(command) => command.includes("git cat-file blob") && command.includes(stagedBlobSha),
 			),
 		).toBe(true);
+		expect(con.execs.some((command) => command.includes("base64 -w0"))).toBe(true);
+	});
+
+	test("rejects staged diff output that is not valid base64", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "base\n", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: "not-base64!", stderr: "" },
+		);
+
+		await expect(makeEnv({ container: con.container }).snapshotCandidate()).rejects.toThrow(
+			/not valid base64-encoded UTF-8/,
+		);
 	});
 
 	test("rejects content that does not match the staged blob", async () => {
@@ -336,7 +390,9 @@ describe("ExecEnv candidate snapshots", () => {
 			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
 			{
 				exitCode: 0,
-				stdout: `:000000 100644 ${zeroSha} 3e757656cf36eca53338e520d134963a44f793f8 A\0src/new.ts\0`,
+				stdout: base64Utf8(
+					`:000000 100644 ${zeroSha} 3e757656cf36eca53338e520d134963a44f793f8 A\0src/new.ts\0`,
+				),
 				stderr: "",
 			},
 		);
@@ -362,7 +418,7 @@ describe("ExecEnv candidate snapshots", () => {
 			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
 			{
 				exitCode: 0,
-				stdout: `:000000 100644 ${zeroSha} ${blobSha} A\0.github/workflows/pwn.yml\0`,
+				stdout: base64Utf8(`:000000 100644 ${zeroSha} ${blobSha} A\0.github/workflows/pwn.yml\0`),
 				stderr: "",
 			},
 		);
@@ -379,7 +435,7 @@ describe("ExecEnv candidate snapshots", () => {
 			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
 			{
 				exitCode: 0,
-				stdout: `:000000 100644 ${zeroSha} ${blobSha} A\0large.bin\0`,
+				stdout: base64Utf8(`:000000 100644 ${zeroSha} ${blobSha} A\0large.bin\0`),
 				stderr: "",
 			},
 		);
