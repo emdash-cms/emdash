@@ -12,10 +12,13 @@ export interface FileOptions {
 export function file(options: FileOptions = {}): FieldDefinition<FileValue> {
 	const fileObjSchema = z.object({
 		id: z.string(),
-		url: z.string(),
-		filename: z.string(),
-		mimeType: z.string(),
-		size: z.number(),
+		url: z.string().optional(),
+		src: z.string().optional(),
+		filename: z.string().optional(),
+		mimeType: z.string().optional(),
+		size: z.number().optional(),
+		provider: z.string().optional(),
+		meta: z.record(z.string(), z.unknown()).optional(),
 	});
 
 	const schema: z.ZodTypeAny = options.required ? fileObjSchema : fileObjSchema.optional();

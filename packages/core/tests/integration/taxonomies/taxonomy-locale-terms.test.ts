@@ -1,11 +1,9 @@
 /**
  * Locale-aware term resolution for content entries (issue #1218).
  *
- * The storage model is correct: `content_taxonomies` stores
- * `entry_id` = the per-locale content row id and `taxonomy_id` = the term's
- * `translation_group` (which spans every locale). Resolving the terms for an
- * entry must therefore scope to the entry's own locale, otherwise EVERY locale
- * variant of the term is returned.
+ * `content_taxonomies` stores translation groups for both content and terms.
+ * Resolving the terms for an entry must still scope to the entry's own locale,
+ * otherwise every locale variant of the term is returned.
  *
  * The bug was that the admin content-editor terms route
  * (`/content/:collection/:id/terms/:taxonomy`) never passed a locale, so a
@@ -87,9 +85,8 @@ async function seedLocalizedTags(db: Kysely<Database>): Promise<TermFixture> {
 		translationOf: enTag.id,
 	});
 
-	// Attach the tag (by group) to BOTH entries.
+	// One group assignment covers both content translations.
 	await taxRepo.attachToEntry("post", enContent.id, enTag.id);
-	await taxRepo.attachToEntry("post", frContent.id, enTag.id);
 
 	return {
 		enContentId: enContent.id,
@@ -159,7 +156,17 @@ function buildPostContext(
 }
 
 interface TermsResponse {
-	data?: { terms?: Array<{ id: string; slug: string; label: string }> };
+	data?: {
+		terms?: Array<{ id: string; slug: string; label: string; locale: string }>;
+		unresolved?: Array<{
+			translationGroup: string;
+			availableLocales: string[];
+			translations: Array<{ id: string; slug: string; locale: string }>;
+		}>;
+		entryLocale?: string;
+		defaultLocale?: string;
+		implicitDefaultLocale?: boolean;
+	};
 	error?: { code: string };
 }
 
@@ -173,6 +180,66 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 	afterEach(async () => {
 		setI18nConfig(null);
 		await teardownForDialect(ctx);
+	});
+
+	it("persists the configured default instead of the database column default", async () => {
+		setI18nConfig({ defaultLocale: "ja", locales: ["ja"] });
+
+		const definition = await handleTaxonomyCreate(ctx.db, {
+			name: "categories",
+			label: "Categories",
+		});
+		expect(definition.success).toBe(true);
+		if (!definition.success) throw new Error(definition.error.message);
+		expect(definition.data.taxonomy.locale).toBe("ja");
+
+		const term = await unwrap(
+			handleTermCreate(ctx.db, "categories", {
+				slug: "news",
+				label: "News",
+			}),
+		);
+		expect(term.locale).toBe("ja");
+
+		const controlId = ulid();
+		await ctx.db
+			.insertInto("taxonomies")
+			.values({
+				id: controlId,
+				name: "categories",
+				slug: "database-default",
+				label: "Database default",
+				parent_id: null,
+				data: null,
+				translation_group: controlId,
+			})
+			.execute();
+		const control = await ctx.db
+			.selectFrom("taxonomies")
+			.select("locale")
+			.where("id", "=", controlId)
+			.executeTakeFirstOrThrow();
+		expect(control.locale).toBe("en");
+	});
+
+	it("uses the implicit English locale when i18n is not configured", async () => {
+		setI18nConfig(null);
+
+		const definition = await handleTaxonomyCreate(ctx.db, {
+			name: "categories",
+			label: "Categories",
+		});
+		expect(definition.success).toBe(true);
+		if (!definition.success) throw new Error(definition.error.message);
+		expect(definition.data.taxonomy.locale).toBe("en");
+
+		const term = await unwrap(
+			handleTermCreate(ctx.db, "categories", {
+				slug: "news",
+				label: "News",
+			}),
+		);
+		expect(term.locale).toBe("en");
 	});
 
 	it("stores term locales with the configured casing", async () => {
@@ -298,6 +365,208 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 		expect(body.error).toBeUndefined();
 		const ids = (body.data?.terms ?? []).map((t) => t.id);
 		expect(ids).toEqual([fx.frTagId]);
+	});
+
+	it("falls back to the configured default-locale term and exposes its actual locale", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const content = new ContentRepository(ctx.db);
+		const taxonomies = new TaxonomyRepository(ctx.db);
+		const entry = await content.create({
+			type: "post",
+			slug: "bonjour",
+			data: { title: "Bonjour" },
+			locale: "fr",
+		});
+		const tag = await taxonomies.create({
+			name: "tags",
+			slug: "news",
+			label: "News",
+			locale: "en",
+		});
+		await taxonomies.attachToEntry("post", entry.id, tag.id);
+
+		const res = await getTerms(
+			buildGetContext(ctx.db, { collection: "post", id: entry.id, taxonomy: "tags" }),
+		);
+		const body = (await res.json()) as TermsResponse;
+
+		expect(body.data).toMatchObject({
+			entryLocale: "fr",
+			defaultLocale: "en",
+			implicitDefaultLocale: false,
+			unresolved: [],
+		});
+		expect(body.data?.terms).toEqual([
+			expect.objectContaining({ id: tag.id, slug: "news", locale: "en" }),
+		]);
+	});
+
+	it("keeps an assignment unresolved when neither exact nor default locale exists", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr", "de", "ja"] });
+		const content = new ContentRepository(ctx.db);
+		const taxonomies = new TaxonomyRepository(ctx.db);
+		const entry = await content.create({
+			type: "post",
+			slug: "bonjour",
+			data: { title: "Bonjour" },
+			locale: "fr",
+		});
+		const jaTag = await taxonomies.create({
+			name: "tags",
+			slug: "nyusu",
+			label: "ニュース",
+			locale: "ja",
+		});
+		const deTag = await taxonomies.create({
+			name: "tags",
+			slug: "nachrichten",
+			label: "Nachrichten",
+			locale: "de",
+			translationOf: jaTag.id,
+		});
+		await taxonomies.attachToEntry("post", entry.id, jaTag.id);
+
+		const res = await getTerms(
+			buildGetContext(ctx.db, { collection: "post", id: entry.id, taxonomy: "tags" }),
+		);
+		const body = (await res.json()) as TermsResponse;
+
+		expect(body.data?.terms).toEqual([]);
+		expect(body.data?.unresolved).toEqual([
+			{
+				translationGroup: jaTag.translationGroup,
+				availableLocales: ["de", "ja"],
+				translations: [
+					{ id: deTag.id, slug: "nachrichten", locale: "de" },
+					{ id: jaTag.id, slug: "nyusu", locale: "ja" },
+				],
+			},
+		]);
+	});
+
+	it("keeps a newly assigned unresolved group visible on every content sibling", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr", "ja"] });
+		const content = new ContentRepository(ctx.db);
+		const taxonomies = new TaxonomyRepository(ctx.db);
+		const enEntry = await content.create({
+			type: "post",
+			slug: "hello",
+			data: { title: "Hello" },
+			locale: "en",
+		});
+		const frEntry = await content.create({
+			type: "post",
+			slug: "bonjour",
+			data: { title: "Bonjour" },
+			locale: "fr",
+			translationOf: enEntry.id,
+		});
+		const jaTag = await taxonomies.create({
+			name: "tags",
+			slug: "nyusu",
+			label: "ニュース",
+			locale: "ja",
+		});
+
+		const post = await postTerms(
+			buildPostContext(ctx.db, { collection: "post", id: frEntry.id, taxonomy: "tags" }, [
+				jaTag.id,
+			]),
+		);
+		const postBody = (await post.json()) as TermsResponse;
+		expect(postBody.data?.terms).toEqual([]);
+		expect(postBody.data?.unresolved?.[0]?.availableLocales).toEqual(["ja"]);
+
+		for (const entryId of [enEntry.id, frEntry.id]) {
+			const res = await getTerms(
+				buildGetContext(ctx.db, { collection: "post", id: entryId, taxonomy: "tags" }),
+			);
+			const body = (await res.json()) as TermsResponse;
+			expect(body.data?.unresolved?.[0]?.translationGroup).toBe(jaTag.translationGroup);
+		}
+	});
+
+	it("reports the implicit English default for existing mixed-locale data", async () => {
+		const content = new ContentRepository(ctx.db);
+		const taxonomies = new TaxonomyRepository(ctx.db);
+		const entry = await content.create({
+			type: "post",
+			slug: "hello",
+			data: { title: "Hello" },
+			locale: "en",
+		});
+		const jaTag = await taxonomies.create({
+			name: "tags",
+			slug: "nyusu",
+			label: "ニュース",
+			locale: "ja",
+		});
+		await taxonomies.attachToEntry("post", entry.id, jaTag.id);
+
+		const res = await getTerms(
+			buildGetContext(ctx.db, { collection: "post", id: entry.id, taxonomy: "tags" }),
+		);
+		const body = (await res.json()) as TermsResponse;
+
+		expect(body.data).toMatchObject({
+			entryLocale: "en",
+			defaultLocale: "en",
+			implicitDefaultLocale: true,
+			terms: [],
+		});
+		expect(body.data?.unresolved?.[0]?.availableLocales).toEqual(["ja"]);
+	});
+
+	it("lists exact variants first and default-locale variants for untranslated groups", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		await insertHierarchicalDef(ctx.db, "categories");
+		const taxonomies = new TaxonomyRepository(ctx.db);
+		const enOnly = await taxonomies.create({
+			name: "categories",
+			slug: "news",
+			label: "News",
+			locale: "en",
+		});
+		const enSports = await taxonomies.create({
+			name: "categories",
+			slug: "sports",
+			label: "Sports",
+			locale: "en",
+		});
+		const frSports = await taxonomies.create({
+			name: "categories",
+			slug: "sports-fr",
+			label: "Sports FR",
+			locale: "fr",
+			translationOf: enSports.id,
+		});
+
+		const listed = await handleTermList(ctx.db, "categories", {
+			locale: "fr",
+			resolveFallback: true,
+			includeCounts: false,
+		});
+		expect(listed.success).toBe(true);
+		if (!listed.success) throw new Error(listed.error.message);
+		expect(listed.data.terms).toEqual([
+			expect.objectContaining({ id: enOnly.id, locale: "en" }),
+			expect.objectContaining({ id: frSports.id, locale: "fr" }),
+		]);
+	});
+
+	it("rejects fallback-resolved term lists without a requested locale", async () => {
+		const listed = await handleTermList(ctx.db, "tag", {
+			resolveFallback: true,
+			includeCounts: false,
+		});
+
+		expect(listed).toEqual({
+			success: false,
+			error: {
+				code: "VALIDATION_ERROR",
+				message: "A locale is required when resolving taxonomy fallbacks",
+			},
+		});
 	});
 });
 
@@ -536,6 +805,64 @@ describeEachDialect("taxonomy parent stays nested across locales (#1347)", (dial
 		if (!frList.success) throw new Error(frList.error.message);
 		const frParent = findInTree(frList.data.terms, "actus");
 		expect(frParent?.children.map((c) => c.slug)).toEqual(["actualites"]);
+	});
+
+	it("leaves a group where only one row has a parent split across locales", async () => {
+		// The shape `handleTermUpdate` produces: a reparent applied to one row.
+		// 045 rewrites parent_id values, so it converges rows that all point at
+		// some parent; a row still holding NULL is outside its WHERE clause.
+		const parentId = ulid();
+		const enChildId = ulid();
+		const frChildId = ulid();
+		const childGroup = enChildId;
+
+		await ctx.db
+			.insertInto("taxonomies")
+			.values([
+				{
+					id: parentId,
+					name: "categories",
+					slug: "news",
+					label: "News",
+					parent_id: null,
+					data: null,
+					locale: "en",
+					translation_group: parentId,
+				},
+				{
+					id: enChildId,
+					name: "categories",
+					slug: "breaking",
+					label: "Breaking",
+					parent_id: parentId,
+					data: null,
+					locale: "en",
+					translation_group: childGroup,
+				},
+				{
+					id: frChildId,
+					name: "categories",
+					slug: "actualites",
+					label: "Actualités",
+					parent_id: null, // never reparented — the update named the EN row
+					data: null,
+					locale: "fr",
+					translation_group: childGroup,
+				},
+			])
+			.execute();
+
+		await up045(ctx.db);
+
+		const repo = new TaxonomyRepository(ctx.db);
+		const rows = await repo.findTranslations(childGroup);
+		// 045 cannot converge this: the group still holds two parents.
+		expect(new Set(rows.map((row) => row.parentId))).toEqual(new Set([parentId, null]));
+
+		// So the term is a child in EN and a root in FR.
+		const frList = await handleTermList(ctx.db, "categories", { locale: "fr" });
+		if (!frList.success) throw new Error(frList.error.message);
+		expect(frList.data.terms.map((term) => term.slug)).toEqual(["actualites"]);
 	});
 });
 

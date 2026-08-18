@@ -4,7 +4,7 @@
  * Defines all admin routes and their components.
  */
 
-import { Button, Loader, Toast } from "@cloudflare/kumo";
+import { Button, Loader, Toast, useKumoToastManager } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
@@ -21,6 +21,7 @@ import {
 } from "@tanstack/react-router";
 import * as React from "react";
 
+import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor } from "./components/ContentEditor";
 import {
@@ -88,6 +89,7 @@ import {
 	updateField,
 	deleteField,
 	reorderFields,
+	reorderCollections,
 	fetchOrphanedTables,
 	registerOrphanedTable,
 	fetchUsers,
@@ -105,6 +107,7 @@ import {
 	unpublishContent,
 	discardDraft,
 	fetchRevision,
+	useCurrentUser,
 	type CreateCollectionInput,
 	type UpdateCollectionInput,
 	type CreateFieldInput,
@@ -137,6 +140,7 @@ interface RouterContext {
 interface ContentUpdateChanges {
 	data?: Record<string, unknown>;
 	slug?: string;
+	publishedAt?: string | null;
 	authorId?: string | null;
 	bylines?: BylineCreditInput[];
 	skipRevision?: boolean;
@@ -166,10 +170,9 @@ function patchAutosaveQueries(
 			data?: Record<string, unknown>;
 			slug?: string;
 		};
-		locale?: string;
 	},
 ) {
-	const { collection, id, savedItem, payload, locale } = params;
+	const { collection, id, savedItem, payload } = params;
 	const draftRevisionId = savedItem.draftRevisionId;
 
 	if (draftRevisionId) {
@@ -194,10 +197,11 @@ function patchAutosaveQueries(
 		});
 	}
 
-	queryClient.setQueryData<ContentItem>(
-		locale ? ["content", collection, id, { locale }] : ["content", collection, id],
-		savedItem,
-	);
+	// Match by (collection, id) prefix rather than an exact locale-scoped key: the
+	// editor reads `{ locale: activeLocale }`, undefined when i18n is off, while the
+	// saved item carries the DB default "en". An exact key would write to an entry
+	// nobody observes, leaving the editor on stale revision pointers.
+	queryClient.setQueriesData<ContentItem>({ queryKey: ["content", collection, id] }, savedItem);
 }
 
 // Create a base root route without Shell for setup
@@ -330,6 +334,7 @@ function ContentListPage() {
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
 	});
+	const { data: currentUser } = useCurrentUser();
 
 	const i18n = manifest?.i18n;
 
@@ -338,20 +343,37 @@ function ContentListPage() {
 
 	// Controlled sort state — passed to the list, and included in the query
 	// key so changing direction invalidates the current cursor chain.
-	const [sort, setSort] = React.useState<ContentListSort>({
-		field: "updatedAt",
+	// Default sorts by the collection's dateField, else last-updated.
+	// `sortOverride` is the user's explicit choice (null until they click a
+	// column), keeping the default reactive as the manifest loads and per-collection.
+	const [sortOverride, setSortOverride] = React.useState<ContentListSort | null>(null);
+	const sort: ContentListSort = sortOverride ?? {
+		field: manifest?.collections[collection]?.dateField ?? "updatedAt",
 		direction: "desc",
-	});
+	};
+	React.useEffect(() => setSortOverride(null), [collection]);
 
 	// Server-side search term (debounced inside ContentList). Part of the query
 	// key so a new term restarts the cursor chain from a filtered first page.
 	const [searchTerm, setSearchTerm] = React.useState("");
 
-	// Filter state (#1288). All are part of the query key so changing any of
+	// Filter state. All are part of the query key so changing any of
 	// them restarts the cursor chain from a filtered first page.
 	const [statusFilter, setStatusFilter] = React.useState<ContentStatusFilter>("all");
 	const [authorFilter, setAuthorFilter] = React.useState("");
 	const [dateFilter, setDateFilter] = React.useState<ContentDateFilter>(EMPTY_DATE_FILTER);
+	const [bylineFilter, setBylineFilter] = React.useState<BylineFilterState>(EMPTY_BYLINE_FILTER);
+
+	// Only the parts that change the result set belong in the query key —
+	// `includeInferred` alone, with nothing selected, filters nothing.
+	const bylineApiParams = React.useMemo(() => {
+		if (!bylineFilter.none && bylineFilter.bylineIds.length === 0) return undefined;
+		return {
+			bylines: bylineFilter.none ? undefined : bylineFilter.bylineIds,
+			bylinesNone: bylineFilter.none,
+			includeInferredBylines: bylineFilter.includeInferred,
+		};
+	}, [bylineFilter]);
 
 	// The date inputs yield calendar dates; widen them to UTC day boundaries so
 	// the inclusive `dateTo` covers the whole day (timestamps are stored in UTC).
@@ -386,6 +408,7 @@ function ContentListPage() {
 					status: statusFilter,
 					author: authorFilter,
 					date: dateApiParams,
+					byline: bylineApiParams,
 				},
 			],
 			queryFn: ({ pageParam }) =>
@@ -399,6 +422,7 @@ function ContentListPage() {
 					status: statusFilter === "all" ? undefined : statusFilter,
 					authorId: authorFilter || undefined,
 					...dateApiParams,
+					...bylineApiParams,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -571,6 +595,19 @@ function ContentListPage() {
 		return <ErrorScreen error={error.message} />;
 	}
 
+	const listColumns = (collectionConfig.listColumns ?? []).flatMap((slug) => {
+		const field = collectionConfig.fields[slug];
+		if (!field) return [];
+		return [
+			{
+				slug,
+				label: field.label ?? slug,
+				kind: field.kind,
+				options: Array.isArray(field.options) ? field.options : undefined,
+			},
+		];
+	});
+
 	const handleLocaleChange = (locale: string) => {
 		// Update URL search params without full navigation
 		void navigate({
@@ -585,6 +622,7 @@ function ContentListPage() {
 			collection={collection}
 			collectionLabel={collectionConfig.label}
 			items={items}
+			listColumns={listColumns}
 			trashedItems={trashedData?.items || []}
 			isLoading={isLoading || isFetchingNextPage}
 			isTrashedLoading={isTrashedLoading}
@@ -599,8 +637,10 @@ function ContentListPage() {
 			activeLocale={activeLocale}
 			onLocaleChange={handleLocaleChange}
 			urlPattern={collectionConfig.urlPattern}
+			titleField={collectionConfig.titleField}
+			dateField={collectionConfig.dateField}
 			sort={sort}
-			onSortChange={setSort}
+			onSortChange={setSortOverride}
 			total={total}
 			onSearchChange={setSearchTerm}
 			statusFilter={statusFilter}
@@ -610,9 +650,13 @@ function ContentListPage() {
 			onAuthorFilterChange={setAuthorFilter}
 			dateFilter={dateFilter}
 			onDateFilterChange={setDateFilter}
+			bylineFilter={bylineFilter}
+			onBylineFilterChange={setBylineFilter}
 			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			pluginStates={manifest.plugins}
+			userRole={currentUser?.role ?? 0}
 		/>
 	);
 }
@@ -633,6 +677,8 @@ function ContentNewPage() {
 	const { locale } = useSearch({ from: "/_admin/content/$collection/new" });
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+	const { t } = useLingui();
+	const toastManager = useKumoToastManager();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
 
 	const { data: manifest } = useQuery({
@@ -660,6 +706,13 @@ function ContentNewPage() {
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
 				search: { locale: result.locale },
+			});
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to save`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				variant: "error",
 			});
 		},
 	});
@@ -965,6 +1018,14 @@ function ContentEditPage() {
 			}
 		},
 	});
+	const publishedAtMutation = useMutation({
+		mutationFn: (publishedAt: string) =>
+			updateContent(collection, id, { publishedAt }, { locale: rawItem?.locale ?? activeLocale }),
+		onSuccess: () => {
+			handleContentUpdateSuccess(id);
+		},
+		onError: handleContentUpdateError,
+	});
 
 	// Autosave mutation - skips revision creation
 	const autosaveMutation = useMutation({
@@ -985,7 +1046,6 @@ function ContentEditPage() {
 					data: variables.changes.data,
 					slug: variables.changes.slug,
 				},
-				locale: variables.targetLocale,
 			});
 			// Keep the cache fresh without refetching older server state back into the form
 			// while the user is still typing.
@@ -1188,6 +1248,12 @@ function ContentEditPage() {
 		},
 		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
 	);
+	const handlePublishedAtChange = React.useCallback(
+		(publishedAt: string) => {
+			publishedAtMutation.mutate(publishedAt);
+		},
+		[publishedAtMutation.mutate],
+	);
 
 	const handleSeoChange = React.useCallback(
 		(seo: ContentSeoInput) => {
@@ -1253,7 +1319,7 @@ function ContentEditPage() {
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}
 			fields={collectionConfig.fields}
-			isSaving={updateMutation.isPending}
+			isSaving={updateMutation.isPending || publishedAtMutation.isPending}
 			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
 			onSave={handleSave}
 			onAutosave={handleAutosave}
@@ -1268,6 +1334,8 @@ function ContentEditPage() {
 			onSchedule={handleSchedule}
 			onUnschedule={handleUnschedule}
 			isScheduling={scheduleMutation.isPending}
+			onPublishedAtChange={handlePublishedAtChange}
+			isUpdatingPublishedAt={publishedAtMutation.isPending}
 			onDelete={handleDelete}
 			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
@@ -1341,7 +1409,9 @@ function MediaPage() {
 			isLoading={isLoading || isFetchingNextPage}
 			hasMore={!!hasNextPage}
 			onLoadMore={() => void fetchNextPage()}
-			onUpload={(file) => uploadMutation.mutate(file)}
+			onUpload={async (file) => {
+				await uploadMutation.mutateAsync(file);
+			}}
 			onLocalSearchChange={setSearch}
 			onLocalMimeFilterChange={setMimeFilter}
 		/>
@@ -1482,8 +1552,8 @@ function CommentsPage() {
 		return (
 			<div className="flex items-center justify-center min-h-[50vh]">
 				<div className="text-center">
-					<h1 className="text-2xl font-bold">{t`Access Denied`}</h1>
-					<p className="mt-2 text-kumo-subtle">{t`You need Editor permissions to moderate comments.`}</p>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Access Denied`}</h1>
+					<p className="mt-2 text-sm text-kumo-subtle">{t`You need Editor permissions to moderate comments.`}</p>
 				</div>
 			</div>
 		);
@@ -1854,6 +1924,16 @@ function ContentTypesListPage() {
 		},
 	});
 
+	const reorderMutation = useMutation({
+		mutationFn: (slugs: string[]) => reorderCollections(slugs),
+		// The manifest drives the sidebar order, so it has to be refetched
+		// alongside the collection list for the move to show up in the nav.
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+	});
+
 	const error = collectionsError || orphansError;
 	if (error) {
 		return <ErrorScreen error={error.message} />;
@@ -1866,6 +1946,7 @@ function ContentTypesListPage() {
 			isLoading={collectionsLoading || orphansLoading}
 			onDelete={(slug) => deleteMutation.mutate(slug)}
 			onRegisterOrphan={(slug) => registerOrphanMutation.mutate(slug)}
+			onReorder={(slugs) => reorderMutation.mutate(slugs)}
 		/>
 	);
 }
@@ -2171,8 +2252,8 @@ function ErrorScreen({ error }: { error: string }) {
 	return (
 		<div className="flex items-center justify-center min-h-screen">
 			<div className="text-center">
-				<h1 className="text-xl font-bold text-kumo-danger">{t`Error`}</h1>
-				<p className="mt-2 text-kumo-subtle">{error}</p>
+				<h1 className="text-2xl font-semibold leading-tight text-kumo-danger">{t`Error`}</h1>
+				<p className="mt-2 text-sm text-kumo-subtle">{error}</p>
 				<Button onClick={() => window.location.reload()} className="mt-4">
 					{t`Retry`}
 				</Button>
@@ -2186,11 +2267,11 @@ function NotFoundPage({ message }: { message?: string }) {
 	return (
 		<div className="flex items-center justify-center min-h-[50vh]">
 			<div className="text-center">
-				<h1 className="text-2xl font-bold">{t`Page Not Found`}</h1>
-				<p className="mt-2 text-kumo-subtle">
+				<h1 className="text-2xl font-semibold leading-tight">{t`Page Not Found`}</h1>
+				<p className="mt-2 text-sm text-kumo-subtle">
 					{message ?? t`The page you're looking for doesn't exist.`}
 				</p>
-				<Link to="/" className="mt-4 inline-block text-kumo-brand">
+				<Link to="/" className="mt-4 inline-block text-kumo-link">
 					{t`Go to Dashboard`}
 				</Link>
 			</div>

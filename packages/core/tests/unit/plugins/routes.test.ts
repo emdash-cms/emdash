@@ -15,10 +15,12 @@ import type { PluginContextFactoryOptions } from "../../../src/plugins/context.j
 import { EmailPipeline } from "../../../src/plugins/email.js";
 import { HookPipeline } from "../../../src/plugins/hooks.js";
 import {
+	parseRouteInput,
 	PluginRouteHandler,
 	PluginRouteRegistry,
 	PluginRouteError,
 	createRouteRegistry,
+	toRouteCallerInfo,
 } from "../../../src/plugins/routes.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 
@@ -125,6 +127,48 @@ describe("PluginRouteError", () => {
 			expect(error.code).toBe("INTERNAL_ERROR");
 			expect(error.status).toBe(500);
 			expect(error.message).toBe("Something broke");
+		});
+	});
+});
+
+describe("toRouteCallerInfo", () => {
+	it("maps the host user to the plugin-facing UserInfo shape", () => {
+		const info = toRouteCallerInfo({
+			id: "u1",
+			email: "a@b.c",
+			name: null,
+			role: 4,
+			createdAt: new Date("2026-01-02T03:04:05.000Z"),
+		});
+
+		expect(info).toEqual({
+			id: "u1",
+			email: "a@b.c",
+			name: null,
+			role: 4,
+			createdAt: "2026-01-02T03:04:05.000Z",
+		});
+	});
+
+	it("passes string createdAt through and strips extra fields", () => {
+		// Extra host-side fields (avatarUrl, data, …) must not leak to plugins.
+		const hostUser = {
+			id: "u1",
+			email: "a@b.c",
+			name: "A",
+			role: 2,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			avatarUrl: "https://x/y.png",
+			data: { secret: true },
+		};
+		const info = toRouteCallerInfo(hostUser);
+
+		expect(info).toEqual({
+			id: "u1",
+			email: "a@b.c",
+			name: "A",
+			role: 2,
+			createdAt: "2026-01-01T00:00:00.000Z",
 		});
 	});
 });
@@ -361,6 +405,50 @@ describe("PluginRouteHandler", () => {
 			expect(result.data).toEqual({ hasEmail: true, hasSend: true });
 		});
 
+		it("exposes the authenticated caller as ctx.user", async () => {
+			const plugin = createTestPlugin({
+				routes: {
+					whoami: {
+						handler: async (ctx) => ({ user: ctx.user ?? null }),
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			const caller = {
+				id: "user-1",
+				email: "author@example.com",
+				name: "Author",
+				role: 2,
+				createdAt: "2026-01-01T00:00:00.000Z",
+			};
+			const result = await handler.invoke("whoami", {
+				request: new Request("http://test.com/whoami"),
+				user: caller,
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data).toEqual({ user: caller });
+		});
+
+		it("leaves ctx.user undefined when no caller is provided", async () => {
+			const plugin = createTestPlugin({
+				routes: {
+					whoami: {
+						handler: async (ctx) => ({ user: ctx.user ?? null }),
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			const result = await handler.invoke("whoami", {
+				request: new Request("http://test.com/whoami"),
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data).toEqual({ user: null });
+		});
+
 		it("surfaces an actionable error when a handler reads the consumed request body (#1293)", async () => {
 			// EmDash parses the body once and exposes it as ctx.input; the same
 			// Request is then handed to the handler with its stream already spent.
@@ -595,5 +683,79 @@ describe("createRouteRegistry helper", () => {
 	it("creates a PluginRouteRegistry instance", () => {
 		const registry = createRouteRegistry(createMockFactoryOptions());
 		expect(registry).toBeInstanceOf(PluginRouteRegistry);
+	});
+});
+
+describe("parseRouteInput (#2146)", () => {
+	it("parses the query string for GET requests", async () => {
+		const input = await parseRouteInput(
+			new Request("http://test.com/plugins/p/search?limit=20&q=hello", { method: "GET" }),
+		);
+		expect(input).toEqual({ limit: "20", q: "hello" });
+	});
+
+	it("parses the query string for HEAD and DELETE requests", async () => {
+		expect(
+			await parseRouteInput(new Request("http://test.com/x?id=7", { method: "HEAD" })),
+		).toEqual({ id: "7" });
+		expect(
+			await parseRouteInput(new Request("http://test.com/x?id=7", { method: "DELETE" })),
+		).toEqual({ id: "7" });
+	});
+
+	it("collapses a repeated query key into an array", async () => {
+		const input = await parseRouteInput(
+			new Request("http://test.com/x?tag=a&tag=b&one=z", { method: "GET" }),
+		);
+		expect(input).toEqual({ tag: ["a", "b"], one: "z" });
+	});
+
+	it("returns an empty object for a GET with no query params", async () => {
+		expect(await parseRouteInput(new Request("http://test.com/x", { method: "GET" }))).toEqual({});
+	});
+
+	it("parses the JSON body for POST/PUT/PATCH", async () => {
+		for (const method of ["POST", "PUT", "PATCH"]) {
+			const input = await parseRouteInput(
+				new Request("http://test.com/x?ignored=1", {
+					method,
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ name: "Ada" }),
+				}),
+			);
+			expect(input).toEqual({ name: "Ada" });
+		}
+	});
+
+	it("returns undefined for a body method with no/invalid JSON", async () => {
+		expect(
+			await parseRouteInput(new Request("http://test.com/x", { method: "POST" })),
+		).toBeUndefined();
+	});
+
+	it("lets a GET route with an input schema validate query params end to end", async () => {
+		const plugin = createTestPlugin({
+			routes: {
+				search: {
+					input: z.object({
+						limit: z.coerce.number().min(1).default(50),
+						q: z.string().optional(),
+					}),
+					handler: async (ctx) => ({ received: ctx.input }),
+				},
+			},
+		});
+		const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+		const request = new Request("http://test.com/plugins/p/search?limit=20&q=hello", {
+			method: "GET",
+		});
+
+		const result = await handler.invoke("search", {
+			request,
+			body: await parseRouteInput(request),
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.data).toEqual({ received: { limit: 20, q: "hello" } });
 	});
 });

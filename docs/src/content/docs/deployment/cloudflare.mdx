@@ -3,7 +3,7 @@ title: Deploy to Cloudflare
 description: Deploy EmDash to Cloudflare Workers with D1 and R2.
 ---
 
-import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
 Cloudflare Workers provides a fast, globally distributed runtime for EmDash. This guide covers deploying with D1 for the database and R2 for media storage.
 
@@ -15,7 +15,7 @@ Cloudflare Workers provides a fast, globally distributed runtime for EmDash. Thi
 
 ## Configure Bindings
 
-Create `wrangler.jsonc` in your project root with D1 and R2 bindings. Wrangler provisions both resources on the first deploy if they don't already exist.
+Provision the production D1 database and R2 bucket, then create `wrangler.jsonc` in your project root with bindings for their immutable IDs and names. Database provisioning is separate from applying EmDash's schema migrations.
 
 ```jsonc title="wrangler.jsonc"
 {
@@ -28,6 +28,7 @@ Create `wrangler.jsonc` in your project root with D1 and R2 bindings. Wrangler p
 		{
 			"binding": "DB",
 			"database_name": "emdash-db",
+			"database_id": "00000000-0000-0000-0000-000000000000",
 		},
 	],
 
@@ -40,9 +41,11 @@ Create `wrangler.jsonc` in your project root with D1 and R2 bindings. Wrangler p
 }
 ```
 
+These are the bindings you configure yourself. The `@astrojs/cloudflare` adapter adds more of its own when it generates the deployed Worker config. One of them is the `IMAGES` binding that media transforms use — see [Image Transformation](#image-transformation).
+
 ## Configure EmDash
 
-Update your Astro configuration to use D1 and R2:
+The following Astro configuration uses the D1 and R2 bindings.
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -64,9 +67,28 @@ export default defineConfig({
 });
 ```
 
-## First Boot
+## Migrate and Deploy
 
-Database migrations run automatically on the first request after deployment, and on every subsequent boot if there's anything new to apply.
+Runtime migrations remain automatic by default. For deployment-managed migrations, build the Worker and inspect the provisioned D1 target using its account and database UUID.
+
+```bash
+pnpm build
+pnpm exec emdash migrate --status --json \
+  --account-id "$CLOUDFLARE_ACCOUNT_ID" \
+  --d1 "$D1_DATABASE_ID"
+```
+
+After reviewing and recording the reported target fingerprint, apply the migrations and deploy the same build.
+
+```bash
+pnpm exec emdash migrate \
+  --account-id "$CLOUDFLARE_ACCOUNT_ID" \
+  --d1 "$D1_DATABASE_ID" \
+  --expected-target-fingerprint "$EMDASH_TARGET_FINGERPRINT"
+pnpm exec wrangler deploy
+```
+
+The migration job requires `CLOUDFLARE_API_TOKEN` with D1 Edit permission. Serialize jobs by account and database UUID. See [Manage Core Database Migrations](/deployment/core-migrations/) for provisioning, CI concurrency, runtime modes, and recovery guidance.
 
 If the database is empty (no collections) and the setup wizard hasn't been completed, EmDash also applies a seed file on first boot. The seed is read at build time from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the bundle. If none is present, a built-in default seed is used. Subsequent deploys against an existing database leave its content alone.
 
@@ -74,24 +96,36 @@ To change the schema or content model of a site that is already deployed, see [E
 
 ## Scheduled Publishing
 
-On Cloudflare Workers, scheduled publishing, plugin cron, and maintenance tasks run from a Worker Cron Trigger. New Cloudflare templates include this setup automatically. If you are adding updating an existing project, export the EmDash Worker entry from `@emdash-cms/cloudflare/worker`:
+On Cloudflare Workers, scheduled publishing, plugin cron, and maintenance tasks run from Worker Cron Triggers. New Cloudflare templates include both required schedules automatically. When updating an existing project, configure distinct general and Media Usage lanes:
 
 ```ts title="src/worker.ts"
-export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";
+import handler, {
+	createScheduledHandler,
+	PluginBridge,
+} from "@emdash-cms/cloudflare/worker";
+
+export { PluginBridge };
+
+export default {
+	...handler,
+	scheduled: createScheduledHandler(),
+} satisfies ExportedHandler;
 ```
 
-Then add a Cron Trigger to `wrangler.jsonc`:
+By default, `*/2 * * * *` runs Media Usage maintenance and every other expression runs general maintenance. Then add both Cron Triggers to `wrangler.jsonc`:
 
 ```jsonc title="wrangler.jsonc"
 {
 	"triggers": {
-		"crons": ["* * * * *"],
+		"crons": ["* * * * *", "*/2 * * * *"],
 	},
 }
 ```
 
+To use different schedules, set the corresponding `generalCron` or `mediaUsageCron` option in `createScheduledHandler()` and use the same expression in `wrangler.jsonc`.
+
 <Aside type="caution">
-	Without the Cron Trigger, content scheduled in the admin panel does not publish on Cloudflare Workers, and plugin cron jobs do not run. Local `astro dev` still uses the in-process scheduler.
+	Without the general trigger, scheduled publishing and plugin cron do not run. Without the dedicated Media Usage trigger, automatic historical reconciliation cannot progress. Local `astro dev` still uses the in-process scheduler.
 </Aside>
 
 ## Deploy
@@ -151,15 +185,67 @@ See [Object Cache](/deployment/object-cache/) for KV setup, options, and invalid
 
 ## Workers Cache
 
-Cloudflare's [Workers Cache](https://developers.cloudflare.com/workers/cache/) (`"cache": { "enabled": true }` in `wrangler.jsonc`) puts an edge cache **in front of** your Worker: matching requests are served without running your Worker at all. This works well with EmDash:
+Cloudflare's [Workers Cache](https://developers.cloudflare.com/workers/cache/) puts an edge cache **in front of** your Worker: matching requests are served without running your Worker at all.
 
-- EmDash admin and API responses send `Cache-Control: private, no-store` and are never stored.
-- Your public pages control their own caching through the `Cache-Control` headers they return.
+### Enable it
+
+1. Turn on the platform cache in `wrangler.jsonc`:
+
+```jsonc title="wrangler.jsonc"
+{
+	"cache": {
+		"enabled": true,
+	},
+}
+```
+
+2. Use Astro's Cloudflare cache provider so route rules / `Astro.cache` set the right headers and invalidation uses native `cache.purge()`:
+
+```js title="astro.config.mjs"
+import { cacheCloudflare } from "@astrojs/cloudflare/cache";
+
+export default defineConfig({
+	adapter: cloudflare(),
+	cache: {
+		provider: cacheCloudflare(),
+	},
+	routeRules: {
+		"/": { maxAge: 300, swr: 86400 },
+		// …
+	},
+});
+```
+
+With `cacheCloudflare()`, the `@astrojs/cloudflare` adapter also injects `"cache": { "enabled": true }` into the generated Wrangler config when it is missing — listing it explicitly in your own `wrangler.jsonc` keeps the intent obvious.
+
+3. Purge from the Worker with the platform API (no Cloudflare REST credentials):
+
+```ts
+import { cache } from "cloudflare:workers";
+
+await cache.purge({ purgeEverything: true });
+// or: await cache.purge({ tags: ["posts"] });
+```
+
+EmDash admin and API responses already send `Cache-Control: private, no-store` and are never stored. Public pages control their own caching through `Cache-Control` / `routeRules` / `Astro.cache`.
 
 Two things to know before enabling it:
 
 1. **Responses without a `Cache-Control` header are still cached.** Workers Cache applies RFC 9111 heuristic freshness — a `200` without any header is cached for 2 hours. Give every custom route an explicit `Cache-Control` (use `private, no-store` for anything session-dependent).
 2. **Cached pages are shared with logged-in editors.** The cache runs before your Worker, so it cannot bypass based on request cookies. A logged-in editor may receive the cached anonymous variant of a public page — without the visual editing toolbar — until the entry expires. Editor-rendered responses themselves are never stored (they carry `private, no-store`), so nothing leaks in the other direction.
+
+### Not the same as `cloudflareCache()` from `@emdash-cms/cloudflare`
+
+| | **Preferred: Workers Caching** | **Legacy: `cloudflareCache()`** |
+| --- | --- | --- |
+| Config | `"cache": { "enabled": true }` + `cacheCloudflare()` from `@astrojs/cloudflare/cache` | `cache: { provider: cloudflareCache() }` from `@emdash-cms/cloudflare` |
+| Storage | Platform Workers Caching | Cache API (`caches.open` / `put` / `match`) |
+| Purge | `cache.purge()` from `cloudflare:workers` | Zone REST `POST /zones/{id}/purge_cache` |
+| Secrets | None for purge | `CF_ZONE_ID` + `CF_CACHE_PURGE_TOKEN` |
+
+Use the preferred path for new sites. Keep `cloudflareCache()` only if you already depend on its Cache API behavior.
+
+Also do not confuse either of those with **object cache** (`objectCache: kvCache({ binding: "CACHE" })`), which caches database query results in KV — a separate layer under the Worker.
 
 ## Custom Domain
 
@@ -189,6 +275,33 @@ storage: r2({
 	For production, connect a custom domain to your R2 bucket for better URLs and caching control.
 </Aside>
 
+## Image Transformation
+
+EmDash resizes and re-encodes R2 media inside the Worker, through Cloudflare's `IMAGES` binding. The `Image` component from `emdash/ui` and images in rich text both render through the image endpoint EmDash installs under the Cloudflare adapter. For media on the internal `/_emdash/api/media/file/…` route, that endpoint reads the source bytes straight from the R2 binding, without an HTTP fetch. Those transforms keep working behind Cloudflare Access and with `global_fetch_strictly_public`. Media served from a bucket URL — see [Public R2 Access](#public-r2-access) — takes the adapter's own transform endpoint instead, which fetches the file over HTTP before transforming it.
+
+You do not have to declare the binding. `@astrojs/cloudflare` adds it to the Worker config it generates during `astro build`, the same way it adds `cache` for Workers Caching. It does so whenever the runtime image service is `cloudflare-binding`: `imageService` unset, the string itself, or `{ runtime: "cloudflare-binding" }`. Every other value — `"passthrough"`, `"compile"`, `"cloudflare"`, `"custom"` — leaves the binding out. Listing it in your own `wrangler.jsonc` keeps the intent obvious:
+
+```jsonc title="wrangler.jsonc"
+{
+	"images": {
+		"binding": "IMAGES",
+	},
+}
+```
+
+To see what a deploy actually gets, read the generated config rather than `wrangler.jsonc`. A build writes `.wrangler/deploy/config.json`, which points `wrangler deploy` at the merged file (`dist/server/wrangler.json` by default). Look for an `images` entry there.
+
+<Aside type="caution">
+	What a missing binding looks like depends on the media URL. On the internal route the endpoint
+	serves the original file unchanged: pages still render and nothing is logged, but every image is
+	the full-size original rather than a variant scaled to the space it occupies. From a bucket URL
+	the request fails with a 500 instead, because the adapter's transform endpoint calls the binding
+	without a fallback. `imageService: "passthrough"` is the deliberate way out — EmDash then leaves
+	the adapter's passthrough endpoint in place rather than wrapping it.
+</Aside>
+
+Cloudflare bills these transforms as [Images transformations](https://developers.cloudflare.com/images/pricing/#images-transformed). Each unique combination of source image and parameters is billed once per calendar month, and repeat requests within that month are free. The Images Free plan covers 5,000 unique transformations per month. Past that limit, cached transformations are still served, but new ones return a `9422` error and the image request fails.
+
 ## Cloudflare Access Authentication
 
 If your organization uses Cloudflare Access, you can use it as the authentication provider instead of passkeys, giving single sign-on through your existing identity provider. The following configuration enables it:
@@ -209,6 +322,67 @@ emdash({
 ```
 
 See the [Authentication guide](/guides/authentication#cloudflare-access) for full configuration options.
+
+## Cloudflare AI Search
+
+The AI Search plugin indexes published EmDash content and adds smart search interface to your site.
+
+<Steps>
+1. Register the plugin in the `plugins` array passed to EmDash:
+
+	```js title="astro.config.mjs"
+	import { aiSearch } from "@emdash-cms/cloudflare/plugins";
+
+	// ...
+	plugins: [
+		formsPlugin(),
+		aiSearch(),
+	],
+	```
+
+2. Add the AI Search namespace binding to your Worker configuration:
+
+	```jsonc title="wrangler.jsonc"
+	{
+		"ai_search_namespaces": [
+			{
+				"binding": "AI_SEARCH",
+				"namespace": "default",
+			},
+		],
+	}
+	```
+
+3. Create the search endpoint used by the search interface:
+
+	```ts title="src/pages/api/ai-search/search.ts"
+	export { POST, prerender } from "@emdash-cms/cloudflare/plugins/ai-search";
+	```
+
+4. Add the search interface to your site layout. The trigger slot can contain any button that fits your site's design:
+
+	```astro title="src/layouts/Base.astro"
+	---
+	import AISearchSnippet from "@emdash-cms/cloudflare/plugins/ai-search/astro";
+	---
+
+	<AISearchSnippet apiUrl="/api/ai-search" placeholder="Search...">
+		<button slot="trigger" type="button">Search</button>
+	</AISearchSnippet>
+	```
+
+5. Deploy the site:
+
+	```bash
+	pnpm exec wrangler deploy
+	```
+
+6. Open **Cloudflare AI Search** in the EmDash admin panel, select the collections to index, and click **Sync All Content**.
+
+	This initial sync is required: the plugin's content hooks only fire for content created or updated after it was enabled, so anything published beforehand stays missing from the index until you run a full sync.
+</Steps>
+
+Content published or updated after setup is kept in sync automatically. The same page shows indexing progress.
 
 ## Email
 
@@ -269,9 +443,12 @@ the provider under **Settings → Email**.
 | `binding` | `string`                     | `"EMAIL"`    | Name of the `send_email` binding in `wrangler.jsonc`.                 |
 
 <Aside type="note">
-	BCC and attachments are out of scope (not modeled in EmDash's `EmailMessage`),
-	and the provider is never auto-selected — you must choose it under Settings →
-	Email.
+	BCC and attachments are out of scope (not modeled in EmDash's `EmailMessage`).
+	After you activate the plugin under **Admin → Extensions**, EmDash selects it
+	automatically if it is the only active email provider; with more than one,
+	choose the one you want under **Settings → Email**. Under `astro dev` the
+	built-in console provider counts as a second provider, so in dev you always
+	pick there.
 </Aside>
 
 ## Environment Variables

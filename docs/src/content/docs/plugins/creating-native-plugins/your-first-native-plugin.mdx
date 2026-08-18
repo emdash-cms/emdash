@@ -149,7 +149,7 @@ Key details of this configuration:
 - **`entrypoint` is the package's main export.** EmDash imports it at runtime and calls the default export to construct the resolved plugin.
 - **`options` flow descriptor → `createPlugin`.** Anything the user passes when registering the plugin (`analyticsPlugin({ enabled: false })`) is preserved on the descriptor and forwarded to `createPlugin`. Sandboxed plugins don't have this surface — they read settings from KV instead.
 - **`id`, `version`, and `capabilities` appear twice.** Once on the descriptor, once on `definePlugin()`. They should match. The descriptor's copy is what `astro.config.mjs` sees at build time; the `definePlugin()` copy is what runs at request time.
-- **Native route handlers take a single argument** — `(ctx: RouteContext)` where `ctx.input`, `ctx.request`, and `ctx.requestMeta` are merged with the regular `PluginContext` properties. This is the opposite of standard format's two-argument shape. See [API routes](/plugins/creating-plugins/api-routes/) for the full surface (everything else is identical).
+- **Native route handlers take a single argument** — `(ctx: RouteContext)` where `ctx.input`, `ctx.request`, `ctx.requestMeta`, and `ctx.user` (the authenticated caller on private routes) are merged with the regular `PluginContext` properties. This is the opposite of standard format's two-argument shape. See [API routes](/plugins/creating-plugins/api-routes/) for the full surface (everything else is identical).
 
 ## Plugin id rules
 

@@ -76,7 +76,7 @@ export function SectionEditor() {
 						shape="square"
 						icon={<ArrowPrev />}
 					/>
-					<h1 className="text-2xl font-bold">{t`Section Not Found`}</h1>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Section Not Found`}</h1>
 				</div>
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<p className="text-kumo-subtle">
@@ -180,7 +180,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 				}
 				actions={<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />}
 			>
-				<h1 className="text-2xl font-bold truncate">{section.title}</h1>
+				<h1 className="truncate text-2xl font-semibold">{section.title}</h1>
 				<p className="text-sm text-kumo-subtle">
 					{section.source === "theme" ? t`Theme Section` : t`Custom Section`} &middot;{" "}
 					{section.slug}

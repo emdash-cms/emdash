@@ -163,6 +163,100 @@ describe("applySeed", () => {
 			expect(row.rows[0]?.title).toBe("Untitled");
 		});
 
+		it("applies the hidden flag from the seed", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "contact_submissions",
+						label: "Contact Submissions",
+						hidden: true,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("contact_submissions"))?.hidden).toBe(true);
+			expect((await registry.getCollection("posts"))?.hidden).toBe(false);
+		});
+
+		it("updates the hidden flag when re-applying with onConflict update", async () => {
+			const collection = {
+				slug: "contact_submissions",
+				label: "Contact Submissions",
+				fields: [{ slug: "title", label: "Title", type: "string" as const }],
+			};
+			await applySeed(db, { version: "1", collections: [collection] });
+
+			await applySeed(
+				db,
+				{ version: "1", collections: [{ ...collection, hidden: true }] },
+				{
+					onConflict: "update",
+				},
+			);
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("contact_submissions"))?.hidden).toBe(true);
+		});
+
+		it("applies and updates collection routability", async () => {
+			const collection = {
+				slug: "contact_submissions",
+				label: "Contact Submissions",
+				routable: false,
+				fields: [{ slug: "title", label: "Title", type: "string" as const }],
+			};
+			await applySeed(db, { version: "1", collections: [collection] });
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("contact_submissions"))?.routable).toBe(false);
+
+			await applySeed(
+				db,
+				{ version: "1", collections: [{ ...collection, routable: true }] },
+				{ onConflict: "update" },
+			);
+			expect((await registry.getCollection("contact_submissions"))?.routable).toBe(true);
+		});
+
+		it("applies sortOrder from the seed and orders the list by it", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "education",
+						label: "Education",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+					{
+						slug: "projects",
+						label: "Projects",
+						sortOrder: 0,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("projects"))?.sortOrder).toBe(0);
+			expect((await registry.getCollection("education"))?.sortOrder).toBeUndefined();
+			expect((await registry.listCollections()).map((c) => c.slug)).toEqual([
+				"projects",
+				"education",
+			]);
+		});
+
 		it("should skip existing collections", async () => {
 			// Create collection first
 			const registry = new SchemaRegistry(db);
@@ -969,6 +1063,47 @@ describe("applySeed", () => {
 			const contentRepo = new ContentRepository(db);
 			const entry = await contentRepo.findBySlug("posts", "hello");
 			expect(entry?.data.title).toBe("Hello World");
+		});
+
+		it("idempotently publishes slugless content for a non-routable collection", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "blocks",
+						label: "Blocks",
+						routable: false,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+				content: {
+					blocks: [{ id: "hero", status: "published", data: { title: "Hero" } }],
+				},
+			};
+
+			const first = await applySeed(db, seed, { includeContent: true });
+			expect(first.content.created).toBe(1);
+			const contentRepo = new ContentRepository(db);
+			const created = await contentRepo.findById("blocks", "hero");
+			expect(created).toMatchObject({ id: "hero", slug: null, status: "published" });
+			expect(created?.liveRevisionId).not.toBeNull();
+
+			const second = await applySeed(db, seed, { includeContent: true });
+			expect(second.content).toEqual({ created: 0, skipped: 1, updated: 0 });
+			expect((await contentRepo.findMany("blocks", {})).items).toHaveLength(1);
+
+			const updatedSeed: SeedFile = {
+				...seed,
+				content: {
+					blocks: [{ id: "hero", status: "published", data: { title: "Updated Hero" } }],
+				},
+			};
+			const updated = await applySeed(db, updatedSeed, {
+				includeContent: true,
+				onConflict: "update",
+			});
+			expect(updated.content.updated).toBe(1);
+			expect((await contentRepo.findById("blocks", "hero"))?.data.title).toBe("Updated Hero");
 		});
 
 		it("should skip existing content entries", async () => {

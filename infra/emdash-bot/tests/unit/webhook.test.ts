@@ -95,6 +95,7 @@ describe("normalizeWebhook", () => {
 			action: "created",
 			issue: { number: 42, user: { login: "alice" }, labels: [{ name: "bot:bug" }] },
 			comment: {
+				id: 123,
 				body: "@emdashbot please retry",
 				author_association: "MEMBER",
 				user: { login: "alice" },
@@ -119,6 +120,13 @@ describe("normalizeWebhook", () => {
 			expect(r.event.needsClassify).toBe(true);
 			expect(r.event.classifyText).toBe("please retry");
 			expect(r.event.deliveryId).toBe("del-1");
+			expect(r.event.triggeringComment).toEqual({
+				id: 123,
+				body: "@emdashbot please retry",
+				authorLogin: "alice",
+				authorAssociation: "MEMBER",
+				actor: "maintainer",
+			});
 		});
 
 		test("dispatches a bare verb as a deterministic event (no classifier)", () => {
@@ -214,6 +222,30 @@ describe("normalizeWebhook", () => {
 			const payload: IssuesEvent = {
 				action: "labeled",
 				issue: { number: 7, user: { login: "alice" } },
+				sender: { login: "alice" },
+			};
+			const r = normalizeWebhook({ eventType: "issues", payload });
+			expect(r.kind).toBe("skip");
+		});
+
+		test("closed reaps the fix-loop branches for that issue", () => {
+			const payload: IssuesEvent = {
+				action: "closed",
+				issue: { number: 7, user: { login: "alice" } },
+				sender: { login: "alice" },
+			};
+			const r = normalizeWebhook({ eventType: "issues", payload });
+			expect(r.kind).toBe("cleanup");
+			if (r.kind === "cleanup") {
+				expect(r.anchor).toBe("issue-7");
+				expect(r.anchorNumber).toBe(7);
+			}
+		});
+
+		test("closed on a PR-as-issue is skipped (handled by pull_request)", () => {
+			const payload: IssuesEvent = {
+				action: "closed",
+				issue: { number: 7, user: { login: "alice" }, pull_request: {} },
 				sender: { login: "alice" },
 			};
 			const r = normalizeWebhook({ eventType: "issues", payload });

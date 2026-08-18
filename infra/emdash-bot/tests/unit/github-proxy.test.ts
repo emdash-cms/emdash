@@ -4,6 +4,7 @@ import {
 	createPushCapability,
 	gateGithubRequest,
 	githubAuthHeader,
+	inspectGithubRequest,
 	verifyPushCapability,
 } from "../../.flue/lib/github-proxy.js";
 
@@ -80,14 +81,14 @@ describe("gateGithubRequest", () => {
 		).resolves.toMatch(/read-only/);
 	});
 
-	test("allows pushes only to bot fix branches", async () => {
+	test("rejects direct sandbox pushes to candidate and unrelated branches", async () => {
 		const url = "https://github.com/emdash-cms/emdash.git/git-receive-pack";
 		await expect(
 			gate(url, {
 				method: "POST",
 				body: `${pktLine("old new refs/heads/bot/fix-123\0 report-status\n")}0000PACKpayload`,
 			}),
-		).resolves.toBeNull();
+		).resolves.toMatch(/artifacts branch/);
 		await expect(
 			gate(url, {
 				method: "POST",
@@ -100,6 +101,50 @@ describe("gateGithubRequest", () => {
 				body: `${pktLine("old new refs/heads/bot/fix-456\0 report-status\n")}0000PACKpayload`,
 			}),
 		).resolves.toMatch(/current issue/);
+	});
+
+	test("distinguishes a missing capability from a rejected receive-pack body", async () => {
+		const url = new URL("https://github.com/emdash-cms/emdash.git/git-receive-pack");
+		const request = new Request(url, {
+			method: "POST",
+			body: `${pktLine("old new refs/heads/bot/fix-123\0 report-status\n")}0000`,
+		});
+
+		await expect(inspectGithubRequest(request, url, OWNER, REPO)).resolves.toMatchObject({
+			allowed: false,
+			stage: "capability",
+		});
+		await expect(inspectGithubRequest(request, url, OWNER, REPO, 456)).resolves.toMatchObject({
+			allowed: false,
+			stage: "receive-pack",
+			refs: ["refs/heads/bot/fix-123"],
+		});
+	});
+
+	test("allows pushes to the issue's artifacts branch", async () => {
+		const url = "https://github.com/emdash-cms/emdash.git/git-receive-pack";
+		await expect(
+			gate(url, {
+				method: "POST",
+				body: `${pktLine("old new refs/heads/bot/artifacts-123\0 report-status\n")}0000PACKpayload`,
+			}),
+		).resolves.toBeNull();
+		await expect(
+			gate(url, {
+				method: "POST",
+				body: `${pktLine("old new refs/heads/bot/artifacts-456\0 report-status\n")}0000PACKpayload`,
+			}),
+		).resolves.toMatch(/current issue/);
+	});
+
+	test("checks the command ref rather than ref-like capability text", async () => {
+		const url = "https://github.com/emdash-cms/emdash.git/git-receive-pack";
+		await expect(
+			gate(url, {
+				method: "POST",
+				body: `${pktLine("old new refs/meta/evil\0 refs/heads/bot/artifacts-123\n")}0000PACKpayload`,
+			}),
+		).resolves.toMatch(/artifacts branch/);
 	});
 
 	test("rejects an unbounded receive-pack command prefix", async () => {
@@ -120,7 +165,7 @@ describe("gateGithubRequest", () => {
 				if (pullCount === 1) {
 					controller.enqueue(
 						new TextEncoder().encode(
-							`${pktLine("old new refs/heads/bot/fix-123\0 report-status\n")}0000`,
+							`${pktLine("old new refs/heads/bot/artifacts-123\0 report-status\n")}0000`,
 						),
 					);
 					return;

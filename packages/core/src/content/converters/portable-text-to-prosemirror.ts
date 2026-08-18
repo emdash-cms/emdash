@@ -5,6 +5,16 @@
  */
 
 import { sanitizeGalleryImages } from "./gallery.js";
+import {
+	UnsupportedPortableTextMarksError,
+	assertPortableTextMarksSupported,
+} from "./mark-safety.js";
+import {
+	deriveLegacyListId,
+	normalizeProseMirrorOrderedListJson,
+	normalizeListId,
+	normalizeListStart,
+} from "./numbered-list.js";
 import type {
 	ProseMirrorDocument,
 	ProseMirrorNode,
@@ -28,6 +38,7 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 			content: [{ type: "paragraph" }],
 		};
 	}
+	assertPortableTextMarksSupported(blocks);
 
 	const content: ProseMirrorNode[] = [];
 	let i = 0;
@@ -48,12 +59,20 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 			// child).
 			const listBlocks: PortableTextTextBlock[] = [];
 			const listType = block.listItem;
+			const runStart = i;
+			const rootId = listType === "number" ? normalizeListId(block.listId) : undefined;
 
 			while (i < blocks.length) {
 				const current = blocks[i];
 				if (!isTextBlock(current) || !current.listItem) break;
 				const level = current.level || 1;
-				if (level > 1 || current.listItem === listType) {
+				const currentId =
+					current.listItem === "number" ? normalizeListId(current.listId) : undefined;
+				const sameRootIdentity =
+					listType !== "number" ||
+					level > 1 ||
+					(rootId ? currentId === rootId : currentId === undefined);
+				if (level > 1 || (current.listItem === listType && sameRootIdentity)) {
 					listBlocks.push(current);
 					i++;
 				} else {
@@ -61,14 +80,14 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 				}
 			}
 
-			content.push(convertList(listBlocks, listType));
+			content.push(convertList(listBlocks, listType, `root:${runStart}`));
 		} else if (isTextBlock(block) && block.style === "blockquote") {
 			// Collect a blockquote "run": Portable Text is flat, so a
 			// multi-paragraph quote is stored as consecutive blocks with
 			// style "blockquote" (that's what the Gutenberg importer emits
 			// and what prosemirrorToPortableText serializes back to).
 			// Without this grouping each paragraph became its own quote
-			// node, and editor merges reverted on reload (#1884).
+			// node, and editor merges reverted on reload.
 			const quoteBlocks: PortableTextTextBlock[] = [];
 			while (i < blocks.length) {
 				const current = blocks[i];
@@ -102,10 +121,36 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 		}
 	}
 
-	return {
+	return normalizeProseMirrorOrderedListJson({
 		type: "doc",
 		content: content.length > 0 ? content : [{ type: "paragraph" }],
+	});
+}
+
+function getListMetadata(
+	item: PortableTextTextBlock,
+	fallbackSeed: string,
+): { listId: string; listStart?: number } {
+	const listId = normalizeListId(item.listId) ?? deriveLegacyListId(fallbackSeed);
+	const listStart = normalizeListStart(item.listStart);
+	return {
+		listId,
+		...(listStart === undefined ? {} : { listStart }),
 	};
+}
+
+function belongsToNestedGroup(
+	item: PortableTextTextBlock,
+	minLevel: number,
+	parentListType: "bullet" | "number",
+	anchorType: "bullet" | "number",
+	anchorId: string | undefined,
+): boolean {
+	if ((item.level || 2) > minLevel) return true;
+	if ((item.listItem || parentListType) !== anchorType) return false;
+	if (anchorType !== "number") return true;
+	const itemId = normalizeListId(item.listId);
+	return anchorId ? itemId === anchorId : itemId === undefined;
 }
 
 /**
@@ -249,6 +294,7 @@ function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null 
 function convertList(
 	items: PortableTextTextBlock[],
 	listType: "bullet" | "number",
+	context: string,
 ): ProseMirrorNode {
 	// Group items by level
 	const rootItems: ProseMirrorNode[] = [];
@@ -268,16 +314,22 @@ function convertList(
 				i++;
 			}
 
-			rootItems.push(convertListItem(item, nestedItems, listType));
+			rootItems.push(
+				convertListItem(item, nestedItems, listType, `${context}:${rootItems.length}`),
+			);
 		} else {
 			// Orphan nested item - treat as root
-			rootItems.push(convertListItem(item, [], listType));
+			rootItems.push(convertListItem(item, [], listType, `${context}:${rootItems.length}`));
 			i++;
 		}
 	}
 
+	const metadata =
+		listType === "number" ? getListMetadata(items[0], `${context}:${items[0]._key}`) : undefined;
+
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
+		attrs: metadata ? { ...metadata, start: metadata.listStart ?? 1 } : undefined,
 		content: rootItems,
 	};
 }
@@ -289,6 +341,7 @@ function convertListItem(
 	item: PortableTextTextBlock,
 	nestedItems: PortableTextTextBlock[],
 	parentListType: "bullet" | "number",
+	context: string,
 ): ProseMirrorNode {
 	const content: ProseMirrorNode[] = [];
 
@@ -319,6 +372,7 @@ function convertListItem(
 		let j = 0;
 		while (j < nestedItems.length) {
 			const anchorType: "bullet" | "number" = nestedItems[j].listItem || parentListType;
+			const anchorId = anchorType === "number" ? normalizeListId(nestedItems[j].listId) : undefined;
 			const nestedGroup: PortableTextTextBlock[] = [];
 
 			do {
@@ -326,8 +380,7 @@ function convertListItem(
 				j++;
 			} while (
 				j < nestedItems.length &&
-				((nestedItems[j].level || 2) > minLevel ||
-					(nestedItems[j].listItem || parentListType) === anchorType)
+				belongsToNestedGroup(nestedItems[j], minLevel, parentListType, anchorType, anchorId)
 			);
 
 			if (nestedGroup.length > 0) {
@@ -336,7 +389,9 @@ function convertListItem(
 					...ni,
 					level: (ni.level || 2) - 1,
 				}));
-				content.push(convertList(adjustedGroup, anchorType));
+				content.push(
+					convertList(adjustedGroup, anchorType, `${context}:nested:${j - nestedGroup.length}`),
+				);
 			}
 		}
 	}
@@ -416,6 +471,14 @@ function convertMarks(
 				pmMarks.push({ type: "strike" });
 				break;
 
+			case "subscript":
+				pmMarks.push({ type: "subscript" });
+				break;
+
+			case "superscript":
+				pmMarks.push({ type: "superscript" });
+				break;
+
 			case "code":
 				pmMarks.push({ type: "code" });
 				break;
@@ -423,22 +486,18 @@ function convertMarks(
 			default: {
 				// Check if it's a mark definition reference
 				const markDef = markDefs.get(mark);
-				if (markDef) {
-					if (markDef._type === "link") {
-						pmMarks.push({
-							type: "link",
-							attrs: {
-								href: markDef.href,
-								target: markDef.blank ? "_blank" : null,
-							},
-						});
-					} else {
-						// Unknown mark def type - preserve attrs
-						pmMarks.push({
-							type: markDef._type,
-							attrs: markDef,
-						});
-					}
+				if (markDef?._type === "link") {
+					pmMarks.push({
+						type: "link",
+						attrs: {
+							href: markDef.href,
+							target: markDef.blank ? "_blank" : null,
+						},
+					});
+				} else {
+					throw new UnsupportedPortableTextMarksError([
+						typeof markDef?._type === "string" ? markDef._type : mark,
+					]);
 				}
 				break;
 			}

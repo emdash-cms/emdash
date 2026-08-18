@@ -23,10 +23,23 @@
  */
 
 import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
-import { defineConfig } from "vitest/config";
+import { defineConfig, type Plugin } from "vitest/config";
+
+// The Flue Vite plugin transforms `SKILL.md` directory imports into skill
+// references at build time; this pool doesn't load it, and the integration
+// tests never run the agent, so stub the imports to keep the bundle parseable.
+const stubSkillMd: Plugin = {
+	name: "stub-skill-md",
+	enforce: "pre",
+	load(id) {
+		if (!id.endsWith("/SKILL.md")) return null;
+		return "export default { __flueSkillReference: true, id: 'stub', name: 'stub', description: 'stub' };";
+	},
+};
 
 export default defineConfig({
 	plugins: [
+		stubSkillMd,
 		cloudflareTest({
 			wrangler: { configPath: "./wrangler.test.jsonc" },
 			miniflare: {
@@ -43,5 +56,8 @@ export default defineConfig({
 	],
 	test: {
 		include: ["tests/integration/**/*.test.ts"],
+		// Below ~20s the first test flakes: the AI binding's remote-proxy warmup
+		// overruns vitest's 5s default.
+		testTimeout: 20_000,
 	},
 });

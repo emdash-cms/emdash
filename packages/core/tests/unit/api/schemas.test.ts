@@ -152,6 +152,77 @@ describe("localeCode validator", () => {
 		expect(result.locale).toBe("zh-TW");
 	});
 
+	it("contentListQuery parses bounded indexed field filters", () => {
+		const result = contentListQuery.parse({
+			fieldFilters: JSON.stringify({
+				priority: { in: ["urgent", "high"] },
+				score: { gte: 80 },
+				resolved: false,
+			}),
+		});
+
+		expect(result.fieldFilters).toEqual({
+			priority: { in: ["urgent", "high"] },
+			score: { gte: 80 },
+			resolved: false,
+		});
+	});
+
+	it("contentListQuery rejects malformed or unsupported field filters", () => {
+		expect(() => contentListQuery.parse({ fieldFilters: "not-json" })).toThrow();
+		expect(() =>
+			contentListQuery.parse({ fieldFilters: JSON.stringify({ priority: { in: [] } }) }),
+		).toThrow();
+		expect(() =>
+			contentListQuery.parse({ fieldFilters: JSON.stringify({ "priority;drop": "urgent" }) }),
+		).toThrow();
+	});
+
+	it("contentListQuery enforces indexed field filter boundaries", () => {
+		const twentyFilters = Object.fromEntries(
+			Array.from({ length: 20 }, (_, index) => [`field_${index}`, index]),
+		);
+		expect(
+			contentListQuery.parse({ fieldFilters: JSON.stringify(twentyFilters) }).fieldFilters,
+		).toEqual(twentyFilters);
+		expect(() =>
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ ...twentyFilters, field_20: 20 }),
+			}),
+		).toThrow();
+
+		const fiftyValues = Array.from({ length: 50 }, (_, index) => index);
+		expect(
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ score: { in: fiftyValues } }),
+			}).fieldFilters,
+		).toEqual({ score: { in: fiftyValues } });
+		expect(() =>
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ score: { in: [...fiftyValues, 50] } }),
+			}),
+		).toThrow();
+		expect(() =>
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({
+					queue: { in: Array.from({ length: 30 }, (_, index) => `queue-${index}`) },
+					resolved: { in: Array.from({ length: 21 }, (_, index) => index % 2 === 0) },
+				}),
+			}),
+		).toThrow();
+
+		expect(
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ queue: "x".repeat(2048) }),
+			}).fieldFilters,
+		).toEqual({ queue: "x".repeat(2048) });
+		expect(() =>
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ queue: "x".repeat(2049) }),
+			}),
+		).toThrow();
+	});
+
 	it("contentCreateBody keeps the locale casing", () => {
 		const result = contentCreateBody.parse({ data: { title: "Hi" }, locale: "pt-BR" });
 		expect(result.locale).toBe("pt-BR");
@@ -245,6 +316,24 @@ describe("mediaUploadUrlBody schema factory", () => {
 		const schema = mediaUploadUrlBody(1_000);
 		const result = schema.parse({ filename: "a.jpg", contentType: "image/jpeg", size: 500 });
 		expect(result.size).toBe(500);
+	});
+
+	it("accepts an empty file", () => {
+		const schema = mediaUploadUrlBody(1_000);
+		const result = schema.parse({ filename: "empty.pdf", contentType: "application/pdf", size: 0 });
+		expect(result.size).toBe(0);
+	});
+
+	it("accepts client content hashes in existing formats", () => {
+		const schema = mediaUploadUrlBody(1_000);
+		const contentHash = "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+		const result = schema.parse({
+			filename: "a.jpg",
+			contentType: "image/jpeg",
+			size: 500,
+			contentHash,
+		});
+		expect(result.contentHash).toBe(contentHash);
 	});
 
 	it("each call returns an independent schema with its own limit", () => {

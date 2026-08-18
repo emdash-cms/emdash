@@ -1,7 +1,7 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { ContentTypeList } from "../../src/components/ContentTypeList";
+import { ContentTypeList, moveCollection } from "../../src/components/ContentTypeList";
 import type { SchemaCollection, OrphanedTable } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
@@ -220,6 +220,71 @@ describe("ContentTypeList", () => {
 		it("shows loading message when isLoading is true", async () => {
 			const screen = await render(<ContentTypeList collections={[]} isLoading />);
 			await expect.element(screen.getByText("Loading collections...")).toBeInTheDocument();
+		});
+	});
+
+	describe("reordering", () => {
+		const twoCollections = [
+			makeCollection({ id: "1", slug: "posts", label: "Posts" }),
+			makeCollection({ id: "2", slug: "pages", label: "Pages" }),
+		];
+
+		it("renders a labelled drag handle per row when onReorder is provided", async () => {
+			const screen = await render(
+				<ContentTypeList collections={twoCollections} onReorder={vi.fn()} />,
+			);
+
+			// The accessible name carries the collection, so screen-reader users
+			// know which row the handle moves.
+			await expect
+				.element(screen.getByRole("button", { name: "Reorder Posts" }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Reorder Pages" }))
+				.toBeInTheDocument();
+		});
+
+		it("renders no drag handles without onReorder", async () => {
+			const screen = await render(<ContentTypeList collections={twoCollections} />);
+
+			expect(screen.getByRole("button", { name: "Reorder Posts" }).query()).toBeNull();
+		});
+
+		it("renders no drag handles for a single collection (nothing to reorder)", async () => {
+			const screen = await render(
+				<ContentTypeList collections={[twoCollections[0]!]} onReorder={vi.fn()} />,
+			);
+
+			expect(screen.getByRole("button", { name: "Reorder Posts" }).query()).toBeNull();
+		});
+
+		it("renders collections in the order given, not alphabetically", async () => {
+			// The server already returns them ordered; the list must not re-sort.
+			const screen = await render(
+				<ContentTypeList collections={twoCollections} onReorder={vi.fn()} />,
+			);
+
+			const rendered = screen.container.querySelectorAll("tbody code");
+			expect(Array.from(rendered, (el) => el.textContent)).toEqual(["posts", "pages"]);
+		});
+	});
+
+	describe("moveCollection", () => {
+		it("moves an item down to the drop target index", () => {
+			expect(moveCollection(["a", "b", "c"], "a", "c")).toEqual(["b", "c", "a"]);
+		});
+
+		it("moves an item up to the drop target index", () => {
+			expect(moveCollection(["a", "b", "c"], "c", "a")).toEqual(["c", "a", "b"]);
+		});
+
+		it("returns the same reference when the move is a no-op", () => {
+			const slugs = ["a", "b", "c"];
+			// Same identity lets the caller skip both the state update and the
+			// network request on a drop that changes nothing.
+			expect(moveCollection(slugs, "b", "b")).toBe(slugs);
+			expect(moveCollection(slugs, "b", "missing")).toBe(slugs);
+			expect(moveCollection(slugs, "missing", "b")).toBe(slugs);
 		});
 	});
 });

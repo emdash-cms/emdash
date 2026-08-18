@@ -33,6 +33,7 @@ import type {
 } from "../lib/api";
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
+import { getEntryTitle } from "../lib/entryTitle.js";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
@@ -72,6 +73,7 @@ function serializeEditorState(input: {
 }
 
 import type { ContentSeoInput } from "../lib/api";
+import { findUnsupportedPortableTextMarks } from "../lib/portable-text-marks.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 import {
 	PortableTextEditor,
@@ -143,6 +145,10 @@ export interface ContentEditorProps {
 	onUnschedule?: () => void;
 	/** Whether scheduling is in progress */
 	isScheduling?: boolean;
+	/** Callback to change the timestamp of published content */
+	onPublishedAtChange?: (publishedAt: string) => void;
+	/** Whether the publish timestamp is being updated */
+	isUpdatingPublishedAt?: boolean;
 	/** Whether this collection supports drafts */
 	supportsDrafts?: boolean;
 	/** Whether this collection supports revisions */
@@ -213,6 +219,8 @@ export function ContentEditor({
 	onSchedule,
 	onUnschedule,
 	isScheduling,
+	onPublishedAtChange,
+	isUpdatingPublishedAt,
 	supportsDrafts = false,
 	supportsRevisions = false,
 	supportsPreview = false,
@@ -374,6 +382,19 @@ export function ContentEditor({
 	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
 
 	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
+	const unsupportedPortableTextMarks = React.useMemo(() => {
+		const unsupported = new Set<string>();
+		for (const [name, field] of Object.entries(fields)) {
+			if (field.kind !== "portableText" || field.widget) continue;
+			const value = formData[name];
+			if (!Array.isArray(value)) continue;
+			for (const mark of findUnsupportedPortableTextMarks(value)) {
+				unsupported.add(mark);
+			}
+		}
+		return [...unsupported].toSorted();
+	}, [fields, formData]);
+	const hasUnsupportedPortableTextMarks = unsupportedPortableTextMarks.length > 0;
 
 	const handleBylinesChange = React.useCallback(
 		(next: BylineCreditInput[]) => {
@@ -402,6 +423,7 @@ export function ContentEditor({
 	const saveFeedbackActive = isSaveFeedbackActive ?? isSaving;
 	const autosaveFeedbackActive = isAutosaveFeedbackActive ?? isAutosaving;
 	const isContentOperationPending = Boolean(isSaving);
+	const isContentSaveBlocked = isContentOperationPending || hasUnsupportedPortableTextMarks;
 
 	// Autosave with debounce
 	// Track pending autosave to cancel on manual save
@@ -435,7 +457,7 @@ export function ContentEditor({
 
 	React.useEffect(() => {
 		// Don't autosave for new items (no ID yet) or if autosave isn't configured
-		if (isNew || !onAutosave || !item?.id) {
+		if (isNew || !onAutosave || !item?.id || hasUnsupportedPortableTextMarks) {
 			return;
 		}
 
@@ -485,12 +507,13 @@ export function ContentEditor({
 		activeBylines,
 		bylinesTouched,
 		hasInvalidUrls,
+		hasUnsupportedPortableTextMarks,
 	]);
 
 	// Cancel pending autosave on manual save
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		if (hasInvalidUrls(formData)) return;
+		if (hasInvalidUrls(formData) || hasUnsupportedPortableTextMarks) return;
 		// Cancel pending autosave
 		if (autosaveTimeoutRef.current) {
 			clearTimeout(autosaveTimeoutRef.current);
@@ -512,6 +535,12 @@ export function ContentEditor({
 	const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
 
 	const urlPattern = manifest?.collections[collection]?.urlPattern;
+
+	// When the collection configures a titleField, the editor header
+	// shows the entry's title for existing entries; otherwise it keeps the
+	// generic "Edit <label>".
+	const titleField = manifest?.collections[collection]?.titleField;
+	const entryTitle = item && titleField ? getEntryTitle(item, titleField) : "";
 
 	const handlePreview = async () => {
 		if (!item?.id) return;
@@ -649,7 +678,7 @@ export function ContentEditor({
 								/>
 							)}
 							<h1 className="min-w-0 truncate text-lg font-semibold">
-								{isNew ? t`New ${itemLabel}` : t`Edit ${itemLabel}`}
+								{isNew ? t`New ${itemLabel}` : entryTitle || t`Edit ${itemLabel}`}
 							</h1>
 							{i18n && item?.locale && (
 								<Badge variant="outline" className="uppercase text-xs">
@@ -674,7 +703,7 @@ export function ContentEditor({
 												type="submit"
 												isDirty={isDirty}
 												isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
-												disabled={isContentOperationPending}
+												disabled={isContentSaveBlocked}
 											/>
 											{liveViewUrl && (
 												<LinkButton
@@ -716,7 +745,7 @@ export function ContentEditor({
 										size="sm"
 										isDirty={isDirty}
 										isSaving={Boolean(saveFeedbackActive || autosaveFeedbackActive)}
-										disabled={isContentOperationPending}
+										disabled={isContentSaveBlocked}
 									/>
 									{liveViewUrl && (
 										<LinkButton
@@ -825,7 +854,7 @@ export function ContentEditor({
 							isDirty={isDirty}
 							isSaving={Boolean(saveFeedbackActive)}
 							isAutosaving={autosaveFeedbackActive}
-							saveDisabled={isContentOperationPending}
+							saveDisabled={isContentSaveBlocked}
 							isLive={isLive}
 							hasPendingChanges={hasPendingChanges}
 							liveViewUrl={liveViewUrl}
@@ -850,6 +879,7 @@ export function ContentEditor({
 							collection={collection}
 							item={item}
 							isNew={isNew}
+							manifest={manifest}
 							entryLocale={entryLocale}
 							slug={slug}
 							onSlugChange={handleSlugChange}
@@ -864,6 +894,8 @@ export function ContentEditor({
 							onSchedule={onSchedule}
 							onUnschedule={onUnschedule}
 							isScheduling={isScheduling}
+							onPublishedAtChange={onPublishedAtChange}
+							isUpdatingPublishedAt={isUpdatingPublishedAt}
 							onDiscardDraft={onDiscardDraft}
 							onDelete={onDelete}
 							isDeleting={isDeleting}
@@ -1330,6 +1362,7 @@ function FieldRenderer({
 							: undefined
 					}
 					fieldId={field.id}
+					variant={name === "featured_image" ? "featured" : "default"}
 				/>
 			);
 		}
@@ -1563,7 +1596,7 @@ function JsonFieldEditor({
 
 /**
  * File field value — matches the "file" shape validated by the Zod generator:
- * { id, provider?, src?, filename?, mimeType?, size?, meta? }
+ * { id, provider?, url?, src?, filename?, mimeType?, size?, meta? }
  */
 interface FileFieldValue {
 	id: string;
@@ -1571,6 +1604,8 @@ interface FileFieldValue {
 	provider?: string;
 	/** Direct URL for non-local media */
 	src?: string;
+	/** Legacy cached URL */
+	url?: string;
 	filename?: string;
 	mimeType?: string;
 	size?: number;
@@ -1606,29 +1641,24 @@ function FileFieldRenderer({
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 
-	// Normalize value to derive display info.
-	// For local files, prefer meta.storageKey; fall back to value.src when it's an
-	// internal media path; finally fall back to value.id so local files remain
-	// clickable even when metadata is sparse. For external providers, use value.src
-	// but only when it's an http(s) URL — a hostile provider plugin could otherwise
-	// return a data: or javascript: URL that gets rendered as a clickable link.
+	// Local snapshots may only reuse internal paths. External providers may link
+	// to HTTP(S) URLs, while unsafe schemes remain plain text.
 	const normalized = React.useMemo(() => {
 		if (!value) return null;
 		const isLocal = !value.provider || value.provider === "local";
 		const storageKey =
 			typeof value.meta?.storageKey === "string" ? value.meta.storageKey : undefined;
+		const directUrl = value.src ?? value.url;
 		const localSrc =
-			typeof value.src === "string" && value.src.startsWith("/_emdash/") ? value.src : undefined;
-		// Storage keys come from server-controlled paths today, but the Zod schema
-		// now lets clients write arbitrary `meta.storageKey` strings via the content
-		// API. Encode before interpolating so attacker-shaped values can't escape
-		// the path with `?` or `#`.
+			typeof directUrl === "string" && directUrl.startsWith("/_emdash/") ? directUrl : undefined;
+		// Clients can write meta.storageKey, so encode it before interpolation to
+		// keep query or fragment delimiters from escaping the route path.
 		const localUrl = isLocal
 			? storageKey
 				? `/_emdash/api/media/file/${encodeURIComponent(storageKey)}`
 				: (localSrc ?? `/_emdash/api/media/file/${encodeURIComponent(value.id)}`)
 			: undefined;
-		const externalUrl = !isLocal && value.src && isSafeUrl(value.src) ? value.src : undefined;
+		const externalUrl = !isLocal && directUrl && isSafeUrl(directUrl) ? directUrl : undefined;
 		return {
 			displayUrl: localUrl ?? externalUrl,
 			filename: value.filename || t`Untitled file`,
