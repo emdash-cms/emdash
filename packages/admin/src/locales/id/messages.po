@@ -410,7 +410,7 @@ msgstr "Pengaturan {pluginName}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2513
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
-msgstr "{readingTime, plural, other {baca # menit}}"
+msgstr "{readingTime, plural, other {# menit baca}}"
 
 #: packages/admin/src/components/MediaLibrary.tsx:298
 msgid "{resultCount, plural, one {# item} other {# items}}"
