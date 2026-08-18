@@ -58,8 +58,11 @@ import { buildTimeoutSummaryPrompt, isTimeoutSummaryDelivery } from "../lib/time
 import { untarInto } from "../lib/untar.js";
 import {
 	assertVerificationCommand,
+	assertVerificationIdentity,
+	findReusableVerificationRecord,
 	passingVerificationRecords,
 	type VerificationRecord,
+	upsertVerificationRecord,
 } from "../lib/verification.js";
 import diagnoseSkill from "../skills/diagnose/SKILL.md";
 import fixSkill from "../skills/fix/SKILL.md";
@@ -167,6 +170,7 @@ const publicationSchema = v.object({
 const verificationRecordSchema = v.object({
 	name: v.string(),
 	command: v.string(),
+	cwd: v.optional(v.string()),
 	exitCode: v.number(),
 	candidateTreeSha: v.string(),
 });
@@ -386,7 +390,7 @@ export function Investigate({ id }: AgentProps) {
 			defineTool({
 				name: "run_check",
 				description:
-					"Run a required read-only verification command and bind its real exit status to the exact candidate tree. The command must not modify source files; use edit_file/write_file for changes and check-only formatter commands. Do not add output pipelines or success fallbacks; the tool rejects them. Reuse a stable name such as test, lint, typecheck, or format when rerunning a check after a fix. Rerun every required check after any source change.",
+					"Run a required read-only verification command and bind its real exit status to the exact candidate tree. A name is permanently bound to its first command and cwd; use a new name for a different check. A passing check on the unchanged tree is reused without execution. The command must not modify source files; use edit_file/write_file for changes and check-only formatter commands. Do not add output pipelines or success fallbacks; the tool rejects them.",
 				input: v.object({
 					name: v.pipe(v.string(), v.minLength(1), v.maxLength(40)),
 					command: v.pipe(v.string(), v.minLength(1), v.maxLength(1_000)),
@@ -396,8 +400,19 @@ export function Investigate({ id }: AgentProps) {
 				async run({ data }) {
 					let result: ExecResult;
 					let candidateTreeSha: string;
+					const identity = {
+						name: data.name,
+						command: data.command,
+						...(data.cwd ? { cwd: data.cwd } : {}),
+					};
 					try {
 						assertVerificationCommand(data.command);
+						assertVerificationIdentity(verification, identity);
+						const currentTreeSha = await env.candidateTreeSha();
+						const reusable = findReusableVerificationRecord(verification, identity, currentTreeSha);
+						if (reusable) {
+							return `cached pass for ${data.name} on candidate tree ${currentTreeSha}`;
+						}
 						({ result, candidateTreeSha } = await env.runCheck(data.command, {
 							...(data.cwd ? { cwd: data.cwd } : {}),
 							...(data.timeoutMs ? { timeoutMs: data.timeoutMs } : {}),
@@ -407,12 +422,11 @@ export function Investigate({ id }: AgentProps) {
 						throw error;
 					}
 					const record = {
-						name: data.name,
-						command: data.command,
+						...identity,
 						exitCode: result.exitCode,
 						candidateTreeSha,
 					} satisfies VerificationRecord;
-					setVerification((current) => [...current, record]);
+					setVerification((current) => upsertVerificationRecord(current, record));
 					if (result.exitCode !== 0) {
 						setLastFailure({
 							stage: "verification",

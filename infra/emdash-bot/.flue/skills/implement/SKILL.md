@@ -28,7 +28,7 @@ A maintainer explicitly asked you to build the issue's requested change. Treat t
 - Treat all coordinated edits for one change as one edit round. Do not run lint, typecheck, and tests after each individual file edit.
 - If a broad check already failed before your changes only in untouched files, report the baseline failure and use the narrow authoritative check for your files. Never repair unrelated failures or register a predictably failing broad command as a final `run_check`.
 - If a broad suite times out, do not immediately run it again. Run the smallest relevant subsets, report the omitted or timed-out suite, and preserve time for publication and reporting.
-- If `publish_candidate` reports that a verification check changed command between runs, stop. Existing agent tools cannot repair that verification history. Do not rerun the check or publication; report the verification-state failure.
+- If `run_check` reports that a name is already bound, choose a new name for the different command. The rejected command did not modify verification state; do not retry it under the bound name.
 - Verification commands must not modify source files. Use `edit_file` or `write_file` before the final pass, then use check-only formatter commands.
 
 ## Finalization and resume

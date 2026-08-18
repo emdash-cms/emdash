@@ -54,7 +54,7 @@ You are here because a maintainer issued a **fix** directive, verify returned `b
 - Treat install and the initial workspace build as bootstrap, not verification. Reuse them for the whole run and across resume when the saved container is still available.
 - Prefer affected package checks. Run a broader root check once only when the change crosses its surface or `AGENTS.md` explicitly requires it.
 - If an affected package suite is known to exceed the remaining budget or has already timed out, do not repeat it. Run the focused relevant subsets, report the omitted suite, and preserve time to publish and report.
-- If `publish_candidate` reports that a verification check changed command between runs, stop. Existing agent tools cannot repair that verification history. Do not rerun the check or publication; report the verification-state failure.
+- If `run_check` reports that a name is already bound, choose a new name for the different command. The rejected command did not modify verification state; do not retry it under the bound name.
 - Verification commands must not modify source files. Apply formatting before the final pass, then use a check-only formatter command.
 
 ## Finalization and resume
