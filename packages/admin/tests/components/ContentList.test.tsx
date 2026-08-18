@@ -363,6 +363,25 @@ describe("ContentList", () => {
 			expect(Math.abs(menuWidth - triggerWidth)).toBeLessThanOrEqual(4);
 		});
 
+		it("keeps the date-field trigger aligned with the open menu width", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					statusFilter="all"
+					onStatusFilterChange={vi.fn()}
+					dateFilter={{ field: "createdAt", from: "", to: "" }}
+					onDateFilterChange={vi.fn()}
+				/>,
+			);
+			const filter = screen.getByRole("combobox", { name: "Date field to filter on" });
+			const triggerWidth = filter.element().getBoundingClientRect().width;
+
+			await filter.click();
+			const menuWidth = screen.getByRole("listbox").element().getBoundingClientRect().width;
+
+			expect(Math.abs(menuWidth - triggerWidth)).toBeLessThanOrEqual(4);
+		});
+
 		it("opens the date range calendar and clears the active range", async () => {
 			const onDateFilterChange = vi.fn();
 			const screen = await render(

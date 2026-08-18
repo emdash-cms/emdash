@@ -927,6 +927,7 @@ function FilterBar({
 				<>
 					<Select
 						size="sm"
+						className="min-w-28"
 						aria-label={t`Date field to filter on`}
 						value={dateFilter.field}
 						onValueChange={(v) =>
