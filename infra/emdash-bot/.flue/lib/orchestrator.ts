@@ -144,6 +144,8 @@ export interface NormalizedEvent {
 	readonly commentFirst?: boolean;
 	/** Internal callback metadata: this event's projection completes the run. */
 	readonly settlesRunId?: string;
+	/** Delivery consumed with an internally synthesized recovery transition. */
+	readonly settlesDeliveryId?: string;
 }
 
 /**
@@ -1020,7 +1022,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (now - startedAt < runBudgetMs(mode ?? "repro")) return false;
 		const runId = await this.ctx.storage.get<string>(STORAGE.currentRunId);
 		const agentId = await this.ctx.storage.get<string>(STORAGE.currentAgentId);
-		const pendingDispatch = await this.ctx.storage.get<PendingDispatch>(STORAGE.pendingDispatch);
+		const [pendingDispatch, pendingResume] = await Promise.all([
+			this.ctx.storage.get<PendingDispatch>(STORAGE.pendingDispatch),
+			this.ctx.storage.get<PendingResume>(STORAGE.pendingResume),
+		]);
 		if (!runId || !agentId) {
 			throw new Error("stale run is missing its run or agent identifier");
 		}
@@ -1065,6 +1070,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 			checkpoint = { ...checkpoint, summary };
 			await this.ctx.storage.put(STORAGE.resumableRun, checkpoint);
 		}
+		const deliveryId =
+			pendingDispatch?.runId === runId
+				? pendingDispatch.deliveryId
+				: pendingResume?.checkpoint.runId === runId
+					? pendingResume.deliveryId
+					: undefined;
 
 		// Commit the failed transition before deleting retry evidence. If this
 		// throws, the run markers remain and the next alarm retries recovery.
@@ -1079,11 +1090,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 			agentFailureStage: "timeout",
 			agentRunId: runId,
 			settlesRunId: runId,
+			...(deliveryId ? { settlesDeliveryId: deliveryId } : {}),
 		});
 		await this.clearRun(runId);
-		if (pendingDispatch?.runId === runId && pendingDispatch.deliveryId) {
-			await this.recordDelivery(pendingDispatch.deliveryId);
-		}
 		return true;
 	}
 
@@ -1444,18 +1453,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			}),
 		);
 		const persistReceipt = async (receipt: Awaited<typeof dispatchPromise>) => {
-			await this.ctx.storage.transaction(async (transaction) => {
-				if ((await transaction.get<string>(STORAGE.currentRunId)) !== prepared.checkpoint.runId)
-					return;
-				if ((await transaction.get<string>(STORAGE.currentDispatchAttempt)) !== attemptId) return;
-				await Promise.all([
-					transaction.put(STORAGE.currentDispatchId, receipt.submissionId),
-					transaction.delete(STORAGE.currentDispatchAttempt),
-					transaction.delete(STORAGE.currentDispatchError),
-					transaction.delete(STORAGE.pendingResume),
-					transaction.delete(STORAGE.resumableRun),
-				]);
-			});
+			await this.persistResumeReceipt(prepared, attemptId, receipt.submissionId);
 		};
 		this.ctx.waitUntil(
 			dispatchPromise.then(
@@ -1501,6 +1499,36 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return `dispatch(resume) receipt persistence uncertain: ${errorMessage(error)}`;
 		}
 		return null;
+	}
+
+	private async persistResumeReceipt(
+		prepared: PreparedResume,
+		attemptId: string,
+		submissionId: string,
+	): Promise<void> {
+		await this.ctx.storage.transaction(async (transaction) => {
+			if ((await transaction.get<string>(STORAGE.currentRunId)) !== prepared.checkpoint.runId)
+				return;
+			if ((await transaction.get<string>(STORAGE.currentDispatchAttempt)) !== attemptId) return;
+			const seen = prepared.deliveryId
+				? ((await transaction.get<string[]>(STORAGE.seenDeliveries)) ?? [])
+				: null;
+			await Promise.all([
+				transaction.put(STORAGE.currentDispatchId, submissionId),
+				transaction.delete(STORAGE.currentDispatchAttempt),
+				transaction.delete(STORAGE.currentDispatchError),
+				transaction.delete(STORAGE.pendingResume),
+				transaction.delete(STORAGE.resumableRun),
+				...(prepared.deliveryId && seen && !seen.includes(prepared.deliveryId)
+					? [
+							transaction.put(
+								STORAGE.seenDeliveries,
+								[...seen, prepared.deliveryId].slice(-DELIVERY_DEDUPE_LIMIT),
+							),
+						]
+					: []),
+			]);
+		});
 	}
 
 	private async recordDispatchFailure(
@@ -1787,6 +1815,17 @@ export class OrchestratorDO extends DurableObject<Env> {
 					? transaction.put(STORAGE.awaitingReporterSince, Date.now())
 					: transaction.delete(STORAGE.awaitingReporterSince),
 			];
+			if (input.settlesDeliveryId) {
+				const seen = (await transaction.get<string[]>(STORAGE.seenDeliveries)) ?? [];
+				if (!seen.includes(input.settlesDeliveryId)) {
+					puts.push(
+						transaction.put(
+							STORAGE.seenDeliveries,
+							[...seen, input.settlesDeliveryId].slice(-DELIVERY_DEDUPE_LIMIT),
+						),
+					);
+				}
+			}
 			if (decision.to === "preview_building") {
 				const startedAt = Date.now();
 				puts.push(
@@ -1853,6 +1892,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				input.anchorNumber ?? (await transaction.get<number>(STORAGE.anchorNumber));
 			const effectRunId =
 				preparedInvestigation?.runId ?? preparedResume?.checkpoint.runId ?? input.settlesRunId;
+			const effectDeliveryId = input.settlesDeliveryId ?? input.deliveryId;
 			if (sideEffectId && anchorNumber !== undefined) {
 				const pending =
 					(await transaction.get<PendingSideEffect[]>(STORAGE.pendingSideEffects)) ?? [];
@@ -1861,7 +1901,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 						...pending,
 						{
 							id: sideEffectId,
-							...(input.deliveryId ? { deliveryId: input.deliveryId } : {}),
+							...(effectDeliveryId ? { deliveryId: effectDeliveryId } : {}),
 							...(effectRunId ? { runId: effectRunId } : {}),
 							settlesRun: input.settlesRunId !== undefined,
 							anchorNumber,
@@ -2370,6 +2410,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 				? [this.ctx.storage.put(STORAGE.currentDispatchAttempt, input.dispatchAttempt)]
 				: []),
 		]);
+	}
+
+	/** Test-only: confirm a synthetic resume admission receipt. */
+	async debugConfirmPendingResumeReceipt(submissionId: string): Promise<void> {
+		const [pending, attemptId] = await Promise.all([
+			this.ctx.storage.get<PendingResume>(STORAGE.pendingResume),
+			this.ctx.storage.get<string>(STORAGE.currentDispatchAttempt),
+		]);
+		if (!pending || !attemptId) throw new Error("no pending resume admission");
+		await this.persistResumeReceipt(pending, attemptId, submissionId);
 	}
 }
 

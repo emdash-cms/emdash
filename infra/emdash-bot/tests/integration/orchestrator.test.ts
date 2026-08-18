@@ -566,6 +566,61 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(comments.at(-1)).toContain("I couldn't resume the saved run");
 	});
 
+	test("a confirmed resume receipt atomically deduplicates its delivery", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetPendingResume({
+			runId: "confirmed-resume-run",
+			agentId: "investigate-999-confirmed-resume-run",
+			deliveryId: "confirmed-resume-delivery",
+			startedAt: Date.now(),
+			dispatchAttempt: "confirmed-resume-attempt",
+		});
+
+		await stub.debugConfirmPendingResumeReceipt("confirmed-resume-submission");
+		const redelivery = await stub.event(
+			makeEvent({
+				event: "resume",
+				arg: null,
+				anchorNumber: 999,
+				deliveryId: "confirmed-resume-delivery",
+				labels: ["bot:enhancement", "bot:failed"],
+			}),
+		);
+
+		expect(redelivery).toEqual({
+			kind: "duplicate",
+			deliveryId: "confirmed-resume-delivery",
+		});
+	});
+
+	test("stale recovery consumes an uncertain resume delivery", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetPendingResume({
+			runId: "uncertain-resume-run",
+			agentId: "investigate-999-abort-false-missing",
+			deliveryId: "uncertain-resume-delivery",
+			startedAt: Date.now() - 61 * 60_000,
+			dispatchAttempt: "uncertain-resume-attempt",
+		});
+
+		const recovery = await stub.tick();
+		expect(recovery.droppedStaleRun).toBe(true);
+		const redelivery = await stub.event(
+			makeEvent({
+				event: "resume",
+				arg: null,
+				anchorNumber: 999,
+				deliveryId: "uncertain-resume-delivery",
+				labels: ["bot:enhancement", "bot:failed"],
+			}),
+		);
+
+		expect(redelivery).toEqual({
+			kind: "duplicate",
+			deliveryId: "uncertain-resume-delivery",
+		});
+	});
+
 	test("stale recovery fails a dispatch that never admitted an agent", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await stub.enqueue(makeEvent({ deliveryId: "missing-dispatch", anchorNumber: 999 }));
