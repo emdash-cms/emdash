@@ -883,6 +883,7 @@ function FilterBar({
 		<>
 			<Select
 				size="sm"
+				className="min-w-32"
 				aria-label={t`Filter by status`}
 				value={statusFilter}
 				onValueChange={(v) => onStatusFilterChange((v as ContentStatusFilter) ?? "all")}
@@ -997,16 +998,17 @@ function DateRangeFilter({
 			>
 				{rangeLabel}
 			</Popover.Trigger>
-			<Popover.Content align="start" className="w-auto p-2">
-				<Popover.Title className="px-2 pt-1 text-sm font-medium">{t`Choose a date range`}</Popover.Title>
+			<Popover.Content align="start" className="w-auto px-3 py-2.5">
+				<Popover.Title className="text-sm font-medium">{t`Choose a date range`}</Popover.Title>
 				<DatePicker
 					mode="range"
 					selected={selected}
 					defaultMonth={from ?? to}
 					onChange={handleChange}
 					aria-label={t`Choose a date range`}
+					className="mt-1"
 				/>
-				<div className="flex items-center justify-end gap-2 border-t border-kumo-line px-2 pt-2">
+				<div className="mt-1 flex items-center justify-end gap-2 border-t border-kumo-line pt-2">
 					{(from || to) && (
 						<Button size="sm" variant="ghost" onClick={() => handleChange(undefined)}>
 							{t`Clear`}
