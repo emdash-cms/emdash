@@ -106,6 +106,61 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(typeof entry.t).toBe("number");
 	});
 
+	test("public snapshots omit delivery and actor metadata", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ deliveryId: "private-delivery-id" }));
+
+		const snapshot = await stub.getPublicSnapshot();
+		expect(snapshot).toMatchObject({
+			state: "fixing",
+			kind: "enhancement",
+			currentRunStartedAt: null,
+			prNumber: null,
+			progress: [],
+		});
+		expect(snapshot.transitions).toHaveLength(1);
+		expect(snapshot.transitions[0]).toMatchObject({
+			event: "implement",
+			from: "unmanaged",
+			to: "fixing",
+		});
+		expect(snapshot.transitions[0]).not.toHaveProperty("deliveryId");
+		expect(snapshot.transitions[0]).not.toHaveProperty("actor");
+	});
+
+	test("public progress accepts only the current run and sanitizes text", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		const startedAt = Date.now() - 1_000;
+		await stub.debugSetStaleRun("current-run", startedAt);
+
+		await expect(
+			stub.recordPublicProgress({
+				runId: "stale-run",
+				kind: "workspace_ready",
+				title: "Should not appear",
+			}),
+		).resolves.toBe(false);
+		await expect(
+			stub.recordPublicProgress({
+				runId: "current-run",
+				kind: "workspace_ready",
+				title: "Workspace\nready",
+				detail: "Checked out\tmain   and restored dependencies",
+			}),
+		).resolves.toBe(true);
+
+		const snapshot = await stub.getPublicSnapshot();
+		expect(snapshot.currentRunStartedAt).toBe(startedAt);
+		expect(snapshot.progress).toMatchObject([
+			{
+				kind: "workspace_ready",
+				title: "Workspace ready",
+				detail: "Checked out main and restored dependencies",
+			},
+		]);
+		expect(snapshot.progress[0]).not.toHaveProperty("runId");
+	});
+
 	test("duplicate deliveryId is deduped on the second event() call", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		const first = await stub.event(makeEvent({ deliveryId: "dup-1" }));

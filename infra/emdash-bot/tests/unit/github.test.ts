@@ -7,6 +7,7 @@ import {
 	createGitTree,
 	getGitCommit,
 	getIssueComments,
+	listOpenManagedIssues,
 	updateBranch,
 } from "../../.flue/lib/github.js";
 
@@ -22,6 +23,10 @@ function jsonResponse(body: unknown, status = 200): Response {
 function parseJsonBody(body: unknown): unknown {
 	if (typeof body !== "string") throw new Error("expected a string request body");
 	return JSON.parse(body);
+}
+
+function requestUrl(input: Parameters<typeof fetch>[0]): string {
+	return typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 }
 
 describe("GitHub Git Data requests", () => {
@@ -149,5 +154,70 @@ describe("GitHub issue context requests", () => {
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		expect(fetchMock.mock.calls[0]?.[0]).toContain("page=3");
+	});
+});
+
+describe("GitHub dashboard requests", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	test("lists open bot-managed issues without pull requests or duplicates", async () => {
+		const issue = {
+			number: 42,
+			title: "A managed issue",
+			html_url: "https://github.com/emdash-cms/emdash/issues/42",
+			updated_at: "2026-08-18T10:00:00Z",
+			labels: [{ name: "bot:bug" }, { name: "bot:working" }],
+		};
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(jsonResponse([issue]))
+			.mockResolvedValueOnce(
+				jsonResponse([
+					{ ...issue, labels: [{ name: "bot:enhancement" }, { name: "bot:working" }] },
+					{
+						number: 43,
+						title: "A bot pull request",
+						html_url: "https://github.com/emdash-cms/emdash/pull/43",
+						updated_at: "2026-08-18T11:00:00Z",
+						labels: [{ name: "bot:enhancement" }, { name: "bot:in-review" }],
+						pull_request: {},
+					},
+				]),
+			)
+			.mockResolvedValueOnce(
+				jsonResponse([
+					{
+						number: 44,
+						title: "A managed task",
+						html_url: "https://github.com/emdash-cms/emdash/issues/44",
+						updated_at: "2026-08-18T12:00:00Z",
+						labels: [{ name: "bot:task" }, { name: "bot:blocked" }],
+					},
+				]),
+			);
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(listOpenManagedIssues("token", repo)).resolves.toEqual([
+			{
+				number: 44,
+				title: "A managed task",
+				url: "https://github.com/emdash-cms/emdash/issues/44",
+				updatedAt: "2026-08-18T12:00:00Z",
+				labels: ["bot:task", "bot:blocked"],
+			},
+			{
+				number: 42,
+				title: "A managed issue",
+				url: "https://github.com/emdash-cms/emdash/issues/42",
+				updatedAt: "2026-08-18T10:00:00Z",
+				labels: ["bot:bug", "bot:working"],
+			},
+		]);
+		expect(fetchMock).toHaveBeenCalledTimes(3);
+		expect(fetchMock.mock.calls.map(([url]) => requestUrl(url))).toEqual([
+			expect.stringContaining("labels=bot%3Abug"),
+			expect.stringContaining("labels=bot%3Aenhancement"),
+			expect.stringContaining("labels=bot%3Atask"),
+		]);
 	});
 });

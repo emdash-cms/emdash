@@ -128,6 +128,75 @@ export interface IssueSummary {
 	commentCount: number;
 }
 
+export interface ManagedIssueSummary {
+	number: number;
+	title: string;
+	url: string;
+	updatedAt: string;
+	labels: string[];
+}
+
+export async function listOpenManagedIssues(
+	token: string,
+	ctx: RepoContext,
+): Promise<ManagedIssueSummary[]> {
+	const kindLabels = ["bot:bug", "bot:enhancement", "bot:task"];
+	const pages = await Promise.all(
+		kindLabels.map(async (label) => {
+			const params = new URLSearchParams({
+				state: "open",
+				labels: label,
+				sort: "updated",
+				direction: "desc",
+				per_page: "100",
+			});
+			const res = await githubFetch(
+				`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues?${params.toString()}`,
+				{ headers: authHeaders(token) },
+			);
+			if (!res.ok)
+				throw new Error(`listOpenManagedIssues failed: ${res.status} ${await res.text()}`);
+			return res.json<
+				Array<{
+					number?: number;
+					title?: string;
+					html_url?: string;
+					updated_at?: string;
+					labels?: Array<{ name?: string }>;
+					pull_request?: unknown;
+				}>
+			>();
+		}),
+	);
+
+	const issues = new Map<number, ManagedIssueSummary>();
+	for (const page of pages) {
+		for (const issue of page) {
+			if (
+				(issue.number !== undefined && issues.has(issue.number)) ||
+				issue.pull_request !== undefined ||
+				issue.number === undefined ||
+				!issue.title ||
+				!issue.html_url ||
+				!issue.updated_at
+			) {
+				continue;
+			}
+			const labels = issue.labels?.flatMap((label) => (label.name ? [label.name] : [])) ?? [];
+			issues.set(issue.number, {
+				number: issue.number,
+				title: issue.title,
+				url: issue.html_url,
+				updatedAt: issue.updated_at,
+				labels,
+			});
+		}
+	}
+	return [...issues.values()].toSorted((left, right) =>
+		right.updatedAt.localeCompare(left.updatedAt),
+	);
+}
+
 export async function getIssue(
 	token: string,
 	ctx: RepoContext,

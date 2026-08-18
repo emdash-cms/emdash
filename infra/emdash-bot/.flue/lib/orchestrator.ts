@@ -81,6 +81,7 @@ const INERT_STATES: ReadonlySet<StateId> = new Set<StateId>([
  * full history -- two weeks of activity on the busiest issue is plenty.
  */
 const EVENT_LOG_LIMIT = 200;
+const PUBLIC_PROGRESS_LIMIT = 100;
 
 /**
  * The actor classification the webhook handler resolves before calling
@@ -191,6 +192,35 @@ interface EventLogEntry {
 	readonly deliveryId?: string;
 }
 
+export type PublicProgressKind =
+	| "workspace_ready"
+	| "workspace_failed"
+	| "verification_passed"
+	| "verification_failed"
+	| "candidate_published";
+
+export interface PublicProgressEntry {
+	readonly t: number;
+	readonly kind: PublicProgressKind;
+	readonly title: string;
+	readonly detail: string | null;
+	readonly runId: string;
+}
+
+export interface PublicIssueSnapshot {
+	readonly state: StateId | null;
+	readonly kind: Kind | null;
+	readonly currentRunStartedAt: number | null;
+	readonly prNumber: number | null;
+	readonly transitions: ReadonlyArray<{
+		readonly t: number;
+		readonly event: EventId;
+		readonly from: StateId | "conflicting" | null;
+		readonly to: StateId | null;
+	}>;
+	readonly progress: ReadonlyArray<Omit<PublicProgressEntry, "runId">>;
+}
+
 interface InboxEntry {
 	readonly id: string;
 	readonly input: NormalizedEvent;
@@ -231,6 +261,7 @@ const STORAGE = {
 	deadlineWarningRetryAt: "o:deadlineWarningRetryAt",
 	resumableRun: "o:resumableRun",
 	pendingResume: "o:pendingResume",
+	publicProgress: "o:publicProgress",
 } as const;
 
 const TICK_INTERVAL_MS = 60 * 60 * 1000;
@@ -487,6 +518,30 @@ export class OrchestratorDO extends DurableObject<Env> {
 		ok: boolean;
 	}): Promise<EventOutcome> {
 		return this.runExclusive(() => this.processAgentResult(input));
+	}
+
+	async recordPublicProgress(input: {
+		runId: string;
+		kind: PublicProgressKind;
+		title: string;
+		detail?: string | null;
+	}): Promise<boolean> {
+		return this.ctx.storage.transaction(async (transaction) => {
+			if ((await transaction.get<string>(STORAGE.currentRunId)) !== input.runId) return false;
+			const existing = (await transaction.get<PublicProgressEntry[]>(STORAGE.publicProgress)) ?? [];
+			const entry: PublicProgressEntry = {
+				t: Date.now(),
+				kind: input.kind,
+				title: sanitizePublicProgressText(input.title, 80),
+				detail: input.detail ? sanitizePublicProgressText(input.detail, 240) : null,
+				runId: input.runId,
+			};
+			await transaction.put(
+				STORAGE.publicProgress,
+				[...existing, entry].slice(-PUBLIC_PROGRESS_LIMIT),
+			);
+			return true;
+		});
 	}
 
 	private async processAgentResult(input: {
@@ -2214,6 +2269,35 @@ export class OrchestratorDO extends DurableObject<Env> {
 		return (await this.ctx.storage.get<EventLogEntry[]>(STORAGE.eventLog)) ?? [];
 	}
 
+	async getPublicSnapshot(): Promise<PublicIssueSnapshot> {
+		const [state, kind, currentRunStartedAt, prNumber, transitions, progress] = await Promise.all([
+			this.ctx.storage.get<StateId>(STORAGE.state),
+			this.ctx.storage.get<Kind>(STORAGE.kind),
+			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
+			this.ctx.storage.get<number>(STORAGE.prNumber),
+			this.ctx.storage.get<EventLogEntry[]>(STORAGE.eventLog),
+			this.ctx.storage.get<PublicProgressEntry[]>(STORAGE.publicProgress),
+		]);
+		return {
+			state: state ?? null,
+			kind: kind ?? null,
+			currentRunStartedAt: currentRunStartedAt ?? null,
+			prNumber: prNumber ?? null,
+			transitions: (transitions ?? []).map(({ t, event, from, to }) => ({
+				t,
+				event,
+				from,
+				to,
+			})),
+			progress: (progress ?? []).map(({ t, kind: progressKind, title, detail }) => ({
+				t,
+				kind: progressKind,
+				title,
+				detail,
+			})),
+		};
+	}
+
 	async getInboxDepth(): Promise<number> {
 		return ((await this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox)) ?? []).length;
 	}
@@ -2474,6 +2558,14 @@ class ClassifierProcessingError extends Error {
 		super(`classifier failed: ${reason}`);
 		this.name = "ClassifierProcessingError";
 	}
+}
+
+function sanitizePublicProgressText(value: string, limit: number): string {
+	const normalized = value
+		.replaceAll(/[\r\n\t]+/g, " ")
+		.replaceAll(/\s{2,}/g, " ")
+		.trim();
+	return normalized.length <= limit ? normalized : `${normalized.slice(0, limit - 1)}…`;
 }
 
 function errorMessage(error: unknown): string {

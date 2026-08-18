@@ -52,7 +52,10 @@ import {
 	readRepoContext,
 	updateBranch,
 } from "../lib/github.js";
-import { applyInvestigationResult } from "../lib/investigation-result.js";
+import {
+	applyInvestigationResult,
+	recordInvestigationProgress,
+} from "../lib/investigation-result.js";
 import { FLUE_RUN_TIMEOUT_MS, SANDBOX_SLEEP_AFTER_SECONDS } from "../lib/run-policy.js";
 import { buildTimeoutSummaryPrompt, isTimeoutSummaryDelivery } from "../lib/timeout-recovery.js";
 import { untarInto } from "../lib/untar.js";
@@ -236,8 +239,18 @@ export function Investigate({ id }: AgentProps) {
 		try {
 			await env.ensureRepo({ dir: REPO_DIR, ref: cloneRef(input) });
 			setSetupComplete(true);
+			await recordInvestigationProgress(input, {
+				kind: "workspace_ready",
+				title: "Workspace ready",
+				detail: `Checked out ${cloneRef(input)} and restored the investigation workspace`,
+			});
 		} catch (error) {
 			setLastFailure({ stage: "workspace", message: safeFailureMessage(error) });
+			await recordInvestigationProgress(input, {
+				kind: "workspace_failed",
+				title: "Workspace setup failed",
+				detail: "The investigation workspace could not be prepared",
+			});
 			const result = failedResult(
 				`I couldn't prepare the investigation workspace: ${errorMessage(error)}`,
 				"workspace",
@@ -411,6 +424,11 @@ export function Investigate({ id }: AgentProps) {
 						const currentTreeSha = await env.candidateTreeSha();
 						const reusable = findReusableVerificationRecord(verification, identity, currentTreeSha);
 						if (reusable) {
+							await recordInvestigationProgress(input, {
+								kind: "verification_passed",
+								title: data.name,
+								detail: "Reused a passing check on the unchanged candidate",
+							});
 							return `cached pass for ${data.name} on candidate tree ${currentTreeSha}`;
 						}
 						({ result, candidateTreeSha } = await env.runCheck(data.command, {
@@ -433,6 +451,14 @@ export function Investigate({ id }: AgentProps) {
 							message: `${data.name} failed with exit ${result.exitCode}`,
 						});
 					}
+					await recordInvestigationProgress(input, {
+						kind: result.exitCode === 0 ? "verification_passed" : "verification_failed",
+						title: data.name,
+						detail:
+							result.exitCode === 0
+								? "Verification passed on the current candidate"
+								: `Verification exited with code ${result.exitCode}`,
+					});
 					return truncateToolResult(
 						[`exit ${result.exitCode}`, result.stdout, result.stderr].filter(Boolean).join("\n"),
 					);
@@ -476,6 +502,11 @@ export function Investigate({ id }: AgentProps) {
 						);
 						setPublication(published);
 						setLastFailure(null);
+						await recordInvestigationProgress(input, {
+							kind: "candidate_published",
+							title: "Candidate published",
+							detail: `Published bot/fix-${input.issueNumber} for preview`,
+						});
 						return { output: published };
 					} catch (error) {
 						setLastFailure({ stage: "publication", message: safeFailureMessage(error) });
