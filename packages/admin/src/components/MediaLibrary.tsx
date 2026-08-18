@@ -16,6 +16,7 @@ import * as React from "react";
 
 import {
 	type MediaItem,
+	type MediaUploadOptions,
 	type MediaProviderItem,
 	MEDIA_SEARCH_MAX_LENGTH,
 	fetchMediaProviders,
@@ -53,7 +54,7 @@ function mimeForTypeFilter(value: string): string | string[] | undefined {
 export interface MediaLibraryProps {
 	items?: MediaItem[];
 	isLoading?: boolean;
-	onUpload?: (file: File) => Promise<void> | void;
+	onUpload?: (file: File, options?: MediaUploadOptions) => Promise<void> | void;
 	onSelect?: (item: MediaItem) => void;
 	onItemUpdated?: () => void;
 	/** True when more local-library items can be fetched via cursor pagination */
