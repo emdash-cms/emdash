@@ -1,3 +1,4 @@
+import { setupI18n } from "@lingui/core";
 import { describe, expect, test } from "vitest";
 
 import {
@@ -20,6 +21,25 @@ for (const { code } of SUPPORTED_LOCALES) {
 test("loadMessages falls back to English for unknown locale", async () => {
 	const [fallback, english] = await Promise.all([loadMessages("xx"), loadMessages("en")]);
 	expect(fallback).toEqual(english);
+});
+
+test("formats the Media Usage progress plural from the production English catalog", async () => {
+	const catalog = await loadMessages("en");
+	expect(catalog.zRXzWv).toBeDefined();
+	expect(Array.isArray(catalog.zRXzWv)).toBe(true);
+	const germanCatalog = await loadMessages("de");
+	expect(germanCatalog.zRXzWv).toEqual(catalog.zRXzWv);
+	const productionI18n = setupI18n();
+	productionI18n.loadAndActivate({ locale: "en", messages: catalog });
+
+	expect(
+		productionI18n._({
+			id: "zRXzWv",
+			message:
+				"{0, plural, one {{1} of # content type ready} other {{2} of # content types ready}}",
+			values: { 0: 2, 1: 1, 2: 1 },
+		}),
+	).toBe("1 of 2 content types ready");
 });
 
 // -- getLocaleDir ----------------------------------------------------------

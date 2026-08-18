@@ -203,6 +203,13 @@ msgstr "{0, plural, one {Media file} other {Media files}}"
 msgid "{0, plural, one {User} other {Users}}"
 msgstr "{0, plural, one {User} other {Users}}"
 
+#. placeholder {0}: progress.totalCollections
+#. placeholder {1}: progress.readyCollections
+#. placeholder {2}: progress.readyCollections
+#: packages/admin/src/components/settings/MediaUsageSettings.tsx:374
+msgid "{0, plural, one {{1} of # content type ready} other {{2} of # content types ready}}"
+msgstr "{0, plural, one {{1} of # content type ready} other {{2} of # content types ready}}"
+
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
 #. placeholder {2}: m.host

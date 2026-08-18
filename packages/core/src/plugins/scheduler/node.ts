@@ -10,7 +10,7 @@
  */
 
 import type { CronExecutor } from "../cron.js";
-import type { CronScheduler, SystemCleanupFn } from "./types.js";
+import type { CronScheduler, MediaUsageContinuationFn, SystemCleanupFn } from "./types.js";
 
 /** Minimum polling interval (ms) — prevents tight loops if next_run_at is in the past */
 const MIN_INTERVAL_MS = 1000;
@@ -30,6 +30,11 @@ export class NodeCronScheduler implements CronScheduler {
 	private running = false;
 	private systemCleanup: SystemCleanupFn | null = null;
 	private mediaUsageMaintenance: SystemCleanupFn | null = null;
+	private continuousMediaUsageMaintenance: MediaUsageContinuationFn | null = null;
+	private mediaUsageTimer: ReturnType<typeof setTimeout> | null = null;
+	private mediaUsageInFlight = false;
+	private mediaUsagePending = false;
+	private mediaUsageGeneration = 0;
 
 	constructor(private executor: CronExecutor) {}
 
@@ -39,6 +44,10 @@ export class NodeCronScheduler implements CronScheduler {
 
 	setMediaUsageMaintenance(fn: SystemCleanupFn): void {
 		this.mediaUsageMaintenance = fn;
+	}
+
+	setContinuousMediaUsageMaintenance(fn: MediaUsageContinuationFn): void {
+		this.continuousMediaUsageMaintenance = fn;
 	}
 
 	start(): void {
@@ -52,6 +61,12 @@ export class NodeCronScheduler implements CronScheduler {
 			clearTimeout(this.timer);
 			this.timer = null;
 		}
+		if (this.mediaUsageTimer) {
+			clearTimeout(this.mediaUsageTimer);
+			this.mediaUsageTimer = null;
+		}
+		this.mediaUsagePending = false;
+		this.mediaUsageGeneration++;
 	}
 
 	reschedule(): void {
@@ -123,7 +138,9 @@ export class NodeCronScheduler implements CronScheduler {
 						console.error("[cron:node] Tick task failed:", r.reason);
 					}
 				}
-				if (this.mediaUsageMaintenance) {
+				if (this.continuousMediaUsageMaintenance) {
+					this.requestContinuousMediaUsageMaintenance();
+				} else if (this.mediaUsageMaintenance) {
 					try {
 						await this.mediaUsageMaintenance();
 					} catch (error) {
@@ -137,5 +154,63 @@ export class NodeCronScheduler implements CronScheduler {
 					this.arm();
 				}
 			});
+	}
+
+	private requestContinuousMediaUsageMaintenance(): void {
+		if (!this.running || !this.continuousMediaUsageMaintenance) return;
+		if (this.mediaUsageInFlight) {
+			this.mediaUsagePending = true;
+			return;
+		}
+		if (this.mediaUsageTimer) return;
+		this.armMediaUsageTimer(0);
+	}
+
+	private armMediaUsageTimer(delayMs: number): void {
+		if (!this.running || !this.continuousMediaUsageMaintenance) return;
+		this.mediaUsageTimer = setTimeout(() => {
+			this.mediaUsageTimer = null;
+			void this.executeContinuousMediaUsageMaintenance();
+		}, delayMs);
+		if (
+			this.mediaUsageTimer &&
+			typeof this.mediaUsageTimer === "object" &&
+			"unref" in this.mediaUsageTimer
+		) {
+			this.mediaUsageTimer.unref();
+		}
+	}
+
+	private async executeContinuousMediaUsageMaintenance(): Promise<void> {
+		if (!this.running || !this.continuousMediaUsageMaintenance) return;
+		if (this.mediaUsageInFlight) {
+			this.mediaUsagePending = true;
+			return;
+		}
+
+		const generation = this.mediaUsageGeneration;
+		this.mediaUsageInFlight = true;
+		let continuation: Awaited<ReturnType<MediaUsageContinuationFn>> | null = null;
+		try {
+			continuation = await this.continuousMediaUsageMaintenance();
+		} catch (error) {
+			console.error("[cron:node] Media Usage maintenance failed:", error);
+		} finally {
+			this.mediaUsageInFlight = false;
+		}
+
+		if (!this.running || generation !== this.mediaUsageGeneration) return;
+		const pending = this.mediaUsagePending;
+		this.mediaUsagePending = false;
+		if (!continuation) return;
+		if (continuation.kind === "immediate") {
+			this.armMediaUsageTimer(0);
+			return;
+		}
+		if (continuation.kind === "delayed") {
+			this.armMediaUsageTimer(continuation.delaySeconds * 1_000);
+			return;
+		}
+		if (pending) this.armMediaUsageTimer(0);
 	}
 }

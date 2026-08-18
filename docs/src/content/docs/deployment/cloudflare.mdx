@@ -80,32 +80,64 @@ On Cloudflare Workers, scheduled publishing, plugin cron, and maintenance tasks 
 
 ```ts title="src/worker.ts"
 import handler, {
+	createMediaUsageQueueHandler,
 	createScheduledHandler,
+	type MediaUsageWakeMessage,
 	PluginBridge,
 } from "@emdash-cms/cloudflare/worker";
 
 export { PluginBridge };
 
+const resolveMediaUsageQueue = (env: Env) => env.MEDIA_USAGE_QUEUE;
+
 export default {
 	...handler,
-	scheduled: createScheduledHandler(),
-} satisfies ExportedHandler;
+	scheduled: createScheduledHandler({ resolveMediaUsageQueue }),
+	queue: createMediaUsageQueueHandler(resolveMediaUsageQueue),
+} satisfies ExportedHandler<Env, MediaUsageWakeMessage>;
 ```
 
-By default, `*/2 * * * *` runs Media Usage maintenance and every other expression runs general maintenance. Then add both Cron Triggers to `wrangler.jsonc`:
+By default, `*/2 * * * *` sends a Media Usage recovery wake and every other expression runs general maintenance. Then add both Cron Triggers and the automatically provisioned Queue to `wrangler.jsonc`:
 
 ```jsonc title="wrangler.jsonc"
 {
 	"triggers": {
 		"crons": ["* * * * *", "*/2 * * * *"],
 	},
+	"queues": {
+		"producers": [
+			{
+				"binding": "MEDIA_USAGE_QUEUE",
+				"queue": "my-emdash-site-media-usage",
+			},
+		],
+		"consumers": [
+			{
+				"queue": "my-emdash-site-media-usage",
+				"max_batch_size": 1,
+				"max_batch_timeout": 0,
+				"max_retries": 3,
+				"max_concurrency": 1,
+			},
+		],
+	},
 }
 ```
 
-To use different schedules, set the corresponding `generalCron` or `mediaUsageCron` option in `createScheduledHandler()` and use the same expression in `wrangler.jsonc`.
+Run `wrangler types` after changing the bindings so `Env.MEDIA_USAGE_QUEUE` is available to
+TypeScript.
+
+The Media Usage Cron sends a recovery wake to this Queue. The consumer processes one bounded,
+durable database unit at a time and sends another wake while work remains. Queue messages contain no
+content identity, and the existing database work rows remain authoritative if a message is retried or
+lost. Concurrency stays at one because D1 processes a database sequentially.
+
+Existing custom Workers without a Queue binding keep the previous bounded Cron path. To use different
+schedules, set the corresponding `generalCron` or `mediaUsageCron` option in
+`createScheduledHandler()` and use the same expression in `wrangler.jsonc`.
 
 <Aside type="caution">
-	Without the general trigger, scheduled publishing and plugin cron do not run. Without the dedicated Media Usage trigger, automatic historical reconciliation cannot progress. Local `astro dev` still uses the in-process scheduler.
+	Without the general trigger, scheduled publishing and plugin cron do not run. Without the dedicated Media Usage trigger, automatic historical reconciliation cannot start or recover after Queue retries are exhausted. Local `astro dev` still uses the in-process scheduler.
 </Aside>
 
 ### Enable automatic media usage indexing

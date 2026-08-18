@@ -53,6 +53,11 @@ import {
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
 import {
+	runMediaUsageMaintenanceStep,
+	type MediaUsageMaintenanceStepResult,
+	type MediaUsageMaintenanceTaskClass,
+} from "./media/usage/maintenance-engine.js";
+import {
 	MEDIA_USAGE_RECONCILIATION_LIMITS,
 	processDueMediaUsageReconciliation,
 } from "./media/usage/reconciliation-processor.js";
@@ -552,10 +557,11 @@ export const MEDIA_USAGE_MAINTENANCE_QUERY_RESERVATIONS = Object.freeze({
 	eventCeiling: 40,
 });
 
-export type MediaUsageMaintenanceTaskClass =
-	| "entry_work"
-	| "collection_deletion"
-	| "reconciliation";
+export type {
+	MediaUsageMaintenanceContinuation,
+	MediaUsageMaintenanceStepResult,
+	MediaUsageMaintenanceTaskClass,
+} from "./media/usage/maintenance-engine.js";
 
 export type MediaUsageMaintenanceResult =
 	| { outcome: "inactive" | "admission_closed"; taskClass: null; turn: null }
@@ -802,6 +808,10 @@ export class EmDashRuntime {
 
 	async runScheduledMediaUsageTasks(): Promise<MediaUsageMaintenanceResult> {
 		return runScheduledMediaUsageLane(this.db);
+	}
+
+	async runMediaUsageMaintenanceStep(): Promise<MediaUsageMaintenanceStepResult> {
+		return runMediaUsageMaintenanceStep(this.db);
 	}
 
 	/**
@@ -1732,6 +1742,14 @@ export class EmDashRuntime {
 								await runScheduledMediaUsageLane(db);
 							}
 						});
+					const runContinuousMediaUsageMaintenance = () =>
+						runWithContext({ editMode: false }, async () => {
+							const runtime = runtimeRef.current;
+							const result = runtime
+								? await runtime.runMediaUsageMaintenanceStep()
+								: await runMediaUsageMaintenanceStep(db);
+							return result.continuation;
+						});
 
 					// Run scheduled publishing and system cleanup alongside each tick.
 					// Pass storage so cleanupPendingUploads can delete orphaned files.
@@ -1764,7 +1782,10 @@ export class EmDashRuntime {
 						}
 						// Never throws; no-op unless scheduled backups are enabled and due.
 						await maybeRunScheduledBackup(db, storage ?? undefined);
-						if (!scheduler.setMediaUsageMaintenance) {
+						if (
+							!scheduler.setContinuousMediaUsageMaintenance &&
+							!scheduler.setMediaUsageMaintenance
+						) {
 							try {
 								await runMediaUsageMaintenance();
 							} catch (error) {
@@ -1772,7 +1793,11 @@ export class EmDashRuntime {
 							}
 						}
 					});
-					scheduler.setMediaUsageMaintenance?.(runMediaUsageMaintenance);
+					if (scheduler.setContinuousMediaUsageMaintenance) {
+						scheduler.setContinuousMediaUsageMaintenance(runContinuousMediaUsageMaintenance);
+					} else {
+						scheduler.setMediaUsageMaintenance?.(runMediaUsageMaintenance);
+					}
 
 					// start() is void on the timer scheduler but the interface
 					// allows a promise (alarm-backed schedulers); we don't block on it.

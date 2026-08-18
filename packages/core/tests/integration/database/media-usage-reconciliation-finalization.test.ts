@@ -4,7 +4,10 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { processDueMediaUsageCollectionDeletions } from "../../../src/media/usage/collection-deletion-processor.js";
 import { loadContentMediaUsageSnapshots } from "../../../src/media/usage/content-snapshots.js";
-import { processDueMediaUsageReconciliation } from "../../../src/media/usage/reconciliation-processor.js";
+import {
+	processDueMediaUsageReconciliation,
+	processDueMediaUsageReconciliationDetailed,
+} from "../../../src/media/usage/reconciliation-processor.js";
 import { MediaUsageReconciliationRepository } from "../../../src/media/usage/reconciliation.js";
 import { buildContentMediaUsageSourceKey } from "../../../src/media/usage/source-key.js";
 import { processDueMediaUsageWork } from "../../../src/media/usage/work-processor.js";
@@ -101,6 +104,16 @@ describeEachDialect("media usage reconciliation finalization", (dialect) => {
 				.executeTakeFirst(),
 		).toBeUndefined();
 		expect(await usage.findSource(quarantinedSourceKey)).not.toBeNull();
+	});
+
+	it("reports a seeded or claimed reconciliation unit as consumed", async () => {
+		const collection = await createCollection(ctx, "consumed_reconciliation", true);
+		await activateCollection(ctx, collection);
+
+		await expect(processDueMediaUsageReconciliationDetailed(ctx.db)).resolves.toMatchObject({
+			consumedUnit: true,
+			outcome: "advanced",
+		});
 	});
 
 	it("preserves automatic ownership until failed work reaches terminal coverage", async () => {

@@ -58,6 +58,10 @@ The server runs on `http://localhost:4321` by default. Migrations are applied on
 The built-in scheduler runs only while a Node process is running. It handles scheduled publishing,
 plugin tasks, and background media indexing.
 
+While Media Usage work is available, the scheduler continues one bounded indexing unit on each event
+loop turn until it catches up. It yields between units so requests and other scheduled work remain
+responsive, and durable database work resumes after a process restart.
+
 Keep at least one Node process running continuously in production. If all processes stop or sleep,
 scheduled tasks pause.
 

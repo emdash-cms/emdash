@@ -44,6 +44,7 @@ import {
 	DB_INIT_DEADLINE_MS,
 	EmDashRuntime,
 	type MediaUsageMaintenanceResult,
+	type MediaUsageMaintenanceStepResult,
 	type RuntimeDependencies,
 	type SandboxedPluginEntry,
 	type MediaProviderEntry,
@@ -293,6 +294,19 @@ export async function runScheduledMediaUsageTasks(): Promise<MediaUsageMaintenan
 	const config = getConfig();
 	if (!config) return { outcome: "inactive", taskClass: null, turn: null };
 	return runOutsideRequest(config, (runtime) => runtime.runScheduledMediaUsageTasks());
+}
+
+export async function runMediaUsageMaintenanceStep(): Promise<MediaUsageMaintenanceStepResult> {
+	const config = getConfig();
+	if (!config) {
+		return {
+			state: "inactive",
+			continuation: { kind: "none" },
+			taskClass: null,
+			turn: null,
+		};
+	}
+	return runOutsideRequest(config, (runtime) => runtime.runMediaUsageMaintenanceStep());
 }
 
 /**
