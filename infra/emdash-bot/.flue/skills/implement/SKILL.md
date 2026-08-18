@@ -17,7 +17,7 @@ A maintainer explicitly asked you to build the issue's requested change. Treat t
 6. Edit through `edit_file` and `write_file`. Keep the change scoped to the request. Do not modify `.github/workflows` or generated Lingui catalogs.
 7. Add behavior-level tests where the change has testable behavior. For a directed bug fix, follow the repository's failing-test-first rule.
 8. Finish every candidate edit before final verification. Apply formatting and add the changeset now, when a published package changed. The changeset is part of the candidate tree, so adding it after checks would invalidate every result.
-9. Run the planned final checks through `run_check`. Use stable names and run each check once on the final candidate tree. If a relevant check fails and you edit the candidate, rerun the planned set once on the new tree. Do not repeat a passing check on an unchanged tree.
+9. Run the planned final checks through `run_check`. Use stable names and run each check once on the final candidate tree. A check name is permanently bound to its first command, including flags and arguments; if you need a different command, choose a new name before running it. If a relevant check fails and you edit the candidate, rerun the planned set once on the new tree with the original names and commands. Do not repeat a passing check on an unchanged tree.
 10. Call `publish_candidate` as soon as the planned checks pass. The trusted Worker owns Git objects and the `bot/fix-<issue>` ref; never run `git commit`, `git push`, or create a PR yourself.
 11. Call `report_implementation` exactly once. Set `implemented: true` only after publication succeeds. Summarize the observable change and verification, not a bug verdict.
 
@@ -28,6 +28,7 @@ A maintainer explicitly asked you to build the issue's requested change. Treat t
 - Treat all coordinated edits for one change as one edit round. Do not run lint, typecheck, and tests after each individual file edit.
 - If a broad check already failed before your changes only in untouched files, report the baseline failure and use the narrow authoritative check for your files. Never repair unrelated failures or register a predictably failing broad command as a final `run_check`.
 - If a broad suite times out, do not immediately run it again. Run the smallest relevant subsets, report the omitted or timed-out suite, and preserve time for publication and reporting.
+- If `publish_candidate` reports that a verification check changed command between runs, stop. Existing agent tools cannot repair that verification history. Do not rerun the check or publication; report the verification-state failure.
 - Verification commands must not modify source files. Use `edit_file` or `write_file` before the final pass, then use check-only formatter commands.
 
 ## Finalization and resume

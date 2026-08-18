@@ -44,7 +44,7 @@ You are here because a maintainer issued a **fix** directive, verify returned `b
    - Migrations are forward-only and additive; register in `runner.ts` via `StaticMigrationProvider`.
    - Prefer additive changes. A breaking change needs an explicit changeset -- do not introduce one for an automated fix without compelling justification.
 7. **Finish the candidate tree.** Apply formatting and add the changeset now, when a published package changed. Write the changeset as release notes for someone upgrading -- lead with a verb and describe the observable effect. Adding it after verification would invalidate every recorded check.
-8. **Run one final verification pass with `run_check`.** Run the focused repro test first, then the remaining planned checks. Give each check a stable name. Run each once on the final tree; do not repeat a passing check on an unchanged tree.
+8. **Run one final verification pass with `run_check`.** Run the focused repro test first, then the remaining planned checks. A check name is permanently bound to its first command, including flags and arguments; if you need a different command, choose a new name before running it. Run each check once on the final tree; do not repeat a passing check on an unchanged tree.
 9. **Respond to relevant failures only.** Fix a regression in touched behavior or abandon the change. If you edit the candidate, rerun the planned set once on the new tree. Never edit unrelated files to make a broad lint, typecheck, or test command pass.
 10. **Publish with `publish_candidate` as soon as the planned checks pass.** Do not reproduce its work with shell commands. Report `fixed: true` only after it succeeds.
 
@@ -54,6 +54,7 @@ You are here because a maintainer issued a **fix** directive, verify returned `b
 - Treat install and the initial workspace build as bootstrap, not verification. Reuse them for the whole run and across resume when the saved container is still available.
 - Prefer affected package checks. Run a broader root check once only when the change crosses its surface or `AGENTS.md` explicitly requires it.
 - If an affected package suite is known to exceed the remaining budget or has already timed out, do not repeat it. Run the focused relevant subsets, report the omitted suite, and preserve time to publish and report.
+- If `publish_candidate` reports that a verification check changed command between runs, stop. Existing agent tools cannot repair that verification history. Do not rerun the check or publication; report the verification-state failure.
 - Verification commands must not modify source files. Apply formatting before the final pass, then use a check-only formatter command.
 
 ## Finalization and resume
