@@ -196,6 +196,37 @@ describe("EmDashRuntime.create — cold boot", () => {
 		}
 	});
 
+	it("warns about historical taxonomy locales when the operator manifest is built", async () => {
+		const previousI18nConfig = getI18nConfig();
+		setI18nConfig(null);
+		const sqlite = new Database(":memory:");
+		const setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		await new OptionsRepository(setupDb).set("emdash:setup_complete", true);
+		setI18nConfig({ defaultLocale: "ja", locales: ["ja"] });
+
+		const deps = createDeps();
+		deps.createDialect = () => new SqliteDialect({ database: sqlite });
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const runtime = await EmDashRuntime.create(deps);
+
+		try {
+			expect(warn).not.toHaveBeenCalled();
+			await runtime.getManifest();
+			expect(warn).toHaveBeenCalledWith(
+				expect.stringContaining("Taxonomy rows use locales outside the configured locales (ja)"),
+			);
+			expect(warn).toHaveBeenCalledWith(expect.stringContaining("definitions: en"));
+		} finally {
+			warn.mockRestore();
+			await runtime.stopCron();
+			await setupDb.destroy();
+			setI18nConfig(previousI18nConfig);
+		}
+	});
+
 	it("passes normalized site information to the sandbox runner", async () => {
 		const sqlite = new Database(":memory:");
 		const setupDb = new Kysely<EmDashDatabase>({

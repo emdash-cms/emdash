@@ -19,6 +19,15 @@ import { fetchVisibleTermCounts } from "../../taxonomies/term-counts.js";
 import type { ApiResult } from "../types.js";
 
 const NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
+const MAX_GENERATED_TERM_SLUG_ATTEMPTS = 16;
+
+function isTermSlugUniqueViolation(error: unknown): boolean {
+	const message = error instanceof Error ? error.message.toLowerCase() : "";
+	return (
+		(message.includes("unique constraint failed") || message.includes("duplicate key")) &&
+		message.includes("slug")
+	);
+}
 
 // ---------------------------------------------------------------------------
 // Response types
@@ -106,7 +115,7 @@ export interface TaxonomyDefTranslationsResponse {
 /**
  * Build tree structure from flat terms
  */
-function buildTree(flatTerms: TermWithCount[]): TermWithCount[] {
+function buildTree(flatTerms: TermWithCount[], resolveByGroup = false): TermWithCount[] {
 	// `parentId` holds the parent's translation_group, so resolve links by group.
 	// Key by (locale, group): a child's parent lives in the same locale, and an
 	// unfiltered list mixes locales whose translated siblings share a group —
@@ -114,11 +123,14 @@ function buildTree(flatTerms: TermWithCount[]): TermWithCount[] {
 	const byLocaleGroup = new Map<string, TermWithCount>();
 	const roots: TermWithCount[] = [];
 	for (const term of flatTerms) {
-		byLocaleGroup.set(`${term.locale}::${term.translationGroup ?? term.id}`, term);
+		const key = resolveByGroup
+			? (term.translationGroup ?? term.id)
+			: `${term.locale}::${term.translationGroup ?? term.id}`;
+		byLocaleGroup.set(key, term);
 	}
 	for (const term of flatTerms) {
 		const parent = term.parentId
-			? byLocaleGroup.get(`${term.locale}::${term.parentId}`)
+			? byLocaleGroup.get(resolveByGroup ? term.parentId : `${term.locale}::${term.parentId}`)
 			: undefined;
 		if (parent) {
 			parent.children.push(term);
@@ -317,7 +329,7 @@ export async function handleTaxonomyCreate(
 	},
 ): Promise<ApiResult<TaxonomyResponse>> {
 	try {
-		const locale = input.locale ? resolveConfiguredLocale(input.locale) : undefined;
+		const locale = resolveConfiguredLocale(input.locale ?? getI18nConfig()?.defaultLocale ?? "en");
 		if (!NAME_PATTERN.test(input.name)) {
 			return {
 				success: false,
@@ -353,22 +365,20 @@ export async function handleTaxonomyCreate(
 
 		// Duplicate guard scoped to locale (so the same name can exist in ES
 		// and EN).
-		if (locale !== undefined) {
-			const existing = await db
-				.selectFrom("_emdash_taxonomy_defs")
-				.select("id")
-				.where("name", "=", input.name)
-				.where("locale", "=", locale)
-				.executeTakeFirst();
-			if (existing) {
-				return {
-					success: false,
-					error: {
-						code: "CONFLICT",
-						message: `Taxonomy '${input.name}' already exists in locale '${locale}'`,
-					},
-				};
-			}
+		const existing = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.select("id")
+			.where("name", "=", input.name)
+			.where("locale", "=", locale)
+			.executeTakeFirst();
+		if (existing) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: `Taxonomy '${input.name}' already exists in locale '${locale}'`,
+				},
+			};
 		}
 
 		const id = ulid();
@@ -381,7 +391,7 @@ export async function handleTaxonomyCreate(
 				label_singular: input.labelSingular ?? null,
 				hierarchical: input.hierarchical ? 1 : 0,
 				collections: JSON.stringify(collections),
-				...(locale !== undefined ? { locale } : {}),
+				locale,
 				translation_group: translationGroup ?? id,
 			})
 			.execute();
@@ -582,9 +592,18 @@ export async function handleTaxonomyDefTranslations(
 export async function handleTermList(
 	db: Kysely<Database>,
 	taxonomyName: string,
-	options: { locale?: string; includeCounts?: boolean } = {},
+	options: { locale?: string; includeCounts?: boolean; resolveFallback?: boolean } = {},
 ): Promise<ApiResult<TermListResponse>> {
 	try {
+		if (options.resolveFallback && !options.locale) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: "A locale is required when resolving taxonomy fallbacks",
+				},
+			};
+		}
 		// Definitions are per-locale but terms aren't bound to the def's locale —
 		// use the active definition for its collection scope.
 		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
@@ -592,7 +611,14 @@ export async function handleTermList(
 		if (!lookup.success) return lookup;
 
 		const repo = new TaxonomyRepository(db);
-		const terms = await repo.findByName(taxonomyName, { locale });
+		const terms =
+			options.resolveFallback && locale
+				? await repo.findByNameResolved(
+						taxonomyName,
+						locale,
+						getI18nConfig()?.defaultLocale ?? "en",
+					)
+				: await repo.findByName(taxonomyName, { locale });
 
 		// Counts match what visitors see on the public site: published (or
 		// scheduled-and-due) entries that aren't soft-deleted, scoped to the
@@ -618,7 +644,9 @@ export async function handleTermList(
 		}));
 
 		const isHierarchical = lookup.def.hierarchical === 1;
-		const result = isHierarchical ? buildTree(termData) : termData;
+		const result = isHierarchical
+			? buildTree(termData, options.resolveFallback && !!locale)
+			: termData;
 		return { success: true, data: { terms: result } };
 	} catch (error) {
 		console.error("[taxonomies] term list failed:", error);
@@ -824,7 +852,7 @@ export async function handleTermCreate(
 	db: Kysely<Database>,
 	taxonomyName: string,
 	input: {
-		slug: string;
+		slug?: string;
 		label: string;
 		parentId?: string | null;
 		description?: string;
@@ -832,8 +860,9 @@ export async function handleTermCreate(
 		translationOf?: string;
 	},
 ): Promise<ApiResult<TermResponse>> {
+	let attemptedSlug = input.slug;
 	try {
-		const locale = input.locale ? resolveConfiguredLocale(input.locale) : undefined;
+		const locale = resolveConfiguredLocale(input.locale ?? getI18nConfig()?.defaultLocale ?? "en");
 		// Taxonomy definitions are per-locale, but terms can exist in any locale
 		// regardless of whether the def has been translated there. Look up the
 		// def across all locales — we only care that it *exists*.
@@ -847,15 +876,14 @@ export async function handleTermCreate(
 			input.parentId === "" || input.parentId === undefined ? undefined : input.parentId;
 
 		// Conflict check is scoped to locale (per-locale slugs are unique).
-		const existing = await repo.findBySlug(taxonomyName, input.slug, locale);
+		const existing =
+			input.slug === undefined ? null : await repo.findBySlug(taxonomyName, input.slug, locale);
 		if (existing) {
 			return {
 				success: false,
 				error: {
 					code: "CONFLICT",
-					message: locale
-						? `Term '${input.slug}' already exists in '${taxonomyName}' (${locale})`
-						: `Term with slug '${input.slug}' already exists in taxonomy '${taxonomyName}'`,
+					message: `Term '${input.slug}' already exists in '${taxonomyName}' (${locale})`,
 				},
 			};
 		}
@@ -887,15 +915,33 @@ export async function handleTermCreate(
 			return { success: false, error: parentError };
 		}
 
-		const term = await repo.create({
-			name: taxonomyName,
-			slug: input.slug,
-			label: input.label,
-			parentId: parentId ?? undefined,
-			data: input.description ? { description: input.description } : undefined,
-			locale,
-			translationOf: input.translationOf,
-		});
+		const create = (slug: string) =>
+			repo.create({
+				name: taxonomyName,
+				slug,
+				label: input.label,
+				parentId: parentId ?? undefined,
+				data: input.description ? { description: input.description } : undefined,
+				locale,
+				translationOf: input.translationOf,
+			});
+		let term: Awaited<ReturnType<typeof create>> | undefined;
+		let lastSlugConflict: unknown;
+		if (input.slug !== undefined) {
+			term = await create(input.slug);
+		} else {
+			for (let attempt = 0; attempt < MAX_GENERATED_TERM_SLUG_ATTEMPTS; attempt++) {
+				attemptedSlug = await repo.generateUniqueSlug(taxonomyName, input.label, locale);
+				try {
+					term = await create(attemptedSlug);
+					break;
+				} catch (error) {
+					if (!isTermSlugUniqueViolation(error)) throw error;
+					lastSlugConflict = error;
+				}
+			}
+		}
+		if (!term) throw lastSlugConflict ?? new Error("Failed to create taxonomy term");
 
 		invalidateTermCache();
 
@@ -915,7 +961,16 @@ export async function handleTermCreate(
 				},
 			},
 		};
-	} catch {
+	} catch (error) {
+		if (isTermSlugUniqueViolation(error)) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: `Term with slug '${attemptedSlug ?? "(generated)"}' already exists in taxonomy '${taxonomyName}'`,
+				},
+			};
+		}
 		return {
 			success: false,
 			error: { code: "TERM_CREATE_ERROR", message: "Failed to create term" },

@@ -61,6 +61,7 @@ function makeCollection(
 		supports: ["drafts"],
 		fields: [],
 		hasSeo: false,
+		routable: true,
 		commentsEnabled: false,
 		commentsModeration: "first_time",
 		commentsClosedAfterDays: 90,
@@ -116,7 +117,7 @@ describe("ContentTypeEditor", () => {
 		await labelInput.fill("Blog Posts");
 
 		// The slug input should auto-populate from the label
-		const slugInput = screen.getByLabelText("Slug");
+		const slugInput = screen.getByLabelText("Slug", { exact: true });
 		await expect.element(slugInput).toHaveValue("blog_posts");
 	});
 
@@ -127,7 +128,7 @@ describe("ContentTypeEditor", () => {
 		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
 
 		// Slug input is only rendered when isNew, so it shouldn't exist
-		const slugInput = screen.getByLabelText("Slug");
+		const slugInput = screen.getByLabelText("Slug", { exact: true });
 		await expect.element(slugInput).not.toBeInTheDocument();
 	});
 
@@ -195,6 +196,7 @@ describe("ContentTypeEditor", () => {
 			labelSingular: "Article",
 			description: undefined,
 			urlPattern: undefined,
+			routable: true,
 			supports: ["drafts", "revisions"], // default
 			hasSeo: false,
 		});
@@ -217,6 +219,7 @@ describe("ContentTypeEditor", () => {
 			labelSingular: "Post",
 			description: "Blog posts",
 			urlPattern: undefined,
+			routable: true,
 			supports: ["drafts"],
 			hasSeo: false,
 			commentsEnabled: false,
@@ -507,6 +510,19 @@ describe("ContentTypeEditor", () => {
 		await saveButton.click();
 
 		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ urlPattern: "/blog/{slug}" }));
+	});
+
+	it("saves whether the collection is routable", async () => {
+		const onSave = vi.fn();
+		const collection = makeCollection({ routable: true });
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
+
+		await screen.getByLabelText("Routable").click();
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ routable: false }));
 	});
 
 	it("shows validation error when pattern lacks {slug}", async () => {

@@ -104,6 +104,56 @@ objectCache: memoryCache();
 
 See [Object Cache](/deployment/object-cache/) for setup and options.
 
+### `middleware.outer`
+
+**Optional.** Registers an Astro middleware module outside the complete EmDash middleware stack. Because the integration registers it with Astro `order: "pre"`, it also runs before middleware defined in `src/middleware.ts`. Use it for request gates or full-response caches that must avoid runtime and database initialization on a hit, or for response headers that depend on EmDash's final HTML.
+
+```js title="astro.config.mjs"
+emdash({
+	middleware: {
+		outer: "./src/outer-middleware.ts",
+	},
+});
+```
+
+The execution order is:
+
+1. The outer middleware runs up to `await next()`.
+2. EmDash initializes its runtime and database, then runs setup, authentication, and request-context middleware.
+3. The Astro route renders.
+4. EmDash applies response mutations, including visual-editing HTML and security/timing headers.
+5. `next()` resolves to the outer middleware with that final response.
+
+Before calling `next()`, the middleware has the normal Astro request and platform execution context, but `locals.emdash`, `locals.user`, the database, and request-scoped EmDash state are unavailable. An early `Response` skips EmDash entirely, so it must include any security and cache headers it needs. After `next()` resolves, it is safe to finalize CSP nonces, cache the complete body, or set `Content-Length`. If the middleware changes the body, remove or recompute any existing `Content-Length` header.
+
+The hook uses Astro's middleware API on both Node and Cloudflare. This minimal Cloudflare Cache API example caches only anonymous HTML responses and returns hits before EmDash initialization:
+
+```ts title="src/outer-middleware.ts"
+import { waitUntil } from "cloudflare:workers";
+import { defineMiddleware } from "astro:middleware";
+
+export const onRequest = defineMiddleware(async ({ request }, next) => {
+	if (request.method !== "GET" || request.headers.has("cookie")) {
+		return next();
+	}
+
+	const cacheKey = new Request(request.url, { method: "GET" });
+	const cached = await caches.default.match(cacheKey);
+	if (cached) return cached;
+
+	const response = await next();
+	const isHtml = response.headers.get("content-type")?.includes("text/html");
+	const isPrivate = response.headers.get("cache-control")?.includes("no-store");
+	if (response.ok && isHtml && !isPrivate) {
+		waitUntil(caches.default.put(cacheKey, response.clone()));
+	}
+
+	return response;
+});
+```
+
+On Node, use the same middleware shape with a Node-compatible cache such as Redis. Cache keys and bypass rules must include every request property that changes the rendered response.
+
 ### `plugins`
 
 **Optional.** Array of EmDash plugins. The following example registers one plugin:

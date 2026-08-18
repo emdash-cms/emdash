@@ -165,6 +165,7 @@ export async function searchWithDb(
 			},
 			config.weights,
 			titleColumns.has(collection),
+			config.titleField,
 		);
 
 		allResults.push(...collectionResults);
@@ -223,6 +224,8 @@ export async function searchCollection(
 		query,
 		{ status: options.status, locale: options.locale, limit: offset + limit + 1 },
 		config.weights,
+		undefined,
+		config.titleField,
 	);
 
 	const items = fetched.slice(offset, offset + limit);
@@ -242,6 +245,7 @@ async function searchSingleCollection(
 	options: CollectionSearchOptions,
 	weights?: Record<string, number>,
 	hasTitle?: boolean,
+	titleField?: string,
 ): Promise<SearchResult[]> {
 	// Validate before any raw SQL interpolation
 	validateIdentifier(collection, "collection slug");
@@ -269,11 +273,20 @@ async function searchSingleCollection(
 
 	// `title` is an optional user-defined field, not a system column. Only
 	// select it when the collection actually has one; otherwise the query
-	// errors with "no such column: c.title" (#1178). Multi-collection callers
+	// errors with "no such column: c.title". Multi-collection callers
 	// precompute this in bulk and pass it in; single-collection callers fall
 	// back to the per-collection check.
-	const collectionHasTitle = hasTitle ?? (await ftsManager.hasTitleColumn(collection));
-	const titleExpr = collectionHasTitle ? sql`c.title` : sql`NULL`;
+	// A configured titleField drives the result title so search shows
+	// the same value as the content list. It's a validated existing field, so
+	// the column exists; otherwise fall back to the optional `title` column.
+	let titleExpr;
+	if (titleField) {
+		validateIdentifier(titleField, "title field");
+		titleExpr = sql`c.${sql.ref(titleField)}`;
+	} else {
+		const collectionHasTitle = hasTitle ?? (await ftsManager.hasTitleColumn(collection));
+		titleExpr = collectionHasTitle ? sql`c.title` : sql`NULL`;
+	}
 
 	// Build weight string for bm25 if weights provided
 	// Format: bm25(table, weight1, weight2, ...)
@@ -420,11 +433,19 @@ export async function getSuggestions(
 			continue;
 		}
 
-		// Suggestions are title-based (Suggestion.title is required and the
-		// query filters on `c.title IS NOT NULL`). Collections without a
-		// `title` field can't produce one, and selecting `c.title` would
-		// error, so skip them. See #1178.
-		if (!titleColumns.has(collection)) {
+		// Suggestions are title-based (Suggestion.title is required). A configured
+		// titleField supplies it -- a validated existing column -- so it
+		// takes precedence and keeps autocomplete consistent with search results.
+		// Otherwise fall back to the optional `title` field; collections with
+		// neither can't produce a suggestion and are skipped (selecting a missing
+		// column would error).
+		let titleExpr;
+		if (config.titleField) {
+			validateIdentifier(config.titleField, "title field");
+			titleExpr = sql`c.${sql.ref(config.titleField)}`;
+		} else if (titleColumns.has(collection)) {
+			titleExpr = sql`c.title`;
+		} else {
 			continue;
 		}
 
@@ -448,16 +469,16 @@ export async function getSuggestions(
 				slug: string | null;
 				title: string;
 			}>`
-				SELECT 
+				SELECT
 					c.id,
 					c.slug,
-					c.title
+					${titleExpr} AS title
 				FROM "${sql.raw(ftsTable)}" f
 				JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
 				WHERE "${sql.raw(ftsTable)}" MATCH ${prefixQuery}
 				AND c.status = 'published'
 				AND c.deleted_at IS NULL
-				AND c.title IS NOT NULL
+				AND ${titleExpr} IS NOT NULL
 				${locale ? sql`AND c.locale = ${locale}` : sql``}
 				ORDER BY bm25("${sql.raw(ftsTable)}")
 				LIMIT ${limit}

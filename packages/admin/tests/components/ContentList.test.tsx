@@ -1,8 +1,14 @@
+import { i18n } from "@lingui/core";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { ContentList } from "../../src/components/ContentList";
 import type { ContentItem, TrashedContentItem } from "../../src/lib/api";
+import type {
+	ContentListColumnCellContext,
+	ContentListColumnExtension,
+} from "../../src/lib/content-list-columns.js";
+import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context.js";
 import { render } from "../utils/render.tsx";
 
 const NO_RESULTS_PATTERN = /No results for/;
@@ -774,6 +780,327 @@ describe("ContentList", () => {
 				.element(screen.getByRole("columnheader", { name: "Priority" }))
 				.toBeInTheDocument();
 			expect(screen.getByRole("button", { name: "Priority" }).query()).toBeNull();
+		});
+	});
+
+	describe("trusted plugin columns", () => {
+		function listWithColumns(
+			columns: readonly ContentListColumnExtension[],
+			props: Partial<React.ComponentProps<typeof ContentList>> = {},
+		) {
+			const pluginAdmins: PluginAdmins = {
+				"editorial-workflow": { contentListColumns: columns },
+			};
+			return (
+				<PluginAdminProvider pluginAdmins={pluginAdmins}>
+					<ContentList
+						{...defaultProps}
+						items={[makeItem({ data: { title: "Plugin Post", reviewStatus: "Needs review" } })]}
+						pluginStates={{ "editorial-workflow": { enabled: true } }}
+						{...props}
+					/>
+				</PluginAdminProvider>
+			);
+		}
+
+		function renderWithColumns(
+			columns: readonly ContentListColumnExtension[],
+			props: Partial<React.ComponentProps<typeof ContentList>> = {},
+		) {
+			return render(listWithColumns(columns, props));
+		}
+
+		it("renders contributed headers and cells inside the host table", async () => {
+			function ReviewStatusCell({ item }: { item: ContentItem }) {
+				return <span>{String(item.data.reviewStatus)}</span>;
+			}
+
+			const screen = await renderWithColumns([
+				{
+					id: "review-status",
+					label: "Review status",
+					cell: ReviewStatusCell,
+				},
+			]);
+
+			await expect
+				.element(screen.getByRole("columnheader", { name: "Review status" }))
+				.toBeVisible();
+			await expect.element(screen.getByText("Needs review")).toBeVisible();
+			await expect.element(screen.getByText("Plugin Post")).toBeVisible();
+		});
+
+		it("updates contributed header labels when the shared catalog changes", async () => {
+			const previousLocale = i18n.locale;
+			const translatedLabel = "حالة المراجعة";
+
+			try {
+				const screen = await renderWithColumns([
+					{ id: "review-status", label: "Review status", cell: () => null },
+				]);
+				await expect
+					.element(screen.getByRole("columnheader", { name: "Review status" }))
+					.toBeVisible();
+
+				i18n.load("ar", { "Review status": translatedLabel });
+				i18n.activate("ar");
+
+				await expect
+					.element(screen.getByRole("columnheader", { name: translatedLabel }))
+					.toBeVisible();
+				await expect.element(screen.getByText(translatedLabel)).toBeVisible();
+			} finally {
+				i18n.activate(previousLocale);
+			}
+		});
+
+		it("localizes a contributed header's render fallback", async () => {
+			const previousLocale = i18n.locale;
+			const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+			const translatedLabel = "حالة المراجعة";
+			i18n.load("ar", { "Review status": translatedLabel });
+			i18n.activate("ar");
+
+			function BrokenHeader(): React.ReactNode {
+				throw new Error("render failed");
+			}
+
+			try {
+				const screen = await renderWithColumns([
+					{
+						id: "review-status",
+						label: "Review status",
+						header: BrokenHeader,
+						cell: () => null,
+					},
+				]);
+
+				await expect.element(screen.getByText(translatedLabel)).toBeVisible();
+			} finally {
+				i18n.activate(previousLocale);
+				error.mockRestore();
+			}
+		});
+
+		it("passes the current visible page to contributed cells", async () => {
+			const pages: string[][] = [];
+			const items = Array.from({ length: 21 }, (_, index) =>
+				makeItem({
+					id: `item-${index}`,
+					data: { title: `Post ${index + 1}` },
+				}),
+			);
+			function PageCell({ item, visibleItems }: ContentListColumnCellContext) {
+				if (item.id === "item-0" || item.id === "item-20") {
+					pages.push(visibleItems.map((visibleItem) => visibleItem.id));
+				}
+				return null;
+			}
+
+			const screen = await renderWithColumns(
+				[{ id: "page", label: "Page context", cell: PageCell }],
+				{ items },
+			);
+
+			expect(pages).toContainEqual(items.slice(0, 20).map((item) => item.id));
+			await screen.getByRole("button", { name: "Next page" }).click();
+			await expect.element(screen.getByText("Post 21")).toBeVisible();
+			expect(pages).toContainEqual(["item-20"]);
+		});
+
+		it("preserves contributed cell state when an existing row updates", async () => {
+			let mounts = 0;
+			function StatefulCell({ item }: ContentListColumnCellContext) {
+				const [mount] = React.useState(() => ++mounts);
+				return (
+					<span>
+						{String(item.data.title)}:mount-{mount}
+					</span>
+				);
+			}
+			const columns = [{ id: "stateful", label: "Stateful", cell: StatefulCell }] as const;
+			const screen = await renderWithColumns(columns, {
+				items: [
+					makeItem({
+						id: "item-1",
+						updatedAt: "2025-01-02T00:00:00Z",
+						data: { title: "Before update" },
+					}),
+				],
+			});
+
+			await expect.element(screen.getByText("Before update:mount-1")).toBeVisible();
+			await screen.rerender(
+				listWithColumns(columns, {
+					items: [
+						makeItem({
+							id: "item-1",
+							updatedAt: "2025-01-03T00:00:00Z",
+							data: { title: "After update" },
+						}),
+					],
+				}),
+			);
+
+			await expect.element(screen.getByText("After update:mount-1")).toBeVisible();
+			expect(mounts).toBe(1);
+		});
+
+		it("retries a failed cell when an existing row updates", async () => {
+			const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+			let shouldThrow = true;
+			function FlakyCell({ item }: ContentListColumnCellContext) {
+				if (shouldThrow) throw new Error("render failed");
+				return <span data-testid="flaky-cell">{String(item.data.title)}</span>;
+			}
+			const columns = [{ id: "flaky", label: "Flaky", cell: FlakyCell }] as const;
+			const screen = await renderWithColumns(columns, {
+				items: [
+					makeItem({
+						id: "item-1",
+						updatedAt: "2025-01-02T00:00:00Z",
+						data: { title: "Before update" },
+					}),
+				],
+			});
+
+			await expect.element(screen.getByText("Plugin column unavailable")).toBeInTheDocument();
+			shouldThrow = false;
+			await screen.rerender(
+				listWithColumns(columns, {
+					items: [
+						makeItem({
+							id: "item-1",
+							updatedAt: "2025-01-03T00:00:00Z",
+							data: { title: "After update" },
+						}),
+					],
+				}),
+			);
+
+			await expect.element(screen.getByTestId("flaky-cell")).toHaveTextContent("After update");
+			error.mockRestore();
+		});
+
+		it("keeps configured and plugin columns aligned in rows and empty states", async () => {
+			function ReviewStatusCell({ item }: { item: ContentItem }) {
+				return <span>{String(item.data.reviewStatus)}</span>;
+			}
+			const columns = [
+				{
+					id: "review-status",
+					label: "Review status",
+					cell: ReviewStatusCell,
+				},
+			] as const;
+			const listColumns = [{ slug: "ticket_number", label: "Ticket", kind: "string" }];
+			const screen = await renderWithColumns(columns, {
+				items: [
+					makeItem({
+						data: {
+							title: "Plugin Post",
+							ticket_number: "SUP-1042",
+							reviewStatus: "Needs review",
+						},
+					}),
+				],
+				listColumns,
+			});
+
+			await expect.element(screen.getByRole("columnheader", { name: "Ticket" })).toBeVisible();
+			await expect
+				.element(screen.getByRole("columnheader", { name: "Review status" }))
+				.toBeVisible();
+			await expect.element(screen.getByText("SUP-1042")).toBeVisible();
+			await expect.element(screen.getByText("Needs review")).toBeVisible();
+
+			await screen.rerender(listWithColumns(columns, { items: [], isLoading: true, listColumns }));
+			await expect
+				.element(screen.getByRole("cell", { name: "Loading..." }))
+				.toHaveAttribute("colspan", "6");
+		});
+
+		it("isolates broken headers and cells while healthy columns and core rows remain", async () => {
+			const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+			function Broken(): React.ReactNode {
+				throw new Error("render failed");
+			}
+			function HealthyCell() {
+				return <span>Healthy value</span>;
+			}
+
+			const screen = await renderWithColumns([
+				{ id: "broken", label: "Broken fallback", header: Broken, cell: Broken },
+				{ id: "healthy", label: "Healthy", cell: HealthyCell },
+			]);
+
+			await expect.element(screen.getByText("Broken fallback")).toBeVisible();
+			const unavailableCell = screen.getByRole("cell", {
+				name: "Plugin column unavailable",
+			});
+			await expect.element(unavailableCell).toHaveTextContent("-");
+			const visualFallback = unavailableCell.element().querySelector('[aria-hidden="true"]');
+			expect(visualFallback).toHaveTextContent("-");
+			await expect.element(screen.getByText("Healthy value")).toBeVisible();
+			await expect.element(screen.getByText("Plugin Post")).toBeVisible();
+			expect(error).toHaveBeenCalled();
+			error.mockRestore();
+		});
+
+		it("retries a failed cell when the row locale changes", async () => {
+			const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+			let shouldThrow = true;
+			function LocaleCell({ item }: { item: ContentItem }) {
+				if (shouldThrow) throw new Error("render failed");
+				return <span>{item.locale}</span>;
+			}
+			const columns = [{ id: "locale", label: "Locale", cell: LocaleCell }] as const;
+			const screen = await renderWithColumns(columns, {
+				items: [makeItem({ locale: "en" })],
+			});
+
+			await expect.element(screen.getByText("Plugin column unavailable")).toBeInTheDocument();
+			shouldThrow = false;
+			await screen.rerender(listWithColumns(columns, { items: [makeItem({ locale: "fr" })] }));
+
+			await expect.element(screen.getByText("fr")).toBeVisible();
+			error.mockRestore();
+		});
+
+		it("extends loading and empty-state colspans", async () => {
+			function Cell(): React.ReactNode {
+				return null;
+			}
+			const screen = await renderWithColumns(
+				[{ id: "review-status", label: "Review status", cell: Cell }],
+				{
+					items: [],
+					isLoading: true,
+				},
+			);
+
+			await expect
+				.element(screen.getByRole("cell", { name: "Loading..." }))
+				.toHaveAttribute("colspan", "5");
+		});
+
+		it("does not render contributed columns in Trash", async () => {
+			function Cell() {
+				return <span>Plugin value</span>;
+			}
+			const screen = await renderWithColumns(
+				[{ id: "review-status", label: "Review status", cell: Cell }],
+				{
+					trashedItems: [makeTrashedItem({ data: { title: "Deleted" } })],
+				},
+			);
+
+			await screen.getByText("Trash").click();
+			await expect
+				.element(screen.getByRole("cell", { name: "Deleted", exact: true }))
+				.toBeVisible();
+			expect(screen.getByRole("columnheader", { name: "Review status" }).query()).toBeNull();
+			expect(screen.getByText("Plugin value").query()).toBeNull();
 		});
 	});
 });

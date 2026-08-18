@@ -6,6 +6,7 @@ import {
 	createGitCommit,
 	createGitTree,
 	getGitCommit,
+	getIssueComments,
 	updateBranch,
 } from "../../.flue/lib/github.js";
 
@@ -95,5 +96,58 @@ describe("GitHub Git Data requests", () => {
 			sha: "next-sha",
 			force: false,
 		});
+	});
+});
+
+describe("GitHub issue context requests", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	test("reads the newest page of comments since the stored diagnosis", async () => {
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(
+				new Response("[]", {
+					headers: {
+						link: '<https://api.github.com/repositories/1/issues/42/comments?per_page=100&page=3>; rel="last"',
+					},
+				}),
+			)
+			.mockResolvedValueOnce(
+				jsonResponse([
+					{
+						id: 99,
+						body: "A useful follow-up",
+						author_association: "MEMBER",
+						created_at: "2026-08-17T11:00:00.000Z",
+						user: { login: "alice", type: "User" },
+					},
+				]),
+			);
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(
+			getIssueComments("token", repo, 42, { since: "2026-08-17T10:00:00.000Z" }),
+		).resolves.toEqual([
+			{
+				id: 99,
+				body: "A useful follow-up",
+				authorLogin: "alice",
+				authorAssociation: "MEMBER",
+				authorType: "User",
+				createdAt: "2026-08-17T11:00:00.000Z",
+			},
+		]);
+		expect(fetchMock.mock.calls[1]?.[0]).toContain("page=3");
+		expect(fetchMock.mock.calls[1]?.[0]).toContain("since=2026-08-17T10%3A00%3A00.000Z");
+	});
+
+	test("uses the issue comment count to request only the bounded recent page", async () => {
+		const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse([]));
+		vi.stubGlobal("fetch", fetchMock);
+
+		await getIssueComments("token", repo, 42, { commentCount: 250 });
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		expect(fetchMock.mock.calls[0]?.[0]).toContain("page=3");
 	});
 });

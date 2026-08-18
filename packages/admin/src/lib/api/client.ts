@@ -93,6 +93,9 @@ export interface AdminManifest {
 			supports: string[];
 			hasSeo: boolean;
 			urlPattern?: string;
+			routable?: boolean;
+			titleField?: string;
+			dateField?: string;
 			hidden?: boolean;
 			listColumns?: string[];
 			fields: Record<
@@ -176,6 +179,11 @@ export interface AdminManifest {
 	i18n?: {
 		defaultLocale: string;
 		locales: string[];
+	};
+	/** Stored-content locale policy, independent from the admin UI language. */
+	contentLocale?: {
+		defaultLocale: string;
+		implicit: boolean;
 	};
 	/**
 	 * Taxonomy definitions for the admin sidebar.

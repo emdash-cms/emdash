@@ -16,6 +16,8 @@ export interface SearchConfig {
 	enabled: boolean;
 	/** Field weights for ranking (higher = more important) */
 	weights?: Record<string, number>;
+	/** Field slug used as the result title, from the collection's titleField. */
+	titleField?: string;
 	/** FTS5 tokenizer configuration (defaults to English Porter stemming) */
 	tokenize?: SearchTokenizer;
 }

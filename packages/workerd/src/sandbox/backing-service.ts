@@ -16,6 +16,8 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import { getI18nConfig } from "emdash";
+
 import { createBridgeHandler } from "./bridge-handler.js";
 import type { WorkerdSandboxRunner } from "./runner.js";
 
@@ -70,6 +72,7 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 					allowedHosts: claims.allowedHosts,
 					storageCollections: claims.storageCollections,
 					storageConfig: runner.getPluginStorageConfig(claims.pluginId, claims.version),
+					i18nConfig: getI18nConfig(),
 					db: runner.db,
 					beforeContentWrite: runner.beforeContentWrite,
 					emailSend: () => runner.emailSend,

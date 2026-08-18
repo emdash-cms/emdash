@@ -479,6 +479,21 @@ export interface EmDashConfig {
 	trustedProxyHeaders?: string[];
 
 	/**
+	 * User middleware that wraps the complete EmDash request pipeline.
+	 *
+	 * Before `next()` it runs before EmDash initializes its runtime or database,
+	 * so `locals.emdash`, the authenticated user, and request-scoped EmDash state
+	 * are unavailable. This allows cached responses and request gates to return
+	 * without paying initialization cost. When it calls `next()`, the resolved
+	 * response includes EmDash HTML injection and all other response mutations,
+	 * allowing the middleware to finalize caching and response headers safely.
+	 */
+	middleware?: {
+		/** Astro middleware module entrypoint. */
+		outer: string | URL;
+	};
+
+	/**
 	 * Enable playground mode for ephemeral "try EmDash" sites.
 	 *
 	 * When set, the integration injects a playground middleware (order: "pre")

@@ -494,7 +494,6 @@ export function createViteConfig(
 							"emdash > @unpic/placeholder",
 							"emdash > blurhash",
 							"emdash > croner",
-							"emdash > image-size",
 							"emdash > jose",
 							"emdash > jpeg-js",
 							"emdash > kysely",
