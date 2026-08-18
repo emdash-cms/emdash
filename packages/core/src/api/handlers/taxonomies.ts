@@ -141,19 +141,41 @@ function buildTree(flatTerms: TermWithCount[], resolveByGroup = false): TermWith
 	return roots;
 }
 
-/**
- * Look up a taxonomy definition by name, preferring the requested locale and
- * then the configured default. Incomplete translation groups fall back to the
- * lowest locale/id so their terms remain usable.
- */
+type TaxonomyDefLookup =
+	| { success: true; def: Selectable<TaxonomyDefTable> }
+	| { success: false; error: { code: string; message: string } };
+
+function taxonomyDefNotFound(name: string, locale?: string): TaxonomyDefLookup {
+	return {
+		success: false,
+		error: {
+			code: "NOT_FOUND",
+			message: `Taxonomy '${name}' not found${locale !== undefined ? ` in locale '${locale}'` : ""}`,
+		},
+	};
+}
+
+/** Look up the exact definition addressed by a mutation. */
 async function requireTaxonomyDef(
 	db: Kysely<Database>,
 	name: string,
 	locale?: string,
-): Promise<
-	| { success: true; def: Selectable<TaxonomyDefTable> }
-	| { success: false; error: { code: string; message: string } }
-> {
+): Promise<TaxonomyDefLookup> {
+	let query = db.selectFrom("_emdash_taxonomy_defs").selectAll().where("name", "=", name);
+	if (locale !== undefined) query = query.where("locale", "=", locale);
+	const def = await query.orderBy("locale", "asc").orderBy("id", "asc").executeTakeFirst();
+	return def ? { success: true, def } : taxonomyDefNotFound(name, locale);
+}
+
+/**
+ * Prefer the requested locale, then the configured default. Incomplete
+ * translation groups fall back deterministically so their terms remain usable.
+ */
+async function requireTaxonomyDefWithFallback(
+	db: Kysely<Database>,
+	name: string,
+	locale?: string,
+): Promise<TaxonomyDefLookup> {
 	const defs = await db
 		.selectFrom("_emdash_taxonomy_defs")
 		.selectAll()
@@ -166,16 +188,7 @@ async function requireTaxonomyDef(
 		(locale ? defs.find((candidate) => candidate.locale === locale) : undefined) ??
 		(defaultLocale ? defs.find((candidate) => candidate.locale === defaultLocale) : undefined) ??
 		defs[0];
-	if (!def) {
-		return {
-			success: false,
-			error: {
-				code: "NOT_FOUND",
-				message: `Taxonomy '${name}' not found${locale !== undefined ? ` in locale '${locale}'` : ""}`,
-			},
-		};
-	}
-	return { success: true, def };
+	return def ? { success: true, def } : taxonomyDefNotFound(name, locale);
 }
 
 /** The subset of `slugs` that still has a row in `_emdash_collections`. */
@@ -301,7 +314,7 @@ export async function handleTaxonomyGet(
 ): Promise<ApiResult<TaxonomyResponse>> {
 	try {
 		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
-		const lookup = await requireTaxonomyDef(db, name, locale);
+		const lookup = await requireTaxonomyDefWithFallback(db, name, locale);
 		if (!lookup.success) return lookup;
 
 		return { success: true, data: await toTaxonomyResponse(db, lookup.def) };
@@ -607,7 +620,7 @@ export async function handleTermList(
 		// Definitions are per-locale but terms aren't bound to the def's locale —
 		// use the active definition for its collection scope.
 		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
-		const lookup = await requireTaxonomyDef(db, taxonomyName, locale);
+		const lookup = await requireTaxonomyDefWithFallback(db, taxonomyName, locale);
 		if (!lookup.success) return lookup;
 
 		const repo = new TaxonomyRepository(db);
@@ -1006,7 +1019,7 @@ export async function handleTermGet(
 		// soft-deleted) scoped to the def's declared collections. The def lookup
 		// falls back for incomplete translations; a term with no def at all still
 		// resolves with count 0.
-		const lookup = await requireTaxonomyDef(db, taxonomyName, locale);
+		const lookup = await requireTaxonomyDefWithFallback(db, taxonomyName, locale);
 		const counts = await fetchVisibleTermCounts(
 			db,
 			taxonomyName,

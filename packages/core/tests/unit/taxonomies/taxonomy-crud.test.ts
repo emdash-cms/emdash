@@ -256,6 +256,22 @@ describeEachDialect("single-taxonomy CRUD", (dialect) => {
 			expect(english.success && english.data.taxonomy.label).toBe("Genres");
 		});
 
+		it("does not fall back when the addressed locale has no definition", async () => {
+			setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+
+			const result = await handleTaxonomyUpdate(db, "genre", {
+				label: "Genres français",
+				locale: "fr",
+			});
+
+			expect(result.success).toBe(false);
+			if (result.success) return;
+			expect(result.error.code).toBe("NOT_FOUND");
+
+			const english = await handleTaxonomyGet(db, "genre", { locale: "en" });
+			expect(english.success && english.data.taxonomy.label).toBe("Genres");
+		});
+
 		it("reports NOT_FOUND for an unknown name", async () => {
 			const result = await handleTaxonomyUpdate(db, "nope", { label: "x" });
 
