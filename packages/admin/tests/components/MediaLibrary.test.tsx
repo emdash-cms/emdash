@@ -15,6 +15,20 @@ const UPLOAD_CTA_PATTERN = /Upload images, videos, and documents to keep reusabl
 const UPLOAD_TO_LIBRARY_PATTERN = /Upload to Library/;
 const UPLOAD_FILES_PATTERN = /Upload Files/;
 
+function setInputFiles(input: HTMLInputElement, files: File[]) {
+	const transfer = new DataTransfer();
+	for (const file of files) transfer.items.add(file);
+	input.files = transfer.files;
+	input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function dropFiles(target: EventTarget, files: File[]) {
+	const transfer = new DataTransfer();
+	for (const file of files) transfer.items.add(file);
+	target.dispatchEvent(new DragEvent("dragenter", { dataTransfer: transfer, bubbles: true }));
+	target.dispatchEvent(new DragEvent("drop", { dataTransfer: transfer, bubbles: true }));
+}
+
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
 	return {
@@ -120,6 +134,80 @@ describe("MediaLibrary", () => {
 			// Hidden file input should exist
 			const fileInput = screen.getByLabelText("Upload files");
 			await expect.element(fileInput).toBeInTheDocument();
+		});
+
+		it("opens the upload dialog and caps parallel uploads at three", async () => {
+			const pending: Array<{ file: File; resolve: () => void }> = [];
+			const onUpload = vi.fn(
+				(file: File, _options?: { signal?: AbortSignal }) =>
+					new Promise<void>((resolve) => {
+						pending.push({ file, resolve });
+					}),
+			);
+			const screen = await renderLibrary({ onUpload });
+			const files = ["one.jpg", "two.jpg", "three.jpg", "four.jpg"].map(
+				(name) => new File([name], name, { type: "image/jpeg" }),
+			);
+
+			setInputFiles(screen.getByLabelText("Upload files").element() as HTMLInputElement, files);
+
+			await vi.waitFor(() => expect(onUpload).toHaveBeenCalledTimes(3));
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
+			await expect.element(screen.getByText("Queued", { exact: true })).toBeInTheDocument();
+
+			const firstSignal = onUpload.mock.calls[0]?.[1]?.signal;
+			screen.getByRole("button", { name: "Cancel one.jpg" }).element().click();
+			expect(firstSignal?.aborted).toBe(true);
+			await vi.waitFor(() => expect(onUpload).toHaveBeenCalledTimes(4));
+			pending.forEach(({ resolve }) => resolve());
+		});
+
+		it("clears the page overlay when a file drag leaves the window", async () => {
+			const screen = await renderLibrary();
+			const transfer = new DataTransfer();
+			transfer.items.add(new File(["image"], "dragged.jpg", { type: "image/jpeg" }));
+			window.dispatchEvent(new DragEvent("dragenter", { dataTransfer: transfer, bubbles: true }));
+			await expect.element(screen.getByText("Drop files to upload")).toBeInTheDocument();
+
+			window.dispatchEvent(new DragEvent("dragleave", { relatedTarget: null, bubbles: true }));
+
+			await vi.waitFor(() => expect(screen.getByText("Drop files to upload").query()).toBeNull());
+		});
+
+		it("opens the same direct-upload dialog for files dropped on the page", async () => {
+			const onUpload = vi.fn().mockResolvedValue(undefined);
+			const screen = await renderLibrary({ onUpload });
+			const files = [
+				new File(["image"], "dropped.jpg", { type: "image/jpeg" }),
+				new File(["pdf"], "notes.pdf", { type: "application/pdf" }),
+			];
+
+			dropFiles(window, files);
+
+			await vi.waitFor(() => expect(onUpload).toHaveBeenCalledTimes(2));
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
+		});
+
+		it("retries one failed file without restarting completed files", async () => {
+			const onUpload = vi
+				.fn<(file: File) => Promise<void>>()
+				.mockRejectedValueOnce(new Error("network"))
+				.mockResolvedValue(undefined);
+			const screen = await renderLibrary({ onUpload });
+
+			setInputFiles(screen.getByLabelText("Upload files").element() as HTMLInputElement, [
+				new File(["broken"], "broken.jpg", { type: "image/jpeg" }),
+			]);
+
+			await expect.element(screen.getByText("Upload failed", { exact: true })).toBeInTheDocument();
+			screen.getByRole("button", { name: "Retry broken.jpg" }).element().click();
+
+			await vi.waitFor(() => expect(onUpload).toHaveBeenCalledTimes(2));
+			await expect.element(screen.getByText("Complete", { exact: true })).toBeInTheDocument();
 		});
 	});
 
