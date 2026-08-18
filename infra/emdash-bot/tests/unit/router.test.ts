@@ -121,6 +121,36 @@ describe("router", () => {
 		expect(decision.action).toBe("investigate.resume");
 	});
 
+	test.each([
+		{ retryMode: "implement", to: "fixing", action: "investigate.implement" },
+		{ retryMode: "fix", to: "fixing", action: "investigate.fix" },
+		{ retryMode: "revise", to: "working", action: "investigate.revise" },
+	] as const)("failed retry preserves $retryMode mode", ({ retryMode, to, action }) => {
+		const decision = resolve({
+			labels: ["bot:bug", "bot:failed"],
+			event: "retry",
+			actor: "maintainer",
+			retryMode,
+		});
+
+		assertTransition(decision);
+		expect(decision.to).toBe(to);
+		expect(decision.action).toBe(action);
+	});
+
+	test("failed retry keeps the repro fallback for read modes", () => {
+		const decision = resolve({
+			labels: ["bot:bug", "bot:failed"],
+			event: "retry",
+			actor: "maintainer",
+			retryMode: "repro",
+		});
+
+		assertTransition(decision);
+		expect(decision.to).toBe("working");
+		expect(decision.action).toBe("investigate.repro");
+	});
+
 	test("isDestructive flags decline and take_over only", () => {
 		expect(isDestructive("decline")).toBe(true);
 		expect(isDestructive("take_over")).toBe(true);

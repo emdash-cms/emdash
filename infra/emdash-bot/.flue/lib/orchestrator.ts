@@ -236,6 +236,7 @@ const STORAGE = {
 	kind: "o:kind",
 	currentRunId: "o:currentRunId",
 	currentRunMode: "o:currentRunMode",
+	failedRunMode: "o:failedRunMode",
 	currentRunStartedAt: "o:currentRunStartedAt",
 	currentAgentId: "o:currentAgentId",
 	currentDispatchId: "o:currentDispatchId",
@@ -424,10 +425,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 		// back to the webhook's snapshot for first-time mentions.
 		const persistedLabels = await this.projectLabels();
 		const labels = persistedLabels.length > 0 ? persistedLabels : input.labels;
-		const resumableRun =
+		const [resumableRun, failedRunMode] = await Promise.all([
 			resolvedEvent === "resume"
-				? ((await this.ctx.storage.get<ResumableRunCheckpoint>(STORAGE.resumableRun)) ?? null)
-				: null;
+				? this.ctx.storage.get<ResumableRunCheckpoint>(STORAGE.resumableRun)
+				: null,
+			resolvedEvent === "retry"
+				? this.ctx.storage.get<InvestigationMode>(STORAGE.failedRunMode)
+				: null,
+		]);
 
 		const decision = resolve({
 			labels,
@@ -435,6 +440,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			arg: resolvedArg,
 			actor: input.actor,
 			...(resumableRun ? { resumeState: resumableRun.state } : {}),
+			...(failedRunMode ? { retryMode: failedRunMode } : {}),
 		});
 
 		if (decision.kind === "noop") {
@@ -1881,6 +1887,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 					);
 				}
 			}
+			if (decision.event === "agent.failed" && input.settlesRunId) {
+				const failedRunMode = await transaction.get<InvestigationMode>(STORAGE.currentRunMode);
+				if (failedRunMode) puts.push(transaction.put(STORAGE.failedRunMode, failedRunMode));
+			}
 			if (decision.to === "preview_building") {
 				const startedAt = Date.now();
 				puts.push(
@@ -1914,6 +1924,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					transaction.put(STORAGE.currentAgentId, preparedInvestigation.agentId),
 					transaction.delete(STORAGE.deadlineWarningSentRunId),
 					transaction.delete(STORAGE.deadlineWarningRetryAt),
+					transaction.delete(STORAGE.failedRunMode),
 					transaction.put(STORAGE.pendingDispatch, {
 						...preparedInvestigation,
 						...(input.deliveryId ? { deliveryId: input.deliveryId } : {}),
@@ -1929,6 +1940,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					transaction.put(STORAGE.currentAgentId, preparedResume.checkpoint.agentId),
 					transaction.delete(STORAGE.deadlineWarningSentRunId),
 					transaction.delete(STORAGE.deadlineWarningRetryAt),
+					transaction.delete(STORAGE.failedRunMode),
 					transaction.put(STORAGE.pendingResume, {
 						...preparedResume,
 						dryRun: input.dryRun === true,
@@ -1941,7 +1953,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 					decision.event === "decline" ||
 					decision.event === "take_over")
 			) {
-				puts.push(transaction.delete(STORAGE.resumableRun));
+				puts.push(
+					transaction.delete(STORAGE.resumableRun),
+					transaction.delete(STORAGE.failedRunMode),
+				);
 			}
 			const anchorNumber =
 				input.anchorNumber ?? (await transaction.get<number>(STORAGE.anchorNumber));

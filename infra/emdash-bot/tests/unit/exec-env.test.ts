@@ -1,8 +1,10 @@
+import type { Sandbox } from "@cloudflare/sandbox";
 import { describe, expect, test, vi } from "vitest";
 
 import {
 	type ContainerBackend,
 	ExecEnv,
+	fromSandbox,
 	type IsolateState,
 	parseRawGitDiff,
 } from "../../.flue/lib/exec-env.js";
@@ -155,6 +157,36 @@ function base64Utf8(value: string): string {
 	for (const byte of bytes) binary += String.fromCharCode(byte);
 	return btoa(binary);
 }
+
+function sandboxFileStream(content: string): ReadableStream<Uint8Array> {
+	const size = new TextEncoder().encode(content).byteLength;
+	const events = [
+		{ type: "metadata", mimeType: "text/plain", size, isBinary: false, encoding: "utf-8" },
+		{ type: "chunk", data: content },
+		{ type: "complete" },
+	];
+	const payload = events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("");
+	return new ReadableStream({
+		start(controller) {
+			controller.enqueue(new TextEncoder().encode(payload));
+			controller.close();
+		},
+	});
+}
+
+describe("Sandbox container adapter", () => {
+	test("returns exact file bytes rather than the file stream protocol", async () => {
+		const content = "# r\u00e9sum\u00e9 \ud83d\ude80\n";
+		const sandbox = {
+			readFile: async () => ({ content: base64Utf8(content) }),
+			readFileStream: async () => sandboxFileStream(content),
+		} as unknown as Sandbox;
+
+		const bytes = await fromSandbox(sandbox).readFileBytes("/tmp/candidate");
+
+		expect(bytes).toEqual(new TextEncoder().encode(content));
+	});
+});
 
 describe("ExecEnv container exec", () => {
 	test("runs the command in the container with the repo cwd", async () => {

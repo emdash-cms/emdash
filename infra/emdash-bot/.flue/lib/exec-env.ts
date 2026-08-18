@@ -566,15 +566,21 @@ function decodeBase64Utf8(encoded: string, label: string): string {
 	const value = encoded.trim();
 	if (value === "") return "";
 	try {
-		const binary = atob(value);
-		const bytes = new Uint8Array(binary.length);
-		for (let index = 0; index < binary.length; index += 1) {
-			bytes[index] = binary.charCodeAt(index);
-		}
-		return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+		return new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(
+			decodeBase64Bytes(value),
+		);
 	} catch (error) {
 		throw new Error(`${label} was not valid base64-encoded UTF-8`, { cause: error });
 	}
+}
+
+function decodeBase64Bytes(encoded: string): Uint8Array {
+	const binary = atob(encoded);
+	const bytes = new Uint8Array(binary.length);
+	for (let index = 0; index < binary.length; index += 1) {
+		bytes[index] = binary.charCodeAt(index);
+	}
+	return bytes;
 }
 
 async function assertGitBlobContent(
@@ -644,8 +650,8 @@ export function fromSandbox(sandbox: Sandbox): ContainerBackend {
 			await sandbox.writeFile(path, content);
 		},
 		async readFileBytes(path) {
-			const stream = await sandbox.readFileStream(path);
-			return new Uint8Array(await new Response(stream).arrayBuffer());
+			const { content } = await sandbox.readFile(path, { encoding: "base64" });
+			return decodeBase64Bytes(content);
 		},
 	};
 }

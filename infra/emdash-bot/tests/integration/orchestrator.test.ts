@@ -326,6 +326,30 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect((await stub.getPersistedState()).currentRunId).toBe("write-run");
 	});
 
+	test("retrying a failed implementation preserves its write mode", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ anchorNumber: 42 }));
+		await stub.debugSetStaleRun(
+			"failed-implementation",
+			Date.now(),
+			"investigate-42-failed-implementation",
+			"implement",
+		);
+		await stub.applyAgentResult({
+			runId: "failed-implementation",
+			result: { implemented: false, summary: "Candidate publication failed." },
+			pushed: false,
+			ok: false,
+		});
+
+		const retry = await stub.event(makeEvent({ event: "retry", arg: null, anchorNumber: 42 }));
+
+		expect(retry.kind).toBe("transition");
+		if (retry.kind === "transition") {
+			expect(retry.decision.action).toBe("investigate.implement");
+		}
+	});
+
 	test("a rejected implementation returns to a state where implement can be retried", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await stub.event(makeEvent());
