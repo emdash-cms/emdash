@@ -1,18 +1,22 @@
-// Synchronous classifier dispatch from the OrchestratorDO through a fresh
-// Flue 2 agent instance. The awaited handle returns the durable response's
-// structured data part.
-
-import { init } from "@flue/runtime";
 import * as v from "valibot";
 
-import { ClassifyCommand, classifyResultSchema } from "../agents/classify-command.js";
+import { classifyResultSchema } from "../agents/classify-command.js";
 import type { EventId, StateId } from "./machine.js";
 import { classifierCommands } from "./router.js";
-import { DeadlineExceededError, withDeadline } from "./sandbox-deadline.js";
+import { withDeadline } from "./sandbox-deadline.js";
 
 const CLASSIFY_TIMEOUT_MS = 10_000;
+const CLASSIFIER_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8" as const;
 
-export interface ClassifyInput {
+export interface ClassifierAi {
+	run(
+		model: typeof CLASSIFIER_MODEL,
+		inputs: Ai_Cf_Qwen_Qwen3_30B_A3B_Fp8_Messages,
+		options?: AiOptions,
+	): Promise<Ai_Cf_Qwen_Qwen3_30B_A3B_Fp8_Output>;
+}
+
+export interface ClassifierInput {
 	issueNumber: number;
 	state: StateId | null;
 	comment: string;
@@ -32,50 +36,107 @@ interface ClassifyResponse {
 	reasoning?: string;
 }
 
-export async function classifyComment(input: ClassifyInput): Promise<ClassifyResult> {
+export async function classifyComment(
+	ai: ClassifierAi,
+	input: ClassifierInput,
+): Promise<ClassifyResult> {
 	const commands = classifierCommands(input.state);
 	if (commands.length === 0) return { kind: "no-commands" };
 
-	let reply;
+	let response: Ai_Cf_Qwen_Qwen3_30B_A3B_Fp8_Output;
 	try {
-		const handle = init(ClassifyCommand, {
-			id: `classify-${crypto.randomUUID()}`,
-			uid: null,
-		});
-		const startedAt = performance.now();
-		const receipt = await withDeadline(
-			handle.dispatch({
-				message: {
-					kind: "signal",
-					type: "github.comment",
-					body: `Classify this comment: ${input.comment}`,
-				},
-				initialData: {
-					issueNumber: input.issueNumber,
-					state: input.state ?? "unmanaged",
-					comment: input.comment,
-					...(input.botContext ? { botContext: input.botContext } : {}),
-					commands: commands.map((command) => ({
-						event: command.event,
-						description: command.description,
-						...(command.arg ? { arg: command.arg } : {}),
-					})),
-				},
+		response = await withDeadline(
+			ai.run(CLASSIFIER_MODEL, classifierRequest(input, commands), {
+				signal: AbortSignal.timeout(CLASSIFY_TIMEOUT_MS),
 			}),
 			CLASSIFY_TIMEOUT_MS,
-			"Classifier dispatch",
+			"Classifier request",
 		);
-		const remainingMs = CLASSIFY_TIMEOUT_MS - (performance.now() - startedAt);
-		if (remainingMs <= 0) {
-			throw new DeadlineExceededError("Classifier read", CLASSIFY_TIMEOUT_MS);
-		}
-		reply = await handle.read(receipt, { signal: AbortSignal.timeout(Math.ceil(remainingMs)) });
 	} catch (err) {
 		return { kind: "error", error: errorMessage(err) };
 	}
 
-	const writes = reply.data.classification;
-	return resolveClassification(writes?.at(-1), commands);
+	const argumentsJson = selectCommandArguments(response);
+	if (argumentsJson === null) {
+		return { kind: "error", error: "classifier returned no select_command tool call" };
+	}
+	let result: unknown;
+	try {
+		result = JSON.parse(argumentsJson);
+	} catch {
+		return { kind: "error", error: "classifier returned invalid tool arguments" };
+	}
+	return resolveClassification(result, commands);
+}
+
+function classifierRequest(
+	input: ClassifierInput,
+	commands: ReturnType<typeof classifierCommands>,
+): Ai_Cf_Qwen_Qwen3_30B_A3B_Fp8_Messages {
+	const actionList = commands
+		.map(
+			(command) =>
+				`- ${command.event}: ${command.description}${command.arg ? ` Set arg to the ${command.arg}.` : ""}`,
+		)
+		.join("\n");
+	return {
+		messages: [
+			{
+				role: "system",
+				content: [
+					"Route the comment to exactly one available action.",
+					"The state only limits the available list; every listed action is valid.",
+					"Call select_command exactly once. Prefer none over guessing. Do not answer with prose.",
+				].join(" "),
+			},
+			{
+				role: "user",
+				content: [
+					`Issue: ${input.issueNumber}`,
+					`State: ${input.state ?? "unmanaged"}`,
+					"Available actions:",
+					actionList,
+					"Bot's last message:",
+					input.botContext?.trim() || "(none)",
+					"Comment:",
+					input.comment,
+				].join("\n"),
+			},
+		],
+		tools: [
+			{
+				type: "function",
+				function: {
+					name: "select_command",
+					description: "Return the single command intended by the comment, or none.",
+					parameters: {
+						type: "object",
+						properties: {
+							event: { type: "string", description: "The selected action or none" },
+							arg: { type: "string", description: "The directive for the action, if any" },
+							reasoning: {
+								type: "string",
+								description: "A short reason quoting the decisive phrase",
+							},
+						},
+						required: ["event", "reasoning"],
+					},
+				},
+			},
+		],
+		max_tokens: 1_024,
+		temperature: 0,
+	};
+}
+
+function selectCommandArguments(response: Ai_Cf_Qwen_Qwen3_30B_A3B_Fp8_Output): string | null {
+	if (typeof response !== "object" || response === null || !("choices" in response)) return null;
+	const choice = response.choices?.[0];
+	if (!choice || !("message" in choice)) return null;
+	const toolCalls = choice.message?.tool_calls;
+	return (
+		toolCalls?.find((call) => call.function.name === "select_command")?.function.arguments ?? null
+	);
 }
 
 export function resolveClassification(

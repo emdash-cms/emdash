@@ -44,6 +44,7 @@ const BASE64_PADDING = /=+$/;
 const PEM_BEGIN = /-----BEGIN [^-]+-----/g;
 const PEM_END = /-----END [^-]+-----/g;
 const PEM_WHITESPACE = /\s+/g;
+const LINK_PAGE = /[?&]page=(\d+)/;
 
 function base64UrlFromBytes(bytes: Uint8Array): string {
 	let binary = "";
@@ -124,6 +125,7 @@ export interface IssueSummary {
 	body: string;
 	labels: string[];
 	authorLogin: string | null;
+	commentCount: number;
 }
 
 export async function getIssue(
@@ -141,6 +143,7 @@ export async function getIssue(
 		body?: string | null;
 		labels?: Array<{ name?: string }>;
 		user?: { login?: string };
+		comments?: number;
 	}>();
 	const labels: string[] = [];
 	for (const l of json.labels ?? []) if (l.name) labels.push(l.name);
@@ -149,7 +152,78 @@ export async function getIssue(
 		body: json.body ?? "",
 		labels,
 		authorLogin: json.user?.login ?? null,
+		commentCount: json.comments ?? 0,
 	};
+}
+
+export interface GitHubIssueComment {
+	id: number;
+	body: string;
+	authorLogin: string | null;
+	authorAssociation: string | null;
+	authorType: string | null;
+	createdAt: string;
+}
+
+export async function getIssueComments(
+	token: string,
+	ctx: RepoContext,
+	issueNumber: number,
+	options: { since?: string; commentCount?: number } = {},
+): Promise<GitHubIssueComment[]> {
+	const perPage = 100;
+	const params = new URLSearchParams({ per_page: String(perPage) });
+	if (options.since) params.set("since", options.since);
+	else if (options.commentCount) {
+		params.set("page", String(Math.max(1, Math.ceil(options.commentCount / perPage))));
+	}
+	const baseUrl = `${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/comments`;
+	let res = await githubFetch(`${baseUrl}?${params.toString()}`, { headers: authHeaders(token) });
+	if (!res.ok) throw new Error(`getIssueComments failed: ${res.status} ${await res.text()}`);
+
+	if (options.since) {
+		const lastPage = lastPageFromLink(res.headers.get("link"));
+		if (lastPage && lastPage > 1) {
+			params.set("page", String(lastPage));
+			res = await githubFetch(`${baseUrl}?${params.toString()}`, { headers: authHeaders(token) });
+			if (!res.ok) throw new Error(`getIssueComments failed: ${res.status} ${await res.text()}`);
+		}
+	}
+
+	const comments = await res.json<
+		Array<{
+			id?: number;
+			body?: string | null;
+			author_association?: string | null;
+			created_at?: string;
+			user?: { login?: string; type?: string };
+		}>
+	>();
+	return comments.flatMap((comment) => {
+		if (comment.id === undefined || !comment.created_at) return [];
+		return [
+			{
+				id: comment.id,
+				body: comment.body ?? "",
+				authorLogin: comment.user?.login ?? null,
+				authorAssociation: comment.author_association ?? null,
+				authorType: comment.user?.type ?? null,
+				createdAt: comment.created_at,
+			} satisfies GitHubIssueComment,
+		];
+	});
+}
+
+function lastPageFromLink(link: string | null): number | null {
+	if (!link) return null;
+	for (const part of link.split(",")) {
+		if (!part.includes('rel="last"')) continue;
+		const match = part.match(LINK_PAGE);
+		if (!match?.[1]) return null;
+		const page = Number(match[1]);
+		return Number.isSafeInteger(page) && page > 0 ? page : null;
+	}
+	return null;
 }
 
 export async function getIssueLabels(

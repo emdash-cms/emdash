@@ -9,6 +9,10 @@ import { fetchCommentCounts } from "../lib/api/comments";
 import { useCurrentUser } from "../lib/api/current-user";
 import { resolvePluginPagePath, usePluginAdmins } from "../lib/plugin-context";
 import {
+	resolveTaxonomyDefinitions,
+	type LocalizedTaxonomyDefinition,
+} from "../lib/taxonomy-definitions.js";
+import {
 	ADMIN_NAV_ICONS,
 	getCollectionNavIcon,
 	getTaxonomyNavIcon,
@@ -91,9 +95,13 @@ export interface SidebarNavProps {
 			}
 		>;
 		taxonomies: Array<{
+			id?: string;
 			name: string;
 			label: string;
+			locale?: string;
+			translationGroup?: string | null;
 		}>;
+		i18n?: { defaultLocale: string; locales: string[] };
 		version?: string;
 		commit?: string;
 		marketplace?: string;
@@ -108,11 +116,21 @@ export interface SidebarNavProps {
 	};
 }
 
+/** Locale-normalized taxonomy rows used by the global Manage navigation. */
+export function getSidebarTaxonomies<T extends LocalizedTaxonomyDefinition>(
+	taxonomies: readonly T[],
+	activeLocale?: string,
+	defaultLocale?: string,
+): T[] {
+	return resolveTaxonomyDefinitions(taxonomies, activeLocale, defaultLocale);
+}
+
 interface NavItem {
 	to: string;
 	label: string;
 	icon: React.ElementType;
 	params?: Record<string, string>;
+	search?: Record<string, string>;
 	/** Minimum role level required to see this item */
 	minRole?: number;
 	/** Optional badge count (e.g., pending comments) */
@@ -177,21 +195,26 @@ export function resolvePluginPageLabel(
 }
 
 /** Resolves a nav item's route path by substituting $param placeholders. */
-function resolveItemPath(item: NavItem): string {
+export function resolveItemPath(item: NavItem): string {
 	let path = item.to;
 	if (item.params) {
 		for (const [key, value] of Object.entries(item.params)) {
 			path = path.replace(`$${key}`, value);
 		}
 	}
+	if (item.search && Object.keys(item.search).length > 0) {
+		path += `?${new URLSearchParams(item.search).toString()}`;
+	}
 	return path;
 }
 
 /** Checks if a nav item is active based on the current router path. */
-function isItemActive(itemPath: string, currentPath: string): boolean {
-	return itemPath === "/"
+export function isItemActive(itemPath: string, currentPath: string): boolean {
+	const queryIndex = itemPath.indexOf("?");
+	const path = queryIndex === -1 ? itemPath : itemPath.slice(0, queryIndex);
+	return path === "/"
 		? currentPath === "/"
-		: currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
+		: currentPath === path || currentPath.startsWith(`${path}/`);
 }
 
 /**
@@ -201,6 +224,8 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	const { t, i18n } = useLingui();
 	const location = useLocation();
 	const currentPath = location.pathname;
+	const routeLocale =
+		new URL(location.href, "http://emdash.local").searchParams.get("locale") ?? undefined;
 	const pluginAdmins = usePluginAdmins();
 
 	const { data: user } = useCurrentUser();
@@ -247,13 +272,16 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		},
 		{ to: "/widgets", label: t`Widgets`, icon: ADMIN_NAV_ICONS.widgets, minRole: ROLE_EDITOR },
 		{ to: "/sections", label: t`Sections`, icon: ADMIN_NAV_ICONS.sections, minRole: ROLE_EDITOR },
-		...manifest.taxonomies.map((tax) => ({
-			to: "/taxonomies/$taxonomy" as const,
-			label: tax.label,
-			icon: getTaxonomyNavIcon(tax.name),
-			params: { taxonomy: tax.name },
-			minRole: ROLE_EDITOR,
-		})),
+		...getSidebarTaxonomies(manifest.taxonomies, routeLocale, manifest.i18n?.defaultLocale).map(
+			(tax) => ({
+				to: "/taxonomies/$taxonomy" as const,
+				label: tax.label,
+				icon: getTaxonomyNavIcon(tax.name),
+				params: { taxonomy: tax.name },
+				search: routeLocale ? { locale: routeLocale } : undefined,
+				minRole: ROLE_EDITOR,
+			}),
+		),
 		{ to: "/bylines", label: t`Bylines`, icon: ADMIN_NAV_ICONS.bylines, minRole: ROLE_EDITOR },
 	];
 

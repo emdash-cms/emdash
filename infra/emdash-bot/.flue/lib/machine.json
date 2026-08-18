@@ -111,6 +111,7 @@
 			"description": "An agent run errored or produced no usable result. Retryable -- not a dead end.",
 			"terminal": false,
 			"offeredCommands": [
+				"resume",
 				"retry",
 				"implement",
 				"repro",
@@ -243,6 +244,13 @@
 			"actors": [
 				"maintainer"
 			]
+		},
+		"resume": {
+			"description": "Continue the saved conversation and workspace from a timed-out run.",
+			"actors": [
+				"maintainer"
+			],
+			"arg": "directive"
 		},
 		"revise": {
 			"description": "Send review feedback back into the agent to update the open PR branch.",
@@ -672,6 +680,13 @@
 			"from": "declined",
 			"event": "reopen",
 			"to": "triage"
+		},
+		{
+			"from": "failed",
+			"event": "resume",
+			"to": "working",
+			"action": "investigate.resume",
+			"note": "the orchestrator replaces the fallback target with the active state saved in the timeout checkpoint"
 		},
 		{
 			"from": "failed",

@@ -2,6 +2,7 @@ import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
+import { slugify } from "../../utils/slugify.js";
 import { withTransaction } from "../transaction.js";
 import type { Database, TaxonomyTable } from "../types.js";
 import { validateIdentifier } from "../validate.js";
@@ -18,6 +19,7 @@ export interface SiblingPosition {
  * statement inside D1's 100-parameter ceiling.
  */
 const GROUPS_PER_UPDATE = 32;
+const NUMERIC_SUFFIX_PATTERN = /^\d+$/;
 
 /** Deal the listed groups back out over the slots they hold, in the order given. */
 function permuteWithinSlots(
@@ -115,6 +117,19 @@ export interface TaxonomyPage {
 	hasMore: boolean;
 }
 
+export interface TaxonomyAssignmentTranslation {
+	id: string;
+	slug: string;
+	locale: string;
+}
+
+export interface TaxonomyAssignmentResolution {
+	translationGroup: string;
+	term: Taxonomy | null;
+	availableLocales: string[];
+	translations: TaxonomyAssignmentTranslation[];
+}
+
 /**
  * Taxonomy repository for categories, tags, and other classification.
  *
@@ -122,9 +137,9 @@ export interface TaxonomyPage {
  * ULID. `content_taxonomies` stores translation_groups on both sides so a single
  * association spans every locale of a post and term.
  *
- * The repository does not resolve locale fallbacks on its own — callers supply
- * the locale they want. Runtime helpers and handlers use `getFallbackChain()`
- * from `i18n/config` when they need fallback behaviour.
+ * Strict lookup methods use only the locale callers supply. The explicitly
+ * resolved methods accept both the preferred and default locales so their
+ * fallback policy stays visible at the call site.
  *
  * `sort_order` is per translation_group, not per row: every row sharing a
  * translation_group carries the same value, so a term holds one position across
@@ -216,6 +231,29 @@ export class TaxonomyRepository {
 		return row ? this.rowToTaxonomy(row) : null;
 	}
 
+	/** Generate a locale-scoped term slug, adding a numeric suffix when needed. */
+	async generateUniqueSlug(name: string, text: string, locale?: string): Promise<string> {
+		const baseSlug = slugify(text);
+		let query = this.db
+			.selectFrom("taxonomies")
+			.select("slug")
+			.where("name", "=", name)
+			.where((eb) => eb.or([eb("slug", "=", baseSlug), eb("slug", "like", `${baseSlug}-%`)]));
+		if (locale !== undefined) query = query.where("locale", "=", locale);
+		const candidates = await query.execute();
+		if (!candidates.some((candidate) => candidate.slug === baseSlug)) return baseSlug;
+
+		let maxSuffix = 0;
+		const prefix = `${baseSlug}-`;
+		for (const candidate of candidates) {
+			if (!candidate.slug.startsWith(prefix)) continue;
+			const suffix = candidate.slug.slice(prefix.length);
+			if (!NUMERIC_SUFFIX_PATTERN.test(suffix)) continue;
+			maxSuffix = Math.max(maxSuffix, Number.parseInt(suffix, 10));
+		}
+		return `${baseSlug}-${maxSuffix + 1}`;
+	}
+
 	/**
 	 * Get all terms for a taxonomy (e.g., all categories).
 	 *
@@ -245,6 +283,35 @@ export class TaxonomyRepository {
 
 		const rows = await query.execute();
 		return rows.map((row) => this.rowToTaxonomy(row));
+	}
+
+	async findByNameResolved(
+		name: string,
+		locale: string,
+		defaultLocale: string,
+	): Promise<Taxonomy[]> {
+		const locales = [...new Set([locale, defaultLocale])];
+		const rows = await this.db
+			.selectFrom("taxonomies")
+			.selectAll()
+			.where("name", "=", name)
+			.where("locale", "in", locales)
+			.orderBy("sort_order", "asc")
+			.orderBy("label", "asc")
+			.orderBy("id", "asc")
+			.execute();
+
+		const selected = new Map<string, Taxonomy>();
+		for (const row of rows) {
+			const term = this.rowToTaxonomy(row);
+			const group = term.translationGroup ?? term.id;
+			const current = selected.get(group);
+			if (!current || term.locale === locale) selected.set(group, term);
+		}
+		return [...selected.values()].toSorted(
+			(a, b) =>
+				a.sortOrder - b.sortOrder || a.label.localeCompare(b.label) || a.id.localeCompare(b.id),
+		);
 	}
 
 	async findPageByName(name: string, options: TaxonomyPageOptions = {}): Promise<TaxonomyPage> {
@@ -571,6 +638,53 @@ export class TaxonomyRepository {
 
 		const rows = await query.orderBy("taxonomies.locale", "asc").execute();
 		return rows.map((row) => this.rowToTaxonomy(row));
+	}
+
+	async getTermAssignmentsForEntry(
+		collection: string,
+		entryId: string,
+		taxonomyName: string,
+		locale: string,
+		defaultLocale: string,
+	): Promise<TaxonomyAssignmentResolution[]> {
+		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
+		if (!entryGroup) return [];
+
+		const rows = await this.db
+			.selectFrom("content_taxonomies")
+			.innerJoin("taxonomies", "taxonomies.translation_group", "content_taxonomies.taxonomy_id")
+			.selectAll("taxonomies")
+			.select("content_taxonomies.taxonomy_id as assignment_group")
+			.where("content_taxonomies.collection", "=", collection)
+			.where("content_taxonomies.entry_id", "=", entryGroup)
+			.where("taxonomies.name", "=", taxonomyName)
+			.orderBy("content_taxonomies.taxonomy_id", "asc")
+			.orderBy("taxonomies.locale", "asc")
+			.execute();
+
+		const byGroup = new Map<string, Taxonomy[]>();
+		for (const row of rows) {
+			const variants = byGroup.get(row.assignment_group) ?? [];
+			variants.push(this.rowToTaxonomy(row));
+			byGroup.set(row.assignment_group, variants);
+		}
+
+		return Array.from(byGroup, ([translationGroup, variants]) => {
+			const term =
+				variants.find((variant) => variant.locale === locale) ??
+				variants.find((variant) => variant.locale === defaultLocale) ??
+				null;
+			return {
+				translationGroup,
+				term,
+				availableLocales: variants.map((variant) => variant.locale),
+				translations: variants.map((variant) => ({
+					id: variant.id,
+					slug: variant.slug,
+					locale: variant.locale,
+				})),
+			};
+		});
 	}
 
 	/**

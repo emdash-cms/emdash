@@ -193,6 +193,84 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect((await stub.getPersistedState()).state).toBe("preview_building");
 	});
 
+	test("retains the last successful diagnosis across failed and stale results", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ event: "investigate", arg: "diagnose it", anchorNumber: 42 }));
+		await stub.debugSetStaleRun("good-diagnosis", Date.now(), undefined, "diagnose");
+		await stub.applyAgentResult({
+			runId: "good-diagnosis",
+			result: {
+				reproduced: true,
+				demonstration: "failing-test",
+				demonstratedReportedIssue: true,
+				summary: "The locale cache key omits the requested locale.",
+			},
+			pushed: false,
+			ok: true,
+		});
+		const stored = await stub.debugGetLastDiagnosis();
+		expect(stored?.runId).toBe("good-diagnosis");
+
+		await stub.debugSetStaleRun("failed-diagnosis", Date.now(), undefined, "diagnose");
+		await stub.applyAgentResult({
+			runId: "failed-diagnosis",
+			result: {
+				rootCauseFound: true,
+				summary: "This failed run must not replace the earlier diagnosis.",
+			},
+			pushed: false,
+			ok: false,
+		});
+		await stub.applyAgentResult({
+			runId: "stale-diagnosis",
+			result: {
+				rootCauseFound: true,
+				summary: "This stale run must not replace the earlier diagnosis.",
+			},
+			pushed: false,
+			ok: true,
+		});
+
+		expect(await stub.debugGetLastDiagnosis()).toEqual(stored);
+	});
+
+	test("delivers one warning for a write run without moving its deadline", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		const startedAt = Date.now() - 51 * 60_000;
+		await stub.event(makeEvent({ anchorNumber: 42 }));
+		await stub.debugSetStaleRun(
+			"warning-run",
+			startedAt,
+			"investigate-42-warning-run",
+			"implement",
+		);
+
+		const first = await stub.tick();
+		expect(first.sentDeadlineWarning).toBe(true);
+		const afterFirst = await stub.debugGetRunSchedule();
+		expect(afterFirst.warningSentRunId).toBe("warning-run");
+		expect(afterFirst.deadlineAt).toBe(startedAt + 60 * 60_000);
+
+		const second = await stub.tick();
+		expect(second.sentDeadlineWarning).toBe(false);
+		expect((await stub.debugGetRunSchedule()).deadlineAt).toBe(afterFirst.deadlineAt);
+	});
+
+	test("does not stale-recover a write run at the read-mode deadline", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ anchorNumber: 42 }));
+		await stub.debugSetStaleRun(
+			"write-run",
+			Date.now() - 31 * 60_000,
+			"investigate-42-write-run",
+			"implement",
+		);
+
+		const outcome = await stub.tick();
+		expect(outcome.droppedStaleRun).toBe(false);
+		expect((await stub.getPersistedState()).currentRunId).toBe("write-run");
+	});
+
 	test("a rejected implementation returns to a state where implement can be retried", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await stub.event(makeEvent());
@@ -251,6 +329,92 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(comments.at(-1)).toContain("Run: `implement-run-123`");
 	});
 
+	test("resume without a saved timed-out run comments and leaves the issue failed", async () => {
+		const calls: string[] = [];
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.debugPrimeFailed(42);
+
+		const outcome = await stub.event(
+			makeEvent({
+				event: "resume",
+				arg: null,
+				anchorNumber: 42,
+				deliveryId: "resume-without-state",
+				dryRun: false,
+				labels: ["bot:enhancement", "bot:failed"],
+			}),
+		);
+
+		expect(outcome.kind).toBe("noop");
+		expect((await stub.getPersistedState()).state).toBe("failed");
+		expect(comments.at(-1)).toContain("There isn't a saved timed-out run to resume");
+	});
+
+	test("resume restores the saved run identity, mode, and active state", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugPrimeFailed(42);
+		await stub.debugSetResumableRun({
+			runId: "timed-out-run",
+			agentId: "investigate-42-timed-out-run",
+			mode: "implement",
+			state: "fixing",
+			attemptStartedAt: Date.now() - 60 * 60_000,
+			timedOutAt: Date.now(),
+			summary: "The implementation is complete but one focused test still fails.",
+		});
+
+		const outcome = await stub.event(
+			makeEvent({
+				event: "resume",
+				arg: "continue with the failing test",
+				anchorNumber: 42,
+				deliveryId: "resume-saved-run",
+				labels: ["bot:enhancement", "bot:failed"],
+			}),
+		);
+
+		expect(outcome.kind).toBe("transition");
+		if (outcome.kind === "transition") {
+			expect(outcome.decision.action).toBe("investigate.resume");
+			expect(outcome.decision.to).toBe("fixing");
+		}
+		expect(await stub.getPersistedState()).toMatchObject({
+			state: "fixing",
+			currentRunId: "timed-out-run",
+			currentAgentId: "investigate-42-timed-out-run",
+		});
+		expect(await stub.debugGetResumableRun()).toBeNull();
+	});
+
+	test("a timed-out run posts its checkpoint and resume command", async () => {
+		const calls: string[] = [];
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.debugPrimeFixing(42);
+		await stub.debugSetStaleRun(
+			"timed-out-comment-run",
+			Date.now() - 61 * 60_000,
+			"investigate-42-timed-out-comment-run",
+			"implement",
+		);
+
+		const outcome = await stub.tick();
+		expect(outcome.droppedStaleRun).toBe(true);
+		expect(comments.at(-1)).toContain(
+			"The run stopped at its execution deadline before it could provide a checkpoint summary.",
+		);
+		expect(comments.at(-1)).toContain("`@emdashbot resume`");
+		expect(comments.at(-1)).toContain("Failed stage: `timeout`");
+		expect(comments.at(-1)).toContain("Run: `timed-out-comment-run`");
+	});
+
 	test("tick recovers a stale run", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		// Run() the DO with a synthetic stale run set in storage. The stale-
@@ -271,6 +435,12 @@ describe("OrchestratorDO (workers-pool)", () => {
 		const persisted = await stub.getPersistedState();
 		expect(persisted.currentRunId).toBe(null);
 		expect(persisted.state).toBe("failed");
+		expect(await stub.debugGetResumableRun()).toMatchObject({
+			runId: "ghost-run",
+			agentId: "investigate-999-ghost-run",
+			mode: "repro",
+			state: "fixing",
+		});
 	});
 
 	test("a failing inbox head does not block stale-run recovery", async () => {
@@ -362,6 +532,126 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(persisted.state).toBe("failed");
 		expect(persisted.currentRunId).toBeNull();
 		expect(await stub.getInboxDepth()).toBe(0);
+	});
+
+	test("a rejected resume returns to failed without discarding its checkpoint", async () => {
+		const calls: string[] = [];
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.debugSetPendingResume({
+			runId: "rejected-resume-run",
+			agentId: "investigate-999-rejected-resume-run",
+			deliveryId: "rejected-resume",
+			startedAt: Date.now(),
+			dispatchError: "resume admission rejected",
+		});
+
+		await stub.tick();
+
+		expect(await stub.getPersistedState()).toMatchObject({
+			state: "failed",
+			currentRunId: null,
+			currentAgentId: null,
+		});
+		expect(await stub.debugGetResumableRun()).toMatchObject({
+			runId: "rejected-resume-run",
+			agentId: "investigate-999-rejected-resume-run",
+			mode: "implement",
+			state: "fixing",
+		});
+		expect(await stub.getPendingSideEffectCount()).toBe(0);
+		expect(comments.at(-1)).toContain("I couldn't resume the saved run");
+	});
+
+	test("a confirmed resume receipt atomically deduplicates its delivery", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetPendingResume({
+			runId: "confirmed-resume-run",
+			agentId: "investigate-999-confirmed-resume-run",
+			deliveryId: "confirmed-resume-delivery",
+			startedAt: Date.now(),
+			dispatchAttempt: "confirmed-resume-attempt",
+		});
+
+		await stub.debugConfirmPendingResumeReceipt("confirmed-resume-submission");
+		const redelivery = await stub.event(
+			makeEvent({
+				event: "resume",
+				arg: null,
+				anchorNumber: 999,
+				deliveryId: "confirmed-resume-delivery",
+				labels: ["bot:enhancement", "bot:failed"],
+			}),
+		);
+
+		expect(redelivery).toEqual({
+			kind: "duplicate",
+			deliveryId: "confirmed-resume-delivery",
+		});
+	});
+
+	test("an agent result confirms and deduplicates an uncertain resume admission", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetPendingResume({
+			runId: "completed-resume-run",
+			agentId: "investigate-999-completed-resume-run",
+			deliveryId: "completed-resume-delivery",
+			startedAt: Date.now(),
+			dispatchAttempt: "uncertain-completed-resume-attempt",
+		});
+
+		const completion = await stub.applyAgentResult({
+			runId: "completed-resume-run",
+			result: { implemented: true, summary: "Finished the resumed implementation." },
+			pushed: true,
+			ok: true,
+		});
+		expect(completion.kind).toBe("transition");
+
+		const redelivery = await stub.event(
+			makeEvent({
+				event: "resume",
+				arg: null,
+				anchorNumber: 999,
+				deliveryId: "completed-resume-delivery",
+				labels: ["bot:enhancement", "bot:failed"],
+			}),
+		);
+		expect(redelivery).toEqual({
+			kind: "duplicate",
+			deliveryId: "completed-resume-delivery",
+		});
+	});
+
+	test("stale recovery consumes an uncertain resume delivery", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetPendingResume({
+			runId: "uncertain-resume-run",
+			agentId: "investigate-999-abort-false-missing",
+			deliveryId: "uncertain-resume-delivery",
+			startedAt: Date.now() - 61 * 60_000,
+			dispatchAttempt: "uncertain-resume-attempt",
+		});
+
+		const recovery = await stub.tick();
+		expect(recovery.droppedStaleRun).toBe(true);
+		const redelivery = await stub.event(
+			makeEvent({
+				event: "resume",
+				arg: null,
+				anchorNumber: 999,
+				deliveryId: "uncertain-resume-delivery",
+				labels: ["bot:enhancement", "bot:failed"],
+			}),
+		);
+
+		expect(redelivery).toEqual({
+			kind: "duplicate",
+			deliveryId: "uncertain-resume-delivery",
+		});
 	});
 
 	test("stale recovery fails a dispatch that never admitted an agent", async () => {

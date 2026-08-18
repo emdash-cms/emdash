@@ -95,6 +95,7 @@ describe("normalizeWebhook", () => {
 			action: "created",
 			issue: { number: 42, user: { login: "alice" }, labels: [{ name: "bot:bug" }] },
 			comment: {
+				id: 123,
 				body: "@emdashbot please retry",
 				author_association: "MEMBER",
 				user: { login: "alice" },
@@ -119,6 +120,13 @@ describe("normalizeWebhook", () => {
 			expect(r.event.needsClassify).toBe(true);
 			expect(r.event.classifyText).toBe("please retry");
 			expect(r.event.deliveryId).toBe("del-1");
+			expect(r.event.triggeringComment).toEqual({
+				id: 123,
+				body: "@emdashbot please retry",
+				authorLogin: "alice",
+				authorAssociation: "MEMBER",
+				actor: "maintainer",
+			});
 		});
 
 		test("dispatches a bare verb as a deterministic event (no classifier)", () => {

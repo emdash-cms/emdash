@@ -241,7 +241,7 @@ catalogs:
       specifier: ^5.0.0
       version: 5.0.0
     image-size:
-      specifier: ^2.0.2
+      specifier: 2.0.2
       version: 2.0.2
     jsonc-parser:
       specifier: ^3.3.1
@@ -292,6 +292,7 @@ overrides:
 
 patchedDependencies:
   '@sigstore/core@4.0.1': 2900ec704c3abfc6962eb2edecaa946b783a97e13084c4c30b1be0df5b30ae4d
+  image-size@2.0.2: 77c12533e3a635c4066c55da8952f4912e8210416539dc1249550fa639271595
 
 importers:
 
@@ -1031,7 +1032,7 @@ importers:
         specifier: ^0.4.1
         version: 0.4.1(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.1))(ai@6.0.172(zod@4.4.1))(zod@4.4.1)
       '@cloudflare/sandbox':
-        specifier: ^0.12.1
+        specifier: 0.12.3
         version: 0.12.3
       '@cloudflare/shell':
         specifier: ^0.4.0
@@ -1784,15 +1785,15 @@ importers:
       croner:
         specifier: ^10.0.1
         version: 10.0.1
-      image-size:
-        specifier: ^2.0.2
-        version: 2.0.2
       jose:
         specifier: ^6.1.3
         version: 6.1.3
       jpeg-js:
         specifier: ^0.4.4
         version: 0.4.4
+      jsonc-parser:
+        specifier: 'catalog:'
+        version: 3.3.1
       kysely:
         specifier: 'catalog:'
         version: 0.29.2
@@ -1817,6 +1818,9 @@ importers:
       sax:
         specifier: ^1.4.1
         version: 1.4.4
+      smol-toml:
+        specifier: ^1.6.0
+        version: 1.6.0
       ulidx:
         specifier: ^2.4.1
         version: 2.4.1
@@ -1857,6 +1861,9 @@ importers:
       '@vitest/ui':
         specifier: ^4.1.10
         version: 4.1.10(vitest@4.1.5)
+      image-size:
+        specifier: 'catalog:'
+        version: 2.0.2(patch_hash=77c12533e3a635c4066c55da8952f4912e8210416539dc1249550fa639271595)
       publint:
         specifier: 'catalog:'
         version: 0.3.17
@@ -2008,9 +2015,6 @@ importers:
       consola:
         specifier: ^3.4.2
         version: 3.4.2
-      image-size:
-        specifier: 'catalog:'
-        version: 2.0.2
       jsonc-parser:
         specifier: 'catalog:'
         version: 3.3.1
@@ -2033,6 +2037,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.10.13
+      image-size:
+        specifier: 'catalog:'
+        version: 2.0.2(patch_hash=77c12533e3a635c4066c55da8952f4912e8210416539dc1249550fa639271595)
       publint:
         specifier: 'catalog:'
         version: 0.3.17
@@ -20713,7 +20720,7 @@ snapshots:
 
   ignore@7.0.5: {}
 
-  image-size@2.0.2: {}
+  image-size@2.0.2(patch_hash=77c12533e3a635c4066c55da8952f4912e8210416539dc1249550fa639271595): {}
 
   import-fresh@3.3.1:
     dependencies:

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import {
 	foldForMatch,
+	rankTermMatches,
 	termExactMatches,
 	termMatches,
 	type MatchableTerm,
@@ -94,5 +95,34 @@ describe("termExactMatches", () => {
 	it("returns false for empty or whitespace-only input", () => {
 		expect(termExactMatches(mexico, "")).toBe(false);
 		expect(termExactMatches(mexico, "   ")).toBe(false);
+	});
+});
+
+describe("rankTermMatches", () => {
+	it("ranks exact, prefix, then substring matches with deterministic label ordering", () => {
+		const terms = [
+			{ label: "Web Security" },
+			{ label: "Security Operations" },
+			{ label: "Security Compliance" },
+			{ label: "Security" },
+			{ label: "Unrelated" },
+		];
+
+		expect(rankTermMatches(terms, "security").map((term) => term.label)).toEqual([
+			"Security",
+			"Security Compliance",
+			"Security Operations",
+			"Web Security",
+		]);
+	});
+
+	it("ranks a case and diacritic-folded exact match first", () => {
+		const terms = [{ label: "Mexico City" }, { label: "History of Mexico" }, { label: "México" }];
+
+		expect(rankTermMatches(terms, "MEXICO").map((term) => term.label)).toEqual([
+			"México",
+			"Mexico City",
+			"History of Mexico",
+		]);
 	});
 });

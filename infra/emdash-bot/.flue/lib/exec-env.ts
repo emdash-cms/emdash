@@ -43,6 +43,8 @@ export interface RepoOptions {
 export interface ExecEnvDeadlines {
 	/** Ceiling for VFS calls and for an exec with no explicit timeout. */
 	readonly defaultTimeoutMs: number;
+	/** Overall ceiling for attaching or rebuilding the container checkout. */
+	readonly attachTimeoutMs: number;
 	/** Added to an exec's own timeout so the substrate kills before we do. */
 	readonly execGraceMs: number;
 }
@@ -71,6 +73,7 @@ export interface IsolateState {
  * `fromSandbox` adapts the real sandbox, tests pass a fake.
  */
 export interface ContainerBackend {
+	isReady(): Promise<boolean>;
 	exec(
 		command: string,
 		options?: { cwd?: string; timeoutMs?: number },
@@ -111,6 +114,7 @@ export class ExecEnv {
 	readonly #deadlines: ExecEnvDeadlines;
 	readonly #repoDir: string;
 	#containerPromise: Promise<ContainerBackend> | undefined;
+	#containerRecoveryPromise: Promise<ContainerBackend> | undefined;
 
 	constructor(options: ExecEnvOptions) {
 		this.#state = options.state;
@@ -129,18 +133,15 @@ export class ExecEnv {
 		const ref = options.ref ?? "main";
 		if ((await this.#readMarker()) === ref) return;
 		await this.#bounded(this.#state.rm(options.dir, { recursive: true, force: true }), "rm");
-		await this.#hydrateRepo(options.dir, ref);
+		await this.#bounded(this.#hydrateRepo(options.dir, ref), "hydrateRepo");
 		await this.#bounded(this.#state.mkdir(META_DIR, { recursive: true }), "mkdir");
 		await this.#bounded(this.#state.writeFile(CHANGE_LOG, "[]"), "writeFile");
 		await this.#bounded(this.#state.writeFile(HYDRATED_MARKER, ref), "writeFile");
 	}
 
 	async #readMarker(): Promise<string | null> {
-		try {
-			return await this.#bounded(this.#state.readFile(HYDRATED_MARKER), "readFile");
-		} catch {
-			return null;
-		}
+		if (!(await this.#bounded(this.#state.exists(HYDRATED_MARKER), "exists"))) return null;
+		return this.#bounded(this.#state.readFile(HYDRATED_MARKER), "readFile");
 	}
 
 	readFile(path: string): Promise<string> {
@@ -203,6 +204,10 @@ export class ExecEnv {
 		);
 	}
 
+	async execReadOnly(command: string, options: ExecOptions = {}): Promise<ExecResult> {
+		return (await this.runCheck(command, options)).result;
+	}
+
 	async runCheck(
 		command: string,
 		options: ExecOptions = {},
@@ -224,7 +229,7 @@ export class ExecEnv {
 		if (candidateTreeSha !== beforeTreeSha) {
 			await this.#restoreContainerCandidate(container);
 			throw new Error(
-				"verification command modified the candidate; apply source changes with edit_file/write_file and rerun a check-only command",
+				"container command modified the candidate; apply source changes with edit_file/write_file and rerun a check-only command",
 			);
 		}
 		return { result, candidateTreeSha };
@@ -403,16 +408,51 @@ export class ExecEnv {
 		return this.#bounded(container.readFileBytes(path), "readArtifact");
 	}
 
-	/** Attach the container once and reuse it. */
-	container(): Promise<ContainerBackend> {
+	/** Reuse a live checkout, rebuilding it when the sandbox replaced its container. */
+	async container(): Promise<ContainerBackend> {
+		const container = await this.#attachedContainer();
+		try {
+			if (await this.#containerReady(container)) return container;
+		} catch {
+			this.#containerPromise = undefined;
+		}
+		return this.#recoverContainer();
+	}
+
+	#attachedContainer(): Promise<ContainerBackend> {
 		return (this.#containerPromise ??= withDeadline(
 			this.#attachContainer(),
-			this.#deadlines.defaultTimeoutMs,
+			this.#deadlines.attachTimeoutMs,
 			"container attach",
 		).catch((error: unknown) => {
 			this.#containerPromise = undefined;
 			throw error;
 		}));
+	}
+
+	#containerReady(container: ContainerBackend): Promise<boolean> {
+		return withDeadline(
+			container.isReady(),
+			this.#deadlines.attachTimeoutMs,
+			"container readiness",
+		);
+	}
+
+	#recoverContainer(): Promise<ContainerBackend> {
+		if (this.#containerRecoveryPromise) return this.#containerRecoveryPromise;
+		this.#containerPromise = undefined;
+		const recovery = (async () => {
+			const replacement = await this.#attachedContainer();
+			if (!(await this.#containerReady(replacement))) {
+				this.#containerPromise = undefined;
+				throw new Error("container checkout is unavailable after reattachment");
+			}
+			return replacement;
+		})();
+		this.#containerRecoveryPromise = recovery.finally(() => {
+			this.#containerRecoveryPromise = undefined;
+		});
+		return this.#containerRecoveryPromise;
 	}
 
 	async #recordChange(path: string): Promise<void> {
@@ -425,13 +465,21 @@ export class ExecEnv {
 	}
 
 	async #readChangeLog(): Promise<string[]> {
+		if (!(await this.#bounded(this.#state.exists(CHANGE_LOG), "exists"))) return [];
+		const raw = await this.#bounded(this.#state.readFile(CHANGE_LOG), "readFile");
+		let parsed: unknown;
 		try {
-			const raw = await this.#bounded(this.#state.readFile(CHANGE_LOG), "readFile");
-			const parsed: unknown = JSON.parse(raw);
-			return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === "string") : [];
-		} catch {
-			return [];
+			parsed = JSON.parse(raw);
+		} catch (error) {
+			throw new Error("invalid VFS change log: malformed JSON", { cause: error });
 		}
+		if (!Array.isArray(parsed) || parsed.some((path) => typeof path !== "string")) {
+			throw new Error("invalid VFS change log: expected an array of paths");
+		}
+		if (parsed.some((path) => !path.startsWith(`${this.#repoDir}/`))) {
+			throw new Error("invalid VFS change log: path outside repository");
+		}
+		return parsed;
 	}
 
 	/**
@@ -537,6 +585,7 @@ export function pipefailCommand(command: string): string {
 /** Adapt a @cloudflare/sandbox session to the ContainerBackend seam. */
 export function fromSandbox(sandbox: Sandbox): ContainerBackend {
 	return {
+		isReady: async () => true,
 		async exec(command, options) {
 			const result = await sandbox.exec(command, {
 				...(options?.cwd ? { cwd: options.cwd } : {}),

@@ -66,6 +66,19 @@ describe("SchemaRegistry", () => {
 			expect(collection.supports).toEqual([]);
 		});
 
+		it("defaults collections to routable and preserves explicit opt-out", async () => {
+			const routable = await registry.createCollection({ slug: "posts", label: "Posts" });
+			const internal = await registry.createCollection({
+				slug: "blocks",
+				label: "Blocks",
+				routable: false,
+			});
+
+			expect(routable.routable).toBe(true);
+			expect(internal.routable).toBe(false);
+			expect((await registry.updateCollection("blocks", { routable: true })).routable).toBe(true);
+		});
+
 		it("should create the content table when creating a collection", async () => {
 			await registry.createCollection({
 				slug: "articles",
@@ -218,6 +231,19 @@ describe("SchemaRegistry", () => {
 			expect(updated.label).toBe("Blog Posts");
 			expect(updated.description).toBe("All blog posts");
 			expect(updated.supports).toEqual(["drafts"]);
+		});
+
+		it("touches updatedAt for an empty update", async () => {
+			await registry.createCollection({ slug: "posts", label: "Posts" });
+			await db
+				.updateTable("_emdash_collections")
+				.set({ updated_at: "2000-01-01T00:00:00.000Z" })
+				.where("slug", "=", "posts")
+				.execute();
+
+			const updated = await registry.updateCollection("posts", {});
+
+			expect(updated.updatedAt).not.toBe("2000-01-01T00:00:00.000Z");
 		});
 
 		it("collections are visible in the sidebar by default", async () => {
@@ -562,12 +588,12 @@ describe("SchemaRegistry", () => {
 
 			const updated = await registry.updateField("posts", "title", {
 				label: "Post Title",
-				required: true,
+				sortOrder: 3,
 				widget: "text",
 			});
 
 			expect(updated.label).toBe("Post Title");
-			expect(updated.required).toBe(true);
+			expect(updated.sortOrder).toBe(3);
 			expect(updated.widget).toBe("text");
 		});
 

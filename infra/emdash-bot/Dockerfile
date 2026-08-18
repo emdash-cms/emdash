@@ -33,7 +33,7 @@ RUN npm install -g pnpm@11.1.3 bgproc@0.3.0 agent-browser@0.30.1 \
 # /root/.agent-browser/browsers.
 RUN agent-browser install
 
-FROM cloudflare/sandbox:0.12.1
+FROM cloudflare/sandbox:0.12.3
 
 # Base OS packages: git for the repo clone the agent does in revise mode,
 # ca-certificates for HTTPS, fonts/libs Chromium needs (the agent-browser CLI
