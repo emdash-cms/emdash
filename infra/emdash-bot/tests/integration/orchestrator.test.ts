@@ -534,6 +534,38 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(await stub.getInboxDepth()).toBe(0);
 	});
 
+	test("a rejected resume returns to failed without discarding its checkpoint", async () => {
+		const calls: string[] = [];
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.debugSetPendingResume({
+			runId: "rejected-resume-run",
+			agentId: "investigate-999-rejected-resume-run",
+			deliveryId: "rejected-resume",
+			startedAt: Date.now(),
+			dispatchError: "resume admission rejected",
+		});
+
+		await stub.tick();
+
+		expect(await stub.getPersistedState()).toMatchObject({
+			state: "failed",
+			currentRunId: null,
+			currentAgentId: null,
+		});
+		expect(await stub.debugGetResumableRun()).toMatchObject({
+			runId: "rejected-resume-run",
+			agentId: "investigate-999-rejected-resume-run",
+			mode: "implement",
+			state: "fixing",
+		});
+		expect(await stub.getPendingSideEffectCount()).toBe(0);
+		expect(comments.at(-1)).toContain("I couldn't resume the saved run");
+	});
+
 	test("stale recovery fails a dispatch that never admitted an agent", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await stub.enqueue(makeEvent({ deliveryId: "missing-dispatch", anchorNumber: 999 }));
