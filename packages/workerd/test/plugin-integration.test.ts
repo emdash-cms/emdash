@@ -11,7 +11,7 @@
  * Tests are modeled after the sandboxed-test plugin's routes:
  * - kv/test: set, get, delete a KV entry
  * - storage/test: put, get, count in a declared storage collection
- * - content/list: list content with read:content capability
+ * - content/list: list content with content:read capability
  * - content lifecycle: create, read, update, soft-delete
  */
 
@@ -151,14 +151,14 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 
 	/**
 	 * Create a bridge handler matching the sandboxed-test plugin's capabilities:
-	 * read:content, network:fetch with allowedHosts: ["httpbin.org"]
+	 * content:read, network:request with allowedHosts: ["httpbin.org"]
 	 * storage: { events: { indexes: ["timestamp", "type"] } }
 	 */
 	function makePluginHandler() {
 		return createBridgeHandler({
 			pluginId: "sandboxed-test",
 			version: "0.0.1",
-			capabilities: ["read:content", "network:fetch"],
+			capabilities: ["content:read", "network:request"],
 			allowedHosts: ["httpbin.org"],
 			storageCollections: ["events"],
 			db,
@@ -238,7 +238,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 
 	// ── Mirrors sandboxed-test plugin's content/list route ───────────────
 
-	it("Content list with read:content capability", async () => {
+	it("Content list with content:read capability", async () => {
 		const handler = makePluginHandler();
 
 		// Seed some content
@@ -283,14 +283,14 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 
 	// ── Content lifecycle: create, read, update, soft-delete ─────────────
 
-	describe("content lifecycle (requires read:content + write:content)", () => {
+	describe("content lifecycle (requires content:read + content:write)", () => {
 		function makeWriteHandler(i18nConfig?: { defaultLocale: string; locales: string[] } | null) {
-			// Bridge enforces capabilities strictly: write:content does NOT
-			// imply read:content. Plugins that need both must declare both.
+			// Bridge enforces capabilities strictly: content:write does NOT
+			// imply content:read. Plugins that need both must declare both.
 			return createBridgeHandler({
 				pluginId: "sandboxed-test",
 				version: "0.0.1",
-				capabilities: ["read:content", "write:content"],
+				capabilities: ["content:read", "content:write"],
 				allowedHosts: [],
 				storageCollections: [],
 				i18nConfig,
@@ -519,17 +519,17 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 
 	// ── Capability enforcement matches real plugin config ─────────────────
 
-	it("sandboxed-test plugin cannot write content (only has read:content)", async () => {
+	it("sandboxed-test plugin cannot write content (only has content:read)", async () => {
 		const handler = makePluginHandler();
 		const result = await call(handler, "content/create", {
 			collection: "posts",
 			data: { title: "Should fail" },
 		});
-		expect(result.error).toContain("Missing capability: write:content");
+		expect(result.error).toContain("Missing capability: content:write");
 	});
 
 	it("write-only plugin cannot read content (no implicit upgrade)", async () => {
-		// Plugins with only write:content cannot call ctx.content.get/list.
+		// Plugins with only content:write cannot call ctx.content.get/list.
 		// This matches the Cloudflare PluginBridge: capabilities are enforced
 		// strictly as declared in the manifest. A plugin that needs both
 		// reads and writes must declare both capabilities.
@@ -551,7 +551,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 		const writeOnlyHandler = createBridgeHandler({
 			pluginId: "write-only-plugin",
 			version: "1.0.0",
-			capabilities: ["write:content"],
+			capabilities: ["content:write"],
 			allowedHosts: [],
 			storageCollections: [],
 			db,
@@ -563,15 +563,15 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			collection: "pages",
 			id: "any",
 		});
-		expect(getResult.error).toContain("Missing capability: read:content");
+		expect(getResult.error).toContain("Missing capability: content:read");
 
 		// content/list should also fail
 		const listResult = await call(writeOnlyHandler, "content/list", {
 			collection: "pages",
 		});
-		expect(listResult.error).toContain("Missing capability: read:content");
+		expect(listResult.error).toContain("Missing capability: content:read");
 
-		// content/create should still succeed (has write:content)
+		// content/create should still succeed (has content:write)
 		const createResult = await call(writeOnlyHandler, "content/create", {
 			collection: "pages",
 			data: { title: "Allowed" },
@@ -580,11 +580,11 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 	});
 
 	it("write-only media plugin cannot read media", async () => {
-		// Same enforcement for media: write:media does NOT imply read:media.
+		// Same enforcement for media: media:write does NOT imply media:read.
 		const writeOnlyHandler = createBridgeHandler({
 			pluginId: "write-only-media",
 			version: "1.0.0",
-			capabilities: ["write:media"],
+			capabilities: ["media:write"],
 			allowedHosts: [],
 			storageCollections: [],
 			db,
@@ -592,10 +592,10 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 		});
 
 		const getResult = await call(writeOnlyHandler, "media/get", { id: "any" });
-		expect(getResult.error).toContain("Missing capability: read:media");
+		expect(getResult.error).toContain("Missing capability: media:read");
 
 		const listResult = await call(writeOnlyHandler, "media/list", {});
-		expect(listResult.error).toContain("Missing capability: read:media");
+		expect(listResult.error).toContain("Missing capability: media:read");
 	});
 
 	it("sandboxed-test plugin cannot send email (not in capabilities)", async () => {

@@ -107,7 +107,7 @@ describe("miniflare plugin isolation", () => {
 
 	it("plugins are isolated from each other", async () => {
 		// Two plugins with different service bindings.
-		// Plugin A has BRIDGE binding (read:content).
+		// Plugin A has BRIDGE binding (content:read).
 		// Plugin B has NO bridge binding (no capabilities).
 		// Use separate Miniflare instances to test isolation,
 		// since dispatchFetch always hits the first worker.

@@ -32,7 +32,7 @@ describe("Miniflare sandbox route errors", () => {
 			{
 				id: "content-writer",
 				version: "1.0.0",
-				capabilities: ["write:content"],
+				capabilities: ["content:write"],
 				allowedHosts: [],
 				storage: {},
 				hooks: [],
