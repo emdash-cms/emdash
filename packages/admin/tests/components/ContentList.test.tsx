@@ -349,6 +349,30 @@ describe("ContentList", () => {
 				expect(option.element().querySelector("svg")).not.toBeNull();
 			}
 		});
+
+		it("opens the date range calendar and clears the active range", async () => {
+			const onDateFilterChange = vi.fn();
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[makeItem()]}
+					statusFilter="all"
+					onStatusFilterChange={vi.fn()}
+					dateFilter={{ field: "createdAt", from: "2026-08-10", to: "2026-08-18" }}
+					onDateFilterChange={onDateFilterChange}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: /Filter by date range:/ }).click();
+			await expect.element(screen.getByText("Choose a date range")).toBeInTheDocument();
+
+			await screen.getByRole("button", { name: "Clear", exact: true }).click();
+			expect(onDateFilterChange).toHaveBeenCalledWith({
+				field: "createdAt",
+				from: "",
+				to: "",
+			});
+		});
 	});
 
 	describe("delete confirmation", () => {
