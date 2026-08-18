@@ -114,9 +114,9 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 				</Button>
 			</Popover.Trigger>
 
-			<Popover.Content className="w-72 p-2" align="start">
+			<Popover.Content className="w-80 max-w-[calc(100vw-2rem)] p-3" align="start">
 				<Input
-					size="sm"
+					size="base"
 					type="search"
 					aria-label={t`Search bylines`}
 					placeholder={t`Search bylines…`}
@@ -124,7 +124,7 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 					onChange={(e) => setSearch(e.target.value)}
 				/>
 
-				<div className="mt-2 border-b pb-2">
+				<div className="mt-3 border-b pb-3">
 					<Checkbox
 						checked={value.none}
 						onCheckedChange={toggleNone}
@@ -132,30 +132,34 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 					/>
 				</div>
 
-				<div className="mt-2 max-h-64 overflow-y-auto" role="group" aria-label={t`Bylines`}>
-					{isLoading && <p className="p-2 text-sm text-kumo-subtle">{t`Loading…`}</p>}
+				<div
+					className="mt-2 max-h-64 space-y-0.5 overflow-y-auto"
+					role="group"
+					aria-label={t`Bylines`}
+				>
+					{isLoading && <p className="py-2 text-base text-kumo-subtle">{t`Loading…`}</p>}
 
 					{!isLoading && options.length === 0 && (
-						<p className="p-2 text-sm text-kumo-subtle">{t`No bylines found`}</p>
+						<p className="py-2 text-base text-kumo-subtle">{t`No bylines found`}</p>
 					)}
 
 					{options.map((byline) => {
 						const group = groupOf(byline);
 						const checked = value.bylineIds.includes(group);
 						return (
-							<div key={byline.id} className="rounded px-2 py-1 hover:bg-kumo-tint/50">
+							<div key={byline.id} className="-mx-1 rounded px-1 py-1 hover:bg-kumo-tint/50">
 								<Checkbox
 									checked={checked}
 									disabled={!checked && (atLimit || value.none)}
 									onCheckedChange={() => toggle(group)}
-									label={<span className="text-sm">{byline.displayName}</span>}
+									label={<span className="text-base font-normal">{byline.displayName}</span>}
 								/>
 							</div>
 						);
 					})}
 
 					{data?.nextCursor && (
-						<p className="p-2 text-sm text-kumo-subtle">{t`Search to narrow the list`}</p>
+						<p className="py-2 text-base text-kumo-subtle">{t`Search to narrow the list`}</p>
 					)}
 				</div>
 
@@ -165,13 +169,13 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 					</Badge>
 				)}
 
-				<div className="mt-2 border-t pt-2">
+				<div className="mt-3 border-t pt-3">
 					<Switch
 						checked={value.includeInferred}
 						onCheckedChange={(checked) => onChange({ ...value, includeInferred: checked })}
-						label={<span className="text-sm">{t`Include inferred bylines`}</span>}
+						label={<span className="text-base font-normal">{t`Include inferred bylines`}</span>}
 					/>
-					<p className="mt-1 text-xs text-kumo-subtle">
+					<p className="mt-1 text-base leading-5 text-pretty text-kumo-subtle">
 						{t`Also match the byline linked to an entry's author when it has none assigned.`}
 					</p>
 				</div>
