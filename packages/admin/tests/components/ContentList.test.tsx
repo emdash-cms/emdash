@@ -350,6 +350,19 @@ describe("ContentList", () => {
 			}
 		});
 
+		it("keeps the closed trigger aligned with the open menu width", async () => {
+			const screen = await render(
+				<ContentList {...defaultProps} statusFilter="all" onStatusFilterChange={vi.fn()} />,
+			);
+			const filter = screen.getByRole("combobox", { name: "Filter by status" });
+			const triggerWidth = filter.element().getBoundingClientRect().width;
+
+			await filter.click();
+			const menuWidth = screen.getByRole("listbox").element().getBoundingClientRect().width;
+
+			expect(Math.abs(menuWidth - triggerWidth)).toBeLessThanOrEqual(4);
+		});
+
 		it("opens the date range calendar and clears the active range", async () => {
 			const onDateFilterChange = vi.fn();
 			const screen = await render(
@@ -364,7 +377,22 @@ describe("ContentList", () => {
 			);
 
 			await screen.getByRole("button", { name: /Filter by date range:/ }).click();
-			await expect.element(screen.getByText("Choose a date range")).toBeInTheDocument();
+			const title = screen.getByText("Choose a date range");
+			await expect.element(title).toBeInTheDocument();
+			const calendar = document.querySelector<HTMLElement>(".rdp-root");
+			if (!calendar) throw new Error("Date range calendar did not render");
+
+			const titleRange = document.createRange();
+			titleRange.selectNodeContents(title.element());
+			const calendarRect = calendar.getBoundingClientRect();
+			const doneRect = screen
+				.getByRole("button", { name: "Done" })
+				.element()
+				.getBoundingClientRect();
+			expect(
+				Math.abs(titleRange.getBoundingClientRect().left - calendarRect.left),
+			).toBeLessThanOrEqual(1);
+			expect(Math.abs(calendarRect.right - doneRect.right)).toBeLessThanOrEqual(1);
 
 			await screen.getByRole("button", { name: "Clear", exact: true }).click();
 			expect(onDateFilterChange).toHaveBeenCalledWith({
