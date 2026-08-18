@@ -1,4 +1,4 @@
-import { Button, Input, Loader, Select, Tabs } from "@cloudflare/kumo";
+import { Button, Loader, Select, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -33,6 +33,7 @@ import {
 } from "../lib/media-utils";
 import { cn } from "../lib/utils";
 import { MediaDetailPanel } from "./MediaDetailPanel";
+import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
 
 /** Maps a coarse type-filter choice to the media list's `mimeType` filter. */
 function mimeForTypeFilter(value: string): string | string[] | undefined {
@@ -402,79 +403,74 @@ export function MediaLibrary({
 			{/* Toolbar: search + type filter (start) · result count + view toggle (end).
 			    Local library search/filter is handled server-side. */}
 			{showToolbar && (
-				<div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-					<div className="flex min-w-0 items-center gap-3">
-						{(canSearch || activeProvider === "local") && (
-							<div className="relative min-w-0 flex-1 sm:w-72 sm:flex-none">
-								<MagnifyingGlass
-									className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle"
-									aria-hidden="true"
-								/>
-								<Input
-									type="search"
-									placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
-									aria-label={t`Search media`}
-									value={searchQuery}
-									onChange={handleSearchChange}
-									maxLength={MEDIA_SEARCH_MAX_LENGTH}
-									className="w-full ps-9"
+				<TableToolbar
+					trailing={
+						<>
+							<span className="text-sm text-kumo-subtle tabular-nums" aria-live="polite">
+								{resultCountText}
+							</span>
+							<div role="group" aria-label={t`View mode`}>
+								<Tabs
+									variant="segmented"
+									value={viewMode}
+									onValueChange={(v) => {
+										if (v === "grid" || v === "list") setViewMode(v);
+									}}
+									tabs={[
+										{
+											value: "grid",
+											label: (
+												<>
+													<SquaresFour className="h-4 w-4" aria-hidden="true" />
+													<span className="sr-only">{t`Grid view`}</span>
+												</>
+											),
+										},
+										{
+											value: "list",
+											label: (
+												<>
+													<List className="h-4 w-4" aria-hidden="true" />
+													<span className="sr-only">{t`List view`}</span>
+												</>
+											),
+										},
+									]}
 								/>
 							</div>
-						)}
-						{activeProvider === "local" && (
-							<Select
-								value={localTypeFilter}
-								onValueChange={(v) => {
-									const next = v ?? "all";
-									setLocalTypeFilter(next);
-									onLocalMimeFilterChange?.(mimeForTypeFilter(next));
-								}}
-								items={{
-									all: t`All types`,
-									image: t`Images`,
-									video: t`Video`,
-									audio: t`Audio`,
-									document: t`Documents`,
-								}}
-								aria-label={t`Filter by type`}
-							/>
-						)}
-					</div>
-					<div className="flex flex-shrink-0 items-center justify-between gap-3 sm:justify-end">
-						<span className="text-sm text-kumo-subtle tabular-nums" aria-live="polite">
-							{resultCountText}
-						</span>
-						<div role="group" aria-label={t`View mode`}>
-							<Tabs
-								variant="segmented"
-								value={viewMode}
-								onValueChange={(v) => {
-									if (v === "grid" || v === "list") setViewMode(v);
-								}}
-								tabs={[
-									{
-										value: "grid",
-										label: (
-											<>
-												<SquaresFour className="h-4 w-4" aria-hidden="true" />
-												<span className="sr-only">{t`Grid view`}</span>
-											</>
-										),
-									},
-									{
-										value: "list",
-										label: (
-											<>
-												<List className="h-4 w-4" aria-hidden="true" />
-												<span className="sr-only">{t`List view`}</span>
-											</>
-										),
-									},
-								]}
-							/>
-						</div>
-					</div>
-				</div>
+						</>
+					}
+				>
+					{(canSearch || activeProvider === "local") && (
+						<TableToolbarSearch
+							placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
+							aria-label={t`Search media`}
+							value={searchQuery}
+							onChange={handleSearchChange}
+							maxLength={MEDIA_SEARCH_MAX_LENGTH}
+							className="sm:w-72"
+						/>
+					)}
+					{activeProvider === "local" && (
+						<Select
+							size="sm"
+							value={localTypeFilter}
+							onValueChange={(v) => {
+								const next = v ?? "all";
+								setLocalTypeFilter(next);
+								onLocalMimeFilterChange?.(mimeForTypeFilter(next));
+							}}
+							items={{
+								all: t`All types`,
+								image: t`Images`,
+								video: t`Video`,
+								audio: t`Audio`,
+								document: t`Documents`,
+							}}
+							aria-label={t`Filter by type`}
+						/>
+					)}
+				</TableToolbar>
 			)}
 
 			{/* Content */}
