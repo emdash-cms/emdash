@@ -964,8 +964,8 @@ describe("SEO", () => {
 			expect(result.data!.collections[0]!.collection).toBe("post");
 		});
 
-		it("should return null slug and valid id when slug is null", async () => {
-			const created = await repo.create({
+		it("should exclude published content without a slug", async () => {
+			await repo.create({
 				type: "post",
 				data: { title: "No Slug Post" },
 				status: "published",
@@ -974,10 +974,7 @@ describe("SEO", () => {
 			const result = await handleSitemapData(db);
 
 			expect(result.success).toBe(true);
-			const entries = flatEntries(result.data!);
-			expect(entries[0]!.collection).toBe("post");
-			expect(entries[0]!.slug).toBeNull();
-			expect(entries[0]!.id).toBe(created.id);
+			expect(result.data!.collections).toEqual([]);
 		});
 
 		it("should include updatedAt and lastmod", async () => {

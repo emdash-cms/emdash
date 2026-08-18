@@ -16,6 +16,7 @@ declare module "virtual:emdash/config" {
 
 	interface VirtualConfig {
 		database?: DatabaseDescriptor;
+		migrations?: import("./database/migrations/policy.js").RuntimeMigrationConfig;
 		storage?: StorageDescriptor;
 		auth?: AuthDescriptor;
 		authProviders?: AuthProviderDescriptor[];
@@ -35,6 +36,7 @@ declare module "virtual:emdash/dialect" {
 	import type { Dialect, Kysely } from "kysely";
 
 	import type { DatabaseDialectType } from "./db/adapters.js";
+	import type { ExecuteCollectionDeletionGuard } from "./db/adapters.js";
 
 	// Can be undefined if no database configured, or the actual function
 	export const createDialect: ((config: unknown) => Dialect) | undefined;
@@ -82,6 +84,7 @@ declare module "virtual:emdash/dialect" {
 		close?: () => void;
 	}
 	export const createRequestScopedDb: (opts: RequestScopedDbOpts) => RequestScopedDb | null;
+	export const executeCollectionDeletionGuard: ExecuteCollectionDeletionGuard | undefined;
 }
 
 declare module "virtual:emdash/storage" {
@@ -207,6 +210,8 @@ declare module "virtual:emdash/admin-registry" {
 	 *   - pages: Record<pageId, ComponentType>
 	 *   - widgets: Record<widgetId, ComponentType>
 	 *   - fields: Record<widgetName, ComponentType> (field widget renderers)
+	 *   - contentEditorPanels: Trusted content editor sidebar panels
+	 *   - contentListColumns: trusted-plugin content list column definitions
 	 */
 	export const pluginAdmins: Record<
 		string,
@@ -214,6 +219,8 @@ declare module "virtual:emdash/admin-registry" {
 			pages?: Record<string, unknown>;
 			widgets?: Record<string, unknown>;
 			fields?: Record<string, unknown>;
+			contentEditorPanels?: readonly unknown[];
+			contentListColumns?: readonly unknown[];
 		}
 	>;
 }

@@ -1,13 +1,21 @@
 import { z } from "zod";
 
 import { MAX_COLLECTION_LIST_COLUMNS } from "../../schema/types.js";
+import { compileUrlPattern } from "../../schema/url-pattern.js";
 import { slugPattern } from "./common.js";
 
 // ---------------------------------------------------------------------------
 // Schema (collections & fields): Input schemas
 // ---------------------------------------------------------------------------
 
-const collectionSupportValues = z.enum(["drafts", "revisions", "preview", "scheduling", "search"]);
+const collectionSupportValues = z.enum([
+	"drafts",
+	"revisions",
+	"preview",
+	"scheduling",
+	"search",
+	"seo",
+]);
 
 const collectionSourcePattern = /^(template:.+|import:.+|manual|discovered|seed)$/;
 
@@ -67,6 +75,17 @@ const repeaterSubFieldSchema = z.object({
 	options: z.array(z.string()).optional(),
 });
 
+const urlPatternValue = z.string().superRefine((pattern, ctx) => {
+	try {
+		compileUrlPattern(pattern);
+	} catch {
+		ctx.addIssue({
+			code: "custom",
+			message: "Invalid URL pattern",
+		});
+	}
+});
+
 const fieldValidation = z
 	.object({
 		required: z.boolean().optional(),
@@ -89,6 +108,35 @@ const fieldValidation = z
 			.max(64, "allowedMimeTypes may contain at most 64 entries")
 			.optional(),
 	})
+	.superRefine((validation, ctx) => {
+		for (const [minimum, maximum] of [
+			["min", "max"],
+			["minLength", "maxLength"],
+			["minItems", "maxItems"],
+		] as const) {
+			const minimumValue = validation[minimum];
+			const maximumValue = validation[maximum];
+			if (minimumValue !== undefined && maximumValue !== undefined && minimumValue > maximumValue) {
+				ctx.addIssue({
+					code: "custom",
+					path: [maximum],
+					message: `${maximum} must be greater than or equal to ${minimum}`,
+				});
+			}
+		}
+
+		if (validation.pattern !== undefined) {
+			try {
+				RegExp(validation.pattern);
+			} catch {
+				ctx.addIssue({
+					code: "custom",
+					path: ["pattern"],
+					message: "Invalid validation pattern",
+				});
+			}
+		}
+	})
 	.optional();
 
 const fieldWidgetOptions = z.record(z.string(), z.unknown()).optional();
@@ -103,7 +151,8 @@ export const createCollectionBody = z
 		admin: collectionAdminInputConfig.optional(),
 		supports: z.array(collectionSupportValues).optional(),
 		source: z.string().regex(collectionSourcePattern).optional(),
-		urlPattern: z.string().optional(),
+		urlPattern: urlPatternValue.optional(),
+		routable: z.boolean().optional(),
 		hasSeo: z.boolean().optional(),
 		hidden: z.boolean().optional(),
 		sortOrder: z.number().int().nullish(),
@@ -118,7 +167,8 @@ export const updateCollectionBody = z
 		icon: z.string().optional(),
 		admin: collectionAdminInputConfig.optional(),
 		supports: z.array(collectionSupportValues).optional(),
-		urlPattern: z.string().nullish(),
+		urlPattern: urlPatternValue.nullish(),
+		routable: z.boolean().optional(),
 		hasSeo: z.boolean().optional(),
 		hidden: z.boolean().optional(),
 		sortOrder: z.number().int().nullish(),
@@ -142,6 +192,7 @@ export const createFieldBody = z
 		options: fieldWidgetOptions,
 		sortOrder: z.number().int().min(0).optional(),
 		searchable: z.boolean().optional(),
+		indexed: z.boolean().optional(),
 		translatable: z.boolean().optional(),
 	})
 	.meta({ id: "CreateFieldBody" });
@@ -158,6 +209,7 @@ export const updateFieldBody = z
 		options: fieldWidgetOptions,
 		sortOrder: z.number().int().min(0).optional(),
 		searchable: z.boolean().optional(),
+		indexed: z.boolean().optional(),
 		translatable: z.boolean().optional(),
 	})
 	.meta({ id: "UpdateFieldBody" });
@@ -210,6 +262,7 @@ export const collectionSchema = z
 		supports: z.array(z.string()),
 		source: z.string().nullable(),
 		urlPattern: z.string().nullable(),
+		routable: z.boolean(),
 		hasSeo: z.boolean(),
 		hidden: z.boolean(),
 		sortOrder: z.number().int().nullable(),
@@ -233,6 +286,7 @@ export const fieldSchema = z
 		options: z.record(z.string(), z.unknown()).nullable(),
 		sortOrder: z.number().int(),
 		searchable: z.boolean(),
+		indexed: z.boolean(),
 		translatable: z.boolean(),
 		createdAt: z.string(),
 		updatedAt: z.string(),

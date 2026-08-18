@@ -5,16 +5,18 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import type { ContentFieldFilters } from "../../content-list-query.js";
 import { isSqlite } from "../../database/dialect-helpers.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import type { ContentBylineInput } from "../../database/repositories/byline.js";
 import { CommentRepository } from "../../database/repositories/comment.js";
-import { ContentRepository } from "../../database/repositories/content.js";
+import { ContentRepository, isSystemOrderField } from "../../database/repositories/content.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import {
+	ContentCollectionNotFoundError,
 	ContentMutationConflictError,
 	EmDashValidationError,
 	ScheduledNotDueError,
@@ -86,6 +88,28 @@ async function collectionHasSeo(db: Kysely<Database>, collection: string): Promi
 		.where("slug", "=", collection)
 		.executeTakeFirst();
 	return row?.has_seo === 1;
+}
+
+async function getCollectionPublishConfig(
+	db: Kysely<Database>,
+	collection: string,
+): Promise<{ supportsRevisions: boolean; routable: boolean }> {
+	const row = await db
+		.selectFrom("_emdash_collections")
+		.select(["supports", "routable"])
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+	const supports: unknown = row?.supports ? JSON.parse(row.supports) : [];
+	return {
+		supportsRevisions: Array.isArray(supports) && supports.includes("revisions"),
+		routable: row?.routable !== 0,
+	};
+}
+
+function requireRoutablePublishSlug(routable: boolean, slug: string | null | undefined): void {
+	if (routable && !slug?.trim()) {
+		throw new EmDashValidationError("Cannot publish routable content without a slug");
+	}
 }
 
 /**
@@ -315,14 +339,16 @@ export interface TrashedContentItem {
 
 /**
  * Resolve the columns a content-list search should match against. Always
- * includes `slug` (a standard column), adds the `title`/`name` display fields
- * when they exist, and includes every field explicitly marked searchable.
- * Returning only schema-backed columns avoids "no such column" errors.
+ * includes `slug` (a standard column), adds the configured `titleField` plus
+ * the `title`/`name` display fields when the collection actually defines them,
+ * mirroring the admin's item-title resolution (titleField -> title -> name ->
+ * slug), and includes every field explicitly marked searchable. Returning only
+ * schema-backed columns avoids "no such column" errors.
  */
 async function resolveSearchColumns(db: Kysely<Database>, collection: string): Promise<string[]> {
 	const row = await db
 		.selectFrom("_emdash_collections")
-		.select("id")
+		.select(["id", "title_field"])
 		.where("slug", "=", collection)
 		.executeTakeFirst();
 	if (!row) return ["slug"];
@@ -335,6 +361,10 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 		.execute();
 	const columns = new Set(["slug"]);
 	const fieldSlugs = new Set(fields.map((f) => f.slug));
+
+	// A configured titleField takes precedence, then the conventional
+	// title/name fields. A null title_field falls through to those defaults.
+	if (row.title_field && fieldSlugs.has(row.title_field)) columns.add(row.title_field);
 	for (const candidate of ["title", "name"]) {
 		if (fieldSlugs.has(candidate)) columns.add(candidate);
 	}
@@ -485,6 +515,7 @@ export async function handleContentList(
 		bylines?: string[];
 		bylinesNone?: boolean;
 		includeInferredBylines?: boolean;
+		fieldFilters?: ContentFieldFilters;
 	},
 ): Promise<ApiResult<ContentListResponse>> {
 	try {
@@ -494,6 +525,9 @@ export async function handleContentList(
 		const locale = params.locale ? resolveConfiguredLocale(params.locale) : undefined;
 		if (locale) where.locale = locale;
 		if (params.authorId) where.authorId = params.authorId;
+		if (params.fieldFilters && Object.keys(params.fieldFilters).length > 0) {
+			where.fieldFilters = params.fieldFilters;
+		}
 
 		const bylineFilter = resolveBylineFilter(params, locale);
 		if (bylineFilter) where.bylineFilter = bylineFilter;
@@ -515,6 +549,21 @@ export async function handleContentList(
 			where.useFts = await canUseFtsForListFilter(db, collection, where.searchColumns);
 		}
 
+		// Sorting by a non-system field (a collection's titleField/dateField)
+		// needs the collection's *actual* sort fields resolved server-side,
+		// so the orderBy set stays closed. Only query when it's not a system field.
+		let sortableExtras: string[] | undefined;
+		if (params.orderBy && !isSystemOrderField(params.orderBy)) {
+			const coll = await db
+				.selectFrom("_emdash_collections")
+				.select(["title_field", "date_field"])
+				.where("slug", "=", collection)
+				.executeTakeFirst();
+			sortableExtras = [coll?.title_field, coll?.date_field].filter(
+				(slug): slug is string => !!slug,
+			);
+		}
+
 		const result = await repo.findMany(collection, {
 			cursor: params.cursor,
 			limit: params.limit || 50,
@@ -522,6 +571,7 @@ export async function handleContentList(
 			orderBy: params.orderBy
 				? { field: params.orderBy, direction: params.order || "desc" }
 				: undefined,
+			sortableExtras,
 		});
 
 		// Hydrate SEO data if the collection has SEO enabled
@@ -544,7 +594,7 @@ export async function handleContentList(
 				error: { code: "INVALID_CURSOR", message: error.message },
 			};
 		}
-		if (isMissingTableError(error)) {
+		if (error instanceof ContentCollectionNotFoundError || isMissingTableError(error)) {
 			return {
 				success: false,
 				error: {
@@ -745,7 +795,7 @@ export async function handleContentCreate(
 	collection: string,
 	body: {
 		data: Record<string, unknown>;
-		slug?: string;
+		slug?: string | null;
 		status?: string;
 		authorId?: string;
 		bylines?: ContentBylineInput[];
@@ -793,6 +843,10 @@ export async function handleContentCreate(
 					slug = await repo.generateUniqueSlug(collection, slugSource, effectiveLocale);
 				}
 			}
+			if (body.status === "published") {
+				const publishConfig = await getCollectionPublishConfig(trx, collection);
+				requireRoutablePublishSlug(publishConfig.routable, slug);
+			}
 
 			const created = await repo.create({
 				type: collection,
@@ -816,22 +870,12 @@ export async function handleContentCreate(
 				created.primaryBylineId = credits[0]?.byline.translationGroup ?? null;
 			}
 
-			// When this row is a translation of an existing item, inherit
-			// the source's taxonomy assignments AND byline credits. Both
-			// pivots store translation_groups (taxonomies post-mig 036,
-			// bylines post-mig 040), so a copied row applies across every
-			// locale of the credited identity — and the locale-strict
-			// hydration below renders the variant that matches the entry's
-			// locale (or nothing if no variant exists yet at this locale,
-			// which is the documented Phase 4 behaviour).
-			//
+			// Taxonomy assignments already belong to the content translation
+			// group. Byline credits remain per content row and need copying.
 			// Explicit `body.bylines` wins — `copyContentBylines` no-ops
 			// when the target already has credits, but the cleaner guard
 			// is to skip the call entirely.
 			if (body.translationOf) {
-				const taxRepo = new TaxonomyRepository(trx);
-				await taxRepo.copyEntryTerms(collection, body.translationOf, created.id);
-
 				if (body.bylines === undefined) {
 					await bylineRepo.copyContentBylines(collection, body.translationOf, created.id);
 					// `copyContentBylines` writes the source's primary
@@ -937,7 +981,7 @@ export async function handleContentUpdate(
 	id: string,
 	body: {
 		data?: Record<string, unknown>;
-		slug?: string;
+		slug?: string | null;
 		status?: string;
 		authorId?: string | null;
 		bylines?: ContentBylineInput[];
@@ -981,7 +1025,9 @@ export async function handleContentUpdate(
 
 			// Read existing item once for both _rev check and old slug capture
 			const existing =
-				body._rev || body.slug ? await trxRepo.findById(collection, resolvedId) : null;
+				body._rev || body.slug !== undefined || body.status === "published"
+					? await trxRepo.findById(collection, resolvedId)
+					: null;
 
 			// Validate _rev if provided (optimistic concurrency)
 			if (body._rev) {
@@ -1003,6 +1049,18 @@ export async function handleContentUpdate(
 			let oldSlug: string | undefined;
 			if (body.slug && existing?.slug && existing.slug !== body.slug) {
 				oldSlug = existing.slug;
+			}
+
+			const resultingStatus = body.status ?? existing?.status;
+			if (resultingStatus === "published") {
+				if (!existing) {
+					throw Object.assign(new Error(`Content item not found: ${id}`), {
+						apiError: { code: "NOT_FOUND" as const },
+					});
+				}
+				const publishConfig = await getCollectionPublishConfig(trx, collection);
+				const intendedSlug = body.slug !== undefined ? body.slug : existing.slug;
+				requireRoutablePublishSlug(publishConfig.routable, intendedSlug);
 			}
 
 			const updated = await trxRepo.update(collection, resolvedId, {
@@ -1432,7 +1490,12 @@ export async function handleContentSchedule(
 	try {
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
-			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
+			const existing = await repo.findByIdOrSlug(collection, id);
+			const resolvedId = existing?.id ?? id;
+			if (existing) {
+				const publishConfig = await getCollectionPublishConfig(trx, collection);
+				requireRoutablePublishSlug(publishConfig.routable, existing.slug);
+			}
 			return repo.schedule(collection, resolvedId, scheduledAt);
 		});
 
@@ -1527,6 +1590,7 @@ export async function handleContentPublish(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
+			const publishConfig = await getCollectionPublishConfig(trx, collection);
 
 			// Capture the pre-publish state. For revision-supporting collections a
 			// slug edit is staged as `_slug` in the draft revision and only lands
@@ -1541,6 +1605,8 @@ export async function handleContentPublish(
 				options.publishedAt,
 				options.requireScheduledDue,
 				options.expectedScheduledAt,
+				publishConfig.supportsRevisions,
+				publishConfig.routable,
 			);
 
 			// Leave a 301 behind when publishing changed the slug of an entry that

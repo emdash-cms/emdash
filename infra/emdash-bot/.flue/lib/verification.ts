@@ -1,8 +1,15 @@
 export interface VerificationRecord {
 	readonly name: string;
 	readonly command: string;
+	readonly cwd?: string;
 	readonly exitCode: number;
 	readonly candidateTreeSha: string;
+}
+
+export interface VerificationIdentity {
+	readonly name: string;
+	readonly command: string;
+	readonly cwd?: string;
 }
 
 const PIPE_OPERATOR = /\|/;
@@ -25,18 +32,57 @@ export function assertVerificationCommand(command: string): void {
 	}
 }
 
+export function assertVerificationIdentity(
+	records: readonly VerificationRecord[],
+	identity: VerificationIdentity,
+): void {
+	const canonical = records.find((record) => record.name === identity.name);
+	if (!canonical || sameVerificationIdentity(canonical, identity)) return;
+	throw new Error(
+		`verification check ${identity.name} is already bound to a different command or cwd; use a new check name`,
+	);
+}
+
+export function findReusableVerificationRecord(
+	records: readonly VerificationRecord[],
+	identity: VerificationIdentity,
+	candidateTreeSha: string,
+): VerificationRecord | null {
+	for (let index = records.length - 1; index >= 0; index -= 1) {
+		const record = records[index];
+		if (
+			record &&
+			sameVerificationIdentity(record, identity) &&
+			record.exitCode === 0 &&
+			record.candidateTreeSha === candidateTreeSha
+		) {
+			return record;
+		}
+	}
+	return null;
+}
+
+export function upsertVerificationRecord(
+	records: readonly VerificationRecord[],
+	record: VerificationRecord,
+): VerificationRecord[] {
+	return [...records.filter((existing) => existing.name !== record.name), record];
+}
+
 export function passingVerificationRecords(
 	records: readonly VerificationRecord[],
 	candidateTreeSha?: string,
 ): VerificationRecord[] {
 	const latest = new Map<string, VerificationRecord>();
-	const commands = new Map<string, string>();
+	const canonical = new Map<string, VerificationRecord>();
 	for (const record of records) {
-		const previousCommand = commands.get(record.name);
-		if (previousCommand !== undefined && previousCommand !== record.command) {
-			throw new Error(`verification check ${record.name} changed command between runs`);
+		const canonicalRecord = canonical.get(record.name);
+		if (canonicalRecord === undefined) {
+			canonical.set(record.name, record);
+			latest.set(record.name, record);
+			continue;
 		}
-		commands.set(record.name, record.command);
+		if (!sameVerificationIdentity(canonicalRecord, record)) continue;
 		latest.set(record.name, record);
 	}
 	if (latest.size === 0) throw new Error("run at least one verification check before publishing");
@@ -57,4 +103,11 @@ export function passingVerificationRecords(
 		}
 	}
 	return [...latest.values()];
+}
+
+function sameVerificationIdentity(
+	left: VerificationIdentity,
+	right: VerificationIdentity,
+): boolean {
+	return left.name === right.name && left.command === right.command && left.cwd === right.cwd;
 }

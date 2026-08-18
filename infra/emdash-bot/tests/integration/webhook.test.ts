@@ -109,6 +109,19 @@ describe("verifyWebhookSignature (workers-pool)", () => {
 });
 
 describe("POST /webhook/github (workers-pool)", () => {
+	test("serves the public dashboard", async () => {
+		const res = await SELF.fetch("https://test/");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toContain("text/html");
+		expect(await res.text()).toContain("The path from issue to merge");
+	});
+
+	test("dashboard API fails closed when GitHub credentials are unavailable", async () => {
+		const res = await SELF.fetch("https://test/api/dashboard");
+		expect(res.status).toBe(503);
+		expect(await res.json()).toEqual({ error: "Dashboard data is temporarily unavailable" });
+	});
+
 	test("rejects requests without a valid signature", async () => {
 		const res = await postWebhook({
 			eventType: "ping",
@@ -166,8 +179,8 @@ describe("POST /webhook/github (workers-pool)", () => {
 
 	test("classifier failure remains retryable and does not persist state", async () => {
 		// The webhook acknowledges durable admission before classifier work. The
-		// test entry has no Flue runtime, so processing fails and leaves the item
-		// queued for retry without persisting state.
+		// test entry returns a classifier error, so processing leaves the item
+		// queued for retry without persisting state or using remote inference.
 		const issueNumber = uniqueIssueNumber();
 		const res = await postWebhook({
 			eventType: "issue_comment",

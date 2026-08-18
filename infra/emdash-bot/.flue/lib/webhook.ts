@@ -128,9 +128,11 @@ interface IssueLike {
 }
 
 interface CommentLike {
+	id?: number;
 	body?: string | null;
 	user?: User;
 	author_association?: string;
+	created_at?: string;
 }
 
 interface PullRequest {
@@ -295,12 +297,22 @@ function normalizeIssueComment(
 
 	const sender = asRecord(event?.sender);
 	const issueUser = asRecord(issue?.user);
+	const senderLogin =
+		readString(sender?.login) ?? readString(asRecord(comment?.user)?.login) ?? null;
+	const authorAssociation = readString(comment?.author_association) ?? null;
 	const actor = classifyActor({
-		senderLogin: readString(sender?.login),
-		authorAssociation: readString(comment?.author_association),
+		senderLogin,
+		authorAssociation,
 		issueOpenerLogin: readString(issueUser?.login),
 	});
 	const labels = collectLabels(issue?.labels);
+	const triggeringComment = {
+		id: readNumber(comment?.id) ?? null,
+		body,
+		authorLogin: senderLogin,
+		authorAssociation,
+		actor,
+	};
 
 	// Three-way grammar (mirrors router.resolveComment):
 	//   1. Bare verb (parseCommand returns a known event) -> deterministic.
@@ -316,6 +328,7 @@ function normalizeIssueComment(
 			actor,
 			labels,
 			needsClassify: false,
+			triggeringComment,
 			...(deliveryId ? { deliveryId } : {}),
 		});
 	}
@@ -327,6 +340,7 @@ function normalizeIssueComment(
 			actor,
 			labels,
 			needsClassify: false,
+			triggeringComment,
 			...(deliveryId ? { deliveryId } : {}),
 		});
 	}
@@ -338,6 +352,7 @@ function normalizeIssueComment(
 		labels,
 		needsClassify: true,
 		classifyText: mentionText,
+		triggeringComment,
 		// allowDefault should be true on bot-authored PRs; we don't have bot-
 		// login detection yet, so default false (routes through classifier).
 		allowDefault: false,
@@ -451,13 +466,23 @@ function normalizePullRequestReviewComment(
 	if (mentionText === null) return { kind: "skip", reason: "no @emdashbot mention" };
 
 	const senderLogin =
-		readString(asRecord(event?.sender)?.login) ?? readString(asRecord(comment?.user)?.login);
+		readString(asRecord(event?.sender)?.login) ??
+		readString(asRecord(comment?.user)?.login) ??
+		null;
+	const authorAssociation = readString(comment?.author_association) ?? null;
 	const actor = classifyActor({
 		senderLogin,
-		authorAssociation: readString(comment?.author_association),
+		authorAssociation,
 		issueOpenerLogin: readString(asRecord(pr?.user)?.login),
 	});
 	const labels = collectLabels(pr?.labels);
+	const triggeringComment = {
+		id: readNumber(comment?.id) ?? null,
+		body,
+		authorLogin: senderLogin,
+		authorAssociation,
+		actor,
+	};
 
 	const cmd = parseCommand(body);
 	if (cmd) {
@@ -467,6 +492,7 @@ function normalizePullRequestReviewComment(
 			actor,
 			labels,
 			needsClassify: false,
+			triggeringComment,
 			...(deliveryId ? { deliveryId } : {}),
 		});
 	}
@@ -477,6 +503,7 @@ function normalizePullRequestReviewComment(
 			actor,
 			labels,
 			needsClassify: false,
+			triggeringComment,
 			...(deliveryId ? { deliveryId } : {}),
 		});
 	}
@@ -487,6 +514,7 @@ function normalizePullRequestReviewComment(
 		labels,
 		needsClassify: true,
 		classifyText: mentionText,
+		triggeringComment,
 		allowDefault: false,
 		...(deliveryId ? { deliveryId } : {}),
 	});

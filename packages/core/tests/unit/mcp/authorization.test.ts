@@ -17,6 +17,7 @@ import { z } from "zod";
 
 import type { EmDashHandlers } from "../../../src/astro/types.js";
 import { createMcpServer, type PluginMcpRegistration } from "../../../src/mcp/server.js";
+import type { RouteCallerInput } from "../../../src/plugins/routes.js";
 
 // ---------------------------------------------------------------------------
 // Test constants
@@ -207,6 +208,7 @@ function createAuthenticatedPair(authInfo: {
 	emdash: EmDashHandlers;
 	userId: string;
 	userRole: RoleLevel;
+	user: RouteCallerInput;
 	tokenScopes?: string[];
 }): [AuthInjectingTransport, InMemoryTransport] {
 	const clientTransport = new AuthInjectingTransport(authInfo);
@@ -227,6 +229,7 @@ async function setupMcpPair(opts: {
 	handlers?: EmDashHandlers;
 	tokenScopes?: string[];
 	pluginTools?: PluginMcpRegistration[];
+	user?: RouteCallerInput;
 }): Promise<{ client: Client; cleanup: () => Promise<void> }> {
 	const handlers = opts.handlers ?? createMockHandlers();
 	const server = createMcpServer(
@@ -237,6 +240,13 @@ async function setupMcpPair(opts: {
 		emdash: handlers,
 		userId: opts.userId,
 		userRole: opts.userRole,
+		user: opts.user ?? {
+			id: opts.userId,
+			email: `${opts.userId}@example.com`,
+			name: null,
+			role: opts.userRole,
+			createdAt: "2026-01-01T00:00:00.000Z",
+		},
 		tokenScopes: opts.tokenScopes,
 	});
 
@@ -309,6 +319,13 @@ describe("MCP Authorization", () => {
 
 		it("dispatches with a plugin-specific scope and returns structured output", async () => {
 			const handlers = createMockHandlers();
+			const caller: RouteCallerInput = {
+				id: AUTHOR_USER_ID,
+				email: "author@example.com",
+				name: "Author",
+				role: Role.CONTRIBUTOR,
+				createdAt: "2026-01-01T00:00:00.000Z",
+			};
 			handlers.handlePluginMcpTool = vi.fn().mockResolvedValue({
 				success: true,
 				data: { id: "event-1" },
@@ -317,6 +334,7 @@ describe("MCP Authorization", () => {
 				userId: AUTHOR_USER_ID,
 				userRole: Role.CONTRIBUTOR,
 				tokenScopes: ["mcp:tools:calendar"],
+				user: caller,
 				handlers,
 				pluginTools: [pluginTool],
 			}));
@@ -337,6 +355,7 @@ describe("MCP Authorization", () => {
 				{ title: "Launch" },
 				AUTHOR_USER_ID,
 				expect.any(Request),
+				caller,
 			);
 		});
 

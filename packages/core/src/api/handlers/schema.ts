@@ -9,6 +9,7 @@ import { invalidateCollectionCache } from "../../object-cache/index.js";
 import {
 	SchemaRegistry,
 	SchemaError,
+	invalidateSchemaCache,
 	type Collection,
 	type Field,
 	type CreateCollectionInput,
@@ -18,6 +19,11 @@ import {
 	type CollectionWithFields,
 } from "../../schema/index.js";
 import type { ApiResult } from "../types.js";
+
+function invalidateFieldCaches(collectionSlug: string): void {
+	invalidateCollectionCache(collectionSlug);
+	invalidateSchemaCache(collectionSlug);
+}
 
 export interface CollectionListResponse {
 	items: Collection[];
@@ -317,7 +323,7 @@ export async function handleSchemaFieldCreate(
 		const item = await registry.createField(collectionSlug, input);
 
 		// Content snapshots embed field values; a column change invalidates them.
-		invalidateCollectionCache(collectionSlug);
+		invalidateFieldCaches(collectionSlug);
 
 		return {
 			success: true,
@@ -357,7 +363,7 @@ export async function handleSchemaFieldUpdate(
 		const registry = new SchemaRegistry(db);
 		const item = await registry.updateField(collectionSlug, fieldSlug, input);
 
-		invalidateCollectionCache(collectionSlug);
+		invalidateFieldCaches(collectionSlug);
 
 		return {
 			success: true,
@@ -396,7 +402,7 @@ export async function handleSchemaFieldDelete(
 		const registry = new SchemaRegistry(db);
 		await registry.deleteField(collectionSlug, fieldSlug);
 
-		invalidateCollectionCache(collectionSlug);
+		invalidateFieldCaches(collectionSlug);
 
 		return {
 			success: true,

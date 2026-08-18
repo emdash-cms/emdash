@@ -21,6 +21,7 @@ import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database as DatabaseSchema } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
@@ -97,6 +98,7 @@ describeEachDialect("single-taxonomy CRUD", (dialect) => {
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
 		await teardownForDialect(ctx);
 	});
 
@@ -123,13 +125,23 @@ describeEachDialect("single-taxonomy CRUD", (dialect) => {
 			expect(result.error.code).toBe("NOT_FOUND");
 		});
 
-		it("reports NOT_FOUND when the taxonomy has no definition in the requested locale", async () => {
-			const result = await handleTaxonomyGet(db, "genre", { locale: "es" });
+		it("falls back to the default locale when the requested locale has no definition", async () => {
+			const source = await handleTaxonomyGet(db, "genre");
+			expect(source.success).toBe(true);
+			if (!source.success) return;
+			await handleTaxonomyCreate(db, {
+				name: "genre",
+				label: "Géneros",
+				locale: "es",
+				translationOf: source.data.taxonomy.id,
+			});
+			setI18nConfig({ defaultLocale: "es", locales: ["en", "es", "fr"] });
 
-			expect(result.success).toBe(false);
-			if (result.success) return;
-			expect(result.error.code).toBe("NOT_FOUND");
-			expect(result.error.message).toContain("es");
+			const result = await handleTaxonomyGet(db, "genre", { locale: "fr" });
+
+			expect(result.success).toBe(true);
+			if (!result.success) return;
+			expect(result.data.taxonomy).toMatchObject({ label: "Géneros", locale: "es" });
 		});
 
 		it("returns the requested locale's definition", async () => {
@@ -239,6 +251,22 @@ describeEachDialect("single-taxonomy CRUD", (dialect) => {
 			expect(result.success).toBe(true);
 			if (!result.success) return;
 			expect(result.data.taxonomy).toMatchObject({ label: "Categorías", locale: "es" });
+
+			const english = await handleTaxonomyGet(db, "genre", { locale: "en" });
+			expect(english.success && english.data.taxonomy.label).toBe("Genres");
+		});
+
+		it("does not fall back when the addressed locale has no definition", async () => {
+			setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+
+			const result = await handleTaxonomyUpdate(db, "genre", {
+				label: "Genres français",
+				locale: "fr",
+			});
+
+			expect(result.success).toBe(false);
+			if (result.success) return;
+			expect(result.error.code).toBe("NOT_FOUND");
 
 			const english = await handleTaxonomyGet(db, "genre", { locale: "en" });
 			expect(english.success && english.data.taxonomy.label).toBe("Genres");

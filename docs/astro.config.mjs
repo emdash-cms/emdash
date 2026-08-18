@@ -220,6 +220,7 @@ export default defineConfig({
 					items: [
 						{ label: "Deploy to Cloudflare", slug: "deployment/cloudflare" },
 						{ label: "Deploy to Node.js", slug: "deployment/nodejs" },
+						{ label: "Core Database Migrations", slug: "deployment/core-migrations" },
 						{ label: "Evolving a Deployed Site", slug: "deployment/schema-evolution" },
 						{ label: "Database Options", slug: "deployment/database" },
 						{ label: "Storage Options", slug: "deployment/storage" },

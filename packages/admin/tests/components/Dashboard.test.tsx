@@ -62,6 +62,7 @@ function makeStats(collections: DashboardStats["collections"]): DashboardStats {
 		mediaCount: 0,
 		userCount: 0,
 		recentItems: [],
+		schedulerHealth: { status: "healthy", lastCompletedAt: new Date().toISOString() },
 	};
 }
 
@@ -93,6 +94,100 @@ describe("Dashboard", () => {
 
 		await expect.element(screen.getByText("Media files")).toBeInTheDocument();
 		await expect.element(screen.getByText("Scheduled")).not.toBeInTheDocument();
+	});
+
+	it("warns when scheduled content is overdue and the scheduler has never completed", async () => {
+		const stats = makeStats([
+			{
+				slug: "pages",
+				label: "Pages",
+				total: 1,
+				published: 0,
+				draft: 1,
+				scheduled: 1,
+				overdueScheduled: 1,
+			},
+		]);
+		stats.schedulerHealth = { status: "unknown", lastCompletedAt: null };
+		mockFetchDashboardStats.mockResolvedValue(stats);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect
+			.element(screen.getByText("Scheduled publishing needs attention"))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText(/no scheduler run has completed/i)).toBeInTheDocument();
+		await expect.element(screen.getByText(/npx emdash doctor/i)).toBeInTheDocument();
+	});
+
+	it("warns when scheduled content is overdue and the heartbeat is stale", async () => {
+		const stats = makeStats([
+			{
+				slug: "pages",
+				label: "Pages",
+				total: 1,
+				published: 0,
+				draft: 1,
+				scheduled: 1,
+				overdueScheduled: 1,
+			},
+		]);
+		stats.schedulerHealth = {
+			status: "stale",
+			lastCompletedAt: "2026-08-16T11:50:00.000Z",
+		};
+		mockFetchDashboardStats.mockResolvedValue(stats);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect
+			.element(screen.getByText("Scheduled publishing needs attention"))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText(/scheduler heartbeat is stale/i)).toBeInTheDocument();
+	});
+
+	it("does not warn when the scheduler heartbeat is healthy", async () => {
+		mockFetchDashboardStats.mockResolvedValue(
+			makeStats([
+				{
+					slug: "pages",
+					label: "Pages",
+					total: 1,
+					published: 0,
+					draft: 1,
+					scheduled: 1,
+					overdueScheduled: 1,
+				},
+			]),
+		);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect
+			.element(screen.getByText("Scheduled publishing needs attention"))
+			.not.toBeInTheDocument();
+	});
+
+	it("renders dashboard data from an older API without scheduler health", async () => {
+		const stats = makeStats([
+			{
+				slug: "pages",
+				label: "Pages",
+				total: 1,
+				published: 0,
+				draft: 1,
+				scheduled: 0,
+			},
+		]);
+		stats.schedulerHealth = undefined;
+		mockFetchDashboardStats.mockResolvedValue(stats);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect.element(screen.getByText("Content")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Scheduled publishing needs attention"))
+			.not.toBeInTheDocument();
 	});
 
 	it("labels the published count for screen readers with the state, not the action", async () => {

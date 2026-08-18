@@ -28,10 +28,23 @@ import {
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import type { ContentAuthor, ContentDateField, ContentItem, TrashedContentItem } from "../lib/api";
+import type {
+	AdminManifest,
+	ContentAuthor,
+	ContentDateField,
+	ContentItem,
+	TrashedContentItem,
+} from "../lib/api.js";
+import {
+	ContentListColumnBoundary,
+	resolveContentListColumns,
+	type ResolvedContentListColumn,
+} from "../lib/content-list-columns.js";
+import { getEntryTitle } from "../lib/entryTitle.js";
 import { useDebouncedValue } from "../lib/hooks.js";
+import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
-import { cn } from "../lib/utils";
+import { cn, parseTimestamp } from "../lib/utils";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import {
 	BylineFilter,
@@ -47,8 +60,12 @@ import {
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
-/** Sortable content list columns. Maps to the server's order field whitelist. */
-export type ContentListSortField = "title" | "status" | "locale" | "updatedAt";
+/**
+ * Sortable content list columns. The named values map to the server's system
+ * order fields; a collection's configured titleField/dateField slug is also
+ * accepted, which the server validates against the collection.
+ */
+export type ContentListSortField = "title" | "status" | "locale" | "updatedAt" | (string & {});
 export interface ContentListSort {
 	field: ContentListSortField;
 	direction: "asc" | "desc";
@@ -104,6 +121,10 @@ export interface ContentListProps {
 	onLocaleChange?: (locale: string) => void;
 	/** URL pattern for published content links (e.g. `/blog/{slug}`) */
 	urlPattern?: string;
+	/** Collection field slug powering the Title column (falls back to the title chain). */
+	titleField?: string;
+	/** Collection field slug (datetime) powering the Date column (falls back to updated date). */
+	dateField?: string;
 	/**
 	 * Controlled sort state. When `onSortChange` is also provided, the column
 	 * headers become sort controls that invoke it. Uncontrolled sort keeps
@@ -155,6 +176,10 @@ export interface ContentListProps {
 	onBulkPublish?: BulkActionHandler;
 	onBulkUnpublish?: BulkActionHandler;
 	onBulkDelete?: BulkActionHandler;
+	/** Current role used only for contributed-column visibility, not authorization. */
+	userRole?: number;
+	/** Manifest state used to omit disabled or stale trusted-plugin contributions. */
+	pluginStates?: AdminManifest["plugins"];
 }
 
 type BulkActionHandler = (ids: string[]) => Promise<string[]>;
@@ -163,15 +188,19 @@ type ViewTab = "all" | "trash";
 
 const PAGE_SIZE = 20;
 
-function getItemTitle(item: { data: Record<string, unknown>; slug: string | null; id: string }) {
-	const rawTitle = item.data.title;
-	const rawName = item.data.name;
-	return (
-		(typeof rawTitle === "string" ? rawTitle : "") ||
-		(typeof rawName === "string" ? rawName : "") ||
-		item.slug ||
-		item.id
-	);
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Parse a dateField value for the Date column. Returns null if missing or
+ * unparseable (so the caller falls back to a system date instead of showing
+ * "Invalid Date"). Bare `YYYY-MM-DD` is read as local midnight to avoid a
+ * previous-day shift in negative-UTC timezones.
+ */
+function parseListDate(value: unknown): Date | null {
+	if (typeof value !== "string" || !value) return null;
+	const normalized = DATE_ONLY_RE.test(value) ? `${value}T00:00:00` : value;
+	const parsed = new Date(normalized);
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 /**
@@ -198,6 +227,8 @@ export function ContentList({
 	activeLocale,
 	onLocaleChange,
 	urlPattern,
+	titleField,
+	dateField,
 	sort,
 	onSortChange,
 	total,
@@ -214,8 +245,11 @@ export function ContentList({
 	onBulkPublish,
 	onBulkUnpublish,
 	onBulkDelete,
+	userRole = 0,
+	pluginStates,
 }: ContentListProps) {
 	const { t } = useLingui();
+	const pluginAdmins = usePluginAdmins();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
@@ -244,8 +278,8 @@ export function ContentList({
 	const filteredItems = React.useMemo(() => {
 		if (serverSearch || !searchQuery) return items;
 		const query = searchQuery.toLowerCase();
-		return items.filter((item) => getItemTitle(item).toLowerCase().includes(query));
-	}, [items, searchQuery, serverSearch]);
+		return items.filter((item) => getEntryTitle(item, titleField).toLowerCase().includes(query));
+	}, [items, searchQuery, serverSearch, titleField]);
 
 	// The query the current `items` reflect: server-side filtering lags behind
 	// typing by the debounce, so the empty-state message must use the debounced
@@ -322,6 +356,10 @@ export function ContentList({
 			return next;
 		});
 	const selectedCount = selectedIds.size;
+	const extensionColumns = React.useMemo(
+		() => resolveContentListColumns(pluginAdmins, collection, userRole, pluginStates),
+		[collection, pluginAdmins, pluginStates, userRole],
+	);
 	const [bulkBusy, setBulkBusy] = React.useState(false);
 	const runBulk = (fn?: BulkActionHandler) => {
 		if (!fn || selectedCount === 0 || bulkBusy) return;
@@ -342,7 +380,8 @@ export function ContentList({
 			}
 		})();
 	};
-	const colSpan = (i18n ? 5 : 4) + listColumns.length + (bulkEnabled ? 1 : 0);
+	const colSpan =
+		(i18n ? 5 : 4) + listColumns.length + extensionColumns.length + (bulkEnabled ? 1 : 0);
 
 	return (
 		<div className="space-y-4">
@@ -529,8 +568,10 @@ export function ContentList({
 											/>
 										</th>
 									)}
+									{/* The Title/Date columns sort by the collection's configured
+									    titleField/dateField when set */}
 									<SortableTh
-										field="title"
+										field={titleField ?? "title"}
 										sort={sort}
 										onSortChange={onSortChange}
 										label={t`Title`}
@@ -559,11 +600,19 @@ export function ContentList({
 										/>
 									)}
 									<SortableTh
-										field="updatedAt"
+										field={dateField ?? "updatedAt"}
 										sort={sort}
 										onSortChange={onSortChange}
 										label={t`Date`}
 									/>
+									{extensionColumns.map((column) => (
+										<ExtensionColumnHeader
+											key={`${column.pluginId}:${column.extension.id}`}
+											column={column}
+											collection={collection}
+											locale={activeLocale}
+										/>
+									))}
 									<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
 										{t`Actions`}
 									</th>
@@ -610,15 +659,19 @@ export function ContentList({
 										<ContentListItem
 											key={item.id}
 											item={item}
+											visibleItems={paginatedItems}
 											collection={collection}
 											onDelete={onDelete}
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
 											urlPattern={urlPattern}
+											titleField={titleField}
+											dateField={dateField}
 											listColumns={listColumns}
 											selectable={bulkEnabled}
 											selected={selectedIds.has(item.id)}
 											onToggleSelect={toggleOne}
+											extensionColumns={extensionColumns}
 										/>
 									))
 								)}
@@ -712,6 +765,7 @@ export function ContentList({
 										<TrashedListItem
 											key={item.id}
 											item={item}
+											titleField={titleField}
 											onRestore={onRestore}
 											onPermanentDelete={onPermanentDelete}
 										/>
@@ -962,6 +1016,39 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 	);
 }
 
+interface ExtensionColumnHeaderProps {
+	column: ResolvedContentListColumn;
+	collection: string;
+	locale?: string;
+}
+
+function ExtensionColumnHeader({ column, collection, locale }: ExtensionColumnHeaderProps) {
+	const { i18n } = useLingui();
+	const { pluginId, extension } = column;
+	const Header = extension.header;
+	const label = i18n._(extension.label);
+
+	return (
+		<th
+			scope="col"
+			aria-label={label}
+			className={cn(
+				"px-4 py-3 text-sm font-medium",
+				extension.align === "end" ? "text-end" : "text-start",
+			)}
+		>
+			<ContentListColumnBoundary
+				key={`${collection}:${locale ?? ""}:${pluginId}:${extension.id}`}
+				pluginId={pluginId}
+				columnId={extension.id}
+				fallback={label}
+			>
+				{Header ? <Header collection={collection} locale={locale} /> : label}
+			</ContentListColumnBoundary>
+		</th>
+	);
+}
+
 /**
  * Render the row-count line above pagination. The rules are:
  * - A search query always wins — say how many matches there are. In
@@ -1006,32 +1093,43 @@ function renderItemCount({
 
 interface ContentListItemProps {
 	item: ContentItem;
+	visibleItems: readonly ContentItem[];
 	collection: string;
 	onDelete?: (id: string) => void;
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
 	urlPattern?: string;
+	titleField?: string;
+	dateField?: string;
 	listColumns: ContentListColumn[];
 	selectable?: boolean;
 	selected?: boolean;
 	onToggleSelect?: (id: string) => void;
+	extensionColumns?: ResolvedContentListColumn[];
 }
 
 function ContentListItem({
 	item,
+	visibleItems,
 	collection,
 	onDelete,
 	onDuplicate,
 	showLocale,
 	urlPattern,
+	titleField,
+	dateField,
 	listColumns,
 	selectable,
 	selected,
 	onToggleSelect,
+	extensionColumns,
 }: ContentListItemProps) {
 	const { t } = useLingui();
-	const title = getItemTitle(item);
-	const date = new Date(item.updatedAt || item.createdAt);
+	const title = getEntryTitle(item, titleField);
+	// A configured dateField drives the Date column; fall back to the
+	// last-updated / created date when it's unset, empty, or unparseable.
+	const customDate = dateField ? parseListDate(item.data[dateField]) : null;
+	const date = customDate ?? parseTimestamp(item.updatedAt || item.createdAt);
 
 	return (
 		<tr className={cn("hover:bg-kumo-tint/25", selected && "bg-kumo-tint/40")}>
@@ -1073,6 +1171,32 @@ function ContentListItem({
 			<td data-testid="content-updated" className="px-4 py-3 text-sm text-kumo-subtle">
 				{date.toLocaleDateString()}
 			</td>
+			{extensionColumns?.map(({ pluginId, extension }) => {
+				const Cell = extension.cell;
+				return (
+					<td
+						key={`${pluginId}:${extension.id}`}
+						className={cn(
+							"px-4 py-3 text-sm",
+							extension.align === "end" ? "text-end" : "text-start",
+						)}
+					>
+						<ContentListColumnBoundary
+							key={`${collection}:${item.locale}:${item.id}:${pluginId}:${extension.id}`}
+							pluginId={pluginId}
+							columnId={extension.id}
+							resetKey={item.updatedAt}
+						>
+							<Cell
+								collection={collection}
+								item={item}
+								locale={item.locale}
+								visibleItems={visibleItems}
+							/>
+						</ContentListColumnBoundary>
+					</td>
+				);
+			})}
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					{item.status === "published" && item.slug && (
@@ -1242,14 +1366,15 @@ function scalarListColumnValue(value: unknown): string | undefined {
 
 interface TrashedListItemProps {
 	item: TrashedContentItem;
+	titleField?: string;
 	onRestore?: (id: string) => void;
 	onPermanentDelete?: (id: string) => void;
 }
 
-function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItemProps) {
+function TrashedListItem({ item, titleField, onRestore, onPermanentDelete }: TrashedListItemProps) {
 	const { t } = useLingui();
-	const title = getItemTitle(item);
-	const deletedDate = new Date(item.deletedAt);
+	const title = getEntryTitle(item, titleField);
+	const deletedDate = parseTimestamp(item.deletedAt);
 
 	return (
 		<tr className="hover:bg-kumo-tint/25">

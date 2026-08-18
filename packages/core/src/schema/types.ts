@@ -48,6 +48,23 @@ export const FIELD_TYPES: readonly FieldType[] = [
 	"repeater",
 ] as const;
 
+/** Scalar field types that can be backed by a content-list query index. */
+export const INDEXABLE_FIELD_TYPES: ReadonlySet<FieldType> = new Set([
+	"string",
+	"url",
+	"number",
+	"integer",
+	"boolean",
+	"datetime",
+	"select",
+	"reference",
+	"slug",
+]);
+
+export function isIndexableFieldType(type: FieldType): boolean {
+	return INDEXABLE_FIELD_TYPES.has(type);
+}
+
 /**
  * SQLite column types that map from field types
  */
@@ -178,8 +195,14 @@ export interface Collection {
 	source?: CollectionSource;
 	/** Whether this collection has SEO metadata fields enabled */
 	hasSeo: boolean;
+	/** Field slug powering the admin list Title column. Defaults to the standard title display. */
+	titleField?: string;
+	/** Field slug powering the admin list Date column. Must be a `datetime` field. Defaults to last-updated. */
+	dateField?: string;
 	/** URL pattern with {slug} placeholder (e.g. "/{slug}", "/blog/{slug}") */
 	urlPattern?: string;
+	/** Whether published entries require a public slug. Defaults to true. */
+	routable?: boolean;
 	/**
 	 * Omit this collection's auto-generated entry from the admin sidebar.
 	 * The collection stays fully functional everywhere else (API, MCP, hooks,
@@ -223,6 +246,8 @@ export interface Field {
 	options?: FieldWidgetOptions;
 	sortOrder: number;
 	searchable: boolean;
+	/** Whether this field has a physical index for structured list queries. */
+	indexed: boolean;
 	/** Whether this field is translatable (default true). Non-translatable fields are synced across locales. */
 	translatable: boolean;
 	createdAt: string;
@@ -241,6 +266,7 @@ export interface CreateCollectionInput {
 	supports?: CollectionSupport[];
 	source?: CollectionSource;
 	urlPattern?: string;
+	routable?: boolean;
 	hasSeo?: boolean;
 	/** Omit the auto-generated admin sidebar entry (defaults to false) */
 	hidden?: boolean;
@@ -259,7 +285,8 @@ export interface UpdateCollectionInput {
 	icon?: string;
 	admin?: CollectionAdminConfig;
 	supports?: CollectionSupport[];
-	urlPattern?: string;
+	urlPattern?: string | null;
+	routable?: boolean;
 	hasSeo?: boolean;
 	/** Omit the auto-generated admin sidebar entry */
 	hidden?: boolean;
@@ -269,6 +296,10 @@ export interface UpdateCollectionInput {
 	commentsModeration?: "all" | "first_time" | "none";
 	commentsClosedAfterDays?: number;
 	commentsAutoApproveUsers?: boolean;
+	/** Field slug for the Title column; `null`/`""` clears back to the default. */
+	titleField?: string | null;
+	/** Datetime field slug for the Date column; `null`/`""` clears back to the default. */
+	dateField?: string | null;
 }
 
 /**
@@ -287,6 +318,8 @@ export interface CreateFieldInput {
 	sortOrder?: number;
 	/** Whether this field should be indexed for search */
 	searchable?: boolean;
+	/** Create a physical index for structured sorting. */
+	indexed?: boolean;
 	/** Whether this field is translatable (default true). Non-translatable fields are synced across locales. */
 	translatable?: boolean;
 }
@@ -297,13 +330,9 @@ export interface CreateFieldInput {
 export interface UpdateFieldInput {
 	label?: string;
 	/**
-	 * Change the field's type. Only type changes that keep the same underlying
-	 * column type (per `FIELD_TYPE_TO_COLUMN`) are allowed — e.g. `string` to
-	 * `slug` (both TEXT). A change that would alter the column affinity (e.g.
-	 * `text` TEXT to `portableText` JSON) is rejected, because there is no
-	 * in-place column migration and silently rewriting the metadata would
-	 * desync `column_type` from the real `ec_*` column. Omit to keep the
-	 * current type.
+	 * Change the field's type. Only storage-compatible text aliases (`string`,
+	 * `text`, and `slug`) can be changed in place. Other changes require an
+	 * explicit content migration. Omit to keep the current type.
 	 */
 	type?: FieldType;
 	required?: boolean;
@@ -315,6 +344,8 @@ export interface UpdateFieldInput {
 	sortOrder?: number;
 	/** Whether this field should be indexed for search */
 	searchable?: boolean;
+	/** Create or remove the physical index used by structured sorting. */
+	indexed?: boolean;
 	/** Whether this field is translatable (default true). Non-translatable fields are synced across locales. */
 	translatable?: boolean;
 }

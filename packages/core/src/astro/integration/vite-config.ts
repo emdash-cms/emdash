@@ -257,6 +257,8 @@ export function createVirtualModulesPlugin(
 					type: resolvedConfig.database?.type,
 					supportsRequestScope: resolvedConfig.database?.supportsRequestScope ?? false,
 					supportsCoalescing: resolvedConfig.database?.supportsCoalescing ?? false,
+					supportsCollectionDeletionGuard:
+						resolvedConfig.database?.supportsCollectionDeletionGuard ?? false,
 				});
 			}
 			// Generate a module that statically imports the configured storage
@@ -492,7 +494,6 @@ export function createViteConfig(
 							"emdash > @unpic/placeholder",
 							"emdash > blurhash",
 							"emdash > croner",
-							"emdash > image-size",
 							"emdash > jose",
 							"emdash > jpeg-js",
 							"emdash > kysely",

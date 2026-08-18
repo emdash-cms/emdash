@@ -17,8 +17,9 @@ import {
 	buildContentMediaUsageSourceKey,
 	type MediaUsageContentSourceVariant,
 } from "./source-key.js";
+import { CONTENT_SOURCE_SCHEMA_VERSION } from "./types.js";
 
-export const CONTENT_SOURCE_SCHEMA_VERSION = 1;
+export { CONTENT_SOURCE_SCHEMA_VERSION } from "./types.js";
 const CONTENT_COLLECTION_ID_RESULT = "__emdash_media_usage_collection_id";
 
 const CONTENT_SYSTEM_COLUMNS = [

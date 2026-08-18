@@ -103,7 +103,7 @@ describe("publishCandidate", () => {
 		const github = fakeGitHub({
 			getBranchSha: vi.fn(async () => "already-published"),
 			getCommit: vi.fn(async () => ({
-				treeSha: "tree",
+				treeSha: "tree-sha",
 				message: "Change\n\nEmDash-Run: run-42",
 			})),
 		});
@@ -129,6 +129,61 @@ describe("publishCandidate", () => {
 			files: ["x.ts"],
 		});
 		expect(github.createBlob).not.toHaveBeenCalled();
+	});
+
+	test("rejects a repeated run marker when the published tree differs", async () => {
+		const github = fakeGitHub({
+			getBranchSha: vi.fn(async () => "already-published"),
+			getCommit: vi.fn(async () => ({
+				treeSha: "different-tree",
+				message: "Change\n\nEmDash-Run: run-42",
+			})),
+		});
+
+		await expect(
+			publishCandidate(
+				{
+					branch: "bot/fix-42",
+					runId: "run-42",
+					commitMessage: "Change",
+					expectedPreviousSha: null,
+					snapshot: {
+						baseCommitSha: "base",
+						treeSha: "verified-tree",
+						changes: [{ path: "x.ts", mode: "100644", content: new Uint8Array([1]) }],
+					},
+				},
+				github,
+			),
+		).rejects.toThrow(/different candidate tree/);
+		expect(github.createBlob).not.toHaveBeenCalled();
+	});
+
+	test("does not treat a longer run id as an idempotent marker match", async () => {
+		const github = fakeGitHub({
+			getBranchSha: vi.fn(async () => "already-published"),
+			getCommit: vi.fn(async () => ({
+				treeSha: "tree-sha",
+				message: "Change\n\nEmDash-Run: run-420",
+			})),
+		});
+
+		await expect(
+			publishCandidate(
+				{
+					branch: "bot/fix-42",
+					runId: "run-42",
+					commitMessage: "Change",
+					expectedPreviousSha: null,
+					snapshot: {
+						baseCommitSha: "base",
+						treeSha: "tree-sha",
+						changes: [{ path: "x.ts", mode: "100644", content: new Uint8Array([1]) }],
+					},
+				},
+				github,
+			),
+		).rejects.toThrow(/candidate branch changed/);
 	});
 
 	test("represents deletions as null tree entries", async () => {

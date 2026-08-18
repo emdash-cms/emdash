@@ -14,6 +14,7 @@ import {
 	useAgentFinish,
 	useAgentStart,
 	useDataWriter,
+	useDelivery,
 	useInitialData,
 	useModel,
 	usePersistentState,
@@ -51,12 +52,20 @@ import {
 	readRepoContext,
 	updateBranch,
 } from "../lib/github.js";
-import { applyInvestigationResult } from "../lib/investigation-result.js";
+import {
+	applyInvestigationResult,
+	recordInvestigationProgress,
+} from "../lib/investigation-result.js";
+import { FLUE_RUN_TIMEOUT_MS, SANDBOX_SLEEP_AFTER_SECONDS } from "../lib/run-policy.js";
+import { buildTimeoutSummaryPrompt, isTimeoutSummaryDelivery } from "../lib/timeout-recovery.js";
 import { untarInto } from "../lib/untar.js";
 import {
 	assertVerificationCommand,
+	assertVerificationIdentity,
+	findReusableVerificationRecord,
 	passingVerificationRecords,
 	type VerificationRecord,
+	upsertVerificationRecord,
 } from "../lib/verification.js";
 import diagnoseSkill from "../skills/diagnose/SKILL.md";
 import fixSkill from "../skills/fix/SKILL.md";
@@ -69,9 +78,14 @@ import verifySkill from "../skills/verify/SKILL.md";
 
 const REPO_DIR = "/workspace/repo";
 const DEFAULT_RPC_TIMEOUT_MS = 2 * 60_000;
+const CONTAINER_ATTACH_TIMEOUT_MS = 11 * 60_000;
 const EXEC_GRACE_MS = 30_000;
 const CLONE_DEPTH = 50;
-const DEADLINES = { defaultTimeoutMs: DEFAULT_RPC_TIMEOUT_MS, execGraceMs: EXEC_GRACE_MS };
+const DEADLINES = {
+	defaultTimeoutMs: DEFAULT_RPC_TIMEOUT_MS,
+	attachTimeoutMs: CONTAINER_ATTACH_TIMEOUT_MS,
+	execGraceMs: EXEC_GRACE_MS,
+};
 /**
  * Ceiling on any single tool result returned to the model. Unbounded tool
  * output accumulates across a long investigation until the conversation
@@ -93,6 +107,7 @@ const initialDataSchema = v.object({
 	issueTitle: v.pipe(v.string(), v.minLength(1)),
 	issueBody: v.string(),
 	previousBranchSha: v.nullable(v.string()),
+	context: v.optional(v.string()),
 	/**
 	 * Explicit base ref (branch, tag, or commit SHA) to stand the workspace up
 	 * at, overriding the mode default. The eval harness sets this to a fixing
@@ -158,6 +173,7 @@ const publicationSchema = v.object({
 const verificationRecordSchema = v.object({
 	name: v.string(),
 	command: v.string(),
+	cwd: v.optional(v.string()),
 	exitCode: v.number(),
 	candidateTreeSha: v.string(),
 });
@@ -182,6 +198,7 @@ interface RunFailure {
 
 export function Investigate({ id }: AgentProps) {
 	const input = useInitialData<InvestigateData>();
+	const delivery = useDelivery();
 	const [setupComplete, setSetupComplete] = usePersistentState("setup-complete", false);
 	const [reported, setReported] = usePersistentState("reported", false);
 	const [reminded, setReminded] = usePersistentState("report-reminded", false);
@@ -195,9 +212,13 @@ export function Investigate({ id }: AgentProps) {
 	);
 	const [lastFailure, setLastFailure] = usePersistentState<RunFailure | null>("last-failure", null);
 	const writeResult = useDataWriter("investigation", { schema: reportedResultSchema });
-	const env = execEnvFor(id, input);
 
 	useModel("cloudflare/@cf/moonshotai/kimi-k2.7-code");
+	if (isTimeoutSummaryDelivery(delivery)) {
+		return buildTimeoutSummaryPrompt({ mode: input.mode, verification, lastFailure });
+	}
+
+	const env = execEnvFor(id, input);
 
 	if (input.mode === "implement") {
 		useSkill(implementSkill);
@@ -218,8 +239,18 @@ export function Investigate({ id }: AgentProps) {
 		try {
 			await env.ensureRepo({ dir: REPO_DIR, ref: cloneRef(input) });
 			setSetupComplete(true);
+			await recordInvestigationProgress(input, {
+				kind: "workspace_ready",
+				title: "Workspace ready",
+				detail: `Checked out ${cloneRef(input)} and restored the investigation workspace`,
+			});
 		} catch (error) {
 			setLastFailure({ stage: "workspace", message: safeFailureMessage(error) });
+			await recordInvestigationProgress(input, {
+				kind: "workspace_failed",
+				title: "Workspace setup failed",
+				detail: "The investigation workspace could not be prepared",
+			});
 			const result = failedResult(
 				`I couldn't prepare the investigation workspace: ${errorMessage(error)}`,
 				"workspace",
@@ -327,14 +358,14 @@ export function Investigate({ id }: AgentProps) {
 		defineTool({
 			name: "exec",
 			description:
-				"Run a shell command in the Linux container (git, pnpm, astro, vitest, agent-browser). Attaching the container is slow; prefer the VFS tools and `code` for reads and searches, and use exec only to run the project or its toolchain.",
+				"Run a read-only shell command in the Linux container (git, pnpm, astro, vitest, agent-browser). Attaching the container is slow; prefer the VFS tools and `code` for reads and searches. Commands that change tracked source are reverted and rejected; change source with edit_file/write_file.",
 			input: v.object({
 				command: v.string(),
 				cwd: v.optional(v.string()),
 				timeoutMs: v.optional(v.number()),
 			}),
 			async run({ data }) {
-				const result = await env.exec(data.command, {
+				const result = await env.execReadOnly(data.command, {
 					...(data.cwd ? { cwd: data.cwd } : {}),
 					...(data.timeoutMs ? { timeoutMs: data.timeoutMs } : {}),
 				});
@@ -372,7 +403,7 @@ export function Investigate({ id }: AgentProps) {
 			defineTool({
 				name: "run_check",
 				description:
-					"Run a required read-only verification command and bind its real exit status to the exact candidate tree. The command must not modify source files; use edit_file/write_file for changes and check-only formatter commands. Do not add output pipelines or success fallbacks; the tool rejects them. Reuse a stable name such as test, lint, typecheck, or format when rerunning a check after a fix. Rerun every required check after any source change.",
+					"Run a required read-only verification command and bind its real exit status to the exact candidate tree. A name is permanently bound to its first command and cwd; use a new name for a different check. A passing check on the unchanged tree is reused without execution. The command must not modify source files; use edit_file/write_file for changes and check-only formatter commands. Do not add output pipelines or success fallbacks; the tool rejects them.",
 				input: v.object({
 					name: v.pipe(v.string(), v.minLength(1), v.maxLength(40)),
 					command: v.pipe(v.string(), v.minLength(1), v.maxLength(1_000)),
@@ -382,8 +413,24 @@ export function Investigate({ id }: AgentProps) {
 				async run({ data }) {
 					let result: ExecResult;
 					let candidateTreeSha: string;
+					const identity = {
+						name: data.name,
+						command: data.command,
+						...(data.cwd ? { cwd: data.cwd } : {}),
+					};
 					try {
 						assertVerificationCommand(data.command);
+						assertVerificationIdentity(verification, identity);
+						const currentTreeSha = await env.candidateTreeSha();
+						const reusable = findReusableVerificationRecord(verification, identity, currentTreeSha);
+						if (reusable) {
+							await recordInvestigationProgress(input, {
+								kind: "verification_passed",
+								title: data.name,
+								detail: "Reused a passing check on the unchanged candidate",
+							});
+							return `cached pass for ${data.name} on candidate tree ${currentTreeSha}`;
+						}
 						({ result, candidateTreeSha } = await env.runCheck(data.command, {
 							...(data.cwd ? { cwd: data.cwd } : {}),
 							...(data.timeoutMs ? { timeoutMs: data.timeoutMs } : {}),
@@ -393,18 +440,25 @@ export function Investigate({ id }: AgentProps) {
 						throw error;
 					}
 					const record = {
-						name: data.name,
-						command: data.command,
+						...identity,
 						exitCode: result.exitCode,
 						candidateTreeSha,
 					} satisfies VerificationRecord;
-					setVerification((current) => [...current, record]);
+					setVerification((current) => upsertVerificationRecord(current, record));
 					if (result.exitCode !== 0) {
 						setLastFailure({
 							stage: "verification",
 							message: `${data.name} failed with exit ${result.exitCode}`,
 						});
 					}
+					await recordInvestigationProgress(input, {
+						kind: result.exitCode === 0 ? "verification_passed" : "verification_failed",
+						title: data.name,
+						detail:
+							result.exitCode === 0
+								? "Verification passed on the current candidate"
+								: `Verification exited with code ${result.exitCode}`,
+					});
 					return truncateToolResult(
 						[`exit ${result.exitCode}`, result.stdout, result.stderr].filter(Boolean).join("\n"),
 					);
@@ -448,6 +502,11 @@ export function Investigate({ id }: AgentProps) {
 						);
 						setPublication(published);
 						setLastFailure(null);
+						await recordInvestigationProgress(input, {
+							kind: "candidate_published",
+							title: "Candidate published",
+							detail: `Published bot/fix-${input.issueNumber} for preview`,
+						});
 						return { output: published };
 					} catch (error) {
 						setLastFailure({ stage: "publication", message: safeFailureMessage(error) });
@@ -586,7 +645,7 @@ export function Investigate({ id }: AgentProps) {
 
 Investigate.agentName = "investigate";
 Investigate.initialData = initialDataSchema;
-Investigate.durability = { maxAttempts: 5, timeoutMs: 30 * 60_000 };
+Investigate.durability = { maxAttempts: 5, timeoutMs: FLUE_RUN_TIMEOUT_MS };
 
 /**
  * Per-run ExecEnv, cached on `globalThis` so it survives the agent's re-renders
@@ -637,6 +696,7 @@ async function hydrateWorkspace(id: string, dir: string, ref: string): Promise<v
 	const url = `https://api.github.com/repos/${repo.owner}/${repo.repo}/tarball/${encodeURIComponent(ref)}`;
 	const response = await fetch(url, {
 		headers: { "User-Agent": "emdash-bot", Accept: "application/vnd.github+json" },
+		signal: AbortSignal.timeout(DEFAULT_RPC_TIMEOUT_MS),
 	});
 	if (!response.ok || !response.body) {
 		throw new Error(`tarball fetch failed: ${response.status}`);
@@ -765,7 +825,26 @@ function buildCodeToolDescription(): string {
  * left to the repro/fix skills -- isolate-first, container work on demand.
  */
 async function attachContainer(id: string, input: InvestigateData): Promise<ContainerBackend> {
-	const container = fromSandbox(getSandbox(workerEnv.Sandbox, id));
+	const container = fromSandbox(
+		getSandbox(workerEnv.Sandbox, id, { sleepAfter: SANDBOX_SLEEP_AFTER_SECONDS }),
+	);
+	await prepareContainer(container, input);
+	return {
+		...container,
+		async isReady() {
+			const result = await container.exec(
+				`git -C ${quote(REPO_DIR)} rev-parse --is-inside-work-tree`,
+				{ cwd: "/", timeoutMs: DEFAULT_RPC_TIMEOUT_MS },
+			);
+			return result.exitCode === 0 && result.stdout.trim() === "true";
+		},
+	};
+}
+
+async function prepareContainer(
+	container: ContainerBackend,
+	input: InvestigateData,
+): Promise<void> {
 	const repo = readRepoContext(workerEnv);
 	if (!repo) throw new Error("repository context is not configured");
 	const ref = cloneRef(input);
@@ -812,7 +891,6 @@ async function attachContainer(id: string, input: InvestigateData): Promise<Cont
 			throw new Error(`container setup failed (${result.exitCode}): ${result.stderr.slice(-500)}`);
 		}
 	}
-	return container;
 }
 
 function cloneUrl(): string {
@@ -939,6 +1017,7 @@ function safeFailureMessage(error: unknown): string {
 
 function buildPrompt(input: InvestigateData): string {
 	const argSection = input.arg ? ["", "## Directive", "", input.arg, ""].join("\n") : "";
+	const contextSection = input.context ? ["", input.context, ""].join("\n") : argSection;
 	const diagnose = input.mode === "diagnose";
 	const implement = input.mode === "implement";
 	const method = diagnose
@@ -975,7 +1054,7 @@ function buildPrompt(input: InvestigateData): string {
 		`# ${input.issueTitle}`,
 		"",
 		input.issueBody || "(no body)",
-		argSection,
+		contextSection,
 		"## Method",
 		"",
 		...method,

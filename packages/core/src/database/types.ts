@@ -35,23 +35,11 @@ export interface TaxonomyTable {
 
 export interface ContentTaxonomyTable {
 	collection: string; // e.g., 'posts'
-	entry_id: string; // ID in the ec_* table
+	entry_id: string; // stores the ec_* row's translation_group (locale-agnostic)
 	taxonomy_id: string; // stores taxonomies.translation_group (locale-agnostic)
-	// Denormalized filter + sort columns mirrored from the entry's ec_* row
-	// (migration 051). They let a taxonomy-filtered listing seek the matching
-	// entries directly on the pivot instead of scanning the whole collection.
-	//
-	// ADVISORY, not authoritative: D1 has no transactions, so the write-path
-	// re-stamp (ContentRepository / TaxonomyRepository) is a separate statement
-	// from the ec_* mutation and can be transiently stale. The read path narrows
-	// the candidate set with these columns but re-checks the real filter
-	// predicates on the joined ec_* row. `updated_at` is deliberately NOT
-	// denormalized — it moves on every edit, so denormalizing it would force a
-	// pivot re-stamp on the common edit path for little read value.
-	//
-	// Nullable/Generated so inserts that predate a re-stamp (or the migration
-	// backfill) leave them NULL; every insert site in the repositories stamps
-	// them explicitly.
+	// Legacy denormalized columns from migration 051. A group assignment spans
+	// locale rows whose status and dates may differ, so current reads use the
+	// authoritative ec_* rows and new pivot inserts leave these nullable.
 	status: Generated<string | null>;
 	scheduled_at: Generated<string | null>;
 	deleted_at: Generated<string | null>;
@@ -216,6 +204,7 @@ export interface MediaUsageActivationTable {
 	activated_at: Generated<string | null>;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
+	media_usage_maintenance_turn: Generated<number>;
 }
 
 export interface MediaUsageWorkTable {
@@ -230,6 +219,45 @@ export interface MediaUsageWorkTable {
 	lease_token: Generated<string | null>;
 	lease_expires_at: Generated<string | null>;
 	last_attempted_at: Generated<string | null>;
+	last_error_code: Generated<string | null>;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface MediaUsageCollectionDeletionTable {
+	collection_id: string;
+	collection_slug: string;
+	force_delete: number;
+	state: Generated<string>;
+	phase: Generated<string>;
+	work_cursor: Generated<string | null>;
+	source_key: Generated<string | null>;
+	occurrence_cursor: Generated<string | null>;
+	attempt_count: Generated<number>;
+	next_attempt_at: string;
+	lease_token: Generated<string | null>;
+	lease_expires_at: Generated<string | null>;
+	last_error_code: Generated<string | null>;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface MediaUsageReconciliationTable {
+	collection_id: string;
+	collection_slug: string;
+	run_token: string;
+	target_epoch: Generated<number | string | null>;
+	field_fingerprint: Generated<string | null>;
+	state: Generated<string>;
+	phase: Generated<string>;
+	scan_cursor: Generated<string | null>;
+	scan_upper_id: Generated<string | null>;
+	source_cursor: Generated<string | null>;
+	source_upper_key: Generated<string | null>;
+	attempt_count: Generated<number>;
+	next_attempt_at: string;
+	lease_token: Generated<string | null>;
+	lease_expires_at: Generated<string | null>;
 	last_error_code: Generated<string | null>;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
@@ -392,7 +420,10 @@ export interface CollectionTable {
 	source: string | null;
 	search_config: string | null; // JSON: SearchConfig
 	has_seo: number; // 0 or 1 — opt-in SEO fields for this collection
+	title_field: string | null; // field slug for the admin list Title column (NULL = default)
+	date_field: string | null; // field slug (datetime) for the admin list Date column (NULL = default)
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")
+	routable: Generated<number>; // 0 or 1 — published entries require a slug when enabled
 	hidden: Generated<number>; // 0 or 1 — omit the auto-generated admin sidebar entry
 	sort_order: number | null; // explicit admin sidebar position; NULL = alphabetical fallback
 	comments_enabled: Generated<number>; // 0 or 1
@@ -430,6 +461,7 @@ export interface FieldTable {
 	options: string | null; // JSON
 	sort_order: number;
 	searchable: Generated<number>; // boolean as 0/1, defaults to 0
+	indexed: Generated<number>; // boolean as 0/1, defaults to 0
 	translatable: Generated<number>; // boolean as 0/1, defaults to 1
 	created_at: Generated<string>;
 }
@@ -604,6 +636,8 @@ export interface Database {
 	_emdash_media_usage_index_status: MediaUsageIndexStatusTable;
 	_emdash_media_usage_activation: MediaUsageActivationTable;
 	_emdash_media_usage_work: MediaUsageWorkTable;
+	_emdash_media_usage_collection_deletions: MediaUsageCollectionDeletionTable;
+	_emdash_media_usage_reconciliations: MediaUsageReconciliationTable;
 	users: UserTable;
 	credentials: CredentialTable;
 	auth_tokens: AuthTokenTable;

@@ -432,6 +432,30 @@ collection-scoped Media Usage repair after imports or direct database writes.
 When scheduled maintenance is disabled, failed jobs remain visible and manually retryable, but no
 automatic freshness deadline is promised.
 
+### Recover Collection Deletion
+
+```http
+GET /_emdash/api/admin/media-usage/collection-deletions?state=failed&limit=50&cursor=...
+```
+
+Returns a bounded page of durable collection-deletion work. The list defaults to failed work;
+`limit` defaults to 50 and is capped at 100. Items include the immutable collection ID, slug,
+phase, attempts, eligibility/lease timestamps, stable error code, and update time. Lease tokens,
+raw database errors, content, media references, and exact backlog counts are never returned.
+
+```http
+POST /_emdash/api/admin/media-usage/collection-deletions/retry
+Content-Type: application/json
+X-EmDash-Request: 1
+
+{ "collectionId": "01COLLECTION..." }
+```
+
+Retry reopens failed, retrying, or expired-leased work without changing its phase. A live lease
+returns `409 WORK_LEASE_ACTIVE`; a concurrent state change returns `409 WORK_CHANGED`. Both routes
+require `schema:manage`, and bearer tokens also require the `admin` scope. They recover internal
+index cleanup only and never delete media assets.
+
 ### Repair Media Usage
 
 ```http

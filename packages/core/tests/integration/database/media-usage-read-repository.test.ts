@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
@@ -190,6 +191,7 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 			.insertInto("_emdash_collections")
 			.values({ id: "collection-posts-old", slug: "posts", label: "Old posts" })
 			.execute();
+		await installCanonicalContentFixture(ctx, "posts", "old-only", "rev-old-only-columns");
 		await repo.replaceSource(
 			contentSource("old-only", "columns", {
 				sourceKey: buildContentMediaUsageSourceKey({
@@ -200,6 +202,8 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 				}),
 				collectionId: "collection-posts-old",
 				identityVersion: 1,
+				sourceVersion: 1,
+				sourceUpdatedAt: "2026-08-12T00:00:00.000Z",
 			}),
 			[occurrence("hero", "media-shared")],
 		);
@@ -239,6 +243,7 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 			}),
 			[occurrence("unversioned", "media-shared")],
 		);
+		await installCanonicalContentFixture(ctx, "posts", "current", "rev-current-columns");
 		await repo.replaceSource(
 			contentSource("current", "columns", {
 				sourceKey: buildContentMediaUsageSourceKey({
@@ -250,6 +255,8 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 				collectionId: "collection-posts",
 				contentStatus: "draft",
 				identityVersion: 1,
+				sourceVersion: 1,
+				sourceUpdatedAt: "2026-08-12T00:00:00.000Z",
 			}),
 			[occurrence("canonical", "media-shared")],
 		);
@@ -490,6 +497,31 @@ async function registerCollection(ctx: DialectTestContext, slug: string): Promis
 		.insertInto("_emdash_collections")
 		.values({ id: `collection-${slug}`, slug, label: slug, has_seo: 0 })
 		.execute();
+}
+
+async function installCanonicalContentFixture(
+	ctx: DialectTestContext,
+	collectionSlug: string,
+	contentId: string,
+	liveRevisionId: string,
+): Promise<void> {
+	const tableName = `ec_${collectionSlug}`;
+	await sql`
+		CREATE TABLE IF NOT EXISTS ${sql.ref(tableName)} (
+			id TEXT PRIMARY KEY,
+			version INTEGER NOT NULL,
+			updated_at TEXT NOT NULL,
+			live_revision_id TEXT,
+			draft_revision_id TEXT
+		)
+	`.execute(ctx.db);
+	await sql`
+		INSERT INTO ${sql.ref(tableName)} (
+			id, version, updated_at, live_revision_id, draft_revision_id
+		) VALUES (
+			${contentId}, 1, '2026-08-12T00:00:00.000Z', ${liveRevisionId}, NULL
+		)
+	`.execute(ctx.db);
 }
 
 function entryIdentity(entry: { collectionSlug: string; contentId: string }): [string, string] {

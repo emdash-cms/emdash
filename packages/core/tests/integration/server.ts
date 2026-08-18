@@ -162,6 +162,7 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 	});
 	const dbPath = join(workDir, "test.db");
 	const uploadsDir = join(workDir, "uploads");
+	const viteCacheDir = join(workDir, ".vite-cache");
 	mkdirSync(uploadsDir, { recursive: true });
 
 	// Borrow the donor node_modules via symlink (resolution still hits real
@@ -181,6 +182,7 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 			ASTRO_DEV_BACKGROUND: "1",
 			EMDASH_TEST_DB: `file:${dbPath}`,
 			EMDASH_TEST_UPLOADS: uploadsDir,
+			EMDASH_TEST_VITE_CACHE: viteCacheDir,
 			...options.env,
 		},
 		stdio: "pipe",

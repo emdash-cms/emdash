@@ -19,6 +19,7 @@
 
 import mime from "mime/lite";
 
+import type { ContentFieldFilters } from "../content-list-query.js";
 import type { FieldSchema } from "./portable-text.js";
 import { convertDataForRead, convertDataForWrite } from "./portable-text.js";
 import type { Interceptor } from "./transport.js";
@@ -269,6 +270,31 @@ export interface MediaUsageWorkRetryInput {
 export interface MediaUsageWorkRetryResponse {
 	changed: boolean;
 	item: MediaUsageWorkItem;
+}
+
+export type MediaUsageCollectionDeletionState = "pending" | "retry" | "leased" | "failed";
+export type MediaUsageCollectionDeletionPhase =
+	| "fence"
+	| "registry"
+	| "table"
+	| "work"
+	| "sources"
+	| "status"
+	| "finalize";
+export interface MediaUsageCollectionDeletionItem {
+	collectionId: string;
+	collectionSlug: string;
+	state: MediaUsageCollectionDeletionState;
+	phase: MediaUsageCollectionDeletionPhase;
+	attemptCount: number;
+	nextAttemptAt: string;
+	leaseExpiresAt: string | null;
+	lastErrorCode: string | null;
+	updatedAt: string;
+}
+export interface MediaUsageCollectionDeletionListResponse {
+	items: MediaUsageCollectionDeletionItem[];
+	nextCursor?: string;
 }
 
 /** Search result */
@@ -540,6 +566,8 @@ export class EmDashClient {
 			orderBy?: string;
 			order?: "asc" | "desc";
 			locale?: string;
+			/** AND-combined filters over custom fields explicitly marked as indexed. */
+			fieldFilters?: ContentFieldFilters;
 		},
 	): Promise<ListResult<ContentItem>> {
 		const params = new URLSearchParams();
@@ -549,6 +577,9 @@ export class EmDashClient {
 		if (options?.orderBy) params.set("orderBy", options.orderBy);
 		if (options?.order) params.set("order", options.order);
 		if (options?.locale) params.set("locale", options.locale);
+		if (options?.fieldFilters && Object.keys(options.fieldFilters).length > 0) {
+			params.set("fieldFilters", JSON.stringify(options.fieldFilters));
+		}
 
 		const qs = params.toString();
 		const path = `/content/${encodeURIComponent(collection)}${qs ? `?${qs}` : ""}`;
@@ -564,6 +595,8 @@ export class EmDashClient {
 			orderBy?: string;
 			order?: "asc" | "desc";
 			locale?: string;
+			/** AND-combined filters over custom fields explicitly marked as indexed. */
+			fieldFilters?: ContentFieldFilters;
 		},
 	): AsyncGenerator<ContentItem> {
 		let cursor: string | undefined;
@@ -879,6 +912,29 @@ export class EmDashClient {
 			"/admin/media-usage/work/retry",
 			input,
 		);
+	}
+
+	async mediaListCollectionDeletions(
+		options: {
+			state?: MediaUsageCollectionDeletionState;
+			limit?: number;
+			cursor?: string;
+		} = {},
+	): Promise<MediaUsageCollectionDeletionListResponse> {
+		const params = new URLSearchParams();
+		if (options.state) params.set("state", options.state);
+		if (options.limit !== undefined) params.set("limit", String(options.limit));
+		if (options.cursor) params.set("cursor", options.cursor);
+		return this.request("GET", `/admin/media-usage/collection-deletions?${params}`);
+	}
+
+	async mediaRetryCollectionDeletion(collectionId: string): Promise<{
+		changed: boolean;
+		item: MediaUsageCollectionDeletionItem;
+	}> {
+		return this.request("POST", "/admin/media-usage/collection-deletions/retry", {
+			collectionId,
+		});
 	}
 
 	// -----------------------------------------------------------------------

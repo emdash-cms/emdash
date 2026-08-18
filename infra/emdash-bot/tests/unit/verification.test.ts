@@ -2,7 +2,10 @@ import { describe, expect, test } from "vitest";
 
 import {
 	assertVerificationCommand,
+	assertVerificationIdentity,
+	findReusableVerificationRecord,
 	passingVerificationRecords,
+	upsertVerificationRecord,
 } from "../../.flue/lib/verification.js";
 
 describe("verification commands", () => {
@@ -48,13 +51,96 @@ describe("verification commands", () => {
 		).toThrow(/tests/);
 	});
 
-	test("does not let a failed named check be replaced by a different command", () => {
+	test("ignores a conflicting legacy command and still requires the canonical check to pass", () => {
 		expect(() =>
 			passingVerificationRecords([
 				{ name: "tests", command: "pnpm test", exitCode: 1, candidateTreeSha: "tree" },
 				{ name: "tests", command: "true", exitCode: 0, candidateTreeSha: "tree" },
 			]),
-		).toThrow(/changed command/);
+		).toThrow(/tests/);
+
+		expect(
+			passingVerificationRecords([
+				{ name: "tests", command: "pnpm test", exitCode: 1, candidateTreeSha: "tree" },
+				{ name: "tests", command: "true", exitCode: 0, candidateTreeSha: "tree" },
+				{ name: "tests", command: "pnpm test", exitCode: 0, candidateTreeSha: "tree" },
+			]),
+		).toEqual([{ name: "tests", command: "pnpm test", exitCode: 0, candidateTreeSha: "tree" }]);
+	});
+
+	test("rejects command or cwd changes before they can poison verification state", () => {
+		const records = [
+			{
+				name: "tests",
+				command: "pnpm test",
+				cwd: "/workspace/repo",
+				exitCode: 0,
+				candidateTreeSha: "tree",
+			},
+		];
+
+		expect(() =>
+			assertVerificationIdentity(records, {
+				name: "tests",
+				command: "pnpm test --runInBand",
+				cwd: "/workspace/repo",
+			}),
+		).toThrow(/already bound/);
+		expect(() =>
+			assertVerificationIdentity(records, {
+				name: "tests",
+				command: "pnpm test",
+				cwd: "/workspace/other",
+			}),
+		).toThrow(/already bound/);
+		expect(() =>
+			assertVerificationIdentity(records, {
+				name: "tests",
+				command: "pnpm test",
+				cwd: "/workspace/repo",
+			}),
+		).not.toThrow();
+	});
+
+	test("reuses a passing check only on the same candidate tree", () => {
+		const records = [
+			{
+				name: "tests",
+				command: "pnpm test",
+				exitCode: 0,
+				candidateTreeSha: "verified-tree",
+			},
+		];
+		const identity = { name: "tests", command: "pnpm test" };
+
+		expect(findReusableVerificationRecord(records, identity, "verified-tree")).toEqual(records[0]);
+		expect(findReusableVerificationRecord(records, identity, "changed-tree")).toBeNull();
+		expect(
+			findReusableVerificationRecord([{ ...records[0], exitCode: 1 }], identity, "verified-tree"),
+		).toBeNull();
+	});
+
+	test("upserts one record per name and removes conflicting legacy rows", () => {
+		const replacement = {
+			name: "tests",
+			command: "pnpm test",
+			exitCode: 0,
+			candidateTreeSha: "new-tree",
+		};
+
+		expect(
+			upsertVerificationRecord(
+				[
+					{ name: "tests", command: "pnpm test", exitCode: 1, candidateTreeSha: "old" },
+					{ name: "tests", command: "true", exitCode: 0, candidateTreeSha: "old" },
+					{ name: "lint", command: "pnpm lint", exitCode: 0, candidateTreeSha: "old" },
+				],
+				replacement,
+			),
+		).toEqual([
+			{ name: "lint", command: "pnpm lint", exitCode: 0, candidateTreeSha: "old" },
+			replacement,
+		]);
 	});
 
 	test("does not publish a candidate changed after verification", () => {
