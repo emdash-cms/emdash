@@ -2050,19 +2050,26 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 	private async confirmDispatchAdmission(runId: string): Promise<void> {
 		await this.ctx.storage.transaction(async (transaction) => {
-			const pending = await transaction.get<PendingDispatch>(STORAGE.pendingDispatch);
-			if (pending?.runId !== runId) return;
-			if (pending.deliveryId) {
+			const [pendingDispatch, pendingResume] = await Promise.all([
+				transaction.get<PendingDispatch>(STORAGE.pendingDispatch),
+				transaction.get<PendingResume>(STORAGE.pendingResume),
+			]);
+			const matchesDispatch = pendingDispatch?.runId === runId;
+			const matchesResume = pendingResume?.checkpoint.runId === runId;
+			if (!matchesDispatch && !matchesResume) return;
+			const deliveryId = matchesDispatch ? pendingDispatch.deliveryId : pendingResume.deliveryId;
+			if (deliveryId) {
 				const seen = (await transaction.get<string[]>(STORAGE.seenDeliveries)) ?? [];
-				if (!seen.includes(pending.deliveryId)) {
+				if (!seen.includes(deliveryId)) {
 					await transaction.put(
 						STORAGE.seenDeliveries,
-						[...seen, pending.deliveryId].slice(-DELIVERY_DEDUPE_LIMIT),
+						[...seen, deliveryId].slice(-DELIVERY_DEDUPE_LIMIT),
 					);
 				}
 			}
 			await Promise.all([
-				transaction.delete(STORAGE.pendingDispatch),
+				...(matchesDispatch ? [transaction.delete(STORAGE.pendingDispatch)] : []),
+				...(matchesResume ? [transaction.delete(STORAGE.pendingResume)] : []),
 				transaction.delete(STORAGE.currentDispatchAttempt),
 				transaction.delete(STORAGE.currentDispatchError),
 			]);

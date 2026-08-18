@@ -593,6 +593,39 @@ describe("OrchestratorDO (workers-pool)", () => {
 		});
 	});
 
+	test("an agent result confirms and deduplicates an uncertain resume admission", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetPendingResume({
+			runId: "completed-resume-run",
+			agentId: "investigate-999-completed-resume-run",
+			deliveryId: "completed-resume-delivery",
+			startedAt: Date.now(),
+			dispatchAttempt: "uncertain-completed-resume-attempt",
+		});
+
+		const completion = await stub.applyAgentResult({
+			runId: "completed-resume-run",
+			result: { implemented: true, summary: "Finished the resumed implementation." },
+			pushed: true,
+			ok: true,
+		});
+		expect(completion.kind).toBe("transition");
+
+		const redelivery = await stub.event(
+			makeEvent({
+				event: "resume",
+				arg: null,
+				anchorNumber: 999,
+				deliveryId: "completed-resume-delivery",
+				labels: ["bot:enhancement", "bot:failed"],
+			}),
+		);
+		expect(redelivery).toEqual({
+			kind: "duplicate",
+			deliveryId: "completed-resume-delivery",
+		});
+	});
+
 	test("stale recovery consumes an uncertain resume delivery", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await stub.debugSetPendingResume({
