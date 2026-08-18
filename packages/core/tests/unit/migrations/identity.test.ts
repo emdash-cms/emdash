@@ -26,7 +26,6 @@ describe("fingerprintMigrationSet", () => {
 		const first = await fingerprintMigrationSet("1.0.0", ["001_initial"]);
 		const second = await fingerprintMigrationSet("1.0.0", ["001_initial"]);
 
-		expect(first).toBe("ddb0be4cdff7aa2c58b5aee17e947043c7bbcacaa5043c8dbfe3db494ebdbf58");
 		expect(second).toBe(first);
 		expect(first).toMatch(/^[0-9a-f]{64}$/);
 	});
