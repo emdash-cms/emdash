@@ -26,7 +26,7 @@ import {
 } from "../lib/media-utils";
 import { cn } from "../lib/utils";
 import { MediaDetailPanel } from "./MediaDetailPanel";
-import { MEDIA_UPLOAD_ACCEPT, MediaUploadDialog } from "./MediaUploadDialog.js";
+import { MediaUploadDialog } from "./MediaUploadDialog.js";
 
 /** Maps a coarse type-filter choice to the media list's `mimeType` filter. */
 function mimeForTypeFilter(value: string): string | string[] | undefined {
@@ -96,7 +96,6 @@ export function MediaLibrary({
 	} | null>(null);
 	const [uploadTarget, setUploadTarget] = React.useState<{ id: string; name: string } | null>(null);
 	const [isFileDragActive, setIsFileDragActive] = React.useState(false);
-	const fileInputRef = React.useRef<HTMLInputElement>(null);
 	const enqueueIdRef = React.useRef(0);
 	const dragDepthRef = React.useRef(0);
 	const returnFocusRef = React.useRef<HTMLElement | null>(null);
@@ -182,9 +181,12 @@ export function MediaLibrary({
 		[activeProviderInfo, canUpload],
 	);
 
-	const openFilePicker = (event: React.MouseEvent<HTMLButtonElement>) => {
+	const openUploadDialog = (event: React.MouseEvent<HTMLButtonElement>) => {
+		if (!canUpload || !activeProviderInfo) return;
 		returnFocusRef.current = event.currentTarget;
-		fileInputRef.current?.click();
+		setUploadTarget({ id: activeProviderInfo.id, name: activeProviderInfo.name });
+		setEnqueueRequest(null);
+		setUploadDialogOpen(true);
 	};
 
 	React.useEffect(() => {
@@ -308,7 +310,7 @@ export function MediaLibrary({
 					className="pointer-events-none fixed inset-0 z-50 bg-kumo-base/70 p-4 backdrop-blur-sm sm:p-8"
 					aria-hidden="true"
 				>
-					<div className="flex h-full items-center justify-center rounded-2xl border-2 border-dotted border-kumo-brand bg-kumo-tint/70">
+					<div className="flex h-full items-center justify-center rounded-2xl border-[3px] border-dashed border-kumo-brand/80 bg-kumo-tint/70">
 						<div className="flex flex-col items-center gap-3 text-center">
 							<Upload className="h-10 w-10 text-kumo-link" aria-hidden="true" />
 							<p className="text-lg font-semibold">{t`Drop files to upload`}</p>
@@ -323,24 +325,9 @@ export function MediaLibrary({
 				</h1>
 				<div className="flex items-center gap-3">
 					{canUpload && (
-						<>
-							<Button onClick={openFilePicker} icon={<Upload />}>
-								{t`Upload to ${activeProviderInfo?.name || t`Library`}`}
-							</Button>
-							<input
-								ref={fileInputRef}
-								type="file"
-								multiple
-								accept={MEDIA_UPLOAD_ACCEPT}
-								className="sr-only"
-								tabIndex={-1}
-								onChange={(event) => {
-									enqueueFiles([...(event.currentTarget.files ?? [])]);
-									event.currentTarget.value = "";
-								}}
-								aria-label={t`Upload files`}
-							/>
-						</>
+						<Button onClick={openUploadDialog} icon={<Upload />}>
+							{t`Upload to ${activeProviderInfo?.name || t`Library`}`}
+						</Button>
 					)}
 				</div>
 			</div>
@@ -480,7 +467,7 @@ export function MediaLibrary({
 						title={t`Your media library is empty`}
 						description={t`Upload images, videos, and documents to keep reusable assets in one place.`}
 						action={
-							<Button onClick={openFilePicker} icon={<Upload />}>
+							<Button onClick={openUploadDialog} icon={<Upload />}>
 								{t`Upload Files`}
 							</Button>
 						}
@@ -504,7 +491,7 @@ export function MediaLibrary({
 						title={t`Your media library is empty`}
 						description={t`Upload media to keep reusable assets in one place.`}
 						action={
-							<Button onClick={openFilePicker} icon={<Upload />}>
+							<Button onClick={openUploadDialog} icon={<Upload />}>
 								{t`Upload Files`}
 							</Button>
 						}

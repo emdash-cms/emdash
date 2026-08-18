@@ -125,15 +125,29 @@ describe("MediaLibrary", () => {
 	});
 
 	describe("upload", () => {
-		it("upload button triggers file input", async () => {
-			const screen = await renderLibrary();
-			// The upload button should be present
+		it("opens an empty upload dialog from the page action", async () => {
+			const onUpload = vi.fn();
+			const screen = await renderLibrary({ onUpload });
+
+			screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).element().click();
+
 			await expect
-				.element(screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }))
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
 				.toBeInTheDocument();
-			// Hidden file input should exist
-			const fileInput = screen.getByLabelText("Upload files");
-			await expect.element(fileInput).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Browse files", exact: true }))
+				.toBeInTheDocument();
+			expect(onUpload).not.toHaveBeenCalled();
+		});
+
+		it("opens the same empty dialog from the empty-state action", async () => {
+			const screen = await renderLibrary();
+
+			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).element().click();
+
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
 		});
 
 		it("opens the upload dialog and caps parallel uploads at three", async () => {
@@ -149,7 +163,14 @@ describe("MediaLibrary", () => {
 				(name) => new File([name], name, { type: "image/jpeg" }),
 			);
 
-			setInputFiles(screen.getByLabelText("Upload files").element() as HTMLInputElement, files);
+			screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).element().click();
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
+			setInputFiles(
+				screen.getByLabelText("Browse files to upload").element() as HTMLInputElement,
+				files,
+			);
 
 			await vi.waitFor(() => expect(onUpload).toHaveBeenCalledTimes(3));
 			await expect
@@ -199,7 +220,11 @@ describe("MediaLibrary", () => {
 				.mockResolvedValue(undefined);
 			const screen = await renderLibrary({ onUpload });
 
-			setInputFiles(screen.getByLabelText("Upload files").element() as HTMLInputElement, [
+			screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).element().click();
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
+			setInputFiles(screen.getByLabelText("Browse files to upload").element() as HTMLInputElement, [
 				new File(["broken"], "broken.jpg", { type: "image/jpeg" }),
 			]);
 

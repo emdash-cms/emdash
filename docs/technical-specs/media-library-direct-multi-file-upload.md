@@ -8,10 +8,10 @@ Authority: Local implementation and commits approved. Pushes and GitHub changes 
 ## Summary
 
 Replace the media library's sequential file-picker upload with one direct multi-file upload flow. An
-administrator can select **Upload to Library** and choose files, or drag files anywhere over the
-media-library window. A page-wide overlay with a blurred backdrop and dotted drop boundary appears
-during a file drag. Selecting or dropping files immediately opens a compact upload dialog and starts
-a bounded upload queue.
+administrator can select **Upload to Library** to open the upload dialog, then add files from its
+dropzone or file picker. Files can also be dragged anywhere over the media-library window. A
+page-wide overlay with a blurred backdrop and dashed drop boundary appears during a file drag.
+Adding or dropping files starts a bounded upload queue immediately.
 
 The dialog follows the simpler composition of a dropzone, file list, per-file metadata, status, and
 file actions. It uses React, Kumo, Phosphor icons, Lingui, and Tailwind already present in the admin
@@ -43,22 +43,22 @@ can upload them without locating a small drop target.
 
 Acceptance path:
 
-1. Dragging files into the window shows a blurred overlay and dotted boundary.
+1. Dragging files into the window shows a blurred overlay and dashed boundary.
 2. The overlay says **Drop files to upload**, making the immediate side effect explicit.
 3. Dropping opens the upload dialog and starts the files automatically.
 4. Leaving the window without dropping removes the overlay and starts nothing.
 
 ### Upload from the page action
 
-As an administrator, I want **Upload to Library** to open the system file picker directly so that I
-do not have to open a dialog and then select another browse action.
+As an administrator, I want **Upload to Library** to open the upload dialog so that I can see the
+available dropzone and file controls before choosing files.
 
 Acceptance path:
 
 1. Select **Upload to Library** or the empty-state **Upload Files** action.
-2. Choose one or more files in the system picker.
-3. Canceling the picker leaves the page unchanged.
-4. Confirming the picker opens the upload dialog and starts the files automatically.
+2. The empty upload dialog opens.
+3. Select **Browse files** or drop files on the dialog dropzone.
+4. Confirming the file picker or dropping files starts them automatically.
 
 ### Monitor and recover a batch
 
@@ -78,7 +78,8 @@ Acceptance path:
 ### Included
 
 - A page-wide file-drag overlay on the media-library route.
-- Direct uploads from the header action, empty-state action, page drop, and dialog dropzone.
+- An empty upload dialog opened by the header and empty-state actions.
+- Direct uploads from the dialog file picker, dialog dropzone, and page drop.
 - One Kumo dialog containing a compact dropzone and composable file list.
 - Bounded parallel uploads with independent file states.
 - Per-file cancellation, removal, failure, retry, and completion.
@@ -133,7 +134,7 @@ upload:
 1. A drag whose `DataTransfer.types` includes `Files` enters the browser window.
 2. EmDash prevents the browser from navigating to the local file.
 3. A fixed overlay covers the viewport. It uses a translucent Kumo surface, a small backdrop blur,
-   and an inset dotted boundary with an upload icon and **Drop files to upload**.
+   and an inset dashed boundary with an upload icon and **Drop files to upload**.
 4. The overlay does not appear for selected text, links, or other non-file drags.
 5. Leaving the window without dropping removes the overlay and changes no upload state.
 6. Dropping files removes the overlay, snapshots the active provider, opens the upload dialog, and
@@ -147,30 +148,29 @@ When the active provider cannot upload, EmDash still prevents file-drop navigati
 the overlay or open the dialog. While the dialog is open, suspend the page overlay and let the
 dialog's dropzone accept additional files.
 
-### Use case 2: Select files from the page action
+### Use case 2: Open the dialog from a page action
 
-Selecting **Upload to Library** or the empty-state **Upload Files** action opens the existing hidden
-multiple file input. It does not first open an empty dialog. If the picker returns no files, EmDash
-does nothing. If it returns files, EmDash snapshots the active provider, opens the dialog, and queues
-the files in the same state update.
+Selecting **Upload to Library** or the empty-state **Upload Files** action snapshots the active
+provider and opens the empty upload dialog. It does not open the system file picker. Selecting
+**Browse files** inside the dialog opens its multiple file input; confirming the picker queues the files
+immediately.
 
-Reset the input value after every selection so selecting the same file again produces a new change
-event. Do not silently deduplicate files with identical names, sizes, or modification times. The
-server's content deduplication remains authoritative.
+Reset the dialog input value after every selection so selecting the same file again produces a new
+change event. Do not silently deduplicate files with identical names, sizes, or modification times.
+The server's content deduplication remains authoritative.
 
-### Use case 3: Add files from the upload dialog
+### Use case 3: Browse or drop files in the upload dialog
 
-The open dialog contains a compact dotted dropzone and an **Add files** Kumo button. Dropping or
+The open dialog contains a spacious dashed dropzone and a **Browse files** Kumo button. Dropping or
 choosing more files immediately appends them to the existing queue. New files can join a running
 batch and start when a concurrency slot is free.
 
 The dialog description states **Files upload as soon as you add them**. The dropzone itself is not a
-second custom button; the native file input is activated through **Add files**, avoiding a duplicate
+second custom button; the native file input is activated through **Browse files**, avoiding a duplicate
 keyboard stop.
 
-The dialog owns a second hidden file input inside the modal for **Add files**. Do not programmatically
-click the page input while the dialog is open because Kumo makes background content inert. Both
-inputs use one shared accept-list constant and reset their values after selection.
+The dialog owns one hidden multiple file input for **Browse files**. It uses the media-library accept
+list and resets its value after each selection.
 
 The dialog target remains the provider captured when the first files opened it. The background is
 inert, so the user cannot switch provider tabs until the dialog closes.
@@ -276,8 +276,8 @@ interface MediaUploadDialogProps {
 }
 ```
 
-`enqueueRequest` handles files selected or dropped outside the dialog. `MediaLibrary` increments the
-request ID for every addition. The dialog records the last consumed ID before queueing files, so a
+`enqueueRequest` handles files dropped on the page outside the dialog. `MediaLibrary` increments the
+request ID for every page drop. The dialog records the last consumed ID before queueing files, so a
 parent rerender or Strict Mode effect cannot enqueue the same request again. Files selected from the
 dialog's own input or dropped directly on its dropzone use the same internal enqueue function.
 
@@ -304,18 +304,16 @@ and uses 3.
 
 `MediaLibrary` owns:
 
-- the page-level hidden multiple file input used only while the dialog is closed;
 - whether the upload dialog is open;
 - the page-drag depth and overlay visibility;
 - the external enqueue request and captured provider target;
 - the adapter for the captured provider;
 - local query invalidation or provider refetch behavior already used today.
 
-Replace `handleFileSelect`'s sequential loop with one enqueue request and open the dialog. Record the
-page action that opened the picker before clicking the hidden input. A page drop records the media
-heading as its return target. After dialog close completes, focus the connected initiating element,
-falling back to the media heading. This explicit restoration is required because a programmatically
-opened dialog cannot rely on `Dialog.Trigger` restoration.
+Replace the page file input with an action that snapshots the active provider and opens the dialog.
+Record the page action as the return-focus target. A page drop records the media heading instead.
+After dialog close completes, focus the connected initiating element, falling back to the media
+heading. This explicit restoration is required because the dialog does not use `Dialog.Trigger`.
 
 Remove the page-level aggregate `uploadState`; the dialog becomes the source of upload feedback.
 
@@ -379,9 +377,9 @@ created before a client abort.
 
 ## Accessibility, localization, and responsive behavior
 
-- The page upload actions and dialog **Add files** button provide complete keyboard alternatives to
+- The page upload actions and dialog **Browse files** button provide complete keyboard alternatives to
   drag and drop.
-- Both hidden file inputs have localized labels and `multiple`.
+- The hidden file input has a localized label and `multiple`.
 - Kumo owns focus trapping and backdrop semantics. `MediaLibrary` explicitly restores focus to the
   initiating page action or media heading after the close animation. The controlled close handler
   refuses dismissal only while unfinished rows remain.
@@ -405,8 +403,9 @@ created before a client abort.
 ## Failure handling
 
 - An empty picker result or drop with no `File` entries does nothing.
-- The file picker keeps the current `accept` value. Dropped files are queued without client-side MIME
-  rejection; the server remains authoritative and reports unsupported types per row.
+- The dialog file picker keeps the current `accept` value. Dropped files are queued without
+  client-side MIME rejection; the server remains authoritative and reports unsupported types per
+  row.
 - A synchronous callback throw and an async rejection both fail only the current row.
 - Network, validation, storage, provider, confirmation, and deduplication failures share the
   `failed` state and can be retried.
@@ -425,13 +424,13 @@ created before a client abort.
 
 ### Upload dialog browser tests
 
-- Confirming the page file picker opens the dialog and starts callbacks without another action.
-- Canceling the picker leaves the dialog closed and makes no callback.
+- The header and empty-state actions open an empty dialog and make no upload callback.
+- Confirming the dialog file picker starts callbacks without another action.
 - A page drop opens the dialog and starts every accepted file automatically.
 - A non-file drag and a drag that leaves the window do not queue files.
-- The dialog dropzone and **Add files** action append files to a running queue.
+- The dialog dropzone and **Browse files** action append files to a running queue.
 - The dialog's internal file input remains operable while Kumo marks the background inert and uses
-  the same accept list as the page input.
+  the media-library accept list.
 - The scheduler never exceeds configured concurrency and promotes the oldest queued row when a slot
   opens.
 - Removing a queued row prevents its callback; canceling an active row aborts it and frees a slot.
@@ -458,7 +457,7 @@ created before a client abort.
 
 ### Media-library integration tests
 
-- Header and empty-state actions open the native picker directly, not an empty dialog.
+- Header and empty-state actions open the same empty upload dialog.
 - The page overlay appears only for file drags when the captured provider supports upload.
 - Dropping on a non-upload provider prevents browser navigation without opening the dialog.
 - Local files call `onUpload` automatically with distinct signals.
@@ -480,8 +479,8 @@ created before a client abort.
 
 1. Drag several files from Finder over the library, leave the window, and confirm the overlay clears.
 2. Drop the files and confirm the dialog opens and network requests start without another action.
-3. Select **Upload to Library**, cancel the picker, then select files and confirm the two outcomes.
-4. Add files while uploads are running, cancel one, cancel remaining, and clear completed rows.
+3. Select **Upload to Library**, confirm the empty dialog appears, then add files from the dialog.
+4. Browse for more files while uploads are running, cancel one, cancel remaining, and clear completed rows.
 5. Force one failure and retry only that file, then retry several failures together.
 6. Repeat on local storage, R2/S3-backed storage, and an upload-capable external provider.
 7. Complete the flow using only the keyboard.
@@ -533,9 +532,9 @@ implementation, adversarial review, patch, re-review, checks, scope audit, then 
 ## Acceptance criteria
 
 - A file drag anywhere over an upload-capable media-library view shows a blurred page overlay with a
-  dotted boundary and the explicit text **Drop files to upload**.
-- Dropping files or confirming the file picker immediately opens the dialog and starts the queue.
-- Canceling the file picker makes no UI or network change.
+  dashed boundary and the explicit text **Drop files to upload**.
+- Page drop immediately opens the dialog and starts the queue.
+- Page upload actions open an empty dialog without starting a request.
 - Adding files inside the dialog immediately appends them to the running queue.
 - The queue never exceeds approved concurrency and continues after individual failures.
 - Every file has truthful queued, uploading, complete, or failed feedback with cancellation and

@@ -18,7 +18,7 @@ import * as React from "react";
 
 import { formatFileSize } from "../lib/media-utils.js";
 
-export const MEDIA_UPLOAD_ACCEPT = "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx";
+const MEDIA_UPLOAD_ACCEPT = "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx";
 
 const DEFAULT_CONCURRENCY = 3;
 const MAX_CONCURRENCY = 6;
@@ -409,7 +409,7 @@ export function MediaUploadDialog({
 
 				<div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-6 py-5">
 					<div
-						className="flex flex-col items-center gap-2 rounded-xl border-2 border-dotted border-kumo-line bg-kumo-tint px-5 py-4 text-center"
+						className="flex min-h-64 flex-col items-center justify-center gap-4 rounded-xl border-[3px] border-dashed border-kumo-subtle/60 bg-kumo-base px-6 py-10 text-center sm:min-h-72"
 						onDragOver={(event) => event.preventDefault()}
 						onDrop={(event) => {
 							event.preventDefault();
@@ -417,15 +417,23 @@ export function MediaUploadDialog({
 							addFiles([...event.dataTransfer.files]);
 						}}
 					>
-						<UploadSimple className="h-6 w-6 text-kumo-subtle" aria-hidden="true" />
-						<p className="text-sm text-kumo-subtle">{t`Drop files here to upload`}</p>
+						<div className="flex size-14 items-center justify-center rounded-full text-kumo-subtle ring ring-kumo-line">
+							<UploadSimple className="h-7 w-7" weight="regular" aria-hidden="true" />
+						</div>
+						<div className="space-y-1">
+							<p className="text-lg font-semibold leading-6">{t`Drag and drop files here`}</p>
+							<p className="text-sm leading-5 text-kumo-subtle">
+								{t`Or browse files from your computer`}
+							</p>
+						</div>
 						<Button
 							variant="outline"
-							size="sm"
+							size="base"
+							className="text-sm"
 							onClick={() => inputRef.current?.click()}
 							icon={<UploadSimple aria-hidden="true" />}
 						>
-							{t`Add files`}
+							{t`Browse files`}
 						</Button>
 						<input
 							ref={inputRef}
@@ -434,7 +442,7 @@ export function MediaUploadDialog({
 							accept={MEDIA_UPLOAD_ACCEPT}
 							className="sr-only"
 							tabIndex={-1}
-							aria-label={t`Add files to upload`}
+							aria-label={t`Browse files to upload`}
 							onChange={(event) => {
 								addFiles([...(event.currentTarget.files ?? [])]);
 								event.currentTarget.value = "";
