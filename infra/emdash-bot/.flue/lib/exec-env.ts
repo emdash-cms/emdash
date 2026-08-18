@@ -43,6 +43,8 @@ export interface RepoOptions {
 export interface ExecEnvDeadlines {
 	/** Ceiling for VFS calls and for an exec with no explicit timeout. */
 	readonly defaultTimeoutMs: number;
+	/** Overall ceiling for attaching or rebuilding the container checkout. */
+	readonly attachTimeoutMs: number;
 	/** Added to an exec's own timeout so the substrate kills before we do. */
 	readonly execGraceMs: number;
 }
@@ -71,6 +73,7 @@ export interface IsolateState {
  * `fromSandbox` adapts the real sandbox, tests pass a fake.
  */
 export interface ContainerBackend {
+	isReady(): Promise<boolean>;
 	exec(
 		command: string,
 		options?: { cwd?: string; timeoutMs?: number },
@@ -111,6 +114,8 @@ export class ExecEnv {
 	readonly #deadlines: ExecEnvDeadlines;
 	readonly #repoDir: string;
 	#containerPromise: Promise<ContainerBackend> | undefined;
+	#containerRecoveryPromise: Promise<ContainerBackend> | undefined;
+	#mutationTail: Promise<void> = Promise.resolve();
 
 	constructor(options: ExecEnvOptions) {
 		this.#state = options.state;
@@ -129,41 +134,40 @@ export class ExecEnv {
 		const ref = options.ref ?? "main";
 		if ((await this.#readMarker()) === ref) return;
 		await this.#bounded(this.#state.rm(options.dir, { recursive: true, force: true }), "rm");
-		await this.#hydrateRepo(options.dir, ref);
+		await this.#bounded(this.#hydrateRepo(options.dir, ref), "hydrateRepo");
 		await this.#bounded(this.#state.mkdir(META_DIR, { recursive: true }), "mkdir");
 		await this.#bounded(this.#state.writeFile(CHANGE_LOG, "[]"), "writeFile");
 		await this.#bounded(this.#state.writeFile(HYDRATED_MARKER, ref), "writeFile");
 	}
 
 	async #readMarker(): Promise<string | null> {
-		try {
-			return await this.#bounded(this.#state.readFile(HYDRATED_MARKER), "readFile");
-		} catch {
-			return null;
-		}
+		if (!(await this.#bounded(this.#state.exists(HYDRATED_MARKER), "exists"))) return null;
+		return this.#bounded(this.#state.readFile(HYDRATED_MARKER), "readFile");
 	}
 
 	readFile(path: string): Promise<string> {
 		return this.#bounded(this.#state.readFile(path), "readFile");
 	}
 
-	async writeFile(path: string, content: string): Promise<void> {
-		await this.#bounded(this.#state.writeFile(path, content), "writeFile");
-		await this.#recordChange(path);
+	writeFile(path: string, content: string): Promise<void> {
+		return this.#enqueueMutation(() => this.#writeFile(path, content));
 	}
 
 	/** Replace an exact substring; the file must contain it exactly once. */
-	async edit(path: string, oldString: string, newString: string): Promise<void> {
-		const current = await this.readFile(path);
-		if (!current.includes(oldString)) throw new Error(`edit target not found in ${path}`);
-		const first = current.indexOf(oldString);
-		if (current.slice(first + oldString.length).includes(oldString)) {
-			throw new Error(`edit target is not unique in ${path}`);
-		}
-		await this.writeFile(
-			path,
-			current.slice(0, first) + newString + current.slice(first + oldString.length),
-		);
+	edit(path: string, oldString: string, newString: string): Promise<void> {
+		return this.#enqueueMutation(async () => {
+			this.#assertEditablePath(path);
+			const current = await this.readFile(path);
+			if (!current.includes(oldString)) throw new Error(`edit target not found in ${path}`);
+			const first = current.indexOf(oldString);
+			if (current.slice(first + oldString.length).includes(oldString)) {
+				throw new Error(`edit target is not unique in ${path}`);
+			}
+			await this.#writeFile(
+				path,
+				current.slice(0, first) + newString + current.slice(first + oldString.length),
+			);
+		});
 	}
 
 	ls(path: string): Promise<Array<{ name: string; type: string }>> {
@@ -203,6 +207,10 @@ export class ExecEnv {
 		);
 	}
 
+	async execReadOnly(command: string, options: ExecOptions = {}): Promise<ExecResult> {
+		return (await this.runCheck(command, options)).result;
+	}
+
 	async runCheck(
 		command: string,
 		options: ExecOptions = {},
@@ -224,7 +232,7 @@ export class ExecEnv {
 		if (candidateTreeSha !== beforeTreeSha) {
 			await this.#restoreContainerCandidate(container);
 			throw new Error(
-				"verification command modified the candidate; apply source changes with edit_file/write_file and rerun a check-only command",
+				"container command modified the candidate; apply source changes with edit_file/write_file and rerun a check-only command",
 			);
 		}
 		return { result, candidateTreeSha };
@@ -235,6 +243,7 @@ export class ExecEnv {
 		const container = await this.container();
 		await this.#materializeChanges(container);
 		await this.#stageCandidate(container);
+		// Sandbox exec returns text, so binary NUL-delimited Git output crosses the boundary as base64.
 		const [base, tree, diff] = await Promise.all([
 			this.#bounded(
 				container.exec(pipefailCommand("git rev-parse HEAD"), { cwd: this.#repoDir }),
@@ -246,7 +255,9 @@ export class ExecEnv {
 			),
 			this.#bounded(
 				container.exec(
-					pipefailCommand("git diff --cached --raw --abbrev=64 --no-renames -z HEAD --"),
+					pipefailCommand(
+						"git diff --cached --raw --abbrev=64 --no-renames -z HEAD -- | base64 -w0",
+					),
 					{
 						cwd: this.#repoDir,
 					},
@@ -257,7 +268,7 @@ export class ExecEnv {
 		if (base.exitCode !== 0) throw new Error(`candidate base lookup failed: ${lastOutput(base)}`);
 		if (tree.exitCode !== 0) throw new Error(`candidate tree lookup failed: ${lastOutput(tree)}`);
 		if (diff.exitCode !== 0) throw new Error(`candidate diff failed: ${lastOutput(diff)}`);
-		const entries = parseRawGitDiff(diff.stdout);
+		const entries = parseRawGitDiff(decodeBase64Utf8(diff.stdout, "candidate diff"));
 		if (entries.length === 0) throw new Error("candidate has no staged changes");
 		if (entries.length > CANDIDATE_FILE_LIMIT) {
 			throw new Error(
@@ -403,16 +414,51 @@ export class ExecEnv {
 		return this.#bounded(container.readFileBytes(path), "readArtifact");
 	}
 
-	/** Attach the container once and reuse it. */
-	container(): Promise<ContainerBackend> {
+	/** Reuse a live checkout, rebuilding it when the sandbox replaced its container. */
+	async container(): Promise<ContainerBackend> {
+		const container = await this.#attachedContainer();
+		try {
+			if (await this.#containerReady(container)) return container;
+		} catch {
+			this.#containerPromise = undefined;
+		}
+		return this.#recoverContainer();
+	}
+
+	#attachedContainer(): Promise<ContainerBackend> {
 		return (this.#containerPromise ??= withDeadline(
 			this.#attachContainer(),
-			this.#deadlines.defaultTimeoutMs,
+			this.#deadlines.attachTimeoutMs,
 			"container attach",
 		).catch((error: unknown) => {
 			this.#containerPromise = undefined;
 			throw error;
 		}));
+	}
+
+	#containerReady(container: ContainerBackend): Promise<boolean> {
+		return withDeadline(
+			container.isReady(),
+			this.#deadlines.attachTimeoutMs,
+			"container readiness",
+		);
+	}
+
+	#recoverContainer(): Promise<ContainerBackend> {
+		if (this.#containerRecoveryPromise) return this.#containerRecoveryPromise;
+		this.#containerPromise = undefined;
+		const recovery = (async () => {
+			const replacement = await this.#attachedContainer();
+			if (!(await this.#containerReady(replacement))) {
+				this.#containerPromise = undefined;
+				throw new Error("container checkout is unavailable after reattachment");
+			}
+			return replacement;
+		})();
+		this.#containerRecoveryPromise = recovery.finally(() => {
+			this.#containerRecoveryPromise = undefined;
+		});
+		return this.#containerRecoveryPromise;
 	}
 
 	async #recordChange(path: string): Promise<void> {
@@ -424,14 +470,47 @@ export class ExecEnv {
 		await this.#bounded(this.#state.writeFile(CHANGE_LOG, JSON.stringify(changed)), "writeFile");
 	}
 
-	async #readChangeLog(): Promise<string[]> {
+	async #writeFile(path: string, content: string): Promise<void> {
+		this.#assertEditablePath(path);
+		await this.#bounded(this.#state.writeFile(path, content), "writeFile");
+		await this.#recordChange(path);
+	}
+
+	#assertEditablePath(path: string): void {
+		const prefix = `${this.#repoDir.replace(TRAILING_SLASH, "")}/`;
+		if (!path.startsWith(prefix)) return;
 		try {
-			const raw = await this.#bounded(this.#state.readFile(CHANGE_LOG), "readFile");
-			const parsed: unknown = JSON.parse(raw);
-			return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === "string") : [];
+			assertCandidatePath(path.slice(prefix.length));
 		} catch {
-			return [];
+			throw new Error(`cannot edit path: ${path}`);
 		}
+	}
+
+	#enqueueMutation<T>(operation: () => Promise<T>): Promise<T> {
+		const result = this.#mutationTail.then(operation, operation);
+		this.#mutationTail = result.then(
+			() => undefined,
+			() => undefined,
+		);
+		return result;
+	}
+
+	async #readChangeLog(): Promise<string[]> {
+		if (!(await this.#bounded(this.#state.exists(CHANGE_LOG), "exists"))) return [];
+		const raw = await this.#bounded(this.#state.readFile(CHANGE_LOG), "readFile");
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(raw);
+		} catch (error) {
+			throw new Error("invalid VFS change log: malformed JSON", { cause: error });
+		}
+		if (!Array.isArray(parsed) || parsed.some((path) => typeof path !== "string")) {
+			throw new Error("invalid VFS change log: expected an array of paths");
+		}
+		if (parsed.some((path) => !path.startsWith(`${this.#repoDir}/`))) {
+			throw new Error("invalid VFS change log: path outside repository");
+		}
+		return parsed;
 	}
 
 	/**
@@ -483,6 +562,21 @@ export function parseRawGitDiff(raw: string): RawDiffEntry[] {
 	return entries;
 }
 
+function decodeBase64Utf8(encoded: string, label: string): string {
+	const value = encoded.trim();
+	if (value === "") return "";
+	try {
+		const binary = atob(value);
+		const bytes = new Uint8Array(binary.length);
+		for (let index = 0; index < binary.length; index += 1) {
+			bytes[index] = binary.charCodeAt(index);
+		}
+		return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+	} catch (error) {
+		throw new Error(`${label} was not valid base64-encoded UTF-8`, { cause: error });
+	}
+}
+
 async function assertGitBlobContent(
 	content: Uint8Array,
 	expectedSha: string,
@@ -509,10 +603,11 @@ function gitTreeMode(mode: string | undefined): GitTreeMode {
 }
 
 function assertCandidatePath(path: string): void {
+	const segments = path.split("/");
 	if (
 		path === "" ||
 		path.startsWith("/") ||
-		path.split("/").includes("..") ||
+		segments.some((segment) => segment === "" || segment === "." || segment === "..") ||
 		DISALLOWED_CANDIDATE_PATHS.some(
 			(prefix) => path === prefix.slice(0, -1) || path.startsWith(prefix),
 		)
@@ -537,6 +632,7 @@ export function pipefailCommand(command: string): string {
 /** Adapt a @cloudflare/sandbox session to the ContainerBackend seam. */
 export function fromSandbox(sandbox: Sandbox): ContainerBackend {
 	return {
+		isReady: async () => true,
 		async exec(command, options) {
 			const result = await sandbox.exec(command, {
 				...(options?.cwd ? { cwd: options.cwd } : {}),

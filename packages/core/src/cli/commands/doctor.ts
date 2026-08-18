@@ -1,23 +1,43 @@
 /**
  * emdash doctor
  *
- * Diagnose database health: connection, migrations, schema integrity.
+ * Diagnose database health (connection, migrations, schema integrity) and
+ * Cloudflare Worker scheduler wiring (Cron Trigger + scheduled() handler).
  */
 
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { defineCommand } from "citty";
 import consola from "consola";
+import { parse, printParseErrorCode, type ParseError } from "jsonc-parser";
+import { parse as parseToml } from "smol-toml";
 
 import { createDatabase } from "../../database/connection.js";
 import { listTablesLike } from "../../database/dialect-helpers.js";
 import { getMigrationStatus } from "../../database/migrations/runner.js";
 
-interface CheckResult {
+export interface CheckResult {
 	name: string;
 	status: "pass" | "warn" | "fail";
 	message: string;
+}
+
+const WRANGLER_CONFIG_FILES = ["wrangler.jsonc", "wrangler.json", "wrangler.toml"] as const;
+const CLOUDFLARE_WORKER_MODULE = "@emdash-cms/cloudflare/worker";
+const WORKER_FIX = `export { default, PluginBridge } from "${CLOUDFLARE_WORKER_MODULE}";`;
+const MAIN_FIX_JSONC = `"main": "./src/worker.ts"`;
+const MAIN_FIX_TOML = `main = "./src/worker.ts"`;
+const TRIGGER_FIX_JSONC = `"triggers": { "crons": ["* * * * *"] }`;
+const TRIGGER_FIX_TOML = `[triggers]\ncrons = ["* * * * *"]`;
+const SCHEDULED_HANDLER_PATTERN = /\bscheduled\s*:\s*createScheduledHandler\s*\(/m;
+
+function triggerFix(configPath: string): string {
+	return configPath.endsWith(".toml") ? TRIGGER_FIX_TOML : TRIGGER_FIX_JSONC;
+}
+
+function mainFix(configPath: string): string {
+	return configPath.endsWith(".toml") ? MAIN_FIX_TOML : MAIN_FIX_JSONC;
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -27,6 +47,172 @@ async function fileExists(path: string): Promise<boolean> {
 	} catch {
 		return false;
 	}
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sourcePosition(source: string, offset: number): { line: number; column: number } {
+	const prefix = source.slice(0, offset);
+	return {
+		line: prefix.split("\n").length,
+		column: offset - prefix.lastIndexOf("\n"),
+	};
+}
+
+async function findWranglerConfig(cwd: string): Promise<string | null> {
+	for (const filename of WRANGLER_CONFIG_FILES) {
+		const path = resolve(cwd, filename);
+		if (await fileExists(path)) return path;
+	}
+	return null;
+}
+
+function workerExportsScheduledMaintenance(source: string): boolean {
+	const modulePattern = CLOUDFLARE_WORKER_MODULE.replaceAll("/", "\\/");
+	const reExportsWorker = new RegExp(
+		`export\\s*\\{[^}]*\\bdefault\\b[^}]*\\}\\s*from\\s*["']${modulePattern}["']`,
+		"m",
+	);
+	const importsFactory = new RegExp(
+		`import\\s+[^;]*\\{[^}]*\\bcreateScheduledHandler\\b[^}]*\\}\\s*from\\s*["']${modulePattern}["']`,
+		"m",
+	);
+	return (
+		reExportsWorker.test(source) ||
+		(importsFactory.test(source) && SCHEDULED_HANDLER_PATTERN.test(source))
+	);
+}
+
+export async function checkSchedulerWiring(cwd: string): Promise<CheckResult[]> {
+	const configPath = await findWranglerConfig(cwd);
+	if (!configPath) return [];
+	return checkSchedulerWiringAtPath(cwd, configPath);
+}
+
+async function checkSchedulerWiringAtPath(cwd: string, configPath: string): Promise<CheckResult[]> {
+	const configSource = await readFile(configPath, "utf8");
+	let parsed: unknown;
+	if (configPath.endsWith(".toml")) {
+		try {
+			parsed = parseToml(configSource);
+		} catch (error) {
+			return [
+				{
+					name: "scheduler config",
+					status: "fail",
+					message: `could not parse ${configPath}: ${error instanceof Error ? error.message : "invalid TOML"} — fix the Wrangler configuration syntax`,
+				},
+			];
+		}
+	} else {
+		const parseErrors: ParseError[] = [];
+		parsed = parse(configSource, parseErrors, {
+			allowTrailingComma: true,
+			disallowComments: false,
+		});
+		if (parseErrors.length > 0) {
+			const error = parseErrors[0];
+			const { line, column } = sourcePosition(configSource, error.offset);
+			return [
+				{
+					name: "scheduler config",
+					status: "fail",
+					message: `could not parse ${configPath}: ${printParseErrorCode(error.error)} at line ${line}, column ${column} — fix the Wrangler configuration syntax`,
+				},
+			];
+		}
+	}
+	if (!isRecord(parsed)) {
+		return [
+			{
+				name: "scheduler config",
+				status: "fail",
+				message: `could not parse ${configPath}: expected an object — fix the Wrangler configuration syntax`,
+			},
+		];
+	}
+
+	const triggers = isRecord(parsed.triggers) ? parsed.triggers : null;
+	const hasCronTrigger =
+		Array.isArray(triggers?.crons) &&
+		triggers.crons.some((cron) => typeof cron === "string" && cron.trim().length > 0);
+	const main = typeof parsed.main === "string" && parsed.main.trim() ? parsed.main : null;
+	if (!main) {
+		return [
+			{
+				name: "scheduler handler",
+				status: "fail",
+				message: `Wrangler configuration has no Worker entry to inspect — add ${mainFix(configPath)}, then export: ${WORKER_FIX}`,
+			},
+		];
+	}
+
+	const workerPath = resolve(cwd, main);
+	let hasScheduledHandler = false;
+	try {
+		const workerSource = await readFile(workerPath, "utf8");
+		hasScheduledHandler = workerExportsScheduledMaintenance(workerSource);
+	} catch (error) {
+		const code = isRecord(error) && typeof error.code === "string" ? error.code : null;
+		if (code !== "ENOENT") {
+			return [
+				{
+					name: "scheduler handler",
+					status: "fail",
+					message: `could not read Worker entry ${workerPath}: ${error instanceof Error ? error.message : "unknown I/O error"} — check the file path and permissions`,
+				},
+			];
+		}
+		return [
+			{
+				name: "scheduler handler",
+				status: "fail",
+				message: `Worker entry not found at ${workerPath} — create it with: ${WORKER_FIX}`,
+			},
+		];
+	}
+
+	if (hasCronTrigger && !hasScheduledHandler) {
+		return [
+			{
+				name: "scheduler handler",
+				status: "fail",
+				message: `Cron Trigger is configured, but ${main} does not export EmDash scheduled() maintenance — replace its Worker export with: ${WORKER_FIX}`,
+			},
+		];
+	}
+
+	if (hasScheduledHandler && !hasCronTrigger) {
+		return [
+			{
+				name: "scheduler trigger",
+				status: "fail",
+				message: `EmDash scheduled() handler is exported, but no Cron Trigger is configured — add this to ${configPath}: ${triggerFix(configPath)}`,
+			},
+		];
+	}
+
+	if (!hasCronTrigger && !hasScheduledHandler) {
+		return [];
+	}
+
+	return [
+		{
+			name: "scheduler wiring",
+			status: "pass",
+			message: `Cron Trigger and scheduled() handler found (${main})`,
+		},
+	];
+}
+
+export async function checkDoctor(cwd: string, dbPath: string): Promise<CheckResult[]> {
+	const results = await checkDatabase(dbPath);
+	const configPath = await findWranglerConfig(cwd);
+	if (configPath) results.push(...(await checkSchedulerWiringAtPath(cwd, configPath)));
+
+	return results;
 }
 
 function printResult(result: CheckResult): void {
@@ -157,7 +343,7 @@ async function checkDatabase(dbPath: string): Promise<CheckResult[]> {
 export const doctorCommand = defineCommand({
 	meta: {
 		name: "doctor",
-		description: "Check database health and diagnose issues",
+		description: "Check database health, scheduler wiring, and diagnose issues",
 	},
 	args: {
 		database: {
@@ -181,10 +367,12 @@ export const doctorCommand = defineCommand({
 		const cwd = resolve(args.cwd);
 		const dbPath = resolve(cwd, args.database);
 
-		const results = await checkDatabase(dbPath);
+		const results = await checkDoctor(cwd, dbPath);
+		const fails = results.filter((result) => result.status === "fail");
 
 		if (args.json) {
 			process.stdout.write(JSON.stringify(results, null, 2) + "\n");
+			if (fails.length > 0) process.exitCode = 1;
 			return;
 		}
 
@@ -195,7 +383,6 @@ export const doctorCommand = defineCommand({
 		}
 
 		// Summary
-		const fails = results.filter((r) => r.status === "fail");
 		const warns = results.filter((r) => r.status === "warn");
 
 		consola.log("");

@@ -1,4 +1,11 @@
-import type { ColumnDataType, CreateTableBuilder, Insertable, Kysely, Selectable } from "kysely";
+import type {
+	ColumnDataType,
+	CreateTableBuilder,
+	Insertable,
+	Kysely,
+	Selectable,
+	Updateable,
+} from "kysely";
 import { sql } from "kysely";
 import { ulid } from "ulidx";
 
@@ -59,6 +66,10 @@ const COLUMN_TYPE_TO_DATA_TYPE = {
 	INTEGER: "integer",
 	JSON: "json",
 } satisfies Record<ColumnType, ColumnDataType>;
+const TEXT_ALIAS_FIELD_TYPES: ReadonlySet<FieldType> = new Set(["string", "text", "slug"]);
+
+/** Field types usable as a `titleField` — plain text that reads well as a title. */
+const TITLE_FIELD_TYPES: ReadonlySet<string> = new Set(["string", "text", "slug"]);
 
 /** Valid collection source prefixes/values */
 const VALID_SOURCES: ReadonlySet<string> = new Set(["manual", "discovered", "seed"]);
@@ -186,6 +197,7 @@ export async function buildSeedCollectionCaptureFingerprint(
 				sortOrder: input.sortOrder ?? null,
 				commentsEnabled: input.commentsEnabled ?? false,
 				urlPattern: input.urlPattern ?? null,
+				routable: input.routable ?? true,
 			},
 			fields: definitions,
 		}),
@@ -332,6 +344,61 @@ export class SchemaRegistry {
 	}
 
 	/**
+	 * Validate `titleField`/`dateField` against the collection's fields:
+	 * `titleField` must be a text-like field; `dateField` must be a `datetime` field.
+	 * Only truthy values are checked (undefined = unchanged, null/"" = cleared).
+	 */
+	private async validateTitleDateFields(
+		collectionId: string,
+		collectionSlug: string,
+		input: { titleField?: string | null; dateField?: string | null },
+		db: Kysely<Database> = this.db,
+	): Promise<void> {
+		const slugs = [input.titleField, input.dateField].filter((slug): slug is string => !!slug);
+		if (slugs.length === 0) return;
+
+		const rows = await db
+			.selectFrom("_emdash_fields")
+			.where("collection_id", "=", collectionId)
+			.where("slug", "in", slugs)
+			.select(["slug", "type"])
+			.execute();
+		const typeBySlug = new Map(rows.map((row) => [row.slug, row.type]));
+
+		if (input.titleField) {
+			const type = typeBySlug.get(input.titleField);
+			if (type === undefined) {
+				throw new SchemaError(
+					`titleField "${input.titleField}" is not a field on "${collectionSlug}"`,
+					"INVALID_TITLE_FIELD",
+				);
+			}
+			if (!TITLE_FIELD_TYPES.has(type)) {
+				throw new SchemaError(
+					`titleField "${input.titleField}" must be a text field (got "${type}")`,
+					"INVALID_TITLE_FIELD",
+				);
+			}
+		}
+
+		if (input.dateField) {
+			const type = typeBySlug.get(input.dateField);
+			if (type === undefined) {
+				throw new SchemaError(
+					`dateField "${input.dateField}" is not a field on "${collectionSlug}"`,
+					"INVALID_DATE_FIELD",
+				);
+			}
+			if (type !== "datetime") {
+				throw new SchemaError(
+					`dateField "${input.dateField}" must be a datetime field (got "${type}")`,
+					"INVALID_DATE_FIELD",
+				);
+			}
+		}
+	}
+
+	/**
 	 * Create a new collection
 	 */
 	async createCollection(input: CreateCollectionInput): Promise<Collection> {
@@ -391,6 +458,7 @@ export class SchemaRegistry {
 				supports: JSON.stringify(supports),
 				source: input.source ?? "manual",
 				has_seo: hasSeo ? 1 : 0,
+				routable: input.routable === false ? 0 : 1,
 				hidden: input.hidden ? 1 : 0,
 				sort_order: input.sortOrder ?? null,
 				comments_enabled: input.commentsEnabled ? 1 : 0,
@@ -533,6 +601,7 @@ export class SchemaRegistry {
 					supports: JSON.stringify(supports),
 					source: "seed",
 					has_seo: hasSeo ? 1 : 0,
+					routable: input.routable === false ? 0 : 1,
 					hidden: input.hidden ? 1 : 0,
 					sort_order: input.sortOrder ?? null,
 					comments_enabled: input.commentsEnabled ? 1 : 0,
@@ -650,71 +719,62 @@ export class SchemaRegistry {
 	 * Update a collection
 	 */
 	async updateCollection(slug: string, input: UpdateCollectionInput): Promise<Collection> {
-		const existing = await this.getCollection(slug);
-		if (!existing) {
-			throw new SchemaError(`Collection "${slug}" not found`, "COLLECTION_NOT_FOUND");
-		}
-
-		const now = new Date().toISOString();
-
-		// Derive hasSeo from supports array if supports is being updated and hasSeo not explicitly set
-		const supportsArray = input.supports ?? existing.supports;
-		const hasSeo =
-			input.hasSeo !== undefined
-				? input.hasSeo
-				: input.supports !== undefined
-					? supportsArray.includes("seo")
-					: existing.hasSeo;
-
 		return withTransaction(this.db, async (trx) => {
+			const existingRow = await trx
+				.selectFrom("_emdash_collections")
+				.where("slug", "=", slug)
+				.selectAll()
+				.executeTakeFirst();
+			if (!existingRow) {
+				throw new SchemaError(`Collection "${slug}" not found`, "COLLECTION_NOT_FOUND");
+			}
+			const existing = this.mapCollectionRow(existingRow);
+			await this.validateTitleDateFields(
+				existing.id,
+				slug,
+				{
+					titleField: input.titleField,
+					dateField: input.dateField,
+				},
+				trx,
+			);
+			const updates: Updateable<CollectionTable> = {};
+
+			if (input.label !== undefined) updates.label = input.label;
+			if (input.labelSingular !== undefined) updates.label_singular = input.labelSingular;
+			if (input.description !== undefined) updates.description = input.description;
+			if (input.icon !== undefined) updates.icon = input.icon;
+			if (input.admin !== undefined) updates.admin_config = JSON.stringify(input.admin);
+			if (input.supports !== undefined) updates.supports = JSON.stringify(input.supports);
+			if (input.urlPattern !== undefined) updates.url_pattern = input.urlPattern;
+			if (input.routable !== undefined) updates.routable = input.routable ? 1 : 0;
+			if (input.hasSeo !== undefined) {
+				updates.has_seo = input.hasSeo ? 1 : 0;
+			} else if (input.supports !== undefined) {
+				updates.has_seo = input.supports.includes("seo") ? 1 : 0;
+			}
+			if (input.hidden !== undefined) updates.hidden = input.hidden ? 1 : 0;
+			if (input.sortOrder !== undefined) updates.sort_order = input.sortOrder;
+			if (input.titleField !== undefined) updates.title_field = input.titleField || null;
+			if (input.dateField !== undefined) updates.date_field = input.dateField || null;
+			if (input.commentsEnabled !== undefined) {
+				updates.comments_enabled = input.commentsEnabled ? 1 : 0;
+			}
+			if (input.commentsModeration !== undefined) {
+				updates.comments_moderation = input.commentsModeration;
+			}
+			if (input.commentsClosedAfterDays !== undefined) {
+				updates.comments_closed_after_days = input.commentsClosedAfterDays;
+			}
+			if (input.commentsAutoApproveUsers !== undefined) {
+				updates.comments_auto_approve_users = input.commentsAutoApproveUsers ? 1 : 0;
+			}
+
+			updates.updated_at = new Date().toISOString();
 			await trx
 				.updateTable("_emdash_collections")
-				.set({
-					label: input.label ?? existing.label,
-					label_singular: input.labelSingular ?? existing.labelSingular ?? null,
-					description: input.description ?? existing.description ?? null,
-					icon: input.icon ?? existing.icon ?? null,
-					admin_config:
-						input.admin !== undefined
-							? JSON.stringify(input.admin)
-							: existing.admin
-								? JSON.stringify(existing.admin)
-								: null,
-					supports: input.supports
-						? JSON.stringify(input.supports)
-						: JSON.stringify(existing.supports),
-					url_pattern:
-						input.urlPattern !== undefined
-							? (input.urlPattern ?? null)
-							: (existing.urlPattern ?? null),
-					has_seo: hasSeo ? 1 : 0,
-					hidden: input.hidden !== undefined ? (input.hidden ? 1 : 0) : existing.hidden ? 1 : 0,
-					sort_order:
-						input.sortOrder !== undefined ? input.sortOrder : (existing.sortOrder ?? null),
-					comments_enabled:
-						input.commentsEnabled !== undefined
-							? input.commentsEnabled
-								? 1
-								: 0
-							: existing.commentsEnabled
-								? 1
-								: 0,
-					comments_moderation: input.commentsModeration ?? existing.commentsModeration,
-					comments_closed_after_days:
-						input.commentsClosedAfterDays !== undefined
-							? input.commentsClosedAfterDays
-							: existing.commentsClosedAfterDays,
-					comments_auto_approve_users:
-						input.commentsAutoApproveUsers !== undefined
-							? input.commentsAutoApproveUsers
-								? 1
-								: 0
-							: existing.commentsAutoApproveUsers
-								? 1
-								: 0,
-					updated_at: now,
-				})
-				.where("slug", "=", slug)
+				.set(updates)
+				.where("id", "=", existing.id)
 				.execute();
 
 			const row = await trx
@@ -970,102 +1030,125 @@ export class SchemaRegistry {
 		fieldSlug: string,
 		input: UpdateFieldInput,
 	): Promise<Field> {
-		const field = await this.getField(collectionSlug, fieldSlug);
-		if (!field) {
-			throw new SchemaError(
-				`Field "${fieldSlug}" not found in collection "${collectionSlug}"`,
-				"FIELD_NOT_FOUND",
-			);
-		}
-
-		// `input.validation === undefined` means "no change" (keep existing);
-		// an explicit `null` clears the column.
-		const nextValidation = input.validation === undefined ? field.validation : input.validation;
-
-		// A field-type change is only safe when the underlying column type stays
-		// the same. There is no in-place column migration (only addColumn/
-		// dropColumn), so a change that would alter the SQLite column affinity
-		// (e.g. `text` TEXT -> `portableText` JSON) is rejected rather than
-		// silently rewriting only the metadata — which would leave `column_type`
-		// pointing at a column type the real `ec_*` column doesn't have (#1397).
-		let nextType = field.type;
-		let nextColumnType = field.columnType;
-		if (input.type !== undefined && input.type !== field.type) {
-			const newColumnType = FIELD_TYPE_TO_COLUMN[input.type];
-			if (newColumnType !== field.columnType) {
-				throw new SchemaError(
-					`Cannot change field "${fieldSlug}" in collection "${collectionSlug}" from type ` +
-						`"${field.type}" to "${input.type}": the underlying column type would change from ` +
-						`${field.columnType} to ${newColumnType}, which requires a manual content migration. ` +
-						`Drop and re-create the field, or migrate the column data, before changing its type.`,
-					"FIELD_TYPE_COLUMN_CHANGE",
-				);
-			}
-			nextType = input.type;
-			nextColumnType = newColumnType;
-		}
-		const activeCoverageInvalidated = await invalidateContentMediaUsageSchemaChange(
-			this.db,
-			collectionSlug,
-		);
-
-		const nextIndexed = input.indexed ?? field.indexed;
-		assertIndexableField(nextType, nextIndexed, fieldSlug);
-
+		let activeCoverageInvalidated = false;
 		let schemaMutated = false;
 		try {
 			const updatedField = await withTransaction(this.db, async (trx) => {
-				await trx
-					.updateTable("_emdash_fields")
-					.set({
-						type: nextType,
-						column_type: nextColumnType,
-						label: input.label ?? field.label,
-						required:
-							input.required !== undefined ? (input.required ? 1 : 0) : field.required ? 1 : 0,
-						unique: input.unique !== undefined ? (input.unique ? 1 : 0) : field.unique ? 1 : 0,
-						searchable:
-							input.searchable !== undefined
-								? input.searchable
-									? 1
-									: 0
-								: field.searchable
-									? 1
-									: 0,
-						...(input.indexed === undefined ? {} : { indexed: input.indexed ? 1 : 0 }),
-						translatable:
-							input.translatable !== undefined
-								? input.translatable
-									? 1
-									: 0
-								: field.translatable
-									? 1
-									: 0,
-						default_value:
-							input.defaultValue !== undefined
-								? JSON.stringify(input.defaultValue)
-								: field.defaultValue !== undefined
-									? JSON.stringify(field.defaultValue)
-									: null,
-						validation: nextValidation ? JSON.stringify(nextValidation) : null,
-						widget: input.widget ?? field.widget ?? null,
-						options: input.options
-							? JSON.stringify(input.options)
-							: field.options
-								? JSON.stringify(field.options)
-								: null,
-						sort_order: input.sortOrder ?? field.sortOrder,
-					})
-					.where("id", "=", field.id)
-					.execute();
-				schemaMutated = true;
+				const collectionRow = await trx
+					.selectFrom("_emdash_collections")
+					.where("slug", "=", collectionSlug)
+					.select(["id", "title_field", "date_field"])
+					.executeTakeFirst();
+				const fieldRow = collectionRow
+					? await trx
+							.selectFrom("_emdash_fields")
+							.where("collection_id", "=", collectionRow.id)
+							.where("slug", "=", fieldSlug)
+							.selectAll()
+							.executeTakeFirst()
+					: undefined;
+				if (!fieldRow) {
+					throw new SchemaError(
+						`Field "${fieldSlug}" not found in collection "${collectionSlug}"`,
+						"FIELD_NOT_FOUND",
+					);
+				}
+				const field = this.mapFieldRow(fieldRow);
+				const updates: Updateable<FieldTable> = {};
+				let nextType = field.type;
 
-				if (input.indexed !== undefined) {
+				if (input.type !== undefined && input.type !== field.type) {
+					const newColumnType = FIELD_TYPE_TO_COLUMN[input.type];
+					if (newColumnType !== field.columnType) {
+						throw new SchemaError(
+							`Cannot change field "${fieldSlug}" in collection "${collectionSlug}" from type ` +
+								`"${field.type}" to "${input.type}": the underlying column type would change from ` +
+								`${field.columnType} to ${newColumnType}, which requires a manual content migration.`,
+							"FIELD_TYPE_COLUMN_CHANGE",
+						);
+					}
+					if (!TEXT_ALIAS_FIELD_TYPES.has(field.type) || !TEXT_ALIAS_FIELD_TYPES.has(input.type)) {
+						throw new SchemaError(
+							`Cannot change field "${fieldSlug}" in collection "${collectionSlug}" from type ` +
+								`"${field.type}" to "${input.type}" without a manual content migration.`,
+							"FIELD_TYPE_CHANGE_REQUIRES_MIGRATION",
+						);
+					}
+					if (collectionRow?.title_field === fieldSlug && !TITLE_FIELD_TYPES.has(input.type)) {
+						throw new SchemaError(
+							`titleField "${fieldSlug}" must stay a text field, not "${input.type}"`,
+							"INVALID_TITLE_FIELD",
+						);
+					}
+					if (collectionRow?.date_field === fieldSlug && input.type !== "datetime") {
+						throw new SchemaError(
+							`dateField "${fieldSlug}" must stay a datetime field, not "${input.type}"`,
+							"INVALID_DATE_FIELD",
+						);
+					}
+					nextType = input.type;
+					updates.type = input.type;
+					updates.column_type = newColumnType;
+				}
+
+				if (input.required !== undefined && input.required !== field.required) {
+					throw new SchemaError(
+						`Changing required for field "${fieldSlug}" requires a manual content migration.`,
+						"FIELD_UPDATE_REQUIRES_MIGRATION",
+					);
+				}
+				if (input.unique !== undefined && input.unique !== field.unique) {
+					throw new SchemaError(
+						`Changing unique for field "${fieldSlug}" requires a manual content migration.`,
+						"FIELD_UPDATE_REQUIRES_MIGRATION",
+					);
+				}
+				if (input.translatable === false && field.translatable) {
+					throw new SchemaError(
+						`Changing field "${fieldSlug}" to non-translatable requires a manual content migration.`,
+						"FIELD_UPDATE_REQUIRES_MIGRATION",
+					);
+				}
+
+				if (input.label !== undefined) updates.label = input.label;
+				if (input.required !== undefined) updates.required = input.required ? 1 : 0;
+				if (input.unique !== undefined) updates.unique = input.unique ? 1 : 0;
+				if (input.searchable !== undefined) updates.searchable = input.searchable ? 1 : 0;
+				const indexedChanged = input.indexed !== undefined && input.indexed !== field.indexed;
+				if (indexedChanged) updates.indexed = input.indexed ? 1 : 0;
+				if (input.translatable !== undefined) {
+					updates.translatable = input.translatable ? 1 : 0;
+				}
+				if (input.defaultValue !== undefined) {
+					updates.default_value = JSON.stringify(input.defaultValue);
+				}
+				if (input.validation !== undefined) {
+					updates.validation = input.validation ? JSON.stringify(input.validation) : null;
+				}
+				if (input.widget !== undefined) updates.widget = input.widget;
+				if (input.options !== undefined) updates.options = JSON.stringify(input.options);
+				if (input.sortOrder !== undefined) updates.sort_order = input.sortOrder;
+
+				assertIndexableField(nextType, input.indexed ?? field.indexed, fieldSlug);
+				if (Object.keys(updates).length === 0) return field;
+
+				activeCoverageInvalidated = await invalidateContentMediaUsageSchemaChange(
+					trx,
+					collectionSlug,
+				);
+
+				if (Object.keys(updates).length > 0) {
+					await trx.updateTable("_emdash_fields").set(updates).where("id", "=", field.id).execute();
+					schemaMutated = true;
+				}
+
+				if (indexedChanged) {
 					if (input.indexed) {
 						await this.createFieldIndex(collectionSlug, field.id, fieldSlug, trx);
 					} else {
 						await this.dropFieldIndex(field.id, trx);
 					}
+					schemaMutated = true;
 				}
 
 				// Read the updated field via trx (not this.db) to avoid connection mutex deadlock
@@ -1084,21 +1167,23 @@ export class SchemaRegistry {
 
 				// If searchable changed, sync FTS state for this collection
 				const searchableChanged =
-					input.searchable !== undefined && input.searchable !== field.searchable;
+					schemaMutated && input.searchable !== undefined && input.searchable !== field.searchable;
 				if (searchableChanged) {
 					await this.syncSearchState(collectionSlug, trx);
 				}
 
 				return updated;
 			});
-			if (activeCoverageInvalidated) {
-				await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
-			} else {
-				await markContentMediaUsageCollectionStaleSafely(
-					this.db,
-					collectionSlug,
-					"CONTENT_USAGE_STALE",
-				);
+			if (schemaMutated) {
+				if (activeCoverageInvalidated) {
+					await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
+				} else {
+					await markContentMediaUsageCollectionStaleSafely(
+						this.db,
+						collectionSlug,
+						"CONTENT_USAGE_STALE",
+					);
+				}
 			}
 			return updatedField;
 		} catch (error) {
@@ -1176,6 +1261,13 @@ export class SchemaRegistry {
 			collectionSlug,
 		);
 
+		// If this field powers the collection's titleField/dateField,
+		// clear that reference in the same transaction — otherwise the metadata
+		// would point at a dropped column and later crash the content list sort.
+		const collection = await this.getCollection(collectionSlug);
+		const clearTitle = collection?.titleField === fieldSlug;
+		const clearDate = collection?.dateField === fieldSlug;
+
 		let schemaMutated = false;
 		try {
 			await withTransaction(this.db, async (trx) => {
@@ -1186,6 +1278,18 @@ export class SchemaRegistry {
 				// before we attempt the ALTER TABLE DROP COLUMN below.
 				await trx.deleteFrom("_emdash_fields").where("id", "=", field.id).execute();
 				schemaMutated = true;
+
+				if (clearTitle || clearDate) {
+					await trx
+						.updateTable("_emdash_collections")
+						.set({
+							...(clearTitle ? { title_field: null } : {}),
+							...(clearDate ? { date_field: null } : {}),
+							updated_at: new Date().toISOString(),
+						})
+						.where("slug", "=", collectionSlug)
+						.execute();
+				}
 
 				// If the deleted field was searchable, sync FTS state (removes old triggers)
 				if (field.searchable) {
@@ -1694,7 +1798,12 @@ export class SchemaRegistry {
 			supports: parseSupports(row.supports),
 			source: row.source && isCollectionSource(row.source) ? row.source : undefined,
 			hasSeo: row.has_seo === 1,
+			// Raw value; undefined when unset. The admin list resolves the
+			// default (title fallback chain / updatedAt) at the point of use.
+			titleField: row.title_field ?? undefined,
+			dateField: row.date_field ?? undefined,
 			urlPattern: row.url_pattern ?? undefined,
+			routable: row.routable !== 0,
 			hidden: row.hidden === 1,
 			sortOrder: row.sort_order ?? undefined,
 			commentsEnabled: row.comments_enabled === 1,

@@ -1,14 +1,29 @@
-// Core bot routes (health, /webhook/github). Separated from app.ts so the
+// Core bot routes (dashboard, health, /webhook/github). Separated from app.ts so the
 // workers-pool test entry can mount them without pulling in Flue's
 // workflow-invoke routes (which require workflow DOs that aren't declared in
 // wrangler.test.jsonc).
 
 import type { Hono } from "hono";
 
+import dashboardHtml from "./dashboard.html?raw";
+import { getDashboardPayload } from "./lib/dashboard.js";
 import { normalizeWebhook, verifyWebhookSignature } from "./lib/webhook.js";
 
 export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Bindings: Env }> {
+	app.get("/", (c) => c.html(dashboardHtml));
 	app.get("/health", (c) => c.text("ok"));
+	app.get("/api/dashboard", async (c) => {
+		try {
+			const payload = await getDashboardPayload(c.env);
+			c.header("cache-control", "public, max-age=10, stale-while-revalidate=30");
+			return c.json(payload);
+		} catch (error) {
+			console.error("[dashboard] load failed", {
+				error: error instanceof Error ? error.message : String(error),
+			});
+			return c.json({ error: "Dashboard data is temporarily unavailable" }, 503);
+		}
+	});
 
 	app.post("/webhook/github", async (c) => {
 		// Verify signature against the RAW body, before any parsing. Round-tripping

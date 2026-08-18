@@ -44,6 +44,8 @@ export interface PublishCandidateInput {
 	readonly snapshot: CandidateSnapshot;
 }
 
+const LINE_BREAK = /\r?\n/;
+
 export function requireCandidatePublication(
 	claimed: boolean,
 	publication: CandidatePublication | null,
@@ -64,7 +66,10 @@ export async function publishCandidate(
 	if (liveBefore !== input.expectedPreviousSha) {
 		if (liveBefore) {
 			const liveCommit = await github.getCommit(liveBefore);
-			if (liveCommit.message.includes(runMarker)) {
+			if (hasRunMarker(liveCommit.message, runMarker)) {
+				if (liveCommit.treeSha !== input.snapshot.treeSha) {
+					throw new Error("candidate run was already published with a different candidate tree");
+				}
 				return { branch: input.branch, commitSha: liveBefore, files };
 			}
 		}
@@ -107,4 +112,8 @@ export async function publishCandidate(
 		);
 	}
 	return { branch: input.branch, commitSha, files };
+}
+
+function hasRunMarker(message: string, marker: string): boolean {
+	return message.split(LINE_BREAK).some((line) => line.trim() === marker);
 }

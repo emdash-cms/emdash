@@ -4,7 +4,9 @@ export default defineConfig({
 	entry: [
 		"src/index.ts",
 		"src/db/d1.ts",
+		"src/db/d1-migrations.ts",
 		"src/db/hyperdrive.ts",
+		"src/db/hyperdrive-migrations.ts",
 		"src/db/do.ts",
 		"src/db/do-sql.ts",
 		"src/db/playground.ts",

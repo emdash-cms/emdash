@@ -1,118 +1,128 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@flue/runtime", () => ({ init: vi.fn() }));
-
-import { init } from "@flue/runtime";
-
-import { classifyComment, resolveClassification } from "../../.flue/lib/classifier-client.js";
+import {
+	classifyComment,
+	type ClassifierAi,
+	resolveClassification,
+} from "../../.flue/lib/classifier-client.js";
 import { classifierCommands } from "../../.flue/lib/router.js";
 
-const commands = classifierCommands("working");
-const mockedInit = vi.mocked(init);
+const commands = classifierCommands("blocked");
+const input = {
+	issueNumber: 42,
+	state: "blocked" as const,
+	comment: "implement using your best judgement for the design",
+};
 
-function mockHandle(handle: {
-	dispatch: (input: unknown) => Promise<unknown>;
-	read: (receipt: unknown, options?: unknown) => Promise<unknown>;
-}) {
-	mockedInit.mockReturnValue(handle as unknown as ReturnType<typeof init>);
+function mockAi(output: Ai_Cf_Qwen_Qwen3_30B_A3B_Fp8_Output) {
+	const run = vi.fn<ClassifierAi["run"]>().mockResolvedValue(output);
+	return { ai: { run } satisfies ClassifierAi, run };
 }
 
-const input = { issueNumber: 42, state: "working" as const, comment: "@emdashbot retry" };
+function toolCallResponse(argumentsJson: string): Ai_Cf_Qwen_Qwen3_30B_A3B_Fp8_Output {
+	return {
+		choices: [
+			{
+				message: {
+					role: "assistant",
+					content: "",
+					tool_calls: [
+						{
+							id: "call-1",
+							type: "function",
+							function: { name: "select_command", arguments: argumentsJson },
+						},
+					],
+				},
+			},
+		],
+	};
+}
 
 describe("classifyComment", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
-		vi.resetAllMocks();
 		vi.useRealTimers();
 	});
 
-	test("returns no-commands without dispatching when the state offers none", async () => {
-		expect(await classifyComment({ ...input, state: null })).toEqual({ kind: "no-commands" });
-		expect(mockedInit).not.toHaveBeenCalled();
+	test("returns no-commands without running the model when the state offers none", async () => {
+		const { ai, run } = mockAi(toolCallResponse("{}"));
+
+		expect(await classifyComment(ai, { ...input, state: null })).toEqual({ kind: "no-commands" });
+		expect(run).not.toHaveBeenCalled();
 	});
 
-	test("dispatches and resolves the last classification write", async () => {
-		const event = commands[0];
+	test("resolves the command from one model tool call", async () => {
+		const event = commands.find((command) => command.event === "implement");
 		expect(event).toBeDefined();
 		if (!event) return;
-		const dispatched: unknown[] = [];
-		mockHandle({
-			dispatch: async (dispatchInput) => {
-				dispatched.push(dispatchInput);
-				return { id: "receipt" };
-			},
-			read: async () => ({
-				data: {
-					classification: [
-						{ event: "none", arg: null, reasoning: "first pass was undecided" },
-						{ event: event.event, arg: "try SQLite", reasoning: "the comment asks for a retry" },
-					],
-				},
-			}),
-		});
+		const { ai, run } = mockAi(
+			toolCallResponse(
+				JSON.stringify({
+					event: event.event,
+					arg: "using your best judgement for the design",
+					reasoning: "the comment explicitly asks to implement",
+				}),
+			),
+		);
 
-		expect(await classifyComment(input)).toEqual({
+		expect(await classifyComment(ai, input)).toEqual({
 			kind: "event",
 			event: event.event,
-			arg: "try SQLite",
-			reasoning: "the comment asks for a retry",
+			arg: "using your best judgement for the design",
+			reasoning: "the comment explicitly asks to implement",
 		});
-		expect(dispatched).toHaveLength(1);
+		expect(run).toHaveBeenCalledOnce();
 	});
 
-	test("returns an error when dispatch admission stalls past the budget", async () => {
-		vi.useFakeTimers();
-		mockHandle({
-			dispatch: () => new Promise(() => {}),
-			read: async () => ({ data: { classification: [] } }),
-		});
+	test("returns an error when the model does not call the classifier tool", async () => {
+		const { ai } = mockAi({ choices: [{ message: { role: "assistant", content: "retry" } }] });
 
-		const pending = classifyComment(input);
-		await vi.advanceTimersByTimeAsync(10_001);
-		expect(await pending).toEqual({
+		expect(await classifyComment(ai, input)).toEqual({
 			kind: "error",
-			error: "Classifier dispatch timed out after 10000ms",
+			error: "classifier returned no select_command tool call",
 		});
 	});
 
-	test("fails deterministically when dispatch consumes the whole budget", async () => {
-		let now = 0;
-		vi.spyOn(performance, "now").mockImplementation(() => now);
-		let read = 0;
-		mockHandle({
-			dispatch: async () => {
-				now = 10_000;
-				return { id: "receipt" };
-			},
-			read: async () => {
-				read += 1;
-				return { data: { classification: [] } };
-			},
-		});
+	test("returns an error when the tool arguments are not JSON", async () => {
+		const { ai } = mockAi(toolCallResponse("not-json"));
 
-		expect(await classifyComment(input)).toEqual({
+		expect(await classifyComment(ai, input)).toEqual({
 			kind: "error",
-			error: "Classifier read timed out after 10000ms",
+			error: "classifier returned invalid tool arguments",
 		});
-		expect(read).toBe(0);
 	});
 
-	test("maps a rejected read to an error result", async () => {
-		mockHandle({
-			dispatch: async () => ({ id: "receipt" }),
-			read: async () => {
-				throw new Error("durable response lost");
-			},
-		});
+	test("maps a rejected model request to an error result", async () => {
+		const run = vi.fn<ClassifierAi["run"]>().mockRejectedValue(new Error("Workers AI unavailable"));
 
-		expect(await classifyComment(input)).toEqual({
+		expect(await classifyComment({ run }, input)).toEqual({
 			kind: "error",
-			error: "durable response lost",
+			error: "Workers AI unavailable",
 		});
 	});
 });
 
 describe("resolveClassification", () => {
+	test("accepts resume when a failed run offers it", () => {
+		const failedCommands = classifierCommands("failed");
+		expect(
+			resolveClassification(
+				{
+					event: "resume",
+					arg: "continue from the saved work",
+					reasoning: "The maintainer asks the previous run to continue",
+				},
+				failedCommands,
+			),
+		).toEqual({
+			kind: "event",
+			event: "resume",
+			arg: "continue from the saved work",
+			reasoning: "The maintainer asks the previous run to continue",
+		});
+	});
+
 	test("rejects a missing structured result", () => {
 		expect(resolveClassification(undefined, commands)).toEqual({
 			kind: "error",

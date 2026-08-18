@@ -11,11 +11,21 @@
  */
 
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 
-import type { AstroIntegration, AstroIntegrationLogger } from "astro";
+import type { AstroIntegration, AstroIntegrationLogger, AstroIntegrationMiddleware } from "astro";
 
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
+import { normalizeMigrationConfig } from "../../database/migrations/policy.js";
+import { normalizeAstroI18n } from "../../i18n/normalize.js";
 import { INTERNAL_MEDIA_PREFIX } from "../../media/normalize.js";
+import { getCoreMigrationIdentity } from "../../migrations/identity.js";
+import {
+	createMigrationIntegrationMetadata,
+	MIGRATION_CONFIG_SYMBOL,
+} from "../../migrations/integration-metadata.js";
+import { buildMigrationManifest } from "../../migrations/manifest-builder.js";
+import { writeMigrationManifest } from "../../migrations/manifest-writer.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import { VERSION } from "../../version.js";
 import { local } from "../storage/adapters.js";
@@ -253,6 +263,58 @@ function printDevServerInfo(baseUrl: string, mcpEnabled: boolean): void {
 	console.log("");
 }
 
+export function buildMiddlewareEntries(
+	config: Pick<EmDashConfig, "middleware" | "playground">,
+	root: URL,
+): AstroIntegrationMiddleware[] {
+	const entries: AstroIntegrationMiddleware[] = [];
+
+	if (config.middleware !== undefined) {
+		const configuredEntrypoint = config.middleware?.outer;
+		if (
+			(typeof configuredEntrypoint !== "string" && !(configuredEntrypoint instanceof URL)) ||
+			(typeof configuredEntrypoint === "string" && configuredEntrypoint.trim() === "")
+		) {
+			throw new Error("middleware.outer must be a non-empty module specifier string or URL.");
+		}
+		const entrypoint =
+			typeof configuredEntrypoint === "string" &&
+			(configuredEntrypoint.startsWith("./") || configuredEntrypoint.startsWith("../"))
+				? new URL(configuredEntrypoint, root)
+				: configuredEntrypoint;
+		entries.push({
+			entrypoint,
+			order: "pre",
+		});
+	}
+
+	if (config.playground) {
+		entries.push({
+			entrypoint: config.playground.middlewareEntrypoint,
+			order: "pre",
+		});
+	}
+
+	entries.push(
+		{ entrypoint: "emdash/middleware", order: "pre" },
+		{ entrypoint: "emdash/middleware/redirect", order: "pre" },
+	);
+
+	if (!config.playground) {
+		entries.push(
+			{ entrypoint: "emdash/middleware/setup", order: "pre" },
+			{ entrypoint: "emdash/middleware/auth", order: "pre" },
+		);
+	}
+
+	entries.push(
+		{ entrypoint: "emdash/middleware/media-usage-write-fence", order: "pre" },
+		{ entrypoint: "emdash/middleware/request-context", order: "pre" },
+	);
+
+	return entries;
+}
+
 /**
  * Create the EmDash Astro integration
  */
@@ -261,6 +323,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	const resolvedConfig: EmDashConfig = {
 		...config,
 		storage: config.storage ?? DEFAULT_STORAGE,
+		migrations: normalizeMigrationConfig(config.migrations),
 	};
 
 	// Validate marketplace URL
@@ -369,6 +432,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	// i18n is populated in astro:config:setup from astroConfig.i18n
 	const serializableConfig: Record<string, unknown> = {
 		database: resolvedConfig.database,
+		migrations: resolvedConfig.migrations,
 		storage: resolvedConfig.storage,
 		auth: resolvedConfig.auth,
 		authProviders: resolvedConfig.authProviders,
@@ -388,8 +452,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	// Captured in astro:config:setup so the astro:server:setup hook can tell
 	// whether we're running `astro dev` (where the dev-bypass shortcut applies).
 	let astroCommand: "dev" | "build" | "preview" | "sync" | undefined;
+	let normalizedI18n: ReturnType<typeof normalizeAstroI18n> = null;
+	const migrationMetadata = createMigrationIntegrationMetadata(resolvedConfig.database);
 
-	return {
+	const integration: AstroIntegration = {
 		name: "emdash",
 		hooks: {
 			"astro:config:setup": ({
@@ -415,18 +481,8 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// Expose Astro's trailingSlash routing policy so plugins can build
 				// URLs (sitemap/canonical/hreflang) that match what the site serves.
 				serializableConfig.trailingSlash = astroConfig.trailingSlash;
-				// Extract i18n config from Astro config
-				// Astro locales can be strings OR { path, codes } objects — normalize to paths
-				if (astroConfig.i18n) {
-					const routing = astroConfig.i18n.routing;
-					serializableConfig.i18n = {
-						defaultLocale: astroConfig.i18n.defaultLocale,
-						locales: astroConfig.i18n.locales.map((l) => (typeof l === "string" ? l : l.path)),
-						fallback: astroConfig.i18n.fallback,
-						prefixDefaultLocale:
-							typeof routing === "object" ? (routing.prefixDefaultLocale ?? false) : false,
-					};
-				}
+				normalizedI18n = normalizeAstroI18n(astroConfig.i18n);
+				if (normalizedI18n) serializableConfig.i18n = normalizedI18n;
 
 				// Disable Astro's built-in checkOrigin -- EmDash's own CSRF
 				// layer (checkPublicCsrf in api/csrf.ts) handles origin
@@ -543,61 +599,39 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					injectMcpRoute(injectRoute);
 				}
 
-				// In playground mode, inject the playground middleware FIRST.
-				// It sets up a per-session DO database in ALS before anything
-				// else runs, so the runtime init middleware sees a real DB.
-				if (resolvedConfig.playground) {
-					addMiddleware({
-						entrypoint: resolvedConfig.playground.middlewareEntrypoint,
-						order: "pre",
-					});
+				for (const middleware of buildMiddlewareEntries(resolvedConfig, astroConfig.root)) {
+					addMiddleware(middleware);
 				}
-
-				// Add middleware to provide database and manifest
-				addMiddleware({
-					entrypoint: "emdash/middleware",
-					order: "pre",
-				});
-
-				// Add redirect middleware (runs after runtime init, before setup/auth)
-				addMiddleware({
-					entrypoint: "emdash/middleware/redirect",
-					order: "pre",
-				});
-
-				// Skip setup and auth in playground mode -- the playground middleware
-				// handles session creation and injects an anonymous admin user.
-				if (!resolvedConfig.playground) {
-					addMiddleware({
-						entrypoint: "emdash/middleware/setup",
-						order: "pre",
-					});
-
-					addMiddleware({
-						entrypoint: "emdash/middleware/auth",
-						order: "pre",
-					});
-				}
-
-				addMiddleware({
-					entrypoint: "emdash/middleware/media-usage-write-fence",
-					order: "pre",
-				});
-
-				// Add request context middleware (runs after auth, on ALL routes)
-				// Sets up ALS-based context for query functions (edit mode, preview)
-				addMiddleware({
-					entrypoint: "emdash/middleware/request-context",
-					order: "pre",
-				});
 
 				// Route info is printed with absolute, clickable URLs once the
 				// dev server is listening (see astro:server:setup), since the
 				// port isn't known yet here. Nothing useful to print for build.
 			},
-			"astro:config:done": ({ config: finalConfig, logger }) => {
+			"astro:config:done": async ({ config: finalConfig, logger }) => {
 				const warning = missingReactIntegrationWarning(finalConfig.integrations);
 				if (warning) logger.warn(warning);
+
+				if (astroCommand !== "build" && astroCommand !== "sync") return;
+				if (!migrationMetadata.database) {
+					logger.warn(
+						"EmDash migration manifest was not written because no database adapter is configured.",
+					);
+					return;
+				}
+				if (!migrationMetadata.database.migrations) {
+					logger.warn(
+						"EmDash migration manifest was not written because the configured database adapter does not support deployment migrations.",
+					);
+					return;
+				}
+
+				const identity = await getCoreMigrationIdentity();
+				const manifest = await buildMigrationManifest({
+					identity,
+					i18n: normalizedI18n,
+					database: migrationMetadata.database,
+				});
+				await writeMigrationManifest(fileURLToPath(finalConfig.root), manifest);
 			},
 			"astro:server:setup": ({ server, logger }) => {
 				// Print route info with absolute, clickable URLs once the server
@@ -675,6 +709,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 			},
 		},
 	};
+
+	Object.defineProperty(integration, MIGRATION_CONFIG_SYMBOL, {
+		value: migrationMetadata,
+		enumerable: false,
+	});
+	return integration;
 }
 
 export default emdash;

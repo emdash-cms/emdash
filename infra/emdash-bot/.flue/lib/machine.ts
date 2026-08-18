@@ -162,7 +162,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		boardColumn: "Failed",
 		description: "An agent run errored or produced no usable result. Retryable -- not a dead end.",
 		terminal: false,
-		offeredCommands: ["retry", "implement", "repro", "investigate", "decline"],
+		offeredCommands: ["resume", "retry", "implement", "repro", "investigate", "decline"],
 	},
 
 	// -----------------------------------------------------------------------
@@ -261,6 +261,7 @@ export type CommandVerb =
 	| "repro"
 	| "implement"
 	| "retry"
+	| "resume"
 	| "revise"
 	| "confirm"
 	| "reject"
@@ -363,6 +364,11 @@ export const EVENTS: Record<EventId, EventMeta> = {
 	// description has to say what it actually does. After `implement`/`revise`,
 	// re-issue the original command verb instead.
 	retry: { description: "Re-run the bug reproduction pipeline.", actors: ["maintainer"] },
+	resume: {
+		description: "Continue the saved conversation and workspace from a timed-out run.",
+		actors: ["maintainer"],
+		arg: "directive",
+	},
 	revise: {
 		description: "Send review feedback back into the agent to update the open PR branch.",
 		actors: ["maintainer"],
@@ -492,6 +498,7 @@ export type ActionId =
 	| "investigate.repro" // bug repro -> diagnose -> verify -> fix
 	| "investigate.implement" // directed build/fix (sets maintainerDirective)
 	| "investigate.revise" // re-run against existing bot/fix-<n> with PR feedback
+	| "investigate.resume" // continue the saved timed-out agent conversation and workspace
 	| "openPr" // push branch (already done) + gh pr create
 	| "closePr" // close the bot PR
 	// --- next-generation actions ---
@@ -646,6 +653,13 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "declined", event: "reopen", to: "triage" },
 
 	// --- failed: retryable ---
+	{
+		from: "failed",
+		event: "resume",
+		to: "working",
+		action: "investigate.resume",
+		note: "the orchestrator replaces the fallback target with the active state saved in the timeout checkpoint",
+	},
 	{ from: "failed", event: "retry", to: "working", action: "investigate.repro" },
 	{ from: "failed", event: "implement", to: "fixing", action: "investigate.implement" },
 	{ from: "failed", event: "repro", to: "working", action: "investigate.repro" },

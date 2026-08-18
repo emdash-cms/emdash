@@ -16,9 +16,10 @@
  */
 
 import { Role } from "@emdash-cms/auth";
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
@@ -180,21 +181,25 @@ describe("MCP drafts — content_get and content_update round-trip (bug #2)", ()
 			});
 
 			// Update creates a draft revision
-			await harness.client.callTool({
+			const updated = await harness.client.callTool({
 				name: "content_update",
 				arguments: { collection: "post", id, data: { title: "Draft change" } },
 			});
+			const draftRevisionId = extractJson<ItemEnvelope>(updated).item.draftRevisionId;
 
 			// Publish promotes draft to live
-			await harness.client.callTool({
+			const published = await harness.client.callTool({
 				name: "content_publish",
 				arguments: { collection: "post", id },
 			});
+			const publishedItem = extractJson<ItemEnvelope>(published).item;
 
 			const got = await harness.client.callTool({
 				name: "content_get",
 				arguments: { collection: "post", id },
 			});
+			expect(publishedItem.liveRevisionId).toBe(draftRevisionId);
+			expect(publishedItem.draftRevisionId).toBeNull();
 			expect(readTitle(extractJson<ItemEnvelope>(got).item)).toBe("Draft change");
 		});
 
@@ -302,6 +307,109 @@ describe("MCP drafts — content_get and content_update round-trip (bug #2)", ()
 	// ----- regression guard: non-revision collection still works -----
 
 	describe("non-revision-supporting collection (regression guard)", () => {
+		it("first publish preserves column data and establishes a live revision marker", async () => {
+			const created = await harness.client.callTool({
+				name: "content_create",
+				arguments: { collection: "page", data: { title: "Current title" } },
+			});
+			const id = extractJson<ItemEnvelope>(created).item.id;
+
+			const published = await harness.client.callTool({
+				name: "content_publish",
+				arguments: { collection: "page", id },
+			});
+			expect(published.isError, extractText(published)).toBeFalsy();
+
+			const got = await harness.client.callTool({
+				name: "content_get",
+				arguments: { collection: "page", id },
+			});
+			const item = extractJson<ItemEnvelope>(got).item;
+			expect(item.status).toBe("published");
+			expect(item.liveRevisionId).toBeTruthy();
+			expect(item.draftRevisionId).toBeNull();
+			expect(readTitle(item)).toBe("Current title");
+		});
+
+		it("first publish ignores an unexpected stale draft pointer", async () => {
+			const created = await harness.client.callTool({
+				name: "content_create",
+				arguments: { collection: "page", data: { title: "Current title" } },
+			});
+			const id = extractJson<ItemEnvelope>(created).item.id;
+			const revisionRepo = new RevisionRepository(db);
+			const staleDraft = await revisionRepo.create({
+				collection: "page",
+				entryId: id,
+				data: { title: "Stale draft" },
+			});
+			await sql`
+				UPDATE ${sql.ref("ec_page")}
+				SET draft_revision_id = ${staleDraft.id}
+				WHERE id = ${id}
+			`.execute(db);
+
+			const published = await harness.client.callTool({
+				name: "content_publish",
+				arguments: { collection: "page", id },
+			});
+			expect(published.isError, extractText(published)).toBeFalsy();
+
+			const item = extractJson<ItemEnvelope>(published).item;
+			expect(item.status).toBe("published");
+			expect(item.liveRevisionId).toBeTruthy();
+			expect(item.liveRevisionId).not.toBe(staleDraft.id);
+			expect(item.draftRevisionId).toBeNull();
+			expect(readTitle(item)).toBe("Current title");
+			const liveRevision = await revisionRepo.findById(item.liveRevisionId!);
+			expect(liveRevision?.data.title).toBe("Current title");
+		});
+
+		it("publishing preserves column data when live_revision_id is stale", async () => {
+			const created = await harness.client.callTool({
+				name: "content_create",
+				arguments: { collection: "page", data: { title: "Stale title" } },
+			});
+			const id = extractJson<ItemEnvelope>(created).item.id;
+			const revisionRepo = new RevisionRepository(db);
+			const staleRevision = await revisionRepo.create({
+				collection: "page",
+				entryId: id,
+				data: { title: "Stale title" },
+			});
+			const staleDraft = await revisionRepo.create({
+				collection: "page",
+				entryId: id,
+				data: { title: "Stale draft" },
+			});
+			await sql`
+				UPDATE ${sql.ref("ec_page")}
+				SET live_revision_id = ${staleRevision.id},
+					draft_revision_id = ${staleDraft.id}
+				WHERE id = ${id}
+			`.execute(db);
+
+			await harness.client.callTool({
+				name: "content_update",
+				arguments: { collection: "page", id, data: { title: "Fresh title" } },
+			});
+			const published = await harness.client.callTool({
+				name: "content_publish",
+				arguments: { collection: "page", id },
+			});
+			expect(published.isError, extractText(published)).toBeFalsy();
+
+			const got = await harness.client.callTool({
+				name: "content_get",
+				arguments: { collection: "page", id },
+			});
+			const item = extractJson<ItemEnvelope>(got).item;
+			expect(item.status).toBe("published");
+			expect(item.liveRevisionId).toBe(staleRevision.id);
+			expect(item.draftRevisionId).toBeNull();
+			expect(readTitle(item)).toBe("Fresh title");
+		});
+
 		it("content_update on collection without revisions support reflects on read", async () => {
 			const created = await harness.client.callTool({
 				name: "content_create",

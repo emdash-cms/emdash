@@ -1,5 +1,11 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.5
+
+### Patch Changes
+
+- [#2173](https://github.com/emdash-cms/emdash/pull/2173) [`c91d56b`](https://github.com/emdash-cms/emdash/commit/c91d56bb30b9a865c6e7cbb8c490fb6cc6126611) Thanks [@masonjames](https://github.com/masonjames)! - Fixes the documented `@emdash-cms/plugin-forms/ui` import so standalone forms can be embedded outside Portable Text content.
+
 ## 0.2.4
 
 ### Patch Changes

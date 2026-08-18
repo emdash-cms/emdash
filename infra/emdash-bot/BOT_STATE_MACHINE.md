@@ -17,7 +17,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `human_owned` | `bot:human-owned` | Human owned | no | no | `hand_back` |
 | `done` | `bot:done` | Done | yes | no | `reopen` |
 | `declined` | `bot:declined` | Declined | yes | no | `reopen` |
-| `failed` | `bot:failed` | Failed | no | no | `retry`, `implement`, `repro`, `investigate`, `decline` |
+| `failed` | `bot:failed` | Failed | no | no | `resume`, `retry`, `implement`, `repro`, `investigate`, `decline` |
 | `investigating` | `bot:investigating` | Investigating | no | yes | `status` |
 | `reproduced` | `bot:reproduced` | Reproduced | no | no | `fix`, `investigate`, `decline`, `take_over` |
 | `diagnosed` | `bot:diagnosed` | Diagnosed | no | no | `fix`, `investigate`, `decline`, `take_over` |
@@ -36,6 +36,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `implement` | command | maintainer | `directive` | Build the described change (feature or directed fix), skipping the bug-repro gate. |
 | `fix` | command | maintainer | `directive` | Build a candidate fix on a bot branch and post a preview for the reporter to try. |
 | `retry` | command | maintainer | — | Re-run the bug reproduction pipeline. |
+| `resume` | command | maintainer | `directive` | Continue the saved conversation and workspace from a timed-out run. |
 | `revise` | command | maintainer | `feedback` | Send review feedback back into the agent to update the open PR branch. |
 | `confirm` | command | reporter, maintainer | — | Confirm the staged fix works; open a PR. |
 | `reject` | command | reporter, maintainer | `feedback` | The staged fix does not work; retry with feedback. |
@@ -113,6 +114,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `human_owned` | `hand_back` | `triage` | — |
 | `done` | `reopen` | `triage` | — |
 | `declined` | `reopen` | `triage` | — |
+| `failed` | `resume` | saved: `working`, `investigating`, or `fixing` | `investigate.resume` |
 | `failed` | `retry` | `working` | `investigate.repro` |
 | `failed` | `implement` | `fixing` | `investigate.implement` |
 | `failed` | `repro` | `working` | `investigate.repro` |
@@ -212,6 +214,9 @@ stateDiagram-v2
     human_owned --> triage: hand_back
     done --> triage: reopen
     declined --> triage: reopen
+    failed --> working: resume [saved] / investigate.resume
+    failed --> investigating: resume [saved] / investigate.resume
+    failed --> fixing: resume [saved] / investigate.resume
     failed --> working: retry / investigate.repro
     failed --> fixing: implement / investigate.implement
     failed --> working: repro / investigate.repro

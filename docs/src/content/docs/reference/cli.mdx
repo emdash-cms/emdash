@@ -43,9 +43,54 @@ These flags are available on commands using the shared remote client:
 
 ## Output
 
-When stdout is a TTY, the CLI pretty-prints results with consola. When piped or when `--json` is set, it outputs raw JSON to stdout — suitable for `jq` or other tools.
+For commands using the shared remote client, stdout is pretty-printed with consola when it is a TTY and becomes raw JSON when piped or when `--json` is set. `emdash migrate` emits JSON only with its explicit `--json` option.
 
 ## Commands
+
+### `emdash migrate`
+
+Check or apply the core migration set emitted by an Astro build.
+
+```bash
+npx emdash migrate [options]
+npx emdash migrate --check [options]
+npx emdash migrate --status --json [options]
+```
+
+By default the command discovers the project root and reads `.emdash/migrations.json`. It validates the manifest against the project's installed EmDash package, resolves the adapter's project-local executor, and prints the immutable target before any SQL.
+
+#### Options
+
+| Option | Description |
+| --- | --- |
+| `--check` | Apply nothing; exit non-zero for pending or unknown migration records |
+| `--status` | Report exact status without applying; exit zero after a successful report |
+| `--json` | Emit the stable migration report as JSON |
+| `--manifest <path>` | Read a non-standard manifest path |
+| `--from-config` | Explicitly evaluate trusted Astro configuration instead of a manifest |
+| `--config <path>` | Astro config path used with `--from-config` |
+| `--expected-target-fingerprint <sha256>` | Required guard for non-interactive apply |
+| `--database <path>` | Override a SQLite path |
+| `--database-url-env <name>` | Override a PostgreSQL connection-variable name |
+| `--d1 <uuid-or-name>` | Select a D1 database explicitly |
+| `--account-id <id>` | Select a Cloudflare account explicitly |
+| `--wrangler-config <path>` | Read D1 binding metadata from an explicit Wrangler config |
+| `--wrangler-env <name>` | Select an environment; requires `--wrangler-config` |
+
+Interactive human-readable apply asks for confirmation. Non-interactive apply and every apply using `--json` require the exact fingerprint printed for the target. There is no `down` or `--dry-run`; use `--check` to determine whether work is required.
+
+#### Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success, including a successful `--status` report |
+| `1` | Validation, configuration, target, migration, or cleanup error |
+| `2` | `--check` found pending known migrations |
+| `3` | `--check` found unknown applied records (takes precedence over pending) |
+| `4` | Confirmation missing, declined, or target fingerprint mismatch |
+| `130` | Interrupted after bounded executor cleanup |
+
+See [Manage Core Database Migrations](/deployment/core-migrations/) for deployment order, target credentials, and D1 serialization.
 
 ### `emdash dev` (deprecated)
 

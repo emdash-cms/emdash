@@ -61,6 +61,7 @@ export function Dashboard({ manifest }: DashboardProps) {
 
 			{showDashboardData && (
 				<>
+					{stats && <SchedulerWarning stats={stats} />}
 					<SummaryMetrics stats={stats} loading={isLoading} />
 
 					{/* Collections + Recent activity */}
@@ -78,6 +79,39 @@ export function Dashboard({ manifest }: DashboardProps) {
 			{/* Plugin widgets */}
 			<PluginWidgets manifest={manifest} />
 		</div>
+	);
+}
+
+function SchedulerWarning({ stats }: { stats: DashboardStats }) {
+	const { t } = useLingui();
+	const overdueCount = stats.collections.reduce(
+		(sum, collection) => sum + (collection.overdueScheduled ?? 0),
+		0,
+	);
+	if (overdueCount === 0 || !stats.schedulerHealth || stats.schedulerHealth.status === "healthy") {
+		return null;
+	}
+
+	const description =
+		stats.schedulerHealth.status === "unknown"
+			? plural(overdueCount, {
+					one: "One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.",
+					other:
+						"# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.",
+				})
+			: plural(overdueCount, {
+					one: "One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.",
+					other:
+						"# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.",
+				});
+
+	return (
+		<Banner
+			variant="alert"
+			title={t`Scheduled publishing needs attention`}
+			description={description}
+			role="alert"
+		/>
 	);
 }
 

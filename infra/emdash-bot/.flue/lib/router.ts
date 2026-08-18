@@ -179,6 +179,7 @@ export interface ResolveInput {
 	event: EventId;
 	arg?: string | null;
 	actor?: Actor | "other";
+	resumeState?: StateId;
 }
 
 /**
@@ -188,7 +189,7 @@ export interface ResolveInput {
  * handler, Orchestrator DO) is responsible for actor classification but the
  * router enforces that the event's `actors` list includes the caller.
  */
-export function resolve({ labels, event, arg, actor }: ResolveInput): Decision {
+export function resolve({ labels, event, arg, actor, resumeState }: ResolveInput): Decision {
 	const from = currentState(labels);
 	const meta = EVENTS[event];
 	if (!meta) return { kind: "noop", reason: `unknown event "${event}"` };
@@ -219,7 +220,8 @@ export function resolve({ labels, event, arg, actor }: ResolveInput): Decision {
 	if (!from) return { kind: "noop", reason: "item has conflicting state labels" };
 	const t = findTransition(from, event);
 	if (!t) return { kind: "noop", reason: `no transition for ${from} + ${event}`, from };
-	const to = transitionTarget(t, currentKind(labels));
+	const to =
+		event === "resume" && resumeState ? resumeState : transitionTarget(t, currentKind(labels));
 	const toLabel = STATES[to].label;
 	const removeLabels = STATE_LABELS.filter((l) => l !== toLabel);
 

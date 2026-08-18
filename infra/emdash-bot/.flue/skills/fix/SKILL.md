@@ -12,7 +12,7 @@ You are here because a maintainer issued a **fix** directive, verify returned `b
 ## Environment
 
 - **Edit in the VFS** with the `edit_file` / `write_file` tools; read surrounding code with `read_file` and `grep`. Every VFS edit is replayed onto the container checkout before each container command.
-- **Run final tests, lint, typecheck, and format checks through `run_check`** -- none of the toolchain exists in the VFS. Verification commands must not modify source files. Apply formatting with `edit_file`/`write_file`, then use a check-only formatter command. Use `exec` only for exploratory commands whose result is not a release gate.
+- **Run final tests, lint, typecheck, and format checks through `run_check`** -- none of the toolchain exists in the VFS. Use `exec` for the pre-edit baseline and exploratory commands whose result is not a release gate.
 
 ## Do not
 
@@ -22,13 +22,16 @@ You are here because a maintainer issued a **fix** directive, verify returned `b
 - No `pnpm publish` / `npm publish`.
 - No drive-by edits. Touch only the files the diagnosed bug and its test need. A problem in a nearby file is a human's -- scope discipline.
 - Do not modify Lingui catalogs (`packages/admin/src/locales/*/messages.po`); the extract workflow handles them on merge.
-- Do not edit after final verification. Publication requires every latest named `run_check` result to match the exact candidate tree; rerun all required checks after any source change.
+- Do not edit after final verification. Publication requires every latest named `run_check` result to match the exact candidate tree.
 
 ## Procedure
 
 1. **Re-read diagnose's root cause and proposed fix.** That is your target and your spec. The change should land in the file and approximate line diagnose named. If your work drifts to a different file, stop -- diagnose may be wrong, in which case abandon, do not wander.
-2. **Establish a regression test where feasible.** Reproduce usually confirmed the bug without a test on disk. If the bug is unit- or integration-testable (a handler, a query, a pure function, an API route), write a `vitest` test now that fails for the reported reason, and confirm it fails in the container (`pnpm --filter <package> test <path>`) _before_ you touch the fix. A testable bug with no regression test is not fixed. If the bug only manifests in the browser (admin interaction, rendered output), do not write a browser test -- you cannot run one reliably here; verify through `agent-browser` instead and describe that manual verification so the maintainer can add a durable test when landing.
-3. **Implement the proposed fix -- the smallest change that fully resolves the bug.** Follow EmDash conventions:
+2. **Bootstrap the checkout once.** Use `exec`. If `node_modules` is missing, run `pnpm install --frozen-lockfile --prefer-offline`. If workspace build artifacts are missing, run `pnpm build`; a fresh EmDash checkout needs them before package typechecks can resolve internal declarations. Do not repeat install or build unless a manifest changed or your change affects required compiled output.
+3. **Run the clean baseline once.** Use `exec`, before editing, for the repository-required baseline. Record failures outside the diagnosed scope; do not repair them and do not register a predictably failing broad command as a final `run_check`.
+4. **Choose the final verification set.** Plan the focused repro test, affected package tests and typechecks, lint, and a check-only formatter. Use the smallest checks that cover the behavior. Do not plan a monorepo-wide suite when focused or package-level checks are authoritative.
+5. **Establish a regression test where feasible.** Reproduce usually confirmed the bug without a test on disk. If the bug is unit- or integration-testable (a handler, a query, a pure function, an API route), write a `vitest` test now that fails for the reported reason, and confirm it fails in the container (`pnpm --filter <package> test <path>`) _before_ you touch the fix. A testable bug with no regression test is not fixed. If the bug only manifests in the browser (admin interaction, rendered output), do not write a browser test -- you cannot run one reliably here; verify through `agent-browser` instead and describe that manual verification so the maintainer can add a durable test when landing.
+6. **Implement the proposed fix -- the smallest change that fully resolves the bug.** Follow EmDash conventions:
    - Internal imports end `.js`; type-only imports use `import type`.
    - State-changing routes start with `export const prerender = false;`.
    - Never interpolate values into SQL: Kysely `sql` tagged template for values, `sql.ref()` for identifiers, `validateIdentifier()` before any `sql.raw()`.
@@ -40,13 +43,25 @@ You are here because a maintainer issued a **fix** directive, verify returned `b
    - `import.meta.env.DEV`, never `process.env.NODE_ENV`.
    - Migrations are forward-only and additive; register in `runner.ts` via `StaticMigrationProvider`.
    - Prefer additive changes. A breaking change needs an explicit changeset -- do not introduce one for an automated fix without compelling justification.
-4. **Run the repro test with `run_check`.** It must now pass. If not, your fix is wrong or incomplete -- investigate, adjust, or abandon. Never weaken the test to make it pass.
-5. **Run the affected package's suite with `run_check`.** `pnpm --filter <package> test`. New failures in tests you did not write are regressions -- fix them or abandon the whole change.
-6. **Typecheck with `run_check`.** `pnpm typecheck` for packages, `pnpm typecheck:demos` if a demo was involved. No new errors.
-7. **Lint with `run_check`.** Run `pnpm lint:quick`; a clean baseline stays clean.
-8. **Check formatting with `run_check`.** Apply any needed formatting with `edit_file`/`write_file`, then run `pnpm format:check` or the narrow check-only formatter command appropriate to the files you touched. Do not bulk-format unrelated files.
-9. **Add a changeset when a published package changed.** Create the file under `.changeset/` (patch bump for a bug fix unless diagnosis says otherwise). Write it as release notes for someone upgrading -- lead with a verb, describe the observable effect, reference the issue -- not as a commit message. Include it in your fix commit.
-10. **Publish with `publish_candidate`.** Do not reproduce its work with shell commands. Report `fixed: true` only after it succeeds.
+7. **Finish the candidate tree.** Apply formatting and add the changeset now, when a published package changed. Write the changeset as release notes for someone upgrading -- lead with a verb and describe the observable effect. Adding it after verification would invalidate every recorded check.
+8. **Run one final verification pass with `run_check`.** Run the focused repro test first, then the remaining planned checks. A check name is permanently bound to its first command, including flags and arguments; if you need a different command, choose a new name before running it. Run each check once on the final tree; do not repeat a passing check on an unchanged tree.
+9. **Respond to relevant failures only.** Fix a regression in touched behavior or abandon the change. If you edit the candidate, rerun the planned set once on the new tree. Never edit unrelated files to make a broad lint, typecheck, or test command pass.
+10. **Publish with `publish_candidate` as soon as the planned checks pass.** Do not reproduce its work with shell commands. Report `fixed: true` only after it succeeds.
+
+## Efficient verification
+
+- Treat coordinated edits across several files as one edit round. Do not run lint, typecheck, and tests after each individual file.
+- Treat install and the initial workspace build as bootstrap, not verification. Reuse them for the whole run and across resume when the saved container is still available.
+- Prefer affected package checks. Run a broader root check once only when the change crosses its surface or `AGENTS.md` explicitly requires it.
+- If an affected package suite is known to exceed the remaining budget or has already timed out, do not repeat it. Run the focused relevant subsets, report the omitted suite, and preserve time to publish and report.
+- If `run_check` reports that a name is already bound, choose a new name for the different command. The rejected command did not modify verification state; do not retry it under the bound name.
+- Verification commands must not modify source files. Apply formatting before the final pass, then use a check-only formatter command.
+
+## Finalization and resume
+
+When a deadline warning arrives, stop investigation and broad verification. Do not start another package or root suite. Run only short missing checks from the existing plan, then publish and report. If relevant verification cannot finish, report the useful partial outcome instead of consuming the window with another long command.
+
+After a resume, follow the saved checkpoint's remaining-work list. Complete metadata such as a missing changeset before checks, then run one final verification pass. Do not reopen the diagnosis, repeat a timed-out broad suite, or investigate unrelated failures.
 
 ## When to abandon
 

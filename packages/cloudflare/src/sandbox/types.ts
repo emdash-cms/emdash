@@ -3,6 +3,7 @@
  */
 
 import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
+import type { ContentCreateOptions } from "emdash";
 
 /**
  * Environment bindings required for sandbox runner.
@@ -106,6 +107,7 @@ interface BridgeContentItem {
 	data: Record<string, unknown>;
 	createdAt: string;
 	updatedAt: string;
+	locale: string;
 }
 
 /**
@@ -177,7 +179,11 @@ export interface PluginBridgeBinding {
 		collection: string,
 		opts?: { limit?: number; cursor?: string },
 	): Promise<{ items: BridgeContentItem[]; cursor?: string; hasMore: boolean }>;
-	contentCreate(collection: string, data: Record<string, unknown>): Promise<BridgeContentItem>;
+	contentCreate(
+		collection: string,
+		data: Record<string, unknown>,
+		options?: ContentCreateOptions,
+	): Promise<BridgeContentItem>;
 	contentUpdate(
 		collection: string,
 		id: string,
