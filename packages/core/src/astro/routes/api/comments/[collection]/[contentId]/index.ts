@@ -14,6 +14,7 @@ import { createCommentBody } from "#api/schemas.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
 import { sendCommentNotification } from "#comments/notifications.js";
 import { createComment, type CommentHookRunner } from "#comments/service.js";
+import { getTurnstileSecretKey, verifyTurnstileToken } from "#comments/turnstile.js";
 import { resolveSecretsCached } from "#config/secrets.js";
 import { CommentRepository } from "#db/repositories/comment.js";
 import { validateIdentifier } from "#db/validate.js";
@@ -163,6 +164,18 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			return apiError("RATE_LIMITED", "Too many comments. Please try again later.", 429);
 		}
 
+		// Anti-spam: Turnstile — enforced only when the operator configured a
+		// secret key. Runs after the free checks (honeypot, rate limit) so
+		// obvious spam never triggers a siteverify subrequest. Fails closed:
+		// missing token, failed verification, and siteverify errors all reject.
+		const turnstileSecretKey = getTurnstileSecretKey();
+		if (turnstileSecretKey) {
+			const verified = await verifyTurnstileToken(body.turnstileToken, turnstileSecretKey, meta.ip);
+			if (!verified) {
+				return apiError("TURNSTILE_FAILED", "CAPTCHA verification failed", 403);
+			}
+		}
+
 		// Build collection settings
 		const collectionSettings: CollectionCommentSettings = {
 			commentsEnabled: collectionRow.comments_enabled === 1,
@@ -289,7 +302,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		// isolate terminates after the response).
 		if (result.comment.status === "approved" && emdash.email && contentAuthor) {
 			try {
-				const adminBaseUrl = await getSiteBaseUrl(emdash.db, request);
+				const adminBaseUrl = await getSiteBaseUrl(emdash.db, request, emdash.config);
 				await sendCommentNotification({
 					email: emdash.email,
 					comment: result.comment,

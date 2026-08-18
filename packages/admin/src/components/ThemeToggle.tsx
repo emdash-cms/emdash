@@ -27,16 +27,17 @@ export function ThemeToggle() {
 		<Button
 			variant="ghost"
 			shape="square"
+			size="sm"
 			aria-label={t`Toggle theme (current: ${label})`}
 			onClick={cycleTheme}
 			title={t`Theme: ${label}`}
 		>
 			{theme === "system" ? (
-				<Monitor className="h-5 w-5" />
+				<Monitor className="h-4 w-4" />
 			) : theme === "light" ? (
-				<Sun className="h-5 w-5" />
+				<Sun className="h-4 w-4" />
 			) : (
-				<Moon className="h-5 w-5" />
+				<Moon className="h-4 w-4" />
 			)}
 			<span className="sr-only">{t`Toggle theme (current: ${label})`}</span>
 		</Button>

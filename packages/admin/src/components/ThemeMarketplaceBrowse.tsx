@@ -74,8 +74,8 @@ export function ThemeMarketplaceBrowse() {
 		<div className="space-y-6">
 			{/* Header */}
 			<div>
-				<h1 className="text-3xl font-bold">{t`Themes`}</h1>
-				<p className="mt-1 text-kumo-subtle">
+				<h1 className="text-2xl font-semibold leading-tight">{t`Themes`}</h1>
+				<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
 					{t`Browse themes and preview them with your own content.`}
 				</p>
 			</div>
@@ -199,11 +199,7 @@ function ThemeCard({ theme }: { theme: ThemeSummary }) {
 	return (
 		<div className="group rounded-lg border bg-kumo-base overflow-hidden transition-colors hover:border-kumo-brand/50">
 			{/* Thumbnail */}
-			<Link
-				to={"/themes/marketplace/$themeId" as "/"}
-				params={{ themeId: theme.id }}
-				className="block"
-			>
+			<Link to={"/themes/marketplace/$themeId"} params={{ themeId: theme.id }} className="block">
 				{thumbnailUrl ? (
 					<img
 						src={thumbnailUrl}
@@ -220,17 +216,13 @@ function ThemeCard({ theme }: { theme: ThemeSummary }) {
 
 			{/* Info */}
 			<div className="p-4">
-				<Link
-					to={"/themes/marketplace/$themeId" as "/"}
-					params={{ themeId: theme.id }}
-					className="block"
-				>
-					<h3 className="font-semibold group-hover:text-kumo-brand truncate">{theme.name}</h3>
+				<Link to={"/themes/marketplace/$themeId"} params={{ themeId: theme.id }} className="block">
+					<h3 className="font-semibold group-hover:text-kumo-link truncate">{theme.name}</h3>
 				</Link>
 
 				<div className="flex items-center gap-2 mt-1 text-xs text-kumo-subtle">
 					<span>{theme.author.name}</span>
-					{theme.author.verified && <ShieldCheck className="h-3 w-3 text-kumo-brand" />}
+					{theme.author.verified && <ShieldCheck className="h-3 w-3 text-kumo-link" />}
 				</div>
 
 				{theme.description && (

@@ -12,10 +12,47 @@ import { apiError, apiSuccess, handleError, requireDb } from "#api/error.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentTermsBody } from "#api/schemas.js";
 import { ContentRepository } from "#db/repositories/content.js";
-import { TaxonomyRepository } from "#db/repositories/taxonomy.js";
+import {
+	TaxonomyRepository,
+	type TaxonomyAssignmentResolution,
+} from "#db/repositories/taxonomy.js";
 import { invalidateTermCache } from "#taxonomies/index.js";
 
+import { getI18nConfig } from "../../../../../../../i18n/config.js";
+
 export const prerender = false;
+
+function assignmentResponse(assignments: TaxonomyAssignmentResolution[], entryLocale: string) {
+	const config = getI18nConfig();
+	const defaultLocale = config?.defaultLocale ?? "en";
+	return {
+		terms: assignments.flatMap(({ term }) =>
+			term
+				? [
+						{
+							id: term.id,
+							name: term.name,
+							slug: term.slug,
+							label: term.label,
+							parentId: term.parentId,
+							locale: term.locale,
+							translationGroup: term.translationGroup,
+						},
+					]
+				: [],
+		),
+		unresolved: assignments
+			.filter(({ term }) => term === null)
+			.map(({ translationGroup, availableLocales, translations }) => ({
+				translationGroup,
+				availableLocales,
+				translations,
+			})),
+		entryLocale,
+		defaultLocale,
+		implicitDefaultLocale: config === null,
+	};
+}
 
 /**
  * Get terms assigned to an entry
@@ -24,6 +61,8 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
 	const { collection, id, taxonomy } = params;
 
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 	const denied = requirePerm(user, "content:read");
 	if (denied) return denied;
 
@@ -31,30 +70,25 @@ export const GET: APIRoute = async ({ params, locals }) => {
 		return apiError("VALIDATION_ERROR", "Collection, id, and taxonomy required", 400);
 	}
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
-
 	try {
-		// Terms are stored against the per-locale entry row but their
-		// translation_group spans every locale. Resolve the entry's own locale
-		// server-side (deterministic, not client-spoofable) so only the matching
-		// term variant is returned — see issue #1218.
+		// Assignments store content and term translation groups. Resolve the
+		// entry's locale server-side so the response includes only that locale's
+		// term variant.
 		const entry = await new ContentRepository(emdash.db).findByIdOrSlug(collection, id);
 		if (!entry) return apiError("NOT_FOUND", "Content not found", 404);
-		const locale = entry.locale ?? undefined;
+		const locale = entry.locale || getI18nConfig()?.defaultLocale || "en";
+		const defaultLocale = getI18nConfig()?.defaultLocale ?? "en";
 
 		const repo = new TaxonomyRepository(emdash.db);
-		const terms = await repo.getTermsForEntry(collection, entry.id, taxonomy, locale);
+		const assignments = await repo.getTermAssignmentsForEntry(
+			collection,
+			entry.id,
+			taxonomy,
+			locale,
+			defaultLocale,
+		);
 
-		return apiSuccess({
-			terms: terms.map((t) => ({
-				id: t.id,
-				name: t.name,
-				slug: t.slug,
-				label: t.label,
-				parentId: t.parentId,
-			})),
-		});
+		return apiSuccess(assignmentResponse(assignments, locale));
 	} catch (error) {
 		return handleError(error, "Failed to get entry terms", "TERMS_GET_ERROR");
 	}
@@ -71,11 +105,10 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		return apiError("VALIDATION_ERROR", "Collection, id, and taxonomy required", 400);
 	}
 
-	const denied = requirePerm(user, "content:edit_own");
-	if (denied) return denied;
-
 	const dbErr = requireDb(emdash?.db);
 	if (dbErr) return dbErr;
+	const denied = requirePerm(user, "content:edit_own");
+	if (denied) return denied;
 
 	if (!emdash.handleContentGet) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
@@ -110,9 +143,12 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	// Resolve the canonical content ID from the handler result.
 	// The URL `id` param may be a slug; we must use the real ID for term storage.
 	const canonicalId = typeof existingItem?.id === "string" ? existingItem.id : id;
-	// The entry is per-locale; scope the term read to its locale so only the
-	// matching translation variant is returned in the response — see #1218.
-	const entryLocale = typeof existingItem?.locale === "string" ? existingItem.locale : undefined;
+	// The assignment spans the content translation group, while the response
+	// includes only the term variant matching this entry's locale.
+	const entryLocale =
+		typeof existingItem?.locale === "string"
+			? existingItem.locale
+			: (getI18nConfig()?.defaultLocale ?? "en");
 
 	try {
 		const body = await parseBody(request, contentTermsBody);
@@ -144,17 +180,15 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		invalidateTermCache();
 
 		// Get the updated terms using the canonical ID, scoped to the entry locale
-		const terms = await repo.getTermsForEntry(collection, canonicalId, taxonomy, entryLocale);
+		const assignments = await repo.getTermAssignmentsForEntry(
+			collection,
+			canonicalId,
+			taxonomy,
+			entryLocale,
+			getI18nConfig()?.defaultLocale ?? "en",
+		);
 
-		return apiSuccess({
-			terms: terms.map((t) => ({
-				id: t.id,
-				name: t.name,
-				slug: t.slug,
-				label: t.label,
-				parentId: t.parentId,
-			})),
-		});
+		return apiSuccess(assignmentResponse(assignments, entryLocale));
 	} catch (error) {
 		return handleError(error, "Failed to set entry terms", "TERMS_SET_ERROR");
 	}

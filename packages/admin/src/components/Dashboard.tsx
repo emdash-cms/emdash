@@ -1,16 +1,7 @@
+import { Badge, Banner, LayerCard, SkeletonLine } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	Plus,
-	Upload,
-	ArrowRight,
-	CircleDashed,
-	CheckCircle,
-	PencilSimple,
-	CalendarBlank,
-	Image,
-	Users,
-} from "@phosphor-icons/react";
+import { Plus, Upload } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
@@ -18,8 +9,25 @@ import type { AdminManifest } from "../lib/api";
 import type { CollectionStats, DashboardStats, RecentItem } from "../lib/api/dashboard";
 import { fetchDashboardStats } from "../lib/api/dashboard";
 import { usePluginWidget } from "../lib/plugin-context";
-import { formatRelativeTime } from "../lib/utils";
+import { cn, formatRelativeTime } from "../lib/utils";
+import { ArrowNext } from "./ArrowIcons";
+import {
+	ContentStatusIcon,
+	CONTENT_STATUS_ICONS,
+	type ContentStatusState,
+} from "./ContentStatusBadge.js";
+import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
+
+const DASHBOARD_STATUS_STATES: Record<string, ContentStatusState> = {
+	published: "published",
+	draft: "draft",
+	scheduled: "scheduled",
+	pending: "pendingChanges",
+	pending_changes: "pendingChanges",
+	private: "private",
+	archived: "archived",
+};
 
 export interface DashboardProps {
 	manifest: AdminManifest;
@@ -30,35 +38,105 @@ export interface DashboardProps {
  */
 export function Dashboard({ manifest }: DashboardProps) {
 	const { t } = useLingui();
-	const { data: stats, isLoading } = useQuery({
+	const {
+		data: stats,
+		isLoading,
+		isError,
+	} = useQuery({
 		queryKey: ["dashboard-stats"],
 		queryFn: fetchDashboardStats,
 		refetchOnWindowFocus: true,
 	});
+	const hasDashboardData = stats !== undefined;
+	const showDashboardData = !isError || hasDashboardData;
 
 	return (
 		<div className="space-y-6">
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<h1 className="text-3xl font-bold">{t`Dashboard`}</h1>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Dashboard`}</h1>
 				<QuickActions manifest={manifest} />
 			</div>
 
-			<StatusBar stats={stats} loading={isLoading} />
+			{isError && <DashboardDataError />}
 
-			{/* Collections + Recent activity */}
-			<div className="grid gap-6 lg:grid-cols-2">
-				<CollectionList
-					collections={stats?.collections ?? []}
-					manifest={manifest}
-					loading={isLoading}
-				/>
-				<RecentActivity items={stats?.recentItems ?? []} loading={isLoading} />
-			</div>
+			{showDashboardData && (
+				<>
+					{stats && <SchedulerWarning stats={stats} />}
+					<SummaryMetrics stats={stats} loading={isLoading} />
+
+					{/* Collections + Recent activity */}
+					<div className="grid gap-6 lg:grid-cols-2">
+						<CollectionList
+							collections={stats?.collections ?? []}
+							manifest={manifest}
+							loading={isLoading}
+						/>
+						<RecentActivity items={stats?.recentItems ?? []} loading={isLoading} />
+					</div>
+				</>
+			)}
 
 			{/* Plugin widgets */}
 			<PluginWidgets manifest={manifest} />
 		</div>
 	);
+}
+
+function SchedulerWarning({ stats }: { stats: DashboardStats }) {
+	const { t } = useLingui();
+	const overdueCount = stats.collections.reduce(
+		(sum, collection) => sum + (collection.overdueScheduled ?? 0),
+		0,
+	);
+	if (overdueCount === 0 || !stats.schedulerHealth || stats.schedulerHealth.status === "healthy") {
+		return null;
+	}
+
+	const description =
+		stats.schedulerHealth.status === "unknown"
+			? plural(overdueCount, {
+					one: "One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.",
+					other:
+						"# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.",
+				})
+			: plural(overdueCount, {
+					one: "One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.",
+					other:
+						"# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.",
+				});
+
+	return (
+		<Banner
+			variant="alert"
+			title={t`Scheduled publishing needs attention`}
+			description={description}
+			role="alert"
+		/>
+	);
+}
+
+function DashboardDataError() {
+	const { t } = useLingui();
+
+	return (
+		<Banner
+			variant="error"
+			title={t`Could not load dashboard data`}
+			description={t`Refresh the page or try again.`}
+		/>
+	);
+}
+
+function DashboardCardHeading({ children }: { children: React.ReactNode }) {
+	return (
+		<LayerCard.Secondary>
+			<h2 className="px-3">{children}</h2>
+		</LayerCard.Secondary>
+	);
+}
+
+function DashboardCardInset({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+	return <div className={cn("px-3", className)} {...props} />;
 }
 
 // --- Quick actions ---
@@ -68,81 +146,108 @@ function QuickActions({ manifest }: { manifest: AdminManifest }) {
 	const collections = Object.entries(manifest.collections);
 
 	return (
-		<div className="flex flex-wrap gap-2">
+		<div className="flex flex-wrap items-center gap-2">
 			{collections.map(([slug, config]) => (
-				<Link
+				<RouterLinkButton
 					key={slug}
-					to="/content/$collection"
+					to="/content/$collection/new"
 					params={{ collection: slug }}
 					search={{ locale: undefined }}
-					className="inline-flex items-center gap-1.5 rounded-md border bg-kumo-base px-3 py-1.5 text-sm font-medium transition-colors hover:bg-kumo-tint"
+					variant="secondary"
+					icon={<Plus aria-hidden="true" />}
 				>
-					<Plus className="h-3.5 w-3.5" aria-hidden="true" />
 					{config.labelSingular ?? config.label}
-				</Link>
+				</RouterLinkButton>
 			))}
-			<Link
-				to="/media"
-				className="inline-flex items-center gap-1.5 rounded-md border bg-kumo-base px-3 py-1.5 text-sm font-medium transition-colors hover:bg-kumo-tint"
-			>
-				<Upload className="h-3.5 w-3.5" aria-hidden="true" />
+			<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
 				{t`Upload Media`}
-			</Link>
+			</RouterLinkButton>
 		</div>
 	);
 }
 
-// --- Status bar ---
+// --- Summary metrics ---
 
-function StatusBar({ stats, loading }: { stats?: DashboardStats; loading: boolean }) {
+function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: boolean }) {
 	if (loading) {
-		return <div className="flex h-9 animate-pulse rounded-lg border bg-kumo-tint" />;
+		return (
+			<div className="grid gap-4 sm:grid-cols-3">
+				{[1, 2, 3].map((i) => (
+					<LayerCard key={i}>
+						<LayerCard.Secondary>
+							<DashboardCardInset>
+								<SkeletonLine minWidth={45} maxWidth={70} />
+							</DashboardCardInset>
+						</LayerCard.Secondary>
+						<LayerCard.Primary className="text-3xl font-semibold leading-none">
+							<DashboardCardInset>
+								<SkeletonLine minWidth={20} maxWidth={35} />
+							</DashboardCardInset>
+						</LayerCard.Primary>
+					</LayerCard>
+				))}
+			</div>
+		);
 	}
 
 	if (!stats) return null;
 
 	const totalDrafts = stats.collections.reduce((sum, c) => sum + c.draft, 0);
-	const totalScheduled = stats.collections.reduce(
-		(sum, c) => sum + (c.total - c.published - c.draft),
-		0,
-	);
+	const totalScheduled = stats.collections.reduce((sum, c) => sum + c.scheduled, 0);
+	const hasScheduledContent = totalScheduled > 0;
 
-	const indicators = [
-		totalDrafts > 0 && {
-			icon: PencilSimple,
-			label: plural(totalDrafts, { one: "# draft", other: "# drafts" }),
-			className: "text-amber-700 dark:text-amber-400",
+	const metrics: Array<{ label: string; value: number }> = [
+		{
+			label: plural(totalDrafts, { one: "Draft", other: "Drafts" }),
+			value: totalDrafts,
 		},
-		totalScheduled > 0 && {
-			icon: CalendarBlank,
-			label: plural(totalScheduled, { one: "# scheduled", other: "# scheduled" }),
-			className: "text-blue-600 dark:text-blue-400",
+		...(hasScheduledContent
+			? [
+					{
+						label: plural(totalScheduled, { one: "Scheduled", other: "Scheduled" }),
+						value: totalScheduled,
+					},
+				]
+			: []),
+		{
+			label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
+			value: stats.mediaCount,
 		},
 		{
-			icon: Image,
-			label: plural(stats.mediaCount, { one: "# media file", other: "# media files" }),
-			className: "text-kumo-subtle",
+			label: plural(stats.userCount, { one: "User", other: "Users" }),
+			value: stats.userCount,
 		},
-		{
-			icon: Users,
-			label: plural(stats.userCount, { one: "# user", other: "# users" }),
-			className: "text-kumo-subtle",
-		},
-	].filter(Boolean) as Array<{
-		icon: React.ElementType;
-		label: string;
-		className: string;
-	}>;
+	];
 
 	return (
-		<div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border bg-kumo-base px-4 py-2 text-sm">
-			{indicators.map((ind) => (
-				<span key={ind.label} className={`inline-flex items-center gap-1.5 ${ind.className}`}>
-					<ind.icon className="h-3.5 w-3.5" aria-hidden="true" />
-					{ind.label}
-				</span>
+		<div
+			className={
+				hasScheduledContent
+					? "grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+					: "grid gap-4 sm:grid-cols-3"
+			}
+		>
+			{metrics.map((metric) => (
+				<LayerCard key={metric.label} data-testid="dashboard-metric">
+					<DashboardCardHeading>{metric.label}</DashboardCardHeading>
+					<LayerCard.Primary className="text-3xl font-semibold leading-none tabular-nums">
+						<DashboardCardInset data-testid="dashboard-metric-value">
+							{metric.value}
+						</DashboardCardInset>
+					</LayerCard.Primary>
+				</LayerCard>
 			))}
 		</div>
+	);
+}
+
+function SkeletonRows({ count }: { count: number }) {
+	return (
+		<DashboardCardInset className="space-y-3">
+			{Array.from({ length: count }, (_, i) => (
+				<SkeletonLine key={i} blockHeight={40} minWidth={65} maxWidth={95} />
+			))}
+		</DashboardCardInset>
 	);
 }
 
@@ -160,61 +265,76 @@ function CollectionList({
 	const { t } = useLingui();
 
 	return (
-		<div className="rounded-lg border bg-kumo-base p-4 sm:p-6">
-			<h2 className="mb-4 text-lg font-semibold">{t`Content`}</h2>
-			{loading ? (
-				<div className="space-y-3">
-					{[1, 2, 3].map((i) => (
-						<div key={i} className="h-10 animate-pulse rounded-md bg-kumo-tint" />
-					))}
-				</div>
-			) : collections.length === 0 ? (
-				<p className="text-sm text-kumo-subtle">{t`No collections configured`}</p>
-			) : (
-				<div className="space-y-1">
-					{collections.map((col) => {
-						const config = manifest.collections[col.slug];
-						return (
-							<Link
-								key={col.slug}
-								to="/content/$collection"
-								params={{ collection: col.slug }}
-								search={{ locale: undefined }}
-								className="group flex items-center justify-between rounded-md px-3 py-2 hover:bg-kumo-tint"
-							>
-								<span className="font-medium">{config?.label ?? col.label}</span>
-								<span className="flex items-center gap-3 text-xs text-kumo-subtle">
-									<CountBadge icon={CheckCircle} count={col.published} title={t`Published`} />
-									<CountBadge icon={PencilSimple} count={col.draft} title={t`Drafts`} />
-									<ArrowRight
-										className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100"
-										aria-hidden="true"
-									/>
-								</span>
-							</Link>
-						);
-					})}
-				</div>
-			)}
-		</div>
+		<LayerCard className="h-full">
+			<DashboardCardHeading>{t`Content`}</DashboardCardHeading>
+			<LayerCard.Primary className="flex-1">
+				{loading ? (
+					<SkeletonRows count={3} />
+				) : collections.length === 0 ? (
+					<p className="px-3 text-sm leading-6 text-pretty text-kumo-subtle">
+						{t`No collections configured`}
+					</p>
+				) : (
+					<div className="space-y-1">
+						{collections.map((col) => {
+							const config = manifest.collections[col.slug];
+							return (
+								<Link
+									key={col.slug}
+									to="/content/$collection"
+									params={{ collection: col.slug }}
+									search={{ locale: undefined }}
+									className="group flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-kumo-tint"
+								>
+									<span className="text-base font-medium leading-5">
+										{config?.label ?? col.label}
+									</span>
+									<span className="flex shrink-0 items-center gap-2">
+										<CountBadge
+											icon={CONTENT_STATUS_ICONS.published}
+											count={col.published}
+											variant="success"
+											label={t`Published`}
+										/>
+										<CountBadge
+											icon={CONTENT_STATUS_ICONS.draft}
+											count={col.draft}
+											variant="warning"
+											label={t`Drafts`}
+										/>
+										<ArrowNext
+											className="h-3.5 w-3.5 text-kumo-subtle opacity-0 transition-opacity group-hover:opacity-100"
+											aria-hidden="true"
+										/>
+									</span>
+								</Link>
+							);
+						})}
+					</div>
+				)}
+			</LayerCard.Primary>
+		</LayerCard>
 	);
 }
 
 function CountBadge({
 	icon: Icon,
 	count,
-	title,
+	variant,
+	label,
 }: {
 	icon: React.ElementType;
 	count: number;
-	title: string;
+	variant: "success" | "warning";
+	label: string;
 }) {
 	if (count === 0) return null;
 	return (
-		<span className="inline-flex items-center gap-1" title={title}>
+		<Badge variant={variant} className="gap-1 tabular-nums">
 			<Icon className="h-3 w-3" aria-hidden="true" />
+			<span className="sr-only">{label}</span>
 			{count}
-		</span>
+		</Badge>
 	);
 }
 
@@ -224,56 +344,61 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 	const { t } = useLingui();
 
 	return (
-		<div className="rounded-lg border bg-kumo-base p-4 sm:p-6">
-			<h2 className="mb-4 text-lg font-semibold">{t`Recent Activity`}</h2>
-			{loading ? (
-				<div className="space-y-3">
-					{[1, 2, 3, 4, 5].map((i) => (
-						<div key={i} className="h-10 animate-pulse rounded-md bg-kumo-tint" />
-					))}
-				</div>
-			) : items.length === 0 ? (
-				<p className="text-sm text-kumo-subtle">{t`No recent activity`}</p>
-			) : (
-				<div className="space-y-1">
-					{items.map((item) => (
-						<Link
-							key={`${item.collection}-${item.id}`}
-							to="/content/$collection/$id"
-							params={{ collection: item.collection, id: item.id }}
-							className="group flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-kumo-tint"
-						>
-							<div className="flex min-w-0 items-center gap-2">
-								<StatusDot status={item.status} />
-								<span className="truncate font-medium">
-									{item.title || item.slug || t`Untitled`}
+		<LayerCard className="h-full">
+			<DashboardCardHeading>{t`Recent Activity`}</DashboardCardHeading>
+			<LayerCard.Primary className="flex-1">
+				{loading ? (
+					<SkeletonRows count={5} />
+				) : items.length === 0 ? (
+					<p className="px-3 text-sm leading-6 text-pretty text-kumo-subtle">
+						{t`No recent activity`}
+					</p>
+				) : (
+					<div className="space-y-1">
+						{items.map((item) => (
+							<Link
+								key={`${item.collection}-${item.id}`}
+								to="/content/$collection/$id"
+								params={{ collection: item.collection, id: item.id }}
+								className="group flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-kumo-tint"
+							>
+								<div className="flex min-w-0 items-center gap-2">
+									<StatusDot status={item.status} />
+									<span className="truncate text-base font-medium leading-5">
+										{item.title || item.slug || t`Untitled`}
+									</span>
+									<span className="hidden shrink-0 text-xs font-normal leading-5 text-kumo-subtle sm:inline">
+										{item.collectionLabel}
+									</span>
+								</div>
+								<span
+									data-testid="activity-time"
+									className="shrink-0 text-xs font-normal leading-5 text-kumo-subtle tabular-nums"
+								>
+									{formatRelativeTime(item.updatedAt)}
 								</span>
-								<span className="hidden shrink-0 text-xs text-kumo-subtle sm:inline">
-									{item.collectionLabel}
-								</span>
-							</div>
-							<span className="shrink-0 text-xs text-kumo-subtle">
-								{formatRelativeTime(item.updatedAt)}
-							</span>
-						</Link>
-					))}
-				</div>
-			)}
-		</div>
+							</Link>
+						))}
+					</div>
+				)}
+			</LayerCard.Primary>
+		</LayerCard>
 	);
 }
 
 function StatusDot({ status }: { status: string }) {
-	const colors: Record<string, string> = {
-		published: "text-green-500",
-		draft: "text-amber-500",
-		scheduled: "text-blue-500",
-	};
-	const Icon = status === "published" ? CheckCircle : CircleDashed;
-	return (
-		<Icon
-			className={`h-3.5 w-3.5 shrink-0 ${colors[status] ?? "text-kumo-subtle"}`}
-			aria-label={status}
+	const { t } = useLingui();
+	const state = Object.hasOwn(DASHBOARD_STATUS_STATES, status)
+		? DASHBOARD_STATUS_STATES[status]
+		: undefined;
+
+	return state ? (
+		<ContentStatusIcon state={state} className="shrink-0" />
+	) : (
+		<span
+			className="h-3.5 w-3.5 shrink-0 rounded-full bg-kumo-fill"
+			role="img"
+			aria-label={t`Status: ${status}`}
 		/>
 	);
 }
@@ -324,13 +449,17 @@ function PluginWidgetCard({
 	const WidgetComponent = usePluginWidget(widget.pluginId, widget.id);
 
 	return (
-		<div className="rounded-lg border bg-kumo-base p-4 sm:p-6">
-			<h2 className="text-lg font-semibold mb-4">{widget.title || widget.id}</h2>
-			{WidgetComponent ? (
-				<WidgetComponent />
-			) : (
-				<SandboxedPluginWidget pluginId={widget.pluginId} widgetId={widget.id} />
-			)}
-		</div>
+		<LayerCard className="h-full">
+			<DashboardCardHeading>{widget.title || widget.id}</DashboardCardHeading>
+			<LayerCard.Primary className="flex-1">
+				<DashboardCardInset>
+					{WidgetComponent ? (
+						<WidgetComponent />
+					) : (
+						<SandboxedPluginWidget pluginId={widget.pluginId} widgetId={widget.id} />
+					)}
+				</DashboardCardInset>
+			</LayerCard.Primary>
+		</LayerCard>
 	);
 }

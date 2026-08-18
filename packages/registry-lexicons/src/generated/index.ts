@@ -5,6 +5,7 @@ export * as ComEmdashcmsExperimentalAggregatorListReleases from "./types/com/emd
 export * as ComEmdashcmsExperimentalAggregatorResolvePackage from "./types/com/emdashcms/experimental/aggregator/resolvePackage.js";
 export * as ComEmdashcmsExperimentalAggregatorSearchPackages from "./types/com/emdashcms/experimental/aggregator/searchPackages.js";
 export * as ComEmdashcmsExperimentalPackageProfile from "./types/com/emdashcms/experimental/package/profile.js";
+export * as ComEmdashcmsExperimentalPackageProfileExtension from "./types/com/emdashcms/experimental/package/profileExtension.js";
 export * as ComEmdashcmsExperimentalPackageRelease from "./types/com/emdashcms/experimental/package/release.js";
 export * as ComEmdashcmsExperimentalPackageReleaseExtension from "./types/com/emdashcms/experimental/package/releaseExtension.js";
 export * as ComEmdashcmsExperimentalPublisherProfile from "./types/com/emdashcms/experimental/publisher/profile.js";

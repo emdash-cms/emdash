@@ -419,7 +419,7 @@ export class CommentRepository {
 		return roots.map((root) => ({
 			...root,
 			_replies: childrenMap.get(root.id) ?? [],
-		})) as Comment[];
+		}));
 	}
 
 	/**

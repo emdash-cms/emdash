@@ -135,7 +135,7 @@ export async function createComment(
 		authorEmail: event.comment.authorEmail,
 		authorUserId: event.comment.authorUserId,
 		body: event.comment.body,
-		status: decision.status as CommentStatus,
+		status: decision.status,
 		ipHash: event.comment.ipHash,
 		userAgent: event.comment.userAgent,
 		moderationMetadata: Object.keys(event.metadata).length > 0 ? event.metadata : null,

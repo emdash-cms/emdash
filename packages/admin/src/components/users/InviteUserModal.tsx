@@ -104,11 +104,11 @@ export function InviteUserModal({
 				{inviteUrl ? (
 					/* Copy-link view — shown when no email provider is configured */
 					<div className="py-4 space-y-4">
-						<div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4">
-							<p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+						<div className="rounded-lg border border-kumo-warning/50 bg-kumo-warning-tint p-4">
+							<p className="text-sm text-kumo-warning font-medium">
 								{t`Share this link with the invited user`}
 							</p>
-							<p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+							<p className="text-xs text-kumo-subtle mt-1">
 								{t`This link expires in 7 days and can only be used once.`}
 							</p>
 						</div>
@@ -124,17 +124,15 @@ export function InviteUserModal({
 								aria-label={t`Copy invite link`}
 							>
 								{copied ? (
-									<Check className="h-4 w-4 text-green-600" />
+									<Check className="h-4 w-4 text-kumo-success" />
 								) : (
 									<Copy className="h-4 w-4" />
 								)}
 							</Button>
 						</div>
-						{copied && (
-							<p className="text-xs text-green-600 dark:text-green-400">{t`Copied to clipboard`}</p>
-						)}
+						{copied && <p className="text-xs text-kumo-success">{t`Copied to clipboard`}</p>}
 						{copyError && (
-							<p className="text-xs text-amber-600 dark:text-amber-400">
+							<p className="text-xs text-kumo-warning">
 								{t`Could not copy automatically. Please select the URL above and copy manually.`}
 							</p>
 						)}

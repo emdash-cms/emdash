@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.27.0",
+  "version": "0.34.0",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -37,11 +37,16 @@
       "types": "./dist/astro/middleware/auth.d.mts",
       "default": "./dist/astro/middleware/auth.mjs"
     },
+    "./middleware/media-usage-write-fence": {
+      "types": "./dist/astro/middleware/media-usage-write-fence.d.mts",
+      "default": "./dist/astro/middleware/media-usage-write-fence.mjs"
+    },
     "./middleware/redirect": {
       "types": "./dist/astro/middleware/redirect.d.mts",
       "default": "./dist/astro/middleware/redirect.mjs"
     },
     "./ui": "./src/ui.ts",
+    "./ui/comments": "./src/ui-comments.ts",
     "./ui/search": "./src/components/LiveSearch.astro",
     "./cli": {
       "types": "./dist/cli/index.d.mts",
@@ -78,17 +83,37 @@
       "types": "./dist/db/sqlite.d.mts",
       "default": "./dist/db/sqlite.mjs"
     },
+    "./db/sqlite-migrations": {
+      "types": "./dist/db/sqlite-migrations.d.mts",
+      "default": "./dist/db/sqlite-migrations.mjs"
+    },
     "./db/libsql": {
       "types": "./dist/db/libsql.d.mts",
       "default": "./dist/db/libsql.mjs"
+    },
+    "./db/libsql-migrations": {
+      "types": "./dist/db/libsql-migrations.d.mts",
+      "default": "./dist/db/libsql-migrations.mjs"
     },
     "./db/postgres": {
       "types": "./dist/db/postgres.d.mts",
       "default": "./dist/db/postgres.mjs"
     },
+    "./db/postgres-migrations": {
+      "types": "./dist/db/postgres-migrations.d.mts",
+      "default": "./dist/db/postgres-migrations.mjs"
+    },
+    "./migrations": {
+      "types": "./dist/migrations/index.d.mts",
+      "default": "./dist/migrations/index.mjs"
+    },
     "./database/instrumentation": {
       "types": "./dist/database/instrumentation.d.mts",
       "default": "./dist/database/instrumentation.mjs"
+    },
+    "./database/pg-migration-lock": {
+      "types": "./dist/database/pg-migration-lock.d.mts",
+      "default": "./dist/database/pg-migration-lock.mjs"
     },
     "./storage/local": {
       "types": "./dist/storage/local.d.mts",
@@ -196,6 +221,7 @@
     "typecheck": "tsgo --noEmit",
     "check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution --ignore-rules=internal-resolution-error",
     "test": "vitest",
+    "test:workerd": "vitest run --config vitest.workerd.config.ts",
     "test:smoke": "vitest run --config vitest.smoke.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:repro": "vitest run --config vitest.repro.config.ts"
@@ -214,14 +240,17 @@
     "@oslojs/encoding": "catalog:",
     "@portabletext/toolkit": "^5.0.1",
     "@tiptap/core": "catalog:",
+    "@tiptap/extension-code": "catalog:",
     "@tiptap/extension-code-block": "catalog:",
     "@tiptap/extension-focus": "catalog:",
     "@tiptap/extension-image": "catalog:",
     "@tiptap/extension-link": "catalog:",
+    "@tiptap/extension-list": "catalog:",
     "@tiptap/extension-placeholder": "catalog:",
     "@tiptap/extension-text-align": "catalog:",
     "@tiptap/extension-typography": "catalog:",
     "@tiptap/extension-underline": "catalog:",
+    "@tiptap/pm": "catalog:",
     "@tiptap/react": "catalog:",
     "@tiptap/starter-kit": "catalog:",
     "@tiptap/suggestion": "catalog:",
@@ -230,18 +259,19 @@
     "astro-portabletext": "^0.11.0",
     "better-sqlite3": "catalog:",
     "blurhash": "^2.0.5",
-    "citty": "^0.1.6",
+    "citty": "^0.2.2",
     "consola": "^3.4.2",
     "croner": "^10.0.1",
-    "image-size": "^2.0.2",
     "jose": "^6.1.3",
     "jpeg-js": "^0.4.4",
+    "jsonc-parser": "catalog:",
     "kysely": "catalog:",
     "mime": "^4.1.0",
     "modern-tar": "^0.7.5",
     "picocolors": "^1.1.1",
     "sanitize-html": "^2.17.1",
     "sax": "^1.4.1",
+    "smol-toml": "^1.6.0",
     "ulidx": "^2.4.1",
     "upng-js": "^2.1.0",
     "zod": "catalog:",
@@ -266,13 +296,15 @@
   "devDependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
     "@arethetypeswrong/cli": "catalog:",
+    "@cloudflare/vitest-pool-workers": "catalog:",
     "@emdash-cms/blocks": "workspace:*",
     "@types/better-sqlite3": "^7.6.12",
     "@types/pg": "^8.16.0",
     "@types/react": "catalog:",
     "@types/sanitize-html": "^2.16.0",
     "@types/sax": "^1.2.7",
-    "@vitest/ui": "^4.1.9",
+    "@vitest/ui": "^4.1.10",
+    "image-size": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",

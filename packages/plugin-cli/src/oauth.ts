@@ -301,8 +301,8 @@ export function createCliOAuthClient(options: OAuthClientFactoryOptions): OAuthC
 	return new OAuthClient({
 		metadata,
 		stores: {
-			sessions: sessions as Store<Did, StoredSession>,
-			states: states as Store<string, StoredState>,
+			sessions: sessions,
+			states: states,
 		},
 		actorResolver,
 	});

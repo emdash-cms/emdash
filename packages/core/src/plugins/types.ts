@@ -9,6 +9,7 @@
  *
  */
 
+import type { Permission } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
 // The plugin capability vocabulary, the legacy-rename map, and the manifest
 // shape are authored once in @emdash-cms/plugin-types and shared between core
@@ -28,7 +29,9 @@ import {
 	type DeclaredAccess,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
+	type ManifestMcpTool,
 	type ManifestRouteEntry,
+	type PluginMcpManifestConfig,
 	type PluginCapability,
 	type PluginStorageConfig,
 	type StorageCollectionConfig,
@@ -39,7 +42,16 @@ import type { z } from "astro/zod";
 // Core Types
 // =============================================================================
 
+import type { ContentFieldFilters } from "../content-list-query.js";
 import type { FieldType } from "../schema/types.js";
+
+export type {
+	ContentFieldFilterScalar,
+	ContentFieldFilterValue,
+	ContentFieldFilters,
+	ContentFieldInFilter,
+	ContentFieldRangeFilter,
+} from "../content-list-query.js";
 
 export {
 	CAPABILITY_RENAMES,
@@ -52,7 +64,9 @@ export {
 	type DeclaredAccess,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
+	type ManifestMcpTool,
 	type ManifestRouteEntry,
+	type PluginMcpManifestConfig,
 	type PluginCapability,
 	type PluginStorageConfig,
 	type StorageCollectionConfig,
@@ -213,6 +227,8 @@ export interface ContentItem {
 	createdAt: string;
 	updatedAt: string;
 	publishedAt: string | null;
+	/** Scheduled publication time, if set (e.g. scheduled items or scheduled draft changes). */
+	scheduledAt?: string | null;
 }
 
 export interface ContentListWhere {
@@ -220,6 +236,8 @@ export interface ContentListWhere {
 	status?: string;
 	/** Exact match on `locale` (e.g. `"en"`, `"fr-CA"`). */
 	locale?: string;
+	/** AND-combined filters over custom fields explicitly marked as indexed. */
+	fieldFilters?: ContentFieldFilters;
 }
 
 /**
@@ -244,6 +262,51 @@ export type ContentWriteInput = Record<string, unknown> & {
 	seo?: ContentItemSeoInput;
 };
 
+/** Options accepted by `content.create`. */
+export interface ContentCreateOptions {
+	/** Locale for the new content row. Defaults to the configured site locale, then `en`. */
+	locale?: string;
+}
+
+/**
+ * Taxonomy definition returned from the taxonomy API (e.g. "category", "tag").
+ */
+export interface TaxonomyDefInfo {
+	name: string;
+	label: string;
+	labelSingular: string | null;
+	hierarchical: boolean;
+	/** Collections this taxonomy is attached to (e.g. `["posts"]`). */
+	collections: string[];
+	locale: string;
+}
+
+/**
+ * Taxonomy term returned from the taxonomy API. Flat shape — for hierarchical
+ * taxonomies the tree is reconstructed via `parentId` (which stores the
+ * parent's locale-agnostic `translationGroup`).
+ */
+export interface TaxonomyTermInfo {
+	id: string;
+	/** Taxonomy name this term belongs to (e.g. "category"). */
+	taxonomy: string;
+	slug: string;
+	label: string;
+	parentId: string | null;
+	/** Term metadata as edited in the admin (`description` etc.). */
+	data: Record<string, unknown> | null;
+	locale: string;
+	translationGroup: string | null;
+}
+
+/**
+ * Options accepted by taxonomy read operations. Omitting `locale` returns
+ * rows for every locale.
+ */
+export interface TaxonomyReadOptions {
+	locale?: string;
+}
+
 /**
  * Content access interface - capability-gated
  */
@@ -253,16 +316,41 @@ export interface ContentAccess {
 	list(collection: string, options?: ContentListOptions): Promise<PaginatedResult<ContentItem>>;
 
 	// Write operations (requires write:content) - optional on interface
-	create?(collection: string, data: ContentWriteInput): Promise<ContentItem>;
+	create?(
+		collection: string,
+		data: ContentWriteInput,
+		options?: ContentCreateOptions,
+	): Promise<ContentItem>;
 	update?(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete?(collection: string, id: string): Promise<boolean>;
+}
+
+/**
+ * Taxonomy access interface — capability-gated on `taxonomies:read`.
+ * Read-only: there is no plugin-facing taxonomy write API.
+ */
+export interface TaxonomyAccess {
+	/** List taxonomy definitions. */
+	getAll(options?: TaxonomyReadOptions): Promise<TaxonomyDefInfo[]>;
+	/** All terms of a taxonomy, ordered by label. */
+	getTerms(taxonomy: string, options?: TaxonomyReadOptions): Promise<TaxonomyTermInfo[]>;
+	/** Terms assigned to a content entry, optionally scoped to one taxonomy. */
+	getEntryTerms(
+		collection: string,
+		entryId: string,
+		options?: TaxonomyReadOptions & { taxonomy?: string },
+	): Promise<TaxonomyTermInfo[]>;
 }
 
 /**
  * Full content access with write operations
  */
 export interface ContentAccessWithWrite extends ContentAccess {
-	create(collection: string, data: ContentWriteInput): Promise<ContentItem>;
+	create(
+		collection: string,
+		data: ContentWriteInput,
+		options?: ContentCreateOptions,
+	): Promise<ContentItem>;
 	update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete(collection: string, id: string): Promise<boolean>;
 }
@@ -361,6 +449,14 @@ export interface SiteInfo {
 	url: string;
 	/** Site locale (from settings, defaults to "en") */
 	locale: string;
+	/**
+	 * Astro's `trailingSlash` routing policy, from the host's Astro config.
+	 * Plugins that build absolute URLs (sitemap, canonical, hreflang) should
+	 * honor this so the URLs they emit match what the site serves. `createSiteInfo`
+	 * always populates it (defaulting to `"ignore"`, Astro's default); it is
+	 * optional on the type so pre-existing `SiteInfo` construction stays valid.
+	 */
+	trailingSlash?: "always" | "never" | "ignore";
 }
 
 /**
@@ -412,6 +508,9 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 
 	/** Content access - only if read:content or write:content capability */
 	content?: ContentAccess | ContentAccessWithWrite;
+
+	/** Taxonomy access (read-only) - only if taxonomies:read capability */
+	taxonomies?: TaxonomyAccess;
 
 	/** Media access - only if read:media or write:media capability */
 	media?: MediaAccess | MediaAccessWithWrite;
@@ -1101,6 +1200,18 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
 	request: Request;
 	/** Normalized request metadata (IP, user agent, geo) */
 	requestMeta: RequestMeta;
+	/**
+	 * Authenticated caller, if the route is private. The host has already
+	 * authenticated and authorized this user before dispatch, so the value
+	 * is trustworthy — unlike a user id read from the request body.
+	 *
+	 * `undefined` for public routes (which skip auth entirely) and for
+	 * token-authed requests where no user is bound to the token.
+	 *
+	 * Not gated by the `users:read` capability: this is the caller's own
+	 * identity for the current request, not a user directory lookup.
+	 */
+	user?: UserInfo;
 }
 
 /**
@@ -1114,8 +1225,29 @@ export interface PluginRoute<TInput = unknown> {
 	 * Public routes skip session/token auth and CSRF checks.
 	 */
 	public?: boolean;
+	/** RBAC permission required to invoke the route. Legacy routes default to plugins:manage. */
+	permission?: Permission;
+	/**
+	 * `Cache-Control` header value for successful GET responses, e.g.
+	 * `"public, max-age=60, stale-while-revalidate=300"`. Only honored on
+	 * routes that are also `public: true` — authenticated responses always
+	 * keep the default `private, no-store`. Errors are never cached.
+	 */
+	cacheControl?: string;
 	/** Route handler */
 	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
+}
+
+export interface PluginMcpToolDefinition {
+	description: string;
+	route: string;
+	input: z.ZodType;
+	output?: z.ZodType;
+	destructive?: boolean;
+}
+
+export interface PluginMcpConfig {
+	tools: Record<string, PluginMcpToolDefinition>;
 }
 
 // =============================================================================
@@ -1299,6 +1431,9 @@ export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginS
 	/** API routes */
 	routes?: Record<string, PluginRoute>;
 
+	/** Routes explicitly exposed as agent-callable MCP tools. */
+	mcp?: PluginMcpConfig;
+
 	/** Admin UI configuration */
 	admin?: PluginAdminConfig;
 }
@@ -1314,6 +1449,7 @@ export interface ResolvedPlugin<TStorage extends PluginStorageConfig = PluginSto
 	storage: TStorage;
 	hooks: ResolvedPluginHooks;
 	routes: Record<string, PluginRoute>;
+	mcp?: PluginMcpConfig;
 	admin: PluginAdminConfig;
 }
 
@@ -1394,6 +1530,7 @@ export interface PluginManifest {
 	hooks: Array<ManifestHookEntry | HookName>;
 	/** Route declarations — either plain name strings or structured objects */
 	routes: Array<ManifestRouteEntry | string>;
+	mcp?: PluginMcpManifestConfig;
 	admin: PluginAdminConfig;
 }
 

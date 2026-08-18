@@ -26,7 +26,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import type { AdminManifest } from "../src/lib/api";
-import { createAdminRouter } from "../src/router";
+import { ConfigurationLoadingScreen, createAdminRouter } from "../src/router";
 import { render } from "./utils/render.tsx";
 import { createTestQueryClient, createMockFetch, waitFor } from "./utils/test-helpers";
 
@@ -47,24 +47,45 @@ vi.mock("../src/components/ContentEditor", () => ({
 		item,
 		onSave,
 		onAutosave,
+		onSeoChange,
+		onPublishedAtChange,
+		isSaving,
+		isAutosaving,
+		isSaveFeedbackActive,
+		isUpdatingPublishedAt,
+		autosaveCompletionToken,
 	}: {
 		item?: { data?: { title?: string }; slug?: string | null };
 		onSave?: (payload: { data: Record<string, unknown> }) => void;
 		onAutosave?: (payload: { data: Record<string, unknown>; slug?: string }) => void;
+		onSeoChange?: (seo: { title: string }) => void;
+		onPublishedAtChange?: (publishedAt: string) => void;
+		isSaving?: boolean;
+		isAutosaving?: boolean;
+		isSaveFeedbackActive?: boolean;
+		isUpdatingPublishedAt?: boolean;
+		autosaveCompletionToken?: number;
 	}) => (
 		<div data-testid="content-editor">
 			<div data-testid="mock-title">{item?.data?.title ?? ""}</div>
 			<div data-testid="mock-slug">{item?.slug ?? ""}</div>
+			<div data-testid="is-saving">{isSaveFeedbackActive ? "saving" : "idle"}</div>
+			<div data-testid="manual-save-blocked">{isSaving ? "blocked" : "ready"}</div>
+			<div data-testid="autosave-blocked">{isSaving || isAutosaving ? "blocked" : "ready"}</div>
+			<div data-testid="autosave-completion-token">{autosaveCompletionToken ?? 0}</div>
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();
 					onSave?.({ data: { title: "Test Post" } });
 				}}
 			>
-				<button type="submit">Save</button>
+				<button type="submit" disabled={isSaving}>
+					Save
+				</button>
 			</form>
 			<button
 				type="button"
+				disabled={isSaving || isAutosaving}
 				onClick={() =>
 					onAutosave?.({
 						data: { title: "Autosaved Title" },
@@ -74,8 +95,43 @@ vi.mock("../src/components/ContentEditor", () => ({
 			>
 				Trigger Draft Sync
 			</button>
+			<button type="button" onClick={() => onSeoChange?.({ title: "Search title" })}>
+				Trigger SEO Sync
+			</button>
+			<button
+				type="button"
+				disabled={isUpdatingPublishedAt}
+				onClick={() => onPublishedAtChange?.("2020-06-01T08:45:00.000Z")}
+			>
+				Trigger Publish Date Sync
+			</button>
 		</div>
 	),
+}));
+
+vi.mock("../src/components/MediaLibrary", () => ({
+	MediaLibrary: ({ onUpload }: { onUpload?: (file: File) => Promise<unknown> | void }) => {
+		const [uploadStatus, setUploadStatus] = React.useState("idle");
+
+		const upload = async () => {
+			setUploadStatus("uploading");
+			try {
+				await onUpload?.(new File([new Uint8Array([1, 2, 3])], "photo.png", { type: "image/png" }));
+				setUploadStatus("success");
+			} catch {
+				setUploadStatus("error");
+			}
+		};
+
+		return (
+			<div>
+				<button type="button" onClick={() => void upload()}>
+					Upload test file
+				</button>
+				<span>{uploadStatus}</span>
+			</div>
+		);
+	},
 }));
 
 // ---------------------------------------------------------------------------
@@ -130,6 +186,79 @@ function buildRouter() {
 	}
 	return { router, queryClient, TestApp };
 }
+
+describe("ConfigurationLoadingScreen", () => {
+	it("matches the centered EmDash boot loading view", async () => {
+		const screen = await render(<ConfigurationLoadingScreen />);
+		const loader = screen.getByRole("status", { name: "Loading" });
+		const label = screen.getByText("Loading configuration...");
+		const loadingView = label.element().parentElement?.parentElement;
+
+		expect(loadingView).toHaveClass("emdash-configuration-loader");
+		expect(loader.element().tagName).toBe("DIV");
+		await expect.element(loader).toHaveClass("emdash-configuration-spinner");
+		await expect.element(label).toHaveClass("emdash-configuration-label");
+		expect(label.element().parentElement).toHaveClass("loader-inner");
+	});
+});
+
+describe("MediaPage – upload completion", () => {
+	let mockFetch: ReturnType<typeof createMockFetch>;
+
+	beforeEach(() => {
+		mockFetch = createMockFetch();
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: MANIFEST })
+			.on("GET", "/_emdash/api/auth/me", {
+				data: { id: "user_01", role: 60 },
+			})
+			.on("GET", "/_emdash/api/media", {
+				data: { items: [], nextCursor: undefined },
+			});
+	});
+
+	afterEach(() => {
+		mockFetch.restore();
+	});
+
+	it("waits for the upload request and propagates its failure", async () => {
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+
+		const screen = await render(<TestApp />);
+		await expect.element(screen.getByText("idle")).toBeInTheDocument();
+
+		const interceptedFetch = globalThis.fetch;
+		let rejectUploadUrl: ((reason: Error) => void) | undefined;
+		let markUploadUrlStarted: () => void = () => undefined;
+		const uploadUrlStarted = new Promise<void>((resolve) => {
+			markUploadUrlStarted = resolve;
+		});
+		globalThis.fetch = (input, init) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (url === "/_emdash/api/media/upload-url" && init?.method === "POST") {
+				return new Promise<Response>((_resolve, reject) => {
+					rejectUploadUrl = reject;
+					markUploadUrlStarted();
+				});
+			}
+			return interceptedFetch(input, init);
+		};
+
+		try {
+			await screen.getByRole("button", { name: "Upload test file" }).click();
+			await expect.element(screen.getByText("uploading")).toBeInTheDocument();
+
+			await uploadUrlStarted;
+			if (!rejectUploadUrl) throw new Error("Upload URL request was not intercepted");
+			rejectUploadUrl(new Error("connection closed"));
+			await expect.element(screen.getByText("error")).toBeInTheDocument();
+		} finally {
+			globalThis.fetch = interceptedFetch;
+		}
+	});
+});
 
 // ---------------------------------------------------------------------------
 // Tests: ContentListPage – locale forwarded to "Add New" link
@@ -364,6 +493,80 @@ describe("ContentNewPage – locale passed to createContent", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Tests: ContentNewPage – a rejected create surfaces an error toast
+// ---------------------------------------------------------------------------
+
+describe("ContentNewPage – create failure surfaces the server's error", () => {
+	let mockFetch: ReturnType<typeof createMockFetch>;
+
+	beforeEach(() => {
+		mockFetch = createMockFetch();
+
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: MANIFEST })
+			.on("GET", "/_emdash/api/auth/me", {
+				data: { id: "user_01", role: 60 },
+			})
+			.on("GET", "/_emdash/api/bylines", { data: { items: [] } })
+			// A canned 409 SLUG_CONFLICT — the response shape the server
+			// returns when the entry's slug is already taken in the
+			// collection (slug derivation itself is server-side and not
+			// exercised here).
+			.on(
+				"POST",
+				"/_emdash/api/content/posts",
+				{
+					success: false,
+					error: {
+						code: "SLUG_CONFLICT",
+						message: "Slug 'test-post' already exists in collection 'posts'",
+					},
+				},
+				409,
+			);
+	});
+
+	afterEach(() => {
+		mockFetch.restore();
+	});
+
+	it("shows a toast with the server's message on a slug conflict (and stays on /new)", async () => {
+		const { router, TestApp } = buildRouter();
+
+		await router.navigate({
+			to: "/content/$collection/new",
+			params: { collection: "posts" },
+			search: { locale: undefined },
+		});
+
+		const screen = await render(<TestApp />);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+
+		// The UI surfaces WHAT happened — the server's human-readable
+		// conflict message.
+		await expect.element(screen.getByText("Failed to save")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Slug 'test-post' already exists in collection 'posts'"))
+			.toBeInTheDocument();
+
+		// And with the error affordance: Kumo styles severity off `variant`
+		// (Base UI's `type` is inert for styling), and the toast icon only
+		// renders for a non-default variant.
+		await expect
+			.poll(() => document.querySelectorAll("[data-toast-icon]").length)
+			.toBeGreaterThan(0);
+
+		// And the failed create must not navigate anywhere.
+		expect(router.state.location.pathname).toContain("/content/posts/new");
+	});
+});
+
+// ---------------------------------------------------------------------------
 // Tests: ContentEditPage – autosave cache stays in sync
 // ---------------------------------------------------------------------------
 
@@ -408,6 +611,27 @@ describe("ContentEditPage – autosave cache patching", () => {
 						scheduledAt: null,
 						liveRevisionId: "rev_live",
 						draftRevisionId: "rev_draft",
+					},
+				},
+			})
+			.on("GET", "/_emdash/api/content/posts/post_2", {
+				data: {
+					item: {
+						id: "post_2",
+						type: "posts",
+						slug: "second-post",
+						status: "draft",
+						locale: "en",
+						translationGroup: null,
+						data: { title: "Second Post" },
+						authorId: null,
+						primaryBylineId: null,
+						createdAt: "2025-01-01T00:00:00Z",
+						updatedAt: "2025-01-01T00:00:00Z",
+						publishedAt: null,
+						scheduledAt: null,
+						liveRevisionId: null,
+						draftRevisionId: null,
 					},
 				},
 			})
@@ -471,5 +695,305 @@ describe("ContentEditPage – autosave cache patching", () => {
 			expect(screen.getByTestId("mock-title").element().textContent).toBe("Autosaved Title");
 			expect(screen.getByTestId("mock-slug").element().textContent).toBe("autosaved-title");
 		});
+	});
+
+	it("sends publish-date changes through the auxiliary update payload", async () => {
+		const fetchWithMocks = globalThis.fetch;
+		let updateBody: Record<string, unknown> | undefined;
+		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (init?.method === "PUT" && url.includes("/content/posts/post_1")) {
+				if (typeof init.body !== "string") throw new TypeError("Expected a JSON request body");
+				updateBody = JSON.parse(init.body) as Record<string, unknown>;
+			}
+			return fetchWithMocks(input, init);
+		}) as typeof fetch;
+
+		try {
+			const { router, TestApp } = buildRouter();
+			await router.navigate({
+				to: "/content/$collection/$id",
+				params: { collection: "posts", id: "post_1" },
+			});
+			const screen = await render(<TestApp />);
+			await waitFor(() => {
+				expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+			});
+
+			await screen.getByRole("button", { name: "Trigger Publish Date Sync" }).click();
+
+			await waitFor(() => {
+				expect(updateBody).toEqual({ publishedAt: "2020-06-01T08:45:00.000Z" });
+			});
+		} finally {
+			globalThis.fetch = fetchWithMocks;
+		}
+	});
+
+	it("keeps publish-date editing disabled while its update remains pending", async () => {
+		const fetchWithMocks = globalThis.fetch;
+		let releasePublishedAt: (() => void) | undefined;
+		let seoRequestSeen = false;
+		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (init?.method !== "PUT" || !url.includes("/content/posts/post_1")) {
+				return fetchWithMocks(input, init);
+			}
+			if (typeof init.body !== "string") throw new TypeError("Expected a JSON request body");
+			const body = JSON.parse(init.body) as Record<string, unknown>;
+			const response = fetchWithMocks(input, init);
+			if (body.publishedAt !== undefined) {
+				return new Promise<Response>((resolve) => {
+					releasePublishedAt = () => void response.then(resolve);
+				});
+			}
+			seoRequestSeen = body.seo !== undefined;
+			return response;
+		}) as typeof fetch;
+
+		try {
+			const { router, TestApp } = buildRouter();
+			await router.navigate({
+				to: "/content/$collection/$id",
+				params: { collection: "posts", id: "post_1" },
+			});
+			const screen = await render(<TestApp />);
+			await waitFor(() => {
+				expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+			});
+
+			const publishDateButton = screen.getByRole("button", {
+				name: "Trigger Publish Date Sync",
+			});
+			await publishDateButton.click();
+			await expect.element(publishDateButton).toBeDisabled();
+
+			await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+			await waitFor(() => {
+				expect(seoRequestSeen).toBe(true);
+			});
+			await expect.element(publishDateButton).toBeDisabled();
+		} finally {
+			releasePublishedAt?.();
+			globalThis.fetch = fetchWithMocks;
+		}
+	});
+
+	it("does not report auxiliary writes as saving; editor saves still do", async () => {
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		// Hold every PUT open so the mutation's pending window is observable.
+		const fetchWithMocks = globalThis.fetch;
+		let resolvePut: (() => void) | undefined;
+		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (init?.method === "PUT" && url.includes("/content/posts/post_1")) {
+				return new Promise<Response>((resolve) => {
+					resolvePut = () =>
+						resolve(
+							new Response(
+								JSON.stringify({
+									data: {
+										item: {
+											id: "post_1",
+											type: "posts",
+											slug: "published-slug",
+											status: "draft",
+											locale: "en",
+											data: { title: "Published Title" },
+											updatedAt: "2025-01-02T00:00:00Z",
+											draftRevisionId: "rev_draft",
+										},
+									},
+								}),
+								{ status: 200, headers: { "Content-Type": "application/json" } },
+							),
+						);
+				});
+			}
+			return fetchWithMocks(input, init);
+		}) as typeof fetch;
+
+		try {
+			// Auxiliary write (SEO): the Save control must stay idle while it flies.
+			await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
+			expect(screen.getByTestId("manual-save-blocked").element().textContent).toBe("blocked");
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }))
+				.toBeDisabled();
+			resolvePut?.();
+			resolvePut = undefined;
+			await waitFor(() => {
+				expect(screen.getByTestId("manual-save-blocked").element().textContent).toBe("ready");
+			});
+
+			// Editor save: the same mutation with source "editor" must report saving.
+			await screen.getByRole("button", { name: "Save", exact: true }).click();
+			await waitFor(() => {
+				expect(screen.getByTestId("is-saving").element().textContent).toBe("saving");
+				expect(screen.getByTestId("manual-save-blocked").element().textContent).toBe("blocked");
+			});
+			resolvePut?.();
+			await waitFor(() => {
+				expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
+			});
+		} finally {
+			globalThis.fetch = fetchWithMocks;
+		}
+	});
+
+	it("keeps editor save feedback visual without strengthening main's operation gating", async () => {
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		const fetchWithMocks = globalThis.fetch;
+		const resolvers: (() => void)[] = [];
+		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (init?.method === "PUT" && url.includes("/content/posts/post_1")) {
+				return new Promise<Response>((resolve) => {
+					resolvers.push(() =>
+						resolve(
+							new Response(
+								JSON.stringify({
+									data: {
+										item: {
+											id: "post_1",
+											type: "posts",
+											slug: "published-slug",
+											status: "draft",
+											locale: "en",
+											data: { title: "Published Title" },
+											updatedAt: "2025-01-02T00:00:00Z",
+											draftRevisionId: "rev_draft",
+										},
+									},
+								}),
+								{ status: 200, headers: { "Content-Type": "application/json" } },
+							),
+						),
+					);
+				});
+			}
+			return fetchWithMocks(input, init);
+		}) as typeof fetch;
+
+		try {
+			await screen.getByRole("button", { name: "Save", exact: true }).click();
+			await waitFor(() => {
+				expect(screen.getByTestId("is-saving").element().textContent).toBe("saving");
+			});
+
+			// Auxiliary write lands while the editor save is still in flight.
+			await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			expect(screen.getByTestId("is-saving").element().textContent).toBe("saving");
+
+			// Main's shared mutation observer follows the latest auxiliary write.
+			// When it settles, operation gating becomes idle even though the older
+			// editor request is still running; feedback remains visual-only.
+			expect(resolvers).toHaveLength(2);
+			resolvers[1]?.();
+			await waitFor(() => {
+				expect(screen.getByTestId("manual-save-blocked").element().textContent).toBe("ready");
+			});
+			expect(screen.getByTestId("is-saving").element().textContent).toBe("saving");
+			await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
+
+			resolvers[0]?.();
+			await waitFor(() => {
+				expect(screen.getByTestId("is-saving").element().textContent).toBe("idle");
+			});
+		} finally {
+			globalThis.fetch = fetchWithMocks;
+		}
+	});
+
+	it("does not deliver an old entry's autosave completion to the current entry", async () => {
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		const fetchWithMocks = globalThis.fetch;
+		let resolveFirstAutosave: (() => void) | undefined;
+		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (init?.method === "PUT" && url.includes("/content/posts/post_1")) {
+				return new Promise<Response>((resolve) => {
+					resolveFirstAutosave = () =>
+						resolve(
+							new Response(
+								JSON.stringify({
+									data: {
+										item: {
+											id: "post_1",
+											type: "posts",
+											slug: "autosaved-title",
+											status: "draft",
+											locale: "en",
+											data: { title: "Autosaved Title" },
+											updatedAt: "2025-01-02T00:00:00Z",
+											draftRevisionId: "rev_draft",
+										},
+									},
+								}),
+								{ status: 200, headers: { "Content-Type": "application/json" } },
+							),
+						);
+				});
+			}
+			return fetchWithMocks(input, init);
+		}) as typeof fetch;
+
+		try {
+			await screen.getByRole("button", { name: "Trigger Draft Sync" }).click();
+			await router.navigate({
+				to: "/content/$collection/$id",
+				params: { collection: "posts", id: "post_2" },
+			});
+			await waitFor(() => {
+				expect(screen.getByTestId("mock-title").element().textContent).toBe("Second Post");
+			});
+			expect(screen.getByTestId("manual-save-blocked").element().textContent).toBe("ready");
+			expect(screen.getByTestId("autosave-blocked").element().textContent).toBe("blocked");
+			await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
+
+			resolveFirstAutosave?.();
+			await waitFor(() => {
+				expect(screen.getByTestId("autosave-blocked").element().textContent).toBe("ready");
+			});
+
+			expect(screen.getByTestId("autosave-completion-token").element().textContent).toBe("0");
+		} finally {
+			globalThis.fetch = fetchWithMocks;
+		}
 	});
 });

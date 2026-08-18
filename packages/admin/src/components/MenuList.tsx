@@ -8,7 +8,7 @@ import { Button, Dialog, Input, Toast } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react";
+import { Plus, Pencil, Trash } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -16,6 +16,7 @@ import * as React from "react";
 
 import { fetchMenus, createMenu, deleteMenu } from "../lib/api";
 import { fetchManifest } from "../lib/api/client.js";
+import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
@@ -100,8 +101,10 @@ export function MenuList() {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between gap-4 flex-wrap">
 				<div>
-					<h1 className="text-3xl font-bold">{t`Menus`}</h1>
-					<p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Menus`}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+						{t`Manage navigation menus for your site`}
+					</p>
 				</div>
 				<div className="flex items-center gap-2">
 					{i18n && activeLocale ? (
@@ -182,7 +185,7 @@ export function MenuList() {
 
 			{!menus || menus.length === 0 ? (
 				<div className="border rounded-lg p-12 text-center">
-					<ListIcon className="mx-auto h-12 w-12 text-kumo-subtle mb-4" />
+					<ADMIN_NAV_ICONS.menus className="mx-auto h-12 w-12 text-kumo-subtle mb-4" />
 					<h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3>
 					<p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p>
 					<Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}>

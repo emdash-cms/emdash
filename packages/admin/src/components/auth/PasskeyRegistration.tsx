@@ -348,7 +348,7 @@ export function PasskeyRegistration({
 
 			{/* Success message */}
 			{state.status === "success" && (
-				<div className="rounded-lg bg-green-500/10 p-4 text-sm text-green-700 dark:text-green-400">
+				<div className="rounded-lg bg-kumo-success/10 p-4 text-sm text-kumo-success">
 					{t`Passkey registered successfully!`}
 				</div>
 			)}

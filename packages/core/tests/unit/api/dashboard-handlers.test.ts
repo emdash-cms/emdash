@@ -3,7 +3,9 @@ import { describe, it, expect, afterEach } from "vitest";
 
 import { handleDashboardStats } from "../../../src/api/handlers/dashboard.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
+import { SCHEDULER_HEARTBEAT_OPTION } from "../../../src/scheduler-health.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createPostFixture, createPageFixture } from "../../utils/fixtures.js";
 import {
@@ -59,6 +61,7 @@ describe("Dashboard Handlers", () => {
 			expect(postStats!.total).toBe(3);
 			expect(postStats!.published).toBe(2);
 			expect(postStats!.draft).toBe(1);
+			expect(postStats!.scheduled).toBe(0);
 
 			const pageStats = collections.find((c) => c.slug === "page");
 			expect(pageStats).toBeDefined();
@@ -66,6 +69,81 @@ describe("Dashboard Handlers", () => {
 			expect(pageStats!.total).toBe(1);
 			expect(pageStats!.published).toBe(0);
 			expect(pageStats!.draft).toBe(1);
+			expect(pageStats!.scheduled).toBe(0);
+		});
+
+		it("counts entries with pending schedules in collection stats", async () => {
+			db = await setupTestDatabaseWithCollections();
+			const contentRepo = new ContentRepository(db);
+
+			const draftScheduled = await contentRepo.create(
+				createPostFixture({ slug: "draft-scheduled" }),
+			);
+			await contentRepo.schedule(
+				"post",
+				draftScheduled.id,
+				new Date(Date.now() + 86_400_000).toISOString(),
+			);
+
+			const publishedScheduled = await contentRepo.create(
+				createPostFixture({ slug: "published-scheduled" }),
+			);
+			await contentRepo.publish("post", publishedScheduled.id);
+			await contentRepo.schedule(
+				"post",
+				publishedScheduled.id,
+				new Date(Date.now() + 172_800_000).toISOString(),
+			);
+
+			await contentRepo.create(createPostFixture({ slug: "archived", status: "archived" }));
+
+			const result = await handleDashboardStats(db);
+
+			expect(result.success).toBe(true);
+			const postStats = result.data!.collections.find((c) => c.slug === "post");
+			expect(postStats).toBeDefined();
+			expect(postStats!.total).toBe(3);
+			expect(postStats!.scheduled).toBe(2);
+		});
+
+		it("reports an unknown scheduler with overdue content when no heartbeat exists", async () => {
+			db = await setupTestDatabaseWithCollections();
+			const contentRepo = new ContentRepository(db);
+			const now = new Date("2026-08-16T12:00:00.000Z");
+			const post = await contentRepo.create(createPostFixture());
+			await contentRepo.update("post", post.id, {
+				status: "scheduled",
+				scheduledAt: "2026-08-16T11:59:00.000Z",
+			});
+
+			const result = await handleDashboardStats(db, now);
+
+			expect(result.success).toBe(true);
+			expect(result.data!.schedulerHealth).toEqual({
+				status: "unknown",
+				lastCompletedAt: null,
+			});
+			expect(
+				result.data!.collections.find((collection) => collection.slug === "post"),
+			).toMatchObject({
+				overdueScheduled: 1,
+			});
+		});
+
+		it("reports stale and healthy scheduler heartbeats", async () => {
+			db = await setupTestDatabase();
+			const options = new OptionsRepository(db);
+			const now = new Date("2026-08-16T12:00:00.000Z");
+			await options.set(SCHEDULER_HEARTBEAT_OPTION, "2026-08-16T11:50:00.000Z");
+
+			const stale = await handleDashboardStats(db, now);
+			expect(stale.success).toBe(true);
+			expect(stale.data!.schedulerHealth.status).toBe("stale");
+
+			await options.set(SCHEDULER_HEARTBEAT_OPTION, "2026-08-16T11:58:00.000Z");
+			const healthy = await handleDashboardStats(db, now);
+			expect(healthy.success).toBe(true);
+			expect(healthy.data!.schedulerHealth.status).toBe("healthy");
 		});
 
 		it("returns recent items across collections", async () => {

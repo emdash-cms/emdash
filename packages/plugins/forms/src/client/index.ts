@@ -31,10 +31,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function parseSubmitResponse(body: unknown): SubmitResponse {
 	if (isRecord(body) && isRecord(body.data)) {
-		return body.data as SubmitResponse;
+		return body.data;
 	}
 
-	return isRecord(body) ? (body as SubmitResponse) : {};
+	return isRecord(body) ? body : {};
 }
 
 let saveTimers = new Map<string, ReturnType<typeof setTimeout>>();

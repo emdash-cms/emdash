@@ -1,0 +1,17 @@
+{
+	"$type": "com.emdashcms.experimental.package.release",
+	"package": "gallery",
+	"version": "1.2.3",
+	"artifacts": {
+		"package": {
+			"url": "https://github.com/example/gallery/releases/download/v1.2.3/gallery.tar.gz",
+			"checksum": "bciqkkpvkbtfcwq6kjkbq3kgjxe5j6ihzkxlfxkzqhwzaaaa3wkbq3a"
+		}
+	},
+	"extensions": {
+		"com.emdashcms.experimental.package.releaseExtension": {
+			"$type": "com.emdashcms.experimental.package.releaseExtension",
+			"declaredAccess": {}
+		}
+	}
+}

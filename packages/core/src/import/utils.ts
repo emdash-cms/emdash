@@ -4,8 +4,10 @@
  * Common constants and functions used across all WordPress import sources.
  */
 
+import type { PortableTextBlock } from "@emdash-cms/gutenberg-to-portable-text";
 import mime from "mime/lite";
 
+import { RESERVED_FIELD_SLUGS } from "../schema/types.js";
 import type { ImportFieldDef, CollectionSchemaStatus } from "./types.js";
 
 // =============================================================================
@@ -181,6 +183,211 @@ export function inferMetaType(
 	if (["0", "1", "true", "false"].includes(value)) return "boolean";
 
 	return "string";
+}
+
+// =============================================================================
+// Plugin Bookkeeping Meta
+// =============================================================================
+
+/**
+ * Meta prefixes written by well-known WordPress plugins as operational
+ * bookkeeping (sync state, counters, cache keys) — not content. Without
+ * this filter, a mature site's analysis suggests dozens of junk fields
+ * per post type and the real content fields drown in them.
+ *
+ * ponytail: curated list of the plugins we've seen in the wild, not a
+ * taxonomy of the WP ecosystem. Unknown plugins' meta still gets through;
+ * extend the list as real sites surface new offenders.
+ */
+const PLUGIN_META_PREFIXES = [
+	"aawp_", // AAWP (Amazon affiliate)
+	"algolia_", // Algolia / WP Search with Algolia
+	"amazon_polly_", // Amazon Polly
+	"ampforwp_", // AMP for WP
+	"classifai_", // ClassifAI
+	"essb_", // Easy Social Share Buttons
+	"eg_", // Essential Grid
+	"gnpub_", // Google News publisher tools
+	"jetpack_", // Jetpack
+	"mashsb_", // MashShare
+	"monsterinsights_", // MonsterInsights
+	"onesignal_", // OneSignal push
+	"penci_", // Penci themes
+	"perfmatters_", // Perfmatters
+	"pys_", // PixelYourSite
+	"rank_math_", // Rank Math internals (title/description go through the SEO pass)
+	"rp4wp_", // Related Posts for WP
+	"saswp_", // Schema & Structured Data for WP
+	"sbg_", // Simple Blog Grid
+	"snap_", // SNAP auto-poster
+	"spay_", // Simple Pay
+	"tie_", // TieLabs themes
+	"wl_", // WordLift
+	"wpil_", // Link Whisper
+	"wprm_", // WP Recipe Maker internals
+	"wpswa_", // WP Search with Algolia
+	"wpuf_", // WP User Frontend
+	"yarpp_", // YARPP
+];
+
+/** Exact meta keys that are plugin/core bookkeeping, not content. */
+const PLUGIN_META_KEYS = new Set([
+	"entity_same_as", // WordLift
+	"exclude_from_search", // search exclusion plugins
+	"footnotes", // Gutenberg core footnotes store
+	"inline_featured_image", // inline featured image plugin
+	"os_meta", // theme option stores
+	"thirstydata", // ThirstyAffiliates
+]);
+
+/**
+ * Check whether a meta key is well-known plugin bookkeeping that should
+ * not become a content field. Hyphens are normalized to underscores
+ * before matching (e.g. `ampforwp-amp-on-off`).
+ */
+export function isPluginBookkeepingMeta(key: string): boolean {
+	const normalized = key.replaceAll("-", "_");
+	if (PLUGIN_META_KEYS.has(normalized)) return true;
+	return PLUGIN_META_PREFIXES.some((prefix) => normalized.startsWith(prefix));
+}
+
+// =============================================================================
+// Field Slug Sanitization
+// =============================================================================
+
+const INVALID_FIELD_SLUG_CHARS = /[^a-z0-9_]+/g;
+const LEADING_NON_ALPHA_CHARS = /^[^a-z]+/;
+
+/**
+ * Sanitize a WordPress meta/ACF key into a valid EmDash field slug
+ * (`/^[a-z][a-z0-9_]*$/`, max 63 chars, not reserved).
+ *
+ * Must be applied consistently on both sides of an import: once when
+ * creating fields from the analysis, and again when matching incoming
+ * meta keys onto schema fields — otherwise keys like `my-field` create
+ * `my_field` but never receive values.
+ */
+export function sanitizeFieldSlug(key: string): string {
+	const sanitized = key
+		.toLowerCase()
+		.replace(INVALID_FIELD_SLUG_CHARS, "_")
+		.replace(LEADING_NON_ALPHA_CHARS, "")
+		.slice(0, 63);
+	if (!sanitized) return "field";
+	if (RESERVED_FIELD_SLUGS.includes(sanitized)) return `wp_${sanitized}`;
+	return sanitized;
+}
+
+// =============================================================================
+// Internal Link Relativization
+// =============================================================================
+
+const REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/g;
+const LEADING_WWW = /^www\./;
+
+/**
+ * Turn an absolute URL into a root-relative one when it points at the
+ * source site (www-insensitive). Returns null when the URL should be
+ * left alone: external links, non-http(s) schemes, and `/wp-content/`
+ * media files — those stay absolute so the later media pass can match
+ * them against its old-URL -> new-URL map.
+ */
+function relativizeUrl(url: string, sourceHost: string): string | null {
+	if (!url.startsWith("http://") && !url.startsWith("https://")) return null;
+	try {
+		const parsed = new URL(url);
+		if (parsed.hostname.replace(LEADING_WWW, "") !== sourceHost) return null;
+		if (parsed.pathname.startsWith("/wp-content/")) return null;
+		return `${parsed.pathname}${parsed.search}${parsed.hash}` || "/";
+	} catch {
+		return null;
+	}
+}
+
+function relativizeMarkDefs(
+	markDefs: Array<{ _type: string; [key: string]: unknown }> | undefined,
+	sourceHost: string,
+): void {
+	for (const def of markDefs ?? []) {
+		if (def._type === "link" && typeof def.href === "string") {
+			def.href = relativizeUrl(def.href, sourceHost) ?? def.href;
+		}
+	}
+}
+
+/**
+ * Rewrite internal links in imported content to root-relative URLs, in
+ * place. Without this, imported posts keep linking back to the old
+ * WordPress domain (e.g. `https://oldsite.com/companies/google/`)
+ * instead of staying on the new site.
+ *
+ * ponytail: path structures are kept as-is (WP permalink /2024/05/slug/
+ * stays /2024/05/slug/) — mapping old paths onto the new site's routes
+ * is the planned permalink->redirect-map feature.
+ */
+export function relativizeContentLinks(blocks: PortableTextBlock[], siteUrl: string): void {
+	let sourceHost: string;
+	try {
+		sourceHost = new URL(siteUrl).hostname.replace(LEADING_WWW, "");
+	} catch {
+		return;
+	}
+	// Raw HTML in the wild uses double-quoted, single-quoted, and unquoted
+	// href values; the backreference \1 matches the closing quote (or
+	// nothing, for unquoted). Rewritten links are normalized to href="...".
+	const hrefPattern = new RegExp(
+		`href=(["']?)https?://(?:www\\.)?${sourceHost.replace(REGEX_SPECIALS, "\\$&")}(/[^"'\\s>]*)?\\1`,
+		"gi",
+	);
+
+	for (const block of blocks) {
+		switch (block._type) {
+			case "block":
+				relativizeMarkDefs(block.markDefs, sourceHost);
+				break;
+			case "image":
+				// asset.url stays absolute (media pass), only the click-through link
+				if (block.link) block.link = relativizeUrl(block.link, sourceHost) ?? block.link;
+				break;
+			case "table":
+				for (const row of block.rows) {
+					for (const cell of row.cells) relativizeMarkDefs(cell.markDefs, sourceHost);
+				}
+				break;
+			case "columns":
+				for (const column of block.columns) relativizeContentLinks(column.content, siteUrl);
+				break;
+			case "cover":
+				relativizeContentLinks(block.content, siteUrl);
+				break;
+			case "button":
+				if (block.url) block.url = relativizeUrl(block.url, sourceHost) ?? block.url;
+				break;
+			case "buttons":
+				for (const button of block.buttons) {
+					if (button.url) button.url = relativizeUrl(button.url, sourceHost) ?? button.url;
+				}
+				break;
+			case "htmlBlock":
+				block.html = block.html.replace(
+					hrefPattern,
+					(_m, _quote: string, path: string | undefined) => {
+						return `href="${path || "/"}"`;
+					},
+				);
+				break;
+			// URL-less or media-only blocks: media URLs are the media pass's job
+			case "code":
+			case "embed":
+			case "gallery":
+			case "break":
+			case "file":
+			case "pullquote":
+				break;
+			default:
+				block satisfies never;
+		}
+	}
 }
 
 // =============================================================================

@@ -55,6 +55,19 @@ database: d1({ binding: "DB" });
 
 See [Database Options](/deployment/database/) for details.
 
+### `migrations`
+
+**Optional.** Controls runtime handling of EmDash's internal database migrations. Omitting this option defaults to `{ runtime: "auto" }`.
+
+```js
+migrations: {
+	runtime: "check", // "auto" | "check" | "manual"
+	dev: "auto",     // optional development override
+}
+```
+
+`auto` checks and applies pending migrations, `check` returns 503 when migrations known to the running build are pending, and `manual` performs no runtime migration query. `EMDASH_MIGRATIONS_MODE` overrides the effective runtime mode. See [Manage Core Database Migrations](/deployment/core-migrations/) before adopting `check` or `manual`.
+
 ### `storage`
 
 **Required.** Media storage adapter configuration. Choose one adapter:
@@ -103,6 +116,56 @@ objectCache: memoryCache();
 ```
 
 See [Object Cache](/deployment/object-cache/) for setup and options.
+
+### `middleware.outer`
+
+**Optional.** Registers an Astro middleware module outside the complete EmDash middleware stack. Because the integration registers it with Astro `order: "pre"`, it also runs before middleware defined in `src/middleware.ts`. Use it for request gates or full-response caches that must avoid runtime and database initialization on a hit, or for response headers that depend on EmDash's final HTML.
+
+```js title="astro.config.mjs"
+emdash({
+	middleware: {
+		outer: "./src/outer-middleware.ts",
+	},
+});
+```
+
+The execution order is:
+
+1. The outer middleware runs up to `await next()`.
+2. EmDash initializes its runtime and database, then runs setup, authentication, and request-context middleware.
+3. The Astro route renders.
+4. EmDash applies response mutations, including visual-editing HTML and security/timing headers.
+5. `next()` resolves to the outer middleware with that final response.
+
+Before calling `next()`, the middleware has the normal Astro request and platform execution context, but `locals.emdash`, `locals.user`, the database, and request-scoped EmDash state are unavailable. An early `Response` skips EmDash entirely, so it must include any security and cache headers it needs. After `next()` resolves, it is safe to finalize CSP nonces, cache the complete body, or set `Content-Length`. If the middleware changes the body, remove or recompute any existing `Content-Length` header.
+
+The hook uses Astro's middleware API on both Node and Cloudflare. This minimal Cloudflare Cache API example caches only anonymous HTML responses and returns hits before EmDash initialization:
+
+```ts title="src/outer-middleware.ts"
+import { waitUntil } from "cloudflare:workers";
+import { defineMiddleware } from "astro:middleware";
+
+export const onRequest = defineMiddleware(async ({ request }, next) => {
+	if (request.method !== "GET" || request.headers.has("cookie")) {
+		return next();
+	}
+
+	const cacheKey = new Request(request.url, { method: "GET" });
+	const cached = await caches.default.match(cacheKey);
+	if (cached) return cached;
+
+	const response = await next();
+	const isHtml = response.headers.get("content-type")?.includes("text/html");
+	const isPrivate = response.headers.get("cache-control")?.includes("no-store");
+	if (response.ok && isHtml && !isPrivate) {
+		waitUntil(caches.default.put(cacheKey, response.clone()));
+	}
+
+	return response;
+});
+```
+
+On Node, use the same middleware shape with a Node-compatible cache such as Redis. Cache keys and bypass rules must include every request property that changes the rendered response.
 
 ### `plugins`
 
@@ -224,9 +287,21 @@ emdash({
 
 When `siteUrl` is not set in config, EmDash checks environment variables in order: `EMDASH_SITE_URL`, then `SITE_URL`. This is useful for container deployments where the public URL is set at runtime.
 
+On **Cloudflare Workers**, the env-var fallback reads `process.env`, which is empty unless the `nodejs_compat_populate_process_env` compatibility flag is enabled. To use the env var instead of the config option there, set both:
+
+```jsonc
+// wrangler.jsonc
+{
+	"compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+	"vars": { "EMDASH_SITE_URL": "https://cms.example.com" },
+}
+```
+
 <Aside type="tip">
 	`siteUrl` is the single option for the public origin. It covers passkeys and all other
-	origin-dependent features.
+	origin-dependent features. It does not change `Astro.url` in your own templates — set Astro's
+	[`site`](https://docs.astro.build/en/reference/configuration-reference/#site) option for
+	canonical/OG URLs you build yourself.
 </Aside>
 
 #### Multi-origin passkey verification
@@ -367,6 +442,33 @@ emdash({
 
 Uploads that exceed the configured limit are rejected with a `413 Payload Too Large` response on the direct upload path, or a `400 Validation Error` on the signed-URL path.
 
+### `toolbar`
+
+**Optional.** Controls how the editor toolbar (the floating pill on public pages) is delivered. Defaults to `"server"`.
+
+| Value | Behavior |
+| ----- | -------- |
+| `"server"` (default) | The toolbar is injected server-side into every HTML response rendered for an authenticated editor. |
+| `"client"` | Public HTML is identical for every visitor. A tiny bootstrap script shows an "Edit" pill in browsers that have logged into the admin; clicking it verifies the session and reloads the page with an `_edit` query param, which is always rendered fresh (never cached) with the full toolbar. |
+| `false` | Never render the toolbar or the bootstrap script. |
+
+```js
+emdash({
+	toolbar: "client",
+})
+```
+
+Use `"client"` when your public HTML is served through a shared cache (Cloudflare Cache Everything / [Workers Cache](https://developers.cloudflare.com/workers/cache/), Fastly, Varnish, …). With server-side injection, an editor browsing the public site receives the cached anonymous variant — without the toolbar — whenever an anonymous visitor primed the cache first, so the toolbar appears and disappears with cache state. In client mode nothing session-specific is injected into shareable HTML, so the cache stays fully effective and the toolbar is reliable.
+
+Notes on `"client"` mode:
+
+- Logged-out visitors who open a shared `?_edit` URL are redirected to the canonical URL, so the param can't leak drafts or prime extra cache entries with page content.
+- The "logged in" signal is a non-secret `localStorage` flag set by the admin; the pill verifies the real session before entering the edit view.
+- The bootstrap is a small inline `<script>`. If your site sends a strict `Content-Security-Policy` without `'unsafe-inline'`, add a hash for it — the same applies to the server-injected toolbar.
+- EmDash injects nothing session-specific — but if your own templates branch on `Astro.locals.user` (e.g. an "Admin" nav link for logged-in users), that variance is still in your HTML and still fragments the cache.
+
+In every mode, the toolbar can be dismissed in the browser via its × button (per-browser, until the next time an editor opens the admin). Preview and edit-mode responses always render server-side with `Cache-Control: private, no-store`.
+
 ### `experimental`
 
 **Optional.** Opt-in features whose behaviour or wire format may change, or be removed, in a minor release. Each field is independently enabled.
@@ -430,10 +532,11 @@ sqlite({ url: "file:./data.db" });
 
 libSQL database. The following example connects to a remote libSQL database:
 
-| Option      | Type     | Description                           |
-| ----------- | -------- | ------------------------------------- |
-| `url`       | `string` | Database URL                          |
-| `authToken` | `string` | Auth token (optional for local files) |
+| Option                  | Type     | Description                                                   |
+| ----------------------- | -------- | ------------------------------------------------------------- |
+| `url`                   | `string` | Database URL                                                  |
+| `authToken`             | `string` | Runtime auth token (optional for local files)                 |
+| `migrationAuthTokenEnv` | `string` | Migration token variable name (default `TURSO_AUTH_TOKEN`)    |
 
 ```js
 libsql({
@@ -457,6 +560,7 @@ PostgreSQL database with connection pooling.
 | `ssl`              | `boolean` | Enable SSL                           |
 | `pool.min`         | `number`  | Minimum pool size (default: 0)       |
 | `pool.max`         | `number`  | Maximum pool size (default: 10)      |
+| `migrationConnectionStringEnv` | `string` | Migration connection-string variable name (default `DATABASE_URL`) |
 
 The following example connects with a connection string:
 
@@ -486,8 +590,10 @@ d1({ binding: "DB", session: "auto" });
 
 When `session` is `"auto"` or `"primary-first"`, EmDash uses the D1 Sessions API to route read queries to nearby replicas. Authenticated users get bookmark-based read-your-writes consistency. See [Database Options — Read Replicas](/deployment/database/#read-replicas) for details.
 
-<Aside type="caution">
-	D1 requires migrations via Wrangler CLI. DDL statements are not allowed at runtime.
+<Aside>
+	D1 core migrations run automatically by default or through the deployment migration manifest.
+	Provision the D1 database separately; see [Manage Core Database
+	Migrations](/deployment/core-migrations/).
 </Aside>
 
 ## Storage adapters
@@ -646,6 +752,7 @@ EmDash respects these environment variables:
 | `EMDASH_PREVIEW_SECRET`   | Optional override for preview HMAC secret. When unset, a stable per-site value is generated and stored in the database. |
 | `EMDASH_IP_SALT`          | Optional override for the commenter-IP hash salt. When unset, a stable per-site value is generated and stored in the database. |
 | `EMDASH_AUTH_SECRET`      | Legacy. Used as the IP-salt source if set; existing installs should keep this to preserve stable commenter-IP hashes across upgrade. |
+| `EMDASH_TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret key (falls back to `TURNSTILE_SECRET_KEY`). When set, comment submissions must include a valid Turnstile token — pair it with the `turnstileSiteKey` prop on `<CommentForm>`. |
 | `EMDASH_URL`              | Remote EmDash URL for schema sync         |
 
 Generate an encryption key with the following command:

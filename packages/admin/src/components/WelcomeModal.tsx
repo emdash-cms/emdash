@@ -4,11 +4,11 @@
  * Shown to new users on their first login to welcome them to EmDash.
  */
 
-import { Button, Dialog } from "@cloudflare/kumo";
+import { Badge, Button, Dialog } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { X } from "@phosphor-icons/react";
+import { UserCircleIcon, X } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -34,6 +34,12 @@ function roleDescriptor(role: number): MessageDescriptor {
 	if (role >= 30) return MSG_ROLE_AUTHOR;
 	if (role >= 20) return MSG_ROLE_CONTRIBUTOR;
 	return MSG_ROLE_SUBSCRIBER;
+}
+
+function roleBadgeVariant(role: number): React.ComponentProps<typeof Badge>["variant"] {
+	if (role >= 50) return "primary";
+	if (role >= 30) return "secondary";
+	return "outline";
 }
 
 const MSG_ACCOUNT_CREATED = msg`Your account has been created successfully.`;
@@ -98,49 +104,54 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 	return (
 		<Dialog.Root open={open} onOpenChange={(isOpen: boolean) => !isOpen && handleGetStarted()}>
 			<Dialog className="p-6 sm:max-w-md">
-				<div className="flex items-start justify-between gap-4">
-					<div className="flex-1" />
+				<div className="mb-5 flex items-center justify-between gap-4">
+					<LogoIcon className="h-8 w-8" />
 					<Dialog.Close
-						aria-label={t(MSG_CLOSE)}
 						render={(props) => (
 							<Button
 								{...props}
 								variant="ghost"
 								shape="square"
+								size="sm"
+								icon={<X />}
 								aria-label={t(MSG_CLOSE)}
-								className="absolute end-4 top-4"
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">{t(MSG_CLOSE)}</span>
-							</Button>
+							/>
 						)}
 					/>
 				</div>
-				<div className="flex flex-col space-y-1.5 text-center sm:text-center">
-					<div className="mx-auto mb-4">
-						<LogoIcon className="h-16 w-16" />
+
+				<Dialog.Title className="text-start text-xl font-semibold leading-tight">
+					{t(titleDescriptor)}
+				</Dialog.Title>
+				<Dialog.Description className="mt-1 text-start text-sm leading-5 text-pretty text-kumo-subtle">
+					{t(MSG_ACCOUNT_CREATED)}
+				</Dialog.Description>
+
+				<div className="mt-5 space-y-3 border-t border-kumo-line pt-5 text-start">
+					<div className="flex items-center gap-2">
+						<span className="text-sm text-kumo-subtle">{t(MSG_YOUR_ROLE)}</span>
+						<Badge variant={roleBadgeVariant(userRole)} className="gap-1">
+							<UserCircleIcon weight="fill" aria-hidden="true" />
+							{roleLabel}
+						</Badge>
 					</div>
-					<Dialog.Title className="text-2xl font-semibold leading-none tracking-tight">
-						{t(titleDescriptor)}
-					</Dialog.Title>
-					<Dialog.Description className="text-base text-kumo-subtle">
-						{t(MSG_ACCOUNT_CREATED)}
-					</Dialog.Description>
+					<p className="text-sm leading-5 text-pretty text-kumo-default">
+						{t(scopeDescriptor(isAdmin, userRole))}
+					</p>
+					{isAdmin && (
+						<p className="text-sm leading-5 text-pretty text-kumo-subtle">{t(MSG_ADMIN_INVITE)}</p>
+					)}
 				</div>
 
-				<div className="space-y-4 py-4">
-					<div className="rounded-lg bg-kumo-tint p-4">
-						<div className="text-sm font-medium">{t(MSG_YOUR_ROLE)}</div>
-						<div className="text-lg font-semibold text-kumo-brand">{roleLabel}</div>
-						<p className="text-sm text-kumo-subtle mt-1">{t(scopeDescriptor(isAdmin, userRole))}</p>
-					</div>
-
-					{isAdmin && <p className="text-sm text-kumo-subtle">{t(MSG_ADMIN_INVITE)}</p>}
-				</div>
-
-				<div className="flex flex-col-reverse sm:flex-row sm:justify-center sm:space-x-2">
-					<Button onClick={handleGetStarted} disabled={dismissMutation.isPending} size="lg">
-						{dismissMutation.isPending ? t`Loading...` : t`Get Started`}
+				<div className="mt-5 border-t border-kumo-line pt-5">
+					<Button
+						variant="primary"
+						size="lg"
+						className="w-full justify-center"
+						onClick={handleGetStarted}
+						loading={dismissMutation.isPending}
+					>
+						{t`Get Started`}
 					</Button>
 				</div>
 			</Dialog>

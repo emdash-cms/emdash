@@ -1,6 +1,7 @@
 import { type Kysely, sql } from "kysely";
 import { type Migration, type MigrationProvider, Migrator } from "kysely/migration";
 
+import { MIGRATION_LOCK_BUSY_MESSAGE } from "../pg-migration-lock.js";
 import type { Database } from "../types.js";
 // Import migrations statically for bundling
 import * as m001 from "./001_initial.js";
@@ -52,6 +53,26 @@ import * as m047 from "./047_restore_taxonomy_parent_index.js";
 import * as m048 from "./048_restore_content_taxonomies_term_index.js";
 import * as m049 from "./049_taxonomies_name_locale_index.js";
 import * as m050 from "./050_media_usage_index_status.js";
+import * as m051 from "./051_content_taxonomies_denorm.js";
+import * as m052 from "./052_media_usage_read_index.js";
+import * as m053 from "./053_plugin_mcp_tools.js";
+import * as m054 from "./054_media_upload_attempts.js";
+import * as m055 from "./055_content_translation_group_locale_index.js";
+import * as m056 from "./056_taxonomy_term_sort_order.js";
+import * as m057 from "./057_collection_hidden.js";
+import * as m058 from "./058_collection_sort_order.js";
+import * as m059 from "./059_revision_prune_queue.js";
+import * as m060 from "./060_collection_admin_config.js";
+import * as m061 from "./061_media_usage_cleanup.js";
+import * as m062 from "./062_media_usage_cleanup_fence.js";
+import * as m063 from "./063_media_usage_incremental_work.js";
+import * as m064 from "./064_fts_plain_text.js";
+import * as m065 from "./065_media_usage_collection_deletion.js";
+import * as m066 from "./066_media_usage_reconciliation.js";
+import * as m067 from "./067_indexed_content_fields.js";
+import * as m068 from "./068_content_taxonomy_entry_groups.js";
+import * as m069 from "./069_collection_title_date_fields.js";
+import * as m070 from "./070_collection_routable.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -103,10 +124,33 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"048_restore_content_taxonomies_term_index": m048,
 	"049_taxonomies_name_locale_index": m049,
 	"050_media_usage_index_status": m050,
+	"051_content_taxonomies_denorm": m051,
+	"052_media_usage_read_index": m052,
+	"053_plugin_mcp_tools": m053,
+	"054_media_upload_attempts": m054,
+	"055_content_translation_group_locale_index": m055,
+	"056_taxonomy_term_sort_order": m056,
+	"057_collection_hidden": m057,
+	"058_collection_sort_order": m058,
+	"059_revision_prune_queue": m059,
+	"060_collection_admin_config": m060,
+	"061_media_usage_cleanup": m061,
+	"062_media_usage_cleanup_fence": m062,
+	"063_media_usage_incremental_work": m063,
+	"064_fts_plain_text": m064,
+	"065_media_usage_collection_deletion": m065,
+	"066_media_usage_reconciliation": m066,
+	"067_indexed_content_fields": m067,
+	"068_content_taxonomy_entry_groups": m068,
+	"069_collection_title_date_fields": m069,
+	"070_collection_routable": m070,
 });
 
+/** Ordered names from the statically registered migration set. */
+export const MIGRATION_NAMES: readonly string[] = Object.freeze(Object.keys(MIGRATIONS));
+
 /** Total number of registered migrations. Exported for use in tests. */
-export const MIGRATION_COUNT = Object.keys(MIGRATIONS).length;
+export const MIGRATION_COUNT = MIGRATION_NAMES.length;
 
 /**
  * Migration provider that uses statically imported migrations.
@@ -123,12 +167,42 @@ export interface MigrationStatus {
 	pending: string[];
 }
 
+export interface ExactMigrationStatus {
+	knownApplied: string[];
+	pending: string[];
+	unknownApplied: string[];
+}
+
+/**
+ * Thrown when another instance held the migration lock for the whole wait
+ * window. This is NOT a migration failure — the holder may simply be slow
+ * (e.g. many pending migrations over a remote Postgres connection) — so
+ * callers with failure-backoff logic (`getDatabase` in emdash-runtime.ts)
+ * exempt it: the next request waits again instead of backing off, and init
+ * recovers as soon as the holder finishes.
+ */
+export class ConcurrentMigrationTimeoutError extends Error {
+	constructor(waitMs: number) {
+		super(
+			`Timed out waiting for another instance's migrations: the migration lock was still held after ${waitMs}ms. ` +
+				"It may still be applying migrations, or its migration may be failing repeatedly.",
+		);
+		this.name = "ConcurrentMigrationTimeoutError";
+	}
+}
+
 /** Custom migration table name */
 const MIGRATION_TABLE = "_emdash_migrations";
 const MIGRATION_LOCK_TABLE = "_emdash_migrations_lock";
 
 export interface MigrationOptions {
 	migrationTableSchema?: string;
+	/**
+	 * Override how long to wait for a concurrent migrator to finish before
+	 * giving up. Defaults to MIGRATION_RACE_WAIT_MS; tests shorten it so the
+	 * give-up path doesn't take 10 seconds per case.
+	 */
+	raceWaitMs?: number;
 }
 
 function createMigrator(db: Kysely<Database>, options?: MigrationOptions): Migrator {
@@ -221,8 +295,8 @@ const MIGRATION_RACE_POLL_MS = 100;
  * built from `MIGRATION_TABLE` so a rename cannot drift.
  */
 const MIGRATION_TABLE_MISSING_PATTERN = new RegExp(
-	`(?:no such table:\\s*${escapeRegExp(MIGRATION_TABLE)}\\b` +
-		`|(?:relation|table)\\s+"?${escapeRegExp(MIGRATION_TABLE)}"?\\s+does(?:n't| not) exist\\b)`,
+	`(?:no such table:\\s*(?:[a-z][a-z0-9_]*\\.)?${escapeRegExp(MIGRATION_TABLE)}\\b` +
+		`|(?:relation|table)\\s+"?(?:[a-z][a-z0-9_]*\\.)?${escapeRegExp(MIGRATION_TABLE)}"?\\s+does(?:n't| not) exist\\b)`,
 	"i",
 );
 
@@ -260,8 +334,11 @@ async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | 
  * been migrated by a newer build still treats the wait as settled instead
  * of timing out.
  */
-async function waitForConcurrentMigrator(db: Kysely<Database>): Promise<boolean> {
-	const deadline = Date.now() + MIGRATION_RACE_WAIT_MS;
+async function waitForConcurrentMigrator(
+	db: Kysely<Database>,
+	waitMs: number = MIGRATION_RACE_WAIT_MS,
+): Promise<boolean> {
+	const deadline = Date.now() + waitMs;
 	while (Date.now() < deadline) {
 		const count = await getAppliedMigrationCount(db);
 		if (count !== null && count >= MIGRATION_COUNT) {
@@ -289,6 +366,43 @@ function deepErrorMessage(error: unknown): string {
 	} catch {
 		return String(error);
 	}
+}
+
+/**
+ * Read exact migration status without invoking Kysely's migration
+ * introspection. Registered names retain execution order; unknown database
+ * records are sorted so reports remain stable across dialects.
+ */
+export async function getExactMigrationStatus(
+	db: Kysely<Database>,
+	options?: MigrationOptions,
+): Promise<ExactMigrationStatus> {
+	const table = options?.migrationTableSchema
+		? sql`${sql.ref(options.migrationTableSchema)}.${sql.ref(MIGRATION_TABLE)}`
+		: sql.ref(MIGRATION_TABLE);
+
+	let rows: readonly { name: string }[];
+	try {
+		const result = await sql<{ name: string }>`SELECT name FROM ${table}`.execute(db);
+		rows = result.rows;
+	} catch (error) {
+		if (MIGRATION_TABLE_MISSING_PATTERN.test(deepErrorMessage(error))) {
+			return {
+				knownApplied: [],
+				pending: [...MIGRATION_NAMES],
+				unknownApplied: [],
+			};
+		}
+		throw error;
+	}
+
+	const appliedNames = new Set(rows.map((row) => row.name));
+	const knownApplied = MIGRATION_NAMES.filter((name) => appliedNames.has(name));
+	const pending = MIGRATION_NAMES.filter((name) => !appliedNames.has(name));
+	const knownNames = new Set(MIGRATION_NAMES);
+	const unknownApplied = [...appliedNames].filter((name) => !knownNames.has(name)).toSorted();
+
+	return { knownApplied, pending, unknownApplied };
 }
 
 /**
@@ -341,12 +455,24 @@ export async function runMigrations(
 		const failedMigration = results?.find((r) => r.status === "Error");
 
 		// Concurrent-migration race: another caller is applying (or just
-		// applied) the same migration. Wait for it to finish, then verify
-		// the schema is fully migrated and treat as success.
-		if (MIGRATION_RACE_PATTERN.test(msg)) {
-			const settled = await waitForConcurrentMigrator(db);
+		// applied) the same migration. SQLite/D1 surface it as the
+		// bookkeeping UNIQUE violation (their migration lock is a no-op);
+		// Postgres surfaces it as the fail-fast advisory try-lock reporting
+		// busy (see pg-migration-lock.ts). Either way: wait for the
+		// concurrent migrator to finish, then verify the schema is fully
+		// migrated and treat as success.
+		const lockBusy = msg.includes(MIGRATION_LOCK_BUSY_MESSAGE);
+		if (MIGRATION_RACE_PATTERN.test(msg) || lockBusy) {
+			const settled = await waitForConcurrentMigrator(db, options?.raceWaitMs);
 			if (settled) {
 				return { applied };
+			}
+			if (lockBusy) {
+				// The lock holder didn't finish within the wait window —
+				// either it's slow or its migration is failing. Surface a
+				// distinct error type instead of the raw sentinel message so
+				// callers can tell "still in progress" from "failed".
+				throw new ConcurrentMigrationTimeoutError(options?.raceWaitMs ?? MIGRATION_RACE_WAIT_MS);
 			}
 		}
 

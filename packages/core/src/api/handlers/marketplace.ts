@@ -24,6 +24,10 @@ import {
 } from "../../plugins/marketplace.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
+import {
+	removeAllPluginIndexes,
+	syncDeclaredStorageIndexes,
+} from "../../plugins/storage-indexes.js";
 import { normalizeCapabilities } from "../../plugins/types.js";
 import type { PluginManifest } from "../../plugins/types.js";
 import { EmDashStorageError } from "../../storage/types.js";
@@ -328,6 +332,7 @@ export async function handleMarketplaceInstall(
 		 * Skip the SANDBOX_NOT_AVAILABLE gate so the install can proceed.
 		 */
 		sandboxBypassed?: boolean;
+		confirmMcpTools?: boolean;
 	},
 ): Promise<ApiResult<MarketplaceInstallResult>> {
 	const client = getClient(marketplaceUrl, opts?.siteOrigin);
@@ -448,6 +453,21 @@ export async function handleMarketplaceInstall(
 		const bundleIdentityError = validateBundleIdentity(bundle, pluginId, version);
 		if (bundleIdentityError) return bundleIdentityError;
 
+		if ((bundle.manifest.mcp?.tools.length ?? 0) > 0 && !opts?.confirmMcpTools) {
+			return {
+				success: false,
+				error: {
+					code: "MCP_TOOL_CONSENT_REQUIRED",
+					message: "Plugin MCP tools require explicit consent",
+					details: {
+						mcpTools: bundle.manifest.mcp?.tools.map(
+							({ inputSchema: _, outputSchema: __, ...tool }) => tool,
+						),
+					},
+				},
+			};
+		}
+
 		// Store bundle in site-local R2
 		await storeBundleInR2(storage, pluginId, version, bundle);
 
@@ -458,6 +478,8 @@ export async function handleMarketplaceInstall(
 			displayName: pluginDetail.name,
 			description: pluginDetail.description ?? undefined,
 		});
+
+		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
 
 		// Fire-and-forget install stat
 		client.reportInstall(pluginId, version).catch(() => {
@@ -534,6 +556,7 @@ export async function handleMarketplaceUpdate(
 		version?: string;
 		confirmCapabilityChanges?: boolean;
 		confirmRouteVisibilityChanges?: boolean;
+		confirmMcpTools?: boolean;
 		/**
 		 * When true, sandbox: false bypass mode is active. The sandbox runner
 		 * is the noop runner (isAvailable() === false) but the runtime will
@@ -664,6 +687,25 @@ export async function handleMarketplaceUpdate(
 			};
 		}
 
+		const oldMcpTools = [...(oldBundle?.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		const newMcpTools = [...(bundle.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		if (JSON.stringify(oldMcpTools) !== JSON.stringify(newMcpTools) && !opts?.confirmMcpTools) {
+			return {
+				success: false,
+				error: {
+					code: "MCP_TOOL_CONSENT_REQUIRED",
+					message: "Plugin update changes its MCP tools",
+					details: {
+						mcpTools: newMcpTools.map(({ inputSchema: _, outputSchema: __, ...tool }) => tool),
+					},
+				},
+			};
+		}
+
 		// Store new bundle
 		await storeBundleInR2(storage, pluginId, newVersion, bundle);
 
@@ -673,7 +715,11 @@ export async function handleMarketplaceUpdate(
 			marketplaceVersion: newVersion,
 			displayName: pluginDetail.name,
 			description: pluginDetail.description ?? undefined,
+			mcpToolsEnabled: false,
+			mcpToolsConsent: null,
 		});
+
+		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
 
 		// Clean up old bundle from R2 (best-effort)
 		deleteBundleFromR2(storage, pluginId, oldVersion).catch(() => {});
@@ -746,6 +792,12 @@ export async function handleMarketplaceUninstall(
 			} catch {
 				// Plugin storage table may not have data for this plugin
 			}
+		}
+
+		try {
+			await removeAllPluginIndexes(db, pluginId);
+		} catch {
+			// Nothing to drop, or tracking table predates the feature
 		}
 
 		// Delete state row

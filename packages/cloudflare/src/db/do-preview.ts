@@ -220,8 +220,7 @@ export function createPreviewMiddleware(config: PreviewMiddlewareConfig): Middle
 
 		// --- 4. Create Kysely dialect pointing at the DO ---
 		const getStub = (): PreviewDBStub => {
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- RPC type limitation
-			return stub as unknown as PreviewDBStub;
+			return stub;
 		};
 		const dialect = new PreviewDODialect({ getStub });
 

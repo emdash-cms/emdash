@@ -178,16 +178,18 @@ DELETE /_emdash/api/content/:collection/:id
 ### List Media
 
 ```http
-GET /_emdash/api/media
+GET /_emdash/api/media?includeUsage=1
 ```
 
 #### Parameters
 
-| Parameter  | Type     | Description                  |
-| ---------- | -------- | ---------------------------- |
-| `cursor`   | `string` | Pagination cursor            |
-| `limit`    | `number` | Items per page (default: 20) |
-| `mimeType` | `string` | Filter by MIME type prefix   |
+| Parameter      | Type     | Description                                                    |
+| -------------- | -------- | -------------------------------------------------------------- |
+| `cursor`       | `string` | Opaque pagination cursor                                       |
+| `limit`        | `number` | Items per page, from 1 to 100 (default: 50)                    |
+| `mimeType`     | `string` | Filter by one or more comma-separated MIME types               |
+| `q`            | `string` | Case-insensitive filename search                               |
+| `includeUsage` | `1`      | Include a coverage-aware `usage` summary on every returned item |
 
 #### Response
 
@@ -203,8 +205,15 @@ GET /_emdash/api/media
 				"size": 102400,
 				"width": 1920,
 				"height": 1080,
-				"url": "https://cdn.example.com/photo.jpg",
-				"createdAt": "2025-01-24T12:00:00Z"
+				"url": "/_emdash/api/media/file/uploads/photo.jpg",
+				"createdAt": "2025-01-24T12:00:00Z",
+				"usage": {
+					"count": 3,
+					"coverage": {
+						"scope": "all_content_collections",
+						"status": "complete"
+					}
+				}
 			}
 		],
 		"nextCursor": "eyJpZCI6..."
@@ -215,8 +224,98 @@ GET /_emdash/api/media
 ### Get Media
 
 ```http
-GET /_emdash/api/media/:id
+GET /_emdash/api/media/:id?includeUsage=1
 ```
+
+`includeUsage` is optional on both list and get. Its only accepted value is `1`. When omitted,
+the `usage` property is omitted and the server does not run usage queries.
+
+### Usage Summaries
+
+`usage.count` is the number of distinct active EmDash content rows or locales whose selected
+current indexed source references the media item. Repeated references and multiple source
+variants for the same content entry count once. Trashed content does not count.
+
+A numeric count can reveal draft-like content. It is returned only when a session user has
+`content:read_drafts`, or when an API token has `admin` scope and its associated user also has
+that permission. Other media readers receive `usage.count: null`; this is a successful redacted
+response, not an error.
+
+Every requested summary includes aggregate coverage for all currently registered content
+collections:
+
+| Status     | Meaning                                                               |
+| ---------- | --------------------------------------------------------------------- |
+| `complete` | Every registered collection has current, completed usage coverage     |
+| `never`    | No registered collection has completed an initial usage repair         |
+| `running`  | A usage repair is currently running                                    |
+| `partial`  | Coverage is mixed or only part of the registered scope was indexed     |
+| `failed`   | Coverage failed across the registered scope                            |
+| `stale`    | Indexed coverage is outdated                                           |
+| `unknown`  | Stored coverage contains a state this version does not recognize        |
+
+Only `complete` supports a scoped complete-zero statement within the EmDash-managed fields
+described below. Counts with any other status are indexed projections and may over-report or
+under-report. Even complete results are advisory during concurrent writes; usage reads are not a
+transactional lock and must not be used as a deletion guarantee.
+
+### Get Media Usage Details
+
+```http
+GET /_emdash/api/media/:id/usage?limit=50&cursor=...
+```
+
+This endpoint requires `media:read` and `content:read_drafts`. Token-authenticated callers also
+require `admin` scope; token scope does not bypass the associated user's permissions.
+
+`limit` controls content entry groups per page, from 1 to 100 (default: 50). Pagination never
+splits the sources or occurrences for one returned entry group.
+
+```json
+{
+	"data": {
+		"items": [
+			{
+				"collection": "posts",
+				"contentId": "01CONTENT...",
+				"title": "Launch notes",
+				"slug": "launch-notes",
+				"locale": "en",
+				"status": "published",
+				"scheduledAt": null,
+				"deletedAt": null,
+				"sources": [
+					{
+						"variant": "columns",
+						"occurrences": [
+							{
+								"fieldSlug": "hero",
+								"fieldPath": "hero",
+								"occurrenceIndex": 0,
+								"referenceType": "image_field"
+							}
+						]
+					}
+				]
+			}
+		],
+		"nextCursor": "eyJvcmRlclZhbHVlIjoicG9zdHMiLCJpZCI6IjAxLi4uIn0",
+		"coverage": {
+			"scope": "all_content_collections",
+			"status": "complete"
+		}
+	}
+}
+```
+
+Authorized details include active and trashed entries. A non-null `deletedAt` identifies a
+trashed entry. Sources are `columns` or `draft_overlay`; occurrences identify the supported field
+and path without exposing internal index metadata.
+
+Media usage covers local media references in top-level image and file fields, repeater image
+fields, and Portable Text image blocks managed by EmDash content collections. It does not scan
+custom code, rendered HTML, settings, menus, widgets, plugin-private data, external sites, or
+provider-only assets.
 
 ### Create Media
 
@@ -264,6 +363,187 @@ Content-Type: application/json
 ```http
 DELETE /_emdash/api/media/:id
 ```
+
+### List Media Usage Work
+
+```http
+GET /_emdash/api/admin/media-usage/work?collection=posts&state=failed&limit=50&cursor=...
+```
+
+Returns a bounded page of durable entry-indexing work for one current collection. The endpoint
+requires `schema:manage`; bearer tokens also require the `admin` scope.
+
+`collection` is required. `state` optionally filters `pending`, `retry`, `leased`, or `failed`
+work. `limit` defaults to 50 and is capped at 100. `cursor` is opaque and comes from the previous
+page's `nextCursor`. The endpoint does not calculate an exact backlog count.
+
+```json
+{
+	"success": true,
+	"data": {
+		"items": [
+			{
+				"collectionId": "01COLLECTION...",
+				"collectionSlug": "posts",
+				"contentId": "01CONTENT...",
+				"state": "failed",
+				"attemptCount": 5,
+				"nextAttemptAt": "2026-08-07T12:00:00.000Z",
+				"leaseExpiresAt": null,
+				"lastAttemptedAt": "2026-08-07T11:45:00.000Z",
+				"lastErrorCode": "MEDIA_USAGE_PROCESSING_FAILED",
+				"updatedAt": "2026-08-07T11:45:00.000Z"
+			}
+		],
+		"nextCursor": "eyJvcmRlclZhbHVlIjoiLi4uIn0"
+	}
+}
+```
+
+Responses omit work versions, lease tokens, raw database errors, indexed content, media
+references, and exact counts.
+
+### Retry Media Usage Work
+
+```http
+POST /_emdash/api/admin/media-usage/work/retry
+Content-Type: application/json
+X-EmDash-Request: 1
+```
+
+Idempotently reopens or creates one durable entry job. It has the same authorization requirements
+as the list endpoint.
+
+```json
+{
+	"collectionId": "01COLLECTION...",
+	"contentId": "01CONTENT..."
+}
+```
+
+A successful response returns `changed` and the current pending item. `changed: false` means the
+job was already pending. A non-expired worker lease returns `409 WORK_LEASE_ACTIVE` with
+`details.leaseExpiresAt`; a concurrent mutation returns `409 WORK_CHANGED`. Neither conflict
+replaces newer work or exposes its lease token.
+
+The list returns only known durable work. Retry can create work for the supplied identity in an
+active collection even when no work row exists, but it does not scan for historical gaps. Use
+collection-scoped Media Usage repair after imports or direct database writes.
+When scheduled maintenance is disabled, failed jobs remain visible and manually retryable, but no
+automatic freshness deadline is promised.
+
+### Recover Collection Deletion
+
+```http
+GET /_emdash/api/admin/media-usage/collection-deletions?state=failed&limit=50&cursor=...
+```
+
+Returns a bounded page of durable collection-deletion work. The list defaults to failed work;
+`limit` defaults to 50 and is capped at 100. Items include the immutable collection ID, slug,
+phase, attempts, eligibility/lease timestamps, stable error code, and update time. Lease tokens,
+raw database errors, content, media references, and exact backlog counts are never returned.
+
+```http
+POST /_emdash/api/admin/media-usage/collection-deletions/retry
+Content-Type: application/json
+X-EmDash-Request: 1
+
+{ "collectionId": "01COLLECTION..." }
+```
+
+Retry reopens failed, retrying, or expired-leased work without changing its phase. A live lease
+returns `409 WORK_LEASE_ACTIVE`; a concurrent state change returns `409 WORK_CHANGED`. Both routes
+require `schema:manage`, and bearer tokens also require the `admin` scope. They recover internal
+index cleanup only and never delete media assets.
+
+### Repair Media Usage
+
+```http
+POST /_emdash/api/admin/media-usage/repair
+Content-Type: application/json
+X-EmDash-Request: 1
+```
+
+Repairs the content media usage index for one collection or for all content collections. This is an admin/operator endpoint: session-authenticated callers need `schema:manage`, and bearer tokens must have the `admin` scope because the route is under `/_emdash/api/admin`.
+
+All-content repair runs synchronously and sequentially in the current version. It can be expensive on large sites, so callers should trigger it deliberately and wait for the response.
+
+#### Request Body
+
+Repair one collection:
+
+```json
+{
+	"scope": "collection",
+	"collection": "posts"
+}
+```
+
+Repair all content collections:
+
+```json
+{
+	"scope": "all"
+}
+```
+
+The request body is required. Invalid slugs, unknown request keys, missing `scope`, and body-less requests return `400` instead of defaulting to all-content repair.
+
+#### Response
+
+The endpoint returns `200` when a repair invocation produces a structured result. Inspect `data.status`: `failed` and `stale` are repair-domain statuses, not transport errors.
+
+```json
+{
+	"data": {
+		"status": "complete",
+		"indexedSourceCount": 12,
+		"failedSourceCount": 0,
+		"skippedSourceCount": 0,
+		"deletedSourceCount": 1,
+		"collections": [
+			{
+				"collection": "posts",
+				"status": "complete",
+				"indexedSourceCount": 12,
+				"failedSourceCount": 0,
+				"skippedSourceCount": 0,
+				"deletedSourceCount": 1,
+				"lastErrorCode": null,
+				"startedAt": "2026-07-07T12:00:00.000Z",
+				"completedAt": "2026-07-07T12:00:01.000Z"
+			}
+		]
+	}
+}
+```
+
+Top-level response fields:
+
+| Field                | Type                                                | Description                                |
+| -------------------- | --------------------------------------------------- | ------------------------------------------ |
+| `status`             | `complete` \| `partial` \| `failed` \| `stale` | Aggregate repair status                    |
+| `indexedSourceCount` | `number`                                            | Sources indexed during repair              |
+| `failedSourceCount`  | `number`                                            | Sources that failed during repair          |
+| `skippedSourceCount` | `number`                                            | Sources skipped, including stale conflicts |
+| `deletedSourceCount` | `number`                                            | Stale usage rows deleted during repair     |
+| `collections`        | `array`                                             | Per-collection repair summaries            |
+
+Collection summary fields:
+
+| Field                | Type                                                | Description                                  |
+| -------------------- | --------------------------------------------------- | -------------------------------------------- |
+| `collection`         | `string`                                            | Collection slug                              |
+| `status`             | `complete` \| `partial` \| `failed` \| `stale` | Collection repair status                     |
+| `indexedSourceCount` | `number`                                            | Sources indexed for this collection          |
+| `failedSourceCount`  | `number`                                            | Sources that failed for this collection      |
+| `skippedSourceCount` | `number`                                            | Sources skipped for this collection          |
+| `deletedSourceCount` | `number`                                            | Stale usage rows deleted for this collection |
+| `lastErrorCode`      | `string \| null`                                   | Last collection repair error, when available |
+| `startedAt`          | `string`                                            | Repair start time                            |
+| `completedAt`        | `string \| null`                                   | Completion time, or `null` for stale results |
+
+Unknown collections return `200` with `data.status: "failed"` and a per-collection `lastErrorCode` such as `COLLECTION_NOT_FOUND`. Transport errors still use the standard error envelope, including `400`, `401`, `403`, `413`, and `500`.
 
 ### Get Media File
 
@@ -563,13 +843,47 @@ GET /_emdash/api/search/suggest?q=hel&limit=5
 
 Returns prefix-matched titles for autocomplete.
 
+### Configure Collection Search
+
+```http
+POST /_emdash/api/search/enable
+Content-Type: application/json
+
+{
+  "collection": "posts",
+  "enabled": true,
+  "tokenize": "trigram",
+  "weights": {
+    "title": 10,
+    "content": 1
+  }
+}
+```
+
+The optional `tokenize` field controls how SQLite FTS5 indexes the collection. Changing it on an
+enabled collection rebuilds and repopulates that collection's search index.
+
+| Value                | When to use |
+| -------------------- | ----------- |
+| `porter unicode61`   | Default. English-language content that benefits from Porter stemming, such as matching related word forms. Porter stemming is English-specific. |
+| `unicode61`          | Languages that use word separators but should not use English stemming. |
+| `trigram`            | Languages with text that is not separated by spaces, including Japanese, Chinese, Thai, Khmer, Lao, and Burmese, or when substring matching is needed. Queries shorter than three Unicode characters return no matches. |
+
+Omitting `tokenize` on a collection without a stored tokenizer uses `porter unicode61`. Disabling
+search preserves the configured tokenizer for the next enable operation.
+
 ### Rebuild Search Index
 
 ```http
 POST /_emdash/api/search/rebuild
+Content-Type: application/json
+
+{
+  "collection": "posts"
+}
 ```
 
-Rebuild FTS index for all or specific collections.
+Rebuilds the FTS index for the specified collection using its stored tokenizer and field weights.
 
 ### Search Stats
 
@@ -738,6 +1052,9 @@ Content-Type: application/json
 GET /_emdash/api/taxonomies/:name/terms
 ```
 
+Terms come back in their manual order (see [Reorder Terms](#reorder-terms)). A
+new term is added to the end of its sibling group.
+
 ### Create Term
 
 ```http
@@ -763,6 +1080,41 @@ PUT /_emdash/api/taxonomies/:name/terms/:slug
 ```http
 DELETE /_emdash/api/taxonomies/:name/terms/:slug
 ```
+
+### Reorder Terms
+
+```http
+POST /_emdash/api/taxonomies/:name/reorder
+Content-Type: application/json
+
+{
+  "parentId": "term_abc",
+  "ids": ["term_news", "term_featured"]
+}
+```
+
+Sets the order of one sibling group. `parentId` names the parent whose children
+are being ordered; omit it (or send `null`) for the top level, which for a flat
+taxonomy is every term. Reordering never changes a term's parent — use
+[Update Term](#update-term) for that.
+
+`ids` may be a subset of the group: the terms you list are permuted within the
+positions they already occupy, and every other member keeps its place. That
+matters when a locale doesn't render the whole group, and it means a stale list
+can't bury the terms it left out. An id outside the group is rejected with
+`REORDER_MISMATCH`, and at most 100 ids may be sent at once.
+
+Because the terms you leave out hold their absolute positions, a one-step move
+in a partial list can carry a term past siblings that list didn't include. If
+`[A, B, C]` is the full group and you send `["C", "A"]` — because `B` isn't
+translated into the locale you're working in — the result is `[C, B, A]`: `A`
+and `C` swapped as asked, and a listing that does show `B` sees `A` move two
+places rather than one.
+
+There is no `locale` parameter. A term holds one position across every locale it
+is translated into, so an id may be either a term id or a translation group, and
+ordering a taxonomy in one locale orders it in all of them. Sites that need
+different orders per locale should use separate taxonomies.
 
 ### Set Entry Terms
 

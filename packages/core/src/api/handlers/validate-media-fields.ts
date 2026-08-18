@@ -21,7 +21,7 @@ interface MediaRefValue {
 function asMediaRef(value: unknown): MediaRefValue | null {
 	if (value === null || value === undefined) return null;
 	if (typeof value !== "object" || Array.isArray(value)) return null;
-	return value as MediaRefValue;
+	return value;
 }
 
 function fail(message: string): ApiResult<never> {
