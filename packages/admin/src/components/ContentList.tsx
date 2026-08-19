@@ -47,6 +47,8 @@ import { useDebouncedValue } from "../lib/hooks.js";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
 import { cn, parseTimestamp } from "../lib/utils";
+import { getLocaleDir } from "../locales/config.js";
+import { getDayPickerLocale } from "../locales/day-picker.js";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import {
 	BylineFilter,
@@ -893,7 +895,7 @@ function FilterBar({
 				items={statusItems}
 			>
 				{Object.entries(statusItems).map(([value]) => (
-					<Select.Option key={value} value={value}>
+					<Select.Option key={value} value={value} className="emdash-compact-select-option text-xs">
 						{renderStatusLabel(value as ContentStatusFilter)}
 					</Select.Option>
 				))}
@@ -936,7 +938,11 @@ function FilterBar({
 						items={dateFieldItems}
 					>
 						{Object.entries(dateFieldItems).map(([value, label]) => (
-							<Select.Option key={value} value={value}>
+							<Select.Option
+								key={value}
+								value={value}
+								className="emdash-compact-select-option text-xs"
+							>
 								{label}
 							</Select.Option>
 						))}
@@ -975,13 +981,33 @@ function DateRangeFilter({
 		: to
 			? t`Until ${formatter.format(to)}`
 			: t`Date range`;
-	const selected: DateRange | undefined = from ? { from, to } : undefined;
+	const selected: DateRange | undefined = from ? { from, to } : to ? { from: to, to } : undefined;
+	const dayPickerLocale = getDayPickerLocale(i18n.locale);
+	const direction = getLocaleDir(i18n.locale);
+	const isUpperBoundOnly = !from && !!to;
+	const canUseAsEndDate = !!from && (!to || value.from === value.to);
 
-	const handleChange = (range: DateRange | undefined) => {
+	const handleChange = (range: DateRange | undefined, triggerDate?: Date) => {
+		if (isUpperBoundOnly && triggerDate) {
+			onChange({
+				...value,
+				from: "",
+				to: formatDateOnly(triggerDate),
+			});
+			return;
+		}
 		onChange({
 			...value,
 			from: formatDateOnly(range?.from),
 			to: formatDateOnly(range?.to),
+		});
+	};
+	const handleUseAsEndDate = () => {
+		if (!from || !canUseAsEndDate) return;
+		onChange({
+			...value,
+			from: "",
+			to: formatDateOnly(from),
 		});
 	};
 
@@ -1008,11 +1034,18 @@ function DateRangeFilter({
 					onChange={handleChange}
 					aria-label={t`Choose a date range`}
 					className="mt-1"
+					locale={dayPickerLocale}
+					dir={direction}
 				/>
-				<div className="mt-1 flex items-center justify-end gap-2 border-t border-kumo-line pt-2">
+				<div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-kumo-line pt-2">
 					{(from || to) && (
 						<Button size="sm" variant="ghost" onClick={() => handleChange(undefined)}>
 							{t`Clear`}
+						</Button>
+					)}
+					{canUseAsEndDate && (
+						<Button size="sm" variant="ghost" onClick={handleUseAsEndDate}>
+							{t`Use as end date`}
 						</Button>
 					)}
 					<Popover.Close render={<Button size="sm" variant="secondary" />}>{t`Done`}</Popover.Close>

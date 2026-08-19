@@ -355,12 +355,16 @@ describe("ContentList", () => {
 				<ContentList {...defaultProps} statusFilter="all" onStatusFilterChange={vi.fn()} />,
 			);
 			const filter = screen.getByRole("combobox", { name: "Filter by status" });
-			const triggerWidth = filter.element().getBoundingClientRect().width;
+			const triggerRect = filter.element().getBoundingClientRect();
 
 			await filter.click();
-			const menuWidth = screen.getByRole("listbox").element().getBoundingClientRect().width;
+			const menuRect = screen.getByRole("listbox").element().getBoundingClientRect();
 
-			expect(Math.abs(menuWidth - triggerWidth)).toBeLessThanOrEqual(4);
+			expect(Math.abs(menuRect.width - triggerRect.width)).toBeLessThanOrEqual(1);
+			expect(Math.abs(menuRect.left - triggerRect.left)).toBeLessThanOrEqual(1);
+			expect(
+				getComputedStyle(screen.getByRole("option", { name: "Published" }).element()).fontSize,
+			).toBe(getComputedStyle(filter.element()).fontSize);
 		});
 
 		it("keeps the date-field trigger aligned with the open menu width", async () => {
@@ -374,12 +378,16 @@ describe("ContentList", () => {
 				/>,
 			);
 			const filter = screen.getByRole("combobox", { name: "Date field to filter on" });
-			const triggerWidth = filter.element().getBoundingClientRect().width;
+			const triggerRect = filter.element().getBoundingClientRect();
 
 			await filter.click();
-			const menuWidth = screen.getByRole("listbox").element().getBoundingClientRect().width;
+			const menuRect = screen.getByRole("listbox").element().getBoundingClientRect();
 
-			expect(Math.abs(menuWidth - triggerWidth)).toBeLessThanOrEqual(4);
+			expect(Math.abs(menuRect.width - triggerRect.width)).toBeLessThanOrEqual(1);
+			expect(Math.abs(menuRect.left - triggerRect.left)).toBeLessThanOrEqual(1);
+			expect(
+				getComputedStyle(screen.getByRole("option", { name: "Updated" }).element()).fontSize,
+			).toBe(getComputedStyle(filter.element()).fontSize);
 		});
 
 		it("opens the date range calendar and clears the active range", async () => {
@@ -419,6 +427,82 @@ describe("ContentList", () => {
 				from: "",
 				to: "",
 			});
+		});
+
+		it("supports an upper-bound-only date filter", async () => {
+			const onDateFilterChange = vi.fn();
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[makeItem()]}
+					statusFilter="all"
+					onStatusFilterChange={vi.fn()}
+					dateFilter={{ field: "createdAt", from: "2026-08-18", to: "2026-08-18" }}
+					onDateFilterChange={onDateFilterChange}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: /Filter by date range:/ }).click();
+			await screen.getByRole("button", { name: "Use as end date" }).click();
+
+			expect(onDateFilterChange).toHaveBeenCalledWith({
+				field: "createdAt",
+				from: "",
+				to: "2026-08-18",
+			});
+		});
+
+		it("edits an upper-bound-only filter without converting it to a range", async () => {
+			const onDateFilterChange = vi.fn();
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[makeItem()]}
+					statusFilter="all"
+					onStatusFilterChange={vi.fn()}
+					dateFilter={{ field: "createdAt", from: "", to: "2026-08-18" }}
+					onDateFilterChange={onDateFilterChange}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: /Filter by date range:/ }).click();
+			await screen.getByRole("button", { name: "Thursday, August 20th, 2026" }).click();
+
+			expect(onDateFilterChange).toHaveBeenCalledWith({
+				field: "createdAt",
+				from: "",
+				to: "2026-08-20",
+			});
+		});
+
+		it("uses the active admin locale and direction in the calendar", async () => {
+			const previousLocale = i18n.locale;
+			i18n.load("ar", {});
+			i18n.activate("ar");
+
+			try {
+				const screen = await render(
+					<ContentList
+						{...defaultProps}
+						items={[makeItem()]}
+						statusFilter="all"
+						onStatusFilterChange={vi.fn()}
+						dateFilter={{ field: "createdAt", from: "2026-08-18", to: "" }}
+						onDateFilterChange={vi.fn()}
+					/>,
+				);
+
+				await screen.getByRole("button", { name: /Filter by date range:/ }).click();
+				await expect.element(screen.getByText("أغسطس 2026")).toBeInTheDocument();
+				await expect
+					.element(screen.getByRole("button", { name: "اذهب إلى الشهر التالي" }))
+					.toBeInTheDocument();
+				expect(
+					getComputedStyle(screen.getByRole("grid", { name: "أغسطس 2026" }).element()).direction,
+				).toBe("rtl");
+			} finally {
+				i18n.activate(previousLocale);
+			}
 		});
 	});
 

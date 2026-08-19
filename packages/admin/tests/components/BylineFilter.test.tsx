@@ -69,12 +69,25 @@ describe("BylineFilter", () => {
 		expect(new Set(styles.map((style) => style.fontSize))).toEqual(new Set(["14px"]));
 		expect(getComputedStyle(inferredLabel.element()).fontWeight).toBe("400");
 
+		const noneControl = screen.getByRole("checkbox", { name: "No byline assigned" });
+		const guestControl = screen.getByRole("checkbox", { name: "Guest Contributor" });
 		const controls = [
-			screen.getByRole("checkbox", { name: "No byline assigned" }),
-			screen.getByRole("checkbox", { name: "Guest Contributor" }),
+			noneControl,
+			guestControl,
 			screen.getByRole("switch", { name: "Include inferred bylines" }),
 		].map((locator) => locator.element().getBoundingClientRect().left);
 		expect(Math.max(...controls) - Math.min(...controls)).toBeLessThanOrEqual(1);
+		const optionGroup = screen.getByRole("group", { name: "Bylines" }).element();
+		expect(
+			guestControl.element().getBoundingClientRect().left -
+				optionGroup.getBoundingClientRect().left,
+		).toBeGreaterThanOrEqual(2);
+		const optionRow = guestLabel.element().closest("label")?.parentElement?.parentElement;
+		if (!optionRow) throw new Error("Byline option row did not render");
+		expect(
+			optionRow.getBoundingClientRect().height -
+				guestLabel.element().getBoundingClientRect().height,
+		).toBeGreaterThanOrEqual(16);
 		const descriptionRange = document.createRange();
 		descriptionRange.selectNodeContents(description.element());
 		expect(

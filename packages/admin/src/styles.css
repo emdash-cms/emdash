@@ -152,6 +152,19 @@ body {
 	background-color: var(--color-kumo-interact) !important;
 }
 
+div:has(> [role="listbox"] > .emdash-compact-select-option) {
+	width: var(--anchor-width);
+	min-width: var(--anchor-width);
+}
+
+div[data-side="none"]:has(> div > [role="listbox"] > .emdash-compact-select-option) {
+	translate: 0.375rem 0;
+}
+
+div[data-side="none"]:has(> div > [role="listbox"] > .emdash-compact-select-option):dir(rtl) {
+	translate: -0.375rem 0;
+}
+
 /* Transitions.dev — Text states swap */
 :root {
 	--text-swap-dur: 150ms;
