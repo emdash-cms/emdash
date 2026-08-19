@@ -64,6 +64,8 @@ import {
 	assertVerificationIdentity,
 	findReusableVerificationRecord,
 	passingVerificationRecords,
+	requireTerminalReportAllowed,
+	StaleVerificationError,
 	type VerificationRecord,
 	upsertVerificationRecord,
 } from "../lib/verification.js";
@@ -194,6 +196,7 @@ type ImplementationResult = v.InferOutput<typeof implementationResultSchema>;
 interface RunFailure {
 	stage: "workspace" | "verification" | "publication" | "reporting";
 	message: string;
+	recoverable?: boolean;
 }
 
 export function Investigate({ id }: AgentProps) {
@@ -219,6 +222,28 @@ export function Investigate({ id }: AgentProps) {
 	}
 
 	const env = execEnvFor(id, input);
+	const ensureTerminalReportAllowed = async () => {
+		requireTerminalReportAllowed(lastFailure);
+		if (verification.length === 0) return;
+		let candidateTreeSha: string;
+		try {
+			candidateTreeSha = await env.candidateTreeSha();
+		} catch {
+			return;
+		}
+		try {
+			requireTerminalReportAllowed(null, verification, candidateTreeSha);
+		} catch (error) {
+			if (error instanceof StaleVerificationError) {
+				setLastFailure({
+					stage: "verification",
+					message: safeFailureMessage(error),
+					recoverable: true,
+				});
+			}
+			throw error;
+		}
+	};
 
 	if (input.mode === "implement") {
 		useSkill(implementSkill);
@@ -470,7 +495,7 @@ export function Investigate({ id }: AgentProps) {
 			defineTool({
 				name: "publish_candidate",
 				description:
-					"Publish the verified working tree to this issue's candidate branch. The trusted Worker snapshots the changes, creates the Git objects, updates only bot/fix-<issue>, and verifies the remote SHA. Do not run git commit or git push yourself.",
+					"Publish the verified working tree to this issue's candidate branch. The trusted Worker snapshots the changes, creates the Git objects, updates only bot/fix-<issue>, and verifies the remote SHA. If it reports stale checks, rerun every listed check with the same name and command, then call publish_candidate again; stale verification is recoverable and must not be reported as a terminal blocker. Do not run git commit or git push yourself.",
 				input: v.object({
 					commitMessage: v.pipe(v.string(), v.minLength(5), v.maxLength(200)),
 				}),
@@ -493,7 +518,11 @@ export function Investigate({ id }: AgentProps) {
 					try {
 						passingVerificationRecords(verification, snapshot.treeSha);
 					} catch (error) {
-						setLastFailure({ stage: "verification", message: safeFailureMessage(error) });
+						setLastFailure({
+							stage: "verification",
+							message: safeFailureMessage(error),
+							...(error instanceof StaleVerificationError ? { recoverable: true } : {}),
+						});
 						throw error;
 					}
 					try {
@@ -527,6 +556,7 @@ export function Investigate({ id }: AgentProps) {
 				output: reportedResultSchema,
 				durable: true,
 				async run({ data, step, log }) {
+					await ensureTerminalReportAllowed();
 					requireCandidatePublication(data.implemented, publication);
 					const pushed = await step.do("verify-publication", () =>
 						detectPublication(input.issueNumber, publication),
@@ -570,6 +600,7 @@ export function Investigate({ id }: AgentProps) {
 				output: reportedResultSchema,
 				durable: true,
 				async run({ data, step, log }) {
+					await ensureTerminalReportAllowed();
 					requireCandidatePublication(data.fixed === true, publication);
 					const pushed = await step.do("verify-publication", () =>
 						detectPublication(input.issueNumber, publication),
@@ -609,6 +640,14 @@ export function Investigate({ id }: AgentProps) {
 		const reportTool = input.mode === "implement" ? "report_implementation" : "report_result";
 		const reportCall = response.toolCalls.some((call) => call.tool === reportTool && !call.isError);
 		if (reported || reportCall) return;
+		if (lastFailure?.recoverable) {
+			append({
+				kind: "signal",
+				type: "investigation.verification-rerun-required",
+				body: lastFailure.message,
+			});
+			return;
+		}
 		if (!reminded) {
 			setReminded(true);
 			append({
