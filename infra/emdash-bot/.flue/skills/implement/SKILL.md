@@ -10,23 +10,22 @@ A maintainer explicitly asked you to build the issue's requested change. Treat t
 ## Procedure
 
 1. Read `AGENTS.md` and the relevant implementation, tests, and contributor guidance before editing.
-2. Bootstrap the checkout once with `exec`, before the baseline. If `node_modules` is missing, run `pnpm install --frozen-lockfile --prefer-offline`. If workspace build artifacts are missing, run `pnpm build`; a fresh EmDash checkout needs them before package typechecks can resolve internal declarations. Do not repeat install or build unless a manifest changed or your change affects required compiled output.
-3. Run the repository-required clean baseline once with `exec`, before editing. A baseline command is diagnostic, not a final `run_check`. Record failures that are outside the requested scope; do not edit unrelated files to make the baseline pass.
-4. Choose the smallest authoritative final verification set before editing: the focused behavior test, affected package tests and typechecks, lint, and a check-only formatter. Do not plan a monorepo-wide test suite when focused or package-level checks cover the changed behavior.
-5. Resolve ambiguity from existing APIs, sibling code, and backwards-compatible behavior. If a missing decision would materially change the public contract, stop and report it instead of guessing.
-6. Edit through `edit_file` and `write_file`. Keep the change scoped to the request. Do not modify `.github/workflows` or generated Lingui catalogs.
-7. Add behavior-level tests where the change has testable behavior. For a directed bug fix, follow the repository's failing-test-first rule.
-8. Finish every candidate edit before final verification. Apply formatting and add the changeset now, when a published package changed. Follow `.changeset/README.md`: write public CHANGELOG documentation with detail proportional to the impact, not a diff summary. The changeset is part of the candidate tree, so adding it after checks would invalidate every result.
-9. Run the planned final checks through `run_check`. Use stable names and run each check once on the final candidate tree. A check name is permanently bound to its first command, including flags and arguments; if you need a different command, choose a new name before running it. If a relevant check fails and you edit the candidate, rerun the planned set once on the new tree with the original names and commands. Do not repeat a passing check on an unchanged tree.
-10. Call `publish_candidate` as soon as the planned checks pass. The trusted Worker owns Git objects and the `bot/fix-<issue>` ref; never run `git commit`, `git push`, or create a PR yourself.
-11. Call `report_implementation` exactly once. Set `implemented: true` only after publication succeeds. Summarize the observable change and verification, not a bug verdict.
+2. The harness installs dependencies and builds the base workspace before this turn. Do not run `pnpm install`, the root `pnpm build`, or a pre-edit lint baseline.
+3. Choose the smallest authoritative final verification set before editing: the focused behavior test, affected package tests and typechecks, final lint, and a check-only formatter. Do not plan a monorepo-wide test suite when focused or package-level checks cover the changed behavior.
+4. Resolve ambiguity from existing APIs, sibling code, and backwards-compatible behavior. If a missing decision would materially change the public contract, stop and report it instead of guessing.
+5. Edit through `edit_file` and `write_file`. Keep the change scoped to the request. Do not modify `.github/workflows` or generated Lingui catalogs.
+6. Add behavior-level tests where the change has testable behavior. For a directed bug fix, follow the repository's failing-test-first rule.
+7. Finish every candidate edit before final verification. Apply formatting and add the changeset now, when a published package changed. Follow `.changeset/README.md`: write public CHANGELOG documentation with detail proportional to the impact, not a diff summary. The changeset is part of the candidate tree, so adding it after checks would invalidate every result.
+8. Run the planned final checks through `run_check`. Use stable names and run each check once on the final candidate tree. A check name is permanently bound to its first command, including flags and arguments; if you need a different command, choose a new name before running it. If a relevant check fails and you edit the candidate, rerun the planned set once on the new tree with the original names and commands. Do not repeat a passing check on an unchanged tree.
+9. Call `publish_candidate` as soon as the planned checks pass. The trusted Worker owns Git objects and the `bot/fix-<issue>` ref; never run `git commit`, `git push`, or create a PR yourself.
+10. Call `report_implementation` exactly once. Set `implemented: true` only after publication succeeds. Summarize the observable change and verification, not a bug verdict.
 
 ## Verification scope
 
 - Prefer the focused regression test and affected package checks. Run a broader root check once only when the change crosses its surface or `AGENTS.md` explicitly requires it.
 - Treat install and the initial workspace build as bootstrap, not verification. Reuse them for the whole run and across resume when the saved container is still available.
 - Treat all coordinated edits for one change as one edit round. Do not run lint, typecheck, and tests after each individual file edit.
-- If a broad check already failed before your changes only in untouched files, report the baseline failure and use the narrow authoritative check for your files. Never repair unrelated failures or register a predictably failing broad command as a final `run_check`.
+- If a broad final check fails only in untouched files, report it and use the narrow authoritative check for your files. Never repair unrelated failures or register a predictably failing broad command as a final `run_check`.
 - If a broad suite times out, do not immediately run it again. Run the smallest relevant subsets, report the omitted or timed-out suite, and preserve time for publication and reporting.
 - If `run_check` reports that a name is already bound, choose a new name for the different command. The rejected command did not modify verification state; do not retry it under the bound name.
 - Verification commands must not modify source files. Use `edit_file` or `write_file` before the final pass, then use check-only formatter commands.

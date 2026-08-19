@@ -140,6 +140,11 @@ export class ExecEnv {
 		await this.#bounded(this.#state.writeFile(HYDRATED_MARKER, ref), "writeFile");
 	}
 
+	async ensureContainerReady(): Promise<void> {
+		const container = await this.container();
+		await this.#materializeChanges(container);
+	}
+
 	async #readMarker(): Promise<string | null> {
 		if (!(await this.#bounded(this.#state.exists(HYDRATED_MARKER), "exists"))) return null;
 		return this.#bounded(this.#state.readFile(HYDRATED_MARKER), "readFile");

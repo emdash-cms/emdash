@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
 	advanceRunLifecycle,
+	beginRunLifecycle,
 	resumeRunLifecycle,
 	runMachineSnapshot,
 	runPlan,
@@ -59,6 +60,18 @@ describe("run lifecycle", () => {
 			status: "succeeded",
 			phase: "report",
 			completedAt: 5_000,
+		});
+	});
+
+	test("starts the agent deadline after workspace bootstrap without changing creation time", () => {
+		const admitted = startRunLifecycle({ runId: "run-1", mode: "implement", startedAt: 1_000 });
+		const started = beginRunLifecycle(admitted, 10_000);
+
+		expect(started).toMatchObject({
+			createdAt: 1_000,
+			startedAt: 10_000,
+			deadlineAt: 10_000 + 60 * 60_000,
+			phase: "prepare",
 		});
 	});
 

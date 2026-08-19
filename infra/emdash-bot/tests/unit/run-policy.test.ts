@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+	BOOTSTRAP_TIMEOUT_MS,
 	DEADLINE_WARNING_LEAD_MS,
 	DEADLINE_WARNING_MESSAGE,
 	FLUE_RUN_TIMEOUT_MS,
@@ -24,6 +25,7 @@ describe("run lifecycle policy", () => {
 			expect(FLUE_RUN_TIMEOUT_MS).toBeGreaterThanOrEqual(runBudgetMs(mode));
 			expect(SANDBOX_SLEEP_AFTER_SECONDS * 1_000).toBeGreaterThan(runBudgetMs(mode));
 		}
+		expect(FLUE_RUN_TIMEOUT_MS).toBe(runBudgetMs("implement") + BOOTSTRAP_TIMEOUT_MS);
 		expect(SANDBOX_SLEEP_AFTER_SECONDS * 1_000).toBe(FLUE_RUN_TIMEOUT_MS + 5 * 60_000);
 	});
 

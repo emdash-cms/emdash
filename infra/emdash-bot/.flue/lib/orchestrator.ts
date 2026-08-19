@@ -57,6 +57,7 @@ import {
 } from "./router.js";
 import {
 	advanceRunLifecycle,
+	beginRunLifecycle,
 	publicRunLifecycle,
 	resumeRunLifecycle,
 	settleRunLifecycle,
@@ -84,6 +85,7 @@ import {
 	TIMEOUT_SUMMARY_TIMEOUT_MS,
 } from "./timeout-recovery.js";
 import {
+	renderPreparingWorkPlanComment,
 	renderWorkPlanComment,
 	updateWorkPlan as applyWorkPlanUpdate,
 	type WorkCommentStatus,
@@ -621,25 +623,37 @@ export class OrchestratorDO extends DurableObject<Env> {
 		title: string;
 		detail?: string | null;
 	}): Promise<boolean> {
-		return this.ctx.storage.transaction(async (transaction) => {
-			if ((await transaction.get<string>(STORAGE.currentRunId)) !== input.runId) return false;
+		const result = await this.ctx.storage.transaction(async (transaction) => {
+			if ((await transaction.get<string>(STORAGE.currentRunId)) !== input.runId) {
+				return { accepted: false, startedBudget: false };
+			}
 			const existing = (await transaction.get<PublicProgressEntry[]>(STORAGE.publicProgress)) ?? [];
 			const run = await transaction.get<RunLifecycle>(STORAGE.runLifecycle);
+			const now = Date.now();
 			const entry: PublicProgressEntry = {
-				t: Date.now(),
+				t: now,
 				kind: input.kind,
 				title: sanitizePublicProgressText(input.title, 80),
 				detail: input.detail ? sanitizePublicProgressText(input.detail, 240) : null,
 				runId: input.runId,
 			};
+			const startsBudget =
+				input.kind === "workspace_ready" && run?.runId === input.runId && run.phase === "prepare";
+			const nextRun =
+				run?.runId === input.runId
+					? advanceRunLifecycle(startsBudget ? beginRunLifecycle(run, now) : run, input.kind)
+					: null;
 			await Promise.all([
 				transaction.put(STORAGE.publicProgress, [...existing, entry].slice(-PUBLIC_PROGRESS_LIMIT)),
-				...(run?.runId === input.runId
-					? [transaction.put(STORAGE.runLifecycle, advanceRunLifecycle(run, input.kind))]
-					: []),
+				...(nextRun ? [transaction.put(STORAGE.runLifecycle, nextRun)] : []),
+				...(startsBudget ? [transaction.put(STORAGE.currentRunStartedAt, now)] : []),
 			]);
-			return true;
+			return { accepted: true, startedBudget: startsBudget };
 		});
+		if (result.startedBudget) {
+			await this.armAlarm(true);
+		}
+		return result.accepted;
 	}
 
 	async recordRunTraceEvent(input: { runId: string; event: RunTraceEventInput }): Promise<boolean> {
@@ -751,6 +765,76 @@ export class OrchestratorDO extends DurableObject<Env> {
 			events,
 			nextBefore: hasMore ? (events[0]?.id ?? null) : null,
 		};
+	}
+
+	async prepareWorkPlanComment(input: { runId: string; summary: string }): Promise<boolean> {
+		const result = await this.ctx.storage.transaction(async (transaction) => {
+			const [currentRunId, run, storedPlan, comments, anchorNumber, dryRun] = await Promise.all([
+				transaction.get<string>(STORAGE.currentRunId),
+				transaction.get<RunLifecycle>(STORAGE.runLifecycle),
+				transaction.get<StoredWorkPlan>(STORAGE.workPlan),
+				transaction.get<WorkCommentProjection[]>(STORAGE.workComments),
+				transaction.get<number>(STORAGE.anchorNumber),
+				transaction.get<boolean>(STORAGE.currentRunDryRun),
+			]);
+			if (currentRunId !== input.runId || run?.runId !== input.runId) {
+				return { accepted: false, dryRun: true };
+			}
+			const existingPlan = storedPlan?.runId === input.runId ? storedPlan.plan : null;
+			if (existingPlan && existingPlan.steps[0]?.id !== "prepare-workspace") {
+				return { accepted: true, dryRun: true };
+			}
+			if (dryRun) return { accepted: true, dryRun: true };
+			if (anchorNumber === undefined) throw new Error("workspace preparation has no issue anchor");
+			const plan =
+				existingPlan ??
+				applyWorkPlanUpdate(
+					null,
+					{
+						summary: input.summary,
+						steps: [
+							{
+								id: "prepare-workspace",
+								title: "Install dependencies and build the repository",
+								status: "in_progress",
+							},
+						],
+					},
+					Date.now(),
+				);
+			const marker = `<!-- emdashbot-run:${input.runId} -->`;
+			const body = `${renderPreparingWorkPlanComment({
+				mode: run.mode,
+				summary: input.summary,
+			})}\n\n[View live dashboard](${DASHBOARD_ORIGIN}/?issue=${anchorNumber}) · Run: \`${input.runId}\``;
+			const existing = comments?.find((comment) => comment.runId === input.runId);
+			const projection: WorkCommentProjection = existing
+				? { ...existing, body, pending: true }
+				: {
+						runId: input.runId,
+						anchorNumber,
+						marker,
+						body,
+						commentId: null,
+						commentMayExist: false,
+						pending: true,
+					};
+			await Promise.all([
+				transaction.put(STORAGE.workPlan, { runId: input.runId, plan } satisfies StoredWorkPlan),
+				transaction.put(
+					STORAGE.workComments,
+					[
+						...(comments ?? []).filter((comment) => comment.runId !== input.runId),
+						projection,
+					].slice(-WORK_COMMENT_LIMIT),
+				),
+			]);
+			return { accepted: true, dryRun: false };
+		});
+		if (!result.accepted || result.dryRun) return result.accepted;
+		await this.ctx.storage.setAlarm(Date.now());
+		await this.flushWorkComment(input.runId);
+		return true;
 	}
 
 	updateWorkPlan(input: { runId: string } & WorkPlanInput): Promise<boolean> {
@@ -1259,7 +1343,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.armAlarm();
 	}
 
-	private async armAlarm(): Promise<void> {
+	private async armAlarm(force = false): Promise<void> {
 		const [
 			current,
 			run,
@@ -1313,7 +1397,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (previewPollNextAt !== undefined) {
 			desired = Math.min(desired, Math.max(now + 1_000, previewPollNextAt));
 		}
-		if (current === null || current <= now || current > desired) {
+		if (force || current === null || current <= now || current > desired) {
 			await this.ctx.storage.setAlarm(desired);
 		}
 	}

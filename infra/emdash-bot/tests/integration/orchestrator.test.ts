@@ -476,6 +476,45 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(completed.run).toMatchObject({ status: "succeeded", phase: "report" });
 	});
 
+	test("starts the run budget when workspace bootstrap completes", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		const admittedAt = Date.now() - 5 * 60_000;
+		await stub.debugSetStaleRun(
+			"bootstrap-run",
+			admittedAt,
+			"investigate-42-bootstrap-run",
+			"implement",
+		);
+		const readyAt = Date.now();
+
+		await stub.recordPublicProgress({
+			runId: "bootstrap-run",
+			kind: "workspace_installing",
+			title: "Installing dependencies",
+		});
+		await stub.recordPublicProgress({
+			runId: "bootstrap-run",
+			kind: "workspace_building",
+			title: "Building workspace",
+		});
+		await stub.recordPublicProgress({
+			runId: "bootstrap-run",
+			kind: "workspace_ready",
+			title: "Workspace ready",
+		});
+
+		const snapshot = await stub.getPublicSnapshot();
+		expect(snapshot.run?.createdAt).toBe(admittedAt);
+		expect(snapshot.run?.startedAt).toBeGreaterThanOrEqual(readyAt);
+		expect(snapshot.currentRunStartedAt).toBe(snapshot.run?.startedAt);
+		expect(snapshot.run?.deadlineAt).toBe((snapshot.run?.startedAt ?? 0) + 60 * 60_000);
+		expect(snapshot.progress.slice(-3).map((entry: { kind: string }) => entry.kind)).toEqual([
+			"workspace_installing",
+			"workspace_building",
+			"workspace_ready",
+		]);
+	});
+
 	test("records a reset active run as cancelled", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await stub.event(makeEvent());
@@ -492,6 +531,59 @@ describe("OrchestratorDO (workers-pool)", () => {
 			status: "cancelled",
 			phase: "prepare",
 		});
+	});
+
+	test("posts workspace preparation before reusing the comment for the agent plan", async () => {
+		const requests: Array<{ method: string; url: string; body: string }> = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = (init?.method ?? "GET").toUpperCase();
+			const body = typeof init?.body === "string" ? init.body : "";
+			requests.push({ method, url, body });
+			if (method === "POST" && url.endsWith("/comments")) {
+				return Promise.resolve(
+					new Response(JSON.stringify({ id: 776 }), {
+						status: 201,
+						headers: { "content-type": "application/json" },
+					}),
+				);
+			}
+			return Promise.resolve(new Response("{}", { status: 200 }));
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.debugPrimeFixing(42);
+		await stub.debugSetStaleRun(
+			"preparing-run",
+			Date.now(),
+			"investigate-42-preparing-run",
+			"implement",
+		);
+
+		await stub.prepareWorkPlanComment({
+			runId: "preparing-run",
+			summary: "Implement adapter support.",
+		});
+		expect((await stub.getPublicSnapshot()).workPlan).toMatchObject({
+			summary: "Implement adapter support.",
+			steps: [{ id: "prepare-workspace", status: "in_progress" }],
+		});
+		await stub.updateWorkPlan({
+			runId: "preparing-run",
+			summary: "Implement adapter support.",
+			steps: [{ id: "implement", title: "Implement the adapter", status: "in_progress" }],
+		});
+
+		const posts = requests.filter(
+			(request) => request.method === "POST" && request.url.endsWith("/comments"),
+		);
+		const patches = requests.filter(
+			(request) => request.method === "PATCH" && request.url.endsWith("/issues/comments/776"),
+		);
+		expect(posts).toHaveLength(1);
+		expect(posts[0]?.body).toContain("### Preparing workspace");
+		expect(patches.at(-1)?.body).toContain("### Working on it");
 	});
 
 	test("creates one evolving work-plan comment and finalizes it in place", async () => {

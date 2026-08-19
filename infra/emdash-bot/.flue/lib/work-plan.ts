@@ -111,6 +111,18 @@ export function renderWorkPlanComment(input: {
 	return lines.join("\n");
 }
 
+export function renderPreparingWorkPlanComment(input: { mode: RunMode; summary: string }): string {
+	return [
+		"### Preparing workspace",
+		"",
+		escapeMarkdown(boundedText(input.summary, MAX_SUMMARY_LENGTH, "workspace summary")),
+		"",
+		"Installing dependencies and building the repository before the agent starts.",
+		"",
+		`_Mode: ${input.mode.replaceAll("_", " ")}_`,
+	].join("\n");
+}
+
 function preserveFinishedSteps(
 	previous: readonly WorkPlanStep[],
 	next: readonly WorkPlanStep[],

@@ -54,6 +54,7 @@ import {
 } from "../lib/github.js";
 import {
 	applyInvestigationResult,
+	prepareWorkPlanComment,
 	recordInvestigationProgress,
 	recordWorkPlan,
 } from "../lib/investigation-result.js";
@@ -72,6 +73,7 @@ import {
 	upsertVerificationRecord,
 } from "../lib/verification.js";
 import { requireWorkPlanReadyForReport, updateWorkPlan, type WorkPlan } from "../lib/work-plan.js";
+import { bootstrapWorkspace, type WorkspaceBootstrapStage } from "../lib/workspace-bootstrap.js";
 import diagnoseSkill from "../skills/diagnose/SKILL.md";
 import fixSkill from "../skills/fix/SKILL.md";
 import implementSkill from "../skills/implement/SKILL.md";
@@ -281,7 +283,9 @@ export function Investigate({ id }: AgentProps) {
 	useAgentStart(async ({ log }) => {
 		if (setupComplete || reported) return;
 		try {
+			await prepareWorkPlanComment(input);
 			await env.ensureRepo({ dir: REPO_DIR, ref: cloneRef(input) });
+			await env.ensureContainerReady();
 			setSetupComplete(true);
 			await recordInvestigationProgress(input, {
 				kind: "workspace_ready",
@@ -911,14 +915,20 @@ function buildCodeToolDescription(): string {
 /**
  * Attach the container substrate and reproduce the base checkout the toolchain
  * runs against: git identity, a clone (or fetch) at the run's ref, and the
- * issue-scoped push capability the outbound proxy verifies. pnpm install is
- * left to the repro/fix skills -- isolate-first, container work on demand.
+ * issue-scoped push capability the outbound proxy verifies. The harness then
+ * installs dependencies when needed and creates the base workspace build.
  */
 async function attachContainer(id: string, input: InvestigateData): Promise<ContainerBackend> {
 	const container = fromSandbox(
 		getSandbox(workerEnv.Sandbox, id, { sleepAfter: SANDBOX_SLEEP_AFTER_SECONDS }),
 	);
 	await prepareContainer(container, input);
+	await bootstrapWorkspace(container, {
+		repoDir: REPO_DIR,
+		onProgress: async (stage) => {
+			await recordBootstrapProgress(input, stage);
+		},
+	});
 	return {
 		...container,
 		async isReady() {
@@ -929,6 +939,20 @@ async function attachContainer(id: string, input: InvestigateData): Promise<Cont
 			return result.exitCode === 0 && result.stdout.trim() === "true";
 		},
 	};
+}
+
+async function recordBootstrapProgress(
+	input: InvestigateData,
+	stage: WorkspaceBootstrapStage,
+): Promise<void> {
+	await recordInvestigationProgress(input, {
+		kind: stage,
+		title: stage === "workspace_installing" ? "Installing dependencies" : "Building workspace",
+		detail:
+			stage === "workspace_installing"
+				? "Preparing the repository dependency graph"
+				: "Creating the base package build outputs",
+	});
 }
 
 async function prepareContainer(

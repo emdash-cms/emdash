@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+	renderPreparingWorkPlanComment,
 	renderWorkPlanComment,
 	requireWorkPlanReadyForReport,
 	updateWorkPlan,
@@ -120,5 +121,18 @@ describe("agent work plans", () => {
 				outcome: "The bug reproduced, but no candidate was published.",
 			}),
 		).toContain("### Needs follow-up");
+	});
+
+	test("renders a safe deterministic workspace-preparation comment", () => {
+		const comment = renderPreparingWorkPlanComment({
+			mode: "implement",
+			summary: "Implement <unsafe> adapter [support]",
+		});
+
+		expect(comment).toContain("### Preparing workspace");
+		expect(comment).toContain("Implement &lt;unsafe&gt; adapter \\[support\\]");
+		expect(comment).toContain("Installing dependencies and building the repository");
+		expect(comment).toContain("_Mode: implement_");
+		expect(comment).not.toContain("<unsafe>");
 	});
 });

@@ -534,6 +534,19 @@ describe("ExecEnv deadlines", () => {
 });
 
 describe("ExecEnv container lifecycle", () => {
+	test("prepares the container once and reuses it for later commands", async () => {
+		const con = fakeContainer();
+		const attach = vi.fn(async () => con.container);
+		const env = makeEnv({ attachContainer: attach });
+
+		await env.ensureContainerReady();
+		await env.ensureContainerReady();
+		await env.exec("pnpm test");
+
+		expect(attach).toHaveBeenCalledTimes(1);
+		expect(con.execs).toEqual(["bash -o pipefail -c 'pnpm test'"]);
+	});
+
 	test("the container is attached lazily and reused across execs", async () => {
 		const con = fakeContainer();
 		const attach = vi.fn(async () => con.container);

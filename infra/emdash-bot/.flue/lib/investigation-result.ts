@@ -56,3 +56,17 @@ export async function recordWorkPlan(
 		...plan,
 	});
 }
+
+export async function prepareWorkPlanComment(input: {
+	issueNumber: number;
+	runId: string;
+	issueTitle: string;
+	arg?: string | null;
+}): Promise<boolean> {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer Flue-generated RPC class types.
+	const { Orchestrator } = workerEnv as unknown as InvestigationEnv;
+	return Orchestrator.getByName(`issue-${input.issueNumber}`).prepareWorkPlanComment({
+		runId: input.runId,
+		summary: input.arg?.trim() || input.issueTitle,
+	});
+}
