@@ -420,7 +420,10 @@ export async function generateSchemaHash(collections: CollectionWithFields[]): P
 /**
  * Map field type to TypeScript type
  */
-function fieldTypeToTypeScript(field: Field): string {
+function fieldTypeToTypeScript(field: {
+	type: Field["type"];
+	validation?: Field["validation"];
+}): string {
 	switch (field.type) {
 		case "string":
 		case "text":
@@ -449,6 +452,33 @@ function fieldTypeToTypeScript(field: Field): string {
 				return `(${multiOptions.map((o) => `"${o}"`).join(" | ")})[]`;
 			}
 			return "string[]";
+
+		case "repeater": {
+			const subFields = field.validation?.subFields;
+			// `validation` is unvalidated JSON on the seed and registry paths.
+			if (!Array.isArray(subFields) || subFields.length === 0) return "unknown";
+
+			// A duplicated slug keeps its first position and last declaration, as
+			// `generateRepeaterRowSchema`'s `shape[subField.slug]` does.
+			const members = new Map<string, string>();
+
+			for (const subField of subFields) {
+				const type = fieldTypeToTypeScript({
+					type: subField.type,
+					validation: subField.options ? { options: subField.options } : undefined,
+				});
+				// A sub-field slug is not guaranteed to be a valid identifier, so it is
+				// quoted rather than emitted bare.
+				const name = JSON.stringify(subField.slug);
+				// A sub-field that is not required may be null at runtime.
+				members.set(
+					subField.slug,
+					subField.required ? `${name}: ${type}` : `${name}?: ${type} | null`,
+				);
+			}
+
+			return `{ ${[...members.values()].join("; ")} }[]`;
+		}
 
 		case "portableText":
 			return "PortableTextBlock[]";

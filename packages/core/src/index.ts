@@ -1,8 +1,14 @@
 // Database (only types and utilities - internal functions not exported)
-export { EmDashDatabaseError, getMigrationStatus } from "./database/index.js";
+export {
+	EmDashDatabaseError,
+	getMigrationStatus,
+	getExactMigrationStatus,
+	MIGRATION_NAMES,
+} from "./database/index.js";
 export type {
 	DatabaseConfig,
 	MigrationStatus,
+	ExactMigrationStatus,
 	Database,
 	UserTable,
 	MediaTable,
@@ -116,7 +122,7 @@ export type {
 export { ulid } from "ulidx";
 export { computeContentHash, hashString } from "./utils/hash.js";
 export { sanitizeHref, isSafeHref } from "./utils/url.js";
-export { decodeSlug } from "./utils/slugify.js";
+export { decodeSlug, slugify } from "./utils/slugify.js";
 
 // Live Collections query functions (loader is in emdash/runtime)
 export {
@@ -151,7 +157,12 @@ export { after } from "./after.js";
 export type { WaitUntilFn } from "./after.js";
 
 // i18n configuration (from Astro config)
-export { getI18nConfig, isI18nEnabled, getFallbackChain } from "./i18n/config.js";
+export {
+	getI18nConfig,
+	isI18nEnabled,
+	getFallbackChain,
+	resolveContentCreateLocale,
+} from "./i18n/config.js";
 export type { I18nConfig } from "./i18n/config.js";
 
 // Visual editing
@@ -256,6 +267,7 @@ export type {
 	StorageCollection,
 	KVAccess,
 	ContentAccess,
+	ContentCreateOptions,
 	MediaAccess,
 	HttpAccess,
 	LogAccess,

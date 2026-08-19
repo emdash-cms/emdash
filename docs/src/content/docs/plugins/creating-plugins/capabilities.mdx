@@ -49,6 +49,20 @@ A few things worth knowing:
 - **`network:request:unrestricted` exists for user-configured URLs.** A webhook plugin where the operator types in the destination URL needs to reach hosts that aren't in the manifest. Plugins that always call known APIs should use `network:request` + `allowedHosts`.
 - **`email:send` is gated by configuration, not just the capability.** A plugin can declare `email:send`, but `ctx.email` will only be populated if some other plugin has registered an `email:deliver` transport.
 
+### Creating content in a locale
+
+`ctx.content.create()` accepts an optional third argument for the new entry's locale:
+
+```ts
+const post = await ctx.content.create(
+	"posts",
+	{ title: "繁體中文" },
+	{ locale: "zh-tw" },
+);
+```
+
+Locale matching is case-insensitive and stores the casing from the site's locale configuration, so `zh-tw` becomes `zh-TW` when that is the configured form. A malformed explicit locale always throws; when i18n is configured, an explicit locale outside the configured locale list also throws. When the option is omitted, EmDash uses the site's configured default locale; sites without i18n configuration retain the `en` default.
+
 ## Network host allowlists
 
 Plugins with `network:request` can only fetch hosts listed in `allowedHosts`. Wildcards are supported for subdomains:

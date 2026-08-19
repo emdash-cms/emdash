@@ -27,9 +27,13 @@ import type { ContentFieldFilters } from "./content-list-query.js";
 import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import {
+	enforceRuntimeMigrationPolicy,
+	PendingMigrationsError,
+	type RuntimeMigrationMode,
+} from "./database/migrations/policy.js";
+import {
 	ConcurrentMigrationTimeoutError,
 	MIGRATION_RACE_WAIT_MS,
-	runMigrations,
 } from "./database/migrations/runner.js";
 import { AuditRepository } from "./database/repositories/audit.js";
 import { ContentRepository } from "./database/repositories/content.js";
@@ -85,7 +89,9 @@ import type {
 	SettingField,
 	UserInfo,
 } from "./plugins/types.js";
+import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
 import { MAX_COLLECTION_LIST_COLUMNS, type FieldType } from "./schema/types.js";
+import { isMissingTableError } from "./utils/db-errors.js";
 import { hashString } from "./utils/hash.js";
 import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
 import { createSingleFlightCache, singleFlightCached } from "./utils/single-flight-cache.js";
@@ -346,6 +352,8 @@ export type CreateSchedulerFn = (executor: CronExecutor) => CronScheduler;
  */
 export interface RuntimeDependencies {
 	config: EmDashConfig;
+	/** Effective migration mode, resolved once by the runtime entrypoint. */
+	migrationMode?: RuntimeMigrationMode;
 	plugins: ResolvedPlugin[];
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	createDialect: (config: any) => Dialect;
@@ -801,6 +809,7 @@ export class EmDashRuntime {
 
 		// Never throws; no-op unless scheduled backups are enabled and due.
 		await maybeRunScheduledBackup(this.db, this.storage ?? undefined);
+		await recordSchedulerHeartbeatSafely(this.db);
 
 		return { published };
 	}
@@ -1245,8 +1254,10 @@ export class EmDashRuntime {
 			}
 		};
 
-		// Initialize database (connects, runs migrations if needed)
-		const db = await phase("rt.db", "DB init + migrations", () => EmDashRuntime.getDatabase(deps));
+		// Initialize the database and enforce its configured migration policy.
+		const db = await phase("rt.db", "DB init + migration policy", () =>
+			EmDashRuntime.getDatabase(deps),
+		);
 
 		// Resolver for the live connection, mirroring the `get db()` getter
 		// below (which can't be used here — the runtime instance doesn't exist
@@ -1309,6 +1320,16 @@ export class EmDashRuntime {
 		// fall back to the singleton, where serialization costs nothing.
 		let readDb = db;
 		let readDbDisposable: Kysely<Database> | undefined;
+		const disposeReadDb = async () => {
+			const disposable = readDbDisposable;
+			readDbDisposable = undefined;
+			if (!disposable) return;
+			try {
+				await disposable.destroy();
+			} catch {
+				// Non-fatal — the underlying binding is shared and needs no teardown.
+			}
+		};
 		if (ownsConfiguredDb && deps.createCoalescingDialect && deps.config.database) {
 			try {
 				const dialect = deps.createCoalescingDialect(deps.config.database.config);
@@ -1321,6 +1342,12 @@ export class EmDashRuntime {
 			}
 		}
 		const optionsRepo = new OptionsRepository(readDb);
+		let missingManualSchemaError: unknown;
+		const captureMissingManualSchema = (error: unknown) => {
+			if ((deps.migrationMode ?? "auto") === "manual" && isMissingTableError(error)) {
+				missingManualSchemaError ??= error;
+			}
+		};
 
 		const readSiteInfo = async () => {
 			const siteOpts = await optionsRepo.getMany<string>([
@@ -1349,14 +1376,16 @@ export class EmDashRuntime {
 						.select(["plugin_id", "status"])
 						.execute();
 					pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
-				} catch {
+				} catch (error) {
+					captureMissingManualSchema(error);
 					// _plugin_state may not exist yet on a pre-migration db.
 				}
 			}),
 			phase("rt.site", "Site info options", async () => {
 				try {
 					siteInfo = await readSiteInfo();
-				} catch {
+				} catch (error) {
+					captureMissingManualSchema(error);
 					// options may not exist yet on a pre-migration db.
 				}
 			}),
@@ -1385,7 +1414,8 @@ export class EmDashRuntime {
 							}
 						})();
 						seedGate = { collectionCount: collectionCount.count, setupDone };
-					} catch {
+					} catch (error) {
+						captureMissingManualSchema(error);
 						// Leave the "already set up" default so a read failure never
 						// triggers a seed onto a half-built db.
 					}
@@ -1394,6 +1424,10 @@ export class EmDashRuntime {
 		}
 
 		await Promise.all(coldStartReads);
+		if (missingManualSchemaError) {
+			await disposeReadDb();
+			throw missingManualSchemaError;
+		}
 
 		if (
 			localeCasingRepairVersion &&
@@ -1450,13 +1484,7 @@ export class EmDashRuntime {
 		}
 
 		// The read connection is single-use; everything below uses the singleton.
-		if (readDbDisposable) {
-			try {
-				await readDbDisposable.destroy();
-			} catch {
-				// Non-fatal — the underlying binding is shared and needs no teardown.
-			}
-		}
+		await disposeReadDb();
 
 		const enabledPlugins = new Set<string>();
 		for (const plugin of deps.plugins) {
@@ -1768,6 +1796,7 @@ export class EmDashRuntime {
 						}
 						// Never throws; no-op unless scheduled backups are enabled and due.
 						await maybeRunScheduledBackup(db, storage ?? undefined);
+						await recordSchedulerHeartbeatSafely(db);
 						if (!scheduler.setMediaUsageMaintenance) {
 							try {
 								await runMediaUsageMaintenance();
@@ -1908,13 +1937,16 @@ export class EmDashRuntime {
 				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
 				try {
-					await runMigrations(db);
+					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto");
 				} catch (error) {
 					// Timing out behind another instance's in-flight migrations
 					// is not a failure of OUR migration — the holder may just be
 					// slow. Don't back off for it: the next request waits again
 					// and init recovers the moment the holder finishes.
-					if (!(error instanceof ConcurrentMigrationTimeoutError)) {
+					if (
+						!(error instanceof ConcurrentMigrationTimeoutError) &&
+						!(error instanceof PendingMigrationsError)
+					) {
 						holder.failures.set(cacheKey, {
 							at: Date.now(),
 							message: error instanceof Error ? error.message : String(error),
@@ -2560,6 +2592,7 @@ export class EmDashRuntime {
 					supports: collection.supports || [],
 					hasSeo: collection.hasSeo,
 					urlPattern: collection.urlPattern,
+					routable: collection.routable !== false,
 					titleField: collection.titleField,
 					dateField: collection.dateField,
 					...(collection.hidden ? { hidden: true } : {}),
@@ -2678,11 +2711,14 @@ export class EmDashRuntime {
 
 		// Build taxonomies from database
 		let manifestTaxonomies: Array<{
+			id: string;
 			name: string;
 			label: string;
 			labelSingular?: string;
 			hierarchical: boolean;
 			collections: string[];
+			locale: string;
+			translationGroup: string;
 		}> = [];
 		let taxonomyDefinitionLocales: string[] = [];
 		try {
@@ -2693,11 +2729,14 @@ export class EmDashRuntime {
 				.execute();
 			taxonomyDefinitionLocales = rows.map((row) => row.locale);
 			manifestTaxonomies = rows.map((row) => ({
+				id: row.id,
 				name: row.name,
 				label: row.label,
 				labelSingular: row.label_singular ?? undefined,
 				hierarchical: row.hierarchical === 1,
 				collections: parseStringArray(row.collections).toSorted(),
+				locale: row.locale,
+				translationGroup: row.translation_group ?? row.id,
 			}));
 		} catch (error) {
 			console.debug("EmDash: Could not load taxonomy definitions:", error);
@@ -2726,7 +2765,7 @@ export class EmDashRuntime {
 		const authModeValue = authMode.type === "external" ? authMode.providerType : "passkey";
 
 		// Include i18n config if enabled (read from virtual module to avoid SSR module singleton mismatch)
-		const i18nConfig = virtualConfig?.i18n;
+		const i18nConfig = virtualConfig?.i18n ?? getI18nConfig();
 		const i18n =
 			i18nConfig && i18nConfig.locales && i18nConfig.locales.length > 1
 				? { defaultLocale: i18nConfig.defaultLocale, locales: i18nConfig.locales }
@@ -2748,6 +2787,10 @@ export class EmDashRuntime {
 			taxonomies: manifestTaxonomies,
 			authMode: authModeValue,
 			i18n,
+			contentLocale: {
+				defaultLocale: i18nConfig?.defaultLocale ?? "en",
+				implicit: i18nConfig === null,
+			},
 			marketplace: !!this.config.marketplace,
 			registry,
 		};
@@ -2914,7 +2957,7 @@ export class EmDashRuntime {
 		collection: string,
 		body: {
 			data: Record<string, unknown>;
-			slug?: string;
+			slug?: string | null;
 			status?: string;
 			authorId?: string;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
@@ -2974,7 +3017,7 @@ export class EmDashRuntime {
 		id: string,
 		body: {
 			data?: Record<string, unknown>;
-			slug?: string;
+			slug?: string | null;
 			status?: string;
 			authorId?: string | null;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;

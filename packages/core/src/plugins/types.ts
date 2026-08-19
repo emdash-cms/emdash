@@ -262,6 +262,12 @@ export type ContentWriteInput = Record<string, unknown> & {
 	seo?: ContentItemSeoInput;
 };
 
+/** Options accepted by `content.create`. */
+export interface ContentCreateOptions {
+	/** Locale for the new content row. Defaults to the configured site locale, then `en`. */
+	locale?: string;
+}
+
 /**
  * Taxonomy definition returned from the taxonomy API (e.g. "category", "tag").
  */
@@ -310,7 +316,11 @@ export interface ContentAccess {
 	list(collection: string, options?: ContentListOptions): Promise<PaginatedResult<ContentItem>>;
 
 	// Write operations (requires write:content) - optional on interface
-	create?(collection: string, data: ContentWriteInput): Promise<ContentItem>;
+	create?(
+		collection: string,
+		data: ContentWriteInput,
+		options?: ContentCreateOptions,
+	): Promise<ContentItem>;
 	update?(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete?(collection: string, id: string): Promise<boolean>;
 }
@@ -336,7 +346,11 @@ export interface TaxonomyAccess {
  * Full content access with write operations
  */
 export interface ContentAccessWithWrite extends ContentAccess {
-	create(collection: string, data: ContentWriteInput): Promise<ContentItem>;
+	create(
+		collection: string,
+		data: ContentWriteInput,
+		options?: ContentCreateOptions,
+	): Promise<ContentItem>;
 	update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete(collection: string, id: string): Promise<boolean>;
 }

@@ -90,17 +90,26 @@ async function collectionHasSeo(db: Kysely<Database>, collection: string): Promi
 	return row?.has_seo === 1;
 }
 
-async function collectionSupportsRevisions(
+async function getCollectionPublishConfig(
 	db: Kysely<Database>,
 	collection: string,
-): Promise<boolean> {
+): Promise<{ supportsRevisions: boolean; routable: boolean }> {
 	const row = await db
 		.selectFrom("_emdash_collections")
-		.select("supports")
+		.select(["supports", "routable"])
 		.where("slug", "=", collection)
 		.executeTakeFirst();
 	const supports: unknown = row?.supports ? JSON.parse(row.supports) : [];
-	return Array.isArray(supports) && supports.includes("revisions");
+	return {
+		supportsRevisions: Array.isArray(supports) && supports.includes("revisions"),
+		routable: row?.routable !== 0,
+	};
+}
+
+function requireRoutablePublishSlug(routable: boolean, slug: string | null | undefined): void {
+	if (routable && !slug?.trim()) {
+		throw new EmDashValidationError("Cannot publish routable content without a slug");
+	}
 }
 
 /**
@@ -786,7 +795,7 @@ export async function handleContentCreate(
 	collection: string,
 	body: {
 		data: Record<string, unknown>;
-		slug?: string;
+		slug?: string | null;
 		status?: string;
 		authorId?: string;
 		bylines?: ContentBylineInput[];
@@ -833,6 +842,10 @@ export async function handleContentCreate(
 				if (slugSource) {
 					slug = await repo.generateUniqueSlug(collection, slugSource, effectiveLocale);
 				}
+			}
+			if (body.status === "published") {
+				const publishConfig = await getCollectionPublishConfig(trx, collection);
+				requireRoutablePublishSlug(publishConfig.routable, slug);
 			}
 
 			const created = await repo.create({
@@ -968,7 +981,7 @@ export async function handleContentUpdate(
 	id: string,
 	body: {
 		data?: Record<string, unknown>;
-		slug?: string;
+		slug?: string | null;
 		status?: string;
 		authorId?: string | null;
 		bylines?: ContentBylineInput[];
@@ -1012,7 +1025,9 @@ export async function handleContentUpdate(
 
 			// Read existing item once for both _rev check and old slug capture
 			const existing =
-				body._rev || body.slug ? await trxRepo.findById(collection, resolvedId) : null;
+				body._rev || body.slug !== undefined || body.status === "published"
+					? await trxRepo.findById(collection, resolvedId)
+					: null;
 
 			// Validate _rev if provided (optimistic concurrency)
 			if (body._rev) {
@@ -1034,6 +1049,18 @@ export async function handleContentUpdate(
 			let oldSlug: string | undefined;
 			if (body.slug && existing?.slug && existing.slug !== body.slug) {
 				oldSlug = existing.slug;
+			}
+
+			const resultingStatus = body.status ?? existing?.status;
+			if (resultingStatus === "published") {
+				if (!existing) {
+					throw Object.assign(new Error(`Content item not found: ${id}`), {
+						apiError: { code: "NOT_FOUND" as const },
+					});
+				}
+				const publishConfig = await getCollectionPublishConfig(trx, collection);
+				const intendedSlug = body.slug !== undefined ? body.slug : existing.slug;
+				requireRoutablePublishSlug(publishConfig.routable, intendedSlug);
 			}
 
 			const updated = await trxRepo.update(collection, resolvedId, {
@@ -1463,7 +1490,12 @@ export async function handleContentSchedule(
 	try {
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
-			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
+			const existing = await repo.findByIdOrSlug(collection, id);
+			const resolvedId = existing?.id ?? id;
+			if (existing) {
+				const publishConfig = await getCollectionPublishConfig(trx, collection);
+				requireRoutablePublishSlug(publishConfig.routable, existing.slug);
+			}
 			return repo.schedule(collection, resolvedId, scheduledAt);
 		});
 
@@ -1558,7 +1590,7 @@ export async function handleContentPublish(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			const supportsRevisions = await collectionSupportsRevisions(trx, collection);
+			const publishConfig = await getCollectionPublishConfig(trx, collection);
 
 			// Capture the pre-publish state. For revision-supporting collections a
 			// slug edit is staged as `_slug` in the draft revision and only lands
@@ -1573,7 +1605,8 @@ export async function handleContentPublish(
 				options.publishedAt,
 				options.requireScheduledDue,
 				options.expectedScheduledAt,
-				supportsRevisions,
+				publishConfig.supportsRevisions,
+				publishConfig.routable,
 			);
 
 			// Leave a 301 behind when publishing changed the slug of an entry that

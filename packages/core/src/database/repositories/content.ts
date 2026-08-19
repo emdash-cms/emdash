@@ -33,6 +33,7 @@ import {
 // Regex pattern for ULID validation
 const ULID_PATTERN = /^[0-9A-Z]{26}$/;
 const SQLSTATE_PATTERN = /^[0-9A-Z]{5}$/;
+const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 
 // LIKE wildcards that must be escaped so user search input is matched literally.
 const LIKE_WILDCARD_RE = /[\\%_]/g;
@@ -257,6 +258,16 @@ function serializeValue(value: unknown): unknown {
 	return value;
 }
 
+function writableContentData(data: Record<string, unknown>): Record<string, unknown> {
+	const writable: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(data)) {
+		if (SYSTEM_COLUMNS.has(key)) continue;
+		validateIdentifier(key, "content field name");
+		writable[key] = value;
+	}
+	return writable;
+}
+
 /**
  * Deserialize a value from database storage
  * Attempts to parse JSON strings that look like objects/arrays
@@ -298,7 +309,7 @@ export class ContentRepository {
 	 * Create a new content item
 	 */
 	async create(input: CreateContentInput): Promise<ContentItem> {
-		const id = ulid();
+		const id = input.id ?? ulid();
 		const now = new Date().toISOString();
 
 		const {
@@ -396,7 +407,7 @@ export class ContentRepository {
 	 * (optionally scoped to a locale) and appends a numeric suffix (`-1`,
 	 * `-2`, etc.) on collision to guarantee uniqueness.
 	 *
-	 * Returns `null` if `baseSlug` is empty after slugification.
+	 * Returns null when slug normalization cannot produce a value.
 	 */
 	async generateUniqueSlug(type: string, text: string, locale?: string): Promise<string | null> {
 		const baseSlug = slugify(text);
@@ -860,11 +871,8 @@ export class ContentRepository {
 
 		// Update data fields (skip system columns to prevent injection via data)
 		if (input.data !== undefined && typeof input.data === "object") {
-			for (const [key, value] of Object.entries(input.data)) {
-				if (!SYSTEM_COLUMNS.has(key)) {
-					validateIdentifier(key, "content field name");
-					updates[key] = serializeValue(value);
-				}
+			for (const [key, value] of Object.entries(writableContentData(input.data))) {
+				updates[key] = serializeValue(value);
 			}
 		}
 
@@ -889,6 +897,159 @@ export class ContentRepository {
 		}
 
 		return updated;
+	}
+
+	/**
+	 * Update plugin-authored fields without letting content columns diverge
+	 * from the revision pointers that publication promotes.
+	 */
+	async updateDraftAware(
+		type: string,
+		id: string,
+		input: UpdateContentInput,
+	): Promise<ContentItem> {
+		const data = input.data ? writableContentData(input.data) : {};
+		const stagedSlug = typeof input.slug === "string" ? input.slug : undefined;
+		const hasDraftUpdate = Object.keys(data).length > 0 || stagedSlug !== undefined;
+
+		if (!hasDraftUpdate) {
+			return this.update(type, id, { ...input, data });
+		}
+
+		const collectionRows = await this.db
+			.selectFrom("_emdash_collections as collection")
+			.leftJoin("_emdash_fields as field", "field.collection_id", "collection.id")
+			.select(["collection.supports", "field.slug as fieldSlug"])
+			.where("collection.slug", "=", type)
+			.execute();
+		const supportsRaw = collectionRows[0]?.supports;
+		const supports: unknown = supportsRaw ? JSON.parse(supportsRaw) : [];
+		if (!Array.isArray(supports) || !supports.includes("revisions")) {
+			return this.update(type, id, { ...input, data });
+		}
+
+		const fieldSlugs = new Set(collectionRows.map((row) => row.fieldSlug).filter(Boolean));
+		for (const field of Object.keys(data)) {
+			if (!fieldSlugs.has(field)) {
+				throw new EmDashValidationError(`Unknown field '${field}' in collection '${type}'`);
+			}
+		}
+
+		const revisionRepo = new RevisionRepository(this.db);
+		let existing = await this.findById(type, id);
+
+		for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
+			let baseData = existing.data;
+			if (existing.draftRevisionId) {
+				const draft = await revisionRepo.findById(existing.draftRevisionId);
+				if (draft) baseData = draft.data;
+			}
+
+			const mergedData = { ...baseData, ...data };
+			if (stagedSlug !== undefined) mergedData._slug = stagedSlug;
+			const revision = await revisionRepo.create({
+				collection: type,
+				entryId: id,
+				data: mergedData,
+				...(input.authorId ? { authorId: input.authorId } : {}),
+			});
+
+			let staged: boolean;
+			try {
+				staged = await this.replaceDraftRevisionForUpdate(type, id, revision.id, existing, input);
+			} catch (error) {
+				await this.deleteUnstagedRevision(revisionRepo, type, id, revision.id);
+				throw error;
+			}
+
+			if (staged) {
+				const updated = await this.findById(type, id);
+				if (!updated) throw new Error("Content not found");
+				const draftData: Record<string, unknown> = {};
+				for (const [key, value] of Object.entries(mergedData)) {
+					if (!key.startsWith("_")) draftData[key] = value;
+				}
+				return { ...updated, data: { ...updated.data, ...draftData } };
+			}
+
+			await this.deleteUnstagedRevision(revisionRepo, type, id, revision.id);
+			existing = await this.findById(type, id);
+		}
+
+		if (!existing) throw new Error("Content not found");
+		throw new ContentMutationConflictError();
+	}
+
+	private async deleteUnstagedRevision(
+		revisionRepo: RevisionRepository,
+		type: string,
+		id: string,
+		revisionId: string,
+	): Promise<void> {
+		try {
+			await revisionRepo.deleteIfUnreferenced(type, id, revisionId);
+		} catch (error) {
+			console.error(`[content] Failed to clean up unstaged revision ${revisionId}:`, error);
+		}
+	}
+
+	private async replaceDraftRevisionForUpdate(
+		type: string,
+		id: string,
+		revisionId: string,
+		expected: ContentItem,
+		input: UpdateContentInput,
+	): Promise<boolean> {
+		const tableName = getTableName(type);
+		const assignments = [sql`draft_revision_id = ${revisionId}`];
+		let liveMetadataChanged = false;
+
+		if (input.status !== undefined) {
+			assignments.push(sql`status = ${input.status}`);
+			liveMetadataChanged = true;
+		}
+		if (input.slug === null) {
+			assignments.push(sql`slug = NULL`);
+			liveMetadataChanged = true;
+		}
+		if (input.publishedAt !== undefined) {
+			assignments.push(sql`published_at = ${input.publishedAt}`);
+			liveMetadataChanged = true;
+		}
+		if (input.scheduledAt !== undefined) {
+			assignments.push(sql`scheduled_at = ${input.scheduledAt}`);
+			liveMetadataChanged = true;
+		}
+		if (input.authorId !== undefined) {
+			assignments.push(sql`author_id = ${input.authorId}`);
+			liveMetadataChanged = true;
+		}
+		if (input.primaryBylineId !== undefined) {
+			assignments.push(sql`primary_byline_id = ${input.primaryBylineId}`);
+			liveMetadataChanged = true;
+		}
+		if (liveMetadataChanged) assignments.push(sql`updated_at = ${new Date().toISOString()}`);
+		assignments.push(sql`version = version + 1`);
+
+		const result = await sql`
+			UPDATE ${sql.ref(tableName)}
+			SET ${sql.join(assignments, sql`, `)}
+			WHERE id = ${id}
+			AND deleted_at IS NULL
+			AND version = ${expected.version}
+			AND ${nullableColumnMatch("live_revision_id", expected.liveRevisionId)}
+			AND ${nullableColumnMatch("draft_revision_id", expected.draftRevisionId)}
+			AND EXISTS (
+				SELECT 1 FROM revisions
+				WHERE revisions.id = ${revisionId}
+				AND revisions.collection = ${type}
+				AND revisions.entry_id = ${id}
+			)
+		`.execute(this.db);
+
+		const changed = (result.numAffectedRows ?? 0n) > 0n;
+		if (changed && liveMetadataChanged) invalidateCollectionCache(type);
+		return changed;
 	}
 
 	/**
@@ -1302,8 +1463,16 @@ export class ContentRepository {
 	// get overall statistics for a content type in a single query
 	async getStats(
 		type: string,
-	): Promise<{ total: number; published: number; draft: number; scheduled: number }> {
+		now = new Date(),
+	): Promise<{
+		total: number;
+		published: number;
+		draft: number;
+		scheduled: number;
+		overdueScheduled: number;
+	}> {
 		const tableName = getTableName(type);
+		const nowIso = now.toISOString();
 
 		const result = await this.db
 			.selectFrom(tableName as keyof Database)
@@ -1312,6 +1481,9 @@ export class ContentRepository {
 				eb.fn.sum(eb.case().when("status", "=", "published").then(1).else(0).end()).as("published"),
 				eb.fn.sum(eb.case().when("status", "=", "draft").then(1).else(0).end()).as("draft"),
 				sql<number>`SUM(CASE WHEN scheduled_at IS NOT NULL THEN 1 ELSE 0 END)`.as("scheduled"),
+				sql<number>`SUM(CASE WHEN scheduled_at IS NOT NULL AND scheduled_at <= ${nowIso} THEN 1 ELSE 0 END)`.as(
+					"overdue_scheduled",
+				),
 			])
 			.where("deleted_at" as never, "is", null)
 			.executeTakeFirst();
@@ -1321,6 +1493,7 @@ export class ContentRepository {
 			published: Number(result?.published || 0),
 			draft: Number(result?.draft || 0),
 			scheduled: Number(result?.scheduled || 0),
+			overdueScheduled: Number(result?.overdue_scheduled || 0),
 		};
 	}
 
@@ -1602,6 +1775,7 @@ export class ContentRepository {
 		requireDue = false,
 		expectedScheduledAt?: string,
 		promoteRevision = true,
+		requireSlug = true,
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
@@ -1616,6 +1790,9 @@ export class ContentRepository {
 			existing.scheduledAt !== expectedScheduledAt
 		) {
 			throw new ScheduledNotDueError();
+		}
+		if (!promoteRevision && requireSlug && !existing.slug?.trim()) {
+			throw new EmDashValidationError("Cannot publish routable content without a slug");
 		}
 
 		if (!promoteRevision) {
@@ -1733,6 +1910,9 @@ export class ContentRepository {
 
 			const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
 			const intendedSlug = stagedSlug ?? existing.slug;
+			if (requireSlug && !intendedSlug?.trim()) {
+				throw new EmDashValidationError("Cannot publish routable content without a slug");
+			}
 			const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
 			if (stagedSlug !== null && stagedSlug !== existing.slug && existing.locale !== null) {
 				const conflict = await this.findBySlugIncludingTrashed(type, stagedSlug, existing.locale);

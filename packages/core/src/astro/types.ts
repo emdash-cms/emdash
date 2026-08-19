@@ -32,6 +32,8 @@ export interface ManifestCollection {
 	supports: string[];
 	hasSeo: boolean;
 	urlPattern?: string;
+	/** Whether published entries require a slug. Defaults to true. */
+	routable?: boolean;
 	titleField?: string;
 	dateField?: string;
 	/**
@@ -150,15 +152,22 @@ export interface EmDashManifest {
 		locales: string[];
 		prefixDefaultLocale?: boolean;
 	};
+	contentLocale?: {
+		defaultLocale: string;
+		implicit: boolean;
+	};
 	/**
 	 * Taxonomy definitions for the admin sidebar.
 	 */
 	taxonomies: Array<{
+		id: string;
 		name: string;
 		label: string;
 		labelSingular?: string;
 		hierarchical: boolean;
 		collections: string[];
+		locale: string;
+		translationGroup: string;
 	}>;
 	/**
 	 * Whether the plugin marketplace is configured.
@@ -280,7 +289,7 @@ export interface EmDashHandlers {
 		collection: string,
 		body: {
 			data: Record<string, unknown>;
-			slug?: string;
+			slug?: string | null;
 			status?: string;
 			authorId?: string;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
@@ -297,7 +306,7 @@ export interface EmDashHandlers {
 		id: string,
 		body: {
 			data?: Record<string, unknown>;
-			slug?: string;
+			slug?: string | null;
 			status?: string;
 			authorId?: string | null;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;

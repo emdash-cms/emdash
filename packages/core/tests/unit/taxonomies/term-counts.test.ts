@@ -216,7 +216,6 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 				translation_group: enDef.translation_group ?? enDef.id,
 			})
 			.execute();
-
 		const enTerm = await taxRepo.create({
 			name: "category",
 			slug: "news",
@@ -267,6 +266,40 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		expect(frTerms.find((term) => term.id === frTerm.id)?.count).toBe(1);
 	});
 
+	it("counts only entry rows in the requested locale, keyed by translation_group", async () => {
+		const enTerm = await taxRepo.create({
+			name: "category",
+			slug: "news",
+			label: "News",
+			locale: "en",
+		});
+		const enPost = await contentRepo.create({
+			type: "post",
+			slug: "hello",
+			status: "published",
+			data: { title: "Hello" },
+			locale: "en",
+		});
+		await contentRepo.create({
+			type: "post",
+			slug: "bonjour",
+			status: "published",
+			data: { title: "Bonjour" },
+			locale: "fr",
+			translationOf: enPost.id,
+		});
+		await taxRepo.attachToEntry("post", enPost.id, enTerm.id);
+
+		const enCounts = await fetchVisibleTermCounts(ctx.db, "category", ["post"], "en");
+		const frCounts = await fetchVisibleTermCounts(ctx.db, "category", ["post"], "fr");
+		const deCounts = await fetchVisibleTermCounts(ctx.db, "category", ["post"], "de");
+		const group = enTerm.translationGroup ?? enTerm.id;
+
+		expect(enCounts.get(group)).toBe(1);
+		expect(frCounts.get(group)).toBe(1);
+		expect(deCounts.has(group)).toBe(false);
+	});
+
 	it("skips missing ec_* tables and returns a partial count", async () => {
 		// A declared collection whose table was never created (pre-migration
 		// drift) must not break counting for the collections that do exist.
@@ -310,8 +343,20 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		});
 
 		const post = await createEntry("post", "p1");
-		const page1 = await createEntry("page", "g1");
-		const page2 = await createEntry("page", "g2");
+		const page1 = await contentRepo.create({
+			type: "page",
+			slug: "g1",
+			status: "published",
+			data: { title: "g1" },
+			locale: "fr",
+		});
+		const page2 = await contentRepo.create({
+			type: "page",
+			slug: "g2",
+			status: "published",
+			data: { title: "g2" },
+			locale: "fr",
+		});
 		await taxRepo.attachToEntry("post", post.id, enTerm.id);
 		await taxRepo.attachToEntry("page", page1.id, enTerm.id);
 		await taxRepo.attachToEntry("page", page2.id, enTerm.id);
@@ -323,6 +368,47 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 			expect(enTerms[0]!.count).toBe(1);
 			expect(frTerms[0]!.count).toBe(2);
 		});
+
+		const frList = await handleTermList(ctx.db, "drifty", { locale: "fr" });
+		if (!frList.success) throw new Error(frList.error.message);
+		expect(frList.data.terms[0]!.count).toBe(2);
+
+		const frTerm = await handleTermGet(ctx.db, "drifty", "partage", { locale: "fr" });
+		if (!frTerm.success) throw new Error(frTerm.error.message);
+		expect(frTerm.data.term.count).toBe(2);
+	});
+
+	it("falls back to an existing definition when the requested locale has none", async () => {
+		await insertDef("partial", ["post"], "en");
+		const enTerm = await taxRepo.create({
+			name: "partial",
+			slug: "shared",
+			label: "Shared",
+			locale: "en",
+		});
+		const frTerm = await taxRepo.create({
+			name: "partial",
+			slug: "partage",
+			label: "Partagé",
+			locale: "fr",
+			translationOf: enTerm.id,
+		});
+		const frPost = await contentRepo.create({
+			type: "post",
+			slug: "bonjour",
+			status: "published",
+			data: { title: "Bonjour" },
+			locale: "fr",
+		});
+		await taxRepo.attachToEntry("post", frPost.id, frTerm.id);
+
+		const list = await handleTermList(ctx.db, "partial", { locale: "fr" });
+		const term = await handleTermGet(ctx.db, "partial", "partage", { locale: "fr" });
+
+		expect([list, term]).toMatchObject([
+			{ success: true, data: { terms: [{ slug: "partage", count: 1 }] } },
+			{ success: true, data: { term: { slug: "partage", count: 1 } } },
+		]);
 	});
 
 	it("returns an empty map when the taxonomy declares no collections", async () => {

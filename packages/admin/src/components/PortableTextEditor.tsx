@@ -1365,6 +1365,12 @@ interface SlashCommandItem {
 	category?: MessageDescriptor | string;
 }
 
+function insertHtmlBlock(editor: Editor, range?: Range) {
+	const chain = editor.chain().focus();
+	if (range) chain.deleteRange(range);
+	chain.insertContent({ type: "htmlBlock", attrs: { html: "" } }).run();
+}
+
 /**
  * Default slash commands for built-in block types
  */
@@ -1475,14 +1481,7 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		description: msg`Insert raw HTML`,
 		icon: BracketsAngle,
 		aliases: ["html", "raw", "markup"],
-		command: ({ editor, range }) => {
-			editor
-				.chain()
-				.focus()
-				.deleteRange(range)
-				.insertContent({ type: "htmlBlock", attrs: { html: "" } })
-				.run();
-		},
+		command: ({ editor, range }) => insertHtmlBlock(editor, range),
 	},
 	{
 		id: "divider",
@@ -2638,6 +2637,10 @@ export function PortableTextEditor({
 	// Section picker state (for inserting sections)
 	const [sectionPickerOpen, setSectionPickerOpen] = React.useState(false);
 	const pendingBlockInsertPosRef = React.useRef<number | null>(null);
+	const openToolbarImagePicker = React.useCallback(() => {
+		pendingBlockInsertPosRef.current = null;
+		setMediaPickerOpen(true);
+	}, []);
 
 	// Slash commands state
 	const [slashMenuState, setSlashMenuStateRaw] = React.useState<SlashMenuState>({
@@ -3399,6 +3402,7 @@ export function PortableTextEditor({
 						focusMode={focusMode}
 						onFocusModeChange={setFocusMode}
 						onInsertBlock={handleTouchInsertBlock}
+						onInsertImage={openToolbarImagePicker}
 					/>
 				)}
 				<div className="relative overflow-visible">
@@ -3861,12 +3865,14 @@ function EditorToolbar({
 	focusMode,
 	onFocusModeChange,
 	onInsertBlock,
+	onInsertImage,
 }: {
 	toolbarRef: React.RefObject<HTMLDivElement | null>;
 	editor: Editor;
 	focusMode: FocusMode;
 	onFocusModeChange: (mode: FocusMode) => void;
 	onInsertBlock: () => void;
+	onInsertImage: () => void;
 }) {
 	const { t } = useLingui();
 	const [showLinkPopover, setShowLinkPopover] = React.useState(false);
@@ -3884,8 +3890,6 @@ function EditorToolbar({
 				isItalic: ctx.editor.isActive("italic"),
 				isUnderline: ctx.editor.isActive("underline"),
 				isStrike: ctx.editor.isActive("strike"),
-				isSubscript: ctx.editor.isActive("subscript"),
-				isSuperscript: ctx.editor.isActive("superscript"),
 				isCode: ctx.editor.isActive("code"),
 				isBulletList: ctx.editor.isActive("bulletList"),
 				isOrderedList,
@@ -4042,20 +4046,6 @@ function EditorToolbar({
 					<TextStrikethrough className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleSubscript().run()}
-					active={editorState.isSubscript}
-					title={t`Subscript`}
-				>
-					<TextSubscript className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleSuperscript().run()}
-					active={editorState.isSuperscript}
-					title={t`Superscript`}
-				>
-					<TextSuperscript className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleCode().run()}
 					active={editorState.isCode}
 					title={t`Inline Code`}
@@ -4120,6 +4110,12 @@ function EditorToolbar({
 					title={t`Code Block`}
 				>
 					<CodeBlock className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton onClick={onInsertImage} title={t`Insert Image`}>
+					<ImageIcon className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton onClick={() => insertHtmlBlock(editor)} title={t`Insert HTML`}>
+					<BracketsAngle className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 			</ToolbarGroup>
 

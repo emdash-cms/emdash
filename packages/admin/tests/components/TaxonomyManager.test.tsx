@@ -2,6 +2,7 @@ import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import {
 	getAvailableParentTerms,
@@ -342,6 +343,42 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByLabelText("Slug")).toBeInTheDocument();
 		// The InputArea uses "Description (optional)" as label
 		await expect.element(screen.getByText("Description (optional)")).toBeInTheDocument();
+	});
+
+	it("lets the server derive an auto-generated term slug", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		await screen.getByLabelText("Name").fill("音楽");
+		await expect.element(screen.getByLabelText("Slug")).toHaveValue("音楽");
+
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => {
+			const call = vi.mocked(apiFetch).mock.calls.find(([, init]) => init?.method === "POST");
+			expect(call).toBeDefined();
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({ label: "音楽" });
+			expect(body).not.toHaveProperty("slug");
+		});
+	});
+
+	it("sends a manually edited term slug", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		await screen.getByLabelText("Name").fill("Music");
+		await screen.getByLabelText("Slug").fill("custom-music");
+
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => {
+			const call = vi.mocked(apiFetch).mock.calls.find(([, init]) => init?.method === "POST");
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({ label: "Music", slug: "custom-music" });
+		});
 	});
 
 	it("shows parent selector for hierarchical taxonomies", async () => {

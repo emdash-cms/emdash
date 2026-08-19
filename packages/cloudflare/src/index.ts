@@ -43,6 +43,8 @@ import type {
 import type { DurableObjectsConfig } from "./db/do-sql-types.js";
 import type { PreviewDOConfig } from "./db/do-types.js";
 
+const ENVIRONMENT_VARIABLE_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 /**
  * D1 configuration
  */
@@ -136,8 +138,8 @@ export interface HyperdriveConfig {
 	 * (uncached) to preserve read-after-write consistency: every authenticated
 	 * request, every write, and every request under `/_emdash` (admin, setup,
 	 * auth, internal APIs) — including anonymous GETs like the post-setup status
-	 * check, which must observe a write made moments earlier. Migrations and the
-	 * cold-start singleton always use `binding`.
+	 * check, which must observe a write made moments earlier. Runtime migrations
+	 * and the cold-start singleton always use `binding`.
 	 *
 	 * After a content publish, EmDash prefers the primary uncached binding for
 	 * anonymous public reads for a short window (see
@@ -169,6 +171,17 @@ export interface HyperdriveConfig {
 	 * default `max_age`) when `cachedBinding` is set; ignored otherwise.
 	 */
 	preferUncachedAfterWriteMs?: number;
+
+	/**
+	 * Environment variable containing a PostgreSQL connection string that the
+	 * deployment migration command can use to reach the database origin
+	 * directly. This value is read only by `emdash migrate`; Worker requests
+	 * continue to use the Hyperdrive binding.
+	 *
+	 * @default `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_<BINDING>`
+	 * (`$` in the binding is represented as `_`.)
+	 */
+	migrationConnectionStringEnv?: string;
 
 	/**
 	 * Maximum size of the in-Worker node-postgres connection pool.
@@ -259,7 +272,8 @@ export interface AccessConfig {
  * Cloudflare D1 database adapter
  *
  * For Cloudflare Workers with D1 binding.
- * Migrations run automatically at setup time - no need for manual SQL files.
+ * Runtime migrations run automatically by default; deployment-managed
+ * migrations can be applied from the build manifest before deploy.
  *
  * Uses a custom introspector that works around D1's restriction on
  * cross-joins with pragma_table_info().
@@ -274,6 +288,10 @@ export function d1(config: D1Config): DatabaseDescriptor {
 		entrypoint: "@emdash-cms/cloudflare/db/d1",
 		config,
 		type: "sqlite",
+		migrations: {
+			entrypoint: "@emdash-cms/cloudflare/db/d1-migrations",
+			manifestConfig: { binding: config.binding },
+		},
 		supportsRequestScope: true,
 		supportsCoalescing: true,
 		supportsCollectionDeletionGuard: true,
@@ -352,10 +370,17 @@ export function d1(config: D1Config): DatabaseDescriptor {
  * ```
  */
 export function hyperdrive(config: HyperdriveConfig = {}): DatabaseDescriptor {
+	const binding = config.binding ?? "HYPERDRIVE";
+	const connectionStringEnv =
+		config.migrationConnectionStringEnv ??
+		`CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_${binding.replaceAll("$", "_")}`;
+	if (!ENVIRONMENT_VARIABLE_PATTERN.test(connectionStringEnv)) {
+		throw new Error("migrationConnectionStringEnv must be a valid environment variable name.");
+	}
 	return {
 		entrypoint: "@emdash-cms/cloudflare/db/hyperdrive",
 		config: {
-			binding: config.binding ?? "HYPERDRIVE",
+			binding,
 			max: config.max,
 			...(config.cachedBinding !== undefined ? { cachedBinding: config.cachedBinding } : {}),
 			...(config.preferUncachedAfterWriteMs !== undefined
@@ -363,6 +388,10 @@ export function hyperdrive(config: HyperdriveConfig = {}): DatabaseDescriptor {
 				: {}),
 		},
 		type: "postgres",
+		migrations: {
+			entrypoint: "@emdash-cms/cloudflare/db/hyperdrive-migrations",
+			manifestConfig: { binding, connectionStringEnv },
+		},
 		// Each request gets a fresh pg connection that is closed afterwards —
 		// connections cannot be reused across Worker requests.
 		supportsRequestScope: true,

@@ -550,6 +550,18 @@ describe("taxonomy_create_term", () => {
 		expect(term.label).toBe("Tech");
 	});
 
+	it("derives a Unicode slug when omitted", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const result = await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "tags", label: "音楽" },
+		});
+
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const { term } = extractJson<{ term: { slug: string } }>(result);
+		expect(term.slug).toBe("音楽");
+	});
+
 	it("creates a child term with parentId", async () => {
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 		const parent = await harness.client.callTool({

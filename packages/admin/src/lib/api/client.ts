@@ -93,6 +93,7 @@ export interface AdminManifest {
 			supports: string[];
 			hasSeo: boolean;
 			urlPattern?: string;
+			routable?: boolean;
 			titleField?: string;
 			dateField?: string;
 			hidden?: boolean;
@@ -179,15 +180,23 @@ export interface AdminManifest {
 		defaultLocale: string;
 		locales: string[];
 	};
+	/** Stored-content locale policy, independent from the admin UI language. */
+	contentLocale?: {
+		defaultLocale: string;
+		implicit: boolean;
+	};
 	/**
 	 * Taxonomy definitions for the admin sidebar.
 	 */
 	taxonomies: Array<{
+		id?: string;
 		name: string;
 		label: string;
 		labelSingular?: string;
 		hierarchical: boolean;
 		collections: string[];
+		locale?: string;
+		translationGroup?: string | null;
 	}>;
 	/**
 	 * Marketplace registry URL. Present when `marketplace` is configured

@@ -109,6 +109,55 @@ describe("verifyWebhookSignature (workers-pool)", () => {
 });
 
 describe("POST /webhook/github (workers-pool)", () => {
+	test("serves the public dashboard", async () => {
+		const res = await SELF.fetch("https://test/");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toContain("text/html");
+		const html = await res.text();
+		expect(html).toContain("Issue lifecycle");
+		expect(html).toContain("Agent run");
+		expect(html).toContain("Work plan");
+		expect(html).toContain("Run trace");
+	});
+
+	test("dashboard API fails closed when GitHub credentials are unavailable", async () => {
+		const res = await SELF.fetch("https://test/api/dashboard");
+		expect(res.status).toBe(503);
+		expect(await res.json()).toEqual({ error: "Dashboard data is temporarily unavailable" });
+	});
+
+	test("serves the selected issue's public run trace without GitHub credentials", async () => {
+		const issueNumber = uniqueIssueNumber();
+		const stub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
+		await stub.debugSetStaleRun(
+			"dashboard-trace-run",
+			Date.now() - 1_000,
+			`investigate-${issueNumber}-dashboard-trace-run`,
+			"repro",
+		);
+		await stub.recordRunTraceEvent({
+			runId: "dashboard-trace-run",
+			event: {
+				key: "dashboard-trace-event",
+				at: Date.now(),
+				kind: "turn",
+				title: "Model turn",
+				detail: "deepseek-v4",
+				tone: "active",
+				output: "Inspecting the issue.",
+			},
+		});
+
+		const res = await SELF.fetch(`https://test/api/issues/${issueNumber}/trace`);
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("cache-control")).toBe("no-store");
+		expect(await res.json()).toMatchObject({
+			selectedRunId: "dashboard-trace-run",
+			events: [{ kind: "turn", output: "Inspecting the issue." }],
+		});
+	});
+
 	test("rejects requests without a valid signature", async () => {
 		const res = await postWebhook({
 			eventType: "ping",
@@ -166,8 +215,8 @@ describe("POST /webhook/github (workers-pool)", () => {
 
 	test("classifier failure remains retryable and does not persist state", async () => {
 		// The webhook acknowledges durable admission before classifier work. The
-		// test entry has no Flue runtime, so processing fails and leaves the item
-		// queued for retry without persisting state.
+		// test entry returns a classifier error, so processing leaves the item
+		// queued for retry without persisting state or using remote inference.
 		const issueNumber = uniqueIssueNumber();
 		const res = await postWebhook({
 			eventType: "issue_comment",

@@ -96,7 +96,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1535
+#: packages/admin/src/router.tsx:1537
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {อัปเดตความคิดเห็น # รายการ} other {อัปเดตความคิดเห็น # รายการ}}"
 
@@ -189,17 +189,17 @@ msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
 msgstr ""
 
 #. placeholder {0}: fields.length
-#: packages/admin/src/components/ContentTypeEditor.tsx:585
+#: packages/admin/src/components/ContentTypeEditor.tsx:600
 msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0, plural, one {ฟิลด์} other {ฟิลด์}}"
 
 #. placeholder {0}: stats.mediaCount
-#: packages/admin/src/components/Dashboard.tsx:179
+#: packages/admin/src/components/Dashboard.tsx:213
 msgid "{0, plural, one {Media file} other {Media files}}"
 msgstr ""
 
 #. placeholder {0}: stats.userCount
-#: packages/admin/src/components/Dashboard.tsx:183
+#: packages/admin/src/components/Dashboard.tsx:217
 msgid "{0, plural, one {User} other {Users}}"
 msgstr ""
 
@@ -230,6 +230,11 @@ msgstr ""
 #: packages/admin/src/components/WordPressImport.tsx:1303
 msgid "{0} detected"
 msgstr "ตรวจพบ {0}"
+
+#. placeholder {0}: term.locale.toUpperCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:356
+msgid "{0} fallback"
+msgstr ""
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/PluginManager.tsx:115
@@ -268,17 +273,17 @@ msgid "{0} items will be imported"
 msgstr "จะนำเข้า {0} รายการ"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:559
+#: packages/admin/src/router.tsx:560
 msgid "{0} of {total} could not be deleted"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:515
+#: packages/admin/src/router.tsx:516
 msgid "{0} of {total} could not be published"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:538
+#: packages/admin/src/router.tsx:539
 msgid "{0} of {total} could not be updated"
 msgstr ""
 
@@ -294,13 +299,13 @@ msgstr "ดูตัวอย่าง {0}"
 
 #. placeholder {0}: SYSTEM_FIELDS.length
 #. placeholder {1}: fields.length
-#. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> {/* Sticky header keeps the primary save action in view while users scroll through the settings + fields panels. The bottom-of-form save button is preserved below for keyboard / screen-reader users so DOM order still ends with a submit control. */} <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="truncate text-2xl font-semibold"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-kumo-info" /> <p className="text-sm text-kumo-subtle"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`} </p> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && (isNew ? ( <Button type="submit" disabled={!hasChanges || !urlPatternValid} loading={isSaving} className="w-full justify-center" > {t`Create Content Type`} </Button> ) : ( <SaveButton type="submit" isDirty={!!hasChanges} isSaving={!!isSaving} announce={false} disabled={!urlPatternValid} className="w-full justify-center" /> ))} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className="text-xs text-kumo-subtle capitalize">{field.type}</span> {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
-#: packages/admin/src/components/ContentTypeEditor.tsx:583
+#. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); const [routable, setRoutable] = React.useState(collection?.routable ?? true); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || routable !== (collection.routable ?? true) || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, routable, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="truncate text-2xl font-semibold"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-kumo-info" /> <p className="text-sm text-kumo-subtle"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <Switch checked={routable} onCheckedChange={setRoutable} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Routable`}</span> <p className="text-xs text-kumo-subtle"> {t`Require a slug before content can be published`} </p> </div> } /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`} </p> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && (isNew ? ( <Button type="submit" disabled={!hasChanges || !urlPatternValid} loading={isSaving} className="w-full justify-center" > {t`Create Content Type`} </Button> ) : ( <SaveButton type="submit" isDirty={!!hasChanges} isSaving={!!isSaving} announce={false} disabled={!urlPatternValid} className="w-full justify-center" /> ))} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className="text-xs text-kumo-subtle capitalize">{field.type}</span> {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
+#: packages/admin/src/components/ContentTypeEditor.tsx:598
 msgid "{0} system + {1} custom {2}"
 msgstr "ระบบ {0} + กำหนดเอง {1} {2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:356
+#: packages/admin/src/components/TaxonomySidebar.tsx:411
 msgid "{0} updated"
 msgstr "อัปเดต {0} แล้ว"
 
@@ -331,8 +336,18 @@ msgstr "{base} เป็น: {0}"
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, one {# การเปลี่ยนแปลงจากรุ่นแก้ไขถัดไป} other {# การเปลี่ยนแปลงจากรุ่นแก้ไขถัดไป}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2513
+#: packages/admin/src/components/PortableTextEditor.tsx:2512
 msgid "{characters, plural, one {# character} other {# characters}}"
+msgstr ""
+
+#. placeholder {0}: rows.length
+#: packages/admin/src/components/MediaUploadDialog.tsx:482
+msgid "{completedCount} of {0} complete"
+msgstr ""
+
+#. placeholder {0}: rows.length
+#: packages/admin/src/components/MediaUploadDialog.tsx:367
+msgid "{completedCount} of {0} uploads complete"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2072
@@ -346,6 +361,10 @@ msgstr "{count, plural, one {# รายการ} other {# รายการ}}
 #: packages/admin/src/components/WordPressImport.tsx:2143
 msgid "{current} of {total}"
 msgstr "{current} จาก {total}"
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:369
+msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
+msgstr ""
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
@@ -381,6 +400,18 @@ msgstr "{needsNewCollections, plural, one {จะมีการสร้าง�
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {จะมีการเพิ่มฟิลด์ไปยังคอลเลกชันที่มีอยู่ # รายการ} other {จะมีการเพิ่มฟิลด์ไปยังคอลเลกชันที่มีอยู่ # รายการ}}"
 
+#: packages/admin/src/components/Dashboard.tsx:102
+msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
+msgstr ""
+
+#: packages/admin/src/components/Dashboard.tsx:97
+msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
+msgstr ""
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:458
+msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
+msgstr ""
+
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:83
 msgid "{pluginName} is requesting additional permissions:"
 msgstr "{pluginName} กำลังขอสิทธิ์เพิ่มเติม:"
@@ -395,11 +426,11 @@ msgstr "{pluginName} ต้องการสิทธิ์ต่อไปน�
 msgid "{pluginName} Settings"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2514
+#: packages/admin/src/components/PortableTextEditor.tsx:2513
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:298
+#: packages/admin/src/components/MediaLibrary.tsx:263
 msgid "{resultCount, plural, one {# item} other {# items}}"
 msgstr ""
 
@@ -419,21 +450,11 @@ msgstr "{total, plural, one {# รายการ} other {# รายการ}}
 msgid "{total, plural, one {# total} other {# total}}"
 msgstr "{total, plural, one {รวม #} other {รวม #}}"
 
-#: packages/admin/src/components/MediaLibrary.tsx:211
-#: packages/admin/src/components/MediaLibrary.tsx:247
-msgid "{total, plural, one {File uploaded} other {# files uploaded}}"
-msgstr "{total, plural, one {อัปโหลดไฟล์แล้ว} other {อัปโหลดไฟล์แล้ว # ไฟล์}}"
-
-#: packages/admin/src/components/MediaLibrary.tsx:216
-#: packages/admin/src/components/MediaLibrary.tsx:252
-msgid "{total, plural, one {Upload failed} other {All # uploads failed}}"
-msgstr "{total, plural, one {การอัปโหลดล้มเหลว} other {การอัปโหลดล้มเหลวทั้งหมด # รายการ}}"
-
-#: packages/admin/src/components/Dashboard.tsx:167
+#: packages/admin/src/components/Dashboard.tsx:201
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:173
+#: packages/admin/src/components/Dashboard.tsx:207
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr ""
 
@@ -445,12 +466,7 @@ msgstr "{unchangedCount, plural, one {ซ่อนรายการที่ไ
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
 msgstr "{unchangedCount, plural, one {แสดงรายการที่ไม่เปลี่ยนแปลง # รายการ} other {แสดงรายการที่ไม่เปลี่ยนแปลง # รายการ}}"
 
-#: packages/admin/src/components/MediaLibrary.tsx:221
-#: packages/admin/src/components/MediaLibrary.tsx:257
-msgid "{uploaded} uploaded, {failed} failed"
-msgstr "อัปโหลดแล้ว {uploaded} รายการ, ล้มเหลว {failed} รายการ"
-
-#: packages/admin/src/components/PortableTextEditor.tsx:2512
+#: packages/admin/src/components/PortableTextEditor.tsx:2511
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr ""
 
@@ -565,7 +581,7 @@ msgstr "7 วัน"
 msgid "90 days"
 msgstr "90 วัน"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:416
+#: packages/admin/src/components/ContentTypeEditor.tsx:417
 msgid "A brief description of this content type"
 msgstr "คำอธิบายสั้น ๆ ของประเภทเนื้อหานี้"
 
@@ -576,6 +592,10 @@ msgstr "แบนเนอร์ฮีโร่แบบเต็มความ
 #: packages/admin/src/components/settings/GeneralSettings.tsx:176
 msgid "A short description of your site"
 msgstr "คำอธิบายสั้น ๆ ของเว็บไซต์ของคุณ"
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:455
+msgid "A source and target locale are required"
+msgstr ""
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:201
 msgid "Accept & Install"
@@ -593,7 +613,7 @@ msgstr "ยอมรับคำเชิญ"
 msgid "Access denied"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1555
+#: packages/admin/src/router.tsx:1557
 msgid "Access Denied"
 msgstr "การเข้าถึงถูกปฏิเสธ"
 
@@ -637,21 +657,21 @@ msgid "Active"
 msgstr "ใช้งานอยู่"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:171
-#: packages/admin/src/components/ContentSettingsPanel.tsx:974
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1003
 #: packages/admin/src/components/MenuEditor.tsx:441
-#: packages/admin/src/components/TaxonomySidebar.tsx:487
+#: packages/admin/src/components/TaxonomySidebar.tsx:619
 msgid "Add"
 msgstr "เพิ่ม"
 
 #. placeholder {0}: field.item_label
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/PortableTextEditor.tsx:2125
+#: packages/admin/src/components/PortableTextEditor.tsx:2124
 #: packages/admin/src/components/TaxonomyManager.tsx:540
 #: packages/admin/src/components/TaxonomyManager.tsx:1041
 msgid "Add {0}"
 msgstr "เพิ่ม {0}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:276
+#: packages/admin/src/components/TaxonomySidebar.tsx:316
 msgid "Add {label}"
 msgstr "เพิ่ม {label}"
 
@@ -663,11 +683,11 @@ msgstr "เพิ่ม Passkey ใหม่"
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "เพิ่มฟิลด์ย่อยอย่างน้อยหนึ่งฟิลด์เพื่อกำหนดโครงสร้างของตัวทำซ้ำ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3735
+#: packages/admin/src/components/PortableTextEditor.tsx:3739
 msgid "Add column after"
 msgstr "เพิ่มคอลัมน์ถัดไป"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3729
+#: packages/admin/src/components/PortableTextEditor.tsx:3733
 msgid "Add column before"
 msgstr "เพิ่มคอลัมน์ก่อนหน้า"
 
@@ -687,7 +707,7 @@ msgstr "เพิ่มลิงก์ที่กำหนดเอง"
 msgid "Add Domain"
 msgstr "เพิ่มโดเมน"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:591
+#: packages/admin/src/components/ContentTypeEditor.tsx:606
 #: packages/admin/src/components/FieldEditor.tsx:368
 #: packages/admin/src/components/FieldEditor.tsx:689
 msgid "Add Field"
@@ -701,11 +721,11 @@ msgstr "เพิ่มฟิลด์"
 msgid "Add fields like \"Job title\" or \"Pronouns\" to enrich every byline."
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:613
+#: packages/admin/src/components/ContentTypeEditor.tsx:628
 msgid "Add fields to define the structure of your content"
 msgstr "เพิ่มฟิลด์เพื่อกำหนดโครงสร้างของเนื้อหาของคุณ"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:616
+#: packages/admin/src/components/ContentTypeEditor.tsx:631
 msgid "Add First Field"
 msgstr "เพิ่มฟิลด์แรก"
 
@@ -721,7 +741,7 @@ msgstr ""
 msgid "Add images to gallery"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2125
+#: packages/admin/src/components/PortableTextEditor.tsx:2124
 msgid "Add item"
 msgstr "เพิ่มรายการ"
 
@@ -729,7 +749,7 @@ msgstr "เพิ่มรายการ"
 msgid "Add Item"
 msgstr "เพิ่มรายการ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3664
+#: packages/admin/src/components/PortableTextEditor.tsx:3668
 msgid "Add link"
 msgstr "เพิ่มลิงก์"
 
@@ -746,7 +766,7 @@ msgid "Add New"
 msgstr "เพิ่มใหม่"
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:499
+#: packages/admin/src/components/TaxonomySidebar.tsx:631
 msgid "Add new {0}"
 msgstr "เพิ่ม {0} ใหม่"
 
@@ -762,15 +782,15 @@ msgstr "เพิ่ม Passkey"
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "เพิ่มปลั๊กอินใน astro.config.mjs ของคุณเพื่อขยายความสามารถของ EmDash"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3756
+#: packages/admin/src/components/PortableTextEditor.tsx:3760
 msgid "Add row after"
 msgstr "เพิ่มแถวถัดไป"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3750
+#: packages/admin/src/components/PortableTextEditor.tsx:3754
 msgid "Add row before"
 msgstr "เพิ่มแถวก่อนหน้า"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:474
+#: packages/admin/src/components/ContentTypeEditor.tsx:489
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr "เพิ่มฟิลด์ข้อมูลเมตา SEO (ชื่อ คำอธิบาย รูปภาพ) และรวมไว้ใน sitemap"
 
@@ -778,7 +798,7 @@ msgstr "เพิ่มฟิลด์ข้อมูลเมตา SEO (ชื
 msgid "Add Sub-Field"
 msgstr "เพิ่มฟิลด์ย่อย"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:278
+#: packages/admin/src/components/TaxonomySidebar.tsx:318
 msgid "Add tags..."
 msgstr "เพิ่มแท็ก..."
 
@@ -804,12 +824,12 @@ msgid "admin"
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
-#: packages/admin/src/components/Sidebar.tsx:398
+#: packages/admin/src/components/Sidebar.tsx:426
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "ผู้ดูแลระบบ"
 
-#: packages/admin/src/components/Sidebar.tsx:344
+#: packages/admin/src/components/Sidebar.tsx:372
 msgid "Admin navigation"
 msgstr "การนำทางของผู้ดูแลระบบ"
 
@@ -834,15 +854,15 @@ msgstr ""
 msgid "Agent-callable MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4140
+#: packages/admin/src/components/PortableTextEditor.tsx:4136
 msgid "Align Center"
 msgstr "จัดกึ่งกลาง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4133
+#: packages/admin/src/components/PortableTextEditor.tsx:4129
 msgid "Align Left"
 msgstr "จัดชิดซ้าย"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4147
+#: packages/admin/src/components/PortableTextEditor.tsx:4143
 msgid "Align Right"
 msgstr "จัดชิดขวา"
 
@@ -899,10 +919,14 @@ msgstr "ทุกแหล่งที่มา"
 msgid "All statuses"
 msgstr "ทุกสถานะ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:433
+#: packages/admin/src/components/MediaLibrary.tsx:396
 #: packages/admin/src/components/Redirects.tsx:432
 msgid "All types"
 msgstr "ทุกประเภท"
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:371
+msgid "All uploads finished"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:545
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
@@ -913,7 +937,7 @@ msgstr ""
 msgid "Allow users from specific domains to sign up"
 msgstr "อนุญาตให้ผู้ใช้จากโดเมนที่ระบุสมัครใช้งาน"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:495
+#: packages/admin/src/components/ContentTypeEditor.tsx:510
 msgid "Allow visitors to leave comments on this collection's content"
 msgstr "อนุญาตให้ผู้เข้าชมแสดงความคิดเห็นบนเนื้อหาของคอลเลกชันนี้"
 
@@ -939,7 +963,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:376
 #: packages/admin/src/components/editor/ImageNode.tsx:231
-#: packages/admin/src/components/MediaLibrary.tsx:589
+#: packages/admin/src/components/MediaLibrary.tsx:552
 msgid "Alt text"
 msgstr "ข้อความ Alt"
 
@@ -950,8 +974,8 @@ msgstr "ข้อความ Alt"
 msgid "Alt Text"
 msgstr "ข้อความ Alt"
 
-#: packages/admin/src/components/MediaLibrary.tsx:835
-#: packages/admin/src/components/MediaLibrary.tsx:892
+#: packages/admin/src/components/MediaLibrary.tsx:812
+#: packages/admin/src/components/MediaLibrary.tsx:869
 msgid "Alt text set"
 msgstr "ตั้งค่าข้อความ Alt แล้ว"
 
@@ -986,26 +1010,27 @@ msgstr "หรืออีกทางหนึ่ง คุณสามาร�
 #: packages/admin/src/components/settings/SocialSettings.tsx:67
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
-#: packages/admin/src/components/TaxonomySidebar.tsx:361
+#: packages/admin/src/components/TaxonomySidebar.tsx:416
+#: packages/admin/src/components/TaxonomySidebar.tsx:476
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:447
-#: packages/admin/src/router.tsx:462
-#: packages/admin/src/router.tsx:476
-#: packages/admin/src/router.tsx:490
-#: packages/admin/src/router.tsx:714
-#: packages/admin/src/router.tsx:996
-#: packages/admin/src/router.tsx:1056
-#: packages/admin/src/router.tsx:1074
-#: packages/admin/src/router.tsx:1092
-#: packages/admin/src/router.tsx:1113
-#: packages/admin/src/router.tsx:1134
-#: packages/admin/src/router.tsx:1155
-#: packages/admin/src/router.tsx:1186
-#: packages/admin/src/router.tsx:1206
-#: packages/admin/src/router.tsx:1500
-#: packages/admin/src/router.tsx:1516
-#: packages/admin/src/router.tsx:1541
-#: packages/admin/src/router.tsx:2041
+#: packages/admin/src/router.tsx:448
+#: packages/admin/src/router.tsx:463
+#: packages/admin/src/router.tsx:477
+#: packages/admin/src/router.tsx:491
+#: packages/admin/src/router.tsx:715
+#: packages/admin/src/router.tsx:997
+#: packages/admin/src/router.tsx:1057
+#: packages/admin/src/router.tsx:1075
+#: packages/admin/src/router.tsx:1093
+#: packages/admin/src/router.tsx:1114
+#: packages/admin/src/router.tsx:1135
+#: packages/admin/src/router.tsx:1156
+#: packages/admin/src/router.tsx:1187
+#: packages/admin/src/router.tsx:1207
+#: packages/admin/src/router.tsx:1502
+#: packages/admin/src/router.tsx:1518
+#: packages/admin/src/router.tsx:1543
+#: packages/admin/src/router.tsx:2043
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1048,7 +1073,7 @@ msgstr "ปรากฏบนโพสต์และหน้า"
 msgid "Application Password"
 msgstr "Application Password"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4229
+#: packages/admin/src/components/PortableTextEditor.tsx:4225
 msgid "Apply"
 msgstr "ใช้"
 
@@ -1057,8 +1082,8 @@ msgstr "ใช้"
 msgid "Apply language"
 msgstr "ใช้ภาษา"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3590
-#: packages/admin/src/components/PortableTextEditor.tsx:3591
+#: packages/admin/src/components/PortableTextEditor.tsx:3594
+#: packages/admin/src/components/PortableTextEditor.tsx:3595
 msgid "Apply link"
 msgstr "ใช้ลิงก์"
 
@@ -1101,7 +1126,7 @@ msgid "Are you sure you want to delete \"{0}\"? This will also delete all conten
 msgstr "คุณแน่ใจหรือไม่ว่าต้องการลบ \"{0}\"? การดำเนินการนี้จะลบเนื้อหาทั้งหมดในคอลเลกชันนี้ด้วย"
 
 #. placeholder {0}: deleteFieldTarget.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:669
+#: packages/admin/src/components/ContentTypeEditor.tsx:684
 msgid "Are you sure you want to delete the \"{0}\" field?"
 msgstr "คุณแน่ใจหรือไม่ว่าต้องการลบฟิลด์ \"{0}\"?"
 
@@ -1122,7 +1147,7 @@ msgid "Astro"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:66
-#: packages/admin/src/components/MediaLibrary.tsx:436
+#: packages/admin/src/components/MediaLibrary.tsx:399
 msgid "Audio"
 msgstr "เสียง"
 
@@ -1151,7 +1176,7 @@ msgstr "การยืนยันตัวตนถูกยกเลิกห
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:288
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1184
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1213
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
@@ -1193,7 +1218,7 @@ msgstr "อัตโนมัติ"
 msgid "Auto (slug change)"
 msgstr "อัตโนมัติ (เปลี่ยน slug)"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:539
+#: packages/admin/src/components/ContentTypeEditor.tsx:554
 msgid "Auto-approve authenticated users"
 msgstr "อนุมัติผู้ใช้ที่ยืนยันตัวตนแล้วโดยอัตโนมัติ"
 
@@ -1211,9 +1236,14 @@ msgstr ""
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1055
+#: packages/admin/src/router.tsx:1056
 msgid "Autosave failed"
 msgstr "บันทึกอัตโนมัติล้มเหลว"
+
+#. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
+#: packages/admin/src/components/TaxonomySidebar.tsx:545
+msgid "Available in {0}"
+msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:710
 msgid "Available media"
@@ -1243,7 +1273,7 @@ msgstr "ย้อนกลับ"
 msgid "Back to {collectionLabel} list"
 msgstr "กลับไปยังรายการ {collectionLabel}"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:336
+#: packages/admin/src/components/ContentTypeEditor.tsx:337
 msgid "Back to Content Types"
 msgstr "กลับไปยังประเภทเนื้อหา"
 
@@ -1326,8 +1356,8 @@ msgstr "ประวัติย่อ"
 msgid "Block actions - drag to reorder, click for menu"
 msgstr "การกระทำของบล็อก - ลากเพื่อจัดเรียงใหม่ คลิกเพื่อเปิดเมนู"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3614
-#: packages/admin/src/components/PortableTextEditor.tsx:4019
+#: packages/admin/src/components/PortableTextEditor.tsx:3618
+#: packages/admin/src/components/PortableTextEditor.tsx:4023
 msgid "Bold"
 msgstr "ตัวหนา"
 
@@ -1349,10 +1379,18 @@ msgstr "เรียกดูและติดตั้งปลั๊กอิ
 msgid "Browse and install plugins to extend your site."
 msgstr "เรียกดูและติดตั้งปลั๊กอินเพื่อขยายความสามารถของเว็บไซต์ของคุณ"
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:439
+msgid "Browse files"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1124
 #: packages/admin/src/components/WordPressImport.tsx:1594
 msgid "Browse Files"
 msgstr "เรียกดูไฟล์"
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:448
+msgid "Browse files to upload"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:204
 msgid "Browse the"
@@ -1363,8 +1401,8 @@ msgid "Browse themes and preview them with your own content."
 msgstr "เรียกดูธีมและดูตัวอย่างด้วยเนื้อหาของคุณเอง"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:127
-#: packages/admin/src/components/PortableTextEditor.tsx:1434
-#: packages/admin/src/components/PortableTextEditor.tsx:4081
+#: packages/admin/src/components/PortableTextEditor.tsx:1440
+#: packages/admin/src/components/PortableTextEditor.tsx:4071
 msgid "Bullet List"
 msgstr "รายการแบบจุด"
 
@@ -1373,14 +1411,14 @@ msgstr "รายการแบบจุด"
 msgid "Byline schema"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:267
+#: packages/admin/src/components/Sidebar.tsx:295
 msgid "Byline Schema"
 msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:135
-#: packages/admin/src/components/ContentSettingsPanel.tsx:634
-#: packages/admin/src/components/ContentSettingsPanel.tsx:637
-#: packages/admin/src/components/Sidebar.tsx:257
+#: packages/admin/src/components/ContentSettingsPanel.tsx:661
+#: packages/admin/src/components/ContentSettingsPanel.tsx:664
+#: packages/admin/src/components/Sidebar.tsx:285
 #: packages/admin/src/routes/bylines.tsx:375
 msgid "Bylines"
 msgstr "ชื่อผู้เขียน"
@@ -1420,11 +1458,11 @@ msgstr "สามารถดูเนื้อหาได้"
 #: packages/admin/src/components/ContentList.tsx:1251
 #: packages/admin/src/components/ContentList.tsx:1419
 #: packages/admin/src/components/ContentPickerModal.tsx:240
-#: packages/admin/src/components/ContentSettingsPanel.tsx:98
-#: packages/admin/src/components/ContentSettingsPanel.tsx:555
-#: packages/admin/src/components/ContentSettingsPanel.tsx:785
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1088
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1141
+#: packages/admin/src/components/ContentSettingsPanel.tsx:99
+#: packages/admin/src/components/ContentSettingsPanel.tsx:582
+#: packages/admin/src/components/ContentSettingsPanel.tsx:814
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1117
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1170
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:193
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:194
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:586
@@ -1438,7 +1476,7 @@ msgstr "สามารถดูเนื้อหาได้"
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/PluginManager.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:4213
+#: packages/admin/src/components/PortableTextEditor.tsx:4209
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
@@ -1457,6 +1495,15 @@ msgstr "ยกเลิก"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:405
 msgid "Cancel (Esc)"
 msgstr "ยกเลิก (Esc)"
+
+#. placeholder {0}: row.file.name
+#: packages/admin/src/components/MediaUploadDialog.tsx:156
+msgid "Cancel {0}"
+msgstr ""
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:502
+msgid "Cancel remaining"
+msgstr ""
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:141
 msgid "Cancel rename"
@@ -1545,7 +1592,7 @@ msgstr "เปลี่ยนโลโก้"
 msgid "Changelog"
 msgstr "บันทึกการเปลี่ยนแปลง"
 
-#: packages/admin/src/router.tsx:1106
+#: packages/admin/src/router.tsx:1107
 msgid "Changes discarded"
 msgstr "ละทิ้งการเปลี่ยนแปลงแล้ว"
 
@@ -1592,14 +1639,18 @@ msgstr "เลือกภาษาผู้ดูแลระบบที่ค
 msgid "Clear"
 msgstr ""
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:487
+msgid "Clear completed"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:947
-#: packages/admin/src/components/MediaLibrary.tsx:497
+#: packages/admin/src/components/MediaLibrary.tsx:460
 #: packages/admin/src/components/users/UserList.tsx:129
 msgid "Clear filters"
 msgstr "ล้างตัวกรอง"
 
-#: packages/admin/src/components/MediaLibrary.tsx:497
-#: packages/admin/src/components/MediaLibrary.tsx:521
+#: packages/admin/src/components/MediaLibrary.tsx:460
+#: packages/admin/src/components/MediaLibrary.tsx:484
 msgid "Clear search"
 msgstr ""
 
@@ -1639,6 +1690,7 @@ msgstr "คลิกลิงก์ในอีเมลเพื่อเข้
 #: packages/admin/src/components/MediaPickerModal.tsx:529
 #: packages/admin/src/components/MediaPickerModal.tsx:535
 #: packages/admin/src/components/MediaPickerModal.tsx:539
+#: packages/admin/src/components/MediaUploadDialog.tsx:408
 #: packages/admin/src/components/MenuEditor.tsx:400
 #: packages/admin/src/components/MenuEditor.tsx:406
 #: packages/admin/src/components/MenuEditor.tsx:410
@@ -1648,9 +1700,9 @@ msgstr "คลิกลิงก์ในอีเมลเพื่อเข้
 #: packages/admin/src/components/MenuList.tsx:139
 #: packages/admin/src/components/MenuList.tsx:145
 #: packages/admin/src/components/MenuList.tsx:149
-#: packages/admin/src/components/PortableTextEditor.tsx:1909
-#: packages/admin/src/components/PortableTextEditor.tsx:1915
-#: packages/admin/src/components/PortableTextEditor.tsx:1919
+#: packages/admin/src/components/PortableTextEditor.tsx:1908
+#: packages/admin/src/components/PortableTextEditor.tsx:1914
+#: packages/admin/src/components/PortableTextEditor.tsx:1918
 #: packages/admin/src/components/Redirects.tsx:115
 #: packages/admin/src/components/Redirects.tsx:121
 #: packages/admin/src/components/SectionPickerModal.tsx:61
@@ -1680,7 +1732,7 @@ msgstr "คลิกลิงก์ในอีเมลเพื่อเข้
 msgid "Close"
 msgstr "ปิด"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:518
+#: packages/admin/src/components/ContentTypeEditor.tsx:533
 msgid "Close comments after (days)"
 msgstr "ปิดความคิดเห็นหลังจาก (วัน)"
 
@@ -1697,14 +1749,14 @@ msgid "Close settings"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:356
-#: packages/admin/src/components/PortableTextEditor.tsx:3656
+#: packages/admin/src/components/PortableTextEditor.tsx:3660
 #: packages/admin/src/components/Redirects.tsx:478
 msgid "Code"
 msgstr "โค้ด"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:119
-#: packages/admin/src/components/PortableTextEditor.tsx:1464
-#: packages/admin/src/components/PortableTextEditor.tsx:4120
+#: packages/admin/src/components/PortableTextEditor.tsx:1470
+#: packages/admin/src/components/PortableTextEditor.tsx:4110
 msgid "Code Block"
 msgstr "บล็อกโค้ด"
 
@@ -1754,14 +1806,18 @@ msgid "Comment Detail"
 msgstr "รายละเอียดความคิดเห็น"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:147
-#: packages/admin/src/components/ContentTypeEditor.tsx:485
-#: packages/admin/src/components/Sidebar.tsx:236
+#: packages/admin/src/components/ContentTypeEditor.tsx:500
+#: packages/admin/src/components/Sidebar.tsx:261
 msgid "Comments"
 msgstr "ความคิดเห็น"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:542
+#: packages/admin/src/components/ContentTypeEditor.tsx:557
 msgid "Comments from logged-in CMS users are approved automatically"
 msgstr "ความคิดเห็นจากผู้ใช้ CMS ที่เข้าสู่ระบบแล้วจะได้รับการอนุมัติโดยอัตโนมัติ"
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:88
+msgid "Complete"
+msgstr ""
 
 #: packages/admin/src/components/SignupPage.tsx:403
 msgid "Complete signup"
@@ -1802,17 +1858,17 @@ msgstr "เชื่อมต่อกับ WordPress"
 msgid "Connected {0}"
 msgstr "เชื่อมต่อ {0} แล้ว"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:191
+#: packages/admin/src/components/ContentSettingsPanel.tsx:192
 msgid "content"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:378
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:294
-#: packages/admin/src/components/Dashboard.tsx:235
-#: packages/admin/src/components/PortableTextEditor.tsx:2725
+#: packages/admin/src/components/Dashboard.tsx:269
+#: packages/admin/src/components/PortableTextEditor.tsx:2728
 #: packages/admin/src/components/SectionEditor.tsx:195
-#: packages/admin/src/components/Sidebar.tsx:380
+#: packages/admin/src/components/Sidebar.tsx:408
 #: packages/admin/src/components/Widgets.tsx:899
 msgid "Content"
 msgstr "เนื้อหา"
@@ -1830,7 +1886,7 @@ msgstr "ข้อผิดพลาดของเนื้อหา ({0})"
 msgid "Content found:"
 msgstr "พบเนื้อหา:"
 
-#: packages/admin/src/router.tsx:1128
+#: packages/admin/src/router.tsx:1129
 msgid "Content has been scheduled for publishing"
 msgstr "กำหนดเวลาเผยแพร่เนื้อหาแล้ว"
 
@@ -1842,7 +1898,7 @@ msgstr "อัปเดตเนื้อหาเป็นรุ่นแก้
 msgid "Content ID:"
 msgstr "ID เนื้อหา:"
 
-#: packages/admin/src/router.tsx:1069
+#: packages/admin/src/router.tsx:1070
 msgid "Content is now live"
 msgstr "เนื้อหาเผยแพร่แล้ว"
 
@@ -1850,15 +1906,23 @@ msgstr "เนื้อหาเผยแพร่แล้ว"
 msgid "content items"
 msgstr "รายการเนื้อหา"
 
+#: packages/admin/src/components/ContentSettingsPanel.tsx:499
+msgid "Content locale"
+msgstr ""
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:510
+msgid "Content locale defaults to English"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:47
 msgid "Content Read"
 msgstr "อ่านเนื้อหา"
 
-#: packages/admin/src/router.tsx:1087
+#: packages/admin/src/router.tsx:1088
 msgid "Content removed from public view"
 msgstr "นำเนื้อหาออกจากมุมมองสาธารณะแล้ว"
 
-#: packages/admin/src/router.tsx:1149
+#: packages/admin/src/router.tsx:1150
 msgid "Content reverted to draft"
 msgstr "เปลี่ยนเนื้อหากลับเป็นฉบับร่างแล้ว"
 
@@ -1872,7 +1936,7 @@ msgstr "เนื้อหาที่จะนำเข้า"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:184
 #: packages/admin/src/components/ContentTypeList.tsx:116
-#: packages/admin/src/components/Sidebar.tsx:263
+#: packages/admin/src/components/Sidebar.tsx:291
 msgid "Content Types"
 msgstr "ประเภทเนื้อหา"
 
@@ -1897,7 +1961,7 @@ msgstr "ดำเนินการต่อ →"
 msgid "Continue Import"
 msgstr "ดำเนินการนำเข้าต่อ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4097
+#: packages/admin/src/components/PortableTextEditor.tsx:4087
 msgid "Continue numbering"
 msgstr ""
 
@@ -1943,11 +2007,11 @@ msgstr "คัดลอก URL"
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "ไม่สามารถคัดลอกโดยอัตโนมัติ โปรดเลือก URL ด้านบนแล้วคัดลอกด้วยตนเอง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3354
+#: packages/admin/src/components/PortableTextEditor.tsx:3357
 msgid "Could not insert section"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:90
+#: packages/admin/src/components/Dashboard.tsx:124
 msgid "Could not load dashboard data"
 msgstr ""
 
@@ -1971,7 +2035,7 @@ msgstr ""
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "ไม่สามารถจับคู่ \"{draft}\" กับประเภท MIME ได้ พิมพ์ MIME โดยตรง"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:980
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1009
 msgid "Couldn't search bylines. Please try again."
 msgstr "ค้นหาผู้เขียนไม่สำเร็จ กรุณาลองอีกครั้ง"
 
@@ -1984,7 +2048,7 @@ msgstr ""
 msgid "Count"
 msgstr "จำนวน"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1112
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1141
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/Sections.tsx:212
@@ -1994,11 +2058,16 @@ msgstr "จำนวน"
 msgid "Create"
 msgstr "สร้าง"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:296
+#: packages/admin/src/components/TaxonomySidebar.tsx:339
 msgid "Create \"{trimmedInput}\""
 msgstr "สร้าง \"{trimmedInput}\""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1435
+#. placeholder {0}: resolvedEntryLocale.toUpperCase()
+#: packages/admin/src/components/TaxonomySidebar.tsx:556
+msgid "Create {0} translation"
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1441
 msgid "Create a bullet list"
 msgstr "สร้างรายการแบบจุด"
 
@@ -2007,7 +2076,7 @@ msgstr "สร้างรายการแบบจุด"
 msgid "Create a new {0}"
 msgstr "สร้าง {0} ใหม่"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1445
+#: packages/admin/src/components/PortableTextEditor.tsx:1451
 msgid "Create a numbered list"
 msgstr "สร้างรายการแบบลำดับเลข"
 
@@ -2020,12 +2089,12 @@ msgstr "สร้างบัญชี"
 msgid "Create an account"
 msgstr "สร้างบัญชี"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1060
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1089
 #: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
 msgstr "สร้างชื่อผู้เขียน"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:560
+#: packages/admin/src/components/ContentTypeEditor.tsx:575
 msgid "Create Content Type"
 msgstr "สร้างประเภทเนื้อหา"
 
@@ -2141,7 +2210,7 @@ msgid "Create, update, delete content"
 msgstr "สร้าง อัปเดต ลบเนื้อหา"
 
 #: packages/admin/src/components/ContentList.tsx:841
-#: packages/admin/src/components/ContentSettingsPanel.tsx:606
+#: packages/admin/src/components/ContentSettingsPanel.tsx:633
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:358
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
@@ -2158,7 +2227,7 @@ msgid "Created {0}"
 msgstr "สร้าง {0} แล้ว"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1180
+#: packages/admin/src/router.tsx:1181
 msgid "Created {0} translation"
 msgstr "สร้างคำแปล {0} แล้ว"
 
@@ -2170,13 +2239,13 @@ msgstr "สร้างเมื่อ"
 msgid "Creating collections and fields..."
 msgstr "กำลังสร้างคอลเลกชันและฟิลด์..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1112
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1141
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:189
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
 #: packages/admin/src/components/TaxonomyManager.tsx:873
-#: packages/admin/src/components/TaxonomySidebar.tsx:296
+#: packages/admin/src/components/TaxonomySidebar.tsx:339
 msgid "Creating..."
 msgstr "กำลังสร้าง..."
 
@@ -2200,7 +2269,7 @@ msgstr ""
 msgid "Custom"
 msgstr "กำหนดเอง"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:623
+#: packages/admin/src/components/ContentTypeEditor.tsx:638
 msgid "Custom Fields"
 msgstr "ฟิลด์กำหนดเอง"
 
@@ -2231,8 +2300,8 @@ msgstr "มืด"
 #: packages/admin/src/components/AdminCommandPalette.tsx:130
 #: packages/admin/src/components/ContentTypeList.tsx:358
 #: packages/admin/src/components/Dashboard.tsx:56
-#: packages/admin/src/components/Sidebar.tsx:221
-#: packages/admin/src/components/Sidebar.tsx:371
+#: packages/admin/src/components/Sidebar.tsx:246
+#: packages/admin/src/components/Sidebar.tsx:399
 msgid "Dashboard"
 msgstr "แดชบอร์ด"
 
@@ -2295,13 +2364,13 @@ msgstr ""
 msgid "Define the structure of your content"
 msgstr "กำหนดโครงสร้างของเนื้อหาของคุณ"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:360
+#: packages/admin/src/components/ContentTypeEditor.tsx:361
 msgid "Defined in code"
 msgstr "กำหนดไว้ในโค้ด"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:268
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
-#: packages/admin/src/components/ContentTypeEditor.tsx:672
+#: packages/admin/src/components/ContentTypeEditor.tsx:687
 #: packages/admin/src/components/ContentTypeList.tsx:236
 #: packages/admin/src/components/editor/BlockMenu.tsx:318
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
@@ -2341,7 +2410,7 @@ msgid "Delete {0}"
 msgstr "ลบ {0}"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:749
+#: packages/admin/src/components/ContentTypeEditor.tsx:764
 msgid "Delete {0} field"
 msgstr "ลบฟิลด์ {0}"
 
@@ -2372,7 +2441,7 @@ msgstr ""
 msgid "Delete Byline?"
 msgstr "ลบชื่อผู้เขียนหรือไม่?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3741
+#: packages/admin/src/components/PortableTextEditor.tsx:3745
 msgid "Delete column"
 msgstr "ลบคอลัมน์"
 
@@ -2388,7 +2457,7 @@ msgstr "ลบประเภทเนื้อหาหรือไม่?"
 msgid "Delete embed"
 msgstr "ลบสื่อฝัง"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:666
+#: packages/admin/src/components/ContentTypeEditor.tsx:681
 msgid "Delete Field?"
 msgstr "ลบฟิลด์หรือไม่?"
 
@@ -2441,7 +2510,7 @@ msgstr "ลบการเปลี่ยนเส้นทาง {0}"
 msgid "Delete Redirect?"
 msgstr "ลบการเปลี่ยนเส้นทางหรือไม่?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3760
+#: packages/admin/src/components/PortableTextEditor.tsx:3764
 msgid "Delete row"
 msgstr "ลบแถว"
 
@@ -2449,7 +2518,7 @@ msgstr "ลบแถว"
 msgid "Delete Section?"
 msgstr "ลบส่วนหรือไม่?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3775
+#: packages/admin/src/components/PortableTextEditor.tsx:3779
 msgid "Delete table"
 msgstr "ลบตาราง"
 
@@ -2468,7 +2537,7 @@ msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other 
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:409
-#: packages/admin/src/components/ContentTypeEditor.tsx:673
+#: packages/admin/src/components/ContentTypeEditor.tsx:688
 #: packages/admin/src/components/ContentTypeList.tsx:237
 #: packages/admin/src/components/MediaDetailPanel.tsx:410
 #: packages/admin/src/components/MediaDetailPanel.tsx:454
@@ -2522,7 +2591,7 @@ msgstr "อธิบายรูปภาพนี้เพื่อการเ
 msgid "Describe what this section is for..."
 msgstr "อธิบายว่าส่วนนี้มีไว้เพื่ออะไร..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:413
+#: packages/admin/src/components/ContentTypeEditor.tsx:414
 #: packages/admin/src/components/RegistryPluginDetail.tsx:805
 #: packages/admin/src/components/SectionEditor.tsx:274
 #: packages/admin/src/components/Sections.tsx:200
@@ -2627,8 +2696,8 @@ msgstr "กำลังปิดใช้งาน..."
 msgid "Discard"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:85
-#: packages/admin/src/components/ContentSettingsPanel.tsx:105
+#: packages/admin/src/components/ContentSettingsPanel.tsx:86
+#: packages/admin/src/components/ContentSettingsPanel.tsx:106
 msgid "Discard changes"
 msgstr "ละทิ้งการเปลี่ยนแปลง"
 
@@ -2636,7 +2705,7 @@ msgstr "ละทิ้งการเปลี่ยนแปลง"
 msgid "Discard changes?"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:90
+#: packages/admin/src/components/ContentSettingsPanel.tsx:91
 msgid "Discard draft changes?"
 msgstr "ละทิ้งการเปลี่ยนแปลงในฉบับร่าง?"
 
@@ -2648,7 +2717,12 @@ msgstr ""
 msgid "Dismiss"
 msgstr "ปิด"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3368
+#. placeholder {0}: row.file.name
+#: packages/admin/src/components/MediaUploadDialog.tsx:158
+msgid "Dismiss completed {0}"
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:3371
 msgid "Dismiss section error"
 msgstr ""
 
@@ -2664,8 +2738,8 @@ msgstr "แสดงเมนูนำทาง"
 msgid "Display category list"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1063
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1125
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1092
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1154
 #: packages/admin/src/routes/bylines.tsx:481
 msgid "Display name"
 msgstr "ชื่อที่แสดง"
@@ -2692,7 +2766,7 @@ msgstr "แสดงด้านล่างของรูปภาพเป็
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "โหมดไร้สิ่งรบกวน (⌘⇧\\)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1489
+#: packages/admin/src/components/PortableTextEditor.tsx:1488
 msgid "Divider"
 msgstr "เส้นแบ่ง"
 
@@ -2701,7 +2775,7 @@ msgid "Dockerfile"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:63
-#: packages/admin/src/components/MediaLibrary.tsx:437
+#: packages/admin/src/components/MediaLibrary.tsx:400
 msgid "Documents"
 msgstr "เอกสาร"
 
@@ -2725,12 +2799,13 @@ msgstr "อัปเดตโดเมนแล้ว"
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "ยังไม่มีบัญชี? <0>สมัครใช้งาน</0>"
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:506
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
 #: packages/admin/src/components/WordPressImport.tsx:2128
 msgid "Done"
 msgstr "เสร็จสิ้น"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1006
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1035
 msgid "Down"
 msgstr "ลง"
 
@@ -2774,12 +2849,16 @@ msgid "draft, published, or archived"
 msgstr "ฉบับร่าง เผยแพร่แล้ว หรือเก็บถาวร"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:71
-#: packages/admin/src/components/Dashboard.tsx:269
+#: packages/admin/src/components/Dashboard.tsx:303
 msgid "Drafts"
 msgstr "ฉบับร่าง"
 
 #: packages/admin/src/components/WordPressImport.tsx:1166
 msgid "Drafts & Private"
+msgstr ""
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:427
+msgid "Drag and drop files here"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1119
@@ -2790,13 +2869,13 @@ msgstr "ลากแล้ววางหรือคลิกเพื่อเ
 msgid "Drag here to add"
 msgstr "ลากมาที่นี่เพื่อเพิ่ม"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2301
+#: packages/admin/src/components/PortableTextEditor.tsx:2300
 msgid "Drag to reorder"
 msgstr "ลากเพื่อจัดเรียงใหม่"
 
 #. placeholder {0}: field.label
 #. placeholder {0}: widget.title ?? t`widget`
-#: packages/admin/src/components/ContentTypeEditor.tsx:716
+#: packages/admin/src/components/ContentTypeEditor.tsx:731
 #: packages/admin/src/components/Widgets.tsx:802
 msgid "Drag to reorder {0}"
 msgstr "ลากเพื่อจัดเรียง {0} ใหม่"
@@ -2817,6 +2896,10 @@ msgstr "ลากวิดเจ็ตมาที่นี่เพื่อเ
 #: packages/admin/src/components/Widgets.tsx:467
 msgid "Drag widgets into an area to add them"
 msgstr "ลากวิดเจ็ตไปยังพื้นที่เพื่อเพิ่ม"
+
+#: packages/admin/src/components/MediaLibrary.tsx:316
+msgid "Drop files to upload"
+msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:700
 msgid "Drop to add widget"
@@ -2850,7 +2933,7 @@ msgstr "เช่น CI/CD Pipeline"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "เช่น MacBook Pro, iPhone"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1015
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1044
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:544
@@ -2864,7 +2947,7 @@ msgstr "แก้ไข"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:332
-#: packages/admin/src/components/PortableTextEditor.tsx:1906
+#: packages/admin/src/components/PortableTextEditor.tsx:1905
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:254
 #: packages/admin/src/components/TaxonomyManager.tsx:272
 #: packages/admin/src/components/TaxonomyManager.tsx:539
@@ -2874,7 +2957,7 @@ msgid "Edit {0}"
 msgstr "แก้ไข {0}"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:741
+#: packages/admin/src/components/ContentTypeEditor.tsx:756
 msgid "Edit {0} field"
 msgstr "แก้ไขฟิลด์ {0}"
 
@@ -2886,7 +2969,7 @@ msgstr ""
 msgid "Edit {title}"
 msgstr "แก้ไข {title}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1122
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1151
 msgid "Edit byline"
 msgstr "แก้ไขชื่อผู้เขียน"
 
@@ -2907,7 +2990,7 @@ msgstr "แก้ไขฟิลด์"
 msgid "Edit image {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3664
+#: packages/admin/src/components/PortableTextEditor.tsx:3668
 msgid "Edit link"
 msgstr "แก้ไขลิงก์"
 
@@ -3001,11 +3084,11 @@ msgid "Email verified!"
 msgstr "ยืนยันอีเมลแล้ว!"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:2739
+#: packages/admin/src/components/PortableTextEditor.tsx:2742
 msgid "Embed a {0}"
 msgstr "ฝัง {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2742
+#: packages/admin/src/components/PortableTextEditor.tsx:2745
 msgid "Embeds"
 msgstr "การฝัง"
 
@@ -3025,7 +3108,7 @@ msgstr ""
 msgid "Enable"
 msgstr "เปิดใช้งาน"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:493
+#: packages/admin/src/components/ContentTypeEditor.tsx:508
 msgid "Enable comments"
 msgstr "เปิดใช้งานความคิดเห็น"
 
@@ -3110,7 +3193,7 @@ msgstr "ป้อน URL ของเว็บไซต์ WordPress ของ�
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/TaxonomyManager.tsx:941
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2255
+#: packages/admin/src/router.tsx:2257
 msgid "Error"
 msgstr "ข้อผิดพลาด"
 
@@ -3151,7 +3234,7 @@ msgstr "มีอยู่"
 msgid "Exit distraction-free mode"
 msgstr "ออกจากโหมดไร้สิ่งรบกวน"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4265
+#: packages/admin/src/components/PortableTextEditor.tsx:4261
 msgid "Exit Spotlight Mode"
 msgstr "ออกจากโหมด Spotlight"
 
@@ -3208,7 +3291,7 @@ msgstr "วิเคราะห์เว็บไซต์ WordPress ไม่�
 msgid "Failed to communicate with plugin"
 msgstr "สื่อสารกับปลั๊กอินไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:179
+#: packages/admin/src/lib/api/media.ts:196
 msgid "Failed to confirm upload"
 msgstr ""
 
@@ -3221,7 +3304,7 @@ msgstr "สร้างผู้ดูแลระบบไม่สำเร็
 msgid "Failed to create backup"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1106
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1135
 msgid "Failed to create byline"
 msgstr "สร้างชื่อผู้เขียนไม่สำเร็จ"
 
@@ -3241,18 +3324,19 @@ msgstr ""
 msgid "Failed to create some collections"
 msgstr "สร้างบางคอลเลกชันไม่สำเร็จ"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:506
+#: packages/admin/src/components/TaxonomySidebar.tsx:638
 msgid "Failed to create term"
 msgstr "สร้างเทอมไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1185
+#: packages/admin/src/components/TaxonomySidebar.tsx:475
+#: packages/admin/src/router.tsx:1186
 msgid "Failed to create translation"
 msgstr "สร้างคำแปลไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:446
-#: packages/admin/src/router.tsx:475
-#: packages/admin/src/router.tsx:558
-#: packages/admin/src/router.tsx:1205
+#: packages/admin/src/router.tsx:447
+#: packages/admin/src/router.tsx:476
+#: packages/admin/src/router.tsx:559
+#: packages/admin/src/router.tsx:1206
 msgid "Failed to delete"
 msgstr "ลบไม่สำเร็จ"
 
@@ -3272,12 +3356,12 @@ msgstr "ลบชื่อผู้เขียนไม่สำเร็จ"
 msgid "Failed to delete byline field"
 msgstr ""
 
-#: packages/admin/src/lib/api/schema.ts:240
+#: packages/admin/src/lib/api/schema.ts:244
 msgid "Failed to delete collection"
 msgstr "ลบคอลเลกชันไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1515
+#: packages/admin/src/router.tsx:1517
 msgid "Failed to delete comment"
 msgstr "ลบความคิดเห็นไม่สำเร็จ"
 
@@ -3285,16 +3369,16 @@ msgstr "ลบความคิดเห็นไม่สำเร็จ"
 msgid "Failed to delete content"
 msgstr "ลบเนื้อหาไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/schema.ts:296
+#: packages/admin/src/lib/api/schema.ts:300
 #: packages/admin/src/routes/byline-schema.tsx:138
 msgid "Failed to delete field"
 msgstr "ลบฟิลด์ไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:416
+#: packages/admin/src/lib/api/media.ts:468
 msgid "Failed to delete from provider"
 msgstr "ลบจากผู้ให้บริการไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:286
+#: packages/admin/src/lib/api/media.ts:335
 msgid "Failed to delete media"
 msgstr "ลบมีเดียไม่สำเร็จ"
 
@@ -3343,7 +3427,7 @@ msgstr ""
 msgid "Failed to disable user"
 msgstr "ปิดใช้งานผู้ใช้ไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1112
+#: packages/admin/src/router.tsx:1113
 msgid "Failed to discard changes"
 msgstr "ละทิ้งการเปลี่ยนแปลงไม่สำเร็จ"
 
@@ -3351,7 +3435,7 @@ msgstr "ละทิ้งการเปลี่ยนแปลงไม่ส
 msgid "Failed to dismiss welcome"
 msgstr "ปิดข้อความต้อนรับไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:489
+#: packages/admin/src/router.tsx:490
 msgid "Failed to duplicate"
 msgstr "ทำสำเนาไม่สำเร็จ"
 
@@ -3372,7 +3456,7 @@ msgstr "เปิดใช้งานผู้ใช้ไม่สำเร็
 msgid "Failed to execute import"
 msgstr "ดำเนินการนำเข้าไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/client.ts:259
+#: packages/admin/src/lib/api/client.ts:268
 msgid "Failed to fetch auth mode"
 msgstr ""
 
@@ -3380,12 +3464,12 @@ msgstr ""
 msgid "Failed to fetch backup settings"
 msgstr ""
 
-#: packages/admin/src/lib/api/schema.ts:188
 #: packages/admin/src/lib/api/schema.ts:192
+#: packages/admin/src/lib/api/schema.ts:196
 msgid "Failed to fetch collection"
 msgstr "ดึงข้อมูลคอลเลกชันไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/dashboard.ts:42
+#: packages/admin/src/lib/api/dashboard.ts:47
 msgid "Failed to fetch dashboard stats"
 msgstr ""
 
@@ -3393,23 +3477,23 @@ msgstr ""
 msgid "Failed to fetch email settings"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:111
+#: packages/admin/src/components/TaxonomySidebar.tsx:140
 msgid "Failed to fetch entry terms"
 msgstr "ดึงข้อมูลเทอมของรายการไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/client.ts:242
+#: packages/admin/src/lib/api/client.ts:251
 msgid "Failed to fetch manifest"
 msgstr "ดึงข้อมูล manifest ไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:72
+#: packages/admin/src/lib/api/media.ts:80
 msgid "Failed to fetch media"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:85
+#: packages/admin/src/lib/api/media.ts:93
 msgid "Failed to fetch media item"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:352
+#: packages/admin/src/lib/api/media.ts:401
 msgid "Failed to fetch media providers"
 msgstr ""
 
@@ -3426,7 +3510,7 @@ msgstr ""
 msgid "Failed to fetch plugins"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:382
+#: packages/admin/src/lib/api/media.ts:431
 msgid "Failed to fetch provider media"
 msgstr ""
 
@@ -3451,15 +3535,15 @@ msgstr ""
 msgid "Failed to fetch setup status"
 msgstr "ดึงข้อมูลสถานะการตั้งค่าไม่สำเร็จ"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:92
+#: packages/admin/src/components/TaxonomySidebar.tsx:124
 msgid "Failed to fetch terms"
 msgstr "ดึงข้อมูลเทอมไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:905
-#: packages/admin/src/router.tsx:1446
+#: packages/admin/src/router.tsx:906
+#: packages/admin/src/router.tsx:1448
 msgid "Failed to fetch user"
 msgstr "ดึงข้อมูลผู้ใช้ไม่สำเร็จ"
 
@@ -3479,7 +3563,7 @@ msgstr "รับตัวเลือกการตรวจสอบสิท
 msgid "Failed to get registration options"
 msgstr "รับตัวเลือกการลงทะเบียนไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:154
+#: packages/admin/src/lib/api/media.ts:168
 msgid "Failed to get upload URL"
 msgstr ""
 
@@ -3501,7 +3585,7 @@ msgstr "ติดตั้งปลั๊กอินไม่สำเร็จ
 msgid "Failed to list byline fields"
 msgstr ""
 
-#: packages/admin/src/router.tsx:286
+#: packages/admin/src/router.tsx:287
 msgid "Failed to load admin"
 msgstr "โหลดหน้าผู้ดูแลระบบไม่สำเร็จ"
 
@@ -3570,7 +3654,7 @@ msgstr "โหลดผู้ใช้ไม่สำเร็จ: {0}"
 msgid "Failed to load widget"
 msgstr "โหลดวิดเจ็ตไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1540
+#: packages/admin/src/router.tsx:1542
 msgid "Failed to perform bulk action"
 msgstr "ดำเนินการแบบกลุ่มไม่สำเร็จ"
 
@@ -3582,8 +3666,8 @@ msgstr "ลบเนื้อหาอย่างถาวรไม่สำเ
 msgid "Failed to prepare import"
 msgstr "เตรียมการนำเข้าไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:514
-#: packages/admin/src/router.tsx:1073
+#: packages/admin/src/router.tsx:515
+#: packages/admin/src/router.tsx:1074
 msgid "Failed to publish"
 msgstr "เผยแพร่ไม่สำเร็จ"
 
@@ -3608,11 +3692,11 @@ msgstr "เปลี่ยนชื่อ Passkey ไม่สำเร็จ"
 msgid "Failed to reorder byline fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/schema.ts:328
+#: packages/admin/src/lib/api/schema.ts:332
 msgid "Failed to reorder content types"
 msgstr ""
 
-#: packages/admin/src/lib/api/schema.ts:311
+#: packages/admin/src/lib/api/schema.ts:315
 #: packages/admin/src/routes/byline-schema.tsx:152
 msgid "Failed to reorder fields"
 msgstr "จัดเรียงฟิลด์ใหม่ไม่สำเร็จ"
@@ -3621,7 +3705,7 @@ msgstr "จัดเรียงฟิลด์ใหม่ไม่สำเร
 msgid "Failed to reorder widgets"
 msgstr "จัดเรียงวิดเจ็ตใหม่ไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:461
+#: packages/admin/src/router.tsx:462
 msgid "Failed to restore"
 msgstr "กู้คืนไม่สำเร็จ"
 
@@ -3642,9 +3726,9 @@ msgstr "เพิกถอนโทเค็น API ไม่สำเร็จ"
 msgid "Failed to rewrite URLs"
 msgstr "เขียน URL ใหม่ไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:713
-#: packages/admin/src/router.tsx:995
-#: packages/admin/src/router.tsx:2040
+#: packages/admin/src/router.tsx:714
+#: packages/admin/src/router.tsx:996
+#: packages/admin/src/router.tsx:2042
 msgid "Failed to save"
 msgstr "บันทึกไม่สำเร็จ"
 
@@ -3663,7 +3747,7 @@ msgstr ""
 msgid "Failed to save settings"
 msgstr "บันทึกการตั้งค่าไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1133
+#: packages/admin/src/router.tsx:1134
 msgid "Failed to schedule"
 msgstr "กำหนดเวลาไม่สำเร็จ"
 
@@ -3685,7 +3769,7 @@ msgstr "ส่งอีเมลทดสอบไม่สำเร็จ"
 msgid "Failed to send verification email"
 msgstr "ส่งอีเมลยืนยันไม่สำเร็จ"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:134
+#: packages/admin/src/components/TaxonomySidebar.tsx:159
 msgid "Failed to set entry terms"
 msgstr "กำหนดเทอมของรายการไม่สำเร็จ"
 
@@ -3694,20 +3778,20 @@ msgstr "กำหนดเทอมของรายการไม่สำเ
 msgid "Failed to uninstall plugin"
 msgstr "ถอนการติดตั้งปลั๊กอินไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1091
+#: packages/admin/src/router.tsx:1092
 msgid "Failed to unpublish"
 msgstr "ยกเลิกการเผยแพร่ไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1154
+#: packages/admin/src/router.tsx:1155
 msgid "Failed to unschedule"
 msgstr "ยกเลิกการกำหนดเวลาไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:537
+#: packages/admin/src/router.tsx:538
 msgid "Failed to update"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:360
+#: packages/admin/src/components/TaxonomySidebar.tsx:415
 msgid "Failed to update {0}"
 msgstr "อัปเดต {0} ไม่สำเร็จ"
 
@@ -3715,7 +3799,7 @@ msgstr "อัปเดต {0} ไม่สำเร็จ"
 msgid "Failed to update backup settings"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1156
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1185
 msgid "Failed to update byline"
 msgstr "อัปเดตชื่อผู้เขียนไม่สำเร็จ"
 
@@ -3727,7 +3811,7 @@ msgstr ""
 msgid "Failed to update domain"
 msgstr "อัปเดตโดเมนไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:303
+#: packages/admin/src/lib/api/media.ts:352
 msgid "Failed to update media"
 msgstr ""
 
@@ -3752,19 +3836,19 @@ msgstr ""
 msgid "Failed to update settings"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1499
+#: packages/admin/src/router.tsx:1501
 msgid "Failed to update status"
 msgstr "อัปเดตสถานะไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:197
+#: packages/admin/src/lib/api/media.ts:219
 msgid "Failed to upload file"
 msgstr "อัปโหลดไฟล์ไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:242
+#: packages/admin/src/lib/api/media.ts:286
 msgid "Failed to upload media"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:404
+#: packages/admin/src/lib/api/media.ts:456
 msgid "Failed to upload to provider"
 msgstr ""
 
@@ -3793,7 +3877,7 @@ msgstr "คุณสมบัติ"
 msgid "Featured Images"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:440
+#: packages/admin/src/components/ContentTypeEditor.tsx:455
 #: packages/admin/src/components/ContentTypeList.tsx:187
 msgid "Features"
 msgstr "คุณสมบัติ"
@@ -3830,7 +3914,7 @@ msgstr ""
 msgid "Field updated"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:581
+#: packages/admin/src/components/ContentTypeEditor.tsx:596
 msgid "Fields"
 msgstr "ฟิลด์"
 
@@ -3853,7 +3937,7 @@ msgstr "ไฟล์จากคลังมีเดีย"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:325
 #: packages/admin/src/components/MediaDetailPanel.tsx:342
-#: packages/admin/src/components/MediaLibrary.tsx:586
+#: packages/admin/src/components/MediaLibrary.tsx:549
 msgid "Filename"
 msgstr "ชื่อไฟล์"
 
@@ -3864,6 +3948,10 @@ msgstr "ชื่อไฟล์ไม่สามารถเปลี่ยน
 #: packages/admin/src/components/WordPressImport.tsx:2366
 msgid "files imported"
 msgstr "ไฟล์ที่นำเข้า"
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:399
+msgid "Files upload as soon as you add them."
+msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:887
 msgid "Filter by author"
@@ -3894,7 +3982,7 @@ msgstr "กรองตามแหล่งที่มา"
 msgid "Filter by status"
 msgstr "กรองตามสถานะ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:439
+#: packages/admin/src/components/MediaLibrary.tsx:402
 #: packages/admin/src/components/Redirects.tsx:433
 msgid "Filter by type"
 msgstr "กรองตามประเภท"
@@ -3937,7 +4025,7 @@ msgid "Full admin access"
 msgstr "สิทธิ์เข้าถึงระดับผู้ดูแลระบบเต็มรูปแบบ"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:171
-#: packages/admin/src/components/PortableTextEditor.tsx:2706
+#: packages/admin/src/components/PortableTextEditor.tsx:2709
 msgid "Gallery"
 msgstr ""
 
@@ -3975,7 +4063,7 @@ msgid "Go"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2418
-#: packages/admin/src/router.tsx:2275
+#: packages/admin/src/router.tsx:2277
 msgid "Go to Dashboard"
 msgstr "ไปที่แดชบอร์ด"
 
@@ -3988,7 +4076,7 @@ msgstr "การยืนยัน Google"
 msgid "GraphQL"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:460
+#: packages/admin/src/components/MediaLibrary.tsx:423
 msgid "Grid view"
 msgstr "มุมมองตาราง"
 
@@ -4010,37 +4098,37 @@ msgstr "เฉพาะผู้มาเยือนเท่านั้น"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:63
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:32
-#: packages/admin/src/components/PortableTextEditor.tsx:1374
+#: packages/admin/src/components/PortableTextEditor.tsx:1380
 msgid "Heading 1"
 msgstr "หัวข้อ 1"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:71
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:1384
+#: packages/admin/src/components/PortableTextEditor.tsx:1390
 msgid "Heading 2"
 msgstr "หัวข้อ 2"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:79
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:1394
+#: packages/admin/src/components/PortableTextEditor.tsx:1400
 msgid "Heading 3"
 msgstr "หัวข้อ 3"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
-#: packages/admin/src/components/PortableTextEditor.tsx:1404
+#: packages/admin/src/components/PortableTextEditor.tsx:1410
 msgid "Heading 4"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:95
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
-#: packages/admin/src/components/PortableTextEditor.tsx:1414
+#: packages/admin/src/components/PortableTextEditor.tsx:1420
 msgid "Heading 5"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:103
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
-#: packages/admin/src/components/PortableTextEditor.tsx:1424
+#: packages/admin/src/components/PortableTextEditor.tsx:1430
 msgid "Heading 6"
 msgstr ""
 
@@ -4099,7 +4187,7 @@ msgstr "วิธีสร้าง Application Password"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
-#: packages/admin/src/components/PortableTextEditor.tsx:1474
+#: packages/admin/src/components/PortableTextEditor.tsx:1480
 msgid "HTML"
 msgstr "HTML"
 
@@ -4107,8 +4195,8 @@ msgstr "HTML"
 msgid "HTML source"
 msgstr "โค้ด HTML"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3577
-#: packages/admin/src/components/PortableTextEditor.tsx:4195
+#: packages/admin/src/components/PortableTextEditor.tsx:3581
+#: packages/admin/src/components/PortableTextEditor.tsx:4191
 msgid "https://..."
 msgstr ""
 
@@ -4139,7 +4227,7 @@ msgstr "หากมีบัญชีสำหรับ <0>{email}</0> เร�
 
 #: packages/admin/src/components/FieldEditor.tsx:233
 #: packages/admin/src/components/FieldEditor.tsx:616
-#: packages/admin/src/components/PortableTextEditor.tsx:2691
+#: packages/admin/src/components/PortableTextEditor.tsx:2694
 msgid "Image"
 msgstr "รูปภาพ"
 
@@ -4182,12 +4270,12 @@ msgstr "URL ของรูปภาพอัปเดตใน"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:61
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:192
-#: packages/admin/src/components/MediaLibrary.tsx:434
+#: packages/admin/src/components/MediaLibrary.tsx:397
 msgid "Images"
 msgstr "รูปภาพ"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:226
-#: packages/admin/src/components/Sidebar.tsx:305
+#: packages/admin/src/components/Sidebar.tsx:333
 #: packages/admin/src/components/WordPressImport.tsx:738
 msgid "Import"
 msgstr "นำเข้า"
@@ -4297,7 +4385,7 @@ msgstr "ไม่เข้ากัน"
 msgid "Indexed"
 msgstr "จัดทำดัชนีแล้ว"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4061
+#: packages/admin/src/components/PortableTextEditor.tsx:4051
 msgid "Inline Code"
 msgstr "โค้ดในบรรทัด"
 
@@ -4307,44 +4395,44 @@ msgid "Insert"
 msgstr "แทรก"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:1906
+#: packages/admin/src/components/PortableTextEditor.tsx:1905
 msgid "Insert {0}"
 msgstr "แทรก {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1455
+#: packages/admin/src/components/PortableTextEditor.tsx:1461
 msgid "Insert a blockquote"
 msgstr "แทรกข้อความอ้างอิง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1465
+#: packages/admin/src/components/PortableTextEditor.tsx:1471
 msgid "Insert a code block"
 msgstr "แทรกบล็อกโค้ด"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1490
+#: packages/admin/src/components/PortableTextEditor.tsx:1489
 msgid "Insert a horizontal rule"
 msgstr "แทรกเส้นคั่นแนวนอน"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2722
+#: packages/admin/src/components/PortableTextEditor.tsx:2725
 msgid "Insert a reusable section"
 msgstr "แทรกส่วนที่นำกลับมาใช้ใหม่ได้"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1500
+#: packages/admin/src/components/PortableTextEditor.tsx:1499
 msgid "Insert a table"
 msgstr "แทรกตาราง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2692
+#: packages/admin/src/components/PortableTextEditor.tsx:2695
 msgid "Insert an image"
 msgstr "แทรกรูปภาพ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2707
+#: packages/admin/src/components/PortableTextEditor.tsx:2710
 msgid "Insert an image gallery"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1734
+#: packages/admin/src/components/PortableTextEditor.tsx:1733
 msgid "Insert block"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3999
-#: packages/admin/src/components/PortableTextEditor.tsx:4009
+#: packages/admin/src/components/PortableTextEditor.tsx:4003
+#: packages/admin/src/components/PortableTextEditor.tsx:4013
 msgid "Insert block after current block"
 msgstr ""
 
@@ -4356,12 +4444,20 @@ msgstr ""
 msgid "Insert from URL"
 msgstr "แทรกจาก URL"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4165
-#: packages/admin/src/components/PortableTextEditor.tsx:4179
+#: packages/admin/src/components/PortableTextEditor.tsx:4117
+msgid "Insert HTML"
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:4114
+msgid "Insert Image"
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:4161
+#: packages/admin/src/components/PortableTextEditor.tsx:4175
 msgid "Insert Link"
 msgstr "แทรกลิงก์"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1475
+#: packages/admin/src/components/PortableTextEditor.tsx:1481
 msgid "Insert raw HTML"
 msgstr "แทรกโค้ด HTML"
 
@@ -4460,13 +4556,13 @@ msgstr ""
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3621
-#: packages/admin/src/components/PortableTextEditor.tsx:4026
+#: packages/admin/src/components/PortableTextEditor.tsx:3625
+#: packages/admin/src/components/PortableTextEditor.tsx:4030
 msgid "Italic"
 msgstr "ตัวเอียง"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2287
+#: packages/admin/src/components/PortableTextEditor.tsx:2286
 #: packages/admin/src/components/RepeaterField.tsx:239
 msgid "Item {0}"
 msgstr "รายการ {0}"
@@ -4517,7 +4613,7 @@ msgstr ""
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:985
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1014
 msgid "Keep typing to narrow down more bylines."
 msgstr "พิมพ์ต่อเพื่อค้นหาผู้เขียนให้แคบลง"
 
@@ -4543,11 +4639,11 @@ msgstr ""
 msgid "Label"
 msgstr "ป้ายกำกับ"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:392
+#: packages/admin/src/components/ContentTypeEditor.tsx:393
 msgid "Label (Plural)"
 msgstr "ป้ายกำกับ (พหูพจน์)"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:384
+#: packages/admin/src/components/ContentTypeEditor.tsx:385
 msgid "Label (Singular)"
 msgstr "ป้ายกำกับ (เอกพจน์)"
 
@@ -4559,7 +4655,7 @@ msgstr "ป้ายกำกับ (เอกพจน์)"
 msgid "Language"
 msgstr "ภาษา"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1375
+#: packages/admin/src/components/PortableTextEditor.tsx:1381
 msgid "Large section heading"
 msgstr "หัวข้อส่วนขนาดใหญ่"
 
@@ -4609,9 +4705,10 @@ msgstr "เว้นว่างไว้โดยไม่กำหนด"
 msgid "Left"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:136
-#: packages/admin/src/components/MediaLibrary.tsx:273
-#: packages/admin/src/components/MediaLibrary.tsx:356
+#: packages/admin/src/components/MediaLibrary.tsx:134
+#: packages/admin/src/components/MediaLibrary.tsx:240
+#: packages/admin/src/components/MediaLibrary.tsx:329
+#: packages/admin/src/components/MediaLibrary.tsx:605
 #: packages/admin/src/components/MediaPickerModal.tsx:211
 #: packages/admin/src/components/MediaPickerModal.tsx:509
 msgid "Library"
@@ -4662,13 +4759,13 @@ msgstr "LinkedIn"
 msgid "Links"
 msgstr "ลิงก์"
 
-#: packages/admin/src/components/MediaLibrary.tsx:469
+#: packages/admin/src/components/MediaLibrary.tsx:432
 msgid "List view"
 msgstr "มุมมองรายการ"
 
 #: packages/admin/src/components/ContentEditor.tsx:706
 #: packages/admin/src/components/ContentEditor.tsx:749
-#: packages/admin/src/components/ContentSettingsPanel.tsx:264
+#: packages/admin/src/components/ContentSettingsPanel.tsx:265
 msgid "Live View"
 msgstr "มุมมองสด"
 
@@ -4683,13 +4780,13 @@ msgstr "โหลดเพิ่มเติม"
 
 #: packages/admin/src/components/ContentList.tsx:724
 #: packages/admin/src/components/ContentList.tsx:782
-#: packages/admin/src/components/MediaLibrary.tsx:635
+#: packages/admin/src/components/MediaLibrary.tsx:598
 #: packages/admin/src/components/MediaPickerModal.tsx:775
 #: packages/admin/src/components/users/UserList.tsx:169
 msgid "Load More"
 msgstr "โหลดเพิ่มเติม"
 
-#: packages/admin/src/router.tsx:2230
+#: packages/admin/src/router.tsx:2232
 msgid "Loading"
 msgstr ""
 
@@ -4705,8 +4802,8 @@ msgstr "กำลังโหลดคอลเลกชัน..."
 msgid "Loading comments..."
 msgstr "กำลังโหลดความคิดเห็น..."
 
-#: packages/admin/src/router.tsx:2232
-#: packages/admin/src/router.tsx:2244
+#: packages/admin/src/router.tsx:2234
+#: packages/admin/src/router.tsx:2246
 msgid "Loading configuration..."
 msgstr "กำลังโหลดการกำหนดค่า..."
 
@@ -4714,7 +4811,7 @@ msgstr "กำลังโหลดการกำหนดค่า..."
 msgid "Loading content..."
 msgstr "กำลังโหลดเนื้อหา..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3341
+#: packages/admin/src/components/PortableTextEditor.tsx:3344
 msgid "Loading editor..."
 msgstr "กำลังโหลดตัวแก้ไข..."
 
@@ -4764,9 +4861,9 @@ msgstr "กำลังโหลดวิดเจ็ต..."
 #: packages/admin/src/components/ContentList.tsx:782
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
-#: packages/admin/src/components/MediaLibrary.tsx:635
+#: packages/admin/src/components/MediaLibrary.tsx:598
 #: packages/admin/src/components/MediaPickerModal.tsx:775
-#: packages/admin/src/components/PortableTextEditor.tsx:2414
+#: packages/admin/src/components/PortableTextEditor.tsx:2413
 #: packages/admin/src/components/Redirects.tsx:560
 #: packages/admin/src/components/RegistryBrowse.tsx:146
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:160
@@ -4847,7 +4944,7 @@ msgstr "ส่งคำขอเครือข่าย"
 msgid "Make network requests to any host (unrestricted)"
 msgstr "ส่งคำขอเครือข่ายไปยังโฮสต์ใดก็ได้ (ไม่จำกัด)"
 
-#: packages/admin/src/components/Sidebar.tsx:390
+#: packages/admin/src/components/Sidebar.tsx:418
 msgid "Manage"
 msgstr "จัดการ"
 
@@ -4857,7 +4954,7 @@ msgstr "จัดการ"
 msgid "Manage {0} for {1}"
 msgstr "จัดการ {0} สำหรับ {1}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:947
+#: packages/admin/src/components/ContentSettingsPanel.tsx:976
 msgid "Manage bylines in {entryLocale}"
 msgstr "จัดการชื่อผู้เขียนใน {entryLocale}"
 
@@ -4927,7 +5024,7 @@ msgstr "marketplace"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
 #: packages/admin/src/components/PluginManager.tsx:176
 #: packages/admin/src/components/PluginManager.tsx:384
-#: packages/admin/src/components/Sidebar.tsx:287
+#: packages/admin/src/components/Sidebar.tsx:315
 msgid "Marketplace"
 msgstr "Marketplace"
 
@@ -4951,9 +5048,9 @@ msgstr ""
 msgid "MDX"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2695
-#: packages/admin/src/components/PortableTextEditor.tsx:2710
-#: packages/admin/src/components/Sidebar.tsx:231
+#: packages/admin/src/components/PortableTextEditor.tsx:2698
+#: packages/admin/src/components/PortableTextEditor.tsx:2713
+#: packages/admin/src/components/Sidebar.tsx:256
 #: packages/admin/src/components/WordPressImport.tsx:752
 #: packages/admin/src/components/WordPressImport.tsx:1145
 #: packages/admin/src/components/WordPressImport.tsx:1334
@@ -4982,7 +5079,7 @@ msgid "Media import was skipped"
 msgstr "ข้ามการนำเข้ามีเดียแล้ว"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:153
-#: packages/admin/src/components/MediaLibrary.tsx:322
+#: packages/admin/src/components/MediaLibrary.tsx:324
 msgid "Media Library"
 msgstr "คลังมีเดีย"
 
@@ -4994,7 +5091,7 @@ msgstr "อ่านมีเดีย"
 msgid "Media Write"
 msgstr "เขียนมีเดีย"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1385
+#: packages/admin/src/components/PortableTextEditor.tsx:1391
 msgid "Medium section heading"
 msgstr "หัวข้อส่วนขนาดกลาง"
 
@@ -5044,7 +5141,7 @@ msgstr "อัปเดตลำดับเมนูแล้ว"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:160
 #: packages/admin/src/components/MenuList.tsx:104
-#: packages/admin/src/components/Sidebar.tsx:241
+#: packages/admin/src/components/Sidebar.tsx:266
 #: packages/admin/src/components/WordPressImport.tsx:1149
 msgid "Menus"
 msgstr "เมนู"
@@ -5091,11 +5188,11 @@ msgstr "ความยาวขั้นต่ำ"
 msgid "Min Value"
 msgstr "ค่าต่ำสุด"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1415
+#: packages/admin/src/components/PortableTextEditor.tsx:1421
 msgid "Minor section heading"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:504
+#: packages/admin/src/components/ContentTypeEditor.tsx:519
 msgid "Moderation"
 msgstr "การกลั่นกรอง"
 
@@ -5171,14 +5268,14 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:536
 #: packages/admin/src/components/ContentList.tsx:1258
-#: packages/admin/src/components/ContentSettingsPanel.tsx:772
-#: packages/admin/src/components/ContentSettingsPanel.tsx:792
+#: packages/admin/src/components/ContentSettingsPanel.tsx:801
+#: packages/admin/src/components/ContentSettingsPanel.tsx:821
 msgid "Move to Trash"
 msgstr "ย้ายไปยังถังขยะ"
 
 #: packages/admin/src/components/ContentList.tsx:514
 #: packages/admin/src/components/ContentList.tsx:1243
-#: packages/admin/src/components/ContentSettingsPanel.tsx:777
+#: packages/admin/src/components/ContentSettingsPanel.tsx:806
 msgid "Move to Trash?"
 msgstr "ย้ายไปยังถังขยะ?"
 
@@ -5186,11 +5283,11 @@ msgstr "ย้ายไปยังถังขยะ?"
 msgid "Move up"
 msgstr "เลื่อนขึ้น"
 
-#: packages/admin/src/router.tsx:534
+#: packages/admin/src/router.tsx:535
 msgid "Moved {total} items to draft"
 msgstr ""
 
-#: packages/admin/src/router.tsx:555
+#: packages/admin/src/router.tsx:556
 msgid "Moved {total} items to trash"
 msgstr ""
 
@@ -5239,7 +5336,7 @@ msgstr "การนำทาง"
 msgid "Never"
 msgstr "ไม่เลย"
 
-#: packages/admin/src/router.tsx:1180
+#: packages/admin/src/router.tsx:1181
 msgid "new"
 msgstr "ใหม่"
 
@@ -5252,7 +5349,7 @@ msgid "NEW"
 msgstr "ใหม่"
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:475
+#: packages/admin/src/components/TaxonomySidebar.tsx:607
 msgid "New {0}"
 msgstr "{0} ใหม่"
 
@@ -5268,7 +5365,7 @@ msgstr ""
 msgid "New collection"
 msgstr "คอลเลกชันใหม่"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:355
+#: packages/admin/src/components/ContentTypeEditor.tsx:356
 #: packages/admin/src/components/ContentTypeList.tsx:122
 msgid "New Content Type"
 msgstr "ประเภทเนื้อหาใหม่"
@@ -5338,7 +5435,7 @@ msgid "No (shared across translations)"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:445
+#: packages/admin/src/components/TaxonomySidebar.tsx:576
 msgid "No {0} available."
 msgstr "ไม่มี{0}ให้ใช้งาน"
 
@@ -5356,8 +5453,8 @@ msgstr "ยังไม่มี{0} สร้างขึ้นมาเพื�
 msgid "No 404 errors recorded yet."
 msgstr "ยังไม่มีการบันทึกข้อผิดพลาด 404"
 
-#: packages/admin/src/components/MediaLibrary.tsx:835
-#: packages/admin/src/components/MediaLibrary.tsx:892
+#: packages/admin/src/components/MediaLibrary.tsx:812
+#: packages/admin/src/components/MediaLibrary.tsx:869
 msgid "No alt text"
 msgstr "ไม่มี alt text"
 
@@ -5381,7 +5478,7 @@ msgstr ""
 msgid "No byline fields yet."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:939
+#: packages/admin/src/components/ContentSettingsPanel.tsx:968
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "ไม่มีชื่อผู้เขียนให้ใช้งานใน {entryLocale} สร้างรูปแบบจากหน้าชื่อผู้เขียนก่อนที่จะระบุเครดิตในรายการนี้"
 
@@ -5390,11 +5487,11 @@ msgstr "ไม่มีชื่อผู้เขียนให้ใช้ง
 msgid "No bylines found"
 msgstr "ไม่พบชื่อผู้เขียน"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1047
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1076
 msgid "No bylines selected."
 msgstr "ยังไม่ได้เลือกชื่อผู้เขียน"
 
-#: packages/admin/src/components/Dashboard.tsx:241
+#: packages/admin/src/components/Dashboard.tsx:275
 msgid "No collections configured"
 msgstr "ยังไม่ได้กำหนดค่าคอลเลกชัน"
 
@@ -5418,11 +5515,15 @@ msgstr "ไม่พบเนื้อหา"
 msgid "No content in this collection"
 msgstr "ไม่มีเนื้อหาในคอลเลกชันนี้"
 
+#: packages/admin/src/components/ContentSettingsPanel.tsx:511
+msgid "No content locale is configured, so EmDash stores new content as English (en). Changing the admin language does not change this value."
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeList.tsx:204
 msgid "No content types yet."
 msgstr "ยังไม่มีประเภทเนื้อหา"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:612
+#: packages/admin/src/components/ContentTypeEditor.tsx:627
 msgid "No custom fields yet"
 msgstr "ยังไม่มีฟิลด์ที่กำหนดเอง"
 
@@ -5454,6 +5555,10 @@ msgstr "ไม่มีวันหมดอายุ"
 msgid "No fields to compare"
 msgstr "ไม่มีฟิลด์ให้เปรียบเทียบ"
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:482
+msgid "No files added"
+msgstr ""
+
 #: packages/admin/src/components/editor/DocumentOutline.tsx:213
 msgid "No headings in document"
 msgstr "ไม่มีหัวข้อในเอกสาร"
@@ -5470,7 +5575,7 @@ msgstr "ไม่มีรุ่นที่สามารถติดตั้
 msgid "No invite token provided"
 msgstr "ไม่ได้ระบุโทเค็นคำเชิญ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2210
+#: packages/admin/src/components/PortableTextEditor.tsx:2209
 #: packages/admin/src/components/RepeaterField.tsx:165
 #: packages/admin/src/components/settings/BackupSettings.tsx:283
 msgid "No items yet"
@@ -5488,12 +5593,12 @@ msgstr "ไม่มีผู้ใช้ที่เชื่อมโยง"
 msgid "No matches"
 msgstr "ไม่พบรายการที่ตรงกัน"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:982
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1011
 msgid "No matching bylines."
 msgstr "ไม่พบผู้เขียนที่ตรงกัน"
 
-#: packages/admin/src/components/MediaLibrary.tsx:489
-#: packages/admin/src/components/MediaLibrary.tsx:517
+#: packages/admin/src/components/MediaLibrary.tsx:452
+#: packages/admin/src/components/MediaLibrary.tsx:480
 msgid "No matching media"
 msgstr ""
 
@@ -5510,11 +5615,11 @@ msgstr "ไม่มีค่าสูงสุด"
 msgid "No media available from this provider"
 msgstr "ไม่มีมีเดียจากผู้ให้บริการนี้"
 
-#: packages/admin/src/components/MediaLibrary.tsx:540
+#: packages/admin/src/components/MediaLibrary.tsx:503
 msgid "No media available from this provider."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:539
+#: packages/admin/src/components/MediaLibrary.tsx:502
 #: packages/admin/src/components/MediaPickerModal.tsx:688
 msgid "No media found"
 msgstr "ไม่พบมีเดีย"
@@ -5572,7 +5677,7 @@ msgstr "ไม่มีตัวอย่าง"
 msgid "No public URL available"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:320
+#: packages/admin/src/components/Dashboard.tsx:354
 msgid "No recent activity"
 msgstr "ไม่มีกิจกรรมล่าสุด"
 
@@ -5580,7 +5685,7 @@ msgstr "ไม่มีกิจกรรมล่าสุด"
 msgid "No redirects yet"
 msgstr "ยังไม่มีการเปลี่ยนเส้นทาง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1759
+#: packages/admin/src/components/PortableTextEditor.tsx:1758
 #: packages/admin/src/components/RepeaterField.tsx:374
 msgid "No results"
 msgstr "ไม่มีผลลัพธ์"
@@ -5669,8 +5774,8 @@ msgid "Number of posts to show per page on list views"
 msgstr "จำนวนโพสต์ที่จะแสดงต่อหน้าในมุมมองรายการ"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:135
-#: packages/admin/src/components/PortableTextEditor.tsx:1444
-#: packages/admin/src/components/PortableTextEditor.tsx:4088
+#: packages/admin/src/components/PortableTextEditor.tsx:1450
+#: packages/admin/src/components/PortableTextEditor.tsx:4078
 msgid "Numbered List"
 msgstr "รายการแบบมีลำดับเลข"
 
@@ -5757,6 +5862,10 @@ msgstr "คำแนะนำเพิ่มเติมเมื่อชี้
 msgid "Options (one per line)"
 msgstr "ตัวเลือก (หนึ่งรายการต่อบรรทัด)"
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:429
+msgid "Or browse files from your computer"
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:579
 msgid "or choose from library"
 msgstr "หรือเลือกจากไลบรารี"
@@ -5793,7 +5902,7 @@ msgstr "บันทึกลำดับแล้ว"
 msgid "Original:"
 msgstr "ต้นฉบับ:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:739
+#: packages/admin/src/components/ContentSettingsPanel.tsx:768
 #: packages/admin/src/components/editor/DocumentOutline.tsx:191
 msgid "Outline"
 msgstr "โครงร่าง"
@@ -5802,8 +5911,8 @@ msgstr "โครงร่าง"
 msgid "Overrides the page title in search engine results"
 msgstr "แทนที่ชื่อหน้าในผลการค้นหาของเครื่องมือค้นหา"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:619
-#: packages/admin/src/components/ContentSettingsPanel.tsx:622
+#: packages/admin/src/components/ContentSettingsPanel.tsx:646
+#: packages/admin/src/components/ContentSettingsPanel.tsx:649
 msgid "Ownership"
 msgstr "ความเป็นเจ้าของ"
 
@@ -5811,7 +5920,7 @@ msgstr "ความเป็นเจ้าของ"
 msgid "Package"
 msgstr "แพ็กเกจ"
 
-#: packages/admin/src/router.tsx:2270
+#: packages/admin/src/router.tsx:2272
 msgid "Page Not Found"
 msgstr "ไม่พบหน้า"
 
@@ -5913,12 +6022,12 @@ msgid "Pattern (Regex)"
 msgstr "รูปแบบ (Regex)"
 
 #. placeholder {0}: "{slug}"
-#: packages/admin/src/components/ContentTypeEditor.tsx:435
+#: packages/admin/src/components/ContentTypeEditor.tsx:450
 msgid "Pattern for generating URLs, e.g. /blog/{0}"
 msgstr "รูปแบบสำหรับสร้าง URL เช่น /blog/{0}"
 
 #. placeholder {0}: "{slug}"
-#: packages/admin/src/components/ContentTypeEditor.tsx:431
+#: packages/admin/src/components/ContentTypeEditor.tsx:446
 msgid "Pattern must include a {0} placeholder"
 msgstr "รูปแบบต้องมีตัวยึดตำแหน่ง {0}"
 
@@ -6092,8 +6201,8 @@ msgstr ""
 #: packages/admin/src/components/PluginManager.tsx:139
 #: packages/admin/src/components/PluginManager.tsx:148
 #: packages/admin/src/components/PluginManager.tsx:158
-#: packages/admin/src/components/Sidebar.tsx:271
-#: packages/admin/src/components/Sidebar.tsx:406
+#: packages/admin/src/components/Sidebar.tsx:299
+#: packages/admin/src/components/Sidebar.tsx:434
 msgid "Plugins"
 msgstr "ปลั๊กอิน"
 
@@ -6105,11 +6214,11 @@ msgstr ""
 msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
 msgstr "ชี้ให้เครื่องมือค้นหาไปยังเวอร์ชันต้นฉบับของหน้านี้ หากซ้ำกับ URL อื่น"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:387
+#: packages/admin/src/components/ContentTypeEditor.tsx:388
 msgid "Post"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:395
+#: packages/admin/src/components/ContentTypeEditor.tsx:396
 #: packages/admin/src/components/WordPressImport.tsx:1322
 msgid "Posts"
 msgstr "โพสต์"
@@ -6139,9 +6248,9 @@ msgstr "กำลังเตรียมดาวน์โหลดไฟล์
 msgid "Preparing..."
 msgstr "กำลังเตรียม..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:166
+#: packages/admin/src/components/ContentSettingsPanel.tsx:167
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
-#: packages/admin/src/components/MediaLibrary.tsx:585
+#: packages/admin/src/components/MediaLibrary.tsx:548
 msgid "Preview"
 msgstr "ดูตัวอย่าง"
 
@@ -6149,7 +6258,7 @@ msgstr "ดูตัวอย่าง"
 msgid "Preview content before publishing"
 msgstr "ดูตัวอย่างเนื้อหาก่อนเผยแพร่"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:166
+#: packages/admin/src/components/ContentSettingsPanel.tsx:167
 msgid "Preview draft"
 msgstr "ดูตัวอย่างฉบับร่าง"
 
@@ -6179,22 +6288,22 @@ msgid "Provider:"
 msgstr "ผู้ให้บริการ:"
 
 #: packages/admin/src/components/ContentList.tsx:485
-#: packages/admin/src/components/ContentSettingsPanel.tsx:197
-#: packages/admin/src/components/ContentSettingsPanel.tsx:204
-#: packages/admin/src/components/ContentSettingsPanel.tsx:476
-#: packages/admin/src/components/ContentSettingsPanel.tsx:479
+#: packages/admin/src/components/ContentSettingsPanel.tsx:198
+#: packages/admin/src/components/ContentSettingsPanel.tsx:205
+#: packages/admin/src/components/ContentSettingsPanel.tsx:484
+#: packages/admin/src/components/ContentSettingsPanel.tsx:487
 msgid "Publish"
 msgstr "เผยแพร่"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:576
+#: packages/admin/src/components/ContentSettingsPanel.tsx:603
 msgid "Publish date"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:832
 #: packages/admin/src/components/ContentList.tsx:843
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
-#: packages/admin/src/components/Dashboard.tsx:263
-#: packages/admin/src/router.tsx:1069
+#: packages/admin/src/components/Dashboard.tsx:297
+#: packages/admin/src/router.tsx:1070
 msgid "Published"
 msgstr "เผยแพร่แล้ว"
 
@@ -6203,7 +6312,7 @@ msgstr "เผยแพร่แล้ว"
 msgid "Published {0}"
 msgstr "เผยแพร่แล้ว {0}"
 
-#: packages/admin/src/router.tsx:511
+#: packages/admin/src/router.tsx:512
 msgid "Published {total} items"
 msgstr ""
 
@@ -6219,7 +6328,11 @@ msgstr "เผยแพร่โดย"
 msgid "Python"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1055
+#: packages/admin/src/components/MediaUploadDialog.tsx:100
+msgid "Queued"
+msgstr ""
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1084
 msgid "Quick create byline"
 msgstr "สร้างชื่อผู้เขียนแบบด่วน"
 
@@ -6229,8 +6342,8 @@ msgid "Quick edit alt text"
 msgstr "แก้ไขข้อความ alt แบบด่วน"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:111
-#: packages/admin/src/components/PortableTextEditor.tsx:1454
-#: packages/admin/src/components/PortableTextEditor.tsx:4113
+#: packages/admin/src/components/PortableTextEditor.tsx:1460
+#: packages/admin/src/components/PortableTextEditor.tsx:4103
 msgid "Quote"
 msgstr "คำพูดอ้างอิง"
 
@@ -6276,7 +6389,7 @@ msgstr "การอ่าน"
 msgid "Ready"
 msgstr "พร้อม"
 
-#: packages/admin/src/components/Dashboard.tsx:314
+#: packages/admin/src/components/Dashboard.tsx:348
 msgid "Recent Activity"
 msgstr "กิจกรรมล่าสุด"
 
@@ -6308,11 +6421,11 @@ msgstr "กำลังเปลี่ยนเส้นทางไปยัง
 
 #: packages/admin/src/components/Redirects.tsx:364
 #: packages/admin/src/components/Redirects.tsx:385
-#: packages/admin/src/components/Sidebar.tsx:244
+#: packages/admin/src/components/Sidebar.tsx:269
 msgid "Redirects"
 msgstr "การเปลี่ยนเส้นทาง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4252
+#: packages/admin/src/components/PortableTextEditor.tsx:4248
 msgid "Redo"
 msgstr "ทำซ้ำ"
 
@@ -6324,7 +6437,7 @@ msgstr "การอ้างอิง"
 msgid "Referenced favicon unavailable."
 msgstr "ไม่สามารถใช้ favicon ที่อ้างอิงได้"
 
-#: packages/admin/src/components/Dashboard.tsx:91
+#: packages/admin/src/components/Dashboard.tsx:125
 msgid "Refresh the page or try again."
 msgstr ""
 
@@ -6349,7 +6462,7 @@ msgstr "การลงทะเบียนล้มเหลว"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "การลงทะเบียนถูกยกเลิกหรือหมดเวลา โปรดลองอีกครั้ง"
 
-#: packages/admin/src/components/Sidebar.tsx:280
+#: packages/admin/src/components/Sidebar.tsx:308
 msgid "Registry"
 msgstr "รีจิสทรี"
 
@@ -6359,10 +6472,10 @@ msgstr "รุ่นนี้ใหม่เกินกว่าจะติด
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1024
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1053
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
 #: packages/admin/src/components/ImageFieldRenderer.tsx:172
-#: packages/admin/src/components/PortableTextEditor.tsx:4225
+#: packages/admin/src/components/PortableTextEditor.tsx:4221
 #: packages/admin/src/components/settings/GeneralSettings.tsx:229
 #: packages/admin/src/components/settings/GeneralSettings.tsx:289
 #: packages/admin/src/components/settings/PasskeyItem.tsx:180
@@ -6372,9 +6485,11 @@ msgid "Remove"
 msgstr "นำออก"
 
 #. placeholder {0}: passkey.name
+#. placeholder {0}: row.file.name
 #. placeholder {0}: term.label
+#: packages/admin/src/components/MediaUploadDialog.tsx:159
 #: packages/admin/src/components/settings/PasskeyItem.tsx:181
-#: packages/admin/src/components/TaxonomySidebar.tsx:254
+#: packages/admin/src/components/TaxonomySidebar.tsx:294
 msgid "Remove {0}"
 msgstr "นำออก {0}"
 
@@ -6385,6 +6500,10 @@ msgstr "นำออก {entry}"
 #: packages/admin/src/components/ContentEditor.tsx:1720
 msgid "Remove {label}"
 msgstr "นำออก {label}"
+
+#: packages/admin/src/components/TaxonomySidebar.tsx:565
+msgid "Remove assignment"
+msgstr ""
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:379
 msgid "Remove Domain"
@@ -6416,13 +6535,13 @@ msgid "Remove Image?"
 msgstr "นำรูปภาพออกหรือไม่"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2326
+#: packages/admin/src/components/PortableTextEditor.tsx:2325
 #: packages/admin/src/components/RepeaterField.tsx:275
 msgid "Remove item {0}"
 msgstr "นำรายการ {0} ออก"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3602
-#: packages/admin/src/components/PortableTextEditor.tsx:3603
+#: packages/admin/src/components/PortableTextEditor.tsx:3606
+#: packages/admin/src/components/PortableTextEditor.tsx:3607
 msgid "Remove link"
 msgstr "นำลิงก์ออก"
 
@@ -6505,12 +6624,16 @@ msgstr "ที่เก็บข้อมูล"
 msgid "Request a new link"
 msgstr "ขอลิงก์ใหม่"
 
-#: packages/admin/src/lib/api/client.ts:230
+#: packages/admin/src/lib/api/client.ts:239
 msgid "Request failed"
 msgstr ""
 
+#: packages/admin/src/components/ContentTypeEditor.tsx:430
+msgid "Require a slug before content can be published"
+msgstr ""
+
 #: packages/admin/src/components/BylineFieldEditor.tsx:280
-#: packages/admin/src/components/ContentTypeEditor.tsx:730
+#: packages/admin/src/components/ContentTypeEditor.tsx:745
 #: packages/admin/src/components/FieldEditor.tsx:463
 #: packages/admin/src/components/FieldEditor.tsx:622
 #: packages/admin/src/routes/byline-schema.tsx:246
@@ -6544,7 +6667,7 @@ msgstr "ส่งอีกครั้งใน {resendCooldown} วินาท
 msgid "Reset to original"
 msgstr "รีเซ็ตเป็นค่าดั้งเดิม"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4104
+#: packages/admin/src/components/PortableTextEditor.tsx:4094
 msgid "Restart numbering"
 msgstr ""
 
@@ -6582,16 +6705,25 @@ msgstr "กำลังกู้คืน..."
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2258
+#: packages/admin/src/router.tsx:2260
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "ลองใหม่"
+
+#. placeholder {0}: row.file.name
+#: packages/admin/src/components/MediaUploadDialog.tsx:145
+msgid "Retry {0}"
+msgstr ""
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:497
+msgid "Retry failed"
+msgstr ""
 
 #: packages/admin/src/components/Sections.tsx:136
 msgid "Reusable content blocks you can insert into any content"
 msgstr "บล็อกเนื้อหาที่นำกลับมาใช้ซ้ำได้ ซึ่งคุณสามารถแทรกลงในเนื้อหาใดก็ได้"
 
-#: packages/admin/src/router.tsx:1107
+#: packages/admin/src/router.tsx:1108
 msgid "Reverted to published version"
 msgstr "เปลี่ยนกลับเป็นเวอร์ชันที่เผยแพร่แล้ว"
 
@@ -6607,7 +6739,7 @@ msgstr "ตรวจสอบสิทธิ์ใหม่"
 msgid "Revision restored"
 msgstr "กู้คืนรุ่นแก้ไขแล้ว"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:747
+#: packages/admin/src/components/ContentSettingsPanel.tsx:776
 #: packages/admin/src/components/ContentTypeEditor.tsx:76
 #: packages/admin/src/components/RevisionHistory.tsx:168
 msgid "Revisions"
@@ -6669,9 +6801,13 @@ msgstr "บทบาท"
 msgid "Role {role}"
 msgstr "บทบาท {role}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1029
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1058
 msgid "Role label"
 msgstr "ป้ายกำกับบทบาท"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:428
+msgid "Routable"
+msgstr ""
 
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
@@ -6695,7 +6831,7 @@ msgstr ""
 msgid "Same window"
 msgstr "หน้าต่างเดียวกัน"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1162
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1191
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:395
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:589
 #: packages/admin/src/components/editor/ImageNode.tsx:264
@@ -6747,7 +6883,7 @@ msgstr "บันทึกแล้ว"
 msgid "Saved \"{0}\"."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1162
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1191
 #: packages/admin/src/components/FieldEditor.tsx:689
 #: packages/admin/src/components/MediaDetailPanel.tsx:425
 #: packages/admin/src/components/MenuEditor.tsx:626
@@ -6775,28 +6911,32 @@ msgstr "SBOM"
 msgid "SBOM · {0}"
 msgstr "SBOM · {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:544
+#: packages/admin/src/components/ContentSettingsPanel.tsx:571
 msgid "Schedule"
 msgstr "กำหนดเวลา"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:530
+#: packages/admin/src/components/ContentSettingsPanel.tsx:557
 msgid "Schedule for"
 msgstr "กำหนดเวลาสำหรับ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:567
+#: packages/admin/src/components/ContentSettingsPanel.tsx:594
 msgid "Schedule for later"
 msgstr "กำหนดเวลาสำหรับภายหลัง"
 
 #: packages/admin/src/components/ContentList.tsx:834
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1127
+#: packages/admin/src/router.tsx:1128
 msgid "Scheduled"
 msgstr "กำหนดเวลา"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:518
+#: packages/admin/src/components/ContentSettingsPanel.tsx:545
 msgid "Scheduled for: {0}"
 msgstr "กำหนดเวลาสำหรับ: {0}"
+
+#: packages/admin/src/components/Dashboard.tsx:111
+msgid "Scheduled publishing needs attention"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2322
 msgid "Schema Changes"
@@ -6869,7 +7009,7 @@ msgstr "ค้นหา {0}"
 msgid "Search {0}..."
 msgstr "ค้นหา {0}..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:415
+#: packages/admin/src/components/MediaLibrary.tsx:378
 #: packages/admin/src/components/MediaPickerModal.tsx:626
 msgid "Search by filename..."
 msgstr "ค้นหาตามชื่อไฟล์..."
@@ -6879,12 +7019,12 @@ msgid "Search by name or email..."
 msgstr "ค้นหาตามชื่อหรืออีเมล..."
 
 #: packages/admin/src/components/BylineFilter.tsx:121
-#: packages/admin/src/components/ContentSettingsPanel.tsx:956
+#: packages/admin/src/components/ContentSettingsPanel.tsx:985
 #: packages/admin/src/routes/bylines.tsx:401
 msgid "Search bylines"
 msgstr "ค้นหาชื่อผู้เขียน"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:955
+#: packages/admin/src/components/ContentSettingsPanel.tsx:984
 msgid "Search bylines to add..."
 msgstr "ค้นหาผู้เขียนเพื่อเพิ่ม..."
 
@@ -6917,7 +7057,7 @@ msgstr "การทำ SEO และการยืนยัน"
 msgid "Search form"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:416
+#: packages/admin/src/components/MediaLibrary.tsx:379
 #: packages/admin/src/components/MediaPickerModal.tsx:627
 msgid "Search media"
 msgstr "ค้นหามีเดีย"
@@ -6961,21 +7101,21 @@ msgstr ""
 msgid "Search users"
 msgstr "ค้นหาผู้ใช้"
 
-#: packages/admin/src/components/MediaLibrary.tsx:415
+#: packages/admin/src/components/MediaLibrary.tsx:378
 #: packages/admin/src/components/MediaPickerModal.tsx:626
 msgid "Search..."
 msgstr "ค้นหา..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:732
+#: packages/admin/src/components/ContentTypeEditor.tsx:747
 #: packages/admin/src/components/FieldEditor.tsx:474
 msgid "Searchable"
 msgstr "ค้นหาได้"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:960
+#: packages/admin/src/components/ContentSettingsPanel.tsx:989
 msgid "Searching..."
 msgstr "กำลังค้นหา..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2721
+#: packages/admin/src/components/PortableTextEditor.tsx:2724
 msgid "Section"
 msgstr "ส่วน"
 
@@ -7005,7 +7145,7 @@ msgstr "ชื่อส่วน"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:176
 #: packages/admin/src/components/Sections.tsx:134
-#: packages/admin/src/components/Sidebar.tsx:249
+#: packages/admin/src/components/Sidebar.tsx:274
 msgid "Sections"
 msgstr "ส่วน"
 
@@ -7124,7 +7264,7 @@ msgstr "เลือกไฟล์"
 msgid "Select File"
 msgstr "เลือกไฟล์"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3443
+#: packages/admin/src/components/PortableTextEditor.tsx:3447
 msgid "Select Gallery Images"
 msgstr ""
 
@@ -7133,7 +7273,7 @@ msgid "Select image"
 msgstr "เลือกรูปภาพ"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:150
-#: packages/admin/src/components/PortableTextEditor.tsx:3429
+#: packages/admin/src/components/PortableTextEditor.tsx:3433
 #: packages/admin/src/components/settings/SeoSettings.tsx:223
 msgid "Select Image"
 msgstr "เลือกรูปภาพ"
@@ -7160,12 +7300,12 @@ msgid "Select which content types to import."
 msgstr "เลือกประเภทเนื้อหาที่จะนำเข้า"
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:2421
+#: packages/admin/src/components/PortableTextEditor.tsx:2420
 #: packages/admin/src/components/RepeaterField.tsx:372
 msgid "Select..."
 msgstr "เลือก..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1750
+#: packages/admin/src/components/PortableTextEditor.tsx:1749
 msgid "Selected {selectedItemTitle}"
 msgstr ""
 
@@ -7220,9 +7360,9 @@ msgstr "ส่งอีเมลทดสอบ"
 msgid "Sending..."
 msgstr "กำลังส่ง..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:690
-#: packages/admin/src/components/ContentSettingsPanel.tsx:693
-#: packages/admin/src/components/ContentTypeEditor.tsx:472
+#: packages/admin/src/components/ContentSettingsPanel.tsx:719
+#: packages/admin/src/components/ContentSettingsPanel.tsx:722
+#: packages/admin/src/components/ContentTypeEditor.tsx:487
 #: packages/admin/src/components/Settings.tsx:60
 msgid "SEO"
 msgstr "SEO"
@@ -7258,7 +7398,7 @@ msgstr "ตั้งค่าภาษา"
 msgid "Set language (current: {label})"
 msgstr "ตั้งค่าภาษา (ปัจจุบัน: {label})"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:529
+#: packages/admin/src/components/ContentTypeEditor.tsx:544
 msgid "Set to 0 to never close comments automatically."
 msgstr "ตั้งค่าเป็น 0 เพื่อไม่ปิดความคิดเห็นโดยอัตโนมัติ"
 
@@ -7277,11 +7417,11 @@ msgstr "กำลังตั้งค่า..."
 #: packages/admin/src/components/AdminCommandPalette.tsx:234
 #: packages/admin/src/components/ContentEditor.tsx:838
 #: packages/admin/src/components/ContentEditor.tsx:1071
-#: packages/admin/src/components/ContentTypeEditor.tsx:381
+#: packages/admin/src/components/ContentTypeEditor.tsx:382
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:472
 #: packages/admin/src/components/Settings.tsx:40
-#: packages/admin/src/components/Sidebar.tsx:309
+#: packages/admin/src/components/Sidebar.tsx:337
 #: packages/admin/src/components/WordPressImport.tsx:1811
 msgid "Settings"
 msgstr "ตั้งค่า"
@@ -7444,7 +7584,7 @@ msgstr "URL เว็บไซต์"
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:588
+#: packages/admin/src/components/MediaLibrary.tsx:551
 msgid "Size"
 msgstr "ขนาด"
 
@@ -7461,11 +7601,11 @@ msgid "Skipped"
 msgstr "ข้ามแล้ว"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:239
-#: packages/admin/src/components/ContentSettingsPanel.tsx:483
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1071
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1133
+#: packages/admin/src/components/ContentSettingsPanel.tsx:491
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1100
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1162
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
-#: packages/admin/src/components/ContentTypeEditor.tsx:402
+#: packages/admin/src/components/ContentTypeEditor.tsx:403
 #: packages/admin/src/components/ContentTypeList.tsx:181
 #: packages/admin/src/components/FieldEditor.tsx:257
 #: packages/admin/src/components/FieldEditor.tsx:444
@@ -7485,15 +7625,15 @@ msgstr "คัดลอก Slug ไปยังคลิปบอร์ดแล
 msgid "Slugs cannot be changed after the field is created."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1395
+#: packages/admin/src/components/PortableTextEditor.tsx:1401
 msgid "Small section heading"
 msgstr "หัวข้อส่วนขนาดเล็ก"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1405
+#: packages/admin/src/components/PortableTextEditor.tsx:1411
 msgid "Smaller section heading"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1425
+#: packages/admin/src/components/PortableTextEditor.tsx:1431
 msgid "Smallest section heading"
 msgstr ""
 
@@ -7556,7 +7696,7 @@ msgstr "สแปม"
 msgid "Spam"
 msgstr "สแปม"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4265
+#: packages/admin/src/components/PortableTextEditor.tsx:4261
 msgid "Spotlight Mode"
 msgstr "โหมดสปอตไลต์"
 
@@ -7573,13 +7713,13 @@ msgid "Start Import"
 msgstr "เริ่มการนำเข้า"
 
 #: packages/admin/src/components/ContentEditor.tsx:1240
+#: packages/admin/src/components/PortableTextEditor.tsx:2579
 #: packages/admin/src/components/PortableTextEditor.tsx:2580
-#: packages/admin/src/components/PortableTextEditor.tsx:2581
 msgid "Start writing, or type '/' for commands"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:592
-#: packages/admin/src/components/ContentSettingsPanel.tsx:490
+#: packages/admin/src/components/ContentSettingsPanel.tsx:517
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
 #: packages/admin/src/components/Redirects.tsx:480
 #: packages/admin/src/components/users/UserList.tsx:104
@@ -7590,7 +7730,7 @@ msgstr "สถานะ"
 msgid "Status code"
 msgstr "รหัสสถานะ"
 
-#: packages/admin/src/components/Dashboard.tsx:367
+#: packages/admin/src/components/Dashboard.tsx:401
 msgid "Status: {status}"
 msgstr ""
 
@@ -7606,8 +7746,8 @@ msgstr ""
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3635
-#: packages/admin/src/components/PortableTextEditor.tsx:4040
+#: packages/admin/src/components/PortableTextEditor.tsx:3639
+#: packages/admin/src/components/PortableTextEditor.tsx:4044
 msgid "Strikethrough"
 msgstr "ขีดทับ"
 
@@ -7628,13 +7768,11 @@ msgstr "ฟิลด์ย่อย"
 msgid "Subscriber"
 msgstr "ผู้ติดตาม"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3642
-#: packages/admin/src/components/PortableTextEditor.tsx:4047
+#: packages/admin/src/components/PortableTextEditor.tsx:3646
 msgid "Subscript"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3649
-#: packages/admin/src/components/PortableTextEditor.tsx:4054
+#: packages/admin/src/components/PortableTextEditor.tsx:3653
 msgid "Superscript"
 msgstr ""
 
@@ -7654,7 +7792,7 @@ msgstr "ซิงค์แล้ว"
 msgid "Synced passkey"
 msgstr "Passkey ที่ซิงค์แล้ว"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:777
+#: packages/admin/src/components/ContentTypeEditor.tsx:792
 msgid "System"
 msgstr "ระบบ"
 
@@ -7662,15 +7800,15 @@ msgstr "ระบบ"
 msgid "System ({resolvedLabel})"
 msgstr "ระบบ ({resolvedLabel})"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:599
+#: packages/admin/src/components/ContentTypeEditor.tsx:614
 msgid "System Fields"
 msgstr "ฟิลด์ของระบบ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1499
+#: packages/admin/src/components/PortableTextEditor.tsx:1498
 msgid "Table"
 msgstr "ตาราง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3724
+#: packages/admin/src/components/PortableTextEditor.tsx:3728
 msgid "Table controls"
 msgstr ""
 
@@ -7698,8 +7836,8 @@ msgstr "เป้าหมาย"
 msgid "Target locale"
 msgstr "ภาษาเป้าหมาย"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:679
-#: packages/admin/src/components/TaxonomySidebar.tsx:546
+#: packages/admin/src/components/ContentSettingsPanel.tsx:706
+#: packages/admin/src/components/TaxonomySidebar.tsx:683
 msgid "Taxonomies"
 msgstr "อนุกรมวิธาน"
 
@@ -7743,7 +7881,7 @@ msgstr "ลบเทอมแล้ว"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3991
+#: packages/admin/src/components/PortableTextEditor.tsx:3995
 msgid "Text formatting"
 msgstr "การจัดรูปแบบข้อความ"
 
@@ -7780,7 +7918,7 @@ msgstr "ลบเมนูแล้ว"
 msgid "The name of your site, used in the header and metadata"
 msgstr "ชื่อเว็บไซต์ของคุณ ใช้ในส่วนหัวและข้อมูลเมตา"
 
-#: packages/admin/src/router.tsx:2272
+#: packages/admin/src/router.tsx:2274
 msgid "The page you're looking for doesn't exist."
 msgstr "ไม่พบหน้าที่คุณกำลังค้นหา"
 
@@ -7829,7 +7967,7 @@ msgstr "ไม่สามารถลบส่วนที่มาจากธ
 msgid "Theme: {label}"
 msgstr "ธีม: {label}"
 
-#: packages/admin/src/components/Sidebar.tsx:296
+#: packages/admin/src/components/Sidebar.tsx:324
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
 msgid "Themes"
 msgstr "ธีม"
@@ -7838,11 +7976,11 @@ msgstr "ธีม"
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:370
+#: packages/admin/src/components/ContentTypeEditor.tsx:371
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "คอลเลกชันนี้กำหนดไว้ในโค้ด การตั้งค่าบางอย่างไม่สามารถเปลี่ยนแปลงได้ที่นี่ แก้ไขไฟล์ live.config.ts ของคุณเพื่อปรับเปลี่ยนสคีมา"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3327
+#: packages/admin/src/components/PortableTextEditor.tsx:3330
 msgid "This content cannot be edited safely"
 msgstr ""
 
@@ -7850,7 +7988,7 @@ msgstr ""
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3329
+#: packages/admin/src/components/PortableTextEditor.tsx:3332
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr ""
 
@@ -7870,6 +8008,10 @@ msgstr "นี่เป็นส่วนที่กำหนดเอง"
 #: packages/admin/src/components/WordPressImport.tsx:1308
 msgid "This is a WordPress site."
 msgstr "นี่เป็นเว็บไซต์ WordPress"
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:503
+msgid "This is stored with the entry and is separate from your admin language."
+msgstr ""
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:112
 msgid "This link expires in 7 days and can only be used once."
@@ -7913,7 +8055,7 @@ msgid "This removes the byline profile. Content byline links are removed and lea
 msgstr "การดำเนินการนี้จะนำโปรไฟล์ชื่อผู้เขียนออก ลิงก์ชื่อผู้เขียนในเนื้อหาจะถูกนำออกและตัวชี้รายการนำจะถูกล้าง"
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:3356
+#: packages/admin/src/components/PortableTextEditor.tsx:3359
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr ""
 
@@ -7937,7 +8079,7 @@ msgstr "การดำเนินการนี้จะลบพื้นท
 msgid "This will grant CLI access with your permissions."
 msgstr "การดำเนินการนี้จะให้สิทธิ์เข้าถึง CLI ด้วยสิทธิ์ของคุณ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:779
+#: packages/admin/src/components/ContentSettingsPanel.tsx:808
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "การดำเนินการนี้จะย้ายรายการไปยังถังขยะ คุณสามารถกู้คืนได้ในภายหลังจากถังขยะ"
 
@@ -7959,7 +8101,7 @@ msgstr "การดำเนินการนี้จะลบความค
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "การดำเนินการนี้จะนำปลั๊กอินและบันเดิลของปลั๊กอินออกจากเว็บไซต์ของคุณ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:92
+#: packages/admin/src/components/ContentSettingsPanel.tsx:93
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "การดำเนินการนี้จะย้อนกลับไปยังเวอร์ชันที่เผยแพร่แล้ว การเปลี่ยนแปลงในฉบับร่างของคุณจะสูญหาย"
 
@@ -8012,7 +8154,7 @@ msgstr "เพื่อติดตั้งปลั๊กอิน หรื�
 msgid "to select"
 msgstr "เพื่อเลือก"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3769
+#: packages/admin/src/components/PortableTextEditor.tsx:3773
 msgid "Toggle header row"
 msgstr "สลับแถวส่วนหัว"
 
@@ -8070,11 +8212,12 @@ msgstr "กำลังแปล..."
 
 #: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:987
-#: packages/admin/src/router.tsx:1179
+#: packages/admin/src/components/TaxonomySidebar.tsx:471
+#: packages/admin/src/router.tsx:1180
 msgid "Translation created"
 msgstr "สร้างคำแปลแล้ว"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:657
+#: packages/admin/src/components/ContentSettingsPanel.tsx:684
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "คำแปล"
@@ -8103,7 +8246,7 @@ msgstr "ถังขยะว่างเปล่า"
 msgid "True/false toggle"
 msgstr "สวิตช์จริง/เท็จ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:493
+#: packages/admin/src/components/MediaLibrary.tsx:456
 msgid "Try a broader media type or clear your filters."
 msgstr ""
 
@@ -8132,11 +8275,11 @@ msgstr "ลองอีกครั้ง"
 msgid "Try another code"
 msgstr "ลองรหัสอื่น"
 
-#: packages/admin/src/components/MediaLibrary.tsx:518
+#: packages/admin/src/components/MediaLibrary.tsx:481
 msgid "Try another filename or clear your search."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:492
+#: packages/admin/src/components/MediaLibrary.tsx:455
 msgid "Try another filename, or clear your search and filters."
 msgstr ""
 
@@ -8164,7 +8307,7 @@ msgstr "Twitter"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:260
 #: packages/admin/src/components/FieldEditor.tsx:600
-#: packages/admin/src/components/MediaLibrary.tsx:587
+#: packages/admin/src/components/MediaLibrary.tsx:550
 #: packages/admin/src/routes/byline-schema.tsx:240
 msgid "Type"
 msgstr "ประเภท"
@@ -8183,17 +8326,17 @@ msgstr ""
 msgid "Unable to reach marketplace"
 msgstr "ไม่สามารถเชื่อมต่อกับมาร์เก็ตเพลซได้"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1176
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1193
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1205
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1222
 msgid "Unassigned"
 msgstr "ยังไม่ได้กำหนด"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3628
-#: packages/admin/src/components/PortableTextEditor.tsx:4033
+#: packages/admin/src/components/PortableTextEditor.tsx:3632
+#: packages/admin/src/components/PortableTextEditor.tsx:4037
 msgid "Underline"
 msgstr "ขีดเส้นใต้"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4245
+#: packages/admin/src/components/PortableTextEditor.tsx:4241
 msgid "Undo"
 msgstr "เลิกทำ"
 
@@ -8215,7 +8358,7 @@ msgstr "การยืนยันการถอนการติดตั้
 msgid "Uninstalling..."
 msgstr "กำลังถอนการติดตั้ง..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:731
+#: packages/admin/src/components/ContentTypeEditor.tsx:746
 #: packages/admin/src/components/FieldEditor.tsx:468
 msgid "Unique"
 msgstr "ไม่ซ้ำ"
@@ -8245,11 +8388,11 @@ msgstr "ปลดล็อกอัตราส่วนภาพ"
 msgid "Unnamed passkey"
 msgstr "Passkey ที่ไม่มีชื่อ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:210
+#: packages/admin/src/components/ContentSettingsPanel.tsx:211
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1087
+#: packages/admin/src/router.tsx:1088
 msgid "Unpublished"
 msgstr "ยกเลิกการเผยแพร่แล้ว"
 
@@ -8257,11 +8400,15 @@ msgstr "ยกเลิกการเผยแพร่แล้ว"
 msgid "Unregistered Content Tables Found"
 msgstr "พบตารางเนื้อหาที่ยังไม่ได้ลงทะเบียน"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:520
+#: packages/admin/src/components/TaxonomySidebar.tsx:543
+msgid "Unresolved assignment"
+msgstr ""
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:547
 msgid "Unschedule"
 msgstr "ยกเลิกการกำหนดเวลา"
 
-#: packages/admin/src/router.tsx:1148
+#: packages/admin/src/router.tsx:1149
 msgid "Unscheduled"
 msgstr "ยกเลิกการกำหนดเวลาแล้ว"
 
@@ -8270,7 +8417,7 @@ msgstr "ยกเลิกการกำหนดเวลาแล้ว"
 msgid "Unsupported widget element type: {0}"
 msgstr "ประเภทองค์ประกอบวิดเจ็ตที่ไม่รองรับ: {0}"
 
-#: packages/admin/src/components/Dashboard.tsx:334
+#: packages/admin/src/components/Dashboard.tsx:368
 msgid "Untitled"
 msgstr "ไม่มีชื่อ"
 
@@ -8287,7 +8434,7 @@ msgstr "วิดเจ็ตไม่มีชื่อ"
 msgid "Unverified publisher"
 msgstr "ผู้เผยแพร่ที่ยังไม่ได้รับการยืนยัน"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1003
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1032
 msgid "Up"
 msgstr "ขึ้น"
 
@@ -8303,7 +8450,7 @@ msgstr "อัปเดต"
 msgid "Update Field"
 msgstr "อัปเดตฟิลด์"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:594
+#: packages/admin/src/components/ContentSettingsPanel.tsx:621
 msgid "Update publish date"
 msgstr ""
 
@@ -8331,7 +8478,7 @@ msgid "Update to v{0}"
 msgstr "อัปเดตเป็น v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:842
-#: packages/admin/src/components/ContentSettingsPanel.tsx:610
+#: packages/admin/src/components/ContentSettingsPanel.tsx:637
 #: packages/admin/src/components/RegistryPluginDetail.tsx:501
 msgid "Updated"
 msgstr "อัปเดตแล้ว"
@@ -8379,6 +8526,10 @@ msgstr "อัปโหลดและจัดการมีเดีย"
 msgid "Upload Export File"
 msgstr "อัปโหลดไฟล์ส่งออก"
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:96
+msgid "Upload failed"
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:669
 msgid "Upload failed: {uploadError}"
 msgstr "อัปโหลดล้มเหลว: {uploadError}"
@@ -8391,12 +8542,8 @@ msgstr "อัปโหลดไฟล์"
 msgid "Upload File"
 msgstr "อัปโหลดไฟล์"
 
-#: packages/admin/src/components/MediaLibrary.tsx:365
-msgid "Upload files"
-msgstr "อัปโหลดไฟล์"
-
-#: packages/admin/src/components/MediaLibrary.tsx:508
-#: packages/admin/src/components/MediaLibrary.tsx:532
+#: packages/admin/src/components/MediaLibrary.tsx:471
+#: packages/admin/src/components/MediaLibrary.tsx:495
 msgid "Upload Files"
 msgstr "อัปโหลดไฟล์"
 
@@ -8404,22 +8551,26 @@ msgstr "อัปโหลดไฟล์"
 msgid "Upload Image"
 msgstr "อัปโหลดรูปภาพ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:505
+#: packages/admin/src/components/MediaLibrary.tsx:468
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:129
+#: packages/admin/src/components/Dashboard.tsx:163
 msgid "Upload Media"
 msgstr "อัปโหลดมีเดีย"
 
-#: packages/admin/src/components/MediaLibrary.tsx:529
+#: packages/admin/src/components/MediaLibrary.tsx:492
 msgid "Upload media to keep reusable assets in one place."
 msgstr ""
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
-#: packages/admin/src/components/MediaLibrary.tsx:356
+#: packages/admin/src/components/MediaLibrary.tsx:329
 msgid "Upload to {0}"
 msgstr "อัปโหลดไปยัง {0}"
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:396
+msgid "Upload to {providerName}"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1118
 msgid "Upload WordPress export file"
@@ -8429,17 +8580,11 @@ msgstr "อัปโหลดไฟล์ส่งออก WordPress"
 msgid "Uploaded:"
 msgstr "อัปโหลดแล้ว:"
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:80
 #: packages/admin/src/components/WordPressImport.tsx:2127
 msgid "Uploading"
 msgstr "กำลังอัปโหลด"
 
-#. placeholder {0}: uploadState.progress.current
-#. placeholder {1}: uploadState.progress.total
-#: packages/admin/src/components/MediaLibrary.tsx:331
-msgid "Uploading {0}/{1}..."
-msgstr "กำลังอัปโหลด {0}/{1}..."
-
-#: packages/admin/src/components/MediaLibrary.tsx:332
 #: packages/admin/src/components/MediaPickerModal.tsx:649
 msgid "Uploading..."
 msgstr "กำลังอัปโหลด..."
@@ -8449,13 +8594,13 @@ msgstr "กำลังอัปโหลด..."
 #: packages/admin/src/components/FieldEditor.tsx:615
 #: packages/admin/src/components/MenuEditor.tsx:418
 #: packages/admin/src/components/MenuEditor.tsx:596
-#: packages/admin/src/components/PortableTextEditor.tsx:3582
-#: packages/admin/src/components/PortableTextEditor.tsx:4190
-#: packages/admin/src/components/PortableTextEditor.tsx:4200
+#: packages/admin/src/components/PortableTextEditor.tsx:3586
+#: packages/admin/src/components/PortableTextEditor.tsx:4186
+#: packages/admin/src/components/PortableTextEditor.tsx:4196
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:423
+#: packages/admin/src/components/ContentTypeEditor.tsx:438
 msgid "URL Pattern"
 msgstr "รูปแบบ URL"
 
@@ -8500,7 +8645,7 @@ msgstr "ใช้เป็นภาพหลักของโพสต์นี
 msgid "Used by screen readers and when image fails to load"
 msgstr "ใช้โดยโปรแกรมอ่านหน้าจอและเมื่อรูปภาพโหลดไม่สำเร็จ"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:408
+#: packages/admin/src/components/ContentTypeEditor.tsx:409
 msgid "Used in URLs and API endpoints"
 msgstr "ใช้ใน URL และ API endpoint"
 
@@ -8530,7 +8675,7 @@ msgid "User not found"
 msgstr "ไม่พบผู้ใช้"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:268
+#: packages/admin/src/components/Sidebar.tsx:296
 #: packages/admin/src/components/users/UserList.tsx:54
 msgid "Users"
 msgstr "ผู้ใช้"
@@ -8594,7 +8739,7 @@ msgid "Version {0}"
 msgstr "เวอร์ชัน {0}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:67
-#: packages/admin/src/components/MediaLibrary.tsx:435
+#: packages/admin/src/components/MediaLibrary.tsx:398
 msgid "Video"
 msgstr "วิดีโอ"
 
@@ -8607,7 +8752,7 @@ msgstr "ดูสถานะผู้ให้บริการอีเมล
 msgid "View in Marketplace"
 msgstr "ดูใน Marketplace"
 
-#: packages/admin/src/components/MediaLibrary.tsx:447
+#: packages/admin/src/components/MediaLibrary.tsx:410
 msgid "View mode"
 msgstr "โหมดการแสดงผล"
 
@@ -8782,7 +8927,7 @@ msgstr "อัปเดตวิดเจ็ตแล้ว"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:168
 #: packages/admin/src/components/PluginManager.tsx:408
-#: packages/admin/src/components/Sidebar.tsx:248
+#: packages/admin/src/components/Sidebar.tsx:273
 #: packages/admin/src/components/Widgets.tsx:388
 #: packages/admin/src/components/WordPressImport.tsx:1157
 msgid "Widgets"
@@ -8888,7 +9033,7 @@ msgstr "คุณมีสิทธิ์เข้าถึงเต็มรู
 msgid "You need admin permissions to manage byline schema."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1556
+#: packages/admin/src/router.tsx:1558
 msgid "You need Editor permissions to moderate comments."
 msgstr "คุณต้องมีสิทธิ์ผู้แก้ไขเพื่อกลั่นกรองความคิดเห็น"
 
@@ -8969,8 +9114,8 @@ msgstr "ชื่อผู้ใช้ Instagram ของคุณ"
 msgid "Your LinkedIn profile username"
 msgstr "ชื่อผู้ใช้โปรไฟล์ LinkedIn ของคุณ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:504
-#: packages/admin/src/components/MediaLibrary.tsx:528
+#: packages/admin/src/components/MediaLibrary.tsx:467
+#: packages/admin/src/components/MediaLibrary.tsx:491
 msgid "Your media library is empty"
 msgstr ""
 
