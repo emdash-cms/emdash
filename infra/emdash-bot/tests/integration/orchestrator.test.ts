@@ -1073,6 +1073,38 @@ describe("OrchestratorDO (workers-pool)", () => {
 		});
 	});
 
+	test("a failed resumed run preserves its checkpoint for another resume", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetPendingResume({
+			runId: "failed-resume-run",
+			agentId: "investigate-999-failed-resume-run",
+			deliveryId: "failed-resume-delivery",
+			startedAt: Date.now(),
+			dispatchAttempt: "failed-resume-attempt",
+		});
+
+		const completion = await stub.applyAgentResult({
+			runId: "failed-resume-run",
+			result: {
+				implemented: false,
+				failureStage: "verification",
+				summary: "The saved candidate still needs final verification.",
+			},
+			pushed: false,
+			ok: true,
+		});
+
+		expect(completion.kind).toBe("transition");
+		expect((await stub.getPersistedState()).state).toBe("failed");
+		expect(await stub.debugGetResumableRun()).toMatchObject({
+			runId: "failed-resume-run",
+			agentId: "investigate-999-failed-resume-run",
+			mode: "implement",
+			state: "fixing",
+			summary: "The saved candidate still needs final verification.",
+		});
+	});
+
 	test("stale recovery consumes an uncertain resume delivery", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await stub.debugSetPendingResume({

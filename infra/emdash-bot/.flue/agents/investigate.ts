@@ -29,6 +29,7 @@ import {
 	requireCandidatePublication,
 	type CandidatePublication,
 } from "../lib/candidate-publisher.js";
+import { contextRegistry } from "../lib/context-registry.js";
 import { type ContainerBackend, ExecEnv, fromSandbox, quote } from "../lib/exec-env.js";
 import { createPushCapability, githubPushUrl } from "../lib/github-proxy.js";
 import {
@@ -585,12 +586,11 @@ Investigate.initialData = initialDataSchema;
 Investigate.durability = { maxAttempts: 5, timeoutMs: FLUE_RUN_TIMEOUT_MS };
 
 /**
- * Per-run ExecEnv, cached on `globalThis` so it survives the agent's re-renders
- * within one isolate (Vite duplicates modules across SSR chunks, so a plain
- * module `let` would not be shared). The container is attached lazily on first
- * container exec; the VFS/isolate side needs no attach.
+ * Per-run ExecEnv, cached within the current Durable Object context so it
+ * survives agent rerenders without carrying I/O-bound state into a resumed
+ * submission running in another context.
  */
-const EXEC_ENV_REGISTRY = Symbol.for("emdash-bot.execEnvs");
+const EXEC_ENV_REGISTRY = "emdash-bot.execEnvs";
 
 interface ExecEnvEntry {
 	readonly env: ExecEnv;
@@ -598,10 +598,7 @@ interface ExecEnvEntry {
 }
 
 function execEnvRegistry(): Map<string, ExecEnvEntry> {
-	const store = globalThis as typeof globalThis & {
-		[EXEC_ENV_REGISTRY]?: Map<string, ExecEnvEntry>;
-	};
-	return (store[EXEC_ENV_REGISTRY] ??= new Map());
+	return contextRegistry<ExecEnvEntry>(EXEC_ENV_REGISTRY, getCloudflareContext().storage);
 }
 
 function execEnvFor(
@@ -670,13 +667,13 @@ interface CodeRuntime {
 	provider: ResolvedProvider;
 }
 
-const CODE_RUNTIME_REGISTRY = Symbol.for("emdash-bot.codeRuntimes");
+const CODE_RUNTIME_REGISTRY = "emdash-bot.codeRuntimes";
 
 function codeRuntimeFor(id: string): CodeRuntime {
-	const store = globalThis as typeof globalThis & {
-		[CODE_RUNTIME_REGISTRY]?: Map<string, CodeRuntime>;
-	};
-	const registry = (store[CODE_RUNTIME_REGISTRY] ??= new Map());
+	const registry = contextRegistry<CodeRuntime>(
+		CODE_RUNTIME_REGISTRY,
+		getCloudflareContext().storage,
+	);
 	const existing = registry.get(id);
 	if (existing) return existing;
 	const runtime: CodeRuntime = {
@@ -1014,13 +1011,15 @@ function buildPrompt(input: InvestigateData): string {
 		: implement
 			? [
 					"- Read AGENTS.md and implement the requested change directly; this mode has no bug-reproduction gate.",
+					"- The candidate is the deliverable. Use one focused test through existing infrastructure; do not build a custom test harness or inspect dependencies merely to improve test coverage.",
+					"- If a test approach fails three times or consumes about ten minutes, switch to a lower-level seam. Preserve the final fifteen minutes for metadata, checks, publication, and reporting.",
 					"- Edit with edit_file/write_file. Use exec to run the focused tests, affected typecheck, lint, and format check once on the final candidate.",
 					"- Fix relevant failures when practical. A remaining check failure does not block publication: call publish_candidate, then report the failure accurately so CI can confirm it.",
 					"- Call report_implementation exactly once. implemented=true is valid only after publish_candidate succeeds.",
 				]
 			: [
 					"- Read AGENTS.md, find the relevant code, attempt to reproduce, build, or revise.",
-					"- Write tests where they make sense.",
+					"- Follow the mode skill's test budget. Use existing test infrastructure and do not build a harness solely for verification.",
 					"- Touch only files relevant to the issue. Do not bulk-format or modify .github/workflows.",
 					"- Use exec to run focused verification once on the final candidate. Do not hide failures; fix relevant ones when practical and report any that remain.",
 					"- Call publish_candidate even when a check remains failing so the candidate and CI evidence are not lost. Do not run git commit or git push yourself.",

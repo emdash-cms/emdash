@@ -133,7 +133,12 @@ export async function gateGithubRequest(
 }
 
 export type GithubGateResult =
-	| { allowed: true; stage: "allowed"; refs?: readonly string[] }
+	| {
+			allowed: true;
+			stage: "allowed";
+			authentication: "anonymous" | "installation";
+			refs?: readonly string[];
+	  }
 	| {
 			allowed: false;
 			stage: "repository" | "capability" | "receive-pack";
@@ -172,7 +177,7 @@ export async function inspectGithubRequest(
 			(method === "GET" || method === "HEAD") &&
 			(url.pathname === repoPath || url.pathname === `${repoPath}/`)
 		) {
-			return { allowed: true, stage: "allowed" };
+			return { allowed: true, stage: "allowed", authentication: "installation" };
 		}
 		if (
 			url.pathname === `${gitPath}/info/refs` &&
@@ -185,7 +190,7 @@ export async function inspectGithubRequest(
 						stage: "capability",
 						reason: "git push requires a valid issue-scoped capability",
 					}
-				: { allowed: true, stage: "allowed" };
+				: { allowed: true, stage: "allowed", authentication: "installation" };
 		}
 		if (url.pathname === `${gitPath}/git-receive-pack` && method === "POST") {
 			if (issueNumber === undefined) {
@@ -197,7 +202,12 @@ export async function inspectGithubRequest(
 			}
 			const inspection = await inspectReceivePack(request, issueNumber);
 			return inspection.allowed
-				? { allowed: true, stage: "allowed", refs: inspection.refs }
+				? {
+						allowed: true,
+						stage: "allowed",
+						authentication: "installation",
+						refs: inspection.refs,
+					}
 				: {
 						allowed: false,
 						stage: "receive-pack",
@@ -213,7 +223,10 @@ export async function inspectGithubRequest(
 				url.pathname === `${gitPath}/git-upload-pack`) &&
 			(method === "GET" || method === "HEAD" || method === "POST")
 		) {
-			return { allowed: true, stage: "allowed" };
+			return { allowed: true, stage: "allowed", authentication: "installation" };
+		}
+		if (method === "GET" || method === "HEAD") {
+			return { allowed: true, stage: "allowed", authentication: "anonymous" };
 		}
 		return {
 			allowed: false,
@@ -224,7 +237,10 @@ export async function inspectGithubRequest(
 
 	if (host === "codeload.github.com") {
 		if ((method === "GET" || method === "HEAD") && url.pathname.startsWith(`/${owner}/${repo}/`)) {
-			return { allowed: true, stage: "allowed" };
+			return { allowed: true, stage: "allowed", authentication: "installation" };
+		}
+		if (method === "GET" || method === "HEAD") {
+			return { allowed: true, stage: "allowed", authentication: "anonymous" };
 		}
 		return {
 			allowed: false,
@@ -235,7 +251,10 @@ export async function inspectGithubRequest(
 
 	if (host === "raw.githubusercontent.com") {
 		if ((method === "GET" || method === "HEAD") && url.pathname.startsWith(`/${owner}/${repo}/`)) {
-			return { allowed: true, stage: "allowed" };
+			return { allowed: true, stage: "allowed", authentication: "installation" };
+		}
+		if (method === "GET" || method === "HEAD") {
+			return { allowed: true, stage: "allowed", authentication: "anonymous" };
 		}
 		return {
 			allowed: false,
@@ -250,7 +269,10 @@ export async function inspectGithubRequest(
 			(method === "GET" || method === "HEAD") &&
 			(url.pathname === repoBase || url.pathname.startsWith(`${repoBase}/`))
 		) {
-			return { allowed: true, stage: "allowed" };
+			return { allowed: true, stage: "allowed", authentication: "installation" };
+		}
+		if (method === "GET" || method === "HEAD") {
+			return { allowed: true, stage: "allowed", authentication: "anonymous" };
 		}
 		return {
 			allowed: false,

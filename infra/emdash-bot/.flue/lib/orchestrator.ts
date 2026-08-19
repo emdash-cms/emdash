@@ -975,17 +975,19 @@ export class OrchestratorDO extends DurableObject<Env> {
 		pushed: boolean;
 		ok: boolean;
 	}): Promise<EventOutcome> {
-		const [currentRunId, legacyRunMode, run] = await Promise.all([
-			this.ctx.storage.get<string>(STORAGE.currentRunId),
-			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
-			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
-		]);
+		const [currentRunId, legacyRunMode, run, currentAgentId, legacyRunStartedAt] =
+			await Promise.all([
+				this.ctx.storage.get<string>(STORAGE.currentRunId),
+				this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
+				this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
+				this.ctx.storage.get<string>(STORAGE.currentAgentId),
+				this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
+			]);
 		const currentRunMode = run?.runId === input.runId ? run.mode : legacyRunMode;
 		if (currentRunId !== input.runId) {
 			return { kind: "stale-run", runId: input.runId, currentRunId: currentRunId ?? null };
 		}
 		const savedRun = await this.ctx.storage.get<ResumableRunCheckpoint>(STORAGE.resumableRun);
-		if (savedRun?.runId === input.runId) await this.ctx.storage.delete(STORAGE.resumableRun);
 		await this.confirmDispatchAdmission(input.runId);
 		const settledRuns = await this.drainPendingSideEffects();
 		if (settledRuns.has(input.runId)) return { kind: "recovered" };
@@ -1005,6 +1007,20 @@ export class OrchestratorDO extends DurableObject<Env> {
 			pushed: input.pushed,
 			mode: currentRunMode,
 		});
+		const resumedAttempt = savedRun?.runId === input.runId || (run?.attempt ?? 1) > 1;
+		if (event === "agent.failed" && resumedAttempt && currentRunMode && currentAgentId && state) {
+			await this.ctx.storage.put<ResumableRunCheckpoint>(STORAGE.resumableRun, {
+				runId: input.runId,
+				agentId: currentAgentId,
+				mode: currentRunMode,
+				state,
+				attemptStartedAt: run?.startedAt ?? legacyRunStartedAt ?? Date.now(),
+				timedOutAt: Date.now(),
+				summary: input.result.summary ?? savedRun?.summary ?? null,
+			});
+		} else if (savedRun?.runId === input.runId) {
+			await this.ctx.storage.delete(STORAGE.resumableRun);
+		}
 
 		const labels = await this.projectLabels();
 		const agentSummary =

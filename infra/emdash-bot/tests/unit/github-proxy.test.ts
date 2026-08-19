@@ -111,13 +111,43 @@ function pktLine(payload: string): string {
 }
 
 describe("gateGithubRequest", () => {
+	test("allows public GitHub reads anonymously outside the configured repository", async () => {
+		for (const url of [
+			"https://github.com/WiseLibs/better-sqlite3/releases/download/v12.8.0/better-sqlite3.tar.gz",
+			"https://codeload.github.com/WiseLibs/better-sqlite3/tar.gz/refs/tags/v12.8.0",
+			"https://raw.githubusercontent.com/WiseLibs/better-sqlite3/master/package.json",
+			"https://api.github.com/repos/WiseLibs/better-sqlite3/releases/latest",
+		]) {
+			const request = new Request(url);
+			await expect(inspectGithubRequest(request, new URL(url), OWNER, REPO)).resolves.toMatchObject(
+				{
+					allowed: true,
+					authentication: "anonymous",
+				},
+			);
+		}
+	});
+
+	test("keeps configured repository reads on the installation-token path", async () => {
+		const url = new URL("https://github.com/emdash-cms/emdash.git/info/refs");
+		await expect(inspectGithubRequest(new Request(url), url, OWNER, REPO)).resolves.toMatchObject({
+			allowed: true,
+			authentication: "installation",
+		});
+	});
+
+	test("still denies writes outside the configured repository", async () => {
+		const url = new URL("https://api.github.com/repos/WiseLibs/better-sqlite3/issues");
+		await expect(
+			inspectGithubRequest(new Request(url, { method: "POST", body: "{}" }), url, OWNER, REPO),
+		).resolves.toMatchObject({ allowed: false, stage: "repository" });
+	});
+
 	test("limits API reads to the configured repository", async () => {
 		await expect(
 			gate("https://api.github.com/repos/emdash-cms/emdash/issues/1"),
 		).resolves.toBeNull();
-		await expect(gate("https://api.github.com/repos/other/private/issues/1")).resolves.toMatch(
-			/configured repository/,
-		);
+		await expect(gate("https://api.github.com/repos/other/public/issues/1")).resolves.toBeNull();
 	});
 
 	test("denies all API writes from the agent", async () => {
