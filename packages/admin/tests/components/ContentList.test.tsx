@@ -411,9 +411,7 @@ describe("ContentList", () => {
 			);
 
 			await screen.getByRole("button", { name: /Filter by date range:/ }).click();
-			const august20 = document.querySelector<HTMLButtonElement>('[data-day="2026-08-20"] button');
-			if (!august20) throw new Error("August 20 calendar day did not render");
-			august20.click();
+			await screen.getByRole("button", { name: /August 20.*2026/ }).click();
 
 			expect(onDateFilterChange).toHaveBeenCalledWith({
 				field: "createdAt",
