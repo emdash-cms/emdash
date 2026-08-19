@@ -5,10 +5,13 @@ import {
 	createGitBlob,
 	createGitCommit,
 	createGitTree,
+	createIssueComment,
+	findIssueCommentByMarker,
 	getGitCommit,
 	getIssueComments,
 	listOpenManagedIssues,
 	updateBranch,
+	updateIssueComment,
 } from "../../.flue/lib/github.js";
 
 const repo = { owner: "emdash-cms", repo: "emdash" };
@@ -154,6 +157,62 @@ describe("GitHub issue context requests", () => {
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		expect(fetchMock.mock.calls[0]?.[0]).toContain("page=3");
+	});
+});
+
+describe("GitHub evolving comments", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	test("creates, updates, and recovers a comment by marker", async () => {
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(
+				jsonResponse(
+					{
+						id: 777,
+						body: "Working\n\n<!-- emdashbot-run:run-1 -->",
+						html_url: "https://github.com/emdash-cms/emdash/issues/42#issuecomment-777",
+					},
+					201,
+				),
+			)
+			.mockResolvedValueOnce(jsonResponse({}))
+			.mockResolvedValueOnce(
+				jsonResponse([
+					{
+						id: 777,
+						body: "Completed\n\n<!-- emdashbot-run:run-1 -->",
+						html_url: "https://github.com/emdash-cms/emdash/issues/42#issuecomment-777",
+					},
+				]),
+			);
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(
+			createIssueComment("token", repo, 42, "Working\n\n<!-- emdashbot-run:run-1 -->"),
+		).resolves.toMatchObject({ id: 777 });
+		await updateIssueComment("token", repo, 777, "Completed");
+		await expect(
+			findIssueCommentByMarker("token", repo, 42, "<!-- emdashbot-run:run-1 -->"),
+		).resolves.toMatchObject({ id: 777, body: expect.stringContaining("Completed") });
+
+		expect(fetchMock.mock.calls.map(([url, init]) => [init?.method ?? "GET", url])).toEqual([
+			["POST", "https://api.github.com/repos/emdash-cms/emdash/issues/42/comments"],
+			["PATCH", "https://api.github.com/repos/emdash-cms/emdash/issues/comments/777"],
+			[
+				"GET",
+				"https://api.github.com/repos/emdash-cms/emdash/issues/42/comments?per_page=100&page=1",
+			],
+		]);
+	});
+
+	test("reports a deleted comment so the projection can recreate it", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(new Response("", { status: 404 })),
+		);
+
+		await expect(updateIssueComment("token", repo, 777, "Updated")).resolves.toBe(false);
 	});
 });
 

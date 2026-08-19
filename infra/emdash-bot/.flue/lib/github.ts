@@ -570,6 +570,79 @@ export async function postIssueComment(
 	if (!res.ok) throw new Error(`postIssueComment failed: ${res.status} ${await res.text()}`);
 }
 
+export interface IssueCommentReference {
+	readonly id: number;
+	readonly body: string;
+	readonly htmlUrl: string;
+}
+
+export async function createIssueComment(
+	token: string,
+	ctx: RepoContext,
+	issueNumber: number,
+	body: string,
+): Promise<IssueCommentReference> {
+	const res = await githubFetch(
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/comments`,
+		{
+			method: "POST",
+			headers: authHeaders(token, { "content-type": "application/json" }),
+			body: JSON.stringify({ body }),
+		},
+	);
+	if (!res.ok) throw new Error(`createIssueComment failed: ${res.status} ${await res.text()}`);
+	const comment = await res.json<{ id?: number; body?: string | null; html_url?: string }>();
+	if (!Number.isSafeInteger(comment.id) || !comment.id || comment.id < 1) {
+		throw new Error("createIssueComment response had no valid id");
+	}
+	return { id: comment.id, body: comment.body ?? body, htmlUrl: comment.html_url ?? "" };
+}
+
+export async function updateIssueComment(
+	token: string,
+	ctx: RepoContext,
+	commentId: number,
+	body: string,
+): Promise<boolean> {
+	const res = await githubFetch(
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/comments/${commentId}`,
+		{
+			method: "PATCH",
+			headers: authHeaders(token, { "content-type": "application/json" }),
+			body: JSON.stringify({ body }),
+		},
+	);
+	if (res.status === 404) return false;
+	if (!res.ok) throw new Error(`updateIssueComment failed: ${res.status} ${await res.text()}`);
+	return true;
+}
+
+export async function findIssueCommentByMarker(
+	token: string,
+	ctx: RepoContext,
+	issueNumber: number,
+	marker: string,
+): Promise<IssueCommentReference | null> {
+	for (let page = 1; ; page += 1) {
+		const res = await githubFetch(
+			`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/comments?per_page=100&page=${page}`,
+			{ headers: authHeaders(token) },
+		);
+		if (!res.ok) {
+			throw new Error(`listIssueComments failed: ${res.status} ${await res.text()}`);
+		}
+		const comments =
+			await res.json<Array<{ id?: number; body?: string | null; html_url?: string }>>();
+		const found = comments.find(
+			(comment) => Number.isSafeInteger(comment.id) && comment.id && comment.body?.includes(marker),
+		);
+		if (found?.id) {
+			return { id: found.id, body: found.body ?? "", htmlUrl: found.html_url ?? "" };
+		}
+		if (comments.length < 100) return null;
+	}
+}
+
 export async function hasIssueCommentMarker(
 	token: string,
 	ctx: RepoContext,

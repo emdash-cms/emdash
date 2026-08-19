@@ -116,6 +116,7 @@ describe("POST /webhook/github (workers-pool)", () => {
 		const html = await res.text();
 		expect(html).toContain("Issue lifecycle");
 		expect(html).toContain("Agent run");
+		expect(html).toContain("Work plan");
 	});
 
 	test("dashboard API fails closed when GitHub credentials are unavailable", async () => {

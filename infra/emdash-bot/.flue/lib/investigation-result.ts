@@ -1,6 +1,7 @@
 import { env as workerEnv } from "cloudflare:workers";
 
 import type { AgentResult, OrchestratorDO, PublicProgressKind } from "./orchestrator.js";
+import type { WorkPlanInput } from "./work-plan.js";
 
 interface InvestigationEnv {
 	Orchestrator: DurableObjectNamespace<OrchestratorDO>;
@@ -42,4 +43,16 @@ export async function recordInvestigationProgress(
 		});
 		return false;
 	}
+}
+
+export async function recordWorkPlan(
+	input: { issueNumber: number; runId: string },
+	plan: WorkPlanInput,
+): Promise<boolean> {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer Flue-generated RPC class types.
+	const { Orchestrator } = workerEnv as unknown as InvestigationEnv;
+	return Orchestrator.getByName(`issue-${input.issueNumber}`).updateWorkPlan({
+		runId: input.runId,
+		...plan,
+	});
 }

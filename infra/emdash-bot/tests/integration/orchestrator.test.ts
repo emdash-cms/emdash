@@ -387,6 +387,71 @@ describe("OrchestratorDO (workers-pool)", () => {
 		});
 	});
 
+	test("creates one evolving work-plan comment and finalizes it in place", async () => {
+		const requests: Array<{ method: string; url: string; body: string }> = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = (init?.method ?? "GET").toUpperCase();
+			const body = typeof init?.body === "string" ? init.body : "";
+			requests.push({ method, url, body });
+			if (method === "POST" && url.endsWith("/comments")) {
+				return Promise.resolve(
+					new Response(JSON.stringify({ id: 777, html_url: "https://example.test/comment/777" }), {
+						status: 201,
+						headers: { "content-type": "application/json" },
+					}),
+				);
+			}
+			return Promise.resolve(new Response("{}", { status: 200 }));
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.debugPrimeFixing(42);
+		await stub.debugSetStaleRun(
+			"planned-run",
+			Date.now(),
+			"investigate-42-planned-run",
+			"implement",
+		);
+
+		await stub.updateWorkPlan({
+			runId: "planned-run",
+			summary: "Add the requested command.",
+			steps: [
+				{ id: "inspect", title: "Inspect the CLI", status: "completed" },
+				{ id: "implement", title: "Implement the command", status: "in_progress" },
+			],
+		});
+		await stub.updateWorkPlan({
+			runId: "planned-run",
+			summary: "Add the requested command.",
+			steps: [
+				{ id: "inspect", title: "Inspect the CLI", status: "completed" },
+				{ id: "implement", title: "Implement the command", status: "blocked" },
+			],
+		});
+		await stub.applyAgentResult({
+			runId: "planned-run",
+			result: { implemented: true, summary: "The candidate could not be verified remotely." },
+			pushed: false,
+			ok: true,
+		});
+
+		const commentPosts = requests.filter(
+			(request) => request.method === "POST" && request.url.endsWith("/comments"),
+		);
+		const commentPatches = requests.filter(
+			(request) => request.method === "PATCH" && request.url.endsWith("/issues/comments/777"),
+		);
+		expect(commentPosts).toHaveLength(1);
+		expect(commentPatches.length).toBeGreaterThanOrEqual(2);
+		expect(commentPosts[0]?.body).toContain("emdashbot-run:planned-run");
+		expect(commentPatches.at(-1)?.body).toContain("### Failed");
+		expect(commentPatches.at(-1)?.body).toContain("The candidate could not be verified remotely.");
+		expect((await stub.getPublicSnapshot()).workPlan?.summary).toBe("Add the requested command.");
+	});
+
 	test("retrying a failed implementation preserves its write mode", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await stub.event(makeEvent({ anchorNumber: 42 }));

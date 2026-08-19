@@ -654,6 +654,71 @@
 				white-space: nowrap;
 			}
 
+			.work-plan {
+				padding: 15px 17px 16px;
+				border-bottom: 1px solid light-dark(#e5e6eb, #292b33);
+			}
+
+			.work-plan-head {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				margin-bottom: 8px;
+				font-size: 10px;
+				font-weight: 600;
+			}
+
+			.work-plan-summary {
+				margin: 0 0 10px;
+				color: light-dark(#666a75, #a0a4ae);
+				font-size: 10px;
+				line-height: 1.45;
+			}
+
+			.work-plan-steps {
+				display: grid;
+				gap: 6px;
+			}
+
+			.work-plan-step {
+				display: grid;
+				grid-template-columns: 15px minmax(0, 1fr) auto;
+				gap: 7px;
+				align-items: start;
+				font-size: 10px;
+				line-height: 1.35;
+			}
+
+			.work-plan-mark {
+				color: light-dark(#8c909a, #7f848e);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+			}
+
+			.work-plan-step.completed .work-plan-mark {
+				color: light-dark(#16845b, #50d49b);
+			}
+
+			.work-plan-step.in_progress {
+				font-weight: 600;
+				color: light-dark(#5f2fc1, #bea4ff);
+			}
+
+			.work-plan-step.blocked .work-plan-mark {
+				color: light-dark(#b2670d, #e3a44f);
+			}
+
+			.work-plan-step.skipped .work-plan-title {
+				color: light-dark(#969aa4, #747984);
+				text-decoration: line-through;
+			}
+
+			.work-plan-status {
+				color: light-dark(#858995, #858a95);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 9px;
+			}
+
 			.log-head {
 				display: flex;
 				align-items: center;
@@ -1026,7 +1091,11 @@
 
 		<script>
 			let payload = null;
-			let selectedNumber = null;
+			const requestedIssue = Number.parseInt(
+				new URLSearchParams(window.location.search).get("issue") ?? "",
+				10,
+			);
+			let selectedNumber = Number.isSafeInteger(requestedIssue) ? requestedIssue : null;
 
 			function element(tag, className, text) {
 				const node = document.createElement(tag);
@@ -1211,6 +1280,7 @@
 					button.append(body);
 					button.addEventListener("click", () => {
 						selectedNumber = issue.number;
+						window.history.replaceState(null, "", `?issue=${issue.number}`);
 						render();
 					});
 					target.append(button);
@@ -1244,6 +1314,43 @@
 					title: entry.title,
 					detail: entry.detail,
 				};
+			}
+
+			function renderWorkPlan(issue, panel) {
+				if (!issue.workPlan) return;
+				const section = element("section", "work-plan");
+				section.setAttribute("aria-labelledby", "work-plan-title");
+				const head = element("div", "work-plan-head");
+				const title = element("span", "", "Work plan");
+				title.id = "work-plan-title";
+				head.append(
+					title,
+					element(
+						"span",
+						"panel-meta",
+						relativeTime(new Date(issue.workPlan.updatedAt).toISOString()),
+					),
+				);
+				section.append(head, element("p", "work-plan-summary", issue.workPlan.summary));
+				const steps = element("div", "work-plan-steps");
+				const marks = {
+					pending: "○",
+					in_progress: "→",
+					completed: "✓",
+					blocked: "!",
+					skipped: "–",
+				};
+				for (const step of issue.workPlan.steps) {
+					const row = element("div", `work-plan-step ${step.status}`);
+					row.append(
+						element("span", "work-plan-mark", marks[step.status] ?? "○"),
+						element("span", "work-plan-title", step.title),
+						element("span", "work-plan-status", stateLabel(step.status)),
+					);
+					steps.append(row);
+				}
+				section.append(steps);
+				panel.append(section);
 			}
 
 			function renderDetail(issue) {
@@ -1298,6 +1405,7 @@
 					facts.append(fact);
 				}
 				panel.append(facts);
+				renderWorkPlan(issue, panel);
 
 				const logHead = element("div", "log-head");
 				logHead.append(
