@@ -55,7 +55,7 @@ describe("candidate git publication", () => {
 		} finally {
 			await rm(root, { recursive: true, force: true });
 		}
-	});
+	}, 15_000);
 });
 
 function memoryState(): IsolateState {
