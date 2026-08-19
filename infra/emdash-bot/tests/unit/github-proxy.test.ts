@@ -1,3 +1,5 @@
+import { gzipSync } from "node:zlib";
+
 import { describe, expect, test } from "vitest";
 
 import {
@@ -188,6 +190,29 @@ describe("gateGithubRequest", () => {
 				body: `${pktLine("old new refs/heads/bot/artifacts-456\0 report-status\n")}0000PACKpayload`,
 			}),
 		).resolves.toMatch(/current issue/);
+	});
+
+	test("inspects gzip-compressed receive-pack commands before allowing a push", async () => {
+		const url = new URL("https://github.com/emdash-cms/emdash.git/git-receive-pack");
+		const body = gzipSync(
+			`${pktLine("old new refs/heads/bot/fix-123\0 report-status\n")}0000PACKpayload`,
+		);
+		await expect(
+			inspectGithubRequest(
+				new Request(url, {
+					method: "POST",
+					headers: { "content-encoding": "gzip" },
+					body,
+				}),
+				url,
+				OWNER,
+				REPO,
+				123,
+			),
+		).resolves.toMatchObject({
+			allowed: true,
+			refs: ["refs/heads/bot/fix-123"],
+		});
 	});
 
 	test("distinguishes a missing capability from a rejected receive-pack body", async () => {

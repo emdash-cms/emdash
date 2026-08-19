@@ -292,7 +292,19 @@ async function inspectReceivePack(
 	request: Request,
 	issueNumber: number,
 ): Promise<{ allowed: boolean; refs: string[]; parseError?: string }> {
-	const reader = request.clone().body?.getReader();
+	const cloned = request.clone();
+	let body = cloned.body;
+	const contentEncoding = cloned.headers.get("content-encoding")?.trim().toLowerCase();
+	if (body && contentEncoding === "gzip") {
+		body = body.pipeThrough(new DecompressionStream("gzip"));
+	} else if (contentEncoding && contentEncoding !== "identity") {
+		return {
+			allowed: false,
+			refs: [],
+			parseError: `unsupported receive-pack content encoding: ${contentEncoding}`,
+		};
+	}
+	const reader = body?.getReader();
 	if (!reader) return { allowed: false, refs: [], parseError: "request body is missing" };
 	let buffer = new Uint8Array();
 	let offset = 0;
@@ -343,6 +355,8 @@ async function inspectReceivePack(
 			next.set(chunk, buffer.length);
 			buffer = next;
 		}
+	} catch {
+		return { allowed: false, refs, parseError: "invalid compressed receive-pack body" };
 	} finally {
 		void reader.cancel().catch(() => undefined);
 	}
