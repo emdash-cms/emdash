@@ -57,6 +57,7 @@ import {
 	recordInvestigationProgress,
 	recordWorkPlan,
 } from "../lib/investigation-result.js";
+import { flushAgentTraceWrites } from "../lib/observer.js";
 import { FLUE_RUN_TIMEOUT_MS, SANDBOX_SLEEP_AFTER_SECONDS } from "../lib/run-policy.js";
 import { buildTimeoutSummaryPrompt, isTimeoutSummaryDelivery } from "../lib/timeout-recovery.js";
 import { untarInto } from "../lib/untar.js";
@@ -719,6 +720,10 @@ export function Investigate({ id }: AgentProps) {
 		});
 		setReported(true);
 		log.warn("agent stopped without reporting", { runId: input.runId });
+	});
+
+	useAgentFinish(async () => {
+		await flushAgentTraceWrites(id);
 	});
 
 	if (reported && !setupComplete) {

@@ -66,6 +66,14 @@ import {
 	type RunProgressKind,
 } from "./run-lifecycle.js";
 import { DEADLINE_WARNING_MESSAGE, runBudgetMs, runSchedule } from "./run-policy.js";
+import {
+	parseStoredRunTraceEvent,
+	RUN_TRACE_PAGE_LIMIT,
+	type PublicRunTraceEvent,
+	type PublicRunTracePage,
+	type PublicRunTraceSummary,
+	type RunTraceEventInput,
+} from "./run-trace.js";
 import { DeadlineExceededError, withDeadline } from "./sandbox-deadline.js";
 import {
 	normalizeTimeoutSummary,
@@ -377,11 +385,37 @@ interface WorkCommentProjection {
 	readonly pending: boolean;
 }
 
+interface TraceEventRow {
+	readonly [key: string]: string | number;
+	readonly id: number;
+	readonly run_id: string;
+	readonly payload: string;
+}
+
 /** Bounded delivery-id dedupe window. */
 const DELIVERY_DEDUPE_LIMIT = 64;
 
 export class OrchestratorDO extends DurableObject<Env> {
 	private operationTail: Promise<void> = Promise.resolve();
+
+	constructor(ctx: DurableObjectState, env: Env) {
+		super(ctx, env);
+		void ctx.blockConcurrencyWhile(async () => {
+			this.ctx.storage.sql.exec(`
+				CREATE TABLE IF NOT EXISTS run_trace_events (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					event_key TEXT NOT NULL UNIQUE,
+					run_id TEXT NOT NULL,
+					mode TEXT NOT NULL,
+					recorded_at INTEGER NOT NULL,
+					event_type TEXT NOT NULL,
+					payload TEXT NOT NULL
+				);
+				CREATE INDEX IF NOT EXISTS idx_run_trace_events_run_id_id
+					ON run_trace_events (run_id, id);
+			`);
+		});
+	}
 
 	async enqueue(input: NormalizedEvent): Promise<EnqueueOutcome> {
 		const { outcome, rearm } = await this.ctx.storage.transaction(async (transaction) => {
@@ -605,6 +639,109 @@ export class OrchestratorDO extends DurableObject<Env> {
 			]);
 			return true;
 		});
+	}
+
+	async recordRunTraceEvent(input: { runId: string; event: RunTraceEventInput }): Promise<boolean> {
+		const event = parseStoredRunTraceEvent(input.event);
+		if (!event) return false;
+		const [currentRunId, run, legacyMode] = await Promise.all([
+			this.ctx.storage.get<string>(STORAGE.currentRunId),
+			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
+			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
+		]);
+		if (currentRunId !== input.runId && run?.runId !== input.runId) return false;
+		const mode = run?.runId === input.runId ? run.mode : legacyMode;
+		if (!mode) return false;
+		this.ctx.storage.sql.exec(
+			`INSERT OR IGNORE INTO run_trace_events
+				(event_key, run_id, mode, recorded_at, event_type, payload)
+			 VALUES (?, ?, ?, ?, ?, ?)`,
+			event.key,
+			input.runId,
+			mode,
+			event.at,
+			event.kind,
+			JSON.stringify(event),
+		);
+		return true;
+	}
+
+	async getPublicRunTrace(
+		options: { runId?: string; before?: number; limit?: number } = {},
+	): Promise<PublicRunTracePage> {
+		const requestedLimit = Number.isFinite(options.limit) ? (options.limit ?? 100) : 100;
+		const limit = Math.min(RUN_TRACE_PAGE_LIMIT, Math.max(1, Math.trunc(requestedLimit)));
+		const runRows = this.ctx.storage.sql
+			.exec<{
+				run_id: string;
+				mode: string;
+				started_at: number;
+				updated_at: number;
+				event_count: number;
+			}>(
+				`SELECT run_id, mode, MIN(recorded_at) AS started_at,
+					MAX(recorded_at) AS updated_at, COUNT(*) AS event_count
+				 FROM run_trace_events
+				 GROUP BY run_id, mode
+				 ORDER BY updated_at DESC
+				 LIMIT 50`,
+			)
+			.toArray();
+		const runs = runRows.flatMap((row): PublicRunTraceSummary[] => {
+			const mode = parseInvestigateMode(row.mode);
+			if (!mode) return [];
+			return [
+				{
+					runId: row.run_id,
+					mode,
+					startedAt: row.started_at,
+					updatedAt: row.updated_at,
+					eventCount: row.event_count,
+				},
+			];
+		});
+		const selectedRunId = options.runId ?? runs[0]?.runId ?? null;
+		if (!selectedRunId) return { runs, selectedRunId: null, events: [], nextBefore: null };
+		const before =
+			typeof options.before === "number" &&
+			Number.isSafeInteger(options.before) &&
+			options.before > 0
+				? options.before
+				: null;
+		const rows = (
+			before === null
+				? this.ctx.storage.sql.exec<TraceEventRow>(
+						`SELECT id, run_id, payload FROM run_trace_events
+						 WHERE run_id = ? ORDER BY id DESC LIMIT ?`,
+						selectedRunId,
+						limit + 1,
+					)
+				: this.ctx.storage.sql.exec<TraceEventRow>(
+						`SELECT id, run_id, payload FROM run_trace_events
+						 WHERE run_id = ? AND id < ? ORDER BY id DESC LIMIT ?`,
+						selectedRunId,
+						before,
+						limit + 1,
+					)
+		).toArray();
+		const hasMore = rows.length > limit;
+		const selectedRows = hasMore ? rows.slice(0, limit) : rows;
+		const events = selectedRows
+			.flatMap((row): PublicRunTraceEvent[] => {
+				try {
+					const event = parseStoredRunTraceEvent(JSON.parse(row.payload));
+					return event ? [{ ...event, id: row.id, runId: row.run_id }] : [];
+				} catch {
+					return [];
+				}
+			})
+			.toReversed();
+		return {
+			runs,
+			selectedRunId,
+			events,
+			nextBefore: hasMore ? (events[0]?.id ?? null) : null,
+		};
 	}
 
 	updateWorkPlan(input: { runId: string } & WorkPlanInput): Promise<boolean> {

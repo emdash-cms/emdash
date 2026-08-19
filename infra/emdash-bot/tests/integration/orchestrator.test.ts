@@ -161,6 +161,65 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(snapshot.progress[0]).not.toHaveProperty("runId");
 	});
 
+	test("persists an idempotent paginated public trace for the current run", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetStaleRun(
+			"trace-run",
+			Date.now() - 1_000,
+			"investigate-trace-run",
+			"implement",
+		);
+		const first = {
+			key: "submission-1:1:turn",
+			at: Date.now() - 500,
+			kind: "turn" as const,
+			title: "Model turn",
+			detail: "deepseek-v4 · 100 tokens",
+			tone: "active" as const,
+			turnId: "turn-1",
+			durationMs: 1_000,
+			output: "Inspect the bridge.",
+		};
+		const second = {
+			key: "submission-1:2:tool",
+			at: Date.now(),
+			kind: "tool" as const,
+			title: "read_file",
+			detail: null,
+			tone: "success" as const,
+			toolCallId: "call-1",
+			durationMs: 5,
+			output: "bridge source",
+		};
+
+		await expect(stub.recordRunTraceEvent({ runId: "stale-run", event: first })).resolves.toBe(
+			false,
+		);
+		await expect(stub.recordRunTraceEvent({ runId: "trace-run", event: first })).resolves.toBe(
+			true,
+		);
+		await expect(stub.recordRunTraceEvent({ runId: "trace-run", event: first })).resolves.toBe(
+			true,
+		);
+		await expect(stub.recordRunTraceEvent({ runId: "trace-run", event: second })).resolves.toBe(
+			true,
+		);
+
+		const latest = await stub.getPublicRunTrace({ limit: 1 });
+		expect(latest.runs).toMatchObject([{ runId: "trace-run", mode: "implement", eventCount: 2 }]);
+		expect(latest.selectedRunId).toBe("trace-run");
+		expect(latest.events).toMatchObject([{ kind: "tool", output: "bridge source" }]);
+		expect(latest.nextBefore).toEqual(expect.any(Number));
+
+		const earlier = await stub.getPublicRunTrace({
+			runId: "trace-run",
+			before: latest.nextBefore ?? undefined,
+			limit: 1,
+		});
+		expect(earlier.events).toMatchObject([{ kind: "turn", output: "Inspect the bridge." }]);
+		expect(earlier.nextBefore).toBeNull();
+	});
+
 	test("duplicate deliveryId is deduped on the second event() call", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		const first = await stub.event(makeEvent({ deliveryId: "dup-1" }));

@@ -117,12 +117,45 @@ describe("POST /webhook/github (workers-pool)", () => {
 		expect(html).toContain("Issue lifecycle");
 		expect(html).toContain("Agent run");
 		expect(html).toContain("Work plan");
+		expect(html).toContain("Run trace");
 	});
 
 	test("dashboard API fails closed when GitHub credentials are unavailable", async () => {
 		const res = await SELF.fetch("https://test/api/dashboard");
 		expect(res.status).toBe(503);
 		expect(await res.json()).toEqual({ error: "Dashboard data is temporarily unavailable" });
+	});
+
+	test("serves the selected issue's public run trace without GitHub credentials", async () => {
+		const issueNumber = uniqueIssueNumber();
+		const stub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
+		await stub.debugSetStaleRun(
+			"dashboard-trace-run",
+			Date.now() - 1_000,
+			`investigate-${issueNumber}-dashboard-trace-run`,
+			"repro",
+		);
+		await stub.recordRunTraceEvent({
+			runId: "dashboard-trace-run",
+			event: {
+				key: "dashboard-trace-event",
+				at: Date.now(),
+				kind: "turn",
+				title: "Model turn",
+				detail: "deepseek-v4",
+				tone: "active",
+				output: "Inspecting the issue.",
+			},
+		});
+
+		const res = await SELF.fetch(`https://test/api/issues/${issueNumber}/trace`);
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("cache-control")).toBe("no-store");
+		expect(await res.json()).toMatchObject({
+			selectedRunId: "dashboard-trace-run",
+			events: [{ kind: "turn", output: "Inspecting the issue." }],
+		});
 	});
 
 	test("rejects requests without a valid signature", async () => {
