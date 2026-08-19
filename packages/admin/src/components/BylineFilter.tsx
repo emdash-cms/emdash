@@ -7,6 +7,7 @@ import * as React from "react";
 
 import { fetchBylines, type BylineSummary } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
+import { FieldHelpLabel } from "./FieldHelpLabel.js";
 
 /**
  * Byline filter state for the content list.
@@ -52,6 +53,7 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 	const { t } = useLingui();
 	const [open, setOpen] = React.useState(false);
 	const [search, setSearch] = React.useState("");
+	const inferredBylineId = React.useId();
 	const debouncedSearch = useDebouncedValue(search, 300);
 	const trimmedSearch = debouncedSearch.trim();
 
@@ -112,7 +114,7 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 					variant="secondary"
 					size="sm"
 					aria-label={t`Filter by byline`}
-					className="gap-1 ps-3.5"
+					className="gap-1 px-3.5 font-normal"
 				>
 					<span className="max-w-[140px] truncate">{label}</span>
 					<CaretDown className="size-3 shrink-0" aria-hidden="true" />
@@ -174,17 +176,23 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 					</Badge>
 				)}
 
-				<div className="mt-3 border-t pt-3">
-					<div className="px-1">
+				<div className="mt-3 border-t px-1 pt-3">
+					<div className="flex items-center justify-between gap-3">
+						<FieldHelpLabel
+							htmlFor={inferredBylineId}
+							help={t`Also match the byline linked to an entry's author when it has none assigned.`}
+							helpLabel={t`About inferred bylines`}
+							labelClassName="text-base font-normal text-kumo-default"
+						>
+							{t`Include inferred bylines`}
+						</FieldHelpLabel>
 						<Switch
+							id={inferredBylineId}
 							checked={value.includeInferred}
 							onCheckedChange={(checked) => onChange({ ...value, includeInferred: checked })}
-							label={<span className="text-base font-normal">{t`Include inferred bylines`}</span>}
+							aria-label={t`Include inferred bylines`}
 						/>
 					</div>
-					<p className="mt-1 text-base leading-5 text-pretty text-kumo-subtle">
-						{t`Also match the byline linked to an entry's author when it has none assigned.`}
-					</p>
 				</div>
 			</Popover.Content>
 		</Popover>

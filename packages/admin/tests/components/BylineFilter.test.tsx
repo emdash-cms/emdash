@@ -60,10 +60,19 @@ describe("BylineFilter", () => {
 		if (!triggerIcon) throw new Error("Byline filter icon did not render");
 		expect(triggerRect.height).toBe(26);
 		expect(getComputedStyle(trigger.element()).fontSize).toBe("12px");
+		expect(getComputedStyle(trigger.element()).fontWeight).toBe("400");
 		expect(getComputedStyle(trigger.element()).paddingInlineStart).toBe("14px");
+		expect(getComputedStyle(trigger.element()).paddingInlineEnd).toBe("14px");
 		expect(
 			Math.abs(
 				triggerLabel.top + triggerLabel.height / 2 - (triggerIcon.top + triggerIcon.height / 2),
+			),
+		).toBeLessThanOrEqual(1);
+		const triggerContentStart = Math.min(triggerLabel.left, triggerIcon.left);
+		const triggerContentEnd = Math.max(triggerLabel.right, triggerIcon.right);
+		expect(
+			Math.abs(
+				(triggerContentStart + triggerContentEnd) / 2 - (triggerRect.left + triggerRect.right) / 2,
 			),
 		).toBeLessThanOrEqual(1);
 
@@ -72,11 +81,11 @@ describe("BylineFilter", () => {
 		const noneLabel = screen.getByText("No byline assigned");
 		const guestLabel = screen.getByText("Guest Contributor");
 		const inferredLabel = screen.getByText("Include inferred bylines");
-		const description = screen.getByText(/Also match the byline linked/);
+		const inferredHelp = screen.getByRole("button", { name: "About inferred bylines" });
 		await expect.element(guestLabel).toBeVisible();
 
-		const textElements = [search, noneLabel, guestLabel, inferredLabel, description].map(
-			(locator) => locator.element(),
+		const textElements = [search, noneLabel, guestLabel, inferredLabel].map((locator) =>
+			locator.element(),
 		);
 		const styles = textElements.map((element) => getComputedStyle(element));
 		expect(new Set(styles.map((style) => style.fontFamily)).size).toBe(1);
@@ -85,12 +94,16 @@ describe("BylineFilter", () => {
 
 		const noneControl = screen.getByRole("checkbox", { name: "No byline assigned" });
 		const guestControl = screen.getByRole("checkbox", { name: "Guest Contributor" });
-		const controls = [
-			noneControl,
-			guestControl,
-			screen.getByRole("switch", { name: "Include inferred bylines" }),
-		].map((locator) => locator.element().getBoundingClientRect().left);
-		expect(Math.max(...controls) - Math.min(...controls)).toBeLessThanOrEqual(1);
+		const switchControl = screen.getByRole("switch", { name: "Include inferred bylines" });
+		expect(noneControl.element().getBoundingClientRect().left).toBe(
+			guestControl.element().getBoundingClientRect().left,
+		);
+		const switchRow = switchControl.element().parentElement;
+		if (!switchRow) throw new Error("Inferred byline switch row did not render");
+		expect(
+			switchRow.getBoundingClientRect().right -
+				switchControl.element().getBoundingClientRect().right,
+		).toBeLessThanOrEqual(1);
 		const optionGroup = screen.getByRole("group", { name: "Bylines" }).element();
 		expect(
 			guestControl.element().getBoundingClientRect().left -
@@ -102,13 +115,13 @@ describe("BylineFilter", () => {
 			optionRow.getBoundingClientRect().height -
 				guestLabel.element().getBoundingClientRect().height,
 		).toBeGreaterThanOrEqual(16);
-		const descriptionRange = document.createRange();
-		descriptionRange.selectNodeContents(description.element());
-		expect(
-			Math.abs(
-				descriptionRange.getBoundingClientRect().left -
-					search.element().getBoundingClientRect().left,
-			),
-		).toBeLessThanOrEqual(1);
+		await inferredHelp.hover();
+		await expect
+			.element(
+				screen.getByText(
+					"Also match the byline linked to an entry's author when it has none assigned.",
+				),
+			)
+			.toBeVisible();
 	});
 });
