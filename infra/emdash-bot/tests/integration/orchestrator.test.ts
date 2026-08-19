@@ -17,11 +17,13 @@
 // Each test uses a fresh DO instance via `getByName(uniqueName)` so test
 // ordering doesn't matter.
 
+import { runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { applyInvestigationResult } from "../../.flue/lib/investigation-result.js";
 import type { NormalizedEvent } from "../../.flue/lib/orchestrator.js";
+import { RUN_TRACE_EVENT_LIMIT } from "../../.flue/lib/run-trace.js";
 
 interface TestEnv {
 	Orchestrator: Env["Orchestrator"];
@@ -159,6 +161,111 @@ describe("OrchestratorDO (workers-pool)", () => {
 			},
 		]);
 		expect(snapshot.progress[0]).not.toHaveProperty("runId");
+	});
+
+	test("persists an idempotent paginated public trace for the current run", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetStaleRun(
+			"trace-run",
+			Date.now() - 1_000,
+			"investigate-trace-run",
+			"implement",
+		);
+		const first = {
+			key: "submission-1:1:turn",
+			at: Date.now() - 500,
+			kind: "turn" as const,
+			title: "Model turn",
+			detail: "deepseek-v4 · 100 tokens",
+			tone: "active" as const,
+			turnId: "turn-1",
+			durationMs: 1_000,
+			output: "Inspect the bridge.",
+		};
+		const second = {
+			key: "submission-1:2:tool",
+			at: Date.now(),
+			kind: "tool" as const,
+			title: "read_file",
+			detail: null,
+			tone: "success" as const,
+			toolCallId: "call-1",
+			durationMs: 5,
+			output: "bridge source",
+		};
+
+		await expect(stub.recordRunTraceEvent({ runId: "stale-run", event: first })).resolves.toBe(
+			false,
+		);
+		await expect(stub.recordRunTraceEvent({ runId: "trace-run", event: first })).resolves.toBe(
+			true,
+		);
+		await expect(stub.recordRunTraceEvent({ runId: "trace-run", event: first })).resolves.toBe(
+			true,
+		);
+		await expect(stub.recordRunTraceEvent({ runId: "trace-run", event: second })).resolves.toBe(
+			true,
+		);
+
+		const latest = await stub.getPublicRunTrace({ limit: 1 });
+		expect(latest.runs).toMatchObject([{ runId: "trace-run", mode: "implement", eventCount: 2 }]);
+		expect(latest.selectedRunId).toBe("trace-run");
+		expect(latest.events).toMatchObject([{ kind: "tool", output: "bridge source" }]);
+		expect(latest.nextBefore).toEqual(expect.any(Number));
+
+		const earlier = await stub.getPublicRunTrace({
+			runId: "trace-run",
+			before: latest.nextBefore ?? undefined,
+			limit: 1,
+		});
+		expect(earlier.events).toMatchObject([{ kind: "turn", output: "Inspect the bridge." }]);
+		expect(earlier.nextBefore).toBeNull();
+	});
+
+	test("bounds persisted trace history to the newest events", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetStaleRun(
+			"bounded-trace-run",
+			Date.now() - 1_000,
+			"investigate-bounded-trace-run",
+			"implement",
+		);
+		await runInDurableObject(stub, (_instance, state) => {
+			state.storage.sql.exec(
+				`WITH RECURSIVE sequence(value) AS (
+					SELECT 1
+					UNION ALL
+					SELECT value + 1 FROM sequence WHERE value < ?
+				)
+				INSERT INTO run_trace_events
+					(event_key, run_id, mode, recorded_at, event_type, payload)
+				SELECT 'seed-' || value, 'bounded-trace-run', 'implement', value, 'turn', ?
+				FROM sequence`,
+				RUN_TRACE_EVENT_LIMIT + 1,
+				JSON.stringify({
+					key: "seed",
+					at: 1,
+					kind: "turn",
+					title: "Model turn",
+					tone: "active",
+				}),
+			);
+		});
+
+		await stub.recordRunTraceEvent({
+			runId: "bounded-trace-run",
+			event: {
+				key: "newest-event",
+				at: Date.now(),
+				kind: "tool",
+				title: "run_check",
+				tone: "success",
+			},
+		});
+
+		const trace = await stub.getPublicRunTrace({ limit: 1 });
+		expect(trace.runs[0]?.eventCount).toBe(RUN_TRACE_EVENT_LIMIT);
+		expect(trace.events[0]?.key).toBe("newest-event");
 	});
 
 	test("duplicate deliveryId is deduped on the second event() call", async () => {
@@ -385,6 +492,114 @@ describe("OrchestratorDO (workers-pool)", () => {
 			status: "cancelled",
 			phase: "prepare",
 		});
+	});
+
+	test("creates one evolving work-plan comment and finalizes it in place", async () => {
+		const requests: Array<{ method: string; url: string; body: string }> = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = (init?.method ?? "GET").toUpperCase();
+			const body = typeof init?.body === "string" ? init.body : "";
+			requests.push({ method, url, body });
+			if (method === "POST" && url.endsWith("/comments")) {
+				return Promise.resolve(
+					new Response(JSON.stringify({ id: 777, html_url: "https://example.test/comment/777" }), {
+						status: 201,
+						headers: { "content-type": "application/json" },
+					}),
+				);
+			}
+			return Promise.resolve(new Response("{}", { status: 200 }));
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.debugPrimeFixing(42);
+		await stub.debugSetStaleRun(
+			"planned-run",
+			Date.now(),
+			"investigate-42-planned-run",
+			"implement",
+		);
+
+		await stub.updateWorkPlan({
+			runId: "planned-run",
+			summary: "Add the requested command.",
+			steps: [
+				{ id: "inspect", title: "Inspect the CLI", status: "completed" },
+				{ id: "implement", title: "Implement the command", status: "in_progress" },
+			],
+		});
+		await stub.updateWorkPlan({
+			runId: "planned-run",
+			summary: "Add the requested command.",
+			steps: [
+				{ id: "inspect", title: "Inspect the CLI", status: "completed" },
+				{ id: "implement", title: "Implement the command", status: "blocked" },
+			],
+		});
+		await stub.applyAgentResult({
+			runId: "planned-run",
+			result: { implemented: true, summary: "The candidate could not be verified remotely." },
+			pushed: false,
+			ok: true,
+		});
+
+		const commentPosts = requests.filter(
+			(request) => request.method === "POST" && request.url.endsWith("/comments"),
+		);
+		const commentPatches = requests.filter(
+			(request) => request.method === "PATCH" && request.url.endsWith("/issues/comments/777"),
+		);
+		expect(commentPosts).toHaveLength(1);
+		expect(commentPatches.length).toBeGreaterThanOrEqual(2);
+		expect(commentPosts[0]?.body).toContain("emdashbot-run:planned-run");
+		expect(commentPatches.at(-1)?.body).toContain("### Failed");
+		expect(commentPatches.at(-1)?.body).toContain("The candidate could not be verified remotely.");
+		expect((await stub.getPublicSnapshot()).workPlan?.summary).toBe("Add the requested command.");
+	});
+
+	test("reset finalizes the active work-plan comment as cancelled", async () => {
+		const patchedBodies: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = (init?.method ?? "GET").toUpperCase();
+			const body = typeof init?.body === "string" ? parseJsonBody(init.body) : null;
+			if (method === "POST" && url.endsWith("/comments")) {
+				return Promise.resolve(
+					new Response(JSON.stringify({ id: 888 }), {
+						status: 201,
+						headers: { "content-type": "application/json" },
+					}),
+				);
+			}
+			if (method === "PATCH" && url.endsWith("/issues/comments/888")) {
+				if (typeof body === "object" && body !== null && "body" in body) {
+					patchedBodies.push(String(body.body));
+				}
+			}
+			return Promise.resolve(new Response("{}", { status: 200 }));
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.debugPrimeFixing(42);
+		await stub.debugSetStaleRun(
+			"cancelled-plan-run",
+			Date.now(),
+			"investigate-42-cancelled-plan-run",
+			"implement",
+		);
+		await stub.updateWorkPlan({
+			runId: "cancelled-plan-run",
+			summary: "Implement the requested change.",
+			steps: [{ id: "implement", title: "Implement the change", status: "in_progress" }],
+		});
+
+		await stub.event(makeEvent({ event: "reset", arg: null }));
+
+		expect(patchedBodies.at(-1)).toContain("### Cancelled");
+		expect(patchedBodies.at(-1)).toContain("Run cancelled by reset.");
 	});
 
 	test("retrying a failed implementation preserves its write mode", async () => {

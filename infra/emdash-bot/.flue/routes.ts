@@ -7,7 +7,12 @@ import type { Hono } from "hono";
 
 import dashboardHtml from "./dashboard.html?raw";
 import { getDashboardPayload } from "./lib/dashboard.js";
+import type { OrchestratorDO } from "./lib/orchestrator.js";
 import { normalizeWebhook, verifyWebhookSignature } from "./lib/webhook.js";
+
+interface TraceRouteEnv extends Env {
+	Orchestrator: DurableObjectNamespace<OrchestratorDO>;
+}
 
 export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Bindings: Env }> {
 	app.get("/", (c) => c.html(dashboardHtml));
@@ -22,6 +27,40 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 				error: error instanceof Error ? error.message : String(error),
 			});
 			return c.json({ error: "Dashboard data is temporarily unavailable" }, 503);
+		}
+	});
+	app.get("/api/issues/:number/trace", async (c) => {
+		const issueNumber = Number(c.req.param("number"));
+		if (!Number.isSafeInteger(issueNumber) || issueNumber <= 0) {
+			return c.json({ error: "Invalid issue number" }, 400);
+		}
+		const beforeValue = c.req.query("before");
+		const limitValue = c.req.query("limit");
+		const before = beforeValue === undefined ? undefined : Number(beforeValue);
+		const limit = limitValue === undefined ? undefined : Number(limitValue);
+		if (before !== undefined && (!Number.isSafeInteger(before) || before <= 0)) {
+			return c.json({ error: "Invalid trace cursor" }, 400);
+		}
+		if (limit !== undefined && (!Number.isSafeInteger(limit) || limit <= 0)) {
+			return c.json({ error: "Invalid trace limit" }, 400);
+		}
+		try {
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer local DO RPC methods.
+			const { Orchestrator } = c.env as TraceRouteEnv;
+			const runId = c.req.query("run");
+			const trace = await Orchestrator.getByName(`issue-${issueNumber}`).getPublicRunTrace({
+				...(runId ? { runId } : {}),
+				...(before === undefined ? {} : { before }),
+				...(limit === undefined ? {} : { limit }),
+			});
+			c.header("cache-control", "no-store");
+			return c.json(trace);
+		} catch (error) {
+			console.error("[dashboard] trace load failed", {
+				issueNumber,
+				error: error instanceof Error ? error.message : String(error),
+			});
+			return c.json({ error: "Run trace is temporarily unavailable" }, 503);
 		}
 	});
 

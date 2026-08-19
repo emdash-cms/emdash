@@ -21,8 +21,10 @@ import {
 import {
 	addLabels,
 	closePullRequest,
+	createIssueComment,
 	createPullRequest,
 	deleteBranch,
+	findIssueCommentByMarker,
 	getBranchSha,
 	getIssue,
 	getIssueComments,
@@ -34,6 +36,7 @@ import {
 	readAppCreds,
 	readRepoContext,
 	removeLabels,
+	updateIssueComment,
 	type RepoContext,
 } from "./github.js";
 import { investigationBaseRef } from "./investigation-base-ref.js";
@@ -63,6 +66,15 @@ import {
 	type RunProgressKind,
 } from "./run-lifecycle.js";
 import { DEADLINE_WARNING_MESSAGE, runBudgetMs, runSchedule } from "./run-policy.js";
+import {
+	parseStoredRunTraceEvent,
+	RUN_TRACE_EVENT_LIMIT,
+	RUN_TRACE_PAGE_LIMIT,
+	type PublicRunTraceEvent,
+	type PublicRunTracePage,
+	type PublicRunTraceSummary,
+	type RunTraceEventInput,
+} from "./run-trace.js";
 import { DeadlineExceededError, withDeadline } from "./sandbox-deadline.js";
 import {
 	normalizeTimeoutSummary,
@@ -71,6 +83,13 @@ import {
 	TIMEOUT_SUMMARY_SIGNAL_TYPE,
 	TIMEOUT_SUMMARY_TIMEOUT_MS,
 } from "./timeout-recovery.js";
+import {
+	renderWorkPlanComment,
+	updateWorkPlan as applyWorkPlanUpdate,
+	type WorkCommentStatus,
+	type WorkPlan,
+	type WorkPlanInput,
+} from "./work-plan.js";
 
 /**
  * Inert states cannot be advanced by a late-arriving agent result. If a run
@@ -92,6 +111,8 @@ const INERT_STATES: ReadonlySet<StateId> = new Set<StateId>([
  */
 const EVENT_LOG_LIMIT = 200;
 const PUBLIC_PROGRESS_LIMIT = 100;
+const WORK_COMMENT_LIMIT = 12;
+const DASHBOARD_ORIGIN = "https://bot.emdashcms.com";
 
 /**
  * The actor classification the webhook handler resolves before calling
@@ -216,6 +237,7 @@ export interface PublicIssueSnapshot {
 	readonly state: StateId | null;
 	readonly kind: Kind | null;
 	readonly run: PublicRunLifecycle | null;
+	readonly workPlan: WorkPlan | null;
 	readonly currentRunStartedAt: number | null;
 	readonly prNumber: number | null;
 	readonly transitions: ReadonlyArray<{
@@ -270,6 +292,9 @@ const STORAGE = {
 	resumableRun: "o:resumableRun",
 	pendingResume: "o:pendingResume",
 	publicProgress: "o:publicProgress",
+	workPlan: "o:workPlan",
+	workComments: "o:workComments",
+	currentRunDryRun: "o:currentRunDryRun",
 } as const;
 
 const TICK_INTERVAL_MS = 60 * 60 * 1000;
@@ -346,11 +371,52 @@ interface PendingSideEffect {
 	readonly commentFirst?: boolean;
 }
 
+interface StoredWorkPlan {
+	readonly runId: string;
+	readonly plan: WorkPlan;
+}
+
+interface WorkCommentProjection {
+	readonly runId: string;
+	readonly anchorNumber: number;
+	readonly marker: string;
+	readonly body: string;
+	readonly commentId: number | null;
+	readonly commentMayExist: boolean;
+	readonly pending: boolean;
+}
+
+interface TraceEventRow {
+	readonly [key: string]: string | number;
+	readonly id: number;
+	readonly run_id: string;
+	readonly payload: string;
+}
+
 /** Bounded delivery-id dedupe window. */
 const DELIVERY_DEDUPE_LIMIT = 64;
 
 export class OrchestratorDO extends DurableObject<Env> {
 	private operationTail: Promise<void> = Promise.resolve();
+
+	constructor(ctx: DurableObjectState, env: Env) {
+		super(ctx, env);
+		void ctx.blockConcurrencyWhile(async () => {
+			this.ctx.storage.sql.exec(`
+				CREATE TABLE IF NOT EXISTS run_trace_events (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					event_key TEXT NOT NULL UNIQUE,
+					run_id TEXT NOT NULL,
+					mode TEXT NOT NULL,
+					recorded_at INTEGER NOT NULL,
+					event_type TEXT NOT NULL,
+					payload TEXT NOT NULL
+				);
+				CREATE INDEX IF NOT EXISTS idx_run_trace_events_run_id_id
+					ON run_trace_events (run_id, id);
+			`);
+		});
+	}
 
 	async enqueue(input: NormalizedEvent): Promise<EnqueueOutcome> {
 		const { outcome, rearm } = await this.ctx.storage.transaction(async (transaction) => {
@@ -496,12 +562,23 @@ export class OrchestratorDO extends DurableObject<Env> {
 			throw new Error(runError);
 		}
 
+		const cancellationRun =
+			decision.event === "reset" || decision.event === "decline" || decision.event === "take_over"
+				? await this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle)
+				: null;
 		const sideEffectId = await this.persistDecision(
 			decision,
 			input,
 			preparedInvestigation,
 			preparedResume,
 		);
+		if (cancellationRun?.status === "running") {
+			await this.finalizeWorkPlanComment({
+				runId: cancellationRun.runId,
+				status: "cancelled",
+				outcome: `Run cancelled by ${decision.event.replaceAll("_", " ")}.`,
+			});
+		}
 		await this.armAlarm();
 
 		if (preparedInvestigation) {
@@ -565,6 +642,249 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 	}
 
+	async recordRunTraceEvent(input: { runId: string; event: RunTraceEventInput }): Promise<boolean> {
+		const event = parseStoredRunTraceEvent(input.event);
+		if (!event) return false;
+		const [currentRunId, run, legacyMode] = await Promise.all([
+			this.ctx.storage.get<string>(STORAGE.currentRunId),
+			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
+			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
+		]);
+		if (currentRunId !== input.runId && run?.runId !== input.runId) return false;
+		const mode = run?.runId === input.runId ? run.mode : legacyMode;
+		if (!mode) return false;
+		this.ctx.storage.sql.exec(
+			`INSERT OR IGNORE INTO run_trace_events
+				(event_key, run_id, mode, recorded_at, event_type, payload)
+			 VALUES (?, ?, ?, ?, ?, ?)`,
+			event.key,
+			input.runId,
+			mode,
+			event.at,
+			event.kind,
+			JSON.stringify(event),
+		);
+		this.ctx.storage.sql.exec(
+			`DELETE FROM run_trace_events
+			 WHERE id <= COALESCE(
+				(SELECT id FROM run_trace_events ORDER BY id DESC LIMIT 1 OFFSET ?),
+				0
+			)`,
+			RUN_TRACE_EVENT_LIMIT,
+		);
+		return true;
+	}
+
+	async getPublicRunTrace(
+		options: { runId?: string; before?: number; limit?: number } = {},
+	): Promise<PublicRunTracePage> {
+		const requestedLimit = Number.isFinite(options.limit) ? (options.limit ?? 100) : 100;
+		const limit = Math.min(RUN_TRACE_PAGE_LIMIT, Math.max(1, Math.trunc(requestedLimit)));
+		const runRows = this.ctx.storage.sql
+			.exec<{
+				run_id: string;
+				mode: string;
+				started_at: number;
+				updated_at: number;
+				event_count: number;
+			}>(
+				`SELECT run_id, mode, MIN(recorded_at) AS started_at,
+					MAX(recorded_at) AS updated_at, COUNT(*) AS event_count
+				 FROM run_trace_events
+				 GROUP BY run_id, mode
+				 ORDER BY updated_at DESC
+				 LIMIT 50`,
+			)
+			.toArray();
+		const runs = runRows.flatMap((row): PublicRunTraceSummary[] => {
+			const mode = parseInvestigateMode(row.mode);
+			if (!mode) return [];
+			return [
+				{
+					runId: row.run_id,
+					mode,
+					startedAt: row.started_at,
+					updatedAt: row.updated_at,
+					eventCount: row.event_count,
+				},
+			];
+		});
+		const selectedRunId = options.runId ?? runs[0]?.runId ?? null;
+		if (!selectedRunId) return { runs, selectedRunId: null, events: [], nextBefore: null };
+		const before =
+			typeof options.before === "number" &&
+			Number.isSafeInteger(options.before) &&
+			options.before > 0
+				? options.before
+				: null;
+		const rows = (
+			before === null
+				? this.ctx.storage.sql.exec<TraceEventRow>(
+						`SELECT id, run_id, payload FROM run_trace_events
+						 WHERE run_id = ? ORDER BY id DESC LIMIT ?`,
+						selectedRunId,
+						limit + 1,
+					)
+				: this.ctx.storage.sql.exec<TraceEventRow>(
+						`SELECT id, run_id, payload FROM run_trace_events
+						 WHERE run_id = ? AND id < ? ORDER BY id DESC LIMIT ?`,
+						selectedRunId,
+						before,
+						limit + 1,
+					)
+		).toArray();
+		const hasMore = rows.length > limit;
+		const selectedRows = hasMore ? rows.slice(0, limit) : rows;
+		const events = selectedRows
+			.flatMap((row): PublicRunTraceEvent[] => {
+				try {
+					const event = parseStoredRunTraceEvent(JSON.parse(row.payload));
+					return event ? [{ ...event, id: row.id, runId: row.run_id }] : [];
+				} catch {
+					return [];
+				}
+			})
+			.toReversed();
+		return {
+			runs,
+			selectedRunId,
+			events,
+			nextBefore: hasMore ? (events[0]?.id ?? null) : null,
+		};
+	}
+
+	updateWorkPlan(input: { runId: string } & WorkPlanInput): Promise<boolean> {
+		return this.runExclusive(() => this.processWorkPlanUpdate(input));
+	}
+
+	private async processWorkPlanUpdate(input: {
+		runId: string;
+		summary: string;
+		steps: WorkPlanInput["steps"];
+	}): Promise<boolean> {
+		const result = await this.ctx.storage.transaction(async (transaction) => {
+			const [currentRunId, run, stored, anchorNumber, dryRun, comments] = await Promise.all([
+				transaction.get<string>(STORAGE.currentRunId),
+				transaction.get<RunLifecycle>(STORAGE.runLifecycle),
+				transaction.get<StoredWorkPlan>(STORAGE.workPlan),
+				transaction.get<number>(STORAGE.anchorNumber),
+				transaction.get<boolean>(STORAGE.currentRunDryRun),
+				transaction.get<WorkCommentProjection[]>(STORAGE.workComments),
+			]);
+			if (currentRunId !== input.runId || run?.runId !== input.runId) {
+				return { accepted: false, dryRun: true };
+			}
+			if (anchorNumber === undefined) throw new Error("work plan has no issue anchor");
+			const previous = stored?.runId === input.runId ? stored.plan : null;
+			const plan = applyWorkPlanUpdate(previous, input, Date.now());
+			const writes: Promise<unknown>[] = [
+				transaction.put(STORAGE.workPlan, {
+					runId: input.runId,
+					plan,
+				} satisfies StoredWorkPlan),
+			];
+			if (!dryRun) {
+				const marker = `<!-- emdashbot-run:${input.runId} -->`;
+				const body = `${renderWorkPlanComment({ plan, mode: run.mode, status: run.status })}\n\n[View live dashboard](${DASHBOARD_ORIGIN}/?issue=${anchorNumber}) · Run: \`${input.runId}\``;
+				const existing = comments?.find((comment) => comment.runId === input.runId);
+				const projection: WorkCommentProjection = existing
+					? { ...existing, body, pending: true }
+					: {
+							runId: input.runId,
+							anchorNumber,
+							marker,
+							body,
+							commentId: null,
+							commentMayExist: false,
+							pending: true,
+						};
+				writes.push(
+					transaction.put(
+						STORAGE.workComments,
+						[
+							...(comments ?? []).filter((comment) => comment.runId !== input.runId),
+							projection,
+						].slice(-WORK_COMMENT_LIMIT),
+					),
+				);
+			}
+			await Promise.all(writes);
+			return { accepted: true, dryRun: dryRun === true };
+		});
+		if (!result.accepted) return false;
+		if (!result.dryRun) {
+			await this.ctx.storage.setAlarm(Date.now());
+			try {
+				await this.flushWorkComment(input.runId);
+			} catch (error) {
+				console.error("[orchestrator] work plan comment update failed", {
+					runId: input.runId,
+					error: errorMessage(error),
+				});
+			}
+		}
+		return true;
+	}
+
+	private async finalizeWorkPlanComment(input: {
+		runId: string;
+		status: Exclude<WorkCommentStatus, "running">;
+		outcome: string;
+	}): Promise<boolean> {
+		const result = await this.ctx.storage.transaction(async (transaction) => {
+			const [stored, run, comments, anchorNumber, dryRun] = await Promise.all([
+				transaction.get<StoredWorkPlan>(STORAGE.workPlan),
+				transaction.get<RunLifecycle>(STORAGE.runLifecycle),
+				transaction.get<WorkCommentProjection[]>(STORAGE.workComments),
+				transaction.get<number>(STORAGE.anchorNumber),
+				transaction.get<boolean>(STORAGE.currentRunDryRun),
+			]);
+			if (stored?.runId !== input.runId || run?.runId !== input.runId) {
+				return { found: false, dryRun: true };
+			}
+			if (dryRun) return { found: true, dryRun: true };
+			if (anchorNumber === undefined) throw new Error("work plan has no issue anchor");
+			const marker = `<!-- emdashbot-run:${input.runId} -->`;
+			const body = `${renderWorkPlanComment({
+				plan: stored.plan,
+				mode: run.mode,
+				status: input.status,
+				outcome: input.outcome,
+			})}\n\n[View live dashboard](${DASHBOARD_ORIGIN}/?issue=${anchorNumber}) · Run: \`${input.runId}\``;
+			const existing = comments?.find((comment) => comment.runId === input.runId);
+			const projection: WorkCommentProjection = existing
+				? { ...existing, body, pending: true }
+				: {
+						runId: input.runId,
+						anchorNumber,
+						marker,
+						body,
+						commentId: null,
+						commentMayExist: false,
+						pending: true,
+					};
+			await transaction.put(
+				STORAGE.workComments,
+				[...(comments ?? []).filter((comment) => comment.runId !== input.runId), projection].slice(
+					-WORK_COMMENT_LIMIT,
+				),
+			);
+			return { found: true, dryRun: false };
+		});
+		if (!result.found) return false;
+		if (result.dryRun) return true;
+		await this.ctx.storage.setAlarm(Date.now());
+		try {
+			await this.flushWorkComment(input.runId);
+		} catch (error) {
+			console.error("[orchestrator] final work comment update failed", {
+				runId: input.runId,
+				error: errorMessage(error),
+			});
+		}
+		return true;
+	}
+
 	private async processAgentResult(input: {
 		runId: string;
 		result: AgentResult;
@@ -605,6 +925,23 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const labels = await this.projectLabels();
 		const agentSummary =
 			typeof input.result?.summary === "string" ? input.result.summary : undefined;
+		const runStatus: Exclude<WorkCommentStatus, "running"> =
+			event === "agent.failed"
+				? input.result.failureStage === "timeout"
+					? "timed_out"
+					: "failed"
+				: event === "agent.needs_info" ||
+					  event === "agent.skipped" ||
+					  (event === "agent.reproduced" && currentRunMode !== "diagnose")
+					? "needs_follow_up"
+					: "succeeded";
+		const failureStage =
+			typeof input.result.failureStage === "string" ? input.result.failureStage : null;
+		const finalizedWorkComment = await this.finalizeWorkPlanComment({
+			runId: input.runId,
+			status: runStatus,
+			outcome: `${agentSummary ?? "The run completed without a summary."}${failureStage ? `\n\nFailed stage: ${failureStage}` : ""}`,
+		});
 		const agentScreenshots = Array.isArray(input.result?.screenshots)
 			? input.result.screenshots
 			: undefined;
@@ -617,9 +954,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 			settlesRunId: input.runId,
 			agentRunId: input.runId,
 			...(agentSummary ? { agentSummary } : {}),
-			...(typeof input.result.failureStage === "string"
-				? { agentFailureStage: input.result.failureStage }
-				: {}),
+			...(finalizedWorkComment ? { commentBodyOverride: "" } : {}),
+			...(failureStage ? { agentFailureStage: failureStage } : {}),
 			...(agentScreenshots ? { agentScreenshots } : {}),
 		});
 		await this.clearRun(input.runId);
@@ -674,6 +1010,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 			}
 		}
 		let recoveryError: string | null = null;
+		try {
+			await this.drainPendingWorkComments();
+		} catch (error) {
+			recoveryError = errorMessage(error);
+			console.error("[orchestrator] work comment recovery failed", {
+				error: recoveryError,
+			});
+		}
 		let sentDeadlineWarning = false;
 		try {
 			sentDeadlineWarning = await this.sendDeadlineWarningIfDue(now);
@@ -926,6 +1270,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			currentRunId,
 			inbox,
 			pendingSideEffects,
+			workComments,
 			pendingResume,
 			previewPollNextAt,
 		] = await Promise.all([
@@ -938,6 +1283,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			this.ctx.storage.get<string>(STORAGE.currentRunId),
 			this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox),
 			this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects),
+			this.ctx.storage.get<WorkCommentProjection[]>(STORAGE.workComments),
 			this.ctx.storage.get<PendingResume>(STORAGE.pendingResume),
 			this.ctx.storage.get<number>(STORAGE.previewPollNextAt),
 		]);
@@ -953,7 +1299,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 				? Math.max(scheduledRunAlarm, warningRetryAt)
 				: scheduledRunAlarm;
 		let desired = now + TICK_INTERVAL_MS;
-		if (inbox?.length || pendingSideEffects?.length || pendingResume) {
+		if (
+			inbox?.length ||
+			pendingSideEffects?.length ||
+			workComments?.some((comment) => comment.pending) ||
+			pendingResume
+		) {
 			desired = Math.min(desired, now + INBOX_RETRY_MS);
 		}
 		if (runAlarmAt !== null) {
@@ -1172,13 +1523,20 @@ export class OrchestratorDO extends DurableObject<Env> {
 		// Commit the failed transition before deleting retry evidence. If this
 		// throws, the run markers remain and the next alarm retries recovery.
 		const labels = await this.projectLabels();
+		const timeoutSummary = `${checkpoint.summary}\n\nThe conversation and workspace are saved. A maintainer can continue them with \`@emdashbot resume\`.`;
+		const finalizedWorkComment = await this.finalizeWorkPlanComment({
+			runId,
+			status: "timed_out",
+			outcome: timeoutSummary,
+		});
 		await this.processEvent({
 			event: "agent.failed",
 			arg: null,
 			actor: "system",
 			labels,
 			needsClassify: false,
-			agentSummary: `${checkpoint.summary}\n\nThe conversation and workspace are saved. A maintainer can continue them with \`@emdashbot resume\`.`,
+			agentSummary: timeoutSummary,
+			...(finalizedWorkComment ? { commentBodyOverride: "" } : {}),
 			agentFailureStage: "timeout",
 			agentRunId: runId,
 			settlesRunId: runId,
@@ -1794,6 +2152,87 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 	// ---------------- Side effects (GitHub) ----------------
 
+	private async drainPendingWorkComments(): Promise<void> {
+		for (;;) {
+			const comments =
+				(await this.ctx.storage.get<WorkCommentProjection[]>(STORAGE.workComments)) ?? [];
+			const pending = comments.find((comment) => comment.pending);
+			if (!pending) return;
+			await this.flushWorkComment(pending.runId);
+		}
+	}
+
+	private async flushWorkComment(runId: string): Promise<void> {
+		const comments =
+			(await this.ctx.storage.get<WorkCommentProjection[]>(STORAGE.workComments)) ?? [];
+		let projection = comments.find((comment) => comment.runId === runId);
+		if (!projection?.pending) return;
+		const creds = readAppCreds(this.env);
+		const repo = readRepoContext(this.env);
+		if (!creds || !repo) {
+			if (import.meta.env.DEV) {
+				await this.updateWorkComment(runId, (comment) => ({ ...comment, pending: false }));
+				return;
+			}
+			throw new Error("GitHub credentials or repository context missing");
+		}
+		const token = await this.getInstallationToken(creds);
+		const body = `${projection.body}\n\n${projection.marker}`;
+		let commentId = projection.commentId;
+		if (commentId !== null && !(await updateIssueComment(token, repo, commentId, body))) {
+			commentId = null;
+		}
+		if (commentId === null && projection.commentMayExist) {
+			const found = await findIssueCommentByMarker(
+				token,
+				repo,
+				projection.anchorNumber,
+				projection.marker,
+			);
+			commentId = found?.id ?? null;
+			if (commentId !== null && !(await updateIssueComment(token, repo, commentId, body))) {
+				commentId = null;
+			}
+		}
+		if (commentId === null) {
+			await this.updateWorkComment(runId, (comment) => ({
+				...comment,
+				commentMayExist: true,
+			}));
+			projection =
+				((await this.ctx.storage.get<WorkCommentProjection[]>(STORAGE.workComments)) ?? []).find(
+					(comment) => comment.runId === runId,
+				) ?? projection;
+			const created = await createIssueComment(
+				token,
+				repo,
+				projection.anchorNumber,
+				`${projection.body}\n\n${projection.marker}`,
+			);
+			commentId = created.id;
+		}
+		await this.updateWorkComment(runId, (comment) => ({
+			...comment,
+			commentId,
+			commentMayExist: true,
+			pending: false,
+		}));
+	}
+
+	private async updateWorkComment(
+		runId: string,
+		update: (comment: WorkCommentProjection) => WorkCommentProjection,
+	): Promise<void> {
+		await this.ctx.storage.transaction(async (transaction) => {
+			const comments = (await transaction.get<WorkCommentProjection[]>(STORAGE.workComments)) ?? [];
+			if (!comments.some((comment) => comment.runId === runId)) return;
+			await transaction.put(
+				STORAGE.workComments,
+				comments.map((comment) => (comment.runId === runId ? update(comment) : comment)),
+			);
+		});
+	}
+
 	private async flushPendingSideEffect(id: string): Promise<void> {
 		const pending = (
 			(await this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects)) ?? []
@@ -1975,6 +2414,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 					transaction.put(STORAGE.currentRunMode, preparedInvestigation.mode),
 					transaction.put(STORAGE.currentRunStartedAt, now),
 					transaction.put(STORAGE.runLifecycle, run),
+					transaction.put(STORAGE.currentRunDryRun, input.dryRun === true),
+					transaction.delete(STORAGE.workPlan),
 					transaction.put(STORAGE.currentAgentId, preparedInvestigation.agentId),
 					transaction.delete(STORAGE.deadlineWarningSentRunId),
 					transaction.delete(STORAGE.deadlineWarningRetryAt),
@@ -2001,6 +2442,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					transaction.put(STORAGE.currentRunMode, preparedResume.checkpoint.mode),
 					transaction.put(STORAGE.currentRunStartedAt, now),
 					transaction.put(STORAGE.runLifecycle, run),
+					transaction.put(STORAGE.currentRunDryRun, input.dryRun === true),
 					transaction.put(STORAGE.currentAgentId, preparedResume.checkpoint.agentId),
 					transaction.delete(STORAGE.deadlineWarningSentRunId),
 					transaction.delete(STORAGE.deadlineWarningRetryAt),
@@ -2114,6 +2556,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				transaction.delete(STORAGE.currentRunId),
 				transaction.delete(STORAGE.currentRunMode),
 				transaction.delete(STORAGE.currentRunStartedAt),
+				transaction.delete(STORAGE.currentRunDryRun),
 				transaction.delete(STORAGE.currentAgentId),
 				transaction.delete(STORAGE.currentDispatchId),
 				transaction.delete(STORAGE.currentDispatchError),
@@ -2303,6 +2746,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					transaction.delete(STORAGE.currentRunId),
 					transaction.delete(STORAGE.currentRunMode),
 					transaction.delete(STORAGE.currentRunStartedAt),
+					transaction.delete(STORAGE.currentRunDryRun),
 					transaction.delete(STORAGE.currentAgentId),
 					transaction.delete(STORAGE.currentDispatchId),
 					transaction.delete(STORAGE.currentDispatchError),
@@ -2353,17 +2797,27 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	async getPublicSnapshot(): Promise<PublicIssueSnapshot> {
-		const [state, kind, run, legacyMode, currentRunStartedAt, prNumber, transitions, progress] =
-			await Promise.all([
-				this.ctx.storage.get<StateId>(STORAGE.state),
-				this.ctx.storage.get<Kind>(STORAGE.kind),
-				this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
-				this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
-				this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
-				this.ctx.storage.get<number>(STORAGE.prNumber),
-				this.ctx.storage.get<EventLogEntry[]>(STORAGE.eventLog),
-				this.ctx.storage.get<PublicProgressEntry[]>(STORAGE.publicProgress),
-			]);
+		const [
+			state,
+			kind,
+			run,
+			storedWorkPlan,
+			legacyMode,
+			currentRunStartedAt,
+			prNumber,
+			transitions,
+			progress,
+		] = await Promise.all([
+			this.ctx.storage.get<StateId>(STORAGE.state),
+			this.ctx.storage.get<Kind>(STORAGE.kind),
+			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
+			this.ctx.storage.get<StoredWorkPlan>(STORAGE.workPlan),
+			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
+			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
+			this.ctx.storage.get<number>(STORAGE.prNumber),
+			this.ctx.storage.get<EventLogEntry[]>(STORAGE.eventLog),
+			this.ctx.storage.get<PublicProgressEntry[]>(STORAGE.publicProgress),
+		]);
 		const publicRun = run
 			? publicRunLifecycle(run)
 			: legacyMode && currentRunStartedAt !== undefined
@@ -2379,6 +2833,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			state: state ?? null,
 			kind: kind ?? null,
 			run: publicRun,
+			workPlan: storedWorkPlan?.plan ?? null,
 			currentRunStartedAt: currentRunStartedAt ?? null,
 			prNumber: prNumber ?? null,
 			transitions: (transitions ?? []).map(({ t, event, from, to }) => ({

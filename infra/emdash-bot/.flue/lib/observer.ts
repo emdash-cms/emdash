@@ -4,26 +4,48 @@
 
 import { observe } from "@flue/runtime";
 
-let installed = false;
+import type { OrchestratorDO } from "./orchestrator.js";
+import { projectRunTraceObservation } from "./run-trace.js";
+import { withDeadline } from "./sandbox-deadline.js";
+
+interface ObserverEnv extends Env {
+	Orchestrator: DurableObjectNamespace<OrchestratorDO>;
+}
+
+const TRACE_WRITES = Symbol.for("emdash-bot.traceWrites");
+const OBSERVER_INSTALLED = Symbol.for("emdash-bot.observerInstalled");
+const TRACE_AGENT_ID_RE = /^investigate-(\d+)-(.+)$/;
+const TRACE_FLUSH_TIMEOUT_MS = 2_000;
+
+function traceWrites(): Map<string, Promise<void>> {
+	const store = globalThis as typeof globalThis & { [TRACE_WRITES]?: Map<string, Promise<void>> };
+	return (store[TRACE_WRITES] ??= new Map());
+}
+
+function claimObserverInstall(): boolean {
+	const store = globalThis as typeof globalThis & { [OBSERVER_INSTALLED]?: boolean };
+	if (store[OBSERVER_INSTALLED]) return false;
+	store[OBSERVER_INSTALLED] = true;
+	return true;
+}
 
 export function installAgentObserver(): void {
-	if (installed) return;
-	installed = true;
+	if (!claimObserverInstall()) return;
 
-	observe((event) => {
+	observe((event, context) => {
 		const correlationId = event.submissionId ?? event.instanceId;
 		const tag = correlationId ? `[flue/${correlationId.slice(-8)}]` : "[flue]";
 
 		switch (event.type) {
 			case "agent_start":
 				console.log(`${tag} agent_start agent=${event.agentName ?? "unknown"}`);
-				return;
+				break;
 			case "agent_end":
 				console.log(`${tag} agent_end messages=${event.messages.length}`);
-				return;
+				break;
 			case "turn_start":
 				console.log(`${tag} turn_start turn=${event.turnId.slice(-8)} purpose=${event.purpose}`);
-				return;
+				break;
 			case "turn_messages": {
 				const msg = event.message;
 				if (msg.role === "assistant") {
@@ -34,23 +56,73 @@ export function installAgentObserver(): void {
 						`${tag} turn_msg turn=${event.turnId.slice(-8)} role=${msg.role} tools=${event.toolResults.length}`,
 					);
 				}
-				return;
+				break;
 			}
 			case "tool_start":
 				console.log(`${tag} tool_start ${event.toolName} id=${event.toolCallId.slice(-8)}`);
-				return;
+				break;
 			case "tool":
 				console.log(
 					`${tag} tool_end ${event.toolName} id=${event.toolCallId.slice(-8)} isError=${event.isError}`,
 				);
-				return;
+				break;
 			case "submission_settled":
 				console.log(`${tag} submission_settled outcome=${event.outcome}`);
-				return;
+				break;
 			default:
-				return;
+				break;
 		}
+
+		const target = traceTarget(context.id);
+		const projected = target ? projectRunTraceObservation(event) : null;
+		if (!target || !projected) return;
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Flue exposes platform bindings through a generic event context.
+		const { Orchestrator } = context.env as unknown as ObserverEnv;
+		const writes = traceWrites();
+		const previous = writes.get(context.id) ?? Promise.resolve();
+		const next = previous.then(async () => {
+			try {
+				await Orchestrator.getByName(`issue-${target.issueNumber}`).recordRunTraceEvent({
+					runId: target.runId,
+					event: projected,
+				});
+			} catch (error) {
+				console.warn("[flue] run trace write failed", {
+					runId: target.runId,
+					event: projected.kind,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+			return undefined;
+		});
+		writes.set(context.id, next);
+		void next.then(() => {
+			if (writes.get(context.id) === next) writes.delete(context.id);
+			return undefined;
+		});
+		return next;
 	});
+}
+
+export async function flushAgentTraceWrites(agentId: string): Promise<void> {
+	const pending = traceWrites().get(agentId);
+	if (!pending) return;
+	try {
+		await withDeadline(pending, TRACE_FLUSH_TIMEOUT_MS, "Run trace flush");
+	} catch (error) {
+		console.warn("[flue] run trace flush timed out", {
+			agentId,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+}
+
+function traceTarget(agentId: string): { issueNumber: number; runId: string } | null {
+	const match = TRACE_AGENT_ID_RE.exec(agentId);
+	if (!match?.[1] || !match[2]) return null;
+	const issueNumber = Number(match[1]);
+	if (!Number.isSafeInteger(issueNumber) || issueNumber <= 0) return null;
+	return { issueNumber, runId: match[2] };
 }
 
 function summarizeAssistant(message: unknown): string {
