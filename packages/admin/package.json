@@ -84,6 +84,7 @@
     "highlight.js": "catalog:",
     "lowlight": "catalog:",
     "marked": "^17.0.3",
+    "react-day-picker": "catalog:",
     "react-hotkeys-hook": "^5.2.4",
     "tailwind-merge": "^3.3.0",
     "y-protocols": "catalog:",

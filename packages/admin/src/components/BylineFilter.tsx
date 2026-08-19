@@ -124,7 +124,7 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 					onChange={(e) => setSearch(e.target.value)}
 				/>
 
-				<div className="mt-3 border-b pb-3">
+				<div className="mt-3 border-b px-1 pb-3">
 					<Checkbox
 						checked={value.none}
 						onCheckedChange={toggleNone}
@@ -147,7 +147,7 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 						const group = groupOf(byline);
 						const checked = value.bylineIds.includes(group);
 						return (
-							<div key={byline.id} className="-mx-1 rounded px-1 py-1 hover:bg-kumo-tint/50">
+							<div key={byline.id} className="rounded px-1 py-2 hover:bg-kumo-tint/50">
 								<Checkbox
 									checked={checked}
 									disabled={!checked && (atLimit || value.none)}
@@ -170,11 +170,13 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 				)}
 
 				<div className="mt-3 border-t pt-3">
-					<Switch
-						checked={value.includeInferred}
-						onCheckedChange={(checked) => onChange({ ...value, includeInferred: checked })}
-						label={<span className="text-base font-normal">{t`Include inferred bylines`}</span>}
-					/>
+					<div className="px-1">
+						<Switch
+							checked={value.includeInferred}
+							onCheckedChange={(checked) => onChange({ ...value, includeInferred: checked })}
+							label={<span className="text-base font-normal">{t`Include inferred bylines`}</span>}
+						/>
+					</div>
 					<p className="mt-1 text-base leading-5 text-pretty text-kumo-subtle">
 						{t`Also match the byline linked to an entry's author when it has none assigned.`}
 					</p>

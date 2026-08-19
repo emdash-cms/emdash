@@ -161,6 +161,7 @@ catalog:
   lowlight: ^3.3.0
   publint: 0.3.17
   react: 19.2.4
+  react-day-picker: ^9.14.0
   react-dom: 19.2.4
   semver: ^7.6.3
   tsdown: 0.20.3
