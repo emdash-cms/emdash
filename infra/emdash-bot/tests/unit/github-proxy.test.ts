@@ -4,7 +4,11 @@ import {
 	createPushCapability,
 	gateGithubRequest,
 	githubAuthHeader,
+	githubGateDenialResponse,
+	githubPushUrl,
 	inspectGithubRequest,
+	pushCapabilityFromAuthorization,
+	withGithubAuthorization,
 	verifyPushCapability,
 } from "../../.flue/lib/github-proxy.js";
 
@@ -35,6 +39,47 @@ describe("githubAuthHeader", () => {
 });
 
 describe("push capabilities", () => {
+	test("travels as standard Basic credentials on the push URL", async () => {
+		const capability = await createPushCapability("webhook-secret", OWNER, REPO, 123);
+		const url = new URL(githubPushUrl(OWNER, REPO, capability));
+		const authorization = `Basic ${btoa(`${url.username}:${url.password}`)}`;
+
+		expect(url.origin).toBe("https://github.com");
+		expect(url.pathname).toBe(`/${OWNER}/${REPO}.git`);
+		expect(pushCapabilityFromAuthorization(authorization)).toBe(capability);
+	});
+
+	test("rejects malformed or unrelated Basic credentials", () => {
+		expect(pushCapabilityFromAuthorization(null)).toBeNull();
+		expect(pushCapabilityFromAuthorization("Bearer sandbox-capability")).toBeNull();
+		expect(pushCapabilityFromAuthorization("Basic not-base64!")).toBeNull();
+		expect(
+			pushCapabilityFromAuthorization(`Basic ${btoa("someone-else:123.signature")}`),
+		).toBeNull();
+		expect(pushCapabilityFromAuthorization(`Basic ${btoa("emdashbot:")}`)).toBeNull();
+	});
+
+	test("strips sandbox credentials and replaces them only with the installation token", async () => {
+		const request = new Request("https://github.com/emdash-cms/emdash.git/git-receive-pack", {
+			method: "POST",
+			headers: { authorization: `Basic ${btoa("emdashbot:123.signature")}` },
+			body: "PACK payload",
+		});
+		const anonymous = withGithubAuthorization(request.clone(), "github.com", null);
+		const authenticated = withGithubAuthorization(
+			request.clone(),
+			"github.com",
+			"installation-token",
+		);
+
+		expect(anonymous.headers.has("authorization")).toBe(false);
+		expect(authenticated.headers.get("authorization")).toBe(
+			`Basic ${btoa("x-access-token:installation-token")}`,
+		);
+		await expect(anonymous.text()).resolves.toBe("PACK payload");
+		await expect(authenticated.text()).resolves.toBe("PACK payload");
+	});
+
 	test("round-trips only with the signing secret", async () => {
 		const capability = await createPushCapability("webhook-secret", OWNER, REPO, 123);
 
@@ -130,6 +175,25 @@ describe("gateGithubRequest", () => {
 			allowed: false,
 			stage: "receive-pack",
 			refs: ["refs/heads/bot/fix-123"],
+		});
+	});
+
+	test("challenges before advertising receive-pack so Git sends push credentials", async () => {
+		const url = new URL(
+			"https://github.com/emdash-cms/emdash.git/info/refs?service=git-receive-pack",
+		);
+		const request = new Request(url);
+
+		const result = await inspectGithubRequest(request, url, OWNER, REPO);
+		expect(result).toMatchObject({ allowed: false, stage: "capability" });
+		if (result.allowed) throw new Error("expected the push advertisement to be denied");
+
+		const response = githubGateDenialResponse(result);
+		expect(response.status).toBe(401);
+		expect(response.headers.get("www-authenticate")).toMatch(/^Basic /);
+		expect(response.headers.get("x-emdash-proxy-stage")).toBe("capability");
+		await expect(inspectGithubRequest(request, url, OWNER, REPO, 123)).resolves.toMatchObject({
+			allowed: true,
 		});
 	});
 

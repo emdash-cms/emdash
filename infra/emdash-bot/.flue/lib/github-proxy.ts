@@ -1,6 +1,8 @@
 const PKT_LINE_HEADER = /^[0-9a-fA-F]{4}$/;
+const BASIC_AUTHORIZATION = /^Basic ([A-Za-z0-9+/]+={0,2})$/i;
 const WHITESPACE = /\s/;
 const MAX_RECEIVE_PACK_COMMAND_BYTES = 64 * 1024;
+const PUSH_CAPABILITY_USERNAME = "emdashbot";
 export const PUSH_CAPABILITY_HEADER = "X-EmDash-Push-Capability";
 
 export async function createPushCapability(
@@ -37,6 +39,30 @@ export async function verifyPushCapability(
 			new TextEncoder().encode(`${owner}/${repo}/${payload}`),
 		);
 		return valid ? issueNumber : null;
+	} catch {
+		return null;
+	}
+}
+
+export function githubPushUrl(owner: string, repo: string, capability: string): string {
+	if (!capability) throw new Error("push capability is not configured");
+	const url = new URL(`https://github.com/${owner}/${repo}.git`);
+	url.username = PUSH_CAPABILITY_USERNAME;
+	url.password = capability;
+	return url.toString();
+}
+
+export function pushCapabilityFromAuthorization(authorization: string | null): string | null {
+	const match = BASIC_AUTHORIZATION.exec(authorization ?? "");
+	if (!match?.[1]) return null;
+
+	try {
+		const credentials = atob(match[1]);
+		const separator = credentials.indexOf(":");
+		if (separator === -1 || credentials.slice(0, separator) !== PUSH_CAPABILITY_USERNAME) {
+			return null;
+		}
+		return credentials.slice(separator + 1) || null;
 	} catch {
 		return null;
 	}
@@ -84,6 +110,17 @@ export function githubAuthHeader(host: string, token: string): string {
 	return `Basic ${btoa(`x-access-token:${token}`)}`;
 }
 
+export function withGithubAuthorization(
+	request: Request,
+	host: string,
+	token: string | null,
+): Request {
+	const forwarded = new Request(request);
+	forwarded.headers.delete("authorization");
+	if (token) forwarded.headers.set("authorization", githubAuthHeader(host, token));
+	return forwarded;
+}
+
 export async function gateGithubRequest(
 	request: Request,
 	url: URL,
@@ -105,6 +142,19 @@ export type GithubGateResult =
 			parseError?: string;
 	  };
 
+export function githubGateDenialResponse(
+	result: Extract<GithubGateResult, { allowed: false }>,
+): Response {
+	const headers = new Headers({ "x-emdash-proxy-stage": result.stage });
+	if (result.stage === "capability") {
+		headers.set("www-authenticate", 'Basic realm="EmDash candidate push", charset="UTF-8"');
+	}
+	return new Response(`forbidden: ${result.reason}`, {
+		status: result.stage === "capability" ? 401 : 403,
+		headers,
+	});
+}
+
 export async function inspectGithubRequest(
 	request: Request,
 	url: URL,
@@ -123,6 +173,19 @@ export async function inspectGithubRequest(
 			(url.pathname === repoPath || url.pathname === `${repoPath}/`)
 		) {
 			return { allowed: true, stage: "allowed" };
+		}
+		if (
+			url.pathname === `${gitPath}/info/refs` &&
+			(method === "GET" || method === "HEAD") &&
+			url.searchParams.get("service") === "git-receive-pack"
+		) {
+			return issueNumber === undefined
+				? {
+						allowed: false,
+						stage: "capability",
+						reason: "git push requires a valid issue-scoped capability",
+					}
+				: { allowed: true, stage: "allowed" };
 		}
 		if (url.pathname === `${gitPath}/git-receive-pack` && method === "POST") {
 			if (issueNumber === undefined) {

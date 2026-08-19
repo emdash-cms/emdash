@@ -30,7 +30,7 @@ import {
 	type CandidatePublication,
 } from "../lib/candidate-publisher.js";
 import { type ContainerBackend, ExecEnv, fromSandbox, quote } from "../lib/exec-env.js";
-import { createPushCapability, PUSH_CAPABILITY_HEADER } from "../lib/github-proxy.js";
+import { createPushCapability, githubPushUrl } from "../lib/github-proxy.js";
 import {
 	getBranchSha,
 	mintInstallationToken,
@@ -900,7 +900,7 @@ async function prepareContainer(
 		...(pushCapability
 			? [
 					{
-						command: `cd ${REPO_DIR} && git config http.https://github.com/.extraHeader ${quote(`${PUSH_CAPABILITY_HEADER}: ${pushCapability}`)}`,
+						command: `cd ${REPO_DIR} && git remote set-url --push origin ${quote(githubPushUrl(repo.owner, repo.repo, pushCapability))}`,
 					},
 				]
 			: []),
