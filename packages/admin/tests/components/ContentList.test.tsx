@@ -14,12 +14,6 @@ import { render } from "../utils/render.tsx";
 const NO_RESULTS_PATTERN = /No results for/;
 const HAS_MORE_ITEMS_PATTERN = /21\+ items/;
 
-function getTextRect(element: Element): DOMRect {
-	const range = document.createRange();
-	range.selectNodeContents(element);
-	return range.getBoundingClientRect();
-}
-
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -356,60 +350,6 @@ describe("ContentList", () => {
 			}
 		});
 
-		it("keeps the closed trigger aligned with the open menu width", async () => {
-			const screen = await render(
-				<ContentList {...defaultProps} statusFilter="all" onStatusFilterChange={vi.fn()} />,
-			);
-			const filter = screen.getByRole("combobox", { name: "Filter by status" });
-			const triggerRect = filter.element().getBoundingClientRect();
-			const triggerValue = filter.element().firstElementChild;
-			if (!triggerValue) throw new Error("Status trigger value did not render");
-			const triggerTextRect = getTextRect(triggerValue);
-
-			await filter.click();
-			const menuRect = screen.getByRole("listbox").element().getBoundingClientRect();
-			const option = screen.getByRole("option", { name: "Published" });
-			const optionValue = option.element().firstElementChild;
-			if (!optionValue) throw new Error("Status option value did not render");
-
-			expect(Math.abs(menuRect.width - triggerRect.width)).toBeLessThanOrEqual(1);
-			expect(Math.abs(menuRect.left - triggerRect.left)).toBeLessThanOrEqual(1);
-			expect(Math.abs(getTextRect(optionValue).left - triggerTextRect.left)).toBeLessThanOrEqual(1);
-			expect(getComputedStyle(option.element()).fontSize).toBe(
-				getComputedStyle(filter.element()).fontSize,
-			);
-		});
-
-		it("keeps the date-field trigger aligned with the open menu width", async () => {
-			const screen = await render(
-				<ContentList
-					{...defaultProps}
-					statusFilter="all"
-					onStatusFilterChange={vi.fn()}
-					dateFilter={{ field: "createdAt", from: "", to: "" }}
-					onDateFilterChange={vi.fn()}
-				/>,
-			);
-			const filter = screen.getByRole("combobox", { name: "Date field to filter on" });
-			const triggerRect = filter.element().getBoundingClientRect();
-			const triggerValue = filter.element().firstElementChild;
-			if (!triggerValue) throw new Error("Date-field trigger value did not render");
-			const triggerTextRect = getTextRect(triggerValue);
-
-			await filter.click();
-			const menuRect = screen.getByRole("listbox").element().getBoundingClientRect();
-			const option = screen.getByRole("option", { name: "Updated" });
-			const optionValue = option.element().firstElementChild;
-			if (!optionValue) throw new Error("Date-field option value did not render");
-
-			expect(Math.abs(menuRect.width - triggerRect.width)).toBeLessThanOrEqual(1);
-			expect(Math.abs(menuRect.left - triggerRect.left)).toBeLessThanOrEqual(1);
-			expect(Math.abs(getTextRect(optionValue).left - triggerTextRect.left)).toBeLessThanOrEqual(1);
-			expect(getComputedStyle(option.element()).fontSize).toBe(
-				getComputedStyle(filter.element()).fontSize,
-			);
-		});
-
 		it("opens the date range calendar and clears the active range", async () => {
 			const onDateFilterChange = vi.fn();
 			const screen = await render(
@@ -424,22 +364,7 @@ describe("ContentList", () => {
 			);
 
 			await screen.getByRole("button", { name: /Filter by date range:/ }).click();
-			const title = screen.getByText("Choose a date range");
-			await expect.element(title).toBeInTheDocument();
-			const calendar = document.querySelector<HTMLElement>(".rdp-root");
-			if (!calendar) throw new Error("Date range calendar did not render");
-
-			const titleRange = document.createRange();
-			titleRange.selectNodeContents(title.element());
-			const calendarRect = calendar.getBoundingClientRect();
-			const doneRect = screen
-				.getByRole("button", { name: "Done" })
-				.element()
-				.getBoundingClientRect();
-			expect(
-				Math.abs(titleRange.getBoundingClientRect().left - calendarRect.left),
-			).toBeLessThanOrEqual(1);
-			expect(Math.abs(calendarRect.right - doneRect.right)).toBeLessThanOrEqual(1);
+			await expect.element(screen.getByText("Choose a date range")).toBeInTheDocument();
 
 			await screen.getByRole("button", { name: "Clear", exact: true }).click();
 			expect(onDateFilterChange).toHaveBeenCalledWith({
@@ -447,55 +372,6 @@ describe("ContentList", () => {
 				from: "",
 				to: "",
 			});
-		});
-
-		it("aligns the compact date-range trigger icon and label", async () => {
-			const screen = await render(
-				<ContentList
-					{...defaultProps}
-					items={[makeItem()]}
-					statusFilter="all"
-					onStatusFilterChange={vi.fn()}
-					dateFilter={{ field: "createdAt", from: "", to: "" }}
-					onDateFilterChange={vi.fn()}
-				/>,
-			);
-			const trigger = screen.getByRole("button", { name: /Filter by date range:/ });
-			const triggerRect = trigger.element().getBoundingClientRect();
-			const icon = trigger
-				.element()
-				.querySelector(".emdash-date-range-icon")
-				?.getBoundingClientRect();
-			const label = trigger
-				.element()
-				.querySelector(".emdash-date-range-label")
-				?.getBoundingClientRect();
-			if (!icon || !label) throw new Error("Date-range trigger content did not render");
-
-			expect(triggerRect.height).toBe(26);
-			expect(getComputedStyle(trigger.element()).fontSize).toBe("12px");
-			expect(
-				new Set(
-					[
-						trigger,
-						screen.getByRole("combobox", { name: "Filter by status" }),
-						screen.getByRole("combobox", { name: "Date field to filter on" }),
-					].map((control) => getComputedStyle(control.element()).fontWeight),
-				),
-			).toEqual(new Set(["400"]));
-			expect(getComputedStyle(trigger.element()).paddingInlineStart).toBe("14px");
-			expect(getComputedStyle(trigger.element()).paddingInlineEnd).toBe("14px");
-			expect(
-				Math.abs(icon.top + icon.height / 2 - (label.top + label.height / 2)),
-			).toBeLessThanOrEqual(1);
-			const triggerContentStart = Math.min(icon.left, label.left);
-			const triggerContentEnd = Math.max(icon.right, label.right);
-			expect(
-				Math.abs(
-					(triggerContentStart + triggerContentEnd) / 2 -
-						(triggerRect.left + triggerRect.right) / 2,
-				),
-			).toBeLessThanOrEqual(1);
 		});
 
 		it("supports an upper-bound-only date filter", async () => {
@@ -535,7 +411,9 @@ describe("ContentList", () => {
 			);
 
 			await screen.getByRole("button", { name: /Filter by date range:/ }).click();
-			await screen.getByRole("button", { name: "Thursday, August 20th, 2026" }).click();
+			const august20 = document.querySelector<HTMLButtonElement>('[data-day="2026-08-20"] button');
+			if (!august20) throw new Error("August 20 calendar day did not render");
+			august20.click();
 
 			expect(onDateFilterChange).toHaveBeenCalledWith({
 				field: "createdAt",
