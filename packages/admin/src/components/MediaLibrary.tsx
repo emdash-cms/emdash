@@ -312,7 +312,7 @@ export function MediaLibrary({
 				>
 					<div className="flex h-full items-center justify-center rounded-2xl border-[3px] border-dashed border-kumo-brand/80 bg-kumo-tint/70">
 						<div className="flex flex-col items-center gap-3 text-center">
-							<Upload className="h-10 w-10 text-kumo-link" aria-hidden="true" />
+							<Upload className="h-10 w-10 text-kumo-subtle" aria-hidden="true" />
 							<p className="text-lg font-semibold">{t`Drop files to upload`}</p>
 						</div>
 					</div>
