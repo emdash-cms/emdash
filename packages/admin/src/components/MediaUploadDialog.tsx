@@ -18,7 +18,7 @@ import * as React from "react";
 
 import { formatFileSize } from "../lib/media-utils.js";
 
-const MEDIA_UPLOAD_ACCEPT = "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx";
+const MEDIA_UPLOAD_ACCEPT = "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx";
 
 const DEFAULT_CONCURRENCY = 3;
 const MAX_CONCURRENCY = 6;
