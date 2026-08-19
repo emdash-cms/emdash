@@ -1027,7 +1027,7 @@ function DateRangeFilter({
 							</span>
 						}
 						aria-label={t`Filter by date range: ${rangeLabel}`}
-						className="ps-3.5"
+						className="px-3.5 font-normal"
 					/>
 				}
 			>

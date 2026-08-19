@@ -474,9 +474,27 @@ describe("ContentList", () => {
 
 			expect(triggerRect.height).toBe(26);
 			expect(getComputedStyle(trigger.element()).fontSize).toBe("12px");
+			expect(
+				new Set(
+					[
+						trigger,
+						screen.getByRole("combobox", { name: "Filter by status" }),
+						screen.getByRole("combobox", { name: "Date field to filter on" }),
+					].map((control) => getComputedStyle(control.element()).fontWeight),
+				),
+			).toEqual(new Set(["400"]));
 			expect(getComputedStyle(trigger.element()).paddingInlineStart).toBe("14px");
+			expect(getComputedStyle(trigger.element()).paddingInlineEnd).toBe("14px");
 			expect(
 				Math.abs(icon.top + icon.height / 2 - (label.top + label.height / 2)),
+			).toBeLessThanOrEqual(1);
+			const triggerContentStart = Math.min(icon.left, label.left);
+			const triggerContentEnd = Math.max(icon.right, label.right);
+			expect(
+				Math.abs(
+					(triggerContentStart + triggerContentEnd) / 2 -
+						(triggerRect.left + triggerRect.right) / 2,
+				),
 			).toBeLessThanOrEqual(1);
 		});
 
