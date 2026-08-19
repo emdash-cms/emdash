@@ -527,12 +527,23 @@ export class OrchestratorDO extends DurableObject<Env> {
 			throw new Error(runError);
 		}
 
+		const cancellationRun =
+			decision.event === "reset" || decision.event === "decline" || decision.event === "take_over"
+				? await this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle)
+				: null;
 		const sideEffectId = await this.persistDecision(
 			decision,
 			input,
 			preparedInvestigation,
 			preparedResume,
 		);
+		if (cancellationRun?.status === "running") {
+			await this.finalizeWorkPlanComment({
+				runId: cancellationRun.runId,
+				status: "cancelled",
+				outcome: `Run cancelled by ${decision.event.replaceAll("_", " ")}.`,
+			});
+		}
 		await this.armAlarm();
 
 		if (preparedInvestigation) {

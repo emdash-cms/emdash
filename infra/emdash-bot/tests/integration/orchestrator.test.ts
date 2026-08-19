@@ -452,6 +452,49 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect((await stub.getPublicSnapshot()).workPlan?.summary).toBe("Add the requested command.");
 	});
 
+	test("reset finalizes the active work-plan comment as cancelled", async () => {
+		const patchedBodies: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = (init?.method ?? "GET").toUpperCase();
+			const body = typeof init?.body === "string" ? parseJsonBody(init.body) : null;
+			if (method === "POST" && url.endsWith("/comments")) {
+				return Promise.resolve(
+					new Response(JSON.stringify({ id: 888 }), {
+						status: 201,
+						headers: { "content-type": "application/json" },
+					}),
+				);
+			}
+			if (method === "PATCH" && url.endsWith("/issues/comments/888")) {
+				if (typeof body === "object" && body !== null && "body" in body) {
+					patchedBodies.push(String(body.body));
+				}
+			}
+			return Promise.resolve(new Response("{}", { status: 200 }));
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await stub.debugPrimeFixing(42);
+		await stub.debugSetStaleRun(
+			"cancelled-plan-run",
+			Date.now(),
+			"investigate-42-cancelled-plan-run",
+			"implement",
+		);
+		await stub.updateWorkPlan({
+			runId: "cancelled-plan-run",
+			summary: "Implement the requested change.",
+			steps: [{ id: "implement", title: "Implement the change", status: "in_progress" }],
+		});
+
+		await stub.event(makeEvent({ event: "reset", arg: null }));
+
+		expect(patchedBodies.at(-1)).toContain("### Cancelled");
+		expect(patchedBodies.at(-1)).toContain("Run cancelled by reset.");
+	});
+
 	test("retrying a failed implementation preserves its write mode", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await stub.event(makeEvent({ anchorNumber: 42 }));

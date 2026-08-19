@@ -157,6 +157,7 @@ function escapeMarkdown(value: string): string {
 		.replaceAll("<", "&lt;")
 		.replaceAll(">", "&gt;")
 		.replaceAll(/([\\`*_{}()#+|])/g, "\\$1")
+		.replaceAll("~", "\\~")
 		.replaceAll("[", "\\[")
 		.replaceAll("]", "\\]");
 }

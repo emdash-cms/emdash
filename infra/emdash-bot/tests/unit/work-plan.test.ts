@@ -88,7 +88,11 @@ describe("agent work plans", () => {
 			{
 				summary: "Resolve <unsafe> conflicts.",
 				steps: [
-					{ id: "context", title: "Gather [context](bad)", status: "completed" },
+					{
+						id: "context",
+						title: "Gather [context](bad) and ~~notes~~",
+						status: "completed",
+					},
 					{ id: "merge", title: "Resolve conflicts", status: "in_progress" },
 				],
 			},
@@ -96,7 +100,7 @@ describe("agent work plans", () => {
 		);
 		const working = renderWorkPlanComment({ plan, mode: "revise", status: "running" });
 		expect(working).toContain("### Working on it");
-		expect(working).toContain("- [x] Gather \\[context\\]\\(bad\\)");
+		expect(working).toContain("- [x] Gather \\[context\\]\\(bad\\) and \\~\\~notes\\~\\~");
 		expect(working).toContain("- [ ] **Resolve conflicts**");
 		expect(working).not.toContain("<unsafe>");
 
