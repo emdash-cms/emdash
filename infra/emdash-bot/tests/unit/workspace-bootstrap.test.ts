@@ -20,6 +20,7 @@ describe("workspace bootstrap", () => {
 			{ exec },
 			{
 				repoDir: "/workspace/repo",
+				now: () => 0,
 				onProgress: async (stage) => {
 					progress.push(stage);
 				},
@@ -49,6 +50,7 @@ describe("workspace bootstrap", () => {
 			{ exec },
 			{
 				repoDir: "/workspace/repo",
+				now: () => 0,
 				onProgress: async (stage) => {
 					progress.push(stage);
 				},
@@ -70,7 +72,39 @@ describe("workspace bootstrap", () => {
 		);
 
 		await expect(
-			bootstrapWorkspace({ exec }, { repoDir: "/workspace/repo", onProgress: async () => {} }),
+			bootstrapWorkspace(
+				{ exec },
+				{ repoDir: "/workspace/repo", onProgress: async () => {}, now: () => 0 },
+			),
 		).rejects.toThrow("workspace build failed (1): package build failed");
+	});
+
+	test("shares one timeout budget across installation and build", async () => {
+		let now = 0;
+		const timeouts: Array<{ command: string; timeoutMs?: number }> = [];
+		const exec = vi.fn(async (command: string, options?: { timeoutMs?: number }) => {
+			timeouts.push({ command, timeoutMs: options?.timeoutMs });
+			if (command.startsWith("test -d node_modules")) {
+				return { exitCode: 1, stdout: "", stderr: "" };
+			}
+			if (command.startsWith("pnpm install")) now += 9 * 60_000;
+			return { exitCode: 0, stdout: "ok", stderr: "" };
+		});
+
+		await bootstrapWorkspace(
+			{ exec },
+			{
+				repoDir: "/workspace/repo",
+				onProgress: async () => {},
+				now: () => now,
+			},
+		);
+
+		expect(timeouts.find((entry) => entry.command.startsWith("pnpm install"))?.timeoutMs).toBe(
+			WORKSPACE_BOOTSTRAP_TIMEOUT_MS,
+		);
+		expect(timeouts.find((entry) => entry.command === "pnpm build")?.timeoutMs).toBe(
+			WORKSPACE_BOOTSTRAP_TIMEOUT_MS - 9 * 60_000,
+		);
 	});
 });

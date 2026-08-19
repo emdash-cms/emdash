@@ -59,7 +59,11 @@ import {
 	recordWorkPlan,
 } from "../lib/investigation-result.js";
 import { flushAgentTraceWrites } from "../lib/observer.js";
-import { FLUE_RUN_TIMEOUT_MS, SANDBOX_SLEEP_AFTER_SECONDS } from "../lib/run-policy.js";
+import {
+	CONTAINER_PREPARE_TIMEOUT_MS,
+	FLUE_RUN_TIMEOUT_MS,
+	SANDBOX_SLEEP_AFTER_SECONDS,
+} from "../lib/run-policy.js";
 import { buildTimeoutSummaryPrompt, isTimeoutSummaryDelivery } from "../lib/timeout-recovery.js";
 import { untarInto } from "../lib/untar.js";
 import {
@@ -85,7 +89,7 @@ import verifySkill from "../skills/verify/SKILL.md";
 
 const REPO_DIR = "/workspace/repo";
 const DEFAULT_RPC_TIMEOUT_MS = 2 * 60_000;
-const CONTAINER_ATTACH_TIMEOUT_MS = 11 * 60_000;
+const CONTAINER_ATTACH_TIMEOUT_MS = CONTAINER_PREPARE_TIMEOUT_MS;
 const EXEC_GRACE_MS = 30_000;
 const CLONE_DEPTH = 50;
 const DEADLINES = {

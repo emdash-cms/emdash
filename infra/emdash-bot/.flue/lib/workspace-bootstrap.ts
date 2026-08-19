@@ -16,8 +16,11 @@ export async function bootstrapWorkspace(
 	options: {
 		repoDir: string;
 		onProgress: (stage: WorkspaceBootstrapStage) => Promise<void>;
+		now?: () => number;
 	},
 ): Promise<void> {
+	const now = options.now ?? Date.now;
+	const deadlineAt = now() + WORKSPACE_BOOTSTRAP_TIMEOUT_MS;
 	const dependencies = await container.exec(
 		"test -d node_modules -a -f node_modules/.modules.yaml",
 		{ cwd: options.repoDir },
@@ -26,7 +29,7 @@ export async function bootstrapWorkspace(
 		await options.onProgress("workspace_installing");
 		const install = await container.exec("pnpm install --frozen-lockfile --prefer-offline", {
 			cwd: options.repoDir,
-			timeoutMs: WORKSPACE_BOOTSTRAP_TIMEOUT_MS,
+			timeoutMs: remainingBootstrapMs(now, deadlineAt),
 		});
 		assertBootstrapSuccess(install, "dependency installation");
 	}
@@ -34,9 +37,17 @@ export async function bootstrapWorkspace(
 	await options.onProgress("workspace_building");
 	const build = await container.exec("pnpm build", {
 		cwd: options.repoDir,
-		timeoutMs: WORKSPACE_BOOTSTRAP_TIMEOUT_MS,
+		timeoutMs: remainingBootstrapMs(now, deadlineAt),
 	});
 	assertBootstrapSuccess(build, "workspace build");
+}
+
+function remainingBootstrapMs(now: () => number, deadlineAt: number): number {
+	const remaining = deadlineAt - now();
+	if (remaining <= 0) {
+		throw new Error(`workspace bootstrap exceeded ${WORKSPACE_BOOTSTRAP_TIMEOUT_MS}ms`);
+	}
+	return remaining;
 }
 
 function assertBootstrapSuccess(
