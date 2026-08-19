@@ -1,14 +1,13 @@
-// emdashbot orchestration state machine -- single source of truth.
+// emdashbot lifecycle machine definitions -- single source of truth.
 //
-// This file defines the *orchestration* layer only: the states a work item
-// can be in, the events that move it between them, who may fire each event,
-// and which agent action a transition kicks off. It deliberately says nothing
-// about HOW the agent reproduces, diagnoses, or fixes -- that lives in
-// `.flue/` and is invoked as an opaque "action" here.
+// The issue machine coordinates the long-lived GitHub item. The run machine
+// selects the bounded phase plan for one agent execution. Runtime progress and
+// deadlines live in `run-lifecycle.ts`; agent implementation remains opaque to
+// both machines.
 //
 // Everything else is generated from this file (run `pnpm bot:generate`):
-//   - machine.json          runtime artifact loaded by the router workflows
-//   - BOT_STATE_MACHINE.md   human docs: diagram + transition table + grammar
+//   - machine.json           serialized issue and run machine metadata
+//   - BOT_STATE_MACHINE.md   human docs: diagrams, plans, and transition tables
 //
 // CI re-runs the generator and fails if the committed artifacts drift, the
 // same contract as the query-count snapshots. Edit this file, regenerate,
@@ -28,6 +27,51 @@
 
 export const KINDS = ["bug", "enhancement", "task"] as const;
 export type Kind = (typeof KINDS)[number];
+
+// ---------------------------------------------------------------------------
+// Agent run machine (execution dimension -- independent from issue state)
+// ---------------------------------------------------------------------------
+
+export const RUN_PHASES = [
+	{ id: "prepare", label: "Prepare" },
+	{ id: "reproduce", label: "Reproduce" },
+	{ id: "diagnose", label: "Diagnose" },
+	{ id: "edit", label: "Edit" },
+	{ id: "finalize", label: "Finalize" },
+	{ id: "verify", label: "Verify" },
+	{ id: "publish", label: "Publish" },
+	{ id: "report", label: "Report" },
+] as const;
+
+export type RunPhaseId = (typeof RUN_PHASES)[number]["id"];
+export type RunMode = "repro" | "implement" | "revise" | "diagnose" | "fix";
+export type RunStatus = "running" | "succeeded" | "failed" | "timed_out" | "cancelled";
+
+const RUN_PLANS = {
+	diagnose: ["prepare", "reproduce", "diagnose", "report"],
+	repro: ["prepare", "reproduce", "diagnose", "edit", "finalize", "verify", "publish", "report"],
+	implement: ["prepare", "edit", "finalize", "verify", "publish", "report"],
+	fix: ["prepare", "edit", "finalize", "verify", "publish", "report"],
+	revise: ["prepare", "edit", "finalize", "verify", "publish", "report"],
+} as const satisfies Record<RunMode, readonly RunPhaseId[]>;
+
+export function runPlan(mode: RunMode): RunPhaseId[] {
+	return [...RUN_PLANS[mode]];
+}
+
+export function runMachineSnapshot() {
+	return {
+		phases: RUN_PHASES,
+		statuses: ["running", "succeeded", "failed", "timed_out", "cancelled"] as const,
+		plans: {
+			diagnose: runPlan("diagnose"),
+			repro: runPlan("repro"),
+			implement: runPlan("implement"),
+			fix: runPlan("fix"),
+			revise: runPlan("revise"),
+		},
+	};
+}
 
 // ---------------------------------------------------------------------------
 // States (lifecycle dimension -- mutually exclusive)
@@ -55,9 +99,29 @@ export type StateId =
 	| "preview_building"
 	| "awaiting_reporter";
 
+export const ISSUE_PHASES = [
+	{ id: "intake", label: "Triage" },
+	{ id: "evidence", label: "Investigate" },
+	{ id: "verdict", label: "Establish" },
+	{ id: "candidate", label: "Build" },
+	{ id: "preview", label: "Preview" },
+	{ id: "confirmation", label: "Confirm" },
+	{ id: "review", label: "Review" },
+	{ id: "complete", label: "Done" },
+] as const;
+
+export type IssuePhaseId = (typeof ISSUE_PHASES)[number]["id"];
+export type IssueStateTone = "active" | "waiting" | "attention";
+
 export interface StateMeta {
 	/** GitHub label that encodes this state. One per item, always. */
 	label: string;
+	/** Stable issue-lifecycle phase used by the dashboard projection. */
+	phase: IssuePhaseId;
+	/** Dashboard treatment for active, waiting, and human-attention states. */
+	tone: IssueStateTone;
+	/** A side route rendered outside the issue lifecycle's primary path. */
+	detour?: boolean;
 	/** Projects v2 "Triage State" board column. */
 	boardColumn: string;
 	/** Short description shown in docs and `@emdashbot status`. */
@@ -65,8 +129,8 @@ export interface StateMeta {
 	/** Terminal states are reopenable but otherwise at rest. */
 	terminal: boolean;
 	/**
-	 * Transient states mean an agent run is in flight; the control listener
-	 * tells the maintainer "a run is in progress" rather than racing it.
+	 * Transient states are backwards-compatible GitHub projections while a run
+	 * is active. The independent run lifecycle owns execution phase and status.
 	 */
 	transient?: boolean;
 	/** Commands offered in the bot's self-documenting comment footer. */
@@ -89,6 +153,8 @@ export const STATES: Record<StateId, StateMeta> = {
 		// investigate / implement / decline) work here directly -- triage is not
 		// a prerequisite.
 		label: "",
+		phase: "intake",
+		tone: "active",
 		boardColumn: "(none)",
 		description:
 			"No bot labels yet. An issue nobody has handed to the bot. Entry commands work directly.",
@@ -97,6 +163,8 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	triage: {
 		label: "bot:triage",
+		phase: "intake",
+		tone: "active",
 		boardColumn: "Triage",
 		description: "Filed and awaiting a decision on whether/how the bot should act.",
 		terminal: false,
@@ -104,6 +172,8 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	working: {
 		label: "bot:working",
+		phase: "evidence",
+		tone: "active",
 		boardColumn: "Working",
 		description: "An agent run is in flight (reproduce / diagnose / verify / fix / implement).",
 		terminal: false,
@@ -112,6 +182,9 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	blocked: {
 		label: "bot:blocked",
+		phase: "candidate",
+		tone: "attention",
+		detour: true,
 		boardColumn: "Blocked",
 		description:
 			"The bot stopped and needs a human decision. Covers the old skipped / not-reproduced / reproduced-no-fix / by-design outcomes; the reason is in the bot's comment.",
@@ -120,6 +193,8 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	awaiting_feedback: {
 		label: "bot:awaiting-feedback",
+		phase: "confirmation",
+		tone: "waiting",
 		boardColumn: "Awaiting feedback",
 		description:
 			"A fix is staged on bot/fix-<n>; waiting for the reporter or a maintainer to confirm or reject.",
@@ -128,6 +203,8 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	in_review: {
 		label: "bot:in-review",
+		phase: "review",
+		tone: "waiting",
 		boardColumn: "In review",
 		description:
 			"A PR is open. The review/* sub-states live on the PR and roll up here. On a bot PR, a plain `@emdashbot` comment is feedback; explicit verbs still win.",
@@ -137,6 +214,9 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	human_owned: {
 		label: "bot:human-owned",
+		phase: "review",
+		tone: "waiting",
+		detour: true,
 		boardColumn: "Human owned",
 		description:
 			"A maintainer took it over; the bot stays disengaged but the item stays on the board.",
@@ -145,6 +225,8 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	done: {
 		label: "bot:done",
+		phase: "complete",
+		tone: "active",
 		boardColumn: "Done",
 		description: "Shipped (PR merged) or confirmed resolved.",
 		terminal: true,
@@ -152,6 +234,9 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	declined: {
 		label: "bot:declined",
+		phase: "complete",
+		tone: "attention",
+		detour: true,
 		boardColumn: "Declined",
 		description: "Won't be actioned (by design, out of scope, or a maintainer call).",
 		terminal: true,
@@ -159,6 +244,9 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	failed: {
 		label: "bot:failed",
+		phase: "candidate",
+		tone: "attention",
+		detour: true,
 		boardColumn: "Failed",
 		description: "An agent run errored or produced no usable result. Retryable -- not a dead end.",
 		terminal: false,
@@ -173,6 +261,8 @@ export const STATES: Record<StateId, StateMeta> = {
 
 	investigating: {
 		label: "bot:investigating",
+		phase: "evidence",
+		tone: "active",
 		boardColumn: "Investigating",
 		description:
 			"A maintainer-triggered investigation is in flight: reproduce + diagnose, no fix. Emits an evidence-carrying verdict.",
@@ -182,6 +272,8 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	reproduced: {
 		label: "bot:reproduced",
+		phase: "verdict",
+		tone: "active",
 		boardColumn: "Reproduced",
 		description:
 			"Verdict: reproduced with a diagnosis attached. Resting until a maintainer triggers the fix loop or disposes of it.",
@@ -190,6 +282,8 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	diagnosed: {
 		label: "bot:diagnosed",
+		phase: "verdict",
+		tone: "active",
 		boardColumn: "Diagnosed",
 		description:
 			"Verdict: root cause identified, but not confirmed by a reproduction (environment limits). Actionable like reproduced; the fix loop verifies with a failing test before changing anything.",
@@ -198,6 +292,9 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	not_reproduced: {
 		label: "bot:not-reproduced",
+		phase: "verdict",
+		tone: "attention",
+		detour: true,
 		boardColumn: "Not reproduced",
 		description:
 			"Verdict: could not reproduce, transcript attached. A first-class outcome, not a failure. Reporter can add steps; a maintainer can re-investigate.",
@@ -206,6 +303,9 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	needs_info: {
 		label: "bot:needs-info",
+		phase: "verdict",
+		tone: "attention",
+		detour: true,
 		boardColumn: "Needs info",
 		description:
 			"Verdict: the investigation needs information only the reporter has. Evidence records what was tried and what is missing.",
@@ -214,6 +314,8 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	fixing: {
 		label: "bot:fixing",
+		phase: "candidate",
+		tone: "active",
 		boardColumn: "Fixing",
 		description: "A maintainer-triggered delivery run is building a candidate on bot/fix-<n>.",
 		terminal: false,
@@ -222,6 +324,8 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	preview_building: {
 		label: "bot:preview-building",
+		phase: "preview",
+		tone: "active",
 		boardColumn: "Building preview",
 		description:
 			"The candidate change is published; a preview is building so the reporter can try it before a PR exists.",
@@ -231,6 +335,8 @@ export const STATES: Record<StateId, StateMeta> = {
 	},
 	awaiting_reporter: {
 		label: "bot:awaiting-reporter",
+		phase: "confirmation",
+		tone: "waiting",
 		boardColumn: "Awaiting reporter",
 		description:
 			"Preview link posted; waiting for the reporter to confirm the change. On confirm a draft PR opens; on denial or 14-day silence the branch is reaped.",
@@ -963,6 +1069,7 @@ export function machineSnapshot() {
 	return {
 		kinds: KINDS,
 		entryState: ENTRY_STATE,
+		phases: ISSUE_PHASES,
 		states: STATES,
 		events: EVENTS,
 		transitions: TRANSITIONS,

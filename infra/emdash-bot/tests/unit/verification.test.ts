@@ -5,6 +5,8 @@ import {
 	assertVerificationIdentity,
 	findReusableVerificationRecord,
 	passingVerificationRecords,
+	requireTerminalReportAllowed,
+	StaleVerificationError,
 	upsertVerificationRecord,
 } from "../../.flue/lib/verification.js";
 
@@ -143,19 +145,57 @@ describe("verification commands", () => {
 		]);
 	});
 
-	test("does not publish a candidate changed after verification", () => {
+	test("requires stale checks to be rerun instead of allowing a terminal report", () => {
+		const records = [
+			{
+				name: "tests",
+				command: "pnpm test",
+				exitCode: 0,
+				candidateTreeSha: "verified-tree",
+			},
+			{
+				name: "lint",
+				command: "pnpm lint",
+				exitCode: 0,
+				candidateTreeSha: "verified-tree",
+			},
+		];
+		let failure: unknown;
+		try {
+			passingVerificationRecords(records, "changed-tree");
+		} catch (error) {
+			failure = error;
+		}
+
+		expect(failure).toBeInstanceOf(StaleVerificationError);
+		if (!(failure instanceof StaleVerificationError)) return;
+		expect(failure.checks).toEqual(["tests", "lint"]);
+		expect(failure.message).toContain("Rerun every listed check");
 		expect(() =>
-			passingVerificationRecords(
+			requireTerminalReportAllowed({ message: failure.message, recoverable: true }),
+		).toThrow(/cannot report a terminal result/i);
+		expect(() => requireTerminalReportAllowed(null, records, "changed-tree")).toThrow(
+			/cannot report a terminal result/i,
+		);
+	});
+
+	test("allows reporting after a non-recoverable verification failure", () => {
+		expect(() =>
+			requireTerminalReportAllowed({ message: "tests failed", recoverable: false }),
+		).not.toThrow();
+		expect(() =>
+			requireTerminalReportAllowed(
+				null,
 				[
 					{
 						name: "tests",
 						command: "pnpm test",
-						exitCode: 0,
-						candidateTreeSha: "verified-tree",
+						exitCode: 1,
+						candidateTreeSha: "failed-tree",
 					},
 				],
-				"published-tree",
+				"changed-tree",
 			),
-		).toThrow(/candidate changed/);
+		).not.toThrow();
 	});
 });

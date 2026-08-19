@@ -55,6 +55,7 @@ import {
 import {
 	applyInvestigationResult,
 	recordInvestigationProgress,
+	recordWorkPlan,
 } from "../lib/investigation-result.js";
 import { FLUE_RUN_TIMEOUT_MS, SANDBOX_SLEEP_AFTER_SECONDS } from "../lib/run-policy.js";
 import { buildTimeoutSummaryPrompt, isTimeoutSummaryDelivery } from "../lib/timeout-recovery.js";
@@ -64,9 +65,12 @@ import {
 	assertVerificationIdentity,
 	findReusableVerificationRecord,
 	passingVerificationRecords,
+	requireTerminalReportAllowed,
+	StaleVerificationError,
 	type VerificationRecord,
 	upsertVerificationRecord,
 } from "../lib/verification.js";
+import { requireWorkPlanReadyForReport, updateWorkPlan, type WorkPlan } from "../lib/work-plan.js";
 import diagnoseSkill from "../skills/diagnose/SKILL.md";
 import fixSkill from "../skills/fix/SKILL.md";
 import implementSkill from "../skills/implement/SKILL.md";
@@ -178,6 +182,21 @@ const verificationRecordSchema = v.object({
 	candidateTreeSha: v.string(),
 });
 
+const workPlanInputSchema = v.object({
+	summary: v.pipe(v.string(), v.minLength(1), v.maxLength(240)),
+	steps: v.pipe(
+		v.array(
+			v.object({
+				id: v.pipe(v.string(), v.minLength(1), v.maxLength(40)),
+				title: v.pipe(v.string(), v.minLength(1), v.maxLength(120)),
+				status: v.picklist(["pending", "in_progress", "completed", "blocked", "skipped"]),
+			}),
+		),
+		v.minLength(1),
+		v.maxLength(8),
+	),
+});
+
 const reportedResultSchema = v.object({
 	result: v.union([resultSchema, implementationResultSchema]),
 	ok: v.boolean(),
@@ -194,6 +213,7 @@ type ImplementationResult = v.InferOutput<typeof implementationResultSchema>;
 interface RunFailure {
 	stage: "workspace" | "verification" | "publication" | "reporting";
 	message: string;
+	recoverable?: boolean;
 }
 
 export function Investigate({ id }: AgentProps) {
@@ -211,6 +231,7 @@ export function Investigate({ id }: AgentProps) {
 		[],
 	);
 	const [lastFailure, setLastFailure] = usePersistentState<RunFailure | null>("last-failure", null);
+	const [workPlan, setWorkPlan] = usePersistentState<WorkPlan | null>("work-plan", null);
 	const writeResult = useDataWriter("investigation", { schema: reportedResultSchema });
 
 	useModel("cloudflare/@cf/moonshotai/kimi-k2.7-code");
@@ -219,6 +240,28 @@ export function Investigate({ id }: AgentProps) {
 	}
 
 	const env = execEnvFor(id, input);
+	const ensureTerminalReportAllowed = async () => {
+		requireTerminalReportAllowed(lastFailure);
+		if (verification.length === 0) return;
+		let candidateTreeSha: string;
+		try {
+			candidateTreeSha = await env.candidateTreeSha();
+		} catch {
+			return;
+		}
+		try {
+			requireTerminalReportAllowed(null, verification, candidateTreeSha);
+		} catch (error) {
+			if (error instanceof StaleVerificationError) {
+				setLastFailure({
+					stage: "verification",
+					message: safeFailureMessage(error),
+					recoverable: true,
+				});
+			}
+			throw error;
+		}
+	};
 
 	if (input.mode === "implement") {
 		useSkill(implementSkill);
@@ -398,6 +441,23 @@ export function Investigate({ id }: AgentProps) {
 		}),
 	);
 
+	useTool(
+		defineTool({
+			name: "update_work_plan",
+			description:
+				"Create or update the public task-specific plan for this run. Call this before substantial work, keep stable step ids, mark exactly one current step in_progress, and update statuses as work advances. Completed and skipped steps remain in history. This plan describes the requested job; the separate run phases still enforce verification, publication, and deadlines.",
+			input: workPlanInputSchema,
+			async run({ data }) {
+				const next = updateWorkPlan(workPlan, data, Date.now());
+				if (!(await recordWorkPlan(input, next))) {
+					throw new Error("work plan update was rejected because this run is no longer active");
+				}
+				setWorkPlan(next);
+				return `updated public work plan with ${next.steps.length} steps`;
+			},
+		}),
+	);
+
 	if (input.mode !== "diagnose") {
 		useTool(
 			defineTool({
@@ -470,7 +530,7 @@ export function Investigate({ id }: AgentProps) {
 			defineTool({
 				name: "publish_candidate",
 				description:
-					"Publish the verified working tree to this issue's candidate branch. The trusted Worker snapshots the changes, creates the Git objects, updates only bot/fix-<issue>, and verifies the remote SHA. Do not run git commit or git push yourself.",
+					"Publish the verified working tree to this issue's candidate branch. The trusted Worker snapshots the changes, creates the Git objects, updates only bot/fix-<issue>, and verifies the remote SHA. If it reports stale checks, rerun every listed check with the same name and command, then call publish_candidate again; stale verification is recoverable and must not be reported as a terminal blocker. Do not run git commit or git push yourself.",
 				input: v.object({
 					commitMessage: v.pipe(v.string(), v.minLength(5), v.maxLength(200)),
 				}),
@@ -483,6 +543,11 @@ export function Investigate({ id }: AgentProps) {
 						setLastFailure({ stage: "verification", message: safeFailureMessage(error) });
 						throw error;
 					}
+					await recordInvestigationProgress(input, {
+						kind: "candidate_publishing",
+						title: "Publishing candidate",
+						detail: `Preparing bot/fix-${input.issueNumber} from the verified candidate`,
+					});
 					let snapshot: CandidateSnapshot;
 					try {
 						snapshot = await env.snapshotCandidate();
@@ -493,7 +558,11 @@ export function Investigate({ id }: AgentProps) {
 					try {
 						passingVerificationRecords(verification, snapshot.treeSha);
 					} catch (error) {
-						setLastFailure({ stage: "verification", message: safeFailureMessage(error) });
+						setLastFailure({
+							stage: "verification",
+							message: safeFailureMessage(error),
+							...(error instanceof StaleVerificationError ? { recoverable: true } : {}),
+						});
 						throw error;
 					}
 					try {
@@ -527,6 +596,8 @@ export function Investigate({ id }: AgentProps) {
 				output: reportedResultSchema,
 				durable: true,
 				async run({ data, step, log }) {
+					requireWorkPlanReadyForReport(workPlan, data.implemented);
+					await ensureTerminalReportAllowed();
 					requireCandidatePublication(data.implemented, publication);
 					const pushed = await step.do("verify-publication", () =>
 						detectPublication(input.issueNumber, publication),
@@ -570,6 +641,12 @@ export function Investigate({ id }: AgentProps) {
 				output: reportedResultSchema,
 				durable: true,
 				async run({ data, step, log }) {
+					const completedPlan =
+						data.fixed === true ||
+						data.verdict === "intended-behavior" ||
+						(input.mode === "diagnose" && data.skipped !== true && data.verdict !== "unclear");
+					requireWorkPlanReadyForReport(workPlan, lastFailure === null && completedPlan);
+					await ensureTerminalReportAllowed();
 					requireCandidatePublication(data.fixed === true, publication);
 					const pushed = await step.do("verify-publication", () =>
 						detectPublication(input.issueNumber, publication),
@@ -609,6 +686,14 @@ export function Investigate({ id }: AgentProps) {
 		const reportTool = input.mode === "implement" ? "report_implementation" : "report_result";
 		const reportCall = response.toolCalls.some((call) => call.tool === reportTool && !call.isError);
 		if (reported || reportCall) return;
+		if (lastFailure?.recoverable) {
+			append({
+				kind: "signal",
+				type: "investigation.verification-rerun-required",
+				body: lastFailure.message,
+			});
+			return;
+		}
 		if (!reminded) {
 			setReminded(true);
 			append({
@@ -1057,6 +1142,7 @@ function buildPrompt(input: InvestigateData): string {
 		contextSection,
 		"## Method",
 		"",
+		"- Create a concise task-specific plan with update_work_plan before substantial work. Update it whenever the active step or scope changes, and finish every step as completed, skipped, or blocked before reporting.",
 		...method,
 		"",
 		closing,

@@ -12,6 +12,36 @@ export interface VerificationIdentity {
 	readonly cwd?: string;
 }
 
+export class StaleVerificationError extends Error {
+	readonly checks: readonly string[];
+
+	constructor(checks: readonly string[]) {
+		super(
+			`Cannot report a terminal result because the candidate changed after verification. Rerun every listed check with its existing name and command on the current candidate, then call publish_candidate again. Stale checks: ${checks.join(", ")}.`,
+		);
+		this.name = "StaleVerificationError";
+		this.checks = [...checks];
+	}
+}
+
+export function requireTerminalReportAllowed(
+	failure: { readonly message: string; readonly recoverable?: boolean } | null,
+	records: readonly VerificationRecord[] = [],
+	candidateTreeSha?: string,
+): void {
+	if (failure?.recoverable === true) {
+		throw new Error(
+			`Cannot report a terminal result while verification is recoverable. ${failure.message}`,
+		);
+	}
+	if (candidateTreeSha === undefined || records.length === 0) return;
+	try {
+		passingVerificationRecords(records, candidateTreeSha);
+	} catch (error) {
+		if (error instanceof StaleVerificationError) throw error;
+	}
+}
+
 const PIPE_OPERATOR = /\|/;
 const STATUS_MASKING_SHELL_CONTROL = /[;&\r\n]/;
 const LEADING_SHELL_NEGATION = /^\s*!/;
@@ -97,9 +127,7 @@ export function passingVerificationRecords(
 			(record) => record.candidateTreeSha !== candidateTreeSha,
 		);
 		if (stale.length > 0) {
-			throw new Error(
-				`candidate changed after verification checks: ${stale.map((record) => record.name).join(", ")}`,
-			);
+			throw new StaleVerificationError(stale.map((record) => record.name));
 		}
 	}
 	return [...latest.values()];

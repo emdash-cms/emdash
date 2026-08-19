@@ -220,6 +220,65 @@
 				margin-bottom: 22px;
 			}
 
+			.machine-stack {
+				display: grid;
+				gap: 23px;
+			}
+
+			.machine-block + .machine-block {
+				padding-top: 22px;
+				border-top: 1px solid light-dark(#e5e6eb, #292b33);
+			}
+
+			.machine-heading {
+				display: flex;
+				align-items: start;
+				justify-content: space-between;
+				gap: 18px;
+				margin-bottom: 15px;
+			}
+
+			.machine-heading h3 {
+				margin: 0;
+				font-size: 12px;
+				font-weight: 600;
+			}
+
+			.machine-heading p {
+				margin: 4px 0 0;
+				color: light-dark(#767a85, #9296a1);
+				font-size: 10px;
+			}
+
+			.machine-badge {
+				display: inline-flex;
+				align-items: center;
+				min-height: 24px;
+				padding: 4px 8px;
+				border: 1px solid light-dark(#ded9eb, #3b304d);
+				border-radius: 999px;
+				background: light-dark(#f4f0fb, #211c2b);
+				color: light-dark(#6840ae, #c1a6ee);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 9px;
+				white-space: nowrap;
+			}
+
+			.machine-badge.attention,
+			.machine-badge.cancelled,
+			.machine-badge.failed,
+			.machine-badge.timed_out {
+				border-color: light-dark(#efd2a8, #60471f);
+				background: light-dark(#fff1dc, #392b18);
+				color: light-dark(#95580b, #f2bd72);
+			}
+
+			.machine-badge.succeeded {
+				border-color: light-dark(#b9dfd0, #275544);
+				background: light-dark(#eaf8f2, #173429);
+				color: light-dark(#14704e, #74d8ad);
+			}
+
 			.section-head {
 				display: flex;
 				align-items: start;
@@ -266,10 +325,18 @@
 				background: light-dark(#8b5aee, #a983ff);
 			}
 
+			.route-line.skipped {
+				background: repeating-linear-gradient(
+					90deg,
+					light-dark(#aeb2bc, #656a75) 0 4px,
+					transparent 4px 7px
+				);
+			}
+
 			.workflow {
 				position: relative;
 				display: grid;
-				grid-template-columns: repeat(8, minmax(0, 1fr));
+				grid-template-columns: repeat(var(--phase-count, 8), minmax(0, 1fr));
 				padding-top: 5px;
 			}
 
@@ -327,6 +394,33 @@
 				color: light-dark(#fff, #17121f);
 				box-shadow: 0 0 0 5px light-dark(rgba(118, 66, 218, 0.11), rgba(169, 131, 255, 0.13));
 				transform: translateY(-1px);
+			}
+
+			.phase.skipped .phase-marker {
+				border-style: dashed;
+				background: light-dark(#f7f7f9, #121318);
+				color: light-dark(#b0b3bb, #5f646e);
+			}
+
+			.phase.skipped .phase-label {
+				color: light-dark(#a2a6af, #676c76);
+				text-decoration: line-through;
+				text-decoration-thickness: 1px;
+			}
+
+			.phase.skipped .phase-state {
+				color: light-dark(#9a9ea8, #747985);
+				opacity: 1;
+			}
+
+			.phase.current.attention .phase-marker,
+			.phase.current.cancelled .phase-marker,
+			.phase.current.failed .phase-marker,
+			.phase.current.timed_out .phase-marker {
+				border-color: light-dark(#c77a18, #e3a44f);
+				background: light-dark(#fff1dc, #392b18);
+				color: light-dark(#95580b, #f2bd72);
+				box-shadow: 0 0 0 5px light-dark(rgba(191, 120, 29, 0.1), rgba(227, 164, 79, 0.1));
 			}
 
 			.phase-label {
@@ -530,7 +624,7 @@
 
 			.facts {
 				display: grid;
-				grid-template-columns: repeat(3, minmax(0, 1fr));
+				grid-template-columns: repeat(4, minmax(0, 1fr));
 				border-bottom: 1px solid light-dark(#e5e6eb, #292b33);
 				background: light-dark(#fafafd, #14151a);
 			}
@@ -558,6 +652,71 @@
 				font-size: 10px;
 				text-overflow: ellipsis;
 				white-space: nowrap;
+			}
+
+			.work-plan {
+				padding: 15px 17px 16px;
+				border-bottom: 1px solid light-dark(#e5e6eb, #292b33);
+			}
+
+			.work-plan-head {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				margin-bottom: 8px;
+				font-size: 10px;
+				font-weight: 600;
+			}
+
+			.work-plan-summary {
+				margin: 0 0 10px;
+				color: light-dark(#666a75, #a0a4ae);
+				font-size: 10px;
+				line-height: 1.45;
+			}
+
+			.work-plan-steps {
+				display: grid;
+				gap: 6px;
+			}
+
+			.work-plan-step {
+				display: grid;
+				grid-template-columns: 15px minmax(0, 1fr) auto;
+				gap: 7px;
+				align-items: start;
+				font-size: 10px;
+				line-height: 1.35;
+			}
+
+			.work-plan-mark {
+				color: light-dark(#8c909a, #7f848e);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+			}
+
+			.work-plan-step.completed .work-plan-mark {
+				color: light-dark(#16845b, #50d49b);
+			}
+
+			.work-plan-step.in_progress {
+				font-weight: 600;
+				color: light-dark(#5f2fc1, #bea4ff);
+			}
+
+			.work-plan-step.blocked .work-plan-mark {
+				color: light-dark(#b2670d, #e3a44f);
+			}
+
+			.work-plan-step.skipped .work-plan-title {
+				color: light-dark(#969aa4, #747984);
+				text-decoration: line-through;
+			}
+
+			.work-plan-status {
+				color: light-dark(#858995, #858a95);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 9px;
 			}
 
 			.log-head {
@@ -718,6 +877,11 @@
 					font-weight: 600;
 				}
 
+				.mobile-step.skipped {
+					opacity: 0.48;
+					text-decoration: line-through;
+				}
+
 				.detours {
 					justify-content: flex-start;
 					flex-wrap: wrap;
@@ -861,19 +1025,53 @@
 			<section class="surface workflow-shell" aria-labelledby="workflow-title">
 				<div class="section-head">
 					<div>
-						<h2 id="workflow-title">The path from issue to merge</h2>
-						<p>Select an issue below to see its position and route.</p>
+						<h2 id="workflow-title">Two state machines, one delivery path</h2>
+						<p>Select an issue to see durable coordination separately from agent execution.</p>
 					</div>
 					<div class="route-key" aria-label="Workflow legend">
 						<span><i class="route-line selected" aria-hidden="true"></i> selected route</span>
 						<span><i class="route-line" aria-hidden="true"></i> remaining route</span>
+						<span><i class="route-line skipped" aria-hidden="true"></i> skipped phase</span>
 					</div>
 				</div>
-				<div class="workflow" id="workflow">
-					<div class="workflow-progress" id="workflow-progress"></div>
+				<div class="machine-stack">
+					<section class="machine-block" aria-labelledby="issue-machine-title">
+						<div class="machine-heading">
+							<div>
+								<h3 id="issue-machine-title">Issue lifecycle</h3>
+								<p>Long-lived coordination projected to GitHub labels.</p>
+							</div>
+							<span class="machine-badge" id="issue-machine-badge">unmanaged</span>
+						</div>
+						<div class="workflow" id="issue-workflow">
+							<div class="workflow-progress" id="issue-workflow-progress"></div>
+						</div>
+						<div
+							class="mobile-flow"
+							id="issue-mobile-flow"
+							aria-label="Selected issue lifecycle"
+						></div>
+						<div class="detours" id="issue-detours" aria-label="Issue lifecycle side routes"></div>
+					</section>
+
+					<section class="machine-block" aria-labelledby="run-machine-title">
+						<div class="machine-heading">
+							<div>
+								<h3 id="run-machine-title">Agent run</h3>
+								<p id="run-machine-description">No run recorded for this issue.</p>
+							</div>
+							<span class="machine-badge" id="run-machine-badge">idle</span>
+						</div>
+						<div class="workflow" id="run-workflow">
+							<div class="workflow-progress" id="run-workflow-progress"></div>
+						</div>
+						<div
+							class="mobile-flow"
+							id="run-mobile-flow"
+							aria-label="Selected agent run lifecycle"
+						></div>
+					</section>
 				</div>
-				<div class="mobile-flow" id="mobile-flow" aria-label="Selected issue workflow"></div>
-				<div class="detours" id="detours" aria-label="Possible side routes"></div>
 			</section>
 
 			<div class="workspace">
@@ -892,54 +1090,12 @@
 		</main>
 
 		<script>
-			const phases = [
-				"Triage",
-				"Investigate",
-				"Establish",
-				"Build",
-				"Preview",
-				"Confirm",
-				"Review",
-				"Done",
-			];
-			const detourStates = [
-				"needs_info",
-				"not_reproduced",
-				"blocked",
-				"failed",
-				"human_owned",
-				"declined",
-			];
-			const phaseByState = {
-				unmanaged: 0,
-				triage: 0,
-				working: 1,
-				investigating: 1,
-				reproduced: 2,
-				diagnosed: 2,
-				not_reproduced: 2,
-				needs_info: 2,
-				fixing: 3,
-				blocked: 3,
-				failed: 3,
-				preview_building: 4,
-				awaiting_feedback: 5,
-				awaiting_reporter: 5,
-				in_review: 6,
-				human_owned: 6,
-				done: 7,
-				declined: 7,
-			};
-			const activeStates = new Set(["working", "investigating", "fixing", "preview_building"]);
-			const waitingStates = new Set([
-				"awaiting_feedback",
-				"awaiting_reporter",
-				"in_review",
-				"human_owned",
-			]);
-			const attentionStates = new Set(["blocked", "failed", "not_reproduced", "needs_info"]);
 			let payload = null;
-			let selectedNumber = null;
+			const requestedIssue = Number.parseInt(
+				new URLSearchParams(window.location.search).get("issue") ?? "",
+				10,
+			);
+			let selectedNumber = Number.isSafeInteger(requestedIssue) ? requestedIssue : null;
 
 			function element(tag, className, text) {
 				const node = document.createElement(tag);
@@ -953,9 +1109,7 @@
 			}
 
 			function routeFor(state) {
-				if (attentionStates.has(state)) return "attention";
-				if (waitingStates.has(state)) return "waiting";
-				return "active";
+				return payload?.machines.issue.states[state]?.tone ?? "active";
 			}
 
 			function relativeTime(value) {
@@ -966,9 +1120,9 @@
 				return `${Math.floor(seconds / 86400)}d ago`;
 			}
 
-			function durationSince(timestamp) {
+			function durationSince(timestamp, end = Date.now()) {
 				if (!timestamp) return "not running";
-				const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+				const seconds = Math.max(0, Math.floor((end - timestamp) / 1000));
 				const hours = Math.floor(seconds / 3600);
 				const minutes = Math.floor((seconds % 3600) / 60);
 				return hours ? `${hours}h ${minutes}m` : `${minutes}m ${seconds % 60}s`;
@@ -990,43 +1144,111 @@
 				}
 			}
 
-			function renderWorkflow(issue) {
-				const phase = issue ? (phaseByState[issue.state] ?? 0) : 0;
-				const isDetour = issue ? detourStates.includes(issue.state) : false;
-				const workflow = document.getElementById("workflow");
+			function renderPhaseRow(input) {
+				const workflow = document.getElementById(input.workflowId);
+				workflow.style.setProperty("--phase-count", String(input.phases.length));
 				workflow.querySelectorAll(".phase").forEach((node) => node.remove());
-				phases.forEach((label, index) => {
+				const plan = input.plan ?? input.phases.map((phase) => phase.id);
+				const currentPlanIndex = input.currentPhase ? plan.indexOf(input.currentPhase) : -1;
+				const currentPhaseIndex = input.currentPhase
+					? input.phases.findIndex((phase) => phase.id === input.currentPhase)
+					: -1;
+				input.phases.forEach((phase, index) => {
+					const planIndex = plan.indexOf(phase.id);
+					const skipped = input.plan !== null && planIndex === -1;
+					const passed =
+						!skipped &&
+						(input.status === "succeeded" ||
+							(currentPlanIndex >= 0 && planIndex < currentPlanIndex));
+					const current =
+						!skipped && input.status !== "succeeded" && phase.id === input.currentPhase;
 					const phaseNode = element(
 						"div",
-						`phase${index < phase ? " passed" : ""}${index === phase && !isDetour ? " current" : ""}`,
+						`phase${passed ? " passed" : ""}${current ? ` current ${input.tone ?? ""}` : ""}${skipped ? " skipped" : ""}`,
 					);
-					phaseNode.append(element("span", "phase-marker", String(index + 1)));
-					phaseNode.append(element("span", "phase-label", label));
+					phaseNode.append(element("span", "phase-marker", skipped ? "–" : String(index + 1)));
+					phaseNode.append(element("span", "phase-label", phase.label));
 					phaseNode.append(
-						element("span", "phase-state", index === phase && issue ? issue.state : ""),
+						element(
+							"span",
+							"phase-state",
+							skipped ? "skipped" : current ? (input.currentLabel ?? phase.id) : "",
+						),
 					);
 					workflow.append(phaseNode);
 				});
-				document.getElementById("workflow-progress").style.width = `${(phase / 7) * 88.2}%`;
+				const progressIndex =
+					input.status === "succeeded" ? input.phases.length - 1 : currentPhaseIndex;
+				const progress = progressIndex < 0 ? 0 : (progressIndex / (input.phases.length - 1)) * 88.2;
+				document.getElementById(input.progressId).style.width = `${progress}%`;
 
-				const mobile = document.getElementById("mobile-flow");
+				const mobile = document.getElementById(input.mobileId);
 				mobile.replaceChildren();
-				phases.forEach((label, index) => {
-					const step = element(
-						"span",
-						`mobile-step${index < phase ? " passed" : ""}${index === phase && !isDetour ? " current" : ""}`,
-						`${label}${index < phases.length - 1 ? " →" : ""}`,
+				input.phases.forEach((phase, index) => {
+					const planIndex = plan.indexOf(phase.id);
+					const skipped = input.plan !== null && planIndex === -1;
+					const passed =
+						!skipped &&
+						(input.status === "succeeded" ||
+							(currentPlanIndex >= 0 && planIndex < currentPlanIndex));
+					const current =
+						!skipped && input.status !== "succeeded" && phase.id === input.currentPhase;
+					mobile.append(
+						element(
+							"span",
+							`mobile-step${passed ? " passed" : ""}${current ? " current" : ""}${skipped ? " skipped" : ""}`,
+							`${phase.label}${index < input.phases.length - 1 ? " →" : ""}`,
+						),
 					);
-					mobile.append(step);
 				});
+			}
 
-				const detours = document.getElementById("detours");
+			function renderMachines(issue) {
+				const issueMachine = payload.machines.issue;
+				const issueMeta = issue ? issueMachine.states[issue.state] : issueMachine.states.unmanaged;
+				renderPhaseRow({
+					workflowId: "issue-workflow",
+					progressId: "issue-workflow-progress",
+					mobileId: "issue-mobile-flow",
+					phases: issueMachine.phases,
+					plan: null,
+					currentPhase: issueMeta.phase,
+					currentLabel: issue?.state ?? "unmanaged",
+					status: "running",
+					tone: issueMeta.tone,
+				});
+				const issueBadge = document.getElementById("issue-machine-badge");
+				issueBadge.className = `machine-badge ${issueMeta.tone}`;
+				issueBadge.textContent = stateLabel(issue?.state ?? "unmanaged");
+
+				const detours = document.getElementById("issue-detours");
 				detours.replaceChildren(element("span", "detour-label", "Side routes"));
-				for (const state of detourStates) {
+				for (const [state, meta] of Object.entries(issueMachine.states)) {
+					if (!meta.detour) continue;
 					detours.append(
 						element("span", `detour${issue?.state === state ? " current" : ""}`, stateLabel(state)),
 					);
 				}
+
+				const run = issue?.run ?? null;
+				const runMachine = payload.machines.run;
+				renderPhaseRow({
+					workflowId: "run-workflow",
+					progressId: "run-workflow-progress",
+					mobileId: "run-mobile-flow",
+					phases: runMachine.phases,
+					plan: run?.plan ?? null,
+					currentPhase: run?.phase ?? null,
+					currentLabel: run?.phase ?? "",
+					status: run?.status ?? "idle",
+					tone: run?.status ?? "",
+				});
+				const runBadge = document.getElementById("run-machine-badge");
+				runBadge.className = `machine-badge ${run?.status ?? ""}`;
+				runBadge.textContent = run ? `${run.mode} · ${run.status}` : "idle";
+				document.getElementById("run-machine-description").textContent = run
+					? `Attempt ${run.attempt} · ${run.plan.length} of ${runMachine.phases.length} phases · ${durationSince(run.startedAt, run.completedAt ?? Date.now())}`
+					: "No run recorded for this issue.";
 			}
 
 			function renderIssues() {
@@ -1058,6 +1280,7 @@
 					button.append(body);
 					button.addEventListener("click", () => {
 						selectedNumber = issue.number;
+						window.history.replaceState(null, "", `?issue=${issue.number}`);
 						render();
 					});
 					target.append(button);
@@ -1093,6 +1316,43 @@
 				};
 			}
 
+			function renderWorkPlan(issue, panel) {
+				if (!issue.workPlan) return;
+				const section = element("section", "work-plan");
+				section.setAttribute("aria-labelledby", "work-plan-title");
+				const head = element("div", "work-plan-head");
+				const title = element("span", "", "Work plan");
+				title.id = "work-plan-title";
+				head.append(
+					title,
+					element(
+						"span",
+						"panel-meta",
+						relativeTime(new Date(issue.workPlan.updatedAt).toISOString()),
+					),
+				);
+				section.append(head, element("p", "work-plan-summary", issue.workPlan.summary));
+				const steps = element("div", "work-plan-steps");
+				const marks = {
+					pending: "○",
+					in_progress: "→",
+					completed: "✓",
+					blocked: "!",
+					skipped: "–",
+				};
+				for (const step of issue.workPlan.steps) {
+					const row = element("div", `work-plan-step ${step.status}`);
+					row.append(
+						element("span", "work-plan-mark", marks[step.status] ?? "○"),
+						element("span", "work-plan-title", step.title),
+						element("span", "work-plan-status", stateLabel(step.status)),
+					);
+					steps.append(row);
+				}
+				section.append(steps);
+				panel.append(section);
+			}
+
 			function renderDetail(issue) {
 				const panel = document.getElementById("detail-panel");
 				panel.replaceChildren();
@@ -1122,14 +1382,22 @@
 				panel.append(head);
 
 				const facts = element("div", "facts");
+				const issuePhase = payload.machines.issue.states[issue.state].phase;
+				const issuePhaseIndex = payload.machines.issue.phases.findIndex(
+					(phase) => phase.id === issuePhase,
+				);
+				const previewPhaseIndex = payload.machines.issue.phases.findIndex(
+					(phase) => phase.id === "preview",
+				);
 				const candidate = issue.prNumber
 					? `PR #${issue.prNumber}`
-					: phaseByState[issue.state] >= 4
+					: issuePhaseIndex >= previewPhaseIndex
 						? `bot/fix-${issue.number}`
 						: "not published";
 				for (const [label, value] of [
-					["Run", durationSince(issue.currentRunStartedAt)],
-					["Current step", stateLabel(issue.state)],
+					["Issue state", stateLabel(issue.state)],
+					["Run", issue.run ? `${issue.run.mode} · ${issue.run.status}` : "not recorded"],
+					["Run phase", issue.run ? stateLabel(issue.run.phase) : "—"],
 					["Candidate", candidate],
 				]) {
 					const fact = element("div", "fact");
@@ -1137,6 +1405,7 @@
 					facts.append(fact);
 				}
 				panel.append(facts);
+				renderWorkPlan(issue, panel);
 
 				const logHead = element("div", "log-head");
 				logHead.append(
@@ -1183,7 +1452,7 @@
 					null;
 				if (selected && selectedNumber === null) selectedNumber = selected.number;
 				renderCounts();
-				renderWorkflow(selected);
+				renderMachines(selected);
 				renderIssues();
 				renderDetail(selected);
 			}
@@ -1204,7 +1473,6 @@
 					document.getElementById("counts").replaceChildren();
 					document.getElementById("issues").innerHTML =
 						'<div class="error"><strong>Could not load current work</strong>The bot itself may still be operating normally. Try this page again shortly.</div>';
-					renderWorkflow(null);
 				}
 			}
 
