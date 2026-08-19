@@ -262,6 +262,36 @@ describe("POST /webhook/github (workers-pool)", () => {
 		expect(await res.text()).toMatch(/skipped/);
 	});
 
+	test("bot PR merge advances the originating issue rather than the PR number", async () => {
+		const issueNumber = uniqueIssueNumber();
+		const pullRequestNumber = uniqueIssueNumber();
+		const res = await postWebhook({
+			eventType: "pull_request",
+			delivery: `merge-${pullRequestNumber}`,
+			payload: {
+				action: "closed",
+				pull_request: {
+					number: pullRequestNumber,
+					user: { login: "emdashbot[bot]" },
+					head: { ref: `bot/fix-${issueNumber}` },
+					merged: true,
+					labels: [{ name: "bot:bug" }, { name: "bot:in-review" }],
+				},
+				sender: { login: "alice" },
+			},
+		});
+
+		expect(res.status).toBe(202);
+		expect(await res.json()).toMatchObject({ anchor: `issue-${issueNumber}` });
+		const issueStub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
+		await issueStub.tick();
+		expect((await issueStub.getPersistedState()).state).toBe("done");
+		expect(
+			(await testEnv.Orchestrator.getByName(`issue-${pullRequestNumber}`).getPersistedState())
+				.state,
+		).toBe(null);
+	});
+
 	test("duplicate delivery is deduped at the DO layer", async () => {
 		const issueNumber = uniqueIssueNumber();
 		const payload = {

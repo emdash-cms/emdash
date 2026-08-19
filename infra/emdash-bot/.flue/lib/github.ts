@@ -88,12 +88,16 @@ async function signAppJwt(creds: GitHubAppCreds): Promise<string> {
 	return `${signingInput}.${base64UrlFromBytes(new Uint8Array(signature))}`;
 }
 
-export async function mintInstallationToken(creds: GitHubAppCreds): Promise<string> {
+export async function mintInstallationToken(
+	creds: GitHubAppCreds,
+	signal?: AbortSignal,
+): Promise<string> {
 	const jwt = await signAppJwt(creds);
 	const res = await githubFetch(
 		`${GITHUB_API}/app/installations/${creds.installationId}/access_tokens`,
 		{
 			method: "POST",
+			signal,
 			headers: {
 				authorization: `Bearer ${jwt}`,
 				accept: "application/vnd.github+json",
@@ -381,6 +385,24 @@ export async function removeLabels(
 export interface CreatedPullRequest {
 	number: number;
 	htmlUrl: string;
+}
+
+export async function getPullRequestHeadBranch(
+	token: string,
+	ctx: RepoContext,
+	prNumber: number,
+	signal?: AbortSignal,
+): Promise<string | null> {
+	const res = await githubFetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}`, {
+		headers: authHeaders(token),
+		signal,
+	});
+	if (res.status === 404) return null;
+	if (!res.ok) {
+		throw new Error(`getPullRequestHeadBranch failed: ${res.status} ${await res.text()}`);
+	}
+	const json = await res.json<{ head?: { ref?: unknown } }>();
+	return typeof json.head?.ref === "string" && json.head.ref !== "" ? json.head.ref : null;
 }
 
 export async function getOpenPullRequest(

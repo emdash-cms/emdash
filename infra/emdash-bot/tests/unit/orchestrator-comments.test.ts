@@ -87,6 +87,9 @@ describe("renderPreviewReadyAsk", () => {
 		expect(body).toContain("@alice");
 		expect(body).toContain("`bot/fix-77`");
 		expect(body).toContain("`bot/artifacts-77`");
+		expect(body).toContain("`@emdashbot confirm`");
+		expect(body).toContain("`@emdashbot reject <details>`");
+		expect(body).not.toContain('A simple "yes" or "no" is enough.');
 	});
 
 	test("falls back to a generic ask when the reporter login is unknown", () => {
