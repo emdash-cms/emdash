@@ -13,6 +13,12 @@ Runtime migration mode defaults to `auto`, so existing deployments keep applying
 
 An Astro build or sync writes `.emdash/migrations.json`. This secret-free manifest records the exact EmDash version, ordered migration set, locale configuration, and adapter migration executor used by that build.
 
+Ignore the generated manifest in source control. Deployment jobs consume it from the build workspace:
+
+```text title=".gitignore"
+.emdash/migrations.json
+```
+
 Run these commands from the project whose dependencies produced the manifest. First build and inspect the target.
 
 ```bash
