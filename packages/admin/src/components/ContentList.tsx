@@ -1018,12 +1018,20 @@ function DateRangeFilter({
 					<Button
 						variant="secondary"
 						size="sm"
-						icon={<Calendar aria-hidden="true" />}
+						icon={
+							<span
+								className="emdash-date-range-icon flex size-3 shrink-0 items-center justify-center"
+								aria-hidden="true"
+							>
+								<Calendar className="size-3" />
+							</span>
+						}
 						aria-label={t`Filter by date range: ${rangeLabel}`}
+						className="ps-3.5"
 					/>
 				}
 			>
-				{rangeLabel}
+				<span className="emdash-date-range-label">{rangeLabel}</span>
 			</Popover.Trigger>
 			<Popover.Content align="start" className="w-auto px-3 py-2.5">
 				<Popover.Title className="text-sm font-medium">{t`Choose a date range`}</Popover.Title>

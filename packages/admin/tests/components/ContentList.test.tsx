@@ -449,6 +449,37 @@ describe("ContentList", () => {
 			});
 		});
 
+		it("aligns the compact date-range trigger icon and label", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[makeItem()]}
+					statusFilter="all"
+					onStatusFilterChange={vi.fn()}
+					dateFilter={{ field: "createdAt", from: "", to: "" }}
+					onDateFilterChange={vi.fn()}
+				/>,
+			);
+			const trigger = screen.getByRole("button", { name: /Filter by date range:/ });
+			const triggerRect = trigger.element().getBoundingClientRect();
+			const icon = trigger
+				.element()
+				.querySelector(".emdash-date-range-icon")
+				?.getBoundingClientRect();
+			const label = trigger
+				.element()
+				.querySelector(".emdash-date-range-label")
+				?.getBoundingClientRect();
+			if (!icon || !label) throw new Error("Date-range trigger content did not render");
+
+			expect(triggerRect.height).toBe(26);
+			expect(getComputedStyle(trigger.element()).fontSize).toBe("12px");
+			expect(getComputedStyle(trigger.element()).paddingInlineStart).toBe("14px");
+			expect(
+				Math.abs(icon.top + icon.height / 2 - (label.top + label.height / 2)),
+			).toBeLessThanOrEqual(1);
+		});
+
 		it("supports an upper-bound-only date filter", async () => {
 			const onDateFilterChange = vi.fn();
 			const screen = await render(

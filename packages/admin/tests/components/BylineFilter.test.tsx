@@ -53,7 +53,21 @@ describe("BylineFilter", () => {
 			<BylineFilter value={EMPTY_BYLINE_FILTER} onChange={vi.fn()} locale="en" />,
 		);
 
-		await screen.getByRole("button", { name: "Filter by byline" }).click();
+		const trigger = screen.getByRole("button", { name: "Filter by byline" });
+		const triggerRect = trigger.element().getBoundingClientRect();
+		const triggerLabel = screen.getByText("All bylines").element().getBoundingClientRect();
+		const triggerIcon = trigger.element().querySelector("svg")?.getBoundingClientRect();
+		if (!triggerIcon) throw new Error("Byline filter icon did not render");
+		expect(triggerRect.height).toBe(26);
+		expect(getComputedStyle(trigger.element()).fontSize).toBe("12px");
+		expect(getComputedStyle(trigger.element()).paddingInlineStart).toBe("14px");
+		expect(
+			Math.abs(
+				triggerLabel.top + triggerLabel.height / 2 - (triggerIcon.top + triggerIcon.height / 2),
+			),
+		).toBeLessThanOrEqual(1);
+
+		await trigger.click();
 		const search = screen.getByRole("searchbox", { name: "Search bylines" });
 		const noneLabel = screen.getByText("No byline assigned");
 		const guestLabel = screen.getByText("Guest Contributor");

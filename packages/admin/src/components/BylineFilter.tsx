@@ -108,9 +108,14 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<Popover.Trigger asChild>
-				<Button variant="secondary" size="sm" aria-label={t`Filter by byline`} className="gap-2">
+				<Button
+					variant="secondary"
+					size="sm"
+					aria-label={t`Filter by byline`}
+					className="gap-1 ps-3.5"
+				>
 					<span className="max-w-[140px] truncate">{label}</span>
-					<CaretDown className="h-4 w-4 shrink-0" aria-hidden="true" />
+					<CaretDown className="size-3 shrink-0" aria-hidden="true" />
 				</Button>
 			</Popover.Trigger>
 
