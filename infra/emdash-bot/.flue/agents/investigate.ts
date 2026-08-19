@@ -64,6 +64,7 @@ import {
 	FLUE_RUN_TIMEOUT_MS,
 	SANDBOX_SLEEP_AFTER_SECONDS,
 } from "../lib/run-policy.js";
+import { withDeadline } from "../lib/sandbox-deadline.js";
 import { buildTimeoutSummaryPrompt, isTimeoutSummaryDelivery } from "../lib/timeout-recovery.js";
 import { untarInto } from "../lib/untar.js";
 import {
@@ -77,6 +78,11 @@ import {
 	upsertVerificationRecord,
 } from "../lib/verification.js";
 import { requireWorkPlanReadyForReport, updateWorkPlan, type WorkPlan } from "../lib/work-plan.js";
+import {
+	attachWorkspaceWithRetry,
+	prepareWorkspaceBeforeModel,
+	WORKSPACE_SANDBOX_ATTEMPT_LIMIT,
+} from "../lib/workspace-attachment.js";
 import { bootstrapWorkspace, type WorkspaceBootstrapStage } from "../lib/workspace-bootstrap.js";
 import diagnoseSkill from "../skills/diagnose/SKILL.md";
 import fixSkill from "../skills/fix/SKILL.md";
@@ -239,6 +245,10 @@ export function Investigate({ id }: AgentProps) {
 	);
 	const [lastFailure, setLastFailure] = usePersistentState<RunFailure | null>("last-failure", null);
 	const [workPlan, setWorkPlan] = usePersistentState<WorkPlan | null>("work-plan", null);
+	const [workspaceSandboxAttempt, setWorkspaceSandboxAttempt] = usePersistentState(
+		"workspace-sandbox-attempt",
+		0,
+	);
 	const writeResult = useDataWriter("investigation", { schema: reportedResultSchema });
 
 	useModel("cloudflare/@cf/moonshotai/kimi-k2.7-code");
@@ -246,7 +256,7 @@ export function Investigate({ id }: AgentProps) {
 		return buildTimeoutSummaryPrompt({ mode: input.mode, verification, lastFailure });
 	}
 
-	const env = execEnvFor(id, input);
+	const env = execEnvFor(id, input, workspaceSandboxAttempt, setWorkspaceSandboxAttempt);
 	const ensureTerminalReportAllowed = async () => {
 		requireTerminalReportAllowed(lastFailure);
 		if (verification.length === 0) return;
@@ -286,39 +296,32 @@ export function Investigate({ id }: AgentProps) {
 
 	useAgentStart(async ({ log }) => {
 		if (setupComplete || reported) return;
-		try {
-			await prepareWorkPlanComment(input);
-			await env.ensureRepo({ dir: REPO_DIR, ref: cloneRef(input) });
-			await env.ensureContainerReady();
-			setSetupComplete(true);
-			await recordInvestigationProgress(input, {
-				kind: "workspace_ready",
-				title: "Workspace ready",
-				detail: `Checked out ${cloneRef(input)} and restored the investigation workspace`,
-			});
-		} catch (error) {
-			setLastFailure({ stage: "workspace", message: safeFailureMessage(error) });
-			await recordInvestigationProgress(input, {
-				kind: "workspace_failed",
-				title: "Workspace setup failed",
-				detail: "The investigation workspace could not be prepared",
-			});
-			const result = failedResult(
-				`I couldn't prepare the investigation workspace: ${errorMessage(error)}`,
-				"workspace",
-			);
-			await applyInvestigationResult(input, result, false, false);
-			writeResult({
-				result,
-				ok: false,
-				pushed: false,
-				runId: input.runId,
-				publication: null,
-				verification: [],
-			});
-			setReported(true);
-			log.error("workspace setup failed", { error: errorMessage(error) });
-		}
+		await prepareWorkspaceBeforeModel({
+			prepare: async () => {
+				await prepareWorkPlanComment(input);
+				await env.ensureRepo({ dir: REPO_DIR, ref: cloneRef(input) });
+				await env.ensureContainerReady();
+				setSetupComplete(true);
+				await recordInvestigationProgress(input, {
+					kind: "workspace_ready",
+					title: "Workspace ready",
+					detail: `Checked out ${cloneRef(input)} and restored the investigation workspace`,
+				});
+			},
+			onFailure: async (error) => {
+				await recordInvestigationProgress(input, {
+					kind: "workspace_failed",
+					title: "Workspace setup failed",
+					detail: "The investigation workspace could not be prepared",
+				});
+				const result = failedResult(
+					`I couldn't prepare the investigation workspace: ${errorMessage(error)}`,
+					"workspace",
+				);
+				await applyInvestigationResult(input, result, false, false);
+				log.error("workspace setup failed", { error: errorMessage(error) });
+			},
+		});
 	});
 
 	useTool(
@@ -753,23 +756,43 @@ Investigate.durability = { maxAttempts: 5, timeoutMs: FLUE_RUN_TIMEOUT_MS };
  */
 const EXEC_ENV_REGISTRY = Symbol.for("emdash-bot.execEnvs");
 
-function execEnvRegistry(): Map<string, ExecEnv> {
-	const store = globalThis as typeof globalThis & { [EXEC_ENV_REGISTRY]?: Map<string, ExecEnv> };
+interface ExecEnvEntry {
+	readonly env: ExecEnv;
+	readonly sandboxAttempt: { current: number };
+}
+
+function execEnvRegistry(): Map<string, ExecEnvEntry> {
+	const store = globalThis as typeof globalThis & {
+		[EXEC_ENV_REGISTRY]?: Map<string, ExecEnvEntry>;
+	};
 	return (store[EXEC_ENV_REGISTRY] ??= new Map());
 }
 
-function execEnvFor(id: string, input: InvestigateData): ExecEnv {
+function execEnvFor(
+	id: string,
+	input: InvestigateData,
+	workspaceSandboxAttempt: number,
+	setWorkspaceSandboxAttempt: (attempt: number) => void,
+): ExecEnv {
 	const registry = execEnvRegistry();
 	const existing = registry.get(id);
-	if (existing) return existing;
+	if (existing) {
+		existing.sandboxAttempt.current = workspaceSandboxAttempt;
+		return existing.env;
+	}
+	const sandboxAttempt = { current: workspaceSandboxAttempt };
 	const env = new ExecEnv({
 		state: new FileSystemStateBackend(new WorkspaceFileSystem(agentWorkspace(id))),
-		attachContainer: () => attachContainer(id, input),
+		attachContainer: () =>
+			attachContainer(id, input, sandboxAttempt.current, (attempt) => {
+				sandboxAttempt.current = attempt;
+				setWorkspaceSandboxAttempt(attempt);
+			}),
 		hydrateRepo: (dir, ref) => hydrateWorkspace(id, dir, ref),
 		deadlines: DEADLINES,
 		repoDir: REPO_DIR,
 	});
-	registry.set(id, env);
+	registry.set(id, { env, sandboxAttempt });
 	return env;
 }
 
@@ -922,10 +945,52 @@ function buildCodeToolDescription(): string {
  * issue-scoped push capability the outbound proxy verifies. The harness then
  * installs dependencies when needed and creates the base workspace build.
  */
-async function attachContainer(id: string, input: InvestigateData): Promise<ContainerBackend> {
-	const container = fromSandbox(
-		getSandbox(workerEnv.Sandbox, id, { sleepAfter: SANDBOX_SLEEP_AFTER_SECONDS }),
-	);
+async function attachContainer(
+	id: string,
+	input: InvestigateData,
+	startAttempt: number,
+	onAttached: (attempt: number) => void,
+): Promise<ContainerBackend> {
+	return attachWorkspaceWithRetry({
+		agentId: id,
+		startAttempt,
+		attach: ({ sandboxId }) => attachContainerAttempt(sandboxId, input),
+		discard: async ({ sandboxId }) => {
+			await withDeadline(
+				workspaceSandbox(sandboxId).destroy(),
+				DEFAULT_RPC_TIMEOUT_MS,
+				"failed sandbox cleanup",
+			);
+		},
+		onDiscardFailure: async ({ sandboxId, discardError }) => {
+			console.warn("[investigate] failed sandbox cleanup", {
+				sandboxId,
+				error: errorMessage(discardError),
+			});
+		},
+		onRetry: async ({ attempt, error }) => {
+			console.warn("[investigate] retrying workspace on a fresh sandbox", {
+				runId: input.runId,
+				attempt: attempt + 1,
+				error: errorMessage(error),
+			});
+			await recordInvestigationProgress(input, {
+				kind: "workspace_installing",
+				title: "Retrying workspace preparation",
+				detail: `Starting a fresh sandbox after a transient platform failure (${attempt + 1}/${WORKSPACE_SANDBOX_ATTEMPT_LIMIT})`,
+			});
+		},
+		onAttached: async ({ attempt }) => {
+			onAttached(attempt);
+		},
+	});
+}
+
+async function attachContainerAttempt(
+	id: string,
+	input: InvestigateData,
+): Promise<ContainerBackend> {
+	const container = fromSandbox(workspaceSandbox(id));
 	await prepareContainer(container, input);
 	await bootstrapWorkspace(container, {
 		repoDir: REPO_DIR,
@@ -943,6 +1008,10 @@ async function attachContainer(id: string, input: InvestigateData): Promise<Cont
 			return result.exitCode === 0 && result.stdout.trim() === "true";
 		},
 	};
+}
+
+function workspaceSandbox(id: string) {
+	return getSandbox(workerEnv.Sandbox, id, { sleepAfter: SANDBOX_SLEEP_AFTER_SECONDS });
 }
 
 async function recordBootstrapProgress(
