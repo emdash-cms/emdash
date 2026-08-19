@@ -2,8 +2,8 @@
 "emdash": minor
 ---
 
-Adds deployment-managed core migrations, giving production deployments an explicit build, migrate, deploy, and verify workflow. Each Astro build writes a validated, secret-free manifest containing its exact EmDash version, ordered migration set, locale configuration, and database adapter. `emdash migrate` resolves and fingerprints the target, reports pending or unknown migrations, applies only the build's known migration set, and checks the deployed schema.
+Adds deployment-managed core migrations so production databases can be updated before a new version of the site starts serving traffic.
 
-SQLite, libSQL, PostgreSQL, D1, and Hyperdrive deployments are supported. Runtime `auto`, `check`, and `manual` modes let sites adopt the workflow gradually; existing sites continue applying migrations automatically by default.
+To adopt the workflow, build the site, inspect and apply its migrations with `emdash migrate`, deploy that same build, then run `emdash migrate --check` to verify the database. Existing sites continue applying migrations automatically by default; switch the runtime to `check` only after the deployment migration job is reliable.
 
-Builds write the manifest to `.emdash/migrations.json`. EmDash templates ignore this generated file, and existing sites should add it to `.gitignore`.
+Add `.emdash/migrations.json` to `.gitignore`, then follow [Manage Core Database Migrations](https://docs.emdashcms.com/deployment/core-migrations/) for credentials, target confirmation, CI serialization, and rollout guidance.
