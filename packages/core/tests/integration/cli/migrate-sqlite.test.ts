@@ -129,7 +129,7 @@ describe("built migrate CLI with SQLite", () => {
 			export function createMigrationExecutor(config) {
 				return {
 					target: Object.freeze({ kind: "test", label: "signal-target", fingerprint: "${"d".repeat(64)}" }),
-					execute() { return new Promise(() => { timer = setInterval(() => {}, 1_000); }); },
+					execute() { return new Promise(() => { timer = setInterval(() => {}, 1_000); process.stderr.write("executor ready\\n"); }); },
 				async dispose() { clearInterval(timer); await writeFile(config.markerPath, "disposed"); }
 				};
 			}`,
@@ -163,7 +163,7 @@ describe("built migrate CLI with SQLite", () => {
 		await new Promise<void>((resolveTarget, rejectTarget) => {
 			child.stderr.on("data", (chunk: string) => {
 				stderr += chunk;
-				if (stderr.includes("Target fingerprint:")) resolveTarget();
+				if (stderr.includes("executor ready")) resolveTarget();
 			});
 			child.once("error", rejectTarget);
 			child.once("exit", (code, signal) =>
@@ -176,5 +176,5 @@ describe("built migrate CLI with SQLite", () => {
 		expect(code).toBe(MIGRATE_EXIT_CODES.interrupted);
 		expect(signal).toBeNull();
 		expect(await readFile(markerPath, "utf8")).toBe("disposed");
-	});
+	}, 15_000);
 });
