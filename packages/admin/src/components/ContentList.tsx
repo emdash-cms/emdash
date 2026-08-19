@@ -885,7 +885,7 @@ function FilterBar({
 		<>
 			<Select
 				size="sm"
-				className="min-w-32"
+				className="min-w-32 ps-3.5"
 				aria-label={t`Filter by status`}
 				value={statusFilter}
 				onValueChange={(v) => onStatusFilterChange((v as ContentStatusFilter) ?? "all")}
@@ -929,7 +929,7 @@ function FilterBar({
 				<>
 					<Select
 						size="sm"
-						className="min-w-28"
+						className="min-w-28 ps-3.5"
 						aria-label={t`Date field to filter on`}
 						value={dateFilter.field}
 						onValueChange={(v) =>

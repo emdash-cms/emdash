@@ -14,6 +14,12 @@ import { render } from "../utils/render.tsx";
 const NO_RESULTS_PATTERN = /No results for/;
 const HAS_MORE_ITEMS_PATTERN = /21\+ items/;
 
+function getTextRect(element: Element): DOMRect {
+	const range = document.createRange();
+	range.selectNodeContents(element);
+	return range.getBoundingClientRect();
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -356,15 +362,22 @@ describe("ContentList", () => {
 			);
 			const filter = screen.getByRole("combobox", { name: "Filter by status" });
 			const triggerRect = filter.element().getBoundingClientRect();
+			const triggerValue = filter.element().firstElementChild;
+			if (!triggerValue) throw new Error("Status trigger value did not render");
+			const triggerTextRect = getTextRect(triggerValue);
 
 			await filter.click();
 			const menuRect = screen.getByRole("listbox").element().getBoundingClientRect();
+			const option = screen.getByRole("option", { name: "Published" });
+			const optionValue = option.element().firstElementChild;
+			if (!optionValue) throw new Error("Status option value did not render");
 
 			expect(Math.abs(menuRect.width - triggerRect.width)).toBeLessThanOrEqual(1);
 			expect(Math.abs(menuRect.left - triggerRect.left)).toBeLessThanOrEqual(1);
-			expect(
-				getComputedStyle(screen.getByRole("option", { name: "Published" }).element()).fontSize,
-			).toBe(getComputedStyle(filter.element()).fontSize);
+			expect(Math.abs(getTextRect(optionValue).left - triggerTextRect.left)).toBeLessThanOrEqual(1);
+			expect(getComputedStyle(option.element()).fontSize).toBe(
+				getComputedStyle(filter.element()).fontSize,
+			);
 		});
 
 		it("keeps the date-field trigger aligned with the open menu width", async () => {
@@ -379,15 +392,22 @@ describe("ContentList", () => {
 			);
 			const filter = screen.getByRole("combobox", { name: "Date field to filter on" });
 			const triggerRect = filter.element().getBoundingClientRect();
+			const triggerValue = filter.element().firstElementChild;
+			if (!triggerValue) throw new Error("Date-field trigger value did not render");
+			const triggerTextRect = getTextRect(triggerValue);
 
 			await filter.click();
 			const menuRect = screen.getByRole("listbox").element().getBoundingClientRect();
+			const option = screen.getByRole("option", { name: "Updated" });
+			const optionValue = option.element().firstElementChild;
+			if (!optionValue) throw new Error("Date-field option value did not render");
 
 			expect(Math.abs(menuRect.width - triggerRect.width)).toBeLessThanOrEqual(1);
 			expect(Math.abs(menuRect.left - triggerRect.left)).toBeLessThanOrEqual(1);
-			expect(
-				getComputedStyle(screen.getByRole("option", { name: "Updated" }).element()).fontSize,
-			).toBe(getComputedStyle(filter.element()).fontSize);
+			expect(Math.abs(getTextRect(optionValue).left - triggerTextRect.left)).toBeLessThanOrEqual(1);
+			expect(getComputedStyle(option.element()).fontSize).toBe(
+				getComputedStyle(filter.element()).fontSize,
+			);
 		});
 
 		it("opens the date range calendar and clears the active range", async () => {
