@@ -18,7 +18,8 @@ import * as React from "react";
 
 import { formatFileSize } from "../lib/media-utils.js";
 
-const MEDIA_UPLOAD_ACCEPT = "image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx";
+export const LOCAL_MEDIA_UPLOAD_ACCEPT =
+	"image/png,image/jpeg,image/gif,image/webp,video/*,audio/*,application/pdf";
 
 const DEFAULT_CONCURRENCY = 3;
 const MAX_CONCURRENCY = 6;
@@ -39,6 +40,7 @@ interface UploadRow {
 export interface MediaUploadDialogProps {
 	open: boolean;
 	providerName: string;
+	accept?: string;
 	enqueueRequest: { id: number; files: readonly File[] } | null;
 	onEnqueueRequestConsumed: (id: number) => void;
 	onOpenChange: (open: boolean) => void;
@@ -166,6 +168,7 @@ function UploadFileRow({
 export function MediaUploadDialog({
 	open,
 	providerName,
+	accept,
 	enqueueRequest,
 	onEnqueueRequestConsumed,
 	onOpenChange,
@@ -439,7 +442,7 @@ export function MediaUploadDialog({
 							ref={inputRef}
 							type="file"
 							multiple
-							accept={MEDIA_UPLOAD_ACCEPT}
+							accept={accept}
 							className="sr-only"
 							tabIndex={-1}
 							aria-label={t`Browse files to upload`}

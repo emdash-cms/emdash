@@ -26,7 +26,7 @@ import {
 } from "../lib/media-utils";
 import { cn } from "../lib/utils";
 import { MediaDetailPanel } from "./MediaDetailPanel";
-import { MediaUploadDialog } from "./MediaUploadDialog.js";
+import { LOCAL_MEDIA_UPLOAD_ACCEPT, MediaUploadDialog } from "./MediaUploadDialog.js";
 
 /** Maps a coarse type-filter choice to the media list's `mimeType` filter. */
 function mimeForTypeFilter(value: string): string | string[] | undefined {
@@ -603,6 +603,7 @@ export function MediaLibrary({
 			<MediaUploadDialog
 				open={uploadDialogOpen}
 				providerName={uploadTarget?.name ?? activeProviderInfo?.name ?? t`Library`}
+				accept={uploadTarget?.id === "local" ? LOCAL_MEDIA_UPLOAD_ACCEPT : undefined}
 				enqueueRequest={enqueueRequest}
 				onEnqueueRequestConsumed={(id) =>
 					setEnqueueRequest((current) => (current?.id === id ? null : current))
