@@ -152,6 +152,11 @@ body {
 	background-color: var(--color-kumo-interact) !important;
 }
 
+div:has(> [role="listbox"] > .emdash-compact-select-option) {
+	width: var(--anchor-width);
+	min-width: var(--anchor-width);
+}
+
 /* Transitions.dev — Text states swap */
 :root {
 	--text-swap-dur: 150ms;

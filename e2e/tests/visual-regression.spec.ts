@@ -57,6 +57,14 @@ interface PageCase {
 	name: string;
 	path: (info: ServerInfo) => string;
 	extraMasks?: (admin: AdminPage) => Locator[];
+	prepare?: (admin: AdminPage) => Promise<void>;
+}
+
+function openFilter(trigger: string, popup: string): (admin: AdminPage) => Promise<void> {
+	return async (admin) => {
+		await admin.page.locator(trigger).click();
+		await admin.page.locator(popup).waitFor({ state: "visible" });
+	};
 }
 
 const PAGES: PageCase[] = [
@@ -71,6 +79,30 @@ const PAGES: PageCase[] = [
 		path: () => "/content/posts",
 		// The Updated column is an absolute date (the seed day) -- guaranteed to
 		// differ between a committed baseline and any later run.
+		extraMasks: (admin) => [admin.page.getByTestId("content-updated")],
+	},
+	{
+		name: "content-list-status-filter",
+		path: () => "/content/posts",
+		prepare: openFilter(".emdash-status-filter-trigger", '[role="listbox"]:visible'),
+		extraMasks: (admin) => [admin.page.getByTestId("content-updated")],
+	},
+	{
+		name: "content-list-date-field-filter",
+		path: () => "/content/posts",
+		prepare: openFilter(".emdash-date-field-filter-trigger", '[role="listbox"]:visible'),
+		extraMasks: (admin) => [admin.page.getByTestId("content-updated")],
+	},
+	{
+		name: "content-list-byline-filter",
+		path: () => "/content/posts",
+		prepare: openFilter(".emdash-byline-filter-trigger", ".kumo-popover-popup:visible"),
+		extraMasks: (admin) => [admin.page.getByTestId("content-updated")],
+	},
+	{
+		name: "content-list-date-range-filter",
+		path: () => "/content/posts",
+		prepare: openFilter(".emdash-date-range-trigger", ".kumo-popover-popup:visible"),
 		extraMasks: (admin) => [admin.page.getByTestId("content-updated")],
 	},
 	{
@@ -144,6 +176,7 @@ test.describe("visual regression", () => {
 				await setLocale(admin, locale.code);
 				await openAdmin(admin, pageCase.path(serverInfo), locale.dir);
 				await stabilize(admin);
+				await pageCase.prepare?.(admin);
 
 				await expect(admin.page).toHaveScreenshot(`${pageCase.name}-${locale.name}.png`, {
 					fullPage: true,
