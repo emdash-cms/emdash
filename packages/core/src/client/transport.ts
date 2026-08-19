@@ -186,11 +186,8 @@ export function refreshInterceptor(options: {
 	}
 
 	return async (request, next) => {
-		// A request body can only be read once, and sending the request consumes
-		// it. Keep a clone taken before the first attempt so the retry has an
-		// unused request to rebuild from -- deriving it from the original throws
-		// "Cannot construct a Request with a Request object that has already been
-		// used" for every request that carries a body.
+		// A request body can only be read once; clone before sending so the
+		// 401 retry has an unconsumed request to rebuild from.
 		const retryTemplate = request.body ? request.clone() : request;
 
 		const response = await next(request);
