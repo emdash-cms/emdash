@@ -360,7 +360,8 @@ Tool directives are exempt from all of the above: `eslint-disable`, `oxlint-disa
 
 - Use `import.meta.env.DEV` / `import.meta.env.PROD` (Vite/Astro standard). Never `process.env.NODE_ENV`.
 - Dev-only endpoints must check `import.meta.env.DEV` and return 403 otherwise -- it's a compile-time constant, unspoofable at runtime.
-- Secrets pattern: `import.meta.env.EMDASH_X || import.meta.env.X || ""`.
+- Public build-time config pattern: `import.meta.env.EMDASH_X || import.meta.env.X || ""`.
+- **Secrets read `process.env` only, never `import.meta.env`** -- Vite statically inlines `import.meta.env`, which bakes build-machine secrets into the bundle and shadows runtime values set on the deployment platform. See `packages/core/src/config/secrets.ts`.
 
 ## Cloudflare Env
 

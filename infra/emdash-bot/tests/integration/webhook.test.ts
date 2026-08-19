@@ -113,7 +113,9 @@ describe("POST /webhook/github (workers-pool)", () => {
 		const res = await SELF.fetch("https://test/");
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toContain("text/html");
-		expect(await res.text()).toContain("The path from issue to merge");
+		const html = await res.text();
+		expect(html).toContain("Issue lifecycle");
+		expect(html).toContain("Agent run");
 	});
 
 	test("dashboard API fails closed when GitHub credentials are unavailable", async () => {

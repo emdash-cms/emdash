@@ -1,33 +1,50 @@
-# emdashbot state machine
+# emdashbot lifecycle machines
 
 <!-- Generated from .flue/lib/machine.ts by `pnpm bot:generate`. Do not edit by hand. -->
 
+The issue lifecycle coordinates the long-lived GitHub item. The agent run lifecycle records one bounded execution attempt. GitHub labels project the issue state; run mode and phase remain in Durable Object storage.
+
+## Issue lifecycle
+
 Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 
-## States
+### Phases
 
-| State | Label | Board column | Terminal | Transient | Offered commands |
-| --- | --- | --- | --- | --- | --- |
-| `unmanaged` | — | (none) | no | no | `investigate`, `repro`, `implement`, `decline` |
-| `triage` | `bot:triage` | Triage | no | no | `investigate`, `repro`, `implement`, `decline` |
-| `working` | `bot:working` | Working | no | yes | `status` |
-| `blocked` | `bot:blocked` | Blocked | no | no | `investigate`, `implement`, `repro`, `retry`, `decline`, `take_over` |
-| `awaiting_feedback` | `bot:awaiting-feedback` | Awaiting feedback | no | no | `confirm`, `reject`, `retry`, `take_over` |
-| `in_review` | `bot:in-review` | In review | no | no | `revise`, `decline`, `take_over` |
-| `human_owned` | `bot:human-owned` | Human owned | no | no | `hand_back` |
-| `done` | `bot:done` | Done | yes | no | `reopen` |
-| `declined` | `bot:declined` | Declined | yes | no | `reopen` |
-| `failed` | `bot:failed` | Failed | no | no | `resume`, `retry`, `implement`, `repro`, `investigate`, `decline` |
-| `investigating` | `bot:investigating` | Investigating | no | yes | `status` |
-| `reproduced` | `bot:reproduced` | Reproduced | no | no | `fix`, `investigate`, `decline`, `take_over` |
-| `diagnosed` | `bot:diagnosed` | Diagnosed | no | no | `fix`, `investigate`, `decline`, `take_over` |
-| `not_reproduced` | `bot:not-reproduced` | Not reproduced | no | no | `investigate`, `decline`, `take_over` |
-| `needs_info` | `bot:needs-info` | Needs info | no | no | `investigate`, `decline`, `take_over` |
-| `fixing` | `bot:fixing` | Fixing | no | yes | `status` |
-| `preview_building` | `bot:preview-building` | Building preview | no | yes | `status` |
-| `awaiting_reporter` | `bot:awaiting-reporter` | Awaiting reporter | no | no | `confirm`, `reject`, `decline`, `take_over` |
+| Phase | Label |
+| --- | --- |
+| `intake` | Triage |
+| `evidence` | Investigate |
+| `verdict` | Establish |
+| `candidate` | Build |
+| `preview` | Preview |
+| `confirmation` | Confirm |
+| `review` | Review |
+| `complete` | Done |
 
-## Events
+### States
+
+| State | Phase | Label | Board column | Terminal | Transient | Offered commands |
+| --- | --- | --- | --- | --- | --- | --- |
+| `unmanaged` | `intake` | — | (none) | no | no | `investigate`, `repro`, `implement`, `decline` |
+| `triage` | `intake` | `bot:triage` | Triage | no | no | `investigate`, `repro`, `implement`, `decline` |
+| `working` | `evidence` | `bot:working` | Working | no | yes | `status` |
+| `blocked` | `candidate` | `bot:blocked` | Blocked | no | no | `investigate`, `implement`, `repro`, `retry`, `decline`, `take_over` |
+| `awaiting_feedback` | `confirmation` | `bot:awaiting-feedback` | Awaiting feedback | no | no | `confirm`, `reject`, `retry`, `take_over` |
+| `in_review` | `review` | `bot:in-review` | In review | no | no | `revise`, `decline`, `take_over` |
+| `human_owned` | `review` | `bot:human-owned` | Human owned | no | no | `hand_back` |
+| `done` | `complete` | `bot:done` | Done | yes | no | `reopen` |
+| `declined` | `complete` | `bot:declined` | Declined | yes | no | `reopen` |
+| `failed` | `candidate` | `bot:failed` | Failed | no | no | `resume`, `retry`, `implement`, `repro`, `investigate`, `decline` |
+| `investigating` | `evidence` | `bot:investigating` | Investigating | no | yes | `status` |
+| `reproduced` | `verdict` | `bot:reproduced` | Reproduced | no | no | `fix`, `investigate`, `decline`, `take_over` |
+| `diagnosed` | `verdict` | `bot:diagnosed` | Diagnosed | no | no | `fix`, `investigate`, `decline`, `take_over` |
+| `not_reproduced` | `verdict` | `bot:not-reproduced` | Not reproduced | no | no | `investigate`, `decline`, `take_over` |
+| `needs_info` | `verdict` | `bot:needs-info` | Needs info | no | no | `investigate`, `decline`, `take_over` |
+| `fixing` | `candidate` | `bot:fixing` | Fixing | no | yes | `status` |
+| `preview_building` | `preview` | `bot:preview-building` | Building preview | no | yes | `status` |
+| `awaiting_reporter` | `confirmation` | `bot:awaiting-reporter` | Awaiting reporter | no | no | `confirm`, `reject`, `decline`, `take_over` |
+
+### Events
 
 | Event | Category | Actors | Arg | Description |
 | --- | --- | --- | --- | --- |
@@ -64,7 +81,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `preview.failed` | preview | system | — | The preview deploy failed to build. |
 | `expire` | timer | system | — | The reporter-confirmation window elapsed without a reply. |
 
-## Transitions
+### Transitions
 
 | From | Event | To | Action |
 | --- | --- | --- | --- |
@@ -163,7 +180,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `preview_building` | `reset` | `triage` | — |
 | `awaiting_reporter` | `reset` | `triage` | — |
 
-## Diagram
+### Diagram
 
 ```mermaid
 stateDiagram-v2
@@ -267,4 +284,52 @@ stateDiagram-v2
     fixing --> triage: reset
     preview_building --> triage: reset
     awaiting_reporter --> triage: reset
+```
+
+## Agent run lifecycle
+
+A run stores its mode, selected phase plan, current phase, status, attempt, and fixed deadline independently from the issue state. An explicit `implement` directive selects the direct implementation plan and omits reproduction and diagnosis.
+
+### Phases
+
+| Phase | Label |
+| --- | --- |
+| `prepare` | Prepare |
+| `reproduce` | Reproduce |
+| `diagnose` | Diagnose |
+| `edit` | Edit |
+| `finalize` | Finalize |
+| `verify` | Verify |
+| `publish` | Publish |
+| `report` | Report |
+
+### Plans
+
+| Mode | Ordered phases |
+| --- | --- |
+| `diagnose` | `prepare` → `reproduce` → `diagnose` → `report` |
+| `repro` | `prepare` → `reproduce` → `diagnose` → `edit` → `finalize` → `verify` → `publish` → `report` |
+| `implement` | `prepare` → `edit` → `finalize` → `verify` → `publish` → `report` |
+| `fix` | `prepare` → `edit` → `finalize` → `verify` → `publish` → `report` |
+| `revise` | `prepare` → `edit` → `finalize` → `verify` → `publish` → `report` |
+
+### Statuses
+
+`running`, `succeeded`, `failed`, `timed_out`, `cancelled`
+
+### Diagram
+
+```mermaid
+stateDiagram-v2
+    [*] --> prepare
+    prepare --> reproduce: diagnose, repro
+    reproduce --> diagnose: diagnose, repro
+    diagnose --> report: diagnose
+    diagnose --> edit: repro
+    edit --> finalize: repro, implement, fix, revise
+    finalize --> verify: repro, implement, fix, revise
+    verify --> publish: repro, implement, fix, revise
+    publish --> report: repro, implement, fix, revise
+    prepare --> edit: implement, fix, revise
+    report --> [*]
 ```

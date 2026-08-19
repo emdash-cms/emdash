@@ -52,6 +52,16 @@ import {
 	outcomeFromResult,
 	resolve,
 } from "./router.js";
+import {
+	advanceRunLifecycle,
+	publicRunLifecycle,
+	resumeRunLifecycle,
+	settleRunLifecycle,
+	startRunLifecycle,
+	type PublicRunLifecycle,
+	type RunLifecycle,
+	type RunProgressKind,
+} from "./run-lifecycle.js";
 import { DEADLINE_WARNING_MESSAGE, runBudgetMs, runSchedule } from "./run-policy.js";
 import { DeadlineExceededError, withDeadline } from "./sandbox-deadline.js";
 import {
@@ -192,12 +202,7 @@ interface EventLogEntry {
 	readonly deliveryId?: string;
 }
 
-export type PublicProgressKind =
-	| "workspace_ready"
-	| "workspace_failed"
-	| "verification_passed"
-	| "verification_failed"
-	| "candidate_published";
+export type PublicProgressKind = RunProgressKind;
 
 export interface PublicProgressEntry {
 	readonly t: number;
@@ -210,6 +215,7 @@ export interface PublicProgressEntry {
 export interface PublicIssueSnapshot {
 	readonly state: StateId | null;
 	readonly kind: Kind | null;
+	readonly run: PublicRunLifecycle | null;
 	readonly currentRunStartedAt: number | null;
 	readonly prNumber: number | null;
 	readonly transitions: ReadonlyArray<{
@@ -236,6 +242,8 @@ const STORAGE = {
 	kind: "o:kind",
 	currentRunId: "o:currentRunId",
 	currentRunMode: "o:currentRunMode",
+	runLifecycle: "o:runLifecycle",
+	failedRunMode: "o:failedRunMode",
 	currentRunStartedAt: "o:currentRunStartedAt",
 	currentAgentId: "o:currentAgentId",
 	currentDispatchId: "o:currentDispatchId",
@@ -424,10 +432,19 @@ export class OrchestratorDO extends DurableObject<Env> {
 		// back to the webhook's snapshot for first-time mentions.
 		const persistedLabels = await this.projectLabels();
 		const labels = persistedLabels.length > 0 ? persistedLabels : input.labels;
-		const resumableRun =
+		const [resumableRun, failedRunMode, previousRun] = await Promise.all([
 			resolvedEvent === "resume"
-				? ((await this.ctx.storage.get<ResumableRunCheckpoint>(STORAGE.resumableRun)) ?? null)
-				: null;
+				? this.ctx.storage.get<ResumableRunCheckpoint>(STORAGE.resumableRun)
+				: null,
+			resolvedEvent === "retry"
+				? this.ctx.storage.get<InvestigationMode>(STORAGE.failedRunMode)
+				: null,
+			resolvedEvent === "retry" ? this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle) : null,
+		]);
+		const retryMode =
+			previousRun?.status === "failed" || previousRun?.status === "timed_out"
+				? previousRun.mode
+				: failedRunMode;
 
 		const decision = resolve({
 			labels,
@@ -435,6 +452,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			arg: resolvedArg,
 			actor: input.actor,
 			...(resumableRun ? { resumeState: resumableRun.state } : {}),
+			...(retryMode ? { retryMode } : {}),
 		});
 
 		if (decision.kind === "noop") {
@@ -529,6 +547,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		return this.ctx.storage.transaction(async (transaction) => {
 			if ((await transaction.get<string>(STORAGE.currentRunId)) !== input.runId) return false;
 			const existing = (await transaction.get<PublicProgressEntry[]>(STORAGE.publicProgress)) ?? [];
+			const run = await transaction.get<RunLifecycle>(STORAGE.runLifecycle);
 			const entry: PublicProgressEntry = {
 				t: Date.now(),
 				kind: input.kind,
@@ -536,10 +555,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 				detail: input.detail ? sanitizePublicProgressText(input.detail, 240) : null,
 				runId: input.runId,
 			};
-			await transaction.put(
-				STORAGE.publicProgress,
-				[...existing, entry].slice(-PUBLIC_PROGRESS_LIMIT),
-			);
+			await Promise.all([
+				transaction.put(STORAGE.publicProgress, [...existing, entry].slice(-PUBLIC_PROGRESS_LIMIT)),
+				...(run?.runId === input.runId
+					? [transaction.put(STORAGE.runLifecycle, advanceRunLifecycle(run, input.kind))]
+					: []),
+			]);
 			return true;
 		});
 	}
@@ -550,10 +571,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 		pushed: boolean;
 		ok: boolean;
 	}): Promise<EventOutcome> {
-		const [currentRunId, currentRunMode] = await Promise.all([
+		const [currentRunId, legacyRunMode, run] = await Promise.all([
 			this.ctx.storage.get<string>(STORAGE.currentRunId),
 			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
+			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
 		]);
+		const currentRunMode = run?.runId === input.runId ? run.mode : legacyRunMode;
 		if (currentRunId !== input.runId) {
 			return { kind: "stale-run", runId: input.runId, currentRunId: currentRunId ?? null };
 		}
@@ -895,8 +918,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 	private async armAlarm(): Promise<void> {
 		const [
 			current,
-			runStartedAt,
-			runMode,
+			run,
+			legacyRunStartedAt,
+			legacyRunMode,
 			warningSentRunId,
 			warningRetryAt,
 			currentRunId,
@@ -906,6 +930,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			previewPollNextAt,
 		] = await Promise.all([
 			this.ctx.storage.getAlarm(),
+			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
 			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
 			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
 			this.ctx.storage.get<string>(STORAGE.deadlineWarningSentRunId),
@@ -917,6 +942,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 			this.ctx.storage.get<number>(STORAGE.previewPollNextAt),
 		]);
 		const now = Date.now();
+		const activeRun = run?.status === "running" ? run : null;
+		const runStartedAt = activeRun?.startedAt ?? legacyRunStartedAt;
+		const runMode = activeRun?.mode ?? legacyRunMode;
 		const scheduledRunAlarm = runStartedAt
 			? runSchedule(runMode ?? "repro", runStartedAt, warningSentRunId === currentRunId).nextAlarmAt
 			: null;
@@ -940,14 +968,19 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	private async sendDeadlineWarningIfDue(now: number): Promise<boolean> {
-		const [runId, agentId, mode, startedAt, warningSentRunId, state] = await Promise.all([
-			this.ctx.storage.get<string>(STORAGE.currentRunId),
-			this.ctx.storage.get<string>(STORAGE.currentAgentId),
-			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
-			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
-			this.ctx.storage.get<string>(STORAGE.deadlineWarningSentRunId),
-			this.ctx.storage.get<StateId>(STORAGE.state),
-		]);
+		const [runId, agentId, run, legacyMode, legacyStartedAt, warningSentRunId, state] =
+			await Promise.all([
+				this.ctx.storage.get<string>(STORAGE.currentRunId),
+				this.ctx.storage.get<string>(STORAGE.currentAgentId),
+				this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
+				this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
+				this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
+				this.ctx.storage.get<string>(STORAGE.deadlineWarningSentRunId),
+				this.ctx.storage.get<StateId>(STORAGE.state),
+			]);
+		const activeRun = run && run.runId === runId && run.status === "running" ? run : null;
+		const mode = activeRun?.mode ?? legacyMode;
+		const startedAt = activeRun?.startedAt ?? legacyStartedAt;
 		if (
 			!runId ||
 			!agentId ||
@@ -1068,11 +1101,15 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	private async recoverStaleRun(now: number): Promise<boolean> {
-		const [startedAt, mode, state] = await Promise.all([
+		const [run, legacyStartedAt, legacyMode, state] = await Promise.all([
+			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
 			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
 			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
 			this.ctx.storage.get<StateId>(STORAGE.state),
 		]);
+		const activeRun = run?.status === "running" ? run : null;
+		const startedAt = activeRun?.startedAt ?? legacyStartedAt;
+		const mode = activeRun?.mode ?? legacyMode;
 		if (startedAt === undefined) return false;
 		if (now - startedAt < runBudgetMs(mode ?? "repro")) return false;
 		const runId = await this.ctx.storage.get<string>(STORAGE.currentRunId);
@@ -1853,9 +1890,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 	): Promise<string | null> {
 		const sideEffectId = input.dryRun ? null : crypto.randomUUID();
 		return this.ctx.storage.transaction(async (transaction) => {
+			const now = Date.now();
 			const existing = (await transaction.get<EventLogEntry[]>(STORAGE.eventLog)) ?? [];
 			const entry: EventLogEntry = {
-				t: Date.now(),
+				t: now,
 				event: decision.event,
 				actor: input.actor,
 				from: decision.from === "conflicting" ? "conflicting" : decision.from,
@@ -1867,7 +1905,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				transaction.put(STORAGE.state, decision.to),
 				transaction.put(STORAGE.eventLog, eventLog),
 				decision.to === "awaiting_reporter"
-					? transaction.put(STORAGE.awaitingReporterSince, Date.now())
+					? transaction.put(STORAGE.awaitingReporterSince, now)
 					: transaction.delete(STORAGE.awaitingReporterSince),
 			];
 			if (input.settlesDeliveryId) {
@@ -1881,8 +1919,28 @@ export class OrchestratorDO extends DurableObject<Env> {
 					);
 				}
 			}
+			if (decision.event.startsWith("agent.") && input.settlesRunId) {
+				const run = await transaction.get<RunLifecycle>(STORAGE.runLifecycle);
+				if (run?.runId === input.settlesRunId) {
+					const status =
+						decision.event === "agent.failed"
+							? input.agentFailureStage === "timeout"
+								? "timed_out"
+								: "failed"
+							: "succeeded";
+					puts.push(transaction.put(STORAGE.runLifecycle, settleRunLifecycle(run, status, now)));
+				}
+			}
+			if (decision.event === "agent.failed" && input.settlesRunId) {
+				const run = await transaction.get<RunLifecycle>(STORAGE.runLifecycle);
+				const failedRunMode =
+					run?.runId === input.settlesRunId
+						? run.mode
+						: await transaction.get<InvestigationMode>(STORAGE.currentRunMode);
+				if (failedRunMode) puts.push(transaction.put(STORAGE.failedRunMode, failedRunMode));
+			}
 			if (decision.to === "preview_building") {
-				const startedAt = Date.now();
+				const startedAt = now;
 				puts.push(
 					transaction.put(STORAGE.previewBuildDeadline, startedAt + PREVIEW_BUILD_TIMEOUT_MS),
 					transaction.put(STORAGE.previewPollNextAt, startedAt + PREVIEW_POLL_INITIAL_MS),
@@ -1907,13 +1965,20 @@ export class OrchestratorDO extends DurableObject<Env> {
 				if (kind) puts.push(transaction.put(STORAGE.kind, kind));
 			}
 			if (preparedInvestigation) {
+				const run = startRunLifecycle({
+					runId: preparedInvestigation.runId,
+					mode: preparedInvestigation.mode,
+					startedAt: now,
+				});
 				puts.push(
 					transaction.put(STORAGE.currentRunId, preparedInvestigation.runId),
 					transaction.put(STORAGE.currentRunMode, preparedInvestigation.mode),
-					transaction.put(STORAGE.currentRunStartedAt, Date.now()),
+					transaction.put(STORAGE.currentRunStartedAt, now),
+					transaction.put(STORAGE.runLifecycle, run),
 					transaction.put(STORAGE.currentAgentId, preparedInvestigation.agentId),
 					transaction.delete(STORAGE.deadlineWarningSentRunId),
 					transaction.delete(STORAGE.deadlineWarningRetryAt),
+					transaction.delete(STORAGE.failedRunMode),
 					transaction.put(STORAGE.pendingDispatch, {
 						...preparedInvestigation,
 						...(input.deliveryId ? { deliveryId: input.deliveryId } : {}),
@@ -1922,13 +1987,24 @@ export class OrchestratorDO extends DurableObject<Env> {
 				);
 			}
 			if (preparedResume) {
+				const existingRun = await transaction.get<RunLifecycle>(STORAGE.runLifecycle);
+				const run =
+					existingRun?.runId === preparedResume.checkpoint.runId
+						? resumeRunLifecycle(existingRun, now)
+						: startRunLifecycle({
+								runId: preparedResume.checkpoint.runId,
+								mode: preparedResume.checkpoint.mode,
+								startedAt: now,
+							});
 				puts.push(
 					transaction.put(STORAGE.currentRunId, preparedResume.checkpoint.runId),
 					transaction.put(STORAGE.currentRunMode, preparedResume.checkpoint.mode),
-					transaction.put(STORAGE.currentRunStartedAt, Date.now()),
+					transaction.put(STORAGE.currentRunStartedAt, now),
+					transaction.put(STORAGE.runLifecycle, run),
 					transaction.put(STORAGE.currentAgentId, preparedResume.checkpoint.agentId),
 					transaction.delete(STORAGE.deadlineWarningSentRunId),
 					transaction.delete(STORAGE.deadlineWarningRetryAt),
+					transaction.delete(STORAGE.failedRunMode),
 					transaction.put(STORAGE.pendingResume, {
 						...preparedResume,
 						dryRun: input.dryRun === true,
@@ -1941,7 +2017,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 					decision.event === "decline" ||
 					decision.event === "take_over")
 			) {
-				puts.push(transaction.delete(STORAGE.resumableRun));
+				const run = await transaction.get<RunLifecycle>(STORAGE.runLifecycle);
+				puts.push(
+					transaction.delete(STORAGE.resumableRun),
+					transaction.delete(STORAGE.failedRunMode),
+					...(run?.status === "running"
+						? [transaction.put(STORAGE.runLifecycle, settleRunLifecycle(run, "cancelled", now))]
+						: []),
+				);
 			}
 			const anchorNumber =
 				input.anchorNumber ?? (await transaction.get<number>(STORAGE.anchorNumber));
@@ -2270,17 +2353,32 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	async getPublicSnapshot(): Promise<PublicIssueSnapshot> {
-		const [state, kind, currentRunStartedAt, prNumber, transitions, progress] = await Promise.all([
-			this.ctx.storage.get<StateId>(STORAGE.state),
-			this.ctx.storage.get<Kind>(STORAGE.kind),
-			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
-			this.ctx.storage.get<number>(STORAGE.prNumber),
-			this.ctx.storage.get<EventLogEntry[]>(STORAGE.eventLog),
-			this.ctx.storage.get<PublicProgressEntry[]>(STORAGE.publicProgress),
-		]);
+		const [state, kind, run, legacyMode, currentRunStartedAt, prNumber, transitions, progress] =
+			await Promise.all([
+				this.ctx.storage.get<StateId>(STORAGE.state),
+				this.ctx.storage.get<Kind>(STORAGE.kind),
+				this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
+				this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
+				this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
+				this.ctx.storage.get<number>(STORAGE.prNumber),
+				this.ctx.storage.get<EventLogEntry[]>(STORAGE.eventLog),
+				this.ctx.storage.get<PublicProgressEntry[]>(STORAGE.publicProgress),
+			]);
+		const publicRun = run
+			? publicRunLifecycle(run)
+			: legacyMode && currentRunStartedAt !== undefined
+				? publicRunLifecycle(
+						startRunLifecycle({
+							runId: "legacy",
+							mode: legacyMode,
+							startedAt: currentRunStartedAt,
+						}),
+					)
+				: null;
 		return {
 			state: state ?? null,
 			kind: kind ?? null,
+			run: publicRun,
 			currentRunStartedAt: currentRunStartedAt ?? null,
 			prNumber: prNumber ?? null,
 			transitions: (transitions ?? []).map(({ t, event, from, to }) => ({
@@ -2322,6 +2420,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 			this.ctx.storage.delete(STORAGE.deadlineWarningRetryAt),
 			...(agentId ? [this.ctx.storage.put(STORAGE.currentAgentId, agentId)] : []),
 			...(mode ? [this.ctx.storage.put(STORAGE.currentRunMode, mode)] : []),
+			...(mode
+				? [
+						this.ctx.storage.put(
+							STORAGE.runLifecycle,
+							startRunLifecycle({ runId, mode, startedAt }),
+						),
+					]
+				: []),
 		]);
 	}
 
@@ -2346,12 +2452,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 		warningAt: number | null;
 		warningSentRunId: string | null;
 	}> {
-		const [runId, mode, startedAt, warningSentRunId] = await Promise.all([
+		const [runId, run, legacyMode, legacyStartedAt, warningSentRunId] = await Promise.all([
 			this.ctx.storage.get<string>(STORAGE.currentRunId),
+			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
 			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
 			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
 			this.ctx.storage.get<string>(STORAGE.deadlineWarningSentRunId),
 		]);
+		const activeRun = run && run.runId === runId && run.status === "running" ? run : null;
+		const mode = activeRun?.mode ?? legacyMode;
+		const startedAt = activeRun?.startedAt ?? legacyStartedAt;
 		if (!runId || !mode || startedAt === undefined) {
 			return { deadlineAt: null, warningAt: null, warningSentRunId: warningSentRunId ?? null };
 		}
