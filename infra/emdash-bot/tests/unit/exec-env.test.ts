@@ -6,7 +6,6 @@ import {
 	ExecEnv,
 	fromSandbox,
 	type IsolateState,
-	parseRawGitDiff,
 } from "../../.flue/lib/exec-env.js";
 
 function fakeState(initial?: Record<string, string>): {
@@ -232,7 +231,7 @@ describe("ExecEnv container exec", () => {
 		);
 		const env = makeEnv({ container: con.container });
 
-		await expect(env.runCheck("pnpm format")).rejects.toThrow(/command modified the candidate/);
+		await expect(env.execReadOnly("pnpm format")).rejects.toThrow(/command modified the candidate/);
 		expect(con.execs.at(-1)).toContain("git reset --hard HEAD");
 	});
 
@@ -254,7 +253,7 @@ describe("ExecEnv container exec", () => {
 		expect(con.execs.at(-1)).toContain("git reset --hard HEAD");
 	});
 
-	test("returns the verified candidate tree for a read-only check", async () => {
+	test("returns the command result when a read-only check leaves the candidate unchanged", async () => {
 		const con = fakeContainer();
 		con.queueExecResults(
 			{ exitCode: 0, stdout: "", stderr: "" },
@@ -265,9 +264,10 @@ describe("ExecEnv container exec", () => {
 		);
 		const env = makeEnv({ container: con.container });
 
-		await expect(env.runCheck("pnpm format:check")).resolves.toEqual({
-			result: { exitCode: 0, stdout: "passed", stderr: "" },
-			candidateTreeSha: "candidate-tree",
+		await expect(env.execReadOnly("pnpm format:check")).resolves.toEqual({
+			exitCode: 0,
+			stdout: "passed",
+			stderr: "",
 		});
 	});
 
@@ -343,139 +343,159 @@ describe("ExecEnv container exec", () => {
 	});
 });
 
-describe("ExecEnv candidate snapshots", () => {
-	const zeroSha = "0".repeat(40);
-	const blobSha = "1".repeat(40);
-
-	test("parses the null-delimited raw format emitted by git diff --cached", () => {
-		const raw = [
-			`:000000 100644 ${zeroSha} ${blobSha} A`,
-			"src/new file.ts",
-			`:100755 100755 ${blobSha} ${blobSha} M`,
-			"bin/run",
-			`:100644 000000 ${blobSha} ${zeroSha} D`,
-			"src/old.ts",
-			"",
-		].join("\0");
-
-		expect(parseRawGitDiff(raw)).toEqual([
-			{ path: "src/new file.ts", mode: "100644", deleted: false, blobSha },
-			{ path: "bin/run", mode: "100755", deleted: false, blobSha },
-			{ path: "src/old.ts", mode: "100644", deleted: true, blobSha: null },
-		]);
-	});
-
-	test("snapshots added and deleted files from the staged diff", async () => {
-		const stagedBlobSha = "3e757656cf36eca53338e520d134963a44f793f8";
-		const raw = [
-			`:000000 100644 ${zeroSha} ${stagedBlobSha} A`,
-			"src/new.ts",
-			`:100644 000000 ${blobSha} ${zeroSha} D`,
-			"src/old.ts",
-			"",
-		].join("\0");
+describe("ExecEnv candidate publication", () => {
+	test("commits and pushes the durable candidate through the scoped git proxy", async () => {
 		const con = fakeContainer();
 		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
 			{ exitCode: 0, stdout: "", stderr: "" },
 			{ exitCode: 0, stdout: "base-commit\n", stderr: "" },
 			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
-			{ exitCode: 0, stdout: `${base64Utf8(raw)}\n`, stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8("src/base-url.ts\0")}\n`, stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "[detached HEAD commit-sha] Fix base URLs\n", stderr: "" },
+			{ exitCode: 0, stdout: "commit-sha\n", stderr: "" },
+			{ exitCode: 0, stdout: "To github.com:emdash-cms/emdash.git\n", stderr: "" },
+			{
+				exitCode: 0,
+				stdout: "commit-sha\trefs/heads/bot/fix-2482\n",
+				stderr: "",
+			},
 		);
-		con.setReadFileBytes(() => new TextEncoder().encode("new\n"));
-		const env = makeEnv({ container: con.container });
-
-		await expect(env.snapshotCandidate()).resolves.toEqual({
-			baseCommitSha: "base-commit",
-			treeSha: "candidate-tree",
-			changes: [
-				{ path: "src/new.ts", mode: "100644", content: new TextEncoder().encode("new\n") },
-				{ path: "src/old.ts", mode: "100644", content: null },
-			],
+		const env = makeEnv({
+			state: fakeState({ "/repo/src/base-url.ts": "export {};\n" }).state,
+			container: con.container,
 		});
+
+		await expect(
+			env.publishCandidate({
+				branch: "bot/fix-2482",
+				runId: "run-2482",
+				commitMessage: "Fix base URLs",
+				baseRef: "base-commit",
+				expectedPreviousSha: null,
+			}),
+		).resolves.toEqual({
+			branch: "bot/fix-2482",
+			commitSha: "commit-sha",
+			files: ["src/base-url.ts"],
+		});
+
 		expect(
 			con.execs.some(
-				(command) => command.includes("git cat-file blob") && command.includes(stagedBlobSha),
+				(command) => command.includes("git reset --hard") && command.includes("base-commit"),
 			),
 		).toBe(true);
-		expect(con.execs.some((command) => command.includes("base64 -w0"))).toBe(true);
+		expect(
+			con.execs.some(
+				(command) =>
+					command.includes("git commit --no-verify") && command.includes("EmDash-Run: run-2482"),
+			),
+		).toBe(true);
+		expect(
+			con.execs.some((command) => command.includes("--force-with-lease=refs/heads/bot/fix-2482:")),
+		).toBe(true);
 	});
 
-	test("rejects staged diff output that is not valid base64", async () => {
+	test("reuses an idempotent publication with the same run marker and tree", async () => {
 		const con = fakeContainer();
 		con.queueExecResults(
 			{ exitCode: 0, stdout: "", stderr: "" },
-			{ exitCode: 0, stdout: "base\n", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "base-commit\n", stderr: "" },
 			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
-			{ exitCode: 0, stdout: "not-base64!", stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8("src/base-url.ts\0")}\n`, stderr: "" },
+			{
+				exitCode: 0,
+				stdout: "published-sha\trefs/heads/bot/fix-2482\n",
+				stderr: "",
+			},
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "Fix base URLs\n\nEmDash-Run: run-2482\n", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
 		);
+		const env = makeEnv({
+			state: fakeState({ "/repo/src/base-url.ts": "export {};\n" }).state,
+			container: con.container,
+		});
 
-		await expect(makeEnv({ container: con.container }).snapshotCandidate()).rejects.toThrow(
-			/not valid base64-encoded UTF-8/,
-		);
+		await expect(
+			env.publishCandidate({
+				branch: "bot/fix-2482",
+				runId: "run-2482",
+				commitMessage: "Fix base URLs",
+				baseRef: "base-commit",
+				expectedPreviousSha: null,
+			}),
+		).resolves.toEqual({
+			branch: "bot/fix-2482",
+			commitSha: "published-sha",
+			files: ["src/base-url.ts"],
+		});
+		expect(con.execs.some((command) => command.includes("git commit --no-verify"))).toBe(false);
+		expect(con.execs.some((command) => command.includes("git push"))).toBe(false);
 	});
 
-	test("rejects content that does not match the staged blob", async () => {
+	test("refuses to overwrite a candidate branch changed by another run", async () => {
 		const con = fakeContainer();
 		con.queueExecResults(
 			{ exitCode: 0, stdout: "", stderr: "" },
-			{ exitCode: 0, stdout: "base\n", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "base-commit\n", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8("src/base-url.ts\0")}\n`, stderr: "" },
+			{
+				exitCode: 0,
+				stdout: "other-sha\trefs/heads/bot/fix-2482\n",
+				stderr: "",
+			},
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "A different run\n", stderr: "" },
+			{ exitCode: 0, stdout: "other-tree\n", stderr: "" },
+		);
+		const env = makeEnv({
+			state: fakeState({ "/repo/src/base-url.ts": "export {};\n" }).state,
+			container: con.container,
+		});
+
+		await expect(
+			env.publishCandidate({
+				branch: "bot/fix-2482",
+				runId: "run-2482",
+				commitMessage: "Fix base URLs",
+				baseRef: "base-commit",
+				expectedPreviousSha: null,
+			}),
+		).rejects.toThrow(/candidate branch changed/);
+		expect(con.execs.some((command) => command.includes("git commit --no-verify"))).toBe(false);
+		expect(con.execs.some((command) => command.includes("git push"))).toBe(false);
+	});
+
+	test("rejects forbidden candidate paths before committing", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "base-commit\n", stderr: "" },
 			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
 			{
 				exitCode: 0,
-				stdout: base64Utf8(
-					`:000000 100644 ${zeroSha} 3e757656cf36eca53338e520d134963a44f793f8 A\0src/new.ts\0`,
-				),
+				stdout: `${base64Utf8(".github/workflows/pwn.yml\0")}\n`,
 				stderr: "",
 			},
 		);
-		con.setReadFileBytes(() => new TextEncoder().encode("changed after staging\n"));
+		const env = makeEnv({ container: con.container });
 
-		await expect(makeEnv({ container: con.container }).snapshotCandidate()).rejects.toThrow(
-			/does not match staged blob/,
-		);
-	});
-
-	test("rejects malformed raw diffs, symlinks, and workflow changes", async () => {
-		expect(() => parseRawGitDiff(`:000000 100644 ${zeroSha} ${blobSha} A\0src/x.ts`)).toThrow(
-			/malformed staged diff/,
-		);
-		expect(() => parseRawGitDiff(`:000000 120000 ${zeroSha} ${blobSha} A\0link\0`)).toThrow(
-			/symlink/,
-		);
-
-		const con = fakeContainer();
-		con.queueExecResults(
-			{ exitCode: 0, stdout: "", stderr: "" },
-			{ exitCode: 0, stdout: "base\n", stderr: "" },
-			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
-			{
-				exitCode: 0,
-				stdout: base64Utf8(`:000000 100644 ${zeroSha} ${blobSha} A\0.github/workflows/pwn.yml\0`),
-				stderr: "",
-			},
-		);
-		await expect(makeEnv({ container: con.container }).snapshotCandidate()).rejects.toThrow(
-			/cannot publish path/,
-		);
-	});
-
-	test("rejects a candidate file larger than the publication limit", async () => {
-		const con = fakeContainer();
-		con.queueExecResults(
-			{ exitCode: 0, stdout: "", stderr: "" },
-			{ exitCode: 0, stdout: "base\n", stderr: "" },
-			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
-			{
-				exitCode: 0,
-				stdout: base64Utf8(`:000000 100644 ${zeroSha} ${blobSha} A\0large.bin\0`),
-				stderr: "",
-			},
-		);
-		con.setReadFileBytes(() => new Uint8Array(2 * 1024 * 1024 + 1));
-
-		await expect(makeEnv({ container: con.container }).snapshotCandidate()).rejects.toThrow(
-			/file large\.bin is .* limit/,
-		);
+		await expect(
+			env.publishCandidate({
+				branch: "bot/fix-2482",
+				runId: "run-2482",
+				commitMessage: "Unsafe change",
+				baseRef: "base-commit",
+				expectedPreviousSha: null,
+			}),
+		).rejects.toThrow("candidate cannot publish path");
+		expect(con.execs.some((command) => command.includes("git commit --no-verify"))).toBe(false);
 	});
 });
 
@@ -534,6 +554,19 @@ describe("ExecEnv deadlines", () => {
 });
 
 describe("ExecEnv container lifecycle", () => {
+	test("prepares the container once and reuses it for later commands", async () => {
+		const con = fakeContainer();
+		const attach = vi.fn(async () => con.container);
+		const env = makeEnv({ attachContainer: attach });
+
+		await env.ensureContainerReady();
+		await env.ensureContainerReady();
+		await env.exec("pnpm test");
+
+		expect(attach).toHaveBeenCalledTimes(1);
+		expect(con.execs).toEqual(["bash -o pipefail -c 'pnpm test'"]);
+	});
+
 	test("the container is attached lazily and reused across execs", async () => {
 		const con = fakeContainer();
 		const attach = vi.fn(async () => con.container);

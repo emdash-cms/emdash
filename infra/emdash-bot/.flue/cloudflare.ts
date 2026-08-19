@@ -4,10 +4,12 @@
 import { Sandbox as BaseSandbox } from "@cloudflare/sandbox";
 
 import {
-	githubAuthHeader,
+	githubGateDenialResponse,
 	inspectGithubRequest,
 	PUSH_CAPABILITY_HEADER,
+	pushCapabilityFromAuthorization,
 	verifyPushCapability,
+	withGithubAuthorization,
 } from "./lib/github-proxy.js";
 import { mintInstallationToken, readAppCreds } from "./lib/github.js";
 
@@ -62,13 +64,18 @@ async function handleAuthenticatedGithub(request: Request, env: Env): Promise<Re
 	}
 
 	const forwarded = new Request(request);
-	const capability = forwarded.headers.get(PUSH_CAPABILITY_HEADER);
+	const authorizationCapability = pushCapabilityFromAuthorization(
+		forwarded.headers.get("authorization"),
+	);
+	const legacyCapability = forwarded.headers.get(PUSH_CAPABILITY_HEADER);
+	const capability = authorizationCapability ?? legacyCapability;
 	const issueNumber = await verifyPushCapability(
 		capability,
 		env.GITHUB_WEBHOOK_SECRET,
 		owner,
 		repo,
 	);
+	forwarded.headers.delete("authorization");
 	forwarded.headers.delete(PUSH_CAPABILITY_HEADER);
 	const gate = await inspectGithubRequest(forwarded, url, owner, repo, issueNumber ?? undefined);
 	if (!gate.allowed) {
@@ -80,10 +87,15 @@ async function handleAuthenticatedGithub(request: Request, env: Env): Promise<Re
 			reason: gate.reason,
 			capabilityPresent: capability !== null,
 			capabilityValid: issueNumber !== null,
+			capabilityTransport: authorizationCapability
+				? "authorization"
+				: legacyCapability
+					? "legacy-header"
+					: "missing",
 			...(gate.refs ? { refs: gate.refs } : {}),
 			...(gate.parseError ? { parseError: gate.parseError } : {}),
 		});
-		return new Response(`forbidden: ${gate.reason}`, { status: 403 });
+		return githubGateDenialResponse(gate);
 	}
 
 	console.log("[sandbox/outbound] allow", {
@@ -105,8 +117,7 @@ async function handleAuthenticatedGithub(request: Request, env: Env): Promise<Re
 			});
 		}
 	}
-	const authed = new Request(forwarded);
-	if (token) authed.headers.set("authorization", githubAuthHeader(url.host, token));
+	const authed = withGithubAuthorization(forwarded, url.host, token);
 	authed.headers.set("user-agent", "emdash-bot");
 	try {
 		const res = await fetch(authed, { signal: AbortSignal.timeout(2 * 60_000) });

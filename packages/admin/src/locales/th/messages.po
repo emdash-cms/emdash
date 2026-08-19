@@ -96,7 +96,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1535
+#: packages/admin/src/router.tsx:1537
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {อัปเดตความคิดเห็น # รายการ} other {อัปเดตความคิดเห็น # รายการ}}"
 
@@ -273,17 +273,17 @@ msgid "{0} items will be imported"
 msgstr "จะนำเข้า {0} รายการ"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:559
+#: packages/admin/src/router.tsx:560
 msgid "{0} of {total} could not be deleted"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:515
+#: packages/admin/src/router.tsx:516
 msgid "{0} of {total} could not be published"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:538
+#: packages/admin/src/router.tsx:539
 msgid "{0} of {total} could not be updated"
 msgstr ""
 
@@ -340,6 +340,16 @@ msgstr "{changedCount, plural, one {# การเปลี่ยนแปลง
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr ""
 
+#. placeholder {0}: rows.length
+#: packages/admin/src/components/MediaUploadDialog.tsx:482
+msgid "{completedCount} of {0} complete"
+msgstr ""
+
+#. placeholder {0}: rows.length
+#: packages/admin/src/components/MediaUploadDialog.tsx:367
+msgid "{completedCount} of {0} uploads complete"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2072
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {# ไฟล์} other {# ไฟล์}}"
@@ -351,6 +361,10 @@ msgstr "{count, plural, one {# รายการ} other {# รายการ}}
 #: packages/admin/src/components/WordPressImport.tsx:2143
 msgid "{current} of {total}"
 msgstr "{current} จาก {total}"
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:369
+msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
+msgstr ""
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
@@ -394,6 +408,10 @@ msgstr ""
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr ""
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:458
+msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
+msgstr ""
+
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:83
 msgid "{pluginName} is requesting additional permissions:"
 msgstr "{pluginName} กำลังขอสิทธิ์เพิ่มเติม:"
@@ -412,7 +430,7 @@ msgstr ""
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:298
+#: packages/admin/src/components/MediaLibrary.tsx:263
 msgid "{resultCount, plural, one {# item} other {# items}}"
 msgstr ""
 
@@ -432,16 +450,6 @@ msgstr "{total, plural, one {# รายการ} other {# รายการ}}
 msgid "{total, plural, one {# total} other {# total}}"
 msgstr "{total, plural, one {รวม #} other {รวม #}}"
 
-#: packages/admin/src/components/MediaLibrary.tsx:211
-#: packages/admin/src/components/MediaLibrary.tsx:247
-msgid "{total, plural, one {File uploaded} other {# files uploaded}}"
-msgstr "{total, plural, one {อัปโหลดไฟล์แล้ว} other {อัปโหลดไฟล์แล้ว # ไฟล์}}"
-
-#: packages/admin/src/components/MediaLibrary.tsx:216
-#: packages/admin/src/components/MediaLibrary.tsx:252
-msgid "{total, plural, one {Upload failed} other {All # uploads failed}}"
-msgstr "{total, plural, one {การอัปโหลดล้มเหลว} other {การอัปโหลดล้มเหลวทั้งหมด # รายการ}}"
-
 #: packages/admin/src/components/Dashboard.tsx:201
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
 msgstr ""
@@ -457,11 +465,6 @@ msgstr "{unchangedCount, plural, one {ซ่อนรายการที่ไ
 #: packages/admin/src/components/RevisionHistory.tsx:368
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
 msgstr "{unchangedCount, plural, one {แสดงรายการที่ไม่เปลี่ยนแปลง # รายการ} other {แสดงรายการที่ไม่เปลี่ยนแปลง # รายการ}}"
-
-#: packages/admin/src/components/MediaLibrary.tsx:221
-#: packages/admin/src/components/MediaLibrary.tsx:257
-msgid "{uploaded} uploaded, {failed} failed"
-msgstr "อัปโหลดแล้ว {uploaded} รายการ, ล้มเหลว {failed} รายการ"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2511
 msgid "{words, plural, one {# word} other {# words}}"
@@ -610,7 +613,7 @@ msgstr "ยอมรับคำเชิญ"
 msgid "Access denied"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1555
+#: packages/admin/src/router.tsx:1557
 msgid "Access Denied"
 msgstr "การเข้าถึงถูกปฏิเสธ"
 
@@ -916,10 +919,14 @@ msgstr "ทุกแหล่งที่มา"
 msgid "All statuses"
 msgstr "ทุกสถานะ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:433
+#: packages/admin/src/components/MediaLibrary.tsx:396
 #: packages/admin/src/components/Redirects.tsx:432
 msgid "All types"
 msgstr "ทุกประเภท"
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:371
+msgid "All uploads finished"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:545
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
@@ -956,7 +963,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:376
 #: packages/admin/src/components/editor/ImageNode.tsx:231
-#: packages/admin/src/components/MediaLibrary.tsx:589
+#: packages/admin/src/components/MediaLibrary.tsx:552
 msgid "Alt text"
 msgstr "ข้อความ Alt"
 
@@ -967,8 +974,8 @@ msgstr "ข้อความ Alt"
 msgid "Alt Text"
 msgstr "ข้อความ Alt"
 
-#: packages/admin/src/components/MediaLibrary.tsx:835
-#: packages/admin/src/components/MediaLibrary.tsx:892
+#: packages/admin/src/components/MediaLibrary.tsx:812
+#: packages/admin/src/components/MediaLibrary.tsx:869
 msgid "Alt text set"
 msgstr "ตั้งค่าข้อความ Alt แล้ว"
 
@@ -1006,24 +1013,24 @@ msgstr "หรืออีกทางหนึ่ง คุณสามาร�
 #: packages/admin/src/components/TaxonomySidebar.tsx:416
 #: packages/admin/src/components/TaxonomySidebar.tsx:476
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:447
-#: packages/admin/src/router.tsx:462
-#: packages/admin/src/router.tsx:476
-#: packages/admin/src/router.tsx:490
-#: packages/admin/src/router.tsx:714
-#: packages/admin/src/router.tsx:996
-#: packages/admin/src/router.tsx:1056
-#: packages/admin/src/router.tsx:1074
-#: packages/admin/src/router.tsx:1092
-#: packages/admin/src/router.tsx:1113
-#: packages/admin/src/router.tsx:1134
-#: packages/admin/src/router.tsx:1155
-#: packages/admin/src/router.tsx:1186
-#: packages/admin/src/router.tsx:1206
-#: packages/admin/src/router.tsx:1500
-#: packages/admin/src/router.tsx:1516
-#: packages/admin/src/router.tsx:1541
-#: packages/admin/src/router.tsx:2041
+#: packages/admin/src/router.tsx:448
+#: packages/admin/src/router.tsx:463
+#: packages/admin/src/router.tsx:477
+#: packages/admin/src/router.tsx:491
+#: packages/admin/src/router.tsx:715
+#: packages/admin/src/router.tsx:997
+#: packages/admin/src/router.tsx:1057
+#: packages/admin/src/router.tsx:1075
+#: packages/admin/src/router.tsx:1093
+#: packages/admin/src/router.tsx:1114
+#: packages/admin/src/router.tsx:1135
+#: packages/admin/src/router.tsx:1156
+#: packages/admin/src/router.tsx:1187
+#: packages/admin/src/router.tsx:1207
+#: packages/admin/src/router.tsx:1502
+#: packages/admin/src/router.tsx:1518
+#: packages/admin/src/router.tsx:1543
+#: packages/admin/src/router.tsx:2043
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1140,7 +1147,7 @@ msgid "Astro"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:66
-#: packages/admin/src/components/MediaLibrary.tsx:436
+#: packages/admin/src/components/MediaLibrary.tsx:399
 msgid "Audio"
 msgstr "เสียง"
 
@@ -1229,7 +1236,7 @@ msgstr ""
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1055
+#: packages/admin/src/router.tsx:1056
 msgid "Autosave failed"
 msgstr "บันทึกอัตโนมัติล้มเหลว"
 
@@ -1372,10 +1379,18 @@ msgstr "เรียกดูและติดตั้งปลั๊กอิ
 msgid "Browse and install plugins to extend your site."
 msgstr "เรียกดูและติดตั้งปลั๊กอินเพื่อขยายความสามารถของเว็บไซต์ของคุณ"
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:439
+msgid "Browse files"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1124
 #: packages/admin/src/components/WordPressImport.tsx:1594
 msgid "Browse Files"
 msgstr "เรียกดูไฟล์"
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:448
+msgid "Browse files to upload"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:204
 msgid "Browse the"
@@ -1481,6 +1496,15 @@ msgstr "ยกเลิก"
 msgid "Cancel (Esc)"
 msgstr "ยกเลิก (Esc)"
 
+#. placeholder {0}: row.file.name
+#: packages/admin/src/components/MediaUploadDialog.tsx:156
+msgid "Cancel {0}"
+msgstr ""
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:502
+msgid "Cancel remaining"
+msgstr ""
+
 #: packages/admin/src/components/settings/PasskeyItem.tsx:141
 msgid "Cancel rename"
 msgstr "ยกเลิกการเปลี่ยนชื่อ"
@@ -1568,7 +1592,7 @@ msgstr "เปลี่ยนโลโก้"
 msgid "Changelog"
 msgstr "บันทึกการเปลี่ยนแปลง"
 
-#: packages/admin/src/router.tsx:1106
+#: packages/admin/src/router.tsx:1107
 msgid "Changes discarded"
 msgstr "ละทิ้งการเปลี่ยนแปลงแล้ว"
 
@@ -1615,14 +1639,18 @@ msgstr "เลือกภาษาผู้ดูแลระบบที่ค
 msgid "Clear"
 msgstr ""
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:487
+msgid "Clear completed"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:947
-#: packages/admin/src/components/MediaLibrary.tsx:497
+#: packages/admin/src/components/MediaLibrary.tsx:460
 #: packages/admin/src/components/users/UserList.tsx:129
 msgid "Clear filters"
 msgstr "ล้างตัวกรอง"
 
-#: packages/admin/src/components/MediaLibrary.tsx:497
-#: packages/admin/src/components/MediaLibrary.tsx:521
+#: packages/admin/src/components/MediaLibrary.tsx:460
+#: packages/admin/src/components/MediaLibrary.tsx:484
 msgid "Clear search"
 msgstr ""
 
@@ -1662,6 +1690,7 @@ msgstr "คลิกลิงก์ในอีเมลเพื่อเข้
 #: packages/admin/src/components/MediaPickerModal.tsx:529
 #: packages/admin/src/components/MediaPickerModal.tsx:535
 #: packages/admin/src/components/MediaPickerModal.tsx:539
+#: packages/admin/src/components/MediaUploadDialog.tsx:408
 #: packages/admin/src/components/MenuEditor.tsx:400
 #: packages/admin/src/components/MenuEditor.tsx:406
 #: packages/admin/src/components/MenuEditor.tsx:410
@@ -1786,6 +1815,10 @@ msgstr "ความคิดเห็น"
 msgid "Comments from logged-in CMS users are approved automatically"
 msgstr "ความคิดเห็นจากผู้ใช้ CMS ที่เข้าสู่ระบบแล้วจะได้รับการอนุมัติโดยอัตโนมัติ"
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:88
+msgid "Complete"
+msgstr ""
+
 #: packages/admin/src/components/SignupPage.tsx:403
 msgid "Complete signup"
 msgstr "ทำการสมัครให้เสร็จสิ้น"
@@ -1853,7 +1886,7 @@ msgstr "ข้อผิดพลาดของเนื้อหา ({0})"
 msgid "Content found:"
 msgstr "พบเนื้อหา:"
 
-#: packages/admin/src/router.tsx:1128
+#: packages/admin/src/router.tsx:1129
 msgid "Content has been scheduled for publishing"
 msgstr "กำหนดเวลาเผยแพร่เนื้อหาแล้ว"
 
@@ -1865,7 +1898,7 @@ msgstr "อัปเดตเนื้อหาเป็นรุ่นแก้
 msgid "Content ID:"
 msgstr "ID เนื้อหา:"
 
-#: packages/admin/src/router.tsx:1069
+#: packages/admin/src/router.tsx:1070
 msgid "Content is now live"
 msgstr "เนื้อหาเผยแพร่แล้ว"
 
@@ -1885,11 +1918,11 @@ msgstr ""
 msgid "Content Read"
 msgstr "อ่านเนื้อหา"
 
-#: packages/admin/src/router.tsx:1087
+#: packages/admin/src/router.tsx:1088
 msgid "Content removed from public view"
 msgstr "นำเนื้อหาออกจากมุมมองสาธารณะแล้ว"
 
-#: packages/admin/src/router.tsx:1149
+#: packages/admin/src/router.tsx:1150
 msgid "Content reverted to draft"
 msgstr "เปลี่ยนเนื้อหากลับเป็นฉบับร่างแล้ว"
 
@@ -2194,7 +2227,7 @@ msgid "Created {0}"
 msgstr "สร้าง {0} แล้ว"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1180
+#: packages/admin/src/router.tsx:1181
 msgid "Created {0} translation"
 msgstr "สร้างคำแปล {0} แล้ว"
 
@@ -2684,6 +2717,11 @@ msgstr ""
 msgid "Dismiss"
 msgstr "ปิด"
 
+#. placeholder {0}: row.file.name
+#: packages/admin/src/components/MediaUploadDialog.tsx:158
+msgid "Dismiss completed {0}"
+msgstr ""
+
 #: packages/admin/src/components/PortableTextEditor.tsx:3371
 msgid "Dismiss section error"
 msgstr ""
@@ -2737,7 +2775,7 @@ msgid "Dockerfile"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:63
-#: packages/admin/src/components/MediaLibrary.tsx:437
+#: packages/admin/src/components/MediaLibrary.tsx:400
 msgid "Documents"
 msgstr "เอกสาร"
 
@@ -2761,6 +2799,7 @@ msgstr "อัปเดตโดเมนแล้ว"
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "ยังไม่มีบัญชี? <0>สมัครใช้งาน</0>"
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:506
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
 #: packages/admin/src/components/WordPressImport.tsx:2128
 msgid "Done"
@@ -2818,6 +2857,10 @@ msgstr "ฉบับร่าง"
 msgid "Drafts & Private"
 msgstr ""
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:427
+msgid "Drag and drop files here"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1119
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "ลากแล้ววางหรือคลิกเพื่อเลือกไฟล์ (.xml)"
@@ -2853,6 +2896,10 @@ msgstr "ลากวิดเจ็ตมาที่นี่เพื่อเ
 #: packages/admin/src/components/Widgets.tsx:467
 msgid "Drag widgets into an area to add them"
 msgstr "ลากวิดเจ็ตไปยังพื้นที่เพื่อเพิ่ม"
+
+#: packages/admin/src/components/MediaLibrary.tsx:316
+msgid "Drop files to upload"
+msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:700
 msgid "Drop to add widget"
@@ -3146,7 +3193,7 @@ msgstr "ป้อน URL ของเว็บไซต์ WordPress ของ�
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/TaxonomyManager.tsx:941
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2255
+#: packages/admin/src/router.tsx:2257
 msgid "Error"
 msgstr "ข้อผิดพลาด"
 
@@ -3244,7 +3291,7 @@ msgstr "วิเคราะห์เว็บไซต์ WordPress ไม่�
 msgid "Failed to communicate with plugin"
 msgstr "สื่อสารกับปลั๊กอินไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:179
+#: packages/admin/src/lib/api/media.ts:196
 msgid "Failed to confirm upload"
 msgstr ""
 
@@ -3282,14 +3329,14 @@ msgid "Failed to create term"
 msgstr "สร้างเทอมไม่สำเร็จ"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:475
-#: packages/admin/src/router.tsx:1185
+#: packages/admin/src/router.tsx:1186
 msgid "Failed to create translation"
 msgstr "สร้างคำแปลไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:446
-#: packages/admin/src/router.tsx:475
-#: packages/admin/src/router.tsx:558
-#: packages/admin/src/router.tsx:1205
+#: packages/admin/src/router.tsx:447
+#: packages/admin/src/router.tsx:476
+#: packages/admin/src/router.tsx:559
+#: packages/admin/src/router.tsx:1206
 msgid "Failed to delete"
 msgstr "ลบไม่สำเร็จ"
 
@@ -3314,7 +3361,7 @@ msgid "Failed to delete collection"
 msgstr "ลบคอลเลกชันไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1515
+#: packages/admin/src/router.tsx:1517
 msgid "Failed to delete comment"
 msgstr "ลบความคิดเห็นไม่สำเร็จ"
 
@@ -3327,11 +3374,11 @@ msgstr "ลบเนื้อหาไม่สำเร็จ"
 msgid "Failed to delete field"
 msgstr "ลบฟิลด์ไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:416
+#: packages/admin/src/lib/api/media.ts:468
 msgid "Failed to delete from provider"
 msgstr "ลบจากผู้ให้บริการไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:286
+#: packages/admin/src/lib/api/media.ts:335
 msgid "Failed to delete media"
 msgstr "ลบมีเดียไม่สำเร็จ"
 
@@ -3380,7 +3427,7 @@ msgstr ""
 msgid "Failed to disable user"
 msgstr "ปิดใช้งานผู้ใช้ไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1112
+#: packages/admin/src/router.tsx:1113
 msgid "Failed to discard changes"
 msgstr "ละทิ้งการเปลี่ยนแปลงไม่สำเร็จ"
 
@@ -3388,7 +3435,7 @@ msgstr "ละทิ้งการเปลี่ยนแปลงไม่ส
 msgid "Failed to dismiss welcome"
 msgstr "ปิดข้อความต้อนรับไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:489
+#: packages/admin/src/router.tsx:490
 msgid "Failed to duplicate"
 msgstr "ทำสำเนาไม่สำเร็จ"
 
@@ -3438,15 +3485,15 @@ msgstr "ดึงข้อมูลเทอมของรายการไม
 msgid "Failed to fetch manifest"
 msgstr "ดึงข้อมูล manifest ไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:72
+#: packages/admin/src/lib/api/media.ts:80
 msgid "Failed to fetch media"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:85
+#: packages/admin/src/lib/api/media.ts:93
 msgid "Failed to fetch media item"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:352
+#: packages/admin/src/lib/api/media.ts:401
 msgid "Failed to fetch media providers"
 msgstr ""
 
@@ -3463,7 +3510,7 @@ msgstr ""
 msgid "Failed to fetch plugins"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:382
+#: packages/admin/src/lib/api/media.ts:431
 msgid "Failed to fetch provider media"
 msgstr ""
 
@@ -3495,8 +3542,8 @@ msgstr "ดึงข้อมูลเทอมไม่สำเร็จ"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:905
-#: packages/admin/src/router.tsx:1446
+#: packages/admin/src/router.tsx:906
+#: packages/admin/src/router.tsx:1448
 msgid "Failed to fetch user"
 msgstr "ดึงข้อมูลผู้ใช้ไม่สำเร็จ"
 
@@ -3516,7 +3563,7 @@ msgstr "รับตัวเลือกการตรวจสอบสิท
 msgid "Failed to get registration options"
 msgstr "รับตัวเลือกการลงทะเบียนไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:154
+#: packages/admin/src/lib/api/media.ts:168
 msgid "Failed to get upload URL"
 msgstr ""
 
@@ -3538,7 +3585,7 @@ msgstr "ติดตั้งปลั๊กอินไม่สำเร็จ
 msgid "Failed to list byline fields"
 msgstr ""
 
-#: packages/admin/src/router.tsx:286
+#: packages/admin/src/router.tsx:287
 msgid "Failed to load admin"
 msgstr "โหลดหน้าผู้ดูแลระบบไม่สำเร็จ"
 
@@ -3607,7 +3654,7 @@ msgstr "โหลดผู้ใช้ไม่สำเร็จ: {0}"
 msgid "Failed to load widget"
 msgstr "โหลดวิดเจ็ตไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1540
+#: packages/admin/src/router.tsx:1542
 msgid "Failed to perform bulk action"
 msgstr "ดำเนินการแบบกลุ่มไม่สำเร็จ"
 
@@ -3619,8 +3666,8 @@ msgstr "ลบเนื้อหาอย่างถาวรไม่สำเ
 msgid "Failed to prepare import"
 msgstr "เตรียมการนำเข้าไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:514
-#: packages/admin/src/router.tsx:1073
+#: packages/admin/src/router.tsx:515
+#: packages/admin/src/router.tsx:1074
 msgid "Failed to publish"
 msgstr "เผยแพร่ไม่สำเร็จ"
 
@@ -3658,7 +3705,7 @@ msgstr "จัดเรียงฟิลด์ใหม่ไม่สำเร
 msgid "Failed to reorder widgets"
 msgstr "จัดเรียงวิดเจ็ตใหม่ไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:461
+#: packages/admin/src/router.tsx:462
 msgid "Failed to restore"
 msgstr "กู้คืนไม่สำเร็จ"
 
@@ -3679,9 +3726,9 @@ msgstr "เพิกถอนโทเค็น API ไม่สำเร็จ"
 msgid "Failed to rewrite URLs"
 msgstr "เขียน URL ใหม่ไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:713
-#: packages/admin/src/router.tsx:995
-#: packages/admin/src/router.tsx:2040
+#: packages/admin/src/router.tsx:714
+#: packages/admin/src/router.tsx:996
+#: packages/admin/src/router.tsx:2042
 msgid "Failed to save"
 msgstr "บันทึกไม่สำเร็จ"
 
@@ -3700,7 +3747,7 @@ msgstr ""
 msgid "Failed to save settings"
 msgstr "บันทึกการตั้งค่าไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1133
+#: packages/admin/src/router.tsx:1134
 msgid "Failed to schedule"
 msgstr "กำหนดเวลาไม่สำเร็จ"
 
@@ -3731,15 +3778,15 @@ msgstr "กำหนดเทอมของรายการไม่สำเ
 msgid "Failed to uninstall plugin"
 msgstr "ถอนการติดตั้งปลั๊กอินไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1091
+#: packages/admin/src/router.tsx:1092
 msgid "Failed to unpublish"
 msgstr "ยกเลิกการเผยแพร่ไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1154
+#: packages/admin/src/router.tsx:1155
 msgid "Failed to unschedule"
 msgstr "ยกเลิกการกำหนดเวลาไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:537
+#: packages/admin/src/router.tsx:538
 msgid "Failed to update"
 msgstr ""
 
@@ -3764,7 +3811,7 @@ msgstr ""
 msgid "Failed to update domain"
 msgstr "อัปเดตโดเมนไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:303
+#: packages/admin/src/lib/api/media.ts:352
 msgid "Failed to update media"
 msgstr ""
 
@@ -3789,19 +3836,19 @@ msgstr ""
 msgid "Failed to update settings"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1499
+#: packages/admin/src/router.tsx:1501
 msgid "Failed to update status"
 msgstr "อัปเดตสถานะไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:197
+#: packages/admin/src/lib/api/media.ts:219
 msgid "Failed to upload file"
 msgstr "อัปโหลดไฟล์ไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:242
+#: packages/admin/src/lib/api/media.ts:286
 msgid "Failed to upload media"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:404
+#: packages/admin/src/lib/api/media.ts:456
 msgid "Failed to upload to provider"
 msgstr ""
 
@@ -3890,7 +3937,7 @@ msgstr "ไฟล์จากคลังมีเดีย"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:325
 #: packages/admin/src/components/MediaDetailPanel.tsx:342
-#: packages/admin/src/components/MediaLibrary.tsx:586
+#: packages/admin/src/components/MediaLibrary.tsx:549
 msgid "Filename"
 msgstr "ชื่อไฟล์"
 
@@ -3901,6 +3948,10 @@ msgstr "ชื่อไฟล์ไม่สามารถเปลี่ยน
 #: packages/admin/src/components/WordPressImport.tsx:2366
 msgid "files imported"
 msgstr "ไฟล์ที่นำเข้า"
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:399
+msgid "Files upload as soon as you add them."
+msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:887
 msgid "Filter by author"
@@ -3931,7 +3982,7 @@ msgstr "กรองตามแหล่งที่มา"
 msgid "Filter by status"
 msgstr "กรองตามสถานะ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:439
+#: packages/admin/src/components/MediaLibrary.tsx:402
 #: packages/admin/src/components/Redirects.tsx:433
 msgid "Filter by type"
 msgstr "กรองตามประเภท"
@@ -4012,7 +4063,7 @@ msgid "Go"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2418
-#: packages/admin/src/router.tsx:2275
+#: packages/admin/src/router.tsx:2277
 msgid "Go to Dashboard"
 msgstr "ไปที่แดชบอร์ด"
 
@@ -4025,7 +4076,7 @@ msgstr "การยืนยัน Google"
 msgid "GraphQL"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:460
+#: packages/admin/src/components/MediaLibrary.tsx:423
 msgid "Grid view"
 msgstr "มุมมองตาราง"
 
@@ -4219,7 +4270,7 @@ msgstr "URL ของรูปภาพอัปเดตใน"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:61
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:192
-#: packages/admin/src/components/MediaLibrary.tsx:434
+#: packages/admin/src/components/MediaLibrary.tsx:397
 msgid "Images"
 msgstr "รูปภาพ"
 
@@ -4654,9 +4705,10 @@ msgstr "เว้นว่างไว้โดยไม่กำหนด"
 msgid "Left"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:136
-#: packages/admin/src/components/MediaLibrary.tsx:273
-#: packages/admin/src/components/MediaLibrary.tsx:356
+#: packages/admin/src/components/MediaLibrary.tsx:134
+#: packages/admin/src/components/MediaLibrary.tsx:240
+#: packages/admin/src/components/MediaLibrary.tsx:329
+#: packages/admin/src/components/MediaLibrary.tsx:605
 #: packages/admin/src/components/MediaPickerModal.tsx:211
 #: packages/admin/src/components/MediaPickerModal.tsx:509
 msgid "Library"
@@ -4707,7 +4759,7 @@ msgstr "LinkedIn"
 msgid "Links"
 msgstr "ลิงก์"
 
-#: packages/admin/src/components/MediaLibrary.tsx:469
+#: packages/admin/src/components/MediaLibrary.tsx:432
 msgid "List view"
 msgstr "มุมมองรายการ"
 
@@ -4728,13 +4780,13 @@ msgstr "โหลดเพิ่มเติม"
 
 #: packages/admin/src/components/ContentList.tsx:724
 #: packages/admin/src/components/ContentList.tsx:782
-#: packages/admin/src/components/MediaLibrary.tsx:635
+#: packages/admin/src/components/MediaLibrary.tsx:598
 #: packages/admin/src/components/MediaPickerModal.tsx:775
 #: packages/admin/src/components/users/UserList.tsx:169
 msgid "Load More"
 msgstr "โหลดเพิ่มเติม"
 
-#: packages/admin/src/router.tsx:2230
+#: packages/admin/src/router.tsx:2232
 msgid "Loading"
 msgstr ""
 
@@ -4750,8 +4802,8 @@ msgstr "กำลังโหลดคอลเลกชัน..."
 msgid "Loading comments..."
 msgstr "กำลังโหลดความคิดเห็น..."
 
-#: packages/admin/src/router.tsx:2232
-#: packages/admin/src/router.tsx:2244
+#: packages/admin/src/router.tsx:2234
+#: packages/admin/src/router.tsx:2246
 msgid "Loading configuration..."
 msgstr "กำลังโหลดการกำหนดค่า..."
 
@@ -4809,7 +4861,7 @@ msgstr "กำลังโหลดวิดเจ็ต..."
 #: packages/admin/src/components/ContentList.tsx:782
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
-#: packages/admin/src/components/MediaLibrary.tsx:635
+#: packages/admin/src/components/MediaLibrary.tsx:598
 #: packages/admin/src/components/MediaPickerModal.tsx:775
 #: packages/admin/src/components/PortableTextEditor.tsx:2413
 #: packages/admin/src/components/Redirects.tsx:560
@@ -5027,7 +5079,7 @@ msgid "Media import was skipped"
 msgstr "ข้ามการนำเข้ามีเดียแล้ว"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:153
-#: packages/admin/src/components/MediaLibrary.tsx:322
+#: packages/admin/src/components/MediaLibrary.tsx:324
 msgid "Media Library"
 msgstr "คลังมีเดีย"
 
@@ -5231,11 +5283,11 @@ msgstr "ย้ายไปยังถังขยะ?"
 msgid "Move up"
 msgstr "เลื่อนขึ้น"
 
-#: packages/admin/src/router.tsx:534
+#: packages/admin/src/router.tsx:535
 msgid "Moved {total} items to draft"
 msgstr ""
 
-#: packages/admin/src/router.tsx:555
+#: packages/admin/src/router.tsx:556
 msgid "Moved {total} items to trash"
 msgstr ""
 
@@ -5284,7 +5336,7 @@ msgstr "การนำทาง"
 msgid "Never"
 msgstr "ไม่เลย"
 
-#: packages/admin/src/router.tsx:1180
+#: packages/admin/src/router.tsx:1181
 msgid "new"
 msgstr "ใหม่"
 
@@ -5401,8 +5453,8 @@ msgstr "ยังไม่มี{0} สร้างขึ้นมาเพื�
 msgid "No 404 errors recorded yet."
 msgstr "ยังไม่มีการบันทึกข้อผิดพลาด 404"
 
-#: packages/admin/src/components/MediaLibrary.tsx:835
-#: packages/admin/src/components/MediaLibrary.tsx:892
+#: packages/admin/src/components/MediaLibrary.tsx:812
+#: packages/admin/src/components/MediaLibrary.tsx:869
 msgid "No alt text"
 msgstr "ไม่มี alt text"
 
@@ -5503,6 +5555,10 @@ msgstr "ไม่มีวันหมดอายุ"
 msgid "No fields to compare"
 msgstr "ไม่มีฟิลด์ให้เปรียบเทียบ"
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:482
+msgid "No files added"
+msgstr ""
+
 #: packages/admin/src/components/editor/DocumentOutline.tsx:213
 msgid "No headings in document"
 msgstr "ไม่มีหัวข้อในเอกสาร"
@@ -5541,8 +5597,8 @@ msgstr "ไม่พบรายการที่ตรงกัน"
 msgid "No matching bylines."
 msgstr "ไม่พบผู้เขียนที่ตรงกัน"
 
-#: packages/admin/src/components/MediaLibrary.tsx:489
-#: packages/admin/src/components/MediaLibrary.tsx:517
+#: packages/admin/src/components/MediaLibrary.tsx:452
+#: packages/admin/src/components/MediaLibrary.tsx:480
 msgid "No matching media"
 msgstr ""
 
@@ -5559,11 +5615,11 @@ msgstr "ไม่มีค่าสูงสุด"
 msgid "No media available from this provider"
 msgstr "ไม่มีมีเดียจากผู้ให้บริการนี้"
 
-#: packages/admin/src/components/MediaLibrary.tsx:540
+#: packages/admin/src/components/MediaLibrary.tsx:503
 msgid "No media available from this provider."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:539
+#: packages/admin/src/components/MediaLibrary.tsx:502
 #: packages/admin/src/components/MediaPickerModal.tsx:688
 msgid "No media found"
 msgstr "ไม่พบมีเดีย"
@@ -5806,6 +5862,10 @@ msgstr "คำแนะนำเพิ่มเติมเมื่อชี้
 msgid "Options (one per line)"
 msgstr "ตัวเลือก (หนึ่งรายการต่อบรรทัด)"
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:429
+msgid "Or browse files from your computer"
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:579
 msgid "or choose from library"
 msgstr "หรือเลือกจากไลบรารี"
@@ -5860,7 +5920,7 @@ msgstr "ความเป็นเจ้าของ"
 msgid "Package"
 msgstr "แพ็กเกจ"
 
-#: packages/admin/src/router.tsx:2270
+#: packages/admin/src/router.tsx:2272
 msgid "Page Not Found"
 msgstr "ไม่พบหน้า"
 
@@ -6190,7 +6250,7 @@ msgstr "กำลังเตรียม..."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:167
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
-#: packages/admin/src/components/MediaLibrary.tsx:585
+#: packages/admin/src/components/MediaLibrary.tsx:548
 msgid "Preview"
 msgstr "ดูตัวอย่าง"
 
@@ -6243,7 +6303,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:843
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:297
-#: packages/admin/src/router.tsx:1069
+#: packages/admin/src/router.tsx:1070
 msgid "Published"
 msgstr "เผยแพร่แล้ว"
 
@@ -6252,7 +6312,7 @@ msgstr "เผยแพร่แล้ว"
 msgid "Published {0}"
 msgstr "เผยแพร่แล้ว {0}"
 
-#: packages/admin/src/router.tsx:511
+#: packages/admin/src/router.tsx:512
 msgid "Published {total} items"
 msgstr ""
 
@@ -6266,6 +6326,10 @@ msgstr "เผยแพร่โดย"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:47
 msgid "Python"
+msgstr ""
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:100
+msgid "Queued"
 msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1084
@@ -6421,7 +6485,9 @@ msgid "Remove"
 msgstr "นำออก"
 
 #. placeholder {0}: passkey.name
+#. placeholder {0}: row.file.name
 #. placeholder {0}: term.label
+#: packages/admin/src/components/MediaUploadDialog.tsx:159
 #: packages/admin/src/components/settings/PasskeyItem.tsx:181
 #: packages/admin/src/components/TaxonomySidebar.tsx:294
 msgid "Remove {0}"
@@ -6639,16 +6705,25 @@ msgstr "กำลังกู้คืน..."
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2258
+#: packages/admin/src/router.tsx:2260
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "ลองใหม่"
+
+#. placeholder {0}: row.file.name
+#: packages/admin/src/components/MediaUploadDialog.tsx:145
+msgid "Retry {0}"
+msgstr ""
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:497
+msgid "Retry failed"
+msgstr ""
 
 #: packages/admin/src/components/Sections.tsx:136
 msgid "Reusable content blocks you can insert into any content"
 msgstr "บล็อกเนื้อหาที่นำกลับมาใช้ซ้ำได้ ซึ่งคุณสามารถแทรกลงในเนื้อหาใดก็ได้"
 
-#: packages/admin/src/router.tsx:1107
+#: packages/admin/src/router.tsx:1108
 msgid "Reverted to published version"
 msgstr "เปลี่ยนกลับเป็นเวอร์ชันที่เผยแพร่แล้ว"
 
@@ -6850,7 +6925,7 @@ msgstr "กำหนดเวลาสำหรับภายหลัง"
 
 #: packages/admin/src/components/ContentList.tsx:834
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1127
+#: packages/admin/src/router.tsx:1128
 msgid "Scheduled"
 msgstr "กำหนดเวลา"
 
@@ -6934,7 +7009,7 @@ msgstr "ค้นหา {0}"
 msgid "Search {0}..."
 msgstr "ค้นหา {0}..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:415
+#: packages/admin/src/components/MediaLibrary.tsx:378
 #: packages/admin/src/components/MediaPickerModal.tsx:626
 msgid "Search by filename..."
 msgstr "ค้นหาตามชื่อไฟล์..."
@@ -6982,7 +7057,7 @@ msgstr "การทำ SEO และการยืนยัน"
 msgid "Search form"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:416
+#: packages/admin/src/components/MediaLibrary.tsx:379
 #: packages/admin/src/components/MediaPickerModal.tsx:627
 msgid "Search media"
 msgstr "ค้นหามีเดีย"
@@ -7026,7 +7101,7 @@ msgstr ""
 msgid "Search users"
 msgstr "ค้นหาผู้ใช้"
 
-#: packages/admin/src/components/MediaLibrary.tsx:415
+#: packages/admin/src/components/MediaLibrary.tsx:378
 #: packages/admin/src/components/MediaPickerModal.tsx:626
 msgid "Search..."
 msgstr "ค้นหา..."
@@ -7509,7 +7584,7 @@ msgstr "URL เว็บไซต์"
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:588
+#: packages/admin/src/components/MediaLibrary.tsx:551
 msgid "Size"
 msgstr "ขนาด"
 
@@ -7843,7 +7918,7 @@ msgstr "ลบเมนูแล้ว"
 msgid "The name of your site, used in the header and metadata"
 msgstr "ชื่อเว็บไซต์ของคุณ ใช้ในส่วนหัวและข้อมูลเมตา"
 
-#: packages/admin/src/router.tsx:2272
+#: packages/admin/src/router.tsx:2274
 msgid "The page you're looking for doesn't exist."
 msgstr "ไม่พบหน้าที่คุณกำลังค้นหา"
 
@@ -8138,7 +8213,7 @@ msgstr "กำลังแปล..."
 #: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:987
 #: packages/admin/src/components/TaxonomySidebar.tsx:471
-#: packages/admin/src/router.tsx:1179
+#: packages/admin/src/router.tsx:1180
 msgid "Translation created"
 msgstr "สร้างคำแปลแล้ว"
 
@@ -8171,7 +8246,7 @@ msgstr "ถังขยะว่างเปล่า"
 msgid "True/false toggle"
 msgstr "สวิตช์จริง/เท็จ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:493
+#: packages/admin/src/components/MediaLibrary.tsx:456
 msgid "Try a broader media type or clear your filters."
 msgstr ""
 
@@ -8200,11 +8275,11 @@ msgstr "ลองอีกครั้ง"
 msgid "Try another code"
 msgstr "ลองรหัสอื่น"
 
-#: packages/admin/src/components/MediaLibrary.tsx:518
+#: packages/admin/src/components/MediaLibrary.tsx:481
 msgid "Try another filename or clear your search."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:492
+#: packages/admin/src/components/MediaLibrary.tsx:455
 msgid "Try another filename, or clear your search and filters."
 msgstr ""
 
@@ -8232,7 +8307,7 @@ msgstr "Twitter"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:260
 #: packages/admin/src/components/FieldEditor.tsx:600
-#: packages/admin/src/components/MediaLibrary.tsx:587
+#: packages/admin/src/components/MediaLibrary.tsx:550
 #: packages/admin/src/routes/byline-schema.tsx:240
 msgid "Type"
 msgstr "ประเภท"
@@ -8317,7 +8392,7 @@ msgstr "Passkey ที่ไม่มีชื่อ"
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1087
+#: packages/admin/src/router.tsx:1088
 msgid "Unpublished"
 msgstr "ยกเลิกการเผยแพร่แล้ว"
 
@@ -8333,7 +8408,7 @@ msgstr ""
 msgid "Unschedule"
 msgstr "ยกเลิกการกำหนดเวลา"
 
-#: packages/admin/src/router.tsx:1148
+#: packages/admin/src/router.tsx:1149
 msgid "Unscheduled"
 msgstr "ยกเลิกการกำหนดเวลาแล้ว"
 
@@ -8451,6 +8526,10 @@ msgstr "อัปโหลดและจัดการมีเดีย"
 msgid "Upload Export File"
 msgstr "อัปโหลดไฟล์ส่งออก"
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:96
+msgid "Upload failed"
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:669
 msgid "Upload failed: {uploadError}"
 msgstr "อัปโหลดล้มเหลว: {uploadError}"
@@ -8463,12 +8542,8 @@ msgstr "อัปโหลดไฟล์"
 msgid "Upload File"
 msgstr "อัปโหลดไฟล์"
 
-#: packages/admin/src/components/MediaLibrary.tsx:365
-msgid "Upload files"
-msgstr "อัปโหลดไฟล์"
-
-#: packages/admin/src/components/MediaLibrary.tsx:508
-#: packages/admin/src/components/MediaLibrary.tsx:532
+#: packages/admin/src/components/MediaLibrary.tsx:471
+#: packages/admin/src/components/MediaLibrary.tsx:495
 msgid "Upload Files"
 msgstr "อัปโหลดไฟล์"
 
@@ -8476,7 +8551,7 @@ msgstr "อัปโหลดไฟล์"
 msgid "Upload Image"
 msgstr "อัปโหลดรูปภาพ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:505
+#: packages/admin/src/components/MediaLibrary.tsx:468
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr ""
 
@@ -8484,14 +8559,18 @@ msgstr ""
 msgid "Upload Media"
 msgstr "อัปโหลดมีเดีย"
 
-#: packages/admin/src/components/MediaLibrary.tsx:529
+#: packages/admin/src/components/MediaLibrary.tsx:492
 msgid "Upload media to keep reusable assets in one place."
 msgstr ""
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
-#: packages/admin/src/components/MediaLibrary.tsx:356
+#: packages/admin/src/components/MediaLibrary.tsx:329
 msgid "Upload to {0}"
 msgstr "อัปโหลดไปยัง {0}"
+
+#: packages/admin/src/components/MediaUploadDialog.tsx:396
+msgid "Upload to {providerName}"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1118
 msgid "Upload WordPress export file"
@@ -8501,17 +8580,11 @@ msgstr "อัปโหลดไฟล์ส่งออก WordPress"
 msgid "Uploaded:"
 msgstr "อัปโหลดแล้ว:"
 
+#: packages/admin/src/components/MediaUploadDialog.tsx:80
 #: packages/admin/src/components/WordPressImport.tsx:2127
 msgid "Uploading"
 msgstr "กำลังอัปโหลด"
 
-#. placeholder {0}: uploadState.progress.current
-#. placeholder {1}: uploadState.progress.total
-#: packages/admin/src/components/MediaLibrary.tsx:331
-msgid "Uploading {0}/{1}..."
-msgstr "กำลังอัปโหลด {0}/{1}..."
-
-#: packages/admin/src/components/MediaLibrary.tsx:332
 #: packages/admin/src/components/MediaPickerModal.tsx:649
 msgid "Uploading..."
 msgstr "กำลังอัปโหลด..."
@@ -8666,7 +8739,7 @@ msgid "Version {0}"
 msgstr "เวอร์ชัน {0}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:67
-#: packages/admin/src/components/MediaLibrary.tsx:435
+#: packages/admin/src/components/MediaLibrary.tsx:398
 msgid "Video"
 msgstr "วิดีโอ"
 
@@ -8679,7 +8752,7 @@ msgstr "ดูสถานะผู้ให้บริการอีเมล
 msgid "View in Marketplace"
 msgstr "ดูใน Marketplace"
 
-#: packages/admin/src/components/MediaLibrary.tsx:447
+#: packages/admin/src/components/MediaLibrary.tsx:410
 msgid "View mode"
 msgstr "โหมดการแสดงผล"
 
@@ -8960,7 +9033,7 @@ msgstr "คุณมีสิทธิ์เข้าถึงเต็มรู
 msgid "You need admin permissions to manage byline schema."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1556
+#: packages/admin/src/router.tsx:1558
 msgid "You need Editor permissions to moderate comments."
 msgstr "คุณต้องมีสิทธิ์ผู้แก้ไขเพื่อกลั่นกรองความคิดเห็น"
 
@@ -9041,8 +9114,8 @@ msgstr "ชื่อผู้ใช้ Instagram ของคุณ"
 msgid "Your LinkedIn profile username"
 msgstr "ชื่อผู้ใช้โปรไฟล์ LinkedIn ของคุณ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:504
-#: packages/admin/src/components/MediaLibrary.tsx:528
+#: packages/admin/src/components/MediaLibrary.tsx:467
+#: packages/admin/src/components/MediaLibrary.tsx:491
 msgid "Your media library is empty"
 msgstr ""
 

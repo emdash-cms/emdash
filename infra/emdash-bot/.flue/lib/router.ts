@@ -18,6 +18,7 @@ import {
 	type Actor,
 	type EventId,
 	type Kind,
+	type RunMode,
 	type StateId,
 } from "./machine.js";
 
@@ -360,7 +361,7 @@ export interface AgentResult {
 	[key: string]: unknown;
 }
 
-export type InvestigationMode = "repro" | "implement" | "revise" | "diagnose" | "fix";
+export type InvestigationMode = RunMode;
 
 /**
  * Map the investigate agent's flat result to a machine event. Deterministic
