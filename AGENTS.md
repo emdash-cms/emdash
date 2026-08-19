@@ -1,6 +1,6 @@
 This file provides guidance to agentic coding tools working in this repository.
 
-For human-facing contributor info (setup, repo layout, PR policy, changesets, i18n), see [CONTRIBUTING.md](CONTRIBUTING.md). This file focuses on the patterns and gotchas an agent needs to write correct code.
+For human-facing contributor info (setup, repo layout, PR policy, i18n), see [CONTRIBUTING.md](CONTRIBUTING.md). This file focuses on the patterns and gotchas an agent needs to write correct code.
 
 `CLAUDE.md` is a symlink to this file. `.agents/skills` and `.claude/skills` are symlinks to `skills/`. Don't try to sync between them.
 
@@ -30,9 +30,9 @@ During work:
 - `pnpm typecheck` (packages) or `pnpm typecheck:demos` (Astro demos) after each round of edits
 - `pnpm format` regularly (oxfmt, tabs)
 
-Before opening a PR: tests pass, lint clean, formatted, changeset added if a published package changed. See [CONTRIBUTING.md § Changesets](CONTRIBUTING.md#changesets).
+Before opening a PR: tests pass, lint clean, formatted, changeset added if a published package changed. See [.changeset/README.md](.changeset/README.md).
 
-A changeset is release notes a user reads while upgrading -- **not** a commit message, PR description, or summary of your diff. Do not paste your PR prose into it. Write for someone who will run the new version and wants to know what changed for them: lead with a present-tense verb (`Fixes`, `Adds`, `Updates`, `Removes`), describe the observable effect, and leave out internal mechanics (file names, refactors, how you implemented it). For a breaking change, include the migration step. One sentence is often enough.
+A changeset is user-facing documentation that lands verbatim in a package CHANGELOG. Review its usefulness to someone upgrading, not only its presence and frontmatter. Follow [.changeset/README.md](.changeset/README.md) for the canonical writing and review standard, including proportional detail and migration guidance for default or breaking changes.
 
 When opening a PR with `gh`/the API, copy `.github/PULL_REQUEST_TEMPLATE.md` into the body and fill every section -- the GitHub UI injects it automatically but the CLI does not, and PRs missing it are auto-closed. Check the AI-generated code disclosure box and name the model. Tick checklist items only for what you actually verified; for test-only/docs/CI PRs, note why changeset/i18n/Discussion items are n/a.
 
