@@ -1,5 +1,6 @@
 const PKT_LINE_HEADER = /^[0-9a-fA-F]{4}$/;
 const BASIC_AUTHORIZATION = /^Basic ([A-Za-z0-9+/]+={0,2})$/i;
+const SHALLOW_DECLARATION = /^shallow (?:[0-9a-f]{40}|[0-9a-f]{64})\n?$/i;
 const WHITESPACE = /\s/;
 const MAX_RECEIVE_PACK_COMMAND_BYTES = 64 * 1024;
 const PUSH_CAPABILITY_USERNAME = "emdashbot";
@@ -331,6 +332,10 @@ async function inspectReceivePack(
 				}
 				if (buffer.length - offset < length) break;
 				const payload = decoder.decode(buffer.subarray(offset + 4, offset + length));
+				if (isShallowDeclaration(payload)) {
+					offset += length;
+					continue;
+				}
 				const ref = receivePackCommandRef(payload);
 				if (!ref) {
 					return { allowed: false, refs, parseError: "invalid receive-pack command" };
@@ -360,6 +365,10 @@ async function inspectReceivePack(
 	} finally {
 		void reader.cancel().catch(() => undefined);
 	}
+}
+
+function isShallowDeclaration(payload: string): boolean {
+	return SHALLOW_DECLARATION.test(payload);
 }
 
 function receivePackCommandRef(payload: string): string | null {

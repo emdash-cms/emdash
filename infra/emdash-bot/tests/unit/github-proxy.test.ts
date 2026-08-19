@@ -215,6 +215,25 @@ describe("gateGithubRequest", () => {
 		});
 	});
 
+	test("allows a shallow declaration before the scoped receive-pack command", async () => {
+		const url = new URL("https://github.com/emdash-cms/emdash.git/git-receive-pack");
+		const shallow = pktLine(`shallow ${"a".repeat(40)}\n`);
+		const update = pktLine("old new refs/heads/bot/fix-123\0 report-status\n");
+
+		await expect(
+			inspectGithubRequest(
+				new Request(url, { method: "POST", body: `${shallow}${update}0000PACKpayload` }),
+				url,
+				OWNER,
+				REPO,
+				123,
+			),
+		).resolves.toMatchObject({
+			allowed: true,
+			refs: ["refs/heads/bot/fix-123"],
+		});
+	});
+
 	test("distinguishes a missing capability from a rejected receive-pack body", async () => {
 		const url = new URL("https://github.com/emdash-cms/emdash.git/git-receive-pack");
 		const request = new Request(url, {
