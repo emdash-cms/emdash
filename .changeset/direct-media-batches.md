@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Adds direct multi-file uploads to the media library with drag-and-drop, capped parallel transfers, cancellation, and per-file retry.
+Adds a simpler way to upload media files: choose or drag several files at once, cancel uploads, and retry any that fail.
