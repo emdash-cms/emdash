@@ -114,7 +114,7 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 					variant="secondary"
 					size="sm"
 					aria-label={t`Filter by byline`}
-					className="gap-1 px-3.5 font-normal"
+					className="emdash-byline-filter-trigger gap-1 px-3.5 font-normal"
 				>
 					<span className="max-w-[140px] truncate">{label}</span>
 					<CaretDown className="size-3 shrink-0" aria-hidden="true" />
