@@ -8,13 +8,12 @@ import type { OrchestratorDO } from "./orchestrator.js";
 import { projectRunTraceObservation } from "./run-trace.js";
 import { withDeadline } from "./sandbox-deadline.js";
 
-let installed = false;
-
 interface ObserverEnv extends Env {
 	Orchestrator: DurableObjectNamespace<OrchestratorDO>;
 }
 
 const TRACE_WRITES = Symbol.for("emdash-bot.traceWrites");
+const OBSERVER_INSTALLED = Symbol.for("emdash-bot.observerInstalled");
 const TRACE_AGENT_ID_RE = /^investigate-(\d+)-(.+)$/;
 const TRACE_FLUSH_TIMEOUT_MS = 2_000;
 
@@ -23,9 +22,15 @@ function traceWrites(): Map<string, Promise<void>> {
 	return (store[TRACE_WRITES] ??= new Map());
 }
 
+function claimObserverInstall(): boolean {
+	const store = globalThis as typeof globalThis & { [OBSERVER_INSTALLED]?: boolean };
+	if (store[OBSERVER_INSTALLED]) return false;
+	store[OBSERVER_INSTALLED] = true;
+	return true;
+}
+
 export function installAgentObserver(): void {
-	if (installed) return;
-	installed = true;
+	if (!claimObserverInstall()) return;
 
 	observe((event, context) => {
 		const correlationId = event.submissionId ?? event.instanceId;
@@ -91,6 +96,10 @@ export function installAgentObserver(): void {
 			return undefined;
 		});
 		writes.set(context.id, next);
+		void next.then(() => {
+			if (writes.get(context.id) === next) writes.delete(context.id);
+			return undefined;
+		});
 		return next;
 	});
 }

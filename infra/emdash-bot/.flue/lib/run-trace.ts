@@ -2,6 +2,7 @@ import type { FlueObservation, LlmAssistantMessage, PromptUsage } from "@flue/ru
 
 export const RUN_TRACE_TEXT_LIMIT = 49_152;
 export const RUN_TRACE_PAGE_LIMIT = 200;
+export const RUN_TRACE_EVENT_LIMIT = 5_000;
 
 export type RunTraceTone = "active" | "success" | "failed" | "neutral";
 

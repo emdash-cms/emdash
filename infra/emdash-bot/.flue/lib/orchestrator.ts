@@ -68,6 +68,7 @@ import {
 import { DEADLINE_WARNING_MESSAGE, runBudgetMs, runSchedule } from "./run-policy.js";
 import {
 	parseStoredRunTraceEvent,
+	RUN_TRACE_EVENT_LIMIT,
 	RUN_TRACE_PAGE_LIMIT,
 	type PublicRunTraceEvent,
 	type PublicRunTracePage,
@@ -662,6 +663,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 			event.at,
 			event.kind,
 			JSON.stringify(event),
+		);
+		this.ctx.storage.sql.exec(
+			`DELETE FROM run_trace_events
+			 WHERE id <= COALESCE(
+				(SELECT id FROM run_trace_events ORDER BY id DESC LIMIT 1 OFFSET ?),
+				0
+			)`,
+			RUN_TRACE_EVENT_LIMIT,
 		);
 		return true;
 	}

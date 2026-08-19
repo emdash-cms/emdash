@@ -1830,7 +1830,6 @@
 						};
 					}
 					if (merge === "refresh" && previous && sameTraceEvents(previous.events, page.events)) {
-						tracePending = false;
 						return;
 					}
 					traceState = { issueNumber, loading: false, error: null, page };
@@ -1842,8 +1841,9 @@
 						error: "The run trace is temporarily unavailable.",
 						page: previous,
 					};
+				} finally {
+					if (request === traceRequest) tracePending = false;
 				}
-				tracePending = false;
 				render();
 			}
 
