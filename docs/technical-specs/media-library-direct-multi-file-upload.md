@@ -227,12 +227,12 @@ once when a busy queue becomes idle. Provider errors remain scoped to their rows
 
 ## Upload state machine
 
-| State       | Entered by                              | Available actions                         | Next states                    |
-| ----------- | --------------------------------------- | ----------------------------------------- | ------------------------------ |
-| `queued`    | Selection, drop, or explicit retry      | Cancel, cancel remaining                  | `uploading`, removed           |
-| `uploading` | Scheduler claims a free slot           | Cancel, cancel remaining                  | `complete`, `failed`, removed  |
-| `complete`  | Current upload adapter attempt resolves | Dismiss, clear completed, done             | removed                        |
-| `failed`    | Current attempt rejects without abort   | Retry, retry failed, remove, done          | `queued`, removed              |
+| State       | Entered by                              | Available actions                 | Next states                   |
+| ----------- | --------------------------------------- | --------------------------------- | ----------------------------- |
+| `queued`    | Selection, drop, or explicit retry      | Cancel, cancel remaining          | `uploading`, removed          |
+| `uploading` | Scheduler claims a free slot            | Cancel, cancel remaining          | `complete`, `failed`, removed |
+| `complete`  | Current upload adapter attempt resolves | Dismiss, clear completed, done    | removed                       |
+| `failed`    | Current attempt rejects without abort   | Retry, retry failed, remove, done | `queued`, removed             |
 
 Every row has a generated client ID and attempt number. An async completion updates a row only when
 both still match. This prevents an aborted, removed, or retried attempt from overwriting newer state.
@@ -492,12 +492,12 @@ implementation round. Before the PR, run formatting, full affected suites, chang
 
 ## Expected files and line budget
 
-| Area | Expected files | Production lines | Test lines | Documentation lines |
-| ---- | -------------- | ---------------- | ---------- | ------------------- |
-| Abortable clients | `packages/admin/src/lib/api/media.ts`, `packages/admin/src/router.tsx` | 45–80 | 90–140 | 0 |
-| Direct upload UI | `MediaUploadDialog.tsx`, `MediaLibrary.tsx` | 300–420 | 210–300 | 0 |
-| Release/docs | one changeset, media-library guide | 0 | 0 | 25–45 |
-| Total | 6–8 changed files plus tests | 345–500 | 300–440 | 25–45 |
+| Area              | Expected files                                                         | Production lines | Test lines | Documentation lines |
+| ----------------- | ---------------------------------------------------------------------- | ---------------- | ---------- | ------------------- |
+| Abortable clients | `packages/admin/src/lib/api/media.ts`, `packages/admin/src/router.tsx` | 45–80            | 90–140     | 0                   |
+| Direct upload UI  | `MediaUploadDialog.tsx`, `MediaLibrary.tsx`                            | 300–420          | 210–300    | 0                   |
+| Release/docs      | one changeset, media-library guide                                     | 0                | 0          | 25–45               |
+| Total             | 6–8 changed files plus tests                                           | 345–500          | 300–440    | 25–45               |
 
 The warning threshold is 550 production lines or 480 test lines. Stop for scope review at 650
 production lines, 580 test lines, any new package dependency, any core/API-route change, or any
