@@ -415,9 +415,6 @@ describe("MediaLibrary", () => {
 		});
 
 		it("keeps already-loaded items visible while fetching the next page (isLoading=true with items)", async () => {
-			// Reproduces the Copilot review concern: when isLoading flips true
-			// during a Load-More fetch, the grid must not be blanked out into a
-			// centered spinner — already-rendered items should remain visible.
 			const items = [makeMediaItem({ id: "1", filename: "first-page.jpg" })];
 			const screen = await renderLibrary({
 				items,
