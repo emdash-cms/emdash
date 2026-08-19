@@ -2,4 +2,4 @@
 "emdash": minor
 ---
 
-Adds a validated, secret-free deployment migration manifest during Astro build and sync so deployment tooling can run the exact migrations bundled with the site.
+Adds deployment-managed core migrations. Astro builds emit a validated, secret-free `.emdash/migrations.json` manifest for running the build's exact migration set before deployment, and EmDash templates ignore the generated file.
