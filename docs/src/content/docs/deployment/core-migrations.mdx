@@ -21,15 +21,15 @@ Run these commands from the project whose dependencies produced the manifest. Fi
 
 ```bash
 pnpm build
-pnpm exec emdash migrate --status
+pnpm emdash migrate --status
 ```
 
 After confirming that the reported target is the intended database, start the interactive migration. Review the target again at the prompt before confirming. Then deploy the same build and check the deployed schema.
 
 ```bash
-pnpm exec emdash migrate
-pnpm exec wrangler deploy
-pnpm exec emdash migrate --check
+pnpm emdash migrate
+pnpm wrangler deploy
+pnpm emdash migrate --check
 ```
 
 `emdash migrate --status` reports applied, pending, and unknown migrations without changing the database. The plain `emdash migrate` command displays the target and asks for confirmation before applying pending migrations.
@@ -70,7 +70,7 @@ Creating a D1 database and migrating its schema are separate operations. `emdash
 1. Provision the database and record its production UUID.
 
    ```bash
-   pnpm exec wrangler d1 create my-site-production
+   pnpm wrangler d1 create my-site-production
    ```
 
 2. Add that UUID to the intended binding and environment in `wrangler.jsonc`.
@@ -82,11 +82,11 @@ Creating a D1 database and migrating its schema are separate operations. `emdash
    ```bash
    export CLOUDFLARE_ACCOUNT_ID="..."
    export CLOUDFLARE_API_TOKEN="..."
-   pnpm exec emdash migrate \
+   pnpm emdash migrate \
      --status \
      --wrangler-config wrangler.jsonc \
      --wrangler-env production
-   pnpm exec emdash migrate \
+   pnpm emdash migrate \
      --wrangler-config wrangler.jsonc \
      --wrangler-env production
    ```
@@ -134,7 +134,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          pnpm exec emdash migrate --status --json \
+          pnpm emdash migrate --status --json \
             --account-id "${{ vars.CLOUDFLARE_ACCOUNT_ID }}" \
             --d1 "${{ vars.D1_DATABASE_ID }}"
       - name: Apply EmDash migrations
@@ -142,16 +142,16 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           EMDASH_TARGET_FINGERPRINT: ${{ vars.EMDASH_TARGET_FINGERPRINT }}
         run: |
-          pnpm exec emdash migrate \
+          pnpm emdash migrate \
             --account-id "${{ vars.CLOUDFLARE_ACCOUNT_ID }}" \
             --d1 "${{ vars.D1_DATABASE_ID }}" \
             --expected-target-fingerprint "$EMDASH_TARGET_FINGERPRINT"
-      - run: pnpm exec wrangler deploy
+      - run: pnpm wrangler deploy
       - name: Check EmDash migrations
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          pnpm exec emdash migrate --check \
+          pnpm emdash migrate --check \
             --account-id "${{ vars.CLOUDFLARE_ACCOUNT_ID }}" \
             --d1 "${{ vars.D1_DATABASE_ID }}"
 ```
