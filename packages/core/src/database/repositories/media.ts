@@ -63,6 +63,7 @@ export interface MediaItem {
 	dominantColor: string | null;
 	createdAt: string;
 	authorId: string | null;
+	folderId?: string | null;
 }
 
 export interface CreateMediaInput {
@@ -89,6 +90,16 @@ export interface FindManyMediaOptions {
 	status?: MediaStatus | "all"; // Filter by status, defaults to "ready"
 	/** Case-insensitive substring matched against the filename (covers filename and extension). */
 	q?: string;
+	/** Omit for all media, pass null for the Main library, or pass a folder ID. */
+	folderId?: string | null;
+}
+
+export interface UpdateMediaInput {
+	alt?: string;
+	caption?: string;
+	width?: number;
+	height?: number;
+	folderId?: string | null;
 }
 
 export interface FindMediaPageOptions extends Omit<FindManyMediaOptions, "cursor"> {
@@ -132,6 +143,7 @@ export class MediaRepository {
 			status: input.status ?? "ready",
 			created_at: now,
 			author_id: input.authorId ?? null,
+			folder_id: null,
 		};
 
 		await this.db.insertInto("media").values(row).execute();
@@ -439,10 +451,7 @@ export class MediaRepository {
 	/**
 	 * Update media metadata
 	 */
-	async update(
-		id: string,
-		input: Partial<Pick<CreateMediaInput, "alt" | "caption" | "width" | "height">>,
-	): Promise<MediaItem | null> {
+	async update(id: string, input: UpdateMediaInput): Promise<MediaItem | null> {
 		const existing = await this.findById(id);
 		if (!existing) {
 			return null;
@@ -453,6 +462,7 @@ export class MediaRepository {
 		if (input.caption !== undefined) updates.caption = input.caption;
 		if (input.width !== undefined) updates.width = input.width;
 		if (input.height !== undefined) updates.height = input.height;
+		if (input.folderId !== undefined) updates.folder_id = input.folderId;
 
 		if (Object.keys(updates).length > 0) {
 			await this.db.updateTable("media").set(updates).where("id", "=", id).execute();
@@ -516,6 +526,12 @@ export class MediaRepository {
 			query = query.where("status", "=", options.status ?? "ready");
 		}
 
+		if (options.folderId === null) {
+			query = query.where("folder_id", "is", null);
+		} else if (options.folderId !== undefined) {
+			query = query.where("folder_id", "=", options.folderId);
+		}
+
 		return query;
 	}
 
@@ -560,6 +576,7 @@ export class MediaRepository {
 			status: row.status as MediaStatus,
 			createdAt: row.created_at,
 			authorId: row.author_id,
+			folderId: row.folder_id,
 		};
 	}
 }
