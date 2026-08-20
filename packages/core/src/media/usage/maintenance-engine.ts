@@ -12,10 +12,7 @@ import { processDueMediaUsageReconciliationDetailed } from "./reconciliation-pro
 import { MediaUsageReconciliationRepository } from "./reconciliation.js";
 import { processDueMediaUsageWork } from "./work-processor.js";
 
-export type MediaUsageMaintenanceTaskClass =
-	| "entry_work"
-	| "collection_deletion"
-	| "reconciliation";
+type MediaUsageMaintenanceTaskClass = "entry_work" | "collection_deletion" | "reconciliation";
 
 export type MediaUsageMaintenanceContinuation =
 	| { kind: "none" }
@@ -25,8 +22,6 @@ export type MediaUsageMaintenanceContinuation =
 export interface MediaUsageMaintenanceStepResult {
 	state: "inactive" | "idle" | "blocked" | "progress";
 	continuation: MediaUsageMaintenanceContinuation;
-	taskClass: MediaUsageMaintenanceTaskClass | null;
-	turn: number | null;
 }
 
 export const MEDIA_USAGE_MAINTENANCE_LIMITS = Object.freeze({
@@ -40,12 +35,6 @@ const TASK_CLASSES: readonly MediaUsageMaintenanceTaskClass[] = [
 	"entry_work",
 	"reconciliation",
 ];
-
-const TASK_CLASS_TURNS: Record<MediaUsageMaintenanceTaskClass, number> = {
-	entry_work: 0,
-	collection_deletion: 1,
-	reconciliation: 2,
-};
 
 interface MediaUsageMaintenanceSliceState {
 	activationActive: boolean;
@@ -78,26 +67,22 @@ async function runMediaUsageMaintenanceStepWithState(
 	}
 	if (sliceState) sliceState.activationActive = true;
 
-	let firstBlocked: { taskClass: MediaUsageMaintenanceTaskClass; turn: number } | null = null;
-	let blockedReconciliationTurn: number | null = null;
-	let firstProgress: { taskClass: MediaUsageMaintenanceTaskClass; turn: number } | null = null;
+	let blocked = false;
+	let blockedReconciliation = false;
+	let madeProgress = false;
 
 	for (const taskClass of TASK_CLASSES) {
 		if (sliceState?.idleTaskClasses.has(taskClass)) continue;
-		const turn = TASK_CLASS_TURNS[taskClass];
 		const metrics = getRequestContext()?.metrics;
 		if (metrics && !canStartMediaUsageMaintenanceStep(metrics)) {
-			return firstProgress
+			return madeProgress
 				? {
 						state: "progress",
 						continuation: { kind: "immediate" },
-						...firstProgress,
 					}
 				: {
 						state: "blocked",
 						continuation: { kind: "immediate" },
-						taskClass,
-						turn,
 					};
 		}
 		const outcome = await runTaskClass(db, taskClass, sliceState);
@@ -112,45 +97,39 @@ async function runMediaUsageMaintenanceStepWithState(
 				sliceState.idleTaskClasses.delete("entry_work");
 			}
 		}
-		if (outcome === "progress" && !firstProgress) firstProgress = { taskClass, turn };
+		if (outcome === "progress") madeProgress = true;
 		if (outcome === "blocked") {
-			if (!firstBlocked) firstBlocked = { taskClass, turn };
-			if (taskClass === "reconciliation") blockedReconciliationTurn = turn;
+			blocked = true;
+			if (taskClass === "reconciliation") blockedReconciliation = true;
 		}
 	}
-	if (firstProgress) {
+	if (madeProgress) {
 		return {
 			state: "progress",
 			continuation: { kind: "immediate" },
-			...firstProgress,
 		};
 	}
 
 	if (
-		blockedReconciliationTurn !== null &&
+		blockedReconciliation &&
 		(await new MediaUsageReconciliationRepository(db).wakeDrainedBarrierCandidate())
 	) {
 		return {
 			state: "progress",
 			continuation: { kind: "immediate" },
-			taskClass: "reconciliation",
-			turn: blockedReconciliationTurn,
 		};
 	}
 
-	if (firstBlocked) {
+	if (blocked) {
 		return {
 			state: "blocked",
 			continuation: { kind: "delayed", delaySeconds: 30 },
-			...firstBlocked,
 		};
 	}
 
 	return {
 		state: "idle",
 		continuation: { kind: "none" },
-		taskClass: TASK_CLASSES[0],
-		turn: TASK_CLASS_TURNS[TASK_CLASSES[0]],
 	};
 }
 
@@ -161,16 +140,12 @@ async function runActivationStep(db: Kysely<Database>): Promise<MediaUsageMainte
 			return {
 				state: "progress",
 				continuation: { kind: "immediate" },
-				taskClass: null,
-				turn: null,
 			};
 		}
 		if (result.outcome === "lease_active" || result.outcome === "conflict") {
 			return {
 				state: "blocked",
 				continuation: { kind: "delayed", delaySeconds: 30 },
-				taskClass: null,
-				turn: null,
 			};
 		}
 		return inactiveResult();
@@ -239,8 +214,6 @@ function inactiveResult(): MediaUsageMaintenanceStepResult {
 	return {
 		state: "inactive",
 		continuation: { kind: "none" },
-		taskClass: null,
-		turn: null,
 	};
 }
 

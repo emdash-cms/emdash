@@ -1,13 +1,9 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-type MaintenanceStepResult = {
-	state: "inactive" | "idle" | "blocked" | "progress";
-	continuation: { kind: "none" } | { kind: "immediate" } | { kind: "delayed"; delaySeconds: 30 };
-	taskClass: "entry_work" | "collection_deletion" | "reconciliation" | null;
-	turn: number | null;
-};
-
-type MaintenanceContinuation = MaintenanceStepResult["continuation"];
+type MaintenanceContinuation =
+	| { kind: "none" }
+	| { kind: "immediate" }
+	| { kind: "delayed"; delaySeconds: 30 };
 
 const scheduled = vi.hoisted(() => {
 	const general = vi.fn(async (_options?: unknown) => ({ published: [] }));
@@ -16,13 +12,6 @@ const scheduled = vi.hoisted(() => {
 	}));
 	return {
 		general,
-		mediaUsage: vi.fn(async () => ({ outcome: "inactive", taskClass: null, turn: null })),
-		mediaUsageStep: vi.fn<() => Promise<MaintenanceStepResult>>(async () => ({
-			state: "idle",
-			continuation: { kind: "none" },
-			taskClass: "entry_work",
-			turn: 0,
-		})),
 		mediaUsageSlice,
 	};
 });
@@ -34,8 +23,6 @@ vi.mock("astro/app/entrypoint", () => ({
 }));
 vi.mock("emdash/middleware", () => ({
 	runScheduledTasks: scheduled.general,
-	runScheduledMediaUsageTasks: scheduled.mediaUsage,
-	runMediaUsageMaintenanceStep: scheduled.mediaUsageStep,
 	runMediaUsageMaintenanceSlice: scheduled.mediaUsageSlice,
 }));
 vi.mock("../src/sandbox/index.js", () => ({ PluginBridge: vi.fn() }));
@@ -53,86 +40,48 @@ beforeEach(() => {
 	astro.fetch.mockReset();
 	astro.fetch.mockResolvedValue(new Response(null, { status: 204 }));
 	scheduled.general.mockClear();
-	scheduled.mediaUsage.mockClear();
-	scheduled.mediaUsageStep.mockClear();
 	scheduled.mediaUsageSlice.mockClear();
-	scheduled.mediaUsageStep.mockResolvedValue({
-		state: "idle",
-		continuation: { kind: "none" },
-		taskClass: "entry_work",
-		turn: 0,
-	});
 	scheduled.mediaUsageSlice.mockResolvedValue({ kind: "none" });
 });
 
-it("retains the default Media Usage expression as a compatibility alias", async () => {
+it("runs general maintenance for the configured Cron", async () => {
+	const handler = createScheduledHandler({ generalCron: "* * * * *" });
+
+	await invoke(handler, "* * * * *");
+
+	expect(scheduled.general).toHaveBeenCalledOnce();
+	expect(scheduled.mediaUsageSlice).not.toHaveBeenCalled();
+});
+
+it("ignores unexpected Cron expressions", async () => {
+	const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+	const handler = createScheduledHandler({ generalCron: "* * * * *" });
+
+	await invoke(handler, "0 * * * *");
+
+	expect(scheduled.general).not.toHaveBeenCalled();
+	expect(scheduled.mediaUsageSlice).not.toHaveBeenCalled();
+	expect(warning).toHaveBeenCalledExactlyOnceWith(
+		"[scheduled] Ignoring unexpected Cron expression: 0 * * * *",
+	);
+});
+
+it("runs any configured trigger when no expression is specified", async () => {
 	const handler = createScheduledHandler();
 
 	await invoke(handler, "custom expression");
 	expect(scheduled.general).toHaveBeenCalledOnce();
-	expect(scheduled.mediaUsage).not.toHaveBeenCalled();
-	expect(scheduled.mediaUsageSlice).toHaveBeenCalledOnce();
-
-	scheduled.general.mockClear();
-	scheduled.mediaUsageSlice.mockClear();
-	await invoke(handler, "*/2 * * * *");
-	expect(scheduled.general).not.toHaveBeenCalled();
-	expect(scheduled.mediaUsage).not.toHaveBeenCalled();
 	expect(scheduled.mediaUsageSlice).not.toHaveBeenCalled();
 });
 
-it("keeps the configured Media Usage expression as a recovery-only alias", async () => {
-	const handler = createScheduledHandler({
-		generalCron: "* * * * *",
-		mediaUsageCron: "*/2 * * * *",
-	});
-
-	await invoke(handler, "* * * * *");
-	expect(scheduled.general).toHaveBeenCalledOnce();
-	expect(scheduled.mediaUsage).not.toHaveBeenCalled();
-	expect(scheduled.mediaUsageSlice).not.toHaveBeenCalled();
-
-	scheduled.general.mockClear();
-	scheduled.mediaUsageSlice.mockClear();
-	await invoke(handler, "*/2 * * * *");
-	expect(scheduled.general).not.toHaveBeenCalled();
-	expect(scheduled.mediaUsage).not.toHaveBeenCalled();
-	expect(scheduled.mediaUsageSlice).toHaveBeenCalledOnce();
-
-	scheduled.mediaUsageSlice.mockClear();
-	await invoke(handler, "0 0 * * *");
-	expect(scheduled.general).not.toHaveBeenCalled();
-	expect(scheduled.mediaUsageSlice).not.toHaveBeenCalled();
+it("rejects an empty configured expression", () => {
+	expect(() => createScheduledHandler({ generalCron: "" })).toThrow(/non-empty/i);
+	expect(createScheduledHandler({ generalCron: " * * * * * " })).toBeTypeOf("function");
 });
 
-it("allows either default expression to be overridden independently", async () => {
-	const customMedia = createScheduledHandler({ mediaUsageCron: "*/5 * * * *" });
-	await invoke(customMedia, "*/5 * * * *");
-	expect(scheduled.mediaUsageSlice).toHaveBeenCalledOnce();
-	expect(scheduled.general).not.toHaveBeenCalled();
-
-	scheduled.mediaUsageSlice.mockClear();
-	await invoke(customMedia, "15 * * * *");
-	expect(scheduled.mediaUsageSlice).not.toHaveBeenCalled();
-	expect(scheduled.general).toHaveBeenCalledOnce();
-
-	scheduled.general.mockClear();
-	scheduled.mediaUsageSlice.mockClear();
-	const customGeneral = createScheduledHandler({ generalCron: "0 * * * *" });
-	await invoke(customGeneral, "*/2 * * * *");
-	expect(scheduled.mediaUsageSlice).not.toHaveBeenCalled();
-	expect(scheduled.general).not.toHaveBeenCalled();
-
-	scheduled.mediaUsageSlice.mockClear();
-	await invoke(customGeneral, "0 * * * *");
-	expect(scheduled.mediaUsageSlice).toHaveBeenCalledOnce();
-	expect(scheduled.general).toHaveBeenCalledOnce();
-
-	scheduled.general.mockClear();
-	scheduled.mediaUsageSlice.mockClear();
-	await invoke(customGeneral, "15 * * * *");
-	expect(scheduled.mediaUsageSlice).not.toHaveBeenCalled();
-	expect(scheduled.general).not.toHaveBeenCalled();
+it("keeps the scheduled options type usable", () => {
+	const options: ScheduledHandlerOptions = { generalCron: "* * * * *" };
+	expect(createScheduledHandler(options)).toBeTypeOf("function");
 });
 
 it("queues one immediate wake after a successful activation response", async () => {
@@ -189,97 +138,13 @@ it("redacts an activation wake failure without changing the successful response"
 	expect(JSON.stringify(error.mock.calls)).not.toContain("private queue detail");
 });
 
-it("rejects empty or aliased configured expressions", () => {
-	expect(() =>
-		createScheduledHandler({ generalCron: "* * * * *", mediaUsageCron: "* * * * *" }),
-	).toThrow(/must differ/i);
-	expect(() => createScheduledHandler({ generalCron: "", mediaUsageCron: "*/2 * * * *" })).toThrow(
-		/non-empty/i,
-	);
-	expect(() => createScheduledHandler({ mediaUsageCron: " " })).toThrow(/non-empty/i);
-	expect(createScheduledHandler({ generalCron: " */2 * * * * " })).toBeTypeOf("function");
-});
+it("keeps the general Cron independent from Media Usage", async () => {
+	const handler = createScheduledHandler({ generalCron: "* * * * *" });
 
-it("keeps the existing non-generic scheduled options type usable", () => {
-	const options: ScheduledHandlerOptions = { mediaUsageCron: "*/5 * * * *" };
-	expect(createScheduledHandler(options)).toBeTypeOf("function");
-});
-
-it("uses configured Cron as a Queue wake without initializing Media Usage", async () => {
-	const send = vi.fn(async () => {});
-	const queue = queueBinding(send);
-	const handler = createScheduledHandler<{ MEDIA_USAGE_QUEUE: Queue<MediaUsageWakeMessage> }>({
-		generalCron: "* * * * *",
-		mediaUsageCron: "*/2 * * * *",
-		resolveMediaUsageQueue: (env) => env.MEDIA_USAGE_QUEUE,
-	});
-
-	await invoke(handler, "*/2 * * * *", { MEDIA_USAGE_QUEUE: queue });
-
-	expect(send).toHaveBeenCalledExactlyOnceWith({ version: 1 });
-	expect(scheduled.mediaUsage).not.toHaveBeenCalled();
-	expect(scheduled.mediaUsageStep).not.toHaveBeenCalled();
-	expect(scheduled.mediaUsageSlice).not.toHaveBeenCalled();
-});
-
-it("leaves a compatibility-only Cron idle when the optional Queue is unavailable", async () => {
-	const handler = createScheduledHandler({
-		resolveMediaUsageQueue: () => undefined,
-	});
-
-	await invoke(handler, "*/2 * * * *", {});
-
-	expect(scheduled.mediaUsage).not.toHaveBeenCalled();
-	expect(scheduled.mediaUsageStep).not.toHaveBeenCalled();
-	expect(scheduled.mediaUsageSlice).not.toHaveBeenCalled();
-});
-
-it("runs general and Media Usage maintenance without a Queue", async () => {
-	const handler = createScheduledHandler({
-		resolveMediaUsageQueue: () => undefined,
-	});
-
-	await invoke(handler, "15 * * * *", {});
+	await invoke(handler, "* * * * *");
 
 	expect(scheduled.general).toHaveBeenCalledOnce();
-	expect(scheduled.mediaUsageSlice).toHaveBeenCalledOnce();
-});
-
-it("still runs Media Usage recovery when general maintenance fails without a Queue", async () => {
-	const error = vi.spyOn(console, "error").mockImplementation(() => {});
-	scheduled.general.mockRejectedValueOnce(new Error("private general failure"));
-	const handler = createScheduledHandler({
-		resolveMediaUsageQueue: () => undefined,
-	});
-
-	await invoke(handler, "15 * * * *", {});
-
-	expect(scheduled.general).toHaveBeenCalledOnce();
-	expect(scheduled.mediaUsageSlice).toHaveBeenCalledOnce();
-	expect(error).toHaveBeenCalledExactlyOnceWith(
-		"[scheduled] runScheduledTasks failed:",
-		expect.any(Error),
-	);
-});
-
-it("logs a redacted Cron wake failure and leaves recovery to the next trigger", async () => {
-	const queue = queueBinding(
-		vi.fn(async () => {
-			throw new Error("private binding detail");
-		}),
-	);
-	const error = vi.spyOn(console, "error").mockImplementation(() => {});
-	const handler = createScheduledHandler<{ MEDIA_USAGE_QUEUE: Queue<MediaUsageWakeMessage> }>({
-		resolveMediaUsageQueue: (env) => env.MEDIA_USAGE_QUEUE,
-	});
-
-	await invoke(handler, "*/2 * * * *", { MEDIA_USAGE_QUEUE: queue });
-
-	expect(error).toHaveBeenCalledExactlyOnceWith(
-		"[scheduled] Failed to queue Media Usage maintenance wake",
-	);
-	expect(JSON.stringify(error.mock.calls)).not.toContain("private binding detail");
-	expect(scheduled.mediaUsage).not.toHaveBeenCalled();
+	expect(scheduled.mediaUsageSlice).not.toHaveBeenCalled();
 });
 
 it("coalesces a delivered batch into one slice and one successor", async () => {
@@ -290,7 +155,6 @@ it("coalesces a delivered batch into one slice and one successor", async () => {
 	await invokeQueue(handler, [wakeMessage(), wakeMessage()], {});
 
 	expect(scheduled.mediaUsageSlice).toHaveBeenCalledOnce();
-	expect(scheduled.mediaUsageStep).not.toHaveBeenCalled();
 	expect(send).toHaveBeenCalledExactlyOnceWith({ version: 1 });
 });
 
@@ -301,7 +165,6 @@ it("lets the Queue drain when the durable database is idle", async () => {
 	await invokeQueue(handler, [wakeMessage()], {});
 
 	expect(scheduled.mediaUsageSlice).toHaveBeenCalledOnce();
-	expect(scheduled.mediaUsageStep).not.toHaveBeenCalled();
 	expect(send).not.toHaveBeenCalled();
 });
 
@@ -316,7 +179,6 @@ it("acknowledges invalid wakes without logging their body or running work", asyn
 	expect(invalid.ack).toHaveBeenCalledOnce();
 	expect(warning).toHaveBeenCalledWith("[queue] Ignoring invalid Media Usage wake");
 	expect(JSON.stringify(warning.mock.calls)).not.toContain("do-not-log");
-	expect(scheduled.mediaUsageStep).not.toHaveBeenCalled();
 	expect(scheduled.mediaUsageSlice).not.toHaveBeenCalled();
 	expect(send).not.toHaveBeenCalled();
 });
@@ -348,7 +210,6 @@ it("fails before database work when the required Queue binding is missing", asyn
 	await expect(invokeQueue(handler, [invalid, valid], {})).rejects.toThrow(/binding/i);
 	expect(invalid.ack).toHaveBeenCalledOnce();
 	expect(valid.ack).not.toHaveBeenCalled();
-	expect(scheduled.mediaUsageStep).not.toHaveBeenCalled();
 	expect(scheduled.mediaUsageSlice).not.toHaveBeenCalled();
 });
 

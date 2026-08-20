@@ -49,12 +49,10 @@ import {
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
 import {
-	MEDIA_USAGE_MAINTENANCE_LIMITS,
 	runMediaUsageMaintenanceSlice,
 	runMediaUsageMaintenanceStep,
 	type MediaUsageMaintenanceContinuation,
 	type MediaUsageMaintenanceStepResult,
-	type MediaUsageMaintenanceTaskClass,
 } from "./media/usage/maintenance-engine.js";
 import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
@@ -539,34 +537,7 @@ let sandboxRunner: SandboxRunner | null = null;
 export type {
 	MediaUsageMaintenanceContinuation,
 	MediaUsageMaintenanceStepResult,
-	MediaUsageMaintenanceTaskClass,
 } from "./media/usage/maintenance-engine.js";
-
-export type MediaUsageMaintenanceResult =
-	| { outcome: "inactive" | "admission_closed"; taskClass: null; turn: null }
-	| { outcome: "processed"; taskClass: MediaUsageMaintenanceTaskClass; turn: number };
-
-async function runScheduledMediaUsageLane(
-	db: Kysely<Database>,
-): Promise<MediaUsageMaintenanceResult> {
-	const queriesAlreadySpent = getRequestContext()?.metrics?.dbCount ?? 0;
-	if (
-		queriesAlreadySpent + MEDIA_USAGE_MAINTENANCE_LIMITS.maxStepQueries >
-		MEDIA_USAGE_MAINTENANCE_LIMITS.eventQueryCeiling
-	) {
-		return { outcome: "admission_closed", taskClass: null, turn: null };
-	}
-
-	const result = await runMediaUsageMaintenanceStep(db);
-	if (result.state === "inactive" || result.taskClass === null || result.turn === null) {
-		return { outcome: "inactive", taskClass: null, turn: null };
-	}
-	return {
-		outcome: "processed",
-		taskClass: result.taskClass,
-		turn: result.turn,
-	};
-}
 
 /**
  * EmDashRuntime - singleton per worker
@@ -772,10 +743,6 @@ export class EmDashRuntime {
 		return { published };
 	}
 
-	async runScheduledMediaUsageTasks(): Promise<MediaUsageMaintenanceResult> {
-		return runScheduledMediaUsageLane(this.db);
-	}
-
 	async runMediaUsageMaintenanceStep(): Promise<MediaUsageMaintenanceStepResult> {
 		return runMediaUsageMaintenanceStep(this.db);
 	}
@@ -785,7 +752,7 @@ export class EmDashRuntime {
 	}
 
 	wakeMediaUsageMaintenance(): void {
-		this.cronScheduler?.wakeMediaUsageMaintenance?.();
+		this.cronScheduler?.wakeMediaUsageMaintenance();
 	}
 
 	/**
@@ -1707,15 +1674,6 @@ export class EmDashRuntime {
 				if (deps.createScheduler) {
 					const scheduler = deps.createScheduler(cronExecutor);
 					cronScheduler = scheduler;
-					const runMediaUsageMaintenance = () =>
-						runWithContext({ editMode: false }, async () => {
-							const runtime = runtimeRef.current;
-							if (runtime) {
-								await runtime.runMediaUsageMaintenanceStep();
-							} else {
-								await runMediaUsageMaintenanceStep(db);
-							}
-						});
 					const runContinuousMediaUsageMaintenance = () =>
 						runWithContext({ editMode: false }, async () => {
 							const runtime = runtimeRef.current;
@@ -1756,22 +1714,8 @@ export class EmDashRuntime {
 						}
 						// Never throws; no-op unless scheduled backups are enabled and due.
 						await maybeRunScheduledBackup(db, storage ?? undefined);
-						if (
-							!scheduler.setContinuousMediaUsageMaintenance &&
-							!scheduler.setMediaUsageMaintenance
-						) {
-							try {
-								await runMediaUsageMaintenance();
-							} catch (error) {
-								console.error("[media-usage] Scheduled maintenance failed:", error);
-							}
-						}
 					});
-					if (scheduler.setContinuousMediaUsageMaintenance) {
-						scheduler.setContinuousMediaUsageMaintenance(runContinuousMediaUsageMaintenance);
-					} else {
-						scheduler.setMediaUsageMaintenance?.(runMediaUsageMaintenance);
-					}
+					scheduler.setContinuousMediaUsageMaintenance(runContinuousMediaUsageMaintenance);
 
 					// start() is void on the timer scheduler but the interface
 					// allows a promise (alarm-backed schedulers); we don't block on it.

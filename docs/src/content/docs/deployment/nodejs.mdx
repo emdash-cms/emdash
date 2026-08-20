@@ -60,7 +60,7 @@ plugin tasks, and background media indexing.
 
 While Media Usage work is available, the scheduler continues one bounded indexing unit on each event
 loop turn until it catches up. It yields between units so requests and other scheduled work remain
-responsive, and durable database work resumes after a process restart.
+responsive.
 
 Keep at least one Node process running continuously in production. If all processes stop or sleep,
 scheduled tasks pause.
@@ -71,6 +71,9 @@ Keep at least one Node process running, then pause all application and direct da
 **Settings → Media Usage**, select **Enable Media Usage**, and confirm the safety requirements once.
 The Node scheduler prepares the remaining collections and starts indexing existing content. This
 work continues if you close the page.
+
+Keep the Node process running until Media Usage reaches **Ready**. An interrupted process does not
+restart Media Usage work from the general scheduler heartbeat.
 
 Keep writers stopped while the page shows **Setting up**. Resume writers when it shows **Starting
 indexing**, **Indexing existing content**, or **Ready**. While the page is visible, it refreshes

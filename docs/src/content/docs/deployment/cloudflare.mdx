@@ -95,12 +95,12 @@ const resolveMediaUsageQueue = (env: Env) => env.MEDIA_USAGE_QUEUE;
 export default {
 	...handler,
 	fetch: createMediaUsageFetchHandler(handler, resolveMediaUsageQueue),
-	scheduled: createScheduledHandler({ resolveMediaUsageQueue }),
+	scheduled: createScheduledHandler(),
 	queue: createMediaUsageQueueHandler(resolveMediaUsageQueue),
 } satisfies ExportedHandler<Env, MediaUsageWakeMessage>;
 ```
 
-The general schedule also sends Media Usage recovery wakes. Add one Cron Trigger, the five-minute CPU allowance, and the automatically provisioned Queue to `wrangler.jsonc`:
+Add one Cron Trigger for general maintenance, the five-minute CPU allowance, and the automatically provisioned Queue to `wrangler.jsonc`:
 
 ```jsonc title="wrangler.jsonc"
 {
@@ -133,27 +133,26 @@ The general schedule also sends Media Usage recovery wakes. Add one Cron Trigger
 Run `wrangler types` after changing the bindings so `Env.MEDIA_USAGE_QUEUE` is available to
 TypeScript.
 
-The general Cron sends a Media Usage recovery wake to this Queue. Each batch processes up to 1,000
-entries. The consumer continues with another batch while its invocation has capacity, then sends
-another wake when work remains. Queue messages contain no content identity, and the existing database
-work rows remain authoritative if a message is retried or lost. Concurrency stays at one because D1
-processes a database sequentially.
+Enabling Media Usage sends the first Queue message. Each batch processes up to 1,000 entries. The
+consumer continues with another batch while its invocation has capacity, then sends another message
+when work remains. Queue messages contain no content identity, and the existing database work rows
+remain authoritative if a message is retried. Concurrency stays at one because D1 processes a database
+sequentially.
 
-Existing custom Workers without a Queue binding run a bounded maintenance slice during each general
-Cron event. To use a different schedule, set `generalCron` in `createScheduledHandler()` and use the
-same expression in `wrangler.jsonc`. The `mediaUsageCron` option remains available for deployments that
-already use a separate compatibility trigger.
+To use a different general maintenance schedule, set `generalCron` in `createScheduledHandler()` and
+use the same expression in `wrangler.jsonc`.
 
 <Aside type="caution">
-	Without the general trigger, scheduled publishing, plugin cron, and interrupted Media Usage Queue chains cannot recover automatically. Local `astro dev` still uses the in-process scheduler.
+	Keep the Media Usage Queue configured until setup reaches **Ready**. A stopped
+	Queue chain does not restart from the general Cron.
 </Aside>
 
 ### Enable automatic media usage indexing
 
-Keep general scheduled maintenance running, then pause all application and direct database writes. Open
+Pause all application and direct database writes. Open
 **Settings → Media Usage**, select **Enable Media Usage**, and confirm the safety requirements once.
 EmDash queues the remaining setup work and starts indexing existing content. This work continues if
-you close the page. The general Cron recovers setup or indexing after an interrupted Queue chain.
+you close the page while the Queue chain remains active.
 
 Keep writers stopped while the page shows **Setting up**. Resume writers when it shows **Starting
 indexing**, **Indexing existing content**, or **Ready**. While the page is visible, it refreshes

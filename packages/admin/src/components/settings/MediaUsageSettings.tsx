@@ -431,7 +431,7 @@ function ConfirmationDialog({
 		{
 			key: "maintenance",
 			title: t`Background tasks are running.`,
-			description: t`Keep scheduled maintenance running on Cloudflare or keep a Node process running.`,
+			description: t`Keep the Media Usage Queue running on Cloudflare or keep a Node process running.`,
 		},
 		{
 			key: "writers",

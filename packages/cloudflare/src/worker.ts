@@ -1,10 +1,9 @@
 /**
  * Cloudflare Worker entry for EmDash sites.
  *
- * Wraps the Astro Cloudflare server handler with a `scheduled()` handler so a
- * Cron Triggers drive general maintenance and the separately bounded Media
- * Usage lane without request side effects. Re-exports the `PluginBridge`
- * Durable Object so the sandbox binding resolves against the entry module.
+ * Wraps the Astro Cloudflare server handler with a `scheduled()` handler for
+ * general maintenance. Re-exports the `PluginBridge` Durable Object so the
+ * sandbox binding resolves against the entry module.
  *
  * The `@astrojs/cloudflare/entrypoints/server` import is resolved by the
  * consuming app's Astro build (it pulls the build-time `virtual:astro:app`
@@ -40,9 +39,7 @@ async function invalidatePublishedTags(
 }
 
 /**
- * Build a Worker `scheduled()` handler. General maintenance independently
- * wakes Media Usage recovery. The optional Media Usage expression remains a
- * compatibility alias for deployments that already have a second trigger.
+ * Build a Worker `scheduled()` handler for general maintenance.
  */
 export interface MediaUsageWakeMessage {
 	version: 1;
@@ -54,70 +51,24 @@ export type OptionalMediaUsageQueueResolver<Env> = (
 
 export type MediaUsageQueueResolver<Env> = (env: Env) => Queue<MediaUsageWakeMessage>;
 
-export interface ScheduledHandlerOptions<Env = unknown> {
+export interface ScheduledHandlerOptions {
 	generalCron?: string;
-	mediaUsageCron?: string;
-	resolveMediaUsageQueue?: OptionalMediaUsageQueueResolver<Env>;
 }
 
-const DEFAULT_MEDIA_USAGE_CRON = "*/2 * * * *";
-
 export function createScheduledHandler<Env = unknown>(
-	options?: ScheduledHandlerOptions<Env>,
+	options?: ScheduledHandlerOptions,
 ): ExportedHandlerScheduledHandler<Env> {
 	const generalCron = options?.generalCron?.trim();
-	const configuredMediaUsageCron = options?.mediaUsageCron?.trim();
-	const mediaUsageCron =
-		configuredMediaUsageCron ??
-		(generalCron === DEFAULT_MEDIA_USAGE_CRON ? undefined : DEFAULT_MEDIA_USAGE_CRON);
-	if (
-		(options?.generalCron !== undefined && !generalCron) ||
-		(options?.mediaUsageCron !== undefined && !configuredMediaUsageCron)
-	) {
+	if (options?.generalCron !== undefined && !generalCron) {
 		throw new Error("Configured scheduled-handler expressions must be non-empty");
 	}
-	if (generalCron !== undefined && generalCron === mediaUsageCron) {
-		throw new Error("General and Media Usage Cron expressions must differ");
-	}
 
-	return (controller, env, ctx) => {
-		const isMediaUsageAlias = mediaUsageCron !== undefined && controller.cron === mediaUsageCron;
-		const isGeneral =
-			generalCron !== undefined ? controller.cron === generalCron : !isMediaUsageAlias;
-		if (!isGeneral && !isMediaUsageAlias) {
+	return (controller, _env, ctx) => {
+		if (generalCron !== undefined && controller.cron !== generalCron) {
 			console.warn(`[scheduled] Ignoring unexpected Cron expression: ${controller.cron}`);
 			return;
 		}
 
-		let queue: Queue<MediaUsageWakeMessage> | undefined;
-		try {
-			queue = options?.resolveMediaUsageQueue?.(env);
-		} catch {
-			console.error("[scheduled] Failed to queue Media Usage maintenance wake");
-		}
-		const queueWake = () => {
-			if (!queue) return;
-			ctx.waitUntil(
-				queue.send({ version: 1 }).catch(() => {
-					console.error("[scheduled] Failed to queue Media Usage maintenance wake");
-				}),
-			);
-		};
-
-		if (!isGeneral) {
-			if (queue) {
-				queueWake();
-			} else if (configuredMediaUsageCron !== undefined) {
-				ctx.waitUntil(
-					runMediaUsageMaintenanceSlice().catch((error: unknown) => {
-						console.error("[scheduled] Media Usage maintenance failed:", error);
-					}),
-				);
-			}
-			return;
-		}
-
-		if (queue) queueWake();
 		ctx.waitUntil(
 			(async () => {
 				try {
@@ -134,13 +85,6 @@ export function createScheduledHandler<Env = unknown>(
 					}
 				} catch (error) {
 					console.error("[scheduled] runScheduledTasks failed:", error);
-				}
-				if (!queue && configuredMediaUsageCron === undefined) {
-					try {
-						await runMediaUsageMaintenanceSlice();
-					} catch (error) {
-						console.error("[scheduled] Media Usage maintenance failed:", error);
-					}
 				}
 			})(),
 		);

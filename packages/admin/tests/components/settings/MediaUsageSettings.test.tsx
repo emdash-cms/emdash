@@ -76,7 +76,7 @@ async function openConfirmation(screen: Awaited<ReturnType<typeof renderPage>>["
 	await userEvent.click(screen.getByRole("button", { name: "Enable Media Usage" }));
 	await expect.element(screen.getByRole("dialog", { name: "Enable Media Usage" })).toBeVisible();
 	await expect
-		.element(screen.getByText(/Keep scheduled maintenance running on Cloudflare/))
+		.element(screen.getByText(/Keep the Media Usage Queue running on Cloudflare/))
 		.toBeVisible();
 }
 

@@ -38,41 +38,14 @@ describe("media usage scheduled drivers", () => {
 		runtime = null;
 	});
 
-	it("keeps general maintenance unchanged and drains work from the dedicated lane", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		const fixture = await activateCollection(runtime, "cloudflare_posts");
-		await insertEntry(runtime, fixture.tableName, "entry-1");
-
-		await runtime.runScheduledTasks();
-		expect(await countWork(runtime)).toBe(1);
-		await expect(runtime.runScheduledMediaUsageTasks()).resolves.toMatchObject({
-			outcome: "processed",
-			taskClass: "entry_work",
-		});
-
-		expect(await countWork(runtime)).toBe(0);
-		expect(
-			await new MediaUsageRepository(runtime.db).findSource(
-				canonicalSourceKey(fixture.collectionId, "entry-1"),
-			),
-		).not.toBeNull();
-	});
-
 	it("skips idle maintenance classes and processes due entry work", async () => {
 		runtime = await EmDashRuntime.create(createDeps(null));
 		const fixture = await activateCollection(runtime, "work_conserving_posts");
 		await insertEntry(runtime, fixture.tableName, "entry-1");
-		await runtime.db
-			.updateTable("_emdash_media_usage_activation")
-			.set({ media_usage_maintenance_turn: 0 })
-			.where("task_key", "=", "incremental_capture")
-			.execute();
 
 		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
 			state: "progress",
 			continuation: { kind: "immediate" },
-			taskClass: "entry_work",
-			turn: 0,
 		});
 		expect(await countWork(runtime)).toBe(0);
 	});
@@ -86,7 +59,6 @@ describe("media usage scheduled drivers", () => {
 		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toMatchObject({
 			state: "progress",
 			continuation: { kind: "immediate" },
-			taskClass: "entry_work",
 		});
 		expect(await countWork(runtime)).toBe(0);
 	});
@@ -107,8 +79,6 @@ describe("media usage scheduled drivers", () => {
 		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
 			state: "blocked",
 			continuation: { kind: "delayed", delaySeconds: 30 },
-			taskClass: "entry_work",
-			turn: 0,
 		});
 		expect(await countWork(runtime)).toBe(1);
 	});
@@ -125,8 +95,6 @@ describe("media usage scheduled drivers", () => {
 		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
 			state: "blocked",
 			continuation: { kind: "delayed", delaySeconds: 30 },
-			taskClass: "entry_work",
-			turn: 0,
 		});
 		expect(await countWork(runtime)).toBe(1);
 	});
@@ -141,11 +109,6 @@ describe("media usage scheduled drivers", () => {
 			.set({ status: "stale", reconciliation_required: 1 })
 			.where("collection_id", "=", reconciliation.collectionId)
 			.execute();
-		await runtime.db
-			.updateTable("_emdash_media_usage_activation")
-			.set({ media_usage_maintenance_turn: 1 })
-			.where("task_key", "=", "incremental_capture")
-			.execute();
 		await sql`
 			CREATE TRIGGER block_media_usage_reconciliation_claim
 			BEFORE UPDATE OF state ON _emdash_media_usage_reconciliations
@@ -158,8 +121,6 @@ describe("media usage scheduled drivers", () => {
 		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
 			state: "progress",
 			continuation: { kind: "immediate" },
-			taskClass: "entry_work",
-			turn: 0,
 		});
 		expect(await countWork(runtime)).toBe(0);
 	});
@@ -191,11 +152,6 @@ describe("media usage scheduled drivers", () => {
 				next_attempt_at: "2000-01-01T00:00:00.000Z",
 			})
 			.execute();
-		await runtime.db
-			.updateTable("_emdash_media_usage_activation")
-			.set({ media_usage_maintenance_turn: 1 })
-			.where("task_key", "=", "incremental_capture")
-			.execute();
 		await sql`
 			CREATE TRIGGER block_due_reconciliation_claim
 			BEFORE UPDATE OF state ON _emdash_media_usage_reconciliations
@@ -208,7 +164,6 @@ describe("media usage scheduled drivers", () => {
 		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toMatchObject({
 			state: "blocked",
 			continuation: { kind: "delayed", delaySeconds: 30 },
-			taskClass: "reconciliation",
 		});
 	});
 
@@ -219,8 +174,6 @@ describe("media usage scheduled drivers", () => {
 		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
 			state: "idle",
 			continuation: { kind: "none" },
-			taskClass: "collection_deletion",
-			turn: 1,
 		});
 	});
 
@@ -263,7 +216,6 @@ describe("media usage scheduled drivers", () => {
 		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toMatchObject({
 			state: "progress",
 			continuation: { kind: "immediate" },
-			taskClass: "reconciliation",
 		});
 	});
 
@@ -283,7 +235,6 @@ describe("media usage scheduled drivers", () => {
 		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toMatchObject({
 			state: "progress",
 			continuation: { kind: "immediate" },
-			taskClass: "collection_deletion",
 		});
 		expect(await countWork(runtime)).toBe(0);
 		expect(await deletionPhase(runtime, deletion.collectionId)).toBe("sources");
@@ -296,30 +247,16 @@ describe("media usage scheduled drivers", () => {
 		).toBeDefined();
 	});
 
-	it("drains bounded work from the Node timer maintenance callback", async () => {
-		const scheduler = new CapturingScheduler();
-		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
-		const fixture = await activateCollection(runtime, "node_posts");
-		await insertEntry(runtime, fixture.tableName, "entry-1");
-
-		await scheduler.runMaintenance();
-
-		expect(await countWork(runtime)).toBe(0);
-		expect(
-			await new MediaUsageRepository(runtime.db).findSource(
-				canonicalSourceKey(fixture.collectionId, "entry-1"),
-			),
-		).not.toBeNull();
-	});
-
-	it("registers the continuation-capable Node scheduler without changing legacy hooks", async () => {
+	it("drains work after an explicit Node wake", async () => {
 		const scheduler = new ContinuousCapturingScheduler();
 		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
 		const fixture = await activateCollection(runtime, "continuous_node_posts");
 		await insertEntry(runtime, fixture.tableName, "entry-1");
 		await insertEntry(runtime, fixture.tableName, "entry-2");
 
-		await expect(scheduler.runMaintenance()).resolves.toEqual({ kind: "immediate" });
+		runtime.wakeMediaUsageMaintenance();
+		expect(scheduler.wakeCount).toBe(1);
+		await expect(scheduler.runContinuation()).resolves.toEqual({ kind: "immediate" });
 		expect(await countWork(runtime)).toBe(0);
 		await expect(scheduler.runContinuation()).resolves.toEqual({ kind: "none" });
 	});
@@ -429,7 +366,6 @@ describe("media usage scheduled drivers", () => {
 		).resolves.toMatchObject({
 			state: "progress",
 			continuation: { kind: "immediate" },
-			taskClass: "collection_deletion",
 		});
 		expect(await deletionPhase(runtime, deletion.collectionId)).toBe("sources");
 		expect(await countWork(runtime)).toBe(1);
@@ -491,8 +427,8 @@ describe("media usage scheduled drivers", () => {
 		expect(await countWork(runtime)).toBe(0);
 	});
 
-	it("starts reconciliation when Node maintenance inherits an expensive request context", async () => {
-		const scheduler = new CapturingScheduler();
+	it("starts reconciliation from an explicit Node wake", async () => {
+		const scheduler = new ContinuousCapturingScheduler();
 		const metrics = createRequestMetrics(performance.now());
 		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
 		await runtime.schemaRegistry.createCollection({
@@ -522,9 +458,10 @@ describe("media usage scheduled drivers", () => {
 		).toBeUndefined();
 
 		await runWithContext({ editMode: false, metrics }, async () => {
-			await scheduler.runMaintenance();
-			await scheduler.runMaintenance();
-			await scheduler.runMaintenance();
+			runtime!.wakeMediaUsageMaintenance();
+			await scheduler.runContinuation();
+			await scheduler.runContinuation();
+			await scheduler.runContinuation();
 		});
 
 		const reconciliation = await runtime.db
@@ -539,40 +476,15 @@ describe("media usage scheduled drivers", () => {
 		expect(reconciliation !== undefined || coverage.status === "complete").toBe(true);
 	});
 
-	it("drains bounded work through a legacy Node scheduler cleanup callback", async () => {
-		const scheduler = new LegacyCapturingScheduler();
-		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
-		const fixture = await activateCollection(runtime, "legacy_node_posts");
-		await insertEntry(runtime, fixture.tableName, "entry-1");
-
-		await scheduler.runMaintenance();
-
-		expect(await countWork(runtime)).toBe(0);
-		expect(
-			await new MediaUsageRepository(runtime.db).findSource(
-				canonicalSourceKey(fixture.collectionId, "entry-1"),
-			),
-		).not.toBeNull();
-	});
-
-	it("advances bounded collection deletion from the Cloudflare scheduled entry point", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		const fixture = await activateCollection(runtime, "cloudflare_delete");
-		await runtime.schemaRegistry.deleteCollection("cloudflare_delete", { force: true });
-		await runtime.runScheduledMediaUsageTasks();
-		await runtime.runScheduledMediaUsageTasks();
-
-		expect(await deletionPhase(runtime, fixture.collectionId)).toBe("status");
-	});
-
-	it("advances bounded collection deletion from the Node maintenance callback", async () => {
-		const scheduler = new CapturingScheduler();
+	it("advances bounded collection deletion from an explicit Node wake", async () => {
+		const scheduler = new ContinuousCapturingScheduler();
 		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
 		const fixture = await activateCollection(runtime, "node_delete");
 		await runtime.schemaRegistry.deleteCollection("node_delete", { force: true });
 
-		await scheduler.runMaintenance();
-		await scheduler.runMaintenance();
+		runtime.wakeMediaUsageMaintenance();
+		await scheduler.runContinuation();
+		await scheduler.runContinuation();
 
 		expect(await deletionPhase(runtime, fixture.collectionId)).toBe("status");
 	});
@@ -598,35 +510,6 @@ describe("media usage scheduled drivers", () => {
 		).not.toBeNull();
 	});
 
-	it("runs a fair cycle without mutating the legacy persisted turn", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		const fixture = await activateCollection(runtime, "fair_posts");
-		await runtime.db
-			.updateTable("_emdash_media_usage_index_status")
-			.set({ status: "stale", reconciliation_required: 1 })
-			.where("collection_id", "=", fixture.collectionId)
-			.execute();
-
-		const before = await maintenanceTurn(runtime);
-		const turns = [];
-		for (let index = 0; index < 3; index++) {
-			await runtime.runScheduledMediaUsageTasks();
-			turns.push(await maintenanceTurn(runtime));
-		}
-		expect(turns).toEqual([before, before, before]);
-	});
-
-	it("does not advance the turn or spend class queries before activation", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		const before = await maintenanceTurn(runtime);
-		await expect(runtime.runScheduledMediaUsageTasks()).resolves.toEqual({
-			outcome: "inactive",
-			taskClass: null,
-			turn: null,
-		});
-		expect(await maintenanceTurn(runtime)).toBe(before);
-	});
-
 	it("continues confirmed activation one bounded collection at a time", async () => {
 		runtime = await EmDashRuntime.create(createDeps(null));
 		await runtime.schemaRegistry.createCollection({ slug: "activation_alpha", label: "Alpha" });
@@ -642,8 +525,6 @@ describe("media usage scheduled drivers", () => {
 		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
 			state: "progress",
 			continuation: { kind: "immediate" },
-			taskClass: null,
-			turn: null,
 		});
 		expect(await activationState(runtime)).toEqual(
 			expect.objectContaining({
@@ -670,8 +551,6 @@ describe("media usage scheduled drivers", () => {
 		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
 			state: "inactive",
 			continuation: { kind: "none" },
-			taskClass: null,
-			turn: null,
 		});
 		expect(await activationState(runtime)).toEqual(before);
 
@@ -699,107 +578,10 @@ describe("media usage scheduled drivers", () => {
 		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
 			state: "inactive",
 			continuation: { kind: "none" },
-			taskClass: null,
-			turn: null,
 		});
 		expect(await activationState(runtime)).toEqual(before);
-		await expect(runtime.runScheduledMediaUsageTasks()).resolves.toEqual({
-			outcome: "inactive",
-			taskClass: null,
-			turn: null,
-		});
-		expect(await activationState(runtime)).toEqual(before);
-	});
-
-	it("recovers activation through a legacy Node scheduler heartbeat", async () => {
-		const scheduler = new LegacyCapturingScheduler();
-		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
-		await runtime.schemaRegistry.createCollection({ slug: "legacy_activation_a", label: "A" });
-		await runtime.schemaRegistry.createCollection({ slug: "legacy_activation_b", label: "B" });
-		await expect(
-			activateMediaUsageCapture(runtime.db, { writersDrained: true }),
-		).resolves.toMatchObject({
-			outcome: "activating",
-			processedCollections: 1,
-		});
-
-		await scheduler.runMaintenance();
-
-		expect(await activationState(runtime)).toEqual(expect.objectContaining({ state: "active" }));
-	});
-
-	it("does not change the persisted turn when the largest Paid unit no longer fits", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		await runtime.db
-			.updateTable("_emdash_media_usage_activation")
-			.set({ state: "active" })
-			.where("task_key", "=", "incremental_capture")
-			.execute();
-		const before = await maintenanceTurn(runtime);
-		const metrics = createRequestMetrics(performance.now());
-		metrics.dbCount =
-			MEDIA_USAGE_MAINTENANCE_LIMITS.eventQueryCeiling -
-			MEDIA_USAGE_MAINTENANCE_LIMITS.maxStepQueries +
-			1;
-
-		const result = await runWithContext({ editMode: false, metrics }, () =>
-			runtime!.runScheduledMediaUsageTasks(),
-		);
-		expect(result).toEqual({ outcome: "admission_closed", taskClass: null, turn: null });
-		expect(await maintenanceTurn(runtime)).toBe(before);
-	});
-
-	it("keeps every legacy mutation class inside the shared Paid step reservation", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		const work = await activateCollection(runtime, "measure_work");
-		await insertEntry(runtime, work.tableName, "entry-1");
-		await activateCollection(runtime, "measure_delete");
-		await runtime.schemaRegistry.deleteCollection("measure_delete", { force: true });
-		const reconciliation = await activateCollection(runtime, "measure_reconcile");
-		await runtime.db
-			.updateTable("_emdash_media_usage_index_status")
-			.set({ status: "stale", reconciliation_required: 1 })
-			.where("collection_id", "=", reconciliation.collectionId)
-			.execute();
-
-		const metrics = createRequestMetrics(performance.now());
-		await runWithContext({ editMode: false, metrics }, () =>
-			runtime!.runScheduledMediaUsageTasks(),
-		);
-		expect(metrics.dbCount).toBeLessThanOrEqual(MEDIA_USAGE_MAINTENANCE_LIMITS.maxStepQueries);
-		expect(await countWork(runtime)).toBe(0);
-		expect(
-			await runtime.db
-				.selectFrom("_emdash_media_usage_reconciliations")
-				.select("collection_id")
-				.where("collection_id", "=", reconciliation.collectionId)
-				.executeTakeFirst(),
-		).toBeDefined();
 	});
 });
-
-class CapturingScheduler implements CronScheduler {
-	private maintenance: SystemCleanupFn | null = null;
-	private mediaUsageMaintenance: SystemCleanupFn | null = null;
-
-	setSystemCleanup(fn: SystemCleanupFn): void {
-		this.maintenance = fn;
-	}
-	setMediaUsageMaintenance(fn: SystemCleanupFn): void {
-		this.mediaUsageMaintenance = fn;
-	}
-
-	start(): void {}
-	stop(): void {}
-	reschedule(): void {}
-
-	async runMaintenance(): Promise<void> {
-		if (!this.maintenance) throw new Error("Expected Node maintenance callback");
-		await this.maintenance();
-		if (!this.mediaUsageMaintenance) throw new Error("Expected Media Usage maintenance callback");
-		await this.mediaUsageMaintenance();
-	}
-}
 
 class QueryCountingPlugin implements KyselyPlugin {
 	count = 0;
@@ -815,48 +597,26 @@ class QueryCountingPlugin implements KyselyPlugin {
 }
 
 class ContinuousCapturingScheduler implements CronScheduler {
-	private maintenance: SystemCleanupFn | null = null;
 	private mediaUsageMaintenance: MediaUsageContinuationFn | null = null;
+	wakeCount = 0;
 
-	setSystemCleanup(fn: SystemCleanupFn): void {
-		this.maintenance = fn;
-	}
+	setSystemCleanup(_fn: SystemCleanupFn): void {}
 	setContinuousMediaUsageMaintenance(fn: MediaUsageContinuationFn): void {
 		this.mediaUsageMaintenance = fn;
+	}
+	wakeMediaUsageMaintenance(): void {
+		this.wakeCount++;
 	}
 
 	start(): void {}
 	stop(): void {}
 	reschedule(): void {}
-
-	async runMaintenance() {
-		if (!this.maintenance) throw new Error("Expected Node maintenance callback");
-		await this.maintenance();
-		return this.runContinuation();
-	}
 
 	async runContinuation() {
 		if (!this.mediaUsageMaintenance) {
 			throw new Error("Expected continuous Media Usage maintenance callback");
 		}
 		return this.mediaUsageMaintenance();
-	}
-}
-
-class LegacyCapturingScheduler implements CronScheduler {
-	private maintenance: SystemCleanupFn | null = null;
-
-	setSystemCleanup(fn: SystemCleanupFn): void {
-		this.maintenance = fn;
-	}
-
-	start(): void {}
-	stop(): void {}
-	reschedule(): void {}
-
-	async runMaintenance(): Promise<void> {
-		if (!this.maintenance) throw new Error("Expected Node maintenance callback");
-		await this.maintenance();
 	}
 }
 
@@ -945,15 +705,6 @@ async function deletionPhase(runtime: EmDashRuntime, collectionId: string): Prom
 		.where("collection_id", "=", collectionId)
 		.executeTakeFirst();
 	return row?.phase ?? null;
-}
-
-async function maintenanceTurn(runtime: EmDashRuntime): Promise<number> {
-	const row = await runtime.db
-		.selectFrom("_emdash_media_usage_activation")
-		.select("media_usage_maintenance_turn")
-		.where("task_key", "=", "incremental_capture")
-		.executeTakeFirstOrThrow();
-	return row.media_usage_maintenance_turn;
 }
 
 function activationState(runtime: EmDashRuntime) {

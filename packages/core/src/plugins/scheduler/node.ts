@@ -29,11 +29,9 @@ export class NodeCronScheduler implements CronScheduler {
 	private timer: ReturnType<typeof setTimeout> | null = null;
 	private running = false;
 	private systemCleanup: SystemCleanupFn | null = null;
-	private mediaUsageMaintenance: SystemCleanupFn | null = null;
 	private continuousMediaUsageMaintenance: MediaUsageContinuationFn | null = null;
 	private mediaUsageTimer: ReturnType<typeof setTimeout> | null = null;
 	private mediaUsageInFlight = false;
-	private mediaUsagePending = false;
 	private mediaUsageWakePending = false;
 	private mediaUsageGeneration = 0;
 
@@ -41,10 +39,6 @@ export class NodeCronScheduler implements CronScheduler {
 
 	setSystemCleanup(fn: SystemCleanupFn): void {
 		this.systemCleanup = fn;
-	}
-
-	setMediaUsageMaintenance(fn: SystemCleanupFn): void {
-		this.mediaUsageMaintenance = fn;
 	}
 
 	setContinuousMediaUsageMaintenance(fn: MediaUsageContinuationFn): void {
@@ -79,7 +73,6 @@ export class NodeCronScheduler implements CronScheduler {
 			clearTimeout(this.mediaUsageTimer);
 			this.mediaUsageTimer = null;
 		}
-		this.mediaUsagePending = false;
 		this.mediaUsageWakePending = false;
 		this.mediaUsageGeneration++;
 	}
@@ -147,19 +140,10 @@ export class NodeCronScheduler implements CronScheduler {
 		}
 
 		void Promise.allSettled(tasks)
-			.then(async (results) => {
+			.then((results) => {
 				for (const r of results) {
 					if (r.status === "rejected") {
 						console.error("[cron:node] Tick task failed:", r.reason);
-					}
-				}
-				if (this.continuousMediaUsageMaintenance) {
-					this.requestContinuousMediaUsageMaintenance();
-				} else if (this.mediaUsageMaintenance) {
-					try {
-						await this.mediaUsageMaintenance();
-					} catch (error) {
-						console.error("[cron:node] Media Usage maintenance failed:", error);
 					}
 				}
 				return undefined;
@@ -169,16 +153,6 @@ export class NodeCronScheduler implements CronScheduler {
 					this.arm();
 				}
 			});
-	}
-
-	private requestContinuousMediaUsageMaintenance(): void {
-		if (!this.running || !this.continuousMediaUsageMaintenance) return;
-		if (this.mediaUsageInFlight) {
-			this.mediaUsagePending = true;
-			return;
-		}
-		if (this.mediaUsageTimer) return;
-		this.armMediaUsageTimer(0);
 	}
 
 	private armMediaUsageTimer(delayMs: number): void {
@@ -199,7 +173,7 @@ export class NodeCronScheduler implements CronScheduler {
 	private async executeContinuousMediaUsageMaintenance(): Promise<void> {
 		if (!this.running || !this.continuousMediaUsageMaintenance) return;
 		if (this.mediaUsageInFlight) {
-			this.mediaUsagePending = true;
+			this.mediaUsageWakePending = true;
 			return;
 		}
 
@@ -215,8 +189,6 @@ export class NodeCronScheduler implements CronScheduler {
 		}
 
 		if (!this.running || generation !== this.mediaUsageGeneration) return;
-		const pending = this.mediaUsagePending;
-		this.mediaUsagePending = false;
 		const wakePending = this.mediaUsageWakePending;
 		this.mediaUsageWakePending = false;
 		if (wakePending) {
@@ -232,6 +204,5 @@ export class NodeCronScheduler implements CronScheduler {
 			this.armMediaUsageTimer(continuation.delaySeconds * 1_000);
 			return;
 		}
-		if (pending) this.armMediaUsageTimer(0);
 	}
 }

@@ -36,8 +36,9 @@ describe("NodeCronScheduler Media Usage continuation", () => {
 			.mockResolvedValueOnce({ kind: "none" } as const);
 		scheduler.setContinuousMediaUsageMaintenance(maintenance);
 		scheduler.start();
+		scheduler.wakeMediaUsageMaintenance();
 
-		await vi.advanceTimersToNextTimerAsync();
+		await vi.advanceTimersByTimeAsync(0);
 		expect(maintenance).toHaveBeenCalledTimes(1);
 		await vi.advanceTimersToNextTimerAsync();
 		expect(maintenance).toHaveBeenCalledTimes(2);
@@ -54,6 +55,17 @@ describe("NodeCronScheduler Media Usage continuation", () => {
 		expect(maintenance).toHaveBeenCalledOnce();
 	});
 
+	it("keeps the general heartbeat independent from Media Usage", async () => {
+		const maintenance = vi.fn().mockResolvedValue({ kind: "none" } as const);
+		scheduler.setContinuousMediaUsageMaintenance(maintenance);
+		scheduler.start();
+
+		await vi.advanceTimersToNextTimerAsync();
+
+		expect(executor.tick).toHaveBeenCalledOnce();
+		expect(maintenance).not.toHaveBeenCalled();
+	});
+
 	it("does not let heartbeats shorten a delayed continuation", async () => {
 		vi.mocked(executor.getNextDueTime).mockImplementation(async () =>
 			new Date(Date.now()).toISOString(),
@@ -64,8 +76,9 @@ describe("NodeCronScheduler Media Usage continuation", () => {
 			.mockResolvedValue({ kind: "none" } as const);
 		scheduler.setContinuousMediaUsageMaintenance(maintenance);
 		scheduler.start();
+		scheduler.wakeMediaUsageMaintenance();
 
-		await vi.advanceTimersToNextTimerAsync();
+		await vi.advanceTimersByTimeAsync(0);
 		expect(maintenance).toHaveBeenCalledTimes(1);
 		await vi.advanceTimersByTimeAsync(29_000);
 		expect(maintenance).toHaveBeenCalledTimes(1);
@@ -80,8 +93,9 @@ describe("NodeCronScheduler Media Usage continuation", () => {
 			.mockResolvedValue({ kind: "none" } as const);
 		scheduler.setContinuousMediaUsageMaintenance(maintenance);
 		scheduler.start();
+		scheduler.wakeMediaUsageMaintenance();
 
-		await vi.advanceTimersToNextTimerAsync();
+		await vi.advanceTimersByTimeAsync(0);
 		expect(maintenance).toHaveBeenCalledTimes(1);
 		scheduler.wakeMediaUsageMaintenance();
 		await vi.advanceTimersByTimeAsync(0);
@@ -103,8 +117,9 @@ describe("NodeCronScheduler Media Usage continuation", () => {
 			.mockResolvedValue({ kind: "none" } as const);
 		scheduler.setContinuousMediaUsageMaintenance(maintenance);
 		scheduler.start();
+		scheduler.wakeMediaUsageMaintenance();
 
-		await vi.advanceTimersToNextTimerAsync();
+		await vi.advanceTimersByTimeAsync(0);
 		scheduler.wakeMediaUsageMaintenance();
 		release();
 		await vi.advanceTimersByTimeAsync(0);
@@ -112,7 +127,7 @@ describe("NodeCronScheduler Media Usage continuation", () => {
 		expect(maintenance).toHaveBeenCalledTimes(2);
 	});
 
-	it("keeps general heartbeats running without overlapping a held unit", async () => {
+	it("keeps general heartbeats independent from a held unit", async () => {
 		vi.mocked(executor.getNextDueTime).mockImplementation(async () =>
 			new Date(Date.now()).toISOString(),
 		);
@@ -133,17 +148,18 @@ describe("NodeCronScheduler Media Usage continuation", () => {
 		scheduler.setSystemCleanup(cleanup);
 		scheduler.setContinuousMediaUsageMaintenance(maintenance);
 		scheduler.start();
+		scheduler.wakeMediaUsageMaintenance();
 
-		await vi.advanceTimersToNextTimerAsync();
+		await vi.advanceTimersByTimeAsync(0);
 		expect(maintenance).toHaveBeenCalledTimes(1);
 		await vi.advanceTimersByTimeAsync(3_000);
-		expect(executor.tick).toHaveBeenCalledTimes(4);
-		expect(cleanup).toHaveBeenCalledTimes(4);
+		expect(executor.tick).toHaveBeenCalledTimes(3);
+		expect(cleanup).toHaveBeenCalledTimes(3);
 		expect(maximumActive).toBe(1);
 
 		releaseFirst();
 		await vi.advanceTimersByTimeAsync(0);
-		expect(maintenance).toHaveBeenCalledTimes(2);
+		expect(maintenance).toHaveBeenCalledTimes(1);
 		expect(maximumActive).toBe(1);
 	});
 
@@ -151,8 +167,9 @@ describe("NodeCronScheduler Media Usage continuation", () => {
 		const maintenance = vi.fn().mockResolvedValue({ kind: "immediate" } as const);
 		scheduler.setContinuousMediaUsageMaintenance(maintenance);
 		scheduler.start();
+		scheduler.wakeMediaUsageMaintenance();
 
-		await vi.advanceTimersToNextTimerAsync();
+		await vi.advanceTimersByTimeAsync(0);
 		expect(maintenance).toHaveBeenCalledTimes(1);
 		scheduler.stop();
 		await vi.runAllTimersAsync();
@@ -164,14 +181,15 @@ describe("NodeCronScheduler Media Usage continuation", () => {
 		const maintenance = vi.fn().mockResolvedValue({ kind: "none" } as const);
 		scheduler.setContinuousMediaUsageMaintenance(maintenance);
 		scheduler.start();
+		scheduler.wakeMediaUsageMaintenance();
 
-		await vi.advanceTimersToNextTimerAsync();
+		await vi.advanceTimersByTimeAsync(0);
 		const mediaTimerIndex = timeout.mock.calls.findIndex((call) => call[1] === 0);
 		expect(mediaTimerIndex).toBeGreaterThanOrEqual(0);
 		expect(isUnreferencedTimer(timeout.mock.results[mediaTimerIndex]?.value)).toBe(true);
 	});
 
-	it("logs a failed unit once and waits for heartbeat recovery", async () => {
+	it("logs a failed unit once without heartbeat recovery", async () => {
 		const error = vi.spyOn(console, "error").mockImplementation(() => {});
 		const maintenance = vi
 			.fn()
@@ -179,14 +197,15 @@ describe("NodeCronScheduler Media Usage continuation", () => {
 			.mockResolvedValue({ kind: "none" } as const);
 		scheduler.setContinuousMediaUsageMaintenance(maintenance);
 		scheduler.start();
+		scheduler.wakeMediaUsageMaintenance();
 
-		await vi.advanceTimersToNextTimerAsync();
+		await vi.advanceTimersByTimeAsync(0);
 		expect(maintenance).toHaveBeenCalledTimes(1);
 		expect(error).toHaveBeenCalledTimes(1);
 		await vi.advanceTimersByTimeAsync(0);
 		expect(maintenance).toHaveBeenCalledTimes(1);
 		await vi.advanceTimersToNextTimerAsync();
-		expect(maintenance).toHaveBeenCalledTimes(2);
+		expect(maintenance).toHaveBeenCalledTimes(1);
 		expect(error).toHaveBeenCalledTimes(1);
 	});
 });

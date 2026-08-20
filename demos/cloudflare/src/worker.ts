@@ -22,6 +22,6 @@ const resolveMediaUsageQueue = (env: Env) => env.MEDIA_USAGE_QUEUE;
 export default {
 	...handler,
 	fetch: createMediaUsageFetchHandler(handler, resolveMediaUsageQueue),
-	scheduled: createScheduledHandler({ resolveMediaUsageQueue }),
+	scheduled: createScheduledHandler(),
 	queue: createMediaUsageQueueHandler(resolveMediaUsageQueue),
 } satisfies ExportedHandler<Env, MediaUsageWakeMessage>;

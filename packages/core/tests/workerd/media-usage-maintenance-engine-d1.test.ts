@@ -66,7 +66,7 @@ it("keeps the largest entry step below the shared Paid reservation", async () =>
 	const fixture = await createMediaUsageAdmissionFixture(adminDb, "d1_engine_boundary");
 	await adminDb
 		.updateTable("_emdash_media_usage_activation")
-		.set({ state: "active", media_usage_maintenance_turn: 0 })
+		.set({ state: "active" })
 		.where("task_key", "=", "incremental_capture")
 		.execute();
 	await insertMediaUsageMeasurementEntry(
@@ -89,8 +89,6 @@ it("keeps the largest entry step below the shared Paid reservation", async () =>
 	expect(result).toEqual({
 		state: "progress",
 		continuation: { kind: "immediate" },
-		taskClass: "entry_work",
-		turn: 0,
 	});
 	expect(measurement.queries).toBeLessThanOrEqual(MEDIA_USAGE_MAINTENANCE_LIMITS.maxStepQueries);
 	expect(measurement.maxBinds).toBeLessThanOrEqual(100);
@@ -103,7 +101,7 @@ it("drains several durable units without exceeding one Paid D1 event", async () 
 	const fixture = await createMediaUsageAdmissionFixture(adminDb, "d1_engine_slice");
 	await adminDb
 		.updateTable("_emdash_media_usage_activation")
-		.set({ state: "active", media_usage_maintenance_turn: 2 })
+		.set({ state: "active" })
 		.where("task_key", "=", "incremental_capture")
 		.execute();
 	for (let index = 0; index < 5; index++) {
@@ -148,7 +146,7 @@ it("drains several durable units through the deployed D1 session path", async ()
 	const fixture = await createMediaUsageAdmissionFixture(adminDb, "d1_session_engine_slice");
 	await adminDb
 		.updateTable("_emdash_media_usage_activation")
-		.set({ state: "active", media_usage_maintenance_turn: 2 })
+		.set({ state: "active" })
 		.where("task_key", "=", "incremental_capture")
 		.execute();
 	for (let index = 0; index < 5; index++) {
@@ -189,7 +187,7 @@ it("runs one complete batch when a database does not report query metrics", asyn
 	const fixture = await createMediaUsageAdmissionFixture(adminDb, "d1_engine_unmetered");
 	await adminDb
 		.updateTable("_emdash_media_usage_activation")
-		.set({ state: "active", media_usage_maintenance_turn: 2 })
+		.set({ state: "active" })
 		.where("task_key", "=", "incremental_capture")
 		.execute();
 	for (let index = 0; index < 2; index++) {
@@ -275,8 +273,6 @@ it("keeps the largest admitted activation trigger replacement inside one step", 
 	expect(result).toEqual({
 		state: "progress",
 		continuation: { kind: "immediate" },
-		taskClass: null,
-		turn: null,
 	});
 	expect(status.capture_state).toBe("active");
 	expect(measurement.queries).toBeLessThanOrEqual(MEDIA_USAGE_MAINTENANCE_LIMITS.maxStepQueries);

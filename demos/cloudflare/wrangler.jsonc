@@ -54,7 +54,7 @@
 	"limits": {
 		"cpu_ms": 300000,
 	},
-	// Cron triggers drive general maintenance and Media Usage Queue recovery.
+	// Cron triggers drive general maintenance.
 	"triggers": {
 		"crons": ["* * * * *"],
 	},
