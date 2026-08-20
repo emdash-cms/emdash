@@ -1,6 +1,7 @@
 import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { getTenantId } from "../../request-context.js";
 import { slugify } from "../../utils/slugify.js";
 import type { Database } from "../types.js";
 import { RevisionRepository } from "./revision.js";
@@ -35,6 +36,7 @@ const SYSTEM_COLUMNS = new Set([
 	"draft_revision_id",
 	"locale",
 	"translation_group",
+	"tenant_id",
 ]);
 
 /**
@@ -124,6 +126,7 @@ export class ContentRepository {
 		}
 
 		const tableName = getTableName(type);
+		const tenantId = getTenantId();
 
 		// Resolve translation_group: if translationOf is set, look up the source item's group
 		let translationGroup: string = id; // default: self-reference
@@ -148,6 +151,7 @@ export class ContentRepository {
 			"version",
 			"locale",
 			"translation_group",
+			"tenant_id",
 		];
 		const values: unknown[] = [
 			id,
@@ -161,6 +165,7 @@ export class ContentRepository {
 			1,
 			locale || "en",
 			translationGroup,
+			tenantId,
 		];
 
 		// Add data fields as columns (skip system columns to prevent injection via data)
@@ -299,10 +304,12 @@ export class ContentRepository {
 	 */
 	async findById(type: string, id: string): Promise<ContentItem | null> {
 		const tableName = getTableName(type);
+		const tenantId = getTenantId();
 
 		const result = await sql<Record<string, unknown>>`
 			SELECT * FROM ${sql.ref(tableName)}
 			WHERE id = ${id}
+			AND tenant_id = ${tenantId}
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
@@ -320,10 +327,12 @@ export class ContentRepository {
 	 */
 	async findByIdIncludingTrashed(type: string, id: string): Promise<ContentItem | null> {
 		const tableName = getTableName(type);
+		const tenantId = getTenantId();
 
 		const result = await sql<Record<string, unknown>>`
 			SELECT * FROM ${sql.ref(tableName)}
 			WHERE id = ${id}
+			AND tenant_id = ${tenantId}
 		`.execute(this.db);
 
 		const row = result.rows[0];
@@ -391,17 +400,20 @@ export class ContentRepository {
 	 */
 	async findBySlug(type: string, slug: string, locale?: string): Promise<ContentItem | null> {
 		const tableName = getTableName(type);
+		const tenantId = getTenantId();
 
 		const result = locale
 			? await sql<Record<string, unknown>>`
 					SELECT * FROM ${sql.ref(tableName)}
 					WHERE slug = ${slug}
 					AND locale = ${locale}
+					AND tenant_id = ${tenantId}
 					AND deleted_at IS NULL
 				`.execute(this.db)
 			: await sql<Record<string, unknown>>`
 					SELECT * FROM ${sql.ref(tableName)}
 					WHERE slug = ${slug}
+					AND tenant_id = ${tenantId}
 					AND deleted_at IS NULL
 					ORDER BY locale ASC
 					LIMIT 1
@@ -425,16 +437,19 @@ export class ContentRepository {
 		locale?: string,
 	): Promise<ContentItem | null> {
 		const tableName = getTableName(type);
+		const tenantId = getTenantId();
 
 		const result = locale
 			? await sql<Record<string, unknown>>`
 					SELECT * FROM ${sql.ref(tableName)}
 					WHERE slug = ${slug}
 					AND locale = ${locale}
+					AND tenant_id = ${tenantId}
 				`.execute(this.db)
 			: await sql<Record<string, unknown>>`
 					SELECT * FROM ${sql.ref(tableName)}
 					WHERE slug = ${slug}
+					AND tenant_id = ${tenantId}
 					ORDER BY locale ASC
 					LIMIT 1
 				`.execute(this.db);
@@ -455,6 +470,7 @@ export class ContentRepository {
 		options: FindManyOptions = {},
 	): Promise<FindManyResult<ContentItem>> {
 		const tableName = getTableName(type);
+		const tenantId = getTenantId();
 		const limit = Math.min(options.limit || 50, 100);
 
 		// Determine ordering
@@ -470,7 +486,8 @@ export class ContentRepository {
 		let query = this.db
 			.selectFrom(tableName as keyof Database)
 			.selectAll()
-			.where("deleted_at" as never, "is", null);
+			.where("deleted_at" as never, "is", null)
+			.where("tenant_id" as never, "=", tenantId as never);
 
 		// Apply filters with parameterized queries
 		if (options.where?.status) {
@@ -582,10 +599,13 @@ export class ContentRepository {
 			}
 		}
 
+		const tenantId = getTenantId();
+
 		await this.db
 			.updateTable(tableName as keyof Database)
 			.set(updates)
 			.where("id", "=", id)
+			.where("tenant_id" as never, "=", tenantId as never)
 			.where("deleted_at" as never, "is", null)
 			.execute();
 
@@ -602,12 +622,14 @@ export class ContentRepository {
 	 */
 	async delete(type: string, id: string): Promise<boolean> {
 		const tableName = getTableName(type);
+		const tenantId = getTenantId();
 		const now = new Date().toISOString();
 
 		const result = await sql`
 			UPDATE ${sql.ref(tableName)}
 			SET deleted_at = ${now}
 			WHERE id = ${id}
+			AND tenant_id = ${tenantId}
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
