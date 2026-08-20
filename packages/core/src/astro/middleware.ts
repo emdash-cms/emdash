@@ -156,6 +156,47 @@ async function getRuntime(config: EmDashConfig): Promise<EmDashRuntime> {
 }
 
 /**
+ * Extract tenant ID from request (multi-tenant support for opng.in)
+ *
+ * Priority:
+ * 1. X-Tenant-ID header (for API calls)
+ * 2. Subdomain extraction from hostname (tenant.example.com)
+ * 3. Query parameter: ?tenant_id=...
+ * 4. Cookie: emdash-tenant-id
+ * 5. Default: 'default' (single-tenant fallback)
+ */
+function extractTenantId(url: URL, request: Request, cookies: any): string {
+	// Header: X-Tenant-ID (priority for API calls)
+	const headerTenant = request.headers.get("X-Tenant-ID");
+	if (headerTenant?.trim()) {
+		return headerTenant.trim();
+	}
+
+	// Query parameter: ?tenant_id=...
+	const queryTenant = url.searchParams.get("tenant_id");
+	if (queryTenant?.trim()) {
+		return queryTenant.trim();
+	}
+
+	// Cookie: emdash-tenant-id
+	const cookieTenant = cookies.get("emdash-tenant-id")?.value;
+	if (cookieTenant?.trim()) {
+		return cookieTenant.trim();
+	}
+
+	// Subdomain extraction: tenant.example.com
+	const hostname = url.hostname;
+	const parts = hostname.split(".");
+	if (parts.length > 2 && parts[0] !== "www") {
+		// First part is tenant subdomain (if not 'www')
+		return parts[0];
+	}
+
+	// Default: single-tenant fallback
+	return "default";
+}
+
+/**
  * Baseline security headers applied to all responses.
  * Admin routes get additional headers (strict CSP) from auth middleware.
  */
@@ -181,6 +222,9 @@ const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { request, locals, cookies } = context;
 	const url = context.url;
+
+	// Extract tenant ID for multi-tenant support (opng.in integration)
+	const tenantId = extractTenantId(url, request, cookies);
 
 	// Process /_emdash routes and public routes with an active session
 	// (logged-in editors need the runtime for toolbar/visual editing on public pages)
@@ -386,8 +430,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					(virtualCreateSessionDialect as (db: unknown) => import("kysely").Dialect)(session);
 				const sessionDb = new Kysely<Database>({ dialect: sessionDialect });
 
-				// Wrap the request in ALS with the per-request db
-				return runWithContext({ editMode: false, db: sessionDb }, async () => {
+				// Wrap the request in ALS with the per-request db and tenant ID
+				return runWithContext({ editMode: false, db: sessionDb, tenantId }, async () => {
 					const response = await next();
 					setBaselineSecurityHeaders(response);
 
@@ -425,7 +469,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// Read the edit-mode cookie to determine if visual editing is active.
 		// Default to false -- editing is opt-in via the playground toolbar toggle.
 		const editMode = context.cookies.get("emdash-edit-mode")?.value === "true";
-		return runWithContext({ editMode, db: playgroundDb }, doInit);
+		return runWithContext({ editMode, db: playgroundDb, tenantId }, doInit);
 	}
 	return doInit();
 });

@@ -35,6 +35,8 @@ export interface EmDashRequestContext {
 	 * the singleton instance. Also used by the DO preview pattern.
 	 */
 	db?: unknown;
+	/** Tenant ID for multi-tenant isolation (opng.in integration) */
+	tenantId?: string;
 }
 
 const ALS_KEY = Symbol.for("emdash:request-context");
@@ -64,4 +66,13 @@ export function runWithContext<T>(ctx: EmDashRequestContext, fn: () => T): T {
  */
 export function getRequestContext(): EmDashRequestContext | undefined {
 	return storage.getStore();
+}
+
+/**
+ * Get the current tenant ID from request context.
+ * Defaults to 'default' if not set (single-tenant mode).
+ */
+export function getTenantId(): string {
+	const ctx = getRequestContext();
+	return ctx?.tenantId ?? "default";
 }
