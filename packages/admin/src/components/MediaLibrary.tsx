@@ -334,12 +334,6 @@ export function MediaLibrary({
 		activeProvider === "local"
 			? (pagination?.totalCount ?? currentItems.length)
 			: currentProviderItems.length;
-	const hasMoreCurrentItems =
-		activeProvider === "local" ? false : Boolean(providerData?.nextCursor);
-	const resultCountText =
-		resultCount > 0 && !hasMoreCurrentItems
-			? plural(resultCount, { one: "# item", other: "# items" })
-			: "";
 	const hasActiveQuery =
 		searchQuery.trim() !== "" || (activeProvider === "local" && localTypeFilter !== "all");
 	const clearLocalQuery = () => {
@@ -442,7 +436,7 @@ export function MediaLibrary({
 				/>
 			)}
 
-			{/* Toolbar: search + type filter (start) · result count + view toggle (end).
+			{/* Toolbar: search + type filter (start) · view toggle (end).
 			    Local library search/filter is handled server-side. */}
 			{showToolbar && (
 				<div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
@@ -483,10 +477,7 @@ export function MediaLibrary({
 							/>
 						)}
 					</div>
-					<div className="flex flex-shrink-0 items-center justify-between gap-3 sm:justify-end">
-						<span className="text-sm text-kumo-subtle tabular-nums" aria-live="polite">
-							{resultCountText}
-						</span>
+					<div className="flex flex-shrink-0 items-center justify-end">
 						<div role="group" aria-label={t`View mode`}>
 							<Tabs
 								variant="segmented"

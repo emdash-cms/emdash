@@ -307,7 +307,7 @@ describe("MediaLibrary", () => {
 				.element(screen.getByRole("navigation", { name: "Media pagination" }))
 				.toBeInTheDocument();
 			await expect.element(screen.getByRole("status")).toHaveTextContent("Showing 1-30 of 37");
-			await expect.element(screen.getByText("37 items", { exact: true })).toBeInTheDocument();
+			expect(screen.getByText("37 items", { exact: true }).query()).toBeNull();
 			await expect
 				.element(screen.getByRole("combobox", { name: "Page number" }))
 				.toBeInTheDocument();
