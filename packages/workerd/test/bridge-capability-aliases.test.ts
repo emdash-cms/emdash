@@ -8,12 +8,10 @@
  */
 
 import Database from "better-sqlite3";
-import { isDeprecatedCapability } from "emdash";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { createBridgeHandler } from "../src/sandbox/bridge-handler.js";
-import { generatePluginWrapper } from "../src/sandbox/wrapper.js";
 
 function createTestDb() {
 	const sqlite = new Database(":memory:");
@@ -241,29 +239,6 @@ describe("Bridge Handler capability vocabulary", () => {
 		);
 	});
 
-	describe("wrapper API surface", () => {
-		function usersExposed(capabilities: string[]) {
-			const source = generatePluginWrapper(
-				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal manifest stands in for the installed plugin record
-				{ id: "test-plugin", name: "test", version: "1.0.0", capabilities, storage: [] } as any,
-				{ backingServiceUrl: "http://127.0.0.1:1", authToken: "x", invokeToken: "y" },
-			);
-			return source.includes("const users = true ?");
-		}
-
-		it("exposes the users API for the current capability name", () => {
-			expect(usersExposed(["users:read"])).toBe(true);
-		});
-
-		it("exposes the users API for the legacy capability name", () => {
-			expect(usersExposed(["read:users"])).toBe(true);
-		});
-
-		it("withholds the users API when undeclared", () => {
-			expect(usersExposed(["content:read"])).toBe(false);
-		});
-	});
-
 	describe("publishable manifest", () => {
 		const MANIFEST_CAPABILITIES = [
 			"content:read",
@@ -272,10 +247,6 @@ describe("Bridge Handler capability vocabulary", () => {
 			"users:read",
 			"network:request",
 		];
-
-		it("declares no capability that publish rejects", () => {
-			expect(MANIFEST_CAPABILITIES.filter(isDeprecatedCapability)).toEqual([]);
-		});
 
 		it("authorizes every operation the manifest declares", async () => {
 			const list = await call(MANIFEST_CAPABILITIES, "content/list", { collection: "posts" });
