@@ -1,4 +1,4 @@
-import { Button, Input, Loader, Select, Tabs } from "@cloudflare/kumo";
+import { Button, Input, Loader, Pagination, Select, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -56,15 +56,24 @@ export interface MediaLibraryProps {
 	onUpload?: (file: File) => Promise<void> | void;
 	onSelect?: (item: MediaItem) => void;
 	onItemUpdated?: () => void;
-	/** True when more local-library items can be fetched via cursor pagination */
-	hasMore?: boolean;
-	/** Triggered to fetch the next page of local-library items */
-	onLoadMore?: () => void;
+	pagination?: MediaLibraryPagination;
 	/** Called (debounced) with the filename search term for the local library. */
 	onLocalSearchChange?: (q: string) => void;
 	/** Called with the MIME filter for the local library (undefined = all types). */
 	onLocalMimeFilterChange?: (mimeType: string | string[] | undefined) => void;
 }
+
+export interface MediaLibraryPagination {
+	page: number;
+	perPage: number;
+	totalCount: number;
+	isPending: boolean;
+	onPageChange: (page: number) => void;
+	onPageSizeChange: (perPage: number) => void;
+}
+
+const MEDIA_PAGE_SIZE_OPTIONS = [25, 50, 100];
+const MAX_DROPDOWN_PAGE_COUNT = 100;
 
 /**
  * Media library component with upload, provider tabs, and grid view
@@ -74,8 +83,7 @@ export function MediaLibrary({
 	isLoading,
 	onUpload,
 	onItemUpdated,
-	hasMore,
-	onLoadMore,
+	pagination,
 	onLocalSearchChange,
 	onLocalMimeFilterChange,
 }: MediaLibraryProps) {
@@ -88,6 +96,8 @@ export function MediaLibrary({
 	const [localTypeFilter, setLocalTypeFilter] = React.useState("all");
 	const mediaHeadingRef = React.useRef<HTMLHeadingElement>(null);
 	const detailOpenFrameRef = React.useRef<number | null>(null);
+	const paginationRequestedRef = React.useRef(false);
+	const paginationWasPendingRef = React.useRef(false);
 	// Debounced filename search reported up for the local library's server query.
 	const debouncedSearch = useDebouncedValue(searchQuery, 300);
 	React.useEffect(() => {
@@ -147,6 +157,37 @@ export function MediaLibrary({
 	}, []);
 
 	React.useEffect(() => cancelPendingDetailOpen, [cancelPendingDetailOpen]);
+
+	const requestPage = React.useCallback(
+		(nextPage: number) => {
+			if (!pagination || pagination.isPending) return;
+			const pageCount = Math.max(1, Math.ceil(pagination.totalCount / pagination.perPage));
+			if (!Number.isSafeInteger(nextPage) || nextPage < 1 || nextPage > pageCount) return;
+			paginationRequestedRef.current = true;
+			pagination.onPageChange(nextPage);
+		},
+		[pagination],
+	);
+	const requestPageSize = React.useCallback(
+		(nextPerPage: number) => {
+			if (!pagination || pagination.isPending || !MEDIA_PAGE_SIZE_OPTIONS.includes(nextPerPage)) {
+				return;
+			}
+			paginationRequestedRef.current = true;
+			pagination.onPageSizeChange(nextPerPage);
+		},
+		[pagination],
+	);
+	React.useEffect(() => {
+		const pending = pagination?.isPending ?? false;
+		if (activeProvider !== "local") {
+			paginationRequestedRef.current = false;
+		} else if (paginationRequestedRef.current && paginationWasPendingRef.current && !pending) {
+			paginationRequestedRef.current = false;
+			mediaHeadingRef.current?.focus();
+		}
+		paginationWasPendingRef.current = pending;
+	}, [activeProvider, pagination?.isPending]);
 
 	const openDetail = React.useCallback(
 		(item: MediaItem) => {
@@ -290,9 +331,11 @@ export function MediaLibrary({
 	const canUpload = activeProviderInfo?.capabilities.upload ?? false;
 	const canSearch = activeProviderInfo?.capabilities.search ?? false;
 	const resultCount =
-		activeProvider === "local" ? currentItems.length : currentProviderItems.length;
+		activeProvider === "local"
+			? (pagination?.totalCount ?? currentItems.length)
+			: currentProviderItems.length;
 	const hasMoreCurrentItems =
-		activeProvider === "local" ? Boolean(hasMore) : Boolean(providerData?.nextCursor);
+		activeProvider === "local" ? false : Boolean(providerData?.nextCursor);
 	const resultCountText =
 		resultCount > 0 && !hasMoreCurrentItems
 			? plural(resultCount, { one: "# item", other: "# items" })
@@ -315,7 +358,7 @@ export function MediaLibrary({
 	const showToolbar = resultCount > 0 || hasActiveQuery;
 
 	return (
-		<div className="space-y-4">
+		<div className="space-y-4" aria-busy={currentLoading || undefined}>
 			{/* Header: page title (start) + primary upload action (end) */}
 			<div className="flex flex-wrap items-center justify-between gap-4">
 				<h1 ref={mediaHeadingRef} tabIndex={-1} className="text-2xl font-semibold leading-tight">
@@ -628,13 +671,46 @@ export function MediaLibrary({
 				</div>
 			)}
 
-			{/* Load more (local library only — providers handle pagination internally) */}
-			{activeProvider === "local" && hasMore && onLoadMore && (
-				<div className="flex justify-center">
-					<Button variant="outline" onClick={onLoadMore} disabled={isLoading}>
-						{isLoading ? t`Loading...` : t`Load More`}
-					</Button>
-				</div>
+			{activeProvider === "local" && pagination && pagination.totalCount > 0 && (
+				<fieldset disabled={pagination.isPending} className="m-0 min-w-0 border-0 p-0">
+					<Pagination
+						page={pagination.page}
+						setPage={requestPage}
+						perPage={pagination.perPage}
+						totalCount={pagination.totalCount}
+						className="flex-wrap gap-y-3"
+						labels={{
+							navigation: t`Media pagination`,
+							firstPage: t`First page`,
+							previousPage: t`Previous page`,
+							nextPage: t`Next page`,
+							lastPage: t`Last page`,
+							pageNumber: t`Page number`,
+							pageSize: t`Page size`,
+						}}
+					>
+						<Pagination.Info className="min-w-fit grow">
+							{({ pageShowingRange, totalCount }) => (
+								<span role="status">{t`Showing ${pageShowingRange} of ${totalCount ?? 0}`}</span>
+							)}
+						</Pagination.Info>
+						<Pagination.Separator className="hidden sm:block" />
+						<Pagination.PageSize
+							value={pagination.perPage}
+							onChange={requestPageSize}
+							options={MEDIA_PAGE_SIZE_OPTIONS}
+							label={t`Per page`}
+						/>
+						<Pagination.Controls
+							pageSelector={
+								Math.ceil(pagination.totalCount / pagination.perPage) <= MAX_DROPDOWN_PAGE_COUNT
+									? "dropdown"
+									: "input"
+							}
+							className="basis-full sm:basis-auto rtl:[&_svg]:-scale-x-100"
+						/>
+					</Pagination>
+				</fieldset>
 			)}
 
 			{/* Detail Dialog */}

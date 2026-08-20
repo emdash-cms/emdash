@@ -110,7 +110,20 @@ vi.mock("../src/components/ContentEditor", () => ({
 }));
 
 vi.mock("../src/components/MediaLibrary", () => ({
-	MediaLibrary: ({ onUpload }: { onUpload?: (file: File) => Promise<unknown> | void }) => {
+	MediaLibrary: ({
+		onUpload,
+		onLocalSearchChange,
+		pagination,
+	}: {
+		onUpload?: (file: File) => Promise<unknown> | void;
+		onLocalSearchChange?: (search: string) => void;
+		pagination?: {
+			page: number;
+			perPage: number;
+			onPageChange: (page: number) => void;
+			onPageSizeChange: (perPage: number) => void;
+		};
+	}) => {
 		const [uploadStatus, setUploadStatus] = React.useState("idle");
 
 		const upload = async () => {
@@ -129,6 +142,21 @@ vi.mock("../src/components/MediaLibrary", () => ({
 					Upload test file
 				</button>
 				<span>{uploadStatus}</span>
+				{pagination && (
+					<>
+						<span data-testid="media-page">{pagination.page}</span>
+						<span data-testid="media-page-size">{pagination.perPage}</span>
+						<button type="button" onClick={() => pagination.onPageChange(2)}>
+							Open page 2
+						</button>
+						<button type="button" onClick={() => pagination.onPageSizeChange(50)}>
+							Show 50 per page
+						</button>
+						<button type="button" onClick={() => onLocalSearchChange?.("photo")}>
+							Search media
+						</button>
+					</>
+				)}
 			</div>
 		);
 	},
@@ -213,7 +241,7 @@ describe("MediaPage – upload completion", () => {
 				data: { id: "user_01", role: 60 },
 			})
 			.on("GET", "/_emdash/api/media", {
-				data: { items: [], nextCursor: undefined },
+				data: { items: [], totalCount: 60 },
 			});
 	});
 
@@ -257,6 +285,87 @@ describe("MediaPage – upload completion", () => {
 		} finally {
 			globalThis.fetch = interceptedFetch;
 		}
+	});
+
+	it("requests numbered pages and resets page state for page size and search", async () => {
+		const requests: string[] = [];
+		const mockedFetch = globalThis.fetch;
+		globalThis.fetch = (input, init) => {
+			requests.push(
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+			);
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const screen = await render(<TestApp />);
+
+		await expect.element(screen.getByTestId("media-page")).toHaveTextContent("1");
+		await vi.waitFor(() => {
+			expect(requests.some((url) => url.includes("/_emdash/api/media?page=1&limit=25"))).toBe(true);
+		});
+
+		await screen.getByRole("button", { name: "Open page 2" }).click();
+		await expect.element(screen.getByTestId("media-page")).toHaveTextContent("2");
+		await vi.waitFor(() => {
+			expect(requests.some((url) => url.includes("/_emdash/api/media?page=2&limit=25"))).toBe(true);
+		});
+
+		await screen.getByRole("button", { name: "Show 50 per page" }).click();
+		await expect.element(screen.getByTestId("media-page")).toHaveTextContent("1");
+		await expect.element(screen.getByTestId("media-page-size")).toHaveTextContent("50");
+
+		await screen.getByRole("button", { name: "Search media" }).click();
+		await vi.waitFor(() => {
+			expect(
+				requests.some(
+					(url) => url.includes("/_emdash/api/media?page=1&limit=50") && url.includes("q=photo"),
+				),
+			).toBe(true);
+		});
+	});
+
+	it("recovers an emptied later page without exposing an invalid page number", async () => {
+		const mockedFetch = globalThis.fetch;
+		let requestedSecondPage = false;
+		globalThis.fetch = (input, init) => {
+			const rawUrl =
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const url = new URL(rawUrl, "http://localhost");
+			if (url.pathname === "/_emdash/api/media") {
+				const requestedPage = url.searchParams.get("page");
+				if (requestedPage === "2") {
+					requestedSecondPage = true;
+					return Promise.resolve(
+						new Response(JSON.stringify({ data: { items: [], totalCount: 20 } }), {
+							status: 200,
+							headers: { "Content-Type": "application/json" },
+						}),
+					);
+				}
+				const totalCount = requestedSecondPage ? 20 : 60;
+				return Promise.resolve(
+					new Response(JSON.stringify({ data: { items: [], totalCount } }), {
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					}),
+				);
+			}
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const screen = await render(<TestApp />);
+		await expect.element(screen.getByTestId("media-page")).toHaveTextContent("1");
+
+		await screen.getByRole("button", { name: "Open page 2" }).click();
+
+		await vi.waitFor(() => {
+			expect(requestedSecondPage).toBe(true);
+			expect(screen.getByTestId("media-page").element()).toHaveTextContent("1");
+		});
 	});
 });
 

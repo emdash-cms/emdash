@@ -64,6 +64,20 @@ function makeMediaItem(overrides: Partial<MediaItem> = {}): MediaItem {
 	};
 }
 
+function makePagination(
+	overrides: Partial<NonNullable<React.ComponentProps<typeof MediaLibrary>["pagination"]>> = {},
+): NonNullable<React.ComponentProps<typeof MediaLibrary>["pagination"]> {
+	return {
+		page: 1,
+		perPage: 25,
+		totalCount: 37,
+		isPending: false,
+		onPageChange: vi.fn(),
+		onPageSizeChange: vi.fn(),
+		...overrides,
+	};
+}
+
 describe("MediaLibrary", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -279,40 +293,94 @@ describe("MediaLibrary", () => {
 		});
 	});
 
-	describe("load more pagination", () => {
-		it("renders Load More button when hasMore is true", async () => {
+	describe("numbered pagination", () => {
+		it("renders localized Kumo controls with the exact range and total", async () => {
+			const onPageChange = vi.fn();
+			const onPageSizeChange = vi.fn();
 			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
-			const screen = await renderLibrary({ items, hasMore: true, onLoadMore: vi.fn() });
-			await expect.element(screen.getByRole("button", { name: "Load More" })).toBeInTheDocument();
-			expect(screen.getByText("1 item").query()).toBeNull();
-		});
-
-		it("does not render Load More button when hasMore is false", async () => {
-			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
-			const screen = await renderLibrary({ items, hasMore: false, onLoadMore: vi.fn() });
-			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
-		});
-
-		it("invokes onLoadMore when Load More button is clicked", async () => {
-			const onLoadMore = vi.fn();
-			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
-			const screen = await renderLibrary({ items, hasMore: true, onLoadMore });
-			await screen.getByRole("button", { name: "Load More" }).click();
-			expect(onLoadMore).toHaveBeenCalled();
-		});
-
-		it("keeps already-loaded items visible while fetching the next page (isLoading=true with items)", async () => {
-			// Reproduces the Copilot review concern: when isLoading flips true
-			// during a Load-More fetch, the grid must not be blanked out into a
-			// centered spinner — already-rendered items should remain visible.
-			const items = [makeMediaItem({ id: "1", filename: "first-page.jpg" })];
 			const screen = await renderLibrary({
 				items,
-				isLoading: true,
-				hasMore: true,
-				onLoadMore: vi.fn(),
+				pagination: makePagination({ onPageChange, onPageSizeChange }),
 			});
-			await expect.element(screen.getByAltText("first-page.jpg")).toBeInTheDocument();
+
+			await expect
+				.element(screen.getByRole("navigation", { name: "Media pagination" }))
+				.toBeInTheDocument();
+			await expect.element(screen.getByRole("status")).toHaveTextContent("Showing 1-25 of 37");
+			await expect.element(screen.getByText("37 items", { exact: true })).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("combobox", { name: "Page number" }))
+				.toBeInTheDocument();
+
+			await screen.getByRole("button", { name: "Next page" }).click();
+			expect(onPageChange).toHaveBeenCalledWith(2);
+
+			await screen.getByRole("combobox", { name: "Page size" }).click();
+			await screen.getByRole("option", { name: "50" }).click();
+			expect(onPageSizeChange).toHaveBeenCalledWith(50);
+		});
+
+		it("uses the page input above the dropdown page-count bound", async () => {
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({
+				items,
+				pagination: makePagination({ totalCount: 2525 }),
+			});
+
+			await expect
+				.element(screen.getByRole("textbox", { name: "Page number" }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("combobox", { name: "Page number" }).query()).toBeNull();
+		});
+
+		it("keeps controls present but disabled while another page loads", async () => {
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({
+				items,
+				pagination: makePagination({ isPending: true }),
+			});
+
+			await expect.element(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+		});
+
+		it("focuses the media heading after a requested page finishes loading", async () => {
+			function Harness() {
+				const [page, setPage] = React.useState(1);
+				const [isPending, setIsPending] = React.useState(false);
+				return (
+					<>
+						<MediaLibrary
+							items={[makeMediaItem({ id: String(page), filename: `page-${page}.jpg` })]}
+							pagination={makePagination({
+								page,
+								isPending,
+								onPageChange(nextPage) {
+									setPage(nextPage);
+									setIsPending(true);
+								},
+							})}
+						/>
+						<button type="button" onClick={() => setIsPending(false)}>
+							Finish page request
+						</button>
+					</>
+				);
+			}
+
+			const screen = await render(
+				<QueryWrapper>
+					<Harness />
+				</QueryWrapper>,
+			);
+
+			await screen.getByRole("button", { name: "Next page" }).click();
+			await screen.getByRole("button", { name: "Finish page request" }).click();
+
+			await vi.waitFor(() => {
+				expect(document.activeElement).toBe(
+					screen.getByRole("heading", { name: "Media Library", exact: true }).element(),
+				);
+			});
 		});
 	});
 
@@ -377,6 +445,7 @@ describe("MediaLibrary", () => {
 
 			const screen = await renderLibrary({
 				items: [makeMediaItem({ id: "1", filename: "a.jpg" })],
+				pagination: makePagination(),
 			});
 
 			await screen.getByRole("combobox", { name: "Filter by type" }).click();
@@ -384,6 +453,7 @@ describe("MediaLibrary", () => {
 			await screen.getByRole("tab", { name: "Cloudflare Images" }).click();
 
 			await expect.element(screen.getByText("No media found")).toBeInTheDocument();
+			expect(screen.getByRole("navigation", { name: "Media pagination" }).query()).toBeNull();
 			expect(screen.getByRole("tab", { name: "Grid view" }).query()).toBeNull();
 			expect(screen.getByRole("tab", { name: "List view" }).query()).toBeNull();
 		});
