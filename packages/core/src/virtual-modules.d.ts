@@ -55,6 +55,13 @@ declare module "virtual:emdash/dialect" {
 	export interface RequestScopedDbOpts {
 		config: unknown;
 		isAuthenticated: boolean;
+		/**
+		 * Evaluated at commit() time: whether the request ended authenticated.
+		 * Login/signup/invite requests start unauthenticated and establish a
+		 * session mid-request; `isAuthenticated` captures only the request-start
+		 * state.
+		 */
+		endedAuthenticated?: () => boolean;
 		isWrite: boolean;
 		/** Whether core routing allows this request to use an anonymous public-read cache. */
 		canUseCachedBinding?: boolean;

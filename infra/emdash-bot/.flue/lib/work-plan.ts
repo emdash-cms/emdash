@@ -39,7 +39,7 @@ export function updateWorkPlan(
 	input: WorkPlanInput,
 	updatedAt: number,
 ): WorkPlan {
-	const summary = boundedText(input.summary, MAX_SUMMARY_LENGTH, "work plan summary");
+	const summary = boundedSummary(input.summary);
 	const ids = new Set<string>();
 	const steps = input.steps.map((step) => {
 		const id = step.id.trim();
@@ -63,20 +63,6 @@ export function updateWorkPlan(
 		throw new Error(`work plan must contain between 1 and ${MAX_STEPS} steps`);
 	}
 	return { summary, steps, updatedAt };
-}
-
-export function requireWorkPlanReadyForReport(plan: WorkPlan | null, succeeded: boolean): void {
-	if (!plan)
-		throw new Error("Create a work plan with update_work_plan before reporting the result");
-	if (!succeeded) return;
-	const unfinished = plan.steps.filter(
-		(step) => step.status !== "completed" && step.status !== "skipped",
-	);
-	if (unfinished.length > 0) {
-		throw new Error(
-			`work plan has unfinished steps: ${unfinished.map((step) => step.id).join(", ")}`,
-		);
-	}
 }
 
 export function renderWorkPlanComment(input: {
@@ -111,6 +97,18 @@ export function renderWorkPlanComment(input: {
 	return lines.join("\n");
 }
 
+export function renderPreparingWorkPlanComment(input: { mode: RunMode; summary: string }): string {
+	return [
+		"### Preparing workspace",
+		"",
+		escapeMarkdown(boundedSummary(input.summary)),
+		"",
+		"Installing dependencies and building the repository before the agent starts.",
+		"",
+		`_Mode: ${input.mode.replaceAll("_", " ")}_`,
+	].join("\n");
+}
+
 function preserveFinishedSteps(
 	previous: readonly WorkPlanStep[],
 	next: readonly WorkPlanStep[],
@@ -129,9 +127,20 @@ function preserveFinishedSteps(
 }
 
 function boundedText(value: string, limit: number, label: string): string {
+	const normalized = normalizedText(value, label);
+	if (normalized.length > limit) throw new Error(`${label} exceeds ${limit} characters`);
+	return normalized;
+}
+
+function boundedSummary(value: string): string {
+	const normalized = normalizedText(value, "work plan summary");
+	if (normalized.length <= MAX_SUMMARY_LENGTH) return normalized;
+	return `${normalized.slice(0, MAX_SUMMARY_LENGTH - 1).trimEnd()}…`;
+}
+
+function normalizedText(value: string, label: string): string {
 	const normalized = value.replaceAll(/\s+/g, " ").trim();
 	if (normalized === "") throw new Error(`${label} cannot be empty`);
-	if (normalized.length > limit) throw new Error(`${label} exceeds ${limit} characters`);
 	return normalized;
 }
 

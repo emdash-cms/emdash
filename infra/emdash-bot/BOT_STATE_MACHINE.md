@@ -69,7 +69,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `agent.by_design` | agent result | system | — | Agent verified the behaviour as intended. |
 | `agent.reproduced` | agent result | system | — | Reproduced, but the fix needs a human decision. |
 | `agent.diagnosed` | agent result | system | — | Root cause identified without a confirming reproduction. |
-| `agent.fix_ready` | agent result | system | — | A verified candidate change is published on bot/fix-<n>. |
+| `agent.fix_ready` | agent result | system | — | A candidate change is published on bot/fix-<n>. |
 | `agent.needs_info` | agent result | system | — | Investigation is blocked on information only the reporter can supply. |
 | `agent.failed` | agent result | system | — | Agent run errored or produced no usable result. |
 | `pr.opened` | pr lifecycle | system | — | A bot PR was opened for this item. |
@@ -315,7 +315,7 @@ A run stores its mode, selected phase plan, current phase, status, attempt, and 
 
 ### Task-specific work plan
 
-Each agent run creates a bounded work plan for its specific directive through `update_work_plan`. The plan is independent from the run phase plan: it may describe arbitrary repository work, while the run phases continue to enforce deadlines, verification, and publication.
+Each agent run creates a bounded work plan for its specific directive through `update_work_plan`. The plan is independent from the run phase plan: it may describe arbitrary repository work, while the run phases track deadlines and publication.
 
 The Orchestrator stores the plan and projects it into one evolving GitHub comment for that run and into the dashboard. Resume updates the same run comment. A fresh retry or directive creates a new run comment. The final agent result updates the same comment; `Completed` is used only when the mode's trusted outcome succeeds.
 

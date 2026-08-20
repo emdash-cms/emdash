@@ -24,19 +24,14 @@ describe("timeout recovery", () => {
 		).toBe(false);
 	});
 
-	test("summary prompt carries known verification evidence without offering more work", () => {
+	test("summary prompt asks for existing verification evidence without offering more work", () => {
 		const prompt = buildTimeoutSummaryPrompt({
 			mode: "implement",
-			verification: [
-				{ name: "typecheck", command: "pnpm typecheck", exitCode: 0 },
-				{ name: "test", command: "pnpm test", exitCode: 1 },
-			],
 			lastFailure: { stage: "verification", message: "test failed with exit 1" },
 		});
 
 		expect(prompt).toContain("No tools are available");
-		expect(prompt).toContain("typecheck: passed");
-		expect(prompt).toContain("test: failed (exit 1)");
+		expect(prompt).toContain("verification that passed or failed");
 		expect(prompt).toContain("test failed with exit 1");
 	});
 

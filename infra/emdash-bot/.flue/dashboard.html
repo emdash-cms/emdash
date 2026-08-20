@@ -45,7 +45,9 @@
 			}
 
 			a:focus-visible,
-			button:focus-visible {
+			button:focus-visible,
+			select:focus-visible,
+			summary:focus-visible {
 				outline: 2px solid light-dark(#7642da, #b092ff);
 				outline-offset: 2px;
 			}
@@ -719,6 +721,173 @@
 				font-size: 9px;
 			}
 
+			.trace-section {
+				padding: 15px 17px 17px;
+				border-bottom: 1px solid light-dark(#e5e6eb, #292b33);
+				background: light-dark(#fbfbfd, #121318);
+			}
+
+			.trace-head,
+			.trace-controls {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 10px;
+			}
+
+			.trace-head {
+				margin-bottom: 10px;
+				font-size: 10px;
+				font-weight: 600;
+			}
+
+			.trace-controls {
+				justify-content: flex-start;
+				margin-bottom: 10px;
+			}
+
+			.trace-select,
+			.trace-load {
+				min-width: 0;
+				border: 1px solid light-dark(#d9dbe2, #32353d);
+				border-radius: 6px;
+				background: light-dark(#fff, #1a1b21);
+				color: inherit;
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 9px;
+			}
+
+			.trace-select {
+				max-width: 100%;
+				padding: 6px 24px 6px 8px;
+			}
+
+			.trace-load {
+				padding: 6px 9px;
+				cursor: pointer;
+			}
+
+			.trace-load:hover {
+				background: light-dark(#f4f0fb, #211c2b);
+			}
+
+			.trace-list {
+				display: grid;
+				gap: 7px;
+			}
+
+			.trace-event {
+				border: 1px solid light-dark(#e1e3e8, #292c33);
+				border-inline-start: 3px solid light-dark(#a2a6af, #6f747e);
+				border-radius: 7px;
+				background: light-dark(#fff, #17181d);
+			}
+
+			.trace-event.active {
+				border-inline-start-color: light-dark(#7642da, #a983ff);
+			}
+
+			.trace-event.success {
+				border-inline-start-color: light-dark(#16845b, #50d49b);
+			}
+
+			.trace-event.failed {
+				border-inline-start-color: light-dark(#c24747, #ee7676);
+			}
+
+			.trace-summary {
+				display: grid;
+				grid-template-columns: 48px minmax(0, 1fr) auto 12px;
+				gap: 9px;
+				align-items: start;
+				padding: 9px 10px;
+				cursor: pointer;
+				list-style: none;
+			}
+
+			.trace-summary::-webkit-details-marker {
+				display: none;
+			}
+
+			.trace-summary::after {
+				content: "+";
+				color: light-dark(#858995, #858a95);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 11px;
+			}
+
+			.trace-event[open] .trace-summary::after {
+				content: "–";
+			}
+
+			.trace-time,
+			.trace-kind,
+			.trace-duration,
+			.trace-block-label {
+				color: light-dark(#858995, #858a95);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 8px;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+			}
+
+			.trace-title {
+				display: flex;
+				align-items: baseline;
+				gap: 7px;
+				font-size: 10px;
+				font-weight: 600;
+			}
+
+			.trace-detail,
+			.trace-preview {
+				margin-top: 3px;
+				color: light-dark(#686c77, #9da1ac);
+				font-size: 9px;
+				font-weight: 400;
+				line-height: 1.4;
+			}
+
+			.trace-preview {
+				display: -webkit-box;
+				overflow: hidden;
+				-webkit-box-orient: vertical;
+				-webkit-line-clamp: 2;
+			}
+
+			.trace-body {
+				display: grid;
+				gap: 10px;
+				padding: 0 10px 10px 67px;
+			}
+
+			.trace-block-label {
+				display: block;
+				margin-bottom: 5px;
+			}
+
+			.trace-body pre {
+				max-height: 360px;
+				margin: 0;
+				overflow: auto;
+				padding: 9px 10px;
+				border-radius: 6px;
+				background: light-dark(#f3f4f7, #0c0d10);
+				color: light-dark(#30323a, #dfe1e6);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 9px;
+				line-height: 1.5;
+				white-space: pre-wrap;
+				word-break: break-word;
+			}
+
+			.trace-empty {
+				padding: 18px 10px;
+				text-align: center;
+				color: light-dark(#777b86, #9195a0);
+				font-size: 10px;
+			}
+
 			.log-head {
 				display: flex;
 				align-items: center;
@@ -931,6 +1100,25 @@
 				.fact:last-child {
 					border-bottom: 0;
 				}
+
+				.trace-summary {
+					grid-template-columns: 43px minmax(0, 1fr) auto 12px;
+					padding: 9px 8px;
+				}
+
+				.trace-body {
+					padding: 0 8px 9px;
+				}
+
+				.trace-controls {
+					align-items: stretch;
+					flex-direction: column;
+				}
+
+				.trace-select,
+				.trace-load {
+					width: 100%;
+				}
 			}
 
 			@media (prefers-reduced-motion: reduce) {
@@ -1096,6 +1284,15 @@
 				10,
 			);
 			let selectedNumber = Number.isSafeInteger(requestedIssue) ? requestedIssue : null;
+			let traceState = {
+				issueNumber: null,
+				loading: false,
+				error: null,
+				page: null,
+			};
+			let traceRequest = 0;
+			let tracePending = false;
+			const openTraceEvents = new Set();
 
 			function element(tag, className, text) {
 				const node = document.createElement(tag);
@@ -1126,6 +1323,14 @@
 				const hours = Math.floor(seconds / 3600);
 				const minutes = Math.floor((seconds % 3600) / 60);
 				return hours ? `${hours}h ${minutes}m` : `${minutes}m ${seconds % 60}s`;
+			}
+
+			function shortDuration(milliseconds) {
+				if (!Number.isFinite(milliseconds)) return "";
+				if (milliseconds < 1_000) return `${Math.round(milliseconds)}ms`;
+				const seconds = milliseconds / 1_000;
+				if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 1 : 0)}s`;
+				return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
 			}
 
 			function renderCounts() {
@@ -1282,6 +1487,7 @@
 						selectedNumber = issue.number;
 						window.history.replaceState(null, "", `?issue=${issue.number}`);
 						render();
+						loadTrace(issue.number, { merge: "replace" });
 					});
 					target.append(button);
 				}
@@ -1353,6 +1559,128 @@
 				panel.append(section);
 			}
 
+			function tracePreview(event) {
+				const text = event.output ?? event.input ?? "";
+				return text.replaceAll(/\s+/g, " ").trim().slice(0, 220);
+			}
+
+			function appendTraceBlock(body, label, value) {
+				if (!value) return;
+				const block = element("div");
+				block.append(element("span", "trace-block-label", label));
+				const pre = element("pre", "", value);
+				block.append(pre);
+				body.append(block);
+			}
+
+			function renderTraceEvent(event) {
+				const row = element("details", `trace-event ${event.tone}`);
+				row.open = openTraceEvents.has(event.id);
+				row.addEventListener("toggle", () => {
+					if (row.open) openTraceEvents.add(event.id);
+					else openTraceEvents.delete(event.id);
+				});
+				const summary = element("summary", "trace-summary");
+				summary.append(
+					element(
+						"span",
+						"trace-time",
+						new Date(event.at).toLocaleTimeString([], {
+							hour: "2-digit",
+							minute: "2-digit",
+							second: "2-digit",
+						}),
+					),
+				);
+				const copy = element("span");
+				const title = element("span", "trace-title");
+				title.append(
+					element("span", "", event.title),
+					element("span", "trace-kind", stateLabel(event.kind)),
+				);
+				copy.append(title);
+				if (event.detail) copy.append(element("span", "trace-detail", event.detail));
+				const preview = tracePreview(event);
+				if (preview) copy.append(element("span", "trace-preview", preview));
+				summary.append(copy, element("span", "trace-duration", shortDuration(event.durationMs)));
+				row.append(summary);
+				if (event.input || event.output) {
+					const body = element("div", "trace-body");
+					appendTraceBlock(body, "Input", event.input);
+					appendTraceBlock(body, "Output", event.output);
+					row.append(body);
+				}
+				return row;
+			}
+
+			function renderTrace(issue, panel) {
+				const section = element("section", "trace-section");
+				section.setAttribute("aria-labelledby", "run-trace-title");
+				const head = element("div", "trace-head");
+				const title = element("span", "", "Run trace");
+				title.id = "run-trace-title";
+				head.append(title, element("span", "panel-meta", "turns · tools · results"));
+				section.append(head);
+
+				if (traceState.issueNumber !== issue.number || traceState.loading) {
+					section.append(element("div", "trace-empty", "Loading the full run trace…"));
+					panel.append(section);
+					return;
+				}
+				if (traceState.error) {
+					section.append(element("div", "trace-empty", traceState.error));
+					panel.append(section);
+					return;
+				}
+				const page = traceState.page;
+				if (!page?.selectedRunId) {
+					section.append(
+						element("div", "trace-empty", "No turn-by-turn trace has been recorded yet."),
+					);
+					panel.append(section);
+					return;
+				}
+
+				const controls = element("div", "trace-controls");
+				const select = element("select", "trace-select");
+				select.setAttribute("aria-label", "Choose a run trace");
+				for (const run of page.runs) {
+					const option = element(
+						"option",
+						"",
+						`${run.mode} · ${relativeTime(run.startedAt)} · ${run.eventCount} events`,
+					);
+					option.value = run.runId;
+					option.selected = run.runId === page.selectedRunId;
+					select.append(option);
+				}
+				select.addEventListener("change", () => {
+					loadTrace(issue.number, { runId: select.value, merge: "replace" });
+				});
+				controls.append(select);
+				if (page.nextBefore) {
+					const older = element("button", "trace-load", "Load earlier");
+					older.type = "button";
+					older.addEventListener("click", () => {
+						loadTrace(issue.number, {
+							runId: page.selectedRunId,
+							before: page.nextBefore,
+							merge: "older",
+						});
+					});
+					controls.append(older);
+				}
+				section.append(controls);
+				const list = element("div", "trace-list");
+				if (!page.events.length) {
+					list.append(element("div", "trace-empty", "This run has no recorded trace events."));
+				} else {
+					for (const event of page.events) list.append(renderTraceEvent(event));
+				}
+				section.append(list);
+				panel.append(section);
+			}
+
 			function renderDetail(issue) {
 				const panel = document.getElementById("detail-panel");
 				panel.replaceChildren();
@@ -1406,6 +1734,7 @@
 				}
 				panel.append(facts);
 				renderWorkPlan(issue, panel);
+				renderTrace(issue, panel);
 
 				const logHead = element("div", "log-head");
 				logHead.append(
@@ -1445,6 +1774,84 @@
 				panel.append(log);
 			}
 
+			function mergeTraceEvents(...groups) {
+				const events = new Map();
+				for (const group of groups) {
+					for (const event of group ?? []) events.set(event.id, event);
+				}
+				return [...events.values()].toSorted((left, right) => left.id - right.id);
+			}
+
+			function sameTraceEvents(left, right) {
+				return (
+					left.length === right.length &&
+					left.every((event, index) => event.id === right[index]?.id)
+				);
+			}
+
+			async function loadTrace(issueNumber, options = {}) {
+				const request = ++traceRequest;
+				tracePending = true;
+				const merge = options.merge ?? "replace";
+				const previous = traceState.issueNumber === issueNumber ? traceState.page : null;
+				if (merge === "replace") {
+					if (
+						traceState.issueNumber !== issueNumber ||
+						(options.runId && options.runId !== previous?.selectedRunId)
+					) {
+						openTraceEvents.clear();
+					}
+					traceState = { issueNumber, loading: true, error: null, page: null };
+					render();
+				}
+				const params = new URLSearchParams({ limit: "100" });
+				const runId = options.runId ?? (merge === "refresh" ? previous?.selectedRunId : null);
+				if (runId) params.set("run", runId);
+				if (options.before) params.set("before", String(options.before));
+				try {
+					const response = await fetch(`/api/issues/${issueNumber}/trace?${params}`, {
+						headers: { accept: "application/json" },
+						cache: "no-store",
+					});
+					if (!response.ok) throw new Error(`trace request failed: ${response.status}`);
+					const result = await response.json();
+					if (request !== traceRequest || selectedNumber !== issueNumber) return;
+					let page = result;
+					if (previous && previous.selectedRunId === result.selectedRunId) {
+						page = {
+							...result,
+							events:
+								merge === "older"
+									? mergeTraceEvents(result.events, previous.events)
+									: merge === "refresh"
+										? mergeTraceEvents(previous.events, result.events)
+										: result.events,
+							nextBefore: merge === "refresh" ? previous.nextBefore : result.nextBefore,
+						};
+					}
+					if (merge === "refresh" && previous && sameTraceEvents(previous.events, page.events)) {
+						return;
+					}
+					traceState = { issueNumber, loading: false, error: null, page };
+				} catch {
+					if (request !== traceRequest || selectedNumber !== issueNumber) return;
+					traceState = {
+						issueNumber,
+						loading: false,
+						error: "The run trace is temporarily unavailable.",
+						page: previous,
+					};
+				} finally {
+					if (request === traceRequest) tracePending = false;
+				}
+				render();
+			}
+
+			function refreshTrace() {
+				if (!selectedNumber || traceState.loading || tracePending) return;
+				loadTrace(selectedNumber, { merge: traceState.page ? "refresh" : "replace" });
+			}
+
 			function render() {
 				const selected =
 					payload?.issues.find((issue) => issue.number === selectedNumber) ??
@@ -1468,6 +1875,16 @@
 					document.getElementById("updated-at").textContent = relativeTime(payload.updatedAt);
 					document.getElementById("system-status").textContent = "Live state";
 					render();
+					const selected =
+						payload.issues.find((issue) => issue.number === selectedNumber) ?? payload.issues[0];
+					if (selected) {
+						loadTrace(selected.number, {
+							merge:
+								traceState.issueNumber === selected.number && traceState.page
+									? "refresh"
+									: "replace",
+						});
+					}
 				} catch {
 					document.getElementById("system-status").textContent = "Data unavailable";
 					document.getElementById("counts").replaceChildren();
@@ -1478,6 +1895,7 @@
 
 			load();
 			setInterval(load, 20_000);
+			setInterval(refreshTrace, 5_000);
 		</script>
 	</body>
 </html>

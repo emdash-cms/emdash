@@ -12,6 +12,8 @@ export { RUN_PHASES, runMachineSnapshot, runPlan };
 export type { RunMode, RunPhaseId, RunStatus };
 
 export type RunProgressKind =
+	| "workspace_installing"
+	| "workspace_building"
 	| "workspace_ready"
 	| "workspace_failed"
 	| "verification_passed"
@@ -64,6 +66,15 @@ export function resumeRunLifecycle(run: RunLifecycle, startedAt: number): RunLif
 	};
 }
 
+export function beginRunLifecycle(run: RunLifecycle, startedAt: number): RunLifecycle {
+	if (run.status !== "running" || run.phase !== "prepare") return run;
+	return {
+		...run,
+		startedAt,
+		deadlineAt: startedAt + runBudgetMs(run.mode),
+	};
+}
+
 export function advanceRunLifecycle(run: RunLifecycle, progress: RunProgressKind): RunLifecycle {
 	if (run.status !== "running") return run;
 	const target = progressPhase(run, progress);
@@ -94,6 +105,9 @@ export function publicRunLifecycle(run: RunLifecycle): PublicRunLifecycle {
 
 function progressPhase(run: RunLifecycle, progress: RunProgressKind): RunPhaseId | null {
 	switch (progress) {
+		case "workspace_installing":
+		case "workspace_building":
+			return "prepare";
 		case "workspace_ready":
 			return run.plan[1] ?? "report";
 		case "verification_passed":

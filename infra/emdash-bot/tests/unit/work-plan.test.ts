@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vitest";
 
 import {
+	renderPreparingWorkPlanComment,
 	renderWorkPlanComment,
-	requireWorkPlanReadyForReport,
 	updateWorkPlan,
 } from "../../.flue/lib/work-plan.js";
 
@@ -76,12 +76,6 @@ describe("agent work plans", () => {
 		).toThrow(/unique/);
 	});
 
-	test("blocks successful reporting until every step is completed or skipped", () => {
-		const plan = updateWorkPlan(null, initial, 1_000);
-		expect(() => requireWorkPlanReadyForReport(plan, true)).toThrow(/unfinished/);
-		expect(() => requireWorkPlanReadyForReport(plan, false)).not.toThrow();
-	});
-
 	test("renders an evolving checklist and final outcome safely", () => {
 		const plan = updateWorkPlan(
 			null,
@@ -120,5 +114,35 @@ describe("agent work plans", () => {
 				outcome: "The bug reproduced, but no candidate was published.",
 			}),
 		).toContain("### Needs follow-up");
+	});
+
+	test("renders a safe deterministic workspace-preparation comment", () => {
+		const comment = renderPreparingWorkPlanComment({
+			mode: "implement",
+			summary: "Implement <unsafe> adapter [support]",
+		});
+
+		expect(comment).toContain("### Preparing workspace");
+		expect(comment).toContain("Implement &lt;unsafe&gt; adapter \\[support\\]");
+		expect(comment).toContain("Installing dependencies and building the repository");
+		expect(comment).toContain("_Mode: implement_");
+		expect(comment).not.toContain("<unsafe>");
+	});
+
+	test("truncates an overlong directive instead of rejecting workspace preparation", () => {
+		const summary = `Implement ${"adapter support ".repeat(30)}`;
+		const plan = updateWorkPlan(
+			null,
+			{
+				summary,
+				steps: [{ id: "prepare", title: "Prepare workspace", status: "in_progress" }],
+			},
+			1_000,
+		);
+		const comment = renderPreparingWorkPlanComment({ mode: "implement", summary });
+
+		expect(plan.summary.length).toBeLessThanOrEqual(240);
+		expect(plan.summary).toMatch(/…$/);
+		expect(comment).toContain(plan.summary);
 	});
 });

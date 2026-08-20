@@ -549,7 +549,7 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		actors: ["system"],
 	},
 	"agent.fix_ready": {
-		description: "A verified candidate change is published on bot/fix-<n>.",
+		description: "A candidate change is published on bot/fix-<n>.",
 		actors: ["system"],
 	},
 	// Next-generation: the investigation ran but is blocked on reporter-only
