@@ -8,7 +8,13 @@ import { Button, Loader, Toast, useKumoToastManager } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+	keepPreviousData,
+	useQuery,
+	useInfiniteQuery,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
 import {
 	createRouter,
 	createRootRouteWithContext,
@@ -1385,6 +1391,7 @@ function MediaPage() {
 				search: search || undefined,
 				mimeType: mimeFilter,
 			}),
+		placeholderData: keepPreviousData,
 	});
 
 	React.useEffect(() => {

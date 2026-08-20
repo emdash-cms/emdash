@@ -584,7 +584,10 @@ export function MediaLibrary({
 					/>
 				)
 			) : viewMode === "grid" ? (
-				<div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(160px,1fr))]">
+				<div
+					inert={currentLoading || undefined}
+					className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(160px,1fr))]"
+				>
 					{activeProvider === "local"
 						? currentItems.map((item) => (
 								<MediaGridItem
@@ -621,7 +624,10 @@ export function MediaLibrary({
 							))}
 				</div>
 			) : (
-				<div className="rounded-md border bg-kumo-base overflow-x-auto">
+				<div
+					inert={currentLoading || undefined}
+					className="rounded-md border bg-kumo-base overflow-x-auto"
+				>
 					<table className="w-full">
 						<thead>
 							<tr className="border-b bg-kumo-tint/50">
