@@ -1378,7 +1378,7 @@ function MediaPage() {
 	const [search, setSearch] = React.useState("");
 	const [mimeFilter, setMimeFilter] = React.useState<string | string[] | undefined>(undefined);
 	const [page, setPage] = React.useState(1);
-	const [perPage, setPerPage] = React.useState(30);
+	const [perPage, setPerPage] = React.useState(35);
 	const [retainedTotalCount, setRetainedTotalCount] = React.useState(0);
 	const mimeKey = Array.isArray(mimeFilter) ? mimeFilter.join(",") : (mimeFilter ?? "");
 

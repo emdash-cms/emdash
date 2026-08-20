@@ -72,7 +72,7 @@ export interface MediaLibraryPagination {
 	onPageSizeChange: (perPage: number) => void;
 }
 
-const MEDIA_PAGE_SIZE_OPTIONS = [30, 60, 90];
+const MEDIA_PAGE_SIZE_OPTIONS = [35, 70, 90];
 const MAX_DROPDOWN_PAGE_COUNT = 100;
 
 /**

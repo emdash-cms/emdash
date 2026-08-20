@@ -20,11 +20,11 @@ describe("media page API client", () => {
 	});
 
 	it("requests a numbered page and returns its exact total", async () => {
-		const result = await fetchMediaList({ page: 1, limit: 30 });
+		const result = await fetchMediaList({ page: 1, limit: 35 });
 		const [url] = fetchSpy.mock.calls[0]!;
 		const requestUrl = new URL(url, "http://localhost");
 
-		expect(Object.fromEntries(requestUrl.searchParams)).toEqual({ page: "1", limit: "30" });
+		expect(Object.fromEntries(requestUrl.searchParams)).toEqual({ page: "1", limit: "35" });
 		expect(result).toEqual({ items: [], totalCount: 37 });
 	});
 });

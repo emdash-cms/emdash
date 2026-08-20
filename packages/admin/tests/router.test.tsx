@@ -156,8 +156,8 @@ vi.mock("../src/components/MediaLibrary", () => ({
 						<button type="button" onClick={() => pagination.onPageChange(2)}>
 							Open page 2
 						</button>
-						<button type="button" onClick={() => pagination.onPageSizeChange(60)}>
-							Show 60 per page
+						<button type="button" onClick={() => pagination.onPageSizeChange(70)}>
+							Show 70 per page
 						</button>
 						<button type="button" onClick={() => onLocalSearchChange?.("photo")}>
 							Search media
@@ -310,24 +310,24 @@ describe("MediaPage – upload completion", () => {
 
 		await expect.element(screen.getByTestId("media-page")).toHaveTextContent("1");
 		await vi.waitFor(() => {
-			expect(requests.some((url) => url.includes("/_emdash/api/media?page=1&limit=30"))).toBe(true);
+			expect(requests.some((url) => url.includes("/_emdash/api/media?page=1&limit=35"))).toBe(true);
 		});
 
 		await screen.getByRole("button", { name: "Open page 2" }).click();
 		await expect.element(screen.getByTestId("media-page")).toHaveTextContent("2");
 		await vi.waitFor(() => {
-			expect(requests.some((url) => url.includes("/_emdash/api/media?page=2&limit=30"))).toBe(true);
+			expect(requests.some((url) => url.includes("/_emdash/api/media?page=2&limit=35"))).toBe(true);
 		});
 
-		await screen.getByRole("button", { name: "Show 60 per page" }).click();
+		await screen.getByRole("button", { name: "Show 70 per page" }).click();
 		await expect.element(screen.getByTestId("media-page")).toHaveTextContent("1");
-		await expect.element(screen.getByTestId("media-page-size")).toHaveTextContent("60");
+		await expect.element(screen.getByTestId("media-page-size")).toHaveTextContent("70");
 
 		await screen.getByRole("button", { name: "Search media" }).click();
 		await vi.waitFor(() => {
 			expect(
 				requests.some(
-					(url) => url.includes("/_emdash/api/media?page=1&limit=60") && url.includes("q=photo"),
+					(url) => url.includes("/_emdash/api/media?page=1&limit=70") && url.includes("q=photo"),
 				),
 			).toBe(true);
 		});
