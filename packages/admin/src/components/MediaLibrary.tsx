@@ -49,6 +49,10 @@ export interface MediaLibraryProps {
 	onUpload?: (file: File, options?: MediaUploadOptions) => Promise<void> | void;
 	onSelect?: (item: MediaItem) => void;
 	onItemUpdated?: () => void;
+	/** True when more local-library items can be fetched via cursor pagination */
+	hasMore?: boolean;
+	/** Triggered to fetch the next page of local-library items */
+	onLoadMore?: () => void;
 	pagination?: MediaLibraryPagination;
 	/** Called (debounced) with the filename search term for the local library. */
 	onLocalSearchChange?: (q: string) => void;
@@ -76,6 +80,8 @@ export function MediaLibrary({
 	isLoading,
 	onUpload,
 	onItemUpdated,
+	hasMore,
+	onLoadMore,
 	pagination,
 	onLocalSearchChange,
 	onLocalMimeFilterChange,
@@ -693,6 +699,14 @@ export function MediaLibrary({
 							/>
 						</div>
 					</Pagination>
+				</div>
+			)}
+
+			{activeProvider === "local" && !pagination && hasMore && onLoadMore && (
+				<div className="flex justify-center">
+					<Button variant="outline" onClick={onLoadMore} disabled={isLoading}>
+						{isLoading ? t`Loading...` : t`Load More`}
+					</Button>
 				</div>
 			)}
 

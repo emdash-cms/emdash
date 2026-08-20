@@ -406,6 +406,33 @@ describe("MediaLibrary", () => {
 		});
 	});
 
+	describe("legacy load more compatibility", () => {
+		it("keeps hasMore and onLoadMore working when numbered pagination is absent", async () => {
+			const onLoadMore = vi.fn();
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({ items, hasMore: true, onLoadMore });
+
+			await screen.getByRole("button", { name: "Load More" }).click();
+
+			expect(onLoadMore).toHaveBeenCalledTimes(1);
+		});
+
+		it("uses numbered pagination instead when both prop shapes are provided", async () => {
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({
+				items,
+				hasMore: true,
+				onLoadMore: vi.fn(),
+				pagination: makePagination(),
+			});
+
+			await expect
+				.element(screen.getByRole("navigation", { name: "Media pagination" }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
+		});
+	});
+
 	describe("numbered pagination", () => {
 		it("renders localized Kumo controls with the exact range and total", async () => {
 			const onPageChange = vi.fn();
