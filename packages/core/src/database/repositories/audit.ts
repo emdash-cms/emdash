@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { getTenantId } from "../../request-context.js";
 import type { Database, AuditLogTable } from "../types.js";
 import { encodeCursor, decodeCursor, type FindManyResult } from "./types.js";
 
@@ -77,6 +78,7 @@ export class AuditRepository {
 			resource_id: input.resourceId ?? null,
 			details: input.details ? JSON.stringify(input.details) : null,
 			status: input.status ?? null,
+			tenant_id: getTenantId(),
 		};
 
 		await this.db.insertInto("audit_logs").values(row).execute();
@@ -96,6 +98,7 @@ export class AuditRepository {
 			.selectFrom("audit_logs")
 			.selectAll()
 			.where("id", "=", id)
+			.where("tenant_id", "=", getTenantId())
 			.executeTakeFirst();
 
 		return row ? this.rowToAuditLog(row) : null;
@@ -110,6 +113,7 @@ export class AuditRepository {
 		let q = this.db
 			.selectFrom("audit_logs")
 			.selectAll()
+			.where("tenant_id", "=", getTenantId())
 			.orderBy("timestamp", "desc")
 			.orderBy("id", "desc")
 			.limit(limit + 1);
@@ -177,6 +181,7 @@ export class AuditRepository {
 			.selectAll()
 			.where("resource_type", "=", resourceType)
 			.where("resource_id", "=", resourceId)
+			.where("tenant_id", "=", getTenantId())
 			.orderBy("timestamp", "desc");
 
 		if (options.limit) {
@@ -198,6 +203,7 @@ export class AuditRepository {
 			.selectFrom("audit_logs")
 			.selectAll()
 			.where("actor_id", "=", actorId)
+			.where("tenant_id", "=", getTenantId())
 			.orderBy("timestamp", "desc");
 
 		if (options.since) {
@@ -216,7 +222,10 @@ export class AuditRepository {
 	 * Count logs matching a query
 	 */
 	async count(query: Omit<AuditLogQuery, "limit" | "cursor"> = {}): Promise<number> {
-		let q = this.db.selectFrom("audit_logs").select((eb) => eb.fn.count("id").as("count"));
+		let q = this.db
+			.selectFrom("audit_logs")
+			.select((eb) => eb.fn.count("id").as("count"))
+			.where("tenant_id", "=", getTenantId());
 
 		if (query.actorId) {
 			q = q.where("actor_id", "=", query.actorId);
@@ -257,6 +266,7 @@ export class AuditRepository {
 		const result = await this.db
 			.deleteFrom("audit_logs")
 			.where("timestamp", "<", date)
+			.where("tenant_id", "=", getTenantId())
 			.executeTakeFirst();
 
 		return Number(result.numDeletedRows ?? 0);

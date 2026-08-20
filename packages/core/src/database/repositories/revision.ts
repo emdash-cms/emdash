@@ -1,6 +1,7 @@
 import { sql, type Kysely } from "kysely";
 import { monotonicFactory } from "ulidx";
 
+import { getTenantId } from "../../request-context.js";
 import type { Database, RevisionTable } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 
@@ -43,6 +44,7 @@ export class RevisionRepository {
 			entry_id: input.entryId,
 			data: JSON.stringify(input.data),
 			author_id: input.authorId ?? null,
+			tenant_id: getTenantId(),
 		};
 
 		await this.db.insertInto("revisions").values(row).execute();
@@ -82,6 +84,7 @@ export class RevisionRepository {
 			.selectFrom("revisions")
 			.selectAll()
 			.where("id", "=", id)
+			.where("tenant_id", "=", getTenantId())
 			.executeTakeFirst();
 
 		return row ? this.rowToRevision(row) : null;
@@ -103,6 +106,7 @@ export class RevisionRepository {
 			.selectAll()
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
+			.where("tenant_id", "=", getTenantId())
 			.orderBy("id", "desc");
 
 		if (options.limit) {
@@ -122,6 +126,7 @@ export class RevisionRepository {
 			.selectAll()
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
+			.where("tenant_id", "=", getTenantId())
 			.orderBy("id", "desc")
 			.limit(1)
 			.executeTakeFirst();
@@ -138,6 +143,7 @@ export class RevisionRepository {
 			.select((eb) => eb.fn.count("id").as("count"))
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
+			.where("tenant_id", "=", getTenantId())
 			.executeTakeFirst();
 
 		return Number(result?.count || 0);
@@ -151,6 +157,7 @@ export class RevisionRepository {
 			.deleteFrom("revisions")
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
+			.where("tenant_id", "=", getTenantId())
 			.executeTakeFirst();
 
 		try {
@@ -180,11 +187,13 @@ export class RevisionRepository {
 	): Promise<number> {
 		validateIdentifier(collection, "collection");
 		const tableName = `ec_${collection}`;
+		const tenantId = getTenantId();
 		let keepQuery = this.db
 			.selectFrom("revisions")
 			.select("id")
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
+			.where("tenant_id", "=", tenantId)
 			.orderBy("created_at", "desc")
 			.orderBy("id", "desc") // ULID tiebreaker
 			.limit(keepCount);
@@ -204,6 +213,7 @@ export class RevisionRepository {
 			DELETE FROM revisions
 			WHERE collection = ${collection}
 			AND entry_id = ${entryId}
+			AND tenant_id = ${tenantId}
 			${revisionBoundary}
 			AND id NOT IN (${sql.join(keepIds.map((id) => sql`${id}`))})
 			AND NOT EXISTS (
@@ -244,6 +254,7 @@ export class RevisionRepository {
 			WHERE id = ${revisionId}
 			AND collection = ${collection}
 			AND entry_id = ${entryId}
+			AND tenant_id = ${getTenantId()}
 			AND NOT EXISTS (
 				SELECT 1 FROM ${sql.ref(tableName)} AS content
 				WHERE content.live_revision_id = revisions.id

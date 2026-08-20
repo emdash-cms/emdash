@@ -1,6 +1,7 @@
 import { sql, type ExpressionBuilder, type Kysely, type SqlBool } from "kysely";
 import { ulid } from "ulidx";
 
+import { getTenantId } from "../../request-context.js";
 import type { Database, MediaRow } from "../types.js";
 import type { FindManyResult } from "./types.js";
 import { encodeCursor, decodeCursor } from "./types.js";
@@ -117,6 +118,7 @@ export class MediaRepository {
 			status: input.status ?? "ready",
 			created_at: now,
 			author_id: input.authorId ?? null,
+			tenant_id: getTenantId(),
 		};
 
 		await this.db.insertInto("media").values(row).execute();
@@ -249,6 +251,7 @@ export class MediaRepository {
 			.where("id", "=", id)
 			.where("status", "=", "pending")
 			.where("storage_key", "=", expectedStorageKey)
+			.where("tenant_id", "=", getTenantId())
 			.where((eb) =>
 				eb.exists(
 					eb
@@ -293,7 +296,8 @@ export class MediaRepository {
 			.updateTable("media")
 			.set(updates)
 			.where("id", "=", id)
-			.where("status", "=", "pending");
+			.where("status", "=", "pending")
+			.where("tenant_id", "=", getTenantId());
 		if (expectedStorageKey !== undefined) {
 			query = query.where("storage_key", "=", expectedStorageKey);
 		}
@@ -307,7 +311,11 @@ export class MediaRepository {
 	 * Mark upload as failed
 	 */
 	async markFailed(id: string, expectedStorageKey?: string): Promise<MediaItem | null> {
-		let query = this.db.updateTable("media").set({ status: "failed" }).where("id", "=", id);
+		let query = this.db
+			.updateTable("media")
+			.set({ status: "failed" })
+			.where("id", "=", id)
+			.where("tenant_id", "=", getTenantId());
 		if (expectedStorageKey !== undefined) {
 			query = query.where("status", "=", "pending").where("storage_key", "=", expectedStorageKey);
 		}
@@ -324,6 +332,7 @@ export class MediaRepository {
 			.selectFrom("media")
 			.selectAll()
 			.where("id", "=", id)
+			.where("tenant_id", "=", getTenantId())
 			.executeTakeFirst();
 
 		return row ? this.rowToItem(row) : null;
@@ -338,6 +347,7 @@ export class MediaRepository {
 			.selectFrom("media")
 			.selectAll()
 			.where("filename", "=", filename)
+			.where("tenant_id", "=", getTenantId())
 			.executeTakeFirst();
 
 		return row ? this.rowToItem(row) : null;
@@ -353,6 +363,7 @@ export class MediaRepository {
 			.selectAll()
 			.where("content_hash", "=", contentHash)
 			.where("status", "=", "ready")
+			.where("tenant_id", "=", getTenantId())
 			.executeTakeFirst();
 
 		return row ? this.rowToItem(row) : null;
@@ -370,6 +381,7 @@ export class MediaRepository {
 		let query = this.db
 			.selectFrom("media")
 			.selectAll()
+			.where("tenant_id", "=", getTenantId())
 			.orderBy("created_at", "desc")
 			.orderBy("id", "desc")
 			.limit(limit + 1);
@@ -442,7 +454,12 @@ export class MediaRepository {
 		if (input.height !== undefined) updates.height = input.height;
 
 		if (Object.keys(updates).length > 0) {
-			await this.db.updateTable("media").set(updates).where("id", "=", id).execute();
+			await this.db
+				.updateTable("media")
+				.set(updates)
+				.where("id", "=", id)
+				.where("tenant_id", "=", getTenantId())
+				.execute();
 		}
 
 		return this.findById(id);
@@ -455,6 +472,7 @@ export class MediaRepository {
 		const deleted = await this.db
 			.deleteFrom("media")
 			.where("id", "=", id)
+			.where("tenant_id", "=", getTenantId())
 			.returning("storage_key")
 			.executeTakeFirst();
 		if (deleted) return deleted.storage_key;
@@ -470,7 +488,10 @@ export class MediaRepository {
 	 */
 	async count(mimeType?: string | readonly string[]): Promise<number> {
 		const filters = normalizeMimeFilter(mimeType);
-		let query = this.db.selectFrom("media").select((eb) => eb.fn.count<number>("id").as("count"));
+		let query = this.db
+			.selectFrom("media")
+			.select((eb) => eb.fn.count<number>("id").as("count"))
+			.where("tenant_id", "=", getTenantId());
 
 		if (filters.length > 0) {
 			query = query.where((eb) => mimeMatchExpr(eb, filters));
@@ -494,6 +515,7 @@ export class MediaRepository {
 			.deleteFrom("media")
 			.where("status", "=", "pending")
 			.where("created_at", "<", cutoff)
+			.where("tenant_id", "=", getTenantId())
 			.returning("storage_key")
 			.execute();
 

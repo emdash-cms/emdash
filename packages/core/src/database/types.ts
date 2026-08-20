@@ -11,6 +11,7 @@ export interface RevisionTable {
 	data: string; // JSON snapshot
 	author_id: string | null;
 	created_at: Generated<string>;
+	tenant_id: Generated<string>;
 }
 
 export interface RevisionPruneQueueTable {
@@ -31,6 +32,7 @@ export interface TaxonomyTable {
 	// Manual order within a sibling group. 0 for terms that were never
 	// explicitly reordered, so listings fall back to alphabetical.
 	sort_order: Generated<number>;
+	tenant_id: Generated<string>;
 }
 
 export interface ContentTaxonomyTable {
@@ -46,6 +48,7 @@ export interface ContentTaxonomyTable {
 	locale: Generated<string | null>;
 	published_at: Generated<string | null>;
 	created_at: Generated<string | null>;
+	tenant_id: Generated<string>;
 }
 
 export interface TaxonomyDefTable {
@@ -76,6 +79,7 @@ export interface MediaTable {
 	dominant_color: string | null;
 	created_at: Generated<string>;
 	author_id: string | null;
+	tenant_id: Generated<string>;
 }
 
 export interface MediaUploadAttemptTable {
@@ -399,6 +403,7 @@ export interface AuditLogTable {
 	resource_id: string | null;
 	details: string | null; // JSON
 	status: string | null;
+	tenant_id: Generated<string>;
 }
 
 export interface MigrationTable {
@@ -694,6 +699,7 @@ export type MediaRow = {
 	dominant_color: string | null;
 	created_at: string;
 	author_id: string | null;
+	tenant_id: string;
 };
 
 export interface RedirectTable {

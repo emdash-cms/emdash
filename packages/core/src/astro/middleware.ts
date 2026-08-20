@@ -67,6 +67,7 @@ import {
 	type RequestMetrics,
 	runWithContext,
 } from "../request-context.js";
+import { extractTenantId } from "./tenant.js";
 import type { PublishedRef } from "../scheduled-publish.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
@@ -1065,8 +1066,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		return doInit();
 	};
 
+	const tenantId = extractTenantId({ headers: request.headers, url, cookies });
+
 	try {
-		return await runWithContext({ editMode: false, queryRecorder, metrics }, run);
+		return await runWithContext({ editMode: false, queryRecorder, metrics, tenantId }, run);
 	} finally {
 		// Streamed responses defer the flush to stream end (see
 		// wrapBodyForStreamMetrics) so the log captures queries issued while

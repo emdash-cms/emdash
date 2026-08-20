@@ -105,6 +105,15 @@ export interface EmDashRequestContext {
 	metrics?: RequestMetrics;
 	/** Deferred work that owns resources scoped to this request. */
 	deferredTasks?: DeferredTaskTracker;
+	/**
+	 * Tenant identifier for the current request, resolved by middleware from
+	 * (in priority order) the `X-Tenant-ID` header, a `tenant_id` query
+	 * param, the `emdash-tenant-id` cookie, or the request subdomain.
+	 *
+	 * Every repository query filters on this value to enforce multi-tenant
+	 * isolation at the query level (shared database, tenant-scoped rows).
+	 */
+	tenantId?: string;
 }
 
 const ALS_KEY = Symbol.for("emdash:request-context");
@@ -134,4 +143,21 @@ export function runWithContext<T>(ctx: EmDashRequestContext, fn: () => T): T {
  */
 export function getRequestContext(): EmDashRequestContext | undefined {
 	return storage.getStore();
+}
+
+/**
+ * Default tenant used when no request context is active (scripts, tests,
+ * migrations) or when middleware could not resolve a tenant for the request.
+ */
+export const DEFAULT_TENANT_ID = "default";
+
+/**
+ * Get the current request's tenant identifier.
+ *
+ * Falls back to `DEFAULT_TENANT_ID` outside of a request context so
+ * non-request code paths (CLI scripts, tests) keep working against the
+ * single-tenant default. All repository queries filter on this value.
+ */
+export function getTenantId(): string {
+	return storage.getStore()?.tenantId ?? DEFAULT_TENANT_ID;
 }
