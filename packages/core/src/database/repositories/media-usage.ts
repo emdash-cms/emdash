@@ -9,9 +9,17 @@ import {
 } from "kysely";
 import { ulid } from "ulidx";
 
+import {
+	MEDIA_USAGE_ACTIVATION_RUNTIME_GENERATION,
+	MediaUsageActivationVersionMismatchError,
+} from "../../media/usage/activation.js";
 import { isMediaUsageProjectionFingerprint } from "../../media/usage/projection-fingerprint.js";
 import type { MediaUsageContentSourceVariant } from "../../media/usage/source-key.js";
-import type { MediaKind, MediaUsageReferenceType } from "../../media/usage/types.js";
+import {
+	CONTENT_SOURCE_SCHEMA_VERSION,
+	type MediaKind,
+	type MediaUsageReferenceType,
+} from "../../media/usage/types.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isPostgres } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
@@ -338,6 +346,12 @@ export interface MediaUsageCollectionIndexStatusScope {
 	status: string | null;
 	schemaVersion: number | null;
 	reconciliationRequired: boolean;
+}
+
+export interface MediaUsageCollectionProgress {
+	status: "indexing" | "ready" | "needs_attention";
+	readyCollections: number;
+	totalCollections: number;
 }
 
 export interface MediaUsageEntrySource {
@@ -760,6 +774,116 @@ export class MediaUsageRepository {
 			reconciliationRequired:
 				row.reconciliation_required !== null && Number(row.reconciliation_required) !== 0,
 		}));
+	}
+
+	async findCollectionProgress(): Promise<MediaUsageCollectionProgress | null> {
+		const result = await sql<{
+			activation_active: boolean | number;
+			activation_generation: number | string | null;
+			needs_attention: boolean | number;
+			ready_collections: number | string;
+			total_collections: number | string;
+		}>`
+			WITH collection_progress AS (
+				SELECT
+					CASE WHEN status.status = 'complete'
+						AND status.schema_version = ${CONTENT_SOURCE_SCHEMA_VERSION}
+						AND status.reconciliation_required = 0
+						AND status.capture_state = 'active'
+						AND NOT EXISTS (
+							SELECT 1 FROM _emdash_media_usage_work AS work
+							WHERE work.collection_id = collection.id
+								AND work.collection_slug = collection.slug
+						)
+					THEN 1 ELSE 0 END AS is_ready,
+					CASE WHEN status.collection_id IS NULL
+						OR COALESCE(status.capture_state, '') <> 'active'
+						OR status.status NOT IN ('complete', 'never', 'running', 'partial', 'failed', 'stale')
+						OR status.status = 'failed'
+						OR (
+							status.reconciliation_required = 0
+							AND (
+								status.status <> 'complete'
+								OR COALESCE(status.schema_version, -1) <> ${CONTENT_SOURCE_SCHEMA_VERSION}
+							)
+							AND NOT EXISTS (
+								SELECT 1 FROM _emdash_media_usage_work AS work
+								WHERE work.collection_id = collection.id
+									AND work.collection_slug = collection.slug
+							)
+						)
+						OR EXISTS (
+							SELECT 1 FROM _emdash_media_usage_work AS work
+							WHERE work.collection_id = collection.id
+								AND work.collection_slug = collection.slug
+								AND work.state = 'failed'
+						)
+						OR EXISTS (
+							SELECT 1 FROM _emdash_media_usage_reconciliations AS reconciliation
+							WHERE reconciliation.collection_id = collection.id
+								AND reconciliation.collection_slug = collection.slug
+								AND reconciliation.state = 'failed'
+								AND status.reconciliation_required = 1
+						)
+					THEN 1 ELSE 0 END AS needs_attention
+				FROM _emdash_collections AS collection
+				LEFT JOIN _emdash_media_usage_index_status AS status
+					ON status.adapter_id = 'content-media'
+					AND status.scope_type = 'collection'
+					AND status.collection_id = collection.id
+					AND status.scope_key = collection.slug
+				WHERE NOT EXISTS (
+					SELECT 1 FROM _emdash_media_usage_collection_deletions AS deletion
+					WHERE deletion.collection_id = collection.id
+						AND deletion.collection_slug = collection.slug
+				)
+			)
+			SELECT
+				(
+					SELECT activation.runtime_generation
+					FROM _emdash_media_usage_activation AS activation
+					WHERE activation.task_key = 'incremental_capture'
+				) AS activation_generation,
+				EXISTS (
+					SELECT 1 FROM _emdash_media_usage_activation AS activation
+					WHERE activation.task_key = 'incremental_capture'
+						AND activation.state = 'active'
+				) AS activation_active,
+				COUNT(*) AS total_collections,
+				COALESCE(SUM(is_ready), 0) AS ready_collections,
+				CASE WHEN COALESCE(MAX(needs_attention), 0) = 1 OR EXISTS (
+					SELECT 1 FROM _emdash_media_usage_collection_deletions AS deletion
+					WHERE deletion.state = 'failed'
+				) THEN 1 ELSE 0 END AS needs_attention
+			FROM collection_progress
+		`.execute(this.db);
+		const row = result.rows[0];
+		if (!row) throw new Error("Media usage progress query returned no result");
+		if (!row.activation_active) return null;
+		if (Number(row.activation_generation) !== MEDIA_USAGE_ACTIVATION_RUNTIME_GENERATION) {
+			throw new MediaUsageActivationVersionMismatchError(
+				"Media usage activation runtime generation is incompatible",
+			);
+		}
+		const readyCollections = Number(row.ready_collections);
+		const totalCollections = Number(row.total_collections);
+		if (
+			!Number.isSafeInteger(readyCollections) ||
+			!Number.isSafeInteger(totalCollections) ||
+			readyCollections < 0 ||
+			totalCollections < readyCollections
+		) {
+			throw new Error("Media usage progress query returned invalid counts");
+		}
+		return {
+			status: row.needs_attention
+				? "needs_attention"
+				: readyCollections === totalCollections
+					? "ready"
+					: "indexing",
+			readyCollections,
+			totalCollections,
+		};
 	}
 
 	async findCurrentEntryUsagePageByMediaId(

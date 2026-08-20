@@ -110,10 +110,13 @@ To use different schedules, set the corresponding `generalCron` or `mediaUsageCr
 
 ### Enable automatic media usage indexing
 
-Keep `mediaUsageCron` running while you enable automatic media usage indexing. Pause all application
-and direct database writes, follow [Enable automatic media usage
-indexing](/reference/rest-api/#enable-automatic-media-usage-indexing), then resume writes when the
-endpoint returns `active`. Existing content is indexed in the background.
+Keep `mediaUsageCron` running, then pause all application and direct database writes. Open
+**Settings → Media Usage**, select **Enable Media Usage**, confirm the safety requirements, and use
+**Continue setup** until setup finishes. Resume writers only after activation is active. The page
+then shows how many content types have finished indexing existing content.
+
+The [REST procedure](/reference/rest-api/#enable-automatic-media-usage-indexing) remains available
+for API operators.
 
 ## Deploy
 

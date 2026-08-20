@@ -24,6 +24,7 @@ export interface ConfirmDialogProps {
 	/** Button variant — defaults to "destructive" */
 	variant?: "destructive" | "primary";
 	isPending: boolean;
+	disabled?: boolean;
 	/** Error from a mutation — pass mutation.error directly */
 	error: unknown;
 	onConfirm: () => void;
@@ -40,6 +41,7 @@ export function ConfirmDialog({
 	pendingLabel,
 	variant = "destructive",
 	isPending,
+	disabled = false,
 	error,
 	onConfirm,
 	children,
@@ -56,7 +58,7 @@ export function ConfirmDialog({
 					<Button variant="secondary" onClick={onClose}>
 						{t`Cancel`}
 					</Button>
-					<Button variant={variant} disabled={isPending} onClick={onConfirm}>
+					<Button variant={variant} disabled={disabled || isPending} onClick={onConfirm}>
 						{isPending ? pendingLabel : confirmLabel}
 					</Button>
 				</div>

@@ -13,6 +13,14 @@ export const mediaUsageCoverageSchema = z
 	})
 	.meta({ id: "MediaUsageCoverage" });
 
+export const mediaUsageProgressSchema = z
+	.object({
+		status: z.enum(["indexing", "ready", "needs_attention"]),
+		readyCollections: z.number().int().min(0),
+		totalCollections: z.number().int().min(0),
+	})
+	.meta({ id: "MediaUsageProgress" });
+
 export const mediaUsageSummarySchema = z
 	.object({
 		count: z.number().int().min(0).nullable(),
@@ -280,6 +288,7 @@ export const mediaUsageCollectionDeletionRetryResponseSchema = z
 
 export type MediaUsageRepairRequest = z.infer<typeof mediaUsageRepairBody>;
 export type MediaUsageRepairResponse = z.infer<typeof mediaUsageRepairResponseSchema>;
+export type MediaUsageProgress = z.infer<typeof mediaUsageProgressSchema>;
 export type MediaUsageWorkListQuery = z.infer<typeof mediaUsageWorkListQuery>;
 export type MediaUsageWorkItem = z.infer<typeof mediaUsageWorkItemSchema>;
 export type MediaUsageWorkListResponse = z.infer<typeof mediaUsageWorkListResponseSchema>;

@@ -10,6 +10,7 @@ import {
 	MEDIA_USAGE_MAINTENANCE_QUERY_RESERVATIONS,
 	type RuntimeDependencies,
 } from "../../../src/emdash-runtime.js";
+import { activateMediaUsageCapture } from "../../../src/media/usage/activation.js";
 import { installMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
 import type { CronScheduler, SystemCleanupFn } from "../../../src/plugins/scheduler/types.js";
 import { createRequestMetrics, runWithContext } from "../../../src/request-context.js";
@@ -56,6 +57,46 @@ describe("media usage scheduled drivers", () => {
 				canonicalSourceKey(fixture.collectionId, "entry-1"),
 			),
 		).not.toBeNull();
+	});
+
+	it("starts reconciliation when Node maintenance inherits an expensive request context", async () => {
+		const scheduler = new CapturingScheduler();
+		const metrics = createRequestMetrics(performance.now());
+		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
+		await runtime.schemaRegistry.createCollection({
+			slug: "node_reconciliation",
+			label: "Node reconciliation",
+		});
+		await runtime.schemaRegistry.createField("node_reconciliation", {
+			slug: "title",
+			label: "Title",
+			type: "string",
+		});
+		metrics.dbCount = MEDIA_USAGE_MAINTENANCE_QUERY_RESERVATIONS.eventCeiling;
+
+		await expect(activateMediaUsageCapture(runtime.db, { writersDrained: true })).resolves.toEqual({
+			outcome: "active",
+			processedCollections: 1,
+		});
+		expect(
+			await runtime.db
+				.selectFrom("_emdash_media_usage_reconciliations")
+				.select("collection_id")
+				.executeTakeFirst(),
+		).toBeUndefined();
+
+		await runWithContext({ editMode: false, metrics }, async () => {
+			await scheduler.runMaintenance();
+			await scheduler.runMaintenance();
+			await scheduler.runMaintenance();
+		});
+
+		expect(
+			await runtime.db
+				.selectFrom("_emdash_media_usage_reconciliations")
+				.select("collection_id")
+				.executeTakeFirst(),
+		).toBeDefined();
 	});
 
 	it("drains bounded work through a legacy Node scheduler cleanup callback", async () => {

@@ -64,6 +64,7 @@ export {
 export {
 	aggregateMediaUsageCoverageStatus,
 	handleMediaUsageDetails,
+	handleMediaUsageProgress,
 	handleMediaUsageSummaries,
 	handleMediaUsageRepair,
 	toMediaUsageRepairResponse,
@@ -72,6 +73,7 @@ export {
 	type MediaUsageDetailsResponse,
 	type MediaUsageEntryDetail,
 	type MediaUsageOccurrenceDetail,
+	type MediaUsageProgress,
 	type MediaUsageRepairResponse,
 	type MediaUsageSourceDetail,
 	type MediaUsageSummary,

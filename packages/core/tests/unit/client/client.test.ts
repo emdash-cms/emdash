@@ -987,6 +987,30 @@ describe("EmDashClient", () => {
 	});
 
 	describe("media usage work operators", () => {
+		it("reads aggregate media usage indexing progress", async () => {
+			let capturedRequest: Request | undefined;
+			const progress = {
+				status: "indexing" as const,
+				readyCollections: 2,
+				totalCollections: 3,
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [
+					async (request) => {
+						capturedRequest = request;
+						return jsonResponse(progress);
+					},
+				],
+			});
+			await expect(client.mediaGetUsageProgress()).resolves.toEqual(progress);
+			expect(capturedRequest?.method).toBe("GET");
+			expect(new URL(capturedRequest!.url).pathname).toBe(
+				"/_emdash/api/admin/media-usage/progress",
+			);
+		});
+
 		it("reads the redacted activation status", async () => {
 			let capturedRequest: Request | undefined;
 			const status = {

@@ -159,6 +159,25 @@ describe("OpenAPI document generation", () => {
 		);
 	});
 
+	it("documents aggregate media usage indexing progress", () => {
+		const doc = generateOpenApiDocument();
+		const get = doc.paths?.["/_emdash/api/admin/media-usage/progress"]?.get as
+			| { operationId?: string; responses?: Record<string, unknown> }
+			| undefined;
+
+		expect(get?.operationId).toBe("getMediaUsageProgress");
+		expect(get?.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"401": expect.any(Object),
+				"403": expect.any(Object),
+				"409": expect.any(Object),
+				"500": expect.any(Object),
+			}),
+		);
+		expect(JSON.stringify(get?.responses?.["200"])).toContain("MediaUsageProgress");
+	});
+
 	it("includes schema paths", () => {
 		const doc = generateOpenApiDocument();
 		const paths = Object.keys(doc.paths ?? {});

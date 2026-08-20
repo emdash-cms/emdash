@@ -8,6 +8,7 @@ import {
 import { MediaRepository } from "../../database/repositories/media.js";
 import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
+import { MediaUsageActivationVersionMismatchError } from "../../media/usage/activation.js";
 import {
 	CONTENT_MEDIA_USAGE_ADAPTER_ID,
 	CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
@@ -26,6 +27,7 @@ import type {
 	MediaUsageDetailsResponse,
 	MediaUsageEntryDetail,
 	MediaUsageOccurrenceDetail,
+	MediaUsageProgress,
 	MediaUsageRepairRequest,
 	MediaUsageRepairResponse,
 	MediaUsageSummary,
@@ -38,6 +40,7 @@ export type {
 	MediaUsageDetailsResponse,
 	MediaUsageEntryDetail,
 	MediaUsageOccurrenceDetail,
+	MediaUsageProgress,
 	MediaUsageSourceDetail,
 	MediaUsageRepairRequest,
 	MediaUsageRepairResponse,
@@ -47,6 +50,42 @@ export type {
 type ContentMediaUsageRepairResult =
 	| ContentMediaUsageRepairCollectionResult
 	| ContentMediaUsageRepairAllResult;
+
+export async function handleMediaUsageProgress(
+	db: Kysely<Database>,
+): Promise<ApiResult<MediaUsageProgress>> {
+	try {
+		const progress = await new MediaUsageRepository(db).findCollectionProgress();
+		if (!progress) {
+			return {
+				success: false,
+				error: {
+					code: ErrorCode.MEDIA_USAGE_PROGRESS_NOT_ACTIVE,
+					message: "Media Usage is not active",
+				},
+			};
+		}
+		return { success: true, data: progress };
+	} catch (error) {
+		if (error instanceof MediaUsageActivationVersionMismatchError) {
+			return {
+				success: false,
+				error: {
+					code: ErrorCode.MEDIA_USAGE_ACTIVATION_VERSION_MISMATCH,
+					message: "Media Usage activation version does not match this runtime",
+				},
+			};
+		}
+		console.error("[media-usage] progress read failed:", error);
+		return {
+			success: false,
+			error: {
+				code: ErrorCode.MEDIA_USAGE_PROGRESS_READ_ERROR,
+				message: "Failed to read media usage progress",
+			},
+		};
+	}
+}
 
 export function aggregateMediaUsageCoverageStatus(
 	scopes: readonly MediaUsageCollectionIndexStatusScope[],

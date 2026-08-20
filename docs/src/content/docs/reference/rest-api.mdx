@@ -371,6 +371,9 @@ paused while EmDash prepares each collection so that no changes are missed.
 
 Both endpoints require `schema:manage`. Bearer tokens also require the `admin` scope.
 
+Administrators can run the same procedure from **Settings → Media Usage**. The page sends one POST
+per deliberate setup action; it cannot stop external writers or verify scheduled maintenance.
+
 #### Check the current state
 
 ```http
@@ -428,6 +431,16 @@ again. Do not edit EmDash's internal database tables.
 
 When the state is `active`, EmDash tracks changes to media references in content. Existing content
 may still be indexing in the background.
+
+#### Check historical indexing progress
+
+```http
+GET /_emdash/api/admin/media-usage/progress
+```
+
+After activation is active, this returns `indexing`, `ready`, or `needs_attention` together with the
+number of ready and total current content types. It does not inspect content rows or return work-item
+details. The endpoint requires `schema:manage`; bearer tokens also require the `admin` scope.
 
 ### List Media Usage Work
 

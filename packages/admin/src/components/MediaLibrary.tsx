@@ -1,4 +1,4 @@
-import { Button, Input, Loader, Select, Tabs } from "@cloudflare/kumo";
+import { Banner, Button, Input, Loader, Select, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -22,6 +22,11 @@ import {
 	fetchProviderMedia,
 	uploadToProvider,
 } from "../lib/api";
+import { useCurrentUser } from "../lib/api/current-user.js";
+import {
+	MEDIA_USAGE_ACTIVATION_QUERY_KEY,
+	fetchMediaUsageActivationStatus,
+} from "../lib/api/media-usage-activation.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import {
 	providerItemToMediaItem,
@@ -33,6 +38,7 @@ import {
 } from "../lib/media-utils";
 import { cn } from "../lib/utils";
 import { MediaDetailPanel } from "./MediaDetailPanel";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 /** Maps a coarse type-filter choice to the media list's `mimeType` filter. */
 function mimeForTypeFilter(value: string): string | string[] | undefined {
@@ -80,6 +86,17 @@ export function MediaLibrary({
 	onLocalMimeFilterChange,
 }: MediaLibraryProps) {
 	const { t } = useLingui();
+	const isAdmin = (useCurrentUser().data?.role ?? 0) >= 50;
+	const activationQuery = useQuery({
+		queryKey: MEDIA_USAGE_ACTIVATION_QUERY_KEY,
+		queryFn: fetchMediaUsageActivationStatus,
+		enabled: isAdmin,
+		retry: false,
+		staleTime: 60_000,
+		refetchOnWindowFocus: false,
+		refetchOnReconnect: false,
+	});
+	const setupStatus = isAdmin && !activationQuery.isError ? activationQuery.data : undefined;
 	const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
 	const [detailItem, setDetailItem] = React.useState<MediaItem | null>(null);
 	const [isDetailOpen, setIsDetailOpen] = React.useState(false);
@@ -368,6 +385,20 @@ export function MediaLibrary({
 					)}
 				</div>
 			</div>
+			{activeProvider === "local" && setupStatus && setupStatus.state !== "active" ? (
+				<Banner
+					variant="alert"
+					title={
+						setupStatus.state === "activating" ? t`Finish Media Usage setup` : t`Set up Media Usage`
+					}
+					description={t`Index existing content and keep Used in results up to date.`}
+					action={
+						<RouterLinkButton to="/settings/media-usage" size="sm" variant="secondary">
+							{setupStatus.state === "activating" ? t`Continue setup` : t`Enable Media Usage`}
+						</RouterLinkButton>
+					}
+				/>
+			) : null}
 
 			{/* Provider tabs (only when an external provider is configured) */}
 			{providerTabs.length > 1 && (

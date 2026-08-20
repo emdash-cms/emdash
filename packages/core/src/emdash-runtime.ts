@@ -221,7 +221,7 @@ import { PluginStateRepository } from "./plugins/state.js";
 import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
-import { getRequestContext } from "./request-context.js";
+import { getRequestContext, runWithContext } from "./request-context.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
@@ -1723,14 +1723,15 @@ export class EmDashRuntime {
 				if (deps.createScheduler) {
 					const scheduler = deps.createScheduler(cronExecutor);
 					cronScheduler = scheduler;
-					const runMediaUsageMaintenance = async () => {
-						const runtime = runtimeRef.current;
-						if (runtime) {
-							await runtime.runScheduledMediaUsageTasks();
-						} else {
-							await runScheduledMediaUsageLane(db);
-						}
-					};
+					const runMediaUsageMaintenance = () =>
+						runWithContext({ editMode: false }, async () => {
+							const runtime = runtimeRef.current;
+							if (runtime) {
+								await runtime.runScheduledMediaUsageTasks();
+							} else {
+								await runScheduledMediaUsageLane(db);
+							}
+						});
 
 					// Run scheduled publishing and system cleanup alongside each tick.
 					// Pass storage so cleanupPendingUploads can delete orphaned files.
