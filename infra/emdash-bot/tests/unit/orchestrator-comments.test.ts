@@ -83,6 +83,7 @@ describe("renderPreviewReadyAsk", () => {
 		const body = ask();
 		expect(body).toContain("<!-- bot-ask: 2026-08-08T00:00:00Z -->");
 		expect(body).toContain("npm i https://pkg.pr.new/emdash@bot/fix-77");
+		expect(body).toContain("[Open the playground preview](https://bot-fix-77.try.emdashcms.com/)");
 		expect(body).toContain("Root cause: the loader drops the locale.");
 		expect(body).toContain("@alice");
 		expect(body).toContain("`bot/fix-77`");

@@ -1,5 +1,10 @@
 import type { Kind, StateId } from "./machine.js";
-import { artifactsBranch, fixBranch, previewInstallCommand } from "./preview.js";
+import {
+	artifactsBranch,
+	fixBranch,
+	playgroundPreviewUrl,
+	previewInstallCommand,
+} from "./preview.js";
 import type { Decision } from "./router.js";
 
 export function shouldPostReadonlyReply(dryRun?: boolean): boolean {
@@ -167,6 +172,10 @@ export function renderPreviewReadyAsk(input: {
 		"```bash",
 		previewInstallCommand(input.issueNumber, input.previewPackage),
 		"```",
+		"",
+		"Or try the candidate in a ready-to-use playground:",
+		"",
+		`[Open the playground preview](${playgroundPreviewUrl(input.issueNumber)})`,
 		"",
 		...(shots.length > 0 ? ["**Screenshots:**", "", shots.join("\n\n"), ""] : []),
 		reporterAsk,
