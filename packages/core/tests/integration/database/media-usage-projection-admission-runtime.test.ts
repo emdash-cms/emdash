@@ -155,7 +155,7 @@ describeEachDialect("media usage projection admission runtime", (dialect) => {
 		expect(Number(count.count)).toBe(13);
 	});
 
-	it("defers immediately after a reserved conflict inside the shared Paid step reservation", async () => {
+	it("defers immediately after a reserved conflict inside the shared step reservation", async () => {
 		await insertEntry("conflict", 0);
 		await addMediaUsageMeasurementDraft(
 			ctx.db,

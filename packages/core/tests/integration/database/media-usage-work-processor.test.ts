@@ -472,7 +472,7 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 		).toBeNull();
 	});
 
-	it("keeps an ordinary job inside the shared Paid step reservation", async () => {
+	it("keeps an ordinary job inside the shared step reservation", async () => {
 		const fixture = await createActiveFixture(ctx, "measured");
 		await insertEntry(ctx, fixture, "entry-1", "media-1");
 		const counter = new QueryCountingPlugin();

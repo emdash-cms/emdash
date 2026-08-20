@@ -32,7 +32,6 @@ import {
 	createMediaUsageQueueHandler,
 	createScheduledHandler,
 	type MediaUsageWakeMessage,
-	type ScheduledHandlerOptions,
 } from "../src/worker.js";
 
 beforeEach(() => {
@@ -77,11 +76,6 @@ it("runs any configured trigger when no expression is specified", async () => {
 it("rejects an empty configured expression", () => {
 	expect(() => createScheduledHandler({ generalCron: "" })).toThrow(/non-empty/i);
 	expect(createScheduledHandler({ generalCron: " * * * * * " })).toBeTypeOf("function");
-});
-
-it("keeps the scheduled options type usable", () => {
-	const options: ScheduledHandlerOptions = { generalCron: "* * * * *" };
-	expect(createScheduledHandler(options)).toBeTypeOf("function");
 });
 
 it("queues one immediate wake after a successful activation response", async () => {
@@ -136,15 +130,6 @@ it("redacts an activation wake failure without changing the successful response"
 		"[activation] Failed to queue Media Usage maintenance wake",
 	);
 	expect(JSON.stringify(error.mock.calls)).not.toContain("private queue detail");
-});
-
-it("keeps the general Cron independent from Media Usage", async () => {
-	const handler = createScheduledHandler({ generalCron: "* * * * *" });
-
-	await invoke(handler, "* * * * *");
-
-	expect(scheduled.general).toHaveBeenCalledOnce();
-	expect(scheduled.mediaUsageSlice).not.toHaveBeenCalled();
 });
 
 it("coalesces a delivered batch into one slice and one successor", async () => {

@@ -62,7 +62,7 @@ it("keeps full-repair source lookups within D1 value limits", async () => {
 	);
 });
 
-it("keeps the largest entry step below the shared Paid reservation", async () => {
+it("keeps the largest entry step below the shared reservation", async () => {
 	const fixture = await createMediaUsageAdmissionFixture(adminDb, "d1_engine_boundary");
 	await adminDb
 		.updateTable("_emdash_media_usage_activation")
@@ -97,7 +97,7 @@ it("keeps the largest entry step below the shared Paid reservation", async () =>
 	console.info(`PR8_D1_MAINTENANCE_STEP=${JSON.stringify(measurement)}`);
 });
 
-it("drains several durable units without exceeding one Paid D1 event", async () => {
+it("drains several durable units without exceeding one D1 event", async () => {
 	const fixture = await createMediaUsageAdmissionFixture(adminDb, "d1_engine_slice");
 	await adminDb
 		.updateTable("_emdash_media_usage_activation")

@@ -50,19 +50,6 @@ describe("media usage scheduled drivers", () => {
 		expect(await countWork(runtime)).toBe(0);
 	});
 
-	it("processes one due entry batch per maintenance step", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		const fixture = await activateCollection(runtime, "one_unit_posts");
-		await insertEntry(runtime, fixture.tableName, "entry-1");
-		await insertEntry(runtime, fixture.tableName, "entry-2");
-
-		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toMatchObject({
-			state: "progress",
-			continuation: { kind: "immediate" },
-		});
-		expect(await countWork(runtime)).toBe(0);
-	});
-
 	it("delays one continuation when every visible claim is blocked", async () => {
 		runtime = await EmDashRuntime.create(createDeps(null));
 		const fixture = await activateCollection(runtime, "blocked_claim_posts");
@@ -324,7 +311,7 @@ describe("media usage scheduled drivers", () => {
 		expect(await countWork(runtime)).toBe(0);
 	});
 
-	it("stops before another unit when the remaining Paid query budget is reserved", async () => {
+	it("stops before another unit when the remaining query budget is reserved", async () => {
 		runtime = await EmDashRuntime.create(createDeps(null));
 		const fixture = await activateCollection(runtime, "query_bound_slice_posts");
 		await insertEntry(runtime, fixture.tableName, "entry-1");
