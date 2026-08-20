@@ -1401,7 +1401,7 @@ function MediaPage() {
 
 	const totalCount = data?.totalCount ?? retainedTotalCount;
 	const lastPage = Math.max(1, Math.ceil((data?.totalCount ?? 0) / perPage));
-	const isRecoveringPage = data?.totalCount !== undefined && data.totalCount > 0 && page > lastPage;
+	const isRecoveringPage = data?.totalCount !== undefined && page > lastPage;
 	React.useEffect(() => {
 		if (isRecoveringPage) setPage(lastPage);
 	}, [isRecoveringPage, lastPage]);

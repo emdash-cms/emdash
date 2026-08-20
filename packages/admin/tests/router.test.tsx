@@ -345,13 +345,13 @@ describe("MediaPage – upload completion", () => {
 				if (requestedPage === "2") {
 					requestedSecondPage = true;
 					return Promise.resolve(
-						new Response(JSON.stringify({ data: { items: [], totalCount: 20 } }), {
+						new Response(JSON.stringify({ data: { items: [], totalCount: 0 } }), {
 							status: 200,
 							headers: { "Content-Type": "application/json" },
 						}),
 					);
 				}
-				const totalCount = requestedSecondPage ? 20 : 60;
+				const totalCount = requestedSecondPage ? 0 : 60;
 				return Promise.resolve(
 					new Response(JSON.stringify({ data: { items: [], totalCount } }), {
 						status: 200,

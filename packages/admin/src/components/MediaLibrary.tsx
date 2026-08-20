@@ -362,11 +362,7 @@ export function MediaLibrary({
 	}, [refetchProviderMedia, uploadTarget?.id]);
 
 	return (
-		<div
-			className="space-y-4"
-			data-media-library
-			aria-busy={currentLoading || undefined}
-		>
+		<div className="space-y-4" data-media-library aria-busy={currentLoading || undefined}>
 			{isFileDragActive && (
 				<div
 					className="pointer-events-none fixed inset-0 z-50 bg-kumo-base/70 p-4 backdrop-blur-sm sm:p-8"
