@@ -566,6 +566,7 @@ export function MediaLibrary({
 				)
 			) : viewMode === "grid" ? (
 				<div
+					data-media-grid
 					inert={currentLoading || undefined}
 					className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(160px,1fr))]"
 				>
