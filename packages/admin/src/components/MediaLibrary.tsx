@@ -689,7 +689,7 @@ export function MediaLibrary({
 							pageSize: t`Page size`,
 						}}
 					>
-						<Pagination.Info className="min-w-fit grow">
+						<Pagination.Info className="min-w-fit">
 							{({ pageShowingRange, totalCount }) => (
 								<span role="status">{t`Showing ${pageShowingRange} of ${totalCount ?? 0}`}</span>
 							)}
