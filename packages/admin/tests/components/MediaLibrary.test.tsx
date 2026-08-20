@@ -69,7 +69,7 @@ function makePagination(
 ): NonNullable<React.ComponentProps<typeof MediaLibrary>["pagination"]> {
 	return {
 		page: 1,
-		perPage: 25,
+		perPage: 30,
 		totalCount: 37,
 		isPending: false,
 		onPageChange: vi.fn(),
@@ -306,7 +306,7 @@ describe("MediaLibrary", () => {
 			await expect
 				.element(screen.getByRole("navigation", { name: "Media pagination" }))
 				.toBeInTheDocument();
-			await expect.element(screen.getByRole("status")).toHaveTextContent("Showing 1-25 of 37");
+			await expect.element(screen.getByRole("status")).toHaveTextContent("Showing 1-30 of 37");
 			await expect.element(screen.getByText("37 items", { exact: true })).toBeInTheDocument();
 			await expect
 				.element(screen.getByRole("combobox", { name: "Page number" }))
@@ -316,15 +316,15 @@ describe("MediaLibrary", () => {
 			expect(onPageChange).toHaveBeenCalledWith(2);
 
 			await screen.getByRole("combobox", { name: "Page size" }).click();
-			await screen.getByRole("option", { name: "50" }).click();
-			expect(onPageSizeChange).toHaveBeenCalledWith(50);
+			await screen.getByRole("option", { name: "60" }).click();
+			expect(onPageSizeChange).toHaveBeenCalledWith(60);
 		});
 
 		it("uses the page input above the dropdown page-count bound", async () => {
 			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
 			const screen = await renderLibrary({
 				items,
-				pagination: makePagination({ totalCount: 2525 }),
+				pagination: makePagination({ totalCount: 3030 }),
 			});
 
 			await expect
