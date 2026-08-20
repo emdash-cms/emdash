@@ -1,6 +1,7 @@
 import { sql, type Kysely, type SqlBool } from "kysely";
 import { ulid } from "ulidx";
 
+import { getTenantId } from "../../request-context.js";
 import type { Database, MediaRow } from "../types.js";
 import type { FindManyResult } from "./types.js";
 import { encodeCursor, decodeCursor } from "./types.js";
@@ -65,6 +66,7 @@ export class MediaRepository {
 	async create(input: CreateMediaInput): Promise<MediaItem> {
 		const id = ulid();
 		const now = new Date().toISOString();
+		const tenantId = getTenantId();
 
 		const row: Omit<MediaRow, "rowid"> = {
 			id,
@@ -82,6 +84,7 @@ export class MediaRepository {
 			status: input.status ?? "ready",
 			created_at: now,
 			author_id: input.authorId ?? null,
+			tenant_id: tenantId,
 		};
 
 		await this.db.insertInto("media").values(row).execute();
@@ -118,6 +121,7 @@ export class MediaRepository {
 			return null;
 		}
 
+		const tenantId = getTenantId();
 		const updates: Partial<MediaRow> = {
 			status: "ready",
 		};
@@ -125,7 +129,12 @@ export class MediaRepository {
 		if (metadata?.height !== undefined) updates.height = metadata.height;
 		if (metadata?.size !== undefined) updates.size = metadata.size;
 
-		await this.db.updateTable("media").set(updates).where("id", "=", id).execute();
+		await this.db
+			.updateTable("media")
+			.set(updates)
+			.where("id", "=", id)
+			.where("tenant_id", "=", tenantId)
+			.execute();
 
 		return this.findById(id);
 	}
@@ -139,7 +148,13 @@ export class MediaRepository {
 			return null;
 		}
 
-		await this.db.updateTable("media").set({ status: "failed" }).where("id", "=", id).execute();
+		const tenantId = getTenantId();
+		await this.db
+			.updateTable("media")
+			.set({ status: "failed" })
+			.where("id", "=", id)
+			.where("tenant_id", "=", tenantId)
+			.execute();
 
 		return this.findById(id);
 	}
@@ -148,10 +163,12 @@ export class MediaRepository {
 	 * Find media by ID
 	 */
 	async findById(id: string): Promise<MediaItem | null> {
+		const tenantId = getTenantId();
 		const row = await this.db
 			.selectFrom("media")
 			.selectAll()
 			.where("id", "=", id)
+			.where("tenant_id", "=", tenantId)
 			.executeTakeFirst();
 
 		return row ? this.rowToItem(row) : null;
@@ -162,10 +179,12 @@ export class MediaRepository {
 	 * Useful for idempotent imports
 	 */
 	async findByFilename(filename: string): Promise<MediaItem | null> {
+		const tenantId = getTenantId();
 		const row = await this.db
 			.selectFrom("media")
 			.selectAll()
 			.where("filename", "=", filename)
+			.where("tenant_id", "=", tenantId)
 			.executeTakeFirst();
 
 		return row ? this.rowToItem(row) : null;
@@ -176,11 +195,13 @@ export class MediaRepository {
 	 * Used for deduplication - same content = same hash
 	 */
 	async findByContentHash(contentHash: string): Promise<MediaItem | null> {
+		const tenantId = getTenantId();
 		const row = await this.db
 			.selectFrom("media")
 			.selectAll()
 			.where("content_hash", "=", contentHash)
 			.where("status", "=", "ready")
+			.where("tenant_id", "=", tenantId)
 			.executeTakeFirst();
 
 		return row ? this.rowToItem(row) : null;
@@ -194,10 +215,12 @@ export class MediaRepository {
 	 */
 	async findMany(options: FindManyMediaOptions = {}): Promise<FindManyResult<MediaItem>> {
 		const limit = Math.min(options.limit || 50, 100);
+		const tenantId = getTenantId();
 
 		let query = this.db
 			.selectFrom("media")
 			.selectAll()
+			.where("tenant_id", "=", tenantId)
 			.orderBy("created_at", "desc")
 			.orderBy("id", "desc")
 			.limit(limit + 1);
@@ -254,6 +277,7 @@ export class MediaRepository {
 			return null;
 		}
 
+		const tenantId = getTenantId();
 		const updates: Partial<MediaRow> = {};
 		if (input.alt !== undefined) updates.alt = input.alt;
 		if (input.caption !== undefined) updates.caption = input.caption;
@@ -261,7 +285,12 @@ export class MediaRepository {
 		if (input.height !== undefined) updates.height = input.height;
 
 		if (Object.keys(updates).length > 0) {
-			await this.db.updateTable("media").set(updates).where("id", "=", id).execute();
+			await this.db
+				.updateTable("media")
+				.set(updates)
+				.where("id", "=", id)
+				.where("tenant_id", "=", tenantId)
+				.execute();
 		}
 
 		return this.findById(id);
@@ -271,7 +300,12 @@ export class MediaRepository {
 	 * Delete media item
 	 */
 	async delete(id: string): Promise<boolean> {
-		const result = await this.db.deleteFrom("media").where("id", "=", id).executeTakeFirst();
+		const tenantId = getTenantId();
+		const result = await this.db
+			.deleteFrom("media")
+			.where("id", "=", id)
+			.where("tenant_id", "=", tenantId)
+			.executeTakeFirst();
 
 		return (result.numDeletedRows ?? 0) > 0;
 	}
@@ -280,7 +314,11 @@ export class MediaRepository {
 	 * Count media items
 	 */
 	async count(mimeType?: string): Promise<number> {
-		let query = this.db.selectFrom("media").select((eb) => eb.fn.count("id").as("count"));
+		const tenantId = getTenantId();
+		let query = this.db
+			.selectFrom("media")
+			.select((eb) => eb.fn.count("id").as("count"))
+			.where("tenant_id", "=", tenantId);
 
 		if (mimeType) {
 			const pattern = `${escapeLike(mimeType)}%`;
@@ -300,6 +338,7 @@ export class MediaRepository {
 	 */
 	async cleanupPendingUploads(maxAgeMs: number = 60 * 60 * 1000): Promise<string[]> {
 		const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
+		const tenantId = getTenantId();
 
 		// Select the storage keys first -- SQLite doesn't support RETURNING
 		// on DELETE in all drivers, and Kysely's RETURNING isn't universal.
@@ -308,6 +347,7 @@ export class MediaRepository {
 			.select("storage_key")
 			.where("status", "=", "pending")
 			.where("created_at", "<", cutoff)
+			.where("tenant_id", "=", tenantId)
 			.execute();
 
 		if (rows.length === 0) return [];
@@ -316,6 +356,7 @@ export class MediaRepository {
 			.deleteFrom("media")
 			.where("status", "=", "pending")
 			.where("created_at", "<", cutoff)
+			.where("tenant_id", "=", tenantId)
 			.execute();
 
 		return rows.map((r) => r.storage_key);

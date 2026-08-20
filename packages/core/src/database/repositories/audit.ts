@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { getTenantId } from "../../request-context.js";
 import type { Database, AuditLogTable } from "../types.js";
 import { encodeCursor, decodeCursor, type FindManyResult } from "./types.js";
 
@@ -66,6 +67,7 @@ export class AuditRepository {
 	 */
 	async log(input: CreateAuditLogInput): Promise<AuditLog> {
 		const id = ulid();
+		const tenantId = getTenantId();
 
 		const row: Omit<AuditLogTable, "timestamp"> = {
 			id,
@@ -76,6 +78,7 @@ export class AuditRepository {
 			resource_id: input.resourceId ?? null,
 			details: input.details ? JSON.stringify(input.details) : null,
 			status: input.status ?? null,
+			tenant_id: tenantId,
 		};
 
 		await this.db.insertInto("audit_logs").values(row).execute();
@@ -91,10 +94,12 @@ export class AuditRepository {
 	 * Find audit log by ID
 	 */
 	async findById(id: string): Promise<AuditLog | null> {
+		const tenantId = getTenantId();
 		const row = await this.db
 			.selectFrom("audit_logs")
 			.selectAll()
 			.where("id", "=", id)
+			.where("tenant_id", "=", tenantId)
 			.executeTakeFirst();
 
 		return row ? this.rowToAuditLog(row) : null;
@@ -105,10 +110,12 @@ export class AuditRepository {
 	 */
 	async findMany(query: AuditLogQuery = {}): Promise<FindManyResult<AuditLog>> {
 		const limit = Math.min(Math.max(1, query.limit || 50), 100);
+		const tenantId = getTenantId();
 
 		let q = this.db
 			.selectFrom("audit_logs")
 			.selectAll()
+			.where("tenant_id", "=", tenantId)
 			.orderBy("timestamp", "desc")
 			.orderBy("id", "desc")
 			.limit(limit + 1);
@@ -173,11 +180,13 @@ export class AuditRepository {
 		resourceId: string,
 		options: { limit?: number } = {},
 	): Promise<AuditLog[]> {
+		const tenantId = getTenantId();
 		let query = this.db
 			.selectFrom("audit_logs")
 			.selectAll()
 			.where("resource_type", "=", resourceType)
 			.where("resource_id", "=", resourceId)
+			.where("tenant_id", "=", tenantId)
 			.orderBy("timestamp", "desc");
 
 		if (options.limit) {
@@ -195,10 +204,12 @@ export class AuditRepository {
 		actorId: string,
 		options: { limit?: number; since?: string } = {},
 	): Promise<AuditLog[]> {
+		const tenantId = getTenantId();
 		let query = this.db
 			.selectFrom("audit_logs")
 			.selectAll()
 			.where("actor_id", "=", actorId)
+			.where("tenant_id", "=", tenantId)
 			.orderBy("timestamp", "desc");
 
 		if (options.since) {
@@ -217,7 +228,11 @@ export class AuditRepository {
 	 * Count logs matching a query
 	 */
 	async count(query: Omit<AuditLogQuery, "limit" | "cursor"> = {}): Promise<number> {
-		let q = this.db.selectFrom("audit_logs").select((eb) => eb.fn.count("id").as("count"));
+		const tenantId = getTenantId();
+		let q = this.db
+			.selectFrom("audit_logs")
+			.select((eb) => eb.fn.count("id").as("count"))
+			.where("tenant_id", "=", tenantId);
 
 		if (query.actorId) {
 			q = q.where("actor_id", "=", query.actorId);
@@ -255,9 +270,11 @@ export class AuditRepository {
 	 * Delete old audit logs (for retention policy)
 	 */
 	async deleteOlderThan(date: string): Promise<number> {
+		const tenantId = getTenantId();
 		const result = await this.db
 			.deleteFrom("audit_logs")
 			.where("timestamp", "<", date)
+			.where("tenant_id", "=", tenantId)
 			.executeTakeFirst();
 
 		return Number(result.numDeletedRows ?? 0);

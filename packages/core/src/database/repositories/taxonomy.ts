@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { getTenantId } from "../../request-context.js";
 import type { Database, TaxonomyTable, ContentTaxonomyTable } from "../types.js";
 
 export interface Taxonomy {
@@ -40,6 +41,7 @@ export class TaxonomyRepository {
 	 */
 	async create(input: CreateTaxonomyInput): Promise<Taxonomy> {
 		const id = ulid();
+		const tenantId = getTenantId();
 
 		const row: TaxonomyTable = {
 			id,
@@ -48,6 +50,7 @@ export class TaxonomyRepository {
 			label: input.label,
 			parent_id: input.parentId ?? null,
 			data: input.data ? JSON.stringify(input.data) : null,
+			tenant_id: tenantId,
 		};
 
 		await this.db.insertInto("taxonomies").values(row).execute();
@@ -63,10 +66,12 @@ export class TaxonomyRepository {
 	 * Find taxonomy by ID
 	 */
 	async findById(id: string): Promise<Taxonomy | null> {
+		const tenantId = getTenantId();
 		const row = await this.db
 			.selectFrom("taxonomies")
 			.selectAll()
 			.where("id", "=", id)
+			.where("tenant_id", "=", tenantId)
 			.executeTakeFirst();
 
 		return row ? this.rowToTaxonomy(row) : null;
@@ -76,11 +81,13 @@ export class TaxonomyRepository {
 	 * Find taxonomy by name and slug (unique constraint)
 	 */
 	async findBySlug(name: string, slug: string): Promise<Taxonomy | null> {
+		const tenantId = getTenantId();
 		const row = await this.db
 			.selectFrom("taxonomies")
 			.selectAll()
 			.where("name", "=", name)
 			.where("slug", "=", slug)
+			.where("tenant_id", "=", tenantId)
 			.executeTakeFirst();
 
 		return row ? this.rowToTaxonomy(row) : null;
@@ -90,10 +97,12 @@ export class TaxonomyRepository {
 	 * Get all terms for a taxonomy (e.g., all categories)
 	 */
 	async findByName(name: string, options: { parentId?: string | null } = {}): Promise<Taxonomy[]> {
+		const tenantId = getTenantId();
 		let query = this.db
 			.selectFrom("taxonomies")
 			.selectAll()
 			.where("name", "=", name)
+			.where("tenant_id", "=", tenantId)
 			.orderBy("label", "asc");
 
 		if (options.parentId !== undefined) {
@@ -112,10 +121,12 @@ export class TaxonomyRepository {
 	 * Get children of a taxonomy term
 	 */
 	async findChildren(parentId: string): Promise<Taxonomy[]> {
+		const tenantId = getTenantId();
 		const rows = await this.db
 			.selectFrom("taxonomies")
 			.selectAll()
 			.where("parent_id", "=", parentId)
+			.where("tenant_id", "=", tenantId)
 			.orderBy("label", "asc")
 			.execute();
 
@@ -129,6 +140,7 @@ export class TaxonomyRepository {
 		const existing = await this.findById(id);
 		if (!existing) return null;
 
+		const tenantId = getTenantId();
 		const updates: Partial<TaxonomyTable> = {};
 		if (input.slug !== undefined) updates.slug = input.slug;
 		if (input.label !== undefined) updates.label = input.label;
@@ -136,7 +148,12 @@ export class TaxonomyRepository {
 		if (input.data !== undefined) updates.data = JSON.stringify(input.data);
 
 		if (Object.keys(updates).length > 0) {
-			await this.db.updateTable("taxonomies").set(updates).where("id", "=", id).execute();
+			await this.db
+				.updateTable("taxonomies")
+				.set(updates)
+				.where("id", "=", id)
+				.where("tenant_id", "=", tenantId)
+				.execute();
 		}
 
 		return this.findById(id);
@@ -146,10 +163,19 @@ export class TaxonomyRepository {
 	 * Delete a taxonomy term
 	 */
 	async delete(id: string): Promise<boolean> {
+		const tenantId = getTenantId();
 		// First remove any content associations
-		await this.db.deleteFrom("content_taxonomies").where("taxonomy_id", "=", id).execute();
+		await this.db
+			.deleteFrom("content_taxonomies")
+			.where("taxonomy_id", "=", id)
+			.where("tenant_id", "=", tenantId)
+			.execute();
 
-		const result = await this.db.deleteFrom("taxonomies").where("id", "=", id).executeTakeFirst();
+		const result = await this.db
+			.deleteFrom("taxonomies")
+			.where("id", "=", id)
+			.where("tenant_id", "=", tenantId)
+			.executeTakeFirst();
 
 		return (result.numDeletedRows ?? 0) > 0;
 	}

@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import { monotonicFactory } from "ulidx";
 
+import { getTenantId } from "../../request-context.js";
 import type { Database, RevisionTable } from "../types.js";
 
 const monotonic = monotonicFactory();
@@ -35,6 +36,7 @@ export class RevisionRepository {
 	 */
 	async create(input: CreateRevisionInput): Promise<Revision> {
 		const id = monotonic();
+		const tenantId = getTenantId();
 
 		const row: Omit<RevisionTable, "created_at"> = {
 			id,
@@ -42,6 +44,7 @@ export class RevisionRepository {
 			entry_id: input.entryId,
 			data: JSON.stringify(input.data),
 			author_id: input.authorId ?? null,
+			tenant_id: tenantId,
 		};
 
 		await this.db.insertInto("revisions").values(row).execute();
@@ -57,10 +60,12 @@ export class RevisionRepository {
 	 * Find revision by ID
 	 */
 	async findById(id: string): Promise<Revision | null> {
+		const tenantId = getTenantId();
 		const row = await this.db
 			.selectFrom("revisions")
 			.selectAll()
 			.where("id", "=", id)
+			.where("tenant_id", "=", tenantId)
 			.executeTakeFirst();
 
 		return row ? this.rowToRevision(row) : null;
@@ -77,11 +82,13 @@ export class RevisionRepository {
 		entryId: string,
 		options: { limit?: number } = {},
 	): Promise<Revision[]> {
+		const tenantId = getTenantId();
 		let query = this.db
 			.selectFrom("revisions")
 			.selectAll()
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
+			.where("tenant_id", "=", tenantId)
 			.orderBy("id", "desc");
 
 		if (options.limit) {
@@ -96,11 +103,13 @@ export class RevisionRepository {
 	 * Get the most recent revision for an entry
 	 */
 	async findLatest(collection: string, entryId: string): Promise<Revision | null> {
+		const tenantId = getTenantId();
 		const row = await this.db
 			.selectFrom("revisions")
 			.selectAll()
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
+			.where("tenant_id", "=", tenantId)
 			.orderBy("id", "desc")
 			.limit(1)
 			.executeTakeFirst();
@@ -112,11 +121,13 @@ export class RevisionRepository {
 	 * Count revisions for an entry
 	 */
 	async countByEntry(collection: string, entryId: string): Promise<number> {
+		const tenantId = getTenantId();
 		const result = await this.db
 			.selectFrom("revisions")
 			.select((eb) => eb.fn.count("id").as("count"))
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
+			.where("tenant_id", "=", tenantId)
 			.executeTakeFirst();
 
 		return Number(result?.count || 0);
@@ -126,10 +137,12 @@ export class RevisionRepository {
 	 * Delete all revisions for an entry (use when entry is deleted)
 	 */
 	async deleteByEntry(collection: string, entryId: string): Promise<number> {
+		const tenantId = getTenantId();
 		const result = await this.db
 			.deleteFrom("revisions")
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
+			.where("tenant_id", "=", tenantId)
 			.executeTakeFirst();
 
 		return Number(result.numDeletedRows ?? 0);
@@ -139,12 +152,14 @@ export class RevisionRepository {
 	 * Delete old revisions, keeping the most recent N
 	 */
 	async pruneOldRevisions(collection: string, entryId: string, keepCount: number): Promise<number> {
+		const tenantId = getTenantId();
 		// Get IDs of revisions to keep
 		const keep = await this.db
 			.selectFrom("revisions")
 			.select("id")
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
+			.where("tenant_id", "=", tenantId)
 			.orderBy("created_at", "desc")
 			.orderBy("id", "desc") // ULID tiebreaker
 			.limit(keepCount)
@@ -159,6 +174,7 @@ export class RevisionRepository {
 			.deleteFrom("revisions")
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
+			.where("tenant_id", "=", tenantId)
 			.where("id", "not in", keepIds)
 			.executeTakeFirst();
 
@@ -170,10 +186,12 @@ export class RevisionRepository {
 	 * Used for autosave to avoid creating many small revisions.
 	 */
 	async updateData(id: string, data: Record<string, unknown>): Promise<void> {
+		const tenantId = getTenantId();
 		await this.db
 			.updateTable("revisions")
 			.set({ data: JSON.stringify(data) })
 			.where("id", "=", id)
+			.where("tenant_id", "=", tenantId)
 			.execute();
 	}
 
