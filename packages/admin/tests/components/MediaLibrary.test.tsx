@@ -333,14 +333,16 @@ describe("MediaLibrary", () => {
 			expect(screen.getByRole("combobox", { name: "Page number" }).query()).toBeNull();
 		});
 
-		it("keeps controls present but disabled while another page loads", async () => {
+		it("keeps control styling stable while another page loads", async () => {
 			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
 			const screen = await renderLibrary({
 				items,
 				pagination: makePagination({ isPending: true }),
 			});
 
-			await expect.element(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+			const nextPage = screen.getByRole("button", { name: "Next page" });
+			await expect.element(nextPage).not.toBeDisabled();
+			expect(nextPage.element().closest("[inert]")).not.toBeNull();
 		});
 
 		it("focuses the media heading after a requested page finishes loading", async () => {

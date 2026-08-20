@@ -669,7 +669,7 @@ export function MediaLibrary({
 			)}
 
 			{activeProvider === "local" && pagination && pagination.totalCount > 0 && (
-				<fieldset disabled={pagination.isPending} className="m-0 min-w-0 border-0 p-0">
+				<div className="min-w-0">
 					<Pagination
 						page={pagination.page}
 						setPage={requestPage}
@@ -692,22 +692,24 @@ export function MediaLibrary({
 							)}
 						</Pagination.Info>
 						<Pagination.Separator className="hidden sm:block" />
-						<Pagination.PageSize
-							value={pagination.perPage}
-							onChange={requestPageSize}
-							options={MEDIA_PAGE_SIZE_OPTIONS}
-							label={t`Per page`}
-						/>
-						<Pagination.Controls
-							pageSelector={
-								Math.ceil(pagination.totalCount / pagination.perPage) <= MAX_DROPDOWN_PAGE_COUNT
-									? "dropdown"
-									: "input"
-							}
-							className="basis-full sm:basis-auto rtl:[&_svg]:-scale-x-100"
-						/>
+						<div inert={pagination.isPending || undefined} className="contents">
+							<Pagination.PageSize
+								value={pagination.perPage}
+								onChange={requestPageSize}
+								options={MEDIA_PAGE_SIZE_OPTIONS}
+								label={t`Per page`}
+							/>
+							<Pagination.Controls
+								pageSelector={
+									Math.ceil(pagination.totalCount / pagination.perPage) <= MAX_DROPDOWN_PAGE_COUNT
+										? "dropdown"
+										: "input"
+								}
+								className="basis-full sm:basis-auto rtl:[&_svg]:-scale-x-100"
+							/>
+						</div>
 					</Pagination>
-				</fieldset>
+				</div>
 			)}
 
 			{/* Detail Dialog */}
