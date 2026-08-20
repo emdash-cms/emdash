@@ -184,6 +184,7 @@ export class SchemaRegistry {
 			throw new SchemaError(`Collection "${slug}" not found`, "COLLECTION_NOT_FOUND");
 		}
 
+		const tenantId = getTenantId();
 		const now = new Date().toISOString();
 
 		// Derive hasSeo from supports array if supports is being updated and hasSeo not explicitly set
@@ -234,6 +235,7 @@ export class SchemaRegistry {
 				updated_at: now,
 			})
 			.where("slug", "=", slug)
+			.where("tenant_id", "=", tenantId)
 			.execute();
 
 		const updated = await this.getCollection(slug);
@@ -253,6 +255,8 @@ export class SchemaRegistry {
 			throw new SchemaError(`Collection "${slug}" not found`, "COLLECTION_NOT_FOUND");
 		}
 
+		const tenantId = getTenantId();
+
 		// Check if collection has content
 		if (!options?.force) {
 			const hasContent = await this.collectionHasContent(slug);
@@ -268,7 +272,11 @@ export class SchemaRegistry {
 		await this.dropContentTable(slug);
 
 		// Delete the collection record (fields will cascade)
-		await this.db.deleteFrom("_emdash_collections").where("id", "=", existing.id).execute();
+		await this.db
+			.deleteFrom("_emdash_collections")
+			.where("id", "=", existing.id)
+			.where("tenant_id", "=", tenantId)
+			.execute();
 	}
 
 	// ============================================
@@ -279,9 +287,11 @@ export class SchemaRegistry {
 	 * List fields for a collection
 	 */
 	async listFields(collectionId: string): Promise<Field[]> {
+		const tenantId = getTenantId();
 		const rows = await this.db
 			.selectFrom("_emdash_fields")
 			.where("collection_id", "=", collectionId)
+			.where("tenant_id", "=", tenantId)
 			.selectAll()
 			.orderBy("sort_order", "asc")
 			.orderBy("created_at", "asc")
@@ -297,10 +307,12 @@ export class SchemaRegistry {
 		const collection = await this.getCollection(collectionSlug);
 		if (!collection) return null;
 
+		const tenantId = getTenantId();
 		const row = await this.db
 			.selectFrom("_emdash_fields")
 			.where("collection_id", "=", collection.id)
 			.where("slug", "=", fieldSlug)
+			.where("tenant_id", "=", tenantId)
 			.selectAll()
 			.executeTakeFirst();
 
@@ -331,6 +343,7 @@ export class SchemaRegistry {
 			);
 		}
 
+		const tenantId = getTenantId();
 		const id = ulid();
 		const columnType = FIELD_TYPE_TO_COLUMN[input.type];
 
@@ -338,6 +351,7 @@ export class SchemaRegistry {
 		const maxSort = await this.db
 			.selectFrom("_emdash_fields")
 			.where("collection_id", "=", collection.id)
+			.where("tenant_id", "=", tenantId)
 			.select((eb) => eb.fn.max<number>("sort_order").as("max"))
 			.executeTakeFirst();
 
@@ -362,6 +376,7 @@ export class SchemaRegistry {
 				sort_order: sortOrder,
 				searchable: input.searchable ? 1 : 0,
 				translatable: input.translatable === false ? 0 : 1,
+				tenant_id: tenantId,
 			})
 			.execute();
 
@@ -394,6 +409,8 @@ export class SchemaRegistry {
 				"FIELD_NOT_FOUND",
 			);
 		}
+
+		const tenantId = getTenantId();
 
 		await this.db
 			.updateTable("_emdash_fields")
@@ -431,6 +448,7 @@ export class SchemaRegistry {
 				sort_order: input.sortOrder ?? field.sortOrder,
 			})
 			.where("id", "=", field.id)
+			.where("tenant_id", "=", tenantId)
 			.execute();
 
 		const updated = await this.getField(collectionSlug, fieldSlug);
@@ -488,11 +506,17 @@ export class SchemaRegistry {
 			);
 		}
 
+		const tenantId = getTenantId();
+
 		// Drop column from content table
 		await this.dropColumn(collectionSlug, fieldSlug);
 
 		// Delete field record
-		await this.db.deleteFrom("_emdash_fields").where("id", "=", field.id).execute();
+		await this.db
+			.deleteFrom("_emdash_fields")
+			.where("id", "=", field.id)
+			.where("tenant_id", "=", tenantId)
+			.execute();
 	}
 
 	/**
@@ -504,6 +528,8 @@ export class SchemaRegistry {
 			throw new SchemaError(`Collection "${collectionSlug}" not found`, "COLLECTION_NOT_FOUND");
 		}
 
+		const tenantId = getTenantId();
+
 		// Update sort_order for each field
 		for (let i = 0; i < fieldSlugs.length; i++) {
 			await this.db
@@ -511,6 +537,7 @@ export class SchemaRegistry {
 				.set({ sort_order: i })
 				.where("collection_id", "=", collection.id)
 				.where("slug", "=", fieldSlugs[i])
+				.where("tenant_id", "=", tenantId)
 				.execute();
 		}
 	}
@@ -543,6 +570,7 @@ export class SchemaRegistry {
 			.addColumn("draft_revision_id", "text", (col) => col.references("revisions.id"))
 			.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
 			.addColumn("translation_group", "text")
+			.addColumn("tenant_id", "text", (col) => col.notNull().defaultTo("default"))
 			.addUniqueConstraint(`${tableName}_slug_locale_unique`, ["slug", "locale"])
 			.execute();
 
@@ -599,13 +627,18 @@ export class SchemaRegistry {
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_locale`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_locale`)}
 			ON ${sql.ref(tableName)} (locale)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_translation_group`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_translation_group`)}
 			ON ${sql.ref(tableName)} (translation_group)
+		`.execute(conn);
+
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_tenant`)}
+			ON ${sql.ref(tableName)} (tenant_id)
 		`.execute(conn);
 	}
 
@@ -675,10 +708,11 @@ export class SchemaRegistry {
 	 */
 	private async collectionHasContent(slug: string): Promise<boolean> {
 		const tableName = this.getTableName(slug);
+		const tenantId = getTenantId();
 		try {
 			const result = await sql<{ count: number }>`
-				SELECT COUNT(*) as count FROM ${sql.ref(tableName)} 
-				WHERE deleted_at IS NULL
+				SELECT COUNT(*) as count FROM ${sql.ref(tableName)}
+				WHERE tenant_id = ${tenantId} AND deleted_at IS NULL
 			`.execute(this.db);
 			return (result.rows[0]?.count ?? 0) > 0;
 		} catch {
