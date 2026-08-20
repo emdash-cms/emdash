@@ -2,6 +2,7 @@ import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
+import { getTenantId } from "../../request-context.js";
 import { slugify } from "../../utils/slugify.js";
 import { withTransaction } from "../transaction.js";
 import type { Database, TaxonomyTable } from "../types.js";
@@ -157,6 +158,7 @@ export class TaxonomyRepository {
 	 */
 	async create(input: CreateTaxonomyInput): Promise<Taxonomy> {
 		const id = ulid();
+		const tenantId = getTenantId();
 
 		// Empty-string parentId is coerced to null defensively. Higher layers
 		// also normalize this — see handleTermCreate / handleTermUpdate.
@@ -196,6 +198,7 @@ export class TaxonomyRepository {
 				// supply an explicit locale from request context.
 				...(input.locale !== undefined ? { locale: input.locale } : {}),
 				translation_group: translationGroup,
+				tenant_id: tenantId,
 			})
 			.execute();
 
@@ -211,6 +214,7 @@ export class TaxonomyRepository {
 			.selectFrom("taxonomies")
 			.selectAll()
 			.where("id", "=", id)
+			.where("tenant_id", "=", getTenantId())
 			.executeTakeFirst();
 		return row ? this.rowToTaxonomy(row) : null;
 	}
@@ -225,7 +229,8 @@ export class TaxonomyRepository {
 			.selectFrom("taxonomies")
 			.selectAll()
 			.where("name", "=", name)
-			.where("slug", "=", slug);
+			.where("slug", "=", slug)
+			.where("tenant_id", "=", getTenantId());
 		if (locale !== undefined) query = query.where("locale", "=", locale);
 		const row = await query.orderBy("locale", "asc").executeTakeFirst();
 		return row ? this.rowToTaxonomy(row) : null;
@@ -238,6 +243,7 @@ export class TaxonomyRepository {
 			.selectFrom("taxonomies")
 			.select("slug")
 			.where("name", "=", name)
+			.where("tenant_id", "=", getTenantId())
 			.where((eb) => eb.or([eb("slug", "=", baseSlug), eb("slug", "like", `${baseSlug}-%`)]));
 		if (locale !== undefined) query = query.where("locale", "=", locale);
 		const candidates = await query.execute();
@@ -267,6 +273,7 @@ export class TaxonomyRepository {
 			.selectFrom("taxonomies")
 			.selectAll()
 			.where("name", "=", name)
+			.where("tenant_id", "=", getTenantId())
 			.orderBy("sort_order", "asc")
 			.orderBy("label", "asc")
 			.orderBy("id", "asc");
@@ -296,6 +303,7 @@ export class TaxonomyRepository {
 			.selectAll()
 			.where("name", "=", name)
 			.where("locale", "in", locales)
+			.where("tenant_id", "=", getTenantId())
 			.orderBy("sort_order", "asc")
 			.orderBy("label", "asc")
 			.orderBy("id", "asc")
@@ -316,7 +324,11 @@ export class TaxonomyRepository {
 
 	async findPageByName(name: string, options: TaxonomyPageOptions = {}): Promise<TaxonomyPage> {
 		const limit = Math.max(1, Math.min(options.limit ?? 50, 100));
-		let query = this.db.selectFrom("taxonomies").selectAll().where("name", "=", name);
+		let query = this.db
+			.selectFrom("taxonomies")
+			.selectAll()
+			.where("name", "=", name)
+			.where("tenant_id", "=", getTenantId());
 
 		if (options.locale !== undefined) query = query.where("locale", "=", options.locale);
 
@@ -365,6 +377,7 @@ export class TaxonomyRepository {
 			.selectFrom("taxonomies")
 			.selectAll()
 			.where("parent_id", "=", group)
+			.where("tenant_id", "=", getTenantId())
 			.orderBy("sort_order", "asc")
 			.orderBy("label", "asc")
 			.orderBy("id", "asc");
@@ -383,6 +396,7 @@ export class TaxonomyRepository {
 			.selectFrom("taxonomies")
 			.selectAll()
 			.where("translation_group", "=", translationGroup)
+			.where("tenant_id", "=", getTenantId())
 			.orderBy("locale", "asc")
 			.execute();
 		return rows.map((row) => this.rowToTaxonomy(row));
@@ -420,15 +434,22 @@ export class TaxonomyRepository {
 		const hasRowUpdates = Object.keys(updates).length > 0;
 		const hasGroupUpdates = Object.keys(group).length > 0;
 		if (hasRowUpdates || hasGroupUpdates) {
+			const tenantId = getTenantId();
 			await withTransaction(this.db, async (trx) => {
 				if (hasRowUpdates) {
-					await trx.updateTable("taxonomies").set(updates).where("id", "=", id).execute();
+					await trx
+						.updateTable("taxonomies")
+						.set(updates)
+						.where("id", "=", id)
+						.where("tenant_id", "=", tenantId)
+						.execute();
 				}
 				if (hasGroupUpdates) {
 					await trx
 						.updateTable("taxonomies")
 						.set(group)
 						.where("translation_group", "=", existing.translationGroup ?? existing.id)
+						.where("tenant_id", "=", tenantId)
 						.execute();
 				}
 			});
@@ -490,6 +511,7 @@ export class TaxonomyRepository {
 	 * can, and leaves ties, which the next reorder renumbers away.
 	 */
 	private async applyPositions(positions: readonly (readonly [string, number])[]): Promise<void> {
+		const tenantId = getTenantId();
 		for (let index = 0; index < positions.length; index += GROUPS_PER_UPDATE) {
 			const chunk = positions.slice(index, index + GROUPS_PER_UPDATE);
 			// The CAST types the bound position. Postgres resolves a CASE whose THEN
@@ -503,7 +525,7 @@ export class TaxonomyRepository {
 			await sql`
 				UPDATE taxonomies
 				SET sort_order = CASE translation_group ${arms} END
-				WHERE translation_group IN (${keys})
+				WHERE translation_group IN (${keys}) AND tenant_id = ${tenantId}
 			`.execute(this.db);
 		}
 	}
@@ -520,7 +542,8 @@ export class TaxonomyRepository {
 		let query = this.db
 			.selectFrom("taxonomies")
 			.select((eb) => eb.fn.max("sort_order").as("max"))
-			.where("name", "=", name);
+			.where("name", "=", name)
+			.where("tenant_id", "=", getTenantId());
 		query =
 			parentId === null
 				? query.where("parent_id", "is", null)
@@ -535,6 +558,7 @@ export class TaxonomyRepository {
 	async delete(id: string): Promise<boolean> {
 		const term = await this.findById(id);
 		if (!term) return false;
+		const tenantId = getTenantId();
 
 		// When deleting the last translation of a group the pivot rows that
 		// reference that translation_group become orphaned — purge them.
@@ -544,16 +568,22 @@ export class TaxonomyRepository {
 				.select("id")
 				.where("translation_group", "=", term.translationGroup)
 				.where("id", "!=", id)
+				.where("tenant_id", "=", tenantId)
 				.execute();
 			if (siblings.length === 0) {
 				await this.db
 					.deleteFrom("content_taxonomies")
 					.where("taxonomy_id", "=", term.translationGroup)
+					.where("tenant_id", "=", tenantId)
 					.execute();
 			}
 		}
 
-		const result = await this.db.deleteFrom("taxonomies").where("id", "=", id).executeTakeFirst();
+		const result = await this.db
+			.deleteFrom("taxonomies")
+			.where("id", "=", id)
+			.where("tenant_id", "=", tenantId)
+			.executeTakeFirst();
 		invalidateTaxonomyObjectCache();
 		return (result.numDeletedRows ?? 0n) > 0n;
 	}
@@ -579,6 +609,7 @@ export class TaxonomyRepository {
 		if (uniqueGroups.length === 0) return 0;
 		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
 		if (!entryGroup) return 0;
+		const tenantId = getTenantId();
 
 		const result = await this.db
 			.insertInto("content_taxonomies")
@@ -587,6 +618,7 @@ export class TaxonomyRepository {
 					collection,
 					entry_id: entryGroup,
 					taxonomy_id,
+					tenant_id: tenantId,
 				})),
 			)
 			.onConflict((oc) => oc.doNothing())
@@ -608,6 +640,7 @@ export class TaxonomyRepository {
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryGroup)
 			.where("taxonomy_id", "=", taxonomyGroup)
+			.where("tenant_id", "=", getTenantId())
 			.execute();
 		invalidateTaxonomyObjectCache();
 	}
@@ -626,12 +659,15 @@ export class TaxonomyRepository {
 		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
 		if (!entryGroup) return [];
 
+		const tenantId = getTenantId();
 		let query = this.db
 			.selectFrom("content_taxonomies")
 			.innerJoin("taxonomies", "taxonomies.translation_group", "content_taxonomies.taxonomy_id")
 			.selectAll("taxonomies")
 			.where("content_taxonomies.collection", "=", collection)
-			.where("content_taxonomies.entry_id", "=", entryGroup);
+			.where("content_taxonomies.entry_id", "=", entryGroup)
+			.where("content_taxonomies.tenant_id", "=", tenantId)
+			.where("taxonomies.tenant_id", "=", tenantId);
 
 		if (taxonomyName) query = query.where("taxonomies.name", "=", taxonomyName);
 		if (locale !== undefined) query = query.where("taxonomies.locale", "=", locale);
@@ -650,6 +686,7 @@ export class TaxonomyRepository {
 		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
 		if (!entryGroup) return [];
 
+		const tenantId = getTenantId();
 		const rows = await this.db
 			.selectFrom("content_taxonomies")
 			.innerJoin("taxonomies", "taxonomies.translation_group", "content_taxonomies.taxonomy_id")
@@ -658,6 +695,8 @@ export class TaxonomyRepository {
 			.where("content_taxonomies.collection", "=", collection)
 			.where("content_taxonomies.entry_id", "=", entryGroup)
 			.where("taxonomies.name", "=", taxonomyName)
+			.where("content_taxonomies.tenant_id", "=", tenantId)
+			.where("taxonomies.tenant_id", "=", tenantId)
 			.orderBy("content_taxonomies.taxonomy_id", "asc")
 			.orderBy("taxonomies.locale", "asc")
 			.execute();
@@ -706,6 +745,7 @@ export class TaxonomyRepository {
 			if (group) groups.push(group);
 		}
 		const newGroups = new Set(groups);
+		const tenantId = getTenantId();
 
 		const current = await this.db
 			.selectFrom("content_taxonomies")
@@ -715,6 +755,8 @@ export class TaxonomyRepository {
 			.where("content_taxonomies.collection", "=", collection)
 			.where("content_taxonomies.entry_id", "=", entryGroup)
 			.where("taxonomies.name", "=", taxonomyName)
+			.where("content_taxonomies.tenant_id", "=", tenantId)
+			.where("taxonomies.tenant_id", "=", tenantId)
 			.execute();
 		const currentGroups = new Set(current.map((r) => r.group));
 
@@ -725,6 +767,7 @@ export class TaxonomyRepository {
 				.where("collection", "=", collection)
 				.where("entry_id", "=", entryGroup)
 				.where("taxonomy_id", "in", toRemove)
+				.where("tenant_id", "=", tenantId)
 				.execute();
 		}
 
@@ -737,6 +780,7 @@ export class TaxonomyRepository {
 						collection,
 						entry_id: entryGroup,
 						taxonomy_id,
+						tenant_id: tenantId,
 					})),
 				)
 				.onConflict((oc) => oc.doNothing())
@@ -754,6 +798,7 @@ export class TaxonomyRepository {
 			.deleteFrom("content_taxonomies")
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryGroup)
+			.where("tenant_id", "=", getTenantId())
 			.executeTakeFirst();
 		const removed = Number(result.numDeletedRows ?? 0);
 		if (removed > 0) invalidateTaxonomyObjectCache();
@@ -793,6 +838,7 @@ export class TaxonomyRepository {
 			.selectFrom("content_taxonomies")
 			.select((eb) => eb.fn.count("entry_id").as("count"))
 			.where("taxonomy_id", "=", group)
+			.where("tenant_id", "=", getTenantId())
 			.executeTakeFirst();
 		return Number(result?.count ?? 0);
 	}
@@ -813,6 +859,7 @@ export class TaxonomyRepository {
 			.selectFrom("taxonomies")
 			.select("id")
 			.where("id", "=", group)
+			.where("tenant_id", "=", getTenantId())
 			.executeTakeFirst();
 		return anchor ? group : idOrGroup;
 	}
@@ -822,6 +869,7 @@ export class TaxonomyRepository {
 			.selectFrom("taxonomies")
 			.select(["translation_group"])
 			.where((eb) => eb.or([eb("id", "=", idOrGroup), eb("translation_group", "=", idOrGroup)]))
+			.where("tenant_id", "=", getTenantId())
 			.executeTakeFirst();
 		return row?.translation_group ?? null;
 	}
@@ -841,6 +889,7 @@ export class TaxonomyRepository {
 		if (translationGroups.length === 0) return new Map();
 
 		const { chunks, SQL_BATCH_SIZE } = await import("../../utils/chunks.js");
+		const tenantId = getTenantId();
 
 		const counts = new Map<string, number>();
 		for (const chunk of chunks(translationGroups, SQL_BATCH_SIZE)) {
@@ -848,6 +897,7 @@ export class TaxonomyRepository {
 				.selectFrom("content_taxonomies")
 				.select(["taxonomy_id", (eb) => eb.fn.count("entry_id").as("count")])
 				.where("taxonomy_id", "in", chunk)
+				.where("tenant_id", "=", tenantId)
 				.groupBy("taxonomy_id")
 				.execute();
 
