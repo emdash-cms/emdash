@@ -98,6 +98,9 @@ export function MediaLibrary({
 	const detailOpenFrameRef = React.useRef<number | null>(null);
 	const paginationRequestedRef = React.useRef(false);
 	const paginationWasPendingRef = React.useRef(false);
+	const paginationRootRef = React.useRef<HTMLDivElement>(null);
+	const paginationFocusTargetRef = React.useRef<HTMLElement | null>(null);
+	const paginationFocusFallbackRef = React.useRef<"page" | "page-size">("page");
 	// Debounced filename search reported up for the local library's server query.
 	const debouncedSearch = useDebouncedValue(searchQuery, 300);
 	React.useEffect(() => {
@@ -164,6 +167,9 @@ export function MediaLibrary({
 			const pageCount = Math.max(1, Math.ceil(pagination.totalCount / pagination.perPage));
 			if (!Number.isSafeInteger(nextPage) || nextPage < 1 || nextPage > pageCount) return;
 			paginationRequestedRef.current = true;
+			paginationFocusTargetRef.current =
+				document.activeElement instanceof HTMLElement ? document.activeElement : null;
+			paginationFocusFallbackRef.current = "page";
 			pagination.onPageChange(nextPage);
 		},
 		[pagination],
@@ -174,6 +180,9 @@ export function MediaLibrary({
 				return;
 			}
 			paginationRequestedRef.current = true;
+			paginationFocusTargetRef.current =
+				document.activeElement instanceof HTMLElement ? document.activeElement : null;
+			paginationFocusFallbackRef.current = "page-size";
 			pagination.onPageSizeChange(nextPerPage);
 		},
 		[pagination],
@@ -182,9 +191,22 @@ export function MediaLibrary({
 		const pending = pagination?.isPending ?? false;
 		if (activeProvider !== "local") {
 			paginationRequestedRef.current = false;
+			paginationFocusTargetRef.current = null;
 		} else if (paginationRequestedRef.current && paginationWasPendingRef.current && !pending) {
 			paginationRequestedRef.current = false;
-			mediaHeadingRef.current?.focus();
+			let focusTarget = paginationFocusTargetRef.current;
+			if (!focusTarget?.isConnected || focusTarget.matches(":disabled")) {
+				const slot =
+					paginationFocusFallbackRef.current === "page-size"
+						? "pagination-page-size"
+						: "pagination-controls";
+				focusTarget =
+					paginationRootRef.current?.querySelector<HTMLElement>(
+						`[data-slot="${slot}"] [role="combobox"], [data-slot="${slot}"] input, [data-slot="${slot}"] button:not(:disabled)`,
+					) ?? null;
+			}
+			paginationFocusTargetRef.current = null;
+			focusTarget?.focus({ preventScroll: true });
 		}
 		paginationWasPendingRef.current = pending;
 	}, [activeProvider, pagination?.isPending]);
@@ -669,7 +691,7 @@ export function MediaLibrary({
 			)}
 
 			{activeProvider === "local" && pagination && pagination.totalCount > 0 && (
-				<div className="min-w-0">
+				<div ref={paginationRootRef} className="min-w-0">
 					<Pagination
 						page={pagination.page}
 						setPage={requestPage}

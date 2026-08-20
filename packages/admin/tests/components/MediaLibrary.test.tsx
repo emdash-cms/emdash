@@ -345,7 +345,7 @@ describe("MediaLibrary", () => {
 			expect(nextPage.element().closest("[inert]")).not.toBeNull();
 		});
 
-		it("focuses the media heading after a requested page finishes loading", async () => {
+		it("restores focus to the pagination control after a page finishes loading", async () => {
 			function Harness() {
 				const [page, setPage] = React.useState(1);
 				const [isPending, setIsPending] = React.useState(false);
@@ -355,6 +355,7 @@ describe("MediaLibrary", () => {
 							items={[makeMediaItem({ id: String(page), filename: `page-${page}.jpg` })]}
 							pagination={makePagination({
 								page,
+								totalCount: 90,
 								isPending,
 								onPageChange(nextPage) {
 									setPage(nextPage);
@@ -375,13 +376,12 @@ describe("MediaLibrary", () => {
 				</QueryWrapper>,
 			);
 
-			await screen.getByRole("button", { name: "Next page" }).click();
+			const nextPage = screen.getByRole("button", { name: "Next page" });
+			await nextPage.click();
 			await screen.getByRole("button", { name: "Finish page request" }).click();
 
 			await vi.waitFor(() => {
-				expect(document.activeElement).toBe(
-					screen.getByRole("heading", { name: "Media Library", exact: true }).element(),
-				);
+				expect(document.activeElement).toBe(nextPage.element());
 			});
 		});
 	});
