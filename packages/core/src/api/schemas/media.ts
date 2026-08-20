@@ -21,12 +21,17 @@ const mimeTypeFilter = z
 
 export const mediaListQuery = cursorPaginationQuery
 	.extend({
+		page: z.coerce.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional(),
 		mimeType: mimeTypeFilter,
 		/** Case-insensitive filename substring search (also matches extensions). */
 		q: z.string().trim().min(1).max(200).optional(),
 		includeUsage: z.literal("1").optional().meta({
 			description: "Include a coverage-aware usage summary on each media item",
 		}),
+	})
+	.refine(({ cursor, page }) => cursor === undefined || page === undefined, {
+		message: "cursor and page cannot be used together",
+		path: ["page"],
 	})
 	.meta({ id: "MediaListQuery" });
 
@@ -143,6 +148,7 @@ export const mediaListReadResponseSchema = z
 	.object({
 		items: z.array(mediaListReadItemSchema),
 		nextCursor: z.string().optional(),
+		totalCount: z.number().int().nonnegative().optional(),
 	})
 	.meta({ id: "MediaListReadResponse" });
 
@@ -150,6 +156,7 @@ export const mediaListResponseSchema = z
 	.object({
 		items: z.array(mediaItemSchema),
 		nextCursor: z.string().optional(),
+		totalCount: z.number().int().nonnegative().optional(),
 	})
 	.meta({ id: "MediaListResponse" });
 

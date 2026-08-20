@@ -811,16 +811,21 @@ export class EmDashClient {
 		mimeType?: string;
 		limit?: number;
 		cursor?: string;
+		page?: number;
 		includeUsage?: boolean;
-	}): Promise<ListResult<MediaItem>> {
+	}): Promise<ListResult<MediaItem> & { totalCount?: number }> {
 		const params = new URLSearchParams();
 		if (options?.mimeType) params.set("mimeType", options.mimeType);
 		if (options?.limit) params.set("limit", String(options.limit));
 		if (options?.cursor) params.set("cursor", options.cursor);
+		if (options?.page !== undefined) params.set("page", String(options.page));
 		if (options?.includeUsage === true) params.set("includeUsage", "1");
 
 		const qs = params.toString();
-		return this.request<ListResult<MediaItem>>("GET", `/media${qs ? `?${qs}` : ""}`);
+		return this.request<ListResult<MediaItem> & { totalCount?: number }>(
+			"GET",
+			`/media${qs ? `?${qs}` : ""}`,
+		);
 	}
 
 	/** Get a single media item */
