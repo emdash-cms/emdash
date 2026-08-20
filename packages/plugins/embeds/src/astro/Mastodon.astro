@@ -5,7 +5,7 @@
  * Wraps astro-embed's MastodonPost component, extracting props from the PT block node.
  * astro-portabletext passes `node` (not `value`) for custom type components.
  */
-import { MastodonPost } from "astro-embed";
+import { MastodonPost } from "@astro-community/astro-embed-mastodon";
 import type { MastodonBlock } from "../schemas.js";
 
 interface Props {
