@@ -186,10 +186,16 @@ GET /_emdash/api/media?includeUsage=1
 | Parameter      | Type     | Description                                                    |
 | -------------- | -------- | -------------------------------------------------------------- |
 | `cursor`       | `string` | Opaque pagination cursor                                       |
+| `page`         | `number` | Numbered page, starting at 1; cannot be combined with `cursor` |
 | `limit`        | `number` | Items per page, from 1 to 100 (default: 50)                    |
 | `mimeType`     | `string` | Filter by one or more comma-separated MIME types               |
 | `q`            | `string` | Case-insensitive filename search                               |
+| `folderId`     | `string` | Folder ID, or `unfiled` for the Main library                   |
 | `includeUsage` | `1`      | Include a coverage-aware `usage` summary on every returned item |
+
+Omit `folderId` to list media from the Main library and every folder. Use `folderId=unfiled` to
+list only media that is not assigned to a folder. A numbered request returns `totalCount`; cursor
+mode returns `nextCursor` when another page is available.
 
 #### Response
 
@@ -205,6 +211,7 @@ GET /_emdash/api/media?includeUsage=1
 				"size": 102400,
 				"width": 1920,
 				"height": 1080,
+				"folderId": null,
 				"url": "/_emdash/api/media/file/uploads/photo.jpg",
 				"createdAt": "2025-01-24T12:00:00Z",
 				"usage": {
@@ -317,30 +324,23 @@ fields, and Portable Text image blocks managed by EmDash content collections. It
 custom code, rendered HTML, settings, menus, widgets, plugin-private data, external sites, or
 provider-only assets.
 
-### Create Media
+### Upload Media
 
-```http
-POST /_emdash/api/media
-Content-Type: application/json
+Upload one file as multipart form data. The endpoint requires `media:upload`; bearer tokens also
+require `media:write`.
+
+The following request uploads `photo.jpg`:
+
+```sh
+curl -X POST "https://example.com/_emdash/api/media" \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "X-EmDash-Request: 1" \
+  -F "file=@photo.jpg"
 ```
 
-#### Request Body
-
-```json
-{
-	"filename": "photo.jpg",
-	"mimeType": "image/jpeg",
-	"size": 102400,
-	"width": 1920,
-	"height": 1080,
-	"storageKey": "uploads/photo.jpg"
-}
-```
-
-<Aside>
-	This endpoint records media metadata after upload. Use the upload endpoint or signed URLs to
-	upload the actual file.
-</Aside>
+A new upload returns 201 with the stored media item and `folderId: null`. If the file content
+already exists, the endpoint returns 200 with `deduplicated: true`, the existing media item, and
+its current folder assignment.
 
 ### Update Media
 
@@ -354,9 +354,57 @@ Content-Type: application/json
 ```json
 {
 	"alt": "Photo description",
-	"caption": "Photo caption"
+	"caption": "Photo caption",
+	"folderId": "01FOLDER..."
 }
 ```
+
+Omit `folderId` to leave the current assignment unchanged. Set it to `null` to return the media
+item to the Main library. Authors can update their own media; editors can update any media.
+
+### List Media Folders
+
+```http
+GET /_emdash/api/media/folders?limit=50&cursor=...
+```
+
+Returns folders in name order with an optional `nextCursor`. `limit` accepts 1 to 100 and defaults
+to 50. The endpoint requires `media:read`.
+
+### Create Media Folder
+
+```http
+POST /_emdash/api/media/folders
+Content-Type: application/json
+
+{
+	"name": "Product photos"
+}
+```
+
+Folder names contain 1 to 200 UTF-16 code units after trimming. Names conflict when their
+NFKC-normalized lowercase forms match. Creating, renaming, and deleting folders requires
+`media:edit_any`.
+
+### Rename Media Folder
+
+```http
+PUT /_emdash/api/media/folders/:id
+Content-Type: application/json
+
+{
+	"name": "Published product photos"
+}
+```
+
+### Delete Media Folder
+
+```http
+DELETE /_emdash/api/media/folders/:id
+```
+
+Deleting a folder returns its media to the Main library. It does not delete media, change media
+IDs or URLs, or change media usage records.
 
 ### Delete Media
 
