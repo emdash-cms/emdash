@@ -7,6 +7,7 @@ import { currentTimestamp, listTablesLike, tableExists } from "../database/diale
 import { withTransaction } from "../database/transaction.js";
 import type { CollectionTable, Database, FieldTable } from "../database/types.js";
 import { FTSManager } from "../search/fts-manager.js";
+import { getTenantId } from "../request-context.js";
 import {
 	type Collection,
 	type CollectionSource,
@@ -76,11 +77,13 @@ export class SchemaRegistry {
 	// ============================================
 
 	/**
-	 * List all collections
+	 * List all collections for current tenant
 	 */
 	async listCollections(): Promise<Collection[]> {
+		const tenantId = getTenantId();
 		const rows = await this.db
 			.selectFrom("_emdash_collections")
+			.where("tenant_id", "=", tenantId)
 			.selectAll()
 			.orderBy("slug", "asc")
 			.execute();
@@ -89,12 +92,14 @@ export class SchemaRegistry {
 	}
 
 	/**
-	 * Get a collection by slug
+	 * Get a collection by slug for current tenant
 	 */
 	async getCollection(slug: string): Promise<Collection | null> {
+		const tenantId = getTenantId();
 		const row = await this.db
 			.selectFrom("_emdash_collections")
 			.where("slug", "=", slug)
+			.where("tenant_id", "=", tenantId)
 			.selectAll()
 			.executeTakeFirst();
 
@@ -137,6 +142,8 @@ export class SchemaRegistry {
 		// Derive hasSeo from supports array if not explicitly set
 		const hasSeo = input.hasSeo ?? input.supports?.includes("seo") ?? false;
 
+		const tenantId = getTenantId();
+
 		await withTransaction(this.db, async (trx) => {
 			await trx
 				.insertInto("_emdash_collections")
@@ -152,6 +159,7 @@ export class SchemaRegistry {
 					has_seo: hasSeo ? 1 : 0,
 					comments_enabled: input.commentsEnabled ? 1 : 0,
 					url_pattern: input.urlPattern ?? null,
+					tenant_id: tenantId,
 				})
 				.execute();
 
