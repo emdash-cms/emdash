@@ -599,7 +599,7 @@ export function MediaLibrary({
 			) : viewMode === "grid" ? (
 				<div
 					inert={currentLoading || undefined}
-					className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(160px,1fr))]"
+					className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(160px,1fr))]"
 				>
 					{activeProvider === "local"
 						? currentItems.map((item) => (
