@@ -3460,6 +3460,7 @@ export class EmDashRuntime {
 		limit?: number;
 		mimeType?: string | readonly string[];
 		q?: string;
+		folderId?: string | null;
 	}) {
 		return handleMediaList(this.db, params);
 	}
@@ -3520,7 +3521,13 @@ export class EmDashRuntime {
 
 	async handleMediaUpdate(
 		id: string,
-		input: { alt?: string; caption?: string; width?: number; height?: number },
+		input: {
+			alt?: string;
+			caption?: string;
+			width?: number;
+			height?: number;
+			folderId?: string | null;
+		},
 	) {
 		const result = await handleMediaUpdate(this.db, id, input);
 		// Resolved media references in site settings (`logo`, `favicon`,

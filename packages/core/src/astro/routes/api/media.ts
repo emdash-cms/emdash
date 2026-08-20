@@ -59,6 +59,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
 		limit: query.limit,
 		mimeType: query.mimeType,
 		q: query.q,
+		folderId: query.folderId === "unfiled" ? null : query.folderId,
 	});
 
 	if (!result.success) {

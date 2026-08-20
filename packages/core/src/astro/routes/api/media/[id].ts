@@ -92,6 +92,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 			caption: body.caption,
 			width: body.width,
 			height: body.height,
+			folderId: body.folderId,
 		});
 
 		return unwrapResult(result);

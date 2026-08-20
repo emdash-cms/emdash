@@ -37,7 +37,7 @@ export class MediaFolderRepository {
 			.orderBy("id", "asc")
 			.limit(limit + 1);
 
-		if (options.cursor) {
+		if (options.cursor !== undefined) {
 			const { orderValue: nameKey, id } = decodeCursor(options.cursor);
 			query = query.where((eb) =>
 				eb.or([

@@ -576,5 +576,6 @@ function mediaItemFixture(): MediaItem {
 		dominantColor: null,
 		createdAt: "2026-07-13T00:00:00.000Z",
 		authorId: null,
+		folderId: null,
 	};
 }

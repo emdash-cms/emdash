@@ -57,6 +57,11 @@ import {
 	mediaConfirmBody,
 	mediaConfirmResponseSchema,
 	mediaExistingResponseSchema,
+	mediaFolderBody,
+	mediaFolderIdSchema,
+	mediaFolderListQuery,
+	mediaFolderListResponseSchema,
+	mediaFolderResponseSchema,
 	mediaGetQuery,
 	mediaListQuery,
 	mediaListReadResponseSchema,
@@ -699,6 +704,80 @@ function buildMediaPaths(maxUploadSize: number) {
 					},
 					...authErrors,
 					...standardErrors(400, 500),
+				},
+			},
+		},
+		"/_emdash/api/media/folders": {
+			get: {
+				operationId: "listMediaFolders",
+				summary: "List media folders",
+				tags: ["Media"],
+				requestParams: { query: mediaFolderListQuery },
+				responses: {
+					"200": {
+						description: "Media folder list",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderListResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 500),
+				},
+			},
+			post: {
+				operationId: "createMediaFolder",
+				summary: "Create a media folder",
+				tags: ["Media"],
+				requestBody: { content: { [JSON_CONTENT]: { schema: mediaFolderBody } } },
+				responses: {
+					"201": {
+						description: "Created media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 409, 500),
+				},
+			},
+		},
+		"/_emdash/api/media/folders/{id}": {
+			put: {
+				operationId: "updateMediaFolder",
+				summary: "Update a media folder",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: mediaFolderIdSchema.meta({ description: "Media folder ID" }) }),
+				},
+				requestBody: { content: { [JSON_CONTENT]: { schema: mediaFolderBody } } },
+				responses: {
+					"200": {
+						description: "Updated media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 409, 500),
+				},
+			},
+			delete: {
+				operationId: "deleteMediaFolder",
+				summary: "Delete a media folder",
+				description: "Deletes the folder and returns its media to the Main library.",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: mediaFolderIdSchema.meta({ description: "Media folder ID" }) }),
+				},
+				responses: {
+					"200": {
+						description: "Deleted media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(deleteResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
 				},
 			},
 		},
