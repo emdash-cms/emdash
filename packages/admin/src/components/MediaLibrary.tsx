@@ -450,7 +450,10 @@ export function MediaLibrary({
 			Boolean(foldersError) ||
 			visibleFolders.length > 0 ||
 			hasMoreFolders);
-	const folderResultsMayFillView = Boolean(foldersLoading) || visibleFolders.length > 0;
+	const folderResultsMayFillView =
+		Boolean(foldersLoading) ||
+		visibleFolders.length > 0 ||
+		(viewMode === "list" && hasFolderSurface);
 	const folderActionsAvailable =
 		Boolean(canManageFolders) &&
 		Boolean(onCreateFolder) &&
@@ -708,22 +711,25 @@ export function MediaLibrary({
 				</div>
 			)}
 
-			{hasFolderSurface && (
+			{activeProvider === "local" && (
+				<span aria-live="polite" aria-atomic="true" className="sr-only">
+					{!hasFolderSurface || foldersError
+						? ""
+						: foldersLoading || isLoadingMoreFolders
+							? t`Loading folders`
+							: plural(visibleFolders.length, {
+									one: "# folder loaded",
+									other: "# folders loaded",
+								})}
+				</span>
+			)}
+
+			{hasFolderSurface && viewMode === "grid" && (
 				<section
 					aria-labelledby="media-folders-heading"
 					aria-busy={Boolean(foldersLoading || isLoadingMoreFolders) || undefined}
 					className="space-y-3"
 				>
-					<span role="status" aria-live="polite" className="sr-only">
-						{foldersError
-							? ""
-							: foldersLoading || isLoadingMoreFolders
-								? t`Loading folders`
-								: plural(visibleFolders.length, {
-										one: "# folder loaded",
-										other: "# folders loaded",
-									})}
-					</span>
 					<div className="flex items-center justify-between gap-3">
 						<h2 id="media-folders-heading" className="text-lg font-semibold">
 							{t`Folders`}
@@ -743,7 +749,7 @@ export function MediaLibrary({
 						<div className="flex justify-center py-6">
 							<Loader />
 						</div>
-					) : viewMode === "grid" ? (
+					) : (
 						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
 							{visibleFolders.map((folder) => (
 								<MediaFolderCard
@@ -755,7 +761,7 @@ export function MediaLibrary({
 								/>
 							))}
 						</div>
-					) : null}
+					)}
 					{hasMoreFolders && onLoadMoreFolders && (
 						<div className="flex justify-center">
 							<Button
@@ -768,7 +774,7 @@ export function MediaLibrary({
 							</Button>
 						</div>
 					)}
-					{viewMode === "grid" && visibleFolders.length > 0 && currentItems.length > 0 && (
+					{visibleFolders.length > 0 && currentItems.length > 0 && (
 						<div className="border-t border-kumo-line" />
 					)}
 				</section>
@@ -894,7 +900,12 @@ export function MediaLibrary({
 					inert={currentLoading || undefined}
 					className="rounded-md border bg-kumo-base overflow-x-auto"
 				>
-					<table className="w-full">
+					<table
+						className="w-full"
+						aria-busy={
+							(showFolderResults && Boolean(foldersLoading || isLoadingMoreFolders)) || undefined
+						}
+					>
 						<thead>
 							<tr className="border-b bg-kumo-tint/50">
 								<th className="px-4 py-3 text-start text-sm font-medium">{t`Preview`}</th>
@@ -905,6 +916,19 @@ export function MediaLibrary({
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-kumo-line">
+							{showFolderResults && foldersLoading && visibleFolders.length === 0 && (
+								<tr>
+									<td colSpan={5} className="px-4 py-6">
+										<div className="flex items-center justify-center gap-2 text-sm text-kumo-subtle">
+											<Loader />
+											<span>{t`Loading folders`}</span>
+										</div>
+									</td>
+								</tr>
+							)}
+							{showFolderResults && foldersError && visibleFolders.length === 0 && (
+								<MediaFolderErrorRow onRetry={onRetryFolders} />
+							)}
 							{activeProvider === "local" &&
 								visibleFolders.map((folder) => (
 									<MediaFolderListItem
@@ -915,6 +939,23 @@ export function MediaLibrary({
 										onEdit={(trigger) => openEditFolder(folder, trigger)}
 									/>
 								))}
+							{showFolderResults && foldersError && visibleFolders.length > 0 && (
+								<MediaFolderErrorRow onRetry={onRetryFolders} />
+							)}
+							{showFolderResults && hasMoreFolders && onLoadMoreFolders && (
+								<tr>
+									<td colSpan={5} className="px-4 py-3 text-center">
+										<Button
+											variant="outline"
+											onClick={onLoadMoreFolders}
+											disabled={isLoadingMoreFolders}
+											loading={isLoadingMoreFolders}
+										>
+											{t`Load more folders`}
+										</Button>
+									</td>
+								</tr>
+							)}
 							{activeProvider === "local"
 								? currentItems.map((item) => (
 										<MediaListItem
@@ -1115,7 +1156,7 @@ function MediaFolderListItem({
 				</div>
 			</td>
 			<td className="px-4 py-3">
-				<div className="flex items-center justify-between gap-2">
+				<div className="flex items-center justify-start gap-2">
 					<RouterLinkButton
 						to="/media"
 						search={{ folder: folder.id }}
@@ -1152,6 +1193,24 @@ function MediaFolderListItem({
 			<td className="px-4 py-3 text-end text-sm text-kumo-subtle">
 				<span aria-hidden="true">—</span>
 				<span className="sr-only">{t`Alt text is not applicable to folders`}</span>
+			</td>
+		</tr>
+	);
+}
+
+function MediaFolderErrorRow({ onRetry }: { onRetry?: () => void }) {
+	const { t } = useLingui();
+	return (
+		<tr>
+			<td colSpan={5} className="px-4 py-3">
+				<div className="flex flex-wrap items-center justify-start gap-3 rounded-md bg-kumo-danger/10 p-3 text-sm text-kumo-danger">
+					<span role="alert">{t`Folders could not be loaded.`}</span>
+					{onRetry && (
+						<Button variant="outline" size="sm" onClick={onRetry}>
+							{t`Retry`}
+						</Button>
+					)}
+				</div>
 			</td>
 		</tr>
 	);

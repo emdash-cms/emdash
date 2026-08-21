@@ -163,6 +163,93 @@ test.describe("Media Library", () => {
 			await expect(page.locator("th:has-text('Type')")).toBeVisible();
 			await expect(page.locator("th:has-text('Size')")).toBeVisible();
 		});
+
+		test("keeps bounded folder states inside the mixed table", async ({ admin, page }) => {
+			test.setTimeout(60_000);
+			let releaseFolders: () => void = () => {};
+			const folderGate = new Promise<void>((resolve) => {
+				releaseFolders = resolve;
+			});
+			const folderPattern = "**/_emdash/api/media/folders?**";
+			await page.route(folderPattern, async (route) => {
+				if (route.request().method() !== "GET") return route.continue();
+				await folderGate;
+				await route.continue();
+			});
+
+			await admin.goToMedia();
+			await expect(page.getByRole("heading", { name: "Media Library" })).toBeVisible();
+			await page.getByRole("tab", { name: "List view" }).click();
+			const table = page.getByRole("table");
+			const loadingRow = table.getByRole("row").filter({ hasText: "Loading folders" });
+			await expect(loadingRow).toBeVisible();
+			await expect(loadingRow.locator("td")).toHaveAttribute("colspan", "5");
+
+			releaseFolders();
+			await expect(loadingRow).not.toBeVisible();
+			await page.unroute(folderPattern);
+			const folderName = `List folder ${Date.now()}`;
+			await createFolder(page, folderName);
+
+			await page.route(folderPattern, async (route) => {
+				if (route.request().method() !== "GET") return route.continue();
+				const url = new URL(route.request().url());
+				if (url.searchParams.has("cursor")) {
+					await route.fulfill({
+						status: 500,
+						contentType: "application/json",
+						body: JSON.stringify({
+							success: false,
+							error: { code: "TEST_ERROR", message: "Later folder page failed" },
+						}),
+					});
+					return;
+				}
+				const response = await route.fetch();
+				const body = (await response.json()) as {
+					data: { nextCursor?: string };
+				};
+				body.data.nextCursor = "forced-next-page";
+				await route.fulfill({ response, json: body });
+			});
+			await page.reload();
+			const listTab = page.getByRole("tab", { name: "List view" });
+			if ((await listTab.getAttribute("aria-selected")) !== "true") await listTab.click();
+			await expect(page.getByRole("heading", { name: "Folders" })).toHaveCount(0);
+			const folderLink = page.getByRole("link", { name: `Open folder ${folderName}` });
+			const editFolder = page.getByRole("button", { name: `Edit folder ${folderName}` });
+			await expect(folderLink).toBeVisible();
+			const folderLinkBox = await folderLink.boundingBox();
+			const editFolderBox = await editFolder.boundingBox();
+			expect(folderLinkBox).not.toBeNull();
+			expect(editFolderBox).not.toBeNull();
+			expect(editFolderBox!.x - (folderLinkBox!.x + folderLinkBox!.width)).toBeLessThanOrEqual(8);
+
+			await page.getByRole("button", { name: "Load more folders" }).click();
+			const rows = table.locator("tbody > tr");
+			await expect(table.getByRole("alert")).toHaveText("Folders could not be loaded.");
+			await page.setViewportSize({ width: 320, height: 800 });
+			const retryBox = await table.getByRole("button", { name: "Retry" }).boundingBox();
+			expect(retryBox).not.toBeNull();
+			expect(retryBox!.x + retryBox!.width).toBeLessThanOrEqual(320);
+			const rowText = await rows.allTextContents();
+			const folderIndex = rowText.findIndex((text) => text.includes(folderName));
+			const errorIndex = rowText.findIndex((text) => text.includes("Folders could not be loaded."));
+			const loadMoreIndex = rowText.findIndex((text) => text.includes("Load more folders"));
+			expect(folderIndex).toBeGreaterThanOrEqual(0);
+			expect(errorIndex).toBeGreaterThan(folderIndex);
+			expect(loadMoreIndex).toBeGreaterThan(errorIndex);
+			expect(loadMoreIndex).toBeLessThan(rowText.length - 1);
+			await page.unroute(folderPattern);
+			await page.reload();
+			await page.getByRole("button", { name: `Edit folder ${folderName}` }).click();
+			const editDialog = page.getByRole("dialog", { name: "Edit folder" });
+			await editDialog.getByRole("button", { name: "Delete folder" }).click();
+			const confirmDelete = page.getByRole("dialog", { name: `Delete “${folderName}”?` });
+			await confirmDelete.getByRole("button", { name: "Delete folder" }).click();
+			await expect(confirmDelete).not.toBeVisible();
+			await expect(page.getByRole("link", { name: `Open folder ${folderName}` })).toHaveCount(0);
+		});
 	});
 
 	test("matches the compact responsive folder layout and mixed-direction names", async ({

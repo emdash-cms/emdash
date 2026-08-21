@@ -201,23 +201,82 @@ describe("MediaLibrary", () => {
 			});
 
 			await screen.getByRole("tab", { name: "List view" }).click();
+			expect(screen.getByRole("heading", { name: "Folders" }).query()).toBeNull();
 			const rows = screen.getByRole("row").all();
 			const folderRow = rows[1]?.element();
 			expect(folderRow).toHaveTextContent("Product photos");
 			const folderCells = folderRow?.querySelectorAll("td");
-			expect(folderCells?.[1]).toContainElement(
-				screen.getByRole("button", { name: "Edit folder Product photos" }).element(),
+			const folderLink = screen.getByRole("link", { name: "Open folder Product photos" });
+			const editFolder = screen.getByRole("button", { name: "Edit folder Product photos" });
+			expect(folderCells?.[1]).toContainElement(editFolder.element());
+			const folderLinkBox = folderLink.element().getBoundingClientRect();
+			const editFolderBox = editFolder.element().getBoundingClientRect();
+			expect(editFolderBox.left - folderLinkBox.right).toBeLessThanOrEqual(8);
+			expect(folderLink.element().querySelector('[dir="auto"]')).toHaveTextContent(
+				"Product photos",
 			);
-			expect(
-				screen
-					.getByRole("link", { name: "Open folder Product photos" })
-					.element()
-					.querySelector('[dir="auto"]'),
-			).toHaveTextContent("Product photos");
 			expect(folderCells?.[2]).toHaveTextContent("Type: Folder");
 			expect(folderCells?.[3]).toHaveTextContent("Size is not applicable to folders");
 			expect(folderCells?.[4]).toHaveTextContent("Alt text is not applicable to folders");
 			expect(rows[2]?.element()).toHaveTextContent("photo.jpg");
+		});
+
+		it("renders the initial folder loader and error inside the list table", async () => {
+			const onRetryFolders = vi.fn();
+			const screen = await renderLibrary({
+				foldersLoading: true,
+				items: [makeMediaItem({ filename: "photo.jpg" })],
+				pagination: makePagination(),
+				onRetryFolders,
+			});
+
+			await screen.getByRole("tab", { name: "List view" }).click();
+			let rows = screen.getByRole("row").all();
+			expect(rows[1]?.element()).toHaveTextContent("Loading folders");
+			expect(rows[1]?.element().querySelector("td")).toHaveAttribute("colspan", "5");
+			expect(rows[2]?.element()).toHaveTextContent("photo.jpg");
+
+			await screen.rerender(
+				<QueryWrapper>
+					<MediaLibrary
+						foldersError={new Error("offline")}
+						items={[makeMediaItem({ filename: "photo.jpg" })]}
+						pagination={makePagination()}
+						onRetryFolders={onRetryFolders}
+					/>
+				</QueryWrapper>,
+			);
+			rows = screen.getByRole("row").all();
+			expect(rows[1]?.element()).toHaveTextContent("Folders could not be loaded.");
+			expect(rows[1]?.element().querySelector("td")).toHaveAttribute("colspan", "5");
+			await screen.getByRole("button", { name: "Retry" }).click();
+			expect(onRetryFolders).toHaveBeenCalledTimes(1);
+			expect(rows[2]?.element()).toHaveTextContent("photo.jpg");
+		});
+
+		it("orders later folder-page errors and load more before media rows", async () => {
+			const onRetryFolders = vi.fn();
+			const onLoadMoreFolders = vi.fn();
+			const screen = await renderLibrary({
+				folders: [makeFolder()],
+				foldersError: new Error("offline"),
+				hasMoreFolders: true,
+				onRetryFolders,
+				onLoadMoreFolders,
+				items: [makeMediaItem({ filename: "photo.jpg" })],
+				pagination: makePagination(),
+			});
+
+			await screen.getByRole("tab", { name: "List view" }).click();
+			const rows = screen.getByRole("row").all();
+			expect(rows[1]?.element()).toHaveTextContent("Product photos");
+			expect(rows[2]?.element()).toHaveTextContent("Folders could not be loaded.");
+			expect(rows[3]?.element()).toHaveTextContent("Load more folders");
+			expect(rows[4]?.element()).toHaveTextContent("photo.jpg");
+			await screen.getByRole("button", { name: "Retry" }).click();
+			await screen.getByRole("button", { name: "Load more folders" }).click();
+			expect(onRetryFolders).toHaveBeenCalledTimes(1);
+			expect(onLoadMoreFolders).toHaveBeenCalledTimes(1);
 		});
 
 		it("shows folders instead of the whole-library empty state", async () => {
@@ -314,6 +373,31 @@ describe("MediaLibrary", () => {
 			await screen.getByRole("combobox", { name: "Filter by type" }).click();
 			await screen.getByRole("option", { name: "Images" }).click();
 			expect(screen.getByRole("heading", { name: "Folders" }).query()).toBeNull();
+		});
+
+		it("hides retained folder query state from a filtered list", async () => {
+			const screen = await renderLibrary({
+				folders: [makeFolder()],
+				foldersLoading: true,
+				foldersError: new Error("offline"),
+				hasMoreFolders: true,
+				isLoadingMoreFolders: true,
+				onLoadMoreFolders: vi.fn(),
+				onRetryFolders: vi.fn(),
+				items: [makeMediaItem()],
+				pagination: makePagination(),
+			});
+
+			await screen.getByRole("tab", { name: "List view" }).click();
+			await screen.getByRole("combobox", { name: "Filter by type" }).click();
+			await screen.getByRole("option", { name: "Images" }).click();
+
+			expect(screen.getByRole("link", { name: "Open folder Product photos" }).query()).toBeNull();
+			expect(screen.getByText("Loading folders").query()).toBeNull();
+			expect(screen.getByText("Folders could not be loaded.").query()).toBeNull();
+			expect(screen.getByRole("button", { name: "Retry" }).query()).toBeNull();
+			expect(screen.getByRole("button", { name: "Load more folders" }).query()).toBeNull();
+			expect(screen.getByRole("table").element()).not.toHaveAttribute("aria-busy");
 		});
 
 		it("shows global folder results while searching from a named folder", async () => {

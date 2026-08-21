@@ -219,6 +219,81 @@ test.describe("Accessibility Audit", () => {
 				.click();
 		});
 
+		test("media list folder states should have no WCAG 2.x AA violations", async ({ admin }) => {
+			test.setTimeout(60_000);
+			const page = admin.page;
+			const folderPattern = "**/_emdash/api/media/folders?**";
+			let releaseFolders: () => void = () => {};
+			const folderGate = new Promise<void>((resolve) => {
+				releaseFolders = resolve;
+			});
+			await page.route(folderPattern, async (route) => {
+				if (route.request().method() !== "GET") return route.continue();
+				await folderGate;
+				await route.continue();
+			});
+
+			await admin.goToMedia();
+			await expect(page.getByRole("heading", { name: "Media Library" })).toBeVisible();
+			await page.getByRole("tab", { name: "List view" }).click();
+			const table = page.getByRole("table");
+			await expect(table.getByText("Loading folders")).toBeVisible();
+			const analyze = () =>
+				new AxeBuilder({ page })
+					.withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+					.disableRules(KNOWN_A11Y_EXCLUSIONS)
+					.analyze();
+			expect((await analyze()).violations).toEqual([]);
+
+			releaseFolders();
+			await expect(table.getByText("Loading folders")).not.toBeVisible();
+			await page.unroute(folderPattern);
+			const folderName = `List accessibility ${Date.now()}`;
+			await page.getByRole("button", { name: "Add new folder" }).click();
+			const folderDialog = page.getByRole("dialog", { name: "Add new folder" });
+			await folderDialog.getByLabel("Name").fill(folderName);
+			await folderDialog.getByRole("button", { name: "Create" }).click();
+			await expect(page.getByRole("link", { name: `Open folder ${folderName}` })).toBeVisible();
+			expect((await analyze()).violations).toEqual([]);
+
+			await page.route(folderPattern, async (route) => {
+				if (route.request().method() !== "GET") return route.continue();
+				const url = new URL(route.request().url());
+				if (url.searchParams.has("cursor")) {
+					await route.fulfill({
+						status: 500,
+						contentType: "application/json",
+						body: JSON.stringify({
+							success: false,
+							error: { code: "TEST_ERROR", message: "Folder list failed" },
+						}),
+					});
+					return;
+				}
+				const response = await route.fetch();
+				const body = (await response.json()) as { data: { nextCursor?: string } };
+				body.data.nextCursor = "forced-accessibility-page";
+				await route.fulfill({ response, json: body });
+			});
+			await page.reload();
+			const listTab = page.getByRole("tab", { name: "List view" });
+			if ((await listTab.getAttribute("aria-selected")) !== "true") await listTab.click();
+			await page.getByRole("button", { name: "Load more folders" }).click();
+			await expect(table.getByRole("alert")).toHaveText("Folders could not be loaded.");
+			await expect(table.getByRole("button", { name: "Retry" })).toBeVisible();
+			expect((await analyze()).violations).toEqual([]);
+
+			await page.unroute(folderPattern);
+			await page.reload();
+			await page.getByRole("button", { name: `Edit folder ${folderName}` }).click();
+			const editDialog = page.getByRole("dialog", { name: "Edit folder" });
+			await editDialog.getByRole("button", { name: "Delete folder" }).click();
+			await page
+				.getByRole("dialog", { name: `Delete “${folderName}”?` })
+				.getByRole("button", { name: "Delete folder" })
+				.click();
+		});
+
 		test("users page should have no WCAG 2.x AA violations", async ({ admin }) => {
 			await admin.goto("/users");
 			await admin.waitForShell();
