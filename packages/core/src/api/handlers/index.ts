@@ -62,6 +62,7 @@ export {
 } from "./media.js";
 export {
 	handleMediaFolderList,
+	handleMediaFolderGet,
 	handleMediaFolderCreate,
 	handleMediaFolderUpdate,
 	handleMediaFolderDelete,

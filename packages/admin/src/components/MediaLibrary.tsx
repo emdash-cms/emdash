@@ -1,12 +1,34 @@
-import { Button, Input, Loader, Pagination, Select, Tabs } from "@cloudflare/kumo";
+import {
+	Breadcrumbs,
+	Button,
+	Input,
+	LayerCard,
+	Loader,
+	Pagination,
+	Select,
+	Tabs,
+} from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Upload, Images, SquaresFour, List, MagnifyingGlass } from "@phosphor-icons/react";
+import {
+	ArrowLeft,
+	Folder,
+	Images,
+	List,
+	MagnifyingGlass,
+	PencilSimple,
+	Plus,
+	SquaresFour,
+	Upload,
+} from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import {
+	type LocalMediaItem,
 	type MediaItem,
+	type MediaFolder,
 	type MediaUploadOptions,
 	type MediaProviderItem,
 	MEDIA_SEARCH_MAX_LENGTH,
@@ -25,7 +47,9 @@ import {
 } from "../lib/media-utils";
 import { cn } from "../lib/utils";
 import { MediaDetailPanel } from "./MediaDetailPanel";
+import { MediaFolderDialog } from "./MediaFolderDialog.js";
 import { LOCAL_MEDIA_UPLOAD_ACCEPT, MediaUploadDialog } from "./MediaUploadDialog.js";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 /** Maps a coarse type-filter choice to the media list's `mimeType` filter. */
 function mimeForTypeFilter(value: string): string | string[] | undefined {
@@ -58,6 +82,25 @@ export interface MediaLibraryProps {
 	onLocalSearchChange?: (q: string) => void;
 	/** Called with the MIME filter for the local library (undefined = all types). */
 	onLocalMimeFilterChange?: (mimeType: string | string[] | undefined) => void;
+	/** Bounded folder pages owned by the main local Media route. */
+	folders?: MediaFolder[];
+	foldersLoading?: boolean;
+	foldersError?: Error | null;
+	hasMoreFolders?: boolean;
+	isLoadingMoreFolders?: boolean;
+	onLoadMoreFolders?: () => void;
+	onActiveProviderChange?: (providerId: string) => void;
+	folderId?: string;
+	currentFolder?: MediaFolder | null;
+	currentFolderLoading?: boolean;
+	canManageFolders?: boolean;
+	onOpenFolder?: (folder: MediaFolder) => void;
+	onBackToMain?: () => void;
+	onRetryFolders?: () => void;
+	onCreateFolder?: (name: string) => Promise<MediaFolder>;
+	onRenameFolder?: (folder: MediaFolder, name: string) => Promise<MediaFolder>;
+	onDeleteFolder?: (folder: MediaFolder) => Promise<void>;
+	canMoveMedia?: (item: LocalMediaItem) => boolean;
 }
 
 export interface MediaLibraryPagination {
@@ -71,6 +114,7 @@ export interface MediaLibraryPagination {
 
 const MEDIA_PAGE_SIZE_OPTIONS = [35, 70, 90];
 const MAX_DROPDOWN_PAGE_COUNT = 100;
+let pendingMediaLibraryScrollTop: number | null = null;
 
 /**
  * Media library component with upload, provider tabs, and grid view
@@ -85,6 +129,24 @@ export function MediaLibrary({
 	pagination,
 	onLocalSearchChange,
 	onLocalMimeFilterChange,
+	onActiveProviderChange,
+	folders = [],
+	foldersLoading,
+	foldersError,
+	hasMoreFolders,
+	isLoadingMoreFolders,
+	onLoadMoreFolders,
+	folderId,
+	currentFolder,
+	currentFolderLoading,
+	canManageFolders,
+	onOpenFolder,
+	onBackToMain,
+	onRetryFolders,
+	onCreateFolder,
+	onRenameFolder,
+	onDeleteFolder,
+	canMoveMedia,
 }: MediaLibraryProps) {
 	const { t } = useLingui();
 	const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
@@ -117,6 +179,9 @@ export function MediaLibrary({
 	const enqueueIdRef = React.useRef(0);
 	const dragDepthRef = React.useRef(0);
 	const returnFocusRef = React.useRef<HTMLElement | null>(null);
+	const [folderDialogOpen, setFolderDialogOpen] = React.useState(false);
+	const [editingFolder, setEditingFolder] = React.useState<MediaFolder | null>(null);
+	const folderDialogReturnFocusRef = React.useRef<HTMLElement | null>(null);
 	// Track loaded image dimensions for providers that don't return them (e.g., CF Images)
 	const [loadedDimensions, setLoadedDimensions] = React.useState<
 		Record<string, { width: number; height: number }>
@@ -157,6 +222,7 @@ export function MediaLibrary({
 	}, [activeProvider, providers, t]);
 	const canUpload = activeProviderInfo?.capabilities.upload ?? false;
 	const canSearch = activeProviderInfo?.capabilities.search ?? false;
+	const canUploadHere = canUpload && (activeProvider !== "local" || !folderId);
 
 	const cancelPendingDetailOpen = React.useCallback(() => {
 		if (detailOpenFrameRef.current === null) return;
@@ -165,7 +231,6 @@ export function MediaLibrary({
 	}, []);
 
 	React.useEffect(() => cancelPendingDetailOpen, [cancelPendingDetailOpen]);
-
 	const requestPage = React.useCallback(
 		(nextPage: number) => {
 			if (!pagination || pagination.isPending) return;
@@ -237,20 +302,23 @@ export function MediaLibrary({
 	const handleDetailClosed = React.useCallback(() => {
 		setDetailItem(null);
 	}, []);
+	const handleDetailItemRefreshed = React.useCallback((refreshed: LocalMediaItem) => {
+		setDetailItem((current) => (current?.id === refreshed.id ? refreshed : current));
+	}, []);
 
 	const enqueueFiles = React.useCallback(
 		(files: readonly File[], returnFocus?: HTMLElement | null) => {
-			if (!canUpload || !activeProviderInfo || files.length === 0) return;
+			if (!canUploadHere || !activeProviderInfo || files.length === 0) return;
 			if (returnFocus) returnFocusRef.current = returnFocus;
 			setUploadTarget({ id: activeProviderInfo.id, name: activeProviderInfo.name });
 			setEnqueueRequest({ id: (enqueueIdRef.current += 1), files });
 			setUploadDialogOpen(true);
 		},
-		[activeProviderInfo, canUpload],
+		[activeProviderInfo, canUploadHere],
 	);
 
 	const openUploadDialog = (event: React.MouseEvent<HTMLButtonElement>) => {
-		if (!canUpload || !activeProviderInfo) return;
+		if (!canUploadHere || !activeProviderInfo) return;
 		returnFocusRef.current = event.currentTarget;
 		setUploadTarget({ id: activeProviderInfo.id, name: activeProviderInfo.name });
 		setEnqueueRequest(null);
@@ -266,7 +334,7 @@ export function MediaLibrary({
 		const handleDragEnter = (event: DragEvent) => {
 			if (!hasFiles(event)) return;
 			event.preventDefault();
-			if (uploadDialogOpen || !canUpload) return;
+			if (uploadDialogOpen || !canUploadHere) return;
 			dragDepthRef.current += 1;
 			setIsFileDragActive(true);
 		};
@@ -274,7 +342,7 @@ export function MediaLibrary({
 			if (hasFiles(event)) event.preventDefault();
 		};
 		const handleDragLeave = (event: DragEvent) => {
-			if (dragDepthRef.current === 0 || uploadDialogOpen || !canUpload) return;
+			if (dragDepthRef.current === 0 || uploadDialogOpen || !canUploadHere) return;
 			if (event.relatedTarget === null) {
 				resetDrag();
 				return;
@@ -286,7 +354,7 @@ export function MediaLibrary({
 			if (!hasFiles(event)) return;
 			event.preventDefault();
 			resetDrag();
-			if (uploadDialogOpen || !canUpload) return;
+			if (uploadDialogOpen || !canUploadHere) return;
 			enqueueFiles([...(event.dataTransfer?.files ?? [])], mediaHeadingRef.current);
 		};
 
@@ -300,7 +368,7 @@ export function MediaLibrary({
 			window.removeEventListener("dragleave", handleDragLeave);
 			window.removeEventListener("drop", handleDrop);
 		};
-	}, [canUpload, enqueueFiles, uploadDialogOpen]);
+	}, [canUploadHere, enqueueFiles, uploadDialogOpen]);
 
 	// Build provider tabs
 	const providerTabs = React.useMemo(() => {
@@ -321,6 +389,29 @@ export function MediaLibrary({
 	const currentItems = activeProvider === "local" ? items : [];
 	const currentProviderItems = activeProvider !== "local" ? providerData?.items || [] : [];
 	const currentLoading = activeProvider === "local" ? isLoading : providerLoading;
+	React.useEffect(() => {
+		if (
+			pendingMediaLibraryScrollTop === null ||
+			currentLoading ||
+			foldersLoading ||
+			currentFolderLoading
+		)
+			return;
+		let secondFrame: number | undefined;
+		const firstFrame = window.requestAnimationFrame(() => {
+			secondFrame = window.requestAnimationFrame(() => {
+				const scrollContainer = document.querySelector<HTMLElement>("main");
+				if (scrollContainer && pendingMediaLibraryScrollTop !== null) {
+					scrollContainer.scrollTop = pendingMediaLibraryScrollTop;
+				}
+				pendingMediaLibraryScrollTop = null;
+			});
+		});
+		return () => {
+			window.cancelAnimationFrame(firstFrame);
+			if (secondFrame !== undefined) window.cancelAnimationFrame(secondFrame);
+		};
+	}, [currentFolderLoading, currentLoading, folderId, foldersLoading]);
 
 	const resultCount =
 		activeProvider === "local"
@@ -341,7 +432,33 @@ export function MediaLibrary({
 			onLocalSearchChange?.("");
 		}
 	};
-	const showToolbar = resultCount > 0 || hasActiveQuery;
+	const showToolbar =
+		resultCount > 0 ||
+		hasActiveQuery ||
+		(activeProvider === "local" &&
+			(folders.length > 0 || Boolean(foldersLoading) || Boolean(foldersError)));
+	const assetPage = pagination?.page ?? 1;
+	const showFolderResults =
+		activeProvider === "local" &&
+		assetPage === 1 &&
+		localTypeFilter === "all" &&
+		(!folderId || searchQuery.trim() !== "");
+	const visibleFolders = showFolderResults ? folders : [];
+	const hasFolderSurface =
+		showFolderResults &&
+		(Boolean(foldersLoading) ||
+			Boolean(foldersError) ||
+			visibleFolders.length > 0 ||
+			hasMoreFolders);
+	const folderResultsMayFillView =
+		Boolean(foldersLoading) ||
+		visibleFolders.length > 0 ||
+		(viewMode === "list" && hasFolderSurface);
+	const folderActionsAvailable =
+		Boolean(canManageFolders) &&
+		Boolean(onCreateFolder) &&
+		Boolean(onRenameFolder) &&
+		Boolean(onDeleteFolder);
 	const uploadFile = React.useCallback(
 		async (file: File, options: { signal: AbortSignal }) => {
 			if (!uploadTarget) throw new Error("Upload target unavailable");
@@ -366,10 +483,49 @@ export function MediaLibrary({
 	const handleUploadQueueIdle = React.useCallback(() => {
 		if (uploadTarget?.id !== "local") void refetchProviderMedia();
 	}, [refetchProviderMedia, uploadTarget?.id]);
+	const openCreateFolder = (event: React.MouseEvent<HTMLButtonElement>) => {
+		folderDialogReturnFocusRef.current = event.currentTarget;
+		setEditingFolder(null);
+		setFolderDialogOpen(true);
+	};
+	const openEditFolder = (folder: MediaFolder, trigger: HTMLElement) => {
+		folderDialogReturnFocusRef.current = trigger;
+		setEditingFolder(folder);
+		setFolderDialogOpen(true);
+	};
+	const closeFolderDialog = () => {
+		setFolderDialogOpen(false);
+		const returnTarget = folderDialogReturnFocusRef.current;
+		folderDialogReturnFocusRef.current = null;
+		window.requestAnimationFrame(() => {
+			(returnTarget?.isConnected ? returnTarget : mediaHeadingRef.current)?.focus({
+				preventScroll: true,
+			});
+		});
+	};
+	const focusMediaHeading = () => mediaHeadingRef.current?.focus({ preventScroll: true });
+	const rememberScrollPosition = () => {
+		pendingMediaLibraryScrollTop = mediaHeadingRef.current?.closest("main")?.scrollTop ?? null;
+	};
+	const backToMain = () => {
+		rememberScrollPosition();
+		focusMediaHeading();
+		onBackToMain?.();
+	};
+	const openFolder = (folder: MediaFolder) => {
+		setSearchQuery("");
+		onLocalSearchChange?.("");
+		cancelPendingDetailOpen();
+		setIsDetailOpen(false);
+		setDetailItem(null);
+		rememberScrollPosition();
+		focusMediaHeading();
+		onOpenFolder?.(folder);
+	};
 
 	return (
 		<div className="space-y-4" data-media-library aria-busy={currentLoading || undefined}>
-			{isFileDragActive && (
+			{isFileDragActive && canUploadHere && (
 				<div
 					className="pointer-events-none fixed inset-0 z-50 bg-kumo-base/70 p-4 backdrop-blur-sm sm:p-8"
 					aria-hidden="true"
@@ -382,15 +538,68 @@ export function MediaLibrary({
 					</div>
 				</div>
 			)}
-			{/* Header: page title (start) + primary upload action (end) */}
+			{/* Header: page title (start) + primary actions (end) */}
 			<div className="flex flex-wrap items-center justify-between gap-4">
-				<h1 ref={mediaHeadingRef} tabIndex={-1} className="text-2xl font-semibold leading-tight">
-					{t`Media Library`}
-				</h1>
-				<div className="flex items-center gap-3">
-					{canUpload && (
-						<Button onClick={openUploadDialog} icon={<Upload />}>
-							{t`Upload to ${activeProviderInfo?.name || t`Library`}`}
+				<div className="min-w-0">
+					{activeProvider === "local" && folderId && (
+						<RouterLinkButton
+							to="/media"
+							search={{ folder: undefined }}
+							variant="ghost"
+							size="sm"
+							icon={<ArrowLeft className="rtl:-scale-x-100" aria-hidden="true" />}
+							className="mb-2"
+							onClick={(event) =>
+								handleNavigationClick(event, onBackToMain ? backToMain : undefined)
+							}
+						>
+							{t`Back`}
+						</RouterLinkButton>
+					)}
+					<h1 ref={mediaHeadingRef} tabIndex={-1} className="text-2xl font-semibold leading-tight">
+						{t`Media Library`}
+					</h1>
+					{activeProvider === "local" && folderId && (
+						<nav aria-label={t`Folders navigation`} className="mt-2">
+							<Breadcrumbs size="sm">
+								<RouterLinkButton
+									to="/media"
+									search={{ folder: undefined }}
+									variant="ghost"
+									size="sm"
+									className="h-auto px-0 py-0 text-sm"
+									onClick={(event) =>
+										handleNavigationClick(event, onBackToMain ? backToMain : undefined)
+									}
+								>
+									{t`Media Library`}
+								</RouterLinkButton>
+								<Breadcrumbs.Separator />
+								<Breadcrumbs.Current loading={currentFolderLoading}>
+									<span dir="auto" className="inline-block max-w-full truncate align-bottom">
+										{currentFolder?.name ?? ""}
+									</span>
+								</Breadcrumbs.Current>
+							</Breadcrumbs>
+						</nav>
+					)}
+				</div>
+				<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+					{activeProvider === "local" && !folderId && folderActionsAvailable && (
+						<Button
+							variant="secondary"
+							icon={<Plus aria-hidden="true" />}
+							onClick={openCreateFolder}
+							className="w-full sm:w-auto"
+						>
+							{t`Add new folder`}
+						</Button>
+					)}
+					{canUploadHere && (
+						<Button onClick={openUploadDialog} icon={<Upload />} className="w-full sm:w-auto">
+							{activeProvider === "local"
+								? t`Upload Files`
+								: t`Upload to ${activeProviderInfo?.name || t`Library`}`}
 						</Button>
 					)}
 				</div>
@@ -405,6 +614,7 @@ export function MediaLibrary({
 						if (!v) return;
 						cancelPendingDetailOpen();
 						setActiveProvider(v);
+						onActiveProviderChange?.(v);
 						setIsDetailOpen(false);
 						setDetailItem(null);
 						setSearchQuery("");
@@ -501,12 +711,81 @@ export function MediaLibrary({
 				</div>
 			)}
 
+			{activeProvider === "local" && (
+				<span aria-live="polite" aria-atomic="true" className="sr-only">
+					{!hasFolderSurface || foldersError
+						? ""
+						: foldersLoading || isLoadingMoreFolders
+							? t`Loading folders`
+							: plural(visibleFolders.length, {
+									one: "# folder loaded",
+									other: "# folders loaded",
+								})}
+				</span>
+			)}
+
+			{hasFolderSurface && viewMode === "grid" && (
+				<section
+					aria-labelledby="media-folders-heading"
+					aria-busy={Boolean(foldersLoading || isLoadingMoreFolders) || undefined}
+					className="space-y-3"
+				>
+					<div className="flex items-center justify-between gap-3">
+						<h2 id="media-folders-heading" className="text-lg font-semibold">
+							{t`Folders`}
+						</h2>
+						{foldersError && onRetryFolders && (
+							<Button variant="outline" size="sm" onClick={onRetryFolders}>
+								{t`Retry`}
+							</Button>
+						)}
+					</div>
+					{foldersError && (
+						<div role="alert" className="rounded-md bg-kumo-danger/10 p-3 text-sm text-kumo-danger">
+							{t`Folders could not be loaded.`}
+						</div>
+					)}
+					{foldersLoading && visibleFolders.length === 0 ? (
+						<div className="flex justify-center py-6">
+							<Loader />
+						</div>
+					) : (
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+							{visibleFolders.map((folder) => (
+								<MediaFolderCard
+									key={folder.id}
+									folder={folder}
+									canEdit={folderActionsAvailable}
+									onOpen={onOpenFolder ? () => openFolder(folder) : undefined}
+									onEdit={(trigger) => openEditFolder(folder, trigger)}
+								/>
+							))}
+						</div>
+					)}
+					{hasMoreFolders && onLoadMoreFolders && (
+						<div className="flex justify-center">
+							<Button
+								variant="outline"
+								onClick={onLoadMoreFolders}
+								disabled={isLoadingMoreFolders}
+								loading={isLoadingMoreFolders}
+							>
+								{t`Load more folders`}
+							</Button>
+						</div>
+					)}
+					{visibleFolders.length > 0 && currentItems.length > 0 && (
+						<div className="border-t border-kumo-line" />
+					)}
+				</section>
+			)}
+
 			{/* Content */}
 			{currentLoading && currentItems.length === 0 && currentProviderItems.length === 0 ? (
 				<div className="flex items-center justify-center py-12">
 					<Loader />
 				</div>
-			) : activeProvider === "local" && currentItems.length === 0 ? (
+			) : activeProvider === "local" && currentItems.length === 0 && !folderResultsMayFillView ? (
 				hasActiveQuery ? (
 					<MediaEmptyState
 						hero={MagnifyingGlass}
@@ -519,6 +798,17 @@ export function MediaLibrary({
 						action={
 							<Button variant="outline" onClick={clearLocalQuery}>
 								{searchQuery.trim() ? t`Clear search` : t`Clear filters`}
+							</Button>
+						}
+					/>
+				) : folderId ? (
+					<MediaEmptyState
+						hero={Folder}
+						title={t`This folder is empty`}
+						description={t`Move media here from Media Details.`}
+						action={
+							<Button variant="outline" onClick={backToMain}>
+								{t`Back to Main library`}
 							</Button>
 						}
 					/>
@@ -610,7 +900,12 @@ export function MediaLibrary({
 					inert={currentLoading || undefined}
 					className="rounded-md border bg-kumo-base overflow-x-auto"
 				>
-					<table className="w-full">
+					<table
+						className="w-full"
+						aria-busy={
+							(showFolderResults && Boolean(foldersLoading || isLoadingMoreFolders)) || undefined
+						}
+					>
 						<thead>
 							<tr className="border-b bg-kumo-tint/50">
 								<th className="px-4 py-3 text-start text-sm font-medium">{t`Preview`}</th>
@@ -621,6 +916,46 @@ export function MediaLibrary({
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-kumo-line">
+							{showFolderResults && foldersLoading && visibleFolders.length === 0 && (
+								<tr>
+									<td colSpan={5} className="px-4 py-6">
+										<div className="flex items-center justify-center gap-2 text-sm text-kumo-subtle">
+											<Loader />
+											<span>{t`Loading folders`}</span>
+										</div>
+									</td>
+								</tr>
+							)}
+							{showFolderResults && foldersError && visibleFolders.length === 0 && (
+								<MediaFolderErrorRow onRetry={onRetryFolders} />
+							)}
+							{activeProvider === "local" &&
+								visibleFolders.map((folder) => (
+									<MediaFolderListItem
+										key={folder.id}
+										folder={folder}
+										canEdit={folderActionsAvailable}
+										onOpen={onOpenFolder ? () => openFolder(folder) : undefined}
+										onEdit={(trigger) => openEditFolder(folder, trigger)}
+									/>
+								))}
+							{showFolderResults && foldersError && visibleFolders.length > 0 && (
+								<MediaFolderErrorRow onRetry={onRetryFolders} />
+							)}
+							{showFolderResults && hasMoreFolders && onLoadMoreFolders && (
+								<tr>
+									<td colSpan={5} className="px-4 py-3 text-center">
+										<Button
+											variant="outline"
+											onClick={onLoadMoreFolders}
+											disabled={isLoadingMoreFolders}
+											loading={isLoadingMoreFolders}
+										>
+											{t`Load more folders`}
+										</Button>
+									</td>
+								</tr>
+							)}
 							{activeProvider === "local"
 								? currentItems.map((item) => (
 										<MediaListItem
@@ -732,14 +1067,178 @@ export function MediaLibrary({
 					item={detailItem}
 					providerName={detailItem.provider ? activeProviderInfo?.name : undefined}
 					canDelete={detailItem.provider ? activeProviderInfo?.capabilities.delete : undefined}
+					canMoveLocation={isLocalMediaItem(detailItem) ? canMoveMedia?.(detailItem) : undefined}
 					restoreFocusTargetRef={mediaHeadingRef}
 					onClose={closeDetail}
 					onClosed={handleDetailClosed}
 					onUpdated={onItemUpdated}
+					onItemRefreshed={handleDetailItemRefreshed}
 					onDeleted={detailItem.provider ? undefined : onItemUpdated}
 				/>
 			)}
+
+			{folderActionsAvailable && onCreateFolder && onRenameFolder && onDeleteFolder && (
+				<MediaFolderDialog
+					open={folderDialogOpen}
+					folder={editingFolder}
+					onClose={closeFolderDialog}
+					onCreate={onCreateFolder}
+					onRename={onRenameFolder}
+					onDelete={onDeleteFolder}
+				/>
+			)}
 		</div>
+	);
+}
+
+function MediaFolderCard({
+	folder,
+	canEdit,
+	onOpen,
+	onEdit,
+}: {
+	folder: MediaFolder;
+	canEdit: boolean;
+	onOpen?: () => void;
+	onEdit: (trigger: HTMLElement) => void;
+}) {
+	const { t } = useLingui();
+	return (
+		<LayerCard className="group flex min-w-0 items-center gap-3 p-3" data-media-folder-card>
+			<RouterLinkButton
+				to="/media"
+				search={{ folder: folder.id }}
+				variant="ghost"
+				className="h-auto min-h-10 min-w-0 flex-1 justify-start gap-3 p-0 text-start"
+				aria-label={t`Open folder ${folder.name}`}
+				onClick={(event) => handleNavigationClick(event, onOpen)}
+			>
+				<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-kumo-tint text-kumo-link">
+					<Folder className="h-5 w-5" weight="fill" aria-hidden="true" />
+				</div>
+				<span dir="auto" className="min-w-0 truncate font-semibold">
+					{folder.name}
+				</span>
+			</RouterLinkButton>
+			{canEdit && (
+				<Button
+					variant="ghost"
+					shape="square"
+					size="sm"
+					className="shrink-0 opacity-60 group-hover:opacity-100 group-focus-within:opacity-100"
+					aria-label={t`Edit folder ${folder.name}`}
+					onClick={(event) => onEdit(event.currentTarget)}
+				>
+					<PencilSimple className="h-4 w-4" aria-hidden="true" />
+				</Button>
+			)}
+		</LayerCard>
+	);
+}
+
+function MediaFolderListItem({
+	folder,
+	canEdit,
+	onOpen,
+	onEdit,
+}: {
+	folder: MediaFolder;
+	canEdit: boolean;
+	onOpen?: () => void;
+	onEdit: (trigger: HTMLElement) => void;
+}) {
+	const { t } = useLingui();
+	return (
+		<tr className="hover:bg-kumo-tint/25">
+			<td className="px-4 py-3">
+				<div className="flex h-10 w-10 items-center justify-center rounded bg-kumo-tint text-kumo-link">
+					<Folder className="h-5 w-5" weight="fill" aria-hidden="true" />
+				</div>
+			</td>
+			<td className="px-4 py-3">
+				<div className="flex items-center justify-start gap-2">
+					<RouterLinkButton
+						to="/media"
+						search={{ folder: folder.id }}
+						variant="ghost"
+						className="max-w-64 min-w-0 justify-start px-0"
+						aria-label={t`Open folder ${folder.name}`}
+						onClick={(event) => handleNavigationClick(event, onOpen)}
+					>
+						<span dir="auto" className="truncate">
+							{folder.name}
+						</span>
+					</RouterLinkButton>
+					{canEdit && (
+						<Button
+							variant="ghost"
+							shape="square"
+							size="sm"
+							aria-label={t`Edit folder ${folder.name}`}
+							onClick={(event) => onEdit(event.currentTarget)}
+						>
+							<PencilSimple className="h-4 w-4" aria-hidden="true" />
+						</Button>
+					)}
+				</div>
+			</td>
+			<td className="px-4 py-3 text-sm text-kumo-subtle">
+				<span aria-hidden="true">—</span>
+				<span className="sr-only">{t`Type: Folder`}</span>
+			</td>
+			<td className="px-4 py-3 text-sm text-kumo-subtle">
+				<span aria-hidden="true">—</span>
+				<span className="sr-only">{t`Size is not applicable to folders`}</span>
+			</td>
+			<td className="px-4 py-3 text-end text-sm text-kumo-subtle">
+				<span aria-hidden="true">—</span>
+				<span className="sr-only">{t`Alt text is not applicable to folders`}</span>
+			</td>
+		</tr>
+	);
+}
+
+function MediaFolderErrorRow({ onRetry }: { onRetry?: () => void }) {
+	const { t } = useLingui();
+	return (
+		<tr>
+			<td colSpan={5} className="px-4 py-3">
+				<div className="flex flex-wrap items-center justify-start gap-3 rounded-md bg-kumo-danger/10 p-3 text-sm text-kumo-danger">
+					<span role="alert">{t`Folders could not be loaded.`}</span>
+					{onRetry && (
+						<Button variant="outline" size="sm" onClick={onRetry}>
+							{t`Retry`}
+						</Button>
+					)}
+				</div>
+			</td>
+		</tr>
+	);
+}
+
+function handleNavigationClick(
+	event: React.MouseEvent<HTMLAnchorElement>,
+	navigate: (() => void) | undefined,
+) {
+	if (
+		!navigate ||
+		event.button !== 0 ||
+		event.metaKey ||
+		event.ctrlKey ||
+		event.shiftKey ||
+		event.altKey
+	)
+		return;
+	event.preventDefault();
+	navigate();
+}
+
+function isLocalMediaItem(item: MediaItem): item is LocalMediaItem {
+	return (
+		!item.provider &&
+		"folderId" in item &&
+		"authorId" in item &&
+		typeof item.storageKey === "string"
 	);
 }
 
@@ -801,7 +1300,7 @@ function MediaGridItem({ item, selected, onClick }: MediaGridItemProps) {
 			type="button"
 			onClick={onClick}
 			className={cn(
-				"group relative overflow-hidden rounded-lg border bg-kumo-base text-start transition-all max-w-[200px]",
+				"group relative w-full max-w-[200px] overflow-hidden rounded-lg border bg-kumo-base text-start transition-all max-sm:max-w-none",
 				selected ? "ring-2 ring-kumo-brand border-kumo-brand" : "hover:border-kumo-brand/50",
 			)}
 		>

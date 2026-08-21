@@ -13,7 +13,7 @@ const UNIQUE_VIOLATION_RE =
 
 export async function handleMediaFolderList(
 	db: Kysely<Database>,
-	options: { limit?: number; cursor?: string } = {},
+	options: { limit?: number; cursor?: string; q?: string } = {},
 ): Promise<ApiResult<{ items: MediaFolder[]; nextCursor?: string }>> {
 	try {
 		const result = await new MediaFolderRepository(db).findMany(options);
@@ -25,6 +25,24 @@ export async function handleMediaFolderList(
 		return {
 			success: false,
 			error: { code: "MEDIA_FOLDER_LIST_ERROR", message: "Failed to list media folders" },
+		};
+	}
+}
+
+export async function handleMediaFolderGet(
+	db: Kysely<Database>,
+	id: string,
+): Promise<ApiResult<{ item: MediaFolder }>> {
+	try {
+		const item = await new MediaFolderRepository(db).findById(id);
+		if (!item) {
+			return { success: false, error: { code: "NOT_FOUND", message: "Media folder not found" } };
+		}
+		return { success: true, data: { item } };
+	} catch {
+		return {
+			success: false,
+			error: { code: "MEDIA_FOLDER_GET_ERROR", message: "Failed to get media folder" },
 		};
 	}
 }

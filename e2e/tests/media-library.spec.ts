@@ -62,6 +62,26 @@ async function uploadTestImage(page: Page) {
 	await expect(dialog).not.toBeVisible();
 }
 
+async function createFolder(page: Page, name: string) {
+	await page.getByRole("button", { name: "Add new folder" }).click();
+	const dialog = page.getByRole("dialog", { name: "Add new folder" });
+	await dialog.getByLabel("Name").fill(name);
+	await dialog.getByRole("button", { name: "Create" }).click();
+	await expect(dialog).not.toBeVisible();
+}
+
+async function expectFolderColumns(page: Page, expectedColumns: number) {
+	const cards = page.locator("[data-media-folder-card]");
+	await expect(cards).toHaveCount(4);
+	const firstRowCount = await cards.evaluateAll((elements) => {
+		const firstTop = Math.round(elements[0]!.getBoundingClientRect().top);
+		return elements.filter(
+			(element) => Math.abs(Math.round(element.getBoundingClientRect().top) - firstTop) <= 1,
+		).length;
+	});
+	expect(firstRowCount).toBe(expectedColumns);
+}
+
 test.describe("Media Library", () => {
 	test.beforeAll(() => {
 		ensureTestAssets();
@@ -143,5 +163,360 @@ test.describe("Media Library", () => {
 			await expect(page.locator("th:has-text('Type')")).toBeVisible();
 			await expect(page.locator("th:has-text('Size')")).toBeVisible();
 		});
+
+		test("keeps bounded folder states inside the mixed table", async ({ admin, page }) => {
+			test.setTimeout(60_000);
+			let releaseFolders: () => void = () => {};
+			const folderGate = new Promise<void>((resolve) => {
+				releaseFolders = resolve;
+			});
+			const folderPattern = "**/_emdash/api/media/folders?**";
+			await page.route(folderPattern, async (route) => {
+				if (route.request().method() !== "GET") return route.continue();
+				await folderGate;
+				await route.continue();
+			});
+
+			await admin.goToMedia();
+			await expect(page.getByRole("heading", { name: "Media Library" })).toBeVisible();
+			await page.getByRole("tab", { name: "List view" }).click();
+			const table = page.getByRole("table");
+			const loadingRow = table.getByRole("row").filter({ hasText: "Loading folders" });
+			await expect(loadingRow).toBeVisible();
+			await expect(loadingRow.locator("td")).toHaveAttribute("colspan", "5");
+
+			releaseFolders();
+			await expect(loadingRow).not.toBeVisible();
+			await page.unroute(folderPattern);
+			const folderName = `List folder ${Date.now()}`;
+			await createFolder(page, folderName);
+
+			await page.route(folderPattern, async (route) => {
+				if (route.request().method() !== "GET") return route.continue();
+				const url = new URL(route.request().url());
+				if (url.searchParams.has("cursor")) {
+					await route.fulfill({
+						status: 500,
+						contentType: "application/json",
+						body: JSON.stringify({
+							success: false,
+							error: { code: "TEST_ERROR", message: "Later folder page failed" },
+						}),
+					});
+					return;
+				}
+				const response = await route.fetch();
+				const body = (await response.json()) as {
+					data: { nextCursor?: string };
+				};
+				body.data.nextCursor = "forced-next-page";
+				await route.fulfill({ response, json: body });
+			});
+			await page.reload();
+			const listTab = page.getByRole("tab", { name: "List view" });
+			if ((await listTab.getAttribute("aria-selected")) !== "true") await listTab.click();
+			await expect(page.getByRole("heading", { name: "Folders" })).toHaveCount(0);
+			const folderLink = page.getByRole("link", { name: `Open folder ${folderName}` });
+			const editFolder = page.getByRole("button", { name: `Edit folder ${folderName}` });
+			await expect(folderLink).toBeVisible();
+			const folderLinkBox = await folderLink.boundingBox();
+			const editFolderBox = await editFolder.boundingBox();
+			expect(folderLinkBox).not.toBeNull();
+			expect(editFolderBox).not.toBeNull();
+			expect(editFolderBox!.x - (folderLinkBox!.x + folderLinkBox!.width)).toBeLessThanOrEqual(8);
+
+			await page.getByRole("button", { name: "Load more folders" }).click();
+			const rows = table.locator("tbody > tr");
+			await expect(table.getByRole("alert")).toHaveText("Folders could not be loaded.");
+			await page.setViewportSize({ width: 320, height: 800 });
+			const retryBox = await table.getByRole("button", { name: "Retry" }).boundingBox();
+			expect(retryBox).not.toBeNull();
+			expect(retryBox!.x + retryBox!.width).toBeLessThanOrEqual(320);
+			const rowText = await rows.allTextContents();
+			const folderIndex = rowText.findIndex((text) => text.includes(folderName));
+			const errorIndex = rowText.findIndex((text) => text.includes("Folders could not be loaded."));
+			const loadMoreIndex = rowText.findIndex((text) => text.includes("Load more folders"));
+			expect(folderIndex).toBeGreaterThanOrEqual(0);
+			expect(errorIndex).toBeGreaterThan(folderIndex);
+			expect(loadMoreIndex).toBeGreaterThan(errorIndex);
+			expect(loadMoreIndex).toBeLessThan(rowText.length - 1);
+			await page.unroute(folderPattern);
+			await page.reload();
+			await page.getByRole("button", { name: `Edit folder ${folderName}` }).click();
+			const editDialog = page.getByRole("dialog", { name: "Edit folder" });
+			await editDialog.getByRole("button", { name: "Delete folder" }).click();
+			const confirmDelete = page.getByRole("dialog", { name: `Delete “${folderName}”?` });
+			await confirmDelete.getByRole("button", { name: "Delete folder" }).click();
+			await expect(confirmDelete).not.toBeVisible();
+			await expect(page.getByRole("link", { name: `Open folder ${folderName}` })).toHaveCount(0);
+		});
+	});
+
+	test("matches the compact responsive folder layout and mixed-direction names", async ({
+		admin,
+		page,
+	}) => {
+		test.setTimeout(60_000);
+		const longFolderName = `Campaign assets with a deliberately long folder name ${Date.now()}`;
+		await admin.goToMedia();
+		await admin.waitForLoading();
+		await createFolder(page, `Archive ${Date.now()}`);
+		await createFolder(page, longFolderName);
+		await createFolder(page, `Events ${Date.now()}`);
+		await createFolder(page, `Press ${Date.now()}`);
+
+		for (const [width, columns] of [
+			[639, 1],
+			[640, 2],
+			[767, 2],
+			[768, 3],
+			[1023, 3],
+			[1024, 4],
+		] as const) {
+			await page.setViewportSize({ width, height: 900 });
+			await expectFolderColumns(page, columns);
+		}
+
+		await page.setViewportSize({ width: 1512, height: 982 });
+		expect(
+			await page
+				.locator("[data-media-folder-card]")
+				.first()
+				.evaluate((element) => element.getBoundingClientRect().height),
+		).toBeLessThanOrEqual(72);
+
+		await page.setViewportSize({ width: 320, height: 800 });
+		const addFolderBox = await page.getByRole("button", { name: "Add new folder" }).boundingBox();
+		const uploadFilesBox = await page.getByRole("button", { name: "Upload Files" }).boundingBox();
+		expect(addFolderBox).not.toBeNull();
+		expect(uploadFilesBox).not.toBeNull();
+		expect(Math.abs(addFolderBox!.width - uploadFilesBox!.width)).toBeLessThanOrEqual(1);
+		const mediaGridBox = await page.locator("[data-media-grid]").boundingBox();
+		const mediaCardBox = await page.locator("[data-media-grid] > button").first().boundingBox();
+		expect(mediaGridBox).not.toBeNull();
+		expect(mediaCardBox).not.toBeNull();
+		expect(Math.abs(mediaGridBox!.width - mediaCardBox!.width)).toBeLessThanOrEqual(1);
+
+		await page.getByRole("button", { name: "Add new folder" }).click();
+		const createDialog = page.getByRole("dialog", { name: "Add new folder" });
+		const createCancelBox = await createDialog
+			.getByRole("button", { name: "Cancel" })
+			.boundingBox();
+		const createSubmitBox = await createDialog
+			.getByRole("button", { name: "Create" })
+			.boundingBox();
+		expect(createCancelBox).not.toBeNull();
+		expect(createSubmitBox).not.toBeNull();
+		expect(createCancelBox!.y).not.toBe(createSubmitBox!.y);
+		expect(Math.abs(createCancelBox!.width - createSubmitBox!.width)).toBeLessThanOrEqual(1);
+		await createDialog.getByRole("button", { name: "Cancel" }).click();
+
+		await page
+			.context()
+			.addCookies([{ name: "emdash-locale", value: "ar", domain: "localhost", path: "/_emdash" }]);
+		await page.reload();
+		await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+		const rtlSearch = page.locator('input[type="search"]');
+		await rtlSearch.fill(longFolderName);
+		const longFolderText = page
+			.locator('[data-media-folder-card] [dir="auto"]')
+			.filter({ hasText: longFolderName });
+		await expect(longFolderText).toBeVisible();
+		const bidiMetrics = await longFolderText.evaluate((element) => ({
+			direction: getComputedStyle(element).direction,
+			clientWidth: element.clientWidth,
+			scrollWidth: element.scrollWidth,
+			text: element.textContent ?? "",
+		}));
+		expect(bidiMetrics.direction).toBe("ltr");
+		expect(bidiMetrics.scrollWidth).toBeGreaterThan(bidiMetrics.clientWidth);
+		expect(bidiMetrics.text.startsWith("Campaign assets")).toBe(true);
+
+		await longFolderText.locator("xpath=ancestor::a[1]").click();
+		await expect(page).toHaveURL(/\/media\?folder=/);
+		const currentBidiName = page.locator('[aria-current="page"] [dir="auto"]').first();
+		await expect(currentBidiName).toBeVisible();
+		const currentBidiMetrics = await currentBidiName.evaluate((element) => ({
+			direction: getComputedStyle(element).direction,
+			clientWidth: element.clientWidth,
+			scrollWidth: element.scrollWidth,
+			text: element.textContent ?? "",
+		}));
+		expect(currentBidiMetrics.direction).toBe("ltr");
+		expect(currentBidiMetrics.scrollWidth).toBeGreaterThan(currentBidiMetrics.clientWidth);
+		expect(currentBidiMetrics.text.startsWith("Campaign assets")).toBe(true);
+		expect(
+			await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+		).toBe(true);
+
+		await page
+			.context()
+			.addCookies([{ name: "emdash-locale", value: "en", domain: "localhost", path: "/_emdash" }]);
+	});
+
+	test("keeps media intact while organizing it in folders", async ({ admin, page }) => {
+		test.setTimeout(90_000);
+		const folderName = `Product photos ${Date.now()}`;
+		const renamedFolder = `${folderName} archive`;
+		await admin.goToMedia();
+		await admin.waitForLoading();
+		await uploadTestImage(page);
+		await createFolder(page, folderName);
+		await createFolder(page, `Press ${Date.now()}`);
+
+		const mediaGrid = page.locator("[data-media-grid]");
+		const originalImage = mediaGrid.locator("img").first();
+		await expect(originalImage).toBeVisible();
+		const originalSrc = await originalImage.getAttribute("src");
+		await mediaGrid.locator("button").first().click();
+
+		const details = page.getByRole("dialog", { name: "Media Details" });
+		await details.getByRole("combobox", { name: "Location" }).click();
+		await page.getByRole("option", { name: folderName }).click();
+		await details.getByRole("button", { name: "Save" }).click();
+		await expect(details).not.toBeVisible();
+		await expect(page.getByRole("heading", { name: "Media Library" })).toBeFocused();
+
+		await page.getByRole("link", { name: `Open folder ${folderName}` }).click();
+		await expect(page).toHaveURL(/\/media\?folder=/);
+		await expect(mediaGrid.locator("img").first()).toHaveAttribute("src", originalSrc!);
+
+		const folderSearch = page.getByRole("searchbox", { name: "Search media" });
+		await folderSearch.fill("test-image");
+		const filteredMediaResponse = page.waitForResponse((response) => {
+			const url = new URL(response.url());
+			return (
+				url.pathname.endsWith("/_emdash/api/media") && url.searchParams.get("mimeType") === "image/"
+			);
+		});
+		await page.getByRole("combobox", { name: "Filter by type" }).click();
+		await page.getByRole("option", { name: "Images" }).click();
+		await filteredMediaResponse;
+		await expect(page.locator("[data-media-library]")).not.toHaveAttribute("aria-busy", "true");
+		await page.getByRole("tab", { name: "List view" }).click();
+		await page.getByRole("combobox", { name: "Page size" }).click();
+		await page.getByRole("option", { name: "70" }).click();
+		const main = page.locator("main");
+		const headerBack = page.getByRole("link", { name: "Back" });
+		await headerBack.focus();
+		const scrollFixture = await page.addStyleTag({
+			content: "main { padding-bottom: 1200px !important; }",
+		});
+		const scrollBeforeBack = await main.evaluate((element) => {
+			element.scrollTop = 400;
+			return element.scrollTop;
+		});
+		expect(scrollBeforeBack).toBeGreaterThan(0);
+		await page.keyboard.press("Enter");
+		await expect(page).toHaveURL(/\/media\/?$/);
+		await expect(folderSearch).toHaveValue("test-image");
+		await expect(page.getByRole("combobox", { name: "Filter by type" })).toContainText("Images");
+		await expect(page.getByRole("combobox", { name: "Page size" })).toContainText("70");
+		await expect(page.getByRole("tab", { name: "List view" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+		await expect(page.getByRole("heading", { name: "Media Library" })).toBeFocused();
+		const expectedScrollAfterBack = await main.evaluate((element, previousScroll) => {
+			return Math.min(previousScroll, element.scrollHeight - element.clientHeight);
+		}, scrollBeforeBack);
+		expect(expectedScrollAfterBack).toBeGreaterThan(0);
+		await expect
+			.poll(() => main.evaluate((element) => element.scrollTop))
+			.toBe(expectedScrollAfterBack);
+		await scrollFixture.evaluate((element) => element.remove());
+
+		await folderSearch.fill("");
+		await page.getByRole("combobox", { name: "Filter by type" }).click();
+		await page.getByRole("option", { name: "All types" }).click();
+		await page.getByRole("tab", { name: "Grid view" }).click();
+		await page.getByRole("link", { name: `Open folder ${folderName}` }).click();
+		await expect(page).toHaveURL(/\/media\?folder=/);
+		await page.setViewportSize({ width: 320, height: 800 });
+		expect(
+			await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+		).toBe(true);
+		await page.reload();
+		await expect(mediaGrid.locator("img").first()).toHaveAttribute("src", originalSrc!);
+		await page.route("**/_emdash/api/media/folders?**", async (route) => {
+			await new Promise((resolve) => setTimeout(resolve, 1200));
+			await route.continue();
+		});
+		const rootFoldersResponse = page.waitForResponse((response) =>
+			new URL(response.url()).pathname.endsWith("/_emdash/api/media/folders"),
+		);
+		const delayedBack = page.getByRole("link", { name: "Back" });
+		await delayedBack.focus();
+		const delayedScrollFixture = await page.addStyleTag({
+			content: "main { padding-bottom: 1200px !important; }",
+		});
+		const delayedScrollBeforeBack = await main.evaluate((element) => {
+			element.scrollTop = 400;
+			return element.scrollTop;
+		});
+		expect(delayedScrollBeforeBack).toBeGreaterThan(0);
+		await page.keyboard.press("Enter");
+		await expect(page).toHaveURL(/\/media\/?$/);
+		await rootFoldersResponse;
+		const expectedDelayedScroll = await main.evaluate((element, previousScroll) => {
+			return Math.min(previousScroll, element.scrollHeight - element.clientHeight);
+		}, delayedScrollBeforeBack);
+		expect(expectedDelayedScroll).toBeGreaterThan(0);
+		await expect
+			.poll(() => main.evaluate((element) => element.scrollTop))
+			.toBe(expectedDelayedScroll);
+		await delayedScrollFixture.evaluate((element) => element.remove());
+		await page.unroute("**/_emdash/api/media/folders?**");
+		await page.goBack();
+		await expect(page).toHaveURL(/\/media\?folder=/);
+		await page.goForward();
+		await expect(page).toHaveURL(/\/media\/?$/);
+
+		const search = page.getByRole("searchbox", { name: "Search media" });
+		await search.fill(folderName);
+		await page.getByRole("link", { name: `Open folder ${folderName}` }).click();
+		await expect(search).toHaveValue("");
+		await search.fill(folderName);
+		await page.getByRole("button", { name: `Edit folder ${folderName}` }).click();
+
+		const editDialog = page.getByRole("dialog", { name: "Edit folder" });
+		const editActionBoxes = await Promise.all(
+			["Cancel", "Delete folder", "Save"].map((name) =>
+				editDialog.getByRole("button", { name }).boundingBox(),
+			),
+		);
+		expect(editActionBoxes.every((box) => box !== null)).toBe(true);
+		expect(new Set(editActionBoxes.map((box) => box!.y)).size).toBe(3);
+		expect(
+			Math.max(...editActionBoxes.map((box) => box!.width)) -
+				Math.min(...editActionBoxes.map((box) => box!.width)),
+		).toBeLessThanOrEqual(1);
+		await editDialog.getByLabel("Name").fill(renamedFolder);
+		await editDialog.getByRole("button", { name: "Save" }).click();
+		await expect(page.getByText(renamedFolder).first()).toBeVisible();
+
+		await page
+			.context()
+			.addCookies([{ name: "emdash-locale", value: "ar", domain: "localhost", path: "/_emdash" }]);
+		await page.reload();
+		await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+		expect(
+			await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+		).toBe(true);
+		await page
+			.context()
+			.addCookies([{ name: "emdash-locale", value: "en", domain: "localhost", path: "/_emdash" }]);
+		await page.reload();
+		await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+
+		await search.fill(renamedFolder);
+		await page.getByRole("button", { name: `Edit folder ${renamedFolder}` }).click();
+		await editDialog.getByRole("button", { name: "Delete folder" }).click();
+		const confirm = page.getByRole("dialog", { name: `Delete “${renamedFolder}”?` });
+		await confirm.getByRole("button", { name: "Delete folder" }).click();
+
+		await expect(page).toHaveURL(/\/media\/?$/);
+		await page.getByRole("button", { name: "Clear search" }).click();
+		await expect(mediaGrid.locator("img").first()).toHaveAttribute("src", originalSrc!);
 	});
 });
