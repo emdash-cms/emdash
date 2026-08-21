@@ -257,6 +257,14 @@ Search requires per-collection enablement:
 
 ## SEO Meta
 
+> [!IMPORTANT]
+> The admin **SEO panel** (SEO title, meta description, OG image, canonical URL,
+> "hide from search engines"/noindex) lives on `entry.data.seo` and is **only
+> honored if your page reads it**. A page that hand-rolls
+> `<title>{entry.data.title}</title>` silently bypasses the entire panel —
+> including the `noindex` toggle. **Every content detail page must wire
+> `getSeoMeta` (or `getContentSeo`), not just the scaffolded `posts` page.**
+
 Generate SEO meta from content entries:
 
 ```typescript
@@ -281,6 +289,24 @@ Use in your layout's `<head>`:
 <meta property="og:image" content={seo.ogImage} />
 {seo.robots && <meta name="robots" content={seo.robots} />}
 ```
+
+### Composing panel overrides with custom defaults
+
+`getSeoMeta` only falls back to `data.title` / `data.excerpt`. If a page computes
+its own title or description (e.g. `"Maeta — {title} (cover of {artist})"`), read
+the raw panel with `getContentSeo` and let it take precedence over your default:
+
+```ts
+import { getContentSeo } from "emdash";
+
+const panel = getContentSeo(entry); // { title, description, image, canonical, noIndex } | undefined
+const title = panel?.title || myComputedTitle;
+const description = panel?.description || myComputedDescription;
+const robots = panel?.noIndex ? "noindex, nofollow" : null;
+```
+
+This keeps editor-supplied SEO fields authoritative while preserving sensible
+per-page defaults.
 
 ## Comments
 
