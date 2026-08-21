@@ -16,6 +16,12 @@ vi.mock("../../src/lib/api", async () => {
 	};
 });
 
+vi.mock("../../src/components/MediaUsedIn.js", () => ({
+	MediaUsedIn: ({ mediaId }: { mediaId: string }) => (
+		<div data-testid="media-used-in" data-media-id={mediaId} />
+	),
+}));
+
 // Import the mocked functions for assertions
 import { updateMedia, deleteMedia, deleteFromProvider } from "../../src/lib/api";
 
@@ -131,6 +137,28 @@ describe("MediaDetailPanel", () => {
 		expect(detailsColumn.className).not.toContain(" min-h-0");
 		expect(fileFacts.className).toContain("space-y-3");
 		expect(footer.style.padding).toBe("1.25rem 2rem");
+	});
+
+	it("mounts Used in for local media inside the details column only", async () => {
+		const screen = await renderPanel();
+		const usedIn = screen.getByTestId("media-used-in");
+		await expect.element(usedIn).toHaveAttribute("data-media-id", "media-1");
+		expect(
+			screen.getByTestId("media-detail-dialog-details-column").element().contains(usedIn.element()),
+		).toBe(true);
+
+		await screen.rerender(
+			<QueryWrapper>
+				<MediaDetailPanel
+					open
+					item={makeImageItem({ provider: "cloudflare-images" })}
+					onClose={vi.fn()}
+				/>
+			</QueryWrapper>,
+		);
+		await expect
+			.element(screen.getByTestId("media-used-in"), { timeout: 100 })
+			.not.toBeInTheDocument();
 	});
 
 	it("shows image preview for image mimeTypes", async () => {
