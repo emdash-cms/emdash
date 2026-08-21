@@ -19,6 +19,7 @@ import {
 	createHttpAccess,
 	createSandboxRouteErrorEnvelope,
 	createUnrestrictedHttpAccess,
+	normalizeCapabilities,
 	PluginStorageRepository,
 	resolveContentCreateLocale,
 } from "emdash";
@@ -122,6 +123,13 @@ export interface BridgeHandlerOptions {
 export function createBridgeHandler(
 	opts: BridgeHandlerOptions,
 ): (request: Request) => Promise<Response> {
+	// Capability arrays may contain legacy aliases from older manifests;
+	// everything below compares against current names only.
+	const resolved: BridgeHandlerOptions = {
+		...opts,
+		capabilities: normalizeCapabilities(opts.capabilities),
+	};
+
 	return async (request: Request): Promise<Response> => {
 		try {
 			const url = new URL(request.url);
@@ -139,7 +147,7 @@ export function createBridgeHandler(
 				}
 			}
 
-			const result = await dispatch(opts, method, body);
+			const result = await dispatch(resolved, method, body);
 			return Response.json({ result });
 		} catch (error) {
 			const sandboxRouteError = createSandboxRouteErrorEnvelope(error);
@@ -180,13 +188,13 @@ async function dispatch(
 
 		// ── Content ─────────────────────────────────────────────────────
 		case "content/get":
-			requireCapability(opts, "read:content");
+			requireCapability(opts, "content:read");
 			return contentGet(db, requireString(body, "collection"), requireString(body, "id"));
 		case "content/list":
-			requireCapability(opts, "read:content");
+			requireCapability(opts, "content:read");
 			return contentList(db, requireString(body, "collection"), body);
 		case "content/create":
-			requireCapability(opts, "write:content");
+			requireCapability(opts, "content:write");
 			const createOptions = optionalRecord(body, "options");
 			const locale = resolveContentCreateLocale(
 				createOptions ? optionalString(createOptions, "locale") : undefined,
@@ -200,7 +208,7 @@ async function dispatch(
 				locale,
 			);
 		case "content/update":
-			requireCapability(opts, "write:content");
+			requireCapability(opts, "content:write");
 			await opts.beforeContentWrite?.();
 			return contentUpdate(
 				db,
@@ -209,11 +217,11 @@ async function dispatch(
 				requireRecord(body, "data"),
 			);
 		case "content/delete":
-			requireCapability(opts, "write:content");
+			requireCapability(opts, "content:write");
 			await opts.beforeContentWrite?.();
 			return contentDelete(db, requireString(body, "collection"), requireString(body, "id"));
 		case "content/createMany":
-			requireCapability(opts, "write:content");
+			requireCapability(opts, "content:write");
 			const createManyLocale = resolveContentCreateLocale(undefined, opts.i18nConfig ?? null);
 			await opts.beforeContentWrite?.();
 			return contentCreateMany(
@@ -223,7 +231,7 @@ async function dispatch(
 				createManyLocale,
 			);
 		case "content/updateMany":
-			requireCapability(opts, "write:content");
+			requireCapability(opts, "content:write");
 			await opts.beforeContentWrite?.();
 			return contentUpdateMany(
 				db,
@@ -231,7 +239,7 @@ async function dispatch(
 				requireUpdateManyItems(body, "items"),
 			);
 		case "content/deleteMany":
-			requireCapability(opts, "write:content");
+			requireCapability(opts, "content:write");
 			await opts.beforeContentWrite?.();
 			return contentDeleteMany(
 				db,
@@ -260,13 +268,13 @@ async function dispatch(
 
 		// ── Media ───────────────────────────────────────────────────────
 		case "media/get":
-			requireCapability(opts, "read:media");
+			requireCapability(opts, "media:read");
 			return mediaGet(db, requireString(body, "id"));
 		case "media/list":
-			requireCapability(opts, "read:media");
+			requireCapability(opts, "media:read");
 			return mediaList(db, body);
 		case "media/upload":
-			requireCapability(opts, "write:media");
+			requireCapability(opts, "media:write");
 			return mediaUpload(
 				db,
 				requireString(body, "filename"),
@@ -276,12 +284,12 @@ async function dispatch(
 				opts.storage,
 			);
 		case "media/delete":
-			requireCapability(opts, "write:media");
+			requireCapability(opts, "media:write");
 			return mediaDelete(db, requireString(body, "id"), opts.storage);
 
 		// ── HTTP ────────────────────────────────────────────────────────
 		case "http/fetch":
-			requireCapability(opts, "network:fetch");
+			requireCapability(opts, "network:request");
 			return httpFetch(requireString(body, "url"), body.init, opts);
 
 		// ── Email ───────────────────────────────────────────────────────
@@ -296,13 +304,13 @@ async function dispatch(
 
 		// ── Users ───────────────────────────────────────────────────────
 		case "users/get":
-			requireCapability(opts, "read:users");
+			requireCapability(opts, "users:read");
 			return userGet(db, requireString(body, "id"));
 		case "users/getByEmail":
-			requireCapability(opts, "read:users");
+			requireCapability(opts, "users:read");
 			return userGetByEmail(db, requireString(body, "email"));
 		case "users/list":
-			requireCapability(opts, "read:users");
+			requireCapability(opts, "users:read");
 			return userList(db, body);
 
 		// ── Storage (document store, scoped to declared collections) ────
@@ -540,18 +548,24 @@ function requireOrderBy(
 function requireCapability(opts: BridgeHandlerOptions, capability: string): void {
 	// Strict capability check matching the Cloudflare PluginBridge.
 	// We do NOT imply write → read here: a plugin that declares only
-	// write:content cannot call ctx.content.get/list. The plugin must
-	// declare read:content explicitly. This matches the Cloudflare bridge
+	// content:write cannot call ctx.content.get/list. The plugin must
+	// declare content:read explicitly. This matches the Cloudflare bridge
 	// behavior and ensures sandboxed plugins behave the same on both runners.
 	//
 	// Note: the in-process PluginContextFactory in core does build the read
 	// API onto the write object, so a trusted plugin can read with only
-	// write:content. The sandbox bridges are stricter on purpose — they
+	// content:write. The sandbox bridges are stricter on purpose — they
 	// enforce the manifest as written.
 	//
-	// The one exception: network:fetch:any is documented as a strict
-	// superset of network:fetch, so the broader capability satisfies it.
-	if (capability === "network:fetch" && opts.capabilities.includes("network:fetch:any")) return;
+	// The one exception: network:request:unrestricted is documented as a
+	// strict superset of network:request, so the broader capability
+	// satisfies it.
+	if (
+		capability === "network:request" &&
+		opts.capabilities.includes("network:request:unrestricted")
+	) {
+		return;
+	}
 	if (!opts.capabilities.includes(capability)) {
 		// Error message matches Cloudflare PluginBridge format
 		throw new Error(`Missing capability: ${capability}`);
@@ -1424,7 +1438,7 @@ async function httpFetch(
 	headers: Record<string, string>;
 	bodyBase64: string;
 }> {
-	const hasAnyFetch = opts.capabilities.includes("network:fetch:any");
+	const hasAnyFetch = opts.capabilities.includes("network:request:unrestricted");
 	const httpAccess = hasAnyFetch
 		? createUnrestrictedHttpAccess(opts.pluginId)
 		: createHttpAccess(opts.pluginId, opts.allowedHosts || []);

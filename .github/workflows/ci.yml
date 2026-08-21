@@ -130,6 +130,14 @@ jobs:
       # Render tests use the Astro Vite plugin (vitest.repro.config.ts);
       # they can't run under the plain-node config in test:unit.
       - run: pnpm --filter emdash exec vitest run --config vitest.repro.config.ts
+      # Sandbox capability enforcement lives in the workerd package, which
+      # test:unit does not cover. Only the files that need no workerd or
+      # Miniflare startup run here.
+      - run: >-
+          pnpm --filter @emdash-cms/sandbox-workerd exec vitest run
+          test/bridge-capability-aliases.test.ts
+          test/wrapper-marshal.test.ts
+          test/plugin-integration.test.ts
 
   test-smoke:
     name: Smoke Tests
