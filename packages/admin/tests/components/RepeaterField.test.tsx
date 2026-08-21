@@ -135,3 +135,48 @@ describe("RepeaterField sub-field types", () => {
 		await expect.element(input).toHaveValue("CT");
 	});
 });
+
+/**
+ * Hidden sub-fields: not rendered in the editor, but their values are kept so
+ * templates can rely on a stable identifier the editor never sees.
+ */
+describe("RepeaterField hidden sub-fields", () => {
+	const subFields = [
+		{ slug: "value", type: "text", label: "Text" },
+		{ slug: "key", type: "string", label: "Key", hidden: true },
+	];
+
+	it("does not render hidden sub-fields", async () => {
+		const screen = await render(
+			<RepeaterField
+				label="Texts"
+				id="texts"
+				value={[{ key: "home.title", value: "Welcome" }]}
+				onChange={vi.fn()}
+				subFields={subFields}
+			/>,
+		);
+
+		await expect.element(screen.getByRole("textbox", { name: "Text" })).toBeVisible();
+		expect(screen.getByRole("textbox", { name: "Key" }).elements()).toHaveLength(0);
+	});
+
+	it("preserves hidden sub-field values when a visible field changes", async () => {
+		const onChange = vi.fn();
+		const screen = await render(
+			<RepeaterField
+				label="Texts"
+				id="texts"
+				value={[{ key: "home.title", value: "Welcome" }]}
+				onChange={onChange}
+				subFields={subFields}
+			/>,
+		);
+
+		await screen.getByRole("textbox", { name: "Text" }).fill("Hello");
+
+		expect(onChange).toHaveBeenLastCalledWith([
+			expect.objectContaining({ key: "home.title", value: "Hello" }),
+		]);
+	});
+});
