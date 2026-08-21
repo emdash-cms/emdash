@@ -8,12 +8,6 @@ export const RESUME_SIGNAL_TYPE = "investigation.resume";
 export const TIMEOUT_SUMMARY_TIMEOUT_MS = 2 * 60_000;
 export const TIMEOUT_SUMMARY_MAX_CHARACTERS = 4_000;
 
-interface SummaryVerification {
-	readonly name: string;
-	readonly command: string;
-	readonly exitCode: number;
-}
-
 interface SummaryFailure {
 	readonly stage: string;
 	readonly message: string;
@@ -25,18 +19,8 @@ export function isTimeoutSummaryDelivery(delivery: DeliveredMessage): boolean {
 
 export function buildTimeoutSummaryPrompt(input: {
 	mode: InvestigationMode;
-	verification: readonly SummaryVerification[];
 	lastFailure: SummaryFailure | null;
 }): string {
-	const checks =
-		input.verification.length === 0
-			? "- No verification result was recorded."
-			: input.verification
-					.map(
-						(record) =>
-							`- ${record.name}: ${record.exitCode === 0 ? "passed" : `failed (exit ${record.exitCode})`} — \`${record.command}\``,
-					)
-					.join("\n");
 	const failure = input.lastFailure
 		? `\n\nLast recorded failure (${input.lastFailure.stage}): ${input.lastFailure.message}`
 		: "";
@@ -49,9 +33,7 @@ export function buildTimeoutSummaryPrompt(input: {
 		"- verification that passed or failed;",
 		"- the current blocker and exact remaining work.",
 		"Do not claim a check passed or a candidate published unless the conversation proves it.",
-		"",
-		"Recorded verification:",
-		checks + failure,
+		failure,
 	].join("\n");
 }
 

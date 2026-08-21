@@ -1,15 +1,38 @@
-import type { Kysely } from "kysely";
+import type {
+	Kysely,
+	KyselyPlugin,
+	PluginTransformQueryArgs,
+	PluginTransformResultArgs,
+	QueryResult,
+	RootOperationNode,
+	UnknownRow,
+} from "kysely";
 import { sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { createDatabase } from "../../../src/database/connection.js";
 import {
 	runMigrations,
+	getExactMigrationStatus,
 	getMigrationStatus,
 	MIGRATION_COUNT,
+	MIGRATION_NAMES,
 } from "../../../src/database/migrations/runner.js";
 import type { Database } from "../../../src/database/types.js";
 import { setupTestDatabaseWithCollections } from "../../utils/test-db.js";
+
+class QueryCountingPlugin implements KyselyPlugin {
+	count = 0;
+
+	transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
+		this.count += 1;
+		return args.node;
+	}
+
+	transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
+		return Promise.resolve(args.result);
+	}
+}
 
 describe("Database Migrations (Integration)", () => {
 	let db: Kysely<Database>;
@@ -185,6 +208,83 @@ describe("Database Migrations (Integration)", () => {
 		expect(statusAfter.applied).toContain("001_initial");
 		expect(statusAfter.applied).toContain("002_media_status");
 		expect(statusAfter.pending).toHaveLength(0);
+	});
+
+	describe("exact migration status", () => {
+		it("exports the registered migration names in execution order", async () => {
+			await runMigrations(db);
+			const rows = await db
+				.selectFrom("_emdash_migrations")
+				.select("name")
+				.orderBy("timestamp")
+				.execute();
+
+			expect(MIGRATION_NAMES).toEqual(rows.map((row) => row.name));
+			expect(MIGRATION_NAMES).toHaveLength(MIGRATION_COUNT);
+			expect(Object.isFrozen(MIGRATION_NAMES)).toBe(true);
+		});
+
+		it("reports every registered migration as pending for a fresh database", async () => {
+			const counter = new QueryCountingPlugin();
+
+			await expect(getExactMigrationStatus(db.withPlugin(counter))).resolves.toEqual({
+				knownApplied: [],
+				pending: MIGRATION_NAMES,
+				unknownApplied: [],
+			});
+			expect(counter.count).toBe(1);
+		});
+
+		it("recognizes a missing schema-qualified migration table", async () => {
+			await sql`ATTACH DATABASE ':memory:' AS migration_status`.execute(db);
+
+			await expect(
+				getExactMigrationStatus(db, { migrationTableSchema: "migration_status" }),
+			).resolves.toEqual({
+				knownApplied: [],
+				pending: MIGRATION_NAMES,
+				unknownApplied: [],
+			});
+		});
+
+		it("reports a current database with one migration-table query", async () => {
+			await runMigrations(db);
+			const counter = new QueryCountingPlugin();
+
+			await expect(getExactMigrationStatus(db.withPlugin(counter))).resolves.toEqual({
+				knownApplied: MIGRATION_NAMES,
+				pending: [],
+				unknownApplied: [],
+			});
+			expect(counter.count).toBe(1);
+		});
+
+		it("reports pending and unknown names in deterministic order", async () => {
+			await runMigrations(db);
+			const pending = [MIGRATION_NAMES[1]!, MIGRATION_NAMES.at(-2)!];
+			await db.deleteFrom("_emdash_migrations").where("name", "in", pending).execute();
+			await db
+				.insertInto("_emdash_migrations")
+				.values([
+					{ name: "999_future_z", timestamp: new Date().toISOString() },
+					{ name: "999_future_a", timestamp: new Date().toISOString() },
+				])
+				.execute();
+
+			const status = await getExactMigrationStatus(db);
+
+			expect(status.knownApplied).toEqual(
+				MIGRATION_NAMES.filter((name) => !pending.includes(name)),
+			);
+			expect(status.pending).toEqual(pending);
+			expect(status.unknownApplied).toEqual(["999_future_a", "999_future_z"]);
+		});
+
+		it("rethrows migration-table query errors other than a missing table", async () => {
+			await sql`CREATE TABLE _emdash_migrations (unexpected TEXT)`.execute(db);
+
+			await expect(getExactMigrationStatus(db)).rejects.toThrow(/no such column.*name/i);
+		});
 	});
 
 	it("should create schema registry tables", async () => {

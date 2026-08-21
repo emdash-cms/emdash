@@ -1,8 +1,14 @@
 // Database (only types and utilities - internal functions not exported)
-export { EmDashDatabaseError, getMigrationStatus } from "./database/index.js";
+export {
+	EmDashDatabaseError,
+	getMigrationStatus,
+	getExactMigrationStatus,
+	MIGRATION_NAMES,
+} from "./database/index.js";
 export type {
 	DatabaseConfig,
 	MigrationStatus,
+	ExactMigrationStatus,
 	Database,
 	UserTable,
 	MediaTable,

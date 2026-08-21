@@ -1,5 +1,10 @@
 import type { Kind, StateId } from "./machine.js";
-import { artifactsBranch, fixBranch, previewInstallCommand } from "./preview.js";
+import {
+	artifactsBranch,
+	fixBranch,
+	playgroundPreviewUrl,
+	previewInstallCommand,
+} from "./preview.js";
 import type { Decision } from "./router.js";
 
 export function shouldPostReadonlyReply(dryRun?: boolean): boolean {
@@ -154,8 +159,8 @@ export function renderPreviewReadyAsk(input: {
 				`![${mdEscape(shot.description ?? shot.filename)}](https://raw.githubusercontent.com/${input.owner}/${input.repo}/${artifactsBranch(input.issueNumber)}/.bot-artifacts/${shot.filename})`,
 		);
 	const reporterAsk = input.reporterLogin
-		? `@${input.reporterLogin} could you try this and reply here with whether it works as requested? A simple "yes" or "no" is enough.`
-		: "Could the reporter please try this and reply with whether it works as requested?";
+		? `@${input.reporterLogin} could you try this? Reply \`@emdashbot confirm\` if it works as requested, or \`@emdashbot reject <details>\` if it does not.`
+		: "Could the reporter please try this? Reply `@emdashbot confirm` if it works as requested, or `@emdashbot reject <details>` if it does not.";
 	return [
 		`<!-- bot-ask: ${input.at} -->`,
 		"A candidate change is ready to preview.",
@@ -168,10 +173,14 @@ export function renderPreviewReadyAsk(input: {
 		previewInstallCommand(input.issueNumber, input.previewPackage),
 		"```",
 		"",
+		"Or try the candidate in a ready-to-use playground:",
+		"",
+		`[Open the playground preview](${playgroundPreviewUrl(input.issueNumber)})`,
+		"",
 		...(shots.length > 0 ? ["**Screenshots:**", "", shots.join("\n\n"), ""] : []),
 		reporterAsk,
 		"",
-		"<sub>Maintainers can act on the reporter's behalf: `@emdashbot confirm` to accept the change and open a draft PR, or `@emdashbot reject` (with details) to reap the branch and revise.</sub>",
+		"<sub>Maintainers can use the same commands on the reporter's behalf. Confirmation opens a draft PR; rejection reaps the branch for revision.</sub>",
 		"",
 		`Fix branch: \`${fixBranch(input.issueNumber)}\` · Artifacts branch: \`${artifactsBranch(input.issueNumber)}\``,
 	]
