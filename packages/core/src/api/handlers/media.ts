@@ -12,6 +12,7 @@ import type { ApiResult } from "../types.js";
 export interface MediaListResponse {
 	items: MediaItem[];
 	nextCursor?: string;
+	totalCount?: number;
 }
 
 export interface MediaResponse {
@@ -25,12 +26,38 @@ export async function handleMediaList(
 	db: Kysely<Database>,
 	params: {
 		cursor?: string;
+		page?: number;
 		limit?: number;
 		mimeType?: string | readonly string[];
 		q?: string;
 	},
 ): Promise<ApiResult<MediaListResponse>> {
 	try {
+		if (params.page !== undefined) {
+			const limit = Math.min(params.limit || 50, 100);
+			const offset = (params.page - 1) * limit;
+			if (
+				params.cursor !== undefined ||
+				!Number.isSafeInteger(params.page) ||
+				params.page < 1 ||
+				!Number.isSafeInteger(offset)
+			) {
+				return {
+					success: false,
+					error: { code: "VALIDATION_ERROR", message: "Invalid media page" },
+				};
+			}
+
+			const repo = new MediaRepository(db);
+			const result = await repo.findPage({
+				page: params.page,
+				limit,
+				mimeType: params.mimeType,
+				q: params.q,
+			});
+			return { success: true, data: result };
+		}
+
 		const repo = new MediaRepository(db);
 		const result = await repo.findMany({
 			cursor: params.cursor,

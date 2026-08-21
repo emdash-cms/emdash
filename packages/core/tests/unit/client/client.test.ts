@@ -724,6 +724,27 @@ describe("EmDashClient", () => {
 	});
 
 	describe("media usage reads", () => {
+		it("requests a numbered media page and returns its total", async () => {
+			let capturedUrl: URL | undefined;
+			const backend: Interceptor = async (req) => {
+				capturedUrl = new URL(req.url);
+				return jsonResponse({ items: [{ id: "media-1" }], totalCount: 37 });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaList({ page: 2, limit: 25 });
+
+			expect(Object.fromEntries(capturedUrl?.searchParams ?? [])).toEqual({
+				limit: "25",
+				page: "2",
+			});
+			expect(result).toEqual({ items: [{ id: "media-1" }], totalCount: 37 });
+		});
+
 		it("opts media list into usage summaries with an exact includeUsage value", async () => {
 			let capturedUrl: URL | undefined;
 			const backend: Interceptor = async (req) => {

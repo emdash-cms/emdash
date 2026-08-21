@@ -1,4 +1,10 @@
-import { sql, type ExpressionBuilder, type Kysely, type SqlBool } from "kysely";
+import {
+	sql,
+	type ExpressionBuilder,
+	type Kysely,
+	type SelectQueryBuilder,
+	type SqlBool,
+} from "kysely";
 import { ulid } from "ulidx";
 
 import type { Database, MediaRow } from "../types.js";
@@ -83,6 +89,15 @@ export interface FindManyMediaOptions {
 	status?: MediaStatus | "all"; // Filter by status, defaults to "ready"
 	/** Case-insensitive substring matched against the filename (covers filename and extension). */
 	q?: string;
+}
+
+export interface FindMediaPageOptions extends Omit<FindManyMediaOptions, "cursor"> {
+	page: number;
+}
+
+export interface MediaPageResult {
+	items: MediaItem[];
+	totalCount: number;
 }
 
 const UPLOAD_ATTEMPT_CLEANUP_AGE_MS = 60 * 60 * 1000;
@@ -367,8 +382,7 @@ export class MediaRepository {
 	async findMany(options: FindManyMediaOptions = {}): Promise<FindManyResult<MediaItem>> {
 		const limit = Math.min(options.limit || 50, 100);
 
-		let query = this.db
-			.selectFrom("media")
+		let query = this.applyListFilters(this.db.selectFrom("media"), options)
 			.selectAll()
 			.orderBy("created_at", "desc")
 			.orderBy("id", "desc")
@@ -387,28 +401,6 @@ export class MediaRepository {
 			);
 		}
 
-		const mimeFilters = normalizeMimeFilter(options.mimeType);
-		if (mimeFilters.length > 0) {
-			query = query.where((eb) => mimeMatchExpr(eb, mimeFilters));
-		}
-
-		// Case-insensitive filename substring search (also matches extensions).
-		// LIKE wildcards in the term are escaped so they're treated literally.
-		const term = options.q?.trim();
-		if (term) {
-			const pattern = `%${escapeLike(term)}%`;
-			query = query.where(
-				sql<string>`lower(filename)`,
-				"like",
-				sql<string>`lower(${pattern}) escape '\\'`,
-			);
-		}
-
-		// Default to only showing ready items
-		if (options.status !== "all") {
-			query = query.where("status", "=", options.status ?? "ready");
-		}
-
 		const rows = await query.execute();
 
 		const hasMore = rows.length > limit;
@@ -421,6 +413,27 @@ export class MediaRepository {
 		}
 
 		return { items, nextCursor };
+	}
+
+	async findPage(options: FindMediaPageOptions): Promise<MediaPageResult> {
+		const limit = Math.min(options.limit || 50, 100);
+		const offset = (options.page - 1) * limit;
+		const filtered = this.applyListFilters(this.db.selectFrom("media"), options);
+		const rows = await filtered
+			.selectAll()
+			.orderBy("created_at", "desc")
+			.orderBy("id", "desc")
+			.limit(limit)
+			.offset(offset)
+			.execute();
+		const count = await filtered
+			.select((eb) => eb.fn.count<number>("id").as("count"))
+			.executeTakeFirst();
+
+		return {
+			items: rows.map((row) => this.rowToItem(row)),
+			totalCount: Number(count?.count ?? 0),
+		};
 	}
 
 	/**
@@ -478,6 +491,32 @@ export class MediaRepository {
 
 		const result = await query.executeTakeFirst();
 		return Number(result?.count || 0);
+	}
+
+	private applyListFilters<O>(
+		query: SelectQueryBuilder<Database, "media", O>,
+		options: Omit<FindManyMediaOptions, "cursor" | "limit">,
+	): SelectQueryBuilder<Database, "media", O> {
+		const mimeFilters = normalizeMimeFilter(options.mimeType);
+		if (mimeFilters.length > 0) {
+			query = query.where((eb) => mimeMatchExpr(eb, mimeFilters));
+		}
+
+		const term = options.q?.trim();
+		if (term) {
+			const pattern = `%${escapeLike(term)}%`;
+			query = query.where(
+				sql<string>`lower(filename)`,
+				"like",
+				sql<string>`lower(${pattern}) escape '\\'`,
+			);
+		}
+
+		if (options.status !== "all") {
+			query = query.where("status", "=", options.status ?? "ready");
+		}
+
+		return query;
 	}
 
 	/**

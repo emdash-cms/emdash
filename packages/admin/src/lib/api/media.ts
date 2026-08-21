@@ -51,18 +51,24 @@ export interface MediaItem {
 	meta?: Record<string, unknown>;
 }
 
+export interface MediaListResult extends FindManyResult<MediaItem> {
+	totalCount?: number;
+}
+
 /**
  * Fetch media list
  */
 export async function fetchMediaList(options?: {
 	cursor?: string;
+	page?: number;
 	limit?: number;
 	mimeType?: string | string[];
 	/** Case-insensitive filename substring search (also matches extensions). */
 	search?: string;
-}): Promise<FindManyResult<MediaItem>> {
+}): Promise<MediaListResult> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
+	if (options?.page !== undefined) params.set("page", String(options.page));
 	if (options?.limit) params.set("limit", String(options.limit));
 	if (options?.mimeType) {
 		const value = Array.isArray(options.mimeType) ? options.mimeType.join(",") : options.mimeType;
@@ -77,7 +83,7 @@ export async function fetchMediaList(options?: {
 
 	const url = `${API_BASE}/media${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
-	return parseApiResponse<FindManyResult<MediaItem>>(response, i18n._(msg`Failed to fetch media`));
+	return parseApiResponse<MediaListResult>(response, i18n._(msg`Failed to fetch media`));
 }
 
 /**
