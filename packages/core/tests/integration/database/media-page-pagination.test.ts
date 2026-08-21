@@ -77,4 +77,16 @@ describeEachDialect("MediaRepository numbered pages", (dialect) => {
 		expect(typeof result.totalCount).toBe("number");
 		expect(result.items.map((item) => item.filename)).toEqual(["oldest.jpg"]);
 	});
+
+	it("applies the same folder filter to cursor rows, page rows, and totals", async () => {
+		await seedMedia();
+		const cursorOptions = { limit: 2, folderId: "missing-folder" };
+		const pageOptions = { page: 1, limit: 2, folderId: "missing-folder" };
+
+		const cursorResult = await repo.findMany(cursorOptions);
+		const pageResult = await repo.findPage(pageOptions);
+
+		expect(cursorResult).toEqual({ items: [], nextCursor: undefined });
+		expect(pageResult).toEqual({ items: [], totalCount: 0 });
+	});
 });

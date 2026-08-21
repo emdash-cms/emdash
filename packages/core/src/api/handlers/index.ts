@@ -60,6 +60,12 @@ export {
 	type MediaListResponse,
 	type MediaResponse,
 } from "./media.js";
+export {
+	handleMediaFolderList,
+	handleMediaFolderCreate,
+	handleMediaFolderUpdate,
+	handleMediaFolderDelete,
+} from "./media-folders.js";
 
 export {
 	aggregateMediaUsageCoverageStatus,

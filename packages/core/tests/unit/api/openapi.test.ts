@@ -31,6 +31,8 @@ describe("OpenAPI document generation", () => {
 		const paths = Object.keys(doc.paths ?? {});
 
 		expect(paths).toContain("/_emdash/api/media");
+		expect(paths).toContain("/_emdash/api/media/folders");
+		expect(paths).toContain("/_emdash/api/media/folders/{id}");
 		expect(paths).toContain("/_emdash/api/media/{id}");
 		expect(paths).toContain("/_emdash/api/media/{id}/usage");
 		expect(paths).toContain("/_emdash/api/media/upload-url");
@@ -38,6 +40,54 @@ describe("OpenAPI document generation", () => {
 		expect(paths).toContain("/_emdash/api/media/{id}/upload");
 		expect(paths).toContain("/_emdash/api/admin/media-usage/repair");
 		expect(doc.paths?.["/_emdash/api/media/{id}/confirm"]?.post?.responses).toHaveProperty("409");
+	});
+
+	it("documents media folder filters, CRUD operations, and errors", () => {
+		const doc = generateOpenApiDocument();
+		const mediaList = doc.paths?.["/_emdash/api/media"]?.get as {
+			parameters?: Array<{ name?: string; in?: string }>;
+		};
+		const mediaUpdate = doc.paths?.["/_emdash/api/media/{id}"]?.put;
+		const folders = doc.paths?.["/_emdash/api/media/folders"];
+		const folder = doc.paths?.["/_emdash/api/media/folders/{id}"];
+
+		expect(mediaList.parameters).toEqual(
+			expect.arrayContaining([expect.objectContaining({ name: "folderId", in: "query" })]),
+		);
+		expect(mediaUpdate?.requestBody).toBeDefined();
+		expect(JSON.stringify(doc.components?.schemas?.MediaUpdateBody)).toContain("folderId");
+		expect(folders?.get?.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"400": expect.any(Object),
+				"401": expect.any(Object),
+				"403": expect.any(Object),
+				"500": expect.any(Object),
+			}),
+		);
+		expect(folders?.post?.responses).toEqual(
+			expect.objectContaining({
+				"201": expect.any(Object),
+				"400": expect.any(Object),
+				"409": expect.any(Object),
+			}),
+		);
+		expect(folder?.put?.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"400": expect.any(Object),
+				"404": expect.any(Object),
+				"409": expect.any(Object),
+			}),
+		);
+		expect(folder?.delete?.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"400": expect.any(Object),
+				"404": expect.any(Object),
+			}),
+		);
+		expect(JSON.stringify(folders?.get?.responses?.["200"])).toContain("MediaFolderListResponse");
 	});
 
 	it("documents media usage summary opt-in parameters and read responses", () => {

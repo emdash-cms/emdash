@@ -9,6 +9,8 @@ import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import type { ApiResult } from "../types.js";
 
+const FOREIGN_KEY_VIOLATION_RE = /foreign key constraint failed/i;
+
 export interface MediaListResponse {
 	items: MediaItem[];
 	nextCursor?: string;
@@ -30,6 +32,7 @@ export async function handleMediaList(
 		limit?: number;
 		mimeType?: string | readonly string[];
 		q?: string;
+		folderId?: string | null;
 	},
 ): Promise<ApiResult<MediaListResponse>> {
 	try {
@@ -54,6 +57,7 @@ export async function handleMediaList(
 				limit,
 				mimeType: params.mimeType,
 				q: params.q,
+				folderId: params.folderId,
 			});
 			return { success: true, data: result };
 		}
@@ -64,6 +68,7 @@ export async function handleMediaList(
 			limit: Math.min(params.limit || 50, 100),
 			mimeType: params.mimeType,
 			q: params.q,
+			folderId: params.folderId,
 		});
 
 		return {
@@ -175,6 +180,7 @@ export async function handleMediaUpdate(
 		caption?: string;
 		width?: number;
 		height?: number;
+		folderId?: string | null;
 	},
 ): Promise<ApiResult<MediaResponse>> {
 	try {
@@ -195,7 +201,13 @@ export async function handleMediaUpdate(
 			success: true,
 			data: { item },
 		};
-	} catch {
+	} catch (error) {
+		if (isForeignKeyViolation(error)) {
+			return {
+				success: false,
+				error: { code: "NOT_FOUND", message: "Media folder not found" },
+			};
+		}
 		return {
 			success: false,
 			error: {
@@ -204,6 +216,17 @@ export async function handleMediaUpdate(
 			},
 		};
 	}
+}
+
+function isForeignKeyViolation(error: unknown): boolean {
+	if (error && typeof error === "object") {
+		if ("code" in error && error.code === "23503") return true;
+	}
+	const message = error instanceof Error ? error.message : "";
+	if (FOREIGN_KEY_VIOLATION_RE.test(message)) return true;
+	return Boolean(
+		error && typeof error === "object" && "cause" in error && isForeignKeyViolation(error.cause),
+	);
 }
 
 /**

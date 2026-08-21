@@ -377,6 +377,7 @@ export interface EmDashHandlers {
 		page?: number;
 		limit?: number;
 		mimeType?: string | readonly string[];
+		folderId?: string | null;
 	}) => Promise<HandlerResponse>;
 
 	handleMediaGet: (id: string) => Promise<HandlerResponse>;
@@ -396,7 +397,13 @@ export interface EmDashHandlers {
 
 	handleMediaUpdate: (
 		id: string,
-		input: { alt?: string; caption?: string; width?: number; height?: number },
+		input: {
+			alt?: string;
+			caption?: string;
+			width?: number;
+			height?: number;
+			folderId?: string | null;
+		},
 	) => Promise<HandlerResponse>;
 
 	handleMediaDelete: (id: string) => Promise<HandlerResponse>;

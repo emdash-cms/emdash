@@ -6,7 +6,7 @@ description: Upload and manage images and files in EmDash.
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 import mediaLibraryImg from "../../../assets/screenshots/admin-media-library.png";
 
-EmDash includes a media library for managing images, documents, and other files. This guide covers uploading, organizing, and using media in your content.
+EmDash includes a media library for managing images, documents, and other files. This guide covers uploading, finding, and using media in your content.
 
 ## Accessing the Media Library
 
@@ -151,31 +151,11 @@ This approach keeps large files off your application server and enables direct u
 	your Worker.
 </Aside>
 
-## Organizing Media
-
-### Folders
-
-Create folders to organize your media:
-
-1. Click **New Folder** in the media library
-
-2. Enter a folder name
-
-3. Click **Create**
-
-4. Drag files into folders to organize them
-
-### Search
+## Finding Media
 
 Use the search box to find files by name. Search matches partial filenames.
 
-### Filters
-
-Filter media by:
-
-- **Type** - Images, Documents, Video, Audio
-- **Date** - Upload date range
-- **Folder** - Specific folder
+Use the type menu to show all files, images, video, audio, or documents.
 
 ## Using Media in Content
 
@@ -267,55 +247,9 @@ EmDash installs an image endpoint that produces the resized variants on request.
 
 ## Media API
 
-Access media programmatically using the admin API.
-
-### Upload a File
-
-Upload media as multipart form data:
-
-```bash
-POST /_emdash/api/media
-Content-Type: multipart/form-data
-Authorization: Bearer YOUR_API_TOKEN
-
-file=<binary file data>
-```
-
-A successful upload returns the stored media item:
-
-```json
-{
-	"success": true,
-	"data": {
-		"item": {
-			"id": "01ABC123",
-			"filename": "hero-image.jpg",
-			"mime_type": "image/jpeg",
-			"storage_key": "media/abc123/hero-image.jpg",
-			"width": 1200,
-			"height": 800
-		}
-	}
-}
-```
-
-### List Media
-
-The following request lists media under a prefix:
-
-```bash
-GET /_emdash/api/media?prefix=images/&limit=20
-Authorization: Bearer YOUR_API_TOKEN
-```
-
-### Delete Media
-
-The following request deletes a stored file:
-
-```bash
-DELETE /_emdash/api/media/images/hero.jpg
-Authorization: Bearer YOUR_API_TOKEN
-```
+Use the authenticated media endpoints to list, upload, update, and delete local media. The
+[REST API reference](/reference/rest-api/#media-endpoints) documents request parameters, response
+shapes, permissions, and folder operations.
 
 ## Media Providers
 
