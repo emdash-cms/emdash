@@ -1508,7 +1508,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(await stub.getPendingSideEffectCount()).toBe(1);
 	});
 
-	test("draft PR titles distinguish bug fixes from directed implementations", async () => {
+	test("draft PRs use agent-authored copy with a legacy fallback", async () => {
 		const pullRequests: unknown[] = [];
 		let pullNumber = 100;
 		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
@@ -1540,22 +1540,56 @@ describe("OrchestratorDO (workers-pool)", () => {
 			},
 		);
 
-		for (const [anchorNumber, kind] of [
-			[42, "bug"],
-			[43, "enhancement"],
-		] as const) {
-			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
-			await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
-			await stub.debugPrimePreviewBuilding(anchorNumber, "Candidate notes.", kind);
-			await stub.event(
-				makeEvent({ event: "preview.ready", arg: null, actor: "system", anchorNumber }),
-			);
-			await stub.event(makeEvent({ event: "confirm", arg: null, actor: "reporter", anchorNumber }));
-		}
+		const customCopyStub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await customCopyStub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await customCopyStub.debugPrimeFixing(42);
+		await customCopyStub.debugSetStaleRun(
+			"implement-run",
+			Date.now(),
+			"investigate-42-implement-run",
+			"implement",
+		);
+		await customCopyStub.applyAgentResult({
+			runId: "implement-run",
+			result: {
+				implemented: true,
+				summary: "Keeps the selected locale when loading content.",
+				pullRequest: {
+					title: "fix(core): preserve the requested locale",
+					description: "Keeps the selected locale when loading content.",
+				},
+			},
+			pushed: true,
+			ok: true,
+		});
+		await customCopyStub.event(
+			makeEvent({ event: "preview.ready", arg: null, actor: "system", anchorNumber: 42 }),
+		);
+		await customCopyStub.event(
+			makeEvent({ event: "confirm", arg: null, actor: "reporter", anchorNumber: 42 }),
+		);
+
+		const legacyStub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await legacyStub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await legacyStub.debugPrimePreviewBuilding(43, "Candidate notes.", "enhancement");
+		await legacyStub.event(
+			makeEvent({ event: "preview.ready", arg: null, actor: "system", anchorNumber: 43 }),
+		);
+		await legacyStub.event(
+			makeEvent({ event: "confirm", arg: null, actor: "reporter", anchorNumber: 43 }),
+		);
 
 		expect(pullRequests).toMatchObject([
-			{ title: "Fix #42", draft: true },
-			{ title: "Implement #43", draft: true },
+			{
+				title: "fix(core): preserve the requested locale",
+				body: expect.stringContaining("Keeps the selected locale when loading content."),
+				draft: true,
+			},
+			{
+				title: "Implement #43",
+				body: expect.stringContaining("## What does this PR do?"),
+				draft: true,
+			},
 		]);
 	});
 

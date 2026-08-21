@@ -138,13 +138,23 @@ describe("renderPreviewReadyAsk", () => {
 });
 
 describe("renderDraftPrBody", () => {
-	test("closes the issue, links the verified preview, and flags review", () => {
-		const body = renderDraftPrBody(77);
+	test("fills the GitHub PR template with the bot description and preview", () => {
+		const body = renderDraftPrBody({
+			issueNumber: 77,
+			kind: "bug",
+			description: "Preserves the requested locale when the loader resolves content.",
+		});
+		expect(body).toContain("## What does this PR do?");
+		expect(body).toContain("Preserves the requested locale when the loader resolves content.");
 		expect(body).toContain("Closes #77.");
 		expect(body).toContain("npm i https://pkg.pr.new/emdash@bot/fix-77");
-		expect(body).toContain("candidate change");
-		expect(body).not.toMatch(/candidate fix|regression test/i);
-		expect(body).toContain("draft");
+		expect(body).toContain("## Type of change");
+		expect(body).toContain("- [x] Bug fix");
+		expect(body).toContain("## Checklist");
+		expect(body).toContain("## AI-generated code disclosure");
+		expect(body).toContain("- [x] This PR includes AI-generated code");
+		expect(body).toContain("## Screenshots / test output");
+		expect(body).not.toContain("<!-- Describe the change");
 	});
 });
 

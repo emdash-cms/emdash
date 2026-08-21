@@ -1,3 +1,4 @@
+import pullRequestTemplate from "../../../../.github/PULL_REQUEST_TEMPLATE.md?raw";
 import type { Kind, StateId } from "./machine.js";
 import {
 	artifactsBranch,
@@ -188,24 +189,51 @@ export function renderPreviewReadyAsk(input: {
 		.join("\n");
 }
 
+export interface PullRequestCopy {
+	readonly title: string;
+	readonly description: string;
+}
+
 /**
  * Body for the draft PR opened when the reporter confirms the change. References
  * the issue (so merging closes it), points at the preview the reporter just
- * verified, and flags that a maintainer must review before merge.
+ * verified, and fills the repository's pull request template.
  */
-export function renderDraftPrBody(issueNumber: number, previewPackage?: string): string {
+export function renderDraftPrBody(input: {
+	issueNumber: number;
+	kind: Kind;
+	description: string;
+	previewPackage?: string;
+}): string {
+	const typeSectionStart = pullRequestTemplate.indexOf("## Type of change");
+	if (typeSectionStart === -1) throw new Error("pull request template is missing its type section");
+	const completedTemplate = pullRequestTemplate
+		.slice(typeSectionStart)
+		.replace(
+			input.kind === "bug" ? "- [ ] Bug fix" : "- [ ] Feature",
+			input.kind === "bug" ? "- [x] Bug fix" : "- [x] Feature",
+		)
+		.replace(
+			"- [ ] This PR includes AI-generated code — model/tool: <!-- e.g. Claude Opus 4.7, GPT-5.5, Cursor + Sonnet 4.6, Copilot -->",
+			"- [x] This PR includes AI-generated code — model/tool: emdashbot + Kimi K2.7 Code",
+		)
+		.trim();
 	return [
-		`Closes #${issueNumber}.`,
+		"## What does this PR do?",
+		"",
+		input.description.trim(),
+		"",
+		`Closes #${input.issueNumber}.`,
 		"",
 		"A candidate change the reporter confirmed against their own site via the preview build:",
 		"",
 		"```bash",
-		previewInstallCommand(issueNumber, previewPackage),
+		previewInstallCommand(input.issueNumber, input.previewPackage),
 		"```",
 		"",
-		"Review the candidate diff and its verification before merging.",
-		"",
 		"<sub>Opened automatically by emdashbot as a draft. A maintainer must review before merge.</sub>",
+		"",
+		completedTemplate,
 	].join("\n");
 }
 
