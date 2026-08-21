@@ -95,9 +95,11 @@ If the database is empty (no collections) and the setup wizard hasn't been compl
 
 To change the schema or content model of a site that is already deployed, see [Evolving a Deployed Site](/deployment/schema-evolution/).
 
-## Scheduled Publishing
+## Scheduled tasks and Media Usage
 
-On Cloudflare Workers, scheduled publishing, plugin cron, and maintenance tasks run from one Worker Cron Trigger. New Cloudflare templates include the required schedule automatically. When updating an existing project, configure the general maintenance handler:
+Cloudflare runs scheduled publishing, plugin tasks, and general maintenance from one Cron Trigger. Media Usage uses a Queue so indexing starts when an administrator enables it and continues after the browser closes.
+
+New Cloudflare templates include this configuration. When updating an existing project, add the Media Usage handlers to the Worker entry point:
 
 ```ts title="src/worker.ts"
 import handler, {
@@ -120,7 +122,7 @@ export default {
 } satisfies ExportedHandler<Env, MediaUsageWakeMessage>;
 ```
 
-Add one Cron Trigger for general maintenance, the five-minute CPU allowance, and the automatically provisioned Queue to `wrangler.jsonc`:
+Configure one Cron Trigger for general maintenance and one Queue for Media Usage in `wrangler.jsonc`:
 
 ```jsonc title="wrangler.jsonc"
 {
@@ -150,37 +152,27 @@ Add one Cron Trigger for general maintenance, the five-minute CPU allowance, and
 }
 ```
 
-Run `wrangler types` after changing the bindings so `Env.MEDIA_USAGE_QUEUE` is available to
-TypeScript.
+Run `wrangler types` after changing the bindings so `Env.MEDIA_USAGE_QUEUE` is available to TypeScript.
 
-Enabling Media Usage sends the first Queue message. Each batch processes up to 1,000 entries. The
-consumer continues with another batch while its invocation has capacity, then sends another message
-when work remains. Queue messages contain no content identity, and the existing database work rows
-remain authoritative if a message is retried. Concurrency stays at one because D1 processes a database
-sequentially.
+The fetch handler sends the first Queue message after Media Usage is enabled. The consumer indexes up to 1,000 entries at a time and sends another message while work remains. Keep `max_concurrency` at `1` because D1 processes writes sequentially.
 
 To use a different general maintenance schedule, set `generalCron` in `createScheduledHandler()` and
 use the same expression in `wrangler.jsonc`.
 
 <Aside type="caution">
-	Keep the Media Usage Queue configured until setup reaches **Ready**. A stopped
-	Queue chain does not restart from the general Cron.
+	Keep the Media Usage Queue configured and running until setup reaches **Ready**. The general Cron does not restart interrupted Media Usage indexing.
 </Aside>
 
-### Enable automatic media usage indexing
+### Enable Media Usage
 
-Pause all application and direct database writes. Open
-**Settings → Media Usage**, select **Enable Media Usage**, and confirm the safety requirements once.
-EmDash queues the remaining setup work and starts indexing existing content. This work continues if
-you close the page while the Queue chain remains active.
+1. If another application writes directly to D1, pause it before setup.
+2. Open **Settings → Media Usage**, select **Enable Media Usage**, then select **Turn on**.
+3. Keep the Worker and Queue running until the page shows **Ready**. You can close the page while indexing continues.
+4. Resume direct D1 writers when the page shows **Starting indexing**, **Indexing existing content**, or **Ready**.
 
-Keep writers stopped while the page shows **Setting up**. Resume writers when it shows **Starting
-indexing**, **Indexing existing content**, or **Ready**. While the page is visible, it refreshes
-progress every two seconds. If **Needs attention** offers **Retry setup**, keep writers stopped, fix
-the server error, and retry. An indexing failure after setup is active does not block writers.
+EmDash may briefly pause editing while the page shows **Setting up**. If the page shows **Needs attention**, fix the reported server problem and select **Retry setup**.
 
-The [REST procedure](/reference/rest-api/#enable-automatic-media-usage-indexing) remains available
-for API operators.
+API operators can use the [Media Usage activation endpoints](/reference/rest-api/#enable-automatic-media-usage-indexing).
 
 ## Deploy
 

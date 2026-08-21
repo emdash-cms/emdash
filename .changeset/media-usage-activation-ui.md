@@ -4,4 +4,4 @@
 "@emdash-cms/cloudflare": minor
 ---
 
-Adds one-action Media Usage setup with live indexing status and faster background indexing for existing content.
+Adds an admin setup flow for Media Usage. Administrators can enable it from Settings with one confirmation and follow setup and indexing progress until it is ready.

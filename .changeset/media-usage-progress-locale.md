@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Fixes Media Usage progress text displaying untranslated plural syntax.
+Fixes Media Usage progress counts showing raw plural syntax instead of readable text.

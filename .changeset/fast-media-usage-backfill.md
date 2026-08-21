@@ -3,4 +3,4 @@
 "@emdash-cms/cloudflare": patch
 ---
 
-Speeds up Media Usage setup and historical indexing on Workers Paid, including entries with up to 500 media occurrences.
+Speeds up initial Media Usage indexing on Cloudflare Workers and Node.js.

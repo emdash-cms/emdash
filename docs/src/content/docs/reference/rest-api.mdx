@@ -366,14 +366,13 @@ DELETE /_emdash/api/media/:id
 
 ### Enable automatic media usage indexing
 
-Automatic media usage indexing must be enabled once for each production site. Writes must be
-paused while EmDash prepares each collection so that no changes are missed.
+Automatic media usage indexing must be enabled once for each production site. Pause direct database writes while EmDash prepares each collection. EmDash temporarily blocks its own content and schema writes during this step.
 
 Both endpoints require `schema:manage`. Bearer tokens also require the `admin` scope.
 
-Administrators can run the same procedure from **Settings → Media Usage**. The page sends one POST,
-then observes server-owned setup and indexing work. It cannot stop external writers or verify
-that the Cloudflare Queue consumer or Node process is running.
+Administrators can run the same procedure from **Settings → Media Usage** by selecting **Enable Media Usage**, then **Turn on**. The page sends one POST and displays the server-owned setup and indexing progress.
+
+Before using either flow, confirm that the Cloudflare Queue consumer or Node.js process is running.
 
 #### Check the current state
 
@@ -402,10 +401,7 @@ X-EmDash-Request: 1
 }
 ```
 
-The request prepares at most one collection and wakes the configured Cloudflare Queue or Node
-scheduler. These standard drivers continue with bounded batches after the response, including when
-the client disconnects. Use `GET` to observe the durable state. With a standard driver, do not send
-another POST unless the stored status reports a failure that you have fixed.
+The request prepares at most one collection and wakes the configured Cloudflare Queue or Node.js scheduler. These standard drivers continue with bounded batches after the response, including when the client disconnects. Use `GET` to observe the stored state. With a standard driver, do not send another POST unless the stored status reports a failure that you have fixed.
 
 Custom integrations that do not wire the standard Cloudflare Queue or Node continuation can continue
 sending one POST at a time. This compatibility path retains the same collection bound.
@@ -414,14 +410,13 @@ Set both fields to `true`:
 
 - `writersDrained`: Application and direct database writes have stopped, and any writes already in
   progress have finished.
-- `maintenanceReady`: The Media Usage Queue consumer is running on Cloudflare, or the built-in
-  scheduler is running on Node.js.
+- `maintenanceReady`: The Media Usage Queue consumer is running on Cloudflare, or the built-in scheduler is running on Node.js.
 
 #### Enable indexing in production
 
 1. Confirm that the Media Usage Queue consumer is running on Cloudflare, or that the built-in
    scheduler is running on Node.js.
-2. Stop all application and direct database writes. Wait for writes already in progress to finish.
+2. Stop all direct database writers. Wait for writes already in progress to finish. EmDash fences its own writes during setup.
 3. Call `GET` to check the current state.
 4. With the standard Queue or Node driver, call `POST` once, then use `GET` until the state becomes
    `active`. With a custom integration that does not continue activation, alternate one `POST` with

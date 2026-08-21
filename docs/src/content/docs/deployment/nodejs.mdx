@@ -55,33 +55,24 @@ The server runs on `http://localhost:4321` by default. Migrations are applied on
 
 ## Scheduled tasks
 
-The built-in scheduler runs only while a Node process is running. It handles scheduled publishing,
-plugin tasks, and background media indexing.
+The built-in scheduler runs only while a Node.js process is running. It handles scheduled publishing, plugin tasks, and background Media Usage indexing.
 
-While Media Usage work is available, the scheduler continues one bounded indexing unit on each event
-loop turn until it catches up. It yields between units so requests and other scheduled work remain
-responsive.
+The scheduler continues indexing until Media Usage catches up. It yields between batches so the server can keep handling requests.
 
-Keep at least one Node process running continuously in production. If all processes stop or sleep,
-scheduled tasks pause.
+Keep at least one Node.js process running continuously in production. Scheduled tasks pause when every process stops or sleeps.
 
-### Enable automatic media usage indexing
+### Enable Media Usage
 
-Keep at least one Node process running, then pause all application and direct database writes. Open
-**Settings → Media Usage**, select **Enable Media Usage**, and confirm the safety requirements once.
-The Node scheduler prepares the remaining collections and starts indexing existing content. This
-work continues if you close the page.
+1. If another application writes directly to the SQLite database, pause it before setup.
+2. Open **Settings → Media Usage**, select **Enable Media Usage**, then select **Turn on**.
+3. Keep the Node.js process running until the page shows **Ready**. You can close the page while indexing continues.
+4. Resume direct database writers when the page shows **Starting indexing**, **Indexing existing content**, or **Ready**.
 
-Keep the Node process running until Media Usage reaches **Ready**. An interrupted process does not
-restart Media Usage work from the general scheduler heartbeat.
+EmDash may briefly pause editing while the page shows **Setting up**. If the page shows **Needs attention**, fix the reported server problem and select **Retry setup**.
 
-Keep writers stopped while the page shows **Setting up**. Resume writers when it shows **Starting
-indexing**, **Indexing existing content**, or **Ready**. While the page is visible, it refreshes
-progress every two seconds. If **Needs attention** offers **Retry setup**, keep writers stopped, fix
-the server error, and retry. An indexing failure after setup is active does not block writers.
+An interrupted Node.js process does not restart Media Usage indexing from the general scheduler. Keep the process running until setup reaches **Ready**.
 
-The [REST procedure](/reference/rest-api/#enable-automatic-media-usage-indexing) remains available
-for API operators.
+API operators can use the [Media Usage activation endpoints](/reference/rest-api/#enable-automatic-media-usage-indexing).
 
 ## Production Storage
 
