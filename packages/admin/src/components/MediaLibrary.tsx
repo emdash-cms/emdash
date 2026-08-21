@@ -114,6 +114,7 @@ export interface MediaLibraryPagination {
 
 const MEDIA_PAGE_SIZE_OPTIONS = [35, 70, 90];
 const MAX_DROPDOWN_PAGE_COUNT = 100;
+let pendingMediaLibraryScrollTop: number | null = null;
 
 /**
  * Media library component with upload, provider tabs, and grid view
@@ -230,7 +231,6 @@ export function MediaLibrary({
 	}, []);
 
 	React.useEffect(() => cancelPendingDetailOpen, [cancelPendingDetailOpen]);
-
 	const requestPage = React.useCallback(
 		(nextPage: number) => {
 			if (!pagination || pagination.isPending) return;
@@ -389,6 +389,29 @@ export function MediaLibrary({
 	const currentItems = activeProvider === "local" ? items : [];
 	const currentProviderItems = activeProvider !== "local" ? providerData?.items || [] : [];
 	const currentLoading = activeProvider === "local" ? isLoading : providerLoading;
+	React.useEffect(() => {
+		if (
+			pendingMediaLibraryScrollTop === null ||
+			currentLoading ||
+			foldersLoading ||
+			currentFolderLoading
+		)
+			return;
+		let secondFrame: number | undefined;
+		const firstFrame = window.requestAnimationFrame(() => {
+			secondFrame = window.requestAnimationFrame(() => {
+				const scrollContainer = document.querySelector<HTMLElement>("main");
+				if (scrollContainer && pendingMediaLibraryScrollTop !== null) {
+					scrollContainer.scrollTop = pendingMediaLibraryScrollTop;
+				}
+				pendingMediaLibraryScrollTop = null;
+			});
+		});
+		return () => {
+			window.cancelAnimationFrame(firstFrame);
+			if (secondFrame !== undefined) window.cancelAnimationFrame(secondFrame);
+		};
+	}, [currentFolderLoading, currentLoading, folderId, foldersLoading]);
 
 	const resultCount =
 		activeProvider === "local"
@@ -478,7 +501,11 @@ export function MediaLibrary({
 		});
 	};
 	const focusMediaHeading = () => mediaHeadingRef.current?.focus({ preventScroll: true });
+	const rememberScrollPosition = () => {
+		pendingMediaLibraryScrollTop = mediaHeadingRef.current?.closest("main")?.scrollTop ?? null;
+	};
 	const backToMain = () => {
+		rememberScrollPosition();
 		focusMediaHeading();
 		onBackToMain?.();
 	};
@@ -488,6 +515,7 @@ export function MediaLibrary({
 		cancelPendingDetailOpen();
 		setIsDetailOpen(false);
 		setDetailItem(null);
+		rememberScrollPosition();
 		focusMediaHeading();
 		onOpenFolder?.(folder);
 	};
@@ -507,31 +535,36 @@ export function MediaLibrary({
 					</div>
 				</div>
 			)}
-			{activeProvider === "local" && folderId && (
-				<Button
-					variant="ghost"
-					size="sm"
-					icon={<ArrowLeft className="rtl:-scale-x-100" aria-hidden="true" />}
-					onClick={backToMain}
-				>
-					{t`Back to Main library`}
-				</Button>
-			)}
 			{/* Header: page title (start) + primary actions (end) */}
 			<div className="flex flex-wrap items-center justify-between gap-4">
 				<div className="min-w-0">
+					{activeProvider === "local" && folderId && (
+						<RouterLinkButton
+							to="/media"
+							search={{ folder: undefined }}
+							variant="ghost"
+							size="sm"
+							icon={<ArrowLeft className="rtl:-scale-x-100" aria-hidden="true" />}
+							className="mb-2"
+							onClick={(event) =>
+								handleNavigationClick(event, onBackToMain ? backToMain : undefined)
+							}
+						>
+							{t`Back`}
+						</RouterLinkButton>
+					)}
 					<h1 ref={mediaHeadingRef} tabIndex={-1} className="text-2xl font-semibold leading-tight">
 						{t`Media Library`}
 					</h1>
 					{activeProvider === "local" && folderId && (
 						<nav aria-label={t`Folders navigation`} className="mt-2">
-							<Breadcrumbs>
+							<Breadcrumbs size="sm">
 								<RouterLinkButton
 									to="/media"
 									search={{ folder: undefined }}
 									variant="ghost"
-									size="xs"
-									className="px-0"
+									size="sm"
+									className="h-auto px-0 py-0 text-sm"
 									onClick={(event) =>
 										handleNavigationClick(event, onBackToMain ? backToMain : undefined)
 									}
@@ -540,7 +573,9 @@ export function MediaLibrary({
 								</RouterLinkButton>
 								<Breadcrumbs.Separator />
 								<Breadcrumbs.Current loading={currentFolderLoading}>
-									{currentFolder?.name ?? ""}
+									<span dir="auto" className="inline-block max-w-full truncate align-bottom">
+										{currentFolder?.name ?? ""}
+									</span>
 								</Breadcrumbs.Current>
 							</Breadcrumbs>
 						</nav>
@@ -707,7 +742,7 @@ export function MediaLibrary({
 							<Loader />
 						</div>
 					) : viewMode === "grid" ? (
-						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
 							{visibleFolders.map((folder) => (
 								<MediaFolderCard
 									key={folder.id}
@@ -1026,35 +1061,34 @@ function MediaFolderCard({
 }) {
 	const { t } = useLingui();
 	return (
-		<LayerCard className="min-w-0">
-			<LayerCard.Secondary className="flex items-center justify-between gap-2">
+		<LayerCard className="group flex min-w-0 items-center gap-3 p-3" data-media-folder-card>
+			<RouterLinkButton
+				to="/media"
+				search={{ folder: folder.id }}
+				variant="ghost"
+				className="h-auto min-h-10 min-w-0 flex-1 justify-start gap-3 p-0 text-start"
+				aria-label={t`Open folder ${folder.name}`}
+				onClick={(event) => handleNavigationClick(event, onOpen)}
+			>
 				<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-kumo-tint text-kumo-link">
 					<Folder className="h-5 w-5" weight="fill" aria-hidden="true" />
 				</div>
-				{canEdit && (
-					<Button
-						variant="ghost"
-						shape="square"
-						size="sm"
-						aria-label={t`Edit folder ${folder.name}`}
-						onClick={(event) => onEdit(event.currentTarget)}
-					>
-						<PencilSimple className="h-4 w-4" aria-hidden="true" />
-					</Button>
-				)}
-			</LayerCard.Secondary>
-			<LayerCard.Primary>
-				<RouterLinkButton
-					to="/media"
-					search={{ folder: folder.id }}
+				<span dir="auto" className="min-w-0 truncate font-semibold">
+					{folder.name}
+				</span>
+			</RouterLinkButton>
+			{canEdit && (
+				<Button
 					variant="ghost"
-					className="w-full min-w-0 justify-start px-0 text-start"
-					aria-label={t`Open folder ${folder.name}`}
-					onClick={(event) => handleNavigationClick(event, onOpen)}
+					shape="square"
+					size="sm"
+					className="shrink-0 opacity-60 group-hover:opacity-100 group-focus-within:opacity-100"
+					aria-label={t`Edit folder ${folder.name}`}
+					onClick={(event) => onEdit(event.currentTarget)}
 				>
-					<span className="truncate">{folder.name}</span>
-				</RouterLinkButton>
-			</LayerCard.Primary>
+					<PencilSimple className="h-4 w-4" aria-hidden="true" />
+				</Button>
+			)}
 		</LayerCard>
 	);
 }
@@ -1088,7 +1122,9 @@ function MediaFolderListItem({
 						aria-label={t`Open folder ${folder.name}`}
 						onClick={(event) => handleNavigationClick(event, onOpen)}
 					>
-						<span className="truncate">{folder.name}</span>
+						<span dir="auto" className="truncate">
+							{folder.name}
+						</span>
 					</RouterLinkButton>
 					{canEdit && (
 						<Button

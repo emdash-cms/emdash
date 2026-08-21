@@ -571,7 +571,9 @@ export function MediaDetailPanel({
 												className={`${inputVariants()} relative flex w-full items-center pe-8 text-start`}
 											>
 												<Combobox.Value>
-													{(option) => option?.name ?? t`Select a location`}
+													{(option) => (
+														<span dir="auto">{option?.name ?? t`Select a location`}</span>
+													)}
 												</Combobox.Value>
 												<Combobox.Icon className="absolute end-2 top-1/2 flex -translate-y-1/2 items-center text-kumo-subtle">
 													<CaretDown className="h-4 w-4" aria-hidden="true" />
@@ -606,7 +608,7 @@ export function MediaDetailPanel({
 												>
 													{(option) => (
 														<Combobox.Item key={option.id ?? "main"} value={option}>
-															{option.name}
+															<span dir="auto">{option.name}</span>
 														</Combobox.Item>
 													)}
 												</Combobox.List>
@@ -644,7 +646,7 @@ export function MediaDetailPanel({
 										<div className="space-y-1">
 											<p className="text-sm font-medium text-kumo-default">{t`Location`}</p>
 											<p className="text-sm text-kumo-subtle" aria-live="polite">
-												{currentLocationName}
+												<span dir="auto">{currentLocationName}</span>
 											</p>
 										</div>
 									))}

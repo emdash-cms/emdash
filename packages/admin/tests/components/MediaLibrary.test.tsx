@@ -153,7 +153,14 @@ describe("MediaLibrary", () => {
 
 			await expect.element(screen.getByRole("heading", { name: "Folders" })).toBeInTheDocument();
 			await expect.element(screen.getByText("1 folder loaded")).toBeInTheDocument();
-			await screen.getByRole("link", { name: "Open folder Product photos" }).click();
+			const folderLink = screen.getByRole("link", { name: "Open folder Product photos" });
+			const folderCard = folderLink.element().closest("[data-media-folder-card]");
+			expect(folderCard).not.toBeNull();
+			expect(folderCard!.getBoundingClientRect().height).toBeLessThanOrEqual(72);
+			expect(folderLink.element().querySelector('[dir="auto"]')).toHaveTextContent(
+				"Product photos",
+			);
+			await folderLink.click();
 			expect(onOpenFolder).toHaveBeenCalledWith(folder);
 			await expect.element(screen.getByRole("heading", { name: "Media Library" })).toHaveFocus();
 			const editFolder = screen.getByRole("button", { name: "Edit folder Product photos" });
@@ -191,6 +198,12 @@ describe("MediaLibrary", () => {
 			expect(folderCells?.[1]).toContainElement(
 				screen.getByRole("button", { name: "Edit folder Product photos" }).element(),
 			);
+			expect(
+				screen
+					.getByRole("link", { name: "Open folder Product photos" })
+					.element()
+					.querySelector('[dir="auto"]'),
+			).toHaveTextContent("Product photos");
 			expect(folderCells?.[2]).toHaveTextContent("Type: Folder");
 			expect(folderCells?.[3]).toHaveTextContent("Size is not applicable to folders");
 			expect(folderCells?.[4]).toHaveTextContent("Alt text is not applicable to folders");
@@ -212,7 +225,10 @@ describe("MediaLibrary", () => {
 				onLoadMoreFolders: vi.fn(),
 			});
 
-			const folderSection = screen.getByRole("heading", { name: "Folders" }).element().closest("section");
+			const folderSection = screen
+				.getByRole("heading", { name: "Folders" })
+				.element()
+				.closest("section");
 			expect(folderSection).toHaveAttribute("aria-busy", "true");
 			await expect.element(screen.getByText("Loading folders")).toBeInTheDocument();
 		});
@@ -226,10 +242,25 @@ describe("MediaLibrary", () => {
 				onBackToMain,
 			});
 
-			await screen.getByRole("button", { name: "Back to Main library" }).first().click();
+			const back = screen.getByRole("link", { name: "Back" });
+			const modifiedClick = new MouseEvent("click", {
+				bubbles: true,
+				cancelable: true,
+				metaKey: true,
+			});
+			back.element().dispatchEvent(modifiedClick);
+			expect(modifiedClick.defaultPrevented).toBe(false);
+			expect(onBackToMain).not.toHaveBeenCalled();
+			back.element().click();
 			expect(onBackToMain).toHaveBeenCalledTimes(1);
 			await expect.element(screen.getByRole("heading", { name: "Media Library" })).toHaveFocus();
-			await expect.element(screen.getByText("Product photos").first()).toBeInTheDocument();
+			const currentFolder = screen.getByText("Product photos").first();
+			await expect.element(currentFolder).toBeInTheDocument();
+			expect(currentFolder.element()).toHaveAttribute("dir", "auto");
+			const rootCrumb = screen.getByRole("link", { name: "Media Library" }).first();
+			expect(getComputedStyle(rootCrumb.element()).fontSize).toBe(
+				getComputedStyle(currentFolder.element()).fontSize,
+			);
 			expect(screen.getByRole("button", { name: "Add new folder" }).query()).toBeNull();
 			expect(screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).query()).toBeNull();
 		});
@@ -340,7 +371,9 @@ describe("MediaLibrary", () => {
 
 			await expect.element(screen.getByText("Folders could not be loaded.")).toBeInTheDocument();
 			await expect.element(screen.getByText("No matching media")).toBeInTheDocument();
-			await expect.element(screen.getByRole("button", { name: "Clear search" })).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Clear search" }))
+				.toBeInTheDocument();
 		});
 
 		it("displays media items in grid view by default", async () => {

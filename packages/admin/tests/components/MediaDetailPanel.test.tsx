@@ -314,11 +314,11 @@ describe("MediaDetailPanel", () => {
 		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: true });
 
 		expect(fetchMediaFolders).not.toHaveBeenCalled();
-		await expect
-			.element(screen.getByRole("combobox", { name: "Location" }))
-			.toHaveTextContent("Product photos");
+		const location = screen.getByRole("combobox", { name: "Location" });
+		await expect.element(location).toHaveTextContent("Product photos");
+		expect(location.element().querySelector('[dir="auto"]')).toHaveTextContent("Product photos");
 
-		screen.getByRole("combobox", { name: "Location" }).element().click();
+		location.element().click();
 
 		await vi.waitFor(() => {
 			expect(fetchMediaFolders).toHaveBeenCalledWith({
@@ -329,6 +329,9 @@ describe("MediaDetailPanel", () => {
 		});
 		await expect.element(screen.getByRole("option", { name: "Main library" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("option", { name: "Press" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("option", { name: "Press" }).element().querySelector('[dir="auto"]'),
+		).toHaveTextContent("Press");
 		await expect.element(screen.getByText("1 folder loaded")).toBeInTheDocument();
 	});
 
@@ -454,7 +457,9 @@ describe("MediaDetailPanel", () => {
 		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: false });
 
 		await expect.element(screen.getByText("Location")).toBeInTheDocument();
-		await expect.element(screen.getByText("Product photos")).toBeInTheDocument();
+		const currentLocation = screen.getByText("Product photos");
+		await expect.element(currentLocation).toBeInTheDocument();
+		expect(currentLocation.element()).toHaveAttribute("dir", "auto");
 		expect(screen.getByRole("combobox", { name: "Location" }).query()).toBeNull();
 		expect(fetchMediaFolders).not.toHaveBeenCalled();
 	});
