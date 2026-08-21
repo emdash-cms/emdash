@@ -1,5 +1,20 @@
 # @emdash-cms/cloudflare
 
+## 0.35.0
+
+### Minor Changes
+
+- [#2439](https://github.com/emdash-cms/emdash/pull/2439) [`340743b`](https://github.com/emdash-cms/emdash/commit/340743b3e9f7e79f3755fe612901f7ec3fd8efc6) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds deployment-managed D1 migrations through Cloudflare's authenticated REST API.
+
+- [#2439](https://github.com/emdash-cms/emdash/pull/2439) [`340743b`](https://github.com/emdash-cms/emdash/commit/340743b3e9f7e79f3755fe612901f7ec3fd8efc6) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds deployment-managed migrations for PostgreSQL databases reached directly alongside a Hyperdrive deployment.
+
+### Patch Changes
+
+- [#2552](https://github.com/emdash-cms/emdash/pull/2552) [`2c30503`](https://github.com/emdash-cms/emdash/commit/2c305031595934066065e2e20f1c58a76d84d1d8) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes intermittent logged-out bounces immediately after login, signup, or invite acceptance on D1 and Durable Object databases with read replication enabled. The request that establishes the session now persists its read-replica bookmark, so the next request sees the newly created user instead of querying a replica that hasn't caught up yet.
+
+- Updated dependencies [[`0aa1bc8`](https://github.com/emdash-cms/emdash/commit/0aa1bc84a3a652b31ffb15cfd7c2d4b767b83e37), [`34336e1`](https://github.com/emdash-cms/emdash/commit/34336e1570fe2ddaf063b0a0363a9132cf823b8b), [`34336e1`](https://github.com/emdash-cms/emdash/commit/34336e1570fe2ddaf063b0a0363a9132cf823b8b), [`34336e1`](https://github.com/emdash-cms/emdash/commit/34336e1570fe2ddaf063b0a0363a9132cf823b8b), [`2c30503`](https://github.com/emdash-cms/emdash/commit/2c305031595934066065e2e20f1c58a76d84d1d8), [`34336e1`](https://github.com/emdash-cms/emdash/commit/34336e1570fe2ddaf063b0a0363a9132cf823b8b)]:
+  - emdash@0.35.0
+
 ## 0.34.0
 
 ### Minor Changes
