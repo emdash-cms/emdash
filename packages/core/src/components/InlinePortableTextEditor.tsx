@@ -2285,7 +2285,7 @@ export function InlinePortableTextEditor({
 			/>
 			<style>{`
 				.emdash-inline-code-block {
-					--emdash-code-background: var(--emdash-inline-code-background, #f6f8fa);
+					--emdash-code-background: var(--emdash-inline-code-background, #f7f7f5);
 					--emdash-code-foreground: var(--emdash-inline-code-foreground, #24292f);
 					--emdash-code-muted: var(--emdash-inline-code-muted, #57606a);
 					--emdash-code-keyword: var(--emdash-inline-code-keyword, #b8172a);
@@ -2306,7 +2306,6 @@ export function InlinePortableTextEditor({
 				.emdash-inline-code-block .emdash-code-block {
 					margin: 0;
 					padding: 1rem;
-					border: 1px solid var(--emdash-code-border);
 					border-radius: 0.5rem;
 					background: var(--emdash-code-background);
 					color: var(--emdash-code-foreground);
@@ -2353,10 +2352,10 @@ export function InlinePortableTextEditor({
 				}
 				@media (prefers-color-scheme: dark) {
 					.emdash-inline-code-block {
-						--emdash-code-background: var(--emdash-inline-code-background, #0d1117);
+						--emdash-code-background: var(--emdash-inline-code-background, #202020);
 						--emdash-code-foreground: var(--emdash-inline-code-foreground, #f0f3f6);
 						--emdash-code-muted: var(--emdash-inline-code-muted, #c9d1d9);
-						--emdash-code-keyword: var(--emdash-inline-code-keyword, #ffbcb5);
+						--emdash-code-keyword: var(--emdash-inline-code-keyword, #ffc1bb);
 						--emdash-code-string: var(--emdash-inline-code-string, #b9ddff);
 						--emdash-code-number: var(--emdash-inline-code-number, #a8d5ff);
 						--emdash-code-title: var(--emdash-inline-code-title, #e5ccff);

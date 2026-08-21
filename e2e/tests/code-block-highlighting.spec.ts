@@ -17,6 +17,18 @@ test.describe("Admin code block highlighting", () => {
 		await expect(codeBlocks.nth(0).locator('span[class*="hljs-"]')).not.toHaveCount(0);
 		await expect(codeBlocks.nth(1).locator('span[class*="hljs-"]')).toHaveCount(0);
 	});
+
+	test("uses borderless code surfaces in light and dark appearances", async ({ admin }) => {
+		const codeBlock = admin.page.locator(".emdash-code-block").first();
+
+		await admin.page.evaluate(() => document.documentElement.setAttribute("data-mode", "light"));
+		await expect(codeBlock).toHaveCSS("background-color", "rgb(247, 247, 245)");
+		await expect(codeBlock).toHaveCSS("border-top-width", "0px");
+
+		await admin.page.evaluate(() => document.documentElement.setAttribute("data-mode", "dark"));
+		await expect(codeBlock).toHaveCSS("background-color", "rgb(32, 32, 32)");
+		await expect(codeBlock).toHaveCSS("border-top-width", "0px");
+	});
 });
 
 test("keeps public code block rendering unchanged", async ({ page }) => {
@@ -66,11 +78,14 @@ test.describe("Inline code block highlighting", () => {
 		const lightBackground = await codeBlock.evaluate(
 			(element) => getComputedStyle(element).backgroundColor,
 		);
+		await expect(codeBlock).toHaveCSS("border-top-width", "0px");
 		await page.emulateMedia({ colorScheme: "dark" });
 		const darkBackground = await codeBlock.evaluate(
 			(element) => getComputedStyle(element).backgroundColor,
 		);
-		expect(lightBackground).not.toBe(darkBackground);
+		expect(lightBackground).toBe("rgb(247, 247, 245)");
+		expect(darkBackground).toBe("rgb(32, 32, 32)");
+		await expect(codeBlock).toHaveCSS("border-top-width", "0px");
 
 		await page.evaluate(() => {
 			document.documentElement.style.setProperty(

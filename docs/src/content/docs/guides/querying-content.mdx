@@ -270,7 +270,7 @@ Code blocks in the inline editor follow the system appearance by default. If you
 | `--emdash-inline-code-string` | Strings, attributes, symbols, and additions |
 | `--emdash-inline-code-number` | Numbers and metadata |
 | `--emdash-inline-code-title` | Titles, names, types, and built-ins |
-| `--emdash-inline-code-border` | Code-block and control borders |
+| `--emdash-inline-code-border` | Language-control borders |
 | `--emdash-inline-code-control-background` | Language-control surface |
 | `--emdash-inline-code-control-foreground` | Language-control text and icons |
 | `--emdash-inline-code-focus` | Keyboard focus indicator |
@@ -279,7 +279,7 @@ The following example matches inline code blocks to a site that applies `.dark` 
 
 ```css title="src/styles/global.css"
 :root {
-  --emdash-inline-code-background: #f6f8fa;
+  --emdash-inline-code-background: #f7f7f5;
   --emdash-inline-code-foreground: #24292f;
   --emdash-inline-code-muted: #57606a;
   --emdash-inline-code-keyword: #b8172a;
@@ -293,10 +293,10 @@ The following example matches inline code blocks to a site that applies `.dark` 
 }
 
 :root.dark {
-  --emdash-inline-code-background: #0d1117;
+  --emdash-inline-code-background: #202020;
   --emdash-inline-code-foreground: #f0f3f6;
   --emdash-inline-code-muted: #c9d1d9;
-  --emdash-inline-code-keyword: #ffbcb5;
+  --emdash-inline-code-keyword: #ffc1bb;
   --emdash-inline-code-string: #b9ddff;
   --emdash-inline-code-number: #a8d5ff;
   --emdash-inline-code-title: #e5ccff;

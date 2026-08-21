@@ -89,7 +89,7 @@ Add syntax rules under `.emdash-code-block` in `packages/admin/src/styles.css`. 
 
 Map Highlight.js classes into these roles:
 
-- Base code uses `background`, `foreground`, and `border`.
+- Base code uses `background` and `foreground` on a borderless surface.
 - Comments and quotes use `muted`.
 - Keywords, literals, selectors, sections, links, and deletions use `keyword`.
 - Strings, attributes, symbols, bullets, and additions use `string`.
@@ -116,7 +116,7 @@ The inline editor exposes the following additive CSS custom properties:
 | `--emdash-inline-code-string`             | Strings, attributes, symbols, and additions  |
 | `--emdash-inline-code-number`             | Numbers and metadata                         |
 | `--emdash-inline-code-title`              | Titles, names, types, and built-ins          |
-| `--emdash-inline-code-border`             | Code-block and control boundary              |
+| `--emdash-inline-code-border`             | Language-control boundary                    |
 | `--emdash-inline-code-control-background` | Language control surface                     |
 | `--emdash-inline-code-control-foreground` | Language control text and icons              |
 | `--emdash-inline-code-focus`              | Keyboard focus indicator                     |
@@ -127,10 +127,10 @@ Use this measured fallback palette:
 
 | Role               | Light     | Dark      |
 | ------------------ | --------- | --------- |
-| Background         | `#f6f8fa` | `#0d1117` |
+| Background         | `#f7f7f5` | `#202020` |
 | Foreground         | `#24292f` | `#f0f3f6` |
 | Muted              | `#57606a` | `#c9d1d9` |
-| Keyword            | `#b8172a` | `#ffbcb5` |
+| Keyword            | `#b8172a` | `#ffc1bb` |
 | String             | `#0a3069` | `#b9ddff` |
 | Number             | `#0550ae` | `#a8d5ff` |
 | Title              | `#7545c7` | `#e5ccff` |
@@ -139,7 +139,7 @@ Use this measured fallback palette:
 | Control foreground | `#24292f` | `#f0f3f6` |
 | Focus              | `#0550ae` | `#a8d5ff` |
 
-Use the same values for the admin's internal syntax role variables. The syntax and control foregrounds measure at least APCA `|Lc| 75` and WCAG 2 `4.5:1` against their assigned backgrounds. Borders and focus indicators measure at least `3:1`. Recalculate the rendered pairs if implementation details introduce alpha, blending, or a different surface.
+Use the same background and syntax values for the admin's internal roles. The syntax and control foregrounds measure at least APCA `|Lc| 75` and WCAG 2 `4.5:1` against their assigned backgrounds. Language-control borders and focus indicators measure at least `3:1`. Recalculate the rendered pairs if implementation details introduce alpha, blending, or a different surface.
 
 Provide the light values as normal fallbacks and the dark values inside `@media (prefers-color-scheme: dark)`. A host site that switches appearance independently of the operating system overrides the variables under its own theme selector. Theme changes update CSS only; they must not rebuild the editor, recreate the node view, alter selection, or save content.
 
@@ -295,7 +295,7 @@ The clean-worktree preflight `pnpm lint:json` did not return a result because pn
 - A supported language produces grammar-specific token spans in the admin and inline visual editors.
 - Missing, `plaintext`, and unsupported languages remain plain without errors or auto-detection.
 - Editing code or changing the language updates highlighting without moving the caret, closing the picker, changing stored content, or requiring a reload.
-- Admin code, syntax tokens, language controls, borders, and focus indicators meet the specified contrast in light and dark appearances and update on theme changes.
+- Admin code, syntax tokens, language controls, control borders, and focus indicators meet the specified contrast in light and dark appearances and update on theme changes.
 - Inline code blocks meet the same visual contract under system light/dark defaults and under documented site CSS-variable overrides.
 - The language picker remains keyboard-accessible, localized in the admin, RTL-safe, and usable at narrow widths.
 - Saving and reloading through either editor preserves the exact code and language and reconstructs highlighting.
