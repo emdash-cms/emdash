@@ -54,6 +54,44 @@ function makePdfItem(overrides: Partial<MediaItem> = {}): MediaItem {
 	};
 }
 
+const STREAM_HLS = "https://customer-abc123.cloudflarestream.com/UID/manifest/video.m3u8";
+const STREAM_DASH = "https://customer-abc123.cloudflarestream.com/UID/manifest/video.mpd";
+const STREAM_POSTER = "https://customer-abc123.cloudflarestream.com/UID/thumbnails/thumbnail.jpg";
+
+/**
+ * A Cloudflare Stream item. The distinguishing trait is that `url` is a poster
+ * image rather than a playable file; the video itself is only reachable through
+ * `meta.playback`.
+ */
+function makeStreamItem(overrides: Partial<MediaItem> = {}): MediaItem {
+	return {
+		id: "6a4677c7694f6e2e4270540231dd47ff",
+		filename: "webinar.mp4",
+		mimeType: "video/mp4",
+		url: STREAM_POSTER,
+		size: 75431883,
+		width: 1280,
+		height: 720,
+		createdAt: "2025-01-15T10:30:00Z",
+		provider: "cloudflare-stream",
+		meta: { playback: { hls: STREAM_HLS, dash: STREAM_DASH } },
+		...overrides,
+	};
+}
+
+/** A locally stored video, whose `url` *is* the playable file. */
+function makeLocalVideoItem(overrides: Partial<MediaItem> = {}): MediaItem {
+	return {
+		id: "media-3",
+		filename: "clip.mp4",
+		mimeType: "video/mp4",
+		url: "https://example.com/clip.mp4",
+		size: 5242880,
+		createdAt: "2025-01-15T10:30:00Z",
+		...overrides,
+	};
+}
+
 function renderPanel(props: Partial<React.ComponentProps<typeof MediaDetailPanel>> = {}) {
 	const defaultProps: React.ComponentProps<typeof MediaDetailPanel> = {
 		open: true,
@@ -496,5 +534,58 @@ describe("MediaDetailPanel file URL", () => {
 			.element(screen.getByLabelText("Alt Text"), { timeout: 100 })
 			.not.toBeInTheDocument();
 		await expect.element(screen.getByText("Uploaded:"), { timeout: 100 }).not.toBeInTheDocument();
+	});
+
+	describe("video preview", () => {
+		// The dialog may portal outside the render container, so query the document.
+		const findVideo = () => document.querySelector("video");
+
+		it("plays a streaming item's HLS/DASH sources rather than its poster URL", async () => {
+			const screen = await renderPanel({
+				item: makeStreamItem(),
+				providerName: "Cloudflare Stream",
+			});
+			await expect.element(screen.getByText("Media Details")).toBeInTheDocument();
+
+			const video = findVideo();
+			expect(video).not.toBeNull();
+
+			// Regression: `url` is the thumbnail. Using it as `src` produced a
+			// player stuck at 0:00 for every Stream asset.
+			expect(video?.getAttribute("src")).toBeNull();
+			expect(video?.getAttribute("poster")).toBe(STREAM_POSTER);
+
+			const sources = Array.from(document.querySelectorAll("video source"), (s) => ({
+				src: s.getAttribute("src"),
+				type: s.getAttribute("type"),
+			}));
+			expect(sources).toEqual([
+				{ src: STREAM_HLS, type: "application/x-mpegURL" },
+				{ src: STREAM_DASH, type: "application/dash+xml" },
+			]);
+		});
+
+		it("omits the DASH source when the provider only reports HLS", async () => {
+			const screen = await renderPanel({
+				item: makeStreamItem({ meta: { playback: { hls: STREAM_HLS } } }),
+				providerName: "Cloudflare Stream",
+			});
+			await expect.element(screen.getByText("Media Details")).toBeInTheDocument();
+
+			const sources = [...document.querySelectorAll("video source")];
+			expect(sources).toHaveLength(1);
+			expect(sources[0]?.getAttribute("type")).toBe("application/x-mpegURL");
+		});
+
+		it("plays a locally stored video straight from its file URL", async () => {
+			const item = makeLocalVideoItem();
+			const screen = await renderPanel({ item });
+			await expect.element(screen.getByText("Media Details")).toBeInTheDocument();
+
+			const video = findVideo();
+			expect(video?.getAttribute("src")).toBe(item.url);
+			// No streaming sources: nothing to negotiate for a plain file.
+			expect(document.querySelectorAll("video source")).toHaveLength(0);
+		});
 	});
 });

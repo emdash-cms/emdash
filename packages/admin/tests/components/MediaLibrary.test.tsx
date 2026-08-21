@@ -3,7 +3,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { MediaLibrary } from "../../src/components/MediaLibrary";
-import type { MediaItem } from "../../src/lib/api";
+import type { MediaItem, MediaProviderItem } from "../../src/lib/api";
 import { deleteMedia } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
@@ -496,6 +496,58 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("No media found")).toBeInTheDocument();
 			expect(screen.getByRole("tab", { name: "Grid view" }).query()).toBeNull();
 			expect(screen.getByRole("tab", { name: "List view" }).query()).toBeNull();
+		});
+	});
+
+	describe("provider items", () => {
+		const STREAM_SIZE = 75431883;
+		const STREAM_POSTER =
+			"https://customer-abc123.cloudflarestream.com/UID/thumbnails/thumbnail.jpg";
+
+		// A Cloudflare Stream item: not an image, poster in `previewUrl`, and the
+		// byte size reported only under `meta`.
+		function makeStreamProviderItem(overrides: Partial<MediaProviderItem> = {}): MediaProviderItem {
+			return {
+				id: "6a4677c7694f6e2e4270540231dd47ff",
+				filename: "webinar.mp4",
+				mimeType: "video/mp4",
+				previewUrl: STREAM_POSTER,
+				width: 1280,
+				height: 720,
+				meta: { size: STREAM_SIZE },
+				...overrides,
+			};
+		}
+
+		async function renderStreamTab(item: MediaProviderItem = makeStreamProviderItem()) {
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaProviders as any).mockResolvedValue([
+				{
+					id: "cloudflare-stream",
+					name: "Cloudflare Stream",
+					capabilities: { browse: true, search: false, upload: false, delete: false },
+				},
+			]);
+			(api.fetchProviderMedia as any).mockResolvedValue({ items: [item] });
+
+			const screen = await renderLibrary({ items: [] });
+			await screen.getByRole("tab", { name: "Cloudflare Stream" }).click();
+			return screen;
+		}
+
+		it("renders the provider poster for an item that is not an image", async () => {
+			const screen = await renderStreamTab();
+
+			const poster = screen.getByAltText("webinar.mp4");
+			await expect.element(poster).toBeInTheDocument();
+			expect(poster.element().getAttribute("src")).toBe(STREAM_POSTER);
+		});
+
+		it("shows a size the provider reports only under meta", async () => {
+			const screen = await renderStreamTab();
+			await screen.getByRole("tab", { name: "List view" }).click();
+
+			await expect.element(screen.getByText("71.9 MB")).toBeInTheDocument();
 		});
 	});
 });
