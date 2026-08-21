@@ -178,12 +178,45 @@ test.describe("Accessibility Audit", () => {
 			await admin.waitForLoading();
 			await expect(admin.page).toHaveURL(MEDIA_URL);
 
-			const results = await new AxeBuilder({ page: admin.page })
-				.withTags(["wcag2a", "wcag2aa", "wcag21aa"])
-				.disableRules(KNOWN_A11Y_EXCLUSIONS)
-				.analyze();
+			const analyze = () =>
+				new AxeBuilder({ page: admin.page })
+					.withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+					.disableRules(KNOWN_A11Y_EXCLUSIONS)
+					.analyze();
+			expect((await analyze()).violations).toEqual([]);
 
-			expect(results.violations).toEqual([]);
+			const folderName = `Accessibility ${Date.now()}`;
+			await admin.page.getByRole("button", { name: "Add new folder" }).click();
+			const folderDialog = admin.page.getByRole("dialog", { name: "Add new folder" });
+			expect((await analyze()).violations).toEqual([]);
+			await folderDialog.getByLabel("Name").fill(folderName);
+			await folderDialog.getByRole("button", { name: "Create" }).click();
+
+			await admin.page.getByRole("button", { name: `Edit folder ${folderName}` }).click();
+			expect((await analyze()).violations).toEqual([]);
+			const editDialog = admin.page.getByRole("dialog", { name: "Edit folder" });
+			await editDialog.getByRole("button", { name: "Delete folder" }).click();
+			expect((await analyze()).violations).toEqual([]);
+			await admin.page.getByRole("button", { name: "Cancel" }).last().click();
+			await editDialog.getByRole("button", { name: "Cancel" }).click();
+
+			await admin.page.getByRole("link", { name: `Open folder ${folderName}` }).click();
+			expect((await analyze()).violations).toEqual([]);
+			await admin.page.getByRole("button", { name: "Back to Main library" }).first().click();
+
+			await admin.page.locator("[data-media-grid] button").first().click();
+			const mediaDetails = admin.page.getByRole("dialog", { name: "Media Details" });
+			await mediaDetails.getByRole("combobox", { name: "Location" }).click();
+			expect((await analyze()).violations).toEqual([]);
+			await admin.page.keyboard.press("Escape");
+			await mediaDetails.getByRole("button", { name: "Close" }).click();
+
+			await admin.page.getByRole("button", { name: `Edit folder ${folderName}` }).click();
+			await editDialog.getByRole("button", { name: "Delete folder" }).click();
+			await admin.page
+				.getByRole("dialog", { name: `Delete “${folderName}”?` })
+				.getByRole("button", { name: "Delete folder" })
+				.click();
 		});
 
 		test("users page should have no WCAG 2.x AA violations", async ({ admin }) => {

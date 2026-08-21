@@ -62,6 +62,14 @@ async function uploadTestImage(page: Page) {
 	await expect(dialog).not.toBeVisible();
 }
 
+async function createFolder(page: Page, name: string) {
+	await page.getByRole("button", { name: "Add new folder" }).click();
+	const dialog = page.getByRole("dialog", { name: "Add new folder" });
+	await dialog.getByLabel("Name").fill(name);
+	await dialog.getByRole("button", { name: "Create" }).click();
+	await expect(dialog).not.toBeVisible();
+}
+
 test.describe("Media Library", () => {
 	test.beforeAll(() => {
 		ensureTestAssets();
@@ -143,5 +151,76 @@ test.describe("Media Library", () => {
 			await expect(page.locator("th:has-text('Type')")).toBeVisible();
 			await expect(page.locator("th:has-text('Size')")).toBeVisible();
 		});
+	});
+
+	test("keeps media intact while organizing it in folders", async ({ admin, page }) => {
+		const folderName = `Product photos ${Date.now()}`;
+		const renamedFolder = `${folderName} archive`;
+		await admin.goToMedia();
+		await admin.waitForLoading();
+		await uploadTestImage(page);
+		await createFolder(page, folderName);
+		await createFolder(page, `Press ${Date.now()}`);
+
+		const mediaGrid = page.locator("[data-media-grid]");
+		const originalImage = mediaGrid.locator("img").first();
+		await expect(originalImage).toBeVisible();
+		const originalSrc = await originalImage.getAttribute("src");
+		await mediaGrid.locator("button").first().click();
+
+		const details = page.getByRole("dialog", { name: "Media Details" });
+		await details.getByRole("combobox", { name: "Location" }).click();
+		await page.getByRole("option", { name: folderName }).click();
+		await details.getByRole("button", { name: "Save" }).click();
+		await expect(details).not.toBeVisible();
+		await expect(page.getByRole("heading", { name: "Media Library" })).toBeFocused();
+
+		await page.getByRole("link", { name: `Open folder ${folderName}` }).click();
+		await expect(page).toHaveURL(/\/media\?folder=/);
+		await expect(mediaGrid.locator("img").first()).toHaveAttribute("src", originalSrc!);
+		await page.setViewportSize({ width: 320, height: 800 });
+		expect(
+			await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+		).toBe(true);
+		await page.reload();
+		await expect(mediaGrid.locator("img").first()).toHaveAttribute("src", originalSrc!);
+		await page.goBack();
+		await expect(page).toHaveURL(/\/media\/?$/);
+
+		const search = page.getByRole("searchbox", { name: "Search media" });
+		await search.fill(folderName);
+		await page.getByRole("link", { name: `Open folder ${folderName}` }).click();
+		await expect(search).toHaveValue("");
+		await search.fill(folderName);
+		await page.getByRole("button", { name: `Edit folder ${folderName}` }).click();
+
+		const editDialog = page.getByRole("dialog", { name: "Edit folder" });
+		await editDialog.getByLabel("Name").fill(renamedFolder);
+		await editDialog.getByRole("button", { name: "Save" }).click();
+		await expect(page.getByText(renamedFolder).first()).toBeVisible();
+
+		await page
+			.context()
+			.addCookies([{ name: "emdash-locale", value: "ar", domain: "localhost", path: "/_emdash" }]);
+		await page.reload();
+		await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+		expect(
+			await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+		).toBe(true);
+		await page
+			.context()
+			.addCookies([{ name: "emdash-locale", value: "en", domain: "localhost", path: "/_emdash" }]);
+		await page.reload();
+		await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+
+		await search.fill(renamedFolder);
+		await page.getByRole("button", { name: `Edit folder ${renamedFolder}` }).click();
+		await editDialog.getByRole("button", { name: "Delete folder" }).click();
+		const confirm = page.getByRole("dialog", { name: `Delete “${renamedFolder}”?` });
+		await confirm.getByRole("button", { name: "Delete folder" }).click();
+
+		await expect(page).toHaveURL(/\/media\/?$/);
+		await page.getByRole("button", { name: "Clear search" }).click();
+		await expect(mediaGrid.locator("img").first()).toHaveAttribute("src", originalSrc!);
 	});
 });

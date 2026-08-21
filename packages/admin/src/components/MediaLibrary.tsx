@@ -26,6 +26,7 @@ import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import {
+	type LocalMediaItem,
 	type MediaItem,
 	type MediaFolder,
 	type MediaUploadOptions,
@@ -99,6 +100,7 @@ export interface MediaLibraryProps {
 	onCreateFolder?: (name: string) => Promise<MediaFolder>;
 	onRenameFolder?: (folder: MediaFolder, name: string) => Promise<MediaFolder>;
 	onDeleteFolder?: (folder: MediaFolder) => Promise<void>;
+	canMoveMedia?: (item: LocalMediaItem) => boolean;
 }
 
 export interface MediaLibraryPagination {
@@ -143,6 +145,7 @@ export function MediaLibrary({
 	onCreateFolder,
 	onRenameFolder,
 	onDeleteFolder,
+	canMoveMedia,
 }: MediaLibraryProps) {
 	const { t } = useLingui();
 	const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
@@ -298,6 +301,9 @@ export function MediaLibrary({
 
 	const handleDetailClosed = React.useCallback(() => {
 		setDetailItem(null);
+	}, []);
+	const handleDetailItemRefreshed = React.useCallback((refreshed: LocalMediaItem) => {
+		setDetailItem((current) => (current?.id === refreshed.id ? refreshed : current));
 	}, []);
 
 	const enqueueFiles = React.useCallback(
@@ -983,10 +989,12 @@ export function MediaLibrary({
 					item={detailItem}
 					providerName={detailItem.provider ? activeProviderInfo?.name : undefined}
 					canDelete={detailItem.provider ? activeProviderInfo?.capabilities.delete : undefined}
+					canMoveLocation={isLocalMediaItem(detailItem) ? canMoveMedia?.(detailItem) : undefined}
 					restoreFocusTargetRef={mediaHeadingRef}
 					onClose={closeDetail}
 					onClosed={handleDetailClosed}
 					onUpdated={onItemUpdated}
+					onItemRefreshed={handleDetailItemRefreshed}
 					onDeleted={detailItem.provider ? undefined : onItemUpdated}
 				/>
 			)}
@@ -1126,6 +1134,15 @@ function handleNavigationClick(
 		return;
 	event.preventDefault();
 	navigate();
+}
+
+function isLocalMediaItem(item: MediaItem): item is LocalMediaItem {
+	return (
+		!item.provider &&
+		"folderId" in item &&
+		"authorId" in item &&
+		typeof item.storageKey === "string"
+	);
 }
 
 /** Single-chip illustration: solid tinted circle + darker icon, decorative. */

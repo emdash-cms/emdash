@@ -827,7 +827,8 @@ const contentEditRoute = createRoute({
 	}),
 });
 
-// Editor role level from @emdash-cms/auth
+// Role levels from @emdash-cms/auth
+const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
 
 function ContentEditPage() {
@@ -1584,6 +1585,15 @@ function MediaPage() {
 		},
 		[folder, navigate, queryClient, resetMediaPage],
 	);
+	const canMoveMedia = React.useCallback(
+		(item: { authorId: string | null }) =>
+			Boolean(
+				currentUser &&
+				(currentUser.role >= ROLE_EDITOR ||
+					(currentUser.role >= ROLE_AUTHOR && item.authorId === currentUser.id)),
+			),
+		[currentUser],
+	);
 
 	if (currentFolderQuery.error && !missingFolder) {
 		return <ErrorScreen error={currentFolderQuery.error.message} />;
@@ -1627,6 +1637,7 @@ function MediaPage() {
 			onCreateFolder={handleCreateFolder}
 			onRenameFolder={handleRenameFolder}
 			onDeleteFolder={handleDeleteFolder}
+			canMoveMedia={canMoveMedia}
 		/>
 	);
 }

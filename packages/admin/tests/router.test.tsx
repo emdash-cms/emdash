@@ -126,6 +126,7 @@ vi.mock("../src/components/MediaLibrary", () => ({
 		onCreateFolder,
 		onRenameFolder,
 		onDeleteFolder,
+		canMoveMedia,
 		pagination,
 	}: {
 		items?: Array<{ id?: string }>;
@@ -143,6 +144,7 @@ vi.mock("../src/components/MediaLibrary", () => ({
 		onCreateFolder?: (name: string) => Promise<unknown>;
 		onRenameFolder?: (folder: { id: string; name: string }, name: string) => Promise<unknown>;
 		onDeleteFolder?: (folder: { id: string; name: string }) => Promise<void>;
+		canMoveMedia?: (item: { authorId: string | null }) => boolean;
 		pagination?: {
 			page: number;
 			perPage: number;
@@ -201,6 +203,12 @@ vi.mock("../src/components/MediaLibrary", () => ({
 					</>
 				)}
 				<span data-testid="current-folder-id">{folderId ?? "main"}</span>
+				<span data-testid="can-move-own-media">
+					{canMoveMedia?.({ authorId: "user_01" }) ? "yes" : "no"}
+				</span>
+				<span data-testid="can-move-other-media">
+					{canMoveMedia?.({ authorId: "other-user" }) ? "yes" : "no"}
+				</span>
 				{pagination && (
 					<>
 						<span data-testid="media-page">{pagination.page}</span>
@@ -549,9 +557,7 @@ describe("MediaPage – upload completion", () => {
 		await vi.waitFor(() => {
 			expect(router.state.location.search).toEqual({ folder: "folder-one" });
 			expect(screen.getByTestId("current-folder-id").element()).toHaveTextContent("folder-one");
-			expect(navigateSpy).toHaveBeenCalledWith(
-				expect.objectContaining({ resetScroll: false }),
-			);
+			expect(navigateSpy).toHaveBeenCalledWith(expect.objectContaining({ resetScroll: false }));
 		});
 
 		await screen.getByRole("button", { name: "Back to Main" }).click();
@@ -581,6 +587,18 @@ describe("MediaPage – upload completion", () => {
 				expect.objectContaining({ replace: true, resetScroll: false }),
 			);
 		});
+	});
+
+	it("allows authors to move their own media but not another user's media", async () => {
+		mockFetch.on("GET", "/_emdash/api/auth/me", {
+			data: { id: "user_01", role: 30 },
+		});
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const screen = await render(<TestApp />);
+
+		await expect.element(screen.getByTestId("can-move-own-media")).toHaveTextContent("yes");
+		await expect.element(screen.getByTestId("can-move-other-media")).toHaveTextContent("no");
 	});
 
 	it("replaces a missing direct folder URL with Main library once", async () => {
