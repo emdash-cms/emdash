@@ -322,6 +322,14 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 					result.comment.status === "approved"
 						? "Comment published"
 						: "Comment submitted for review",
+				// Serialized comment payload for opt-in optimistic display
+				// (<Comments live> / <CommentForm live>) — lets the client
+				// render this comment without a page reload instead of just
+				// resetting the form.
+				comment: {
+					...CommentRepository.toPublicComment(result.comment),
+					status: result.comment.status,
+				},
 			},
 			201,
 		);
