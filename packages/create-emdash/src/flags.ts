@@ -18,6 +18,12 @@ export interface ParsedFlags {
 	packageManager?: PackageManager;
 	/** `--install` / `--no-install`. Undefined means "ask". */
 	install?: boolean;
+	/**
+	 * `--sandboxed-plugins` / `--no-sandboxed-plugins`. Undefined means
+	 * "ask" on Cloudflare. Sandboxed plugins require Worker Loader, which is
+	 * available on Workers paid plans.
+	 */
+	sandboxedPlugins?: boolean;
 	/** `--yes` — auto-accept remaining defaults and skip overwrite prompts. */
 	yes: boolean;
 	/**
@@ -100,6 +106,8 @@ export function parseFlags(argv: string[]): ParsedFlags {
 			"package-manager": { type: "string" },
 			install: { type: "boolean" },
 			"no-install": { type: "boolean" },
+			"sandboxed-plugins": { type: "boolean" },
+			"no-sandboxed-plugins": { type: "boolean" },
 			yes: { type: "boolean", short: "y" },
 			force: { type: "boolean" },
 			help: { type: "boolean", short: "h" },
@@ -222,6 +230,12 @@ export function parseFlags(argv: string[]): ParsedFlags {
 	if (values.install === true) flags.install = true;
 	if (values["no-install"] === true) flags.install = false;
 
+	if (values["sandboxed-plugins"] === true && values["no-sandboxed-plugins"] === true) {
+		throw new FlagError(`--sandboxed-plugins and --no-sandboxed-plugins cannot both be set.`);
+	}
+	if (values["sandboxed-plugins"] === true) flags.sandboxedPlugins = true;
+	if (values["no-sandboxed-plugins"] === true) flags.sandboxedPlugins = false;
+
 	return flags;
 }
 
@@ -260,6 +274,9 @@ Options:
   --package-manager <key>      Alias of --pm
   --install                    Install dependencies after scaffolding
   --no-install                 Skip dependency install
+  --sandboxed-plugins          Enable sandboxed plugins on Cloudflare (requires
+                               Worker Loader, available on Workers paid plans)
+  --no-sandboxed-plugins       Leave sandboxed plugins disabled (default)
   -y, --yes                    Accept defaults; skip confirmation prompts
   --force                      Allow overwriting a non-empty target dir
                                (required with --yes when the target is non-empty)

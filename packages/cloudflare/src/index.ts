@@ -39,6 +39,7 @@ import type {
 	ObjectCacheDescriptor,
 	StorageDescriptor,
 } from "emdash";
+import { unstable_readConfig } from "wrangler";
 
 import type { DurableObjectsConfig } from "./db/do-sql-types.js";
 import type { PreviewDOConfig } from "./db/do-types.js";
@@ -529,15 +530,28 @@ export function access(config: AccessConfig): AuthDescriptor {
 /**
  * Cloudflare Worker Loader sandbox adapter
  *
- * Returns the module path for the Cloudflare sandbox runner.
- * Use this in the `sandboxRunner` config option.
+ * Returns the module path for the Cloudflare sandbox runner when the project's
+ * Wrangler config includes the `LOADER` Worker Loader binding. Without that
+ * paid-plan binding, sandboxed plugins are disabled at build time.
  *
  * @example
  * ```ts
  * sandboxRunner: sandbox()
  * ```
  */
-export function sandbox(): string {
+export function sandbox(): string | undefined {
+	const config = unstable_readConfig({}, { hideWarnings: true });
+	const hasWorkerLoader = config.worker_loaders?.some(
+		(loader: { binding?: string }) => loader.binding === "LOADER",
+	);
+
+	if (!hasWorkerLoader) {
+		console.warn(
+			"[emdash] Sandboxed plugins are disabled because wrangler.jsonc has no LOADER Worker Loader binding. Worker Loader requires a Workers paid plan.",
+		);
+		return undefined;
+	}
+
 	return "@emdash-cms/cloudflare/sandbox";
 }
 
