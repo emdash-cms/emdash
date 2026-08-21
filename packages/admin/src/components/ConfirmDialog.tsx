@@ -23,6 +23,8 @@ export interface ConfirmDialogProps {
 	pendingLabel: string;
 	/** Button variant — defaults to "destructive" */
 	variant?: "destructive" | "primary";
+	/** Use tighter Kumo spacing for short, focused confirmations. */
+	compact?: boolean;
 	isPending: boolean;
 	disabled?: boolean;
 	/** Error from a mutation — pass mutation.error directly */
@@ -40,6 +42,7 @@ export function ConfirmDialog({
 	confirmLabel,
 	pendingLabel,
 	variant = "destructive",
+	compact = false,
 	isPending,
 	disabled = false,
 	error,
@@ -49,12 +52,24 @@ export function ConfirmDialog({
 	const { t } = useLingui();
 	return (
 		<Dialog.Root open={open} onOpenChange={(o) => !o && onClose()} disablePointerDismissal>
-			<Dialog className="p-6" size="sm">
-				<Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
-				<Dialog.Description className="text-kumo-subtle">{description}</Dialog.Description>
+			<Dialog className={compact ? "max-w-md px-5 pt-5 pb-4" : "p-6"} size="sm">
+				<div className={compact ? "grid gap-1.5" : undefined}>
+					<Dialog.Title
+						className={compact ? "text-lg font-semibold leading-6" : "text-lg font-semibold"}
+					>
+						{title}
+					</Dialog.Title>
+					<Dialog.Description
+						className={
+							compact ? "text-sm leading-5 text-pretty text-kumo-subtle" : "text-kumo-subtle"
+						}
+					>
+						{description}
+					</Dialog.Description>
+				</div>
 				{children}
 				<DialogError message={getMutationError(error)} className="mt-3" />
-				<div className="mt-6 flex justify-end gap-2">
+				<div className={`${compact ? "mt-5" : "mt-6"} flex justify-end gap-2`}>
 					<Button variant="secondary" onClick={onClose}>
 						{t`Cancel`}
 					</Button>

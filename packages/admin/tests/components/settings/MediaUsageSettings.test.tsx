@@ -74,27 +74,19 @@ async function renderPage() {
 
 async function openConfirmation(screen: Awaited<ReturnType<typeof renderPage>>["screen"]) {
 	await userEvent.click(screen.getByRole("button", { name: "Enable Media Usage" }));
-	await expect.element(screen.getByRole("dialog", { name: "Enable Media Usage" })).toBeVisible();
+	await expect.element(screen.getByRole("dialog", { name: "Turn on Media Usage?" })).toBeVisible();
 	await expect
-		.element(screen.getByText(/Keep the Media Usage Queue running on Cloudflare/))
+		.element(
+			screen.getByText(
+				"EmDash will scan existing content to show where media is used. Setup may briefly pause editing. Once enabled, it can’t be turned off.",
+			),
+		)
 		.toBeVisible();
 }
 
-async function confirmAll(screen: Awaited<ReturnType<typeof renderPage>>["screen"]) {
-	const dialog = screen.getByRole("dialog", { name: "Enable Media Usage" });
-	for (const checkbox of [
-		dialog.getByRole("checkbox", { name: /Background tasks are running/ }),
-		dialog.getByRole("checkbox", { name: /Editing and direct database writes are paused/ }),
-		dialog.getByRole("checkbox", { name: /can’t be cancelled or reset/ }),
-	]) {
-		checkbox.element().focus();
-		await userEvent.keyboard(" ");
-	}
-}
-
 async function submitConfirmation(screen: Awaited<ReturnType<typeof renderPage>>["screen"]) {
-	const confirm = screen.getByRole("dialog", { name: "Enable Media Usage" }).getByRole("button", {
-		name: "Enable Media Usage",
+	const confirm = screen.getByRole("dialog", { name: "Turn on Media Usage?" }).getByRole("button", {
+		name: "Turn on",
 	});
 	confirm.element().focus();
 	await userEvent.keyboard("{Enter}");
@@ -130,7 +122,7 @@ describe("MediaUsageSettings", () => {
 		expect(screen.getByRole("button", { name: "Enable Media Usage" }).query()).toBeNull();
 	});
 
-	it("keeps safety confirmations behind one clear enable action", async () => {
+	it("uses one native confirmation before enabling Media Usage", async () => {
 		const activating = status("activating");
 		activationMocks.advance.mockResolvedValue({
 			outcome: "activating",
@@ -143,11 +135,10 @@ describe("MediaUsageSettings", () => {
 		expect(screen.getByRole("checkbox").query()).toBeNull();
 		await openConfirmation(screen);
 		const confirm = screen
-			.getByRole("dialog", { name: "Enable Media Usage" })
-			.getByRole("button", { name: "Enable Media Usage" });
-		await expect.element(confirm).toBeDisabled();
-		await confirmAll(screen);
+			.getByRole("dialog", { name: "Turn on Media Usage?" })
+			.getByRole("button", { name: "Turn on" });
 		await expect.element(confirm).toBeEnabled();
+		expect(screen.getByRole("checkbox").query()).toBeNull();
 		confirm.element().focus();
 		await userEvent.keyboard("{Enter}");
 
@@ -170,10 +161,9 @@ describe("MediaUsageSettings", () => {
 		);
 		const { screen } = await renderPage();
 		await openConfirmation(screen);
-		await confirmAll(screen);
 
 		await submitConfirmation(screen);
-		const pending = screen.getByRole("button", { name: "Enabling…" });
+		const pending = screen.getByRole("button", { name: "Turning on…" });
 		await expect.element(pending).toBeDisabled();
 		pending.element().click();
 		expect(activationMocks.advance).toHaveBeenCalledOnce();
@@ -188,38 +178,32 @@ describe("MediaUsageSettings", () => {
 		expect(screen.getByRole("button", { name: /setup/i }).query()).toBeNull();
 	});
 
-	it("clears safety confirmations when the dialog is cancelled", async () => {
+	it("returns focus to the enable action when the dialog is cancelled", async () => {
 		const { screen } = await renderPage();
-		await openConfirmation(screen);
-		await confirmAll(screen);
+		const trigger = screen.getByRole("button", { name: "Enable Media Usage" });
+		await expect.element(trigger).toBeVisible();
+		trigger.element().focus();
+		await userEvent.keyboard("{Enter}");
+		await expect
+			.element(screen.getByRole("dialog", { name: "Turn on Media Usage?" }))
+			.toBeVisible();
 		const cancel = screen.getByRole("button", { name: "Cancel" });
 		cancel.element().focus();
 		await userEvent.keyboard("{Enter}");
 
-		await openConfirmation(screen);
-		for (const checkbox of screen.getByRole("checkbox").all()) {
-			await expect.element(checkbox).not.toBeChecked();
-		}
+		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+		expect(document.activeElement).toBe(trigger.element());
 	});
 
-	it("resets confirmations after leaving and returning", async () => {
+	it("closes the confirmation when the page is hidden", async () => {
 		let visibility: DocumentVisibilityState = "visible";
 		vi.spyOn(document, "visibilityState", "get").mockImplementation(() => visibility);
 		const { screen } = await renderPage();
 		await openConfirmation(screen);
-		await confirmAll(screen);
 
 		visibility = "hidden";
 		document.dispatchEvent(new Event("visibilitychange"));
-		visibility = "visible";
-		document.dispatchEvent(new Event("visibilitychange"));
 		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-		await userEvent.click(screen.getByRole("button", { name: "Enable Media Usage" }));
-
-		await expect.element(screen.getByRole("dialog", { name: "Enable Media Usage" })).toBeVisible();
-		for (const checkbox of screen.getByRole("checkbox").all()) {
-			await expect.element(checkbox).not.toBeChecked();
-		}
 	});
 
 	it("recovers an ambiguous activation response with one status read", async () => {
@@ -228,7 +212,6 @@ describe("MediaUsageSettings", () => {
 		);
 		const { screen } = await renderPage();
 		await openConfirmation(screen);
-		await confirmAll(screen);
 		activationMocks.fetchStatus.mockResolvedValue(status("active"));
 
 		await submitConfirmation(screen);
@@ -246,7 +229,6 @@ describe("MediaUsageSettings", () => {
 		);
 		const { screen } = await renderPage();
 		await openConfirmation(screen);
-		await confirmAll(screen);
 		activationMocks.fetchStatus.mockRejectedValue(
 			new MediaUsageActivationRequestError("read_failure", 500),
 		);
@@ -269,7 +251,6 @@ describe("MediaUsageSettings", () => {
 		);
 		const { screen } = await renderPage();
 		await openConfirmation(screen);
-		await confirmAll(screen);
 		await submitConfirmation(screen);
 		await expect
 			.element(screen.getByText("Reload after updating EmDash before trying again."))
@@ -373,11 +354,10 @@ describe("MediaUsageSettings", () => {
 
 		await expect.element(screen.getByRole("heading", { name: "Needs attention" })).toBeVisible();
 		await userEvent.click(screen.getByRole("button", { name: "Retry setup" }));
-		const dialog = screen.getByRole("dialog", { name: "Enable Media Usage" });
+		const dialog = screen.getByRole("dialog", { name: "Retry setup?" });
 		await expect.element(dialog).toBeVisible();
-		for (const checkbox of dialog.getByRole("checkbox").all()) {
-			await expect.element(checkbox).not.toBeChecked();
-		}
+		await expect.element(dialog.getByRole("button", { name: "Retry setup" })).toBeEnabled();
+		expect(dialog.getByRole("checkbox").query()).toBeNull();
 	});
 
 	it("shows no mutation action while ordinary activation is progressing", async () => {
@@ -409,7 +389,6 @@ describe("MediaUsageSettings", () => {
 			.mockResolvedValue(status("activating"));
 		const { screen } = await renderPage();
 		await openConfirmation(screen);
-		await confirmAll(screen);
 		await submitConfirmation(screen);
 
 		await expect.element(screen.getByRole("heading", { name: "Setting up" })).toBeVisible();
@@ -426,7 +405,6 @@ describe("MediaUsageSettings", () => {
 			.mockImplementation(() => new Promise((resolve) => (finishStatus = resolve)));
 		const { screen } = await renderPage();
 		await openConfirmation(screen);
-		await confirmAll(screen);
 		await submitConfirmation(screen);
 		await expect.element(screen.getByRole("button", { name: "Refresh status" })).toBeVisible();
 

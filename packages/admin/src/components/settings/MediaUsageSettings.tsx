@@ -1,4 +1,4 @@
-import { Badge, Banner, Button, Checkbox, Loader } from "@cloudflare/kumo";
+import { Badge, Banner, Button, Loader } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,9 +18,7 @@ import { ConfirmDialog } from "../ConfirmDialog.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
 const ROLE_ADMIN = 50;
-const EMPTY_CONFIRMATIONS = { maintenance: false, writers: false, irreversible: false };
 
-type Confirmation = keyof typeof EMPTY_CONFIRMATIONS;
 type Notice = "unconfirmed" | "version" | "validation" | "denied" | null;
 
 export function MediaUsageSettings() {
@@ -28,7 +26,6 @@ export function MediaUsageSettings() {
 	const queryClient = useQueryClient();
 	const { data: currentUser, isLoading: userLoading } = useCurrentUser();
 	const isAdmin = !!currentUser && currentUser.role >= ROLE_ADMIN;
-	const [confirmations, setConfirmations] = React.useState(EMPTY_CONFIRMATIONS);
 	const [dialogOpen, setDialogOpen] = React.useState(false);
 	const [notice, setNotice] = React.useState<Notice>(null);
 	const [pageVisible, setPageVisible] = React.useState(
@@ -72,8 +69,7 @@ export function MediaUsageSettings() {
 		refetchOnReconnect: false,
 	});
 
-	const resetConfirmations = React.useCallback(() => {
-		setConfirmations(EMPTY_CONFIRMATIONS);
+	const closeDialog = React.useCallback(() => {
 		setDialogOpen(false);
 	}, []);
 	const refreshStatus = React.useCallback(
@@ -81,13 +77,13 @@ export function MediaUsageSettings() {
 			if (submittingRef.current) return;
 			if (uncertain) {
 				setNotice("unconfirmed");
-				resetConfirmations();
+				closeDialog();
 			}
 			const result = await activationQuery.refetch({ cancelRefetch: false });
 			if (!result.isSuccess) return;
 			setNotice((current) => (current === "validation" || current === "version" ? current : null));
 		},
-		[activationQuery, resetConfirmations],
+		[activationQuery, closeDialog],
 	);
 
 	React.useEffect(() => {
@@ -97,7 +93,7 @@ export function MediaUsageSettings() {
 			setPageVisible(visible);
 			if (!visible) {
 				wasHiddenRef.current = true;
-				resetConfirmations();
+				closeDialog();
 				return;
 			}
 			if (!wasHiddenRef.current) return;
@@ -121,7 +117,7 @@ export function MediaUsageSettings() {
 		return () => {
 			document.removeEventListener("visibilitychange", visibilityChanged);
 		};
-	}, [activationQuery, isAdmin, progressQuery, resetConfirmations]);
+	}, [activationQuery, closeDialog, isAdmin, progressQuery]);
 
 	const advanceMutation = useMutation({
 		mutationFn: async () => {
@@ -132,7 +128,7 @@ export function MediaUsageSettings() {
 		onSuccess: (result) => {
 			queryClient.setQueryData(MEDIA_USAGE_ACTIVATION_QUERY_KEY, result.activation);
 			setNotice(null);
-			resetConfirmations();
+			closeDialog();
 		},
 		onError: (caught) => {
 			submittingRef.current = false;
@@ -148,7 +144,7 @@ export function MediaUsageSettings() {
 			caught instanceof MediaUsageActivationRequestError
 				? caught
 				: new MediaUsageActivationRequestError("unknown", null);
-		resetConfirmations();
+		closeDialog();
 		if (error.kind === "denied") return setNotice("denied");
 		if (error.kind === "version_mismatch") return setNotice("version");
 		if (error.kind === "validation") return setNotice("validation");
@@ -288,13 +284,8 @@ export function MediaUsageSettings() {
 			<ConfirmationDialog
 				open={dialogOpen}
 				retry={storedFailure}
-				confirmations={confirmations}
 				pending={advanceMutation.isPending}
-				onOpenChange={(open) => {
-					setDialogOpen(open);
-					if (!open) setConfirmations(EMPTY_CONFIRMATIONS);
-				}}
-				onChange={(key, checked) => setConfirmations((current) => ({ ...current, [key]: checked }))}
+				onOpenChange={setDialogOpen}
 				onConfirm={submit}
 			/>
 		</SettingsFrame>
@@ -412,70 +403,35 @@ function StatusRow({
 function ConfirmationDialog({
 	open,
 	retry,
-	confirmations,
 	pending,
 	onOpenChange,
-	onChange,
 	onConfirm,
 }: {
 	open: boolean;
 	retry: boolean;
-	confirmations: typeof EMPTY_CONFIRMATIONS;
 	pending: boolean;
 	onOpenChange: (open: boolean) => void;
-	onChange: (key: Confirmation, checked: boolean) => void;
 	onConfirm: () => void;
 }) {
 	const { t } = useLingui();
-	const rows: Array<{ key: Confirmation; title: string; description: string }> = [
-		{
-			key: "maintenance",
-			title: t`Background tasks are running.`,
-			description: t`Keep the Media Usage Queue running on Cloudflare or keep a Node process running.`,
-		},
-		{
-			key: "writers",
-			title: t`Editing and direct database writes are paused.`,
-			description: t`Keep them paused until setup is complete.`,
-		},
-		{
-			key: "irreversible",
-			title: t`I understand setup can’t be cancelled or reset.`,
-			description: t`This is a one-way change.`,
-		},
-	];
-	const confirmed = Object.values(confirmations).every(Boolean);
 	return (
 		<ConfirmDialog
 			open={open}
 			onClose={() => onOpenChange(false)}
-			title={t`Enable Media Usage`}
-			description={t`Existing content will be indexed automatically after setup is complete.`}
-			confirmLabel={retry ? t`Retry setup` : t`Enable Media Usage`}
-			pendingLabel={retry ? t`Retrying…` : t`Enabling…`}
+			title={retry ? t`Retry setup?` : t`Turn on Media Usage?`}
+			description={
+				retry
+					? t`EmDash will continue setup and resume scanning existing content. Editing may briefly pause.`
+					: t`EmDash will scan existing content to show where media is used. Setup may briefly pause editing. Once enabled, it can’t be turned off.`
+			}
+			confirmLabel={retry ? t`Retry setup` : t`Turn on`}
+			pendingLabel={retry ? t`Retrying…` : t`Turning on…`}
 			variant="primary"
+			compact
 			isPending={pending}
-			disabled={!confirmed}
 			error={null}
 			onConfirm={onConfirm}
-		>
-			<fieldset className="mt-5 grid gap-4" aria-busy={pending || undefined}>
-				<legend className="sr-only">{t`Before you continue`}</legend>
-				{rows.map((row) => (
-					<Checkbox
-						key={row.key}
-						checked={confirmations[row.key]}
-						onCheckedChange={(checked) => onChange(row.key, checked)}
-						label={
-							<span className="grid gap-0.5">
-								<span className="text-sm font-medium leading-5">{row.title}</span>
-								<span className="text-sm leading-5 text-kumo-subtle">{row.description}</span>
-							</span>
-						}
-					/>
-				))}
-			</fieldset>
-		</ConfirmDialog>
+		/>
 	);
 }
 
