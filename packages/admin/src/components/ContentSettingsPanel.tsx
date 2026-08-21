@@ -785,7 +785,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				<div
 					data-testid="content-trash-actions"
 					aria-hidden={isReorderingSections || undefined}
-					className={cn("border-t p-4", isReorderingSections && "invisible pointer-events-none")}
+					className={cn(
+						"border-t bg-kumo-base p-4",
+						isReorderingSections && "invisible pointer-events-none",
+					)}
 				>
 					<Dialog.Root disablePointerDismissal>
 						<Dialog.Trigger
