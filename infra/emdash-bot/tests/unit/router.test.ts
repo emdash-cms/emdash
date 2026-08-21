@@ -89,6 +89,7 @@ describe("router", () => {
 
 	test("parseCommand is strict: only an exact bare verb is deterministic", () => {
 		expect(parseCommand("@emdashbot retry")).toEqual({ event: "retry", arg: null });
+		expect(parseCommand("@emdashbot resume")).toEqual({ event: "resume", arg: null });
 		expect(parseCommand("@emdashbot take over")).toEqual({ event: "take_over", arg: null });
 		expect(parseCommand("@emdashbot confirmed")).toEqual({ event: "confirm", arg: null }); // alias
 		expect(parseCommand("@emdashbot hand back please")).toBe(null); // extra word
@@ -103,6 +104,51 @@ describe("router", () => {
 		expect(cmds.has("implement")).toBe(true);
 		expect(cmds.has("decline")).toBe(false);
 		expect(cmds.has("take_over")).toBe(false);
+	});
+
+	test("failed runs offer classifier-routable resume and restore their saved active state", () => {
+		const commands = new Set(classifierCommands("failed").map((command) => command.event));
+		expect(commands.has("resume")).toBe(true);
+
+		const decision = resolve({
+			labels: ["bot:enhancement", "bot:failed"],
+			event: "resume",
+			actor: "maintainer",
+			resumeState: "fixing",
+		});
+		assertTransition(decision);
+		expect(decision.to).toBe("fixing");
+		expect(decision.action).toBe("investigate.resume");
+	});
+
+	test.each([
+		{ retryMode: "implement", to: "fixing", action: "investigate.implement" },
+		{ retryMode: "fix", to: "fixing", action: "investigate.fix" },
+		{ retryMode: "revise", to: "working", action: "investigate.revise" },
+	] as const)("failed retry preserves $retryMode mode", ({ retryMode, to, action }) => {
+		const decision = resolve({
+			labels: ["bot:bug", "bot:failed"],
+			event: "retry",
+			actor: "maintainer",
+			retryMode,
+		});
+
+		assertTransition(decision);
+		expect(decision.to).toBe(to);
+		expect(decision.action).toBe(action);
+	});
+
+	test("failed retry keeps the repro fallback for read modes", () => {
+		const decision = resolve({
+			labels: ["bot:bug", "bot:failed"],
+			event: "retry",
+			actor: "maintainer",
+			retryMode: "repro",
+		});
+
+		assertTransition(decision);
+		expect(decision.to).toBe("working");
+		expect(decision.action).toBe("investigate.repro");
 	});
 
 	test("isDestructive flags decline and take_over only", () => {

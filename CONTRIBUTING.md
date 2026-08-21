@@ -163,76 +163,12 @@ AI-assisted contributions are welcome and held to the same quality bar as any ot
 
 ## Changesets
 
-Every PR that changes a published package's behavior needs a **changeset** -- a small Markdown file that describes the change for the CHANGELOG and determines the version bump. Without one, the change won't trigger a release.
+Follow [Writing and reviewing changesets](.changeset/README.md) for when a change needs one, package bump types, the user-facing writing standard, examples, and review criteria.
 
-### When you need one
-
-- Bug fixes, features, refactors, or anything that affects a published package's behavior or API.
-- Multi-package changes need one changeset listing all affected packages.
-- A PR making multiple distinct changes can include a changeset per change -- each becomes its own CHANGELOG entry.
-
-### When you don't
-
-- Docs-only, test-only, CI/tooling changes, or changes to demos and templates (these are in the ignore list -- see `.changeset/config.json`).
-
-### How
+Create the file with the Changesets CLI, then edit the generated Markdown:
 
 ```bash
 pnpm changeset
-```
-
-The CLI walks you through affected packages, bump type, and description. Edit the resulting `.md` file in `.changeset/` if needed.
-
-### Writing the description
-
-A changeset is the **release note a user reads while upgrading** -- it lands verbatim in the CHANGELOG. It is not a commit message, a PR description, or a summary of your diff. Don't paste your PR text into it: those explain the change to a reviewer reading the code, the changeset explains the effect to someone who will run the new version.
-
-Write for that reader:
-
-- Start with a present-tense verb -- **Fixes** (bug), **Adds** (feature), **Updates** (enhancement), **Removes** (removed functionality), **Refactors** (no behavior change).
-- Describe the observable effect -- what's different for someone using the package.
-- Leave out internal mechanics -- file names, function names, which catalog entry you bumped, how you implemented it. If a sentence only makes sense to someone who has read the diff, it doesn't belong here.
-- For a breaking change, include the migration step.
-
-One sentence is often enough.
-
-```diff
-- # too low-level -- reads like a commit message
-- Align the catalog so identity-resolver's lexicons peer resolves; migrates parseCanonicalResourceUri off the result-object API in backfill.ts.
-+ # right altitude -- the effect on the user
-+ Fixes peer dependency warnings on install caused by mismatched `@atcute` package versions.
-```
-
-**Patch** (bug fix or small improvement):
-
-```markdown
----
-"emdash": patch
----
-
-Fixes CLI `--json` flag so JSON output is clean. Log messages now go to stderr when `--json` is set.
-```
-
-**Minor** (new non-breaking feature):
-
-```markdown
----
-"emdash": minor
----
-
-Adds `scheduled_at` field to content entries, enabling scheduled publishing via the admin UI.
-```
-
-**Major** (breaking change) -- include migration guidance:
-
-```markdown
----
-"emdash": major
----
-
-Removes the `legacyAuth` option from the integration config. All sites must use passkey authentication.
-
-To migrate, remove `legacyAuth: true` from your `emdash()` config in `astro.config.mjs`.
 ```
 
 ## Internationalization

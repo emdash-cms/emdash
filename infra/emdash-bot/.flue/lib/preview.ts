@@ -57,6 +57,10 @@ export function previewInstallCommand(issueNumber: number, previewPackage = "emd
 	return `npm i ${previewUrl(issueNumber, previewPackage)}`;
 }
 
+export function playgroundPreviewUrl(issueNumber: number): string {
+	return `https://${fixBranch(issueNumber).replaceAll("/", "-")}.try.emdashcms.com/`;
+}
+
 /**
  * Probe pkg.pr.new for a published preview. Returns true on a 2xx, false on
  * anything else (a 404 while publishing is still in flight, a network error, or

@@ -15,6 +15,7 @@ import { env, exports } from "cloudflare:workers";
 import {
 	createSandboxRouteError,
 	getSandboxRouteErrorEnvelope,
+	getI18nConfig,
 	normalizeCapabilities,
 	type SandboxRunner,
 	type SandboxedPluginInstance,
@@ -23,6 +24,7 @@ import {
 	type SandboxRunnerFactory,
 	type SerializedRequest,
 	type PluginManifest,
+	type I18nConfig,
 } from "emdash";
 
 import { setEmailSendCallback } from "./bridge.js";
@@ -51,6 +53,7 @@ export interface PluginBridgeProps {
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
+	i18nConfig?: I18nConfig | null;
 	storageConfig?: Record<
 		string,
 		{ indexes?: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
@@ -271,6 +274,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 				capabilities: normalizeCapabilities(this.manifest.capabilities || []),
 				allowedHosts: this.manifest.allowedHosts || [],
 				storageCollections: Object.keys(this.manifest.storage || {}),
+				i18nConfig: getI18nConfig(),
 				storageConfig: this.manifest.storage,
 			},
 		});

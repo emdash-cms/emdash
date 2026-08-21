@@ -16,6 +16,7 @@ declare module "virtual:emdash/config" {
 
 	interface VirtualConfig {
 		database?: DatabaseDescriptor;
+		migrations?: import("./database/migrations/policy.js").RuntimeMigrationConfig;
 		storage?: StorageDescriptor;
 		auth?: AuthDescriptor;
 		authProviders?: AuthProviderDescriptor[];
@@ -54,6 +55,13 @@ declare module "virtual:emdash/dialect" {
 	export interface RequestScopedDbOpts {
 		config: unknown;
 		isAuthenticated: boolean;
+		/**
+		 * Evaluated at commit() time: whether the request ended authenticated.
+		 * Login/signup/invite requests start unauthenticated and establish a
+		 * session mid-request; `isAuthenticated` captures only the request-start
+		 * state.
+		 */
+		endedAuthenticated?: () => boolean;
 		isWrite: boolean;
 		/** Whether core routing allows this request to use an anonymous public-read cache. */
 		canUseCachedBinding?: boolean;
@@ -210,6 +218,7 @@ declare module "virtual:emdash/admin-registry" {
 	 *   - widgets: Record<widgetId, ComponentType>
 	 *   - fields: Record<widgetName, ComponentType> (field widget renderers)
 	 *   - contentEditorPanels: Trusted content editor sidebar panels
+	 *   - contentListColumns: trusted-plugin content list column definitions
 	 */
 	export const pluginAdmins: Record<
 		string,
@@ -218,6 +227,7 @@ declare module "virtual:emdash/admin-registry" {
 			widgets?: Record<string, unknown>;
 			fields?: Record<string, unknown>;
 			contentEditorPanels?: readonly unknown[];
+			contentListColumns?: readonly unknown[];
 		}
 	>;
 }

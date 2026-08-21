@@ -10,6 +10,13 @@ const oversizedListColumns = ["title", "priority", "owner", "region", "category"
 const maximumListColumns = oversizedListColumns.slice(0, 4);
 
 describe("collection admin list column schemas", () => {
+	it("accepts routability on collection writes and responses", () => {
+		expect(
+			createCollectionBody.safeParse({ slug: "posts", label: "Posts", routable: false }).success,
+		).toBe(true);
+		expect(updateCollectionBody.safeParse({ routable: true }).success).toBe(true);
+	});
+
 	it("accepts four list columns in create and update requests", () => {
 		expect(
 			createCollectionBody.safeParse({
@@ -56,6 +63,7 @@ describe("collection admin list column schemas", () => {
 				supports: [],
 				source: "manual",
 				urlPattern: null,
+				routable: true,
 				hasSeo: false,
 				hidden: false,
 				sortOrder: null,

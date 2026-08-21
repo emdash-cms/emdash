@@ -41,7 +41,7 @@
  * authenticated request, every write, and every request under `/_emdash`
  * (admin, setup, auth, internal APIs) — including anonymous GETs such as the
  * post-setup status check, which must observe a write made moments earlier.
- * Migrations and the per-isolate singleton always use the primary binding.
+ * Runtime migrations and the per-isolate singleton always use the primary binding.
  * Omit `cachedBinding` and the adapter behaves exactly as before.
  *
  * Known limitation — sandboxed plugins are D1-only. The sandbox plugin bridge
@@ -324,7 +324,7 @@ function getBinding(bindingName: string): HyperdriveBinding | null {
 }
 
 function requireBinding(config: HyperdriveConfig): HyperdriveBinding {
-	// Migrations and the per-isolate singleton always use the primary binding —
+	// Runtime migrations and the per-isolate singleton always use the primary binding —
 	// never the cache-enabled one.
 	const binding = getBinding(config.binding);
 	if (!binding) {

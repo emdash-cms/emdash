@@ -14,6 +14,8 @@ import type { PluginBlockDef } from "../../src/components/PortableTextEditor";
 import {
 	_buildPluginBlockFormValues,
 	_hasPluginBlockFormData,
+	_portableTextToProsemirror,
+	_prosemirrorToPortableText,
 	PortableTextEditor,
 } from "../../src/components/PortableTextEditor";
 import { render } from "../utils/render";
@@ -26,8 +28,12 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 	MediaPickerModal: () => null,
 }));
 
+const sectionPickerProps: { current: Record<string, any> | null } = { current: null };
 vi.mock("../../src/components/SectionPickerModal", () => ({
-	SectionPickerModal: () => null,
+	SectionPickerModal: (props: Record<string, any>) => {
+		sectionPickerProps.current = props;
+		return null;
+	},
 }));
 
 vi.mock("../../src/components/editor/DragHandleWrapper", () => ({
@@ -297,6 +303,129 @@ describe("plugin block helpers", () => {
 // =============================================================================
 
 describe("Portable Text ↔ ProseMirror conversion", () => {
+	it("rejects mixed unsupported decorators across nested and spanning text", () => {
+		const blocks = [
+			{
+				_type: "block" as const,
+				_key: "quote",
+				style: "blockquote" as const,
+				children: [
+					{ _type: "span" as const, _key: "s1", text: "Brand", marks: ["strong", "accent"] },
+					{ _type: "span" as const, _key: "s2", text: " voice", marks: ["accent", "em"] },
+				],
+			},
+			{
+				_type: "block" as const,
+				_key: "nested-list",
+				style: "normal" as const,
+				listItem: "bullet" as const,
+				level: 2,
+				children: [
+					{ _type: "span" as const, _key: "s3", text: "Muted", marks: ["subtle", "code"] },
+				],
+			},
+		];
+
+		expect(() => _portableTextToProsemirror(blocks)).toThrow(/accent.*subtle/);
+	});
+
+	it("rejects unsupported markDefs annotations by type", () => {
+		const annotationKey = "annotation-9f31";
+		const blocks = [
+			textBlock("Highlighted", {
+				marks: ["strong", annotationKey],
+				markDefs: [{ _type: "brandColor", _key: annotationKey, token: "accent" }],
+			}),
+		];
+
+		let conversionError: Error | undefined;
+		try {
+			_portableTextToProsemirror(blocks);
+		} catch (error) {
+			conversionError = error as Error;
+		}
+		expect(conversionError?.message).toContain("brandColor");
+		expect(conversionError?.message).not.toContain("annotation-9f31");
+	});
+
+	it("rejects unsupported marks in nested outbound ProseMirror content", () => {
+		const document = {
+			type: "doc",
+			content: [
+				{
+					type: "blockquote",
+					content: [
+						{
+							type: "paragraph",
+							content: [
+								{
+									type: "text",
+									text: "Mixed",
+									marks: [{ type: "bold" }, { type: "accent" }],
+								},
+							],
+						},
+					],
+				},
+			],
+		};
+
+		expect(() => _prosemirrorToPortableText(document)).toThrow(/accent/);
+	});
+
+	it("blocks the editor with a localized mark-specific alert in RTL layouts", async () => {
+		const onChange = vi.fn();
+		const onEditorReady = vi.fn();
+		const screen = await render(
+			<div dir="rtl">
+				<PortableTextEditor
+					value={[textBlock("Unsafe", { marks: ["strong", "accent"] })]}
+					onChange={onChange}
+					onEditorReady={onEditorReady}
+				/>
+			</div>,
+		);
+		const alert = screen.getByRole("alert");
+
+		await expect.element(alert).toBeInTheDocument();
+		expect(alert.element()).toHaveTextContent("accent");
+		expect(getComputedStyle(alert.element()).direction).toBe("rtl");
+		expect(document.querySelector(".ProseMirror")).toBeNull();
+		expect(onChange).not.toHaveBeenCalled();
+		expect(onEditorReady).not.toHaveBeenCalledWith(expect.anything());
+	});
+
+	it("keeps safe content editable when an unsupported section is rejected", async () => {
+		const onChange = vi.fn();
+		const { screen, editor, pm } = await renderAndGetEditor({
+			value: [textBlock("Safe content")],
+			onChange,
+		});
+		const unsafeSection = {
+			id: "section-1",
+			slug: "unsafe-section",
+			title: "Unsafe section",
+			keywords: [],
+			content: [textBlock("Unsafe insert", { marks: ["accent"] })],
+			source: "user",
+			createdAt: "2026-08-16T00:00:00.000Z",
+			updatedAt: "2026-08-16T00:00:00.000Z",
+		};
+
+		await React.act(async () => {
+			sectionPickerProps.current?.onSelect(unsafeSection);
+		});
+
+		const alert = screen.getByRole("alert");
+		await expect.element(alert).toBeInTheDocument();
+		expect(alert.element()).toHaveTextContent("accent");
+		expect(document.querySelector(".ProseMirror")).toBe(pm);
+		expect(editor.getText()).toBe("Safe content");
+
+		typeIntoEditor(editor, " still editable");
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
+	});
+
 	it("renders a paragraph from PT value", async () => {
 		await render(<PortableTextEditor value={[textBlock("Hello world")]} />);
 		const pm = await waitForEditor();
@@ -782,13 +911,16 @@ describe("Toolbar", () => {
 
 	it("has inline formatting buttons", async () => {
 		const screen = await renderWithToolbar();
-		await expect.element(screen.getByRole("button", { name: "Bold" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Italic" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Underline" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Strikethrough" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Subscript" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Superscript" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Inline Code" })).toBeInTheDocument();
+		const toolbar = screen.getByRole("toolbar");
+		await expect.element(toolbar.getByRole("button", { name: "Bold" })).toBeInTheDocument();
+		await expect.element(toolbar.getByRole("button", { name: "Italic" })).toBeInTheDocument();
+		await expect.element(toolbar.getByRole("button", { name: "Underline" })).toBeInTheDocument();
+		await expect
+			.element(toolbar.getByRole("button", { name: "Strikethrough" }))
+			.toBeInTheDocument();
+		await expect.element(toolbar.getByRole("button", { name: "Inline Code" })).toBeInTheDocument();
+		expect(toolbar.element().querySelector('[aria-label="Subscript"]')).toBeNull();
+		expect(toolbar.element().querySelector('[aria-label="Superscript"]')).toBeNull();
 	});
 
 	it.each([
@@ -796,10 +928,17 @@ describe("Toolbar", () => {
 		["Superscript", "superscript"],
 	] as const)("persists %s formatting as a Portable Text mark", async (label, mark) => {
 		const onChange = vi.fn();
-		const { screen, editor } = await renderAndGetEditor({ onChange, value: [] });
+		const { editor } = await renderAndGetEditor({ onChange, value: [textBlock("2")] });
+		editor.chain().focus().selectAll().run();
 
-		await screen.getByRole("button", { name: label }).click();
-		typeIntoEditor(editor, "2");
+		let bubbleButton: HTMLButtonElement | null = null;
+		await vi.waitFor(() => {
+			bubbleButton = document.querySelector(
+				`[data-emdash-inline-bubble-menu] [aria-label="${label}"]`,
+			);
+			expect(bubbleButton).toBeTruthy();
+		});
+		bubbleButton!.click();
 
 		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
 		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
@@ -839,13 +978,11 @@ describe("Toolbar", () => {
 		await expect.element(screen.getByRole("button", { name: "Align Right" })).toBeInTheDocument();
 	});
 
-	it("keeps insertion-only actions out of the formatting toolbar", async () => {
+	it("keeps extended insertion actions out of the formatting toolbar", async () => {
 		const screen = await renderWithToolbar();
 		const toolbar = screen.getByRole("toolbar").element();
 		await expect.element(screen.getByRole("button", { name: "Insert Link" })).toBeInTheDocument();
 		expect(toolbar.querySelector('[aria-label="Insert Table"]')).toBeNull();
-		expect(toolbar.querySelector('[aria-label="Insert Image"]')).toBeNull();
-		expect(toolbar.querySelector('[aria-label="Insert HTML"]')).toBeNull();
 		expect(toolbar.querySelector('[aria-label="Insert Horizontal Rule"]')).toBeNull();
 	});
 

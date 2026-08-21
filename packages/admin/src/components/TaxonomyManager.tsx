@@ -434,7 +434,7 @@ function TermFormDialog({
 	const createMutation = useMutation({
 		mutationFn: () =>
 			createTerm(taxonomyName, {
-				slug,
+				...(autoSlug ? {} : { slug }),
 				label,
 				parentId: parentId || undefined,
 				description: description || undefined,

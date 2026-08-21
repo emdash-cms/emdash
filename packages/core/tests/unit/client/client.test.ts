@@ -426,6 +426,40 @@ describe("EmDashClient", () => {
 			expect(result.items).toHaveLength(2);
 			expect(result.nextCursor).toBe("cursor123");
 		});
+
+		it("serializes indexed field filters", async () => {
+			let fieldFilters: string | null = null;
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/content/posts",
+					handler: (request) => {
+						fieldFilters = new URL(request.url).searchParams.get("fieldFilters");
+						return jsonResponse({ items: [] });
+					},
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.list("posts", {
+				fieldFilters: {
+					priority: { in: ["urgent", "high"] },
+					score: { gte: 80 },
+					resolved: false,
+				},
+			});
+
+			expect(JSON.parse(fieldFilters!)).toEqual({
+				priority: { in: ["urgent", "high"] },
+				score: { gte: 80 },
+				resolved: false,
+			});
+		});
 	});
 
 	describe("listAll()", () => {

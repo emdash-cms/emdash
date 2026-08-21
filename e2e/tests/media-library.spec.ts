@@ -18,6 +18,7 @@ const TEST_ASSETS_DIR = join(process.cwd(), "e2e/fixtures/assets");
 // Regex patterns
 const MEDIA_API_RESPONSE_PATTERN = /\/api\/media/;
 const UPLOAD_BUTTON_REGEX = /Upload/;
+const BROWSE_FILES_LABEL = "Browse files to upload";
 
 function ensureTestAssets(): string {
 	if (!existsSync(TEST_ASSETS_DIR)) {
@@ -43,12 +44,22 @@ function ensureTestAssets(): string {
 
 async function uploadTestImage(page: Page) {
 	const testImagePath = ensureTestAssets();
-	const fileInput = page.locator('input[type="file"]');
-	await fileInput.setInputFiles(testImagePath);
-	await page.waitForResponse(
-		(res) => MEDIA_API_RESPONSE_PATTERN.test(res.url()) && res.status() === 200,
+	await page.getByRole("button", { name: UPLOAD_BUTTON_REGEX }).first().click();
+	const dialog = page.getByRole("dialog");
+	await expect(dialog).toBeVisible();
+
+	const uploadResponse = page.waitForResponse(
+		(res) =>
+			MEDIA_API_RESPONSE_PATTERN.test(res.url()) &&
+			res.request().method() === "POST" &&
+			res.status() === 200,
 		{ timeout: 10000 },
 	);
+	await dialog.getByLabel(BROWSE_FILES_LABEL).setInputFiles(testImagePath);
+	await uploadResponse;
+	await expect(dialog.getByText("Complete", { exact: true })).toBeVisible();
+	await dialog.getByRole("button", { name: "Done" }).click();
+	await expect(dialog).not.toBeVisible();
 }
 
 test.describe("Media Library", () => {

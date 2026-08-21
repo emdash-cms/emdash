@@ -126,6 +126,8 @@ export type {
 	UserInfo,
 	UserAccess,
 	ContentItem,
+	ContentCreateOptions,
+	ContentWriteInput,
 	MediaItem,
 	ContentListOptions,
 	MediaListOptions,

@@ -41,6 +41,7 @@ export interface ManifestResponse {
 			label: string;
 			labelSingular: string;
 			supports: string[];
+			routable?: boolean;
 			fields: Record<string, FieldDescriptor>;
 		}
 	>;
