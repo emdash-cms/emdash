@@ -115,12 +115,18 @@ vi.mock("../src/components/MediaLibrary", () => ({
 		isLoading,
 		onUpload,
 		onLocalSearchChange,
+		folders,
+		hasMoreFolders,
+		onLoadMoreFolders,
 		pagination,
 	}: {
 		items?: Array<{ id?: string }>;
 		isLoading?: boolean;
 		onUpload?: (file: File) => Promise<unknown> | void;
 		onLocalSearchChange?: (search: string) => void;
+		folders?: Array<{ id: string }>;
+		hasMoreFolders?: boolean;
+		onLoadMoreFolders?: () => void;
 		pagination?: {
 			page: number;
 			perPage: number;
@@ -149,6 +155,10 @@ vi.mock("../src/components/MediaLibrary", () => ({
 				<span data-testid="media-item-count">{items?.length ?? 0}</span>
 				<span data-testid="media-first-item">{items?.[0]?.id ?? ""}</span>
 				<span data-testid="media-loading">{isLoading ? "loading" : "ready"}</span>
+				<span data-testid="folder-count">{folders?.length ?? 0}</span>
+				<button type="button" disabled={!hasMoreFolders} onClick={onLoadMoreFolders}>
+					Load more folders
+				</button>
 				{pagination && (
 					<>
 						<span data-testid="media-page">{pagination.page}</span>
@@ -247,6 +257,12 @@ describe("MediaPage – upload completion", () => {
 			.on("GET", "/_emdash/api/auth/me", {
 				data: { id: "user_01", role: 60 },
 			})
+			.on("GET", "/_emdash/api/media/folders/folder-one", {
+				data: { item: { id: "folder-one", name: "Folder One" } },
+			})
+			.on("GET", "/_emdash/api/media/folders", {
+				data: { items: [{ id: "folder-one", name: "Folder One" }] },
+			})
 			.on("GET", "/_emdash/api/media", {
 				data: { items: [], totalCount: 60 },
 			});
@@ -331,6 +347,159 @@ describe("MediaPage – upload completion", () => {
 				),
 			).toBe(true);
 		});
+	});
+
+	it("maps root and direct folder URL state to media filters with global search precedence", async () => {
+		const requests: string[] = [];
+		const mockedFetch = globalThis.fetch;
+		globalThis.fetch = (input, init) => {
+			requests.push(
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+			);
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const screen = await render(<TestApp />);
+
+		await vi.waitFor(() => {
+			expect(
+				requests.some(
+					(url) =>
+						url.includes("/_emdash/api/media?") &&
+						new URL(url, "http://localhost").searchParams.get("folderId") === "unfiled",
+				),
+			).toBe(true);
+		});
+
+		await router.navigate({ to: "/media", search: { folder: "folder-one" } });
+		await vi.waitFor(() => {
+			expect(requests.some((url) => url.includes("/media/folders/folder-one"))).toBe(true);
+			expect(
+				requests.some(
+					(url) => new URL(url, "http://localhost").searchParams.get("folderId") === "folder-one",
+				),
+			).toBe(true);
+		});
+
+		await screen.getByRole("button", { name: "Search media" }).click();
+		await vi.waitFor(() => {
+			expect(
+				requests.some((rawUrl) => {
+					const url = new URL(rawUrl, "http://localhost");
+					return url.searchParams.get("q") === "photo" && !url.searchParams.has("folderId");
+				}),
+			).toBe(true);
+		});
+	});
+
+	it("does not request the previous page when direct folder state changes", async () => {
+		const requests: string[] = [];
+		const mockedFetch = globalThis.fetch;
+		globalThis.fetch = (input, init) => {
+			requests.push(
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+			);
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const screen = await render(<TestApp />);
+		await screen.getByRole("button", { name: "Open page 2" }).click();
+		await expect.element(screen.getByTestId("media-page")).toHaveTextContent("2");
+
+		requests.length = 0;
+		await router.navigate({ to: "/media", search: { folder: "folder-one" } });
+		await vi.waitFor(() => {
+			expect(
+				requests.some((rawUrl) => {
+					const url = new URL(rawUrl, "http://localhost");
+					return (
+						url.searchParams.get("folderId") === "folder-one" &&
+						url.searchParams.get("page") === "1"
+					);
+				}),
+			).toBe(true);
+		});
+		expect(
+			requests.some((rawUrl) => {
+				const url = new URL(rawUrl, "http://localhost");
+				return (
+					url.searchParams.get("folderId") === "folder-one" && url.searchParams.get("page") === "2"
+				);
+			}),
+		).toBe(false);
+	});
+
+	it("loads bounded folder pages and exposes explicit load-more state", async () => {
+		const mockedFetch = globalThis.fetch;
+		const folderRequests: URL[] = [];
+		globalThis.fetch = (input, init) => {
+			const rawUrl =
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const url = new URL(rawUrl, "http://localhost");
+			if (url.pathname === "/_emdash/api/media/folders") {
+				folderRequests.push(url);
+				const cursor = url.searchParams.get("cursor");
+				return Promise.resolve(
+					Response.json({
+						data:
+							cursor === "next-folder"
+								? { items: [{ id: "folder-two", name: "Folder Two" }] }
+								: {
+										items: [{ id: "folder-one", name: "Folder One" }],
+										nextCursor: "next-folder",
+									},
+					}),
+				);
+			}
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const screen = await render(<TestApp />);
+
+		await expect.element(screen.getByTestId("folder-count")).toHaveTextContent("1");
+		await screen.getByRole("button", { name: "Load more folders" }).click();
+		await expect.element(screen.getByTestId("folder-count")).toHaveTextContent("2");
+		expect(folderRequests).toHaveLength(2);
+		expect(folderRequests[0]?.searchParams.get("limit")).toBe("100");
+		expect(folderRequests[1]?.searchParams.get("cursor")).toBe("next-folder");
+	});
+
+	it("replaces a missing direct folder URL with Main library once", async () => {
+		mockFetch.on(
+			"GET",
+			"/_emdash/api/media/folders/missing-folder",
+			{ error: { code: "NOT_FOUND", message: "Media folder not found" } },
+			404,
+		);
+		const requests: string[] = [];
+		const mockedFetch = globalThis.fetch;
+		globalThis.fetch = (input, init) => {
+			requests.push(
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+			);
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media", search: { folder: "missing-folder" } });
+		const screen = await render(<TestApp />);
+
+		await vi.waitFor(() => {
+			expect(router.state.location.search).toEqual({});
+			expect(
+				requests.some(
+					(rawUrl) =>
+						new URL(rawUrl, "http://localhost").searchParams.get("folderId") === "unfiled",
+				),
+			).toBe(true);
+		});
+		await expect.element(screen.getByText("Folder no longer exists")).toBeInTheDocument();
 	});
 
 	it("recovers an emptied later page without exposing an invalid page number", async () => {

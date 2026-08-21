@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import type { Database } from "../types.js";
@@ -12,6 +12,15 @@ export interface MediaFolder {
 export interface FindManyMediaFoldersOptions {
 	limit?: number;
 	cursor?: string;
+	q?: string;
+}
+
+function escapeLike(value: string): string {
+	return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+}
+
+function normalizeFolderSearch(value: string): string {
+	return value.trim().normalize("NFKC").toLowerCase();
 }
 
 function normalizeFolderName(name: string): { name: string; nameKey: string } {
@@ -36,6 +45,12 @@ export class MediaFolderRepository {
 			.orderBy("name_key", "asc")
 			.orderBy("id", "asc")
 			.limit(limit + 1);
+
+		const term = normalizeFolderSearch(options.q ?? "");
+		if (term) {
+			const pattern = `%${escapeLike(term)}%`;
+			query = query.where("name_key", "like", sql<string>`${pattern} escape '\\'`);
+		}
 
 		if (options.cursor !== undefined) {
 			const { orderValue: nameKey, id } = decodeCursor(options.cursor);

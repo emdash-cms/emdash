@@ -65,6 +65,16 @@ describe("OpenAPI document generation", () => {
 				"500": expect.any(Object),
 			}),
 		);
+		expect(folders?.get?.parameters).toEqual(
+			expect.arrayContaining([expect.objectContaining({ name: "q", in: "query" })]),
+		);
+		expect(folder?.get?.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"400": expect.any(Object),
+				"404": expect.any(Object),
+			}),
+		);
 		expect(folders?.post?.responses).toEqual(
 			expect.objectContaining({
 				"201": expect.any(Object),

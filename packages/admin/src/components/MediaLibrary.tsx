@@ -7,6 +7,7 @@ import * as React from "react";
 
 import {
 	type MediaItem,
+	type MediaFolder,
 	type MediaUploadOptions,
 	type MediaProviderItem,
 	MEDIA_SEARCH_MAX_LENGTH,
@@ -58,6 +59,14 @@ export interface MediaLibraryProps {
 	onLocalSearchChange?: (q: string) => void;
 	/** Called with the MIME filter for the local library (undefined = all types). */
 	onLocalMimeFilterChange?: (mimeType: string | string[] | undefined) => void;
+	/** Bounded folder pages owned by the main local Media route. */
+	folders?: MediaFolder[];
+	foldersLoading?: boolean;
+	foldersError?: Error | null;
+	hasMoreFolders?: boolean;
+	isLoadingMoreFolders?: boolean;
+	onLoadMoreFolders?: () => void;
+	onActiveProviderChange?: (providerId: string) => void;
 }
 
 export interface MediaLibraryPagination {
@@ -85,6 +94,7 @@ export function MediaLibrary({
 	pagination,
 	onLocalSearchChange,
 	onLocalMimeFilterChange,
+	onActiveProviderChange,
 }: MediaLibraryProps) {
 	const { t } = useLingui();
 	const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
@@ -405,6 +415,7 @@ export function MediaLibrary({
 						if (!v) return;
 						cancelPendingDetailOpen();
 						setActiveProvider(v);
+						onActiveProviderChange?.(v);
 						setIsDetailOpen(false);
 						setDetailItem(null);
 						setSearchQuery("");
