@@ -128,6 +128,13 @@ To use different schedules, set the corresponding `generalCron` or `mediaUsageCr
 	Without the general trigger, scheduled publishing and plugin cron do not run. Without the dedicated Media Usage trigger, automatic historical reconciliation cannot progress. Local `astro dev` still uses the in-process scheduler.
 </Aside>
 
+### Enable automatic media usage indexing
+
+Keep `mediaUsageCron` running while you enable automatic media usage indexing. Pause all application
+and direct database writes, follow [Enable automatic media usage
+indexing](/reference/rest-api/#enable-automatic-media-usage-indexing), then resume writes when the
+endpoint returns `active`. Existing content is indexed in the background.
+
 ## Deploy
 
 Deploy to Cloudflare Workers:

@@ -121,6 +121,44 @@ describe("OpenAPI document generation", () => {
 		);
 	});
 
+	it("documents the media usage activation status operation", () => {
+		const doc = generateOpenApiDocument();
+		const path = doc.paths?.["/_emdash/api/admin/media-usage/activation"];
+		const get = path?.get as {
+			operationId?: string;
+			responses?: Record<string, unknown>;
+		};
+		const post = path?.post as {
+			operationId?: string;
+			requestBody?: unknown;
+			responses?: Record<string, unknown>;
+		};
+
+		expect(get.operationId).toBe("getMediaUsageActivation");
+		expect(get.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"401": expect.any(Object),
+				"403": expect.any(Object),
+				"409": expect.any(Object),
+				"500": expect.any(Object),
+			}),
+		);
+		expect(JSON.stringify(get.responses?.["200"])).toContain("MediaUsageActivationStatus");
+		expect(post.operationId).toBe("advanceMediaUsageActivation");
+		expect(post.requestBody).toBeDefined();
+		expect(post.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"400": expect.any(Object),
+				"401": expect.any(Object),
+				"403": expect.any(Object),
+				"409": expect.any(Object),
+				"500": expect.any(Object),
+			}),
+		);
+	});
+
 	it("includes schema paths", () => {
 		const doc = generateOpenApiDocument();
 		const paths = Object.keys(doc.paths ?? {});

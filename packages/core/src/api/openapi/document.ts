@@ -44,6 +44,10 @@ import {
 	mediaUsageCollectionDeletionListResponseSchema,
 	mediaUsageCollectionDeletionRetryBody,
 	mediaUsageCollectionDeletionRetryResponseSchema,
+	mediaUsageActivationStatusSchema,
+	mediaUsageActivationAdvanceBody,
+	mediaUsageActivationAdvanceResponseSchema,
+	mediaUsageActivationConflictSchema,
 	mediaUsageRepairBody,
 	mediaUsageRepairResponseSchema,
 	mediaUsageWorkListQuery,
@@ -819,6 +823,52 @@ function buildMediaPaths(maxUploadSize: number) {
 					},
 					...authErrors,
 					...standardErrors(400, 404, 500),
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/activation": {
+			get: {
+				operationId: "getMediaUsageActivation",
+				summary: "Get media usage activation status",
+				description:
+					"Returns the redacted status of controlled Media Usage capture activation. This operation is read-only and does not start or resume activation. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				responses: {
+					"200": {
+						description: "Media usage activation status",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageActivationStatusSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(409, 500),
+				},
+			},
+			post: {
+				operationId: "advanceMediaUsageActivation",
+				summary: "Advance media usage activation",
+				description:
+					"Starts, resumes, or retries exactly one bounded activation batch after the operator confirms that all writers are drained and automatic maintenance is ready. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [JSON_CONTENT]: { schema: mediaUsageActivationAdvanceBody } },
+				},
+				responses: {
+					"200": {
+						description: "Current media usage activation progress",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(mediaUsageActivationAdvanceResponseSchema),
+							},
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 500),
+					"409": {
+						description: "Activation is busy, changed ownership, or is incompatible",
+						content: { [JSON_CONTENT]: { schema: mediaUsageActivationConflictSchema } },
+					},
 				},
 			},
 		},

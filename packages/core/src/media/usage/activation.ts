@@ -12,6 +12,20 @@ const ACTIVATION_KEY = "incremental_capture";
 const ACTIVATION_ERROR_CODE = "MEDIA_USAGE_ACTIVATION_FAILED";
 export const MEDIA_USAGE_ACTIVATION_RUNTIME_GENERATION = 1;
 
+export class MediaUsageActivationVersionMismatchError extends Error {}
+
+export interface MediaUsageActivationStatus {
+	state: "expanded" | "activating" | "active";
+	collectionCursor: string | null;
+	attemptCount: number;
+	drainConfirmedAt: string | null;
+	lastAttemptedAt: string | null;
+	lastErrorCode: "MEDIA_USAGE_ACTIVATION_FAILED" | null;
+	leaseExpiresAt: string | null;
+	activatedAt: string | null;
+	updatedAt: string;
+}
+
 export const MEDIA_USAGE_ACTIVATION_LIMITS = Object.freeze({
 	collectionsPerCall: 1,
 	leaseDurationSeconds: 5 * 60,
@@ -32,6 +46,50 @@ export interface MediaUsageCollectionCapturePreparation {
 	collectionId: string;
 	registrationExists: boolean;
 	resuming: boolean;
+}
+
+export async function getMediaUsageActivationStatus(
+	db: Kysely<Database>,
+): Promise<MediaUsageActivationStatus> {
+	const activation = await db
+		.selectFrom("_emdash_media_usage_activation")
+		.select([
+			"state",
+			"runtime_generation",
+			"collection_cursor",
+			"drain_confirmed_at",
+			"lease_expires_at",
+			"attempt_count",
+			"last_attempted_at",
+			"last_error_code",
+			"activated_at",
+			"updated_at",
+		])
+		.where("task_key", "=", ACTIVATION_KEY)
+		.executeTakeFirstOrThrow();
+	assertRuntimeGeneration(activation);
+	if (
+		activation.state !== "expanded" &&
+		activation.state !== "activating" &&
+		activation.state !== "active"
+	) {
+		throw new Error("Invalid media usage activation state");
+	}
+	if (!Number.isInteger(activation.attempt_count) || activation.attempt_count < 0) {
+		throw new Error("Invalid media usage activation attempt count");
+	}
+
+	return {
+		state: activation.state,
+		collectionCursor: activation.collection_cursor,
+		attemptCount: activation.attempt_count,
+		drainConfirmedAt: activation.drain_confirmed_at,
+		lastAttemptedAt: activation.last_attempted_at,
+		lastErrorCode: activation.last_error_code === null ? null : ACTIVATION_ERROR_CODE,
+		leaseExpiresAt: activation.lease_expires_at,
+		activatedAt: activation.activated_at,
+		updatedAt: activation.updated_at,
+	};
 }
 
 export async function canResumeMediaUsageCollectionCapture(
@@ -308,9 +366,11 @@ async function findActivationIfAvailable(
 	return findActivation(db);
 }
 
-function assertRuntimeGeneration(activation: Selectable<MediaUsageActivationTable>): void {
+function assertRuntimeGeneration(activation: { runtime_generation: number }): void {
 	if (activation.runtime_generation !== MEDIA_USAGE_ACTIVATION_RUNTIME_GENERATION) {
-		throw new Error("Media usage activation runtime generation mismatch");
+		throw new MediaUsageActivationVersionMismatchError(
+			"Media usage activation runtime generation mismatch",
+		);
 	}
 }
 

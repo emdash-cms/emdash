@@ -364,6 +364,71 @@ Content-Type: application/json
 DELETE /_emdash/api/media/:id
 ```
 
+### Enable automatic media usage indexing
+
+Automatic media usage indexing must be enabled once for each production site. Writes must be
+paused while EmDash prepares each collection so that no changes are missed.
+
+Both endpoints require `schema:manage`. Bearer tokens also require the `admin` scope.
+
+#### Check the current state
+
+```http
+GET /_emdash/api/admin/media-usage/activation
+```
+
+This request does not change anything. It returns one of these states:
+
+- `expanded`: automatic indexing is not enabled.
+- `activating`: EmDash is preparing the site's collections.
+- `active`: EmDash tracks changes to media references in content.
+
+Status responses do not include internal lock data or raw database errors.
+
+#### Prepare the next collection
+
+```http
+POST /_emdash/api/admin/media-usage/activation
+Content-Type: application/json
+X-EmDash-Request: 1
+
+{
+	"writersDrained": true,
+	"maintenanceReady": true
+}
+```
+
+Each request prepares one collection. Send one request at a time until the state becomes `active`.
+
+Set both fields to `true`:
+
+- `writersDrained`: Application and direct database writes have stopped, and any writes already in
+  progress have finished.
+- `maintenanceReady`: Scheduled background tasks are running through `mediaUsageCron` on Cloudflare
+  or the built-in scheduler on Node.js.
+
+#### Enable indexing in production
+
+1. Confirm that scheduled background tasks are running: `mediaUsageCron` on Cloudflare, or the
+   built-in scheduler on Node.js.
+2. Stop all application and direct database writes. Wait for writes already in progress to finish.
+3. Call `GET` to check the current state.
+4. Call `POST` one request at a time until the state becomes `active`.
+5. Resume writes.
+6. Keep scheduled background tasks running while EmDash indexes existing content.
+
+If `POST` times out or returns `409` or `500`, call `GET` before sending another request. If
+`lastErrorCode` is set, keep writes stopped, check the application logs, fix the problem, and try
+again. Do not edit EmDash's internal database tables.
+
+<Aside type="caution">
+	After this process starts, it cannot be cancelled or reset. Test it in a staging environment and
+	follow your normal database backup policy before using it in production.
+</Aside>
+
+When the state is `active`, EmDash tracks changes to media references in content. Existing content
+may still be indexing in the background.
+
 ### List Media Usage Work
 
 ```http

@@ -259,6 +259,10 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/admin/media-usage/work/retry.ts"),
 	});
 	injectRoute({
+		pattern: "/_emdash/api/admin/media-usage/activation",
+		entrypoint: resolveRoute("api/admin/media-usage/activation.ts"),
+	});
+	injectRoute({
 		pattern: "/_emdash/api/admin/media-usage/collection-deletions",
 		entrypoint: resolveRoute("api/admin/media-usage/collection-deletions/index.ts"),
 	});
