@@ -350,6 +350,32 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(comments[0]).toContain("`@emdashbot fix <directive>`");
 	});
 
+	test("invalid classified commands name the resolved command in feedback", async () => {
+		const calls: string[] = [];
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+
+		const outcome = await stub.event(
+			makeEvent({
+				event: null,
+				needsClassify: true,
+				classifyText: "classified-confirm",
+				labels: ["bot:bug", "bot:working"],
+				anchorNumber: 42,
+				deliveryId: "classified-invalid-confirm",
+				dryRun: false,
+			}),
+		);
+
+		expect(outcome.kind).toBe("noop");
+		expect(comments).toHaveLength(1);
+		expect(comments[0]).toContain("`@emdashbot confirm` isn't available");
+		expect(comments[0]).not.toContain("I couldn't map that request");
+	});
+
 	test("a failed command-feedback comment recovers without posting a duplicate", async () => {
 		let commentPosts = 0;
 		let allowSuccess = false;

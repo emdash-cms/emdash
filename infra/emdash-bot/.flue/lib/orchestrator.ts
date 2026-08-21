@@ -544,7 +544,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 
 		if (decision.kind === "noop") {
-			await this.postCommandFeedback(input, decision.from);
+			await this.postCommandFeedback({ ...input, event: resolvedEvent }, decision.from);
 			if (input.deliveryId) await this.recordDelivery(input.deliveryId);
 			return { kind: "noop", reason: decision.reason };
 		}
