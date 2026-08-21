@@ -16,16 +16,82 @@ import {
 	validateOrderByClause,
 	getIndexedFields,
 	jsonOrderExtract,
+	isInFilter,
+	StorageSerializationError,
 } from "../../plugins/storage-query.js";
 import type {
 	StorageCollection,
 	QueryOptions,
 	PaginatedResult,
 	WhereClause,
+	UpdateIfArgs,
+	UpdateIfResult,
 } from "../../plugins/types.js";
+import { pluginDataWriteExpr } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { encodeCursor, decodeCursor } from "./types.js";
+
+/**
+ * A value that looks like a `NumericDelta` shell (`{ inc?, dec? }`); the precise
+ * one-of-`inc`/`dec` and integer checks happen in `updateIf`.
+ */
+function isDeltaLike(value: unknown): value is { inc?: unknown; dec?: unknown } {
+	return typeof value === "object" && value !== null;
+}
+
+/**
+ * SQLSTATEs a losing concurrent `updateIf` writer aborts with under an
+ * isolation level stricter than READ COMMITTED: `40001` (serialization_failure)
+ * and `40P01` (deadlock_detected).
+ */
+const SERIALIZATION_SQLSTATES = new Set(["40001", "40P01"]);
+
+/**
+ * Best-effort extraction of a Postgres SQLSTATE from a thrown driver error.
+ *
+ * node-pg sets `.code` on its `DatabaseError`, and Kysely propagates the driver
+ * error unwrapped (confirmed: a 23505 raised through Kysely surfaces `err.code`
+ * === "23505"). We also check `.cause.code` defensively so a future wrapping
+ * layer that nests the driver error as `cause` keeps working.
+ */
+function errSqlState(err: unknown): string | undefined {
+	if (typeof err !== "object" || err === null) return undefined;
+	const code = (err as { code?: unknown }).code;
+	if (typeof code === "string") return code;
+	const cause = (err as { cause?: unknown }).cause;
+	if (typeof cause === "object" && cause !== null) {
+		const causeCode = (cause as { code?: unknown }).code;
+		if (typeof causeCode === "string") return causeCode;
+	}
+	return undefined;
+}
+
+/**
+ * Map a thrown `updateIf` error to a {@link StorageSerializationError} when it
+ * is a Postgres serialization failure (`40001`) or deadlock (`40P01`);
+ * otherwise return it UNCHANGED.
+ *
+ * Pure and synchronous so it is unit-testable without provoking a live race —
+ * `updateIf`'s catch is simply `throw mapSerializationFailure(err)`. See
+ * {@link StorageSerializationError} for why these aborts happen only under an
+ * isolation level stricter than READ COMMITTED.
+ */
+export function mapSerializationFailure(err: unknown): unknown {
+	const sqlState = errSqlState(err);
+	if (sqlState !== undefined && SERIALIZATION_SQLSTATES.has(sqlState)) {
+		return new StorageSerializationError(
+			`updateIf lost a concurrent race (SQLSTATE ${sqlState}). Its ` +
+				`{ applied: false } contract assumes READ COMMITTED (the default); under ` +
+				`REPEATABLE READ / SERIALIZABLE the losing writer aborts instead of ` +
+				`resolving to { applied: false }. Retry the call, or run it at READ ` +
+				`COMMITTED. The no-oversell safety invariant still holds — a losing ` +
+				`writer never applies.`,
+			{ cause: err, sqlState },
+		);
+	}
+	return err;
+}
 
 /**
  * Interleave a `?`-placeholder SQL string with its params into a single
@@ -306,6 +372,125 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 		const result = await query.executeTakeFirst();
 		// Number() because the pg driver returns COUNT(*) (bigint) as a string.
 		return Number(result?.count ?? 0);
+	}
+
+	/**
+	 * Predicate-guarded atomic update (see {@link StorageCollection.updateIf}).
+	 *
+	 * One guarded `UPDATE _plugin_storage SET data = <json_set/jsonb_set expr>,
+	 * updated_at = ? WHERE <pk> AND <guard> RETURNING data`. The guard reuses the
+	 * numeric-correct `buildWhereClause` translation verbatim, and the
+	 * `set`/`delta` arithmetic is computed in-SQL — no read-then-write — which is
+	 * what makes N concurrent guarded decrements correct (no oversell).
+	 *
+	 * `applied` is derived from whether a `RETURNING` row came back (equivalently
+	 * rows-affected > 0). A missing row and a failed guard both yield 0 rows →
+	 * `{ applied: false }`; the two are intentionally indistinguishable. Never
+	 * inserts.
+	 *
+	 * `undefined` values in `set`/`delta` are IGNORED (they carry no write);
+	 * presence is derived from the DEFINED entries, so an all-`undefined` payload
+	 * (e.g. `{ set: { name: undefined } }`) hits the "at least one of set/delta"
+	 * error rather than doing a no-op write that bumps `updated_at`.
+	 *
+	 * ISOLATION: the `{ applied: false }` contract assumes READ COMMITTED (the
+	 * default). Under REPEATABLE READ / SERIALIZABLE the losing concurrent
+	 * writers throw {@link StorageSerializationError} (SQLSTATE `40001` / `40P01`)
+	 * instead of resolving to `{ applied: false }`. The no-oversell SAFETY
+	 * invariant holds either way — a losing writer never applies.
+	 */
+	async updateIf(id: string, args: UpdateIfArgs<T>): Promise<UpdateIfResult<T>> {
+		const { where, set, delta } = args;
+
+		// Derive presence from DEFINED entries — `undefined` values carry no write
+		// and must not satisfy the "at least one of set/delta" requirement below
+		// (otherwise an all-`undefined` payload would do a no-op write that still
+		// bumps `updated_at` and returns `{ applied: true }`).
+		const setEntries: Array<[string, unknown]> = set
+			? Object.entries(set).filter(([, value]) => value !== undefined)
+			: [];
+		const hasSet = setEntries.length > 0;
+
+		const definedDeltaEntries: Array<[string, unknown]> =
+			delta !== undefined ? Object.entries(delta).filter(([, spec]) => spec !== undefined) : [];
+		const hasDelta = definedDeltaEntries.length > 0;
+
+		if (!hasSet && !hasDelta) {
+			throw new Error("updateIf requires at least one of `set` or `delta`.");
+		}
+
+		// Build the signed integer deltas, enforcing integer-only at runtime.
+		const deltaEntries: Array<[string, number]> = [];
+		if (hasDelta) {
+			const setFieldSet = new Set(setEntries.map(([field]) => field));
+			for (const [field, spec] of definedDeltaEntries) {
+				if (setFieldSet.has(field)) {
+					throw new Error(`updateIf: field "${field}" appears in both \`set\` and \`delta\`.`);
+				}
+				if (!isDeltaLike(spec)) {
+					throw new TypeError(
+						`updateIf: delta for "${field}" must be exactly one of { inc: number } or { dec: number }.`,
+					);
+				}
+				const { inc, dec } = spec;
+				let signed: number;
+				if (typeof inc === "number" && typeof dec !== "number") {
+					signed = inc;
+				} else if (typeof dec === "number" && typeof inc !== "number") {
+					signed = -dec;
+				} else {
+					// Both present or neither present/numeric → ambiguous or invalid.
+					throw new TypeError(
+						`updateIf: delta for "${field}" must be exactly one of { inc: number } or { dec: number }.`,
+					);
+				}
+				if (!Number.isInteger(signed)) {
+					throw new TypeError(
+						`updateIf: delta for "${field}" must be an integer (got ${String(inc ?? dec)}).`,
+					);
+				}
+				deltaEntries.push([field, signed]);
+			}
+		}
+
+		// Defensive empty-`in` guard: an empty `in: []` matches nothing. The shared
+		// where-translation would emit invalid `IN ()`; short-circuit to a no-op
+		// (matches nothing → applied:false) BEFORE building any SQL.
+		for (const value of Object.values(where)) {
+			if (isInFilter(value) && value.in.length === 0) {
+				return { applied: false };
+			}
+		}
+
+		const now = new Date().toISOString();
+		const dataExpr = pluginDataWriteExpr(this.db, setEntries, deltaEntries);
+
+		let query = this.db
+			.updateTable("_plugin_storage")
+			.set({ data: dataExpr, updated_at: now })
+			.where("plugin_id", "=", this.pluginId)
+			.where("collection", "=", this.collection)
+			.where("id", "=", id);
+
+		const whereResult = buildWhereClause(this.db, where);
+		if (whereResult.sql) {
+			query = query.where(rawWhereExpr(whereResult.sql, whereResult.params));
+		}
+
+		// The `{ applied: false }` contract holds only under READ COMMITTED. Under
+		// a stricter isolation level the losing concurrent writers abort with a
+		// serialization failure / deadlock instead; translate those to a typed,
+		// retryable error and rethrow everything else unchanged.
+		let row: { data: string } | undefined;
+		try {
+			row = await query.returning("data").executeTakeFirst();
+		} catch (err) {
+			throw mapSerializationFailure(err);
+		}
+		if (!row) return { applied: false };
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
+		const data = JSON.parse(row.data) as T;
+		return { applied: true, data };
 	}
 }
 
