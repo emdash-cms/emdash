@@ -194,6 +194,32 @@ export interface PullRequestCopy {
 	readonly description: string;
 }
 
+const TYPE_SECTION_HEADING_RE = /^## Type of change\b/im;
+const BUG_FIX_CHECKBOX_RE = /^- \[ ] Bug fix\b(.*)$/im;
+const FEATURE_CHECKBOX_RE = /^- \[ ] Feature\b(.*)$/im;
+const AI_DISCLOSURE_CHECKBOX_RE = /^- \[ ] This PR includes AI-generated code\b.*$/im;
+
+export function fillPullRequestTemplate(template: string, kind: Kind): string {
+	const typeSectionStart = template.search(TYPE_SECTION_HEADING_RE);
+	if (typeSectionStart === -1) throw new Error("pull request template is missing its type section");
+	const typeCheckbox = kind === "bug" ? BUG_FIX_CHECKBOX_RE : FEATURE_CHECKBOX_RE;
+	const typeLabel = kind === "bug" ? "Bug fix" : "Feature";
+	const templateBody = template.slice(typeSectionStart);
+	if (!typeCheckbox.test(templateBody)) {
+		throw new Error(`pull request template is missing its ${typeLabel} checkbox`);
+	}
+	if (!AI_DISCLOSURE_CHECKBOX_RE.test(templateBody)) {
+		throw new Error("pull request template is missing its AI disclosure checkbox");
+	}
+	return templateBody
+		.replace(typeCheckbox, `- [x] ${typeLabel}$1`)
+		.replace(
+			AI_DISCLOSURE_CHECKBOX_RE,
+			"- [x] This PR includes AI-generated code — model/tool: emdashbot + Kimi K2.7 Code",
+		)
+		.trim();
+}
+
 /**
  * Body for the draft PR opened when the reporter confirms the change. References
  * the issue (so merging closes it), points at the preview the reporter just
@@ -205,19 +231,7 @@ export function renderDraftPrBody(input: {
 	description: string;
 	previewPackage?: string;
 }): string {
-	const typeSectionStart = pullRequestTemplate.indexOf("## Type of change");
-	if (typeSectionStart === -1) throw new Error("pull request template is missing its type section");
-	const completedTemplate = pullRequestTemplate
-		.slice(typeSectionStart)
-		.replace(
-			input.kind === "bug" ? "- [ ] Bug fix" : "- [ ] Feature",
-			input.kind === "bug" ? "- [x] Bug fix" : "- [x] Feature",
-		)
-		.replace(
-			"- [ ] This PR includes AI-generated code — model/tool: <!-- e.g. Claude Opus 4.7, GPT-5.5, Cursor + Sonnet 4.6, Copilot -->",
-			"- [x] This PR includes AI-generated code — model/tool: emdashbot + Kimi K2.7 Code",
-		)
-		.trim();
+	const completedTemplate = fillPullRequestTemplate(pullRequestTemplate, input.kind);
 	return [
 		"## What does this PR do?",
 		"",

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+	fillPullRequestTemplate,
 	renderAgentComment,
 	renderDraftPrBody,
 	renderPreviewReadyAsk,
@@ -138,6 +139,26 @@ describe("renderPreviewReadyAsk", () => {
 });
 
 describe("renderDraftPrBody", () => {
+	test("tolerates normal wording changes in the pull request template", () => {
+		const template = [
+			"## TYPE OF CHANGE",
+			"",
+			"- [ ] Bug fix (include a regression test)",
+			"- [ ] Feature (link the approved discussion)",
+			"",
+			"## AI-generated code disclosure",
+			"",
+			"- [ ] This PR includes AI-generated code — model/tool: examples may change",
+		].join("\n");
+
+		const completed = fillPullRequestTemplate(template, "bug");
+		expect(completed).toContain("- [x] Bug fix (include a regression test)");
+		expect(completed).toContain("- [ ] Feature (link the approved discussion)");
+		expect(completed).toContain(
+			"- [x] This PR includes AI-generated code — model/tool: emdashbot + Kimi K2.7 Code",
+		);
+	});
+
 	test("fills the GitHub PR template with the bot description and preview", () => {
 		const body = renderDraftPrBody({
 			issueNumber: 77,
