@@ -126,11 +126,6 @@ export function MediaFolderDialog({
 						<Dialog.Title className="text-lg font-semibold">
 							{isEditing ? t`Edit folder` : t`Add new folder`}
 						</Dialog.Title>
-						<Dialog.Description className="text-kumo-subtle">
-							{isEditing
-								? t`Rename this folder or delete it from the Media Library.`
-								: t`Create a folder in the Main library.`}
-						</Dialog.Description>
 						<div className="mt-5">
 							<Input
 								label={t`Name`}
@@ -146,11 +141,17 @@ export function MediaFolderDialog({
 							/>
 						</div>
 						<DialogError message={dialogError} className="mt-3" />
-						<div className="mt-6 flex flex-wrap items-center justify-between gap-2">
-							<Button variant="secondary" type="button" onClick={onClose} disabled={isPending}>
+						<div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+							<Button
+								variant="secondary"
+								type="button"
+								onClick={onClose}
+								disabled={isPending}
+								className="w-full sm:w-auto"
+							>
 								{t`Cancel`}
 							</Button>
-							<div className="flex items-center gap-2">
+							<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
 								{folder && (
 									<Button
 										ref={deleteButtonRef}
@@ -161,11 +162,12 @@ export function MediaFolderDialog({
 											setDeleteOpen(true);
 										}}
 										disabled={isPending}
+										className="w-full sm:w-auto"
 									>
 										{t`Delete folder`}
 									</Button>
 								)}
-								<Button type="submit" disabled={isPending}>
+								<Button type="submit" disabled={isPending} className="w-full sm:w-auto">
 									{saveMutation.isPending ? t`Saving...` : isEditing ? t`Save` : t`Create`}
 								</Button>
 							</div>

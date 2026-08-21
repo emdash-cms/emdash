@@ -131,6 +131,16 @@ describe("MediaLibrary", () => {
 	});
 
 	describe("rendering items", () => {
+		it("uses the concise local upload action without changing the dialog title", async () => {
+			const screen = await renderLibrary({ items: [makeMediaItem()] });
+
+			expect(screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).query()).toBeNull();
+			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).element().click();
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
+		});
+
 		it("renders folders before media with navigation, edit, and load-more actions", async () => {
 			const onOpenFolder = vi.fn();
 			const onCreateFolder = vi.fn().mockResolvedValue(makeFolder());
@@ -262,7 +272,7 @@ describe("MediaLibrary", () => {
 				getComputedStyle(currentFolder.element()).fontSize,
 			);
 			expect(screen.getByRole("button", { name: "Add new folder" }).query()).toBeNull();
-			expect(screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).query()).toBeNull();
+			expect(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).query()).toBeNull();
 		});
 
 		it("keeps browsing available without folder-management permission", async () => {
@@ -421,7 +431,7 @@ describe("MediaLibrary", () => {
 			const onUpload = vi.fn();
 			const screen = await renderLibrary({ onUpload });
 
-			screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).element().click();
+			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).first().element().click();
 
 			await expect
 				.element(screen.getByRole("heading", { name: "Upload to Library" }))
@@ -435,7 +445,7 @@ describe("MediaLibrary", () => {
 		it("opens the same empty dialog from the empty-state action", async () => {
 			const screen = await renderLibrary();
 
-			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).element().click();
+			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).last().element().click();
 
 			await expect
 				.element(screen.getByRole("heading", { name: "Upload to Library" }))
@@ -455,7 +465,7 @@ describe("MediaLibrary", () => {
 				(name) => new File([name], name, { type: "image/jpeg" }),
 			);
 
-			screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).element().click();
+			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).first().element().click();
 			await expect
 				.element(screen.getByRole("heading", { name: "Upload to Library" }))
 				.toBeInTheDocument();
@@ -512,7 +522,7 @@ describe("MediaLibrary", () => {
 				.mockResolvedValue(undefined);
 			const screen = await renderLibrary({ onUpload });
 
-			screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).element().click();
+			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).first().element().click();
 			await expect
 				.element(screen.getByRole("heading", { name: "Upload to Library" }))
 				.toBeInTheDocument();
@@ -641,7 +651,7 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("Your media library is empty")).toBeInTheDocument();
 			await expect.element(screen.getByText(UPLOAD_CTA_PATTERN)).toBeInTheDocument();
 			await expect
-				.element(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }))
+				.element(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).last())
 				.toBeInTheDocument();
 		});
 	});

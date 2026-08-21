@@ -593,8 +593,10 @@ export function MediaLibrary({
 						</Button>
 					)}
 					{canUploadHere && (
-						<Button onClick={openUploadDialog} icon={<Upload />}>
-							{t`Upload to ${activeProviderInfo?.name || t`Library`}`}
+						<Button onClick={openUploadDialog} icon={<Upload />} className="w-full sm:w-auto">
+							{activeProvider === "local"
+								? t`Upload Files`
+								: t`Upload to ${activeProviderInfo?.name || t`Library`}`}
 						</Button>
 					)}
 				</div>
@@ -1239,7 +1241,7 @@ function MediaGridItem({ item, selected, onClick }: MediaGridItemProps) {
 			type="button"
 			onClick={onClick}
 			className={cn(
-				"group relative overflow-hidden rounded-lg border bg-kumo-base text-start transition-all max-w-[200px]",
+				"group relative w-full max-w-[200px] overflow-hidden rounded-lg border bg-kumo-base text-start transition-all max-sm:max-w-none",
 				selected ? "ring-2 ring-kumo-brand border-kumo-brand" : "hover:border-kumo-brand/50",
 			)}
 		>

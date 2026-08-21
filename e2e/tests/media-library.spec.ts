@@ -199,6 +199,31 @@ test.describe("Media Library", () => {
 		).toBeLessThanOrEqual(72);
 
 		await page.setViewportSize({ width: 320, height: 800 });
+		const addFolderBox = await page.getByRole("button", { name: "Add new folder" }).boundingBox();
+		const uploadFilesBox = await page.getByRole("button", { name: "Upload Files" }).boundingBox();
+		expect(addFolderBox).not.toBeNull();
+		expect(uploadFilesBox).not.toBeNull();
+		expect(Math.abs(addFolderBox!.width - uploadFilesBox!.width)).toBeLessThanOrEqual(1);
+		const mediaGridBox = await page.locator("[data-media-grid]").boundingBox();
+		const mediaCardBox = await page.locator("[data-media-grid] > button").first().boundingBox();
+		expect(mediaGridBox).not.toBeNull();
+		expect(mediaCardBox).not.toBeNull();
+		expect(Math.abs(mediaGridBox!.width - mediaCardBox!.width)).toBeLessThanOrEqual(1);
+
+		await page.getByRole("button", { name: "Add new folder" }).click();
+		const createDialog = page.getByRole("dialog", { name: "Add new folder" });
+		const createCancelBox = await createDialog
+			.getByRole("button", { name: "Cancel" })
+			.boundingBox();
+		const createSubmitBox = await createDialog
+			.getByRole("button", { name: "Create" })
+			.boundingBox();
+		expect(createCancelBox).not.toBeNull();
+		expect(createSubmitBox).not.toBeNull();
+		expect(createCancelBox!.y).not.toBe(createSubmitBox!.y);
+		expect(Math.abs(createCancelBox!.width - createSubmitBox!.width)).toBeLessThanOrEqual(1);
+		await createDialog.getByRole("button", { name: "Cancel" }).click();
+
 		await page
 			.context()
 			.addCookies([{ name: "emdash-locale", value: "ar", domain: "localhost", path: "/_emdash" }]);
@@ -368,6 +393,17 @@ test.describe("Media Library", () => {
 		await page.getByRole("button", { name: `Edit folder ${folderName}` }).click();
 
 		const editDialog = page.getByRole("dialog", { name: "Edit folder" });
+		const editActionBoxes = await Promise.all(
+			["Cancel", "Delete folder", "Save"].map((name) =>
+				editDialog.getByRole("button", { name }).boundingBox(),
+			),
+		);
+		expect(editActionBoxes.every((box) => box !== null)).toBe(true);
+		expect(new Set(editActionBoxes.map((box) => box!.y)).size).toBe(3);
+		expect(
+			Math.max(...editActionBoxes.map((box) => box!.width)) -
+				Math.min(...editActionBoxes.map((box) => box!.width)),
+		).toBeLessThanOrEqual(1);
 		await editDialog.getByLabel("Name").fill(renamedFolder);
 		await editDialog.getByRole("button", { name: "Save" }).click();
 		await expect(page.getByText(renamedFolder).first()).toBeVisible();
