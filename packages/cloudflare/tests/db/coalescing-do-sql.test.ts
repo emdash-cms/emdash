@@ -5,6 +5,8 @@ import { CoalescingDOSqlDialect } from "../../src/db/coalescing-do-sql.js";
 import type { BookmarkSink } from "../../src/db/do-sql-dialect.js";
 import type { DOQueryResult, EmDashDBStub } from "../../src/db/do-sql-types.js";
 
+const TRANSACTIONS_UNSUPPORTED_MARKER = Symbol.for("emdash:transactions-unsupported");
+
 function setup(
 	opts: {
 		query?: ReturnType<typeof vi.fn>;
@@ -29,6 +31,12 @@ function setup(
 }
 
 describe("CoalescingDOSqlDialect", () => {
+	it("declares that interactive transactions are unsupported", () => {
+		const { dialect } = setup();
+
+		expect(Reflect.get(dialect.createAdapter(), TRANSACTIONS_UNSUPPORTED_MARKER)).toBe(true);
+	});
+
 	it("reports supportsMultipleConnections so Kysely won't serialize behind a mutex", () => {
 		const { dialect } = setup();
 		expect(dialect.createAdapter().supportsMultipleConnections).toBe(true);
