@@ -1,5 +1,7 @@
 # @emdash-cms/gutenberg-to-portable-text
 
+## 0.35.0
+
 ## 0.34.0
 
 ## 0.33.0
