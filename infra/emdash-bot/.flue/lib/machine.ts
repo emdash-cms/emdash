@@ -149,9 +149,10 @@ export const STATES: Record<StateId, StateMeta> = {
 	unmanaged: {
 		// The implicit starting point: an issue the bot has never touched. It
 		// carries no state label, so it is not provisioned and never appears on
-		// the board until a command moves it in. Entry commands (repro /
-		// investigate / implement / decline) work here directly -- triage is not
-		// a prerequisite.
+		// the board until a command moves it in. Entry commands work here directly;
+		// triage is not a prerequisite. `fix` is the direct bug-delivery counterpart
+		// to `implement`; after a stored diagnosis the same command uses the
+		// diagnosis-aware fix run instead.
 		label: "",
 		phase: "intake",
 		tone: "active",
@@ -159,7 +160,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"No bot labels yet. An issue nobody has handed to the bot. Entry commands work directly.",
 		terminal: false,
-		offeredCommands: ["investigate", "repro", "implement", "decline"],
+		offeredCommands: ["investigate", "repro", "fix", "implement", "decline"],
 	},
 	triage: {
 		label: "bot:triage",
@@ -168,7 +169,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		boardColumn: "Triage",
 		description: "Filed and awaiting a decision on whether/how the bot should act.",
 		terminal: false,
-		offeredCommands: ["investigate", "repro", "implement", "decline"],
+		offeredCommands: ["investigate", "repro", "fix", "implement", "decline"],
 	},
 	working: {
 		label: "bot:working",
@@ -187,9 +188,9 @@ export const STATES: Record<StateId, StateMeta> = {
 		detour: true,
 		boardColumn: "Blocked",
 		description:
-			"The bot stopped and needs a human decision. Covers the old skipped / not-reproduced / reproduced-no-fix / by-design outcomes; the reason is in the bot's comment.",
+			"The bot stopped without a first-class verdict and needs a human decision. Covers skipped, by-design, closed-PR, and legacy infrastructure outcomes; the reason is in the bot's comment.",
 		terminal: false,
-		offeredCommands: ["investigate", "implement", "repro", "retry", "decline", "take_over"],
+		offeredCommands: ["investigate", "fix", "implement", "repro", "retry", "decline", "take_over"],
 	},
 	awaiting_feedback: {
 		label: "bot:awaiting-feedback",
@@ -278,7 +279,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"Verdict: reproduced with a diagnosis attached. Resting until a maintainer triggers the fix loop or disposes of it.",
 		terminal: false,
-		offeredCommands: ["fix", "investigate", "decline", "take_over"],
+		offeredCommands: ["fix", "implement", "investigate", "decline", "take_over"],
 	},
 	diagnosed: {
 		label: "bot:diagnosed",
@@ -288,7 +289,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"Verdict: root cause identified, but not confirmed by a reproduction (environment limits). Actionable like reproduced; the fix loop verifies with a failing test before changing anything.",
 		terminal: false,
-		offeredCommands: ["fix", "investigate", "decline", "take_over"],
+		offeredCommands: ["fix", "implement", "investigate", "decline", "take_over"],
 	},
 	not_reproduced: {
 		label: "bot:not-reproduced",
@@ -457,13 +458,14 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		arg: "directive",
 		defaultKind: "enhancement",
 	},
-	// Next-generation: start the gated fix loop on a reproduced+diagnosed issue.
-	// Produces a candidate branch and a preview build, not a PR. Maintainer-only.
+	// Start a bug delivery run. A reproduced/diagnosed issue uses the durable
+	// diagnosis-aware fix mode; a cold or triaged issue uses the direct
+	// implementation mode and treats the report plus directive as its spec.
 	fix: {
-		description:
-			"Build a candidate fix on a bot branch and post a preview for the reporter to try.",
+		description: "Build a candidate bug fix and post a preview for the reporter to try.",
 		actors: ["maintainer"],
 		arg: "directive",
+		defaultKind: "bug",
 	},
 	// NB: `retry` is always wired to `investigate.repro` in the transition
 	// table (we don't persist the previous run's mode), so the user-facing
@@ -634,6 +636,13 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "unmanaged", event: "repro", to: "working", action: "investigate.repro" },
 	{
 		from: "unmanaged",
+		event: "fix",
+		to: "fixing",
+		action: "investigate.implement",
+		note: "direct bug delivery from an untriaged issue; no stored diagnosis required",
+	},
+	{
+		from: "unmanaged",
 		event: "implement",
 		to: "fixing",
 		action: "investigate.implement",
@@ -645,6 +654,13 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "triage", event: "repro", to: "working", action: "investigate.repro" },
 	{
 		from: "triage",
+		event: "fix",
+		to: "fixing",
+		action: "investigate.implement",
+		note: "direct bug delivery; no stored diagnosis required",
+	},
+	{
+		from: "triage",
 		event: "implement",
 		to: "fixing",
 		action: "investigate.implement",
@@ -654,19 +670,11 @@ export const TRANSITIONS: Transition[] = [
 
 	// --- agent run outcomes (from working) ---
 	{ from: "working", event: "agent.skipped", to: "blocked", note: "reason: skipped (was a sink)" },
-	{
-		from: "working",
-		event: "agent.not_reproduced",
-		to: "blocked",
-		note: "reason: not-reproduced (was a sink)",
-	},
+	{ from: "working", event: "agent.not_reproduced", to: "not_reproduced" },
 	{ from: "working", event: "agent.by_design", to: "blocked", note: "reason: by-design" },
-	{
-		from: "working",
-		event: "agent.reproduced",
-		to: "blocked",
-		note: "reason: fix needs a decision",
-	},
+	{ from: "working", event: "agent.reproduced", to: "reproduced" },
+	{ from: "working", event: "agent.diagnosed", to: "diagnosed" },
+	{ from: "working", event: "agent.needs_info", to: "needs_info" },
 	{
 		from: "working",
 		event: "agent.fix_ready",
@@ -676,6 +684,7 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "working", event: "agent.failed", to: "failed" },
 
 	// --- blocked: every reason accepts the same overrides (kills the sinks) ---
+	{ from: "blocked", event: "fix", to: "fixing", action: "investigate.implement" },
 	{ from: "blocked", event: "implement", to: "fixing", action: "investigate.implement" },
 	{ from: "blocked", event: "repro", to: "working", action: "investigate.repro" },
 	{ from: "blocked", event: "retry", to: "working", action: "investigate.repro" },
@@ -835,9 +844,11 @@ export const TRANSITIONS: Transition[] = [
 
 	// --- verdict disposal edges (maintainer disposes; humans dispose) ---
 	{ from: "reproduced", event: "fix", to: "fixing", action: "investigate.fix" },
+	{ from: "reproduced", event: "implement", to: "fixing", action: "investigate.fix" },
 	{ from: "reproduced", event: "decline", to: "declined" },
 	{ from: "reproduced", event: "take_over", to: "human_owned" },
 	{ from: "diagnosed", event: "fix", to: "fixing", action: "investigate.fix" },
+	{ from: "diagnosed", event: "implement", to: "fixing", action: "investigate.fix" },
 	{ from: "diagnosed", event: "decline", to: "declined" },
 	{ from: "diagnosed", event: "take_over", to: "human_owned" },
 	{
@@ -1004,6 +1015,19 @@ export function validateMachine(): MachineProblem[] {
 				severity: "error",
 				message: `Non-terminal state "${id}" has no outgoing transition (dead end)`,
 			});
+	}
+
+	// Offered state-changing commands must resolve from the state that advertises
+	// them. Read-only commands are valid globally and do not need transition rows.
+	for (const id of stateIds) {
+		for (const command of STATES[id].offeredCommands) {
+			if (!EVENTS[command].readOnly && !findTransition(id, command)) {
+				problems.push({
+					severity: "error",
+					message: `State "${id}" offers "${command}" without a transition`,
+				});
+			}
+		}
 	}
 
 	// Every terminal state has a reopen edge.

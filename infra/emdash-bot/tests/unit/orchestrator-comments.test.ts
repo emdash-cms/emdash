@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
 	fillPullRequestTemplate,
 	renderAgentComment,
+	renderCommandFeedback,
 	renderDraftPrBody,
 	renderPreviewReadyAsk,
 	renderReadonlyReply,
@@ -192,5 +193,28 @@ describe("shouldPostReadonlyReply", () => {
 		expect(shouldPostReadonlyReply(true)).toBe(false);
 		expect(shouldPostReadonlyReply(false)).toBe(true);
 		expect(shouldPostReadonlyReply()).toBe(true);
+	});
+
+	test("help lists the commands available to the actor in the current state", () => {
+		const body = renderReadonlyReply("unmanaged", "help", "maintainer");
+		expect(body).toContain("`@emdashbot fix <directive>`");
+		expect(body).toContain("`@emdashbot implement <directive>`");
+		expect(body).toContain("Build a candidate bug fix");
+	});
+});
+
+describe("renderCommandFeedback", () => {
+	test("explains an unavailable command and lists valid alternatives", () => {
+		const body = renderCommandFeedback("unmanaged", "confirm", "maintainer");
+		expect(body).toContain("`@emdashbot confirm` isn't available");
+		expect(body).toContain("`unmanaged`");
+		expect(body).toContain("`@emdashbot fix <directive>`");
+		expect(body).toContain("`@emdashbot investigate <directive>`");
+	});
+
+	test("does not offer maintainer commands to a reporter", () => {
+		const body = renderCommandFeedback("unmanaged", "investigate", "reporter");
+		expect(body).toContain("can only be used by a maintainer");
+		expect(body).not.toContain("Available now: `@emdashbot fix");
 	});
 });

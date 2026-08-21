@@ -1,5 +1,12 @@
 import pullRequestTemplate from "../../../../.github/PULL_REQUEST_TEMPLATE.md?raw";
-import type { Kind, StateId } from "./machine.js";
+import {
+	EVENTS,
+	STATES,
+	type CommandVerb,
+	type EventId,
+	type Kind,
+	type StateId,
+} from "./machine.js";
 import {
 	artifactsBranch,
 	fixBranch,
@@ -12,12 +19,73 @@ export function shouldPostReadonlyReply(dryRun?: boolean): boolean {
 	return dryRun !== true;
 }
 
-export function renderReadonlyReply(state: StateId | null): string {
+type HumanActor = "maintainer" | "reporter";
+
+function renderCommand(command: EventId): string {
+	const argument = EVENTS[command].arg ? ` <${EVENTS[command].arg}>` : "";
+	return `\`@emdashbot ${command.replaceAll("_", " ")}${argument}\``;
+}
+
+function availableCommands(state: StateId | null, actor: HumanActor): CommandVerb[] {
+	if (!state) return [];
+	return STATES[state].offeredCommands.filter((command) => EVENTS[command].actors.includes(actor));
+}
+
+function renderAvailableCommands(state: StateId | null, actor: HumanActor): string {
+	const commands = availableCommands(state, actor);
+	if (commands.length === 0) {
+		return "Use `@emdashbot status` to check the current state or `@emdashbot help` for command guidance.";
+	}
+	return `Available now: ${commands.map(renderCommand).join(" · ")}.`;
+}
+
+function renderHelpReply(state: StateId | null, actor: HumanActor): string {
+	const commands = availableCommands(state, actor);
+	const heading = state
+		? `Commands available while this issue is in state \`${state}\`:`
+		: "The issue has conflicting bot state labels. A maintainer can use `@emdashbot reset`.";
+	const entries = commands.map(
+		(command) => `- ${renderCommand(command)} — ${EVENTS[command].description}`,
+	);
+	return [
+		heading,
+		...(entries.length > 0 ? ["", ...entries] : []),
+		"",
+		"Use `@emdashbot status` to show the current state. Commands with an argument accept text after the verb.",
+	].join("\n");
+}
+
+export function renderCommandFeedback(
+	state: StateId | null,
+	event: EventId | null,
+	actor: HumanActor,
+): string {
+	const command = event ? renderCommand(event) : null;
+	const metadata = event ? EVENTS[event] : null;
+	const alternatives = renderAvailableCommands(state, actor);
+	if (command && metadata && !metadata.actors.includes(actor)) {
+		return `${command} can only be used by a maintainer.\n\n${alternatives}`;
+	}
+	if (!state) {
+		return `I can't act while this issue has conflicting bot state labels. A maintainer can use \`@emdashbot reset\`.\n\n${alternatives}`;
+	}
+	if (command) {
+		return `${command} isn't available while this issue is in state \`${state}\`.\n\n${alternatives}`;
+	}
+	return `I couldn't map that request to an action while this issue is in state \`${state}\`.\n\n${alternatives}`;
+}
+
+export function renderReadonlyReply(
+	state: StateId | null,
+	event: "status" | "help" = "status",
+	actor: HumanActor = "maintainer",
+): string {
+	if (event === "help") return renderHelpReply(state, actor);
 	switch (state) {
 		case "unmanaged":
 		case null:
 		case "triage":
-			return "Not currently working on this. Try `@emdashbot repro` (for a bug), `@emdashbot implement <directive>` (for a change), or `@emdashbot decline`.";
+			return "Not currently working on this. Try `@emdashbot investigate <directive>` to diagnose a bug, `@emdashbot fix <directive>` for a direct bug fix, `@emdashbot implement <directive>` for another change, or `@emdashbot decline`.";
 		case "working":
 			return "Investigating now. I'll comment again when I have something to share.";
 		case "blocked":

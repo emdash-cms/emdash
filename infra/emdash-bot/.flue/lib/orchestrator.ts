@@ -13,6 +13,7 @@ import {
 	type PullRequestCopy,
 	type PreviewScreenshot,
 	renderAgentComment,
+	renderCommandFeedback,
 	renderDraftPrBody,
 	renderPullRequestTitle,
 	renderPreviewReadyAsk,
@@ -488,6 +489,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await this.recordDelivery(input.deliveryId);
 			return { kind: "recovered" };
 		}
+		if (input.deliveryId && (await this.isDeliverySeen(input.deliveryId))) {
+			return { kind: "recovered" };
+		}
 		if (await this.hasPendingSideEffects()) {
 			throw new Error("an earlier GitHub projection is still pending");
 		}
@@ -503,6 +507,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				throw new ClassifierProcessingError(classifyResult.reason);
 			}
 			if (classifyResult.kind === "noop") {
+				await this.postCommandFeedback(input);
 				if (input.deliveryId) await this.recordDelivery(input.deliveryId);
 				return classifyResult;
 			}
@@ -539,6 +544,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 
 		if (decision.kind === "noop") {
+			await this.postCommandFeedback(input, decision.from);
 			if (input.deliveryId) await this.recordDelivery(input.deliveryId);
 			return { kind: "noop", reason: decision.reason };
 		}
@@ -1855,7 +1861,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 				this.ctx.storage.get<StoredDiagnosis>(STORAGE.lastDiagnosis),
 			]);
 			const comments = await getIssueComments(token, repo, anchorNumber, {
-				...(lastDiagnosis ? { since: lastDiagnosis.completedAt } : {}),
 				commentCount: issue.commentCount,
 			});
 			const trigger = input.triggeringComment ?? {
@@ -2245,15 +2250,47 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 		const persistedState = await this.ctx.storage.get<StateId>(STORAGE.state);
 		const state = decision.state ?? persistedState ?? null;
+		const replyEvent = decision.event === "help" ? "help" : "status";
 		const id = await this.persistStandaloneSideEffect({
 			anchorNumber,
-			commentBody: renderReadonlyReply(state),
+			commentBody: renderReadonlyReply(
+				state,
+				replyEvent,
+				input.actor === "reporter" ? "reporter" : "maintainer",
+			),
 			...(input.deliveryId ? { deliveryId: input.deliveryId } : {}),
 		});
 		await this.armAlarm();
 		await this.drainPendingSideEffects();
 		if (await this.hasPendingSideEffect(id)) {
 			throw new Error("readonly reply is queued behind an earlier GitHub projection");
+		}
+	}
+
+	private async postCommandFeedback(
+		input: NormalizedEvent,
+		resolvedState?: StateId | null,
+	): Promise<void> {
+		if (input.dryRun === true || (input.actor !== "maintainer" && input.actor !== "reporter")) {
+			return;
+		}
+		const anchorNumber =
+			input.anchorNumber ?? (await this.ctx.storage.get<number>(STORAGE.anchorNumber));
+		if (anchorNumber === undefined) {
+			if (import.meta.env.DEV) return;
+			throw new Error("no anchor number for command feedback");
+		}
+		const persistedState = await this.ctx.storage.get<StateId>(STORAGE.state);
+		const state = resolvedState ?? persistedState ?? currentState(input.labels);
+		const id = await this.persistStandaloneSideEffect({
+			anchorNumber,
+			commentBody: renderCommandFeedback(state, input.event, input.actor),
+			...(input.deliveryId ? { deliveryId: input.deliveryId } : {}),
+		});
+		await this.armAlarm();
+		await this.drainPendingSideEffects();
+		if (await this.hasPendingSideEffect(id)) {
+			throw new Error("command feedback is queued behind an earlier GitHub projection");
 		}
 	}
 
