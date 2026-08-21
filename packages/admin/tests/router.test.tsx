@@ -118,6 +118,14 @@ vi.mock("../src/components/MediaLibrary", () => ({
 		folders,
 		hasMoreFolders,
 		onLoadMoreFolders,
+		folderId,
+		currentFolder,
+		canManageFolders,
+		onOpenFolder,
+		onBackToMain,
+		onCreateFolder,
+		onRenameFolder,
+		onDeleteFolder,
 		pagination,
 	}: {
 		items?: Array<{ id?: string }>;
@@ -127,6 +135,14 @@ vi.mock("../src/components/MediaLibrary", () => ({
 		folders?: Array<{ id: string }>;
 		hasMoreFolders?: boolean;
 		onLoadMoreFolders?: () => void;
+		folderId?: string;
+		currentFolder?: { id: string; name: string } | null;
+		canManageFolders?: boolean;
+		onOpenFolder?: (folder: { id: string; name: string }) => void;
+		onBackToMain?: () => void;
+		onCreateFolder?: (name: string) => Promise<unknown>;
+		onRenameFolder?: (folder: { id: string; name: string }, name: string) => Promise<unknown>;
+		onDeleteFolder?: (folder: { id: string; name: string }) => Promise<void>;
 		pagination?: {
 			page: number;
 			perPage: number;
@@ -159,6 +175,32 @@ vi.mock("../src/components/MediaLibrary", () => ({
 				<button type="button" disabled={!hasMoreFolders} onClick={onLoadMoreFolders}>
 					Load more folders
 				</button>
+				<button type="button" onClick={() => folders?.[0] && onOpenFolder?.(folders[0])}>
+					Open mock folder
+				</button>
+				<button type="button" onClick={onBackToMain}>
+					Back to Main
+				</button>
+				{canManageFolders && (
+					<>
+						<button type="button" onClick={() => void onCreateFolder?.("Created")}>
+							Create mock folder
+						</button>
+						<button
+							type="button"
+							onClick={() => currentFolder && void onRenameFolder?.(currentFolder, "Renamed")}
+						>
+							Rename current folder
+						</button>
+						<button
+							type="button"
+							onClick={() => currentFolder && void onDeleteFolder?.(currentFolder)}
+						>
+							Delete current folder
+						</button>
+					</>
+				)}
+				<span data-testid="current-folder-id">{folderId ?? "main"}</span>
 				{pagination && (
 					<>
 						<span data-testid="media-page">{pagination.page}</span>
@@ -262,6 +304,15 @@ describe("MediaPage – upload completion", () => {
 			})
 			.on("GET", "/_emdash/api/media/folders", {
 				data: { items: [{ id: "folder-one", name: "Folder One" }] },
+			})
+			.on("POST", "/_emdash/api/media/folders", {
+				data: { item: { id: "folder-created", name: "Created" } },
+			})
+			.on("PUT", "/_emdash/api/media/folders/folder-one", {
+				data: { item: { id: "folder-one", name: "Renamed" } },
+			})
+			.on("DELETE", "/_emdash/api/media/folders/folder-one", {
+				data: { deleted: true },
 			})
 			.on("GET", "/_emdash/api/media", {
 				data: { items: [], totalCount: 60 },
@@ -468,6 +519,68 @@ describe("MediaPage – upload completion", () => {
 		expect(folderRequests).toHaveLength(2);
 		expect(folderRequests[0]?.searchParams.get("limit")).toBe("100");
 		expect(folderRequests[1]?.searchParams.get("cursor")).toBe("next-folder");
+	});
+
+	it("orchestrates create, open, rename, and current-folder delete", async () => {
+		const calls: Array<{ url: string; method: string; body?: string }> = [];
+		const mockedFetch = globalThis.fetch;
+		globalThis.fetch = (input, init) => {
+			calls.push({
+				url: typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+				method: init?.method ?? "GET",
+				body: typeof init?.body === "string" ? init.body : undefined,
+			});
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const navigateSpy = vi.spyOn(router, "navigate");
+		const screen = await render(<TestApp />);
+		await expect.element(screen.getByTestId("folder-count")).toHaveTextContent("1");
+
+		await screen.getByRole("button", { name: "Create mock folder" }).click();
+		await vi.waitFor(() => {
+			const request = calls.find((call) => call.method === "POST" && call.url.endsWith("/folders"));
+			expect(request?.body && JSON.parse(request.body)).toEqual({ name: "Created" });
+		});
+
+		await screen.getByRole("button", { name: "Open mock folder" }).click();
+		await vi.waitFor(() => {
+			expect(router.state.location.search).toEqual({ folder: "folder-one" });
+			expect(screen.getByTestId("current-folder-id").element()).toHaveTextContent("folder-one");
+			expect(navigateSpy).toHaveBeenCalledWith(
+				expect.objectContaining({ resetScroll: false }),
+			);
+		});
+
+		await screen.getByRole("button", { name: "Back to Main" }).click();
+		await vi.waitFor(() => {
+			expect(router.state.location.search).toEqual({});
+			expect(navigateSpy).toHaveBeenCalledWith(
+				expect.objectContaining({ search: { folder: undefined }, resetScroll: false }),
+			);
+		});
+		await screen.getByRole("button", { name: "Open mock folder" }).click();
+
+		await screen.getByRole("button", { name: "Rename current folder" }).click();
+		await vi.waitFor(() => {
+			const request = calls.find(
+				(call) => call.method === "PUT" && call.url.endsWith("/folders/folder-one"),
+			);
+			expect(request?.body && JSON.parse(request.body)).toEqual({ name: "Renamed" });
+		});
+
+		await screen.getByRole("button", { name: "Delete current folder" }).click();
+		await vi.waitFor(() => {
+			expect(
+				calls.some((call) => call.method === "DELETE" && call.url.endsWith("/folders/folder-one")),
+			).toBe(true);
+			expect(router.state.location.search).toEqual({});
+			expect(navigateSpy).toHaveBeenCalledWith(
+				expect.objectContaining({ replace: true, resetScroll: false }),
+			);
+		});
 	});
 
 	it("replaces a missing direct folder URL with Main library once", async () => {

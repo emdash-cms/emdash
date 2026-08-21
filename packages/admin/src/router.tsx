@@ -115,6 +115,9 @@ import {
 	fetchRevision,
 	fetchMediaFolder,
 	fetchMediaFolders,
+	createMediaFolder,
+	renameMediaFolder,
+	deleteMediaFolder,
 	ApiResponseError,
 	useCurrentUser,
 	type CreateCollectionInput,
@@ -1388,6 +1391,7 @@ function MediaPage() {
 	const navigate = useNavigate();
 	const { folder } = useSearch({ from: "/_admin/media" });
 	const toastManager = Toast.useToastManager();
+	const { data: currentUser } = useCurrentUser();
 
 	const [search, setSearch] = React.useState("");
 	const [mimeFilter, setMimeFilter] = React.useState<string | string[] | undefined>(undefined);
@@ -1523,6 +1527,63 @@ function MediaPage() {
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
 		},
 	});
+	const resetMediaPage = React.useCallback(() => {
+		setPage(1);
+		setRetainedTotalCount(0);
+	}, []);
+	const handleOpenFolder = React.useCallback(
+		(nextFolder: { id: string }) => {
+			resetMediaPage();
+			void navigate({ to: "/media", search: { folder: nextFolder.id }, resetScroll: false });
+		},
+		[navigate, resetMediaPage],
+	);
+	const handleBackToMain = React.useCallback(() => {
+		resetMediaPage();
+		void navigate({ to: "/media", search: { folder: undefined }, resetScroll: false });
+	}, [navigate, resetMediaPage]);
+	const handleCreateFolder = React.useCallback(
+		async (name: string) => {
+			const created = await createMediaFolder(name);
+			resetMediaPage();
+			await queryClient.invalidateQueries({ queryKey: ["media-folders"] });
+			return created;
+		},
+		[queryClient, resetMediaPage],
+	);
+	const handleRenameFolder = React.useCallback(
+		async (targetFolder: { id: string }, name: string) => {
+			const renamed = await renameMediaFolder(targetFolder.id, name);
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["media-folders"] }),
+				queryClient.invalidateQueries({ queryKey: ["media-folder", targetFolder.id] }),
+			]);
+			return renamed;
+		},
+		[queryClient],
+	);
+	const handleDeleteFolder = React.useCallback(
+		async (targetFolder: { id: string }) => {
+			await deleteMediaFolder(targetFolder.id);
+			const deletingCurrentFolder = folder === targetFolder.id;
+			if (deletingCurrentFolder) {
+				resetMediaPage();
+				await navigate({
+					to: "/media",
+					search: { folder: undefined },
+					replace: true,
+					resetScroll: false,
+				});
+			}
+			queryClient.removeQueries({ queryKey: ["media-folder", targetFolder.id], exact: true });
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["media-folders"] }),
+				queryClient.invalidateQueries({ queryKey: ["media"] }),
+			]);
+			if (!deletingCurrentFolder) resetMediaPage();
+		},
+		[folder, navigate, queryClient, resetMediaPage],
+	);
 
 	if (currentFolderQuery.error && !missingFolder) {
 		return <ErrorScreen error={currentFolderQuery.error.message} />;
@@ -1556,6 +1617,16 @@ function MediaPage() {
 			isLoadingMoreFolders={folderListQuery.isFetchingNextPage}
 			onLoadMoreFolders={() => void folderListQuery.fetchNextPage()}
 			onActiveProviderChange={setActiveProvider}
+			folderId={folder}
+			currentFolder={currentFolderQuery.data ?? null}
+			currentFolderLoading={currentFolderQuery.isLoading}
+			canManageFolders={(currentUser?.role ?? 0) >= ROLE_EDITOR}
+			onOpenFolder={handleOpenFolder}
+			onBackToMain={handleBackToMain}
+			onRetryFolders={() => void folderListQuery.refetch()}
+			onCreateFolder={handleCreateFolder}
+			onRenameFolder={handleRenameFolder}
+			onDeleteFolder={handleDeleteFolder}
 		/>
 	);
 }
