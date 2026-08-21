@@ -966,7 +966,7 @@ function ContentEditorSettingsResizeHandle({ panelId }: { panelId: string }) {
 	return (
 		<Sidebar.ResizeHandle
 			role="separator"
-			aria-label={t`Settings`}
+			aria-label={t\`Resize settings panel\`}
 			aria-orientation="vertical"
 			aria-controls={panelId}
 			aria-valuemin={minWidth}
