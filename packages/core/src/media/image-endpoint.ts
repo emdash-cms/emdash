@@ -37,6 +37,27 @@ export const MAX_TRANSFORM_DIMENSION = 4000;
 /** A format string accepted by {@link ImageTransformOptions.format}. */
 export type ImageTransformFormat = (typeof ALLOWED_TRANSFORM_FORMATS)[number];
 
+/**
+ * Fit values Astro's image service may emit. Unknown values are dropped so
+ * backends keep their default behaviour.
+ */
+export const ALLOWED_TRANSFORM_FITS = [
+	"fill",
+	"contain",
+	"cover",
+	"scale-down",
+	"inside",
+	"outside",
+] as const;
+
+/** A fit string accepted by {@link ImageTransformOptions.fit}. */
+export type ImageTransformFit = (typeof ALLOWED_TRANSFORM_FITS)[number];
+
+/** Type guard for {@link ImageTransformFit}. */
+export function isTransformFit(value: string): value is ImageTransformFit {
+	return (ALLOWED_TRANSFORM_FITS as readonly string[]).includes(value);
+}
+
 /** Validated options for a single transform. */
 export interface ImageTransformOptions {
 	width?: number;
@@ -48,6 +69,19 @@ export interface ImageTransformOptions {
 	 * {@link DEFAULT_TRANSFORM_QUALITY}); lossless PNG deliberately gets none.
 	 */
 	quality?: number;
+	/**
+	 * How the rendition fills the requested box, from Astro's `fit`. Left
+	 * `undefined` when the request carried none or carried a value outside
+	 * {@link ALLOWED_TRANSFORM_FITS}, so callers keep their backend's default.
+	 */
+	fit?: ImageTransformFit;
+	/**
+	 * Which part of the image survives a crop, from Astro's `position`. Only
+	 * meaningful for fits that crop. Kept as the raw string: the vocabulary is
+	 * the backend's (a keyword like `center`, or coordinates), so mapping it is
+	 * the adapter's job.
+	 */
+	position?: string;
 }
 
 /** Long-lived immutable cache -- transform output is deterministic per key+params. */
@@ -150,13 +184,18 @@ export function resolveTransformQuality(
 }
 
 /**
- * Parse and validate `?w=&h=&f=&q=` query params. Width is required (it sizes
- * the rendition); dimensions are bounded so a request can't ask for an
- * unbounded or nonsensical transform. Format falls back to
+ * Parse and validate `?w=&h=&f=&q=&fit=&position=` query params. Width is
+ * required (it sizes the rendition); dimensions are bounded so a request can't
+ * ask for an unbounded or nonsensical transform. Format falls back to
  * {@link DEFAULT_TRANSFORM_FORMAT} when not requested. `q` is validated when
  * present but otherwise left `undefined` so the caller can apply a per-format
  * default (lossy formats get one, lossless PNG does not — see
  * {@link DEFAULT_TRANSFORM_QUALITY}).
+ *
+ * `fit` and `position` describe how the rendition fills its box. Unlike the
+ * others they are advisory: an unrecognised value is dropped rather than
+ * failing the request. The platform endpoint maps them onto its backend's
+ * vocabulary.
  */
 export function parseTransformParams(params: URLSearchParams): ParsedTransformParams {
 	const width = parseDimension(params.get("w"));
@@ -185,7 +224,13 @@ export function parseTransformParams(params: URLSearchParams): ParsedTransformPa
 		quality = q;
 	}
 
-	return { ok: true, options: { width, height, format, quality } };
+	const fitRaw = params.get("fit");
+	const fit = fitRaw !== null && isTransformFit(fitRaw) ? fitRaw : undefined;
+
+	const positionRaw = params.get("position")?.trim();
+	const position = positionRaw ? positionRaw : undefined;
+
+	return { ok: true, options: { width, height, format, quality, fit, position } };
 }
 
 /**
