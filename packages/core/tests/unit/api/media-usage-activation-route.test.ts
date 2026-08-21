@@ -1,6 +1,6 @@
 import { Role, type RoleLevel } from "@emdash-cms/auth";
 import { sql } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { injectCoreRoutes } from "../../../src/astro/integration/routes.js";
 import { GET, POST } from "../../../src/astro/routes/api/admin/media-usage/activation.js";
@@ -175,10 +175,14 @@ describe("admin media usage activation status route", () => {
 	});
 
 	it("advances exactly one collection per confirmed request and is idempotent when active", async () => {
+		const wake = vi.fn();
 		const first = await POST(
-			routeContext(activationPost({ writersDrained: true, maintenanceReady: true }), Role.ADMIN, [
-				"admin",
-			]),
+			routeContext(
+				activationPost({ writersDrained: true, maintenanceReady: true }),
+				Role.ADMIN,
+				["admin"],
+				wake,
+			),
 		);
 		expect(first.status).toBe(200);
 		expect(await first.json()).toEqual({
@@ -189,6 +193,7 @@ describe("admin media usage activation status route", () => {
 				activation: expect.objectContaining({ state: "activating" }),
 			},
 		});
+		expect(wake).toHaveBeenCalledOnce();
 
 		const second = await POST(
 			routeContext(activationPost({ writersDrained: true, maintenanceReady: true }), Role.ADMIN),
@@ -241,6 +246,26 @@ describe("admin media usage activation status route", () => {
 			},
 		});
 		expect(JSON.stringify(body)).not.toContain("private-owner-token");
+	});
+
+	it("keeps a committed response when the Node scheduler wake fails", async () => {
+		const error = vi.spyOn(console, "error").mockImplementation(() => {});
+		const response = await POST(
+			routeContext(
+				activationPost({ writersDrained: true, maintenanceReady: true }),
+				Role.ADMIN,
+				["admin"],
+				() => {
+					throw new Error("private scheduler detail");
+				},
+			),
+		);
+
+		expect(response.status).toBe(200);
+		expect(error).toHaveBeenCalledExactlyOnceWith(
+			"[media-usage:activation] Failed to wake background maintenance",
+		);
+		expect(JSON.stringify(error.mock.calls)).not.toContain("private scheduler detail");
 	});
 
 	it("maps ownership loss to a stable conflict", async () => {
@@ -302,11 +327,12 @@ describe("admin media usage activation status route", () => {
 		request: Request,
 		role: RoleLevel | null,
 		tokenScopes?: string[],
+		wakeMediaUsageMaintenance = vi.fn(),
 	): GetContext {
 		return {
 			request,
 			locals: {
-				emdash: { db: ctx!.db },
+				emdash: { db: ctx!.db, wakeMediaUsageMaintenance },
 				user: role == null ? null : { id: "user-1", role },
 				tokenScopes,
 			},

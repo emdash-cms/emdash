@@ -53,20 +53,26 @@ export default defineConfig({
 
 The server runs on `http://localhost:4321` by default. Migrations are applied on the first request. If the database is empty and setup hasn't been completed, your seed file (or the built-in default if you don't have one) is also applied on that first request.
 
-## Scheduled Tasks
+## Scheduled tasks
 
-The built-in scheduler runs only while a Node process is running. It handles scheduled publishing,
-plugin tasks, and background media indexing.
+The built-in scheduler runs only while a Node.js process is running. It handles scheduled publishing, plugin tasks, and background Media Usage indexing.
 
-Keep at least one Node process running continuously in production. If all processes stop or sleep,
-scheduled tasks pause.
+The scheduler continues indexing until Media Usage catches up. It yields between batches so the server can keep handling requests.
 
-### Enable automatic media usage indexing
+Keep at least one Node.js process running continuously in production. Scheduled tasks pause when every process stops or sleeps.
 
-Keep at least one Node process running while you enable automatic media usage indexing. Pause all
-application and direct database writes, follow [Enable automatic media usage
-indexing](/reference/rest-api/#enable-automatic-media-usage-indexing), then resume writes when the
-endpoint returns `active`. Existing content is indexed in the background.
+### Enable Media Usage
+
+1. If another application writes directly to the SQLite database, pause it before setup.
+2. Open **Settings → Media Usage**, select **Enable Media Usage**, then select **Turn on**.
+3. Keep the Node.js process running until the page shows **Ready**. You can close the page while indexing continues.
+4. Resume direct database writers when the page shows **Starting indexing**, **Indexing existing content**, or **Ready**.
+
+EmDash may briefly pause editing while the page shows **Setting up**. If the page shows **Needs attention**, fix the reported server problem and select **Retry setup**.
+
+An interrupted Node.js process does not restart Media Usage indexing from the general scheduler. Keep the process running until setup reaches **Ready**.
+
+API operators can use the [Media Usage activation endpoints](/reference/rest-api/#enable-automatic-media-usage-indexing).
 
 ## Production Storage
 

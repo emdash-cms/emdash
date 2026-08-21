@@ -12,6 +12,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { refreshContentMediaUsage } from "../../../src/media/usage/content-refresh.js";
 import { loadContentMediaUsageSnapshots } from "../../../src/media/usage/content-snapshots.js";
+import { MEDIA_USAGE_MAINTENANCE_LIMITS } from "../../../src/media/usage/maintenance-engine.js";
 import { buildContentMediaUsageSourceKey } from "../../../src/media/usage/source-key.js";
 import { processMediaUsageWorkAfterWrite } from "../../../src/media/usage/work-processor.js";
 import {
@@ -43,12 +44,12 @@ describeEachDialect("media usage projection admission runtime", (dialect) => {
 	});
 
 	it("terminally rejects an oversized replacement before publishing either variant", async () => {
-		await insertEntry("oversized-variants", 6);
+		await insertEntry("oversized-variants", 250);
 		await addMediaUsageMeasurementDraft(
 			ctx.db,
 			fixture,
 			"oversized-variants",
-			mediaUsageMeasurementData(7, "oversized-draft"),
+			mediaUsageMeasurementData(251, "oversized-draft"),
 		);
 
 		const result = await processMediaUsageWorkAfterWrite(
@@ -76,13 +77,13 @@ describeEachDialect("media usage projection admission runtime", (dialect) => {
 	});
 
 	it("admits the occurrence boundary and keeps an oversized exact projection as a no-op", async () => {
-		await insertEntry("boundary", 12);
+		await insertEntry("boundary", 500);
 		expect(
 			(await processMediaUsageWorkAfterWrite(ctx.db, fixture.collectionSlug, "boundary")).outcome,
 		).toBe("completed");
-		expect(await currentOccurrenceCount("boundary", "columns")).toBe(12);
+		expect(await currentOccurrenceCount("boundary", "columns")).toBe(500);
 
-		await insertEntry("oversized-no-op", 13);
+		await insertEntry("oversized-no-op", 501);
 		const snapshots = await loadSnapshots("oversized-no-op");
 		const snapshot = snapshots.find((candidate) => candidate.source.sourceVariant === "columns");
 		if (!snapshot) throw new Error("Missing columns snapshot");
@@ -98,7 +99,7 @@ describeEachDialect("media usage projection admission runtime", (dialect) => {
 		expect((await repo.findSource(snapshot.source.sourceKey))?.currentGeneration).toBe(
 			stored.currentGeneration,
 		);
-		expect(await currentOccurrenceCount("oversized-no-op", "columns")).toBe(13);
+		expect(await currentOccurrenceCount("oversized-no-op", "columns")).toBe(501);
 	});
 
 	it("rejects oversized source bytes without mutation", async () => {
@@ -107,7 +108,7 @@ describeEachDialect("media usage projection admission runtime", (dialect) => {
 			fixture,
 			"oversized-bytes",
 			mediaUsageMeasurementData(0, "oversized-bytes"),
-			"é".repeat(300_000),
+			"é".repeat(1_050_000),
 		);
 		expect(
 			(await processMediaUsageWorkAfterWrite(ctx.db, fixture.collectionSlug, "oversized-bytes"))
@@ -117,7 +118,7 @@ describeEachDialect("media usage projection admission runtime", (dialect) => {
 	});
 
 	it("rejects oversized absent-source cleanup without mutation", async () => {
-		await insertEntry("oversized-delete", 13);
+		await insertEntry("oversized-delete", 501);
 		const snapshots = await loadSnapshots("oversized-delete");
 		const snapshot = snapshots.find((candidate) => candidate.source.sourceVariant === "columns");
 		if (!snapshot) throw new Error("Missing columns snapshot");
@@ -137,7 +138,7 @@ describeEachDialect("media usage projection admission runtime", (dialect) => {
 		expect((await repo.findSource(snapshot.source.sourceKey))?.currentGeneration).toBe(
 			stored.currentGeneration,
 		);
-		expect(await currentOccurrenceCount("oversized-delete", "columns")).toBe(13);
+		expect(await currentOccurrenceCount("oversized-delete", "columns")).toBe(501);
 	});
 
 	it("leaves synchronous backwards-compatible refresh outside admission", async () => {
@@ -154,7 +155,7 @@ describeEachDialect("media usage projection admission runtime", (dialect) => {
 		expect(Number(count.count)).toBe(13);
 	});
 
-	it("defers immediately after a reserved conflict inside the 40-query envelope", async () => {
+	it("defers immediately after a reserved conflict inside the shared step reservation", async () => {
 		await insertEntry("conflict", 0);
 		await addMediaUsageMeasurementDraft(
 			ctx.db,
@@ -186,7 +187,7 @@ describeEachDialect("media usage projection admission runtime", (dialect) => {
 				"conflict",
 			);
 			expect(result.outcome).toBe("retry");
-			expect(counter.count).toBeLessThanOrEqual(40);
+			expect(counter.count).toBeLessThanOrEqual(MEDIA_USAGE_MAINTENANCE_LIMITS.maxStepQueries);
 			expect(
 				(await occurrenceCountForSource(sourceKey("conflict", "draft_overlay"))) - draftRowsBefore,
 			).toBe(12);

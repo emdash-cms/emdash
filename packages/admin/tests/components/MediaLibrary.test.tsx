@@ -14,6 +14,24 @@ import { render } from "../utils/render.tsx";
 const UPLOAD_CTA_PATTERN = /Upload images, videos, and documents to keep reusable assets/;
 const UPLOAD_TO_LIBRARY_PATTERN = /Upload to Library/;
 const UPLOAD_FILES_PATTERN = /Upload Files/;
+const setupMocks = vi.hoisted(() => ({ fetchStatus: vi.fn(), role: 40 }));
+
+vi.mock("../../src/lib/api/media-usage-activation.js", async () => {
+	const actual = await vi.importActual<
+		typeof import("../../src/lib/api/media-usage-activation.js")
+	>("../../src/lib/api/media-usage-activation.js");
+	return { ...actual, fetchMediaUsageActivationStatus: setupMocks.fetchStatus };
+});
+
+vi.mock("../../src/lib/api/current-user.js", () => ({
+	useCurrentUser: () => ({ data: { id: "user-1", role: setupMocks.role } }),
+}));
+
+vi.mock("../../src/components/RouterLinkButton.js", () => ({
+	RouterLinkButton: ({ to, children }: { to: string; children: React.ReactNode }) => (
+		<a href={to}>{children}</a>
+	),
+}));
 
 function setInputFiles(input: HTMLInputElement, files: File[]) {
 	const transfer = new DataTransfer();
@@ -81,6 +99,45 @@ function makeMediaItem(overrides: Partial<MediaItem> = {}): MediaItem {
 describe("MediaLibrary", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		setupMocks.role = 40;
+		setupMocks.fetchStatus.mockResolvedValue({ state: "active" });
+	});
+
+	describe("Media Usage setup discovery", () => {
+		it("shows an administrator one setup action while activation is off", async () => {
+			setupMocks.role = 50;
+			setupMocks.fetchStatus.mockResolvedValue({ state: "expanded" });
+
+			const screen = await renderLibrary();
+
+			await expect.element(screen.getByText("Set up Media Usage")).toBeInTheDocument();
+			await expect.element(screen.getByRole("link", { name: "Open setup" })).toBeInTheDocument();
+		});
+
+		it("links to the automatic setup status while activation is running", async () => {
+			setupMocks.role = 50;
+			setupMocks.fetchStatus.mockResolvedValue({ state: "activating" });
+
+			const screen = await renderLibrary();
+
+			await expect.element(screen.getByText("Media Usage is setting up")).toBeInTheDocument();
+			await expect.element(screen.getByRole("link", { name: "View setup" })).toBeInTheDocument();
+		});
+
+		it("keeps the library usable when optional setup discovery fails", async () => {
+			setupMocks.role = 50;
+			setupMocks.fetchStatus.mockRejectedValue(new Error("status unavailable"));
+
+			const screen = await renderLibrary({
+				items: [makeMediaItem({ id: "1", filename: "still-usable.jpg" })],
+			});
+
+			await expect.element(screen.getByAltText("still-usable.jpg")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }))
+				.toBeInTheDocument();
+			expect(screen.getByText("Set up Media Usage").query()).toBeNull();
+		});
 	});
 
 	describe("rendering items", () => {

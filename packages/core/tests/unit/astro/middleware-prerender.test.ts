@@ -25,6 +25,7 @@ const {
 	mockGetPluginRouteMeta,
 	mockHandlePluginApiRoute,
 	mockGetPublicUrl,
+	mockWakeMediaUsageMaintenance,
 } = vi.hoisted(() => {
 	const publicPluginResult = { success: true, data: { ok: true } };
 	const ok = async () => ({ success: true });
@@ -36,6 +37,7 @@ const {
 		return null;
 	});
 	const handlePluginApiRoute = vi.fn(async () => publicPluginResult);
+	const wakeMediaUsageMaintenance = vi.fn();
 
 	return {
 		MOCK_RUNTIME: {
@@ -90,11 +92,15 @@ const {
 			syncMarketplacePlugins: async () => undefined,
 			syncRegistryPlugins: async () => undefined,
 			setPluginStatus: async () => undefined,
+			wakeMediaUsageMaintenance() {
+				wakeMediaUsageMaintenance(this);
+			},
 		},
 		PUBLIC_PLUGIN_RESULT: publicPluginResult,
 		mockGetPluginRouteMeta: getPluginRouteMeta,
 		mockHandlePluginApiRoute: handlePluginApiRoute,
 		mockGetPublicUrl: getPublicUrl,
+		mockWakeMediaUsageMaintenance: wakeMediaUsageMaintenance,
 	};
 });
 
@@ -241,6 +247,7 @@ describe("astro middleware prerendered routes", () => {
 		mockGetPluginRouteMeta.mockClear();
 		mockHandlePluginApiRoute.mockClear();
 		mockGetPublicUrl.mockClear();
+		mockWakeMediaUsageMaintenance.mockClear();
 	});
 
 	it("does not access context.session on prerendered public runtime routes", async () => {
@@ -645,6 +652,24 @@ describe("astro middleware request-scoped db", () => {
 			isWrite: false,
 		});
 		expect(mockGetLastContentWriteAt).not.toHaveBeenCalled();
+	});
+
+	it("lets authenticated API routes wake Media Usage maintenance immediately", async () => {
+		const locals: Record<string, unknown> = {};
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/admin/media-usage/activation",
+			method: "POST",
+			headers: { authorization: "Bearer ec_pat_example" },
+			locals,
+		});
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			const emdash = locals.emdash as { wakeMediaUsageMaintenance: () => void };
+			emdash.wakeMediaUsageMaintenance();
+			return new Response("ok");
+		});
+
+		expect(mockWakeMediaUsageMaintenance).toHaveBeenCalledExactlyOnceWith(MOCK_RUNTIME);
 	});
 
 	it("forces isWrite true for POST requests on public pages", async () => {

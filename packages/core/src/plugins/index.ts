@@ -66,7 +66,11 @@ export type { PluginManagerOptions, PluginState } from "./manager.js";
 // Scheduler (Node timer-based heartbeat; consumed by the generated
 // virtual:emdash/scheduler module on non-serverless adapters)
 export { NodeCronScheduler } from "./scheduler/node.js";
-export type { CronScheduler, SystemCleanupFn } from "./scheduler/types.js";
+export type {
+	CronScheduler,
+	MediaUsageContinuationFn,
+	SystemCleanupFn,
+} from "./scheduler/types.js";
 
 // Sandbox
 export {

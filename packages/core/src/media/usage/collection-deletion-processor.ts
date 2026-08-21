@@ -12,13 +12,11 @@ import {
 
 export const MEDIA_USAGE_COLLECTION_DELETION_LIMITS = Object.freeze({
 	candidatesPerTick: 4,
-	deletionsPerTick: 1,
 	rowsPerBatch: 50,
 	leaseDurationSeconds: 5 * 60,
 	maxAttempts: 5,
 	retryBaseSeconds: 30,
 	retryMaxSeconds: 15 * 60,
-	maxQueriesPerTick: 30,
 });
 
 export interface MediaUsageCollectionDeletionTickResult {

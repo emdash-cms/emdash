@@ -8,6 +8,7 @@ declare namespace Cloudflare {
 	interface Env {
 		MEDIA: R2Bucket;
 		DB: D1Database;
+		MEDIA_USAGE_QUEUE: Queue;
 		LOADER: WorkerLoader;
 		AI_SEARCH: AiSearchNamespace;
 	}

@@ -9,6 +9,10 @@
  *
  */
 
+import type { MediaUsageMaintenanceContinuation } from "../../media/usage/maintenance-engine.js";
+
+export type MediaUsageContinuationFn = () => Promise<MediaUsageMaintenanceContinuation>;
+
 export interface CronScheduler {
 	/** Start the scheduler. */
 	start(): void | Promise<void>;
@@ -18,8 +22,10 @@ export interface CronScheduler {
 	reschedule(): void;
 	/** Register a system cleanup function to run alongside each tick. */
 	setSystemCleanup(fn: SystemCleanupFn): void;
-	/** Register bounded Media Usage maintenance to run after the general tick settles. */
-	setMediaUsageMaintenance?(fn: SystemCleanupFn): void;
+	/** Register continuation-capable Media Usage maintenance. */
+	setContinuousMediaUsageMaintenance(fn: MediaUsageContinuationFn): void;
+	/** Request Media Usage maintenance without waiting for the next heartbeat. */
+	wakeMediaUsageMaintenance(): void;
 }
 
 /**

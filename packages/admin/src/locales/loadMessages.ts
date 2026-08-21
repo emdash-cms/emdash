@@ -7,12 +7,17 @@ const LOCALE_LOADERS = import.meta.glob<{ messages: Messages }>("./**/messages.m
 export async function loadMessages(locale: string): Promise<Messages> {
 	const key = `./${locale}/messages.mjs`;
 	const fallbackKey = `./${DEFAULT_LOCALE}/messages.mjs`;
-	const loader = LOCALE_LOADERS[key] ?? LOCALE_LOADERS[fallbackKey];
-	if (!loader) {
+	const fallbackLoader = LOCALE_LOADERS[fallbackKey];
+	if (!fallbackLoader) {
 		throw new Error(
 			`No locale catalog found for "${locale}" or "${DEFAULT_LOCALE}". Run \`pnpm locale:compile\` to generate catalogs.`,
 		);
 	}
-	const { messages } = await loader();
-	return messages;
+	const loader = LOCALE_LOADERS[key] ?? fallbackLoader;
+	if (loader === fallbackLoader) return (await loader()).messages;
+	const [{ messages: fallbackMessages }, { messages }] = await Promise.all([
+		fallbackLoader(),
+		loader(),
+	]);
+	return { ...fallbackMessages, ...messages };
 }

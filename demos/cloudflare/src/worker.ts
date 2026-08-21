@@ -7,11 +7,21 @@
  */
 
 import handler from "@astrojs/cloudflare/entrypoints/server";
-import { createScheduledHandler, PluginBridge } from "@emdash-cms/cloudflare/worker";
+import {
+	createMediaUsageQueueHandler,
+	createMediaUsageFetchHandler,
+	createScheduledHandler,
+	type MediaUsageWakeMessage,
+	PluginBridge,
+} from "@emdash-cms/cloudflare/worker";
 
 export { PluginBridge };
 
+const resolveMediaUsageQueue = (env: Env) => env.MEDIA_USAGE_QUEUE;
+
 export default {
 	...handler,
+	fetch: createMediaUsageFetchHandler(handler, resolveMediaUsageQueue),
 	scheduled: createScheduledHandler(),
-} satisfies ExportedHandler<Env>;
+	queue: createMediaUsageQueueHandler(resolveMediaUsageQueue),
+} satisfies ExportedHandler<Env, MediaUsageWakeMessage>;

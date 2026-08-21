@@ -34,9 +34,29 @@
 			"bucket_name": "emdash-media",
 		},
 	],
-	// Cron trigger drives the AI Search reindex queue flush.
+	"queues": {
+		"producers": [
+			{
+				"binding": "MEDIA_USAGE_QUEUE",
+				"queue": "emdash-demo-media-usage",
+			},
+		],
+		"consumers": [
+			{
+				"queue": "emdash-demo-media-usage",
+				"max_batch_size": 1,
+				"max_batch_timeout": 0,
+				"max_retries": 3,
+				"max_concurrency": 1,
+			},
+		],
+	},
+	"limits": {
+		"cpu_ms": 300000,
+	},
+	// Cron triggers drive general maintenance.
 	"triggers": {
-		"crons": ["* * * * *", "*/2 * * * *"],
+		"crons": ["* * * * *"],
 	},
 	// Observability
 	"observability": {

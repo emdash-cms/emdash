@@ -366,10 +366,13 @@ DELETE /_emdash/api/media/:id
 
 ### Enable automatic media usage indexing
 
-Automatic media usage indexing must be enabled once for each production site. Writes must be
-paused while EmDash prepares each collection so that no changes are missed.
+Automatic media usage indexing must be enabled once for each production site. Pause direct database writes while EmDash prepares each collection. EmDash temporarily blocks its own content and schema writes during this step.
 
 Both endpoints require `schema:manage`. Bearer tokens also require the `admin` scope.
+
+Administrators can run the same procedure from **Settings → Media Usage** by selecting **Enable Media Usage**, then **Turn on**. The page sends one POST and displays the server-owned setup and indexing progress.
+
+Before using either flow, confirm that the Cloudflare Queue consumer or Node.js process is running.
 
 #### Check the current state
 
@@ -385,7 +388,7 @@ This request does not change anything. It returns one of these states:
 
 Status responses do not include internal lock data or raw database errors.
 
-#### Prepare the next collection
+#### Start activation
 
 ```http
 POST /_emdash/api/admin/media-usage/activation
@@ -398,28 +401,33 @@ X-EmDash-Request: 1
 }
 ```
 
-Each request prepares one collection. Send one request at a time until the state becomes `active`.
+The request prepares at most one collection and wakes the configured Cloudflare Queue or Node.js scheduler. These standard drivers continue with bounded batches after the response, including when the client disconnects. Use `GET` to observe the stored state. With a standard driver, do not send another POST unless the stored status reports a failure that you have fixed.
+
+Custom integrations that do not wire the standard Cloudflare Queue or Node continuation can continue
+sending one POST at a time. This compatibility path retains the same collection bound.
 
 Set both fields to `true`:
 
 - `writersDrained`: Application and direct database writes have stopped, and any writes already in
   progress have finished.
-- `maintenanceReady`: Scheduled background tasks are running through `mediaUsageCron` on Cloudflare
-  or the built-in scheduler on Node.js.
+- `maintenanceReady`: The Media Usage Queue consumer is running on Cloudflare, or the built-in scheduler is running on Node.js.
 
 #### Enable indexing in production
 
-1. Confirm that scheduled background tasks are running: `mediaUsageCron` on Cloudflare, or the
-   built-in scheduler on Node.js.
-2. Stop all application and direct database writes. Wait for writes already in progress to finish.
+1. Confirm that the Media Usage Queue consumer is running on Cloudflare, or that the built-in
+   scheduler is running on Node.js.
+2. Stop all direct database writers. Wait for writes already in progress to finish. EmDash fences its own writes during setup.
 3. Call `GET` to check the current state.
-4. Call `POST` one request at a time until the state becomes `active`.
-5. Resume writes.
-6. Keep scheduled background tasks running while EmDash indexes existing content.
+4. With the standard Queue or Node driver, call `POST` once, then use `GET` until the state becomes
+   `active`. With a custom integration that does not continue activation, alternate one `POST` with
+   `GET` until the state becomes `active`.
+5. Resume writes after the state becomes `active`.
+6. Keep the Queue consumer or Node process running while EmDash indexes existing content.
 
-If `POST` times out or returns `409` or `500`, call `GET` before sending another request. If
-`lastErrorCode` is set, keep writes stopped, check the application logs, fix the problem, and try
-again. Do not edit EmDash's internal database tables.
+If `POST` times out or returns `409` or `500`, call `GET` before deciding what to do. If the state is
+still `activating` without `lastErrorCode`, the server is continuing or another worker owns the
+current batch. If `lastErrorCode` is set, keep writes stopped, check the application logs, fix the
+problem, and send one confirmed POST to retry. Do not edit EmDash's internal database tables.
 
 <Aside type="caution">
 	After this process starts, it cannot be cancelled or reset. Test it in a staging environment and
@@ -428,6 +436,18 @@ again. Do not edit EmDash's internal database tables.
 
 When the state is `active`, EmDash tracks changes to media references in content. Existing content
 may still be indexing in the background.
+
+#### Check historical indexing progress
+
+```http
+GET /_emdash/api/admin/media-usage/progress
+```
+
+After activation is active, this returns `indexing`, `ready`, or `needs_attention` together with the
+number of ready and total current content types. The optional `indexingStarted` field is `false`
+between activation finishing and the first current reconciliation starting. Older responses may omit
+it. The endpoint does not inspect content rows or return work-item details. It requires
+`schema:manage`; bearer tokens also require the `admin` scope.
 
 ### List Media Usage Work
 
@@ -494,8 +514,8 @@ replaces newer work or exposes its lease token.
 The list returns only known durable work. Retry can create work for the supplied identity in an
 active collection even when no work row exists, but it does not scan for historical gaps. Use
 collection-scoped Media Usage repair after imports or direct database writes.
-When scheduled maintenance is disabled, failed jobs remain visible and manually retryable, but no
-automatic freshness deadline is promised.
+When the Media Usage Queue or Node continuation is unavailable, failed jobs remain visible and
+manually retryable, but no automatic freshness deadline is promised.
 
 ### Recover Collection Deletion
 

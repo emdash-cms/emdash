@@ -8,11 +8,13 @@ import type {
 	UnknownRow,
 } from "kysely";
 import { sql } from "kysely";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import { MediaUsageWorkRepository } from "../../../src/database/repositories/media-usage-work.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import type { Database } from "../../../src/database/types.js";
 import { installMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
+import { MEDIA_USAGE_MAINTENANCE_LIMITS } from "../../../src/media/usage/maintenance-engine.js";
 import {
 	MEDIA_USAGE_WORK_PROCESSING_LIMITS,
 	processDueMediaUsageWork,
@@ -131,7 +133,7 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 		);
 	});
 
-	it("bounds each scheduled tick and leaves the backlog durable", async () => {
+	it("processes all available work in one bulk batch", async () => {
 		const fixture = await createActiveFixture(ctx, "articles");
 		for (let index = 0; index < 3; index++) {
 			await insertEntry(ctx, fixture, `entry-${index}`, `media-${index}`);
@@ -140,18 +142,203 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 		const result = await processDueMediaUsageWork(ctx.db);
 
 		expect(result.candidateCount).toBe(3);
-		expect(result.claimedCount).toBe(MEDIA_USAGE_WORK_PROCESSING_LIMITS.jobsPerTick);
-		expect(result.completedCount).toBe(MEDIA_USAGE_WORK_PROCESSING_LIMITS.jobsPerTick);
-		expect(await countWork(ctx.db)).toBe(3 - MEDIA_USAGE_WORK_PROCESSING_LIMITS.jobsPerTick);
-		expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
-			expect.objectContaining({ status: "stale" }),
-		);
-
-		await processDueMediaUsageWork(ctx.db);
-		await processDueMediaUsageWork(ctx.db);
+		expect(result.claimedCount).toBe(3);
+		expect(result.completedCount).toBe(3);
 		expect(await countWork(ctx.db)).toBe(0);
 		expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
 			expect.objectContaining({ status: "complete" }),
+		);
+	});
+
+	it("does not repeat the full projection query sequence per entry", async () => {
+		const fixture = await createActiveFixture(ctx, "bulk_articles");
+		for (let index = 0; index < 10; index++) {
+			await insertEntry(ctx, fixture, `entry-${index}`, `media-${index}`);
+		}
+		const counter = new QueryCountingPlugin();
+
+		const result = await processDueMediaUsageWork(ctx.db.withPlugin(counter));
+
+		expect(result.completedCount).toBe(10);
+		expect(counter.count).toBeLessThan(50);
+		expect(await countWork(ctx.db)).toBe(0);
+	});
+
+	it("processes at most one thousand entries per bulk batch", async () => {
+		const fixture = await createActiveFixture(ctx, "large_batch");
+		for (let index = 0; index < 1_001; index++) {
+			await insertEntry(
+				ctx,
+				fixture,
+				`entry-${String(index).padStart(4, "0")}`,
+				`media-${index}`,
+				7,
+			);
+		}
+		const counter = new QueryCountingPlugin();
+
+		const result = await processDueMediaUsageWork(ctx.db.withPlugin(counter));
+
+		expect(result.claimedCount).toBe(1_000);
+		expect(result.completedCount).toBe(1_000);
+		expect(counter.count).toBeLessThan(50);
+		expect(await countWork(ctx.db)).toBe(1);
+	});
+
+	it("updates existing projections without one query sequence per entry", async () => {
+		const fixture = await createActiveFixture(ctx, "existing_batch");
+		for (let index = 0; index < 100; index++) {
+			await insertEntry(ctx, fixture, `entry-${String(index).padStart(3, "0")}`, `media-${index}`);
+		}
+		await processDueMediaUsageWork(ctx.db);
+		await sql`
+			UPDATE ${sql.ref(fixture.tableName)}
+			SET hero = ${JSON.stringify({ id: "updated-media", provider: "local", mimeType: "image/webp" })},
+				version = version + 1,
+				updated_at = '2026-08-20T00:00:00.000Z'
+		`.execute(ctx.db);
+		const counter = new QueryCountingPlugin();
+
+		const result = await processDueMediaUsageWork(ctx.db.withPlugin(counter));
+
+		expect(result.completedCount).toBe(100);
+		expect(counter.count).toBeLessThan(50);
+		expect(await countWork(ctx.db)).toBe(0);
+	});
+
+	it("lets only one overlapping bulk processor own each work row", async () => {
+		const fixture = await createActiveFixture(ctx, "overlapping_bulk");
+		for (let index = 0; index < 4; index++) {
+			await insertEntry(ctx, fixture, `entry-${index}`, `media-${index}`);
+		}
+
+		const results = await Promise.all([
+			processDueMediaUsageWork(ctx.db),
+			processDueMediaUsageWork(ctx.db),
+		]);
+
+		expect(results.reduce((total, result) => total + result.completedCount, 0)).toBe(4);
+		expect(await countWork(ctx.db)).toBe(0);
+	});
+
+	it("releases a claimed batch when its processing deadline is exhausted", async () => {
+		const fixture = await createActiveFixture(ctx, "deadline_release");
+		await insertEntry(ctx, fixture, "entry-1", "media-1");
+		const now = vi
+			.spyOn(Date, "now")
+			.mockReturnValueOnce(0)
+			.mockReturnValue(MEDIA_USAGE_WORK_PROCESSING_LIMITS.maxTickDurationMs + 1);
+
+		const result = await processDueMediaUsageWork(ctx.db);
+		now.mockRestore();
+
+		expect(result.completedCount).toBe(0);
+		expect(await findWork(ctx.db)).toEqual(
+			expect.objectContaining({ state: "pending", attempt_count: 0, lease_token: null }),
+		);
+	});
+
+	it("retries every incomplete row after a bulk publication failure", async () => {
+		const fixture = await createActiveFixture(ctx, "bulk_failure");
+		await insertEntry(ctx, fixture, "entry-1", "media-1");
+		await insertEntry(ctx, fixture, "entry-2", "media-2");
+		await installProjectionFailureTrigger(ctx);
+
+		const result = await processDueMediaUsageWork(ctx.db);
+		await removeProjectionFailureTrigger(ctx);
+
+		expect(result.retryCount).toBe(2);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_work")
+				.select(["state", "attempt_count", "last_error_code"])
+				.orderBy("content_id")
+				.execute(),
+		).toEqual([
+			{ state: "retry", attempt_count: 1, last_error_code: "MEDIA_USAGE_PROCESSING_FAILED" },
+			{ state: "retry", attempt_count: 1, last_error_code: "MEDIA_USAGE_PROCESSING_FAILED" },
+		]);
+
+		await ctx.db
+			.updateTable("_emdash_media_usage_work")
+			.set({
+				state: "pending",
+				attempt_count: MEDIA_USAGE_WORK_PROCESSING_LIMITS.maxAttempts - 1,
+				next_attempt_at: "2000-01-01T00:00:00.000Z",
+			})
+			.execute();
+		await installProjectionFailureTrigger(ctx);
+		const terminal = await processDueMediaUsageWork(ctx.db);
+		await removeProjectionFailureTrigger(ctx);
+
+		expect(terminal.failedCount).toBe(2);
+		expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
+			expect.objectContaining({
+				status: "partial",
+				last_error_code: "MEDIA_USAGE_PROCESSING_FAILED",
+			}),
+		);
+	});
+
+	it("recovers coverage when work deletion committed before its status update", async () => {
+		const fixture = await createActiveFixture(ctx, "finalization_recovery");
+		await insertEntry(ctx, fixture, "entry-1", "media-1");
+		const pending = await findWork(ctx.db);
+		const work = new MediaUsageWorkRepository(ctx.db);
+		const claimed = await work.claimWork({
+			collectionId: fixture.collectionId,
+			contentId: "entry-1",
+			workVersion: pending.work_version,
+			leaseDurationSeconds: 60,
+		});
+		if (!claimed?.leaseToken) throw new Error("Expected claimed work");
+		const usage = new MediaUsageRepository(ctx.db);
+		const marker = await usage.prepareIncrementalFinalization({
+			collectionId: fixture.collectionId,
+			collectionSlug: fixture.collectionSlug,
+		});
+		expect(marker.outcome).toBe("marked");
+		expect(
+			await work.completeWorkBatch([
+				{
+					collectionId: fixture.collectionId,
+					contentId: "entry-1",
+					workVersion: claimed.workVersion,
+					leaseToken: claimed.leaseToken,
+				},
+			]),
+		).toEqual(
+			new Set([`${fixture.collectionId}\u0000entry-1\u0000${String(claimed.workVersion)}`]),
+		);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_index_status")
+				.select("collection_id")
+				.where("collection_id", "=", fixture.collectionId)
+				.where(
+					sql<boolean>`cursor LIKE ('incremental-finalize:' || CAST(change_epoch AS text) || ':%')`,
+				)
+				.executeTakeFirst(),
+		).toBeDefined();
+		await processDueMediaUsageWork(ctx.db);
+
+		expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
+			expect.objectContaining({ status: "complete", cursor: null }),
+		);
+	});
+
+	it("does not complete an unmarked stale collection with no work", async () => {
+		const fixture = await createActiveFixture(ctx, "unmarked_stale");
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ status: "stale", completed_at: null, cursor: null })
+			.where("collection_id", "=", fixture.collectionId)
+			.execute();
+
+		await processDueMediaUsageWork(ctx.db);
+
+		expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
+			expect.objectContaining({ status: "stale", completed_at: null, cursor: null }),
 		);
 	});
 
@@ -285,7 +472,7 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 		).toBeNull();
 	});
 
-	it("keeps an ordinary job inside the exported statement envelope", async () => {
+	it("keeps an ordinary job inside the shared step reservation", async () => {
 		const fixture = await createActiveFixture(ctx, "measured");
 		await insertEntry(ctx, fixture, "entry-1", "media-1");
 		const counter = new QueryCountingPlugin();
@@ -298,9 +485,7 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 
 		expect(result.outcome).toBe("completed");
 		expect(counter.count).toBeGreaterThan(0);
-		expect(counter.count).toBeLessThanOrEqual(
-			MEDIA_USAGE_WORK_PROCESSING_LIMITS.ordinaryStatementsPerJob,
-		);
+		expect(counter.count).toBeLessThanOrEqual(MEDIA_USAGE_MAINTENANCE_LIMITS.maxStepQueries);
 	});
 });
 
@@ -322,6 +507,7 @@ async function createActiveFixture(ctx: DialectTestContext, collectionSlug: stri
 	await registry.createCollection({ slug: collectionSlug, label: collectionSlug });
 	await registry.createField(collectionSlug, { slug: "title", label: "Title", type: "string" });
 	await registry.createField(collectionSlug, { slug: "hero", label: "Hero", type: "image" });
+	await registry.createField(collectionSlug, { slug: "body", label: "Body", type: "portableText" });
 	const collection = await registry.getCollection(collectionSlug);
 	if (!collection) throw new Error(`Expected ${collectionSlug} collection`);
 
@@ -364,15 +550,21 @@ async function insertEntry(
 	fixture: Awaited<ReturnType<typeof createActiveFixture>>,
 	contentId: string,
 	mediaId: string,
+	referenceCount = 1,
 ): Promise<void> {
+	const body = Array.from({ length: Math.max(0, referenceCount - 1) }, (_, index) => ({
+		_type: "image",
+		asset: { _ref: `${mediaId}-body-${index}` },
+	}));
 	await sql`
-		INSERT INTO ${sql.ref(fixture.tableName)} (id, slug, status, title, hero)
+		INSERT INTO ${sql.ref(fixture.tableName)} (id, slug, status, title, hero, body)
 		VALUES (
 			${contentId},
 			${contentId},
 			'published',
 			${contentId},
-			${JSON.stringify({ id: mediaId, provider: "local", mimeType: "image/webp" })}
+			${JSON.stringify({ id: mediaId, provider: "local", mimeType: "image/webp" })},
+			${JSON.stringify(body)}
 		)
 	`.execute(ctx.db);
 }
@@ -461,4 +653,44 @@ async function removeProjectionSupersessionTrigger(ctx: DialectTestContext): Pro
 		return;
 	}
 	await sql`DROP TRIGGER emdash_test_supersede_media_usage_work`.execute(ctx.db);
+}
+
+async function installProjectionFailureTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE OR REPLACE FUNCTION emdash_test_fail_media_usage_projection()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
+				RAISE EXCEPTION 'forced media usage projection failure';
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER emdash_test_fail_media_usage_projection
+			BEFORE INSERT ON _emdash_media_usage_sources
+			FOR EACH ROW EXECUTE FUNCTION emdash_test_fail_media_usage_projection()
+		`.execute(ctx.db);
+		return;
+	}
+	await sql`
+		CREATE TRIGGER emdash_test_fail_media_usage_projection
+		BEFORE INSERT ON _emdash_media_usage_sources
+		BEGIN
+			SELECT RAISE(ABORT, 'forced media usage projection failure');
+		END
+	`.execute(ctx.db);
+}
+
+async function removeProjectionFailureTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			DROP TRIGGER emdash_test_fail_media_usage_projection
+			ON _emdash_media_usage_sources
+		`.execute(ctx.db);
+		await sql`DROP FUNCTION emdash_test_fail_media_usage_projection()`.execute(ctx.db);
+		return;
+	}
+	await sql`DROP TRIGGER emdash_test_fail_media_usage_projection`.execute(ctx.db);
 }
