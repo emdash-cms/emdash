@@ -373,7 +373,7 @@ Both endpoints require `schema:manage`. Bearer tokens also require the `admin` s
 
 Administrators can run the same procedure from **Settings → Media Usage**. The page sends one POST,
 then observes server-owned setup and indexing work. It cannot stop external writers or verify
-scheduled maintenance.
+that the Cloudflare Queue consumer or Node process is running.
 
 #### Check the current state
 
@@ -407,27 +407,27 @@ scheduler. These standard drivers continue with bounded batches after the respon
 the client disconnects. Use `GET` to observe the durable state. With a standard driver, do not send
 another POST unless the stored status reports a failure that you have fixed.
 
-Custom integrations that provide scheduled maintenance but do not wire the standard wake can
-continue sending one POST at a time. This compatibility path retains the same collection bound.
+Custom integrations that do not wire the standard Cloudflare Queue or Node continuation can continue
+sending one POST at a time. This compatibility path retains the same collection bound.
 
 Set both fields to `true`:
 
 - `writersDrained`: Application and direct database writes have stopped, and any writes already in
   progress have finished.
-- `maintenanceReady`: Scheduled background tasks are running through the general Cron on Cloudflare
-  or the built-in scheduler on Node.js.
+- `maintenanceReady`: The Media Usage Queue consumer is running on Cloudflare, or the built-in
+  scheduler is running on Node.js.
 
 #### Enable indexing in production
 
-1. Confirm that scheduled background tasks are running: the general Cron on Cloudflare, or the
-   built-in scheduler on Node.js.
+1. Confirm that the Media Usage Queue consumer is running on Cloudflare, or that the built-in
+   scheduler is running on Node.js.
 2. Stop all application and direct database writes. Wait for writes already in progress to finish.
 3. Call `GET` to check the current state.
 4. With the standard Queue or Node driver, call `POST` once, then use `GET` until the state becomes
    `active`. With a custom integration that does not continue activation, alternate one `POST` with
    `GET` until the state becomes `active`.
 5. Resume writes after the state becomes `active`.
-6. Keep scheduled background tasks running while EmDash indexes existing content.
+6. Keep the Queue consumer or Node process running while EmDash indexes existing content.
 
 If `POST` times out or returns `409` or `500`, call `GET` before deciding what to do. If the state is
 still `activating` without `lastErrorCode`, the server is continuing or another worker owns the
@@ -519,8 +519,8 @@ replaces newer work or exposes its lease token.
 The list returns only known durable work. Retry can create work for the supplied identity in an
 active collection even when no work row exists, but it does not scan for historical gaps. Use
 collection-scoped Media Usage repair after imports or direct database writes.
-When scheduled maintenance is disabled, failed jobs remain visible and manually retryable, but no
-automatic freshness deadline is promised.
+When the Media Usage Queue or Node continuation is unavailable, failed jobs remain visible and
+manually retryable, but no automatic freshness deadline is promised.
 
 ### Recover Collection Deletion
 
