@@ -160,6 +160,7 @@ export function ContentTypeEditor({
 	const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? "");
 	const [description, setDescription] = React.useState(collection?.description ?? "");
 	const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? "");
+	const [routable, setRoutable] = React.useState(collection?.routable ?? true);
 	// SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry
 	// so it isn't sent back on save (the API enum rejects it).
 	const [supports, setSupports] = React.useState<string[]>(
@@ -200,6 +201,7 @@ export function ContentTypeEditor({
 			labelSingular !== (collection.labelSingular ?? "") ||
 			description !== (collection.description ?? "") ||
 			urlPattern !== (collection.urlPattern ?? "") ||
+			routable !== (collection.routable ?? true) ||
 			JSON.stringify([...supports].toSorted()) !==
 				JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) ||
 			hasSeo !== collection.hasSeo ||
@@ -216,6 +218,7 @@ export function ContentTypeEditor({
 		labelSingular,
 		description,
 		urlPattern,
+		routable,
 		supports,
 		hasSeo,
 		commentsEnabled,
@@ -261,6 +264,7 @@ export function ContentTypeEditor({
 				labelSingular: labelSingular || undefined,
 				description: description || undefined,
 				urlPattern: urlPattern || undefined,
+				routable,
 				supports,
 				hasSeo,
 			});
@@ -270,6 +274,7 @@ export function ContentTypeEditor({
 				labelSingular: labelSingular || undefined,
 				description: description || undefined,
 				urlPattern: urlPattern || undefined,
+				routable,
 				supports,
 				hasSeo,
 				commentsEnabled,
@@ -325,10 +330,6 @@ export function ContentTypeEditor({
 
 	return (
 		<div className="space-y-6">
-			{/* Sticky header keeps the primary save action in view while users
-			    scroll through the settings + fields panels. The bottom-of-form
-			    save button is preserved below for keyboard / screen-reader users
-			    so DOM order still ends with a submit control. */}
 			<EditorHeader
 				leading={
 					<RouterLinkButton
@@ -416,6 +417,20 @@ export function ContentTypeEditor({
 								placeholder={t`A brief description of this content type`}
 								rows={3}
 								disabled={isFromCode}
+							/>
+
+							<Switch
+								checked={routable}
+								onCheckedChange={setRoutable}
+								disabled={isFromCode}
+								label={
+									<div>
+										<span className="text-sm font-medium">{t`Routable`}</span>
+										<p className="text-xs text-kumo-subtle">
+											{t`Require a slug before content can be published`}
+										</p>
+									</div>
+								}
 							/>
 
 							<div>

@@ -75,6 +75,8 @@ export interface SeedCollection {
 	admin?: CollectionAdminConfig;
 	supports?: ("drafts" | "revisions" | "preview" | "scheduling" | "search" | "seo")[];
 	urlPattern?: string;
+	/** Require a slug before an entry can be published. Defaults to true. */
+	routable?: boolean;
 	/**
 	 * Omit this collection from the admin sidebar. It stays reachable through
 	 * the API, MCP, plugin hooks, and direct `/content/:collection` URLs.
@@ -87,6 +89,10 @@ export interface SeedCollection {
 	sortOrder?: number;
 	/** Enable comments on this collection */
 	commentsEnabled?: boolean;
+	/** Field slug powering the admin list Title column (defaults to title display) */
+	titleField?: string;
+	/** Field slug (a datetime field) powering the admin list Date column (defaults to last-updated) */
+	dateField?: string;
 	fields: SeedField[];
 }
 
@@ -265,8 +271,8 @@ export interface SeedContentEntry {
 	/** Seed-local ID for $ref resolution */
 	id: string;
 
-	/** URL slug */
-	slug: string;
+	/** URL slug. May be omitted for entries in non-routable collections. */
+	slug?: string | null;
 
 	/** Publication status */
 	status?: "published" | "draft";

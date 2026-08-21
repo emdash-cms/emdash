@@ -42,7 +42,16 @@ import type { z } from "astro/zod";
 // Core Types
 // =============================================================================
 
+import type { ContentFieldFilters } from "../content-list-query.js";
 import type { FieldType } from "../schema/types.js";
+
+export type {
+	ContentFieldFilterScalar,
+	ContentFieldFilterValue,
+	ContentFieldFilters,
+	ContentFieldInFilter,
+	ContentFieldRangeFilter,
+} from "../content-list-query.js";
 
 export {
 	CAPABILITY_RENAMES,
@@ -227,6 +236,8 @@ export interface ContentListWhere {
 	status?: string;
 	/** Exact match on `locale` (e.g. `"en"`, `"fr-CA"`). */
 	locale?: string;
+	/** AND-combined filters over custom fields explicitly marked as indexed. */
+	fieldFilters?: ContentFieldFilters;
 }
 
 /**
@@ -250,6 +261,12 @@ export interface ContentListOptions {
 export type ContentWriteInput = Record<string, unknown> & {
 	seo?: ContentItemSeoInput;
 };
+
+/** Options accepted by `content.create`. */
+export interface ContentCreateOptions {
+	/** Locale for the new content row. Defaults to the configured site locale, then `en`. */
+	locale?: string;
+}
 
 /**
  * Taxonomy definition returned from the taxonomy API (e.g. "category", "tag").
@@ -299,7 +316,11 @@ export interface ContentAccess {
 	list(collection: string, options?: ContentListOptions): Promise<PaginatedResult<ContentItem>>;
 
 	// Write operations (requires write:content) - optional on interface
-	create?(collection: string, data: ContentWriteInput): Promise<ContentItem>;
+	create?(
+		collection: string,
+		data: ContentWriteInput,
+		options?: ContentCreateOptions,
+	): Promise<ContentItem>;
 	update?(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete?(collection: string, id: string): Promise<boolean>;
 }
@@ -325,7 +346,11 @@ export interface TaxonomyAccess {
  * Full content access with write operations
  */
 export interface ContentAccessWithWrite extends ContentAccess {
-	create(collection: string, data: ContentWriteInput): Promise<ContentItem>;
+	create(
+		collection: string,
+		data: ContentWriteInput,
+		options?: ContentCreateOptions,
+	): Promise<ContentItem>;
 	update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete(collection: string, id: string): Promise<boolean>;
 }
@@ -1175,6 +1200,18 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
 	request: Request;
 	/** Normalized request metadata (IP, user agent, geo) */
 	requestMeta: RequestMeta;
+	/**
+	 * Authenticated caller, if the route is private. The host has already
+	 * authenticated and authorized this user before dispatch, so the value
+	 * is trustworthy — unlike a user id read from the request body.
+	 *
+	 * `undefined` for public routes (which skip auth entirely) and for
+	 * token-authed requests where no user is bound to the token.
+	 *
+	 * Not gated by the `users:read` capability: this is the caller's own
+	 * identity for the current request, not a user directory lookup.
+	 */
+	user?: UserInfo;
 }
 
 /**

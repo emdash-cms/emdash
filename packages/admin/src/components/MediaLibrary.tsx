@@ -1,21 +1,14 @@
 import { Button, Input, Loader, Select, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	Upload,
-	Images,
-	SquaresFour,
-	List,
-	MagnifyingGlass,
-	Check,
-	X,
-} from "@phosphor-icons/react";
+import { Upload, Images, SquaresFour, List, MagnifyingGlass } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import {
 	type MediaItem,
+	type MediaUploadOptions,
 	type MediaProviderItem,
 	MEDIA_SEARCH_MAX_LENGTH,
 	fetchMediaProviders,
@@ -33,6 +26,7 @@ import {
 } from "../lib/media-utils";
 import { cn } from "../lib/utils";
 import { MediaDetailPanel } from "./MediaDetailPanel";
+import { LOCAL_MEDIA_UPLOAD_ACCEPT, MediaUploadDialog } from "./MediaUploadDialog.js";
 
 /** Maps a coarse type-filter choice to the media list's `mimeType` filter. */
 function mimeForTypeFilter(value: string): string | string[] | undefined {
@@ -53,7 +47,7 @@ function mimeForTypeFilter(value: string): string | string[] | undefined {
 export interface MediaLibraryProps {
 	items?: MediaItem[];
 	isLoading?: boolean;
-	onUpload?: (file: File) => Promise<void> | void;
+	onUpload?: (file: File, options?: MediaUploadOptions) => Promise<void> | void;
 	onSelect?: (item: MediaItem) => void;
 	onItemUpdated?: () => void;
 	/** True when more local-library items can be fetched via cursor pagination */
@@ -95,12 +89,16 @@ export function MediaLibrary({
 			onLocalSearchChange(debouncedSearch.trim());
 		}
 	}, [debouncedSearch, activeProvider, onLocalSearchChange]);
-	const [uploadState, setUploadState] = React.useState<{
-		status: "idle" | "uploading" | "success" | "error";
-		message?: string;
-		progress?: { current: number; total: number };
-	}>({ status: "idle" });
-	const fileInputRef = React.useRef<HTMLInputElement>(null);
+	const [uploadDialogOpen, setUploadDialogOpen] = React.useState(false);
+	const [enqueueRequest, setEnqueueRequest] = React.useState<{
+		id: number;
+		files: readonly File[];
+	} | null>(null);
+	const [uploadTarget, setUploadTarget] = React.useState<{ id: string; name: string } | null>(null);
+	const [isFileDragActive, setIsFileDragActive] = React.useState(false);
+	const enqueueIdRef = React.useRef(0);
+	const dragDepthRef = React.useRef(0);
+	const returnFocusRef = React.useRef<HTMLElement | null>(null);
 	// Track loaded image dimensions for providers that don't return them (e.g., CF Images)
 	const [loadedDimensions, setLoadedDimensions] = React.useState<
 		Record<string, { width: number; height: number }>
@@ -139,6 +137,8 @@ export function MediaLibrary({
 		}
 		return providers?.find((p) => p.id === activeProvider);
 	}, [activeProvider, providers, t]);
+	const canUpload = activeProviderInfo?.capabilities.upload ?? false;
+	const canSearch = activeProviderInfo?.capabilities.search ?? false;
 
 	const cancelPendingDetailOpen = React.useCallback(() => {
 		if (detailOpenFrameRef.current === null) return;
@@ -170,102 +170,69 @@ export function MediaLibrary({
 		setDetailItem(null);
 	}, []);
 
-	// Clear success/error message after a delay
-	React.useEffect(() => {
-		if (uploadState.status === "success" || uploadState.status === "error") {
-			const timer = setTimeout(() => {
-				setUploadState({ status: "idle" });
-			}, 3000);
-			return () => clearTimeout(timer);
-		}
-	}, [uploadState.status]);
+	const enqueueFiles = React.useCallback(
+		(files: readonly File[], returnFocus?: HTMLElement | null) => {
+			if (!canUpload || !activeProviderInfo || files.length === 0) return;
+			if (returnFocus) returnFocusRef.current = returnFocus;
+			setUploadTarget({ id: activeProviderInfo.id, name: activeProviderInfo.name });
+			setEnqueueRequest({ id: (enqueueIdRef.current += 1), files });
+			setUploadDialogOpen(true);
+		},
+		[activeProviderInfo, canUpload],
+	);
 
-	const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-		const files = e.target.files;
-		if (files && files.length > 0) {
-			const fileArray = [...files];
-			const total = fileArray.length;
-
-			if (activeProvider === "local") {
-				setUploadState({ status: "uploading", progress: { current: 0, total } });
-				let uploaded = 0;
-				let failed = 0;
-
-				for (const file of fileArray) {
-					try {
-						await onUpload?.(file);
-						uploaded++;
-					} catch (error) {
-						console.error("Upload failed:", error);
-						failed++;
-					}
-					setUploadState({
-						status: "uploading",
-						progress: { current: uploaded + failed, total },
-					});
-				}
-
-				if (failed === 0) {
-					setUploadState({
-						status: "success",
-						message: plural(total, { one: "File uploaded", other: "# files uploaded" }),
-					});
-				} else if (uploaded === 0) {
-					setUploadState({
-						status: "error",
-						message: plural(total, { one: "Upload failed", other: "All # uploads failed" }),
-					});
-				} else {
-					setUploadState({
-						status: "error",
-						message: t`${uploaded} uploaded, ${failed} failed`,
-					});
-				}
-			} else if (activeProviderInfo?.capabilities.upload) {
-				// Upload to external provider
-				setUploadState({ status: "uploading", progress: { current: 0, total } });
-				let uploaded = 0;
-				let failed = 0;
-
-				for (const file of fileArray) {
-					try {
-						await uploadToProvider(activeProvider, file);
-						uploaded++;
-					} catch (error) {
-						console.error("Upload failed:", error);
-						failed++;
-					}
-					setUploadState({
-						status: "uploading",
-						progress: { current: uploaded + failed, total },
-					});
-				}
-
-				if (failed === 0) {
-					setUploadState({
-						status: "success",
-						message: plural(total, { one: "File uploaded", other: "# files uploaded" }),
-					});
-				} else if (uploaded === 0) {
-					setUploadState({
-						status: "error",
-						message: plural(total, { one: "Upload failed", other: "All # uploads failed" }),
-					});
-				} else {
-					setUploadState({
-						status: "error",
-						message: t`${uploaded} uploaded, ${failed} failed`,
-					});
-				}
-
-				void refetchProviderMedia();
-			}
-		}
-		// Reset input
-		if (fileInputRef.current) {
-			fileInputRef.current.value = "";
-		}
+	const openUploadDialog = (event: React.MouseEvent<HTMLButtonElement>) => {
+		if (!canUpload || !activeProviderInfo) return;
+		returnFocusRef.current = event.currentTarget;
+		setUploadTarget({ id: activeProviderInfo.id, name: activeProviderInfo.name });
+		setEnqueueRequest(null);
+		setUploadDialogOpen(true);
 	};
+
+	React.useEffect(() => {
+		const hasFiles = (event: DragEvent) => event.dataTransfer?.types.includes("Files") ?? false;
+		const resetDrag = () => {
+			dragDepthRef.current = 0;
+			setIsFileDragActive(false);
+		};
+		const handleDragEnter = (event: DragEvent) => {
+			if (!hasFiles(event)) return;
+			event.preventDefault();
+			if (uploadDialogOpen || !canUpload) return;
+			dragDepthRef.current += 1;
+			setIsFileDragActive(true);
+		};
+		const handleDragOver = (event: DragEvent) => {
+			if (hasFiles(event)) event.preventDefault();
+		};
+		const handleDragLeave = (event: DragEvent) => {
+			if (dragDepthRef.current === 0 || uploadDialogOpen || !canUpload) return;
+			if (event.relatedTarget === null) {
+				resetDrag();
+				return;
+			}
+			dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+			if (dragDepthRef.current === 0) setIsFileDragActive(false);
+		};
+		const handleDrop = (event: DragEvent) => {
+			if (!hasFiles(event)) return;
+			event.preventDefault();
+			resetDrag();
+			if (uploadDialogOpen || !canUpload) return;
+			enqueueFiles([...(event.dataTransfer?.files ?? [])], mediaHeadingRef.current);
+		};
+
+		window.addEventListener("dragenter", handleDragEnter);
+		window.addEventListener("dragover", handleDragOver);
+		window.addEventListener("dragleave", handleDragLeave);
+		window.addEventListener("drop", handleDrop);
+		return () => {
+			window.removeEventListener("dragenter", handleDragEnter);
+			window.removeEventListener("dragover", handleDragOver);
+			window.removeEventListener("dragleave", handleDragLeave);
+			window.removeEventListener("drop", handleDrop);
+		};
+	}, [canUpload, enqueueFiles, uploadDialogOpen]);
 
 	// Build provider tabs
 	const providerTabs = React.useMemo(() => {
@@ -287,8 +254,6 @@ export function MediaLibrary({
 	const currentProviderItems = activeProvider !== "local" ? providerData?.items || [] : [];
 	const currentLoading = activeProvider === "local" ? isLoading : providerLoading;
 
-	const canUpload = activeProviderInfo?.capabilities.upload ?? false;
-	const canSearch = activeProviderInfo?.capabilities.search ?? false;
 	const resultCount =
 		activeProvider === "local" ? currentItems.length : currentProviderItems.length;
 	const hasMoreCurrentItems =
@@ -313,58 +278,56 @@ export function MediaLibrary({
 		}
 	};
 	const showToolbar = resultCount > 0 || hasActiveQuery;
+	const uploadFile = React.useCallback(
+		async (file: File, options: { signal: AbortSignal }) => {
+			if (!uploadTarget) throw new Error("Upload target unavailable");
+			if (uploadTarget.id === "local") {
+				if (!onUpload) throw new Error("Upload callback unavailable");
+				await onUpload(file, options);
+				return;
+			}
+			await uploadToProvider(uploadTarget.id, file, undefined, options);
+		},
+		[onUpload, uploadTarget],
+	);
+	const handleUploadDialogClosed = React.useCallback(() => {
+		setEnqueueRequest(null);
+		setUploadTarget(null);
+		const returnTarget = returnFocusRef.current;
+		returnFocusRef.current = null;
+		window.requestAnimationFrame(() => {
+			(returnTarget?.isConnected ? returnTarget : mediaHeadingRef.current)?.focus();
+		});
+	}, []);
+	const handleUploadQueueIdle = React.useCallback(() => {
+		if (uploadTarget?.id !== "local") void refetchProviderMedia();
+	}, [refetchProviderMedia, uploadTarget?.id]);
 
 	return (
-		<div className="space-y-4">
+		<div className="space-y-4" data-media-library>
+			{isFileDragActive && (
+				<div
+					className="pointer-events-none fixed inset-0 z-50 bg-kumo-base/70 p-4 backdrop-blur-sm sm:p-8"
+					aria-hidden="true"
+				>
+					<div className="flex h-full items-center justify-center rounded-2xl border-[3px] border-dashed border-kumo-brand/80 bg-kumo-tint/70">
+						<div className="flex flex-col items-center gap-3 text-center">
+							<Upload className="h-10 w-10 text-kumo-subtle" aria-hidden="true" />
+							<p className="text-lg font-semibold">{t`Drop files to upload`}</p>
+						</div>
+					</div>
+				</div>
+			)}
 			{/* Header: page title (start) + primary upload action (end) */}
 			<div className="flex flex-wrap items-center justify-between gap-4">
 				<h1 ref={mediaHeadingRef} tabIndex={-1} className="text-2xl font-semibold leading-tight">
 					{t`Media Library`}
 				</h1>
 				<div className="flex items-center gap-3">
-					{/* Upload status feedback */}
-					{uploadState.status === "uploading" && (
-						<div className="flex items-center gap-2 text-sm text-kumo-subtle">
-							<Loader size="sm" />
-							<span>
-								{uploadState.progress && uploadState.progress.total > 1
-									? t`Uploading ${uploadState.progress.current}/${uploadState.progress.total}...`
-									: t`Uploading...`}
-							</span>
-						</div>
-					)}
-					{uploadState.status === "success" && (
-						<div className="flex items-center gap-2 text-sm text-kumo-success">
-							<Check className="h-4 w-4" aria-hidden="true" />
-							<span>{uploadState.message}</span>
-						</div>
-					)}
-					{uploadState.status === "error" && (
-						<div className="flex items-center gap-2 text-sm text-kumo-danger">
-							<X className="h-4 w-4" aria-hidden="true" />
-							<span>{uploadState.message}</span>
-						</div>
-					)}
-
 					{canUpload && (
-						<>
-							<Button
-								onClick={() => fileInputRef.current?.click()}
-								disabled={uploadState.status === "uploading"}
-								icon={uploadState.status === "uploading" ? <Loader size="sm" /> : <Upload />}
-							>
-								{t`Upload to ${activeProviderInfo?.name || t`Library`}`}
-							</Button>
-							<input
-								ref={fileInputRef}
-								type="file"
-								multiple
-								accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
-								className="sr-only"
-								onChange={handleFileSelect}
-								aria-label={t`Upload files`}
-							/>
-						</>
+						<Button onClick={openUploadDialog} icon={<Upload />}>
+							{t`Upload to ${activeProviderInfo?.name || t`Library`}`}
+						</Button>
 					)}
 				</div>
 			</div>
@@ -504,7 +467,7 @@ export function MediaLibrary({
 						title={t`Your media library is empty`}
 						description={t`Upload images, videos, and documents to keep reusable assets in one place.`}
 						action={
-							<Button onClick={() => fileInputRef.current?.click()} icon={<Upload />}>
+							<Button onClick={openUploadDialog} icon={<Upload />}>
 								{t`Upload Files`}
 							</Button>
 						}
@@ -528,7 +491,7 @@ export function MediaLibrary({
 						title={t`Your media library is empty`}
 						description={t`Upload media to keep reusable assets in one place.`}
 						action={
-							<Button onClick={() => fileInputRef.current?.click()} icon={<Upload />}>
+							<Button onClick={openUploadDialog} icon={<Upload />}>
 								{t`Upload Files`}
 							</Button>
 						}
@@ -636,6 +599,20 @@ export function MediaLibrary({
 					</Button>
 				</div>
 			)}
+
+			<MediaUploadDialog
+				open={uploadDialogOpen}
+				providerName={uploadTarget?.name ?? activeProviderInfo?.name ?? t`Library`}
+				accept={uploadTarget?.id === "local" ? LOCAL_MEDIA_UPLOAD_ACCEPT : undefined}
+				enqueueRequest={enqueueRequest}
+				onEnqueueRequestConsumed={(id) =>
+					setEnqueueRequest((current) => (current?.id === id ? null : current))
+				}
+				onOpenChange={setUploadDialogOpen}
+				onCloseComplete={handleUploadDialogClosed}
+				onQueueIdle={handleUploadQueueIdle}
+				upload={uploadFile}
+			/>
 
 			{/* Detail Dialog */}
 			{detailItem && (

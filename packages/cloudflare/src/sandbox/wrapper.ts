@@ -124,7 +124,7 @@ function createContext(env) {
 	const content = {
 		get: (collection, id) => bridge.contentGet(collection, id),
 		list: (collection, opts) => bridge.contentList(collection, opts),
-		create: (collection, data) => bridge.contentCreate(collection, data),
+		create: (collection, data, options) => bridge.contentCreate(collection, data, options),
 		update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
 		delete: (collection, id) => bridge.contentDelete(collection, id)
 	};
@@ -258,10 +258,16 @@ export default class PluginEntrypoint extends WorkerEntrypoint {
 			throw new Error(\`Route \${routeName} handler is not a function\`);
 		}
 		
-		// Execute the route handler with input, request metadata, and context
+		// Execute the route handler with input, request metadata, the
+		// authenticated caller (private routes only), and context
 		try {
 			return await handler(
-				{ input, request: serializedRequest, requestMeta: serializedRequest.meta },
+				{
+					input,
+					request: serializedRequest,
+					requestMeta: serializedRequest.meta,
+					user: serializedRequest.user,
+				},
 				ctx,
 			);
 		} catch (error) {

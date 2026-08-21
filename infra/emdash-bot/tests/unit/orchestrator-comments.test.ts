@@ -83,10 +83,14 @@ describe("renderPreviewReadyAsk", () => {
 		const body = ask();
 		expect(body).toContain("<!-- bot-ask: 2026-08-08T00:00:00Z -->");
 		expect(body).toContain("npm i https://pkg.pr.new/emdash@bot/fix-77");
+		expect(body).toContain("[Open the playground preview](https://bot-fix-77.try.emdashcms.com/)");
 		expect(body).toContain("Root cause: the loader drops the locale.");
 		expect(body).toContain("@alice");
 		expect(body).toContain("`bot/fix-77`");
 		expect(body).toContain("`bot/artifacts-77`");
+		expect(body).toContain("`@emdashbot confirm`");
+		expect(body).toContain("`@emdashbot reject <details>`");
+		expect(body).not.toContain('A simple "yes" or "no" is enough.');
 	});
 
 	test("falls back to a generic ask when the reporter login is unknown", () => {

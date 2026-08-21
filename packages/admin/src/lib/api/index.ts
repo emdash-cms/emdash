@@ -58,6 +58,7 @@ export {
 // Media
 export {
 	type MediaItem,
+	type MediaUploadOptions,
 	type MediaUsageCoverageStatus,
 	type MediaUsageCoverage,
 	type MediaUsageOccurrenceDetail,
@@ -67,6 +68,7 @@ export {
 	type MediaProviderCapabilities,
 	type MediaProviderInfo,
 	type MediaProviderItem,
+	type UploadMediaOptions,
 	MEDIA_SEARCH_MAX_LENGTH,
 	fetchMediaList,
 	fetchMediaItem,

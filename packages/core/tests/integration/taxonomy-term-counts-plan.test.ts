@@ -87,7 +87,7 @@ function explain(query: CapturedQuery): string {
 
 async function countQueryPlan(): Promise<string> {
 	captured = [];
-	await fetchVisibleTermCounts(db, "category", ["post"]);
+	await fetchVisibleTermCounts(db, "category", ["post"], "en");
 	const query = captured.find((q) => q.sql.includes("content_taxonomies"));
 	expect(query, "expected a term-count query against the pivot").toBeDefined();
 	return explain(query!);
@@ -106,7 +106,7 @@ it("seeks content rows by translation group", async () => {
 	const plan = await countQueryPlan();
 
 	expect(plan).toMatch(
-		/SEARCH e USING (COVERING )?INDEX idx_ec_post_tg_locale \(translation_group=\?\)/,
+		/SEARCH e USING (COVERING )?INDEX idx_ec_post_del_tg_locale \(deleted_at=\? AND translation_group=\? AND locale=\?\)/,
 	);
 	expect(plan).not.toContain("SCAN e");
 });

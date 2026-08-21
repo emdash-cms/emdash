@@ -216,7 +216,7 @@ Every field supports these properties:
 | `type`         | `FieldType` | One of the 16 field types                    |
 | `required`     | `boolean`   | Whether the field must have a value          |
 | `unique`       | `boolean`   | Whether values must be unique across entries |
-| `indexed`      | `boolean`   | Allow efficient sorting by this field        |
+| `indexed`      | `boolean`   | Allow efficient sorting and filtering by this field |
 | `defaultValue` | `unknown`   | Default value for new entries                |
 | `validation`   | `object`    | Type-specific validation rules               |
 | `widget`       | `string`    | Custom widget identifier                     |
@@ -229,13 +229,14 @@ Every field supports these properties:
 	`version`, `live_revision_id`, `draft_revision_id`, `terms`, `bylines`, `byline`.
 </Aside>
 
-Set `indexed: true` when a collection query needs to use a custom field in `orderBy`. Indexes are
+Set `indexed: true` when a collection query needs to use a custom field in `orderBy` or a field
+filter. Indexes are
 supported for `string`, `url`, `number`, `integer`, `boolean`, `datetime`, `select`, `reference`,
 and `slug` fields. EmDash rejects indexed JSON, rich content, and other non-scalar field types.
 
 <Aside type="caution">
-	Indexes improve ordered reads but use additional storage and add work to content writes. Only index
-	fields that are used for sorting.
+	Indexes improve ordered and filtered reads but use additional storage and add work to content
+	writes. Only index fields that are used for sorting or filtering.
 </Aside>
 
 ## Validation rules

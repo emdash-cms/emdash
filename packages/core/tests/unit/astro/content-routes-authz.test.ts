@@ -98,12 +98,17 @@ function buildEmdash(
 		compare?: { hasChanges: boolean; live: unknown; draft: unknown };
 	} = {},
 ) {
-	const handleContentList = vi.fn(async (_collection: string, params: { status?: string }) => {
-		const items = params.status
-			? (opts.listItems ?? []).filter((i) => i.status === params.status)
-			: (opts.listItems ?? []);
-		return { success: true as const, data: { items, nextCursor: undefined } };
-	});
+	const handleContentList = vi.fn(
+		async (
+			_collection: string,
+			params: { status?: string; fieldFilters?: Record<string, unknown> },
+		) => {
+			const items = params.status
+				? (opts.listItems ?? []).filter((i) => i.status === params.status)
+				: (opts.listItems ?? []);
+			return { success: true as const, data: { items, nextCursor: undefined } };
+		},
+	);
 
 	const handleContentGet = vi.fn(async (_collection: string, _id: string) => {
 		if (!opts.getItem) {
@@ -222,6 +227,28 @@ describe("GET /content/:collection — subscriber drafts leak", () => {
 		// status param is undefined (caller-controlled), not forced
 		const call = emdash.handleContentList.mock.calls[0]?.[1];
 		expect(call?.status).toBeUndefined();
+	});
+
+	it("parses indexed field filters before calling the runtime", async () => {
+		const emdash = buildEmdash({ listItems: items });
+		const fieldFilters = encodeURIComponent(
+			JSON.stringify({ priority: { in: ["urgent", "high"] }, resolved: false }),
+		);
+		const res = await getList(
+			ctx({
+				user: contributor,
+				emdash,
+				url: `http://localhost/?fieldFilters=${fieldFilters}`,
+			}),
+		);
+
+		expect(res.status).toBe(200);
+		expect(emdash.handleContentList).toHaveBeenCalledWith(
+			"post",
+			expect.objectContaining({
+				fieldFilters: { priority: { in: ["urgent", "high"] }, resolved: false },
+			}),
+		);
 	});
 });
 

@@ -657,6 +657,8 @@ describe("Bridge Handler Conformance", () => {
 				.addColumn("deleted_at", "text")
 				.addColumn("version", "integer", (col) => col.defaultTo(1))
 				.addColumn("author_id", "text")
+				.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
+				.addColumn("translation_group", "text")
 				.execute();
 		});
 

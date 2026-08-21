@@ -21,10 +21,12 @@ A site goes through four distinct workflows. Each one touches a different layer:
 The seed file only participates in the third row. It is applied once, when the database is empty and the setup wizard has not been completed. Deploying a changed seed file against an existing database does nothing — evolving a live site's schema always happens through the admin panel or the API.
 
 <Aside type="note">
-	Pending core migrations run on the first request after a deploy. They can change EmDash system tables
-	and the physical layout of collection tables, but they do not add or remove your collections, fields,
-	or taxonomies. PostgreSQL deployments must retain the [required schema ownership and
-	permissions](/deployment/database/#database-role-requirements) for these migrations.
+	Core migrations update EmDash's internal tables and the physical layout of collection tables. Runtime
+	migration remains automatic by default, or a deployment can apply the exact build manifest before
+	traffic. Core migrations do not add or remove your collections, fields, or taxonomies. PostgreSQL
+	deployments must retain the [required schema ownership and
+	permissions](/deployment/database/#database-role-requirements). See [Manage Core Database
+	Migrations](/deployment/core-migrations/) for the deployment workflow.
 </Aside>
 
 ## Change the schema in the admin panel

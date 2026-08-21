@@ -53,6 +53,34 @@ export default {
 - `routeCtx` carries request-shaped data: `{ input, request, requestMeta }`.
 - `ctx` is the same `PluginContext` you get inside hooks — `ctx.storage`, `ctx.kv`, `ctx.content`, `ctx.http`, `ctx.log`, etc.
 
+### Filtering indexed content fields
+
+Plugins with the `content:read` capability can filter custom fields that a collection marks as
+`indexed`. Filters run in the database and combine with `AND` semantics:
+
+```typescript
+const result = await ctx.content.list("items", {
+	where: {
+		fieldFilters: {
+			priority: { in: ["urgent", "high"] },
+			score: { gte: 80 },
+			resolved: false,
+		},
+	},
+});
+```
+
+Scalar values use exact matching. Use `null` for null matching, `{ in: [...] }` for a set of exact
+values, or `gt`, `gte`, `lt`, and `lte` for range comparisons. EmDash rejects filters for fields
+that are not indexed, values that do not match the field type, and more than 20 field filters per
+query. An `in` filter accepts at most 50 values, and all exact values, range bounds, and `in`
+members together have a 50-operand budget per query. Null matches do not consume that budget.
+
+<Aside type="caution">
+	Filtering is intentionally limited to indexed scalar fields. Prefix, substring, and arbitrary
+	JSON filtering require different index strategies and are not part of this API.
+</Aside>
+
 ## Route URLs
 
 Routes mount at `/_emdash/api/plugins/<slug>/<route-name>`. Route names can include slashes for nested paths.
@@ -104,6 +132,29 @@ routes: {
 <Aside type="caution">
 	Public routes skip authentication, scope, and CSRF entirely. Anyone on the internet can call them. Use `public: true` only for endpoints that need to accept external traffic — webhooks, public-facing search endpoints — and validate the input carefully.
 </Aside>
+
+### The authenticated caller
+
+On private routes, `routeCtx.user` is the authenticated user making the request — resolved and authorized by EmDash before your handler runs, so you can trust it for per-user logic (per-user API keys, OAuth connections, plugin-managed preferences):
+
+```typescript
+routes: {
+	"connect/start": {
+		handler: async (routeCtx, ctx) => {
+			// Never read the acting user from the request body — any authenticated
+			// session could impersonate another user that way. Use routeCtx.user.
+			const caller = routeCtx.user;
+			if (!caller) throw new Error("No caller bound");
+			await ctx.kv.set(`user:${caller.id}:connection`, { startedAt: Date.now() });
+			return { userId: caller.id };
+		},
+	},
+},
+```
+
+`routeCtx.user` is `undefined` on public routes (they skip auth, so no caller is bound — even when the visitor happens to have an admin session) and for token-authed requests where the token isn't bound to a user (machine tokens). The shape matches the `UserInfo` returned by `ctx.users`: `{ id, email, name, role, createdAt }` — no sensitive fields.
+
+Note that caller identity is separate from the `users:read` capability: `routeCtx.user` tells you **who is calling** and is always available on private routes, while `ctx.users` is a user-directory **lookup** that requires the capability.
 
 ### Caching public responses
 
@@ -490,6 +541,15 @@ interface SandboxedRouteContext {
 	input: unknown; // narrow with the `input` Zod schema at the route level
 	request: SandboxedRequest;
 	requestMeta?: unknown;
+	user?: UserInfo; // authenticated caller on private routes; undefined on public routes
+}
+
+interface UserInfo {
+	id: string;
+	email: string;
+	name: string | null;
+	role: number;
+	createdAt: string;
 }
 
 interface PluginContext {

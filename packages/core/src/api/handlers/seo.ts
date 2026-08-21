@@ -88,7 +88,7 @@ function toW3CDate(value: string): string {
  * Collect all published, indexable content across SEO-enabled collections
  * for sitemap generation, grouped by collection.
  *
- * Only includes content from collections with `has_seo = 1`.
+ * Only includes content from routable collections with `has_seo = 1`.
  * Excludes content with `seo_no_index = 1` in the `_emdash_seo` table.
  *
  * Returns raw data grouped per collection. The caller (route) is
@@ -105,7 +105,8 @@ export async function handleSitemapData(
 		let query = db
 			.selectFrom("_emdash_collections")
 			.select(["slug", "url_pattern"])
-			.where("has_seo", "=", 1);
+			.where("has_seo", "=", 1)
+			.where("routable", "=", 1);
 
 		if (collectionSlug) {
 			query = query.where("slug", "=", collectionSlug);
@@ -149,6 +150,8 @@ export async function handleSitemapData(
 						AND s.content_id = c.id
 					WHERE c.status = 'published'
 					AND c.deleted_at IS NULL
+					AND c.slug IS NOT NULL
+					AND TRIM(c.slug) <> ''
 					AND (s.seo_no_index IS NULL OR s.seo_no_index = 0)
 					ORDER BY c.updated_at DESC
 					LIMIT ${SITEMAP_MAX_ENTRIES}
