@@ -527,9 +527,10 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 	}
 	if (block._type === "code") {
 		const cb = block as PTBlock & { code?: string; language?: string };
+		const language = typeof cb.language === "string" && cb.language.length > 0 ? cb.language : null;
 		return {
 			type: "codeBlock",
-			attrs: { language: cb.language || null },
+			attrs: { language },
 			content: cb.code ? [{ type: "text", text: cb.code }] : undefined,
 		};
 	}
@@ -2283,6 +2284,94 @@ export function InlinePortableTextEditor({
 				onSelect={handleMediaSelect}
 			/>
 			<style>{`
+				.emdash-inline-code-block {
+					--emdash-code-background: var(--emdash-inline-code-background, #f6f8fa);
+					--emdash-code-foreground: var(--emdash-inline-code-foreground, #24292f);
+					--emdash-code-muted: var(--emdash-inline-code-muted, #57606a);
+					--emdash-code-keyword: var(--emdash-inline-code-keyword, #b8172a);
+					--emdash-code-string: var(--emdash-inline-code-string, #0a3069);
+					--emdash-code-number: var(--emdash-inline-code-number, #0550ae);
+					--emdash-code-title: var(--emdash-inline-code-title, #7545c7);
+					--emdash-code-border: var(--emdash-inline-code-border, #7d8590);
+					--emdash-code-control-background: var(
+						--emdash-inline-code-control-background,
+						var(--emdash-inline-bg, #ffffff)
+					);
+					--emdash-code-control-foreground: var(
+						--emdash-inline-code-control-foreground,
+						#24292f
+					);
+					--emdash-code-focus: var(--emdash-inline-code-focus, #0550ae);
+				}
+				.emdash-inline-code-block .emdash-code-block {
+					margin: 0;
+					padding: 1rem;
+					border: 1px solid var(--emdash-code-border);
+					border-radius: 0.5rem;
+					background: var(--emdash-code-background);
+					color: var(--emdash-code-foreground);
+					caret-color: var(--emdash-code-foreground);
+					overflow-x: auto;
+				}
+				.emdash-inline-code-block .emdash-code-block code {
+					background: transparent;
+					color: inherit;
+				}
+				.emdash-inline-code-block :is(.hljs-comment, .hljs-quote) {
+					color: var(--emdash-code-muted);
+				}
+				.emdash-inline-code-block
+					:is(.hljs-keyword, .hljs-literal, .hljs-selector-tag, .hljs-section, .hljs-link, .hljs-deletion) {
+					color: var(--emdash-code-keyword);
+				}
+				.emdash-inline-code-block
+					:is(.hljs-string, .hljs-attr, .hljs-attribute, .hljs-symbol, .hljs-bullet, .hljs-addition) {
+					color: var(--emdash-code-string);
+				}
+				.emdash-inline-code-block :is(.hljs-number, .hljs-meta) {
+					color: var(--emdash-code-number);
+				}
+				.emdash-inline-code-block
+					:is(.hljs-title, .hljs-name, .hljs-type, .hljs-built_in, .hljs-selector-id, .hljs-selector-class) {
+					color: var(--emdash-code-title);
+				}
+				.emdash-inline-code-block-popover,
+				.emdash-inline-code-block-chip {
+					border: 1px solid var(--emdash-code-border);
+					background: var(--emdash-code-control-background);
+					color: var(--emdash-code-control-foreground);
+				}
+				.emdash-inline-code-block-language-input {
+					border: 1px solid var(--emdash-code-border);
+					background: transparent;
+					color: inherit;
+				}
+				.emdash-inline-code-block-chip:focus-visible,
+				.emdash-inline-code-block-language-input:focus-visible {
+					outline: 2px solid var(--emdash-code-focus);
+					outline-offset: 2px;
+				}
+				@media (prefers-color-scheme: dark) {
+					.emdash-inline-code-block {
+						--emdash-code-background: var(--emdash-inline-code-background, #0d1117);
+						--emdash-code-foreground: var(--emdash-inline-code-foreground, #f0f3f6);
+						--emdash-code-muted: var(--emdash-inline-code-muted, #c9d1d9);
+						--emdash-code-keyword: var(--emdash-inline-code-keyword, #ffbcb5);
+						--emdash-code-string: var(--emdash-inline-code-string, #b9ddff);
+						--emdash-code-number: var(--emdash-inline-code-number, #a8d5ff);
+						--emdash-code-title: var(--emdash-inline-code-title, #e5ccff);
+						--emdash-code-border: var(--emdash-inline-code-border, #6e7681);
+						--emdash-code-control-background: var(
+							--emdash-inline-code-control-background,
+							var(--emdash-inline-bg, #161b22)
+						);
+						--emdash-code-control-foreground: var(
+							--emdash-inline-code-control-foreground,
+							#f0f3f6
+						);
+						--emdash-code-focus: var(--emdash-inline-code-focus, #a8d5ff);
+					}
+				}
 				.emdash-bubble-menu {
 					z-index: 100;
 					display: flex;

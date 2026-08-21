@@ -2,19 +2,39 @@
  * Code block node view for the inline (visual editing) Portable Text editor.
  *
  * Mirrors the admin editor's `CodeBlockNode` but with no Kumo/Lingui deps,
- * so it can ship as part of the SSR runtime. Wraps the base
- * `@tiptap/extension-code-block` and overlays a small inline language picker
- * in the top-right corner of each code block.
+ * so it can ship as part of the SSR runtime. Wraps the Lowlight code block and
+ * overlays a small inline language picker in the top-right corner of each code
+ * block.
  *
  * Keep the language list in sync with
  * `packages/admin/src/components/editor/codeBlockLanguages.ts`. Duplicated
  * here so packages/core stays independent of the admin package.
  */
 
-import CodeBlock from "@tiptap/extension-code-block";
+import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
+import dockerfile from "highlight.js/lib/languages/dockerfile";
+import { common, createLowlight } from "lowlight";
 import * as React from "react";
+
+const lowlight = createLowlight(common);
+lowlight.register({ dockerfile });
+
+const editorLowlight = {
+	highlight(language: string, value: string) {
+		return lowlight.highlight(lowlight.registered(language) ? language : "plaintext", value);
+	},
+	highlightAuto(value: string) {
+		return lowlight.highlight("plaintext", value);
+	},
+	listLanguages() {
+		return lowlight.listLanguages();
+	},
+	registered(language: string) {
+		return lowlight.registered(language);
+	},
+};
 
 interface CodeBlockLanguage {
 	id: string;
@@ -250,14 +270,13 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
 				{isEditing ? (
 					<div
 						ref={popoverRef}
+						className="emdash-inline-code-block-popover"
 						style={{
 							display: "flex",
 							alignItems: "center",
 							gap: "0.25rem",
 							padding: "0.25rem",
 							borderRadius: "0.375rem",
-							border: "1px solid rgba(0,0,0,0.1)",
-							background: "var(--emdash-inline-bg, #ffffff)",
 							boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
 						}}
 					>
@@ -268,6 +287,7 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
 							value={draft}
 							onChange={(e) => setDraft(e.target.value)}
 							onKeyDown={handleKeyDown}
+							className="emdash-inline-code-block-language-input"
 							placeholder="Language"
 							aria-label="Language"
 							style={{
@@ -275,10 +295,7 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
 								width: "10rem",
 								fontSize: "0.75rem",
 								padding: "0 0.5rem",
-								border: "1px solid rgba(0,0,0,0.15)",
 								borderRadius: "0.25rem",
-								background: "transparent",
-								color: "inherit",
 							}}
 						/>
 						<button
@@ -315,9 +332,6 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
 							padding: "0.125rem 0.5rem",
 							fontSize: "0.75rem",
 							borderRadius: "0.375rem",
-							border: "1px solid rgba(0,0,0,0.1)",
-							background: "rgba(255,255,255,0.9)",
-							color: "rgba(0,0,0,0.6)",
 							cursor: "pointer",
 						}}
 					>
@@ -336,7 +350,7 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
  * configure `StarterKit.configure({ codeBlock: false })` and add this
  * extension to the editor.
  */
-export const InlineCodeBlockExtension = CodeBlock.extend({
+export const InlineCodeBlockExtension = CodeBlockLowlight.extend({
 	addKeyboardShortcuts() {
 		const shortcuts = this.parent?.() ?? {};
 		const selectionIsInCodeBlock = () => {
@@ -354,4 +368,9 @@ export const InlineCodeBlockExtension = CodeBlock.extend({
 	addNodeView() {
 		return ReactNodeViewRenderer(InlineCodeBlockNodeView);
 	},
-}).configure({ enableTabIndentation: true, tabSize: 4 });
+}).configure({
+	lowlight: editorLowlight,
+	defaultLanguage: "plaintext",
+	enableTabIndentation: true,
+	tabSize: 4,
+});
