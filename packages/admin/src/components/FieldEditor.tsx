@@ -59,6 +59,13 @@ function isIndexableFieldType(type: FieldType | null): type is FieldType {
 	return type !== null && INDEXABLE_FIELD_TYPES.has(type);
 }
 
+function normalizeSlug(value: string): string {
+	return value
+		.toLowerCase()
+		.replace(SLUG_INVALID_CHARS_REGEX, "_")
+		.replace(SLUG_LEADING_TRAILING_REGEX, "");
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -277,13 +284,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 		setField("label", value);
 		if (!field) {
 			// Only auto-generate for new fields
-			setField(
-				"slug",
-				value
-					.toLowerCase()
-					.replace(SLUG_INVALID_CHARS_REGEX, "_")
-					.replace(SLUG_LEADING_TRAILING_REGEX, ""),
-			);
+			setField("slug", normalizeSlug(value));
 		}
 	};
 
@@ -444,6 +445,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 									label={t`Slug`}
 									value={slug}
 									onChange={(e) => setField("slug", e.target.value)}
+									onBlur={() => setField("slug", normalizeSlug(slug))}
 									placeholder="field_slug"
 									disabled={!!field}
 								/>

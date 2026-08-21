@@ -302,6 +302,7 @@ export interface ContentSettingsPanelProps {
 	entryLocale?: string | null;
 	slug: string;
 	onSlugChange: (value: string) => void;
+	onSlugBlur?: () => void;
 	status: string;
 	supportsDrafts: boolean;
 	isLive: boolean;
@@ -358,6 +359,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	entryLocale,
 	slug,
 	onSlugChange,
+	onSlugBlur,
 	status,
 	supportsDrafts,
 	isLive,
@@ -491,6 +493,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								label={t`Slug`}
 								value={slug}
 								onChange={(e) => onSlugChange(e.target.value)}
+								onBlur={onSlugBlur}
 								placeholder="my-post-slug"
 							/>
 							{contentLocale ? (
@@ -1100,6 +1103,7 @@ function BylineCreditsEditor({
 								label={t`Slug`}
 								value={quickSlug}
 								onChange={(e) => setQuickSlug(e.target.value)}
+								onBlur={() => setQuickSlug((current) => slugify(current))}
 							/>
 							{quickError && <p className="text-sm text-kumo-danger">{quickError}</p>}
 						</div>
@@ -1162,6 +1166,7 @@ function BylineCreditsEditor({
 								label={t`Slug`}
 								value={editSlug}
 								onChange={(e) => setEditSlug(e.target.value)}
+								onBlur={() => setEditSlug((current) => slugify(current))}
 							/>
 							{editError && <p className="text-sm text-kumo-danger">{editError}</p>}
 						</div>

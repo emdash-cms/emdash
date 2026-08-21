@@ -124,6 +124,17 @@ describe("SectionEditor", () => {
 		await expect.element(screen.getByRole("img", { name: "Logo" })).toBeInTheDocument();
 	});
 
+	it("normalizes a manually-typed slug on blur", async () => {
+		const screen = await render(<SectionEditor />, { wrapper: Wrapper });
+
+		await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
+		const slugInput = screen.getByLabelText("Slug");
+		await slugInput.fill("My New Slug!");
+		// Blur by moving focus elsewhere, same as a real user tabbing away.
+		await screen.getByLabelText("Title").click();
+		await expect.element(slugInput).toHaveValue("my-new-slug");
+	});
+
 	it("shows both clean save actions as Saved", async () => {
 		const screen = await render(<SectionEditor />, { wrapper: Wrapper });
 

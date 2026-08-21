@@ -184,6 +184,15 @@ describe("BylineFieldEditor", () => {
 			const screen = await render(<BylineFieldEditor {...defaultProps} />);
 			expect(screen.getByLabelText("Options (one per line)").query()).toBeNull();
 		});
+
+		it("normalizes a manually-typed slug on blur", async () => {
+			const screen = await render(<BylineFieldEditor {...defaultProps} />);
+			const slugInput = screen.getByLabelText("Slug");
+			await slugInput.fill("Job Title!");
+			// Blur by moving focus elsewhere, same as a real user tabbing away.
+			await screen.getByLabelText("Label").click();
+			await expect.element(slugInput).toHaveValue("job_title");
+		});
 	});
 
 	describe("edit mode (string field)", () => {
