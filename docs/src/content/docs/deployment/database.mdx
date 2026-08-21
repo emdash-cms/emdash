@@ -66,8 +66,9 @@ export default defineConfig({
 </Tabs>
 
 <Aside>
-	EmDash runs migrations on D1 automatically on the first request after deployment. Wrangler
-	provisions the D1 database itself on first deploy if it doesn't already exist.
+	EmDash runs core migrations automatically by default on the first request after deployment, or a
+	deployment can apply them from the build manifest before traffic. You must provision the D1
+	database separately; see [Manage Core Database Migrations](/deployment/core-migrations/).
 </Aside>
 
 ### Read Replicas
@@ -148,10 +149,11 @@ export default defineConfig({
 
 ### Configuration
 
-| Option      | Type     | Description                                          |
-| ----------- | -------- | ---------------------------------------------------- |
-| `url`       | `string` | Database URL (`libsql://...` or `file:...`)          |
-| `authToken` | `string` | Auth token for remote databases (optional for local) |
+| Option                  | Type     | Description                                                        |
+| ----------------------- | -------- | ------------------------------------------------------------------ |
+| `url`                   | `string` | Database URL (`libsql://...` or `file:...`)                        |
+| `authToken`             | `string` | Runtime auth token for remote databases (optional for local)       |
+| `migrationAuthTokenEnv` | `string` | Migration token variable name (default `TURSO_AUTH_TOKEN`)          |
 
 ### Local Development
 
@@ -211,6 +213,7 @@ database: postgres({
 | `ssl`              | `boolean` | Enable SSL                           |
 | `pool.min`         | `number`  | Minimum pool connections (default 0) |
 | `pool.max`         | `number`  | Maximum pool connections (default 10)|
+| `migrationConnectionStringEnv` | `string` | Migration connection-string variable name (default `DATABASE_URL`) |
 
 ### Database role requirements
 
@@ -358,12 +361,13 @@ wrangler hyperdrive create emdash-db \
 
 ### Configuration
 
-| Option                         | Type     | Default        | Description                                                                                                      |
-| ------------------------------ | -------- | -------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `binding`                      | `string` | `"HYPERDRIVE"` | Primary (caching-disabled) Hyperdrive binding name                                                               |
-| `cachedBinding`                | `string` | —              | Optional caching-enabled binding for anonymous reads (see below)                                                 |
-| `preferUncachedAfterWriteMs`   | `number` | `60000`\*      | After a content publish, prefer `binding` for this many ms on anonymous public reads (match Hyperdrive `max_age`) |
-| `max`                          | `number` | `5`            | Max size of the in-Worker connection pool to Hyperdrive                                                          |
+| Option                         | Type     | Default                                                        | Description                                                                                                      |
+| ------------------------------ | -------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `binding`                      | `string` | `"HYPERDRIVE"`                                                 | Primary (caching-disabled) Hyperdrive binding name                                                               |
+| `cachedBinding`                | `string` | —                                                              | Optional caching-enabled binding for anonymous reads (see below)                                                 |
+| `preferUncachedAfterWriteMs`   | `number` | `60000`\*                                                      | After a content publish, prefer `binding` for this many ms on anonymous public reads (match Hyperdrive `max_age`) |
+| `migrationConnectionStringEnv` | `string` | `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_<BINDING>`      | Environment variable containing the direct PostgreSQL origin URL for `emdash migrate`                            |
+| `max`                          | `number` | `5`                                                            | Max size of the in-Worker connection pool to Hyperdrive                                                          |
 
 \*Default `60000` applies only when `cachedBinding` is set; ignored otherwise.
 
@@ -401,7 +405,8 @@ This is the [two-configuration pattern](https://developers.cloudflare.com/hyperd
 - **Authenticated requests** (editors, authors) → uncached `binding`.
 - **Mutation requests** (`POST`, `PUT`, `PATCH`, `DELETE`, including anonymous ones) → uncached `binding`.
 - **Any request under `/_emdash`** (admin, setup, auth, internal APIs), even an anonymous `GET` → uncached `binding`.
-- **Migrations and runtime initialization** → always the primary `binding`.
+- **Runtime migrations and cold-start** → always the primary `binding`.
+- **Deployment-managed migrations** → connect directly to the PostgreSQL origin using `migrationConnectionStringEnv`; they never use either Hyperdrive binding.
 
 <Aside>
 	The `/_emdash` carve-out matters: the setup wizard and login-state checks are
@@ -544,9 +549,11 @@ database: sqlite({ url: `file:${process.env.DATABASE_PATH}` });
 
 ## Migrations
 
-EmDash runs migrations automatically on the first request, for every supported dialect (D1, SQLite, libSQL, PostgreSQL). Migrations are bundled with the `emdash` package and embedded into your build.
+EmDash runs core migrations automatically by default for every supported dialect. Astro build and sync also emit a validated, secret-free `.emdash/migrations.json`, which `emdash migrate` can apply before deployment. SQLite, libSQL, PostgreSQL, D1, and the direct PostgreSQL origin behind Hyperdrive have deployment executors.
 
-For PostgreSQL, migrations run through the configured connection; Hyperdrive always uses its primary binding. They run before EmDash finishes runtime initialization and may create tables, indexes, and functions, alter or drop columns and constraints, and update existing rows. A role that can connect and modify rows but does not own the existing EmDash objects is not sufficient. The setup wizard cannot repair missing database privileges because migrations run before setup.
+See [Manage Core Database Migrations](/deployment/core-migrations/) for target credentials, CI serialization, `auto`/`check`/`manual` runtime policy, and recovery from unknown records or ambiguous D1 writes.
+
+For PostgreSQL, runtime migrations run through the configured connection; Hyperdrive runtime migrations always use its primary binding. Deployment-managed Hyperdrive migrations connect directly to the PostgreSQL origin. Core migrations may create tables, indexes, and functions, alter or drop columns and constraints, and update existing rows. A role that can connect and modify rows but does not own the existing EmDash objects is not sufficient. The setup wizard cannot repair missing database privileges because runtime migrations run before setup.
 
 If the database is empty (no collections) and the setup wizard has not been completed, EmDash also applies a seed file on first boot. The seed is read from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the build at compile time. If none is present, a built-in default seed is used. Subsequent boots against an existing database leave its content alone.
 

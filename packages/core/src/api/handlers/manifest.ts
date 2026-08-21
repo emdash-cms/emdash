@@ -19,6 +19,7 @@ interface CollectionDefinition {
 		label: string;
 		labelSingular?: string;
 		supports?: string[];
+		routable?: boolean;
 	};
 }
 type CollectionMap = Record<string, CollectionDefinition>;
@@ -46,6 +47,7 @@ export async function generateManifest(
 			label: definition.admin.label,
 			labelSingular: definition.admin.labelSingular || definition.admin.label,
 			supports: definition.admin.supports || [],
+			routable: definition.admin.routable ?? true,
 			fields,
 		};
 	}

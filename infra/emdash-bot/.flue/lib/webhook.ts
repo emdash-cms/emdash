@@ -128,14 +128,17 @@ interface IssueLike {
 }
 
 interface CommentLike {
+	id?: number;
 	body?: string | null;
 	user?: User;
 	author_association?: string;
+	created_at?: string;
 }
 
 interface PullRequest {
 	number?: number;
 	user?: User;
+	head?: { ref?: string };
 	labels?: Label[];
 	draft?: boolean;
 	/** True when closed via merge; false when closed without merging. */
@@ -180,6 +183,11 @@ export interface PullRequestReviewCommentEvent {
 
 export type NormalizeResult =
 	| { kind: "dispatch"; anchor: string; event: NormalizedEvent }
+	| {
+			kind: "pull_request";
+			pullRequestNumber: number;
+			event: Omit<NormalizedEvent, "anchorNumber">;
+	  }
 	| { kind: "cleanup"; anchor: string; anchorNumber: number; deliveryId?: string }
 	| { kind: "skip"; reason: string }
 	| { kind: "pong" };
@@ -295,52 +303,71 @@ function normalizeIssueComment(
 
 	const sender = asRecord(event?.sender);
 	const issueUser = asRecord(issue?.user);
+	const senderLogin =
+		readString(sender?.login) ?? readString(asRecord(comment?.user)?.login) ?? null;
+	const authorAssociation = readString(comment?.author_association) ?? null;
 	const actor = classifyActor({
-		senderLogin: readString(sender?.login),
-		authorAssociation: readString(comment?.author_association),
+		senderLogin,
+		authorAssociation,
 		issueOpenerLogin: readString(issueUser?.login),
 	});
 	const labels = collectLabels(issue?.labels);
+	const triggeringComment = {
+		id: readNumber(comment?.id) ?? null,
+		body,
+		authorLogin: senderLogin,
+		authorAssociation,
+		actor,
+	};
+	const isPullRequest = issue?.pull_request !== undefined;
+	if (isPullRequest && readString(issueUser?.login) !== "emdashbot[bot]") {
+		return { kind: "skip", reason: "issue_comment is not on an emdashbot pull request" };
+	}
+	const dispatch = (normalized: Omit<NormalizedEvent, "anchorNumber">): NormalizeResult =>
+		isPullRequest
+			? { kind: "pull_request", pullRequestNumber: number, event: normalized }
+			: dispatchFor(number, normalized);
 
 	// Three-way grammar (mirrors router.resolveComment):
 	//   1. Bare verb (parseCommand returns a known event) -> deterministic.
 	//   2. Empty mention "@emdashbot " (mention text empty) -> readonly status.
 	//      The DO resolves the readonly via the resolve() path; we just hand
 	//      it the `status` event.
-	//   3. Free text -> classifier.
+	//   3. Free text on an issue -> classifier. On a verified bot PR it is
+	//      revision feedback for the originating issue.
 	const cmd = parseCommand(body);
 	if (cmd) {
-		return dispatchFor(number, {
+		return dispatch({
 			event: cmd.event,
 			arg: cmd.arg,
 			actor,
 			labels,
 			needsClassify: false,
+			triggeringComment,
 			...(deliveryId ? { deliveryId } : {}),
 		});
 	}
 
 	if (mentionText === "") {
-		return dispatchFor(number, {
+		return dispatch({
 			event: "status",
 			arg: null,
 			actor,
 			labels,
 			needsClassify: false,
+			triggeringComment,
 			...(deliveryId ? { deliveryId } : {}),
 		});
 	}
 
-	return dispatchFor(number, {
-		event: null,
-		arg: null,
+	return dispatch({
+		event: isPullRequest ? "revise" : null,
+		arg: isPullRequest ? mentionText : null,
 		actor,
 		labels,
-		needsClassify: true,
-		classifyText: mentionText,
-		// allowDefault should be true on bot-authored PRs; we don't have bot-
-		// login detection yet, so default false (routes through classifier).
-		allowDefault: false,
+		needsClassify: !isPullRequest,
+		...(isPullRequest ? {} : { classifyText: mentionText }),
+		triggeringComment,
 		...(deliveryId ? { deliveryId } : {}),
 	});
 }
@@ -351,9 +378,7 @@ function normalizeIssueComment(
  * pr.merged). For non-bot PRs we skip -- the bot doesn't manage PRs it
  * didn't open.
  *
- * Bot-author detection is currently approximate (sender login ends in
- * `[bot]`). The PR anchor is the PR number itself; full anchor-to-issue
- * linking lands when the orchestrator's PR-opening side effects land.
+ * The bot-owned head branch is the trusted link back to the issue lifecycle.
  */
 function normalizePullRequest(
 	event: Record<string, unknown> | undefined,
@@ -361,14 +386,9 @@ function normalizePullRequest(
 ): NormalizeResult {
 	const action = readString(event?.action) ?? "";
 	const pr = asRecord(event?.pull_request);
-	const number = readNumber(pr?.number);
-	if (!number) return { kind: "skip", reason: "pull_request event missing pr.number" };
-
-	const authorLogin = readString(asRecord(pr?.user)?.login) ?? "";
-	const isBotAuthored = authorLogin.endsWith("[bot]");
-	if (!isBotAuthored) {
-		return { kind: "skip", reason: `pull_request from non-bot author "${authorLogin}"` };
-	}
+	const issueNumber = botFixIssueNumber(pr);
+	if (issueNumber === null)
+		return { kind: "skip", reason: "pull_request is not an emdashbot fix PR" };
 
 	let machineEvent: NormalizedEvent["event"];
 	switch (action) {
@@ -385,7 +405,7 @@ function normalizePullRequest(
 			return { kind: "skip", reason: `pull_request.${action} not handled` };
 	}
 
-	return dispatchFor(number, {
+	return dispatchFor(issueNumber, {
 		event: machineEvent,
 		arg: null,
 		actor: "system",
@@ -410,8 +430,10 @@ function normalizePullRequestReview(
 		return { kind: "skip", reason: `pull_request_review.${action} not handled` };
 	}
 	const pr = asRecord(event?.pull_request);
-	const number = readNumber(pr?.number);
-	if (!number) return { kind: "skip", reason: "pull_request_review missing pr.number" };
+	const issueNumber = botFixIssueNumber(pr);
+	if (issueNumber === null) {
+		return { kind: "skip", reason: "pull_request_review is not on an emdashbot fix PR" };
+	}
 
 	const reviewState = (readString(asRecord(event?.review)?.state) ?? "").toLowerCase();
 	let machineEvent: NormalizedEvent["event"];
@@ -419,7 +441,7 @@ function normalizePullRequestReview(
 	else if (reviewState === "changes_requested") machineEvent = "pr.changes_requested";
 	else return { kind: "skip", reason: `review state "${reviewState}" not actionable` };
 
-	return dispatchFor(number, {
+	return dispatchFor(issueNumber, {
 		event: machineEvent,
 		arg: null,
 		actor: "system",
@@ -431,8 +453,8 @@ function normalizePullRequestReview(
 
 /**
  * Inline PR review comments (review-thread comments, not top-level review
- * bodies). Treated identically to issue_comment for routing: free-text
- * mention → classifier on the bot's PR; bare verb → deterministic.
+ * bodies). A bare verb remains deterministic; other mentioned text is
+ * revision feedback for the originating issue.
  */
 function normalizePullRequestReviewComment(
 	event: Record<string, unknown> | undefined,
@@ -443,63 +465,98 @@ function normalizePullRequestReviewComment(
 		return { kind: "skip", reason: `pull_request_review_comment.${action} not handled` };
 	}
 	const pr = asRecord(event?.pull_request);
-	const number = readNumber(pr?.number);
-	if (!number) return { kind: "skip", reason: "pr_review_comment missing pr.number" };
+	const issueNumber = botFixIssueNumber(pr);
+	if (issueNumber === null) {
+		return { kind: "skip", reason: "pr_review_comment is not on an emdashbot fix PR" };
+	}
 	const comment = asRecord(event?.comment);
 	const body = readString(comment?.body) ?? "";
 	const mentionText = parseMention(body);
 	if (mentionText === null) return { kind: "skip", reason: "no @emdashbot mention" };
 
 	const senderLogin =
-		readString(asRecord(event?.sender)?.login) ?? readString(asRecord(comment?.user)?.login);
+		readString(asRecord(event?.sender)?.login) ??
+		readString(asRecord(comment?.user)?.login) ??
+		null;
+	const authorAssociation = readString(comment?.author_association) ?? null;
 	const actor = classifyActor({
 		senderLogin,
-		authorAssociation: readString(comment?.author_association),
+		authorAssociation,
 		issueOpenerLogin: readString(asRecord(pr?.user)?.login),
 	});
 	const labels = collectLabels(pr?.labels);
+	const triggeringComment = {
+		id: readNumber(comment?.id) ?? null,
+		body,
+		authorLogin: senderLogin,
+		authorAssociation,
+		actor,
+	};
 
 	const cmd = parseCommand(body);
 	if (cmd) {
-		return dispatchFor(number, {
+		return dispatchFor(issueNumber, {
 			event: cmd.event,
 			arg: cmd.arg,
 			actor,
 			labels,
 			needsClassify: false,
+			triggeringComment,
 			...(deliveryId ? { deliveryId } : {}),
 		});
 	}
 	if (mentionText === "") {
-		return dispatchFor(number, {
+		return dispatchFor(issueNumber, {
 			event: "status",
 			arg: null,
 			actor,
 			labels,
 			needsClassify: false,
+			triggeringComment,
 			...(deliveryId ? { deliveryId } : {}),
 		});
 	}
-	return dispatchFor(number, {
-		event: null,
-		arg: null,
+	return dispatchFor(issueNumber, {
+		event: "revise",
+		arg: mentionText,
 		actor,
 		labels,
-		needsClassify: true,
-		classifyText: mentionText,
-		allowDefault: false,
+		needsClassify: false,
+		triggeringComment,
 		...(deliveryId ? { deliveryId } : {}),
 	});
 }
 
 // ---------------- Helpers ----------------
 
+const BOT_FIX_BRANCH = /^bot\/fix-([1-9]\d*)$/;
+
+function issueNumberFromBotFixBranch(headBranch: string | null | undefined): number | null {
+	if (!headBranch) return null;
+	const match = BOT_FIX_BRANCH.exec(headBranch);
+	if (!match?.[1]) return null;
+	const issueNumber = Number(match[1]);
+	return Number.isSafeInteger(issueNumber) && issueNumber > 0 ? issueNumber : null;
+}
+
+function botFixIssueNumber(pr: Record<string, unknown> | undefined): number | null {
+	if (readString(asRecord(pr?.user)?.login) !== "emdashbot[bot]") return null;
+	return issueNumberFromBotFixBranch(readString(asRecord(pr?.head)?.ref));
+}
+
+export function resolvePullRequestWebhook(
+	result: Extract<NormalizeResult, { kind: "pull_request" }>,
+	headBranch: string | null,
+): NormalizeResult {
+	const issueNumber = issueNumberFromBotFixBranch(headBranch);
+	if (issueNumber === null) {
+		return { kind: "skip", reason: "pull request head is not an issue-scoped bot branch" };
+	}
+	return dispatchFor(issueNumber, result.event);
+}
+
 /**
- * Stable DO instance name for an issue/PR number. The "issue-" prefix is
- * deliberate: issues and PRs share GitHub's number-space, so a single DO per
- * anchor covers both. Once anchor-to-issue linking lands (bot PR points back
- * at the issue it implements), this becomes the linkage point -- the DO id
- * will derive from the anchoring issue's number, not the PR's.
+ * Stable DO instance name for an issue number.
  */
 export function anchorForIssue(number: number): string {
 	return `issue-${number}`;

@@ -6,8 +6,15 @@ import { Kysely, SqliteAdapter, SqliteDialect } from "kysely";
 import { Pool } from "pg";
 import { describe } from "vitest";
 
-import { getMigrationStatus, runMigrations } from "../../src/database/migrations/runner.js";
-import type { MigrationStatus } from "../../src/database/migrations/runner.js";
+import {
+	getExactMigrationStatus,
+	getMigrationStatus,
+	runMigrations,
+} from "../../src/database/migrations/runner.js";
+import type {
+	ExactMigrationStatus,
+	MigrationStatus,
+} from "../../src/database/migrations/runner.js";
 import { FailFastPostgresDialect } from "../../src/database/pg-migration-lock.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
 import { waitForDeferredTasks } from "../../src/deferred-tasks.js";
@@ -513,6 +520,12 @@ export function runMigrationsForDialect(ctx: DialectTestContext): Promise<{ appl
 
 export function getMigrationStatusForDialect(ctx: DialectTestContext): Promise<MigrationStatus> {
 	return getMigrationStatus(ctx.db, { migrationTableSchema: ctx.pgCtx?.schemaName });
+}
+
+export function getExactMigrationStatusForDialect(
+	ctx: DialectTestContext,
+): Promise<ExactMigrationStatus> {
+	return getExactMigrationStatus(ctx.db, { migrationTableSchema: ctx.pgCtx?.schemaName });
 }
 
 // Private alias to avoid name collision

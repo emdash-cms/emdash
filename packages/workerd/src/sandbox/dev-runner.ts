@@ -23,7 +23,7 @@ import type {
 	SandboxOptions,
 	SerializedRequest,
 } from "emdash";
-import { createSandboxRouteError, getSandboxRouteErrorEnvelope } from "emdash";
+import { createSandboxRouteError, getI18nConfig, getSandboxRouteErrorEnvelope } from "emdash";
 
 const DEFAULT_WALL_TIME_MS = 30_000;
 import type { PluginManifest } from "emdash";
@@ -174,6 +174,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 				allowedHosts: manifest.allowedHosts || [],
 				storageCollections: Object.keys(manifest.storage || {}),
 				storageConfig: manifest.storage,
+				i18nConfig: getI18nConfig(),
 				db: this.options.db,
 				beforeContentWrite: this.options.beforeContentWrite,
 				emailSend: () => this.emailSendCallback,

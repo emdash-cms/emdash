@@ -56,12 +56,25 @@ import type { MediaValue } from "../media/types.js";
 export type ImageValue = MediaValue;
 
 /**
- * File field value
+ * Persisted file field value.
+ *
+ * File values are references with cached metadata, not implicitly hydrated
+ * media records. Use the media provider API when current metadata is needed.
  */
 export interface FileValue {
 	id: string;
-	url: string;
-	filename: string;
-	mimeType: string;
-	size: number;
+	/** Legacy cached URL. Provider-backed values commonly omit this. */
+	url?: string;
+	/** Direct URL used by external media providers. */
+	src?: string;
+	/** Cached original filename, when available. */
+	filename?: string;
+	/** Cached MIME type, when available. */
+	mimeType?: string;
+	/** Cached file size in bytes, when persisted with the value. */
+	size?: number;
+	/** Media provider ID. Defaults to `local` when omitted. */
+	provider?: string;
+	/** Provider-specific data needed to resolve or render the file. */
+	meta?: Record<string, unknown>;
 }

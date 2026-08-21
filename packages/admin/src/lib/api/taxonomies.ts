@@ -71,7 +71,7 @@ export interface CreateTaxonomyInput {
 }
 
 export interface CreateTermInput {
-	slug: string;
+	slug?: string;
 	label: string;
 	parentId?: string;
 	description?: string;
