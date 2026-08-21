@@ -5,10 +5,10 @@
  * Vite-specific configuration for EmDash.
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
 import type { Plugin } from "vite";
@@ -79,7 +79,9 @@ const LOCALE_MESSAGES_RE = /[/\\]([a-z]{2}(?:-[A-Z]{2})?)[/\\]messages\.mjs$/;
 function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string): Plugin {
 	// Resolve @babel/core from admin's devDependencies, not core's.
 	const adminRequire = createRequire(resolve(adminDistPath, "index.js"));
-	const babelCorePath = adminRequire.resolve("@babel/core");
+	// import() requires a file:// URL for absolute paths on Windows — a raw
+	// drive-letter path throws ERR_UNSUPPORTED_ESM_URL_SCHEME.
+	const babelCoreUrl = pathToFileURL(adminRequire.resolve("@babel/core")).href;
 
 	return {
 		name: "emdash-lingui-macro",
@@ -96,7 +98,7 @@ function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string): Plug
 		},
 		async transform(code, id) {
 			if (!id.startsWith(adminSourcePath) || !code.includes("@lingui")) return;
-			const { transformAsync } = (await import(babelCorePath)) as typeof import("@babel/core");
+			const { transformAsync } = (await import(babelCoreUrl)) as typeof import("@babel/core");
 			const result = await transformAsync(code, {
 				filename: id,
 				plugins: ["@lingui/babel-plugin-lingui-macro"],
@@ -143,7 +145,13 @@ function resolveAdminSource(projectRoot: string): string | undefined {
 
 	try {
 		if (existsSync(srcEntry) && isInside(repoRoot, projectRoot)) {
-			return resolve(packageRoot, "src");
+			// Vite normalizes module ids to forward slashes and their on-disk
+			// casing before calling plugin hooks; on Windows this can differ
+			// from path.resolve's backslash output and from the casing the
+			// current process happened to launch with. Match both normalizations
+			// here so id.startsWith(adminSourcePath) in linguiMacroPlugin
+			// doesn't silently fail the prefix check.
+			return realpathSync(resolve(packageRoot, "src")).split(sep).join("/");
 		}
 	} catch {
 		// Not in local repo — fall back to dist
