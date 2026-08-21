@@ -257,6 +257,31 @@ async function seedTestData(
 	await apiPost(baseUrl, token, `/_emdash/api/content/posts/${imagePostId}/publish`, {});
 	postIds.push(imagePostId);
 
+	const codePost = await apiPost(baseUrl, token, "/_emdash/api/content/posts", {
+		data: {
+			title: "Post With Code",
+			excerpt: "A post containing supported and unsupported code blocks",
+			body: [
+				{
+					_type: "code",
+					_key: "code-js",
+					code: 'const greeting = "hello";\nconsole.log(greeting);',
+					language: "javascript",
+				},
+				{
+					_type: "code",
+					_key: "code-astro",
+					code: '---\nconst title = "Hello";\n---\n<h1>{title}</h1>',
+					language: "astro",
+				},
+			],
+		},
+		slug: "post-with-code",
+	});
+	const codePostId = codePost.item?.id ?? codePost.id;
+	await apiPost(baseUrl, token, `/_emdash/api/content/posts/${codePostId}/publish`, {});
+	postIds.push(codePostId);
+
 	return {
 		collections,
 		contentIds: { posts: postIds, pages: pageIds },

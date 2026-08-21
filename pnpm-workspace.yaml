@@ -120,6 +120,7 @@ catalog:
   "@tiptap/extension-character-count": ^3.20.0
   "@tiptap/extension-code": ^3.20.0
   "@tiptap/extension-code-block": ^3.20.0
+  "@tiptap/extension-code-block-lowlight": 3.20.0
   "@tiptap/extension-collaboration": ^3.20.0
   "@tiptap/extension-drag-handle": ^3.20.0
   "@tiptap/extension-drag-handle-react": ^3.20.0
@@ -153,9 +154,11 @@ catalog:
   astro-iconset: ^0.0.4
   better-sqlite3: ^12.8.0
   chokidar: ^5.0.0
+  highlight.js: 11.11.2
   image-size: 2.0.2
   jsonc-parser: ^3.3.1
   kysely: ^0.29.0
+  lowlight: ^3.3.0
   publint: 0.3.17
   react: 19.2.4
   react-dom: 19.2.4

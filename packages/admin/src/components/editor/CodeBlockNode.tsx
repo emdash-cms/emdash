@@ -1,7 +1,7 @@
 /**
  * Code block node with language picker.
  *
- * Wraps the base `@tiptap/extension-code-block` with a React node view that
+ * Wraps the Lowlight code block with a React node view that
  * overlays a small language chip in the top-right corner. Clicking the chip
  * opens a popover with a Kumo Autocomplete: a free-form text input plus a
  * filtered list of curated language suggestions. The value is persisted on
@@ -27,9 +27,11 @@
 import { Autocomplete, Button, Popover } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Check, X } from "@phosphor-icons/react";
-import CodeBlock from "@tiptap/extension-code-block";
+import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
+import dockerfile from "highlight.js/lib/languages/dockerfile";
+import { common, createLowlight } from "lowlight";
 import * as React from "react";
 
 import {
@@ -37,6 +39,24 @@ import {
 	languageLabelDescriptor,
 	normalizeLanguage,
 } from "./codeBlockLanguages";
+
+const lowlight = createLowlight(common);
+lowlight.register({ dockerfile });
+
+const editorLowlight = {
+	highlight(language: string, value: string) {
+		return lowlight.highlight(lowlight.registered(language) ? language : "plaintext", value);
+	},
+	highlightAuto(value: string) {
+		return lowlight.highlight("plaintext", value);
+	},
+	listLanguages() {
+		return lowlight.listLanguages();
+	},
+	registered(language: string) {
+		return lowlight.registered(language);
+	},
+};
 
 function CodeBlockNodeView({ node, updateAttributes, selected }: NodeViewProps) {
 	const { t } = useLingui();
@@ -210,7 +230,7 @@ function CodeBlockNodeView({ node, updateAttributes, selected }: NodeViewProps) 
  * `StarterKit.configure({ codeBlock: false })` and add this extension to
  * the editor's extensions array.
  */
-export const CodeBlockExtension = CodeBlock.extend({
+export const CodeBlockExtension = CodeBlockLowlight.extend({
 	addKeyboardShortcuts() {
 		const shortcuts = this.parent?.() ?? {};
 		const selectionIsInCodeBlock = () => {
@@ -228,4 +248,9 @@ export const CodeBlockExtension = CodeBlock.extend({
 	addNodeView() {
 		return ReactNodeViewRenderer(CodeBlockNodeView);
 	},
-}).configure({ enableTabIndentation: true, tabSize: 4 });
+}).configure({
+	lowlight: editorLowlight,
+	defaultLanguage: "plaintext",
+	enableTabIndentation: true,
+	tabSize: 4,
+});
