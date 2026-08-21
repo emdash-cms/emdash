@@ -796,8 +796,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								<Button
 									{...p}
 									type="button"
-									variant="outline"
-									className="w-full text-kumo-danger hover:text-kumo-danger"
+									variant="secondary-destructive"
+									className="w-full bg-kumo-danger/10 not-disabled:hover:bg-kumo-danger/20"
 									disabled={isDeleting}
 									icon={isDeleting ? <Loader size="sm" /> : <Trash />}
 								>
