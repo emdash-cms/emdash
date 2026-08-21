@@ -150,6 +150,12 @@ const schemaUpdateCollectionToolSchema = z.object({
 	commentsAutoApproveUsers: updateCollectionBody.shape.commentsAutoApproveUsers.describe(
 		"Whether comments from authenticated users are automatically approved",
 	),
+	titleField: updateCollectionBody.shape.titleField.describe(
+		"Field slug to use as the Title column in admin lists; pass null to fall back to the default",
+	),
+	dateField: updateCollectionBody.shape.dateField.describe(
+		"Datetime field slug to use as the Date column in admin lists; pass null to fall back to the default",
+	),
 });
 
 const schemaUpdateFieldToolSchema = z.object({
