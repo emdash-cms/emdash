@@ -3,7 +3,7 @@
  *
  * Mirrors the admin editor's `CodeBlockNode` but with no Kumo/Lingui deps,
  * so it can ship as part of the SSR runtime. Wraps the Lowlight code block and
- * overlays a small inline language picker in the top-right corner of each code
+ * overlays matching language and copy controls at the logical end of each code
  * block.
  *
  * Keep the language list in sync with
@@ -125,30 +125,18 @@ function languageLabel(value: string | null | undefined): string {
 	return value;
 }
 
-function CodeBlockLanguageDatalist({ id }: { id: string }) {
-	return (
-		<datalist id={id}>
-			{CODE_BLOCK_LANGUAGES.map((lang) => (
-				<option key={lang.id} value={lang.id} label={lang.label} />
-			))}
-		</datalist>
-	);
+const POPUP_WIDTH = 432;
+const POPUP_VIEWPORT_INSET = 16;
+const POPUP_OFFSET = 8;
+
+interface PopupPosition {
+	left: number;
+	maxHeight: number;
+	top: number;
+	width: number;
 }
 
-const iconButtonStyle: React.CSSProperties = {
-	height: "1.75rem",
-	width: "1.75rem",
-	display: "inline-flex",
-	alignItems: "center",
-	justifyContent: "center",
-	border: "none",
-	background: "transparent",
-	cursor: "pointer",
-	color: "inherit",
-	borderRadius: "0.25rem",
-};
-
-function CheckIcon() {
+function CaretDownIcon() {
 	return (
 		<svg
 			width="14"
@@ -156,7 +144,44 @@ function CheckIcon() {
 			viewBox="0 0 24 24"
 			fill="none"
 			stroke="currentColor"
-			strokeWidth="2.5"
+			strokeWidth="1.5"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<polyline points="6 9 12 15 18 9" />
+		</svg>
+	);
+}
+
+function CopyIcon() {
+	return (
+		<svg
+			width="16"
+			height="16"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.5"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<rect x="9" y="9" width="11" height="11" rx="2" />
+			<path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3" />
+		</svg>
+	);
+}
+
+function CheckIcon() {
+	return (
+		<svg
+			width="16"
+			height="16"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
 			strokeLinecap="round"
 			strokeLinejoin="round"
 			aria-hidden="true"
@@ -166,187 +191,311 @@ function CheckIcon() {
 	);
 }
 
-function XIcon() {
-	return (
-		<svg
-			width="14"
-			height="14"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2.5"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-			aria-hidden="true"
-		>
-			<line x1="18" y1="6" x2="6" y2="18" />
-			<line x1="6" y1="6" x2="18" y2="18" />
-		</svg>
-	);
-}
-
-function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewProps) {
+function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	const [isEditing, setIsEditing] = React.useState(false);
-	const [isHovered, setIsHovered] = React.useState(false);
+	const [copied, setCopied] = React.useState(false);
 	const storedLanguage = typeof node.attrs.language === "string" ? node.attrs.language : "";
-	const [draft, setDraft] = React.useState(storedLanguage);
+	const [draft, setDraft] = React.useState("");
+	const [activeIndex, setActiveIndex] = React.useState(0);
+	const [keyboardNavigated, setKeyboardNavigated] = React.useState(false);
+	const [popupPosition, setPopupPosition] = React.useState<PopupPosition | null>(null);
 	const inputRef = React.useRef<HTMLInputElement>(null);
 	const popoverRef = React.useRef<HTMLDivElement>(null);
-	// Per-instance datalist id so multiple code blocks (or multiple inline
-	// editors) on the same page don't create duplicate DOM ids.
-	const datalistId = React.useId();
+	const toolbarRef = React.useRef<HTMLDivElement>(null);
+	const languageButtonRef = React.useRef<HTMLButtonElement>(null);
+	const copyResetTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+	const listboxId = React.useId();
+
+	const filteredLanguages = React.useMemo(() => {
+		const query = draft.trim().toLowerCase();
+		if (!query) return CODE_BLOCK_LANGUAGES;
+		return CODE_BLOCK_LANGUAGES.filter((language) => {
+			if (language.label.toLowerCase().includes(query)) return true;
+			if (language.id.toLowerCase().includes(query)) return true;
+			return language.aliases?.some((alias) => alias.toLowerCase().includes(query)) ?? false;
+		});
+	}, [draft]);
+
+	React.useEffect(
+		() => () => {
+			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+		},
+		[],
+	);
 
 	React.useEffect(() => {
-		if (!isEditing) {
-			setDraft(storedLanguage);
-		}
-	}, [storedLanguage, isEditing]);
+		if (!isEditing) return undefined;
+		const timer = setTimeout(() => inputRef.current?.focus(), 0);
+		return () => clearTimeout(timer);
+	}, [isEditing]);
 
 	const openPicker = React.useCallback(() => {
-		setDraft(storedLanguage);
+		setDraft("");
+		setActiveIndex(0);
+		setKeyboardNavigated(false);
 		setIsEditing(true);
-		setTimeout(() => inputRef.current?.focus(), 0);
-	}, [storedLanguage]);
+	}, []);
 
-	const closePicker = React.useCallback(() => {
+	const closePicker = React.useCallback((restoreFocus = false) => {
 		setIsEditing(false);
-		setDraft(storedLanguage);
-	}, [storedLanguage]);
+		setDraft("");
+		setActiveIndex(0);
+		setKeyboardNavigated(false);
+		setPopupPosition(null);
+		if (restoreFocus) queueMicrotask(() => languageButtonRef.current?.focus());
+	}, []);
 
-	const commit = React.useCallback(() => {
-		const next = normalizeLanguage(draft);
-		updateAttributes({ language: next ?? null });
-		setIsEditing(false);
-	}, [draft, updateAttributes]);
+	const commit = React.useCallback(
+		(value = draft) => {
+			const next = normalizeLanguage(value);
+			updateAttributes({ language: next ?? null });
+			closePicker(true);
+		},
+		[closePicker, draft, updateAttributes],
+	);
+
+	const updatePopupPosition = React.useCallback(() => {
+		const toolbar = toolbarRef.current;
+		if (!toolbar) return;
+		const toolbarRect = toolbar.getBoundingClientRect();
+		const width = Math.min(POPUP_WIDTH, Math.max(0, window.innerWidth - POPUP_VIEWPORT_INSET * 2));
+		const isRtl = getComputedStyle(toolbar).direction === "rtl";
+		const preferredLeft = isRtl ? toolbarRect.right - width : toolbarRect.left;
+		const left = Math.min(
+			Math.max(preferredLeft, POPUP_VIEWPORT_INSET),
+			window.innerWidth - POPUP_VIEWPORT_INSET - width,
+		);
+		const popupHeight = popoverRef.current?.offsetHeight ?? 0;
+		const spaceBelow =
+			window.innerHeight - toolbarRect.bottom - POPUP_VIEWPORT_INSET - POPUP_OFFSET;
+		const spaceAbove = toolbarRect.top - POPUP_VIEWPORT_INSET - POPUP_OFFSET;
+		const openAbove = popupHeight > spaceBelow && spaceAbove > spaceBelow;
+		const maxHeight = Math.max(0, openAbove ? spaceAbove : spaceBelow);
+		const top = openAbove
+			? toolbarRect.top - Math.min(popupHeight, maxHeight) - POPUP_OFFSET
+			: toolbarRect.bottom + POPUP_OFFSET;
+		setPopupPosition({ left, maxHeight, top, width });
+	}, []);
+
+	React.useLayoutEffect(() => {
+		if (!isEditing) return undefined;
+		updatePopupPosition();
+		const frame = requestAnimationFrame(updatePopupPosition);
+		window.addEventListener("resize", updatePopupPosition);
+		window.addEventListener("scroll", updatePopupPosition, true);
+		return () => {
+			cancelAnimationFrame(frame);
+			window.removeEventListener("resize", updatePopupPosition);
+			window.removeEventListener("scroll", updatePopupPosition, true);
+		};
+	}, [isEditing, updatePopupPosition]);
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			commit();
-		} else if (e.key === "Escape") {
-			e.preventDefault();
-			closePicker();
+		switch (e.key) {
+			case "ArrowDown":
+			case "ArrowUp": {
+				if (filteredLanguages.length === 0) return;
+				e.preventDefault();
+				const direction = e.key === "ArrowDown" ? 1 : -1;
+				setKeyboardNavigated(true);
+				setActiveIndex(
+					(index) => (index + direction + filteredLanguages.length) % filteredLanguages.length,
+				);
+				break;
+			}
+			case "Enter": {
+				e.preventDefault();
+				const activeLanguage = keyboardNavigated ? filteredLanguages[activeIndex] : undefined;
+				commit(activeLanguage?.id ?? draft);
+				break;
+			}
+			case "Escape":
+				e.preventDefault();
+				closePicker(true);
+				break;
 		}
 	};
+
+	React.useEffect(() => {
+		if (!keyboardNavigated) return;
+		document.getElementById(`${listboxId}-option-${activeIndex}`)?.scrollIntoView({
+			block: "nearest",
+		});
+	}, [activeIndex, keyboardNavigated, listboxId]);
 
 	React.useEffect(() => {
 		if (!isEditing) return undefined;
 		const onMouseDown = (event: MouseEvent) => {
 			const target = event.target instanceof Node ? event.target : null;
-			if (popoverRef.current && target && !popoverRef.current.contains(target)) {
-				closePicker();
+			if (
+				target &&
+				!popoverRef.current?.contains(target) &&
+				!toolbarRef.current?.contains(target)
+			) {
+				closePicker(false);
 			}
 		};
 		document.addEventListener("mousedown", onMouseDown);
 		return () => document.removeEventListener("mousedown", onMouseDown);
 	}, [isEditing, closePicker]);
 
+	const copyCode = React.useCallback(async () => {
+		try {
+			await navigator.clipboard.writeText(node.textContent);
+			setCopied(true);
+			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+			copyResetTimer.current = setTimeout(setCopied, 2500, false);
+		} catch {
+			setCopied(false);
+		}
+	}, [node.textContent]);
+
+	const handleToolbarKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+		if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+		const buttons = [...(toolbarRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? [])];
+		if (buttons.length === 0) return;
+		event.preventDefault();
+		const activeElement = document.activeElement;
+		const currentIndex =
+			activeElement instanceof HTMLButtonElement ? Math.max(0, buttons.indexOf(activeElement)) : 0;
+		const nextIndex =
+			event.key === "Home"
+				? 0
+				: event.key === "End"
+					? buttons.length - 1
+					: (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) %
+						buttons.length;
+		buttons[nextIndex]?.focus();
+	};
+
 	const label = languageLabel(storedLanguage);
-	const chipVisible = isHovered || selected || isEditing || Boolean(storedLanguage);
+	const currentLanguageId = normalizeLanguage(storedLanguage);
+	const controlsPersistent = isEditing || copied;
+	const activeOptionId =
+		keyboardNavigated && filteredLanguages[activeIndex]
+			? `${listboxId}-option-${activeIndex}`
+			: undefined;
 
 	return (
 		<NodeViewWrapper
 			className="emdash-inline-code-block"
 			data-language={storedLanguage || undefined}
-			style={{ position: "relative", margin: "1rem 0" }}
-			onMouseEnter={() => setIsHovered(true)}
-			onMouseLeave={() => setIsHovered(false)}
 		>
-			<CodeBlockLanguageDatalist id={datalistId} />
 			<pre className="emdash-code-block">
 				<NodeViewContent<"code"> as="code" />
 			</pre>
 
 			<div
+				className="emdash-inline-code-block-controls-wrap"
+				data-persistent={controlsPersistent ? "true" : "false"}
 				contentEditable={false}
-				style={{
-					position: "absolute",
-					top: "0.5rem",
-					insetInlineEnd: "0.5rem",
-					userSelect: "none",
-					zIndex: 1,
-					opacity: chipVisible ? 1 : 0,
-					pointerEvents: chipVisible ? "auto" : "none",
-					transition: "opacity 0.15s",
-				}}
-				// When the chip is hidden, also remove it from the tab order so
-				// keyboard users don't land on an invisible focus target.
-				// `inert` would be cleaner but isn't available on JSX HTMLDivElement
-				// types yet; aria-hidden + tabIndex on the button below cover the
-				// same need.
-				aria-hidden={chipVisible ? undefined : true}
 			>
+				<div
+					ref={toolbarRef}
+					className="emdash-inline-code-block-controls"
+					role="toolbar"
+					aria-label="Code block actions"
+					onKeyDown={handleToolbarKeyDown}
+				>
+					<button
+						ref={languageButtonRef}
+						type="button"
+						className="emdash-inline-code-block-action emdash-inline-code-block-language-button"
+						onMouseDown={(event) => event.preventDefault()}
+						onClick={() => (isEditing ? closePicker(true) : openPicker())}
+						title="Set language"
+						aria-label={`Set language (current: ${label})`}
+						aria-haspopup="listbox"
+						aria-expanded={isEditing}
+						aria-controls={isEditing ? listboxId : undefined}
+					>
+						<span className="emdash-inline-code-block-language-label">{label}</span>
+						<CaretDownIcon />
+					</button>
+					<button
+						type="button"
+						tabIndex={-1}
+						className="emdash-inline-code-block-action emdash-inline-code-block-copy-button"
+						onMouseDown={(event) => event.preventDefault()}
+						onClick={copyCode}
+						title={copied ? "Copied" : "Copy code"}
+						aria-label={copied ? "Copied" : "Copy code"}
+					>
+						{copied ? <CheckIcon /> : <CopyIcon />}
+					</button>
+				</div>
+				<span className="emdash-inline-code-block-sr-only" role="status" aria-live="polite">
+					{copied ? "Copied" : ""}
+				</span>
 				{isEditing ? (
 					<div
 						ref={popoverRef}
 						className="emdash-inline-code-block-popover"
 						style={{
-							display: "flex",
-							alignItems: "center",
-							gap: "0.25rem",
-							padding: "0.25rem",
-							borderRadius: "0.375rem",
-							boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+							left: popupPosition?.left ?? 0,
+							maxHeight: popupPosition?.maxHeight,
+							top: popupPosition?.top ?? 0,
+							width: popupPosition?.width ?? 0,
+							visibility: popupPosition ? "visible" : "hidden",
 						}}
 					>
 						<input
 							ref={inputRef}
 							type="text"
-							list={datalistId}
 							value={draft}
-							onChange={(e) => setDraft(e.target.value)}
-							onKeyDown={handleKeyDown}
-							className="emdash-inline-code-block-language-input"
-							placeholder="Language"
-							aria-label="Language"
-							style={{
-								height: "1.75rem",
-								width: "10rem",
-								fontSize: "0.75rem",
-								padding: "0 0.5rem",
-								borderRadius: "0.25rem",
+							onChange={(event) => {
+								setDraft(event.target.value);
+								setActiveIndex(0);
+								setKeyboardNavigated(false);
 							}}
+							onKeyDown={handleKeyDown}
+							onBlur={(event) => {
+								const nextTarget = event.relatedTarget;
+								if (
+									nextTarget instanceof Node &&
+									(popoverRef.current?.contains(nextTarget) ||
+										toolbarRef.current?.contains(nextTarget))
+								) {
+									return;
+								}
+								closePicker(false);
+							}}
+							className="emdash-inline-code-block-language-input"
+							placeholder="Search for a language…"
+							aria-label="Search for a language"
+							role="combobox"
+							aria-autocomplete="list"
+							aria-expanded="true"
+							aria-controls={listboxId}
+							aria-activedescendant={activeOptionId}
+							autoComplete="off"
+							spellCheck={false}
 						/>
-						<button
-							type="button"
-							onMouseDown={(e) => e.preventDefault()}
-							onClick={commit}
-							title="Apply language"
-							aria-label="Apply language"
-							style={iconButtonStyle}
-						>
-							<CheckIcon />
-						</button>
-						<button
-							type="button"
-							onMouseDown={(e) => e.preventDefault()}
-							onClick={closePicker}
-							title="Cancel"
-							aria-label="Cancel"
-							style={iconButtonStyle}
-						>
-							<XIcon />
-						</button>
+						<div id={listboxId} className="emdash-inline-code-block-language-list" role="listbox">
+							{filteredLanguages.map((language, index) => (
+								<div
+									key={language.id}
+									id={`${listboxId}-option-${index}`}
+									className="emdash-inline-code-block-language-option"
+									role="option"
+									aria-selected={index === activeIndex}
+									data-active={index === activeIndex ? "true" : "false"}
+									onMouseEnter={() => setActiveIndex(index)}
+									onMouseDown={(event) => event.preventDefault()}
+									onClick={() => commit(language.id)}
+								>
+									<span>{language.label}</span>
+									{currentLanguageId === language.id ? <CheckIcon /> : null}
+								</div>
+							))}
+							{filteredLanguages.length === 0 ? (
+								<div className="emdash-inline-code-block-language-empty" role="status">
+									No matches
+								</div>
+							) : null}
+						</div>
 					</div>
-				) : (
-					<button
-						type="button"
-						tabIndex={chipVisible ? 0 : -1}
-						onMouseDown={(e) => e.preventDefault()}
-						onClick={openPicker}
-						title="Set language"
-						aria-label={`Set language (current: ${label})`}
-						className="emdash-inline-code-block-chip"
-						style={{
-							padding: "0.125rem 0.5rem",
-							fontSize: "0.75rem",
-							borderRadius: "0.375rem",
-							cursor: "pointer",
-						}}
-					>
-						{storedLanguage ? label : "Set language"}
-					</button>
-				)}
+				) : null}
 			</div>
 		</NodeViewWrapper>
 	);

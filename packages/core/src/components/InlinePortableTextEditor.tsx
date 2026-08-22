@@ -2284,7 +2284,9 @@ export function InlinePortableTextEditor({
 				onSelect={handleMediaSelect}
 			/>
 			<style>{`
-				.emdash-inline-code-block {
+				.emdash-inline-editor .emdash-inline-code-block {
+					position: relative;
+					margin-block: 1rem;
 					--emdash-code-background: var(--emdash-inline-code-background, #f7f7f5);
 					--emdash-code-foreground: var(--emdash-inline-code-foreground, #24292f);
 					--emdash-code-muted: var(--emdash-inline-code-muted, #57606a);
@@ -2303,55 +2305,199 @@ export function InlinePortableTextEditor({
 					);
 					--emdash-code-focus: var(--emdash-inline-code-focus, #0550ae);
 				}
-				.emdash-inline-code-block .emdash-code-block {
+				.emdash-inline-editor .emdash-inline-code-block .emdash-code-block {
 					margin: 0;
 					padding: 1rem;
+					padding-block-start: 3.25rem;
+					border: 0;
 					border-radius: 0.5rem;
 					background: var(--emdash-code-background);
 					color: var(--emdash-code-foreground);
 					caret-color: var(--emdash-code-foreground);
 					overflow-x: auto;
 				}
-				.emdash-inline-code-block .emdash-code-block code {
+				.emdash-inline-editor .emdash-inline-code-block .emdash-code-block code {
 					background: transparent;
 					color: inherit;
 				}
-				.emdash-inline-code-block :is(.hljs-comment, .hljs-quote) {
+				.emdash-inline-editor .emdash-inline-code-block :is(.hljs-comment, .hljs-quote) {
 					color: var(--emdash-code-muted);
 				}
-				.emdash-inline-code-block
+				.emdash-inline-editor .emdash-inline-code-block
 					:is(.hljs-keyword, .hljs-literal, .hljs-selector-tag, .hljs-section, .hljs-link, .hljs-deletion) {
 					color: var(--emdash-code-keyword);
 				}
-				.emdash-inline-code-block
+				.emdash-inline-editor .emdash-inline-code-block
 					:is(.hljs-string, .hljs-attr, .hljs-attribute, .hljs-symbol, .hljs-bullet, .hljs-addition) {
 					color: var(--emdash-code-string);
 				}
-				.emdash-inline-code-block :is(.hljs-number, .hljs-meta) {
+				.emdash-inline-editor .emdash-inline-code-block :is(.hljs-number, .hljs-meta) {
 					color: var(--emdash-code-number);
 				}
-				.emdash-inline-code-block
+				.emdash-inline-editor .emdash-inline-code-block
 					:is(.hljs-title, .hljs-name, .hljs-type, .hljs-built_in, .hljs-selector-id, .hljs-selector-class) {
 					color: var(--emdash-code-title);
 				}
-				.emdash-inline-code-block-popover,
-				.emdash-inline-code-block-chip {
-					border: 1px solid var(--emdash-code-border);
+				.emdash-inline-code-block-controls-wrap {
+					position: absolute;
+					inset-block-start: 0.5rem;
+					inset-inline-end: 0.5rem;
+					z-index: 100;
+					opacity: 0;
+					pointer-events: none;
+					transition: opacity 120ms ease-out;
+				}
+				.emdash-inline-editor .emdash-inline-code-block:hover .emdash-inline-code-block-controls-wrap,
+				.emdash-inline-editor .emdash-inline-code-block:focus-within .emdash-inline-code-block-controls-wrap,
+				.emdash-inline-code-block-controls-wrap[data-persistent="true"] {
+					opacity: 1;
+					pointer-events: auto;
+				}
+				.emdash-inline-code-block-controls {
+					display: inline-flex;
+					block-size: 2rem;
+					align-items: stretch;
+					overflow: hidden;
+					border-radius: 0.5rem;
 					background: var(--emdash-code-control-background);
 					color: var(--emdash-code-control-foreground);
+					box-shadow:
+						0 0 0 1px var(--emdash-code-border),
+						0 1px 2px rgb(0 0 0 / 0.08);
+					font-family: inherit;
+					font-size: 0.875rem;
+					line-height: 1.25rem;
 				}
-				.emdash-inline-code-block-language-input {
-					border: 1px solid var(--emdash-code-border);
+				.emdash-inline-code-block-action {
+					display: inline-flex;
+					block-size: 2rem;
+					align-items: center;
+					justify-content: center;
+					gap: 0.375rem;
+					border: 0;
 					background: transparent;
 					color: inherit;
+					font: inherit;
+					font-weight: 500;
+					cursor: pointer;
+					user-select: none;
 				}
-				.emdash-inline-code-block-chip:focus-visible,
+				.emdash-inline-code-block-action:hover {
+					background: color-mix(
+						in srgb,
+						var(--emdash-code-control-foreground) 10%,
+						var(--emdash-code-control-background)
+					);
+				}
+				.emdash-inline-code-block-action:focus-visible,
 				.emdash-inline-code-block-language-input:focus-visible {
+					position: relative;
+					z-index: 1;
 					outline: 2px solid var(--emdash-code-focus);
-					outline-offset: 2px;
+					outline-offset: -2px;
+				}
+				.emdash-inline-code-block-language-button {
+					min-inline-size: 0;
+					padding-inline: 0.625rem;
+				}
+				.emdash-inline-code-block-language-label {
+					max-inline-size: 10rem;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
+				}
+				.emdash-inline-code-block-copy-button {
+					inline-size: 2rem;
+					padding: 0;
+					border-inline-start: 1px solid var(--emdash-code-border);
+				}
+				.emdash-inline-code-block-popover {
+					position: fixed;
+					z-index: 1000;
+					display: flex;
+					max-block-size: calc(100vh - 2rem);
+					flex-direction: column;
+					overflow: hidden;
+					border-radius: 0.5rem;
+					background: var(--emdash-code-control-background);
+					color: var(--emdash-code-control-foreground);
+					box-shadow:
+						0 0 0 1px var(--emdash-code-border),
+						0 8px 24px rgb(0 0 0 / 0.18);
+					font-family: inherit;
+					font-size: 0.875rem;
+					line-height: 1.25rem;
+				}
+				.emdash-inline-code-block-language-input {
+					box-sizing: border-box;
+					block-size: 2.25rem;
+					inline-size: calc(100% - 1.5rem);
+					margin: 0.75rem;
+					margin-block-end: 0.5rem;
+					padding-inline: 0.75rem;
+					border: 0;
+					border-radius: 0.5rem;
+					background: var(--emdash-code-control-background);
+					box-shadow: 0 0 0 1px var(--emdash-code-border);
+					color: var(--emdash-code-control-foreground);
+					font: inherit;
+					font-size: 0.875rem;
+				}
+				.emdash-inline-code-block-language-input::placeholder {
+					color: color-mix(
+						in srgb,
+						var(--emdash-code-control-foreground) 64%,
+						transparent
+					);
+					opacity: 1;
+				}
+				.emdash-inline-code-block-language-list {
+					min-block-size: 0;
+					max-block-size: min(28rem, 50vh);
+					overflow-y: auto;
+					padding: 0.5rem;
+					border-block-start: 1px solid var(--emdash-code-border);
+					scroll-padding-block: 0.5rem;
+				}
+				.emdash-inline-code-block-language-option {
+					display: flex;
+					min-block-size: 2rem;
+					align-items: center;
+					justify-content: space-between;
+					gap: 0.75rem;
+					padding: 0.375rem 0.5rem;
+					border-radius: 0.5rem;
+					cursor: pointer;
+				}
+				.emdash-inline-code-block-language-option[data-active="true"] {
+					background: color-mix(
+						in srgb,
+						var(--emdash-code-control-foreground) 10%,
+						var(--emdash-code-control-background)
+					);
+				}
+				.emdash-inline-code-block-language-empty {
+					padding: 2rem;
+					color: color-mix(
+						in srgb,
+						var(--emdash-code-control-foreground) 64%,
+						transparent
+					);
+					text-align: center;
+				}
+				.emdash-inline-code-block-sr-only {
+					position: absolute;
+					inline-size: 1px;
+					block-size: 1px;
+					padding: 0;
+					margin: -1px;
+					overflow: hidden;
+					clip: rect(0, 0, 0, 0);
+					white-space: nowrap;
+					border: 0;
 				}
 				@media (prefers-color-scheme: dark) {
-					.emdash-inline-code-block {
+					.emdash-inline-editor .emdash-inline-code-block {
 						--emdash-code-background: var(--emdash-inline-code-background, #202020);
 						--emdash-code-foreground: var(--emdash-inline-code-foreground, #f0f3f6);
 						--emdash-code-muted: var(--emdash-inline-code-muted, #c9d1d9);
@@ -2369,6 +2515,22 @@ export function InlinePortableTextEditor({
 							#f0f3f6
 						);
 						--emdash-code-focus: var(--emdash-inline-code-focus, #a8d5ff);
+					}
+				}
+				@media (max-width: 30rem) {
+					.emdash-inline-code-block-language-input {
+						font-size: 1rem;
+					}
+				}
+				@media (hover: none), (pointer: coarse) {
+					.emdash-inline-code-block-controls-wrap {
+						opacity: 1;
+						pointer-events: auto;
+					}
+				}
+				@media (prefers-reduced-motion: reduce) {
+					.emdash-inline-code-block-controls-wrap {
+						transition: none;
 					}
 				}
 				.emdash-bubble-menu {
