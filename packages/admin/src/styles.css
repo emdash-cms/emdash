@@ -255,6 +255,7 @@ body {
 	background: var(--emdash-code-background);
 	color: var(--emdash-code-foreground);
 	caret-color: var(--emdash-code-foreground);
+	padding-block-start: 3.25rem;
 }
 
 [data-mode="dark"] .emdash-code-block {
@@ -300,6 +301,32 @@ body {
 		.hljs-selector-class
 	) {
 	color: var(--emdash-code-title);
+}
+
+.emdash-code-block-controls {
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 120ms ease-out;
+}
+
+.emdash-code-block-node:hover .emdash-code-block-controls,
+.emdash-code-block-node:focus-within .emdash-code-block-controls,
+.emdash-code-block-controls[data-persistent="true"] {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+@media (hover: none), (pointer: coarse) {
+	.emdash-code-block-controls {
+		opacity: 1;
+		pointer-events: auto;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.emdash-code-block-controls {
+		transition: none;
+	}
 }
 
 /**

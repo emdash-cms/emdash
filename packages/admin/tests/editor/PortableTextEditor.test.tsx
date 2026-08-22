@@ -9,6 +9,7 @@
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import type { PluginBlockDef } from "../../src/components/PortableTextEditor";
 import {
@@ -1270,5 +1271,74 @@ describe("onChange output shape", () => {
 		const json = capturedEditor!.getJSON();
 		const listNode = json.content?.find((n: { type: string }) => n.type === "bulletList");
 		expect(listNode).toBeTruthy();
+	});
+});
+
+describe("Code block controls", () => {
+	it("uses a two-action toolbar and selects a language immediately", async () => {
+		const { screen, editor } = await renderAndGetEditor({
+			value: [{ _type: "code", _key: "code", code: "print('hello')", language: "python" }],
+		});
+
+		const toolbar = screen.getByRole("toolbar", { name: "Code block actions" });
+		await expect.element(toolbar).toBeInTheDocument();
+		expect(toolbar.element().querySelectorAll("button")).toHaveLength(2);
+		await expect.element(toolbar.getByRole("button", { name: "Copy code" })).toBeInTheDocument();
+
+		await toolbar.getByRole("button", { name: "Set language (current: Python)" }).click();
+		const input = screen.getByPlaceholder("Search for a language…");
+		await expect.element(input).toBeInTheDocument();
+		await screen.getByRole("option", { name: "JavaScript" }).click();
+
+		await vi.waitFor(() => {
+			const node = editor.getJSON().content?.find((item) => item.type === "codeBlock");
+			expect(node?.attrs?.language).toBe("javascript");
+		});
+		await expect.element(input).not.toBeInTheDocument();
+	});
+
+	it("copies the raw code and exposes copied feedback", async () => {
+		const clipboardWrite = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+		const { screen } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "code",
+					_key: "code",
+					code: "const greeting = 'hello';",
+					language: "javascript",
+				},
+			],
+		});
+
+		await screen.getByRole("button", { name: "Copy code" }).click();
+		await vi.waitFor(() => {
+			expect(clipboardWrite).toHaveBeenCalledWith("const greeting = 'hello';");
+		});
+		await expect.element(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("status")).toHaveTextContent("Copied");
+		clipboardWrite.mockRestore();
+	});
+
+	it("supports free-form Enter and closes the language search with Escape", async () => {
+		const { screen, editor } = await renderAndGetEditor({
+			value: [{ _type: "code", _key: "code", code: "custom()", language: "plaintext" }],
+		});
+		const languageButton = screen.getByRole("button", {
+			name: "Set language (current: Plain text)",
+		});
+
+		await languageButton.click();
+		let input = screen.getByPlaceholder("Search for a language…");
+		await input.fill("Custom Language");
+		await userEvent.keyboard("{Enter}");
+		await vi.waitFor(() => {
+			const node = editor.getJSON().content?.find((item) => item.type === "codeBlock");
+			expect(node?.attrs?.language).toBe("custom-language");
+		});
+
+		await screen.getByRole("button", { name: "Set language (current: custom-language)" }).click();
+		input = screen.getByPlaceholder("Search for a language…");
+		await userEvent.keyboard("{Escape}");
+		await expect.element(input).not.toBeInTheDocument();
 	});
 });
