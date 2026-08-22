@@ -67,10 +67,13 @@ interface LanguageItem {
 
 async function copyTextToClipboard(text: string): Promise<void> {
 	if (navigator.clipboard?.writeText) {
-		await navigator.clipboard.writeText(text);
-		return;
+		try {
+			await navigator.clipboard.writeText(text);
+			return;
+		} catch {}
 	}
 
+	const activeElement = document.activeElement;
 	const textarea = document.createElement("textarea");
 	textarea.value = text;
 	textarea.readOnly = true;
@@ -87,6 +90,9 @@ async function copyTextToClipboard(text: string): Promise<void> {
 		if (previousRange) {
 			selection?.removeAllRanges();
 			selection?.addRange(previousRange);
+		}
+		if (activeElement instanceof HTMLElement && activeElement.isConnected) {
+			activeElement.focus();
 		}
 	}
 }

@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InlineCodeBlockExtension } from "../../../src/components/inline-code-block.js";
 import {
+	InlinePortableTextEditor,
 	_pmToPortableText as pmToPortableText,
 	_portableTextToPM as portableTextToPM,
 } from "../../../src/components/InlinePortableTextEditor.js";
@@ -170,6 +171,86 @@ describe("inline Portable Text code blocks", () => {
 			expect(element.querySelector('button[aria-label="Copied"]')).not.toBeNull();
 		});
 		expect(document.querySelector("textarea[readonly]")).toBeNull();
+	});
+
+	it("falls back after a rejected Clipboard API write and keeps keyboard focus", async () => {
+		const copyCommand = vi.fn().mockReturnValue(true);
+		const clipboardWrite = vi.fn().mockRejectedValue(new DOMException("Denied", "NotAllowedError"));
+		Object.defineProperty(navigator, "clipboard", {
+			configurable: true,
+			value: { writeText: clipboardWrite },
+		});
+		Object.defineProperty(document, "execCommand", {
+			configurable: true,
+			value: copyCommand,
+		});
+		editor.commands.insertContent({
+			type: "codeBlock",
+			attrs: { language: "javascript" },
+			content: [{ type: "text", text: "const fallback = true;" }],
+		});
+
+		let copyButton: HTMLButtonElement | null = null;
+		await vi.waitFor(() => {
+			copyButton = element.querySelector<HTMLButtonElement>('button[aria-label="Copy code"]');
+			expect(copyButton).not.toBeNull();
+		});
+		copyButton?.focus();
+		copyButton?.click();
+		await vi.waitFor(() => {
+			expect(clipboardWrite).toHaveBeenCalledWith("const fallback = true;");
+			expect(copyCommand).toHaveBeenCalledWith("copy");
+			expect(document.activeElement).toBe(copyButton);
+		});
+	});
+
+	it("does not save when fallback copying briefly moves focus", async () => {
+		const copyCommand = vi.fn().mockReturnValue(true);
+		const fetchSpy = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response(null, { status: 200 }));
+		const textareaSelect = vi
+			.spyOn(HTMLTextAreaElement.prototype, "select")
+			.mockImplementation(function (this: HTMLTextAreaElement) {
+				this.focus();
+			});
+		Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
+		Object.defineProperty(document, "execCommand", {
+			configurable: true,
+			value: copyCommand,
+		});
+		try {
+			root.render(
+				React.createElement(InlinePortableTextEditor, {
+					value: [
+						{
+							_type: "code",
+							_key: "code",
+							code: "const fallback = true;",
+							language: "javascript",
+						},
+					],
+					collection: "posts",
+					entryId: "post-1",
+					field: "body",
+				}),
+			);
+
+			let copyButton: HTMLButtonElement | null = null;
+			await vi.waitFor(() => {
+				copyButton = element.querySelector<HTMLButtonElement>('button[aria-label="Copy code"]');
+				expect(copyButton).not.toBeNull();
+			});
+			copyButton?.focus();
+			copyButton?.click();
+			await vi.waitFor(() => {
+				expect(copyCommand).toHaveBeenCalledWith("copy");
+			});
+			expect(fetchSpy).not.toHaveBeenCalled();
+		} finally {
+			textareaSelect.mockRestore();
+			fetchSpy.mockRestore();
+		}
 	});
 
 	it("commits free-form input and restores focus on Escape", async () => {

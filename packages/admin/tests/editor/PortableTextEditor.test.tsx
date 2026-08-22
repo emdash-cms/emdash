@@ -1351,6 +1351,44 @@ describe("Code block controls", () => {
 		}
 	});
 
+	it("falls back after a rejected Clipboard API write and keeps keyboard focus", async () => {
+		const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+		const copyCommand = vi.spyOn(document, "execCommand").mockReturnValue(true);
+		const clipboardWrite = vi.fn().mockRejectedValue(new DOMException("Denied", "NotAllowedError"));
+		Object.defineProperty(navigator, "clipboard", {
+			configurable: true,
+			value: { writeText: clipboardWrite },
+		});
+		try {
+			const { screen } = await renderAndGetEditor({
+				value: [
+					{
+						_type: "code",
+						_key: "code",
+						code: "const fallback = true;",
+						language: "javascript",
+					},
+				],
+			});
+
+			const copyButton = screen.getByRole("button", { name: "Copy code" });
+			copyButton.element().focus();
+			await copyButton.click();
+			await vi.waitFor(() => {
+				expect(clipboardWrite).toHaveBeenCalledWith("const fallback = true;");
+				expect(copyCommand).toHaveBeenCalledWith("copy");
+			});
+			await expect.element(copyButton).toHaveFocus();
+		} finally {
+			copyCommand.mockRestore();
+			if (clipboardDescriptor) {
+				Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
+			} else {
+				Reflect.deleteProperty(navigator, "clipboard");
+			}
+		}
+	});
+
 	it("supports free-form Enter and closes the language search with Escape", async () => {
 		const { screen, editor } = await renderAndGetEditor({
 			value: [{ _type: "code", _key: "code", code: "custom()", language: "plaintext" }],

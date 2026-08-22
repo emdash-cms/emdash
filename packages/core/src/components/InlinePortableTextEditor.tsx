@@ -2243,6 +2243,7 @@ export function InlinePortableTextEditor({
 			if (mediaPickerOpen) return;
 			const related = e.relatedTarget instanceof HTMLElement ? e.relatedTarget : null;
 			if (related && e.currentTarget.contains(related)) return;
+			if (related?.hasAttribute("data-emdash-clipboard-fallback")) return;
 			// Don't save if focus moved to the slash menu (portalled to body)
 			if (related?.closest(".emdash-slash-menu")) return;
 			if (related?.closest(".emdash-media-picker")) return;
