@@ -51,8 +51,6 @@ test.describe("Admin code block highlighting", () => {
 		await codeBlockNode.hover();
 		await expect(controls).toHaveCSS("opacity", "1");
 		await expect(controls.getByRole("button")).toHaveCount(2);
-		await expect(languageButton).toHaveCSS("font-size", "14px");
-		await expect(copyButton).toHaveCSS("font-size", "14px");
 		await expect(copyButton).toHaveAttribute("data-kumo-component", "Toolbar.Button");
 
 		const nodeBox = await codeBlockNode.boundingBox();
@@ -62,20 +60,34 @@ test.describe("Admin code block highlighting", () => {
 			const range = document.createRange();
 			range.selectNodeContents(element);
 			const rects = [...range.getClientRects()];
-			return { top: rects[0]?.top, bottom: rects.at(-1)?.bottom };
+			return {
+				top: rects[0]?.top,
+				bottom: rects.at(-1)?.bottom,
+				fontSize: parseFloat(getComputedStyle(element).fontSize),
+			};
 		});
+		const languageFontSize = await languageButton.evaluate((element) =>
+			parseFloat(getComputedStyle(element).fontSize),
+		);
+		const copyFontSize = await copyButton.evaluate((element) =>
+			parseFloat(getComputedStyle(element).fontSize),
+		);
 		expect(nodeBox).not.toBeNull();
 		expect(controlsBox).not.toBeNull();
-		expect(languageBox?.height).toBe(36);
+		expect(languageBox?.height).toBe(26);
+		expect(languageFontSize).toBe(codeText.fontSize);
+		expect(copyFontSize).toBe(codeText.fontSize);
 		expect(controlsBox?.y).toBeCloseTo((nodeBox?.y ?? 0) + 4, 0);
 		expect(controlsBox?.x).toBeCloseTo(
 			(nodeBox?.x ?? 0) + (nodeBox?.width ?? 0) - (controlsBox?.width ?? 0) - 4,
 			0,
 		);
-		expect(codeText.top ?? 0).toBeLessThan((controlsBox?.y ?? 0) + (controlsBox?.height ?? 0));
+		expect(codeText.top ?? 0).toBeGreaterThanOrEqual(
+			(controlsBox?.y ?? 0) + (controlsBox?.height ?? 0),
+		);
 		const topGap = (codeText.top ?? 0) - (nodeBox?.y ?? 0);
 		const bottomGap = (nodeBox?.y ?? 0) + (nodeBox?.height ?? 0) - (codeText.bottom ?? 0);
-		expect(Math.abs(topGap - bottomGap)).toBeLessThanOrEqual(4);
+		expect(Math.abs(topGap - bottomGap)).toBeLessThanOrEqual(1);
 
 		const currentLanguageLabel = await languageButton.getAttribute("aria-label");
 		const nextLanguage = currentLanguageLabel?.includes("Python") ? "JavaScript" : "Python";
@@ -236,8 +248,6 @@ test.describe("Inline code block highlighting", () => {
 		await codeBlockNode.hover();
 		await expect(controlsWrap).toHaveCSS("opacity", "1");
 		await expect(controls.getByRole("button")).toHaveCount(2);
-		await expect(languageButton).toHaveCSS("font-size", "14px");
-		await expect(copyButton).toHaveCSS("font-size", "14px");
 		await expect(controls).toHaveCSS("background-color", "rgb(24, 24, 24)");
 
 		const nodeBox = await codeBlockNode.boundingBox();
@@ -247,20 +257,34 @@ test.describe("Inline code block highlighting", () => {
 			const range = document.createRange();
 			range.selectNodeContents(element);
 			const rects = [...range.getClientRects()];
-			return { top: rects[0]?.top, bottom: rects.at(-1)?.bottom };
+			return {
+				top: rects[0]?.top,
+				bottom: rects.at(-1)?.bottom,
+				fontSize: parseFloat(getComputedStyle(element).fontSize),
+			};
 		});
+		const languageFontSize = await languageButton.evaluate((element) =>
+			parseFloat(getComputedStyle(element).fontSize),
+		);
+		const copyFontSize = await copyButton.evaluate((element) =>
+			parseFloat(getComputedStyle(element).fontSize),
+		);
 		expect(nodeBox).not.toBeNull();
 		expect(controlsBox).not.toBeNull();
-		expect(languageBox?.height).toBe(36);
+		expect(languageBox?.height).toBe(26);
+		expect(languageFontSize).toBe(codeText.fontSize);
+		expect(copyFontSize).toBe(codeText.fontSize);
 		expect(controlsBox?.y).toBeCloseTo((nodeBox?.y ?? 0) + 4, 0);
 		expect(controlsBox?.x).toBeCloseTo(
 			(nodeBox?.x ?? 0) + (nodeBox?.width ?? 0) - (controlsBox?.width ?? 0) - 4,
 			0,
 		);
-		expect(codeText.top ?? 0).toBeLessThan((controlsBox?.y ?? 0) + (controlsBox?.height ?? 0));
+		expect(codeText.top ?? 0).toBeGreaterThanOrEqual(
+			(controlsBox?.y ?? 0) + (controlsBox?.height ?? 0),
+		);
 		const topGap = (codeText.top ?? 0) - (nodeBox?.y ?? 0);
 		const bottomGap = (nodeBox?.y ?? 0) + (nodeBox?.height ?? 0) - (codeText.bottom ?? 0);
-		expect(Math.abs(topGap - bottomGap)).toBeLessThanOrEqual(4);
+		expect(Math.abs(topGap - bottomGap)).toBeLessThanOrEqual(1);
 
 		await languageButton.click();
 		await page.mouse.move(0, 0);

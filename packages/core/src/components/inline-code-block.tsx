@@ -157,8 +157,8 @@ function CaretDownIcon() {
 function CopyIcon() {
 	return (
 		<svg
-			width="16"
-			height="16"
+			width="14"
+			height="14"
 			viewBox="0 0 24 24"
 			fill="none"
 			stroke="currentColor"
@@ -176,8 +176,8 @@ function CopyIcon() {
 function CheckIcon() {
 	return (
 		<svg
-			width="16"
-			height="16"
+			width="14"
+			height="14"
 			viewBox="0 0 24 24"
 			fill="none"
 			stroke="currentColor"
@@ -538,7 +538,7 @@ function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 									id={`${listboxId}-option-${index}`}
 									className="emdash-inline-code-block-language-option"
 									role="option"
-									aria-selected={index === activeIndex}
+									aria-selected={currentLanguageId === language.id}
 									data-active={index === activeIndex ? "true" : "false"}
 									onMouseEnter={() => setActiveIndex(index)}
 									onMouseDown={(event) => event.preventDefault()}

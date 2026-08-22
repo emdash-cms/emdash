@@ -2309,7 +2309,7 @@ export function InlinePortableTextEditor({
 				.emdash-inline-editor .emdash-inline-code-block .emdash-code-block {
 					margin: 0;
 					padding: 1rem;
-					padding-block: 2rem;
+					padding-block: 1.875rem;
 					border: 0;
 					border-radius: 0.5rem;
 					background: var(--emdash-code-background);
@@ -2320,6 +2320,7 @@ export function InlinePortableTextEditor({
 				.emdash-inline-editor .emdash-inline-code-block .emdash-code-block code {
 					background: transparent;
 					color: inherit;
+					font-size: 0.8125rem;
 				}
 				.emdash-inline-editor .emdash-inline-code-block :is(.hljs-comment, .hljs-quote) {
 					color: var(--emdash-code-muted);
@@ -2341,7 +2342,7 @@ export function InlinePortableTextEditor({
 				}
 				.emdash-inline-editor .emdash-inline-code-block-controls-wrap {
 					position: absolute;
-					inset-block-start: 0.25rem;
+					inset-block-start: 0;
 					inset-inline-end: 0.25rem;
 					z-index: 100;
 					opacity: 0;
@@ -2356,7 +2357,7 @@ export function InlinePortableTextEditor({
 				}
 				.emdash-inline-editor .emdash-inline-code-block-controls {
 					display: inline-flex;
-					block-size: 2.25rem;
+					block-size: 1.625rem;
 					align-items: stretch;
 					overflow: hidden;
 					border-radius: 0.5rem;
@@ -2366,15 +2367,15 @@ export function InlinePortableTextEditor({
 						0 0 0 1px var(--emdash-code-border),
 						0 1px 2px rgb(0 0 0 / 0.08);
 					font-family: inherit;
-					font-size: 0.875rem;
-					line-height: 1.25rem;
+					font-size: 0.8125rem;
+					line-height: 1rem;
 				}
 				.emdash-inline-editor .emdash-inline-code-block-action {
 					display: inline-flex;
-					block-size: 2.25rem;
+					block-size: 1.625rem;
 					align-items: center;
 					justify-content: center;
-					gap: 0.375rem;
+					gap: 0.25rem;
 					border: 0;
 					background: transparent;
 					color: inherit;
@@ -2399,7 +2400,7 @@ export function InlinePortableTextEditor({
 				}
 				.emdash-inline-editor .emdash-inline-code-block-language-button {
 					min-inline-size: 0;
-					padding-inline: 0.75rem;
+					padding-inline: 0.5rem;
 				}
 				.emdash-inline-editor .emdash-inline-code-block-language-label {
 					max-inline-size: 10rem;
@@ -2410,7 +2411,7 @@ export function InlinePortableTextEditor({
 				.emdash-inline-editor .emdash-inline-code-block-copy-button {
 					position: relative;
 					isolation: isolate;
-					inline-size: 2.25rem;
+					inline-size: 1.625rem;
 					padding: 0;
 					overflow: hidden;
 					border-inline-start: 1px solid var(--emdash-code-border);

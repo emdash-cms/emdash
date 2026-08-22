@@ -215,22 +215,22 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 				<NodeViewContent<"code"> as="code" />
 			</pre>
 
-			<div className="absolute end-1 top-1 z-10 select-none" contentEditable={false}>
+			<div className="absolute end-1 top-0 z-10 select-none" contentEditable={false}>
 				<Popover
 					open={isEditing}
 					onOpenChange={(open: boolean) => (open ? openPicker() : closePicker())}
 				>
 					<TooltipProvider>
 						<Toolbar
-							size="base"
-							className="emdash-code-block-controls text-base"
+							size="sm"
+							className="emdash-code-block-controls text-[13px]"
 							data-persistent={controlsPersistent ? "true" : "false"}
 							aria-label={t`Code block actions`}
 						>
 							<Popover.Trigger
 								render={
 									<Toolbar.Button
-										className="gap-1.5 text-base"
+										className="text-[13px]"
 										onMouseDown={(event) => event.preventDefault()}
 										aria-label={t`Set language (current: ${label})`}
 									>
@@ -244,20 +244,20 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 								render={
 									<Toolbar.Button
 										shape="square"
-										className="relative isolate size-9 overflow-hidden text-base"
+										className="relative isolate overflow-hidden text-[13px]"
 										onMouseDown={(event) => event.preventDefault()}
 										onClick={copyCode}
 										aria-label={copied ? t`Copied` : t`Copy code`}
 									>
 										<span
-											className={`absolute inset-0 flex items-center justify-center transition-[transform,opacity] duration-200 motion-reduce:transition-none ${copied ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}
+											className={`absolute inset-0 flex items-center justify-center transition-[translate,opacity] duration-200 motion-reduce:transition-none ${copied ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}
 										>
-											<Check className="size-4" aria-hidden="true" />
+											<Check className="size-3.5" aria-hidden="true" />
 										</span>
 										<span
-											className={`flex items-center justify-center transition-[transform,opacity] duration-200 motion-reduce:transition-none ${copied ? "-translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
+											className={`flex items-center justify-center transition-[translate,opacity] duration-200 motion-reduce:transition-none ${copied ? "-translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
 										>
-											<Copy className="size-4" aria-hidden="true" />
+											<Copy className="size-3.5" aria-hidden="true" />
 										</span>
 									</Toolbar.Button>
 								}

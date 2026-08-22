@@ -255,7 +255,7 @@ body {
 	background: var(--emdash-code-background);
 	color: var(--emdash-code-foreground);
 	caret-color: var(--emdash-code-foreground);
-	padding-block: 2rem;
+	padding-block: 1.875rem;
 }
 
 [data-mode="dark"] .emdash-code-block {
@@ -271,6 +271,7 @@ body {
 .emdash-code-block code {
 	background: transparent;
 	color: inherit;
+	font-size: 0.8125rem;
 }
 
 .emdash-code-block :is(.hljs-comment, .hljs-quote) {

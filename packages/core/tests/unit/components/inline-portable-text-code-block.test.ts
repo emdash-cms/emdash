@@ -115,10 +115,13 @@ describe("inline Portable Text code blocks", () => {
 		await vi.waitFor(() => {
 			expect(element.querySelector('input[placeholder="Search for a language…"]')).not.toBeNull();
 		});
+		const options = [...element.querySelectorAll<HTMLElement>('[role="option"]')];
+		const plainTextOption = options.find((option) => option.textContent?.includes("Plain text"));
+		const pythonOption = options.find((option) => option.textContent?.includes("Python"));
+		expect(plainTextOption?.getAttribute("aria-selected")).toBe("false");
+		expect(pythonOption?.getAttribute("aria-selected")).toBe("true");
 
-		const javascriptOption = [...element.querySelectorAll<HTMLElement>('[role="option"]')].find(
-			(option) => option.textContent?.includes("JavaScript"),
-		);
+		const javascriptOption = options.find((option) => option.textContent?.includes("JavaScript"));
 		expect(javascriptOption).toBeDefined();
 		javascriptOption?.click();
 		await vi.waitFor(() => {
