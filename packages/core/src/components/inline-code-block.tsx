@@ -191,6 +191,32 @@ function CheckIcon() {
 	);
 }
 
+async function copyTextToClipboard(text: string): Promise<void> {
+	if (navigator.clipboard?.writeText) {
+		await navigator.clipboard.writeText(text);
+		return;
+	}
+
+	const textarea = document.createElement("textarea");
+	textarea.value = text;
+	textarea.readOnly = true;
+	textarea.style.position = "fixed";
+	textarea.style.opacity = "0";
+	document.body.append(textarea);
+	const selection = document.getSelection();
+	const previousRange = selection?.rangeCount ? selection.getRangeAt(0) : null;
+	textarea.select();
+	try {
+		if (!document.execCommand("copy")) throw new Error("Clipboard copy failed");
+	} finally {
+		textarea.remove();
+		if (previousRange) {
+			selection?.removeAllRanges();
+			selection?.addRange(previousRange);
+		}
+	}
+}
+
 function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	const [isEditing, setIsEditing] = React.useState(false);
 	const [copied, setCopied] = React.useState(false);
@@ -355,10 +381,10 @@ function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 
 	const copyCode = React.useCallback(async () => {
 		try {
-			await navigator.clipboard.writeText(node.textContent);
+			await copyTextToClipboard(node.textContent);
 			setCopied(true);
 			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
-			copyResetTimer.current = setTimeout(setCopied, 2500, false);
+			copyResetTimer.current = setTimeout(setCopied, 1500, false);
 		} catch {
 			setCopied(false);
 		}
@@ -435,7 +461,18 @@ function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 						title={copied ? "Copied" : "Copy code"}
 						aria-label={copied ? "Copied" : "Copy code"}
 					>
-						{copied ? <CheckIcon /> : <CopyIcon />}
+						<span
+							className="emdash-inline-code-block-copy-success"
+							data-copied={copied ? "true" : "false"}
+						>
+							<CheckIcon />
+						</span>
+						<span
+							className="emdash-inline-code-block-copy-default"
+							data-copied={copied ? "true" : "false"}
+						>
+							<CopyIcon />
+						</span>
 					</button>
 				</div>
 				<span className="emdash-inline-code-block-sr-only" role="status" aria-live="polite">

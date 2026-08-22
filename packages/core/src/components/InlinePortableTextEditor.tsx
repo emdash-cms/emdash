@@ -2308,7 +2308,7 @@ export function InlinePortableTextEditor({
 				.emdash-inline-editor .emdash-inline-code-block .emdash-code-block {
 					margin: 0;
 					padding: 1rem;
-					padding-block-start: 3.25rem;
+					padding-block: 3rem;
 					border: 0;
 					border-radius: 0.5rem;
 					background: var(--emdash-code-background);
@@ -2340,8 +2340,8 @@ export function InlinePortableTextEditor({
 				}
 				.emdash-inline-editor .emdash-inline-code-block-controls-wrap {
 					position: absolute;
-					inset-block-start: 0.5rem;
-					inset-inline-end: 0.5rem;
+					inset-block-start: 0.25rem;
+					inset-inline-end: 0.25rem;
 					z-index: 100;
 					opacity: 0;
 					pointer-events: none;
@@ -2355,7 +2355,7 @@ export function InlinePortableTextEditor({
 				}
 				.emdash-inline-editor .emdash-inline-code-block-controls {
 					display: inline-flex;
-					block-size: 2rem;
+					block-size: 2.25rem;
 					align-items: stretch;
 					overflow: hidden;
 					border-radius: 0.5rem;
@@ -2370,7 +2370,7 @@ export function InlinePortableTextEditor({
 				}
 				.emdash-inline-editor .emdash-inline-code-block-action {
 					display: inline-flex;
-					block-size: 2rem;
+					block-size: 2.25rem;
 					align-items: center;
 					justify-content: center;
 					gap: 0.375rem;
@@ -2398,7 +2398,7 @@ export function InlinePortableTextEditor({
 				}
 				.emdash-inline-editor .emdash-inline-code-block-language-button {
 					min-inline-size: 0;
-					padding-inline: 0.625rem;
+					padding-inline: 0.75rem;
 				}
 				.emdash-inline-editor .emdash-inline-code-block-language-label {
 					max-inline-size: 10rem;
@@ -2407,9 +2407,34 @@ export function InlinePortableTextEditor({
 					white-space: nowrap;
 				}
 				.emdash-inline-editor .emdash-inline-code-block-copy-button {
-					inline-size: 2rem;
+					position: relative;
+					isolation: isolate;
+					inline-size: 2.25rem;
 					padding: 0;
+					overflow: hidden;
 					border-inline-start: 1px solid var(--emdash-code-border);
+				}
+				.emdash-inline-editor
+					:is(.emdash-inline-code-block-copy-success, .emdash-inline-code-block-copy-default) {
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					transition-property: transform, opacity;
+					transition-duration: 200ms;
+				}
+				.emdash-inline-editor .emdash-inline-code-block-copy-success {
+					position: absolute;
+					inset: 0;
+					transform: translateY(100%);
+					opacity: 0;
+				}
+				.emdash-inline-editor .emdash-inline-code-block-copy-success[data-copied="true"] {
+					transform: translateY(0);
+					opacity: 1;
+				}
+				.emdash-inline-editor .emdash-inline-code-block-copy-default[data-copied="true"] {
+					transform: translateY(-100%);
+					opacity: 0;
 				}
 				.emdash-inline-editor .emdash-inline-code-block-popover {
 					position: fixed;
@@ -2505,14 +2530,14 @@ export function InlinePortableTextEditor({
 						--emdash-code-string: var(--emdash-inline-code-string, #b9ddff);
 						--emdash-code-number: var(--emdash-inline-code-number, #a8d5ff);
 						--emdash-code-title: var(--emdash-inline-code-title, #e5ccff);
-						--emdash-code-border: var(--emdash-inline-code-border, #6e7681);
+						--emdash-code-border: var(--emdash-inline-code-border, #333333);
 						--emdash-code-control-background: var(
 							--emdash-inline-code-control-background,
-							var(--emdash-inline-bg, #161b22)
+							var(--emdash-inline-bg, #181818)
 						);
 						--emdash-code-control-foreground: var(
 							--emdash-inline-code-control-foreground,
-							#f0f3f6
+							#f5f5f5
 						);
 						--emdash-code-focus: var(--emdash-inline-code-focus, #a8d5ff);
 					}
@@ -2530,6 +2555,10 @@ export function InlinePortableTextEditor({
 				}
 				@media (prefers-reduced-motion: reduce) {
 					.emdash-inline-editor .emdash-inline-code-block-controls-wrap {
+						transition: none;
+					}
+					.emdash-inline-editor
+						:is(.emdash-inline-code-block-copy-success, .emdash-inline-code-block-copy-default) {
 						transition: none;
 					}
 				}

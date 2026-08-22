@@ -18,9 +18,11 @@ describe("inline Portable Text code blocks", () => {
 	let element: HTMLDivElement;
 	let root: Root;
 	let clipboardDescriptor: PropertyDescriptor | undefined;
+	let execCommandDescriptor: PropertyDescriptor | undefined;
 
 	beforeEach(() => {
 		clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+		execCommandDescriptor = Object.getOwnPropertyDescriptor(document, "execCommand");
 		element = document.createElement("div");
 		document.body.append(element);
 		editor = new Editor({
@@ -36,6 +38,11 @@ describe("inline Portable Text code blocks", () => {
 			Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
 		} else {
 			Reflect.deleteProperty(navigator, "clipboard");
+		}
+		if (execCommandDescriptor) {
+			Object.defineProperty(document, "execCommand", execCommandDescriptor);
+		} else {
+			Reflect.deleteProperty(document, "execCommand");
 		}
 		root.unmount();
 		editor.destroy();
@@ -139,6 +146,30 @@ describe("inline Portable Text code blocks", () => {
 			expect(element.querySelector('button[aria-label="Copied"]')).not.toBeNull();
 			expect(element.querySelector('[role="status"]')?.textContent).toBe("Copied");
 		});
+	});
+
+	it("falls back to document copy without the Clipboard API", async () => {
+		const copyCommand = vi.fn().mockReturnValue(true);
+		Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
+		Object.defineProperty(document, "execCommand", {
+			configurable: true,
+			value: copyCommand,
+		});
+		editor.commands.insertContent({
+			type: "codeBlock",
+			attrs: { language: "javascript" },
+			content: [{ type: "text", text: "const fallback = true;" }],
+		});
+
+		await vi.waitFor(() => {
+			expect(element.querySelector('button[aria-label="Copy code"]')).not.toBeNull();
+		});
+		element.querySelector<HTMLButtonElement>('button[aria-label="Copy code"]')?.click();
+		await vi.waitFor(() => {
+			expect(copyCommand).toHaveBeenCalledWith("copy");
+			expect(element.querySelector('button[aria-label="Copied"]')).not.toBeNull();
+		});
+		expect(document.querySelector("textarea[readonly]")).toBeNull();
 	});
 
 	it("commits free-form input and restores focus on Escape", async () => {

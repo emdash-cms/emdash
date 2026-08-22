@@ -1319,6 +1319,38 @@ describe("Code block controls", () => {
 		clipboardWrite.mockRestore();
 	});
 
+	it("falls back to document copy when the Clipboard API is unavailable", async () => {
+		const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+		const copyCommand = vi.spyOn(document, "execCommand").mockReturnValue(true);
+		Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
+		try {
+			const { screen } = await renderAndGetEditor({
+				value: [
+					{
+						_type: "code",
+						_key: "code",
+						code: "const fallback = true;",
+						language: "javascript",
+					},
+				],
+			});
+
+			await screen.getByRole("button", { name: "Copy code" }).click();
+			await vi.waitFor(() => {
+				expect(copyCommand).toHaveBeenCalledWith("copy");
+			});
+			await expect.element(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
+			expect(document.querySelector("textarea[readonly]")).toBeNull();
+		} finally {
+			copyCommand.mockRestore();
+			if (clipboardDescriptor) {
+				Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
+			} else {
+				Reflect.deleteProperty(navigator, "clipboard");
+			}
+		}
+	});
+
 	it("supports free-form Enter and closes the language search with Escape", async () => {
 		const { screen, editor } = await renderAndGetEditor({
 			value: [{ _type: "code", _key: "code", code: "custom()", language: "plaintext" }],

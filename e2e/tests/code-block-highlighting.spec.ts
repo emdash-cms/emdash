@@ -53,26 +53,31 @@ test.describe("Admin code block highlighting", () => {
 		await expect(controls.getByRole("button")).toHaveCount(2);
 		await expect(languageButton).toHaveCSS("font-size", "14px");
 		await expect(copyButton).toHaveCSS("font-size", "14px");
+		await expect(copyButton).toHaveAttribute("data-kumo-component", "Toolbar.Button");
 
 		const nodeBox = await codeBlockNode.boundingBox();
 		const controlsBox = await controls.boundingBox();
 		const languageBox = await languageButton.boundingBox();
-		const codeTextTop = await codeBlockNode.locator("code").evaluate((element) => {
+		const codeText = await codeBlockNode.locator("code").evaluate((element) => {
 			const range = document.createRange();
 			range.selectNodeContents(element);
-			return range.getClientRects()[0]?.top;
+			const rects = [...range.getClientRects()];
+			return { top: rects[0]?.top, bottom: rects.at(-1)?.bottom };
 		});
 		expect(nodeBox).not.toBeNull();
 		expect(controlsBox).not.toBeNull();
-		expect(languageBox?.height).toBe(32);
-		expect(controlsBox?.y).toBeCloseTo((nodeBox?.y ?? 0) + 8, 0);
+		expect(languageBox?.height).toBe(36);
+		expect(controlsBox?.y).toBeCloseTo((nodeBox?.y ?? 0) + 4, 0);
 		expect(controlsBox?.x).toBeCloseTo(
-			(nodeBox?.x ?? 0) + (nodeBox?.width ?? 0) - (controlsBox?.width ?? 0) - 8,
+			(nodeBox?.x ?? 0) + (nodeBox?.width ?? 0) - (controlsBox?.width ?? 0) - 4,
 			0,
 		);
-		expect(codeTextTop ?? 0).toBeGreaterThanOrEqual(
+		expect(codeText.top ?? 0).toBeGreaterThanOrEqual(
 			(controlsBox?.y ?? 0) + (controlsBox?.height ?? 0) + 8,
 		);
+		const topGap = (codeText.top ?? 0) - (nodeBox?.y ?? 0);
+		const bottomGap = (nodeBox?.y ?? 0) + (nodeBox?.height ?? 0) - (codeText.bottom ?? 0);
+		expect(Math.abs(topGap - bottomGap)).toBeLessThanOrEqual(4);
 
 		const currentLanguageLabel = await languageButton.getAttribute("aria-label");
 		const nextLanguage = currentLanguageLabel?.includes("Python") ? "JavaScript" : "Python";
@@ -107,6 +112,11 @@ test.describe("Admin code block highlighting", () => {
 
 		await admin.page.keyboard.press("Escape");
 		await expect(input).toBeHidden();
+		await copyButton.hover();
+		await expect(
+			admin.page.locator(".kumo-tooltip-popup").filter({ hasText: "Copy code" }),
+		).toBeVisible();
+		await expect(admin.page.locator(".kumo-tooltip-popup")).toHaveCount(1);
 		await admin.page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
 		await copyButton.click();
 		await expect(controls.getByRole("button", { name: "Copied" })).toBeVisible();
@@ -139,7 +149,7 @@ test.describe("Admin code block highlighting", () => {
 
 		const nodeBox = await codeBlockNode.boundingBox();
 		const controlsBox = await controls.boundingBox();
-		expect(controlsBox?.x).toBeCloseTo((nodeBox?.x ?? 0) + 8, 0);
+		expect(controlsBox?.x).toBeCloseTo((nodeBox?.x ?? 0) + 4, 0);
 
 		await controls.getByRole("button", { name: /^Set language/ }).click();
 		const popupBox = await admin.page.locator(".kumo-popover-popup").boundingBox();
@@ -198,6 +208,7 @@ test.describe("Inline code block highlighting", () => {
 		});
 		await page.waitForTimeout(2200);
 		updateRequests = 0;
+		await page.emulateMedia({ colorScheme: "dark" });
 		const outsideControlStyle = await page.evaluate(() => {
 			const outside = document.createElement("div");
 			outside.className = "emdash-inline-code-block-controls-wrap";
@@ -229,26 +240,31 @@ test.describe("Inline code block highlighting", () => {
 		await expect(controls.getByRole("button")).toHaveCount(2);
 		await expect(languageButton).toHaveCSS("font-size", "14px");
 		await expect(copyButton).toHaveCSS("font-size", "14px");
+		await expect(controls).toHaveCSS("background-color", "rgb(24, 24, 24)");
 
 		const nodeBox = await codeBlockNode.boundingBox();
 		const controlsBox = await controls.boundingBox();
 		const languageBox = await languageButton.boundingBox();
-		const codeTextTop = await codeBlockNode.locator("code").evaluate((element) => {
+		const codeText = await codeBlockNode.locator("code").evaluate((element) => {
 			const range = document.createRange();
 			range.selectNodeContents(element);
-			return range.getClientRects()[0]?.top;
+			const rects = [...range.getClientRects()];
+			return { top: rects[0]?.top, bottom: rects.at(-1)?.bottom };
 		});
 		expect(nodeBox).not.toBeNull();
 		expect(controlsBox).not.toBeNull();
-		expect(languageBox?.height).toBe(32);
-		expect(controlsBox?.y).toBeCloseTo((nodeBox?.y ?? 0) + 8, 0);
+		expect(languageBox?.height).toBe(36);
+		expect(controlsBox?.y).toBeCloseTo((nodeBox?.y ?? 0) + 4, 0);
 		expect(controlsBox?.x).toBeCloseTo(
-			(nodeBox?.x ?? 0) + (nodeBox?.width ?? 0) - (controlsBox?.width ?? 0) - 8,
+			(nodeBox?.x ?? 0) + (nodeBox?.width ?? 0) - (controlsBox?.width ?? 0) - 4,
 			0,
 		);
-		expect(codeTextTop ?? 0).toBeGreaterThanOrEqual(
+		expect(codeText.top ?? 0).toBeGreaterThanOrEqual(
 			(controlsBox?.y ?? 0) + (controlsBox?.height ?? 0) + 8,
 		);
+		const topGap = (codeText.top ?? 0) - (nodeBox?.y ?? 0);
+		const bottomGap = (nodeBox?.y ?? 0) + (nodeBox?.height ?? 0) - (codeText.bottom ?? 0);
+		expect(Math.abs(topGap - bottomGap)).toBeLessThanOrEqual(4);
 
 		await languageButton.click();
 		await page.mouse.move(0, 0);
@@ -325,7 +341,7 @@ test.describe("Inline code block highlighting", () => {
 
 		const nodeBox = await codeBlockNode.boundingBox();
 		const controlsBox = await controls.boundingBox();
-		expect(controlsBox?.x).toBeCloseTo((nodeBox?.x ?? 0) + 8, 0);
+		expect(controlsBox?.x).toBeCloseTo((nodeBox?.x ?? 0) + 4, 0);
 
 		await controls.getByRole("button", { name: /^Set language/ }).click();
 		const popup = page.locator(".emdash-inline-code-block-popover");

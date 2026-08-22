@@ -16,7 +16,7 @@
  * ProseMirror does not interpret input typing as an editor selection change.
  */
 
-import { CommandPalette, Popover, Toolbar } from "@cloudflare/kumo";
+import { CommandPalette, Popover, Toolbar, Tooltip, TooltipProvider } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { CaretDown, Check, Copy } from "@phosphor-icons/react";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
@@ -63,6 +63,32 @@ interface LanguageItem {
 	id: string;
 	label: string;
 	aliases?: string[];
+}
+
+async function copyTextToClipboard(text: string): Promise<void> {
+	if (navigator.clipboard?.writeText) {
+		await navigator.clipboard.writeText(text);
+		return;
+	}
+
+	const textarea = document.createElement("textarea");
+	textarea.value = text;
+	textarea.readOnly = true;
+	textarea.style.position = "fixed";
+	textarea.style.opacity = "0";
+	document.body.append(textarea);
+	const selection = document.getSelection();
+	const previousRange = selection?.rangeCount ? selection.getRangeAt(0) : null;
+	textarea.select();
+	try {
+		if (!document.execCommand("copy")) throw new Error("Clipboard copy failed");
+	} finally {
+		textarea.remove();
+		if (previousRange) {
+			selection?.removeAllRanges();
+			selection?.addRange(previousRange);
+		}
+	}
 }
 
 function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
@@ -161,10 +187,10 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 
 	const copyCode = React.useCallback(async () => {
 		try {
-			await navigator.clipboard.writeText(node.textContent);
+			await copyTextToClipboard(node.textContent);
 			setCopied(true);
 			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
-			copyResetTimer.current = setTimeout(setCopied, 2500, false);
+			copyResetTimer.current = setTimeout(setCopied, 1500, false);
 		} catch {
 			setCopied(false);
 		}
@@ -183,46 +209,55 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 				<NodeViewContent<"code"> as="code" />
 			</pre>
 
-			<div className="absolute end-2 top-2 z-10 select-none" contentEditable={false}>
+			<div className="absolute end-1 top-1 z-10 select-none" contentEditable={false}>
 				<Popover
 					open={isEditing}
 					onOpenChange={(open: boolean) => (open ? openPicker() : closePicker())}
 				>
-					<Toolbar
-						size="sm"
-						className="emdash-code-block-controls text-base"
-						data-persistent={controlsPersistent ? "true" : "false"}
-						aria-label={t`Code block actions`}
-					>
-						<Popover.Trigger
-							render={
-								<Toolbar.Button
-									className="h-8 gap-1.5 px-2.5 text-base"
-									onMouseDown={(event) => event.preventDefault()}
-									title={t`Set language`}
-									aria-label={t`Set language (current: ${label})`}
-								>
-									<span className="max-w-40 truncate">{label}</span>
-									<CaretDown className="size-3.5 shrink-0 text-kumo-subtle" aria-hidden="true" />
-								</Toolbar.Button>
-							}
-						/>
-						<Toolbar.Button
-							shape="square"
-							className="size-8 text-base"
-							onMouseDown={(event) => event.preventDefault()}
-							onClick={copyCode}
-							icon={
-								copied ? (
-									<Check className="size-4" aria-hidden="true" />
-								) : (
-									<Copy className="size-4" aria-hidden="true" />
-								)
-							}
-							title={copied ? t`Copied` : t`Copy code`}
-							aria-label={copied ? t`Copied` : t`Copy code`}
-						/>
-					</Toolbar>
+					<TooltipProvider>
+						<Toolbar
+							size="base"
+							className="emdash-code-block-controls text-base"
+							data-persistent={controlsPersistent ? "true" : "false"}
+							aria-label={t`Code block actions`}
+						>
+							<Popover.Trigger
+								render={
+									<Toolbar.Button
+										className="gap-1.5 text-base"
+										onMouseDown={(event) => event.preventDefault()}
+										aria-label={t`Set language (current: ${label})`}
+									>
+										<span className="max-w-40 truncate">{label}</span>
+										<CaretDown className="size-3.5 shrink-0 text-kumo-subtle" aria-hidden="true" />
+									</Toolbar.Button>
+								}
+							/>
+							<Tooltip
+								content={copied ? t`Copied` : t`Copy code`}
+								render={
+									<Toolbar.Button
+										shape="square"
+										className="relative isolate size-9 overflow-hidden text-base"
+										onMouseDown={(event) => event.preventDefault()}
+										onClick={copyCode}
+										aria-label={copied ? t`Copied` : t`Copy code`}
+									>
+										<span
+											className={`absolute inset-0 flex items-center justify-center transition-[transform,opacity] duration-200 motion-reduce:transition-none ${copied ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"}`}
+										>
+											<Check className="size-4" aria-hidden="true" />
+										</span>
+										<span
+											className={`flex items-center justify-center transition-[transform,opacity] duration-200 motion-reduce:transition-none ${copied ? "-translate-y-full opacity-0" : "translate-y-0 opacity-100"}`}
+										>
+											<Copy className="size-4" aria-hidden="true" />
+										</span>
+									</Toolbar.Button>
+								}
+							/>
+						</Toolbar>
+					</TooltipProvider>
 					<span className="sr-only" role="status" aria-live="polite">
 						{copied ? t`Copied` : ""}
 					</span>
