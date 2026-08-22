@@ -72,9 +72,7 @@ test.describe("Admin code block highlighting", () => {
 			(nodeBox?.x ?? 0) + (nodeBox?.width ?? 0) - (controlsBox?.width ?? 0) - 4,
 			0,
 		);
-		expect(codeText.top ?? 0).toBeGreaterThanOrEqual(
-			(controlsBox?.y ?? 0) + (controlsBox?.height ?? 0) + 8,
-		);
+		expect(codeText.top ?? 0).toBeLessThan((controlsBox?.y ?? 0) + (controlsBox?.height ?? 0));
 		const topGap = (codeText.top ?? 0) - (nodeBox?.y ?? 0);
 		const bottomGap = (nodeBox?.y ?? 0) + (nodeBox?.height ?? 0) - (codeText.bottom ?? 0);
 		expect(Math.abs(topGap - bottomGap)).toBeLessThanOrEqual(4);
@@ -259,9 +257,7 @@ test.describe("Inline code block highlighting", () => {
 			(nodeBox?.x ?? 0) + (nodeBox?.width ?? 0) - (controlsBox?.width ?? 0) - 4,
 			0,
 		);
-		expect(codeText.top ?? 0).toBeGreaterThanOrEqual(
-			(controlsBox?.y ?? 0) + (controlsBox?.height ?? 0) + 8,
-		);
+		expect(codeText.top ?? 0).toBeLessThan((controlsBox?.y ?? 0) + (controlsBox?.height ?? 0));
 		const topGap = (codeText.top ?? 0) - (nodeBox?.y ?? 0);
 		const bottomGap = (nodeBox?.y ?? 0) + (nodeBox?.height ?? 0) - (codeText.bottom ?? 0);
 		expect(Math.abs(topGap - bottomGap)).toBeLessThanOrEqual(4);

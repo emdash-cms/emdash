@@ -2309,7 +2309,7 @@ export function InlinePortableTextEditor({
 				.emdash-inline-editor .emdash-inline-code-block .emdash-code-block {
 					margin: 0;
 					padding: 1rem;
-					padding-block: 3rem;
+					padding-block: 2rem;
 					border: 0;
 					border-radius: 0.5rem;
 					background: var(--emdash-code-background);

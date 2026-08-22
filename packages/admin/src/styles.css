@@ -255,7 +255,7 @@ body {
 	background: var(--emdash-code-background);
 	color: var(--emdash-code-foreground);
 	caret-color: var(--emdash-code-foreground);
-	padding-block: 3rem;
+	padding-block: 2rem;
 }
 
 [data-mode="dark"] .emdash-code-block {
