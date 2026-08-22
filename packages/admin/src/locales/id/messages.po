@@ -83,7 +83,7 @@ msgstr "{0, plural, other {(# item)}}"
 #: packages/admin/src/components/BylineFilter.tsx:103
 #: packages/admin/src/components/BylineFilter.tsx:104
 msgid "{0, plural, one {# byline} other {# bylines}}"
-msgstr ""
+msgstr "{0, plural, other {# byline}}"
 
 #. placeholder {0}: seedInfo.collections
 #: packages/admin/src/components/SetupWizard.tsx:156
@@ -118,7 +118,7 @@ msgstr "{0, plural, other {# item konten diimpor}}"
 #. placeholder {0}: selectedItems.length
 #: packages/admin/src/components/MediaPickerModal.tsx:787
 msgid "{0, plural, one {# item selected} other {# items selected}}"
-msgstr ""
+msgstr "{0, plural, other {# item dipilih}}"
 
 #. placeholder {0}: items.length
 #. placeholder {0}: menu.itemCount ?? 0
@@ -130,7 +130,7 @@ msgstr "{0, plural, other {# item}}"
 #. placeholder {0}: mcpTools.length
 #: packages/admin/src/components/PluginManager.tsx:420
 msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
-msgstr ""
+msgstr "{0, plural, other {# alat MCP}}"
 
 #. placeholder {0}: mediaResult.failed.length
 #: packages/admin/src/components/WordPressImport.tsx:2279
@@ -224,7 +224,7 @@ msgstr "Banner {0}"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:228
 msgid "{0} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to."
-msgstr ""
+msgstr "{0} tidak dapat dipindahkan ke sini — induknya tidak memiliki terjemahan dalam bahasa ini, sehingga daftar ini bukan grup tempatnya berada."
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
 #: packages/admin/src/components/WordPressImport.tsx:1303
@@ -234,7 +234,7 @@ msgstr "{0} terdeteksi"
 #. placeholder {0}: term.locale.toUpperCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:356
 msgid "{0} fallback"
-msgstr ""
+msgstr "Cadangan {0}"
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/PluginManager.tsx:115
@@ -338,7 +338,7 @@ msgstr "{changedCount, plural, other {# perubahan dari revisi berikutnya}}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2512
 msgid "{characters, plural, one {# character} other {# characters}}"
-msgstr ""
+msgstr "{characters, plural, other {# karakter}}"
 
 #. placeholder {0}: rows.length
 #: packages/admin/src/components/MediaUploadDialog.tsx:482
@@ -402,11 +402,11 @@ msgstr "{needsNewFields, plural, other {Field akan ditambahkan ke # koleksi yang
 
 #: packages/admin/src/components/Dashboard.tsx:102
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
-msgstr ""
+msgstr "{overdueCount, plural, other {# item terjadwal telah lewat waktu dan heartbeat penjadwal sudah usang. Jalankan `npx emdash doctor` dan verifikasi Cron Trigger yang telah dideploy.}}"
 
 #: packages/admin/src/components/Dashboard.tsx:97
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
-msgstr ""
+msgstr "{overdueCount, plural, other {# item terjadwal telah lewat waktu, tetapi belum ada proses penjadwal yang selesai. Jalankan `npx emdash doctor` dan verifikasi Cron Trigger yang telah dideploy.}}"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:458
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
@@ -424,11 +424,11 @@ msgstr "{pluginName} memerlukan izin berikut:"
 #: packages/admin/src/components/PluginSettings.tsx:142
 #: packages/admin/src/components/PluginSettings.tsx:170
 msgid "{pluginName} Settings"
-msgstr ""
+msgstr "Pengaturan {pluginName}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2513
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
-msgstr ""
+msgstr "{readingTime, plural, other {# menit baca}}"
 
 #: packages/admin/src/components/MediaLibrary.tsx:263
 msgid "{resultCount, plural, one {# item} other {# items}}"
@@ -468,7 +468,7 @@ msgstr "{unchangedCount, plural, other {Tampilkan # tidak berubah}}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2511
 msgid "{words, plural, one {# word} other {# words}}"
-msgstr ""
+msgstr "{words, plural, other {# kata}}"
 
 #: packages/admin/src/components/Redirects.tsx:142
 msgid "/new-page or /articles/[slug]"
@@ -595,7 +595,7 @@ msgstr "Deskripsi singkat situs Anda"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:455
 msgid "A source and target locale are required"
-msgstr ""
+msgstr "Lokal sumber dan lokal target wajib diisi"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:201
 msgid "Accept & Install"
@@ -735,11 +735,11 @@ msgstr "Tambah Item Pertama"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:200
 msgid "Add Images"
-msgstr ""
+msgstr "Tambah Gambar"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:247
 msgid "Add images to gallery"
-msgstr ""
+msgstr "Tambahkan gambar ke galeri"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2124
 msgid "Add item"
@@ -843,16 +843,16 @@ msgstr "Setelah kirim:"
 
 #: packages/admin/src/components/PluginManager.tsx:543
 msgid "Agent access"
-msgstr ""
+msgstr "Akses agen"
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/PluginManager.tsx:335
 msgid "Agent access for {0} has been updated"
-msgstr ""
+msgstr "Akses agen untuk {0} telah diperbarui"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:139
 msgid "Agent-callable MCP tools"
-msgstr ""
+msgstr "Alat MCP yang dapat dipanggil agen"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4136
 msgid "Align Center"
@@ -930,7 +930,7 @@ msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:545
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
-msgstr ""
+msgstr "Izinkan token MCP dengan cakupan plugin-tool untuk memanggil rute ini."
 
 #: packages/admin/src/components/Settings.tsx:77
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:150
@@ -959,7 +959,7 @@ msgstr "Juga hapus data penyimpanan plugin"
 
 #: packages/admin/src/components/BylineFilter.tsx:175
 msgid "Also match the byline linked to an entry's author when it has none assigned."
-msgstr ""
+msgstr "Cocokkan juga byline yang tertaut ke penulis entri saat entri belum memiliki byline."
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:376
 #: packages/admin/src/components/editor/ImageNode.tsx:231
@@ -1243,7 +1243,7 @@ msgstr "Penyimpanan otomatis gagal"
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
 #: packages/admin/src/components/TaxonomySidebar.tsx:545
 msgid "Available in {0}"
-msgstr ""
+msgstr "Tersedia di {0}"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:710
 msgid "Available media"
@@ -1656,11 +1656,11 @@ msgstr "Bersihkan pencarian"
 
 #: packages/admin/src/components/PluginSettings.tsx:354
 msgid "Clear stored value"
-msgstr ""
+msgstr "Bersihkan nilai tersimpan"
 
 #: packages/admin/src/components/PluginSettings.tsx:352
 msgid "Clear stored value for {fieldKey}"
-msgstr ""
+msgstr "Bersihkan nilai tersimpan untuk {fieldKey}"
 
 #: packages/admin/src/components/SignupPage.tsx:139
 msgid "Click the link in the email to continue setting up your account."
@@ -1738,7 +1738,7 @@ msgstr "Tutup komentar setelah (hari)"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:178
 msgid "Close gallery settings"
-msgstr ""
+msgstr "Tutup pengaturan galeri"
 
 #: packages/admin/src/components/users/UserDetail.tsx:121
 msgid "Close panel"
@@ -1790,7 +1790,7 @@ msgstr "Koleksi dibuat:"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:185
 msgid "Columns"
-msgstr ""
+msgstr "Kolom"
 
 #: packages/admin/src/components/SectionEditor.tsx:288
 msgid "Comma-separated keywords for search."
@@ -1860,7 +1860,7 @@ msgstr "Terhubung {0}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:192
 msgid "content"
-msgstr ""
+msgstr "konten"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:378
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
@@ -1908,11 +1908,11 @@ msgstr "item konten"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:499
 msgid "Content locale"
-msgstr ""
+msgstr "Bahasa konten"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:510
 msgid "Content locale defaults to English"
-msgstr ""
+msgstr "Bahasa konten bawaan adalah Inggris"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:47
 msgid "Content Read"
@@ -1963,7 +1963,7 @@ msgstr "Lanjutkan Impor"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4087
 msgid "Continue numbering"
-msgstr ""
+msgstr "Lanjutkan penomoran"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:24
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2009,7 +2009,7 @@ msgstr "Tidak dapat menyalin otomatis. Silakan pilih URL di atas dan salin secar
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3357
 msgid "Could not insert section"
-msgstr ""
+msgstr "Tidak dapat menyisipkan bagian"
 
 #: packages/admin/src/components/Dashboard.tsx:124
 msgid "Could not load dashboard data"
@@ -2065,7 +2065,7 @@ msgstr "Buat \"{trimmedInput}\""
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:556
 msgid "Create {0} translation"
-msgstr ""
+msgstr "Buat terjemahan {0}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1441
 msgid "Create a bullet list"
@@ -2263,7 +2263,7 @@ msgstr "Saat Ini"
 
 #: packages/admin/src/components/PluginSettings.tsx:340
 msgid "Currently set — enter a new value to replace"
-msgstr ""
+msgstr "Saat ini sudah diatur — masukkan nilai baru untuk menggantinya"
 
 #: packages/admin/src/components/Sections.tsx:46
 msgid "Custom"
@@ -2465,7 +2465,7 @@ msgstr "Hapus Bidang?"
 #: packages/admin/src/components/editor/GalleryNode.tsx:219
 #: packages/admin/src/components/editor/GalleryNode.tsx:220
 msgid "Delete gallery"
-msgstr ""
+msgstr "Hapus galeri"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:131
 msgid "Delete HTML block"
@@ -2614,7 +2614,7 @@ msgstr "Jalur tujuan"
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:153
 #: packages/admin/src/components/PluginManager.tsx:564
 msgid "Destructive"
-msgstr ""
+msgstr "Destruktif"
 
 #: packages/admin/src/components/PluginManager.tsx:506
 msgid "details"
@@ -2658,7 +2658,7 @@ msgstr "Nonaktifkan plugin"
 
 #: packages/admin/src/components/PluginManager.tsx:554
 msgid "Disable plugin MCP tools"
-msgstr ""
+msgstr "Nonaktifkan alat MCP plugin"
 
 #: packages/admin/src/components/Redirects.tsx:513
 msgid "Disable redirect"
@@ -2724,7 +2724,7 @@ msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3371
 msgid "Dismiss section error"
-msgstr ""
+msgstr "Abaikan kesalahan bagian"
 
 #: packages/admin/src/components/Widgets.tsx:127
 msgid "Display a list of recent posts"
@@ -2883,7 +2883,7 @@ msgstr "Seret untuk mengurutkan {0}"
 #: packages/admin/src/components/SortableContentSettingsSections.tsx:219
 #: packages/admin/src/components/SortableContentSettingsSections.tsx:220
 msgid "Drag to reorder {label}"
-msgstr ""
+msgstr "Seret untuk mengurutkan {label}"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:355
 msgid "Drag to reorder block"
@@ -2963,7 +2963,7 @@ msgstr "Sunting bidang {0}"
 
 #: packages/admin/src/components/ContentEditor.tsx:672
 msgid "Edit {itemLabel}"
-msgstr ""
+msgstr "Sunting {itemLabel}"
 
 #: packages/admin/src/components/ContentList.tsx:1216
 msgid "Edit {title}"
@@ -2988,7 +2988,7 @@ msgstr "Sunting Field"
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/editor/GalleryNode.tsx:178
 msgid "Edit image {0}"
-msgstr ""
+msgstr "Sunting gambar {0}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3668
 msgid "Edit link"
@@ -3105,7 +3105,7 @@ msgstr "Plugin Eksportir EmDash terdeteksi! Anda dapat mengimpor langsung."
 
 #: packages/admin/src/components/editor/GalleryNode.tsx:160
 msgid "Empty gallery — open settings to add images"
-msgstr ""
+msgstr "Galeri kosong — buka pengaturan untuk menambahkan gambar"
 
 #: packages/admin/src/components/users/UserDetail.tsx:319
 msgid "Enable"
@@ -3125,7 +3125,7 @@ msgstr "Aktifkan plugin"
 
 #: packages/admin/src/components/PluginManager.tsx:555
 msgid "Enable plugin MCP tools"
-msgstr ""
+msgstr "Aktifkan alat MCP plugin"
 
 #: packages/admin/src/components/Redirects.tsx:513
 msgid "Enable redirect"
@@ -3223,11 +3223,11 @@ msgstr "Setiap rilis yang dipublikasikan dari plugin ini telah ditarik atau tida
 #. placeholder {0}: formData.dateFormat ?? "MMMM d, yyyy"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:327
 msgid "Example: {0} → January 23, 2026"
-msgstr ""
+msgstr "Contoh: {0} → 23 Januari 2026"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:285
 msgid "example.com"
-msgstr ""
+msgstr "example.com"
 
 #: packages/admin/src/components/WordPressImport.tsx:2010
 msgid "Exists"
@@ -3507,7 +3507,7 @@ msgstr "Gagal mengambil plugin"
 
 #: packages/admin/src/lib/api/plugins.ts:114
 msgid "Failed to fetch plugin settings"
-msgstr ""
+msgstr "Gagal mengambil pengaturan plugin"
 
 #: packages/admin/src/lib/api/plugins.ts:56
 msgid "Failed to fetch plugins"
@@ -3625,7 +3625,7 @@ msgstr "Gagal memuat plugin"
 
 #: packages/admin/src/components/PluginSettings.tsx:146
 msgid "Failed to load plugin settings"
-msgstr ""
+msgstr "Gagal memuat pengaturan plugin"
 
 #. placeholder {0}: error.message
 #: packages/admin/src/components/PluginManager.tsx:149
@@ -3697,7 +3697,7 @@ msgstr "Gagal mengurutkan ulang bidang byline"
 
 #: packages/admin/src/lib/api/schema.ts:332
 msgid "Failed to reorder content types"
-msgstr ""
+msgstr "Gagal mengurutkan ulang tipe konten"
 
 #: packages/admin/src/lib/api/schema.ts:315
 #: packages/admin/src/routes/byline-schema.tsx:152
@@ -3825,11 +3825,11 @@ msgstr "Gagal memperbarui plugin"
 
 #: packages/admin/src/lib/api/plugins.ts:172
 msgid "Failed to update plugin MCP access"
-msgstr ""
+msgstr "Gagal memperbarui akses MCP plugin"
 
 #: packages/admin/src/lib/api/plugins.ts:133
 msgid "Failed to update plugin settings"
-msgstr ""
+msgstr "Gagal memperbarui pengaturan plugin"
 
 #: packages/admin/src/lib/api/sections.ts:100
 msgid "Failed to update section"
@@ -3962,7 +3962,7 @@ msgstr "Filter berdasarkan penulis"
 
 #: packages/admin/src/components/BylineFilter.tsx:111
 msgid "Filter by byline"
-msgstr ""
+msgstr "Filter berdasarkan byline"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:115
 msgid "Filter by capability"
@@ -4030,12 +4030,12 @@ msgstr "Akses admin penuh"
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:171
 #: packages/admin/src/components/PortableTextEditor.tsx:2709
 msgid "Gallery"
-msgstr ""
+msgstr "Galeri"
 
 #: packages/admin/src/components/editor/GalleryNode.tsx:207
 #: packages/admin/src/components/editor/GalleryNode.tsx:208
 msgid "Gallery settings"
-msgstr ""
+msgstr "Pengaturan galeri"
 
 #: packages/admin/src/components/Settings.tsx:48
 msgid "General"
@@ -4237,7 +4237,7 @@ msgstr "Gambar"
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:294
 msgid "Image {0}"
-msgstr ""
+msgstr "Gambar {0}"
 
 #: packages/admin/src/components/FieldEditor.tsx:234
 msgid "Image from media library"
@@ -4373,7 +4373,7 @@ msgstr "Mengimpor menu dan pengaturan situs..."
 
 #: packages/admin/src/components/BylineFilter.tsx:172
 msgid "Include inferred bylines"
-msgstr ""
+msgstr "Sertakan byline tersirat"
 
 #: packages/admin/src/components/SetupWizard.tsx:138
 msgid "Include sample content (recommended for new sites)"
@@ -4428,7 +4428,7 @@ msgstr "Sisipkan gambar"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2710
 msgid "Insert an image gallery"
-msgstr ""
+msgstr "Sisipkan galeri gambar"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1733
 msgid "Insert block"
@@ -4449,11 +4449,11 @@ msgstr "Sisipkan dari URL"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4117
 msgid "Insert HTML"
-msgstr ""
+msgstr "Sisipkan HTML"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4114
 msgid "Insert Image"
-msgstr ""
+msgstr "Sisipkan Gambar"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4161
 #: packages/admin/src/components/PortableTextEditor.tsx:4175
@@ -4553,11 +4553,11 @@ msgstr "Undang anggota tim pertama Anda"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:98
 msgid "Invoke MCP tools from all enabled plugins"
-msgstr ""
+msgstr "Panggil alat MCP dari semua plugin yang aktif"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:517
 msgid "Invoke only this plugin's enabled MCP tools"
-msgstr ""
+msgstr "Panggil hanya alat MCP aktif milik plugin ini"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3625
 #: packages/admin/src/components/PortableTextEditor.tsx:4030
@@ -4791,7 +4791,7 @@ msgstr "Muat Lebih"
 
 #: packages/admin/src/router.tsx:2232
 msgid "Loading"
-msgstr ""
+msgstr "Memuat"
 
 #: packages/admin/src/routes/byline-schema.tsx:257
 msgid "Loading byline fields…"
@@ -4885,7 +4885,7 @@ msgstr "Memuat..."
 
 #: packages/admin/src/components/BylineFilter.tsx:136
 msgid "Loading…"
-msgstr ""
+msgstr "Memuat…"
 
 #: packages/admin/src/components/ContentList.tsx:599
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
@@ -5193,7 +5193,7 @@ msgstr "Nilai Min"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1421
 msgid "Minor section heading"
-msgstr ""
+msgstr "Judul bagian minor"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:519
 msgid "Moderation"
@@ -5217,7 +5217,7 @@ msgstr "Arsip bulanan/tahunan"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:184
 msgid "More information about {label}"
-msgstr ""
+msgstr "Informasi lebih lanjut tentang {label}"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:42
 msgid "Most Popular"
@@ -5240,22 +5240,22 @@ msgstr "Pindahkan \"{title}\" ke tempat sampah? Anda dapat memulihkannya nanti."
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:251
 msgid "Move {0} down"
-msgstr ""
+msgstr "Pindahkan {0} ke bawah"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:250
 msgid "Move {0} down — unavailable, its parent has no translation in this locale"
-msgstr ""
+msgstr "Pindahkan {0} ke bawah — tidak tersedia, induknya tidak memiliki terjemahan dalam bahasa ini"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:238
 msgid "Move {0} up"
-msgstr ""
+msgstr "Pindahkan {0} ke atas"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:237
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
-msgstr ""
+msgstr "Pindahkan {0} ke atas — tidak tersedia, induknya tidak memiliki terjemahan dalam bahasa ini"
 
 #: packages/admin/src/components/ContentList.tsx:1236
 msgid "Move {title} to trash"
@@ -5358,7 +5358,7 @@ msgstr "{0} Baru"
 
 #: packages/admin/src/components/ContentEditor.tsx:672
 msgid "New {itemLabel}"
-msgstr ""
+msgstr "{itemLabel} Baru"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "New byline field"
@@ -5471,11 +5471,11 @@ msgstr "Belum ada komentar disetujui."
 
 #: packages/admin/src/components/BylineFilter.tsx:99
 msgid "No byline"
-msgstr ""
+msgstr "Tanpa byline"
 
 #: packages/admin/src/components/BylineFilter.tsx:131
 msgid "No byline assigned"
-msgstr ""
+msgstr "Tidak ada byline yang ditetapkan"
 
 #: packages/admin/src/routes/byline-schema.tsx:291
 msgid "No byline fields yet."
@@ -5520,7 +5520,7 @@ msgstr "Tidak ada konten di koleksi ini"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:511
 msgid "No content locale is configured, so EmDash stores new content as English (en). Changing the admin language does not change this value."
-msgstr ""
+msgstr "Tidak ada bahasa konten yang dikonfigurasi, sehingga EmDash menyimpan konten baru sebagai bahasa Inggris (en). Mengubah bahasa admin tidak mengubah nilai ini."
 
 #: packages/admin/src/components/ContentTypeList.tsx:204
 msgid "No content types yet."
@@ -5568,7 +5568,7 @@ msgstr "Tidak ada judul di dokumen"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:205
 msgid "No images in this gallery yet."
-msgstr ""
+msgstr "Belum ada gambar di galeri ini."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:594
 msgid "No installable releases"
@@ -5761,7 +5761,7 @@ msgstr "Tidak kompatibel dengan lingkungan ini"
 #: packages/admin/src/components/ContentList.tsx:1280
 #: packages/admin/src/components/PluginSettings.tsx:341
 msgid "Not set"
-msgstr ""
+msgstr "Belum diatur"
 
 #: packages/admin/src/components/FieldEditor.tsx:191
 #: packages/admin/src/components/FieldEditor.tsx:610
@@ -5840,7 +5840,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:385
 msgid "Optional caption"
-msgstr ""
+msgstr "Keterangan opsional"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:355
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:544
@@ -6110,7 +6110,7 @@ msgstr "Plugin \"{pluginId}\" tidak ditemukan"
 
 #: packages/admin/src/lib/content-list-columns.tsx:236
 msgid "Plugin column unavailable"
-msgstr ""
+msgstr "Kolom plugin tidak tersedia"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:762
 msgid "Plugin details"
@@ -6135,15 +6135,15 @@ msgstr "Kesalahan plugin ({0})"
 
 #: packages/admin/src/components/PluginManager.tsx:334
 msgid "Plugin MCP access updated"
-msgstr ""
+msgstr "Akses MCP plugin diperbarui"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:97
 msgid "Plugin MCP Tools"
-msgstr ""
+msgstr "Alat MCP Plugin"
 
 #: packages/admin/src/lib/api/marketplace.ts:108
 msgid "Plugin MCP tools require explicit consent"
-msgstr ""
+msgstr "Alat MCP plugin memerlukan persetujuan eksplisit"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:123
 msgid "Plugin not found"
@@ -6159,11 +6159,11 @@ msgstr "plugin di situs WordPress Anda."
 
 #: packages/admin/src/components/PluginManager.tsx:483
 msgid "Plugin pages"
-msgstr ""
+msgstr "Halaman plugin"
 
 #: packages/admin/src/lib/content-editor-panels.tsx:192
 msgid "Plugin panel unavailable."
-msgstr ""
+msgstr "Panel plugin tidak tersedia."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:79
 msgid "Plugin Permissions"
@@ -6182,7 +6182,7 @@ msgstr "Plugin merespons dengan {0}: {text}"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:512
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:515
 msgid "Plugin tools: {0}"
-msgstr ""
+msgstr "Alat plugin: {0}"
 
 #: packages/admin/src/components/PluginManager.tsx:323
 msgid "Plugin uninstalled"
@@ -6300,7 +6300,7 @@ msgstr "Publikasikan"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:603
 msgid "Publish date"
-msgstr ""
+msgstr "Tanggal publikasi"
 
 #: packages/admin/src/components/ContentList.tsx:832
 #: packages/admin/src/components/ContentList.tsx:843
@@ -6506,7 +6506,7 @@ msgstr "Hapus {label}"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:565
 msgid "Remove assignment"
-msgstr ""
+msgstr "Hapus penetapan"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:379
 msgid "Remove Domain"
@@ -6531,7 +6531,7 @@ msgstr "Hapus Gambar"
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:320
 msgid "Remove image {0}"
-msgstr ""
+msgstr "Hapus gambar {0}"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:197
 msgid "Remove Image?"
@@ -6585,12 +6585,12 @@ msgstr "Ganti nama passkey"
 
 #: packages/admin/src/components/ContentTypeList.tsx:174
 msgid "Reorder"
-msgstr ""
+msgstr "Urutkan ulang"
 
 #. placeholder {0}: collection.label
 #: packages/admin/src/components/ContentTypeList.tsx:281
 msgid "Reorder {0}"
-msgstr ""
+msgstr "Urutkan ulang {0}"
 
 #: packages/admin/src/components/FieldEditor.tsx:269
 msgid "Repeater"
@@ -6602,12 +6602,12 @@ msgstr "Grup field berulang"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:162
 msgid "Replace"
-msgstr ""
+msgstr "Ganti"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:363
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:396
 msgid "Replace image"
-msgstr ""
+msgstr "Ganti gambar"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:213
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:248
@@ -6633,7 +6633,7 @@ msgstr "Permintaan gagal"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:430
 msgid "Require a slug before content can be published"
-msgstr ""
+msgstr "Wajibkan slug sebelum konten dapat dipublikasikan"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:280
 #: packages/admin/src/components/ContentTypeEditor.tsx:745
@@ -6672,7 +6672,7 @@ msgstr "Setel ulang ke asli"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4094
 msgid "Restart numbering"
-msgstr ""
+msgstr "Mulai ulang penomoran"
 
 #: packages/admin/src/components/RevisionHistory.tsx:238
 msgid "Restore"
@@ -6757,7 +6757,7 @@ msgstr "Cabut token"
 #. placeholder {0}: token.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:392
 msgid "Revoke token {0}"
-msgstr ""
+msgstr "Cabut token {0}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:414
 msgid "Revoke?"
@@ -6791,7 +6791,7 @@ msgstr "Skor risiko: {0}/100"
 #: packages/admin/src/components/settings/SeoSettings.tsx:255
 #: packages/admin/src/components/settings/SeoSettings.tsx:258
 msgid "robots.txt"
-msgstr ""
+msgstr "robots.txt"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:164
 #: packages/admin/src/components/users/UserDetail.tsx:169
@@ -6810,14 +6810,14 @@ msgstr "Label peran"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:428
 msgid "Routable"
-msgstr ""
+msgstr "Dapat dirutekan"
 
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:149
 #: packages/admin/src/components/PluginManager.tsx:568
 msgid "Route: {0} · Permission: {1}"
-msgstr ""
+msgstr "Rute: {0} · Izin: {1}"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:48
 msgid "Ruby"
@@ -6939,7 +6939,7 @@ msgstr "Terjadwal untuk: {0}"
 
 #: packages/admin/src/components/Dashboard.tsx:111
 msgid "Scheduled publishing needs attention"
-msgstr ""
+msgstr "Publikasi terjadwal perlu perhatian"
 
 #: packages/admin/src/components/WordPressImport.tsx:2322
 msgid "Schema Changes"
@@ -7033,7 +7033,7 @@ msgstr "Cari byline untuk ditambahkan..."
 
 #: packages/admin/src/components/BylineFilter.tsx:122
 msgid "Search bylines…"
-msgstr ""
+msgstr "Cari byline…"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:164
 msgid "Search comments"
@@ -7098,7 +7098,7 @@ msgstr "Cari tema..."
 
 #: packages/admin/src/components/BylineFilter.tsx:158
 msgid "Search to narrow the list"
-msgstr ""
+msgstr "Cari untuk mempersempit daftar"
 
 #: packages/admin/src/components/users/UserList.tsx:73
 msgid "Search users"
@@ -7269,7 +7269,7 @@ msgstr "Pilih File"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3447
 msgid "Select Gallery Images"
-msgstr ""
+msgstr "Pilih Gambar Galeri"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:261
 msgid "Select image"
@@ -7314,7 +7314,7 @@ msgstr "{selectedItemTitle} dipilih"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:116
 msgid "Selected image"
-msgstr ""
+msgstr "Gambar terpilih"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:795
 msgid "Selected:"
@@ -7634,11 +7634,11 @@ msgstr "Judul bagian kecil"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1411
 msgid "Smaller section heading"
-msgstr ""
+msgstr "Judul bagian lebih kecil"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1431
 msgid "Smallest section heading"
-msgstr ""
+msgstr "Judul bagian terkecil"
 
 #: packages/admin/src/components/Settings.tsx:54
 #: packages/admin/src/components/settings/SocialSettings.tsx:89
@@ -7773,11 +7773,11 @@ msgstr "Pelanggan"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3646
 msgid "Subscript"
-msgstr ""
+msgstr "Subskrip"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3653
 msgid "Superscript"
-msgstr ""
+msgstr "Superskrip"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:52
 msgid "Svelte"
@@ -7977,7 +7977,7 @@ msgstr "Tema"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:141
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
-msgstr ""
+msgstr "Alat ini tetap nonaktif setelah instalasi hingga Anda mengaktifkan akses agen secara eksplisit."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:371
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
@@ -7985,7 +7985,7 @@ msgstr "Koleksi ini didefinisikan dalam kode. Beberapa pengaturan tidak dapat di
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3330
 msgid "This content cannot be edited safely"
-msgstr ""
+msgstr "Konten ini tidak dapat disunting dengan aman"
 
 #: packages/admin/src/components/WordPressImport.tsx:1059
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
@@ -7993,7 +7993,7 @@ msgstr "Ini tidak tampak seperti kunci migrasi yang valid. Buat yang baru di plu
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3332
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
-msgstr ""
+msgstr "Bidang ini berisi tanda Portable Text yang tidak didukung: <0>{markList}</0>. Hapus tanda tersebut melalui API sebelum menyunting atau menyimpan konten ini."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:461
 msgid "This field does not accept {sniffedMime} files."
@@ -8014,7 +8014,7 @@ msgstr "Ini adalah situs WordPress."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:503
 msgid "This is stored with the entry and is separate from your admin language."
-msgstr ""
+msgstr "Ini disimpan bersama entri dan terpisah dari bahasa admin Anda."
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:112
 msgid "This link expires in 7 days and can only be used once."
@@ -8035,7 +8035,7 @@ msgstr "Tindakan ini menghapus {0} secara permanen dari penyimpanan."
 
 #: packages/admin/src/components/PluginSettings.tsx:177
 msgid "This plugin has no configurable settings."
-msgstr ""
+msgstr "Plugin ini tidak memiliki pengaturan yang dapat dikonfigurasi."
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:287
 msgid "This plugin requires no special permissions."
@@ -8060,7 +8060,7 @@ msgstr "Ini menghapus profil byline. Tautan byline konten dihapus dan penunjuk u
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
 #: packages/admin/src/components/PortableTextEditor.tsx:3359
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
-msgstr ""
+msgstr "Bagian ini berisi tanda Portable Text yang tidak didukung: <0>{0}</0>. Perbarui bagian tersebut sebelum menyisipkannya."
 
 #: packages/admin/src/components/SectionEditor.tsx:298
 msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
@@ -8393,7 +8393,7 @@ msgstr "Passkey tanpa nama"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:211
 msgid "Unpublish {itemLabel}"
-msgstr ""
+msgstr "Batalkan publikasi {itemLabel}"
 
 #: packages/admin/src/router.tsx:1088
 msgid "Unpublished"
@@ -8405,7 +8405,7 @@ msgstr "Tabel Konten Tidak Terdaftar Ditemukan"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:543
 msgid "Unresolved assignment"
-msgstr ""
+msgstr "Penetapan belum terselesaikan"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:547
 msgid "Unschedule"
@@ -8443,7 +8443,7 @@ msgstr "Naik"
 
 #: packages/admin/src/components/BylineFilter.tsx:164
 msgid "Up to {MAX_SELECTED} bylines can be selected"
-msgstr ""
+msgstr "Maksimal {MAX_SELECTED} byline dapat dipilih"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:662
 msgid "Update"
@@ -8455,7 +8455,7 @@ msgstr "Perbarui Field"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:621
 msgid "Update publish date"
-msgstr ""
+msgstr "Perbarui tanggal publikasi"
 
 #. placeholder {0}: editingDomain?.domain
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:324
@@ -8943,7 +8943,7 @@ msgstr "Lebar"
 
 #: packages/admin/src/components/PluginSettings.tsx:338
 msgid "Will be cleared on save"
-msgstr ""
+msgstr "Akan dibersihkan saat disimpan"
 
 #: packages/admin/src/components/WordPressImport.tsx:2014
 msgid "Will create"
