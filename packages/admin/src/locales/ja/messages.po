@@ -83,7 +83,7 @@ msgstr "{0, plural, one {（#件）} other {（#件）}}"
 #: packages/admin/src/components/BylineFilter.tsx:103
 #: packages/admin/src/components/BylineFilter.tsx:104
 msgid "{0, plural, one {# byline} other {# bylines}}"
-msgstr "{0, plural, one {#件の署名} other {#件の署名}}"
+msgstr "{0, plural, one {#件の執筆者} other {#件の執筆者}}"
 
 #. placeholder {0}: seedInfo.collections
 #: packages/admin/src/components/SetupWizard.tsx:156
@@ -181,12 +181,12 @@ msgstr "{0, plural, one {#件スキップ（既に存在）} other {#件スキ�
 #. placeholder {0}: result.taxonomyAssignments
 #: packages/admin/src/components/WordPressImport.tsx:2247
 msgid "{0, plural, one {# taxonomy assignment} other {# taxonomy assignments}}"
-msgstr "{0, plural, one {#件のタクソノミー割り当て} other {#件のタクソノミー割り当て}}"
+msgstr "{0, plural, one {#件の分類項目を割り当て} other {#件の分類項目を割り当て}}"
 
 #. placeholder {0}: result.taxonomiesCreated.length
 #: packages/admin/src/components/WordPressImport.tsx:2239
 msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
-msgstr "{0, plural, one {#件のタクソノミーを作成} other {#件のタクソノミーを作成}}"
+msgstr "{0, plural, one {#件の分類を作成} other {#件の分類を作成}}"
 
 #. placeholder {0}: fields.length
 #: packages/admin/src/components/ContentTypeEditor.tsx:600
@@ -224,7 +224,7 @@ msgstr "{0}バナー"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:228
 msgid "{0} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to."
-msgstr "{0}はここに移動できません — 親にこのロケールの翻訳がないため、このリストは所属先のグループではありません。"
+msgstr "{0}はここに移動できません — 親項目にこの言語の翻訳がないため、この一覧は所属先のグループではありません。"
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
 #: packages/admin/src/components/WordPressImport.tsx:1303
@@ -595,7 +595,7 @@ msgstr "サイトの短い説明"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:455
 msgid "A source and target locale are required"
-msgstr "移行元と移行先のロケールが必要です"
+msgstr "翻訳元と翻訳先の言語を選択してください"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:201
 msgid "Accept & Install"
@@ -719,7 +719,7 @@ msgstr "フィールドを追加"
 
 #: packages/admin/src/routes/byline-schema.tsx:293
 msgid "Add fields like \"Job title\" or \"Pronouns\" to enrich every byline."
-msgstr "「役職」や「代名詞」などのフィールドを追加して、各署名の情報を充実させます。"
+msgstr "「役職」や「代名詞」などの項目を追加して、執筆者情報を充実させます。"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:628
 msgid "Add fields to define the structure of your content"
@@ -883,7 +883,7 @@ msgstr "すべての著者"
 #: packages/admin/src/components/BylineFilter.tsx:101
 #: packages/admin/src/routes/bylines.tsx:412
 msgid "All bylines"
-msgstr "すべての署名"
+msgstr "すべての執筆者"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:110
 msgid "All capabilities"
@@ -959,7 +959,7 @@ msgstr "プラグインのストレージデータも削除"
 
 #: packages/admin/src/components/BylineFilter.tsx:175
 msgid "Also match the byline linked to an entry's author when it has none assigned."
-msgstr "署名が割り当てられていない場合、エントリの著者にリンクされた署名も一致対象にします。"
+msgstr "執筆者が未設定の場合、コンテンツの著者に紐づく執筆者も対象にします。"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:376
 #: packages/admin/src/components/editor/ImageNode.tsx:231
@@ -1409,11 +1409,11 @@ msgstr "箇条書きリスト"
 #: packages/admin/src/routes/byline-schema.tsx:218
 #: packages/admin/src/routes/bylines.tsx:383
 msgid "Byline schema"
-msgstr "署名スキーマ"
+msgstr "執筆者情報の項目設定"
 
 #: packages/admin/src/components/Sidebar.tsx:295
 msgid "Byline Schema"
-msgstr "署名スキーマ"
+msgstr "執筆者情報の項目設定"
 
 #: packages/admin/src/components/BylineFilter.tsx:135
 #: packages/admin/src/components/ContentSettingsPanel.tsx:661
@@ -1421,7 +1421,7 @@ msgstr "署名スキーマ"
 #: packages/admin/src/components/Sidebar.tsx:285
 #: packages/admin/src/routes/bylines.tsx:375
 msgid "Bylines"
-msgstr "署名"
+msgstr "執筆者"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:30
 msgid "C"
@@ -1908,11 +1908,11 @@ msgstr "コンテンツ"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:499
 msgid "Content locale"
-msgstr "コンテンツのロケール"
+msgstr "コンテンツの言語"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:510
 msgid "Content locale defaults to English"
-msgstr "コンテンツのロケールはデフォルトで英語です"
+msgstr "コンテンツの言語は英語が初期値です"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:47
 msgid "Content Read"
@@ -2025,7 +2025,7 @@ msgstr "WordPressを検出できませんでした"
 
 #: packages/admin/src/routes/byline-schema.tsx:268
 msgid "Couldn't load byline fields."
-msgstr "署名フィールドを読み込めませんでした。"
+msgstr "執筆者情報の項目を読み込めませんでした。"
 
 #: packages/admin/src/routes/bylines.tsx:547
 msgid "Couldn't load custom fields."
@@ -2037,7 +2037,7 @@ msgstr "「{draft}」をMIMEタイプに変換できませんでした。MIMEタ
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1009
 msgid "Couldn't search bylines. Please try again."
-msgstr "署名を検索できませんでした。もう一度お試しください。"
+msgstr "執筆者を検索できませんでした。もう一度お試しください。"
 
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:369
@@ -2092,7 +2092,7 @@ msgstr "アカウントを作成"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1089
 #: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
-msgstr "署名を作成"
+msgstr "執筆者を作成"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:575
 msgid "Create Content Type"
@@ -2159,7 +2159,7 @@ msgstr "セクションライブラリでセクションを作成して使用で
 #: packages/admin/src/components/TaxonomyManager.tsx:782
 #: packages/admin/src/components/TaxonomyManager.tsx:873
 msgid "Create Taxonomy"
-msgstr "タクソノミーを作成"
+msgstr "分類を作成"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
@@ -2203,7 +2203,7 @@ msgstr "ナビゲーションメニューの作成、更新、削除"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:78
 msgid "Create, update, and delete taxonomy terms"
-msgstr "タクソノミー用語の作成、更新、削除"
+msgstr "分類分類項目の作成、更新、削除"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:53
 msgid "Create, update, delete content"
@@ -2283,7 +2283,7 @@ msgstr "カスタムセクション"
 
 #: packages/admin/src/components/WordPressImport.tsx:1147
 msgid "Custom Taxonomies"
-msgstr "カスタムタクソノミー"
+msgstr "独自の分類"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:223
 msgid "Daily automatic backups"
@@ -2354,11 +2354,11 @@ msgstr "デフォルトのソーシャル画像"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:785
 msgid "Define a new taxonomy for classifying content"
-msgstr "コンテンツを分類するための新しいタクソノミーを定義"
+msgstr "コンテンツを整理するための分類を作成"
 
 #: packages/admin/src/routes/byline-schema.tsx:220
 msgid "Define custom fields stored on every byline — job title, pronouns, social handles, and more."
-msgstr "すべての署名に保存されるカスタムフィールドを定義します — 役職、代名詞、ソーシャルハンドルなど。"
+msgstr "執筆者ごとに保存する追加項目を設定します — 役職、代名詞、SNSアカウントなど。"
 
 #: packages/admin/src/components/ContentTypeList.tsx:118
 msgid "Define the structure of your content"
@@ -2435,11 +2435,11 @@ msgstr "バックアップを削除しますか？"
 
 #: packages/admin/src/routes/byline-schema.tsx:358
 msgid "Delete byline field?"
-msgstr "署名フィールドを削除しますか？"
+msgstr "執筆者情報の項目を削除しますか？"
 
 #: packages/admin/src/routes/bylines.tsx:622
 msgid "Delete Byline?"
-msgstr "署名を削除しますか？"
+msgstr "執筆者を削除しますか？"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3745
 msgid "Delete column"
@@ -2534,7 +2534,7 @@ msgstr "削除済み"
 #. placeholder {1}: deleteUsageQuery.data.totalAffectedRows
 #: packages/admin/src/routes/byline-schema.tsx:371
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
-msgstr "「{0}」を削除すると、すべての署名から{1, plural, one {保存済みの値#件} other {保存済みの値#件}}も削除されます。この操作は取り消せません。"
+msgstr "「{0}」を削除すると、すべての執筆者から{1, plural, one {#件の保存済み値} other {#件の保存済み値}}も削除されます。この操作は取り消せません。"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:409
 #: packages/admin/src/components/ContentTypeEditor.tsx:688
@@ -2816,7 +2816,7 @@ msgstr "{0}をダウンロード"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:191
 msgid "Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included."
-msgstr "サイト全体のバックアップをダウンロードします。すべてのコンテンツ（下書きとゴミ箱を含む）、コレクション、タクソノミー、メニュー、ウィジェット、メディアメタデータ、サイト設定が含まれます。ユーザーアカウントとシークレットは含まれません。"
+msgstr "サイト全体のバックアップをダウンロードします。すべてのコンテンツ（下書きとゴミ箱を含む）、コレクション、分類、メニュー、ウィジェット、メディアメタデータ、サイト設定が含まれます。ユーザーアカウントとシークレットは含まれません。"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:195
 msgid "Download backup"
@@ -2971,11 +2971,11 @@ msgstr "{title}を編集"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1151
 msgid "Edit byline"
-msgstr "署名を編集"
+msgstr "執筆者を編集"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "Edit byline field"
-msgstr "署名フィールドを編集"
+msgstr "執筆者情報の項目を編集"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:321
 msgid "Edit Domain"
@@ -3306,11 +3306,11 @@ msgstr "バックアップの作成に失敗しました"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1135
 msgid "Failed to create byline"
-msgstr "署名の作成に失敗しました"
+msgstr "執筆者の作成に失敗しました"
 
 #: packages/admin/src/lib/api/byline-fields.ts:120
 msgid "Failed to create byline field"
-msgstr "署名フィールドの作成に失敗しました"
+msgstr "執筆者情報の項目の作成に失敗しました"
 
 #: packages/admin/src/routes/byline-schema.tsx:102
 msgid "Failed to create field"
@@ -3326,7 +3326,7 @@ msgstr "一部のコレクションの作成に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:638
 msgid "Failed to create term"
-msgstr "タームの作成に失敗しました"
+msgstr "分類項目の作成に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:475
 #: packages/admin/src/router.tsx:1186
@@ -3350,11 +3350,11 @@ msgstr "バックアップの削除に失敗しました"
 
 #: packages/admin/src/lib/api/bylines.ts:143
 msgid "Failed to delete byline"
-msgstr "署名の削除に失敗しました"
+msgstr "執筆者の削除に失敗しました"
 
 #: packages/admin/src/lib/api/byline-fields.ts:143
 msgid "Failed to delete byline field"
-msgstr "署名フィールドの削除に失敗しました"
+msgstr "執筆者情報の項目の削除に失敗しました"
 
 #: packages/admin/src/lib/api/schema.ts:244
 msgid "Failed to delete collection"
@@ -3404,7 +3404,7 @@ msgstr "セクションの削除に失敗しました"
 
 #: packages/admin/src/lib/api/taxonomies.ts:221
 msgid "Failed to delete term"
-msgstr "用語の削除に失敗しました"
+msgstr "分類項目の削除に失敗しました"
 
 #: packages/admin/src/lib/api/widgets.ts:146
 msgid "Failed to delete widget"
@@ -3479,7 +3479,7 @@ msgstr "メール設定の取得に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:140
 msgid "Failed to fetch entry terms"
-msgstr "エントリの用語の取得に失敗しました"
+msgstr "コンテンツの分類項目の取得に失敗しました"
 
 #: packages/admin/src/lib/api/client.ts:251
 msgid "Failed to fetch manifest"
@@ -3537,7 +3537,7 @@ msgstr "セットアップ状態の取得に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:124
 msgid "Failed to fetch terms"
-msgstr "用語の取得に失敗しました"
+msgstr "分類項目の取得に失敗しました"
 
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
@@ -3583,7 +3583,7 @@ msgstr "プラグインのインストールに失敗しました"
 
 #: packages/admin/src/lib/api/byline-fields.ts:98
 msgid "Failed to list byline fields"
-msgstr "署名フィールド一覧の取得に失敗しました"
+msgstr "執筆者情報の項目一覧の取得に失敗しました"
 
 #: packages/admin/src/router.tsx:287
 msgid "Failed to load admin"
@@ -3601,7 +3601,7 @@ msgstr "バックアップ設定の読み込みに失敗しました"
 #. placeholder {0}: error.message
 #: packages/admin/src/routes/bylines.tsx:365
 msgid "Failed to load bylines: {0}"
-msgstr "署名の読み込みに失敗しました: {0}"
+msgstr "執筆者の読み込みに失敗しました: {0}"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:80
 #: packages/admin/src/components/settings/EmailSettings.tsx:81
@@ -3673,7 +3673,7 @@ msgstr "公開に失敗しました"
 
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
-msgstr "署名フィールドの使用状況を読み取れませんでした"
+msgstr "執筆者情報の項目の使用状況を取得できませんでした"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:115
 msgid "Failed to remove domain"
@@ -3690,7 +3690,7 @@ msgstr "パスキーの名前変更に失敗しました"
 
 #: packages/admin/src/lib/api/byline-fields.ts:156
 msgid "Failed to reorder byline fields"
-msgstr "署名フィールドの並べ替えに失敗しました"
+msgstr "執筆者情報の項目の並べ替えに失敗しました"
 
 #: packages/admin/src/lib/api/schema.ts:332
 msgid "Failed to reorder content types"
@@ -3771,7 +3771,7 @@ msgstr "確認メールの送信に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:159
 msgid "Failed to set entry terms"
-msgstr "エントリへの用語設定に失敗しました"
+msgstr "コンテンツの分類項目の設定に失敗しました"
 
 #: packages/admin/src/lib/api/marketplace.ts:249
 #: packages/admin/src/lib/api/registry.ts:858
@@ -3801,11 +3801,11 @@ msgstr "バックアップ設定の更新に失敗しました"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1185
 msgid "Failed to update byline"
-msgstr "署名の更新に失敗しました"
+msgstr "執筆者の更新に失敗しました"
 
 #: packages/admin/src/lib/api/byline-fields.ts:135
 msgid "Failed to update byline field"
-msgstr "署名フィールドの更新に失敗しました"
+msgstr "執筆者情報の項目の更新に失敗しました"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:98
 msgid "Failed to update domain"
@@ -3959,7 +3959,7 @@ msgstr "著者で絞り込む"
 
 #: packages/admin/src/components/BylineFilter.tsx:111
 msgid "Filter by byline"
-msgstr "署名で絞り込む"
+msgstr "執筆者で絞り込む"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:115
 msgid "Filter by capability"
@@ -3989,7 +3989,7 @@ msgstr "種類で絞り込む"
 
 #: packages/admin/src/routes/bylines.tsx:408
 msgid "Filter byline type"
-msgstr "署名タイプで絞り込む"
+msgstr "執筆者の種類で絞り込む"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:64
 msgid "First-time commenters only"
@@ -4090,7 +4090,7 @@ msgstr "グループ化"
 
 #: packages/admin/src/routes/bylines.tsx:555
 msgid "Guest byline"
-msgstr "ゲスト署名"
+msgstr "ゲスト執筆者"
 
 #: packages/admin/src/routes/bylines.tsx:413
 msgid "Guest only"
@@ -4370,7 +4370,7 @@ msgstr "メニューとサイト設定をインポート中..."
 
 #: packages/admin/src/components/BylineFilter.tsx:172
 msgid "Include inferred bylines"
-msgstr "推測された署名を含める"
+msgstr "著者情報から推定した執筆者を含める"
 
 #: packages/admin/src/components/SetupWizard.tsx:138
 msgid "Include sample content (recommended for new sites)"
@@ -4615,7 +4615,7 @@ msgstr "このタブを開いたままにしてください。インポートは
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1014
 msgid "Keep typing to narrow down more bylines."
-msgstr "入力を続けて署名をさらに絞り込んでください。"
+msgstr "入力を続けて執筆者をさらに絞り込んでください。"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:304
 #: packages/admin/src/components/SectionEditor.tsx:283
@@ -4792,7 +4792,7 @@ msgstr "読み込み中"
 
 #: packages/admin/src/routes/byline-schema.tsx:257
 msgid "Loading byline fields…"
-msgstr "署名フィールドを読み込み中…"
+msgstr "執筆者情報の項目を読み込み中…"
 
 #: packages/admin/src/components/ContentTypeList.tsx:198
 msgid "Loading collections..."
@@ -4849,7 +4849,7 @@ msgstr "セットアップを読み込み中..."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1054
 msgid "Loading terms..."
-msgstr "タームを読み込み中..."
+msgstr "分類項目を読み込み中..."
 
 #: packages/admin/src/components/Widgets.tsx:372
 msgid "Loading widgets..."
@@ -4887,7 +4887,7 @@ msgstr "読み込み中…"
 #: packages/admin/src/components/ContentList.tsx:599
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
-msgstr "ロケール"
+msgstr "言語"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:296
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:297
@@ -4956,7 +4956,7 @@ msgstr "{1}の{0}を管理"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:976
 msgid "Manage bylines in {entryLocale}"
-msgstr "{entryLocale}の署名を管理"
+msgstr "{entryLocale}の執筆者を管理"
 
 #: packages/admin/src/components/Widgets.tsx:390
 msgid "Manage content widgets in your widget areas"
@@ -5242,7 +5242,7 @@ msgstr "{0}を下へ移動"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:250
 msgid "Move {0} down — unavailable, its parent has no translation in this locale"
-msgstr "{0}を下へ移動 — 親にこのロケールの翻訳がないため利用できません"
+msgstr "{0}を下へ移動 — 親項目にこの言語の翻訳がないため利用できません"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:238
@@ -5252,7 +5252,7 @@ msgstr "{0}を上へ移動"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:237
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
-msgstr "{0}を上へ移動 — 親にこのロケールの翻訳がないため利用できません"
+msgstr "{0}を上へ移動 — 親項目にこの言語の翻訳がないため利用できません"
 
 #: packages/admin/src/components/ContentList.tsx:1236
 msgid "Move {title} to trash"
@@ -5359,7 +5359,7 @@ msgstr "新しい{itemLabel}"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "New byline field"
-msgstr "新しい署名フィールド"
+msgstr "新しい執筆者情報の項目"
 
 #: packages/admin/src/components/WordPressImport.tsx:1982
 msgid "New collection"
@@ -5393,7 +5393,7 @@ msgstr "新しいタブ"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1038
 msgid "New Taxonomy"
-msgstr "新しいタクソノミー"
+msgstr "新しい分類"
 
 #: packages/admin/src/components/MenuEditor.tsx:430
 #: packages/admin/src/components/MenuEditor.tsx:433
@@ -5468,28 +5468,28 @@ msgstr "承認済みのコメントはまだありません。"
 
 #: packages/admin/src/components/BylineFilter.tsx:99
 msgid "No byline"
-msgstr "署名なし"
+msgstr "執筆者なし"
 
 #: packages/admin/src/components/BylineFilter.tsx:131
 msgid "No byline assigned"
-msgstr "署名が割り当てられていません"
+msgstr "執筆者が設定されていません"
 
 #: packages/admin/src/routes/byline-schema.tsx:291
 msgid "No byline fields yet."
-msgstr "署名フィールドはまだありません。"
+msgstr "執筆者情報の項目はまだありません。"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:968
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
-msgstr "{entryLocale}で利用できる署名がありません。このエントリにクレジットを追加する前に、署名ページでこのロケールのバリエーションを作成してください。"
+msgstr "{entryLocale}で利用できる執筆者がいません。このコンテンツに執筆者を表示する前に、執筆者ページでこの言語の情報を作成してください。"
 
 #: packages/admin/src/components/BylineFilter.tsx:139
 #: packages/admin/src/routes/bylines.tsx:452
 msgid "No bylines found"
-msgstr "署名が見つかりません"
+msgstr "執筆者が見つかりません"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1076
 msgid "No bylines selected."
-msgstr "署名が選択されていません。"
+msgstr "執筆者が選択されていません。"
 
 #: packages/admin/src/components/Dashboard.tsx:275
 msgid "No collections configured"
@@ -5517,7 +5517,7 @@ msgstr "このコレクションにはコンテンツがありません"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:511
 msgid "No content locale is configured, so EmDash stores new content as English (en). Changing the admin language does not change this value."
-msgstr "コンテンツのロケールが設定されていないため、EmDashは新しいコンテンツを英語（en）として保存します。管理画面の言語を変更しても、この値は変わりません。"
+msgstr "コンテンツの言語が設定されていないため、EmDashでは新しいコンテンツを英語（en）として保存します。管理画面の表示言語を変更しても、コンテンツの言語は変わりません。"
 
 #: packages/admin/src/components/ContentTypeList.tsx:204
 msgid "No content types yet."
@@ -5595,7 +5595,7 @@ msgstr "一致なし"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1011
 msgid "No matching bylines."
-msgstr "一致する署名がありません。"
+msgstr "一致する執筆者がありません。"
 
 #: packages/admin/src/components/MediaLibrary.tsx:452
 #: packages/admin/src/components/MediaLibrary.tsx:480
@@ -6331,7 +6331,7 @@ msgstr "待機中"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1084
 msgid "Quick create byline"
-msgstr "署名をクイック作成"
+msgstr "執筆者をすぐに作成"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:196
 #: packages/admin/src/components/editor/ImageNode.tsx:197
@@ -6376,7 +6376,7 @@ msgstr "コンテンツを読み取る"
 
 #: packages/admin/src/lib/api/marketplace.ts:281
 msgid "Read your taxonomies and terms"
-msgstr "タクソノミーと用語を読み取る"
+msgstr "分類と分類項目を読み取る"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:310
 msgid "Reading"
@@ -7019,15 +7019,15 @@ msgstr "名前またはメールアドレスで検索..."
 #: packages/admin/src/components/ContentSettingsPanel.tsx:985
 #: packages/admin/src/routes/bylines.tsx:401
 msgid "Search bylines"
-msgstr "署名を検索"
+msgstr "執筆者を検索"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:984
 msgid "Search bylines to add..."
-msgstr "追加する署名を検索..."
+msgstr "追加する執筆者を検索..."
 
 #: packages/admin/src/components/BylineFilter.tsx:122
 msgid "Search bylines…"
-msgstr "署名を検索…"
+msgstr "執筆者を検索…"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:164
 msgid "Search comments"
@@ -7446,7 +7446,7 @@ msgstr "招待したユーザーとこのリンクを共有してください"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:294
 msgid "Shared across all translations of the same byline."
-msgstr "同じ署名のすべての翻訳で共有されます。"
+msgstr "同じ執筆者のすべての翻訳で共有されます。"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:52
 msgid "Short text"
@@ -7741,7 +7741,7 @@ msgstr "保存済みバックアップ"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:293
 msgid "Stored per locale — each translation of a byline gets its own value."
-msgstr "ロケールごとに保存され、署名の各翻訳には個別の値が設定されます。"
+msgstr "言語ごとに保存され、執筆者の翻訳ごとに異なる値を設定できます。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3639
 #: packages/admin/src/components/PortableTextEditor.tsx:4044
@@ -7831,28 +7831,28 @@ msgstr "ターゲット"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:354
 msgid "Target locale"
-msgstr "翻訳先のロケール"
+msgstr "翻訳先の言語"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:706
 #: packages/admin/src/components/TaxonomySidebar.tsx:683
 msgid "Taxonomies"
-msgstr "タクソノミー"
+msgstr "分類"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:77
 msgid "Taxonomies Manage"
-msgstr "タクソノミーの管理"
+msgstr "分類の管理"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1124
 msgid "Taxonomy created"
-msgstr "タクソノミーを作成しました"
+msgstr "分類を作成しました"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1014
 msgid "Taxonomy not found:"
-msgstr "タクソノミーが見つかりません:"
+msgstr "分類が見つかりません:"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:341
 msgid "Taxonomy: {taxonomyName}"
-msgstr "タクソノミー: {taxonomyName}"
+msgstr "分類: {taxonomyName}"
 
 #: packages/admin/src/components/SetupWizard.tsx:155
 msgid "Template:"
@@ -7862,17 +7862,17 @@ msgstr "テンプレート:"
 #: packages/admin/src/components/TaxonomyManager.tsx:540
 #: packages/admin/src/components/TaxonomyManager.tsx:1041
 msgid "Term"
-msgstr "ターム"
+msgstr "分類項目"
 
 #. placeholder {0}: term.label
 #. placeholder {1}: term.locale.toUpperCase()
 #: packages/admin/src/components/TaxonomyManager.tsx:988
 msgid "Term \"{0}\" created in {1}."
-msgstr "{1}に用語「{0}」を作成しました。"
+msgstr "{1}に分類項目「{0}」を作成しました。"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:928
 msgid "Term deleted"
-msgstr "タームを削除しました"
+msgstr "分類項目を削除しました"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:111
 msgid "test@example.com"
@@ -8049,7 +8049,7 @@ msgstr "このリリースには、サイトの現在の環境より新しい環
 
 #: packages/admin/src/routes/bylines.tsx:623
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
-msgstr "この署名プロフィールを削除します。コンテンツの署名リンクが削除され、代表署名への参照も解除されます。"
+msgstr "この執筆者プロフィールを削除します。コンテンツとの関連付けと代表執筆者の設定も解除されます。"
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
 #: packages/admin/src/components/PortableTextEditor.tsx:3359
@@ -8437,7 +8437,7 @@ msgstr "上へ"
 
 #: packages/admin/src/components/BylineFilter.tsx:164
 msgid "Up to {MAX_SELECTED} bylines can be selected"
-msgstr "署名は最大{MAX_SELECTED}件まで選択できます"
+msgstr "執筆者は最大{MAX_SELECTED}件まで選択できます"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:662
 msgid "Update"
@@ -8855,7 +8855,7 @@ msgstr "エントリの公開日時"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:842
 msgid "Which content types can use this taxonomy"
-msgstr "このタクソノミーを使用できるコンテンツタイプ"
+msgstr "この分類を使用できるコンテンツタイプ"
 
 #: packages/admin/src/components/FieldEditor.tsx:198
 msgid "Whole number"
@@ -9008,7 +9008,7 @@ msgstr "自分のコンテンツを作成・編集できます。"
 
 #: packages/admin/src/components/WelcomeModal.tsx:48
 msgid "You can manage content, media, menus, and taxonomies."
-msgstr "コンテンツ、メディア、メニュー、タクソノミーを管理できます。"
+msgstr "コンテンツ、メディア、メニュー、分類を管理できます。"
 
 #: packages/admin/src/routes/bylines.tsx:549
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
@@ -9028,7 +9028,7 @@ msgstr "ユーザー、設定、すべてのコンテンツを含む、サイト
 
 #: packages/admin/src/routes/byline-schema.tsx:175
 msgid "You need admin permissions to manage byline schema."
-msgstr "署名スキーマを管理するには、管理者権限が必要です。"
+msgstr "執筆者情報の項目を管理するには、管理者権限が必要です。"
 
 #: packages/admin/src/router.tsx:1558
 msgid "You need Editor permissions to moderate comments."
