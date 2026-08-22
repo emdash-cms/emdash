@@ -125,7 +125,7 @@ function languageLabel(value: string | null | undefined): string {
 	return value;
 }
 
-const POPUP_WIDTH = 432;
+const POPUP_WIDTH = 216;
 const POPUP_VIEWPORT_INSET = 16;
 const POPUP_OFFSET = 8;
 
@@ -491,7 +491,9 @@ function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 						className="emdash-inline-code-block-popover"
 						style={{
 							left: popupPosition?.left ?? 0,
-							maxHeight: popupPosition?.maxHeight,
+							maxBlockSize: popupPosition
+								? `min(16rem, 30vh, ${popupPosition.maxHeight}px)`
+								: undefined,
 							top: popupPosition?.top ?? 0,
 							width: popupPosition?.width ?? 0,
 							visibility: popupPosition ? "visible" : "hidden",

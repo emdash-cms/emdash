@@ -2441,7 +2441,7 @@ export function InlinePortableTextEditor({
 					position: fixed;
 					z-index: 1000;
 					display: flex;
-					max-block-size: calc(100vh - 2rem);
+					max-block-size: min(16rem, 30vh);
 					flex-direction: column;
 					overflow: hidden;
 					border-radius: 0.5rem;
@@ -2479,7 +2479,8 @@ export function InlinePortableTextEditor({
 				}
 				.emdash-inline-editor .emdash-inline-code-block-language-list {
 					min-block-size: 0;
-					max-block-size: min(28rem, 50vh);
+					max-block-size: min(14rem, 25vh);
+					flex: 1 1 auto;
 					overflow-y: auto;
 					padding: 0.5rem;
 					border-block-start: 1px solid var(--emdash-code-border);

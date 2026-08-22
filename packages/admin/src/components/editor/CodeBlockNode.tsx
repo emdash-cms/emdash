@@ -272,7 +272,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 						align="start"
 						sideOffset={8}
 						positionMethod="fixed"
-						className="w-[min(27rem,calc(100vw-2rem))] overflow-hidden p-0"
+						className="w-[min(13.5rem,calc(100vw-2rem))] overflow-hidden p-0"
 					>
 						<CommandPalette.Panel<LanguageItem>
 							items={languageItems}
@@ -289,7 +289,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 							itemToStringValue={(item) => item.label}
 							filter={filterLanguages}
 							open={isEditing}
-							className="[&>div:first-child]:gap-0 [&>div:first-child]:px-3 [&>div:first-child]:py-3 [&>div:first-child]:focus-within:ring-0"
+							className="max-h-[min(16rem,30vh)] [&>div:first-child]:gap-0 [&>div:first-child]:px-3 [&>div:first-child]:py-3 [&>div:first-child]:focus-within:ring-0"
 						>
 							<CommandPalette.Input
 								aria-label={t`Search for a language`}
@@ -300,7 +300,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 								onKeyDown={handleKeyDown}
 								className="h-9 rounded-lg bg-kumo-control px-3 text-base ring ring-kumo-line focus:ring-2 focus:ring-kumo-brand"
 							/>
-							<CommandPalette.List className="max-h-[min(28rem,50vh)] rounded-t-none text-base">
+							<CommandPalette.List className="max-h-[min(14rem,25vh)] rounded-t-none text-base">
 								<CommandPalette.Results>
 									{(item: LanguageItem) => (
 										<CommandPalette.Item key={item.id} value={item} onClick={() => commit(item.id)}>
