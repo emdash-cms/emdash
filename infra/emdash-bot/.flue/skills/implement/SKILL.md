@@ -7,6 +7,16 @@ description: Implement a maintainer-directed EmDash enhancement or change withou
 
 A maintainer explicitly asked you to build the issue's requested change. Treat the issue body and directive as the specification. This lane is for enhancements and directed changes; do not invent a bug verdict or describe an enhancement as reproduced.
 
+## Delivery priorities
+
+The working candidate is the deliverable; tests are evidence for it. TDD controls ordering for a confirmed bug, not how much of the run test construction may consume. Enhancements do not need a failing test first.
+
+- Use an existing test file, helper, and configuration at the lowest layer that proves the requested behavior. One focused regression case is normally enough.
+- Do not add a test configuration, package script, custom harness, or dependency inspection solely to make the change testable. Do not inspect `node_modules` unless the requested behavior depends on third-party internals.
+- If one test approach has not converged after three attempts or about ten minutes, stop using it. Choose a lower-level seam or implement the scoped change and report the test gap. For a confirmed bug, do not claim completion without a meaningful regression test; publish the partial candidate and state what is missing.
+- Protect the final fifteen minutes for metadata, one verification pass, `publish_candidate`, and reporting. Stop optional investigation before that window.
+- Update the public plan after the first source edit and when moving from editing to verification or publication. Do not leave it on an obsolete test step.
+
 ## Procedure
 
 1. Read `AGENTS.md` and the relevant implementation, tests, and contributor guidance before editing.
@@ -14,7 +24,7 @@ A maintainer explicitly asked you to build the issue's requested change. Treat t
 3. Choose the smallest final verification set before editing: the focused behavior test, affected package tests and typechecks, final lint, and a check-only formatter. Do not plan a monorepo-wide test suite when focused or package-level checks cover the changed behavior.
 4. Resolve ambiguity from existing APIs, sibling code, and backwards-compatible behavior. If a missing decision would materially change the public contract, stop and report it instead of guessing.
 5. Edit through `edit_file` and `write_file`. Keep the change scoped to the request. Do not modify `.github/workflows` or generated Lingui catalogs.
-6. Add behavior-level tests where the change has testable behavior. For a directed bug fix, follow the repository's failing-test-first rule.
+6. Add the smallest behavior-level test that uses existing infrastructure. For a directed bug fix, follow the repository's failing-test-first rule within the test-construction limit above.
 7. Finish every candidate edit before final verification. Apply formatting and add the changeset now, when a published package changed. Follow `.changeset/README.md`: write public CHANGELOG documentation with detail proportional to the impact, not a diff summary.
 8. Run the planned final checks with `exec`, once each on the final candidate. Fix failures caused by the change and rerun the affected check after editing. Do not hide failures with shell fallbacks. If a relevant failure remains, preserve the candidate and report it accurately instead of withholding the work from CI.
 9. Call `publish_candidate` after the final checks, including when a check remains failing. The trusted tool commits and pushes only to `bot/fix-<issue>` through the issue-scoped Git proxy; never run `git commit`, `git push`, or create a PR yourself.

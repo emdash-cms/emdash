@@ -128,4 +128,21 @@ describe("agent work plans", () => {
 		expect(comment).toContain("_Mode: implement_");
 		expect(comment).not.toContain("<unsafe>");
 	});
+
+	test("truncates an overlong directive instead of rejecting workspace preparation", () => {
+		const summary = `Implement ${"adapter support ".repeat(30)}`;
+		const plan = updateWorkPlan(
+			null,
+			{
+				summary,
+				steps: [{ id: "prepare", title: "Prepare workspace", status: "in_progress" }],
+			},
+			1_000,
+		);
+		const comment = renderPreparingWorkPlanComment({ mode: "implement", summary });
+
+		expect(plan.summary.length).toBeLessThanOrEqual(240);
+		expect(plan.summary).toMatch(/…$/);
+		expect(comment).toContain(plan.summary);
+	});
 });

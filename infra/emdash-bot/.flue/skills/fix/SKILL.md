@@ -9,6 +9,16 @@ You are here because a maintainer issued a **fix** directive, verify returned `b
 
 **What your output is, and is not.** You are not merging and not opening a PR. The trusted `publish_candidate` tool commits and pushes your change to the issue's `bot/fix-<n>` candidate branch through an issue-scoped Git proxy; that triggers a **preview build** the workflow posts to the issue. **Only after the reporter confirms** does a draft PR open, and a maintainer reviews before anything reaches `main`. The target is a correct, conventions-respecting change that makes the repro test pass. Publish a useful candidate even when a check remains failing, and report the failure accurately so CI and the maintainer can assess it. Do not gold-plate, expand scope, or refactor beyond the diagnosed bug.
 
+## Delivery priorities
+
+The working candidate is the deliverable; the regression test is focused evidence. TDD controls ordering, not how much of the run test construction may consume.
+
+- Reuse reproduce's evidence and the repository's existing test infrastructure. One focused case at the lowest layer that proves the same defect is enough.
+- Do not add a test configuration, package script, custom harness, or dependency investigation solely to reproduce the bug. Do not inspect `node_modules` unless diagnose identified third-party behavior as the cause.
+- If the regression test has not converged after three attempts or about ten minutes, the test is at the wrong layer. Switch to a smaller seam. If no meaningful regression test fits existing infrastructure, publish the partial candidate, report the gap, and do not claim the bug fixed.
+- Protect the final fifteen minutes for metadata, one verification pass, `publish_candidate`, and reporting. Stop optional investigation before that window.
+- Update the public plan after the first source edit and when moving from editing to verification or publication. Do not leave it on an obsolete test step.
+
 ## Environment
 
 - **Edit in the VFS** with the `edit_file` / `write_file` tools; read surrounding code with `read_file` and `grep`. Every VFS edit is replayed onto the container checkout before each container command.
@@ -29,7 +39,7 @@ You are here because a maintainer issued a **fix** directive, verify returned `b
 1. **Re-read diagnose's root cause and proposed fix.** That is your target and your spec. The change should land in the file and approximate line diagnose named. If your work drifts to a different file, stop -- diagnose may be wrong, in which case abandon, do not wander.
 2. **Use the prepared workspace.** The harness installs dependencies and builds the base workspace before this turn. Do not run `pnpm install`, the root `pnpm build`, or a pre-edit lint baseline.
 3. **Choose the final verification set.** Plan the focused repro test, affected package tests and typechecks, final lint, and a check-only formatter. Use the smallest checks that cover the behavior. Do not plan a monorepo-wide suite when focused or package-level checks are authoritative.
-4. **Establish a regression test where feasible.** Reproduce usually confirmed the bug without a test on disk. If the bug is unit- or integration-testable (a handler, a query, a pure function, an API route), write a `vitest` test now that fails for the reported reason, and confirm it fails in the container (`pnpm --filter <package> test <path>`) _before_ you touch the fix. A testable bug with no regression test is not fixed. If the bug only manifests in the browser (admin interaction, rendered output), do not write a browser test -- you cannot run one reliably here; verify through `agent-browser` instead and describe that manual verification so the maintainer can add a durable test when landing.
+4. **Establish one focused regression test where feasible.** Reproduce usually confirmed the bug without a test on disk. If the bug is unit- or integration-testable through existing infrastructure (a handler, a query, a pure function, an API route), write a `vitest` test that fails for the reported reason, and confirm it fails in the container (`pnpm --filter <package> test <path>`) _before_ you touch the fix. A testable bug with no regression test is not fixed. If the bug only manifests in the browser (admin interaction, rendered output), do not write a browser test -- you cannot run one reliably here; verify through `agent-browser` instead and describe that manual verification so the maintainer can add a durable test when landing.
 5. **Implement the proposed fix -- the smallest change that fully resolves the bug.** Follow EmDash conventions:
    - Internal imports end `.js`; type-only imports use `import type`.
    - State-changing routes start with `export const prerender = false;`.

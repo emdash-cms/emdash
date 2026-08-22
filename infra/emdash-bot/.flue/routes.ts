@@ -7,12 +7,24 @@ import type { Hono } from "hono";
 
 import dashboardHtml from "./dashboard.html?raw";
 import { getDashboardPayload } from "./lib/dashboard.js";
+import {
+	getPullRequestHeadBranch,
+	mintInstallationToken,
+	readAppCreds,
+	readRepoContext,
+} from "./lib/github.js";
 import type { OrchestratorDO } from "./lib/orchestrator.js";
-import { normalizeWebhook, verifyWebhookSignature } from "./lib/webhook.js";
+import {
+	normalizeWebhook,
+	resolvePullRequestWebhook,
+	verifyWebhookSignature,
+} from "./lib/webhook.js";
 
 interface TraceRouteEnv extends Env {
 	Orchestrator: DurableObjectNamespace<OrchestratorDO>;
 }
+
+const WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS = 8_000;
 
 export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Bindings: Env }> {
 	app.get("/", (c) => c.html(dashboardHtml));
@@ -83,10 +95,37 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			return c.text("invalid JSON", 400);
 		}
 
-		const result = normalizeWebhook({ eventType, deliveryId, payload });
+		let result = normalizeWebhook({ eventType, deliveryId, payload });
 		if (result.kind === "pong") {
 			console.log("[webhook] ping", { delivery: deliveryId });
 			return c.text("pong", 200);
+		}
+		// issue_comment payloads identify a PR but omit its head ref, which is
+		// the trusted link back to the originating issue lifecycle.
+		if (result.kind === "pull_request") {
+			const unresolved = result;
+			const creds = readAppCreds(c.env);
+			const repo = readRepoContext(c.env);
+			if (!creds || !repo) return c.text("GitHub integration not configured", 503);
+			try {
+				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
+				const token = await mintInstallationToken(creds, signal);
+				const headBranch = await getPullRequestHeadBranch(
+					token,
+					repo,
+					unresolved.pullRequestNumber,
+					signal,
+				);
+				result = resolvePullRequestWebhook(unresolved, headBranch);
+			} catch (error) {
+				console.error("[webhook] pull request lookup failed", {
+					event: eventType,
+					delivery: deliveryId,
+					pullRequest: unresolved.pullRequestNumber,
+					error: error instanceof Error ? error.message : String(error),
+				});
+				return c.text("pull request lookup failed", 503);
+			}
 		}
 		if (result.kind === "skip") {
 			console.log("[webhook] skip", {
@@ -111,6 +150,7 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			});
 			return c.json({ anchor: result.anchor, cleanup }, 202);
 		}
+		if (result.kind !== "dispatch") return c.text("unsupported webhook result", 500);
 
 		// Persist into the per-anchor OrchestratorDO inbox before acknowledging.
 		// Classification, dispatch, and GitHub effects run from the DO alarm so

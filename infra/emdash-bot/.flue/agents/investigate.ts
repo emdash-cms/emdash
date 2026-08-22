@@ -29,6 +29,7 @@ import {
 	requireCandidatePublication,
 	type CandidatePublication,
 } from "../lib/candidate-publisher.js";
+import { contextRegistry } from "../lib/context-registry.js";
 import { type ContainerBackend, ExecEnv, fromSandbox, quote } from "../lib/exec-env.js";
 import { createPushCapability, githubPushUrl } from "../lib/github-proxy.js";
 import {
@@ -113,6 +114,11 @@ const screenshotSchema = v.object({
 	description: v.optional(v.string()),
 });
 
+const pullRequestSchema = v.object({
+	title: v.pipe(v.string(), v.minLength(1), v.maxLength(256)),
+	description: v.pipe(v.string(), v.minLength(10), v.maxLength(RESULT_SUMMARY_LIMIT)),
+});
+
 const resultSchema = v.pipe(
 	v.object({
 		skipped: v.optional(v.boolean()),
@@ -136,6 +142,7 @@ const resultSchema = v.pipe(
 		fixed: v.optional(v.boolean()),
 		verdict: v.optional(v.picklist(["bug", "intended-behavior", "unclear"])),
 		summary: v.pipe(v.string(), v.minLength(10), v.maxLength(RESULT_SUMMARY_LIMIT)),
+		pullRequest: v.optional(pullRequestSchema),
 		failureStage: v.optional(v.picklist(["workspace", "verification", "publication", "reporting"])),
 		/** Reproduction screenshots pushed to bot/artifacts-<n>, rendered in the ask comment. */
 		screenshots: v.optional(v.array(screenshotSchema)),
@@ -146,15 +153,26 @@ const resultSchema = v.pipe(
 			(result.demonstration !== "none" && result.demonstratedReportedIssue === true),
 		"reproduced=true requires demonstration != 'none' and demonstratedReportedIssue=true. If you demonstrated something other than the reported issue, or nothing, set reproduced=false and describe the finding in summary.",
 	),
+	v.check(
+		(result) => result.fixed !== true || result.pullRequest !== undefined,
+		"fixed=true requires pullRequest with a reviewer-facing title and description.",
+	),
 );
 
-const implementationResultSchema = v.object({
-	skipped: v.optional(v.boolean()),
-	implemented: v.boolean(),
-	summary: v.pipe(v.string(), v.minLength(10), v.maxLength(RESULT_SUMMARY_LIMIT)),
-	failureStage: v.optional(v.picklist(["workspace", "verification", "publication", "reporting"])),
-	screenshots: v.optional(v.array(screenshotSchema)),
-});
+const implementationResultSchema = v.pipe(
+	v.object({
+		skipped: v.optional(v.boolean()),
+		implemented: v.boolean(),
+		summary: v.pipe(v.string(), v.minLength(10), v.maxLength(RESULT_SUMMARY_LIMIT)),
+		pullRequest: v.optional(pullRequestSchema),
+		failureStage: v.optional(v.picklist(["workspace", "verification", "publication", "reporting"])),
+		screenshots: v.optional(v.array(screenshotSchema)),
+	}),
+	v.check(
+		(result) => result.implemented !== true || result.pullRequest !== undefined,
+		"implemented=true requires pullRequest with a reviewer-facing title and description.",
+	),
+);
 
 const publicationSchema = v.object({
 	branch: v.string(),
@@ -467,7 +485,7 @@ export function Investigate({ id }: AgentProps) {
 			defineTool({
 				name: "report_implementation",
 				description:
-					"Report the implementation outcome. Set implemented=true only after publish_candidate succeeds. Include the commands run and any verification failures in the summary.",
+					"Report the implementation outcome. Set implemented=true only after publish_candidate succeeds. Include the commands run and any verification failures in the summary. When implemented=true, provide pullRequest with a concise reviewer-facing title and description.",
 				input: implementationResultSchema,
 				output: reportedResultSchema,
 				durable: true,
@@ -504,7 +522,7 @@ export function Investigate({ id }: AgentProps) {
 			defineTool({
 				name: "report_result",
 				description:
-					"Report the final structured investigation result to the issue orchestrator. reproduced=true means you demonstrated the defect the reporter described, in this checkout. The demonstration does NOT need to copy their exact steps: a failing unit test that exercises the same defect a UI report describes is a full reproduction of the issue -- report it as one, without hedging. It must be the same defect, though: an adjacent or latent bug you demonstrated, an out-of-repo infrastructure symptom, or a root cause from reading code alone is not a reproduction. Three distinct non-reproduced outcomes -- pick the honest one: rootCauseFound=true when you identified the reporter's defect but could not confirm it with a demonstration (environment limits, browser-only path) -- this is a first-class 'diagnosed' verdict; plain reproduced=false when you investigated and found nothing wrong or a different/adjacent issue (describe findings in summary); verdict='unclear' when the issue lacks the information an attempt would need -- say what is missing. Fill demonstration and demonstratedReportedIssue truthfully. If demonstration attempts are not converging after a couple of angles, stop and report the diagnosis with rootCauseFound rather than grinding.",
+					"Report the final structured investigation result to the issue orchestrator. reproduced=true means you demonstrated the defect the reporter described, in this checkout. The demonstration does NOT need to copy their exact steps: a failing unit test that exercises the same defect a UI report describes is a full reproduction of the issue -- report it as one, without hedging. It must be the same defect, though: an adjacent or latent bug you demonstrated, an out-of-repo infrastructure symptom, or a root cause from reading code alone is not a reproduction. Three distinct non-reproduced outcomes -- pick the honest one: rootCauseFound=true when you identified the reporter's defect but could not confirm it with a demonstration (environment limits, browser-only path) -- this is a first-class 'diagnosed' verdict; plain reproduced=false when you investigated and found nothing wrong or a different/adjacent issue (describe findings in summary); verdict='unclear' when the issue lacks the information an attempt would need -- say what is missing. Fill demonstration and demonstratedReportedIssue truthfully. If demonstration attempts are not converging after a couple of angles, stop and report the diagnosis with rootCauseFound rather than grinding. When fixed=true, provide pullRequest with a concise reviewer-facing title and description.",
 				input: resultSchema,
 				output: reportedResultSchema,
 				durable: true,
@@ -585,12 +603,11 @@ Investigate.initialData = initialDataSchema;
 Investigate.durability = { maxAttempts: 5, timeoutMs: FLUE_RUN_TIMEOUT_MS };
 
 /**
- * Per-run ExecEnv, cached on `globalThis` so it survives the agent's re-renders
- * within one isolate (Vite duplicates modules across SSR chunks, so a plain
- * module `let` would not be shared). The container is attached lazily on first
- * container exec; the VFS/isolate side needs no attach.
+ * Per-run ExecEnv, cached within the current Durable Object context so it
+ * survives agent rerenders without carrying I/O-bound state into a resumed
+ * submission running in another context.
  */
-const EXEC_ENV_REGISTRY = Symbol.for("emdash-bot.execEnvs");
+const EXEC_ENV_REGISTRY = "emdash-bot.execEnvs";
 
 interface ExecEnvEntry {
 	readonly env: ExecEnv;
@@ -598,10 +615,7 @@ interface ExecEnvEntry {
 }
 
 function execEnvRegistry(): Map<string, ExecEnvEntry> {
-	const store = globalThis as typeof globalThis & {
-		[EXEC_ENV_REGISTRY]?: Map<string, ExecEnvEntry>;
-	};
-	return (store[EXEC_ENV_REGISTRY] ??= new Map());
+	return contextRegistry<ExecEnvEntry>(EXEC_ENV_REGISTRY, getCloudflareContext().storage);
 }
 
 function execEnvFor(
@@ -670,13 +684,13 @@ interface CodeRuntime {
 	provider: ResolvedProvider;
 }
 
-const CODE_RUNTIME_REGISTRY = Symbol.for("emdash-bot.codeRuntimes");
+const CODE_RUNTIME_REGISTRY = "emdash-bot.codeRuntimes";
 
 function codeRuntimeFor(id: string): CodeRuntime {
-	const store = globalThis as typeof globalThis & {
-		[CODE_RUNTIME_REGISTRY]?: Map<string, CodeRuntime>;
-	};
-	const registry = (store[CODE_RUNTIME_REGISTRY] ??= new Map());
+	const registry = contextRegistry<CodeRuntime>(
+		CODE_RUNTIME_REGISTRY,
+		getCloudflareContext().storage,
+	);
 	const existing = registry.get(id);
 	if (existing) return existing;
 	const runtime: CodeRuntime = {
@@ -1014,13 +1028,15 @@ function buildPrompt(input: InvestigateData): string {
 		: implement
 			? [
 					"- Read AGENTS.md and implement the requested change directly; this mode has no bug-reproduction gate.",
+					"- The candidate is the deliverable. Use one focused test through existing infrastructure; do not build a custom test harness or inspect dependencies merely to improve test coverage.",
+					"- If a test approach fails three times or consumes about ten minutes, switch to a lower-level seam. Preserve the final fifteen minutes for metadata, checks, publication, and reporting.",
 					"- Edit with edit_file/write_file. Use exec to run the focused tests, affected typecheck, lint, and format check once on the final candidate.",
 					"- Fix relevant failures when practical. A remaining check failure does not block publication: call publish_candidate, then report the failure accurately so CI can confirm it.",
 					"- Call report_implementation exactly once. implemented=true is valid only after publish_candidate succeeds.",
 				]
 			: [
 					"- Read AGENTS.md, find the relevant code, attempt to reproduce, build, or revise.",
-					"- Write tests where they make sense.",
+					"- Follow the mode skill's test budget. Use existing test infrastructure and do not build a harness solely for verification.",
 					"- Touch only files relevant to the issue. Do not bulk-format or modify .github/workflows.",
 					"- Use exec to run focused verification once on the final candidate. Do not hide failures; fix relevant ones when practical and report any that remain.",
 					"- Call publish_candidate even when a check remains failing so the candidate and CI evidence are not lost. Do not run git commit or git push yourself.",
