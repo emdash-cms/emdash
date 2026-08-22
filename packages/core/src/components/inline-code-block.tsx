@@ -274,17 +274,31 @@ function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 		const top = openAbove
 			? toolbarRect.top - Math.min(popupHeight, maxHeight) - POPUP_OFFSET
 			: toolbarRect.bottom + POPUP_OFFSET;
-		setPopupPosition({ left, maxHeight, top, width });
+		setPopupPosition((current) => {
+			if (
+				current?.left === left &&
+				current.maxHeight === maxHeight &&
+				current.top === top &&
+				current.width === width
+			) {
+				return current;
+			}
+			return { left, maxHeight, top, width };
+		});
 	}, []);
 
 	React.useLayoutEffect(() => {
 		if (!isEditing) return undefined;
 		updatePopupPosition();
 		const frame = requestAnimationFrame(updatePopupPosition);
+		const resizeObserver =
+			typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updatePopupPosition);
+		if (popoverRef.current) resizeObserver?.observe(popoverRef.current);
 		window.addEventListener("resize", updatePopupPosition);
 		window.addEventListener("scroll", updatePopupPosition, true);
 		return () => {
 			cancelAnimationFrame(frame);
+			resizeObserver?.disconnect();
 			window.removeEventListener("resize", updatePopupPosition);
 			window.removeEventListener("scroll", updatePopupPosition, true);
 		};

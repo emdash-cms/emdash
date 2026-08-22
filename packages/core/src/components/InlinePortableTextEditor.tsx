@@ -2338,7 +2338,7 @@ export function InlinePortableTextEditor({
 					:is(.hljs-title, .hljs-name, .hljs-type, .hljs-built_in, .hljs-selector-id, .hljs-selector-class) {
 					color: var(--emdash-code-title);
 				}
-				.emdash-inline-code-block-controls-wrap {
+				.emdash-inline-editor .emdash-inline-code-block-controls-wrap {
 					position: absolute;
 					inset-block-start: 0.5rem;
 					inset-inline-end: 0.5rem;
@@ -2349,11 +2349,11 @@ export function InlinePortableTextEditor({
 				}
 				.emdash-inline-editor .emdash-inline-code-block:hover .emdash-inline-code-block-controls-wrap,
 				.emdash-inline-editor .emdash-inline-code-block:focus-within .emdash-inline-code-block-controls-wrap,
-				.emdash-inline-code-block-controls-wrap[data-persistent="true"] {
+				.emdash-inline-editor .emdash-inline-code-block-controls-wrap[data-persistent="true"] {
 					opacity: 1;
 					pointer-events: auto;
 				}
-				.emdash-inline-code-block-controls {
+				.emdash-inline-editor .emdash-inline-code-block-controls {
 					display: inline-flex;
 					block-size: 2rem;
 					align-items: stretch;
@@ -2368,7 +2368,7 @@ export function InlinePortableTextEditor({
 					font-size: 0.875rem;
 					line-height: 1.25rem;
 				}
-				.emdash-inline-code-block-action {
+				.emdash-inline-editor .emdash-inline-code-block-action {
 					display: inline-flex;
 					block-size: 2rem;
 					align-items: center;
@@ -2382,36 +2382,36 @@ export function InlinePortableTextEditor({
 					cursor: pointer;
 					user-select: none;
 				}
-				.emdash-inline-code-block-action:hover {
+				.emdash-inline-editor .emdash-inline-code-block-action:hover {
 					background: color-mix(
 						in srgb,
 						var(--emdash-code-control-foreground) 10%,
 						var(--emdash-code-control-background)
 					);
 				}
-				.emdash-inline-code-block-action:focus-visible,
-				.emdash-inline-code-block-language-input:focus-visible {
+				.emdash-inline-editor .emdash-inline-code-block-action:focus-visible,
+				.emdash-inline-editor .emdash-inline-code-block-language-input:focus-visible {
 					position: relative;
 					z-index: 1;
 					outline: 2px solid var(--emdash-code-focus);
 					outline-offset: -2px;
 				}
-				.emdash-inline-code-block-language-button {
+				.emdash-inline-editor .emdash-inline-code-block-language-button {
 					min-inline-size: 0;
 					padding-inline: 0.625rem;
 				}
-				.emdash-inline-code-block-language-label {
+				.emdash-inline-editor .emdash-inline-code-block-language-label {
 					max-inline-size: 10rem;
 					overflow: hidden;
 					text-overflow: ellipsis;
 					white-space: nowrap;
 				}
-				.emdash-inline-code-block-copy-button {
+				.emdash-inline-editor .emdash-inline-code-block-copy-button {
 					inline-size: 2rem;
 					padding: 0;
 					border-inline-start: 1px solid var(--emdash-code-border);
 				}
-				.emdash-inline-code-block-popover {
+				.emdash-inline-editor .emdash-inline-code-block-popover {
 					position: fixed;
 					z-index: 1000;
 					display: flex;
@@ -2428,7 +2428,7 @@ export function InlinePortableTextEditor({
 					font-size: 0.875rem;
 					line-height: 1.25rem;
 				}
-				.emdash-inline-code-block-language-input {
+				.emdash-inline-editor .emdash-inline-code-block-language-input {
 					box-sizing: border-box;
 					block-size: 2.25rem;
 					inline-size: calc(100% - 1.5rem);
@@ -2443,7 +2443,7 @@ export function InlinePortableTextEditor({
 					font: inherit;
 					font-size: 0.875rem;
 				}
-				.emdash-inline-code-block-language-input::placeholder {
+				.emdash-inline-editor .emdash-inline-code-block-language-input::placeholder {
 					color: color-mix(
 						in srgb,
 						var(--emdash-code-control-foreground) 64%,
@@ -2451,7 +2451,7 @@ export function InlinePortableTextEditor({
 					);
 					opacity: 1;
 				}
-				.emdash-inline-code-block-language-list {
+				.emdash-inline-editor .emdash-inline-code-block-language-list {
 					min-block-size: 0;
 					max-block-size: min(28rem, 50vh);
 					overflow-y: auto;
@@ -2459,7 +2459,7 @@ export function InlinePortableTextEditor({
 					border-block-start: 1px solid var(--emdash-code-border);
 					scroll-padding-block: 0.5rem;
 				}
-				.emdash-inline-code-block-language-option {
+				.emdash-inline-editor .emdash-inline-code-block-language-option {
 					display: flex;
 					min-block-size: 2rem;
 					align-items: center;
@@ -2469,14 +2469,14 @@ export function InlinePortableTextEditor({
 					border-radius: 0.5rem;
 					cursor: pointer;
 				}
-				.emdash-inline-code-block-language-option[data-active="true"] {
+				.emdash-inline-editor .emdash-inline-code-block-language-option[data-active="true"] {
 					background: color-mix(
 						in srgb,
 						var(--emdash-code-control-foreground) 10%,
 						var(--emdash-code-control-background)
 					);
 				}
-				.emdash-inline-code-block-language-empty {
+				.emdash-inline-editor .emdash-inline-code-block-language-empty {
 					padding: 2rem;
 					color: color-mix(
 						in srgb,
@@ -2485,7 +2485,7 @@ export function InlinePortableTextEditor({
 					);
 					text-align: center;
 				}
-				.emdash-inline-code-block-sr-only {
+				.emdash-inline-editor .emdash-inline-code-block-sr-only {
 					position: absolute;
 					inline-size: 1px;
 					block-size: 1px;
@@ -2518,18 +2518,18 @@ export function InlinePortableTextEditor({
 					}
 				}
 				@media (max-width: 30rem) {
-					.emdash-inline-code-block-language-input {
+					.emdash-inline-editor .emdash-inline-code-block-language-input {
 						font-size: 1rem;
 					}
 				}
 				@media (hover: none), (pointer: coarse) {
-					.emdash-inline-code-block-controls-wrap {
+					.emdash-inline-editor .emdash-inline-code-block-controls-wrap {
 						opacity: 1;
 						pointer-events: auto;
 					}
 				}
 				@media (prefers-reduced-motion: reduce) {
-					.emdash-inline-code-block-controls-wrap {
+					.emdash-inline-editor .emdash-inline-code-block-controls-wrap {
 						transition: none;
 					}
 				}

@@ -198,6 +198,24 @@ test.describe("Inline code block highlighting", () => {
 		});
 		await page.waitForTimeout(2200);
 		updateRequests = 0;
+		const outsideControlStyle = await page.evaluate(() => {
+			const outside = document.createElement("div");
+			outside.className = "emdash-inline-code-block-controls-wrap";
+			document.body.append(outside);
+			const style = getComputedStyle(outside);
+			const result = {
+				opacity: style.opacity,
+				pointerEvents: style.pointerEvents,
+				position: style.position,
+			};
+			outside.remove();
+			return result;
+		});
+		expect(outsideControlStyle).toEqual({
+			opacity: "1",
+			pointerEvents: "auto",
+			position: "static",
+		});
 
 		await page.mouse.move(0, 0);
 		await page.evaluate(() => {
@@ -260,6 +278,23 @@ test.describe("Inline code block highlighting", () => {
 		const popupAboveGap =
 			(openControlsBox?.y ?? 0) - ((popupBox?.y ?? 0) + (popupBox?.height ?? 0));
 		expect(Math.max(popupBelowGap, popupAboveGap)).toBeCloseTo(8, 0);
+
+		await input.fill("yaml");
+		await expect(page.getByRole("option", { name: "YAML" })).toBeVisible();
+		await expect
+			.poll(async () => {
+				const filteredPopupBox = await popup.boundingBox();
+				const filteredControlsBox = await controls.boundingBox();
+				const filteredBelowGap =
+					(filteredPopupBox?.y ?? 0) -
+					((filteredControlsBox?.y ?? 0) + (filteredControlsBox?.height ?? 0));
+				const filteredAboveGap =
+					(filteredControlsBox?.y ?? 0) -
+					((filteredPopupBox?.y ?? 0) + (filteredPopupBox?.height ?? 0));
+				return Math.max(filteredBelowGap, filteredAboveGap);
+			})
+			.toBeCloseTo(8, 0);
+		await input.fill("");
 
 		await page.keyboard.press("Escape");
 		await expect(input).toBeHidden();
