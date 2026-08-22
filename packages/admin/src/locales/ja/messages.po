@@ -334,7 +334,7 @@ msgstr "{base}（接続先: {0}）"
 
 #: packages/admin/src/components/RevisionHistory.tsx:355
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
-msgstr "{changedCount, plural, one {次のリビジョンから#件の変更} other {次のリビジョンから#件の変更}}"
+msgstr "{changedCount, plural, one {次の版との差分#件} other {次の版との差分#件}}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2512
 msgid "{characters, plural, one {# character} other {# characters}}"
@@ -1168,7 +1168,7 @@ msgstr "認証に失敗しました"
 #. placeholder {0}: manifest?.authMode
 #: packages/admin/src/components/settings/SecuritySettings.tsx:111
 msgid "Authentication is managed by an external provider ({0}). Passkey settings are not available when using external authentication."
-msgstr "認証は外部プロバイダー（{0}）で管理されています。外部認証を使用している場合、パスキー設定は利用できません。"
+msgstr "認証は外部認証サービス（{0}）で管理されています。外部認証を使用している場合、パスキー設定は利用できません。"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:261
 msgid "Authentication was cancelled or timed out. Please try again."
@@ -1251,7 +1251,7 @@ msgstr "利用可能なメディア"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:202
 msgid "Available Providers"
-msgstr "利用可能なプロバイダー"
+msgstr "利用可能なメール送信サービス"
 
 #: packages/admin/src/components/Widgets.tsx:466
 msgid "Available Widgets"
@@ -1892,7 +1892,7 @@ msgstr "コンテンツの公開を予約しました"
 
 #: packages/admin/src/components/RevisionHistory.tsx:130
 msgid "Content has been updated to the selected revision."
-msgstr "コンテンツが選択したリビジョンに更新されました。"
+msgstr "選択した版の内容に更新しました。"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:110
 msgid "Content ID:"
@@ -3068,7 +3068,7 @@ msgstr "メールパイプライン"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:165
 msgid "Email provider active"
-msgstr "メールプロバイダー有効"
+msgstr "メール送信サービスは有効です"
 
 #: packages/admin/src/components/Settings.tsx:91
 #: packages/admin/src/components/settings/EmailSettings.tsx:58
@@ -3215,7 +3215,7 @@ msgstr "ウィジェットの更新エラー"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:596
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
-msgstr "このプラグインで公開されたすべてのリリースは撤回されたか、検証できませんでした。後でもう一度確認するか、公開者にお問い合わせください。"
+msgstr "このプラグインのリリースはすべて撤回されたか、確認できませんでした。時間をおいて再度確認するか、提供元にお問い合わせください。"
 
 #. placeholder {0}: formData.dateFormat ?? "MMMM d, yyyy"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:327
@@ -3376,7 +3376,7 @@ msgstr "フィールドの削除に失敗しました"
 
 #: packages/admin/src/lib/api/media.ts:468
 msgid "Failed to delete from provider"
-msgstr "プロバイダーからの削除に失敗しました"
+msgstr "連携先からの削除に失敗しました"
 
 #: packages/admin/src/lib/api/media.ts:335
 msgid "Failed to delete media"
@@ -3495,7 +3495,7 @@ msgstr "メディア項目の取得に失敗しました"
 
 #: packages/admin/src/lib/api/media.ts:401
 msgid "Failed to fetch media providers"
-msgstr "メディアプロバイダーの取得に失敗しました"
+msgstr "メディア連携サービスの取得に失敗しました"
 
 #: packages/admin/src/lib/api/plugins.ts:70
 #: packages/admin/src/lib/api/plugins.ts:74
@@ -3512,12 +3512,12 @@ msgstr "プラグイン一覧の取得に失敗しました"
 
 #: packages/admin/src/lib/api/media.ts:431
 msgid "Failed to fetch provider media"
-msgstr "プロバイダーのメディア取得に失敗しました"
+msgstr "連携先のメディア取得に失敗しました"
 
 #: packages/admin/src/lib/api/content.ts:579
 #: packages/admin/src/lib/api/content.ts:584
 msgid "Failed to fetch revision"
-msgstr "リビジョンの取得に失敗しました"
+msgstr "版の取得に失敗しました"
 
 #: packages/admin/src/lib/api/sections.ts:76
 msgid "Failed to fetch section"
@@ -3635,7 +3635,7 @@ msgstr "プラグインを読み込めませんでした。レジストリアグ
 
 #: packages/admin/src/components/RevisionHistory.tsx:198
 msgid "Failed to load revisions"
-msgstr "リビジョンの読み込みに失敗しました"
+msgstr "変更履歴の読み込みに失敗しました"
 
 #: packages/admin/src/components/SetupWizard.tsx:541
 msgid "Failed to load setup"
@@ -3716,7 +3716,7 @@ msgstr "コンテンツの復元に失敗しました"
 #: packages/admin/src/lib/api/content.ts:601
 #: packages/admin/src/lib/api/content.ts:606
 msgid "Failed to restore revision"
-msgstr "リビジョンの復元に失敗しました"
+msgstr "版の復元に失敗しました"
 
 #: packages/admin/src/lib/api/api-tokens.ts:99
 msgid "Failed to revoke API token"
@@ -3850,7 +3850,7 @@ msgstr "メディアのアップロードに失敗しました"
 
 #: packages/admin/src/lib/api/media.ts:456
 msgid "Failed to upload to provider"
-msgstr "プロバイダーへのアップロードに失敗しました"
+msgstr "連携先へのアップロードに失敗しました"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:248
 msgid "Failed to verify authentication"
@@ -4476,7 +4476,7 @@ msgstr "インストール"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:147
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
-msgstr "招待、マジックリンク、パスワード回復などのメール機能を有効にするには、メールプロバイダープラグインをインストールして有効にしてください。"
+msgstr "招待、メールでのログイン、パスワード再設定などのメール機能を有効にするには、メール送信プラグインをインストールして有効にしてください。"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:197
 msgid "Install blocked"
@@ -4985,7 +4985,7 @@ msgstr "{providerName}が管理"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:318
 msgid "Managed by an external media provider"
-msgstr "外部メディアプロバイダーが管理"
+msgstr "外部メディアサービスで管理"
 
 #: packages/admin/src/components/Redirects.tsx:432
 msgid "Manual"
@@ -5537,11 +5537,11 @@ msgstr "ドメインが設定されていません。ユーザーは個別に招
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:144
 msgid "No email provider configured"
-msgstr "メールプロバイダーが設定されていません"
+msgstr "メール送信サービスが設定されていません"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:83
 msgid "No email provider configured. Share this link manually."
-msgstr "メールプロバイダーが設定されていません。このリンクを手動で共有してください。"
+msgstr "メール送信サービスが設定されていません。このリンクを手動で共有してください。"
 
 #: packages/admin/src/components/WordPressImport.tsx:2516
 msgid "No EmDash users found"
@@ -5613,11 +5613,11 @@ msgstr "上限なし"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:694
 msgid "No media available from this provider"
-msgstr "このプロバイダーから利用可能なメディアはありません"
+msgstr "この連携先で利用できるメディアがありません"
 
 #: packages/admin/src/components/MediaLibrary.tsx:503
 msgid "No media available from this provider."
-msgstr "このプロバイダーで利用できるメディアがありません。"
+msgstr "この連携先で利用できるメディアがありません。"
 
 #: packages/admin/src/components/MediaLibrary.tsx:502
 #: packages/admin/src/components/MediaPickerModal.tsx:688
@@ -5707,7 +5707,7 @@ msgstr "結果が見つかりませんでした"
 
 #: packages/admin/src/components/RevisionHistory.tsx:201
 msgid "No revisions yet"
-msgstr "リビジョンはまだありません"
+msgstr "変更履歴はまだありません"
 
 #: packages/admin/src/components/SectionPickerModal.tsx:108
 msgid "No sections available"
@@ -6145,7 +6145,7 @@ msgstr "プラグインが見つかりません"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:411
 msgid "Plugin not found. The publisher handle or slug may be incorrect."
-msgstr "プラグインが見つかりません。公開者のハンドルまたはスラッグが正しくない可能性があります。"
+msgstr "プラグインが見つかりません。提供元のアカウント名またはプラグインIDが正しくない可能性があります。"
 
 #: packages/admin/src/components/WordPressImport.tsx:1209
 msgid "plugin on your WordPress site."
@@ -6282,7 +6282,7 @@ msgstr "非公開"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:167
 msgid "Provider:"
-msgstr "プロバイダー:"
+msgstr "メール送信サービス:"
 
 #: packages/admin/src/components/ContentList.tsx:485
 #: packages/admin/src/components/ContentSettingsPanel.tsx:198
@@ -6319,7 +6319,7 @@ msgstr "公開日時"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:472
 msgid "Published by"
-msgstr "公開者"
+msgstr "提供元"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:47
 msgid "Python"
@@ -6627,7 +6627,7 @@ msgstr "リクエストに失敗しました"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:430
 msgid "Require a slug before content can be published"
-msgstr "コンテンツを公開する前にスラッグを必須にする"
+msgstr "公開するコンテンツに個別URLを設定する"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:280
 #: packages/admin/src/components/ContentTypeEditor.tsx:745
@@ -6682,7 +6682,7 @@ msgstr "復元に失敗しました"
 
 #: packages/admin/src/components/RevisionHistory.tsx:232
 msgid "Restore Revision?"
-msgstr "リビジョンを復元しますか？"
+msgstr "この版を復元しますか？"
 
 #: packages/admin/src/components/RevisionHistory.tsx:299
 #: packages/admin/src/components/RevisionHistory.tsx:300
@@ -6692,7 +6692,7 @@ msgstr "このバージョンを復元"
 #. placeholder {0}: formatFullDate(restoreTarget.createdAt)
 #: packages/admin/src/components/RevisionHistory.tsx:235
 msgid "Restore this version from {0}? This will update the current content to this revision's data."
-msgstr "{0}からこのバージョンを復元しますか？現在のコンテンツがこのリビジョンのデータに更新されます。"
+msgstr "この版（{0}）を復元しますか？現在のコンテンツを、この版の内容に置き換えます。"
 
 #: packages/admin/src/components/RevisionHistory.tsx:239
 msgid "Restoring..."
@@ -6734,13 +6734,13 @@ msgstr "新しい権限を確認"
 
 #: packages/admin/src/components/RevisionHistory.tsx:129
 msgid "Revision restored"
-msgstr "リビジョンを復元しました"
+msgstr "版を復元しました"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:776
 #: packages/admin/src/components/ContentTypeEditor.tsx:76
 #: packages/admin/src/components/RevisionHistory.tsx:168
 msgid "Revisions"
-msgstr "リビジョン"
+msgstr "変更履歴"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:190
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
@@ -6804,7 +6804,7 @@ msgstr "ロールラベル"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:428
 msgid "Routable"
-msgstr "ルーティング可能"
+msgstr "個別ページを作成"
 
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
@@ -8037,7 +8037,7 @@ msgstr "このプラグインに特別な権限は不要です。"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:579
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
-msgstr "この公開者は、所有を証明できなかった名前を名乗っており、他者になりすましている可能性があります。インストールは無効です。公開者を知っていて信頼できる場合は、再試行する前に本人確認の設定を修正するよう依頼してください。"
+msgstr "この提供元は、所有を証明できない名前を使用しており、他者になりすましている可能性があります。安全のためインストールできません。提供元を知っていて信頼できる場合は、本人確認の設定を修正するよう依頼してから、もう一度お試しください。"
 
 #: packages/admin/src/components/Redirects.tsx:602
 msgid "This redirect rule will be permanently removed."
@@ -8429,7 +8429,7 @@ msgstr "無題のウィジェット"
 
 #: packages/admin/src/components/PublisherHandle.tsx:145
 msgid "Unverified publisher"
-msgstr "未確認の公開者"
+msgstr "提供元を確認できません"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1032
 msgid "Up"
@@ -8550,7 +8550,7 @@ msgstr "画像をアップロード"
 
 #: packages/admin/src/components/MediaLibrary.tsx:468
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
-msgstr "画像、動画、ドキュメントをアップロードし、再利用できるアセットを1か所で管理します。"
+msgstr "画像、動画、ドキュメントをアップロードし、再利用できる素材を1か所で管理します。"
 
 #: packages/admin/src/components/Dashboard.tsx:163
 msgid "Upload Media"
@@ -8558,7 +8558,7 @@ msgstr "メディアをアップロード"
 
 #: packages/admin/src/components/MediaLibrary.tsx:492
 msgid "Upload media to keep reusable assets in one place."
-msgstr "メディアをアップロードし、再利用できるアセットを1か所で管理します。"
+msgstr "メディアをアップロードし、再利用できる素材を1か所で管理します。"
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
 #: packages/admin/src/components/MediaLibrary.tsx:329
@@ -8661,7 +8661,7 @@ msgstr "ユーザー"
 #. placeholder {0}: manifest?.authMode
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:172
 msgid "User access is managed by an external provider ({0}). Self-signup domain settings are not available when using external authentication."
-msgstr "ユーザーアクセスは外部プロバイダー（{0}）で管理されています。外部認証を使用している場合、セルフサインアップドメイン設定は利用できません。"
+msgstr "ユーザーアクセスは外部認証サービス（{0}）で管理されています。外部認証を使用している場合、ユーザー登録用ドメインの設定は利用できません。"
 
 #: packages/admin/src/components/users/UserDetail.tsx:116
 msgid "User Details"
@@ -8698,19 +8698,19 @@ msgstr "バリデーション"
 #: packages/admin/src/components/RegistryBrowse.tsx:189
 #: packages/admin/src/components/RegistryPluginDetail.tsx:462
 msgid "Verified publisher"
-msgstr "確認済みの公開者"
+msgstr "確認済みの提供元"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:461
 msgid "Verified publisher, confirmed by labeller {verifiedLabeller}"
-msgstr "確認済みの公開者（ラベラー{verifiedLabeller}が確認）"
+msgstr "確認済みの提供元（確認サービス「{verifiedLabeller}」が確認）"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:452
 msgid "Verified publisher. A labeller ({verifiedLabeller}) has confirmed this publisher's identity."
-msgstr "確認済みの公開者です。ラベラー（{verifiedLabeller}）がこの公開者の本人確認を行いました。"
+msgstr "確認済みの提供元です。第三者の確認サービス（{verifiedLabeller}）が本人確認を行いました。"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:453
 msgid "Verified publisher. A labeller has confirmed this publisher's identity."
-msgstr "確認済みの公開者です。ラベラーがこの公開者の本人確認を行いました。"
+msgstr "確認済みの提供元です。第三者の確認サービスが本人確認を行いました。"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:228
 msgid "Verifying your invite..."
@@ -8743,7 +8743,7 @@ msgstr "動画"
 #: packages/admin/src/components/Settings.tsx:96
 #: packages/admin/src/components/settings/EmailSettings.tsx:59
 msgid "View email provider status and send test emails"
-msgstr "メールプロバイダーの状態を確認し、テストメールを送信"
+msgstr "メール送信サービスの状態を確認し、テストメールを送信"
 
 #: packages/admin/src/components/PluginManager.tsx:464
 msgid "View in Marketplace"
@@ -8793,7 +8793,7 @@ msgstr "{0}のWordPressサイトに接続できませんでした。サイトが
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:577
 msgid "We couldn't verify this publisher's identity"
-msgstr "この公開者の本人確認ができませんでした"
+msgstr "この提供元の本人確認ができませんでした"
 
 #: packages/admin/src/components/WordPressImport.tsx:1084
 msgid "We'll check what import options are available for your site."
@@ -8949,7 +8949,7 @@ msgstr "は招待なしで登録できなくなります。既存のユーザー
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:148
 msgid "Without an email provider, invite links must be shared manually."
-msgstr "メールプロバイダーがない場合、招待リンクは手動で共有する必要があります。"
+msgstr "メール送信サービスがない場合、招待リンクは手動で共有する必要があります。"
 
 #: packages/admin/src/components/WordPressImport.tsx:210
 msgid "WordPress authorization was rejected"
@@ -9032,7 +9032,7 @@ msgstr "執筆者情報の項目を管理するには、管理者権限が必要
 
 #: packages/admin/src/router.tsx:1558
 msgid "You need Editor permissions to moderate comments."
-msgstr "コメントをモデレートするには、編集者権限が必要です。"
+msgstr "コメントを管理するには、編集者権限が必要です。"
 
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/settings/PasskeyItem.tsx:199
