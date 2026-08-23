@@ -1343,16 +1343,15 @@ describe("Code block copy action", () => {
 			resolveSecond();
 			await expect.element(screen.getByRole("status")).toHaveTextContent("Copied");
 			rejectFirst(new DOMException("Denied", "NotAllowedError"));
-			await vi.waitFor(() => expect(copyCommand).toHaveBeenCalledWith("copy"));
 			await vi.waitFor(() =>
 				expect(screen.getByRole("status").element().textContent).toBe("Copied"),
 			);
 
 			copyButton.click();
 			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(3));
-			await vi.waitFor(() => expect(copyCommand).toHaveBeenCalledTimes(2));
 			await expect.element(screen.getByRole("button", { name: "Retry copy" })).toBeVisible();
 			await expect.element(screen.getByRole("status")).toHaveTextContent("Copy failed");
+			expect(copyCommand).toHaveBeenCalledTimes(1);
 		} finally {
 			copyCommand.mockRestore();
 			clipboardWrite.mockRestore();

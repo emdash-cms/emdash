@@ -177,18 +177,17 @@ describe("inline Portable Text code blocks", () => {
 			const status = element.querySelector('[role="status"]');
 			await vi.waitFor(() => expect(status?.textContent).toBe("Copied"));
 			rejectFirst(new DOMException("Denied", "NotAllowedError"));
-			await vi.waitFor(() => expect(copyCommand).toHaveBeenCalledWith("copy"));
 			await vi.waitFor(() => expect(status?.textContent).toBe("Copied"));
 
 			copyButton?.click();
 			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(3));
-			await vi.waitFor(() => expect(copyCommand).toHaveBeenCalledTimes(2));
 			await vi.waitFor(() =>
 				expect(
 					element.querySelector<HTMLButtonElement>('button[aria-label="Retry copy"]'),
 				).not.toBeNull(),
 			);
 			expect(status?.textContent).toBe("Copy failed");
+			expect(copyCommand).toHaveBeenCalledTimes(1);
 		} finally {
 			if (execCommandDescriptor) {
 				Object.defineProperty(document, "execCommand", execCommandDescriptor);

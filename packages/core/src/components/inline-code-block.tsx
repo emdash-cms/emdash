@@ -125,13 +125,14 @@ function languageLabel(value: string | null | undefined): string {
 	return value;
 }
 
-async function copyTextToClipboard(text: string): Promise<void> {
+async function copyTextToClipboard(text: string, shouldUseFallback: () => boolean): Promise<void> {
 	if (navigator.clipboard?.writeText) {
 		try {
 			await navigator.clipboard.writeText(text);
 			return;
 		} catch {}
 	}
+	if (!shouldUseFallback()) return;
 	const activeElement = document.activeElement;
 	const selection = document.getSelection();
 	const previousRange = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
@@ -282,7 +283,10 @@ function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 		const requestId = ++copyRequestId.current;
 		setCopyStatus("idle");
 		try {
-			await copyTextToClipboard(node.textContent);
+			await copyTextToClipboard(
+				node.textContent,
+				() => requestId === copyRequestId.current,
+			);
 			if (requestId !== copyRequestId.current) return;
 			setCopyStatus("copied");
 			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
