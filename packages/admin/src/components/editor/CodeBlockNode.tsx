@@ -40,8 +40,17 @@ import {
 	normalizeLanguage,
 } from "./codeBlockLanguages";
 
-const lowlight = createLowlight(common);
-lowlight.register({ dockerfile });
+const ADMIN_CODE_BLOCK_LOWLIGHT_KEY = Symbol.for("emdash:admin-code-block-lowlight");
+const globalStore = globalThis as Record<symbol, unknown>;
+const lowlight =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
+	(globalStore[ADMIN_CODE_BLOCK_LOWLIGHT_KEY] as ReturnType<typeof createLowlight> | undefined) ??
+	(() => {
+		const instance = createLowlight(common);
+		instance.register({ dockerfile });
+		globalStore[ADMIN_CODE_BLOCK_LOWLIGHT_KEY] = instance;
+		return instance;
+	})();
 
 const editorLowlight = {
 	highlight(language: string, value: string) {
