@@ -9,6 +9,7 @@
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import type { PluginBlockDef } from "../../src/components/PortableTextEditor";
 import {
@@ -1385,7 +1386,10 @@ describe("Code block copy action", () => {
 		await vi.waitFor(() => expect(storedLanguage()).toBe("javascript"));
 		await screen.getByRole("button", { name: "Set language (current: JavaScript)" }).click();
 		await screen.getByPlaceholder("Language").fill("Discarded Language");
-		clickPickerAction("Cancel");
+		const cancelButton = document.querySelector<HTMLButtonElement>('button[aria-label="Cancel"]');
+		expect(cancelButton).not.toBeNull();
+		cancelButton?.focus();
+		await userEvent.keyboard("{Enter}");
 		expect(storedLanguage()).toBe("javascript");
 
 		await screen.getByRole("button", { name: "Set language (current: JavaScript)" }).click();

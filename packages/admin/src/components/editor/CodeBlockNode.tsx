@@ -166,10 +166,10 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 		[draft, findLanguageByDisplayLabel, updateAttributes],
 	);
 
-	// Enter commits the current draft. Escape is handled by the Popover itself
-	// (it calls onOpenChange(false) -> closePicker).
+	// Enter in the autocomplete input commits the current draft. Escape is
+	// handled by the Popover itself (it calls onOpenChange(false) -> closePicker).
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-		if (e.key === "Enter") {
+		if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
 			e.preventDefault();
 			commit();
 		}
