@@ -157,6 +157,8 @@ export interface ContentEditorProps {
 	isAutosaveFeedbackActive?: boolean;
 	/** Entry-scoped token advanced after a successful autosave. */
 	autosaveCompletionToken?: number;
+	/** Entry-scoped token advanced after the server rejected an autosave payload. */
+	autosaveRejectionToken?: number;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
 	/** Callback to discard draft changes (revert to published version) */
@@ -235,6 +237,7 @@ export function ContentEditor({
 	isAutosaving,
 	isAutosaveFeedbackActive,
 	autosaveCompletionToken,
+	autosaveRejectionToken,
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
@@ -336,6 +339,7 @@ export function ContentEditor({
 		}),
 	);
 	const pendingAutosaveStateRef = React.useRef<string | null>(null);
+	const [rejectedAutosaveState, setRejectedAutosaveState] = React.useState<string | null>(null);
 
 	// Synchronously reset form state when the underlying item changes (e.g. a
 	// translation switch where TanStack Router keeps ContentEditor mounted but
@@ -366,6 +370,7 @@ export function ContentEditor({
 			}),
 		);
 		pendingAutosaveStateRef.current = null;
+		setRejectedAutosaveState(null);
 		setBylinesTouched(false);
 	}
 
@@ -392,6 +397,7 @@ export function ContentEditor({
 				}),
 			);
 			pendingAutosaveStateRef.current = null;
+			setRejectedAutosaveState(null);
 			setBylinesTouched(false);
 		}
 	}, [item?.updatedAt, itemDataString, itemBylinesString, item?.slug, item?.status]);
@@ -457,6 +463,15 @@ export function ContentEditor({
 		pendingAutosaveStateRef.current = null;
 	}, [autosaveCompletionToken]);
 
+	React.useEffect(() => {
+		if (!autosaveRejectionToken || !pendingAutosaveStateRef.current) {
+			return;
+		}
+
+		setRejectedAutosaveState(pendingAutosaveStateRef.current);
+		pendingAutosaveStateRef.current = null;
+	}, [autosaveRejectionToken]);
+
 	const hasInvalidUrls = React.useCallback(
 		(data: Record<string, unknown>) => {
 			for (const [name, field] of Object.entries(fields)) {
@@ -478,6 +493,10 @@ export function ContentEditor({
 
 		// Don't autosave if not dirty or already saving
 		if (!isDirty || isSaving || isAutosaving) {
+			return;
+		}
+
+		if (currentData === rejectedAutosaveState) {
 			return;
 		}
 
@@ -523,6 +542,7 @@ export function ContentEditor({
 		bylinesTouched,
 		hasInvalidUrls,
 		hasUnsupportedPortableTextMarks,
+		rejectedAutosaveState,
 	]);
 
 	// Cancel pending autosave on manual save

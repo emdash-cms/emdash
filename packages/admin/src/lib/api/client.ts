@@ -58,6 +58,16 @@ function formatValidationIssues(error: Record<string, unknown>): string | undefi
 	return messages.length > 0 ? messages.join("; ") : undefined;
 }
 
+/** Whether retrying the same request unchanged can never succeed. */
+export function isTerminalRequestError(error: unknown): boolean {
+	return (
+		error instanceof ApiResponseError &&
+		error.status >= 400 &&
+		error.status < 500 &&
+		error.status !== 429
+	);
+}
+
 /**
  * Throw an error with the message from the API response body if available,
  * falling back to a generic message. All API error responses use the shape

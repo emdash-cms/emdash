@@ -4,6 +4,7 @@ import {
 	ApiResponseError,
 	apiFetch,
 	fetchManifest,
+	isTerminalRequestError,
 	throwResponseError,
 } from "../../src/lib/api/client";
 
@@ -165,5 +166,22 @@ describe("throwResponseError", () => {
 		await expect(throwResponseError(response, "fallback")).rejects.toThrow(
 			"fallback: Internal Server Error",
 		);
+	});
+});
+
+describe("isTerminalRequestError", () => {
+	it("treats a 4xx other than 429 as terminal", () => {
+		expect(isTerminalRequestError(new ApiResponseError(400, "VALIDATION_ERROR", "rejected"))).toBe(
+			true,
+		);
+		expect(isTerminalRequestError(new ApiResponseError(409, "CONFLICT", "conflict"))).toBe(true);
+	});
+
+	it("keeps rate limits, server errors and network failures retryable", () => {
+		expect(isTerminalRequestError(new ApiResponseError(429, "RATE_LIMITED", "slow down"))).toBe(
+			false,
+		);
+		expect(isTerminalRequestError(new ApiResponseError(500, "INTERNAL_ERROR", "boom"))).toBe(false);
+		expect(isTerminalRequestError(new TypeError("Failed to fetch"))).toBe(false);
 	});
 });
