@@ -309,27 +309,23 @@ body {
 	pointer-events: none;
 	transition: opacity 120ms ease-out;
 }
-
 .emdash-code-block-node:hover .emdash-code-block-controls,
 .emdash-code-block-node:focus-within .emdash-code-block-controls,
 .emdash-code-block-controls[data-persistent="true"] {
 	opacity: 1;
 	pointer-events: auto;
 }
-
 @media (hover: none), (pointer: coarse) {
 	.emdash-code-block-controls {
 		opacity: 1;
 		pointer-events: auto;
 	}
 }
-
 @media (prefers-reduced-motion: reduce) {
 	.emdash-code-block-controls {
 		transition: none;
 	}
 }
-
 /**
  * TipTap placeholder styles
  */

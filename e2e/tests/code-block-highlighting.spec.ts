@@ -1,4 +1,29 @@
+import type { Locator, Page } from "@playwright/test";
+
 import { test, expect } from "../fixtures";
+
+async function expectInside(outer: Locator, inner: Locator) {
+	await expect(outer).toBeVisible();
+	await expect(inner).toBeVisible();
+	const [outerBox, innerBox] = await Promise.all([outer.boundingBox(), inner.boundingBox()]);
+	expect(outerBox).not.toBeNull();
+	expect(innerBox).not.toBeNull();
+	if (!outerBox || !innerBox) return;
+	expect(innerBox.x).toBeGreaterThanOrEqual(outerBox.x);
+	expect(innerBox.x + innerBox.width).toBeLessThanOrEqual(outerBox.x + outerBox.width);
+}
+async function emulateCoarsePointer(page: Page) {
+	const cdp = await page.context().newCDPSession(page);
+	await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
+	await cdp.send("Emulation.setEmulatedMedia", {
+		features: [
+			{ name: "hover", value: "none" },
+			{ name: "pointer", value: "coarse" },
+		],
+	});
+	expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+	await page.mouse.move(0, 0);
+}
 
 test.describe("Admin code block highlighting", () => {
 	test.beforeEach(async ({ admin }) => {
@@ -16,6 +41,33 @@ test.describe("Admin code block highlighting", () => {
 		await expect(codeBlocks).toHaveCount(2);
 		await expect(codeBlocks.nth(0).locator('span[class*="hljs-"]')).not.toHaveCount(0);
 		await expect(codeBlocks.nth(1).locator('span[class*="hljs-"]')).toHaveCount(0);
+		const node = admin.page.locator(".emdash-code-block-node").first();
+		await node.hover();
+		await admin.page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+		await node.getByRole("button", { name: "Copy code" }).click();
+		await expect(node.getByRole("status")).toHaveText("Copied");
+		const clipboardText = await admin.page.evaluate(() => navigator.clipboard.readText());
+		expect(clipboardText).toContain("const greeting");
+		await admin.page.setViewportSize({ width: 200, height: 600 });
+		await node.evaluate((element) => {
+			element.setAttribute("dir", "rtl");
+			element.style.inlineSize = "168px";
+		});
+		const language = node.getByRole("button", { name: /^Set language/ });
+		const copy = node.getByRole("button", { name: "Copy code" });
+		await language.focus();
+		await admin.page.keyboard.press("ArrowLeft");
+		await expect(copy).toBeFocused();
+		await language.click();
+		await admin.page.getByPlaceholder("Language").fill("very-long-custom-language-name");
+		await admin.page.keyboard.press("Enter");
+		await expect(
+			node.getByRole("button", { name: /very-long-custom-language-name/ }),
+		).toBeVisible();
+		await expectInside(node, language);
+		await expectInside(node, copy);
+		await emulateCoarsePointer(admin.page);
+		await expect(node.locator(".emdash-code-block-controls")).toHaveCSS("opacity", "1");
 	});
 
 	test("uses borderless code surfaces in light and dark appearances", async ({ admin }) => {
@@ -28,145 +80,6 @@ test.describe("Admin code block highlighting", () => {
 		await admin.page.evaluate(() => document.documentElement.setAttribute("data-mode", "dark"));
 		await expect(codeBlock).toHaveCSS("background-color", "rgb(32, 32, 32)");
 		await expect(codeBlock).toHaveCSS("border-top-width", "0px");
-	});
-
-	test("shows aligned two-action controls and applies their actions", async ({ admin }) => {
-		const codeBlockNode = admin.page.locator(".emdash-code-block-node").first();
-		const controls = codeBlockNode.getByRole("toolbar", { name: "Code block actions" });
-		const languageButton = controls.getByRole("button", { name: /^Set language/ });
-		const copyButton = controls.getByRole("button", { name: "Copy code" });
-		let updateRequests = 0;
-		admin.page.on("request", (request) => {
-			if (request.method() === "PUT" && request.url().includes("/_emdash/api/content/")) {
-				updateRequests += 1;
-			}
-		});
-		await admin.page.waitForTimeout(2200);
-		updateRequests = 0;
-
-		await admin.page.mouse.move(0, 0);
-		await expect(controls).toHaveCSS("opacity", "0");
-		await languageButton.focus();
-		await expect(controls).toHaveCSS("opacity", "1");
-		await codeBlockNode.hover();
-		await expect(controls).toHaveCSS("opacity", "1");
-		await expect(controls.getByRole("button")).toHaveCount(2);
-		await expect(copyButton).toHaveAttribute("data-kumo-component", "Toolbar.Button");
-
-		const nodeBox = await codeBlockNode.boundingBox();
-		const controlsBox = await controls.boundingBox();
-		const languageBox = await languageButton.boundingBox();
-		const codeText = await codeBlockNode.locator("code").evaluate((element) => {
-			const range = document.createRange();
-			range.selectNodeContents(element);
-			const rects = [...range.getClientRects()];
-			return {
-				top: rects[0]?.top,
-				bottom: rects.at(-1)?.bottom,
-				fontSize: parseFloat(getComputedStyle(element).fontSize),
-			};
-		});
-		const languageFontSize = await languageButton.evaluate((element) =>
-			parseFloat(getComputedStyle(element).fontSize),
-		);
-		const copyFontSize = await copyButton.evaluate((element) =>
-			parseFloat(getComputedStyle(element).fontSize),
-		);
-		expect(nodeBox).not.toBeNull();
-		expect(controlsBox).not.toBeNull();
-		expect(languageBox?.height).toBe(26);
-		expect(languageFontSize).toBe(codeText.fontSize);
-		expect(copyFontSize).toBe(codeText.fontSize);
-		expect(controlsBox?.y).toBeCloseTo((nodeBox?.y ?? 0) + 4, 0);
-		expect(controlsBox?.x).toBeCloseTo(
-			(nodeBox?.x ?? 0) + (nodeBox?.width ?? 0) - (controlsBox?.width ?? 0) - 4,
-			0,
-		);
-		expect(codeText.top ?? 0).toBeGreaterThanOrEqual(
-			(controlsBox?.y ?? 0) + (controlsBox?.height ?? 0),
-		);
-		const topGap = (codeText.top ?? 0) - (nodeBox?.y ?? 0);
-		const bottomGap = (nodeBox?.y ?? 0) + (nodeBox?.height ?? 0) - (codeText.bottom ?? 0);
-		expect(Math.abs(topGap - bottomGap)).toBeLessThanOrEqual(1);
-
-		const currentLanguageLabel = await languageButton.getAttribute("aria-label");
-		const nextLanguage = currentLanguageLabel?.includes("Python") ? "JavaScript" : "Python";
-		await languageButton.click();
-		await admin.page.mouse.move(0, 0);
-		await expect(controls).toHaveCSS("opacity", "1");
-		const input = admin.page.getByPlaceholder("Search for a language…");
-		const popup = admin.page.locator(".kumo-popover-popup");
-		await expect(input).toBeVisible();
-		await expect(input).toHaveCSS("font-size", "14px");
-		await expect(admin.page.getByRole("option", { name: "Plain text" })).toHaveCSS(
-			"font-size",
-			"14px",
-		);
-		await popup.evaluate(async (element) => {
-			await Promise.all(element.getAnimations().map((animation) => animation.finished));
-		});
-		const placeholderColor = await input.evaluate(
-			(element) => getComputedStyle(element, "::placeholder").color,
-		);
-		const inputColor = await input.evaluate((element) => getComputedStyle(element).color);
-		expect(placeholderColor).not.toBe(inputColor);
-
-		const popupBox = await popup.boundingBox();
-		const openControlsBox = await controls.boundingBox();
-		expect(popupBox?.x).toBeCloseTo(openControlsBox?.x ?? 0, 0);
-		const popupBelowGap =
-			(popupBox?.y ?? 0) - ((openControlsBox?.y ?? 0) + (openControlsBox?.height ?? 0));
-		const popupAboveGap =
-			(openControlsBox?.y ?? 0) - ((popupBox?.y ?? 0) + (popupBox?.height ?? 0));
-		expect(Math.max(popupBelowGap, popupAboveGap)).toBeCloseTo(8, 0);
-
-		await admin.page.keyboard.press("Escape");
-		await expect(input).toBeHidden();
-		await copyButton.hover();
-		await expect(
-			admin.page.locator(".kumo-tooltip-popup").filter({ hasText: "Copy code" }),
-		).toBeVisible();
-		await expect(admin.page.locator(".kumo-tooltip-popup")).toHaveCount(1);
-		await admin.page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-		await copyButton.click();
-		await expect(controls.getByRole("button", { name: "Copied" })).toBeVisible();
-		await admin.page.waitForTimeout(2200);
-		expect(updateRequests).toBe(0);
-
-		await languageButton.click();
-		const autosaveResponse = admin.page.waitForResponse(
-			(response) =>
-				response.request().method() === "PUT" && response.url().includes("/_emdash/api/content/"),
-			{ timeout: 5000 },
-		);
-		await admin.page.getByRole("option", { name: nextLanguage }).click();
-		await expect(
-			controls.getByRole("button", { name: `Set language (current: ${nextLanguage})` }),
-		).toBeVisible();
-		await autosaveResponse;
-		expect(updateRequests).toBe(1);
-	});
-
-	test("keeps controls and language search inside a narrow RTL editor", async ({ admin }) => {
-		await admin.page.setViewportSize({ width: 320, height: 800 });
-		await admin.page.evaluate(() => {
-			document.querySelector(".emdash-code-block-node")?.setAttribute("dir", "rtl");
-		});
-		const codeBlockNode = admin.page.locator(".emdash-code-block-node").first();
-		const controls = codeBlockNode.getByRole("toolbar", { name: "Code block actions" });
-		await codeBlockNode.hover();
-		await expect(controls).toBeVisible();
-
-		const nodeBox = await codeBlockNode.boundingBox();
-		const controlsBox = await controls.boundingBox();
-		expect(controlsBox?.x).toBeCloseTo((nodeBox?.x ?? 0) + 4, 0);
-
-		await controls.getByRole("button", { name: /^Set language/ }).click();
-		const popupBox = await admin.page.locator(".kumo-popover-popup").boundingBox();
-		expect(popupBox).not.toBeNull();
-		expect(popupBox?.x ?? -1).toBeGreaterThanOrEqual(0);
-		expect((popupBox?.x ?? 0) + (popupBox?.width ?? 0)).toBeLessThanOrEqual(320);
-		expect(popupBox?.width ?? 0).toBeLessThanOrEqual(288);
 	});
 });
 
@@ -200,178 +113,6 @@ test.describe("Inline code block highlighting", () => {
 		await expect(codeBlocks).toHaveCount(2);
 		await expect(codeBlocks.nth(0).locator('span[class*="hljs-"]')).not.toHaveCount(0);
 		await expect(codeBlocks.nth(1).locator('span[class*="hljs-"]')).toHaveCount(0);
-	});
-
-	test("matches the admin controls without saving during control interactions", async ({
-		page,
-	}) => {
-		const codeBlockNode = page.locator(".emdash-inline-code-block").first();
-		const controlsWrap = codeBlockNode.locator(".emdash-inline-code-block-controls-wrap");
-		const controls = codeBlockNode.getByRole("toolbar", { name: "Code block actions" });
-		const languageButton = controls.getByRole("button", { name: /^Set language/ });
-		const copyButton = controls.getByRole("button", { name: "Copy code" });
-		let updateRequests = 0;
-		page.on("request", (request) => {
-			if (request.method() === "PUT" && request.url().includes("/_emdash/api/content/")) {
-				updateRequests += 1;
-			}
-		});
-		await page.waitForTimeout(2200);
-		updateRequests = 0;
-		await page.emulateMedia({ colorScheme: "dark" });
-		const outsideControlStyle = await page.evaluate(() => {
-			const outside = document.createElement("div");
-			outside.className = "emdash-inline-code-block-controls-wrap";
-			document.body.append(outside);
-			const style = getComputedStyle(outside);
-			const result = {
-				opacity: style.opacity,
-				pointerEvents: style.pointerEvents,
-				position: style.position,
-			};
-			outside.remove();
-			return result;
-		});
-		expect(outsideControlStyle).toEqual({
-			opacity: "1",
-			pointerEvents: "auto",
-			position: "static",
-		});
-
-		await page.mouse.move(0, 0);
-		await page.evaluate(() => {
-			if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-		});
-		await expect(controlsWrap).toHaveCSS("opacity", "0");
-		await languageButton.focus();
-		await expect(controlsWrap).toHaveCSS("opacity", "1");
-		await codeBlockNode.hover();
-		await expect(controlsWrap).toHaveCSS("opacity", "1");
-		await expect(controls.getByRole("button")).toHaveCount(2);
-		await expect(controls).toHaveCSS("background-color", "rgb(24, 24, 24)");
-
-		const nodeBox = await codeBlockNode.boundingBox();
-		const controlsBox = await controls.boundingBox();
-		const languageBox = await languageButton.boundingBox();
-		const codeText = await codeBlockNode.locator("code").evaluate((element) => {
-			const range = document.createRange();
-			range.selectNodeContents(element);
-			const rects = [...range.getClientRects()];
-			return {
-				top: rects[0]?.top,
-				bottom: rects.at(-1)?.bottom,
-				fontSize: parseFloat(getComputedStyle(element).fontSize),
-			};
-		});
-		const languageFontSize = await languageButton.evaluate((element) =>
-			parseFloat(getComputedStyle(element).fontSize),
-		);
-		const copyFontSize = await copyButton.evaluate((element) =>
-			parseFloat(getComputedStyle(element).fontSize),
-		);
-		expect(nodeBox).not.toBeNull();
-		expect(controlsBox).not.toBeNull();
-		expect(languageBox?.height).toBe(26);
-		expect(languageFontSize).toBe(codeText.fontSize);
-		expect(copyFontSize).toBe(codeText.fontSize);
-		expect(controlsBox?.y).toBeCloseTo((nodeBox?.y ?? 0) + 4, 0);
-		expect(controlsBox?.x).toBeCloseTo(
-			(nodeBox?.x ?? 0) + (nodeBox?.width ?? 0) - (controlsBox?.width ?? 0) - 4,
-			0,
-		);
-		expect(codeText.top ?? 0).toBeGreaterThanOrEqual(
-			(controlsBox?.y ?? 0) + (controlsBox?.height ?? 0),
-		);
-		const topGap = (codeText.top ?? 0) - (nodeBox?.y ?? 0);
-		const bottomGap = (nodeBox?.y ?? 0) + (nodeBox?.height ?? 0) - (codeText.bottom ?? 0);
-		expect(Math.abs(topGap - bottomGap)).toBeLessThanOrEqual(1);
-
-		await languageButton.click();
-		await page.mouse.move(0, 0);
-		await expect(controlsWrap).toHaveCSS("opacity", "1");
-		const input = page.getByPlaceholder("Search for a language…");
-		const popup = page.locator(".emdash-inline-code-block-popover");
-		await expect(input).toBeVisible();
-		await expect(input).toBeFocused();
-		await expect(input).toHaveCSS("font-size", "14px");
-		await expect(page.getByRole("option", { name: "Plain text" })).toHaveCSS("font-size", "14px");
-		const placeholderColor = await input.evaluate(
-			(element) => getComputedStyle(element, "::placeholder").color,
-		);
-		const inputColor = await input.evaluate((element) => getComputedStyle(element).color);
-		expect(placeholderColor).not.toBe(inputColor);
-
-		const popupBox = await popup.boundingBox();
-		const openControlsBox = await controls.boundingBox();
-		const viewportWidth = await page.evaluate(() => window.innerWidth);
-		const expectedPopupX = Math.min(
-			Math.max(openControlsBox?.x ?? 0, 16),
-			viewportWidth - 16 - (popupBox?.width ?? 0),
-		);
-		expect(popupBox?.x).toBeCloseTo(expectedPopupX, 0);
-		const popupBelowGap =
-			(popupBox?.y ?? 0) - ((openControlsBox?.y ?? 0) + (openControlsBox?.height ?? 0));
-		const popupAboveGap =
-			(openControlsBox?.y ?? 0) - ((popupBox?.y ?? 0) + (popupBox?.height ?? 0));
-		expect(Math.max(popupBelowGap, popupAboveGap)).toBeCloseTo(8, 0);
-
-		await input.fill("yaml");
-		await expect(page.getByRole("option", { name: "YAML" })).toBeVisible();
-		await expect
-			.poll(async () => {
-				const filteredPopupBox = await popup.boundingBox();
-				const filteredControlsBox = await controls.boundingBox();
-				const filteredBelowGap =
-					(filteredPopupBox?.y ?? 0) -
-					((filteredControlsBox?.y ?? 0) + (filteredControlsBox?.height ?? 0));
-				const filteredAboveGap =
-					(filteredControlsBox?.y ?? 0) -
-					((filteredPopupBox?.y ?? 0) + (filteredPopupBox?.height ?? 0));
-				return Math.max(filteredBelowGap, filteredAboveGap);
-			})
-			.toBeCloseTo(8, 0);
-		await input.fill("");
-
-		await page.keyboard.press("Escape");
-		await expect(input).toBeHidden();
-		await expect(languageButton).toBeFocused();
-		await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-		await copyButton.click();
-		await expect(controls.getByRole("button", { name: "Copied" })).toBeVisible();
-
-		await languageButton.click();
-		await page.getByRole("option", { name: "Python" }).click();
-		await expect(
-			controls.getByRole("button", { name: "Set language (current: Python)" }),
-		).toBeVisible();
-		await page.waitForTimeout(500);
-		expect(updateRequests).toBe(0);
-	});
-
-	test("keeps inline controls and search inside a narrow RTL viewport", async ({ page }) => {
-		await page.setViewportSize({ width: 320, height: 800 });
-		await page.evaluate(() => {
-			document.querySelector(".emdash-inline-code-block")?.setAttribute("dir", "rtl");
-		});
-		const codeBlockNode = page.locator(".emdash-inline-code-block").first();
-		const controlsWrap = codeBlockNode.locator(".emdash-inline-code-block-controls-wrap");
-		const controls = codeBlockNode.getByRole("toolbar", { name: "Code block actions" });
-		await codeBlockNode.hover();
-		await expect(controlsWrap).toHaveCSS("opacity", "1");
-
-		const nodeBox = await codeBlockNode.boundingBox();
-		const controlsBox = await controls.boundingBox();
-		expect(controlsBox?.x).toBeCloseTo((nodeBox?.x ?? 0) + 4, 0);
-
-		await controls.getByRole("button", { name: /^Set language/ }).click();
-		const popup = page.locator(".emdash-inline-code-block-popover");
-		const popupBox = await popup.boundingBox();
-		expect(popupBox).not.toBeNull();
-		expect(popupBox?.x ?? -1).toBeGreaterThanOrEqual(0);
-		expect((popupBox?.x ?? 0) + (popupBox?.width ?? 0)).toBeLessThanOrEqual(320);
-		expect(popupBox?.width ?? 0).toBeLessThanOrEqual(288);
-		await expect(page.getByPlaceholder("Search for a language…")).toHaveCSS("font-size", "16px");
-		await expect(page.getByRole("option", { name: "Plain text" })).toHaveCSS("font-size", "14px");
 	});
 
 	test("updates system and site theme colors without remounting or saving", async ({ page }) => {
@@ -411,38 +152,81 @@ test.describe("Inline code block highlighting", () => {
 
 		await expect(codeBlock).toHaveCSS("background-color", "rgb(25, 35, 45)");
 		await expect(codeBlock).toHaveCSS("color", "rgb(245, 245, 245)");
+		await expect(codeBlock.locator("code")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+		await expect(codeBlock.locator("code")).toHaveCSS("color", "rgb(245, 245, 245)");
+		await expect(codeBlock.locator("code")).toHaveCSS("font-size", "13px");
 		expect(await editorHandle?.evaluate((element) => element.isConnected)).toBe(true);
 		expect(updateRequests).toBe(0);
 	});
-});
 
-test("keeps inline code controls visible on touch devices", async ({ browser, baseURL }) => {
-	if (!baseURL) throw new Error("Playwright baseURL is required");
-	const context = await browser.newContext({
-		baseURL,
-		hasTouch: true,
-		viewport: { width: 393, height: 852 },
+	test("keeps controls usable in narrow RTL and does not save on copy", async ({ page }) => {
+		await page.setViewportSize({ width: 200, height: 600 });
+		const node = page.locator(".emdash-inline-code-block").first();
+		await node.evaluate((element) => element.setAttribute("dir", "rtl"));
+		const language = node.getByRole("button", { name: /^Set language/ });
+		const copy = node.getByRole("button", { name: "Copy code" });
+		await node.hover();
+		await language.focus();
+		await page.keyboard.press("Tab");
+		await expect(copy).toBeFocused();
+		await language.click();
+		await expectInside(node, node.locator(".emdash-inline-code-block-popover"));
+		const input = node.getByRole("combobox", { name: "Language" });
+		await input.fill("very-long-custom-language-name");
+		await page.keyboard.press("Enter");
+		await expect(
+			node.getByRole("button", { name: /very-long-custom-language-name/ }),
+		).toBeVisible();
+		await expectInside(node, language);
+		await expectInside(node, copy);
+		let updates = 0;
+		page.on("request", (request) => {
+			if (request.method() === "PUT" && request.url().includes("/_emdash/api/content/")) updates++;
+		});
+		await page.waitForTimeout(500);
+		await node.locator("code").click();
+		await page.keyboard.press("End");
+		await page.keyboard.type("x");
+		await page.keyboard.press("Shift+Home");
+		const selectionBeforeCopy = await page.evaluate(() => document.getSelection()?.toString());
+		const codeBeforeCopy = await node.locator("code").innerText();
+		expect(selectionBeforeCopy).not.toBe("");
+		updates = 0;
+		await page.evaluate(() => {
+			Object.defineProperty(navigator, "clipboard", {
+				configurable: true,
+				value: { writeText: () => Promise.reject(new DOMException("Denied", "NotAllowedError")) },
+			});
+			document.execCommand = (command) => {
+				(window as Window & { __legacyCopy?: { command: string; value: string } }).__legacyCopy = {
+					command,
+					value: (document.activeElement as HTMLTextAreaElement).value,
+				};
+				return true;
+			};
+		});
+		await copy.click();
+		await expect(node.getByRole("status")).toHaveText("Copied");
+		expect(
+			await page.evaluate(
+				() =>
+					(window as Window & { __legacyCopy?: { command: string; value: string } }).__legacyCopy,
+			),
+		).toEqual({ command: "copy", value: codeBeforeCopy });
+		expect(await page.evaluate(() => document.getSelection()?.toString())).toBe(
+			selectionBeforeCopy,
+		);
+		expect(
+			await page.evaluate(() => document.activeElement?.classList.contains("ProseMirror")),
+		).toBe(true);
+		await page.waitForTimeout(1000);
+		await copy.click();
+		await page.waitForTimeout(600);
+		await expect(node.getByRole("status")).toHaveText("Copied");
+		await page.waitForTimeout(900);
+		await expect(node.getByRole("status")).toHaveText("");
+		expect(updates).toBe(0);
+		await emulateCoarsePointer(page);
+		await expect(node.locator(".emdash-inline-code-block-controls-wrap")).toHaveCSS("opacity", "1");
 	});
-	try {
-		const page = await context.newPage();
-		await page.goto("/_emdash/api/auth/dev-bypass?redirect=/");
-		await context.addCookies([
-			{
-				name: "emdash-edit-mode",
-				value: "true",
-				domain: "localhost",
-				path: "/",
-			},
-		]);
-		await page.goto("/posts/post-with-code");
-		await expect(page.locator(".emdash-inline-editor")).toBeVisible({ timeout: 15000 });
-		const controlsWrap = page
-			.locator(".emdash-inline-code-block")
-			.first()
-			.locator(".emdash-inline-code-block-controls-wrap");
-		await expect(controlsWrap).toHaveCSS("opacity", "1");
-		await expect(controlsWrap).toHaveCSS("pointer-events", "auto");
-	} finally {
-		await context.close();
-	}
 });
