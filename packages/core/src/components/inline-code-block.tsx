@@ -283,10 +283,7 @@ function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 		const requestId = ++copyRequestId.current;
 		setCopyStatus("idle");
 		try {
-			await copyTextToClipboard(
-				node.textContent,
-				() => requestId === copyRequestId.current,
-			);
+			await copyTextToClipboard(node.textContent, () => requestId === copyRequestId.current);
 			if (requestId !== copyRequestId.current) return;
 			setCopyStatus("copied");
 			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
