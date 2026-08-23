@@ -81,6 +81,20 @@ test.describe("Admin code block highlighting", () => {
 		await expect(codeBlock).toHaveCSS("background-color", "rgb(32, 32, 32)");
 		await expect(codeBlock).toHaveCSS("border-top-width", "0px");
 	});
+
+	test("reveals code controls when keyboard focus enters the toolbar", async ({ admin }) => {
+		const node = admin.page.locator(".emdash-code-block-node").first();
+		const controls = node.locator(".emdash-code-block-controls");
+		const language = node.getByRole("button", { name: /^Set language/ });
+
+		await admin.page.mouse.move(0, 0);
+		await expect(controls).toHaveCSS("opacity", "0");
+		await admin.page.locator(".ProseMirror").focus();
+		await admin.page.keyboard.press("Tab");
+
+		await expect(language).toBeFocused();
+		await expect(controls).toHaveCSS("opacity", "1");
+	});
 });
 
 test("keeps public code block rendering unchanged", async ({ page }) => {
