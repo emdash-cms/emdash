@@ -96,14 +96,14 @@ Returns: `void`
 
 ### `content:beforeSave`
 
-Runs before save. Return modified content, void to keep unchanged, or throw to cancel.
+Runs before save. Return modified content, void to keep unchanged, or throw to cancel. Throw `ContentSaveRejectedError` (exported from `emdash`) to cancel with a message the admin shows to the editor; any other thrown error cancels with a generic message.
 
 ```typescript
 "content:beforeSave": async (event, ctx) => {
 	const { content, collection, isNew } = event;
 
 	if (collection === "posts" && !content.title) {
-		throw new Error("Posts require a title");
+		throw new ContentSaveRejectedError("Posts require a title");
 	}
 
 	// Transform
