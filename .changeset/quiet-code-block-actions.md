@@ -3,4 +3,4 @@
 "emdash": patch
 ---
 
-Adds compact code-block controls for selecting a language and copying code in the admin and inline visual editors.
+Adds compact, responsive language and copy controls to code blocks in the admin and inline visual editors.
