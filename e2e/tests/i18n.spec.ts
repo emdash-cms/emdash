@@ -23,9 +23,118 @@ import { test, expect } from "../fixtures";
 // (see #1242), so the URL may carry a query string after the ULID.
 const CONTENT_EDIT_URL_PATTERN = /\/content\/posts\/[A-Z0-9]+(?:\?.*)?$/;
 
+interface CreatePostInput {
+	title: string;
+	slug: string;
+	locale?: string;
+	translationOf?: string;
+	canonical?: string;
+}
+
+async function createPublishedPost(
+	baseUrl: string,
+	token: string,
+	input: CreatePostInput,
+): Promise<{ id: string }> {
+	const headers = {
+		"Content-Type": "application/json",
+		Authorization: `Bearer ${token}`,
+		"X-EmDash-Request": "1",
+		Origin: baseUrl,
+	};
+	const createResponse = await fetch(`${baseUrl}/_emdash/api/content/posts`, {
+		method: "POST",
+		headers,
+		body: JSON.stringify({
+			data: { title: input.title },
+			slug: input.slug,
+			locale: input.locale,
+			translationOf: input.translationOf,
+			seo: input.canonical ? { canonical: input.canonical } : undefined,
+		}),
+	});
+	if (!createResponse.ok) {
+		throw new Error(`Failed to create post: ${createResponse.status}`);
+	}
+	const createJson = await createResponse.json();
+	const id = createJson.data?.item?.id ?? createJson.data?.id;
+
+	const publishResponse = await fetch(
+		`${baseUrl}/_emdash/api/content/posts/${id}/publish`,
+		{
+			method: "POST",
+			headers,
+			body: JSON.stringify({}),
+		},
+	);
+	if (!publishResponse.ok) {
+		throw new Error(`Failed to publish post: ${publishResponse.status}`);
+	}
+
+	return { id };
+}
+
 test.describe("i18n", () => {
 	test.beforeEach(async ({ admin }) => {
 		await admin.devBypassAuth();
+	});
+
+	test.describe("Canonical URLs", () => {
+		test("preserves the locale prefix and normalizes the trailing slash", async ({
+			page,
+			serverInfo,
+		}) => {
+			const slug = `canonical-translation-${Date.now()}`;
+			const source = await createPublishedPost(serverInfo.baseUrl, serverInfo.token, {
+				title: "Canonical source",
+				slug,
+			});
+			await createPublishedPost(serverInfo.baseUrl, serverInfo.token, {
+				title: "Canonical translation",
+				slug,
+				locale: "fr",
+				translationOf: source.id,
+			});
+
+			await page.goto(`/fr/posts/${slug}/`);
+
+			await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+				"href",
+				`${serverInfo.baseUrl}/fr/posts/${slug}`,
+			);
+		});
+
+		test("keeps the default locale canonical unprefixed", async ({ page, serverInfo }) => {
+			const slug = `canonical-default-${Date.now()}`;
+			await createPublishedPost(serverInfo.baseUrl, serverInfo.token, {
+				title: "Default canonical",
+				slug,
+			});
+
+			await page.goto(`/posts/${slug}`);
+
+			await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+				"href",
+				`${serverInfo.baseUrl}/posts/${slug}`,
+			);
+		});
+
+		test("prefers an explicit canonical over the request path", async ({ page, serverInfo }) => {
+			const slug = `canonical-explicit-${Date.now()}`;
+			const canonical = "https://example.com/explicit-canonical";
+			await createPublishedPost(serverInfo.baseUrl, serverInfo.token, {
+				title: "Explicit canonical",
+				slug,
+				canonical,
+			});
+
+			await page.goto(`/posts/${slug}`);
+
+			await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+				"href",
+				canonical,
+			);
+		});
 	});
 
 	test.describe("Content List", () => {

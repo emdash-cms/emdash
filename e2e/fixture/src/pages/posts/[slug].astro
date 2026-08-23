@@ -1,5 +1,5 @@
 ---
-import { getEmDashEntry } from "emdash";
+import { getEmDashEntry, getSeoMeta } from "emdash";
 import { PortableText } from "emdash/ui";
 import { Comments, CommentForm } from "emdash/ui/comments";
 
@@ -7,11 +7,17 @@ const { slug } = Astro.params;
 if (!slug) return Astro.redirect("/404");
 const { entry: post } = await getEmDashEntry("posts", slug);
 if (!post) return new Response("Not found", { status: 404 });
+
+const seo = getSeoMeta(post, {
+	siteUrl: Astro.url.origin,
+	path: Astro.url.pathname.replace(/\/$/, ""),
+});
 ---
 
 <html>
 	<head>
 		<title>{post.data.title}</title>
+		{seo.canonical && <link rel="canonical" href={seo.canonical} />}
 	</head>
 	<body>
 		<article>
