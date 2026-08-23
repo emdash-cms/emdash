@@ -1,6 +1,6 @@
 # Editor code-block syntax highlighting and theming
 
-Status: Proposed
+Status: Implemented
 Issue: [#2361](https://github.com/emdash-cms/emdash/issues/2361)
 Base: `origin/main` at `353ff4fd2e052e1a60ec31b92bdcd6024401997a`
 
@@ -38,9 +38,9 @@ Replace the plain TipTap code-block extension in both editors with TipTap's Lowl
 
 No unresolved product decisions remain.
 
-## Verified current behavior
+## Verified baseline behavior
 
-The verified source tree and browser reproduction establish the following behavior:
+The source tree and browser reproduction at the specified base establish the following behavior:
 
 - `packages/admin/src/components/editor/CodeBlockNode.tsx` extends `@tiptap/extension-code-block` and renders `<pre><NodeViewContent as="code" /></pre>`. The selected language is stored on `node.attrs.language`, but no tokenizer creates token spans.
 - `packages/core/src/components/inline-code-block.tsx` repeats the same plain extension and node-view structure for visual editing.
@@ -66,7 +66,7 @@ Add catalog entries matching the current TipTap line for:
 
 Declare all three as direct runtime dependencies of `@emdash-cms/admin` and `emdash`. `highlight.js` is a peer of TipTap's Lowlight extension and a dependency of Lowlight; declaring it directly makes resolution explicit under pnpm's peer rules.
 
-Each editor module imports `common` and `createLowlight` from `lowlight`, creates one package-local instance from the exported `common` grammar map, registers `highlight.js/lib/languages/dockerfile`, and reuses that instance for every editor on the page. Do not use Lowlight's exported `all` grammar map, dynamically fetch grammars, or create one instance per component render.
+Each editor package imports `common` and `createLowlight` from `lowlight` and retrieves one configured instance from `globalThis` through a package-specific `Symbol.for` key. The instance uses the exported `common` grammar map plus `highlight.js/lib/languages/dockerfile`. Storing it on `globalThis` reuses the same grammar map across editors and repeated Vite SSR module evaluations. Do not use Lowlight's exported `all` grammar map, dynamically fetch grammars, or create one instance per component render.
 
 The common grammar map also registers languages that are not picker suggestions. A free-form value such as `lua` is highlighted because the configured instance registers it. "Unsupported" means absent from that instance, not absent from the picker. Astro, MDX, Svelte, Vue, Zig, and other unregistered values take the approved plain-text fallback.
 
@@ -77,7 +77,7 @@ The package-local object passed to TipTap must expose the Lowlight methods that 
 - Implement `highlightAuto` by highlighting as `plaintext` instead of detecting a language.
 - Configure TipTap's `defaultLanguage` as `plaintext` so a missing language also takes the plain path.
 
-This facade is required even though most curated languages are registered. TipTap also checks its own Highlight.js core before it calls the supplied Lowlight object; another bundle consumer could register a grammar there that is absent from EmDash's package-local instance. Guarding both `highlight` and `highlightAuto` keeps unsupported strings plain and prevents that cross-consumer state from causing `lowlight.highlight()` to throw.
+This facade is required even though most curated languages are registered. TipTap also checks its own Highlight.js core before it calls the supplied Lowlight object; another bundle consumer could register a grammar there that is absent from EmDash's package-specific instance. Guarding both `highlight` and `highlightAuto` keeps unsupported strings plain and prevents that cross-consumer state from causing `lowlight.highlight()` to throw.
 
 TipTap's upstream plugin assumes `node.attrs.language` is a string before it checks registration. At each editor's Portable Text-to-ProseMirror boundary, pass the language through only when it is a non-empty string; otherwise set the node attribute to `null`. This guard matches the declared `language?: string` contract and prevents malformed stored values such as numbers or objects from crashing decoration setup. It does not normalize, replace, or otherwise rewrite valid string values.
 
@@ -103,22 +103,22 @@ Keep the language trigger and popover on Kumo surface, text, border, and focus t
 
 Change `InlineCodeBlockExtension` to use the same bounded Lowlight configuration and plain-text fallback. Keep the current node view, language datalist, free-form normalization, focus behavior, logical `insetInlineEnd`, and save flow.
 
-Move code-block and language-control color declarations out of hard-coded inline values and into the existing style block emitted by `InlinePortableTextEditor.tsx`. Scope every rule to `.emdash-inline-code-block` or `.emdash-code-block` inside `.emdash-inline-editor` so the editor cannot restyle the host site's static code blocks.
+Move code block and language selector colors out of hard-coded inline values and into the existing style block emitted by `InlinePortableTextEditor.tsx`. Scope every rule to `.emdash-inline-code-block` or `.emdash-code-block` inside `.emdash-inline-editor` so the editor cannot restyle the host site's static code blocks.
 
 The inline editor exposes the following additive CSS custom properties:
 
 | Property                                  | Role                                         |
 | ----------------------------------------- | -------------------------------------------- |
 | `--emdash-inline-code-background`         | Code-block surface                           |
-| `--emdash-inline-code-foreground`         | Untokenized code and fallback text           |
+| `--emdash-inline-code-foreground`         | Plain code and fallback text                 |
 | `--emdash-inline-code-muted`              | Comments and quotes                          |
 | `--emdash-inline-code-keyword`            | Keywords, literals, selectors, and deletions |
 | `--emdash-inline-code-string`             | Strings, attributes, symbols, and additions  |
 | `--emdash-inline-code-number`             | Numbers and metadata                         |
 | `--emdash-inline-code-title`              | Titles, names, types, and built-ins          |
-| `--emdash-inline-code-border`             | Language-control boundary                    |
-| `--emdash-inline-code-control-background` | Language control surface                     |
-| `--emdash-inline-code-control-foreground` | Language control text and icons              |
+| `--emdash-inline-code-border`             | Language selector border                     |
+| `--emdash-inline-code-control-background` | Language selector background                 |
+| `--emdash-inline-code-control-foreground` | Language selector text and icons             |
 | `--emdash-inline-code-focus`              | Keyboard focus indicator                     |
 
 Use each property through `var(--property, fallback)` rather than defining it on the component. An inherited site value must therefore override the fallback. Preserve compatibility with the existing `--emdash-inline-bg` customization by using it as the secondary fallback for the control surface.
@@ -139,7 +139,7 @@ Use this measured fallback palette:
 | Control foreground | `#24292f` | `#f0f3f6` |
 | Focus              | `#0550ae` | `#a8d5ff` |
 
-Use the same background and syntax values for the admin's internal roles. The syntax and control foregrounds measure at least APCA `|Lc| 75` and WCAG 2 `4.5:1` against their assigned backgrounds. Language-control borders and focus indicators measure at least `3:1`. Recalculate the rendered pairs if implementation details introduce alpha, blending, or a different surface.
+Use the same background and syntax values for the admin's internal roles. The syntax and control foregrounds measure at least APCA `|Lc| 75` and WCAG 2 `4.5:1` against their assigned backgrounds. Language selector borders and focus indicators measure at least `3:1`. Recalculate the rendered pairs if implementation details introduce alpha, blending, or a different surface.
 
 Provide the light values as normal fallbacks and the dark values inside `@media (prefers-color-scheme: dark)`. A host site that switches appearance independently of the operating system overrides the variables under its own theme selector. Theme changes update CSS only; they must not rebuild the editor, recreate the node view, alter selection, or save content.
 
@@ -171,7 +171,7 @@ Lowlight runs locally and synchronously. It performs no network request, inserts
 - Existing unsupported string languages, free-form values, language aliases, and code content continue to save and reload unchanged. Non-string language values are outside the published shape and are omitted after an editor save.
 - Lowlight returns a syntax tree that TipTap converts to ProseMirror decorations. Code remains text content, so author input is not interpreted as HTML.
 - No authorization, CSRF, preview-token, or public-route behavior changes.
-- The anonymous rendering branch of `PortableText.astro` and `Code.astro` stays unchanged. The highlighter executes only in the admin or hydrated inline editor.
+- The anonymous rendering branch of `PortableText.astro` and `Code.astro` stays unchanged. The highlighter executes only in the admin or active inline editor.
 - Highlighting work is proportional to the total code-block text TipTap recalculates for a qualifying transaction. Keep the grammar set bounded to `common` plus Dockerfile and verify a document containing a 20,000-character code block remains responsive while typing, changing language, and switching theme.
 - Record minified and gzip sizes for the admin JavaScript and the inline-editor client chunk before and after implementation. Using Lowlight's `all` grammar map, adding runtime grammar requests, or adding a new asset to logged-out page requests is a blocking scope change.
 
@@ -190,7 +190,7 @@ Follow the repository bug workflow for each commit: add a meaningful failing tes
 ### Automated tests
 
 - Preserve the schema-name, `toggleCodeBlock`, and language-attribute assertions in `packages/admin/tests/editor/CodeBlockNode.test.ts`.
-- Extend `packages/admin/tests/editor/PortableTextEditor.test.tsx` through its existing browser render helper. A JavaScript block must render grammar-specific `hljs-*` token spans; changing its language must update the token classes; `plaintext`, Astro, Zig, and an arbitrary free-form value must render no syntax token spans. Verify editor JSON contains only the original code and language rather than decoration markup.
+- Add `packages/admin/tests/editor/PortableTextEditor.code-block.test.ts` using the existing browser render helper. A JavaScript block must render grammar-specific `hljs-*` token spans; changing its language must update the token classes; `plaintext`, Astro, Zig, and an arbitrary free-form value must render no syntax token spans. Verify editor JSON contains only the original code and language rather than decoration markup.
 - Add a converter-boundary regression using a non-string language. Both editors must load without throwing, render plain code, and omit the invalid value from their next serialized result.
 - Add one published `post-with-code` entry in `e2e/global-setup.ts`. Give it separate JavaScript and Astro blocks so supported and unsupported behavior can be observed without changing or saving shared fixture content.
 - Add an admin end-to-end scenario that opens the seeded post, verifies token spans, switches between light and dark appearances, and measures every rendered syntax/control foreground against its actual computed background. The node view, editor selection, and saved value must survive the switch.
@@ -227,7 +227,7 @@ Expected production and contract files:
 Expected test files:
 
 - `packages/admin/tests/editor/CodeBlockNode.test.ts`
-- `packages/admin/tests/editor/PortableTextEditor.test.tsx`
+- `packages/admin/tests/editor/PortableTextEditor.code-block.test.ts`
 - `packages/core/tests/unit/components/inline-portable-text-code-block.test.ts`
 - `e2e/global-setup.ts`
 - `e2e/tests/code-block-highlighting.spec.ts`
@@ -256,13 +256,13 @@ Projected lines: 70-110 production and 110-170 tests. The commit excludes inline
 
 Responsibility: provide equivalent highlighting and theme behavior in the inline visual editor.
 
-- Add the core runtime dependencies and package-local bounded Lowlight instance.
+- Add the core runtime dependencies and shared, package-specific Lowlight instance.
 - Guard the inline Portable Text-to-ProseMirror language boundary against non-string values.
 - Move inline code-block/control colors to scoped CSS variables with system fallbacks.
 - Add an inline converter unit test for valid, unsupported, and invalid language values.
 - Add failing-first inline E2E coverage for tokenization, fallback, overrides, RTL, narrow layout, persistence, and the unchanged public renderer.
 - Document the inline theme variables in the Visual Editing guide.
-- Add one patch changeset for `@emdash-cms/admin` and `emdash`: "Fixes code blocks in the admin and inline visual editors so supported languages are syntax-highlighted and readable in light and dark appearances."
+- Add one patch changeset for `@emdash-cms/admin` and `emdash`: "Fixes code blocks in the admin and inline visual editors with syntax highlighting for supported languages and readable, borderless styling in light and dark appearances."
 - Record editor bundle deltas and run the final checks.
 
 Projected lines: 80-120 production, 130-190 tests, and 35-60 documentation/changeset lines. The commit depends on the catalog entries from commit 1 and excludes public highlighting, grammar expansion, and the other split issues.
@@ -288,8 +288,6 @@ Run before the pull request:
 - `git diff --check`
 - changeset validation and package builds for `@emdash-cms/admin` and `emdash`
 
-The clean-worktree preflight `pnpm lint:json` did not return a result because pnpm did not complete in the dependency-free spec worktree. Establish and record a clean baseline after dependencies are available; do not report the lint gate as passing until the command returns zero diagnostics.
-
 ## Acceptance criteria
 
 - A supported language produces grammar-specific token spans in the admin and inline visual editors.
@@ -302,7 +300,3 @@ The clean-worktree preflight `pnpm lint:json` did not return a result because pn
 - Public `Code.astro` output, the curated language list, Portable Text, database/API behavior, and anonymous route/query counts remain unchanged.
 - Bundle measurements confirm that only editor assets grow and that the implementation uses Lowlight's `common` grammar map plus Dockerfile rather than all grammars.
 - Required tests, type checks, lint, formatting, package builds, documentation build, and changeset validation pass.
-
-## Authority
-
-This document authorizes no implementation, commit, push, pull request, rebase, merge, issue update, or other Git/GitHub mutation. Implementation requires a separate approved `$feat-implement` request.

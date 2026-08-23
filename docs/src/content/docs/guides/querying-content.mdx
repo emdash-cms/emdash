@@ -259,23 +259,23 @@ In edit mode, `{...entry.edit.title}` produces a `data-emdash-ref` attribute tha
 
 ### Styling inline code blocks
 
-Code blocks in the inline editor follow the system appearance by default. If your site has its own theme switch, set these properties under its light and dark selectors:
+Inline code blocks follow the system's light or dark appearance by default. If your site has its own theme switch, set these properties in its light and dark theme selectors:
 
-| Property | Controls |
+| Property | Purpose |
 | --- | --- |
-| `--emdash-inline-code-background` | Code-block surface |
-| `--emdash-inline-code-foreground` | Untokenized code |
-| `--emdash-inline-code-muted` | Comments and quotes |
-| `--emdash-inline-code-keyword` | Keywords, literals, selectors, and deletions |
-| `--emdash-inline-code-string` | Strings, attributes, symbols, and additions |
+| `--emdash-inline-code-background` | Code block background |
+| `--emdash-inline-code-foreground` | Plain code text |
+| `--emdash-inline-code-muted` | Comments and quoted text |
+| `--emdash-inline-code-keyword` | Keywords, literals, selectors, and deleted text |
+| `--emdash-inline-code-string` | Strings, attributes, symbols, and added text |
 | `--emdash-inline-code-number` | Numbers and metadata |
 | `--emdash-inline-code-title` | Titles, names, types, and built-ins |
-| `--emdash-inline-code-border` | Language-control borders |
-| `--emdash-inline-code-control-background` | Language-control surface |
-| `--emdash-inline-code-control-foreground` | Language-control text and icons |
+| `--emdash-inline-code-border` | Language selector border |
+| `--emdash-inline-code-control-background` | Language selector background |
+| `--emdash-inline-code-control-foreground` | Language selector text and icons |
 | `--emdash-inline-code-focus` | Keyboard focus indicator |
 
-The following example matches inline code blocks to a site that applies `.dark` to the `<html>` element:
+The following example styles inline code blocks for a site that applies `.dark` to the `<html>` element:
 
 ```css title="src/styles/global.css"
 :root {
@@ -307,7 +307,7 @@ The following example matches inline code blocks to a site that applies `.dark` 
 }
 ```
 
-Override the complete foreground palette when changing the background so every token remains readable. These properties style only the hydrated inline editor; style rendered site code blocks through your site's normal CSS.
+If you change the code block background, also override every text color so the syntax remains readable. These properties apply only while inline editing is active. Style published code blocks with your site's CSS.
 
 ## Sorting Results
 
