@@ -167,7 +167,7 @@ export function ImageFieldRenderer({
 	const darkFilename = darkValue?.filename || t`Selected image`;
 
 	const darkVariantSlot =
-		darkVariant && displayUrl ? (
+		darkVariant && objectValue && displayUrl ? (
 			<div className="flex flex-wrap items-center gap-3">
 				{darkDisplayUrl ? (
 					<>

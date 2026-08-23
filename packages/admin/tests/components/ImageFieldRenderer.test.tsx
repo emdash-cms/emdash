@@ -202,6 +202,19 @@ describe("ImageFieldRenderer", () => {
 		expect(screen.getByRole("button", { name: "Add dark mode variant" }).query()).toBeNull();
 	});
 
+	it("offers no dark mode slot for a legacy string value", async () => {
+		const screen = await render(
+			<ImageFieldRenderer
+				label="Image"
+				value="https://example.com/legacy.jpg"
+				onChange={vi.fn()}
+				darkVariant
+			/>,
+		);
+
+		expect(screen.getByRole("button", { name: "Add dark mode variant" }).query()).toBeNull();
+	});
+
 	it("stores a picked dark mode variant next to the primary image", async () => {
 		const onChange = vi.fn();
 		const screen = await render(
