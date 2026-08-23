@@ -173,6 +173,20 @@ test.describe("Inline code block highlighting", () => {
 		expect(updateRequests).toBe(0);
 	});
 
+	test("reveals inline code controls when keyboard focus enters them", async ({ page }) => {
+		const node = page.locator(".emdash-inline-code-block").first();
+		const controls = node.locator(".emdash-inline-code-block-controls-wrap");
+		const language = node.getByRole("button", { name: /^Set language/ });
+
+		await page.mouse.move(0, 0);
+		await expect(controls).toHaveCSS("opacity", "0");
+		await page.locator(".ProseMirror").focus();
+		await page.keyboard.press("Tab");
+
+		await expect(language).toBeFocused();
+		await expect(controls).toHaveCSS("opacity", "1");
+	});
+
 	test("keeps controls usable in narrow RTL and does not save on copy", async ({ page }) => {
 		await page.setViewportSize({ width: 200, height: 600 });
 		const node = page.locator(".emdash-inline-code-block").first();
