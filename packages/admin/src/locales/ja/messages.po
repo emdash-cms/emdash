@@ -42,7 +42,7 @@ msgstr "-- 選択 --"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:308
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:307
 msgid ", or open the admin at"
-msgstr "、または管理画面を開く:"
+msgstr "、または管理画面を開く："
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:307
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:306
@@ -88,7 +88,7 @@ msgstr "{0, plural, one {#件の執筆者} other {#件の執筆者}}"
 #. placeholder {0}: seedInfo.collections
 #: packages/admin/src/components/SetupWizard.tsx:156
 msgid "{0, plural, one {# collection} other {# collections}}"
-msgstr "{0, plural, one {#個のコレクション} other {#個のコレクション}}"
+msgstr "{0, plural, one {#件のコンテンツタイプ} other {#件のコンテンツタイプ}}"
 
 #. placeholder {0}: result.comments.imported
 #: packages/admin/src/components/WordPressImport.tsx:2263
@@ -118,7 +118,7 @@ msgstr "{0, plural, one {#件のコンテンツをインポート} other {#件�
 #. placeholder {0}: selectedItems.length
 #: packages/admin/src/components/MediaPickerModal.tsx:787
 msgid "{0, plural, one {# item selected} other {# items selected}}"
-msgstr "{0, plural, one {#件のアイテムを選択} other {#件のアイテムを選択}}"
+msgstr "{0, plural, one {#件を選択中} other {#件を選択中}}"
 
 #. placeholder {0}: items.length
 #. placeholder {0}: menu.itemCount ?? 0
@@ -208,7 +208,7 @@ msgstr "{0, plural, one {ユーザー} other {ユーザー}}"
 #. placeholder {2}: m.host
 #: packages/admin/src/components/RegistryPluginDetail.tsx:636
 msgid "{0} {1} required — you have {2}."
-msgstr "{0} {1}が必要です — 現在は{2}です。"
+msgstr "{0} {1}が必要です。現在は{2}です。"
 
 #. placeholder {0}: menu.name
 #. placeholder {1}: /** * Menu List component * * Displays all menus with ability to create, edit, and delete. */ import { Button, Dialog, Input, Toast } from "@cloudflare/kumo"; import { plural } from "@lingui/core/macro"; import { Trans } from "@lingui/react/macro"; import { useLingui } from "@lingui/react/macro"; import { Plus, Pencil, Trash } from "@phosphor-icons/react"; import { X } from "@phosphor-icons/react"; import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchMenus, createMenu, deleteMenu } from "../lib/api"; import { fetchManifest } from "../lib/api/client.js"; import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js"; import { ConfirmDialog } from "./ConfirmDialog.js"; import { DialogError, getMutationError } from "./DialogError.js"; import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; export function MenuList() { const { t } = useLingui(); const queryClient = useQueryClient(); const navigate = useNavigate(); const toastManager = Toast.useToastManager(); const [isCreateOpen, setIsCreateOpen] = React.useState(false); const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null); const [createError, setCreateError] = React.useState<string | null>(null); const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest, }); const i18n = useI18nConfig(manifest); const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined); React.useEffect(() => { if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale); }, [i18n, activeLocale]); const { data: menus, isLoading } = useQuery({ queryKey: ["menus", activeLocale], queryFn: () => fetchMenus({ locale: activeLocale }), }); const createMutation = useMutation({ mutationFn: createMenu, onSuccess: (menu) => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setIsCreateOpen(false); toastManager.add({ title: t`Menu created`, description: t`Menu "${menu.label}" has been created.`, }); void navigate({ to: "/menus/$name", params: { name: menu.name }, search: { locale: menu.locale }, }); }, onError: (error: Error) => { setCreateError(error.message); }, }); const deleteMutation = useMutation({ mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setDeleteMenuName(null); toastManager.add({ title: t`Menu deleted`, description: t`The menu has been deleted.`, }); }, }); const handleCreate = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); setCreateError(null); const formData = new FormData(e.currentTarget); const nameVal = formData.get("name"); const name = typeof nameVal === "string" ? nameVal : ""; const labelVal = formData.get("label"); const label = typeof labelVal === "string" ? labelVal : ""; createMutation.mutate({ name, label, locale: activeLocale }); }; if (isLoading) { return ( <div className="flex items-center justify-center h-64"> <div className="text-kumo-subtle">{t`Loading menus...`}</div> </div> ); } return ( <div className="space-y-6"> <div className="flex items-center justify-between gap-4 flex-wrap"> <div> <h1 className="text-2xl font-semibold leading-tight">{t`Menus`}</h1> <p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle"> {t`Manage navigation menus for your site`} </p> </div> <div className="flex items-center gap-2"> {i18n && activeLocale ? ( <LocaleSwitcher locales={i18n.locales} defaultLocale={i18n.defaultLocale} value={activeLocale} onChange={setActiveLocale} /> ) : null} </div> <Dialog.Root open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateError(null); }} > <Dialog.Trigger render={(props) => ( <Button {...props} icon={<Plus />}> {t`Create Menu`} </Button> )} /> <Dialog className="p-6" size="lg"> <div className="flex items-start justify-between gap-4 mb-4"> <Dialog.Title className="text-lg font-semibold leading-none tracking-tight"> {t`Create New Menu`} </Dialog.Title> <Dialog.Close aria-label={t`Close`} render={(props) => ( <Button {...props} variant="ghost" shape="square" aria-label={t`Close`} className="absolute end-4 top-4" > <X className="h-4 w-4" /> <span className="sr-only">{t`Close`}</span> </Button> )} /> </div> <form onSubmit={handleCreate} className="space-y-4"> <div> <Input label={t`Name`} name="name" required placeholder="primary" pattern="[a-z0-9\-]+" title={t`Only lowercase letters, numbers, and hyphens`} /> <p className="text-sm text-kumo-subtle mt-1"> {t`URL-friendly identifier (e.g., "primary", "footer")`} </p> </div> <div> <Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} /> <p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p> </div> <DialogError message={createError || getMutationError(createMutation.error)} /> <div className="flex justify-end gap-2"> <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}> {t`Cancel`} </Button> <Button type="submit" disabled={createMutation.isPending}> {createMutation.isPending ? t`Creating...` : t`Create`} </Button> </div> </form> </Dialog> </Dialog.Root> </div> {!menus || menus.length === 0 ? ( <div className="border rounded-lg p-12 text-center"> <ADMIN_NAV_ICONS.menus className="mx-auto h-12 w-12 text-kumo-subtle mb-4" /> <h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3> <p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p> <Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}> {t`Create Menu`} </Button> </div> ) : ( <div className="grid gap-4"> {menus.map((menu) => ( <div key={menu.id} className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors" > <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className="flex-1" > <div> <h3 className="font-semibold text-lg"> {menu.label} {i18n ? ( <span className="ms-2 text-xs font-mono uppercase text-kumo-subtle"> {menu.locale} </span> ) : null} </h3> <p className="text-sm text-kumo-subtle"> <Trans> {menu.name} •{" "} {plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })} </Trans> </p> </div> </Link> <div className="flex gap-2"> <RouterLinkButton to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} variant="outline" size="sm" icon={<Pencil />} > {t`Edit`} </RouterLinkButton> <Button variant="outline" size="sm" onClick={() => setDeleteMenuName(menu.name)} aria-label={t`Delete ${menu.name} menu`} > <Trash className="h-4 w-4" /> </Button> </div> </div> ))} </div> )} <ConfirmDialog open={deleteMenuName !== null} onClose={() => { setDeleteMenuName(null); deleteMutation.reset(); }} title={t`Delete Menu`} description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`} confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={deleteMutation.isPending} error={deleteMutation.error} onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)} /> </div> ); } 
@@ -224,7 +224,7 @@ msgstr "{0}バナー"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:228
 msgid "{0} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to."
-msgstr "{0}はここに移動できません — 親項目にこの言語の翻訳がないため、この一覧は所属先のグループではありません。"
+msgstr "{0}はここに移動できません。親項目にこの言語の翻訳がないため、この一覧は所属先のグループではありません。"
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
 #: packages/admin/src/components/WordPressImport.tsx:1303
@@ -330,7 +330,7 @@ msgstr "{0}/160文字"
 #. placeholder {0}: allowedHosts.join(", ")
 #: packages/admin/src/lib/api/marketplace.ts:313
 msgid "{base} to: {0}"
-msgstr "{base}（接続先: {0}）"
+msgstr "{base}（接続先：{0}）"
 
 #: packages/admin/src/components/RevisionHistory.tsx:355
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
@@ -370,19 +370,19 @@ msgstr "{failedCount, plural, one {#件のアップロードに失敗} other {#�
 #. placeholder {1}: hasMore ? "+" : ""
 #: packages/admin/src/components/ContentList.tsx:1088
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
-msgstr "{filteredCount, plural, one {#{0}件のアイテム} other {#{1}件のアイテム}}"
+msgstr "{filteredCount, plural, one {#{0}件} other {#{1}件}}"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:107
 msgid "{label} — no translation"
-msgstr "{label} — 翻訳なし"
+msgstr "{label}（翻訳なし）"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:107
 msgid "{label} — view translation"
-msgstr "{label} — 翻訳を表示"
+msgstr "{label}（翻訳を表示）"
 
 #: packages/admin/src/components/ContentList.tsx:1077
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
-msgstr "{matchCount, plural, one {「{searchQuery}」に一致する#件のアイテム} other {「{searchQuery}」に一致する#件のアイテム}}"
+msgstr "{matchCount, plural, one {「{searchQuery}」に一致：#件} other {「{searchQuery}」に一致：#件}}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2473
 msgid "{matchedCount} of {totalCount} assigned"
@@ -394,19 +394,19 @@ msgstr "{totalCount}人中{matchedCount}人の著者をメールで一致"
 
 #: packages/admin/src/components/WordPressImport.tsx:1879
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
-msgstr "{needsNewCollections, plural, one {#個の新しいコレクションが作成されます} other {#個の新しいコレクションが作成されます}}"
+msgstr "{needsNewCollections, plural, one {#件のコンテンツタイプが作成されます} other {#件のコンテンツタイプが作成されます}}"
 
 #: packages/admin/src/components/WordPressImport.tsx:1888
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
-msgstr "{needsNewFields, plural, one {#個の既存コレクションにフィールドを追加} other {#個の既存コレクションにフィールドを追加}}"
+msgstr "{needsNewFields, plural, one {#件の既存コンテンツタイプにフィールドを追加} other {#件の既存コンテンツタイプにフィールドを追加}}"
 
 #: packages/admin/src/components/Dashboard.tsx:102
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
-msgstr "{overdueCount, plural, one {公開予定のアイテムが1件期限を過ぎており、スケジューラーのハートビートも古くなっています。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。} other {公開予定のアイテムが#件期限を過ぎており、スケジューラーのハートビートも古くなっています。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。}}"
+msgstr "{overdueCount, plural, one {1件のコンテンツが公開予定時刻を過ぎており、公開スケジュール処理の最終実行から時間がたっています。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。} other {#件のコンテンツが公開予定時刻を過ぎており、公開スケジュール処理の最終実行から時間がたっています。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。}}"
 
 #: packages/admin/src/components/Dashboard.tsx:97
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
-msgstr "{overdueCount, plural, one {公開予定のアイテムが1件期限を過ぎていますが、スケジューラーはまだ一度も完了していません。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。} other {公開予定のアイテムが#件期限を過ぎていますが、スケジューラーはまだ一度も完了していません。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。}}"
+msgstr "{overdueCount, plural, one {1件のコンテンツが公開予定時刻を過ぎていますが、公開スケジュール処理はまだ一度も完了していません。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。} other {#件のコンテンツが公開予定時刻を過ぎていますが、公開スケジュール処理はまだ一度も完了していません。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。}}"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:458
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
@@ -414,11 +414,11 @@ msgstr "{overflowCount, plural, one {アップロード一覧が上限に達し�
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:83
 msgid "{pluginName} is requesting additional permissions:"
-msgstr "{pluginName}が追加の権限を要求しています:"
+msgstr "{pluginName}が追加の権限を要求しています："
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:84
 msgid "{pluginName} requires the following permissions:"
-msgstr "{pluginName}に以下の権限が必要です:"
+msgstr "{pluginName}に以下の権限が必要です："
 
 #: packages/admin/src/components/PluginSettings.tsx:128
 #: packages/admin/src/components/PluginSettings.tsx:142
@@ -428,11 +428,11 @@ msgstr "{pluginName}の設定"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2513
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
-msgstr "{readingTime, plural, one {読了時間#分} other {読了時間#分}}"
+msgstr "{readingTime, plural, one {約#分で読めます} other {約#分で読めます}}"
 
 #: packages/admin/src/components/MediaLibrary.tsx:263
 msgid "{resultCount, plural, one {# item} other {# items}}"
-msgstr "{resultCount, plural, one {#件のアイテム} other {#件のアイテム}}"
+msgstr "{resultCount, plural, one {#件} other {#件}}"
 
 #: packages/admin/src/components/ContentList.tsx:474
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
@@ -440,11 +440,11 @@ msgstr "{selectedCount, plural, one {#件を選択中} other {#件を選択中}}
 
 #: packages/admin/src/components/ContentList.tsx:516
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
-msgstr "{selectedCount, plural, one {#件のアイテムをゴミ箱に移動しますか？後で復元できます。} other {#件のアイテムをゴミ箱に移動しますか？後で復元できます。}}"
+msgstr "{selectedCount, plural, one {#件のコンテンツをゴミ箱に移動しますか？後で復元できます。} other {#件のコンテンツをゴミ箱に移動しますか？後で復元できます。}}"
 
 #: packages/admin/src/components/ContentList.tsx:1083
 msgid "{total, plural, one {# item} other {# items}}"
-msgstr "{total, plural, one {#件のアイテム} other {#件のアイテム}}"
+msgstr "{total, plural, one {#件} other {#件}}"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:150
 msgid "{total, plural, one {# total} other {# total}}"
@@ -511,7 +511,7 @@ msgstr "1. WordPress管理画面にログイン"
 
 #: packages/admin/src/components/WordPressImport.tsx:1277
 msgid "2. Go to"
-msgstr "2. 移動:"
+msgstr "2. 次の画面を開く："
 
 #: packages/admin/src/components/WordPressImport.tsx:1523
 msgid "2. Go to Users → Profile"
@@ -559,7 +559,7 @@ msgstr "404エラー"
 
 #: packages/admin/src/components/Redirects.tsx:160
 msgid "410 Content Deleted (Gone)"
-msgstr "410 コンテンツ削除済み（Gone）"
+msgstr "410 完全削除済み"
 
 #: packages/admin/src/components/Redirects.tsx:161
 msgid "451 Unavailable for legal reasons"
@@ -731,7 +731,7 @@ msgstr "最初のフィールドを追加"
 
 #: packages/admin/src/components/RepeaterField.tsx:174
 msgid "Add First Item"
-msgstr "最初のアイテムを追加"
+msgstr "最初の項目を追加"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:200
 msgid "Add Images"
@@ -743,11 +743,11 @@ msgstr "ギャラリーに画像を追加"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2124
 msgid "Add item"
-msgstr "アイテムを追加"
+msgstr "項目を追加"
 
 #: packages/admin/src/components/RepeaterField.tsx:158
 msgid "Add Item"
-msgstr "アイテムを追加"
+msgstr "項目を追加"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3668
 msgid "Add link"
@@ -839,7 +839,7 @@ msgstr "管理者"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:191
 msgid "After send:"
-msgstr "送信後:"
+msgstr "送信後："
 
 #: packages/admin/src/components/PluginManager.tsx:543
 msgid "Agent access"
@@ -891,7 +891,7 @@ msgstr "すべての権限"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:134
 msgid "All collections"
-msgstr "すべてのコレクション"
+msgstr "すべてのコンテンツタイプ"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:63
 msgid "All comments require approval"
@@ -908,7 +908,7 @@ msgstr "すべての言語"
 #: packages/admin/src/components/users/UserList.tsx:42
 #: packages/admin/src/components/users/UserList.tsx:46
 msgid "All roles"
-msgstr "すべてのロール"
+msgstr "すべての権限"
 
 #: packages/admin/src/components/Sections.tsx:240
 msgid "All Sources"
@@ -939,7 +939,7 @@ msgstr "特定のドメインからのユーザー登録を許可"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:510
 msgid "Allow visitors to leave comments on this collection's content"
-msgstr "訪問者がこのコレクションのコンテンツにコメントできるようにします"
+msgstr "訪問者がこのコンテンツタイプのコンテンツにコメントできるようにします"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:195
 msgid "Allowed Domains"
@@ -1056,7 +1056,7 @@ msgstr "WordPressサイトを解析中..."
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:105
 msgid "Any media type allowed (subject to global limits)."
-msgstr "すべてのメディアタイプを許可します（全体の制限は適用されます）。"
+msgstr "この項目ではファイル形式を制限しません。ただし、ファイル形式やサイズに関するサイト全体の設定は適用されます。"
 
 #: packages/admin/src/components/Settings.tsx:82
 #: packages/admin/src/components/Settings.tsx:86
@@ -1123,7 +1123,7 @@ msgstr "「{0}」を削除しますか？このフィールドを参照する保
 #. placeholder {0}: deleteTarget.label
 #: packages/admin/src/components/ContentTypeList.tsx:233
 msgid "Are you sure you want to delete \"{0}\"? This will also delete all content in this collection."
-msgstr "\"{0}\"を削除しますか？このコレクション内のすべてのコンテンツも削除されます。"
+msgstr "「{0}」を削除しますか？このコンテンツタイプ内のすべてのコンテンツも削除されます。"
 
 #. placeholder {0}: deleteFieldTarget.label
 #: packages/admin/src/components/ContentTypeEditor.tsx:684
@@ -1320,7 +1320,7 @@ msgstr "バックアップ中..."
 #. placeholder {0}: archive.name
 #: packages/admin/src/components/settings/BackupSettings.tsx:115
 msgid "Backup created: {0}"
-msgstr "バックアップを作成しました: {0}"
+msgstr "バックアップを作成しました：{0}"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:98
 msgid "Backup settings saved"
@@ -1341,7 +1341,7 @@ msgstr "Bash"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:186
 msgid "Before send:"
-msgstr "送信前:"
+msgstr "送信前："
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:233
 #: packages/admin/src/components/settings/SeoSettings.tsx:247
@@ -1394,7 +1394,7 @@ msgstr "アップロードするファイルを選択"
 
 #: packages/admin/src/components/PluginManager.tsx:204
 msgid "Browse the"
-msgstr "参照:"
+msgstr "参照："
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:79
 msgid "Browse themes and preview them with your own content."
@@ -1515,7 +1515,7 @@ msgstr "テーマセクションは削除できません"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:456
 msgid "Cannot determine MIME type from URL. Use a URL ending in a recognized image extension (e.g. .jpg, .png, .webp)."
-msgstr "URLからMIMEタイプを判別できません。認識可能な画像拡張子（例: .jpg、.png、.webp）で終わるURLを使用してください。"
+msgstr "URLからMIMEタイプを判別できません。認識可能な画像拡張子（例：.jpg、.png、.webp）で終わるURLを使用してください。"
 
 #: packages/admin/src/components/SeoPanel.tsx:224
 #: packages/admin/src/components/SeoPanel.tsx:228
@@ -1549,7 +1549,7 @@ msgstr "カテゴリ"
 #. placeholder {0}: analysis.categories
 #: packages/admin/src/components/WordPressImport.tsx:1785
 msgid "Categories ({0})"
-msgstr "カテゴリ ({0})"
+msgstr "カテゴリ（{0}）"
 
 #: packages/admin/src/components/WordPressImport.tsx:1146
 msgid "Categories & Tags"
@@ -1598,7 +1598,7 @@ msgstr "変更を破棄しました"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:167
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
-msgstr "ページタイトルとサイト名の間の文字（例: \"記事タイトル | サイト名\"）"
+msgstr "ページタイトルとサイト名の間の文字（例：「記事タイトル | サイト名」）"
 
 #: packages/admin/src/components/PluginManager.tsx:171
 msgid "Check for updates"
@@ -1774,19 +1774,19 @@ msgstr "colleague@example.com"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:156
 msgid "Collection"
-msgstr "コレクション"
+msgstr "コンテンツタイプ"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:106
 msgid "Collection:"
-msgstr "コレクション:"
+msgstr "コンテンツタイプ："
 
 #: packages/admin/src/components/TaxonomyManager.tsx:840
 msgid "Collections"
-msgstr "コレクション"
+msgstr "コンテンツタイプ"
 
 #: packages/admin/src/components/WordPressImport.tsx:2327
 msgid "Collections created:"
-msgstr "作成されたコレクション:"
+msgstr "作成したコンテンツタイプ："
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:185
 msgid "Columns"
@@ -1884,7 +1884,7 @@ msgstr "コンテンツエラー ({0})"
 
 #: packages/admin/src/components/WordPressImport.tsx:1317
 msgid "Content found:"
-msgstr "検出されたコンテンツ:"
+msgstr "検出されたコンテンツ："
 
 #: packages/admin/src/router.tsx:1129
 msgid "Content has been scheduled for publishing"
@@ -1928,7 +1928,7 @@ msgstr "コンテンツを下書きに戻しました"
 
 #: packages/admin/src/components/RevisionHistory.tsx:314
 msgid "Content snapshot:"
-msgstr "コンテンツスナップショット:"
+msgstr "コンテンツスナップショット："
 
 #: packages/admin/src/components/WordPressImport.tsx:1731
 msgid "Content to Import"
@@ -2117,7 +2117,7 @@ msgstr "新しいトークンを作成"
 
 #: packages/admin/src/components/WordPressImport.tsx:1501
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
-msgstr "WordPressで作成: ユーザー → プロフィール → アプリケーションパスワード"
+msgstr "WordPressで作成：ユーザー → プロフィール → アプリケーションパスワード"
 
 #: packages/admin/src/components/SetupWizard.tsx:298
 msgid "Create Passkey"
@@ -2224,7 +2224,7 @@ msgstr "「{0}」を作成しました。"
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #: packages/admin/src/components/users/UserDetail.tsx:260
 msgid "Created {0}"
-msgstr "作成日: {0}"
+msgstr "作成日：{0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
 #: packages/admin/src/router.tsx:1181
@@ -2237,7 +2237,7 @@ msgstr "作成日時"
 
 #: packages/admin/src/components/WordPressImport.tsx:887
 msgid "Creating collections and fields..."
-msgstr "コレクションとフィールドを作成中..."
+msgstr "コンテンツタイプとフィールドを作成中..."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1141
 #: packages/admin/src/components/MenuList.tsx:178
@@ -2263,7 +2263,7 @@ msgstr "現在"
 
 #: packages/admin/src/components/PluginSettings.tsx:340
 msgid "Currently set — enter a new value to replace"
-msgstr "現在設定済み — 置き換える新しい値を入力してください"
+msgstr "設定済みです。変更するには新しい値を入力してください"
 
 #: packages/admin/src/components/Sections.tsx:46
 msgid "Custom"
@@ -2338,11 +2338,11 @@ msgstr "宣言された権限"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:290
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:345
 msgid "Default Role"
-msgstr "デフォルトロール"
+msgstr "初期権限"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:241
 msgid "Default role:"
-msgstr "デフォルトロール:"
+msgstr "初期権限："
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:181
 msgid "Default social image"
@@ -2358,7 +2358,7 @@ msgstr "コンテンツを整理するための分類を作成"
 
 #: packages/admin/src/routes/byline-schema.tsx:220
 msgid "Define custom fields stored on every byline — job title, pronouns, social handles, and more."
-msgstr "執筆者ごとに保存する追加項目を設定します — 役職、代名詞、SNSアカウントなど。"
+msgstr "執筆者ごとに保存する追加項目を設定します。役職、代名詞、SNSアカウントなどを追加できます。"
 
 #: packages/admin/src/components/ContentTypeList.tsx:118
 msgid "Define the structure of your content"
@@ -2394,7 +2394,7 @@ msgstr "削除"
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:452
 msgid "Delete \"{0}\"? This cannot be undone."
-msgstr "\"{0}\"を削除しますか？この操作は取り消せません。"
+msgstr "「{0}」を削除しますか？この操作は取り消せません。"
 
 #. placeholder {0}: archive.name
 #. placeholder {0}: collection.label
@@ -2646,7 +2646,7 @@ msgstr "Diff"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:280
 msgid "Dimensions:"
-msgstr "サイズ:"
+msgstr "サイズ："
 
 #: packages/admin/src/components/users/UserDetail.tsx:319
 msgid "Disable"
@@ -2681,7 +2681,7 @@ msgstr "無効"
 
 #: packages/admin/src/components/PluginManager.tsx:614
 msgid "Disabled:"
-msgstr "無効:"
+msgstr "無効："
 
 #. placeholder {0}: selectedUser?.name || selectedUser?.email
 #: packages/admin/src/routes/users.tsx:274
@@ -2764,7 +2764,7 @@ msgstr "画像の下にキャプションとして表示されます。"
 
 #: packages/admin/src/components/ContentEditor.tsx:726
 msgid "Distraction-free mode (⌘⇧\\)"
-msgstr "集中モード (⌘⇧\\)"
+msgstr "集中モード（⌘⇧\\）"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1488
 msgid "Divider"
@@ -2816,7 +2816,7 @@ msgstr "{0}をダウンロード"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:191
 msgid "Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included."
-msgstr "サイト全体のバックアップをダウンロードします。すべてのコンテンツ（下書きとゴミ箱を含む）、コレクション、分類、メニュー、ウィジェット、メディアメタデータ、サイト設定が含まれます。ユーザーアカウントとシークレットは含まれません。"
+msgstr "サイト全体のバックアップをダウンロードします。すべてのコンテンツ（下書きとゴミ箱を含む）、コンテンツタイプ、分類、メニュー、ウィジェット、メディアメタデータ、サイト設定が含まれます。ユーザーアカウントとシークレットは含まれません。"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:195
 msgid "Download backup"
@@ -2919,19 +2919,19 @@ msgstr "{title}を複製"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:161
 msgid "e.g. application/zip or .pdf"
-msgstr "例: application/zip または .pdf"
+msgstr "例：application/zip または .pdf"
 
 #: packages/admin/src/components/Redirects.tsx:168
 msgid "e.g. import, blog"
-msgstr "例: import、blog"
+msgstr "例：import、blog"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:484
 msgid "e.g., CI/CD Pipeline"
-msgstr "例: CI/CDパイプライン"
+msgstr "例：CI/CDパイプライン"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:333
 msgid "e.g., MacBook Pro, iPhone"
-msgstr "例: MacBook Pro、iPhone"
+msgstr "例：MacBook Pro、iPhone"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1044
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
@@ -3102,7 +3102,7 @@ msgstr "EmDash Exporterプラグインを検出しました！直接インポー
 
 #: packages/admin/src/components/editor/GalleryNode.tsx:160
 msgid "Empty gallery — open settings to add images"
-msgstr "空のギャラリー — 設定を開いて画像を追加してください"
+msgstr "ギャラリーは空です。設定を開いて画像を追加してください"
 
 #: packages/admin/src/components/users/UserDetail.tsx:319
 msgid "Enable"
@@ -3114,7 +3114,7 @@ msgstr "コメントを有効化"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:87
 msgid "Enable full-text search on this collection"
-msgstr "このコレクションで全文検索を有効にする"
+msgstr "このコンテンツタイプで全文検索を有効にする"
 
 #: packages/admin/src/components/PluginManager.tsx:494
 msgid "Enable plugin"
@@ -3140,7 +3140,7 @@ msgstr "URL（https://…）または相対パス（/…）を入力"
 
 #: packages/admin/src/components/ContentEditor.tsx:1493
 msgid "Enter a valid URL (e.g. https://example.com)"
-msgstr "有効なURL（例: https://example.com）を入力"
+msgstr "有効なURL（例：https://example.com）を入力"
 
 #: packages/admin/src/components/WordPressImport.tsx:1380
 msgid "Enter credentials manually"
@@ -3220,7 +3220,7 @@ msgstr "このプラグインのリリースはすべて撤回されたか、確
 #. placeholder {0}: formData.dateFormat ?? "MMMM d, yyyy"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:327
 msgid "Example: {0} → January 23, 2026"
-msgstr "例: {0} → 2026年1月23日"
+msgstr "例：{0} → 2026年1月23日"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:285
 msgid "example.com"
@@ -3322,7 +3322,7 @@ msgstr "セクションの作成に失敗しました"
 
 #: packages/admin/src/components/WordPressImport.tsx:1714
 msgid "Failed to create some collections"
-msgstr "一部のコレクションの作成に失敗しました"
+msgstr "一部のコンテンツタイプの作成に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:638
 msgid "Failed to create term"
@@ -3358,7 +3358,7 @@ msgstr "執筆者情報の項目の削除に失敗しました"
 
 #: packages/admin/src/lib/api/schema.ts:244
 msgid "Failed to delete collection"
-msgstr "コレクションの削除に失敗しました"
+msgstr "コンテンツタイプの削除に失敗しました"
 
 #: packages/admin/src/lib/api/comments.ts:111
 #: packages/admin/src/router.tsx:1517
@@ -3467,7 +3467,7 @@ msgstr "バックアップ設定の取得に失敗しました"
 #: packages/admin/src/lib/api/schema.ts:192
 #: packages/admin/src/lib/api/schema.ts:196
 msgid "Failed to fetch collection"
-msgstr "コレクションの取得に失敗しました"
+msgstr "コンテンツタイプの取得に失敗しました"
 
 #: packages/admin/src/lib/api/dashboard.ts:47
 msgid "Failed to fetch dashboard stats"
@@ -3601,7 +3601,7 @@ msgstr "バックアップ設定の読み込みに失敗しました"
 #. placeholder {0}: error.message
 #: packages/admin/src/routes/bylines.tsx:365
 msgid "Failed to load bylines: {0}"
-msgstr "執筆者の読み込みに失敗しました: {0}"
+msgstr "執筆者の読み込みに失敗しました：{0}"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:80
 #: packages/admin/src/components/settings/EmailSettings.tsx:81
@@ -3627,7 +3627,7 @@ msgstr "プラグイン設定の読み込みに失敗しました"
 #. placeholder {0}: error.message
 #: packages/admin/src/components/PluginManager.tsx:149
 msgid "Failed to load plugins: {0}"
-msgstr "プラグインの読み込みに失敗しました: {0}"
+msgstr "プラグインの読み込みに失敗しました：{0}"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:98
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
@@ -3648,7 +3648,7 @@ msgstr "テーマの読み込みに失敗しました"
 #. placeholder {0}: usersQuery.error.message
 #: packages/admin/src/routes/users.tsx:205
 msgid "Failed to load users: {0}"
-msgstr "ユーザーの読み込みに失敗しました: {0}"
+msgstr "ユーザーの読み込みに失敗しました：{0}"
 
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:46
 msgid "Failed to load widget"
@@ -3920,7 +3920,7 @@ msgstr "フィールド"
 
 #: packages/admin/src/components/WordPressImport.tsx:2333
 msgid "Fields created:"
-msgstr "作成されたフィールド:"
+msgstr "作成されたフィールド："
 
 #: packages/admin/src/components/FieldEditor.tsx:239
 msgid "File"
@@ -3967,11 +3967,11 @@ msgstr "権限でフィルタ"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:178
 msgid "Filter by collection"
-msgstr "コレクションでフィルタ"
+msgstr "コンテンツタイプで絞り込む"
 
 #: packages/admin/src/components/users/UserList.tsx:82
 msgid "Filter by role"
-msgstr "ロールで絞り込む"
+msgstr "権限で絞り込む"
 
 #: packages/admin/src/components/Sections.tsx:245
 msgid "Filter by source"
@@ -4005,7 +4005,7 @@ msgstr "下書きやすべてのコンテンツを含む完全なインポート
 
 #: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "For the best import experience, install the"
-msgstr "最適なインポートのために、以下をインストールしてください:"
+msgstr "最適なインポートのために、以下をインストールしてください："
 
 #: packages/admin/src/components/ContentList.tsx:928
 msgid "From date"
@@ -4266,7 +4266,7 @@ msgstr "画像URL"
 
 #: packages/admin/src/components/WordPressImport.tsx:2370
 msgid "image URLs updated in"
-msgstr "画像URLを更新:"
+msgstr "画像URLを更新："
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:61
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:192
@@ -4339,7 +4339,7 @@ msgstr "インポート済み"
 
 #: packages/admin/src/components/WordPressImport.tsx:2344
 msgid "Imported by Collection"
-msgstr "コレクション別インポート"
+msgstr "コンテンツタイプ別のインポート件数"
 
 #. placeholder {0}: wpImportProgress.comments
 #: packages/admin/src/components/WordPressImport.tsx:903
@@ -4500,11 +4500,11 @@ msgstr "インストール済み"
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
 #: packages/admin/src/components/PluginManager.tsx:583
 msgid "Installed from marketplace (v{0})"
-msgstr "マーケットプレイスからインストール (v{0})"
+msgstr "マーケットプレイスからインストール（v{0}）"
 
 #: packages/admin/src/components/PluginManager.tsx:602
 msgid "Installed:"
-msgstr "インストール済み:"
+msgstr "インストール済み："
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:198
 msgid "Installing..."
@@ -4565,19 +4565,19 @@ msgstr "斜体"
 #: packages/admin/src/components/PortableTextEditor.tsx:2286
 #: packages/admin/src/components/RepeaterField.tsx:239
 msgid "Item {0}"
-msgstr "アイテム {0}"
+msgstr "項目{0}"
 
 #: packages/admin/src/components/MenuEditor.tsx:175
 msgid "Item added"
-msgstr "アイテムを追加しました"
+msgstr "メニュー項目を追加しました"
 
 #: packages/admin/src/components/MenuEditor.tsx:187
 msgid "Item deleted"
-msgstr "アイテムを削除しました"
+msgstr "メニュー項目を削除しました"
 
 #: packages/admin/src/components/MenuEditor.tsx:212
 msgid "Item updated"
-msgstr "アイテムを更新しました"
+msgstr "メニュー項目を更新しました"
 
 #: packages/admin/src/components/SetupWizard.tsx:213
 #: packages/admin/src/components/SignupPage.tsx:206
@@ -4661,7 +4661,7 @@ msgstr "大見出し"
 
 #: packages/admin/src/components/PluginManager.tsx:608
 msgid "Last enabled:"
-msgstr "最終有効化:"
+msgstr "最終有効化："
 
 #: packages/admin/src/components/users/UserDetail.tsx:227
 msgid "Last login"
@@ -4687,7 +4687,7 @@ msgstr "最終使用"
 #. placeholder {0}: new Date(cred.lastUsedAt).toLocaleDateString()
 #: packages/admin/src/components/users/UserDetail.tsx:262
 msgid "Last used {0}"
-msgstr "最終使用日: {0}"
+msgstr "最終使用日：{0}"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:337
 msgid "Learn more"
@@ -4736,12 +4736,12 @@ msgstr "リンクの有効期限が切れました"
 
 #: packages/admin/src/components/FieldEditor.tsx:246
 msgid "Link to another content item"
-msgstr "他のコンテンツアイテムへのリンク"
+msgstr "別のコンテンツへのリンク"
 
 #. placeholder {0}: user.oauthAccounts.length
 #: packages/admin/src/components/users/UserDetail.tsx:276
 msgid "Linked Accounts ({0})"
-msgstr "リンクされたアカウント ({0})"
+msgstr "連携済みアカウント（{0}）"
 
 #: packages/admin/src/routes/bylines.tsx:414
 msgid "Linked only"
@@ -4796,7 +4796,7 @@ msgstr "執筆者情報の項目を読み込み中…"
 
 #: packages/admin/src/components/ContentTypeList.tsx:198
 msgid "Loading collections..."
-msgstr "コレクションを読み込み中..."
+msgstr "コンテンツタイプを読み込み中..."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:308
 msgid "Loading comments..."
@@ -5003,11 +5003,11 @@ msgstr "WordPressユーザー{0}をEmDashユーザーに割り当て"
 #. placeholder {0}: item.path
 #: packages/admin/src/components/Redirects.tsx:256
 msgid "Mark {0} as Gone (410)"
-msgstr "{0}をGone（410）に設定"
+msgstr "{0}を完全削除として扱う（410）"
 
 #: packages/admin/src/components/Redirects.tsx:255
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
-msgstr "Gone（410）に設定 — 完全に削除されたことを検索エンジンに通知します"
+msgstr "完全削除として扱う（410）：削除済みであることを検索エンジンに通知します"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:502
 msgid "Mark as spam"
@@ -5030,7 +5030,7 @@ msgstr "マーケットプレイス"
 
 #: packages/admin/src/components/FieldEditor.tsx:656
 msgid "Max Items"
-msgstr "最大アイテム数"
+msgstr "最大項目数"
 
 #: packages/admin/src/components/FieldEditor.tsx:499
 msgid "Max Length"
@@ -5109,7 +5109,7 @@ msgstr "メニュー「{0}」（{1}）を作成しました。"
 #. placeholder {0}: menu.label
 #: packages/admin/src/components/MenuList.tsx:56
 msgid "Menu \"{0}\" has been created."
-msgstr "メニュー\"{0}\"を作成しました。"
+msgstr "メニュー「{0}」を作成しました。"
 
 #: packages/admin/src/components/MenuList.tsx:55
 msgid "Menu created"
@@ -5178,7 +5178,7 @@ msgstr "移行キー"
 
 #: packages/admin/src/components/FieldEditor.tsx:649
 msgid "Min Items"
-msgstr "最小アイテム数"
+msgstr "最小項目数"
 
 #: packages/admin/src/components/FieldEditor.tsx:492
 msgid "Min Length"
@@ -5194,15 +5194,15 @@ msgstr "小見出し"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:519
 msgid "Moderation"
-msgstr "モデレーション"
+msgstr "コメントの承認"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:129
 msgid "Moderation Signals"
-msgstr "モデレーションシグナル"
+msgstr "承認判定情報"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:73
 msgid "Modify collection schemas"
-msgstr "コレクションスキーマを変更"
+msgstr "コンテンツタイプの構造を変更"
 
 #: packages/admin/src/components/Widgets.tsx:163
 msgid "Monthly"
@@ -5232,7 +5232,7 @@ msgstr "「{0}」を上へ移動"
 
 #: packages/admin/src/components/ContentList.tsx:1245
 msgid "Move \"{title}\" to trash? You can restore it later."
-msgstr "\"{title}\"をゴミ箱に移動しますか？後で復元できます。"
+msgstr "「{title}」をゴミ箱に移動しますか？後で復元できます。"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:251
@@ -5242,7 +5242,7 @@ msgstr "{0}を下へ移動"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:250
 msgid "Move {0} down — unavailable, its parent has no translation in this locale"
-msgstr "{0}を下へ移動 — 親項目にこの言語の翻訳がないため利用できません"
+msgstr "{0}は下へ移動できません。親項目にこの言語の翻訳がありません"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:238
@@ -5252,7 +5252,7 @@ msgstr "{0}を上へ移動"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:237
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
-msgstr "{0}を上へ移動 — 親項目にこの言語の翻訳がないため利用できません"
+msgstr "{0}は上へ移動できません。親項目にこの言語の翻訳がありません"
 
 #: packages/admin/src/components/ContentList.tsx:1236
 msgid "Move {title} to trash"
@@ -5285,11 +5285,11 @@ msgstr "上に移動"
 
 #: packages/admin/src/router.tsx:535
 msgid "Moved {total} items to draft"
-msgstr "{total}件のアイテムを下書きに移動しました"
+msgstr "{total}件を下書きに移動しました"
 
 #: packages/admin/src/router.tsx:556
 msgid "Moved {total} items to trash"
-msgstr "{total}件のアイテムをゴミ箱に移動しました"
+msgstr "{total}件をゴミ箱に移動しました"
 
 #: packages/admin/src/components/FieldEditor.tsx:221
 msgid "Multi Select"
@@ -5363,7 +5363,7 @@ msgstr "新しい執筆者情報の項目"
 
 #: packages/admin/src/components/WordPressImport.tsx:1982
 msgid "New collection"
-msgstr "新しいコレクション"
+msgstr "新しいコンテンツタイプ"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:356
 #: packages/admin/src/components/ContentTypeList.tsx:122
@@ -5493,11 +5493,11 @@ msgstr "執筆者が選択されていません。"
 
 #: packages/admin/src/components/Dashboard.tsx:275
 msgid "No collections configured"
-msgstr "コレクションが設定されていません"
+msgstr "コンテンツタイプが設定されていません"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:547
 msgid "No comments awaiting moderation."
-msgstr "モデレーション待ちのコメントはありません。"
+msgstr "承認待ちのコメントはありません。"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:543
 msgid "No comments match your search."
@@ -5513,7 +5513,7 @@ msgstr "コンテンツが見つかりません"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:177
 msgid "No content in this collection"
-msgstr "このコレクションにはコンテンツがありません"
+msgstr "このコンテンツタイプにはコンテンツがありません"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:511
 msgid "No content locale is configured, so EmDash stores new content as English (en). Changing the admin language does not change this value."
@@ -5579,7 +5579,7 @@ msgstr "招待トークンが指定されていません"
 #: packages/admin/src/components/RepeaterField.tsx:165
 #: packages/admin/src/components/settings/BackupSettings.tsx:283
 msgid "No items yet"
-msgstr "アイテムはまだありません"
+msgstr "項目はまだありません"
 
 #: packages/admin/src/components/FieldEditor.tsx:660
 msgid "No limit"
@@ -5639,7 +5639,7 @@ msgstr "下限なし"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:65
 msgid "No moderation (auto-approve all)"
-msgstr "モデレーションなし（すべて自動承認）"
+msgstr "承認不要（すべて自動承認）"
 
 #: packages/admin/src/components/MenuEditor.tsx:329
 msgid "No parent (top level)"
@@ -5679,7 +5679,7 @@ msgstr "利用可能な公開URLがありません"
 
 #: packages/admin/src/components/Dashboard.tsx:354
 msgid "No recent activity"
-msgstr "最近のアクティビティはありません"
+msgstr "最近の更新はありません"
 
 #: packages/admin/src/components/Redirects.tsx:468
 msgid "No redirects yet"
@@ -5698,7 +5698,7 @@ msgstr "「{activeSearch}」の結果はありません"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:178
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:152
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
-msgstr "\"{debouncedQuery}\"の結果はありません。別の検索キーワードをお試しください。"
+msgstr "「{debouncedQuery}」の結果はありません。別の検索キーワードをお試しください。"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:465
 #: packages/admin/src/components/Settings.tsx:141
@@ -5897,7 +5897,7 @@ msgstr "順序を保存しました"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:257
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:446
 msgid "Original:"
-msgstr "元の値:"
+msgstr "元の値："
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:768
 #: packages/admin/src/components/editor/DocumentOutline.tsx:191
@@ -6021,7 +6021,7 @@ msgstr "パターン（正規表現）"
 #. placeholder {0}: "{slug}"
 #: packages/admin/src/components/ContentTypeEditor.tsx:450
 msgid "Pattern for generating URLs, e.g. /blog/{0}"
-msgstr "URL生成パターン（例: /blog/{0}）"
+msgstr "URL生成パターン（例：/blog/{0}）"
 
 #. placeholder {0}: "{slug}"
 #: packages/admin/src/components/ContentTypeEditor.tsx:446
@@ -6046,7 +6046,7 @@ msgstr "未保存の変更"
 
 #: packages/admin/src/components/ContentList.tsx:1413
 msgid "Permanently delete \"{title}\"? This cannot be undone."
-msgstr "\"{title}\"を完全に削除しますか？この操作は取り消せません。"
+msgstr "「{title}」を完全に削除しますか？この操作は取り消せません。"
 
 #: packages/admin/src/components/ContentList.tsx:1402
 msgid "Permanently delete {title}"
@@ -6170,13 +6170,13 @@ msgstr "プラグインレジストリ"
 #. placeholder {0}: response.status
 #: packages/admin/src/components/SandboxedPluginPage.tsx:40
 msgid "Plugin responded with {0}: {text}"
-msgstr "プラグインから{0}が返されました: {text}"
+msgstr "プラグインから{0}が返されました：{text}"
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:512
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:515
 msgid "Plugin tools: {0}"
-msgstr "プラグインツール: {0}"
+msgstr "プラグインツール：{0}"
 
 #: packages/admin/src/components/PluginManager.tsx:323
 msgid "Plugin uninstalled"
@@ -6282,7 +6282,7 @@ msgstr "非公開"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:167
 msgid "Provider:"
-msgstr "メール送信サービス:"
+msgstr "メール送信サービス："
 
 #: packages/admin/src/components/ContentList.tsx:485
 #: packages/admin/src/components/ContentSettingsPanel.tsx:198
@@ -6307,11 +6307,11 @@ msgstr "公開済み"
 #. placeholder {0}: new Date(latest.publishedAt).toLocaleDateString()
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:337
 msgid "Published {0}"
-msgstr "公開日: {0}"
+msgstr "公開日：{0}"
 
 #: packages/admin/src/router.tsx:512
 msgid "Published {total} items"
-msgstr "{total}件のアイテムを公開しました"
+msgstr "{total}件を公開しました"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 msgid "Published At"
@@ -6350,11 +6350,11 @@ msgstr "生のメタデータ"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
-msgstr "コレクションスキーマを読み取り"
+msgstr "コンテンツタイプの構造を読み取り"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:48
 msgid "Read content entries"
-msgstr "コンテンツエントリを読み取り"
+msgstr "コンテンツを読み取り"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:58
 msgid "Read media files"
@@ -6388,7 +6388,7 @@ msgstr "準備完了"
 
 #: packages/admin/src/components/Dashboard.tsx:348
 msgid "Recent Activity"
-msgstr "最近のアクティビティ"
+msgstr "最近の更新"
 
 #: packages/admin/src/components/Widgets.tsx:126
 msgid "Recent Posts"
@@ -6535,7 +6535,7 @@ msgstr "画像を削除しますか？"
 #: packages/admin/src/components/PortableTextEditor.tsx:2325
 #: packages/admin/src/components/RepeaterField.tsx:275
 msgid "Remove item {0}"
-msgstr "アイテム{0}を削除"
+msgstr "項目{0}を削除"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3606
 #: packages/admin/src/components/PortableTextEditor.tsx:3607
@@ -6611,7 +6611,7 @@ msgstr "画像を置換"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:117
 msgid "Reply to:"
-msgstr "返信先:"
+msgstr "返信先："
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:220
 msgid "Repository"
@@ -6639,7 +6639,7 @@ msgstr "必須"
 
 #: packages/admin/src/components/WordPressImport.tsx:1999
 msgid "Required fields:"
-msgstr "必須フィールド:"
+msgstr "必須フィールド："
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:348
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:537
@@ -6780,7 +6780,7 @@ msgstr "右"
 #. placeholder {0}: latest.audit.riskScore
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:322
 msgid "Risk score: {0}/100"
-msgstr "リスクスコア: {0}/100"
+msgstr "リスクスコア：{0}/100"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:255
 #: packages/admin/src/components/settings/SeoSettings.tsx:258
@@ -6792,15 +6792,15 @@ msgstr "robots.txt"
 #: packages/admin/src/components/users/UserDetail.tsx:181
 #: packages/admin/src/components/users/UserList.tsx:101
 msgid "Role"
-msgstr "ロール"
+msgstr "権限"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:61
 msgid "Role {role}"
-msgstr "ロール: {role}"
+msgstr "権限：{role}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1058
 msgid "Role label"
-msgstr "ロールラベル"
+msgstr "役割名"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:428
 msgid "Routable"
@@ -6811,7 +6811,7 @@ msgstr "個別ページを作成"
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:149
 #: packages/admin/src/components/PluginManager.tsx:568
 msgid "Route: {0} · Permission: {1}"
-msgstr "ルート: {0} · 権限: {1}"
+msgstr "ルート：{0} · 権限：{1}"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:48
 msgid "Ruby"
@@ -6929,7 +6929,7 @@ msgstr "予約済み"
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
 #: packages/admin/src/components/ContentSettingsPanel.tsx:545
 msgid "Scheduled for: {0}"
-msgstr "公開予約: {0}"
+msgstr "公開予約：{0}"
 
 #: packages/admin/src/components/Dashboard.tsx:111
 msgid "Scheduled publishing needs attention"
@@ -7118,7 +7118,7 @@ msgstr "セクション"
 
 #: packages/admin/src/components/SectionEditor.tsx:83
 msgid "Section \"{slug}\" could not be found."
-msgstr "セクション\"{slug}\"が見つかりませんでした。"
+msgstr "セクション「{slug}」が見つかりませんでした。"
 
 #: packages/admin/src/components/Sections.tsx:93
 msgid "Section created"
@@ -7312,13 +7312,13 @@ msgstr "選択した画像"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:795
 msgid "Selected:"
-msgstr "選択中:"
+msgstr "選択中："
 
 #: packages/admin/src/components/Settings.tsx:76
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:149
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:171
 msgid "Self-Signup Domains"
-msgstr "セルフサインアップドメイン"
+msgstr "登録を許可するドメイン"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:98
 msgid "Send a test email through the full pipeline to verify your email configuration."
@@ -7393,7 +7393,7 @@ msgstr "言語を設定"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:147
 msgid "Set language (current: {label})"
-msgstr "言語を設定（現在: {label}）"
+msgstr "言語を設定（現在：{label}）"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:544
 msgid "Set to 0 to never close comments automatically."
@@ -7587,7 +7587,7 @@ msgstr "サイズ"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:274
 msgid "Size:"
-msgstr "サイズ:"
+msgstr "サイズ："
 
 #: packages/admin/src/components/WordPressImport.tsx:2104
 msgid "Skip Media Import"
@@ -7729,7 +7729,7 @@ msgstr "ステータスコード"
 
 #: packages/admin/src/components/Dashboard.tsx:401
 msgid "Status: {status}"
-msgstr "ステータス: {status}"
+msgstr "ステータス：{status}"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:205
 msgid "Store a daily backup in your site's storage bucket. Old backups are removed automatically."
@@ -7795,7 +7795,7 @@ msgstr "システム"
 
 #: packages/admin/src/components/ThemeToggle.tsx:24
 msgid "System ({resolvedLabel})"
-msgstr "システム ({resolvedLabel})"
+msgstr "システム（{resolvedLabel}）"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:614
 msgid "System Fields"
@@ -7822,7 +7822,7 @@ msgstr "タグ"
 #. placeholder {0}: analysis.tags
 #: packages/admin/src/components/WordPressImport.tsx:1797
 msgid "Tags ({0})"
-msgstr "タグ ({0})"
+msgstr "タグ（{0}）"
 
 #: packages/admin/src/components/MenuEditor.tsx:427
 #: packages/admin/src/components/MenuEditor.tsx:606
@@ -7848,15 +7848,15 @@ msgstr "分類を作成しました"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1014
 msgid "Taxonomy not found:"
-msgstr "分類が見つかりません:"
+msgstr "分類が見つかりません："
 
 #: packages/admin/src/components/TaxonomyManager.tsx:341
 msgid "Taxonomy: {taxonomyName}"
-msgstr "分類: {taxonomyName}"
+msgstr "分類：{taxonomyName}"
 
 #: packages/admin/src/components/SetupWizard.tsx:155
 msgid "Template:"
-msgstr "テンプレート:"
+msgstr "テンプレート："
 
 #: packages/admin/src/components/TaxonomyManager.tsx:539
 #: packages/admin/src/components/TaxonomyManager.tsx:540
@@ -7888,15 +7888,15 @@ msgstr "デバイスにはアクセスが許可されません。"
 
 #: packages/admin/src/components/WordPressImport.tsx:1862
 msgid "The existing collection has fields with incompatible types."
-msgstr "既存のコレクションに互換性のないタイプのフィールドがあります。"
+msgstr "既存のコンテンツタイプに互換性のない型のフィールドがあります。"
 
 #: packages/admin/src/components/ContentTypeList.tsx:136
 msgid "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
-msgstr "以下のテーブルにはコンテンツがありますが、コレクションとして登録されていません。管理画面でこのコンテンツを管理するには登録してください。"
+msgstr "以下のテーブルにはコンテンツがありますが、コンテンツタイプとして登録されていません。管理画面でこのコンテンツを管理するには登録してください。"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:179
 msgid "The invited user will have this role once they complete registration."
-msgstr "招待されたユーザーは登録完了後にこのロールが割り当てられます。"
+msgstr "招待されたユーザーには登録完了後にこの権限が設定されます。"
 
 #: packages/admin/src/components/LoginPage.tsx:114
 #: packages/admin/src/components/SignupPage.tsx:140
@@ -7962,7 +7962,7 @@ msgstr "テーマ提供のセクションは削除できません。セクショ
 
 #: packages/admin/src/components/ThemeToggle.tsx:33
 msgid "Theme: {label}"
-msgstr "テーマ: {label}"
+msgstr "テーマ：{label}"
 
 #: packages/admin/src/components/Sidebar.tsx:324
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
@@ -7975,7 +7975,7 @@ msgstr "これらのツールは、インストール後もエージェントア
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:371
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
-msgstr "このコレクションはコードで定義されています。一部の設定はここでは変更できません。スキーマを変更するには、live.config.tsファイルを編集してください。"
+msgstr "このコンテンツタイプはコードで定義されています。一部の設定はここでは変更できません。構造を変更するには、live.config.tsファイルを編集してください。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3330
 msgid "This content cannot be edited safely"
@@ -8008,7 +8008,7 @@ msgstr "これはWordPressサイトです。"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:503
 msgid "This is stored with the entry and is separate from your admin language."
-msgstr "これはエントリとともに保存され、管理画面の言語とは別に扱われます。"
+msgstr "これはコンテンツとともに保存され、管理画面の言語とは別に扱われます。"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:112
 msgid "This link expires in 7 days and can only be used once."
@@ -8066,7 +8066,7 @@ msgstr "このセクションは別のシステムからインポートされま
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:125
 msgid "This update exposes the following routes without authentication:"
-msgstr "この更新により、次のルートが認証なしで公開されます:"
+msgstr "この更新により、次のルートが認証なしで公開されます："
 
 #: packages/admin/src/components/Widgets.tsx:715
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
@@ -8078,17 +8078,17 @@ msgstr "これにより、あなたの権限でCLIアクセスが許可されま
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:808
 msgid "This will move the item to trash. You can restore it later from the trash."
-msgstr "アイテムをゴミ箱に移動します。後でゴミ箱から復元できます。"
+msgstr "このコンテンツをゴミ箱に移動します。後でゴミ箱から復元できます。"
 
 #. placeholder {0}: deleteTarget?.label
 #: packages/admin/src/components/TaxonomyManager.tsx:1110
 msgid "This will permanently delete \"{0}\" and remove it from all content."
-msgstr "\"{0}\"を完全に削除し、すべてのコンテンツから削除されます。"
+msgstr "「{0}」を完全に削除し、すべてのコンテンツとの関連付けも解除します。"
 
 #. placeholder {0}: sectionToDelete?.title
 #: packages/admin/src/components/Sections.tsx:304
 msgid "This will permanently delete \"{0}\". This action cannot be undone."
-msgstr "\"{0}\"を完全に削除します。この操作は取り消せません。"
+msgstr "「{0}」を完全に削除します。この操作は取り消せません。"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:407
 msgid "This will permanently delete this comment. This action cannot be undone."
@@ -8112,7 +8112,7 @@ msgstr "タイムゾーン"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:335
 msgid "Timezone for displaying dates (e.g., America/New_York)"
-msgstr "日付表示のタイムゾーン（例: Asia/Tokyo）"
+msgstr "日付表示のタイムゾーン（例：Asia/Tokyo）"
 
 #: packages/admin/src/components/ContentList.tsx:577
 #: packages/admin/src/components/ContentList.tsx:737
@@ -8158,12 +8158,12 @@ msgstr "ヘッダー行を切り替え"
 #: packages/admin/src/components/ThemeToggle.tsx:31
 #: packages/admin/src/components/ThemeToggle.tsx:42
 msgid "Toggle theme (current: {label})"
-msgstr "テーマを切り替え（現在: {label}）"
+msgstr "テーマを切り替え（現在：{label}）"
 
 #. placeholder {0}: newToken.info.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:255
 msgid "Token created: {0}"
-msgstr "トークンを作成しました: {0}"
+msgstr "トークンを作成しました：{0}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:481
 msgid "Token Name"
@@ -8312,7 +8312,7 @@ msgstr "タイプ"
 #. placeholder {0}: status.existingType
 #: packages/admin/src/components/WordPressImport.tsx:2018
 msgid "Type mismatch ({0})"
-msgstr "タイプの不一致 ({0})"
+msgstr "型の不一致（{0}）"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:56
 msgid "TypeScript"
@@ -8362,7 +8362,7 @@ msgstr "一意"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:107
 msgid "Unique identifier (ULID)"
-msgstr "一意識別子 (ULID)"
+msgstr "一意の識別子（ULID）"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:169
 #: packages/admin/src/components/users/useRolesConfig.ts:7
@@ -8371,7 +8371,7 @@ msgstr "不明"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:62
 msgid "Unknown role"
-msgstr "不明なロール"
+msgstr "不明な権限"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:296
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:297
@@ -8412,7 +8412,7 @@ msgstr "予約なし"
 #. placeholder {0}: (element as { type: string }).type
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:128
 msgid "Unsupported widget element type: {0}"
-msgstr "サポートされていないウィジェット要素タイプ: {0}"
+msgstr "サポートされていないウィジェット要素タイプ：{0}"
 
 #: packages/admin/src/components/Dashboard.tsx:368
 msgid "Untitled"
@@ -8529,7 +8529,7 @@ msgstr "アップロードに失敗しました"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:669
 msgid "Upload failed: {uploadError}"
-msgstr "アップロード失敗: {uploadError}"
+msgstr "アップロード失敗：{uploadError}"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:661
 msgid "Upload file"
@@ -8575,7 +8575,7 @@ msgstr "WordPressのエクスポートファイルをアップロード"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:289
 msgid "Uploaded:"
-msgstr "アップロード済み:"
+msgstr "アップロード済み："
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:80
 #: packages/admin/src/components/WordPressImport.tsx:2127
@@ -8608,7 +8608,7 @@ msgstr "URLに適した識別子"
 
 #: packages/admin/src/components/MenuList.tsx:165
 msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
-msgstr "URLに適した識別子（例: \"primary\"、\"footer\"）"
+msgstr "URLに適した識別子（例：「primary」、「footer」）"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:295
 msgid "URL:"
@@ -8628,7 +8628,7 @@ msgstr "登録済みのパスキーで安全にサインインできます。"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:173
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
-msgstr "ページに画像がない場合のOpen Graph画像として使用されます。推奨サイズ: 1200×630。"
+msgstr "ページに画像がない場合のOpen Graph画像として使用されます。推奨サイズ：1200×630。"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:828
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
@@ -8683,7 +8683,7 @@ msgstr "ドメインのユーザー:"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:196
 msgid "Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically."
-msgstr "これらのドメインのメールアドレスを持つユーザーは招待なしで登録できます。指定されたロールが自動的に割り当てられます。"
+msgstr "これらのドメインのメールアドレスを持つユーザーは招待なしで登録できます。指定した権限が自動的に設定されます。"
 
 #. placeholder {0}: updateInfo.latest
 #: packages/admin/src/components/PluginManager.tsx:387
@@ -8805,7 +8805,7 @@ msgstr "パスワード不要のサインインリンクをお送りします。
 
 #: packages/admin/src/components/SignupPage.tsx:133
 msgid "We've sent a verification link to"
-msgstr "確認リンクを送信しました:"
+msgstr "確認リンクを送信しました："
 
 #: packages/admin/src/components/FieldEditor.tsx:264
 msgid "Web address"
@@ -8835,7 +8835,7 @@ msgstr "EmDashへようこそ！"
 
 #: packages/admin/src/components/WordPressImport.tsx:2091
 msgid "What happens when you import:"
-msgstr "インポート時の動作:"
+msgstr "インポート時の動作："
 
 #: packages/admin/src/components/WordPressImport.tsx:1874
 msgid "What will happen when you import"
@@ -8843,15 +8843,15 @@ msgstr "インポート時の動作"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:125
 msgid "When the entry was created"
-msgstr "エントリの作成日時"
+msgstr "コンテンツの作成日時"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:131
 msgid "When the entry was last modified"
-msgstr "エントリの最終更新日時"
+msgstr "コンテンツの最終更新日時"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:137
 msgid "When the entry was published"
-msgstr "エントリの公開日時"
+msgstr "コンテンツの公開日時"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:842
 msgid "Which content types can use this taxonomy"
@@ -9020,7 +9020,7 @@ msgstr "サイトの閲覧と投稿ができます。"
 
 #: packages/admin/src/components/users/UserDetail.tsx:175
 msgid "You cannot change your own role"
-msgstr "自分のロールは変更できません"
+msgstr "自分の権限は変更できません"
 
 #: packages/admin/src/components/WelcomeModal.tsx:47
 msgid "You have full access to manage this site, including users, settings, and all content."
@@ -9037,7 +9037,7 @@ msgstr "コメントを管理するには、編集者権限が必要です。"
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/settings/PasskeyItem.tsx:199
 msgid "You won't be able to use \"{0}\" to sign in anymore. This action cannot be undone."
-msgstr "\"{0}\"でサインインできなくなります。この操作は取り消せません。"
+msgstr "「{0}」ではサインインできなくなります。この操作は取り消せません。"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:200
 msgid "You won't be able to use this passkey to sign in anymore. This action cannot be undone."
@@ -9058,7 +9058,7 @@ msgstr "接続を認可するためにWordPressにリダイレクトされます
 
 #: packages/admin/src/components/SignupPage.tsx:192
 msgid "You'll be signing up as"
-msgstr "登録されるアカウント:"
+msgstr "登録されるアカウント："
 
 #: packages/admin/src/components/SetupWizard.tsx:564
 msgid "You're signed in via Cloudflare Access"
@@ -9127,7 +9127,7 @@ msgstr "名前（任意）"
 
 #: packages/admin/src/components/WelcomeModal.tsx:46
 msgid "Your Role"
-msgstr "あなたのロール"
+msgstr "あなたの権限"
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
 #: packages/admin/src/components/RegistryPluginDetail.tsx:612
@@ -9136,7 +9136,7 @@ msgstr "サイトの設定により、リリースは公開から少なくとも
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:142
 msgid "Your Twitter/X handle (e.g., @username)"
-msgstr "Twitter/Xのハンドル名（例: @username）"
+msgstr "Twitter/Xのハンドル名（例：@username）"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:437
 msgid "Your unsaved media changes will be lost."
