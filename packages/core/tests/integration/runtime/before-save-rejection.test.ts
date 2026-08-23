@@ -56,7 +56,7 @@ describe("content:beforeSave cancellation", () => {
 	}
 
 	afterEach(async () => {
-		await runtime.stopCron();
+		await runtime?.stopCron();
 	});
 
 	describe("ContentSaveRejectedError", () => {
