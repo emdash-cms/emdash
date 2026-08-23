@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
+import { mapErrorStatus } from "../../../src/api/errors.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import type { RuntimeDependencies } from "../../../src/emdash-runtime.js";
@@ -73,6 +74,8 @@ describe("content:beforeSave cancellation", () => {
 				success: false,
 				error: { code: "SAVE_REJECTED", message: "Posts need a summary" },
 			});
+			if (result.success) return;
+			expect(mapErrorStatus(result.error.code)).toBe(422);
 			const rows = await repo.findMany("post");
 			expect(rows.items).toHaveLength(0);
 		});
@@ -88,6 +91,8 @@ describe("content:beforeSave cancellation", () => {
 				success: false,
 				error: { code: "SAVE_REJECTED", message: "Posts need a summary" },
 			});
+			if (result.success) return;
+			expect(mapErrorStatus(result.error.code)).toBe(422);
 			const kept = await repo.findById("post", item.id);
 			expect(kept?.data.title).toBe("Original");
 		});

@@ -13,6 +13,7 @@ import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
+import { ErrorCode } from "./api/errors.js";
 import { assertMediaUsageActivationWriteAllowed } from "./api/media-usage-write-fence.js";
 import { validateRev } from "./api/rev.js";
 import type {
@@ -433,13 +434,16 @@ function beforeSaveFailure(error: unknown) {
 	if (isContentSaveRejection(error)) {
 		return {
 			success: false as const,
-			error: { code: "SAVE_REJECTED", message: error.message },
+			error: { code: ErrorCode.SAVE_REJECTED, message: error.message },
 		};
 	}
 	console.error("EmDash: content:beforeSave hook failed:", error);
 	return {
 		success: false as const,
-		error: { code: "CONTENT_HOOK_ERROR", message: "A plugin hook failed while saving content" },
+		error: {
+			code: ErrorCode.CONTENT_HOOK_ERROR,
+			message: "A plugin hook failed while saving content",
+		},
 	};
 }
 
