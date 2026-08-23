@@ -191,4 +191,45 @@ describe("inline Portable Text code blocks", () => {
 			}
 		}
 	});
+
+	it("announces when copying fails", async () => {
+		const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+		const execCommandDescriptor = Object.getOwnPropertyDescriptor(document, "execCommand");
+		const clipboardWrite = vi.fn().mockRejectedValue(new DOMException("Denied", "NotAllowedError"));
+		const copyCommand = vi.fn().mockReturnValue(false);
+		Object.defineProperty(navigator, "clipboard", {
+			configurable: true,
+			value: { writeText: clipboardWrite },
+		});
+		Object.defineProperty(document, "execCommand", {
+			configurable: true,
+			value: copyCommand,
+		});
+
+		try {
+			await renderInlineCode("copy()", "javascript");
+			const copyButton = element.querySelector<HTMLButtonElement>('button[aria-label="Copy code"]');
+			expect(copyButton).not.toBeNull();
+			copyButton?.click();
+
+			await vi.waitFor(() => expect(copyCommand).toHaveBeenCalledWith("copy"));
+			await vi.waitFor(() =>
+				expect(
+					element.querySelector<HTMLButtonElement>('button[aria-label="Retry copy"]'),
+				).not.toBeNull(),
+			);
+			expect(element.querySelector('[role="status"]')?.textContent).toBe("Copy failed");
+		} finally {
+			if (execCommandDescriptor) {
+				Object.defineProperty(document, "execCommand", execCommandDescriptor);
+			} else {
+				Reflect.deleteProperty(document, "execCommand");
+			}
+			if (clipboardDescriptor) {
+				Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
+			} else {
+				Reflect.deleteProperty(navigator, "clipboard");
+			}
+		}
+	});
 });

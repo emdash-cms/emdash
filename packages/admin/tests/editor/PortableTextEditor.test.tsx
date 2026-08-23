@@ -1406,6 +1406,33 @@ describe("Code block copy action", () => {
 		}
 	});
 
+	it("announces when copying fails", async () => {
+		const clipboardWrite = vi
+			.spyOn(navigator.clipboard, "writeText")
+			.mockRejectedValue(new DOMException("Denied", "NotAllowedError"));
+		const copyCommand = vi.spyOn(document, "execCommand").mockReturnValue(false);
+		try {
+			const { screen } = await renderAndGetEditor({
+				value: [
+					{
+						_type: "code",
+						_key: "code",
+						code: "copy()",
+						language: "javascript",
+					},
+				],
+			});
+			await screen.getByRole("button", { name: "Copy code" }).click();
+
+			await vi.waitFor(() => expect(copyCommand).toHaveBeenCalledWith("copy"));
+			await expect.element(screen.getByRole("button", { name: "Retry copy" })).toBeVisible();
+			await expect.element(screen.getByRole("status")).toHaveTextContent("Copy failed");
+		} finally {
+			copyCommand.mockRestore();
+			clipboardWrite.mockRestore();
+		}
+	});
+
 	it("preserves alias, free-form, apply, and cancel behavior", async () => {
 		const { screen, editor } = await renderAndGetEditor({
 			value: [

@@ -98,7 +98,7 @@ async function copyTextToClipboard(text: string): Promise<void> {
 function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	const { t } = useLingui();
 	const [isEditing, setIsEditing] = React.useState(false);
-	const [copied, setCopied] = React.useState(false);
+	const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied" | "failed">("idle");
 	const copyResetTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 	const copyRequestId = React.useRef(0);
 	const storedLanguage = typeof node.attrs.language === "string" ? node.attrs.language : "";
@@ -177,16 +177,17 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	};
 	const copyCode = React.useCallback(async () => {
 		const requestId = ++copyRequestId.current;
+		setCopyStatus("idle");
 		try {
 			await copyTextToClipboard(node.textContent);
 			if (requestId !== copyRequestId.current) return;
-			setCopied(true);
+			setCopyStatus("copied");
 			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
-			copyResetTimer.current = setTimeout(setCopied, 1500, false);
+			copyResetTimer.current = setTimeout(setCopyStatus, 1500, "idle");
 		} catch {
 			if (requestId !== copyRequestId.current) return;
 			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
-			setCopied(false);
+			setCopyStatus("failed");
 		}
 	}, [node.textContent]);
 	React.useEffect(
@@ -198,6 +199,8 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	);
 
 	const label = labelText(storedLanguage);
+	const copied = copyStatus === "copied";
+	const copyFailed = copyStatus === "failed";
 
 	return (
 		<NodeViewWrapper
@@ -221,7 +224,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 						<Toolbar
 							size="sm"
 							className="emdash-code-block-controls max-w-full text-[13px]"
-							data-persistent={isEditing || copied ? "true" : "false"}
+							data-persistent={isEditing || copyStatus !== "idle" ? "true" : "false"}
 							aria-label={t`Code block actions`}
 						>
 							<Popover.Trigger
@@ -239,17 +242,23 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 								}
 							/>
 							<Tooltip
-								content={copied ? t`Copied` : t`Copy code`}
+								content={copyFailed ? t`Retry copy` : copied ? t`Copied` : t`Copy code`}
 								render={
 									<Toolbar.Button
 										shape="square"
 										className="relative isolate overflow-hidden text-[13px]"
 										onMouseDown={(event) => event.preventDefault()}
 										onClick={copyCode}
-										aria-label={t`Copy code`}
+										aria-label={copyFailed ? t`Retry copy` : t`Copy code`}
 									>
 										<span className="contents" aria-hidden="true">
-											{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+											{copied ? (
+												<Check className="size-3.5" />
+											) : copyFailed ? (
+												<X className="size-3.5" />
+											) : (
+												<Copy className="size-3.5" />
+											)}
 										</span>
 									</Toolbar.Button>
 								}
@@ -257,7 +266,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 						</Toolbar>
 					</TooltipProvider>
 					<span className="sr-only" role="status" aria-live="polite">
-						{copied ? t`Copied` : ""}
+						{copyFailed ? t`Copy failed` : copied ? t`Copied` : ""}
 					</span>
 					<Popover.Content side="bottom" className="w-auto p-1">
 						<div className="flex items-center gap-1" onKeyDown={handleKeyDown}>

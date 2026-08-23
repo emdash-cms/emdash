@@ -216,7 +216,7 @@ function XIcon() {
 
 function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	const [isEditing, setIsEditing] = React.useState(false);
-	const [copied, setCopied] = React.useState(false);
+	const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied" | "failed">("idle");
 	const storedLanguage = typeof node.attrs.language === "string" ? node.attrs.language : "";
 	const [draft, setDraft] = React.useState(storedLanguage);
 	const inputRef = React.useRef<HTMLInputElement>(null);
@@ -280,20 +280,23 @@ function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	);
 	const copyCode = React.useCallback(async () => {
 		const requestId = ++copyRequestId.current;
+		setCopyStatus("idle");
 		try {
 			await copyTextToClipboard(node.textContent);
 			if (requestId !== copyRequestId.current) return;
-			setCopied(true);
+			setCopyStatus("copied");
 			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
-			copyResetTimer.current = setTimeout(setCopied, 1500, false);
+			copyResetTimer.current = setTimeout(setCopyStatus, 1500, "idle");
 		} catch {
 			if (requestId !== copyRequestId.current) return;
 			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
-			setCopied(false);
+			setCopyStatus("failed");
 		}
 	}, [node.textContent]);
 
 	const label = languageLabel(storedLanguage);
+	const copied = copyStatus === "copied";
+	const copyFailed = copyStatus === "failed";
 
 	return (
 		<NodeViewWrapper
@@ -307,7 +310,7 @@ function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 
 			<div
 				className="emdash-inline-code-block-controls-wrap"
-				data-persistent={isEditing || copied ? "true" : "false"}
+				data-persistent={isEditing || copyStatus !== "idle" ? "true" : "false"}
 				contentEditable={false}
 			>
 				{isEditing ? (
@@ -401,8 +404,8 @@ function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 							type="button"
 							onMouseDown={(event) => event.preventDefault()}
 							onClick={copyCode}
-							title={copied ? "Copied" : "Copy code"}
-							aria-label="Copy code"
+							title={copyFailed ? "Retry copy" : copied ? "Copied" : "Copy code"}
+							aria-label={copyFailed ? "Retry copy" : "Copy code"}
 							style={{
 								...iconButtonStyle,
 								height: "26px",
@@ -411,7 +414,9 @@ function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 								borderInlineStart: "1px solid var(--emdash-code-border)",
 							}}
 						>
-							<span aria-hidden="true">{copied ? <CheckIcon /> : "⧉"}</span>
+							<span aria-hidden="true">
+								{copied ? <CheckIcon /> : copyFailed ? <XIcon /> : "⧉"}
+							</span>
 						</button>
 					</div>
 				)}
@@ -426,7 +431,7 @@ function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 						clipPath: "inset(50%)",
 					}}
 				>
-					{copied ? "Copied" : ""}
+					{copyFailed ? "Copy failed" : copied ? "Copied" : ""}
 				</span>
 			</div>
 		</NodeViewWrapper>
