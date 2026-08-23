@@ -1308,7 +1308,7 @@ describe("Code block copy action", () => {
 		}
 	});
 
-	it("keeps feedback from the newest copy attempt", async () => {
+	it("keeps the newest copy feedback and reports failures", async () => {
 		let rejectFirst!: (reason: unknown) => void;
 		let resolveSecond!: () => void;
 		const firstCopy = new Promise<void>((_resolve, reject) => {
@@ -1320,7 +1320,8 @@ describe("Code block copy action", () => {
 		const clipboardWrite = vi
 			.spyOn(navigator.clipboard, "writeText")
 			.mockImplementationOnce(() => firstCopy)
-			.mockImplementationOnce(() => secondCopy);
+			.mockImplementationOnce(() => secondCopy)
+			.mockRejectedValueOnce(new DOMException("Denied", "NotAllowedError"));
 		const copyCommand = vi.spyOn(document, "execCommand").mockReturnValue(false);
 		try {
 			const { screen } = await renderAndGetEditor({
@@ -1346,6 +1347,12 @@ describe("Code block copy action", () => {
 			await vi.waitFor(() =>
 				expect(screen.getByRole("status").element().textContent).toBe("Copied"),
 			);
+
+			copyButton.click();
+			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(3));
+			await vi.waitFor(() => expect(copyCommand).toHaveBeenCalledTimes(2));
+			await expect.element(screen.getByRole("button", { name: "Retry copy" })).toBeVisible();
+			await expect.element(screen.getByRole("status")).toHaveTextContent("Copy failed");
 		} finally {
 			copyCommand.mockRestore();
 			clipboardWrite.mockRestore();
@@ -1403,33 +1410,6 @@ describe("Code block copy action", () => {
 			} else {
 				Reflect.deleteProperty(navigator, "clipboard");
 			}
-		}
-	});
-
-	it("announces when copying fails", async () => {
-		const clipboardWrite = vi
-			.spyOn(navigator.clipboard, "writeText")
-			.mockRejectedValue(new DOMException("Denied", "NotAllowedError"));
-		const copyCommand = vi.spyOn(document, "execCommand").mockReturnValue(false);
-		try {
-			const { screen } = await renderAndGetEditor({
-				value: [
-					{
-						_type: "code",
-						_key: "code",
-						code: "copy()",
-						language: "javascript",
-					},
-				],
-			});
-			await screen.getByRole("button", { name: "Copy code" }).click();
-
-			await vi.waitFor(() => expect(copyCommand).toHaveBeenCalledWith("copy"));
-			await expect.element(screen.getByRole("button", { name: "Retry copy" })).toBeVisible();
-			await expect.element(screen.getByRole("status")).toHaveTextContent("Copy failed");
-		} finally {
-			copyCommand.mockRestore();
-			clipboardWrite.mockRestore();
 		}
 	});
 

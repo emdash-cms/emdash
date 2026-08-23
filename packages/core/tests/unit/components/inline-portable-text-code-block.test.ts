@@ -138,7 +138,7 @@ describe("inline Portable Text code blocks", () => {
 		);
 	});
 
-	it("keeps feedback from the newest copy attempt", async () => {
+	it("keeps the newest copy feedback and reports failures", async () => {
 		const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
 		const execCommandDescriptor = Object.getOwnPropertyDescriptor(document, "execCommand");
 		let rejectFirst!: (reason: unknown) => void;
@@ -152,7 +152,8 @@ describe("inline Portable Text code blocks", () => {
 		const clipboardWrite = vi
 			.fn()
 			.mockImplementationOnce(() => firstCopy)
-			.mockImplementationOnce(() => secondCopy);
+			.mockImplementationOnce(() => secondCopy)
+			.mockRejectedValueOnce(new DOMException("Denied", "NotAllowedError"));
 		Object.defineProperty(navigator, "clipboard", {
 			configurable: true,
 			value: { writeText: clipboardWrite },
@@ -178,47 +179,16 @@ describe("inline Portable Text code blocks", () => {
 			rejectFirst(new DOMException("Denied", "NotAllowedError"));
 			await vi.waitFor(() => expect(copyCommand).toHaveBeenCalledWith("copy"));
 			await vi.waitFor(() => expect(status?.textContent).toBe("Copied"));
-		} finally {
-			if (execCommandDescriptor) {
-				Object.defineProperty(document, "execCommand", execCommandDescriptor);
-			} else {
-				Reflect.deleteProperty(document, "execCommand");
-			}
-			if (clipboardDescriptor) {
-				Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
-			} else {
-				Reflect.deleteProperty(navigator, "clipboard");
-			}
-		}
-	});
 
-	it("announces when copying fails", async () => {
-		const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
-		const execCommandDescriptor = Object.getOwnPropertyDescriptor(document, "execCommand");
-		const clipboardWrite = vi.fn().mockRejectedValue(new DOMException("Denied", "NotAllowedError"));
-		const copyCommand = vi.fn().mockReturnValue(false);
-		Object.defineProperty(navigator, "clipboard", {
-			configurable: true,
-			value: { writeText: clipboardWrite },
-		});
-		Object.defineProperty(document, "execCommand", {
-			configurable: true,
-			value: copyCommand,
-		});
-
-		try {
-			await renderInlineCode("copy()", "javascript");
-			const copyButton = element.querySelector<HTMLButtonElement>('button[aria-label="Copy code"]');
-			expect(copyButton).not.toBeNull();
 			copyButton?.click();
-
-			await vi.waitFor(() => expect(copyCommand).toHaveBeenCalledWith("copy"));
+			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(3));
+			await vi.waitFor(() => expect(copyCommand).toHaveBeenCalledTimes(2));
 			await vi.waitFor(() =>
 				expect(
 					element.querySelector<HTMLButtonElement>('button[aria-label="Retry copy"]'),
 				).not.toBeNull(),
 			);
-			expect(element.querySelector('[role="status"]')?.textContent).toBe("Copy failed");
+			expect(status?.textContent).toBe("Copy failed");
 		} finally {
 			if (execCommandDescriptor) {
 				Object.defineProperty(document, "execCommand", execCommandDescriptor);
@@ -232,4 +202,5 @@ describe("inline Portable Text code blocks", () => {
 			}
 		}
 	});
+
 });
