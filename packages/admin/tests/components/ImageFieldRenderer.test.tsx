@@ -186,6 +186,84 @@ describe("ImageFieldRenderer", () => {
 		await expect.element(screen.getByRole("button", { name: "Choose replacement" })).toBeVisible();
 	});
 
+	it("offers no dark mode slot unless the field enables it", async () => {
+		const screen = await render(
+			<ImageFieldRenderer label="Image" value={selectedImage} onChange={vi.fn()} />,
+		);
+
+		expect(screen.getByRole("button", { name: "Add dark mode variant" }).query()).toBeNull();
+	});
+
+	it("offers the dark mode slot only once a primary image is selected", async () => {
+		const screen = await render(
+			<ImageFieldRenderer label="Image" value={undefined} onChange={vi.fn()} darkVariant />,
+		);
+
+		expect(screen.getByRole("button", { name: "Add dark mode variant" }).query()).toBeNull();
+	});
+
+	it("stores a picked dark mode variant next to the primary image", async () => {
+		const onChange = vi.fn();
+		const screen = await render(
+			<ImageFieldRenderer label="Image" value={selectedImage} onChange={onChange} darkVariant />,
+		);
+
+		await screen.getByRole("button", { name: "Add dark mode variant" }).click();
+		await screen.getByRole("button", { name: "Choose replacement" }).click();
+
+		expect(onChange).toHaveBeenCalledWith({
+			...selectedImage,
+			darkVariant: expect.objectContaining({
+				id: "replacement-image",
+				filename: "replacement.webp",
+				meta: { storageKey: "replacement.webp" },
+			}),
+		});
+	});
+
+	it("shows the stored dark mode variant and removes only that variant", async () => {
+		const onChange = vi.fn();
+		const withDark: ImageFieldValue = {
+			...selectedImage,
+			darkVariant: {
+				id: "dark-image",
+				provider: "local",
+				filename: "notes-on-simplicity-dark.jpg",
+				meta: { storageKey: "dark-image.jpg" },
+			},
+		};
+		const screen = await render(
+			<ImageFieldRenderer label="Image" value={withDark} onChange={onChange} darkVariant />,
+		);
+
+		await expect.element(screen.getByText("notes-on-simplicity-dark.jpg")).toBeVisible();
+		const images = screen.container.querySelectorAll("img");
+		expect(images[1]).toHaveAttribute("src", "/_emdash/api/media/file/dark-image.jpg");
+
+		await screen.getByRole("button", { name: "Remove dark mode variant" }).click();
+		expect(onChange).toHaveBeenCalledWith(selectedImage);
+	});
+
+	it("keeps the dark mode variant when the primary image is replaced", async () => {
+		const onChange = vi.fn();
+		const darkVariant: ImageFieldValue = { id: "dark-image", provider: "local" };
+		const screen = await render(
+			<ImageFieldRenderer
+				label="Image"
+				value={{ ...selectedImage, darkVariant }}
+				onChange={onChange}
+				darkVariant
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "Change", exact: true }).click();
+		await screen.getByRole("button", { name: "Choose replacement" }).click();
+
+		expect(onChange).toHaveBeenCalledWith(
+			expect.objectContaining({ id: "replacement-image", darkVariant }),
+		);
+	});
+
 	it("does not show featured metadata in the default variant", async () => {
 		const screen = await render(
 			<ImageFieldRenderer label="Image" value={selectedImage} onChange={vi.fn()} />,

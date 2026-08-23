@@ -66,6 +66,18 @@ describe("image field", () => {
 		expect(() => optional.schema.parse(undefined)).not.toThrow();
 	});
 
+	it("accepts a dark variant and exposes the darkVariant option", () => {
+		const field = image({ darkVariant: true });
+		const value = {
+			id: "img-light",
+			darkVariant: { id: "img-dark", provider: "local", meta: { storageKey: "dark.webp" } },
+		};
+
+		expect(field.options?.darkVariant).toBe(true);
+		expect(field.schema.parse(value)).toEqual(value);
+		expect(() => field.schema.parse({ id: "img-light", darkVariant: "img-dark" })).toThrow();
+	});
+
 	it("should store options", () => {
 		const field = image({
 			maxSize: 5 * 1024 * 1024, // 5MB

@@ -68,6 +68,7 @@ export default defineConfig({
 						},
 						{ label: "Querying Content", slug: "guides/querying-content" },
 						{ label: "Media Library", slug: "guides/media-library" },
+						{ label: "Dark Mode", slug: "guides/dark-mode" },
 						{ label: "Taxonomies", slug: "guides/taxonomies" },
 						{ label: "Navigation Menus", slug: "guides/menus" },
 						{ label: "Widget Areas", slug: "guides/widgets" },

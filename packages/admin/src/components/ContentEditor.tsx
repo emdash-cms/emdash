@@ -1426,6 +1426,7 @@ function FieldRenderer({
 					}
 					fieldId={field.id}
 					variant={name === "featured_image" ? "featured" : "default"}
+					darkVariant={!Array.isArray(field.options) && field.options?.darkVariant === true}
 				/>
 			);
 		}
