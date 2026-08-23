@@ -1308,6 +1308,50 @@ describe("Code block copy action", () => {
 		}
 	});
 
+	it("keeps feedback from the newest copy attempt", async () => {
+		let rejectFirst!: (reason: unknown) => void;
+		let resolveSecond!: () => void;
+		const firstCopy = new Promise<void>((_resolve, reject) => {
+			rejectFirst = reject;
+		});
+		const secondCopy = new Promise<void>((resolve) => {
+			resolveSecond = resolve;
+		});
+		const clipboardWrite = vi
+			.spyOn(navigator.clipboard, "writeText")
+			.mockImplementationOnce(() => firstCopy)
+			.mockImplementationOnce(() => secondCopy);
+		const copyCommand = vi.spyOn(document, "execCommand").mockReturnValue(false);
+		try {
+			const { screen } = await renderAndGetEditor({
+				value: [
+					{
+						_type: "code",
+						_key: "code",
+						code: "copy()",
+						language: "javascript",
+					},
+				],
+			});
+			const copyButton = screen.getByRole("button", { name: "Copy code" }).element();
+			copyButton.click();
+			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(1));
+			copyButton.click();
+			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(2));
+
+			resolveSecond();
+			await expect.element(screen.getByRole("status")).toHaveTextContent("Copied");
+			rejectFirst(new DOMException("Denied", "NotAllowedError"));
+			await vi.waitFor(() => expect(copyCommand).toHaveBeenCalledWith("copy"));
+			await vi.waitFor(() =>
+				expect(screen.getByRole("status").element().textContent).toBe("Copied"),
+			);
+		} finally {
+			copyCommand.mockRestore();
+			clipboardWrite.mockRestore();
+		}
+	});
+
 	it("falls back after Clipboard API rejection and restores focus and selection", async () => {
 		const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
 		const clipboardWrite = vi.fn().mockRejectedValue(new DOMException("Denied", "NotAllowedError"));

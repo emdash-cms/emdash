@@ -222,6 +222,7 @@ function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	const inputRef = React.useRef<HTMLInputElement>(null);
 	const popoverRef = React.useRef<HTMLDivElement>(null);
 	const copyResetTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+	const copyRequestId = React.useRef(0);
 	// Per-instance datalist id so multiple code blocks (or multiple inline
 	// editors) on the same page don't create duplicate DOM ids.
 	const datalistId = React.useId();
@@ -272,17 +273,22 @@ function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	}, [isEditing, closePicker]);
 	React.useEffect(
 		() => () => {
+			copyRequestId.current += 1;
 			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
 		},
 		[],
 	);
 	const copyCode = React.useCallback(async () => {
+		const requestId = ++copyRequestId.current;
 		try {
 			await copyTextToClipboard(node.textContent);
+			if (requestId !== copyRequestId.current) return;
 			setCopied(true);
 			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
 			copyResetTimer.current = setTimeout(setCopied, 1500, false);
 		} catch {
+			if (requestId !== copyRequestId.current) return;
+			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
 			setCopied(false);
 		}
 	}, [node.textContent]);

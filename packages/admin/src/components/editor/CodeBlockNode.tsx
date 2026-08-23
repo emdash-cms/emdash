@@ -100,6 +100,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	const [isEditing, setIsEditing] = React.useState(false);
 	const [copied, setCopied] = React.useState(false);
 	const copyResetTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+	const copyRequestId = React.useRef(0);
 	const storedLanguage = typeof node.attrs.language === "string" ? node.attrs.language : "";
 
 	const labelText = React.useCallback(
@@ -175,17 +176,22 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 		}
 	};
 	const copyCode = React.useCallback(async () => {
+		const requestId = ++copyRequestId.current;
 		try {
 			await copyTextToClipboard(node.textContent);
+			if (requestId !== copyRequestId.current) return;
 			setCopied(true);
 			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
 			copyResetTimer.current = setTimeout(setCopied, 1500, false);
 		} catch {
+			if (requestId !== copyRequestId.current) return;
+			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
 			setCopied(false);
 		}
 	}, [node.textContent]);
 	React.useEffect(
 		() => () => {
+			copyRequestId.current += 1;
 			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
 		},
 		[],

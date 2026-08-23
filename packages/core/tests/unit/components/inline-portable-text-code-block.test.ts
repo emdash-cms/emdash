@@ -137,4 +137,58 @@ describe("inline Portable Text code blocks", () => {
 			),
 		);
 	});
+
+	it("keeps feedback from the newest copy attempt", async () => {
+		const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+		const execCommandDescriptor = Object.getOwnPropertyDescriptor(document, "execCommand");
+		let rejectFirst!: (reason: unknown) => void;
+		let resolveSecond!: () => void;
+		const firstCopy = new Promise<void>((_resolve, reject) => {
+			rejectFirst = reject;
+		});
+		const secondCopy = new Promise<void>((resolve) => {
+			resolveSecond = resolve;
+		});
+		const clipboardWrite = vi
+			.fn()
+			.mockImplementationOnce(() => firstCopy)
+			.mockImplementationOnce(() => secondCopy);
+		Object.defineProperty(navigator, "clipboard", {
+			configurable: true,
+			value: { writeText: clipboardWrite },
+		});
+		const copyCommand = vi.fn().mockReturnValue(false);
+		Object.defineProperty(document, "execCommand", {
+			configurable: true,
+			value: copyCommand,
+		});
+
+		try {
+			await renderInlineCode("copy()", "javascript");
+			const copyButton = element.querySelector<HTMLButtonElement>('button[aria-label="Copy code"]');
+			expect(copyButton).not.toBeNull();
+			copyButton?.click();
+			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(1));
+			copyButton?.click();
+			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(2));
+
+			resolveSecond();
+			const status = element.querySelector('[role="status"]');
+			await vi.waitFor(() => expect(status?.textContent).toBe("Copied"));
+			rejectFirst(new DOMException("Denied", "NotAllowedError"));
+			await vi.waitFor(() => expect(copyCommand).toHaveBeenCalledWith("copy"));
+			await vi.waitFor(() => expect(status?.textContent).toBe("Copied"));
+		} finally {
+			if (execCommandDescriptor) {
+				Object.defineProperty(document, "execCommand", execCommandDescriptor);
+			} else {
+				Reflect.deleteProperty(document, "execCommand");
+			}
+			if (clipboardDescriptor) {
+				Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
+			} else {
+				Reflect.deleteProperty(navigator, "clipboard");
+			}
+		}
+	});
 });
