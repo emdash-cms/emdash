@@ -202,5 +202,4 @@ describe("inline Portable Text code blocks", () => {
 			}
 		}
 	});
-
 });
