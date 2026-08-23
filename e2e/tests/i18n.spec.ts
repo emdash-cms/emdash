@@ -59,14 +59,11 @@ async function createPublishedPost(
 	const createJson = await createResponse.json();
 	const id = createJson.data?.item?.id ?? createJson.data?.id;
 
-	const publishResponse = await fetch(
-		`${baseUrl}/_emdash/api/content/posts/${id}/publish`,
-		{
-			method: "POST",
-			headers,
-			body: JSON.stringify({}),
-		},
-	);
+	const publishResponse = await fetch(`${baseUrl}/_emdash/api/content/posts/${id}/publish`, {
+		method: "POST",
+		headers,
+		body: JSON.stringify({}),
+	});
 	if (!publishResponse.ok) {
 		throw new Error(`Failed to publish post: ${publishResponse.status}`);
 	}
@@ -130,10 +127,7 @@ test.describe("i18n", () => {
 
 			await page.goto(`/posts/${slug}`);
 
-			await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
-				"href",
-				canonical,
-			);
+			await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", canonical);
 		});
 	});
 
