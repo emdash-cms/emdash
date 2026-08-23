@@ -192,6 +192,34 @@ describe("extractMediaUsageOccurrences", () => {
 		]);
 	});
 
+	it("extracts the dark variant of an image field and of a repeater image subfield", () => {
+		const occurrences = extractMediaUsageOccurrences({
+			fields: [
+				field("hero", "image"),
+				field("sections", "repeater", {
+					subFields: [{ slug: "image", type: "image", label: "Image" }],
+				}),
+			],
+			data: {
+				hero: {
+					id: "hero-light",
+					provider: "local",
+					mimeType: "image/png",
+					darkVariant: { id: "hero-dark", provider: "local", mimeType: "image/png" },
+				},
+				sections: [{ image: { id: "section-light", darkVariant: "section-dark" } }],
+			},
+		});
+
+		expect(occurrences.map((o) => [o.fieldPath, o.mediaId])).toEqual([
+			["hero", "hero-light"],
+			["hero.darkVariant", "hero-dark"],
+			["sections[0].image", "section-light"],
+			["sections[0].image.darkVariant", "section-dark"],
+		]);
+		expect(occurrences.every((o) => o.referenceType === "image_field")).toBe(true);
+	});
+
 	it("ignores unsupported repeater file subfields", () => {
 		const occurrences = extractMediaUsageOccurrences({
 			fields: [
