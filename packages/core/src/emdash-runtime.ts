@@ -54,12 +54,6 @@ import {
 	markContentMediaUsageCollectionStale,
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
-import {
-	runMediaUsageMaintenanceSlice,
-	runMediaUsageMaintenanceStep,
-	type MediaUsageMaintenanceContinuation,
-	type MediaUsageMaintenanceStepResult,
-} from "./media/usage/maintenance-engine.js";
 import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
 import { getSandboxRouteErrorDetails } from "./plugins/sandbox/types.js";
@@ -226,7 +220,7 @@ import { PluginStateRepository } from "./plugins/state.js";
 import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
-import { getRequestContext, runWithContext } from "./request-context.js";
+import { getRequestContext } from "./request-context.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
@@ -547,11 +541,6 @@ const marketplaceManifestCache = new Map<
 const sandboxedRouteMetaCache = new Map<string, Map<string, RouteMeta>>();
 let sandboxRunner: SandboxRunner | null = null;
 
-export type {
-	MediaUsageMaintenanceContinuation,
-	MediaUsageMaintenanceStepResult,
-} from "./media/usage/maintenance-engine.js";
-
 /**
  * EmDashRuntime - singleton per worker
  */
@@ -755,18 +744,6 @@ export class EmDashRuntime {
 		await recordSchedulerHeartbeatSafely(this.db);
 
 		return { published };
-	}
-
-	async runMediaUsageMaintenanceStep(): Promise<MediaUsageMaintenanceStepResult> {
-		return runMediaUsageMaintenanceStep(this.db);
-	}
-
-	async runMediaUsageMaintenanceSlice(): Promise<MediaUsageMaintenanceContinuation> {
-		return runMediaUsageMaintenanceSlice(this.db);
-	}
-
-	wakeMediaUsageMaintenance(): void {
-		this.cronScheduler?.wakeMediaUsageMaintenance();
 	}
 
 	/**
@@ -1707,14 +1684,6 @@ export class EmDashRuntime {
 				if (deps.createScheduler) {
 					const scheduler = deps.createScheduler(cronExecutor);
 					cronScheduler = scheduler;
-					const runContinuousMediaUsageMaintenance = () =>
-						runWithContext({ editMode: false }, async () => {
-							const runtime = runtimeRef.current;
-							const result = runtime
-								? await runtime.runMediaUsageMaintenanceStep()
-								: await runMediaUsageMaintenanceStep(db);
-							return result.continuation;
-						});
 
 					// Run scheduled publishing and system cleanup alongside each tick.
 					// Pass storage so cleanupPendingUploads can delete orphaned files.
@@ -1749,8 +1718,6 @@ export class EmDashRuntime {
 						await maybeRunScheduledBackup(db, storage ?? undefined);
 						await recordSchedulerHeartbeatSafely(db);
 					});
-					scheduler.setContinuousMediaUsageMaintenance(runContinuousMediaUsageMaintenance);
-
 					// start() is void on the timer scheduler but the interface
 					// allows a promise (alarm-backed schedulers); we don't block on it.
 					void scheduler.start();

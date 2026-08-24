@@ -38,13 +38,5 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	const body = await parseBody(request, mediaUsageActivationAdvanceBody);
 	if (isParseError(body)) return body;
 
-	const result = await handleMediaUsageActivationAdvance(emdash.db, body);
-	if (result.success) {
-		try {
-			emdash.wakeMediaUsageMaintenance();
-		} catch {
-			console.error("[media-usage:activation] Failed to wake background maintenance");
-		}
-	}
-	return unwrapResult(result);
+	return unwrapResult(await handleMediaUsageActivationAdvance(emdash.db, body));
 };

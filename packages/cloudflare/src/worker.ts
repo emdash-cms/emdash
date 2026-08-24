@@ -13,7 +13,7 @@
 // @ts-ignore - resolved against the consuming app's Astro build
 import astroHandler from "@astrojs/cloudflare/entrypoints/server";
 import { createApp } from "astro/app/entrypoint";
-import { runMediaUsageMaintenanceSlice, runScheduledTasks } from "emdash/middleware";
+import { runScheduledTasks } from "emdash/middleware";
 
 export { PluginBridge } from "./sandbox/index.js";
 
@@ -41,16 +41,6 @@ async function invalidatePublishedTags(
 /**
  * Build a Worker `scheduled()` handler for general maintenance.
  */
-export interface MediaUsageWakeMessage {
-	version: 1;
-}
-
-export type OptionalMediaUsageQueueResolver<Env> = (
-	env: Env,
-) => Queue<MediaUsageWakeMessage> | undefined;
-
-export type MediaUsageQueueResolver<Env> = (env: Env) => Queue<MediaUsageWakeMessage>;
-
 export interface ScheduledHandlerOptions {
 	generalCron?: string;
 }
@@ -89,68 +79,6 @@ export function createScheduledHandler<Env = unknown>(
 			})(),
 		);
 	};
-}
-
-export function createMediaUsageFetchHandler<Env>(
-	handler: ExportedHandler<Env>,
-	resolveMediaUsageQueue: OptionalMediaUsageQueueResolver<Env>,
-): ExportedHandlerFetchHandler<Env> {
-	if (!handler.fetch) throw new Error("Worker fetch handler is unavailable");
-	const fetch = handler.fetch;
-	return async (request, env, ctx) => {
-		const shouldWake =
-			request.method === "POST" &&
-			new URL(request.url).pathname === "/_emdash/api/admin/media-usage/activation";
-		const response = await Reflect.apply(fetch, handler, [request, env, ctx]);
-		if (!shouldWake || !response.ok) return response;
-
-		let reported = false;
-		const reportWakeFailure = () => {
-			if (reported) return;
-			reported = true;
-			console.error("[activation] Failed to queue Media Usage maintenance wake");
-		};
-		try {
-			const queue = resolveMediaUsageQueue(env);
-			if (!queue) return response;
-			ctx.waitUntil(queue.send({ version: 1 }).catch(reportWakeFailure));
-		} catch {
-			reportWakeFailure();
-		}
-		return response;
-	};
-}
-
-export function createMediaUsageQueueHandler<Env>(
-	resolveMediaUsageQueue: MediaUsageQueueResolver<Env>,
-): ExportedHandlerQueueHandler<Env, MediaUsageWakeMessage> {
-	return async (batch, env) => {
-		let hasValidWake = false;
-		for (const message of batch.messages) {
-			if (isMediaUsageWakeMessage(message.body)) {
-				hasValidWake = true;
-			} else {
-				message.ack();
-				console.warn("[queue] Ignoring invalid Media Usage wake");
-			}
-		}
-		if (!hasValidWake) return;
-
-		const queue = resolveMediaUsageQueue(env);
-		if (!queue) throw new Error("Media Usage Queue binding is unavailable");
-
-		const continuation = await runMediaUsageMaintenanceSlice();
-		if (continuation.kind === "none") return;
-		if (continuation.kind === "delayed") {
-			await queue.send({ version: 1 }, { delaySeconds: continuation.delaySeconds });
-			return;
-		}
-		await queue.send({ version: 1 });
-	};
-}
-
-function isMediaUsageWakeMessage(value: unknown): value is MediaUsageWakeMessage {
-	return typeof value === "object" && value !== null && "version" in value && value.version === 1;
 }
 
 // eslint-disable-next-line typescript/no-unsafe-type-assertion -- astroHandler is the adapter's { fetch } worker object; resolved at app-build time

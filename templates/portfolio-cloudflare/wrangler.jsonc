@@ -22,27 +22,7 @@
 			"binding": "LOADER",
 		},
 	],
-	"queues": {
-		"producers": [
-			{
-				"binding": "MEDIA_USAGE_QUEUE",
-				"queue": "my-portfolio-site-media-usage",
-			},
-		],
-		"consumers": [
-			{
-				"queue": "my-portfolio-site-media-usage",
-				"max_batch_size": 1,
-				"max_batch_timeout": 0,
-				"max_retries": 3,
-				"max_concurrency": 1,
-			},
-		],
-	},
-	"limits": {
-		"cpu_ms": 300000,
-	},
-	// General maintenance cron trigger (Media Usage uses the Queue above)
+	// General maintenance cron trigger
 	"triggers": {
 		"crons": ["* * * * *"],
 	},

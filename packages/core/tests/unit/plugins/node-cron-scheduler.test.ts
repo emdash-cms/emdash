@@ -6,7 +6,7 @@ import { CronExecutor } from "../../../src/plugins/cron.js";
 import { NodeCronScheduler } from "../../../src/plugins/scheduler/node.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
-describe("NodeCronScheduler Media Usage continuation", () => {
+describe("NodeCronScheduler", () => {
 	let db: Kysely<Database>;
 	let executor: CronExecutor;
 	let scheduler: NodeCronScheduler;
@@ -29,184 +29,77 @@ describe("NodeCronScheduler Media Usage continuation", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("yields to a new timer turn between immediate units", async () => {
-		const maintenance = vi
-			.fn()
-			.mockResolvedValueOnce({ kind: "immediate" } as const)
-			.mockResolvedValueOnce({ kind: "none" } as const);
-		scheduler.setContinuousMediaUsageMaintenance(maintenance);
-		scheduler.start();
-		scheduler.wakeMediaUsageMaintenance();
-
-		await vi.advanceTimersByTimeAsync(0);
-		expect(maintenance).toHaveBeenCalledTimes(1);
-		await vi.advanceTimersToNextTimerAsync();
-		expect(maintenance).toHaveBeenCalledTimes(2);
-	});
-
-	it("starts Media Usage maintenance immediately when explicitly woken", async () => {
-		const maintenance = vi.fn().mockResolvedValue({ kind: "none" } as const);
-		scheduler.setContinuousMediaUsageMaintenance(maintenance);
+	it("runs the general tick, stale-lock recovery, and cleanup together", async () => {
+		const cleanup = vi.fn(async () => {});
+		vi.mocked(executor.getNextDueTime).mockResolvedValue(new Date(Date.now()).toISOString());
+		scheduler.setSystemCleanup(cleanup);
 		scheduler.start();
 
-		scheduler.wakeMediaUsageMaintenance();
-		await vi.advanceTimersByTimeAsync(0);
-
-		expect(maintenance).toHaveBeenCalledOnce();
-	});
-
-	it("keeps the general heartbeat independent from Media Usage", async () => {
-		const maintenance = vi.fn().mockResolvedValue({ kind: "none" } as const);
-		scheduler.setContinuousMediaUsageMaintenance(maintenance);
-		scheduler.start();
-
-		await vi.advanceTimersToNextTimerAsync();
+		await vi.advanceTimersByTimeAsync(1_000);
 
 		expect(executor.tick).toHaveBeenCalledOnce();
-		expect(maintenance).not.toHaveBeenCalled();
+		expect(executor.recoverStaleLocks).toHaveBeenCalledOnce();
+		expect(cleanup).toHaveBeenCalledOnce();
 	});
 
-	it("does not let heartbeats shorten a delayed continuation", async () => {
-		vi.mocked(executor.getNextDueTime).mockImplementation(async () =>
-			new Date(Date.now()).toISOString(),
+	it("uses the one-minute heartbeat when no task is due", async () => {
+		scheduler.start();
+
+		await vi.advanceTimersByTimeAsync(59_999);
+		expect(executor.tick).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(1);
+		expect(executor.tick).toHaveBeenCalledOnce();
+	});
+
+	it("reschedules from a newly due task", async () => {
+		scheduler.start();
+		await vi.advanceTimersByTimeAsync(0);
+		vi.mocked(executor.getNextDueTime).mockResolvedValue(
+			new Date(Date.now() + 2_000).toISOString(),
 		);
-		const maintenance = vi
-			.fn()
-			.mockResolvedValueOnce({ kind: "delayed", delaySeconds: 30 } as const)
-			.mockResolvedValue({ kind: "none" } as const);
-		scheduler.setContinuousMediaUsageMaintenance(maintenance);
-		scheduler.start();
-		scheduler.wakeMediaUsageMaintenance();
 
-		await vi.advanceTimersByTimeAsync(0);
-		expect(maintenance).toHaveBeenCalledTimes(1);
-		await vi.advanceTimersByTimeAsync(29_000);
-		expect(maintenance).toHaveBeenCalledTimes(1);
-		await vi.advanceTimersByTimeAsync(1_000);
-		expect(maintenance).toHaveBeenCalledTimes(2);
+		scheduler.reschedule();
+		await vi.advanceTimersByTimeAsync(1_999);
+		expect(executor.tick).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(1);
+		expect(executor.tick).toHaveBeenCalledOnce();
 	});
 
-	it("lets an explicit wake replace a delayed continuation", async () => {
-		const maintenance = vi
-			.fn()
-			.mockResolvedValueOnce({ kind: "delayed", delaySeconds: 30 } as const)
-			.mockResolvedValue({ kind: "none" } as const);
-		scheduler.setContinuousMediaUsageMaintenance(maintenance);
+	it("cancels the pending heartbeat when stopped", async () => {
 		scheduler.start();
-		scheduler.wakeMediaUsageMaintenance();
-
-		await vi.advanceTimersByTimeAsync(0);
-		expect(maintenance).toHaveBeenCalledTimes(1);
-		scheduler.wakeMediaUsageMaintenance();
 		await vi.advanceTimersByTimeAsync(0);
 
-		expect(maintenance).toHaveBeenCalledTimes(2);
-	});
-
-	it("keeps an explicit wake requested during a delayed in-flight unit", async () => {
-		let release!: () => void;
-		const held = new Promise<void>((resolve) => {
-			release = resolve;
-		});
-		const maintenance = vi
-			.fn()
-			.mockImplementationOnce(async () => {
-				await held;
-				return { kind: "delayed", delaySeconds: 30 } as const;
-			})
-			.mockResolvedValue({ kind: "none" } as const);
-		scheduler.setContinuousMediaUsageMaintenance(maintenance);
-		scheduler.start();
-		scheduler.wakeMediaUsageMaintenance();
-
-		await vi.advanceTimersByTimeAsync(0);
-		scheduler.wakeMediaUsageMaintenance();
-		release();
-		await vi.advanceTimersByTimeAsync(0);
-
-		expect(maintenance).toHaveBeenCalledTimes(2);
-	});
-
-	it("keeps general heartbeats independent from a held unit", async () => {
-		vi.mocked(executor.getNextDueTime).mockImplementation(async () =>
-			new Date(Date.now()).toISOString(),
-		);
-		let releaseFirst!: () => void;
-		const first = new Promise<void>((resolve) => {
-			releaseFirst = resolve;
-		});
-		let active = 0;
-		let maximumActive = 0;
-		const maintenance = vi.fn(async () => {
-			active++;
-			maximumActive = Math.max(maximumActive, active);
-			if (maintenance.mock.calls.length === 1) await first;
-			active--;
-			return { kind: "none" } as const;
-		});
-		const cleanup = vi.fn(async () => {});
-		scheduler.setSystemCleanup(cleanup);
-		scheduler.setContinuousMediaUsageMaintenance(maintenance);
-		scheduler.start();
-		scheduler.wakeMediaUsageMaintenance();
-
-		await vi.advanceTimersByTimeAsync(0);
-		expect(maintenance).toHaveBeenCalledTimes(1);
-		await vi.advanceTimersByTimeAsync(3_000);
-		expect(executor.tick).toHaveBeenCalledTimes(3);
-		expect(cleanup).toHaveBeenCalledTimes(3);
-		expect(maximumActive).toBe(1);
-
-		releaseFirst();
-		await vi.advanceTimersByTimeAsync(0);
-		expect(maintenance).toHaveBeenCalledTimes(1);
-		expect(maximumActive).toBe(1);
-	});
-
-	it("clears a pending continuation when stopped", async () => {
-		const maintenance = vi.fn().mockResolvedValue({ kind: "immediate" } as const);
-		scheduler.setContinuousMediaUsageMaintenance(maintenance);
-		scheduler.start();
-		scheduler.wakeMediaUsageMaintenance();
-
-		await vi.advanceTimersByTimeAsync(0);
-		expect(maintenance).toHaveBeenCalledTimes(1);
 		scheduler.stop();
 		await vi.runAllTimersAsync();
-		expect(maintenance).toHaveBeenCalledTimes(1);
+
+		expect(executor.tick).not.toHaveBeenCalled();
 	});
 
-	it("unrefs Media Usage continuation timers", async () => {
+	it("unrefs the heartbeat timer", async () => {
 		const timeout = vi.spyOn(globalThis, "setTimeout");
-		const maintenance = vi.fn().mockResolvedValue({ kind: "none" } as const);
-		scheduler.setContinuousMediaUsageMaintenance(maintenance);
 		scheduler.start();
-		scheduler.wakeMediaUsageMaintenance();
-
 		await vi.advanceTimersByTimeAsync(0);
-		const mediaTimerIndex = timeout.mock.calls.findIndex((call) => call[1] === 0);
-		expect(mediaTimerIndex).toBeGreaterThanOrEqual(0);
-		expect(isUnreferencedTimer(timeout.mock.results[mediaTimerIndex]?.value)).toBe(true);
+
+		const heartbeat = timeout.mock.results.find(
+			(result, index) =>
+				timeout.mock.calls[index]?.[1] === 60_000 && isUnreferencedTimer(result.value),
+		);
+		expect(heartbeat).toBeDefined();
 	});
 
-	it("logs a failed unit once without heartbeat recovery", async () => {
+	it("logs failed heartbeat tasks and schedules the next heartbeat", async () => {
 		const error = vi.spyOn(console, "error").mockImplementation(() => {});
-		const maintenance = vi
-			.fn()
-			.mockRejectedValueOnce(new Error("maintenance failed"))
-			.mockResolvedValue({ kind: "none" } as const);
-		scheduler.setContinuousMediaUsageMaintenance(maintenance);
+		vi.mocked(executor.tick).mockRejectedValueOnce(new Error("tick failed"));
+		vi.mocked(executor.recoverStaleLocks).mockRejectedValueOnce(new Error("recovery failed"));
+		scheduler.setSystemCleanup(async () => {
+			throw new Error("cleanup failed");
+		});
 		scheduler.start();
-		scheduler.wakeMediaUsageMaintenance();
 
-		await vi.advanceTimersByTimeAsync(0);
-		expect(maintenance).toHaveBeenCalledTimes(1);
-		expect(error).toHaveBeenCalledTimes(1);
-		await vi.advanceTimersByTimeAsync(0);
-		expect(maintenance).toHaveBeenCalledTimes(1);
-		await vi.advanceTimersToNextTimerAsync();
-		expect(maintenance).toHaveBeenCalledTimes(1);
-		expect(error).toHaveBeenCalledTimes(1);
+		await vi.advanceTimersByTimeAsync(60_000);
+
+		expect(error).toHaveBeenCalledTimes(3);
+		expect(executor.getNextDueTime).toHaveBeenCalledTimes(2);
 	});
 });
 

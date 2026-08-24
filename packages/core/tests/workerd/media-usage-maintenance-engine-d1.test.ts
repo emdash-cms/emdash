@@ -3,14 +3,12 @@ import { Kysely, sql } from "kysely";
 import { afterAll, beforeAll, expect, it } from "vitest";
 
 import { RawBindingD1Dialect } from "../../../cloudflare/src/db/d1-dialect.js";
-import { createRequestScopedDb } from "../../../cloudflare/src/db/d1.js";
 import { kyselyLogOption } from "../../src/database/instrumentation.js";
 import { runMigrations } from "../../src/database/migrations/runner.js";
 import { MediaUsageRepository } from "../../src/database/repositories/media-usage.js";
 import type { Database } from "../../src/database/types.js";
 import {
 	MEDIA_USAGE_MAINTENANCE_LIMITS,
-	runMediaUsageMaintenanceSlice,
 	runMediaUsageMaintenanceStep,
 } from "../../src/media/usage/maintenance-engine.js";
 import { createRequestMetrics, runWithContext } from "../../src/request-context.js";
@@ -95,127 +93,6 @@ it("keeps the largest entry step below the shared reservation", async () => {
 	expect(measurement.maxSqlBytes).toBeLessThan(100 * 1024);
 	expect(measurement.wallDurationMs).toBeLessThan(5_000);
 	console.info(`PR8_D1_MAINTENANCE_STEP=${JSON.stringify(measurement)}`);
-});
-
-it("drains several durable units without exceeding one D1 event", async () => {
-	const fixture = await createMediaUsageAdmissionFixture(adminDb, "d1_engine_slice");
-	await adminDb
-		.updateTable("_emdash_media_usage_activation")
-		.set({ state: "active" })
-		.where("task_key", "=", "incremental_capture")
-		.execute();
-	for (let index = 0; index < 5; index++) {
-		await insertMediaUsageMeasurementEntry(
-			adminDb,
-			fixture,
-			`slice-entry-${index}`,
-			mediaUsageMeasurementData(index, `slice-entry-${index}`),
-		);
-	}
-
-	const measurement = emptyMeasurement();
-	const db = new Kysely<Database>({
-		dialect: new RawBindingD1Dialect({ database: captureD1(env.DB, measurement) }),
-		log: kyselyLogOption(),
-	});
-	const metrics = createRequestMetrics(performance.now());
-	const startedAt = performance.now();
-	const continuation = await runWithContext({ editMode: false, metrics }, () =>
-		runMediaUsageMaintenanceSlice(db),
-	);
-	measurement.wallDurationMs = Number((performance.now() - startedAt).toFixed(3));
-	const sliceQueryCount = measurement.queries;
-	const remaining = await db
-		.selectFrom("_emdash_media_usage_work")
-		.select((eb) => eb.fn.countAll<number>().as("count"))
-		.where("collection_id", "=", fixture.collectionId)
-		.executeTakeFirstOrThrow();
-	await db.destroy();
-
-	expect(continuation).toEqual({ kind: "none" });
-	expect(Number(remaining.count)).toBe(0);
-	expect(metrics.dbCount).toBe(sliceQueryCount);
-	expect(sliceQueryCount).toBeLessThanOrEqual(MEDIA_USAGE_MAINTENANCE_LIMITS.eventQueryCeiling);
-	expect(measurement.maxBinds).toBeLessThanOrEqual(100);
-	expect(measurement.maxSqlBytes).toBeLessThan(100 * 1024);
-	expect(measurement.wallDurationMs).toBeLessThan(25_000);
-	console.info(`PR8_D1_MAINTENANCE_SLICE=${JSON.stringify(measurement)}`);
-});
-
-it("drains several durable units through the deployed D1 session path", async () => {
-	const fixture = await createMediaUsageAdmissionFixture(adminDb, "d1_session_engine_slice");
-	await adminDb
-		.updateTable("_emdash_media_usage_activation")
-		.set({ state: "active" })
-		.where("task_key", "=", "incremental_capture")
-		.execute();
-	for (let index = 0; index < 5; index++) {
-		await insertMediaUsageMeasurementEntry(
-			adminDb,
-			fixture,
-			`session-slice-entry-${index}`,
-			mediaUsageMeasurementData(index, `session-slice-entry-${index}`),
-		);
-	}
-
-	const scoped = createRequestScopedDb({
-		config: { binding: "DB", session: "auto" },
-		isAuthenticated: false,
-		isWrite: true,
-		cookies: { get: () => undefined, set: () => {} },
-		url: new URL("https://queue.emdash.internal/"),
-	});
-	if (!scoped) throw new Error("Expected a D1 session-scoped database");
-	const metrics = createRequestMetrics(performance.now());
-	const continuation = await runWithContext({ editMode: false, metrics }, () =>
-		runMediaUsageMaintenanceSlice(scoped.db),
-	);
-	const remaining = await adminDb
-		.selectFrom("_emdash_media_usage_work")
-		.select((eb) => eb.fn.countAll<number>().as("count"))
-		.where("collection_id", "=", fixture.collectionId)
-		.executeTakeFirstOrThrow();
-	scoped.commit();
-	await scoped.db.destroy();
-
-	expect(continuation).toEqual({ kind: "none" });
-	expect(metrics.dbCount).toBeGreaterThan(0);
-	expect(Number(remaining.count)).toBe(0);
-});
-
-it("runs one complete batch when a database does not report query metrics", async () => {
-	const fixture = await createMediaUsageAdmissionFixture(adminDb, "d1_engine_unmetered");
-	await adminDb
-		.updateTable("_emdash_media_usage_activation")
-		.set({ state: "active" })
-		.where("task_key", "=", "incremental_capture")
-		.execute();
-	for (let index = 0; index < 2; index++) {
-		await insertMediaUsageMeasurementEntry(
-			adminDb,
-			fixture,
-			`unmetered-entry-${index}`,
-			mediaUsageMeasurementData(0, `unmetered-entry-${index}`),
-		);
-	}
-
-	const db = new Kysely<Database>({
-		dialect: new RawBindingD1Dialect({ database: env.DB }),
-	});
-	const metrics = createRequestMetrics(performance.now());
-	const continuation = await runWithContext({ editMode: false, metrics }, () =>
-		runMediaUsageMaintenanceSlice(db),
-	);
-	const remaining = await db
-		.selectFrom("_emdash_media_usage_work")
-		.select((eb) => eb.fn.countAll<number>().as("count"))
-		.where("collection_id", "=", fixture.collectionId)
-		.executeTakeFirstOrThrow();
-	await db.destroy();
-
-	expect(continuation).toEqual({ kind: "immediate" });
-	expect(metrics.dbCount).toBe(0);
-	expect(Number(remaining.count)).toBe(0);
 });
 
 it("keeps the largest admitted activation trigger replacement inside one step", async () => {

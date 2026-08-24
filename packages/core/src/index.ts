@@ -311,7 +311,6 @@ export type {
 
 	// Scheduler types
 	CronScheduler,
-	MediaUsageContinuationFn,
 	SystemCleanupFn,
 
 	// Sandbox runtime types

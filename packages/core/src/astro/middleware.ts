@@ -48,7 +48,6 @@ import { createDeferredTaskTracker } from "../deferred-tasks.js";
 import {
 	DB_INIT_DEADLINE_MS,
 	EmDashRuntime,
-	type MediaUsageMaintenanceContinuation,
 	type RuntimeDependencies,
 	type SandboxedPluginEntry,
 	type MediaProviderEntry,
@@ -298,12 +297,6 @@ export async function runScheduledTasks(
 	const config = getConfig();
 	if (!config) return { published: [] };
 	return runOutsideRequest(config, (runtime) => runtime.runScheduledTasks(options));
-}
-
-export async function runMediaUsageMaintenanceSlice(): Promise<MediaUsageMaintenanceContinuation> {
-	const config = getConfig();
-	if (!config) return { kind: "none" };
-	return runOutsideRequest(config, (runtime) => runtime.runMediaUsageMaintenanceSlice());
 }
 
 /**
@@ -989,7 +982,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Update plugin enabled/disabled status and rebuild hook pipeline
 					setPluginStatus: runtime.setPluginStatus.bind(runtime),
-					wakeMediaUsageMaintenance: runtime.wakeMediaUsageMaintenance.bind(runtime),
 				};
 			} catch (error) {
 				if (error instanceof PendingMigrationsError) {

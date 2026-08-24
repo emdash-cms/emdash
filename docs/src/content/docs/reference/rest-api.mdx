@@ -370,9 +370,7 @@ Automatic media usage indexing must be enabled once for each production site. Pa
 
 Both endpoints require `schema:manage`. Bearer tokens also require the `admin` scope.
 
-Administrators can run the same procedure from **Settings → Media Usage** by selecting **Enable Media Usage**, then **Turn on**. The page sends one POST and displays the server-owned setup and indexing progress.
-
-Before using either flow, confirm that the Cloudflare Queue consumer or Node.js process is running.
+Administrators can run the same procedure from **Settings → Media Usage** by selecting **Enable Media Usage**, then **Turn on**. The page sends serialized progress requests while it remains visible.
 
 #### Check the current state
 
@@ -396,37 +394,25 @@ Content-Type: application/json
 X-EmDash-Request: 1
 
 {
-	"writersDrained": true,
-	"maintenanceReady": true
+	"writersDrained": true
 }
 ```
 
-The request prepares at most one collection and wakes the configured Cloudflare Queue or Node.js scheduler. These standard drivers continue with bounded batches after the response, including when the client disconnects. Use `GET` to observe the stored state. With a standard driver, do not send another POST unless the stored status reports a failure that you have fixed.
+The request prepares at most one collection. After it succeeds, advance setup and historical indexing through the progress endpoint below.
 
-Custom integrations that do not wire the standard Cloudflare Queue or Node continuation can continue
-sending one POST at a time. This compatibility path retains the same collection bound.
-
-Set both fields to `true`:
-
-- `writersDrained`: Application and direct database writes have stopped, and any writes already in
-  progress have finished.
-- `maintenanceReady`: The Media Usage Queue consumer is running on Cloudflare, or the built-in scheduler is running on Node.js.
+Set `writersDrained` to `true` after application and direct database writes have stopped and any writes already in progress have finished.
 
 #### Enable indexing in production
 
-1. Confirm that the Media Usage Queue consumer is running on Cloudflare, or that the built-in
-   scheduler is running on Node.js.
-2. Stop all direct database writers. Wait for writes already in progress to finish. EmDash fences its own writes during setup.
-3. Call `GET` to check the current state.
-4. With the standard Queue or Node driver, call `POST` once, then use `GET` until the state becomes
-   `active`. With a custom integration that does not continue activation, alternate one `POST` with
-   `GET` until the state becomes `active`.
-5. Resume writes after the state becomes `active`.
-6. Keep the Queue consumer or Node process running while EmDash indexes existing content.
+1. Stop all direct database writers. Wait for writes already in progress to finish. EmDash fences its own writes during setup.
+2. Call the activation `GET` endpoint to check the current state.
+3. Call the activation `POST` endpoint once with `writersDrained: true`.
+4. Call the progress `POST` endpoint serially. Follow `nextRequestInMs` until it returns `null`.
+5. Resume direct database writes after activation becomes `active`.
+6. Continue progress requests until historical indexing reports `ready`.
 
 If `POST` times out or returns `409` or `500`, call `GET` before deciding what to do. If the state is
-still `activating` without `lastErrorCode`, the server is continuing or another worker owns the
-current batch. If `lastErrorCode` is set, keep writes stopped, check the application logs, fix the
+still `activating` without `lastErrorCode`, another request may own the current batch. If `lastErrorCode` is set, keep writes stopped, check the application logs, fix the
 problem, and send one confirmed POST to retry. Do not edit EmDash's internal database tables.
 
 <Aside type="caution">
@@ -434,8 +420,7 @@ problem, and send one confirmed POST to retry. Do not edit EmDash's internal dat
 	follow your normal database backup policy before using it in production.
 </Aside>
 
-When the state is `active`, EmDash tracks changes to media references in content. Existing content
-may still be indexing in the background.
+When the state is `active`, EmDash tracks changes to media references in content. Existing content may still need progress requests before historical indexing is ready.
 
 #### Check historical indexing progress
 
@@ -448,6 +433,45 @@ number of ready and total current content types. The optional `indexingStarted` 
 between activation finishing and the first current reconciliation starting. Older responses may omit
 it. The endpoint does not inspect content rows or return work-item details. It requires
 `schema:manage`; bearer tokens also require the `admin` scope.
+
+#### Advance setup and historical indexing
+
+```http
+POST /_emdash/api/admin/media-usage/progress
+X-EmDash-Request: 1
+```
+
+The request has no body. It runs one bounded maintenance step and returns the stored activation and progress state after that step.
+
+```json
+{
+	"success": true,
+	"data": {
+		"activation": {
+			"state": "active",
+			"collectionCursor": null,
+			"attemptCount": 2,
+			"drainConfirmedAt": "2026-08-24T12:00:00.000Z",
+			"lastAttemptedAt": "2026-08-24T12:00:01.000Z",
+			"lastErrorCode": null,
+			"leaseExpiresAt": null,
+			"activatedAt": "2026-08-24T12:00:01.000Z",
+			"updatedAt": "2026-08-24T12:00:02.000Z"
+		},
+		"progress": {
+			"status": "indexing",
+			"readyCollections": 1,
+			"totalCollections": 2,
+			"indexingStarted": true
+		},
+		"nextRequestInMs": 0
+	}
+}
+```
+
+`progress` is `null` until activation is active. `nextRequestInMs` is `0` for an immediate successor, `30000` for a delayed retry, or `null` when the server knows of no successor. Send only one progress request at a time and wait for the returned delay.
+
+Closing the client does not discard completed work, but it stops future requests. To resume, read activation first, read progress when activation is active, then continue progress requests. After an ambiguous response, perform the same reads before retrying.
 
 ### List Media Usage Work
 
@@ -514,8 +538,7 @@ replaces newer work or exposes its lease token.
 The list returns only known durable work. Retry can create work for the supplied identity in an
 active collection even when no work row exists, but it does not scan for historical gaps. Use
 collection-scoped Media Usage repair after imports or direct database writes.
-When the Media Usage Queue or Node continuation is unavailable, failed jobs remain visible and
-manually retryable, but no automatic freshness deadline is promised.
+Failed jobs remain visible and manually retryable. A `needs_attention` progress state stops automatic requests from the Settings page until the underlying failure is resolved.
 
 ### Recover Collection Deletion
 

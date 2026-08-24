@@ -55,9 +55,7 @@ The server runs on `http://localhost:4321` by default. Migrations are applied on
 
 ## Scheduled tasks
 
-The built-in scheduler runs only while a Node.js process is running. It handles scheduled publishing, plugin tasks, and background Media Usage indexing.
-
-The scheduler continues indexing until Media Usage catches up. It yields between batches so the server can keep handling requests.
+The built-in scheduler runs only while a Node.js process is running. It handles scheduled publishing, plugin tasks, and general maintenance.
 
 Keep at least one Node.js process running continuously in production. Scheduled tasks pause when every process stops or sleeps.
 
@@ -65,12 +63,10 @@ Keep at least one Node.js process running continuously in production. Scheduled 
 
 1. If another application writes directly to the SQLite database, pause it before setup.
 2. Open **Settings → Media Usage**, select **Enable Media Usage**, then select **Turn on**.
-3. Keep the Node.js process running until the page shows **Ready**. You can close the page while indexing continues.
-4. Resume direct database writers when the page shows **Starting indexing**, **Indexing existing content**, or **Ready**.
+3. Keep the Settings page open until it shows **Ready**. If you close or hide it, return to the page to continue from the stored progress.
+4. Resume direct database writers when the page shows **Indexing existing content** or **Ready**.
 
-EmDash may briefly pause editing while the page shows **Setting up**. If the page shows **Needs attention**, fix the reported server problem and select **Retry setup**.
-
-An interrupted Node.js process does not restart Media Usage indexing from the general scheduler. Keep the process running until setup reaches **Ready**.
+EmDash may briefly pause editing while the page shows **Setting up**. If the page shows **Needs attention**, follow its recovery guidance. **Retry setup** appears only after activation fails.
 
 API operators can use the [Media Usage activation endpoints](/reference/rest-api/#enable-automatic-media-usage-indexing).
 

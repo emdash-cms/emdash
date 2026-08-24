@@ -97,80 +97,45 @@ To change the schema or content model of a site that is already deployed, see [E
 
 ## Scheduled tasks and Media Usage
 
-Cloudflare runs scheduled publishing, plugin tasks, and general maintenance from one Cron Trigger. Media Usage uses a Queue so indexing starts when an administrator enables it and continues after the browser closes.
+Cloudflare runs scheduled publishing, plugin tasks, and general maintenance from one Cron Trigger. Media Usage setup advances through requests from the visible Settings page.
 
-New Cloudflare templates include this configuration. When updating an existing project, add the Media Usage handlers to the Worker entry point:
+Use the standard Worker entry point:
 
 ```ts title="src/worker.ts"
 import handler, {
-	createMediaUsageFetchHandler,
-	createMediaUsageQueueHandler,
 	createScheduledHandler,
-	type MediaUsageWakeMessage,
 	PluginBridge,
 } from "@emdash-cms/cloudflare/worker";
 
 export { PluginBridge };
 
-const resolveMediaUsageQueue = (env: Env) => env.MEDIA_USAGE_QUEUE;
-
 export default {
 	...handler,
-	fetch: createMediaUsageFetchHandler(handler, resolveMediaUsageQueue),
 	scheduled: createScheduledHandler(),
-	queue: createMediaUsageQueueHandler(resolveMediaUsageQueue),
-} satisfies ExportedHandler<Env, MediaUsageWakeMessage>;
+} satisfies ExportedHandler<Env>;
 ```
 
-Configure one Cron Trigger for general maintenance and one Queue for Media Usage in `wrangler.jsonc`:
+Configure one Cron Trigger for general maintenance in `wrangler.jsonc`:
 
 ```jsonc title="wrangler.jsonc"
 {
 	"triggers": {
 		"crons": ["* * * * *"],
 	},
-	"limits": {
-		"cpu_ms": 300000,
-	},
-	"queues": {
-		"producers": [
-			{
-				"binding": "MEDIA_USAGE_QUEUE",
-				"queue": "my-emdash-site-media-usage",
-			},
-		],
-		"consumers": [
-			{
-				"queue": "my-emdash-site-media-usage",
-				"max_batch_size": 1,
-				"max_batch_timeout": 0,
-				"max_retries": 3,
-				"max_concurrency": 1,
-			},
-		],
-	},
 }
 ```
 
-Run `wrangler types` after changing the bindings so `Env.MEDIA_USAGE_QUEUE` is available to TypeScript.
-
-The fetch handler sends the first Queue message after Media Usage is enabled. The consumer indexes up to 1,000 entries at a time and sends another message while work remains. Keep `max_concurrency` at `1` because D1 processes writes sequentially.
-
 To use a different general maintenance schedule, set `generalCron` in `createScheduledHandler()` and
 use the same expression in `wrangler.jsonc`.
-
-<Aside type="caution">
-	Keep the Media Usage Queue configured and running until setup reaches **Ready**. The general Cron does not restart interrupted Media Usage indexing.
-</Aside>
 
 ### Enable Media Usage
 
 1. If another application writes directly to D1, pause it before setup.
 2. Open **Settings → Media Usage**, select **Enable Media Usage**, then select **Turn on**.
-3. Keep the Worker and Queue running until the page shows **Ready**. You can close the page while indexing continues.
-4. Resume direct D1 writers when the page shows **Starting indexing**, **Indexing existing content**, or **Ready**.
+3. Keep the Settings page open until it shows **Ready**. If you close or hide it, return to the page to continue from the stored progress.
+4. Resume direct D1 writers when the page shows **Indexing existing content** or **Ready**.
 
-EmDash may briefly pause editing while the page shows **Setting up**. If the page shows **Needs attention**, fix the reported server problem and select **Retry setup**.
+EmDash may briefly pause editing while the page shows **Setting up**. If the page shows **Needs attention**, follow its recovery guidance. **Retry setup** appears only after activation fails.
 
 API operators can use the [Media Usage activation endpoints](/reference/rest-api/#enable-automatic-media-usage-indexing).
 

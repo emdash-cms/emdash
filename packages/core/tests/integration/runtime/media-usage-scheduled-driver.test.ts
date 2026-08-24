@@ -1,16 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import Database from "better-sqlite3";
-import {
-	sql,
-	SqliteDialect,
-	type KyselyPlugin,
-	type PluginTransformQueryArgs,
-	type PluginTransformResultArgs,
-	type QueryResult,
-	type RootOperationNode,
-	type UnknownRow,
-} from "kysely";
+import { sql, SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
@@ -18,21 +9,13 @@ import { OptionsRepository } from "../../../src/database/repositories/options.js
 import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { activateMediaUsageCapture } from "../../../src/media/usage/activation.js";
 import { installMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
-import {
-	MEDIA_USAGE_MAINTENANCE_LIMITS,
-	runMediaUsageMaintenanceSlice,
-} from "../../../src/media/usage/maintenance-engine.js";
+import { runMediaUsageMaintenanceStep } from "../../../src/media/usage/maintenance-engine.js";
 import { processDueMediaUsageReconciliation } from "../../../src/media/usage/reconciliation-processor.js";
 import { processDueMediaUsageWork } from "../../../src/media/usage/work-processor.js";
-import type {
-	CronScheduler,
-	MediaUsageContinuationFn,
-	SystemCleanupFn,
-} from "../../../src/plugins/scheduler/types.js";
-import { createRequestMetrics, runWithContext } from "../../../src/request-context.js";
+import type { CronScheduler, SystemCleanupFn } from "../../../src/plugins/scheduler/types.js";
 import { SCHEDULER_HEARTBEAT_OPTION } from "../../../src/scheduler-health.js";
 
-describe("media usage scheduled drivers", () => {
+describe("media usage maintenance engine and Node heartbeat", () => {
 	let runtime: EmDashRuntime | null = null;
 
 	afterEach(async () => {
@@ -45,7 +28,7 @@ describe("media usage scheduled drivers", () => {
 		const fixture = await activateCollection(runtime, "work_conserving_posts");
 		await insertEntry(runtime, fixture.tableName, "entry-1");
 
-		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
+		await expect(runMediaUsageMaintenanceStep(runtime.db)).resolves.toEqual({
 			state: "progress",
 			continuation: { kind: "immediate" },
 		});
@@ -65,7 +48,7 @@ describe("media usage scheduled drivers", () => {
 			END
 		`.execute(runtime.db);
 
-		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
+		await expect(runMediaUsageMaintenanceStep(runtime.db)).resolves.toEqual({
 			state: "blocked",
 			continuation: { kind: "delayed", delaySeconds: 30 },
 		});
@@ -81,7 +64,7 @@ describe("media usage scheduled drivers", () => {
 			.set({ state: "retry", next_attempt_at: "2100-01-01T00:00:00.000Z" })
 			.execute();
 
-		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
+		await expect(runMediaUsageMaintenanceStep(runtime.db)).resolves.toEqual({
 			state: "blocked",
 			continuation: { kind: "delayed", delaySeconds: 30 },
 		});
@@ -107,7 +90,7 @@ describe("media usage scheduled drivers", () => {
 			END
 		`.execute(runtime.db);
 
-		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
+		await expect(runMediaUsageMaintenanceStep(runtime.db)).resolves.toEqual({
 			state: "progress",
 			continuation: { kind: "immediate" },
 		});
@@ -150,7 +133,7 @@ describe("media usage scheduled drivers", () => {
 			END
 		`.execute(runtime.db);
 
-		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toMatchObject({
+		await expect(runMediaUsageMaintenanceStep(runtime.db)).resolves.toMatchObject({
 			state: "blocked",
 			continuation: { kind: "delayed", delaySeconds: 30 },
 		});
@@ -160,7 +143,7 @@ describe("media usage scheduled drivers", () => {
 		runtime = await EmDashRuntime.create(createDeps(null));
 		await activateCollection(runtime, "idle_posts");
 
-		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
+		await expect(runMediaUsageMaintenanceStep(runtime.db)).resolves.toEqual({
 			state: "idle",
 			continuation: { kind: "none" },
 		});
@@ -202,7 +185,7 @@ describe("media usage scheduled drivers", () => {
 			await runtime.db.selectFrom("_emdash_media_usage_reconciliations").select("state").execute(),
 		).toEqual([expect.objectContaining({ state: "pending" })]);
 
-		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toMatchObject({
+		await expect(runMediaUsageMaintenanceStep(runtime.db)).resolves.toMatchObject({
 			state: "progress",
 			continuation: { kind: "immediate" },
 		});
@@ -258,7 +241,7 @@ describe("media usage scheduled drivers", () => {
 			.where("collection_id", "=", reconciliation.collectionId)
 			.execute();
 
-		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toMatchObject({
+		await expect(runMediaUsageMaintenanceStep(runtime.db)).resolves.toMatchObject({
 			state: "progress",
 			continuation: { kind: "immediate" },
 		});
@@ -271,246 +254,6 @@ describe("media usage scheduled drivers", () => {
 				.where("collection_id", "=", reconciliation.collectionId)
 				.executeTakeFirst(),
 		).toBeDefined();
-	});
-
-	it("drains work after an explicit Node wake", async () => {
-		const scheduler = new ContinuousCapturingScheduler();
-		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
-		const fixture = await activateCollection(runtime, "continuous_node_posts");
-		await insertEntry(runtime, fixture.tableName, "entry-1");
-		await insertEntry(runtime, fixture.tableName, "entry-2");
-
-		runtime.wakeMediaUsageMaintenance();
-		expect(scheduler.wakeCount).toBe(1);
-		await expect(scheduler.runContinuation()).resolves.toEqual({ kind: "immediate" });
-		expect(await countWork(runtime)).toBe(0);
-		await expect(scheduler.runContinuation()).resolves.toEqual({ kind: "none" });
-	});
-
-	it("drains several durable units inside one Cloudflare maintenance slice", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		const fixture = await activateCollection(runtime, "slice_posts");
-		await insertEntry(runtime, fixture.tableName, "entry-1");
-		await insertEntry(runtime, fixture.tableName, "entry-2");
-		await insertEntry(runtime, fixture.tableName, "entry-3");
-		const metrics = createRequestMetrics(performance.now());
-
-		const continuation = await runWithContext({ editMode: false, metrics }, () =>
-			runtime!.runMediaUsageMaintenanceSlice(),
-		);
-
-		expect(continuation).toEqual({ kind: "none" });
-		expect(await countWork(runtime)).toBe(0);
-	});
-
-	it("does not re-probe idle classes while draining historical coverage", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		await runtime.schemaRegistry.createCollection({ slug: "bulk_history", label: "Bulk history" });
-		await runtime.schemaRegistry.createField("bulk_history", {
-			slug: "hero",
-			label: "Hero",
-			type: "image",
-		});
-		await sql`
-			WITH RECURSIVE sequence(value) AS (
-				VALUES (0)
-				UNION ALL
-				SELECT value + 1 FROM sequence WHERE value < 499
-			)
-			INSERT INTO ${sql.ref("ec_bulk_history")} (id, slug, status, hero)
-			SELECT
-				printf('entry-%03d', value),
-				printf('entry-%03d', value),
-				'published',
-				json_object('id', printf('media-%03d', value), 'provider', 'local')
-			FROM sequence
-		`.execute(runtime.db);
-		await expect(
-			activateMediaUsageCapture(runtime.db, { writersDrained: true }),
-		).resolves.toMatchObject({ outcome: "active" });
-		const counter = new QueryCountingPlugin();
-		const metrics = createRequestMetrics(performance.now());
-
-		await expect(
-			runWithContext({ editMode: false, metrics }, () =>
-				runMediaUsageMaintenanceSlice(runtime!.db.withPlugin(counter)),
-			),
-		).resolves.toEqual({ kind: "none" });
-
-		expect(counter.count).toBeLessThan(75);
-	});
-
-	it("runs one complete batch when a direct slice caller has no query metrics", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		const fixture = await activateCollection(runtime, "unmetered_slice_posts");
-		await insertEntry(runtime, fixture.tableName, "entry-1");
-		await insertEntry(runtime, fixture.tableName, "entry-2");
-
-		await expect(runtime.runMediaUsageMaintenanceSlice()).resolves.toEqual({ kind: "immediate" });
-		expect(await countWork(runtime)).toBe(0);
-	});
-
-	it("stops before another unit when the remaining query budget is reserved", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		const fixture = await activateCollection(runtime, "query_bound_slice_posts");
-		await insertEntry(runtime, fixture.tableName, "entry-1");
-		await insertEntry(runtime, fixture.tableName, "entry-2");
-		const metrics = createRequestMetrics(performance.now());
-		metrics.dbCount =
-			MEDIA_USAGE_MAINTENANCE_LIMITS.eventQueryCeiling -
-			MEDIA_USAGE_MAINTENANCE_LIMITS.maxStepQueries -
-			10;
-
-		const continuation = await runWithContext({ editMode: false, metrics }, () =>
-			runtime!.runMediaUsageMaintenanceSlice(),
-		);
-
-		expect(continuation).toEqual({ kind: "immediate" });
-		expect(await countWork(runtime)).toBe(0);
-	});
-
-	it("rechecks the event query budget between due maintenance classes", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		const work = await activateCollection(runtime, "bounded_cycle_work");
-		await insertEntry(runtime, work.tableName, "entry-1");
-		const deletion = await activateCollection(runtime, "bounded_cycle_delete");
-		await runtime.schemaRegistry.deleteCollection("bounded_cycle_delete", { force: true });
-		const reconciliation = await activateCollection(runtime, "bounded_cycle_reconciliation");
-		await runtime.db
-			.updateTable("_emdash_media_usage_index_status")
-			.set({ status: "stale", reconciliation_required: 1 })
-			.where("collection_id", "=", reconciliation.collectionId)
-			.execute();
-		const metrics = createRequestMetrics(performance.now());
-		metrics.dbCount =
-			MEDIA_USAGE_MAINTENANCE_LIMITS.eventQueryCeiling -
-			MEDIA_USAGE_MAINTENANCE_LIMITS.maxStepQueries -
-			1;
-
-		await expect(
-			runWithContext({ editMode: false, metrics }, () => runtime!.runMediaUsageMaintenanceStep()),
-		).resolves.toMatchObject({
-			state: "progress",
-			continuation: { kind: "immediate" },
-		});
-		expect(await deletionPhase(runtime, deletion.collectionId)).toBe("sources");
-		expect(await countWork(runtime)).toBe(1);
-		expect(
-			await runtime.db
-				.selectFrom("_emdash_media_usage_reconciliations")
-				.select("collection_id")
-				.where("collection_id", "=", reconciliation.collectionId)
-				.executeTakeFirst(),
-		).toBeUndefined();
-	});
-
-	it("does not create a no-progress continuation when initialization spent the query budget", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		const fixture = await activateCollection(runtime, "spent_slice_posts");
-		await insertEntry(runtime, fixture.tableName, "entry-1");
-		const metrics = createRequestMetrics(performance.now());
-		metrics.dbCount =
-			MEDIA_USAGE_MAINTENANCE_LIMITS.eventQueryCeiling -
-			MEDIA_USAGE_MAINTENANCE_LIMITS.maxStepQueries +
-			1;
-
-		const continuation = await runWithContext({ editMode: false, metrics }, () =>
-			runtime!.runMediaUsageMaintenanceSlice(),
-		);
-
-		expect(continuation).toEqual({ kind: "none" });
-		expect(await countWork(runtime)).toBe(1);
-	});
-
-	it("does not stop a slice based only on elapsed time", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		const fixture = await activateCollection(runtime, "timed_slice_posts");
-		await insertEntry(runtime, fixture.tableName, "entry-1");
-		const metrics = createRequestMetrics(performance.now() - 60 * 60 * 1_000);
-
-		const continuation = await runWithContext({ editMode: false, metrics }, () =>
-			runtime!.runMediaUsageMaintenanceSlice(),
-		);
-
-		expect(continuation).toEqual({ kind: "none" });
-		expect(await countWork(runtime)).toBe(0);
-	});
-
-	it("continues a metered Queue slice beyond the old twenty-second cutoff", async () => {
-		runtime = await EmDashRuntime.create(createDeps(null));
-		const fixture = await activateCollection(runtime, "long_io_slice_posts");
-		await insertEntry(runtime, fixture.tableName, "entry-1");
-		await insertEntry(runtime, fixture.tableName, "entry-2");
-		const metrics = createRequestMetrics(performance.now() - 20_001);
-
-		const continuation = await runWithContext({ editMode: false, metrics }, () =>
-			runtime!.runMediaUsageMaintenanceSlice(),
-		);
-
-		expect(continuation).toEqual({ kind: "none" });
-		expect(await countWork(runtime)).toBe(0);
-	});
-
-	it("starts reconciliation from an explicit Node wake", async () => {
-		const scheduler = new ContinuousCapturingScheduler();
-		const metrics = createRequestMetrics(performance.now());
-		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
-		await runtime.schemaRegistry.createCollection({
-			slug: "node_reconciliation",
-			label: "Node reconciliation",
-		});
-		await runtime.schemaRegistry.createField("node_reconciliation", {
-			slug: "title",
-			label: "Title",
-			type: "string",
-		});
-		await sql`
-			INSERT INTO ${sql.ref("ec_node_reconciliation")} (id, slug, status, title)
-			VALUES ('existing-entry', 'existing-entry', 'published', 'Existing entry')
-		`.execute(runtime.db);
-		metrics.dbCount = MEDIA_USAGE_MAINTENANCE_LIMITS.eventQueryCeiling;
-
-		await expect(activateMediaUsageCapture(runtime.db, { writersDrained: true })).resolves.toEqual({
-			outcome: "active",
-			processedCollections: 1,
-		});
-		expect(
-			await runtime.db
-				.selectFrom("_emdash_media_usage_reconciliations")
-				.select("collection_id")
-				.executeTakeFirst(),
-		).toBeUndefined();
-
-		await runWithContext({ editMode: false, metrics }, async () => {
-			runtime!.wakeMediaUsageMaintenance();
-			await scheduler.runContinuation();
-			await scheduler.runContinuation();
-			await scheduler.runContinuation();
-		});
-
-		const reconciliation = await runtime.db
-			.selectFrom("_emdash_media_usage_reconciliations")
-			.select("collection_id")
-			.executeTakeFirst();
-		const coverage = await runtime.db
-			.selectFrom("_emdash_media_usage_index_status")
-			.select("status")
-			.where("scope_key", "=", "node_reconciliation")
-			.executeTakeFirstOrThrow();
-		expect(reconciliation !== undefined || coverage.status === "complete").toBe(true);
-	});
-
-	it("advances bounded collection deletion from an explicit Node wake", async () => {
-		const scheduler = new ContinuousCapturingScheduler();
-		runtime = await EmDashRuntime.create(createDeps(() => scheduler));
-		const fixture = await activateCollection(runtime, "node_delete");
-		await runtime.schemaRegistry.deleteCollection("node_delete", { force: true });
-
-		runtime.wakeMediaUsageMaintenance();
-		await scheduler.runContinuation();
-		await scheduler.runContinuation();
-
-		expect(await deletionPhase(runtime, fixture.collectionId)).toBe("status");
 	});
 
 	it("processes a trigger-created job before returning from an authenticated write", async () => {
@@ -546,7 +289,7 @@ describe("media usage scheduled drivers", () => {
 		});
 		const confirmed = await activationState(runtime);
 
-		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
+		await expect(runMediaUsageMaintenanceStep(runtime.db)).resolves.toEqual({
 			state: "progress",
 			continuation: { kind: "immediate" },
 		});
@@ -572,7 +315,7 @@ describe("media usage scheduled drivers", () => {
 			.execute();
 		const before = await activationState(runtime);
 
-		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
+		await expect(runMediaUsageMaintenanceStep(runtime.db)).resolves.toEqual({
 			state: "inactive",
 			continuation: { kind: "none" },
 		});
@@ -599,7 +342,7 @@ describe("media usage scheduled drivers", () => {
 			.execute();
 		const before = await activationState(runtime);
 
-		await expect(runtime.runMediaUsageMaintenanceStep()).resolves.toEqual({
+		await expect(runMediaUsageMaintenanceStep(runtime.db)).resolves.toEqual({
 			state: "inactive",
 			continuation: { kind: "none" },
 		});
@@ -607,32 +350,11 @@ describe("media usage scheduled drivers", () => {
 	});
 });
 
-class QueryCountingPlugin implements KyselyPlugin {
-	count = 0;
-
-	transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
-		this.count++;
-		return args.node;
-	}
-
-	transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
-		return Promise.resolve(args.result);
-	}
-}
-
 class ContinuousCapturingScheduler implements CronScheduler {
 	private systemCleanup: SystemCleanupFn | null = null;
-	private mediaUsageMaintenance: MediaUsageContinuationFn | null = null;
-	wakeCount = 0;
 
 	setSystemCleanup(fn: SystemCleanupFn): void {
 		this.systemCleanup = fn;
-	}
-	setContinuousMediaUsageMaintenance(fn: MediaUsageContinuationFn): void {
-		this.mediaUsageMaintenance = fn;
-	}
-	wakeMediaUsageMaintenance(): void {
-		this.wakeCount++;
 	}
 
 	start(): void {}
@@ -642,13 +364,6 @@ class ContinuousCapturingScheduler implements CronScheduler {
 	async runMaintenance(): Promise<void> {
 		if (!this.systemCleanup) throw new Error("Expected Node maintenance callback");
 		await this.systemCleanup();
-	}
-
-	async runContinuation() {
-		if (!this.mediaUsageMaintenance) {
-			throw new Error("Expected continuous Media Usage maintenance callback");
-		}
-		return this.mediaUsageMaintenance();
 	}
 }
 
