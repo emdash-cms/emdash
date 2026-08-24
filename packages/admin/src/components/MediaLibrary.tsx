@@ -18,7 +18,9 @@ import {
 import { useCurrentUser } from "../lib/api/current-user.js";
 import {
 	MEDIA_USAGE_ACTIVATION_QUERY_KEY,
+	MEDIA_USAGE_PROGRESS_QUERY_KEY,
 	fetchMediaUsageActivationStatus,
+	fetchMediaUsageProgress,
 } from "../lib/api/media-usage-activation.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import {
@@ -81,20 +83,39 @@ export function MediaLibrary({
 }: MediaLibraryProps) {
 	const { t } = useLingui();
 	const isAdmin = (useCurrentUser().data?.role ?? 0) >= 50;
+	const [activeProvider, setActiveProvider] = React.useState<string>("local");
 	const activationQuery = useQuery({
 		queryKey: MEDIA_USAGE_ACTIVATION_QUERY_KEY,
 		queryFn: fetchMediaUsageActivationStatus,
-		enabled: isAdmin,
+		enabled: isAdmin && activeProvider === "local",
 		retry: false,
 		staleTime: 60_000,
+		refetchOnMount: "always",
 		refetchOnWindowFocus: false,
 		refetchOnReconnect: false,
 	});
 	const setupStatus = isAdmin && !activationQuery.isError ? activationQuery.data : undefined;
+	const progressQuery = useQuery({
+		queryKey: MEDIA_USAGE_PROGRESS_QUERY_KEY,
+		queryFn: fetchMediaUsageProgress,
+		enabled:
+			isAdmin &&
+			activeProvider === "local" &&
+			!activationQuery.isError &&
+			setupStatus?.state === "active",
+		retry: false,
+		staleTime: 60_000,
+		refetchOnMount: "always",
+		refetchOnWindowFocus: false,
+		refetchOnReconnect: false,
+	});
+	const setupProgress = progressQuery.data;
+	const setupIncomplete =
+		setupStatus &&
+		(setupStatus.state !== "active" || progressQuery.isError || setupProgress?.status !== "ready");
 	const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
 	const [detailItem, setDetailItem] = React.useState<MediaItem | null>(null);
 	const [isDetailOpen, setIsDetailOpen] = React.useState(false);
-	const [activeProvider, setActiveProvider] = React.useState<string>("local");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [localTypeFilter, setLocalTypeFilter] = React.useState("all");
 	const mediaHeadingRef = React.useRef<HTMLHeadingElement>(null);
@@ -348,18 +369,22 @@ export function MediaLibrary({
 					)}
 				</div>
 			</div>
-			{activeProvider === "local" && setupStatus && setupStatus.state !== "active" ? (
+			{activeProvider === "local" && setupIncomplete ? (
 				<Banner
 					variant="alert"
 					title={
-						setupStatus.state === "activating"
-							? t`Media Usage is setting up`
-							: t`Set up Media Usage`
+						setupStatus.state === "expanded"
+							? t`Set up Media Usage`
+							: progressQuery.isError || setupProgress?.status === "needs_attention"
+								? t`Media Usage needs attention`
+								: setupStatus.state === "active"
+									? t`Media Usage is indexing existing content`
+									: t`Media Usage is setting up`
 					}
 					description={t`Index existing content and keep Used in results up to date.`}
 					action={
 						<RouterLinkButton to="/settings/media-usage" size="sm" variant="secondary">
-							{setupStatus.state === "activating" ? t`View setup` : t`Open setup`}
+							{setupStatus.state === "expanded" ? t`Open setup` : t`View setup`}
 						</RouterLinkButton>
 					}
 				/>

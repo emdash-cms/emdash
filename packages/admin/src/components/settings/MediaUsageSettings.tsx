@@ -6,12 +6,15 @@ import * as React from "react";
 import { useCurrentUser } from "../../lib/api/current-user.js";
 import {
 	MEDIA_USAGE_ACTIVATION_QUERY_KEY,
+	MEDIA_USAGE_PROGRESS_QUERY_KEY,
 	MediaUsageActivationRequestError,
 	advanceMediaUsageActivation,
+	advanceMediaUsageProgress,
 	fetchMediaUsageActivationStatus,
 	fetchMediaUsageProgress,
 	type MediaUsageActivationStatus,
 	type MediaUsageProgress,
+	type MediaUsageProgressAdvanceResponse,
 } from "../../lib/api/media-usage-activation.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
@@ -30,10 +33,24 @@ export function MediaUsageSettings() {
 	const [pageVisible, setPageVisible] = React.useState(
 		() => typeof document === "undefined" || document.visibilityState !== "hidden",
 	);
+	const [progress, setProgress] = React.useState<MediaUsageProgress>();
+	const [progressRequestError, setProgressRequestError] = React.useState(false);
+	const [resumeToken, setResumeToken] = React.useState(0);
 	const submittingRef = React.useRef(false);
+	const progressRequestRef = React.useRef<Promise<MediaUsageProgressAdvanceResponse> | null>(null);
+	const mountedRef = React.useRef(true);
+	const pageVisibleRef = React.useRef(pageVisible);
 	const focusAfterActionRef = React.useRef(false);
 	const stateHeadingRef = React.useRef<HTMLHeadingElement>(null);
 	const wasHiddenRef = React.useRef(false);
+	React.useEffect(() => {
+		mountedRef.current = true;
+		pageVisibleRef.current = document.visibilityState !== "hidden";
+		return () => {
+			mountedRef.current = false;
+			pageVisibleRef.current = false;
+		};
+	}, []);
 
 	const activationQuery = useQuery({
 		queryKey: MEDIA_USAGE_ACTIVATION_QUERY_KEY,
@@ -41,29 +58,6 @@ export function MediaUsageSettings() {
 		enabled: isAdmin,
 		retry: false,
 		refetchOnMount: "always",
-		refetchOnWindowFocus: false,
-		refetchOnReconnect: false,
-		refetchInterval: (query) => {
-			const activation = query.state.data;
-			return pageVisible &&
-				query.state.status !== "error" &&
-				activation?.state === "activating" &&
-				activation.lastErrorCode === null
-				? 2_000
-				: false;
-		},
-		refetchIntervalInBackground: false,
-	});
-	const progressQuery = useQuery({
-		queryKey: ["media-usage-progress"],
-		queryFn: fetchMediaUsageProgress,
-		enabled: isAdmin && activationQuery.data?.state === "active" && !activationQuery.isError,
-		retry: false,
-		refetchInterval: (query) =>
-			pageVisible && query.state.status !== "error" && query.state.data?.status === "indexing"
-				? 2_000
-				: false,
-		refetchIntervalInBackground: false,
 		refetchOnWindowFocus: false,
 		refetchOnReconnect: false,
 	});
@@ -80,15 +74,131 @@ export function MediaUsageSettings() {
 			}
 			const result = await activationQuery.refetch({ cancelRefetch: false });
 			if (!result.isSuccess) return;
+			setResumeToken((current) => current + 1);
 			setNotice((current) => (current === "validation" || current === "version" ? current : null));
 		},
 		[activationQuery, closeDialog],
 	);
+	const handleProgressAccessError = React.useCallback((caught: unknown): boolean => {
+		if (!(caught instanceof MediaUsageActivationRequestError)) return false;
+		const nextNotice = caught.kind === "version_mismatch" ? "version" : caught.kind;
+		if (nextNotice !== "denied" && nextNotice !== "validation" && nextNotice !== "version")
+			return false;
+		setNotice(nextNotice);
+		return true;
+	}, []);
+	const reconcileProgressFailure = React.useCallback(
+		async (caught: unknown) => {
+			if (handleProgressAccessError(caught)) return;
+			try {
+				const activation = await fetchMediaUsageActivationStatus();
+				if (!mountedRef.current) return;
+				queryClient.setQueryData(MEDIA_USAGE_ACTIVATION_QUERY_KEY, activation);
+				let storedProgress: MediaUsageProgress | undefined;
+				if (activation.state === "active") {
+					storedProgress = await fetchMediaUsageProgress();
+					if (!mountedRef.current) return;
+					queryClient.setQueryData(MEDIA_USAGE_PROGRESS_QUERY_KEY, storedProgress);
+				}
+				setProgress(storedProgress);
+				const storedFailure =
+					activation.state === "activating" && activation.lastErrorCode !== null;
+				setProgressRequestError(
+					!storedFailure &&
+						(activation.state === "activating" || storedProgress?.status === "indexing"),
+				);
+			} catch (error) {
+				if (!mountedRef.current || handleProgressAccessError(error)) return;
+				setProgressRequestError(true);
+			}
+		},
+		[handleProgressAccessError, queryClient],
+	);
+	const requestProgress = React.useCallback(() => {
+		if (progressRequestRef.current) return progressRequestRef.current;
+		const request = advanceMediaUsageProgress().finally(() => {
+			if (progressRequestRef.current === request) progressRequestRef.current = null;
+		});
+		progressRequestRef.current = request;
+		return request;
+	}, []);
+	const canDriveProgress =
+		activationQuery.data !== undefined &&
+		activationQuery.data.state !== "expanded" &&
+		activationQuery.data.lastErrorCode === null;
+
+	React.useEffect(() => {
+		if (
+			!isAdmin ||
+			!pageVisible ||
+			activationQuery.isFetching ||
+			activationQuery.isError ||
+			!canDriveProgress
+		)
+			return;
+		let cancelled = false;
+		let timer: number | undefined;
+		let finishWait: (() => void) | undefined;
+		const wait = (delayMs: 30_000) =>
+			new Promise<void>((resolve) => {
+				finishWait = () => {
+					timer = undefined;
+					finishWait = undefined;
+					resolve();
+				};
+				timer = window.setTimeout(finishWait, delayMs);
+			});
+		void (async () => {
+			let delayMs: 0 | 30_000 = 0;
+			for (;;) {
+				if (delayMs === 30_000) await wait(delayMs);
+				if (cancelled || !pageVisibleRef.current) return;
+				let result: MediaUsageProgressAdvanceResponse;
+				try {
+					result = await requestProgress();
+				} catch (error) {
+					if (!cancelled) await reconcileProgressFailure(error);
+					return;
+				}
+				queryClient.setQueryData(MEDIA_USAGE_ACTIVATION_QUERY_KEY, result.activation);
+				if (result.progress)
+					queryClient.setQueryData(MEDIA_USAGE_PROGRESS_QUERY_KEY, result.progress);
+				if (cancelled || !mountedRef.current) return;
+				setProgress(result.progress ?? undefined);
+				setProgressRequestError(false);
+				const storedFailure =
+					result.activation.state === "activating" && result.activation.lastErrorCode !== null;
+				if (
+					storedFailure ||
+					result.progress?.status === "needs_attention" ||
+					result.nextRequestInMs === null
+				)
+					return;
+				delayMs = result.nextRequestInMs;
+			}
+		})();
+		return () => {
+			cancelled = true;
+			if (timer !== undefined) window.clearTimeout(timer);
+			finishWait?.();
+		};
+	}, [
+		activationQuery.isError,
+		activationQuery.isFetching,
+		canDriveProgress,
+		isAdmin,
+		pageVisible,
+		queryClient,
+		reconcileProgressFailure,
+		requestProgress,
+		resumeToken,
+	]);
 
 	React.useEffect(() => {
 		if (!isAdmin) return;
 		const visibilityChanged = () => {
 			const visible = document.visibilityState !== "hidden";
+			pageVisibleRef.current = visible;
 			setPageVisible(visible);
 			if (!visible) {
 				wasHiddenRef.current = true;
@@ -97,26 +207,18 @@ export function MediaUsageSettings() {
 			}
 			if (!wasHiddenRef.current) return;
 			wasHiddenRef.current = false;
-			const activation = activationQuery.data;
-			if (
-				activation?.state === "activating" &&
-				activation.lastErrorCode === null &&
-				!activationQuery.isError
-			) {
-				void activationQuery.refetch({ cancelRefetch: false });
-			} else if (
-				activation?.state === "active" &&
-				progressQuery.data?.status === "indexing" &&
-				!progressQuery.isError
-			) {
-				void progressQuery.refetch({ cancelRefetch: false });
-			}
+			void (async () => {
+				const result = await activationQuery.refetch({ cancelRefetch: false });
+				if (mountedRef.current && result.isSuccess) {
+					setResumeToken((current) => current + 1);
+				}
+			})();
 		};
 		document.addEventListener("visibilitychange", visibilityChanged);
 		return () => {
 			document.removeEventListener("visibilitychange", visibilityChanged);
 		};
-	}, [activationQuery, closeDialog, isAdmin, progressQuery]);
+	}, [activationQuery, closeDialog, isAdmin]);
 
 	const advanceMutation = useMutation({
 		mutationFn: async () => {
@@ -126,6 +228,7 @@ export function MediaUsageSettings() {
 		retry: false,
 		onSuccess: (result) => {
 			queryClient.setQueryData(MEDIA_USAGE_ACTIVATION_QUERY_KEY, result.activation);
+			setResumeToken((current) => current + 1);
 			setNotice(null);
 			closeDialog();
 		},
@@ -151,7 +254,6 @@ export function MediaUsageSettings() {
 	};
 
 	const activation = activationQuery.data;
-	const active = activation?.state === "active";
 	React.useEffect(() => {
 		const heading = stateHeadingRef.current;
 		if (
@@ -248,11 +350,14 @@ export function MediaUsageSettings() {
 						<Button size="sm" variant="secondary" onClick={() => void refreshStatus()}>
 							{t`Try again`}
 						</Button>
-					) : active && progressQuery.isError ? (
+					) : progressRequestError ? (
 						<Button
 							size="sm"
 							variant="secondary"
-							onClick={() => void progressQuery.refetch({ cancelRefetch: false })}
+							onClick={() => {
+								setProgressRequestError(false);
+								setResumeToken((current) => current + 1);
+							}}
 						>
 							{t`Try again`}
 						</Button>
@@ -261,8 +366,8 @@ export function MediaUsageSettings() {
 			>
 				<StatusRow
 					activation={activation}
-					progress={progressQuery.isError ? undefined : progressQuery.data}
-					progressError={progressQuery.isError}
+					progress={progress}
+					progressError={progressRequestError}
 					activationError={activationReadError}
 					stateHeadingRef={stateHeadingRef}
 				/>
@@ -308,10 +413,6 @@ function StatusRow({
 	const active = activation.state === "active";
 	const settingUp = activation.state === "activating";
 	const storedFailure = activation.state === "activating" && activation.lastErrorCode !== null;
-	const starting =
-		active &&
-		!progressError &&
-		(!progress || (progress.status === "indexing" && progress.indexingStarted === false));
 	let heading = t`Automatic indexing is off`;
 	let detail = t`Enable Media Usage to index existing content and keep references up to date.`;
 	let badge = t`Off`;
@@ -327,24 +428,18 @@ function StatusRow({
 	if (active) {
 		heading = progressError
 			? t`Needs attention`
-			: starting
-				? t`Starting indexing`
-				: progress?.finalizing
-					? t`Finishing setup`
-					: progress?.status === "ready"
-						? t`Ready`
-						: progress?.status === "needs_attention"
-							? t`Needs attention`
-							: t`Indexing existing content`;
+			: progress?.status === "ready"
+				? t`Ready`
+				: progress?.status === "needs_attention"
+					? t`Needs attention`
+					: t`Indexing existing content`;
 		detail = progressError
-			? t`New changes are still tracked automatically.`
-			: starting
-				? t`Background indexing is starting.`
-				: progress?.finalizing
-					? t`All existing content is indexed. Checking that Media Usage is ready.`
-					: progress
-						? t`Content types ready: ${progress.readyCollections} of ${progress.totalCollections}`
-						: t`Background indexing is starting.`;
+			? t`Setup couldn’t continue. Try again.`
+			: progress?.status === "needs_attention"
+				? t`Check the server logs, then use the Media Usage recovery API for the failed work.`
+				: progress
+					? t`Content types ready: ${progress.readyCollections} of ${progress.totalCollections}`
+					: t`EmDash is scanning existing content.`;
 		badge = progressError ? t`Needs attention` : heading;
 		variant = progressError
 			? "error"
@@ -370,16 +465,17 @@ function StatusRow({
 		!activationError &&
 		((settingUp && !storedFailure) ||
 			(active && !progressError && (!progress || progress.status === "indexing")));
+	const needsAttention = storedFailure || progressError || progress?.status === "needs_attention";
 	return (
 		<SettingRow>
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-				<div className="min-w-0" role={storedFailure ? "alert" : undefined}>
+				<div className="min-w-0" role={needsAttention ? "alert" : undefined}>
 					<div className="flex items-center gap-2">
 						{progressing ? <Loader size="sm" /> : null}
 						<h3
 							ref={stateHeadingRef}
 							tabIndex={-1}
-							aria-live={storedFailure ? "off" : "polite"}
+							aria-live={needsAttention ? "off" : "polite"}
 							aria-atomic="true"
 							className="text-sm font-medium leading-5"
 						>
@@ -418,7 +514,7 @@ function ConfirmationDialog({
 			description={
 				retry
 					? t`EmDash will continue setup and resume scanning existing content. Editing may briefly pause.`
-					: t`EmDash will scan existing content to show where media is used. Setup may briefly pause editing. Once enabled, it can’t be turned off.`
+					: t`EmDash will scan existing content to show where media is used. Keep this page open until setup finishes; returning to this page continues where it stopped. Once enabled, it can’t be turned off.`
 			}
 			confirmLabel={retry ? t`Retry setup` : t`Turn on`}
 			pendingLabel={retry ? t`Retrying…` : t`Turning on…`}

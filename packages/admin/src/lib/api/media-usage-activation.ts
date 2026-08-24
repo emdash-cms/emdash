@@ -3,6 +3,7 @@ import { API_BASE, apiFetch } from "./client.js";
 const ACTIVATION_URL = `${API_BASE}/admin/media-usage/activation`;
 
 export const MEDIA_USAGE_ACTIVATION_QUERY_KEY = ["media-usage-activation"] as const;
+export const MEDIA_USAGE_PROGRESS_QUERY_KEY = ["media-usage-progress"] as const;
 
 export interface MediaUsageActivationStatus {
 	state: "expanded" | "activating" | "active";

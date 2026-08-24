@@ -10,6 +10,7 @@ const activationMocks = vi.hoisted(() => ({
 	fetchStatus: vi.fn(),
 	fetchProgress: vi.fn(),
 	advance: vi.fn(),
+	advanceProgress: vi.fn(),
 }));
 const currentUserMock = vi.hoisted(() => vi.fn());
 
@@ -22,6 +23,7 @@ vi.mock("../../../src/lib/api/media-usage-activation.js", async () => {
 		fetchMediaUsageActivationStatus: activationMocks.fetchStatus,
 		fetchMediaUsageProgress: activationMocks.fetchProgress,
 		advanceMediaUsageActivation: activationMocks.advance,
+		advanceMediaUsageProgress: activationMocks.advanceProgress,
 	};
 });
 
@@ -33,7 +35,7 @@ vi.mock("../../../src/components/settings/BackToSettingsLink.js", () => ({
 	BackToSettingsLink: () => <a href="/settings">Back to Settings</a>,
 }));
 
-const { MEDIA_USAGE_ACTIVATION_QUERY_KEY, MediaUsageActivationRequestError } =
+const { MEDIA_USAGE_PROGRESS_QUERY_KEY, MediaUsageActivationRequestError } =
 	await import("../../../src/lib/api/media-usage-activation.js");
 const { MediaUsageSettings } =
 	await import("../../../src/components/settings/MediaUsageSettings.js");
@@ -79,7 +81,7 @@ async function openConfirmation(screen: Awaited<ReturnType<typeof renderPage>>["
 	await expect
 		.element(
 			screen.getByText(
-				"EmDash will scan existing content to show where media is used. Setup may briefly pause editing. Once enabled, it can’t be turned off.",
+				"EmDash will scan existing content to show where media is used. Keep this page open until setup finishes; returning to this page continues where it stopped. Once enabled, it can’t be turned off.",
 			),
 		)
 		.toBeVisible();
@@ -103,6 +105,16 @@ describe("MediaUsageSettings", () => {
 			readyCollections: 1,
 			totalCollections: 2,
 			indexingStarted: true,
+		});
+		activationMocks.advanceProgress.mockResolvedValue({
+			activation: status("active"),
+			progress: {
+				status: "indexing",
+				readyCollections: 1,
+				totalCollections: 2,
+				indexingStarted: true,
+			},
+			nextRequestInMs: null,
 		});
 	});
 
@@ -130,7 +142,7 @@ describe("MediaUsageSettings", () => {
 			processedCollections: 1,
 			activation: activating,
 		});
-		const { queryClient, screen } = await renderPage();
+		const { screen } = await renderPage();
 
 		await expect.element(screen.getByText("Automatic indexing is off")).toBeInTheDocument();
 		expect(screen.getByRole("checkbox").query()).toBeNull();
@@ -143,7 +155,9 @@ describe("MediaUsageSettings", () => {
 		confirm.element().focus();
 		await userEvent.keyboard("{Enter}");
 
-		await expect.element(screen.getByRole("heading", { name: "Setting up" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("heading", { name: "Indexing existing content" }))
+			.toBeInTheDocument();
 		expect(screen.getByRole("button", { name: /setup/i }).query()).toBeNull();
 		expect(screen.getByRole("dialog").query()).toBeNull();
 		expect(activationMocks.advance).toHaveBeenCalledOnce();
@@ -151,7 +165,60 @@ describe("MediaUsageSettings", () => {
 			writersDrained: true,
 		});
 		expect(activationMocks.fetchStatus).toHaveBeenCalledOnce();
-		expect(queryClient.getQueryData(MEDIA_USAGE_ACTIVATION_QUERY_KEY)).toEqual(activating);
+		await vi.waitFor(() => expect(activationMocks.advanceProgress).toHaveBeenCalledOnce());
+	});
+
+	it("probes maintenance once when an already-ready page opens", async () => {
+		activationMocks.fetchStatus.mockResolvedValue(status("active"));
+		activationMocks.advanceProgress.mockResolvedValue({
+			activation: status("active"),
+			progress: {
+				status: "ready",
+				readyCollections: 2,
+				totalCollections: 2,
+				indexingStarted: true,
+			},
+			nextRequestInMs: null,
+		});
+
+		const { queryClient, screen } = await renderPage();
+
+		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
+		expect(activationMocks.advanceProgress).toHaveBeenCalledOnce();
+		expect(queryClient.getQueryData(MEDIA_USAGE_PROGRESS_QUERY_KEY)).toEqual(
+			expect.objectContaining({ status: "ready" }),
+		);
+	});
+
+	it("follows an existing continuation even when the page already shows Ready", async () => {
+		vi.useFakeTimers();
+		activationMocks.fetchStatus.mockResolvedValue(status("active"));
+		activationMocks.advanceProgress
+			.mockResolvedValueOnce({
+				activation: status("active"),
+				progress: {
+					status: "ready",
+					readyCollections: 2,
+					totalCollections: 2,
+					indexingStarted: true,
+				},
+				nextRequestInMs: 0,
+			})
+			.mockResolvedValueOnce({
+				activation: status("active"),
+				progress: {
+					status: "ready",
+					readyCollections: 2,
+					totalCollections: 2,
+					indexingStarted: true,
+				},
+				nextRequestInMs: null,
+			});
+
+		await renderPage();
+		await vi.advanceTimersByTimeAsync(0);
+
+		await vi.waitFor(() => expect(activationMocks.advanceProgress).toHaveBeenCalledTimes(2));
 	});
 
 	it("blocks duplicate activation and renders the confirmed active state", async () => {
@@ -278,33 +345,46 @@ describe("MediaUsageSettings", () => {
 	it.each([
 		["indexing", "Indexing existing content", "Content types ready: 1 of 2"],
 		["ready", "Ready", "Content types ready: 2 of 2"],
-		["needs_attention", "Needs attention", "Content types ready: 1 of 2"],
+		[
+			"needs_attention",
+			"Needs attention",
+			"Check the server logs, then use the Media Usage recovery API for the failed work.",
+		],
 	] as const)("shows %s progress after activation", async (progressStatus, heading, summary) => {
 		activationMocks.fetchStatus.mockResolvedValue(status("active"));
-		activationMocks.fetchProgress.mockResolvedValue({
-			status: progressStatus,
-			readyCollections: progressStatus === "ready" ? 2 : 1,
-			totalCollections: 2,
-			indexingStarted: true,
+		activationMocks.advanceProgress.mockResolvedValue({
+			activation: status("active"),
+			progress: {
+				status: progressStatus,
+				readyCollections: progressStatus === "ready" ? 2 : 1,
+				totalCollections: 2,
+				indexingStarted: true,
+			},
+			nextRequestInMs: progressStatus === "needs_attention" ? 0 : null,
 		});
 
 		const { screen } = await renderPage();
 
 		await expect.element(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
 		await expect.element(screen.getByText(summary)).toBeInTheDocument();
-		expect(activationMocks.fetchProgress).toHaveBeenCalledOnce();
+		expect(activationMocks.advanceProgress).toHaveBeenCalledOnce();
 		if (progressStatus === "needs_attention") {
 			expect(screen.getByRole("button", { name: "Retry setup" }).query()).toBeNull();
+			expect(screen.getByRole("button", { name: "Try again" }).query()).toBeNull();
 		}
 	});
 
 	it("renders progress counts with an incomplete non-English catalog", async () => {
 		activationMocks.fetchStatus.mockResolvedValue(status("active"));
-		activationMocks.fetchProgress.mockResolvedValue({
-			status: "indexing",
-			readyCollections: 1,
-			totalCollections: 2,
-			indexingStarted: true,
+		activationMocks.advanceProgress.mockResolvedValue({
+			activation: status("active"),
+			progress: {
+				status: "indexing",
+				readyCollections: 1,
+				totalCollections: 2,
+				indexingStarted: true,
+			},
+			nextRequestInMs: null,
 		});
 		i18n.loadAndActivate({ locale: "de", messages: {} });
 
@@ -317,46 +397,54 @@ describe("MediaUsageSettings", () => {
 		}
 	});
 
-	it("shows finalization after existing content is indexed", async () => {
+	it("keeps finalization in the indexing state", async () => {
 		activationMocks.fetchStatus.mockResolvedValue(status("active"));
-		activationMocks.fetchProgress.mockResolvedValue({
-			status: "indexing",
-			readyCollections: 1,
-			totalCollections: 2,
-			indexingStarted: true,
-			finalizing: true,
+		activationMocks.advanceProgress.mockResolvedValue({
+			activation: status("active"),
+			progress: {
+				status: "indexing",
+				readyCollections: 1,
+				totalCollections: 2,
+				indexingStarted: true,
+				finalizing: true,
+			},
+			nextRequestInMs: null,
 		});
 
 		const { screen } = await renderPage();
 
-		await expect.element(screen.getByRole("heading", { name: "Finishing setup" })).toBeVisible();
 		await expect
-			.element(
-				screen.getByText("All existing content is indexed. Checking that Media Usage is ready."),
-			)
+			.element(screen.getByRole("heading", { name: "Indexing existing content" }))
 			.toBeVisible();
+		await expect.element(screen.getByText("Content types ready: 1 of 2")).toBeVisible();
 	});
 
-	it("shows startup before historical reconciliation begins", async () => {
+	it("shows indexing while historical reconciliation starts", async () => {
 		activationMocks.fetchStatus.mockResolvedValue(status("active"));
-		activationMocks.fetchProgress.mockResolvedValue({
-			status: "indexing",
-			readyCollections: 0,
-			totalCollections: 2,
-			indexingStarted: false,
+		activationMocks.advanceProgress.mockResolvedValue({
+			activation: status("active"),
+			progress: {
+				status: "indexing",
+				readyCollections: 0,
+				totalCollections: 2,
+				indexingStarted: false,
+			},
+			nextRequestInMs: null,
 		});
 
 		const { screen } = await renderPage();
 
-		await expect.element(screen.getByRole("heading", { name: "Starting indexing" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("heading", { name: "Indexing existing content" }))
+			.toBeVisible();
 	});
 
 	it("treats an older progress response as indexing rather than startup", async () => {
 		activationMocks.fetchStatus.mockResolvedValue(status("active"));
-		activationMocks.fetchProgress.mockResolvedValue({
-			status: "indexing",
-			readyCollections: 0,
-			totalCollections: 2,
+		activationMocks.advanceProgress.mockResolvedValue({
+			activation: status("active"),
+			progress: { status: "indexing", readyCollections: 0, totalCollections: 2 },
+			nextRequestInMs: null,
 		});
 
 		const { screen } = await renderPage();
@@ -377,10 +465,50 @@ describe("MediaUsageSettings", () => {
 		await expect.element(dialog).toBeVisible();
 		await expect.element(dialog.getByRole("button", { name: "Retry setup" })).toBeEnabled();
 		expect(dialog.getByRole("checkbox").query()).toBeNull();
+		expect(activationMocks.advanceProgress).not.toHaveBeenCalled();
+	});
+
+	it("restarts progress after retrying a failure discovered by the page loop", async () => {
+		activationMocks.fetchStatus
+			.mockResolvedValueOnce(status("active"))
+			.mockResolvedValue(status("activating", { failed: true }));
+		activationMocks.advanceProgress
+			.mockRejectedValueOnce(new MediaUsageActivationRequestError("advance_failure", 500))
+			.mockResolvedValueOnce({
+				activation: status("active"),
+				progress: {
+					status: "ready",
+					readyCollections: 2,
+					totalCollections: 2,
+					indexingStarted: true,
+				},
+				nextRequestInMs: null,
+			});
+		activationMocks.advance.mockResolvedValue({
+			outcome: "activating",
+			processedCollections: 1,
+			activation: status("activating"),
+		});
+		const { screen } = await renderPage();
+		await expect.element(screen.getByRole("button", { name: "Retry setup" })).toBeVisible();
+
+		await userEvent.click(screen.getByRole("button", { name: "Retry setup" }));
+		const dialog = screen.getByRole("dialog", { name: "Retry setup?" });
+		const confirm = dialog.getByRole("button", { name: "Retry setup" });
+		confirm.element().focus();
+		await userEvent.keyboard("{Enter}");
+
+		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
+		expect(activationMocks.advanceProgress).toHaveBeenCalledTimes(2);
 	});
 
 	it("shows no mutation action while ordinary activation is progressing", async () => {
 		activationMocks.fetchStatus.mockResolvedValue(status("activating"));
+		activationMocks.advanceProgress.mockResolvedValue({
+			activation: status("activating"),
+			progress: null,
+			nextRequestInMs: 30_000,
+		});
 
 		const { screen } = await renderPage();
 
@@ -390,6 +518,9 @@ describe("MediaUsageSettings", () => {
 
 	it("keeps active setup visible when progress cannot be loaded", async () => {
 		activationMocks.fetchStatus.mockResolvedValue(status("active"));
+		activationMocks.advanceProgress.mockRejectedValue(
+			new MediaUsageActivationRequestError("advance_failure", 500),
+		);
 		activationMocks.fetchProgress.mockRejectedValue(
 			new MediaUsageActivationRequestError("read_failure", 500),
 		);
@@ -401,11 +532,67 @@ describe("MediaUsageSettings", () => {
 		expect(screen.getByRole("button", { name: /setup/i }).query()).toBeNull();
 	});
 
+	it("reconciles durable progress before offering a transient retry", async () => {
+		activationMocks.fetchStatus.mockResolvedValue(status("active"));
+		activationMocks.fetchProgress.mockResolvedValue({
+			status: "indexing",
+			readyCollections: 1,
+			totalCollections: 2,
+			indexingStarted: true,
+		});
+		activationMocks.advanceProgress
+			.mockRejectedValueOnce(new MediaUsageActivationRequestError("advance_failure", 500))
+			.mockResolvedValueOnce({
+				activation: status("active"),
+				progress: {
+					status: "ready",
+					readyCollections: 2,
+					totalCollections: 2,
+					indexingStarted: true,
+				},
+				nextRequestInMs: null,
+			});
+
+		const { screen } = await renderPage();
+
+		await expect.element(screen.getByRole("button", { name: "Try again" })).toBeVisible();
+		expect(activationMocks.fetchStatus).toHaveBeenCalledTimes(2);
+		expect(activationMocks.fetchProgress).toHaveBeenCalledOnce();
+		await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
+		expect(activationMocks.advanceProgress).toHaveBeenCalledTimes(2);
+		expect(activationMocks.advance).not.toHaveBeenCalled();
+	});
+
+	it("accepts durable Ready after the final progress response is lost", async () => {
+		activationMocks.fetchStatus.mockResolvedValue(status("active"));
+		activationMocks.fetchProgress.mockResolvedValue({
+			status: "ready",
+			readyCollections: 2,
+			totalCollections: 2,
+			indexingStarted: true,
+		});
+		activationMocks.advanceProgress.mockRejectedValue(
+			new MediaUsageActivationRequestError("advance_failure", 500),
+		);
+
+		const { screen } = await renderPage();
+
+		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
+		expect(screen.getByRole("button", { name: "Try again" }).query()).toBeNull();
+		expect(activationMocks.fetchProgress).toHaveBeenCalledOnce();
+	});
+
 	it("follows another owner after a busy response without another mutation", async () => {
 		activationMocks.advance.mockRejectedValue(new MediaUsageActivationRequestError("busy", 409));
 		activationMocks.fetchStatus
 			.mockResolvedValueOnce(status("expanded"))
 			.mockResolvedValue(status("activating"));
+		activationMocks.advanceProgress.mockResolvedValue({
+			activation: status("activating"),
+			progress: null,
+			nextRequestInMs: 30_000,
+		});
 		const { screen } = await renderPage();
 		await openConfirmation(screen);
 		await submitConfirmation(screen);
@@ -422,6 +609,11 @@ describe("MediaUsageSettings", () => {
 		activationMocks.fetchStatus
 			.mockResolvedValueOnce(status("expanded"))
 			.mockImplementation(() => new Promise((resolve) => (finishStatus = resolve)));
+		activationMocks.advanceProgress.mockResolvedValue({
+			activation: status("activating"),
+			progress: null,
+			nextRequestInMs: 30_000,
+		});
 		const { screen } = await renderPage();
 		await openConfirmation(screen);
 		await submitConfirmation(screen);
@@ -433,119 +625,215 @@ describe("MediaUsageSettings", () => {
 		expect(document.activeElement).toBe(heading.element());
 	});
 
-	it("polls activation every two seconds and stops after it becomes active", async () => {
-		vi.useFakeTimers();
-		let current = status("activating");
-		activationMocks.fetchStatus.mockImplementation(async () => current);
-		const { screen } = await renderPage();
-		await expect.element(screen.getByRole("heading", { name: "Setting up" })).toBeVisible();
-		expect(activationMocks.fetchStatus).toHaveBeenCalledOnce();
-
-		await vi.advanceTimersByTimeAsync(2_000);
-		expect(activationMocks.fetchStatus).toHaveBeenCalledTimes(2);
-		current = status("active");
-		await vi.advanceTimersByTimeAsync(2_000);
-		await expect
-			.element(screen.getByRole("heading", { name: "Indexing existing content" }))
-			.toBeVisible();
-		const completedCalls = activationMocks.fetchStatus.mock.calls.length;
-
-		await vi.advanceTimersByTimeAsync(4_000);
-		expect(activationMocks.fetchStatus).toHaveBeenCalledTimes(completedCalls);
-	});
-
-	it("polls indexing every two seconds and stops when it is ready", async () => {
+	it("follows an immediate continuation without the old polling delay", async () => {
 		vi.useFakeTimers();
 		activationMocks.fetchStatus.mockResolvedValue(status("active"));
-		let progress: {
-			status: "indexing" | "ready";
-			readyCollections: number;
-			totalCollections: number;
-			indexingStarted: boolean;
-		} = {
-			status: "indexing",
-			readyCollections: 1,
-			totalCollections: 2,
-			indexingStarted: true,
-		};
-		activationMocks.fetchProgress.mockImplementation(async () => progress);
+		activationMocks.advanceProgress
+			.mockResolvedValueOnce({
+				activation: status("active"),
+				progress: {
+					status: "indexing",
+					readyCollections: 1,
+					totalCollections: 2,
+					indexingStarted: true,
+				},
+				nextRequestInMs: 0,
+			})
+			.mockResolvedValueOnce({
+				activation: status("active"),
+				progress: {
+					status: "ready",
+					readyCollections: 2,
+					totalCollections: 2,
+					indexingStarted: true,
+				},
+				nextRequestInMs: null,
+			});
 		const { screen } = await renderPage();
-		await expect
-			.element(screen.getByRole("heading", { name: "Indexing existing content" }))
-			.toBeVisible();
 
-		progress = {
-			status: "ready",
-			readyCollections: 2,
-			totalCollections: 2,
-			indexingStarted: true,
-		};
-		await vi.advanceTimersByTimeAsync(2_000);
+		await vi.advanceTimersByTimeAsync(0);
+		await vi.waitFor(() => expect(activationMocks.advanceProgress).toHaveBeenCalledTimes(2));
 		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
-		const completedCalls = activationMocks.fetchProgress.mock.calls.length;
-
-		await vi.advanceTimersByTimeAsync(4_000);
-		expect(activationMocks.fetchProgress).toHaveBeenCalledTimes(completedCalls);
 	});
 
-	it("pauses polling while hidden and refreshes immediately on return", async () => {
+	it("waits for the server-provided delayed continuation", async () => {
+		vi.useFakeTimers();
+		activationMocks.fetchStatus.mockResolvedValue(status("active"));
+		activationMocks.advanceProgress
+			.mockResolvedValueOnce({
+				activation: status("active"),
+				progress: {
+					status: "indexing",
+					readyCollections: 1,
+					totalCollections: 2,
+					indexingStarted: true,
+				},
+				nextRequestInMs: 30_000,
+			})
+			.mockResolvedValueOnce({
+				activation: status("active"),
+				progress: {
+					status: "ready",
+					readyCollections: 2,
+					totalCollections: 2,
+					indexingStarted: true,
+				},
+				nextRequestInMs: null,
+			});
+		await renderPage();
+		await vi.waitFor(() => expect(activationMocks.advanceProgress).toHaveBeenCalledOnce());
+
+		await vi.advanceTimersByTimeAsync(20_000);
+		expect(activationMocks.advanceProgress).toHaveBeenCalledOnce();
+		await vi.advanceTimersByTimeAsync(10_000);
+		expect(activationMocks.advanceProgress).toHaveBeenCalledTimes(2);
+	});
+
+	it("cancels a delayed successor while hidden and resumes after a status read", async () => {
 		vi.useFakeTimers();
 		let visibility: DocumentVisibilityState = "visible";
 		vi.spyOn(document, "visibilityState", "get").mockImplementation(() => visibility);
-		activationMocks.fetchStatus.mockResolvedValue(status("activating"));
-		const { screen } = await renderPage();
-		await expect.element(screen.getByRole("heading", { name: "Setting up" })).toBeVisible();
+		activationMocks.fetchStatus.mockResolvedValue(status("active"));
+		activationMocks.advanceProgress
+			.mockResolvedValueOnce({
+				activation: status("active"),
+				progress: {
+					status: "indexing",
+					readyCollections: 1,
+					totalCollections: 2,
+					indexingStarted: true,
+				},
+				nextRequestInMs: 30_000,
+			})
+			.mockResolvedValueOnce({
+				activation: status("active"),
+				progress: {
+					status: "ready",
+					readyCollections: 2,
+					totalCollections: 2,
+					indexingStarted: true,
+				},
+				nextRequestInMs: null,
+			});
+		await renderPage();
+		await vi.advanceTimersByTimeAsync(0);
+		await vi.waitFor(() => expect(activationMocks.advanceProgress).toHaveBeenCalledOnce());
 
 		visibility = "hidden";
 		document.dispatchEvent(new Event("visibilitychange"));
-		await vi.advanceTimersByTimeAsync(4_000);
-		expect(activationMocks.fetchStatus).toHaveBeenCalledOnce();
+		await vi.advanceTimersByTimeAsync(30_000);
+		expect(activationMocks.advanceProgress).toHaveBeenCalledOnce();
 
 		visibility = "visible";
 		document.dispatchEvent(new Event("visibilitychange"));
 		await vi.advanceTimersByTimeAsync(0);
 		expect(activationMocks.fetchStatus).toHaveBeenCalledTimes(2);
+		await vi.waitFor(() => expect(activationMocks.advanceProgress).toHaveBeenCalledTimes(2));
 	});
 
-	it("does not duplicate a slow poll when visibility returns", async () => {
+	it("does not resume from stale activation data when the return status read fails", async () => {
 		vi.useFakeTimers();
 		let visibility: DocumentVisibilityState = "visible";
 		vi.spyOn(document, "visibilityState", "get").mockImplementation(() => visibility);
-		let finishPoll!: (value: ReturnType<typeof status>) => void;
 		activationMocks.fetchStatus
-			.mockResolvedValueOnce(status("activating"))
-			.mockImplementation(() => new Promise((resolve) => (finishPoll = resolve)));
-		const { screen } = await renderPage();
-		await expect.element(screen.getByRole("heading", { name: "Setting up" })).toBeVisible();
-
-		await vi.advanceTimersByTimeAsync(2_000);
-		expect(activationMocks.fetchStatus).toHaveBeenCalledTimes(2);
-		visibility = "hidden";
-		document.dispatchEvent(new Event("visibilitychange"));
-		visibility = "visible";
-		document.dispatchEvent(new Event("visibilitychange"));
-		await vi.advanceTimersByTimeAsync(0);
-
-		expect(activationMocks.fetchStatus).toHaveBeenCalledTimes(2);
-		finishPoll(status("activating"));
-		await vi.advanceTimersByTimeAsync(0);
-	});
-
-	it("keeps the confirmed activation context when a poll fails", async () => {
-		vi.useFakeTimers();
-		activationMocks.fetchStatus
-			.mockResolvedValueOnce(status("activating"))
+			.mockResolvedValueOnce(status("active"))
 			.mockRejectedValue(new MediaUsageActivationRequestError("read_failure", 500));
+		activationMocks.advanceProgress.mockResolvedValue({
+			activation: status("active"),
+			progress: { status: "indexing", readyCollections: 1, totalCollections: 2 },
+			nextRequestInMs: null,
+		});
 		const { screen } = await renderPage();
-		await expect.element(screen.getByRole("heading", { name: "Setting up" })).toBeVisible();
+		await vi.waitFor(() => expect(activationMocks.advanceProgress).toHaveBeenCalledOnce());
 
-		await vi.advanceTimersByTimeAsync(2_000);
+		visibility = "hidden";
+		document.dispatchEvent(new Event("visibilitychange"));
+		visibility = "visible";
+		document.dispatchEvent(new Event("visibilitychange"));
+		await vi.advanceTimersByTimeAsync(0);
 
 		await expect.element(screen.getByRole("heading", { name: "Needs attention" })).toBeVisible();
-		await expect.element(screen.getByText(/last confirmed state was Setting up/)).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Try again" })).toBeVisible();
-		const failedCalls = activationMocks.fetchStatus.mock.calls.length;
-		await vi.advanceTimersByTimeAsync(4_000);
-		expect(activationMocks.fetchStatus).toHaveBeenCalledTimes(failedCalls);
+		expect(activationMocks.advanceProgress).toHaveBeenCalledOnce();
+	});
+
+	it("does not overlap progress requests when visibility returns", async () => {
+		vi.useFakeTimers();
+		let visibility: DocumentVisibilityState = "visible";
+		vi.spyOn(document, "visibilityState", "get").mockImplementation(() => visibility);
+		activationMocks.fetchStatus.mockResolvedValue(status("active"));
+		let finishProgress!: (value: {
+			activation: ReturnType<typeof status>;
+			progress: { status: "indexing"; readyCollections: number; totalCollections: number };
+			nextRequestInMs: 0;
+		}) => void;
+		activationMocks.advanceProgress
+			.mockImplementationOnce(() => new Promise((resolve) => (finishProgress = resolve)))
+			.mockResolvedValueOnce({
+				activation: status("active"),
+				progress: { status: "ready", readyCollections: 2, totalCollections: 2 },
+				nextRequestInMs: null,
+			});
+		await renderPage();
+		await vi.advanceTimersByTimeAsync(0);
+		await vi.waitFor(() => expect(activationMocks.advanceProgress).toHaveBeenCalledOnce());
+
+		visibility = "hidden";
+		document.dispatchEvent(new Event("visibilitychange"));
+		visibility = "visible";
+		document.dispatchEvent(new Event("visibilitychange"));
+		await vi.advanceTimersByTimeAsync(0);
+
+		expect(activationMocks.advanceProgress).toHaveBeenCalledOnce();
+		finishProgress({
+			activation: status("active"),
+			progress: { status: "indexing", readyCollections: 1, totalCollections: 2 },
+			nextRequestInMs: 0,
+		});
+		await vi.advanceTimersByTimeAsync(0);
+		await vi.waitFor(() => expect(activationMocks.advanceProgress).toHaveBeenCalledTimes(2));
+	});
+
+	it("cancels a delayed successor when the page unmounts", async () => {
+		vi.useFakeTimers();
+		activationMocks.fetchStatus.mockResolvedValue(status("active"));
+		activationMocks.advanceProgress.mockResolvedValue({
+			activation: status("active"),
+			progress: { status: "indexing", readyCollections: 1, totalCollections: 2 },
+			nextRequestInMs: 30_000,
+		});
+		const { screen } = await renderPage();
+		await vi.advanceTimersByTimeAsync(0);
+		await vi.waitFor(() => expect(activationMocks.advanceProgress).toHaveBeenCalledOnce());
+
+		await screen.unmount();
+		await vi.advanceTimersByTimeAsync(30_000);
+		expect(activationMocks.advanceProgress).toHaveBeenCalledOnce();
+	});
+
+	it("keeps shared progress truthful when an in-flight step finishes after unmount", async () => {
+		activationMocks.fetchStatus.mockResolvedValue(status("active"));
+		let finishProgress!: (value: {
+			activation: ReturnType<typeof status>;
+			progress: { status: "ready"; readyCollections: number; totalCollections: number };
+			nextRequestInMs: null;
+		}) => void;
+		activationMocks.advanceProgress.mockImplementation(
+			() => new Promise((resolve) => (finishProgress = resolve)),
+		);
+		const { queryClient, screen } = await renderPage();
+		await vi.waitFor(() => expect(activationMocks.advanceProgress).toHaveBeenCalledOnce());
+
+		await screen.unmount();
+		finishProgress({
+			activation: status("active"),
+			progress: { status: "ready", readyCollections: 2, totalCollections: 2 },
+			nextRequestInMs: null,
+		});
+
+		await vi.waitFor(() =>
+			expect(queryClient.getQueryData(MEDIA_USAGE_PROGRESS_QUERY_KEY)).toEqual(
+				expect.objectContaining({ status: "ready" }),
+			),
+		);
 	});
 });
