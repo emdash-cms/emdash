@@ -1,5 +1,4 @@
 import { Badge, Banner, Button, Loader } from "@cloudflare/kumo";
-import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -344,10 +343,7 @@ function StatusRow({
 				: progress?.finalizing
 					? t`All existing content is indexed. Checking that Media Usage is ready.`
 					: progress
-						? plural(progress.totalCollections, {
-								one: `${progress.readyCollections} of # content type ready`,
-								other: `${progress.readyCollections} of # content types ready`,
-							})
+						? t`Content types ready: ${progress.readyCollections} of ${progress.totalCollections}`
 						: t`Background indexing is starting.`;
 		badge = progressError ? t`Needs attention` : heading;
 		variant = progressError

@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -276,9 +277,9 @@ describe("MediaUsageSettings", () => {
 	});
 
 	it.each([
-		["indexing", "Indexing existing content", "1 of 2 content types ready"],
-		["ready", "Ready", "2 of 2 content types ready"],
-		["needs_attention", "Needs attention", "1 of 2 content types ready"],
+		["indexing", "Indexing existing content", "Content types ready: 1 of 2"],
+		["ready", "Ready", "Content types ready: 2 of 2"],
+		["needs_attention", "Needs attention", "Content types ready: 1 of 2"],
 	] as const)("shows %s progress after activation", async (progressStatus, heading, summary) => {
 		activationMocks.fetchStatus.mockResolvedValue(status("active"));
 		activationMocks.fetchProgress.mockResolvedValue({
@@ -295,6 +296,25 @@ describe("MediaUsageSettings", () => {
 		expect(activationMocks.fetchProgress).toHaveBeenCalledOnce();
 		if (progressStatus === "needs_attention") {
 			expect(screen.getByRole("button", { name: "Retry setup" }).query()).toBeNull();
+		}
+	});
+
+	it("renders progress counts with an incomplete non-English catalog", async () => {
+		activationMocks.fetchStatus.mockResolvedValue(status("active"));
+		activationMocks.fetchProgress.mockResolvedValue({
+			status: "indexing",
+			readyCollections: 1,
+			totalCollections: 2,
+			indexingStarted: true,
+		});
+		i18n.loadAndActivate({ locale: "de", messages: {} });
+
+		try {
+			const { screen } = await renderPage();
+
+			await expect.element(screen.getByText("Content types ready: 1 of 2")).toBeVisible();
+		} finally {
+			i18n.loadAndActivate({ locale: "en", messages: {} });
 		}
 	});
 
