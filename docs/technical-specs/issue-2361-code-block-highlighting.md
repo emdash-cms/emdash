@@ -21,7 +21,7 @@ Replace the plain TipTap code-block extension in both editors with TipTap's Lowl
 ## Non-goals
 
 - Do not add highlighting to `packages/core/src/components/Code.astro` or any other public, logged-out rendering path.
-- Do not change the curated language list or add Zig or Lua entries.
+- Do not expand the curated language list beyond the Lua and Zig follow-up.
 - Do not add a Shiki integration or guarantee highlighting for every free-form language value.
 - Do not add Tab indentation. Issue [#2594](https://github.com/emdash-cms/emdash/issues/2594) tracks that behavior.
 - Do not change View Live, preview reliability, edit-mode persistence, or the welcome dialog. Issues [#2595](https://github.com/emdash-cms/emdash/issues/2595) and [#2596](https://github.com/emdash-cms/emdash/issues/2596) cover those defects.
@@ -34,9 +34,13 @@ Replace the plain TipTap code-block extension in both editors with TipTap's Lowl
 - The highlighter never guesses a language.
 - The admin follows its `data-mode` light/dark appearance.
 - The inline editor follows the browser's system appearance by default. A site with its own explicit theme switch sets the documented CSS variables in that theme's selector.
-- Public code-block rendering and language-list expansion remain separate work.
+- Public code-block rendering and further language-list expansion remain separate work.
 
 No unresolved product decisions remain.
+
+### Lua and Zig follow-up
+
+The follow-up adds Lua and Zig to both editor language selectors. Lua uses the grammar already included in Lowlight's `common` set. Zig uses the existing plain-text fallback because Highlight.js 11.11.2 has no Zig grammar module. The follow-up adds no dependency, grammar, public-renderer change, or shared picker abstraction.
 
 ## Verified baseline behavior
 
@@ -48,7 +52,7 @@ The source tree and browser reproduction at the specified base establish the fol
 - The admin maps prose code text to `--text-color-kumo-subtle` and the code background to `--color-kumo-contrast`. These roles invert across appearances and produce low-contrast dark-on-dark or gray-on-light combinations.
 - The inline node view hard-codes light control surfaces. Its surrounding inline editor has some system-dark rules, but none cover the code block or language picker.
 - Admin and core conversion paths already round-trip only `code` and `language`. Decoration markup is not part of the ProseMirror document and must not enter Portable Text.
-- `codeBlockLanguages.ts` contains 33 suggestions and accepts sanitized free-form input.
+- The base implementation contains 33 suggestions and accepts sanitized free-form input. The follow-up adds Lua and Zig.
 - Lowlight's common set supports most of the curated identifiers or aliases but omits Dockerfile. Highlight.js has no registered Astro, MDX, Svelte, Vue, or Zig grammar in that set.
 - TipTap 3.20.0 provides `@tiptap/extension-code-block-lowlight` 3.20.0. Its decoration plugin recalculates token spans for code changes, language-attribute changes, node insertion/removal, and collaboration transactions that replace a complete code block.
 - TipTap's plugin calls `highlightAuto` when it cannot resolve a language. EmDash must override that fallback because auto-detection conflicts with the approved plain-text behavior.
@@ -68,7 +72,7 @@ Declare all three as direct runtime dependencies of `@emdash-cms/admin` and `emd
 
 Each editor package imports `common` and `createLowlight` from `lowlight` and retrieves one configured instance from `globalThis` through a package-specific `Symbol.for` key. The instance uses the exported `common` grammar map plus `highlight.js/lib/languages/dockerfile`. Storing it on `globalThis` reuses the same grammar map across editors and repeated Vite SSR module evaluations. Do not use Lowlight's exported `all` grammar map, dynamically fetch grammars, or create one instance per component render.
 
-The common grammar map also registers languages that are not picker suggestions. A free-form value such as `lua` is highlighted because the configured instance registers it. "Unsupported" means absent from that instance, not absent from the picker. Astro, MDX, Svelte, Vue, Zig, and other unregistered values take the approved plain-text fallback.
+The common grammar map also registers languages that were not original picker suggestions. Lua is already registered and becomes a curated suggestion in the follow-up. "Unsupported" means absent from that instance, not absent from the picker. Astro, MDX, Svelte, Vue, Zig, and other unregistered values take the approved plain-text fallback.
 
 The package-local object passed to TipTap must expose the Lowlight methods that TipTap validates:
 
@@ -232,7 +236,7 @@ Expected test files:
 - `e2e/global-setup.ts`
 - `e2e/tests/code-block-highlighting.spec.ts`
 
-Projected hand-written changes are 150-230 production lines, 240-360 test lines, and 35-60 documentation/changeset lines. More than 275 production lines or 400 test lines requires a scope audit. More than 350 production lines or 500 test lines, a new workspace package, a custom ProseMirror highlighting plugin, Shiki, public-renderer work, or language-list changes blocks implementation until the specification is revised and approved.
+Projected hand-written changes are 150-230 production lines, 240-360 test lines, and 35-60 documentation/changeset lines. More than 275 production lines or 400 test lines requires a scope audit. More than 350 production lines or 500 test lines, a new workspace package, a custom ProseMirror highlighting plugin, Shiki, public-renderer work, or language-list changes beyond the Lua and Zig follow-up blocks implementation until the specification is revised.
 
 ## Implementation sequence
 
@@ -297,6 +301,6 @@ Run before the pull request:
 - Inline code blocks meet the same visual contract under system light/dark defaults and under documented site CSS-variable overrides.
 - The language picker remains keyboard-accessible, localized in the admin, RTL-safe, and usable at narrow widths.
 - Saving and reloading through either editor preserves the exact code and language and reconstructs highlighting.
-- Public `Code.astro` output, the curated language list, Portable Text, database/API behavior, and anonymous route/query counts remain unchanged.
+- Public `Code.astro` output, Portable Text, database/API behavior, and anonymous route/query counts remain unchanged. The only curated-list expansion is Lua and Zig.
 - Bundle measurements confirm that only editor assets grow and that the implementation uses Lowlight's `common` grammar map plus Dockerfile rather than all grammars.
 - Required tests, type checks, lint, formatting, package builds, documentation build, and changeset validation pass.
