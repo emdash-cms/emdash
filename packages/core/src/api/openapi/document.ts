@@ -890,7 +890,7 @@ function buildMediaPaths(maxUploadSize: number) {
 				operationId: "advanceMediaUsageActivation",
 				summary: "Advance media usage activation",
 				description:
-					"Starts, resumes, or retries exactly one bounded activation batch after the operator confirms that all writers are drained and automatic maintenance is ready. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+					"Starts, resumes, or retries exactly one bounded activation batch after the operator confirms that all writers are drained. Continue setup through the Media Usage progress endpoint. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
 				tags: ["Media"],
 				requestBody: {
 					required: true,

@@ -130,6 +130,7 @@ describe("OpenAPI document generation", () => {
 		};
 		const post = path?.post as {
 			operationId?: string;
+			description?: string;
 			requestBody?: unknown;
 			responses?: Record<string, unknown>;
 		};
@@ -146,6 +147,8 @@ describe("OpenAPI document generation", () => {
 		);
 		expect(JSON.stringify(get.responses?.["200"])).toContain("MediaUsageActivationStatus");
 		expect(post.operationId).toBe("advanceMediaUsageActivation");
+		expect(post.description).toContain("progress endpoint");
+		expect(post.description).not.toContain("automatic maintenance");
 		expect(post.requestBody).toBeDefined();
 		expect(post.responses).toEqual(
 			expect.objectContaining({

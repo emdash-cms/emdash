@@ -71,6 +71,27 @@ describe("media usage maintenance engine and Node heartbeat", () => {
 		expect(await countWork(runtime)).toBe(1);
 	});
 
+	it("keeps a delayed continuation while collection deletion retry is waiting", async () => {
+		runtime = await EmDashRuntime.create(createDeps(null));
+		const fixture = await activateCollection(runtime, "delayed_deletion");
+		await runtime.db
+			.insertInto("_emdash_media_usage_collection_deletions")
+			.values({
+				collection_id: fixture.collectionId,
+				collection_slug: "delayed_deletion",
+				force_delete: 1,
+				state: "retry",
+				phase: "sources",
+				next_attempt_at: "2100-01-01T00:00:00.000Z",
+			})
+			.execute();
+
+		await expect(runMediaUsageMaintenanceStep(runtime.db)).resolves.toEqual({
+			state: "blocked",
+			continuation: { kind: "delayed", delaySeconds: 30 },
+		});
+	});
+
 	it("continues useful entry work after a reconciliation claim is lost", async () => {
 		runtime = await EmDashRuntime.create(createDeps(null));
 		const work = await activateCollection(runtime, "seed_claim_work");

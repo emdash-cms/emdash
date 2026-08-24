@@ -15,6 +15,7 @@ import { loadContentMediaUsageSnapshots } from "../../../src/media/usage/content
 import { MEDIA_USAGE_MAINTENANCE_LIMITS } from "../../../src/media/usage/maintenance-engine.js";
 import { buildContentMediaUsageSourceKey } from "../../../src/media/usage/source-key.js";
 import { processMediaUsageWorkAfterWrite } from "../../../src/media/usage/work-processor.js";
+import { createRequestMetrics, runWithContext } from "../../../src/request-context.js";
 import {
 	addMediaUsageMeasurementDraft,
 	createMediaUsageAdmissionFixture,
@@ -153,6 +154,34 @@ describeEachDialect("media usage projection admission runtime", (dialect) => {
 			.where("source_key", "=", "content:admission_runtime:legacy-refresh:columns")
 			.executeTakeFirstOrThrow();
 		expect(Number(count.count)).toBe(13);
+	});
+
+	it("does not begin a bulk publication past the event query reservation", async () => {
+		await insertEntry("query-bound-a", 1);
+		await insertEntry("query-bound-b", 1);
+		const projections = (
+			await Promise.all([loadSnapshots("query-bound-a"), loadSnapshots("query-bound-b")])
+		).flatMap((snapshots) =>
+			snapshots.map((snapshot) => ({
+				source: snapshot.source,
+				occurrences: snapshot.occurrences,
+			})),
+		);
+		const metrics = createRequestMetrics(performance.now());
+		const initialDbCount =
+			MEDIA_USAGE_MAINTENANCE_LIMITS.eventQueryCeiling -
+			MEDIA_USAGE_MAINTENANCE_LIMITS.maxStepQueries -
+			3;
+		metrics.dbCount = initialDbCount;
+
+		const inserted = await runWithContext({ editMode: false, metrics }, () =>
+			repo.replaceNewSourcesBatch(projections),
+		);
+
+		expect(inserted).toEqual(new Set());
+		expect(metrics.dbCount).toBe(initialDbCount);
+		expect((await repo.findSources(sourceKeys("query-bound-a"))).size).toBe(0);
+		expect((await repo.findSources(sourceKeys("query-bound-b"))).size).toBe(0);
 	});
 
 	it("defers immediately after a reserved conflict inside the shared step reservation", async () => {

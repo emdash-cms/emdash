@@ -34,7 +34,13 @@ export async function processDueMediaUsageCollectionDeletions(
 	const candidates = await repository.findDue(
 		MEDIA_USAGE_COLLECTION_DELETION_LIMITS.candidatesPerTick,
 	);
-	if (candidates.length === 0) return { candidateCount: 0, claimedCount: 0, outcome: "idle" };
+	if (candidates.length === 0) {
+		return {
+			candidateCount: (await repository.hasNonterminal()) ? 1 : 0,
+			claimedCount: 0,
+			outcome: "idle",
+		};
+	}
 
 	let claim: (MediaUsageCollectionDeletionRecord & { leaseToken: string }) | null = null;
 	for (const candidate of candidates) {

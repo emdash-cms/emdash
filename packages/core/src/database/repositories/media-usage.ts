@@ -20,6 +20,7 @@ import {
 	type MediaKind,
 	type MediaUsageReferenceType,
 } from "../../media/usage/types.js";
+import { getRequestContext } from "../../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isPostgres } from "../dialect-helpers.js";
 import { jsonTextValues } from "../json-recordset.js";
@@ -89,6 +90,8 @@ function nullableRefMatch(
 }
 
 const MAX_JSON_BIND_BYTES = 1_900_000;
+const MEDIA_USAGE_EVENT_QUERY_CEILING = 900;
+const MEDIA_USAGE_QUERY_RESERVE = 150;
 
 function chunkJsonRows<T>(rows: readonly T[]): T[][] {
 	const batches: T[][] = [];
@@ -108,6 +111,49 @@ function chunkJsonRows<T>(rows: readonly T[]): T[][] {
 	if (batch.length > 0) batches.push(batch);
 	return batches;
 }
+
+function mediaUsageQueryBudgetAllows(queries: number): boolean {
+	const metrics = getRequestContext()?.metrics;
+	return (
+		!metrics ||
+		metrics.dbCount + queries + MEDIA_USAGE_QUERY_RESERVE <= MEDIA_USAGE_EVENT_QUERY_CEILING
+	);
+}
+
+function mergeInto<T>(target: Set<T>, source: ReadonlySet<T>): void {
+	for (const value of source) target.add(value);
+}
+
+function batchOccurrenceRows(
+	prepared: readonly {
+		projection: { occurrences: readonly MediaUsageOccurrenceInput[] };
+		generation: string;
+		leaseToken: string;
+		row: { source_key: string };
+	}[],
+	now: string,
+) {
+	return prepared.flatMap((item) =>
+		item.projection.occurrences.map((occurrence) => ({
+			id: ulid(),
+			source_key: item.row.source_key,
+			generation: item.generation,
+			field_slug: occurrence.fieldSlug,
+			field_path: occurrence.fieldPath,
+			occurrence_index: occurrence.occurrenceIndex ?? 0,
+			reference_type: occurrence.referenceType,
+			media_id: occurrence.mediaId,
+			provider: occurrence.provider,
+			provider_asset_id: occurrence.providerAssetId,
+			media_kind: occurrence.mediaKind ?? null,
+			mime_type: occurrence.mimeType ?? null,
+			created_at: now,
+			lease_token: item.leaseToken,
+		})),
+	);
+}
+
+type BatchOccurrenceRow = ReturnType<typeof batchOccurrenceRows>[number];
 
 function cleanupDurationSeconds(value: number): number {
 	if (!Number.isSafeInteger(value) || value < 0) {
@@ -734,6 +780,21 @@ export class MediaUsageRepository {
 				row: this.buildSourceRow(projection.source, generation, now),
 			};
 		});
+		const sourceRows = prepared.map((item) => ({
+			...item.row,
+			lease_token: item.leaseToken,
+		}));
+		const occurrenceRows = batchOccurrenceRows(prepared, now);
+		const estimatedQueries =
+			2 + chunkJsonRows(occurrenceRows).length + chunkJsonRows(sourceRows).length;
+		if (!mediaUsageQueryBudgetAllows(estimatedQueries)) {
+			if (unique.length === 1) return new Set();
+			const midpoint = Math.ceil(unique.length / 2);
+			const inserted = new Set<string>();
+			mergeInto(inserted, await this.replaceNewSourcesBatch(unique.slice(0, midpoint)));
+			mergeInto(inserted, await this.replaceNewSourcesBatch(unique.slice(midpoint)));
+			return inserted;
+		}
 
 		const leasesPayload = JSON.stringify(
 			prepared.map((item) => ({
@@ -773,14 +834,10 @@ export class MediaUsageRepository {
 		`.execute(this.db);
 
 		try {
-			await this.insertBatchOccurrences(prepared, now);
+			await this.insertBatchOccurrences(occurrenceRows);
 			const tableName = `ec_${collectionSlug}`;
 			validateIdentifier(tableName, "content table");
 			const inserted = new Set<string>();
-			const sourceRows = prepared.map((item) => ({
-				...item.row,
-				lease_token: item.leaseToken,
-			}));
 			for (const sourceRowBatch of chunkJsonRows(sourceRows)) {
 				const input = this.sourceBatchInput(JSON.stringify(sourceRowBatch));
 				const result = await sql<{ source_key: string }>`
@@ -897,6 +954,32 @@ export class MediaUsageRepository {
 				row: this.buildSourceRow(projection.source, generation, now),
 			};
 		});
+		const sourceRows = prepared.map((item) => ({
+			...item.row,
+			lease_token: item.leaseToken,
+			expected_generation: item.projection.expectedSource.currentGeneration,
+			expected_collection_id: item.projection.expectedSource.collectionId,
+			expected_updated_at: item.projection.expectedSource.updatedAt,
+			expected_source_fingerprint: item.projection.expectedSource.sourceFingerprint,
+			expected_source_updated_at: item.projection.expectedSource.sourceUpdatedAt,
+			expected_source_version: item.projection.expectedSource.sourceVersion,
+			expected_identity_version: item.projection.expectedSource.identityVersion,
+			expected_revision_id: item.projection.expectedSource.revisionId,
+			expected_source_completeness: item.projection.expectedSource.sourceCompleteness,
+			expected_last_attempted_at: item.projection.expectedSource.lastAttemptedAt,
+			expected_last_error_code: item.projection.expectedSource.lastErrorCode,
+		}));
+		const occurrenceRows = batchOccurrenceRows(prepared, now);
+		const estimatedQueries =
+			2 + chunkJsonRows(occurrenceRows).length + chunkJsonRows(sourceRows).length;
+		if (!mediaUsageQueryBudgetAllows(estimatedQueries)) {
+			if (unique.length === 1) return new Set();
+			const midpoint = Math.ceil(unique.length / 2);
+			const replaced = new Set<string>();
+			mergeInto(replaced, await this.replaceExistingSourcesBatch(unique.slice(0, midpoint)));
+			mergeInto(replaced, await this.replaceExistingSourcesBatch(unique.slice(midpoint)));
+			return replaced;
+		}
 		const leasesPayload = JSON.stringify(
 			prepared.map((item) => ({
 				source_key: item.row.source_key,
@@ -935,25 +1018,10 @@ export class MediaUsageRepository {
 		`.execute(this.db);
 
 		try {
-			await this.insertBatchOccurrences(prepared, now);
+			await this.insertBatchOccurrences(occurrenceRows);
 			const tableName = `ec_${collectionSlug}`;
 			validateIdentifier(tableName, "content table");
 			const replaced = new Set<string>();
-			const sourceRows = prepared.map((item) => ({
-				...item.row,
-				lease_token: item.leaseToken,
-				expected_generation: item.projection.expectedSource.currentGeneration,
-				expected_collection_id: item.projection.expectedSource.collectionId,
-				expected_updated_at: item.projection.expectedSource.updatedAt,
-				expected_source_fingerprint: item.projection.expectedSource.sourceFingerprint,
-				expected_source_updated_at: item.projection.expectedSource.sourceUpdatedAt,
-				expected_source_version: item.projection.expectedSource.sourceVersion,
-				expected_identity_version: item.projection.expectedSource.identityVersion,
-				expected_revision_id: item.projection.expectedSource.revisionId,
-				expected_source_completeness: item.projection.expectedSource.sourceCompleteness,
-				expected_last_attempted_at: item.projection.expectedSource.lastAttemptedAt,
-				expected_last_error_code: item.projection.expectedSource.lastErrorCode,
-			}));
 			for (const sourceRowBatch of chunkJsonRows(sourceRows)) {
 				const input = this.sourceBatchInput(JSON.stringify(sourceRowBatch));
 				const result = await sql<{ source_key: string }>`
@@ -1072,6 +1140,14 @@ export class MediaUsageRepository {
 			expected_last_attempted_at: projection.expectedSource.lastAttemptedAt,
 			expected_last_error_code: projection.expectedSource.lastErrorCode,
 		}));
+		if (!mediaUsageQueryBudgetAllows(chunkJsonRows(rows).length)) {
+			if (projections.length === 1) return new Set();
+			const midpoint = Math.ceil(projections.length / 2);
+			const matched = new Set<string>();
+			mergeInto(matched, await this.matchingExistingSourcesBatch(projections.slice(0, midpoint)));
+			mergeInto(matched, await this.matchingExistingSourcesBatch(projections.slice(midpoint)));
+			return matched;
+		}
 		const matched = new Set<string>();
 		for (const batch of chunkJsonRows(rows)) {
 			const input = this.sourceBatchInput(JSON.stringify(batch));
@@ -2991,33 +3067,7 @@ export class MediaUsageRepository {
 		}
 	}
 
-	private async insertBatchOccurrences(
-		prepared: readonly {
-			projection: MediaUsageNewSourceProjection;
-			generation: string;
-			leaseToken: string;
-			row: { source_key: string };
-		}[],
-		now: string,
-	): Promise<void> {
-		const rows = prepared.flatMap((item) =>
-			item.projection.occurrences.map((occurrence) => ({
-				id: ulid(),
-				source_key: item.row.source_key,
-				generation: item.generation,
-				field_slug: occurrence.fieldSlug,
-				field_path: occurrence.fieldPath,
-				occurrence_index: occurrence.occurrenceIndex ?? 0,
-				reference_type: occurrence.referenceType,
-				media_id: occurrence.mediaId,
-				provider: occurrence.provider,
-				provider_asset_id: occurrence.providerAssetId,
-				media_kind: occurrence.mediaKind ?? null,
-				mime_type: occurrence.mimeType ?? null,
-				created_at: now,
-				lease_token: item.leaseToken,
-			})),
-		);
+	private async insertBatchOccurrences(rows: readonly BatchOccurrenceRow[]): Promise<void> {
 		for (const rowBatch of chunkJsonRows(rows)) {
 			const input = this.occurrenceBatchInput(JSON.stringify(rowBatch));
 			await sql`
