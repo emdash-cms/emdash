@@ -414,7 +414,12 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const [publishedDate, setPublishedDate] = React.useState(storedPublishedDate);
 	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
-	const hasApplicableTaxonomies = useHasApplicableTaxonomies(collection);
+	const activeEntryLocale = item?.locale ?? entryLocale ?? undefined;
+	const hasApplicableTaxonomies = useHasApplicableTaxonomies(
+		collection,
+		activeEntryLocale,
+		i18n?.defaultLocale,
+	);
 	const canUpdatePublishedDate =
 		item?.publishedAt != null && (currentUser?.role ?? 0) >= ROLE_EDITOR && !!onPublishedAtChange;
 	const contentLocale = item?.locale ?? entryLocale ?? manifest?.contentLocale?.defaultLocale;
@@ -703,7 +708,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							className="p-4"
 							collection={collection}
 							entryId={item.id}
-							entryLocale={item.locale ?? entryLocale}
+							entryLocale={activeEntryLocale}
+							defaultLocale={i18n?.defaultLocale}
 							canManageTaxonomies={(currentUser?.role ?? 0) >= ROLE_EDITOR}
 						/>
 					</SortableContentSettingsSection>

@@ -141,31 +141,54 @@ function buildTree(flatTerms: TermWithCount[], resolveByGroup = false): TermWith
 	return roots;
 }
 
-/**
- * Look up a taxonomy definition by name (optionally scoped to a locale).
- * Returns the lowest-locale match when no locale is provided.
- */
+type TaxonomyDefLookup =
+	| { success: true; def: Selectable<TaxonomyDefTable> }
+	| { success: false; error: { code: string; message: string } };
+
+function taxonomyDefNotFound(name: string, locale?: string): TaxonomyDefLookup {
+	return {
+		success: false,
+		error: {
+			code: "NOT_FOUND",
+			message: `Taxonomy '${name}' not found${locale !== undefined ? ` in locale '${locale}'` : ""}`,
+		},
+	};
+}
+
+/** Look up the exact definition addressed by a mutation. */
 async function requireTaxonomyDef(
 	db: Kysely<Database>,
 	name: string,
 	locale?: string,
-): Promise<
-	| { success: true; def: Selectable<TaxonomyDefTable> }
-	| { success: false; error: { code: string; message: string } }
-> {
+): Promise<TaxonomyDefLookup> {
 	let query = db.selectFrom("_emdash_taxonomy_defs").selectAll().where("name", "=", name);
 	if (locale !== undefined) query = query.where("locale", "=", locale);
-	const def = await query.orderBy("locale", "asc").executeTakeFirst();
-	if (!def) {
-		return {
-			success: false,
-			error: {
-				code: "NOT_FOUND",
-				message: `Taxonomy '${name}' not found${locale !== undefined ? ` in locale '${locale}'` : ""}`,
-			},
-		};
-	}
-	return { success: true, def };
+	const def = await query.orderBy("locale", "asc").orderBy("id", "asc").executeTakeFirst();
+	return def ? { success: true, def } : taxonomyDefNotFound(name, locale);
+}
+
+/**
+ * Prefer the requested locale, then the configured default. Incomplete
+ * translation groups fall back deterministically so their terms remain usable.
+ */
+async function requireTaxonomyDefWithFallback(
+	db: Kysely<Database>,
+	name: string,
+	locale?: string,
+): Promise<TaxonomyDefLookup> {
+	const defs = await db
+		.selectFrom("_emdash_taxonomy_defs")
+		.selectAll()
+		.where("name", "=", name)
+		.orderBy("locale", "asc")
+		.orderBy("id", "asc")
+		.execute();
+	const defaultLocale = getI18nConfig()?.defaultLocale;
+	const def =
+		(locale ? defs.find((candidate) => candidate.locale === locale) : undefined) ??
+		(defaultLocale ? defs.find((candidate) => candidate.locale === defaultLocale) : undefined) ??
+		defs[0];
+	return def ? { success: true, def } : taxonomyDefNotFound(name, locale);
 }
 
 /** The subset of `slugs` that still has a row in `_emdash_collections`. */
@@ -291,7 +314,7 @@ export async function handleTaxonomyGet(
 ): Promise<ApiResult<TaxonomyResponse>> {
 	try {
 		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
-		const lookup = await requireTaxonomyDef(db, name, locale);
+		const lookup = await requireTaxonomyDefWithFallback(db, name, locale);
 		if (!lookup.success) return lookup;
 
 		return { success: true, data: await toTaxonomyResponse(db, lookup.def) };
@@ -595,12 +618,12 @@ export async function handleTermList(
 			};
 		}
 		// Definitions are per-locale but terms aren't bound to the def's locale —
-		// just ensure the taxonomy exists somewhere.
-		const lookup = await requireTaxonomyDef(db, taxonomyName);
+		// use the active definition for its collection scope.
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const lookup = await requireTaxonomyDefWithFallback(db, taxonomyName, locale);
 		if (!lookup.success) return lookup;
 
 		const repo = new TaxonomyRepository(db);
-		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 		const terms =
 			options.resolveFallback && locale
 				? await repo.findByNameResolved(
@@ -617,7 +640,7 @@ export async function handleTermList(
 		// look up by group and map back to each term's id.
 		const includeCounts = options.includeCounts ?? true;
 		const countsByGroup = includeCounts
-			? await fetchVisibleTermCounts(db, taxonomyName, defCollections(lookup.def))
+			? await fetchVisibleTermCounts(db, taxonomyName, defCollections(lookup.def), locale)
 			: undefined;
 
 		const termData: TermWithCount[] = terms.map((term) => ({
@@ -994,12 +1017,14 @@ export async function handleTermGet(
 
 		// Count matches public visibility (published or scheduled-and-due, not
 		// soft-deleted) scoped to the def's declared collections. The def lookup
-		// is lenient: a term whose def is missing still resolves, with count 0.
-		const lookup = await requireTaxonomyDef(db, taxonomyName);
+		// falls back for incomplete translations; a term with no def at all still
+		// resolves with count 0.
+		const lookup = await requireTaxonomyDefWithFallback(db, taxonomyName, locale);
 		const counts = await fetchVisibleTermCounts(
 			db,
 			taxonomyName,
 			lookup.success ? defCollections(lookup.def) : [],
+			locale ?? term.locale,
 		);
 		const count = counts.get(term.translationGroup ?? term.id) ?? 0;
 		// Children share this term's translation_group as their parent_id; scope

@@ -313,7 +313,7 @@ export async function getTaxonomyTerms(
 	// The two are independent, so run them concurrently to save a round trip.
 	const [terms, counts] = await Promise.all([
 		getTermList(def, locale),
-		getVisibleTermCounts(def.name, def.collections),
+		getVisibleTermCounts(def.name, def.collections, locale),
 	]);
 	return withCounts(terms, counts);
 }
@@ -386,28 +386,30 @@ async function loadTaxonomyTerms(
 
 /**
  * Per-translation-group visible-usage counts for one taxonomy, in a single
- * round-trip (see `fetchVisibleTermCounts`). Counts are locale-independent
- * (the pivot stores translation_group), and the request-cached map is shared
- * by every consumer in the render — the widget (`getTaxonomyTerms`) and the
- * single-term page (`getTerm`) never issue separate count queries.
+ * round-trip (see `fetchVisibleTermCounts`). The pivot identity is the
+ * translation group, while entry rows are scoped to the resolved locale.
+ * Request and object cache keys include that locale so translated views never
+ * reuse each other's visible counts.
  */
 function getVisibleTermCounts(
 	taxonomyName: string,
 	collections: string[],
+	locale?: string,
 ): Promise<Map<string, number>> {
 	// The collection scope is part of the key: per-locale rows of the same def
 	// can drift in their declared collections, and a caller may pass a narrower
 	// scope. Identical inputs (the widget + term-page hot path) still share one
 	// entry.
 	const scope = [...new Set(collections)].toSorted().join(",");
-	return requestCached(`taxonomy-term-counts:${taxonomyName}:${scope}`, async () => {
+	const localeScope = locale ?? "*";
+	return requestCached(`taxonomy-term-counts:${taxonomyName}:${scope}:${localeScope}`, async () => {
 		// A Map is not JSON-representable — cache the entries, rebuild on read.
 		const entries = await cachedQuery({
 			namespace: termCountNamespaces(collections),
-			key: `termCounts:${taxonomyName}:${scope}`,
+			key: `termCounts:${taxonomyName}:${scope}:${localeScope}`,
 			load: async (): Promise<Array<[string, number]>> => {
 				const db = await getDb();
-				return [...(await fetchVisibleTermCounts(db, taxonomyName, collections))];
+				return [...(await fetchVisibleTermCounts(db, taxonomyName, collections, locale))];
 			},
 		});
 		return new Map(entries);
@@ -482,7 +484,7 @@ async function loadTerm(
 	// databases. The counts map is request-cached per taxonomy — on a page
 	// that also renders the taxonomy widget it's a free Map lookup.
 	const [counts, childRows] = await Promise.all([
-		getVisibleTermCounts(taxonomyName, collections),
+		getVisibleTermCounts(taxonomyName, collections, chain[0] ?? row.locale),
 		childrenQuery.execute(),
 	]);
 	const count = counts.get(row.translation_group ?? row.id) ?? 0;

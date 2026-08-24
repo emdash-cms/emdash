@@ -180,6 +180,19 @@ describe("EmDashRuntime.getManifest()", () => {
 		}
 	});
 
+	it("includes taxonomy locale identity for admin-side normalization", async () => {
+		const runtime = buildRuntime(db);
+		const manifest = await runtime.getManifest();
+		const category = manifest.taxonomies.find((taxonomy) => taxonomy.name === "category");
+
+		expect(category).toMatchObject({
+			id: expect.any(String),
+			locale: "en",
+			translationGroup: expect.any(String),
+		});
+		expect(category?.translationGroup).toBe(category?.id);
+	});
+
 	it("publishes only supported, existing list columns and caps them at four", async () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 		const registry = new SchemaRegistry(db);

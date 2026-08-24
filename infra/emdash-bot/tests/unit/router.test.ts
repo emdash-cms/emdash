@@ -89,6 +89,7 @@ describe("router", () => {
 
 	test("parseCommand is strict: only an exact bare verb is deterministic", () => {
 		expect(parseCommand("@emdashbot retry")).toEqual({ event: "retry", arg: null });
+		expect(parseCommand("@emdashbot resume")).toEqual({ event: "resume", arg: null });
 		expect(parseCommand("@emdashbot take over")).toEqual({ event: "take_over", arg: null });
 		expect(parseCommand("@emdashbot confirmed")).toEqual({ event: "confirm", arg: null }); // alias
 		expect(parseCommand("@emdashbot hand back please")).toBe(null); // extra word
@@ -103,6 +104,51 @@ describe("router", () => {
 		expect(cmds.has("implement")).toBe(true);
 		expect(cmds.has("decline")).toBe(false);
 		expect(cmds.has("take_over")).toBe(false);
+	});
+
+	test("failed runs offer classifier-routable resume and restore their saved active state", () => {
+		const commands = new Set(classifierCommands("failed").map((command) => command.event));
+		expect(commands.has("resume")).toBe(true);
+
+		const decision = resolve({
+			labels: ["bot:enhancement", "bot:failed"],
+			event: "resume",
+			actor: "maintainer",
+			resumeState: "fixing",
+		});
+		assertTransition(decision);
+		expect(decision.to).toBe("fixing");
+		expect(decision.action).toBe("investigate.resume");
+	});
+
+	test.each([
+		{ retryMode: "implement", to: "fixing", action: "investigate.implement" },
+		{ retryMode: "fix", to: "fixing", action: "investigate.fix" },
+		{ retryMode: "revise", to: "working", action: "investigate.revise" },
+	] as const)("failed retry preserves $retryMode mode", ({ retryMode, to, action }) => {
+		const decision = resolve({
+			labels: ["bot:bug", "bot:failed"],
+			event: "retry",
+			actor: "maintainer",
+			retryMode,
+		});
+
+		assertTransition(decision);
+		expect(decision.to).toBe(to);
+		expect(decision.action).toBe(action);
+	});
+
+	test("failed retry keeps the repro fallback for read modes", () => {
+		const decision = resolve({
+			labels: ["bot:bug", "bot:failed"],
+			event: "retry",
+			actor: "maintainer",
+			retryMode: "repro",
+		});
+
+		assertTransition(decision);
+		expect(decision.to).toBe("working");
+		expect(decision.action).toBe("investigate.repro");
 	});
 
 	test("isDestructive flags decline and take_over only", () => {
@@ -491,6 +537,66 @@ describe("router: investigation + fix loop", () => {
 		assertTransition(d);
 		expect(d.to).toBe("fixing");
 		expect(d.action).toBe("investigate.fix");
+	});
+
+	test.each(["reproduced", "diagnosed"] as const)(
+		"implement redirects to the diagnosis-aware fix mode from %s",
+		(state) => {
+			const d = resolve({
+				labels: ["bot:bug", `bot:${state}`],
+				event: "implement",
+				arg: "apply the diagnosed fix",
+				actor: "maintainer",
+			});
+			assertTransition(d);
+			expect(d.to).toBe("fixing");
+			expect(d.action).toBe("investigate.fix");
+		},
+	);
+
+	test("legacy repro outcomes use the first-class verdict states", () => {
+		for (const [event, expected] of [
+			["agent.reproduced", "reproduced"],
+			["agent.diagnosed", "diagnosed"],
+			["agent.not_reproduced", "not_reproduced"],
+			["agent.needs_info", "needs_info"],
+		] as const) {
+			const d = resolve({
+				labels: ["bot:bug", "bot:working"],
+				event,
+				actor: "system",
+			});
+			assertTransition(d);
+			expect(d.to).toBe(expected);
+		}
+	});
+
+	test("fix remains available from the legacy blocked bucket", () => {
+		const d = resolve({
+			labels: ["bot:bug", "bot:blocked"],
+			event: "fix",
+			actor: "maintainer",
+		});
+		assertTransition(d);
+		expect(d.to).toBe("fixing");
+		expect(d.action).toBe("investigate.implement");
+	});
+
+	test.each([
+		{ labels: [], from: "unmanaged" },
+		{ labels: ["bot:triage"], from: "triage" },
+	])("fix directly enters the bug delivery lane from $from", ({ labels, from }) => {
+		const d = resolve({
+			labels,
+			event: "fix",
+			arg: "unwrap the media response envelope",
+			actor: "maintainer",
+		});
+		assertTransition(d);
+		expect(d.from).toBe(from);
+		expect(d.to).toBe("fixing");
+		expect(d.action).toBe("investigate.implement");
+		expect(d.addLabels).toContain("bot:bug");
 	});
 
 	test("the fix loop advances through preview to the reporter wait", () => {

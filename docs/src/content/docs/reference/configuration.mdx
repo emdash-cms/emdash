@@ -55,6 +55,19 @@ database: d1({ binding: "DB" });
 
 See [Database Options](/deployment/database/) for details.
 
+### `migrations`
+
+**Optional.** Controls runtime handling of EmDash's internal database migrations. Omitting this option defaults to `{ runtime: "auto" }`.
+
+```js
+migrations: {
+	runtime: "check", // "auto" | "check" | "manual"
+	dev: "auto",     // optional development override
+}
+```
+
+`auto` checks and applies pending migrations, `check` returns 503 when migrations known to the running build are pending, and `manual` performs no runtime migration query. `EMDASH_MIGRATIONS_MODE` overrides the effective runtime mode. See [Manage Core Database Migrations](/deployment/core-migrations/) before adopting `check` or `manual`.
+
 ### `storage`
 
 **Required.** Media storage adapter configuration. Choose one adapter:
@@ -519,10 +532,11 @@ sqlite({ url: "file:./data.db" });
 
 libSQL database. The following example connects to a remote libSQL database:
 
-| Option      | Type     | Description                           |
-| ----------- | -------- | ------------------------------------- |
-| `url`       | `string` | Database URL                          |
-| `authToken` | `string` | Auth token (optional for local files) |
+| Option                  | Type     | Description                                                   |
+| ----------------------- | -------- | ------------------------------------------------------------- |
+| `url`                   | `string` | Database URL                                                  |
+| `authToken`             | `string` | Runtime auth token (optional for local files)                 |
+| `migrationAuthTokenEnv` | `string` | Migration token variable name (default `TURSO_AUTH_TOKEN`)    |
 
 ```js
 libsql({
@@ -546,6 +560,7 @@ PostgreSQL database with connection pooling.
 | `ssl`              | `boolean` | Enable SSL                           |
 | `pool.min`         | `number`  | Minimum pool size (default: 0)       |
 | `pool.max`         | `number`  | Maximum pool size (default: 10)      |
+| `migrationConnectionStringEnv` | `string` | Migration connection-string variable name (default `DATABASE_URL`) |
 
 The following example connects with a connection string:
 
@@ -575,8 +590,10 @@ d1({ binding: "DB", session: "auto" });
 
 When `session` is `"auto"` or `"primary-first"`, EmDash uses the D1 Sessions API to route read queries to nearby replicas. Authenticated users get bookmark-based read-your-writes consistency. See [Database Options — Read Replicas](/deployment/database/#read-replicas) for details.
 
-<Aside type="caution">
-	D1 requires migrations via Wrangler CLI. DDL statements are not allowed at runtime.
+<Aside>
+	D1 core migrations run automatically by default or through the deployment migration manifest.
+	Provision the D1 database separately; see [Manage Core Database
+	Migrations](/deployment/core-migrations/).
 </Aside>
 
 ## Storage adapters

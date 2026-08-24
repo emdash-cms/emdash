@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.33.0",
+  "version": "0.35.0",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -83,13 +83,29 @@
       "types": "./dist/db/sqlite.d.mts",
       "default": "./dist/db/sqlite.mjs"
     },
+    "./db/sqlite-migrations": {
+      "types": "./dist/db/sqlite-migrations.d.mts",
+      "default": "./dist/db/sqlite-migrations.mjs"
+    },
     "./db/libsql": {
       "types": "./dist/db/libsql.d.mts",
       "default": "./dist/db/libsql.mjs"
     },
+    "./db/libsql-migrations": {
+      "types": "./dist/db/libsql-migrations.d.mts",
+      "default": "./dist/db/libsql-migrations.mjs"
+    },
     "./db/postgres": {
       "types": "./dist/db/postgres.d.mts",
       "default": "./dist/db/postgres.mjs"
+    },
+    "./db/postgres-migrations": {
+      "types": "./dist/db/postgres-migrations.d.mts",
+      "default": "./dist/db/postgres-migrations.mjs"
+    },
+    "./migrations": {
+      "types": "./dist/migrations/index.d.mts",
+      "default": "./dist/migrations/index.mjs"
     },
     "./database/instrumentation": {
       "types": "./dist/database/instrumentation.d.mts",

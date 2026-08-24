@@ -27,6 +27,9 @@ test.describe("image optimization", () => {
 			await page.waitForTimeout(1000);
 		}
 		await expect(img).toBeVisible();
+		await expect
+			.poll(() => img.evaluate((element) => (element as HTMLImageElement).naturalWidth))
+			.toBe(1);
 
 		const src = await img.getAttribute("src");
 		expect(src, "image src should be optimized via Astro's image endpoint").toContain("/_image");
@@ -35,5 +38,6 @@ test.describe("image optimization", () => {
 		const res = await request.get(src!);
 		expect(res.status()).toBe(200);
 		expect(res.headers()["content-type"]).toMatch(/^image\//);
+		expect((await res.body()).byteLength).toBeGreaterThan(0);
 	});
 });

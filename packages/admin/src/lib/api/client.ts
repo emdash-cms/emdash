@@ -189,11 +189,14 @@ export interface AdminManifest {
 	 * Taxonomy definitions for the admin sidebar.
 	 */
 	taxonomies: Array<{
+		id?: string;
 		name: string;
 		label: string;
 		labelSingular?: string;
 		hierarchical: boolean;
 		collections: string[];
+		locale?: string;
+		translationGroup?: string | null;
 	}>;
 	/**
 	 * Marketplace registry URL. Present when `marketplace` is configured

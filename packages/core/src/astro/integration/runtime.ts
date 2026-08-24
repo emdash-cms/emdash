@@ -10,6 +10,7 @@
 import type { ManifestHookEntry, ManifestRouteEntry } from "@emdash-cms/plugin-types";
 
 import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
+import type { RuntimeMigrationConfig } from "../../database/migrations/policy.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ObjectCacheDescriptor } from "../../object-cache/types.js";
@@ -180,6 +181,8 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	database?: DatabaseDescriptor;
+	/** Core database migration behavior at runtime. Defaults to `auto`. */
+	migrations?: RuntimeMigrationConfig;
 	/**
 	 * Storage configuration (for media)
 	 */

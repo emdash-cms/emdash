@@ -3,11 +3,14 @@
 
 import { Sandbox as BaseSandbox } from "@cloudflare/sandbox";
 
+import { forwardAnonymousRead } from "./lib/anonymous-egress.js";
 import {
-	githubAuthHeader,
+	githubGateDenialResponse,
 	inspectGithubRequest,
 	PUSH_CAPABILITY_HEADER,
+	pushCapabilityFromAuthorization,
 	verifyPushCapability,
+	withGithubAuthorization,
 } from "./lib/github-proxy.js";
 import { mintInstallationToken, readAppCreds } from "./lib/github.js";
 
@@ -18,30 +21,15 @@ import { mintInstallationToken, readAppCreds } from "./lib/github.js";
 // Authorization, and the request is forwarded upstream.
 export class Sandbox extends BaseSandbox {
 	override enableInternet = false;
-	// Required: outboundByHost only sees HTTPS traffic when interception is on.
+	// Required: outbound handlers only see HTTPS traffic when interception is on.
 	// Defaults to false in @cloudflare/containers 0.3.x; flip it explicitly.
 	override interceptHttps = true;
-	override allowedHosts = [
-		"github.com",
-		"api.github.com",
-		"codeload.github.com",
-		"raw.githubusercontent.com",
-		"objects.githubusercontent.com",
-		"registry.npmjs.org",
-		"registry.npmjs.com",
-		// pkg.pr.new serves preview package builds; emdash's pnpm-lock pins
-		// some deps (e.g. @lunariajs/core) there.
-		"pkg.pr.new",
-		// node-gyp fetches node headers from here when building native
-		// modules (better-sqlite3 etc.).
-		"nodejs.org",
-	];
 }
 
-// Static, always-on handler for github hosts. Bound at module load via
-// `outboundByHost` so it survives sandbox restarts / runtime override drops.
-// Gates by host + repo (from env). Pushes additionally require an issue-scoped
-// capability supplied by the investigation sandbox.
+// Public HTTPS reads use a credential-free catch-all. GitHub hosts override it
+// so configured-repository operations can receive an installation token and
+// pushes remain confined to the current issue's bot branches.
+Sandbox.outbound = forwardAnonymousRead;
 Sandbox.outboundByHost = {
 	"github.com": handleAuthenticatedGithub,
 	"api.github.com": handleAuthenticatedGithub,
@@ -50,6 +38,7 @@ Sandbox.outboundByHost = {
 };
 console.log("[sandbox/outbound] module loaded; outboundByHost set", {
 	hosts: Object.keys(Sandbox.outboundByHost ?? {}),
+	catchAll: true,
 });
 
 async function handleAuthenticatedGithub(request: Request, env: Env): Promise<Response> {
@@ -62,13 +51,18 @@ async function handleAuthenticatedGithub(request: Request, env: Env): Promise<Re
 	}
 
 	const forwarded = new Request(request);
-	const capability = forwarded.headers.get(PUSH_CAPABILITY_HEADER);
+	const authorizationCapability = pushCapabilityFromAuthorization(
+		forwarded.headers.get("authorization"),
+	);
+	const legacyCapability = forwarded.headers.get(PUSH_CAPABILITY_HEADER);
+	const capability = authorizationCapability ?? legacyCapability;
 	const issueNumber = await verifyPushCapability(
 		capability,
 		env.GITHUB_WEBHOOK_SECRET,
 		owner,
 		repo,
 	);
+	forwarded.headers.delete("authorization");
 	forwarded.headers.delete(PUSH_CAPABILITY_HEADER);
 	const gate = await inspectGithubRequest(forwarded, url, owner, repo, issueNumber ?? undefined);
 	if (!gate.allowed) {
@@ -80,33 +74,40 @@ async function handleAuthenticatedGithub(request: Request, env: Env): Promise<Re
 			reason: gate.reason,
 			capabilityPresent: capability !== null,
 			capabilityValid: issueNumber !== null,
+			capabilityTransport: authorizationCapability
+				? "authorization"
+				: legacyCapability
+					? "legacy-header"
+					: "missing",
 			...(gate.refs ? { refs: gate.refs } : {}),
 			...(gate.parseError ? { parseError: gate.parseError } : {}),
 		});
-		return new Response(`forbidden: ${gate.reason}`, { status: 403 });
+		return githubGateDenialResponse(gate);
 	}
 
 	console.log("[sandbox/outbound] allow", {
 		method: request.method,
 		host: url.host,
 		path: url.pathname,
+		authentication: gate.authentication,
 	});
 
 	// The repo is public: when no usable App credential exists, forward the
 	// (already gated) request anonymously. Reads work; a push fails upstream.
-	const creds = readAppCreds(env);
 	let token: string | null = null;
-	if (creds) {
-		try {
-			token = await mintInstallationToken(creds);
-		} catch (err) {
-			console.warn("[sandbox/outbound] token mint failed; forwarding anonymously", {
-				error: errorMessage(err),
-			});
+	if (gate.authentication === "installation") {
+		const creds = readAppCreds(env);
+		if (creds) {
+			try {
+				token = await mintInstallationToken(creds);
+			} catch (err) {
+				console.warn("[sandbox/outbound] token mint failed; forwarding anonymously", {
+					error: errorMessage(err),
+				});
+			}
 		}
 	}
-	const authed = new Request(forwarded);
-	if (token) authed.headers.set("authorization", githubAuthHeader(url.host, token));
+	const authed = withGithubAuthorization(forwarded, url.host, token);
 	authed.headers.set("user-agent", "emdash-bot");
 	try {
 		const res = await fetch(authed, { signal: AbortSignal.timeout(2 * 60_000) });

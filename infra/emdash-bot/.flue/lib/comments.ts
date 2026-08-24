@@ -1,17 +1,91 @@
-import type { Kind, StateId } from "./machine.js";
-import { artifactsBranch, fixBranch, previewInstallCommand } from "./preview.js";
+import pullRequestTemplate from "../../../../.github/PULL_REQUEST_TEMPLATE.md?raw";
+import {
+	EVENTS,
+	STATES,
+	type CommandVerb,
+	type EventId,
+	type Kind,
+	type StateId,
+} from "./machine.js";
+import {
+	artifactsBranch,
+	fixBranch,
+	playgroundPreviewUrl,
+	previewInstallCommand,
+} from "./preview.js";
 import type { Decision } from "./router.js";
 
 export function shouldPostReadonlyReply(dryRun?: boolean): boolean {
 	return dryRun !== true;
 }
 
-export function renderReadonlyReply(state: StateId | null): string {
+type HumanActor = "maintainer" | "reporter";
+
+function renderCommand(command: EventId): string {
+	const argument = EVENTS[command].arg ? ` <${EVENTS[command].arg}>` : "";
+	return `\`@emdashbot ${command.replaceAll("_", " ")}${argument}\``;
+}
+
+function availableCommands(state: StateId | null, actor: HumanActor): CommandVerb[] {
+	if (!state) return [];
+	return STATES[state].offeredCommands.filter((command) => EVENTS[command].actors.includes(actor));
+}
+
+function renderAvailableCommands(state: StateId | null, actor: HumanActor): string {
+	const commands = availableCommands(state, actor);
+	if (commands.length === 0) {
+		return "Use `@emdashbot status` to check the current state or `@emdashbot help` for command guidance.";
+	}
+	return `Available now: ${commands.map(renderCommand).join(" · ")}.`;
+}
+
+function renderHelpReply(state: StateId | null, actor: HumanActor): string {
+	const commands = availableCommands(state, actor);
+	const heading = state
+		? `Commands available while this issue is in state \`${state}\`:`
+		: "The issue has conflicting bot state labels. A maintainer can use `@emdashbot reset`.";
+	const entries = commands.map(
+		(command) => `- ${renderCommand(command)} — ${EVENTS[command].description}`,
+	);
+	return [
+		heading,
+		...(entries.length > 0 ? ["", ...entries] : []),
+		"",
+		"Use `@emdashbot status` to show the current state. Commands with an argument accept text after the verb.",
+	].join("\n");
+}
+
+export function renderCommandFeedback(
+	state: StateId | null,
+	event: EventId | null,
+	actor: HumanActor,
+): string {
+	const command = event ? renderCommand(event) : null;
+	const metadata = event ? EVENTS[event] : null;
+	const alternatives = renderAvailableCommands(state, actor);
+	if (command && metadata && !metadata.actors.includes(actor)) {
+		return `${command} can only be used by a maintainer.\n\n${alternatives}`;
+	}
+	if (!state) {
+		return `I can't act while this issue has conflicting bot state labels. A maintainer can use \`@emdashbot reset\`.\n\n${alternatives}`;
+	}
+	if (command) {
+		return `${command} isn't available while this issue is in state \`${state}\`.\n\n${alternatives}`;
+	}
+	return `I couldn't map that request to an action while this issue is in state \`${state}\`.\n\n${alternatives}`;
+}
+
+export function renderReadonlyReply(
+	state: StateId | null,
+	event: "status" | "help" = "status",
+	actor: HumanActor = "maintainer",
+): string {
+	if (event === "help") return renderHelpReply(state, actor);
 	switch (state) {
 		case "unmanaged":
 		case null:
 		case "triage":
-			return "Not currently working on this. Try `@emdashbot repro` (for a bug), `@emdashbot implement <directive>` (for a change), or `@emdashbot decline`.";
+			return "Not currently working on this. Try `@emdashbot investigate <directive>` to diagnose a bug, `@emdashbot fix <directive>` for a direct bug fix, `@emdashbot implement <directive>` for another change, or `@emdashbot decline`.";
 		case "working":
 			return "Investigating now. I'll comment again when I have something to share.";
 		case "blocked":
@@ -27,7 +101,7 @@ export function renderReadonlyReply(state: StateId | null): string {
 		case "declined":
 			return "I declined this. Reopen with `@emdashbot reopen` if circumstances change.";
 		case "failed":
-			return "My last attempt failed. A maintainer can `@emdashbot retry` or take it over.";
+			return "My last attempt failed. A maintainer can `@emdashbot resume` if it saved a timeout checkpoint, start a fresh `@emdashbot retry`, or take it over.";
 		case "investigating":
 			return "Investigating now (reproduce + diagnose). I'll report a verdict with evidence.";
 		case "reproduced":
@@ -154,8 +228,8 @@ export function renderPreviewReadyAsk(input: {
 				`![${mdEscape(shot.description ?? shot.filename)}](https://raw.githubusercontent.com/${input.owner}/${input.repo}/${artifactsBranch(input.issueNumber)}/.bot-artifacts/${shot.filename})`,
 		);
 	const reporterAsk = input.reporterLogin
-		? `@${input.reporterLogin} could you try this and reply here with whether it works as requested? A simple "yes" or "no" is enough.`
-		: "Could the reporter please try this and reply with whether it works as requested?";
+		? `@${input.reporterLogin} could you try this? Reply \`@emdashbot confirm\` if it works as requested, or \`@emdashbot reject <details>\` if it does not.`
+		: "Could the reporter please try this? Reply `@emdashbot confirm` if it works as requested, or `@emdashbot reject <details>` if it does not.";
 	return [
 		`<!-- bot-ask: ${input.at} -->`,
 		"A candidate change is ready to preview.",
@@ -168,10 +242,14 @@ export function renderPreviewReadyAsk(input: {
 		previewInstallCommand(input.issueNumber, input.previewPackage),
 		"```",
 		"",
+		"Or try the candidate in a ready-to-use playground:",
+		"",
+		`[Open the playground preview](${playgroundPreviewUrl(input.issueNumber)})`,
+		"",
 		...(shots.length > 0 ? ["**Screenshots:**", "", shots.join("\n\n"), ""] : []),
 		reporterAsk,
 		"",
-		"<sub>Maintainers can act on the reporter's behalf: `@emdashbot confirm` to accept the change and open a draft PR, or `@emdashbot reject` (with details) to reap the branch and revise.</sub>",
+		"<sub>Maintainers can use the same commands on the reporter's behalf. Confirmation opens a draft PR; rejection reaps the branch for revision.</sub>",
 		"",
 		`Fix branch: \`${fixBranch(input.issueNumber)}\` · Artifacts branch: \`${artifactsBranch(input.issueNumber)}\``,
 	]
@@ -179,24 +257,65 @@ export function renderPreviewReadyAsk(input: {
 		.join("\n");
 }
 
+export interface PullRequestCopy {
+	readonly title: string;
+	readonly description: string;
+}
+
+const TYPE_SECTION_HEADING_RE = /^## Type of change\b/im;
+const BUG_FIX_CHECKBOX_RE = /^- \[ ] Bug fix\b(.*)$/im;
+const FEATURE_CHECKBOX_RE = /^- \[ ] Feature\b(.*)$/im;
+const AI_DISCLOSURE_CHECKBOX_RE = /^- \[ ] This PR includes AI-generated code\b.*$/im;
+
+export function fillPullRequestTemplate(template: string, kind: Kind): string {
+	const typeSectionStart = template.search(TYPE_SECTION_HEADING_RE);
+	if (typeSectionStart === -1) throw new Error("pull request template is missing its type section");
+	const typeCheckbox = kind === "bug" ? BUG_FIX_CHECKBOX_RE : FEATURE_CHECKBOX_RE;
+	const typeLabel = kind === "bug" ? "Bug fix" : "Feature";
+	const templateBody = template.slice(typeSectionStart);
+	if (!typeCheckbox.test(templateBody)) {
+		throw new Error(`pull request template is missing its ${typeLabel} checkbox`);
+	}
+	if (!AI_DISCLOSURE_CHECKBOX_RE.test(templateBody)) {
+		throw new Error("pull request template is missing its AI disclosure checkbox");
+	}
+	return templateBody
+		.replace(typeCheckbox, `- [x] ${typeLabel}$1`)
+		.replace(
+			AI_DISCLOSURE_CHECKBOX_RE,
+			"- [x] This PR includes AI-generated code — model/tool: emdashbot + Kimi K2.7 Code",
+		)
+		.trim();
+}
+
 /**
  * Body for the draft PR opened when the reporter confirms the change. References
  * the issue (so merging closes it), points at the preview the reporter just
- * verified, and flags that a maintainer must review before merge.
+ * verified, and fills the repository's pull request template.
  */
-export function renderDraftPrBody(issueNumber: number, previewPackage?: string): string {
+export function renderDraftPrBody(input: {
+	issueNumber: number;
+	kind: Kind;
+	description: string;
+	previewPackage?: string;
+}): string {
+	const completedTemplate = fillPullRequestTemplate(pullRequestTemplate, input.kind);
 	return [
-		`Closes #${issueNumber}.`,
+		"## What does this PR do?",
+		"",
+		input.description.trim(),
+		"",
+		`Closes #${input.issueNumber}.`,
 		"",
 		"A candidate change the reporter confirmed against their own site via the preview build:",
 		"",
 		"```bash",
-		previewInstallCommand(issueNumber, previewPackage),
+		previewInstallCommand(input.issueNumber, input.previewPackage),
 		"```",
 		"",
-		"Review the candidate diff and its verification before merging.",
-		"",
 		"<sub>Opened automatically by emdashbot as a draft. A maintainer must review before merge.</sub>",
+		"",
+		completedTemplate,
 	].join("\n");
 }
 

@@ -15,6 +15,7 @@ import { Kysely, sql, SqliteDialect } from "kysely";
 import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_COMMENT_MODERATOR_PLUGIN_ID } from "../../../src/comments/moderator.js";
+import { PendingMigrationsError } from "../../../src/database/migrations/policy.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
@@ -407,6 +408,31 @@ describe("EmDashRuntime.create — cold boot", () => {
 		// fail fast without building a new connection or touching the db.
 		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/backing off/i);
 		expect(dialectCalls).toBe(1);
+	});
+
+	it("rechecks pending migrations without entering migration-failure backoff", async () => {
+		let dialectCalls = 0;
+		const deps: RuntimeDependencies = {
+			...createDeps(),
+			migrationMode: "check",
+			createDialect: () => {
+				dialectCalls += 1;
+				return new SqliteDialect({ database: new Database(":memory:") });
+			},
+		};
+
+		await expect(EmDashRuntime.create(deps)).rejects.toBeInstanceOf(PendingMigrationsError);
+		await expect(EmDashRuntime.create(deps)).rejects.toBeInstanceOf(PendingMigrationsError);
+		expect(dialectCalls).toBe(2);
+	});
+
+	it("rejects an empty database in manual migration mode", async () => {
+		const deps: RuntimeDependencies = {
+			...createDeps(),
+			migrationMode: "manual",
+		};
+
+		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/no such table/i);
 	});
 
 	// A per-request isolated db (playground / DO preview) must never be

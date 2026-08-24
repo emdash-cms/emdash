@@ -85,8 +85,12 @@ export default defineConfig({
 		// Database adapters (config-time + runtime via virtual:emdash/dialect)
 		"src/db/index.ts",
 		"src/db/sqlite.ts",
+		"src/db/sqlite-migrations.ts",
 		"src/db/libsql.ts",
+		"src/db/libsql-migrations.ts",
 		"src/db/postgres.ts",
+		"src/db/postgres-migrations.ts",
+		"src/migrations/index.ts",
 		// Query instrumentation (used by first-party adapters like @emdash-cms/cloudflare)
 		"src/database/instrumentation.ts",
 		// Fail-fast Postgres migration lock (used by @emdash-cms/cloudflare's Hyperdrive adapter)

@@ -1,5 +1,11 @@
 # @emdash-cms/registry-cli
 
+## 0.8.1
+
+### Patch Changes
+
+- [#2504](https://github.com/emdash-cms/emdash/pull/2504) [`cd4268d`](https://github.com/emdash-cms/emdash/commit/cd4268d1d114e827124810a09fe4edc27aa5f784) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes image processing hangs caused by malformed ICNS, HEIF, and JXL headers in media and plugin artifacts.
+
 ## 0.8.0
 
 ### Minor Changes
