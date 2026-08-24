@@ -161,8 +161,12 @@ describe("OpenAPI document generation", () => {
 
 	it("documents aggregate media usage indexing progress", () => {
 		const doc = generateOpenApiDocument();
-		const get = doc.paths?.["/_emdash/api/admin/media-usage/progress"]?.get as
+		const path = doc.paths?.["/_emdash/api/admin/media-usage/progress"];
+		const get = path?.get as
 			| { operationId?: string; responses?: Record<string, unknown> }
+			| undefined;
+		const post = path?.post as
+			| { operationId?: string; requestBody?: unknown; responses?: Record<string, unknown> }
 			| undefined;
 
 		expect(get?.operationId).toBe("getMediaUsageProgress");
@@ -176,6 +180,18 @@ describe("OpenAPI document generation", () => {
 			}),
 		);
 		expect(JSON.stringify(get?.responses?.["200"])).toContain("MediaUsageProgress");
+		expect(post?.operationId).toBe("advanceMediaUsageProgress");
+		expect(post?.requestBody).toBeUndefined();
+		expect(post?.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"401": expect.any(Object),
+				"403": expect.any(Object),
+				"409": expect.any(Object),
+				"500": expect.any(Object),
+			}),
+		);
+		expect(JSON.stringify(post?.responses?.["200"])).toContain("MediaUsageProgressAdvanceResponse");
 	});
 
 	it("includes schema paths", () => {

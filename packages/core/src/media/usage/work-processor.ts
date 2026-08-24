@@ -18,7 +18,6 @@ import {
 
 export const MEDIA_USAGE_WORK_PROCESSING_LIMITS = Object.freeze({
 	candidatesPerTick: 1_000,
-	maxTickDurationMs: 12 * 60_000,
 	leaseDurationSeconds: 20 * 60,
 	maxAttempts: 5,
 	retryBaseSeconds: 30,
@@ -50,7 +49,6 @@ export interface MediaUsageWorkTickResult {
 	supersededCount: number;
 	obsoleteCount: number;
 	durationMs: number;
-	admissionClosed: boolean;
 }
 
 export interface ProcessDueMediaUsageWorkOptions {
@@ -63,7 +61,6 @@ export async function processMediaUsageWorkAfterWrite(
 	collectionSlug: string,
 	contentId: string,
 ): Promise<MediaUsageWorkProcessingResult> {
-	const startedAt = Date.now();
 	if (!(await isIncrementalCaptureActive(db))) {
 		return { outcome: "inactive", claimed: false };
 	}
@@ -80,7 +77,7 @@ export async function processMediaUsageWorkAfterWrite(
 	});
 	if (!claimed) return { outcome: "claim_lost", claimed: false };
 	try {
-		const processed = await runClaimedBatch(db, [claimed], bulkDeadlineMs(startedAt));
+		const processed = await runClaimedBatch(db, [claimed]);
 		return processed.get(workResultKey(claimed)) ?? { outcome: "claim_lost", claimed: false };
 	} catch (error) {
 		const transitioned = await repo.retryClaimedWorkBatch({
@@ -118,7 +115,6 @@ export async function processDueMediaUsageWork(
 		supersededCount: 0,
 		obsoleteCount: 0,
 		durationMs: 0,
-		admissionClosed: false,
 	};
 
 	if (!options.activationKnownActive && !(await isIncrementalCaptureActive(db))) {
@@ -139,7 +135,7 @@ export async function processDueMediaUsageWork(
 
 	let processedBatch: Map<string, MediaUsageWorkProcessingResult>;
 	try {
-		processedBatch = await runClaimedBatch(db, candidates, bulkDeadlineMs(startedAt));
+		processedBatch = await runClaimedBatch(db, candidates);
 	} catch (error) {
 		const transitioned = await repo.retryClaimedWorkBatch({
 			work: candidates.map(workLease),
@@ -184,20 +180,18 @@ export async function processDueMediaUsageWork(
 async function runClaimedBatch(
 	db: Kysely<Database>,
 	candidates: readonly MediaUsageWorkRecord[],
-	deadlineMs: number,
 ): Promise<Map<string, MediaUsageWorkProcessingResult>> {
 	return isPostgres(db)
 		? withTransaction(db, (trx) =>
-				processClaimedBatch(trx, new MediaUsageWorkRepository(trx), candidates, deadlineMs),
+				processClaimedBatch(trx, new MediaUsageWorkRepository(trx), candidates),
 			)
-		: processClaimedBatch(db, new MediaUsageWorkRepository(db), candidates, deadlineMs);
+		: processClaimedBatch(db, new MediaUsageWorkRepository(db), candidates);
 }
 
 async function processClaimedBatch(
 	db: Kysely<Database>,
 	repo: MediaUsageWorkRepository,
 	candidates: readonly MediaUsageWorkRecord[],
-	deadlineMs: number,
 ): Promise<Map<string, MediaUsageWorkProcessingResult>> {
 	const results = new Map<string, MediaUsageWorkProcessingResult>();
 	const locked = await repo.lockClaimedWorkBatch(candidates.map(workLease));
@@ -226,7 +220,7 @@ async function processClaimedBatch(
 	if (current.length === 0) return results;
 
 	const refreshes = await refreshContentMediaUsageForWorkBatch(db, current, {
-		shouldContinue: () => canContinueBulkWork(deadlineMs),
+		shouldContinue: canContinueBulkWork,
 	});
 	const successful: MediaUsageWorkRecord[] = [];
 	const unstarted: MediaUsageWorkRecord[] = [];
@@ -429,17 +423,9 @@ function chunkCollectionIds(ids: readonly string[]): string[][] {
 	return batches;
 }
 
-function canContinueBulkWork(deadlineMs: number): boolean {
-	if (Date.now() >= deadlineMs) return false;
+function canContinueBulkWork(): boolean {
 	const metrics = getRequestContext()?.metrics;
 	return !metrics || metrics.dbCount + 150 <= 900;
-}
-
-function bulkDeadlineMs(startedAt: number): number {
-	const metrics = getRequestContext()?.metrics;
-	if (!metrics) return startedAt + MEDIA_USAGE_WORK_PROCESSING_LIMITS.maxTickDurationMs;
-	const elapsedMs = Math.max(0, performance.now() - metrics.start);
-	return Date.now() + Math.max(0, MEDIA_USAGE_WORK_PROCESSING_LIMITS.maxTickDurationMs - elapsedMs);
 }
 
 async function isIncrementalCaptureActive(db: Kysely<Database>): Promise<boolean> {

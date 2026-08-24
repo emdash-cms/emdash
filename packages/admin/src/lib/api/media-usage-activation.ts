@@ -30,6 +30,12 @@ export interface MediaUsageProgress {
 	finalizing?: true;
 }
 
+export interface MediaUsageProgressAdvanceResponse {
+	activation: MediaUsageActivationStatus;
+	progress: MediaUsageProgress | null;
+	nextRequestInMs: 0 | 30_000 | null;
+}
+
 export type MediaUsageActivationErrorKind =
 	| "busy"
 	| "ownership_conflict"
@@ -66,16 +72,24 @@ export async function fetchMediaUsageProgress(): Promise<MediaUsageProgress> {
 	return data;
 }
 
+export async function advanceMediaUsageProgress(): Promise<MediaUsageProgressAdvanceResponse> {
+	const response = await activationFetch(`${API_BASE}/admin/media-usage/progress`, {
+		method: "POST",
+	});
+	if (!response.ok) throw await parseActivationError(response);
+	const data = await readSuccessData(response);
+	if (!isProgressAdvanceResponse(data)) throw unknownResponse(response.status);
+	return data;
+}
+
 export async function advanceMediaUsageActivation(input: {
 	writersDrained: true;
-	maintenanceReady: true;
 }): Promise<MediaUsageActivationAdvanceResponse> {
 	const response = await activationFetch(ACTIVATION_URL, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({
 			writersDrained: input.writersDrained,
-			maintenanceReady: input.maintenanceReady,
 		}),
 	});
 	if (!response.ok) throw await parseActivationError(response);
@@ -117,6 +131,7 @@ async function parseActivationError(response: Response): Promise<MediaUsageActiv
 		case "MEDIA_USAGE_ACTIVATION_READ_ERROR":
 			return new MediaUsageActivationRequestError("read_failure", response.status);
 		case "MEDIA_USAGE_ACTIVATION_ADVANCE_ERROR":
+		case "MEDIA_USAGE_PROGRESS_ADVANCE_ERROR":
 			return new MediaUsageActivationRequestError("advance_failure", response.status);
 		default:
 			return unknownResponse(response.status);
@@ -199,4 +214,15 @@ function isMediaUsageProgress(value: unknown): value is MediaUsageProgress {
 	)
 		return false;
 	return value.status === "needs_attention" || (value.status === "ready") === (ready === total);
+}
+
+function isProgressAdvanceResponse(value: unknown): value is MediaUsageProgressAdvanceResponse {
+	if (!isRecord(value) || !isActivationStatus(value.activation)) return false;
+	if (value.progress !== null && !isMediaUsageProgress(value.progress)) return false;
+	if ((value.activation.state === "active") !== (value.progress !== null)) return false;
+	return (
+		value.nextRequestInMs === 0 ||
+		value.nextRequestInMs === 30_000 ||
+		value.nextRequestInMs === null
+	);
 }

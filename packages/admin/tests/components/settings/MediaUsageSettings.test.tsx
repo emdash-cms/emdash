@@ -149,7 +149,6 @@ describe("MediaUsageSettings", () => {
 		expect(activationMocks.advance).toHaveBeenCalledOnce();
 		expect(activationMocks.advance).toHaveBeenCalledWith({
 			writersDrained: true,
-			maintenanceReady: true,
 		});
 		expect(activationMocks.fetchStatus).toHaveBeenCalledOnce();
 		expect(queryClient.getQueryData(MEDIA_USAGE_ACTIVATION_QUERY_KEY)).toEqual(activating);

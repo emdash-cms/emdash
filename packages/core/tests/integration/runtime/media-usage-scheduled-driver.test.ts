@@ -422,20 +422,18 @@ describe("media usage scheduled drivers", () => {
 		expect(await countWork(runtime)).toBe(1);
 	});
 
-	it("does not start a unit after the Cloudflare slice deadline", async () => {
+	it("does not stop a slice based only on elapsed time", async () => {
 		runtime = await EmDashRuntime.create(createDeps(null));
 		const fixture = await activateCollection(runtime, "timed_slice_posts");
 		await insertEntry(runtime, fixture.tableName, "entry-1");
-		const metrics = createRequestMetrics(
-			performance.now() - MEDIA_USAGE_MAINTENANCE_LIMITS.stepStartDeadlineMs,
-		);
+		const metrics = createRequestMetrics(performance.now() - 60 * 60 * 1_000);
 
 		const continuation = await runWithContext({ editMode: false, metrics }, () =>
 			runtime!.runMediaUsageMaintenanceSlice(),
 		);
 
 		expect(continuation).toEqual({ kind: "none" });
-		expect(await countWork(runtime)).toBe(1);
+		expect(await countWork(runtime)).toBe(0);
 	});
 
 	it("continues a metered Queue slice beyond the old twenty-second cutoff", async () => {

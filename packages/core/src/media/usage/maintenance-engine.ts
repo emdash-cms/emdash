@@ -27,7 +27,6 @@ export interface MediaUsageMaintenanceStepResult {
 export const MEDIA_USAGE_MAINTENANCE_LIMITS = Object.freeze({
 	eventQueryCeiling: 900,
 	maxStepQueries: 150,
-	stepStartDeadlineMs: 12 * 60_000,
 });
 
 const TASK_CLASSES: readonly MediaUsageMaintenanceTaskClass[] = [
@@ -217,10 +216,9 @@ function inactiveResult(): MediaUsageMaintenanceStepResult {
 	};
 }
 
-function canStartMediaUsageMaintenanceStep(metrics: { start: number; dbCount: number }): boolean {
+function canStartMediaUsageMaintenanceStep(metrics: { dbCount: number }): boolean {
 	return (
 		metrics.dbCount + MEDIA_USAGE_MAINTENANCE_LIMITS.maxStepQueries <=
-			MEDIA_USAGE_MAINTENANCE_LIMITS.eventQueryCeiling &&
-		performance.now() - metrics.start < MEDIA_USAGE_MAINTENANCE_LIMITS.stepStartDeadlineMs
+		MEDIA_USAGE_MAINTENANCE_LIMITS.eventQueryCeiling
 	);
 }

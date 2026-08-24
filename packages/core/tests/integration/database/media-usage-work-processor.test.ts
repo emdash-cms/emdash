@@ -8,7 +8,7 @@ import type {
 	UnknownRow,
 } from "kysely";
 import { sql } from "kysely";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { MediaUsageWorkRepository } from "../../../src/database/repositories/media-usage-work.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
@@ -20,6 +20,7 @@ import {
 	processDueMediaUsageWork,
 	processMediaUsageWorkAfterWrite,
 } from "../../../src/media/usage/work-processor.js";
+import { createRequestMetrics, runWithContext } from "../../../src/request-context.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
@@ -221,21 +222,17 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 		expect(await countWork(ctx.db)).toBe(0);
 	});
 
-	it("releases a claimed batch when its processing deadline is exhausted", async () => {
-		const fixture = await createActiveFixture(ctx, "deadline_release");
+	it("does not release a claimed batch based only on elapsed time", async () => {
+		const fixture = await createActiveFixture(ctx, "elapsed_time");
 		await insertEntry(ctx, fixture, "entry-1", "media-1");
-		const now = vi
-			.spyOn(Date, "now")
-			.mockReturnValueOnce(0)
-			.mockReturnValue(MEDIA_USAGE_WORK_PROCESSING_LIMITS.maxTickDurationMs + 1);
+		const metrics = createRequestMetrics(performance.now() - 60 * 60 * 1_000);
 
-		const result = await processDueMediaUsageWork(ctx.db);
-		now.mockRestore();
-
-		expect(result.completedCount).toBe(0);
-		expect(await findWork(ctx.db)).toEqual(
-			expect.objectContaining({ state: "pending", attempt_count: 0, lease_token: null }),
+		const result = await runWithContext({ editMode: false, metrics }, () =>
+			processDueMediaUsageWork(ctx.db),
 		);
+
+		expect(result.completedCount).toBe(1);
+		expect(await countWork(ctx.db)).toBe(0);
 	});
 
 	it("retries every incomplete row after a bulk publication failure", async () => {

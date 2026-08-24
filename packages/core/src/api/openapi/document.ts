@@ -41,6 +41,7 @@ import {
 	mediaUsageDetailsQuery,
 	mediaUsageDetailsResponseSchema,
 	mediaUsageProgressSchema,
+	mediaUsageProgressAdvanceResponseSchema,
 	mediaUsageCollectionDeletionListQuery,
 	mediaUsageCollectionDeletionListResponseSchema,
 	mediaUsageCollectionDeletionRetryBody,
@@ -819,6 +820,26 @@ function buildMediaPaths(maxUploadSize: number) {
 						description: "Aggregate media usage indexing progress",
 						content: {
 							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageProgressSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(409),
+					...standardErrors(500),
+				},
+			},
+			post: {
+				operationId: "advanceMediaUsageProgress",
+				summary: "Advance media usage indexing",
+				description:
+					"Runs one bounded Media Usage maintenance step and returns the stored activation and indexing state. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				responses: {
+					"200": {
+						description: "Media Usage progress after one maintenance step",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(mediaUsageProgressAdvanceResponseSchema),
+							},
 						},
 					},
 					...authErrors,

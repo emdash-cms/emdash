@@ -1045,6 +1045,43 @@ describe("EmDashClient", () => {
 			);
 		});
 
+		it("advances one media usage progress step without a request body", async () => {
+			let capturedRequest: Request | undefined;
+			const result = {
+				activation: {
+					state: "active" as const,
+					collectionCursor: null,
+					attemptCount: 1,
+					drainConfirmedAt: "2026-08-12T09:00:00.000Z",
+					lastAttemptedAt: "2026-08-12T09:00:00.000Z",
+					lastErrorCode: null,
+					leaseExpiresAt: null,
+					activatedAt: "2026-08-12T09:00:01.000Z",
+					updatedAt: "2026-08-12T09:00:01.000Z",
+				},
+				progress: { status: "ready" as const, readyCollections: 2, totalCollections: 2 },
+				nextRequestInMs: null,
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [
+					async (request) => {
+						capturedRequest = request;
+						return jsonResponse(result);
+					},
+				],
+			});
+
+			await expect(client.mediaAdvanceUsageProgress()).resolves.toEqual(result);
+			expect(capturedRequest?.method).toBe("POST");
+			expect(capturedRequest?.headers.get("X-EmDash-Request")).toBe("1");
+			expect(capturedRequest?.body).toBeNull();
+			expect(new URL(capturedRequest!.url).pathname).toBe(
+				"/_emdash/api/admin/media-usage/progress",
+			);
+		});
+
 		it("reads the redacted activation status", async () => {
 			let capturedRequest: Request | undefined;
 			const status = {
@@ -1076,7 +1113,7 @@ describe("EmDashClient", () => {
 			);
 		});
 
-		it("advances one activation batch with both explicit confirmations", async () => {
+		it("advances one activation batch after writer confirmation", async () => {
 			let capturedBody: unknown;
 			const client = new EmDashClient({
 				baseUrl: "http://localhost:4321",
@@ -1107,9 +1144,8 @@ describe("EmDashClient", () => {
 
 			await client.mediaAdvanceUsageActivation({
 				writersDrained: true,
-				maintenanceReady: true,
 			});
-			expect(capturedBody).toEqual({ writersDrained: true, maintenanceReady: true });
+			expect(capturedBody).toEqual({ writersDrained: true });
 		});
 
 		it("serializes a bounded work-list query and returns the cursor page", async () => {

@@ -121,7 +121,7 @@ export function MediaUsageSettings() {
 	const advanceMutation = useMutation({
 		mutationFn: async () => {
 			await queryClient.cancelQueries({ queryKey: MEDIA_USAGE_ACTIVATION_QUERY_KEY });
-			return advanceMediaUsageActivation({ writersDrained: true, maintenanceReady: true });
+			return advanceMediaUsageActivation({ writersDrained: true });
 		},
 		retry: false,
 		onSuccess: (result) => {

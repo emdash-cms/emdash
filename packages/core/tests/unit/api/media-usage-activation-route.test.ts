@@ -49,7 +49,7 @@ describe("admin media usage activation status route", () => {
 			"INSUFFICIENT_SCOPE",
 		);
 
-		const post = () => activationPost({ writersDrained: true, maintenanceReady: true });
+		const post = () => activationPost({ writersDrained: true });
 		await expectError(await POST(routeContext(post(), null)), 401, "UNAUTHORIZED");
 		await expectError(await POST(routeContext(post(), Role.EDITOR)), 403, "FORBIDDEN");
 		await expectError(
@@ -118,9 +118,7 @@ describe("admin media usage activation status route", () => {
 			"MEDIA_USAGE_ACTIVATION_VERSION_MISMATCH",
 		);
 		await expectError(
-			await POST(
-				routeContext(activationPost({ writersDrained: true, maintenanceReady: true }), Role.ADMIN),
-			),
+			await POST(routeContext(activationPost({ writersDrained: true }), Role.ADMIN)),
 			409,
 			"MEDIA_USAGE_ACTIVATION_VERSION_MISMATCH",
 		);
@@ -159,12 +157,7 @@ describe("admin media usage activation status route", () => {
 
 	it("requires both literal confirmations without mutating activation state", async () => {
 		const before = await activationRow();
-		for (const body of [
-			{},
-			{ writersDrained: false, maintenanceReady: true },
-			{ writersDrained: true, maintenanceReady: false },
-			{ writersDrained: true, maintenanceReady: true, extra: true },
-		]) {
+		for (const body of [{}, { writersDrained: false }, { writersDrained: true, extra: true }]) {
 			await expectError(
 				await POST(routeContext(activationPost(body), Role.ADMIN)),
 				400,
@@ -177,12 +170,7 @@ describe("admin media usage activation status route", () => {
 	it("advances exactly one collection per confirmed request and is idempotent when active", async () => {
 		const wake = vi.fn();
 		const first = await POST(
-			routeContext(
-				activationPost({ writersDrained: true, maintenanceReady: true }),
-				Role.ADMIN,
-				["admin"],
-				wake,
-			),
+			routeContext(activationPost({ writersDrained: true }), Role.ADMIN, ["admin"], wake),
 		);
 		expect(first.status).toBe(200);
 		expect(await first.json()).toEqual({
@@ -195,9 +183,7 @@ describe("admin media usage activation status route", () => {
 		});
 		expect(wake).toHaveBeenCalledOnce();
 
-		const second = await POST(
-			routeContext(activationPost({ writersDrained: true, maintenanceReady: true }), Role.ADMIN),
-		);
+		const second = await POST(routeContext(activationPost({ writersDrained: true }), Role.ADMIN));
 		expect(second.status).toBe(200);
 		expect(await second.json()).toEqual({
 			success: true,
@@ -208,9 +194,7 @@ describe("admin media usage activation status route", () => {
 			},
 		});
 
-		const third = await POST(
-			routeContext(activationPost({ writersDrained: true, maintenanceReady: true }), Role.ADMIN),
-		);
+		const third = await POST(routeContext(activationPost({ writersDrained: true }), Role.ADMIN));
 		expect(await third.json()).toEqual({
 			success: true,
 			data: {
@@ -232,9 +216,7 @@ describe("admin media usage activation status route", () => {
 			.where("task_key", "=", "incremental_capture")
 			.execute();
 
-		const response = await POST(
-			routeContext(activationPost({ writersDrained: true, maintenanceReady: true }), Role.ADMIN),
-		);
+		const response = await POST(routeContext(activationPost({ writersDrained: true }), Role.ADMIN));
 		expect(response.status).toBe(409);
 		const body = await response.json();
 		expect(body).toEqual({
@@ -251,14 +233,9 @@ describe("admin media usage activation status route", () => {
 	it("keeps a committed response when the Node scheduler wake fails", async () => {
 		const error = vi.spyOn(console, "error").mockImplementation(() => {});
 		const response = await POST(
-			routeContext(
-				activationPost({ writersDrained: true, maintenanceReady: true }),
-				Role.ADMIN,
-				["admin"],
-				() => {
-					throw new Error("private scheduler detail");
-				},
-			),
+			routeContext(activationPost({ writersDrained: true }), Role.ADMIN, ["admin"], () => {
+				throw new Error("private scheduler detail");
+			}),
 		);
 
 		expect(response.status).toBe(200);
@@ -282,9 +259,7 @@ describe("admin media usage activation status route", () => {
 		`.execute(ctx!.db);
 
 		await expectError(
-			await POST(
-				routeContext(activationPost({ writersDrained: true, maintenanceReady: true }), Role.ADMIN),
-			),
+			await POST(routeContext(activationPost({ writersDrained: true }), Role.ADMIN)),
 			409,
 			"MEDIA_USAGE_ACTIVATION_CONFLICT",
 		);
@@ -293,9 +268,7 @@ describe("admin media usage activation status route", () => {
 	it("records trigger failures while returning only a stable public error", async () => {
 		await sql`DROP TABLE ${sql.ref("ec_page")}`.execute(ctx!.db);
 
-		const response = await POST(
-			routeContext(activationPost({ writersDrained: true, maintenanceReady: true }), Role.ADMIN),
-		);
+		const response = await POST(routeContext(activationPost({ writersDrained: true }), Role.ADMIN));
 		expect(response.status).toBe(500);
 		const body = await response.json();
 		expect(body).toEqual({

@@ -213,7 +213,6 @@ export const mediaUsageActivationStatusSchema = z
 export const mediaUsageActivationAdvanceBody = z
 	.object({
 		writersDrained: z.literal(true),
-		maintenanceReady: z.literal(true),
 	})
 	.strict()
 	.meta({ id: "MediaUsageActivationAdvanceBody" });
@@ -225,6 +224,14 @@ export const mediaUsageActivationAdvanceResponseSchema = z
 		activation: mediaUsageActivationStatusSchema,
 	})
 	.meta({ id: "MediaUsageActivationAdvanceResponse" });
+
+export const mediaUsageProgressAdvanceResponseSchema = z
+	.object({
+		activation: mediaUsageActivationStatusSchema,
+		progress: mediaUsageProgressSchema.nullable(),
+		nextRequestInMs: z.union([z.literal(0), z.literal(30_000), z.null()]),
+	})
+	.meta({ id: "MediaUsageProgressAdvanceResponse" });
 
 export const mediaUsageActivationConflictSchema = z.object({
 	success: z.literal(false),
@@ -291,6 +298,9 @@ export const mediaUsageCollectionDeletionRetryResponseSchema = z
 export type MediaUsageRepairRequest = z.infer<typeof mediaUsageRepairBody>;
 export type MediaUsageRepairResponse = z.infer<typeof mediaUsageRepairResponseSchema>;
 export type MediaUsageProgress = z.infer<typeof mediaUsageProgressSchema>;
+export type MediaUsageProgressAdvanceResponse = z.infer<
+	typeof mediaUsageProgressAdvanceResponseSchema
+>;
 export type MediaUsageWorkListQuery = z.infer<typeof mediaUsageWorkListQuery>;
 export type MediaUsageWorkItem = z.infer<typeof mediaUsageWorkItemSchema>;
 export type MediaUsageWorkListResponse = z.infer<typeof mediaUsageWorkListResponseSchema>;

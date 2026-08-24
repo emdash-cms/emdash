@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	MediaUsageActivationRequestError,
 	advanceMediaUsageActivation,
+	advanceMediaUsageProgress,
 	fetchMediaUsageActivationStatus,
 	fetchMediaUsageProgress,
 } from "../../src/lib/api/media-usage-activation.js";
@@ -167,13 +168,12 @@ describe("media usage activation admin API", () => {
 		await expect(fetchMediaUsageProgress()).resolves.toEqual(data);
 	});
 
-	it("advances once with only the two backend confirmations", async () => {
+	it("advances once with only writer confirmation", async () => {
 		const activation = activationStatus("activating");
 		const data = { outcome: "activating", processedCollections: 1, activation };
 		const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(success(data));
 		const input = {
 			writersDrained: true,
-			maintenanceReady: true,
 			extra: "must not cross the API boundary",
 		} as const;
 
@@ -189,7 +189,43 @@ describe("media usage activation admin API", () => {
 		const requestBody = typeof init?.body === "string" ? init.body : "";
 		expect(JSON.parse(requestBody)).toEqual({
 			writersDrained: true,
-			maintenanceReady: true,
+		});
+	});
+
+	it("advances one progress step without a request body", async () => {
+		const data = {
+			activation: activationStatus("active"),
+			progress: { status: "ready", readyCollections: 2, totalCollections: 2 },
+			nextRequestInMs: null,
+		} as const;
+		const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(success(data));
+
+		await expect(advanceMediaUsageProgress()).resolves.toEqual(data);
+		const [url, init] = fetch.mock.calls[0]!;
+		expect(url).toBe(progressUrl);
+		expect(init?.method).toBe("POST");
+		expect(new Headers(init?.headers).get("X-EmDash-Request")).toBe("1");
+		expect(init?.body).toBeUndefined();
+	});
+
+	it.each([
+		[
+			"active activation without progress",
+			{ activation: activationStatus("active"), progress: null },
+		],
+		[
+			"incomplete activation with progress",
+			{
+				activation: activationStatus("activating"),
+				progress: { status: "indexing", readyCollections: 0, totalCollections: 2 },
+			},
+		],
+	] as const)("rejects %s in a progress advance response", async (_label, value) => {
+		vi.spyOn(globalThis, "fetch").mockResolvedValue(success({ ...value, nextRequestInMs: null }));
+
+		await expect(caught(() => advanceMediaUsageProgress())).resolves.toMatchObject({
+			kind: "unknown",
+			status: 200,
 		});
 	});
 
@@ -291,7 +327,7 @@ describe("media usage activation admin API", () => {
 		);
 
 		await expect(
-			caught(() => advanceMediaUsageActivation({ writersDrained: true, maintenanceReady: true })),
+			caught(() => advanceMediaUsageActivation({ writersDrained: true })),
 		).resolves.toMatchObject({ kind: "unknown", status: 200 });
 	});
 });
