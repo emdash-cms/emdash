@@ -87,7 +87,7 @@ describe("inline Portable Text code blocks", () => {
 	});
 
 	it("preserves native datalist apply, cancel, alias, and free-form behavior", async () => {
-		await renderInlineCode("custom()", "plaintext");
+		await renderInlineCode('local greeting = "hello"', "plaintext");
 		const languageAction = () =>
 			element.querySelector<HTMLButtonElement>('button[aria-label^="Set language"]');
 		const openPicker = async (label: string) => {
@@ -111,6 +111,34 @@ describe("inline Portable Text code blocks", () => {
 		};
 
 		await openPicker("Set language (current: Plain text)");
+		const languageInput = element.querySelector<HTMLInputElement>('input[aria-label="Language"]');
+		const suggestions = [...(languageInput?.list?.options ?? [])];
+		expect(suggestions.map(({ value, label }) => [value, label])).toEqual(
+			expect.arrayContaining([
+				["lua", "Lua"],
+				["zig", "Zig"],
+			]),
+		);
+		setInput("lua");
+		clickAction("Apply language");
+		await vi.waitFor(() =>
+			expect(languageAction()?.getAttribute("aria-label")).toBe("Set language (current: Lua)"),
+		);
+		await vi.waitFor(() =>
+			expect(element.querySelectorAll('span[class*="hljs-"]').length).toBeGreaterThan(0),
+		);
+
+		await openPicker("Set language (current: Lua)");
+		setInput("zig");
+		clickAction("Apply language");
+		await vi.waitFor(() =>
+			expect(languageAction()?.getAttribute("aria-label")).toBe("Set language (current: Zig)"),
+		);
+		await vi.waitFor(() =>
+			expect(element.querySelectorAll('span[class*="hljs-"]')).toHaveLength(0),
+		);
+
+		await openPicker("Set language (current: Zig)");
 		setInput("js");
 		clickAction("Apply language");
 		await vi.waitFor(() =>

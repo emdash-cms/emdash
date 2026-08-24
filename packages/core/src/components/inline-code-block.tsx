@@ -69,6 +69,7 @@ const CODE_BLOCK_LANGUAGES: readonly CodeBlockLanguage[] = [
 	{ id: "json", label: "JSON" },
 	{ id: "jsx", label: "JSX" },
 	{ id: "kotlin", label: "Kotlin", aliases: ["kt"] },
+	{ id: "lua", label: "Lua" },
 	{ id: "markdown", label: "Markdown", aliases: ["md"] },
 	{ id: "mdx", label: "MDX" },
 	{ id: "php", label: "PHP" },
@@ -85,6 +86,7 @@ const CODE_BLOCK_LANGUAGES: readonly CodeBlockLanguage[] = [
 	{ id: "vue", label: "Vue" },
 	{ id: "xml", label: "XML" },
 	{ id: "yaml", label: "YAML", aliases: ["yml"] },
+	{ id: "zig", label: "Zig" },
 ];
 
 function findLanguage(value: string | null | undefined): CodeBlockLanguage | null {
