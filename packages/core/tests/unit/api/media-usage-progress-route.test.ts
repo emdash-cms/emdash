@@ -99,7 +99,6 @@ describe("admin media usage progress route", () => {
 					status: "ready",
 					readyCollections: 2,
 					totalCollections: 2,
-					indexingStarted: true,
 				},
 				nextRequestInMs: null,
 			},
@@ -241,56 +240,10 @@ describe("admin media usage progress route", () => {
 				status: "ready",
 				readyCollections: 2,
 				totalCollections: 2,
-				indexingStarted: true,
 			},
 		});
 		expect(JSON.stringify(body)).not.toContain(collectionId);
 		expect(JSON.stringify(body)).not.toContain("post");
-	});
-
-	it("distinguishes indexing startup from a current reconciliation", async () => {
-		await ctx!.db
-			.updateTable("_emdash_media_usage_index_status")
-			.set({
-				status: "stale",
-				started_at: "2026-01-01T00:00:00.000Z",
-				schema_version: 0,
-				reconciliation_required: 1,
-			})
-			.execute();
-
-		const before = await GET(routeContext(Role.ADMIN, ["admin"]));
-		expect(await before.json()).toEqual({
-			success: true,
-			data: {
-				status: "indexing",
-				readyCollections: 0,
-				totalCollections: 2,
-				indexingStarted: false,
-			},
-		});
-
-		await ctx!.db
-			.insertInto("_emdash_media_usage_reconciliations")
-			.values({
-				collection_id: collectionId,
-				collection_slug: "post",
-				run_token: "current-run",
-				next_attempt_at: "2026-08-18T12:00:00.000Z",
-				updated_at: "2026-08-18T12:00:00.000Z",
-			})
-			.execute();
-
-		const after = await GET(routeContext(Role.ADMIN, ["admin"]));
-		expect(await after.json()).toEqual({
-			success: true,
-			data: {
-				status: "indexing",
-				readyCollections: 0,
-				totalCollections: 2,
-				indexingStarted: true,
-			},
-		});
 	});
 
 	it("rejects progress reads before activation is active", async () => {

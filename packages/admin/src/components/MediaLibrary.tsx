@@ -112,7 +112,9 @@ export function MediaLibrary({
 	const setupProgress = progressQuery.data;
 	const setupIncomplete =
 		setupStatus &&
-		(setupStatus.state !== "active" || progressQuery.isError || setupProgress?.status !== "ready");
+		(setupStatus.state !== "active" ||
+			progressQuery.isError ||
+			(progressQuery.isSuccess && setupProgress?.status !== "ready"));
 	const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
 	const [detailItem, setDetailItem] = React.useState<MediaItem | null>(null);
 	const [isDetailOpen, setIsDetailOpen] = React.useState(false);

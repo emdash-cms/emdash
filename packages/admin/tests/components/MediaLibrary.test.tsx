@@ -164,6 +164,28 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByRole("link", { name: "View setup" })).toBeVisible();
 		});
 
+		it("waits for progress before labelling an active site as incomplete", async () => {
+			setupMocks.role = 50;
+			setupMocks.fetchStatus.mockResolvedValue({ state: "active" });
+			let finishProgress!: (value: {
+				status: "indexing";
+				readyCollections: number;
+				totalCollections: number;
+			}) => void;
+			setupMocks.fetchProgress.mockImplementation(
+				() => new Promise((resolve) => (finishProgress = resolve)),
+			);
+
+			const screen = await renderLibrary();
+
+			await vi.waitFor(() => expect(setupMocks.fetchProgress).toHaveBeenCalledOnce());
+			expect(screen.getByRole("link", { name: "View setup" }).query()).toBeNull();
+			expect(screen.getByText("Media Usage is indexing existing content").query()).toBeNull();
+
+			finishProgress({ status: "indexing", readyCollections: 1, totalCollections: 2 });
+			await expect.element(screen.getByRole("link", { name: "View setup" })).toBeVisible();
+		});
+
 		it("does not label an unreadable progress state as indexing", async () => {
 			setupMocks.role = 50;
 			setupMocks.fetchStatus.mockResolvedValue({ state: "active" });

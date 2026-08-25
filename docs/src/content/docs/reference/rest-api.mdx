@@ -407,9 +407,9 @@ Set `writersDrained` to `true` after application and direct database writes have
 1. Stop all direct database writers. Wait for writes already in progress to finish. EmDash fences its own writes during setup.
 2. Call the activation `GET` endpoint to check the current state.
 3. Call the activation `POST` endpoint once with `writersDrained: true`.
-4. Call the progress `POST` endpoint serially. Follow `nextRequestInMs` until it returns `null`.
+4. Call the progress `POST` endpoint serially, following `nextRequestInMs`, until activation becomes `active`.
 5. Resume direct database writes after activation becomes `active`.
-6. Continue progress requests until historical indexing reports `ready`.
+6. Continue progress requests until historical indexing reports `ready` and `nextRequestInMs` is `null`.
 
 If `POST` times out or returns `409` or `500`, call `GET` before deciding what to do. If the state is
 still `activating` without `lastErrorCode`, another request may own the current batch. If `lastErrorCode` is set, keep writes stopped, check the application logs, fix the
@@ -429,10 +429,8 @@ GET /_emdash/api/admin/media-usage/progress
 ```
 
 After activation is active, this returns `indexing`, `ready`, or `needs_attention` together with the
-number of ready and total current content types. The optional `indexingStarted` field is `false`
-between activation finishing and the first current reconciliation starting. Older responses may omit
-it. The endpoint does not inspect content rows or return work-item details. It requires
-`schema:manage`; bearer tokens also require the `admin` scope.
+number of ready and total current content types. The endpoint does not inspect content rows or return
+work-item details. It requires `schema:manage`; bearer tokens also require the `admin` scope.
 
 #### Advance setup and historical indexing
 
@@ -461,8 +459,7 @@ The request has no body. It runs one bounded maintenance step and returns the st
 		"progress": {
 			"status": "indexing",
 			"readyCollections": 1,
-			"totalCollections": 2,
-			"indexingStarted": true
+			"totalCollections": 2
 		},
 		"nextRequestInMs": 0
 	}

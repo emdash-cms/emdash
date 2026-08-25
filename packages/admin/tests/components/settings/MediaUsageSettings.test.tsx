@@ -110,7 +110,6 @@ describe("MediaUsageSettings", () => {
 			status: "indexing",
 			readyCollections: 1,
 			totalCollections: 2,
-			indexingStarted: true,
 		});
 		activationMocks.advanceProgress.mockResolvedValue({
 			activation: status("active"),
@@ -118,7 +117,6 @@ describe("MediaUsageSettings", () => {
 				status: "indexing",
 				readyCollections: 1,
 				totalCollections: 2,
-				indexingStarted: true,
 			},
 			nextRequestInMs: null,
 		});
@@ -180,7 +178,6 @@ describe("MediaUsageSettings", () => {
 			status: "ready",
 			readyCollections: 2,
 			totalCollections: 2,
-			indexingStarted: true,
 		});
 		activationMocks.advanceProgress.mockResolvedValue({
 			activation: status("active"),
@@ -188,7 +185,6 @@ describe("MediaUsageSettings", () => {
 				status: "ready",
 				readyCollections: 2,
 				totalCollections: 2,
-				indexingStarted: true,
 			},
 			nextRequestInMs: null,
 		});
@@ -215,7 +211,6 @@ describe("MediaUsageSettings", () => {
 			status: "ready",
 			readyCollections: 2,
 			totalCollections: 2,
-			indexingStarted: true,
 		});
 		const queryClient = createQueryClient();
 		queryClient.setQueryData(MEDIA_USAGE_ACTIVATION_QUERY_KEY, status("active"));
@@ -223,7 +218,6 @@ describe("MediaUsageSettings", () => {
 			status: "ready",
 			readyCollections: 2,
 			totalCollections: 2,
-			indexingStarted: true,
 		});
 
 		const { screen } = await renderPage(queryClient);
@@ -248,7 +242,6 @@ describe("MediaUsageSettings", () => {
 			status: "ready";
 			readyCollections: number;
 			totalCollections: number;
-			indexingStarted: true;
 		}) => void;
 		activationMocks.fetchProgress.mockImplementation(
 			() => new Promise((resolve) => (finishProgress = resolve)),
@@ -265,7 +258,6 @@ describe("MediaUsageSettings", () => {
 			status: "ready",
 			readyCollections: 2,
 			totalCollections: 2,
-			indexingStarted: true,
 		});
 		await expect
 			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
@@ -282,7 +274,6 @@ describe("MediaUsageSettings", () => {
 					status: "ready",
 					readyCollections: 2,
 					totalCollections: 2,
-					indexingStarted: true,
 				},
 				nextRequestInMs: 0,
 			})
@@ -292,7 +283,6 @@ describe("MediaUsageSettings", () => {
 					status: "ready",
 					readyCollections: 2,
 					totalCollections: 2,
-					indexingStarted: true,
 				},
 				nextRequestInMs: null,
 			});
@@ -327,6 +317,20 @@ describe("MediaUsageSettings", () => {
 		expect(screen.getByRole("button", { name: /setup/i }).query()).toBeNull();
 	});
 
+	it("keeps the irreversible confirmation open while activation is pending", async () => {
+		activationMocks.advance.mockImplementation(() => new Promise(() => {}));
+		const { screen } = await renderPage();
+		await openConfirmation(screen);
+
+		await submitConfirmation(screen);
+		const dialog = screen.getByRole("dialog", { name: "Turn on Media Usage?" });
+		await expect.element(dialog.getByRole("button", { name: "Cancel" })).toBeDisabled();
+		await userEvent.keyboard("{Escape}");
+
+		await expect.element(dialog).toBeVisible();
+		expect(activationMocks.advance).toHaveBeenCalledOnce();
+	});
+
 	it("returns focus to the enable action when the dialog is cancelled", async () => {
 		const { screen } = await renderPage();
 		const trigger = screen.getByRole("button", { name: "Enable Media Usage" });
@@ -352,6 +356,28 @@ describe("MediaUsageSettings", () => {
 
 		visibility = "hidden";
 		document.dispatchEvent(new Event("visibilitychange"));
+		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+	});
+
+	it("keeps a pending confirmation until the return status proves activation started", async () => {
+		let visibility: DocumentVisibilityState = "visible";
+		vi.spyOn(document, "visibilityState", "get").mockImplementation(() => visibility);
+		activationMocks.advance.mockImplementation(() => new Promise(() => {}));
+		activationMocks.fetchStatus
+			.mockResolvedValueOnce(status("expanded"))
+			.mockResolvedValueOnce(status("activating"));
+		const { screen } = await renderPage();
+		await openConfirmation(screen);
+		await submitConfirmation(screen);
+
+		visibility = "hidden";
+		document.dispatchEvent(new Event("visibilitychange"));
+		await new Promise((resolve) => window.setTimeout(resolve, 300));
+		expect(screen.getByRole("dialog", { name: "Turn on Media Usage?" }).query()).not.toBeNull();
+
+		visibility = "visible";
+		document.dispatchEvent(new Event("visibilitychange"));
+		await vi.waitFor(() => expect(activationMocks.fetchStatus).toHaveBeenCalledTimes(2));
 		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
 	});
 
@@ -444,7 +470,6 @@ describe("MediaUsageSettings", () => {
 				status: progressStatus,
 				readyCollections: progressStatus === "ready" ? 2 : 1,
 				totalCollections: 2,
-				indexingStarted: true,
 			},
 			nextRequestInMs: progressStatus === "needs_attention" ? 0 : null,
 		});
@@ -474,7 +499,6 @@ describe("MediaUsageSettings", () => {
 				status: "indexing",
 				readyCollections: 1,
 				totalCollections: 2,
-				indexingStarted: true,
 			},
 			nextRequestInMs: null,
 		});
@@ -487,63 +511,6 @@ describe("MediaUsageSettings", () => {
 		} finally {
 			i18n.loadAndActivate({ locale: "en", messages: {} });
 		}
-	});
-
-	it("keeps finalization in the indexing state", async () => {
-		activationMocks.fetchStatus.mockResolvedValue(status("active"));
-		activationMocks.advanceProgress.mockResolvedValue({
-			activation: status("active"),
-			progress: {
-				status: "indexing",
-				readyCollections: 1,
-				totalCollections: 2,
-				indexingStarted: true,
-				finalizing: true,
-			},
-			nextRequestInMs: null,
-		});
-
-		const { screen } = await renderPage();
-
-		await expect
-			.element(screen.getByRole("heading", { name: "Indexing existing content" }))
-			.toBeVisible();
-		await expect.element(screen.getByText("Content types ready: 1 of 2")).toBeVisible();
-	});
-
-	it("shows indexing while historical reconciliation starts", async () => {
-		activationMocks.fetchStatus.mockResolvedValue(status("active"));
-		activationMocks.advanceProgress.mockResolvedValue({
-			activation: status("active"),
-			progress: {
-				status: "indexing",
-				readyCollections: 0,
-				totalCollections: 2,
-				indexingStarted: false,
-			},
-			nextRequestInMs: null,
-		});
-
-		const { screen } = await renderPage();
-
-		await expect
-			.element(screen.getByRole("heading", { name: "Indexing existing content" }))
-			.toBeVisible();
-	});
-
-	it("treats an older progress response as indexing rather than startup", async () => {
-		activationMocks.fetchStatus.mockResolvedValue(status("active"));
-		activationMocks.advanceProgress.mockResolvedValue({
-			activation: status("active"),
-			progress: { status: "indexing", readyCollections: 0, totalCollections: 2 },
-			nextRequestInMs: null,
-		});
-
-		const { screen } = await renderPage();
-
-		await expect
-			.element(screen.getByRole("heading", { name: "Indexing existing content" }))
-			.toBeVisible();
 	});
 
 	it("shows Retry setup only for a stored activation failure", async () => {
@@ -572,7 +539,6 @@ describe("MediaUsageSettings", () => {
 					status: "ready",
 					readyCollections: 2,
 					totalCollections: 2,
-					indexingStarted: true,
 				},
 				nextRequestInMs: null,
 			});
@@ -632,7 +598,6 @@ describe("MediaUsageSettings", () => {
 			status: "indexing",
 			readyCollections: 1,
 			totalCollections: 2,
-			indexingStarted: true,
 		});
 		activationMocks.advanceProgress
 			.mockRejectedValueOnce(new MediaUsageActivationRequestError("advance_failure", 500))
@@ -642,7 +607,6 @@ describe("MediaUsageSettings", () => {
 					status: "ready",
 					readyCollections: 2,
 					totalCollections: 2,
-					indexingStarted: true,
 				},
 				nextRequestInMs: null,
 			});
@@ -666,7 +630,6 @@ describe("MediaUsageSettings", () => {
 			status: "ready",
 			readyCollections: 2,
 			totalCollections: 2,
-			indexingStarted: true,
 		});
 		activationMocks.advanceProgress.mockRejectedValue(
 			new MediaUsageActivationRequestError("advance_failure", 500),
@@ -733,7 +696,6 @@ describe("MediaUsageSettings", () => {
 					status: "indexing",
 					readyCollections: 1,
 					totalCollections: 2,
-					indexingStarted: true,
 				},
 				nextRequestInMs: 0,
 			})
@@ -743,7 +705,6 @@ describe("MediaUsageSettings", () => {
 					status: "ready",
 					readyCollections: 2,
 					totalCollections: 2,
-					indexingStarted: true,
 				},
 				nextRequestInMs: null,
 			});
@@ -766,7 +727,6 @@ describe("MediaUsageSettings", () => {
 					status: "indexing",
 					readyCollections: 1,
 					totalCollections: 2,
-					indexingStarted: true,
 				},
 				nextRequestInMs: 30_000,
 			})
@@ -776,7 +736,6 @@ describe("MediaUsageSettings", () => {
 					status: "ready",
 					readyCollections: 2,
 					totalCollections: 2,
-					indexingStarted: true,
 				},
 				nextRequestInMs: null,
 			});
@@ -801,7 +760,6 @@ describe("MediaUsageSettings", () => {
 					status: "indexing",
 					readyCollections: 1,
 					totalCollections: 2,
-					indexingStarted: true,
 				},
 				nextRequestInMs: 30_000,
 			})
@@ -811,7 +769,6 @@ describe("MediaUsageSettings", () => {
 					status: "ready",
 					readyCollections: 2,
 					totalCollections: 2,
-					indexingStarted: true,
 				},
 				nextRequestInMs: null,
 			});

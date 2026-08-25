@@ -3601,14 +3601,14 @@ export class EmDashRuntime {
 		for (const contentId of new Set(contentIds)) {
 			try {
 				const work = await processMediaUsageWorkAfterWrite(this.db, collection, contentId);
-				if (work.outcome !== "inactive") return;
+				if (work.outcome !== "inactive") continue;
 				await refreshContentMediaUsageAfterWrite(this.db, collection, contentId);
 			} catch (error) {
 				console.error(
 					`[media-usage] Failed after content write ${collection}/${contentId}:`,
 					error,
 				);
-				return;
+				continue;
 			}
 		}
 	}

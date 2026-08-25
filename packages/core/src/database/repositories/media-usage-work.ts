@@ -308,10 +308,11 @@ export class MediaUsageWorkRepository {
 			.updateTable("_emdash_media_usage_index_status as status")
 			.set({
 				change_epoch: sql<number>`change_epoch + 1`,
-				status: sql<string>`CASE WHEN status = 'complete' THEN 'stale' ELSE status END`,
+				status: sql<string>`CASE WHEN status IN ('complete', 'partial', 'failed') THEN 'stale' ELSE status END`,
 				completed_at: sql<
 					string | null
-				>`CASE WHEN status = 'complete' THEN NULL ELSE completed_at END`,
+				>`CASE WHEN status IN ('complete', 'partial', 'failed') THEN NULL ELSE completed_at END`,
+				last_error_code: null,
 				updated_at: this.timestampOffset(0),
 			})
 			.where("status.adapter_id", "=", "content-media")

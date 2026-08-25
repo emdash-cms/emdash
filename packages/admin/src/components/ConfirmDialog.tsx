@@ -25,8 +25,9 @@ export interface ConfirmDialogProps {
 	variant?: "destructive" | "primary";
 	/** Use tighter Kumo spacing for short, focused confirmations. */
 	compact?: boolean;
+	/** Prevent dismissing an irreversible request after it has started. */
+	preventCloseWhilePending?: boolean;
 	isPending: boolean;
-	disabled?: boolean;
 	/** Error from a mutation — pass mutation.error directly */
 	error: unknown;
 	onConfirm: () => void;
@@ -43,15 +44,20 @@ export function ConfirmDialog({
 	pendingLabel,
 	variant = "destructive",
 	compact = false,
+	preventCloseWhilePending = false,
 	isPending,
-	disabled = false,
 	error,
 	onConfirm,
 	children,
 }: ConfirmDialogProps) {
 	const { t } = useLingui();
+	const closeLocked = preventCloseWhilePending && isPending;
 	return (
-		<Dialog.Root open={open} onOpenChange={(o) => !o && onClose()} disablePointerDismissal>
+		<Dialog.Root
+			open={open}
+			onOpenChange={(nextOpen) => !nextOpen && !closeLocked && onClose()}
+			disablePointerDismissal
+		>
 			<Dialog className={compact ? "max-w-md px-5 pt-5 pb-4" : "p-6"} size="sm">
 				<div className={compact ? "grid gap-1.5" : undefined}>
 					<Dialog.Title
@@ -70,10 +76,10 @@ export function ConfirmDialog({
 				{children}
 				<DialogError message={getMutationError(error)} className="mt-3" />
 				<div className={`${compact ? "mt-5" : "mt-6"} flex justify-end gap-2`}>
-					<Button variant="secondary" onClick={onClose}>
+					<Button variant="secondary" disabled={closeLocked} onClick={onClose}>
 						{t`Cancel`}
 					</Button>
-					<Button variant={variant} disabled={disabled || isPending} onClick={onConfirm}>
+					<Button variant={variant} disabled={isPending} onClick={onConfirm}>
 						{isPending ? pendingLabel : confirmLabel}
 					</Button>
 				</div>

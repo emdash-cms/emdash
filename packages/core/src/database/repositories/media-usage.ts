@@ -460,8 +460,6 @@ export interface MediaUsageCollectionProgress {
 	status: "indexing" | "ready" | "needs_attention";
 	readyCollections: number;
 	totalCollections: number;
-	indexingStarted: boolean;
-	finalizing?: true;
 }
 
 export interface MediaUsageEntrySource {
@@ -1329,8 +1327,7 @@ export class MediaUsageRepository {
 			needs_attention: boolean | number;
 			ready_collections: number | string;
 			total_collections: number | string;
-			indexing_started: boolean | number;
-			finalizing: boolean | number;
+			cleanup_pending: boolean | number;
 		}>`
 			WITH collection_progress AS (
 				SELECT
@@ -1344,28 +1341,6 @@ export class MediaUsageRepository {
 								AND work.collection_slug = collection.slug
 						)
 					THEN 1 ELSE 0 END AS is_ready,
-						CASE WHEN status.reconciliation_required = 1 AND EXISTS (
-						SELECT 1 FROM _emdash_media_usage_reconciliations AS reconciliation
-						WHERE reconciliation.collection_id = collection.id
-								AND reconciliation.collection_slug = collection.slug
-						) THEN 1 ELSE 0 END AS reconciliation_started,
-						CASE WHEN status.status = 'running'
-							AND status.reconciliation_required = 1
-							AND NOT EXISTS (
-								SELECT 1 FROM _emdash_media_usage_work AS work
-								WHERE work.collection_id = collection.id
-									AND work.collection_slug = collection.slug
-							)
-							AND EXISTS (
-								SELECT 1 FROM _emdash_media_usage_reconciliations AS reconciliation
-								WHERE reconciliation.collection_id = collection.id
-									AND reconciliation.collection_slug = collection.slug
-									AND reconciliation.run_token = status.cursor
-									AND reconciliation.target_epoch = status.change_epoch
-									AND reconciliation.phase = 'sources'
-									AND reconciliation.state IN ('pending', 'leased')
-							)
-						THEN 1 ELSE 0 END AS is_finalizing,
 					CASE WHEN status.collection_id IS NULL
 						OR COALESCE(status.capture_state, '') <> 'active'
 						OR status.status NOT IN ('complete', 'never', 'running', 'partial', 'failed', 'stale')
@@ -1394,6 +1369,10 @@ export class MediaUsageRepository {
 								AND reconciliation.collection_slug = collection.slug
 								AND reconciliation.state = 'failed'
 								AND status.reconciliation_required = 1
+								AND (
+									reconciliation.target_epoch IS NULL
+									OR reconciliation.target_epoch >= status.change_epoch
+								)
 						)
 					THEN 1 ELSE 0 END AS needs_attention
 				FROM _emdash_collections AS collection
@@ -1421,13 +1400,10 @@ export class MediaUsageRepository {
 				) AS activation_active,
 				COUNT(*) AS total_collections,
 				COALESCE(SUM(is_ready), 0) AS ready_collections,
-					CASE WHEN COALESCE(MAX(is_ready), 0) = 1
-					OR COALESCE(MAX(reconciliation_started), 0) = 1
-					THEN 1 ELSE 0 END AS indexing_started,
-					CASE WHEN COUNT(*) > COALESCE(SUM(is_ready), 0)
-						AND COALESCE(SUM(CASE WHEN is_ready = 1 OR is_finalizing = 1 THEN 1 ELSE 0 END), 0)
-							= COUNT(*)
-					THEN 1 ELSE 0 END AS finalizing,
+				EXISTS (
+					SELECT 1 FROM _emdash_media_usage_collection_deletions AS deletion
+					WHERE deletion.state IN ('pending', 'retry', 'leased')
+				) AS cleanup_pending,
 				CASE WHEN COALESCE(MAX(needs_attention), 0) = 1 OR EXISTS (
 					SELECT 1 FROM _emdash_media_usage_collection_deletions AS deletion
 					WHERE deletion.state = 'failed'
@@ -1444,16 +1420,14 @@ export class MediaUsageRepository {
 		}
 		const readyCollections = Number(row.ready_collections);
 		const totalCollections = Number(row.total_collections);
-		const indexingStarted = Number(row.indexing_started);
-		const finalizing = Number(row.finalizing);
+		const cleanupPending = Number(row.cleanup_pending);
 		const needsAttention = Number(row.needs_attention);
 		if (
 			!Number.isSafeInteger(readyCollections) ||
 			!Number.isSafeInteger(totalCollections) ||
 			readyCollections < 0 ||
 			totalCollections < readyCollections ||
-			(indexingStarted !== 0 && indexingStarted !== 1) ||
-			(finalizing !== 0 && finalizing !== 1) ||
+			(cleanupPending !== 0 && cleanupPending !== 1) ||
 			(needsAttention !== 0 && needsAttention !== 1)
 		) {
 			throw new Error("Media usage progress query returned invalid counts");
@@ -1461,13 +1435,11 @@ export class MediaUsageRepository {
 		return {
 			status: needsAttention
 				? "needs_attention"
-				: readyCollections === totalCollections
+				: readyCollections === totalCollections && cleanupPending === 0
 					? "ready"
 					: "indexing",
 			readyCollections,
 			totalCollections,
-			indexingStarted: indexingStarted === 1,
-			...(needsAttention === 0 && finalizing === 1 ? { finalizing: true as const } : {}),
 		};
 	}
 

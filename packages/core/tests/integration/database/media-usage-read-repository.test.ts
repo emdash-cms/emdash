@@ -375,49 +375,7 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 			status: "indexing",
 			readyCollections: 1,
 			totalCollections: 2,
-			indexingStarted: true,
 		});
-		await ctx.db
-			.updateTable("_emdash_media_usage_index_status")
-			.set({ status: "running", cursor: "finalizing-run", change_epoch: 1 })
-			.where("collection_id", "=", "collection-posts")
-			.execute();
-		await ctx.db
-			.insertInto("_emdash_media_usage_reconciliations")
-			.values({
-				collection_id: "collection-posts",
-				collection_slug: "posts",
-				run_token: "finalizing-run",
-				target_epoch: 1,
-				state: "pending",
-				phase: "sources",
-				next_attempt_at: "2026-08-16T00:00:00.000Z",
-			})
-			.execute();
-		await expect(progress()).resolves.toEqual({
-			status: "indexing",
-			readyCollections: 1,
-			totalCollections: 2,
-			indexingStarted: true,
-			finalizing: true,
-		});
-		await ctx.db
-			.updateTable("_emdash_media_usage_reconciliations")
-			.set({ state: "retry" })
-			.where("collection_id", "=", "collection-posts")
-			.execute();
-		await expect(progress()).resolves.toEqual({
-			status: "indexing",
-			readyCollections: 1,
-			totalCollections: 2,
-			indexingStarted: true,
-		});
-		await ctx.db
-			.updateTable("_emdash_media_usage_reconciliations")
-			.set({ state: "pending" })
-			.where("collection_id", "=", "collection-posts")
-			.execute();
-
 		await ctx.db
 			.insertInto("_emdash_media_usage_work")
 			.values({
@@ -433,7 +391,6 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 			status: "indexing",
 			readyCollections: 1,
 			totalCollections: 2,
-			indexingStarted: true,
 		});
 		await ctx.db
 			.updateTable("_emdash_media_usage_work")
@@ -444,7 +401,6 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 			status: "needs_attention",
 			readyCollections: 1,
 			totalCollections: 2,
-			indexingStarted: true,
 		});
 
 		await ctx.db.deleteFrom("_emdash_media_usage_work").execute();
@@ -458,7 +414,6 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 			status: "ready",
 			readyCollections: 2,
 			totalCollections: 2,
-			indexingStarted: true,
 		});
 
 		await ctx.db
@@ -476,7 +431,6 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 			status: "ready",
 			readyCollections: 2,
 			totalCollections: 2,
-			indexingStarted: true,
 		});
 
 		await ctx.db
@@ -488,7 +442,6 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 			status: "needs_attention",
 			readyCollections: 1,
 			totalCollections: 2,
-			indexingStarted: true,
 		});
 
 		await ctx.db
@@ -507,10 +460,9 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 			})
 			.execute();
 		await expect(progress()).resolves.toEqual({
-			status: "ready",
+			status: "indexing",
 			readyCollections: 1,
 			totalCollections: 1,
-			indexingStarted: true,
 		});
 		await ctx.db
 			.updateTable("_emdash_media_usage_collection_deletions")
@@ -521,7 +473,6 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 			status: "needs_attention",
 			readyCollections: 1,
 			totalCollections: 1,
-			indexingStarted: true,
 		});
 
 		await ctx.db
@@ -533,7 +484,6 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 			status: "needs_attention",
 			readyCollections: 0,
 			totalCollections: 1,
-			indexingStarted: false,
 		});
 	});
 

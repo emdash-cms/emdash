@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 import { sql, SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { MediaUsageWorkRepository } from "../../../src/database/repositories/media-usage-work.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
@@ -275,6 +276,91 @@ describe("media usage maintenance engine and Node heartbeat", () => {
 				.where("collection_id", "=", reconciliation.collectionId)
 				.executeTakeFirst(),
 		).toBeDefined();
+	});
+
+	it("finishes post-Ready collection deletion before declaring Ready again", async () => {
+		runtime = await EmDashRuntime.create(createDeps(null));
+		const fixture = await activateCollection(runtime, "reusable_posts");
+		await insertEntry(runtime, fixture.tableName, "entry-1");
+		await processDueMediaUsageWork(runtime.db);
+
+		await runtime.schemaRegistry.deleteCollection("reusable_posts", { force: true });
+		expect(await deletionPhase(runtime, fixture.collectionId)).toBe("work");
+		await expect(new MediaUsageRepository(runtime.db).findCollectionProgress()).resolves.toEqual({
+			status: "indexing",
+			readyCollections: 0,
+			totalCollections: 0,
+		});
+
+		for (let step = 0; step < 10 && (await deletionPhase(runtime, fixture.collectionId)); step++) {
+			await runMediaUsageMaintenanceStep(runtime.db);
+		}
+
+		expect(await deletionPhase(runtime, fixture.collectionId)).toBeNull();
+		await expect(
+			runtime.schemaRegistry.createCollection({ slug: "reusable_posts", label: "Reusable posts" }),
+		).resolves.toMatchObject({ slug: "reusable_posts" });
+	});
+
+	it("resumes historical reconciliation after failed entry work is retried", async () => {
+		runtime = await EmDashRuntime.create(createDeps(null));
+		const fixture = await activateCollection(runtime, "retry_posts");
+		await insertEntry(runtime, fixture.tableName, "entry-1");
+		await sql`DELETE FROM ${sql.ref(fixture.tableName)} WHERE id = 'entry-1'`.execute(runtime.db);
+		await runtime.db
+			.updateTable("_emdash_media_usage_work")
+			.set({ state: "failed", attempt_count: 5, last_error_code: "MEDIA_USAGE_PROCESSING_FAILED" })
+			.where("collection_id", "=", fixture.collectionId)
+			.execute();
+		await runtime.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({
+				status: "running",
+				completed_at: null,
+				cursor: "failed-run",
+				change_epoch: 1,
+				reconciliation_required: 1,
+				last_error_code: "MEDIA_USAGE_PROCESSING_FAILED",
+			})
+			.where("collection_id", "=", fixture.collectionId)
+			.execute();
+		await runtime.db
+			.insertInto("_emdash_media_usage_reconciliations")
+			.values({
+				collection_id: fixture.collectionId,
+				collection_slug: "retry_posts",
+				run_token: "failed-run",
+				target_epoch: 1,
+				state: "failed",
+				phase: "sources",
+				attempt_count: 5,
+				last_error_code: "MEDIA_USAGE_RECONCILIATION_ENTRY_FAILED",
+				next_attempt_at: "2000-01-01T00:00:00.000Z",
+			})
+			.execute();
+
+		await expect(
+			new MediaUsageWorkRepository(runtime.db).retryOperatorWork({
+				collectionId: fixture.collectionId,
+				contentId: "entry-1",
+			}),
+		).resolves.toMatchObject({ outcome: "pending", changed: true });
+		await expect(
+			new MediaUsageRepository(runtime.db).findCollectionProgress(),
+		).resolves.toMatchObject({
+			status: "indexing",
+		});
+
+		for (let step = 0; step < 12; step++) {
+			const progress = await new MediaUsageRepository(runtime.db).findCollectionProgress();
+			if (progress?.status === "ready") break;
+			await runMediaUsageMaintenanceStep(runtime.db);
+		}
+		await expect(
+			new MediaUsageRepository(runtime.db).findCollectionProgress(),
+		).resolves.toMatchObject({
+			status: "ready",
+		});
 	});
 
 	it("processes a trigger-created job before returning from an authenticated write", async () => {

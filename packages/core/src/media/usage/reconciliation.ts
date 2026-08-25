@@ -487,6 +487,12 @@ export class MediaUsageReconciliationRepository {
 			.where("status.collection_id", "=", collectionId)
 			.where("status.status", "=", "running")
 			.where("status.cursor", "=", runToken)
+			.where(sql<boolean>`status.change_epoch = (
+				SELECT reconciliation.target_epoch
+				FROM _emdash_media_usage_reconciliations AS reconciliation
+				WHERE reconciliation.collection_id = ${collectionId}
+					AND reconciliation.run_token = ${runToken}
+			)`)
 			.where((eb) =>
 				eb.exists(
 					eb
@@ -1074,7 +1080,15 @@ export class MediaUsageReconciliationRepository {
 						.where("status.scope_type", "=", COLLECTION_SCOPE)
 						.where("status.capture_state", "=", "active")
 						.where("status.reconciliation_required", "=", 1)
-						.where("status.cursor", "is", null)
+						.where((status) =>
+							status.or([
+								status("status.cursor", "is", null),
+								status.and([
+									status("status.status", "=", "running"),
+									status("status.cursor", "=", runToken),
+								]),
+							]),
+						)
 						.where("status.change_epoch", ">", targetEpoch),
 				),
 			)

@@ -228,7 +228,7 @@ export function MediaUsageSettings() {
 			setPageVisible(visible);
 			if (!visible) {
 				wasHiddenRef.current = true;
-				closeDialog();
+				if (!submittingRef.current) closeDialog();
 				return;
 			}
 			if (!wasHiddenRef.current) return;
@@ -236,6 +236,7 @@ export function MediaUsageSettings() {
 			void (async () => {
 				const result = await activationQuery.refetch({ cancelRefetch: false });
 				if (mountedRef.current && result.isSuccess) {
+					if (submittingRef.current && result.data.state !== "expanded") closeDialog();
 					setResumeToken((current) => current + 1);
 				}
 			})();
@@ -569,6 +570,7 @@ function ConfirmationDialog({
 			pendingLabel={retry ? t`Retrying…` : t`Turning on…`}
 			variant="primary"
 			compact
+			preventCloseWhilePending
 			isPending={pending}
 			error={null}
 			onConfirm={onConfirm}
