@@ -46,6 +46,21 @@ export { type PublishingClientFromHandlerOptions, PublishingClient } from "./pub
 export { type DiscoveryClientOptions, DiscoveryClient } from "./discovery/index.js";
 
 export {
+	type ApprovedListing,
+	type ListingStatusResult,
+	type RegistryLabelerPolicy,
+	type UnavailableListing,
+	registryLabelerPolicy,
+	registryLabelerPolicyKey,
+} from "./listing-policy.js";
+
+export {
+	type RegistryReleaseWithdrawalOptions,
+	type RegistryReleaseWithdrawalResult,
+	evaluateRegistryReleaseWithdrawal,
+} from "./withdrawal.js";
+
+export {
 	type EnvMismatch,
 	type HostEnv,
 	type SkippedEnvConstraint,

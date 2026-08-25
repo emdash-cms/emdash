@@ -7,9 +7,10 @@
  * browser, the EmDash admin UI.
  *
  * No authentication is required for discovery: the aggregator is a public
- * read-only index. Hard-enforcement labels (`!takedown`, `security:yanked`) are
- * applied server-side based on the request's `atproto-accept-labelers` header,
- * which the aggregator client may set per-request.
+ * read-only index. The aggregator applies its required positive-label and
+ * hard-enforcement policy server-side. The client may send an
+ * `atproto-accept-labelers` header, but the aggregator rejects a set that omits
+ * any required source.
  */
 
 import { Client, ok, simpleFetchHandler } from "@atcute/client";
@@ -23,6 +24,22 @@ import {
 	PackageProfile,
 	PackageRelease,
 } from "@emdash-cms/registry-lexicons";
+
+import {
+	mapListingStatus,
+	registryLabelerPolicy,
+	type ListingStatusResult,
+	type RegistryLabelerPolicy,
+} from "../listing-policy.js";
+
+export {
+	registryLabelerPolicy,
+	registryLabelerPolicyKey,
+	type ApprovedListing,
+	type ListingStatusResult,
+	type RegistryLabelerPolicy,
+	type UnavailableListing,
+} from "../listing-policy.js";
 
 /**
  * A package view whose embedded signed `profile` record has been validated
@@ -100,18 +117,25 @@ export interface DiscoveryClientOptions {
 
 	/**
 	 * Optional comma-separated list of labeller DIDs to forward as the
-	 * `atproto-accept-labelers` request header. The aggregator uses this to
-	 * decide which labellers' hard-enforcement labels (`!takedown`, etc.) to
-	 * apply when filtering results.
+	 * `atproto-accept-labelers` request header. The list must contain every
+	 * source required by the aggregator's listing policy.
 	 *
 	 * Format follows the atproto convention: `did:plc:abc;redact, did:plc:def`
 	 * where the optional `;redact` flag asks for label content to be redacted.
 	 *
-	 * Defaults to no header, which means the aggregator applies whatever its
-	 * own default policy is (typically: filter on its own publisher-verification
-	 * labeller plus any operator-configured trusted labellers).
+	 * Defaults to no header, which means the aggregator applies its configured
+	 * policy. Supplying a header cannot disable a required approval or redaction
+	 * source.
 	 */
 	acceptLabelers?: string;
+
+	/**
+	 * Explicit listing policy for official consumers. This is deliberately not
+	 * an on/off switch: public discovery is always the aggregator's approved
+	 * projection. The policy records which accepted-labeler header produced the
+	 * response and supplies a stable cache-key input to browser consumers.
+	 */
+	labelerPolicy?: RegistryLabelerPolicy;
 
 	/**
 	 * Optional custom `fetch` implementation. Defaults to globalThis.fetch.
@@ -154,11 +178,26 @@ export interface DiscoveryClientOptions {
 export class DiscoveryClient {
 	readonly aggregatorUrl: string;
 	readonly acceptLabelers: string | undefined;
+	readonly labelerPolicy: RegistryLabelerPolicy;
 	readonly #client: Client;
 
 	constructor(options: DiscoveryClientOptions) {
 		this.aggregatorUrl = options.aggregatorUrl;
-		this.acceptLabelers = options.acceptLabelers;
+		const configuredPolicy = registryLabelerPolicy(options.labelerPolicy?.acceptLabelers);
+		const legacyPolicy = registryLabelerPolicy(options.acceptLabelers);
+		if (
+			configuredPolicy.acceptLabelers !== undefined &&
+			legacyPolicy.acceptLabelers !== undefined &&
+			configuredPolicy.acceptLabelers !== legacyPolicy.acceptLabelers
+		) {
+			throw new TypeError(
+				"labelerPolicy.acceptLabelers must match acceptLabelers when both are set",
+			);
+		}
+		this.labelerPolicy = registryLabelerPolicy(
+			configuredPolicy.acceptLabelers ?? legacyPolicy.acceptLabelers,
+		);
+		this.acceptLabelers = this.labelerPolicy.acceptLabelers;
 
 		const baseHandler = simpleFetchHandler({
 			service: options.aggregatorUrl,
@@ -209,6 +248,13 @@ export class DiscoveryClient {
 		return { ...out, profile: validateProfile(out.profile) };
 	}
 
+	/** Fetch a package while mapping the safe ListingUnavailable XRPC error. */
+	getPackageStatus(
+		params: AggregatorGetPackage.$params,
+	): Promise<ListingStatusResult<ValidatedPackageView>> {
+		return mapListingStatus(this.getPackage(params));
+	}
+
 	/**
 	 * Resolve a package by publisher handle + slug (or DID + slug). Cheaper
 	 * than `getPackage` when you only have human-readable identifiers.
@@ -216,6 +262,13 @@ export class DiscoveryClient {
 	async resolvePackage(params: AggregatorResolvePackage.$params): Promise<ValidatedPackageView> {
 		const out = await ok(this.#client.call(AggregatorResolvePackage, { params }));
 		return { ...out, profile: validateProfile(out.profile) };
+	}
+
+	/** Resolve a package while discarding all remote error text for unavailable listings. */
+	resolvePackageStatus(
+		params: AggregatorResolvePackage.$params,
+	): Promise<ListingStatusResult<ValidatedPackageView>> {
+		return mapListingStatus(this.resolvePackage(params));
 	}
 
 	/**
