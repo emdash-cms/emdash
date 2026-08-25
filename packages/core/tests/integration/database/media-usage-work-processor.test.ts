@@ -277,6 +277,38 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 		);
 	});
 
+	it("does not retry healthy collections when one collection fails", async () => {
+		const broken = await createActiveFixture(ctx, "broken_collection");
+		const healthy = await createActiveFixture(ctx, "healthy_collection");
+		await insertEntry(ctx, broken, "broken-entry", "broken-media");
+		await insertEntry(ctx, healthy, "healthy-entry", "healthy-media");
+		await installProjectionFailureTrigger(ctx, broken.collectionId);
+
+		const result = await processDueMediaUsageWork(ctx.db);
+		await removeProjectionFailureTrigger(ctx);
+
+		expect(result.completedCount).toBe(1);
+		expect(result.retryCount).toBe(1);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_work")
+				.select(["collection_id", "state", "attempt_count", "last_error_code"])
+				.execute(),
+		).toEqual([
+			{
+				collection_id: broken.collectionId,
+				state: "retry",
+				attempt_count: 1,
+				last_error_code: "MEDIA_USAGE_PROCESSING_FAILED",
+			},
+		]);
+		expect(
+			await new MediaUsageRepository(ctx.db).findSource(
+				canonicalSourceKey(healthy.collectionId, "healthy-entry"),
+			),
+		).not.toBeNull();
+	});
+
 	it("recovers coverage when work deletion committed before its status update", async () => {
 		const fixture = await createActiveFixture(ctx, "finalization_recovery");
 		await insertEntry(ctx, fixture, "entry-1", "media-1");
@@ -652,7 +684,13 @@ async function removeProjectionSupersessionTrigger(ctx: DialectTestContext): Pro
 	await sql`DROP TRIGGER emdash_test_supersede_media_usage_work`.execute(ctx.db);
 }
 
-async function installProjectionFailureTrigger(ctx: DialectTestContext): Promise<void> {
+async function installProjectionFailureTrigger(
+	ctx: DialectTestContext,
+	collectionId?: string,
+): Promise<void> {
+	const collectionMatches = collectionId
+		? sql<boolean>`NEW.collection_id = ${sql.lit(collectionId)}`
+		: sql<boolean>`TRUE`;
 	if (ctx.dialect === "postgres") {
 		await sql`
 			CREATE OR REPLACE FUNCTION emdash_test_fail_media_usage_projection()
@@ -660,7 +698,10 @@ async function installProjectionFailureTrigger(ctx: DialectTestContext): Promise
 			LANGUAGE plpgsql
 			AS $$
 			BEGIN
-				RAISE EXCEPTION 'forced media usage projection failure';
+				IF ${collectionMatches} THEN
+					RAISE EXCEPTION 'forced media usage projection failure';
+				END IF;
+				RETURN NEW;
 			END;
 			$$
 		`.execute(ctx.db);
@@ -674,6 +715,7 @@ async function installProjectionFailureTrigger(ctx: DialectTestContext): Promise
 	await sql`
 		CREATE TRIGGER emdash_test_fail_media_usage_projection
 		BEFORE INSERT ON _emdash_media_usage_sources
+		WHEN ${collectionMatches}
 		BEGIN
 			SELECT RAISE(ABORT, 'forced media usage projection failure');
 		END

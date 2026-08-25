@@ -130,33 +130,7 @@ export async function processDueMediaUsageWork(
 	result.candidateCount =
 		candidates.length > 0 || !(await repo.hasNonterminalWork()) ? candidates.length : 1;
 
-	let processedBatch: Map<string, MediaUsageWorkProcessingResult>;
-	try {
-		processedBatch = await runClaimedBatch(db, candidates);
-	} catch (error) {
-		const transitioned = await repo.retryClaimedWorkBatch({
-			work: candidates.map(workLease),
-			errorCode: "MEDIA_USAGE_PROCESSING_FAILED",
-			retryDelaySeconds: MEDIA_USAGE_WORK_PROCESSING_LIMITS.retryBaseSeconds,
-			maxAttempts: MEDIA_USAGE_WORK_PROCESSING_LIMITS.maxAttempts,
-		});
-		processedBatch = new Map();
-		const usage = new MediaUsageRepository(db);
-		const failedCollectionIds = new Set<string>();
-		for (const candidate of candidates) {
-			const state = transitioned.get(workIdentityKey(candidate));
-			if (state === "failed") failedCollectionIds.add(candidate.collectionId);
-			processedBatch.set(workResultKey(candidate), {
-				outcome: state ?? "superseded",
-				claimed: true,
-			});
-		}
-		await usage.recordIncrementalFailuresByCollection({
-			collectionIds: [...failedCollectionIds],
-			errorCode: "MEDIA_USAGE_PROCESSING_FAILED",
-		});
-		console.error("[media-usage:work] Bulk processing failed:", error);
-	}
+	const processedBatch = await processClaimedCollections(db, candidates);
 	for (const candidate of candidates) {
 		const processed = processedBatch.get(workResultKey(candidate)) ?? {
 			outcome: "claim_lost" as const,
@@ -172,6 +146,60 @@ export async function processDueMediaUsageWork(
 
 	result.durationMs = Date.now() - startedAt;
 	return result;
+}
+
+async function processClaimedCollections(
+	db: Kysely<Database>,
+	candidates: readonly MediaUsageWorkRecord[],
+): Promise<Map<string, MediaUsageWorkProcessingResult>> {
+	const processed = new Map<string, MediaUsageWorkProcessingResult>();
+	const byCollection = new Map<string, MediaUsageWorkRecord[]>();
+	for (const candidate of candidates) {
+		const key = collectionResultKey(candidate);
+		const collection = byCollection.get(key) ?? [];
+		collection.push(candidate);
+		byCollection.set(key, collection);
+	}
+	for (const collection of byCollection.values()) {
+		try {
+			for (const [key, result] of await runClaimedBatch(db, collection)) {
+				processed.set(key, result);
+			}
+		} catch (error) {
+			for (const [key, result] of await retryFailedClaimedCollection(db, collection)) {
+				processed.set(key, result);
+			}
+			console.error("[media-usage:work] Collection processing failed:", error);
+		}
+	}
+	return processed;
+}
+
+async function retryFailedClaimedCollection(
+	db: Kysely<Database>,
+	candidates: readonly MediaUsageWorkRecord[],
+): Promise<Map<string, MediaUsageWorkProcessingResult>> {
+	const transitioned = await new MediaUsageWorkRepository(db).retryClaimedWorkBatch({
+		work: candidates.map(workLease),
+		errorCode: "MEDIA_USAGE_PROCESSING_FAILED",
+		retryDelaySeconds: MEDIA_USAGE_WORK_PROCESSING_LIMITS.retryBaseSeconds,
+		maxAttempts: MEDIA_USAGE_WORK_PROCESSING_LIMITS.maxAttempts,
+	});
+	const processed = new Map<string, MediaUsageWorkProcessingResult>();
+	const failedCollectionIds = new Set<string>();
+	for (const candidate of candidates) {
+		const state = transitioned.get(workIdentityKey(candidate));
+		if (state === "failed") failedCollectionIds.add(candidate.collectionId);
+		processed.set(workResultKey(candidate), {
+			outcome: state ?? "superseded",
+			claimed: true,
+		});
+	}
+	await new MediaUsageRepository(db).recordIncrementalFailuresByCollection({
+		collectionIds: [...failedCollectionIds],
+		errorCode: "MEDIA_USAGE_PROCESSING_FAILED",
+	});
+	return processed;
 }
 
 async function runClaimedBatch(
