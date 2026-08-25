@@ -513,14 +513,10 @@ function StatusRow({
 	const needsAttention = storedFailure || progressError || progress?.status === "needs_attention";
 	return (
 		<SettingRow>
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<div className="min-w-0" role={needsAttention ? "alert" : undefined}>
 					<div className="flex items-center gap-2">
-						{progressing ? (
-							<Loader size="sm" />
-						) : isReady ? (
-							<CheckCircle className="h-5 w-5 text-kumo-success" weight="fill" aria-hidden="true" />
-						) : null}
+						{progressing ? <Loader size="sm" /> : null}
 						<h3
 							ref={stateHeadingRef}
 							tabIndex={-1}
@@ -533,7 +529,11 @@ function StatusRow({
 					</div>
 					<p className="mt-0.5 max-w-2xl text-sm leading-5 text-kumo-subtle">{detail}</p>
 				</div>
-				<Badge variant={variant} className="shrink-0">
+				<Badge
+					variant={variant}
+					className={isReady ? "shrink-0 gap-1.5 rounded-md px-3 py-1.5 text-sm" : "shrink-0"}
+				>
+					{isReady ? <CheckCircle className="h-4 w-4" weight="fill" aria-hidden="true" /> : null}
 					{badge}
 				</Badge>
 			</div>
