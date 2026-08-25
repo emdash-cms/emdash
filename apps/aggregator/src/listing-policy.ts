@@ -5,6 +5,8 @@ import {
 	type ListingModerationPolicy,
 } from "@emdash-cms/registry-moderation";
 
+import { REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS } from "./label-source-health.js";
+
 export type ListingPolicyMode = "open" | "allowlist" | "projection";
 
 export interface ListingPolicyConfig {
@@ -204,6 +206,9 @@ export const ACTIVE_PROJECTION_POLICY_SQL = `
 			SELECT 1 FROM labellers source
 			WHERE source.did = required_source.value AND source.active = 1
 				AND source.trusted = 1 AND source.required_positive = 1
+				AND typeof(source.health_last_success_epoch) = 'integer'
+				AND source.health_last_success_epoch > ?
+				AND source.health_last_success_epoch <= ?
 		)
 	)
 	AND NOT EXISTS (
@@ -212,6 +217,9 @@ export const ACTIVE_PROJECTION_POLICY_SQL = `
 			SELECT 1 FROM labellers source
 			WHERE source.did = state_source.value AND source.active = 1
 				AND source.trusted = 1 AND source.accepted_state = 1
+				AND typeof(source.health_last_success_epoch) = 'integer'
+				AND source.health_last_success_epoch > ?
+				AND source.health_last_success_epoch <= ?
 		)
 	)
 	AND NOT EXISTS (
@@ -220,12 +228,31 @@ export const ACTIVE_PROJECTION_POLICY_SQL = `
 			SELECT 1 FROM labellers source
 			WHERE source.did = redaction_source.value AND source.active = 1
 				AND source.trusted = 1 AND source.redaction = 1
+				AND typeof(source.health_last_success_epoch) = 'integer'
+				AND source.health_last_success_epoch > ?
+				AND source.health_last_success_epoch <= ?
 		)
 	)
 `;
 
-export function activeProjectionPolicyBindings(policy: ListingPolicyConfig): unknown[] {
-	return [policy.mode, policy.moderationPolicyVersion, policy.moderationPolicyHash];
+export function activeProjectionPolicyBindings(
+	policy: ListingPolicyConfig,
+	now = new Date(),
+): unknown[] {
+	const nowEpoch = now.getTime();
+	if (!Number.isSafeInteger(nowEpoch)) throw new TypeError("projection policy time is invalid");
+	const freshnessBoundary = nowEpoch - REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS;
+	return [
+		policy.mode,
+		policy.moderationPolicyVersion,
+		policy.moderationPolicyHash,
+		freshnessBoundary,
+		nowEpoch,
+		freshnessBoundary,
+		nowEpoch,
+		freshnessBoundary,
+		nowEpoch,
+	];
 }
 
 const ACTIVE_LABEL_SQL = `

@@ -661,13 +661,16 @@ describe("projection policy", () => {
 			releaseCid: RELEASE_CID_1,
 		});
 		await seedLabelerRoles({ acceptedState: true, redaction: true, requiredPositive: true });
-		await markLabelSourceHealthy(testEnv.DB, LABELER_DID, NOW);
 		await rebuild("projection");
-		const beforeBoundary = new Date(NOW.getTime() + REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS - 1);
+		const healthTime = new Date();
+		await markLabelSourceHealthy(testEnv.DB, LABELER_DID, healthTime);
+		const beforeBoundary = new Date(
+			healthTime.getTime() + REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS - 1,
+		);
 		expect(await enforceRequiredLabelSourceHealth(testEnv.DB, beforeBoundary)).toEqual([]);
 		await expectVisible(DID_A, "demo");
 
-		const boundary = new Date(NOW.getTime() + REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS);
+		const boundary = new Date(healthTime.getTime() + REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS);
 		expect(await enforceRequiredLabelSourceHealth(testEnv.DB, boundary)).toEqual([LABELER_DID]);
 		await expectUnavailable(DID_A, "demo");
 		await markLabelSourceHealthy(testEnv.DB, LABELER_DID, new Date(boundary.getTime() + 1));
@@ -706,10 +709,11 @@ describe("projection policy", () => {
 			redaction: true,
 			requiredPositive: false,
 		});
-		await markLabelSourceHealthy(testEnv.DB, LABELER_DID, NOW);
-		await markLabelSourceHealthy(testEnv.DB, redactionDid, NOW);
 		await rebuild("projection", [], policy);
-		const boundary = new Date(NOW.getTime() + REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS);
+		const healthTime = new Date();
+		await markLabelSourceHealthy(testEnv.DB, LABELER_DID, healthTime);
+		await markLabelSourceHealthy(testEnv.DB, redactionDid, healthTime);
+		const boundary = new Date(healthTime.getTime() + REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS);
 		await markLabelSourceHealthy(testEnv.DB, LABELER_DID, boundary);
 		expect(await enforceRequiredLabelSourceHealth(testEnv.DB, boundary)).toEqual([redactionDid]);
 
@@ -720,6 +724,46 @@ describe("projection policy", () => {
 			policy,
 		);
 		expect(await response.json()).toMatchObject({ error: "ListingUnavailable" });
+	});
+
+	it("fails projection reads from persisted source freshness without a demotion write", async () => {
+		await seedApprovedPackage({
+			did: DID_A,
+			slug: "demo",
+			profileCid: PROFILE_CID_1,
+			releaseCid: RELEASE_CID_1,
+		});
+		await seedLabelerRoles({ acceptedState: true, redaction: true, requiredPositive: true });
+		await rebuild("projection");
+
+		const recent = new Date(Date.now() - REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS + 60_000);
+		await testEnv.DB.prepare(
+			`UPDATE labellers
+			 SET trusted = 1, health_last_success_at = ?, health_last_success_epoch = ?
+			 WHERE did = ?`,
+		)
+			.bind(recent.toISOString(), recent.getTime(), LABELER_DID)
+			.run();
+		await expectVisible(DID_A, "demo");
+
+		const boundary = new Date(Date.now() - REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS);
+		await testEnv.DB.prepare(
+			`UPDATE labellers
+			 SET trusted = 1, health_last_success_at = ?, health_last_success_epoch = ?
+			 WHERE did = ?`,
+		)
+			.bind(boundary.toISOString(), boundary.getTime(), LABELER_DID)
+			.run();
+		await expectUnavailable(DID_A, "demo");
+
+		await testEnv.DB.prepare(
+			`UPDATE labellers
+			 SET trusted = 1, health_last_success_at = NULL, health_last_success_epoch = NULL
+			 WHERE did = ?`,
+		)
+			.bind(LABELER_DID)
+			.run();
+		await expectUnavailable(DID_A, "demo");
 	});
 
 	it("keeps both release-withdrawal spellings enforced during emergency allowlist", async () => {
@@ -1617,6 +1661,7 @@ async function rebuild(
 }
 
 async function seedPolicySourcesReady(policy: ListingModerationPolicy): Promise<void> {
+	const healthTime = new Date();
 	const sources = new Set([
 		...policy.requiredPositiveSources,
 		...policy.acceptedStateSources,
@@ -1648,8 +1693,8 @@ async function seedPolicySourcesReady(policy: ListingModerationPolicy): Promise<
 				policy.acceptedStateSources.includes(did) ? 1 : 0,
 				policy.redactionSources.includes(did) ? 1 : 0,
 				policy.policyVersion,
-				NOW.toISOString(),
-				NOW.getTime(),
+				healthTime.toISOString(),
+				healthTime.getTime(),
 			)
 			.run();
 	}
