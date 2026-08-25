@@ -27,6 +27,8 @@ export interface ConfirmDialogProps {
 	compact?: boolean;
 	/** Prevent dismissing an irreversible request after it has started. */
 	preventCloseWhilePending?: boolean;
+	/** Disable confirmation until required input in the dialog is complete. */
+	confirmDisabled?: boolean;
 	isPending: boolean;
 	/** Error from a mutation — pass mutation.error directly */
 	error: unknown;
@@ -45,6 +47,7 @@ export function ConfirmDialog({
 	variant = "destructive",
 	compact = false,
 	preventCloseWhilePending = false,
+	confirmDisabled = false,
 	isPending,
 	error,
 	onConfirm,
@@ -79,7 +82,7 @@ export function ConfirmDialog({
 					<Button variant="secondary" disabled={closeLocked} onClick={onClose}>
 						{t`Cancel`}
 					</Button>
-					<Button variant={variant} disabled={isPending} onClick={onConfirm}>
+					<Button variant={variant} disabled={isPending || confirmDisabled} onClick={onConfirm}>
 						{isPending ? pendingLabel : confirmLabel}
 					</Button>
 				</div>

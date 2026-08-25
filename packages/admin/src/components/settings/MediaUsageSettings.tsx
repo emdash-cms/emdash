@@ -1,4 +1,4 @@
-import { Badge, Banner, Button, Loader } from "@cloudflare/kumo";
+import { Badge, Banner, Button, Checkbox, Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { CheckCircle } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -557,6 +557,14 @@ function ConfirmationDialog({
 	onConfirm: () => void;
 }) {
 	const { t } = useLingui();
+	const [drainAcknowledged, setDrainAcknowledged] = React.useState(false);
+	React.useEffect(() => {
+		if (!open) setDrainAcknowledged(false);
+	}, [open]);
+	const confirm = () => {
+		if (!drainAcknowledged || pending) return;
+		onConfirm();
+	};
 	return (
 		<ConfirmDialog
 			open={open}
@@ -565,17 +573,27 @@ function ConfirmationDialog({
 			description={
 				retry
 					? t`EmDash will continue setup and resume scanning existing content. Keep content editing and any tools that update the database paused until setup completes.`
-					: t`EmDash will scan existing content to show where media is used. Keep this page open until setup finishes; returning to this page continues where it stopped. Once enabled, it can’t be turned off.`
+					: t`EmDash will scan existing content to show where media is used. Finish current edits, pause other tools that update content, and wait for current updates to finish before continuing. Keep this page open until setup finishes; returning continues where it stopped. This can’t be turned off.`
 			}
 			confirmLabel={retry ? t`Retry setup` : t`Turn on`}
 			pendingLabel={retry ? t`Retrying…` : t`Turning on…`}
 			variant="primary"
 			compact
 			preventCloseWhilePending
+			confirmDisabled={!drainAcknowledged}
 			isPending={pending}
 			error={null}
-			onConfirm={onConfirm}
-		/>
+			onConfirm={confirm}
+		>
+			<div className="mt-4">
+				<Checkbox
+					checked={drainAcknowledged}
+					onCheckedChange={setDrainAcknowledged}
+					disabled={pending}
+					label={t`I’ve paused editing and other content updates, and waited for current updates to finish.`}
+				/>
+			</div>
+		</ConfirmDialog>
 	);
 }
 

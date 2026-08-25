@@ -44,6 +44,8 @@ const { MediaUsageSettings } =
 	await import("../../../src/components/settings/MediaUsageSettings.js");
 
 type ActivationState = "expanded" | "activating" | "active";
+const DRAIN_ACKNOWLEDGEMENT =
+	"I’ve paused editing and other content updates, and waited for current updates to finish.";
 
 function status(state: ActivationState, options: { failed?: boolean } = {}) {
 	return {
@@ -89,18 +91,18 @@ async function openConfirmation(screen: Awaited<ReturnType<typeof renderPage>>["
 	await expect
 		.element(
 			screen.getByText(
-				"EmDash will scan existing content to show where media is used. Keep this page open until setup finishes; returning to this page continues where it stopped. Once enabled, it can’t be turned off.",
+				"EmDash will scan existing content to show where media is used. Finish current edits, pause other tools that update content, and wait for current updates to finish before continuing. Keep this page open until setup finishes; returning continues where it stopped. This can’t be turned off.",
 			),
 		)
 		.toBeVisible();
 }
 
 async function submitConfirmation(screen: Awaited<ReturnType<typeof renderPage>>["screen"]) {
-	const confirm = screen
-		.getByRole("dialog", { name: "Turn on media usage tracking?" })
-		.getByRole("button", {
-			name: "Turn on",
-		});
+	const dialog = screen.getByRole("dialog", { name: "Turn on media usage tracking?" });
+	const acknowledgement = dialog.getByRole("checkbox", { name: DRAIN_ACKNOWLEDGEMENT });
+	acknowledgement.element().focus();
+	await userEvent.keyboard(" ");
+	const confirm = dialog.getByRole("button", { name: "Turn on" });
 	confirm.element().focus();
 	await userEvent.keyboard("{Enter}");
 }
@@ -143,7 +145,7 @@ describe("MediaUsageSettings", () => {
 		expect(screen.getByRole("button", { name: "Enable tracking" }).query()).toBeNull();
 	});
 
-	it("uses one native confirmation before enabling Media Usage", async () => {
+	it("requires writer-drain acknowledgement before enabling tracking", async () => {
 		const activating = status("activating");
 		activationMocks.advance.mockResolvedValue({
 			outcome: "activating",
@@ -155,11 +157,16 @@ describe("MediaUsageSettings", () => {
 		await expect.element(screen.getByText("Media usage tracking is off")).toBeInTheDocument();
 		expect(screen.getByRole("checkbox").query()).toBeNull();
 		await openConfirmation(screen);
-		const confirm = screen
-			.getByRole("dialog", { name: "Turn on media usage tracking?" })
-			.getByRole("button", { name: "Turn on" });
+		const dialog = screen.getByRole("dialog", { name: "Turn on media usage tracking?" });
+		const acknowledgement = dialog.getByRole("checkbox", { name: DRAIN_ACKNOWLEDGEMENT });
+		const confirm = dialog.getByRole("button", { name: "Turn on" });
+		await expect.element(acknowledgement).not.toBeChecked();
+		await expect.element(confirm).toBeDisabled();
+		expect(activationMocks.advance).not.toHaveBeenCalled();
+		acknowledgement.element().focus();
+		await userEvent.keyboard(" ");
+		await expect.element(acknowledgement).toBeChecked();
 		await expect.element(confirm).toBeEnabled();
-		expect(screen.getByRole("checkbox").query()).toBeNull();
 		confirm.element().focus();
 		await userEvent.keyboard("{Enter}");
 
@@ -350,6 +357,10 @@ describe("MediaUsageSettings", () => {
 
 		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
 		expect(document.activeElement).toBe(trigger.element());
+		await userEvent.keyboard("{Enter}");
+		const reopened = screen.getByRole("dialog", { name: "Turn on media usage tracking?" });
+		await expect.element(reopened.getByRole("checkbox")).not.toBeChecked();
+		await expect.element(reopened.getByRole("button", { name: "Turn on" })).toBeDisabled();
 	});
 
 	it("closes the confirmation when the page is hidden", async () => {
@@ -529,8 +540,10 @@ describe("MediaUsageSettings", () => {
 		await userEvent.click(screen.getByRole("button", { name: "Retry setup" }));
 		const dialog = screen.getByRole("dialog", { name: "Retry setup?" });
 		await expect.element(dialog).toBeVisible();
-		await expect.element(dialog.getByRole("button", { name: "Retry setup" })).toBeEnabled();
-		expect(dialog.getByRole("checkbox").query()).toBeNull();
+		await expect.element(dialog.getByRole("button", { name: "Retry setup" })).toBeDisabled();
+		await expect
+			.element(dialog.getByRole("checkbox", { name: DRAIN_ACKNOWLEDGEMENT }))
+			.not.toBeChecked();
 		expect(activationMocks.advanceProgress).not.toHaveBeenCalled();
 	});
 
@@ -559,6 +572,9 @@ describe("MediaUsageSettings", () => {
 
 		await userEvent.click(screen.getByRole("button", { name: "Retry setup" }));
 		const dialog = screen.getByRole("dialog", { name: "Retry setup?" });
+		const acknowledgement = dialog.getByRole("checkbox", { name: DRAIN_ACKNOWLEDGEMENT });
+		acknowledgement.element().focus();
+		await userEvent.keyboard(" ");
 		const confirm = dialog.getByRole("button", { name: "Retry setup" });
 		confirm.element().focus();
 		await userEvent.keyboard("{Enter}");
