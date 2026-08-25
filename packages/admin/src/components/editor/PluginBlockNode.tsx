@@ -52,6 +52,19 @@ export interface PluginBlockDef {
 	 * Optional display category in the slash menu. Defaults to "Embeds" when omitted.
 	 */
 	category?: string;
+	/**
+	 * Registered but not offered: a hidden block never appears on document-level
+	 * insert surfaces (the slash menu) or in a `block_list` picker without an
+	 * `allowed_types` list. Existing blocks of the type still render and edit
+	 * normally, and a `block_list` whose `allowed_types` names the type still
+	 * offers it — hiding removes a door, never content behind it.
+	 */
+	hidden?: boolean;
+}
+
+/** The blocks document-level insert surfaces may offer (see `PluginBlockDef.hidden`). */
+export function visiblePluginBlocks(blocks: PluginBlockDef[]): PluginBlockDef[] {
+	return blocks.filter((block) => !block.hidden);
 }
 
 // =============================================================================

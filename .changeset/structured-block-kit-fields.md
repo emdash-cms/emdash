@@ -23,6 +23,10 @@ An ordered list of registered plugin blocks. In the dialog, authors add an item 
 
 Both element types are also accepted as `repeater` sub-fields, so a repeater row can carry rich text or its own ordered block list.
 
+#### `hidden` on plugin block definitions
+
+A plugin block definition may declare `hidden: true`: the block stays registered — existing blocks of the type render and edit exactly as before — but document-level insert surfaces (the slash menu, and a `block_list` picker without an `allowed_types` list) no longer offer it. A `block_list` whose `allowed_types` names the type still offers it, so a plugin can ship child-only blocks that authors reach exclusively inside the parent blocks that declare them.
+
 #### Duplicate on plugin block cards
 
 Plugin block cards in the document editor gain a Duplicate action beside Edit and Delete that inserts a copy of the block, with identical data, immediately after the original.
