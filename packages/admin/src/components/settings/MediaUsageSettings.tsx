@@ -296,14 +296,14 @@ export function MediaUsageSettings() {
 		heading.focus();
 	}, [activation, advanceMutation.isPending, dialogOpen, pageVisible]);
 
-	const title = t`Media Usage`;
+	const title = t`Media usage tracking`;
 	const description = t`Track where media is used across your content.`;
 	if (userLoading) return <LoadingPage title={title} description={description} />;
 	if (!isAdmin || isActivationError(activationQuery.error, "denied") || notice === "denied") {
 		return (
 			<MessagePage
 				title={t`Access denied`}
-				description={t`You need Admin permissions to manage Media Usage.`}
+				description={t`You need Admin permissions to manage media usage tracking.`}
 				message={t`Ask an administrator to complete this setup.`}
 			/>
 		);
@@ -346,7 +346,7 @@ export function MediaUsageSettings() {
 			<MessagePage
 				title={title}
 				description={description}
-				message={t`Couldn’t load Media Usage settings.`}
+				message={t`Couldn’t load media usage tracking settings.`}
 				action={
 					<Button size="sm" variant="secondary" onClick={() => void refreshStatus()}>
 						{t`Try again`}
@@ -414,7 +414,7 @@ export function MediaUsageSettings() {
 							icon={advanceMutation.isPending ? <Loader size="sm" /> : undefined}
 							onClick={() => setDialogOpen(true)}
 						>
-							{storedFailure ? t`Retry setup` : t`Enable Media Usage`}
+							{storedFailure ? t`Retry setup` : t`Enable tracking`}
 						</Button>
 					</SettingRow>
 				) : null}
@@ -450,8 +450,8 @@ function StatusRow({
 	const active = activation.state === "active";
 	const settingUp = activation.state === "activating";
 	const storedFailure = activation.state === "activating" && activation.lastErrorCode !== null;
-	let heading = t`Automatic indexing is off`;
-	let detail: React.ReactNode = t`Enable Media Usage to index existing content and keep references up to date.`;
+	let heading = t`Media usage tracking is off`;
+	let detail: React.ReactNode = t`Enable tracking to index existing content and keep references up to date.`;
 	let badge = t`Off`;
 	let variant: "neutral" | "warning" | "success" | "error" = "neutral";
 	if (settingUp) {
@@ -466,14 +466,14 @@ function StatusRow({
 		heading = progressError
 			? t`Needs attention`
 			: progress?.status === "ready"
-				? t`Media Usage is ready`
+				? t`Media usage tracking is ready`
 				: progress?.status === "needs_attention"
 					? t`Needs attention`
 					: t`Indexing existing content`;
 		detail = progressError ? (
 			t`Setup couldn’t continue. Try again.`
 		) : progress?.status === "needs_attention" ? (
-			t`Check the server logs, then use the Media Usage recovery API for the failed work.`
+			t`Check the server logs, then use the media usage recovery API for the failed work.`
 		) : progress?.status === "ready" ? (
 			t`Existing content is indexed. New changes are tracked automatically.`
 		) : progress ? (
@@ -561,10 +561,10 @@ function ConfirmationDialog({
 		<ConfirmDialog
 			open={open}
 			onClose={() => onOpenChange(false)}
-			title={retry ? t`Retry setup?` : t`Turn on Media Usage?`}
+			title={retry ? t`Retry setup?` : t`Turn on media usage tracking?`}
 			description={
 				retry
-					? t`EmDash will continue setup and resume scanning existing content. Editing may briefly pause.`
+					? t`EmDash will continue setup and resume scanning existing content. Keep content editing and any tools that update the database paused until setup completes.`
 					: t`EmDash will scan existing content to show where media is used. Keep this page open until setup finishes; returning to this page continues where it stopped. Once enabled, it can’t be turned off.`
 			}
 			confirmLabel={retry ? t`Retry setup` : t`Turn on`}
@@ -587,7 +587,7 @@ function LoadingPage({ title, description }: { title: string; description: strin
 				<SettingRow>
 					<div className="flex items-center gap-2 text-sm text-kumo-subtle" role="status">
 						<Loader size="sm" />
-						{t`Loading Media Usage settings…`}
+						{t`Loading media usage tracking settings…`}
 					</div>
 				</SettingRow>
 			</SettingsSection>

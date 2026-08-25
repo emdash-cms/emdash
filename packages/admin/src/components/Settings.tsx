@@ -71,7 +71,7 @@ export function Settings() {
 						<SettingsNavRow
 							to="/settings/media-usage"
 							icon={<Images className="h-5 w-5" />}
-							title={t`Media Usage`}
+							title={t`Media usage tracking`}
 							description={t`Track where media is used across your content`}
 						/>
 					</SettingsSection>

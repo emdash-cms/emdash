@@ -82,8 +82,10 @@ async function renderPage(queryClient = createQueryClient()) {
 }
 
 async function openConfirmation(screen: Awaited<ReturnType<typeof renderPage>>["screen"]) {
-	await userEvent.click(screen.getByRole("button", { name: "Enable Media Usage" }));
-	await expect.element(screen.getByRole("dialog", { name: "Turn on Media Usage?" })).toBeVisible();
+	await userEvent.click(screen.getByRole("button", { name: "Enable tracking" }));
+	await expect
+		.element(screen.getByRole("dialog", { name: "Turn on media usage tracking?" }))
+		.toBeVisible();
 	await expect
 		.element(
 			screen.getByText(
@@ -94,9 +96,11 @@ async function openConfirmation(screen: Awaited<ReturnType<typeof renderPage>>["
 }
 
 async function submitConfirmation(screen: Awaited<ReturnType<typeof renderPage>>["screen"]) {
-	const confirm = screen.getByRole("dialog", { name: "Turn on Media Usage?" }).getByRole("button", {
-		name: "Turn on",
-	});
+	const confirm = screen
+		.getByRole("dialog", { name: "Turn on media usage tracking?" })
+		.getByRole("button", {
+			name: "Turn on",
+		});
 	confirm.element().focus();
 	await userEvent.keyboard("{Enter}");
 }
@@ -136,7 +140,7 @@ describe("MediaUsageSettings", () => {
 			.element(screen.getByRole("heading", { name: "Access denied" }))
 			.toBeInTheDocument();
 		expect(activationMocks.fetchStatus).not.toHaveBeenCalled();
-		expect(screen.getByRole("button", { name: "Enable Media Usage" }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Enable tracking" }).query()).toBeNull();
 	});
 
 	it("uses one native confirmation before enabling Media Usage", async () => {
@@ -148,11 +152,11 @@ describe("MediaUsageSettings", () => {
 		});
 		const { screen } = await renderPage();
 
-		await expect.element(screen.getByText("Automatic indexing is off")).toBeInTheDocument();
+		await expect.element(screen.getByText("Media usage tracking is off")).toBeInTheDocument();
 		expect(screen.getByRole("checkbox").query()).toBeNull();
 		await openConfirmation(screen);
 		const confirm = screen
-			.getByRole("dialog", { name: "Turn on Media Usage?" })
+			.getByRole("dialog", { name: "Turn on media usage tracking?" })
 			.getByRole("button", { name: "Turn on" });
 		await expect.element(confirm).toBeEnabled();
 		expect(screen.getByRole("checkbox").query()).toBeNull();
@@ -193,7 +197,7 @@ describe("MediaUsageSettings", () => {
 
 		await expect.element(screen.getByRole("heading", { name: "Status" })).toBeVisible();
 		await expect
-			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.element(screen.getByRole("heading", { name: "Media usage tracking is ready" }))
 			.toBeVisible();
 		expect(activationMocks.fetchProgress).toHaveBeenCalledOnce();
 		expect(activationMocks.advanceProgress).not.toHaveBeenCalled();
@@ -223,7 +227,7 @@ describe("MediaUsageSettings", () => {
 		const { screen } = await renderPage(queryClient);
 
 		await expect
-			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.element(screen.getByRole("heading", { name: "Media usage tracking is ready" }))
 			.toBeVisible();
 		expect(screen.getByRole("heading", { name: "Indexing existing content" }).query()).toBeNull();
 		expect(activationMocks.advanceProgress).not.toHaveBeenCalled();
@@ -231,7 +235,7 @@ describe("MediaUsageSettings", () => {
 		finishStatus(status("active"));
 		await vi.waitFor(() => expect(activationMocks.fetchProgress).toHaveBeenCalledOnce());
 		await expect
-			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.element(screen.getByRole("heading", { name: "Media usage tracking is ready" }))
 			.toBeVisible();
 		expect(activationMocks.advanceProgress).not.toHaveBeenCalled();
 	});
@@ -250,7 +254,7 @@ describe("MediaUsageSettings", () => {
 		const { screen } = await renderPage();
 
 		await vi.waitFor(() => expect(activationMocks.fetchProgress).toHaveBeenCalledOnce());
-		await expect.element(screen.getByText("Loading Media Usage settings…")).toBeVisible();
+		await expect.element(screen.getByText("Loading media usage tracking settings…")).toBeVisible();
 		expect(screen.getByRole("heading", { name: "Indexing existing content" }).query()).toBeNull();
 		expect(activationMocks.advanceProgress).not.toHaveBeenCalled();
 
@@ -260,7 +264,7 @@ describe("MediaUsageSettings", () => {
 			totalCollections: 2,
 		});
 		await expect
-			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.element(screen.getByRole("heading", { name: "Media usage tracking is ready" }))
 			.toBeVisible();
 	});
 
@@ -323,7 +327,7 @@ describe("MediaUsageSettings", () => {
 		await openConfirmation(screen);
 
 		await submitConfirmation(screen);
-		const dialog = screen.getByRole("dialog", { name: "Turn on Media Usage?" });
+		const dialog = screen.getByRole("dialog", { name: "Turn on media usage tracking?" });
 		await expect.element(dialog.getByRole("button", { name: "Cancel" })).toBeDisabled();
 		await userEvent.keyboard("{Escape}");
 
@@ -333,12 +337,12 @@ describe("MediaUsageSettings", () => {
 
 	it("returns focus to the enable action when the dialog is cancelled", async () => {
 		const { screen } = await renderPage();
-		const trigger = screen.getByRole("button", { name: "Enable Media Usage" });
+		const trigger = screen.getByRole("button", { name: "Enable tracking" });
 		await expect.element(trigger).toBeVisible();
 		trigger.element().focus();
 		await userEvent.keyboard("{Enter}");
 		await expect
-			.element(screen.getByRole("dialog", { name: "Turn on Media Usage?" }))
+			.element(screen.getByRole("dialog", { name: "Turn on media usage tracking?" }))
 			.toBeVisible();
 		const cancel = screen.getByRole("button", { name: "Cancel" });
 		cancel.element().focus();
@@ -373,7 +377,9 @@ describe("MediaUsageSettings", () => {
 		visibility = "hidden";
 		document.dispatchEvent(new Event("visibilitychange"));
 		await new Promise((resolve) => window.setTimeout(resolve, 300));
-		expect(screen.getByRole("dialog", { name: "Turn on Media Usage?" }).query()).not.toBeNull();
+		expect(
+			screen.getByRole("dialog", { name: "Turn on media usage tracking?" }).query(),
+		).not.toBeNull();
 
 		visibility = "visible";
 		document.dispatchEvent(new Event("visibilitychange"));
@@ -454,13 +460,13 @@ describe("MediaUsageSettings", () => {
 		["indexing", "Indexing existing content", "Ready: 1 / 2"],
 		[
 			"ready",
-			"Media Usage is ready",
+			"Media usage tracking is ready",
 			"Existing content is indexed. New changes are tracked automatically.",
 		],
 		[
 			"needs_attention",
 			"Needs attention",
-			"Check the server logs, then use the Media Usage recovery API for the failed work.",
+			"Check the server logs, then use the media usage recovery API for the failed work.",
 		],
 	] as const)("shows %s progress after activation", async (progressStatus, heading, summary) => {
 		activationMocks.fetchStatus.mockResolvedValue(status("active"));
@@ -558,7 +564,7 @@ describe("MediaUsageSettings", () => {
 		await userEvent.keyboard("{Enter}");
 
 		await expect
-			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.element(screen.getByRole("heading", { name: "Media usage tracking is ready" }))
 			.toBeVisible();
 		expect(activationMocks.advanceProgress).toHaveBeenCalledTimes(2);
 	});
@@ -619,7 +625,7 @@ describe("MediaUsageSettings", () => {
 		expect(activationMocks.fetchProgress).toHaveBeenCalledTimes(2);
 		await userEvent.click(screen.getByRole("button", { name: "Try again" }));
 		await expect
-			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.element(screen.getByRole("heading", { name: "Media usage tracking is ready" }))
 			.toBeVisible();
 		expect(activationMocks.advanceProgress).toHaveBeenCalledTimes(2);
 		expect(activationMocks.advance).not.toHaveBeenCalled();
@@ -639,7 +645,7 @@ describe("MediaUsageSettings", () => {
 		const { screen } = await renderPage();
 
 		await expect
-			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.element(screen.getByRole("heading", { name: "Media usage tracking is ready" }))
 			.toBeVisible();
 		expect(screen.getByRole("button", { name: "Try again" }).query()).toBeNull();
 		expect(activationMocks.fetchProgress).toHaveBeenCalledOnce();
@@ -714,7 +720,7 @@ describe("MediaUsageSettings", () => {
 		await vi.advanceTimersByTimeAsync(0);
 		await vi.waitFor(() => expect(activationMocks.advanceProgress).toHaveBeenCalledTimes(2));
 		await expect
-			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.element(screen.getByRole("heading", { name: "Media usage tracking is ready" }))
 			.toBeVisible();
 	});
 

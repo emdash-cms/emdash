@@ -101,13 +101,15 @@ describe("Settings", () => {
 		await expect.element(screen.getByText("Email", { exact: true })).toBeInTheDocument();
 	});
 
-	it("shows Media Usage setup only to administrators", async () => {
+	it("shows media usage tracking setup only to administrators", async () => {
 		const admin = await render(
 			<Wrapper>
 				<Settings />
 			</Wrapper>,
 		);
-		await expect.element(admin.getByRole("link", { name: /Media Usage/ })).toBeInTheDocument();
+		await expect
+			.element(admin.getByRole("link", { name: /Media usage tracking/ }))
+			.toBeInTheDocument();
 
 		currentUser.role = 40;
 		const editor = await render(
@@ -115,7 +117,7 @@ describe("Settings", () => {
 				<Settings />
 			</Wrapper>,
 		);
-		expect(editor.getByRole("link", { name: /Media Usage/ }).query()).toBeNull();
+		expect(editor.getByRole("link", { name: /Media usage tracking/ }).query()).toBeNull();
 	});
 
 	it("groups settings into clear semantic sections", async () => {

@@ -133,7 +133,7 @@ describe("MediaLibrary", () => {
 
 			const screen = await renderLibrary();
 
-			await expect.element(screen.getByText("Set up Media Usage")).toBeInTheDocument();
+			await expect.element(screen.getByText("Set up media usage tracking")).toBeInTheDocument();
 			await expect.element(screen.getByRole("link", { name: "Open setup" })).toBeInTheDocument();
 		});
 
@@ -143,7 +143,9 @@ describe("MediaLibrary", () => {
 
 			const screen = await renderLibrary();
 
-			await expect.element(screen.getByText("Media Usage is setting up")).toBeInTheDocument();
+			await expect
+				.element(screen.getByText("Media usage tracking is setting up"))
+				.toBeInTheDocument();
 			await expect.element(screen.getByRole("link", { name: "View setup" })).toBeInTheDocument();
 		});
 
@@ -159,7 +161,7 @@ describe("MediaLibrary", () => {
 			const screen = await renderLibrary();
 
 			await expect
-				.element(screen.getByText("Media Usage is indexing existing content"))
+				.element(screen.getByText("Media usage tracking is indexing existing content"))
 				.toBeVisible();
 			await expect.element(screen.getByRole("link", { name: "View setup" })).toBeVisible();
 		});
@@ -180,7 +182,9 @@ describe("MediaLibrary", () => {
 
 			await vi.waitFor(() => expect(setupMocks.fetchProgress).toHaveBeenCalledOnce());
 			expect(screen.getByRole("link", { name: "View setup" }).query()).toBeNull();
-			expect(screen.getByText("Media Usage is indexing existing content").query()).toBeNull();
+			expect(
+				screen.getByText("Media usage tracking is indexing existing content").query(),
+			).toBeNull();
 
 			finishProgress({ status: "indexing", readyCollections: 1, totalCollections: 2 });
 			await expect.element(screen.getByRole("link", { name: "View setup" })).toBeVisible();
@@ -193,7 +197,7 @@ describe("MediaLibrary", () => {
 
 			const screen = await renderLibrary();
 
-			await expect.element(screen.getByText("Media Usage needs attention")).toBeVisible();
+			await expect.element(screen.getByText("Media usage tracking needs attention")).toBeVisible();
 			await expect.element(screen.getByRole("link", { name: "View setup" })).toBeVisible();
 		});
 
@@ -236,7 +240,7 @@ describe("MediaLibrary", () => {
 			await expect
 				.element(screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }))
 				.toBeInTheDocument();
-			expect(screen.getByText("Set up Media Usage").query()).toBeNull();
+			expect(screen.getByText("Set up media usage tracking").query()).toBeNull();
 		});
 	});
 

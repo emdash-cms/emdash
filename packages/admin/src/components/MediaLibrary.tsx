@@ -376,12 +376,12 @@ export function MediaLibrary({
 					variant="alert"
 					title={
 						setupStatus.state === "expanded"
-							? t`Set up Media Usage`
+							? t`Set up media usage tracking`
 							: progressQuery.isError || setupProgress?.status === "needs_attention"
-								? t`Media Usage needs attention`
+								? t`Media usage tracking needs attention`
 								: setupStatus.state === "active"
-									? t`Media Usage is indexing existing content`
-									: t`Media Usage is setting up`
+									? t`Media usage tracking is indexing existing content`
+									: t`Media usage tracking is setting up`
 					}
 					description={t`Index existing content and keep Used in results up to date.`}
 					action={
