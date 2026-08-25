@@ -14,6 +14,10 @@ import { getPublicOrigin } from "#api/public-url.js";
 import { setupBody } from "#api/schemas.js";
 import { getAuthMode } from "#auth/mode.js";
 import { OptionsRepository } from "#db/repositories/options.js";
+import {
+	activateMediaUsageCapture,
+	getMediaUsageActivationStatus,
+} from "#media/usage/activation.js";
 import { applySeed } from "#seed/apply.js";
 import { loadSeed } from "#seed/load.js";
 import { validateSeed } from "#seed/validate.js";
@@ -58,6 +62,31 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 		const validation = validateSeed(seed);
 		if (!validation.valid) {
 			return apiError("INVALID_SEED", `Invalid seed file: ${validation.errors.join(", ")}`, 400);
+		}
+		if (body.enableMediaUsageTracking) {
+			const activation = await getMediaUsageActivationStatus(emdash.db);
+			if (activation.state !== "active") {
+				const existingCollection = await emdash.db
+					.selectFrom("_emdash_collections")
+					.select("id")
+					.limit(1)
+					.executeTakeFirst();
+				if (existingCollection) {
+					return apiError(
+						"MEDIA_USAGE_SETUP_CONFLICT",
+						"Media usage tracking can only be enabled during initial setup on an empty site",
+						409,
+					);
+				}
+				const activated = await activateMediaUsageCapture(emdash.db, { writersDrained: true });
+				if (activated.outcome !== "active") {
+					return apiError(
+						"MEDIA_USAGE_SETUP_CONFLICT",
+						"Media usage tracking setup is already in progress",
+						409,
+					);
+				}
+			}
 		}
 
 		let result;

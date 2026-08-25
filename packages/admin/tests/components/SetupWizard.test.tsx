@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { render } from "../utils/render.tsx";
 
@@ -51,6 +52,7 @@ Object.defineProperty(window, "PublicKeyCredential", {
 
 // Import after mocks
 const { SetupWizard } = await import("../../src/components/SetupWizard");
+const { apiFetch } = await import("../../src/lib/api/client");
 
 function QueryWrapper({ children }: { children: React.ReactNode }) {
 	const qc = new QueryClient({
@@ -103,6 +105,68 @@ describe("SetupWizard", () => {
 		await screen.getByText("Continue →").click();
 		// Should advance to admin step
 		await expect.element(screen.getByText("Create your account")).toBeInTheDocument();
+	});
+
+	it("enables media usage tracking by default during setup", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SetupWizard />
+			</QueryWrapper>,
+		);
+		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
+		const tracking = screen.getByRole("checkbox", {
+			name: "Track where media is used (recommended) Once enabled, it can’t be turned off.",
+		});
+		await expect.element(tracking).toBeChecked();
+
+		await screen.getByPlaceholder("My Awesome Blog").fill("Test Site");
+		await screen.getByText("Continue →").click();
+
+		await vi.waitFor(() =>
+			expect(apiFetch).toHaveBeenCalledWith(
+				"/_emdash/api/setup",
+				expect.objectContaining({
+					body: JSON.stringify({
+						title: "Test Site",
+						tagline: "",
+						includeContent: true,
+						enableMediaUsageTracking: true,
+					}),
+				}),
+			),
+		);
+	});
+
+	it("lets new sites opt out of media usage tracking", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SetupWizard />
+			</QueryWrapper>,
+		);
+		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
+		const tracking = screen.getByRole("checkbox", {
+			name: "Track where media is used (recommended) Once enabled, it can’t be turned off.",
+		});
+		tracking.element().focus();
+		await userEvent.keyboard(" ");
+		await expect.element(tracking).not.toBeChecked();
+
+		await screen.getByPlaceholder("My Awesome Blog").fill("Test Site");
+		await screen.getByText("Continue →").click();
+
+		await vi.waitFor(() =>
+			expect(apiFetch).toHaveBeenCalledWith(
+				"/_emdash/api/setup",
+				expect.objectContaining({
+					body: JSON.stringify({
+						title: "Test Site",
+						tagline: "",
+						includeContent: true,
+						enableMediaUsageTracking: false,
+					}),
+				}),
+			),
+		);
 	});
 
 	it("admin step shows email input", async () => {

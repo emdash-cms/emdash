@@ -25,6 +25,7 @@ export const setupBody = z.object({
 	title: z.string().min(1),
 	tagline: z.string().optional(),
 	includeContent: z.boolean(),
+	enableMediaUsageTracking: z.boolean().optional().default(false),
 });
 
 export const setupAdminBody = z.object({

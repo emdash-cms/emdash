@@ -45,6 +45,7 @@ interface SetupSiteRequest {
 	title: string;
 	tagline?: string;
 	includeContent: boolean;
+	enableMediaUsageTracking: boolean;
 }
 
 interface SetupSiteResponse {
@@ -92,6 +93,7 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 	const [title, setTitle] = React.useState(seedInfo?.title ?? "");
 	const [tagline, setTagline] = React.useState(seedInfo?.tagline ?? "");
 	const [includeContent, setIncludeContent] = React.useState(true);
+	const [enableMediaUsageTracking, setEnableMediaUsageTracking] = React.useState(true);
 	const [errors, setErrors] = React.useState<Record<string, string>>({});
 
 	const validate = (): boolean => {
@@ -106,7 +108,7 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!validate()) return;
-		onNext({ title, tagline, includeContent });
+		onNext({ title, tagline, includeContent, enableMediaUsageTracking });
 	};
 
 	return (
@@ -141,6 +143,20 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 					disabled={isLoading}
 				/>
 			)}
+
+			<Checkbox
+				label={
+					<div>
+						<span className="text-sm font-medium">{t`Track where media is used (recommended)`}</span>
+						<p className="mt-0.5 text-sm text-kumo-subtle">
+							{t`Once enabled, it can’t be turned off.`}
+						</p>
+					</div>
+				}
+				checked={enableMediaUsageTracking}
+				onCheckedChange={setEnableMediaUsageTracking}
+				disabled={isLoading}
+			/>
 
 			{error && (
 				<div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div>
