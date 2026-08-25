@@ -1,4 +1,5 @@
 import { Toasty } from "@cloudflare/kumo";
+import { i18n } from "@lingui/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +10,7 @@ import type {
 	ApiTokenInfo,
 	CreateApiTokenInput,
 } from "../../../src/lib/api/api-tokens.js";
+import { loadMessages } from "../../../src/locales/index.js";
 import { render } from "../../utils/render.js";
 
 const mockFetchApiTokens = vi.fn<() => Promise<ApiTokenInfo[]>>();
@@ -120,6 +122,28 @@ describe("ApiTokenSettings", () => {
 		await userEvent.click(screen.getByRole("button", { name: "Create Token" }));
 		await expect.element(screen.getByRole("textbox", { name: "Token Name" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Create Token" })).toBeDisabled();
+	});
+
+	it("shows the taxonomy management scope without duplicated wording in Japanese", async () => {
+		const [japaneseMessages, englishMessages] = await Promise.all([
+			loadMessages("ja"),
+			loadMessages("en"),
+		]);
+		i18n.loadAndActivate({ locale: "ja", messages: japaneseMessages });
+
+		try {
+			const screen = await renderApiTokenSettings();
+			await userEvent.click(screen.getByRole("button", { name: "トークンを作成" }));
+
+			await expect
+				.element(screen.getByText("分類項目の作成、更新、削除", { exact: true }))
+				.toBeInTheDocument();
+			expect(
+				screen.getByText("分類分類項目の作成、更新、削除", { exact: true }).query(),
+			).toBeNull();
+		} finally {
+			i18n.loadAndActivate({ locale: "en", messages: englishMessages });
+		}
 	});
 
 	it("creates a token and preserves its one-time reveal flow", async () => {

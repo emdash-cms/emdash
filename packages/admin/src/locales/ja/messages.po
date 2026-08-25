@@ -42,12 +42,12 @@ msgstr "-- 選択 --"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:308
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:307
 msgid ", or open the admin at"
-msgstr "、または管理画面を開く："
+msgstr "を使用するか、管理画面を"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:307
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:306
 msgid ": use"
-msgstr ": 使用"
+msgstr "が必要です。"
 
 #. placeholder {0}: providers?.find((p) => p.id === selectedItem.providerId)?.name
 #: packages/admin/src/components/MediaPickerModal.tsx:798
@@ -69,7 +69,7 @@ msgstr "（対応バージョンより新しい）"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:310
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:309
 msgid "(with your dev port)."
-msgstr "（開発ポートを使用）。"
+msgstr "（開発用ポートを含む）で開いてください。"
 
 #. placeholder {0}: items.length
 #. placeholder {0}: orphan.rowCount
@@ -390,7 +390,7 @@ msgstr "{totalCount}件中{matchedCount}件を割り当て済み"
 
 #: packages/admin/src/components/WordPressImport.tsx:2461
 msgid "{matchedCount} of {totalCount} authors matched by email"
-msgstr "{totalCount}人中{matchedCount}人の著者をメールで一致"
+msgstr "{totalCount}人中{matchedCount}人の著者をメールアドレスで照合"
 
 #: packages/admin/src/components/WordPressImport.tsx:1879
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
@@ -1155,11 +1155,11 @@ msgstr "音声"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:277
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:278
 msgid "Authentication error: {0}"
-msgstr "認証エラー: {0}"
+msgstr "認証エラー：{0}"
 
 #: packages/admin/src/components/LoginPage.tsx:197
 msgid "Authentication error: {error}"
-msgstr "認証エラー: {error}"
+msgstr "認証エラー：{error}"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:254
 msgid "Authentication failed"
@@ -1394,7 +1394,7 @@ msgstr "アップロードするファイルを選択"
 
 #: packages/admin/src/components/PluginManager.tsx:204
 msgid "Browse the"
-msgstr "参照："
+msgstr "プラグインをインストールするには"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:79
 msgid "Browse themes and preview them with your own content."
@@ -1553,7 +1553,7 @@ msgstr "カテゴリ（{0}）"
 
 #: packages/admin/src/components/WordPressImport.tsx:1146
 msgid "Categories & Tags"
-msgstr "カテゴリーとタグ"
+msgstr "カテゴリとタグ"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:161
 msgid "Center"
@@ -1856,7 +1856,7 @@ msgstr "WordPressに接続"
 #. placeholder {0}: new Date(account.createdAt).toLocaleDateString()
 #: packages/admin/src/components/users/UserDetail.tsx:286
 msgid "Connected {0}"
-msgstr "{0}に接続済み"
+msgstr "接続日：{0}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:192
 msgid "content"
@@ -1904,7 +1904,7 @@ msgstr "コンテンツを公開しました"
 
 #: packages/admin/src/components/WordPressImport.tsx:2371
 msgid "content items"
-msgstr "コンテンツ"
+msgstr "件のコンテンツ）"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:498
 msgid "Content locale"
@@ -2199,7 +2199,7 @@ msgstr "ナビゲーションメニューの作成、更新、削除"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:78
 msgid "Create, update, and delete taxonomy terms"
-msgstr "分類分類項目の作成、更新、削除"
+msgstr "分類項目の作成、更新、削除"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:53
 msgid "Create, update, delete content"
@@ -2732,7 +2732,7 @@ msgstr "ナビゲーションメニューを表示"
 
 #: packages/admin/src/components/Widgets.tsx:136
 msgid "Display category list"
-msgstr "カテゴリー一覧を表示"
+msgstr "カテゴリ一覧を表示"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1101
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1163
@@ -2793,7 +2793,7 @@ msgstr "ドメインを更新しました"
 
 #: packages/admin/src/components/LoginPage.tsx:334
 msgid "Don't have an account? <0>Sign up</0>"
-msgstr "アカウントをお持ちでないですか？ <0>新規登録</0>"
+msgstr "アカウントをお持ちでない方は、<0>新規登録</0>"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:506
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
@@ -3761,7 +3761,7 @@ msgstr "マジックリンクの送信に失敗しました"
 
 #: packages/admin/src/lib/api/users.ts:128
 msgid "Failed to send recovery link"
-msgstr "復旧リンクの送信に失敗しました"
+msgstr "アカウント復旧リンクの送信に失敗しました"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:44
 #: packages/admin/src/lib/api/email-settings.ts:45
@@ -3950,7 +3950,7 @@ msgstr "ファイル名はアップロード後に変更できません"
 
 #: packages/admin/src/components/WordPressImport.tsx:2366
 msgid "files imported"
-msgstr "ファイルをインポート済み"
+msgstr "件のファイルをインポートしました"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:399
 msgid "Files upload as soon as you add them."
@@ -3966,7 +3966,7 @@ msgstr "執筆者で絞り込む"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:115
 msgid "Filter by capability"
-msgstr "権限でフィルタ"
+msgstr "権限で絞り込む"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:178
 msgid "Filter by collection"
@@ -4008,7 +4008,7 @@ msgstr "下書きやすべてのコンテンツを含む完全なインポート
 
 #: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "For the best import experience, install the"
-msgstr "最適なインポートのために、以下をインストールしてください："
+msgstr "より完全にインポートするには、WordPressサイトに"
 
 #: packages/admin/src/components/ContentList.tsx:928
 msgid "From date"
@@ -4017,7 +4017,7 @@ msgstr "開始日"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:164
 #: packages/admin/src/components/WordPressImport.tsx:1155
 msgid "Full"
-msgstr "全幅"
+msgstr "フル"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:43
 msgid "Full access"
@@ -4269,7 +4269,7 @@ msgstr "画像URL"
 
 #: packages/admin/src/components/WordPressImport.tsx:2370
 msgid "image URLs updated in"
-msgstr "画像URLを更新："
+msgstr "件の画像URLを更新（対象："
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:61
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:192
@@ -5789,7 +5789,7 @@ msgstr "OG画像"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:312
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:311
 msgid "on a custom hostname is not treated as secure, even on loopback."
-msgstr "カスタムホスト名ではループバックであってもセキュアとして扱われません。"
+msgstr "は、カスタムホスト名ではループバックでも安全な接続として扱われません。"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:278
 msgid "Only authorize codes you recognize."
@@ -6002,7 +6002,7 @@ msgstr "パスキーはここでは利用できません"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:305
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:304
 msgid "Passkeys require a"
-msgstr "パスキーには"
+msgstr "パスキーを使用するには"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:158
 msgid "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
@@ -6073,7 +6073,7 @@ msgstr "プレースホルダーテキスト"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:311
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:310
 msgid "Plain"
-msgstr "プレーン"
+msgstr "通常の"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:27
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:120
@@ -6151,7 +6151,7 @@ msgstr "プラグインが見つかりません。提供元のアカウント名
 
 #: packages/admin/src/components/WordPressImport.tsx:1209
 msgid "plugin on your WordPress site."
-msgstr "プラグインをWordPressサイトにインストール。"
+msgstr "プラグインをインストールしてください。"
 
 #: packages/admin/src/components/PluginManager.tsx:483
 msgid "Plugin pages"
@@ -6408,7 +6408,7 @@ msgstr "受信者メールアドレス"
 #. placeholder {0}: user.email
 #: packages/admin/src/components/users/UserDetail.tsx:336
 msgid "Recovery link sent to {0}"
-msgstr "回復リンクを{0}に送信しました"
+msgstr "アカウント復旧リンクを{0}に送信しました"
 
 #: packages/admin/src/components/Redirects.tsx:450
 msgid "Redirect loop detected"
@@ -7340,7 +7340,7 @@ msgstr "マジックリンクを送信"
 
 #: packages/admin/src/components/users/UserDetail.tsx:332
 msgid "Send Recovery Link"
-msgstr "回復リンクを送信"
+msgstr "アカウント復旧リンクを送信"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:122
 msgid "Send Test"
@@ -7948,7 +7948,7 @@ msgstr "テーマ"
 #. placeholder {0}: section.themeId
 #: packages/admin/src/components/SectionEditor.tsx:328
 msgid "Theme ID: {0}"
-msgstr "テーマID: {0}"
+msgstr "テーマID：{0}"
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:91
 msgid "Theme not found"
@@ -8143,7 +8143,7 @@ msgstr "終了日"
 
 #: packages/admin/src/components/PluginManager.tsx:208
 msgid "to install plugins, or add them to your astro.config.mjs."
-msgstr "にアクセスしてプラグインをインストールするか、astro.config.mjsに追加してください。"
+msgstr "を開くか、astro.config.mjsに追加してください。"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:473
 msgid "to select"
@@ -8256,7 +8256,7 @@ msgstr "検索条件を変更してみてください"
 
 #: packages/admin/src/components/Sections.tsx:260
 msgid "Try adjusting your search or filters."
-msgstr "検索条件やフィルタを変更してみてください。"
+msgstr "検索条件やフィルターを変更してみてください。"
 
 #: packages/admin/src/routes/users.tsx:210
 msgid "Try again"
@@ -8610,7 +8610,7 @@ msgstr "URLに適した識別子（例：「primary」、「footer」）"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:309
 msgid "URL:"
-msgstr "URL:"
+msgstr "URL："
 
 #: packages/admin/src/components/Redirects.tsx:111
 msgid "Use [param] or [...rest] in paths for pattern matching."
@@ -8677,7 +8677,7 @@ msgstr "ユーザー"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:375
 msgid "Users from"
-msgstr "ドメインのユーザー:"
+msgstr "ドメイン"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:196
 msgid "Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically."
@@ -8947,7 +8947,7 @@ msgstr "作成予定"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:376
 msgid "will no longer be able to sign up without an invite. Existing users are not affected."
-msgstr "は招待なしで登録できなくなります。既存のユーザーには影響しません。"
+msgstr "のユーザーは招待なしで登録できなくなります。既存のユーザーには影響しません。"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:148
 msgid "Without an email provider, invite links must be shared manually."
@@ -8987,7 +8987,7 @@ msgstr "YAML"
 
 #: packages/admin/src/components/Widgets.tsx:163
 msgid "Yearly"
-msgstr "毎年"
+msgstr "年別"
 
 #: packages/admin/src/components/ContentList.tsx:1283
 #: packages/admin/src/components/users/UserDetail.tsx:236
