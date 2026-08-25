@@ -133,6 +133,11 @@ describe("public assessment XRPC", () => {
 			"block",
 			"Private operator note publisher-private@example.test",
 		);
+		await insertStandaloneLabel(seeded, {
+			value: "listing-blocked",
+			createdAt: "2026-08-24T13:00:00.000Z",
+			signature: [4, 5, 6],
+		});
 
 		const response = await request(
 			NSID.labelerGetAssessment,
@@ -145,9 +150,9 @@ describe("public assessment XRPC", () => {
 			id: seeded.id,
 			src: env.LABELER_DID,
 			subject: { kind: "profile", uri: seeded.uri, cid: PROFILE_CID },
-			state: "blocked",
+			state: "review",
 			coverage: { text: "complete", links: "complete", media: "not-present" },
-			reasonCodes: ["policy-finding", "operator-blocked"],
+			reasonCodes: ["policy-finding"],
 			findings: [
 				{
 					category: "phishing",
@@ -168,6 +173,29 @@ describe("public assessment XRPC", () => {
 			},
 		});
 		await expectCurrentSignature((body["labels"] as unknown[])[0]);
+
+		const currentResponse = await request(
+			NSID.labelerGetCurrentAssessment,
+			new URLSearchParams({ kind: "profile", uri: seeded.uri, cid: PROFILE_CID }),
+		);
+		const current = await currentResponse!.json<Record<string, unknown>>();
+		expect(current).toMatchObject({
+			assessment: {
+				state: "review",
+				labels: [expect.objectContaining({ val: "listing-review" })],
+				manualDecision: { outcome: "blocked", reasonCode: "operator-blocked" },
+			},
+			activeLabels: expect.arrayContaining([
+				expect.objectContaining({ val: "listing-blocked", sig: { $bytes: expect.any(String) } }),
+			]),
+		});
+		const block = (current["activeLabels"] as unknown[]).find(
+			(label) =>
+				typeof label === "object" &&
+				label !== null &&
+				Object.getOwnPropertyDescriptor(label, "val")?.value === "listing-blocked",
+		);
+		await expectCurrentSignature(block);
 		const serialized = JSON.stringify(body);
 		for (const privateValue of [
 			"SYSTEM PROMPT MUST NOT LEAK",
@@ -331,13 +359,26 @@ describe("public assessment XRPC", () => {
 		);
 		const body = await response!.json<Record<string, unknown>>();
 		expect(body).toMatchObject({
-			state: "passed",
+			state: "review",
 			manualDecision: {
 				outcome: "approved",
 				reasonCode: "operator-approved",
 				decidedAt: "2026-08-24T14:00:00.000Z",
 			},
 		});
+
+		const reviewList = await request(
+			NSID.labelerListAssessments,
+			new URLSearchParams({ uri: seeded.uri, cid: seeded.cid, state: "review" }),
+		);
+		expect(await reviewList!.json()).toMatchObject({
+			assessments: [expect.objectContaining({ id: seeded.id, state: "review" })],
+		});
+		const passedList = await request(
+			NSID.labelerListAssessments,
+			new URLSearchParams({ uri: seeded.uri, cid: seeded.cid, state: "passed" }),
+		);
+		expect(await passedList!.json()).toEqual({ assessments: [] });
 	});
 
 	it("maps operational verification failures to a bounded public reason", async () => {

@@ -26,6 +26,7 @@ describe("live evaluation migration", () => {
 			{ name: "eval_runs" },
 			{ name: "eval_runs_dataset_completed" },
 			{ name: "eval_runs_status_created" },
+			{ name: "eval_runs_workflow_instance" },
 		]);
 		db.close();
 	});

@@ -7,7 +7,7 @@ import {
 } from "../src/ai/workers-ai.js";
 import { assertSealedEvalDataset } from "./dataset.js";
 import { runEvaluation, type EvaluationRunOptions } from "./harness.js";
-import type { EvalResultBundle, SealedEvalDataset } from "./types.js";
+import type { EvalCaseRun, EvalResultBundle, SealedEvalDataset } from "./types.js";
 
 const liveEvaluationArtifactBrand: unique symbol = Symbol("liveEvaluationArtifact");
 
@@ -22,12 +22,18 @@ export interface ProtectedLiveEvaluationInput {
 	image: WorkersAiAdapterConfig & { configuredUnits: number };
 	repeatCount: number;
 	runnerCommit: string;
+	executedAt?: string;
+}
+
+export interface ProtectedLiveEvaluationDurability {
+	runCase(name: string, callback: () => Promise<EvalCaseRun>): Promise<EvalCaseRun>;
 }
 
 const liveArtifacts = new WeakSet<object>();
 
 export async function runProtectedLiveEvaluation(
 	input: ProtectedLiveEvaluationInput,
+	durability?: ProtectedLiveEvaluationDurability,
 ): Promise<LiveEvaluationArtifact> {
 	if ("ai" in input) {
 		throw new TypeError("protected live evaluation does not accept an AI override");
@@ -36,7 +42,12 @@ export async function runProtectedLiveEvaluation(
 	const { env } = await import("cloudflare:workers");
 	if (!env.AI) throw new Error("native Workers AI binding is unavailable");
 	const ai = workersAiBindingFromEnv(env.AI);
-	const options = createLiveEvaluationOptions(ai, input, new Date().toISOString());
+	const options = createLiveEvaluationOptions(
+		ai,
+		input,
+		input.executedAt ?? new Date().toISOString(),
+		durability,
+	);
 	const bundle = deepFreeze(await runEvaluation(options));
 	const artifact = Object.freeze<LiveEvaluationArtifact>({
 		bundle,
@@ -50,6 +61,7 @@ function createLiveEvaluationOptions(
 	ai: WorkersAiBinding,
 	input: ProtectedLiveEvaluationInput,
 	executedAt: string,
+	durability?: ProtectedLiveEvaluationDurability,
 ): EvaluationRunOptions {
 	const text = createWorkersAiTextAdapter(ai, input.text);
 	const image = createWorkersAiImageAdapter(ai, input.image);
@@ -62,6 +74,7 @@ function createLiveEvaluationOptions(
 		runnerCommit: input.runnerCommit,
 		executedAt,
 		createAdapters: () => ({ text, image }),
+		...(durability ? { runCase: durability.runCase } : {}),
 	};
 }
 

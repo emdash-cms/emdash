@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS eval_runs (
 	comparison_hash TEXT CHECK (comparison_hash IS NULL OR length(comparison_hash) = 64),
 	promotion_challenge_hash TEXT
 		CHECK (promotion_challenge_hash IS NULL OR length(promotion_challenge_hash) = 64),
+	workflow_instance_id TEXT
+		CHECK (workflow_instance_id IS NULL OR length(workflow_instance_id) <= 200),
 	result_json TEXT CHECK (result_json IS NULL OR length(result_json) <= 65536),
 	comparison_json TEXT CHECK (comparison_json IS NULL OR length(comparison_json) <= 262144),
 	report_markdown TEXT CHECK (report_markdown IS NULL OR length(report_markdown) <= 65536),
@@ -55,3 +57,7 @@ CREATE INDEX IF NOT EXISTS eval_runs_status_created
 CREATE INDEX IF NOT EXISTS eval_runs_dataset_completed
 	ON eval_runs(dataset_hash, completed_at, id)
 	WHERE status = 'succeeded';
+
+CREATE UNIQUE INDEX IF NOT EXISTS eval_runs_workflow_instance
+	ON eval_runs(workflow_instance_id)
+	WHERE workflow_instance_id IS NOT NULL;

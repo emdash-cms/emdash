@@ -65,6 +65,11 @@
 			"name": "emdash-labeler-assessment",
 			"class_name": "AssessmentWorkflow",
 		},
+		{
+			"binding": "LIVE_EVALUATION_WORKFLOW",
+			"name": "emdash-labeler-live-evaluation",
+			"class_name": "LiveEvaluationWorkflow",
+		},
 	],
 	"queues": {
 		"producers": [

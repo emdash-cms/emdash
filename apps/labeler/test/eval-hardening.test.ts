@@ -18,6 +18,7 @@ import {
 } from "../evals/harness.js";
 import { assertLiveEvaluationArtifact, runProtectedLiveEvaluation } from "../evals/live.js";
 import { loadRecordedBaseline } from "../evals/recordings.js";
+import { readBoundedEvalR2Object } from "../evals/production.js";
 import {
 	authorizePromotionReview,
 	assertEvalBundleIntegrity,
@@ -41,6 +42,20 @@ const DATASET_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../evals/
 const readDatasetFile = (relativePath: string) => readFile(resolve(DATASET_ROOT, relativePath));
 
 describe("sealed evaluation datasets", () => {
+	it("rejects oversized R2 objects before buffering and accepts the exact boundary", async () => {
+		const boundaryBytes = vi.fn(async () => new Uint8Array([1, 2, 3, 4]));
+		await expect(
+			readBoundedEvalR2Object({ size: 4, bytes: boundaryBytes }, 4, "evaluation fixture"),
+		).resolves.toEqual(new Uint8Array([1, 2, 3, 4]));
+		expect(boundaryBytes).toHaveBeenCalledTimes(1);
+
+		const oversizedBytes = vi.fn(async () => new Uint8Array(5));
+		await expect(
+			readBoundedEvalR2Object({ size: 5, bytes: oversizedBytes }, 4, "evaluation fixture"),
+		).rejects.toThrow(/exceeds its byte limit/);
+		expect(oversizedBytes).not.toHaveBeenCalled();
+	});
+
 	it("computes the dataset identity from exact fixture and asset bytes", async () => {
 		const dataset = await loadEvalDataset({ readFile: readDatasetFile });
 		expect(() => assertSealedEvalDataset(dataset)).not.toThrow();
