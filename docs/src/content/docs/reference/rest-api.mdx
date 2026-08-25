@@ -378,10 +378,10 @@ Pending media does not appear in the standard media list or media library.
 	`filename`, `contentType`, and `size` are required. The request also accepts the following
 	optional fields:
 
-	| Field         | Description                                                       |
-	| ------------- | ----------------------------------------------------------------- |
-	| `contentHash` | Content hash used to find an existing matching media item          |
-	| `fieldId`     | Field whose configured MIME type allowlist applies to the upload   |
+	| Field         | Description                                                                 |
+	| ------------- | --------------------------------------------------------------------------- |
+	| `contentHash` | `sha1:` plus 40 lowercase hexadecimal characters, used to find a match       |
+	| `fieldId`     | Field whose configured MIME type allowlist applies to the upload             |
 
 	The response contains the URL, method, and headers for the file upload. `uploadUrl` is an
 	absolute signed URL when the storage adapter supports one. Otherwise, it is a root-relative
@@ -405,7 +405,8 @@ Pending media does not appear in the standard media list or media library.
 	```
 
 	If `contentHash` matches an existing media item with the same MIME type and size, the response
-	contains `existing: true`, `mediaId`, `storageKey`, and `url` instead of an upload target.
+	contains `existing: true`, `mediaId`, `storageKey`, and `url` instead of an upload target. Use the
+	returned media item and stop. Do not upload or confirm the file.
 
 2. Upload the file to `uploadUrl`
 
@@ -470,15 +471,17 @@ Pending media does not appear in the standard media list or media library.
 
 #### Upload errors
 
-| Status | Code                   | Cause                                                               |
-| ------ | ---------------------- | ------------------------------------------------------------------- |
-| `400`  | `NO_FILE`              | The multipart request has no `file` field                           |
-| `400`  | `INVALID_TYPE`         | The MIME type is not allowed                                        |
-| `400`  | `VALIDATION_ERROR`     | Upload target metadata is missing, invalid, or exceeds the size limit |
-| `400`  | `FILE_NOT_FOUND`       | Confirmation cannot find the uploaded object                        |
-| `400`  | `UPLOAD_SIZE_MISMATCH` | The declared, uploaded, and confirmed sizes do not match             |
-| `409`  | `INVALID_STATE`        | The pending media item changed during confirmation                   |
-| `413`  | `PAYLOAD_TOO_LARGE`    | A direct multipart upload exceeds `maxUploadSize`                    |
+| Status | Code                   | Cause                                                                    |
+| ------ | ---------------------- | ------------------------------------------------------------------------ |
+| `400`  | `NO_FILE`              | The multipart request has no `file` field, or the upload body is missing |
+| `400`  | `INVALID_TYPE`         | The MIME type is not allowed or does not match the pending media item     |
+| `400`  | `VALIDATION_ERROR`     | Upload metadata is missing, invalid, or exceeds the configured size limit |
+| `400`  | `FILE_NOT_FOUND`       | Confirmation cannot find the uploaded object                             |
+| `400`  | `UPLOAD_SIZE_MISMATCH` | The declared, uploaded, and confirmed sizes do not match                  |
+| `400`  | `INVALID_STATE`        | The media item is not pending                                             |
+| `404`  | `NOT_FOUND`            | The media item does not exist                                             |
+| `409`  | `INVALID_STATE`        | The pending media item changed during confirmation                        |
+| `413`  | `PAYLOAD_TOO_LARGE`    | The direct or same-origin upload is too large                             |
 
 ### Update Media
 
