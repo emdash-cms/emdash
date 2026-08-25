@@ -33,7 +33,9 @@ export function MediaUsageSettings() {
 	const [pageVisible, setPageVisible] = React.useState(
 		() => typeof document === "undefined" || document.visibilityState !== "hidden",
 	);
-	const [progress, setProgress] = React.useState<MediaUsageProgress>();
+	const [progress, setProgress] = React.useState<MediaUsageProgress | undefined>(() =>
+		queryClient.getQueryData(MEDIA_USAGE_PROGRESS_QUERY_KEY),
+	);
 	const [progressRequestError, setProgressRequestError] = React.useState(false);
 	const [resumeToken, setResumeToken] = React.useState(0);
 	const submittingRef = React.useRef(false);
@@ -87,6 +89,16 @@ export function MediaUsageSettings() {
 		setNotice(nextNotice);
 		return true;
 	}, []);
+	const readProgress = React.useCallback(
+		() =>
+			queryClient.fetchQuery({
+				queryKey: MEDIA_USAGE_PROGRESS_QUERY_KEY,
+				queryFn: fetchMediaUsageProgress,
+				retry: false,
+				staleTime: 0,
+			}),
+		[queryClient],
+	);
 	const reconcileProgressFailure = React.useCallback(
 		async (caught: unknown) => {
 			if (handleProgressAccessError(caught)) return;
@@ -96,9 +108,8 @@ export function MediaUsageSettings() {
 				queryClient.setQueryData(MEDIA_USAGE_ACTIVATION_QUERY_KEY, activation);
 				let storedProgress: MediaUsageProgress | undefined;
 				if (activation.state === "active") {
-					storedProgress = await fetchMediaUsageProgress();
+					storedProgress = await readProgress();
 					if (!mountedRef.current) return;
-					queryClient.setQueryData(MEDIA_USAGE_PROGRESS_QUERY_KEY, storedProgress);
 				}
 				setProgress(storedProgress);
 				const storedFailure =
@@ -112,7 +123,7 @@ export function MediaUsageSettings() {
 				setProgressRequestError(true);
 			}
 		},
-		[handleProgressAccessError, queryClient],
+		[handleProgressAccessError, queryClient, readProgress],
 	);
 	const requestProgress = React.useCallback(() => {
 		if (progressRequestRef.current) return progressRequestRef.current;
@@ -149,6 +160,19 @@ export function MediaUsageSettings() {
 				timer = window.setTimeout(finishWait, delayMs);
 			});
 		void (async () => {
+			if (activationQuery.data?.state === "active") {
+				let storedProgress: MediaUsageProgress;
+				try {
+					storedProgress = await readProgress();
+				} catch (error) {
+					if (!cancelled) await reconcileProgressFailure(error);
+					return;
+				}
+				if (cancelled || !mountedRef.current) return;
+				setProgress(storedProgress);
+				setProgressRequestError(false);
+				if (storedProgress.status !== "indexing") return;
+			}
 			let delayMs: 0 | 30_000 = 0;
 			for (;;) {
 				if (delayMs === 30_000) await wait(delayMs);
@@ -189,6 +213,7 @@ export function MediaUsageSettings() {
 		isAdmin,
 		pageVisible,
 		queryClient,
+		readProgress,
 		reconcileProgressFailure,
 		requestProgress,
 		resumeToken,
@@ -329,6 +354,14 @@ export function MediaUsageSettings() {
 		);
 	}
 	if (activationQuery.isPending || !activation) {
+		return <LoadingPage title={title} description={description} />;
+	}
+	if (
+		!activationReadError &&
+		activation.state === "active" &&
+		progress === undefined &&
+		!progressRequestError
+	) {
 		return <LoadingPage title={title} description={description} />;
 	}
 

@@ -35,8 +35,11 @@ vi.mock("../../../src/components/settings/BackToSettingsLink.js", () => ({
 	BackToSettingsLink: () => <a href="/settings">Back to Settings</a>,
 }));
 
-const { MEDIA_USAGE_PROGRESS_QUERY_KEY, MediaUsageActivationRequestError } =
-	await import("../../../src/lib/api/media-usage-activation.js");
+const {
+	MEDIA_USAGE_ACTIVATION_QUERY_KEY,
+	MEDIA_USAGE_PROGRESS_QUERY_KEY,
+	MediaUsageActivationRequestError,
+} = await import("../../../src/lib/api/media-usage-activation.js");
 const { MediaUsageSettings } =
 	await import("../../../src/components/settings/MediaUsageSettings.js");
 
@@ -63,10 +66,13 @@ function setCurrentUser(role: number | null, isLoading = false) {
 	});
 }
 
-async function renderPage() {
-	const queryClient = new QueryClient({
+function createQueryClient() {
+	return new QueryClient({
 		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 	});
+}
+
+async function renderPage(queryClient = createQueryClient()) {
 	const screen = await render(
 		<QueryClientProvider client={queryClient}>
 			<MediaUsageSettings />
@@ -168,8 +174,14 @@ describe("MediaUsageSettings", () => {
 		await vi.waitFor(() => expect(activationMocks.advanceProgress).toHaveBeenCalledOnce());
 	});
 
-	it("probes maintenance once when an already-ready page opens", async () => {
+	it("reads durable Ready without advancing when an already-ready page opens", async () => {
 		activationMocks.fetchStatus.mockResolvedValue(status("active"));
+		activationMocks.fetchProgress.mockResolvedValue({
+			status: "ready",
+			readyCollections: 2,
+			totalCollections: 2,
+			indexingStarted: true,
+		});
 		activationMocks.advanceProgress.mockResolvedValue({
 			activation: status("active"),
 			progress: {
@@ -184,10 +196,71 @@ describe("MediaUsageSettings", () => {
 		const { queryClient, screen } = await renderPage();
 
 		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
-		expect(activationMocks.advanceProgress).toHaveBeenCalledOnce();
+		expect(activationMocks.fetchProgress).toHaveBeenCalledOnce();
+		expect(activationMocks.advanceProgress).not.toHaveBeenCalled();
 		expect(queryClient.getQueryData(MEDIA_USAGE_PROGRESS_QUERY_KEY)).toEqual(
 			expect.objectContaining({ status: "ready" }),
 		);
+	});
+
+	it("keeps cached Ready visible while revisit status reads are in flight", async () => {
+		let finishStatus!: (value: ReturnType<typeof status>) => void;
+		activationMocks.fetchStatus.mockImplementation(
+			() => new Promise((resolve) => (finishStatus = resolve)),
+		);
+		activationMocks.fetchProgress.mockResolvedValue({
+			status: "ready",
+			readyCollections: 2,
+			totalCollections: 2,
+			indexingStarted: true,
+		});
+		const queryClient = createQueryClient();
+		queryClient.setQueryData(MEDIA_USAGE_ACTIVATION_QUERY_KEY, status("active"));
+		queryClient.setQueryData(MEDIA_USAGE_PROGRESS_QUERY_KEY, {
+			status: "ready",
+			readyCollections: 2,
+			totalCollections: 2,
+			indexingStarted: true,
+		});
+
+		const { screen } = await renderPage(queryClient);
+
+		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
+		expect(screen.getByRole("heading", { name: "Indexing existing content" }).query()).toBeNull();
+		expect(activationMocks.advanceProgress).not.toHaveBeenCalled();
+
+		finishStatus(status("active"));
+		await vi.waitFor(() => expect(activationMocks.fetchProgress).toHaveBeenCalledOnce());
+		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
+		expect(activationMocks.advanceProgress).not.toHaveBeenCalled();
+	});
+
+	it("does not claim indexing while the first durable progress read is pending", async () => {
+		activationMocks.fetchStatus.mockResolvedValue(status("active"));
+		let finishProgress!: (value: {
+			status: "ready";
+			readyCollections: number;
+			totalCollections: number;
+			indexingStarted: true;
+		}) => void;
+		activationMocks.fetchProgress.mockImplementation(
+			() => new Promise((resolve) => (finishProgress = resolve)),
+		);
+
+		const { screen } = await renderPage();
+
+		await vi.waitFor(() => expect(activationMocks.fetchProgress).toHaveBeenCalledOnce());
+		await expect.element(screen.getByText("Loading Media Usage settings…")).toBeVisible();
+		expect(screen.getByRole("heading", { name: "Indexing existing content" }).query()).toBeNull();
+		expect(activationMocks.advanceProgress).not.toHaveBeenCalled();
+
+		finishProgress({
+			status: "ready",
+			readyCollections: 2,
+			totalCollections: 2,
+			indexingStarted: true,
+		});
+		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
 	});
 
 	it("follows an existing continuation even when the page already shows Ready", async () => {
@@ -557,7 +630,7 @@ describe("MediaUsageSettings", () => {
 
 		await expect.element(screen.getByRole("button", { name: "Try again" })).toBeVisible();
 		expect(activationMocks.fetchStatus).toHaveBeenCalledTimes(2);
-		expect(activationMocks.fetchProgress).toHaveBeenCalledOnce();
+		expect(activationMocks.fetchProgress).toHaveBeenCalledTimes(2);
 		await userEvent.click(screen.getByRole("button", { name: "Try again" }));
 		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
 		expect(activationMocks.advanceProgress).toHaveBeenCalledTimes(2);
