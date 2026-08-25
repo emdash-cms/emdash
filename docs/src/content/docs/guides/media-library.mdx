@@ -6,7 +6,7 @@ description: Upload and manage images and files in EmDash.
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 import mediaLibraryImg from "../../../assets/screenshots/admin-media-library.png";
 
-EmDash includes a media library for managing images, documents, and other files. This guide covers uploading, organizing, and using media in your content.
+EmDash includes a media library for managing images, documents, and other files. This guide covers uploading, finding, and using media in your content.
 
 ## Accessing the Media Library
 
@@ -255,9 +255,10 @@ EmDash installs an image endpoint that produces the resized variants on request.
 
 ## Media API
 
-Use the REST API to upload, list, update, and delete media from another application. The
-[media endpoint reference](/reference/rest-api/#media-endpoints) documents both the direct
-multipart upload and the upload target flow for local, R2, and S3-compatible storage.
+Use the REST API to upload, list, update, delete, and organize local media. The
+[media endpoint reference](/reference/rest-api/#media-endpoints) documents the direct multipart
+upload and upload target flows, request parameters, response shapes, permissions, and folder
+operations.
 
 ## Media Providers
 
