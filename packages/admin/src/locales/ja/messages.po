@@ -1346,7 +1346,7 @@ msgstr "送信前："
 #: packages/admin/src/components/settings/SeoSettings.tsx:233
 #: packages/admin/src/components/settings/SeoSettings.tsx:247
 msgid "Bing Verification"
-msgstr "Bing認証"
+msgstr "Bing Webmaster Tools"
 
 #: packages/admin/src/routes/bylines.tsx:496
 msgid "Bio"
@@ -4073,7 +4073,7 @@ msgstr "ダッシュボードへ"
 #: packages/admin/src/components/settings/SeoSettings.tsx:233
 #: packages/admin/src/components/settings/SeoSettings.tsx:239
 msgid "Google Verification"
-msgstr "Google認証"
+msgstr "Google Search Console"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:37
 msgid "GraphQL"
@@ -5165,11 +5165,11 @@ msgstr "メタディスクリプション"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:250
 msgid "Meta tag content for Bing Webmaster Tools verification"
-msgstr "Bingウェブマスターツール認証用メタタグの内容"
+msgstr "Bing Webmaster Toolsでサイトの所有権を確認するためのメタタグのcontent属性値を入力してください。"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:242
 msgid "Meta tag content for Google Search Console verification"
-msgstr "Google Search Console認証用メタタグの内容"
+msgstr "Google Search Consoleでサイトの所有権を確認するためのメタタグのcontent属性値を入力してください。"
 
 #: packages/admin/src/components/WordPressImport.tsx:1845
 msgid "Meta titles, descriptions, and social images"
@@ -8626,7 +8626,7 @@ msgstr "登録済みのパスキーで安全にサインインできます。"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:173
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
-msgstr "ページに画像がない場合のOpen Graph画像として使用されます。推奨サイズ：1200×630。"
+msgstr "ページに画像が設定されていない場合は、Open Graph用のデフォルト画像として使用されます。推奨サイズは1200×630ピクセルです。"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:828
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
