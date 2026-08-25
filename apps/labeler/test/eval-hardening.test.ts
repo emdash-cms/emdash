@@ -151,6 +151,7 @@ describe("promotion hardening", () => {
 				maxInvalidOutputs: 0,
 				maxModelErrors: 0,
 				maxBenignReviewRate: 0,
+				maxOutcomeMismatches: 0,
 				maxRepeatedRunDisagreementRate: 0,
 				maxP95LatencyMs: 1_000,
 				maxConfiguredUnits: 100,
@@ -159,6 +160,32 @@ describe("promotion hardening", () => {
 		);
 		expect(result.passed).toBe(false);
 		expect(result.failures).toContain("live usage is missing or invalid");
+	});
+
+	it("fails the budget when an outcome disagrees without a category mismatch", () => {
+		const mismatch = caseResult({
+			inputTokens: 1,
+			outputTokens: 1,
+			totalTokens: 2,
+			configuredUnits: 1,
+		});
+		mismatch.partition = "holdout";
+		mismatch.runs[0]!.actualOutcome = "review";
+		const metrics = calculateEvalMetrics([mismatch]);
+		expect(metrics.outcomeMismatches).toBe(1);
+		expect(
+			evaluateBudgets(metrics, {
+				maxFalseNegativesPerCategory: 0,
+				maxFalsePositivesPerCategory: 0,
+				maxInvalidOutputs: 0,
+				maxModelErrors: 0,
+				maxBenignReviewRate: 0,
+				maxOutcomeMismatches: 0,
+				maxRepeatedRunDisagreementRate: 0,
+				maxP95LatencyMs: 1_000,
+				maxConfiguredUnits: 10,
+			}),
+		).toEqual({ passed: false, failures: ["expected-outcome budget exceeded"] });
 	});
 
 	it("acquires the native Workers AI binding internally and rejects an AI override", async () => {

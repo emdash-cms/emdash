@@ -174,6 +174,58 @@ describe("media quarantine retention", () => {
 });
 
 describe("media quarantine write recovery", () => {
+	it("repairs and renews a ready claim whose R2 object disappeared", async () => {
+		const sha256 = await sha256Hex(MEDIA_BYTES);
+		const store = createR2MediaContentStore(env.MEDIA_QUARANTINE, env.DB);
+		const first = await store.put(mediaStoreInput(sha256));
+		const objectKey = first.contentRef.slice("r2://quarantine/".length);
+		await env.MEDIA_QUARANTINE.delete(objectKey);
+		await env.DB.prepare("UPDATE media_quarantine_objects SET expires_at = ? WHERE object_key = ?")
+			.bind("2026-08-25T00:00:00.000Z", objectKey)
+			.run();
+
+		await expect(store.put(mediaStoreInput(sha256))).resolves.toEqual(first);
+		expect(await env.MEDIA_QUARANTINE.get(objectKey).then((object) => object?.bytes())).toEqual(
+			MEDIA_BYTES,
+		);
+		const expiry = await env.DB.prepare(
+			"SELECT expires_at FROM media_quarantine_objects WHERE object_key = ?",
+		)
+			.bind(objectKey)
+			.first<string>("expires_at");
+		expect(Date.parse(expiry!)).toBeGreaterThan(Date.now());
+	});
+
+	it("does not purge an expired ready claim while an access lease is active", async () => {
+		const sha256 = await sha256Hex(MEDIA_BYTES);
+		const objectKey = `media/${sha256}/00000000-0000-4000-8000-000000000005`;
+		await env.MEDIA_QUARANTINE.put(objectKey, MEDIA_BYTES);
+		await env.DB.prepare(
+			`INSERT INTO media_quarantine_objects
+			 (object_key, idempotency_key, sha256, byte_length, created_at, expires_at,
+			  ready, lease_token, lease_expires_at)
+			 VALUES (?, 'active-ready', ?, ?, ?, ?, 1, 'reader', ?)`,
+		)
+			.bind(
+				objectKey,
+				sha256,
+				MEDIA_BYTES.byteLength,
+				"2026-08-01T00:00:00.000Z",
+				"2026-08-20T00:00:00.000Z",
+				"2026-08-25T00:05:00.000Z",
+			)
+			.run();
+
+		await expect(
+			purgeExpiredMediaQuarantine(
+				env.DB,
+				env.MEDIA_QUARANTINE,
+				new Date("2026-08-25T00:00:00.000Z"),
+			),
+		).resolves.toEqual({ deleted: 0, remaining: true });
+		expect(await env.MEDIA_QUARANTINE.head(objectKey)).not.toBeNull();
+	});
+
 	it("resumes the claimed object key after a crash before the R2 write", async () => {
 		const sha256 = await sha256Hex(MEDIA_BYTES);
 		const objectKey = `media/${sha256}/00000000-0000-4000-8000-000000000001`;

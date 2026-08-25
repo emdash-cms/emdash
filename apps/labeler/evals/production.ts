@@ -17,6 +17,8 @@ const FAILURE_CODE = "EVALUATION_FAILED";
 const FAILURE_SUMMARY = "Protected live evaluation could not be completed";
 const SHA256_HEX_RE = /^[a-f0-9]{64}$/;
 const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9._:-]{8,200}$/;
+const EVAL_RUN_LEASE_MS = 5 * 60 * 1_000;
+const EVAL_RUN_HEARTBEAT_MS = 30 * 1_000;
 
 export interface EvalRunInput {
 	actorDid: string;
@@ -52,12 +54,22 @@ export interface EvalRunRecord extends EvalRunInput {
 	completed?: CompletedEvalRun;
 	failureCode?: string;
 	failureSummary?: string;
+	leaseToken?: string;
+	leaseExpiresAt?: string;
 }
 
 export interface EvalRunStore {
-	claim(input: EvalRunInput): Promise<{ inserted: boolean; record: EvalRunRecord }>;
-	complete(id: number, completed: CompletedEvalRun, now: Date): Promise<void>;
-	fail(id: number, code: string, summary: string, now: Date): Promise<void>;
+	claim(
+		input: EvalRunInput,
+	): Promise<{ inserted: boolean; leaseToken: string; record: EvalRunRecord }>;
+	renew(id: number, leaseToken: string, now: Date): Promise<boolean>;
+	complete(
+		id: number,
+		leaseToken: string,
+		completed: CompletedEvalRun,
+		now: Date,
+	): Promise<boolean>;
+	fail(id: number, leaseToken: string, code: string, summary: string, now: Date): Promise<boolean>;
 }
 
 export class EvalRunInProgressError extends Error {
@@ -98,12 +110,19 @@ export async function runIdempotentLiveEvaluation(input: {
 	}
 	if (!claim.inserted) return replayEvalRun(claim.record);
 
+	const heartbeat = startEvalRunHeartbeat(input.store, claim.record.id, claim.leaseToken);
 	try {
 		const completed = await input.execute(claim.record.id);
+		if (!(await heartbeat.stop())) {
+			throw new EvalRunInProgressError("Evaluation lease ownership changed during execution");
+		}
 		validateCompletedEvalRun(completed);
-		await input.store.complete(claim.record.id, completed, new Date());
+		if (!(await input.store.complete(claim.record.id, claim.leaseToken, completed, new Date()))) {
+			throw new EvalRunInProgressError("Evaluation lease ownership changed before completion");
+		}
 		return { runId: claim.record.id, ...completed };
 	} catch (error) {
+		await heartbeat.stop();
 		console.error(
 			JSON.stringify({
 				message: "protected live evaluation failed",
@@ -111,7 +130,18 @@ export async function runIdempotentLiveEvaluation(input: {
 				error: error instanceof Error ? error.message : String(error),
 			}),
 		);
-		await input.store.fail(claim.record.id, FAILURE_CODE, FAILURE_SUMMARY, new Date());
+		const failed = await input.store.fail(
+			claim.record.id,
+			claim.leaseToken,
+			FAILURE_CODE,
+			FAILURE_SUMMARY,
+			new Date(),
+		);
+		if (!failed) {
+			throw new EvalRunInProgressError(
+				"Evaluation lease ownership changed during failure handling",
+			);
+		}
 		throw new EvalRunFailedError(FAILURE_CODE, FAILURE_SUMMARY);
 	}
 }
@@ -120,20 +150,61 @@ export function createD1EvalRunStore(db: D1Database): EvalRunStore {
 	return {
 		async claim(input) {
 			const createdAt = input.now.toISOString();
+			const leaseToken = crypto.randomUUID();
+			const leaseExpiresAt = new Date(input.now.getTime() + EVAL_RUN_LEASE_MS).toISOString();
 			const inserted = await db
 				.prepare(
 					`INSERT INTO eval_runs
-					   (idempotency_key, actor_did, actor_role, reason, status, created_at, updated_at)
-					 VALUES (?, ?, ?, ?, 'running', ?, ?)
-					 ON CONFLICT(idempotency_key) DO NOTHING`,
+					   (idempotency_key, actor_did, actor_role, reason, status, created_at, updated_at,
+					    lease_token, lease_expires_at, attempt)
+					 VALUES (?, ?, ?, ?, 'running', ?, ?, ?, ?, 1)
+					 ON CONFLICT(idempotency_key) DO UPDATE SET
+					   lease_token = excluded.lease_token,
+					   lease_expires_at = excluded.lease_expires_at,
+					   updated_at = excluded.updated_at,
+					   attempt = eval_runs.attempt + 1
+					 WHERE eval_runs.status = 'running'
+					   AND eval_runs.actor_did = excluded.actor_did
+					   AND eval_runs.actor_role = excluded.actor_role
+					   AND eval_runs.reason = excluded.reason
+					   AND (eval_runs.lease_expires_at IS NULL
+					     OR eval_runs.lease_expires_at <= excluded.updated_at)`,
 				)
-				.bind(input.idempotencyKey, input.actorDid, input.role, input.reason, createdAt, createdAt)
+				.bind(
+					input.idempotencyKey,
+					input.actorDid,
+					input.role,
+					input.reason,
+					createdAt,
+					createdAt,
+					leaseToken,
+					leaseExpiresAt,
+				)
 				.run();
 			const record = await readEvalRun(db, input.idempotencyKey);
 			if (!record) throw new Error("evaluation run claim could not be read");
-			return { inserted: inserted.meta.changes === 1, record };
+			return {
+				inserted: inserted.meta.changes === 1 && record.leaseToken === leaseToken,
+				leaseToken,
+				record,
+			};
 		},
-		async complete(id, completed, now) {
+		async renew(id, leaseToken, now) {
+			const renewed = await db
+				.prepare(
+					`UPDATE eval_runs SET lease_expires_at = ?, updated_at = ?
+					 WHERE id = ? AND status = 'running' AND lease_token = ?`,
+				)
+				.bind(
+					new Date(now.getTime() + EVAL_RUN_LEASE_MS).toISOString(),
+					now.toISOString(),
+					id,
+					leaseToken,
+				)
+				.run();
+			return renewed.meta.changes === 1;
+		},
+		async complete(id, leaseToken, completed, now) {
 			const resultJson = JSON.stringify({
 				artifactKey: completed.artifactKey,
 				datasetHash: completed.datasetHash,
@@ -157,8 +228,9 @@ export function createD1EvalRunStore(db: D1Database): EvalRunStore {
 					 SET status = 'succeeded', artifact_key = ?, dataset_hash = ?, budget_passed = ?,
 					     candidate_hash = ?, baseline_run_id = ?, baseline_hash = ?,
 					     comparison_hash = ?, promotion_challenge_hash = ?, result_json = ?,
-					     comparison_json = ?, report_markdown = ?, updated_at = ?, completed_at = ?
-					 WHERE id = ? AND status = 'running'`,
+					     comparison_json = ?, report_markdown = ?, updated_at = ?, completed_at = ?,
+					     lease_token = NULL, lease_expires_at = NULL
+					 WHERE id = ? AND status = 'running' AND lease_token = ?`,
 				)
 				.bind(
 					completed.artifactKey,
@@ -175,23 +247,24 @@ export function createD1EvalRunStore(db: D1Database): EvalRunStore {
 					timestamp,
 					timestamp,
 					id,
+					leaseToken,
 				)
 				.run();
-			if (updated.meta.changes !== 1) {
-				throw new Error("evaluation run completion conflicted");
-			}
+			return updated.meta.changes === 1;
 		},
-		async fail(id, code, summary, now) {
+		async fail(id, leaseToken, code, summary, now) {
 			const timestamp = now.toISOString();
-			await db
+			const failed = await db
 				.prepare(
 					`UPDATE eval_runs
 					 SET status = 'failed', failure_code = ?, failure_summary = ?,
-					     updated_at = ?, completed_at = ?
-					 WHERE id = ? AND status = 'running'`,
+					     updated_at = ?, completed_at = ?, lease_token = NULL,
+					     lease_expires_at = NULL
+					 WHERE id = ? AND status = 'running' AND lease_token = ?`,
 				)
-				.bind(code, summary, timestamp, timestamp, id)
+				.bind(code, summary, timestamp, timestamp, id, leaseToken)
 				.run();
+			return failed.meta.changes === 1;
 		},
 	};
 }
@@ -296,7 +369,8 @@ async function readEvalRun(db: D1Database, idempotencyKey: string): Promise<Eval
 	const row = await db
 		.prepare(
 			`SELECT id, idempotency_key, actor_did, actor_role, reason, status, result_json,
-			        comparison_json, report_markdown, failure_code, failure_summary, created_at
+			        comparison_json, report_markdown, failure_code, failure_summary, created_at,
+			        lease_token, lease_expires_at
 			 FROM eval_runs WHERE idempotency_key = ?`,
 		)
 		.bind(idempotencyKey)
@@ -313,6 +387,8 @@ async function readEvalRun(db: D1Database, idempotencyKey: string): Promise<Eval
 			failure_code: string | null;
 			failure_summary: string | null;
 			created_at: string;
+			lease_token: string | null;
+			lease_expires_at: string | null;
 		}>();
 	if (!row) return null;
 	let completed: CompletedEvalRun | undefined;
@@ -340,6 +416,37 @@ async function readEvalRun(db: D1Database, idempotencyKey: string): Promise<Eval
 		...(completed ? { completed } : {}),
 		...(row.failure_code ? { failureCode: row.failure_code } : {}),
 		...(row.failure_summary ? { failureSummary: row.failure_summary } : {}),
+		...(row.lease_token ? { leaseToken: row.lease_token } : {}),
+		...(row.lease_expires_at ? { leaseExpiresAt: row.lease_expires_at } : {}),
+	};
+}
+
+function startEvalRunHeartbeat(
+	store: EvalRunStore,
+	id: number,
+	leaseToken: string,
+): {
+	stop(): Promise<boolean>;
+} {
+	let ownershipValid = true;
+	let renewals = Promise.resolve();
+	const timer = setInterval(() => {
+		renewals = renewals
+			.then(async () => {
+				if (!(await store.renew(id, leaseToken, new Date()))) ownershipValid = false;
+				return undefined;
+			})
+			.catch(() => {
+				ownershipValid = false;
+				return undefined;
+			});
+	}, EVAL_RUN_HEARTBEAT_MS);
+	return {
+		async stop() {
+			clearInterval(timer);
+			await renewals;
+			return ownershipValid;
+		},
 	};
 }
 
@@ -457,6 +564,7 @@ function validatePromotionComparison(
 	const requiredMetrics = [
 		"invalidOutputs",
 		"modelErrors",
+		"outcomeMismatches",
 		"repeatedRunDisagreements",
 		"p95LatencyMs",
 		"configuredUnits",

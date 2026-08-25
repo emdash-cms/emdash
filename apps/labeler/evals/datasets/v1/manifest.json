@@ -28,6 +28,7 @@
 		"maxInvalidOutputs": 0,
 		"maxModelErrors": 0,
 		"maxBenignReviewRate": 0,
+		"maxOutcomeMismatches": 0,
 		"maxRepeatedRunDisagreementRate": 0,
 		"maxP95LatencyMs": 15000,
 		"maxConfiguredUnits": 100000

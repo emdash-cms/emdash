@@ -97,6 +97,55 @@ describe("production live evaluation idempotency", () => {
 		});
 	});
 
+	it("takes over an expired running claim without creating a second row", async () => {
+		const store = createD1EvalRunStore(env.DB);
+		await store.claim({
+			...INPUT,
+			now: new Date("2026-08-24T12:00:00.000Z"),
+		});
+		const execute = vi.fn(async () => COMPLETED);
+		await expect(
+			runIdempotentLiveEvaluation({
+				store,
+				input: { ...INPUT, now: new Date("2026-08-25T12:00:00.000Z") },
+				execute,
+			}),
+		).resolves.toMatchObject(COMPLETED);
+		expect(execute).toHaveBeenCalledTimes(1);
+		expect(
+			await env.DB.prepare("SELECT COUNT(*) AS count FROM eval_runs").first<number>("count"),
+		).toBe(1);
+	});
+
+	it("fences an expired owner after a new owner takes over", async () => {
+		const store = createD1EvalRunStore(env.DB);
+		const expired = await store.claim({
+			...INPUT,
+			now: new Date("2026-08-24T12:00:00.000Z"),
+		});
+		const replacement = await store.claim({
+			...INPUT,
+			now: new Date("2026-08-25T12:00:00.000Z"),
+		});
+		expect(replacement.inserted).toBe(true);
+		await expect(
+			store.complete(
+				expired.record.id,
+				expired.leaseToken,
+				COMPLETED,
+				new Date("2026-08-25T12:01:00.000Z"),
+			),
+		).resolves.toBe(false);
+		await expect(
+			store.complete(
+				replacement.record.id,
+				replacement.leaseToken,
+				COMPLETED,
+				new Date("2026-08-25T12:01:00.000Z"),
+			),
+		).resolves.toBe(true);
+	});
+
 	it("persists bounded comparison and promotion-review state", async () => {
 		const store = createD1EvalRunStore(env.DB);
 		const baseline = await store.claim({
@@ -115,6 +164,7 @@ describe("production live evaluation idempotency", () => {
 			metricDelta: {
 				invalidOutputs: 0,
 				modelErrors: 0,
+				outcomeMismatches: 0,
 				repeatedRunDisagreements: 0,
 				p95LatencyMs: 2,
 				configuredUnits: 0,

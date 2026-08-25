@@ -220,6 +220,7 @@ export async function compareEvalBundles(
 		metricDelta: {
 			invalidOutputs: candidate.metrics.invalidOutputs - baseline.metrics.invalidOutputs,
 			modelErrors: candidate.metrics.modelErrors - baseline.metrics.modelErrors,
+			outcomeMismatches: candidate.metrics.outcomeMismatches - baseline.metrics.outcomeMismatches,
 			repeatedRunDisagreements:
 				candidate.metrics.repeatedRunDisagreements - baseline.metrics.repeatedRunDisagreements,
 			p95LatencyMs: candidate.metrics.latencyMs.p95 - baseline.metrics.latencyMs.p95,
@@ -243,6 +244,7 @@ export function renderEvalReport(bundle: EvalResultBundle): string {
 		`Cases: ${bundle.cases.length}; repeats: ${bundle.repeatCount}`,
 		`Budget result: ${bundle.budgetEvaluation.passed ? "pass" : "fail"}`,
 		`Invalid outputs: ${bundle.metrics.invalidOutputs}; model errors: ${bundle.metrics.modelErrors}`,
+		`Expected-outcome mismatches: ${bundle.metrics.outcomeMismatches}`,
 		`P95 latency: ${bundle.metrics.latencyMs.p95}ms; configured usage units: ${bundle.metrics.usage.configuredUnits}`,
 		...(failures ? ["", "## Budget failures", "", failures] : []),
 		"",

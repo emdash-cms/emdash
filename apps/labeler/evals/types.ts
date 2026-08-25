@@ -72,6 +72,7 @@ export interface EvalBudgets {
 	maxInvalidOutputs: number;
 	maxModelErrors: number;
 	maxBenignReviewRate: number;
+	maxOutcomeMismatches: number;
 	maxRepeatedRunDisagreementRate: number;
 	maxP95LatencyMs: number;
 	maxConfiguredUnits: number;
@@ -119,6 +120,7 @@ export interface EvalMetrics {
 	modelErrors: number;
 	coverageFailures: number;
 	invalidUsageRuns: number;
+	outcomeMismatches: number;
 	repeatedRunDisagreements: number;
 	repeatedRunDisagreementRate: number;
 	latencyMs: { p50: number; p95: number; max: number };
@@ -175,6 +177,7 @@ export interface EvalComparison {
 	metricDelta: {
 		invalidOutputs: number;
 		modelErrors: number;
+		outcomeMismatches: number;
 		repeatedRunDisagreements: number;
 		p95LatencyMs: number;
 		configuredUnits: number;

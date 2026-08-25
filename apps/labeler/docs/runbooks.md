@@ -510,7 +510,9 @@ The request claims its idempotency key before it reads the dataset or calls Work
 identical request with the same key if the response is lost. A retry while the first request is
 running returns `409 EVALUATION_RUNNING`. A completed retry returns the stored result without
 calling Workers AI again. A failed run returns `500 EVALUATION_FAILED` on every retry with that
-key; diagnose the failure and use a new key to start another run.
+key; diagnose the failure and use a new key to start another run. A running claim has a renewable
+lease. If the Worker terminates, retry the identical request after `lease_expires_at`; the retry
+claims a new attempt instead of leaving the idempotency key permanently stuck.
 
 The response includes `runId`, `artifactKey`, `datasetHash`, `budgetPassed`, `failures`,
 `candidateHash`, `promotionComparison`, and `report`. The first successful run for a dataset has
@@ -523,7 +525,7 @@ artifact remains in `emdash-labeler-eval-artifacts`. Inspect one run without ret
 artifact:
 
 ```sh
-pnpm --dir apps/labeler exec wrangler d1 execute emdash-labeler --remote --json --command "SELECT id, status, result_json, comparison_json, report_markdown, failure_code, failure_summary, created_at, completed_at FROM eval_runs WHERE id = REPLACE_WITH_RUN_ID"
+pnpm --dir apps/labeler exec wrangler d1 execute emdash-labeler --remote --json --command "SELECT id, status, attempt, lease_expires_at, result_json, comparison_json, report_markdown, failure_code, failure_summary, created_at, completed_at FROM eval_runs WHERE id = REPLACE_WITH_RUN_ID"
 ```
 
 The comparison and challenge hash do not authorize a promotion. A successful run also does not
@@ -776,8 +778,8 @@ the following signals:
 - Aggregator record or backfill messages exhaust retries and reach a dead-letter queue.
 - An `eval_runs` row remains `running` after the expected evaluation window or records a failed
   run.
-- The live evaluation reports model errors, invalid output, prohibited-content false negatives,
-  a failed budget, or a changed dataset hash.
+- The live evaluation reports model errors, invalid output, expected-outcome mismatches,
+  prohibited-content false negatives, a failed budget, or a changed dataset hash.
 
 Do not include raw metadata, model prompts or responses, Access assertions, email addresses,
 media bytes, or signing material in logs or alert payloads.

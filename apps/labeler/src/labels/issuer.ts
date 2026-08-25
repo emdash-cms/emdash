@@ -29,6 +29,9 @@ import type {
 } from "./types.js";
 import { validateListingLabelIssuance } from "./validation.js";
 
+const OPERATOR_DECISION_LEASE_MS = 5 * 60 * 1_000;
+const OPERATOR_DECISION_WAIT_MS = 10 * 1_000;
+
 export interface CreateD1ListingLabelIssuerInput extends CreateListingLabelSignerInput {
 	db: D1Database;
 	automationPolicyVersions: readonly string[];
@@ -293,66 +296,136 @@ class D1ListingLabelIssuer implements ListingLabelIssuer {
 	): Promise<IssuedListingDecision> {
 		const existingDecision = await this.readExistingDecision(action, context, subject);
 		if (existingDecision) return this.publishDecision(action, existingDecision);
-		const applicableTransitions = [];
-		for (const transition of transitions) {
-			if (
-				transition.negate !== true ||
-				(await this.isCurrentActiveExactLabel(subject, transition.value, createdAt))
-			) {
-				applicableTransitions.push(transition);
-			}
-		}
-		const prepared = await Promise.all(
-			applicableTransitions.map(async (transition, index) => {
-				const issuanceContext: OperatorIssuanceContext = {
-					...context,
-					idempotencyKey: `${context.idempotencyKey}:label:${index}`,
-					operatorAction: { action, idempotencyKey: context.idempotencyKey },
-				};
-				const proposal: ListingLabelProposal = {
-					subject,
-					value: transition.value,
-					...(transition.negate === true ? { negate: true } : {}),
-				};
-				const validated = validateListingLabelIssuance(
-					this.signer.issuerDid,
-					issuanceContext,
-					proposal,
-					createdAt,
-				);
-				return {
-					issuanceContext,
-					proposal,
-					label: await this.signer.sign(validated.label),
-				};
-			}),
-		);
-		const signingKeyId = `${this.signer.issuerDid}#atproto_label`;
-		const statementGroups = prepared.map(({ issuanceContext, proposal, label }) =>
-			this.operatorInserts(
-				issuanceContext,
-				proposal,
-				label,
-				signingKeyId,
-				createdAt,
-				proposal.negate === true,
-			),
-		);
-		const firstGroup = statementGroups[0];
-		if (!firstGroup) throw new Error("operator decision has no label transitions");
-		const statements = [firstGroup[0]!, ...statementGroups.map((group) => group[1]!)];
+		const leaseToken = await this.acquireOperatorDecisionLease(subject, createdAt);
 		try {
-			await this.db.batch(statements);
-		} catch (error) {
-			const existing = await this.readExistingDecision(action, context, subject);
-			if (!existing) throw error;
-			return this.publishDecision(action, existing);
+			const concurrentDecision = await this.readExistingDecision(action, context, subject);
+			if (concurrentDecision) return this.publishDecision(action, concurrentDecision);
+			const decisionTime = await this.strictlyLaterDecisionTime(subject, createdAt);
+			const applicableTransitions = [];
+			for (const transition of transitions) {
+				if (
+					transition.negate !== true ||
+					(await this.isCurrentActiveExactLabel(subject, transition.value, decisionTime))
+				) {
+					applicableTransitions.push(transition);
+				}
+			}
+			const prepared = await Promise.all(
+				applicableTransitions.map(async (transition, index) => {
+					const issuanceContext: OperatorIssuanceContext = {
+						...context,
+						idempotencyKey: `${context.idempotencyKey}:label:${index}`,
+						operatorAction: { action, idempotencyKey: context.idempotencyKey },
+					};
+					const proposal: ListingLabelProposal = {
+						subject,
+						value: transition.value,
+						...(transition.negate === true ? { negate: true } : {}),
+					};
+					const validated = validateListingLabelIssuance(
+						this.signer.issuerDid,
+						issuanceContext,
+						proposal,
+						decisionTime,
+					);
+					return {
+						issuanceContext,
+						proposal,
+						label: await this.signer.sign(validated.label),
+					};
+				}),
+			);
+			const signingKeyId = `${this.signer.issuerDid}#atproto_label`;
+			const statementGroups = prepared.map(({ issuanceContext, proposal, label }) =>
+				this.operatorInserts(
+					issuanceContext,
+					proposal,
+					label,
+					signingKeyId,
+					decisionTime,
+					proposal.negate === true,
+					leaseToken,
+				),
+			);
+			const firstGroup = statementGroups[0];
+			if (!firstGroup) throw new Error("operator decision has no label transitions");
+			const statements = [firstGroup[0]!, ...statementGroups.map((group) => group[1]!)];
+			try {
+				await this.db.batch(statements);
+			} catch (error) {
+				const existing = await this.readExistingDecision(action, context, subject);
+				if (!existing) throw error;
+				return this.publishDecision(action, existing);
+			}
+			const issued = await this.readDecision(prepared);
+			if (!issued) {
+				throw new TypeError("operator idempotency key is bound to an incompatible decision");
+			}
+			return this.publishDecision(action, issued);
+		} finally {
+			await this.releaseOperatorDecisionLease(subject, leaseToken);
 		}
-		const issued = await this.readDecision(prepared);
-		if (!issued) {
-			throw new TypeError("operator idempotency key is bound to an incompatible decision");
+	}
+
+	private async acquireOperatorDecisionLease(
+		subject: ExactListingSubject,
+		now: Date,
+	): Promise<string> {
+		const leaseToken = crypto.randomUUID();
+		const nowIso = now.toISOString();
+		const expiresAt = new Date(now.getTime() + OPERATOR_DECISION_LEASE_MS).toISOString();
+		const waitUntil = Date.now() + OPERATOR_DECISION_WAIT_MS;
+		for (;;) {
+			const acquired = await this.db
+				.prepare(
+					`INSERT INTO operator_decision_leases
+					   (subject_uri, subject_cid, lease_token, lease_expires_at)
+					 VALUES (?, ?, ?, ?)
+					 ON CONFLICT(subject_uri, subject_cid) DO UPDATE SET
+					   lease_token = excluded.lease_token,
+					   lease_expires_at = excluded.lease_expires_at
+					 WHERE operator_decision_leases.lease_expires_at <= ?`,
+				)
+				.bind(subject.uri, subject.cid, leaseToken, expiresAt, nowIso)
+				.run();
+			if (acquired.meta.changes === 1) return leaseToken;
+			if (Date.now() >= waitUntil) {
+				throw new TypeError("another operator decision is in progress for this subject");
+			}
+			await new Promise((resolve) => setTimeout(resolve, 10));
 		}
-		return this.publishDecision(action, issued);
+	}
+
+	private async releaseOperatorDecisionLease(
+		subject: ExactListingSubject,
+		leaseToken: string,
+	): Promise<void> {
+		await this.db
+			.prepare(
+				`DELETE FROM operator_decision_leases
+				 WHERE subject_uri = ? AND subject_cid = ? AND lease_token = ?`,
+			)
+			.bind(subject.uri, subject.cid, leaseToken)
+			.run();
+	}
+
+	private async strictlyLaterDecisionTime(
+		subject: ExactListingSubject,
+		requested: Date,
+	): Promise<Date> {
+		const latest = await this.db
+			.prepare(
+				`SELECT MAX(cts) AS cts FROM issued_labels
+				 WHERE src = ? AND uri = ? AND cid = ?
+				   AND val IN ('listing-passed', 'listing-overridden', 'listing-review',
+				               'listing-error', 'listing-blocked')`,
+			)
+			.bind(this.signer.issuerDid, subject.uri, subject.cid)
+			.first<string>("cts");
+		if (!latest) return requested;
+		const latestTime = Date.parse(latest);
+		if (Number.isNaN(latestTime)) throw new Error("stored decision label timestamp is invalid");
+		return requested.getTime() > latestTime ? requested : new Date(latestTime + 1);
 	}
 
 	private async readExistingDecision(
@@ -817,6 +890,7 @@ class D1ListingLabelIssuer implements ListingLabelIssuer {
 		signingKeyId: string,
 		createdAt: Date,
 		requireCurrentExactPositive = false,
+		decisionLeaseToken?: string,
 	): D1PreparedStatement[] {
 		const subjectCid = proposal.value === "!takedown" ? null : proposal.subject.cid;
 		const requireObservedSubject =
@@ -826,7 +900,13 @@ class D1ListingLabelIssuer implements ListingLabelIssuer {
 				`INSERT INTO operator_actions (
 					actor_did, actor_role, action, subject_uri, subject_cid, reason,
 					idempotency_key, created_at
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				)
+				SELECT ?, ?, ?, ?, ?, ?, ?, ?
+				WHERE ? IS NULL OR EXISTS (
+					SELECT 1 FROM operator_decision_leases lease
+					WHERE lease.subject_uri = ? AND lease.subject_cid = ?
+					  AND lease.lease_token = ?
+				)
 				ON CONFLICT(idempotency_key) DO NOTHING`,
 			)
 			.bind(
@@ -838,6 +918,10 @@ class D1ListingLabelIssuer implements ListingLabelIssuer {
 				context.reason,
 				context.operatorAction.idempotencyKey,
 				createdAt.toISOString(),
+				decisionLeaseToken ?? null,
+				proposal.subject.uri,
+				subjectCid,
+				decisionLeaseToken ?? null,
 			);
 		const issued = this.db
 			.prepare(

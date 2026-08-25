@@ -347,21 +347,24 @@ describe("D1 listing label issuer", () => {
 		expect(pass).toEqual({ cid: approvedCid, neg: 0 });
 	});
 
-	it("uses label creation time rather than commit sequence for the winning event", async () => {
+	it("uses serialized decision order when a requested creation time is stale", async () => {
 		const issuer = await createTestIssuer(env.DB);
 		const subject = {
 			...PROFILE_SUBJECT,
 			uri: `${PROFILE_SUBJECT.uri}-reordered-commit`,
 		};
-		await issuer.approve(
+		const approved = await issuer.approve(
 			decisionContext("reordered-approve"),
 			subject,
 			new Date("2026-08-24T14:00:00.000Z"),
 		);
-		await issuer.block(
+		const staleBlock = await issuer.block(
 			decisionContext("reordered-older-block"),
 			subject,
 			new Date("2026-08-24T13:00:00.000Z"),
+		);
+		expect(Date.parse(staleBlock.labels[0]!.label.cts)).toBeGreaterThan(
+			Date.parse(approved.labels[0]!.label.cts),
 		);
 		const decision = await issuer.block(
 			decisionContext("reordered-new-block"),
@@ -370,29 +373,74 @@ describe("D1 listing label issuer", () => {
 		);
 		expect(decision.labels.map((label) => [label.label.val, label.label.neg === true])).toEqual([
 			["listing-blocked", false],
-			["listing-passed", true],
-			["listing-overridden", true],
 		]);
 	});
 
-	it("fails closed when the maximum creation time has conflicting events", async () => {
+	it("serializes opposite decisions and advances their creation times", async () => {
 		const issuer = await createTestIssuer(env.DB);
 		const subject = {
 			...PROFILE_SUBJECT,
 			uri: `${PROFILE_SUBJECT.uri}-cts-collision`,
 		};
 		const collisionTime = new Date("2026-08-24T16:00:00.000Z");
-		await issuer.approve(decisionContext("collision-approve-one"), subject, collisionTime);
-		await issuer.block(decisionContext("collision-block-one"), subject, collisionTime);
-		await issuer.approve(decisionContext("collision-approve-two"), subject, collisionTime);
-		const decision = await issuer.block(
-			decisionContext("collision-block-two"),
+		const approved = await issuer.approve(
+			decisionContext("collision-approve-one"),
 			subject,
-			new Date("2026-08-24T17:00:00.000Z"),
+			collisionTime,
 		);
-		expect(decision.labels).toHaveLength(1);
-		expect(decision.labels[0]?.label.val).toBe("listing-blocked");
-		expect(decision.labels[0]?.label.neg).toBeUndefined();
+		const blocked = await issuer.block(
+			decisionContext("collision-block-one"),
+			subject,
+			collisionTime,
+		);
+		const approvedAgain = await issuer.approve(
+			decisionContext("collision-approve-two"),
+			subject,
+			collisionTime,
+		);
+		expect(Date.parse(blocked.labels[0]!.label.cts)).toBeGreaterThan(
+			Date.parse(approved.labels[0]!.label.cts),
+		);
+		expect(Date.parse(approvedAgain.labels[0]!.label.cts)).toBeGreaterThan(
+			Date.parse(blocked.labels[0]!.label.cts),
+		);
+
+		const rows = await env.DB.prepare(
+			`SELECT ver, src, uri, cid, val, neg, cts, exp
+			 FROM issued_labels WHERE uri = ? ORDER BY sequence`,
+		)
+			.bind(subject.uri)
+			.all<{
+				ver: 1;
+				src: string;
+				uri: string;
+				cid: string;
+				val: string;
+				neg: number;
+				cts: string;
+				exp: string | null;
+			}>();
+		const reduction = reduceListingLabels(
+			rows.results.map((row) => ({
+				ver: row.ver,
+				src: row.src,
+				uri: row.uri,
+				cid: row.cid,
+				val: row.val,
+				...(row.neg === 1 ? { neg: true } : {}),
+				cts: row.cts,
+				...(row.exp === null ? {} : { exp: row.exp }),
+			})),
+			approvedAgain.labels[0]!.label.cts,
+		);
+		expect(reduction.states.find(({ winner }) => winner.val === "listing-passed")).toMatchObject({
+			active: true,
+			collision: [],
+		});
+		expect(reduction.states.find(({ winner }) => winner.val === "listing-blocked")).toMatchObject({
+			active: false,
+			collision: [],
+		});
 	});
 
 	it("keeps committed labels pending when live publication fails", async () => {

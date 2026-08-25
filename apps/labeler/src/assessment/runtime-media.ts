@@ -109,19 +109,19 @@ export function createR2MediaContentStore(bucket: R2Bucket, db: D1Database): Med
 			}
 			if (!claim) throw new Error("display media storage claim was not persisted");
 			assertMediaClaimMatches(claim, input.sha256);
-			if (claim.ready) {
-				return settledMediaClaim(claim, input.sha256, input.contentAddress);
-			}
 			const leaseToken = crypto.randomUUID();
 			const leaseStartedAt = new Date();
 			const leaseExpiresAt = new Date(
 				leaseStartedAt.getTime() + MEDIA_CLAIM_LEASE_MS,
 			).toISOString();
+			const retentionExpiresAt = new Date(
+				leaseStartedAt.getTime() + MEDIA_RETENTION_MS,
+			).toISOString();
 			const acquired = await db
 				.prepare(
 					`UPDATE media_quarantine_objects
 					 SET lease_token = ?, lease_expires_at = ?
-					 WHERE object_key = ? AND idempotency_key = ? AND ready = 0
+					 WHERE object_key = ? AND idempotency_key = ?
 					   AND (lease_token IS NULL OR lease_expires_at <= ?)`,
 				)
 				.bind(
@@ -133,8 +133,6 @@ export function createR2MediaContentStore(bucket: R2Bucket, db: D1Database): Med
 				)
 				.run();
 			if (acquired.meta.changes !== 1) {
-				const current = await readMediaClaim(db, input.idempotencyKey);
-				if (current?.ready) return settledMediaClaim(current, input.sha256, input.contentAddress);
 				throw new Error("display media storage claim is leased by another recovery");
 			}
 			try {
@@ -155,16 +153,15 @@ export function createR2MediaContentStore(bucket: R2Bucket, db: D1Database): Med
 				const finalized = await db
 					.prepare(
 						`UPDATE media_quarantine_objects
-						 SET ready = 1, lease_token = NULL, lease_expires_at = NULL
-						 WHERE object_key = ? AND idempotency_key = ? AND ready = 0
-						   AND lease_token = ?`,
+						 SET ready = 1, expires_at = ?, lease_token = NULL, lease_expires_at = NULL
+						 WHERE object_key = ? AND idempotency_key = ? AND lease_token = ?`,
 					)
-					.bind(claim.objectKey, input.idempotencyKey, leaseToken)
+					.bind(retentionExpiresAt, claim.objectKey, input.idempotencyKey, leaseToken)
 					.run();
-				const settled = await readMediaClaim(db, input.idempotencyKey);
-				if (finalized.meta.changes !== 1 && !settled?.ready) {
+				if (finalized.meta.changes !== 1) {
 					throw new Error("display media storage claim lease was lost during recovery");
 				}
+				const settled = await readMediaClaim(db, input.idempotencyKey);
 				if (!settled) throw new Error("display media storage claim disappeared during recovery");
 				return settledMediaClaim(settled, input.sha256, input.contentAddress);
 			} finally {
@@ -172,7 +169,7 @@ export function createR2MediaContentStore(bucket: R2Bucket, db: D1Database): Med
 					.prepare(
 						`UPDATE media_quarantine_objects
 						 SET lease_token = NULL, lease_expires_at = NULL
-						 WHERE object_key = ? AND ready = 0 AND lease_token = ?`,
+						 WHERE object_key = ? AND lease_token = ?`,
 					)
 					.bind(claim.objectKey, leaseToken)
 					.run();
@@ -193,60 +190,53 @@ export async function purgeExpiredMediaQuarantine(
 	const nowIso = now.toISOString();
 	const rows = await db
 		.prepare(
-			`SELECT object_key, ready FROM media_quarantine_objects
+			`SELECT object_key FROM media_quarantine_objects
 			 WHERE expires_at <= ?
-			   AND (ready = 1 OR (ready = 0 AND (lease_token IS NULL OR lease_expires_at <= ?)))
+			   AND (lease_token IS NULL OR lease_expires_at <= ?)
 			 ORDER BY expires_at ASC, object_key ASC
 			 LIMIT ?`,
 		)
 		.bind(nowIso, nowIso, limit + 1)
-		.all<{ object_key: string; ready: number }>();
+		.all<{ object_key: string }>();
 	const selected = rows.results.slice(0, limit);
 	let deleted = 0;
 	for (const row of selected) {
-		const purgeToken = row.ready === 0 ? crypto.randomUUID() : null;
-		if (purgeToken) {
-			const claimed = await db
-				.prepare(
-					`UPDATE media_quarantine_objects
-					 SET lease_token = ?, lease_expires_at = ?
-					 WHERE object_key = ? AND ready = 0 AND expires_at <= ?
-					   AND (lease_token IS NULL OR lease_expires_at <= ?)`,
-				)
-				.bind(
-					purgeToken,
-					new Date(now.getTime() + MEDIA_CLAIM_LEASE_MS).toISOString(),
-					row.object_key,
-					nowIso,
-					nowIso,
-				)
-				.run();
-			if (claimed.meta.changes !== 1) continue;
-		}
+		const purgeToken = crypto.randomUUID();
+		const claimed = await db
+			.prepare(
+				`UPDATE media_quarantine_objects
+				 SET lease_token = ?, lease_expires_at = ?
+				 WHERE object_key = ? AND expires_at <= ?
+				   AND (lease_token IS NULL OR lease_expires_at <= ?)`,
+			)
+			.bind(
+				purgeToken,
+				new Date(now.getTime() + MEDIA_CLAIM_LEASE_MS).toISOString(),
+				row.object_key,
+				nowIso,
+				nowIso,
+			)
+			.run();
+		if (claimed.meta.changes !== 1) continue;
 		try {
 			await bucket.delete(row.object_key);
 			const removed = await db
 				.prepare(
-					purgeToken
-						? `DELETE FROM media_quarantine_objects
-						   WHERE object_key = ? AND ready = 0 AND expires_at <= ? AND lease_token = ?`
-						: `DELETE FROM media_quarantine_objects
-						   WHERE object_key = ? AND ready = 1 AND expires_at <= ?`,
+					`DELETE FROM media_quarantine_objects
+					 WHERE object_key = ? AND expires_at <= ? AND lease_token = ?`,
 				)
-				.bind(...(purgeToken ? [row.object_key, nowIso, purgeToken] : [row.object_key, nowIso]))
+				.bind(row.object_key, nowIso, purgeToken)
 				.run();
 			deleted += removed.meta.changes;
 		} catch (error) {
-			if (purgeToken) {
-				await db
-					.prepare(
-						`UPDATE media_quarantine_objects
-						 SET lease_token = NULL, lease_expires_at = NULL
-						 WHERE object_key = ? AND ready = 0 AND lease_token = ?`,
-					)
-					.bind(row.object_key, purgeToken)
-					.run();
-			}
+			await db
+				.prepare(
+					`UPDATE media_quarantine_objects
+					 SET lease_token = NULL, lease_expires_at = NULL
+					 WHERE object_key = ? AND lease_token = ?`,
+				)
+				.bind(row.object_key, purgeToken)
+				.run();
 			throw error;
 		}
 	}

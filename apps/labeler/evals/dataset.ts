@@ -311,6 +311,7 @@ function parseManifest(value: unknown): {
 			maxInvalidOutputs: budget("maxInvalidOutputs"),
 			maxModelErrors: budget("maxModelErrors"),
 			maxBenignReviewRate: budget("maxBenignReviewRate"),
+			maxOutcomeMismatches: budget("maxOutcomeMismatches"),
 			maxRepeatedRunDisagreementRate: budget("maxRepeatedRunDisagreementRate"),
 			maxP95LatencyMs: budget("maxP95LatencyMs"),
 			maxConfiguredUnits: budget("maxConfiguredUnits"),

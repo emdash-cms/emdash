@@ -497,6 +497,11 @@ export function calculateEvalMetrics(cases: readonly EvalCaseResult[]): EvalMetr
 		{ inputTokens: 0, outputTokens: 0, totalTokens: 0, configuredUnits: 0 },
 	);
 	const disagreements = cases.filter(({ disagreed }) => disagreed).length;
+	const outcomeMismatches = cases.reduce(
+		(total, item) =>
+			total + item.runs.filter((run) => run.actualOutcome !== item.expected.outcome).length,
+		0,
+	);
 	return {
 		categories,
 		reviewRateByPartition: Object.fromEntries(
@@ -511,6 +516,7 @@ export function calculateEvalMetrics(cases: readonly EvalCaseResult[]): EvalMetr
 			status === "complete" ? coveredEvidenceRefs.length === 0 : true,
 		).length,
 		invalidUsageRuns: allRuns.filter(({ usage: runUsage }) => !isCompleteUsage(runUsage)).length,
+		outcomeMismatches,
 		repeatedRunDisagreements: disagreements,
 		repeatedRunDisagreementRate: cases.length === 0 ? 0 : disagreements / cases.length,
 		latencyMs: {
@@ -543,6 +549,9 @@ export function evaluateBudgets(
 	if (metrics.modelErrors > budgets.maxModelErrors) failures.push("model-error budget exceeded");
 	if ((metrics.reviewRateByPartition["benign"] ?? 0) > budgets.maxBenignReviewRate) {
 		failures.push("benign review-rate budget exceeded");
+	}
+	if (metrics.outcomeMismatches > budgets.maxOutcomeMismatches) {
+		failures.push("expected-outcome budget exceeded");
 	}
 	if (metrics.repeatedRunDisagreementRate > budgets.maxRepeatedRunDisagreementRate) {
 		failures.push("repeated-run disagreement budget exceeded");
