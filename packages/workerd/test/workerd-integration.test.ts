@@ -9,6 +9,7 @@
  */
 
 import Database from "better-sqlite3";
+import { createSandboxRouteError } from "emdash";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
@@ -101,6 +102,17 @@ export default {
 				await new Promise(r => setTimeout(r, 60000));
 				return { done: true };
 			}
+		}
+	}
+};
+`;
+
+const CONTENT_WRITE_PLUGIN = `
+export default {
+	hooks: {},
+	routes: {
+		"write": {
+			handler: async (_routeCtx, ctx) => ctx.content.create("posts", { slug: "blocked" })
 		}
 	}
 };
@@ -293,6 +305,46 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 			).rejects.toThrow(/exceeded wall-time limit/);
 		} finally {
 			await slowRunner.terminateAll();
+		}
+	}, 30_000);
+
+	it("preserves a content-write fence through the sandbox route transport", async () => {
+		const fencedRunner = new WorkerdSandboxRunner({
+			db,
+			beforeContentWrite: async () => {
+				throw createSandboxRouteError("MEDIA_USAGE_ACTIVATION_IN_PROGRESS");
+			},
+		});
+
+		try {
+			const plugin = await fencedRunner.load(
+				{
+					id: "test-content-write",
+					version: "1.0.0",
+					capabilities: ["write:content"],
+					allowedHosts: [],
+					storage: {},
+				},
+				CONTENT_WRITE_PLUGIN,
+			);
+
+			await expect(
+				plugin.invokeRoute(
+					"write",
+					{},
+					{
+						method: "POST",
+						url: "/api/test",
+						headers: {},
+					},
+				),
+			).rejects.toMatchObject({
+				code: "MEDIA_USAGE_ACTIVATION_IN_PROGRESS",
+				message: "Media usage activation is in progress",
+				status: 503,
+			});
+		} finally {
+			await fencedRunner.terminateAll();
 		}
 	}, 30_000);
 

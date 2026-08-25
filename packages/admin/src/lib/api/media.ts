@@ -13,11 +13,15 @@ import {
 	type FindManyResult,
 } from "./client.js";
 
-/**
- * Maximum length of the media filename search term. Mirrors the server-side
- * zod schema (`q: z.string().trim().min(1).max(200)`); keep in sync.
- */
 export const MEDIA_SEARCH_MAX_LENGTH = 200;
+
+export interface MediaUploadOptions {
+	signal?: AbortSignal;
+}
+
+export interface UploadMediaOptions extends MediaUploadOptions {
+	fieldId?: string;
+}
 
 /** Trim and clamp a search term to the server-accepted range. */
 export function normalizeMediaSearch(value: string | undefined | null): string {
@@ -82,8 +86,8 @@ export async function fetchMediaList(options?: {
  * Used to resolve an id-only reference (e.g. a byline's `avatarMediaId`)
  * back into a full media item for display.
  */
-export async function fetchMediaItem(id: string): Promise<MediaItem> {
-	const response = await apiFetch(`${API_BASE}/media/${id}`);
+export async function fetchMediaItem(id: string, options?: MediaUploadOptions): Promise<MediaItem> {
+	const response = await apiFetch(`${API_BASE}/media/${id}`, { signal: options?.signal });
 	const data = await parseApiResponse<{ item: MediaItem }>(
 		response,
 		i18n._(msg`Failed to fetch media item`),
@@ -103,22 +107,53 @@ interface UploadUrlResponse {
 	expiresAt: string;
 }
 
+interface ExistingMediaResponse {
+	existing: true;
+	mediaId: string;
+	storageKey: string;
+	url: string;
+}
+
+const MAX_CLIENT_HASH_BYTES = 8 * 1024 * 1024;
+
+async function computeContentHash(file: File, signal?: AbortSignal): Promise<string | undefined> {
+	signal?.throwIfAborted();
+	const subtle = globalThis.crypto?.subtle;
+	if (!subtle || file.size === 0 || file.size > MAX_CLIENT_HASH_BYTES) return undefined;
+	try {
+		const bytes = await file.arrayBuffer();
+		signal?.throwIfAborted();
+		const hash = await subtle.digest("SHA-1", bytes);
+		signal?.throwIfAborted();
+		const hex = Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join(
+			"",
+		);
+		return `sha1:${hex}`;
+	} catch {
+		signal?.throwIfAborted();
+		return undefined;
+	}
+}
+
 /**
  * Try to get a signed upload URL
  * Returns null if signed URLs are not supported (e.g., local storage)
  */
 async function getUploadUrl(
 	file: File,
-	opts?: { fieldId?: string },
-): Promise<UploadUrlResponse | null> {
+	opts?: UploadMediaOptions,
+): Promise<UploadUrlResponse | ExistingMediaResponse | null> {
 	try {
+		const contentHash = await computeContentHash(file, opts?.signal);
 		const response = await apiFetch(`${API_BASE}/media/upload-url`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
+			signal: opts?.signal,
 			body: JSON.stringify({
 				filename: file.name,
 				contentType: file.type,
 				size: file.size,
+				...(contentHash ? { contentHash } : {}),
 				...(opts?.fieldId ? { fieldId: opts.fieldId } : {}),
 			}),
 		});
@@ -128,8 +163,12 @@ async function getUploadUrl(
 			return null;
 		}
 
-		return parseApiResponse<UploadUrlResponse>(response, i18n._(msg`Failed to get upload URL`));
+		return parseApiResponse<UploadUrlResponse | ExistingMediaResponse>(
+			response,
+			i18n._(msg`Failed to get upload URL`),
+		);
 	} catch (error) {
+		opts?.signal?.throwIfAborted();
 		// If the endpoint doesn't exist, fall back to direct upload
 		if (error instanceof TypeError && error.message.includes("fetch")) {
 			return null;
@@ -144,11 +183,13 @@ async function getUploadUrl(
 async function confirmUpload(
 	mediaId: string,
 	metadata?: { width?: number; height?: number; size?: number },
+	options?: MediaUploadOptions,
 ): Promise<MediaItem> {
 	const response = await apiFetch(`${API_BASE}/media/${mediaId}/confirm`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(metadata || {}),
+		signal: options?.signal,
 	});
 	const data = await parseApiResponse<{ item: MediaItem }>(
 		response,
@@ -160,7 +201,11 @@ async function confirmUpload(
 /**
  * Upload directly to signed URL
  */
-async function uploadToSignedUrl(file: File, uploadInfo: UploadUrlResponse): Promise<void> {
+async function uploadToSignedUrl(
+	file: File,
+	uploadInfo: UploadUrlResponse,
+	options?: MediaUploadOptions,
+): Promise<void> {
 	const response = await fetch(uploadInfo.uploadUrl, {
 		method: uploadInfo.method,
 		headers: {
@@ -168,6 +213,7 @@ async function uploadToSignedUrl(file: File, uploadInfo: UploadUrlResponse): Pro
 			"Content-Type": file.type,
 		},
 		body: file,
+		signal: options?.signal,
 	});
 
 	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to upload file`));
@@ -176,31 +222,52 @@ async function uploadToSignedUrl(file: File, uploadInfo: UploadUrlResponse): Pro
 /**
  * Get image dimensions from a file
  */
-async function getImageDimensions(file: File): Promise<{ width: number; height: number } | null> {
+async function getImageDimensions(
+	file: File,
+	options?: MediaUploadOptions,
+): Promise<{ width: number; height: number } | null> {
+	options?.signal?.throwIfAborted();
 	if (!file.type.startsWith("image/")) {
 		return null;
 	}
 
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
 		const img = new Image();
+		const objectUrl = URL.createObjectURL(file);
+		const cleanup = () => {
+			img.onload = null;
+			img.onerror = null;
+			options?.signal?.removeEventListener("abort", handleAbort);
+			URL.revokeObjectURL(objectUrl);
+		};
+		const handleAbort = () => {
+			cleanup();
+			reject(options?.signal?.reason);
+		};
 		img.onload = () => {
-			resolve({ width: img.naturalWidth, height: img.naturalHeight });
-			URL.revokeObjectURL(img.src);
+			const dimensions = { width: img.naturalWidth, height: img.naturalHeight };
+			cleanup();
+			resolve(dimensions);
 		};
 		img.onerror = () => {
+			cleanup();
 			resolve(null);
-			URL.revokeObjectURL(img.src);
 		};
-		img.src = URL.createObjectURL(file);
+		options?.signal?.addEventListener("abort", handleAbort, { once: true });
+		if (options?.signal?.aborted) {
+			handleAbort();
+			return;
+		}
+		img.src = objectUrl;
 	});
 }
 
 /**
  * Upload media file via direct upload (legacy/local storage)
  */
-async function uploadMediaDirect(file: File, opts?: { fieldId?: string }): Promise<MediaItem> {
+async function uploadMediaDirect(file: File, opts?: UploadMediaOptions): Promise<MediaItem> {
 	// Get image dimensions before upload
-	const dimensions = await getImageDimensions(file);
+	const dimensions = await getImageDimensions(file, opts);
 
 	const formData = new FormData();
 	formData.append("file", file);
@@ -212,6 +279,7 @@ async function uploadMediaDirect(file: File, opts?: { fieldId?: string }): Promi
 	const response = await apiFetch(`${API_BASE}/media`, {
 		method: "POST",
 		body: formData,
+		signal: opts?.signal,
 	});
 	const data = await parseApiResponse<{ item: MediaItem }>(
 		response,
@@ -226,7 +294,8 @@ async function uploadMediaDirect(file: File, opts?: { fieldId?: string }): Promi
  * Tries signed URL upload first (for S3/R2 storage), falls back to direct upload
  * (for local storage) if signed URLs are not supported.
  */
-export async function uploadMedia(file: File, opts?: { fieldId?: string }): Promise<MediaItem> {
+export async function uploadMedia(file: File, opts?: UploadMediaOptions): Promise<MediaItem> {
+	opts?.signal?.throwIfAborted();
 	// Try to get a signed upload URL
 	const uploadInfo = await getUploadUrl(file, opts);
 
@@ -234,19 +303,26 @@ export async function uploadMedia(file: File, opts?: { fieldId?: string }): Prom
 		// Signed URLs not supported, use direct upload
 		return uploadMediaDirect(file, opts);
 	}
+	if ("existing" in uploadInfo) {
+		return fetchMediaItem(uploadInfo.mediaId, opts);
+	}
 
 	// Upload directly to storage via signed URL
-	await uploadToSignedUrl(file, uploadInfo);
+	await uploadToSignedUrl(file, uploadInfo, opts);
 
 	// Get image dimensions for confirmation
-	const dimensions = await getImageDimensions(file);
+	const dimensions = await getImageDimensions(file, opts);
 
 	// Confirm the upload
-	return confirmUpload(uploadInfo.mediaId, {
-		size: file.size,
-		width: dimensions?.width,
-		height: dimensions?.height,
-	});
+	return confirmUpload(
+		uploadInfo.mediaId,
+		{
+			size: file.size,
+			width: dimensions?.width,
+			height: dimensions?.height,
+		},
+		opts,
+	);
 }
 
 /**
@@ -363,7 +439,9 @@ export async function uploadToProvider(
 	providerId: string,
 	file: File,
 	alt?: string,
+	options?: MediaUploadOptions,
 ): Promise<MediaProviderItem> {
+	options?.signal?.throwIfAborted();
 	const formData = new FormData();
 	formData.append("file", file);
 	if (alt) formData.append("alt", alt);
@@ -371,6 +449,7 @@ export async function uploadToProvider(
 	const response = await apiFetch(`${API_BASE}/media/providers/${providerId}`, {
 		method: "POST",
 		body: formData,
+		signal: options?.signal,
 	});
 	const data = await parseApiResponse<{ item: MediaProviderItem }>(
 		response,

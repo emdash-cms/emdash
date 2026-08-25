@@ -211,7 +211,21 @@ function CodeBlockNodeView({ node, updateAttributes, selected }: NodeViewProps) 
  * the editor's extensions array.
  */
 export const CodeBlockExtension = CodeBlock.extend({
+	addKeyboardShortcuts() {
+		const shortcuts = this.parent?.() ?? {};
+		const selectionIsInCodeBlock = () => {
+			const { $from, $to } = this.editor.state.selection;
+			return $from.parent.type === this.type && $from.sameParent($to);
+		};
+
+		return {
+			...shortcuts,
+			Tab: (props) => (selectionIsInCodeBlock() ? (shortcuts.Tab?.(props) ?? false) : false),
+			"Shift-Tab": (props) =>
+				selectionIsInCodeBlock() ? (shortcuts["Shift-Tab"]?.(props) ?? false) : false,
+		};
+	},
 	addNodeView() {
 		return ReactNodeViewRenderer(CodeBlockNodeView);
 	},
-});
+}).configure({ enableTabIndentation: true, tabSize: 4 });

@@ -5,6 +5,11 @@
  */
 
 import { sanitizeGalleryImages } from "./gallery.js";
+import {
+	UnsupportedPortableTextMarksError,
+	assertProseMirrorMarksSupported,
+} from "./mark-safety.js";
+import { readOrderedListMetadata, type OrderedListMetadata } from "./numbered-list.js";
 import type {
 	ProseMirrorDocument,
 	ProseMirrorNode,
@@ -33,11 +38,12 @@ export function prosemirrorToPortableText(doc: ProseMirrorDocument): PortableTex
 	if (!doc || doc.type !== "doc" || !doc.content) {
 		return [];
 	}
+	assertProseMirrorMarksSupported(doc);
 
 	const blocks: PortableTextBlock[] = [];
 
-	for (const node of doc.content) {
-		const converted = convertNode(node);
+	for (const [i, node] of doc.content.entries()) {
+		const converted = convertNode(node, `root:${i}`);
 		if (converted) {
 			if (Array.isArray(converted)) {
 				blocks.push(...converted);
@@ -53,7 +59,10 @@ export function prosemirrorToPortableText(doc: ProseMirrorDocument): PortableTex
 /**
  * Convert a single ProseMirror node to Portable Text block(s)
  */
-function convertNode(node: ProseMirrorNode): PortableTextBlock | PortableTextBlock[] | null {
+function convertNode(
+	node: ProseMirrorNode,
+	path: string,
+): PortableTextBlock | PortableTextBlock[] | null {
 	switch (node.type) {
 		case "paragraph":
 			return convertParagraph(node);
@@ -62,10 +71,10 @@ function convertNode(node: ProseMirrorNode): PortableTextBlock | PortableTextBlo
 			return convertHeading(node);
 
 		case "bulletList":
-			return convertList(node, "bullet");
+			return convertList(node, "bullet", path);
 
 		case "orderedList":
-			return convertList(node, "number");
+			return convertList(node, "number", path);
 
 		case "blockquote":
 			return convertBlockquote(node);
@@ -175,12 +184,14 @@ function convertHeading(node: ProseMirrorNode): PortableTextTextBlock | null {
 function convertList(
 	node: ProseMirrorNode,
 	listItem: "bullet" | "number",
+	path: string,
 ): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
+	const metadata = listItem === "number" ? readOrderedListMetadata(node.attrs, path) : undefined;
 
-	for (const item of node.content || []) {
+	for (const [i, item] of (node.content ?? []).entries()) {
 		if (item.type === "listItem") {
-			const itemBlocks = convertListItem(item, listItem, 1);
+			const itemBlocks = convertListItem(item, listItem, 1, `${path}:${i}`, metadata);
 			blocks.push(...itemBlocks);
 		}
 	}
@@ -195,10 +206,12 @@ function convertListItem(
 	item: ProseMirrorNode,
 	listItem: "bullet" | "number",
 	level: number,
+	path: string,
+	metadata?: OrderedListMetadata,
 ): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
 
-	for (const child of item.content || []) {
+	for (const [i, child] of (item.content ?? []).entries()) {
 		if (child.type === "paragraph") {
 			const { children, markDefs } = convertInlineContent(child.content || []);
 
@@ -209,14 +222,15 @@ function convertListItem(
 					style: "normal",
 					listItem,
 					level,
+					...metadata,
 					children,
 					markDefs: markDefs.length > 0 ? markDefs : undefined,
 				});
 			}
 		} else if (child.type === "bulletList") {
-			blocks.push(...convertListItemNested(child, "bullet", level + 1));
+			blocks.push(...convertListItemNested(child, "bullet", level + 1, `${path}:${i}`));
 		} else if (child.type === "orderedList") {
-			blocks.push(...convertListItemNested(child, "number", level + 1));
+			blocks.push(...convertListItemNested(child, "number", level + 1, `${path}:${i}`));
 		}
 	}
 
@@ -230,12 +244,14 @@ function convertListItemNested(
 	node: ProseMirrorNode,
 	listItem: "bullet" | "number",
 	level: number,
+	path: string,
 ): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
+	const metadata = listItem === "number" ? readOrderedListMetadata(node.attrs, path) : undefined;
 
-	for (const item of node.content || []) {
+	for (const [i, item] of (node.content ?? []).entries()) {
 		if (item.type === "listItem") {
-			blocks.push(...convertListItem(item, listItem, level));
+			blocks.push(...convertListItem(item, listItem, level, `${path}:${i}`, metadata));
 		}
 	}
 
@@ -424,6 +440,12 @@ function convertMark(
 		case "strikethrough":
 			return "strike-through";
 
+		case "subscript":
+			return "subscript";
+
+		case "superscript":
+			return "superscript";
+
 		case "code":
 			return "code";
 
@@ -449,7 +471,6 @@ function convertMark(
 		}
 
 		default:
-			// Unknown mark - preserve as-is
-			return mark.type;
+			throw new UnsupportedPortableTextMarksError([mark.type]);
 	}
 }

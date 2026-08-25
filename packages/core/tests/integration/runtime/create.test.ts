@@ -15,11 +15,13 @@ import { Kysely, sql, SqliteDialect } from "kysely";
 import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_COMMENT_MODERATOR_PLUGIN_ID } from "../../../src/comments/moderator.js";
+import { PendingMigrationsError } from "../../../src/database/migrations/policy.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import type { RuntimeDependencies } from "../../../src/emdash-runtime.js";
+import { getI18nConfig, setI18nConfig } from "../../../src/i18n/config.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import type { ContentBeforeSaveHandler } from "../../../src/plugins/types.js";
 import { runWithContext } from "../../../src/request-context.js";
@@ -112,6 +114,117 @@ describe("EmDashRuntime.create — cold boot", () => {
 			);
 		} finally {
 			await runtime.stopCron();
+		}
+	});
+
+	it("repairs historical locale casing from runtime configuration", async () => {
+		const previousI18nConfig = getI18nConfig();
+		setI18nConfig({ defaultLocale: "zh-TW", locales: ["en", "zh-TW"] });
+		const sqlite = new Database(":memory:");
+		const setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		await sql`
+			CREATE TABLE ec_post (
+				id TEXT PRIMARY KEY,
+				slug TEXT NOT NULL,
+				locale TEXT NOT NULL,
+				UNIQUE (slug, locale)
+			)
+		`.execute(setupDb);
+		await sql`INSERT INTO ec_post (id, slug, locale) VALUES ('post-1', 'guide', 'zh-tw')`.execute(
+			setupDb,
+		);
+		await new OptionsRepository(setupDb).set("emdash:setup_complete", true);
+
+		const deps = createDeps();
+		deps.createDialect = () => new SqliteDialect({ database: sqlite });
+		const timings: Array<{ name: string; dur: number; desc?: string }> = [];
+		const runtime = await EmDashRuntime.create(deps, timings);
+
+		try {
+			const row = await sql<{ locale: string }>`SELECT locale FROM ec_post`.execute(runtime.db);
+			expect(row.rows[0]?.locale).toBe("zh-TW");
+			expect(await new OptionsRepository(runtime.db).get("emdash:repair_locale_casing")).toBe(
+				"1:en,zh-TW",
+			);
+			expect(timings.map((timing) => timing.name)).toContain("rt.locale");
+		} finally {
+			await runtime.stopCron();
+			await setupDb.destroy();
+			setI18nConfig(previousI18nConfig);
+		}
+	});
+
+	it("repairs casing after configuration changes to a simple lowercase locale", async () => {
+		const previousI18nConfig = getI18nConfig();
+		setI18nConfig({ defaultLocale: "en", locales: ["en"] });
+		const sqlite = new Database(":memory:");
+		const setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		await sql`
+			CREATE TABLE ec_post (
+				id TEXT PRIMARY KEY,
+				slug TEXT NOT NULL,
+				locale TEXT NOT NULL,
+				UNIQUE (slug, locale)
+			)
+		`.execute(setupDb);
+		await sql`INSERT INTO ec_post (id, slug, locale) VALUES ('post-1', 'guide', 'EN')`.execute(
+			setupDb,
+		);
+		const options = new OptionsRepository(setupDb);
+		await options.set("emdash:setup_complete", true);
+		await options.set("emdash:repair_locale_casing", "1:EN");
+
+		const deps = createDeps();
+		deps.createDialect = () => new SqliteDialect({ database: sqlite });
+		const runtime = await EmDashRuntime.create(deps);
+
+		try {
+			const row = await sql<{ locale: string }>`SELECT locale FROM ec_post`.execute(runtime.db);
+			expect(row.rows[0]?.locale).toBe("en");
+			expect(await new OptionsRepository(runtime.db).get("emdash:repair_locale_casing")).toBe(
+				"1:en",
+			);
+		} finally {
+			await runtime.stopCron();
+			await setupDb.destroy();
+			setI18nConfig(previousI18nConfig);
+		}
+	});
+
+	it("warns about historical taxonomy locales when the operator manifest is built", async () => {
+		const previousI18nConfig = getI18nConfig();
+		setI18nConfig(null);
+		const sqlite = new Database(":memory:");
+		const setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		await new OptionsRepository(setupDb).set("emdash:setup_complete", true);
+		setI18nConfig({ defaultLocale: "ja", locales: ["ja"] });
+
+		const deps = createDeps();
+		deps.createDialect = () => new SqliteDialect({ database: sqlite });
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const runtime = await EmDashRuntime.create(deps);
+
+		try {
+			expect(warn).not.toHaveBeenCalled();
+			await runtime.getManifest();
+			expect(warn).toHaveBeenCalledWith(
+				expect.stringContaining("Taxonomy rows use locales outside the configured locales (ja)"),
+			);
+			expect(warn).toHaveBeenCalledWith(expect.stringContaining("definitions: en"));
+		} finally {
+			warn.mockRestore();
+			await runtime.stopCron();
+			await setupDb.destroy();
+			setI18nConfig(previousI18nConfig);
 		}
 	});
 
@@ -295,6 +408,31 @@ describe("EmDashRuntime.create — cold boot", () => {
 		// fail fast without building a new connection or touching the db.
 		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/backing off/i);
 		expect(dialectCalls).toBe(1);
+	});
+
+	it("rechecks pending migrations without entering migration-failure backoff", async () => {
+		let dialectCalls = 0;
+		const deps: RuntimeDependencies = {
+			...createDeps(),
+			migrationMode: "check",
+			createDialect: () => {
+				dialectCalls += 1;
+				return new SqliteDialect({ database: new Database(":memory:") });
+			},
+		};
+
+		await expect(EmDashRuntime.create(deps)).rejects.toBeInstanceOf(PendingMigrationsError);
+		await expect(EmDashRuntime.create(deps)).rejects.toBeInstanceOf(PendingMigrationsError);
+		expect(dialectCalls).toBe(2);
+	});
+
+	it("rejects an empty database in manual migration mode", async () => {
+		const deps: RuntimeDependencies = {
+			...createDeps(),
+			migrationMode: "manual",
+		};
+
+		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/no such table/i);
 	});
 
 	// A per-request isolated db (playground / DO preview) must never be

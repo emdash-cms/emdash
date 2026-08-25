@@ -49,6 +49,10 @@ import { extractBundle } from "../../plugins/marketplace.js";
 import type { PluginBundle } from "../../plugins/marketplace.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
+import {
+	removeAllPluginIndexes,
+	syncDeclaredStorageIndexes,
+} from "../../plugins/storage-indexes.js";
 import { declaredAccessToCapabilities } from "../../plugins/types.js";
 import type { DeclaredAccess } from "../../plugins/types.js";
 import {
@@ -1181,6 +1185,8 @@ export async function handleRegistryInstall(
 			throw stateErr;
 		}
 
+		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
+
 		return {
 			success: true,
 			data: {
@@ -1286,6 +1292,12 @@ export async function handleRegistryUninstall(
 
 		if (storage) {
 			await deleteBundleFromR2(storage, pluginId, version, "registry");
+		}
+
+		try {
+			await removeAllPluginIndexes(db, pluginId);
+		} catch {
+			// Nothing to drop, or tracking table predates the feature
 		}
 
 		await stateRepo.delete(pluginId);
@@ -1645,6 +1657,8 @@ export async function handleRegistryUpdate(
 			mcpToolsEnabled: false,
 			mcpToolsConsent: null,
 		});
+
+		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
 
 		// Best-effort cleanup of the old bundle. Failures here don't roll
 		// back the upgrade (the new bundle is already stored and committed

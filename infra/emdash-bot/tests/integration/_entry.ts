@@ -12,10 +12,29 @@
 
 import { Hono } from "hono";
 
+import type { ClassifierInput, ClassifyResult } from "../../.flue/lib/classifier-client.js";
+import { OrchestratorDO as ProductionOrchestratorDO } from "../../.flue/lib/orchestrator.js";
 import { registerCoreRoutes } from "../../.flue/routes.js";
 
 export { Sandbox, ContainerProxy } from "../../.flue/cloudflare.js";
-export { OrchestratorDO } from "../../.flue/lib/orchestrator.js";
+
+export class OrchestratorDO extends ProductionOrchestratorDO {
+	protected override requestClassification(input: ClassifierInput): Promise<ClassifyResult> {
+		if (input.comment === "classified-confirm") {
+			return Promise.resolve({
+				kind: "event",
+				event: "confirm",
+				arg: null,
+				reasoning: "test classification",
+			});
+		}
+		return Promise.resolve({ kind: "error", error: "classifier unavailable in workers-pool test" });
+	}
+
+	protected override deliverDeadlineWarning(): Promise<void> {
+		return Promise.resolve();
+	}
+}
 
 const app = registerCoreRoutes(new Hono<{ Bindings: Env }>());
 app.post("/agents/investigate/:id/abort", (context) =>

@@ -15,6 +15,20 @@ const UPLOAD_CTA_PATTERN = /Upload images, videos, and documents to keep reusabl
 const UPLOAD_TO_LIBRARY_PATTERN = /Upload to Library/;
 const UPLOAD_FILES_PATTERN = /Upload Files/;
 
+function setInputFiles(input: HTMLInputElement, files: File[]) {
+	const transfer = new DataTransfer();
+	for (const file of files) transfer.items.add(file);
+	input.files = transfer.files;
+	input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function dropFiles(target: EventTarget, files: File[]) {
+	const transfer = new DataTransfer();
+	for (const file of files) transfer.items.add(file);
+	target.dispatchEvent(new DragEvent("dragenter", { dataTransfer: transfer, bubbles: true }));
+	target.dispatchEvent(new DragEvent("drop", { dataTransfer: transfer, bubbles: true }));
+}
+
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
 	return {
@@ -159,15 +173,114 @@ describe("MediaLibrary", () => {
 	});
 
 	describe("upload", () => {
-		it("upload button triggers file input", async () => {
-			const screen = await renderLibrary();
-			// The upload button should be present
+		it("opens an empty upload dialog from the page action", async () => {
+			const onUpload = vi.fn();
+			const screen = await renderLibrary({ onUpload });
+
+			screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).element().click();
+
 			await expect
-				.element(screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }))
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
 				.toBeInTheDocument();
-			// Hidden file input should exist
-			const fileInput = screen.getByLabelText("Upload files");
-			await expect.element(fileInput).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Browse files", exact: true }))
+				.toBeInTheDocument();
+			expect(onUpload).not.toHaveBeenCalled();
+		});
+
+		it("opens the same empty dialog from the empty-state action", async () => {
+			const screen = await renderLibrary();
+
+			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).element().click();
+
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
+		});
+
+		it("opens the upload dialog and caps parallel uploads at three", async () => {
+			const pending: Array<{ file: File; resolve: () => void }> = [];
+			const onUpload = vi.fn(
+				(file: File, _options?: { signal?: AbortSignal }) =>
+					new Promise<void>((resolve) => {
+						pending.push({ file, resolve });
+					}),
+			);
+			const screen = await renderLibrary({ onUpload });
+			const files = ["one.jpg", "two.jpg", "three.jpg", "four.jpg"].map(
+				(name) => new File([name], name, { type: "image/jpeg" }),
+			);
+
+			screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).element().click();
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
+			setInputFiles(
+				screen.getByLabelText("Browse files to upload").element() as HTMLInputElement,
+				files,
+			);
+
+			await vi.waitFor(() => expect(onUpload).toHaveBeenCalledTimes(3));
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
+			await expect.element(screen.getByText("Queued", { exact: true })).toBeInTheDocument();
+
+			const firstSignal = onUpload.mock.calls[0]?.[1]?.signal;
+			screen.getByRole("button", { name: "Cancel one.jpg" }).element().click();
+			expect(firstSignal?.aborted).toBe(true);
+			await vi.waitFor(() => expect(onUpload).toHaveBeenCalledTimes(4));
+			pending.forEach(({ resolve }) => resolve());
+		});
+
+		it("clears the page overlay when a file drag leaves the window", async () => {
+			const screen = await renderLibrary();
+			const transfer = new DataTransfer();
+			transfer.items.add(new File(["image"], "dragged.jpg", { type: "image/jpeg" }));
+			window.dispatchEvent(new DragEvent("dragenter", { dataTransfer: transfer, bubbles: true }));
+			await expect.element(screen.getByText("Drop files to upload")).toBeInTheDocument();
+
+			window.dispatchEvent(new DragEvent("dragleave", { relatedTarget: null, bubbles: true }));
+
+			await vi.waitFor(() => expect(screen.getByText("Drop files to upload").query()).toBeNull());
+		});
+
+		it("opens the same direct-upload dialog for files dropped on the page", async () => {
+			const onUpload = vi.fn().mockResolvedValue(undefined);
+			const screen = await renderLibrary({ onUpload });
+			const files = [
+				new File(["image"], "dropped.jpg", { type: "image/jpeg" }),
+				new File(["pdf"], "notes.pdf", { type: "application/pdf" }),
+			];
+
+			dropFiles(window, files);
+
+			await vi.waitFor(() => expect(onUpload).toHaveBeenCalledTimes(2));
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
+		});
+
+		it("retries one failed file without restarting completed files", async () => {
+			const onUpload = vi
+				.fn<(file: File) => Promise<void>>()
+				.mockRejectedValueOnce(new Error("network"))
+				.mockResolvedValue(undefined);
+			const screen = await renderLibrary({ onUpload });
+
+			screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).element().click();
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
+			setInputFiles(screen.getByLabelText("Browse files to upload").element() as HTMLInputElement, [
+				new File(["broken"], "broken.jpg", { type: "image/jpeg" }),
+			]);
+
+			await expect.element(screen.getByText("Upload failed", { exact: true })).toBeInTheDocument();
+			screen.getByRole("button", { name: "Retry broken.jpg" }).element().click();
+
+			await vi.waitFor(() => expect(onUpload).toHaveBeenCalledTimes(2));
+			await expect.element(screen.getByText("Complete", { exact: true })).toBeInTheDocument();
 		});
 	});
 
@@ -357,9 +470,6 @@ describe("MediaLibrary", () => {
 		});
 
 		it("keeps already-loaded items visible while fetching the next page (isLoading=true with items)", async () => {
-			// Reproduces the Copilot review concern: when isLoading flips true
-			// during a Load-More fetch, the grid must not be blanked out into a
-			// centered spinner — already-rendered items should remain visible.
 			const items = [makeMediaItem({ id: "1", filename: "first-page.jpg" })];
 			const screen = await renderLibrary({
 				items,
@@ -441,6 +551,58 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("No media found")).toBeInTheDocument();
 			expect(screen.getByRole("tab", { name: "Grid view" }).query()).toBeNull();
 			expect(screen.getByRole("tab", { name: "List view" }).query()).toBeNull();
+		});
+	});
+
+	describe("provider items", () => {
+		const STREAM_SIZE = 75431883;
+		const STREAM_POSTER =
+			"https://customer-abc123.cloudflarestream.com/UID/thumbnails/thumbnail.jpg";
+
+		// A Cloudflare Stream item: not an image, poster in `previewUrl`, and the
+		// byte size reported only under `meta`.
+		function makeStreamProviderItem(overrides: Partial<MediaProviderItem> = {}): MediaProviderItem {
+			return {
+				id: "6a4677c7694f6e2e4270540231dd47ff",
+				filename: "webinar.mp4",
+				mimeType: "video/mp4",
+				previewUrl: STREAM_POSTER,
+				width: 1280,
+				height: 720,
+				meta: { size: STREAM_SIZE },
+				...overrides,
+			};
+		}
+
+		async function renderStreamTab(item: MediaProviderItem = makeStreamProviderItem()) {
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaProviders as any).mockResolvedValue([
+				{
+					id: "cloudflare-stream",
+					name: "Cloudflare Stream",
+					capabilities: { browse: true, search: false, upload: false, delete: false },
+				},
+			]);
+			(api.fetchProviderMedia as any).mockResolvedValue({ items: [item] });
+
+			const screen = await renderLibrary({ items: [] });
+			await screen.getByRole("tab", { name: "Cloudflare Stream" }).click();
+			return screen;
+		}
+
+		it("renders the provider poster for an item that is not an image", async () => {
+			const screen = await renderStreamTab();
+
+			const poster = screen.getByAltText("webinar.mp4");
+			await expect.element(poster).toBeInTheDocument();
+			expect(poster.element().getAttribute("src")).toBe(STREAM_POSTER);
+		});
+
+		it("shows a size the provider reports only under meta", async () => {
+			const screen = await renderStreamTab();
+			await screen.getByRole("tab", { name: "List view" }).click();
+
+			await expect.element(screen.getByText("71.9 MB")).toBeInTheDocument();
 		});
 	});
 });

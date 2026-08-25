@@ -10,14 +10,25 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
-import { fetchSection, updateSection, type Section, type UpdateSectionInput } from "../lib/api";
+import {
+	fetchManifest,
+	fetchSection,
+	updateSection,
+	type Section,
+	type UpdateSectionInput,
+} from "../lib/api";
+import { getPluginBlocks } from "../lib/pluginBlocks";
 import { slugify } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
 import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
 import { EditorHeader } from "./EditorHeader";
-import { PortableTextEditor, type BlockSidebarPanel } from "./PortableTextEditor";
+import {
+	PortableTextEditor,
+	type BlockSidebarPanel,
+	type PluginBlockDef,
+} from "./PortableTextEditor";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton";
 
@@ -37,6 +48,13 @@ export function SectionEditor() {
 		queryFn: () => fetchSection(slug),
 		staleTime: Infinity,
 	});
+
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+
+	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
 
 	const updateMutation = useMutation({
 		mutationFn: (input: UpdateSectionInput) => updateSection(slug, input),
@@ -76,7 +94,7 @@ export function SectionEditor() {
 						shape="square"
 						icon={<ArrowPrev />}
 					/>
-					<h1 className="text-2xl font-bold">{t`Section Not Found`}</h1>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Section Not Found`}</h1>
 				</div>
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<p className="text-kumo-subtle">
@@ -92,6 +110,7 @@ export function SectionEditor() {
 			key={section.updatedAt}
 			section={section}
 			isSaving={updateMutation.isPending}
+			pluginBlocks={pluginBlocks}
 			onSave={(input) => updateMutation.mutate(input)}
 		/>
 	);
@@ -100,10 +119,11 @@ export function SectionEditor() {
 interface SectionEditorFormProps {
 	section: Section;
 	isSaving: boolean;
+	pluginBlocks: PluginBlockDef[];
 	onSave: (input: UpdateSectionInput) => void;
 }
 
-function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps) {
+function SectionEditorForm({ section, isSaving, pluginBlocks, onSave }: SectionEditorFormProps) {
 	const { t } = useLingui();
 	const [title, setTitle] = React.useState(section.title);
 	const [sectionSlug, setSectionSlug] = React.useState(section.slug);
@@ -180,7 +200,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 				}
 				actions={<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />}
 			>
-				<h1 className="text-2xl font-bold truncate">{section.title}</h1>
+				<h1 className="truncate text-2xl font-semibold">{section.title}</h1>
 				<p className="text-sm text-kumo-subtle">
 					{section.source === "theme" ? t`Theme Section` : t`Custom Section`} &middot;{" "}
 					{section.slug}
@@ -196,6 +216,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 						<PortableTextEditor
 							value={content as Parameters<typeof PortableTextEditor>[0]["value"]}
 							onChange={(value) => setContent(value)}
+							pluginBlocks={pluginBlocks}
 							onBlockSidebarOpen={handleBlockSidebarOpen}
 							onBlockSidebarClose={handleBlockSidebarClose}
 						/>

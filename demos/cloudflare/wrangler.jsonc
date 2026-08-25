@@ -6,6 +6,12 @@
 	// disable_nodejs_process_v2 needed until unenv fix lands in Pages
 	// See: https://github.com/withastro/astro/issues/14511
 	"compatibility_flags": ["nodejs_compat", "disable_nodejs_process_v2"],
+	// Native Workers Caching (edge HTML in front of the Worker). No zone ID or
+	// Cache Purge API token. Pair with cacheCloudflare() in astro.config.mjs.
+	// Purge from the Worker with cache.purge() from cloudflare:workers.
+	"cache": {
+		"enabled": true,
+	},
 	// Static assets served from dist/
 	"routes": [
 		{
@@ -28,6 +34,10 @@
 			"bucket_name": "emdash-media",
 		},
 	],
+	// Cron trigger drives the AI Search reindex queue flush.
+	"triggers": {
+		"crons": ["* * * * *", "*/2 * * * *"],
+	},
 	// Observability
 	"observability": {
 		"enabled": true,
@@ -36,6 +46,12 @@
 	"worker_loaders": [
 		{
 			"binding": "LOADER",
+		},
+	],
+	"ai_search_namespaces": [
+		{
+			"binding": "AI_SEARCH",
+			"namespace": "default",
 		},
 	],
 }

@@ -6,19 +6,21 @@ import type {
 } from "../../database/repositories/media-usage.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
-import { hashString } from "../../utils/hash.js";
 import {
 	loadContentMediaUsageFields,
 	type ContentMediaUsageField,
 	type ContentMediaUsageFieldDiscovery,
 } from "./content-fields.js";
 import { extractMediaUsageOccurrences } from "./extractor.js";
+import { buildMediaUsageProjectionFingerprint } from "./projection-fingerprint.js";
 import {
 	buildContentMediaUsageSourceKey,
 	type MediaUsageContentSourceVariant,
 } from "./source-key.js";
+import { CONTENT_SOURCE_SCHEMA_VERSION } from "./types.js";
 
-export const CONTENT_SOURCE_SCHEMA_VERSION = 1;
+export { CONTENT_SOURCE_SCHEMA_VERSION } from "./types.js";
+const CONTENT_COLLECTION_ID_RESULT = "__emdash_media_usage_collection_id";
 
 const CONTENT_SYSTEM_COLUMNS = [
 	"id",
@@ -53,6 +55,12 @@ export interface ContentMediaUsageSnapshot {
 	source: MediaUsageSourceInput;
 	occurrences: MediaUsageOccurrenceInput[];
 	fields: readonly ContentMediaUsageField[];
+	projectionByteLength: number;
+}
+
+export interface LoadContentMediaUsageSnapshotsOptions {
+	collectionId?: string;
+	identityVersion?: number;
 }
 
 export async function loadContentMediaUsageSnapshots(
@@ -60,15 +68,26 @@ export async function loadContentMediaUsageSnapshots(
 	collectionSlug: string,
 	contentId: string,
 	fieldDiscovery?: ContentMediaUsageFieldDiscovery,
+	options: LoadContentMediaUsageSnapshotsOptions = {},
 ): Promise<LoadContentMediaUsageSnapshotsResult> {
 	validateIdentifier(collectionSlug, "collection slug");
+	if (options.identityVersion !== undefined && !options.collectionId) {
+		throw new Error("Canonical media usage snapshots require a collection identity");
+	}
 	const discovery = fieldDiscovery ?? (await loadContentMediaUsageFields(db, collectionSlug));
-	const row = await loadContentRow(db, collectionSlug, contentId, [
-		...discovery.extractionFields.map((field) => field.slug),
-		...discovery.displayFieldSlugs,
-	]);
+	const row = await loadContentRow(
+		db,
+		collectionSlug,
+		contentId,
+		[...discovery.extractionFields.map((field) => field.slug), ...discovery.displayFieldSlugs],
+		options.collectionId,
+	);
 
 	if (!row) return { success: false, error: "CONTENT_NOT_FOUND" };
+	const collectionId = readString(row[CONTENT_COLLECTION_ID_RESULT]);
+	if (!collectionId) {
+		throw new Error("Media usage snapshot query did not return a collection identity");
+	}
 
 	const columnsData = projectData(
 		row,
@@ -80,32 +99,37 @@ export async function loadContentMediaUsageSnapshots(
 		data: columnsData,
 	});
 	const columnsRevisionId = readNullableString(row.live_revision_id);
-	const columnsFingerprint = await buildSourceFingerprint({
+	const columnsSource = buildContentSource({
+		collectionId: options.collectionId,
 		collectionSlug,
+		identityVersion: options.identityVersion,
+		row,
+		displayData,
 		sourceVariant: "columns",
 		revisionId: columnsRevisionId,
-		fields: discovery.extractionFields,
-		data: columnsData,
 	});
+	const columnsProjection = await buildMediaUsageProjectionFingerprint({
+		collectionId,
+		source: columnsSource,
+		occurrences,
+		extractionFields: discovery.extractionFields,
+	});
+	columnsSource.sourceFingerprint = columnsProjection.fingerprint;
 	const snapshots: ContentMediaUsageSnapshot[] = [
 		{
-			source: buildContentSource({
-				collectionSlug,
-				row,
-				displayData,
-				sourceVariant: "columns",
-				revisionId: columnsRevisionId,
-				sourceFingerprint: columnsFingerprint,
-			}),
+			source: columnsSource,
 			occurrences,
 			fields: discovery.extractionFields,
+			projectionByteLength: columnsProjection.byteLength,
 		},
 	];
 
 	const draftRevisionId = readNullableString(row.draft_revision_id);
 	if (draftRevisionId) {
 		const attemptedDraftSource = buildContentSource({
+			collectionId: options.collectionId,
 			collectionSlug,
+			identityVersion: options.identityVersion,
 			row,
 			displayData,
 			sourceVariant: "draft_overlay",
@@ -146,28 +170,32 @@ export async function loadContentMediaUsageSnapshots(
 		};
 		const draftContentSlug =
 			readNullableString(revision.data._slug) ?? readNullableString(row.slug);
-		const draftFingerprint = await buildSourceFingerprint({
-			collectionSlug,
-			sourceVariant: "draft_overlay",
-			revisionId: draftRevisionId,
+		const draftOccurrences = extractMediaUsageOccurrences({
 			fields: discovery.extractionFields,
 			data: draftOverlayData,
 		});
+		const draftSource = buildContentSource({
+			collectionId: options.collectionId,
+			collectionSlug,
+			identityVersion: options.identityVersion,
+			row,
+			displayData: draftDisplayData,
+			sourceVariant: "draft_overlay",
+			revisionId: draftRevisionId,
+			contentSlug: draftContentSlug,
+		});
+		const draftProjection = await buildMediaUsageProjectionFingerprint({
+			collectionId,
+			source: draftSource,
+			occurrences: draftOccurrences,
+			extractionFields: discovery.extractionFields,
+		});
+		draftSource.sourceFingerprint = draftProjection.fingerprint;
 		snapshots.push({
-			source: buildContentSource({
-				collectionSlug,
-				row,
-				displayData: draftDisplayData,
-				sourceVariant: "draft_overlay",
-				revisionId: draftRevisionId,
-				contentSlug: draftContentSlug,
-				sourceFingerprint: draftFingerprint,
-			}),
-			occurrences: extractMediaUsageOccurrences({
-				fields: discovery.extractionFields,
-				data: draftOverlayData,
-			}),
+			source: draftSource,
+			occurrences: draftOccurrences,
 			fields: discovery.extractionFields,
+			projectionByteLength: draftProjection.byteLength,
 		});
 	}
 
@@ -189,14 +217,20 @@ async function loadContentRow(
 	collectionSlug: string,
 	contentId: string,
 	fieldSlugs: readonly string[],
+	expectedCollectionId?: string,
 ): Promise<Record<string, unknown> | null> {
 	const tableName = getContentTableName(collectionSlug);
 	const columns = uniqueColumns([...CONTENT_SYSTEM_COLUMNS, ...fieldSlugs]);
-	const columnRefs = columns.map((column) => sql.ref(column));
+	const columnRefs = columns.map((column) => sql.ref(`content.${column}`));
 	const result = await sql<Record<string, unknown>>`
-		SELECT ${sql.join(columnRefs, sql`, `)}
-		FROM ${sql.ref(tableName)}
-		WHERE id = ${contentId}
+		SELECT
+			${sql.join(columnRefs, sql`, `)},
+			collection.id AS __emdash_media_usage_collection_id
+		FROM ${sql.ref(tableName)} AS content
+		INNER JOIN _emdash_collections AS collection
+			ON collection.slug = ${collectionSlug}
+			${expectedCollectionId ? sql`AND collection.id = ${expectedCollectionId}` : sql``}
+		WHERE content.id = ${contentId}
 		LIMIT 1
 	`.execute(db);
 
@@ -227,24 +261,35 @@ async function loadRevisionRow(
 }
 
 function buildContentSource(input: {
+	collectionId?: string;
 	collectionSlug: string;
+	identityVersion?: number;
 	row: Record<string, unknown>;
 	displayData: Record<string, unknown>;
 	sourceVariant: MediaUsageContentSourceVariant;
 	revisionId: string | null;
 	contentSlug?: string | null;
-	sourceFingerprint?: string | null;
 }): MediaUsageSourceInput {
-	const { collectionSlug, row, displayData, sourceVariant, revisionId } = input;
+	const {
+		collectionId,
+		collectionSlug,
+		identityVersion,
+		row,
+		displayData,
+		sourceVariant,
+		revisionId,
+	} = input;
 	const contentId = readString(row.id) ?? "";
 	const contentSlug = input.contentSlug ?? readNullableString(row.slug);
 	const source: MediaUsageSourceInput = {
 		sourceKey: buildContentMediaUsageSourceKey({
+			collectionId,
 			collectionSlug,
 			contentId,
 			sourceVariant,
 		}),
 		sourceType: "content",
+		collectionId,
 		collectionSlug,
 		contentId,
 		sourceVariant,
@@ -259,74 +304,9 @@ function buildContentSource(input: {
 		schemaVersion: CONTENT_SOURCE_SCHEMA_VERSION,
 		sourceUpdatedAt: readNullableString(row.updated_at),
 		sourceVersion: readNumber(row.version),
+		identityVersion,
 	};
-	if (input.sourceFingerprint !== undefined) source.sourceFingerprint = input.sourceFingerprint;
 	return source;
-}
-
-async function buildSourceFingerprint(input: {
-	collectionSlug: string;
-	sourceVariant: MediaUsageContentSourceVariant;
-	revisionId: string | null;
-	fields: readonly ContentMediaUsageField[];
-	data: Record<string, unknown>;
-}): Promise<string> {
-	return hashString(
-		canonicalJson({
-			schemaVersion: CONTENT_SOURCE_SCHEMA_VERSION,
-			collectionSlug: input.collectionSlug,
-			sourceVariant: input.sourceVariant,
-			fields: normalizeFingerprintFields(input.fields),
-			values: projectFingerprintData(input.data, input.fields),
-			revisionId: input.sourceVariant === "draft_overlay" ? input.revisionId : null,
-		}),
-	);
-}
-
-function normalizeFingerprintFields(
-	fields: readonly ContentMediaUsageField[],
-): Record<string, unknown>[] {
-	return fields
-		.map((field) => {
-			if (field.type !== "repeater") return { slug: field.slug, type: field.type };
-			return {
-				slug: field.slug,
-				type: field.type,
-				subFields: (field.validation?.subFields ?? [])
-					.map((subField) => ({ slug: subField.slug, type: subField.type }))
-					.toSorted((a, b) => a.slug.localeCompare(b.slug)),
-			};
-		})
-		.toSorted((a, b) => String(a.slug).localeCompare(String(b.slug)));
-}
-
-function projectFingerprintData(
-	data: Record<string, unknown>,
-	fields: readonly ContentMediaUsageField[],
-): Record<string, unknown> {
-	const projected: Record<string, unknown> = {};
-	for (const field of fields) {
-		projected[field.slug] = Object.hasOwn(data, field.slug) ? data[field.slug] : null;
-	}
-	return projected;
-}
-
-function canonicalJson(value: unknown): string {
-	return JSON.stringify(canonicalize(value));
-}
-
-function canonicalize(value: unknown): unknown {
-	if (value === undefined) return null;
-	if (typeof value === "bigint") return value.toString();
-	if (typeof value === "number") return Number.isFinite(value) ? value : null;
-	if (Array.isArray(value)) return value.map((item) => canonicalize(item));
-	if (!isRecord(value)) return value;
-
-	const canonical: Record<string, unknown> = {};
-	for (const key of Object.keys(value).toSorted()) {
-		canonical[key] = canonicalize(value[key]);
-	}
-	return canonical;
 }
 
 function projectData(

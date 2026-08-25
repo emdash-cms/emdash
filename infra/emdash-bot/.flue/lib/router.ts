@@ -14,9 +14,11 @@ import {
 	findTransition,
 	KINDS,
 	STATES,
+	transitionTarget,
 	type Actor,
 	type EventId,
 	type Kind,
+	type RunMode,
 	type StateId,
 } from "./machine.js";
 
@@ -178,6 +180,23 @@ export interface ResolveInput {
 	event: EventId;
 	arg?: string | null;
 	actor?: Actor | "other";
+	resumeState?: StateId;
+	retryMode?: InvestigationMode;
+}
+
+function failedWriteRetry(mode: InvestigationMode | undefined): {
+	to: StateId;
+	action: string;
+} | null {
+	switch (mode) {
+		case "implement":
+		case "fix":
+			return { to: "fixing", action: `investigate.${mode}` };
+		case "revise":
+			return { to: "working", action: "investigate.revise" };
+		default:
+			return null;
+	}
 }
 
 /**
@@ -187,7 +206,14 @@ export interface ResolveInput {
  * handler, Orchestrator DO) is responsible for actor classification but the
  * router enforces that the event's `actors` list includes the caller.
  */
-export function resolve({ labels, event, arg, actor }: ResolveInput): Decision {
+export function resolve({
+	labels,
+	event,
+	arg,
+	actor,
+	resumeState,
+	retryMode,
+}: ResolveInput): Decision {
 	const from = currentState(labels);
 	const meta = EVENTS[event];
 	if (!meta) return { kind: "noop", reason: `unknown event "${event}"` };
@@ -218,7 +244,12 @@ export function resolve({ labels, event, arg, actor }: ResolveInput): Decision {
 	if (!from) return { kind: "noop", reason: "item has conflicting state labels" };
 	const t = findTransition(from, event);
 	if (!t) return { kind: "noop", reason: `no transition for ${from} + ${event}`, from };
-	const toLabel = STATES[t.to].label;
+	const retry = from === "failed" && event === "retry" ? failedWriteRetry(retryMode) : null;
+	const to =
+		event === "resume" && resumeState
+			? resumeState
+			: (retry?.to ?? transitionTarget(t, currentKind(labels)));
+	const toLabel = STATES[to].label;
 	const removeLabels = STATE_LABELS.filter((l) => l !== toLabel);
 
 	// Entry from unmanaged or triage: ensure the kind label matches the verb.
@@ -243,8 +274,8 @@ export function resolve({ labels, event, arg, actor }: ResolveInput): Decision {
 	return {
 		kind: "transition",
 		from,
-		to: t.to,
-		action: t.action ?? null,
+		to,
+		action: retry?.action ?? t.action ?? null,
 		addLabel: toLabel,
 		addLabels,
 		removeLabels,
@@ -323,12 +354,14 @@ export function replyFooter(state: StateId | null): string {
 export interface AgentResult {
 	skipped?: boolean;
 	reproduced?: boolean;
+	rootCauseFound?: boolean;
 	fixed?: boolean;
+	implemented?: boolean;
 	verdict?: string;
 	[key: string]: unknown;
 }
 
-export type InvestigationMode = "repro" | "implement" | "revise";
+export type InvestigationMode = RunMode;
 
 /**
  * Map the investigate agent's flat result to a machine event. Deterministic
@@ -337,6 +370,9 @@ export type InvestigationMode = "repro" | "implement" | "revise";
  * - `ok` is false when the run errored or produced no parseable result.
  * - `pushed` is the trusted push step's report. A model claim of `fixed: true`
  *   is only "fix_ready" when a branch actually exists.
+ * - `diagnose` (investigation) lands on a verdict and never a fix; `unclear`
+ *   becomes `needs_info`. `fix` (the fix loop) only advances when a candidate
+ *   was built AND pushed.
  */
 export function outcomeFromResult({
 	ok,
@@ -353,7 +389,20 @@ export function outcomeFromResult({
 	if (result.skipped === true) return "agent.skipped";
 	if (result.verdict === "intended-behavior") return "agent.by_design";
 	const effectiveMode = mode ?? "repro";
-	if (effectiveMode === "repro" && result.reproduced !== true) return "agent.not_reproduced";
+	if (effectiveMode === "diagnose") {
+		if (result.verdict === "unclear") return "agent.needs_info";
+		if (result.reproduced === true) return "agent.reproduced";
+		return result.rootCauseFound === true ? "agent.diagnosed" : "agent.not_reproduced";
+	}
+	if (effectiveMode === "fix") {
+		return result.fixed === true && pushed === true ? "agent.fix_ready" : "agent.failed";
+	}
+	if (effectiveMode === "implement") {
+		return result.implemented === true && pushed === true ? "agent.fix_ready" : "agent.failed";
+	}
+	if (effectiveMode === "repro" && result.reproduced !== true) {
+		return result.rootCauseFound === true ? "agent.diagnosed" : "agent.not_reproduced";
+	}
 	if (result.fixed === true) return pushed === true ? "agent.fix_ready" : "agent.failed";
 	return effectiveMode === "repro" ? "agent.reproduced" : "agent.failed";
 }

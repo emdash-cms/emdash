@@ -60,6 +60,24 @@ describe("SeoPanel", () => {
 		}
 	});
 
+	it("keeps the meta description field mounted while its character count updates", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="page-1"
+					seo={{ title: "", description: null, image: null, canonical: null, noIndex: false }}
+					onChange={() => {}}
+				/>
+			</QueryWrapper>,
+		);
+		const initialField = screen.getByLabelText("Meta Description").element();
+
+		await userEvent.type(initialField, "f");
+
+		expect(screen.getByLabelText("Meta Description").element()).toBe(initialField);
+		await expect.element(screen.getByText("1/160 characters")).toBeVisible();
+	});
+
 	it("renders the existing OG image preview when set", async () => {
 		const screen = await render(
 			<QueryWrapper>
@@ -293,5 +311,42 @@ describe("SeoPanel", () => {
 		await new Promise((resolve) => setTimeout(resolve, 700));
 		expect(onChange).toHaveBeenCalledTimes(1);
 		expect(onChange.mock.lastCall?.[0]).toEqual(expectedSeo);
+	});
+	it("shows the derived title and description as placeholders", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="page-1"
+					seo={{ title: "", description: null, image: null, canonical: null, noIndex: false }}
+					onChange={() => {}}
+					defaultTitle="About us"
+					defaultDescription="Who we are and what we do."
+				/>
+			</QueryWrapper>,
+		);
+
+		await expect
+			.element(screen.getByLabelText("SEO Title"))
+			.toHaveAttribute("placeholder", "About us");
+		await expect
+			.element(screen.getByLabelText("Meta Description"))
+			.toHaveAttribute("placeholder", "Who we are and what we do.");
+	});
+
+	it("omits placeholders when there is nothing to derive from", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="page-1"
+					seo={{ title: "", description: null, image: null, canonical: null, noIndex: false }}
+					onChange={() => {}}
+				/>
+			</QueryWrapper>,
+		);
+
+		await expect.element(screen.getByLabelText("SEO Title")).not.toHaveAttribute("placeholder");
+		await expect
+			.element(screen.getByLabelText("Meta Description"))
+			.not.toHaveAttribute("placeholder");
 	});
 });

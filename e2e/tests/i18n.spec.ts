@@ -108,7 +108,7 @@ test.describe("i18n", () => {
 			await admin.waitForLoading();
 
 			// The "current" marker should appear next to EN
-			const currentMarker = admin.page.locator("span.text-kumo-brand", {
+			const currentMarker = admin.page.locator("span.text-kumo-link", {
 				hasText: "current",
 			});
 			await expect(currentMarker).toBeVisible();

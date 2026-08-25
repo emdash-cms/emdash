@@ -117,14 +117,14 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 						<img src={thumbnailUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
 					) : (
 						<div className="flex h-16 w-16 items-center justify-center rounded-lg bg-kumo-brand/10">
-							<Palette className="h-8 w-8 text-kumo-brand" />
+							<Palette className="h-8 w-8 text-kumo-link" />
 						</div>
 					)}
 					<div>
-						<h1 className="text-2xl font-bold">{theme.name}</h1>
+						<h1 className="text-2xl font-semibold leading-tight">{theme.name}</h1>
 						<div className="mt-1 flex items-center gap-2 text-sm text-kumo-subtle">
 							<span>{theme.author.name}</span>
-							{theme.author.verified && <ShieldCheck className="h-4 w-4 text-kumo-brand" />}
+							{theme.author.verified && <ShieldCheck className="h-4 w-4 text-kumo-link" />}
 						</div>
 						{theme.description && (
 							<p className="mt-2 text-sm text-kumo-subtle max-w-xl">{theme.description}</p>
@@ -214,7 +214,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 								href={theme.repositoryUrl}
 								target="_blank"
 								rel="noopener noreferrer"
-								className="inline-flex items-center gap-1.5 text-sm text-kumo-brand hover:underline"
+								className="inline-flex items-center gap-1.5 text-sm text-kumo-link hover:underline"
 							>
 								<GithubLogo className="h-4 w-4" />
 								{t`Repository`}
@@ -225,7 +225,7 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 								href={theme.homepageUrl}
 								target="_blank"
 								rel="noopener noreferrer"
-								className="inline-flex items-center gap-1.5 text-sm text-kumo-brand hover:underline"
+								className="inline-flex items-center gap-1.5 text-sm text-kumo-link hover:underline"
 							>
 								<Globe className="h-4 w-4" />
 								{t`Homepage`}

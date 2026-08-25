@@ -114,8 +114,8 @@ describeEachDialect("getTerm", (dialect) => {
 		expect(term?.label).toBe("Technology");
 		expect(term?.description).toBe("All things tech");
 		expect(Number(term?.count)).toBe(2);
-		// Children ordered by label
-		expect(term?.children.map((c) => c.slug)).toEqual(["ai", "web"]);
+		// Children in their manual order, which starts out as creation order
+		expect(term?.children.map((c) => c.slug)).toEqual(["web", "ai"]);
 		expect(term?.children.every((c) => c.parentId === parent.id)).toBe(true);
 	});
 

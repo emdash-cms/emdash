@@ -1,0 +1,32 @@
+---
+import { PortableText } from "emdash/ui";
+
+const aligned = ["center", "right", "justify"] as const;
+
+const value = [
+	...aligned.map((align) => ({
+		_type: "block",
+		_key: `align-${align}`,
+		style: "normal",
+		textAlign: align,
+		markDefs: [],
+		children: [{ _type: "span", _key: `align-${align}-span`, text: `${align} paragraph` }],
+	})),
+	{
+		_type: "block",
+		_key: "align-default",
+		style: "normal",
+		markDefs: [],
+		children: [{ _type: "span", _key: "align-default-span", text: "default paragraph" }],
+	},
+];
+---
+
+<html>
+	<head>
+		<title>Text alignment</title>
+	</head>
+	<body>
+		<div id="body"><PortableText value={value} /></div>
+	</body>
+</html>

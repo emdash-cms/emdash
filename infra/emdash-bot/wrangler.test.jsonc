@@ -1,7 +1,7 @@
 {
 	// Test-only wrangler config consumed by @cloudflare/vitest-pool-workers via
 	// vitest.workers.config.ts. Mirrors production bindings for the
-	// user-owned DOs (Sandbox, OrchestratorDO) and the AI / R2 surfaces but
+	// user-owned DOs (Sandbox, OrchestratorDO) and the R2 surface but
 	// skips the Flue-generated workflow DOs (FlueRegistry, FlueClassify-
 	// CommandWorkflow, ...) because the test entry below doesn't go through
 	// Flue routing. Workflow integration tests need a separate harness once
@@ -19,10 +19,6 @@
 	// The test pool dispatches to this entry. It re-exports the DOs and
 	// provides a minimal fetch handler so SELF.fetch() works in tests.
 	"main": "./tests/integration/_entry.ts",
-
-	"ai": {
-		"binding": "AI",
-	},
 
 	// Sandbox is structurally identical to production, including the
 	// container image. The pool builds the image on first use; subsequent
@@ -47,6 +43,12 @@
 		],
 	},
 
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
+		},
+	],
+
 	"migrations": [
 		{
 			"tag": "v1",
@@ -66,5 +68,6 @@
 		"GITHUB_APP_INSTALLATION_ID": "120963314",
 		"GITHUB_OWNER": "emdash-cms",
 		"GITHUB_REPO": "emdash-test",
+		"PREVIEW_PACKAGE": "emdash",
 	},
 }

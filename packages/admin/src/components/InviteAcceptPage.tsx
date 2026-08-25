@@ -37,7 +37,7 @@ function RegisterStep({ inviteData, token }: RegisterStepProps) {
 			<div className="text-center">
 				<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mx-auto mb-4">
 					<svg
-						className="w-8 h-8 text-kumo-brand"
+						className="w-8 h-8 text-kumo-link"
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"

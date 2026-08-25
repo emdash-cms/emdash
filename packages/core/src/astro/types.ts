@@ -8,7 +8,8 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
-import type { RouteMeta } from "../plugins/routes.js";
+import type { ContentFieldFilters } from "../content-list-query.js";
+import type { RouteCallerInput, RouteMeta } from "../plugins/routes.js";
 
 // Re-export core types
 export type {
@@ -31,6 +32,18 @@ export interface ManifestCollection {
 	supports: string[];
 	hasSeo: boolean;
 	urlPattern?: string;
+	/** Whether published entries require a slug. Defaults to true. */
+	routable?: boolean;
+	titleField?: string;
+	dateField?: string;
+	/**
+	 * Omit the auto-generated sidebar entry in the admin. The collection is
+	 * still listed in the manifest so its routes, editor, and API keep working
+	 * — only the navigation link is dropped.
+	 */
+	hidden?: boolean;
+	/** Valid custom field slugs to render in the admin content list. */
+	listColumns?: string[];
 	fields: Record<
 		string,
 		{
@@ -139,15 +152,22 @@ export interface EmDashManifest {
 		locales: string[];
 		prefixDefaultLocale?: boolean;
 	};
+	contentLocale?: {
+		defaultLocale: string;
+		implicit: boolean;
+	};
 	/**
 	 * Taxonomy definitions for the admin sidebar.
 	 */
 	taxonomies: Array<{
+		id: string;
 		name: string;
 		label: string;
 		labelSingular?: string;
 		hierarchical: boolean;
 		collections: string[];
+		locale: string;
+		translationGroup: string;
 	}>;
 	/**
 	 * Whether the plugin marketplace is configured.
@@ -210,6 +230,7 @@ export interface EmDashManifest {
 export interface HandlerResponse<T = unknown> {
 	success: boolean;
 	data?: T;
+	liveContentChanged?: boolean;
 	error?: {
 		code: string;
 		message: string;
@@ -240,6 +261,10 @@ export interface EmDashHandlers {
 			dateField?: "createdAt" | "updatedAt" | "publishedAt";
 			dateFrom?: string;
 			dateTo?: string;
+			bylines?: string[];
+			bylinesNone?: boolean;
+			includeInferredBylines?: boolean;
+			fieldFilters?: ContentFieldFilters;
 		},
 	) => Promise<HandlerResponse>;
 
@@ -264,7 +289,7 @@ export interface EmDashHandlers {
 		collection: string,
 		body: {
 			data: Record<string, unknown>;
-			slug?: string;
+			slug?: string | null;
 			status?: string;
 			authorId?: string;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
@@ -281,7 +306,7 @@ export interface EmDashHandlers {
 		id: string,
 		body: {
 			data?: Record<string, unknown>;
-			slug?: string;
+			slug?: string | null;
 			status?: string;
 			authorId?: string | null;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
@@ -396,12 +421,14 @@ export interface EmDashHandlers {
 
 	handleRevisionRestore: (revisionId: string, callerUserId: string) => Promise<HandlerResponse>;
 
-	// Plugin API route handler
+	// Plugin API route handler. `user` is the authenticated caller for
+	// private routes, exposed to plugin handlers as `ctx.user`.
 	handlePluginApiRoute: (
 		pluginId: string,
 		method: string,
 		path: string,
 		request: Request,
+		user?: RouteCallerInput | null,
 	) => Promise<HandlerResponse>;
 
 	// Public-only plugin API route handler for SSR page components.
@@ -449,6 +476,7 @@ export interface EmDashHandlers {
 		input: unknown,
 		actorId: string,
 		request: Request,
+		caller?: RouteCallerInput | null,
 	) => Promise<HandlerResponse>;
 	handlePluginMcpDenied: (
 		pluginId: string,

@@ -15,11 +15,12 @@
  */
 
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EmDashConfig } from "../../../src/astro/integration/runtime.js";
 import type { Database } from "../../../src/database/types.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import { createHookPipeline } from "../../../src/plugins/hooks.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
@@ -68,10 +69,13 @@ describe("EmDashRuntime.getManifest()", () => {
 	let db: Kysely<Database>;
 
 	beforeEach(async () => {
+		setI18nConfig(null);
 		db = await setupTestDatabase();
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
+		vi.restoreAllMocks();
 		await teardownTestDatabase(db);
 	});
 
@@ -128,6 +132,23 @@ describe("EmDashRuntime.getManifest()", () => {
 		expect(posts?.fields.body?.kind).toBe("json");
 	});
 
+	it("reports the implicit English content locale when i18n is not configured", async () => {
+		const runtime = buildRuntime(db);
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.contentLocale).toEqual({ defaultLocale: "en", implicit: true });
+	});
+
+	it("reports the configured content default independently of admin language", async () => {
+		setI18nConfig({ defaultLocale: "ja", locales: ["ja", "en"] });
+		const runtime = buildRuntime(db);
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.contentLocale).toEqual({ defaultLocale: "ja", implicit: false });
+	});
+
 	it("includes field definitions for many collections in two queries flat", async () => {
 		const registry = new SchemaRegistry(db);
 		for (let i = 0; i < 5; i++) {
@@ -157,5 +178,80 @@ describe("EmDashRuntime.getManifest()", () => {
 		for (let i = 0; i < 5; i++) {
 			expect(manifest.collections[`coll_${i}`]?.fields.title?.kind).toBe("string");
 		}
+	});
+
+	it("includes taxonomy locale identity for admin-side normalization", async () => {
+		const runtime = buildRuntime(db);
+		const manifest = await runtime.getManifest();
+		const category = manifest.taxonomies.find((taxonomy) => taxonomy.name === "category");
+
+		expect(category).toMatchObject({
+			id: expect.any(String),
+			locale: "en",
+			translationGroup: expect.any(String),
+		});
+		expect(category?.translationGroup).toBe(category?.id);
+	});
+
+	it("publishes only supported, existing list columns and caps them at four", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "tickets",
+			label: "Tickets",
+			admin: {
+				listColumns: [
+					"ticket_number",
+					"ticket_number",
+					"details",
+					"missing",
+					"priority",
+					"urgent",
+					"queue",
+					"opened_at",
+				],
+			},
+		});
+		await registry.createField("tickets", {
+			slug: "ticket_number",
+			label: "Ticket number",
+			type: "string",
+		});
+		await registry.createField("tickets", {
+			slug: "details",
+			label: "Details",
+			type: "json",
+		});
+		await registry.createField("tickets", {
+			slug: "priority",
+			label: "Priority",
+			type: "select",
+		});
+		await registry.createField("tickets", {
+			slug: "urgent",
+			label: "Urgent",
+			type: "boolean",
+		});
+		await registry.createField("tickets", {
+			slug: "queue",
+			label: "Queue",
+			type: "string",
+		});
+		await registry.createField("tickets", {
+			slug: "opened_at",
+			label: "Opened",
+			type: "datetime",
+		});
+
+		const runtime = buildRuntime(db);
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.collections.tickets?.listColumns).toEqual([
+			"ticket_number",
+			"priority",
+			"urgent",
+			"queue",
+		]);
+		expect(warn).toHaveBeenCalledTimes(3);
 	});
 });

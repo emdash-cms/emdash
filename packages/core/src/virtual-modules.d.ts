@@ -16,6 +16,7 @@ declare module "virtual:emdash/config" {
 
 	interface VirtualConfig {
 		database?: DatabaseDescriptor;
+		migrations?: import("./database/migrations/policy.js").RuntimeMigrationConfig;
 		storage?: StorageDescriptor;
 		auth?: AuthDescriptor;
 		authProviders?: AuthProviderDescriptor[];
@@ -35,6 +36,7 @@ declare module "virtual:emdash/dialect" {
 	import type { Dialect, Kysely } from "kysely";
 
 	import type { DatabaseDialectType } from "./db/adapters.js";
+	import type { ExecuteCollectionDeletionGuard } from "./db/adapters.js";
 
 	// Can be undefined if no database configured, or the actual function
 	export const createDialect: ((config: unknown) => Dialect) | undefined;
@@ -53,12 +55,27 @@ declare module "virtual:emdash/dialect" {
 	export interface RequestScopedDbOpts {
 		config: unknown;
 		isAuthenticated: boolean;
+		/**
+		 * Evaluated at commit() time: whether the request ended authenticated.
+		 * Login/signup/invite requests start unauthenticated and establish a
+		 * session mid-request; `isAuthenticated` captures only the request-start
+		 * state.
+		 */
+		endedAuthenticated?: () => boolean;
 		isWrite: boolean;
+		/** Whether core routing allows this request to use an anonymous public-read cache. */
+		canUseCachedBinding?: boolean;
 		cookies: {
 			get(name: string): { value: string } | undefined;
 			set(name: string, value: string, options: Record<string, unknown>): void;
 		};
 		url: URL;
+		/**
+		 * ms-epoch of the last content-namespace object-cache invalidation.
+		 * Hyperdrive uses this (with `preferUncachedAfterWriteMs`) to briefly
+		 * prefer the primary uncached binding after a publish.
+		 */
+		lastContentWriteAt?: number;
 	}
 	export interface RequestScopedDb {
 		db: Kysely<unknown>;
@@ -74,6 +91,7 @@ declare module "virtual:emdash/dialect" {
 		close?: () => void;
 	}
 	export const createRequestScopedDb: (opts: RequestScopedDbOpts) => RequestScopedDb | null;
+	export const executeCollectionDeletionGuard: ExecuteCollectionDeletionGuard | undefined;
 }
 
 declare module "virtual:emdash/storage" {
@@ -170,6 +188,16 @@ declare module "virtual:emdash/env" {
 	export const env: Record<string, unknown> | undefined;
 }
 
+declare module "virtual:emdash/build" {
+	/**
+	 * Epoch milliseconds at which this build's virtual modules were generated.
+	 * Folded into the route cache validator so a code-only deploy — which
+	 * renames `/_astro/*` without touching content — still invalidates HTML a
+	 * browser cached from an earlier deployment.
+	 */
+	export const buildTime: number;
+}
+
 declare module "virtual:emdash/scheduler" {
 	import type { CreateSchedulerFn } from "./emdash-runtime.js";
 	/**
@@ -189,6 +217,8 @@ declare module "virtual:emdash/admin-registry" {
 	 *   - pages: Record<pageId, ComponentType>
 	 *   - widgets: Record<widgetId, ComponentType>
 	 *   - fields: Record<widgetName, ComponentType> (field widget renderers)
+	 *   - contentEditorPanels: Trusted content editor sidebar panels
+	 *   - contentListColumns: trusted-plugin content list column definitions
 	 */
 	export const pluginAdmins: Record<
 		string,
@@ -196,6 +226,8 @@ declare module "virtual:emdash/admin-registry" {
 			pages?: Record<string, unknown>;
 			widgets?: Record<string, unknown>;
 			fields?: Record<string, unknown>;
+			contentEditorPanels?: readonly unknown[];
+			contentListColumns?: readonly unknown[];
 		}
 	>;
 }
