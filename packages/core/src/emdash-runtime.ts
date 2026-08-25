@@ -4379,8 +4379,17 @@ async function normalizeImageValue(
 	value: unknown,
 	getProvider: (id: string) => MediaProvider | undefined,
 ): Promise<ImageValue | null> {
-	const normalized = await normalizeMediaValue(value, getProvider);
-	if (!normalized || !isRecord(value) || value.darkVariant == null) return normalized;
+	if (!isRecord(value) || value.darkVariant == null) {
+		return normalizeMediaValue(value, getProvider);
+	}
+	// A legacy string URL upgraded to `{ id: "", src: url }` so it can carry a
+	// variant still has to normalize as a string: as an object it counts as local
+	// media, which strips `src` and leaves nothing behind.
+	const primary =
+		!value.id && typeof value.src === "string" && !value.provider
+			? await normalizeMediaValue(value.src, getProvider)
+			: await normalizeMediaValue(value, getProvider);
+	if (!primary) return null;
 	const darkVariant = await normalizeMediaValue(value.darkVariant, getProvider);
-	return darkVariant ? { ...normalized, darkVariant } : normalized;
+	return darkVariant ? { ...primary, darkVariant } : primary;
 }

@@ -101,6 +101,43 @@ describeEachDialect("image field dark variant normalization", (dialect) => {
 		expect(hero.darkVariant).toMatchObject({ id: darkId, provider: "local" });
 	});
 
+	it("resolves a legacy string primary that was upgraded to carry a variant", async () => {
+		const result = await runtime.handleContentCreate("posts", {
+			slug: "p4",
+			data: {
+				title: "p4",
+				hero: {
+					id: "",
+					src: "https://cdn.example.com/legacy.png",
+					darkVariant: { id: darkId, provider: "local" },
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+
+		const hero = (result.data.item.data as Record<string, unknown>).hero as Record<string, unknown>;
+		expect(hero.provider).toBe("external");
+		expect(hero.src).toBe("https://cdn.example.com/legacy.png");
+		expect(hero.darkVariant).toMatchObject({ id: darkId, provider: "local" });
+	});
+
+	it("keeps the provider linkage of an upgraded legacy local id", async () => {
+		const result = await runtime.handleContentCreate("posts", {
+			slug: "p5",
+			data: {
+				title: "p5",
+				hero: { id: "", src: lightId, darkVariant: { id: darkId, provider: "local" } },
+			},
+		});
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+
+		const hero = (result.data.item.data as Record<string, unknown>).hero as Record<string, unknown>;
+		expect(hero).toMatchObject({ id: lightId, provider: "local", filename: "hero-light.png" });
+		expect(hero.darkVariant).toMatchObject({ id: darkId, provider: "local" });
+	});
+
 	it("removes the dark variant when an update clears it", async () => {
 		const created = await runtime.handleContentCreate("posts", {
 			slug: "p3",

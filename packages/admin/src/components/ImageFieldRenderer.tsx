@@ -93,7 +93,14 @@ export function ImageFieldRenderer({
 	const [pickerTarget, setPickerTarget] = React.useState<"image" | "darkVariant">("image");
 	const [imageBroken, setImageBroken] = React.useState(false);
 	const [darkImageBroken, setDarkImageBroken] = React.useState(false);
-	const objectValue = typeof value === "object" ? value : undefined;
+	// A legacy string URL needs object form to carry a dark variant. The runtime
+	// resolves the URL in `src` on save, so the provider linkage survives.
+	const objectValue: ImageFieldValue | undefined =
+		typeof value === "object" && value
+			? value
+			: typeof value === "string" && value
+				? { id: "", src: value }
+				: undefined;
 	const displayUrl = mediaDisplayUrl(value);
 	const darkValue = objectValue?.darkVariant;
 	const darkDisplayUrl = mediaDisplayUrl(darkValue);
