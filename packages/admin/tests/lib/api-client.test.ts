@@ -170,18 +170,29 @@ describe("throwResponseError", () => {
 });
 
 describe("isTerminalRequestError", () => {
-	it("treats a 4xx other than 429 as terminal", () => {
-		expect(isTerminalRequestError(new ApiResponseError(400, "VALIDATION_ERROR", "rejected"))).toBe(
+	const apiError = (status: number, code: string, message: string) =>
+		new ApiResponseError(status, code, message);
+
+	it("treats a client error outside the retryable list as terminal", () => {
+		expect(isTerminalRequestError(apiError(400, "VALIDATION_ERROR", "rejected"))).toBe(true);
+		expect(isTerminalRequestError(apiError(401, "UNAUTHORIZED", "unauthorized"))).toBe(true);
+		expect(isTerminalRequestError(apiError(404, "NOT_FOUND", "not found"))).toBe(true);
+		expect(isTerminalRequestError(apiError(409, "CONFLICT", "conflict"))).toBe(true);
+		expect(isTerminalRequestError(apiError(413, "PAYLOAD_TOO_LARGE", "payload too large"))).toBe(
 			true,
 		);
-		expect(isTerminalRequestError(new ApiResponseError(409, "CONFLICT", "conflict"))).toBe(true);
 	});
 
-	it("keeps rate limits, server errors and network failures retryable", () => {
-		expect(isTerminalRequestError(new ApiResponseError(429, "RATE_LIMITED", "slow down"))).toBe(
-			false,
-		);
-		expect(isTerminalRequestError(new ApiResponseError(500, "INTERNAL_ERROR", "boom"))).toBe(false);
+	it("keeps the retryable client errors retryable", () => {
+		expect(isTerminalRequestError(apiError(408, "REQUEST_TIMEOUT", "request timeout"))).toBe(false);
+		expect(isTerminalRequestError(apiError(421, "MISDIRECTED_REQUEST", "misdirected"))).toBe(false);
+		expect(isTerminalRequestError(apiError(425, "TOO_EARLY", "too early"))).toBe(false);
+		expect(isTerminalRequestError(apiError(429, "RATE_LIMITED", "slow down"))).toBe(false);
+	});
+
+	it("keeps server errors and network failures retryable", () => {
+		expect(isTerminalRequestError(apiError(500, "INTERNAL_ERROR", "boom"))).toBe(false);
+		expect(isTerminalRequestError(apiError(504, "GATEWAY_TIMEOUT", "gateway timeout"))).toBe(false);
 		expect(isTerminalRequestError(new TypeError("Failed to fetch"))).toBe(false);
 	});
 });
