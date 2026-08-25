@@ -66,6 +66,8 @@ export interface LoadContentMediaUsageSnapshotsOptions {
 
 export interface LoadContentMediaUsageSnapshotsBatchControl {
 	shouldContinue?: () => boolean;
+	maxOccurrenceCount?: number;
+	maxProjectionBytes?: number;
 }
 
 export async function loadContentMediaUsageSnapshots(
@@ -110,15 +112,35 @@ export async function loadContentMediaUsageSnapshotsBatch(
 	).filter((revisionId): revisionId is string => revisionId !== null);
 	const revisions = await loadRevisionRows(db, revisionIds);
 	const results = new Map<string, LoadContentMediaUsageSnapshotsResult>();
+	let occurrenceCount = 0;
+	let projectionBytes = 0;
 	for (const contentId of new Set(contentIds)) {
 		if (control.shouldContinue && !control.shouldContinue()) break;
 		const row = rows.get(contentId);
-		results.set(
-			contentId,
-			row
-				? await buildContentMediaUsageSnapshots(row, collectionSlug, discovery, options, revisions)
-				: { success: false, error: "CONTENT_NOT_FOUND" },
+		const result: LoadContentMediaUsageSnapshotsResult = row
+			? await buildContentMediaUsageSnapshots(row, collectionSlug, discovery, options, revisions)
+			: { success: false, error: "CONTENT_NOT_FOUND" };
+		const snapshots = result.success ? result.snapshots : (result.snapshots ?? []);
+		const itemOccurrenceCount = snapshots.reduce(
+			(total, snapshot) => total + snapshot.occurrences.length,
+			0,
 		);
+		const itemProjectionBytes = snapshots.reduce(
+			(total, snapshot) => total + snapshot.projectionByteLength,
+			0,
+		);
+		if (
+			results.size > 0 &&
+			((control.maxOccurrenceCount !== undefined &&
+				occurrenceCount + itemOccurrenceCount > control.maxOccurrenceCount) ||
+				(control.maxProjectionBytes !== undefined &&
+					projectionBytes + itemProjectionBytes > control.maxProjectionBytes))
+		) {
+			break;
+		}
+		results.set(contentId, result);
+		occurrenceCount += itemOccurrenceCount;
+		projectionBytes += itemProjectionBytes;
 	}
 	return results;
 }

@@ -173,7 +173,7 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 				fixture,
 				`entry-${String(index).padStart(4, "0")}`,
 				`media-${index}`,
-				7,
+				20,
 			);
 		}
 		const counter = new QueryCountingPlugin();
@@ -184,6 +184,48 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 		expect(result.completedCount).toBe(1_000);
 		expect(counter.count).toBeLessThan(50);
 		expect(await countWork(ctx.db)).toBe(1);
+	});
+
+	it("releases untouched work when aggregate projection memory is full", async () => {
+		const fixture = await createActiveFixture(ctx, "memory_bound_batch");
+		for (let index = 0; index < 101; index++) {
+			await insertEntry(
+				ctx,
+				fixture,
+				`entry-${String(index).padStart(3, "0")}`,
+				`media-${index}`,
+				500,
+			);
+		}
+
+		const first = await processDueMediaUsageWork(ctx.db);
+
+		expect(first.completedCount).toBeGreaterThan(0);
+		expect(first.completedCount).toBeLessThan(101);
+		expect(first.retryCount).toBe(0);
+		expect(first.failedCount).toBe(0);
+		const remaining = await ctx.db
+			.selectFrom("_emdash_media_usage_work")
+			.select(["state", "attempt_count", "last_error_code"])
+			.execute();
+		expect(remaining.length).toBeGreaterThan(0);
+		expect(
+			remaining.every(
+				(row) => row.state === "pending" && row.attempt_count === 0 && row.last_error_code === null,
+			),
+		).toBe(true);
+
+		let completed = first.completedCount;
+		for (let step = 0; step < 101 && (await countWork(ctx.db)) > 0; step++) {
+			const next = await processDueMediaUsageWork(ctx.db);
+			expect(next.retryCount).toBe(0);
+			expect(next.failedCount).toBe(0);
+			expect(next.completedCount).toBeGreaterThan(0);
+			completed += next.completedCount;
+		}
+
+		expect(completed).toBe(101);
+		expect(await countWork(ctx.db)).toBe(0);
 	});
 
 	it("updates existing projections without one query sequence per entry", async () => {

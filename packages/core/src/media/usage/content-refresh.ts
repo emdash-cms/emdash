@@ -37,6 +37,8 @@ export const MEDIA_USAGE_PROJECTION_ADMISSION_LIMITS = Object.freeze({
 	maxOccurrenceMutationUnitsPerClaim: 500,
 	maxProjectionMutationBytesPerVariant: 2_000_000,
 	maxProjectionMutationBytesPerClaim: 4_000_000,
+	maxOccurrenceMutationUnitsPerBatch: 50_000,
+	maxProjectionMutationBytesPerBatch: 16_000_000,
 });
 
 export interface ContentMediaUsageAdmissionBudget {
@@ -94,11 +96,18 @@ const ZERO_RESULT: ContentMediaUsageRefreshResult = {
 	failedSourceCount: 0,
 };
 
-export function createContentMediaUsageAdmissionBudget(): ContentMediaUsageAdmissionBudget {
+export function createContentMediaUsageAdmissionBudget(
+	limits: {
+		maxOccurrenceMutationUnits?: number;
+		maxProjectionMutationBytes?: number;
+	} = {},
+): ContentMediaUsageAdmissionBudget {
 	return {
 		remainingOccurrenceMutationUnits:
+			limits.maxOccurrenceMutationUnits ??
 			MEDIA_USAGE_PROJECTION_ADMISSION_LIMITS.maxOccurrenceMutationUnitsPerClaim,
 		remainingProjectionMutationBytes:
+			limits.maxProjectionMutationBytes ??
 			MEDIA_USAGE_PROJECTION_ADMISSION_LIMITS.maxProjectionMutationBytesPerClaim,
 		hasReservedMutation: false,
 	};
@@ -265,6 +274,12 @@ export async function refreshContentMediaUsageForWorkBatch(
 	options: ContentMediaUsageWorkBatchOptions = {},
 ): Promise<Map<string, ContentMediaUsageRefreshResult>> {
 	const results = new Map<string, ContentMediaUsageRefreshResult>();
+	const batchBudget = createContentMediaUsageAdmissionBudget({
+		maxOccurrenceMutationUnits:
+			MEDIA_USAGE_PROJECTION_ADMISSION_LIMITS.maxOccurrenceMutationUnitsPerBatch,
+		maxProjectionMutationBytes:
+			MEDIA_USAGE_PROJECTION_ADMISSION_LIMITS.maxProjectionMutationBytesPerBatch,
+	});
 	const collections = new Map<string, ContentMediaUsageWorkRefreshInput[]>();
 	for (const item of items) {
 		const key = `${item.collectionId}\u0000${item.collectionSlug}`;
@@ -296,7 +311,13 @@ export async function refreshContentMediaUsageForWorkBatch(
 				collectionItems.map((item) => item.contentId),
 				fieldDiscovery,
 				{ collectionId: first.collectionId, identityVersion: 1 },
-				{ shouldContinue: options.shouldContinue },
+				{
+					shouldContinue: options.shouldContinue,
+					maxOccurrenceCount:
+						MEDIA_USAGE_PROJECTION_ADMISSION_LIMITS.maxOccurrenceMutationUnitsPerBatch,
+					maxProjectionBytes:
+						MEDIA_USAGE_PROJECTION_ADMISSION_LIMITS.maxProjectionMutationBytesPerBatch,
+				},
 			);
 			const newSourceProjections: MediaUsageNewSourceProjection[] = [];
 			const newSourceKeys = new Map<string, string[]>();
@@ -335,8 +356,9 @@ export async function refreshContentMediaUsageForWorkBatch(
 					snapshotsResult.snapshots,
 					observedSources,
 					itemSourceKeys,
-					createContentMediaUsageAdmissionBudget(),
+					batchBudget,
 				);
+				if (admission.outcome === "claim_budget_deferred") break;
 				if (admission.outcome !== "admitted") {
 					results.set(
 						contentRefreshKey(item.collectionId, item.contentId),
