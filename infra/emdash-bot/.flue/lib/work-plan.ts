@@ -39,7 +39,7 @@ export function updateWorkPlan(
 	input: WorkPlanInput,
 	updatedAt: number,
 ): WorkPlan {
-	const summary = boundedText(input.summary, MAX_SUMMARY_LENGTH, "work plan summary");
+	const summary = boundedSummary(input.summary);
 	const ids = new Set<string>();
 	const steps = input.steps.map((step) => {
 		const id = step.id.trim();
@@ -101,7 +101,7 @@ export function renderPreparingWorkPlanComment(input: { mode: RunMode; summary: 
 	return [
 		"### Preparing workspace",
 		"",
-		escapeMarkdown(boundedText(input.summary, MAX_SUMMARY_LENGTH, "workspace summary")),
+		escapeMarkdown(boundedSummary(input.summary)),
 		"",
 		"Installing dependencies and building the repository before the agent starts.",
 		"",
@@ -127,9 +127,20 @@ function preserveFinishedSteps(
 }
 
 function boundedText(value: string, limit: number, label: string): string {
+	const normalized = normalizedText(value, label);
+	if (normalized.length > limit) throw new Error(`${label} exceeds ${limit} characters`);
+	return normalized;
+}
+
+function boundedSummary(value: string): string {
+	const normalized = normalizedText(value, "work plan summary");
+	if (normalized.length <= MAX_SUMMARY_LENGTH) return normalized;
+	return `${normalized.slice(0, MAX_SUMMARY_LENGTH - 1).trimEnd()}…`;
+}
+
+function normalizedText(value: string, label: string): string {
 	const normalized = value.replaceAll(/\s+/g, " ").trim();
 	if (normalized === "") throw new Error(`${label} cannot be empty`);
-	if (normalized.length > limit) throw new Error(`${label} exceeds ${limit} characters`);
 	return normalized;
 }
 

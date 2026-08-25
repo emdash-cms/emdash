@@ -1,5 +1,6 @@
 const PKT_LINE_HEADER = /^[0-9a-fA-F]{4}$/;
 const BASIC_AUTHORIZATION = /^Basic ([A-Za-z0-9+/]+={0,2})$/i;
+const SHALLOW_DECLARATION = /^shallow (?:[0-9a-f]{40}|[0-9a-f]{64})\n?$/i;
 const WHITESPACE = /\s/;
 const MAX_RECEIVE_PACK_COMMAND_BYTES = 64 * 1024;
 const PUSH_CAPABILITY_USERNAME = "emdashbot";
@@ -133,7 +134,12 @@ export async function gateGithubRequest(
 }
 
 export type GithubGateResult =
-	| { allowed: true; stage: "allowed"; refs?: readonly string[] }
+	| {
+			allowed: true;
+			stage: "allowed";
+			authentication: "anonymous" | "installation";
+			refs?: readonly string[];
+	  }
 	| {
 			allowed: false;
 			stage: "repository" | "capability" | "receive-pack";
@@ -172,7 +178,7 @@ export async function inspectGithubRequest(
 			(method === "GET" || method === "HEAD") &&
 			(url.pathname === repoPath || url.pathname === `${repoPath}/`)
 		) {
-			return { allowed: true, stage: "allowed" };
+			return { allowed: true, stage: "allowed", authentication: "installation" };
 		}
 		if (
 			url.pathname === `${gitPath}/info/refs` &&
@@ -185,7 +191,7 @@ export async function inspectGithubRequest(
 						stage: "capability",
 						reason: "git push requires a valid issue-scoped capability",
 					}
-				: { allowed: true, stage: "allowed" };
+				: { allowed: true, stage: "allowed", authentication: "installation" };
 		}
 		if (url.pathname === `${gitPath}/git-receive-pack` && method === "POST") {
 			if (issueNumber === undefined) {
@@ -197,7 +203,12 @@ export async function inspectGithubRequest(
 			}
 			const inspection = await inspectReceivePack(request, issueNumber);
 			return inspection.allowed
-				? { allowed: true, stage: "allowed", refs: inspection.refs }
+				? {
+						allowed: true,
+						stage: "allowed",
+						authentication: "installation",
+						refs: inspection.refs,
+					}
 				: {
 						allowed: false,
 						stage: "receive-pack",
@@ -213,7 +224,10 @@ export async function inspectGithubRequest(
 				url.pathname === `${gitPath}/git-upload-pack`) &&
 			(method === "GET" || method === "HEAD" || method === "POST")
 		) {
-			return { allowed: true, stage: "allowed" };
+			return { allowed: true, stage: "allowed", authentication: "installation" };
+		}
+		if (method === "GET" || method === "HEAD") {
+			return { allowed: true, stage: "allowed", authentication: "anonymous" };
 		}
 		return {
 			allowed: false,
@@ -224,7 +238,10 @@ export async function inspectGithubRequest(
 
 	if (host === "codeload.github.com") {
 		if ((method === "GET" || method === "HEAD") && url.pathname.startsWith(`/${owner}/${repo}/`)) {
-			return { allowed: true, stage: "allowed" };
+			return { allowed: true, stage: "allowed", authentication: "installation" };
+		}
+		if (method === "GET" || method === "HEAD") {
+			return { allowed: true, stage: "allowed", authentication: "anonymous" };
 		}
 		return {
 			allowed: false,
@@ -235,7 +252,10 @@ export async function inspectGithubRequest(
 
 	if (host === "raw.githubusercontent.com") {
 		if ((method === "GET" || method === "HEAD") && url.pathname.startsWith(`/${owner}/${repo}/`)) {
-			return { allowed: true, stage: "allowed" };
+			return { allowed: true, stage: "allowed", authentication: "installation" };
+		}
+		if (method === "GET" || method === "HEAD") {
+			return { allowed: true, stage: "allowed", authentication: "anonymous" };
 		}
 		return {
 			allowed: false,
@@ -250,7 +270,10 @@ export async function inspectGithubRequest(
 			(method === "GET" || method === "HEAD") &&
 			(url.pathname === repoBase || url.pathname.startsWith(`${repoBase}/`))
 		) {
-			return { allowed: true, stage: "allowed" };
+			return { allowed: true, stage: "allowed", authentication: "installation" };
+		}
+		if (method === "GET" || method === "HEAD") {
+			return { allowed: true, stage: "allowed", authentication: "anonymous" };
 		}
 		return {
 			allowed: false,
@@ -270,7 +293,19 @@ async function inspectReceivePack(
 	request: Request,
 	issueNumber: number,
 ): Promise<{ allowed: boolean; refs: string[]; parseError?: string }> {
-	const reader = request.clone().body?.getReader();
+	const cloned = request.clone();
+	let body = cloned.body;
+	const contentEncoding = cloned.headers.get("content-encoding")?.trim().toLowerCase();
+	if (body && contentEncoding === "gzip") {
+		body = body.pipeThrough(new DecompressionStream("gzip"));
+	} else if (contentEncoding && contentEncoding !== "identity") {
+		return {
+			allowed: false,
+			refs: [],
+			parseError: `unsupported receive-pack content encoding: ${contentEncoding}`,
+		};
+	}
+	const reader = body?.getReader();
 	if (!reader) return { allowed: false, refs: [], parseError: "request body is missing" };
 	let buffer = new Uint8Array();
 	let offset = 0;
@@ -297,6 +332,10 @@ async function inspectReceivePack(
 				}
 				if (buffer.length - offset < length) break;
 				const payload = decoder.decode(buffer.subarray(offset + 4, offset + length));
+				if (isShallowDeclaration(payload)) {
+					offset += length;
+					continue;
+				}
 				const ref = receivePackCommandRef(payload);
 				if (!ref) {
 					return { allowed: false, refs, parseError: "invalid receive-pack command" };
@@ -321,9 +360,15 @@ async function inspectReceivePack(
 			next.set(chunk, buffer.length);
 			buffer = next;
 		}
+	} catch {
+		return { allowed: false, refs, parseError: "invalid compressed receive-pack body" };
 	} finally {
 		void reader.cancel().catch(() => undefined);
 	}
+}
+
+function isShallowDeclaration(payload: string): boolean {
+	return SHALLOW_DECLARATION.test(payload);
 }
 
 function receivePackCommandRef(payload: string): string | null {

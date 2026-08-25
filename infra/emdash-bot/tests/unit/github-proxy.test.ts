@@ -1,3 +1,5 @@
+import { gzipSync } from "node:zlib";
+
 import { describe, expect, test } from "vitest";
 
 import {
@@ -111,13 +113,43 @@ function pktLine(payload: string): string {
 }
 
 describe("gateGithubRequest", () => {
+	test("allows public GitHub reads anonymously outside the configured repository", async () => {
+		for (const url of [
+			"https://github.com/WiseLibs/better-sqlite3/releases/download/v12.8.0/better-sqlite3.tar.gz",
+			"https://codeload.github.com/WiseLibs/better-sqlite3/tar.gz/refs/tags/v12.8.0",
+			"https://raw.githubusercontent.com/WiseLibs/better-sqlite3/master/package.json",
+			"https://api.github.com/repos/WiseLibs/better-sqlite3/releases/latest",
+		]) {
+			const request = new Request(url);
+			await expect(inspectGithubRequest(request, new URL(url), OWNER, REPO)).resolves.toMatchObject(
+				{
+					allowed: true,
+					authentication: "anonymous",
+				},
+			);
+		}
+	});
+
+	test("keeps configured repository reads on the installation-token path", async () => {
+		const url = new URL("https://github.com/emdash-cms/emdash.git/info/refs");
+		await expect(inspectGithubRequest(new Request(url), url, OWNER, REPO)).resolves.toMatchObject({
+			allowed: true,
+			authentication: "installation",
+		});
+	});
+
+	test("still denies writes outside the configured repository", async () => {
+		const url = new URL("https://api.github.com/repos/WiseLibs/better-sqlite3/issues");
+		await expect(
+			inspectGithubRequest(new Request(url, { method: "POST", body: "{}" }), url, OWNER, REPO),
+		).resolves.toMatchObject({ allowed: false, stage: "repository" });
+	});
+
 	test("limits API reads to the configured repository", async () => {
 		await expect(
 			gate("https://api.github.com/repos/emdash-cms/emdash/issues/1"),
 		).resolves.toBeNull();
-		await expect(gate("https://api.github.com/repos/other/private/issues/1")).resolves.toMatch(
-			/configured repository/,
-		);
+		await expect(gate("https://api.github.com/repos/other/public/issues/1")).resolves.toBeNull();
 	});
 
 	test("denies all API writes from the agent", async () => {
@@ -158,6 +190,48 @@ describe("gateGithubRequest", () => {
 				body: `${pktLine("old new refs/heads/bot/artifacts-456\0 report-status\n")}0000PACKpayload`,
 			}),
 		).resolves.toMatch(/current issue/);
+	});
+
+	test("inspects gzip-compressed receive-pack commands before allowing a push", async () => {
+		const url = new URL("https://github.com/emdash-cms/emdash.git/git-receive-pack");
+		const body = gzipSync(
+			`${pktLine("old new refs/heads/bot/fix-123\0 report-status\n")}0000PACKpayload`,
+		);
+		await expect(
+			inspectGithubRequest(
+				new Request(url, {
+					method: "POST",
+					headers: { "content-encoding": "gzip" },
+					body,
+				}),
+				url,
+				OWNER,
+				REPO,
+				123,
+			),
+		).resolves.toMatchObject({
+			allowed: true,
+			refs: ["refs/heads/bot/fix-123"],
+		});
+	});
+
+	test("allows a shallow declaration before the scoped receive-pack command", async () => {
+		const url = new URL("https://github.com/emdash-cms/emdash.git/git-receive-pack");
+		const shallow = pktLine(`shallow ${"a".repeat(40)}\n`);
+		const update = pktLine("old new refs/heads/bot/fix-123\0 report-status\n");
+
+		await expect(
+			inspectGithubRequest(
+				new Request(url, { method: "POST", body: `${shallow}${update}0000PACKpayload` }),
+				url,
+				OWNER,
+				REPO,
+				123,
+			),
+		).resolves.toMatchObject({
+			allowed: true,
+			refs: ["refs/heads/bot/fix-123"],
+		});
 	});
 
 	test("distinguishes a missing capability from a rejected receive-pack body", async () => {

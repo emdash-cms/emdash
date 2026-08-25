@@ -4,6 +4,7 @@ import {
 	createIssueComment,
 	findIssueCommentByMarker,
 	getIssueComments,
+	getPullRequestHeadBranch,
 	listOpenManagedIssues,
 	updateIssueComment,
 } from "../../.flue/lib/github.js";
@@ -127,6 +128,29 @@ describe("GitHub evolving comments", () => {
 		);
 
 		await expect(updateIssueComment("token", repo, 777, "Updated")).resolves.toBe(false);
+	});
+});
+
+describe("GitHub pull request lookup", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	test("reads the head branch for a top-level PR comment", async () => {
+		const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+			jsonResponse({
+				number: 99,
+				head: { ref: "bot/fix-42" },
+				user: { login: "emdashbot[bot]" },
+			}),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(getPullRequestHeadBranch("token", repo, 99)).resolves.toBe("bot/fix-42");
+		expect(fetchMock).toHaveBeenCalledWith(
+			"https://api.github.com/repos/emdash-cms/emdash/pulls/99",
+			expect.objectContaining({
+				headers: expect.objectContaining({ authorization: "Bearer token" }),
+			}),
+		);
 	});
 });
 

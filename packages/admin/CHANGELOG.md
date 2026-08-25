@@ -1,5 +1,16 @@
 # @emdash-cms/admin
 
+## 0.35.0
+
+### Minor Changes
+
+- [#2553](https://github.com/emdash-cms/emdash/pull/2553) [`ffaadc4`](https://github.com/emdash-cms/emdash/commit/ffaadc4170d32e058f222c6c4ea6168890e7075d) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds a simpler way to upload media files: choose or drag several files at once, cancel uploads, and retry any that fail.
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.35.0
+
 ## 0.34.0
 
 ### Minor Changes
