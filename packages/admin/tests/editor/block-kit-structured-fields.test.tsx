@@ -11,6 +11,7 @@
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
 
+import { visiblePluginBlocks } from "../../src/components/editor/PluginBlockNode";
 import type { PluginBlockDef } from "../../src/components/PortableTextEditor";
 import {
 	_BlockKitBlockListField,
@@ -43,6 +44,13 @@ const catalog: PluginBlockDef[] = [
 		pluginId: "acme",
 		label: "Note",
 		fields: [{ type: "text_input", action_id: "body", label: "Body" }],
+	},
+	{
+		type: "acme.widget",
+		pluginId: "acme",
+		label: "Widget",
+		hidden: true,
+		fields: [{ type: "text_input", action_id: "title", label: "Title" }],
 	},
 ];
 
@@ -225,6 +233,60 @@ describe("block_list field", () => {
 		expect(received[0]!.text).toBe("Movable");
 		const remaining = first.mock.calls.at(-1)![1] as Array<Record<string, unknown>>;
 		expect(remaining).toHaveLength(0);
+	});
+});
+
+describe("hidden plugin blocks", () => {
+	it("visiblePluginBlocks keeps only defs without the hidden flag", () => {
+		expect(visiblePluginBlocks(catalog).map((b) => b.type)).toEqual(["acme.heading", "acme.note"]);
+	});
+
+	it("the default add picker offers only visible blocks", async () => {
+		await render(
+			<_PluginBlockCatalogContext.Provider value={catalog}>
+				<_BlockListSiblingsProvider>
+					<_BlockKitBlockListField
+						field={{ type: "block_list", action_id: "blocks", label: "Blocks" }}
+						value={[]}
+						onChange={vi.fn()}
+					/>
+				</_BlockListSiblingsProvider>
+			</_PluginBlockCatalogContext.Provider>,
+		);
+
+		click(queryAll<HTMLButtonElement>("button").find((b) => b.textContent?.includes("Add block")));
+		await vi.waitFor(() => expect(queryAll("[role='combobox']").length).toBeGreaterThan(0));
+		const trigger = queryAll<HTMLElement>("[role='combobox']").at(-1)!;
+		trigger.focus();
+		trigger.click();
+		await vi.waitFor(() => expect(queryAll("[role='option']").length).toBeGreaterThan(0));
+		const labels = queryAll<HTMLElement>("[role='option']").map((o) => o.textContent);
+		expect(labels).toContain("Heading");
+		expect(labels).toContain("Note");
+		expect(labels).not.toContain("Widget");
+	});
+
+	it("an explicit allowed_types list still offers a hidden block", async () => {
+		await render(
+			<_PluginBlockCatalogContext.Provider value={catalog}>
+				<_BlockListSiblingsProvider>
+					<_BlockKitBlockListField
+						field={{
+							type: "block_list",
+							action_id: "blocks",
+							label: "Blocks",
+							allowed_types: ["acme.widget"],
+						}}
+						value={[]}
+						onChange={vi.fn()}
+					/>
+				</_BlockListSiblingsProvider>
+			</_PluginBlockCatalogContext.Provider>,
+		);
+
+		// a single allowed type skips the picker and opens the child form directly
+		click(queryAll<HTMLButtonElement>("button").find((b) => b.textContent?.includes("Add block")));
+		await vi.waitFor(() => expect(screenRoot().textContent).toContain("Insert Widget"));
 	});
 });
 

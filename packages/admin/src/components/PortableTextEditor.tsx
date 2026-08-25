@@ -139,6 +139,7 @@ import {
 	PluginBlockExtension,
 	registerPluginBlocks,
 	resolveIcon,
+	visiblePluginBlocks,
 } from "./editor/PluginBlockNode";
 import { MediaPickerModal } from "./MediaPickerModal";
 import { SectionPickerModal } from "./SectionPickerModal";
@@ -2516,9 +2517,11 @@ function BlockKitBlockListField({
 
 	const allowed = React.useMemo(() => {
 		const allowedTypes = field.allowed_types;
+		// An explicit allowed_types list is the parent block's own offer and may name
+		// hidden types; without one, only visible blocks are offered here.
 		return allowedTypes && allowedTypes.length > 0
 			? catalog.filter((b) => allowedTypes.includes(b.type))
-			: catalog;
+			: visiblePluginBlocks(catalog);
 	}, [catalog, field.allowed_types]);
 
 	const [child, setChild] = React.useState<{ def: PluginBlockDef; index: number | null } | null>(
@@ -2678,7 +2681,7 @@ function BlockListItemRow({
 	});
 	const style = { transform: CSS.Transform.toString(transform), transition };
 	const summary = blockItemSummary(item);
-	const typeLabel = def?.label ?? String(item._type ?? "");
+	const typeLabel = def?.label ?? (typeof item._type === "string" ? item._type : "");
 
 	return (
 		<div
@@ -3146,7 +3149,8 @@ export function PortableTextEditor({
 
 		// Add plugin block commands (API labels/descriptions: plain strings, not msg-wrapped).
 		// Plugins can supply a custom `category` (plain string) — falls back to "Embeds".
-		for (const block of pluginBlocks) {
+		// Hidden blocks stay registered (existing content renders and edits) but are not offered.
+		for (const block of visiblePluginBlocks(pluginBlocks)) {
 			cmds.push({
 				id: `plugin-${block.pluginId}-${block.type}`,
 				title: block.label,
