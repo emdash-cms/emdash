@@ -68,6 +68,7 @@ export interface EvaluationRunOptions {
 		text: TextModerationAdapter;
 		image: ImageModerationAdapter;
 	};
+	runCase?(name: string, callback: () => Promise<EvalCaseRun>): Promise<EvalCaseRun>;
 }
 
 export async function runEvaluation(options: EvaluationRunOptions): Promise<EvalResultBundle> {
@@ -80,11 +81,17 @@ export async function runEvaluation(options: EvaluationRunOptions): Promise<Eval
 		throw new TypeError("eval repeatCount must be between 1 and 20");
 	}
 	const cases: EvalCaseResult[] = [];
-	for (const fixture of options.dataset.fixtures) {
+	for (let caseIndex = 0; caseIndex < options.dataset.fixtures.length; caseIndex += 1) {
+		const fixture = options.dataset.fixtures[caseIndex]!;
 		const runs: EvalCaseRun[] = [];
 		for (let repetition = 0; repetition < options.repeatCount; repetition += 1) {
 			const adapters = options.createAdapters(fixture);
-			runs.push(await evaluateFixture(fixture, adapters, options.dataset));
+			const execute = () => evaluateFixture(fixture, adapters, options.dataset);
+			runs.push(
+				options.runCase
+					? await options.runCase(`case-${caseIndex}-repeat-${repetition}`, execute)
+					: await execute(),
+			);
 		}
 		cases.push({
 			id: fixture.id,

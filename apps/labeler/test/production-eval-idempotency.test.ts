@@ -5,8 +5,11 @@ import {
 	EvalRunFailedError,
 	EvalRunInProgressError,
 	createD1EvalRunStore,
+	readEvalRunStatus,
 	runIdempotentLiveEvaluation,
+	startIdempotentLiveEvaluation,
 	type CompletedEvalRun,
+	type EvalWorkflowBinding,
 } from "../evals/production.js";
 
 const INPUT = {
@@ -33,6 +36,146 @@ beforeEach(async () => {
 });
 
 describe("production live evaluation idempotency", () => {
+	it("dispatches one stable Workflow instance for repeated POST claims", async () => {
+		const store = createD1EvalRunStore(env.DB);
+		const workflow = memoryEvalWorkflow();
+		const first = await startIdempotentLiveEvaluation({ store, workflow, input: INPUT });
+		const repeated = await startIdempotentLiveEvaluation({ store, workflow, input: INPUT });
+		expect(repeated).toEqual(first);
+		expect(first).toMatchObject({
+			runId: expect.any(Number),
+			instanceId: expect.stringMatching(/^listing-eval-/),
+			status: "running",
+		});
+		expect(workflow.create).toHaveBeenCalledTimes(1);
+	});
+
+	it("replays a terminal pre-Workflow run without dispatching it again", async () => {
+		const store = createD1EvalRunStore(env.DB);
+		const completed = await runIdempotentLiveEvaluation({
+			store,
+			input: INPUT,
+			execute: async () => COMPLETED,
+		});
+		const workflow = memoryEvalWorkflow();
+		await expect(startIdempotentLiveEvaluation({ store, workflow, input: INPUT })).resolves.toEqual(
+			{
+				runId: completed.runId,
+				instanceId: `listing-eval-${completed.runId}`,
+				status: "succeeded",
+				result: COMPLETED,
+			},
+		);
+		expect(workflow.create).not.toHaveBeenCalled();
+	});
+
+	it("recovers the bind-to-create gap with the same deterministic instance", async () => {
+		const store = createD1EvalRunStore(env.DB);
+		const claimed = await store.claim(INPUT);
+		const instanceId = `listing-eval-${claimed.record.id}`;
+		await store.bindWorkflow(claimed.record.id, claimed.leaseToken, instanceId);
+		const workflow = memoryEvalWorkflow();
+
+		await expect(startIdempotentLiveEvaluation({ store, workflow, input: INPUT })).resolves.toEqual(
+			{
+				runId: claimed.record.id,
+				instanceId,
+				status: "running",
+			},
+		);
+		expect(workflow.create).toHaveBeenCalledTimes(1);
+	});
+
+	it("treats concurrent deterministic create conflicts as one Workflow instance", async () => {
+		const store = createD1EvalRunStore(env.DB);
+		const claimed = await store.claim(INPUT);
+		await store.bindWorkflow(
+			claimed.record.id,
+			claimed.leaseToken,
+			`listing-eval-${claimed.record.id}`,
+		);
+		const workflow = memoryEvalWorkflow();
+		const [first, second] = await Promise.all([
+			startIdempotentLiveEvaluation({ store, workflow, input: INPUT }),
+			startIdempotentLiveEvaluation({ store, workflow, input: INPUT }),
+		]);
+		expect(second).toEqual(first);
+		expect(workflow.instanceCount()).toBe(1);
+	});
+
+	it("does not reclaim a bound Workflow after the dispatch lease TTL", async () => {
+		const store = createD1EvalRunStore(env.DB);
+		const workflow = memoryEvalWorkflow();
+		const first = await startIdempotentLiveEvaluation({ store, workflow, input: INPUT });
+		const afterTtl = await startIdempotentLiveEvaluation({
+			store,
+			workflow,
+			input: { ...INPUT, now: new Date("2026-08-26T12:00:00.000Z") },
+		});
+		expect(afterTtl).toEqual(first);
+		expect(workflow.create).toHaveBeenCalledTimes(1);
+		const row = await env.DB.prepare(
+			"SELECT attempt, lease_token, workflow_instance_id FROM eval_runs WHERE id = ?",
+		)
+			.bind(first.runId)
+			.first();
+		expect(row).toEqual({ attempt: 1, lease_token: null, workflow_instance_id: first.instanceId });
+	});
+
+	it.each(["errored", "terminated"] as const)(
+		"records a %s Workflow as failed instead of repeating completed model steps",
+		async (status) => {
+			const store = createD1EvalRunStore(env.DB);
+			const workflow = memoryEvalWorkflow();
+			const first = await startIdempotentLiveEvaluation({ store, workflow, input: INPUT });
+			workflow.setStatus(first.instanceId, status);
+			await expect(
+				startIdempotentLiveEvaluation({ store, workflow, input: INPUT }),
+			).resolves.toEqual({
+				runId: first.runId,
+				instanceId: first.instanceId,
+				status: "failed",
+				failure: {
+					code: "EVALUATION_FAILED",
+					summary: "Protected live evaluation could not be completed",
+				},
+			});
+			expect(workflow.create).toHaveBeenCalledTimes(1);
+			expect(workflow.restart).not.toHaveBeenCalled();
+		},
+	);
+
+	it("recovers an unexpired claim-to-bind gap before returning accepted", async () => {
+		const store = createD1EvalRunStore(env.DB);
+		const claimed = await store.claim(INPUT);
+		const workflow = memoryEvalWorkflow();
+		await expect(startIdempotentLiveEvaluation({ store, workflow, input: INPUT })).resolves.toEqual(
+			{
+				runId: claimed.record.id,
+				instanceId: `listing-eval-${claimed.record.id}`,
+				status: "running",
+			},
+		);
+		expect(workflow.create).toHaveBeenCalledTimes(1);
+		await expect(store.readById(claimed.record.id)).resolves.toMatchObject({
+			workflowInstanceId: `listing-eval-${claimed.record.id}`,
+		});
+	});
+
+	it("recovers an expired claim-to-bind gap before creating the Workflow", async () => {
+		const store = createD1EvalRunStore(env.DB);
+		await store.claim({ ...INPUT, now: new Date("2026-08-24T12:00:00.000Z") });
+		const workflow = memoryEvalWorkflow();
+		await expect(
+			startIdempotentLiveEvaluation({
+				store,
+				workflow,
+				input: { ...INPUT, now: new Date("2026-08-25T12:00:00.000Z") },
+			}),
+		).resolves.toMatchObject({ status: "running" });
+		expect(workflow.create).toHaveBeenCalledTimes(1);
+	});
+
 	it("lets only the insert winner execute and replays its stored result", async () => {
 		const store = createD1EvalRunStore(env.DB);
 		let release!: () => void;
@@ -146,6 +289,48 @@ describe("production live evaluation idempotency", () => {
 		).resolves.toBe(true);
 	});
 
+	it("reads completed and failed operational states without re-execution", async () => {
+		const store = createD1EvalRunStore(env.DB);
+		const completed = await store.claim(INPUT);
+		await store.bindWorkflow(
+			completed.record.id,
+			completed.leaseToken,
+			`listing-eval-${completed.record.id}`,
+		);
+		await store.completeWorkflow(
+			completed.record.id,
+			`listing-eval-${completed.record.id}`,
+			COMPLETED,
+			new Date("2026-08-25T12:01:00.000Z"),
+		);
+		await expect(readEvalRunStatus(store, completed.record.id)).resolves.toMatchObject({
+			status: "succeeded",
+			instanceId: `listing-eval-${completed.record.id}`,
+			result: COMPLETED,
+		});
+
+		const failed = await store.claim({ ...INPUT, idempotencyKey: "eval-production-failed-002" });
+		await store.bindWorkflow(
+			failed.record.id,
+			failed.leaseToken,
+			`listing-eval-${failed.record.id}`,
+		);
+		await store.failWorkflow(
+			failed.record.id,
+			`listing-eval-${failed.record.id}`,
+			"EVALUATION_FAILED",
+			"Protected live evaluation could not be completed",
+			new Date("2026-08-25T12:01:00.000Z"),
+		);
+		await expect(readEvalRunStatus(store, failed.record.id)).resolves.toMatchObject({
+			status: "failed",
+			failure: {
+				code: "EVALUATION_FAILED",
+				summary: "Protected live evaluation could not be completed",
+			},
+		});
+	});
+
 	it("persists bounded comparison and promotion-review state", async () => {
 		const store = createD1EvalRunStore(env.DB);
 		const baseline = await store.claim({
@@ -194,3 +379,30 @@ describe("production live evaluation idempotency", () => {
 		expect(JSON.parse(String(row?.["comparison_json"]))).toEqual(promotionComparison);
 	});
 });
+
+function memoryEvalWorkflow(): EvalWorkflowBinding & {
+	create: ReturnType<typeof vi.fn<EvalWorkflowBinding["create"]>>;
+	restart: ReturnType<typeof vi.fn<(id: string) => Promise<void>>>;
+	instanceCount(): number;
+	setStatus(id: string, status: "queued" | "running" | "complete" | "errored" | "terminated"): void;
+} {
+	const instances = new Map<string, "queued" | "running" | "complete" | "errored" | "terminated">();
+	const restart = vi.fn(async (id: string) => {
+		instances.set(id, "queued");
+	});
+	return {
+		create: vi.fn(async ({ id }) => {
+			if (instances.has(id)) throw new Error("instance already exists");
+			instances.set(id, "queued");
+		}),
+		async get(id) {
+			return {
+				status: async () => ({ status: instances.get(id) ?? "unknown" }),
+				restart: () => restart(id),
+			};
+		},
+		restart,
+		instanceCount: () => instances.size,
+		setStatus: (id, status) => instances.set(id, status),
+	};
+}

@@ -1,9 +1,11 @@
 import {
 	EvalRunFailedError,
 	EvalRunInProgressError,
-	runProductionLiveEvaluation,
+	createD1EvalRunStore,
+	readEvalRunStatus,
+	startProductionLiveEvaluation,
 	type EvalRunInput,
-	type EvalRunResponse,
+	type EvalRunStatusResponse,
 } from "../../evals/production.js";
 import {
 	authenticateOperator,
@@ -29,6 +31,7 @@ import { readAssessmentVersions } from "../runtime-config.js";
 const ASSESSMENT_ACTION_RE =
 	/^\/_admin\/api\/assessments\/([A-Za-z0-9._:-]{1,200})\/(approve|block|rerun)$/;
 const ASSESSMENT_DETAIL_RE = /^\/_admin\/api\/assessments\/([A-Za-z0-9._:-]{1,200})$/;
+const EVAL_DETAIL_RE = /^\/_admin\/api\/evals\/([1-9][0-9]*)$/;
 const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9._:-]{8,200}$/;
 const BASE64_PADDING_RE = /=+$/;
 const MAX_BODY_BYTES = 16 * 1024;
@@ -108,7 +111,8 @@ export interface OperatorApiDependencies {
 		idempotencyKey: string;
 		now: Date;
 	}): Promise<string>;
-	runEvaluation?(input: EvalRunInput): Promise<EvalRunResponse>;
+	runEvaluation?(input: EvalRunInput): Promise<EvalRunStatusResponse>;
+	readEvaluation?(runId: number): Promise<EvalRunStatusResponse | null>;
 	now(): Date;
 }
 
@@ -178,10 +182,9 @@ export async function handleOperatorApi(
 				idempotencyKey,
 				now,
 			};
-			return mutationResponse(
-				await (dependencies?.runEvaluation?.(evalInput) ??
-					runProductionLiveEvaluation(env, evalInput)),
-			);
+			const evaluation = await (dependencies?.runEvaluation?.(evalInput) ??
+				startProductionLiveEvaluation(env, evalInput));
+			return mutationResponse(evaluation, evaluation.status === "running" ? 202 : 200);
 		}
 		if (issuanceAction) {
 			if (dependencies) {
@@ -326,6 +329,21 @@ async function handleOperatorRead(
 		return apiError("FORBIDDEN", "Operator role is not authorized for this action", 403);
 	}
 	const url = new URL(request.url);
+	const evalDetail = EVAL_DETAIL_RE.exec(url.pathname);
+	if (evalDetail) {
+		if (!hasOperatorRole(identity, "admin")) {
+			return apiError("FORBIDDEN", "Operator role is not authorized for this resource", 403);
+		}
+		const runId = Number(evalDetail[1]);
+		if (!Number.isSafeInteger(runId)) {
+			return apiError("INVALID_REQUEST", "Evaluation run ID is invalid", 400);
+		}
+		const evaluation = await (dependencies?.readEvaluation?.(runId) ??
+			readEvalRunStatus(createD1EvalRunStore(env.DB), runId));
+		return evaluation
+			? mutationResponse(evaluation)
+			: apiError("NOT_FOUND", "Evaluation run was not found", 404);
+	}
 	const detail = ASSESSMENT_DETAIL_RE.exec(url.pathname);
 	if (detail) {
 		const runKey = detail[1]!;
@@ -692,8 +710,8 @@ async function parseMutationBody(request: Request): Promise<Record<string, unkno
 	}
 }
 
-function mutationResponse(value: unknown): Response {
-	return Response.json(value, { headers: { "cache-control": "no-store" } });
+function mutationResponse(value: unknown, status = 200): Response {
+	return Response.json(value, { status, headers: { "cache-control": "no-store" } });
 }
 
 function parseStoredJson(value: unknown): unknown {

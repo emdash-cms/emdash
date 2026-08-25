@@ -8,10 +8,12 @@ import { assertDatasetFileHashes, loadEvalDataset } from "../evals/dataset.js";
 import { createRecordedEvaluationOptions, runEvaluation } from "../evals/harness.js";
 import { loadRecordedBaseline } from "../evals/recordings.js";
 import { compareEvalBundles } from "../evals/report.js";
+import type { EvalCaseRun } from "../evals/types.js";
 import { sha256Hex } from "../src/ai/hash.js";
 import { IMAGE_SYSTEM_PROMPT, TEXT_SYSTEM_PROMPT } from "../src/ai/prompts.js";
 
 const DATASET_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../evals/datasets/v1");
+const readDatasetFile = (relativePath: string) => readFile(resolve(DATASET_ROOT, relativePath));
 
 describe("Workers AI evaluation harness", () => {
 	it("keeps holdout fixtures out of the ordinary repository dataset", async () => {
@@ -62,5 +64,33 @@ describe("Workers AI evaluation harness", () => {
 			expect(item.runs[0]?.actualOutcome, item.id).toBe(item.expected.outcome);
 		}
 		expect((await compareEvalBundles(bundle, bundle)).changedCases).toEqual([]);
+	});
+
+	it("resumes at durable case boundaries without repeating completed model work", async () => {
+		const dataset = await loadEvalDataset({ readFile: readDatasetFile });
+		const base = createRecordedEvaluationOptions({
+			dataset,
+			...loadRecordedBaseline(),
+			runnerCommit: "test",
+			executedAt: "2026-08-24T00:00:00.000Z",
+		});
+		const completed = new Map<string, EvalCaseRun>();
+		let interrupt = true;
+		let modelCalls = 0;
+		const options = {
+			...base,
+			async runCase(name: string, callback: () => Promise<EvalCaseRun>) {
+				if (completed.has(name)) return completed.get(name)!;
+				if (interrupt && completed.size === 1) throw new Error("simulated isolate termination");
+				const result = await callback();
+				modelCalls += 1;
+				completed.set(name, result);
+				return result;
+			},
+		};
+		await expect(runEvaluation(options)).rejects.toThrow(/isolate termination/);
+		interrupt = false;
+		await expect(runEvaluation(options)).resolves.toMatchObject({ mode: "recorded" });
+		expect(modelCalls).toBe(dataset.fixtures.length);
 	});
 });

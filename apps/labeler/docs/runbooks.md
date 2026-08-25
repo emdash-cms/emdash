@@ -490,11 +490,11 @@ transition.
 ### Run the protected live evaluation
 
 Only an administrator can start a live run. The endpoint uses the native Workers AI binding,
-the committed public files, the protected holdout, and three repeats. It writes the complete
-artifact to `emdash-labeler-eval-artifacts`:
+the committed public files, the protected holdout, and three repeats. It returns `202` after it
+creates a durable Workflow instance:
 
 ```sh
-curl --fail-with-body --silent --show-error \
+EMDASH_EVAL_START="$(curl --fail-with-body --silent --show-error \
   --request POST \
   --header "CF-Access-Client-Id: ${EMDASH_ACCESS_CLIENT_ID}" \
   --header "CF-Access-Client-Secret: ${EMDASH_ACCESS_CLIENT_SECRET}" \
@@ -503,29 +503,47 @@ curl --fail-with-body --silent --show-error \
   --header 'X-EmDash-Request: 1' \
   --header 'Idempotency-Key: eval-listing-metadata-v1-001' \
   --data '{"reason":"Run the protected production evaluation for the reviewed model bundle."}' \
-  "${EMDASH_LABELER_ORIGIN}/_admin/api/evals/run"
+  "${EMDASH_LABELER_ORIGIN}/_admin/api/evals/run")"
+
+export EMDASH_EVAL_RUN_ID="$(printf '%s' "${EMDASH_EVAL_START}" | jq -er '.runId')"
+export EMDASH_EVAL_INSTANCE_ID="$(printf '%s' "${EMDASH_EVAL_START}" | jq -er '.instanceId')"
+printf '%s' "${EMDASH_EVAL_START}" | jq -e '.status == "running"'
 ```
 
-The request claims its idempotency key before it reads the dataset or calls Workers AI. Retry an
-identical request with the same key if the response is lost. A retry while the first request is
-running returns `409 EVALUATION_RUNNING`. A completed retry returns the stored result without
-calling Workers AI again. A failed run returns `500 EVALUATION_FAILED` on every retry with that
-key; diagnose the failure and use a new key to start another run. A running claim has a renewable
-lease. If the Worker terminates, retry the identical request after `lease_expires_at`; the retry
-claims a new attempt instead of leaving the idempotency key permanently stuck.
+Retry the identical POST with the same idempotency key if the response is lost. It returns the
+same `runId` and `instanceId`. If the D1 claim was bound but Workflow creation did not finish, the
+retry creates that deterministic instance. If the instance terminated or errored before D1
+recorded a terminal result, the retry records the run as failed instead of restarting completed
+model steps. Diagnose the failure and use a new key. A different actor or reason cannot reuse the
+original key.
 
-The response includes `runId`, `artifactKey`, `datasetHash`, `budgetPassed`, `failures`,
-`candidateHash`, `promotionComparison`, and `report`. The first successful run for a dataset has
-a null `promotionComparison`. A later run compares its candidate with the most recent successful
-run for the same dataset and includes the baseline run ID, bundle hashes, metric changes, changed
-cases, and the promotion-review challenge hash.
+Poll the durable result with the returned run ID:
+
+```sh
+curl --fail-with-body --silent --show-error \
+  --header "CF-Access-Client-Id: ${EMDASH_ACCESS_CLIENT_ID}" \
+  --header "CF-Access-Client-Secret: ${EMDASH_ACCESS_CLIENT_SECRET}" \
+  "${EMDASH_LABELER_ORIGIN}/_admin/api/evals/${EMDASH_EVAL_RUN_ID}"
+```
+
+A running response contains `runId`, `instanceId`, and `status: "running"`. A successful response
+uses `status: "succeeded"`; its `result` contains `artifactKey`, `datasetHash`, `budgetPassed`,
+`failures`, `candidateHash`, `promotionComparison`, and `report`. A failed response uses
+`status: "failed"` and contains a stable failure code and summary. Diagnose a failed run and use
+a new idempotency key to start another evaluation.
+
+The Workflow persists each fixture repeat as a separate durable step. A process restart reuses
+completed case results. It also binds the run to the dataset, runner commit, model IDs, prompt
+hashes, and selected baseline before inference, so a changed deployment fails rather than mixing
+cached cases from different evaluation identities. The complete artifact is written to
+`emdash-labeler-eval-artifacts`.
 
 The labeler stores the bounded result, comparison, and report in `eval_runs`; the complete model
 artifact remains in `emdash-labeler-eval-artifacts`. Inspect one run without retrieving the full
 artifact:
 
 ```sh
-pnpm --dir apps/labeler exec wrangler d1 execute emdash-labeler --remote --json --command "SELECT id, status, attempt, lease_expires_at, result_json, comparison_json, report_markdown, failure_code, failure_summary, created_at, completed_at FROM eval_runs WHERE id = REPLACE_WITH_RUN_ID"
+pnpm --dir apps/labeler exec wrangler d1 execute emdash-labeler --remote --json --command "SELECT id, workflow_instance_id, status, attempt, result_json, comparison_json, report_markdown, failure_code, failure_summary, created_at, completed_at FROM eval_runs WHERE id = REPLACE_WITH_RUN_ID"
 ```
 
 The comparison and challenge hash do not authorize a promotion. A successful run also does not
@@ -743,6 +761,7 @@ List Workflow instances when assessment runs appear stalled:
 
 ```sh
 pnpm --dir apps/labeler exec wrangler workflows instances list emdash-labeler-assessment
+pnpm --dir apps/labeler exec wrangler workflows instances list emdash-labeler-live-evaluation
 ```
 
 Stream structured labeler and aggregator logs during a drill or incident:
