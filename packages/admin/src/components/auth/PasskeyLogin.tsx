@@ -195,9 +195,7 @@ export function PasskeyLogin({
 				const credentialOptions: CredentialRequestOptions = {
 					publicKey: publicKeyOptions,
 					// Use conditional mediation if supported and requested
-					...(useConditional && supportsConditional
-						? { mediation: "conditional" as CredentialMediationRequirement }
-						: {}),
+					...(useConditional && supportsConditional ? { mediation: "conditional" } : {}),
 				};
 
 				const rawCredential = await navigator.credentials.get(credentialOptions);

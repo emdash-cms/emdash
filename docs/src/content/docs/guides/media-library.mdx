@@ -18,13 +18,11 @@ Open the media library from the admin sidebar by clicking **Media**. The library
 
 ### From the Media Library
 
-1. Click **Media** in the admin sidebar
+1. Open **Media** in the admin sidebar.
 
-2. Click **Upload** or drag files onto the upload area
+2. Select **Upload to Library**, then **Browse files** to choose one or more files. You can also drag files anywhere onto the media library.
 
-3. Select one or more files from your computer
-
-4. Wait for uploads to complete
+3. Uploads start automatically. The dialog shows each file's status and lets you cancel or retry individual files.
 
 ### From the Content Editor
 
@@ -40,12 +38,12 @@ Open the media library from the admin sidebar by clicking **Media**. The library
 
 EmDash supports common web file types:
 
-| Category  | Extensions                                                |
-| --------- | --------------------------------------------------------- |
-| Images    | `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.avif`, `.svg` |
-| Documents | `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.ppt`, `.pptx` |
-| Video     | `.mp4`, `.webm`, `.mov`                                   |
-| Audio     | `.mp3`, `.wav`, `.ogg`                                    |
+| Category  | Extensions                                      |
+| --------- | ----------------------------------------------- |
+| Images    | `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`        |
+| Documents | `.pdf`                                         |
+| Video     | `.mp4`, `.webm`, `.mov`                         |
+| Audio     | `.mp3`, `.wav`, `.ogg`                          |
 
 <Aside type="caution">
 	Maximum file size depends on your storage configuration. The default limit is 10MB per file.
@@ -252,6 +250,8 @@ const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
 
 `priority` is for the primary above-the-fold image. It sets `loading="eager"` and `fetchpriority="high"`: `loading` controls whether loading is deferred, and `fetchpriority` gives the browser a priority hint for the request.
 
+EmDash installs an image endpoint that produces the resized variants on request. On Cloudflare Workers that endpoint uses the `IMAGES` binding. [Image Transformation](/deployment/cloudflare/#image-transformation) covers where the binding comes from and what happens when it is absent.
+
 ## Deleting Media
 
 1. Select the file(s) you want to delete
@@ -448,6 +448,60 @@ The component automatically:
 - Detects the provider from the stored value
 - Renders an optimized `<img>` element
 - Applies provider-specific optimizations (e.g., Cloudflare Images transformations)
+
+### File Values and Current Metadata
+
+A file field stores a reference and a metadata snapshot. Cached fields such as `url`, `filename`,
+`mimeType`, and `size` are optional because persisted values may omit them:
+
+```ts
+interface FileValue {
+  id: string;
+  url?: string;        // Legacy cached URL
+  src?: string;        // Direct URL from an external provider
+  filename?: string;  // Cached original filename
+  mimeType?: string;  // Cached MIME type
+  size?: number;       // Cached size, when available
+  provider?: string;   // Defaults to "local"
+  meta?: Record<string, unknown>;
+}
+```
+
+`getEmDashEntry()` and `getEmDashCollection()` return this stored value without an extra media
+query. For current metadata, use the configured provider's `get()` method explicitly. Use
+`getEmbed()` for the provider-specific render URL:
+
+```astro
+---
+const file = post.data.attachment;
+const provider = file
+  ? Astro.locals.emdash?.getMediaProvider(file.provider ?? "local")
+  : undefined;
+const current = file ? await provider?.get?.(file.id) : null;
+const embed = file && provider ? await provider.getEmbed(file) : null;
+---
+```
+
+Authenticated HTTP clients can make the same explicit lookup through
+`GET /_emdash/api/media/:id` for local media or
+`GET /_emdash/api/media/providers/:providerId/:itemId` for another provider.
+
+For a local file URL, use the stored `meta.storageKey` with the public URL helper. This respects a
+configured R2 or S3 public domain without querying the media table:
+
+```astro
+---
+const storageKey =
+  typeof file?.meta?.storageKey === "string" ? file.meta.storageKey : undefined;
+const url = storageKey
+  ? Astro.locals.emdash?.getPublicMediaUrl?.(storageKey)
+  : file?.src ?? file?.url;
+---
+```
+
+Provider lookups may perform network or database work. Avoid one lookup per file on logged-out
+collection pages; use the stored snapshot and rendering components unless the request needs fresh
+metadata.
 
 ### MediaValue Type
 

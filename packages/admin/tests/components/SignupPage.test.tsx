@@ -1,6 +1,7 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import { AdminBrandingProvider } from "../../src/lib/admin-branding-context";
 import { render } from "../utils/render.tsx";
 
 // Mock router
@@ -137,5 +138,27 @@ describe("SignupPage", () => {
 		window.history.replaceState({}, "", "?token=exists-token");
 		const screen = await render(<SignupPage />);
 		await expect.element(screen.getByText("Account exists")).toBeInTheDocument();
+	});
+
+	// Regression test for #639 / PR #705: the signup page must reflect the
+	// configured admin.logo/siteName (white-label branding), not the stock
+	// hardcoded EmDash mark — same as LoginPage.
+	it("renders the configured admin logo/site name instead of the stock mark", async () => {
+		const screen = await render(
+			<AdminBrandingProvider
+				adminBranding={{ logo: "https://example.com/logo.png", siteName: "Acme CMS" }}
+			>
+				<SignupPage />
+			</AdminBrandingProvider>,
+		);
+		const logoImg = screen.getByRole("img", { name: "Acme CMS" });
+		await expect.element(logoImg).toBeInTheDocument();
+		expect(logoImg.element().getAttribute("src")).toBe("https://example.com/logo.png");
+		expect(screen.getByRole("img", { name: "EmDash" }).query()).toBeNull();
+	});
+
+	it("falls back to the stock EmDash mark when no admin branding is configured", async () => {
+		const screen = await render(<SignupPage />);
+		await expect.element(screen.getByRole("img", { name: "EmDash" })).toBeInTheDocument();
 	});
 });

@@ -7,8 +7,8 @@
  * and click-outside dismissal.
  *
  * BlockMenu is a standalone component that takes an editor instance,
- * an anchor element, and open/close callbacks. It renders via
- * createPortal to document.body.
+ * an anchor element, and open/close callbacks. It renders through
+ * Kumo's dropdown primitive, anchored to the selected block.
  */
 
 import type { Editor } from "@tiptap/react";
@@ -168,6 +168,31 @@ function BlockMenuTestWrapper({
 	);
 }
 
+function ClosingBlockMenuTestWrapper({
+	editor,
+	onCloseComplete,
+}: {
+	editor: Editor;
+	onCloseComplete: () => void;
+}) {
+	const [isOpen, setIsOpen] = React.useState(true);
+	const anchorRef = React.useRef<HTMLDivElement>(null);
+
+	return (
+		<>
+			<div ref={anchorRef}>Anchor</div>
+			<button type="button">Outside menu</button>
+			<BlockMenu
+				editor={editor}
+				anchorElement={anchorRef.current}
+				isOpen={isOpen}
+				onClose={() => setIsOpen(false)}
+				onCloseComplete={onCloseComplete}
+			/>
+		</>
+	);
+}
+
 /** Get the block menu portal element */
 function getBlockMenu(): HTMLElement | null {
 	const portals = document.querySelectorAll("body > div");
@@ -180,15 +205,15 @@ function getBlockMenu(): HTMLElement | null {
 	return null;
 }
 
-/** Get all text buttons in the menu */
-function getMenuButtons(menu: HTMLElement): HTMLButtonElement[] {
-	return [...menu.querySelectorAll("button")];
+/** Get all actionable items in the menu */
+function getMenuItems(menu: HTMLElement): HTMLElement[] {
+	return [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')];
 }
 
-/** Find a button by its text content */
-function findButtonByText(menu: HTMLElement, text: string): HTMLButtonElement | null {
-	const buttons = getMenuButtons(menu);
-	return buttons.find((btn) => btn.textContent?.includes(text)) ?? null;
+/** Find a menu item by its text content */
+function findButtonByText(menu: HTMLElement, text: string): HTMLElement | null {
+	const items = getMenuItems(menu);
+	return items.find((item) => item.textContent?.includes(text)) ?? null;
 }
 
 // =============================================================================
@@ -222,6 +247,22 @@ describe("BlockMenu", () => {
 		expect(findButtonByText(menu, "Delete")).toBeTruthy();
 	});
 
+	it("exposes block actions as an accessible menu", async () => {
+		const { editor } = await getEditor();
+		const onClose = vi.fn();
+
+		await render(<BlockMenuTestWrapper editor={editor} isOpen={true} onClose={onClose} />);
+
+		await vi.waitFor(() => {
+			expect(document.querySelector('[role="menu"]')).toBeTruthy();
+		});
+
+		const menu = document.querySelector('[role="menu"]')!;
+		const items = [...menu.querySelectorAll('[role="menuitem"]')];
+
+		expect(items.map((item) => item.textContent)).toEqual(["Turn into", "Duplicate", "Delete"]);
+	});
+
 	it("shows Turn into submenu when Turn into is clicked", async () => {
 		const { editor } = await getEditor();
 		const onClose = vi.fn();
@@ -243,6 +284,9 @@ describe("BlockMenu", () => {
 			expect(findButtonByText(updatedMenu, "Heading 1")).toBeTruthy();
 			expect(findButtonByText(updatedMenu, "Heading 2")).toBeTruthy();
 			expect(findButtonByText(updatedMenu, "Heading 3")).toBeTruthy();
+			expect(findButtonByText(updatedMenu, "Heading 4")).toBeTruthy();
+			expect(findButtonByText(updatedMenu, "Heading 5")).toBeTruthy();
+			expect(findButtonByText(updatedMenu, "Heading 6")).toBeTruthy();
 			expect(findButtonByText(updatedMenu, "Quote")).toBeTruthy();
 			expect(findButtonByText(updatedMenu, "Code Block")).toBeTruthy();
 			expect(findButtonByText(updatedMenu, "Bullet List")).toBeTruthy();
@@ -414,6 +458,36 @@ describe("BlockMenu", () => {
 		});
 	});
 
+	it("deletes a selected table when Delete is clicked", async () => {
+		const { editor, pm } = await getEditor();
+		const onClose = vi.fn();
+
+		editor.chain().focus("start").insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run();
+
+		let tablePos = -1;
+		editor.state.doc.descendants((node, pos) => {
+			if (node.type.name !== "table") return true;
+			tablePos = pos;
+			return false;
+		});
+		expect(tablePos).toBeGreaterThanOrEqual(0);
+
+		editor.commands.setNodeSelection(tablePos);
+
+		await render(<BlockMenuTestWrapper editor={editor} isOpen={true} onClose={onClose} />);
+
+		await vi.waitFor(() => {
+			expect(getBlockMenu()).toBeTruthy();
+		});
+
+		findButtonByText(getBlockMenu()!, "Delete")!.click();
+
+		expect(onClose).toHaveBeenCalled();
+		await vi.waitFor(() => {
+			expect(pm.querySelector("table")).toBeNull();
+		});
+	});
+
 	it("duplicates the current block when Duplicate is clicked", async () => {
 		const { editor, pm } = await getEditor();
 		const onClose = vi.fn();
@@ -452,6 +526,56 @@ describe("BlockMenu", () => {
 		await userEvent.keyboard("{Escape}");
 
 		expect(onClose).toHaveBeenCalled();
+	});
+
+	it("stays open when the pointer leaves a highlighted menu item", async () => {
+		const { editor, pm } = await getEditor();
+		const onClose = vi.fn();
+
+		await render(<BlockMenuTestWrapper editor={editor} isOpen={true} onClose={onClose} />);
+
+		await vi.waitFor(() => {
+			expect(getBlockMenu()).toBeTruthy();
+		});
+
+		await userEvent.hover(findButtonByText(getBlockMenu()!, "Duplicate")!);
+		await userEvent.hover(pm.querySelectorAll("p")[1]!);
+
+		expect(onClose).not.toHaveBeenCalled();
+		expect(getBlockMenu()).toBeTruthy();
+	});
+
+	it("closes when the user clicks outside the menu", async () => {
+		const { editor, pm } = await getEditor();
+		const onClose = vi.fn();
+
+		await render(<BlockMenuTestWrapper editor={editor} isOpen={true} onClose={onClose} />);
+
+		await vi.waitFor(() => {
+			expect(getBlockMenu()).toBeTruthy();
+		});
+
+		await userEvent.click(pm.querySelectorAll("p")[1]!);
+
+		expect(onClose).toHaveBeenCalled();
+	});
+
+	it("reports when the menu exit transition completes", async () => {
+		const { editor } = await getEditor();
+		const onCloseComplete = vi.fn();
+		const screen = await render(
+			<ClosingBlockMenuTestWrapper editor={editor} onCloseComplete={onCloseComplete} />,
+		);
+
+		await vi.waitFor(() => {
+			expect(getBlockMenu()).toBeTruthy();
+		});
+
+		await userEvent.click(screen.getByRole("button", { name: "Outside menu" }));
+
+		await vi.waitFor(() => {
+			expect(onCloseComplete).toHaveBeenCalledOnce();
+		});
 	});
 
 	it("closes transform submenu on Escape (returns to main, not full close)", async () => {

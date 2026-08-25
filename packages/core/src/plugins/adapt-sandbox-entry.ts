@@ -108,7 +108,9 @@ function resolveSandboxedHook(entry: AnyHookEntry, pluginId: string): ResolvedHo
 function normalizeRouteEntry(entry: RouteEntry): {
 	handler: RouteHandler;
 	public?: boolean;
+	cacheControl?: string;
 	input?: PluginRoute["input"];
+	permission?: PluginRoute["permission"];
 } {
 	if (typeof entry === "function") {
 		return { handler: entry };
@@ -116,6 +118,8 @@ function normalizeRouteEntry(entry: RouteEntry): {
 	return {
 		handler: entry.handler,
 		public: entry.public,
+		permission: entry.permission,
+		cacheControl: entry.cacheControl,
 		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- RouteEntry.input is intentionally `unknown` (sandboxed plugins) and validated by the runtime at invocation time
 		input: entry.input as PluginRoute["input"],
 	};
@@ -185,22 +189,48 @@ export function adaptSandboxEntry(
 	}
 
 	// Resolve routes: sandboxed format uses (routeCtx, pluginCtx) two-arg
-	// pattern. Native format uses (ctx: RouteContext) single-arg pattern
-	// where RouteContext extends PluginContext with
-	// { input, request, requestMeta }. We wrap sandboxed route handlers
-	// to merge the two args into one.
+	// pattern. Standard format (`definePlugin(...)` as the default export)
+	// uses the public (ctx: RouteContext) single-arg pattern where
+	// RouteContext extends PluginContext with { input, request, requestMeta }.
+	//
+	// The two conventions disagree on the FIRST argument (`request` is a
+	// flattened plain object for sandboxed, a real WHATWG `Request` for
+	// standard), so the wrapper must know which contract the handler was
+	// written against. `definePlugin` requires `id`, and sandbox-format
+	// default exports never carry one (identity comes from the manifest's
+	// slug + publisher) — the same "no id" signal definePlugin itself
+	// documents. Calling a single-arg standard handler with the two-arg
+	// convention silently hands it the bare route context (JS drops the
+	// extra argument), so `ctx.storage` / `ctx.email` / etc. are all
+	// undefined at runtime (#2079).
 	//
 	// Route entries can be bare functions or `{ handler, public?, input? }`
 	// config objects; normalise to the config shape inside the loop.
+	const usesPublicRouteContext = "id" in definition && typeof definition.id === "string";
 	const resolvedRoutes: Record<string, PluginRoute> = {};
 	if (definition.routes) {
 		for (const [routeName, rawEntry] of Object.entries(definition.routes)) {
 			const normalized = normalizeRouteEntry(rawEntry);
-			const { handler, public: publicFlag, input: inputSchema } = normalized;
+			const {
+				handler,
+				public: publicFlag,
+				cacheControl,
+				input: inputSchema,
+				permission,
+			} = normalized;
 			resolvedRoutes[routeName] = {
 				input: inputSchema,
 				public: publicFlag,
+				permission,
+				cacheControl,
 				handler: async (ctx) => {
+					if (usesPublicRouteContext) {
+						// The incoming ctx already IS the public RouteContext
+						// (full PluginContext + input / real Request /
+						// requestMeta) — pass it through unchanged.
+						// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- standard-format handlers are authored against the public single-arg PluginRoute contract; the sandbox RouteHandler type on `normalized` is the wider authoring union
+						return (handler as unknown as PluginRoute["handler"])(ctx);
+					}
 					// `ctx.request` is a real WHATWG `Request` (this is the
 					// in-process adapter; the worker-sandbox adapter handles
 					// the serialised case). Flatten `Headers` to the plain
@@ -220,8 +250,9 @@ export function adaptSandboxEntry(
 						input: ctx.input,
 						request: requestShape,
 						requestMeta: ctx.requestMeta,
+						user: ctx.user,
 					};
-					const { input: _, request: __, requestMeta: ___, ...pluginCtx } = ctx;
+					const { input: _, request: __, requestMeta: ___, user: ____, ...pluginCtx } = ctx;
 					return handler(routeCtx, pluginCtx);
 				},
 			};
@@ -290,6 +321,9 @@ export function adaptSandboxEntry(
 	if (descriptor.adminWidgets) {
 		admin.widgets = descriptor.adminWidgets;
 	}
+	if (descriptor.settingsSchema) {
+		admin.settingsSchema = descriptor.settingsSchema;
+	}
 	if (descriptor.portableTextBlocks) {
 		admin.portableTextBlocks = descriptor.portableTextBlocks;
 	}
@@ -305,6 +339,20 @@ export function adaptSandboxEntry(
 		storage,
 		hooks: resolvedHooks,
 		routes: resolvedRoutes,
+		mcp: {
+			tools: Object.fromEntries(
+				Object.entries(definition.mcp?.tools ?? {}).map(([name, tool]) => [
+					name,
+					{
+						description: tool.description,
+						route: tool.route,
+						input: tool.input,
+						output: tool.output,
+						destructive: tool.destructive,
+					},
+				]),
+			),
+		},
 		admin,
 	};
 }

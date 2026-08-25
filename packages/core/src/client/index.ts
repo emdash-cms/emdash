@@ -19,6 +19,7 @@
 
 import mime from "mime/lite";
 
+import type { ContentFieldFilters } from "../content-list-query.js";
 import type { FieldSchema } from "./portable-text.js";
 import { convertDataForRead, convertDataForWrite } from "./portable-text.js";
 import type { Interceptor } from "./transport.js";
@@ -127,6 +128,62 @@ export interface Field {
 	sortOrder?: number;
 }
 
+/** Aggregate trust state for media usage reads */
+export type MediaUsageCoverageStatus =
+	| "complete"
+	| "never"
+	| "running"
+	| "partial"
+	| "failed"
+	| "stale"
+	| "unknown";
+
+/** Aggregate media usage coverage across all content collections */
+export interface MediaUsageCoverage {
+	scope: "all_content_collections";
+	status: MediaUsageCoverageStatus;
+}
+
+/** Coverage-aware usage count for a media item */
+export interface MediaUsageSummary {
+	count: number | null;
+	coverage: MediaUsageCoverage;
+}
+
+/** One indexed media reference within a content source */
+export interface MediaUsageOccurrenceDetail {
+	fieldSlug: string;
+	fieldPath: string;
+	occurrenceIndex: number;
+	referenceType: "image_field" | "file_field" | "portable_text_image" | "unknown";
+}
+
+/** Indexed references from one visible content source */
+export interface MediaUsageSourceDetail {
+	variant: "columns" | "draft_overlay";
+	occurrences: MediaUsageOccurrenceDetail[];
+}
+
+/** One content entry that references a media item */
+export interface MediaUsageEntryDetail {
+	collection: string;
+	contentId: string;
+	title: string | null;
+	slug: string | null;
+	locale: string | null;
+	status: string | null;
+	scheduledAt: string | null;
+	deletedAt: string | null;
+	sources: MediaUsageSourceDetail[];
+}
+
+/** Entry-grouped media usage details */
+export interface MediaUsageDetailsResponse {
+	items: MediaUsageEntryDetail[];
+	nextCursor?: string;
+	coverage: MediaUsageCoverage;
+}
+
 /** Media item */
 export interface MediaItem {
 	id: string;
@@ -140,6 +197,7 @@ export interface MediaItem {
 	caption?: string;
 	createdAt: string;
 	updatedAt: string;
+	usage?: MediaUsageSummary;
 }
 
 /** Media usage repair request */
@@ -169,6 +227,74 @@ export interface MediaUsageRepairResponse {
 	skippedSourceCount: number;
 	deletedSourceCount: number;
 	collections: MediaUsageRepairCollectionSummary[];
+}
+
+/** Durable media usage entry-work state */
+export type MediaUsageWorkState = "pending" | "retry" | "leased" | "failed";
+
+/** Redacted operator view of one durable media usage job */
+export interface MediaUsageWorkItem {
+	collectionId: string;
+	collectionSlug: string;
+	contentId: string;
+	state: MediaUsageWorkState;
+	attemptCount: number;
+	nextAttemptAt: string;
+	leaseExpiresAt: string | null;
+	lastAttemptedAt: string | null;
+	lastErrorCode: string | null;
+	updatedAt: string;
+}
+
+/** Filters and pagination for durable media usage work */
+export interface MediaUsageWorkListOptions {
+	collection: string;
+	state?: MediaUsageWorkState;
+	limit?: number;
+	cursor?: string;
+}
+
+/** One bounded page of durable media usage work */
+export interface MediaUsageWorkListResponse {
+	items: MediaUsageWorkItem[];
+	nextCursor?: string;
+}
+
+/** Identity for explicitly retrying one durable media usage job */
+export interface MediaUsageWorkRetryInput {
+	collectionId: string;
+	contentId: string;
+}
+
+/** Result of explicitly retrying one durable media usage job */
+export interface MediaUsageWorkRetryResponse {
+	changed: boolean;
+	item: MediaUsageWorkItem;
+}
+
+export type MediaUsageCollectionDeletionState = "pending" | "retry" | "leased" | "failed";
+export type MediaUsageCollectionDeletionPhase =
+	| "fence"
+	| "registry"
+	| "table"
+	| "work"
+	| "sources"
+	| "status"
+	| "finalize";
+export interface MediaUsageCollectionDeletionItem {
+	collectionId: string;
+	collectionSlug: string;
+	state: MediaUsageCollectionDeletionState;
+	phase: MediaUsageCollectionDeletionPhase;
+	attemptCount: number;
+	nextAttemptAt: string;
+	leaseExpiresAt: string | null;
+	lastErrorCode: string | null;
+	updatedAt: string;
+}
+export interface MediaUsageCollectionDeletionListResponse {
+	items: MediaUsageCollectionDeletionItem[];
+	nextCursor?: string;
 }
 
 /** Search result */
@@ -440,6 +566,8 @@ export class EmDashClient {
 			orderBy?: string;
 			order?: "asc" | "desc";
 			locale?: string;
+			/** AND-combined filters over custom fields explicitly marked as indexed. */
+			fieldFilters?: ContentFieldFilters;
 		},
 	): Promise<ListResult<ContentItem>> {
 		const params = new URLSearchParams();
@@ -449,6 +577,9 @@ export class EmDashClient {
 		if (options?.orderBy) params.set("orderBy", options.orderBy);
 		if (options?.order) params.set("order", options.order);
 		if (options?.locale) params.set("locale", options.locale);
+		if (options?.fieldFilters && Object.keys(options.fieldFilters).length > 0) {
+			params.set("fieldFilters", JSON.stringify(options.fieldFilters));
+		}
 
 		const qs = params.toString();
 		const path = `/content/${encodeURIComponent(collection)}${qs ? `?${qs}` : ""}`;
@@ -464,6 +595,8 @@ export class EmDashClient {
 			orderBy?: string;
 			order?: "asc" | "desc";
 			locale?: string;
+			/** AND-combined filters over custom fields explicitly marked as indexed. */
+			fieldFilters?: ContentFieldFilters;
 		},
 	): AsyncGenerator<ContentItem> {
 		let cursor: string | undefined;
@@ -678,20 +811,45 @@ export class EmDashClient {
 		mimeType?: string;
 		limit?: number;
 		cursor?: string;
+		includeUsage?: boolean;
 	}): Promise<ListResult<MediaItem>> {
 		const params = new URLSearchParams();
 		if (options?.mimeType) params.set("mimeType", options.mimeType);
 		if (options?.limit) params.set("limit", String(options.limit));
 		if (options?.cursor) params.set("cursor", options.cursor);
+		if (options?.includeUsage === true) params.set("includeUsage", "1");
 
 		const qs = params.toString();
 		return this.request<ListResult<MediaItem>>("GET", `/media${qs ? `?${qs}` : ""}`);
 	}
 
 	/** Get a single media item */
-	async mediaGet(id: string): Promise<MediaItem> {
-		const data = await this.request<{ item: MediaItem }>("GET", `/media/${encodeURIComponent(id)}`);
+	async mediaGet(id: string, options?: { includeUsage?: boolean }): Promise<MediaItem> {
+		const params = new URLSearchParams();
+		if (options?.includeUsage === true) params.set("includeUsage", "1");
+
+		const qs = params.toString();
+		const data = await this.request<{ item: MediaItem }>(
+			"GET",
+			`/media/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`,
+		);
 		return data.item;
+	}
+
+	/** Get entry-grouped usage details for a media item */
+	async mediaGetUsage(
+		id: string,
+		options?: { limit?: number; cursor?: string },
+	): Promise<MediaUsageDetailsResponse> {
+		const params = new URLSearchParams();
+		if (options?.limit !== undefined) params.set("limit", String(options.limit));
+		if (options?.cursor !== undefined) params.set("cursor", options.cursor);
+
+		const qs = params.toString();
+		return this.request<MediaUsageDetailsResponse>(
+			"GET",
+			`/media/${encodeURIComponent(id)}/usage${qs ? `?${qs}` : ""}`,
+		);
 	}
 
 	/** Upload a media file */
@@ -734,6 +892,49 @@ export class EmDashClient {
 	/** Repair content media usage indexes for one collection or all collections */
 	async mediaRepairUsage(input: MediaUsageRepairInput): Promise<MediaUsageRepairResponse> {
 		return this.request<MediaUsageRepairResponse>("POST", "/admin/media-usage/repair", input);
+	}
+
+	/** List a bounded page of durable media usage entry work */
+	async mediaListUsageWork(
+		options: MediaUsageWorkListOptions,
+	): Promise<MediaUsageWorkListResponse> {
+		const params = new URLSearchParams({ collection: options.collection });
+		if (options.state) params.set("state", options.state);
+		if (options.limit !== undefined) params.set("limit", String(options.limit));
+		if (options.cursor) params.set("cursor", options.cursor);
+		return this.request<MediaUsageWorkListResponse>("GET", `/admin/media-usage/work?${params}`);
+	}
+
+	/** Explicitly retry one durable media usage entry job */
+	async mediaRetryUsageWork(input: MediaUsageWorkRetryInput): Promise<MediaUsageWorkRetryResponse> {
+		return this.request<MediaUsageWorkRetryResponse>(
+			"POST",
+			"/admin/media-usage/work/retry",
+			input,
+		);
+	}
+
+	async mediaListCollectionDeletions(
+		options: {
+			state?: MediaUsageCollectionDeletionState;
+			limit?: number;
+			cursor?: string;
+		} = {},
+	): Promise<MediaUsageCollectionDeletionListResponse> {
+		const params = new URLSearchParams();
+		if (options.state) params.set("state", options.state);
+		if (options.limit !== undefined) params.set("limit", String(options.limit));
+		if (options.cursor) params.set("cursor", options.cursor);
+		return this.request("GET", `/admin/media-usage/collection-deletions?${params}`);
+	}
+
+	async mediaRetryCollectionDeletion(collectionId: string): Promise<{
+		changed: boolean;
+		item: MediaUsageCollectionDeletionItem;
+	}> {
+		return this.request("POST", "/admin/media-usage/collection-deletions/retry", {
+			collectionId,
+		});
 	}
 
 	// -----------------------------------------------------------------------

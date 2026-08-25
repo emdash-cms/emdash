@@ -3,7 +3,7 @@
  * GET  /_emdash/api/setup/dev-bypass
  *
  * Development-only endpoint to bypass the setup wizard.
- * Runs migrations, creates a dev admin user, and marks setup complete.
+ * Creates a dev admin user and marks setup complete after runtime initialization.
  *
  * ONLY available when import.meta.env.DEV is true.
  *
@@ -28,7 +28,6 @@ import { escapeHtml } from "#api/escape.js";
 import { deleteApiTokensByName, handleApiTokenCreate } from "#api/handlers/api-tokens.js";
 import { getPublicOrigin } from "#api/public-url.js";
 import { isSafeRedirect } from "#api/redirect.js";
-import { runMigrations } from "#db/migrations/runner.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 import { applySeed } from "#seed/apply.js";
 import { loadSeed } from "#seed/load.js";
@@ -55,10 +54,6 @@ async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Respon
 	}
 
 	try {
-		// Run migrations
-		const migrations = await runMigrations(emdash.db);
-		console.log("[setup-dev-bypass] Migrations applied:", migrations.applied);
-
 		// Apply seed (user seed or built-in default). `?content=0` (or `false`)
 		// applies schema/structure only — no sample content, bylines, or terms.
 		const contentParam = url.searchParams.get("content");
@@ -189,7 +184,7 @@ async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Respon
 		return apiSuccess({
 			success: true,
 			message: "Dev setup complete",
-			migrations: migrations.applied,
+			migrations: [],
 			userCreated,
 			user: {
 				id: user.id,

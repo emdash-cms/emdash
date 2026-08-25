@@ -6,13 +6,22 @@
  */
 
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
-import { hasPermission, canActOnOwn } from "@emdash-cms/auth";
+import { hasPermission, canActOnOwn, hasScope } from "@emdash-cms/auth";
 
 import { apiError } from "./error.js";
 
 interface UserLike {
 	id: string;
 	role: RoleLevel;
+}
+
+export function canReadMediaUsageCount(
+	user: UserLike | null | undefined,
+	tokenScopes: string[] | undefined,
+): boolean {
+	return (
+		hasPermission(user, "content:read_drafts") && (!tokenScopes || hasScope(tokenScopes, "admin"))
+	);
 }
 
 /**

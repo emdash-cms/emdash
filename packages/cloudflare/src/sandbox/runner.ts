@@ -13,6 +13,9 @@
 
 import { env, exports } from "cloudflare:workers";
 import {
+	createSandboxRouteError,
+	getSandboxRouteErrorEnvelope,
+	getI18nConfig,
 	normalizeCapabilities,
 	type SandboxRunner,
 	type SandboxedPluginInstance,
@@ -21,6 +24,7 @@ import {
 	type SandboxRunnerFactory,
 	type SerializedRequest,
 	type PluginManifest,
+	type I18nConfig,
 } from "emdash";
 
 import { setEmailSendCallback } from "./bridge.js";
@@ -49,6 +53,7 @@ export interface PluginBridgeProps {
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
+	i18nConfig?: I18nConfig | null;
 	storageConfig?: Record<
 		string,
 		{ indexes?: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
@@ -102,7 +107,12 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	private plugins = new Map<string, CloudflareSandboxedPlugin>();
 	private options: SandboxOptions;
 	private resolvedLimits: ResolvedLimits;
-	private siteInfo?: { name: string; url: string; locale: string };
+	private siteInfo?: {
+		name: string;
+		url: string;
+		locale: string;
+		trailingSlash?: "always" | "never" | "ignore";
+	};
 
 	constructor(options: SandboxOptions) {
 		this.options = options;
@@ -203,7 +213,12 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 	private code: string;
 	private wrapperCode: string | null = null;
 	private limits: ResolvedLimits;
-	private siteInfo?: { name: string; url: string; locale: string };
+	private siteInfo?: {
+		name: string;
+		url: string;
+		locale: string;
+		trailingSlash?: "always" | "never" | "ignore";
+	};
 
 	constructor(
 		manifest: PluginManifest,
@@ -211,7 +226,12 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		loader: WorkerLoader,
 		createBridge: (opts: { props: PluginBridgeProps }) => PluginBridgeBinding,
 		limits: ResolvedLimits,
-		siteInfo?: { name: string; url: string; locale: string },
+		siteInfo?: {
+			name: string;
+			url: string;
+			locale: string;
+			trailingSlash?: "always" | "never" | "ignore";
+		},
 	) {
 		this.id = `${manifest.id}:${manifest.version}`;
 		this.manifest = manifest;
@@ -254,15 +274,8 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 				capabilities: normalizeCapabilities(this.manifest.capabilities || []),
 				allowedHosts: this.manifest.allowedHosts || [],
 				storageCollections: Object.keys(this.manifest.storage || {}),
-				storageConfig: this.manifest.storage as
-					| Record<
-							string,
-							{
-								indexes?: Array<string | string[]>;
-								uniqueIndexes?: Array<string | string[]>;
-							}
-					  >
-					| undefined,
+				i18nConfig: getI18nConfig(),
+				storageConfig: this.manifest.storage,
 			},
 		});
 
@@ -349,10 +362,13 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		input: unknown,
 		request: SerializedRequest,
 	): Promise<unknown> {
-		return this.withWallTimeLimit(`route:${routeName}`, () => {
+		return this.withWallTimeLimit(`route:${routeName}`, async () => {
 			const worker = this.createWorker();
 			const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
-			return entrypoint.invokeRoute(routeName, input, request);
+			const result = await entrypoint.invokeRoute(routeName, input, request);
+			const envelope = getSandboxRouteErrorEnvelope(result);
+			if (envelope) throw createSandboxRouteError(envelope.error.code);
+			return result;
 		});
 	}
 

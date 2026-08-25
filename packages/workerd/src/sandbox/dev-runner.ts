@@ -23,6 +23,7 @@ import type {
 	SandboxOptions,
 	SerializedRequest,
 } from "emdash";
+import { createSandboxRouteError, getI18nConfig, getSandboxRouteErrorEnvelope } from "emdash";
 
 const DEFAULT_WALL_TIME_MS = 30_000;
 import type { PluginManifest } from "emdash";
@@ -51,7 +52,12 @@ const EMDASH_SHIM = "export const definePlugin = (d) => d;\n";
  */
 export class MiniflareDevRunner implements SandboxRunner {
 	private options: SandboxOptions;
-	private siteInfo?: { name: string; url: string; locale: string };
+	private siteInfo?: {
+		name: string;
+		url: string;
+		locale: string;
+		trailingSlash?: "always" | "never" | "ignore";
+	};
 	private emailSendCallback: SandboxEmailSendCallback | null = null;
 
 	/** Miniflare instance (lazily created) */
@@ -167,10 +173,10 @@ export class MiniflareDevRunner implements SandboxRunner {
 				capabilities: manifest.capabilities || [],
 				allowedHosts: manifest.allowedHosts || [],
 				storageCollections: Object.keys(manifest.storage || {}),
-				storageConfig: manifest.storage as
-					| Record<string, { indexes?: Array<string | string[]> }>
-					| undefined,
+				storageConfig: manifest.storage,
+				i18nConfig: getI18nConfig(),
 				db: this.options.db,
+				beforeContentWrite: this.options.beforeContentWrite,
 				emailSend: () => this.emailSendCallback,
 				storage: this.options.mediaStorage,
 			});
@@ -295,6 +301,15 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 			});
 			if (!res.ok) {
 				const text = await res.text();
+				let envelope = null;
+				try {
+					envelope = getSandboxRouteErrorEnvelope(JSON.parse(text));
+				} catch {
+					// The generic route error below preserves non-protocol failures.
+				}
+				if (envelope) {
+					throw createSandboxRouteError(envelope.error.code);
+				}
 				throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
 			}
 			return res.json();

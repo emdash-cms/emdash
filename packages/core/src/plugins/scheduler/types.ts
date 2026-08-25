@@ -18,6 +18,8 @@ export interface CronScheduler {
 	reschedule(): void;
 	/** Register a system cleanup function to run alongside each tick. */
 	setSystemCleanup(fn: SystemCleanupFn): void;
+	/** Register bounded Media Usage maintenance to run after the general tick settles. */
+	setMediaUsageMaintenance?(fn: SystemCleanupFn): void;
 }
 
 /**

@@ -69,6 +69,12 @@ export const RESOLVED_VIRTUAL_WAIT_UNTIL_ID = "\0" + VIRTUAL_WAIT_UNTIL_ID;
 export const VIRTUAL_SCHEDULER_ID = "virtual:emdash/scheduler";
 export const RESOLVED_VIRTUAL_SCHEDULER_ID = "\0" + VIRTUAL_SCHEDULER_ID;
 
+export const VIRTUAL_ENV_ID = "virtual:emdash/env";
+export const RESOLVED_VIRTUAL_ENV_ID = "\0" + VIRTUAL_ENV_ID;
+
+export const VIRTUAL_BUILD_ID = "virtual:emdash/build";
+export const RESOLVED_VIRTUAL_BUILD_ID = "\0" + VIRTUAL_BUILD_ID;
+
 /**
  * Generates the config virtual module.
  */
@@ -84,33 +90,45 @@ export function generateConfigModule(serializableConfig: Record<string, unknown>
  * the generator re-exports it so middleware can ask for a per-request Kysely
  * (used for D1 Sessions API, bookmark cookies, read-replica routing). Other
  * adapters get a stub that returns null.
+ *
+ * Adapters independently opt into the cold-start coalescing dialect. Keeping
+ * this capability explicit prevents bundlers from probing exports that do not
+ * exist on SQLite, libSQL, PostgreSQL, or other adapters.
  */
 export function generateDialectModule(opts: {
 	entrypoint?: string;
 	type?: string;
 	supportsRequestScope: boolean;
+	supportsCoalescing: boolean;
+	supportsCollectionDeletionGuard: boolean;
 }): string {
-	const { entrypoint, supportsRequestScope } = opts;
+	const { entrypoint, supportsRequestScope, supportsCoalescing, supportsCollectionDeletionGuard } =
+		opts;
 	if (!entrypoint) {
 		return [
 			`export const createDialect = undefined;`,
 			`export const dialectType = "sqlite";`,
 			`export const createRequestScopedDb = (_opts) => null;`,
 			`export const createCoalescingDialect = undefined;`,
+			`export const executeCollectionDeletionGuard = undefined;`,
 		].join("\n");
 	}
 	const type = opts.type ?? "sqlite";
 
-	// Namespace access (not a named re-export) so backends that don't export
-	// createCoalescingDialect yield `undefined` rather than a build error.
-	const coalescingReExport = `import * as _dialectModule from "${entrypoint}";
-export const createCoalescingDialect = _dialectModule.createCoalescingDialect;`;
+	const coalescingExport = supportsCoalescing
+		? `import { createCoalescingDialect as _createCoalescingDialect } from "${entrypoint}";
+export const createCoalescingDialect = _createCoalescingDialect;`
+		: `export const createCoalescingDialect = undefined;`;
+	const collectionDeletionExport = supportsCollectionDeletionGuard
+		? `export { executeCollectionDeletionGuard } from "${entrypoint}";`
+		: `export const executeCollectionDeletionGuard = undefined;`;
 
 	if (supportsRequestScope) {
 		return `
 import { createDialect as _createDialect } from "${entrypoint}";
 export { createRequestScopedDb } from "${entrypoint}";
-${coalescingReExport}
+${coalescingExport}
+${collectionDeletionExport}
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 `;
@@ -118,7 +136,8 @@ export const dialectType = ${JSON.stringify(type)};
 
 	return `
 import { createDialect as _createDialect } from "${entrypoint}";
-${coalescingReExport}
+${coalescingExport}
+${collectionDeletionExport}
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 export const createRequestScopedDb = (_opts) => null;
@@ -271,6 +290,7 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 					storage: descriptor.storage,
 					adminPages: descriptor.adminPages,
 					adminWidgets: descriptor.adminWidgets,
+					settingsSchema: descriptor.settingsSchema,
 					portableTextBlocks: descriptor.portableTextBlocks,
 					fieldWidgets: descriptor.fieldWidgets,
 				})})`,
@@ -470,6 +490,38 @@ export function generateWaitUntilModule(adapterName: string | undefined): string
 }
 
 /**
+ * Generates the env virtual module.
+ *
+ * Under @astrojs/cloudflare, re-exports `env` from `cloudflare:workers` so
+ * routes can read Worker bindings/secrets without touching
+ * `Astro.locals.runtime.env`, which Astro 6+ removed (accessing it throws
+ * rather than returning undefined, so `locals.runtime?.env` optional-chaining
+ * doesn't help -- see #1736). For any other adapter, exports `undefined` so
+ * callers fall back to `import.meta.env`. Mirrors generateWaitUntilModule:
+ * core stays adapter-agnostic, with no direct `cloudflare:workers` import
+ * that would fail to resolve under a Node build.
+ */
+export function generateEnvModule(adapterName: string | undefined): string {
+	if (adapterName === "@astrojs/cloudflare") {
+		return `export { env } from "cloudflare:workers";`;
+	}
+	return `export const env = undefined;`;
+}
+
+/**
+ * Generates the build virtual module.
+ *
+ * Content-hashed `/_astro/*` names make the response depend on the build, not
+ * only on the content. Exposing the build timestamp lets the middleware fold
+ * that dimension into the cache validator, so a code-only deploy stops
+ * answering conditional requests with 304 while the assets the cached HTML
+ * references are already gone.
+ */
+export function generateBuildModule(buildTime: number): string {
+	return `export const buildTime = ${buildTime};`;
+}
+
+/**
  * Generates the scheduler virtual module.
  *
  * Decides — at build time, from the Astro adapter — whether the runtime gets a
@@ -598,12 +650,14 @@ function resolveModulePathFromProject(specifier: string, projectRoot: string): s
 /**
  * Generates the sandboxed plugins module.
  * Resolves plugin entrypoints to files, reads them, and embeds the code.
+ * Notifies the caller about each resolved entry so build tools can watch it.
  *
  * At runtime, middleware uses SandboxRunner to load these into isolates.
  */
 export function generateSandboxedPluginsModule(
 	sandboxed: PluginDescriptor[],
 	projectRoot: string,
+	onEntryResolved?: (filePath: string) => void,
 ): string {
 	if (sandboxed.length === 0) {
 		return `
@@ -630,6 +684,8 @@ export const sandboxedPlugins = [];
 			);
 		}
 
+		onEntryResolved?.(filePath);
+
 		const code = readFileSync(filePath, "utf-8");
 
 		// Create the plugin entry with embedded code and sandbox config
@@ -640,8 +696,12 @@ export const sandboxedPlugins = [];
     capabilities: ${JSON.stringify(descriptor.capabilities ?? [])},
     allowedHosts: ${JSON.stringify(descriptor.allowedHosts ?? [])},
     storage: ${JSON.stringify(descriptor.storage ?? {})},
+    mcp: ${JSON.stringify(descriptor.mcp)},
+    routes: ${JSON.stringify(descriptor.routes ?? [])},
+    hooks: ${JSON.stringify(descriptor.hooks ?? [])},
     adminPages: ${JSON.stringify(descriptor.adminPages ?? [])},
     adminWidgets: ${JSON.stringify(descriptor.adminWidgets ?? [])},
+    settingsSchema: ${JSON.stringify(descriptor.settingsSchema)},
     portableTextBlocks: ${JSON.stringify(descriptor.portableTextBlocks ?? [])},
     fieldWidgets: ${JSON.stringify(descriptor.fieldWidgets ?? [])},
     adminEntry: ${JSON.stringify(descriptor.adminEntry)},

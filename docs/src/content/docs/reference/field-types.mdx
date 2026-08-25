@@ -310,17 +310,24 @@ Reference to an uploaded file such as a document or PDF.
 }
 ```
 
-The value is stored as an object with the file reference and its metadata:
+The value is stored as a provider reference with cached metadata:
 
 ```json
 {
 	"id": "01HXK5MZSN...",
-	"url": "https://cdn.example.com/doc.pdf",
+	"provider": "local",
 	"filename": "report.pdf",
 	"mimeType": "application/pdf",
-	"size": 102400
+	"meta": {
+		"storageKey": "01HXK5MZSN....pdf"
+	}
 }
 ```
+
+`url` and `size`, like the other cached metadata fields, are optional. Content queries return the
+persisted value as-is and do not hydrate it from the media library. See
+[File values and current metadata](/guides/media-library/#file-values-and-current-metadata) for the
+canonical lookup APIs when you need fresh metadata or a provider-specific URL.
 
 ## Relational Types
 
@@ -386,11 +393,17 @@ All fields support these common properties:
 | `type`         | `FieldType` | Field type (required)               |
 | `required`     | `boolean`   | Require a value (default: false)    |
 | `unique`       | `boolean`   | Enforce uniqueness (default: false) |
+| `indexed`      | `boolean`   | Enable indexed field sorting/filtering |
 | `defaultValue` | `unknown`   | Default value for new entries       |
 | `validation`   | `object`    | Type-specific validation rules      |
 | `widget`       | `string`    | Custom widget override              |
 | `options`      | `object`    | Widget configuration                |
 | `sortOrder`    | `number`    | Display order in admin              |
+
+`indexed` is available for scalar fields: `string`, `url`, `number`, `integer`, `boolean`,
+`datetime`, `select`, `reference`, and `slug`. An indexed field can be passed as the `orderBy`
+field or used in `fieldFilters` in content list queries. Avoid indexing fields that are not used
+for sorting or filtering because every index adds storage and write overhead.
 
 ## Reserved field slugs
 

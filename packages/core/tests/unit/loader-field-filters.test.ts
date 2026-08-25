@@ -2,8 +2,9 @@ import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { handleContentCreate } from "../../src/api/index.js";
+import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../src/database/types.js";
-import { emdashLoader } from "../../src/loader.js";
+import { emdashLoader, resetTaxonomyNamesCache } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
@@ -13,6 +14,12 @@ describe("Loader field filters", () => {
 
 	beforeEach(async () => {
 		db = await setupTestDatabaseWithCollections();
+		await db
+			.updateTable("_emdash_taxonomy_defs")
+			.set({ collections: JSON.stringify(["post"]) })
+			.where("name", "in", ["category", "tag"])
+			.execute();
+		resetTaxonomyNamesCache();
 		// Add a 'series' field to the post collection for field filtering tests
 		const registry = new SchemaRegistry(db);
 		await registry.createField("post", {
@@ -264,14 +271,9 @@ describe("Loader field filters", () => {
 		const postA = await createPost("Tech Post");
 		await createPost("Other Post");
 
-		await db
-			.insertInto("content_taxonomies" as never)
-			.values({
-				collection: "post",
-				entry_id: postA.id,
-				taxonomy_id: "tax_cat_tech",
-			} as never)
-			.execute();
+		// Attach through the repository so the pivot row is stamped with the
+		// entry's denormalized filter/sort columns (migration 051).
+		await new TaxonomyRepository(db).attachToEntry("post", postA.id, "tax_cat_tech");
 
 		const loader = emdashLoader();
 		const result = await runWithContext({ editMode: false, db }, () =>

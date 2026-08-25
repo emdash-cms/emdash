@@ -4,7 +4,8 @@
  * Validates a seed file structure before applying it.
  */
 
-import { FIELD_TYPES } from "../schema/types.js";
+import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
+import { FIELD_TYPES, isIndexableFieldType, MAX_COLLECTION_LIST_COLUMNS } from "../schema/types.js";
 import type { SeedFile, SeedMenuItem, ValidationResult } from "./types.js";
 
 const COLLECTION_FIELD_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -49,6 +50,9 @@ export function validateSeed(data: unknown): ValidationResult {
 	}
 
 	const seed = data as Partial<SeedFile>;
+	const defaultLocale =
+		getI18nConfig()?.defaultLocale ??
+		(typeof seed.defaultLocale === "string" ? seed.defaultLocale : "en");
 
 	// Required fields
 	if (!seed.version) {
@@ -103,6 +107,43 @@ export function validateSeed(data: unknown): ValidationResult {
 				if (!collection.label) {
 					errors.push(`${prefix}: label is required`);
 				}
+				if (collection.routable !== undefined && typeof collection.routable !== "boolean") {
+					errors.push(`${prefix}.routable: must be a boolean`);
+				}
+
+				const declaredFieldSlugs = new Set(
+					Array.isArray(collection.fields)
+						? collection.fields.flatMap((field) =>
+								isRecord(field) && typeof field.slug === "string" ? [field.slug] : [],
+							)
+						: [],
+				);
+
+				if (collection.admin !== undefined) {
+					if (!isRecord(collection.admin)) {
+						errors.push(`${prefix}.admin: must be an object`);
+					} else if (collection.admin.listColumns !== undefined) {
+						if (!Array.isArray(collection.admin.listColumns)) {
+							errors.push(`${prefix}.admin.listColumns: must be an array`);
+						} else {
+							if (collection.admin.listColumns.length > MAX_COLLECTION_LIST_COLUMNS) {
+								errors.push(
+									`${prefix}.admin.listColumns: must contain at most ${MAX_COLLECTION_LIST_COLUMNS} items`,
+								);
+							}
+							for (let j = 0; j < collection.admin.listColumns.length; j++) {
+								const slug = collection.admin.listColumns[j];
+								if (typeof slug !== "string" || !COLLECTION_FIELD_SLUG_PATTERN.test(slug)) {
+									errors.push(`${prefix}.admin.listColumns[${j}]: must be a valid field slug`);
+								} else if (!declaredFieldSlugs.has(slug)) {
+									errors.push(
+										`${prefix}.admin.listColumns[${j}]: references unknown field "${slug}"`,
+									);
+								}
+							}
+						}
+					}
+				}
 
 				// Validate fields
 				if (!Array.isArray(collection.fields)) {
@@ -137,10 +178,16 @@ export function validateSeed(data: unknown): ValidationResult {
 							errors.push(`${fieldPrefix}: label is required`);
 						}
 
+						if (field.indexed !== undefined && typeof field.indexed !== "boolean") {
+							errors.push(`${fieldPrefix}.indexed: must be a boolean`);
+						}
+
 						if (!field.type) {
 							errors.push(`${fieldPrefix}: type is required`);
 						} else if (!(FIELD_TYPES as readonly string[]).includes(field.type)) {
 							errors.push(`${fieldPrefix}.type: unsupported field type "${field.type}"`);
+						} else if (field.indexed === true && !isIndexableFieldType(field.type)) {
+							errors.push(`${fieldPrefix}.indexed: type "${field.type}" cannot be indexed`);
 						}
 					}
 				}
@@ -163,7 +210,8 @@ export function validateSeed(data: unknown): ValidationResult {
 					errors.push(`${prefix}: name is required`);
 				} else {
 					// Uniqueness is per (name, locale).
-					const key = `${taxonomy.name}::${taxonomy.locale ?? ""}`;
+					const locale = resolveConfiguredLocale(taxonomy.locale ?? defaultLocale);
+					const key = `${taxonomy.name}::${locale}`;
 					if (taxonomyNames.has(key)) {
 						errors.push(
 							taxonomy.locale
@@ -206,7 +254,10 @@ export function validateSeed(data: unknown): ValidationResult {
 							} else {
 								// Uniqueness is per (slug, locale) so the same slug can repeat
 								// across locale variants of the def.
-								const key = `${term.slug}::${term.locale ?? taxonomy.locale ?? ""}`;
+								const locale = resolveConfiguredLocale(
+									term.locale ?? taxonomy.locale ?? defaultLocale,
+								);
+								const key = `${term.slug}::${locale}`;
 								if (termSlugs.has(key)) {
 									errors.push(
 										`${termPrefix}.slug: duplicate term slug "${term.slug}" in taxonomy "${taxonomy.name}"`,
@@ -233,7 +284,9 @@ export function validateSeed(data: unknown): ValidationResult {
 						if (taxonomy.hierarchical && taxonomy.terms) {
 							for (let j = 0; j < taxonomy.terms.length; j++) {
 								const term = taxonomy.terms[j];
-								const termLocale = term.locale ?? taxonomy.locale ?? "";
+								const termLocale = resolveConfiguredLocale(
+									term.locale ?? taxonomy.locale ?? defaultLocale,
+								);
 								if (term.parent && !termSlugs.has(`${term.parent}::${termLocale}`)) {
 									errors.push(
 										`${prefix}.terms[${j}].parent: parent term "${term.parent}" not found in taxonomy`,
@@ -268,7 +321,8 @@ export function validateSeed(data: unknown): ValidationResult {
 				} else {
 					// Uniqueness is per (name, locale) — siblings of a translation
 					// group share name but differ in locale.
-					const key = `${menu.name}::${menu.locale ?? ""}`;
+					const locale = resolveConfiguredLocale(menu.locale ?? defaultLocale);
+					const key = `${menu.name}::${locale}`;
 					if (menuNames.has(key)) {
 						errors.push(
 							menu.locale
@@ -539,6 +593,9 @@ export function validateSeed(data: unknown): ValidationResult {
 					errors.push(`content.${collectionSlug}: must be an array`);
 					continue;
 				}
+				const collectionRoutable =
+					seed.collections?.find((collection) => collection.slug === collectionSlug)?.routable !==
+					false;
 
 				const entryIds = new Set<string>();
 
@@ -558,7 +615,11 @@ export function validateSeed(data: unknown): ValidationResult {
 						entryIds.add(entry.id);
 					}
 
-					if (!entry.slug) {
+					const hasSlug = typeof entry.slug === "string" && entry.slug.trim().length > 0;
+					if (entry.slug !== undefined && entry.slug !== null && typeof entry.slug !== "string") {
+						errors.push(`${prefix}.slug: must be a string`);
+					}
+					if (collectionRoutable && !hasSlug) {
 						errors.push(`${prefix}: slug is required`);
 					}
 

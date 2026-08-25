@@ -13,8 +13,12 @@ import { createContext, useContext } from "react";
 export interface AuthProviderModule {
 	id: string;
 	label: string;
-	/** Compact button for the login page (icon + label) */
-	LoginButton?: React.ComponentType;
+	/**
+	 * Compact button for the login page (icon + label). When rendered on the
+	 * invite-accept page it receives the invite token so the button can start an
+	 * invite-completing OAuth flow.
+	 */
+	LoginButton?: React.ComponentType<{ inviteToken?: string }>;
 	/** Full form if the provider needs custom input (e.g., handle field) */
 	LoginForm?: React.ComponentType;
 	/** Component for the setup wizard admin creation step */

@@ -14,10 +14,12 @@ import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import {
 	PluginContextFactory,
 	createContentAccess,
 	createContentAccessWithWrite,
+	createTaxonomyAccess,
 	createHttpAccess,
 	createUnrestrictedHttpAccess,
 	createBlockedHttpAccess,
@@ -125,6 +127,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 				created_at TEXT DEFAULT (datetime('now')),
 				updated_at TEXT DEFAULT (datetime('now')),
 				published_at TEXT,
+				scheduled_at TEXT,
 				deleted_at TEXT,
 				version INTEGER DEFAULT 1,
 				locale TEXT NOT NULL DEFAULT 'en',
@@ -145,6 +148,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
 		await db.destroy();
 		sqliteDb.close();
 	});
@@ -166,6 +170,21 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 				expect(result.items).toHaveLength(2);
 				expect(result.hasMore).toBe(false);
+			});
+
+			it("includes the scheduled publication time", async () => {
+				await sql`
+					UPDATE ec_posts
+					SET status = 'scheduled', scheduled_at = '2026-12-01T12:00:00.000Z'
+					WHERE id = 'post-1'
+				`.execute(db);
+				const access = createContentAccess(db);
+				const result = await access.list("posts");
+
+				expect(result.items.find((item) => item.id === "post-1")?.scheduledAt).toBe(
+					"2026-12-01T12:00:00.000Z",
+				);
+				expect((await access.get("posts", "post-1"))?.scheduledAt).toBe("2026-12-01T12:00:00.000Z");
 			});
 
 			it("narrows list results by where.status", async () => {
@@ -248,6 +267,149 @@ describe("Capability Enforcement Integration (v2)", () => {
 			});
 		});
 
+		describe("taxonomy read access", () => {
+			beforeEach(async () => {
+				// Migrations seed the default `category`/`tag` defs — clear them
+				// so the assertions below only see the fixtures.
+				await sql`DELETE FROM _emdash_taxonomy_defs`.execute(db);
+				await sql`
+					INSERT INTO _emdash_taxonomy_defs (id, name, label, label_singular, hierarchical, collections, locale, translation_group)
+					VALUES
+						('def-genre', 'genre', 'Genres', 'Genre', 1, '["posts"]', 'en', 'def-genre'),
+						('def-topic', 'topic', 'Topics', 'Topic', 0, '["posts"]', 'en', 'def-topic')
+				`.execute(db);
+				await sql`
+					INSERT INTO taxonomies (id, name, slug, label, parent_id, data, locale, translation_group)
+					VALUES
+						('term-news', 'genre', 'news', 'News', NULL, NULL, 'en', 'term-news'),
+						('term-sub', 'genre', 'sub-news', 'Sub News', 'term-news', NULL, 'en', 'term-sub'),
+						('term-news-fr', 'genre', 'actualites', 'Actualités', NULL, NULL, 'fr', 'term-news'),
+						('term-ai', 'topic', 'ai', 'AI', NULL, '{"description":"Artificial intelligence"}', 'en', 'term-ai')
+				`.execute(db);
+				// The pivot stores the term's translation_group, so one
+				// assignment spans every locale of the term.
+				await sql`
+					INSERT INTO content_taxonomies (collection, entry_id, taxonomy_id)
+					VALUES
+						('posts', 'post-1', 'term-news'),
+						('posts', 'post-1', 'term-ai')
+				`.execute(db);
+			});
+
+			it("lists taxonomy definitions", async () => {
+				const access = createTaxonomyAccess(db);
+				const defs = await access.getAll();
+
+				expect(defs).toHaveLength(2);
+				const category = defs.find((d) => d.name === "genre");
+				expect(category).toMatchObject({
+					label: "Genres",
+					labelSingular: "Genre",
+					hierarchical: true,
+					collections: ["posts"],
+					locale: "en",
+				});
+				const tag = defs.find((d) => d.name === "topic");
+				expect(tag?.hierarchical).toBe(false);
+			});
+
+			it("filters taxonomy definitions by locale", async () => {
+				const access = createTaxonomyAccess(db);
+				const defs = await access.getAll({ locale: "fr" });
+				expect(defs).toHaveLength(0);
+			});
+
+			it("lists terms of a taxonomy", async () => {
+				const access = createTaxonomyAccess(db);
+				const terms = await access.getTerms("genre");
+
+				expect(terms.map((t) => t.slug)).toEqual(["actualites", "news", "sub-news"]);
+				const sub = terms.find((t) => t.slug === "sub-news");
+				expect(sub).toMatchObject({
+					taxonomy: "genre",
+					label: "Sub News",
+					parentId: "term-news",
+					locale: "en",
+					translationGroup: "term-sub",
+				});
+			});
+
+			it("scopes terms to a locale", async () => {
+				const access = createTaxonomyAccess(db);
+				const terms = await access.getTerms("genre", { locale: "en" });
+				expect(terms.map((t) => t.slug)).toEqual(["news", "sub-news"]);
+			});
+
+			it("parses term data JSON", async () => {
+				const access = createTaxonomyAccess(db);
+				const terms = await access.getTerms("topic");
+
+				expect(terms).toHaveLength(1);
+				expect(terms[0]!.data).toEqual({ description: "Artificial intelligence" });
+			});
+
+			it("returns an empty list for an unknown taxonomy", async () => {
+				const access = createTaxonomyAccess(db);
+				const terms = await access.getTerms("nonexistent");
+				expect(terms).toEqual([]);
+			});
+
+			it("returns terms assigned to an entry", async () => {
+				const access = createTaxonomyAccess(db);
+				const terms = await access.getEntryTerms("posts", "post-1", { locale: "en" });
+
+				expect(terms.map((t) => t.slug).toSorted()).toEqual(["ai", "news"]);
+			});
+
+			it("scopes entry terms to one taxonomy", async () => {
+				const access = createTaxonomyAccess(db);
+				const terms = await access.getEntryTerms("posts", "post-1", {
+					taxonomy: "genre",
+					locale: "en",
+				});
+
+				expect(terms).toHaveLength(1);
+				expect(terms[0]!.slug).toBe("news");
+			});
+
+			it("resolves entry terms into the requested locale", async () => {
+				// The assignment points at the term's translation_group, so
+				// asking for 'fr' surfaces the French translation of the term.
+				const access = createTaxonomyAccess(db);
+				const terms = await access.getEntryTerms("posts", "post-1", {
+					taxonomy: "genre",
+					locale: "fr",
+				});
+
+				expect(terms).toHaveLength(1);
+				expect(terms[0]!.slug).toBe("actualites");
+			});
+
+			it("is exposed on the context only with taxonomies:read", async () => {
+				const factory = new PluginContextFactory({ db });
+
+				const withCap = factory.createContext(
+					createTestPlugin({ id: "tax-reader", capabilities: ["taxonomies:read"] }),
+				);
+				expect(withCap.taxonomies).toBeDefined();
+				const defs = await withCap.taxonomies!.getAll();
+				expect(defs).toHaveLength(2);
+
+				// content:read alone does NOT grant taxonomy access...
+				const contentOnly = factory.createContext(
+					createTestPlugin({ id: "content-reader", capabilities: ["content:read"] }),
+				);
+				expect(contentOnly.taxonomies).toBeUndefined();
+				expect(contentOnly.content).toBeDefined();
+
+				// ...and taxonomies:read alone does not grant content access.
+				const taxOnly = factory.createContext(
+					createTestPlugin({ id: "tax-only", capabilities: ["taxonomies:read"] }),
+				);
+				expect(taxOnly.content).toBeUndefined();
+			});
+		});
+
 		describe("createContentAccessWithWrite", () => {
 			it("includes read methods", async () => {
 				const access = createContentAccessWithWrite(db);
@@ -278,6 +440,64 @@ describe("Capability Enforcement Integration (v2)", () => {
 				// Verify it was created
 				const found = await access.get("posts", created.id);
 				expect(found).not.toBeNull();
+			});
+
+			it("persists an explicit locale using the configured casing", async () => {
+				setI18nConfig({ defaultLocale: "en", locales: ["en", "zh-TW"] });
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", { title: "繁體中文" }, { locale: "zh-tw" });
+
+				expect(created.locale).toBe("zh-TW");
+				await expect(access.list("posts", { where: { locale: "zh-TW" } })).resolves.toMatchObject({
+					items: [expect.objectContaining({ id: created.id, locale: "zh-TW" })],
+				});
+			});
+
+			it("uses the configured default locale when locale is omitted", async () => {
+				setI18nConfig({ defaultLocale: "ja", locales: ["ja", "en"] });
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", { title: "日本語" });
+
+				expect(created.locale).toBe("ja");
+			});
+
+			it("uses a non-English default on single-locale sites", async () => {
+				setI18nConfig({ defaultLocale: "fr", locales: ["fr"] });
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", { title: "Français" });
+
+				expect(created.locale).toBe("fr");
+			});
+
+			it("retains the en fallback when i18n is not configured", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", { title: "English" });
+
+				expect(created.locale).toBe("en");
+			});
+
+			it("persists a valid explicit locale when i18n is not configured", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", { title: "日本語" }, { locale: "ja" });
+
+				expect(created.locale).toBe("ja");
+			});
+
+			it("rejects malformed and unconfigured explicit locales", async () => {
+				setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+				const access = createContentAccessWithWrite(db);
+
+				await expect(
+					access.create("posts", { title: "Malformed" }, { locale: "en_US" }),
+				).rejects.toThrow(/invalid locale code/i);
+				await expect(
+					access.create("posts", { title: "Unknown" }, { locale: "de" }),
+				).rejects.toThrow(/not configured/i);
 			});
 		});
 
@@ -839,11 +1059,13 @@ describe("Capability Enforcement Integration (v2)", () => {
 				siteName: "My Site",
 				siteUrl: "https://example.com/",
 				locale: "fr",
+				trailingSlash: "never",
 			});
 
 			expect(info.name).toBe("My Site");
 			expect(info.url).toBe("https://example.com"); // trailing slash stripped
 			expect(info.locale).toBe("fr");
+			expect(info.trailingSlash).toBe("never");
 		});
 
 		it("uses defaults for missing values", () => {
@@ -852,6 +1074,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 			expect(info.name).toBe("");
 			expect(info.url).toBe("");
 			expect(info.locale).toBe("en");
+			expect(info.trailingSlash).toBe("ignore"); // Astro's default
 		});
 
 		it("strips trailing slash from URL", () => {

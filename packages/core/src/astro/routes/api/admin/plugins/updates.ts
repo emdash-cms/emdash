@@ -15,7 +15,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError } from "#api/error.js";
+import { apiError, apiSuccess } from "#api/error.js";
 import { handleMarketplaceUpdateCheck, handleRegistryUpdateCheck } from "#api/index.js";
 
 export const prerender = false;
@@ -59,7 +59,5 @@ export const GET: APIRoute = async ({ locals }) => {
 	if (marketplace?.success) items.push(...marketplace.data.items);
 	if (registry?.success) items.push(...registry.data.items);
 
-	// Match the rest of the admin API envelope (`{ data: ... }`) so the
-	// admin client's `parseApiResponse` unwraps `body.data`.
-	return Response.json({ data: { items } });
+	return apiSuccess({ items });
 };

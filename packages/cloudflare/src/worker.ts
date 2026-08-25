@@ -2,17 +2,9 @@
  * Cloudflare Worker entry for EmDash sites.
  *
  * Wraps the Astro Cloudflare server handler with a `scheduled()` handler so a
- * Cron Trigger drives scheduled publishing, plugin cron, and system cleanup
- * without any request side effects. Re-exports the `PluginBridge` Durable
- * Object so the sandbox binding resolves against the entry module.
- *
- * Templates use this as their entire `src/worker.ts`:
- *
- *   export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";
- *
- * and add a Cron Trigger to wrangler.jsonc:
- *
- *   "triggers": { "crons": ["* * * * *"] }
+ * Cron Triggers drive general maintenance and the separately bounded Media
+ * Usage lane without request side effects. Re-exports the `PluginBridge`
+ * Durable Object so the sandbox binding resolves against the entry module.
  *
  * The `@astrojs/cloudflare/entrypoints/server` import is resolved by the
  * consuming app's Astro build (it pulls the build-time `virtual:astro:app`
@@ -22,7 +14,7 @@
 // @ts-ignore - resolved against the consuming app's Astro build
 import astroHandler from "@astrojs/cloudflare/entrypoints/server";
 import { createApp } from "astro/app/entrypoint";
-import { runScheduledTasks } from "emdash/middleware";
+import { runScheduledMediaUsageTasks, runScheduledTasks } from "emdash/middleware";
 
 export { PluginBridge } from "./sandbox/index.js";
 
@@ -48,13 +40,43 @@ async function invalidatePublishedTags(
 }
 
 /**
- * Build a Worker `scheduled()` handler that runs EmDash's scheduled
- * maintenance batch and purges edge-cache tags for anything it published.
- * Exported for sites that assemble their own Worker object; most sites get it
- * via this module's default export.
+ * Build a Worker `scheduled()` handler. By default the every-two-minutes
+ * expression runs Media Usage maintenance and every other expression runs
+ * general maintenance. Configuring a general expression changes that lane
+ * from catch-all to exact.
  */
-export function createScheduledHandler(): ExportedHandlerScheduledHandler {
-	return (_controller, _env, ctx) => {
+export interface ScheduledHandlerOptions {
+	generalCron?: string;
+	mediaUsageCron?: string;
+}
+
+const DEFAULT_MEDIA_USAGE_CRON = "*/2 * * * *";
+
+export function createScheduledHandler(
+	options?: ScheduledHandlerOptions,
+): ExportedHandlerScheduledHandler {
+	const generalCron = options?.generalCron?.trim();
+	const mediaUsageCron = options?.mediaUsageCron?.trim() ?? DEFAULT_MEDIA_USAGE_CRON;
+	if ((options?.generalCron !== undefined && !generalCron) || !mediaUsageCron) {
+		throw new Error("Configured scheduled-handler expressions must be non-empty");
+	}
+	if (generalCron === mediaUsageCron) {
+		throw new Error("General and Media Usage Cron expressions must differ");
+	}
+
+	return (controller, _env, ctx) => {
+		if (controller.cron === mediaUsageCron) {
+			ctx.waitUntil(
+				runScheduledMediaUsageTasks().catch((error: unknown) => {
+					console.error("[scheduled] Media Usage maintenance failed:", error);
+				}),
+			);
+			return;
+		}
+		if (generalCron !== undefined && controller.cron !== generalCron) {
+			console.warn(`[scheduled] Ignoring unexpected Cron expression: ${controller.cron}`);
+			return;
+		}
 		ctx.waitUntil(
 			// Invalidate incrementally as each collection batch publishes, so a
 			// scheduled() invocation killed mid-sweep (CPU/wall-clock limits on a

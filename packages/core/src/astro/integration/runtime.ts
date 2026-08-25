@@ -7,14 +7,19 @@
  * DO NOT import Node.js-only modules here (fs, path, module, etc.)
  */
 
+import type { ManifestHookEntry, ManifestRouteEntry } from "@emdash-cms/plugin-types";
+
 import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
+import type { RuntimeMigrationConfig } from "../../database/migrations/policy.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ObjectCacheDescriptor } from "../../object-cache/types.js";
 import type {
 	FieldWidgetConfig,
+	PluginMcpManifestConfig,
 	PortableTextBlockConfig,
 	ResolvedPlugin,
+	SettingField,
 } from "../../plugins/types.js";
 import type { ExperimentalConfig } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
@@ -103,6 +108,8 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	adminPages?: PluginAdminPage[];
 	/** Dashboard widgets */
 	adminWidgets?: PluginDashboardWidget[];
+	/** Settings schema for the auto-generated admin settings form */
+	settingsSchema?: Record<string, SettingField>;
 	/**
 	 * Portable Text block types this plugin contributes to the editor.
 	 * Declarative (Block Kit) — surfaced in the admin slash menu and consumed
@@ -131,6 +138,19 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	 * Sandboxed plugins can only access declared collections.
 	 */
 	storage?: Record<string, StorageCollectionDeclaration>;
+	/** Serialized MCP declarations emitted by the plugin build. */
+	mcp?: PluginMcpManifestConfig;
+	/**
+	 * Route declarations for sandboxed config-declared plugins. Mirrors
+	 * definePlugin({ routes }) and drives route auth decisions; omitted routes
+	 * default to non-public.
+	 */
+	routes?: Array<ManifestRouteEntry | string>;
+	/**
+	 * Hook declarations for sandboxed config-declared plugins. Mirrors
+	 * definePlugin({ hooks }).
+	 */
+	hooks?: Array<ManifestHookEntry | string>;
 }
 
 /**
@@ -161,6 +181,8 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	database?: DatabaseDescriptor;
+	/** Core database migration behavior at runtime. Defaults to `auto`. */
+	migrations?: RuntimeMigrationConfig;
 	/**
 	 * Storage configuration (for media)
 	 */
@@ -460,6 +482,21 @@ export interface EmDashConfig {
 	trustedProxyHeaders?: string[];
 
 	/**
+	 * User middleware that wraps the complete EmDash request pipeline.
+	 *
+	 * Before `next()` it runs before EmDash initializes its runtime or database,
+	 * so `locals.emdash`, the authenticated user, and request-scoped EmDash state
+	 * are unavailable. This allows cached responses and request gates to return
+	 * without paying initialization cost. When it calls `next()`, the resolved
+	 * response includes EmDash HTML injection and all other response mutations,
+	 * allowing the middleware to finalize caching and response headers safely.
+	 */
+	middleware?: {
+		/** Astro middleware module entrypoint. */
+		outer: string | URL;
+	};
+
+	/**
 	 * Enable playground mode for ephemeral "try EmDash" sites.
 	 *
 	 * When set, the integration injects a playground middleware (order: "pre")
@@ -588,6 +625,30 @@ export interface EmDashConfig {
 		/** URL or path to a custom favicon for the admin panel. */
 		favicon?: string;
 	};
+
+	/**
+	 * Editor toolbar delivery on public pages.
+	 *
+	 * - `"server"` (default): the toolbar is injected server-side into every
+	 *   HTML response rendered for an authenticated editor. Simple and
+	 *   zero-config, but behind a shared cache (Cloudflare Cache Everything /
+	 *   Workers Cache, Fastly, Varnish, …) editors often receive the cached
+	 *   anonymous variant — without the toolbar — whenever an anonymous visitor
+	 *   primed the cache first, so the toolbar appears and disappears with
+	 *   cache state.
+	 * - `"client"`: public HTML is identical for everyone (nothing
+	 *   session-specific is injected server-side, so shared caches stay fully
+	 *   effective). A tiny bootstrap script shows an "Edit" pill for browsers
+	 *   that have logged into the admin (non-secret localStorage flag). Clicking
+	 *   it verifies the session and reloads the page with an `_edit` query
+	 *   param, which is always rendered fresh (never cached) with the full
+	 *   toolbar. Logged-out visitors opening an `_edit` URL are redirected to
+	 *   the canonical URL.
+	 * - `false`: never render the toolbar or bootstrap script.
+	 *
+	 * See the visual-editing docs for the cache-behavior details.
+	 */
+	toolbar?: "server" | "client" | false;
 
 	/**
 	 * Version of Astro the host project is building with. Populated by the

@@ -58,9 +58,11 @@ export {
 // Media
 export {
 	type MediaItem,
+	type MediaUploadOptions,
 	type MediaProviderCapabilities,
 	type MediaProviderInfo,
 	type MediaProviderItem,
+	type UploadMediaOptions,
 	MEDIA_SEARCH_MAX_LENGTH,
 	fetchMediaList,
 	fetchMediaItem,
@@ -94,6 +96,7 @@ export {
 	updateField,
 	deleteField,
 	reorderFields,
+	reorderCollections,
 	fetchOrphanedTables,
 	registerOrphanedTable,
 } from "./schema.js";
@@ -101,10 +104,14 @@ export {
 // Plugins
 export {
 	type PluginInfo,
+	type SettingField,
 	fetchPlugins,
 	fetchPlugin,
+	fetchPluginSettings,
+	updatePluginSettings,
 	enablePlugin,
 	disablePlugin,
+	setPluginMcpEnabled,
 } from "./plugins.js";
 
 // Settings

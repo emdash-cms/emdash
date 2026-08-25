@@ -3,6 +3,7 @@
  */
 
 import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
+import type { ContentCreateOptions } from "emdash";
 
 /**
  * Environment bindings required for sandbox runner.
@@ -106,6 +107,35 @@ interface BridgeContentItem {
 	data: Record<string, unknown>;
 	createdAt: string;
 	updatedAt: string;
+	locale: string;
+}
+
+/**
+ * Taxonomy definition shape returned by bridge taxonomy operations.
+ * Matches core's TaxonomyDefInfo from plugins/types.ts.
+ */
+interface BridgeTaxonomyDef {
+	name: string;
+	label: string;
+	labelSingular: string | null;
+	hierarchical: boolean;
+	collections: string[];
+	locale: string;
+}
+
+/**
+ * Taxonomy term shape returned by bridge taxonomy operations.
+ * Matches core's TaxonomyTermInfo from plugins/types.ts.
+ */
+interface BridgeTaxonomyTerm {
+	id: string;
+	taxonomy: string;
+	slug: string;
+	label: string;
+	parentId: string | null;
+	data: Record<string, unknown> | null;
+	locale: string;
+	translationGroup: string | null;
 }
 
 /**
@@ -149,13 +179,25 @@ export interface PluginBridgeBinding {
 		collection: string,
 		opts?: { limit?: number; cursor?: string },
 	): Promise<{ items: BridgeContentItem[]; cursor?: string; hasMore: boolean }>;
-	contentCreate(collection: string, data: Record<string, unknown>): Promise<BridgeContentItem>;
+	contentCreate(
+		collection: string,
+		data: Record<string, unknown>,
+		options?: ContentCreateOptions,
+	): Promise<BridgeContentItem>;
 	contentUpdate(
 		collection: string,
 		id: string,
 		data: Record<string, unknown>,
 	): Promise<BridgeContentItem>;
 	contentDelete(collection: string, id: string): Promise<boolean>;
+	// Taxonomies (read-only, gated on taxonomies:read)
+	taxonomyList(opts?: { locale?: string }): Promise<BridgeTaxonomyDef[]>;
+	taxonomyTerms(taxonomy: string, opts?: { locale?: string }): Promise<BridgeTaxonomyTerm[]>;
+	taxonomyEntryTerms(
+		collection: string,
+		entryId: string,
+		opts?: { taxonomy?: string; locale?: string },
+	): Promise<BridgeTaxonomyTerm[]>;
 	// Media
 	mediaGet(id: string): Promise<BridgeMediaItem | null>;
 	mediaList(opts?: {

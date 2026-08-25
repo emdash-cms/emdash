@@ -1,6 +1,7 @@
 ---
 import { getEmDashEntry } from "emdash";
-import { PortableText, Comments, CommentForm } from "emdash/ui";
+import { PortableText } from "emdash/ui";
+import { Comments, CommentForm } from "emdash/ui/comments";
 
 const { slug } = Astro.params;
 if (!slug) return Astro.redirect("/404");
@@ -9,6 +10,9 @@ if (!post) return new Response("Not found", { status: 404 });
 ---
 
 <html>
+	<head>
+		<title>{post.data.title}</title>
+	</head>
 	<body>
 		<article>
 			<h1 id="title">{post.data.title}</h1>

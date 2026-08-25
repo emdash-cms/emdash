@@ -47,8 +47,7 @@ export function createDialect(config: PreviewDOConfig & { name: string }): Diale
 	// Return a factory that creates a fresh stub per connection.
 	const getStub = (): PreviewDBStub => {
 		const stub = namespace.get(id);
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Rpc type limitation with unknown in return types
-		return stub as unknown as PreviewDBStub;
+		return stub;
 	};
 
 	return new PreviewDODialect({ getStub });
