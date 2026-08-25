@@ -70,6 +70,7 @@ describe("listing label verification", () => {
 		for (const label of [
 			{ ...signed, sig: alteredSignature },
 			{ ...signed, val: "listing-pending" },
+			{ ...signed, cid: "bafyreihf4k3kf5j7dmvclqmk3ypfopgcrf5jm5k4mls3tcbnkj2xszc3da" },
 		]) {
 			await expect(
 				verifyListingLabel({ label, resolveDid: async () => document() }),

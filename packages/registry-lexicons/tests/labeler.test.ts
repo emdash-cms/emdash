@@ -31,6 +31,7 @@ const label = {
 	cid: subject.cid,
 	val: "listing-passed",
 	cts: "2026-08-20T12:01:00Z",
+	sig: { $bytes: "AA==" },
 } as const;
 
 const assessment: LabelerDefs.PublicAssessment = {
@@ -66,6 +67,25 @@ describe("labeler assessment lexicons", () => {
 
 		expect(is(LabelerDefs.publicAssessmentSchema, assessment)).toBe(true);
 		expect(is(LabelerDefs.currentAssessmentViewSchema, current)).toBe(true);
+	});
+
+	it("requires signatures on public assessment and current labels", () => {
+		const { sig: _signature, ...unsigned } = label;
+
+		expect(
+			is(LabelerDefs.publicAssessmentSchema, {
+				...assessment,
+				labels: [unsigned],
+			}),
+		).toBe(false);
+		expect(
+			is(LabelerDefs.currentAssessmentViewSchema, {
+				src: assessment.src,
+				subject,
+				assessment,
+				activeLabels: [unsigned],
+			}),
+		).toBe(false);
 	});
 
 	it("represents every public assessment state", () => {
