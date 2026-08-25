@@ -451,7 +451,7 @@ describe("MediaUsageSettings", () => {
 	});
 
 	it.each([
-		["indexing", "Indexing existing content", "Content types ready: 1 of 2"],
+		["indexing", "Indexing existing content", "Ready: 1 / 2"],
 		[
 			"ready",
 			"Media Usage is ready",
@@ -483,7 +483,7 @@ describe("MediaUsageSettings", () => {
 			await expect.element(screen.getByText("Indexing", { exact: true })).toBeVisible();
 		}
 		if (progressStatus === "ready") {
-			expect(screen.getByText("Content types ready: 2 of 2").query()).toBeNull();
+			expect(screen.getByText("Ready: 2 / 2").query()).toBeNull();
 		}
 		if (progressStatus === "needs_attention") {
 			expect(screen.getByRole("button", { name: "Retry setup" }).query()).toBeNull();
@@ -491,7 +491,7 @@ describe("MediaUsageSettings", () => {
 		}
 	});
 
-	it("renders progress counts with an incomplete non-English catalog", async () => {
+	it("renders progress counts with an incomplete RTL catalog", async () => {
 		activationMocks.fetchStatus.mockResolvedValue(status("active"));
 		activationMocks.advanceProgress.mockResolvedValue({
 			activation: status("active"),
@@ -502,12 +502,13 @@ describe("MediaUsageSettings", () => {
 			},
 			nextRequestInMs: null,
 		});
-		i18n.loadAndActivate({ locale: "de", messages: {} });
+		i18n.loadAndActivate({ locale: "ar", messages: {} });
 
 		try {
 			const { screen } = await renderPage();
 
-			await expect.element(screen.getByText("Content types ready: 1 of 2")).toBeVisible();
+			await expect.element(screen.getByText("Ready: 1 / 2")).toBeVisible();
+			await expect.element(screen.getByText("1 / 2")).toHaveAttribute("dir", "ltr");
 		} finally {
 			i18n.loadAndActivate({ locale: "en", messages: {} });
 		}

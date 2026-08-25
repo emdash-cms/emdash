@@ -451,7 +451,7 @@ function StatusRow({
 	const settingUp = activation.state === "activating";
 	const storedFailure = activation.state === "activating" && activation.lastErrorCode !== null;
 	let heading = t`Automatic indexing is off`;
-	let detail = t`Enable Media Usage to index existing content and keep references up to date.`;
+	let detail: React.ReactNode = t`Enable Media Usage to index existing content and keep references up to date.`;
 	let badge = t`Off`;
 	let variant: "neutral" | "warning" | "success" | "error" = "neutral";
 	if (settingUp) {
@@ -470,15 +470,22 @@ function StatusRow({
 				: progress?.status === "needs_attention"
 					? t`Needs attention`
 					: t`Indexing existing content`;
-		detail = progressError
-			? t`Setup couldn’t continue. Try again.`
-			: progress?.status === "needs_attention"
-				? t`Check the server logs, then use the Media Usage recovery API for the failed work.`
-				: progress?.status === "ready"
-					? t`Existing content is indexed. New changes are tracked automatically.`
-					: progress
-						? t`Content types ready: ${ready} of ${total}`
-						: t`EmDash is scanning existing content.`;
+		detail = progressError ? (
+			t`Setup couldn’t continue. Try again.`
+		) : progress?.status === "needs_attention" ? (
+			t`Check the server logs, then use the Media Usage recovery API for the failed work.`
+		) : progress?.status === "ready" ? (
+			t`Existing content is indexed. New changes are tracked automatically.`
+		) : progress ? (
+			<>
+				{t`Ready`}:{" "}
+				<span dir="ltr" className="inline-block tabular-nums">
+					{ready} / {total}
+				</span>
+			</>
+		) : (
+			t`EmDash is scanning existing content.`
+		);
 		badge = progressError
 			? t`Needs attention`
 			: progress?.status === "ready"
@@ -495,14 +502,8 @@ function StatusRow({
 					: "warning";
 	}
 	if (activationError) {
-		const lastState =
-			activation.state === "activating"
-				? t`Setting up`
-				: activation.state === "active"
-					? t`Active`
-					: t`Off`;
 		heading = t`Needs attention`;
-		detail = t`The last confirmed state was ${lastState}. Refresh status before continuing.`;
+		detail = t`Refresh status before continuing.`;
 		badge = t`Needs attention`;
 		variant = "error";
 	}

@@ -1,5 +1,3 @@
-import { setupI18n } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
 import { describe, expect, test } from "vitest";
 
 import {
@@ -22,17 +20,6 @@ for (const { code } of SUPPORTED_LOCALES) {
 test("loadMessages falls back to English for unknown locale", async () => {
 	const [fallback, english] = await Promise.all([loadMessages("xx"), loadMessages("en")]);
 	expect(fallback).toEqual(english);
-});
-
-test("formats Media Usage progress counts from the production English catalog", async () => {
-	const ready = 1;
-	const total = 2;
-	const productionI18n = setupI18n({ missing: () => "MISSING_TRANSLATION" });
-	productionI18n.loadAndActivate({ locale: "de", messages: await loadMessages("de") });
-
-	expect(productionI18n._(msg`Content types ready: ${ready} of ${total}`)).toBe(
-		"Content types ready: 1 of 2",
-	);
 });
 
 // -- getLocaleDir ----------------------------------------------------------
