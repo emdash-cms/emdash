@@ -1,10 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { MediaDetailPanel } from "../../src/components/MediaDetailPanel";
 import { ApiResponseError, type LocalMediaItem, type MediaItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
+
+const TEST_IMAGE_URL =
+	"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='gray'/%3E%3C/svg%3E";
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
@@ -127,6 +131,19 @@ function renderPanel(props: Partial<React.ComponentProps<typeof MediaDetailPanel
 	);
 }
 
+async function openFocalEditor(screen: Awaited<ReturnType<typeof renderPanel>>) {
+	const editTab = screen.getByRole("tab", { name: "Focal point" }).element();
+	editTab.focus();
+	editTab.click();
+	const surface = screen.getByRole("button", {
+		name: "Focal point. Use arrow keys to move it.",
+	});
+	await expect.element(surface).toBeVisible();
+	surface.element().focus();
+	await expect.element(surface).toHaveFocus();
+	return surface;
+}
+
 describe("MediaDetailPanel", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -153,6 +170,11 @@ describe("MediaDetailPanel", () => {
 		const item = makeImageItem({ width: 1920, height: 1080 });
 		const screen = await renderPanel({ item });
 		await expect.element(screen.getByText("1920 × 1080")).toBeInTheDocument();
+		await expect.element(screen.getByText("JPEG")).toBeInTheDocument();
+		await expect.element(screen.getByText("Size:")).toBeInTheDocument();
+		await expect.element(screen.getByText("Dimensions:")).toBeInTheDocument();
+		await expect.element(screen.getByText("Uploaded:")).toBeInTheDocument();
+		await expect.element(screen.getByText("Format:")).toBeInTheDocument();
 	});
 
 	it("groups the preview, metadata, and actions in an accessible dialog", async () => {
@@ -184,6 +206,17 @@ describe("MediaDetailPanel", () => {
 		await expect.element(screen.getByText("1920 × 1080")).toBeVisible();
 	});
 
+	it("keeps the dialog height stable while switching image tabs", async () => {
+		const screen = await renderPanel({ item: makeImageItem({ url: TEST_IMAGE_URL }) });
+		const dialog = screen.getByRole("dialog", { name: "Media Details" }).element();
+		const detailsHeight = dialog.getBoundingClientRect().height;
+
+		screen.getByRole("tab", { name: "Focal point" }).element().click();
+		await expect.element(screen.getByTestId("focal-preview-square")).toBeVisible();
+
+		expect(dialog.getBoundingClientRect().height).toBe(detailsHeight);
+	});
+
 	it("shows image preview for image mimeTypes", async () => {
 		const item = makeImageItem();
 		const screen = await renderPanel({ item });
@@ -192,11 +225,235 @@ describe("MediaDetailPanel", () => {
 		await expect.element(img).toHaveAttribute("src", item.url);
 	});
 
+	it("separates image details from focal-point editing with tabs", async () => {
+		const screen = await renderPanel({
+			item: makeLocalItem({ url: TEST_IMAGE_URL }),
+			canMoveLocation: true,
+		});
+
+		await expect
+			.element(screen.getByRole("tab", { name: "Details" }))
+			.toHaveAttribute("aria-selected", "true");
+		await expect.element(screen.getByLabelText("Filename")).toBeVisible();
+		await expect
+			.element(screen.getByRole("button", { name: "Focal point. Use arrow keys to move it." }))
+			.not.toBeInTheDocument();
+		expect(screen.getByTestId("focal-preview-square").query()).toBeNull();
+
+		const editTab = screen.getByRole("tab", { name: "Focal point" });
+		editTab.element().focus();
+		editTab.element().click();
+
+		await expect.element(editTab).toHaveFocus();
+		await expect
+			.element(screen.getByRole("button", { name: "Focal point. Use arrow keys to move it." }))
+			.toBeVisible();
+		await expect.element(screen.getByRole("heading", { name: "Preview" })).toBeVisible();
+		const previewGroup = screen.getByTestId("focal-preview-group").element();
+		const portraitPreview = screen.getByTestId("focal-preview-portrait").element();
+		const squarePreview = screen.getByTestId("focal-preview-square").element();
+		const landscapePreview = screen.getByTestId("focal-preview-landscape").element();
+		await expect.element(squarePreview).toBeVisible();
+		expect(
+			Array.from(previewGroup.querySelectorAll("figcaption"), (caption) => caption.textContent),
+		).toEqual(["Portrait", "Square", "Landscape"]);
+		await expect.element(portraitPreview).toBeVisible();
+		await expect.element(landscapePreview).toBeVisible();
+		expect(
+			screen.getByTestId("media-detail-dialog-details-column").element().contains(squarePreview),
+		).toBe(true);
+		expect(
+			screen.getByTestId("media-detail-dialog-preview-column").element().contains(squarePreview),
+		).toBe(false);
+		await expect.element(screen.getByLabelText("Filename")).not.toBeVisible();
+
+		screen.getByRole("tab", { name: "Details" }).element().click();
+		await expect.element(screen.getByLabelText("Filename")).toBeVisible();
+	});
+
+	it("preserves the focal-point draft while switching tabs", async () => {
+		const screen = await renderPanel({
+			item: makeImageItem({ url: TEST_IMAGE_URL, focalX: null, focalY: null }),
+		});
+
+		await openFocalEditor(screen);
+		await userEvent.keyboard("{ArrowRight}");
+		screen.getByRole("tab", { name: "Details" }).element().click();
+		screen.getByRole("tab", { name: "Focal point" }).element().click();
+
+		expect(screen.getByTestId("focal-preview-square").element().style.objectPosition).toBe(
+			"51% 50%",
+		);
+	});
+
+	it("edits the focal point with the keyboard and saves only the focal pair", async () => {
+		const screen = await renderPanel({
+			item: makeImageItem({ url: TEST_IMAGE_URL, focalX: null, focalY: null }),
+		});
+
+		await openFocalEditor(screen);
+		await userEvent.keyboard("{ArrowRight}");
+		await userEvent.keyboard("{Shift>}{ArrowDown}{/Shift}");
+		await expect.element(screen.getByRole("button", { name: "Reset" })).toBeEnabled();
+
+		const squarePreview = screen.getByTestId("focal-preview-square").element();
+		expect(squarePreview.style.objectPosition).toBe("51% 55%");
+		await expect
+			.element(screen.getByRole("status"))
+			.toHaveTextContent("Horizontal 51%, vertical 55%");
+
+		screen.getByRole("button", { name: "Save" }).element().click();
+		await vi.waitFor(() => {
+			expect(updateMedia).toHaveBeenCalledWith("media-1", {
+				focalX: 0.51,
+				focalY: 0.55,
+			});
+		});
+	});
+
+	it("keeps the focal draft visible when saving fails", async () => {
+		vi.mocked(updateMedia).mockRejectedValueOnce(new Error("Update failed"));
+		const screen = await renderPanel({ item: makeImageItem({ url: TEST_IMAGE_URL }) });
+		await openFocalEditor(screen);
+		await userEvent.keyboard("{ArrowRight}");
+		const saveButton = screen.getByRole("button", { name: "Save" });
+		await expect.element(saveButton).toBeEnabled();
+		saveButton.element().click();
+
+		await expect.element(screen.getByText("Update failed")).toBeVisible();
+		expect(screen.getByTestId("focal-preview-square").element().style.objectPosition).toBe(
+			"51% 50%",
+		);
+	});
+
+	it("keeps one active pointer and clears it after cancellation or lost capture", async () => {
+		const screen = await renderPanel({ item: makeImageItem({ url: TEST_IMAGE_URL }) });
+		const surfaceLocator = await openFocalEditor(screen);
+		const surface = surfaceLocator.element();
+		vi.spyOn(surface, "getBoundingClientRect").mockReturnValue({
+			x: 0,
+			y: 0,
+			left: 0,
+			top: 0,
+			right: 100,
+			bottom: 100,
+			width: 100,
+			height: 100,
+			toJSON: () => ({}),
+		});
+		vi.spyOn(surface, "setPointerCapture").mockImplementation(() => {});
+		vi.spyOn(surface, "hasPointerCapture").mockReturnValue(true);
+		const release = vi.spyOn(surface, "releasePointerCapture").mockImplementation(() => {});
+
+		surface.dispatchEvent(
+			new PointerEvent("pointerdown", {
+				bubbles: true,
+				pointerId: 1,
+				clientX: 80,
+				clientY: 20,
+			}),
+		);
+		await vi.waitFor(() => {
+			expect(screen.getByTestId("focal-preview-square").element().style.objectPosition).toBe(
+				"80% 20%",
+			);
+		});
+
+		surface.dispatchEvent(
+			new PointerEvent("pointerdown", {
+				bubbles: true,
+				pointerId: 2,
+				clientX: 10,
+				clientY: 90,
+			}),
+		);
+		await new Promise((resolve) => window.setTimeout(resolve, 0));
+		expect(screen.getByTestId("focal-preview-square").element().style.objectPosition).toBe(
+			"80% 20%",
+		);
+
+		surface.dispatchEvent(new PointerEvent("lostpointercapture", { bubbles: true, pointerId: 1 }));
+		surface.dispatchEvent(
+			new PointerEvent("pointermove", {
+				bubbles: true,
+				pointerId: 1,
+				clientX: 10,
+				clientY: 90,
+			}),
+		);
+		await new Promise((resolve) => window.setTimeout(resolve, 0));
+		expect(screen.getByTestId("focal-preview-square").element().style.objectPosition).toBe(
+			"80% 20%",
+		);
+
+		surface.dispatchEvent(
+			new PointerEvent("pointerdown", {
+				bubbles: true,
+				pointerId: 3,
+				clientX: 30,
+				clientY: 30,
+			}),
+		);
+		await vi.waitFor(() => {
+			expect(screen.getByTestId("focal-preview-square").element().style.objectPosition).toBe(
+				"30% 30%",
+			);
+		});
+		surface.dispatchEvent(new PointerEvent("pointercancel", { bubbles: true, pointerId: 3 }));
+		surface.dispatchEvent(
+			new PointerEvent("pointermove", {
+				bubbles: true,
+				pointerId: 3,
+				clientX: 90,
+				clientY: 90,
+			}),
+		);
+		await new Promise((resolve) => window.setTimeout(resolve, 0));
+		expect(screen.getByTestId("focal-preview-square").element().style.objectPosition).toBe(
+			"30% 30%",
+		);
+		expect(release).toHaveBeenCalledWith(3);
+	});
+
+	it("resets a custom focal point to the centered fallback", async () => {
+		const screen = await renderPanel({
+			item: makeImageItem({ url: TEST_IMAGE_URL, focalX: 0.2, focalY: 0.8 }),
+		});
+		await openFocalEditor(screen);
+		const resetButton = screen.getByRole("button", { name: "Reset" });
+		await expect.element(resetButton).toBeVisible();
+		resetButton.element().click();
+		const saveButton = screen.getByRole("button", { name: "Save" });
+		await expect.element(saveButton).toBeEnabled();
+		saveButton.element().click();
+
+		await vi.waitFor(() => {
+			expect(updateMedia).toHaveBeenCalledWith("media-1", {
+				focalX: null,
+				focalY: null,
+			});
+		});
+	});
+
+	it("does not create unsaved changes by opening Focal point", async () => {
+		const onClose = vi.fn();
+		const screen = await renderPanel({ item: makeImageItem({ url: TEST_IMAGE_URL }), onClose });
+		await openFocalEditor(screen);
+		screen.getByRole("button", { name: "Cancel" }).element().click();
+
+		expect(onClose).toHaveBeenCalledTimes(1);
+		await expect
+			.element(screen.getByText("Discard changes?"), { timeout: 100 })
+			.not.toBeInTheDocument();
+	});
+
 	it("does not show image preview for non-image mimeTypes", async () => {
 		const item = makePdfItem();
 		const screen = await renderPanel({ item });
 		// Should show the mime type text instead of img
 		await expect.element(screen.getByText("application/pdf")).toBeInTheDocument();
+		expect(screen.getByRole("dialog").element().querySelector('[role="tablist"]')).toBeNull();
+		expect(screen.getByText("Focal point").query()).toBeNull();
 	});
 
 	it("alt text input is editable", async () => {
@@ -272,7 +529,6 @@ describe("MediaDetailPanel", () => {
 		await vi.waitFor(() => {
 			expect(updateMedia).toHaveBeenCalledWith("media-1", {
 				alt: "New alt",
-				caption: "Old caption",
 			});
 			expect(onClose).toHaveBeenCalled();
 		});
@@ -332,7 +588,6 @@ describe("MediaDetailPanel", () => {
 		await vi.waitFor(() => {
 			expect(updateMedia).toHaveBeenCalledWith("media-1", {
 				alt: "Shortcut alt",
-				caption: "Old caption",
 			});
 			expect(onClose).toHaveBeenCalled();
 		});
@@ -375,7 +630,6 @@ describe("MediaDetailPanel", () => {
 		await vi.waitFor(() => {
 			expect(updateMedia).toHaveBeenCalledWith("media-1", {
 				alt: "Updated alt",
-				caption: "Photo caption",
 				folderId: "folder-2",
 			});
 		});
@@ -390,7 +644,6 @@ describe("MediaDetailPanel", () => {
 		await vi.waitFor(() => {
 			expect(updateMedia).toHaveBeenCalledWith("media-1", {
 				alt: "Metadata only",
-				caption: "Photo caption",
 			});
 		});
 	});
@@ -635,10 +888,11 @@ describe("MediaDetailPanel", () => {
 	});
 
 	it("does not consume the keyboard save shortcut when nothing can be saved", async () => {
-		await renderPanel({
+		const screen = await renderPanel({
 			item: makeImageItem({ provider: "cloudflare-images" }),
 			providerName: "Cloudflare Images",
 		});
+		expect(screen.getByText("Focal point").query()).toBeNull();
 
 		const event = new KeyboardEvent("keydown", { key: "s", ctrlKey: true, cancelable: true });
 		window.dispatchEvent(event);
@@ -798,17 +1052,20 @@ describe("MediaDetailPanel", () => {
 });
 
 describe("MediaDetailPanel file URL", () => {
-	it("shows the absolute file URL with a Copy URL action", async () => {
+	it("shows a shortened file path while copying the absolute URL", async () => {
+		const clipboardWrite = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
 		const screen = await renderPanel({
 			item: makeImageItem({ url: "/_emdash/api/media/file/01ABC.jpg" }),
 		});
 
-		// Relative local-storage URLs are shown as absolute (origin-resolved)
-		// so they can be pasted anywhere. The Kumo ClipboardText component
-		// renders the value as text and a copy button (labelled "Copy URL").
 		const absolute = new URL("/_emdash/api/media/file/01ABC.jpg", window.location.origin).href;
-		await expect.element(screen.getByText(absolute)).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: /Copy URL/ })).toBeVisible();
+		const displayedPath = screen.getByText("/_emdash/api/media/file/01ABC.jpg").element();
+		expect(displayedPath.textContent).toBe("/_emdash/api/media/file/01ABC.jpg");
+		expect(displayedPath.textContent).not.toContain(window.location.origin);
+		const copyButton = screen.getByRole("button", { name: /Copy URL/ });
+		await expect.element(copyButton).toBeVisible();
+		copyButton.element().click();
+		await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledWith(absolute));
 	});
 
 	it("does not expose provider preview URLs as public URLs", async () => {

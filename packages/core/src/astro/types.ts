@@ -403,6 +403,8 @@ export interface EmDashHandlers {
 			width?: number;
 			height?: number;
 			folderId?: string | null;
+			focalX?: number | null;
+			focalY?: number | null;
 		},
 	) => Promise<HandlerResponse>;
 

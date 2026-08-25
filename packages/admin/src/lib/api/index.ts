@@ -62,6 +62,7 @@ export {
 	type LocalMediaItem,
 	type MediaFolder,
 	type MediaFolderListResult,
+	type MediaUpdateInput,
 	type MediaUploadOptions,
 	type MediaProviderCapabilities,
 	type MediaProviderInfo,

@@ -781,11 +781,20 @@ describe("MediaLibrary", () => {
 		});
 
 		it("grid items show image thumbnails for image mimeTypes", async () => {
-			const items = [makeMediaItem({ id: "1", filename: "pic.jpg", mimeType: "image/jpeg" })];
+			const items = [
+				makeMediaItem({
+					id: "1",
+					filename: "pic.jpg",
+					mimeType: "image/jpeg",
+					focalX: 0.2,
+					focalY: 0.8,
+				}),
+			];
 			const screen = await renderLibrary({ items });
 			const img = screen.getByAltText("pic.jpg");
 			await expect.element(img).toBeInTheDocument();
 			await expect.element(img).toHaveAttribute("src", "https://example.com/photo.jpg");
+			expect(img.element().style.objectPosition).toBe("20% 80%");
 		});
 	});
 

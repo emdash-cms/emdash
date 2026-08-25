@@ -7,6 +7,7 @@ import type { Kysely } from "kysely";
 import { MediaRepository, type MediaItem } from "../../database/repositories/media.js";
 import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
+import { isValidFocalPointUpdate, type FocalPointUpdate } from "../../media/focal-point.js";
 import type { ApiResult } from "../types.js";
 
 const FOREIGN_KEY_VIOLATION_RE = /foreign key constraint failed/i;
@@ -181,8 +182,17 @@ export async function handleMediaUpdate(
 		width?: number;
 		height?: number;
 		folderId?: string | null;
-	},
+	} & FocalPointUpdate,
 ): Promise<ApiResult<MediaResponse>> {
+	if (!isValidFocalPointUpdate(input)) {
+		return {
+			success: false,
+			error: {
+				code: "VALIDATION_ERROR",
+				message: "focalX and focalY must both be valid numbers or both be null",
+			},
+		};
+	}
 	try {
 		const repo = new MediaRepository(db);
 		const item = await repo.update(id, input);

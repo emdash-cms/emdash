@@ -38,6 +38,8 @@ export interface MediaItem {
 	size: number;
 	width?: number;
 	height?: number;
+	focalX?: number | null;
+	focalY?: number | null;
 	/** LQIP blurhash placeholder (images only) */
 	blurhash?: string;
 	/** LQIP dominant-color placeholder, as a CSS color (images only) */
@@ -427,16 +429,17 @@ export async function deleteMedia(id: string): Promise<void> {
 /**
  * Update media metadata (dimensions, alt text, etc.)
  */
-export async function updateMedia(
-	id: string,
-	input: {
-		alt?: string;
-		caption?: string;
-		width?: number;
-		height?: number;
-		folderId?: string | null;
-	},
-): Promise<LocalMediaItem> {
+export interface MediaUpdateInput {
+	alt?: string;
+	caption?: string;
+	width?: number;
+	height?: number;
+	folderId?: string | null;
+	focalX?: number | null;
+	focalY?: number | null;
+}
+
+export async function updateMedia(id: string, input: MediaUpdateInput): Promise<LocalMediaItem> {
 	const response = await apiFetch(`${API_BASE}/media/${encodeURIComponent(id)}`, {
 		method: "PUT",
 		headers: { "Content-Type": "application/json" },

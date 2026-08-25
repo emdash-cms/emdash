@@ -67,6 +67,8 @@ export interface MediaTable {
 	size: number | null;
 	width: number | null;
 	height: number | null;
+	focal_x: number | null;
+	focal_y: number | null;
 	alt: string | null;
 	caption: string | null;
 	storage_key: string;
@@ -693,6 +695,8 @@ export type MediaRow = {
 	size: number | null;
 	width: number | null;
 	height: number | null;
+	focal_x: number | null;
+	focal_y: number | null;
 	alt: string | null;
 	caption: string | null;
 	storage_key: string;

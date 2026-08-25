@@ -7,6 +7,7 @@ import {
 } from "kysely";
 import { ulid } from "ulidx";
 
+import { normalizeFocalPoint, type FocalPointUpdate } from "../../media/focal-point.js";
 import type { Database, MediaRow } from "../types.js";
 import type { FindManyResult } from "./types.js";
 import { encodeCursor, decodeCursor } from "./types.js";
@@ -54,6 +55,8 @@ export interface MediaItem {
 	size: number | null;
 	width: number | null;
 	height: number | null;
+	focalX: number | null;
+	focalY: number | null;
 	alt: string | null;
 	caption: string | null;
 	storageKey: string;
@@ -94,7 +97,7 @@ export interface FindManyMediaOptions {
 	folderId?: string | null;
 }
 
-export interface UpdateMediaInput {
+export interface UpdateMediaInput extends FocalPointUpdate {
 	alt?: string;
 	caption?: string;
 	width?: number;
@@ -134,6 +137,8 @@ export class MediaRepository {
 			size: input.size ?? null,
 			width: input.width ?? null,
 			height: input.height ?? null,
+			focal_x: null,
+			focal_y: null,
 			alt: input.alt ?? null,
 			caption: input.caption ?? null,
 			storage_key: input.storageKey,
@@ -463,6 +468,10 @@ export class MediaRepository {
 		if (input.width !== undefined) updates.width = input.width;
 		if (input.height !== undefined) updates.height = input.height;
 		if (input.folderId !== undefined) updates.folder_id = input.folderId;
+		if (input.focalX !== undefined && input.focalY !== undefined) {
+			updates.focal_x = input.focalX;
+			updates.focal_y = input.focalY;
+		}
 
 		if (Object.keys(updates).length > 0) {
 			await this.db.updateTable("media").set(updates).where("id", "=", id).execute();
@@ -559,6 +568,7 @@ export class MediaRepository {
 	 * Convert database row to MediaItem
 	 */
 	private rowToItem(row: MediaRow): MediaItem {
+		const focalPoint = normalizeFocalPoint(row.focal_x, row.focal_y);
 		return {
 			id: row.id,
 			filename: row.filename,
@@ -566,6 +576,8 @@ export class MediaRepository {
 			size: row.size,
 			width: row.width,
 			height: row.height,
+			focalX: focalPoint?.focalX ?? null,
+			focalY: focalPoint?.focalY ?? null,
 			alt: row.alt,
 			caption: row.caption,
 			storageKey: row.storage_key,

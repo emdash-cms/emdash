@@ -3527,6 +3527,8 @@ export class EmDashRuntime {
 			width?: number;
 			height?: number;
 			folderId?: string | null;
+			focalX?: number | null;
+			focalY?: number | null;
 		},
 	) {
 		const result = await handleMediaUpdate(this.db, id, input);

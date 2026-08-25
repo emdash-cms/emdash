@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isValidFocalPointUpdate } from "#media/focal-point.js";
+
 import { cursorPaginationQuery } from "./common.js";
 import { mediaUsageSummarySchema } from "./media-usage.js";
 
@@ -65,6 +67,17 @@ export const mediaUpdateBody = z
 				description:
 					"Assign a media folder ID, or use null or `unfiled` to return the item to the Main library.",
 			}),
+		focalX: z.number().min(0).max(1).nullable().optional(),
+		focalY: z.number().min(0).max(1).nullable().optional(),
+	})
+	.superRefine((value, context) => {
+		if (!isValidFocalPointUpdate(value)) {
+			context.addIssue({
+				code: "custom",
+				message: "focalX and focalY must both be numbers or both be null",
+				path: ["focalX"],
+			});
+		}
 	})
 	.meta({ id: "MediaUpdateBody" });
 
@@ -150,6 +163,8 @@ export const mediaItemSchema = z
 		size: z.number().nullable(),
 		width: z.number().nullable(),
 		height: z.number().nullable(),
+		focalX: z.number().nullable(),
+		focalY: z.number().nullable(),
 		alt: z.string().nullable(),
 		caption: z.string().nullable(),
 		storageKey: z.string(),

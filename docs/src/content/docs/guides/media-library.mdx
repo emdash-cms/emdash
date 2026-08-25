@@ -214,6 +214,20 @@ references remain unchanged.
 
 For fields configured as image or file types, click the field to open the media picker.
 
+## Setting a focal point
+
+A focal point keeps the important part of a local image visible when a card, gallery, or other
+layout crops it to fill a fixed shape.
+
+1. Open **Media**, then select an image from the local library.
+2. Select **Focal point**.
+3. Click or drag the marker onto the important part of the image. You can also use the Arrow keys.
+4. Check the square, landscape, and portrait previews, then select **Save**.
+
+Select **Reset** to remove a custom focal point. The saved point is copied when you select
+the image for a content field or gallery. Content that already uses the image keeps its stored point
+until you select the image again.
+
 ## Displaying Media in Templates
 
 Access media URLs from your content data:
@@ -479,6 +493,8 @@ interface MediaValue {
   mimeType?: string;    // MIME type
   width?: number;       // Image/video width
   height?: number;      // Image/video height
+  focalX?: number;      // Horizontal focal position from 0 to 1
+  focalY?: number;      // Vertical focal position from 0 to 1
   alt?: string;         // Alt text
   meta?: Record<string, unknown>; // Provider-specific metadata
 }

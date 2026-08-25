@@ -20,6 +20,8 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 						size: 31_744,
 						width: 1600,
 						height: 800,
+						focalX: 0.2,
+						focalY: 0.8,
 						alt: "Replacement image",
 						createdAt: "2026-07-23T12:00:00.000Z",
 					})
@@ -38,6 +40,8 @@ const selectedImage: ImageFieldValue = {
 	alt: "Geometric pattern carved into white paper",
 	width: 1200,
 	height: 800,
+	focalX: 0.25,
+	focalY: 0.75,
 	meta: { storageKey: "featured-image.jpg" },
 };
 
@@ -66,6 +70,7 @@ describe("ImageFieldRenderer", () => {
 
 		const image = screen.container.querySelector("img");
 		expect(image).toHaveAttribute("src", "/_emdash/api/media/file/featured-image.jpg");
+		expect(image?.style.objectPosition).toBe("25% 75%");
 	});
 
 	it("falls back cleanly when optional featured-image metadata is missing", async () => {
@@ -121,6 +126,8 @@ describe("ImageFieldRenderer", () => {
 				mimeType: "image/webp",
 				width: 1600,
 				height: 800,
+				focalX: 0.2,
+				focalY: 0.8,
 			}),
 		);
 	});

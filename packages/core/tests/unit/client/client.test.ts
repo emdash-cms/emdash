@@ -759,7 +759,9 @@ describe("EmDashClient", () => {
 				}
 				if (req.method === "DELETE") return jsonResponse({ deleted: true });
 				if (url.pathname.endsWith("/media/media%2Fone")) {
-					return jsonResponse({ item: { id: "media/one", folderId: null } });
+					return jsonResponse({
+						item: { id: "media/one", folderId: null, focalX: 0.25, focalY: 0.75 },
+					});
 				}
 				return jsonResponse({ item: { id: "folder/one", name: "Updated" } });
 			};
@@ -784,7 +786,12 @@ describe("EmDashClient", () => {
 			expect(created).toEqual({ id: "folder/one", name: "Updated" });
 			expect(updated).toEqual({ id: "folder/one", name: "Updated" });
 			expect(fetched).toEqual({ id: "folder/one", name: "One" });
-			expect(media).toEqual({ id: "media/one", folderId: null });
+			expect(media).toEqual({
+				id: "media/one",
+				folderId: null,
+				focalX: 0.25,
+				focalY: 0.75,
+			});
 			expect(Object.fromEntries(requests[0]?.url.searchParams ?? [])).toEqual({
 				limit: "25",
 				cursor: "after / folder",

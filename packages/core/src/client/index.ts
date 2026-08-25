@@ -193,6 +193,8 @@ export interface MediaItem {
 	size: number;
 	width?: number;
 	height?: number;
+	focalX?: number | null;
+	focalY?: number | null;
 	alt?: string;
 	caption?: string;
 	createdAt: string;
@@ -204,6 +206,8 @@ export interface MediaItem {
 /** Result of assigning local media to a folder or the Main library */
 export interface MediaFolderAssignment {
 	id: string;
+	focalX: number | null;
+	focalY: number | null;
 	folderId: string | null;
 }
 
