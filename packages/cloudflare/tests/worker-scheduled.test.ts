@@ -3,9 +3,8 @@ import { beforeEach, expect, it, vi } from "vitest";
 const scheduled = vi.hoisted(() => ({
 	general: vi.fn(async (_options?: unknown) => ({ published: [] })),
 }));
-const astro = vi.hoisted(() => ({ fetch: vi.fn() }));
 
-vi.mock("@astrojs/cloudflare/entrypoints/server", () => ({ default: { fetch: astro.fetch } }));
+vi.mock("@astrojs/cloudflare/entrypoints/server", () => ({ default: {} }));
 vi.mock("astro/app/entrypoint", () => ({
 	createApp: () => ({ pipeline: { getCacheProvider: async () => null } }),
 }));
@@ -16,8 +15,6 @@ import { createScheduledHandler } from "../src/worker.js";
 
 beforeEach(() => {
 	vi.restoreAllMocks();
-	astro.fetch.mockReset();
-	astro.fetch.mockResolvedValue(new Response(null, { status: 204 }));
 	scheduled.general.mockClear();
 });
 
@@ -54,23 +51,13 @@ it("rejects an empty configured expression", () => {
 	expect(createScheduledHandler({ generalCron: " * * * * * " })).toBeTypeOf("function");
 });
 
-async function invoke<Env>(
-	handler: ExportedHandlerScheduledHandler<Env>,
-	cron: string,
-	env: Env,
-): Promise<void>;
-async function invoke(handler: ExportedHandlerScheduledHandler, cron: string): Promise<void>;
-async function invoke(
-	handler: ExportedHandlerScheduledHandler,
-	cron: string,
-	env: unknown = {},
-): Promise<void> {
+async function invoke(handler: ExportedHandlerScheduledHandler, cron: string): Promise<void> {
 	const pending: Promise<unknown>[] = [];
 	const context = {
 		waitUntil(promise: Promise<unknown>) {
 			pending.push(promise);
 		},
 	};
-	Reflect.apply(handler, undefined, [{ cron }, env, context]);
+	Reflect.apply(handler, undefined, [{ cron }, {}, context]);
 	await Promise.all(pending);
 }

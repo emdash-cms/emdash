@@ -53,7 +53,6 @@ export interface MediaUsageWorkTickResult {
 
 export interface ProcessDueMediaUsageWorkOptions {
 	activationKnownActive?: boolean;
-	recoverIncrementalFinalizations?: boolean;
 }
 
 export async function processMediaUsageWorkAfterWrite(
@@ -122,9 +121,7 @@ export async function processDueMediaUsageWork(
 		return result;
 	}
 
-	if (options.recoverIncrementalFinalizations ?? true) {
-		await new MediaUsageRepository(db).recoverIncrementalFinalizations();
-	}
+	await new MediaUsageRepository(db).recoverIncrementalFinalizations();
 	const repo = new MediaUsageWorkRepository(db);
 	const candidates = await repo.claimDueWorkBatch({
 		limit: MEDIA_USAGE_WORK_PROCESSING_LIMITS.candidatesPerTick,

@@ -45,9 +45,9 @@ export interface ScheduledHandlerOptions {
 	generalCron?: string;
 }
 
-export function createScheduledHandler<Env = unknown>(
+export function createScheduledHandler(
 	options?: ScheduledHandlerOptions,
-): ExportedHandlerScheduledHandler<Env> {
+): ExportedHandlerScheduledHandler {
 	const generalCron = options?.generalCron?.trim();
 	if (options?.generalCron !== undefined && !generalCron) {
 		throw new Error("Configured scheduled-handler expressions must be non-empty");

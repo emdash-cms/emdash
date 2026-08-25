@@ -11,7 +11,7 @@ Cloudflare Workers provides a fast, globally distributed runtime for EmDash. Thi
 
 - A Cloudflare account
 - Workers Paid when activating automatic Media Usage indexing
-- Wrangler 4.123 or newer (`npx wrangler@latest`)
+- Wrangler CLI installed (`npm install -g wrangler`)
 - Authenticated with Cloudflare (`wrangler login`)
 
 ## Configure Bindings
@@ -112,7 +112,7 @@ export { PluginBridge };
 export default {
 	...handler,
 	scheduled: createScheduledHandler(),
-} satisfies ExportedHandler<Env>;
+} satisfies ExportedHandler;
 ```
 
 Configure one Cron Trigger for general maintenance in `wrangler.jsonc`:
