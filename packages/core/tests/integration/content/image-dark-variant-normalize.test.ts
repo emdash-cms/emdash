@@ -57,6 +57,12 @@ describeEachDialect("image field dark variant normalization", (dialect) => {
 		await insertMedia(lightId, "hero-light.png");
 		await insertMedia(darkId, "hero-dark.png");
 
+		await registry.createField("posts", {
+			slug: "attachment",
+			label: "Attachment",
+			type: "file",
+		});
+
 		runtime = createTestRuntime(ctx.db);
 		runtime.mediaProviders.set("local", createMediaProvider({ db: ctx.db }));
 	});
@@ -136,6 +142,29 @@ describeEachDialect("image field dark variant normalization", (dialect) => {
 		const hero = (result.data.item.data as Record<string, unknown>).hero as Record<string, unknown>;
 		expect(hero).toMatchObject({ id: lightId, provider: "local", filename: "hero-light.png" });
 		expect(hero.darkVariant).toMatchObject({ id: darkId, provider: "local" });
+	});
+
+	it("does not apply dark variant handling to file fields", async () => {
+		const result = await runtime.handleContentCreate("posts", {
+			slug: "p6",
+			data: {
+				title: "p6",
+				attachment: {
+					id: lightId,
+					provider: "local",
+					darkVariant: { id: darkId, provider: "local" },
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+
+		const attachment = (result.data.item.data as Record<string, unknown>).attachment as Record<
+			string,
+			unknown
+		>;
+		expect(attachment.id).toBe(lightId);
+		expect(attachment.darkVariant).toBeUndefined();
 	});
 
 	it("removes the dark variant when an update clears it", async () => {
