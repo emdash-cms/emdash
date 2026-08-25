@@ -10,7 +10,6 @@ Cloudflare Workers provides a fast, globally distributed runtime for EmDash. Thi
 ## Prerequisites
 
 - A Cloudflare account
-- Workers Paid when activating automatic Media Usage indexing
 - Wrangler CLI installed (`npm install -g wrangler`)
 - Authenticated with Cloudflare (`wrangler login`)
 
@@ -95,9 +94,9 @@ If the database is empty (no collections) and the setup wizard hasn't been compl
 
 To change the schema or content model of a site that is already deployed, see [Evolving a Deployed Site](/deployment/schema-evolution/).
 
-## Scheduled tasks and Media Usage
+## Scheduled tasks
 
-Cloudflare runs scheduled publishing, plugin tasks, and general maintenance from one Cron Trigger. Media Usage setup advances through requests from the visible Settings page.
+Cloudflare runs scheduled publishing, plugin tasks, and general maintenance from one Cron Trigger.
 
 Use the standard Worker entry point:
 
@@ -127,17 +126,6 @@ Configure one Cron Trigger for general maintenance in `wrangler.jsonc`:
 
 To use a different general maintenance schedule, set `generalCron` in `createScheduledHandler()` and
 use the same expression in `wrangler.jsonc`.
-
-### Enable Media Usage
-
-1. If another application writes directly to D1, pause it before setup.
-2. Open **Settings → Media Usage**, select **Enable Media Usage**, then select **Turn on**.
-3. Keep the Settings page open until it shows **Ready**. If you close or hide it, return to the page to continue from the stored progress.
-4. Resume direct D1 writers when the page shows **Indexing existing content** or **Ready**.
-
-EmDash may briefly pause editing while the page shows **Setting up**. If the page shows **Needs attention**, follow its recovery guidance. **Retry setup** appears only after activation fails.
-
-API operators can use the [Media Usage activation endpoints](/reference/rest-api/#enable-automatic-media-usage-indexing).
 
 ## Deploy
 

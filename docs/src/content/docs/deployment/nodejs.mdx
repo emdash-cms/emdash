@@ -59,17 +59,6 @@ The built-in scheduler runs only while a Node.js process is running. It handles 
 
 Keep at least one Node.js process running continuously in production. Scheduled tasks pause when every process stops or sleeps.
 
-### Enable Media Usage
-
-1. If another application writes directly to the SQLite database, pause it before setup.
-2. Open **Settings → Media Usage**, select **Enable Media Usage**, then select **Turn on**.
-3. Keep the Settings page open until it shows **Ready**. If you close or hide it, return to the page to continue from the stored progress.
-4. Resume direct database writers when the page shows **Indexing existing content** or **Ready**.
-
-EmDash may briefly pause editing while the page shows **Setting up**. If the page shows **Needs attention**, follow its recovery guidance. **Retry setup** appears only after activation fails.
-
-API operators can use the [Media Usage activation endpoints](/reference/rest-api/#enable-automatic-media-usage-indexing).
-
 ## Production Storage
 
 For production, use S3-compatible storage instead of local filesystem:

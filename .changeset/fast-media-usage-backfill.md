@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-Speeds up initial Media Usage indexing on Cloudflare Workers and Node.js.
+Speeds up the initial scan when administrators turn on media usage tracking on Cloudflare Workers and Node.js.

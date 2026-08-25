@@ -254,12 +254,12 @@ collections:
 | `stale`    | Indexed coverage is outdated                                           |
 | `unknown`  | Stored coverage contains a state this version does not recognize        |
 
-Only `complete` supports a scoped complete-zero statement within the EmDash-managed fields
+Only `complete` supports a scoped complete-zero statement within the supported fields
 described below. Counts with any other status are indexed projections and may over-report or
 under-report. Even complete results are advisory during concurrent writes; usage reads are not a
 transactional lock and must not be used as a deletion guarantee.
 
-### Get Media Usage Details
+### Get media usage details
 
 ```http
 GET /_emdash/api/media/:id/usage?limit=50&cursor=...
@@ -313,7 +313,7 @@ trashed entry. Sources are `columns` or `draft_overlay`; occurrences identify th
 and path without exposing internal index metadata.
 
 Media usage covers local media references in top-level image and file fields, repeater image
-fields, and Portable Text image blocks managed by EmDash content collections. It does not scan
+fields, and Portable Text image blocks stored in EmDash content collections. It does not scan
 custom code, rendered HTML, settings, menus, widgets, plugin-private data, external sites, or
 provider-only assets.
 
@@ -364,13 +364,13 @@ Content-Type: application/json
 DELETE /_emdash/api/media/:id
 ```
 
-### Enable automatic media usage indexing
+### Enable media usage tracking
 
-Automatic media usage indexing must be enabled once for each production site. Pause direct database writes while EmDash prepares each collection. EmDash temporarily blocks its own content and schema writes during this step.
+Media usage tracking must be turned on once for each production site. Pause direct database writes while EmDash prepares each collection. EmDash temporarily blocks its own content and schema writes during this step.
 
 Both endpoints require `schema:manage`. Bearer tokens also require the `admin` scope.
 
-Administrators can run the same procedure from **Settings → Media Usage** by selecting **Enable Media Usage**, then **Turn on**. The page sends serialized progress requests while it remains visible.
+For the admin procedure, see [Turn on media usage tracking](/guides/media-library/#turn-on-media-usage-tracking). The endpoints below provide the same procedure for API operators.
 
 #### Check the current state
 
@@ -380,7 +380,7 @@ GET /_emdash/api/admin/media-usage/activation
 
 This request does not change anything. It returns one of these states:
 
-- `expanded`: automatic indexing is not enabled.
+- `expanded`: media usage tracking is off.
 - `activating`: EmDash is preparing the site's collections.
 - `active`: EmDash tracks changes to media references in content.
 
@@ -402,7 +402,7 @@ The request prepares at most one collection. After it succeeds, advance setup an
 
 Set `writersDrained` to `true` after application and direct database writes have stopped and any writes already in progress have finished.
 
-#### Enable indexing in production
+#### Enable tracking with the API
 
 1. Stop all direct database writers. Wait for writes already in progress to finish. EmDash fences its own writes during setup.
 2. Call the activation `GET` endpoint to check the current state.
@@ -470,7 +470,7 @@ The request has no body. It runs one bounded maintenance step and returns the st
 
 Closing the client does not discard completed work, but it stops future requests. To resume, read activation first, read progress when activation is active, then continue progress requests. After an ambiguous response, perform the same reads before retrying.
 
-### List Media Usage Work
+### List media usage work
 
 ```http
 GET /_emdash/api/admin/media-usage/work?collection=posts&state=failed&limit=50&cursor=...
@@ -509,7 +509,7 @@ page's `nextCursor`. The endpoint does not calculate an exact backlog count.
 Responses omit work versions, lease tokens, raw database errors, indexed content, media
 references, and exact counts.
 
-### Retry Media Usage Work
+### Retry media usage work
 
 ```http
 POST /_emdash/api/admin/media-usage/work/retry
@@ -534,8 +534,8 @@ replaces newer work or exposes its lease token.
 
 The list returns only known durable work. Retry can create work for the supplied identity in an
 active collection even when no work row exists, but it does not scan for historical gaps. Use
-collection-scoped Media Usage repair after imports or direct database writes.
-Failed jobs remain visible and manually retryable. A `needs_attention` progress state stops automatic requests from the Settings page until the underlying failure is resolved.
+collection-scoped media usage repair after imports or direct database writes.
+Failed jobs remain visible and manually retryable. A `needs_attention` progress state stops automatic requests from the media usage tracking settings page until the underlying failure is resolved.
 
 ### Recover Collection Deletion
 
@@ -561,7 +561,7 @@ returns `409 WORK_LEASE_ACTIVE`; a concurrent state change returns `409 WORK_CHA
 require `schema:manage`, and bearer tokens also require the `admin` scope. They recover internal
 index cleanup only and never delete media assets.
 
-### Repair Media Usage
+### Repair media usage
 
 ```http
 POST /_emdash/api/admin/media-usage/repair
