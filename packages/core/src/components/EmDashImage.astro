@@ -66,6 +66,7 @@ const {
 	priority,
 	placeholder = true,
 	class: className,
+	id,
 	...attrs
 } = Astro.props;
 
@@ -237,9 +238,11 @@ const resolvedDark = dark ? await resolveImage(dark) : null;
 
 function imgProps(
 	r: ResolvedImage,
-	variantClass: string | undefined
+	variantClass: string | undefined,
+	elementId: string | null | undefined
 ): Record<string, unknown> {
 	return {
+		id: elementId,
 		src: r.src,
 		srcset: r.srcset,
 		sizes: r.sizes,
@@ -256,6 +259,9 @@ function imgProps(
 }
 
 const lightClass = resolvedDark ? "emdash-image--light" : undefined;
+// Both variants render into the same document, so a caller-supplied `id` would
+// otherwise appear on two elements.
+const darkId = id ? `${id}--dark` : undefined;
 const astroClass = (variantClass: string | undefined) =>
 	[variantClass, className].filter(Boolean).join(" ") || undefined;
 ---
@@ -263,6 +269,7 @@ const astroClass = (variantClass: string | undefined) =>
 {
 	resolved && resolved.astroImageSrc ? (
 		<AstroImage
+			id={id}
 			src={resolved.astroImageSrc}
 			alt={finalAlt}
 			width={resolved.width}
@@ -276,12 +283,13 @@ const astroClass = (variantClass: string | undefined) =>
 			{...attrs}
 		/>
 	) : resolved && resolved.src ? (
-		<img {...imgProps(resolved, lightClass)} />
+		<img {...imgProps(resolved, lightClass, id)} />
 	) : null
 }
 {
 	resolvedDark && resolvedDark.astroImageSrc ? (
 		<AstroImage
+			id={darkId}
 			src={resolvedDark.astroImageSrc}
 			alt={finalAlt}
 			width={resolvedDark.width}
@@ -295,7 +303,7 @@ const astroClass = (variantClass: string | undefined) =>
 			{...attrs}
 		/>
 	) : resolvedDark && resolvedDark.src ? (
-		<img {...imgProps(resolvedDark, "emdash-image--dark")} />
+		<img {...imgProps(resolvedDark, "emdash-image--dark", darkId)} />
 	) : null
 }
 

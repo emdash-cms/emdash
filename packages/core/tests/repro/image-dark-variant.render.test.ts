@@ -103,6 +103,20 @@ describe("EmDashImage dark variant", () => {
 		expect(attr(darkTag!, "src")).toBe(override.src);
 	});
 
+	test("an id is not duplicated across the two variants", async () => {
+		const html = await render({ image: { ...light, darkVariant: dark }, id: "hero" });
+		const [lightTag, darkTag] = imgTags(html);
+
+		expect(attr(lightTag!, "id")).toBe("hero");
+		expect(attr(darkTag!, "id")).toBe("hero--dark");
+	});
+
+	test("an image without a variant keeps the id unchanged", async () => {
+		const html = await render({ image: light, id: "hero" });
+
+		expect(attr(imgTags(html)[0]!, "id")).toBe("hero");
+	});
+
 	test("a string darkVariant is accepted like a string image", async () => {
 		const html = await render({ image: light, darkVariant: "https://cdn.example.com/dark.png" });
 		const [, darkTag] = imgTags(html);

@@ -99,6 +99,8 @@ const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
 
 The output contains two `<img>` elements. The primary image gets the class `emdash-image--light` and the variant gets `emdash-image--dark`. Both use the primary image's `alt` text, width and height overrides, and loading attributes. Each keeps its own placeholder color.
 
+An `id` you pass stays on the primary image; the variant gets the same `id` with a `--dark` suffix, so `id="hero"` yields `hero` and `hero--dark`.
+
 When the dark image comes from somewhere else, such as a second image field, pass it explicitly:
 
 ```astro
