@@ -25,6 +25,7 @@ import {
 	LinkSimple,
 	Code,
 	Copy,
+	CopySimple,
 	Cube,
 	ListBullets,
 } from "@phosphor-icons/react";
@@ -368,6 +369,28 @@ function PluginBlockNodeView({
 								aria-label={hasFields ? t`Edit` : t`Edit URL`}
 							>
 								<Pencil className="h-4 w-4" />
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								shape="square"
+								className="h-8 w-8"
+								onClick={() => {
+									const pos = typeof getPos === "function" ? getPos() : null;
+									if (pos == null) return;
+									editor
+										.chain()
+										.focus()
+										.insertContentAt(pos + node.nodeSize, {
+											type: node.type.name,
+											attrs: { ...node.attrs },
+										})
+										.run();
+								}}
+								title={t`Duplicate`}
+								aria-label={t`Duplicate`}
+							>
+								<CopySimple className="h-4 w-4" />
 							</Button>
 							<Button
 								type="button"

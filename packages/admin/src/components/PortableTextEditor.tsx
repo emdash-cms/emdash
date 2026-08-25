@@ -88,6 +88,8 @@ import {
 	DotsSixVertical,
 	CaretDown,
 	type Icon,
+	CopySimple,
+	Pencil,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { Extension, type Range } from "@tiptap/core";
@@ -1904,7 +1906,12 @@ function PluginBlockModal({
 	const dialogSize = (() => {
 		if (!hasFields) return "sm";
 		const fields = block?.fields ?? [];
-		if (fields.some((f) => f.type === "repeater")) return "xl";
+		if (
+			fields.some(
+				(f) => f.type === "repeater" || f.type === "block_list" || f.type === "portable_text",
+			)
+		)
+			return "xl";
 		if (fields.length > 3) return "lg";
 		return "base";
 	})();
@@ -1932,38 +1939,40 @@ function PluginBlockModal({
 						)}
 					/>
 				</div>
-				<form onSubmit={handleSubmit}>
-					<div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto -mx-1 px-1">
-						{hasFields ? (
-							block.fields!.map((field) => (
-								<BlockKitField
-									key={field.action_id}
-									field={field}
-									pluginId={block.pluginId}
-									value={formValues[field.action_id]}
-									onChange={handleFieldChange}
+				<BlockListSiblingsProvider>
+					<form onSubmit={handleSubmit}>
+						<div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto -mx-1 px-1">
+							{hasFields ? (
+								block.fields!.map((field) => (
+									<BlockKitField
+										key={field.action_id}
+										field={field}
+										pluginId={block.pluginId}
+										value={formValues[field.action_id]}
+										onChange={handleFieldChange}
+									/>
+								))
+							) : (
+								<Input
+									ref={inputRef}
+									type="url"
+									className="w-full"
+									placeholder={block?.placeholder || "Enter URL..."}
+									value={typeof formValues.id === "string" ? formValues.id : ""}
+									onChange={(e) => handleFieldChange("id", e.target.value)}
 								/>
-							))
-						) : (
-							<Input
-								ref={inputRef}
-								type="url"
-								className="w-full"
-								placeholder={block?.placeholder || "Enter URL..."}
-								value={typeof formValues.id === "string" ? formValues.id : ""}
-								onChange={(e) => handleFieldChange("id", e.target.value)}
-							/>
-						)}
-					</div>
-					<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-						<Button type="button" variant="ghost" onClick={onClose}>
-							Cancel
-						</Button>
-						<Button type="submit" disabled={!canSubmit}>
-							{isEditing ? "Save" : "Insert"}
-						</Button>
-					</div>
-				</form>
+							)}
+						</div>
+						<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+							<Button type="button" variant="ghost" onClick={onClose}>
+								Cancel
+							</Button>
+							<Button type="submit" disabled={!canSubmit}>
+								{isEditing ? "Save" : "Insert"}
+							</Button>
+						</div>
+					</form>
+				</BlockListSiblingsProvider>
 			</Dialog>
 		</Dialog.Root>
 	);
@@ -2058,6 +2067,12 @@ function BlockKitField({
 					onChange={onChange}
 				/>
 			);
+		}
+		case "portable_text": {
+			return <BlockKitPortableTextField field={field} value={value} onChange={onChange} />;
+		}
+		case "block_list": {
+			return <BlockKitBlockListField field={field} value={value} onChange={onChange} />;
 		}
 		default:
 			return <div className="text-sm text-kumo-subtle">Unknown field type: {field.type}</div>;
@@ -2154,6 +2169,10 @@ function BlockKitRepeater({
 					break;
 				case "number_input":
 					newItem[sf.action_id] = undefined;
+					break;
+				case "portable_text":
+				case "block_list":
+					newItem[sf.action_id] = [];
 					break;
 				default:
 					newItem[sf.action_id] = "";
@@ -2342,18 +2361,394 @@ function BlockKitRepeaterItem({
 			</div>
 
 			{!isCollapsed && (
-				<div className="p-3 space-y-3">
-					{fields.map((sf) => (
-						<BlockKitField
-							key={sf.action_id}
-							field={sf}
-							pluginId={pluginId}
-							value={item[sf.action_id]}
-							onChange={(actionId, v) => onChange(actionId, v)}
-						/>
-					))}
-				</div>
+				<BlockListScopeContext.Provider value={{ key: item._key, label: summaryLabel }}>
+					<div className="p-3 space-y-3">
+						{fields.map((sf) => (
+							<BlockKitField
+								key={sf.action_id}
+								field={sf}
+								pluginId={pluginId}
+								value={item[sf.action_id]}
+								onChange={(actionId, v) => onChange(actionId, v)}
+							/>
+						))}
+					</div>
+				</BlockListScopeContext.Provider>
 			)}
+		</div>
+	);
+}
+
+// ── Structured Block Kit fields: portable_text and block_list ────────────────
+
+/** The registered plugin-block catalog, provided around the block modal so a
+ * `block_list` field offers the same blocks the document editor inserts. */
+const PluginBlockCatalogContext = React.createContext<PluginBlockDef[]>([]);
+
+interface BlockListSibling {
+	id: string;
+	label: string;
+	receive: (item: Record<string, unknown>) => void;
+}
+
+/** Lets the block lists in one form offer "move to <sibling>" on their items. */
+const BlockListSiblingsContext = React.createContext<{
+	register: (sibling: BlockListSibling) => () => void;
+	siblings: BlockListSibling[];
+} | null>(null);
+
+function BlockListSiblingsProvider({ children }: { children: React.ReactNode }) {
+	const [siblings, setSiblings] = React.useState<BlockListSibling[]>([]);
+	const register = React.useCallback((sibling: BlockListSibling) => {
+		setSiblings((prev) => [...prev.filter((s) => s.id !== sibling.id), sibling]);
+		return () => setSiblings((prev) => prev.filter((s) => s.id !== sibling.id));
+	}, []);
+	const value = React.useMemo(() => ({ register, siblings }), [register, siblings]);
+	return (
+		<BlockListSiblingsContext.Provider value={value}>{children}</BlockListSiblingsContext.Provider>
+	);
+}
+
+/** Names the repeater item a nested block list lives in, so its move targets
+ * read like the item (e.g. "Column 2") rather than a raw action id. */
+const BlockListScopeContext = React.createContext<{ key: string; label: string } | null>(null);
+
+/**
+ * Rich-text field: a nested instance of the standard Portable Text editor bound
+ * to a Portable Text block array. The value keeps blocks, spans, marks,
+ * markDefs and keys; it is never flattened to a string. Mounted uncontrolled
+ * (initial value at open) so typing never fights a round-tripped prop.
+ */
+function BlockKitPortableTextField({
+	field,
+	value,
+	onChange,
+}: {
+	field: Extract<Element, { type: "portable_text" }>;
+	value: unknown;
+	onChange: (actionId: string, value: unknown) => void;
+}) {
+	const initialValue = React.useRef<PortableTextBlock[]>(
+		Array.isArray(value) ? (value as PortableTextBlock[]) : [],
+	).current;
+	return (
+		<div>
+			<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
+			<PortableTextEditor
+				value={initialValue}
+				onChange={(next) => onChange(field.action_id, next)}
+				placeholder={field.placeholder}
+				className="rounded-md border border-kumo-line"
+			/>
+		</div>
+	);
+}
+
+const newBlockKey = () => `block-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+/** First human-readable string in a block's data, for the row summary. */
+function blockItemSummary(item: Record<string, unknown>): string {
+	for (const [key, value] of Object.entries(item)) {
+		if (key === "_type" || key === "_key") continue;
+		if (typeof value === "string" && value.trim()) return value;
+	}
+	return "";
+}
+
+/**
+ * Ordered list of registered plugin blocks: add from the registered catalog,
+ * edit through the chosen block's own Block Kit form, duplicate, delete,
+ * drag-and-drop reorder, and move an item to a sibling list in the same form.
+ * Items are ordinary registered block objects ({ _type, _key, ...fields }).
+ */
+function BlockKitBlockListField({
+	field,
+	value,
+	onChange,
+}: {
+	field: Extract<Element, { type: "block_list" }>;
+	value: unknown;
+	onChange: (actionId: string, value: unknown) => void;
+}) {
+	const { t } = useLingui();
+	const catalog = React.useContext(PluginBlockCatalogContext);
+	const siblingsContext = React.useContext(BlockListSiblingsContext);
+	const scope = React.useContext(BlockListScopeContext);
+	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+	const [items, setItems] = React.useState<RepeaterItem[]>(() =>
+		ensureKeys(Array.isArray(value) ? value : []),
+	);
+	const lastEmittedRef = React.useRef<unknown>(value);
+	React.useEffect(() => {
+		if (value !== lastEmittedRef.current) {
+			setItems(ensureKeys(Array.isArray(value) ? value : []));
+			lastEmittedRef.current = value;
+		}
+	}, [value]);
+
+	const emit = (next: RepeaterItem[]) => {
+		setItems(next);
+		lastEmittedRef.current = next;
+		onChange(field.action_id, next);
+	};
+	const itemsRef = React.useRef(items);
+	itemsRef.current = items;
+	const emitRef = React.useRef(emit);
+	emitRef.current = emit;
+
+	const listId = `${scope?.key ?? "root"}:${field.action_id}`;
+	const listLabel = scope?.label ?? field.label;
+	// Depend on the stable `register` callback, never the context VALUE -- the
+	// value changes on every sibling update (including this component's own
+	// registration), which would re-run the effect forever.
+	const registerSibling = siblingsContext?.register;
+	React.useEffect(() => {
+		if (!registerSibling) return;
+		return registerSibling({
+			id: listId,
+			label: listLabel,
+			receive: (incoming) =>
+				emitRef.current([...itemsRef.current, { ...incoming, _key: newBlockKey() }]),
+		});
+	}, [registerSibling, listId, listLabel]);
+	const moveTargets = (siblingsContext?.siblings ?? []).filter((s) => s.id !== listId);
+
+	const allowed = React.useMemo(() => {
+		const allowedTypes = field.allowed_types;
+		return allowedTypes && allowedTypes.length > 0
+			? catalog.filter((b) => allowedTypes.includes(b.type))
+			: catalog;
+	}, [catalog, field.allowed_types]);
+
+	const [child, setChild] = React.useState<{ def: PluginBlockDef; index: number | null } | null>(
+		null,
+	);
+	const [pickingType, setPickingType] = React.useState(false);
+
+	const minItems = field.min_items ?? 0;
+	const maxItems = field.max_items;
+	const canAdd = allowed.length > 0 && (maxItems === undefined || items.length < maxItems);
+	const canRemove = items.length > minItems;
+	const addButtonLabel = field.item_label ? t`Add ${field.item_label}` : t`Add block`;
+
+	const handleAdd = () => {
+		if (!canAdd) return;
+		const only = allowed[0];
+		if (allowed.length === 1 && only) setChild({ def: only, index: null });
+		else setPickingType(true);
+	};
+
+	const handleChildSubmit = (values: Record<string, unknown>) => {
+		if (!child) return;
+		if (child.index === null) {
+			emit([...items, { _key: newBlockKey(), ...values, _type: child.def.type }]);
+		} else {
+			const index = child.index;
+			emit(
+				items.map((it, i) =>
+					i === index ? { _key: it._key, ...values, _type: child.def.type } : it,
+				),
+			);
+		}
+		setChild(null);
+	};
+
+	const handleDragEnd = (event: DragEndEvent) => {
+		const { active, over } = event;
+		if (!over || active.id === over.id) return;
+		const oldIndex = items.findIndex((it) => it._key === active.id);
+		const newIndex = items.findIndex((it) => it._key === over.id);
+		if (oldIndex === -1 || newIndex === -1) return;
+		emit(arrayMove(items, oldIndex, newIndex));
+	};
+
+	return (
+		<div className="space-y-2">
+			<div className="flex items-center justify-between">
+				<label className="text-sm font-medium">
+					{field.label}
+					{items.length > 0 && (
+						<span className="ms-2 text-kumo-subtle font-normal">({items.length})</span>
+					)}
+				</label>
+				{canAdd && !pickingType && (
+					<Button variant="outline" size="sm" icon={<Plus />} onClick={handleAdd} type="button">
+						{addButtonLabel}
+					</Button>
+				)}
+			</div>
+
+			{pickingType && (
+				<Select
+					value=""
+					onValueChange={(v) => {
+						const def = allowed.find((b) => b.type === v);
+						setPickingType(false);
+						if (def) setChild({ def, index: null });
+					}}
+					items={{
+						"": t`Choose a block type...`,
+						...Object.fromEntries(allowed.map((b) => [b.type, b.label])),
+					}}
+				/>
+			)}
+
+			{allowed.length === 0 ? (
+				<div className="rounded-lg border-2 border-dashed p-4 text-center text-sm text-kumo-subtle">
+					{t`No registered blocks are available here`}
+				</div>
+			) : items.length === 0 ? (
+				<div className="rounded-lg border-2 border-dashed p-6 text-center text-kumo-subtle">
+					<p className="text-sm">{t`No blocks yet`}</p>
+				</div>
+			) : (
+				<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+					<SortableContext
+						items={items.map((it) => it._key)}
+						strategy={verticalListSortingStrategy}
+					>
+						<div className="space-y-2">
+							{items.map((item, index) => (
+								<BlockListItemRow
+									key={item._key}
+									item={item}
+									index={index}
+									def={catalog.find((b) => b.type === item._type)}
+									moveTargets={moveTargets}
+									canRemove={canRemove}
+									canDuplicate={maxItems === undefined || items.length < maxItems}
+									onEdit={(def) => setChild({ def, index })}
+									onDuplicate={() => {
+										const copy = { ...item, _key: newBlockKey() };
+										emit([...items.slice(0, index + 1), copy, ...items.slice(index + 1)]);
+									}}
+									onRemove={() => emit(items.filter((it) => it._key !== item._key))}
+									onMove={(target) => {
+										target.receive(item);
+										emit(items.filter((it) => it._key !== item._key));
+									}}
+								/>
+							))}
+						</div>
+					</SortableContext>
+				</DndContext>
+			)}
+
+			<PluginBlockModal
+				block={child?.def ?? null}
+				initialValues={
+					child && child.index !== null && items[child.index]
+						? (({ _type, _key, ...rest }) => rest)(items[child.index]!)
+						: undefined
+				}
+				onClose={() => setChild(null)}
+				onInsert={handleChildSubmit}
+			/>
+		</div>
+	);
+}
+
+function BlockListItemRow({
+	item,
+	index,
+	def,
+	moveTargets,
+	canRemove,
+	canDuplicate,
+	onEdit,
+	onDuplicate,
+	onRemove,
+	onMove,
+}: {
+	item: RepeaterItem;
+	index: number;
+	def: PluginBlockDef | undefined;
+	moveTargets: BlockListSibling[];
+	canRemove: boolean;
+	canDuplicate: boolean;
+	onEdit: (def: PluginBlockDef) => void;
+	onDuplicate: () => void;
+	onRemove: () => void;
+	onMove: (target: BlockListSibling) => void;
+}) {
+	const { t } = useLingui();
+	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+		id: item._key,
+	});
+	const style = { transform: CSS.Transform.toString(transform), transition };
+	const summary = blockItemSummary(item);
+	const typeLabel = def?.label ?? String(item._type ?? "");
+
+	return (
+		<div
+			ref={setNodeRef}
+			style={style}
+			className={cn(
+				"rounded-lg border border-kumo-line bg-kumo-base",
+				isDragging && "opacity-50 ring-2 ring-kumo-brand",
+			)}
+		>
+			<div className="flex items-center gap-2 border-b-0 px-3 py-2">
+				<span
+					className="inline-flex h-4 w-4 shrink-0 cursor-grab text-kumo-subtle"
+					aria-label={t`Drag to reorder`}
+					{...attributes}
+					{...listeners}
+				>
+					<DotsSixVertical className="h-4 w-4" />
+				</span>
+				<span className="min-w-0 flex-1 truncate text-sm">
+					<span className="font-medium">{typeLabel}</span>
+					{summary && <span className="ms-2 text-kumo-subtle">{summary}</span>}
+				</span>
+				{moveTargets.length > 0 && (
+					<Select
+						value=""
+						onValueChange={(v) => {
+							const target = moveTargets.find((s) => s.id === v);
+							if (target) onMove(target);
+						}}
+						items={{
+							"": t`Move to...`,
+							...Object.fromEntries(moveTargets.map((s) => [s.id, s.label])),
+						}}
+					/>
+				)}
+				{def && (
+					<Button
+						variant="ghost"
+						shape="square"
+						type="button"
+						onClick={() => onEdit(def)}
+						aria-label={t`Edit item ${index + 1}`}
+					>
+						<Pencil className="h-3.5 w-3.5" />
+					</Button>
+				)}
+				{canDuplicate && (
+					<Button
+						variant="ghost"
+						shape="square"
+						type="button"
+						onClick={onDuplicate}
+						aria-label={t`Duplicate item ${index + 1}`}
+					>
+						<CopySimple className="h-3.5 w-3.5" />
+					</Button>
+				)}
+				{canRemove && (
+					<Button
+						variant="ghost"
+						shape="square"
+						type="button"
+						onClick={onRemove}
+						aria-label={t`Remove item ${index + 1}`}
+					>
+						<Trash className="h-3.5 w-3.5 text-kumo-danger" />
+					</Button>
+				)}
+			</div>
 		</div>
 	);
 }
@@ -2447,6 +2842,10 @@ export { portableTextToProsemirror as _portableTextToProsemirror };
 export {
 	buildPluginBlockFormValues as _buildPluginBlockFormValues,
 	hasPluginBlockFormData as _hasPluginBlockFormData,
+	BlockKitPortableTextField as _BlockKitPortableTextField,
+	BlockKitBlockListField as _BlockKitBlockListField,
+	BlockListSiblingsProvider as _BlockListSiblingsProvider,
+	PluginBlockCatalogContext as _PluginBlockCatalogContext,
 };
 
 // =============================================================================
@@ -3460,17 +3859,19 @@ export function PortableTextEditor({
 				/>
 
 				{/* Plugin block insertion/editing modal */}
-				<PluginBlockModal
-					block={pluginBlockModal}
-					initialValues={pluginBlockInitialValues}
-					onClose={() => {
-						pendingBlockInsertPosRef.current = null;
-						setPluginBlockModal(null);
-						setPluginBlockInitialValues(undefined);
-						editingBlockPosRef.current = null;
-					}}
-					onInsert={handlePluginBlockInsert}
-				/>
+				<PluginBlockCatalogContext.Provider value={pluginBlocks}>
+					<PluginBlockModal
+						block={pluginBlockModal}
+						initialValues={pluginBlockInitialValues}
+						onClose={() => {
+							pendingBlockInsertPosRef.current = null;
+							setPluginBlockModal(null);
+							setPluginBlockInitialValues(undefined);
+							editingBlockPosRef.current = null;
+						}}
+						onInsert={handlePluginBlockInsert}
+					/>
+				</PluginBlockCatalogContext.Provider>
 
 				{/* Section picker modal */}
 				<SectionPickerModal
