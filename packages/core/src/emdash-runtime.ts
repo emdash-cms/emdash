@@ -4383,17 +4383,27 @@ async function normalizeImageValue(
 	value: unknown,
 	getProvider: (id: string) => MediaProvider | undefined,
 ): Promise<ImageValue | null> {
-	if (!isRecord(value) || value.darkVariant == null) {
-		return normalizeMediaValue(value, getProvider);
-	}
-	// A legacy string URL upgraded to `{ id: "", src: url }` so it can carry a
-	// variant still has to normalize as a string: as an object it counts as local
-	// media, which strips `src` and leaves nothing behind.
-	const primary =
-		!value.id && typeof value.src === "string" && !value.provider
-			? await normalizeMediaValue(value.src, getProvider)
-			: await normalizeMediaValue(value, getProvider);
-	if (!primary) return null;
+	const primary = await normalizePrimaryImageValue(value, getProvider);
+	if (!primary || !isRecord(value) || value.darkVariant == null) return primary;
 	const darkVariant = await normalizeMediaValue(value.darkVariant, getProvider);
 	return darkVariant ? { ...primary, darkVariant } : primary;
+}
+
+/**
+ * Normalize the primary image of an image field value.
+ *
+ * A legacy string URL that the admin upgraded to `{ id: "", src: url }` so it
+ * can carry a dark variant still has to normalize as a string: as an object it
+ * counts as local media, which strips `src` and leaves nothing behind. The
+ * upgrade outlives the variant — an editor can add one and remove it again —
+ * so the shape decides, not the presence of `darkVariant`.
+ */
+async function normalizePrimaryImageValue(
+	value: unknown,
+	getProvider: (id: string) => MediaProvider | undefined,
+): Promise<ImageValue | null> {
+	if (isRecord(value) && !value.id && typeof value.src === "string" && !value.provider) {
+		return normalizeMediaValue(value.src, getProvider);
+	}
+	return normalizeMediaValue(value, getProvider);
 }

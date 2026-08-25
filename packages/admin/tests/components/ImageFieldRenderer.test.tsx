@@ -223,6 +223,22 @@ describe("ImageFieldRenderer", () => {
 		});
 	});
 
+	it("keeps the upgraded url when the dark mode variant is removed again", async () => {
+		const onChange = vi.fn();
+		const screen = await render(
+			<ImageFieldRenderer
+				label="Image"
+				value={{ id: "", src: "https://example.com/legacy.jpg", darkVariant: selectedImage }}
+				onChange={onChange}
+				darkVariant
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "Remove dark mode variant" }).click();
+
+		expect(onChange).toHaveBeenCalledWith({ id: "", src: "https://example.com/legacy.jpg" });
+	});
+
 	it("stores a picked dark mode variant next to the primary image", async () => {
 		const onChange = vi.fn();
 		const screen = await render(
