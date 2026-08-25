@@ -1,6 +1,5 @@
 import type {} from "@atcute/lexicons";
 import * as v from "@atcute/lexicons/validations";
-import * as ComAtprotoLabelDefs from "@atcute/atproto/types/label/defs";
 
 const _assessmentSubjectSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
@@ -42,13 +41,13 @@ const _currentAssessmentViewSchema = /*#__PURE__*/ v.object({
 		),
 	),
 	/**
+	 * Effective signed label state for this exact record revision.
 	 * @maxLength 16
 	 */
 	get activeLabels() {
-		return /*#__PURE__*/ v.constrain(
-			/*#__PURE__*/ v.array(ComAtprotoLabelDefs.labelSchema),
-			[/*#__PURE__*/ v.arrayLength(0, 16)],
-		);
+		return /*#__PURE__*/ v.constrain(/*#__PURE__*/ v.array(signedLabelSchema), [
+			/*#__PURE__*/ v.arrayLength(0, 16),
+		]);
 	},
 	get assessment() {
 		return publicAssessmentSchema;
@@ -290,14 +289,13 @@ const _publicAssessmentSchema = /*#__PURE__*/ v.object({
 		/*#__PURE__*/ v.stringLength(1, 100),
 	]),
 	/**
-	 * Standard signed ATProto labels issued by this assessment run.
+	 * Signed outcome labels emitted by this assessment run. Effective moderation state comes from com.atproto.label queries and subscriptions.
 	 * @maxLength 16
 	 */
 	get labels() {
-		return /*#__PURE__*/ v.constrain(
-			/*#__PURE__*/ v.array(ComAtprotoLabelDefs.labelSchema),
-			[/*#__PURE__*/ v.arrayLength(0, 16)],
-		);
+		return /*#__PURE__*/ v.constrain(/*#__PURE__*/ v.array(signedLabelSchema), [
+			/*#__PURE__*/ v.arrayLength(0, 16),
+		]);
 	},
 	get manualDecision() {
 		return /*#__PURE__*/ v.optional(manualDecisionSchema);
@@ -428,6 +426,53 @@ const _reasonCodeDefinitionSchema = /*#__PURE__*/ v.object({
 		/*#__PURE__*/ v.stringLength(1, 512),
 	]),
 });
+const _signedLabelSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.labeler.defs#signedLabel",
+		),
+	),
+	/**
+	 * Optional CID of the exact resource revision to which the label applies.
+	 */
+	cid: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.cidString()),
+	/**
+	 * Time at which the label was created.
+	 */
+	cts: /*#__PURE__*/ v.datetimeString(),
+	/**
+	 * Optional time after which the label no longer applies.
+	 */
+	exp: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.datetimeString()),
+	/**
+	 * Whether this event negates prior label state.
+	 */
+	neg: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.boolean()),
+	/**
+	 * Signature over the canonical DAG-CBOR label payload.
+	 */
+	sig: /*#__PURE__*/ v.bytes(),
+	/**
+	 * DID of the label issuer.
+	 */
+	src: /*#__PURE__*/ v.didString(),
+	/**
+	 * Resource to which the label applies.
+	 */
+	uri: /*#__PURE__*/ v.genericUriString(),
+	/**
+	 * Label value.
+	 * @minLength 1
+	 * @maxLength 128
+	 */
+	val: /*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+		/*#__PURE__*/ v.stringLength(1, 128),
+	]),
+	/**
+	 * AT Protocol label version.
+	 */
+	ver: /*#__PURE__*/ v.integer(),
+});
 const _subjectPolicySchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
@@ -449,6 +494,7 @@ type publicApi$schematype = typeof _publicApiSchema;
 type publicAssessment$schematype = typeof _publicAssessmentSchema;
 type publicFinding$schematype = typeof _publicFindingSchema;
 type reasonCodeDefinition$schematype = typeof _reasonCodeDefinitionSchema;
+type signedLabel$schematype = typeof _signedLabelSchema;
 type subjectPolicy$schematype = typeof _subjectPolicySchema;
 
 export interface assessmentSubjectSchema extends assessmentSubject$schematype {}
@@ -462,6 +508,7 @@ export interface publicApiSchema extends publicApi$schematype {}
 export interface publicAssessmentSchema extends publicAssessment$schematype {}
 export interface publicFindingSchema extends publicFinding$schematype {}
 export interface reasonCodeDefinitionSchema extends reasonCodeDefinition$schematype {}
+export interface signedLabelSchema extends signedLabel$schematype {}
 export interface subjectPolicySchema extends subjectPolicy$schematype {}
 
 export const assessmentSubjectSchema =
@@ -482,6 +529,7 @@ export const publicAssessmentSchema =
 export const publicFindingSchema = _publicFindingSchema as publicFindingSchema;
 export const reasonCodeDefinitionSchema =
 	_reasonCodeDefinitionSchema as reasonCodeDefinitionSchema;
+export const signedLabelSchema = _signedLabelSchema as signedLabelSchema;
 export const subjectPolicySchema = _subjectPolicySchema as subjectPolicySchema;
 
 export interface AssessmentSubject extends v.InferInput<
@@ -513,6 +561,7 @@ export interface PublicFinding extends v.InferInput<
 export interface ReasonCodeDefinition extends v.InferInput<
 	typeof reasonCodeDefinitionSchema
 > {}
+export interface SignedLabel extends v.InferInput<typeof signedLabelSchema> {}
 export interface SubjectPolicy extends v.InferInput<
 	typeof subjectPolicySchema
 > {}

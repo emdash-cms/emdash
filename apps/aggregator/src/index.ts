@@ -21,6 +21,7 @@ import { drainBackfillDeadLetterBatch, processBackfillBatch } from "./backfill-c
 import { discoverDids, enqueueBackfillJobs } from "./backfill.js";
 import type { BackfillJob, RecordsJob } from "./env.js";
 import { PROJECTION_COORDINATOR_NAME } from "./label-ingest-do.js";
+import { enforceRequiredLabelSourceHealth } from "./label-source-health.js";
 import {
 	acknowledgeLabelSourceStop,
 	labelSourcePolicy,
@@ -372,13 +373,14 @@ export default {
 async function reconcileAndWakeLabelers(env: Env): Promise<void> {
 	const policy = labelSourcePolicy(await getListingPolicy(env));
 	const result = await reconcileLabelSources(env.DB, policy);
+	const demotedSources = await enforceRequiredLabelSourceHealth(env.DB, new Date());
 	await Promise.all(
 		result.sourcesRequiringStop.map(async (did) => {
 			await env.LABEL_INGEST_DO.getByName(did).stop(did);
 			await acknowledgeLabelSourceStop(env.DB, did);
 		}),
 	);
-	if (result.changed) {
+	if (result.changed || demotedSources.length > 0) {
 		await env.LABEL_INGEST_DO.getByName(PROJECTION_COORDINATOR_NAME).markProjectionDirty();
 	}
 	await Promise.all(
@@ -394,12 +396,11 @@ async function runScheduledLabelMaintenance(env: Env): Promise<void> {
 
 async function replayAllLabels(env: Env): Promise<{ sources: readonly string[] }> {
 	const policy = labelSourcePolicy(await getListingPolicy(env));
+	await reconcileLabelSources(env.DB, policy);
 	const sources = [...policy.acceptedSources];
 	for (const did of sources) {
 		const stub = env.LABEL_INGEST_DO.getByName(did);
-		await stub.stop(did);
-		await env.DB.prepare("DELETE FROM ingest_state WHERE source = ?").bind(`labeler:${did}`).run();
-		await stub.wake(did);
+		await stub.replay(did, new Date().toISOString());
 	}
 	await env.LABEL_INGEST_DO.getByName(PROJECTION_COORDINATOR_NAME).markProjectionDirty();
 	return { sources };

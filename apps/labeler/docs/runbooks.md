@@ -490,11 +490,11 @@ transition.
 ### Run the protected live evaluation
 
 Only an administrator can start a live run. The endpoint uses the native Workers AI binding,
-the committed public files, the protected holdout, and three repeats. It writes the complete
-artifact to `emdash-labeler-eval-artifacts`:
+the committed public files, the protected holdout, and three repeats. It returns `202` after it
+creates a durable Workflow instance:
 
 ```sh
-curl --fail-with-body --silent --show-error \
+EMDASH_EVAL_START="$(curl --fail-with-body --silent --show-error \
   --request POST \
   --header "CF-Access-Client-Id: ${EMDASH_ACCESS_CLIENT_ID}" \
   --header "CF-Access-Client-Secret: ${EMDASH_ACCESS_CLIENT_SECRET}" \
@@ -503,29 +503,47 @@ curl --fail-with-body --silent --show-error \
   --header 'X-EmDash-Request: 1' \
   --header 'Idempotency-Key: eval-listing-metadata-v1-001' \
   --data '{"reason":"Run the protected production evaluation for the reviewed model bundle."}' \
-  "${EMDASH_LABELER_ORIGIN}/_admin/api/evals/run"
+  "${EMDASH_LABELER_ORIGIN}/_admin/api/evals/run")"
+
+export EMDASH_EVAL_RUN_ID="$(printf '%s' "${EMDASH_EVAL_START}" | jq -er '.runId')"
+export EMDASH_EVAL_INSTANCE_ID="$(printf '%s' "${EMDASH_EVAL_START}" | jq -er '.instanceId')"
+printf '%s' "${EMDASH_EVAL_START}" | jq -e '.status == "running"'
 ```
 
-The request claims its idempotency key before it reads the dataset or calls Workers AI. Retry an
-identical request with the same key if the response is lost. A retry while the first request is
-running returns `409 EVALUATION_RUNNING`. A completed retry returns the stored result without
-calling Workers AI again. A failed run returns `500 EVALUATION_FAILED` on every retry with that
-key; diagnose the failure and use a new key to start another run. A running claim has a renewable
-lease. If the Worker terminates, retry the identical request after `lease_expires_at`; the retry
-claims a new attempt instead of leaving the idempotency key permanently stuck.
+Retry the identical POST with the same idempotency key if the response is lost. It returns the
+same `runId` and `instanceId`. If the D1 claim was bound but Workflow creation did not finish, the
+retry creates that deterministic instance. If the instance terminated or errored before D1
+recorded a terminal result, the retry records the run as failed instead of restarting completed
+model steps. Diagnose the failure and use a new key. A different actor or reason cannot reuse the
+original key.
 
-The response includes `runId`, `artifactKey`, `datasetHash`, `budgetPassed`, `failures`,
-`candidateHash`, `promotionComparison`, and `report`. The first successful run for a dataset has
-a null `promotionComparison`. A later run compares its candidate with the most recent successful
-run for the same dataset and includes the baseline run ID, bundle hashes, metric changes, changed
-cases, and the promotion-review challenge hash.
+Poll the durable result with the returned run ID:
+
+```sh
+curl --fail-with-body --silent --show-error \
+  --header "CF-Access-Client-Id: ${EMDASH_ACCESS_CLIENT_ID}" \
+  --header "CF-Access-Client-Secret: ${EMDASH_ACCESS_CLIENT_SECRET}" \
+  "${EMDASH_LABELER_ORIGIN}/_admin/api/evals/${EMDASH_EVAL_RUN_ID}"
+```
+
+A running response contains `runId`, `instanceId`, and `status: "running"`. A successful response
+uses `status: "succeeded"`; its `result` contains `artifactKey`, `datasetHash`, `budgetPassed`,
+`failures`, `candidateHash`, `promotionComparison`, and `report`. A failed response uses
+`status: "failed"` and contains a stable failure code and summary. Diagnose a failed run and use
+a new idempotency key to start another evaluation.
+
+The Workflow persists each fixture repeat as a separate durable step. A process restart reuses
+completed case results. It also binds the run to the dataset, runner commit, model IDs, prompt
+hashes, and selected baseline before inference, so a changed deployment fails rather than mixing
+cached cases from different evaluation identities. The complete artifact is written to
+`emdash-labeler-eval-artifacts`.
 
 The labeler stores the bounded result, comparison, and report in `eval_runs`; the complete model
 artifact remains in `emdash-labeler-eval-artifacts`. Inspect one run without retrieving the full
 artifact:
 
 ```sh
-pnpm --dir apps/labeler exec wrangler d1 execute emdash-labeler --remote --json --command "SELECT id, status, attempt, lease_expires_at, result_json, comparison_json, report_markdown, failure_code, failure_summary, created_at, completed_at FROM eval_runs WHERE id = REPLACE_WITH_RUN_ID"
+pnpm --dir apps/labeler exec wrangler d1 execute emdash-labeler --remote --json --command "SELECT id, workflow_instance_id, status, attempt, result_json, comparison_json, report_markdown, failure_code, failure_summary, created_at, completed_at FROM eval_runs WHERE id = REPLACE_WITH_RUN_ID"
 ```
 
 The comparison and challenge hash do not authorize a promotion. A successful run also does not
@@ -600,9 +618,12 @@ curl --fail-with-body --silent --show-error \
   | jq -e '.sources | index("did:web:labels.emdashcms.com") != null'
 ```
 
-The endpoint stops each active label-ingest Durable Object, removes its durable D1 cursor,
-wakes it from cursor zero, and marks projection work dirty. It is authenticated with the
-aggregator `ADMIN_TOKEN` and accepts no request body.
+The endpoint stops each active label-ingest Durable Object, then atomically marks the source
+untrusted and replay-pending, advances its replay generation, and removes its durable D1 cursor.
+It then wakes the source from cursor zero. Projection-mode reads remain unavailable until it catches
+up and the generation-fenced activation succeeds. Existing blocks, takedowns, and both withdrawal
+spellings remain enforced in emergency allowlist mode throughout replay. The endpoint is
+authenticated with the aggregator `ADMIN_TOKEN` and accepts no request body.
 
 11. Compare the labeler maximum sequence with the aggregator cursor. Repeat the aggregator
     query until its cursor equals the labeler maximum sequence:
@@ -733,16 +754,23 @@ evaluation status, and durable cursors:
 pnpm --dir apps/labeler exec wrangler d1 execute emdash-labeler --remote --json --command "SELECT key, value, updated_at FROM service_state WHERE key = 'issuance_paused'; SELECT state, COUNT(*) AS count, MIN(updated_at) AS oldest_updated_at FROM assessments GROUP BY state ORDER BY state; SELECT COUNT(*) AS pending_publication, MIN(created_at) AS oldest_pending FROM issued_labels WHERE publication_pending = 1; SELECT COUNT(*) AS reconciliation_required, MIN(observed_at) AS oldest_observed_at FROM discovery_quarantine_events WHERE requires_reconciliation = 1; SELECT quarantine_id, revision, cursor, event_id, reason, observed_at FROM discovery_quarantine_events WHERE requires_reconciliation = 1 ORDER BY observed_at, cursor, quarantine_id LIMIT 100; SELECT ready, COUNT(*) AS count, MIN(expires_at) AS oldest_expiry FROM media_quarantine_objects GROUP BY ready ORDER BY ready; SELECT status, COUNT(*) AS count, MIN(created_at) AS oldest_created_at FROM eval_runs GROUP BY status ORDER BY status; SELECT id, status, dataset_hash, budget_passed, candidate_hash, baseline_run_id, comparison_hash, promotion_challenge_hash, artifact_key, failure_code, created_at, completed_at FROM eval_runs ORDER BY id DESC LIMIT 100; SELECT stream, cursor, last_observed_at, updated_at FROM ingest_state ORDER BY stream"
 ```
 
-Read aggregator source trust, label cursors, collisions, and projection state:
+Read aggregator source trust, freshness, replay state, label cursors, collisions, and projection
+state:
 
 ```sh
-pnpm --dir apps/aggregator exec wrangler d1 execute emdash-aggregator --remote --json --command "SELECT did, active, trusted, required_positive, accepted_state, redaction, last_resolved_at, stop_acknowledged FROM labellers ORDER BY did; SELECT source, cursor, updated_at FROM ingest_state WHERE source LIKE 'labeler:%' ORDER BY source; SELECT COUNT(*) AS active_collisions FROM label_state WHERE trusted = 1 AND collision = 1; SELECT work.dirty_epoch, work.scheduled_epoch, work.acknowledged_epoch, state.active_generation, generation.policy_mode, generation.policy_version, generation.policy_hash, generation.source_epoch, control.source_epoch AS current_source_epoch, generation.completed_at FROM listing_projection_work work JOIN public_projection_state state ON state.id = 1 LEFT JOIN public_projection_generations generation ON generation.generation = state.active_generation JOIN listing_projection_control control ON control.id = 1 WHERE work.id = 1"
+pnpm --dir apps/aggregator exec wrangler d1 execute emdash-aggregator --remote --json --command "SELECT did, active, trusted, required_positive, accepted_state, redaction, replay_pending, replay_generation, health_last_success_at, health_failure_started_at, health_failure_count, last_resolved_at, stop_acknowledged FROM labellers ORDER BY did; SELECT source, cursor, updated_at FROM ingest_state WHERE source LIKE 'labeler:%' ORDER BY source; SELECT COUNT(*) AS active_collisions FROM label_state WHERE trusted = 1 AND collision = 1; SELECT work.dirty_epoch, work.scheduled_epoch, work.acknowledged_epoch, state.active_generation, generation.policy_mode, generation.policy_version, generation.policy_hash, generation.source_epoch, control.source_epoch AS current_source_epoch, generation.completed_at FROM listing_projection_work work JOIN public_projection_state state ON state.id = 1 LEFT JOIN public_projection_generations generation ON generation.generation = state.active_generation JOIN listing_projection_control control ON control.id = 1 WHERE work.id = 1"
 ```
+
+Projection mode requires every configured positive, state, and redaction source to have completed
+a successful catch-up within the previous ten minutes. The label ingestor normally refreshes an
+idle connection after five minutes. At the ten-minute boundary, reads fail closed from persisted
+freshness even if scheduled demotion has not run.
 
 List Workflow instances when assessment runs appear stalled:
 
 ```sh
 pnpm --dir apps/labeler exec wrangler workflows instances list emdash-labeler-assessment
+pnpm --dir apps/labeler exec wrangler workflows instances list emdash-labeler-live-evaluation
 ```
 
 Stream structured labeler and aggregator logs during a drill or incident:
@@ -762,6 +790,8 @@ the following signals:
 - `discovery_loop_stopped` or repeated `discovery_stream_retry` events, especially with a stale
   `jetstream-enqueued` cursor.
 - `label_subscription_failed`, `label_ingestor_crashed`, or invalid-signature errors.
+- A configured label source has `trusted = 0`, `replay_pending = 1`, a nonzero
+  `health_failure_count`, or no successful catch-up within ten minutes.
 - `publication_pending` is nonzero beyond the normal publication retry interval.
 - The review, error, pending, or running backlog grows, or its oldest `updated_at` stops moving.
 - `discovery_quarantine_events.requires_reconciliation = 1` grows or remains unresolved. Include

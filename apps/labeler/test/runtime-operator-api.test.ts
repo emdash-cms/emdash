@@ -109,13 +109,8 @@ describe("operator mutation API", () => {
 	it("binds a live evaluation to the admin, reason, and idempotency key", async () => {
 		const runEvaluation = vi.fn(async () => ({
 			runId: 41,
-			artifactKey: "live/fixture.json",
-			datasetHash: "d".repeat(64),
-			budgetPassed: true,
-			failures: [],
-			candidateHash: "c".repeat(64),
-			promotionComparison: null,
-			report: "# Listing metadata AI evaluation\n",
+			instanceId: "listing-eval-41",
+			status: "running" as const,
 		}));
 		const response = await handleOperatorApi(
 			operatorRequest("/_admin/api/evals/run", {
@@ -125,7 +120,7 @@ describe("operator mutation API", () => {
 			{ ...dependencies(ADMIN), runEvaluation },
 		);
 
-		expect(response.status).toBe(200);
+		expect(response.status).toBe(202);
 		expect(runEvaluation).toHaveBeenCalledWith({
 			actorDid: "did:web:labels.emdashcms.com:operators:fixture",
 			role: "admin",
@@ -135,8 +130,8 @@ describe("operator mutation API", () => {
 		});
 		expect(await response.json()).toMatchObject({
 			runId: 41,
-			artifactKey: "live/fixture.json",
-			promotionComparison: null,
+			instanceId: "listing-eval-41",
+			status: "running",
 		});
 	});
 
@@ -181,6 +176,30 @@ describe("operator mutation API", () => {
 				message: "Protected live evaluation could not be completed",
 			},
 		});
+	});
+
+	it("lets only admins query durable live-evaluation status", async () => {
+		const readEvaluation = vi.fn(async () => ({
+			runId: 41,
+			instanceId: "listing-eval-41",
+			status: "failed" as const,
+			failure: { code: "EVALUATION_FAILED", summary: "Evaluation failed" },
+		}));
+		const adminResponse = await handleOperatorApi(
+			new Request("https://labels.example/_admin/api/evals/41"),
+			{} as Env,
+			{ ...dependencies(ADMIN), readEvaluation },
+		);
+		expect(adminResponse.status).toBe(200);
+		expect(await adminResponse.json()).toMatchObject({ runId: 41, status: "failed" });
+		expect(readEvaluation).toHaveBeenCalledWith(41);
+
+		const reviewerResponse = await handleOperatorApi(
+			new Request("https://labels.example/_admin/api/evals/41"),
+			{} as Env,
+			{ ...dependencies(REVIEWER), readEvaluation },
+		);
+		expect(reviewerResponse.status).toBe(403);
 	});
 });
 

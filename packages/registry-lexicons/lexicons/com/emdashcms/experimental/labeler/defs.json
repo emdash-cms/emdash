@@ -1,7 +1,7 @@
 {
 	"lexicon": 1,
 	"id": "com.emdashcms.experimental.labeler.defs",
-	"description": "Public assessment and policy views for the experimental EmDash plugin-listing labeler. Signed moderation decisions use com.atproto.label definitions. EXPERIMENTAL.",
+	"description": "Public assessment and policy views for the experimental EmDash plugin-listing labeler. Effective moderation decisions are standard signed labels served through com.atproto.label queries and subscriptions. EXPERIMENTAL.",
 	"defs": {
 		"assessmentSubject": {
 			"type": "object",
@@ -22,6 +22,56 @@
 					"type": "string",
 					"format": "cid",
 					"description": "CID of the exact assessed record revision."
+				}
+			}
+		},
+		"signedLabel": {
+			"type": "object",
+			"description": "A standard AT Protocol label with a required signature. Its payload and stored history are immutable; query and subscription delivery may replace sig with a signature from the current key during key rotation.",
+			"required": ["ver", "src", "uri", "val", "cts", "sig"],
+			"properties": {
+				"ver": {
+					"type": "integer",
+					"description": "AT Protocol label version."
+				},
+				"src": {
+					"type": "string",
+					"format": "did",
+					"description": "DID of the label issuer."
+				},
+				"uri": {
+					"type": "string",
+					"format": "uri",
+					"description": "Resource to which the label applies."
+				},
+				"cid": {
+					"type": "string",
+					"format": "cid",
+					"description": "Optional CID of the exact resource revision to which the label applies."
+				},
+				"val": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 128,
+					"description": "Label value."
+				},
+				"neg": {
+					"type": "boolean",
+					"description": "Whether this event negates prior label state."
+				},
+				"cts": {
+					"type": "string",
+					"format": "datetime",
+					"description": "Time at which the label was created."
+				},
+				"exp": {
+					"type": "string",
+					"format": "datetime",
+					"description": "Optional time after which the label no longer applies."
+				},
+				"sig": {
+					"type": "bytes",
+					"description": "Signature over the canonical DAG-CBOR label payload."
 				}
 			}
 		},
@@ -131,7 +181,7 @@
 		},
 		"publicAssessment": {
 			"type": "object",
-			"description": "Public-safe explanation of one immutable metadata-only assessment run. The labels field contains standard signed ATProto labels and is the moderation authority.",
+			"description": "Public-safe explanation of one immutable metadata-only assessment run. Its labels field contains signed outcome labels emitted by that run, not a second source of effective moderation state.",
 			"required": [
 				"id",
 				"src",
@@ -217,11 +267,11 @@
 				},
 				"labels": {
 					"type": "array",
-					"description": "Standard signed ATProto labels issued by this assessment run.",
+					"description": "Signed outcome labels emitted by this assessment run. Effective moderation state comes from com.atproto.label queries and subscriptions.",
 					"maxLength": 16,
 					"items": {
 						"type": "ref",
-						"ref": "com.atproto.label.defs#label"
+						"ref": "#signedLabel"
 					}
 				},
 				"manualDecision": {
@@ -245,7 +295,7 @@
 		},
 		"currentAssessmentView": {
 			"type": "object",
-			"description": "Current assessment and effective standard labels for one exact record revision.",
+			"description": "Current assessment and effective standard signed labels for one exact record revision. activeLabels is the moderation authority for this view.",
 			"required": ["src", "subject", "assessment", "activeLabels"],
 			"properties": {
 				"src": {
@@ -262,10 +312,11 @@
 				},
 				"activeLabels": {
 					"type": "array",
+					"description": "Effective signed label state for this exact record revision.",
 					"maxLength": 16,
 					"items": {
 						"type": "ref",
-						"ref": "com.atproto.label.defs#label"
+						"ref": "#signedLabel"
 					}
 				}
 			}

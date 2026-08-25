@@ -5,6 +5,8 @@ import {
 	type ListingModerationPolicy,
 } from "@emdash-cms/registry-moderation";
 
+import { REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS } from "./label-source-health.js";
+
 export type ListingPolicyMode = "open" | "allowlist" | "projection";
 
 export interface ListingPolicyConfig {
@@ -174,7 +176,7 @@ export function validateAcceptedLabelersHeader(
 	]);
 	const sources: string[] = [];
 	for (const entry of raw.split(",")) {
-		const source = entry.trim().split(";", 1)[0] ?? "";
+		const source = entry.trim();
 		if (!isDid(source) || !configured.has(source) || sources.includes(source)) {
 			throw new InvalidAcceptedLabelersError("accepted labelers header is invalid");
 		}
@@ -198,10 +200,59 @@ export const ACTIVE_PROJECTION_POLICY_SQL = `
 	AND projection_generation.policy_mode = ?
 	AND projection_generation.policy_version = ?
 	AND projection_generation.policy_hash = ?
+	AND NOT EXISTS (
+		SELECT 1 FROM json_each(projection_generation.required_positive_sources) required_source
+		WHERE NOT EXISTS (
+			SELECT 1 FROM labellers source
+			WHERE source.did = required_source.value AND source.active = 1
+				AND source.trusted = 1 AND source.required_positive = 1
+				AND typeof(source.health_last_success_epoch) = 'integer'
+				AND source.health_last_success_epoch > ?
+				AND source.health_last_success_epoch <= ?
+		)
+	)
+	AND NOT EXISTS (
+		SELECT 1 FROM json_each(projection_generation.accepted_state_sources) state_source
+		WHERE NOT EXISTS (
+			SELECT 1 FROM labellers source
+			WHERE source.did = state_source.value AND source.active = 1
+				AND source.trusted = 1 AND source.accepted_state = 1
+				AND typeof(source.health_last_success_epoch) = 'integer'
+				AND source.health_last_success_epoch > ?
+				AND source.health_last_success_epoch <= ?
+		)
+	)
+	AND NOT EXISTS (
+		SELECT 1 FROM json_each(projection_generation.redaction_sources) redaction_source
+		WHERE NOT EXISTS (
+			SELECT 1 FROM labellers source
+			WHERE source.did = redaction_source.value AND source.active = 1
+				AND source.trusted = 1 AND source.redaction = 1
+				AND typeof(source.health_last_success_epoch) = 'integer'
+				AND source.health_last_success_epoch > ?
+				AND source.health_last_success_epoch <= ?
+		)
+	)
 `;
 
-export function activeProjectionPolicyBindings(policy: ListingPolicyConfig): unknown[] {
-	return [policy.mode, policy.moderationPolicyVersion, policy.moderationPolicyHash];
+export function activeProjectionPolicyBindings(
+	policy: ListingPolicyConfig,
+	now = new Date(),
+): unknown[] {
+	const nowEpoch = now.getTime();
+	if (!Number.isSafeInteger(nowEpoch)) throw new TypeError("projection policy time is invalid");
+	const freshnessBoundary = nowEpoch - REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS;
+	return [
+		policy.mode,
+		policy.moderationPolicyVersion,
+		policy.moderationPolicyHash,
+		freshnessBoundary,
+		nowEpoch,
+		freshnessBoundary,
+		nowEpoch,
+		freshnessBoundary,
+		nowEpoch,
+	];
 }
 
 const ACTIVE_LABEL_SQL = `
@@ -386,6 +437,31 @@ export const ACTIVE_PROFILE_REDACTION_SQL = `
 			))
 		  )
 	)
+	AND NOT EXISTS (
+		SELECT 1 FROM listing_replay_restrictions replay
+		JOIN labellers source ON source.did = replay.src
+		WHERE source.active = 1 AND source.replay_pending = 1
+		  AND (
+			(replay.val = '!takedown' AND source.redaction = 1)
+			OR (replay.val = 'listing-blocked'
+			  AND (source.required_positive = 1 OR source.accepted_state = 1))
+		  )
+		  AND (replay.exp_epoch IS NULL OR replay.exp_epoch > unixepoch('now'))
+		  AND (
+			(replay.val = '!takedown' AND replay.uri = p.did)
+			OR (
+				replay.uri = 'at://' || p.did || '/${NSID.packageProfile}/' || p.slug
+				AND (
+					(replay.val = '!takedown' AND (
+						replay.cid IS NULL
+						OR replay.cid = json_extract(p.signature_metadata, '$.cid')
+					))
+					OR (replay.val = 'listing-blocked'
+						AND replay.cid = json_extract(p.signature_metadata, '$.cid'))
+				)
+			)
+		  )
+	)
 `;
 
 export const ACTIVE_RELEASE_REDACTION_SQL = `
@@ -462,6 +538,27 @@ export const ACTIVE_RELEASE_REDACTION_SQL = `
 						OR redaction.cid = json_extract(r.signature_metadata, '$.cid')
 					))
 				))
+			))
+		  )
+	)
+	AND NOT EXISTS (
+		SELECT 1 FROM listing_replay_restrictions replay
+		JOIN labellers source ON source.did = replay.src
+		WHERE source.active = 1 AND source.replay_pending = 1
+		  AND replay.uri = 'at://' || r.did || '/${NSID.packageRelease}/' || r.rkey
+		  AND (
+			(replay.val = 'listing-blocked'
+			  AND (source.required_positive = 1 OR source.accepted_state = 1))
+			OR (replay.val IN ('!takedown', 'security:yanked', 'security-yanked')
+			  AND source.redaction = 1)
+		  )
+		  AND (replay.exp_epoch IS NULL OR replay.exp_epoch > unixepoch('now'))
+		  AND (
+			(replay.val = 'listing-blocked'
+			  AND replay.cid = json_extract(r.signature_metadata, '$.cid'))
+			OR (replay.val IN ('!takedown', 'security:yanked', 'security-yanked') AND (
+				replay.cid IS NULL
+				OR replay.cid = json_extract(r.signature_metadata, '$.cid')
 			))
 		  )
 	)

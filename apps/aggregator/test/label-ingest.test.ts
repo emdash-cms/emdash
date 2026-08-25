@@ -14,6 +14,13 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { acceptListingLabels, readLabelCursor } from "../src/label-ingestion.js";
 import { LabelIngestor } from "../src/label-ingestor.js";
 import {
+	markLabelSourceFailure,
+	markLabelSourceHealthy,
+	REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS,
+	readLabelSourceActivationState,
+	stageLabelSourceReplay,
+} from "../src/label-source-health.js";
+import {
 	acknowledgeLabelSourceStop,
 	activateLabelSourceAfterReplay,
 	readLabelSourceTrust,
@@ -131,7 +138,7 @@ beforeEach(async () => {
 		await testEnv.DB.prepare(`DELETE FROM ${table}`).run();
 	}
 	await reconcileLabelSources(testEnv.DB, sourcePolicy(true));
-	await activateLabelSourceAfterReplay(testEnv.DB, SOURCE, "test-v1");
+	await activateLabelSourceAfterReplay(testEnv.DB, SOURCE, "test-v1", 1, new Date(NOW));
 	await testEnv.DB.prepare(
 		`UPDATE listing_projection_work
 		 SET scheduled_epoch = dirty_epoch, acknowledged_epoch = dirty_epoch WHERE id = 1`,
@@ -326,13 +333,136 @@ describe("signed label persistence", () => {
 				.first(),
 		).toMatchObject({ neg: 1, trusted: 0 });
 
-		await activateLabelSourceAfterReplay(testEnv.DB, SOURCE, "test-v1");
+		await activateLabelSourceAfterReplay(testEnv.DB, SOURCE, "test-v1", 2, new Date(NOW));
 		expect(await readLabelSourceTrust(testEnv.DB, SOURCE)).toBe(true);
 		expect(
 			await testEnv.DB.prepare("SELECT neg, trusted FROM label_state WHERE src = ?")
 				.bind(SOURCE)
 				.first(),
 		).toMatchObject({ neg: 1, trusted: 1 });
+	});
+
+	it("persists failure state and demotes only at the deterministic health boundary", async () => {
+		await markLabelSourceHealthy(testEnv.DB, SOURCE, new Date(NOW));
+		const firstFailure = new Date(NOW);
+		expect(await markLabelSourceFailure(testEnv.DB, SOURCE, firstFailure)).toBe(false);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT health_failure_count, health_failure_started_at, trusted
+				 FROM labellers WHERE did = ?`,
+			)
+				.bind(SOURCE)
+				.first(),
+		).toEqual({ health_failure_count: 1, health_failure_started_at: NOW, trusted: 1 });
+
+		const beforeBoundary = new Date(
+			firstFailure.getTime() + REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS - 1,
+		);
+		expect(await markLabelSourceFailure(testEnv.DB, SOURCE, beforeBoundary)).toBe(false);
+		expect(await readLabelSourceTrust(testEnv.DB, SOURCE)).toBe(true);
+
+		const boundary = new Date(firstFailure.getTime() + REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS);
+		expect(await markLabelSourceFailure(testEnv.DB, SOURCE, boundary)).toBe(true);
+		expect(await readLabelSourceTrust(testEnv.DB, SOURCE)).toBe(false);
+		await markLabelSourceHealthy(testEnv.DB, SOURCE, new Date(boundary.getTime() + 1));
+		expect(await readLabelSourceTrust(testEnv.DB, SOURCE)).toBe(false);
+
+		const fixture = await signingFixture();
+		const latePass = await fixture.signer.sign({
+			ver: 1,
+			uri: URI,
+			cid: CID_B,
+			val: "listing-passed",
+			cts: new Date(boundary.getTime() + 2).toISOString(),
+		});
+		await accept(latePass, fixture.document, 1, true);
+		expect(
+			await testEnv.DB.prepare("SELECT trusted FROM label_state WHERE src = ? AND cid = ?")
+				.bind(SOURCE, CID_B)
+				.first(),
+		).toEqual({ trusted: 0 });
+	});
+
+	it("restarts a staged replay from cursor zero and clears pending state only after catch-up", async () => {
+		const fixture = await signingFixture();
+		const signed = await fixture.signer.sign({
+			ver: 1,
+			uri: URI,
+			cid: CID_A,
+			val: "listing-passed",
+			cts: NOW,
+		});
+		await accept(signed, fixture.document, 9);
+		await markLabelSourceHealthy(testEnv.DB, SOURCE, new Date(NOW));
+		await stageLabelSourceReplay(testEnv.DB, SOURCE, new Date(NOW));
+		let queryCursor = -1;
+		let ingestor: LabelIngestor;
+		ingestor = new LabelIngestor({
+			did: SOURCE,
+			db: testEnv.DB,
+			resolver: {
+				resolve: async () => resolvedIdentity(fixture.publicKey),
+				resolveFresh: async () => resolvedIdentity(fixture.publicKey),
+			},
+			stream: new ArrayStream([]),
+			query: {
+				query: async (_endpoint, _source, cursor) => {
+					queryCursor = cursor;
+					return { labels: [signed] };
+				},
+			},
+			onAccepted: async () => {},
+			sourceTrust: {
+				read: () => readLabelSourceActivationState(testEnv.DB, SOURCE),
+				activate: async (generation, at) => {
+					await activateLabelSourceAfterReplay(testEnv.DB, SOURCE, "test-v1", generation, at);
+				},
+				markHealthy: (at) => markLabelSourceHealthy(testEnv.DB, SOURCE, at),
+				markFailure: (at) => markLabelSourceFailure(testEnv.DB, SOURCE, at),
+			},
+			now: () => Date.parse(NOW),
+			sleep: async () => ingestor.stop(),
+		});
+
+		await ingestor.run();
+		expect(queryCursor).toBe(0);
+		expect(await readLabelSourceTrust(testEnv.DB, SOURCE)).toBe(true);
+		expect(
+			await testEnv.DB.prepare(
+				"SELECT replay_pending, health_failure_count FROM labellers WHERE did = ?",
+			)
+				.bind(SOURCE)
+				.first(),
+		).toEqual({ replay_pending: 0, health_failure_count: 0 });
+	});
+
+	it("rejects stale replay-generation activation after a newer replay stage wins", async () => {
+		await stageLabelSourceReplay(testEnv.DB, SOURCE, new Date(NOW));
+		const first = await readLabelSourceActivationState(testEnv.DB, SOURCE);
+		expect(first).toEqual({ trusted: false, replayGeneration: 2 });
+		await stageLabelSourceReplay(testEnv.DB, SOURCE, new Date(NOW));
+		const second = await readLabelSourceActivationState(testEnv.DB, SOURCE);
+		expect(second).toEqual({ trusted: false, replayGeneration: 3 });
+
+		expect(
+			await activateLabelSourceAfterReplay(
+				testEnv.DB,
+				SOURCE,
+				"test-v1",
+				first.replayGeneration,
+				new Date(NOW),
+			),
+		).toBe(false);
+		expect(await readLabelSourceTrust(testEnv.DB, SOURCE)).toBe(false);
+		expect(
+			await activateLabelSourceAfterReplay(
+				testEnv.DB,
+				SOURCE,
+				"test-v1",
+				second.replayGeneration,
+				new Date(NOW),
+			),
+		).toBe(true);
 	});
 
 	it("cannot re-trust state with a late write after policy removes its source", async () => {
@@ -404,6 +534,49 @@ const emptyQuery: LabelQueryClient = {
 };
 
 describe("subscription verification", () => {
+	it("renews persisted freshness after each successful empty catch-up", async () => {
+		const fixture = await signingFixture();
+		let now = 0;
+		let queries = 0;
+		const healthyAt: number[] = [];
+		let ingestor: LabelIngestor;
+		ingestor = new LabelIngestor({
+			did: SOURCE,
+			db: testEnv.DB,
+			resolver: {
+				resolve: async () => resolvedIdentity(fixture.publicKey),
+				resolveFresh: async () => resolvedIdentity(fixture.publicKey),
+			},
+			stream: new ArrayStream([]),
+			query: {
+				query: async () => {
+					queries++;
+					return { labels: [] };
+				},
+			},
+			onAccepted: async () => {},
+			sourceTrust: {
+				read: async () => ({ trusted: true, replayGeneration: 0 }),
+				activate: async () => {
+					throw new Error("trusted source must not reactivate");
+				},
+				markHealthy: async (at) => {
+					healthyAt.push(at.getTime());
+				},
+				markFailure: async () => false,
+			},
+			now: () => now,
+			sleep: async () => {
+				if (queries >= 2) ingestor.stop();
+				else now += 5 * 60 * 1_000;
+			},
+		});
+
+		await ingestor.run();
+		expect(healthyAt).toEqual([0, 5 * 60 * 1_000]);
+		expect(REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS).toBeGreaterThan(5 * 60 * 1_000);
+	});
+
 	it("replays a prior retained signing key while a re-added source is still untrusted", async () => {
 		const oldFixture = await signingFixture();
 		const rotated = await signingFixture();
@@ -453,10 +626,12 @@ describe("subscription verification", () => {
 			query: { query: async () => ({ labels: [historical] }) },
 			onAccepted: async () => {},
 			sourceTrust: {
-				read: () => readLabelSourceTrust(testEnv.DB, SOURCE),
-				activate: async () => {
-					await activateLabelSourceAfterReplay(testEnv.DB, SOURCE, "test-v1");
+				read: () => readLabelSourceActivationState(testEnv.DB, SOURCE),
+				activate: async (generation, at) => {
+					await activateLabelSourceAfterReplay(testEnv.DB, SOURCE, "test-v1", generation, at);
 				},
+				markHealthy: (at) => markLabelSourceHealthy(testEnv.DB, SOURCE, at),
+				markFailure: (at) => markLabelSourceFailure(testEnv.DB, SOURCE, at),
 			},
 			now: () => now.getTime(),
 			sleep: async () => ingestor.stop(),
@@ -497,11 +672,13 @@ describe("subscription verification", () => {
 			},
 			onAccepted: async () => {},
 			sourceTrust: {
-				read: () => readLabelSourceTrust(testEnv.DB, SOURCE),
-				activate: async () => {
+				read: () => readLabelSourceActivationState(testEnv.DB, SOURCE),
+				activate: async (generation, at) => {
 					order.push("activate");
-					await activateLabelSourceAfterReplay(testEnv.DB, SOURCE, "test-v1");
+					await activateLabelSourceAfterReplay(testEnv.DB, SOURCE, "test-v1", generation, at);
 				},
+				markHealthy: (at) => markLabelSourceHealthy(testEnv.DB, SOURCE, at),
+				markFailure: (at) => markLabelSourceFailure(testEnv.DB, SOURCE, at),
 			},
 			sleep: async () => ingestor.stop(),
 		});

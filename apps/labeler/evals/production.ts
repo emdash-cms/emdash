@@ -1,5 +1,10 @@
+import type { WorkflowInstanceStatus } from "cloudflare:workers";
+
+import { sha256Hex } from "../src/ai/hash.js";
 import { loadEvalDataset } from "./dataset.js";
+import { EVAL_RUNNER_VERSION } from "./harness.js";
 import { runProtectedLiveEvaluation } from "./live.js";
+import type { ProtectedLiveEvaluationDurability } from "./live.js";
 import {
 	assertEvalBundleIntegrity,
 	compareEvalBundles,
@@ -13,12 +18,15 @@ const MAX_RESULT_BYTES = 64 * 1024;
 const MAX_COMPARISON_BYTES = 256 * 1024;
 const MAX_REPORT_BYTES = 64 * 1024;
 const MAX_ARTIFACT_BYTES = 8 * 1024 * 1024;
+const MAX_PUBLIC_DATASET_OBJECT_BYTES = 8 * 1024 * 1024;
+const MAX_PROTECTED_HOLDOUT_BYTES = 2 * 1024 * 1024;
 const FAILURE_CODE = "EVALUATION_FAILED";
 const FAILURE_SUMMARY = "Protected live evaluation could not be completed";
 const SHA256_HEX_RE = /^[a-f0-9]{64}$/;
 const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9._:-]{8,200}$/;
 const EVAL_RUN_LEASE_MS = 5 * 60 * 1_000;
 const EVAL_RUN_HEARTBEAT_MS = 30 * 1_000;
+const PRODUCTION_READ_RETRY_DELAYS_MS = [250, 1_000] as const;
 
 export interface EvalRunInput {
 	actorDid: string;
@@ -26,6 +34,40 @@ export interface EvalRunInput {
 	reason: string;
 	idempotencyKey: string;
 	now: Date;
+}
+
+export interface EvalR2Object {
+	readonly size: number;
+	bytes(): Promise<Uint8Array>;
+}
+
+export interface ProductionLiveEvaluationDurability extends ProtectedLiveEvaluationDurability {
+	executedAt: string;
+	identity: ProductionEvaluationIdentity;
+	selectBaseline(
+		callback: () => Promise<EvalBaselineReference | null>,
+	): Promise<EvalBaselineReference | null>;
+	storeArtifact(callback: () => Promise<void>): Promise<void>;
+}
+
+export interface ProductionEvaluationIdentity {
+	schemaVersion: 1;
+	datasetVersion: string;
+	datasetHash: string;
+	budgetHash: string;
+	runnerVersion: string;
+	runnerCommit: string;
+	repeatCount: 3;
+	textModelId: string;
+	textPromptHash: string;
+	imageModelId: string;
+	imagePromptHash: string;
+}
+
+export interface EvalBaselineReference {
+	runId: number;
+	artifactKey: string;
+	candidateHash: string;
 }
 
 export interface PromotionComparison extends EvalComparison {
@@ -56,7 +98,33 @@ export interface EvalRunRecord extends EvalRunInput {
 	failureSummary?: string;
 	leaseToken?: string;
 	leaseExpiresAt?: string;
+	workflowInstanceId?: string;
 }
+
+export interface LiveEvaluationWorkflowParams {
+	schemaVersion: 1;
+	runId: number;
+	idempotencyKey: string;
+	instanceId: string;
+	executedAt: string;
+}
+
+export interface EvalWorkflowBinding {
+	create(input: { id: string; params: LiveEvaluationWorkflowParams }): Promise<unknown>;
+	get(id: string): Promise<{
+		status(): Promise<{ status: WorkflowInstanceStatus }>;
+	}>;
+}
+
+export type EvalRunStatusResponse =
+	| { runId: number; instanceId: string; status: "running" }
+	| { runId: number; instanceId: string; status: "succeeded"; result: CompletedEvalRun }
+	| {
+			runId: number;
+			instanceId: string;
+			status: "failed";
+			failure: { code: string; summary: string };
+	  };
 
 export interface EvalRunStore {
 	claim(
@@ -70,6 +138,22 @@ export interface EvalRunStore {
 		now: Date,
 	): Promise<boolean>;
 	fail(id: number, leaseToken: string, code: string, summary: string, now: Date): Promise<boolean>;
+	readById(id: number): Promise<EvalRunRecord | null>;
+	readByIdempotencyKey(idempotencyKey: string): Promise<EvalRunRecord | null>;
+	bindWorkflow(id: number, leaseToken: string, instanceId: string): Promise<boolean>;
+	completeWorkflow(
+		id: number,
+		instanceId: string,
+		completed: CompletedEvalRun,
+		now: Date,
+	): Promise<boolean>;
+	failWorkflow(
+		id: number,
+		instanceId: string,
+		code: string,
+		summary: string,
+		now: Date,
+	): Promise<boolean>;
 }
 
 export class EvalRunInProgressError extends Error {
@@ -96,6 +180,127 @@ export async function runProductionLiveEvaluation(
 		input,
 		execute: (runId) => executeProductionLiveEvaluation(env, runId),
 	});
+}
+
+export function startProductionLiveEvaluation(
+	env: Env,
+	input: EvalRunInput,
+): Promise<EvalRunStatusResponse> {
+	return startIdempotentLiveEvaluation({
+		store: createD1EvalRunStore(env.DB),
+		workflow: env.LIVE_EVALUATION_WORKFLOW,
+		input,
+	});
+}
+
+export async function startIdempotentLiveEvaluation(input: {
+	store: EvalRunStore;
+	workflow: EvalWorkflowBinding;
+	input: EvalRunInput;
+}): Promise<EvalRunStatusResponse> {
+	validateEvalRunInput(input.input);
+	const existing = await input.store.readByIdempotencyKey(input.input.idempotencyKey);
+	if (existing) {
+		if (!sameEvalRequest(existing, input.input)) {
+			throw new TypeError("idempotency key is bound to a different evaluation request");
+		}
+		if (existing.status !== "running") return evalRunStatus(existing);
+		if (existing.workflowInstanceId) {
+			return evalRunStatus(await ensureWorkflowInstance(input.workflow, input.store, existing));
+		}
+	}
+
+	const claim = await input.store.claim(input.input);
+	if (!sameEvalRequest(claim.record, input.input)) {
+		throw new TypeError("idempotency key is bound to a different evaluation request");
+	}
+	if (claim.record.status !== "running") return evalRunStatus(claim.record);
+	const instanceId = `listing-eval-${claim.record.id}`;
+	if (claim.record.workflowInstanceId) {
+		return evalRunStatus(await ensureWorkflowInstance(input.workflow, input.store, claim.record));
+	}
+	if (!claim.record.leaseToken) {
+		throw new Error("evaluation run has no dispatch lease or Workflow binding");
+	}
+	if (!(await input.store.bindWorkflow(claim.record.id, claim.record.leaseToken, instanceId))) {
+		const current = await input.store.readById(claim.record.id);
+		if (!current) throw new Error("evaluation run disappeared before Workflow dispatch");
+		return evalRunStatus(
+			current.workflowInstanceId
+				? await ensureWorkflowInstance(input.workflow, input.store, current)
+				: current,
+		);
+	}
+	const bound = await input.store.readById(claim.record.id);
+	if (!bound) throw new Error("evaluation run disappeared after Workflow binding");
+	return evalRunStatus(await ensureWorkflowInstance(input.workflow, input.store, bound));
+}
+
+async function ensureWorkflowInstance(
+	workflow: EvalWorkflowBinding,
+	store: EvalRunStore,
+	record: EvalRunRecord,
+): Promise<EvalRunRecord> {
+	if (record.status !== "running" || !record.workflowInstanceId) return record;
+	const instanceId = record.workflowInstanceId;
+	const instance = await workflow.get(instanceId);
+	const status = (await instance.status()).status;
+	if (status === "errored" || status === "terminated") {
+		await store.failWorkflow(record.id, instanceId, FAILURE_CODE, FAILURE_SUMMARY, new Date());
+		const failed = await store.readById(record.id);
+		if (!failed) throw new Error("evaluation run disappeared after Workflow failure");
+		if (failed.status === "running") {
+			throw new Error("evaluation Workflow failure could not be recorded");
+		}
+		return failed;
+	}
+	if (status !== "unknown") return record;
+	try {
+		await workflow.create({
+			id: instanceId,
+			params: {
+				schemaVersion: 1,
+				runId: record.id,
+				idempotencyKey: record.idempotencyKey,
+				instanceId,
+				executedAt: record.createdAt,
+			},
+		});
+	} catch (error) {
+		const concurrentStatus = (await (await workflow.get(instanceId)).status()).status;
+		if (concurrentStatus === "unknown") throw error;
+	}
+	return record;
+}
+
+export async function readEvalRunStatus(
+	store: Pick<EvalRunStore, "readById">,
+	runId: number,
+): Promise<EvalRunStatusResponse | null> {
+	if (!Number.isSafeInteger(runId) || runId < 1)
+		throw new TypeError("evaluation run ID is invalid");
+	const record = await store.readById(runId);
+	return record ? evalRunStatus(record) : null;
+}
+
+function evalRunStatus(record: EvalRunRecord): EvalRunStatusResponse {
+	const instanceId = record.workflowInstanceId ?? `listing-eval-${record.id}`;
+	if (record.status === "succeeded") {
+		if (!record.completed) throw new Error("stored evaluation result is incomplete");
+		return { runId: record.id, instanceId, status: "succeeded", result: record.completed };
+	}
+	if (record.status === "failed") {
+		return {
+			runId: record.id,
+			instanceId,
+			status: "failed",
+			failure: {
+				code: record.failureCode ?? FAILURE_CODE,
+				summary: record.failureSummary ?? FAILURE_SUMMARY,
+			},
+		};
+	}
+	return { runId: record.id, instanceId, status: "running" };
 }
 
 export async function runIdempotentLiveEvaluation(input: {
@@ -167,6 +372,7 @@ export function createD1EvalRunStore(db: D1Database): EvalRunStore {
 					   AND eval_runs.actor_did = excluded.actor_did
 					   AND eval_runs.actor_role = excluded.actor_role
 					   AND eval_runs.reason = excluded.reason
+					   AND eval_runs.workflow_instance_id IS NULL
 					   AND (eval_runs.lease_expires_at IS NULL
 					     OR eval_runs.lease_expires_at <= excluded.updated_at)`,
 				)
@@ -205,97 +411,166 @@ export function createD1EvalRunStore(db: D1Database): EvalRunStore {
 			return renewed.meta.changes === 1;
 		},
 		async complete(id, leaseToken, completed, now) {
-			const resultJson = JSON.stringify({
-				artifactKey: completed.artifactKey,
-				datasetHash: completed.datasetHash,
-				budgetPassed: completed.budgetPassed,
-				failures: completed.failures,
-				candidateHash: completed.candidateHash,
-			});
-			const comparisonJson = completed.promotionComparison
-				? JSON.stringify(completed.promotionComparison)
-				: null;
-			assertBoundedText(resultJson, MAX_RESULT_BYTES, "evaluation result");
-			if (comparisonJson) {
-				assertBoundedText(comparisonJson, MAX_COMPARISON_BYTES, "evaluation comparison");
-			}
-			assertBoundedText(completed.report, MAX_REPORT_BYTES, "evaluation report");
-			const comparison = completed.promotionComparison;
-			const timestamp = now.toISOString();
-			const updated = await db
-				.prepare(
-					`UPDATE eval_runs
-					 SET status = 'succeeded', artifact_key = ?, dataset_hash = ?, budget_passed = ?,
-					     candidate_hash = ?, baseline_run_id = ?, baseline_hash = ?,
-					     comparison_hash = ?, promotion_challenge_hash = ?, result_json = ?,
-					     comparison_json = ?, report_markdown = ?, updated_at = ?, completed_at = ?,
-					     lease_token = NULL, lease_expires_at = NULL
-					 WHERE id = ? AND status = 'running' AND lease_token = ?`,
-				)
-				.bind(
-					completed.artifactKey,
-					completed.datasetHash,
-					completed.budgetPassed ? 1 : 0,
-					completed.candidateHash,
-					comparison?.baselineRunId ?? null,
-					comparison?.baselineHash ?? null,
-					comparison?.comparisonHash ?? null,
-					comparison?.reviewChallengeHash ?? null,
-					resultJson,
-					comparisonJson,
-					completed.report,
-					timestamp,
-					timestamp,
-					id,
-					leaseToken,
-				)
-				.run();
-			return updated.meta.changes === 1;
+			return persistCompletedEvalRun(db, id, "lease_token", leaseToken, completed, now);
 		},
 		async fail(id, leaseToken, code, summary, now) {
-			const timestamp = now.toISOString();
-			const failed = await db
+			return persistFailedEvalRun(db, id, "lease_token", leaseToken, code, summary, now);
+		},
+		readById(id) {
+			return readEvalRunById(db, id);
+		},
+		readByIdempotencyKey(idempotencyKey) {
+			return readEvalRun(db, idempotencyKey);
+		},
+		async bindWorkflow(id, leaseToken, instanceId) {
+			const bound = await db
 				.prepare(
-					`UPDATE eval_runs
-					 SET status = 'failed', failure_code = ?, failure_summary = ?,
-					     updated_at = ?, completed_at = ?, lease_token = NULL,
-					     lease_expires_at = NULL
-					 WHERE id = ? AND status = 'running' AND lease_token = ?`,
+					`UPDATE eval_runs SET workflow_instance_id = ?, lease_token = NULL,
+					   lease_expires_at = NULL, updated_at = updated_at
+					 WHERE id = ? AND status = 'running' AND lease_token = ?
+					   AND (workflow_instance_id IS NULL OR workflow_instance_id = ?)`,
 				)
-				.bind(code, summary, timestamp, timestamp, id, leaseToken)
+				.bind(instanceId, id, leaseToken, instanceId)
 				.run();
-			return failed.meta.changes === 1;
+			return bound.meta.changes === 1;
+		},
+		async completeWorkflow(id, instanceId, completed, now) {
+			return persistCompletedEvalRun(db, id, "workflow_instance_id", instanceId, completed, now);
+		},
+		async failWorkflow(id, instanceId, code, summary, now) {
+			return persistFailedEvalRun(db, id, "workflow_instance_id", instanceId, code, summary, now);
 		},
 	};
 }
 
-async function executeProductionLiveEvaluation(env: Env, runId: number): Promise<CompletedEvalRun> {
-	const holdout = await env.EVAL_DATASETS.get("protected/holdout.json");
-	if (!holdout) throw new Error("protected evaluation holdout is not configured");
-	const dataset = await loadEvalDataset({
-		readFile: async (path) => {
-			const object = await env.EVAL_DATASETS.get(`v1/${path}`);
-			if (!object) throw new Error(`evaluation dataset object is missing: ${path}`);
-			return object.bytes();
-		},
-		protectedHoldout: { fixtureBytes: await holdout.bytes() },
+type EvalRunFence = "lease_token" | "workflow_instance_id";
+
+const COMPLETE_BY_LEASE_SQL = `UPDATE eval_runs
+	SET status = 'succeeded', artifact_key = ?, dataset_hash = ?, budget_passed = ?,
+	    candidate_hash = ?, baseline_run_id = ?, baseline_hash = ?, comparison_hash = ?,
+	    promotion_challenge_hash = ?, result_json = ?, comparison_json = ?, report_markdown = ?,
+	    updated_at = ?, completed_at = ?, lease_token = NULL, lease_expires_at = NULL
+	WHERE id = ? AND status = 'running' AND lease_token = ?`;
+
+const COMPLETE_BY_WORKFLOW_SQL = `UPDATE eval_runs
+	SET status = 'succeeded', artifact_key = ?, dataset_hash = ?, budget_passed = ?,
+	    candidate_hash = ?, baseline_run_id = ?, baseline_hash = ?, comparison_hash = ?,
+	    promotion_challenge_hash = ?, result_json = ?, comparison_json = ?, report_markdown = ?,
+	    updated_at = ?, completed_at = ?, lease_token = NULL, lease_expires_at = NULL
+	WHERE id = ? AND status = 'running' AND workflow_instance_id = ?`;
+
+const FAIL_BY_LEASE_SQL = `UPDATE eval_runs
+	SET status = 'failed', failure_code = ?, failure_summary = ?, updated_at = ?, completed_at = ?,
+	    lease_token = NULL, lease_expires_at = NULL
+	WHERE id = ? AND status = 'running' AND lease_token = ?`;
+
+const FAIL_BY_WORKFLOW_SQL = `UPDATE eval_runs
+	SET status = 'failed', failure_code = ?, failure_summary = ?, updated_at = ?, completed_at = ?,
+	    lease_token = NULL, lease_expires_at = NULL
+	WHERE id = ? AND status = 'running' AND workflow_instance_id = ?`;
+
+async function persistCompletedEvalRun(
+	db: D1Database,
+	id: number,
+	fence: EvalRunFence,
+	fenceValue: string,
+	completed: CompletedEvalRun,
+	now: Date,
+): Promise<boolean> {
+	const resultJson = JSON.stringify({
+		artifactKey: completed.artifactKey,
+		datasetHash: completed.datasetHash,
+		budgetPassed: completed.budgetPassed,
+		failures: completed.failures,
+		candidateHash: completed.candidateHash,
 	});
-	const baseline = await readLatestBaseline(env, dataset, runId);
-	const artifact = await runProtectedLiveEvaluation({
-		dataset,
-		text: {
-			modelId: env.LABELER_TEXT_MODEL_ID,
-			promptHash: env.LABELER_TEXT_PROMPT_HASH,
-			configuredUnits: parseUnits(env.EVAL_TEXT_CONFIGURED_UNITS, "text"),
+	const comparisonJson = completed.promotionComparison
+		? JSON.stringify(completed.promotionComparison)
+		: null;
+	assertBoundedText(resultJson, MAX_RESULT_BYTES, "evaluation result");
+	if (comparisonJson)
+		assertBoundedText(comparisonJson, MAX_COMPARISON_BYTES, "evaluation comparison");
+	assertBoundedText(completed.report, MAX_REPORT_BYTES, "evaluation report");
+	const comparison = completed.promotionComparison;
+	const timestamp = now.toISOString();
+	const statement =
+		fence === "lease_token"
+			? db.prepare(COMPLETE_BY_LEASE_SQL)
+			: db.prepare(COMPLETE_BY_WORKFLOW_SQL);
+	const updated = await statement
+		.bind(
+			completed.artifactKey,
+			completed.datasetHash,
+			completed.budgetPassed ? 1 : 0,
+			completed.candidateHash,
+			comparison?.baselineRunId ?? null,
+			comparison?.baselineHash ?? null,
+			comparison?.comparisonHash ?? null,
+			comparison?.reviewChallengeHash ?? null,
+			resultJson,
+			comparisonJson,
+			completed.report,
+			timestamp,
+			timestamp,
+			id,
+			fenceValue,
+		)
+		.run();
+	return updated.meta.changes === 1;
+}
+
+async function persistFailedEvalRun(
+	db: D1Database,
+	id: number,
+	fence: EvalRunFence,
+	fenceValue: string,
+	code: string,
+	summary: string,
+	now: Date,
+): Promise<boolean> {
+	const timestamp = now.toISOString();
+	const statement =
+		fence === "lease_token" ? db.prepare(FAIL_BY_LEASE_SQL) : db.prepare(FAIL_BY_WORKFLOW_SQL);
+	const failed = await statement.bind(code, summary, timestamp, timestamp, id, fenceValue).run();
+	return failed.meta.changes === 1;
+}
+
+export async function executeProductionLiveEvaluation(
+	env: Env,
+	runId: number,
+	durability?: ProductionLiveEvaluationDurability,
+): Promise<CompletedEvalRun> {
+	const dataset = await retryProductionRead(() => loadProductionEvalDataset(env));
+	const identity = await productionEvaluationIdentity(env, dataset);
+	if (durability && !sameProductionEvaluationIdentity(durability.identity, identity)) {
+		throw new Error("live evaluation runtime identity changed before durable resume");
+	}
+	const selectBaseline = () => readLatestBaselineReference(env, dataset.datasetHash, runId);
+	const baselineReference = durability
+		? await durability.selectBaseline(selectBaseline)
+		: await selectBaseline();
+	const baseline = baselineReference
+		? await retryProductionRead(() => readBaselineArtifact(env, dataset, baselineReference))
+		: null;
+	const artifact = await runProtectedLiveEvaluation(
+		{
+			dataset,
+			text: {
+				modelId: env.LABELER_TEXT_MODEL_ID,
+				promptHash: env.LABELER_TEXT_PROMPT_HASH,
+				configuredUnits: parseUnits(env.EVAL_TEXT_CONFIGURED_UNITS, "text"),
+			},
+			image: {
+				modelId: env.LABELER_IMAGE_MODEL_ID,
+				promptHash: env.LABELER_IMAGE_PROMPT_HASH,
+				configuredUnits: parseUnits(env.EVAL_IMAGE_CONFIGURED_UNITS, "image"),
+			},
+			repeatCount: 3,
+			runnerCommit: env.VERSION_METADATA.id,
+			...(durability ? { executedAt: durability.executedAt } : {}),
 		},
-		image: {
-			modelId: env.LABELER_IMAGE_MODEL_ID,
-			promptHash: env.LABELER_IMAGE_PROMPT_HASH,
-			configuredUnits: parseUnits(env.EVAL_IMAGE_CONFIGURED_UNITS, "image"),
-		},
-		repeatCount: 3,
-		runnerCommit: env.VERSION_METADATA.id,
-	});
+		durability,
+	);
 	const candidate = artifact.bundle;
 	const candidateHash = await hashBundle(candidate);
 	let promotionComparison: PromotionComparison | null = null;
@@ -311,14 +586,18 @@ async function executeProductionLiveEvaluation(env: Env, runId: number): Promise
 	const encoded = JSON.stringify(candidate);
 	assertBoundedText(encoded, MAX_ARTIFACT_BYTES, "evaluation artifact");
 	const artifactKey = `live/${candidate.reproducibility.executedAt}/${candidateHash}.json`;
-	await env.EVAL_ARTIFACTS.put(artifactKey, encoded, {
-		httpMetadata: { contentType: "application/json" },
-		customMetadata: {
-			datasetHash: dataset.datasetHash,
-			runnerCommit: env.VERSION_METADATA.id,
-			candidateHash,
-		},
-	});
+	const storeArtifact = async (): Promise<void> => {
+		await env.EVAL_ARTIFACTS.put(artifactKey, encoded, {
+			httpMetadata: { contentType: "application/json" },
+			customMetadata: {
+				datasetHash: dataset.datasetHash,
+				runnerCommit: env.VERSION_METADATA.id,
+				candidateHash,
+			},
+		});
+	};
+	if (durability) await durability.storeArtifact(storeArtifact);
+	else await storeArtifact();
 	return {
 		artifactKey,
 		datasetHash: dataset.datasetHash,
@@ -330,11 +609,65 @@ async function executeProductionLiveEvaluation(env: Env, runId: number): Promise
 	};
 }
 
-async function readLatestBaseline(
+export async function readProductionEvaluationIdentity(
+	env: Env,
+): Promise<ProductionEvaluationIdentity> {
+	return productionEvaluationIdentity(env, await loadProductionEvalDataset(env));
+}
+
+function sameProductionEvaluationIdentity(
+	left: ProductionEvaluationIdentity,
+	right: ProductionEvaluationIdentity,
+): boolean {
+	return JSON.stringify(left) === JSON.stringify(right);
+}
+
+async function productionEvaluationIdentity(
 	env: Env,
 	dataset: SealedEvalDataset,
+): Promise<ProductionEvaluationIdentity> {
+	return {
+		schemaVersion: 1,
+		datasetVersion: dataset.datasetVersion,
+		datasetHash: dataset.datasetHash,
+		budgetHash: await sha256Hex(JSON.stringify(dataset.budgets)),
+		runnerVersion: EVAL_RUNNER_VERSION,
+		runnerCommit: env.VERSION_METADATA.id,
+		repeatCount: 3,
+		textModelId: env.LABELER_TEXT_MODEL_ID,
+		textPromptHash: env.LABELER_TEXT_PROMPT_HASH,
+		imageModelId: env.LABELER_IMAGE_MODEL_ID,
+		imagePromptHash: env.LABELER_IMAGE_PROMPT_HASH,
+	};
+}
+
+async function loadProductionEvalDataset(env: Env): Promise<SealedEvalDataset> {
+	const holdout = await env.EVAL_DATASETS.get("protected/holdout.json");
+	if (!holdout) throw new Error("protected evaluation holdout is not configured");
+	const holdoutBytes = await readBoundedEvalR2Object(
+		holdout,
+		MAX_PROTECTED_HOLDOUT_BYTES,
+		"protected evaluation holdout",
+	);
+	return loadEvalDataset({
+		readFile: async (path) => {
+			const object = await env.EVAL_DATASETS.get(`v1/${path}`);
+			if (!object) throw new Error(`evaluation dataset object is missing: ${path}`);
+			return readBoundedEvalR2Object(
+				object,
+				MAX_PUBLIC_DATASET_OBJECT_BYTES,
+				`evaluation dataset object ${path}`,
+			);
+		},
+		protectedHoldout: { fixtureBytes: holdoutBytes },
+	});
+}
+
+async function readLatestBaselineReference(
+	env: Env,
+	datasetHash: string,
 	currentRunId: number,
-): Promise<{ runId: number; bundle: EvalResultBundle } | null> {
+): Promise<EvalBaselineReference | null> {
 	const row = await env.DB.prepare(
 		`SELECT id, artifact_key, candidate_hash
 		 FROM eval_runs
@@ -342,55 +675,109 @@ async function readLatestBaseline(
 		 ORDER BY completed_at DESC, id DESC
 		 LIMIT 1`,
 	)
-		.bind(dataset.datasetHash, currentRunId)
+		.bind(datasetHash, currentRunId)
 		.first<{ id: number; artifact_key: string; candidate_hash: string }>();
 	if (!row) return null;
-	const object = await env.EVAL_ARTIFACTS.get(row.artifact_key);
+	return { runId: row.id, artifactKey: row.artifact_key, candidateHash: row.candidate_hash };
+}
+
+async function readBaselineArtifact(
+	env: Env,
+	dataset: SealedEvalDataset,
+	reference: EvalBaselineReference,
+): Promise<{ runId: number; bundle: EvalResultBundle }> {
+	const object = await env.EVAL_ARTIFACTS.get(reference.artifactKey);
 	if (!object) throw new Error("evaluation baseline artifact is missing");
-	if (object.size > MAX_ARTIFACT_BYTES)
-		throw new Error("evaluation baseline artifact is too large");
+	const baselineBytes = await readBoundedEvalR2Object(
+		object,
+		MAX_ARTIFACT_BYTES,
+		"evaluation baseline artifact",
+	);
 	let parsed: unknown;
 	try {
 		parsed = JSON.parse(
-			new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(await object.bytes()),
+			new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(baselineBytes),
 		);
 	} catch {
 		throw new Error("evaluation baseline artifact is invalid");
 	}
 	const bundle = evalResultBundle(parsed);
 	assertEvalBundleIntegrity(bundle, dataset);
-	if (bundle.mode !== "live" || (await hashBundle(bundle)) !== row.candidate_hash) {
+	if (bundle.mode !== "live" || (await hashBundle(bundle)) !== reference.candidateHash) {
 		throw new Error("evaluation baseline artifact identity does not match its run");
 	}
-	return { runId: row.id, bundle };
+	return { runId: reference.runId, bundle };
 }
+
+export async function readBoundedEvalR2Object(
+	object: EvalR2Object,
+	maximumBytes: number,
+	name: string,
+): Promise<Uint8Array> {
+	if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1) {
+		throw new TypeError("evaluation R2 byte limit is invalid");
+	}
+	if (!Number.isSafeInteger(object.size) || object.size < 0 || object.size > maximumBytes) {
+		throw new RangeError(`${name} exceeds its byte limit`);
+	}
+	const bytes = new Uint8Array(await object.bytes());
+	if (bytes.byteLength > maximumBytes) throw new RangeError(`${name} exceeds its byte limit`);
+	return bytes;
+}
+
+async function retryProductionRead<T>(callback: () => Promise<T>): Promise<T> {
+	let lastError: unknown;
+	for (let attempt = 0; attempt <= PRODUCTION_READ_RETRY_DELAYS_MS.length; attempt += 1) {
+		try {
+			return await callback();
+		} catch (error) {
+			lastError = error;
+		}
+		const delay = PRODUCTION_READ_RETRY_DELAYS_MS[attempt];
+		if (delay !== undefined) await scheduler.wait(delay);
+	}
+	throw lastError;
+}
+
+interface StoredEvalRunRow {
+	id: number;
+	idempotency_key: string;
+	actor_did: string;
+	actor_role: "admin";
+	reason: string;
+	status: "running" | "succeeded" | "failed";
+	result_json: string | null;
+	comparison_json: string | null;
+	report_markdown: string | null;
+	failure_code: string | null;
+	failure_summary: string | null;
+	created_at: string;
+	lease_token: string | null;
+	lease_expires_at: string | null;
+	workflow_instance_id: string | null;
+}
+
+const STORED_EVAL_RUN_SELECT = `SELECT id, idempotency_key, actor_did, actor_role, reason,
+	status, result_json, comparison_json, report_markdown, failure_code, failure_summary,
+	created_at, lease_token, lease_expires_at, workflow_instance_id FROM eval_runs`;
 
 async function readEvalRun(db: D1Database, idempotencyKey: string): Promise<EvalRunRecord | null> {
 	const row = await db
-		.prepare(
-			`SELECT id, idempotency_key, actor_did, actor_role, reason, status, result_json,
-			        comparison_json, report_markdown, failure_code, failure_summary, created_at,
-			        lease_token, lease_expires_at
-			 FROM eval_runs WHERE idempotency_key = ?`,
-		)
+		.prepare(`${STORED_EVAL_RUN_SELECT} WHERE idempotency_key = ?`)
 		.bind(idempotencyKey)
-		.first<{
-			id: number;
-			idempotency_key: string;
-			actor_did: string;
-			actor_role: "admin";
-			reason: string;
-			status: "running" | "succeeded" | "failed";
-			result_json: string | null;
-			comparison_json: string | null;
-			report_markdown: string | null;
-			failure_code: string | null;
-			failure_summary: string | null;
-			created_at: string;
-			lease_token: string | null;
-			lease_expires_at: string | null;
-		}>();
-	if (!row) return null;
+		.first<StoredEvalRunRow>();
+	return row ? storedEvalRun(row) : null;
+}
+
+async function readEvalRunById(db: D1Database, id: number): Promise<EvalRunRecord | null> {
+	const row = await db
+		.prepare(`${STORED_EVAL_RUN_SELECT} WHERE id = ?`)
+		.bind(id)
+		.first<StoredEvalRunRow>();
+	return row ? storedEvalRun(row) : null;
+}
+
+function storedEvalRun(row: StoredEvalRunRow): EvalRunRecord {
 	let completed: CompletedEvalRun | undefined;
 	if (row.status === "succeeded") {
 		if (!row.result_json || !row.report_markdown) {
@@ -418,6 +805,7 @@ async function readEvalRun(db: D1Database, idempotencyKey: string): Promise<Eval
 		...(row.failure_summary ? { failureSummary: row.failure_summary } : {}),
 		...(row.lease_token ? { leaseToken: row.lease_token } : {}),
 		...(row.lease_expires_at ? { leaseExpiresAt: row.lease_expires_at } : {}),
+		...(row.workflow_instance_id ? { workflowInstanceId: row.workflow_instance_id } : {}),
 	};
 }
 

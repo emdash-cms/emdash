@@ -25,6 +25,7 @@ import {
 } from "./subscriptions/index.js";
 
 export { AssessmentWorkflow } from "./assessment/workflow.js";
+export { LiveEvaluationWorkflow } from "../evals/workflow.js";
 export { LabelerDiscoveryDO } from "./discovery-do.js";
 export { LabelSubscriptionDO } from "./label-subscription-do.js";
 

@@ -228,7 +228,12 @@ function stateStatement(
 			`INSERT INTO label_state
 			   (src, uri, val, cid, neg, cts, exp, trusted, cts_epoch,
 			    cts_fraction, digest, source_sequence, frame_index, collision)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+			 VALUES (?, ?, ?, ?, ?, ?, ?,
+			   CASE WHEN ? = 1 AND EXISTS (
+			     SELECT 1 FROM labellers source
+			     WHERE source.did = ? AND source.active = 1 AND source.trusted = 1
+			   ) THEN 1 ELSE 0 END,
+			   ?, ?, ?, ?, ?, 0)
 			 ON CONFLICT(src, uri, val) DO UPDATE SET
 			   cid = CASE WHEN excluded.cts_epoch > label_state.cts_epoch OR
 			     (excluded.cts_epoch = label_state.cts_epoch AND excluded.cts_fraction > label_state.cts_fraction)
@@ -283,6 +288,7 @@ function stateStatement(
 			label.cts,
 			label.exp ?? null,
 			trusted ? 1 : 0,
+			label.src,
 			event.ctsEpoch,
 			event.ctsFraction,
 			event.stateDigest,
