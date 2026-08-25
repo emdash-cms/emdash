@@ -600,9 +600,12 @@ curl --fail-with-body --silent --show-error \
   | jq -e '.sources | index("did:web:labels.emdashcms.com") != null'
 ```
 
-The endpoint stops each active label-ingest Durable Object, removes its durable D1 cursor,
-wakes it from cursor zero, and marks projection work dirty. It is authenticated with the
-aggregator `ADMIN_TOKEN` and accepts no request body.
+The endpoint stops each active label-ingest Durable Object, then atomically marks the source
+untrusted and replay-pending, advances its replay generation, and removes its durable D1 cursor.
+It then wakes the source from cursor zero. Projection-mode reads remain unavailable until it catches
+up and the generation-fenced activation succeeds. Existing blocks, takedowns, and both withdrawal
+spellings remain enforced in emergency allowlist mode throughout replay. The endpoint is
+authenticated with the aggregator `ADMIN_TOKEN` and accepts no request body.
 
 11. Compare the labeler maximum sequence with the aggregator cursor. Repeat the aggregator
     query until its cursor equals the labeler maximum sequence:
@@ -733,11 +736,17 @@ evaluation status, and durable cursors:
 pnpm --dir apps/labeler exec wrangler d1 execute emdash-labeler --remote --json --command "SELECT key, value, updated_at FROM service_state WHERE key = 'issuance_paused'; SELECT state, COUNT(*) AS count, MIN(updated_at) AS oldest_updated_at FROM assessments GROUP BY state ORDER BY state; SELECT COUNT(*) AS pending_publication, MIN(created_at) AS oldest_pending FROM issued_labels WHERE publication_pending = 1; SELECT COUNT(*) AS reconciliation_required, MIN(observed_at) AS oldest_observed_at FROM discovery_quarantine_events WHERE requires_reconciliation = 1; SELECT quarantine_id, revision, cursor, event_id, reason, observed_at FROM discovery_quarantine_events WHERE requires_reconciliation = 1 ORDER BY observed_at, cursor, quarantine_id LIMIT 100; SELECT ready, COUNT(*) AS count, MIN(expires_at) AS oldest_expiry FROM media_quarantine_objects GROUP BY ready ORDER BY ready; SELECT status, COUNT(*) AS count, MIN(created_at) AS oldest_created_at FROM eval_runs GROUP BY status ORDER BY status; SELECT id, status, dataset_hash, budget_passed, candidate_hash, baseline_run_id, comparison_hash, promotion_challenge_hash, artifact_key, failure_code, created_at, completed_at FROM eval_runs ORDER BY id DESC LIMIT 100; SELECT stream, cursor, last_observed_at, updated_at FROM ingest_state ORDER BY stream"
 ```
 
-Read aggregator source trust, label cursors, collisions, and projection state:
+Read aggregator source trust, freshness, replay state, label cursors, collisions, and projection
+state:
 
 ```sh
-pnpm --dir apps/aggregator exec wrangler d1 execute emdash-aggregator --remote --json --command "SELECT did, active, trusted, required_positive, accepted_state, redaction, last_resolved_at, stop_acknowledged FROM labellers ORDER BY did; SELECT source, cursor, updated_at FROM ingest_state WHERE source LIKE 'labeler:%' ORDER BY source; SELECT COUNT(*) AS active_collisions FROM label_state WHERE trusted = 1 AND collision = 1; SELECT work.dirty_epoch, work.scheduled_epoch, work.acknowledged_epoch, state.active_generation, generation.policy_mode, generation.policy_version, generation.policy_hash, generation.source_epoch, control.source_epoch AS current_source_epoch, generation.completed_at FROM listing_projection_work work JOIN public_projection_state state ON state.id = 1 LEFT JOIN public_projection_generations generation ON generation.generation = state.active_generation JOIN listing_projection_control control ON control.id = 1 WHERE work.id = 1"
+pnpm --dir apps/aggregator exec wrangler d1 execute emdash-aggregator --remote --json --command "SELECT did, active, trusted, required_positive, accepted_state, redaction, replay_pending, replay_generation, health_last_success_at, health_failure_started_at, health_failure_count, last_resolved_at, stop_acknowledged FROM labellers ORDER BY did; SELECT source, cursor, updated_at FROM ingest_state WHERE source LIKE 'labeler:%' ORDER BY source; SELECT COUNT(*) AS active_collisions FROM label_state WHERE trusted = 1 AND collision = 1; SELECT work.dirty_epoch, work.scheduled_epoch, work.acknowledged_epoch, state.active_generation, generation.policy_mode, generation.policy_version, generation.policy_hash, generation.source_epoch, control.source_epoch AS current_source_epoch, generation.completed_at FROM listing_projection_work work JOIN public_projection_state state ON state.id = 1 LEFT JOIN public_projection_generations generation ON generation.generation = state.active_generation JOIN listing_projection_control control ON control.id = 1 WHERE work.id = 1"
 ```
+
+Projection mode requires every configured positive, state, and redaction source to have completed
+a successful catch-up within the previous ten minutes. The label ingestor normally refreshes an
+idle connection after five minutes. At the ten-minute boundary, reads fail closed from persisted
+freshness even if scheduled demotion has not run.
 
 List Workflow instances when assessment runs appear stalled:
 
@@ -762,6 +771,8 @@ the following signals:
 - `discovery_loop_stopped` or repeated `discovery_stream_retry` events, especially with a stale
   `jetstream-enqueued` cursor.
 - `label_subscription_failed`, `label_ingestor_crashed`, or invalid-signature errors.
+- A configured label source has `trusted = 0`, `replay_pending = 1`, a nonzero
+  `health_failure_count`, or no successful catch-up within ten minutes.
 - `publication_pending` is nonzero beyond the normal publication retry interval.
 - The review, error, pending, or running backlog grows, or its oldest `updated_at` stops moving.
 - `discovery_quarantine_events.requires_reconciliation = 1` grows or remains unresolved. Include
