@@ -13,6 +13,8 @@ const MAX_RESULT_BYTES = 64 * 1024;
 const MAX_COMPARISON_BYTES = 256 * 1024;
 const MAX_REPORT_BYTES = 64 * 1024;
 const MAX_ARTIFACT_BYTES = 8 * 1024 * 1024;
+const MAX_PUBLIC_DATASET_OBJECT_BYTES = 8 * 1024 * 1024;
+const MAX_PROTECTED_HOLDOUT_BYTES = 2 * 1024 * 1024;
 const FAILURE_CODE = "EVALUATION_FAILED";
 const FAILURE_SUMMARY = "Protected live evaluation could not be completed";
 const SHA256_HEX_RE = /^[a-f0-9]{64}$/;
@@ -26,6 +28,11 @@ export interface EvalRunInput {
 	reason: string;
 	idempotencyKey: string;
 	now: Date;
+}
+
+export interface EvalR2Object {
+	readonly size: number;
+	bytes(): Promise<Uint8Array>;
 }
 
 export interface PromotionComparison extends EvalComparison {
@@ -272,13 +279,22 @@ export function createD1EvalRunStore(db: D1Database): EvalRunStore {
 async function executeProductionLiveEvaluation(env: Env, runId: number): Promise<CompletedEvalRun> {
 	const holdout = await env.EVAL_DATASETS.get("protected/holdout.json");
 	if (!holdout) throw new Error("protected evaluation holdout is not configured");
+	const holdoutBytes = await readBoundedEvalR2Object(
+		holdout,
+		MAX_PROTECTED_HOLDOUT_BYTES,
+		"protected evaluation holdout",
+	);
 	const dataset = await loadEvalDataset({
 		readFile: async (path) => {
 			const object = await env.EVAL_DATASETS.get(`v1/${path}`);
 			if (!object) throw new Error(`evaluation dataset object is missing: ${path}`);
-			return object.bytes();
+			return readBoundedEvalR2Object(
+				object,
+				MAX_PUBLIC_DATASET_OBJECT_BYTES,
+				`evaluation dataset object ${path}`,
+			);
 		},
-		protectedHoldout: { fixtureBytes: await holdout.bytes() },
+		protectedHoldout: { fixtureBytes: holdoutBytes },
 	});
 	const baseline = await readLatestBaseline(env, dataset, runId);
 	const artifact = await runProtectedLiveEvaluation({
@@ -347,12 +363,15 @@ async function readLatestBaseline(
 	if (!row) return null;
 	const object = await env.EVAL_ARTIFACTS.get(row.artifact_key);
 	if (!object) throw new Error("evaluation baseline artifact is missing");
-	if (object.size > MAX_ARTIFACT_BYTES)
-		throw new Error("evaluation baseline artifact is too large");
+	const baselineBytes = await readBoundedEvalR2Object(
+		object,
+		MAX_ARTIFACT_BYTES,
+		"evaluation baseline artifact",
+	);
 	let parsed: unknown;
 	try {
 		parsed = JSON.parse(
-			new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(await object.bytes()),
+			new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(baselineBytes),
 		);
 	} catch {
 		throw new Error("evaluation baseline artifact is invalid");
@@ -363,6 +382,22 @@ async function readLatestBaseline(
 		throw new Error("evaluation baseline artifact identity does not match its run");
 	}
 	return { runId: row.id, bundle };
+}
+
+export async function readBoundedEvalR2Object(
+	object: EvalR2Object,
+	maximumBytes: number,
+	name: string,
+): Promise<Uint8Array> {
+	if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1) {
+		throw new TypeError("evaluation R2 byte limit is invalid");
+	}
+	if (!Number.isSafeInteger(object.size) || object.size < 0 || object.size > maximumBytes) {
+		throw new RangeError(`${name} exceeds its byte limit`);
+	}
+	const bytes = new Uint8Array(await object.bytes());
+	if (bytes.byteLength > maximumBytes) throw new RangeError(`${name} exceeds its byte limit`);
+	return bytes;
 }
 
 async function readEvalRun(db: D1Database, idempotencyKey: string): Promise<EvalRunRecord | null> {
