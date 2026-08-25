@@ -24,6 +24,27 @@ interface ScopedDbLifecycle {
 	close?: () => void;
 }
 
+/**
+ * Whether the request ended authenticated, for the db adapter's `commit()`.
+ * `isAuthenticated` is captured before the route runs, so it misses
+ * login/signup/invite requests that create the Astro session mid-request;
+ * `session.set()` writes the `astro-session` cookie into the jar synchronously,
+ * so scanning the outgoing cookies detects them. Only outgoing cookies count —
+ * a stale `astro-session` cookie arriving on an anonymous render must not
+ * qualify, or its replica-read bookmark would overwrite a fresher one from an
+ * earlier authenticated write.
+ */
+export function requestEndedAuthenticated(
+	isAuthenticated: boolean,
+	cookies: { headers(): Iterable<string> },
+): boolean {
+	if (isAuthenticated) return true;
+	for (const header of cookies.headers()) {
+		if (header.startsWith("astro-session=")) return true;
+	}
+	return false;
+}
+
 /** Hold the real adapter close behind both response and deferred-task completion. */
 export function coordinateScopedDbLifecycle(scoped: ScopedDbLifecycle): {
 	closed?: Promise<void>;

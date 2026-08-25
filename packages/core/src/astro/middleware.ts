@@ -75,6 +75,7 @@ import {
 	ASTRO_COOKIES_SYMBOL,
 	coordinateScopedDbLifecycle,
 	finishScoped,
+	requestEndedAuthenticated,
 } from "./middleware/scoped-db.js";
 import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
 import { prefetchLayoutData } from "./prefetch.js";
@@ -681,6 +682,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			.startsWith("bearer ");
 		const isWrite = request.method !== "GET" && request.method !== "HEAD";
 		const isAuthenticated = !!sessionUser || hasBearerAuth;
+		const endedAuthenticated = () => requestEndedAuthenticated(isAuthenticated, cookies);
 		const canUseCachedBinding =
 			!isAuthenticated &&
 			!isWrite &&
@@ -790,6 +792,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const anonScoped = createRequestScopedDb({
 					config: config?.database?.config,
 					isAuthenticated,
+					endedAuthenticated,
 					isWrite,
 					canUseCachedBinding,
 					cookies,
@@ -1009,6 +1012,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			const scoped = createRequestScopedDb({
 				config: config?.database?.config,
 				isAuthenticated,
+				endedAuthenticated,
 				isWrite,
 				canUseCachedBinding,
 				cookies: context.cookies,

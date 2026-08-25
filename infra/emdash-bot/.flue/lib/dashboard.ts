@@ -5,9 +5,10 @@ import {
 	readRepoContext,
 	type ManagedIssueSummary,
 } from "./github.js";
-import { KINDS, type Kind, type StateId } from "./machine.js";
+import { KINDS, machineSnapshot, type Kind, type StateId } from "./machine.js";
 import type { OrchestratorDO, PublicIssueSnapshot } from "./orchestrator.js";
 import { currentState } from "./router.js";
+import { runMachineSnapshot } from "./run-lifecycle.js";
 
 const DASHBOARD_CACHE_MS = 20_000;
 const DASHBOARD_ISSUE_LIMIT = 100;
@@ -33,6 +34,10 @@ export interface DashboardIssue extends ManagedIssueSummary, PublicIssueSnapshot
 export interface DashboardPayload {
 	updatedAt: string;
 	repositoryUrl: string;
+	machines: {
+		issue: ReturnType<typeof machineSnapshot>;
+		run: ReturnType<typeof runMachineSnapshot>;
+	};
 	issues: DashboardIssue[];
 }
 
@@ -73,6 +78,7 @@ export async function loadDashboardPayload(env: Env): Promise<DashboardPayload> 
 	return {
 		updatedAt: new Date().toISOString(),
 		repositoryUrl: `https://github.com/${repo.owner}/${repo.repo}`,
+		machines: { issue: machineSnapshot(), run: runMachineSnapshot() },
 		issues,
 	};
 }
