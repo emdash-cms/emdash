@@ -4,6 +4,17 @@ import { applyD1Migrations, env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { RecordsJob } from "../src/env.js";
+import { readLabelCursor } from "../src/label-ingestion.js";
+import {
+	enforceRequiredLabelSourceHealth,
+	markLabelSourceHealthy,
+	REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS,
+	stageLabelSourceReplay,
+} from "../src/label-source-health.js";
+import {
+	activateLabelSourceAfterReplay,
+	readLabelSourceTrust,
+} from "../src/label-source-policy.js";
 import { upsertHydratedLabelState } from "../src/label-state.js";
 import { isCurrentSubject, listCurrentSubjects } from "../src/labeler-reconciliation-service.js";
 import {
@@ -221,6 +232,20 @@ describe("projection policy", () => {
 		expect(allowed?.headers.get("atproto-accept-labelers")).toBe(accepted);
 	});
 
+	it("rejects accepted-labeler modifiers instead of silently ignoring them", async () => {
+		const response = await handleXrpc(
+			configuredEnv("projection", []),
+			new Request(`https://test/xrpc/${NSID.aggregatorGetPackage}`, {
+				headers: { "atproto-accept-labelers": `${LABELER_DID};redact` },
+			}),
+		);
+		expect(response?.status).toBe(400);
+		expect(await response?.json()).toMatchObject({
+			error: "InvalidRequest",
+			message: "accepted labelers header is invalid",
+		});
+	});
+
 	it("prefers the current profile head over a later-observed historical revision", async () => {
 		await seedProfile({
 			cid: PROFILE_CID_2,
@@ -368,6 +393,333 @@ describe("projection policy", () => {
 		expect(body).not.toMatchObject({
 			labels: expect.arrayContaining([expect.objectContaining({ val: "security:yanked" })]),
 		});
+	});
+
+	it("atomically stages explicit replay and hides stale approved rows before cursor reset", async () => {
+		await seedApprovedPackage({
+			did: DID_A,
+			slug: "demo",
+			profileCid: PROFILE_CID_1,
+			releaseCid: RELEASE_CID_1,
+		});
+		await seedLabelerRoles({ acceptedState: true, redaction: true, requiredPositive: true });
+		await markLabelSourceHealthy(testEnv.DB, LABELER_DID, NOW);
+		await rebuild("projection");
+		await testEnv.DB.prepare(
+			`INSERT INTO ingest_state (source, cursor, updated_at)
+			 VALUES (?, '12', ?) ON CONFLICT(source) DO UPDATE SET cursor = '12'`,
+		)
+			.bind(`labeler:${LABELER_DID}`, NOW.toISOString())
+			.run();
+		await expectVisible(DID_A, "demo");
+
+		expect(await stageLabelSourceReplay(testEnv.DB, LABELER_DID, NOW)).toBe(true);
+		const staged = await testEnv.DB.prepare(
+			`SELECT trusted, replay_pending, replay_generation
+			 FROM labellers WHERE did = ?`,
+		)
+			.bind(LABELER_DID)
+			.first<{ trusted: number; replay_pending: number; replay_generation: number }>();
+		expect(staged).toEqual({ trusted: 0, replay_pending: 1, replay_generation: 1 });
+		expect(
+			await testEnv.DB.prepare(
+				"SELECT COUNT(*) AS count FROM label_state WHERE trusted <> 0",
+			).first<{ count: number }>(),
+		).toEqual({ count: 0 });
+		expect(await readLabelCursor(testEnv.DB, LABELER_DID)).toBe(0);
+		await expectUnavailable(DID_A, "demo");
+
+		expect(await stageLabelSourceReplay(testEnv.DB, LABELER_DID, NOW)).toBe(true);
+		expect(
+			await testEnv.DB.prepare(
+				"SELECT replay_pending, replay_generation FROM labellers WHERE did = ?",
+			)
+				.bind(LABELER_DID)
+				.first(),
+		).toEqual({ replay_pending: 1, replay_generation: 2 });
+	});
+
+	it("keeps later restrictive replay state effective when catch-up restores trust", async () => {
+		await seedApprovedPackage({
+			did: DID_A,
+			slug: "demo",
+			profileCid: PROFILE_CID_1,
+			releaseCid: RELEASE_CID_1,
+		});
+		await seedLabelerRoles({ acceptedState: true, redaction: true, requiredPositive: true });
+		await markLabelSourceHealthy(testEnv.DB, LABELER_DID, NOW);
+		await rebuild("projection");
+		await stageLabelSourceReplay(testEnv.DB, LABELER_DID, NOW);
+		await upsertHydratedLabelState(
+			testEnv.DB,
+			{
+				ver: 1,
+				src: LABELER_DID,
+				uri: packageProfileUri(DID_A, "demo"),
+				cid: PROFILE_CID_1,
+				val: "listing-blocked",
+				cts: new Date(NOW.getTime() + 1_000).toISOString(),
+			},
+			false,
+		);
+		await activateLabelSourceAfterReplay(
+			testEnv.DB,
+			LABELER_DID,
+			moderationPolicy.policyVersion,
+			1,
+			new Date(NOW.getTime() + 2_000),
+		);
+		await rebuild("projection");
+		await expectUnavailable(DID_A, "demo");
+	});
+
+	it.each(["listing-blocked", "!takedown"])(
+		"keeps an existing %s enforced in allowlist mode until replay catch-up completes",
+		async (value) => {
+			await seedProfile({ cid: PROFILE_CID_1, name: "Allowlisted", at: NOW });
+			await seedRelease({ cid: RELEASE_CID_1, version: "1.0.0", at: NOW });
+			await seedLabelerRoles({ acceptedState: true, redaction: true, requiredPositive: true });
+			await putLabel(packageProfileUri(DID_A, "demo"), PROFILE_CID_1, value);
+			const allowlist = [packageProfileUri(DID_A, "demo")];
+			await stageLabelSourceReplay(testEnv.DB, LABELER_DID, NOW);
+
+			const duringReplay = await xrpc(
+				"allowlist",
+				`${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+				allowlist,
+			);
+			expect(duringReplay.status).toBe(404);
+			await upsertHydratedLabelState(
+				testEnv.DB,
+				{
+					ver: 1,
+					src: LABELER_DID,
+					uri: packageProfileUri(DID_A, "demo"),
+					cid: PROFILE_CID_1,
+					val: value,
+					neg: true,
+					cts: new Date(NOW.getTime() + 1_000).toISOString(),
+				},
+				false,
+			);
+			const afterMidReplayNegation = await xrpc(
+				"allowlist",
+				`${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+				allowlist,
+			);
+			expect(afterMidReplayNegation.status).toBe(404);
+
+			await activateLabelSourceAfterReplay(
+				testEnv.DB,
+				LABELER_DID,
+				moderationPolicy.policyVersion,
+				1,
+				new Date(NOW.getTime() + 2_000),
+			);
+			const afterCatchUp = await xrpc(
+				"allowlist",
+				`${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+				allowlist,
+			);
+			expect(afterCatchUp.status).toBe(200);
+		},
+	);
+
+	it.each(["security:yanked", "security-yanked"])(
+		"keeps an existing %s withdrawal enforced throughout replay",
+		async (value) => {
+			await seedProfile({ cid: PROFILE_CID_1, name: "Allowlisted", at: NOW });
+			await seedRelease({ cid: RELEASE_CID_1, version: "1.0.0", at: NOW });
+			await seedLabelerRoles({ acceptedState: true, redaction: true, requiredPositive: true });
+			const uri = releaseUri(DID_A, "demo", "1.0.0");
+			await putLabel(uri, RELEASE_CID_1, value);
+			const allowlist = [packageProfileUri(DID_A, "demo")];
+			await stageLabelSourceReplay(testEnv.DB, LABELER_DID, NOW);
+
+			const duringReplay = await xrpc(
+				"allowlist",
+				`${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+				allowlist,
+			);
+			expect(duringReplay.status).toBe(404);
+			await upsertHydratedLabelState(
+				testEnv.DB,
+				{
+					ver: 1,
+					src: LABELER_DID,
+					uri,
+					cid: RELEASE_CID_1,
+					val: value,
+					neg: true,
+					cts: new Date(NOW.getTime() + 1_000).toISOString(),
+				},
+				false,
+			);
+			const afterMidReplayNegation = await xrpc(
+				"allowlist",
+				`${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+				allowlist,
+			);
+			expect(afterMidReplayNegation.status).toBe(404);
+		},
+	);
+
+	it("enforces a later restrictive label received while replay remains untrusted", async () => {
+		await seedProfile({ cid: PROFILE_CID_1, name: "Allowlisted", at: NOW });
+		await seedRelease({ cid: RELEASE_CID_1, version: "1.0.0", at: NOW });
+		await seedLabelerRoles({ acceptedState: true, redaction: true, requiredPositive: true });
+		await stageLabelSourceReplay(testEnv.DB, LABELER_DID, NOW);
+		await upsertHydratedLabelState(
+			testEnv.DB,
+			{
+				ver: 1,
+				src: LABELER_DID,
+				uri: packageProfileUri(DID_A, "demo"),
+				cid: PROFILE_CID_1,
+				val: "listing-blocked",
+				cts: new Date(NOW.getTime() + 1_000).toISOString(),
+			},
+			false,
+		);
+		const response = await xrpc(
+			"allowlist",
+			`${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+			[packageProfileUri(DID_A, "demo")],
+		);
+		expect(response.status).toBe(404);
+	});
+
+	it("revokes replay-guard authority when the source becomes inactive", async () => {
+		await seedProfile({ cid: PROFILE_CID_1, name: "Allowlisted", at: NOW });
+		await seedRelease({ cid: RELEASE_CID_1, version: "1.0.0", at: NOW });
+		await seedLabelerRoles({ acceptedState: true, redaction: true, requiredPositive: true });
+		await putLabel(packageProfileUri(DID_A, "demo"), PROFILE_CID_1, "listing-blocked");
+		await stageLabelSourceReplay(testEnv.DB, LABELER_DID, NOW);
+		await testEnv.DB.prepare(
+			`UPDATE labellers SET active = 0, trusted = 0, replay_pending = 0,
+			 required_positive = 0, accepted_state = 0, redaction = 0
+			 WHERE did = ?`,
+		)
+			.bind(LABELER_DID)
+			.run();
+		const response = await xrpc(
+			"allowlist",
+			`${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+			[packageProfileUri(DID_A, "demo")],
+		);
+		expect(response.status).toBe(200);
+		expect(
+			await testEnv.DB.prepare(
+				"SELECT COUNT(*) AS count FROM listing_replay_restrictions WHERE src = ?",
+			)
+				.bind(LABELER_DID)
+				.first(),
+		).toEqual({ count: 0 });
+	});
+
+	it.each([
+		["listing-blocked", "profile"],
+		["!takedown", "profile"],
+		["security:yanked", "release"],
+		["security-yanked", "release"],
+	] as const)("preserves %s during required-source health demotion", async (value, kind) => {
+		await seedProfile({ cid: PROFILE_CID_1, name: "Allowlisted", at: NOW });
+		await seedRelease({ cid: RELEASE_CID_1, version: "1.0.0", at: NOW });
+		await seedLabelerRoles({ acceptedState: true, redaction: true, requiredPositive: true });
+		const uri =
+			kind === "profile" ? packageProfileUri(DID_A, "demo") : releaseUri(DID_A, "demo", "1.0.0");
+		await putLabel(uri, kind === "profile" ? PROFILE_CID_1 : RELEASE_CID_1, value);
+		await markLabelSourceHealthy(testEnv.DB, LABELER_DID, NOW);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT active, trusted, required_positive, health_last_success_epoch
+				 FROM labellers WHERE did = ?`,
+			)
+				.bind(LABELER_DID)
+				.first(),
+		).toEqual({
+			active: 1,
+			trusted: 1,
+			required_positive: 1,
+			health_last_success_epoch: NOW.getTime(),
+		});
+		const boundary = new Date(NOW.getTime() + REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS);
+		expect(await enforceRequiredLabelSourceHealth(testEnv.DB, boundary)).toEqual([LABELER_DID]);
+		const method =
+			kind === "profile"
+				? `${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`
+				: `${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`;
+		const response = await xrpc("allowlist", method, [packageProfileUri(DID_A, "demo")]);
+		expect(response.status).toBe(404);
+	});
+
+	it("demotes required sources exactly at the persisted freshness boundary", async () => {
+		await seedApprovedPackage({
+			did: DID_A,
+			slug: "demo",
+			profileCid: PROFILE_CID_1,
+			releaseCid: RELEASE_CID_1,
+		});
+		await seedLabelerRoles({ acceptedState: true, redaction: true, requiredPositive: true });
+		await markLabelSourceHealthy(testEnv.DB, LABELER_DID, NOW);
+		await rebuild("projection");
+		const beforeBoundary = new Date(NOW.getTime() + REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS - 1);
+		expect(await enforceRequiredLabelSourceHealth(testEnv.DB, beforeBoundary)).toEqual([]);
+		await expectVisible(DID_A, "demo");
+
+		const boundary = new Date(NOW.getTime() + REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS);
+		expect(await enforceRequiredLabelSourceHealth(testEnv.DB, boundary)).toEqual([LABELER_DID]);
+		await expectUnavailable(DID_A, "demo");
+		await markLabelSourceHealthy(testEnv.DB, LABELER_DID, new Date(boundary.getTime() + 1));
+		expect(await readLabelSourceTrust(testEnv.DB, LABELER_DID)).toBe(false);
+	});
+
+	it("does not health-demote sources without an authoritative policy role or inactive sources", async () => {
+		await seedLabelerRoles({ acceptedState: false, redaction: false, requiredPositive: false });
+		await markLabelSourceHealthy(testEnv.DB, LABELER_DID, NOW);
+		const stale = new Date(NOW.getTime() + REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS);
+		expect(await enforceRequiredLabelSourceHealth(testEnv.DB, stale)).toEqual([]);
+		expect(await readLabelSourceTrust(testEnv.DB, LABELER_DID)).toBe(true);
+
+		await testEnv.DB.prepare("UPDATE labellers SET active = 0, trusted = 0 WHERE did = ?")
+			.bind(LABELER_DID)
+			.run();
+		expect(await enforceRequiredLabelSourceHealth(testEnv.DB, stale)).toEqual([]);
+	});
+
+	it("fails projection reads when a redaction-only authoritative source becomes stale", async () => {
+		const redactionDid = "did:plc:redactionhealth000000000001";
+		const policy: ListingModerationPolicy = {
+			...moderationPolicy,
+			redactionSources: [redactionDid],
+		};
+		await seedApprovedPackage({
+			did: DID_A,
+			slug: "demo",
+			profileCid: PROFILE_CID_1,
+			releaseCid: RELEASE_CID_1,
+		});
+		await seedLabelerRoles({ acceptedState: true, redaction: false, requiredPositive: true });
+		await seedLabelerRoles({
+			did: redactionDid,
+			acceptedState: false,
+			redaction: true,
+			requiredPositive: false,
+		});
+		await markLabelSourceHealthy(testEnv.DB, LABELER_DID, NOW);
+		await markLabelSourceHealthy(testEnv.DB, redactionDid, NOW);
+		await rebuild("projection", [], policy);
+		const boundary = new Date(NOW.getTime() + REQUIRED_LABEL_SOURCE_HEALTH_TIMEOUT_MS);
+		await markLabelSourceHealthy(testEnv.DB, LABELER_DID, boundary);
+		expect(await enforceRequiredLabelSourceHealth(testEnv.DB, boundary)).toEqual([redactionDid]);
+
+		const response = await xrpc(
+			"projection",
+			`${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+			[],
+			policy,
+		);
+		expect(await response.json()).toMatchObject({ error: "ListingUnavailable" });
 	});
 
 	it("keeps both release-withdrawal spellings enforced during emergency allowlist", async () => {
@@ -762,6 +1114,7 @@ describe("projection policy", () => {
 			profileCid: PROFILE_CID_1,
 			releaseCid: RELEASE_CID_1,
 		});
+		await seedPolicySourcesReady(moderationPolicy);
 		const listingPolicy = await getListingPolicy(configuredEnv("projection", []));
 		await expect(
 			rebuildPublicProjection(testEnv.DB, {
@@ -1147,6 +1500,7 @@ async function putLabel(
 }
 
 async function seedLabelerRoles(options: {
+	did?: string;
 	acceptedState: boolean;
 	redaction: boolean;
 	requiredPositive?: boolean;
@@ -1166,8 +1520,8 @@ async function seedLabelerRoles(options: {
 		   policy_version = excluded.policy_version`,
 	)
 		.bind(
-			LABELER_DID,
-			`${LABELER_DID}#atproto_label`,
+			options.did ?? LABELER_DID,
+			`${options.did ?? LABELER_DID}#atproto_label`,
 			NOW.toISOString(),
 			NOW.toISOString(),
 			options.requiredPositive ? 1 : 0,
@@ -1253,12 +1607,52 @@ async function rebuild(
 	allowlist: string[] = [],
 	policy: ListingModerationPolicy = moderationPolicy,
 ): Promise<void> {
+	if (mode === "projection") await seedPolicySourcesReady(policy);
 	const runtimeEnv = configuredEnv(mode, allowlist, testEnv.DB, policy);
 	await rebuildPublicProjection(testEnv.DB, {
 		listingPolicy: await getListingPolicy(runtimeEnv),
 		moderationPolicy: policy,
 		evaluatedAt: NOW,
 	});
+}
+
+async function seedPolicySourcesReady(policy: ListingModerationPolicy): Promise<void> {
+	const sources = new Set([
+		...policy.requiredPositiveSources,
+		...policy.acceptedStateSources,
+		...policy.redactionSources,
+	]);
+	for (const did of sources) {
+		await testEnv.DB.prepare(
+			`INSERT INTO labellers
+			   (did, endpoint, signing_key, signing_key_id, trusted, added_at,
+			    last_resolved_at, active, required_positive, accepted_state,
+			    redaction, policy_version, health_last_success_at, health_last_success_epoch)
+			 VALUES (?, 'https://labels.example', 'key', ?, 1, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+			 ON CONFLICT(did) DO UPDATE SET
+			   active = 1,
+			   trusted = 1,
+			   required_positive = excluded.required_positive,
+			   accepted_state = excluded.accepted_state,
+			   redaction = excluded.redaction,
+			   policy_version = excluded.policy_version,
+			   health_last_success_at = excluded.health_last_success_at,
+			   health_last_success_epoch = excluded.health_last_success_epoch`,
+		)
+			.bind(
+				did,
+				`${did}#atproto_label`,
+				NOW.toISOString(),
+				NOW.toISOString(),
+				policy.requiredPositiveSources.includes(did) ? 1 : 0,
+				policy.acceptedStateSources.includes(did) ? 1 : 0,
+				policy.redactionSources.includes(did) ? 1 : 0,
+				policy.policyVersion,
+				NOW.toISOString(),
+				NOW.getTime(),
+			)
+			.run();
+	}
 }
 
 function xrpc(

@@ -7,15 +7,18 @@ import { DurableObject } from "cloudflare:workers";
 
 import { LabelIngestor } from "./label-ingestor.js";
 import {
-	activateLabelSourceAfterReplay,
-	labelSourcePolicy,
-	readLabelSourceTrust,
-} from "./label-source-policy.js";
+	markLabelSourceFailure,
+	markLabelSourceHealthy,
+	readLabelSourceActivationState,
+	stageLabelSourceReplay,
+} from "./label-source-health.js";
+import { activateLabelSourceAfterReplay, labelSourcePolicy } from "./label-source-policy.js";
 import { RealLabelQueryClient, RealLabelStreamClient } from "./label-stream-client.js";
 import { LabelerResolver } from "./labeler-resolver.js";
 import { getListingPolicy } from "./listing-policy.js";
 import { acknowledgeProjectionWork, readProjectionWork } from "./projection-work.js";
 import { rebuildPublicProjection, StaleProjectionRebuildError } from "./public-projection.js";
+import { RestartableRunLoop } from "./run-loop-lifecycle.js";
 import { boundFetch } from "./utils.js";
 
 const DID_KEY = "labeler:did";
@@ -26,15 +29,30 @@ export const PROJECTION_COORDINATOR_NAME = "projection-rebuild";
 
 export class LabelIngestDO extends DurableObject<Env> {
 	private did: string | null = null;
-	private ingestor: LabelIngestor | null = null;
-	private runPromise: Promise<void> | null = null;
+	private readonly runLoop: RestartableRunLoop<LabelIngestor>;
 	private stopInProgress: Promise<void> | null = null;
 
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
+		this.runLoop = new RestartableRunLoop(
+			ctx,
+			() => this.createIngestor(),
+			(error) => {
+				console.error(
+					JSON.stringify({
+						event: "label_ingestor_crashed",
+						source: this.did,
+						error: error instanceof Error ? error.message : String(error),
+					}),
+				);
+			},
+		);
 		void ctx.blockConcurrencyWhile(async () => {
 			const did = await ctx.storage.get<string>(DID_KEY);
-			if (did) this.start(did);
+			if (did) {
+				this.did = did;
+				this.runLoop.ensureStarted();
+			}
 		});
 	}
 
@@ -46,24 +64,49 @@ export class LabelIngestDO extends DurableObject<Env> {
 		await this.stopInProgress;
 		if (!this.did) {
 			await this.ctx.storage.put(DID_KEY, did);
-			this.start(did);
+			this.did = did;
 		} else if (this.did !== did) {
 			throw new TypeError("label ingest Durable Object DID mismatch");
 		}
+		const ingestor = this.runLoop.ensureStarted();
 		return {
 			did,
-			cursor: this.ingestor?.currentCursor ?? null,
-			consecutiveFailures: this.ingestor?.consecutiveFailures ?? 0,
+			cursor: ingestor.currentCursor,
+			consecutiveFailures: ingestor.consecutiveFailures,
 		};
 	}
 
 	async stop(did: string): Promise<void> {
-		if (this.stopInProgress) return this.stopInProgress;
-		this.stopInProgress = this.finishStop(did);
+		await this.runWithStopFence(() => this.finishStop(did));
+	}
+
+	async replay(did: string, observedAt: string): Promise<void> {
+		const replayTime = new Date(observedAt);
+		if (!Number.isFinite(replayTime.getTime())) throw new TypeError("replay time is invalid");
+		await this.runWithStopFence(async () => {
+			if (this.did !== null && this.did !== did) {
+				throw new TypeError("label ingest Durable Object DID mismatch");
+			}
+			await this.runLoop.stopAndWait();
+			if (!(await stageLabelSourceReplay(this.env.DB, did, replayTime))) {
+				throw new Error(`label source could not be staged for replay: ${did}`);
+			}
+			if (!this.did) {
+				this.did = did;
+				await this.ctx.storage.put(DID_KEY, did);
+			}
+			this.runLoop.ensureStarted();
+		});
+	}
+
+	private async runWithStopFence(operation: () => Promise<void>): Promise<void> {
+		while (this.stopInProgress) await this.stopInProgress;
+		const running = operation();
+		this.stopInProgress = running;
 		try {
-			await this.stopInProgress;
+			await running;
 		} finally {
-			this.stopInProgress = null;
+			if (this.stopInProgress === running) this.stopInProgress = null;
 		}
 	}
 
@@ -71,11 +114,7 @@ export class LabelIngestDO extends DurableObject<Env> {
 		if (this.did !== null && this.did !== did) {
 			throw new TypeError("label ingest Durable Object DID mismatch");
 		}
-		const running = this.runPromise;
-		this.ingestor?.stop();
-		if (running) await running;
-		this.ingestor = null;
-		this.runPromise = null;
+		await this.runLoop.stopAndWait();
 		this.did = null;
 		await this.ctx.storage.delete(DID_KEY);
 	}
@@ -106,9 +145,9 @@ export class LabelIngestDO extends DurableObject<Env> {
 		await this.ctx.storage.setAlarm(Date.now() + REBUILD_DEBOUNCE_MS);
 	}
 
-	private start(did: string): void {
-		if (this.ingestor) return;
-		this.did = did;
+	private createIngestor(): LabelIngestor {
+		const did = this.did;
+		if (!did) throw new Error("label ingest Durable Object has no configured DID");
 		const resolver = new LabelerResolver(
 			this.env.DB,
 			new CompositeDidDocumentResolver({
@@ -118,7 +157,7 @@ export class LabelIngestDO extends DurableObject<Env> {
 				},
 			}),
 		);
-		this.ingestor = new LabelIngestor({
+		return new LabelIngestor({
 			did,
 			db: this.env.DB,
 			resolver,
@@ -128,26 +167,27 @@ export class LabelIngestDO extends DurableObject<Env> {
 			onAccepted: () =>
 				this.env.LABEL_INGEST_DO.getByName(PROJECTION_COORDINATOR_NAME).markProjectionDirty(),
 			sourceTrust: {
-				read: () => readLabelSourceTrust(this.env.DB, did),
-				activate: async () => {
+				read: () => readLabelSourceActivationState(this.env.DB, did),
+				activate: async (replayGeneration, activatedAt) => {
 					const policy = labelSourcePolicy(await getListingPolicy(this.env));
 					if (!policy.acceptedSources.has(did)) {
 						throw new Error(`labeler is no longer configured: ${did}`);
 					}
-					if (!(await activateLabelSourceAfterReplay(this.env.DB, did, policy.policyVersion))) {
+					if (
+						!(await activateLabelSourceAfterReplay(
+							this.env.DB,
+							did,
+							policy.policyVersion,
+							replayGeneration,
+							activatedAt,
+						))
+					) {
 						throw new Error(`labeler activation conflicted with policy: ${did}`);
 					}
 				},
+				markHealthy: (observedAt) => markLabelSourceHealthy(this.env.DB, did, observedAt),
+				markFailure: (observedAt) => markLabelSourceFailure(this.env.DB, did, observedAt),
 			},
-		});
-		this.runPromise = this.ingestor.run().catch((error) => {
-			console.error(
-				JSON.stringify({
-					event: "label_ingestor_crashed",
-					source: did,
-					error: error instanceof Error ? error.message : String(error),
-				}),
-			);
 		});
 	}
 }

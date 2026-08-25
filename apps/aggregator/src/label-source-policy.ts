@@ -1,3 +1,4 @@
+import { labelSourceHealthInstant } from "./label-source-health.js";
 import type { ListingPolicyConfig } from "./listing-policy.js";
 
 export interface LabelSourcePolicy {
@@ -77,12 +78,17 @@ export async function reconcileLabelSources(
 					`INSERT INTO labellers
 					   (did, endpoint, signing_key, signing_key_id, trusted, added_at,
 					    last_resolved_at, active, required_positive, accepted_state,
-					    redaction, policy_version)
+					    redaction, policy_version, replay_pending, replay_generation)
 					 VALUES (?, '', '', ?, 0, datetime('now'), '1970-01-01T00:00:00.000Z',
-					         1, ?, ?, ?, ?)
+					         1, ?, ?, ?, ?, 1, 1)
 					 ON CONFLICT(did) DO UPDATE SET
 					   trusted = CASE
 					     WHEN labellers.active = 1 THEN labellers.trusted ELSE 0 END,
+					   replay_pending = CASE
+					     WHEN labellers.active = 1 THEN labellers.replay_pending ELSE 1 END,
+					   replay_generation = CASE
+					     WHEN labellers.active = 1 THEN labellers.replay_generation
+					     ELSE labellers.replay_generation + 1 END,
 					   active = 1,
 					   required_positive = excluded.required_positive,
 					   accepted_state = excluded.accepted_state,
@@ -116,7 +122,7 @@ export async function reconcileLabelSources(
 			statements.push(
 				db
 					.prepare(
-						`UPDATE labellers SET trusted = 0, active = 0,
+						`UPDATE labellers SET trusted = 0, active = 0, replay_pending = 0,
 						 required_positive = 0, accepted_state = 0, redaction = 0,
 						 policy_version = ?, stop_acknowledged = 0 WHERE did = ?`,
 					)
@@ -146,14 +152,28 @@ export async function activateLabelSourceAfterReplay(
 	db: D1Database,
 	did: string,
 	policyVersion: string,
+	replayGeneration: number,
+	activatedAt: Date,
 ): Promise<boolean> {
+	if (!Number.isSafeInteger(replayGeneration) || replayGeneration < 0) {
+		throw new TypeError("label source replay generation is invalid");
+	}
+	const instant = labelSourceHealthInstant(activatedAt);
 	await db.batch([
 		db
 			.prepare(
-				`UPDATE labellers SET trusted = 1
-				 WHERE did = ? AND active = 1 AND policy_version = ?`,
+				`UPDATE labellers SET
+				   trusted = 1,
+				   replay_pending = 0,
+				   health_last_success_at = ?,
+				   health_last_success_epoch = ?,
+				   health_failure_started_at = NULL,
+				   health_failure_started_epoch = NULL,
+				   health_failure_count = 0
+				 WHERE did = ? AND active = 1 AND policy_version = ?
+				   AND replay_generation = ?`,
 			)
-			.bind(did, policyVersion),
+			.bind(instant.iso, instant.epoch, did, policyVersion, replayGeneration),
 		db
 			.prepare(
 				`UPDATE label_state SET trusted = 1
@@ -161,17 +181,18 @@ export async function activateLabelSourceAfterReplay(
 				   AND EXISTS (
 				     SELECT 1 FROM labellers source
 				     WHERE source.did = ? AND source.active = 1 AND source.trusted = 1
-				       AND source.policy_version = ?
+				       AND source.policy_version = ? AND source.replay_generation = ?
 				   )`,
 			)
-			.bind(did, did, policyVersion),
+			.bind(did, did, policyVersion, replayGeneration),
 	]);
 	const row = await db
 		.prepare(
 			`SELECT 1 AS active FROM labellers
-			 WHERE did = ? AND active = 1 AND trusted = 1 AND policy_version = ?`,
+			 WHERE did = ? AND active = 1 AND trusted = 1 AND policy_version = ?
+			   AND replay_generation = ? AND replay_pending = 0`,
 		)
-		.bind(did, policyVersion)
+		.bind(did, policyVersion, replayGeneration)
 		.first<{ active: number }>();
 	return row !== null;
 }

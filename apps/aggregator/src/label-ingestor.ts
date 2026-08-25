@@ -21,6 +21,18 @@ import type {
 } from "./labeler-resolver.js";
 import { acknowledgeProjectionScheduling, readProjectionWork } from "./projection-work.js";
 
+export interface LabelSourceTrustState {
+	trusted: boolean;
+	replayGeneration: number;
+}
+
+export interface LabelSourceTrustControl {
+	read(): Promise<LabelSourceTrustState>;
+	activate(replayGeneration: number, activatedAt: Date): Promise<void>;
+	markHealthy(observedAt: Date): Promise<void>;
+	markFailure(observedAt: Date): Promise<boolean>;
+}
+
 export interface LabelIngestorOptions {
 	did: string;
 	db: D1Database;
@@ -32,10 +44,7 @@ export interface LabelIngestorOptions {
 	sleep?: (milliseconds: number) => Promise<void>;
 	now?: () => number;
 	scheduleExpiry?: (callback: () => void, milliseconds: number) => () => void;
-	sourceTrust?: {
-		read(): Promise<boolean>;
-		activate(): Promise<void>;
-	};
+	sourceTrust?: LabelSourceTrustControl;
 }
 
 export class LabelIngestor {
@@ -70,6 +79,7 @@ export class LabelIngestor {
 				this.failures = 0;
 			} catch (error) {
 				this.failures++;
+				await this.recordFailure();
 				console.warn(
 					JSON.stringify({
 						event: "label_subscription_failed",
@@ -98,7 +108,12 @@ export class LabelIngestor {
 
 	private async consumeOnce(): Promise<void> {
 		await this.scheduleProjectionWork();
-		let sourceTrusted = (await this.options.sourceTrust?.read()) ?? true;
+		const initialTrust = (await this.options.sourceTrust?.read()) ?? {
+			trusted: true,
+			replayGeneration: 0,
+		};
+		let sourceTrusted = initialTrust.trusted;
+		const replayGeneration = initialTrust.replayGeneration;
 		let identity = await this.options.resolver.resolve(this.options.did);
 		let verificationKeys: ResolvedLabelVerificationKey[] = [
 			{ publicKey: identity.publicKey },
@@ -128,10 +143,17 @@ export class LabelIngestor {
 		};
 
 		await this.replayQuery(() => identity, verify, sourceTrusted);
-		if (!sourceTrusted) {
-			await this.options.sourceTrust?.activate();
+		const caughtUpTrust = (await this.options.sourceTrust?.read()) ?? initialTrust;
+		if (caughtUpTrust.replayGeneration !== replayGeneration) {
+			throw new Error("label source replay generation changed during catch-up");
+		}
+		if (!caughtUpTrust.trusted) {
+			await this.options.sourceTrust?.activate(replayGeneration, new Date(this.now()));
 			sourceTrusted = true;
 			await this.scheduleProjectionWork();
+		} else {
+			sourceTrusted = true;
+			await this.options.sourceTrust?.markHealthy(new Date(this.now()));
 		}
 		this.cursor = await readLabelCursor(this.options.db, this.options.did);
 		this.assertIdentityFresh(identity);
@@ -144,6 +166,13 @@ export class LabelIngestor {
 		try {
 			for await (const frame of subscription) {
 				if (this.stopped) return;
+				const currentTrust = await this.options.sourceTrust?.read();
+				if (
+					currentTrust &&
+					(!currentTrust.trusted || currentTrust.replayGeneration !== replayGeneration)
+				) {
+					throw new Error("label source trust changed; authoritative replay is required");
+				}
 				this.assertIdentityFresh(identity);
 				if (frame.seq <= this.cursor) continue;
 				if (frame.seq !== this.cursor + 1) {
@@ -161,6 +190,7 @@ export class LabelIngestor {
 					trusted: sourceTrusted,
 				});
 				this.cursor = frame.seq;
+				await this.options.sourceTrust?.markHealthy(new Date(this.now()));
 				if (accepted.projectionSchedulingPending) await this.scheduleProjectionWork();
 			}
 		} finally {
@@ -210,6 +240,23 @@ export class LabelIngestor {
 		if (!work.schedulingPending) return;
 		await this.options.onAccepted();
 		await acknowledgeProjectionScheduling(this.options.db, work.dirtyEpoch);
+	}
+
+	private async recordFailure(): Promise<void> {
+		if (!this.options.sourceTrust) return;
+		try {
+			if (await this.options.sourceTrust.markFailure(new Date(this.now()))) {
+				await this.options.onAccepted();
+			}
+		} catch (error) {
+			console.error(
+				JSON.stringify({
+					event: "label_source_health_update_failed",
+					source: this.options.did,
+					error: error instanceof Error ? error.message : String(error),
+				}),
+			);
+		}
 	}
 
 	private now(): number {
