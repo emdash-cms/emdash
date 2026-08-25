@@ -11,7 +11,7 @@ import {
 	Envelope,
 	DownloadSimple,
 	CaretDown,
-	ChartLineUp,
+	Images,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
@@ -70,7 +70,7 @@ export function Settings() {
 					<SettingsSection title={t`Media`}>
 						<SettingsNavRow
 							to="/settings/media-usage"
-							icon={<ChartLineUp className="h-5 w-5" />}
+							icon={<Images className="h-5 w-5" />}
 							title={t`Media Usage`}
 							description={t`Track where media is used across your content`}
 						/>
