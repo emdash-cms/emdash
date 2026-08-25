@@ -96,7 +96,7 @@ Returns: `void`
 
 ### `content:beforeSave`
 
-Runs before save. Return modified content, void to keep unchanged, or throw to cancel. Cancelling requires the hook to run in the host isolate: in a sandbox a thrown error is logged and the save continues, and standard plugins are sandboxed on Cloudflare. In-process, throw `ContentSaveRejectedError` (exported from `emdash`) to cancel with a message the admin shows to the editor; any other thrown error cancels with a generic message.
+Runs before save. Return modified content, void to keep unchanged, or throw to cancel. Throw `ContentSaveRejectedError` (exported from `emdash`) to cancel with a message the admin shows to the editor; any other thrown error cancels with a generic message. A sandboxed plugin cannot cancel a save: the runner logs a thrown error and the save continues.
 
 ```typescript
 "content:beforeSave": async (event, ctx) => {

@@ -43,7 +43,7 @@ The following table lists every hook, what triggers it, what it can modify, and 
 
 ### `content:beforeSave`
 
-Runs before content is saved to the database. Use to validate, transform, or enrich content. Rejecting a save requires the hook to run in the host isolate: in a sandbox a thrown error is logged and the save continues, and standard plugins are sandboxed on Cloudflare. Where the hook runs in-process, throw `ContentSaveRejectedError` (exported from `emdash`) to reject: the API responds with a `SAVE_REJECTED` error that carries the message, and the admin shows it to the editor. Any other thrown error also cancels the save, but the response replaces its message with a generic one.
+Runs before content is saved to the database. Use to validate, transform, or enrich content. To reject a save, throw `ContentSaveRejectedError` (exported from `emdash`): the API responds with a `SAVE_REJECTED` error that carries the message, and the admin shows it to the editor. Any other thrown error also cancels the save, but the response replaces its message with a generic one. A sandboxed plugin cannot reject a save: the runner logs a thrown error and the save continues.
 
 ```ts
 import { definePlugin } from "emdash";
