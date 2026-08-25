@@ -410,6 +410,8 @@ function StatusRow({
 	stateHeadingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
 	const { t } = useLingui();
+	const ready = progress?.readyCollections ?? 0;
+	const total = progress?.totalCollections ?? 0;
 	const active = activation.state === "active";
 	const settingUp = activation.state === "activating";
 	const storedFailure = activation.state === "activating" && activation.lastErrorCode !== null;
@@ -438,7 +440,7 @@ function StatusRow({
 			: progress?.status === "needs_attention"
 				? t`Check the server logs, then use the Media Usage recovery API for the failed work.`
 				: progress
-					? t`Content types ready: ${progress.readyCollections} of ${progress.totalCollections}`
+					? t`Content types ready: ${ready} of ${total}`
 					: t`EmDash is scanning existing content.`;
 		badge = progressError ? t`Needs attention` : heading;
 		variant = progressError

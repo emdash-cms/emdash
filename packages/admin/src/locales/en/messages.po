@@ -1940,6 +1940,12 @@ msgstr "Content to Import"
 msgid "Content Types"
 msgstr "Content Types"
 
+#. placeholder {ready}: progress?.readyCollections ?? 0
+#. placeholder {total}: progress?.totalCollections ?? 0
+#: packages/admin/src/components/settings/MediaUsageSettings.tsx:443
+msgid "Content types ready: {ready} of {total}"
+msgstr "Content types ready: {ready} of {total}"
+
 #: packages/admin/src/components/WordPressImport.tsx:2310
 msgid "Content was skipped because it already exists"
 msgstr "Content was skipped because it already exists"
