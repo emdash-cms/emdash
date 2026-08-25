@@ -87,6 +87,9 @@ catalogs:
     '@cloudflare/vite-plugin':
       specifier: ^1.36.3
       version: 1.36.3
+    '@cloudflare/vitest-plugin':
+      specifier: ^1.0.0
+      version: 1.0.0
     '@cloudflare/vitest-pool-workers':
       specifier: ^0.16.3
       version: 0.16.3
@@ -413,6 +416,73 @@ importers:
       '@emdash-cms/atproto-test-utils':
         specifier: workspace:*
         version: link:../../packages/atproto-test-utils
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.10.13
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+      wrangler:
+        specifier: 'catalog:'
+        version: 4.125.0(@cloudflare/workers-types@4.20260305.1)
+
+  apps/labeler:
+    dependencies:
+      '@atcute/cbor':
+        specifier: 'catalog:'
+        version: 2.3.3(@atcute/cid@2.4.1)
+      '@atcute/crypto':
+        specifier: 'catalog:'
+        version: 2.4.1
+      '@atcute/identity':
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/identity-resolver':
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/jetstream':
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/lexicons@2.0.0)(react@19.2.4)(typescript@6.0.3)
+      '@atcute/lexicons':
+        specifier: 'catalog:'
+        version: 2.0.0
+      '@atcute/repo':
+        specifier: 'catalog:'
+        version: 1.0.0(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)
+      '@atcute/xrpc-server':
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@emdash-cms/registry-lexicons':
+        specifier: workspace:*
+        version: link:../../packages/registry-lexicons
+      '@emdash-cms/registry-moderation':
+        specifier: workspace:*
+        version: link:../../packages/registry-moderation
+      '@emdash-cms/registry-verification':
+        specifier: workspace:*
+        version: link:../../packages/registry-verification
+      jose:
+        specifier: ^6.1.3
+        version: 6.1.3
+      marked:
+        specifier: ^17.0.3
+        version: 17.0.3
+      ulidx:
+        specifier: ^2.4.1
+        version: 2.4.1
+    devDependencies:
+      '@cloudflare/vite-plugin':
+        specifier: 'catalog:'
+        version: 1.36.3(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))(workerd@1.20260820.1)(wrangler@4.125.0)
+      '@cloudflare/vitest-plugin':
+        specifier: 'catalog:'
+        version: 1.0.0(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(vitest@4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)))
       '@types/node':
         specifier: 'catalog:'
         version: 24.10.13
@@ -3968,6 +4038,13 @@ packages:
     peerDependencies:
       vite: ^6.1.0 || ^7.0.0 || ^8.0.0
       wrangler: ^4.124.0
+
+  '@cloudflare/vitest-plugin@1.0.0':
+    resolution: {integrity: sha512-AhOD/JysC15kYw25uwdkcpbsbN86jjiv0crHobViU3U/34ImWHXIiTnwqr3ZU0gXO+dIC30LUWS6bL/N+BaDbQ==}
+    peerDependencies:
+      '@vitest/runner': ^4.1.0
+      '@vitest/snapshot': ^4.1.0
+      vitest: ^4.1.0
 
   '@cloudflare/vitest-pool-workers@0.16.3':
     resolution: {integrity: sha512-cnxtKBWoP5uhO78Z9zlCexj7oIs6zYoIH4GCEFS0Z6bepFDdnxtuMGxmWaDg84cy9teoh5CLA/OEN6XLSKcnWA==}
@@ -8641,6 +8718,9 @@ packages:
 
   citty@0.2.2:
     resolution: {integrity: sha512-+6vJA3L98yv+IdfKGZHBNiGW5KHn22e/JwID0Strsz8h4S/csAu/OuICwxrg44k5MRiZHWIo8XXuJgQTriRP4w==}
+
+  cjs-module-lexer@1.2.3:
+    resolution: {integrity: sha512-0TNiGstbQmCFwt4akjjBg5pLRTSyj/PkWQ1ZoO2zntmg9yLqSRxwEa4iCfQLGjqhiqBfOJa7W/E8wfGrTDmlZQ==}
 
   cjs-module-lexer@1.4.0:
     resolution: {integrity: sha512-N1NGmowPlGBLsOZLPvm48StN04V4YvQRL0i6b7ctrVY3epjP/ct7hFLOItz6pDIvRjwpfPxi52a2UWV2ziir8g==}
@@ -14880,6 +14960,19 @@ snapshots:
       - utf-8-validate
       - workerd
 
+  '@cloudflare/vite-plugin@1.36.3(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))(workerd@1.20260820.1)(wrangler@4.125.0)':
+    dependencies:
+      '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260820.1)
+      miniflare: 4.20260507.1
+      unenv: 2.0.0-rc.24
+      vite: 8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
+      wrangler: 4.125.0(@cloudflare/workers-types@4.20260305.1)
+      ws: 8.18.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+      - workerd
+
   '@cloudflare/vite-plugin@1.53.0(vite@7.3.1(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.9.0))(wrangler@4.125.0)':
     dependencies:
       '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260815.1)
@@ -14942,6 +15035,21 @@ snapshots:
       wrangler: 4.125.0(@cloudflare/workers-types@4.20260305.1)
       ws: 8.21.0
     transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  '@cloudflare/vitest-plugin@1.0.0(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(vitest@4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)))':
+    dependencies:
+      '@vitest/runner': 4.1.5
+      '@vitest/snapshot': 4.1.5
+      cjs-module-lexer: 1.2.3
+      esbuild: 0.28.1
+      miniflare: 5.20260820.0-alpha
+      vitest: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+      wrangler: 4.125.0(@cloudflare/workers-types@4.20260305.1)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - '@cloudflare/workers-types'
       - bufferutil
       - utf-8-validate
 
@@ -16390,8 +16498,8 @@ snapshots:
     dependencies:
       '@opentelemetry/semantic-conventions': 1.43.0
       ws: 8.21.1
-      zod: 4.4.1
-      zod-to-json-schema: 3.25.1(zod@4.4.1)
+      zod: 4.4.3
+      zod-to-json-schema: 3.25.1(zod@4.4.3)
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
     transitivePeerDependencies:
@@ -19827,6 +19935,8 @@ snapshots:
       consola: 3.4.2
 
   citty@0.2.2: {}
+
+  cjs-module-lexer@1.2.3: {}
 
   cjs-module-lexer@1.4.0: {}
 
