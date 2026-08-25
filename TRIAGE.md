@@ -234,26 +234,9 @@ If something is missing, ask for it directly and keep the request narrow. The `r
 
 ### Checking Changesets
 
-A changeset is **user documentation**: the release note someone reads while upgrading. It lands verbatim in the CHANGELOG and determines the version bump. It is not a PR description, not a code comment, and not a note to reviewers — those explain the change to someone reading the code; the changeset explains the effect to someone running the new version. Missing or badly written changesets are one of the most common gaps in otherwise-good PRs, and one of the easiest things to catch in triage. The full guide is [CONTRIBUTING.md § Changesets](CONTRIBUTING.md#changesets); the short version:
+A changeset is public documentation that lands verbatim in a package CHANGELOG. Review it with the canonical [changeset writing and review standard](.changeset/README.md), not only for presence, package names, and bump type.
 
-**When one is needed:** any change to a published package's behavior or API — bug fixes included. Without one, the fix won't ship in a release.
-
-**When one isn't:** docs-only, test-only, CI/tooling changes, changes to demos or templates, and internal refactors that don't change behavior. Don't ask for a changeset on these.
-
-**The bump type:**
-
-- `patch` — bug fixes and small improvements.
-- `minor` — new features.
-- `major` — not allowed. Pre 1.0 we are not accepting any major bumps.
-
-**The description** is written for someone upgrading, not someone reviewing the diff:
-
-- Starts with a present-tense verb: **Fixes**, **Adds**, **Updates**, **Removes**.
-- Describes the observable effect — what's different for a user of the package.
-- No internal mechanics: file names, function names, or how it was implemented don't belong. If a sentence only makes sense to someone who has read the diff, ask for a rewrite.
-- One sentence is often enough.
-
-A common miss: authors paste their PR description or commit message into the changeset. If it reads like "Refactored `hydrateEntryBylines` to chunk IN clauses," ask for the user-facing version ("Fixes a D1 error when an entry has many bylines").
+Request a rewrite when technically accurate prose is still vague, implementation-centered, disproportionate to the impact, or missing required migration guidance. The entry must help someone decide whether the release matters to them and what action to take. Also check that useful feature explanations and examples appear in the canonical docs, not only in the changeset or PR description.
 
 ### PR Labels
 

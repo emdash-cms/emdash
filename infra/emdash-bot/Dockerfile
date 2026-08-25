@@ -108,6 +108,9 @@ RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && node --version && npm --version && pnpm --version
 
 ENV NODE_OPTIONS="--max-old-space-size=6144"
+# Native dependency fallbacks use the Node headers copied into this image.
+# Without this, node-gyp downloads the same headers again at runtime.
+ENV npm_config_nodedir=/usr/local
 
 # The agent operates under /workspace; the workflow clones into /workspace/repo.
 WORKDIR /workspace

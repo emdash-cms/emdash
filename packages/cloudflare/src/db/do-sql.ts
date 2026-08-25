@@ -174,6 +174,13 @@ export interface RequestScopedDbOpts {
 	config: DurableObjectsConfig;
 	isAuthenticated: boolean;
 	/**
+	 * Evaluated at commit() time: whether the request ended authenticated.
+	 * Login/signup/invite requests start unauthenticated and establish a
+	 * session mid-request; `isAuthenticated` captures only the request-start
+	 * state.
+	 */
+	endedAuthenticated?: () => boolean;
+	/**
 	 * Whether this request mutates. Mutation scopes route their reads through the
 	 * primary so destructive preconditions cannot be evaluated against a lagging
 	 * replica.
@@ -244,8 +251,11 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 	return {
 		db,
 		commit() {
-			// Only authenticated users benefit from resuming a bookmark.
-			if (!sessionEnabled || !opts.isAuthenticated) return;
+			// Only authenticated users benefit from resuming a bookmark. A
+			// request that became authenticated mid-flight (login, signup,
+			// invite) counts: its follow-up request reads authenticated and
+			// needs this bookmark to see the rows just written to the primary.
+			if (!sessionEnabled || (!opts.isAuthenticated && !opts.endedAuthenticated?.())) return;
 			const newBookmark = bookmarkSink.latest;
 			if (!newBookmark) return;
 			// Don't emit a cookie the browser will silently drop (~4 KB limit),

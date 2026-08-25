@@ -16,7 +16,8 @@ Before drafting or editing:
 3. Read [references/anti-slop.md](references/anti-slop.md) completely for every writing or revision task.
 4. Read nearby pages of the same type to preserve established structure, terminology, frontmatter, imports, and Starlight component usage.
 5. Inspect the implementation, types, tests, command help, or configuration that establishes every technical claim. Do not rely on memory when the repository can answer the question.
-6. Read `AGENTS.md` for repository-wide rules. Apply its release-note guidance to changesets.
+6. Read `AGENTS.md` for repository-wide rules.
+7. For changesets, read [.changeset/README.md](../../.changeset/README.md) completely. Treat the entry as public CHANGELOG documentation and review whether affected readers can recognize the surface, understand the observable effect, and act on any migration guidance. Frontmatter validity and technical accuracy do not make an unhelpful entry acceptable.
 
 ## Define the reader and outcome
 

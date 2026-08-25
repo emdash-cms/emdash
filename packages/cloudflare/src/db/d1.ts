@@ -162,6 +162,13 @@ interface CookieJar {
 export interface RequestScopedDbOpts {
 	config: D1Config;
 	isAuthenticated: boolean;
+	/**
+	 * Evaluated at commit() time: whether the request ended authenticated.
+	 * Login/signup/invite requests start unauthenticated and establish a
+	 * session mid-request; `isAuthenticated` captures only the request-start
+	 * state.
+	 */
+	endedAuthenticated?: () => boolean;
 	isWrite: boolean;
 	cookies: CookieJar;
 	url: URL;
@@ -435,8 +442,12 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 		db,
 		commit() {
 			// Anonymous sessions can't resume across requests, so there's no
-			// value in persisting a bookmark for them.
-			if (!opts.isAuthenticated) return;
+			// value in persisting a bookmark for them. A request that became
+			// authenticated mid-flight (login, signup, invite) must persist:
+			// its writes landed on the primary, and the follow-up request reads
+			// authenticated — without this bookmark it can hit a replica that
+			// doesn't have the new user/session rows yet.
+			if (!opts.isAuthenticated && !opts.endedAuthenticated?.()) return;
 			const newBookmark = session.getBookmark?.();
 			if (!newBookmark) return;
 			opts.cookies.set(cookieName, newBookmark, {

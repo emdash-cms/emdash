@@ -238,6 +238,85 @@ describe("Table conversion: PortableText ↔ ProseMirror", () => {
 			expect(table.rows[1].cells[0].content[0].text).toBe("Cell 1");
 		});
 
+		it("preserves line breaks between paragraphs in a table cell", () => {
+			const pmDoc = {
+				type: "doc",
+				content: [
+					{
+						type: "table",
+						content: [
+							{
+								type: "tableRow",
+								content: [
+									{
+										type: "tableCell",
+										content: [
+											{
+												type: "paragraph",
+												content: [
+													{
+														type: "text",
+														text: "First line",
+														marks: [
+															{
+																type: "link",
+																attrs: { href: "https://example.com" },
+															},
+														],
+													},
+												],
+											},
+											{
+												type: "paragraph",
+												content: [{ type: "text", text: "Second line" }],
+											},
+										],
+									},
+								],
+							},
+						],
+					},
+				],
+			};
+
+			const result = _prosemirrorToPortableText(pmDoc);
+			const table = result[0] as {
+				rows: Array<{
+					cells: Array<{
+						content: Array<{ text: string; marks?: string[] }>;
+						markDefs?: Array<{ _key: string; _type: string; href: string }>;
+					}>;
+				}>;
+			};
+			const cell = table.rows[0].cells[0];
+			const spans = cell.content;
+
+			expect(table.rows).toHaveLength(1);
+			expect(spans.map((span) => span.text)).toEqual(["First line", "\n", "Second line"]);
+			expect(cell.markDefs?.[0]).toMatchObject({
+				_key: spans[0].marks?.[0],
+				_type: "link",
+				href: "https://example.com",
+			});
+			expect(spans[1].marks).toBeUndefined();
+
+			const roundTripped = _prosemirrorToPortableText(_portableTextToProsemirror(result));
+			const roundTrippedTable = roundTripped[0] as typeof table;
+			const roundTrippedSpans = roundTrippedTable.rows[0].cells[0].content;
+
+			expect(roundTrippedSpans.map((span) => span.text)).toEqual([
+				"First line",
+				"\n",
+				"Second line",
+			]);
+			expect(roundTrippedTable.rows[0].cells[0].markDefs?.[0]).toMatchObject({
+				_key: roundTrippedSpans[0].marks?.[0],
+				_type: "link",
+				href: "https://example.com",
+			});
+			expect(roundTrippedSpans[1].marks).toBeUndefined();
+		});
+
 		it("converts table with text marks to PT", () => {
 			const pmDoc = {
 				type: "doc",

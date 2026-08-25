@@ -13,28 +13,30 @@ Runtime migration mode defaults to `auto`, so existing deployments keep applying
 
 An Astro build or sync writes `.emdash/migrations.json`. This secret-free manifest records the exact EmDash version, ordered migration set, locale configuration, and adapter migration executor used by that build.
 
+<Aside type="note" title="Ignore the generated manifest">
+	Add `.emdash/migrations.json` to `.gitignore`. Deployment jobs generate and consume this file from the build workspace; it does not belong in source control. EmDash templates already include this rule.
+</Aside>
+
 Run these commands from the project whose dependencies produced the manifest. First build and inspect the target.
 
 ```bash
 pnpm build
-pnpm exec emdash migrate --status --json
+pnpm emdash migrate --status
 ```
 
-After reviewing the reported target and recording its fingerprint, apply the migrations, deploy, and check the deployed schema.
+After confirming that the reported target is the intended database, start the interactive migration. Review the target again at the prompt before confirming. Then deploy the same build and check the deployed schema.
 
 ```bash
-pnpm exec emdash migrate --expected-target-fingerprint "$EMDASH_TARGET_FINGERPRINT"
-pnpm exec wrangler deploy
-pnpm exec emdash migrate --check
+pnpm emdash migrate
+pnpm wrangler deploy
+pnpm emdash migrate --check
 ```
 
-`emdash migrate` prints the immutable target before issuing SQL. An interactive, human-readable apply asks for confirmation. Non-interactive apply and every `--json` apply require `--expected-target-fingerprint`; the command fails if it does not match the resolved target.
+`emdash migrate --status` reports applied, pending, and unknown migrations without changing the database. The plain `emdash migrate` command displays the target and asks for confirmation before applying pending migrations.
 
-`--check` never applies migrations and exits non-zero when known migrations are pending or the database contains migration records unknown to the build. The [CLI reference](/reference/cli/#emdash-migrate) distinguishes pending, unknown, confirmation, interruption, and operational exit codes. The following command inspects all sets without using check's non-zero "work required" exit status.
+`--check` never applies migrations and exits non-zero when known migrations are pending or the database contains migration records unknown to the build. Use `--status` when you want to inspect the same migration sets without check's non-zero "work required" exit status. The [CLI reference](/reference/cli/#emdash-migrate) distinguishes pending, unknown, confirmation, interruption, and operational exit codes.
 
-```bash
-pnpm exec emdash migrate --status --json
-```
+Non-interactive apply and every `--json` apply require `--expected-target-fingerprint`; the command fails if the resolved target does not match. Use these options in automated deployment jobs, not for the interactive workflow above.
 
 Use `--manifest path/to/migrations.json` for a manifest stored elsewhere. For local investigation, `--from-config [--config astro.config.mjs]` explicitly evaluates trusted project configuration without running Astro hooks or starting a server. Deployment pipelines should consume the build manifest.
 
@@ -68,35 +70,43 @@ Creating a D1 database and migrating its schema are separate operations. `emdash
 1. Provision the database and record its production UUID.
 
    ```bash
-   pnpm exec wrangler d1 create my-site-production
+   pnpm wrangler d1 create my-site-production
    ```
 
 2. Add that UUID to the intended binding and environment in `wrangler.jsonc`.
 
 3. Build the site so the D1 binding is recorded in `.emdash/migrations.json`.
 
-4. Set the account ID and a scoped API token with D1 Edit permission. Inspect the selected target, record its fingerprint, and then migrate it.
+4. Set the account ID and a scoped API token with D1 Edit permission. Inspect the selected target, then run the interactive migration. Confirm the prompt only when the account and database match the intended production database.
 
    ```bash
    export CLOUDFLARE_ACCOUNT_ID="..."
    export CLOUDFLARE_API_TOKEN="..."
-   pnpm exec emdash migrate \
-     --status --json \
+   pnpm emdash migrate \
+     --status \
      --wrangler-config wrangler.jsonc \
      --wrangler-env production
-   pnpm exec emdash migrate \
+   pnpm emdash migrate \
      --wrangler-config wrangler.jsonc \
-     --wrangler-env production \
-     --expected-target-fingerprint "$EMDASH_TARGET_FINGERPRINT"
+     --wrangler-env production
    ```
 
 </Steps>
 
 You can instead provide `--account-id` with `--d1 <database-uuid-or-name>`. Name lookup must resolve to exactly one database. Preview IDs, placeholder IDs, conflicting accounts, and ambiguous bindings fail closed.
 
-## Serialize D1 migration jobs
+## Configure D1 migrations in CI
 
-D1 does not provide the advisory migration lock used by PostgreSQL. Run at most one migration job for an account and database UUID. The following GitHub Actions workflow keys the concurrency group by both immutable identifiers.
+D1 does not provide the advisory migration lock used by PostgreSQL. Run at most one migration job for an account and database UUID.
+
+Set the following secret and variables in the CI environment:
+
+- Secret `CLOUDFLARE_API_TOKEN`: a scoped token with D1 Edit permission.
+- Variable `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account ID that owns the database.
+- Variable `D1_DATABASE_ID`: the production D1 database UUID.
+- Variable `EMDASH_TARGET_FINGERPRINT`: the fingerprint printed by `emdash migrate --status` after you have reviewed the account and database locally.
+
+The following GitHub Actions workflow uses those values and keys the concurrency group by both immutable D1 identifiers. Its apply step is non-interactive, so it supplies the reviewed target fingerprint explicitly.
 
 ```yaml title=".github/workflows/deploy.yml"
 name: Deploy
@@ -124,7 +134,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          pnpm exec emdash migrate --status --json \
+          pnpm emdash migrate --status --json \
             --account-id "${{ vars.CLOUDFLARE_ACCOUNT_ID }}" \
             --d1 "${{ vars.D1_DATABASE_ID }}"
       - name: Apply EmDash migrations
@@ -132,21 +142,21 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           EMDASH_TARGET_FINGERPRINT: ${{ vars.EMDASH_TARGET_FINGERPRINT }}
         run: |
-          pnpm exec emdash migrate \
+          pnpm emdash migrate \
             --account-id "${{ vars.CLOUDFLARE_ACCOUNT_ID }}" \
             --d1 "${{ vars.D1_DATABASE_ID }}" \
             --expected-target-fingerprint "$EMDASH_TARGET_FINGERPRINT"
-      - run: pnpm exec wrangler deploy
+      - run: pnpm wrangler deploy
       - name: Check EmDash migrations
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          pnpm exec emdash migrate --check \
+          pnpm emdash migrate --check \
             --account-id "${{ vars.CLOUDFLARE_ACCOUNT_ID }}" \
             --d1 "${{ vars.D1_DATABASE_ID }}"
 ```
 
-Store the target fingerprint only after reviewing the target printed by `--status`. The fingerprint contains no credential, but it is an important deployment guard against migrating the wrong database.
+Update `EMDASH_TARGET_FINGERPRINT` only after reviewing a changed target locally. The fingerprint contains no credential, but changing it without checking the account and database removes the guard against migrating the wrong database.
 
 ## Hyperdrive connects to the origin
 

@@ -114,6 +114,7 @@ import {
 	type BylineCreditInput,
 	type ContentSeoInput,
 	type ContentItem,
+	type MediaUploadOptions,
 	type Revision,
 } from "./lib/api";
 import {
@@ -1389,7 +1390,8 @@ function MediaPage() {
 		});
 
 	const uploadMutation = useMutation({
-		mutationFn: (file: File) => uploadMedia(file),
+		mutationFn: ({ file, options }: { file: File; options?: MediaUploadOptions }) =>
+			uploadMedia(file, options),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
 		},
@@ -1409,8 +1411,8 @@ function MediaPage() {
 			isLoading={isLoading || isFetchingNextPage}
 			hasMore={!!hasNextPage}
 			onLoadMore={() => void fetchNextPage()}
-			onUpload={async (file) => {
-				await uploadMutation.mutateAsync(file);
+			onUpload={async (file, options) => {
+				await uploadMutation.mutateAsync({ file, options });
 			}}
 			onLocalSearchChange={setSearch}
 			onLocalMimeFilterChange={setMimeFilter}

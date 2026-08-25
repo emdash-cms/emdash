@@ -48,6 +48,46 @@ describe("DO SQL request scoping", () => {
 		expect(cookies.set).not.toHaveBeenCalled();
 	});
 
+	it("persists the bookmark when the request becomes authenticated mid-request", async () => {
+		mocks.query.mockResolvedValue({ rows: [], bookmark: "do-bookmark-1" });
+		const cookies = { get: vi.fn(), set: vi.fn() };
+		const scoped = createRequestScopedDb({
+			config: { binding: "DB_DO", session: "auto" },
+			isAuthenticated: false,
+			endedAuthenticated: () => true,
+			isWrite: true,
+			cookies,
+			url: new URL("https://example.com/_emdash/api/auth/passkey/verify"),
+		});
+
+		expect(scoped).not.toBeNull();
+		await sql`UPDATE users SET name = 'x'`.execute(scoped!.db);
+		scoped!.commit();
+		expect(cookies.set).toHaveBeenCalledWith(
+			"__em_do_bookmark",
+			"do-bookmark-1",
+			expect.objectContaining({ httpOnly: true, secure: true }),
+		);
+	});
+
+	it("persists nothing for a request that stays anonymous", async () => {
+		mocks.query.mockResolvedValue({ rows: [], bookmark: "do-bookmark-1" });
+		const cookies = { get: vi.fn(), set: vi.fn() };
+		const scoped = createRequestScopedDb({
+			config: { binding: "DB_DO", session: "auto" },
+			isAuthenticated: false,
+			endedAuthenticated: () => false,
+			isWrite: true,
+			cookies,
+			url: new URL("https://example.com/comment"),
+		});
+
+		expect(scoped).not.toBeNull();
+		await sql`UPDATE comments SET body = 'x'`.execute(scoped!.db);
+		scoped!.commit();
+		expect(cookies.set).not.toHaveBeenCalled();
+	});
+
 	it("keeps anonymous reads on the singleton when replica sessions are disabled", () => {
 		expect(
 			createRequestScopedDb({
