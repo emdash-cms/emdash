@@ -7829,7 +7829,7 @@ msgstr "タグ（{0}）"
 #: packages/admin/src/components/MenuEditor.tsx:427
 #: packages/admin/src/components/MenuEditor.tsx:606
 msgid "Target"
-msgstr "ターゲット"
+msgstr "リンクの開き方"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:354
 msgid "Target locale"

@@ -1,9 +1,11 @@
 import { Toasty } from "@cloudflare/kumo";
+import { i18n } from "@lingui/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { MenuEditor } from "../../src/components/MenuEditor";
+import { loadMessages } from "../../src/locales/index.js";
 import { render } from "../utils/render.tsx";
 
 vi.mock("@tanstack/react-router", async () => {
@@ -137,6 +139,27 @@ describe("MenuEditor", () => {
 		await expect
 			.element(screen.getByRole("heading", { name: "Edit Menu Item" }))
 			.toBeInTheDocument();
+	});
+
+	it("labels the link-opening field clearly in Japanese", async () => {
+		const [japaneseMessages, englishMessages] = await Promise.all([
+			loadMessages("ja"),
+			loadMessages("en"),
+		]);
+		i18n.loadAndActivate({ locale: "ja", messages: japaneseMessages });
+
+		try {
+			const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+			await expect.element(screen.getByText("Home")).toBeInTheDocument();
+			await screen.getByRole("button", { name: "編集" }).first().click();
+			await expect
+				.element(screen.getByRole("combobox", { name: "リンクの開き方" }))
+				.toBeInTheDocument();
+			expect(screen.getByText("ターゲット", { exact: true }).query()).toBeNull();
+		} finally {
+			i18n.loadAndActivate({ locale: "en", messages: englishMessages });
+		}
 	});
 
 	it("delete item fires immediately without confirmation dialog", async () => {
