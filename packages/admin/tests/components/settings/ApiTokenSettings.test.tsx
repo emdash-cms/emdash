@@ -136,11 +136,9 @@ describe("ApiTokenSettings", () => {
 			await userEvent.click(screen.getByRole("button", { name: "トークンを作成" }));
 
 			await expect
-				.element(screen.getByText("分類項目の作成、更新、削除", { exact: true }))
+				.element(screen.getByText("カテゴリーとタグの作成、更新、削除", { exact: true }))
 				.toBeInTheDocument();
-			expect(
-				screen.getByText("分類分類項目の作成、更新、削除", { exact: true }).query(),
-			).toBeNull();
+			expect(screen.getByText("分類項目の作成、更新、削除", { exact: true }).query()).toBeNull();
 		} finally {
 			i18n.loadAndActivate({ locale: "en", messages: englishMessages });
 		}
