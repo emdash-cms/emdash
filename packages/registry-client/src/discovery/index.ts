@@ -122,7 +122,7 @@ export interface DiscoveryClientOptions {
 	 * source.
 	 *
 	 * Defaults to no header, which means the aggregator applies its configured
-	 * declaration. The value contributes to the client's stable cache identity;
+	 * policy. The value contributes to the client's stable cache identity;
 	 * it does not select label effects or override the aggregator's approval,
 	 * block, takedown, or withdrawal policy.
 	 */
