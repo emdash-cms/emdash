@@ -136,7 +136,13 @@ Run during create, update, and delete operations on site content.
 
 ### `content:beforeSave`
 
-Runs before content is saved. Return modified content, or `void` to leave it unchanged. To cancel the save, throw `ContentSaveRejectedError` (exported from `emdash`): the API responds with a `SAVE_REJECTED` error that carries your message, and the admin shows it to the editor. Any other thrown error also cancels the save, but the response replaces its message with a generic one.
+Runs before content is saved. Return modified content, or `void` to leave it unchanged.
+
+Cancelling a save requires the hook to run in the host isolate: in a sandbox a thrown error is logged and the save continues. Where the hook runs in-process, throw `ContentSaveRejectedError` (exported from `emdash`) to cancel the save: the API responds with a `SAVE_REJECTED` error that carries your message, and the admin shows it to the editor. Any other thrown error also cancels the save, but the response replaces its message with a generic one.
+
+<Aside type="caution">
+	Standard plugins run in an isolate on Cloudflare and in-process elsewhere, so a save rejection takes effect in local development and not on Cloudflare. Native plugins always run in the host isolate.
+</Aside>
 
 ```typescript
 "content:beforeSave": async (event, ctx) => {
