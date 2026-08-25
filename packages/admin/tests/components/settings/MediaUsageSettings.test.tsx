@@ -195,7 +195,10 @@ describe("MediaUsageSettings", () => {
 
 		const { queryClient, screen } = await renderPage();
 
-		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
+		await expect.element(screen.getByRole("heading", { name: "Status" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.toBeVisible();
 		expect(activationMocks.fetchProgress).toHaveBeenCalledOnce();
 		expect(activationMocks.advanceProgress).not.toHaveBeenCalled();
 		expect(queryClient.getQueryData(MEDIA_USAGE_PROGRESS_QUERY_KEY)).toEqual(
@@ -225,13 +228,17 @@ describe("MediaUsageSettings", () => {
 
 		const { screen } = await renderPage(queryClient);
 
-		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.toBeVisible();
 		expect(screen.getByRole("heading", { name: "Indexing existing content" }).query()).toBeNull();
 		expect(activationMocks.advanceProgress).not.toHaveBeenCalled();
 
 		finishStatus(status("active"));
 		await vi.waitFor(() => expect(activationMocks.fetchProgress).toHaveBeenCalledOnce());
-		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.toBeVisible();
 		expect(activationMocks.advanceProgress).not.toHaveBeenCalled();
 	});
 
@@ -260,7 +267,9 @@ describe("MediaUsageSettings", () => {
 			totalCollections: 2,
 			indexingStarted: true,
 		});
-		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.toBeVisible();
 	});
 
 	it("follows an existing continuation even when the page already shows Ready", async () => {
@@ -417,7 +426,11 @@ describe("MediaUsageSettings", () => {
 
 	it.each([
 		["indexing", "Indexing existing content", "Content types ready: 1 of 2"],
-		["ready", "Ready", "Content types ready: 2 of 2"],
+		[
+			"ready",
+			"Media Usage is ready",
+			"Existing content is indexed. New changes are tracked automatically.",
+		],
 		[
 			"needs_attention",
 			"Needs attention",
@@ -441,6 +454,12 @@ describe("MediaUsageSettings", () => {
 		await expect.element(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
 		await expect.element(screen.getByText(summary)).toBeInTheDocument();
 		expect(activationMocks.advanceProgress).toHaveBeenCalledOnce();
+		if (progressStatus === "indexing") {
+			await expect.element(screen.getByText("Indexing", { exact: true })).toBeVisible();
+		}
+		if (progressStatus === "ready") {
+			expect(screen.getByText("Content types ready: 2 of 2").query()).toBeNull();
+		}
 		if (progressStatus === "needs_attention") {
 			expect(screen.getByRole("button", { name: "Retry setup" }).query()).toBeNull();
 			expect(screen.getByRole("button", { name: "Try again" }).query()).toBeNull();
@@ -571,7 +590,9 @@ describe("MediaUsageSettings", () => {
 		confirm.element().focus();
 		await userEvent.keyboard("{Enter}");
 
-		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.toBeVisible();
 		expect(activationMocks.advanceProgress).toHaveBeenCalledTimes(2);
 	});
 
@@ -632,7 +653,9 @@ describe("MediaUsageSettings", () => {
 		expect(activationMocks.fetchStatus).toHaveBeenCalledTimes(2);
 		expect(activationMocks.fetchProgress).toHaveBeenCalledTimes(2);
 		await userEvent.click(screen.getByRole("button", { name: "Try again" }));
-		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.toBeVisible();
 		expect(activationMocks.advanceProgress).toHaveBeenCalledTimes(2);
 		expect(activationMocks.advance).not.toHaveBeenCalled();
 	});
@@ -651,7 +674,9 @@ describe("MediaUsageSettings", () => {
 
 		const { screen } = await renderPage();
 
-		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.toBeVisible();
 		expect(screen.getByRole("button", { name: "Try again" }).query()).toBeNull();
 		expect(activationMocks.fetchProgress).toHaveBeenCalledOnce();
 	});
@@ -726,7 +751,9 @@ describe("MediaUsageSettings", () => {
 
 		await vi.advanceTimersByTimeAsync(0);
 		await vi.waitFor(() => expect(activationMocks.advanceProgress).toHaveBeenCalledTimes(2));
-		await expect.element(screen.getByRole("heading", { name: "Ready" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("heading", { name: "Media Usage is ready" }))
+			.toBeVisible();
 	});
 
 	it("waits for the server-provided delayed continuation", async () => {

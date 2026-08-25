@@ -1,5 +1,6 @@
 import { Badge, Banner, Button, Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
+import { CheckCircle } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -377,7 +378,7 @@ export function MediaUsageSettings() {
 	return (
 		<SettingsFrame title={title} description={description}>
 			<SettingsSection
-				title={t`Automatic indexing`}
+				title={t`Status`}
 				actions={
 					activationReadError ? (
 						<Button size="sm" variant="secondary" onClick={() => void refreshStatus()}>
@@ -464,7 +465,7 @@ function StatusRow({
 		heading = progressError
 			? t`Needs attention`
 			: progress?.status === "ready"
-				? t`Ready`
+				? t`Media Usage is ready`
 				: progress?.status === "needs_attention"
 					? t`Needs attention`
 					: t`Indexing existing content`;
@@ -472,10 +473,18 @@ function StatusRow({
 			? t`Setup couldn’t continue. Try again.`
 			: progress?.status === "needs_attention"
 				? t`Check the server logs, then use the Media Usage recovery API for the failed work.`
-				: progress
-					? t`Content types ready: ${ready} of ${total}`
-					: t`EmDash is scanning existing content.`;
-		badge = progressError ? t`Needs attention` : heading;
+				: progress?.status === "ready"
+					? t`Existing content is indexed. New changes are tracked automatically.`
+					: progress
+						? t`Content types ready: ${ready} of ${total}`
+						: t`EmDash is scanning existing content.`;
+		badge = progressError
+			? t`Needs attention`
+			: progress?.status === "ready"
+				? t`Ready`
+				: progress?.status === "needs_attention"
+					? t`Needs attention`
+					: t`Indexing`;
 		variant = progressError
 			? "error"
 			: progress?.status === "ready"
@@ -500,13 +509,18 @@ function StatusRow({
 		!activationError &&
 		((settingUp && !storedFailure) ||
 			(active && !progressError && (!progress || progress.status === "indexing")));
+	const isReady = !activationError && active && !progressError && progress?.status === "ready";
 	const needsAttention = storedFailure || progressError || progress?.status === "needs_attention";
 	return (
 		<SettingRow>
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<div className="min-w-0" role={needsAttention ? "alert" : undefined}>
 					<div className="flex items-center gap-2">
-						{progressing ? <Loader size="sm" /> : null}
+						{progressing ? (
+							<Loader size="sm" />
+						) : isReady ? (
+							<CheckCircle className="h-5 w-5 text-kumo-success" weight="fill" aria-hidden="true" />
+						) : null}
 						<h3
 							ref={stateHeadingRef}
 							tabIndex={-1}
@@ -566,7 +580,7 @@ function LoadingPage({ title, description }: { title: string; description: strin
 	const { t } = useLingui();
 	return (
 		<SettingsFrame title={title} description={description}>
-			<SettingsSection title={t`Automatic indexing`}>
+			<SettingsSection title={t`Status`}>
 				<SettingRow>
 					<div className="flex items-center gap-2 text-sm text-kumo-subtle" role="status">
 						<Loader size="sm" />
@@ -592,7 +606,7 @@ function MessagePage({
 	const { t } = useLingui();
 	return (
 		<SettingsFrame title={title} description={description}>
-			<SettingsSection title={t`Automatic indexing`}>
+			<SettingsSection title={t`Status`}>
 				<SettingRow>
 					<Banner variant="error" role="alert" title={message} action={action} />
 				</SettingRow>
