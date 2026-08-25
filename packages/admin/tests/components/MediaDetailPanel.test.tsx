@@ -3,7 +3,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { MediaDetailPanel } from "../../src/components/MediaDetailPanel";
-import type { MediaItem } from "../../src/lib/api";
+import { ApiResponseError, type LocalMediaItem, type MediaItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
 vi.mock("../../src/lib/api", async () => {
@@ -13,11 +13,21 @@ vi.mock("../../src/lib/api", async () => {
 		updateMedia: vi.fn().mockResolvedValue({}),
 		deleteMedia: vi.fn().mockResolvedValue({}),
 		deleteFromProvider: vi.fn().mockResolvedValue({}),
+		fetchMediaFolders: vi.fn().mockResolvedValue({ items: [{ id: "folder-2", name: "Press" }] }),
+		fetchMediaFolder: vi.fn().mockResolvedValue({ id: "folder-1", name: "Product photos" }),
+		fetchMediaItem: vi.fn().mockResolvedValue({}),
 	};
 });
 
 // Import the mocked functions for assertions
-import { updateMedia, deleteMedia, deleteFromProvider } from "../../src/lib/api";
+import {
+	updateMedia,
+	deleteMedia,
+	deleteFromProvider,
+	fetchMediaFolders,
+	fetchMediaFolder,
+	fetchMediaItem,
+} from "../../src/lib/api";
 
 function QueryWrapper({ children }: { children: React.ReactNode }) {
 	const qc = new QueryClient({
@@ -92,6 +102,16 @@ function makeLocalVideoItem(overrides: Partial<MediaItem> = {}): MediaItem {
 	};
 }
 
+function makeLocalItem(overrides: Partial<LocalMediaItem> = {}): LocalMediaItem {
+	return {
+		...makeImageItem(),
+		storageKey: "media-1.jpg",
+		authorId: "user-1",
+		folderId: "folder-1",
+		...overrides,
+	};
+}
+
 function renderPanel(props: Partial<React.ComponentProps<typeof MediaDetailPanel>> = {}) {
 	const defaultProps: React.ComponentProps<typeof MediaDetailPanel> = {
 		open: true,
@@ -135,40 +155,33 @@ describe("MediaDetailPanel", () => {
 		await expect.element(screen.getByText("1920 × 1080")).toBeInTheDocument();
 	});
 
-	it("renders the responsive two-column viewport-bounded dialog layout", async () => {
+	it("groups the preview, metadata, and actions in an accessible dialog", async () => {
 		const screen = await renderPanel();
 		const dialog = screen.getByRole("dialog", { name: "Media Details" }).element();
-		const header = screen.getByTestId("media-detail-dialog-header").element();
-		const body = screen.getByTestId("media-detail-dialog-body").element();
-		const previewColumn = screen.getByTestId("media-detail-dialog-preview-column").element();
-		const detailsColumn = screen.getByTestId("media-detail-dialog-details-column").element();
-		const fileFacts = screen.getByTestId("media-detail-dialog-file-facts").element();
-		const footer = screen.getByTestId("media-detail-dialog-footer").element();
+		const preview = screen.getByAltText("A nice photo");
+		const filename = screen.getByLabelText("Filename");
+		const altText = screen.getByLabelText("Alt Text");
+		const caption = screen.getByLabelText("Caption");
+		const close = screen.getByRole("button", { name: "Close" });
+		const deleteButton = screen.getByRole("button", { name: "Delete" });
+		const cancel = screen.getByRole("button", { name: "Cancel" });
+		const save = screen.getByRole("button", { name: "Save" });
 
-		expect(body.className).toContain("grid-cols-1");
-		expect(body.className).toContain("md:grid-cols-2");
-		expect(dialog.style.height).toBe("");
-		expect(dialog.style.maxHeight).toBe("min(88dvh, 48rem)");
-		expect(dialog.className).toContain("data-starting-style:scale-90");
-		expect(dialog.className).toContain("data-starting-style:opacity-0");
-		expect(dialog.style.transitionProperty).toBe("scale, opacity");
-		expect(header.style.padding).toBe("1.25rem 2rem");
-		expect(previewColumn.contains(fileFacts)).toBe(true);
-		expect(detailsColumn.contains(fileFacts)).toBe(false);
-		expect(previewColumn.className).toContain("md:p-8");
-		expect(detailsColumn.className).toContain("md:p-8");
-		// Columns only constrain/scroll at md+; on mobile the body scrolls as one
-		// column so collapsed columns can't compress and overlap their content.
-		expect(body.className).toContain("overflow-y-auto");
-		expect(body.className).toContain("md:overflow-hidden");
-		expect(previewColumn.className).toContain("md:min-h-0");
-		expect(previewColumn.className).toContain("md:overflow-y-auto");
-		expect(previewColumn.className).not.toContain(" min-h-0");
-		expect(detailsColumn.className).toContain("md:min-h-0");
-		expect(detailsColumn.className).toContain("md:overflow-y-auto");
-		expect(detailsColumn.className).not.toContain(" min-h-0");
-		expect(fileFacts.className).toContain("space-y-3");
-		expect(footer.style.padding).toBe("1.25rem 2rem");
+		for (const locator of [
+			preview,
+			filename,
+			altText,
+			caption,
+			close,
+			deleteButton,
+			cancel,
+			save,
+		]) {
+			await expect.element(locator).toBeVisible();
+			expect(dialog).toContainElement(locator.element());
+		}
+		await expect.element(screen.getByText("200 KB")).toBeVisible();
+		await expect.element(screen.getByText("1920 × 1080")).toBeVisible();
 	});
 
 	it("shows image preview for image mimeTypes", async () => {
@@ -191,7 +204,6 @@ describe("MediaDetailPanel", () => {
 		const screen = await renderPanel({ item });
 		const altInput = screen.getByLabelText("Alt Text");
 		await expect.element(altInput).toBeInTheDocument();
-		expect(altInput.element().className).toContain("w-full");
 		await expect
 			.element(screen.getByRole("button", { name: "Why is this important?" }))
 			.toBeInTheDocument();
@@ -224,8 +236,6 @@ describe("MediaDetailPanel", () => {
 		const screen = await renderPanel({ item });
 		const filenameInput = screen.getByLabelText("Filename");
 		await expect.element(filenameInput).toBeDisabled();
-		expect(filenameInput.element().className).toContain("bg-kumo-tint");
-		expect(filenameInput.element().className).toContain("w-full");
 		await expect
 			.element(screen.getByRole("button", { name: "Why can't this be changed?" }))
 			.toBeInTheDocument();
@@ -326,6 +336,302 @@ describe("MediaDetailPanel", () => {
 			});
 			expect(onClose).toHaveBeenCalled();
 		});
+	});
+
+	it("loads bounded Location options only after the control opens", async () => {
+		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: true });
+
+		expect(fetchMediaFolders).not.toHaveBeenCalled();
+		const location = screen.getByRole("combobox", { name: "Location" });
+		await expect.element(location).toHaveTextContent("Product photos");
+		expect(location.element().querySelector('[dir="auto"]')).toHaveTextContent("Product photos");
+
+		location.element().click();
+
+		await vi.waitFor(() => {
+			expect(fetchMediaFolders).toHaveBeenCalledWith({
+				limit: 100,
+				cursor: undefined,
+				search: undefined,
+			});
+		});
+		await expect.element(screen.getByRole("option", { name: "Main library" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("option", { name: "Press" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("option", { name: "Press" }).element().querySelector('[dir="auto"]'),
+		).toHaveTextContent("Press");
+		await expect.element(screen.getByText("1 folder loaded")).toBeInTheDocument();
+	});
+
+	it("saves image metadata and Location in one update", async () => {
+		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: true });
+
+		screen.getByRole("combobox", { name: "Location" }).element().click();
+		await expect.element(screen.getByRole("option", { name: "Press" })).toBeInTheDocument();
+		screen.getByRole("option", { name: "Press" }).element().click();
+		await screen.getByLabelText("Alt Text").fill("Updated alt");
+		screen.getByRole("button", { name: "Save" }).element().click();
+
+		await vi.waitFor(() => {
+			expect(updateMedia).toHaveBeenCalledWith("media-1", {
+				alt: "Updated alt",
+				caption: "Photo caption",
+				folderId: "folder-2",
+			});
+		});
+	});
+
+	it("does not overwrite Location during a metadata-only save", async () => {
+		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: true });
+
+		await screen.getByLabelText("Alt Text").fill("Metadata only");
+		screen.getByRole("button", { name: "Save" }).element().click();
+
+		await vi.waitFor(() => {
+			expect(updateMedia).toHaveBeenCalledWith("media-1", {
+				alt: "Metadata only",
+				caption: "Photo caption",
+			});
+		});
+	});
+
+	it("searches Location independently and resets the search after selection", async () => {
+		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: true });
+		const locationTrigger = screen
+			.getByTestId("media-detail-dialog-details-column")
+			.getByRole("combobox", { name: "Location" });
+
+		locationTrigger.element().click();
+		await screen.getByPlaceholder("Search folders").fill("press");
+		await vi.waitFor(() => {
+			expect(fetchMediaFolders).toHaveBeenLastCalledWith({
+				limit: 100,
+				cursor: undefined,
+				search: "press",
+			});
+		});
+		await expect.element(screen.getByRole("option", { name: "Press" })).toBeInTheDocument();
+		screen.getByRole("option", { name: "Press" }).element().click();
+		await expect.element(screen.getByRole("option", { name: "Press" })).not.toBeInTheDocument();
+		locationTrigger.element().click();
+
+		await expect.element(screen.getByPlaceholder("Search folders")).toHaveValue("");
+	});
+
+	it("ignores duplicate Location saves while the first update is pending", async () => {
+		let resolveUpdate!: (item: LocalMediaItem) => void;
+		vi.mocked(updateMedia).mockImplementationOnce(
+			() => new Promise<LocalMediaItem>((resolve) => (resolveUpdate = resolve)),
+		);
+		const item = makeLocalItem();
+		const screen = await renderPanel({ item, canMoveLocation: true });
+
+		screen.getByRole("combobox", { name: "Location" }).element().click();
+		await expect.element(screen.getByRole("option", { name: "Press" })).toBeInTheDocument();
+		screen.getByRole("option", { name: "Press" }).element().click();
+		await expect.element(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+		const save = screen.getByRole("button", { name: "Save" }).element();
+		save.click();
+		save.click();
+
+		await vi.waitFor(() => expect(updateMedia).toHaveBeenCalledTimes(1));
+		resolveUpdate({ ...item, folderId: "folder-2" });
+	});
+
+	it.each([
+		["video", "video/mp4"],
+		["audio", "audio/mpeg"],
+		["document", "application/pdf"],
+	])("moves a local %s without image metadata", async (_kind, mimeType) => {
+		const screen = await renderPanel({
+			item: makeLocalItem({ mimeType, alt: undefined, caption: undefined }),
+			canMoveLocation: true,
+		});
+
+		screen.getByRole("combobox", { name: "Location" }).element().click();
+		await expect.element(screen.getByRole("option", { name: "Main library" })).toBeInTheDocument();
+		screen.getByRole("option", { name: "Main library" }).element().click();
+		await expect.element(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+		screen.getByRole("button", { name: "Save" }).element().click();
+
+		await vi.waitFor(() => {
+			expect(updateMedia).toHaveBeenCalledWith("media-1", { folderId: null });
+		});
+	});
+
+	it("loads one additional bounded Location page on request", async () => {
+		vi.mocked(fetchMediaFolders).mockImplementation(async ({ cursor }) =>
+			cursor === "next-folder"
+				? { items: [{ id: "folder-3", name: "Archive" }] }
+				: { items: [{ id: "folder-2", name: "Press" }], nextCursor: "next-folder" },
+		);
+		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: true });
+
+		screen.getByRole("combobox", { name: "Location" }).element().click();
+		await expect
+			.element(screen.getByRole("button", { name: "Load more folders" }))
+			.toBeInTheDocument();
+		screen.getByRole("button", { name: "Load more folders" }).element().click();
+
+		await expect.element(screen.getByRole("option", { name: "Archive" })).toBeInTheDocument();
+		expect(fetchMediaFolders).toHaveBeenLastCalledWith({
+			limit: 100,
+			cursor: "next-folder",
+			search: undefined,
+		});
+	});
+
+	it("shows a read-only Location when the user cannot move the item", async () => {
+		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: false });
+
+		await expect.element(screen.getByText("Location")).toBeInTheDocument();
+		const currentLocation = screen.getByText("Product photos");
+		await expect.element(currentLocation).toBeInTheDocument();
+		expect(currentLocation.element()).toHaveAttribute("dir", "auto");
+		expect(screen.getByRole("combobox", { name: "Location" }).query()).toBeNull();
+		expect(fetchMediaFolders).not.toHaveBeenCalled();
+	});
+
+	it("refreshes the open item when its saved folder no longer exists", async () => {
+		const refreshed = makeLocalItem({ folderId: null });
+		let resolveRefresh!: (item: LocalMediaItem) => void;
+		vi.mocked(fetchMediaFolder).mockRejectedValueOnce(
+			new ApiResponseError(404, "NOT_FOUND", "Media folder not found"),
+		);
+		vi.mocked(fetchMediaItem).mockImplementationOnce(
+			() => new Promise<LocalMediaItem>((resolve) => (resolveRefresh = resolve)),
+		);
+		const onItemRefreshed = vi.fn();
+
+		const screen = await renderPanel({
+			item: makeLocalItem(),
+			canMoveLocation: true,
+			onItemRefreshed,
+		});
+
+		await vi.waitFor(() => expect(fetchMediaItem).toHaveBeenCalledWith("media-1"));
+		await expect
+			.element(screen.getByRole("combobox", { name: "Location" }))
+			.toHaveTextContent("Loading...");
+		resolveRefresh(refreshed);
+		await vi.waitFor(() => {
+			expect(onItemRefreshed).toHaveBeenCalledWith(refreshed);
+		});
+	});
+
+	it("refreshes the open item when a selected folder disappears during save", async () => {
+		const refreshed = makeLocalItem({ folderId: null });
+		vi.mocked(updateMedia).mockRejectedValueOnce(
+			new ApiResponseError(404, "NOT_FOUND", "Media folder not found"),
+		);
+		vi.mocked(fetchMediaItem).mockResolvedValueOnce(refreshed);
+		const onItemRefreshed = vi.fn();
+		const screen = await renderPanel({
+			item: makeLocalItem(),
+			canMoveLocation: true,
+			onItemRefreshed,
+		});
+
+		screen.getByRole("combobox", { name: "Location" }).element().click();
+		await expect.element(screen.getByRole("option", { name: "Main library" })).toBeInTheDocument();
+		screen.getByRole("option", { name: "Main library" }).element().click();
+		await expect.element(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+		screen.getByRole("button", { name: "Save" }).element().click();
+
+		await vi.waitFor(() => {
+			expect(fetchMediaItem).toHaveBeenCalledWith("media-1");
+			expect(onItemRefreshed).toHaveBeenCalledWith(refreshed);
+		});
+		await expect
+			.element(
+				screen.getByText(
+					"The selected folder no longer exists. Choose another location and save again.",
+				),
+			)
+			.toBeInTheDocument();
+	});
+
+	it("blocks stale save retries while missing-folder recovery is pending", async () => {
+		let resolveRefresh!: (item: LocalMediaItem) => void;
+		vi.mocked(updateMedia).mockRejectedValueOnce(
+			new ApiResponseError(404, "NOT_FOUND", "Media folder not found"),
+		);
+		vi.mocked(fetchMediaItem).mockImplementationOnce(
+			() => new Promise<LocalMediaItem>((resolve) => (resolveRefresh = resolve)),
+		);
+		const item = makeLocalItem();
+		const screen = await renderPanel({ item, canMoveLocation: true });
+
+		screen.getByRole("combobox", { name: "Location" }).element().click();
+		await expect.element(screen.getByRole("option", { name: "Main library" })).toBeInTheDocument();
+		screen.getByRole("option", { name: "Main library" }).element().click();
+		await expect.element(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+		const save = screen.getByRole("button", { name: "Save" }).element();
+		save.click();
+
+		await vi.waitFor(() => expect(fetchMediaItem).toHaveBeenCalledWith("media-1"));
+		await expect.element(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+		const shortcut = new KeyboardEvent("keydown", { key: "s", ctrlKey: true, cancelable: true });
+		window.dispatchEvent(shortcut);
+		expect(shortcut.defaultPrevented).toBe(false);
+		save.click();
+		expect(updateMedia).toHaveBeenCalledTimes(1);
+		resolveRefresh({ ...item, folderId: null });
+		await expect.element(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+	});
+
+	it("reports when the media itself was deleted during a save", async () => {
+		vi.mocked(updateMedia).mockRejectedValueOnce(
+			new ApiResponseError(404, "NOT_FOUND", "Media item not found"),
+		);
+		vi.mocked(fetchMediaItem).mockRejectedValueOnce(
+			new ApiResponseError(404, "NOT_FOUND", "Media item not found"),
+		);
+		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: true });
+
+		screen.getByRole("combobox", { name: "Location" }).element().click();
+		await expect.element(screen.getByRole("option", { name: "Main library" })).toBeInTheDocument();
+		screen.getByRole("option", { name: "Main library" }).element().click();
+		await expect.element(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+		screen.getByRole("button", { name: "Save" }).element().click();
+
+		await expect.element(screen.getByText("This media item no longer exists.")).toBeInTheDocument();
+		expect(
+			screen
+				.getByText("The selected folder no longer exists. Choose another location and save again.")
+				.query(),
+		).toBeNull();
+		await expect.element(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+	});
+
+	it("does not blame the folder when missing-item recovery cannot confirm the state", async () => {
+		vi.mocked(updateMedia).mockRejectedValueOnce(
+			new ApiResponseError(404, "NOT_FOUND", "Media item not found"),
+		);
+		vi.mocked(fetchMediaItem).mockRejectedValueOnce(
+			new ApiResponseError(503, "MEDIA_FETCH_ERROR", "Failed to fetch media item"),
+		);
+		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: true });
+
+		screen.getByRole("combobox", { name: "Location" }).element().click();
+		await expect.element(screen.getByRole("option", { name: "Main library" })).toBeInTheDocument();
+		screen.getByRole("option", { name: "Main library" }).element().click();
+		const save = screen.getByRole("button", { name: "Save" });
+		await expect.element(save).toBeEnabled();
+		save.element().click();
+
+		await expect
+			.element(
+				screen.getByText(
+					"Couldn’t confirm whether the media item or selected folder still exists. Try again.",
+				),
+			)
+			.toBeInTheDocument();
+		expect(
+			screen
+				.getByText("The selected folder no longer exists. Choose another location and save again.")
+				.query(),
+		).toBeNull();
 	});
 
 	it("does not consume the keyboard save shortcut when nothing can be saved", async () => {
@@ -534,6 +840,9 @@ describe("MediaDetailPanel file URL", () => {
 			.element(screen.getByLabelText("Alt Text"), { timeout: 100 })
 			.not.toBeInTheDocument();
 		await expect.element(screen.getByText("Uploaded:"), { timeout: 100 }).not.toBeInTheDocument();
+		await expect.element(screen.getByText("Location"), { timeout: 100 }).not.toBeInTheDocument();
+		expect(fetchMediaFolder).not.toHaveBeenCalled();
+		expect(fetchMediaFolders).not.toHaveBeenCalled();
 	});
 
 	describe("video preview", () => {

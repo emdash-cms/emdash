@@ -70,7 +70,9 @@ export const mediaUpdateBody = z
 
 export const mediaFolderIdSchema = z.string().min(1).max(64);
 
-export const mediaFolderListQuery = cursorPaginationQuery.meta({ id: "MediaFolderListQuery" });
+export const mediaFolderListQuery = cursorPaginationQuery
+	.extend({ q: z.string().trim().min(1).max(200).optional() })
+	.meta({ id: "MediaFolderListQuery" });
 
 const mediaFolderNameSchema = z.string().refine(
 	(value) => {

@@ -751,6 +751,9 @@ describe("EmDashClient", () => {
 				const url = new URL(req.url);
 				const text = await req.text();
 				requests.push({ method: req.method, url, body: text ? JSON.parse(text) : undefined });
+				if (req.method === "GET" && url.pathname.endsWith("/media/folders/folder%2Fone")) {
+					return jsonResponse({ item: { id: "folder/one", name: "One" } });
+				}
 				if (req.method === "GET") {
 					return jsonResponse({ items: [{ id: "folder/one", name: "One" }], nextCursor: "next" });
 				}
@@ -766,7 +769,12 @@ describe("EmDashClient", () => {
 				interceptors: [backend],
 			});
 
-			const list = await client.mediaFolderList({ limit: 25, cursor: "after / folder" });
+			const list = await client.mediaFolderList({
+				limit: 25,
+				cursor: "after / folder",
+				q: "photo set",
+			});
+			const fetched = await client.mediaFolderGet("folder/one");
 			const created = await client.mediaFolderCreate("Created");
 			const updated = await client.mediaFolderUpdate("folder/one", "Updated");
 			await client.mediaFolderDelete("folder/one");
@@ -775,14 +783,21 @@ describe("EmDashClient", () => {
 			expect(list).toEqual({ items: [{ id: "folder/one", name: "One" }], nextCursor: "next" });
 			expect(created).toEqual({ id: "folder/one", name: "Updated" });
 			expect(updated).toEqual({ id: "folder/one", name: "Updated" });
+			expect(fetched).toEqual({ id: "folder/one", name: "One" });
 			expect(media).toEqual({ id: "media/one", folderId: null });
 			expect(Object.fromEntries(requests[0]?.url.searchParams ?? [])).toEqual({
 				limit: "25",
 				cursor: "after / folder",
+				q: "photo set",
 			});
 			expect(
-				requests.slice(1).map(({ method, url, body }) => ({ method, path: url.pathname, body })),
+				requests.map(({ method, url, body }) => ({ method, path: url.pathname, body })).slice(1),
 			).toEqual([
+				{
+					method: "GET",
+					path: "/_emdash/api/media/folders/folder%2Fone",
+					body: undefined,
+				},
 				{ method: "POST", path: "/_emdash/api/media/folders", body: { name: "Created" } },
 				{
 					method: "PUT",

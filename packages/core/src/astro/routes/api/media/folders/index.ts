@@ -17,7 +17,11 @@ export const GET: APIRoute = async ({ request, locals }) => {
 	const query = parseQuery(new URL(request.url), mediaFolderListQuery);
 	if (isParseError(query)) return query;
 	return unwrapResult(
-		await handleMediaFolderList(emdash.db, { limit: query.limit, cursor: query.cursor }),
+		await handleMediaFolderList(emdash.db, {
+			limit: query.limit,
+			cursor: query.cursor,
+			q: query.q,
+		}),
 	);
 };
 

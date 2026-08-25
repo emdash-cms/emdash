@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import {
 	handleMediaFolderCreate,
 	handleMediaFolderDelete,
+	handleMediaFolderGet,
 	handleMediaFolderList,
 	handleMediaFolderUpdate,
 } from "../../../src/api/handlers/media-folders.js";
@@ -45,6 +46,42 @@ describeEachDialect("media folder handlers", (dialect) => {
 		expect(await handleMediaFolderList(ctx.db, { cursor: "not-a-cursor" })).toMatchObject({
 			success: false,
 			error: { code: "INVALID_CURSOR" },
+		});
+	});
+
+	it("normalizes and applies folder-name search before pagination", async () => {
+		await handleMediaFolderCreate(ctx.db, { name: "Archive" });
+		await handleMediaFolderCreate(ctx.db, { name: "Résumé" });
+		const options = { q: " re\u0301su " };
+
+		const result = await handleMediaFolderList(ctx.db, options);
+
+		expect(result).toMatchObject({
+			success: true,
+			data: { items: [{ name: "Résumé" }] },
+		});
+	});
+
+	it("treats folder-search wildcards literally", async () => {
+		await handleMediaFolderCreate(ctx.db, { name: "100% Real" });
+		await handleMediaFolderCreate(ctx.db, { name: "100 Percent" });
+
+		const result = await handleMediaFolderList(ctx.db, { q: "%" });
+
+		expect(result).toMatchObject({
+			success: true,
+			data: { items: [{ name: "100% Real" }] },
+		});
+	});
+
+	it("gets one folder and returns not found for an unknown ID", async () => {
+		const created = await handleMediaFolderCreate(ctx.db, { name: "Current" });
+		if (!created.success) throw new Error("expected folder create success");
+
+		expect(await handleMediaFolderGet(ctx.db, created.data.item.id)).toEqual(created);
+		expect(await handleMediaFolderGet(ctx.db, "missing-folder")).toMatchObject({
+			success: false,
+			error: { code: "NOT_FOUND" },
 		});
 	});
 

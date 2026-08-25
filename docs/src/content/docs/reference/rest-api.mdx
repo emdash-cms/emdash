@@ -517,11 +517,25 @@ media requires `media:edit_any`. Bearer tokens also require the `media:write` sc
 ### List Media Folders
 
 ```http
-GET /_emdash/api/media/folders?limit=50&cursor=...
+GET /_emdash/api/media/folders?limit=50&q=product&cursor=...
 ```
 
-Returns folders in name order with an optional `nextCursor`. `limit` accepts 1 to 100 and defaults
-to 50. The endpoint requires `media:read`.
+| Parameter | Type     | Description                                           |
+| --------- | -------- | ----------------------------------------------------- |
+| `cursor`  | `string` | Opaque pagination cursor                              |
+| `limit`   | `number` | Folders per page, from 1 to 100 (default: 50)         |
+| `q`       | `string` | Case-insensitive partial folder-name search (1–200 characters) |
+
+Returns folders in name order with an optional `nextCursor`. The endpoint requires `media:read`.
+
+### Get Media Folder
+
+```http
+GET /_emdash/api/media/folders/:id
+```
+
+Returns the folder with the requested ID. The endpoint requires `media:read` and returns 404 when
+the folder does not exist.
 
 ### Create Media Folder
 

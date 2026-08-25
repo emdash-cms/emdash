@@ -5,6 +5,7 @@ import { GET as listMedia } from "../../../src/astro/routes/api/media.js";
 import { PUT as updateMedia } from "../../../src/astro/routes/api/media/[id].js";
 import {
 	DELETE as deleteFolder,
+	GET as getFolder,
 	PUT as updateFolder,
 } from "../../../src/astro/routes/api/media/folders/[id].js";
 import {
@@ -149,6 +150,30 @@ describe("media folder routes", () => {
 				>[0],
 			),
 		).toMatchObject({ status: 200 });
+	});
+
+	it("allows readers to get one folder and validates direct folder IDs", async () => {
+		const folder = await new MediaFolderRepository(ctx.db).create("Direct");
+		const request = new Request(`http://localhost/_emdash/api/media/folders/${folder.id}`);
+
+		const response = await getFolder(
+			routeContext(request, Role.SUBSCRIBER, { id: folder.id }) as Parameters<typeof getFolder>[0],
+		);
+		expect(response.status).toBe(200);
+		await expect(response.json()).resolves.toMatchObject({ data: { item: folder } });
+
+		const missing = await getFolder(
+			routeContext(request, Role.SUBSCRIBER, { id: "missing-folder" }) as Parameters<
+				typeof getFolder
+			>[0],
+		);
+		expect(missing.status).toBe(404);
+
+		const invalidId = "x".repeat(65);
+		const invalid = await getFolder(
+			routeContext(request, Role.SUBSCRIBER, { id: invalidId }) as Parameters<typeof getFolder>[0],
+		);
+		expect(invalid.status).toBe(400);
 	});
 
 	it("maps unfiled list requests to Main library", async () => {

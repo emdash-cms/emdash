@@ -9,8 +9,9 @@ describe("media page API client", () => {
 	beforeEach(() => {
 		fetchSpy = vi
 			.fn()
-			.mockResolvedValue(
-				new Response(JSON.stringify({ data: { items: [], totalCount: 37 } }), { status: 200 }),
+			.mockImplementation(
+				() =>
+					new Response(JSON.stringify({ data: { items: [], totalCount: 37 } }), { status: 200 }),
 			);
 		globalThis.fetch = fetchSpy as typeof globalThis.fetch;
 	});
@@ -26,5 +27,14 @@ describe("media page API client", () => {
 
 		expect(Object.fromEntries(requestUrl.searchParams)).toEqual({ page: "1", limit: "35" });
 		expect(result).toEqual({ items: [], totalCount: 37 });
+	});
+
+	it("serializes Main library and named-folder filters", async () => {
+		const mainOptions = { page: 1, limit: 35, folderId: null };
+		await fetchMediaList(mainOptions);
+		await fetchMediaList({ page: 1, limit: 35, folderId: "folder/one" });
+
+		const urls = fetchSpy.mock.calls.map(([url]) => new URL(url, "http://localhost"));
+		expect(urls.map((url) => url.searchParams.get("folderId"))).toEqual(["unfiled", "folder/one"]);
 	});
 });

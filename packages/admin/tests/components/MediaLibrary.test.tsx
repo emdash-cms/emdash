@@ -1,11 +1,70 @@
+import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { MediaLibrary } from "../../src/components/MediaLibrary";
-import type { MediaItem, MediaProviderItem } from "../../src/lib/api";
-import { deleteMedia } from "../../src/lib/api";
+import type { LocalMediaItem, MediaFolder, MediaItem, MediaProviderItem } from "../../src/lib/api";
+import { ApiResponseError, deleteMedia } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
+
+const dndState = vi.hoisted(() => ({
+	props: null as null | {
+		onDragStart?: (event: any) => void;
+		onDragEnd?: (event: any) => void;
+		onDragCancel?: (event: any) => void;
+	},
+}));
+
+vi.mock("@dnd-kit/core", async () => {
+	const ReactModule = await import("react");
+	return {
+		DndContext: (props: React.PropsWithChildren<Record<string, unknown>>) => {
+			dndState.props = props as typeof dndState.props;
+			return ReactModule.createElement(ReactModule.Fragment, null, props.children);
+		},
+		DragOverlay: ({ children }: React.PropsWithChildren) =>
+			ReactModule.createElement(ReactModule.Fragment, null, children),
+		PointerSensor: Symbol("PointerSensor"),
+		pointerWithin: () => [],
+		useSensor: () => ({}),
+		useSensors: (...sensors: unknown[]) => sensors,
+		useDraggable: () => ({
+			setNodeRef: () => undefined,
+			listeners: undefined,
+			isDragging: false,
+		}),
+		useDroppable: () => ({
+			setNodeRef: () => undefined,
+			isOver: false,
+		}),
+	};
+});
+
+vi.mock("../../src/components/RouterLinkButton.js", () => ({
+	RouterLinkButton: ({
+		to,
+		search,
+		variant: _variant,
+		size: _size,
+		shape: _shape,
+		icon: _icon,
+		...props
+	}: React.ComponentProps<"a"> & {
+		to: string;
+		search?: { folder?: string };
+		variant?: string;
+		size?: string;
+		shape?: string;
+		icon?: React.ReactNode;
+	}) => (
+		<a
+			{...props}
+			role="link"
+			data-href={search?.folder ? `${to}?folder=${encodeURIComponent(search.folder)}` : to}
+		/>
+	),
+}));
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -29,6 +88,20 @@ function dropFiles(target: EventTarget, files: File[]) {
 	target.dispatchEvent(new DragEvent("drop", { dataTransfer: transfer, bubbles: true }));
 }
 
+async function simulateMediaDrop(item: LocalMediaItem, folder: MediaFolder) {
+	const active = { data: { current: { kind: "local-media", item } } };
+	dndState.props?.onDragStart?.({ active });
+	dndState.props?.onDragEnd?.({
+		active,
+		over: { data: { current: { kind: "media-folder-target", folder } } },
+	});
+	window.dispatchEvent(new PointerEvent("pointerup"));
+	document
+		.querySelector("[data-media-library]")
+		?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+	await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
 	return {
@@ -45,7 +118,11 @@ function QueryWrapper({ children }: { children: React.ReactNode }) {
 	const qc = new QueryClient({
 		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 	});
-	return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+	return (
+		<Toasty>
+			<QueryClientProvider client={qc}>{children}</QueryClientProvider>
+		</Toasty>
+	);
 }
 
 function renderLibrary(props: Partial<React.ComponentProps<typeof MediaLibrary>> = {}) {
@@ -78,6 +155,20 @@ function makeMediaItem(overrides: Partial<MediaItem> = {}): MediaItem {
 	};
 }
 
+function makeLocalMediaItem(overrides: Partial<LocalMediaItem> = {}): LocalMediaItem {
+	return {
+		...makeMediaItem(),
+		storageKey: "media_01.jpg",
+		authorId: "user_01",
+		folderId: null,
+		...overrides,
+	};
+}
+
+function makeFolder(overrides: Partial<MediaFolder> = {}): MediaFolder {
+	return { id: "folder-1", name: "Product photos", ...overrides };
+}
+
 function makePagination(
 	overrides: Partial<NonNullable<React.ComponentProps<typeof MediaLibrary>["pagination"]>> = {},
 ): NonNullable<React.ComponentProps<typeof MediaLibrary>["pagination"]> {
@@ -95,9 +186,587 @@ function makePagination(
 describe("MediaLibrary", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		dndState.props = null;
 	});
 
 	describe("rendering items", () => {
+		it("keeps direct consumers provider-safe when drag feedback is enabled", async () => {
+			const queryClient = new QueryClient({
+				defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+			});
+			const screen = await render(
+				<QueryClientProvider client={queryClient}>
+					<MediaLibrary
+						items={[makeLocalMediaItem()]}
+						folders={[makeFolder()]}
+						canMoveMedia={() => true}
+						onMoveMedia={vi.fn().mockResolvedValue(undefined)}
+					/>
+				</QueryClientProvider>,
+			);
+
+			await expect
+				.element(screen.getByRole("heading", { name: "Media Library" }))
+				.toBeInTheDocument();
+		});
+
+		it("uses the concise local upload action without changing the dialog title", async () => {
+			const screen = await renderLibrary({ items: [makeMediaItem()] });
+
+			expect(screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).query()).toBeNull();
+			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).element().click();
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
+		});
+
+		it("renders folders before media with navigation, edit, and load-more actions", async () => {
+			const onOpenFolder = vi.fn();
+			const onCreateFolder = vi.fn().mockResolvedValue(makeFolder());
+			const onRenameFolder = vi.fn().mockResolvedValue(makeFolder());
+			const onDeleteFolder = vi.fn().mockResolvedValue(undefined);
+			const onLoadMoreFolders = vi.fn();
+			const folder = makeFolder();
+			const screen = await renderLibrary({
+				folders: [folder],
+				items: [makeMediaItem()],
+				pagination: makePagination(),
+				canManageFolders: true,
+				hasMoreFolders: true,
+				onOpenFolder,
+				onCreateFolder,
+				onRenameFolder,
+				onDeleteFolder,
+				onLoadMoreFolders,
+			});
+
+			await expect.element(screen.getByRole("heading", { name: "Folders" })).toBeInTheDocument();
+			await expect.element(screen.getByText("1 folder loaded")).toBeInTheDocument();
+			const folderLink = screen.getByRole("link", { name: "Open folder Product photos" });
+			const folderCard = folderLink.element().closest("[data-media-folder-card]");
+			expect(folderCard).not.toBeNull();
+			expect(folderCard!.getBoundingClientRect().height).toBeLessThanOrEqual(72);
+			expect(folderLink.element().querySelector('[dir="auto"]')).toHaveTextContent(
+				"Product photos",
+			);
+			await folderLink.click();
+			expect(onOpenFolder).toHaveBeenCalledWith(folder);
+			await expect.element(screen.getByRole("heading", { name: "Media Library" })).toHaveFocus();
+			const editFolder = screen.getByRole("button", { name: "Edit folder Product photos" });
+			await editFolder.click();
+			await expect
+				.element(screen.getByRole("heading", { name: "Edit folder" }))
+				.toBeInTheDocument();
+			screen.getByRole("button", { name: "Cancel" }).element().click();
+			await vi.waitFor(() => expect(document.activeElement).toBe(editFolder.element()));
+			await screen.getByRole("button", { name: "Add new folder" }).click();
+			await expect
+				.element(screen.getByRole("heading", { name: "Add new folder" }))
+				.toBeInTheDocument();
+			screen.getByRole("button", { name: "Cancel" }).element().click();
+			await screen.getByRole("button", { name: "Load more folders" }).click();
+			expect(onLoadMoreFolders).toHaveBeenCalledTimes(1);
+		});
+
+		it("moves a permitted local item from grid and list without opening another control", async () => {
+			const folder = makeFolder();
+			const item = makeLocalMediaItem();
+			const onMoveMedia = vi.fn().mockResolvedValue(undefined);
+			const onOpenFolder = vi.fn();
+			const screen = await renderLibrary({
+				folders: [folder],
+				items: [item],
+				pagination: makePagination(),
+				canMoveMedia: () => true,
+				onMoveMedia,
+				onOpenFolder,
+			});
+
+			const gridSource = screen.getByRole("button", { name: "photo.jpg" }).element();
+			expect(gridSource.querySelector("img")).toHaveAttribute("draggable", "false");
+			const gridTarget = screen
+				.getByRole("link", { name: "Open folder Product photos" })
+				.element()
+				.closest<HTMLElement>("[data-media-folder-card]");
+			expect(gridTarget).not.toBeNull();
+			expect(gridSource).toHaveAttribute("data-media-draggable", "true");
+			await simulateMediaDrop(item, folder);
+			await vi.waitFor(() => expect(onMoveMedia).toHaveBeenCalledWith(item, folder));
+			expect(onOpenFolder).not.toHaveBeenCalled();
+			expect(screen.getByRole("heading", { name: "Media Details" }).query()).toBeNull();
+			await expect
+				.element(screen.getByText("Moved to Product photos", { exact: true }))
+				.toBeVisible();
+			const successToast = screen
+				.getByRole("dialog", { name: "Moved to Product photos" })
+				.element();
+			expect(successToast.querySelector("[data-toast-icon]")).not.toBeNull();
+
+			await screen.getByRole("tab", { name: "List view" }).click();
+			const listSource = [...screen.getByRole("table").element().querySelectorAll("tr")].find(
+				(row) => row.textContent?.includes("photo.jpg"),
+			);
+			const listTarget = screen
+				.getByRole("link", { name: "Open folder Product photos" })
+				.element()
+				.closest<HTMLElement>("tr");
+			expect(listSource).not.toBeNull();
+			expect(listTarget).not.toBeNull();
+			expect(listSource).toHaveAttribute("data-media-draggable", "true");
+			await simulateMediaDrop(item, folder);
+			await vi.waitFor(() => expect(onMoveMedia).toHaveBeenCalledTimes(2));
+			expect(onOpenFolder).not.toHaveBeenCalled();
+		});
+
+		it("uses a Phosphor file icon in the drag preview", async () => {
+			const item = makeLocalMediaItem();
+			await renderLibrary({
+				folders: [makeFolder()],
+				items: [item],
+				pagination: makePagination(),
+				canMoveMedia: () => true,
+				onMoveMedia: vi.fn().mockResolvedValue(undefined),
+			});
+			const active = { data: { current: { kind: "local-media", item } } };
+			dndState.props?.onDragStart?.({ active });
+
+			await vi.waitFor(() => {
+				const overlay = document.querySelector("[data-media-drag-overlay]");
+				expect(overlay).not.toBeNull();
+				expect(overlay?.querySelector("svg")).not.toBeNull();
+				expect(overlay).toHaveTextContent("photo.jpg");
+			});
+			dndState.props?.onDragCancel?.({ active });
+		});
+
+		it("keeps the ordinary media click available when drag is eligible", async () => {
+			const onMoveMedia = vi.fn().mockResolvedValue(undefined);
+			const screen = await renderLibrary({
+				folders: [makeFolder()],
+				items: [makeLocalMediaItem()],
+				pagination: makePagination(),
+				canMoveMedia: () => true,
+				onMoveMedia,
+			});
+			const source = screen.getByRole("button", { name: "photo.jpg" }).element();
+
+			source.click();
+
+			expect(onMoveMedia).not.toHaveBeenCalled();
+			await expect
+				.element(screen.getByRole("heading", { name: "Media Details" }))
+				.toBeInTheDocument();
+		});
+
+		it("cancels drag safely and ignores the current folder and read-only media", async () => {
+			const folder = makeFolder();
+			const onMoveMedia = vi.fn().mockResolvedValue(undefined);
+			const onOpenFolder = vi.fn();
+			const screen = await renderLibrary({
+				folders: [folder],
+				items: [makeLocalMediaItem()],
+				pagination: makePagination(),
+				canMoveMedia: () => true,
+				onMoveMedia,
+				onOpenFolder,
+			});
+			const folderLink = screen.getByRole("link", { name: "Open folder Product photos" });
+			const active = { data: { current: { kind: "local-media", item: makeLocalMediaItem() } } };
+			dndState.props?.onDragStart?.({ active });
+			dndState.props?.onDragCancel?.({ active });
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			expect(onMoveMedia).not.toHaveBeenCalled();
+			expect(onOpenFolder).not.toHaveBeenCalled();
+			window.dispatchEvent(new PointerEvent("pointerup"));
+			const releaseClick = new MouseEvent("click", {
+				bubbles: true,
+				cancelable: true,
+				button: 0,
+			});
+			folderLink.element().dispatchEvent(releaseClick);
+			expect(releaseClick.defaultPrevented).toBe(true);
+			expect(onOpenFolder).not.toHaveBeenCalled();
+			await new Promise((resolve) => setTimeout(resolve, 1));
+			const normalClick = new MouseEvent("click", {
+				bubbles: true,
+				cancelable: true,
+				button: 0,
+			});
+			folderLink.element().dispatchEvent(normalClick);
+			expect(onOpenFolder).toHaveBeenCalledTimes(1);
+			onOpenFolder.mockClear();
+			dndState.props?.onDragStart?.({ active });
+			window.dispatchEvent(new Event("blur"));
+			folderLink
+				.element()
+				.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+			expect(onOpenFolder).toHaveBeenCalledTimes(1);
+
+			await screen.rerender(
+				<QueryWrapper>
+					<MediaLibrary
+						folders={[folder]}
+						items={[makeLocalMediaItem({ folderId: folder.id })]}
+						pagination={makePagination()}
+						canMoveMedia={() => true}
+						onMoveMedia={onMoveMedia}
+					/>
+				</QueryWrapper>,
+			);
+			await simulateMediaDrop(makeLocalMediaItem({ folderId: folder.id }), folder);
+			expect(onMoveMedia).not.toHaveBeenCalled();
+
+			await screen.rerender(
+				<QueryWrapper>
+					<MediaLibrary
+						folders={[folder]}
+						items={[makeLocalMediaItem()]}
+						pagination={makePagination()}
+						canMoveMedia={() => false}
+						onMoveMedia={onMoveMedia}
+					/>
+				</QueryWrapper>,
+			);
+			await simulateMediaDrop(makeLocalMediaItem(), folder);
+			expect(onMoveMedia).not.toHaveBeenCalled();
+		});
+
+		it("prevents duplicate moves while pending and permits retry after localized failure", async () => {
+			const folder = makeFolder();
+			const item = makeLocalMediaItem();
+			let resolveMove: (() => void) | undefined;
+			const pendingMove = new Promise<void>((resolve) => {
+				resolveMove = resolve;
+			});
+			const onMoveMedia = vi.fn().mockReturnValueOnce(pendingMove);
+			const screen = await renderLibrary({
+				folders: [folder],
+				items: [item],
+				pagination: makePagination(),
+				canMoveMedia: () => true,
+				onMoveMedia,
+			});
+			await simulateMediaDrop(item, folder);
+			await vi.waitFor(() => expect(onMoveMedia).toHaveBeenCalledTimes(1));
+			await simulateMediaDrop(item, folder);
+			expect(onMoveMedia).toHaveBeenCalledTimes(1);
+			resolveMove?.();
+			await expect
+				.element(screen.getByText("Moved to Product photos", { exact: true }))
+				.toBeInTheDocument();
+
+			onMoveMedia.mockRejectedValueOnce(
+				new ApiResponseError(404, "NOT_FOUND", "Media folder not found"),
+			);
+			await simulateMediaDrop(item, folder);
+			await expect
+				.element(screen.getByText("Couldn’t move file", { exact: true }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByText("The file or folder no longer exists.", { exact: true }))
+				.toBeInTheDocument();
+			expect(
+				screen
+					.getByRole("dialog", { name: "Couldn’t move file" })
+					.element()
+					.querySelector("[data-toast-icon]"),
+			).not.toBeNull();
+			expect(screen.getByText("Media folder not found").query()).toBeNull();
+
+			onMoveMedia.mockResolvedValueOnce(undefined);
+			await simulateMediaDrop(item, folder);
+			await vi.waitFor(() => expect(onMoveMedia).toHaveBeenCalledTimes(3));
+		});
+
+		it("keeps folder rows before media in list view", async () => {
+			const screen = await renderLibrary({
+				folders: [makeFolder()],
+				items: [makeMediaItem({ filename: "photo.jpg" })],
+				pagination: makePagination(),
+				canManageFolders: true,
+				onCreateFolder: vi.fn().mockResolvedValue(makeFolder()),
+				onRenameFolder: vi.fn().mockResolvedValue(makeFolder()),
+				onDeleteFolder: vi.fn().mockResolvedValue(undefined),
+			});
+
+			await screen.getByRole("tab", { name: "List view" }).click();
+			expect(screen.getByRole("heading", { name: "Folders" }).query()).toBeNull();
+			const rows = screen.getByRole("row").all();
+			const folderRow = rows[1]?.element();
+			expect(folderRow).toHaveTextContent("Product photos");
+			const folderCells = folderRow?.querySelectorAll("td");
+			const folderLink = screen.getByRole("link", { name: "Open folder Product photos" });
+			const editFolder = screen.getByRole("button", { name: "Edit folder Product photos" });
+			expect(folderCells?.[1]).toContainElement(editFolder.element());
+			const folderLinkBox = folderLink.element().getBoundingClientRect();
+			const editFolderBox = editFolder.element().getBoundingClientRect();
+			expect(editFolderBox.left - folderLinkBox.right).toBeLessThanOrEqual(8);
+			expect(folderLink.element().querySelector('[dir="auto"]')).toHaveTextContent(
+				"Product photos",
+			);
+			expect(folderCells?.[2]).toHaveTextContent("Type: Folder");
+			expect(folderCells?.[3]).toHaveTextContent("Size is not applicable to folders");
+			expect(folderCells?.[4]).toHaveTextContent("Alt text is not applicable to folders");
+			expect(rows[2]?.element()).toHaveTextContent("photo.jpg");
+		});
+
+		it("renders the initial folder loader and error inside the list table", async () => {
+			const onRetryFolders = vi.fn();
+			const screen = await renderLibrary({
+				foldersLoading: true,
+				items: [makeMediaItem({ filename: "photo.jpg" })],
+				pagination: makePagination(),
+				onRetryFolders,
+			});
+
+			await screen.getByRole("tab", { name: "List view" }).click();
+			let rows = screen.getByRole("row").all();
+			expect(rows[1]?.element()).toHaveTextContent("Loading folders");
+			expect(rows[1]?.element().querySelector("td")).toHaveAttribute("colspan", "5");
+			expect(rows[2]?.element()).toHaveTextContent("photo.jpg");
+
+			await screen.rerender(
+				<QueryWrapper>
+					<MediaLibrary
+						foldersError={new Error("offline")}
+						items={[makeMediaItem({ filename: "photo.jpg" })]}
+						pagination={makePagination()}
+						onRetryFolders={onRetryFolders}
+					/>
+				</QueryWrapper>,
+			);
+			rows = screen.getByRole("row").all();
+			expect(rows[1]?.element()).toHaveTextContent("Folders could not be loaded.");
+			expect(rows[1]?.element().querySelector("td")).toHaveAttribute("colspan", "5");
+			await screen.getByRole("button", { name: "Retry" }).click();
+			expect(onRetryFolders).toHaveBeenCalledTimes(1);
+			expect(rows[2]?.element()).toHaveTextContent("photo.jpg");
+		});
+
+		it("orders later folder-page errors and load more before media rows", async () => {
+			const onRetryFolders = vi.fn();
+			const onLoadMoreFolders = vi.fn();
+			const screen = await renderLibrary({
+				folders: [makeFolder()],
+				foldersError: new Error("offline"),
+				hasMoreFolders: true,
+				onRetryFolders,
+				onLoadMoreFolders,
+				items: [makeMediaItem({ filename: "photo.jpg" })],
+				pagination: makePagination(),
+			});
+
+			await screen.getByRole("tab", { name: "List view" }).click();
+			const rows = screen.getByRole("row").all();
+			expect(rows[1]?.element()).toHaveTextContent("Product photos");
+			expect(rows[2]?.element()).toHaveTextContent("Folders could not be loaded.");
+			expect(rows[3]?.element()).toHaveTextContent("Load more folders");
+			expect(rows[4]?.element()).toHaveTextContent("photo.jpg");
+			await screen.getByRole("button", { name: "Retry" }).click();
+			await screen.getByRole("button", { name: "Load more folders" }).click();
+			expect(onRetryFolders).toHaveBeenCalledTimes(1);
+			expect(onLoadMoreFolders).toHaveBeenCalledTimes(1);
+		});
+
+		it("shows folders instead of the whole-library empty state", async () => {
+			const screen = await renderLibrary({ folders: [makeFolder()], items: [] });
+
+			await expect.element(screen.getByText("Product photos").first()).toBeInTheDocument();
+			expect(screen.getByText("Your media library is empty").query()).toBeNull();
+		});
+
+		it("marks folder results busy while loading another bounded page", async () => {
+			const screen = await renderLibrary({
+				folders: [makeFolder()],
+				isLoadingMoreFolders: true,
+				hasMoreFolders: true,
+				onLoadMoreFolders: vi.fn(),
+			});
+
+			const folderSection = screen
+				.getByRole("heading", { name: "Folders" })
+				.element()
+				.closest("section");
+			expect(folderSection).toHaveAttribute("aria-busy", "true");
+			await expect.element(screen.getByText("Loading folders")).toBeInTheDocument();
+		});
+
+		it("shows Back and breadcrumbs inside a folder and hides local creation actions", async () => {
+			const onBackToMain = vi.fn();
+			const screen = await renderLibrary({
+				folderId: "folder-1",
+				currentFolder: makeFolder(),
+				canManageFolders: true,
+				onBackToMain,
+			});
+
+			const back = screen.getByRole("link", { name: "Back" });
+			const modifiedClick = new MouseEvent("click", {
+				bubbles: true,
+				cancelable: true,
+				metaKey: true,
+			});
+			back.element().dispatchEvent(modifiedClick);
+			expect(modifiedClick.defaultPrevented).toBe(false);
+			expect(onBackToMain).not.toHaveBeenCalled();
+			back.element().click();
+			expect(onBackToMain).toHaveBeenCalledTimes(1);
+			await expect.element(screen.getByRole("heading", { name: "Media Library" })).toHaveFocus();
+			const currentFolder = screen.getByText("Product photos").first();
+			await expect.element(currentFolder).toBeInTheDocument();
+			expect(currentFolder.element()).toHaveAttribute("dir", "auto");
+			const rootCrumb = screen.getByRole("link", { name: "Media Library" }).first();
+			expect(getComputedStyle(rootCrumb.element()).fontSize).toBe(
+				getComputedStyle(currentFolder.element()).fontSize,
+			);
+			expect(screen.getByRole("button", { name: "Add new folder" }).query()).toBeNull();
+			expect(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).query()).toBeNull();
+		});
+
+		it("keeps browsing available without folder-management permission", async () => {
+			const folder = makeFolder();
+			const onOpenFolder = vi.fn();
+			const screen = await renderLibrary({
+				folders: [folder],
+				pagination: makePagination(),
+				canManageFolders: false,
+				onOpenFolder,
+				onCreateFolder: vi.fn(),
+				onRenameFolder: vi.fn(),
+				onDeleteFolder: vi.fn(),
+			});
+
+			expect(screen.getByRole("button", { name: "Add new folder" }).query()).toBeNull();
+			expect(screen.getByRole("button", { name: "Edit folder Product photos" }).query()).toBeNull();
+			await screen.getByRole("link", { name: "Open folder Product photos" }).click();
+			expect(onOpenFolder).toHaveBeenCalledWith(folder);
+		});
+
+		it("hides folders on later pages and while a MIME filter is active", async () => {
+			const screen = await renderLibrary({
+				folders: [makeFolder()],
+				items: [makeMediaItem()],
+				pagination: makePagination({ page: 2, totalCount: 70 }),
+			});
+
+			expect(screen.getByRole("heading", { name: "Folders" }).query()).toBeNull();
+			await screen.rerender(
+				<QueryWrapper>
+					<MediaLibrary
+						folders={[makeFolder()]}
+						items={[makeMediaItem()]}
+						pagination={makePagination({ page: 1, totalCount: 70 })}
+					/>
+				</QueryWrapper>,
+			);
+			await screen.getByRole("combobox", { name: "Filter by type" }).click();
+			await screen.getByRole("option", { name: "Images" }).click();
+			expect(screen.getByRole("heading", { name: "Folders" }).query()).toBeNull();
+		});
+
+		it("hides retained folder query state from a filtered list", async () => {
+			const screen = await renderLibrary({
+				folders: [makeFolder()],
+				foldersLoading: true,
+				foldersError: new Error("offline"),
+				hasMoreFolders: true,
+				isLoadingMoreFolders: true,
+				onLoadMoreFolders: vi.fn(),
+				onRetryFolders: vi.fn(),
+				items: [makeMediaItem()],
+				pagination: makePagination(),
+			});
+
+			await screen.getByRole("tab", { name: "List view" }).click();
+			await screen.getByRole("combobox", { name: "Filter by type" }).click();
+			await screen.getByRole("option", { name: "Images" }).click();
+
+			expect(screen.getByRole("link", { name: "Open folder Product photos" }).query()).toBeNull();
+			expect(screen.getByText("Loading folders").query()).toBeNull();
+			expect(screen.getByText("Folders could not be loaded.").query()).toBeNull();
+			expect(screen.getByRole("button", { name: "Retry" }).query()).toBeNull();
+			expect(screen.getByRole("button", { name: "Load more folders" }).query()).toBeNull();
+			expect(screen.getByRole("table").element()).not.toHaveAttribute("aria-busy");
+		});
+
+		it("shows global folder results while searching from a named folder", async () => {
+			const onLocalSearchChange = vi.fn();
+			const onOpenFolder = vi.fn();
+			const screen = await renderLibrary({
+				folderId: "folder-current",
+				currentFolder: makeFolder({ id: "folder-current", name: "Current" }),
+				folders: [makeFolder({ id: "folder-result", name: "Product photos" })],
+				items: [makeMediaItem()],
+				pagination: makePagination(),
+				onLocalSearchChange,
+				onOpenFolder,
+			});
+
+			await screen.getByRole("searchbox", { name: "Search media" }).fill("product");
+			await expect.element(screen.getByRole("heading", { name: "Folders" })).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("link", { name: "Open folder Product photos" }))
+				.toBeInTheDocument();
+			await screen.getByRole("link", { name: "Open folder Product photos" }).click();
+			expect(onLocalSearchChange).toHaveBeenLastCalledWith("");
+			expect(onOpenFolder).toHaveBeenCalledWith(expect.objectContaining({ id: "folder-result" }));
+		});
+
+		it("disables local page-drop upload while inside a folder", async () => {
+			const onUpload = vi.fn();
+			const screen = await renderLibrary({
+				folderId: "folder-1",
+				currentFolder: makeFolder(),
+				onUpload,
+			});
+
+			dropFiles(window, [new File(["image"], "dropped.jpg", { type: "image/jpeg" })]);
+
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			expect(onUpload).not.toHaveBeenCalled();
+			expect(screen.getByText("Drop files to upload").query()).toBeNull();
+		});
+
+		it("keeps media usable when folders fail and offers retry", async () => {
+			const onRetryFolders = vi.fn();
+			const screen = await renderLibrary({
+				foldersError: new Error("offline"),
+				onRetryFolders,
+				items: [makeMediaItem()],
+				pagination: makePagination(),
+			});
+
+			await expect
+				.element(screen.getByRole("alert"))
+				.toHaveTextContent("Folders could not be loaded.");
+			await screen.getByRole("button", { name: "Retry" }).click();
+			expect(onRetryFolders).toHaveBeenCalledTimes(1);
+			await expect.element(screen.getByAltText("photo.jpg")).toBeInTheDocument();
+		});
+
+		it("does not claim the library is empty when folder loading fails", async () => {
+			const screen = await renderLibrary({
+				foldersError: new Error("offline"),
+				onRetryFolders: vi.fn(),
+			});
+
+			await expect.element(screen.getByText("Folders could not be loaded.")).toBeInTheDocument();
+			expect(screen.getByText("Your media library is empty").query()).toBeNull();
+		});
+
+		it("does not claim there are no matches when folder search fails", async () => {
+			const screen = await renderLibrary({
+				foldersError: new Error("offline"),
+				onRetryFolders: vi.fn(),
+			});
+
+			await screen.getByRole("searchbox", { name: "Search media" }).fill("missing");
+
+			await expect.element(screen.getByText("Folders could not be loaded.")).toBeInTheDocument();
+			expect(screen.getByText("No matching media").query()).toBeNull();
+			expect(screen.getByRole("button", { name: "Clear search" }).query()).toBeNull();
+		});
+
 		it("displays media items in grid view by default", async () => {
 			const items = [
 				makeMediaItem({ id: "1", filename: "image1.jpg" }),
@@ -143,7 +812,7 @@ describe("MediaLibrary", () => {
 			const onUpload = vi.fn();
 			const screen = await renderLibrary({ onUpload });
 
-			screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).element().click();
+			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).first().element().click();
 
 			await expect
 				.element(screen.getByRole("heading", { name: "Upload to Library" }))
@@ -157,7 +826,7 @@ describe("MediaLibrary", () => {
 		it("opens the same empty dialog from the empty-state action", async () => {
 			const screen = await renderLibrary();
 
-			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).element().click();
+			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).last().element().click();
 
 			await expect
 				.element(screen.getByRole("heading", { name: "Upload to Library" }))
@@ -177,7 +846,7 @@ describe("MediaLibrary", () => {
 				(name) => new File([name], name, { type: "image/jpeg" }),
 			);
 
-			screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).element().click();
+			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).first().element().click();
 			await expect
 				.element(screen.getByRole("heading", { name: "Upload to Library" }))
 				.toBeInTheDocument();
@@ -234,7 +903,7 @@ describe("MediaLibrary", () => {
 				.mockResolvedValue(undefined);
 			const screen = await renderLibrary({ onUpload });
 
-			screen.getByRole("button", { name: UPLOAD_TO_LIBRARY_PATTERN }).element().click();
+			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).first().element().click();
 			await expect
 				.element(screen.getByRole("heading", { name: "Upload to Library" }))
 				.toBeInTheDocument();
@@ -363,7 +1032,7 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("Your media library is empty")).toBeInTheDocument();
 			await expect.element(screen.getByText(UPLOAD_CTA_PATTERN)).toBeInTheDocument();
 			await expect
-				.element(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }))
+				.element(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).last())
 				.toBeInTheDocument();
 		});
 	});
@@ -446,7 +1115,7 @@ describe("MediaLibrary", () => {
 			await expect
 				.element(screen.getByRole("navigation", { name: "Media pagination" }))
 				.toBeInTheDocument();
-			await expect.element(screen.getByRole("status")).toHaveTextContent("Showing 1-35 of 37");
+			await expect.element(screen.getByText("Showing 1-35 of 37")).toBeInTheDocument();
 			expect(screen.getByText("37 items", { exact: true }).query()).toBeNull();
 			await expect
 				.element(screen.getByRole("combobox", { name: "Page number" }))
@@ -575,6 +1244,42 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByAltText("restored.jpg")).toBeInTheDocument();
 		});
 
+		it("does not make provider media draggable into local folders", async () => {
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaProviders as any).mockResolvedValueOnce([
+				{
+					id: "cloudflare-images",
+					name: "Cloudflare Images",
+					capabilities: { browse: true, search: false, upload: false, delete: false },
+				},
+			]);
+			(api.fetchProviderMedia as any).mockResolvedValueOnce({
+				items: [
+					{
+						id: "provider-1",
+						filename: "provider.jpg",
+						mimeType: "image/jpeg",
+						previewUrl: "https://example.com/provider.jpg",
+						size: 100,
+					},
+				],
+			});
+
+			const screen = await renderLibrary({
+				items: [makeLocalMediaItem()],
+				folders: [makeFolder()],
+				pagination: makePagination(),
+				canMoveMedia: () => true,
+				onMoveMedia: vi.fn().mockResolvedValue(undefined),
+			});
+			await screen.getByRole("tab", { name: "Cloudflare Images" }).click();
+
+			const providerCard = screen.getByRole("button", { name: "provider.jpg" });
+			await expect.element(providerCard).toBeInTheDocument();
+			expect(providerCard.element()).not.toHaveAttribute("data-media-draggable");
+			expect(screen.getByRole("heading", { name: "Folders" }).query()).toBeNull();
+		});
+
 		it("does not keep the local filter toolbar visible on empty provider tabs", async () => {
 			const api = await import("../../src/lib/api");
 			(api.fetchMediaProviders as any).mockResolvedValueOnce([
@@ -587,6 +1292,7 @@ describe("MediaLibrary", () => {
 
 			const screen = await renderLibrary({
 				items: [makeMediaItem({ id: "1", filename: "a.jpg" })],
+				folders: [makeFolder()],
 				pagination: makePagination(),
 			});
 
@@ -598,6 +1304,7 @@ describe("MediaLibrary", () => {
 			expect(screen.getByRole("navigation", { name: "Media pagination" }).query()).toBeNull();
 			expect(screen.getByRole("tab", { name: "Grid view" }).query()).toBeNull();
 			expect(screen.getByRole("tab", { name: "List view" }).query()).toBeNull();
+			expect(screen.getByRole("heading", { name: "Folders" }).query()).toBeNull();
 		});
 	});
 

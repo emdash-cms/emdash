@@ -862,13 +862,23 @@ export class EmDashClient {
 
 	/** List media folders */
 	async mediaFolderList(
-		options: { limit?: number; cursor?: string } = {},
+		options: { limit?: number; cursor?: string; q?: string } = {},
 	): Promise<ListResult<MediaFolder>> {
 		const params = new URLSearchParams();
 		if (options.limit !== undefined) params.set("limit", String(options.limit));
 		if (options.cursor !== undefined) params.set("cursor", options.cursor);
+		if (options.q !== undefined) params.set("q", options.q);
 		const qs = params.toString();
 		return this.request<ListResult<MediaFolder>>("GET", `/media/folders${qs ? `?${qs}` : ""}`);
+	}
+
+	/** Get one media folder */
+	async mediaFolderGet(id: string): Promise<MediaFolder> {
+		const data = await this.request<{ item: MediaFolder }>(
+			"GET",
+			`/media/folders/${encodeURIComponent(id)}`,
+		);
+		return data.item;
 	}
 
 	/** Create a media folder */
