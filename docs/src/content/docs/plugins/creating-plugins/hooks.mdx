@@ -139,10 +139,10 @@ Run during create, update, and delete operations on site content.
 Runs before content is saved. Return modified content, or `void` to leave it unchanged.
 
 <Aside type="caution">
-	A sandboxed plugin cannot cancel a save: the runner logs a thrown error and the save continues. Cancelling works in a native plugin, which runs in the host process.
+	A plugin running in the sandbox cannot cancel a save: the sandbox logs the thrown error and the save continues. Cancelling works in the host process — in a native plugin, or in a sandboxed plugin [moved to `plugins: []`](/plugins/creating-plugins/choosing-a-format/#sandbox-runners-and-platform-support).
 </Aside>
 
-To cancel the save from a native plugin, throw `ContentSaveRejectedError` (exported from `emdash`): the API responds with a `SAVE_REJECTED` error that carries your message, and the admin shows it to the editor. Any other thrown error also cancels the save, but the response replaces its message with a generic one.
+To cancel the save from a plugin running in the host process, throw `ContentSaveRejectedError` (exported from `emdash`): the API responds with a `SAVE_REJECTED` error that carries your message, and the admin shows it to the editor. Any other thrown error also cancels the save, but the response replaces its message with a generic one.
 
 ```typescript
 "content:beforeSave": async (event, ctx) => {
