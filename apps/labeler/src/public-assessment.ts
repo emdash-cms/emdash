@@ -38,15 +38,10 @@ const PUBLIC_REASON_CODE_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const POSITIVE_INTEGER_RE = /^[1-9]\d{0,2}$/;
 const BASE64URL_RE = /^[A-Za-z0-9_-]+$/;
 const BASE64_PADDING_RE = /=+$/u;
-const EFFECTIVE_STATE_SQL = `CASE
-	WHEN assessment.state IN ('superseded', 'cancelled') THEN 'superseded'
-	WHEN decision.action = 'approve' THEN 'passed'
-	WHEN decision.action = 'block' THEN 'blocked'
-	ELSE CASE assessment.state
-		WHEN 'running' THEN 'pending'
-		WHEN 'cancelled' THEN 'superseded'
-		ELSE assessment.state
-	END
+const PUBLIC_RUN_STATE_SQL = `CASE assessment.state
+	WHEN 'running' THEN 'pending'
+	WHEN 'cancelled' THEN 'superseded'
+	ELSE assessment.state
 END`;
 
 type PublicAssessmentState = "pending" | "passed" | "review" | "blocked" | "error" | "superseded";
@@ -65,7 +60,7 @@ interface AssessmentRow {
 	image_model_id: string;
 	image_prompt_hash: string;
 	state: string;
-	effective_state: string;
+	public_run_state: string;
 	coverage_json: string | null;
 	summary_json: string | null;
 	error_code: string | null;
@@ -348,7 +343,7 @@ const ASSESSMENT_SELECT = `SELECT
 	assessment.image_model_id,
 	assessment.image_prompt_hash,
 	assessment.state,
-	${EFFECTIVE_STATE_SQL} AS effective_state,
+		${PUBLIC_RUN_STATE_SQL} AS public_run_state,
 	assessment.coverage_json,
 	assessment.summary_json,
 	assessment.error_code,
@@ -421,7 +416,7 @@ async function readAssessmentPage(
 		bindings.push(filters.cid);
 	}
 	if (filters.state) {
-		clauses.push(`${EFFECTIVE_STATE_SQL} = ?`);
+		clauses.push(`${PUBLIC_RUN_STATE_SQL} = ?`);
 		bindings.push(filters.state);
 	}
 	if (cursor) {
@@ -553,9 +548,9 @@ async function publicAssessment(
 	if (subjectKindFromUri(row.subject_uri) !== row.subject_kind) {
 		throw new TypeError("assessment subject kind does not match its public URI");
 	}
-	const state = parsePublicState(row.effective_state);
+	const state = parsePublicState(row.public_run_state);
 	const manualDecision = publicManualDecision(row);
-	const reasonCodes = publicReasonCodes(row, manualDecision?.reasonCode);
+	const reasonCodes = publicReasonCodes(row);
 	const findings = supplements.findings.get(row.id) ?? [];
 	const labels = supplements.labels.get(row.id) ?? [];
 	for (const label of labels) {
@@ -630,7 +625,7 @@ function publicCoverage(value: string | null, kind: SubjectKind): Record<string,
 	}
 }
 
-function publicReasonCodes(row: AssessmentRow, manualReasonCode?: string): string[] {
+function publicReasonCodes(row: AssessmentRow): string[] {
 	const codes: string[] = [];
 	if (row.summary_json !== null) {
 		try {
@@ -651,7 +646,6 @@ function publicReasonCodes(row: AssessmentRow, manualReasonCode?: string): strin
 		}
 	}
 	if (row.error_code !== null) codes.push(publicOperationalReason(row.error_code));
-	if (manualReasonCode) codes.push(manualReasonCode);
 	return [...new Set(codes)].slice(0, MAX_FINDINGS);
 }
 
