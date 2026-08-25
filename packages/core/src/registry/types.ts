@@ -29,15 +29,13 @@ export interface RegistryConfig {
 	aggregatorUrl: string;
 
 	/**
-	 * Optional comma-separated list of labeller DIDs forwarded as the
-	 * `atproto-accept-labelers` header on every aggregator request.
+	 * Optional comma-separated list of bare labeller DIDs forwarded as the
+	 * `atproto-accept-labelers` header on every aggregator request. The
+	 * declaration contributes to the client's cache identity.
 	 *
-	 * Format follows the atproto convention:
-	 * `did:plc:abc;redact, did:plc:def`
-	 *
-	 * When unset, the aggregator applies its operator-default labeller set
-	 * (typically the EmDash publisher-verification labeller and any
-	 * additional trusted labellers the aggregator operator configured).
+	 * The aggregator validates the declaration and rejects unknown sources or
+	 * a list that omits a required source. It does not let the declaration
+	 * override its configured approval, block, takedown, or withdrawal policy.
 	 */
 	acceptLabelers?: string;
 
@@ -190,10 +188,9 @@ export interface ExperimentalConfig {
 	 * **Recommendation.** Until full signature verification lands,
 	 * point `aggregatorUrl` only at an aggregator you operate
 	 * yourself or one you trust with the same level of authority as
-	 * a centralized plugin source. The `policy.minimumReleaseAge` and
-	 * `acceptLabelers` knobs partially mitigate by widening the
-	 * detection window for takedowns, but they assume the labeller
-	 * system is operating.
+	 * a centralized plugin source. `policy.minimumReleaseAge` widens
+	 * the detection window for takedowns. `acceptLabelers` declares a
+	 * request and cache identity; it does not change aggregator policy.
 	 *
 	 * Requires `sandboxRunner` to be configured -- registry plugins
 	 * always run sandboxed.

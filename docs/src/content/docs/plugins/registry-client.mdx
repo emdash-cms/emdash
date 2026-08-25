@@ -95,7 +95,7 @@ The aggregator is an untrusted index that relays records it did not author, so t
 - **The `profile` and `release` fields can be `null`.** When a relayed record fails validation, the client surfaces it as `null` rather than failing the whole call, so one malformed record does not blank a search page. Always null-check before reading `pkg.profile?.name` or `latest.release?.artifacts.package`.
 - **Validate URL schemes yourself before rendering.** Validation checks structure, not URL safety — a `uri` field can carry a `javascript:` scheme. Apply your own `http`/`https` allow-list before putting any registry-supplied URL into an `href` or `src`.
 
-A non-2xx response throws `ClientResponseError` (re-exported from the package), carrying `.error`, `.description`, `.status`, and `.headers`. The reference aggregator returns only exact-CID revisions approved by every required positive-label source. An `atproto-accept-labelers` header may select an allowed set, but cannot disable a source required by the aggregator.
+A non-2xx response throws `ClientResponseError` (re-exported from the package), carrying `.error`, `.description`, `.status`, and `.headers`. The reference aggregator returns only exact-CID revisions approved by every required positive-label source. An `atproto-accept-labelers` header declares bare configured DIDs for request and cache identity. The aggregator validates the declaration, but its configured policy remains authoritative.
 
 ## Filtering by host compatibility
 

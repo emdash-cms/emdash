@@ -9,8 +9,8 @@
  * No authentication is required for discovery: the aggregator is a public
  * read-only index. The aggregator applies its required positive-label and
  * hard-enforcement policy server-side. The client may send an
- * `atproto-accept-labelers` header, but the aggregator rejects a set that omits
- * any required source.
+ * `atproto-accept-labelers` declaration for policy and cache identity. The
+ * aggregator validates it but does not let it override the configured policy.
  */
 
 import { Client, ok, simpleFetchHandler } from "@atcute/client";
@@ -116,16 +116,15 @@ export interface DiscoveryClientOptions {
 	aggregatorUrl: string;
 
 	/**
-	 * Optional comma-separated list of labeller DIDs to forward as the
-	 * `atproto-accept-labelers` request header. The list must contain every
-	 * source required by the aggregator's listing policy.
-	 *
-	 * Format follows the atproto convention: `did:plc:abc;redact, did:plc:def`
-	 * where the optional `;redact` flag asks for label content to be redacted.
+	 * Optional comma-separated list of bare labeller DIDs to forward as the
+	 * `atproto-accept-labelers` request header. The aggregator validates this
+	 * declaration and rejects unknown sources or a list that omits a required
+	 * source.
 	 *
 	 * Defaults to no header, which means the aggregator applies its configured
-	 * policy. Supplying a header cannot disable a required approval or redaction
-	 * source.
+	 * declaration. The value contributes to the client's stable cache identity;
+	 * it does not select label effects or override the aggregator's approval,
+	 * block, takedown, or withdrawal policy.
 	 */
 	acceptLabelers?: string;
 
@@ -207,9 +206,9 @@ export class DiscoveryClient {
 		// Wrap the handler so every outgoing request carries the
 		// `atproto-accept-labelers` header when configured. We always
 		// *overwrite* any value the caller might have supplied: this is the
-		// aggregator's policy, not a per-request setting, and letting
-		// downstream code substitute its own labellers would defeat the
-		// point of the wrapper.
+		// client's policy identity, not a per-request setting. Allowing
+		// downstream code to substitute another value would make the request
+		// disagree with the client's cache identity.
 		const acceptLabelers = this.acceptLabelers;
 		const handler: typeof baseHandler = acceptLabelers
 			? async (pathname, init) => {

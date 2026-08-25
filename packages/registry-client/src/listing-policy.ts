@@ -4,7 +4,7 @@ import type { ListingVisibilityState } from "@emdash-cms/registry-moderation";
 export interface RegistryLabelerPolicy {
 	/** Official clients always require the aggregator's approved listing projection. */
 	enforcement: "required";
-	/** Optional accepted-labeler declaration; the aggregator's configured policy remains authoritative. */
+	/** Optional bare-DID declaration used for requests and cache identity; aggregator policy remains authoritative. */
 	acceptLabelers?: string;
 }
 

@@ -74,7 +74,7 @@ The aggregator URL must be HTTPS in production (`http://localhost` is allowed in
 
 ### Configuration options
 
-- **`acceptLabelers`** — an optional comma-separated list of labeller DIDs forwarded to the aggregator. When unset, the aggregator applies its policy. When set, the list must include every labeller the aggregator requires; a caller cannot disable a required approval or takedown source.
+- **`acceptLabelers`** — an optional comma-separated list of bare labeller DIDs forwarded as a validated declaration and included in the client's cache identity. When set, the list must include every source required by the aggregator. The declaration cannot change the aggregator's approval, block, takedown, or withdrawal policy.
 - **`policy.minimumReleaseAge`** — hold back releases newer than this age when choosing the version to install or update to, widening the window for a takedown to land before a compromised release reaches your site. Accepts a duration string (`"24h"`, `"7d"`) or a number of seconds.
 - **`policy.minimumReleaseAgeExclude`** — DIDs exempt from the holdback, for publishers whose release tempo you have explicitly accepted (such as your own first-party plugins). Each entry is a bare publisher DID, or a `<did>/<slug>` pair to exempt a single package. Only DIDs are accepted, not handles.
 
