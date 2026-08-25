@@ -8,7 +8,13 @@ import { Button, Loader, Toast, useKumoToastManager } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+	keepPreviousData,
+	useQuery,
+	useInfiniteQuery,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
 import {
 	createRouter,
 	createRootRouteWithContext,
@@ -1370,36 +1376,80 @@ const mediaRoute = createRoute({
 function MediaPage() {
 	const queryClient = useQueryClient();
 
-	// Filename search + MIME type filter for the local library (server-side).
 	const [search, setSearch] = React.useState("");
 	const [mimeFilter, setMimeFilter] = React.useState<string | string[] | undefined>(undefined);
+	const [page, setPage] = React.useState(1);
+	const [perPage, setPerPage] = React.useState(35);
+	const [retainedTotalCount, setRetainedTotalCount] = React.useState(0);
 	const mimeKey = Array.isArray(mimeFilter) ? mimeFilter.join(",") : (mimeFilter ?? "");
 
-	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
-		useInfiniteQuery({
-			queryKey: ["media", { search, mime: mimeKey }],
-			queryFn: ({ pageParam }) =>
-				fetchMediaList({
-					cursor: pageParam,
-					limit: 100,
-					search: search || undefined,
-					mimeType: mimeFilter,
-				}),
-			initialPageParam: undefined as string | undefined,
-			getNextPageParam: (lastPage) => lastPage.nextCursor,
-		});
+	const { data, isLoading, isFetching, error } = useQuery({
+		queryKey: ["media", { search, mime: mimeKey, page, perPage }],
+		queryFn: () =>
+			fetchMediaList({
+				page,
+				limit: perPage,
+				search: search || undefined,
+				mimeType: mimeFilter,
+			}),
+		placeholderData: keepPreviousData,
+	});
+
+	React.useEffect(() => {
+		if (data?.totalCount !== undefined) setRetainedTotalCount(data.totalCount);
+	}, [data?.totalCount]);
+
+	const totalCount = data?.totalCount ?? retainedTotalCount;
+	const lastPage = Math.max(1, Math.ceil((data?.totalCount ?? 0) / perPage));
+	const isRecoveringPage = data?.totalCount !== undefined && page > lastPage;
+	React.useEffect(() => {
+		if (isRecoveringPage) setPage(lastPage);
+	}, [isRecoveringPage, lastPage]);
+
+	const pageCount = Math.max(1, Math.ceil(totalCount / perPage));
+	const handlePageChange = React.useCallback(
+		(nextPage: number) => {
+			if (isFetching || !Number.isSafeInteger(nextPage) || nextPage < 1 || nextPage > pageCount) {
+				return;
+			}
+			setPage(nextPage);
+		},
+		[isFetching, pageCount],
+	);
+	const handlePageSizeChange = React.useCallback(
+		(nextPerPage: number) => {
+			if (isFetching) return;
+			setPerPage(nextPerPage);
+			setPage(1);
+			setRetainedTotalCount(0);
+		},
+		[isFetching],
+	);
+	const handleSearchChange = React.useCallback((nextSearch: string) => {
+		setSearch(nextSearch);
+		setPage(1);
+		setRetainedTotalCount(0);
+	}, []);
+	const handleMimeFilterChange = React.useCallback(
+		(nextMimeFilter: string | string[] | undefined) => {
+			setMimeFilter(nextMimeFilter);
+			setPage(1);
+			setRetainedTotalCount(0);
+		},
+		[],
+	);
+
+	const paginationPending = isLoading || isFetching || isRecoveringPage;
 
 	const uploadMutation = useMutation({
 		mutationFn: ({ file, options }: { file: File; options?: MediaUploadOptions }) =>
 			uploadMedia(file, options),
 		onSuccess: () => {
+			setPage(1);
+			setRetainedTotalCount(0);
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
 		},
 	});
-
-	const items = React.useMemo(() => {
-		return data?.pages.flatMap((page) => page.items) || [];
-	}, [data]);
 
 	if (error) {
 		return <ErrorScreen error={error.message} />;
@@ -1407,15 +1457,21 @@ function MediaPage() {
 
 	return (
 		<MediaLibrary
-			items={items}
-			isLoading={isLoading || isFetchingNextPage}
-			hasMore={!!hasNextPage}
-			onLoadMore={() => void fetchNextPage()}
+			items={isRecoveringPage ? [] : (data?.items ?? [])}
+			isLoading={paginationPending}
+			pagination={{
+				page: isRecoveringPage ? lastPage : page,
+				perPage,
+				totalCount,
+				isPending: paginationPending,
+				onPageChange: handlePageChange,
+				onPageSizeChange: handlePageSizeChange,
+			}}
 			onUpload={async (file, options) => {
 				await uploadMutation.mutateAsync({ file, options });
 			}}
-			onLocalSearchChange={setSearch}
-			onLocalMimeFilterChange={setMimeFilter}
+			onLocalSearchChange={handleSearchChange}
+			onLocalMimeFilterChange={handleMimeFilterChange}
 		/>
 	);
 }

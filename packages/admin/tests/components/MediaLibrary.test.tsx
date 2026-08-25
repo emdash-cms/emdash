@@ -78,6 +78,20 @@ function makeMediaItem(overrides: Partial<MediaItem> = {}): MediaItem {
 	};
 }
 
+function makePagination(
+	overrides: Partial<NonNullable<React.ComponentProps<typeof MediaLibrary>["pagination"]>> = {},
+): NonNullable<React.ComponentProps<typeof MediaLibrary>["pagination"]> {
+	return {
+		page: 1,
+		perPage: 35,
+		totalCount: 37,
+		isPending: false,
+		onPageChange: vi.fn(),
+		onPageSizeChange: vi.fn(),
+		...overrides,
+	};
+}
+
 describe("MediaLibrary", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -392,37 +406,123 @@ describe("MediaLibrary", () => {
 		});
 	});
 
-	describe("load more pagination", () => {
-		it("renders Load More button when hasMore is true", async () => {
-			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
-			const screen = await renderLibrary({ items, hasMore: true, onLoadMore: vi.fn() });
-			await expect.element(screen.getByRole("button", { name: "Load More" })).toBeInTheDocument();
-			expect(screen.getByText("1 item").query()).toBeNull();
-		});
-
-		it("does not render Load More button when hasMore is false", async () => {
-			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
-			const screen = await renderLibrary({ items, hasMore: false, onLoadMore: vi.fn() });
-			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
-		});
-
-		it("invokes onLoadMore when Load More button is clicked", async () => {
+	describe("legacy load more compatibility", () => {
+		it("keeps hasMore and onLoadMore working when numbered pagination is absent", async () => {
 			const onLoadMore = vi.fn();
 			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
 			const screen = await renderLibrary({ items, hasMore: true, onLoadMore });
+
 			await screen.getByRole("button", { name: "Load More" }).click();
-			expect(onLoadMore).toHaveBeenCalled();
+
+			expect(onLoadMore).toHaveBeenCalledTimes(1);
 		});
 
-		it("keeps already-loaded items visible while fetching the next page (isLoading=true with items)", async () => {
-			const items = [makeMediaItem({ id: "1", filename: "first-page.jpg" })];
+		it("uses numbered pagination instead when both prop shapes are provided", async () => {
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
 			const screen = await renderLibrary({
 				items,
-				isLoading: true,
 				hasMore: true,
 				onLoadMore: vi.fn(),
+				pagination: makePagination(),
 			});
-			await expect.element(screen.getByAltText("first-page.jpg")).toBeInTheDocument();
+
+			await expect
+				.element(screen.getByRole("navigation", { name: "Media pagination" }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
+		});
+	});
+
+	describe("numbered pagination", () => {
+		it("renders localized Kumo controls with the exact range and total", async () => {
+			const onPageChange = vi.fn();
+			const onPageSizeChange = vi.fn();
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({
+				items,
+				pagination: makePagination({ onPageChange, onPageSizeChange }),
+			});
+
+			await expect
+				.element(screen.getByRole("navigation", { name: "Media pagination" }))
+				.toBeInTheDocument();
+			await expect.element(screen.getByRole("status")).toHaveTextContent("Showing 1-35 of 37");
+			expect(screen.getByText("37 items", { exact: true }).query()).toBeNull();
+			await expect
+				.element(screen.getByRole("combobox", { name: "Page number" }))
+				.toBeInTheDocument();
+
+			await screen.getByRole("button", { name: "Next page" }).click();
+			expect(onPageChange).toHaveBeenCalledWith(2);
+
+			await screen.getByRole("combobox", { name: "Page size" }).click();
+			await screen.getByRole("option", { name: "70" }).click();
+			expect(onPageSizeChange).toHaveBeenCalledWith(70);
+		});
+
+		it("uses the page input above the dropdown page-count bound", async () => {
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({
+				items,
+				pagination: makePagination({ totalCount: 3535 }),
+			});
+
+			await expect
+				.element(screen.getByRole("textbox", { name: "Page number" }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("combobox", { name: "Page number" }).query()).toBeNull();
+		});
+
+		it("keeps control styling stable while another page loads", async () => {
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({
+				items,
+				pagination: makePagination({ isPending: true }),
+			});
+
+			const nextPage = screen.getByRole("button", { name: "Next page" });
+			await expect.element(nextPage).not.toBeDisabled();
+			expect(nextPage.element().closest("[inert]")).not.toBeNull();
+		});
+
+		it("restores focus to the pagination control after a page finishes loading", async () => {
+			function Harness() {
+				const [page, setPage] = React.useState(1);
+				const [isPending, setIsPending] = React.useState(false);
+				return (
+					<>
+						<MediaLibrary
+							items={[makeMediaItem({ id: String(page), filename: `page-${page}.jpg` })]}
+							pagination={makePagination({
+								page,
+								totalCount: 90,
+								isPending,
+								onPageChange(nextPage) {
+									setPage(nextPage);
+									setIsPending(true);
+								},
+							})}
+						/>
+						<button type="button" onClick={() => setIsPending(false)}>
+							Finish page request
+						</button>
+					</>
+				);
+			}
+
+			const screen = await render(
+				<QueryWrapper>
+					<Harness />
+				</QueryWrapper>,
+			);
+
+			const nextPage = screen.getByRole("button", { name: "Next page" });
+			await nextPage.click();
+			await screen.getByRole("button", { name: "Finish page request" }).click();
+
+			await vi.waitFor(() => {
+				expect(document.activeElement).toBe(nextPage.element());
+			});
 		});
 	});
 
@@ -487,6 +587,7 @@ describe("MediaLibrary", () => {
 
 			const screen = await renderLibrary({
 				items: [makeMediaItem({ id: "1", filename: "a.jpg" })],
+				pagination: makePagination(),
 			});
 
 			await screen.getByRole("combobox", { name: "Filter by type" }).click();
@@ -494,6 +595,7 @@ describe("MediaLibrary", () => {
 			await screen.getByRole("tab", { name: "Cloudflare Images" }).click();
 
 			await expect.element(screen.getByText("No media found")).toBeInTheDocument();
+			expect(screen.getByRole("navigation", { name: "Media pagination" }).query()).toBeNull();
 			expect(screen.getByRole("tab", { name: "Grid view" }).query()).toBeNull();
 			expect(screen.getByRole("tab", { name: "List view" }).query()).toBeNull();
 		});

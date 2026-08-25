@@ -1,5 +1,4 @@
-import { Button, Input, Loader, Select, Tabs } from "@cloudflare/kumo";
-import { plural } from "@lingui/core/macro";
+import { Button, Input, Loader, Pagination, Select, Tabs } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Upload, Images, SquaresFour, List, MagnifyingGlass } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
@@ -55,11 +54,24 @@ export interface MediaLibraryProps {
 	hasMore?: boolean;
 	/** Triggered to fetch the next page of local-library items */
 	onLoadMore?: () => void;
+	pagination?: MediaLibraryPagination;
 	/** Called (debounced) with the filename search term for the local library. */
 	onLocalSearchChange?: (q: string) => void;
 	/** Called with the MIME filter for the local library (undefined = all types). */
 	onLocalMimeFilterChange?: (mimeType: string | string[] | undefined) => void;
 }
+
+export interface MediaLibraryPagination {
+	page: number;
+	perPage: number;
+	totalCount: number;
+	isPending: boolean;
+	onPageChange: (page: number) => void;
+	onPageSizeChange: (perPage: number) => void;
+}
+
+const MEDIA_PAGE_SIZE_OPTIONS = [35, 70, 90];
+const MAX_DROPDOWN_PAGE_COUNT = 100;
 
 /**
  * Media library component with upload, provider tabs, and grid view
@@ -71,6 +83,7 @@ export function MediaLibrary({
 	onItemUpdated,
 	hasMore,
 	onLoadMore,
+	pagination,
 	onLocalSearchChange,
 	onLocalMimeFilterChange,
 }: MediaLibraryProps) {
@@ -83,6 +96,11 @@ export function MediaLibrary({
 	const [localTypeFilter, setLocalTypeFilter] = React.useState("all");
 	const mediaHeadingRef = React.useRef<HTMLHeadingElement>(null);
 	const detailOpenFrameRef = React.useRef<number | null>(null);
+	const paginationRequestedRef = React.useRef(false);
+	const paginationWasPendingRef = React.useRef(false);
+	const paginationRootRef = React.useRef<HTMLDivElement>(null);
+	const paginationFocusTargetRef = React.useRef<HTMLElement | null>(null);
+	const paginationFocusFallbackRef = React.useRef<"page" | "page-size">("page");
 	// Debounced filename search reported up for the local library's server query.
 	const debouncedSearch = useDebouncedValue(searchQuery, 300);
 	React.useEffect(() => {
@@ -148,6 +166,56 @@ export function MediaLibrary({
 	}, []);
 
 	React.useEffect(() => cancelPendingDetailOpen, [cancelPendingDetailOpen]);
+
+	const requestPage = React.useCallback(
+		(nextPage: number) => {
+			if (!pagination || pagination.isPending) return;
+			const pageCount = Math.max(1, Math.ceil(pagination.totalCount / pagination.perPage));
+			if (!Number.isSafeInteger(nextPage) || nextPage < 1 || nextPage > pageCount) return;
+			paginationRequestedRef.current = true;
+			paginationFocusTargetRef.current =
+				document.activeElement instanceof HTMLElement ? document.activeElement : null;
+			paginationFocusFallbackRef.current = "page";
+			pagination.onPageChange(nextPage);
+		},
+		[pagination],
+	);
+	const requestPageSize = React.useCallback(
+		(nextPerPage: number) => {
+			if (!pagination || pagination.isPending || !MEDIA_PAGE_SIZE_OPTIONS.includes(nextPerPage)) {
+				return;
+			}
+			paginationRequestedRef.current = true;
+			paginationFocusTargetRef.current =
+				document.activeElement instanceof HTMLElement ? document.activeElement : null;
+			paginationFocusFallbackRef.current = "page-size";
+			pagination.onPageSizeChange(nextPerPage);
+		},
+		[pagination],
+	);
+	React.useEffect(() => {
+		const pending = pagination?.isPending ?? false;
+		if (activeProvider !== "local") {
+			paginationRequestedRef.current = false;
+			paginationFocusTargetRef.current = null;
+		} else if (paginationRequestedRef.current && paginationWasPendingRef.current && !pending) {
+			paginationRequestedRef.current = false;
+			let focusTarget = paginationFocusTargetRef.current;
+			if (!focusTarget?.isConnected || focusTarget.matches(":disabled")) {
+				const slot =
+					paginationFocusFallbackRef.current === "page-size"
+						? "pagination-page-size"
+						: "pagination-controls";
+				focusTarget =
+					paginationRootRef.current?.querySelector<HTMLElement>(
+						`[data-slot="${slot}"] [role="combobox"], [data-slot="${slot}"] input, [data-slot="${slot}"] button:not(:disabled)`,
+					) ?? null;
+			}
+			paginationFocusTargetRef.current = null;
+			focusTarget?.focus({ preventScroll: true });
+		}
+		paginationWasPendingRef.current = pending;
+	}, [activeProvider, pagination?.isPending]);
 
 	const openDetail = React.useCallback(
 		(item: MediaItem) => {
@@ -256,13 +324,9 @@ export function MediaLibrary({
 	const currentLoading = activeProvider === "local" ? isLoading : providerLoading;
 
 	const resultCount =
-		activeProvider === "local" ? currentItems.length : currentProviderItems.length;
-	const hasMoreCurrentItems =
-		activeProvider === "local" ? Boolean(hasMore) : Boolean(providerData?.nextCursor);
-	const resultCountText =
-		resultCount > 0 && !hasMoreCurrentItems
-			? plural(resultCount, { one: "# item", other: "# items" })
-			: "";
+		activeProvider === "local"
+			? (pagination?.totalCount ?? currentItems.length)
+			: currentProviderItems.length;
 	const hasActiveQuery =
 		searchQuery.trim() !== "" || (activeProvider === "local" && localTypeFilter !== "all");
 	const clearLocalQuery = () => {
@@ -305,7 +369,7 @@ export function MediaLibrary({
 	}, [refetchProviderMedia, uploadTarget?.id]);
 
 	return (
-		<div className="space-y-4" data-media-library>
+		<div className="space-y-4" data-media-library aria-busy={currentLoading || undefined}>
 			{isFileDragActive && (
 				<div
 					className="pointer-events-none fixed inset-0 z-50 bg-kumo-base/70 p-4 backdrop-blur-sm sm:p-8"
@@ -363,7 +427,7 @@ export function MediaLibrary({
 				/>
 			)}
 
-			{/* Toolbar: search + type filter (start) · result count + view toggle (end).
+			{/* Toolbar: search + type filter (start) · view toggle (end).
 			    Local library search/filter is handled server-side. */}
 			{showToolbar && (
 				<div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
@@ -404,10 +468,7 @@ export function MediaLibrary({
 							/>
 						)}
 					</div>
-					<div className="flex flex-shrink-0 items-center justify-between gap-3 sm:justify-end">
-						<span className="text-sm text-kumo-subtle tabular-nums" aria-live="polite">
-							{resultCountText}
-						</span>
+					<div className="flex flex-shrink-0 items-center justify-end">
 						<div role="group" aria-label={t`View mode`}>
 							<Tabs
 								variant="segmented"
@@ -505,7 +566,11 @@ export function MediaLibrary({
 					/>
 				)
 			) : viewMode === "grid" ? (
-				<div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(160px,1fr))]">
+				<div
+					data-media-grid
+					inert={currentLoading || undefined}
+					className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(160px,1fr))]"
+				>
 					{activeProvider === "local"
 						? currentItems.map((item) => (
 								<MediaGridItem
@@ -542,7 +607,10 @@ export function MediaLibrary({
 							))}
 				</div>
 			) : (
-				<div className="rounded-md border bg-kumo-base overflow-x-auto">
+				<div
+					inert={currentLoading || undefined}
+					className="rounded-md border bg-kumo-base overflow-x-auto"
+				>
 					<table className="w-full">
 						<thead>
 							<tr className="border-b bg-kumo-tint/50">
@@ -592,8 +660,51 @@ export function MediaLibrary({
 				</div>
 			)}
 
-			{/* Load more (local library only — providers handle pagination internally) */}
-			{activeProvider === "local" && hasMore && onLoadMore && (
+			{activeProvider === "local" && pagination && pagination.totalCount > 0 && (
+				<div ref={paginationRootRef} className="min-w-0">
+					<Pagination
+						page={pagination.page}
+						setPage={requestPage}
+						perPage={pagination.perPage}
+						totalCount={pagination.totalCount}
+						className="flex-wrap gap-y-3"
+						labels={{
+							navigation: t`Media pagination`,
+							firstPage: t`First page`,
+							previousPage: t`Previous page`,
+							nextPage: t`Next page`,
+							lastPage: t`Last page`,
+							pageNumber: t`Page number`,
+							pageSize: t`Page size`,
+						}}
+					>
+						<Pagination.Info className="min-w-fit">
+							{({ pageShowingRange, totalCount }) => (
+								<span role="status">{t`Showing ${pageShowingRange} of ${totalCount ?? 0}`}</span>
+							)}
+						</Pagination.Info>
+						<Pagination.Separator className="hidden sm:block" />
+						<div inert={pagination.isPending || undefined} className="contents">
+							<Pagination.PageSize
+								value={pagination.perPage}
+								onChange={requestPageSize}
+								options={MEDIA_PAGE_SIZE_OPTIONS}
+								label={t`Per page`}
+							/>
+							<Pagination.Controls
+								pageSelector={
+									Math.ceil(pagination.totalCount / pagination.perPage) <= MAX_DROPDOWN_PAGE_COUNT
+										? "dropdown"
+										: "input"
+								}
+								className="basis-full sm:basis-auto rtl:[&_svg]:-scale-x-100"
+							/>
+						</div>
+					</Pagination>
+				</div>
+			)}
+
+			{activeProvider === "local" && !pagination && hasMore && onLoadMore && (
 				<div className="flex justify-center">
 					<Button variant="outline" onClick={onLoadMore} disabled={isLoading}>
 						{isLoading ? t`Loading...` : t`Load More`}

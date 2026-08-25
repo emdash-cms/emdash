@@ -374,6 +374,7 @@ export interface EmDashHandlers {
 	// Media handlers
 	handleMediaList: (params: {
 		cursor?: string;
+		page?: number;
 		limit?: number;
 		mimeType?: string | readonly string[];
 	}) => Promise<HandlerResponse>;

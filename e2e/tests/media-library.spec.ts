@@ -115,7 +115,7 @@ test.describe("Media Library", () => {
 			await uploadTestImage(page);
 
 			// Wait for the uploaded image to appear in the media grid
-			const mediaGrid = page.locator(".grid.gap-4");
+			const mediaGrid = page.locator("[data-media-grid]");
 			await expect(mediaGrid.locator("img").first()).toBeVisible({ timeout: 5000 });
 
 			// Should have at least one image in the grid now
