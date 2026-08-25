@@ -356,8 +356,9 @@ describe("TaxonomyManager", () => {
 
 		const slugInput = screen.getByLabelText("Slug");
 		await slugInput.fill("My New Term!");
-		// Blur by moving focus elsewhere, same as a real user tabbing away.
-		await screen.getByLabelText("Name").click();
+		// Tab away to blur, same as a real user tabbing away. Clicking a sibling
+		// field instead races Base UI's dialog focus-trap re-render on blur.
+		await userEvent.tab();
 		await expect.element(slugInput).toHaveValue("my-new-term");
 	});
 

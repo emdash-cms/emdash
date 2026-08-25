@@ -1,5 +1,6 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { FieldEditor } from "../../src/components/FieldEditor";
 import type { SchemaField } from "../../src/lib/api";
@@ -57,6 +58,9 @@ function makeField(overrides: Partial<SchemaField> = {}): SchemaField {
 // - Type selection step: assert type buttons exist (no clicking needed)
 // - Config step: use edit mode (pass field prop) to go directly to config
 // - onSave/callbacks: use edit mode fields to test form submission
+// - When new-mode config-step interaction is unavoidable, activate the type
+//   button via keyboard (element().focus() + Enter) instead of click() —
+//   the inert overlay only blocks pointer events, not programmatic focus.
 
 describe("FieldEditor", () => {
 	const defaultProps = {
@@ -303,11 +307,17 @@ describe("FieldEditor", () => {
 
 		it("normalizes a manually-typed slug on blur when adding a new field", async () => {
 			const screen = await render(<FieldEditor {...defaultProps} />);
-			await screen.getByRole("button", { name: SHORT_TEXT_REGEX }).click({ force: true });
+			// This dialog's data-base-ui-inert overlay blocks pointer clicks on
+			// the type-selection buttons too (see the file-level note above), so
+			// activate via keyboard: focus the button directly, then Enter.
+			const typeButton = screen.getByRole("button", { name: SHORT_TEXT_REGEX });
+			(typeButton.element() as HTMLElement).focus();
+			await userEvent.keyboard("{Enter}");
 			const slugInput = screen.getByLabelText("Slug");
 			await slugInput.fill("My Custom Field!");
-			// Blur by moving focus elsewhere, same as a real user tabbing away.
-			await screen.getByLabelText("Label").click();
+			// Tab away to blur, same as a real user tabbing away. Clicking a sibling
+			// field instead races Base UI's dialog focus-trap re-render on blur.
+			await userEvent.tab();
 			await expect.element(slugInput).toHaveValue("my_custom_field");
 		});
 

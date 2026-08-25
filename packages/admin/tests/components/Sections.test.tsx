@@ -2,6 +2,7 @@ import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import type { Section, SectionsResult } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
@@ -141,8 +142,9 @@ describe("Sections", () => {
 		await screen.getByText("New Section").click();
 		const slugInput = screen.getByLabelText("Slug");
 		await slugInput.fill("My Custom Slug!");
-		// Blur by moving focus elsewhere, same as a real user tabbing away.
-		await screen.getByLabelText("Title").click();
+		// Tab away to blur, same as a real user tabbing away. Clicking a sibling
+		// field instead races Base UI's dialog focus-trap re-render on blur.
+		await userEvent.tab();
 		await expect.element(slugInput).toHaveValue("my-custom-slug");
 	});
 

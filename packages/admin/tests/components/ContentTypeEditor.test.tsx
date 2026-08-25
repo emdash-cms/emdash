@@ -126,7 +126,7 @@ describe("ContentTypeEditor", () => {
 	it("normalizes a manually-typed slug to snake_case on blur", async () => {
 		const screen = await render(<ContentTypeEditor {...defaultProps()} isNew />);
 
-		const slugInput = screen.getByLabelText("Slug");
+		const slugInput = screen.getByLabelText("Slug", { exact: true });
 		await slugInput.fill("Blog Posts!");
 		// Blur by moving focus elsewhere, same as a real user tabbing away.
 		await screen.getByLabelText("Label (Plural)").click();
