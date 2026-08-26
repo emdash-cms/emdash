@@ -181,12 +181,12 @@ msgstr "{0, plural, one {#件スキップ（既に存在）} other {#件スキ�
 #. placeholder {0}: result.taxonomyAssignments
 #: packages/admin/src/components/WordPressImport.tsx:2247
 msgid "{0, plural, one {# taxonomy assignment} other {# taxonomy assignments}}"
-msgstr "{0, plural, one {#件の分類項目を割り当て} other {#件の分類項目を割り当て}}"
+msgstr "{0, plural, one {#件の項目を割り当て} other {#件の項目を割り当て}}"
 
 #. placeholder {0}: result.taxonomiesCreated.length
 #: packages/admin/src/components/WordPressImport.tsx:2239
 msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
-msgstr "{0, plural, one {#件の分類を作成} other {#件の分類を作成}}"
+msgstr "{0, plural, one {#件の分類グループを作成} other {#件の分類グループを作成}}"
 
 #. placeholder {0}: fields.length
 #: packages/admin/src/components/ContentTypeEditor.tsx:600
@@ -1544,16 +1544,16 @@ msgstr "キャプション / 字幕"
 #: packages/admin/src/components/AdminCommandPalette.tsx:192
 #: packages/admin/src/components/Widgets.tsx:135
 msgid "Categories"
-msgstr "カテゴリ"
+msgstr "カテゴリー"
 
 #. placeholder {0}: analysis.categories
 #: packages/admin/src/components/WordPressImport.tsx:1785
 msgid "Categories ({0})"
-msgstr "カテゴリ（{0}）"
+msgstr "カテゴリー（{0}）"
 
 #: packages/admin/src/components/WordPressImport.tsx:1146
 msgid "Categories & Tags"
-msgstr "カテゴリとタグ"
+msgstr "カテゴリーとタグ"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:161
 msgid "Center"
@@ -2210,7 +2210,7 @@ msgstr "コンテンツの作成・更新・削除"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:358
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
-msgstr "作成済み"
+msgstr "作成日時"
 
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:96
@@ -2279,7 +2279,7 @@ msgstr "カスタムセクション"
 
 #: packages/admin/src/components/WordPressImport.tsx:1147
 msgid "Custom Taxonomies"
-msgstr "独自の分類"
+msgstr "独自の分類グループ"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:223
 msgid "Daily automatic backups"
@@ -2732,7 +2732,7 @@ msgstr "ナビゲーションメニューを表示"
 
 #: packages/admin/src/components/Widgets.tsx:136
 msgid "Display category list"
-msgstr "カテゴリ一覧を表示"
+msgstr "カテゴリー一覧を表示"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1101
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1163
@@ -2812,7 +2812,7 @@ msgstr "{0}をダウンロード"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:191
 msgid "Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included."
-msgstr "サイト全体のバックアップをダウンロードします。すべてのコンテンツ（下書きとゴミ箱を含む）、コンテンツタイプ、分類、メニュー、ウィジェット、メディアメタデータ、サイト設定が含まれます。ユーザーアカウントとシークレットは含まれません。"
+msgstr "サイト全体のバックアップをダウンロードします。すべてのコンテンツ（下書きとゴミ箱を含む）、コンテンツタイプ、分類グループ、メニュー、ウィジェット、メディアメタデータ、サイト設定が含まれます。ユーザーアカウントとシークレットは含まれません。"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:195
 msgid "Download backup"
@@ -3329,7 +3329,7 @@ msgstr "一部のコンテンツタイプの作成に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:638
 msgid "Failed to create term"
-msgstr "分類項目の作成に失敗しました"
+msgstr "項目の作成に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:475
 #: packages/admin/src/router.tsx:1186
@@ -3407,7 +3407,7 @@ msgstr "セクションの削除に失敗しました"
 
 #: packages/admin/src/lib/api/taxonomies.ts:221
 msgid "Failed to delete term"
-msgstr "分類項目の削除に失敗しました"
+msgstr "項目の削除に失敗しました"
 
 #: packages/admin/src/lib/api/widgets.ts:146
 msgid "Failed to delete widget"
@@ -3482,7 +3482,7 @@ msgstr "メール設定の取得に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:140
 msgid "Failed to fetch entry terms"
-msgstr "コンテンツの分類項目の取得に失敗しました"
+msgstr "コンテンツに設定された項目の取得に失敗しました"
 
 #: packages/admin/src/lib/api/client.ts:251
 msgid "Failed to fetch manifest"
@@ -3540,7 +3540,7 @@ msgstr "セットアップ状態の取得に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:124
 msgid "Failed to fetch terms"
-msgstr "分類項目の取得に失敗しました"
+msgstr "項目の取得に失敗しました"
 
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
@@ -3774,7 +3774,7 @@ msgstr "確認メールの送信に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:159
 msgid "Failed to set entry terms"
-msgstr "コンテンツの分類項目の設定に失敗しました"
+msgstr "コンテンツへの項目の設定に失敗しました"
 
 #: packages/admin/src/lib/api/marketplace.ts:249
 #: packages/admin/src/lib/api/registry.ts:858
@@ -4852,7 +4852,7 @@ msgstr "セットアップを読み込み中..."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1054
 msgid "Loading terms..."
-msgstr "分類項目を読み込み中..."
+msgstr "項目を読み込み中..."
 
 #: packages/admin/src/components/Widgets.tsx:372
 msgid "Loading widgets..."
@@ -6378,7 +6378,7 @@ msgstr "コンテンツを読み取る"
 
 #: packages/admin/src/lib/api/marketplace.ts:281
 msgid "Read your taxonomies and terms"
-msgstr "分類と分類項目を読み取る"
+msgstr "分類グループと項目を読み取る"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:310
 msgid "Reading"
@@ -7838,11 +7838,11 @@ msgstr "翻訳先の言語"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:715
 #: packages/admin/src/components/TaxonomySidebar.tsx:683
 msgid "Taxonomies"
-msgstr "分類"
+msgstr "分類グループ"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:77
 msgid "Taxonomies Manage"
-msgstr "分類の管理"
+msgstr "分類グループの管理"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1124
 msgid "Taxonomy created"
@@ -7850,7 +7850,7 @@ msgstr "分類グループを作成しました"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1014
 msgid "Taxonomy not found:"
-msgstr "分類が見つかりません："
+msgstr "分類グループが見つかりません："
 
 #: packages/admin/src/components/TaxonomyManager.tsx:341
 msgid "Taxonomy: {taxonomyName}"
@@ -7870,11 +7870,11 @@ msgstr "項目"
 #. placeholder {1}: term.locale.toUpperCase()
 #: packages/admin/src/components/TaxonomyManager.tsx:988
 msgid "Term \"{0}\" created in {1}."
-msgstr "{1}に分類項目「{0}」を作成しました。"
+msgstr "{1}に項目「{0}」を作成しました。"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:928
 msgid "Term deleted"
-msgstr "分類項目を削除しました"
+msgstr "項目を削除しました"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:111
 msgid "test@example.com"
@@ -8476,7 +8476,7 @@ msgstr "v{0}に更新"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:646
 #: packages/admin/src/components/RegistryPluginDetail.tsx:501
 msgid "Updated"
-msgstr "更新済み"
+msgstr "更新日時"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:129
 msgid "Updated At"
@@ -8573,7 +8573,7 @@ msgstr "WordPressのエクスポートファイルをアップロード"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:303
 msgid "Uploaded:"
-msgstr "アップロード済み："
+msgstr "アップロード日時："
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:80
 #: packages/admin/src/components/WordPressImport.tsx:2127
@@ -9010,7 +9010,7 @@ msgstr "自分のコンテンツを作成・編集できます。"
 
 #: packages/admin/src/components/WelcomeModal.tsx:48
 msgid "You can manage content, media, menus, and taxonomies."
-msgstr "コンテンツ、メディア、メニュー、分類を管理できます。"
+msgstr "コンテンツ、メディア、メニュー、分類グループを管理できます。"
 
 #: packages/admin/src/routes/bylines.tsx:549
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
