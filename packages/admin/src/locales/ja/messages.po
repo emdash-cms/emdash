@@ -8630,7 +8630,7 @@ msgstr "ページに画像が設定されていない場合は、Open Graph用�
 
 #: packages/admin/src/components/TaxonomyManager.tsx:828
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
-msgstr "分類グループの識別名として使用します。半角小文字、数字、アンダースコアのみ使用できます。"
+msgstr "分類グループの識別名として使用します。半角小文字、数字、アンダースコア（_）のみ使用できます。"
 
 #: packages/admin/src/components/ContentEditor.tsx:1343
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
