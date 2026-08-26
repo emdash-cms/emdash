@@ -62,11 +62,6 @@ export interface PluginBlockDef {
 	hidden?: boolean;
 }
 
-/** The blocks document-level insert surfaces may offer (see `PluginBlockDef.hidden`). */
-export function visiblePluginBlocks(blocks: PluginBlockDef[]): PluginBlockDef[] {
-	return blocks.filter((block) => !block.hidden);
-}
-
 // =============================================================================
 // Plugin Block Registry (stored per-editor instance via TipTap extension storage)
 // =============================================================================

@@ -11,13 +11,14 @@
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
 
-import { visiblePluginBlocks } from "../../src/components/editor/PluginBlockNode";
 import type { PluginBlockDef } from "../../src/components/PortableTextEditor";
 import {
 	_BlockKitBlockListField,
 	_BlockKitPortableTextField,
+	_BlockKitRepeater,
 	_BlockListSiblingsProvider,
 	_PluginBlockCatalogContext,
+	_visiblePluginBlocks,
 	PortableTextEditor,
 } from "../../src/components/PortableTextEditor";
 import { render } from "../utils/render";
@@ -238,7 +239,7 @@ describe("block_list field", () => {
 
 describe("hidden plugin blocks", () => {
 	it("visiblePluginBlocks keeps only defs without the hidden flag", () => {
-		expect(visiblePluginBlocks(catalog).map((b) => b.type)).toEqual(["acme.heading", "acme.note"]);
+		expect(_visiblePluginBlocks(catalog).map((b) => b.type)).toEqual(["acme.heading", "acme.note"]);
 	});
 
 	it("the default add picker offers only visible blocks", async () => {
@@ -313,5 +314,97 @@ describe("plugin block Duplicate affordance", () => {
 		const copies = blocks.filter((b) => b._type === "acme.heading");
 		expect(copies[0]!.text).toBe("Duplicate me");
 		expect(copies[1]!.text).toBe("Duplicate me");
+	});
+});
+
+describe("late seeding and sibling moves inside a repeater", () => {
+	it("a portable_text field re-seeds when its value arrives after mount, until the author types", async () => {
+		const onChange = vi.fn();
+		const Host = ({ value }: { value: unknown }) => (
+			<_BlockKitPortableTextField
+				field={{ type: "portable_text", action_id: "content", label: "Content" }}
+				value={value}
+				onChange={onChange}
+			/>
+		);
+		const { rerender } = await render(<Host value={undefined} />);
+		await vi.waitFor(() => expect(query('[contenteditable="true"]')).toBeTruthy());
+		expect(screenRoot().textContent).not.toContain("arrived late");
+		// the dialog's effect seeds the value a tick after the first render
+		await rerender(
+			<Host
+				value={[
+					{
+						_type: "block",
+						_key: "b1",
+						style: "normal",
+						markDefs: [],
+						children: [{ _type: "span", _key: "s1", text: "arrived late", marks: [] }],
+					},
+				]}
+			/>,
+		);
+		await vi.waitFor(() => expect(screenRoot().textContent).toContain("arrived late"));
+		// typing keeps the seeded document and emits the FULL array (never just the typed text)
+		const pm = query<HTMLElement>('[contenteditable="true"]')!;
+		pm.focus();
+		document.execCommand("insertText", false, "!");
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 3000 });
+		const emitted = onChange.mock.calls.at(-1)![1] as Array<{ children?: Array<{ text: string }> }>;
+		const text = emitted
+			.flatMap((b) => b.children ?? [])
+			.map((s) => s.text)
+			.join("");
+		expect(text).toContain("arrived late");
+	});
+
+	it("moving a block between two repeater rows keeps it (the second row write does not erase the first)", async () => {
+		const onChange = vi.fn();
+		await render(
+			<_PluginBlockCatalogContext.Provider value={catalog}>
+				<_BlockListSiblingsProvider>
+					<_BlockKitRepeater
+						field={{
+							type: "repeater",
+							action_id: "columns",
+							label: "Columns",
+							fields: [
+								{ type: "text_input", action_id: "width", label: "Width" },
+								{ type: "block_list", action_id: "blocks", label: "Blocks" },
+							],
+						}}
+						value={[
+							{ width: "55", blocks: [{ _type: "acme.heading", _key: "k1", text: "Movable" }] },
+							{ width: "45", blocks: [] },
+						]}
+						onChange={onChange}
+					/>
+				</_BlockListSiblingsProvider>
+			</_PluginBlockCatalogContext.Provider>,
+		);
+		// expand both rows so both block lists mount and register as move targets
+		const headers = () =>
+			queryAll<HTMLButtonElement>('button[aria-expanded="false"]:not([aria-label])');
+		await vi.waitFor(() => expect(headers().length).toBe(2));
+		click(headers()[0]);
+		await vi.waitFor(() => expect(headers().length).toBe(1));
+		click(headers()[0]);
+		await vi.waitFor(() => expect(byAria("Edit item 1").length).toBeGreaterThan(0));
+		// the first row's item offers "Move to…" naming the sibling row (labelled by its width)
+		// (it appears once the second row's list has registered — a tick after it mounts)
+		const findMove = () =>
+			queryAll<HTMLElement>("[role='combobox']").find((c) => c.textContent?.includes("Move to"));
+		await vi.waitFor(() => expect(findMove(), "a Move to… control on the block row").toBeTruthy());
+		findMove()!.click();
+		await vi.waitFor(() => expect(queryAll("[role='option']").length).toBeGreaterThan(1));
+		click(queryAll<HTMLElement>("[role='option']").find((o) => o.textContent === "45"));
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+		const rows = onChange.mock.calls.at(-1)![1] as Array<{
+			width: string;
+			blocks: Array<{ text: string }>;
+		}>;
+		expect(rows[0]!.blocks).toHaveLength(0);
+		expect(rows[1]!.blocks).toHaveLength(1);
+		expect(rows[1]!.blocks[0]!.text).toBe("Movable");
 	});
 });
