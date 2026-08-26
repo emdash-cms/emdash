@@ -30,6 +30,20 @@ const taxonomyResponse = JSON.stringify({
 	},
 });
 
+const customTaxonomyResponse = JSON.stringify({
+	data: {
+		taxonomies: [
+			{
+				id: "t2",
+				name: "topics",
+				label: "Topics",
+				hierarchical: false,
+				collections: [],
+			},
+		],
+	},
+});
+
 const termsResponse = JSON.stringify({
 	data: {
 		terms: [
@@ -242,7 +256,11 @@ function deferReorders() {
 	};
 }
 
-function mockApiFetch(overrideTerms?: string, defer?: ReturnType<typeof deferReorders>) {
+function mockApiFetch(
+	overrideTerms?: string,
+	defer?: ReturnType<typeof deferReorders>,
+	overrideTaxonomy = taxonomyResponse,
+) {
 	vi.mocked(apiFetch).mockImplementation((url: string, init?: RequestInit) => {
 		const urlStr = typeof url === "string" ? url : "";
 		if (defer && urlStr.includes("/reorder")) return defer.hold();
@@ -256,7 +274,7 @@ function mockApiFetch(overrideTerms?: string, defer?: ReturnType<typeof deferReo
 		}
 		if (urlStr.includes("/taxonomies") && (!init || !init.method || init.method === "GET")) {
 			return Promise.resolve(
-				new Response(taxonomyResponse, {
+				new Response(overrideTaxonomy, {
 					status: 200,
 					headers: { "Content-Type": "application/json" },
 				}),
@@ -338,6 +356,33 @@ describe("TaxonomyManager", () => {
 		await expect
 			.element(screen.getByRole("heading", { name: ADD_CATEGORY_HEADING_REGEX }))
 			.toBeInTheDocument();
+	});
+
+	it("uses a natural generic item label when a taxonomy has no singular label", async () => {
+		mockApiFetch(undefined, undefined, customTaxonomyResponse);
+		const [japaneseMessages, englishMessages] = await Promise.all([
+			loadMessages("ja"),
+			loadMessages("en"),
+		]);
+		i18n.loadAndActivate({ locale: "ja", messages: japaneseMessages });
+
+		try {
+			const screen = await render(<TaxonomyManager taxonomyName="topics" />, {
+				wrapper: Wrapper,
+			});
+
+			await expect.element(screen.getByText("topicsを管理", { exact: true })).toBeInTheDocument();
+			expect(screen.getByText("のtopicsを管理", { exact: true }).query()).toBeNull();
+			await screen.getByRole("button", { name: "項目を追加", exact: true }).click();
+			await expect.element(screen.getByRole("heading", { name: "項目を追加" })).toBeInTheDocument();
+			await expect
+				.element(screen.getByText("新しい項目を作成", { exact: true }))
+				.toBeInTheDocument();
+			expect(screen.getByText("分類項目", { exact: true }).query()).toBeNull();
+			expect(screen.getByText(/term/i).query()).toBeNull();
+		} finally {
+			i18n.loadAndActivate({ locale: "en", messages: englishMessages });
+		}
 	});
 
 	it("explains taxonomy groups clearly in Japanese", async () => {
