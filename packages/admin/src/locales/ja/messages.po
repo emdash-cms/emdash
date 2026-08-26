@@ -559,7 +559,7 @@ msgstr "404エラー"
 
 #: packages/admin/src/components/Redirects.tsx:160
 msgid "410 Content Deleted (Gone)"
-msgstr "410 完全削除済み"
+msgstr "410 削除済み（Gone）"
 
 #: packages/admin/src/components/Redirects.tsx:161
 msgid "451 Unavailable for legal reasons"
@@ -1590,7 +1590,7 @@ msgstr "ロゴを変更"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:808
 msgid "Changelog"
-msgstr "変更履歴"
+msgstr "更新履歴"
 
 #: packages/admin/src/router.tsx:1107
 msgid "Changes discarded"
@@ -6689,7 +6689,7 @@ msgstr "この版を復元しますか？"
 #: packages/admin/src/components/RevisionHistory.tsx:299
 #: packages/admin/src/components/RevisionHistory.tsx:300
 msgid "Restore this version"
-msgstr "このバージョンを復元"
+msgstr "この版を復元"
 
 #. placeholder {0}: formatFullDate(restoreTarget.createdAt)
 #: packages/admin/src/components/RevisionHistory.tsx:235
@@ -6724,7 +6724,7 @@ msgstr "任意のコンテンツに挿入できる再利用可能なコンテン
 
 #: packages/admin/src/router.tsx:1108
 msgid "Reverted to published version"
-msgstr "公開済みバージョンに戻しました"
+msgstr "公開版に戻しました"
 
 #: packages/admin/src/components/WordPressImport.tsx:724
 msgid "Review"
@@ -7082,7 +7082,7 @@ msgstr "セクションを検索..."
 
 #: packages/admin/src/components/Redirects.tsx:417
 msgid "Search source or destination..."
-msgstr "ソースまたは転送先を検索..."
+msgstr "転送元または転送先を検索…"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:93
 msgid "Search themes"
@@ -7683,7 +7683,7 @@ msgstr "ソース"
 
 #: packages/admin/src/components/Redirects.tsx:132
 msgid "Source path"
-msgstr "ソースパス"
+msgstr "転送元パス"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:197
 msgid "spam"
@@ -8098,7 +8098,7 @@ msgstr "プラグインとそのバンドルがサイトから削除されます
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:93
 msgid "This will revert to the published version. Your draft changes will be lost."
-msgstr "公開済みバージョンに戻ります。下書きの変更は失われます。"
+msgstr "公開版に戻ります。下書きの変更は失われます。"
 
 #: packages/admin/src/components/SetupWizard.tsx:131
 msgid "Thoughts, tutorials, and more"
