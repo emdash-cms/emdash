@@ -2,6 +2,8 @@ import { msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react";
 import * as React from "react";
 
+// The alias prevents Lingui from treating the runtime renderer as a macro
+// <Trans> and reporting "Missing message ID"; msg descriptors handle extraction.
 const DescriptorMessage = Trans;
 
 const importedFilesMessage = msg`{importedFiles, plural, one {<count>#</count> file imported} other {<count>#</count> files imported}}`;
