@@ -20,11 +20,11 @@ function renderSummary(
 describe("MediaImportSummary", () => {
 	it("renders each result as a complete pluralized message", () => {
 		expect(renderSummary({ importedFiles: 1, rewrittenUrls: 1, updatedContentItems: 2 })).toBe(
-			"<p>1 file imported</p><p>1 image URL updated in 2 content items</p>",
+			"<p><strong>1</strong> file imported</p><p><strong>1</strong> image URL updated in <strong>2</strong> content items</p>",
 		);
 
 		expect(renderSummary({ importedFiles: 2, rewrittenUrls: 3, updatedContentItems: 1 })).toBe(
-			"<p>2 files imported</p><p>3 image URLs updated in 1 content item</p>",
+			"<p><strong>2</strong> files imported</p><p><strong>3</strong> image URLs updated in <strong>1</strong> content item</p>",
 		);
 	});
 
@@ -40,15 +40,15 @@ describe("MediaImportSummary", () => {
 
 		expect(messageIds).toHaveLength(2);
 		i18n.load("ja", {
-			[messageIds[0]!]: "{importedFiles}件のファイルをインポートしました",
+			[messageIds[0]!]: "<0>{importedFiles}</0>件のファイルをインポートしました",
 			[messageIds[1]!]:
-				"{updatedContentItems}件のコンテンツで{rewrittenUrls}件の画像URLを更新しました",
+				"<1>{updatedContentItems}</1>件のコンテンツで<0>{rewrittenUrls}</0>件の画像URLを更新しました",
 		});
 
 		expect(
 			renderSummary({ importedFiles: 2, rewrittenUrls: 3, updatedContentItems: 1 }, i18n),
 		).toBe(
-			"<p>2件のファイルをインポートしました</p><p>1件のコンテンツで3件の画像URLを更新しました</p>",
+			"<p><strong>2</strong>件のファイルをインポートしました</p><p><strong>1</strong>件のコンテンツで<strong>3</strong>件の画像URLを更新しました</p>",
 		);
 	});
 });
