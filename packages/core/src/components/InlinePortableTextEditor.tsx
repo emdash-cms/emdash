@@ -2243,6 +2243,7 @@ export function InlinePortableTextEditor({
 			if (mediaPickerOpen) return;
 			const related = e.relatedTarget instanceof HTMLElement ? e.relatedTarget : null;
 			if (related && e.currentTarget.contains(related)) return;
+			// The copy fallback briefly moves focus to its textarea before restoring the editor.
 			if (related?.hasAttribute("data-emdash-clipboard-fallback")) return;
 			// Don't save if focus moved to the slash menu (portalled to body)
 			if (related?.closest(".emdash-slash-menu")) return;
@@ -2356,6 +2357,7 @@ export function InlinePortableTextEditor({
 					opacity: 0;
 					pointer-events: none;
 					user-select: none;
+					transition: opacity 120ms ease-out;
 				}
 				.emdash-inline-code-block:hover .emdash-inline-code-block-controls-wrap,
 				.emdash-inline-code-block:focus-within .emdash-inline-code-block-controls-wrap,
@@ -2382,6 +2384,11 @@ export function InlinePortableTextEditor({
 					.emdash-inline-code-block-controls-wrap {
 						opacity: 1;
 						pointer-events: auto;
+					}
+				}
+				@media (prefers-reduced-motion: reduce) {
+					.emdash-inline-code-block-controls-wrap {
+						transition: none;
 					}
 				}
 				@media (prefers-color-scheme: dark) {
