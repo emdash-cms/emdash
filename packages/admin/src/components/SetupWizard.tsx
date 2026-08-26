@@ -29,7 +29,6 @@ import { BrandLogo } from "./Logo.js";
 interface SetupStatusResponse {
 	needsSetup: boolean;
 	step?: "start" | "site" | "admin" | "complete";
-	canEnableMediaUsageTrackingDuringSetup?: boolean;
 	seedInfo?: {
 		name: string;
 		description: string;
@@ -46,7 +45,6 @@ interface SetupSiteRequest {
 	title: string;
 	tagline?: string;
 	includeContent: boolean;
-	enableMediaUsageTracking: boolean;
 }
 
 interface SetupSiteResponse {
@@ -84,26 +82,16 @@ type WizardStep = "site" | "admin" | "passkey";
 
 interface SiteStepProps {
 	seedInfo?: SetupStatusResponse["seedInfo"];
-	canEnableMediaUsageTracking: boolean;
 	onNext: (data: SetupSiteRequest) => void;
 	isLoading: boolean;
 	error?: string;
 }
 
-function SiteStep({
-	seedInfo,
-	canEnableMediaUsageTracking,
-	onNext,
-	isLoading,
-	error,
-}: SiteStepProps) {
+function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 	const { t } = useLingui();
 	const [title, setTitle] = React.useState(seedInfo?.title ?? "");
 	const [tagline, setTagline] = React.useState(seedInfo?.tagline ?? "");
 	const [includeContent, setIncludeContent] = React.useState(true);
-	const [enableMediaUsageTracking, setEnableMediaUsageTracking] = React.useState(
-		canEnableMediaUsageTracking,
-	);
 	const [errors, setErrors] = React.useState<Record<string, string>>({});
 
 	const validate = (): boolean => {
@@ -118,7 +106,7 @@ function SiteStep({
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!validate()) return;
-		onNext({ title, tagline, includeContent, enableMediaUsageTracking });
+		onNext({ title, tagline, includeContent });
 	};
 
 	return (
@@ -153,24 +141,6 @@ function SiteStep({
 					disabled={isLoading}
 				/>
 			)}
-
-			{canEnableMediaUsageTracking ? (
-				<Checkbox
-					label={
-						<div>
-							<span className="text-sm font-medium">
-								{t`Track where media is used (recommended)`}
-							</span>
-							<p className="mt-0.5 text-sm text-kumo-subtle">
-								{t`Once enabled, it can’t be turned off.`}
-							</p>
-						</div>
-					}
-					checked={enableMediaUsageTracking}
-					onCheckedChange={setEnableMediaUsageTracking}
-					disabled={isLoading}
-				/>
-			) : null}
 
 			{error && (
 				<div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div>
@@ -610,7 +580,6 @@ export function SetupWizard() {
 					{currentStep === "site" && (
 						<SiteStep
 							seedInfo={status?.seedInfo}
-							canEnableMediaUsageTracking={status?.canEnableMediaUsageTrackingDuringSetup ?? false}
 							onNext={handleSiteNext}
 							isLoading={siteMutation.isPending}
 							error={error}

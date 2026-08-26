@@ -110,17 +110,11 @@ export const GET: APIRoute = async ({ locals }) => {
 					tagline: seed.settings?.tagline,
 				}
 			: null;
-		const existingCollection = await emdash.db
-			.selectFrom("_emdash_collections")
-			.select("id")
-			.limit(1)
-			.executeTakeFirst();
 
 		return apiSuccess({
 			needsSetup: true,
 			step,
 			seedInfo,
-			canEnableMediaUsageTrackingDuringSetup: existingCollection === undefined,
 			// Tell the wizard which auth mode is active
 			authMode: useExternalAuth ? authMode.providerType : "passkey",
 		});

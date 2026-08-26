@@ -1,13 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { userEvent } from "vitest/browser";
 
 import { render } from "../utils/render.tsx";
 
 // Mock API
 let mockSeedInfo: any = null;
-let mockCanEnableMediaUsageTracking = true;
 
 vi.mock("../../src/lib/api/client", async () => {
 	const actual = await vi.importActual("../../src/lib/api/client");
@@ -21,7 +19,6 @@ vi.mock("../../src/lib/api/client", async () => {
 							data: {
 								needsSetup: true,
 								authMode: "passkey",
-								canEnableMediaUsageTrackingDuringSetup: mockCanEnableMediaUsageTracking,
 								...(mockSeedInfo ? { seedInfo: mockSeedInfo } : {}),
 							},
 						}),
@@ -54,7 +51,6 @@ Object.defineProperty(window, "PublicKeyCredential", {
 
 // Import after mocks
 const { SetupWizard } = await import("../../src/components/SetupWizard");
-const { apiFetch } = await import("../../src/lib/api/client");
 
 function QueryWrapper({ children }: { children: React.ReactNode }) {
 	const qc = new QueryClient({
@@ -67,7 +63,6 @@ describe("SetupWizard", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockSeedInfo = null;
-		mockCanEnableMediaUsageTracking = true;
 	});
 
 	it("shows site setup step first with title input", async () => {
@@ -110,70 +105,7 @@ describe("SetupWizard", () => {
 		await expect.element(screen.getByText("Create your account")).toBeInTheDocument();
 	});
 
-	it("enables media usage tracking by default during setup", async () => {
-		const screen = await render(
-			<QueryWrapper>
-				<SetupWizard />
-			</QueryWrapper>,
-		);
-		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
-		const tracking = screen.getByRole("checkbox", {
-			name: "Track where media is used (recommended) Once enabled, it can’t be turned off.",
-		});
-		await expect.element(tracking).toBeChecked();
-
-		await screen.getByPlaceholder("My Awesome Blog").fill("Test Site");
-		await screen.getByText("Continue →").click();
-
-		await vi.waitFor(() =>
-			expect(apiFetch).toHaveBeenCalledWith(
-				"/_emdash/api/setup",
-				expect.objectContaining({
-					body: JSON.stringify({
-						title: "Test Site",
-						tagline: "",
-						includeContent: true,
-						enableMediaUsageTracking: true,
-					}),
-				}),
-			),
-		);
-	});
-
-	it("lets new sites opt out of media usage tracking", async () => {
-		const screen = await render(
-			<QueryWrapper>
-				<SetupWizard />
-			</QueryWrapper>,
-		);
-		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
-		const tracking = screen.getByRole("checkbox", {
-			name: "Track where media is used (recommended) Once enabled, it can’t be turned off.",
-		});
-		tracking.element().focus();
-		await userEvent.keyboard(" ");
-		await expect.element(tracking).not.toBeChecked();
-
-		await screen.getByPlaceholder("My Awesome Blog").fill("Test Site");
-		await screen.getByText("Continue →").click();
-
-		await vi.waitFor(() =>
-			expect(apiFetch).toHaveBeenCalledWith(
-				"/_emdash/api/setup",
-				expect.objectContaining({
-					body: JSON.stringify({
-						title: "Test Site",
-						tagline: "",
-						includeContent: true,
-						enableMediaUsageTracking: false,
-					}),
-				}),
-			),
-		);
-	});
-
-	it("omits pre-seed tracking when collections already exist", async () => {
-		mockCanEnableMediaUsageTracking = false;
+	it("does not present media usage tracking as an onboarding choice", async () => {
 		const screen = await render(
 			<QueryWrapper>
 				<SetupWizard />
@@ -181,23 +113,6 @@ describe("SetupWizard", () => {
 		);
 		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
 		expect(screen.getByRole("checkbox", { name: /Track where media is used/ }).query()).toBeNull();
-
-		await screen.getByPlaceholder("My Awesome Blog").fill("Existing Site");
-		await screen.getByText("Continue →").click();
-
-		await vi.waitFor(() =>
-			expect(apiFetch).toHaveBeenCalledWith(
-				"/_emdash/api/setup",
-				expect.objectContaining({
-					body: JSON.stringify({
-						title: "Existing Site",
-						tagline: "",
-						includeContent: true,
-						enableMediaUsageTracking: false,
-					}),
-				}),
-			),
-		);
 	});
 
 	it("admin step shows email input", async () => {

@@ -507,7 +507,7 @@ DELETE /_emdash/api/media/:id
 
 ### Enable media usage tracking
 
-If media usage tracking was not enabled during initial setup, it must be turned on once for the site. Pause direct database writes while EmDash prepares each collection. EmDash temporarily blocks its own content and schema writes during this step.
+Sites with media usage tracking off must turn it on once. Pause direct database writes while EmDash prepares each collection. EmDash temporarily blocks its own content and schema writes during this step.
 
 Both endpoints require `schema:manage`. Bearer tokens also require the `admin` scope.
 
