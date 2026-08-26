@@ -29,6 +29,7 @@ vi.mock("virtual:emdash/seed", () => ({
 }));
 
 import { POST as postSetup } from "../../../src/astro/routes/api/setup/index.js";
+import { GET as getSetupStatus } from "../../../src/astro/routes/api/setup/status.js";
 import type { Database } from "../../../src/database/types.js";
 import { verifyMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
@@ -86,6 +87,23 @@ describe("POST /setup media usage tracking", () => {
 				.select(["collection_id", "state", "attempt_count"])
 				.execute(),
 		).toEqual([{ collection_id: collection.id, state: "pending", attempt_count: 0 }]);
+	});
+
+	it("offers pre-seed activation only while the database is empty", async () => {
+		const empty = await getSetupStatus(setupContext(db));
+		expect(await empty.json()).toEqual(
+			expect.objectContaining({
+				data: expect.objectContaining({ canEnableMediaUsageTrackingDuringSetup: true }),
+			}),
+		);
+
+		await new SchemaRegistry(db).createCollection({ slug: "existing", label: "Existing" });
+		const nonempty = await getSetupStatus(setupContext(db));
+		expect(await nonempty.json()).toEqual(
+			expect.objectContaining({
+				data: expect.objectContaining({ canEnableMediaUsageTrackingDuringSetup: false }),
+			}),
+		);
 	});
 
 	it("keeps omitted API input backwards compatible", async () => {

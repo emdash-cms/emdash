@@ -7,6 +7,7 @@ import { render } from "../utils/render.tsx";
 
 // Mock API
 let mockSeedInfo: any = null;
+let mockCanEnableMediaUsageTracking = true;
 
 vi.mock("../../src/lib/api/client", async () => {
 	const actual = await vi.importActual("../../src/lib/api/client");
@@ -20,6 +21,7 @@ vi.mock("../../src/lib/api/client", async () => {
 							data: {
 								needsSetup: true,
 								authMode: "passkey",
+								canEnableMediaUsageTrackingDuringSetup: mockCanEnableMediaUsageTracking,
 								...(mockSeedInfo ? { seedInfo: mockSeedInfo } : {}),
 							},
 						}),
@@ -65,6 +67,7 @@ describe("SetupWizard", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockSeedInfo = null;
+		mockCanEnableMediaUsageTracking = true;
 	});
 
 	it("shows site setup step first with title input", async () => {
@@ -160,6 +163,34 @@ describe("SetupWizard", () => {
 				expect.objectContaining({
 					body: JSON.stringify({
 						title: "Test Site",
+						tagline: "",
+						includeContent: true,
+						enableMediaUsageTracking: false,
+					}),
+				}),
+			),
+		);
+	});
+
+	it("omits pre-seed tracking when collections already exist", async () => {
+		mockCanEnableMediaUsageTracking = false;
+		const screen = await render(
+			<QueryWrapper>
+				<SetupWizard />
+			</QueryWrapper>,
+		);
+		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
+		expect(screen.getByRole("checkbox", { name: /Track where media is used/ }).query()).toBeNull();
+
+		await screen.getByPlaceholder("My Awesome Blog").fill("Existing Site");
+		await screen.getByText("Continue →").click();
+
+		await vi.waitFor(() =>
+			expect(apiFetch).toHaveBeenCalledWith(
+				"/_emdash/api/setup",
+				expect.objectContaining({
+					body: JSON.stringify({
+						title: "Existing Site",
 						tagline: "",
 						includeContent: true,
 						enableMediaUsageTracking: false,
