@@ -139,7 +139,6 @@ import {
 	PluginBlockExtension,
 	registerPluginBlocks,
 	resolveIcon,
-	visiblePluginBlocks,
 } from "./editor/PluginBlockNode";
 import { MediaPickerModal } from "./MediaPickerModal";
 import { SectionPickerModal } from "./SectionPickerModal";
@@ -2151,7 +2150,13 @@ function BlockKitRepeater({
 	// translators see whole, inflectable phrases.
 	const addButtonLabel = field.item_label ? t`Add ${field.item_label}` : t`Add item`;
 
+	// Handlers read the LATEST rows through a ref rather than the render closure: two sub-field
+	// changes can land in one tick (a block moved between two rows' block lists writes the target
+	// row, then the source row), and a closure snapshot would let the second write erase the first.
+	const itemsRef = React.useRef(items);
+	itemsRef.current = items;
 	const emit = (next: RepeaterItem[]) => {
+		itemsRef.current = next;
 		setItems(next);
 		const stripped = stripKeys(next);
 		lastEmittedRef.current = stripped;
@@ -2184,7 +2189,7 @@ function BlockKitRepeater({
 			next.add(newItem._key);
 			return next;
 		});
-		emit([...items, newItem]);
+		emit([...itemsRef.current, newItem]);
 	};
 
 	const handleRemove = (key: string) => {
@@ -2195,11 +2200,11 @@ function BlockKitRepeater({
 			next.delete(key);
 			return next;
 		});
-		emit(items.filter((it) => it._key !== key));
+		emit(itemsRef.current.filter((it) => it._key !== key));
 	};
 
 	const handleItemChange = (key: string, subActionId: string, subValue: unknown) => {
-		emit(items.map((it) => (it._key === key ? { ...it, [subActionId]: subValue } : it)));
+		emit(itemsRef.current.map((it) => (it._key === key ? { ...it, [subActionId]: subValue } : it)));
 	};
 
 	const handleDragEnd = (event: DragEndEvent) => {
@@ -2429,20 +2434,41 @@ function BlockKitPortableTextField({
 	value: unknown;
 	onChange: (actionId: string, value: unknown) => void;
 }) {
-	const initialValue = React.useRef<PortableTextBlock[]>(
-		Array.isArray(value) ? (value as PortableTextBlock[]) : [],
-	).current;
+	// The nested editor is uncontrolled (it owns its document while the author types), so the
+	// value it mounted with is what it shows. A dialog seeds its form values in an effect AFTER
+	// its first render, which means the first mount can see `undefined` and the real value only
+	// arrive a tick later. Until the author has typed, a changed incoming value re-seeds the
+	// editor (the same prop-sync the repeater applies to its rows); once dirty, the author's
+	// document is never replaced from outside.
+	const seededRef = React.useRef<unknown>(value);
+	const dirtyRef = React.useRef(false);
+	const [seedKey, setSeedKey] = React.useState(0);
+	React.useEffect(() => {
+		if (dirtyRef.current || value === seededRef.current) return;
+		seededRef.current = value;
+		setSeedKey((k) => k + 1);
+	}, [value]);
+	const seeded = Array.isArray(seededRef.current) ? (seededRef.current as PortableTextBlock[]) : [];
 	return (
 		<div>
 			<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
 			<PortableTextEditor
-				value={initialValue}
-				onChange={(next) => onChange(field.action_id, next)}
+				key={seedKey}
+				value={seeded}
+				onChange={(next) => {
+					dirtyRef.current = true;
+					onChange(field.action_id, next);
+				}}
 				placeholder={field.placeholder}
 				className="rounded-md border border-kumo-line"
 			/>
 		</div>
 	);
+}
+
+/** The blocks document-level insert surfaces may offer (see `PluginBlockDef.hidden`). */
+function visiblePluginBlocks(blocks: PluginBlockDef[]): PluginBlockDef[] {
+	return blocks.filter((block) => !block.hidden);
 }
 
 const newBlockKey = () => `block-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -2528,6 +2554,16 @@ function BlockKitBlockListField({
 		null,
 	);
 	const [pickingType, setPickingType] = React.useState(false);
+	// The child dialog re-seeds its form whenever `initialValues` changes identity, so the values
+	// handed to it must be stable across renders: computed once per (child, items) pair, never
+	// inline in JSX.
+	const childInitialValues = React.useMemo(() => {
+		if (!child || child.index === null) return undefined;
+		const current = items[child.index];
+		if (!current) return undefined;
+		const { _type, _key, ...rest } = current;
+		return rest;
+	}, [child, items]);
 
 	const minItems = field.min_items ?? 0;
 	const maxItems = field.max_items;
@@ -2640,11 +2676,7 @@ function BlockKitBlockListField({
 
 			<PluginBlockModal
 				block={child?.def ?? null}
-				initialValues={
-					child && child.index !== null && items[child.index]
-						? (({ _type, _key, ...rest }) => rest)(items[child.index]!)
-						: undefined
-				}
+				initialValues={childInitialValues}
 				onClose={() => setChild(null)}
 				onInsert={handleChildSubmit}
 			/>
@@ -2847,6 +2879,8 @@ export {
 	hasPluginBlockFormData as _hasPluginBlockFormData,
 	BlockKitPortableTextField as _BlockKitPortableTextField,
 	BlockKitBlockListField as _BlockKitBlockListField,
+	BlockKitRepeater as _BlockKitRepeater,
+	visiblePluginBlocks as _visiblePluginBlocks,
 	BlockListSiblingsProvider as _BlockListSiblingsProvider,
 	PluginBlockCatalogContext as _PluginBlockCatalogContext,
 };
