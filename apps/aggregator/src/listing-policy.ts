@@ -43,7 +43,18 @@ interface CachedPolicy {
 	value: Promise<ListingPolicyConfig>;
 }
 
-const policyCache = new WeakMap<object, CachedPolicy>();
+type PolicyCache = WeakMap<object, CachedPolicy>;
+
+const POLICY_CACHE_KEY = Symbol.for("emdash:aggregator:listing-policy-cache");
+const globals = globalThis as Record<symbol, unknown>;
+const policyCache: PolicyCache =
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- shared across duplicated Worker chunks
+	(globals[POLICY_CACHE_KEY] as PolicyCache | undefined) ??
+	(() => {
+		const cache: PolicyCache = new WeakMap();
+		globals[POLICY_CACHE_KEY] = cache;
+		return cache;
+	})();
 
 export function getListingPolicy(env: Env): Promise<ListingPolicyConfig> {
 	const rawMode = env.LISTING_POLICY_MODE;

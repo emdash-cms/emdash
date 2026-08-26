@@ -1,4 +1,5 @@
 import { decodeFirst } from "@atcute/cbor";
+import { fromBase64Url } from "@atcute/multibase";
 import { parseSignedListingLabel, type SignedListingLabel } from "@emdash-cms/registry-moderation";
 
 import { isPlainObject } from "./utils.js";
@@ -284,7 +285,7 @@ function parseJsonSignedLabel(value: unknown): SignedListingLabel {
 	if (typeof encoded !== "string") throw new TypeError("queryLabels label signature is invalid");
 	let bytes: Uint8Array;
 	try {
-		bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
+		bytes = fromBase64Url(encoded);
 	} catch {
 		throw new TypeError("queryLabels label signature is invalid");
 	}

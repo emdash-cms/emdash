@@ -94,13 +94,7 @@ const tokenEncoder = new TextEncoder();
 
 /**
  * Constant-time string equality via workerd's audited
- * `crypto.subtle.timingSafeEqual`. The primitive returns `false` immediately
- * for length-mismatched buffers, so the *prefix*-comparison is constant-time
- * but a length difference is still observable via timing — acceptable here
- * because the protected secret (`ADMIN_TOKEN`) has a fixed configured length
- * known only to the operator, and any realistic length-via-timing attack
- * would require so many requests that other defences (rate-limiting,
- * Cloudflare Bot Management, log review) catch it first.
+ * `crypto.subtle.timingSafeEqual`.
  */
 function timingSafeEqual(a: string, b: string): boolean {
 	const aBuf = tokenEncoder.encode(a);
