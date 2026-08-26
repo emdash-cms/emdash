@@ -3,6 +3,8 @@ import { defineConfig } from "tsdown";
 export default defineConfig({
 	entry: [
 		"src/index.ts",
+		"src/listing-policy.ts",
+		"src/withdrawal.ts",
 		"src/credentials/index.ts",
 		"src/discovery/index.ts",
 		"src/env/index.ts",
@@ -24,5 +26,6 @@ export default defineConfig({
 		"@atcute/lexicons",
 		"@atcute/lexicons/syntax",
 		"@emdash-cms/registry-lexicons",
+		"@emdash-cms/registry-moderation",
 	],
 });

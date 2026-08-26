@@ -45,6 +45,8 @@ export {
 export {
 	// Main Image component for EmDash media
 	EmDashImage as Image,
+	// Unified media component that delegates rendering to the provider's getEmbed()
+	EmDashMedia as Media,
 	// Main component (wrapper with EmDash defaults)
 	PortableText,
 	// Block style override (paragraph/heading/blockquote — emits

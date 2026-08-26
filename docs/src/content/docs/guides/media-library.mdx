@@ -36,7 +36,7 @@ Open the media library from the admin sidebar by clicking **Media**. The library
 
 ## Supported File Types
 
-EmDash supports common web file types:
+EmDash accepts these file types by default:
 
 | Category  | Extensions                                      |
 | --------- | ----------------------------------------------- |
@@ -45,8 +45,11 @@ EmDash supports common web file types:
 | Video     | `.mp4`, `.webm`, `.mov`                         |
 | Audio     | `.mp3`, `.wav`, `.ogg`                          |
 
+Image and file fields can allow other MIME types, including `image/svg+xml` for SVG files.
+
 <Aside type="caution">
-	Maximum file size depends on your storage configuration. The default limit is 10MB per file.
+	The default limit is 50 MB per file. Set
+	[`maxUploadSize`](/reference/configuration/#maxuploadsize) to change it.
 </Aside>
 
 ## Storage Backends
@@ -134,48 +137,33 @@ Works with Cloudflare R2 (via S3 API), MinIO, and other S3-compatible services.
 
 ## How Uploads Work
 
-EmDash uses signed URLs for secure uploads:
+The admin uses the [upload target flow](/reference/rest-api/#upload-target-flow):
 
-1. Client requests an upload URL from the API
+1. The client requests an upload target, and EmDash creates a pending media item.
 
-2. Server generates a signed URL with expiration
+2. The client uploads the file to the returned target.
 
-3. Client uploads directly to storage using the signed URL
+3. The client confirms the upload.
 
-4. Server records the file metadata in the database
+4. EmDash validates the stored file and marks the media item as ready.
 
-This approach keeps large files off your application server and enables direct uploads to cloud storage.
+S3-compatible storage returns a signed URL so the file can bypass the application runtime. Local
+storage and native R2 return a same-origin streaming endpoint instead.
 
 <Aside>
 	R2 bindings do not support pre-signed URLs. When using the R2 binding adapter, uploads go through
 	your Worker.
 </Aside>
 
-## Organizing Media
-
-### Folders
-
-Create folders to organize your media:
-
-1. Click **New Folder** in the media library
-
-2. Enter a folder name
-
-3. Click **Create**
-
-4. Drag files into folders to organize them
+## Finding Media
 
 ### Search
 
 Use the search box to find files by name. Search matches partial filenames.
 
-### Filters
+### Filter by type
 
-Filter media by:
-
-- **Type** - Images, Documents, Video, Audio
-- **Date** - Upload date range
-- **Folder** - Specific folder
+Use the type filter to show images, documents, video, or audio files.
 
 ## Using Media in Content
 
@@ -267,55 +255,9 @@ EmDash installs an image endpoint that produces the resized variants on request.
 
 ## Media API
 
-Access media programmatically using the admin API.
-
-### Upload a File
-
-Upload media as multipart form data:
-
-```bash
-POST /_emdash/api/media
-Content-Type: multipart/form-data
-Authorization: Bearer YOUR_API_TOKEN
-
-file=<binary file data>
-```
-
-A successful upload returns the stored media item:
-
-```json
-{
-	"success": true,
-	"data": {
-		"item": {
-			"id": "01ABC123",
-			"filename": "hero-image.jpg",
-			"mime_type": "image/jpeg",
-			"storage_key": "media/abc123/hero-image.jpg",
-			"width": 1200,
-			"height": 800
-		}
-	}
-}
-```
-
-### List Media
-
-The following request lists media under a prefix:
-
-```bash
-GET /_emdash/api/media?prefix=images/&limit=20
-Authorization: Bearer YOUR_API_TOKEN
-```
-
-### Delete Media
-
-The following request deletes a stored file:
-
-```bash
-DELETE /_emdash/api/media/images/hero.jpg
-Authorization: Bearer YOUR_API_TOKEN
-```
+Use the REST API to upload, list, update, and delete media from another application. The
+[media endpoint reference](/reference/rest-api/#media-endpoints) documents both the direct
+multipart upload and the upload target flow for local, R2, and S3-compatible storage.
 
 ## Media Providers
 

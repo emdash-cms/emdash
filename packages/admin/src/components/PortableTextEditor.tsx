@@ -614,11 +614,20 @@ function convertPMNode(
 
 						const contentSpans: PortableTextSpan[] = [];
 						const cellMarkDefs: PortableTextMarkDef[] = [];
+						let paragraphCount = 0;
 						for (const paragraph of cellContent) {
 							if (paragraph.type === "paragraph") {
-								const { children, markDefs } = convertInlineContent(paragraph.content || []);
+								if (paragraphCount > 0) {
+									contentSpans.push({
+										_type: "span",
+										_key: generateKey(),
+										text: "\n",
+									});
+								}
+								const { children, markDefs } = convertInlineContent(paragraph.content || [], true);
 								contentSpans.push(...children);
 								cellMarkDefs.push(...markDefs);
+								paragraphCount++;
 							}
 						}
 
@@ -732,7 +741,10 @@ function convertList(
 	return blocks;
 }
 
-function convertInlineContent(nodes: unknown[]): {
+function convertInlineContent(
+	nodes: unknown[],
+	preserveHardBreakBoundary = false,
+): {
 	children: PortableTextSpan[];
 	markDefs: PortableTextMarkDef[];
 } {
@@ -763,7 +775,7 @@ function convertInlineContent(nodes: unknown[]): {
 				marks: marks.length > 0 ? marks : undefined,
 			});
 		} else if (node.type === "hardBreak") {
-			if (children.length > 0) {
+			if (children.length > 0 && !preserveHardBreakBoundary) {
 				const last = children.at(-1);
 				if (last) last.text += "\n";
 			} else {

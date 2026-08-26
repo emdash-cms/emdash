@@ -50,7 +50,7 @@
 				},
 				"labels": {
 					"type": "array",
-					"description": "Hydrated labels applying to this package, per the labellers the request asked for via the atproto-accept-labelers header.",
+					"description": "Hydrated trusted label state attached by the aggregator's configured policy.",
 					"maxLength": 64,
 					"items": {
 						"type": "ref",
@@ -112,7 +112,7 @@
 				},
 				"labels": {
 					"type": "array",
-					"description": "Hydrated labels applying to this release, per the labellers the request asked for.",
+					"description": "Hydrated trusted label state attached by the aggregator's configured policy.",
 					"maxLength": 64,
 					"items": {
 						"type": "ref",

@@ -39,6 +39,7 @@ import {
 	removeReaction,
 	updateReviewCheck,
 } from "../lib/github.js";
+import { formatReviewFailureSummary } from "../lib/review-failure.js";
 import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
 import {
 	getReviewWatchdog,
@@ -459,10 +460,9 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 		logReviewEvent("error", payload, runId, "review run failed", {
 			error: error instanceof Error ? error.message : String(error),
 		});
-		const errorName = error instanceof Error ? error.name : "Error";
 		await finishReviewCheck(env, payload, runId, {
 			conclusion: "failure",
-			summary: `The review failed during the \`${stage}\` stage (\`${errorName}\`). Reapply the \`bot:review\` label to retry.`,
+			summary: formatReviewFailureSummary(stage, error),
 		});
 		throw error;
 	} finally {

@@ -1,5 +1,32 @@
 # emdash
 
+## 0.35.0
+
+### Minor Changes
+
+- [#2438](https://github.com/emdash-cms/emdash/pull/2438) [`0aa1bc8`](https://github.com/emdash-cms/emdash/commit/0aa1bc84a3a652b31ffb15cfd7c2d4b767b83e37) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `emdash migrate` for checking, reporting, and safely applying the exact core migration set recorded by a deployment build.
+
+- [#2437](https://github.com/emdash-cms/emdash/pull/2437) [`34336e1`](https://github.com/emdash-cms/emdash/commit/34336e1570fe2ddaf063b0a0363a9132cf823b8b) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds deployment-managed core migrations so production databases can be updated before a new version of the site starts serving traffic.
+
+  To adopt the workflow, build the site, inspect and apply its migrations with `emdash migrate`, deploy that same build, then run `emdash migrate --check` to verify the database. Existing sites continue applying migrations automatically by default; switch the runtime to `check` only after the deployment migration job is reliable.
+
+  Follow [Manage Core Database Migrations](https://docs.emdashcms.com/deployment/core-migrations/) for setup, credentials, target confirmation, CI configuration, and rollout guidance.
+
+- [#2437](https://github.com/emdash-cms/emdash/pull/2437) [`34336e1`](https://github.com/emdash-cms/emdash/commit/34336e1570fe2ddaf063b0a0363a9132cf823b8b) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds public migration identity and exact-status APIs so deployment tooling can verify and run the same core migration set as the installed EmDash version.
+
+- [#2437](https://github.com/emdash-cms/emdash/pull/2437) [`34336e1`](https://github.com/emdash-cms/emdash/commit/34336e1570fe2ddaf063b0a0363a9132cf823b8b) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds deployment migration executors for the built-in SQLite, libSQL, and PostgreSQL database adapters with secret-free build metadata.
+
+- [#2437](https://github.com/emdash-cms/emdash/pull/2437) [`34336e1`](https://github.com/emdash-cms/emdash/commit/34336e1570fe2ddaf063b0a0363a9132cf823b8b) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `auto`, `check`, and `manual` runtime migration modes so deployments can verify or manage core database migrations before application traffic while existing sites remain on automatic migrations by default.
+
+### Patch Changes
+
+- [#2552](https://github.com/emdash-cms/emdash/pull/2552) [`2c30503`](https://github.com/emdash-cms/emdash/commit/2c305031595934066065e2e20f1c58a76d84d1d8) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes intermittent logged-out bounces immediately after login, signup, or invite acceptance on D1 and Durable Object databases with read replication enabled. The request that establishes the session now persists its read-replica bookmark, so the next request sees the newly created user instead of querying a replica that hasn't caught up yet.
+
+- Updated dependencies [[`ffaadc4`](https://github.com/emdash-cms/emdash/commit/ffaadc4170d32e058f222c6c4ea6168890e7075d)]:
+  - @emdash-cms/admin@0.35.0
+  - @emdash-cms/auth@0.35.0
+  - @emdash-cms/gutenberg-to-portable-text@0.35.0
+
 ## 0.34.0
 
 ### Minor Changes

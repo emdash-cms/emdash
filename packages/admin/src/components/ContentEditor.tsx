@@ -59,6 +59,10 @@ import { SaveButton } from "./SaveButton.js";
 const AUTOSAVE_DELAY = 2000;
 // Mirrors Header.tsx's h-[58px]; the fixed mobile sheet offsets its body by it.
 const ADMIN_HEADER_HEIGHT_PX = 58;
+const EDITOR_SETTINGS_MIN_WIDTH_PX = 320;
+const EDITOR_SETTINGS_DEFAULT_WIDTH_PX = 368;
+const EDITOR_SETTINGS_MAX_WIDTH_PX = 480;
+const EDITOR_SETTINGS_KEYBOARD_STEP_PX = 10;
 
 function serializeEditorState(input: {
 	data: Record<string, unknown>;
@@ -246,6 +250,7 @@ export function ContentEditor({
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
 	const itemLabel = collectionLabel;
+	const settingsPanelId = React.useId();
 	// Kumo Sidebar's `side` is physical, not logical.
 	const panelSide = getLocaleDir(uiLocale) === "rtl" ? "left" : "right";
 	// Mirrors the Sidebar's mobileBreakpoint; `contained` flips with it.
@@ -632,14 +637,19 @@ export function ContentEditor({
 			<Sidebar.Provider
 				contained={!isBelowLg}
 				defaultOpen
+				open={isBelowLg ? undefined : true}
 				side={panelSide}
 				collapsible="offcanvas"
+				resizable
+				defaultWidth={EDITOR_SETTINGS_DEFAULT_WIDTH_PX}
+				minWidth={EDITOR_SETTINGS_MIN_WIDTH_PX}
+				maxWidth={EDITOR_SETTINGS_MAX_WIDTH_PX}
 				mobileBreakpoint={1024}
 				className={cn(!isDistractionFree && "h-full min-h-0")}
 				style={
 					{
-						"--sidebar-width": isBelowLg ? "20rem" : "23rem",
 						"--sidebar-bg": "var(--color-kumo-elevated)",
+						...(isBelowLg ? { "--sidebar-width": "20rem" } : {}),
 					} as React.CSSProperties
 				}
 			>
@@ -835,7 +845,11 @@ export function ContentEditor({
 				{/* Hidden (not unmounted) in distraction-free mode so panel-local
 			    state survives the round trip; `hidden` on the pane's own layout
 			    element leaves no gap. */}
-				<Sidebar aria-label={t`Settings`} className={cn(isDistractionFree && "hidden")}>
+				<Sidebar
+					id={settingsPanelId}
+					aria-label={t`Settings`}
+					className={cn(isDistractionFree && "hidden")}
+				>
 					{/* The action bar absorbs the high-frequency props (isDirty,
 					    isSaving, isAutosaving) so they never reach the memoized panel. */}
 					{!isBelowLg && (
@@ -858,7 +872,7 @@ export function ContentEditor({
 						/>
 					)}
 					<div
-						className="flex-1 overflow-y-auto overflow-x-hidden"
+						className="flex-1 overflow-y-auto overflow-x-hidden bg-kumo-base"
 						style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
 					>
 						{isBelowLg && (
@@ -909,6 +923,7 @@ export function ContentEditor({
 							onBlockSidebarDelete={handleBlockSidebarDelete}
 						/>
 					</div>
+					{!isBelowLg && <ContentEditorSettingsResizeHandle panelId={settingsPanelId} />}
 				</Sidebar>
 
 				{/* Below lg, opening a block detail panel must open the sheet.
@@ -918,6 +933,48 @@ export function ContentEditor({
 				<MobileSidebarPortalGuard />
 			</Sidebar.Provider>
 		</form>
+	);
+}
+
+function ContentEditorSettingsResizeHandle({ panelId }: { panelId: string }) {
+	const { t } = useLingui();
+	const { side, width, minWidth, maxWidth, setWidth } = useSidebar();
+
+	const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+		let nextWidth: number;
+		switch (event.key) {
+			case "ArrowLeft":
+				nextWidth = width + (side === "right" ? 1 : -1) * EDITOR_SETTINGS_KEYBOARD_STEP_PX;
+				break;
+			case "ArrowRight":
+				nextWidth = width + (side === "left" ? 1 : -1) * EDITOR_SETTINGS_KEYBOARD_STEP_PX;
+				break;
+			case "Home":
+				nextWidth = minWidth;
+				break;
+			case "End":
+				nextWidth = maxWidth;
+				break;
+			default:
+				return;
+		}
+
+		event.preventDefault();
+		setWidth(nextWidth);
+	};
+
+	return (
+		<Sidebar.ResizeHandle
+			role="separator"
+			aria-label={t`Resize settings panel`}
+			aria-orientation="vertical"
+			aria-controls={panelId}
+			aria-valuemin={minWidth}
+			aria-valuemax={maxWidth}
+			aria-valuenow={width}
+			className="touch-none"
+			onKeyDown={handleKeyDown}
+		/>
 	);
 }
 

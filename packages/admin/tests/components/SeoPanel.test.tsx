@@ -60,6 +60,24 @@ describe("SeoPanel", () => {
 		}
 	});
 
+	it("keeps the meta description field mounted while its character count updates", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="page-1"
+					seo={{ title: "", description: null, image: null, canonical: null, noIndex: false }}
+					onChange={() => {}}
+				/>
+			</QueryWrapper>,
+		);
+		const initialField = screen.getByLabelText("Meta Description").element();
+
+		await userEvent.type(initialField, "f");
+
+		expect(screen.getByLabelText("Meta Description").element()).toBe(initialField);
+		await expect.element(screen.getByText("1/160 characters")).toBeVisible();
+	});
+
 	it("renders the existing OG image preview when set", async () => {
 		const screen = await render(
 			<QueryWrapper>

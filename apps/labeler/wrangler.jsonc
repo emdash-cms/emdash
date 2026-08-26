@@ -1,0 +1,134 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-labeler",
+	"main": "./src/index.ts",
+	"compatibility_date": "2026-08-24",
+	"compatibility_flags": ["nodejs_compat"],
+	"routes": [{ "pattern": "labels.emdashcms.com", "custom_domain": true }],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "emdash-labeler",
+			"migrations_dir": "./migrations",
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA_QUARANTINE",
+			"bucket_name": "emdash-labeler-media-quarantine",
+		},
+		{
+			"binding": "EVAL_DATASETS",
+			"bucket_name": "emdash-labeler-eval-datasets",
+		},
+		{
+			"binding": "EVAL_ARTIFACTS",
+			"bucket_name": "emdash-labeler-eval-artifacts",
+		},
+	],
+	"version_metadata": { "binding": "VERSION_METADATA" },
+	"images": {
+		"binding": "IMAGES",
+		"remote": true,
+	},
+	"ai": {
+		"binding": "AI",
+		"remote": true,
+	},
+	"services": [
+		{
+			"binding": "AGGREGATOR_RECONCILIATION",
+			"service": "emdash-aggregator",
+		},
+	],
+	"vars": {
+		"LABELER_DID": "did:web:labels.emdashcms.com",
+		"LABELER_SERVICE_URL": "https://labels.emdashcms.com",
+		"LABEL_SIGNING_PUBLIC_KEY": "REPLACE_WITH_PRODUCTION_P256_MULTIKEY",
+		"LABELER_POLICY_VERSION": "listing-metadata-v1",
+		"LABELER_PARSER_VERSION": "canonical-listing-input-v1",
+		"LABELER_TEXT_MODEL_ID": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+		"LABELER_TEXT_PROMPT_HASH": "d7e2513e203d825e7aa6d10c9b8b503ad9df004f43e9779afbd429cdf5500daf",
+		"LABELER_IMAGE_MODEL_ID": "@cf/meta/llama-4-scout-17b-16e-instruct",
+		"LABELER_IMAGE_PROMPT_HASH": "ae78f2bd92696fa3704738182a20dc3b496bbbc9809276f0a986eec49b7e8d70",
+		"JETSTREAM_URL": "wss://jetstream2.us-east.bsky.network/subscribe",
+		"OPERATOR_ACCESS_CONFIG": "{\"teamDomain\":\"https://emdash.cloudflareaccess.com\",\"audience\":\"REPLACE_WITH_ACCESS_APP_AUDIENCE\",\"admins\":[\"emdash-labeler-admins\"],\"reviewers\":[\"emdash-labeler-reviewers\"]}",
+		"EVAL_TEXT_CONFIGURED_UNITS": "1",
+		"EVAL_IMAGE_CONFIGURED_UNITS": "1",
+	},
+	"secrets": {
+		"required": ["LABEL_SIGNING_PRIVATE_KEY", "RECONCILIATION_TOKEN"],
+	},
+	"workflows": [
+		{
+			"binding": "ASSESSMENT_WORKFLOW",
+			"name": "emdash-labeler-assessment",
+			"class_name": "AssessmentWorkflow",
+		},
+		{
+			"binding": "LIVE_EVALUATION_WORKFLOW",
+			"name": "emdash-labeler-live-evaluation",
+			"class_name": "LiveEvaluationWorkflow",
+		},
+	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "DISCOVERY_QUEUE",
+				"queue": "emdash-labeler-discovery",
+			},
+		],
+		"consumers": [
+			{
+				"queue": "emdash-labeler-discovery",
+				"max_batch_size": 25,
+				"max_batch_timeout": 5,
+				"max_retries": 5,
+				"max_concurrency": 1,
+				"dead_letter_queue": "emdash-labeler-discovery-dlq",
+			},
+			{
+				"queue": "emdash-labeler-discovery-dlq",
+				"max_batch_size": 25,
+				"max_batch_timeout": 30,
+				"max_retries": 3,
+			},
+		],
+	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "LABEL_SUBSCRIPTION_DO",
+				"class_name": "LabelSubscriptionDO",
+			},
+			{
+				"name": "LABELER_DISCOVERY_DO",
+				"class_name": "LabelerDiscoveryDO",
+			},
+		],
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["LabelSubscriptionDO"],
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["LabelerDiscoveryDO"],
+		},
+	],
+	"triggers": {
+		"crons": ["*/5 * * * *"],
+	},
+	"observability": {
+		"enabled": true,
+		"logs": {
+			"enabled": true,
+			"head_sampling_rate": 1,
+		},
+		"traces": {
+			"enabled": true,
+			"head_sampling_rate": 0.1,
+		},
+	},
+}

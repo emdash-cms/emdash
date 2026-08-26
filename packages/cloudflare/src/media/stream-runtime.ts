@@ -287,7 +287,9 @@ export const createMediaProvider: CreateMediaProviderFn<CloudflareStreamConfig> 
 						{ src: hlsSrc, type: "application/x-mpegURL" },
 						...(dashSrc ? [{ src: dashSrc, type: "application/dash+xml" }] : []),
 					],
-					poster: toString(value.meta?.thumbnail),
+					// The Stream thumbnail arrives as `previewUrl`; `meta.thumbnail` is a
+					// legacy fallback.
+					poster: value.previewUrl ?? toString(value.meta?.thumbnail),
 					width: options?.width ?? value.width,
 					height: options?.height ?? value.height,
 					controls,
