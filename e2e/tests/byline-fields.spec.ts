@@ -32,6 +32,19 @@ test.describe("Byline custom fields", () => {
 		await admin.devBypassAuth();
 	});
 
+	test("top-aligns schema switches when one has helper text", async ({ admin, page }) => {
+		await admin.goto("/byline-schema");
+		await admin.waitForLoading();
+		await page.getByRole("button", { name: "New field" }).click();
+
+		const requiredBox = await page.getByRole("switch", { name: "Required" }).boundingBox();
+		const translatableBox = await page.getByRole("switch", { name: "Translatable" }).boundingBox();
+
+		expect(requiredBox).not.toBeNull();
+		expect(translatableBox).not.toBeNull();
+		expect(Math.abs(requiredBox!.y - translatableBox!.y)).toBeLessThanOrEqual(1);
+	});
+
 	test("custom field value round-trips through the API end to end", async ({
 		admin,
 		page,
