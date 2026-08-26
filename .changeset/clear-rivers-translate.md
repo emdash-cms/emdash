@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Fixes Japanese admin translations across API token scopes, content identifiers, taxonomy groups and items, menu editing, and SEO settings. Clarifies category and tag management, taxonomy creation, generic item labels and headings, slug and link-opening labels, fallback social image guidance, and site ownership verification fields. Also corrects linked-account dates, yearly archives, passkey secure-context guidance, and WordPress import result grammar.
+Improves Japanese admin translations for authentication and account recovery, taxonomy and menu labels, API token scopes, SEO settings, marketplace guidance, and WordPress import results.

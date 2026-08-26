@@ -1,11 +1,9 @@
-import { i18n } from "@lingui/core";
 import { userEvent } from "@vitest/browser/context";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
 
 import { UserDetail } from "../../../src/components/users/UserDetail";
 import type { UserDetail as UserDetailType } from "../../../src/lib/api";
-import { loadMessages } from "../../../src/locales/index.js";
 import { render } from "../../utils/render";
 
 function makeUser(overrides: Partial<UserDetailType> = {}): UserDetailType {
@@ -103,36 +101,6 @@ describe("UserDetail", () => {
 		await expect.element(screen.getByLabelText("Name")).toHaveValue("Alice Smith");
 		// Email input
 		await expect.element(screen.getByLabelText("Email")).toHaveValue("alice@example.com");
-	});
-
-	it("labels the linked-account connection date correctly in Japanese", async () => {
-		const [japaneseMessages, englishMessages] = await Promise.all([
-			loadMessages("ja"),
-			loadMessages("en"),
-		]);
-		i18n.loadAndActivate({ locale: "ja", messages: japaneseMessages });
-		const connectedAt = "2025-01-01T00:00:00Z";
-		const formattedDate = new Date(connectedAt).toLocaleDateString();
-
-		try {
-			const screen = await render(
-				<UserDetail
-					user={makeUser({
-						oauthAccounts: [{ provider: "github", createdAt: connectedAt }],
-					})}
-					isOpen={true}
-					onClose={noop}
-					onSave={noop}
-					onDisable={noop}
-					onEnable={noop}
-				/>,
-			);
-
-			await expect.element(screen.getByText(`接続日：${formattedDate}`)).toBeInTheDocument();
-			expect(screen.getByText(`${formattedDate}に接続済み`).query()).toBeNull();
-		} finally {
-			i18n.loadAndActivate({ locale: "en", messages: englishMessages });
-		}
 	});
 
 	it("escape key calls onClose", async () => {

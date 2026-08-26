@@ -4952,11 +4952,6 @@ msgid "Manage"
 msgstr "管理"
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:1027
-msgid "Manage {0}"
-msgstr "{0}を管理"
-
-#. placeholder {0}: taxonomyDef.label.toLowerCase()
 #. placeholder {1}: taxonomyDef.collections.join(", ")
 #: packages/admin/src/components/TaxonomyManager.tsx:1025
 msgid "Manage {0} for {1}"

@@ -541,8 +541,8 @@ function TermFormDialog({
 							</Dialog.Title>
 							<Dialog.Description className="text-sm text-kumo-subtle">
 								{term
-									? t`Update the ${taxonomyDef.labelSingular?.toLowerCase() || t`Term`} details`
-									: t`Create a new ${taxonomyDef.labelSingular?.toLowerCase() || t`Term`}`}
+									? t`Update the ${taxonomyDef.labelSingular?.toLowerCase() || "term"} details`
+									: t`Create a new ${taxonomyDef.labelSingular?.toLowerCase() || "term"}`}
 							</Dialog.Description>
 						</div>
 						<Dialog.Close
@@ -1022,9 +1022,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 				<div>
 					<h1 className="text-2xl font-semibold leading-tight">{taxonomyDef.label}</h1>
 					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
-						{taxonomyDef.collections.length > 0
-							? t`Manage ${taxonomyDef.label.toLowerCase()} for ${taxonomyDef.collections.join(", ")}`
-							: t`Manage ${taxonomyDef.label.toLowerCase()}`}
+						{t`Manage ${taxonomyDef.label.toLowerCase()} for ${taxonomyDef.collections.join(", ")}`}
 					</p>
 				</div>
 				<div className="flex gap-2 items-center">

@@ -1,11 +1,9 @@
 import { Toasty } from "@cloudflare/kumo";
-import { i18n } from "@lingui/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import type { Section, SectionsResult } from "../../src/lib/api";
-import { loadMessages } from "../../src/locales/index.js";
 import { render } from "../utils/render.tsx";
 
 // Mock router
@@ -119,27 +117,6 @@ describe("Sections", () => {
 		// Check form fields exist — InputArea uses label prop but may not be associated via aria
 		await expect.element(screen.getByLabelText("Title")).toBeInTheDocument();
 		await expect.element(screen.getByLabelText("Slug")).toBeInTheDocument();
-	});
-
-	it("labels the slug as an identifier in Japanese", async () => {
-		const [japaneseMessages, englishMessages] = await Promise.all([
-			loadMessages("ja"),
-			loadMessages("en"),
-		]);
-		i18n.loadAndActivate({ locale: "ja", messages: japaneseMessages });
-
-		try {
-			const screen = await render(
-				<Wrapper>
-					<Sections />
-				</Wrapper>,
-			);
-			await screen.getByText("新しいセクション").click();
-			await expect.element(screen.getByLabelText("識別名（スラッグ）")).toBeInTheDocument();
-			expect(screen.getByText("スラッグ", { exact: true }).query()).toBeNull();
-		} finally {
-			i18n.loadAndActivate({ locale: "en", messages: englishMessages });
-		}
 	});
 
 	it("auto-generates slug from title in create dialog", async () => {

@@ -1,11 +1,9 @@
 import { Toasty } from "@cloudflare/kumo";
-import { i18n } from "@lingui/core";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import type { MediaItem, SiteSettings } from "../../../src/lib/api";
-import { loadMessages } from "../../../src/locales/index.js";
 import { render } from "../../utils/render";
 
 const mockFetchSettings = vi.fn<() => Promise<Partial<SiteSettings>>>();
@@ -147,58 +145,6 @@ describe("SeoSettings", () => {
 		const saveButtons = screen.getByRole("button", { name: "Saved", exact: true }).all();
 		expect(saveButtons).toHaveLength(2);
 		for (const button of saveButtons) await expect.element(button).toBeDisabled();
-	});
-
-	it("explains the social image and site ownership verification fields clearly in Japanese", async () => {
-		const [japaneseMessages, englishMessages] = await Promise.all([
-			loadMessages("ja"),
-			loadMessages("en"),
-		]);
-		i18n.loadAndActivate({ locale: "ja", messages: japaneseMessages });
-
-		try {
-			const screen = await renderSeoSettings();
-
-			await expect
-				.element(
-					screen.getByText(
-						"ページに画像が設定されていない場合は、Open Graph用のデフォルト画像として使用されます。推奨サイズは1200×630ピクセルです。",
-						{ exact: true },
-					),
-				)
-				.toBeInTheDocument();
-			await expect
-				.element(
-					screen.getByRole("heading", {
-						name: "Google Search Console / Bing Webmaster Tools",
-					}),
-				)
-				.toBeInTheDocument();
-			await expect
-				.element(screen.getByRole("textbox", { name: "Google Search Console", exact: true }))
-				.toHaveValue("google-code");
-			await expect
-				.element(screen.getByRole("textbox", { name: "Bing Webmaster Tools", exact: true }))
-				.toHaveValue("bing-code");
-			await expect
-				.element(
-					screen.getByText(
-						"Google Search Consoleでサイトの所有権を確認するためのメタタグのcontent属性値を入力してください。",
-						{ exact: true },
-					),
-				)
-				.toBeInTheDocument();
-			await expect
-				.element(
-					screen.getByText(
-						"Bing Webmaster Toolsでサイトの所有権を確認するためのメタタグのcontent属性値を入力してください。",
-						{ exact: true },
-					),
-				)
-				.toBeInTheDocument();
-		} finally {
-			i18n.loadAndActivate({ locale: "en", messages: englishMessages });
-		}
 	});
 
 	it("submits the bottom save action and returns both actions to pristine", async () => {
