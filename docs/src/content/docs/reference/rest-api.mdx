@@ -511,7 +511,8 @@ Content-Type: application/json
 ```
 
 Omit `folderId` to leave the current assignment unchanged. Set it to `null` or `unfiled` to return
-the media item to the Main library. Authors can update their own media; editors can update any media.
+the media item to the Main library. Assigning owned media requires `media:edit_own`; assigning any
+media requires `media:edit_any`. Bearer tokens also require the `media:write` scope.
 
 ### List Media Folders
 
@@ -533,9 +534,24 @@ Content-Type: application/json
 }
 ```
 
-Folder names contain 1 to 200 UTF-16 code units after trimming. Names conflict when their
-NFKC-normalized lowercase forms match. Creating, renaming, and deleting folders requires
-`media:edit_any`.
+Returns `201 Created` with the created folder:
+
+```json
+{
+	"success": true,
+	"data": {
+		"item": {
+			"id": "01HXK5MZSN...",
+			"name": "Product photos"
+		}
+	}
+}
+```
+
+Folder names are trimmed and must contain 1 to 200 characters. Names are compared after Unicode
+normalization and lowercasing, so `Photos`, `photos`, and `ＰＨＯＴＯＳ` are treated as duplicates.
+Creating, renaming, and deleting folders requires `media:edit_any`. Bearer tokens also require the
+`media:write` scope.
 
 ### Rename Media Folder
 
@@ -548,14 +564,27 @@ Content-Type: application/json
 }
 ```
 
+Returns `200 OK` with the updated folder in the same response shape as creation.
+
 ### Delete Media Folder
 
 ```http
 DELETE /_emdash/api/media/folders/:id
 ```
 
+Returns `200 OK` with `{ "deleted": true }` in the response `data`.
+
 Deleting a folder returns its media to the Main library. It does not delete media, change media
 IDs or URLs, or change media usage records.
+
+#### Folder errors
+
+| Status | Code               | Cause                                                   |
+| ------ | ------------------ | ------------------------------------------------------- |
+| `400`  | `INVALID_CURSOR`   | The folder-list cursor is invalid                       |
+| `400`  | `VALIDATION_ERROR` | A folder name, folder ID, or list parameter is invalid  |
+| `404`  | `NOT_FOUND`        | A folder or folder assignment target does not exist     |
+| `409`  | `CONFLICT`         | A folder already has the same normalized name           |
 
 ### Delete Media
 
