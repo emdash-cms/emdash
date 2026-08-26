@@ -908,7 +908,7 @@ msgstr "すべての言語"
 #: packages/admin/src/components/users/UserList.tsx:42
 #: packages/admin/src/components/users/UserList.tsx:46
 msgid "All roles"
-msgstr "すべての権限"
+msgstr "すべてのロール"
 
 #: packages/admin/src/components/Sections.tsx:240
 msgid "All Sources"
@@ -1365,7 +1365,7 @@ msgstr "太字"
 #: packages/admin/src/components/FieldEditor.tsx:203
 #: packages/admin/src/components/FieldEditor.tsx:612
 msgid "Boolean"
-msgstr "ブール値(True/False)"
+msgstr "ブール値（true / false）"
 
 #: packages/admin/src/components/SeoPanel.tsx:195
 msgid "Brief summary shown below the title in search results"
@@ -1880,7 +1880,7 @@ msgstr "コンテンツブロック"
 #. placeholder {0}: result.errors.length
 #: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Content Errors ({0})"
-msgstr "コンテンツエラー ({0})"
+msgstr "コンテンツエラー（{0}）"
 
 #: packages/admin/src/components/WordPressImport.tsx:1317
 msgid "Content found:"
@@ -1896,7 +1896,7 @@ msgstr "選択した版の内容に更新しました。"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:110
 msgid "Content ID:"
-msgstr "コンテンツID:"
+msgstr "コンテンツID："
 
 #: packages/admin/src/router.tsx:1070
 msgid "Content is now live"
@@ -2334,7 +2334,7 @@ msgstr "宣言された権限"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:290
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:345
 msgid "Default Role"
-msgstr "初期権限"
+msgstr "デフォルトロール"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:241
 msgid "Default role:"
@@ -2610,7 +2610,7 @@ msgstr "転送先パス"
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:153
 #: packages/admin/src/components/PluginManager.tsx:564
 msgid "Destructive"
-msgstr "破壊的"
+msgstr "破壊的な操作"
 
 #: packages/admin/src/components/PluginManager.tsx:506
 msgid "details"
@@ -3134,7 +3134,7 @@ msgstr "有効"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:504
 msgid "English is used because no content locale is configured. Content locale is stored with the entry and is separate from your admin language."
-msgstr ""
+msgstr "コンテンツの言語が設定されていないため、英語が使用されます。コンテンツの言語は各コンテンツに保存され、管理画面の表示言語とは別に扱われます。"
 
 #: packages/admin/src/components/MenuEditor.tsx:423
 #: packages/admin/src/components/MenuEditor.tsx:601
@@ -3268,7 +3268,7 @@ msgstr "Facebook"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:345
 msgid "Fail"
-msgstr "失敗"
+msgstr "不合格"
 
 #: packages/admin/src/components/WordPressImport.tsx:2130
 msgid "Failed"
@@ -3974,7 +3974,7 @@ msgstr "コンテンツタイプで絞り込む"
 
 #: packages/admin/src/components/users/UserList.tsx:82
 msgid "Filter by role"
-msgstr "権限で絞り込む"
+msgstr "ロールで絞り込む"
 
 #: packages/admin/src/components/Sections.tsx:245
 msgid "Filter by source"
@@ -4676,7 +4676,7 @@ msgstr "最終ログイン"
 
 #: packages/admin/src/components/Redirects.tsx:227
 msgid "Last seen"
-msgstr "最終確認"
+msgstr "最終アクセス"
 
 #: packages/admin/src/components/users/UserDetail.tsx:223
 msgid "Last updated"
@@ -5067,7 +5067,7 @@ msgstr "メディア詳細"
 #. placeholder {0}: mediaResult.failed.length
 #: packages/admin/src/components/WordPressImport.tsx:2400
 msgid "Media Errors ({0})"
-msgstr "メディアエラー ({0})"
+msgstr "メディアエラー（{0}）"
 
 #: packages/admin/src/components/WordPressImport.tsx:2362
 msgid "Media Import"
@@ -5152,7 +5152,7 @@ msgstr "メニュー"
 #. placeholder {0}: navMenus.length
 #: packages/admin/src/components/WordPressImport.tsx:1767
 msgid "Menus ({0})"
-msgstr "メニュー ({0})"
+msgstr "メニュー（{0}）"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:82
 msgid "Menus Manage"
@@ -5193,7 +5193,7 @@ msgstr "最小値"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1433
 msgid "Minor section heading"
-msgstr "小見出し"
+msgstr "レベル5の見出し"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:519
 msgid "Moderation"
@@ -5983,7 +5983,7 @@ msgstr "パスキー"
 #. placeholder {0}: user.credentials.length
 #: packages/admin/src/components/users/UserDetail.tsx:245
 msgid "Passkeys ({0})"
-msgstr "パスキー ({0})"
+msgstr "パスキー（{0}）"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:136
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
@@ -6629,7 +6629,7 @@ msgstr "リクエストに失敗しました"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:430
 msgid "Require a slug before content can be published"
-msgstr "公開するコンテンツに個別URLを設定する"
+msgstr "コンテンツを公開するにはスラッグを必須にする"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:280
 #: packages/admin/src/components/ContentTypeEditor.tsx:745
@@ -6794,11 +6794,11 @@ msgstr "robots.txt"
 #: packages/admin/src/components/users/UserDetail.tsx:181
 #: packages/admin/src/components/users/UserList.tsx:101
 msgid "Role"
-msgstr "権限"
+msgstr "ロール"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:61
 msgid "Role {role}"
-msgstr "権限：{role}"
+msgstr "ロール：{role}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1067
 msgid "Role label"
@@ -6806,7 +6806,7 @@ msgstr "役割名"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:428
 msgid "Routable"
-msgstr "個別ページを作成"
+msgstr "個別ページを有効にする"
 
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
@@ -7168,7 +7168,7 @@ msgstr "セキュリティ監査"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:342
 msgid "Security audit failed"
-msgstr "セキュリティ監査に失敗しました"
+msgstr "セキュリティ監査で問題を検出"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:332
 msgid "Security audit flagged concerns"
@@ -7626,7 +7626,7 @@ msgstr "フィールドの作成後はスラッグを変更できません。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1413
 msgid "Small section heading"
-msgstr "小見出し"
+msgstr "レベル3の見出し"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1423
 msgid "Smaller section heading"
@@ -7898,7 +7898,7 @@ msgstr "以下のテーブルにはコンテンツがありますが、コンテ
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:179
 msgid "The invited user will have this role once they complete registration."
-msgstr "招待されたユーザーには登録完了後にこの権限が設定されます。"
+msgstr "招待されたユーザーには登録完了後にこのロールが設定されます。"
 
 #: packages/admin/src/components/LoginPage.tsx:114
 #: packages/admin/src/components/SignupPage.tsx:140
@@ -8369,7 +8369,7 @@ msgstr "不明"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:62
 msgid "Unknown role"
-msgstr "不明な権限"
+msgstr "不明なロール"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:296
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:297
@@ -8681,7 +8681,7 @@ msgstr "ドメイン"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:196
 msgid "Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically."
-msgstr "これらのドメインのメールアドレスを持つユーザーは招待なしで登録できます。指定した権限が自動的に設定されます。"
+msgstr "これらのドメインのメールアドレスを持つユーザーは招待なしで登録できます。指定したロールが自動的に設定されます。"
 
 #. placeholder {0}: updateInfo.latest
 #: packages/admin/src/components/PluginManager.tsx:387
@@ -8865,7 +8865,7 @@ msgstr "変更できない理由"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:517
 msgid "Why English is used"
-msgstr ""
+msgstr "英語が使用される理由"
 
 #: packages/admin/src/components/SeoPanel.tsx:222
 msgid "Why is this important for duplicate pages?"
@@ -9129,7 +9129,7 @@ msgstr "名前（任意）"
 
 #: packages/admin/src/components/WelcomeModal.tsx:46
 msgid "Your Role"
-msgstr "あなたの権限"
+msgstr "あなたのロール"
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
 #: packages/admin/src/components/RegistryPluginDetail.tsx:612

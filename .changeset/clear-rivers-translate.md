@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Improves Japanese admin translations for authentication and account recovery, taxonomy and menu labels, API token scopes, SEO settings, marketplace guidance, and WordPress import results.
+Improves Japanese admin translations across authentication and account recovery, content and taxonomy settings, user roles, API token scopes, marketplace security results, menus, redirects, SEO settings, and WordPress imports.
