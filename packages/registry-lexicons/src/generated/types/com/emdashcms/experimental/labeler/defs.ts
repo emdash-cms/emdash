@@ -379,13 +379,12 @@ const _publicFindingSchema = /*#__PURE__*/ v.object({
 	category: /*#__PURE__*/ v.string<
 		| "explicit-sexual-content"
 		| "graphic-violence"
-		| "hateful-content"
-		| "impersonation"
-		| "malicious-link"
-		| "misleading-content"
-		| "phishing"
+		| "hateful-or-dehumanizing-content"
+		| "malicious-or-deceptive-link"
+		| "material-impersonation"
+		| "misleading-media-or-claims"
+		| "phishing-or-credential-solicitation"
 		| "scam-or-spam"
-		| "uncertain"
 		| (string & {})
 	>(),
 	/**
