@@ -203,6 +203,16 @@ msgstr "{0, plural, one {メディアファイル} other {メディアファイ�
 msgid "{0, plural, one {User} other {Users}}"
 msgstr "{0, plural, one {ユーザー} other {ユーザー}}"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/components/MediaImportSummary.tsx:18
+msgid "{importedFiles, plural, one {<count>#</count> file imported} other {<count>#</count> files imported}}"
+msgstr "<count>{importedFiles}</count>件のファイルをインポートしました"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/components/MediaImportSummary.tsx:26
+msgid "{rewrittenUrls, plural, one {<urlCount>#</urlCount> image URL updated in {updatedContentItems, plural, one {<itemCount>#</itemCount> content item} other {<itemCount>#</itemCount> content items}}} other {<urlCount>#</urlCount> image URLs updated in {updatedContentItems, plural, one {<itemCount>#</itemCount> content item} other {<itemCount>#</itemCount> content items}}}}"
+msgstr "<itemCount>{updatedContentItems}</itemCount>件のコンテンツで<urlCount>{rewrittenUrls}</urlCount>件の画像URLを更新しました"
+
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
 #. placeholder {2}: m.host

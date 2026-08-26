@@ -60,6 +60,7 @@ import {
 } from "../lib/api";
 import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
+import { MediaImportSummary } from "./MediaImportSummary.js";
 
 // ============================================================================
 // Constants
@@ -2362,15 +2363,15 @@ function CompleteStep({
 						<h3 className="font-medium">{t`Media Import`}</h3>
 					</div>
 					<div className="p-4 space-y-2 text-sm">
-						<p>
-							<strong>{mediaResult.imported.length}</strong> {t`files imported`}
-						</p>
-						{rewriteResult && rewriteResult.updated > 0 && (
-							<p>
-								<strong>{rewriteResult.urlsRewritten}</strong> {t`image URLs updated in`}{" "}
-								<strong>{rewriteResult.updated}</strong> {t`content items`}
-							</p>
-						)}
+						<MediaImportSummary
+							importedFiles={mediaResult.imported.length}
+							rewrittenUrls={
+								rewriteResult && rewriteResult.updated > 0 ? rewriteResult.urlsRewritten : undefined
+							}
+							updatedContentItems={
+								rewriteResult && rewriteResult.updated > 0 ? rewriteResult.updated : undefined
+							}
+						/>
 					</div>
 				</div>
 			)}
