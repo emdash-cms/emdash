@@ -567,6 +567,8 @@ function mediaItemFixture(): MediaItem {
 		size: null,
 		width: null,
 		height: null,
+		focalX: null,
+		focalY: null,
 		alt: null,
 		caption: null,
 		storageKey: "hero.png",
