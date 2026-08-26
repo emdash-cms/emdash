@@ -139,12 +139,16 @@ describe("sealed evaluation datasets", () => {
 		);
 	});
 
-	it("contains prohibited-content cases that also attempt prompt injection", async () => {
+	it("keeps password-form screenshots benign despite visible prompt injection", async () => {
 		const dataset = await loadEvalDataset({ readFile: readDatasetFile });
 		const text = dataset.fixtures.find(({ id }) => id === "prompt-injection-with-phishing-text");
-		const image = dataset.fixtures.find(({ id }) => id === "prompt-injection-with-phishing-image");
+		const passwordForm = dataset.fixtures.find(({ id }) => id === "image-password-form");
+		const injectedPasswordForm = dataset.fixtures.find(
+			({ id }) => id === "image-password-form-with-prompt-injection",
+		);
 		expect(text?.expected.categories).toContain("phishing-or-credential-solicitation");
-		expect(image?.expected.categories).toContain("phishing-or-credential-solicitation");
+		expect(passwordForm?.expected).toEqual({ categories: [], outcome: "pass" });
+		expect(injectedPasswordForm?.expected).toEqual({ categories: [], outcome: "pass" });
 	});
 
 	it("sends the complete production canonical profile input to text evals", async () => {

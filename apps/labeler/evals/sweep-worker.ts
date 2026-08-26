@@ -1,20 +1,31 @@
-import { workersAiBindingFromEnv } from "../src/ai/workers-ai.js";
-
-interface SweepEnv {
-	AI: Ai;
-	IMAGES: ImagesBinding;
-}
+import {
+	createCloudflareImagesDerivativeTransformer,
+	createResizedImageModerationAdapter,
+	DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
+} from "../src/ai/image-resize.js";
+import { IMAGE_PROMPT_HASH } from "../src/ai/prompts.js";
+import {
+	createWorkersAiImageAdapter,
+	workersAiBindingFromEnv,
+	WORKERS_AI_IMAGE_MODEL_CANDIDATE,
+} from "../src/ai/workers-ai.js";
 
 const IMAGE_DATA_URL_RE = /^data:image\/(?:gif|jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/;
+const BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const MAX_MANUAL_IMAGE_BYTES = 8 * 1024 * 1024;
+const MANUAL_IMAGE_PATH = "/moderate-image";
 
 export default {
-	async fetch(request: Request, env: SweepEnv): Promise<Response> {
+	async fetch(request: Request, env: Env): Promise<Response> {
 		if (request.method !== "POST") return new Response("POST required", { status: 405 });
 		let value: unknown;
 		try {
 			value = await request.json();
 		} catch {
 			return new Response("Invalid JSON", { status: 400 });
+		}
+		if (new URL(request.url).pathname === MANUAL_IMAGE_PATH) {
+			return moderateManualImage(value, env);
 		}
 		if (!isRecord(value) || typeof value["model"] !== "string" || !isRecord(value["input"])) {
 			return new Response("Invalid request", { status: 400 });
@@ -42,7 +53,95 @@ export default {
 			);
 		}
 	},
-};
+} satisfies ExportedHandler<Env>;
+
+export function parseManualImageRequest(value: unknown): {
+	fileName: string;
+	mimeType: "image/gif" | "image/jpeg" | "image/png" | "image/webp";
+	bytes: Uint8Array;
+} {
+	if (!isRecord(value)) throw new TypeError("manual image request must be an object");
+	const fileName = value["fileName"];
+	if (
+		typeof fileName !== "string" ||
+		fileName.length < 1 ||
+		fileName.length > 255 ||
+		fileName.includes("/") ||
+		fileName.includes("\\")
+	) {
+		throw new TypeError("manual image file name is invalid");
+	}
+	const mimeType = value["mimeType"];
+	if (
+		mimeType !== "image/gif" &&
+		mimeType !== "image/jpeg" &&
+		mimeType !== "image/png" &&
+		mimeType !== "image/webp"
+	) {
+		throw new TypeError("manual image MIME type is unsupported");
+	}
+	const encoded = value["base64"];
+	if (
+		typeof encoded !== "string" ||
+		encoded.length > Math.ceil(MAX_MANUAL_IMAGE_BYTES / 3) * 4 + 4 ||
+		!BASE64_RE.test(encoded)
+	) {
+		throw new TypeError("manual image data is not bounded canonical base64");
+	}
+	const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
+	if (bytes.byteLength > MAX_MANUAL_IMAGE_BYTES) {
+		throw new RangeError("manual image exceeds its byte limit");
+	}
+	return { fileName, mimeType, bytes };
+}
+
+async function moderateManualImage(value: unknown, env: Env): Promise<Response> {
+	let input: ReturnType<typeof parseManualImageRequest>;
+	try {
+		input = parseManualImageRequest(value);
+	} catch (error) {
+		return Response.json(
+			{ error: error instanceof Error ? error.message : "manual image request is invalid" },
+			{ status: 400 },
+		);
+	}
+	try {
+		const baseAdapter = createWorkersAiImageAdapter(workersAiBindingFromEnv(env.AI), {
+			modelId: WORKERS_AI_IMAGE_MODEL_CANDIDATE,
+			promptHash: IMAGE_PROMPT_HASH,
+			thinking: false,
+		});
+		const adapter = createResizedImageModerationAdapter(
+			createCloudflareImagesDerivativeTransformer(env.IMAGES),
+			baseAdapter,
+			DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
+		);
+		const result = await adapter.moderate({
+			subject: {
+				uri: "at://did:plc:manualimageevaluation/com.emdashcms.experimental.package.release/local:0.0.0",
+				cid: "bafyreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				kind: "release",
+			},
+			evidenceRef: "manual.image:0",
+			mimeType: input.mimeType,
+			bytes: input.bytes,
+		});
+		return Response.json({
+			fileName: input.fileName,
+			outcome: result.findings.length === 0 ? "pass" : "review",
+			findings: result.findings,
+			coveredEvidenceRefs: result.coveredEvidenceRefs,
+			identity: result.identity,
+			latencyMs: result.latencyMs,
+			usage: result.usage,
+		});
+	} catch (error) {
+		return Response.json(
+			{ error: error instanceof Error ? error.message : "manual image evaluation failed" },
+			{ status: 502 },
+		);
+	}
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);

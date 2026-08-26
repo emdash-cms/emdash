@@ -10,10 +10,10 @@ The current advisory bundle uses the following Workers AI catalog models:
 - Text: `@cf/meta/llama-3.3-70b-instruct-fp8-fast`
 - Images: `@cf/qwen/qwen3.8-27b`, with thinking disabled and a 512-pixel WebP derivative
 
-The text prompt is `listing-text-v6`, with content hash
-`8023cb81961a8b397c5d19eef8d4b71ed62de443118a1c5a22f3e39e233ecaa0`. The image prompt is
-`listing-image-v2`, with content hash
-`ef3850077e1eec9f96f1fba943f1f6da261ff4bf9b7a4f8be63ff78398d7c05a`. The runtime computes
+The text prompt is `listing-text-v7`, with content hash
+`6190ae294c1ffae4f7c5996b8836a128dd214d2a36ae18ab8e7ff3fe4492f076`. The image prompt is
+`listing-image-v5`, with content hash
+`3ffb045c3af8a5787387f21ced7375170000323a4c9557bf89d68079d77866f3`. The runtime computes
 these hashes from the embedded prompts; operators do not configure separate prompt-hash values.
 
 ## Candidate selection
@@ -23,7 +23,7 @@ documentation. It evaluated current general models, older controls, specialist m
 and native vision interfaces. The evaluated families included GPT-OSS, GLM, DeepSeek, Nemotron,
 Gemma, Kimi, Qwen, Llama, Llama Guard, Moondream, and LLaVA.
 
-The public development corpus contains 25 fixtures: 18 text cases and seven image cases. It covers
+The public development corpus contains 24 fixtures: 18 text cases and six image cases. It covers
 all eight finding categories, clean inputs, borderline wording, prompt injection, Unicode
 confusables, multilingual text, long input, and redacted realistic input. The development sweep
 also found provider-interface differences that required support for OpenAI-compatible choice
@@ -51,11 +51,13 @@ limit while emitting an unfinished JSON object followed by whitespace. GLM did n
 case to review. P95 latency was 9.93 seconds. The artifact has SHA-256 digest
 `6275ba4f4bd3d1bff8c7b0c7247bd53029a87378a9874053d89b743740b9441e`.
 
-On the public corpus, Llama produced 51 valid text results across three repeats without a
-pass/review error. Qwen produced 21 correct image decisions across three repeats after image
-resizing, without a model error or repeated-run disagreement. Exact category assignments were
-less reliable than the pass/review decisions, so category exactness remains an advisory quality
-metric rather than an automatic-pass safety claim.
+On the earlier public corpus, Llama produced 51 valid text results across three repeats without a
+pass/review error. The password-form screenshots are benign negative controls: an image of a
+credential form is passive UI evidence and cannot establish phishing or credential solicitation.
+Under image prompt v5, Qwen matched all six corrected image outcomes and categories without an
+invalid output or model error. P95 latency was 33.35 seconds, above the 15-second evaluation
+budget. Exact category assignments remain an advisory quality metric rather than an automatic-pass
+safety claim.
 
 ## Protected validation
 

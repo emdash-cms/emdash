@@ -139,9 +139,8 @@ pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets
 pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets/v1/assets/impersonation-badge.png --remote --file evals/datasets/v1/assets/impersonation-badge.png --content-type image/png
 pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets/v1/assets/phishing-login.png --remote --file evals/datasets/v1/assets/phishing-login.png --content-type image/png
 pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets/v1/assets/phishing-prompt-injection.png --remote --file evals/datasets/v1/assets/phishing-prompt-injection.png --content-type image/png
-pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets/v1/assets/legacy-brand-impersonation.png --remote --file evals/datasets/v1/assets/legacy-brand-impersonation.png --content-type image/png
+pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets/v1/assets/legacy-brand-logo.png --remote --file evals/datasets/v1/assets/legacy-brand-logo.png --content-type image/png
 pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets/v1/assets/legacy-clean-icon.png --remote --file evals/datasets/v1/assets/legacy-clean-icon.png --content-type image/png
-pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets/v1/assets/legacy-hate-imagery.png --remote --file evals/datasets/v1/assets/legacy-hate-imagery.png --content-type image/png
 ```
 
 Upload the protected holdout from its controlled location:
@@ -156,6 +155,30 @@ object makes the run fail. Promotion also requires `promotionEnabled: true` in t
 manifest. Keep it `false` for a corpus that has been consumed during selection or has failed its
 promotion run. See [Listing moderation model evaluation](model-evaluation.md) for the current
 evidence and decision.
+
+### Evaluate downloaded images locally
+
+The manual image evaluator reads GIF, JPEG, PNG, and WebP files from local paths without copying
+them into the repository or R2. It sends each image to Cloudflare Images and Workers AI through
+remote Wrangler bindings. Run it only for images that may be sent to Cloudflare, and expect the
+calls to incur Workers AI usage.
+
+Start the localhost proxy in one terminal:
+
+```sh
+pnpm --dir apps/labeler eval:image:server
+```
+
+Pass one or more image files or directories from another terminal:
+
+```sh
+pnpm --dir apps/labeler eval:image:local -- /secure/path/downloaded-images
+```
+
+The command searches directories recursively and writes one JSON object per file to standard
+output. The JSON contains the local path, pass/review outcome, findings, model identity, latency,
+and usage. Image bytes are not included in the output or stored by the evaluator. Stop the proxy
+when evaluation finishes.
 
 ## Deploy both Workers
 

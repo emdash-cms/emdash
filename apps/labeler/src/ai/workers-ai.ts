@@ -73,11 +73,7 @@ export function createWorkersAiTextAdapter(
 					{ role: "system", content: TEXT_SYSTEM_PROMPT },
 					{
 						role: "user",
-						content: JSON.stringify({
-							schemaVersion: 1,
-							text: request.text,
-							links: request.links,
-						}),
+						content: textModerationXml(request.text, request.links),
 					},
 				],
 				response_format: {
@@ -136,11 +132,7 @@ export function createWorkersAiImageAdapter(
 						content: [
 							{
 								type: "text",
-								text: JSON.stringify({
-									schemaVersion: 1,
-									evidenceRef: request.evidenceRef,
-									mimeType: request.mimeType,
-								}),
+								text: imageModerationXml(request.evidenceRef, request.mimeType),
 							},
 							{
 								type: "image_url",
@@ -224,6 +216,46 @@ function completionTokenParameters(
 	return parameters.maxCompletionTokens === undefined
 		? { max_tokens: parameters.maxTokens! }
 		: { max_completion_tokens: parameters.maxCompletionTokens };
+}
+
+function textModerationXml(
+	text: readonly { ref: string; value: string; format: string }[],
+	links: readonly { ref: string; url: string; usage: string }[],
+): string {
+	return [
+		'<listing-input schema-version="1">',
+		"<text-fields>",
+		...text.map(
+			(field) =>
+				`<text ref="${xmlEscape(field.ref)}" format="${xmlEscape(field.format)}">${xmlEscape(field.value)}</text>`,
+		),
+		"</text-fields>",
+		"<links>",
+		...links.map(
+			(link) =>
+				`<link ref="${xmlEscape(link.ref)}" usage="${xmlEscape(link.usage)}">${xmlEscape(link.url)}</link>`,
+		),
+		"</links>",
+		"</listing-input>",
+	].join("\n");
+}
+
+function imageModerationXml(evidenceRef: string, mimeType: string): string {
+	return [
+		'<image-input schema-version="1">',
+		`<evidence-ref>${xmlEscape(evidenceRef)}</evidence-ref>`,
+		`<mime-type>${xmlEscape(mimeType)}</mime-type>`,
+		"</image-input>",
+	].join("\n");
+}
+
+function xmlEscape(value: string): string {
+	return value
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&apos;");
 }
 
 async function assertPromptHash(prompt: string, expected: string): Promise<void> {

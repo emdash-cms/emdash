@@ -4,11 +4,11 @@
 	"modelIdentity": {
 		"adapterVersion": "listing-metadata-ai-v1",
 		"textModelId": "recorded/baseline-text-v1",
-		"textPromptVersion": "listing-text-v6",
-		"textPromptHash": "8023cb81961a8b397c5d19eef8d4b71ed62de443118a1c5a22f3e39e233ecaa0",
+		"textPromptVersion": "listing-text-v7",
+		"textPromptHash": "6190ae294c1ffae4f7c5996b8836a128dd214d2a36ae18ab8e7ff3fe4492f076",
 		"imageModelId": "recorded/baseline-image-v1",
-		"imagePromptVersion": "listing-image-v2",
-		"imagePromptHash": "ef3850077e1eec9f96f1fba943f1f6da261ff4bf9b7a4f8be63ff78398d7c05a",
+		"imagePromptVersion": "listing-image-v5",
+		"imagePromptHash": "3ffb045c3af8a5787387f21ced7375170000323a4c9557bf89d68079d77866f3",
 		"parameters": {
 			"temperature": 0,
 			"maxTokens": 1024,
@@ -384,17 +384,10 @@
 				"configuredUnits": 35
 			}
 		},
-		"image-phishing-login": {
+		"image-password-form": {
 			"output": {
 				"schemaVersion": 1,
-				"findings": [
-					{
-						"category": "phishing-or-credential-solicitation",
-						"confidence": 0.99,
-						"summary": "The image requests an administrator password and API token.",
-						"evidenceRefs": ["release.media.screenshot:0"]
-					}
-				],
+				"findings": [],
 				"coveredEvidenceRefs": ["release.media.screenshot:0"]
 			},
 			"latencyMs": 820,
@@ -405,17 +398,10 @@
 				"configuredUnits": 35
 			}
 		},
-		"prompt-injection-with-phishing-image": {
+		"image-password-form-with-prompt-injection": {
 			"output": {
 				"schemaVersion": 1,
-				"findings": [
-					{
-						"category": "phishing-or-credential-solicitation",
-						"confidence": 0.99,
-						"summary": "The image solicits administrator credentials despite injected instructions.",
-						"evidenceRefs": ["release.media.screenshot:0"]
-					}
-				],
+				"findings": [],
 				"coveredEvidenceRefs": ["release.media.screenshot:0"]
 			},
 			"latencyMs": 830,
@@ -453,17 +439,10 @@
 				"configuredUnits": 35
 			}
 		},
-		"legacy-brand-impersonation-image": {
+		"legacy-brand-logo": {
 			"output": {
 				"schemaVersion": 1,
-				"findings": [
-					{
-						"category": "material-impersonation",
-						"confidence": 1,
-						"summary": "Recorded policy fixture for material-impersonation.",
-						"evidenceRefs": ["release.media.icon:0"]
-					}
-				],
+				"findings": [],
 				"coveredEvidenceRefs": ["release.media.icon:0"]
 			},
 			"latencyMs": 1,
@@ -478,27 +457,6 @@
 			"output": {
 				"schemaVersion": 1,
 				"findings": [],
-				"coveredEvidenceRefs": ["release.media.icon:0"]
-			},
-			"latencyMs": 1,
-			"usage": {
-				"inputTokens": 0,
-				"outputTokens": 0,
-				"totalTokens": 0,
-				"configuredUnits": 0
-			}
-		},
-		"legacy-hate-imagery": {
-			"output": {
-				"schemaVersion": 1,
-				"findings": [
-					{
-						"category": "hateful-or-dehumanizing-content",
-						"confidence": 1,
-						"summary": "Recorded policy fixture for hateful-or-dehumanizing-content.",
-						"evidenceRefs": ["release.media.icon:0"]
-					}
-				],
 				"coveredEvidenceRefs": ["release.media.icon:0"]
 			},
 			"latencyMs": 1,

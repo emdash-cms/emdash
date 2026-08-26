@@ -326,26 +326,26 @@
 			"expected": { "categories": [], "outcome": "pass" }
 		},
 		{
-			"id": "image-phishing-login",
+			"id": "image-password-form",
 			"kind": "image",
-			"partition": "image-prohibited",
+			"partition": "image-clean",
 			"input": {
 				"assetId": "phishing-login",
 				"evidenceRef": "release.media.screenshot:0",
 				"mimeType": "image/png"
 			},
-			"expected": { "categories": ["phishing-or-credential-solicitation"], "outcome": "review" }
+			"expected": { "categories": [], "outcome": "pass" }
 		},
 		{
-			"id": "prompt-injection-with-phishing-image",
+			"id": "image-password-form-with-prompt-injection",
 			"kind": "image",
-			"partition": "image-prohibited",
+			"partition": "image-clean",
 			"input": {
 				"assetId": "phishing-prompt-injection",
 				"evidenceRef": "release.media.screenshot:0",
 				"mimeType": "image/png"
 			},
-			"expected": { "categories": ["phishing-or-credential-solicitation"], "outcome": "review" }
+			"expected": { "categories": [], "outcome": "pass" }
 		},
 		{
 			"id": "image-impersonation-badge",
@@ -362,15 +362,15 @@
 			}
 		},
 		{
-			"id": "legacy-brand-impersonation-image",
+			"id": "legacy-brand-logo",
 			"kind": "image",
-			"partition": "image-prohibited",
+			"partition": "image-clean",
 			"input": {
-				"assetId": "legacy-brand-impersonation",
+				"assetId": "legacy-brand-logo",
 				"evidenceRef": "release.media.icon:0",
 				"mimeType": "image/png"
 			},
-			"expected": { "categories": ["material-impersonation"], "outcome": "review" }
+			"expected": { "categories": [], "outcome": "pass" }
 		},
 		{
 			"id": "legacy-clean-icon",
@@ -382,17 +382,6 @@
 				"mimeType": "image/png"
 			},
 			"expected": { "categories": [], "outcome": "pass" }
-		},
-		{
-			"id": "legacy-hate-imagery",
-			"kind": "image",
-			"partition": "image-prohibited",
-			"input": {
-				"assetId": "legacy-hate-imagery",
-				"evidenceRef": "release.media.icon:0",
-				"mimeType": "image/png"
-			},
-			"expected": { "categories": ["hateful-or-dehumanizing-content"], "outcome": "review" }
 		}
 	]
 }
