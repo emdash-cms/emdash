@@ -719,7 +719,7 @@ msgstr "フィールドを追加"
 
 #: packages/admin/src/routes/byline-schema.tsx:293
 msgid "Add fields like \"Job title\" or \"Pronouns\" to enrich every byline."
-msgstr "「役職」や「代名詞」などの項目を追加して、執筆者情報を充実させます。"
+msgstr "「役職」や「呼ばれ方」などの項目を追加して、執筆者情報を充実させます。"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:628
 msgid "Add fields to define the structure of your content"
@@ -2354,7 +2354,7 @@ msgstr "カテゴリーやタグのような分類グループを作成します
 
 #: packages/admin/src/routes/byline-schema.tsx:220
 msgid "Define custom fields stored on every byline — job title, pronouns, social handles, and more."
-msgstr "執筆者ごとに保存する追加項目を設定します。役職、代名詞、SNSアカウントなどを追加できます。"
+msgstr "執筆者ごとに保存する追加項目を設定します。役職、呼ばれ方（she/herなど）、SNSアカウントなどを追加できます。"
 
 #: packages/admin/src/components/ContentTypeList.tsx:118
 msgid "Define the structure of your content"
