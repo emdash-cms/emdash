@@ -368,4 +368,42 @@ describe("RegistryPluginDetail approved publisher identity", () => {
 		await expect.element(screen.getByText("This plugin is not available yet")).toBeInTheDocument();
 		expect(screen.container.textContent).not.toContain(unsafe);
 	});
+
+	it("keeps approved package and release data visible during background refreshes", async () => {
+		const queryClient = new QueryClient({
+			defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+		});
+		setup(makePackage(), [makeRelease()]);
+		const screen = await render(
+			<QueryClientProvider client={queryClient}>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</QueryClientProvider>,
+		);
+
+		await expect.element(screen.getByRole("heading", { name: "My Plugin" })).toBeInTheDocument();
+		mockResolveRegistryPackageStatus.mockReturnValue(new Promise(() => {}));
+		mockListRegistryReleases.mockReturnValue(new Promise(() => {}));
+		void queryClient.refetchQueries({ queryKey: ["registry"] });
+		await vi.waitFor(() => {
+			expect(mockResolveRegistryPackageStatus).toHaveBeenCalledTimes(2);
+			expect(mockListRegistryReleases).toHaveBeenCalledTimes(2);
+		});
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(screen.getByRole("heading", { name: "My Plugin" }).query()).not.toBeNull();
+		expect(screen.getByText("1.2.3").query()).not.toBeNull();
+	});
+
+	it("renders an approved package that has no releases", async () => {
+		setup(makePackage(), []);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByRole("heading", { name: "My Plugin" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
+		expect(screen.getByText("This plugin is not available yet").query()).toBeNull();
+	});
 });

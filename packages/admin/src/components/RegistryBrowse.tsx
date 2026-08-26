@@ -53,7 +53,6 @@ export function RegistryBrowse({ config, installedRegistryUris = new Set() }: Re
 	const {
 		data: cachedData,
 		isLoading,
-		isRefetching,
 		isFetchedAfterMount,
 		error,
 		fetchNextPage,
@@ -80,9 +79,9 @@ export function RegistryBrowse({ config, installedRegistryUris = new Set() }: Re
 		refetchInterval: 30_000,
 	});
 
-	const data = isFetchedAfterMount && !isRefetching && !error ? cachedData : undefined;
+	const data = isFetchedAfterMount && !error ? cachedData : undefined;
 	const packages = data?.pages.flatMap((p) => p.packages);
-	const isSafetyRefreshPending = isLoading || isRefetching || !isFetchedAfterMount;
+	const isSafetyRefreshPending = isLoading || !isFetchedAfterMount;
 
 	return (
 		<div className="space-y-6">

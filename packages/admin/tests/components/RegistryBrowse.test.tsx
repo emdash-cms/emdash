@@ -80,4 +80,36 @@ describe("RegistryBrowse listing safety", () => {
 			.toBeInTheDocument();
 		expect(screen.container.textContent).not.toContain(unsafe);
 	});
+
+	it("keeps approved results visible during a background refresh", async () => {
+		const approved = "Approved browse result";
+		mockSearchRegistryPackages.mockResolvedValueOnce({ packages: [packageView(approved)] });
+		const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+		const screen = await render(
+			<QueryClientProvider client={queryClient}>
+				<RegistryBrowse config={CONFIG} />
+			</QueryClientProvider>,
+		);
+
+		await expect.element(screen.getByRole("heading", { name: approved })).toBeInTheDocument();
+		mockSearchRegistryPackages.mockReturnValue(new Promise(() => {}));
+		void queryClient.refetchQueries({
+			queryKey: ["registry", "search", CONFIG.aggregatorUrl, registryQueryPolicyKey(CONFIG), ""],
+		});
+		await vi.waitFor(() => {
+			expect(mockSearchRegistryPackages).toHaveBeenCalledTimes(2);
+			expect(
+				queryClient.getQueryState([
+					"registry",
+					"search",
+					CONFIG.aggregatorUrl,
+					registryQueryPolicyKey(CONFIG),
+					"",
+				])?.fetchStatus,
+			).toBe("fetching");
+		});
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(screen.getByRole("heading", { name: approved }).query()).not.toBeNull();
+	});
 });

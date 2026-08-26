@@ -109,7 +109,6 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const {
 		data: cachedPackageStatus,
 		isLoading: isLoadingPkg,
-		isFetching: isFetchingPkg,
 		isFetchedAfterMount: isPackageFetchedAfterMount,
 		error: packageQueryError,
 	} = useQuery({
@@ -132,9 +131,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		refetchInterval: 30_000,
 	});
 	const packageStatus =
-		isPackageFetchedAfterMount && !isFetchingPkg && !packageQueryError
-			? cachedPackageStatus
-			: undefined;
+		isPackageFetchedAfterMount && !packageQueryError ? cachedPackageStatus : undefined;
 	const pkg = packageStatus?.status === "passed" ? packageStatus.value : undefined;
 	const listingUnavailable = packageStatus?.status === "unavailable";
 
@@ -149,7 +146,6 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const releasesQueryEnabled = Boolean(pkg?.did && slug);
 	const {
 		data: cachedReleasesData,
-		isFetching: isFetchingReleases,
 		isFetchedAfterMount: areReleasesFetchedAfterMount,
 		error: releasesQueryError,
 	} = useQuery({
@@ -168,9 +164,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		refetchInterval: 30_000,
 	});
 	const releasesData =
-		areReleasesFetchedAfterMount && !isFetchingReleases && !releasesQueryError
-			? cachedReleasesData
-			: undefined;
+		areReleasesFetchedAfterMount && !releasesQueryError ? cachedReleasesData : undefined;
 	const labelerPolicy = React.useMemo(
 		() => effectiveRegistryLabelerPolicy(config),
 		[config.acceptLabelers],
@@ -427,8 +421,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	});
 
 	if (
-		(packageQueryEnabled && (isLoadingPkg || isFetchingPkg || !isPackageFetchedAfterMount)) ||
-		(releasesQueryEnabled && (isFetchingReleases || !areReleasesFetchedAfterMount))
+		(packageQueryEnabled && (isLoadingPkg || !isPackageFetchedAfterMount)) ||
+		(releasesQueryEnabled && !areReleasesFetchedAfterMount)
 	) {
 		return (
 			<div className="space-y-6">
@@ -448,12 +442,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		);
 	}
 
-	if (
-		listingUnavailable ||
-		packageQueryError ||
-		releasesQueryError ||
-		(releasesData !== undefined && releasesData.releases.length === 0)
-	) {
+	if (listingUnavailable || packageQueryError || releasesQueryError) {
 		return (
 			<div className="space-y-6">
 				<BackLink />
