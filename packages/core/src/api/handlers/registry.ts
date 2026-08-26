@@ -8,9 +8,8 @@
  *      aggregator's `resolvePackage` XRPC.
  *   2. Look up the requested release (or the policy-filtered latest one)
  *      via `getLatestRelease` / `listReleases`.
- *   3. Reject the install if the aggregator surfaces a `security:yanked`
- *      hard-enforcement label or the release is below the configured
- *      minimum release age.
+ *   3. Require the aggregator's approved listing projection, then apply the
+ *      independent release-age and environment policies.
  *   4. Fetch the bundle artifact, walking aggregator mirrors first and
  *      falling back to the publisher-declared URL.
  *   5. Verify the artifact's multibase checksum against the signed
@@ -32,16 +31,17 @@
  *     The artifact checksum is verified end-to-end against the value
  *     in the (aggregator-relayed) release record, which is the actual
  *     trust boundary for the bytes that end up in the sandbox.
- *   - `acceptLabelers` is forwarded as-is to the aggregator; this
- *     handler does not independently re-fetch and verify labels from
- *     each labeller's DID. Aggregator label envelope tampering is
- *     mitigated by the artifact checksum but not detected.
+ *   - Listing approval controls whether metadata is eligible for discovery.
+ *     It is never treated as approval of plugin code: checksum, bundle,
+ *     manifest, access, consent, sandbox, and environment gates remain
+ *     independent below.
  */
 
 import { ClientResponseError, ClientValidationError } from "@atcute/client";
 import type { Did } from "@atcute/lexicons";
 import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
+import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
@@ -55,6 +55,7 @@ import {
 } from "../../plugins/storage-indexes.js";
 import { declaredAccessToCapabilities } from "../../plugins/types.js";
 import type { DeclaredAccess } from "../../plugins/types.js";
+import { assertSafeArtifactUrl, fetchRegistryArtifactUrl } from "../../registry/artifact-fetch.js";
 import {
 	canonicalCapabilitiesForDriftCheck,
 	coerceRegistryConfig,
@@ -64,7 +65,6 @@ import {
 } from "../../registry/config.js";
 import { makeRegistryPluginId } from "../../registry/plugin-id.js";
 import type { RegistryConfigInput } from "../../registry/types.js";
-import { resolveAndValidateExternalUrl, SsrfError } from "../../security/ssrf.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
 import type { ApiResult } from "../types.js";
@@ -75,6 +75,8 @@ import {
 	loadBundleFromR2,
 	storeBundleInR2,
 } from "./marketplace.js";
+
+export { assertSafeArtifactUrl } from "../../registry/artifact-fetch.js";
 
 const RELEASE_EXTENSION_NSID = "com.emdashcms.experimental.package.releaseExtension";
 
@@ -305,108 +307,6 @@ function timedFetch(totalDeadline: number): typeof fetch {
 }
 
 /**
- * Localhost-equivalent hostnames the artifact fetcher rejects in
- * production. The full literal-IP / DNS-rebinding blocklist lives in
- * `#security/ssrf.js` and is invoked via `resolveAndValidateExternalUrl`
- * below; this small set exists only because the artifact handler has
- * a dev-mode escape hatch that lets `http://localhost` through.
- */
-const FORBIDDEN_HOSTNAMES = new Set([
-	"localhost",
-	"localhost.localdomain",
-	"ip6-localhost",
-	"ip6-loopback",
-]);
-
-/** Trailing dot on a hostname, stripped before URL host comparisons. */
-const TRAILING_DOT = /\.$/;
-
-/** Hostnames that resolve to the local machine; rejected outright in production. */
-function isLocalhostHostname(hostname: string): boolean {
-	// WHATWG URL preserves brackets on IPv6 hostnames; strip them before
-	// comparison so `[::1]` is recognised as localhost.
-	const stripped = hostname.toLowerCase().replace(TRAILING_DOT, "");
-	const h = stripped.startsWith("[") && stripped.endsWith("]") ? stripped.slice(1, -1) : stripped;
-	if (FORBIDDEN_HOSTNAMES.has(h)) return true;
-	if (h === "localhost") return true;
-	if (h.endsWith(".localhost")) return true;
-	if (h === "127.0.0.1" || h === "::1") return true;
-	if (h.startsWith("::ffff:127.") || h.startsWith("::ffff:7f00:")) return true;
-	return false;
-}
-
-/**
- * Validate that `urlString` is a safe outbound target for artifact
- * downloads. Rejects non-HTTPS (except localhost in dev), embedded
- * credentials, any host that's a loopback / private / link-local
- * literal address, and any hostname whose resolved A or AAAA records
- * point at one of those addresses (closes the DNS-rebinding gap).
- *
- * Wraps `resolveAndValidateExternalUrl` from the import-pipeline SSRF
- * module so both code paths share one DoH cache, one resolver, one
- * blocklist, and one set of regression tests. Layers an
- * artifact-specific protocol/dev-localhost policy on top.
- *
- * `import.meta.env.DEV` is a Vite/Astro compile-time constant, so
- * production bundles cannot enable the dev escape hatch at runtime.
- */
-export async function assertSafeArtifactUrl(urlString: string): Promise<URL> {
-	let url: URL;
-	try {
-		url = new URL(urlString);
-	} catch {
-		throw new Error(`Invalid artifact URL: ${urlString}`);
-	}
-	if (url.protocol !== "https:" && url.protocol !== "http:") {
-		throw new Error(`Artifact URL protocol not allowed: ${url.protocol}`);
-	}
-	if (url.username || url.password) {
-		throw new Error("Artifact URL must not contain embedded credentials");
-	}
-
-	const rawHostname = url.hostname.toLowerCase().replace(TRAILING_DOT, "");
-	// Strip brackets so the IPv4/IPv6 checks see the canonical form.
-	const hostname =
-		rawHostname.startsWith("[") && rawHostname.endsWith("]")
-			? rawHostname.slice(1, -1)
-			: rawHostname;
-	const localhost = isLocalhostHostname(hostname);
-
-	// In production: reject HTTP entirely and reject localhost over any
-	// protocol -- a publisher pointing at `https://localhost` is still
-	// trying to bounce the server through its own loopback interface.
-	if (!import.meta.env.DEV) {
-		if (url.protocol === "http:") {
-			throw new Error("Artifact URL must use https");
-		}
-		if (localhost) {
-			throw new Error(`Artifact URL points to localhost: ${hostname}`);
-		}
-	} else if (url.protocol === "http:" && !localhost) {
-		// Dev mode: http allowed only for localhost.
-		throw new Error("Artifact URL must use https (http allowed only for localhost in dev)");
-	}
-
-	if (localhost) {
-		// Dev-only path; nothing to resolve.
-		return url;
-	}
-
-	// Delegate IP-literal + DNS-rebinding validation to the import
-	// pipeline's SSRF helper. Adapts the SsrfError to the existing
-	// artifact-URL error vocabulary so callers keep their current
-	// catch shape.
-	try {
-		return await resolveAndValidateExternalUrl(url.href);
-	} catch (err) {
-		if (err instanceof SsrfError) {
-			throw new Error(`Artifact URL rejected: ${err.message}`, { cause: err });
-		}
-		throw err;
-	}
-}
-
-/**
  * Fetch one URL with manual redirect handling so every hop is
  * URL-validated, a hard byte cap so a malicious response body cannot
  * exhaust memory before the checksum check rejects it, and a wall-clock
@@ -424,18 +324,20 @@ async function fetchWithLimits(initialUrl: string, totalDeadline: number): Promi
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), perUrlTimeout);
 	try {
-		let current = await assertSafeArtifactUrl(initialUrl);
+		let current = new URL(initialUrl);
 		let response: Response;
 		for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-			response = await fetch(current.href, { redirect: "manual", signal: controller.signal });
+			response = await fetchRegistryArtifactUrl(current.href, {
+				signal: controller.signal,
+				maxResponseBytes: MAX_ARTIFACT_BYTES,
+			});
 			if (response.status < 300 || response.status >= 400) break;
 			const location = response.headers.get("location");
 			if (!location) break;
 			if (hop === MAX_REDIRECTS) {
 				throw new Error(`Too many redirects fetching artifact (>${MAX_REDIRECTS})`);
 			}
-			const next = new URL(location, current);
-			current = await assertSafeArtifactUrl(next.href);
+			current = new URL(location, current);
 		}
 		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- response is assigned in the first loop iteration
 		const finalResponse = response!;
@@ -658,7 +560,8 @@ export async function handleRegistryInstall(
 
 	// Lazy-load the discovery client. Avoids pulling @atcute/client into
 	// every code path that imports core/api/handlers.
-	const { DiscoveryClient } = await import("@emdash-cms/registry-client/discovery");
+	const { DiscoveryClient, registryLabelerPolicy } =
+		await import("@emdash-cms/registry-client/discovery");
 
 	// Every aggregator XRPC call passes through `timedFetch`, which
 	// enforces a per-request timeout and shares a single total-budget
@@ -668,6 +571,7 @@ export async function handleRegistryInstall(
 	const discovery = new DiscoveryClient({
 		aggregatorUrl: registryConfig.aggregatorUrl,
 		acceptLabelers: registryConfig.acceptLabelers,
+		labelerPolicy: registryLabelerPolicy(registryConfig.acceptLabelers),
 		fetch: timedFetch(aggregatorDeadline),
 	});
 
@@ -792,28 +696,19 @@ export async function handleRegistryInstall(
 		}
 
 		const version = releaseView.version;
-
-		// Step 3: takedown label check (hard-enforced via aggregator's
-		// `atproto-accept-labelers` filtering, but we belt-and-suspenders
-		// the package-level labels too).
-		const yanked = (packageView.labels ?? []).some(
-			(l: { val?: string }) => l.val === "security:yanked",
-		);
-		const releaseYanked = (releaseView.labels ?? []).some(
-			(l: { val?: string }) => l.val === "security:yanked",
-		);
-		if (yanked || releaseYanked) {
+		if (evaluateRegistryReleaseWithdrawal(releaseView, discovery.labelerPolicy).withdrawn) {
 			return {
 				success: false,
 				error: {
 					code: "RELEASE_YANKED",
-					message: "This release has been withdrawn (security:yanked label).",
+					message: "This release has been withdrawn",
 				},
 			};
 		}
 
-		// Step 3b: environment compatibility. The signed release record may
-		// carry a `requires` block (`env:emdash`, `env:astro`, ...). Refuse
+		// Environment compatibility remains an install-safety gate. Listing
+		// approval says only that displayed metadata passed moderation. A release
+		// may carry a `requires` block (`env:emdash`, `env:astro`, ...). Refuse
 		// the install if the running host doesn't satisfy a constraint, so a
 		// stale browser tab or non-UI caller can't bypass the admin's
 		// disabled Install button. `requires` is lexicon-`unknown`; the
@@ -1208,6 +1103,15 @@ export async function handleRegistryInstall(
 			};
 		}
 		if (err instanceof ClientResponseError) {
+			if (err.error === "ListingUnavailable") {
+				return {
+					success: false,
+					error: {
+						code: "LISTING_UNAVAILABLE",
+						message: "This plugin is unavailable under the active registry policy",
+					},
+				};
+			}
 			return {
 				success: false,
 				error: {
@@ -1408,11 +1312,13 @@ export async function handleRegistryUpdate(
 		const publisherDid = existing.registryPublisherDid as Did;
 		const slug = existing.registrySlug;
 
-		const { DiscoveryClient } = await import("@emdash-cms/registry-client/discovery");
+		const { DiscoveryClient, registryLabelerPolicy } =
+			await import("@emdash-cms/registry-client/discovery");
 		const aggregatorDeadline = Date.now() + AGGREGATOR_TOTAL_BUDGET_MS;
 		const discovery = new DiscoveryClient({
 			aggregatorUrl: registryConfig.aggregatorUrl,
 			acceptLabelers: registryConfig.acceptLabelers,
+			labelerPolicy: registryLabelerPolicy(registryConfig.acceptLabelers),
 			fetch: timedFetch(aggregatorDeadline),
 		});
 
@@ -1479,6 +1385,12 @@ export async function handleRegistryUpdate(
 		}
 
 		const newVersion = releaseView.version;
+		if (evaluateRegistryReleaseWithdrawal(releaseView, discovery.labelerPolicy).withdrawn) {
+			return {
+				success: false,
+				error: { code: "YANKED", message: "Release has been withdrawn" },
+			};
+		}
 		if (newVersion === oldVersion) {
 			return {
 				success: false,
@@ -1489,18 +1401,8 @@ export async function handleRegistryUpdate(
 			};
 		}
 
-		// Yanked label check (mirrors install).
-		const releaseYanked = (releaseView.labels ?? []).some(
-			(l: { val?: string }) => l.val === "security:yanked",
-		);
-		if (releaseYanked) {
-			return {
-				success: false,
-				error: { code: "YANKED", message: "Release has been yanked by a trusted labeller" },
-			};
-		}
-
-		// Environment compatibility gate. An ungated update could otherwise
+		// Environment compatibility remains independent from listing approval.
+		// An ungated update could otherwise
 		// land a version whose `requires` the host doesn't satisfy. Same
 		// guard as install; `requires` is lexicon-`unknown`.
 		if (opts?.hostEnv) {
@@ -1686,6 +1588,15 @@ export async function handleRegistryUpdate(
 			};
 		}
 		if (err instanceof ClientResponseError) {
+			if (err.error === "ListingUnavailable") {
+				return {
+					success: false,
+					error: {
+						code: "LISTING_UNAVAILABLE",
+						message: "This plugin is unavailable under the active registry policy",
+					},
+				};
+			}
 			return {
 				success: false,
 				error: {
@@ -1759,11 +1670,13 @@ export async function handleRegistryUpdateCheck(
 			return { success: true, data: { items: [] } };
 		}
 
-		const { DiscoveryClient } = await import("@emdash-cms/registry-client/discovery");
+		const { DiscoveryClient, registryLabelerPolicy } =
+			await import("@emdash-cms/registry-client/discovery");
 		const aggregatorDeadline = Date.now() + AGGREGATOR_TOTAL_BUDGET_MS;
 		const discovery = new DiscoveryClient({
 			aggregatorUrl: registryConfig.aggregatorUrl,
 			acceptLabelers: registryConfig.acceptLabelers,
+			labelerPolicy: registryLabelerPolicy(registryConfig.acceptLabelers),
 			fetch: timedFetch(aggregatorDeadline),
 		});
 
@@ -1776,6 +1689,9 @@ export async function handleRegistryUpdateCheck(
 					did: plugin.registryPublisherDid as Did,
 					package: plugin.registrySlug,
 				});
+				if (evaluateRegistryReleaseWithdrawal(releaseView, discovery.labelerPolicy).withdrawn) {
+					continue;
+				}
 				const latest = releaseView.version;
 				if (!latest) continue;
 				const installed = plugin.version;

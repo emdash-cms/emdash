@@ -19,7 +19,15 @@ import { registerCoreRoutes } from "../../.flue/routes.js";
 export { Sandbox, ContainerProxy } from "../../.flue/cloudflare.js";
 
 export class OrchestratorDO extends ProductionOrchestratorDO {
-	protected override requestClassification(_input: ClassifierInput): Promise<ClassifyResult> {
+	protected override requestClassification(input: ClassifierInput): Promise<ClassifyResult> {
+		if (input.comment === "classified-confirm") {
+			return Promise.resolve({
+				kind: "event",
+				event: "confirm",
+				arg: null,
+				reasoning: "test classification",
+			});
+		}
 		return Promise.resolve({ kind: "error", error: "classifier unavailable in workers-pool test" });
 	}
 

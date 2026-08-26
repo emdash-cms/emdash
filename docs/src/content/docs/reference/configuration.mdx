@@ -489,7 +489,7 @@ emdash({
 	experimental: {
 		registry: {
 			aggregatorUrl: "https://registry.emdashcms.com",
-			acceptLabelers: "did:plc:emdashverification",
+			acceptLabelers: "did:web:labels.emdashcms.com",
 			policy: {
 				minimumReleaseAge: "48h",
 				minimumReleaseAgeExclude: ["did:plc:yourfirstpartydid"],
@@ -502,7 +502,7 @@ emdash({
 | Option                            | Type                   | Description                                                                                   |
 | --------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
 | `aggregatorUrl`                   | `string`               | Aggregator origin where the registry's XRPC endpoints are mounted. HTTPS in production.        |
-| `acceptLabelers`                  | `string`               | Comma-separated labeller DIDs forwarded to the aggregator for takedown and verification labels. |
+| `acceptLabelers`                  | `string`               | Optional comma-separated bare labeller DIDs used as a validated request and cache declaration. It cannot override aggregator policy. |
 | `policy.minimumReleaseAge`        | `string \| number`     | Hold back releases newer than this age. Duration string (`"48h"`, `"7d"`) or seconds.          |
 | `policy.minimumReleaseAgeExclude` | `string[]`             | DIDs (or `<did>/<slug>` pairs) exempt from the holdback.                                        |
 

@@ -3,6 +3,7 @@ import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import type { ContentEditorProps } from "../../src/components/ContentEditor";
 import {
@@ -202,37 +203,40 @@ describe("ContentSettingsPanel", () => {
 
 		await expect.element(screen.getByText("Content locale")).toBeInTheDocument();
 		await expect.element(screen.getByText("JA", { exact: true })).toBeInTheDocument();
-		await expect
-			.element(
-				screen.getByText("This is stored with the entry and is separate from your admin language."),
-			)
-			.toBeInTheDocument();
+		expect(screen.getByText(/stored with the entry and is separate/).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Why English is used" }).query()).toBeNull();
 	});
 
-	it("warns when the stored content locale comes from the implicit English default", async () => {
+	it("keeps implicit English visible through compact help without a persistent warning", async () => {
+		const manifest = { ...TEST_MANIFEST, contentLocale: { defaultLocale: "en", implicit: true } };
 		const screen = await render(
 			<ContentSettingsPanel
-				{...makePanelProps({
-					item: makeItem({ locale: "en" }),
-					i18n: undefined,
-					manifest: {
-						...TEST_MANIFEST,
-						contentLocale: { defaultLocale: "en", implicit: true },
-					},
-				})}
+				{...makePanelProps({ item: makeItem({ locale: "en" }), i18n: undefined, manifest })}
 			/>,
 		);
 
-		await expect
-			.element(screen.getByText("Content locale defaults to English"))
-			.toBeInTheDocument();
-		await expect
-			.element(
-				screen.getByText(
-					"No content locale is configured, so EmDash stores new content as English (en). Changing the admin language does not change this value.",
-				),
-			)
-			.toBeInTheDocument();
+		await expect.element(screen.getByText("EN", { exact: true })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Why English is used" }).query()).not.toBeNull();
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({ item: null, isNew: true, i18n: undefined, manifest })}
+			/>,
+		);
+		expect(screen.getByText(/stored with the entry and is separate/).query()).toBeNull();
+		const trigger = screen.getByRole("button", { name: "Why English is used" });
+		await expect.element(screen.getByText("EN", { exact: true })).toBeInTheDocument();
+		const explanation =
+			"English is used because no content locale is configured. Content locale is stored with the entry and is separate from your admin language.";
+		const help = screen.getByText(explanation);
+		await userEvent.hover(trigger.element());
+		await expect.element(help).toBeVisible();
+		await userEvent.hover(document.body);
+		await vi.waitFor(() => expect(help.query()).toBeNull());
+		trigger.element().focus();
+		await expect.element(help).toBeVisible();
+		expect(screen.getByRole("alert").query()).toBeNull();
+		await userEvent.tab();
+		await vi.waitFor(() => expect(help.query()).toBeNull());
 	});
 
 	it("shows Scheduled without a Draft companion", async () => {

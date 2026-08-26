@@ -539,6 +539,66 @@ describe("router: investigation + fix loop", () => {
 		expect(d.action).toBe("investigate.fix");
 	});
 
+	test.each(["reproduced", "diagnosed"] as const)(
+		"implement redirects to the diagnosis-aware fix mode from %s",
+		(state) => {
+			const d = resolve({
+				labels: ["bot:bug", `bot:${state}`],
+				event: "implement",
+				arg: "apply the diagnosed fix",
+				actor: "maintainer",
+			});
+			assertTransition(d);
+			expect(d.to).toBe("fixing");
+			expect(d.action).toBe("investigate.fix");
+		},
+	);
+
+	test("legacy repro outcomes use the first-class verdict states", () => {
+		for (const [event, expected] of [
+			["agent.reproduced", "reproduced"],
+			["agent.diagnosed", "diagnosed"],
+			["agent.not_reproduced", "not_reproduced"],
+			["agent.needs_info", "needs_info"],
+		] as const) {
+			const d = resolve({
+				labels: ["bot:bug", "bot:working"],
+				event,
+				actor: "system",
+			});
+			assertTransition(d);
+			expect(d.to).toBe(expected);
+		}
+	});
+
+	test("fix remains available from the legacy blocked bucket", () => {
+		const d = resolve({
+			labels: ["bot:bug", "bot:blocked"],
+			event: "fix",
+			actor: "maintainer",
+		});
+		assertTransition(d);
+		expect(d.to).toBe("fixing");
+		expect(d.action).toBe("investigate.implement");
+	});
+
+	test.each([
+		{ labels: [], from: "unmanaged" },
+		{ labels: ["bot:triage"], from: "triage" },
+	])("fix directly enters the bug delivery lane from $from", ({ labels, from }) => {
+		const d = resolve({
+			labels,
+			event: "fix",
+			arg: "unwrap the media response envelope",
+			actor: "maintainer",
+		});
+		assertTransition(d);
+		expect(d.from).toBe(from);
+		expect(d.to).toBe("fixing");
+		expect(d.action).toBe("investigate.implement");
+		expect(d.addLabels).toContain("bot:bug");
+	});
+
 	test("the fix loop advances through preview to the reporter wait", () => {
 		const fixReady = resolve({
 			labels: ["bot:bug", "bot:fixing"],

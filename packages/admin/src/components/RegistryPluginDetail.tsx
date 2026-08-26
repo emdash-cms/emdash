@@ -13,14 +13,15 @@
  * sidebar entries stay stable.
  */
 
-import { Badge, Button, LinkButton, Select, Tabs, Tooltip } from "@cloudflare/kumo";
+import { Badge, Button, LinkButton, Select, Tabs } from "@cloudflare/kumo";
 import type { TabsItem } from "@cloudflare/kumo";
 import { declaredAccessToCapabilities, type DeclaredAccess } from "@emdash-cms/plugin-types";
 import { checkEnvCompatibility } from "@emdash-cms/registry-client/env";
+import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react/macro";
-import { ShieldCheck, Warning } from "@phosphor-icons/react";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { Warning } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -35,13 +36,15 @@ import {
 	canonicalCapabilitiesForDriftCheck,
 	extractMediaArtifacts,
 	extractSbom,
-	getRegistryPackage,
+	effectiveRegistryLabelerPolicy,
+	getRegistryPackageStatus,
 	hostEnvFromManifest,
 	installRegistryPlugin,
 	listRegistryReleases,
 	presentSections,
+	registryQueryPolicyKey,
 	releasePassesPolicy,
-	resolveRegistryPackage,
+	resolveRegistryPackageStatus,
 	sbomDownloadHref,
 	type RegistryClientConfig,
 	type RegistryReleaseView,
@@ -51,7 +54,7 @@ import { renderMarkdown } from "../lib/markdown.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
-import { PublisherHandle, usePublisherHandle } from "./PublisherHandle.js";
+import { PublisherIdentity } from "./PublisherHandle.js";
 
 export interface RegistryPluginDetailProps {
 	/** `${handle}/${slug}` -- the pluginId param from the route. */
@@ -102,41 +105,77 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// When linked by handle, resolve via `resolvePackage(handle, slug)`.
 	// When linked by DID, go straight to `getPackage(did, slug)`. Either
 	// way we end up with the same `RegistryPackageView` shape.
-	const { data: pkg, isLoading: isLoadingPkg } = useQuery({
-		queryKey: ["registry", "package", config.aggregatorUrl, publisher, slug, isDid],
+	const packageQueryEnabled = Boolean(publisher && slug);
+	const {
+		data: cachedPackageStatus,
+		isLoading: isLoadingPkg,
+		isFetchedAfterMount: isPackageFetchedAfterMount,
+		error: packageQueryError,
+	} = useQuery({
+		queryKey: [
+			"registry",
+			"package",
+			config.aggregatorUrl,
+			registryQueryPolicyKey(config),
+			publisher,
+			slug,
+			isDid,
+		],
 		queryFn: () =>
 			isDid
-				? getRegistryPackage(config, publisher, slug)
-				: resolveRegistryPackage(config, publisher, slug),
-		enabled: Boolean(publisher && slug),
+				? getRegistryPackageStatus(config, publisher, slug)
+				: resolveRegistryPackageStatus(config, publisher, slug),
+		enabled: packageQueryEnabled,
+		refetchOnMount: "always",
+		refetchOnWindowFocus: "always",
+		refetchInterval: 30_000,
 	});
-
-	// Resolve the publisher's handle for display (and for the install
-	// gate -- we block install on an "invalid" status, where the
-	// publisher claims a handle that doesn't round-trip back to this
-	// DID, because that's an impersonation risk).
-	const handleResult = usePublisherHandle(pkg?.did ?? "", pkg?.handle);
+	const packageStatus =
+		isPackageFetchedAfterMount && !packageQueryError ? cachedPackageStatus : undefined;
+	const pkg = packageStatus?.status === "passed" ? packageStatus.value : undefined;
+	const listingUnavailable = packageStatus?.status === "unavailable";
 
 	// `listReleases` returns releases in descending semver order. The aggregator
-	// strips yanked releases server-side when `acceptLabelers` includes a labeller
-	// applying the `security:yanked` label, but sites with no labeller config
-	// receive yanked releases interleaved by version. Filter them out client-side
-	// as defense in depth so the picker never offers an actively-yanked install.
-	// Lexicon-invalid records (`release === null`) are also filtered: they carry
+	// contains only the aggregator's approved projection. Lexicon-invalid records
+	// (`release === null`) are filtered because they carry
 	// no actionable metadata and can't be installed.
 	// `limit: 100` is the lexicon ceiling; one page covers the long tail of
 	// real packages without needing cursor follow-up. Packages with more than
 	// 100 releases would still lose access to the oldest, but that's far past
 	// what a single plugin would ever ship in the experimental phase.
-	const { data: releasesData } = useQuery({
-		queryKey: ["registry", "releases", config.aggregatorUrl, config.acceptLabelers, pkg?.did, slug],
+	const releasesQueryEnabled = Boolean(pkg?.did && slug);
+	const {
+		data: cachedReleasesData,
+		isFetchedAfterMount: areReleasesFetchedAfterMount,
+		error: releasesQueryError,
+	} = useQuery({
+		queryKey: [
+			"registry",
+			"releases",
+			config.aggregatorUrl,
+			registryQueryPolicyKey(config),
+			pkg?.did,
+			slug,
+		],
 		queryFn: () => listRegistryReleases(config, pkg!.did, slug, { limit: 100 }),
-		enabled: Boolean(pkg?.did && slug),
+		enabled: releasesQueryEnabled,
+		refetchOnMount: "always",
+		refetchOnWindowFocus: "always",
+		refetchInterval: 30_000,
 	});
+	const releasesData =
+		areReleasesFetchedAfterMount && !releasesQueryError ? cachedReleasesData : undefined;
+	const labelerPolicy = React.useMemo(
+		() => effectiveRegistryLabelerPolicy(config),
+		[config.acceptLabelers],
+	);
 
 	const releases = React.useMemo<RegistryReleaseView[]>(
-		() => (releasesData?.releases ?? []).filter((r) => r.release !== null && !isYanked(r)),
-		[releasesData],
+		() =>
+			(releasesData?.releases ?? []).filter(
+				(r) => r.release !== null && !evaluateRegistryReleaseWithdrawal(r, labelerPolicy).withdrawn,
+			),
+		[releasesData, labelerPolicy],
 	);
 	const hasFilteredAllReleases = (releasesData?.releases.length ?? 0) > 0 && releases.length === 0;
 
@@ -238,15 +277,6 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// `repo` is a release-level field (`release.repo`), not a profile field.
 	const repoHref = safeExternalHref(release?.release?.repo);
 
-	// Verified-publisher label. `src` is the labeller DID that issued it — shown
-	// in the shield tooltip so the admin can judge who is vouching for the
-	// publisher, not just that *someone* did.
-	const verifiedLabel = (pkg?.labels ?? []).find((l: { val?: string }) => l.val === "verified") as
-		| { val?: string; src?: string }
-		| undefined;
-	const verified = Boolean(verifiedLabel);
-	const verifiedLabeller = typeof verifiedLabel?.src === "string" ? verifiedLabel.src : null;
-
 	// Long-form profile sections (description / installation / faq / changelog /
 	// security). Empty / whitespace-only entries are dropped by `presentSections`;
 	// each surviving value goes through the shared sanitizing `renderMarkdown`.
@@ -284,26 +314,41 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const mediaArtifacts = extractMediaArtifacts(release?.release?.artifacts);
 	const artifactDid = pkg?.did;
 	const artifactVersion = release?.version;
+	const artifactCid = release?.cid;
 	const iconSrc =
-		mediaArtifacts.icon && artifactDid
-			? artifactProxyUrl({ did: artifactDid, slug, version: artifactVersion, kind: "icon" })
-			: null;
-	const bannerSrc =
-		mediaArtifacts.banner && artifactDid
-			? artifactProxyUrl({ did: artifactDid, slug, version: artifactVersion, kind: "banner" })
-			: null;
-	const screenshots = artifactDid
-		? mediaArtifacts.screenshots.map((shot) => ({
-				...shot,
-				src: artifactProxyUrl({
+		mediaArtifacts.icon && artifactDid && artifactCid
+			? artifactProxyUrl({
 					did: artifactDid,
 					slug,
 					version: artifactVersion,
-					kind: "screenshot",
-					index: shot.index,
-				}),
-			}))
-		: [];
+					cid: artifactCid,
+					kind: "icon",
+				})
+			: null;
+	const bannerSrc =
+		mediaArtifacts.banner && artifactDid && artifactCid
+			? artifactProxyUrl({
+					did: artifactDid,
+					slug,
+					version: artifactVersion,
+					cid: artifactCid,
+					kind: "banner",
+				})
+			: null;
+	const screenshots =
+		artifactDid && artifactCid
+			? mediaArtifacts.screenshots.map((shot) => ({
+					...shot,
+					src: artifactProxyUrl({
+						did: artifactDid,
+						slug,
+						version: artifactVersion,
+						cid: artifactCid,
+						kind: "screenshot",
+						index: shot.index,
+					}),
+				}))
+			: [];
 
 	const policyOk =
 		release && pkg ? releasePassesPolicy(release, { did: pkg.did, slug }, config.policy) : true;
@@ -320,12 +365,6 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		return checkEnvCompatibility(release.release?.requires, hostEnv);
 	}, [release, hostEnv]);
 	const envOk = envMismatches.length === 0;
-
-	// Handle resolution affects display only -- installs are addressed
-	// by DID, so an unverified or missing handle doesn't block install.
-	// A handle that *claims* a value but doesn't verify (`status:
-	// "invalid"`) is a publisher misconfiguration we surface as a
-	// warning but don't gate on.
 
 	// Is this package already installed? Match on (publisher DID,
 	// slug) -- the same key the install handler writes to plugin_states.
@@ -381,7 +420,10 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		},
 	});
 
-	if (isLoadingPkg) {
+	if (
+		(packageQueryEnabled && (isLoadingPkg || !isPackageFetchedAfterMount)) ||
+		(releasesQueryEnabled && !areReleasesFetchedAfterMount)
+	) {
 		return (
 			<div className="space-y-6">
 				<BackLink />
@@ -400,6 +442,23 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		);
 	}
 
+	if (listingUnavailable || packageQueryError || releasesQueryError) {
+		return (
+			<div className="space-y-6">
+				<BackLink />
+				<div
+					className="rounded-md border border-kumo-border bg-kumo-subtle p-4 text-kumo-default"
+					role="status"
+				>
+					<p className="font-medium">{t`This plugin is not available yet`}</p>
+					<p className="mt-1 text-sm text-kumo-subtle">
+						{t`Its listing has not been approved for display. Check back later.`}
+					</p>
+				</div>
+			</div>
+		);
+	}
+
 	if (!pkg) {
 		return (
 			<div className="space-y-6">
@@ -408,7 +467,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					className="rounded-md border border-kumo-error bg-kumo-error/10 p-4 text-kumo-error"
 					role="alert"
 				>
-					{t`Plugin not found. The publisher handle or slug may be incorrect.`}
+					{t`Plugin not found. The publisher or slug may be incorrect.`}
 				</div>
 			</div>
 		);
@@ -443,34 +502,12 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					)}
 				</div>
 				<div className="min-w-0 flex-1">
-					<div className="flex items-center gap-2">
-						<h1 className="truncate text-2xl font-semibold">{displayName ?? slug}</h1>
-						{verified ? (
-							<Tooltip
-								content={
-									verifiedLabeller
-										? t`Verified publisher. A labeller (${verifiedLabeller}) has confirmed this publisher's identity.`
-										: t`Verified publisher. A labeller has confirmed this publisher's identity.`
-								}
-								render={
-									<button
-										type="button"
-										className="inline-flex shrink-0 cursor-help rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
-										aria-label={
-											verifiedLabeller
-												? t`Verified publisher, confirmed by labeller ${verifiedLabeller}`
-												: t`Verified publisher`
-										}
-									>
-										<ShieldCheck className="h-5 w-5 text-kumo-link" aria-hidden />
-									</button>
-								}
-							/>
-						) : null}
-					</div>
+					<h1 className="truncate text-2xl font-semibold">{displayName ?? slug}</h1>
 					<p className="text-sm text-kumo-subtle">
-						{t`Published by`}{" "}
-						<PublisherHandle did={pkg.did} aggregatorHandle={pkg.handle} variant="detail" />
+						<Trans>
+							Published by{" "}
+							<PublisherIdentity did={pkg.did} profile={pkg.profile} variant="detail" />
+						</Trans>
 					</p>
 					{release ? (
 						<div className="mt-1 flex flex-wrap items-center gap-2">
@@ -548,7 +585,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					) : (
 						<Button
 							variant="primary"
-							disabled={!release || !policyOk || !envOk || handleResult.status === "invalid"}
+							disabled={!release || !policyOk || !envOk}
 							onClick={() => setShowConsent(true)}
 						>
 							{t`Install`}
@@ -557,33 +594,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				</div>
 			</div>
 
-			{/* Invalid-handle notice. The publisher's DID document claims a
-			    handle but the handle's domain doesn't point back to this
-			    DID. Possible causes: an expired DNS record or stale
-			    .well-known/atproto-did file on the publisher's side
-			    (legitimate but misconfigured), OR an active impersonation
-			    attempt -- somebody publishing under a DID that claims to
-			    be `stripe.com` etc. We can't tell the two apart from this
-			    side, so we treat the claim as untrusted and block
-			    install. Don't display the spoofed handle string -- it
-			    might be exactly what the attacker wants the admin to see. */}
-			{handleResult.status === "invalid" ? (
-				<div
-					className="flex items-start gap-3 rounded-md border border-kumo-error bg-kumo-error/10 p-4 text-kumo-error"
-					role="alert"
-				>
-					<Warning className="mt-0.5 h-5 w-5 shrink-0" />
-					<div>
-						<p className="font-medium">{t`We couldn't verify this publisher's identity`}</p>
-						<p className="mt-1 text-sm text-kumo-default">
-							{t`This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying.`}
-						</p>
-					</div>
-				</div>
-			) : null}
-
-			{/* All releases withdrawn or malformed — the aggregator returned
-			    records but none survived the yanked + lexicon-validity filter. */}
+			{/* The aggregator returned records but none passed lexicon validation. */}
 			{hasFilteredAllReleases ? (
 				<div
 					className="flex items-start gap-3 rounded-md border border-kumo-warning bg-kumo-warning/10 p-4 text-kumo-warning"
@@ -843,25 +854,6 @@ function envLabel(key: string): string {
 	if (key === "env:emdash") return "EmDash";
 	if (key === "env:astro") return "Astro";
 	return key.startsWith("env:") ? key.slice("env:".length) : key;
-}
-
-const YANKED_LABEL_VALUE = "security:yanked";
-
-/**
- * Aggregators forward labels applied by their configured labellers. `security:yanked`
- * is a hard-enforcement label that publishers can self-apply (or that a labeller
- * applies on their behalf) to retract a release after publication. Sites whose
- * `acceptLabelers` config includes the labeller never see yanked releases at all
- * (server filtering), but sites without it receive yanked releases interleaved
- * with installable ones — filter them out so they never reach the picker.
- *
- * `neg` (negated labels) is intentionally ignored to match the server install
- * handler, which only checks `l.val === "security:yanked"`. Diverging here would
- * let the UI surface an install affordance the server will reject with
- * `RELEASE_YANKED`. Honoring `neg` on both sides is a separate follow-up.
- */
-function isYanked(release: RegistryReleaseView): boolean {
-	return (release.labels ?? []).some((l) => l.val === YANKED_LABEL_VALUE);
 }
 
 function formatDate(iso: string): string {

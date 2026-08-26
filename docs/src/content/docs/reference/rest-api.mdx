@@ -3,7 +3,7 @@ title: REST API Reference
 description: HTTP endpoints for content, media, and schema management.
 ---
 
-import { Aside } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
 EmDash exposes a REST API at `/_emdash/api/` for content management, media uploads, and schema operations.
 
@@ -319,28 +319,169 @@ provider-only assets.
 
 ### Create Media
 
-```http
-POST /_emdash/api/media
-Content-Type: application/json
+Media uploads require a token with the `media:write` scope. The default maximum file size is 50
+MB. Set [`maxUploadSize`](/reference/configuration/#maxuploadsize) to change the limit.
+
+Use one of the following upload methods:
+
+- Use a direct multipart upload when the client can send the file through EmDash.
+- Use the upload target flow for direct uploads to S3-compatible storage. Local storage and native
+  R2 return an EmDash upload URL instead.
+
+#### Direct multipart upload
+
+Send the file in the `file` field of a multipart request:
+
+```bash
+curl --request POST \
+  --header "Authorization: Bearer $EMDASH_TOKEN" \
+  --form "file=@./photo.jpg;type=image/jpeg" \
+  https://example.com/_emdash/api/media
 ```
 
-#### Request Body
+`curl` adds the multipart boundary to the `Content-Type` header. Do not set that header manually.
 
-```json
-{
-	"filename": "photo.jpg",
-	"mimeType": "image/jpeg",
-	"size": 102400,
-	"width": 1920,
-	"height": 1080,
-	"storageKey": "uploads/photo.jpg"
-}
-```
+The endpoint also accepts the following optional multipart fields:
 
-<Aside>
-	This endpoint records media metadata after upload. Use the upload endpoint or signed URLs to
-	upload the actual file.
+| Field       | Description                                                        |
+| ----------- | ------------------------------------------------------------------ |
+| `width`     | Image width in pixels                                               |
+| `height`    | Image height in pixels                                              |
+| `fieldId`   | Field whose configured MIME type allowlist applies to the upload   |
+| `thumbnail` | Downscaled image used to generate a low-quality image placeholder  |
+
+A new upload returns `201 Created`. If the same file already exists, EmDash returns the existing
+media item with `deduplicated: true`. Direct multipart uploads are ready immediately and do not
+use the confirmation endpoint.
+
+#### Upload target flow
+
+The upload target flow keeps the media item in `pending` state until the final confirmation.
+Pending media does not appear in the standard media list or media library.
+
+<Steps>
+
+1. Request an upload target
+
+	```http
+	POST /_emdash/api/media/upload-url
+	Authorization: Bearer <token>
+	Content-Type: application/json
+
+	{
+		"filename": "photo.jpg",
+		"contentType": "image/jpeg",
+		"size": 102400
+	}
+	```
+
+	`filename`, `contentType`, and `size` are required. The request also accepts the following
+	optional fields:
+
+	| Field         | Description                                                                 |
+	| ------------- | --------------------------------------------------------------------------- |
+	| `contentHash` | `sha1:` plus 40 lowercase hexadecimal characters, used to find a match       |
+	| `fieldId`     | Field whose configured MIME type allowlist applies to the upload             |
+
+	The response contains the URL, method, and headers for the file upload. `uploadUrl` is an
+	absolute signed URL when the storage adapter supports one. Otherwise, it is a root-relative
+	EmDash endpoint.
+
+	```json
+	{
+		"success": true,
+		"data": {
+			"uploadUrl": "/_emdash/api/media/01M0AFKJS0RJM3WV69QHAY7YA1/upload",
+			"method": "PUT",
+			"headers": {
+				"Content-Type": "image/jpeg",
+				"X-EmDash-Request": "1"
+			},
+			"mediaId": "01M0AFKJS0RJM3WV69QHAY7YA1",
+			"storageKey": "01M0AFKJS0K2YF0222NP6ENYWX.jpg",
+			"expiresAt": "2026-08-18T14:05:09.920Z"
+		}
+	}
+	```
+
+	If `contentHash` matches an existing media item with the same MIME type and size, the response
+	contains `existing: true`, `mediaId`, `storageKey`, and `url` instead of an upload target. Use the
+	returned media item and stop. Do not upload or confirm the file.
+
+2. Upload the file to `uploadUrl`
+
+	Start with the returned `method` and `headers`. Resolve a relative `uploadUrl` against the
+	EmDash site URL.
+
+	For a same-origin EmDash target, include the Bearer token in the upload request. For a signed URL
+	on another origin, send only the returned upload headers.
+
+	A same-origin upload returns the following response. A signed URL returns the storage provider's
+	response instead.
+
+	```json
+	{
+		"success": true,
+		"data": {
+			"uploaded": true,
+			"size": 102400
+		}
+	}
+	```
+
+3. Confirm the upload
+
+	Confirming checks the stored file and changes the media item from `pending` to `ready`. `size`,
+	`width`, and `height` are optional, but EmDash validates them when supplied.
+
+	```http
+	POST /_emdash/api/media/01M0AFKJS0RJM3WV69QHAY7YA1/confirm
+	Authorization: Bearer <token>
+	Content-Type: application/json
+
+	{
+		"size": 102400,
+		"width": 1920,
+		"height": 1080
+	}
+	```
+
+	The response contains the ready media item:
+
+	```json
+	{
+		"success": true,
+		"data": {
+			"item": {
+				"id": "01M0AFKJS0RJM3WV69QHAY7YA1",
+				"filename": "photo.jpg",
+				"status": "ready",
+				"url": "/_emdash/api/media/file/01M0AFKJS0K2YF0222NP6ENYWX.jpg"
+			}
+		}
+	}
+	```
+
+</Steps>
+
+<Aside type="caution">
+	Do not send the EmDash Bearer token to an upload URL on another origin. A signed URL already
+	authorizes the storage upload. Sending the token would disclose it to the storage host.
 </Aside>
+
+#### Upload errors
+
+| Status | Code                   | Cause                                                                    |
+| ------ | ---------------------- | ------------------------------------------------------------------------ |
+| `400`  | `NO_FILE`              | The multipart request has no `file` field, or the upload body is missing |
+| `400`  | `INVALID_TYPE`         | The MIME type is not allowed or does not match the pending media item     |
+| `400`  | `VALIDATION_ERROR`     | Upload metadata is missing, invalid, or exceeds the configured size limit |
+| `400`  | `FILE_NOT_FOUND`       | Confirmation cannot find the uploaded object                             |
+| `400`  | `UPLOAD_SIZE_MISMATCH` | The declared, uploaded, and confirmed sizes do not match                  |
+| `400`  | `INVALID_STATE`        | The media item is not pending                                             |
+| `404`  | `NOT_FOUND`            | The media item does not exist                                             |
+| `409`  | `INVALID_STATE`        | The pending media item changed during confirmation                        |
+| `413`  | `PAYLOAD_TOO_LARGE`    | The direct or same-origin upload is too large                             |
 
 ### Update Media
 

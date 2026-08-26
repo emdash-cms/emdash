@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { artifactProxyUrl, extractMediaArtifacts } from "../../src/lib/api/registry";
 
+const RELEASE_CID = `bafyrei${"a".repeat(52)}`;
+
 describe("artifactProxyUrl", () => {
 	it("builds a coordinate-based proxy URL for an icon", () => {
 		const url = artifactProxyUrl({
 			did: "did:plc:abc123",
 			slug: "myplugin",
+			cid: RELEASE_CID,
 			version: "1.0.0",
 			kind: "icon",
 		});
@@ -14,13 +17,19 @@ describe("artifactProxyUrl", () => {
 		expect(parsed.pathname).toBe("/_emdash/api/admin/plugins/registry/artifact");
 		expect(parsed.searchParams.get("did")).toBe("did:plc:abc123");
 		expect(parsed.searchParams.get("slug")).toBe("myplugin");
+		expect(parsed.searchParams.get("cid")).toBe(RELEASE_CID);
 		expect(parsed.searchParams.get("version")).toBe("1.0.0");
 		expect(parsed.searchParams.get("kind")).toBe("icon");
 		expect(parsed.searchParams.get("index")).toBeNull();
 	});
 
 	it("encodes coordinate values", () => {
-		const url = artifactProxyUrl({ did: "did:plc:a&b", slug: "my plugin", kind: "banner" });
+		const url = artifactProxyUrl({
+			did: "did:plc:a&b",
+			slug: "my plugin",
+			cid: RELEASE_CID,
+			kind: "banner",
+		});
 		expect(url).toContain("did=did%3Aplc%3Aa%26b");
 		expect(url).toContain("slug=my+plugin");
 	});
@@ -29,6 +38,7 @@ describe("artifactProxyUrl", () => {
 		const url = artifactProxyUrl({
 			did: "did:plc:abc",
 			slug: "p",
+			cid: RELEASE_CID,
 			version: "2.0.0",
 			kind: "screenshot",
 			index: 3,
@@ -39,12 +49,23 @@ describe("artifactProxyUrl", () => {
 	});
 
 	it("omits an empty version", () => {
-		const url = artifactProxyUrl({ did: "did:plc:abc", slug: "p", kind: "icon" });
+		const url = artifactProxyUrl({
+			did: "did:plc:abc",
+			slug: "p",
+			cid: RELEASE_CID,
+			kind: "icon",
+		});
 		expect(new URL(url, "https://site.test").searchParams.has("version")).toBe(false);
 	});
 
 	it("omits the index for non-screenshot kinds", () => {
-		const url = artifactProxyUrl({ did: "did:plc:abc", slug: "p", kind: "icon", index: 5 });
+		const url = artifactProxyUrl({
+			did: "did:plc:abc",
+			slug: "p",
+			cid: RELEASE_CID,
+			kind: "icon",
+			index: 5,
+		});
 		expect(new URL(url, "https://site.test").searchParams.has("index")).toBe(false);
 	});
 });
