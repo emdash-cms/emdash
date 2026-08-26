@@ -334,7 +334,7 @@ msgstr "{base}（接続先：{0}）"
 
 #: packages/admin/src/components/RevisionHistory.tsx:355
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
-msgstr "{changedCount, plural, one {次の版との差分#件} other {次の版との差分#件}}"
+msgstr "{changedCount, plural, one {次の版との差分：#件} other {次の版との差分：#件}}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2524
 msgid "{characters, plural, one {# character} other {# characters}}"
@@ -460,11 +460,11 @@ msgstr "{totalScheduled, plural, one {公開予定} other {公開予定}}"
 
 #: packages/admin/src/components/RevisionHistory.tsx:367
 msgid "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
-msgstr "{unchangedCount, plural, one {変更なし#件を非表示} other {変更なし#件を非表示}}"
+msgstr "{unchangedCount, plural, one {変更のない#件を非表示} other {変更のない#件を非表示}}"
 
 #: packages/admin/src/components/RevisionHistory.tsx:368
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
-msgstr "{unchangedCount, plural, one {変更なし#件を表示} other {変更なし#件を表示}}"
+msgstr "{unchangedCount, plural, one {変更のない#件を表示} other {変更のない#件を表示}}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2523
 msgid "{words, plural, one {# word} other {# words}}"
@@ -1140,7 +1140,7 @@ msgstr "管理者として、ユーザーセクションから他のユーザー
 
 #: packages/admin/src/components/WordPressImport.tsx:2456
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
-msgstr "WordPressの著者をEmDashユーザーに割り当てます。投稿は選択したユーザーに帰属されます。"
+msgstr "WordPressの著者をEmDashユーザーに割り当てます。選択したユーザーが投稿者として設定されます。"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:28
 msgid "Astro"
@@ -1200,11 +1200,11 @@ msgstr "認可"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:176
 msgid "Authorize Device"
-msgstr "デバイスを認可"
+msgstr "CLI接続を許可"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:259
 msgid "Authorizing..."
-msgstr "認可中..."
+msgstr "許可しています..."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:685
 msgid "Authors"
@@ -1386,7 +1386,7 @@ msgstr "ファイルを選択"
 #: packages/admin/src/components/WordPressImport.tsx:1124
 #: packages/admin/src/components/WordPressImport.tsx:1594
 msgid "Browse Files"
-msgstr "ファイルを参照"
+msgstr "ファイルを選択"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:448
 msgid "Browse files to upload"
@@ -2859,7 +2859,7 @@ msgstr "ここにファイルをドラッグ＆ドロップ"
 
 #: packages/admin/src/components/WordPressImport.tsx:1119
 msgid "Drag and drop or click to browse (.xml)"
-msgstr "ドラッグ＆ドロップまたはクリックして参照（.xml）"
+msgstr "ドラッグ＆ドロップするか、クリックして選択（.xml）"
 
 #: packages/admin/src/components/Widgets.tsx:700
 msgid "Drag here to add"
@@ -3063,7 +3063,7 @@ msgstr "メールミドルウェア"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:91
 msgid "Email Pipeline"
-msgstr "メールパイプライン"
+msgstr "メール送信経路"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:165
 msgid "Email provider active"
@@ -4298,7 +4298,7 @@ msgstr "別のファイルをインポート"
 
 #: packages/admin/src/components/WordPressImport.tsx:1174
 msgid "Import Capabilities"
-msgstr "インポート権限"
+msgstr "インポート対応状況"
 
 #: packages/admin/src/components/WordPressImport.tsx:2304
 msgid "Import Complete"
@@ -5871,7 +5871,7 @@ msgstr "またはライブラリから選択"
 
 #: packages/admin/src/components/WordPressImport.tsx:1590
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
-msgstr "または、クリックして参照。WordPressからエクスポートした.xmlファイルを受け付けます。"
+msgstr "またはクリックしてファイルを選択できます。WordPressからエクスポートした.xmlファイルを受け付けます。"
 
 #: packages/admin/src/components/WordPressImport.tsx:1071
 msgid "or connect by URL"
@@ -5944,7 +5944,7 @@ msgstr "リダイレクトループの一部"
 
 #: packages/admin/src/components/WordPressImport.tsx:1153
 msgid "Partial"
-msgstr "一部"
+msgstr "一部対応"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:324
 msgid "Pass"
@@ -6207,7 +6207,7 @@ msgstr "プラグイン"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:327
 msgid "Point-in-Time Restore"
-msgstr "ポイントインタイムリストア"
+msgstr "特定時点への復元"
 
 #: packages/admin/src/components/SeoPanel.tsx:221
 msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
@@ -6348,7 +6348,7 @@ msgstr "引用"
 
 #: packages/admin/src/components/WordPressImport.tsx:1162
 msgid "Raw meta"
-msgstr "生のメタデータ"
+msgstr "未加工のメタデータ"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
@@ -7756,7 +7756,7 @@ msgstr "構造"
 
 #: packages/admin/src/components/WordPressImport.tsx:1164
 msgid "Structured"
-msgstr "構造化"
+msgstr "構造化データ"
 
 #: packages/admin/src/components/FieldEditor.tsx:552
 msgid "Sub-Fields"
