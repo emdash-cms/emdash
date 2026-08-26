@@ -1,5 +1,4 @@
-import { plural } from "@lingui/core/macro";
-import { Trans } from "@lingui/react/macro";
+import { Trans } from "@lingui/react";
 import * as React from "react";
 
 interface MediaImportSummaryProps {
@@ -16,25 +15,19 @@ export function MediaImportSummary({
 	return (
 		<>
 			<p>
-				<Trans>
-					<strong>{importedFiles}</strong>{" "}
-					{plural(importedFiles, { one: "file imported", other: "files imported" })}
-				</Trans>
+				<Trans
+					id="{importedFiles, plural, one {<count>#</count> file imported} other {<count>#</count> files imported}}"
+					values={{ importedFiles }}
+					components={{ count: <strong /> }}
+				/>
 			</p>
 			{rewrittenUrls !== undefined && updatedContentItems !== undefined && (
 				<p>
-					<Trans>
-						<strong>{rewrittenUrls}</strong>{" "}
-						{plural(rewrittenUrls, {
-							one: "image URL updated",
-							other: "image URLs updated",
-						})}{" "}
-						in <strong>{updatedContentItems}</strong>{" "}
-						{plural(updatedContentItems, {
-							one: "content item",
-							other: "content items",
-						})}
-					</Trans>
+					<Trans
+						id="{rewrittenUrls, plural, one {<rewrittenCount>#</rewrittenCount> image URL updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}} other {<rewrittenCount>#</rewrittenCount> image URLs updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}}}"
+						values={{ rewrittenUrls, updatedContentItems }}
+						components={{ rewrittenCount: <strong />, contentCount: <strong /> }}
+					/>
 				</p>
 			)}
 		</>
