@@ -23,6 +23,18 @@ describe("runtime DNS resolution", () => {
 		expect(fetch).toHaveBeenCalledTimes(2);
 	});
 
+	it("accepts a successful DNS response with no records for one address family", async () => {
+		const resolve = createDohHostnameResolver(async (input, init) => {
+			if (init?.redirect !== "manual") throw new TypeError("unsupported redirect mode");
+			const url = new URL(input instanceof Request ? input.url : input);
+			return url.searchParams.get("type") === "A"
+				? Response.json({ Status: 0, Answer: [{ type: 1, data: "3.20.120.138" }] })
+				: Response.json({ Status: 0 });
+		});
+
+		await expect(resolve("plc.directory")).resolves.toEqual(["3.20.120.138"]);
+	});
+
 	it("fails closed on a malformed or unsuccessful DNS response", async () => {
 		const resolve = createDohHostnameResolver(async () => Response.json({ Status: 2 }));
 		await expect(resolve("example.com")).rejects.toThrow(/DNS query failed/);
