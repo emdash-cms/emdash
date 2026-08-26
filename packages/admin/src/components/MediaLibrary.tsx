@@ -30,6 +30,7 @@ import {
 	getMediaThumbnailUrl,
 	fallbackToOriginalThumbnail,
 	MEDIA_THUMBNAIL_WIDTH,
+	metaNumber,
 } from "../lib/media-utils";
 import { cn } from "../lib/utils";
 import { MediaDetailPanel } from "./MediaDetailPanel";
@@ -786,8 +787,6 @@ interface ProviderGridItemProps {
 }
 
 function ProviderGridItem({ item, selected, onClick, onDimensionsLoaded }: ProviderGridItemProps) {
-	const isImage = item.mimeType.startsWith("image/");
-
 	const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
 		const img = e.currentTarget;
 		// Only report if we don't already have dimensions
@@ -806,7 +805,7 @@ function ProviderGridItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 			)}
 		>
 			<div className="aspect-square">
-				{isImage && item.previewUrl ? (
+				{item.previewUrl ? (
 					<img
 						src={item.previewUrl}
 						alt={item.alt || item.filename}
@@ -886,7 +885,7 @@ interface ProviderListItemProps {
 
 function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: ProviderListItemProps) {
 	const { t } = useLingui();
-	const isImage = item.mimeType.startsWith("image/");
+	const size = item.size ?? metaNumber(item.meta, "size");
 
 	const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
 		const img = e.currentTarget;
@@ -905,7 +904,7 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 		>
 			<td className="px-4 py-3">
 				<div className="h-10 w-10 overflow-hidden rounded">
-					{isImage && item.previewUrl ? (
+					{item.previewUrl ? (
 						<img
 							src={item.previewUrl}
 							alt={item.alt || item.filename}
@@ -922,7 +921,7 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 			<td className="px-4 py-3 text-base font-medium leading-5">{item.filename}</td>
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{item.mimeType}</td>
 			<td className="px-4 py-3 text-sm text-kumo-subtle tabular-nums">
-				{item.size ? formatFileSize(item.size) : "—"}
+				{size ? formatFileSize(size) : "—"}
 			</td>
 			<td className="px-4 py-3 text-end">
 				<span className="text-sm text-kumo-subtle">

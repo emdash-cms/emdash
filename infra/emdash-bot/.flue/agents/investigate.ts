@@ -114,6 +114,11 @@ const screenshotSchema = v.object({
 	description: v.optional(v.string()),
 });
 
+const pullRequestSchema = v.object({
+	title: v.pipe(v.string(), v.minLength(1), v.maxLength(256)),
+	description: v.pipe(v.string(), v.minLength(10), v.maxLength(RESULT_SUMMARY_LIMIT)),
+});
+
 const resultSchema = v.pipe(
 	v.object({
 		skipped: v.optional(v.boolean()),
@@ -137,6 +142,7 @@ const resultSchema = v.pipe(
 		fixed: v.optional(v.boolean()),
 		verdict: v.optional(v.picklist(["bug", "intended-behavior", "unclear"])),
 		summary: v.pipe(v.string(), v.minLength(10), v.maxLength(RESULT_SUMMARY_LIMIT)),
+		pullRequest: v.optional(pullRequestSchema),
 		failureStage: v.optional(v.picklist(["workspace", "verification", "publication", "reporting"])),
 		/** Reproduction screenshots pushed to bot/artifacts-<n>, rendered in the ask comment. */
 		screenshots: v.optional(v.array(screenshotSchema)),
@@ -147,15 +153,26 @@ const resultSchema = v.pipe(
 			(result.demonstration !== "none" && result.demonstratedReportedIssue === true),
 		"reproduced=true requires demonstration != 'none' and demonstratedReportedIssue=true. If you demonstrated something other than the reported issue, or nothing, set reproduced=false and describe the finding in summary.",
 	),
+	v.check(
+		(result) => result.fixed !== true || result.pullRequest !== undefined,
+		"fixed=true requires pullRequest with a reviewer-facing title and description.",
+	),
 );
 
-const implementationResultSchema = v.object({
-	skipped: v.optional(v.boolean()),
-	implemented: v.boolean(),
-	summary: v.pipe(v.string(), v.minLength(10), v.maxLength(RESULT_SUMMARY_LIMIT)),
-	failureStage: v.optional(v.picklist(["workspace", "verification", "publication", "reporting"])),
-	screenshots: v.optional(v.array(screenshotSchema)),
-});
+const implementationResultSchema = v.pipe(
+	v.object({
+		skipped: v.optional(v.boolean()),
+		implemented: v.boolean(),
+		summary: v.pipe(v.string(), v.minLength(10), v.maxLength(RESULT_SUMMARY_LIMIT)),
+		pullRequest: v.optional(pullRequestSchema),
+		failureStage: v.optional(v.picklist(["workspace", "verification", "publication", "reporting"])),
+		screenshots: v.optional(v.array(screenshotSchema)),
+	}),
+	v.check(
+		(result) => result.implemented !== true || result.pullRequest !== undefined,
+		"implemented=true requires pullRequest with a reviewer-facing title and description.",
+	),
+);
 
 const publicationSchema = v.object({
 	branch: v.string(),
@@ -468,7 +485,7 @@ export function Investigate({ id }: AgentProps) {
 			defineTool({
 				name: "report_implementation",
 				description:
-					"Report the implementation outcome. Set implemented=true only after publish_candidate succeeds. Include the commands run and any verification failures in the summary.",
+					"Report the implementation outcome. Set implemented=true only after publish_candidate succeeds. Include the commands run and any verification failures in the summary. When implemented=true, provide pullRequest with a concise reviewer-facing title and description.",
 				input: implementationResultSchema,
 				output: reportedResultSchema,
 				durable: true,
@@ -505,7 +522,7 @@ export function Investigate({ id }: AgentProps) {
 			defineTool({
 				name: "report_result",
 				description:
-					"Report the final structured investigation result to the issue orchestrator. reproduced=true means you demonstrated the defect the reporter described, in this checkout. The demonstration does NOT need to copy their exact steps: a failing unit test that exercises the same defect a UI report describes is a full reproduction of the issue -- report it as one, without hedging. It must be the same defect, though: an adjacent or latent bug you demonstrated, an out-of-repo infrastructure symptom, or a root cause from reading code alone is not a reproduction. Three distinct non-reproduced outcomes -- pick the honest one: rootCauseFound=true when you identified the reporter's defect but could not confirm it with a demonstration (environment limits, browser-only path) -- this is a first-class 'diagnosed' verdict; plain reproduced=false when you investigated and found nothing wrong or a different/adjacent issue (describe findings in summary); verdict='unclear' when the issue lacks the information an attempt would need -- say what is missing. Fill demonstration and demonstratedReportedIssue truthfully. If demonstration attempts are not converging after a couple of angles, stop and report the diagnosis with rootCauseFound rather than grinding.",
+					"Report the final structured investigation result to the issue orchestrator. reproduced=true means you demonstrated the defect the reporter described, in this checkout. The demonstration does NOT need to copy their exact steps: a failing unit test that exercises the same defect a UI report describes is a full reproduction of the issue -- report it as one, without hedging. It must be the same defect, though: an adjacent or latent bug you demonstrated, an out-of-repo infrastructure symptom, or a root cause from reading code alone is not a reproduction. Three distinct non-reproduced outcomes -- pick the honest one: rootCauseFound=true when you identified the reporter's defect but could not confirm it with a demonstration (environment limits, browser-only path) -- this is a first-class 'diagnosed' verdict; plain reproduced=false when you investigated and found nothing wrong or a different/adjacent issue (describe findings in summary); verdict='unclear' when the issue lacks the information an attempt would need -- say what is missing. Fill demonstration and demonstratedReportedIssue truthfully. If demonstration attempts are not converging after a couple of angles, stop and report the diagnosis with rootCauseFound rather than grinding. When fixed=true, provide pullRequest with a concise reviewer-facing title and description.",
 				input: resultSchema,
 				output: reportedResultSchema,
 				durable: true,

@@ -22,12 +22,15 @@
  */
 
 import type { Did } from "@atcute/lexicons";
+import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError } from "#api/error.js";
+import { verifyChecksum } from "#api/handlers/registry.js";
 import { assertSafeArtifactUrl } from "#api/index.js";
 
+import { fetchRegistryArtifactUrl } from "../../../../../../registry/artifact-fetch.js";
 import { coerceRegistryConfig, validateAggregatorUrl } from "../../../../../../registry/config.js";
 
 export const prerender = false;
@@ -56,6 +59,7 @@ const ALLOWED_KINDS = new Set(["icon", "banner", "screenshot"]);
 const DID_PATTERN = /^did:[a-z]+:.+/;
 /** Slug grammar: ASCII letter then letters / digits / `-` / `_`. Mirrors the install route. */
 const SLUG_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+const CID_PATTERN = /^b[a-z2-7]+$/;
 /** Non-negative integer, for the screenshot index param. */
 const INDEX_PATTERN = /^\d+$/;
 
@@ -106,13 +110,26 @@ function timedFetch(totalDeadline: number): typeof fetch {
  * value is an object carrying a non-empty string `url`; everything else
  * (missing key, wrong type, no `url`) yields `null`.
  */
-function declaredArtifactUrl(value: unknown): string | null {
+interface DeclaredArtifact {
+	url: string;
+	checksum: string;
+}
+
+function declaredArtifact(value: unknown): DeclaredArtifact | null {
 	if (!value || typeof value !== "object") return null;
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; url checked below
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; fields checked below
 	const entry = value as Record<string, unknown>;
 	const url = entry.url;
-	if (typeof url !== "string" || url.length === 0) return null;
-	return url;
+	const checksum = entry.checksum;
+	if (
+		typeof url !== "string" ||
+		url.length === 0 ||
+		typeof checksum !== "string" ||
+		checksum.length === 0
+	) {
+		return null;
+	}
+	return { url, checksum };
 }
 
 /**
@@ -120,18 +137,22 @@ function declaredArtifactUrl(value: unknown): string | null {
  * `artifacts` map. Returns `null` when the requested artifact isn't present
  * or doesn't carry a usable URL.
  */
-function resolveDeclaredUrl(artifacts: unknown, kind: string, index: number): string | null {
+function resolveDeclaredArtifact(
+	artifacts: unknown,
+	kind: string,
+	index: number,
+): DeclaredArtifact | null {
 	if (!artifacts || typeof artifacts !== "object") return null;
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; each entry shape-narrowed by declaredArtifactUrl
 	const map = artifacts as Record<string, unknown>;
 
-	if (kind === "icon") return declaredArtifactUrl(map.icon);
-	if (kind === "banner") return declaredArtifactUrl(map.banner);
+	if (kind === "icon") return declaredArtifact(map.icon);
+	if (kind === "banner") return declaredArtifact(map.banner);
 	// kind === "screenshot"
 	const screenshots = map.screenshots;
 	if (!Array.isArray(screenshots)) return null;
 	if (index < 0 || index >= screenshots.length) return null;
-	return declaredArtifactUrl(screenshots[index]);
+	return declaredArtifact(screenshots[index]);
 }
 
 export const GET: APIRoute = async ({ url, locals }) => {
@@ -146,18 +167,22 @@ export const GET: APIRoute = async ({ url, locals }) => {
 
 	const did = url.searchParams.get("did");
 	const slug = url.searchParams.get("slug");
+	const cid = url.searchParams.get("cid");
 	const kind = url.searchParams.get("kind");
 	const versionParam = url.searchParams.get("version");
 	const indexParam = url.searchParams.get("index");
 
-	if (!did || !slug || !kind) {
-		return apiError("INVALID_REQUEST", "Missing did, slug, or kind", 400);
+	if (!did || !slug || !cid || !kind) {
+		return apiError("INVALID_REQUEST", "Missing did, slug, cid, or kind", 400);
 	}
 	if (did.length > 256 || !DID_PATTERN.test(did)) {
 		return apiError("INVALID_REQUEST", "Invalid did", 400);
 	}
 	if (slug.length > 64 || !SLUG_PATTERN.test(slug)) {
 		return apiError("INVALID_REQUEST", "Invalid slug", 400);
+	}
+	if (cid.length > 256 || !CID_PATTERN.test(cid)) {
+		return apiError("INVALID_REQUEST", "Invalid release CID", 400);
 	}
 	if (!ALLOWED_KINDS.has(kind)) {
 		return apiError("INVALID_REQUEST", "Invalid kind", 400);
@@ -196,13 +221,13 @@ export const GET: APIRoute = async ({ url, locals }) => {
 	}
 
 	// Resolve the publisher-declared artifact URL from the release record.
-	let declaredUrl: string;
+	let descriptor: DeclaredArtifact;
 	try {
-		const resolved = await resolveArtifactUrl(registryConfig, did, slug, version, kind, index);
+		const resolved = await resolveArtifact(registryConfig, did, slug, version, cid, kind, index);
 		if (resolved === null) {
 			return apiError("ARTIFACT_NOT_FOUND", "Artifact not found", 404);
 		}
-		declaredUrl = resolved;
+		descriptor = resolved;
 	} catch {
 		return apiError("ARTIFACT_RESOLVE_FAILED", "Failed to resolve artifact", 502);
 	}
@@ -216,14 +241,17 @@ export const GET: APIRoute = async ({ url, locals }) => {
 		// block, so a rejection here means the URL is unsafe.
 		let current: URL;
 		try {
-			current = await assertSafeArtifactUrl(declaredUrl);
+			current = await assertSafeArtifactUrl(descriptor.url);
 		} catch {
 			return apiError("ARTIFACT_URL_REJECTED", "Artifact URL is not allowed", 400);
 		}
 
 		let response: Response;
 		for (let hop = 0; ; hop++) {
-			response = await fetch(current.href, { redirect: "manual", signal: controller.signal });
+			response = await fetchRegistryArtifactUrl(current.href, {
+				signal: controller.signal,
+				maxResponseBytes: MAX_IMAGE_BYTES,
+			});
 			if (response.status < 300 || response.status >= 400) break;
 			const location = response.headers.get("location");
 			if (!location) break;
@@ -264,6 +292,13 @@ export const GET: APIRoute = async ({ url, locals }) => {
 		if (bytes === null) {
 			return apiError("ARTIFACT_TOO_LARGE", "Artifact exceeds size limit", 413);
 		}
+		if (!(await verifyChecksum(bytes, descriptor.checksum))) {
+			return apiError(
+				"ARTIFACT_CHECKSUM_MISMATCH",
+				"Artifact bytes do not match the approved release record",
+				502,
+			);
+		}
 
 		// Only the allowlisted Content-Type is forwarded — never copy other
 		// upstream headers. `private, no-store` keeps publisher images out of
@@ -299,22 +334,25 @@ export const GET: APIRoute = async ({ url, locals }) => {
  * left untouched, so a small amount of resolution-pattern duplication is
  * accepted here.
  */
-async function resolveArtifactUrl(
+async function resolveArtifact(
 	registryConfig: { aggregatorUrl: string; acceptLabelers?: string },
 	did: string,
 	slug: string,
 	version: string | undefined,
+	cid: string,
 	kind: string,
 	index: number,
-): Promise<string | null> {
+): Promise<DeclaredArtifact | null> {
 	// Lazy-load the discovery client so the `@atcute/client` dependency only
 	// loads when the registry path is exercised.
-	const { DiscoveryClient } = await import("@emdash-cms/registry-client/discovery");
+	const { DiscoveryClient, registryLabelerPolicy } =
+		await import("@emdash-cms/registry-client/discovery");
 
 	const aggregatorDeadline = Date.now() + AGGREGATOR_TOTAL_BUDGET_MS;
 	const discovery = new DiscoveryClient({
 		aggregatorUrl: registryConfig.aggregatorUrl,
 		acceptLabelers: registryConfig.acceptLabelers,
+		labelerPolicy: registryLabelerPolicy(registryConfig.acceptLabelers),
 		fetch: timedFetch(aggregatorDeadline),
 	});
 
@@ -347,9 +385,22 @@ async function resolveArtifactUrl(
 		return undefined;
 	})();
 
-	if (!releaseView?.release) return null;
+	if (
+		!releaseView?.release ||
+		releaseView.cid !== cid ||
+		releaseView.did !== publisherDid ||
+		releaseView.package !== slug ||
+		(version !== undefined && releaseView.version !== version) ||
+		releaseView.release.package !== slug ||
+		releaseView.release.version !== releaseView.version
+	) {
+		return null;
+	}
+	if (evaluateRegistryReleaseWithdrawal(releaseView, discovery.labelerPolicy).withdrawn) {
+		return null;
+	}
 
-	return resolveDeclaredUrl(releaseView.release.artifacts, kind, index);
+	return resolveDeclaredArtifact(releaseView.release.artifacts, kind, index);
 }
 
 /**

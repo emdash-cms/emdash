@@ -10,8 +10,10 @@ import { DurableObject } from "cloudflare:workers";
 import { Investigate } from "../agents/investigate.js";
 import { classifyComment, type ClassifierInput, type ClassifyResult } from "./classifier-client.js";
 import {
+	type PullRequestCopy,
 	type PreviewScreenshot,
 	renderAgentComment,
+	renderCommandFeedback,
 	renderDraftPrBody,
 	renderPullRequestTitle,
 	renderPreviewReadyAsk,
@@ -164,6 +166,8 @@ export interface NormalizedEvent {
 	readonly agentFailureStage?: string;
 	/** Reproduction screenshots the fix run pushed, carried into the ask comment. */
 	readonly agentScreenshots?: readonly PreviewScreenshot[];
+	/** Reviewer-facing copy carried through preview confirmation into the draft PR. */
+	readonly agentPullRequest?: PullRequestCopy;
 	/**
 	 * Precomposed comment body that replaces the default `renderComment` output
 	 * for this transition. Used for the preview-ready ask, whose body needs data
@@ -194,6 +198,7 @@ export interface AgentResult {
 	readonly implemented?: boolean;
 	readonly verdict?: string;
 	readonly summary?: string;
+	readonly pullRequest?: PullRequestCopy;
 	readonly failureStage?: string;
 	readonly screenshots?: readonly PreviewScreenshot[];
 	readonly [key: string]: unknown;
@@ -288,6 +293,7 @@ const STORAGE = {
 	previewPollNextAt: "o:previewPollNextAt",
 	previewNotes: "o:previewNotes",
 	previewScreenshots: "o:previewScreenshots",
+	candidatePullRequest: "o:candidatePullRequest",
 	lastDiagnosis: "o:lastDiagnosis",
 	deadlineWarningSentRunId: "o:deadlineWarningSentRunId",
 	deadlineWarningRetryAt: "o:deadlineWarningRetryAt",
@@ -314,6 +320,16 @@ const INBOX_RETRY_MS = 60_000;
 const INBOX_BATCH_LIMIT = 10;
 const CLASSIFIER_MAX_ATTEMPTS = 3;
 const CLASSIFIER_TEXT_LIMIT = 16_000;
+
+function normalizePullRequestCopy(value: unknown): PullRequestCopy | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const { title, description } = value as { title?: unknown; description?: unknown };
+	if (typeof title !== "string" || typeof description !== "string") return undefined;
+	const normalizedTitle = title.trim().replaceAll(/\s+/g, " ");
+	const normalizedDescription = description.trim();
+	if (!normalizedTitle || !normalizedDescription) return undefined;
+	return { title: normalizedTitle, description: normalizedDescription };
+}
 
 interface CachedToken {
 	token: string;
@@ -473,6 +489,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await this.recordDelivery(input.deliveryId);
 			return { kind: "recovered" };
 		}
+		if (input.deliveryId && (await this.isDeliverySeen(input.deliveryId))) {
+			return { kind: "recovered" };
+		}
 		if (await this.hasPendingSideEffects()) {
 			throw new Error("an earlier GitHub projection is still pending");
 		}
@@ -488,6 +507,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				throw new ClassifierProcessingError(classifyResult.reason);
 			}
 			if (classifyResult.kind === "noop") {
+				await this.postCommandFeedback(input);
 				if (input.deliveryId) await this.recordDelivery(input.deliveryId);
 				return classifyResult;
 			}
@@ -524,6 +544,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 
 		if (decision.kind === "noop") {
+			await this.postCommandFeedback({ ...input, event: resolvedEvent }, decision.from);
 			if (input.deliveryId) await this.recordDelivery(input.deliveryId);
 			return { kind: "noop", reason: decision.reason };
 		}
@@ -1025,6 +1046,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const labels = await this.projectLabels();
 		const agentSummary =
 			typeof input.result?.summary === "string" ? input.result.summary : undefined;
+		const agentPullRequest = normalizePullRequestCopy(input.result.pullRequest);
 		const runStatus: Exclude<WorkCommentStatus, "running"> =
 			event === "agent.failed"
 				? input.result.failureStage === "timeout"
@@ -1054,6 +1076,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			settlesRunId: input.runId,
 			agentRunId: input.runId,
 			...(agentSummary ? { agentSummary } : {}),
+			...(agentPullRequest ? { agentPullRequest } : {}),
 			...(finalizedWorkComment ? { commentBodyOverride: "" } : {}),
 			...(failureStage ? { agentFailureStage: failureStage } : {}),
 			...(agentScreenshots ? { agentScreenshots } : {}),
@@ -1838,7 +1861,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 				this.ctx.storage.get<StoredDiagnosis>(STORAGE.lastDiagnosis),
 			]);
 			const comments = await getIssueComments(token, repo, anchorNumber, {
-				...(lastDiagnosis ? { since: lastDiagnosis.completedAt } : {}),
 				commentCount: issue.commentCount,
 			});
 			const trigger = input.triggeringComment ?? {
@@ -2145,15 +2167,25 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const token = await this.getInstallationToken(creds);
 		const headBranch = `bot/fix-${anchorNumber}`;
 		const kind = (await this.ctx.storage.get<Kind>(STORAGE.kind)) ?? "bug";
+		const pullRequestCopy = draft
+			? await this.ctx.storage.get<PullRequestCopy>(STORAGE.candidatePullRequest)
+			: undefined;
 		try {
 			const created =
 				(await getOpenPullRequest(token, repo, headBranch)) ??
 				(await createPullRequest(token, repo, {
 					headBranch,
 					baseBranch: "main",
-					title: renderPullRequestTitle(anchorNumber, kind),
+					title: pullRequestCopy?.title || renderPullRequestTitle(anchorNumber, kind),
 					body: draft
-						? renderDraftPrBody(anchorNumber, this.env.PREVIEW_PACKAGE)
+						? renderDraftPrBody({
+								issueNumber: anchorNumber,
+								kind,
+								description:
+									pullRequestCopy?.description ||
+									`Automated candidate change for issue #${anchorNumber}.`,
+								previewPackage: this.env.PREVIEW_PACKAGE,
+							})
 						: `Fixes #${anchorNumber}.\n\nAutomated PR opened by emdashbot.`,
 					draft,
 				}));
@@ -2218,15 +2250,47 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 		const persistedState = await this.ctx.storage.get<StateId>(STORAGE.state);
 		const state = decision.state ?? persistedState ?? null;
+		const replyEvent = decision.event === "help" ? "help" : "status";
 		const id = await this.persistStandaloneSideEffect({
 			anchorNumber,
-			commentBody: renderReadonlyReply(state),
+			commentBody: renderReadonlyReply(
+				state,
+				replyEvent,
+				input.actor === "reporter" ? "reporter" : "maintainer",
+			),
 			...(input.deliveryId ? { deliveryId: input.deliveryId } : {}),
 		});
 		await this.armAlarm();
 		await this.drainPendingSideEffects();
 		if (await this.hasPendingSideEffect(id)) {
 			throw new Error("readonly reply is queued behind an earlier GitHub projection");
+		}
+	}
+
+	private async postCommandFeedback(
+		input: NormalizedEvent,
+		resolvedState?: StateId | null,
+	): Promise<void> {
+		if (input.dryRun === true || (input.actor !== "maintainer" && input.actor !== "reporter")) {
+			return;
+		}
+		const anchorNumber =
+			input.anchorNumber ?? (await this.ctx.storage.get<number>(STORAGE.anchorNumber));
+		if (anchorNumber === undefined) {
+			if (import.meta.env.DEV) return;
+			throw new Error("no anchor number for command feedback");
+		}
+		const persistedState = await this.ctx.storage.get<StateId>(STORAGE.state);
+		const state = resolvedState ?? persistedState ?? currentState(input.labels);
+		const id = await this.persistStandaloneSideEffect({
+			anchorNumber,
+			commentBody: renderCommandFeedback(state, input.event, input.actor),
+			...(input.deliveryId ? { deliveryId: input.deliveryId } : {}),
+		});
+		await this.armAlarm();
+		await this.drainPendingSideEffects();
+		if (await this.hasPendingSideEffect(id)) {
+			throw new Error("command feedback is queued behind an earlier GitHub projection");
 		}
 	}
 
@@ -2487,6 +2551,13 @@ export class OrchestratorDO extends DurableObject<Env> {
 					input.agentScreenshots?.length
 						? transaction.put(STORAGE.previewScreenshots, input.agentScreenshots)
 						: transaction.delete(STORAGE.previewScreenshots),
+					transaction.put<PullRequestCopy>(
+						STORAGE.candidatePullRequest,
+						input.agentPullRequest ?? {
+							title: "",
+							description: input.agentSummary ?? "",
+						},
+					),
 				);
 			} else {
 				puts.push(
@@ -2494,6 +2565,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 					transaction.delete(STORAGE.previewPollNextAt),
 					transaction.delete(STORAGE.previewNotes),
 					transaction.delete(STORAGE.previewScreenshots),
+					...(decision.to === "awaiting_reporter"
+						? []
+						: [transaction.delete(STORAGE.candidatePullRequest)]),
 				);
 			}
 			const kindLabel = decision.addLabels.find(
