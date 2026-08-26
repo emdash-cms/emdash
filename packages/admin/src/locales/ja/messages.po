@@ -1904,7 +1904,7 @@ msgstr "コンテンツを公開しました"
 
 #: packages/admin/src/components/WordPressImport.tsx:2371
 msgid "content items"
-msgstr "件のコンテンツ）"
+msgstr "コンテンツ"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:498
 msgid "Content locale"
@@ -2199,7 +2199,7 @@ msgstr "ナビゲーションメニューの作成、更新、削除"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:78
 msgid "Create, update, and delete taxonomy terms"
-msgstr "カテゴリーとタグの作成、更新、削除"
+msgstr "カテゴリーやタグなどの項目の作成、更新、削除"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:53
 msgid "Create, update, delete content"
@@ -3950,7 +3950,7 @@ msgstr "ファイル名はアップロード後に変更できません"
 
 #: packages/admin/src/components/WordPressImport.tsx:2366
 msgid "files imported"
-msgstr "件のファイルをインポートしました"
+msgstr "ファイルをインポート済み"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:399
 msgid "Files upload as soon as you add them."
@@ -4269,7 +4269,7 @@ msgstr "画像URL"
 
 #: packages/admin/src/components/WordPressImport.tsx:2370
 msgid "image URLs updated in"
-msgstr "件の画像URLを更新（対象："
+msgstr "画像URLを更新："
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:61
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:192
@@ -7208,7 +7208,7 @@ msgstr "セキュリティ設定"
 #: packages/admin/src/components/FieldEditor.tsx:614
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Select"
-msgstr "選択肢"
+msgstr "選択"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
 #: packages/admin/src/components/ContentEditor.tsx:1732
