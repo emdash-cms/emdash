@@ -747,6 +747,9 @@ custody policy until the replay and rollback window closes.
    LABEL_SIGNING_PUBLIC_KEY=<new-public-multikey>
    ```
 
+   Wrangler's `secret bulk` command accepts dotenv and JSON input. This procedure uses dotenv
+   so the reviewed key pair stays together during verification and upload.
+
 2. Pause automated issuance with a new incident or change-ticket idempotency key. Confirm
    `issuance_paused` is `1` with the D1 query in [Status queries](#status-queries).
 3. Upload both key values in one bulk secret operation. Do not update the public and private
