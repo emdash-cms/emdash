@@ -173,6 +173,7 @@ describe("media usage maintenance engine and Node heartbeat", () => {
 
 	it("continues reconciliation immediately after entry work drains", async () => {
 		runtime = await EmDashRuntime.create(createDeps(null));
+		await configureExistingInactiveSite(runtime);
 		await runtime.schemaRegistry.createCollection({
 			slug: "deferred_reconciliation",
 			label: "Deferred reconciliation",
@@ -386,6 +387,7 @@ describe("media usage maintenance engine and Node heartbeat", () => {
 
 	it("continues confirmed activation one bounded collection at a time", async () => {
 		runtime = await EmDashRuntime.create(createDeps(null));
+		await configureExistingInactiveSite(runtime);
 		await runtime.schemaRegistry.createCollection({ slug: "activation_alpha", label: "Alpha" });
 		await runtime.schemaRegistry.createCollection({ slug: "activation_beta", label: "Beta" });
 
@@ -567,6 +569,25 @@ function activationState(runtime: EmDashRuntime) {
 		.selectAll()
 		.where("task_key", "=", "incremental_capture")
 		.executeTakeFirstOrThrow();
+}
+
+async function configureExistingInactiveSite(runtime: EmDashRuntime): Promise<void> {
+	await new OptionsRepository(runtime.db).set("emdash:setup_complete", true);
+	await runtime.db
+		.updateTable("_emdash_media_usage_activation")
+		.set({
+			state: "expanded",
+			collection_cursor: null,
+			drain_confirmed_at: null,
+			lease_token: null,
+			lease_expires_at: null,
+			attempt_count: 0,
+			last_attempted_at: null,
+			last_error_code: null,
+			activated_at: null,
+		})
+		.where("task_key", "=", "incremental_capture")
+		.execute();
 }
 
 function canonicalSourceKey(collectionId: string, contentId: string): string {
