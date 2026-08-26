@@ -2199,7 +2199,7 @@ msgstr "ナビゲーションメニューの作成、更新、削除"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:78
 msgid "Create, update, and delete taxonomy terms"
-msgstr "カテゴリーやタグなどの項目の作成、更新、削除"
+msgstr "分類項目の作成、更新、削除"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:53
 msgid "Create, update, delete content"
