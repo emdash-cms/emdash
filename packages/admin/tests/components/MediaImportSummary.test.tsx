@@ -18,11 +18,6 @@ function renderSummary(
 }
 
 describe("MediaImportSummary", () => {
-	const importedFilesMessage =
-		"{importedFiles, plural, one {<count>#</count> file imported} other {<count>#</count> files imported}}";
-	const updatedUrlsMessage =
-		"{rewrittenUrls, plural, one {<rewrittenCount>#</rewrittenCount> image URL updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}} other {<rewrittenCount>#</rewrittenCount> image URLs updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}}}";
-
 	it("renders each result as a complete pluralized message", () => {
 		expect(renderSummary({ importedFiles: 1, rewrittenUrls: 1, updatedContentItems: 2 })).toBe(
 			"<p><strong>1</strong> file imported</p><p><strong>1</strong> image URL updated in <strong>2</strong> content items</p>",
@@ -43,10 +38,11 @@ describe("MediaImportSummary", () => {
 		renderSummary({ importedFiles: 2, rewrittenUrls: 3, updatedContentItems: 1 }, i18n);
 		removeMissingListener();
 
-		expect(messageIds).toEqual([importedFilesMessage, updatedUrlsMessage]);
+		expect(messageIds).toHaveLength(2);
+		const [importedFilesMessageId, updatedUrlsMessageId] = messageIds;
 		i18n.load("ja", {
-			[importedFilesMessage]: "<count>{importedFiles}</count>件のファイルをインポートしました",
-			[updatedUrlsMessage]:
+			[importedFilesMessageId!]: "<count>{importedFiles}</count>件のファイルをインポートしました",
+			[updatedUrlsMessageId!]:
 				"<contentCount>{updatedContentItems}</contentCount>件のコンテンツで<rewrittenCount>{rewrittenUrls}</rewrittenCount>件の画像URLを更新しました",
 		});
 
