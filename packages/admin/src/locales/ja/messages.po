@@ -1437,19 +1437,19 @@ msgstr "C++"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:25
 msgid "Can create content"
-msgstr "コンテンツを作成可能"
+msgstr "コンテンツを作成できます"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:37
 msgid "Can manage all content"
-msgstr "すべてのコンテンツを管理可能"
+msgstr "すべてのコンテンツを管理できます"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:31
 msgid "Can publish own content"
-msgstr "自分のコンテンツを公開可能"
+msgstr "自分のコンテンツを公開できます"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:19
 msgid "Can view content"
-msgstr "コンテンツを閲覧可能"
+msgstr "コンテンツを閲覧できます"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:192
@@ -1964,7 +1964,7 @@ msgstr "番号を継続"
 #: packages/admin/src/components/users/roleDefinitions.ts:24
 #: packages/admin/src/components/WelcomeModal.tsx:28
 msgid "Contributor"
-msgstr "寄稿者"
+msgstr "下書き作成者"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
 #: packages/admin/src/components/users/InviteUserModal.tsx:133
@@ -4021,7 +4021,7 @@ msgstr "フル"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:43
 msgid "Full access"
-msgstr "フルアクセス"
+msgstr "すべての機能を利用できます"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:103
 msgid "Full admin access"
@@ -7765,7 +7765,7 @@ msgstr "サブフィールド"
 #: packages/admin/src/components/users/roleDefinitions.ts:18
 #: packages/admin/src/components/WelcomeModal.tsx:29
 msgid "Subscriber"
-msgstr "購読者"
+msgstr "閲覧者"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3658
 msgid "Subscript"
