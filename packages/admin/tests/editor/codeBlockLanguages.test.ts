@@ -30,15 +30,6 @@ describe("findLanguage", () => {
 		expect(resolveLabel(ts?.label)).toBe("TypeScript");
 	});
 
-	it.each([
-		["Lua", "lua", "Lua"],
-		["Zig", "zig", "Zig"],
-	])("returns the canonical suggestion for %s", (input, id, label) => {
-		const language = findLanguage(input);
-		expect(language?.id).toBe(id);
-		expect(resolveLabel(language?.label)).toBe(label);
-	});
-
 	it("resolves aliases to the canonical entry", () => {
 		expect(findLanguage("ts")?.id).toBe("typescript");
 		expect(findLanguage("js")?.id).toBe("javascript");

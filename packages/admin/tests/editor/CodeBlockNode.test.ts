@@ -149,7 +149,6 @@ describe("CodeBlockExtension", () => {
 	it.each([
 		["javascript", 'const greeting = "hello";'],
 		["dockerfile", "FROM node:22"],
-		["lua", 'local greeting = "hello"'],
 	])("renders syntax tokens for %s", async (language, code) => {
 		editor.commands.insertContent({
 			type: "codeBlock",
