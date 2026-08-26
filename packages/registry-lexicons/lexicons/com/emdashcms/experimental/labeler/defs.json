@@ -103,14 +103,13 @@
 					"type": "string",
 					"knownValues": [
 						"explicit-sexual-content",
-						"hateful-content",
+						"hateful-or-dehumanizing-content",
 						"graphic-violence",
-						"phishing",
-						"impersonation",
+						"phishing-or-credential-solicitation",
+						"material-impersonation",
 						"scam-or-spam",
-						"malicious-link",
-						"misleading-content",
-						"uncertain"
+						"malicious-or-deceptive-link",
+						"misleading-media-or-claims"
 					]
 				},
 				"reasonCode": {

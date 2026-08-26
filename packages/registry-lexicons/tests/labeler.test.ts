@@ -1,6 +1,8 @@
 import { is } from "@atcute/lexicons/validations";
+import { MODERATION_FINDING_CATEGORIES } from "@emdash-cms/registry-moderation";
 import { describe, expect, it } from "vitest";
 
+import labelerDefsLexicon from "../lexicons/com/emdashcms/experimental/labeler/defs.json" with { type: "json" };
 import {
 	LabelerDefs,
 	LabelerGetAssessment,
@@ -117,7 +119,7 @@ describe("labeler assessment lexicons", () => {
 
 	it("bounds public reason codes and findings", () => {
 		const finding: LabelerDefs.PublicFinding = {
-			category: "phishing",
+			category: "phishing-or-credential-solicitation",
 			reasonCode: "phishing-review",
 			summary: "Link behavior requires operator review.",
 		};
@@ -135,6 +137,12 @@ describe("labeler assessment lexicons", () => {
 				summary: "x".repeat(513),
 			}),
 		).toBe(false);
+	});
+
+	it("publishes the moderation package's finding categories", () => {
+		expect(labelerDefsLexicon.defs.publicFinding.properties.category.knownValues).toEqual(
+			MODERATION_FINDING_CATEGORIES,
+		);
 	});
 
 	it("validates a public manual decision without operator-private fields", () => {

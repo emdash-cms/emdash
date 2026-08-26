@@ -2422,6 +2422,9 @@ importers:
       '@atcute/lex-cli':
         specifier: 'catalog:'
         version: 2.8.1
+      '@emdash-cms/registry-moderation':
+        specifier: workspace:*
+        version: link:../registry-moderation
       publint:
         specifier: 'catalog:'
         version: 0.3.17
