@@ -7614,7 +7614,7 @@ msgstr "スキップ済み"
 #: packages/admin/src/routes/byline-schema.tsx:237
 #: packages/admin/src/routes/bylines.tsx:486
 msgid "Slug"
-msgstr "スラッグ"
+msgstr "識別名（スラッグ）"
 
 #: packages/admin/src/components/Sections.tsx:124
 msgid "Slug copied to clipboard"
