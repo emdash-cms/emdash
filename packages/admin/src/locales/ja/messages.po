@@ -2155,7 +2155,7 @@ msgstr "セクションライブラリでセクションを作成して使用で
 #: packages/admin/src/components/TaxonomyManager.tsx:782
 #: packages/admin/src/components/TaxonomyManager.tsx:873
 msgid "Create Taxonomy"
-msgstr "分類を作成"
+msgstr "分類グループを作成"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
@@ -2350,7 +2350,7 @@ msgstr "デフォルトのソーシャル画像"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:785
 msgid "Define a new taxonomy for classifying content"
-msgstr "コンテンツを整理するための分類を作成"
+msgstr "カテゴリーやタグのような分類グループを作成します。"
 
 #: packages/admin/src/routes/byline-schema.tsx:220
 msgid "Define custom fields stored on every byline — job title, pronouns, social handles, and more."
@@ -4165,7 +4165,7 @@ msgstr "トークンを非表示"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:833
 msgid "Hierarchical (like categories, with parent/child relationships)"
-msgstr "階層型（カテゴリのような親子関係）"
+msgstr "階層構造を使用する（カテゴリーのように親子関係を設定できます）"
 
 #: packages/admin/src/components/Redirects.tsx:226
 #: packages/admin/src/components/Redirects.tsx:479
@@ -5396,7 +5396,7 @@ msgstr "新しいタブ"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1038
 msgid "New Taxonomy"
-msgstr "新しい分類"
+msgstr "分類グループを追加"
 
 #: packages/admin/src/components/MenuEditor.tsx:430
 #: packages/admin/src/components/MenuEditor.tsx:433
@@ -7846,7 +7846,7 @@ msgstr "分類の管理"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1124
 msgid "Taxonomy created"
-msgstr "分類を作成しました"
+msgstr "分類グループを作成しました"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1014
 msgid "Taxonomy not found:"
@@ -7854,7 +7854,7 @@ msgstr "分類が見つかりません："
 
 #: packages/admin/src/components/TaxonomyManager.tsx:341
 msgid "Taxonomy: {taxonomyName}"
-msgstr "分類：{taxonomyName}"
+msgstr "分類グループ：{taxonomyName}"
 
 #: packages/admin/src/components/SetupWizard.tsx:155
 msgid "Template:"
@@ -8630,7 +8630,7 @@ msgstr "ページに画像が設定されていない場合は、Open Graph用�
 
 #: packages/admin/src/components/TaxonomyManager.tsx:828
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
-msgstr "識別子として使用されます。半角小文字、数字、アンダースコアのみ。"
+msgstr "分類グループの識別名として使用します。半角小文字、数字、アンダースコアのみ使用できます。"
 
 #: packages/admin/src/components/ContentEditor.tsx:1343
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
@@ -8853,7 +8853,7 @@ msgstr "コンテンツの公開日時"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:842
 msgid "Which content types can use this taxonomy"
-msgstr "この分類を使用できるコンテンツタイプ"
+msgstr "この分類グループを使用するコンテンツタイプを選択します。"
 
 #: packages/admin/src/components/FieldEditor.tsx:198
 msgid "Whole number"

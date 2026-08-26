@@ -1,4 +1,5 @@
 import { Toasty } from "@cloudflare/kumo";
+import { i18n } from "@lingui/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -11,6 +12,7 @@ import {
 	TaxonomyManager,
 } from "../../src/components/TaxonomyManager";
 import type { TaxonomyTerm } from "../../src/lib/api/taxonomies.js";
+import { loadMessages } from "../../src/locales/index.js";
 import { render } from "../utils/render.tsx";
 
 const taxonomyResponse = JSON.stringify({
@@ -198,6 +200,14 @@ vi.mock("../../src/lib/api/client.js", async () => {
 	return {
 		...actual,
 		apiFetch: vi.fn(),
+		fetchManifest: vi.fn().mockResolvedValue({
+			collections: {
+				pages: { label: "Pages" },
+				posts: { label: "Posts" },
+			},
+			taxonomies: [],
+			plugins: {},
+		}),
 	};
 });
 
@@ -328,6 +338,56 @@ describe("TaxonomyManager", () => {
 		await expect
 			.element(screen.getByRole("heading", { name: ADD_CATEGORY_HEADING_REGEX }))
 			.toBeInTheDocument();
+	});
+
+	it("explains taxonomy groups clearly in Japanese", async () => {
+		const [japaneseMessages, englishMessages] = await Promise.all([
+			loadMessages("ja"),
+			loadMessages("en"),
+		]);
+		i18n.loadAndActivate({ locale: "ja", messages: japaneseMessages });
+
+		try {
+			const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+				wrapper: Wrapper,
+			});
+
+			await screen.getByRole("button", { name: "分類グループを追加" }).click();
+			await expect
+				.element(screen.getByRole("heading", { name: "分類グループを作成" }))
+				.toBeInTheDocument();
+			await expect
+				.element(
+					screen.getByText("カテゴリーやタグのような分類グループを作成します。", {
+						exact: true,
+					}),
+				)
+				.toBeInTheDocument();
+			await expect
+				.element(
+					screen.getByText(
+						"分類グループの識別名として使用します。半角小文字、数字、アンダースコアのみ使用できます。",
+						{ exact: true },
+					),
+				)
+				.toBeInTheDocument();
+			await expect
+				.element(
+					screen.getByRole("checkbox", {
+						name: "階層構造を使用する（カテゴリーのように親子関係を設定できます）",
+					}),
+				)
+				.toBeInTheDocument();
+			await expect
+				.element(
+					screen.getByText("この分類グループを使用するコンテンツタイプを選択します。", {
+						exact: true,
+					}),
+				)
+				.toBeInTheDocument();
+		} finally {
+			i18n.loadAndActivate({ locale: "en", messages: englishMessages });
+		}
 	});
 
 	it("create dialog has name, slug, and description inputs", async () => {
