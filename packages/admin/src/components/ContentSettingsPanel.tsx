@@ -321,6 +321,7 @@ export interface ContentSettingsPanelProps {
 	users?: UserListItem[];
 	onAuthorChange?: (authorId: string | null) => void;
 	activeBylines: BylineCreditInput[];
+	inferredByline?: BylineSummary | null;
 	availableBylines?: BylineSummary[];
 	availableBylinesLoaded?: boolean;
 	onBylinesChange: (next: BylineCreditInput[]) => void;
@@ -377,6 +378,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	users,
 	onAuthorChange,
 	activeBylines,
+	inferredByline,
 	availableBylines,
 	availableBylinesLoaded,
 	onBylinesChange,
@@ -674,8 +676,11 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							</Text>
 							<BylineCreditsEditor
 								credits={activeBylines}
+								inferredByline={inferredByline}
 								bylines={availableBylines ?? []}
-								selectedBylineDetails={item?.bylines?.map((entry) => entry.byline)}
+								selectedBylineDetails={item?.bylines
+									?.filter((entry) => entry.source !== "inferred")
+									.map((entry) => entry.byline)}
 								bylinesLoaded={availableBylinesLoaded}
 								onChange={onBylinesChange}
 								onQuickCreate={onQuickCreateByline}
@@ -851,6 +856,7 @@ interface AuthorSelectorProps {
 
 interface BylineCreditsEditorProps {
 	credits: BylineCreditInput[];
+	inferredByline?: BylineSummary | null;
 	bylines: BylineSummary[];
 	/**
 	 * Full byline details for the entry's already-selected credits. Seeded from
@@ -879,6 +885,7 @@ interface BylineCreditsEditorProps {
 
 function BylineCreditsEditor({
 	credits,
+	inferredByline,
 	bylines,
 	selectedBylineDetails,
 	onChange,
@@ -1083,6 +1090,21 @@ function BylineCreditsEditor({
 							</div>
 						);
 					})}
+				</div>
+			) : inferredByline ? (
+				<div className="space-y-2">
+					<div className="flex flex-wrap items-center gap-2">
+						<Text bold as="span">
+							{inferredByline.displayName}
+						</Text>
+						<Badge variant="secondary">{t`Automatic`}</Badge>
+					</div>
+					<Text as="p" variant="secondary">
+						{t`From the post owner`}
+					</Text>
+					<Text as="p" variant="secondary">
+						{t`Choosing a byline replaces this automatic credit.`}
+					</Text>
 				</div>
 			) : (
 				<p className="text-sm text-kumo-subtle">{t`No bylines selected.`}</p>

@@ -1059,6 +1059,127 @@ describe("ContentEditor", () => {
 			expect(payload).not.toHaveProperty("bylines");
 		});
 
+		it("shows an owner-inferred byline as an automatic credit", async () => {
+			const inferredCredit = {
+				byline: makeByline({ id: "inferred", displayName: "Owner Profile" }),
+				sortOrder: 0,
+				roleLabel: null,
+				source: "inferred" as const,
+			};
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({
+					data: { title: "Hello", body: "" },
+					bylines: [inferredCredit],
+				}),
+				currentUser: { id: "u-1", role: 50 },
+				availableBylines: [],
+				availableBylinesLoaded: true,
+			});
+
+			await expect.element(screen.getByText("Automatic", { exact: true })).toBeInTheDocument();
+			await expect.element(screen.getByText("From the post owner")).toBeInTheDocument();
+			await expect.element(screen.getByLabelText("Role label")).not.toBeInTheDocument();
+		});
+
+		it("never saves an inferred byline as an explicit credit", async () => {
+			const onSave = vi.fn();
+			const inferredCredit = {
+				byline: makeByline({ id: "inferred", displayName: "Owner Profile" }),
+				sortOrder: 0,
+				roleLabel: null,
+				source: "inferred" as const,
+			};
+			const explicit = makeByline({
+				id: "explicit",
+				slug: "mina-patel",
+				displayName: "Mina Patel",
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({
+					data: { title: "Hello", body: "" },
+					bylines: [inferredCredit],
+				}),
+				currentUser: { id: "u-1", role: 50 },
+				availableBylines: [explicit],
+				availableBylinesLoaded: true,
+				onSave,
+			});
+
+			await screen.getByRole("button", { name: /Mina Patel/ }).click();
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({
+					bylines: [{ bylineId: "explicit", roleLabel: null }],
+				}),
+			);
+		});
+
+		it("never autosaves an inferred byline as an explicit credit", async () => {
+			vi.useFakeTimers();
+			try {
+				const onAutosave = vi.fn();
+				const inferredCredit = {
+					byline: makeByline({ id: "inferred", displayName: "Owner Profile" }),
+					sortOrder: 0,
+					roleLabel: null,
+					source: "inferred" as const,
+				};
+				const explicit = makeByline({
+					id: "explicit",
+					slug: "mina-patel",
+					displayName: "Mina Patel",
+				});
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem({
+						data: { title: "Hello", body: "" },
+						bylines: [inferredCredit],
+					}),
+					currentUser: { id: "u-1", role: 50 },
+					availableBylines: [explicit],
+					availableBylinesLoaded: true,
+					onAutosave,
+				});
+
+				await screen.getByRole("button", { name: /Mina Patel/ }).click();
+				await vi.advanceTimersByTimeAsync(2000);
+
+				expect(onAutosave).toHaveBeenCalledWith(
+					expect.objectContaining({
+						bylines: [{ bylineId: "explicit", roleLabel: null }],
+					}),
+				);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
+		it("keeps a credit without a source editable for backwards compatibility", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({
+					data: { title: "Hello", body: "" },
+					bylines: [
+						{
+							byline: makeByline({ id: "legacy", displayName: "Legacy Credit" }),
+							sortOrder: 0,
+							roleLabel: null,
+						},
+					],
+				}),
+				currentUser: { id: "u-1", role: 50 },
+				availableBylines: [],
+				availableBylinesLoaded: true,
+			});
+
+			await expect.element(screen.getByText("Legacy Credit")).toBeInTheDocument();
+			await expect.element(screen.getByLabelText("Role label")).toBeInTheDocument();
+			await expect.element(screen.getByText("Automatic", { exact: true })).not.toBeInTheDocument();
+		});
+
 		it("suppresses the locale empty-state CTA until the picker query resolves", async () => {
 			const item = makeItem({ data: { title: "Hello", body: "" }, locale: "fr-fr" });
 			const screen = await renderEditor({
