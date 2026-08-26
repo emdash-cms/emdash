@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { parseManualImageRequest } from "../evals/sweep-worker.js";
+import { parseImageByteArray, parseManualImageRequest } from "../evals/sweep-worker.js";
 import { sha256Hex } from "../src/ai/hash.js";
 import { createResizedImageModerationAdapter } from "../src/ai/image-resize.js";
 import { parseModerationModelOutput } from "../src/ai/output.js";
@@ -139,6 +139,13 @@ describe("Workers AI production adapters", () => {
 				base64: "AAEC",
 			}),
 		).toThrow(/MIME type/);
+	});
+
+	it("rejects invalid native image byte arrays instead of coercing them", () => {
+		expect(parseImageByteArray([0, 127, 255])).toEqual(new Uint8Array([0, 127, 255]));
+		for (const value of ["12", Number.NaN, -1, 256, 1.5]) {
+			expect(() => parseImageByteArray([value])).toThrow(/index 0/);
+		}
 	});
 
 	it("sends a bounded moderation derivative while preserving its transform identity", async () => {

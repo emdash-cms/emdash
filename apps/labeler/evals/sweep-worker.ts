@@ -163,7 +163,7 @@ async function resizeImageInput(
 			image: dataUrl(await resizeImage(parseDataUrl(nativeImage), images, maxDimension)),
 		};
 	} else if (Array.isArray(nativeImage)) {
-		const bytes = Uint8Array.from(nativeImage.map((value) => Number(value)));
+		const bytes = parseImageByteArray(nativeImage);
 		transformedInput = {
 			...input,
 			image: [...(await resizeImage(bytes, images, maxDimension))],
@@ -192,6 +192,15 @@ async function resizeImageInput(
 		}),
 	);
 	return { ...transformedInput, messages: transformedMessages };
+}
+
+export function parseImageByteArray(value: readonly unknown[]): Uint8Array {
+	return Uint8Array.from(value, (byte, index) => {
+		if (typeof byte !== "number" || !Number.isInteger(byte) || byte < 0 || byte > 255) {
+			throw new TypeError(`image byte at index ${index} is not a valid uint8 value`);
+		}
+		return byte;
+	});
 }
 
 async function resizeImage(
