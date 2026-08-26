@@ -11,7 +11,7 @@
  * component when `manifest.registry` is configured.
  */
 
-import { Badge, Input } from "@cloudflare/kumo";
+import { Badge, Button, Input } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -157,14 +157,14 @@ export function RegistryBrowse({ config, installedRegistryUris = new Set() }: Re
 			{/* Load more */}
 			{hasNextPage ? (
 				<div className="flex justify-center">
-					<button
+					<Button
 						type="button"
-						className="rounded-md border border-kumo-border bg-kumo-surface px-4 py-2 text-sm hover:bg-kumo-subtle disabled:opacity-50"
+						variant="secondary"
 						onClick={() => fetchNextPage()}
 						disabled={isFetchingNextPage}
 					>
 						{isFetchingNextPage ? t`Loading...` : t`Load more`}
-					</button>
+					</Button>
 				</div>
 			) : null}
 		</div>
