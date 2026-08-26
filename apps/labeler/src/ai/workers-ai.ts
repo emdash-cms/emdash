@@ -24,9 +24,11 @@ export interface WorkersAiAdapterConfig {
 	modelId: string;
 	promptHash: string;
 	maxTokens?: number;
+	maxCompletionTokens?: number;
 	temperature?: number;
 	seed?: number;
 	thinking?: boolean;
+	reasoningEffort?: "low" | "medium" | "high";
 	configuredUnits?: number;
 }
 
@@ -80,11 +82,18 @@ export function createWorkersAiTextAdapter(
 				],
 				response_format: {
 					type: "json_schema",
-					json_schema: MODERATION_OUTPUT_JSON_SCHEMA,
+					json_schema: {
+						name: "emdash_listing_moderation",
+						strict: true,
+						schema: MODERATION_OUTPUT_JSON_SCHEMA,
+					},
 				},
-				max_tokens: parameters.maxTokens,
+				...completionTokenParameters(parameters),
 				temperature: parameters.temperature,
 				seed: parameters.seed,
+				...(parameters.reasoningEffort === undefined
+					? {}
+					: { reasoning_effort: parameters.reasoningEffort }),
 				...(parameters.thinking === undefined
 					? {}
 					: { chat_template_kwargs: { enable_thinking: parameters.thinking } }),
@@ -142,11 +151,18 @@ export function createWorkersAiImageAdapter(
 				],
 				response_format: {
 					type: "json_schema",
-					json_schema: MODERATION_OUTPUT_JSON_SCHEMA,
+					json_schema: {
+						name: "emdash_listing_moderation",
+						strict: true,
+						schema: MODERATION_OUTPUT_JSON_SCHEMA,
+					},
 				},
-				max_tokens: parameters.maxTokens,
+				...completionTokenParameters(parameters),
 				temperature: parameters.temperature,
 				seed: parameters.seed,
+				...(parameters.reasoningEffort === undefined
+					? {}
+					: { reasoning_effort: parameters.reasoningEffort }),
 				...(parameters.thinking === undefined
 					? {}
 					: { chat_template_kwargs: { enable_thinking: parameters.thinking } }),
@@ -163,16 +179,24 @@ export function createWorkersAiImageAdapter(
 }
 
 function adapterParameters(config: WorkersAiAdapterConfig): Readonly<{
-	maxTokens: number;
+	maxTokens?: number;
+	maxCompletionTokens?: number;
 	temperature: number;
 	seed: number;
 	thinking?: boolean;
+	reasoningEffort?: "low" | "medium" | "high";
 }> {
-	const maxTokens = config.maxTokens ?? 1024;
+	if (config.maxTokens !== undefined && config.maxCompletionTokens !== undefined) {
+		throw new TypeError("Workers AI token limits are mutually exclusive");
+	}
+	const maxTokens =
+		config.maxCompletionTokens === undefined ? (config.maxTokens ?? 1024) : undefined;
+	const maxCompletionTokens = config.maxCompletionTokens;
+	const tokenLimit = maxCompletionTokens ?? maxTokens!;
 	const temperature = config.temperature ?? 0;
 	const seed = config.seed ?? 1;
-	if (!Number.isInteger(maxTokens) || maxTokens < 128 || maxTokens > 4096) {
-		throw new TypeError("Workers AI maxTokens must be an integer between 128 and 4096");
+	if (!Number.isInteger(tokenLimit) || tokenLimit < 128 || tokenLimit > 4096) {
+		throw new TypeError("Workers AI token limit must be an integer between 128 and 4096");
 	}
 	if (!Number.isFinite(temperature) || temperature < 0 || temperature > 1) {
 		throw new TypeError("Workers AI temperature must be between zero and one");
@@ -185,11 +209,21 @@ function adapterParameters(config: WorkersAiAdapterConfig): Readonly<{
 		throw new TypeError("Workers AI configuredUnits must be a non-negative finite number");
 	}
 	return {
-		maxTokens,
+		...(maxTokens === undefined ? {} : { maxTokens }),
+		...(maxCompletionTokens === undefined ? {} : { maxCompletionTokens }),
 		temperature,
 		seed,
 		...(config.thinking === undefined ? {} : { thinking: config.thinking }),
+		...(config.reasoningEffort === undefined ? {} : { reasoningEffort: config.reasoningEffort }),
 	};
+}
+
+function completionTokenParameters(
+	parameters: ReturnType<typeof adapterParameters>,
+): Record<string, number> {
+	return parameters.maxCompletionTokens === undefined
+		? { max_tokens: parameters.maxTokens! }
+		: { max_completion_tokens: parameters.maxCompletionTokens };
 }
 
 async function assertPromptHash(prompt: string, expected: string): Promise<void> {

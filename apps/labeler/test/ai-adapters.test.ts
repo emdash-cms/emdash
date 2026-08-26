@@ -3,7 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { sha256Hex } from "../src/ai/hash.js";
 import { createResizedImageModerationAdapter } from "../src/ai/image-resize.js";
 import { parseModerationModelOutput } from "../src/ai/output.js";
-import { IMAGE_SYSTEM_PROMPT, TEXT_SYSTEM_PROMPT } from "../src/ai/prompts.js";
+import {
+	IMAGE_SYSTEM_PROMPT,
+	MODERATION_OUTPUT_JSON_SCHEMA,
+	TEXT_SYSTEM_PROMPT,
+} from "../src/ai/prompts.js";
 import { ModelOutputError } from "../src/ai/types.js";
 import {
 	createWorkersAiImageAdapter,
@@ -156,6 +160,8 @@ describe("Workers AI production adapters", () => {
 			modelId: "openai-compatible-candidate",
 			promptHash: await sha256Hex(TEXT_SYSTEM_PROMPT),
 			thinking: false,
+			maxCompletionTokens: 2048,
+			reasoningEffort: "low",
 		});
 		const result = await adapter.moderate({
 			subject: SUBJECT,
@@ -163,8 +169,19 @@ describe("Workers AI production adapters", () => {
 			links: [],
 		});
 
+		expect(received?.["response_format"]).toEqual({
+			type: "json_schema",
+			json_schema: {
+				name: "emdash_listing_moderation",
+				strict: true,
+				schema: MODERATION_OUTPUT_JSON_SCHEMA,
+			},
+		});
 		expect(JSON.stringify(received?.["response_format"])).not.toContain("uniqueItems");
 		expect(received?.["chat_template_kwargs"]).toEqual({ enable_thinking: false });
+		expect(received).not.toHaveProperty("max_tokens");
+		expect(received?.["max_completion_tokens"]).toBe(2048);
+		expect(received?.["reasoning_effort"]).toBe("low");
 		expect(adapter.identity.parameters.thinking).toBe(false);
 		expect(result.coveredEvidenceRefs).toEqual(["profile.description"]);
 		expect(result.usage.totalTokens).toBe(25);

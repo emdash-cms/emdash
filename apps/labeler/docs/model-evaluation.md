@@ -30,6 +30,19 @@ also found provider-interface differences that required support for OpenAI-compa
 envelopes, provider-parsed objects, native vision inputs, server-sent event responses, and models
 whose native thinking mode must be disabled.
 
+The first broad sweep passed the output schema directly as `response_format.json_schema`. The live
+schemas for current OpenAI-compatible models instead require
+`json_schema: { name, schema, strict }`. The earlier invalid-JSON results for DeepSeek V4, Gemma 4,
+GLM, GPT-OSS 120B, Kimi, Nemotron 3, Qwen 3.8 text, and Llama 3.2 Vision therefore mix adapter
+incompatibility with model behavior and cannot be used as model-quality evidence.
+
+A four-case diagnostic used the nested strict schema and disabled thinking for GLM 5.2 and Kimi
+K2.7 Code. GLM returned valid, correct JSON for all four cases. Kimi handled the two simpler cases,
+but exhausted 1,024 completion tokens and returned empty content for the two phishing cases. With
+`max_completion_tokens` and low reasoning effort, Kimi handled the prompt-injected phishing case
+at 1,227 completion tokens. The Unicode-confusable case still exhausted 4,096 completion tokens
+and returned empty content. Raw provider responses were retained for these diagnostics.
+
 On the public corpus, Llama produced 51 valid text results across three repeats without a
 pass/review error. Qwen produced 21 correct image decisions across three repeats after image
 resizing, without a model error or repeated-run disagreement. Exact category assignments were
@@ -51,7 +64,7 @@ variants in all 18 repeated calls.
 Nemotron 3 was the only alternative text model to pass the 55-case clean screen without an
 error. A later screen against 15 hard prohibited cases produced five unsafe passes, six model
 errors, one invalid output, and three correct reviews. GLM 5.2 and GPT-OSS 120B each failed a
-clean case during the earlier screen. None replaced Llama.
+clean case during the earlier screen, before the response-format correction. None replaced Llama.
 
 ## Promotion evaluation
 
@@ -66,14 +79,18 @@ failure, or missing usage record. P95 model latency was 9.30 seconds. The decisi
 - 14 fixtures changed decision or category across repeats.
 - 109 individual repeated runs disagreed with the expected pass/review outcome.
 
-Fifteen unsafe fixtures were text cases: seven phishing or credential-solicitation cases and eight
-misleading-claim cases. These are valid failures and independently block automatic passing.
+Fifteen fixture rows were text failures, but they represented four unique strings. Six duplicate
+rows contained one credential-solicitation sentence that Llama missed in every repeat. Two unique
+prompt-injection cases each failed in one of three repeats. Seven duplicate rows asserted an
+independently measured installation count without giving the model evidence that the count was
+false; those rows were not valid misleading-claim tests. The genuine phishing misses and repeated
+disagreement still block automatic passing.
 
-Twenty-three unsafe fixtures were images. Visual inspection found that the generated PNGs omitted
-their body text because the SVG renderer did not paint the `foreignObject` content. Those image
-results do not establish a Qwen regression, but they make that image portion unsuitable as
-promotion evidence. The text failures are sufficient to reject the model bundle without relying
-on the defective image cases.
+Twenty-three unsafe fixtures were images. The generated images were text-only cards rather than
+representative visual content, and visual inspection found that the PNGs omitted their body text
+because the SVG renderer did not paint the `foreignObject` content. Those image results do not
+establish a Qwen regression. The genuine text failures are sufficient to reject the model bundle
+without relying on the defective image cases.
 
 The manifest therefore sets `promotionEnabled` to `false`. The runtime keeps `autoPass` disabled,
 and the promotion code rejects this corpus even if a caller presents an otherwise valid review

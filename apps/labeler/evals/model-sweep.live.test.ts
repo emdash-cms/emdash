@@ -27,6 +27,7 @@ import type { EvalFixture, EvalResultBundle, SealedEvalDataset } from "./types.j
 const endpoint = process.env.WORKERS_AI_SWEEP_URL;
 const outputPath = process.env.MODEL_SWEEP_OUTPUT;
 const holdoutPath = process.env.MODEL_SWEEP_HOLDOUT_PATH;
+const captureRaw = process.env.MODEL_SWEEP_CAPTURE_RAW === "1";
 const repeatCount = Number(process.env.MODEL_SWEEP_REPEATS ?? "1");
 const concurrency = Number(process.env.MODEL_SWEEP_CONCURRENCY ?? "3");
 const caseConcurrency = Number(process.env.MODEL_SWEEP_CASE_CONCURRENCY ?? "1");
@@ -35,6 +36,8 @@ const imageModels = parseModels(process.env.MODEL_SWEEP_IMAGE_MODELS);
 const liveFixtureIds = new Set(parseModels(process.env.MODEL_SWEEP_FIXTURE_IDS));
 const disableThinkingModels = new Set(parseModels(process.env.MODEL_SWEEP_DISABLE_THINKING_MODELS));
 const imageMaxDimension = parseOptionalInteger(process.env.MODEL_SWEEP_IMAGE_MAX_DIMENSION);
+const maxCompletionTokens = parseOptionalInteger(process.env.MODEL_SWEEP_MAX_COMPLETION_TOKENS);
+const reasoningEffort = parseReasoningEffort(process.env.MODEL_SWEEP_REASONING_EFFORT);
 
 describe("live Workers AI model sweep", () => {
 	it("evaluates production adapters against the canonical corpus", async () => {
@@ -62,7 +65,12 @@ describe("live Workers AI model sweep", () => {
 				throw new Error(`unknown live fixture: ${fixtureId}`);
 			}
 		}
-		const ai = remoteBinding(endpoint, imageMaxDimension);
+		const rawResponses: RawProviderResponse[] = [];
+		const ai = remoteBinding(
+			endpoint,
+			imageMaxDimension,
+			captureRaw ? (response) => rawResponses.push(response) : undefined,
+		);
 		const textPromptHash = await sha256Hex(TEXT_SYSTEM_PROMPT);
 		const imagePromptHash = await sha256Hex(IMAGE_SYSTEM_PROMPT);
 		const runnerCommit = execFileSync("git", ["rev-parse", "HEAD"], {
@@ -81,12 +89,16 @@ describe("live Workers AI model sweep", () => {
 					promptHash: textPromptHash,
 					configuredUnits: 1,
 					...(disableThinkingModels.has(model) ? { thinking: false } : {}),
+					...(maxCompletionTokens === undefined ? {} : { maxCompletionTokens }),
+					...(reasoningEffort === undefined ? {} : { reasoningEffort }),
 				});
 				const image = createWorkersAiImageAdapter(ai, {
 					modelId: lane === "image" ? model : baseline.imageIdentity.modelId,
 					promptHash: imagePromptHash,
 					configuredUnits: 1,
 					...(disableThinkingModels.has(model) ? { thinking: false } : {}),
+					...(maxCompletionTokens === undefined ? {} : { maxCompletionTokens }),
+					...(reasoningEffort === undefined ? {} : { reasoningEffort }),
 				});
 				const bundle = await runEvaluation({
 					dataset,
@@ -127,9 +139,12 @@ describe("live Workers AI model sweep", () => {
 			promotionComplete: dataset.promotionComplete,
 			promptHashes: { text: textPromptHash, image: imagePromptHash },
 			imageMaxDimension,
+			maxCompletionTokens,
+			reasoningEffort,
 			repeatCount,
 			caseConcurrency,
 			liveFixtureIds: [...liveFixtureIds],
+			...(captureRaw ? { rawResponses } : {}),
 			combined,
 			results,
 		};
@@ -143,7 +158,19 @@ afterAll(() => {
 	delete process.env.WORKERS_AI_SWEEP_URL;
 });
 
-function remoteBinding(url: string, maxDimension: number | undefined): WorkersAiBinding {
+interface RawProviderResponse {
+	model: string;
+	attempt: number;
+	status: number;
+	input: Record<string, unknown>;
+	output: unknown;
+}
+
+function remoteBinding(
+	url: string,
+	maxDimension: number | undefined,
+	onResponse?: (response: RawProviderResponse) => void,
+): WorkersAiBinding {
 	return {
 		async run(model, input) {
 			const retryDelays = [250, 1_000, 3_000] as const;
@@ -158,6 +185,13 @@ function remoteBinding(url: string, maxDimension: number | undefined): WorkersAi
 					}),
 				});
 				const value: unknown = await response.json();
+				onResponse?.({
+					model,
+					attempt: attempt + 1,
+					status: response.status,
+					input,
+					output: value,
+				});
 				if (response.ok) return value;
 				const delay = retryDelays[attempt];
 				if ((response.status === 429 || response.status >= 500) && delay !== undefined) {
@@ -205,6 +239,14 @@ function parseOptionalInteger(value: string | undefined): number | undefined {
 	const parsed = Number(value);
 	if (!Number.isInteger(parsed)) throw new Error("image max dimension must be an integer");
 	return parsed;
+}
+
+function parseReasoningEffort(value: string | undefined): "low" | "medium" | "high" | undefined {
+	if (value === undefined || value === "") return undefined;
+	if (value !== "low" && value !== "medium" && value !== "high") {
+		throw new Error("reasoning effort must be low, medium, or high");
+	}
+	return value;
 }
 
 function expectedFallbackAdapters(
