@@ -11,7 +11,7 @@
  */
 
 import { Button, Input, Loader } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -20,6 +20,23 @@ import { requestSignup, verifySignupToken, type SignupVerifyResult } from "../li
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
 import { BrandLogo } from "./Logo.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+
+export function VerificationSentMessage({ email }: { email: string }) {
+	return (
+		<Trans>
+			We've sent a verification link to{" "}
+			<span className="font-medium text-kumo-default">{email}</span>
+		</Trans>
+	);
+}
+
+export function SignupRoleMessage({ roleName }: { roleName: string }) {
+	return (
+		<Trans>
+			You'll be signing up as <span className="font-medium text-kumo-default">{roleName}</span>
+		</Trans>
+	);
+}
 
 // ============================================================================
 // Types
@@ -130,8 +147,7 @@ function CheckEmailStep({ email, onResend, isResending, resendCooldown }: CheckE
 			<div>
 				<h2 className="text-xl font-semibold">{t`Check your email`}</h2>
 				<p className="text-kumo-subtle mt-2">
-					{t`We've sent a verification link to`}{" "}
-					<span className="font-medium text-kumo-default">{email}</span>
+					<VerificationSentMessage email={email} />
 				</p>
 			</div>
 
@@ -189,8 +205,7 @@ function VerifyStep({ verifyResult, token, onBack: _onBack }: VerifyStepProps) {
 				</div>
 				<h2 className="text-xl font-semibold">{t`Email verified!`}</h2>
 				<p className="text-kumo-subtle mt-2">
-					{t`You'll be signing up as`}{" "}
-					<span className="font-medium text-kumo-default">{verifyResult.roleName}</span>
+					<SignupRoleMessage roleName={verifyResult.roleName} />
 				</p>
 			</div>
 
