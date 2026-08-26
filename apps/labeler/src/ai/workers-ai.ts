@@ -201,7 +201,7 @@ function adapterParameters(config: WorkersAiAdapterConfig): Readonly<{
 	const tokenLimit = maxCompletionTokens ?? maxTokens!;
 	const temperature = config.temperature ?? 0;
 	const seed = config.seed ?? 1;
-	const timeoutMs = config.timeoutMs ?? 60_000;
+	const timeoutMs = config.timeoutMs ?? 20_000;
 	if (!Number.isInteger(tokenLimit) || tokenLimit < 128 || tokenLimit > 4096) {
 		throw new TypeError("Workers AI token limit must be an integer between 128 and 4096");
 	}

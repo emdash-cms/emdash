@@ -86,6 +86,18 @@ describe("moderation model output", () => {
 });
 
 describe("Workers AI production adapters", () => {
+	it("keeps the default provider deadline below the Workflow active-step boundary", async () => {
+		const adapter = createWorkersAiTextAdapter(
+			{ run: async () => ({}) },
+			{
+				modelId: "deadline-candidate",
+				promptHash: await sha256Hex(TEXT_SYSTEM_PROMPT),
+			},
+		);
+
+		expect(adapter.identity.parameters.timeoutMs).toBeLessThan(30_000);
+	});
+
 	it("aborts provider calls at the configured inference deadline", async () => {
 		const ai: WorkersAiBinding = {
 			run: vi.fn(
