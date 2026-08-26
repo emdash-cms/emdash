@@ -1107,7 +1107,8 @@ describe("ContentEditor", () => {
 				onSave,
 			});
 
-			await screen.getByRole("button", { name: /Mina Patel/ }).click();
+			await screen.getByRole("button", { name: "Choose bylines" }).click();
+			await screen.getByRole("option", { name: /Mina Patel/ }).click();
 			await screen.getByRole("button", { name: "Save" }).first().click();
 
 			expect(onSave).toHaveBeenCalledWith(
@@ -1144,7 +1145,8 @@ describe("ContentEditor", () => {
 					onAutosave,
 				});
 
-				await screen.getByRole("button", { name: /Mina Patel/ }).click();
+				await screen.getByRole("button", { name: "Choose bylines" }).click();
+				await screen.getByRole("option", { name: /Mina Patel/ }).click();
 				await vi.advanceTimersByTimeAsync(2000);
 
 				expect(onAutosave).toHaveBeenCalledWith(
@@ -1176,7 +1178,9 @@ describe("ContentEditor", () => {
 			});
 
 			await expect.element(screen.getByText("Legacy Credit")).toBeInTheDocument();
-			await expect.element(screen.getByLabelText("Role label")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "More actions for Legacy Credit" }))
+				.toBeInTheDocument();
 			await expect.element(screen.getByText("Automatic", { exact: true })).not.toBeInTheDocument();
 		});
 
@@ -1495,6 +1499,33 @@ describe("ContentEditor", () => {
 				handle.focus();
 				handle.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: null }));
 
+				await vi.waitFor(() => {
+					const sheet = document.querySelector('nav[data-sidebar="sidebar"][data-mobile="true"]');
+					expect(sheet?.getAttribute("data-state")).toBe("expanded");
+				});
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("keeps the settings sheet open when the byline chooser replaces its trigger", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const byline = makeByline({ id: "credited", displayName: "Mina Patel" });
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem({
+						bylines: [{ byline, sortOrder: 0, roleLabel: null }],
+					}),
+					currentUser: { id: "u-1", role: 50 },
+					availableBylines: [],
+					availableBylinesLoaded: true,
+				});
+
+				await screen.getByRole("button", { name: "Settings" }).click();
+				await screen.getByRole("button", { name: "Add another byline" }).click();
+
+				await expect.element(screen.getByLabelText("Search bylines")).toBeInTheDocument();
 				await vi.waitFor(() => {
 					const sheet = document.querySelector('nav[data-sidebar="sidebar"][data-mobile="true"]');
 					expect(sheet?.getAttribute("data-state")).toBe("expanded");
@@ -2124,6 +2155,47 @@ describe("ContentEditor", () => {
 	// searches the server and resolves credited bylines from the saved entry.
 	// ---------------------------------------------------------------------------
 	describe("byline picker search (#1217)", () => {
+		it("keeps search behind one choose action for an automatic credit", async () => {
+			const inferredCredit = {
+				byline: makeByline({ id: "inferred", displayName: "Owner Profile" }),
+				sortOrder: 0,
+				roleLabel: null,
+				source: "inferred" as const,
+			};
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ bylines: [inferredCredit] }),
+				currentUser: { id: "u-1", role: 50 },
+				availableBylines: [makeByline()],
+				availableBylinesLoaded: true,
+			});
+
+			await expect.element(screen.getByLabelText("Search bylines")).not.toBeInTheDocument();
+			await screen.getByRole("button", { name: "Choose bylines" }).click();
+			await expect.element(screen.getByLabelText("Search bylines")).toBeInTheDocument();
+		});
+
+		it("groups explicit credit actions under a scoped menu", async () => {
+			const credited = makeByline({ id: "credited", displayName: "Mina Patel" });
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({
+					bylines: [{ byline: credited, sortOrder: 0, roleLabel: "Writer" }],
+				}),
+				currentUser: { id: "u-1", role: 50 },
+				availableBylines: [],
+				availableBylinesLoaded: true,
+			});
+
+			await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
+			await expect
+				.element(screen.getByRole("menuitem", { name: "Edit role for this post" }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("menuitem", { name: "Remove credit from this post" }))
+				.toBeInTheDocument();
+		});
+
 		it("searches the server and adds a byline from outside the initial list", async () => {
 			vi.mocked(fetchBylines).mockResolvedValue({
 				items: [makeByline({ id: "b-far", slug: "zoe-far", displayName: "Zoe Far" })],
@@ -2140,6 +2212,7 @@ describe("ContentEditor", () => {
 				availableBylinesLoaded: true,
 			});
 
+			await screen.getByRole("button", { name: "Choose bylines" }).click();
 			const searchInput = screen.getByLabelText("Search bylines");
 			await searchInput.fill("Zoe");
 
@@ -2151,10 +2224,11 @@ describe("ContentEditor", () => {
 				);
 			});
 
-			// Clicking the result credits the byline; it now renders with its
-			// Role label editor and leaves the results list.
-			await screen.getByRole("button", { name: /Zoe Far/ }).click();
-			await expect.element(screen.getByLabelText("Role label")).toBeInTheDocument();
+			// Clicking the result credits the byline and leaves the results list.
+			await screen.getByRole("option", { name: /Zoe Far/ }).click();
+			await expect
+				.element(screen.getByRole("button", { name: "More actions for Zoe Far" }))
+				.toBeInTheDocument();
 		});
 
 		it("renders a credited byline that is not in the initial picker list", async () => {

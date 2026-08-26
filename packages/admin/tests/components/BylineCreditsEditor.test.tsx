@@ -1,0 +1,223 @@
+import { Toasty } from "@cloudflare/kumo";
+import * as React from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
+
+import { BylineCreditsEditor, toBylineSlug } from "../../src/components/BylineCreditsEditor.js";
+import { fetchBylines, type BylineCreditInput, type BylineSummary } from "../../src/lib/api";
+import { render } from "../utils/render.tsx";
+
+vi.mock("../../src/lib/api", async () => {
+	const actual = await vi.importActual("../../src/lib/api");
+	return {
+		...actual,
+		fetchBylines: vi.fn(async () => ({ items: [], nextCursor: null })),
+	};
+});
+
+function makeByline(overrides: Partial<BylineSummary> = {}): BylineSummary {
+	return {
+		id: "byline-1",
+		slug: "mina-patel",
+		displayName: "Mina Patel",
+		bio: null,
+		avatarMediaId: null,
+		websiteUrl: null,
+		userId: null,
+		isGuest: true,
+		createdAt: "2026-08-26T12:00:00Z",
+		updatedAt: "2026-08-26T12:00:00Z",
+		locale: "en",
+		translationGroup: null,
+		...overrides,
+	};
+}
+
+function ControlledEditor({
+	initialCredits = [],
+	bylines,
+	onQuickCreate,
+	onQuickEdit,
+}: {
+	initialCredits?: BylineCreditInput[];
+	bylines: BylineSummary[];
+	onQuickCreate?: (input: { slug: string; displayName: string }) => Promise<BylineSummary>;
+	onQuickEdit?: (
+		bylineId: string,
+		input: { slug: string; displayName: string },
+	) => Promise<BylineSummary>;
+}) {
+	const [credits, setCredits] = React.useState(initialCredits);
+	return (
+		<BylineCreditsEditor
+			credits={credits}
+			bylines={bylines}
+			selectedBylineDetails={bylines}
+			bylinesLoaded
+			onChange={setCredits}
+			onQuickCreate={onQuickCreate}
+			onQuickEdit={onQuickEdit}
+			entryLocale="en"
+		/>
+	);
+}
+
+function renderBylineEditor(ui: React.ReactElement) {
+	return render(ui, {
+		wrapper: ({ children }) => <Toasty>{children}</Toasty>,
+	});
+}
+
+describe("BylineCreditsEditor", () => {
+	beforeEach(() => {
+		vi.mocked(fetchBylines).mockResolvedValue({ items: [], nextCursor: null });
+	});
+
+	it.each([
+		["Review Tester", "review-tester"],
+		["Élodie Durand", "elodie-durand"],
+		["123 Writer", "byline-123-writer"],
+		["李雷", "byline-1d6w72q"],
+	])("creates a valid stable slug for %s", (name, expected) => {
+		expect(toBylineSlug(name)).toBe(expected);
+		expect(toBylineSlug(name)).toMatch(/^[a-z][a-z0-9-]*$/);
+	});
+
+	it("keeps the generated slug in sync until the slug is edited", async () => {
+		const onQuickCreate = vi.fn(async (input) =>
+			makeByline({ displayName: input.displayName, slug: input.slug }),
+		);
+		const screen = await renderBylineEditor(
+			<ControlledEditor bylines={[]} onQuickCreate={onQuickCreate} />,
+		);
+
+		await screen.getByRole("button", { name: "Choose bylines" }).click();
+		await screen.getByLabelText("Search bylines").fill("Starter");
+		await screen.getByRole("option", { name: /Create “Starter”/ }).click();
+
+		const dialog = screen.getByRole("dialog", { name: "Create byline" });
+		const name = dialog.getByLabelText("Name");
+		await name.fill("");
+		await userEvent.type(name, "Review Tester");
+		dialog.getByRole("button", { name: "Advanced" }).element().click();
+		await expect.element(dialog.getByLabelText("URL slug")).toHaveValue("review-tester");
+
+		await dialog.getByLabelText("URL slug").fill("reviewer");
+		await userEvent.type(name, " Updated");
+		await expect.element(dialog.getByLabelText("URL slug")).toHaveValue("reviewer");
+	});
+
+	it("keeps create errors in the dialog with the entered values", async () => {
+		const onQuickCreate = vi.fn(async () => {
+			throw new Error("A byline with this slug already exists");
+		});
+		const screen = await renderBylineEditor(
+			<ControlledEditor bylines={[]} onQuickCreate={onQuickCreate} />,
+		);
+
+		await screen.getByRole("button", { name: "Choose bylines" }).click();
+		await screen.getByLabelText("Search bylines").fill("Mina Patel");
+		await screen.getByRole("option", { name: /Create “Mina Patel”/ }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create byline" });
+		dialog.getByRole("button", { name: "Create and add" }).element().click();
+
+		await expect.element(dialog).toBeVisible();
+		await expect.element(dialog.getByLabelText("Name")).toHaveValue("Mina Patel");
+		await expect.element(screen.getByText("A byline with this slug already exists")).toBeVisible();
+	});
+
+	it("hides stale results and creation when the latest search fails", async () => {
+		const mina = makeByline();
+		vi.mocked(fetchBylines).mockImplementation(async ({ search }) => {
+			if (search === "broken") throw new Error("Search failed");
+			return { items: [mina], nextCursor: null };
+		});
+		const screen = await renderBylineEditor(<ControlledEditor bylines={[]} />);
+
+		await screen.getByRole("button", { name: "Choose bylines" }).click();
+		const search = screen.getByLabelText("Search bylines");
+		await search.fill("Mina");
+		await expect.element(screen.getByRole("option", { name: /Mina Patel/ })).toBeVisible();
+
+		await search.fill("broken");
+		await expect.element(screen.getByText("Couldn’t search bylines.")).toBeVisible();
+		await expect
+			.element(screen.getByRole("option", { name: /Mina Patel/ }))
+			.not.toBeInTheDocument();
+		await expect.element(screen.getByRole("option", { name: /Create/ })).not.toBeInTheDocument();
+	});
+
+	it("edits a role only after Done and removes only the post credit", async () => {
+		const mina = makeByline();
+		const screen = await renderBylineEditor(
+			<ControlledEditor
+				initialCredits={[{ bylineId: mina.id, roleLabel: null }]}
+				bylines={[mina]}
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
+		await screen.getByRole("menuitem", { name: "Set role for this post" }).click();
+		await screen.getByLabelText("Role on this post (optional)").fill("Writer");
+		await expect.element(screen.getByText("Writer")).not.toBeInTheDocument();
+		await screen.getByRole("button", { name: "Done" }).click();
+		await expect.element(screen.getByText("Writer")).toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
+		await screen.getByRole("menuitem", { name: "Remove credit from this post" }).click();
+		await expect.element(screen.getByText("No byline is shown on this post.")).toBeInTheDocument();
+	});
+
+	it("moves credits from the menu without losing either profile", async () => {
+		const mina = makeByline();
+		const guest = makeByline({ id: "guest", slug: "guest", displayName: "Guest Contributor" });
+		const screen = await renderBylineEditor(
+			<ControlledEditor
+				initialCredits={[
+					{ bylineId: mina.id, roleLabel: null },
+					{ bylineId: guest.id, roleLabel: null },
+				]}
+				bylines={[mina, guest]}
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
+		await screen.getByRole("menuitem", { name: "Move down" }).click();
+
+		const actions = Array.from(
+			screen.container.querySelectorAll<HTMLButtonElement>(
+				'button[aria-label^="More actions for"]',
+			),
+			(button) => button.getAttribute("aria-label"),
+		);
+		expect(actions).toEqual(["More actions for Guest Contributor", "More actions for Mina Patel"]);
+	});
+
+	it("reorders credits with the keyboard drag handle", async () => {
+		const mina = makeByline();
+		const guest = makeByline({ id: "guest", slug: "guest", displayName: "Guest Contributor" });
+		const screen = await renderBylineEditor(
+			<ControlledEditor
+				initialCredits={[
+					{ bylineId: mina.id, roleLabel: null },
+					{ bylineId: guest.id, roleLabel: null },
+				]}
+				bylines={[mina, guest]}
+			/>,
+		);
+
+		const handle = screen.getByRole("button", { name: "Reorder Mina Patel" });
+		handle.element().focus();
+		await userEvent.keyboard(" ");
+		await userEvent.keyboard("{ArrowDown}");
+		await userEvent.keyboard(" ");
+
+		const actions = Array.from(
+			screen.container.querySelectorAll<HTMLButtonElement>(
+				'button[aria-label^="More actions for"]',
+			),
+			(button) => button.getAttribute("aria-label"),
+		);
+		expect(actions).toEqual(["More actions for Guest Contributor", "More actions for Mina Patel"]);
+	});
+});

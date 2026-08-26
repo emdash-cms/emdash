@@ -1071,6 +1071,11 @@ function MobileSidebarPortalGuard() {
 				keepSheetOpen();
 				return;
 			}
+			if (source.closest("[data-keep-mobile-sidebar-open]") && destination === null) {
+				event.stopPropagation();
+				keepSheetOpen();
+				return;
+			}
 
 			if (!(destination instanceof Element)) return;
 
