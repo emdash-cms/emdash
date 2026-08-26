@@ -572,8 +572,8 @@ function ConfirmationDialog({
 			title={retry ? t`Retry setup?` : t`Turn on media usage tracking?`}
 			description={
 				retry
-					? t`EmDash will continue setup and resume scanning existing content. Keep content editing and any tools that update the database paused until setup completes.`
-					: t`EmDash will scan existing content to show where media is used. Finish current edits, pause other tools that update content, and wait for current updates to finish before continuing. Keep this page open until setup finishes; returning continues where it stopped. This can’t be turned off.`
+					? t`EmDash will continue setup and resume scanning existing content.`
+					: t`EmDash will scan existing content to show where media is used.`
 			}
 			confirmLabel={retry ? t`Retry setup` : t`Turn on`}
 			pendingLabel={retry ? t`Retrying…` : t`Turning on…`}
@@ -585,12 +585,23 @@ function ConfirmationDialog({
 			error={null}
 			onConfirm={confirm}
 		>
-			<div className="mt-4">
+			<div className="mt-4 grid gap-4 text-sm">
+				<div className="grid gap-1.5">
+					<p className="font-medium">{t`Before you continue:`}</p>
+					<ul className="list-disc space-y-1 ps-5 leading-5 text-kumo-subtle">
+						<li>{t`Finish any current edits.`}</li>
+						<li>{t`Pause other tools that update content.`}</li>
+						<li>{t`Wait for updates already in progress to finish.`}</li>
+					</ul>
+				</div>
+				<p className="leading-5 text-kumo-subtle">
+					{t`Keep this page open until setup finishes. If you leave, return to continue where it stopped.`}
+				</p>
 				<Checkbox
 					checked={drainAcknowledged}
 					onCheckedChange={setDrainAcknowledged}
 					disabled={pending}
-					label={t`I’ve paused editing and other content updates, and waited for current updates to finish.`}
+					label={t`I’ve completed these steps and understand tracking can’t be turned off.`}
 				/>
 			</div>
 		</ConfirmDialog>

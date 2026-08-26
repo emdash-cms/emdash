@@ -45,7 +45,7 @@ const { MediaUsageSettings } =
 
 type ActivationState = "expanded" | "activating" | "active";
 const DRAIN_ACKNOWLEDGEMENT =
-	"I’ve paused editing and other content updates, and waited for current updates to finish.";
+	"I’ve completed these steps and understand tracking can’t be turned off.";
 
 function status(state: ActivationState, options: { failed?: boolean } = {}) {
 	return {
@@ -88,10 +88,23 @@ async function openConfirmation(screen: Awaited<ReturnType<typeof renderPage>>["
 	await expect
 		.element(screen.getByRole("dialog", { name: "Turn on media usage tracking?" }))
 		.toBeVisible();
+	const dialog = screen.getByRole("dialog", { name: "Turn on media usage tracking?" });
+	await expect
+		.element(dialog.getByText("EmDash will scan existing content to show where media is used."))
+		.toBeVisible();
+	await expect.element(dialog.getByText("Before you continue:")).toBeVisible();
+	await expect.element(dialog.getByRole("list")).toBeVisible();
+	for (const step of [
+		"Finish any current edits.",
+		"Pause other tools that update content.",
+		"Wait for updates already in progress to finish.",
+	]) {
+		await expect.element(dialog.getByText(step)).toBeVisible();
+	}
 	await expect
 		.element(
-			screen.getByText(
-				"EmDash will scan existing content to show where media is used. Finish current edits, pause other tools that update content, and wait for current updates to finish before continuing. Keep this page open until setup finishes; returning continues where it stopped. This can’t be turned off.",
+			dialog.getByText(
+				"Keep this page open until setup finishes. If you leave, return to continue where it stopped.",
 			),
 		)
 		.toBeVisible();
