@@ -244,8 +244,7 @@ async function ensureWorkflowInstance(
 ): Promise<EvalRunRecord> {
 	if (record.status !== "running" || !record.workflowInstanceId) return record;
 	const instanceId = record.workflowInstanceId;
-	const instance = await workflow.get(instanceId);
-	const status = (await instance.status()).status;
+	const status = await readWorkflowStatus(workflow, instanceId);
 	if (status === "errored" || status === "terminated") {
 		await store.failWorkflow(record.id, instanceId, FAILURE_CODE, FAILURE_SUMMARY, new Date());
 		const failed = await store.readById(record.id);
@@ -268,10 +267,24 @@ async function ensureWorkflowInstance(
 			},
 		});
 	} catch (error) {
-		const concurrentStatus = (await (await workflow.get(instanceId)).status()).status;
+		const concurrentStatus = await readWorkflowStatus(workflow, instanceId);
 		if (concurrentStatus === "unknown") throw error;
 	}
 	return record;
+}
+
+async function readWorkflowStatus(
+	workflow: EvalWorkflowBinding,
+	instanceId: string,
+): Promise<WorkflowInstanceStatus> {
+	try {
+		return (await (await workflow.get(instanceId)).status()).status;
+	} catch (error) {
+		if (error instanceof Error && error.message.startsWith("(instance.not_found)")) {
+			return "unknown";
+		}
+		throw error;
+	}
 }
 
 export async function readEvalRunStatus(

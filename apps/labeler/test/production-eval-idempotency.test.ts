@@ -396,8 +396,9 @@ function memoryEvalWorkflow(): EvalWorkflowBinding & {
 			instances.set(id, "queued");
 		}),
 		async get(id) {
+			if (!instances.has(id)) throw new Error("(instance.not_found) Instance not found");
 			return {
-				status: async () => ({ status: instances.get(id) ?? "unknown" }),
+				status: async () => ({ status: instances.get(id)! }),
 				restart: () => restart(id),
 			};
 		},
