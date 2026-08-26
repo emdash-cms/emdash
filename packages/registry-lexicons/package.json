@@ -45,6 +45,7 @@
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",
 		"@atcute/lex-cli": "catalog:",
+		"@emdash-cms/registry-moderation": "workspace:*",
 		"publint": "catalog:",
 		"tsdown": "catalog:",
 		"typescript": "catalog:",
