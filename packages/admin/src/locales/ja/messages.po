@@ -1365,7 +1365,7 @@ msgstr "太字"
 #: packages/admin/src/components/FieldEditor.tsx:203
 #: packages/admin/src/components/FieldEditor.tsx:612
 msgid "Boolean"
-msgstr "ブール値"
+msgstr "ブール値(True/False)"
 
 #: packages/admin/src/components/SeoPanel.tsx:195
 msgid "Brief summary shown below the title in search results"
@@ -7208,7 +7208,7 @@ msgstr "セキュリティ設定"
 #: packages/admin/src/components/FieldEditor.tsx:614
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Select"
-msgstr "選択"
+msgstr "選択肢"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
 #: packages/admin/src/components/ContentEditor.tsx:1732
