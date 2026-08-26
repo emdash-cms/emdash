@@ -1057,6 +1057,41 @@ describe("subscription frame bounds", () => {
 });
 
 describe("query replay bounds", () => {
+	it("decodes base64url signatures returned by queryLabels", async () => {
+		const signature = new Uint8Array(64).fill(255);
+		const client = new RealLabelQueryClient(async () =>
+			Response.json({
+				labels: [
+					{
+						ver: 1,
+						src: SOURCE,
+						uri: URI,
+						cid: CID_A,
+						val: "listing-passed",
+						cts: NOW,
+						sig: { $bytes: toBase64Url(signature) },
+					},
+				],
+				cursor: "1",
+			}),
+		);
+
+		await expect(client.query("https://labels.example", SOURCE, 0)).resolves.toEqual({
+			labels: [
+				{
+					ver: 1,
+					src: SOURCE,
+					uri: URI,
+					cid: CID_A,
+					val: "listing-passed",
+					cts: NOW,
+					sig: signature,
+				},
+			],
+			nextCursor: 1,
+		});
+	});
+
 	it("rejects more than the requested 250 labels before parsing them", async () => {
 		const client = new RealLabelQueryClient(async () =>
 			Response.json({ labels: Array.from({ length: 251 }, () => ({})) }),
