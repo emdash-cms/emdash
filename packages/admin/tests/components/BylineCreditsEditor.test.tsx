@@ -126,6 +126,30 @@ describe("BylineCreditsEditor", () => {
 		await expect.element(screen.getByText("A byline with this slug already exists")).toBeVisible();
 	});
 
+	it("returns to the same search after cancelling creation", async () => {
+		const screen = await renderBylineEditor(
+			<ControlledEditor
+				bylines={[]}
+				onQuickCreate={async (input) =>
+					makeByline({ displayName: input.displayName, slug: input.slug })
+				}
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "Choose bylines" }).click();
+		await screen.getByLabelText("Search bylines").fill("Mina Patel");
+		await screen.getByRole("option", { name: /Create “Mina Patel”/ }).click();
+		screen
+			.getByRole("dialog", { name: "Create byline" })
+			.getByRole("button", { name: "Cancel" })
+			.element()
+			.click();
+		await new Promise((resolve) => setTimeout(resolve, 200));
+
+		await expect.element(screen.getByLabelText("Search bylines")).toBeVisible();
+		await expect.element(screen.getByLabelText("Search bylines")).toHaveValue("Mina Patel");
+	});
+
 	it("hides stale results and creation when the latest search fails", async () => {
 		const mina = makeByline();
 		vi.mocked(fetchBylines).mockImplementation(async ({ search }) => {
@@ -168,7 +192,7 @@ describe("BylineCreditsEditor", () => {
 		await expect.element(screen.getByText("No byline is shown on this post.")).toBeInTheDocument();
 	});
 
-	it("moves credits from the menu without losing either profile", async () => {
+	it("keeps ordering actions on the drag handle instead of the row menu", async () => {
 		const mina = makeByline();
 		const guest = makeByline({ id: "guest", slug: "guest", displayName: "Guest Contributor" });
 		const screen = await renderBylineEditor(
@@ -182,15 +206,30 @@ describe("BylineCreditsEditor", () => {
 		);
 
 		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
-		await screen.getByRole("menuitem", { name: "Move down" }).click();
+		await expect.element(screen.getByRole("menuitem", { name: "Move up" })).not.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("menuitem", { name: "Move down" }))
+			.not.toBeInTheDocument();
+	});
 
-		const actions = Array.from(
-			screen.container.querySelectorAll<HTMLButtonElement>(
-				'button[aria-label^="More actions for"]',
-			),
-			(button) => button.getAttribute("aria-label"),
+	it("keeps selected credits in place while the chooser is open", async () => {
+		const mina = makeByline();
+		const guest = makeByline({ id: "guest", slug: "guest", displayName: "Guest Contributor" });
+		const screen = await renderBylineEditor(
+			<ControlledEditor
+				initialCredits={[
+					{ bylineId: mina.id, roleLabel: null },
+					{ bylineId: guest.id, roleLabel: null },
+				]}
+				bylines={[mina, guest]}
+			/>,
 		);
-		expect(actions).toEqual(["More actions for Guest Contributor", "More actions for Mina Patel"]);
+
+		await screen.getByRole("button", { name: "Add another byline" }).click();
+
+		await expect.element(screen.getByLabelText("Search bylines")).toBeVisible();
+		await expect.element(screen.getByText("Mina Patel")).toBeVisible();
+		await expect.element(screen.getByText("Guest Contributor")).toBeVisible();
 	});
 
 	it("reorders credits with the keyboard drag handle", async () => {

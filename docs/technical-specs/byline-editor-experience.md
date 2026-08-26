@@ -12,7 +12,7 @@ Replace the content editor's dense byline form with one focused workflow:
 1. Show the public credit currently attached to the entry.
 2. Let an editor search for or create a byline.
 3. Show explicitly selected credits in their public order.
-4. Keep role, ordering, profile editing, and removal behind each credit's action menu.
+4. Use the drag handle for ordering and keep role, profile editing, and removal in each credit's action menu.
 
 The implementation stays inside `@emdash-cms/admin`. It reuses the current content and byline APIs, locale rules, autosave behavior, Kumo components, and `@dnd-kit`. It does not change stored data, server routes, public rendering, the Bylines management page, or logged-out query counts.
 
@@ -102,7 +102,7 @@ If explicit credits exist at another locale but do not resolve at the active loc
 
 ### Choose a byline
 
-`Choose bylines` and the selected-state add button open the chooser within the section. The chooser replaces the credit list temporarily; it is not another card or nested sidebar.
+`Choose bylines` and the selected-state add button open a Kumo popover anchored to the trigger. Keep the credit list mounted behind the popover so opening search does not resize or scroll the settings sections.
 
 Use one controlled Kumo `Autocomplete`:
 
@@ -140,12 +140,11 @@ Each row contains:
 3. the role label as secondary text when set;
 4. a Kumo square ghost `DropdownMenu` trigger at the logical end.
 
-Use `@dnd-kit` pointer and keyboard sensors to reorder rows. The nested byline `DndContext` must not move the outer settings section. Mark the activator with the existing `data-sortable-handle` and `data-sorting` attributes so `MobileSidebarPortalGuard` preserves the mobile sheet during blur and Escape. Keep Move up and Move down menu items as explicit alternatives; disable only the unavailable boundary action.
+Use `@dnd-kit` pointer, touch, and keyboard sensors to reorder rows. The nested byline `DndContext` must not move the outer settings section. Mark the activator with the existing `data-sortable-handle` and `data-sorting` attributes so `MobileSidebarPortalGuard` preserves the mobile sheet during blur and Escape. The handle is the only ordering control; the action menu does not duplicate it with Move up or Move down commands.
 
 The row menu contains:
 
 - `Set role for this post` or `Edit role for this post`;
-- `Move up` and `Move down`;
 - `Edit name and slug` when `onQuickEditByline` exists, with supporting dialog copy that the change applies everywhere;
 - a separator;
 - `Remove credit from this post` with `variant="danger"`.
@@ -191,6 +190,7 @@ Use the installed public components directly:
 - `Autocomplete` for search and result selection;
 - `Button` for all actions and drag handles;
 - `DropdownMenu` for row actions;
+- `Popover` for the anchored chooser;
 - `Dialog` for create and reusable-profile edit;
 - `Collapsible` for Advanced and the per-entry role editor;
 - `Input` for name, slug, and role;
@@ -244,7 +244,7 @@ Manual verification must cover 320, 360, 480, 768, 1023, 1024, and 1440 px viewp
 - Every icon-only button has a localized accessible name. Decorative icons use `aria-hidden="true"`.
 - Kumo Autocomplete owns combobox, listbox, arrow-key, Enter, and Escape behavior.
 - Kumo Dialog owns focus trapping. Opening a dialog focuses Name; a validation failure focuses the first invalid input. The controlled workflow restores focus to a stable chooser input, row menu trigger, or newly added row when the originating popup item no longer exists.
-- The drag handle supports pointer, touch, and DnD Kit's keyboard model. The menu alternatives provide a second ordering path.
+- The drag handle supports pointer, touch, and DnD Kit's keyboard model, including live instructions and position announcements.
 - Status changes such as adding, moving, or removing a credit use one polite live region. Validation and mutation failures use field errors or `DialogError`, not color or toast alone.
 - All visible copy, placeholders, accessible names, error text, and live-region text use Lingui.
 - Use logical Tailwind utilities. Verify Arabic with the panel on the left, correct row order, logical menu placement, and no directional icon errors.
@@ -297,7 +297,7 @@ Keep the existing editor-level section gate and existing server authorization. T
 ### Selected credits
 
 - Pointer, touch, and keyboard reorder change serialized order without moving the outer settings section.
-- Move up/down boundaries are disabled correctly.
+- The row menu contains no duplicate ordering actions; the drag handle remains keyboard operable.
 - Role editing updates only that credit's `roleLabel`.
 - Remove credit changes the content payload and never calls the byline-delete API.
 - Long translated actions wrap without overlap at 320 px.
@@ -357,9 +357,19 @@ Expected change: 350–550 production lines added with 300–380 lines removed f
 
 Exclusions: no manager-page redesign, core change, new dependency, avatar UI, or unrelated settings cleanup.
 
+### Commit 3: keep search and ordering spatially stable
+
+Responsibility:
+
+- Render search in a native Kumo popover without replacing or moving the selected-credit list.
+- Keep ordering on the pointer, touch, and keyboard drag handle instead of duplicating it in the row menu.
+- Add focused regressions for the stable chooser and simplified menu.
+
+Exclusions: no data-flow change, new dependency, custom overlay, or settings-panel redesign.
+
 ## Scope gates
 
-- **Expected:** the seven files above, two commits, no public API removal, no server or database work.
+- **Expected:** the seven files above, three commits, no public API removal, no server or database work.
 - **Warning:** more than five production files, more than 650 added production lines before deletions, or a new local UI abstraction. Stop for a scope audit.
 - **Blocking:** any core/API/schema/migration change, new dependency, Bylines-page redesign, additional logged-out query, custom design-system component, or exported breaking change. Obtain explicit approval before proceeding.
 
@@ -387,7 +397,7 @@ The approved interaction fixes the product decisions for this PR:
 - quick create asks for Name first and hides Slug under Advanced;
 - global name/slug editing stays available but explicitly warns that changes apply everywhere;
 - role labels remain optional and entry-specific;
-- ordering supports drag plus Move up and Move down;
+- ordering uses one drag handle with pointer, touch, and keyboard support;
 - duplicate-name edge cases remain a full Bylines-page task;
 - avatars are excluded because the installed Kumo package has no public styled Avatar and adding media work would expand scope.
 

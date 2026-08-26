@@ -7,6 +7,7 @@ import {
 	DropdownMenu,
 	Input,
 	Loader,
+	Popover,
 	Text,
 } from "@cloudflare/kumo";
 import {
@@ -30,8 +31,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowDown,
-	ArrowUp,
 	DotsSixVertical,
 	DotsThree,
 	PencilSimple,
@@ -130,6 +129,7 @@ export function BylineCreditsEditor({
 	const [createError, setCreateError] = React.useState<unknown>(null);
 	const [isCreating, setIsCreating] = React.useState(false);
 	const [createAdvancedOpen, setCreateAdvancedOpen] = React.useState(false);
+	const [createPendingOpen, setCreatePendingOpen] = React.useState(false);
 	const [editBylineId, setEditBylineId] = React.useState<string | null>(null);
 	const [editName, setEditName] = React.useState("");
 	const [editSlug, setEditSlug] = React.useState("");
@@ -200,7 +200,9 @@ export function BylineCreditsEditor({
 	);
 
 	const focusChooser = React.useCallback(() => {
-		requestAnimationFrame(() => chooserRef.current?.querySelector("input")?.focus());
+		requestAnimationFrame(() =>
+			chooserRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true }),
+		);
 	}, []);
 	const focusRow = React.useCallback((id: string) => {
 		requestAnimationFrame(() =>
@@ -219,21 +221,17 @@ export function BylineCreditsEditor({
 		[onChange],
 	);
 
-	const openChooser = React.useCallback(
-		(event?: React.MouseEvent<HTMLButtonElement>) => {
-			if (event) chooserTriggerRef.current = event.currentTarget;
-			setChooserOpen(true);
-			setAutocompleteOpen(true);
-			focusChooser();
-		},
-		[focusChooser],
-	);
+	const openChooser = React.useCallback(() => {
+		setChooserOpen(true);
+		setAutocompleteOpen(true);
+		focusChooser();
+	}, [focusChooser]);
 
-	const closeChooser = React.useCallback(() => {
+	const closeChooser = React.useCallback((restoreFocus = true) => {
 		setChooserOpen(false);
 		setAutocompleteOpen(false);
 		setSearch("");
-		requestAnimationFrame(() => chooserTriggerRef.current?.focus());
+		if (restoreFocus) requestAnimationFrame(() => chooserTriggerRef.current?.focus());
 	}, []);
 
 	const addByline = React.useCallback(
@@ -247,20 +245,6 @@ export function BylineCreditsEditor({
 			focusRow(byline.id);
 		},
 		[changeCredits, closeChooser, focusRow, t],
-	);
-
-	const moveByline = React.useCallback(
-		(id: string, direction: -1 | 1) => {
-			const current = creditsRef.current;
-			const index = current.findIndex((credit) => credit.bylineId === id);
-			const target = index + direction;
-			if (index < 0 || target < 0 || target >= current.length) return;
-			changeCredits(arrayMove(current, index, target));
-			const label = bylineMap.get(id)?.displayName ?? t`Byline`;
-			setAnnouncement(t`${label} moved to position ${target + 1}.`);
-			focusRow(id);
-		},
-		[bylineMap, changeCredits, focusRow, t],
 	);
 
 	const handleDragStart = React.useCallback((event: DragStartEvent) => {
@@ -292,8 +276,8 @@ export function BylineCreditsEditor({
 		setCreateError(null);
 		setCreateAdvancedOpen(false);
 		setAutocompleteOpen(false);
+		setCreatePendingOpen(true);
 		setChooserOpen(false);
-		requestAnimationFrame(() => setCreateOpen(true));
 	}, [search]);
 
 	const validateProfile = React.useCallback(
@@ -376,125 +360,144 @@ export function BylineCreditsEditor({
 
 	return (
 		<div className="space-y-4">
-			{chooserOpen ? (
-				<div
-					ref={chooserRef}
-					className="space-y-3"
-					onKeyDown={(event) => {
-						if (event.key === "Escape") {
-							event.preventDefault();
-							closeChooser();
-						}
-					}}
+			<Popover
+				open={chooserOpen}
+				onOpenChange={(open) => (open ? openChooser() : closeChooser(false))}
+				onOpenChangeComplete={(open) => {
+					if (!open && createPendingOpen) {
+						setCreatePendingOpen(false);
+						setCreateOpen(true);
+					}
+				}}
+			>
+				<Popover.Content
+					align="end"
+					positionMethod="fixed"
+					className="w-80 max-w-[calc(100vw-2rem)]"
 				>
-					<div className="flex items-start justify-between gap-3">
-						<div className="min-w-0 space-y-1">
-							<Text bold as="h4">
-								{t`Add byline`}
-							</Text>
-							<Text variant="secondary">{t`Search reusable public profiles.`}</Text>
-						</div>
-						<Button
-							type="button"
-							variant="ghost"
-							shape="square"
-							icon={<X aria-hidden="true" />}
-							aria-label={t`Close byline search`}
-							onClick={closeChooser}
-						/>
-					</div>
-
-					<Autocomplete
-						items={options}
-						value={search}
-						onValueChange={(value) => {
-							setSearch(String(value ?? ""));
-							setAutocompleteOpen(true);
+					<div
+						ref={chooserRef}
+						className="space-y-3"
+						onKeyDown={(event) => {
+							if (event.key === "Escape") {
+								event.preventDefault();
+								closeChooser();
+							}
 						}}
-						open={autocompleteOpen && options.length > 0}
-						onOpenChange={setAutocompleteOpen}
-						mode="none"
-						autoHighlight="always"
-						openOnInputClick
-						itemToStringValue={(option: BylineOption) =>
-							option.type === "byline" ? option.byline.displayName : option.label
-						}
-						label={<span className="sr-only">{t`Search bylines`}</span>}
 					>
-						<Autocomplete.InputGroup size="base" placeholder={t`Search by name…`} />
-						<Autocomplete.Content>
-							<Autocomplete.List className="max-h-64 overflow-y-auto">
-								{(option: BylineOption) => (
-									<Autocomplete.Item
-										key={option.type === "byline" ? option.byline.id : "create"}
-										value={option}
-										onClick={() => {
-											if (option.type === "byline") addByline(option.byline);
-											else openCreate();
-										}}
-									>
-										{option.type === "byline" ? (
-											<span className="grid min-w-0 gap-0.5">
-												<Text bold as="span" DANGEROUS_className="wrap-break-word">
-													{option.byline.displayName}
-												</Text>
-												<Text as="span" variant="secondary" DANGEROUS_className="wrap-break-word">
-													{option.byline.slug}
-												</Text>
-											</span>
-										) : (
-											<span className="flex items-center gap-2">
-												<Plus aria-hidden="true" />
-												{t`Create “${option.label}”`}
-											</span>
-										)}
-									</Autocomplete.Item>
-								)}
-							</Autocomplete.List>
-						</Autocomplete.Content>
-					</Autocomplete>
+						<div className="flex items-start justify-between gap-3">
+							<div className="min-w-0 space-y-1">
+								<Popover.Title>{t`Add byline`}</Popover.Title>
+								<Popover.Description>{t`Search reusable public profiles.`}</Popover.Description>
+							</div>
+							<Popover.Close
+								render={
+									<Button
+										type="button"
+										variant="ghost"
+										shape="square"
+										icon={<X aria-hidden="true" />}
+										aria-label={t`Close byline search`}
+									/>
+								}
+							/>
+						</div>
 
-					{searchEnabled && searchResults.isLoading && !searchResults.data ? (
-						<div className="flex items-center gap-2">
-							<Loader size="sm" />
-							<Text variant="secondary">{t`Searching…`}</Text>
-						</div>
-					) : null}
-					{searchEnabled && searchResults.isFetching && searchResults.data ? (
-						<div className="flex items-center gap-2">
-							<Loader size="sm" />
-							<Text variant="secondary">{t`Updating results…`}</Text>
-						</div>
-					) : null}
-					{searchEnabled && searchResults.isError ? (
-						<div className="space-y-2">
-							<Text variant="error">{t`Couldn’t search bylines.`}</Text>
-							<Button type="button" variant="secondary" onClick={() => searchResults.refetch()}>
-								{t`Retry`}
-							</Button>
-						</div>
-					) : null}
-					{searchEnabled && searchResults.isSuccess && options.length === 0 ? (
-						<Text variant="secondary">{t`No matching bylines.`}</Text>
-					) : null}
-					{(searchResults.data?.nextCursor || (!searchEnabled && bylines.length >= 100)) && (
-						<Text variant="secondary">{t`Keep typing to narrow the list.`}</Text>
-					)}
-				</div>
-			) : (
+						<Autocomplete
+							items={options}
+							value={search}
+							onValueChange={(value) => {
+								setSearch(String(value ?? ""));
+								setAutocompleteOpen(true);
+							}}
+							open={autocompleteOpen && options.length > 0}
+							onOpenChange={setAutocompleteOpen}
+							mode="none"
+							autoHighlight="always"
+							openOnInputClick
+							itemToStringValue={(option: BylineOption) =>
+								option.type === "byline" ? option.byline.displayName : option.label
+							}
+							label={<span className="sr-only">{t`Search bylines`}</span>}
+						>
+							<Autocomplete.InputGroup size="base" placeholder={t`Search by name…`} />
+							<Autocomplete.Content>
+								<Autocomplete.List className="max-h-64 overflow-y-auto">
+									{(option: BylineOption) => (
+										<Autocomplete.Item
+											key={option.type === "byline" ? option.byline.id : "create"}
+											value={option}
+											onClick={() => {
+												if (option.type === "byline") addByline(option.byline);
+												else openCreate();
+											}}
+										>
+											{option.type === "byline" ? (
+												<span className="grid min-w-0 gap-0.5">
+													<Text bold as="span" DANGEROUS_className="wrap-break-word">
+														{option.byline.displayName}
+													</Text>
+													<Text as="span" variant="secondary" DANGEROUS_className="wrap-break-word">
+														{option.byline.slug}
+													</Text>
+												</span>
+											) : (
+												<span className="flex items-center gap-2">
+													<Plus aria-hidden="true" />
+													{t`Create “${option.label}”`}
+												</span>
+											)}
+										</Autocomplete.Item>
+									)}
+								</Autocomplete.List>
+							</Autocomplete.Content>
+						</Autocomplete>
+
+						{searchEnabled && searchResults.isLoading && !searchResults.data ? (
+							<div className="flex items-center gap-2">
+								<Loader size="sm" />
+								<Text variant="secondary">{t`Searching…`}</Text>
+							</div>
+						) : null}
+						{searchEnabled && searchResults.isFetching && searchResults.data ? (
+							<div className="flex items-center gap-2">
+								<Loader size="sm" />
+								<Text variant="secondary">{t`Updating results…`}</Text>
+							</div>
+						) : null}
+						{searchEnabled && searchResults.isError ? (
+							<div className="space-y-2">
+								<Text variant="error">{t`Couldn’t search bylines.`}</Text>
+								<Button type="button" variant="secondary" onClick={() => searchResults.refetch()}>
+									{t`Retry`}
+								</Button>
+							</div>
+						) : null}
+						{searchEnabled && searchResults.isSuccess && options.length === 0 ? (
+							<Text variant="secondary">{t`No matching bylines.`}</Text>
+						) : null}
+						{(searchResults.data?.nextCursor || (!searchEnabled && bylines.length >= 100)) && (
+							<Text variant="secondary">{t`Keep typing to narrow the list.`}</Text>
+						)}
+					</div>
+				</Popover.Content>
 				<>
 					{credits.length > 0 ? (
 						<>
 							<div className="flex items-start justify-between gap-3">
 								<Text variant="secondary">{t`Shown to readers in this order.`}</Text>
-								<Button
-									type="button"
-									variant="ghost"
-									shape="square"
-									icon={<Plus aria-hidden="true" />}
-									aria-label={t`Add another byline`}
-									data-keep-mobile-sidebar-open
-									onClick={openChooser}
+								<Popover.Trigger
+									render={
+										<Button
+											ref={chooserTriggerRef}
+											type="button"
+											variant="ghost"
+											shape="square"
+											icon={<Plus aria-hidden="true" />}
+											aria-label={t`Add another byline`}
+											data-keep-mobile-sidebar-open
+										/>
+									}
 								/>
 							</div>
 							<DndContext
@@ -510,7 +513,7 @@ export function BylineCreditsEditor({
 									strategy={verticalListSortingStrategy}
 								>
 									<div className="divide-y divide-kumo-line border-y border-kumo-line">
-										{credits.map((credit, index) => {
+										{credits.map((credit) => {
 											const byline = bylineMap.get(credit.bylineId);
 											if (!byline) return null;
 											return (
@@ -518,8 +521,6 @@ export function BylineCreditsEditor({
 													key={credit.bylineId}
 													credit={credit}
 													byline={byline}
-													index={index}
-													count={credits.length}
 													isSorting={activeDragId !== null}
 													roleOpen={roleEditorId === credit.bylineId}
 													roleDraft={roleDraft}
@@ -544,7 +545,6 @@ export function BylineCreditsEditor({
 														setAnnouncement(t`Role updated for ${byline.displayName}.`);
 														focusRow(credit.bylineId);
 													}}
-													onMove={(direction) => moveByline(credit.bylineId, direction)}
 													onEdit={onQuickEdit ? () => openEdit(byline) : undefined}
 													onRemove={() => {
 														changeCredits(
@@ -580,29 +580,37 @@ export function BylineCreditsEditor({
 							<Text as="p" variant="secondary">
 								{t`Choosing a byline replaces this automatic credit.`}
 							</Text>
-							<Button
-								type="button"
-								variant="secondary"
-								className="w-full"
-								data-keep-mobile-sidebar-open
-								onClick={openChooser}
-							>
-								{t`Choose bylines`}
-							</Button>
+							<Popover.Trigger
+								render={
+									<Button
+										ref={chooserTriggerRef}
+										type="button"
+										variant="secondary"
+										className="w-full"
+										data-keep-mobile-sidebar-open
+									>
+										{t`Choose bylines`}
+									</Button>
+								}
+							/>
 						</div>
 					) : (
 						<div className="space-y-3">
 							<Text variant="secondary">{t`People shown publicly on this post.`}</Text>
 							<Text variant="secondary">{t`No byline is shown on this post.`}</Text>
-							<Button
-								type="button"
-								variant="secondary"
-								className="w-full"
-								data-keep-mobile-sidebar-open
-								onClick={openChooser}
-							>
-								{t`Choose bylines`}
-							</Button>
+							<Popover.Trigger
+								render={
+									<Button
+										ref={chooserTriggerRef}
+										type="button"
+										variant="secondary"
+										className="w-full"
+										data-keep-mobile-sidebar-open
+									>
+										{t`Choose bylines`}
+									</Button>
+								}
+							/>
 						</div>
 					)}
 
@@ -622,7 +630,7 @@ export function BylineCreditsEditor({
 						</div>
 					) : null}
 				</>
-			)}
+			</Popover>
 
 			<p className="sr-only" aria-live="polite">
 				{announcement}
@@ -635,9 +643,7 @@ export function BylineCreditsEditor({
 					if (!open && isCreating) return;
 					setCreateOpen(open);
 					if (!open) {
-						setChooserOpen(true);
-						setAutocompleteOpen(true);
-						focusChooser();
+						requestAnimationFrame(openChooser);
 					}
 				}}
 				name={createName}
@@ -697,8 +703,6 @@ export function BylineCreditsEditor({
 interface SortableBylineRowProps {
 	credit: BylineCreditInput;
 	byline: BylineSummary;
-	index: number;
-	count: number;
 	isSorting: boolean;
 	roleOpen: boolean;
 	roleDraft: string;
@@ -706,7 +710,6 @@ interface SortableBylineRowProps {
 	onOpenRole: () => void;
 	onCancelRole: () => void;
 	onCommitRole: () => void;
-	onMove: (direction: -1 | 1) => void;
 	onEdit?: () => void;
 	onRemove: () => void;
 	rowRef: (node: HTMLDivElement | null) => void;
@@ -715,8 +718,6 @@ interface SortableBylineRowProps {
 function SortableBylineRow({
 	credit,
 	byline,
-	index,
-	count,
 	isSorting,
 	roleOpen,
 	roleDraft,
@@ -724,7 +725,6 @@ function SortableBylineRow({
 	onOpenRole,
 	onCancelRole,
 	onCommitRole,
-	onMove,
 	onEdit,
 	onRemove,
 	rowRef,
@@ -789,16 +789,6 @@ function SortableBylineRow({
 				<DropdownMenu.Content>
 					<DropdownMenu.Item icon={<PencilSimple />} onClick={onOpenRole}>
 						{credit.roleLabel ? t`Edit role for this post` : t`Set role for this post`}
-					</DropdownMenu.Item>
-					<DropdownMenu.Item icon={<ArrowUp />} disabled={index === 0} onClick={() => onMove(-1)}>
-						{t`Move up`}
-					</DropdownMenu.Item>
-					<DropdownMenu.Item
-						icon={<ArrowDown />}
-						disabled={index === count - 1}
-						onClick={() => onMove(1)}
-					>
-						{t`Move down`}
 					</DropdownMenu.Item>
 					{onEdit ? (
 						<DropdownMenu.Item icon={<PencilSimple />} onClick={onEdit}>
