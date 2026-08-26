@@ -4,15 +4,9 @@ import * as React from "react";
 
 const DescriptorMessage = Trans;
 
-const importedFilesMessage = msg({
-	message:
-		"{importedFiles, plural, one {<count>#</count> file imported} other {<count>#</count> files imported}}",
-});
+const importedFilesMessage = msg`{importedFiles, plural, one {<count>#</count> file imported} other {<count>#</count> files imported}}`;
 
-const updatedUrlsMessage = msg({
-	message:
-		"{rewrittenUrls, plural, one {<rewrittenCount>#</rewrittenCount> image URL updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}} other {<rewrittenCount>#</rewrittenCount> image URLs updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}}}",
-});
+const updatedUrlsMessage = msg`{rewrittenUrls, plural, one {<rewrittenCount>#</rewrittenCount> image URL updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}} other {<rewrittenCount>#</rewrittenCount> image URLs updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}}}`;
 
 interface MediaImportSummaryProps {
 	importedFiles: number;
