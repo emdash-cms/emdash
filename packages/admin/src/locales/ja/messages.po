@@ -1394,7 +1394,7 @@ msgstr "アップロードするファイルを選択"
 
 #: packages/admin/src/components/PluginManager.tsx:204
 msgid "Browse the"
-msgstr "プラグインをインストールするには"
+msgstr "プラグインをインストールするには、"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:79
 msgid "Browse themes and preview them with your own content."
@@ -8143,7 +8143,7 @@ msgstr "終了日"
 
 #: packages/admin/src/components/PluginManager.tsx:208
 msgid "to install plugins, or add them to your astro.config.mjs."
-msgstr "を開くか、astro.config.mjsに追加してください。"
+msgstr "を開くか、プラグインをastro.config.mjsに追加してください。"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:473
 msgid "to select"
