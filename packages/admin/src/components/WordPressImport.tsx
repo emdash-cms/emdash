@@ -10,7 +10,7 @@ import {
 } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg, plural } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
 	Upload,
 	Check,
@@ -60,6 +60,23 @@ import {
 } from "../lib/api";
 import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
+
+export function _WordPressExporterMessage() {
+	return (
+		<Trans>
+			For the best import experience, install the{" "}
+			<span className="font-medium">EmDash Exporter</span> plugin on your WordPress site.
+		</Trans>
+	);
+}
+
+export function _WordPressExportStep() {
+	return (
+		<Trans>
+			2. Go to <strong>Tools → Export</strong>
+		</Trans>
+	);
+}
 
 // ============================================================================
 // Constants
@@ -1204,9 +1221,7 @@ function FeatureComparison() {
 				<div className="flex items-start gap-2 text-sm">
 					<Sparkle className="h-4 w-4 text-kumo-link flex-shrink-0 mt-0.5" />
 					<p className="text-kumo-default">
-						{t`For the best import experience, install the`}{" "}
-						<span className="font-medium">{t`EmDash Exporter`}</span>{" "}
-						{t`plugin on your WordPress site.`}
+						<_WordPressExporterMessage />
 					</p>
 				</div>
 			</div>
@@ -1274,7 +1289,7 @@ function ProbeResultStep({
 					<ol className="mt-3 space-y-2 text-sm text-kumo-subtle">
 						<li>{t`1. Log into your WordPress admin dashboard`}</li>
 						<li>
-							{t`2. Go to`} <strong>{t`Tools → Export`}</strong>
+							<_WordPressExportStep />
 						</li>
 						<li>{t`3. Select "All content"`}</li>
 						<li>{t`4. Click "Download Export File"`}</li>
