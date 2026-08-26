@@ -4,7 +4,7 @@ import {
 	PlcDidDocumentResolver,
 } from "@atcute/identity-resolver";
 import { INITIAL_LISTING_POLICY_FIXTURE } from "@emdash-cms/registry-moderation/fixtures";
-import { fetchVerifiedResource } from "@emdash-cms/registry-verification";
+import { fetchVerifiedResource } from "@emdash-cms/registry-verification/fetch";
 
 import {
 	createWorkersAiImageAdapter,

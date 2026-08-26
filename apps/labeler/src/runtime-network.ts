@@ -1,4 +1,4 @@
-import type { HostnameResolver } from "@emdash-cms/registry-verification";
+import type { HostnameResolver } from "@emdash-cms/registry-verification/fetch";
 
 const DOH_ENDPOINT = "https://cloudflare-dns.com/dns-query";
 const MAX_DNS_RESPONSE_BYTES = 64 * 1024;

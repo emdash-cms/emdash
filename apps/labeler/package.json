@@ -6,7 +6,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build",
+		"build": "vite build && node scripts/check-worker-bundle.mjs",
 		"preview": "vite preview",
 		"deploy": "vite build && wrangler deploy",
 		"typecheck": "tsgo --noEmit && tsgo --noEmit -p evals/tsconfig.json",
