@@ -13,7 +13,7 @@ import * as React from "react";
 
 import { updateMedia, deleteMedia, deleteFromProvider, type MediaItem } from "../lib/api";
 import { useStableCallback } from "../lib/hooks";
-import { getFileIcon, formatFileSize } from "../lib/media-utils";
+import { getFileIcon, formatFileSize, metaPlayback } from "../lib/media-utils";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DialogError, getMutationError } from "./DialogError.js";
 
@@ -55,6 +55,8 @@ export function MediaDetailPanel({
 	const isImage = item.mimeType.startsWith("image/");
 	const isVideo = item.mimeType.startsWith("video/");
 	const isAudio = item.mimeType.startsWith("audio/");
+	// Present when the item streams rather than resolving to a playable file.
+	const playback = metaPlayback(item.meta);
 	const canEditMetadata = !isProviderAsset && isImage;
 	const canDelete = !isProviderAsset || Boolean(canDeleteProp);
 
@@ -249,7 +251,19 @@ export function MediaDetailPanel({
 										alt={item.alt || item.filename}
 										className="max-h-full max-w-full object-contain"
 									/>
+								) : isVideo && playback ? (
+									// Streaming: `item.url` is the poster, not the media.
+									<video
+										poster={item.url || undefined}
+										controls
+										preload="metadata"
+										className="max-h-full max-w-full"
+									>
+										{playback.hls && <source src={playback.hls} type="application/x-mpegURL" />}
+										{playback.dash && <source src={playback.dash} type="application/dash+xml" />}
+									</video>
 								) : isVideo ? (
+									// Locally stored video: `item.url` is the file itself.
 									<video
 										src={item.url}
 										controls

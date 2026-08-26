@@ -92,6 +92,50 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(persisted.kind).toBe("enhancement");
 	});
 
+	test("direct fix persists the bug kind without requiring a diagnosis", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		const outcome = await stub.event(
+			makeEvent({ event: "fix", arg: "unwrap the media response envelope" }),
+		);
+		expect(outcome.kind).toBe("transition");
+		if (outcome.kind === "transition") {
+			expect(outcome.decision.action).toBe("investigate.implement");
+		}
+
+		const persisted = await stub.getPersistedState();
+		expect(persisted.state).toBe("fixing");
+		expect(persisted.kind).toBe("bug");
+	});
+
+	test("a successful legacy repro retains its diagnosis for implement", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ event: "repro", arg: null, anchorNumber: 42 }));
+		await stub.debugSetStaleRun("repro-run", Date.now(), undefined, "repro");
+		await stub.applyAgentResult({
+			runId: "repro-run",
+			result: {
+				reproduced: true,
+				summary: "The image field reads the wrapped response at the wrong level.",
+			},
+			pushed: false,
+			ok: true,
+		});
+
+		expect((await stub.getPersistedState()).state).toBe("reproduced");
+		expect(await stub.debugGetLastDiagnosis()).toMatchObject({
+			runId: "repro-run",
+			result: { reproduced: true },
+		});
+
+		const implement = await stub.event(
+			makeEvent({ event: "implement", arg: "apply that fix", anchorNumber: 42 }),
+		);
+		expect(implement.kind).toBe("transition");
+		if (implement.kind === "transition") {
+			expect(implement.decision.action).toBe("investigate.fix");
+		}
+	});
+
 	test("event() appends an entry to the event log", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await stub.event(makeEvent({ deliveryId: "delivery-abc" }));
@@ -281,15 +325,104 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(log.length).toBe(1);
 	});
 
-	test("noop event() does not advance state", async () => {
+	test("an invalid maintainer command comments with valid alternatives without advancing state", async () => {
+		const calls: string[] = [];
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
-		// `confirm` from unmanaged has no transition (router resolves to noop).
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
 		const outcome = await stub.event(
-			makeEvent({ event: "confirm", arg: null, actor: "maintainer" }),
+			makeEvent({
+				event: "confirm",
+				arg: null,
+				actor: "maintainer",
+				anchorNumber: 42,
+				deliveryId: "invalid-confirm",
+				dryRun: false,
+			}),
 		);
 		expect(outcome.kind).toBe("noop");
 		const persisted = await stub.getPersistedState();
 		expect(persisted.state).toBe(null);
+		expect(comments).toHaveLength(1);
+		expect(comments[0]).toContain("`@emdashbot confirm` isn't available");
+		expect(comments[0]).toContain("`@emdashbot fix <directive>`");
+	});
+
+	test("invalid classified commands name the resolved command in feedback", async () => {
+		const calls: string[] = [];
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+
+		const outcome = await stub.event(
+			makeEvent({
+				event: null,
+				needsClassify: true,
+				classifyText: "classified-confirm",
+				labels: ["bot:bug", "bot:working"],
+				anchorNumber: 42,
+				deliveryId: "classified-invalid-confirm",
+				dryRun: false,
+			}),
+		);
+
+		expect(outcome.kind).toBe("noop");
+		expect(comments).toHaveLength(1);
+		expect(comments[0]).toContain("`@emdashbot confirm` isn't available");
+		expect(comments[0]).not.toContain("I couldn't map that request");
+	});
+
+	test("a failed command-feedback comment recovers without posting a duplicate", async () => {
+		let commentPosts = 0;
+		let allowSuccess = false;
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal(
+			"fetch",
+			(input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+				const url =
+					typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+				const method = (init?.method ?? "GET").toUpperCase();
+				if (method === "GET" && url.includes("/comments")) {
+					return Promise.resolve(new Response("[]", { status: 200 }));
+				}
+				if (method === "POST" && url.endsWith("/comments")) {
+					commentPosts += 1;
+					return Promise.resolve(new Response("{}", { status: allowSuccess ? 201 : 500 }));
+				}
+				return Promise.resolve(new Response("{}", { status: 200 }));
+			},
+		);
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		const event = makeEvent({
+			event: "confirm",
+			arg: null,
+			actor: "maintainer",
+			anchorNumber: 42,
+			deliveryId: "recover-invalid-confirm",
+			dryRun: false,
+		});
+
+		expect(await stub.enqueue(event)).toMatchObject({ kind: "admitted" });
+		const failedTick = await stub.tick();
+		expect(failedTick.inboxError).toContain("postIssueComment failed: 500");
+		expect(await stub.getPendingSideEffectCount()).toBe(1);
+		expect(await stub.getInboxDepth()).toBe(1);
+		const failedPosts = commentPosts;
+
+		allowSuccess = true;
+		const recoveredTick = await stub.tick();
+		expect(recoveredTick.inboxError).toBeNull();
+		expect(commentPosts).toBe(failedPosts + 1);
+		expect(await stub.getPendingSideEffectCount()).toBe(0);
+		expect(await stub.getInboxDepth()).toBe(0);
+
+		await stub.tick();
+		expect(commentPosts).toBe(failedPosts + 1);
 	});
 
 	test("applyAgentResult drops stale runId silently", async () => {
@@ -1508,7 +1641,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(await stub.getPendingSideEffectCount()).toBe(1);
 	});
 
-	test("draft PR titles distinguish bug fixes from directed implementations", async () => {
+	test("draft PRs use agent-authored copy with a legacy fallback", async () => {
 		const pullRequests: unknown[] = [];
 		let pullNumber = 100;
 		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
@@ -1540,22 +1673,56 @@ describe("OrchestratorDO (workers-pool)", () => {
 			},
 		);
 
-		for (const [anchorNumber, kind] of [
-			[42, "bug"],
-			[43, "enhancement"],
-		] as const) {
-			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
-			await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
-			await stub.debugPrimePreviewBuilding(anchorNumber, "Candidate notes.", kind);
-			await stub.event(
-				makeEvent({ event: "preview.ready", arg: null, actor: "system", anchorNumber }),
-			);
-			await stub.event(makeEvent({ event: "confirm", arg: null, actor: "reporter", anchorNumber }));
-		}
+		const customCopyStub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await customCopyStub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await customCopyStub.debugPrimeFixing(42);
+		await customCopyStub.debugSetStaleRun(
+			"implement-run",
+			Date.now(),
+			"investigate-42-implement-run",
+			"implement",
+		);
+		await customCopyStub.applyAgentResult({
+			runId: "implement-run",
+			result: {
+				implemented: true,
+				summary: "Keeps the selected locale when loading content.",
+				pullRequest: {
+					title: "fix(core): preserve the requested locale",
+					description: "Keeps the selected locale when loading content.",
+				},
+			},
+			pushed: true,
+			ok: true,
+		});
+		await customCopyStub.event(
+			makeEvent({ event: "preview.ready", arg: null, actor: "system", anchorNumber: 42 }),
+		);
+		await customCopyStub.event(
+			makeEvent({ event: "confirm", arg: null, actor: "reporter", anchorNumber: 42 }),
+		);
+
+		const legacyStub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await legacyStub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await legacyStub.debugPrimePreviewBuilding(43, "Candidate notes.", "enhancement");
+		await legacyStub.event(
+			makeEvent({ event: "preview.ready", arg: null, actor: "system", anchorNumber: 43 }),
+		);
+		await legacyStub.event(
+			makeEvent({ event: "confirm", arg: null, actor: "reporter", anchorNumber: 43 }),
+		);
 
 		expect(pullRequests).toMatchObject([
-			{ title: "Fix #42", draft: true },
-			{ title: "Implement #43", draft: true },
+			{
+				title: "fix(core): preserve the requested locale",
+				body: expect.stringContaining("Keeps the selected locale when loading content."),
+				draft: true,
+			},
+			{
+				title: "Implement #43",
+				body: expect.stringContaining("## What does this PR do?"),
+				draft: true,
+			},
 		]);
 	});
 

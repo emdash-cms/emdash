@@ -1,6 +1,5 @@
 import {
 	Badge,
-	Banner,
 	Button,
 	Dialog,
 	Input,
@@ -9,9 +8,10 @@ import {
 	Loader,
 	Select,
 	Text,
+	Tooltip,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowSquareOut, Eye, EyeSlash, Trash, Upload, X } from "@phosphor-icons/react";
+import { ArrowSquareOut, Eye, EyeSlash, Info, Trash, Upload, X } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
@@ -494,23 +494,32 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								placeholder="my-post-slug"
 							/>
 							{contentLocale ? (
-								<div className="space-y-1">
-									<div className="flex flex-wrap items-center gap-2">
-										<Label>{t`Content locale`}</Label>
-										<Badge variant="secondary">{contentLocale.toUpperCase()}</Badge>
-									</div>
-									<p className="text-xs text-kumo-subtle">
-										{t`This is stored with the entry and is separate from your admin language.`}
-									</p>
+								<div className="flex flex-wrap items-center gap-1.5">
+									<Label>{t`Content locale`}</Label>
+									<Badge variant="secondary">{contentLocale.toUpperCase()}</Badge>
+									{usesImplicitEnglish ? (
+										<Tooltip
+											content={
+												<span className="block max-w-64 text-pretty">
+													{t`English is used because no content locale is configured. Content locale is stored with the entry and is separate from your admin language.`}
+												</span>
+											}
+											delay={0}
+											closeDelay={0}
+											render={
+												<Button
+													type="button"
+													variant="ghost"
+													shape="square"
+													size="xs"
+													icon={<Info aria-hidden="true" />}
+													className="text-kumo-subtle hover:text-kumo-default"
+													aria-label={t`Why English is used`}
+												/>
+											}
+										/>
+									) : null}
 								</div>
-							) : null}
-							{usesImplicitEnglish ? (
-								<Banner
-									variant="alert"
-									title={t`Content locale defaults to English`}
-									description={t`No content locale is configured, so EmDash stores new content as English (en). Changing the admin language does not change this value.`}
-									role="alert"
-								/>
 							) : null}
 							<div>
 								<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -785,7 +794,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				<div
 					data-testid="content-trash-actions"
 					aria-hidden={isReorderingSections || undefined}
-					className={cn("border-t p-4", isReorderingSections && "invisible pointer-events-none")}
+					className={cn(
+						"border-t bg-kumo-base p-4",
+						isReorderingSections && "invisible pointer-events-none",
+					)}
 				>
 					<Dialog.Root disablePointerDismissal>
 						<Dialog.Trigger
@@ -793,8 +805,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								<Button
 									{...p}
 									type="button"
-									variant="outline"
-									className="w-full text-kumo-danger hover:text-kumo-danger"
+									variant="ghost"
+									className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
 									disabled={isDeleting}
 									icon={isDeleting ? <Loader size="sm" /> : <Trash />}
 								>

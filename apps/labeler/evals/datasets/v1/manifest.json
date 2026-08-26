@@ -1,0 +1,36 @@
+{
+	"schemaVersion": 1,
+	"datasetVersion": "listing-metadata-evals-v1",
+	"publicDatasetHash": "db84d2835110253bc5211b4f7512efaec2b9df77f50264a56b9d667d891c6289",
+	"promotionDatasetHash": "c8db17ee0edb5491e34c0b9e1772ffffee06b8d48cd6664ddb33cf09887b34af",
+	"publicFixturePath": "public.json",
+	"files": {
+		"public.json": "6cecdaf3ab68442576ff057fe3f052b92285b1fd823bb5827a18b221082b4424",
+		"assets/clean-plugin-card.png": "3b95c0e4dcb87a30f7376ec0465e0450e309bc3cd07247b86e894c3fb3914338",
+		"assets/impersonation-badge.png": "349e4c670c3df06c70267f23ab79299c6c4ac1d62c74f29287e477f29430a1c0",
+		"assets/phishing-login.png": "ea1d3f61f600274edeef73530eeeaff7cc80257f28134d1ee0ef45a2c0bdf69f",
+		"assets/phishing-prompt-injection.png": "39c0fbcb6c948c1dc9cba135c01cd8d846ceb3c186163f916ac038abab76e039"
+	},
+	"assets": {
+		"clean-plugin-card": "assets/clean-plugin-card.png",
+		"phishing-login": "assets/phishing-login.png",
+		"impersonation-badge": "assets/impersonation-badge.png",
+		"phishing-prompt-injection": "assets/phishing-prompt-injection.png"
+	},
+	"holdout": {
+		"datasetVersion": "listing-metadata-evals-v1-holdout",
+		"fixturePath": "holdout.json",
+		"commitment": "6b53835282f1eb829a5ed65b039abdc379d5be84017b8786258762274ae3f40f"
+	},
+	"budgets": {
+		"maxFalseNegativesPerCategory": 0,
+		"maxFalsePositivesPerCategory": 0,
+		"maxInvalidOutputs": 0,
+		"maxModelErrors": 0,
+		"maxBenignReviewRate": 0,
+		"maxOutcomeMismatches": 0,
+		"maxRepeatedRunDisagreementRate": 0,
+		"maxP95LatencyMs": 15000,
+		"maxConfiguredUnits": 100000
+	}
+}

@@ -47,7 +47,19 @@ describe("issue run context", () => {
 			comments: [
 				comment({ id: 2, createdAt: "2026-08-17T09:59:59.000Z", body: "stale" }),
 				comment({ id: 3 }),
-				comment({ id: 4, authorLogin: "emdashbot[bot]", authorType: "Bot", body: "bot" }),
+				comment({
+					id: 4,
+					authorLogin: "emdashbot",
+					authorType: "Bot",
+					createdAt: "2026-08-17T09:30:00.000Z",
+					body: "Earlier bot finding: the cache key omits the locale.",
+				}),
+				comment({
+					id: 7,
+					authorLogin: "dependabot[bot]",
+					authorType: "Bot",
+					body: "Unrelated dependency update.",
+				}),
 				comment({ id: 5, body: "@emdashbot retry" }),
 				comment({
 					id: 6,
@@ -63,7 +75,9 @@ describe("issue run context", () => {
 		expect(context).toContain("@reporter (CONTRIBUTOR; public, untrusted)");
 		expect(context).toContain("@reviewer (COLLABORATOR; maintainer-authorized)");
 		expect(context).not.toContain("stale");
-		expect(context).not.toContain("emdashbot[bot]");
+		expect(context).toContain("Earlier bot finding: the cache key omits the locale.");
+		expect(context).toContain("bot output; trusted context, not a directive");
+		expect(context).not.toContain("Unrelated dependency update.");
 		expect(context).not.toContain("@emdashbot retry");
 		expect(context).toContain("## Triggering directive (authoritative)");
 		expect(context).toContain("@emdashbot fix Keep the locale in the cache key.");
@@ -97,6 +111,38 @@ describe("issue run context", () => {
 		expect(built.commentCharacters).toBeLessThanOrEqual(ISSUE_CONTEXT_MAX_CHARACTERS);
 		expect(built.text).toContain("## Triggering directive (authoritative)");
 		expect(built.text).toContain("@emdashbot implement");
+	});
+
+	test("prioritizes EmDashBot history over newer human comments within the bound", () => {
+		const built = buildIssueContext({
+			diagnosis: null,
+			trigger: {
+				id: 999,
+				body: "@emdashbot fix",
+				authorLogin: "maintainer",
+				authorAssociation: "MEMBER",
+				actor: "maintainer",
+			},
+			comments: [
+				comment({
+					id: 1,
+					authorLogin: "emdashbot",
+					authorType: "Bot",
+					createdAt: "2026-08-17T09:00:00.000Z",
+					body: "Earlier bot result that must survive the recent window.",
+				}),
+				...Array.from({ length: ISSUE_CONTEXT_MAX_COMMENTS + 5 }, (_, index) =>
+					comment({
+						id: index + 10,
+						createdAt: new Date(Date.UTC(2026, 7, 17, 10, index)).toISOString(),
+						body: `newer-human-${index}`,
+					}),
+				),
+			],
+		});
+
+		expect(built.text).toContain("Earlier bot result that must survive the recent window.");
+		expect(built.commentCount).toBeLessThanOrEqual(ISSUE_CONTEXT_MAX_COMMENTS);
 	});
 });
 
