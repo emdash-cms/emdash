@@ -108,8 +108,11 @@ const PAGES: PageCase[] = [
 	{
 		name: "content-editor",
 		path: (info) => `/content/posts/${info.contentIds.posts[0]}`,
-		// The Publish panel prints Created/Updated timestamps seeded at test time.
-		extraMasks: (admin) => [admin.page.getByTestId("content-timestamps")],
+		// The Publish panel prints timestamps seeded at test time.
+		extraMasks: (admin) => [
+			admin.page.locator('input[type="datetime-local"]'),
+			admin.page.getByTestId("content-timestamps"),
+		],
 	},
 	{ name: "content-new", path: () => "/content/posts/new" },
 	{ name: "media", path: () => "/media" },
