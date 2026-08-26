@@ -206,8 +206,6 @@ export interface MediaItem {
 /** Result of assigning local media to a folder or the Main library */
 export interface MediaFolderAssignment {
 	id: string;
-	focalX: number | null;
-	focalY: number | null;
 	folderId: string | null;
 }
 
@@ -913,7 +911,7 @@ export class EmDashClient {
 			`/media/${encodeURIComponent(id)}`,
 			{ folderId },
 		);
-		return data.item;
+		return { id: data.item.id, folderId: data.item.folderId };
 	}
 
 	/** Get entry-grouped usage details for a media item */

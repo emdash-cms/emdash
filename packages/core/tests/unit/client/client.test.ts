@@ -786,12 +786,7 @@ describe("EmDashClient", () => {
 			expect(created).toEqual({ id: "folder/one", name: "Updated" });
 			expect(updated).toEqual({ id: "folder/one", name: "Updated" });
 			expect(fetched).toEqual({ id: "folder/one", name: "One" });
-			expect(media).toEqual({
-				id: "media/one",
-				folderId: null,
-				focalX: 0.25,
-				focalY: 0.75,
-			});
+			expect(media).toEqual({ id: "media/one", folderId: null });
 			expect(Object.fromEntries(requests[0]?.url.searchParams ?? [])).toEqual({
 				limit: "25",
 				cursor: "after / folder",
