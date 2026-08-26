@@ -86,6 +86,40 @@ describe("moderation model output", () => {
 });
 
 describe("Workers AI production adapters", () => {
+	it("aborts provider calls at the configured inference deadline", async () => {
+		const ai: WorkersAiBinding = {
+			run: vi.fn(
+				(_model, _input, options?: { signal?: AbortSignal }) =>
+					new Promise((_resolve, reject) => {
+						options?.signal?.addEventListener("abort", () => reject(options.signal?.reason), {
+							once: true,
+						});
+					}),
+			),
+		};
+		const adapter = createWorkersAiTextAdapter(ai, {
+			modelId: "deadline-candidate",
+			promptHash: await sha256Hex(TEXT_SYSTEM_PROMPT),
+			timeoutMs: 5,
+		});
+
+		const outcome = await Promise.race([
+			adapter
+				.moderate({
+					subject: SUBJECT,
+					text: [{ ref: "profile.description", value: "A gallery plugin", format: "plain" }],
+					links: [],
+				})
+				.then(
+					() => "resolved" as const,
+					() => "aborted" as const,
+				),
+			new Promise<"test-timeout">((resolve) => setTimeout(resolve, 100, "test-timeout")),
+		]);
+
+		expect(outcome).toBe("aborted");
+	});
+
 	it("decodes bounded local image requests without retaining their source path", () => {
 		expect(
 			parseManualImageRequest({

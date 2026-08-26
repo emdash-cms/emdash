@@ -15,7 +15,6 @@ import {
 const WORKFLOW_READ_RETRY_DELAYS_MS = [250, 1_000] as const;
 const MODEL_EVALUATION_STEP_CONFIG = {
 	retries: { limit: 2, delay: "5 seconds", backoff: "exponential" },
-	timeout: "1 minute",
 } as const satisfies WorkflowStepConfig;
 
 export interface LiveEvaluationWorkflowResult {

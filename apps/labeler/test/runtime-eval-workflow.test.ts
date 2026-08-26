@@ -277,9 +277,9 @@ class MemoryStep implements LiveEvaluationDurableStep {
 		if (
 			name.startsWith("evaluate-") &&
 			typeof configOrCallback !== "function" &&
-			(!configOrCallback.retries || !configOrCallback.timeout)
+			!configOrCallback.retries
 		) {
-			throw new Error("model evaluation step has no timeout or retries");
+			throw new Error("model evaluation step has no retries");
 		}
 		if (this.results.has(name)) return this.results.get(name) as T;
 		this.calls.push(name);

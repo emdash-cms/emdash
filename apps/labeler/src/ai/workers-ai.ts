@@ -30,16 +30,21 @@ export interface WorkersAiAdapterConfig {
 	thinking?: boolean;
 	reasoningEffort?: "low" | "medium" | "high";
 	configuredUnits?: number;
+	timeoutMs?: number;
 }
 
 export interface WorkersAiBinding {
-	run(model: string, input: Record<string, unknown>): Promise<unknown>;
+	run(
+		model: string,
+		input: Record<string, unknown>,
+		options?: { signal?: AbortSignal },
+	): Promise<unknown>;
 }
 
 export function workersAiBindingFromEnv(ai: Ai): WorkersAiBinding {
 	return {
-		run(model, input) {
-			return ai.run(model, input);
+		run(model, input, options) {
+			return ai.run(model, input, options);
 		},
 	};
 }
@@ -68,32 +73,36 @@ export function createWorkersAiTextAdapter(
 			];
 			assertUniqueEvidenceRefs(evidenceRefs);
 			const started = performance.now();
-			const response = await ai.run(config.modelId, {
-				messages: [
-					{ role: "system", content: TEXT_SYSTEM_PROMPT },
-					{
-						role: "user",
-						content: textModerationXml(request.text, request.links),
+			const response = await ai.run(
+				config.modelId,
+				{
+					messages: [
+						{ role: "system", content: TEXT_SYSTEM_PROMPT },
+						{
+							role: "user",
+							content: textModerationXml(request.text, request.links),
+						},
+					],
+					response_format: {
+						type: "json_schema",
+						json_schema: {
+							name: "emdash_listing_moderation",
+							strict: true,
+							schema: MODERATION_OUTPUT_JSON_SCHEMA,
+						},
 					},
-				],
-				response_format: {
-					type: "json_schema",
-					json_schema: {
-						name: "emdash_listing_moderation",
-						strict: true,
-						schema: MODERATION_OUTPUT_JSON_SCHEMA,
-					},
+					...completionTokenParameters(parameters),
+					temperature: parameters.temperature,
+					seed: parameters.seed,
+					...(parameters.reasoningEffort === undefined
+						? {}
+						: { reasoning_effort: parameters.reasoningEffort }),
+					...(parameters.thinking === undefined
+						? {}
+						: { chat_template_kwargs: { enable_thinking: parameters.thinking } }),
 				},
-				...completionTokenParameters(parameters),
-				temperature: parameters.temperature,
-				seed: parameters.seed,
-				...(parameters.reasoningEffort === undefined
-					? {}
-					: { reasoning_effort: parameters.reasoningEffort }),
-				...(parameters.thinking === undefined
-					? {}
-					: { chat_template_kwargs: { enable_thinking: parameters.thinking } }),
-			});
+				{ signal: AbortSignal.timeout(parameters.timeoutMs) },
+			);
 			return normalizeResponse(
 				response,
 				evidenceRefs,
@@ -124,41 +133,45 @@ export function createWorkersAiImageAdapter(
 			promptCheck ??= assertPromptHash(IMAGE_SYSTEM_PROMPT, config.promptHash);
 			await promptCheck;
 			const started = performance.now();
-			const response = await ai.run(config.modelId, {
-				messages: [
-					{ role: "system", content: IMAGE_SYSTEM_PROMPT },
-					{
-						role: "user",
-						content: [
-							{
-								type: "text",
-								text: imageModerationXml(request.evidenceRef, request.mimeType),
-							},
-							{
-								type: "image_url",
-								image_url: { url: dataUrl(request.mimeType, request.bytes) },
-							},
-						],
+			const response = await ai.run(
+				config.modelId,
+				{
+					messages: [
+						{ role: "system", content: IMAGE_SYSTEM_PROMPT },
+						{
+							role: "user",
+							content: [
+								{
+									type: "text",
+									text: imageModerationXml(request.evidenceRef, request.mimeType),
+								},
+								{
+									type: "image_url",
+									image_url: { url: dataUrl(request.mimeType, request.bytes) },
+								},
+							],
+						},
+					],
+					response_format: {
+						type: "json_schema",
+						json_schema: {
+							name: "emdash_listing_moderation",
+							strict: true,
+							schema: MODERATION_OUTPUT_JSON_SCHEMA,
+						},
 					},
-				],
-				response_format: {
-					type: "json_schema",
-					json_schema: {
-						name: "emdash_listing_moderation",
-						strict: true,
-						schema: MODERATION_OUTPUT_JSON_SCHEMA,
-					},
+					...completionTokenParameters(parameters),
+					temperature: parameters.temperature,
+					seed: parameters.seed,
+					...(parameters.reasoningEffort === undefined
+						? {}
+						: { reasoning_effort: parameters.reasoningEffort }),
+					...(parameters.thinking === undefined
+						? {}
+						: { chat_template_kwargs: { enable_thinking: parameters.thinking } }),
 				},
-				...completionTokenParameters(parameters),
-				temperature: parameters.temperature,
-				seed: parameters.seed,
-				...(parameters.reasoningEffort === undefined
-					? {}
-					: { reasoning_effort: parameters.reasoningEffort }),
-				...(parameters.thinking === undefined
-					? {}
-					: { chat_template_kwargs: { enable_thinking: parameters.thinking } }),
-			});
+				{ signal: AbortSignal.timeout(parameters.timeoutMs) },
+			);
 			return normalizeResponse(
 				response,
 				[request.evidenceRef],
@@ -177,6 +190,7 @@ function adapterParameters(config: WorkersAiAdapterConfig): Readonly<{
 	seed: number;
 	thinking?: boolean;
 	reasoningEffort?: "low" | "medium" | "high";
+	timeoutMs: number;
 }> {
 	if (config.maxTokens !== undefined && config.maxCompletionTokens !== undefined) {
 		throw new TypeError("Workers AI token limits are mutually exclusive");
@@ -187,6 +201,7 @@ function adapterParameters(config: WorkersAiAdapterConfig): Readonly<{
 	const tokenLimit = maxCompletionTokens ?? maxTokens!;
 	const temperature = config.temperature ?? 0;
 	const seed = config.seed ?? 1;
+	const timeoutMs = config.timeoutMs ?? 60_000;
 	if (!Number.isInteger(tokenLimit) || tokenLimit < 128 || tokenLimit > 4096) {
 		throw new TypeError("Workers AI token limit must be an integer between 128 and 4096");
 	}
@@ -194,6 +209,9 @@ function adapterParameters(config: WorkersAiAdapterConfig): Readonly<{
 		throw new TypeError("Workers AI temperature must be between zero and one");
 	}
 	if (!Number.isSafeInteger(seed)) throw new TypeError("Workers AI seed must be a safe integer");
+	if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300_000) {
+		throw new TypeError("Workers AI timeout must be an integer between 1 and 300000 milliseconds");
+	}
 	if (
 		config.configuredUnits !== undefined &&
 		(!Number.isFinite(config.configuredUnits) || config.configuredUnits < 0)
@@ -205,6 +223,7 @@ function adapterParameters(config: WorkersAiAdapterConfig): Readonly<{
 		...(maxCompletionTokens === undefined ? {} : { maxCompletionTokens }),
 		temperature,
 		seed,
+		timeoutMs,
 		...(config.thinking === undefined ? {} : { thinking: config.thinking }),
 		...(config.reasoningEffort === undefined ? {} : { reasoningEffort: config.reasoningEffort }),
 	};
