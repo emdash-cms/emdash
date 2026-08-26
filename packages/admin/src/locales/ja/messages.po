@@ -6073,7 +6073,7 @@ msgstr "プレースホルダーテキスト"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:311
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:310
 msgid "Plain"
-msgstr "通常の"
+msgstr "暗号化されていない"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:27
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:120
