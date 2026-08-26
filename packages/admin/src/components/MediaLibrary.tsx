@@ -1,6 +1,7 @@
 import {
 	Breadcrumbs,
 	Button,
+	Grid,
 	Input,
 	LayerCard,
 	Loader,
@@ -980,7 +981,7 @@ export function MediaLibrary({
 							<Loader />
 						</div>
 					) : (
-						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+						<Grid variant="4up" gap="sm">
 							{visibleFolders.map((folder) => (
 								<MediaFolderCard
 									key={folder.id}
@@ -992,7 +993,7 @@ export function MediaLibrary({
 									onEdit={(trigger) => openEditFolder(folder, trigger)}
 								/>
 							))}
-						</div>
+						</Grid>
 					)}
 					{hasMoreFolders && onLoadMoreFolders && (
 						<div className="flex justify-center">
