@@ -5,6 +5,8 @@
 Adds flat media folders to the `emdash` REST and typed client APIs. Existing media remains in the
 Main library after upgrade, so sites do not need to migrate media assignments.
 
+- Includes database migration `072_media_folders`.
+
 Use `GET` or `POST /_emdash/api/media/folders` to list or create folders, and `PUT` or
 `DELETE /_emdash/api/media/folders/:id` to rename or delete them. Folder reads require
 `media:read`; folder writes require `media:edit_any`. Typed clients expose the corresponding
