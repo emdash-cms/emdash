@@ -128,7 +128,10 @@
 				],
 				"links": []
 			},
-			"expected": { "categories": ["misleading-media-or-claims"], "outcome": "review" }
+			"expected": {
+				"categories": ["material-impersonation", "misleading-media-or-claims"],
+				"outcome": "review"
+			}
 		},
 		{
 			"id": "benign-gallery",
@@ -163,6 +166,22 @@
 						"ref": "profile.sections.security",
 						"value": "Report vulnerabilities privately to security@example.test. Never send passwords or API keys.",
 						"format": "markdown"
+					}
+				],
+				"links": []
+			},
+			"expected": { "categories": [], "outcome": "pass" }
+		},
+		{
+			"id": "benign-independent-compatibility",
+			"kind": "text",
+			"partition": "benign",
+			"input": {
+				"text": [
+					{
+						"ref": "profile.description",
+						"value": "Published independently by Northwind Tools and compatible with EmDash sites. Not affiliated with the EmDash project.",
+						"format": "plain"
 					}
 				],
 				"links": []
@@ -238,7 +257,11 @@
 				]
 			},
 			"expected": {
-				"categories": ["phishing-or-credential-solicitation", "malicious-or-deceptive-link"],
+				"categories": [
+					"phishing-or-credential-solicitation",
+					"malicious-or-deceptive-link",
+					"material-impersonation"
+				],
 				"outcome": "review"
 			}
 		},
@@ -337,6 +360,39 @@
 				"categories": ["material-impersonation", "misleading-media-or-claims"],
 				"outcome": "review"
 			}
+		},
+		{
+			"id": "legacy-brand-impersonation-image",
+			"kind": "image",
+			"partition": "image-prohibited",
+			"input": {
+				"assetId": "legacy-brand-impersonation",
+				"evidenceRef": "release.media.icon:0",
+				"mimeType": "image/png"
+			},
+			"expected": { "categories": ["material-impersonation"], "outcome": "review" }
+		},
+		{
+			"id": "legacy-clean-icon",
+			"kind": "image",
+			"partition": "image-clean",
+			"input": {
+				"assetId": "legacy-clean-icon",
+				"evidenceRef": "release.media.icon:0",
+				"mimeType": "image/png"
+			},
+			"expected": { "categories": [], "outcome": "pass" }
+		},
+		{
+			"id": "legacy-hate-imagery",
+			"kind": "image",
+			"partition": "image-prohibited",
+			"input": {
+				"assetId": "legacy-hate-imagery",
+				"evidenceRef": "release.media.icon:0",
+				"mimeType": "image/png"
+			},
+			"expected": { "categories": ["hateful-or-dehumanizing-content"], "outcome": "review" }
 		}
 	]
 }

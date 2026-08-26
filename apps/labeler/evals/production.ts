@@ -1,6 +1,7 @@
 import type { WorkflowInstanceStatus } from "cloudflare:workers";
 
 import { sha256Hex } from "../src/ai/hash.js";
+import { IMAGE_PROMPT_HASH, TEXT_PROMPT_HASH } from "../src/ai/prompts.js";
 import { loadEvalDataset } from "./dataset.js";
 import { EVAL_RUNNER_VERSION } from "./harness.js";
 import { runProtectedLiveEvaluation } from "./live.js";
@@ -557,13 +558,14 @@ export async function executeProductionLiveEvaluation(
 			dataset,
 			text: {
 				modelId: env.LABELER_TEXT_MODEL_ID,
-				promptHash: env.LABELER_TEXT_PROMPT_HASH,
+				promptHash: TEXT_PROMPT_HASH,
 				configuredUnits: parseUnits(env.EVAL_TEXT_CONFIGURED_UNITS, "text"),
 			},
 			image: {
 				modelId: env.LABELER_IMAGE_MODEL_ID,
-				promptHash: env.LABELER_IMAGE_PROMPT_HASH,
+				promptHash: IMAGE_PROMPT_HASH,
 				configuredUnits: parseUnits(env.EVAL_IMAGE_CONFIGURED_UNITS, "image"),
+				thinking: false,
 			},
 			repeatCount: 3,
 			runnerCommit: env.VERSION_METADATA.id,
@@ -582,7 +584,7 @@ export async function executeProductionLiveEvaluation(
 			reviewChallengeHash: await promotionReviewChallengeHash(dataset, comparison),
 		};
 	}
-	const report = renderEvalReport(candidate);
+	const report = renderEvalReport(candidate, dataset.budgets);
 	const encoded = JSON.stringify(candidate);
 	assertBoundedText(encoded, MAX_ARTIFACT_BYTES, "evaluation artifact");
 	const artifactKey = `live/${candidate.reproducibility.executedAt}/${candidateHash}.json`;
@@ -635,9 +637,9 @@ async function productionEvaluationIdentity(
 		runnerCommit: env.VERSION_METADATA.id,
 		repeatCount: 3,
 		textModelId: env.LABELER_TEXT_MODEL_ID,
-		textPromptHash: env.LABELER_TEXT_PROMPT_HASH,
+		textPromptHash: TEXT_PROMPT_HASH,
 		imageModelId: env.LABELER_IMAGE_MODEL_ID,
-		imagePromptHash: env.LABELER_IMAGE_PROMPT_HASH,
+		imagePromptHash: IMAGE_PROMPT_HASH,
 	};
 }
 

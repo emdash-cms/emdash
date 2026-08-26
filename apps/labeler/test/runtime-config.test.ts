@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { IMAGE_PROMPT_HASH, TEXT_PROMPT_HASH } from "../src/ai/prompts.js";
 import { readLabelerRuntimeConfig } from "../src/runtime-config.js";
 
 const ENV = {
@@ -10,9 +11,7 @@ const ENV = {
 	LABELER_POLICY_VERSION: "listing-metadata-v1",
 	LABELER_PARSER_VERSION: "canonical-listing-input-v1",
 	LABELER_TEXT_MODEL_ID: "@cf/text",
-	LABELER_TEXT_PROMPT_HASH: "a".repeat(64),
 	LABELER_IMAGE_MODEL_ID: "@cf/image",
-	LABELER_IMAGE_PROMPT_HASH: "b".repeat(64),
 };
 
 describe("labeler runtime configuration", () => {
@@ -27,20 +26,17 @@ describe("labeler runtime configuration", () => {
 				policyVersion: ENV.LABELER_POLICY_VERSION,
 				parserVersion: ENV.LABELER_PARSER_VERSION,
 				textModelId: ENV.LABELER_TEXT_MODEL_ID,
-				textPromptHash: ENV.LABELER_TEXT_PROMPT_HASH,
+				textPromptHash: TEXT_PROMPT_HASH,
 				imageModelId: ENV.LABELER_IMAGE_MODEL_ID,
-				imagePromptHash: ENV.LABELER_IMAGE_PROMPT_HASH,
+				imagePromptHash: IMAGE_PROMPT_HASH,
 			},
 		});
 	});
 
-	it("rejects a DID/service mismatch and malformed prompt identity", async () => {
+	it("rejects a DID/service mismatch", async () => {
 		await expect(
 			readLabelerRuntimeConfig({ ...ENV, LABELER_SERVICE_URL: "https://other.example" }),
 		).rejects.toThrow(/must match/);
-		await expect(
-			readLabelerRuntimeConfig({ ...ENV, LABELER_TEXT_PROMPT_HASH: "not-a-hash" }),
-		).rejects.toThrow(/TEXT_PROMPT_HASH/);
 	});
 
 	it("reads a secret binding without exposing it in ordinary configuration", async () => {

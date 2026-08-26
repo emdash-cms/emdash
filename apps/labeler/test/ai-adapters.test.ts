@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { sha256Hex } from "../src/ai/hash.js";
+import { createResizedImageModerationAdapter } from "../src/ai/image-resize.js";
 import { parseModerationModelOutput } from "../src/ai/output.js";
 import { IMAGE_SYSTEM_PROMPT, TEXT_SYSTEM_PROMPT } from "../src/ai/prompts.js";
 import { ModelOutputError } from "../src/ai/types.js";
@@ -80,6 +81,119 @@ describe("moderation model output", () => {
 });
 
 describe("Workers AI production adapters", () => {
+	it("sends a bounded moderation derivative while preserving its transform identity", async () => {
+		const moderate = vi.fn(async () => ({
+			findings: [],
+			coveredEvidenceRefs: ["release.media.icon:0"],
+			identity: {
+				adapterVersion: "test",
+				modelId: "vision-model",
+				promptVersion: "image-v1",
+				promptHash: "a".repeat(64),
+				parameters: {},
+			},
+			latencyMs: 1,
+			usage: {},
+		}));
+		const adapter = createResizedImageModerationAdapter(
+			{
+				async resize() {
+					return { bytes: new Uint8Array([2, 3]), mimeType: "image/webp" as const };
+				},
+			},
+			{
+				identity: {
+					adapterVersion: "test",
+					modelId: "vision-model",
+					promptVersion: "image-v1",
+					promptHash: "a".repeat(64),
+					parameters: {},
+				},
+				moderate,
+			},
+			{ maxDimension: 1024, format: "image/webp", quality: 85 },
+		);
+
+		await adapter.moderate({
+			subject: { ...SUBJECT, kind: "release" },
+			evidenceRef: "release.media.icon:0",
+			mimeType: "image/png",
+			bytes: new Uint8Array([0, 1]),
+		});
+
+		expect(moderate).toHaveBeenCalledWith(
+			expect.objectContaining({ bytes: new Uint8Array([2, 3]), mimeType: "image/webp" }),
+		);
+		expect(adapter.identity.parameters).toMatchObject({
+			imageMaxDimension: 1024,
+			imageFormat: "image/webp",
+			imageQuality: 85,
+		});
+	});
+
+	it("uses a Workers AI-compatible schema and parses the OpenAI choices envelope", async () => {
+		let received: Record<string, unknown> | undefined;
+		const ai: WorkersAiBinding = {
+			run: vi.fn(async (_model, input) => {
+				received = input;
+				return {
+					choices: [
+						{
+							message: {
+								content: JSON.stringify({
+									schemaVersion: 1,
+									findings: [],
+									coveredEvidenceRefs: ["profile.description"],
+								}),
+							},
+						},
+					],
+					usage: { prompt_tokens: 20, completion_tokens: 5, total_tokens: 25 },
+				};
+			}),
+		};
+		const adapter = createWorkersAiTextAdapter(ai, {
+			modelId: "openai-compatible-candidate",
+			promptHash: await sha256Hex(TEXT_SYSTEM_PROMPT),
+			thinking: false,
+		});
+		const result = await adapter.moderate({
+			subject: SUBJECT,
+			text: [{ ref: "profile.description", value: "A gallery plugin", format: "plain" }],
+			links: [],
+		});
+
+		expect(JSON.stringify(received?.["response_format"])).not.toContain("uniqueItems");
+		expect(received?.["chat_template_kwargs"]).toEqual({ enable_thinking: false });
+		expect(adapter.identity.parameters.thinking).toBe(false);
+		expect(result.coveredEvidenceRefs).toEqual(["profile.description"]);
+		expect(result.usage.totalTokens).toBe(25);
+	});
+
+	it("accepts provider-parsed structured output objects", async () => {
+		const ai: WorkersAiBinding = {
+			run: vi.fn(async () => ({
+				response: {
+					schemaVersion: 1,
+					findings: [],
+					coveredEvidenceRefs: ["profile.description"],
+				},
+			})),
+		};
+		const adapter = createWorkersAiTextAdapter(ai, {
+			modelId: "parsed-object-candidate",
+			promptHash: await sha256Hex(TEXT_SYSTEM_PROMPT),
+		});
+
+		await expect(
+			adapter.moderate({
+				subject: SUBJECT,
+				text: [{ ref: "profile.description", value: "A gallery plugin", format: "plain" }],
+				links: [],
+			}),
+		).resolves.toMatchObject({ coveredEvidenceRefs: ["profile.description"] });
+	});
+
 	it("treats publisher prompt injection as delimited data", async () => {
 		let received: Record<string, unknown> | undefined;
 		const ai: WorkersAiBinding = {

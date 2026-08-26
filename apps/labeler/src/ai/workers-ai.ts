@@ -18,7 +18,7 @@ import {
 } from "./types.js";
 
 export const WORKERS_AI_TEXT_MODEL_CANDIDATE = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-export const WORKERS_AI_IMAGE_MODEL_CANDIDATE = "@cf/meta/llama-4-scout-17b-16e-instruct";
+export const WORKERS_AI_IMAGE_MODEL_CANDIDATE = "@cf/qwen/qwen3.8-27b";
 
 export interface WorkersAiAdapterConfig {
 	modelId: string;
@@ -26,6 +26,7 @@ export interface WorkersAiAdapterConfig {
 	maxTokens?: number;
 	temperature?: number;
 	seed?: number;
+	thinking?: boolean;
 	configuredUnits?: number;
 }
 
@@ -84,6 +85,9 @@ export function createWorkersAiTextAdapter(
 				max_tokens: parameters.maxTokens,
 				temperature: parameters.temperature,
 				seed: parameters.seed,
+				...(parameters.thinking === undefined
+					? {}
+					: { chat_template_kwargs: { enable_thinking: parameters.thinking } }),
 			});
 			return normalizeResponse(
 				response,
@@ -143,6 +147,9 @@ export function createWorkersAiImageAdapter(
 				max_tokens: parameters.maxTokens,
 				temperature: parameters.temperature,
 				seed: parameters.seed,
+				...(parameters.thinking === undefined
+					? {}
+					: { chat_template_kwargs: { enable_thinking: parameters.thinking } }),
 			});
 			return normalizeResponse(
 				response,
@@ -159,6 +166,7 @@ function adapterParameters(config: WorkersAiAdapterConfig): Readonly<{
 	maxTokens: number;
 	temperature: number;
 	seed: number;
+	thinking?: boolean;
 }> {
 	const maxTokens = config.maxTokens ?? 1024;
 	const temperature = config.temperature ?? 0;
@@ -176,7 +184,12 @@ function adapterParameters(config: WorkersAiAdapterConfig): Readonly<{
 	) {
 		throw new TypeError("Workers AI configuredUnits must be a non-negative finite number");
 	}
-	return { maxTokens, temperature, seed };
+	return {
+		maxTokens,
+		temperature,
+		seed,
+		...(config.thinking === undefined ? {} : { thinking: config.thinking }),
+	};
 }
 
 async function assertPromptHash(prompt: string, expected: string): Promise<void> {
@@ -196,16 +209,42 @@ function normalizeResponse(
 		throw new TypeError("Workers AI response must be an object");
 	}
 	const provider = response;
-	if (typeof provider["response"] !== "string") {
-		throw new TypeError("Workers AI response is missing structured model output");
+	const output = structuredModelOutput(provider);
+	if (output === undefined) {
+		throw new TypeError(
+			`Workers AI response is missing structured model output (${modelOutputShape(provider)})`,
+		);
 	}
-	const parsed = parseModerationModelOutput(provider["response"], evidenceRefs);
+	const parsed = parseModerationModelOutput(output, evidenceRefs);
 	return {
 		...parsed,
 		identity,
 		latencyMs,
 		usage: parseUsage(provider["usage"], config.configuredUnits),
 	};
+}
+
+function structuredModelOutput(provider: Record<string, unknown>): string | undefined {
+	if (typeof provider["response"] === "string") return provider["response"];
+	if (isObject(provider["response"])) return JSON.stringify(provider["response"]);
+	const choices = provider["choices"];
+	if (!Array.isArray(choices) || !isObject(choices[0])) return undefined;
+	const message = choices[0]["message"];
+	if (!isObject(message)) return undefined;
+	if (typeof message["content"] === "string") return message["content"];
+	if (isObject(message["content"])) return JSON.stringify(message["content"]);
+	return undefined;
+}
+
+function modelOutputShape(provider: Record<string, unknown>): string {
+	const choices = provider["choices"];
+	if (!Array.isArray(choices) || !isObject(choices[0])) {
+		return `keys=${Object.keys(provider).toSorted().join(",")}`;
+	}
+	const message = choices[0]["message"];
+	return `choice.finish_reason=${String(choices[0]["finish_reason"])};message.content=${
+		isObject(message) ? typeof message["content"] : "missing"
+	};message.refusal=${isObject(message) && typeof message["refusal"] === "string" ? "present" : "absent"}`;
 }
 
 function parseUsage(value: unknown, configuredUnits?: number): ModerationUsage {
