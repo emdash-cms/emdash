@@ -43,6 +43,14 @@ but exhausted 1,024 completion tokens and returned empty content for the two phi
 at 1,227 completion tokens. The Unicode-confusable case still exhausted 4,096 completion tokens
 and returned empty content. Raw provider responses were retained for these diagnostics.
 
+A corrected one-pass GLM 5.2 run covered all 318 text fixtures. Two transient provider errors were
+retried, and all fixtures received a model response. Twenty-three expected-review rows resolved to
+pass: 12 rows represented five distinct phishing patterns, while 11 were synthetic lookalike-link
+variants whose expectations require separate validation. Six responses exhausted the 2,048-token
+limit while emitting an unfinished JSON object followed by whitespace. GLM did not send a clean
+case to review. P95 latency was 9.93 seconds. The artifact has SHA-256 digest
+`6275ba4f4bd3d1bff8c7b0c7247bd53029a87378a9874053d89b743740b9441e`.
+
 On the public corpus, Llama produced 51 valid text results across three repeats without a
 pass/review error. Qwen produced 21 correct image decisions across three repeats after image
 resizing, without a model error or repeated-run disagreement. Exact category assignments were
