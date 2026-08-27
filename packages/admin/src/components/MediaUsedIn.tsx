@@ -318,7 +318,7 @@ function UsageEntry({
 			{!entry.deletedAt && (
 				<span className="ms-auto flex shrink-0 items-center gap-1 text-sm font-medium text-kumo-subtle group-hover:text-kumo-default">
 					{t`Open`}
-					<ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+					<ArrowUpRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
 				</span>
 			)}
 		</>
