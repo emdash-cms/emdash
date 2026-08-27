@@ -9,7 +9,7 @@ import type {
 	ReleaseProvenance,
 	VerifiedProvenance,
 } from "../src/index.js";
-import { verifyPackageReleaseRecords } from "../src/index.js";
+import { inspectPackageReleaseRecords, verifyPackageReleaseRecords } from "../src/index.js";
 
 const publisherDid = "did:plc:publisher";
 const packageSlug = "gallery";
@@ -219,6 +219,28 @@ describe("verifyPackageReleaseRecords", () => {
 			success: false,
 			code: "PROVENANCE_REQUIRED",
 			provenance: { status: "absent-required" },
+		});
+	});
+
+	it("inspects signed policy before provenance evidence is available", async () => {
+		const profile = cloneProfile();
+		profile.extensions["com.emdashcms.experimental.package.profileExtension"].releasePolicy = {
+			requireProvenance: true,
+		};
+		expect(
+			await inspectPackageReleaseRecords({
+				publisherDid,
+				package: packageSlug,
+				version,
+				rkey,
+				profile,
+				release: cloneRelease(),
+			}),
+		).toMatchObject({
+			success: true,
+			status: "inspected",
+			provenance: { status: "not-checked" },
+			value: { policy: { requireProvenance: true } },
 		});
 	});
 

@@ -1,0 +1,7 @@
+---
+"@emdash-cms/registry-verification": minor
+---
+
+Adds optional artifact digest candidates to `GitHubProvenanceVerifier`, allowing callers that compute several supported digest algorithms in one isolated artifact fetch to verify the digest selected by a signed SLSA provenance subject.
+
+Existing callers can continue passing only `artifactDigest`. Successful results return the candidate that matched the signed subject.

@@ -12,6 +12,43 @@ export default defineConfig({
 		cloudflareTest({
 			wrangler: { configPath: "./wrangler.jsonc" },
 			miniflare: {
+				workers: [
+					{
+						name: "emdash-release-verifier",
+						modules: true,
+						script: `
+							import { WorkerEntrypoint } from "cloudflare:workers";
+							export default class ReleaseVerifier extends WorkerEntrypoint {
+								async verifyRelease(input) {
+									return {
+										success: true,
+										value: {
+											artifact: {
+												url: input.artifact.url,
+												checksum: input.artifact.checksum,
+												compressedBytes: 1024,
+												manifest: {
+													id: input.artifact.packageSlug,
+													version: input.artifact.version,
+													declaredAccess: {},
+												},
+												bundle: { backendBytes: 100, adminBytes: null },
+											},
+											provenance: {
+												url: input.provenance.url,
+												checksum: input.provenance.checksum,
+												documentBytes: 512,
+												predicateType: input.provenance.predicateType,
+												sourceRepository: input.provenance.sourceRepository,
+												builderId: input.provenance.builderId,
+											},
+										},
+									};
+								}
+							}
+						`,
+					},
+				],
 				bindings: {
 					PUBLIC_ORIGIN: "https://release.example.invalid",
 					DEPLOYMENT_ID: "test-release-service",

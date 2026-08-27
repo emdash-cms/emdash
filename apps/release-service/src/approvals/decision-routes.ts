@@ -175,6 +175,28 @@ function matchApprovalPath(
 	return value && ULID_PATTERN.test(value) ? { intentId: value } : null;
 }
 
+async function notifyApprovalWorkflow(
+	workflowIntentId: string,
+	decision: "approve" | "reject",
+	approvalDigest: string,
+): Promise<void> {
+	try {
+		const instance = await env.RELEASE_INTENT_WORKFLOW.get(workflowIntentId);
+		await instance.sendEvent({
+			type: "approval-decision",
+			payload: { decision, approvalDigest },
+		});
+	} catch (error) {
+		console.error(
+			JSON.stringify({
+				event: "approval_workflow_notification_failed",
+				intentId: workflowIntentId,
+				error: error instanceof Error ? error.message : String(error),
+			}),
+		);
+	}
+}
+
 export function matchApprovalResourcePath(
 	pathname: string,
 ): Readonly<Record<string, string>> | null {
@@ -327,6 +349,9 @@ export async function handleCompleteApprovalDecision(
 			if (!result.replayed || loaded.appliedApprovalDigest !== result.receipt.approvalDigest) {
 				throw new ApprovalAuthorityError("INTENT_NOT_APPROVABLE");
 			}
+			if (loaded.intent.workflowId === intent) {
+				await notifyApprovalWorkflow(intent, decision, result.receipt.approvalDigest);
+			}
 			return apiSuccess({ receipt: result.receipt, intent: loaded.intent }, requestId);
 		}
 		await verifyCurrentApprover(loaded.evidence, session.approverDid);
@@ -351,6 +376,9 @@ export async function handleCompleteApprovalDecision(
 				new ApiError("INTENT_NOT_APPROVABLE", 409, "Release intent changed before approval"),
 				requestId,
 			);
+		}
+		if (loaded.intent.workflowId === intent) {
+			await notifyApprovalWorkflow(intent, decision, result.receipt.approvalDigest);
 		}
 		return apiSuccess({ receipt: result.receipt, intent: transition.intent }, requestId);
 	} catch (error) {

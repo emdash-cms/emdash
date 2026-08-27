@@ -7,11 +7,10 @@
  *     via `@emdash-cms/registry-client`'s `DiscoveryClient`. The
  *     aggregator is a public, CORS-enabled atproto AppView; no server
  *     proxy is needed.
- *   - **Install**: POST to the EmDash server (which holds the sandbox,
- *     R2, and `_plugin_state` table). The server re-resolves the same
- *     `(handle, slug)` against the aggregator, re-verifies the bundle,
- *     and writes the install. The browser is the consent UI; the server
- *     is the install actor.
+ *   - **Verify / install**: POST to the EmDash server. The server reads
+ *     signed records directly from the publisher PDS, verifies the bundle
+ *     and provenance, returns consent evidence, then repeats those checks
+ *     against acknowledged CIDs when installing.
  *
  * The discovery client is constructed lazily so we only pull
  * `@atcute/client` into the admin bundle when the registry path is
@@ -20,6 +19,7 @@
  */
 
 import type { Did, Handle } from "@atcute/lexicons";
+import type { DeclaredAccess } from "@emdash-cms/plugin-types";
 import type {
 	ListingStatusResult,
 	ValidatedListReleases,
@@ -91,6 +91,8 @@ export interface RegistryInstallRequest {
 	version?: string;
 	acknowledgedDeclaredAccess?: unknown;
 	acknowledgedMcpTools?: PluginMcpConsentTool[];
+	acknowledgedProfileCid?: string;
+	acknowledgedReleaseCid?: string;
 }
 
 export interface RegistryInstallResult {
@@ -99,6 +101,20 @@ export interface RegistryInstallResult {
 	slug: string;
 	version: string;
 	capabilities: string[];
+	declaredAccess: DeclaredAccess;
+	mcpTools: PluginMcpConsentTool[];
+	verification: RegistryRecordVerificationSummary;
+}
+
+export interface RegistryRecordVerificationSummary {
+	profileCid: string;
+	releaseCid: string;
+	provenance: "verified" | "absent-optional";
+	policy: {
+		requireProvenance: boolean;
+		confirmation: "escalation-only" | "always";
+		approvers: string[];
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -732,13 +748,24 @@ export function extractMediaArtifacts(artifacts: unknown): MediaArtifacts {
 // ---------------------------------------------------------------------------
 
 const INSTALL_ENDPOINT = `${API_BASE}/admin/plugins/registry/install`;
+const VERIFY_ENDPOINT = `${API_BASE}/admin/plugins/registry/verify`;
+
+export async function verifyRegistryPlugin(
+	body: Pick<RegistryInstallRequest, "did" | "slug" | "version">,
+): Promise<RegistryInstallResult> {
+	const response = await apiFetch(VERIFY_ENDPOINT, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+	return parseApiResponse<RegistryInstallResult>(response, i18n._(msg`Failed to verify plugin`));
+}
 
 /**
  * Install a plugin from the registry.
  *
- * Posts to the EmDash server, which re-resolves the same `(handle,
- * slug)` against the aggregator, re-verifies the bundle's checksum
- * against the signed release record, and writes the install. Surfaces
+ * Posts to the EmDash server, which re-fetches the acknowledged signed
+ * records, bundle, and provenance before writing the install. Surfaces
  * structured error codes (`RELEASE_YANKED`, `CHECKSUM_MISMATCH`,
  * `DECLARED_ACCESS_DRIFT`, etc.) that callers map to localized
  * messages.
@@ -771,6 +798,8 @@ export interface RegistryUpdateOpts {
 	confirmCapabilityChanges?: boolean;
 	confirmRouteVisibilityChanges?: boolean;
 	confirmMcpTools?: boolean;
+	acknowledgedProfileCid?: string;
+	acknowledgedReleaseCid?: string;
 }
 
 export interface RegistryUninstallOpts {
@@ -787,17 +816,30 @@ export class RegistryUpdateEscalationError extends Error {
 	readonly code: "CAPABILITY_ESCALATION" | "ROUTE_VISIBILITY_ESCALATION";
 	readonly capabilityChanges: { added: string[]; removed: string[] };
 	readonly routeVisibilityChanges?: { newlyPublic: string[] };
+	readonly verification?: RegistryRecordVerificationSummary;
 	constructor(
 		code: "CAPABILITY_ESCALATION" | "ROUTE_VISIBILITY_ESCALATION",
 		message: string,
 		capabilityChanges: { added: string[]; removed: string[] },
 		routeVisibilityChanges?: { newlyPublic: string[] },
+		verification?: RegistryRecordVerificationSummary,
 	) {
 		super(message);
 		this.name = "RegistryUpdateEscalationError";
 		this.code = code;
 		this.capabilityChanges = capabilityChanges;
 		this.routeVisibilityChanges = routeVisibilityChanges;
+		this.verification = verification;
+	}
+}
+
+export class RegistryMcpConsentRequiredError extends PluginMcpConsentRequiredError {
+	constructor(
+		tools: PluginMcpConsentTool[],
+		readonly verification?: RegistryRecordVerificationSummary,
+	) {
+		super(tools);
+		this.name = "RegistryMcpConsentRequiredError";
 	}
 }
 
@@ -836,7 +878,7 @@ export async function updateRegistryPlugin(
 	await throwResponseError(response, i18n._(msg`Failed to update plugin`));
 }
 
-function parseMcpConsent(body: unknown): PluginMcpConsentRequiredError | null {
+function parseMcpConsent(body: unknown): RegistryMcpConsentRequiredError | null {
 	if (!body || typeof body !== "object" || !("error" in body)) return null;
 	const error = body.error;
 	if (!error || typeof error !== "object" || !("code" in error)) return null;
@@ -846,7 +888,10 @@ function parseMcpConsent(body: unknown): PluginMcpConsentRequiredError | null {
 			? (error.details as { mcpTools?: PluginMcpConsentTool[] })
 			: {};
 	return details.mcpTools && details.mcpTools.length > 0
-		? new PluginMcpConsentRequiredError(details.mcpTools)
+		? new RegistryMcpConsentRequiredError(
+				details.mcpTools,
+				normaliseRegistryVerification("verification" in details ? details.verification : undefined),
+			)
 		: null;
 }
 
@@ -864,6 +909,9 @@ function parseEscalation(body: unknown): RegistryUpdateEscalationError | null {
 	const routeVisibilityChanges = normaliseRouteVisibilityChanges(
 		"routeVisibilityChanges" in details ? details.routeVisibilityChanges : undefined,
 	);
+	const verification = normaliseRegistryVerification(
+		"verification" in details ? details.verification : undefined,
+	);
 	const message =
 		"message" in error && typeof error.message === "string"
 			? error.message
@@ -873,7 +921,44 @@ function parseEscalation(body: unknown): RegistryUpdateEscalationError | null {
 		message,
 		capabilityChanges,
 		routeVisibilityChanges,
+		verification,
 	);
+}
+
+function normaliseRegistryVerification(
+	value: unknown,
+): RegistryRecordVerificationSummary | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const profileCid = Reflect.get(value, "profileCid");
+	const releaseCid = Reflect.get(value, "releaseCid");
+	const provenance = Reflect.get(value, "provenance");
+	const policy = Reflect.get(value, "policy");
+	if (
+		typeof profileCid !== "string" ||
+		typeof releaseCid !== "string" ||
+		(provenance !== "verified" && provenance !== "absent-optional") ||
+		!policy ||
+		typeof policy !== "object"
+	) {
+		return undefined;
+	}
+	const requireProvenance = Reflect.get(policy, "requireProvenance");
+	const confirmation = Reflect.get(policy, "confirmation");
+	const approvers = Reflect.get(policy, "approvers");
+	if (
+		typeof requireProvenance !== "boolean" ||
+		(confirmation !== "always" && confirmation !== "escalation-only") ||
+		!Array.isArray(approvers) ||
+		!approvers.every((approver) => typeof approver === "string")
+	) {
+		return undefined;
+	}
+	return {
+		profileCid,
+		releaseCid,
+		provenance,
+		policy: { requireProvenance, confirmation, approvers },
+	};
 }
 
 function normaliseCapabilityChanges(value: unknown): { added: string[]; removed: string[] } {

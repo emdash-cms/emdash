@@ -62,6 +62,7 @@ export interface StoredIntent {
 	state: IntentState;
 	stateGeneration: number;
 	workloadPolicyVersion: number;
+	workloadIdentityDigest: string;
 	requestDigest: string;
 	workloadIdentityJson: string;
 	releaseInputJson: string;
@@ -136,6 +137,7 @@ interface IntentRow {
 	state: IntentState;
 	state_generation: number;
 	workload_policy_version: number;
+	workload_identity_digest: string;
 	request_digest: string;
 	workload_identity_json: string;
 	release_input_json: string;
@@ -207,6 +209,7 @@ function rowToIntent(row: IntentRow): StoredIntent {
 		state: row.state,
 		stateGeneration: row.state_generation,
 		workloadPolicyVersion: row.workload_policy_version,
+		workloadIdentityDigest: row.workload_identity_digest,
 		requestDigest: row.request_digest,
 		workloadIdentityJson: row.workload_identity_json,
 		releaseInputJson: row.release_input_json,
@@ -227,6 +230,7 @@ export function initializeIntentStateSchema(storage: DurableObjectStorage): void
 			state TEXT NOT NULL,
 			state_generation INTEGER NOT NULL CHECK (state_generation >= 1),
 			workload_policy_version INTEGER NOT NULL CHECK (workload_policy_version >= 1),
+			workload_identity_digest TEXT NOT NULL,
 			request_digest TEXT NOT NULL,
 			workload_identity_json TEXT NOT NULL,
 			release_input_json TEXT NOT NULL,
@@ -380,14 +384,15 @@ export class IntentStateStore {
 			this.#storage.sql.exec(
 				`INSERT INTO intents (
 					id, package_slug, version, state, state_generation,
-					workload_policy_version, request_digest, workload_identity_json,
+					workload_policy_version, workload_identity_digest, request_digest, workload_identity_json,
 					release_input_json, state_data_json, workflow_id,
 					expires_at, created_at, updated_at
-				) VALUES (?, ?, ?, 'received', 1, ?, ?, ?, ?, '{}', NULL, ?, ?, ?)`,
+				) VALUES (?, ?, ?, 'received', 1, ?, ?, ?, ?, ?, '{}', NULL, ?, ?, ?)`,
 				input.intentId,
 				input.packageSlug,
 				input.version,
 				input.workloadPolicyVersion,
+				input.workloadIdentityDigest,
 				input.requestDigest,
 				input.workloadIdentityJson,
 				input.releaseInputJson,
@@ -562,7 +567,7 @@ export class IntentStateStore {
 		const row = this.#storage.sql
 			.exec<IntentRow>(
 				`SELECT id, package_slug, version, state, state_generation,
-				        workload_policy_version, request_digest, workload_identity_json,
+					        workload_policy_version, workload_identity_digest, request_digest, workload_identity_json,
 				        release_input_json, state_data_json, workflow_id,
 				        expires_at, created_at, updated_at
 				 FROM intents WHERE id = ?`,

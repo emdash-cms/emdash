@@ -66,6 +66,16 @@ export {
 } from "./withdrawal.js";
 
 export {
+	type DirectPdsClientOptions,
+	type DirectPdsDidDocumentResolver,
+	type DirectPdsProfileRecord,
+	type DirectPdsReadErrorCode,
+	type DirectPdsReleaseRecord,
+	DirectPdsClient,
+	DirectPdsReadError,
+} from "./direct-pds/index.js";
+
+export {
 	type EnvMismatch,
 	type HostEnv,
 	type SkippedEnvConstraint,

@@ -24,6 +24,19 @@
 			"new_sqlite_classes": ["ApproverDurableObject", "PublisherDurableObject"],
 		},
 	],
+	"services": [
+		{
+			"binding": "RELEASE_VERIFIER",
+			"service": "emdash-release-verifier",
+		},
+	],
+	"workflows": [
+		{
+			"binding": "RELEASE_INTENT_WORKFLOW",
+			"name": "emdash-release-intent",
+			"class_name": "ReleaseIntentWorkflow",
+		},
+	],
 	"vars": {
 		"PUBLIC_ORIGIN": "",
 		"DEPLOYMENT_ID": "",

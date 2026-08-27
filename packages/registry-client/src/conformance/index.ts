@@ -6,6 +6,7 @@
  * the CLI's loopback client and the release service's confidential client.
  */
 
+// Loads the AT Protocol lexicon module augmentations used by typed Client calls.
 // eslint-disable-next-line @typescript-eslint/no-empty-named-blocks, eslint-plugin-import/no-empty-named-blocks, eslint-plugin-unicorn/require-module-specifiers, import/no-empty-named-blocks, unicorn/require-module-specifiers
 import type {} from "@atcute/atproto";
 import {
