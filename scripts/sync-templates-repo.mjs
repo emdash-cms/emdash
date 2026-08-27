@@ -157,8 +157,8 @@ function transformPackageJson(srcPath, catalog, workspace, packageManager) {
  */
 function pnpmWorkspaceYaml(template) {
 	const allowBuilds = template.endsWith("-cloudflare")
-		? "  esbuild: true\n  workerd: true\n  better-sqlite3: false\n  sharp: false"
-		: "  esbuild: true\n  better-sqlite3: true\n  sharp: true\n  workerd: false";
+		? "  esbuild: true\n  workerd: true\n  sharp: false"
+		: "  esbuild: true\n  sharp: true\n  workerd: false";
 	return `# Build scripts: allow only what each runtime needs; rest false so
 # strictDepBuilds (pnpm >=10.26 / 11) passes.
 allowBuilds:

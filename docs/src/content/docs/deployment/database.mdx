@@ -507,7 +507,7 @@ For a non-superuser to transfer ownership, it must own or inherit ownership of t
 
 ## SQLite
 
-SQLite with better-sqlite3 is the simplest option for Node.js deployments.
+SQLite uses Node.js's built-in database driver and is the simplest option for Node.js deployments.
 
 ```js title="astro.config.mjs"
 import { sqlite } from "emdash/db";

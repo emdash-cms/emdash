@@ -5,12 +5,18 @@ description: Deploy EmDash to any Node.js hosting platform.
 
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-EmDash runs on any Node.js 22+ hosting platform. This guide uses SQLite with local or S3-compatible storage; libSQL and PostgreSQL work the same way on Node.js — see [Database Options](/deployment/database/).
+EmDash runs on Node.js 22.16 or later. This guide uses SQLite with local or S3-compatible storage; libSQL and PostgreSQL work the same way on Node.js — see [Database Options](/deployment/database/).
 
 ## Prerequisites
 
-- Node.js v22.12.0 or higher
+- Node.js v22.16.0 or higher
 - A Node.js hosting provider or VPS
+
+<Aside>
+	Node.js 22 prints `ExperimentalWarning: SQLite is an experimental feature` when a site uses the
+	built-in SQLite driver. The warning comes from Node.js and does not prevent the database from
+	opening. Node.js 24 does not print this warning.
+</Aside>
 
 ## Configuration
 
@@ -122,24 +128,6 @@ The seed file is read at build time and inlined into the bundle, so it does not 
 	not interchangeable with the `Dockerfile` in the root of the EmDash repository, which builds the whole
 	pnpm monorepo and packages the blog template from source.
 </Aside>
-
-<Aside type="caution" title="Native dependencies behind restrictive networks">
-	EmDash's SQLite driver (`better-sqlite3`) installs a prebuilt binary downloaded from GitHub Releases.
-	If your build environment blocks that download (corporate proxy, offline mirror), the install falls
-	back to compiling from source and fails with a `gyp ERR! find Python` error, because slim/alpine Node
-	images ship no compiler toolchain.
-</Aside>
-
-If you hit that error, install the toolchain in the builder stage before `npm ci`:
-
-```dockerfile
-# Alpine-based images (node:22-alpine)
-RUN apk add --no-cache python3 make g++
-
-# Debian-based images (node:22-slim)
-RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
-    && rm -rf /var/lib/apt/lists/*
-```
 
 Build the image and run the container:
 
