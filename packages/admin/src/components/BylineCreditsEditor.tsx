@@ -484,7 +484,7 @@ export function BylineCreditsEditor({
 				<>
 					{credits.length > 0 ? (
 						<>
-							<div className="flex items-start justify-between gap-3">
+							<div className="flex items-center justify-between gap-3">
 								<Text variant="secondary">{t`Shown to readers in this order.`}</Text>
 								<Popover.Trigger
 									render={
