@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ConfigurationBindings } from "../src/config.js";
 import { handleRequest } from "../src/index.js";
 import type { RouteDefinition } from "../src/routes.js";
-import { TEST_ASSERTION_KEYSET } from "./fixtures/oauth.js";
+import { TEST_BINDINGS } from "./fixtures/oauth.js";
 
 describe("release-service Worker", () => {
 	it("serves health with a stable JSON envelope and request ID", async () => {
@@ -18,6 +18,27 @@ describe("release-service Worker", () => {
 			data: { status: "ok" },
 			requestId: "health-check-1",
 		});
+	});
+
+	it("serves liveness without loading service configuration", async () => {
+		const response = await handleRequest(new Request("https://test/health"), {
+			...TEST_BINDINGS,
+			PUBLIC_ORIGIN: "",
+		});
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({ data: { status: "ok" } });
+		expect(
+			(await handleRequest(new Request("https://test/health", { method: "POST" }), TEST_BINDINGS))
+				.status,
+		).toBe(405);
+	});
+
+	it("serves readiness only after configuration and control storage initialize", async () => {
+		const response = await SELF.fetch("https://release.example.invalid/ready");
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({ data: { status: "ready" } });
 	});
 
 	it("serves public-only OAuth metadata and overlapping keys", async () => {
@@ -42,14 +63,11 @@ describe("release-service Worker", () => {
 
 	it("fails configuration closed without exposing binding names", async () => {
 		const bindings = {
+			...TEST_BINDINGS,
 			PUBLIC_ORIGIN: "",
-			DEPLOYMENT_ID: "test-release-service",
 			OAUTH_REDIRECT_URIS: "[]",
-			OAUTH_ASSERTION_KEYSET: TEST_ASSERTION_KEYSET,
-			ENCRYPTION_KEYRING:
-				'{"current":1,"keys":[{"version":1,"key":"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"}]}',
 		} satisfies ConfigurationBindings;
-		const response = await handleRequest(new Request("https://test/health"), bindings);
+		const response = await handleRequest(new Request("https://test/ready"), bindings);
 		expect(response.status).toBe(503);
 		const body = await response.text();
 		expect(body).toContain("CONFIGURATION_ERROR");
@@ -75,14 +93,7 @@ describe("release-service Worker", () => {
 		try {
 			const response = await handleRequest(
 				new Request("https://release.example.invalid/__test/failure"),
-				{
-					PUBLIC_ORIGIN: "https://release.example.invalid",
-					DEPLOYMENT_ID: "test-release-service",
-					OAUTH_REDIRECT_URIS: '["https://release.example.invalid/oauth/callback"]',
-					OAUTH_ASSERTION_KEYSET: TEST_ASSERTION_KEYSET,
-					ENCRYPTION_KEYRING:
-						'{"current":1,"keys":[{"version":1,"key":"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"}]}',
-				},
+				TEST_BINDINGS,
 				[route],
 			);
 			expect(response.status).toBe(500);

@@ -13,6 +13,10 @@
 				"class_name": "ApproverDurableObject",
 			},
 			{
+				"name": "SERVICE_CONTROL_DO",
+				"class_name": "ServiceControlDurableObject",
+			},
+			{
 				"name": "PUBLISHER_DO",
 				"class_name": "PublisherDurableObject",
 			},
@@ -21,7 +25,11 @@
 	"migrations": [
 		{
 			"tag": "v1",
-			"new_sqlite_classes": ["ApproverDurableObject", "PublisherDurableObject"],
+			"new_sqlite_classes": [
+				"ApproverDurableObject",
+				"PublisherDurableObject",
+				"ServiceControlDurableObject",
+			],
 		},
 	],
 	"services": [
@@ -40,6 +48,10 @@
 	"vars": {
 		"PUBLIC_ORIGIN": "",
 		"DEPLOYMENT_ID": "",
+		"ACCESS_TEAM_DOMAIN": "",
+		"ACCESS_VIEWER_AUD": "",
+		"ACCESS_REVIEWER_AUD": "",
+		"ACCESS_ADMIN_AUD": "",
 		"OAUTH_REDIRECT_URIS": "[]",
 	},
 	"secrets": {

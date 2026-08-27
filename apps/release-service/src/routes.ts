@@ -1,4 +1,4 @@
-import { apiSuccess } from "./api/response.js";
+import type { AccessActor, AccessRole } from "./access/auth.js";
 import {
 	handleBeginApprovalDecision,
 	handleCompleteApprovalDecision,
@@ -14,6 +14,14 @@ import {
 	matchApproverCredentialPath,
 } from "./approvals/routes.js";
 import type { ServiceConfiguration } from "./config.js";
+import {
+	handleControlAudit,
+	handleGetPublisherControl,
+	handleReadiness,
+	handleServiceStatus,
+	handleSetPublisherControl,
+	handleSetServiceMode,
+} from "./control-do/routes.js";
 import { getClientMetadata, getPublicJwks, publicOAuthJson } from "./oauth/metadata.js";
 import {
 	handleApproverIdentityAuthorize,
@@ -23,14 +31,16 @@ import {
 } from "./oauth/routes.js";
 
 export interface RouteDefinition {
-	method: "DELETE" | "GET" | "POST";
+	method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
 	path: string;
 	match?(pathname: string): Readonly<Record<string, string>> | null;
+	accessRole?: AccessRole;
 	handler(
 		request: Request,
 		requestId: string,
 		configuration: ServiceConfiguration,
 		params: Readonly<Record<string, string>>,
+		accessActor: AccessActor | null,
 	): Response | Promise<Response>;
 }
 
@@ -108,7 +118,37 @@ export const ROUTES = Object.freeze([
 	},
 	{
 		method: "GET",
-		path: "/health",
-		handler: (_request, requestId) => apiSuccess({ status: "ok" }, requestId),
+		path: "/ready",
+		handler: handleReadiness,
+	},
+	{
+		method: "GET",
+		path: "/admin/api/viewer/status",
+		accessRole: "viewer",
+		handler: handleServiceStatus,
+	},
+	{
+		method: "GET",
+		path: "/admin/api/viewer/publisher-control",
+		accessRole: "viewer",
+		handler: handleGetPublisherControl,
+	},
+	{
+		method: "GET",
+		path: "/admin/api/viewer/audit",
+		accessRole: "viewer",
+		handler: handleControlAudit,
+	},
+	{
+		method: "POST",
+		path: "/admin/api/admin/service-mode",
+		accessRole: "admin",
+		handler: handleSetServiceMode,
+	},
+	{
+		method: "POST",
+		path: "/admin/api/admin/publisher-control",
+		accessRole: "admin",
+		handler: handleSetPublisherControl,
 	},
 ] as const satisfies readonly RouteDefinition[]);

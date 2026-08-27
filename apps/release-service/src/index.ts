@@ -1,22 +1,37 @@
+import type { JWTVerifyGetKey } from "jose";
+
+import {
+	accessRoleForOperatorPath,
+	authenticateAccessRequest,
+	validateAccessMutation,
+	type AccessActor,
+} from "./access/auth.js";
 import { ApiError } from "./api/errors.js";
 import { getRequestId } from "./api/request-id.js";
-import { apiFailure } from "./api/response.js";
+import { apiFailure, apiSuccess } from "./api/response.js";
 import { ConfigurationError, loadConfiguration, type ConfigurationBindings } from "./config.js";
 import { ROUTES, type RouteDefinition } from "./routes.js";
 
 export { PublisherDurableObject } from "./publisher-do/publisher-do.js";
 export { ApproverDurableObject } from "./approver-do/approver-do.js";
 export { ReleaseIntentWorkflow } from "./workflows/release-intent.js";
+export { ServiceControlDurableObject } from "./control-do/service-control-do.js";
 
 export async function handleRequest(
 	request: Request,
 	bindings: ConfigurationBindings,
 	routes: readonly RouteDefinition[] = ROUTES,
+	accessKeyResolver?: JWTVerifyGetKey,
 ): Promise<Response> {
 	const requestId = getRequestId(request);
 	try {
-		const configuration = await loadConfiguration(bindings);
 		const url = new URL(request.url);
+		if (url.pathname === "/health") {
+			return request.method === "GET"
+				? apiSuccess({ status: "ok" }, requestId)
+				: apiFailure(new ApiError("METHOD_NOT_ALLOWED", 405, "Method not allowed"), requestId);
+		}
+		const configuration = await loadConfiguration(bindings);
 		const matches = routes.flatMap((candidate) => {
 			const params = candidate.match
 				? candidate.match(url.pathname)
@@ -27,7 +42,33 @@ export async function handleRequest(
 		});
 		const route = matches.find(({ candidate }) => candidate.method === request.method);
 		if (route) {
-			return await route.candidate.handler(request, requestId, configuration, route.params);
+			let accessActor: AccessActor | null = null;
+			const operatorRole = accessRoleForOperatorPath(url.pathname);
+			if (
+				(url.pathname.startsWith("/admin/api/") && route.candidate.accessRole === undefined) ||
+				(operatorRole !== null && operatorRole !== route.candidate.accessRole) ||
+				(!url.pathname.startsWith("/admin/api/") && route.candidate.accessRole !== undefined)
+			) {
+				throw new Error("Operator route has an invalid Access role boundary");
+			}
+			if (route.candidate.accessRole) {
+				accessActor = await authenticateAccessRequest(
+					request,
+					route.candidate.accessRole,
+					configuration.access,
+					accessKeyResolver,
+				);
+				if (route.candidate.method !== "GET") {
+					validateAccessMutation(request, configuration.publicOrigin);
+				}
+			}
+			return await route.candidate.handler(
+				request,
+				requestId,
+				configuration,
+				route.params,
+				accessActor,
+			);
 		}
 		if (matches.length > 0) {
 			return apiFailure(new ApiError("METHOD_NOT_ALLOWED", 405, "Method not allowed"), requestId);
