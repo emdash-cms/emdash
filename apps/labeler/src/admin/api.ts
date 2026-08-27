@@ -164,7 +164,7 @@ export function assessmentAction(
 	});
 }
 
-export function setIssuance(paused: boolean, reason: string): Promise<IssuanceStatus> {
+export function setIssuance(paused: boolean, reason: string): Promise<{ paused: boolean }> {
 	return mutate(`/_admin/api/issuance/${paused ? "pause" : "resume"}`, { reason });
 }
 

@@ -5,6 +5,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App.js";
+import { LocaleDirectionProvider } from "./LocaleDirectionProvider.js";
 
 import "./styles.css";
 
@@ -21,9 +22,11 @@ if (!root) throw new Error("Admin application root is missing");
 createRoot(root).render(
 	<React.StrictMode>
 		<I18nProvider i18n={i18n}>
-			<Toasty>
-				<App />
-			</Toasty>
+			<LocaleDirectionProvider locale="en">
+				<Toasty>
+					<App />
+				</Toasty>
+			</LocaleDirectionProvider>
 		</I18nProvider>
 	</React.StrictMode>,
 );

@@ -54,6 +54,7 @@ import {
 } from "./api.js";
 
 type View = "overview" | "assessments" | "takedowns" | "issuance" | "evaluations" | "activity";
+const ADMIN_VIEWS = new Set<View>(["takedowns", "issuance", "evaluations", "activity"]);
 
 export function App() {
 	const { t } = useLingui();
@@ -149,6 +150,9 @@ function renderView(
 	health: Resource<HealthStatus>,
 ): React.ReactNode {
 	if (view === "overview") return <Overview health={health} navigate={navigate} />;
+	if (ADMIN_VIEWS.has(view) && !session.identity.roles.includes("admin")) {
+		return <AdministratorRoleRequired />;
+	}
 	if (view === "assessments") {
 		const prefix = "/_admin/assessments/";
 		return path.startsWith(prefix) ? (
@@ -165,6 +169,17 @@ function renderView(
 	if (view === "evaluations") return <EvaluationsView />;
 	if (view === "activity") return <ActivityView />;
 	return null;
+}
+
+function AdministratorRoleRequired() {
+	const { t } = useLingui();
+	return (
+		<Banner
+			variant="error"
+			title={t`Administrator role required`}
+			description={t`This console is not available to your operator role.`}
+		/>
+	);
 }
 
 function Overview({
@@ -221,6 +236,7 @@ function Overview({
 function AssessmentsView({ navigate }: { navigate: (path: string) => void }) {
 	const { t } = useLingui();
 	const [state, setState] = React.useState<AssessmentState>("review");
+	const stateRef = React.useRef(state);
 	const resource = useResource(() => getAssessments(state), [state]);
 	const [items, setItems] = React.useState<AssessmentListItem[]>([]);
 	const [nextCursor, setNextCursor] = React.useState<string | undefined>();
@@ -246,7 +262,10 @@ function AssessmentsView({ navigate }: { navigate: (path: string) => void }) {
 				tabs={tabs}
 				value={state}
 				onValueChange={(value) => {
-					if (isAssessmentState(value)) setState(value);
+					if (isAssessmentState(value)) {
+						stateRef.current = value;
+						setState(value);
+					}
 				}}
 				variant="underline"
 				className="mb-5 overflow-x-auto"
@@ -323,7 +342,9 @@ function AssessmentsView({ navigate }: { navigate: (path: string) => void }) {
 			{nextCursor && (
 				<LoadMore
 					onLoad={async () => {
+						const requestedState = state;
 						const page = await getAssessments(state, nextCursor);
+						if (stateRef.current !== requestedState) return;
 						setItems((current) => [...current, ...page.items]);
 						setNextCursor(page.nextCursor);
 					}}
@@ -353,7 +374,10 @@ function AssessmentDetailView({
 			title={t`Assessment detail`}
 			description={runKey}
 			actions={
-				<Button icon={<ArrowLeft />} onClick={() => navigate("/_admin/assessments")}>
+				<Button
+					icon={<ArrowLeft className="rtl:-scale-x-100" />}
+					onClick={() => navigate("/_admin/assessments")}
+				>
 					<Trans>Back to assessments</Trans>
 				</Button>
 			}
