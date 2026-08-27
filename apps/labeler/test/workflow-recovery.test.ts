@@ -5,6 +5,7 @@ import type { AssessmentWorkflowParams } from "../src/assessment/types.js";
 import { ensureOperatorRerunWorkflow } from "../src/operator/api.js";
 import {
 	classifyReconciliationWorkflowStatus,
+	createReconciliationWorkflowControl,
 	ensureAssessmentWorkflowRuns,
 	type ReconciliationWorkflowPresence,
 } from "../src/reconciliation/workflows.js";
@@ -26,6 +27,30 @@ describe("Workflow recovery", () => {
 			expect(classifyReconciliationWorkflowStatus(status)).toBe("existing");
 		}
 		expect(classifyReconciliationWorkflowStatus("unknown")).toBe("missing");
+	});
+
+	it("maps the production Workflow not-found rejection to a missing instance", async () => {
+		const control = createReconciliationWorkflowControl({
+			createBatch: async () => [],
+			async get() {
+				throw new Error("(instance.not_found) Instance not found");
+			},
+		});
+
+		await expect(control.workflowPresence("assessment-run-key")).resolves.toBe("missing");
+	});
+
+	it("does not hide other Workflow lookup failures", async () => {
+		const control = createReconciliationWorkflowControl({
+			createBatch: async () => [],
+			async get() {
+				throw new Error("Workflow service unavailable");
+			},
+		});
+
+		await expect(control.workflowPresence("assessment-run-key")).rejects.toThrow(
+			"Workflow service unavailable",
+		);
 	});
 
 	it("restarts errored and terminated reconciliation Workflows", async () => {

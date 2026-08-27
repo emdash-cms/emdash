@@ -260,24 +260,55 @@ class MemoryStep implements LiveEvaluationDurableStep {
 	readonly calls: string[] = [];
 	readonly results = new Map<string, unknown>();
 
-	async do<T>(name: string, callback: () => Promise<T>): Promise<T> {
+	async do<T>(name: string, callback: () => Promise<T>): Promise<T>;
+	async do<T>(
+		name: string,
+		config: { retries?: unknown; timeout?: unknown },
+		callback: () => Promise<T>,
+	): Promise<T>;
+	async do<T>(
+		name: string,
+		configOrCallback: { retries?: unknown; timeout?: unknown } | (() => Promise<T>),
+		callback?: () => Promise<T>,
+	): Promise<T> {
+		if (name.startsWith("evaluate-") && typeof configOrCallback === "function") {
+			throw new Error("model evaluation step is not bounded");
+		}
+		if (
+			name.startsWith("evaluate-") &&
+			typeof configOrCallback !== "function" &&
+			!configOrCallback.retries
+		) {
+			throw new Error("model evaluation step has no retries");
+		}
 		if (this.results.has(name)) return this.results.get(name) as T;
 		this.calls.push(name);
-		const result = await callback();
+		const result = await (callback ?? (configOrCallback as () => Promise<T>))();
 		this.results.set(name, result);
 		return result;
 	}
 }
 
 class RetryingMemoryStep extends MemoryStep {
-	override async do<T>(name: string, callback: () => Promise<T>): Promise<T> {
+	override async do<T>(name: string, callback: () => Promise<T>): Promise<T>;
+	override async do<T>(
+		name: string,
+		config: { retries?: unknown; timeout?: unknown },
+		callback: () => Promise<T>,
+	): Promise<T>;
+	override async do<T>(
+		name: string,
+		configOrCallback: { retries?: unknown; timeout?: unknown } | (() => Promise<T>),
+		callback?: () => Promise<T>,
+	): Promise<T> {
 		if (this.results.has(name)) return this.results.get(name) as T;
 		this.calls.push(name);
+		const execute = callback ?? (configOrCallback as () => Promise<T>);
 		let result: T;
 		try {
-			result = await callback();
+			result = await execute();
 		} catch {
-			result = await callback();
+			result = await execute();
 		}
 		this.results.set(name, result);
 		return result;

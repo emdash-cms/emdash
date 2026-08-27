@@ -4,8 +4,13 @@ import {
 	PlcDidDocumentResolver,
 } from "@atcute/identity-resolver";
 import { INITIAL_LISTING_POLICY_FIXTURE } from "@emdash-cms/registry-moderation/fixtures";
-import { fetchVerifiedResource } from "@emdash-cms/registry-verification";
+import { fetchVerifiedResource } from "@emdash-cms/registry-verification/fetch";
 
+import {
+	createCloudflareImagesDerivativeTransformer,
+	createResizedImageModerationAdapter,
+	DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
+} from "../ai/image-resize.js";
 import {
 	createWorkersAiImageAdapter,
 	createWorkersAiTextAdapter,
@@ -70,10 +75,15 @@ export async function createProductionAssessmentWorkflowDependencies(
 			modelId: config.versions.textModelId,
 			promptHash: config.versions.textPromptHash,
 		}),
-		imageAdapter: createWorkersAiImageAdapter(ai, {
-			modelId: config.versions.imageModelId,
-			promptHash: config.versions.imagePromptHash,
-		}),
+		imageAdapter: createResizedImageModerationAdapter(
+			createCloudflareImagesDerivativeTransformer(env.IMAGES),
+			createWorkersAiImageAdapter(ai, {
+				modelId: config.versions.imageModelId,
+				promptHash: config.versions.imagePromptHash,
+				thinking: false,
+			}),
+			DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
+		),
 		policy: {
 			...INITIAL_LISTING_POLICY_FIXTURE,
 			policyVersion: config.versions.policyVersion,

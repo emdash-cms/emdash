@@ -1,12 +1,40 @@
+import { MODERATION_FINDING_CATEGORIES } from "@emdash-cms/registry-moderation";
+
 import { sha256Hex } from "../src/ai/hash.js";
 import type { ModerationModelIdentity } from "../src/ai/types.js";
 import { PROMOTION_REQUIRED_PARTITIONS, assertSealedEvalDataset } from "./dataset.js";
 import { calculateEvalMetrics, evaluateBudgets, EVAL_RUNNER_VERSION } from "./harness.js";
 import { assertLiveEvaluationArtifact, type LiveEvaluationArtifact } from "./live.js";
-import type { EvalComparison, EvalResultBundle, SealedEvalDataset } from "./types.js";
+import type {
+	EvalBudgets,
+	EvalComparison,
+	EvalMetrics,
+	EvalResultBundle,
+	SealedEvalDataset,
+} from "./types.js";
 
 const authorizedPromotionReviewBrand: unique symbol = Symbol("authorizedPromotionReview");
 const SHA256_HEX_RE = /^[a-f0-9]{64}$/;
+const PROMOTION_MIN_REPEAT_COUNT = 3;
+const PROMOTION_MIN_PROTECTED_REVIEW_FIXTURES = 300;
+const PROMOTION_MIN_PROTECTED_PASS_FIXTURES = 100;
+const PROMOTION_MIN_PROTECTED_IMAGE_FIXTURES = 100;
+const PROMOTION_MIN_PROTECTED_FIXTURES_PER_CATEGORY = 30;
+const PROMOTION_MAX_UNSAFE_PASS_RATE_UPPER_BOUND_95 = 0.01;
+
+export interface PromotionConfidenceEvaluation {
+	passed: boolean;
+	failures: readonly string[];
+	evidence: {
+		protectedFixtures: number;
+		protectedReviewFixtures: number;
+		protectedPassFixtures: number;
+		protectedImageFixtures: number;
+		protectedFixturesByCategory: Record<string, number>;
+		unsafePasses: number;
+		unsafePassRateUpperBound95: number;
+	};
+}
 
 export interface PromotionAuthenticationClaims {
 	issuer: string;
@@ -234,8 +262,100 @@ export async function compareEvalBundles(
 	};
 }
 
-export function renderEvalReport(bundle: EvalResultBundle): string {
+export function evaluatePromotionConfidence(
+	bundle: Pick<EvalResultBundle, "repeatCount" | "cases">,
+): PromotionConfidenceEvaluation {
+	const protectedCases = bundle.cases.filter(({ partition }) => partition === "holdout");
+	const reviewCases = protectedCases.filter(({ expected }) => expected.outcome === "review");
+	const passCases = protectedCases.filter(({ expected }) => expected.outcome === "pass");
+	const imageCases = protectedCases.filter(({ kind }) => kind === "image");
+	const categoryCounts = Object.fromEntries(
+		MODERATION_FINDING_CATEGORIES.map((category) => [
+			category,
+			protectedCases.filter(({ expected }) => expected.categories.includes(category)).length,
+		]),
+	);
+	const unsafePasses = reviewCases.filter(({ runs }) =>
+		runs.some(({ actualOutcome }) => actualOutcome === "pass"),
+	).length;
+	const unsafePassRateUpperBound95 =
+		unsafePasses === 0 && reviewCases.length > 0 ? 1 - 0.05 ** (1 / reviewCases.length) : 1;
+	const failures: string[] = [];
+	if (bundle.repeatCount < PROMOTION_MIN_REPEAT_COUNT) {
+		failures.push("promotion repeat minimum not met");
+	}
+	if (
+		protectedCases.length <
+		PROMOTION_MIN_PROTECTED_REVIEW_FIXTURES + PROMOTION_MIN_PROTECTED_PASS_FIXTURES
+	) {
+		failures.push("protected fixture minimum not met");
+	}
+	if (reviewCases.length < PROMOTION_MIN_PROTECTED_REVIEW_FIXTURES) {
+		failures.push("protected review fixture minimum not met");
+	}
+	if (passCases.length < PROMOTION_MIN_PROTECTED_PASS_FIXTURES) {
+		failures.push("protected pass fixture minimum not met");
+	}
+	if (imageCases.length < PROMOTION_MIN_PROTECTED_IMAGE_FIXTURES) {
+		failures.push("protected image fixture minimum not met");
+	}
+	for (const category of MODERATION_FINDING_CATEGORIES) {
+		if (categoryCounts[category]! < PROMOTION_MIN_PROTECTED_FIXTURES_PER_CATEGORY) {
+			failures.push(`${category}: protected fixture minimum not met`);
+		}
+	}
+	if (unsafePasses > 0) failures.push("unsafe pass observed in protected evaluation");
+	if (unsafePassRateUpperBound95 > PROMOTION_MAX_UNSAFE_PASS_RATE_UPPER_BOUND_95) {
+		failures.push("unsafe pass confidence bound exceeds one percent");
+	}
+	return {
+		passed: failures.length === 0,
+		failures,
+		evidence: {
+			protectedFixtures: protectedCases.length,
+			protectedReviewFixtures: reviewCases.length,
+			protectedPassFixtures: passCases.length,
+			protectedImageFixtures: imageCases.length,
+			protectedFixturesByCategory: categoryCounts,
+			unsafePasses,
+			unsafePassRateUpperBound95,
+		},
+	};
+}
+
+export function evaluateAutoPassReadiness(
+	metrics: EvalMetrics,
+	budgets: EvalBudgets,
+): { passed: boolean; failures: readonly string[] } {
+	const failures: string[] = [];
+	if (metrics.invalidOutputs > budgets.maxInvalidOutputs) {
+		failures.push("invalid-output budget exceeded");
+	}
+	if (metrics.modelErrors > budgets.maxModelErrors) failures.push("model-error budget exceeded");
+	if (metrics.coverageFailures > 0) failures.push("required coverage is incomplete");
+	if (metrics.invalidUsageRuns > 0) failures.push("live usage is missing or invalid");
+	if ((metrics.reviewRateByPartition["benign"] ?? 0) > budgets.maxBenignReviewRate) {
+		failures.push("benign review-rate budget exceeded");
+	}
+	if (metrics.outcomeMismatches > budgets.maxOutcomeMismatches) {
+		failures.push("expected-outcome budget exceeded");
+	}
+	if (metrics.repeatedRunDisagreementRate > budgets.maxRepeatedRunDisagreementRate) {
+		failures.push("repeated-run disagreement budget exceeded");
+	}
+	if (metrics.latencyMs.p95 > budgets.maxP95LatencyMs) failures.push("latency budget exceeded");
+	if (metrics.usage.configuredUnits > budgets.maxConfiguredUnits) {
+		failures.push("usage budget exceeded");
+	}
+	return { passed: failures.length === 0, failures };
+}
+
+export function renderEvalReport(bundle: EvalResultBundle, budgets?: EvalBudgets): string {
 	const failures = bundle.budgetEvaluation.failures.map((failure) => `- ${failure}`).join("\n");
+	const readiness = budgets ? evaluateAutoPassReadiness(bundle.metrics, budgets) : undefined;
+	const readinessFailures = readiness?.failures.map((failure) => `- ${failure}`).join("\n");
+	const confidence = evaluatePromotionConfidence(bundle);
+	const confidenceFailures = confidence.failures.map((failure) => `- ${failure}`).join("\n");
 	return [
 		`# Listing metadata AI evaluation`,
 		``,
@@ -243,10 +363,18 @@ export function renderEvalReport(bundle: EvalResultBundle): string {
 		`Dataset: ${bundle.reproducibility.datasetVersion} (${bundle.reproducibility.datasetHash})`,
 		`Cases: ${bundle.cases.length}; repeats: ${bundle.repeatCount}`,
 		`Budget result: ${bundle.budgetEvaluation.passed ? "pass" : "fail"}`,
+		...(readiness ? [`Automatic-pass readiness: ${readiness.passed ? "pass" : "fail"}`] : []),
 		`Invalid outputs: ${bundle.metrics.invalidOutputs}; model errors: ${bundle.metrics.modelErrors}`,
 		`Expected-outcome mismatches: ${bundle.metrics.outcomeMismatches}`,
 		`P95 latency: ${bundle.metrics.latencyMs.p95}ms; configured usage units: ${bundle.metrics.usage.configuredUnits}`,
+		`Promotion confidence: ${confidence.passed ? "pass" : "fail"}`,
+		`Protected fixtures: ${confidence.evidence.protectedFixtures} (${confidence.evidence.protectedReviewFixtures} review, ${confidence.evidence.protectedPassFixtures} pass, ${confidence.evidence.protectedImageFixtures} image)`,
+		`Observed unsafe passes: ${confidence.evidence.unsafePasses}; one-sided 95% upper bound: ${confidence.evidence.unsafePassRateUpperBound95}`,
 		...(failures ? ["", "## Budget failures", "", failures] : []),
+		...(readinessFailures
+			? ["", "## Automatic-pass readiness failures", "", readinessFailures]
+			: []),
+		...(confidenceFailures ? ["", "## Promotion confidence failures", "", confidenceFailures] : []),
 		"",
 	].join("\n");
 }
@@ -322,10 +450,15 @@ async function preparePromotion(input: {
 	if (candidate.reproducibility.runnerVersion !== EVAL_RUNNER_VERSION) {
 		throw new Error("candidate was not produced by the current evaluation runner");
 	}
-	if (!verifiedCandidate.budgetEvaluation.passed) {
+	const readiness = evaluateAutoPassReadiness(verifiedCandidate.metrics, input.dataset.budgets);
+	if (!readiness.passed) {
 		throw new Error(
-			`failed evaluation cannot be promoted: ${verifiedCandidate.budgetEvaluation.failures.join(", ")}`,
+			`evaluation is not safe for automatic passing: ${readiness.failures.join(", ")}`,
 		);
+	}
+	const confidence = evaluatePromotionConfidence(candidate);
+	if (!confidence.passed) {
+		throw new Error(`evaluation confidence is insufficient: ${confidence.failures.join(", ")}`);
 	}
 	const comparison = await compareEvalBundles(input.baseline, candidate);
 	return {

@@ -1,5 +1,32 @@
 import type { MediaItem, MediaProviderItem } from "./api/media.js";
 
+export interface MediaFocalPoint {
+	focalX: number;
+	focalY: number;
+}
+
+function isFocalCoordinate(value: unknown): value is number {
+	return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+export function normalizeMediaFocalPoint(value: {
+	focalX?: number | null;
+	focalY?: number | null;
+}): MediaFocalPoint | null {
+	const { focalX, focalY } = value;
+	if (!isFocalCoordinate(focalX) || !isFocalCoordinate(focalY)) return null;
+	return { focalX, focalY };
+}
+
+export function getMediaObjectPosition(value: {
+	focalX?: number | null;
+	focalY?: number | null;
+}): string | undefined {
+	const point = normalizeMediaFocalPoint(value);
+	if (!point) return undefined;
+	return `${Math.round(point.focalX * 10_000) / 100}% ${Math.round(point.focalY * 10_000) / 100}%`;
+}
+
 /** Read a string value from an untyped `meta` bag, or undefined. */
 export function metaString(
 	meta: Record<string, unknown> | undefined,

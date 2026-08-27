@@ -32,6 +32,9 @@ export const PROMOTION_REQUIRED_PARTITIONS = [
 
 const PARTITIONS: readonly EvalPartition[] = PROMOTION_REQUIRED_PARTITIONS;
 const SHA256_RE = /^[a-f0-9]{64}$/;
+const BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const MAX_PROTECTED_ASSETS = 256;
+const MAX_PROTECTED_ASSET_BYTES = 4 * 1024 * 1024;
 const sealedDatasets = new WeakSet<object>();
 const sealedAssets = new WeakMap<object, ReadonlyMap<string, Uint8Array>>();
 
@@ -64,13 +67,17 @@ export async function loadEvalDataset(options: DatasetLoadOptions): Promise<Seal
 	if (!publicBytes) throw new Error("evaluation public fixture file is not in the manifest");
 	const publicFixtures = parseFixtureBytes(publicBytes, false, manifest.datasetVersion);
 	let holdoutFixtures: EvalFixture[] = [];
+	let holdoutAssets = new Map<string, Uint8Array>();
 	let datasetHash = publicDatasetHash;
 	if (options.protectedHoldout) {
 		const holdoutBytes = new Uint8Array(options.protectedHoldout.fixtureBytes);
-		if ((await sha256Hex(holdoutBytes)) !== manifest.holdoutCommitment) {
-			throw new Error("protected holdout commitment does not match the dataset manifest");
-		}
-		holdoutFixtures = parseFixtureBytes(holdoutBytes, true, manifest.holdoutDatasetVersion);
+		const holdout = await parseCommittedProtectedHoldout(
+			holdoutBytes,
+			manifest.holdoutCommitment,
+			manifest.holdoutDatasetVersion,
+		);
+		holdoutFixtures = holdout.fixtures;
+		holdoutAssets = holdout.assets;
 		datasetHash = await aggregateDatasetHash({
 			...manifest.files,
 			[manifest.holdoutFixturePath]: manifest.holdoutCommitment,
@@ -89,20 +96,27 @@ export async function loadEvalDataset(options: DatasetLoadOptions): Promise<Seal
 		if (!bytes) throw new Error(`evaluation asset is not in the manifest: ${assetId}`);
 		assets.set(assetId, new Uint8Array(bytes));
 	}
+	for (const [assetId, bytes] of holdoutAssets) {
+		if (assets.has(assetId)) throw new TypeError(`evaluation asset ID is duplicated: ${assetId}`);
+		assets.set(assetId, new Uint8Array(bytes));
+	}
 	for (const fixture of fixtures) {
 		if (fixture.kind === "image" && !assets.has(fixture.input.assetId)) {
 			throw new Error(`evaluation image asset is missing: ${fixture.input.assetId}`);
 		}
 	}
-	const promotionComplete = PROMOTION_REQUIRED_PARTITIONS.every((partition) =>
-		partitions.includes(partition),
-	);
+	const promotionComplete =
+		manifest.promotionEnabled &&
+		PROMOTION_REQUIRED_PARTITIONS.every((partition) => partitions.includes(partition));
 	const dataset: SealedEvalDataset = deepFreeze({
 		schemaVersion: 1 as const,
 		datasetVersion: manifest.datasetVersion,
 		datasetHash,
 		fixtures,
-		assets: manifest.assets,
+		assets: Object.fromEntries([
+			...Object.entries(manifest.assets),
+			...Array.from(holdoutAssets.keys(), (id) => [id, "protected"]),
+		]),
 		budgets: manifest.budgets,
 		holdoutCommitment: manifest.holdoutCommitment,
 		partitions,
@@ -112,6 +126,58 @@ export async function loadEvalDataset(options: DatasetLoadOptions): Promise<Seal
 	sealedDatasets.add(dataset);
 	sealedAssets.set(dataset, assets);
 	return dataset;
+}
+
+export async function parseCommittedProtectedHoldout(
+	bytes: Uint8Array,
+	expectedCommitment: string,
+	expectedDatasetVersion: string,
+): Promise<{ fixtures: EvalFixture[]; assets: Map<string, Uint8Array> }> {
+	if (!SHA256_RE.test(expectedCommitment)) {
+		throw new TypeError("protected holdout commitment is invalid");
+	}
+	if ((await sha256Hex(bytes)) !== expectedCommitment) {
+		throw new Error("protected holdout commitment does not match the dataset manifest");
+	}
+	const value = decodeFixtureJson(bytes);
+	const file = object(value, "protected dataset file");
+	const fixtures = parseFixtureFile(file, true, expectedDatasetVersion);
+	const assetSource = object(file["assets"], "protected dataset assets");
+	const entries = Object.entries(assetSource);
+	if (entries.length > MAX_PROTECTED_ASSETS) {
+		throw new RangeError("protected dataset contains too many assets");
+	}
+	const assets = new Map<string, Uint8Array>();
+	for (const [assetId, assetValue] of entries) {
+		if (!assetId || assetId.length > 128) throw new TypeError("protected asset ID is invalid");
+		const asset = object(assetValue, `protected asset ${assetId}`);
+		if (asset["mimeType"] !== "image/png") {
+			throw new TypeError(`protected asset ${assetId} has an invalid MIME type`);
+		}
+		const expectedHash = parseHash(asset["sha256"], `protected asset ${assetId}`);
+		const encoded = string(asset["base64"], `protected asset ${assetId}.base64`);
+		if (!BASE64_RE.test(encoded)) {
+			throw new TypeError(`protected asset ${assetId} is not canonical base64`);
+		}
+		const decoded = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
+		if (decoded.byteLength > MAX_PROTECTED_ASSET_BYTES) {
+			throw new RangeError(`protected asset ${assetId} exceeds its byte limit`);
+		}
+		if ((await sha256Hex(decoded)) !== expectedHash) {
+			throw new Error(`protected asset ${assetId} hash mismatch`);
+		}
+		assets.set(assetId, decoded);
+	}
+	const referencedAssets = new Set(
+		fixtures.flatMap((fixture) => (fixture.kind === "image" ? [fixture.input.assetId] : [])),
+	);
+	if (
+		referencedAssets.size !== assets.size ||
+		[...referencedAssets].some((assetId) => !assets.has(assetId))
+	) {
+		throw new TypeError("protected image fixtures and assets must match exactly");
+	}
+	return { fixtures, assets };
 }
 
 export function assertSealedEvalDataset(value: unknown): asserts value is SealedEvalDataset {
@@ -146,13 +212,16 @@ function parseFixtureBytes(
 	holdout: boolean,
 	expectedDatasetVersion: string,
 ): EvalFixture[] {
-	let value: unknown;
+	const value = decodeFixtureJson(bytes);
+	return parseFixtureFile(value, holdout, expectedDatasetVersion);
+}
+
+function decodeFixtureJson(bytes: Uint8Array): unknown {
 	try {
-		value = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes));
+		return JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes));
 	} catch {
 		throw new TypeError("evaluation fixture bytes are not valid UTF-8 JSON");
 	}
-	return parseFixtureFile(value, holdout, expectedDatasetVersion);
 }
 
 function parseFixtureFile(
@@ -225,7 +294,6 @@ function parseFixture(value: unknown, index: number, holdout: boolean): EvalFixt
 		return parsed;
 	}
 	if (fixture["kind"] === "image") {
-		if (holdout) throw new TypeError("holdout image fixtures require a private asset manifest");
 		const input = object(fixture["input"], `${id}.input`);
 		if (input["mimeType"] !== "image/png") throw new TypeError(`${id} has an invalid MIME type`);
 		const parsed: ImageEvalFixture = {
@@ -264,6 +332,7 @@ function parseExpected(value: unknown, id: string): EvalExpectation {
 
 function parseManifest(value: unknown): {
 	datasetVersion: string;
+	promotionEnabled: boolean;
 	holdoutDatasetVersion: string;
 	publicDatasetHash: string;
 	promotionDatasetHash: string;
@@ -289,6 +358,7 @@ function parseManifest(value: unknown): {
 	};
 	return {
 		datasetVersion: string(manifest["datasetVersion"], "manifest.datasetVersion"),
+		promotionEnabled: boolean(manifest["promotionEnabled"], "manifest.promotionEnabled"),
 		holdoutDatasetVersion: string(holdout["datasetVersion"], "manifest.holdout.datasetVersion"),
 		publicDatasetHash: parseHash(manifest["publicDatasetHash"], "manifest.publicDatasetHash"),
 		promotionDatasetHash: parseHash(
@@ -327,6 +397,11 @@ function assertUniqueFixtureIds(fixtures: readonly EvalFixture[]): void {
 
 function object(value: unknown, field: string): Record<string, unknown> {
 	if (!isObject(value)) throw new TypeError(`${field} must be an object`);
+	return value;
+}
+
+function boolean(value: unknown, field: string): boolean {
+	if (typeof value !== "boolean") throw new TypeError(`${field} must be a boolean`);
 	return value;
 }
 

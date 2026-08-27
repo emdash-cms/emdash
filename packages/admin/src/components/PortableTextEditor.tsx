@@ -248,6 +248,8 @@ function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[]
 		if (attrStr(record.caption)) image.caption = attrStr(record.caption);
 		if (typeof record.width === "number") image.width = record.width;
 		if (typeof record.height === "number") image.height = record.height;
+		if (typeof record.focalX === "number") image.focalX = record.focalX;
+		if (typeof record.focalY === "number") image.focalY = record.focalY;
 		if (attrStr(record.blurhash)) image.blurhash = attrStr(record.blurhash);
 		if (attrStr(record.dominantColor)) image.dominantColor = attrStr(record.dominantColor);
 		images.push(image);

@@ -79,6 +79,7 @@
  * Override Tailwind's --font-sans so all font-sans utilities use it.
  */
 @theme {
+	--text-color-emdash-media-folder: light-dark(var(--color-blue-500), var(--color-blue-400));
 	--font-sans: var(
 		--font-emdash,
 		ui-sans-serif,

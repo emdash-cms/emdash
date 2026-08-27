@@ -12,7 +12,10 @@ interface Preset {
 }
 
 const PRESETS: ReadonlyArray<Preset> = [
-	{ key: "images", mimeTypes: ["image/png", "image/jpeg", "image/gif", "image/webp"] },
+	{
+		key: "images",
+		mimeTypes: ["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"],
+	},
 	{ key: "pdf", mimeTypes: ["application/pdf"] },
 	{
 		key: "documents",

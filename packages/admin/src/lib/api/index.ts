@@ -7,6 +7,7 @@
 // Base client and shared types
 export {
 	API_BASE,
+	ApiResponseError,
 	apiFetch,
 	parseApiResponse,
 	throwResponseError,
@@ -58,6 +59,10 @@ export {
 // Media
 export {
 	type MediaItem,
+	type LocalMediaItem,
+	type MediaFolder,
+	type MediaFolderListResult,
+	type MediaUpdateInput,
 	type MediaUploadOptions,
 	type MediaUsageCoverageStatus,
 	type MediaUsageCoverage,
@@ -74,6 +79,11 @@ export {
 	fetchMediaItem,
 	fetchMediaUsageDetails,
 	MediaUsageAccessDeniedError,
+	fetchMediaFolders,
+	fetchMediaFolder,
+	createMediaFolder,
+	renameMediaFolder,
+	deleteMediaFolder,
 	uploadMedia,
 	deleteMedia,
 	updateMedia,

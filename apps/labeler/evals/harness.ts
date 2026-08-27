@@ -64,6 +64,7 @@ export interface EvaluationRunOptions {
 	imageIdentity: ModerationModelIdentity;
 	runnerCommit: string;
 	executedAt: string;
+	caseConcurrency?: number;
 	createAdapters(fixture: EvalFixture): {
 		text: TextModerationAdapter;
 		image: ImageModerationAdapter;
@@ -80,28 +81,34 @@ export async function runEvaluation(options: EvaluationRunOptions): Promise<Eval
 	) {
 		throw new TypeError("eval repeatCount must be between 1 and 20");
 	}
-	const cases: EvalCaseResult[] = [];
-	for (let caseIndex = 0; caseIndex < options.dataset.fixtures.length; caseIndex += 1) {
-		const fixture = options.dataset.fixtures[caseIndex]!;
-		const runs: EvalCaseRun[] = [];
-		for (let repetition = 0; repetition < options.repeatCount; repetition += 1) {
-			const adapters = options.createAdapters(fixture);
-			const execute = () => evaluateFixture(fixture, adapters, options.dataset);
-			runs.push(
-				options.runCase
-					? await options.runCase(`case-${caseIndex}-repeat-${repetition}`, execute)
-					: await execute(),
-			);
-		}
-		cases.push({
-			id: fixture.id,
-			kind: fixture.kind,
-			partition: fixture.partition,
-			expected: fixture.expected,
-			runs,
-			disagreed: runs.some((run) => runSignature(run) !== runSignature(runs[0]!)),
-		});
+	const caseConcurrency = options.caseConcurrency ?? 1;
+	if (!Number.isInteger(caseConcurrency) || caseConcurrency < 1 || caseConcurrency > 8) {
+		throw new TypeError("eval caseConcurrency must be between 1 and 8");
 	}
+	const cases = await mapConcurrent(
+		options.dataset.fixtures,
+		caseConcurrency,
+		async (fixture, caseIndex): Promise<EvalCaseResult> => {
+			const runs: EvalCaseRun[] = [];
+			for (let repetition = 0; repetition < options.repeatCount; repetition += 1) {
+				const adapters = options.createAdapters(fixture);
+				const execute = () => evaluateFixture(fixture, adapters, options.dataset);
+				runs.push(
+					options.runCase
+						? await options.runCase(`case-${caseIndex}-repeat-${repetition}`, execute)
+						: await execute(),
+				);
+			}
+			return {
+				id: fixture.id,
+				kind: fixture.kind,
+				partition: fixture.partition,
+				expected: fixture.expected,
+				runs,
+				disagreed: runs.some((run) => runSignature(run) !== runSignature(runs[0]!)),
+			};
+		},
+	);
 	const metrics = calculateEvalMetrics(cases);
 	return {
 		schemaVersion: 1,
@@ -124,6 +131,27 @@ export async function runEvaluation(options: EvaluationRunOptions): Promise<Eval
 			requireCompleteUsage: options.mode === "live",
 		}),
 	};
+}
+
+async function mapConcurrent<Input, Output>(
+	items: readonly Input[],
+	limit: number,
+	callback: (item: Input, index: number) => Promise<Output>,
+): Promise<Output[]> {
+	const output: Array<Output | undefined> = Array.from({ length: items.length });
+	let cursor = 0;
+	const worker = async (): Promise<void> => {
+		while (cursor < items.length) {
+			const index = cursor;
+			cursor += 1;
+			output[index] = await callback(items[index]!, index);
+		}
+	};
+	await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+	return output.map((value) => {
+		if (value === undefined) throw new Error("evaluation did not produce every case result");
+		return value;
+	});
 }
 
 export function createRecordedEvaluationOptions(input: {

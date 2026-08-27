@@ -13,6 +13,7 @@ import {
 import { parseSignedListingLabel, verifyListingLabel } from "@emdash-cms/registry-moderation";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { IMAGE_PROMPT_HASH, TEXT_PROMPT_HASH } from "../src/ai/prompts.js";
 import { handlePublicAssessmentXrpc } from "../src/public-assessment.js";
 
 class NodeD1Database {
@@ -82,9 +83,7 @@ const env = {
 	LABELER_POLICY_VERSION: "listing-metadata-v1",
 	LABELER_PARSER_VERSION: "canonical-listing-input-v1",
 	LABELER_TEXT_MODEL_ID: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-	LABELER_TEXT_PROMPT_HASH: "d7e2513e203d825e7aa6d10c9b8b503ad9df004f43e9779afbd429cdf5500daf",
-	LABELER_IMAGE_MODEL_ID: "@cf/meta/llama-4-scout-17b-16e-instruct",
-	LABELER_IMAGE_PROMPT_HASH: "ae78f2bd92696fa3704738182a20dc3b496bbbc9809276f0a986eec49b7e8d70",
+	LABELER_IMAGE_MODEL_ID: "@cf/qwen/qwen3.8-27b",
 } satisfies Parameters<typeof handlePublicAssessmentXrpc>[1];
 
 beforeAll(() => {
@@ -559,9 +558,9 @@ async function seedAssessment(
 			env.LABELER_POLICY_VERSION,
 			env.LABELER_PARSER_VERSION,
 			env.LABELER_TEXT_MODEL_ID,
-			env.LABELER_TEXT_PROMPT_HASH,
+			TEXT_PROMPT_HASH,
 			env.LABELER_IMAGE_MODEL_ID,
-			env.LABELER_IMAGE_PROMPT_HASH,
+			IMAGE_PROMPT_HASH,
 			`trigger-${suffix}`,
 			options.state,
 			options.coverage === undefined ? null : JSON.stringify(options.coverage),

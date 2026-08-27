@@ -1,4 +1,9 @@
 import {
+	createCloudflareImagesDerivativeTransformer,
+	createResizedImageModerationAdapter,
+	DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
+} from "../src/ai/image-resize.js";
+import {
 	createWorkersAiImageAdapter,
 	createWorkersAiTextAdapter,
 	workersAiBindingFromEnv,
@@ -44,6 +49,7 @@ export async function runProtectedLiveEvaluation(
 	const ai = workersAiBindingFromEnv(env.AI);
 	const options = createLiveEvaluationOptions(
 		ai,
+		env.IMAGES,
 		input,
 		input.executedAt ?? new Date().toISOString(),
 		durability,
@@ -59,12 +65,20 @@ export async function runProtectedLiveEvaluation(
 
 function createLiveEvaluationOptions(
 	ai: WorkersAiBinding,
+	images: ImagesBinding | undefined,
 	input: ProtectedLiveEvaluationInput,
 	executedAt: string,
 	durability?: ProtectedLiveEvaluationDurability,
 ): EvaluationRunOptions {
 	const text = createWorkersAiTextAdapter(ai, input.text);
-	const image = createWorkersAiImageAdapter(ai, input.image);
+	const baseImage = createWorkersAiImageAdapter(ai, input.image);
+	const image = images
+		? createResizedImageModerationAdapter(
+				createCloudflareImagesDerivativeTransformer(images),
+				baseImage,
+				DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
+			)
+		: baseImage;
 	return {
 		dataset: input.dataset,
 		mode: "live",

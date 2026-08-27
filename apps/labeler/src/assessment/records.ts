@@ -17,7 +17,7 @@ import {
 	fetchVerifiedResource,
 	type FetchImplementation,
 	type HostnameResolver,
-} from "@emdash-cms/registry-verification";
+} from "@emdash-cms/registry-verification/fetch";
 
 import { parseSubjectUri } from "./run-key.js";
 import type { AssessmentSubject } from "./types.js";
