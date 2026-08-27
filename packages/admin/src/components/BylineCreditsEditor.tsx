@@ -150,6 +150,7 @@ export function BylineCreditsEditor({
 	const [editAdvancedOpen, setEditAdvancedOpen] = React.useState(false);
 	const chooserRef = React.useRef<HTMLDivElement>(null);
 	const chooserTriggerRef = React.useRef<HTMLButtonElement | null>(null);
+	const chooserReadyRef = React.useRef(false);
 	const rowRefs = React.useRef(new Map<string, HTMLDivElement>());
 	const creditsRef = React.useRef(credits);
 	creditsRef.current = credits;
@@ -233,12 +234,14 @@ export function BylineCreditsEditor({
 	);
 
 	const openChooser = React.useCallback(() => {
+		chooserReadyRef.current = false;
 		setChooserOpen(true);
-		setAutocompleteOpen(true);
+		setAutocompleteOpen(false);
 		focusChooser();
 	}, [focusChooser]);
 
 	const closeChooser = React.useCallback((restoreFocus = true) => {
+		chooserReadyRef.current = false;
 		setChooserOpen(false);
 		setAutocompleteOpen(false);
 		setSearch("");
@@ -375,7 +378,12 @@ export function BylineCreditsEditor({
 				open={chooserOpen}
 				onOpenChange={(open) => (open ? openChooser() : closeChooser(false))}
 				onOpenChangeComplete={(open) => {
-					if (!open && createPendingOpen) {
+					chooserReadyRef.current = open;
+					if (open) {
+						setAutocompleteOpen(true);
+						return;
+					}
+					if (createPendingOpen) {
 						setCreatePendingOpen(false);
 						setCreateOpen(true);
 					}
@@ -420,10 +428,10 @@ export function BylineCreditsEditor({
 								value={search}
 								onValueChange={(value) => {
 									setSearch(String(value ?? ""));
-									setAutocompleteOpen(true);
+									if (chooserReadyRef.current) setAutocompleteOpen(true);
 								}}
 								open={autocompleteOpen && options.length > 0}
-								onOpenChange={setAutocompleteOpen}
+								onOpenChange={(open) => setAutocompleteOpen(open && chooserReadyRef.current)}
 								mode="none"
 								autoHighlight="always"
 								openOnInputClick
