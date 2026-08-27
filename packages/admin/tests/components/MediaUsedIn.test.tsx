@@ -165,6 +165,24 @@ describe("MediaUsedIn", () => {
 		expect(screen.getByText("Archived notes").element().closest("a")).toBeNull();
 	});
 
+	it("mirrors the Open icon in right-to-left layouts", async () => {
+		const previousDirection = document.documentElement.dir;
+		document.documentElement.dir = "rtl";
+		vi.mocked(fetchMediaUsageDetails).mockResolvedValue(usageResponse([usageEntry()]));
+
+		try {
+			const screen = await renderUsedIn();
+			const openLabel = screen.getByText("Open", { exact: true });
+			await expect.element(openLabel).toBeVisible();
+			const openIcon = openLabel.element().querySelector("svg");
+
+			expect(openIcon).not.toBeNull();
+			expect(openIcon).toHaveClass("rtl:-scale-x-100");
+		} finally {
+			document.documentElement.dir = previousDirection;
+		}
+	});
+
 	it.each<[MediaUsageCoverageStatus, string]>([
 		["never", "Usage indexing hasn’t started."],
 		["running", "Usage is updating. Some content may not appear here yet."],
