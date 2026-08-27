@@ -469,7 +469,7 @@ export function MediaDetailPanel({
 				<Dialog
 					size="xl"
 					className="min-w-0 flex flex-col overflow-hidden p-0"
-					style={{ width: "min(94vw, 72rem)", maxHeight: "min(88dvh, 48rem)" }}
+					style={{ width: "min(94vw, 72rem)", height: "min(88dvh, 43.5rem)" }}
 				>
 					<div
 						className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line"
@@ -530,7 +530,7 @@ export function MediaDetailPanel({
 					<div
 						className={
 							activeTab === "used-in"
-								? "min-h-0 flex-1 overflow-y-auto"
+								? "min-h-0 flex-1 overflow-hidden"
 								: "grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-2 md:overflow-hidden"
 						}
 						data-testid="media-detail-dialog-body"
@@ -546,7 +546,7 @@ export function MediaDetailPanel({
 						}
 					>
 						<div
-							className="space-y-5 border-b border-kumo-line p-6 md:min-h-0 md:overflow-y-auto md:border-e md:border-b-0 md:p-8"
+							className={`border-b border-kumo-line p-6 md:min-h-0 md:overflow-y-auto md:border-e md:border-b-0 md:p-8 ${activeTab === "edit-image" ? "flex flex-col md:justify-center" : "space-y-5"}`}
 							data-testid="media-detail-dialog-preview-column"
 							hidden={activeTab === "used-in"}
 						>
@@ -594,20 +594,18 @@ export function MediaDetailPanel({
 							)}
 
 							<div
-								className={
-									activeTab === "details"
-										? "grid grid-cols-2 gap-x-6 gap-y-3"
-										: "hidden grid-cols-2 gap-x-6 gap-y-3 md:grid"
-								}
+								className="grid gap-x-6 gap-y-3"
 								data-testid="media-detail-dialog-file-facts"
-								style={{ visibility: activeTab === "details" ? undefined : "hidden" }}
-								aria-hidden={activeTab !== "details"}
+								hidden={activeTab !== "details"}
+								style={{
+									gridTemplateColumns: "minmax(0, 3fr) minmax(0, 2fr)",
+								}}
 							>
 								<div className="flex min-w-0 items-start gap-2 text-sm">
 									<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
 										<HardDrive className="h-4 w-4" aria-hidden="true" />
 									</span>
-									<p className="flex min-w-0 flex-wrap items-baseline gap-1 leading-5">
+									<p className="flex min-w-0 flex-nowrap items-baseline gap-1 whitespace-nowrap leading-5">
 										<span className="text-kumo-subtle">{t`Size:`}</span>
 										<span className="tabular-nums">{formatFileSize(item.size)}</span>
 									</p>
@@ -617,7 +615,7 @@ export function MediaDetailPanel({
 										<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
 											<Ruler className="h-4 w-4" aria-hidden="true" />
 										</span>
-										<p className="flex min-w-0 flex-wrap items-baseline gap-1 leading-5">
+										<p className="flex min-w-0 flex-nowrap items-baseline gap-1 whitespace-nowrap leading-5">
 											<span className="text-kumo-subtle">{t`Dimensions:`}</span>
 											<span className="tabular-nums">
 												{item.width} × {item.height}
@@ -630,9 +628,14 @@ export function MediaDetailPanel({
 										<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
 											<Calendar className="h-4 w-4" aria-hidden="true" />
 										</span>
-										<p className="flex min-w-0 flex-wrap items-baseline gap-1 leading-5">
-											<span className="text-kumo-subtle">{t`Uploaded:`}</span>
-											<span className="tabular-nums">{formatDate(item.createdAt)}</span>
+										<p className="flex min-w-0 flex-nowrap items-baseline gap-1 overflow-hidden whitespace-nowrap leading-5">
+											<span className="shrink-0 text-kumo-subtle">{t`Uploaded:`}</span>
+											<span
+												className="min-w-0 truncate tabular-nums"
+												title={formatDate(item.createdAt)}
+											>
+												{formatDate(item.createdAt)}
+											</span>
 										</p>
 									</div>
 								)}
@@ -640,7 +643,7 @@ export function MediaDetailPanel({
 									<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
 										<File className="h-4 w-4" aria-hidden="true" />
 									</span>
-									<p className="flex min-w-0 flex-wrap items-baseline gap-1 leading-5">
+									<p className="flex min-w-0 flex-nowrap items-baseline gap-1 whitespace-nowrap leading-5">
 										<span className="text-kumo-subtle">{t`Format:`}</span>
 										<span>{formatFileFormat(item.mimeType)}</span>
 									</p>
@@ -667,10 +670,14 @@ export function MediaDetailPanel({
 						</div>
 
 						<div
-							className="grid gap-5 p-6 md:min-h-0 md:overflow-y-auto md:p-8"
+							className={`grid gap-5 p-6 md:min-h-0 md:overflow-y-auto md:p-8 ${activeTab === "edit-image" ? "md:content-center" : ""}`}
 							data-testid="media-detail-dialog-details-column"
 							hidden={activeTab === "used-in"}
-							style={canEditMetadata ? { gridTemplateAreas: '"panel" "error"' } : undefined}
+							style={
+								canEditMetadata
+									? { gridTemplateAreas: updateErrorMessage ? '"panel" "error"' : '"panel"' }
+									: undefined
+							}
 						>
 							{isProviderAsset && activeTab === "details" && (
 								<p className="rounded-lg bg-kumo-tint p-3 text-sm text-kumo-subtle">
@@ -681,12 +688,11 @@ export function MediaDetailPanel({
 							)}
 
 							<div
-								className={activeTab === "details" ? "space-y-4" : "hidden space-y-4 md:block"}
+								className="space-y-4"
+								hidden={activeTab !== "details"}
 								style={{
 									gridArea: canEditMetadata ? "panel" : undefined,
-									visibility: activeTab === "details" ? undefined : "hidden",
 								}}
-								aria-hidden={activeTab !== "details"}
 							>
 								<div className="w-full space-y-2">
 									<div className="flex items-center gap-1.5">
@@ -873,22 +879,17 @@ export function MediaDetailPanel({
 							</div>
 							{canEditMetadata && (
 								<div
-									className={
-										activeTab === "edit-image"
-											? "grid content-start gap-6"
-											: "hidden content-start gap-6 md:grid"
-									}
+									className="grid content-start gap-6"
+									hidden={activeTab !== "edit-image"}
 									style={{
 										gridArea: "panel",
-										visibility: activeTab === "edit-image" ? undefined : "hidden",
 									}}
-									aria-hidden={activeTab !== "edit-image"}
 								>
 									<div className="flex items-start justify-between gap-4">
 										<div className="grid min-w-0 gap-1.5">
 											<h3 className="text-sm font-semibold">{t`Focal point`}</h3>
 											<p id={focalPointDescriptionId} className="text-sm text-kumo-subtle">
-												{t`Choose the part that should remain visible when this image is cropped.`}
+												{t`Move the focal point to choose what stays visible in cropped images.`}
 											</p>
 										</div>
 										<Button
@@ -917,7 +918,7 @@ export function MediaDetailPanel({
 							)}
 						</div>
 						{activeTab === "used-in" && (
-							<div className="mx-auto w-full max-w-2xl p-6 md:p-8">
+							<div className="h-full min-h-0 w-full overflow-hidden p-6 md:p-8">
 								<MediaUsedIn
 									mediaId={item.id}
 									open={open}

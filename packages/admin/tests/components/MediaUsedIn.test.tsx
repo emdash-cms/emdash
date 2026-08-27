@@ -52,7 +52,9 @@ const manifest: AdminManifest = {
 			labelSingular: "Post",
 			supports: ["drafts"],
 			hasSeo: false,
-			fields: {},
+			fields: {
+				featured_image: { kind: "image", label: "Featured image" },
+			},
 		},
 	},
 	plugins: {},
@@ -114,6 +116,9 @@ describe("MediaUsedIn", () => {
 
 		await expect.element(screen.getByRole("heading", { name: "Used in" })).toBeVisible();
 		await expect
+			.element(screen.getByText("See where this media appears across your content."))
+			.toBeVisible();
+		await expect
 			.element(screen.getByRole("region", { name: "Used in" }))
 			.toHaveAttribute("aria-busy", "true");
 		await expect.element(screen.getByRole("status")).toHaveTextContent("Loading usage");
@@ -122,7 +127,21 @@ describe("MediaUsedIn", () => {
 	it("shows active references as links and trashed references as static rows", async () => {
 		vi.mocked(fetchMediaUsageDetails).mockResolvedValue(
 			usageResponse([
-				usageEntry(),
+				usageEntry({
+					sources: [
+						{
+							variant: "columns",
+							occurrences: [
+								{
+									fieldSlug: "featured_image",
+									fieldPath: "featured_image",
+									occurrenceIndex: 0,
+									referenceType: "image_field",
+								},
+							],
+						},
+					],
+				}),
 				usageEntry({
 					contentId: "entry-2",
 					title: "Archived notes",
@@ -139,8 +158,9 @@ describe("MediaUsedIn", () => {
 		const activeLink = list.getByRole("link", { name: /Launch notes/ });
 		await expect.element(activeLink).toHaveAttribute("href", "/content/posts/entry-1?locale=fr");
 		await expect.element(activeLink.getByText("Posts", { exact: true })).toBeVisible();
-		await expect.element(activeLink.getByText("launch-notes", { exact: true })).toBeVisible();
+		await expect.element(activeLink.getByText("Featured image", { exact: true })).toBeVisible();
 		await expect.element(activeLink.getByText("fr", { exact: true })).toBeVisible();
+		await expect.element(activeLink.getByText("Open", { exact: true })).toBeVisible();
 		await expect.element(screen.getByText("In trash")).toBeVisible();
 		expect(screen.getByText("Archived notes").element().closest("a")).toBeNull();
 	});
