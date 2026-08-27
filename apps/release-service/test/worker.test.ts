@@ -86,6 +86,7 @@ describe("release-service Worker", () => {
 			);
 			expect(response.status).toBe(500);
 			expect(await response.text()).not.toContain(internalMessage);
+			expect(JSON.stringify(errorLog.mock.calls)).not.toContain(internalMessage);
 		} finally {
 			errorLog.mockRestore();
 		}

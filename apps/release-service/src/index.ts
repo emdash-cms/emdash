@@ -33,7 +33,10 @@ export async function handleRequest(
 			JSON.stringify({
 				event: "request_error",
 				requestId,
-				error: error instanceof Error ? (error.stack ?? error.message) : String(error),
+				error:
+					error instanceof ApiError
+						? { name: "ApiError", code: error.code }
+						: { name: "UnhandledError" },
 			}),
 		);
 		return apiFailure(error, requestId);
