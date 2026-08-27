@@ -39,12 +39,12 @@ function oauthError(
 	return new Response(response.body, { status: response.status, headers });
 }
 
-function logOAuthError(event: string, requestId: string, error: unknown): void {
+function logOAuthError(event: string, requestId: string, _error: unknown): void {
 	console.error(
 		JSON.stringify({
 			event,
 			requestId,
-			error: error instanceof Error ? { name: error.name, message: error.message } : String(error),
+			error: { name: "OAuthCallbackError" },
 		}),
 	);
 }

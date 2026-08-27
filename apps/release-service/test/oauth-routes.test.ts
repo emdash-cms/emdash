@@ -274,6 +274,7 @@ describe("publisher OAuth routes", () => {
 		expect(errorLog).toHaveBeenCalledWith(
 			expect.stringContaining('"event":"oauth_callback_error"'),
 		);
+		expect(JSON.stringify(errorLog.mock.calls)).not.toContain("PUBLISHER_SESSION_INVALID");
 		errorLog.mockRestore();
 	});
 });
