@@ -216,6 +216,10 @@ describe("MediaDetailPanel", () => {
 		const dialog = screen.getByRole("dialog", { name: "Media Details" }).element();
 		const detailsHeight = dialog.getBoundingClientRect().height;
 
+		screen.getByRole("tab", { name: "Used in" }).element().click();
+		await expect.element(screen.getByTestId("media-used-in")).toBeInTheDocument();
+		expect(dialog.getBoundingClientRect().height).toBe(detailsHeight);
+
 		screen.getByRole("tab", { name: "Focal point" }).element().click();
 		await expect.element(screen.getByTestId("focal-preview-square")).toBeVisible();
 
@@ -303,6 +307,11 @@ describe("MediaDetailPanel", () => {
 		await expect.element(editTab).toHaveFocus();
 		await expect
 			.element(screen.getByRole("button", { name: "Focal point. Use arrow keys to move it." }))
+			.toBeVisible();
+		await expect
+			.element(
+				screen.getByText("Move the focal point to choose what stays visible in cropped images."),
+			)
 			.toBeVisible();
 		await expect.element(screen.getByRole("heading", { name: "Preview" })).toBeVisible();
 		const previewGroup = screen.getByTestId("focal-preview-group").element();
