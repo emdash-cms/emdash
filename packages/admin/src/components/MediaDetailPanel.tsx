@@ -24,7 +24,9 @@ import {
 	Calendar,
 	CaretDown,
 	File,
+	Folder,
 	HardDrive,
+	ImagesSquare,
 	LinkSimple,
 	Ruler,
 	Info,
@@ -756,9 +758,18 @@ export function MediaDetailPanel({
 												className={`${inputVariants()} relative flex w-full items-center pe-8 text-start`}
 											>
 												<Combobox.Value>
-													{(option) => (
-														<span dir="auto">{option?.name ?? t`Select a location`}</span>
-													)}
+													{(option) =>
+														option ? (
+															<span className="flex min-w-0 items-center gap-2">
+																<MediaLocationIcon folderId={option.id} />
+																<span className="truncate" dir="auto">
+																	{option.name}
+																</span>
+															</span>
+														) : (
+															<span>{t`Select a location`}</span>
+														)
+													}
 												</Combobox.Value>
 												<Combobox.Icon className="absolute end-2 top-1/2 flex -translate-y-1/2 items-center text-kumo-subtle">
 													<CaretDown className="h-4 w-4" aria-hidden="true" />
@@ -793,7 +804,12 @@ export function MediaDetailPanel({
 												>
 													{(option) => (
 														<Combobox.Item key={option.id ?? "main"} value={option}>
-															<span dir="auto">{option.name}</span>
+															<span className="flex min-w-0 items-center gap-2">
+																<MediaLocationIcon folderId={option.id} />
+																<span className="truncate" dir="auto">
+																	{option.name}
+																</span>
+															</span>
 														</Combobox.Item>
 													)}
 												</Combobox.List>
@@ -830,8 +846,14 @@ export function MediaDetailPanel({
 									) : (
 										<div className="space-y-1">
 											<p className="text-sm font-medium text-kumo-default">{t`Location`}</p>
-											<p className="text-sm text-kumo-subtle" aria-live="polite">
-												<span dir="auto">{currentLocationName}</span>
+											<p
+												className="flex items-center gap-2 text-sm text-kumo-subtle"
+												aria-live="polite"
+											>
+												<MediaLocationIcon folderId={localItem.folderId} />
+												<span className="min-w-0 truncate" dir="auto">
+													{currentLocationName}
+												</span>
 											</p>
 										</div>
 									))}
@@ -1019,6 +1041,17 @@ function isLocalMediaItem(item: MediaItem): item is LocalMediaItem {
 		"folderId" in item &&
 		"authorId" in item &&
 		typeof item.storageKey === "string"
+	);
+}
+
+function MediaLocationIcon({ folderId }: { folderId: string | null }) {
+	const LocationIcon = folderId === null ? ImagesSquare : Folder;
+	return (
+		<LocationIcon
+			className="h-4 w-4 shrink-0 text-kumo-subtle"
+			aria-hidden="true"
+			data-testid="media-location-icon"
+		/>
 	);
 }
 
