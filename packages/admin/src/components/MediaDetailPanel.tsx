@@ -61,7 +61,7 @@ import { FocalPointEditor, FocalPointPreviews } from "./FocalPointEditor.js";
 import { MediaUsedIn } from "./MediaUsedIn.js";
 
 const CLOSE_FALLBACK_MS = 500;
-type MediaDetailTab = "details" | "edit-image";
+type MediaDetailTab = "details" | "used-in" | "edit-image";
 
 interface MediaLocationOption {
 	id: string | null;
@@ -113,6 +113,7 @@ export function MediaDetailPanel({
 	// Present when the item streams rather than resolving to a playable file.
 	const playback = metaPlayback(item.meta);
 	const canEditMetadata = !isProviderAsset && isImage;
+	const hasUsage = !isProviderAsset;
 	const canDelete = !isProviderAsset || Boolean(canDeleteProp);
 	const localItem = isLocalMediaItem(item) ? item : null;
 	const canMoveLocation = Boolean(localItem && canMoveLocationProp);
@@ -200,6 +201,7 @@ export function MediaDetailPanel({
 		(alt !== (item.alt ?? "") || caption !== (item.caption ?? "") || focalPointChanged);
 	const locationChanged = canMoveLocation && folderId !== localItem?.folderId;
 	const canEdit = canEditMetadata || canMoveLocation;
+	const hasTabs = canEditMetadata || hasUsage;
 	const hasChanges = metadataChanged || locationChanged;
 	const isConfirmOpen = showDeleteConfirm || showDiscardConfirm;
 	const publicFileUrl =
@@ -491,38 +493,62 @@ export function MediaDetailPanel({
 						</Button>
 					</div>
 
-					{canEditMetadata && (
+					{hasTabs && (
 						<div className="shrink-0 border-b border-kumo-line px-6 py-4 md:px-8">
 							<Tabs
 								variant="segmented"
-								className="max-w-sm"
+								className="w-full max-w-lg"
 								value={activeTab}
 								onValueChange={(value) => {
-									if (value === "details" || value === "edit-image") setActiveTab(value);
+									if (
+										value === "details" ||
+										(value === "used-in" && hasUsage) ||
+										(value === "edit-image" && canEditMetadata)
+									) {
+										setActiveTab(value);
+									}
 								}}
 								tabs={[
 									{ value: "details", label: t`Details`, className: "flex-1 justify-center" },
-									{
-										value: "edit-image",
-										label: t`Focal point`,
-										className: "flex-1 justify-center",
-									},
+									...(hasUsage
+										? [{ value: "used-in", label: t`Used in`, className: "flex-1 justify-center" }]
+										: []),
+									...(canEditMetadata
+										? [
+												{
+													value: "edit-image",
+													label: t`Focal point`,
+													className: "flex-1 justify-center",
+												},
+											]
+										: []),
 								]}
 							/>
 						</div>
 					)}
 
 					<div
-						className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-2 md:overflow-hidden"
+						className={
+							activeTab === "used-in"
+								? "min-h-0 flex-1 overflow-y-auto"
+								: "grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-2 md:overflow-hidden"
+						}
 						data-testid="media-detail-dialog-body"
-						role={canEditMetadata ? "tabpanel" : undefined}
+						role={hasTabs ? "tabpanel" : undefined}
 						aria-label={
-							canEditMetadata ? (activeTab === "details" ? t`Details` : t`Focal point`) : undefined
+							hasTabs
+								? activeTab === "details"
+									? t`Details`
+									: activeTab === "used-in"
+										? t`Used in`
+										: t`Focal point`
+								: undefined
 						}
 					>
 						<div
 							className="space-y-5 border-b border-kumo-line p-6 md:min-h-0 md:overflow-y-auto md:border-e md:border-b-0 md:p-8"
 							data-testid="media-detail-dialog-preview-column"
+							hidden={activeTab === "used-in"}
 						>
 							{isImage ? (
 								<FocalPointEditor
@@ -643,6 +669,7 @@ export function MediaDetailPanel({
 						<div
 							className="grid gap-5 p-6 md:min-h-0 md:overflow-y-auto md:p-8"
 							data-testid="media-detail-dialog-details-column"
+							hidden={activeTab === "used-in"}
 							style={canEditMetadata ? { gridTemplateAreas: '"panel" "error"' } : undefined}
 						>
 							{isProviderAsset && activeTab === "details" && (
@@ -888,18 +915,17 @@ export function MediaDetailPanel({
 									<DialogError message={updateErrorMessage} />
 								</div>
 							)}
-
-							{!isProviderAsset && (
-								<div className="border-t border-kumo-line pt-4">
-									<MediaUsedIn
-										mediaId={item.id}
-										open={open}
-										navigationBlocked={isBusy}
-										onEntryClick={handleUsageEntryClick}
-									/>
-								</div>
-							)}
 						</div>
+						{activeTab === "used-in" && (
+							<div className="mx-auto w-full max-w-2xl p-6 md:p-8">
+								<MediaUsedIn
+									mediaId={item.id}
+									open={open}
+									navigationBlocked={isBusy}
+									onEntryClick={handleUsageEntryClick}
+								/>
+							</div>
+						)}
 					</div>
 
 					<div
