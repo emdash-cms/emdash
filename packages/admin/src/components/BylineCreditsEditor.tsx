@@ -393,7 +393,7 @@ export function BylineCreditsEditor({
 				>
 					<div
 						ref={chooserRef}
-						className="flex min-h-0 flex-col gap-3 overflow-hidden"
+						className="flex min-h-0 flex-col gap-3"
 						onKeyDown={(event) => {
 							if (event.key === "Escape") {
 								event.preventDefault();
@@ -460,23 +460,20 @@ export function BylineCreditsEditor({
 								<ul className="space-y-2">
 									{options.map((option) => (
 										<li key={option.type === "byline" ? option.byline.id : "create"}>
-											<LayerCard className="flex min-h-14 items-center gap-3 px-3 py-2">
+											<LayerCard className="flex min-h-14 items-center gap-3 px-4 py-2.5">
 												{option.type === "byline" ? (
 													<>
 														<div className="min-w-0 flex-1">
 															<Text bold as="span" DANGEROUS_className="block wrap-break-word">
 																{option.byline.displayName}
 															</Text>
-															{option.byline.slug !==
-															option.byline.displayName.trim().toLocaleLowerCase() ? (
-																<Text
-																	as="span"
-																	variant="secondary"
-																	DANGEROUS_className="block wrap-break-word"
-																>
-																	{option.byline.slug}
-																</Text>
-															) : null}
+															<Text
+																as="span"
+																variant="secondary"
+																DANGEROUS_className="block wrap-break-word"
+															>
+																{option.byline.slug}
+															</Text>
 														</div>
 														<Button
 															type="button"

@@ -265,7 +265,7 @@ describe("BylineCreditsEditor", () => {
 		await vi.waitFor(() => expect(document.activeElement).toBe(actions.element()));
 	});
 
-	it("hides only a slug that repeats the display name", async () => {
+	it("shows the name and slug for every available byline", async () => {
 		const byline = makeByline({ displayName: "the", slug: "the" });
 		const customSlug = makeByline({ id: "custom", slug: "editorial-mina" });
 		const generatedSlug = makeByline({
@@ -284,7 +284,7 @@ describe("BylineCreditsEditor", () => {
 			.toBeVisible();
 		await expect.element(screen.getByText("editorial-mina", { exact: true })).toBeVisible();
 		await expect.element(screen.getByText("guest-contributor", { exact: true })).toBeVisible();
-		await expect.element(screen.getByText("the", { exact: true })).toHaveLength(1);
+		await expect.element(screen.getByText("the", { exact: true })).toHaveLength(2);
 	});
 
 	it("reorders credits with the keyboard drag handle", async () => {

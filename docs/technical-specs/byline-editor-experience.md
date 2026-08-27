@@ -109,8 +109,8 @@ Use one controlled Kumo `Input` followed by a fixed-height scroll region:
 - accessible label: `Search bylines`;
 - placeholder: `Search bylines to add…`;
 - `size="base"`;
-- all available matching items in a 14 rem scroll region with a reserved scrollbar gutter; shrink the region only when the popover has less vertical space;
-- each result is a separate Kumo `LayerCard` with the display name, a muted slug only when it helps distinguish the profile, and an `Add` button;
+- all available matching items in a 14 rem scroll region with enough inset to keep card rings inside its clipping edges; shrink the region only when the popover has less vertical space;
+- each result is a separate Kumo `LayerCard` with the display name on the first line, the muted slug on the second line, and an `Add` button;
 - the create result uses the same card treatment with a `Create` button;
 - selected bylines are omitted from results;
 - Escape closes the chooser and restores focus to its trigger.
