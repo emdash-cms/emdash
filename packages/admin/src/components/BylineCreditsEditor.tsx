@@ -442,7 +442,7 @@ export function BylineCreditsEditor({
 							role="region"
 							aria-label={t`Available bylines`}
 							aria-busy={searchResults.isFetching}
-							className="h-56 min-h-0 shrink overflow-y-auto overscroll-contain pe-1 [scrollbar-gutter:stable]"
+							className="-mx-1 h-56 min-h-0 shrink overflow-y-auto overscroll-contain p-1"
 						>
 							{searchEnabled && searchResults.isLoading && !searchResults.data ? (
 								<div className="flex h-full items-center justify-center gap-2">
@@ -457,7 +457,7 @@ export function BylineCreditsEditor({
 									</Button>
 								</div>
 							) : options.length > 0 ? (
-								<ul className="space-y-2 p-px">
+								<ul className="space-y-2">
 									{options.map((option) => (
 										<li key={option.type === "byline" ? option.byline.id : "create"}>
 											<LayerCard className="flex min-h-14 items-center gap-3 px-3 py-2">
