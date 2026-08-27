@@ -92,4 +92,20 @@ describe("release-service Worker", () => {
 			errorLog.mockRestore();
 		}
 	});
+
+	it("registers OAuth mutation routes behind their origin and session checks", async () => {
+		const identity = await SELF.fetch(
+			"https://release.example.invalid/v1/publisher/session/authorize",
+			{
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: "{}",
+			},
+		);
+		expect(identity.status).toBe(403);
+		expect(
+			(await SELF.fetch("https://release.example.invalid/v1/publisher/delegation/authorize"))
+				.status,
+		).toBe(405);
+	});
 });

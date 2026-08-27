@@ -4,6 +4,8 @@ import { apiFailure } from "./api/response.js";
 import { ConfigurationError, loadConfiguration, type ConfigurationBindings } from "./config.js";
 import { ROUTES, type RouteDefinition } from "./routes.js";
 
+export { PublisherDurableObject } from "./publisher-do/publisher-do.js";
+
 export async function handleRequest(
 	request: Request,
 	bindings: ConfigurationBindings,

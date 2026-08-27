@@ -6,6 +6,20 @@
 	// runtime. Request handling uses stable Web Platform APIs.
 	"compatibility_date": "2026-05-14",
 	"compatibility_flags": ["nodejs_compat"],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "PUBLISHER_DO",
+				"class_name": "PublisherDurableObject",
+			},
+		],
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["PublisherDurableObject"],
+		},
+	],
 	"vars": {
 		"PUBLIC_ORIGIN": "",
 		"DEPLOYMENT_ID": "",
