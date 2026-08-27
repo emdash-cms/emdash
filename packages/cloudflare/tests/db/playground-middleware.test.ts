@@ -73,14 +73,18 @@ async function requestInit(token: string, accept?: string): Promise<Response> {
 	return response;
 }
 
-async function requestPlayground(token: string): Promise<Response> {
+async function requestPlayground(
+	token?: string,
+): Promise<{ response: Response; setCookie: ReturnType<typeof vi.fn> }> {
+	const setCookie = vi.fn();
 	const response = await onRequest(
 		{
 			url: new URL("https://example.com/playground"),
 			request: new Request("https://example.com/playground"),
 			cookies: {
-				get: (name: string) => (name === "emdash_playground" ? { value: token } : undefined),
-				set: vi.fn(),
+				get: (name: string) =>
+					name === "emdash_playground" && token ? { value: token } : undefined,
+				set: setCookie,
 			},
 			locals: {},
 			redirect: (location: string) => new Response(null, { status: 302, headers: { location } }),
@@ -89,7 +93,7 @@ async function requestPlayground(token: string): Promise<Response> {
 	);
 
 	if (!(response instanceof Response)) throw new Error("Expected a playground response");
-	return response;
+	return { response, setCookie };
 }
 
 describe("playground initialization endpoint", () => {
@@ -166,9 +170,21 @@ describe("playground initialization endpoint", () => {
 		await requestInit("expired-session");
 		mocks.isReady.mockResolvedValue(false);
 
-		const response = await requestPlayground("expired-session");
+		const { response } = await requestPlayground("expired-session");
 
 		expect(response.status).toBe(200);
 		expect(mocks.isReady).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not check durable readiness for a new session", async () => {
+		const { response, setCookie } = await requestPlayground();
+
+		expect(response.status).toBe(200);
+		expect(setCookie).toHaveBeenCalledWith(
+			"emdash_playground",
+			expect.any(String),
+			expect.objectContaining({ maxAge: 3600 }),
+		);
+		expect(mocks.isReady).not.toHaveBeenCalled();
 	});
 });

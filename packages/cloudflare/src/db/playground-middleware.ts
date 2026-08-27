@@ -164,9 +164,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// fetch to do the actual setup, then redirects to admin when ready.
 	// If the session is already initialized, skip the loading page.
 	if (url.pathname === "/playground") {
-		let token = cookies.get(COOKIE_NAME)?.value;
-		if (!token) {
-			token = ulid();
+		const existingToken = cookies.get(COOKIE_NAME)?.value;
+		if (!existingToken) {
+			const token = ulid();
 			cookies.set(COOKIE_NAME, token, {
 				httpOnly: true,
 				sameSite: "lax",
@@ -175,9 +175,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			});
 		}
 
-		const stub = getStub(binding, token);
-		if (await stub.isReady()) {
-			return context.redirect("/_emdash/admin");
+		if (existingToken) {
+			const stub = getStub(binding, existingToken);
+			if (await stub.isReady()) {
+				return context.redirect("/_emdash/admin");
+			}
 		}
 
 		return new Response(renderPlaygroundLoadingPage(), {
