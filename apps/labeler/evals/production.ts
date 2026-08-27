@@ -1,6 +1,7 @@
 import type { WorkflowInstanceStatus } from "cloudflare:workers";
 
 import { sha256Hex } from "../src/ai/hash.js";
+import { IMAGE_PROMPT_HASH, TEXT_PROMPT_HASH } from "../src/ai/prompts.js";
 import { loadEvalDataset } from "./dataset.js";
 import { EVAL_RUNNER_VERSION } from "./harness.js";
 import { runProtectedLiveEvaluation } from "./live.js";
@@ -243,8 +244,7 @@ async function ensureWorkflowInstance(
 ): Promise<EvalRunRecord> {
 	if (record.status !== "running" || !record.workflowInstanceId) return record;
 	const instanceId = record.workflowInstanceId;
-	const instance = await workflow.get(instanceId);
-	const status = (await instance.status()).status;
+	const status = await readWorkflowStatus(workflow, instanceId);
 	if (status === "errored" || status === "terminated") {
 		await store.failWorkflow(record.id, instanceId, FAILURE_CODE, FAILURE_SUMMARY, new Date());
 		const failed = await store.readById(record.id);
@@ -267,10 +267,24 @@ async function ensureWorkflowInstance(
 			},
 		});
 	} catch (error) {
-		const concurrentStatus = (await (await workflow.get(instanceId)).status()).status;
+		const concurrentStatus = await readWorkflowStatus(workflow, instanceId);
 		if (concurrentStatus === "unknown") throw error;
 	}
 	return record;
+}
+
+async function readWorkflowStatus(
+	workflow: EvalWorkflowBinding,
+	instanceId: string,
+): Promise<WorkflowInstanceStatus> {
+	try {
+		return (await (await workflow.get(instanceId)).status()).status;
+	} catch (error) {
+		if (error instanceof Error && error.message.startsWith("(instance.not_found)")) {
+			return "unknown";
+		}
+		throw error;
+	}
 }
 
 export async function readEvalRunStatus(
@@ -557,13 +571,14 @@ export async function executeProductionLiveEvaluation(
 			dataset,
 			text: {
 				modelId: env.LABELER_TEXT_MODEL_ID,
-				promptHash: env.LABELER_TEXT_PROMPT_HASH,
+				promptHash: TEXT_PROMPT_HASH,
 				configuredUnits: parseUnits(env.EVAL_TEXT_CONFIGURED_UNITS, "text"),
 			},
 			image: {
 				modelId: env.LABELER_IMAGE_MODEL_ID,
-				promptHash: env.LABELER_IMAGE_PROMPT_HASH,
+				promptHash: IMAGE_PROMPT_HASH,
 				configuredUnits: parseUnits(env.EVAL_IMAGE_CONFIGURED_UNITS, "image"),
+				thinking: false,
 			},
 			repeatCount: 3,
 			runnerCommit: env.VERSION_METADATA.id,
@@ -582,7 +597,7 @@ export async function executeProductionLiveEvaluation(
 			reviewChallengeHash: await promotionReviewChallengeHash(dataset, comparison),
 		};
 	}
-	const report = renderEvalReport(candidate);
+	const report = renderEvalReport(candidate, dataset.budgets);
 	const encoded = JSON.stringify(candidate);
 	assertBoundedText(encoded, MAX_ARTIFACT_BYTES, "evaluation artifact");
 	const artifactKey = `live/${candidate.reproducibility.executedAt}/${candidateHash}.json`;
@@ -635,9 +650,9 @@ async function productionEvaluationIdentity(
 		runnerCommit: env.VERSION_METADATA.id,
 		repeatCount: 3,
 		textModelId: env.LABELER_TEXT_MODEL_ID,
-		textPromptHash: env.LABELER_TEXT_PROMPT_HASH,
+		textPromptHash: TEXT_PROMPT_HASH,
 		imageModelId: env.LABELER_IMAGE_MODEL_ID,
-		imagePromptHash: env.LABELER_IMAGE_PROMPT_HASH,
+		imagePromptHash: IMAGE_PROMPT_HASH,
 	};
 }
 

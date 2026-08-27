@@ -38,6 +38,8 @@ export interface MediaItem {
 	size: number;
 	width?: number;
 	height?: number;
+	focalX?: number | null;
+	focalY?: number | null;
 	/** LQIP blurhash placeholder (images only) */
 	blurhash?: string;
 	/** LQIP dominant-color placeholder, as a CSS color (images only) */
@@ -51,22 +53,48 @@ export interface MediaItem {
 	meta?: Record<string, unknown>;
 }
 
+export interface LocalMediaItem extends MediaItem {
+	provider?: undefined;
+	storageKey: string;
+	authorId: string | null;
+	folderId: string | null;
+}
+
+export interface MediaFolder {
+	id: string;
+	name: string;
+}
+
+export interface MediaListResult extends FindManyResult<LocalMediaItem> {
+	totalCount?: number;
+}
+
+export interface MediaFolderListResult extends FindManyResult<MediaFolder> {}
+
 /**
  * Fetch media list
  */
 export async function fetchMediaList(options?: {
 	cursor?: string;
+	page?: number;
 	limit?: number;
 	mimeType?: string | string[];
+	folderId?: string | null;
 	/** Case-insensitive filename substring search (also matches extensions). */
 	search?: string;
-}): Promise<FindManyResult<MediaItem>> {
+}): Promise<MediaListResult> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
+	if (options?.page !== undefined) params.set("page", String(options.page));
 	if (options?.limit) params.set("limit", String(options.limit));
 	if (options?.mimeType) {
 		const value = Array.isArray(options.mimeType) ? options.mimeType.join(",") : options.mimeType;
 		if (value) params.set("mimeType", value);
+	}
+	if (options?.folderId === null) {
+		params.set("folderId", "unfiled");
+	} else if (options?.folderId !== undefined) {
+		params.set("folderId", options.folderId);
 	}
 	if (options?.search) {
 		// Trim and clamp to the server's accepted range so a long or
@@ -77,7 +105,7 @@ export async function fetchMediaList(options?: {
 
 	const url = `${API_BASE}/media${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
-	return parseApiResponse<FindManyResult<MediaItem>>(response, i18n._(msg`Failed to fetch media`));
+	return parseApiResponse<MediaListResult>(response, i18n._(msg`Failed to fetch media`));
 }
 
 /**
@@ -86,13 +114,76 @@ export async function fetchMediaList(options?: {
  * Used to resolve an id-only reference (e.g. a byline's `avatarMediaId`)
  * back into a full media item for display.
  */
-export async function fetchMediaItem(id: string, options?: MediaUploadOptions): Promise<MediaItem> {
-	const response = await apiFetch(`${API_BASE}/media/${id}`, { signal: options?.signal });
-	const data = await parseApiResponse<{ item: MediaItem }>(
+export async function fetchMediaItem(
+	id: string,
+	options?: MediaUploadOptions,
+): Promise<LocalMediaItem> {
+	const response = await apiFetch(`${API_BASE}/media/${encodeURIComponent(id)}`, {
+		signal: options?.signal,
+	});
+	const data = await parseApiResponse<{ item: LocalMediaItem }>(
 		response,
 		i18n._(msg`Failed to fetch media item`),
 	);
 	return data.item;
+}
+
+export async function fetchMediaFolders(
+	options: { limit?: number; cursor?: string; search?: string } = {},
+): Promise<MediaFolderListResult> {
+	const params = new URLSearchParams();
+	if (options.limit !== undefined) params.set("limit", String(options.limit));
+	if (options.cursor !== undefined) params.set("cursor", options.cursor);
+	const search = normalizeMediaSearch(options.search);
+	if (search) params.set("q", search);
+	const query = params.toString();
+	const response = await apiFetch(`${API_BASE}/media/folders${query ? `?${query}` : ""}`);
+	return parseApiResponse<MediaFolderListResult>(
+		response,
+		i18n._(msg`Failed to fetch media folders`),
+	);
+}
+
+export async function fetchMediaFolder(id: string): Promise<MediaFolder> {
+	const response = await apiFetch(`${API_BASE}/media/folders/${encodeURIComponent(id)}`);
+	const data = await parseApiResponse<{ item: MediaFolder }>(
+		response,
+		i18n._(msg`Failed to fetch media folder`),
+	);
+	return data.item;
+}
+
+export async function createMediaFolder(name: string): Promise<MediaFolder> {
+	const response = await apiFetch(`${API_BASE}/media/folders`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ name }),
+	});
+	const data = await parseApiResponse<{ item: MediaFolder }>(
+		response,
+		i18n._(msg`Failed to create media folder`),
+	);
+	return data.item;
+}
+
+export async function renameMediaFolder(id: string, name: string): Promise<MediaFolder> {
+	const response = await apiFetch(`${API_BASE}/media/folders/${encodeURIComponent(id)}`, {
+		method: "PUT",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ name }),
+	});
+	const data = await parseApiResponse<{ item: MediaFolder }>(
+		response,
+		i18n._(msg`Failed to rename media folder`),
+	);
+	return data.item;
+}
+
+export async function deleteMediaFolder(id: string): Promise<void> {
+	const response = await apiFetch(`${API_BASE}/media/folders/${encodeURIComponent(id)}`, {
+		method: "DELETE",
+	});
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete media folder`));
 }
 
 /**
@@ -338,16 +429,23 @@ export async function deleteMedia(id: string): Promise<void> {
 /**
  * Update media metadata (dimensions, alt text, etc.)
  */
-export async function updateMedia(
-	id: string,
-	input: { alt?: string; caption?: string; width?: number; height?: number },
-): Promise<MediaItem> {
-	const response = await apiFetch(`${API_BASE}/media/${id}`, {
+export interface MediaUpdateInput {
+	alt?: string;
+	caption?: string;
+	width?: number;
+	height?: number;
+	folderId?: string | null;
+	focalX?: number | null;
+	focalY?: number | null;
+}
+
+export async function updateMedia(id: string, input: MediaUpdateInput): Promise<LocalMediaItem> {
+	const response = await apiFetch(`${API_BASE}/media/${encodeURIComponent(id)}`, {
 		method: "PUT",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	const data = await parseApiResponse<{ item: MediaItem }>(
+	const data = await parseApiResponse<{ item: LocalMediaItem }>(
 		response,
 		i18n._(msg`Failed to update media`),
 	);

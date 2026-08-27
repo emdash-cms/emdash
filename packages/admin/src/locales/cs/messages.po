@@ -30,8 +30,8 @@ msgstr " (výchozí)"
 msgid " (opens in new window)"
 msgstr " (otevře se v novém okně)"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:867
-#: packages/admin/src/components/MediaPickerModal.tsx:950
+#: packages/admin/src/components/MediaPickerModal.tsx:868
+#: packages/admin/src/components/MediaPickerModal.tsx:952
 msgid " (selected)"
 msgstr " (vybráno)"
 
@@ -50,7 +50,7 @@ msgid ": use"
 msgstr ": použijte"
 
 #. placeholder {0}: providers?.find((p) => p.id === selectedItem.providerId)?.name
-#: packages/admin/src/components/MediaPickerModal.tsx:798
+#: packages/admin/src/components/MediaPickerModal.tsx:799
 msgid "(from {0})"
 msgstr "(z {0})"
 
@@ -96,7 +96,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# komentář importován} few {# komentáře importovány} many {# komentáře importováno} other {# komentářů importováno}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1537
+#: packages/admin/src/router.tsx:1788
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# komentář aktualizován} few {# komentáře aktualizovány} many {# komentáře aktualizováno} other {# komentářů aktualizováno}}"
 
@@ -115,14 +115,21 @@ msgstr "{0, plural, one {# chyba obsahu} few {# chyby obsahu} many {# chyby obsa
 msgid "{0, plural, one {# content item imported} other {# content items imported}}"
 msgstr "{0, plural, one {# položka obsahu importována} few {# položky obsahu importovány} many {# položky obsahu importováno} other {# položek obsahu importováno}}"
 
+#. placeholder {0}: locationFolders.length
+#. placeholder {0}: visibleFolders.length
+#: packages/admin/src/components/MediaDetailPanel.tsx:716
+#: packages/admin/src/components/MediaLibrary.tsx:952
+msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
+msgstr ""
+
 #. placeholder {0}: selectedItems.length
-#: packages/admin/src/components/MediaPickerModal.tsx:787
+#: packages/admin/src/components/MediaPickerModal.tsx:788
 msgid "{0, plural, one {# item selected} other {# items selected}}"
 msgstr "{0, plural, one {# položka vybrána} few {# položky vybrány} many {# položky vybráno} other {# položek vybráno}}"
 
 #. placeholder {0}: items.length
 #. placeholder {0}: menu.itemCount ?? 0
-#: packages/admin/src/components/MediaPickerModal.tsx:636
+#: packages/admin/src/components/MediaPickerModal.tsx:637
 #: packages/admin/src/components/MenuList.tsx:220
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {# položka} few {# položky} many {# položky} other {# položek}}"
@@ -273,17 +280,17 @@ msgid "{0} items will be imported"
 msgstr "{0, plural, one {Bude importována # položka} few {Budou importovány # položky} many {Bude importováno # položky} other {Bude importováno # položek}}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:560
+#: packages/admin/src/router.tsx:573
 msgid "{0} of {total} could not be deleted"
 msgstr "{0} z {total} se nepodařilo smazat"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:516
+#: packages/admin/src/router.tsx:529
 msgid "{0} of {total} could not be published"
 msgstr "{0} z {total} se nepodařilo publikovat"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:539
+#: packages/admin/src/router.tsx:552
 msgid "{0} of {total} could not be updated"
 msgstr "{0} z {total} se nepodařilo aktualizovat"
 
@@ -317,8 +324,8 @@ msgstr "{0} aktualizován na verzi {1}"
 
 #. placeholder {0}: item.filename
 #. placeholder {1}: selected ? t` (selected)` : ""
-#: packages/admin/src/components/MediaPickerModal.tsx:867
-#: packages/admin/src/components/MediaPickerModal.tsx:950
+#: packages/admin/src/components/MediaPickerModal.tsx:868
+#: packages/admin/src/components/MediaPickerModal.tsx:952
 msgid "{0}{1}"
 msgstr "{0}{1}"
 
@@ -336,17 +343,17 @@ msgstr "{base} na adresy: {0}"
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, one {# změna oproti další revizi} few {# změny oproti další revizi} many {# změny oproti další revizi} other {# změn oproti další revizi}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2524
+#: packages/admin/src/components/PortableTextEditor.tsx:2526
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr ""
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:482
+#: packages/admin/src/components/MediaUploadDialog.tsx:488
 msgid "{completedCount} of {0} complete"
 msgstr ""
 
 #. placeholder {0}: rows.length
-#: packages/admin/src/components/MediaUploadDialog.tsx:367
+#: packages/admin/src/components/MediaUploadDialog.tsx:373
 msgid "{completedCount} of {0} uploads complete"
 msgstr ""
 
@@ -362,7 +369,7 @@ msgstr "{count, plural, one {# položka} few {# položky} many {# položky} othe
 msgid "{current} of {total}"
 msgstr "{current} z {total}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:369
+#: packages/admin/src/components/MediaUploadDialog.tsx:375
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
 msgstr ""
 
@@ -408,7 +415,7 @@ msgstr ""
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr ""
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:458
+#: packages/admin/src/components/MediaUploadDialog.tsx:464
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr ""
 
@@ -426,13 +433,9 @@ msgstr "{pluginName} vyžaduje následující oprávnění:"
 msgid "{pluginName} Settings"
 msgstr "Nastavení {pluginName}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2525
+#: packages/admin/src/components/PortableTextEditor.tsx:2527
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr ""
-
-#: packages/admin/src/components/MediaLibrary.tsx:264
-msgid "{resultCount, plural, one {# item} other {# items}}"
-msgstr "{resultCount, plural, one {# položka} few {# položky} many {# položky} other {# položek}}"
 
 #: packages/admin/src/components/ContentList.tsx:474
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
@@ -466,7 +469,7 @@ msgstr "{unchangedCount, plural, one {Skrýt # nezměněné} few {Skrýt # nezm�
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
 msgstr "{unchangedCount, plural, one {Zobrazit # nezměněné} few {Zobrazit # nezměněné} many {Zobrazit # nezměněného} other {Zobrazit # nezměněných}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2523
+#: packages/admin/src/components/PortableTextEditor.tsx:2525
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr ""
 
@@ -589,6 +592,10 @@ msgstr "Stručný popis tohoto typu obsahu"
 msgid "A full-width hero banner with heading, text, and CTA button"
 msgstr "Úvodní panel přes celou šířku s nadpisem, textem a tlačítkem výzvy k akci"
 
+#: packages/admin/src/components/MediaFolderDialog.tsx:86
+msgid "A media folder with this name already exists"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:176
 msgid "A short description of your site"
 msgstr "Stručný popis webu"
@@ -613,7 +620,7 @@ msgstr "Přijmout pozvánku"
 msgid "Access denied"
 msgstr "Přístup odepřen"
 
-#: packages/admin/src/router.tsx:1557
+#: packages/admin/src/router.tsx:1808
 msgid "Access Denied"
 msgstr "Přístup odepřen"
 
@@ -656,7 +663,7 @@ msgstr "Akce"
 msgid "Active"
 msgstr "Aktivní"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:171
+#: packages/admin/src/components/AllowedTypesEditor.tsx:174
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1015
 #: packages/admin/src/components/MenuEditor.tsx:441
 #: packages/admin/src/components/TaxonomySidebar.tsx:619
@@ -665,7 +672,7 @@ msgstr "Přidat"
 
 #. placeholder {0}: field.item_label
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/PortableTextEditor.tsx:2136
+#: packages/admin/src/components/PortableTextEditor.tsx:2138
 #: packages/admin/src/components/TaxonomyManager.tsx:540
 #: packages/admin/src/components/TaxonomyManager.tsx:1041
 msgid "Add {0}"
@@ -683,11 +690,11 @@ msgstr "Přidat nový přístupový klíč"
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "Přidejte alespoň jedno podpole pro definici struktury opakovače."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3751
+#: packages/admin/src/components/PortableTextEditor.tsx:3753
 msgid "Add column after"
 msgstr "Přidat sloupec za"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3745
+#: packages/admin/src/components/PortableTextEditor.tsx:3747
 msgid "Add column before"
 msgstr "Přidat sloupec před"
 
@@ -733,15 +740,15 @@ msgstr "Přidat první pole"
 msgid "Add First Item"
 msgstr "Přidat první položku"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:200
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:204
 msgid "Add Images"
 msgstr "Přidat obrázky"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:247
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:251
 msgid "Add images to gallery"
 msgstr "Přidat obrázky do galerie"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2136
+#: packages/admin/src/components/PortableTextEditor.tsx:2138
 msgid "Add item"
 msgstr "Přidat položku"
 
@@ -749,7 +756,7 @@ msgstr "Přidat položku"
 msgid "Add Item"
 msgstr "Přidat položku"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3680
+#: packages/admin/src/components/PortableTextEditor.tsx:3682
 msgid "Add link"
 msgstr "Přidat odkaz"
 
@@ -757,7 +764,7 @@ msgstr "Přidat odkaz"
 msgid "Add links to build your navigation menu"
 msgstr "Přidejte odkazy a sestavte tak navigační nabídku"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:162
+#: packages/admin/src/components/AllowedTypesEditor.tsx:165
 msgid "Add MIME type or extension"
 msgstr "Přidat MIME typ nebo příponu"
 
@@ -769,6 +776,12 @@ msgstr "Přidat položku"
 #: packages/admin/src/components/TaxonomySidebar.tsx:631
 msgid "Add new {0}"
 msgstr "Přidat novou položku: {0}"
+
+#: packages/admin/src/components/MediaFolderDialog.tsx:127
+#: packages/admin/src/components/MediaLibrary.tsx:818
+#: packages/admin/src/components/MediaLibrary.tsx:823
+msgid "Add new folder"
+msgstr ""
 
 #: packages/admin/src/components/SeoPanel.tsx:240
 msgid "Add noindex meta tag"
@@ -782,11 +795,11 @@ msgstr "Přidat přístupový klíč"
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "Přidáním pluginů do astro.config.mjs rozšíříte funkce EmDash."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3772
+#: packages/admin/src/components/PortableTextEditor.tsx:3774
 msgid "Add row after"
 msgstr "Vložit řádek pod"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3766
+#: packages/admin/src/components/PortableTextEditor.tsx:3768
 msgid "Add row before"
 msgstr "Vložit řádek nad"
 
@@ -854,15 +867,15 @@ msgstr "Přístup pro agenty u {0} byl aktualizován"
 msgid "Agent-callable MCP tools"
 msgstr "MCP nástroje volatelné agentem"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4148
+#: packages/admin/src/components/PortableTextEditor.tsx:4150
 msgid "Align Center"
 msgstr "Zarovnat na střed"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4141
+#: packages/admin/src/components/PortableTextEditor.tsx:4143
 msgid "Align Left"
 msgstr "Zarovnat vlevo"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4155
+#: packages/admin/src/components/PortableTextEditor.tsx:4157
 msgid "Align Right"
 msgstr "Zarovnat vpravo"
 
@@ -919,12 +932,12 @@ msgstr "Všechny zdroje"
 msgid "All statuses"
 msgstr "Všechny stavy"
 
-#: packages/admin/src/components/MediaLibrary.tsx:397
+#: packages/admin/src/components/MediaLibrary.tsx:902
 #: packages/admin/src/components/Redirects.tsx:432
 msgid "All types"
 msgstr "Všechny typy"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:371
+#: packages/admin/src/components/MediaUploadDialog.tsx:377
 msgid "All uploads finished"
 msgstr ""
 
@@ -945,7 +958,7 @@ msgstr "Umožnit návštěvníkům komentovat obsah této kolekce"
 msgid "Allowed Domains"
 msgstr "Povolené domény"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:102
+#: packages/admin/src/components/AllowedTypesEditor.tsx:105
 msgid "Allowed types"
 msgstr "Povolené typy"
 
@@ -961,21 +974,25 @@ msgstr "Smazat také uložená data pluginu"
 msgid "Also match the byline linked to an entry's author when it has none assigned."
 msgstr ""
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:376
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:381
 #: packages/admin/src/components/editor/ImageNode.tsx:244
-#: packages/admin/src/components/MediaLibrary.tsx:553
+#: packages/admin/src/components/MediaLibrary.tsx:1156
 msgid "Alt text"
 msgstr "Alternativní text"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:344
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:533
-#: packages/admin/src/components/MediaDetailPanel.tsx:368
-#: packages/admin/src/components/MediaDetailPanel.tsx:385
+#: packages/admin/src/components/MediaDetailPanel.tsx:776
+#: packages/admin/src/components/MediaDetailPanel.tsx:793
 msgid "Alt Text"
 msgstr "Alternativní text"
 
-#: packages/admin/src/components/MediaLibrary.tsx:811
-#: packages/admin/src/components/MediaLibrary.tsx:868
+#: packages/admin/src/components/MediaLibrary.tsx:1489
+msgid "Alt text is not applicable to folders"
+msgstr ""
+
+#: packages/admin/src/components/MediaLibrary.tsx:1763
+#: packages/admin/src/components/MediaLibrary.tsx:1820
 msgid "Alt text set"
 msgstr "Alternativní text je nastaven"
 
@@ -1013,24 +1030,24 @@ msgstr "Případně můžete provést export z WordPressu (Nástroje → Export)
 #: packages/admin/src/components/TaxonomySidebar.tsx:416
 #: packages/admin/src/components/TaxonomySidebar.tsx:476
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:448
-#: packages/admin/src/router.tsx:463
-#: packages/admin/src/router.tsx:477
-#: packages/admin/src/router.tsx:491
-#: packages/admin/src/router.tsx:715
-#: packages/admin/src/router.tsx:997
-#: packages/admin/src/router.tsx:1057
-#: packages/admin/src/router.tsx:1075
-#: packages/admin/src/router.tsx:1093
-#: packages/admin/src/router.tsx:1114
-#: packages/admin/src/router.tsx:1135
-#: packages/admin/src/router.tsx:1156
-#: packages/admin/src/router.tsx:1187
-#: packages/admin/src/router.tsx:1207
-#: packages/admin/src/router.tsx:1502
-#: packages/admin/src/router.tsx:1518
-#: packages/admin/src/router.tsx:1543
-#: packages/admin/src/router.tsx:2043
+#: packages/admin/src/router.tsx:461
+#: packages/admin/src/router.tsx:476
+#: packages/admin/src/router.tsx:490
+#: packages/admin/src/router.tsx:504
+#: packages/admin/src/router.tsx:728
+#: packages/admin/src/router.tsx:1011
+#: packages/admin/src/router.tsx:1071
+#: packages/admin/src/router.tsx:1089
+#: packages/admin/src/router.tsx:1107
+#: packages/admin/src/router.tsx:1128
+#: packages/admin/src/router.tsx:1149
+#: packages/admin/src/router.tsx:1170
+#: packages/admin/src/router.tsx:1201
+#: packages/admin/src/router.tsx:1221
+#: packages/admin/src/router.tsx:1753
+#: packages/admin/src/router.tsx:1769
+#: packages/admin/src/router.tsx:1794
+#: packages/admin/src/router.tsx:2294
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1054,7 +1071,7 @@ msgstr "Analýza souboru exportu..."
 msgid "Analyzing WordPress site..."
 msgstr "Analýza webu na WordPressu…"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:105
+#: packages/admin/src/components/AllowedTypesEditor.tsx:108
 msgid "Any media type allowed (subject to global limits)."
 msgstr "Povoleny jsou všechny typy médií (v rámci globálních limitů)."
 
@@ -1073,7 +1090,7 @@ msgstr "Zobrazuje se u příspěvků a stránek"
 msgid "Application Password"
 msgstr "Heslo aplikace"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4237
+#: packages/admin/src/components/PortableTextEditor.tsx:4239
 msgid "Apply"
 msgstr "Použít"
 
@@ -1082,8 +1099,8 @@ msgstr "Použít"
 msgid "Apply language"
 msgstr "Použít jazyk"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3606
-#: packages/admin/src/components/PortableTextEditor.tsx:3607
+#: packages/admin/src/components/PortableTextEditor.tsx:3608
+#: packages/admin/src/components/PortableTextEditor.tsx:3609
 msgid "Apply link"
 msgstr "Použít odkaz"
 
@@ -1110,7 +1127,7 @@ msgstr "Libovolná data ve formátu JSON"
 msgid "Archived"
 msgstr "Archivováno"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:65
+#: packages/admin/src/components/AllowedTypesEditor.tsx:68
 #: packages/admin/src/components/Widgets.tsx:158
 msgid "Archives"
 msgstr "Archivy"
@@ -1146,8 +1163,8 @@ msgstr "Přiřaďte autory z WordPressu uživatelům EmDash. Příspěvky budou 
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:66
-#: packages/admin/src/components/MediaLibrary.tsx:400
+#: packages/admin/src/components/AllowedTypesEditor.tsx:69
+#: packages/admin/src/components/MediaLibrary.tsx:905
 msgid "Audio"
 msgstr "Audio"
 
@@ -1236,7 +1253,7 @@ msgstr "Automatické zálohy"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Automatické zálohy vyžadují úložiště (R2, S3 nebo lokální). Povolíte je nastavením úložiště v konfiguraci EmDash."
 
-#: packages/admin/src/router.tsx:1056
+#: packages/admin/src/router.tsx:1070
 msgid "Autosave failed"
 msgstr "Automatické uložení selhalo"
 
@@ -1245,7 +1262,7 @@ msgstr "Automatické uložení selhalo"
 msgid "Available in {0}"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:710
+#: packages/admin/src/components/MediaPickerModal.tsx:711
 msgid "Available media"
 msgstr "Dostupná média"
 
@@ -1263,6 +1280,7 @@ msgid "Avatar"
 msgstr "Avatar"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:266
+#: packages/admin/src/components/MediaLibrary.tsx:778
 #: packages/admin/src/components/MenuEditor.tsx:362
 #: packages/admin/src/components/WordPressImport.tsx:1510
 #: packages/admin/src/components/WordPressImport.tsx:2527
@@ -1284,6 +1302,10 @@ msgstr "Zpět na typy obsahu"
 #: packages/admin/src/components/SignupPage.tsx:282
 msgid "Back to login"
 msgstr "Zpět na přihlášení"
+
+#: packages/admin/src/components/MediaLibrary.tsx:1045
+msgid "Back to Main library"
+msgstr ""
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:126
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:404
@@ -1356,8 +1378,8 @@ msgstr "Medailonek"
 msgid "Block actions - drag to reorder, click for menu"
 msgstr "Akce bloku – přetažením změníte pořadí, kliknutím otevřete nabídku"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3630
-#: packages/admin/src/components/PortableTextEditor.tsx:4035
+#: packages/admin/src/components/PortableTextEditor.tsx:3632
+#: packages/admin/src/components/PortableTextEditor.tsx:4037
 msgid "Bold"
 msgstr "Tučné"
 
@@ -1379,7 +1401,7 @@ msgstr "Procházejte a instalujte pluginy publikované v decentralizovaném regi
 msgid "Browse and install plugins to extend your site."
 msgstr "Procházejte a instalujte pluginy, které rozšíří váš web."
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:439
+#: packages/admin/src/components/MediaUploadDialog.tsx:445
 msgid "Browse files"
 msgstr ""
 
@@ -1388,7 +1410,7 @@ msgstr ""
 msgid "Browse Files"
 msgstr "Procházet soubory"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:448
+#: packages/admin/src/components/MediaUploadDialog.tsx:454
 msgid "Browse files to upload"
 msgstr ""
 
@@ -1401,8 +1423,8 @@ msgid "Browse themes and preview them with your own content."
 msgstr "Procházejte šablony a zobrazte jejich náhled s vlastním obsahem."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:127
-#: packages/admin/src/components/PortableTextEditor.tsx:1452
-#: packages/admin/src/components/PortableTextEditor.tsx:4083
+#: packages/admin/src/components/PortableTextEditor.tsx:1454
+#: packages/admin/src/components/PortableTextEditor.tsx:4085
 msgid "Bullet List"
 msgstr "Odrážkový seznam"
 
@@ -1470,13 +1492,14 @@ msgstr "Může zobrazit obsah"
 #: packages/admin/src/components/editor/ImageNode.tsx:266
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:406
 #: packages/admin/src/components/FieldEditor.tsx:678
-#: packages/admin/src/components/MediaDetailPanel.tsx:430
-#: packages/admin/src/components/MediaPickerModal.tsx:805
+#: packages/admin/src/components/MediaDetailPanel.tsx:881
+#: packages/admin/src/components/MediaFolderDialog.tsx:152
+#: packages/admin/src/components/MediaPickerModal.tsx:806
 #: packages/admin/src/components/MenuEditor.tsx:438
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/PluginManager.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:4221
+#: packages/admin/src/components/PortableTextEditor.tsx:4223
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
@@ -1497,11 +1520,11 @@ msgid "Cancel (Esc)"
 msgstr "Zrušit (Esc)"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:156
+#: packages/admin/src/components/MediaUploadDialog.tsx:162
 msgid "Cancel {0}"
 msgstr ""
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:502
+#: packages/admin/src/components/MediaUploadDialog.tsx:508
 msgid "Cancel remaining"
 msgstr ""
 
@@ -1513,7 +1536,7 @@ msgstr "Zrušit přejmenování"
 msgid "Cannot delete theme sections"
 msgstr "Sekce šablony nelze smazat"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:456
+#: packages/admin/src/components/MediaPickerModal.tsx:457
 msgid "Cannot determine MIME type from URL. Use a URL ending in a recognized image extension (e.g. .jpg, .png, .webp)."
 msgstr "Z URL nelze určit typ MIME. Použijte URL končící rozpoznanou příponou obrázku (např. .jpg, .png, .webp)."
 
@@ -1530,14 +1553,14 @@ msgstr "Oprávnění"
 msgid "Capability consent"
 msgstr "Souhlas s oprávněními"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:382
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:387
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:352
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:541
-#: packages/admin/src/components/MediaDetailPanel.tsx:395
+#: packages/admin/src/components/MediaDetailPanel.tsx:803
 msgid "Caption"
 msgstr "Popisek"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:68
+#: packages/admin/src/components/AllowedTypesEditor.tsx:71
 msgid "Captions / Subtitles"
 msgstr "Titulky / skryté titulky"
 
@@ -1563,8 +1586,8 @@ msgstr "Na střed"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
 #: packages/admin/src/components/ContentEditor.tsx:1769
 #: packages/admin/src/components/FieldEditor.tsx:428
-#: packages/admin/src/components/ImageFieldRenderer.tsx:208
-#: packages/admin/src/components/ImageFieldRenderer.tsx:237
+#: packages/admin/src/components/ImageFieldRenderer.tsx:215
+#: packages/admin/src/components/ImageFieldRenderer.tsx:245
 #: packages/admin/src/components/SeoImageField.tsx:53
 msgid "Change"
 msgstr "Změnit"
@@ -1592,7 +1615,7 @@ msgstr "Změnit logo"
 msgid "Changelog"
 msgstr "Seznam změn"
 
-#: packages/admin/src/router.tsx:1107
+#: packages/admin/src/router.tsx:1121
 msgid "Changes discarded"
 msgstr "Změny byly zahozeny"
 
@@ -1631,6 +1654,10 @@ msgstr "Zjišťuje se, kolik uložených hodnot odkazuje na „{0}“…"
 msgid "Choose how to sign in"
 msgstr "Zvolte způsob přihlášení"
 
+#: packages/admin/src/components/MediaDetailPanel.tsx:830
+msgid "Choose the part that should remain visible when this image is cropped."
+msgstr ""
+
 #: packages/admin/src/components/Settings.tsx:119
 msgid "Choose your preferred admin language"
 msgstr "Zvolte preferovaný jazyk administrace"
@@ -1639,18 +1666,18 @@ msgstr "Zvolte preferovaný jazyk administrace"
 msgid "Clear"
 msgstr "Vymazat"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:487
+#: packages/admin/src/components/MediaUploadDialog.tsx:493
 msgid "Clear completed"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:947
-#: packages/admin/src/components/MediaLibrary.tsx:461
+#: packages/admin/src/components/MediaLibrary.tsx:1034
 #: packages/admin/src/components/users/UserList.tsx:129
 msgid "Clear filters"
 msgstr "Vymazat filtry"
 
-#: packages/admin/src/components/MediaLibrary.tsx:461
-#: packages/admin/src/components/MediaLibrary.tsx:485
+#: packages/admin/src/components/MediaLibrary.tsx:1034
+#: packages/admin/src/components/MediaLibrary.tsx:1069
 msgid "Clear search"
 msgstr "Vymazat hledaný výraz"
 
@@ -1685,12 +1712,12 @@ msgstr "Přihlaste se kliknutím na odkaz v e-mailu."
 #: packages/admin/src/components/FieldEditor.tsx:377
 #: packages/admin/src/components/FieldEditor.tsx:381
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:449
-#: packages/admin/src/components/MediaDetailPanel.tsx:231
-#: packages/admin/src/components/MediaDetailPanel.tsx:430
-#: packages/admin/src/components/MediaPickerModal.tsx:529
-#: packages/admin/src/components/MediaPickerModal.tsx:535
-#: packages/admin/src/components/MediaPickerModal.tsx:539
-#: packages/admin/src/components/MediaUploadDialog.tsx:408
+#: packages/admin/src/components/MediaDetailPanel.tsx:452
+#: packages/admin/src/components/MediaDetailPanel.tsx:881
+#: packages/admin/src/components/MediaPickerModal.tsx:530
+#: packages/admin/src/components/MediaPickerModal.tsx:536
+#: packages/admin/src/components/MediaPickerModal.tsx:540
+#: packages/admin/src/components/MediaUploadDialog.tsx:414
 #: packages/admin/src/components/MenuEditor.tsx:400
 #: packages/admin/src/components/MenuEditor.tsx:406
 #: packages/admin/src/components/MenuEditor.tsx:410
@@ -1700,9 +1727,9 @@ msgstr "Přihlaste se kliknutím na odkaz v e-mailu."
 #: packages/admin/src/components/MenuList.tsx:139
 #: packages/admin/src/components/MenuList.tsx:145
 #: packages/admin/src/components/MenuList.tsx:149
-#: packages/admin/src/components/PortableTextEditor.tsx:1920
-#: packages/admin/src/components/PortableTextEditor.tsx:1926
-#: packages/admin/src/components/PortableTextEditor.tsx:1930
+#: packages/admin/src/components/PortableTextEditor.tsx:1922
+#: packages/admin/src/components/PortableTextEditor.tsx:1928
+#: packages/admin/src/components/PortableTextEditor.tsx:1932
 #: packages/admin/src/components/Redirects.tsx:115
 #: packages/admin/src/components/Redirects.tsx:121
 #: packages/admin/src/components/SectionPickerModal.tsx:61
@@ -1736,7 +1763,7 @@ msgstr "Zavřít"
 msgid "Close comments after (days)"
 msgstr "Uzavřít komentáře po (dnech)"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:178
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:182
 msgid "Close gallery settings"
 msgstr "Zavřít nastavení galerie"
 
@@ -1749,14 +1776,14 @@ msgid "Close settings"
 msgstr "Zavřít nastavení"
 
 #: packages/admin/src/components/ContentTypeList.tsx:356
-#: packages/admin/src/components/PortableTextEditor.tsx:3672
+#: packages/admin/src/components/PortableTextEditor.tsx:3674
 #: packages/admin/src/components/Redirects.tsx:478
 msgid "Code"
 msgstr "Kód"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:119
-#: packages/admin/src/components/PortableTextEditor.tsx:1482
-#: packages/admin/src/components/PortableTextEditor.tsx:4122
+#: packages/admin/src/components/PortableTextEditor.tsx:1484
+#: packages/admin/src/components/PortableTextEditor.tsx:4124
 msgid "Code Block"
 msgstr "Blok kódu"
 
@@ -1788,7 +1815,7 @@ msgstr "Kolekce"
 msgid "Collections created:"
 msgstr "Vytvořené kolekce:"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:185
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:189
 msgid "Columns"
 msgstr "Sloupce"
 
@@ -1815,7 +1842,7 @@ msgstr "Komentáře"
 msgid "Comments from logged-in CMS users are approved automatically"
 msgstr "Komentáře od přihlášených uživatelů CMS se schvalují automaticky"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:88
+#: packages/admin/src/components/MediaUploadDialog.tsx:94
 msgid "Complete"
 msgstr ""
 
@@ -1866,7 +1893,7 @@ msgstr "obsah"
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:294
 #: packages/admin/src/components/Dashboard.tsx:269
-#: packages/admin/src/components/PortableTextEditor.tsx:2740
+#: packages/admin/src/components/PortableTextEditor.tsx:2742
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:408
 #: packages/admin/src/components/Widgets.tsx:899
@@ -1886,7 +1913,7 @@ msgstr "Chyby obsahu ({0})"
 msgid "Content found:"
 msgstr "Nalezený obsah:"
 
-#: packages/admin/src/router.tsx:1129
+#: packages/admin/src/router.tsx:1143
 msgid "Content has been scheduled for publishing"
 msgstr "Obsah byl naplánován k publikování"
 
@@ -1898,7 +1925,7 @@ msgstr "Obsah byl aktualizován na vybranou revizi."
 msgid "Content ID:"
 msgstr "ID obsahu:"
 
-#: packages/admin/src/router.tsx:1070
+#: packages/admin/src/router.tsx:1084
 msgid "Content is now live"
 msgstr "Obsah je nyní veřejný"
 
@@ -1914,11 +1941,11 @@ msgstr ""
 msgid "Content Read"
 msgstr "Čtení obsahu"
 
-#: packages/admin/src/router.tsx:1088
+#: packages/admin/src/router.tsx:1102
 msgid "Content removed from public view"
 msgstr "Obsah byl odebrán z veřejného zobrazení"
 
-#: packages/admin/src/router.tsx:1150
+#: packages/admin/src/router.tsx:1164
 msgid "Content reverted to draft"
 msgstr "Obsah byl vrácen do konceptu"
 
@@ -1957,7 +1984,7 @@ msgstr "Pokračovat →"
 msgid "Continue Import"
 msgstr "Pokračovat v importu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4099
+#: packages/admin/src/components/PortableTextEditor.tsx:4101
 msgid "Continue numbering"
 msgstr ""
 
@@ -1995,7 +2022,7 @@ msgstr "Kopírovat token"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:322
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:323
-#: packages/admin/src/components/MediaDetailPanel.tsx:315
+#: packages/admin/src/components/MediaDetailPanel.tsx:600
 msgid "Copy URL"
 msgstr "Kopírovat URL"
 
@@ -2003,7 +2030,7 @@ msgstr "Kopírovat URL"
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "Automatické zkopírování se nezdařilo. Vyberte URL výše a zkopírujte ji ručně."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3369
+#: packages/admin/src/components/PortableTextEditor.tsx:3371
 msgid "Could not insert section"
 msgstr ""
 
@@ -2011,9 +2038,13 @@ msgstr ""
 msgid "Could not load dashboard data"
 msgstr "Nepodařilo se načíst data přehledu"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:486
+#: packages/admin/src/components/MediaPickerModal.tsx:487
 msgid "Could not load image from URL"
 msgstr "Nepodařilo se načíst obrázek z URL"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:364
+msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1264
 msgid "Couldn't detect WordPress"
@@ -2027,9 +2058,13 @@ msgstr "Nepodařilo se načíst pole autorského podpisu."
 msgid "Couldn't load custom fields."
 msgstr "Nepodařilo se načíst vlastní pole."
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:88
+#: packages/admin/src/components/AllowedTypesEditor.tsx:91
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "Nepodařilo se přiřadit „{draft}“ k typu MIME. Zadejte MIME přímo."
+
+#: packages/admin/src/components/MediaLibrary.tsx:610
+msgid "Couldn’t move file"
+msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1021
 msgid "Couldn't search bylines. Please try again."
@@ -2045,6 +2080,7 @@ msgid "Count"
 msgstr "Počet"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1153
+#: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:192
 #: packages/admin/src/components/Sections.tsx:212
@@ -2063,7 +2099,7 @@ msgstr "Vytvořit „{trimmedInput}“"
 msgid "Create {0} translation"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1453
+#: packages/admin/src/components/PortableTextEditor.tsx:1455
 msgid "Create a bullet list"
 msgstr "Vytvořit odrážkový seznam"
 
@@ -2072,7 +2108,7 @@ msgstr "Vytvořit odrážkový seznam"
 msgid "Create a new {0}"
 msgstr "Vytvořit novou položku: {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1463
+#: packages/admin/src/components/PortableTextEditor.tsx:1465
 msgid "Create a numbered list"
 msgstr "Vytvořit číslovaný seznam"
 
@@ -2223,7 +2259,7 @@ msgid "Created {0}"
 msgstr "Vytvořeno {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1181
+#: packages/admin/src/router.tsx:1195
 msgid "Created {0} translation"
 msgstr "Překlad vytvořen ({0})"
 
@@ -2371,8 +2407,8 @@ msgstr "Definováno v kódu"
 #: packages/admin/src/components/editor/BlockMenu.tsx:318
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
-#: packages/admin/src/components/MediaDetailPanel.tsx:424
-#: packages/admin/src/components/MediaDetailPanel.tsx:467
+#: packages/admin/src/components/MediaDetailPanel.tsx:875
+#: packages/admin/src/components/MediaDetailPanel.tsx:918
 #: packages/admin/src/components/MenuEditor.tsx:549
 #: packages/admin/src/components/MenuList.tsx:258
 #: packages/admin/src/components/Redirects.tsx:603
@@ -2387,8 +2423,13 @@ msgstr "Definováno v kódu"
 msgid "Delete"
 msgstr "Smazat"
 
+#. placeholder {0}: folder.name
+#: packages/admin/src/components/MediaFolderDialog.tsx:182
+msgid "Delete “{0}”?"
+msgstr ""
+
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:466
+#: packages/admin/src/components/MediaDetailPanel.tsx:917
 msgid "Delete \"{0}\"? This cannot be undone."
 msgstr "Smazat „{0}“? Tuto akci nelze vrátit zpět."
 
@@ -2437,7 +2478,7 @@ msgstr "Smazat pole autorského podpisu?"
 msgid "Delete Byline?"
 msgstr "Smazat autorský podpis?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3757
+#: packages/admin/src/components/PortableTextEditor.tsx:3759
 msgid "Delete column"
 msgstr "Smazat sloupec"
 
@@ -2457,9 +2498,14 @@ msgstr "Smazat vložený obsah"
 msgid "Delete Field?"
 msgstr "Smazat pole?"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:237
-#: packages/admin/src/components/editor/GalleryNode.tsx:219
-#: packages/admin/src/components/editor/GalleryNode.tsx:220
+#: packages/admin/src/components/MediaFolderDialog.tsx:167
+#: packages/admin/src/components/MediaFolderDialog.tsx:184
+msgid "Delete folder"
+msgstr ""
+
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:241
+#: packages/admin/src/components/editor/GalleryNode.tsx:223
+#: packages/admin/src/components/editor/GalleryNode.tsx:224
 msgid "Delete gallery"
 msgstr "Smazat galerii"
 
@@ -2472,7 +2518,7 @@ msgstr "Smazat HTML blok"
 msgid "Delete image"
 msgstr "Smazat obrázek"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:465
+#: packages/admin/src/components/MediaDetailPanel.tsx:916
 msgid "Delete Media?"
 msgstr "Smazat médium?"
 
@@ -2506,7 +2552,7 @@ msgstr "Smazat přesměrování {0}"
 msgid "Delete Redirect?"
 msgstr "Smazat přesměrování?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3776
+#: packages/admin/src/components/PortableTextEditor.tsx:3778
 msgid "Delete row"
 msgstr "Smazat řádek"
 
@@ -2514,7 +2560,7 @@ msgstr "Smazat řádek"
 msgid "Delete Section?"
 msgstr "Smazat sekci?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3791
+#: packages/admin/src/components/PortableTextEditor.tsx:3793
 msgid "Delete table"
 msgstr "Smazat tabulku"
 
@@ -2535,8 +2581,9 @@ msgstr "Smazáním „{0}“ se odstraní také {1, plural, one {# uložená hod
 #: packages/admin/src/components/comments/CommentInbox.tsx:409
 #: packages/admin/src/components/ContentTypeEditor.tsx:688
 #: packages/admin/src/components/ContentTypeList.tsx:237
-#: packages/admin/src/components/MediaDetailPanel.tsx:424
-#: packages/admin/src/components/MediaDetailPanel.tsx:468
+#: packages/admin/src/components/MediaDetailPanel.tsx:875
+#: packages/admin/src/components/MediaDetailPanel.tsx:919
+#: packages/admin/src/components/MediaFolderDialog.tsx:185
 #: packages/admin/src/components/MenuList.tsx:259
 #: packages/admin/src/components/Redirects.tsx:604
 #: packages/admin/src/components/Sections.tsx:309
@@ -2572,14 +2619,14 @@ msgstr "Snižování oprávnění..."
 msgid "Deny"
 msgstr "Odmítnout"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:379
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:384
 #: packages/admin/src/components/editor/ImageNode.tsx:251
 msgid "Describe the image..."
 msgstr "Popište obrázek..."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:347
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:536
-#: packages/admin/src/components/MediaDetailPanel.tsx:388
+#: packages/admin/src/components/MediaDetailPanel.tsx:796
 msgid "Describe this image for accessibility"
 msgstr "Popište obrázek pro čtečky obrazovky"
 
@@ -2616,6 +2663,11 @@ msgstr "Destruktivní"
 msgid "details"
 msgstr "podrobnosti"
 
+#: packages/admin/src/components/MediaDetailPanel.tsx:470
+#: packages/admin/src/components/MediaDetailPanel.tsx:486
+msgid "Details"
+msgstr ""
+
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:186
 msgid "Device authorized"
 msgstr "Zařízení autorizováno"
@@ -2640,7 +2692,7 @@ msgstr "Nedorazil e-mail?"
 msgid "Diff"
 msgstr "Diff"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:294
+#: packages/admin/src/components/MediaDetailPanel.tsx:561
 msgid "Dimensions:"
 msgstr "Rozměry:"
 
@@ -2688,7 +2740,7 @@ msgstr "Zakázání účtu <0>{0}</0> znemožní přihlášení, dokud nebude zn
 msgid "Disabling..."
 msgstr "Zakazování..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:452
+#: packages/admin/src/components/MediaDetailPanel.tsx:903
 msgid "Discard"
 msgstr "Zahodit"
 
@@ -2697,7 +2749,7 @@ msgstr "Zahodit"
 msgid "Discard changes"
 msgstr "Zahodit změny"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:450
+#: packages/admin/src/components/MediaDetailPanel.tsx:901
 msgid "Discard changes?"
 msgstr "Zahodit změny?"
 
@@ -2705,7 +2757,7 @@ msgstr "Zahodit změny?"
 msgid "Discard draft changes?"
 msgstr "Zahodit změny konceptu?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:453
+#: packages/admin/src/components/MediaDetailPanel.tsx:904
 msgid "Discarding..."
 msgstr "Zahazování..."
 
@@ -2714,11 +2766,11 @@ msgid "Dismiss"
 msgstr "Zavřít"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:158
+#: packages/admin/src/components/MediaUploadDialog.tsx:164
 msgid "Dismiss completed {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3383
+#: packages/admin/src/components/PortableTextEditor.tsx:3385
 msgid "Dismiss section error"
 msgstr ""
 
@@ -2762,7 +2814,7 @@ msgstr "Zobrazí se pod obrázkem jako viditelný popisek."
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Režim bez rušivých prvků (⌘⇧\\)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1500
+#: packages/admin/src/components/PortableTextEditor.tsx:1502
 msgid "Divider"
 msgstr "Oddělovač"
 
@@ -2770,8 +2822,8 @@ msgstr "Oddělovač"
 msgid "Dockerfile"
 msgstr "Dockerfile"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:63
-#: packages/admin/src/components/MediaLibrary.tsx:401
+#: packages/admin/src/components/AllowedTypesEditor.tsx:66
+#: packages/admin/src/components/MediaLibrary.tsx:906
 msgid "Documents"
 msgstr "Dokumenty"
 
@@ -2795,7 +2847,7 @@ msgstr "Doména aktualizována"
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "Nemáte účet? <0>Zaregistrujte se</0>"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:506
+#: packages/admin/src/components/MediaUploadDialog.tsx:512
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
 #: packages/admin/src/components/WordPressImport.tsx:2128
 msgid "Done"
@@ -2853,7 +2905,7 @@ msgstr "Koncepty"
 msgid "Drafts & Private"
 msgstr "Koncepty a soukromé"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:427
+#: packages/admin/src/components/MediaUploadDialog.tsx:433
 msgid "Drag and drop files here"
 msgstr ""
 
@@ -2865,7 +2917,7 @@ msgstr "Přetáhněte sem soubor nebo klikněte pro výběr (.xml)"
 msgid "Drag here to add"
 msgstr "Přetažením sem přidáte"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2312
+#: packages/admin/src/components/PortableTextEditor.tsx:2314
 msgid "Drag to reorder"
 msgstr "Přetažením změníte pořadí"
 
@@ -2893,7 +2945,7 @@ msgstr "Widgety přidáte přetažením sem"
 msgid "Drag widgets into an area to add them"
 msgstr "Widgety přidáte přetažením do oblasti"
 
-#: packages/admin/src/components/MediaLibrary.tsx:317
+#: packages/admin/src/components/MediaLibrary.tsx:758
 msgid "Drop files to upload"
 msgstr ""
 
@@ -2913,7 +2965,7 @@ msgstr "Duplikovat"
 msgid "Duplicate {title}"
 msgstr "Duplikovat {title}"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:161
+#: packages/admin/src/components/AllowedTypesEditor.tsx:164
 msgid "e.g. application/zip or .pdf"
 msgstr "např. application/zip nebo .pdf"
 
@@ -2943,7 +2995,7 @@ msgstr "Upravit"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:332
-#: packages/admin/src/components/PortableTextEditor.tsx:1917
+#: packages/admin/src/components/PortableTextEditor.tsx:1919
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:254
 #: packages/admin/src/components/TaxonomyManager.tsx:272
 #: packages/admin/src/components/TaxonomyManager.tsx:539
@@ -2981,12 +3033,22 @@ msgstr "Upravit doménu"
 msgid "Edit Field"
 msgstr "Upravit pole"
 
+#: packages/admin/src/components/MediaFolderDialog.tsx:127
+msgid "Edit folder"
+msgstr ""
+
+#. placeholder {0}: folder.name
+#: packages/admin/src/components/MediaLibrary.tsx:1404
+#: packages/admin/src/components/MediaLibrary.tsx:1471
+msgid "Edit folder {0}"
+msgstr ""
+
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/editor/GalleryNode.tsx:178
+#: packages/admin/src/components/editor/GalleryNode.tsx:181
 msgid "Edit image {0}"
 msgstr "Upravit obrázek {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3680
+#: packages/admin/src/components/PortableTextEditor.tsx:3682
 msgid "Edit link"
 msgstr "Upravit odkaz"
 
@@ -3083,11 +3145,11 @@ msgid "Email verified!"
 msgstr "E-mail ověřen!"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:2754
+#: packages/admin/src/components/PortableTextEditor.tsx:2756
 msgid "Embed a {0}"
 msgstr "Vložit {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2757
+#: packages/admin/src/components/PortableTextEditor.tsx:2759
 msgid "Embeds"
 msgstr "Vložený obsah"
 
@@ -3099,7 +3161,7 @@ msgstr "EmDash Exporter"
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr "Zjištěn plugin EmDash Exporter! Můžete importovat přímo."
 
-#: packages/admin/src/components/editor/GalleryNode.tsx:160
+#: packages/admin/src/components/editor/GalleryNode.tsx:163
 msgid "Empty gallery — open settings to add images"
 msgstr "Prázdná galerie — obrázky přidáte v nastavení"
 
@@ -3196,7 +3258,7 @@ msgstr "Zadejte URL svého webu na WordPressu"
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/TaxonomyManager.tsx:941
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2257
+#: packages/admin/src/router.tsx:2508
 msgid "Error"
 msgstr "Chyba"
 
@@ -3237,7 +3299,7 @@ msgstr "Existuje"
 msgid "Exit distraction-free mode"
 msgstr "Vypnout režim bez rušení"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4273
+#: packages/admin/src/components/PortableTextEditor.tsx:4275
 msgid "Exit Spotlight Mode"
 msgstr "Ukončit režim soustředění"
 
@@ -3294,7 +3356,7 @@ msgstr "Nepodařilo se analyzovat web na WordPressu"
 msgid "Failed to communicate with plugin"
 msgstr "Nepodařilo se komunikovat s pluginem"
 
-#: packages/admin/src/lib/api/media.ts:196
+#: packages/admin/src/lib/api/media.ts:287
 msgid "Failed to confirm upload"
 msgstr "Nepodařilo se potvrdit nahrání"
 
@@ -3319,6 +3381,10 @@ msgstr "Nepodařilo se vytvořit pole autorského podpisu"
 msgid "Failed to create field"
 msgstr "Nepodařilo se vytvořit pole"
 
+#: packages/admin/src/lib/api/media.ts:164
+msgid "Failed to create media folder"
+msgstr ""
+
 #: packages/admin/src/lib/api/sections.ts:88
 msgid "Failed to create section"
 msgstr "Nepodařilo se vytvořit sekci"
@@ -3332,14 +3398,14 @@ msgid "Failed to create term"
 msgstr "Nepodařilo se vytvořit položku taxonomie"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:475
-#: packages/admin/src/router.tsx:1186
+#: packages/admin/src/router.tsx:1200
 msgid "Failed to create translation"
 msgstr "Nepodařilo se vytvořit překlad"
 
-#: packages/admin/src/router.tsx:447
-#: packages/admin/src/router.tsx:476
-#: packages/admin/src/router.tsx:559
-#: packages/admin/src/router.tsx:1206
+#: packages/admin/src/router.tsx:460
+#: packages/admin/src/router.tsx:489
+#: packages/admin/src/router.tsx:572
+#: packages/admin/src/router.tsx:1220
 msgid "Failed to delete"
 msgstr "Nepodařilo se smazat"
 
@@ -3364,7 +3430,7 @@ msgid "Failed to delete collection"
 msgstr "Nepodařilo se smazat kolekci"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1517
+#: packages/admin/src/router.tsx:1768
 msgid "Failed to delete comment"
 msgstr "Nepodařilo se smazat komentář"
 
@@ -3377,13 +3443,17 @@ msgstr "Nepodařilo se smazat obsah"
 msgid "Failed to delete field"
 msgstr "Nepodařilo se smazat pole"
 
-#: packages/admin/src/lib/api/media.ts:468
+#: packages/admin/src/lib/api/media.ts:566
 msgid "Failed to delete from provider"
 msgstr "Nepodařilo se smazat u poskytovatele"
 
-#: packages/admin/src/lib/api/media.ts:335
+#: packages/admin/src/lib/api/media.ts:426
 msgid "Failed to delete media"
 msgstr "Nepodařilo se smazat média"
+
+#: packages/admin/src/lib/api/media.ts:186
+msgid "Failed to delete media folder"
+msgstr ""
 
 #: packages/admin/src/lib/api/menus.ts:163
 msgid "Failed to delete menu"
@@ -3430,7 +3500,7 @@ msgstr "Nepodařilo se vypnout hledání"
 msgid "Failed to disable user"
 msgstr "Nepodařilo se deaktivovat uživatele"
 
-#: packages/admin/src/router.tsx:1113
+#: packages/admin/src/router.tsx:1127
 msgid "Failed to discard changes"
 msgstr "Nepodařilo se zahodit změny"
 
@@ -3438,7 +3508,7 @@ msgstr "Nepodařilo se zahodit změny"
 msgid "Failed to dismiss welcome"
 msgstr "Nepodařilo se zavřít uvítání"
 
-#: packages/admin/src/router.tsx:490
+#: packages/admin/src/router.tsx:503
 msgid "Failed to duplicate"
 msgstr "Nepodařilo se duplikovat"
 
@@ -3459,7 +3529,7 @@ msgstr "Nepodařilo se aktivovat uživatele"
 msgid "Failed to execute import"
 msgstr "Nepodařilo se spustit import"
 
-#: packages/admin/src/lib/api/client.ts:268
+#: packages/admin/src/lib/api/client.ts:289
 msgid "Failed to fetch auth mode"
 msgstr "Nepodařilo se načíst režim přihlášení"
 
@@ -3484,19 +3554,27 @@ msgstr "Nepodařilo se načíst nastavení e-mailu"
 msgid "Failed to fetch entry terms"
 msgstr "Nepodařilo se načíst položky taxonomie přiřazené k obsahu"
 
-#: packages/admin/src/lib/api/client.ts:251
+#: packages/admin/src/lib/api/client.ts:272
 msgid "Failed to fetch manifest"
 msgstr "Nepodařilo se načíst manifest"
 
-#: packages/admin/src/lib/api/media.ts:80
+#: packages/admin/src/lib/api/media.ts:108
 msgid "Failed to fetch media"
 msgstr "Nepodařilo se načíst média"
 
-#: packages/admin/src/lib/api/media.ts:93
+#: packages/admin/src/lib/api/media.ts:151
+msgid "Failed to fetch media folder"
+msgstr ""
+
+#: packages/admin/src/lib/api/media.ts:143
+msgid "Failed to fetch media folders"
+msgstr ""
+
+#: packages/admin/src/lib/api/media.ts:126
 msgid "Failed to fetch media item"
 msgstr "Nepodařilo se načíst položku médií"
 
-#: packages/admin/src/lib/api/media.ts:401
+#: packages/admin/src/lib/api/media.ts:499
 msgid "Failed to fetch media providers"
 msgstr "Nepodařilo se načíst poskytovatele médií"
 
@@ -3513,7 +3591,7 @@ msgstr "Nepodařilo se načíst nastavení pluginu"
 msgid "Failed to fetch plugins"
 msgstr "Nepodařilo se načíst pluginy"
 
-#: packages/admin/src/lib/api/media.ts:431
+#: packages/admin/src/lib/api/media.ts:529
 msgid "Failed to fetch provider media"
 msgstr "Nepodařilo se načíst média poskytovatele"
 
@@ -3545,8 +3623,8 @@ msgstr "Nepodařilo se načíst položky taxonomie"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:906
-#: packages/admin/src/router.tsx:1448
+#: packages/admin/src/router.tsx:920
+#: packages/admin/src/router.tsx:1699
 msgid "Failed to fetch user"
 msgstr "Nepodařilo se načíst uživatele"
 
@@ -3566,7 +3644,7 @@ msgstr "Nepodařilo se získat možnosti ověření"
 msgid "Failed to get registration options"
 msgstr "Nepodařilo se získat možnosti registrace"
 
-#: packages/admin/src/lib/api/media.ts:168
+#: packages/admin/src/lib/api/media.ts:259
 msgid "Failed to get upload URL"
 msgstr "Nepodařilo se získat URL pro nahrání"
 
@@ -3588,7 +3666,7 @@ msgstr "Nepodařilo se nainstalovat plugin"
 msgid "Failed to list byline fields"
 msgstr "Nepodařilo se načíst pole autorského podpisu"
 
-#: packages/admin/src/router.tsx:287
+#: packages/admin/src/router.tsx:300
 msgid "Failed to load admin"
 msgstr "Nepodařilo se načíst administraci"
 
@@ -3611,7 +3689,7 @@ msgstr "Nepodařilo se načíst autorské podpisy: {0}"
 msgid "Failed to load email settings"
 msgstr "Nepodařilo se načíst nastavení e-mailu"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:465
+#: packages/admin/src/components/MediaPickerModal.tsx:466
 msgid "Failed to load image"
 msgstr "Nepodařilo se načíst obrázek"
 
@@ -3657,7 +3735,7 @@ msgstr "Nepodařilo se načíst uživatele: {0}"
 msgid "Failed to load widget"
 msgstr "Nepodařilo se načíst widget"
 
-#: packages/admin/src/router.tsx:1542
+#: packages/admin/src/router.tsx:1793
 msgid "Failed to perform bulk action"
 msgstr "Nepodařilo se provést hromadnou akci"
 
@@ -3669,8 +3747,8 @@ msgstr "Nepodařilo se trvale smazat obsah"
 msgid "Failed to prepare import"
 msgstr "Nepodařilo se připravit import"
 
-#: packages/admin/src/router.tsx:515
-#: packages/admin/src/router.tsx:1074
+#: packages/admin/src/router.tsx:528
+#: packages/admin/src/router.tsx:1088
 msgid "Failed to publish"
 msgstr "Nepodařilo se publikovat"
 
@@ -3686,6 +3764,10 @@ msgstr "Nepodařilo se odebrat doménu"
 #: packages/admin/src/components/settings/SecuritySettings.tsx:66
 msgid "Failed to remove passkey"
 msgstr "Nepodařilo se odebrat přístupový klíč"
+
+#: packages/admin/src/lib/api/media.ts:177
+msgid "Failed to rename media folder"
+msgstr ""
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:50
 msgid "Failed to rename passkey"
@@ -3708,7 +3790,7 @@ msgstr "Nepodařilo se přeřadit pole"
 msgid "Failed to reorder widgets"
 msgstr "Nepodařilo se přeřadit widgety"
 
-#: packages/admin/src/router.tsx:462
+#: packages/admin/src/router.tsx:475
 msgid "Failed to restore"
 msgstr "Nepodařilo se obnovit"
 
@@ -3729,9 +3811,9 @@ msgstr "Nepodařilo se zrušit API token"
 msgid "Failed to rewrite URLs"
 msgstr "Nepodařilo se přepsat URL"
 
-#: packages/admin/src/router.tsx:714
-#: packages/admin/src/router.tsx:996
-#: packages/admin/src/router.tsx:2042
+#: packages/admin/src/router.tsx:727
+#: packages/admin/src/router.tsx:1010
+#: packages/admin/src/router.tsx:2293
 msgid "Failed to save"
 msgstr "Nepodařilo se uložit"
 
@@ -3750,7 +3832,7 @@ msgstr "Nepodařilo se uložit pole"
 msgid "Failed to save settings"
 msgstr "Nepodařilo se uložit nastavení"
 
-#: packages/admin/src/router.tsx:1134
+#: packages/admin/src/router.tsx:1148
 msgid "Failed to schedule"
 msgstr "Nepodařilo se naplánovat"
 
@@ -3781,15 +3863,15 @@ msgstr "Nepodařilo se nastavit položky taxonomie přiřazené k obsahu"
 msgid "Failed to uninstall plugin"
 msgstr "Nepodařilo se odinstalovat plugin"
 
-#: packages/admin/src/router.tsx:1092
+#: packages/admin/src/router.tsx:1106
 msgid "Failed to unpublish"
 msgstr "Nepodařilo se zrušit publikování"
 
-#: packages/admin/src/router.tsx:1155
+#: packages/admin/src/router.tsx:1169
 msgid "Failed to unschedule"
 msgstr "Nepodařilo se zrušit naplánování"
 
-#: packages/admin/src/router.tsx:538
+#: packages/admin/src/router.tsx:551
 msgid "Failed to update"
 msgstr "Nepodařilo se aktualizovat"
 
@@ -3814,7 +3896,7 @@ msgstr "Nepodařilo se aktualizovat pole autorského podpisu"
 msgid "Failed to update domain"
 msgstr "Nepodařilo se aktualizovat doménu"
 
-#: packages/admin/src/lib/api/media.ts:352
+#: packages/admin/src/lib/api/media.ts:450
 msgid "Failed to update media"
 msgstr "Nepodařilo se aktualizovat média"
 
@@ -3839,19 +3921,19 @@ msgstr "Nepodařilo se aktualizovat sekci"
 msgid "Failed to update settings"
 msgstr "Nepodařilo se aktualizovat nastavení"
 
-#: packages/admin/src/router.tsx:1501
+#: packages/admin/src/router.tsx:1752
 msgid "Failed to update status"
 msgstr "Nepodařilo se aktualizovat stav"
 
-#: packages/admin/src/lib/api/media.ts:219
+#: packages/admin/src/lib/api/media.ts:310
 msgid "Failed to upload file"
 msgstr "Nepodařilo se nahrát soubor"
 
-#: packages/admin/src/lib/api/media.ts:286
+#: packages/admin/src/lib/api/media.ts:377
 msgid "Failed to upload media"
 msgstr "Nepodařilo se nahrát média"
 
-#: packages/admin/src/lib/api/media.ts:456
+#: packages/admin/src/lib/api/media.ts:554
 msgid "Failed to upload to provider"
 msgstr "Nepodařilo se nahrát k poskytovateli"
 
@@ -3938,13 +4020,13 @@ msgstr "Soubor {0}"
 msgid "File from media library"
 msgstr "Soubor z knihovny médií"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:339
-#: packages/admin/src/components/MediaDetailPanel.tsx:356
-#: packages/admin/src/components/MediaLibrary.tsx:550
+#: packages/admin/src/components/MediaDetailPanel.tsx:632
+#: packages/admin/src/components/MediaDetailPanel.tsx:649
+#: packages/admin/src/components/MediaLibrary.tsx:1153
 msgid "Filename"
 msgstr "Název souboru"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:122
+#: packages/admin/src/components/MediaDetailPanel.tsx:200
 msgid "Filename cannot be changed after upload"
 msgstr "Název souboru nelze po nahrání změnit"
 
@@ -3952,7 +4034,7 @@ msgstr "Název souboru nelze po nahrání změnit"
 msgid "files imported"
 msgstr "– počet importovaných souborů"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:399
+#: packages/admin/src/components/MediaUploadDialog.tsx:405
 msgid "Files upload as soon as you add them."
 msgstr ""
 
@@ -3985,7 +4067,7 @@ msgstr "Filtrovat podle zdroje"
 msgid "Filter by status"
 msgstr "Filtrovat podle stavu"
 
-#: packages/admin/src/components/MediaLibrary.tsx:403
+#: packages/admin/src/components/MediaLibrary.tsx:908
 #: packages/admin/src/components/Redirects.tsx:433
 msgid "Filter by type"
 msgstr "Filtrovat podle typu"
@@ -3994,11 +4076,64 @@ msgstr "Filtrovat podle typu"
 msgid "Filter byline type"
 msgstr "Filtrovat podle typu autorského podpisu"
 
+#: packages/admin/src/components/MediaLibrary.tsx:1259
+msgid "First page"
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeEditor.tsx:64
 msgid "First-time commenters only"
 msgstr "Pouze komentáře od nových komentujících"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:69
+#: packages/admin/src/components/MediaDetailPanel.tsx:473
+#: packages/admin/src/components/MediaDetailPanel.tsx:486
+#: packages/admin/src/components/MediaDetailPanel.tsx:828
+msgid "Focal point"
+msgstr ""
+
+#: packages/admin/src/components/FocalPointEditor.tsx:141
+msgid "Focal point. Use arrow keys to move it."
+msgstr ""
+
+#: packages/admin/src/components/MediaFolderDialog.tsx:67
+msgid "Folder deleted"
+msgstr ""
+
+#: packages/admin/src/components/MediaFolderDialog.tsx:84
+#: packages/admin/src/components/MediaFolderDialog.tsx:96
+msgid "Folder name must be between 1 and 200 characters"
+msgstr ""
+
+#: packages/admin/src/router.tsx:1422
+msgid "Folder no longer exists"
+msgstr ""
+
+#: packages/admin/src/components/MediaFolderDialog.tsx:50
+msgid "Folder successfully created"
+msgstr ""
+
+#: packages/admin/src/components/MediaFolderDialog.tsx:50
+msgid "Folder successfully edited"
+msgstr ""
+
+#: packages/admin/src/components/MediaFolderDialog.tsx:62
+msgid "Folder unavailable"
+msgstr ""
+
+#: packages/admin/src/components/MediaLibrary.tsx:967
+msgid "Folders"
+msgstr ""
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:738
+#: packages/admin/src/components/MediaLibrary.tsx:977
+#: packages/admin/src/components/MediaLibrary.tsx:1501
+msgid "Folders could not be loaded."
+msgstr ""
+
+#: packages/admin/src/components/MediaLibrary.tsx:789
+msgid "Folders navigation"
+msgstr ""
+
+#: packages/admin/src/components/AllowedTypesEditor.tsx:72
 msgid "Fonts"
 msgstr "Písma"
 
@@ -4009,6 +4144,10 @@ msgstr "Pro úplný import včetně konceptů a veškerého obsahu proveďte exp
 #: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "For the best import experience, install the"
 msgstr "Pro co nejhladší import nainstalujte plugin"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:584
+msgid "Format:"
+msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:928
 msgid "From date"
@@ -4027,13 +4166,13 @@ msgstr "Plný přístup"
 msgid "Full admin access"
 msgstr "Plný přístup správce"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:171
-#: packages/admin/src/components/PortableTextEditor.tsx:2721
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:175
+#: packages/admin/src/components/PortableTextEditor.tsx:2723
 msgid "Gallery"
 msgstr "Galerie"
 
-#: packages/admin/src/components/editor/GalleryNode.tsx:207
-#: packages/admin/src/components/editor/GalleryNode.tsx:208
+#: packages/admin/src/components/editor/GalleryNode.tsx:211
+#: packages/admin/src/components/editor/GalleryNode.tsx:212
 msgid "Gallery settings"
 msgstr "Nastavení galerie"
 
@@ -4066,7 +4205,7 @@ msgid "Go"
 msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2418
-#: packages/admin/src/router.tsx:2277
+#: packages/admin/src/router.tsx:2528
 msgid "Go to Dashboard"
 msgstr "Přejít na přehled"
 
@@ -4079,7 +4218,7 @@ msgstr "Ověření pro Google"
 msgid "GraphQL"
 msgstr "GraphQL"
 
-#: packages/admin/src/components/MediaLibrary.tsx:424
+#: packages/admin/src/components/MediaLibrary.tsx:926
 msgid "Grid view"
 msgstr "Zobrazení mřížky"
 
@@ -4101,37 +4240,37 @@ msgstr "Pouze hosté"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:63
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:32
-#: packages/admin/src/components/PortableTextEditor.tsx:1392
+#: packages/admin/src/components/PortableTextEditor.tsx:1394
 msgid "Heading 1"
 msgstr "Nadpis 1"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:71
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:1402
+#: packages/admin/src/components/PortableTextEditor.tsx:1404
 msgid "Heading 2"
 msgstr "Nadpis 2"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:79
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:1412
+#: packages/admin/src/components/PortableTextEditor.tsx:1414
 msgid "Heading 3"
 msgstr "Nadpis 3"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
-#: packages/admin/src/components/PortableTextEditor.tsx:1422
+#: packages/admin/src/components/PortableTextEditor.tsx:1424
 msgid "Heading 4"
 msgstr "Nadpis 4"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:95
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
-#: packages/admin/src/components/PortableTextEditor.tsx:1432
+#: packages/admin/src/components/PortableTextEditor.tsx:1434
 msgid "Heading 5"
 msgstr "Nadpis 5"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:103
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
-#: packages/admin/src/components/PortableTextEditor.tsx:1442
+#: packages/admin/src/components/PortableTextEditor.tsx:1444
 msgid "Heading 6"
 msgstr "Nadpis 6"
 
@@ -4184,13 +4323,19 @@ msgstr "Domovská stránka"
 msgid "Hooks"
 msgstr "Hooky"
 
+#. placeholder {0}: Math.round(next.focalX * 100)
+#. placeholder {1}: Math.round(next.focalY * 100)
+#: packages/admin/src/components/FocalPointEditor.tsx:73
+msgid "Horizontal {0}%, vertical {1}%"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1520
 msgid "How to create an Application Password"
 msgstr "Jak vytvořit heslo aplikace"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
-#: packages/admin/src/components/PortableTextEditor.tsx:1492
+#: packages/admin/src/components/PortableTextEditor.tsx:1494
 msgid "HTML"
 msgstr "HTML"
 
@@ -4198,8 +4343,8 @@ msgstr "HTML"
 msgid "HTML source"
 msgstr "Zdrojový kód HTML"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3593
-#: packages/admin/src/components/PortableTextEditor.tsx:4203
+#: packages/admin/src/components/PortableTextEditor.tsx:3595
+#: packages/admin/src/components/PortableTextEditor.tsx:4205
 msgid "https://..."
 msgstr "https://..."
 
@@ -4207,7 +4352,7 @@ msgstr "https://..."
 msgid "https://example.com or /about"
 msgstr "https://example.com nebo /about"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:555
+#: packages/admin/src/components/MediaPickerModal.tsx:556
 msgid "https://example.com/image.jpg"
 msgstr "https://example.com/image.jpg"
 
@@ -4230,12 +4375,12 @@ msgstr "Pokud pro <0>{email}</0> existuje účet, odeslali jsme přihlašovací 
 
 #: packages/admin/src/components/FieldEditor.tsx:233
 #: packages/admin/src/components/FieldEditor.tsx:616
-#: packages/admin/src/components/PortableTextEditor.tsx:2706
+#: packages/admin/src/components/PortableTextEditor.tsx:2708
 msgid "Image"
 msgstr "Obrázek"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:294
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:298
 msgid "Image {0}"
 msgstr "Obrázek {0}"
 
@@ -4244,8 +4389,8 @@ msgid "Image from media library"
 msgstr "Obrázek z knihovny médií"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:67
-#: packages/admin/src/components/ImageFieldRenderer.tsx:131
-#: packages/admin/src/components/ImageFieldRenderer.tsx:199
+#: packages/admin/src/components/ImageFieldRenderer.tsx:137
+#: packages/admin/src/components/ImageFieldRenderer.tsx:206
 msgid "Image not found"
 msgstr "Obrázek nenalezen"
 
@@ -4263,7 +4408,7 @@ msgstr "Nastavení obrázku"
 msgid "Image shown when this page is shared on social media"
 msgstr "Obrázek zobrazený při sdílení této stránky na sociálních sítích"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:556
+#: packages/admin/src/components/MediaPickerModal.tsx:557
 msgid "Image URL"
 msgstr "URL obrázku"
 
@@ -4271,9 +4416,9 @@ msgstr "URL obrázku"
 msgid "image URLs updated in"
 msgstr "– počet aktualizovaných adres URL obrázků;"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:61
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:192
-#: packages/admin/src/components/MediaLibrary.tsx:398
+#: packages/admin/src/components/AllowedTypesEditor.tsx:64
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:196
+#: packages/admin/src/components/MediaLibrary.tsx:903
 msgid "Images"
 msgstr "Obrázky"
 
@@ -4388,54 +4533,54 @@ msgstr "Nekompatibilní"
 msgid "Indexed"
 msgstr "Indexováno"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4063
+#: packages/admin/src/components/PortableTextEditor.tsx:4065
 msgid "Inline Code"
 msgstr "Řádkový kód"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:567
-#: packages/admin/src/components/MediaPickerModal.tsx:811
+#: packages/admin/src/components/MediaPickerModal.tsx:568
+#: packages/admin/src/components/MediaPickerModal.tsx:812
 msgid "Insert"
 msgstr "Vložit"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:1917
+#: packages/admin/src/components/PortableTextEditor.tsx:1919
 msgid "Insert {0}"
 msgstr "Vložit {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1473
+#: packages/admin/src/components/PortableTextEditor.tsx:1475
 msgid "Insert a blockquote"
 msgstr "Vložit citaci"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1483
+#: packages/admin/src/components/PortableTextEditor.tsx:1485
 msgid "Insert a code block"
 msgstr "Vložit blok kódu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1501
+#: packages/admin/src/components/PortableTextEditor.tsx:1503
 msgid "Insert a horizontal rule"
 msgstr "Vložit vodorovnou čáru"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2737
+#: packages/admin/src/components/PortableTextEditor.tsx:2739
 msgid "Insert a reusable section"
 msgstr "Vložit opakovaně použitelnou sekci"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1511
+#: packages/admin/src/components/PortableTextEditor.tsx:1513
 msgid "Insert a table"
 msgstr "Vložit tabulku"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2707
+#: packages/admin/src/components/PortableTextEditor.tsx:2709
 msgid "Insert an image"
 msgstr "Vložit obrázek"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2722
+#: packages/admin/src/components/PortableTextEditor.tsx:2724
 msgid "Insert an image gallery"
 msgstr "Vložit galerii obrázků"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1745
+#: packages/admin/src/components/PortableTextEditor.tsx:1747
 msgid "Insert block"
 msgstr "Vložit blok"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4015
-#: packages/admin/src/components/PortableTextEditor.tsx:4025
+#: packages/admin/src/components/PortableTextEditor.tsx:4017
+#: packages/admin/src/components/PortableTextEditor.tsx:4027
 msgid "Insert block after current block"
 msgstr "Vložit blok za aktuální blok"
 
@@ -4443,24 +4588,24 @@ msgstr "Vložit blok za aktuální blok"
 msgid "Insert block below"
 msgstr "Vložit blok níže"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:549
+#: packages/admin/src/components/MediaPickerModal.tsx:550
 msgid "Insert from URL"
 msgstr "Vložit z URL"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4129
+#: packages/admin/src/components/PortableTextEditor.tsx:4131
 msgid "Insert HTML"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4126
+#: packages/admin/src/components/PortableTextEditor.tsx:4128
 msgid "Insert Image"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4173
-#: packages/admin/src/components/PortableTextEditor.tsx:4187
+#: packages/admin/src/components/PortableTextEditor.tsx:4175
+#: packages/admin/src/components/PortableTextEditor.tsx:4189
 msgid "Insert Link"
 msgstr "Vložit odkaz"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1493
+#: packages/admin/src/components/PortableTextEditor.tsx:1495
 msgid "Insert raw HTML"
 msgstr "Vložit nezpracované HTML"
 
@@ -4559,13 +4704,13 @@ msgstr "Volat MCP nástroje ze všech povolených pluginů"
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr "Volat pouze povolené MCP nástroje tohoto pluginu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3637
-#: packages/admin/src/components/PortableTextEditor.tsx:4042
+#: packages/admin/src/components/PortableTextEditor.tsx:3639
+#: packages/admin/src/components/PortableTextEditor.tsx:4044
 msgid "Italic"
 msgstr "Kurzíva"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2298
+#: packages/admin/src/components/PortableTextEditor.tsx:2300
 #: packages/admin/src/components/RepeaterField.tsx:239
 msgid "Item {0}"
 msgstr "Položka {0}"
@@ -4654,6 +4799,10 @@ msgstr "Popisek (množné číslo)"
 msgid "Label (Singular)"
 msgstr "Popisek (jednotné číslo)"
 
+#: packages/admin/src/components/FocalPointEditor.tsx:32
+msgid "Landscape"
+msgstr ""
+
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:162
 #: packages/admin/src/components/LoginPage.tsx:347
 #: packages/admin/src/components/Settings.tsx:107
@@ -4662,7 +4811,7 @@ msgstr "Popisek (jednotné číslo)"
 msgid "Language"
 msgstr "Jazyk"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1393
+#: packages/admin/src/components/PortableTextEditor.tsx:1395
 msgid "Large section heading"
 msgstr "Velký nadpis sekce"
 
@@ -4677,6 +4826,10 @@ msgstr "Poslední přihlášení"
 #: packages/admin/src/components/users/UserList.tsx:107
 msgid "Last Login"
 msgstr "Poslední přihlášení"
+
+#: packages/admin/src/components/MediaLibrary.tsx:1262
+msgid "Last page"
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:227
 msgid "Last seen"
@@ -4712,12 +4865,12 @@ msgstr "Ponechat nepřiřazené"
 msgid "Left"
 msgstr "Vlevo"
 
-#: packages/admin/src/components/MediaLibrary.tsx:135
-#: packages/admin/src/components/MediaLibrary.tsx:241
-#: packages/admin/src/components/MediaLibrary.tsx:330
-#: packages/admin/src/components/MediaLibrary.tsx:606
-#: packages/admin/src/components/MediaPickerModal.tsx:211
-#: packages/admin/src/components/MediaPickerModal.tsx:509
+#: packages/admin/src/components/MediaLibrary.tsx:290
+#: packages/admin/src/components/MediaLibrary.tsx:449
+#: packages/admin/src/components/MediaLibrary.tsx:722
+#: packages/admin/src/components/MediaLibrary.tsx:1303
+#: packages/admin/src/components/MediaPickerModal.tsx:212
+#: packages/admin/src/components/MediaPickerModal.tsx:510
 msgid "Library"
 msgstr "Knihovna"
 
@@ -4766,7 +4919,7 @@ msgstr "LinkedIn"
 msgid "Links"
 msgstr "Odkazy"
 
-#: packages/admin/src/components/MediaLibrary.tsx:433
+#: packages/admin/src/components/MediaLibrary.tsx:935
 msgid "List view"
 msgstr "Zobrazení seznamu"
 
@@ -4787,13 +4940,19 @@ msgstr "Načíst další"
 
 #: packages/admin/src/components/ContentList.tsx:724
 #: packages/admin/src/components/ContentList.tsx:782
-#: packages/admin/src/components/MediaLibrary.tsx:599
-#: packages/admin/src/components/MediaPickerModal.tsx:775
+#: packages/admin/src/components/MediaLibrary.tsx:1296
+#: packages/admin/src/components/MediaPickerModal.tsx:776
 #: packages/admin/src/components/users/UserList.tsx:169
 msgid "Load More"
 msgstr "Načíst další"
 
-#: packages/admin/src/router.tsx:2232
+#: packages/admin/src/components/MediaDetailPanel.tsx:757
+#: packages/admin/src/components/MediaLibrary.tsx:1007
+#: packages/admin/src/components/MediaLibrary.tsx:1197
+msgid "Load more folders"
+msgstr ""
+
+#: packages/admin/src/router.tsx:2483
 msgid "Loading"
 msgstr "Načítání"
 
@@ -4809,8 +4968,8 @@ msgstr "Načítání kolekcí..."
 msgid "Loading comments..."
 msgstr "Načítání komentářů..."
 
-#: packages/admin/src/router.tsx:2234
-#: packages/admin/src/router.tsx:2246
+#: packages/admin/src/router.tsx:2485
+#: packages/admin/src/router.tsx:2497
 msgid "Loading configuration..."
 msgstr "Načítání konfigurace..."
 
@@ -4818,9 +4977,18 @@ msgstr "Načítání konfigurace..."
 msgid "Loading content..."
 msgstr "Načítání obsahu..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3356
+#: packages/admin/src/components/PortableTextEditor.tsx:3358
 msgid "Loading editor..."
 msgstr "Načítání editoru..."
+
+#: packages/admin/src/components/MediaLibrary.tsx:951
+#: packages/admin/src/components/MediaLibrary.tsx:1165
+msgid "Loading folders"
+msgstr ""
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:714
+msgid "Loading folders..."
+msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:342
 msgid "Loading menu..."
@@ -4868,9 +5036,12 @@ msgstr "Načítání widgetů..."
 #: packages/admin/src/components/ContentList.tsx:782
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
-#: packages/admin/src/components/MediaLibrary.tsx:599
-#: packages/admin/src/components/MediaPickerModal.tsx:775
-#: packages/admin/src/components/PortableTextEditor.tsx:2425
+#: packages/admin/src/components/MediaDetailPanel.tsx:263
+#: packages/admin/src/components/MediaDetailPanel.tsx:279
+#: packages/admin/src/components/MediaDetailPanel.tsx:281
+#: packages/admin/src/components/MediaLibrary.tsx:1296
+#: packages/admin/src/components/MediaPickerModal.tsx:776
+#: packages/admin/src/components/PortableTextEditor.tsx:2427
 #: packages/admin/src/components/Redirects.tsx:560
 #: packages/admin/src/components/RegistryBrowse.tsx:165
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:160
@@ -4895,6 +5066,17 @@ msgstr ""
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "Jazyk"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:660
+#: packages/admin/src/components/MediaDetailPanel.tsx:688
+#: packages/admin/src/components/MediaDetailPanel.tsx:765
+msgid "Location"
+msgstr ""
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:264
+#: packages/admin/src/components/MediaDetailPanel.tsx:281
+msgid "Location unavailable"
+msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:296
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:297
@@ -4936,6 +5118,10 @@ msgstr "Pouze malá písmena, číslice a spojovníky"
 #: packages/admin/src/components/TaxonomyManager.tsx:825
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "Pouze malá písmena, číslice a podtržítka, začínající písmenem"
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:232
+msgid "Main library"
+msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:436
 msgid "Main Sidebar"
@@ -4986,11 +5172,11 @@ msgstr "Spravovat přesměrování URL a zobrazit chyby 404."
 msgid "Manage your passkeys and authentication"
 msgstr "Spravovat přístupové klíče a ověřování"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:331
+#: packages/admin/src/components/MediaDetailPanel.tsx:617
 msgid "Managed by {providerName}"
 msgstr "Spravováno službou {providerName}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:332
+#: packages/admin/src/components/MediaDetailPanel.tsx:618
 msgid "Managed by an external media provider"
 msgstr "Spravováno externím poskytovatelem médií"
 
@@ -5055,8 +5241,8 @@ msgstr "Maximální počet štítků"
 msgid "MDX"
 msgstr "MDX"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2710
-#: packages/admin/src/components/PortableTextEditor.tsx:2725
+#: packages/admin/src/components/PortableTextEditor.tsx:2712
+#: packages/admin/src/components/PortableTextEditor.tsx:2727
 #: packages/admin/src/components/Sidebar.tsx:256
 #: packages/admin/src/components/WordPressImport.tsx:752
 #: packages/admin/src/components/WordPressImport.tsx:1145
@@ -5064,7 +5250,7 @@ msgstr "MDX"
 msgid "Media"
 msgstr "Média"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:224
+#: packages/admin/src/components/MediaDetailPanel.tsx:445
 msgid "Media Details"
 msgstr "Podrobnosti o médiu"
 
@@ -5085,10 +5271,19 @@ msgstr "Import médií dokončen"
 msgid "Media import was skipped"
 msgstr "Import médií byl přeskočen"
 
+#: packages/admin/src/components/MediaFolderDialog.tsx:183
+msgid "Media in this folder will return to Main library. No files will be deleted."
+msgstr ""
+
 #: packages/admin/src/components/AdminCommandPalette.tsx:153
-#: packages/admin/src/components/MediaLibrary.tsx:325
+#: packages/admin/src/components/MediaLibrary.tsx:786
+#: packages/admin/src/components/MediaLibrary.tsx:801
 msgid "Media Library"
 msgstr "Knihovna médií"
+
+#: packages/admin/src/components/MediaLibrary.tsx:1258
+msgid "Media pagination"
+msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:57
 msgid "Media Read"
@@ -5098,7 +5293,7 @@ msgstr "Čtení médií"
 msgid "Media Write"
 msgstr "Zápis médií"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1403
+#: packages/admin/src/components/PortableTextEditor.tsx:1405
 msgid "Medium section heading"
 msgstr "Střední nadpis sekce"
 
@@ -5195,7 +5390,7 @@ msgstr "Min. délka"
 msgid "Min Value"
 msgstr "Min. hodnota"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1433
+#: packages/admin/src/components/PortableTextEditor.tsx:1435
 msgid "Minor section heading"
 msgstr "Menší nadpis sekce"
 
@@ -5219,7 +5414,7 @@ msgstr "Měsíčně"
 msgid "Monthly/yearly archives"
 msgstr "Měsíční/roční archivy"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:184
+#: packages/admin/src/components/ImageFieldRenderer.tsx:191
 msgid "More information about {label}"
 msgstr "Další informace – {label}"
 
@@ -5269,6 +5464,10 @@ msgstr "Přesunout {title} do koše"
 msgid "Move down"
 msgstr "Přesunout dolů"
 
+#: packages/admin/src/components/MediaLibrary.tsx:1042
+msgid "Move media here from Media Details."
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:509
 msgid "Move to trash"
 msgstr "Přesunout do koše"
@@ -5290,13 +5489,18 @@ msgstr "Přesunout do koše?"
 msgid "Move up"
 msgstr "Přesunout nahoru"
 
-#: packages/admin/src/router.tsx:535
+#: packages/admin/src/router.tsx:548
 msgid "Moved {total} items to draft"
 msgstr "{total, plural, one {Přesunuta # položka do konceptů} few {Přesunuty # položky do konceptů} many {Přesunuto # položky do konceptů} other {Přesunuto # položek do konceptů}}"
 
-#: packages/admin/src/router.tsx:556
+#: packages/admin/src/router.tsx:569
 msgid "Moved {total} items to trash"
 msgstr "{total, plural, one {Přesunuta # položka do koše} few {Přesunuty # položky do koše} many {Přesunuto # položky do koše} other {Přesunuto # položek do koše}}"
+
+#. placeholder {0}: folder.name
+#: packages/admin/src/components/MediaLibrary.tsx:603
+msgid "Moved to {0}"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:221
 msgid "Multi Select"
@@ -5316,6 +5520,7 @@ msgstr "Můj skvělý blog"
 
 #: packages/admin/src/components/ContentTypeList.tsx:178
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
+#: packages/admin/src/components/MediaFolderDialog.tsx:131
 #: packages/admin/src/components/MenuList.tsx:157
 #: packages/admin/src/components/TaxonomyManager.tsx:567
 #: packages/admin/src/components/TaxonomyManager.tsx:816
@@ -5343,7 +5548,7 @@ msgstr "Navigace"
 msgid "Never"
 msgstr "Nikdy"
 
-#: packages/admin/src/router.tsx:1181
+#: packages/admin/src/router.tsx:1195
 msgid "new"
 msgstr "nový"
 
@@ -5380,6 +5585,10 @@ msgstr "Nový typ obsahu"
 #: packages/admin/src/routes/byline-schema.tsx:224
 msgid "New field"
 msgstr "Nové pole"
+
+#: packages/admin/src/components/MediaLibrary.tsx:822
+msgid "New folder"
+msgstr ""
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:122
 msgid "New public routes"
@@ -5424,6 +5633,7 @@ msgstr "Další"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:372
 #: packages/admin/src/components/ContentList.tsx:712
+#: packages/admin/src/components/MediaLibrary.tsx:1261
 msgid "Next page"
 msgstr "Další stránka"
 
@@ -5460,8 +5670,8 @@ msgstr "Zatím nejsou žádné položky ({0}). Začněte vytvořením první pol
 msgid "No 404 errors recorded yet."
 msgstr "Zatím nebyly zaznamenány žádné chyby 404."
 
-#: packages/admin/src/components/MediaLibrary.tsx:811
-#: packages/admin/src/components/MediaLibrary.tsx:868
+#: packages/admin/src/components/MediaLibrary.tsx:1763
+#: packages/admin/src/components/MediaLibrary.tsx:1820
 msgid "No alt text"
 msgstr "Bez alternativního textu"
 
@@ -5558,15 +5768,19 @@ msgstr "Bez omezení platnosti"
 msgid "No fields to compare"
 msgstr "Žádná pole k porovnání"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:482
+#: packages/admin/src/components/MediaUploadDialog.tsx:488
 msgid "No files added"
+msgstr ""
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:722
+msgid "No folders found"
 msgstr ""
 
 #: packages/admin/src/components/editor/DocumentOutline.tsx:213
 msgid "No headings in document"
 msgstr "V dokumentu nejsou žádné nadpisy"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:205
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:209
 msgid "No images in this gallery yet."
 msgstr "V této galerii zatím nejsou žádné obrázky."
 
@@ -5578,7 +5792,7 @@ msgstr "Žádná instalovatelná vydání"
 msgid "No invite token provided"
 msgstr "Nebyl zadán žádný token pozvánky"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2221
+#: packages/admin/src/components/PortableTextEditor.tsx:2223
 #: packages/admin/src/components/RepeaterField.tsx:165
 #: packages/admin/src/components/settings/BackupSettings.tsx:283
 msgid "No items yet"
@@ -5600,8 +5814,8 @@ msgstr "Žádné shody"
 msgid "No matching bylines."
 msgstr "Žádné odpovídající autorské podpisy."
 
-#: packages/admin/src/components/MediaLibrary.tsx:453
-#: packages/admin/src/components/MediaLibrary.tsx:481
+#: packages/admin/src/components/MediaLibrary.tsx:1026
+#: packages/admin/src/components/MediaLibrary.tsx:1065
 msgid "No matching media"
 msgstr "Žádná odpovídající média"
 
@@ -5614,16 +5828,16 @@ msgstr "Pro tento účet nebyl nalezen odpovídající přístupový klíč."
 msgid "No maximum"
 msgstr "Bez maxima"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:694
+#: packages/admin/src/components/MediaPickerModal.tsx:695
 msgid "No media available from this provider"
 msgstr "Od tohoto poskytovatele nejsou k dispozici žádná média"
 
-#: packages/admin/src/components/MediaLibrary.tsx:504
+#: packages/admin/src/components/MediaLibrary.tsx:1088
 msgid "No media available from this provider."
 msgstr "Od tohoto poskytovatele nejsou k dispozici žádná média."
 
-#: packages/admin/src/components/MediaLibrary.tsx:503
-#: packages/admin/src/components/MediaPickerModal.tsx:688
+#: packages/admin/src/components/MediaLibrary.tsx:1087
+#: packages/admin/src/components/MediaPickerModal.tsx:689
 msgid "No media found"
 msgstr "Nenalezena žádná média"
 
@@ -5676,7 +5890,7 @@ msgstr "Dotazu „{debouncedQuery}“ neodpovídají žádné pluginy."
 msgid "No preview"
 msgstr "Bez náhledu"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:318
+#: packages/admin/src/components/MediaDetailPanel.tsx:603
 msgid "No public URL available"
 msgstr "Není k dispozici veřejná URL"
 
@@ -5688,7 +5902,7 @@ msgstr "Žádná nedávná aktivita"
 msgid "No redirects yet"
 msgstr "Zatím žádná přesměrování"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1770
+#: packages/admin/src/components/PortableTextEditor.tsx:1772
 #: packages/admin/src/components/RepeaterField.tsx:374
 msgid "No results"
 msgstr "Žádné výsledky"
@@ -5777,8 +5991,8 @@ msgid "Number of posts to show per page on list views"
 msgstr "Počet příspěvků zobrazených na stránku v seznamech"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:135
-#: packages/admin/src/components/PortableTextEditor.tsx:1462
-#: packages/admin/src/components/PortableTextEditor.tsx:4090
+#: packages/admin/src/components/PortableTextEditor.tsx:1464
+#: packages/admin/src/components/PortableTextEditor.tsx:4092
 msgid "Numbered List"
 msgstr "Číslovaný seznam"
 
@@ -5807,13 +6021,19 @@ msgstr "Zaregistrovat se mohou pouze e-mailové adresy z povolených domén."
 msgid "Only lowercase letters, numbers, and hyphens"
 msgstr "Pouze malá písmena, číslice a spojovníky"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:106
+#: packages/admin/src/components/AllowedTypesEditor.tsx:109
 msgid "Only the listed MIME types will be accepted for this field."
 msgstr "Pro toto pole budou přijaty pouze uvedené typy MIME."
 
 #: packages/admin/src/components/SignupPage.tsx:404
 msgid "Oops!"
 msgstr "Jejda!"
+
+#. placeholder {0}: folder.name
+#: packages/admin/src/components/MediaLibrary.tsx:1388
+#: packages/admin/src/components/MediaLibrary.tsx:1459
+msgid "Open folder {0}"
+msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:379
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:380
@@ -5838,7 +6058,7 @@ msgstr ""
 "Možnost 2\n"
 "Možnost 3"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:385
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:390
 msgid "Optional caption"
 msgstr "Volitelný popisek"
 
@@ -5847,7 +6067,7 @@ msgstr "Volitelný popisek"
 msgid "Optional caption displayed below the image"
 msgstr "Volitelný popisek zobrazený pod obrázkem"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:398
+#: packages/admin/src/components/MediaDetailPanel.tsx:806
 msgid "Optional caption for display"
 msgstr "Volitelný popisek pro zobrazení"
 
@@ -5865,11 +6085,11 @@ msgstr "Volitelný popisek při najetí myší"
 msgid "Options (one per line)"
 msgstr "Možnosti (jedna na řádek)"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:429
+#: packages/admin/src/components/MediaUploadDialog.tsx:435
 msgid "Or browse files from your computer"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:579
+#: packages/admin/src/components/MediaPickerModal.tsx:580
 msgid "or choose from library"
 msgstr "nebo vyberte z knihovny"
 
@@ -5899,7 +6119,7 @@ msgstr "nebo nahrát přímo"
 msgid "Order saved"
 msgstr "Pořadí uloženo"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:369
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:374
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:257
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:446
 msgid "Original:"
@@ -5923,9 +6143,17 @@ msgstr "Vlastnictví"
 msgid "Package"
 msgstr "Balíček"
 
-#: packages/admin/src/router.tsx:2272
+#: packages/admin/src/router.tsx:2523
 msgid "Page Not Found"
 msgstr "Stránka nenalezena"
+
+#: packages/admin/src/components/MediaLibrary.tsx:1263
+msgid "Page number"
+msgstr ""
+
+#: packages/admin/src/components/MediaLibrary.tsx:1264
+msgid "Page size"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:402
 #: packages/admin/src/components/WordPressImport.tsx:1328
@@ -6034,7 +6262,7 @@ msgstr "Vzor pro generování URL, např. /blog/{0}"
 msgid "Pattern must include a {0} placeholder"
 msgstr "Vzor musí obsahovat zástupný symbol {0}"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:62
+#: packages/admin/src/components/AllowedTypesEditor.tsx:65
 msgid "PDF"
 msgstr "PDF"
 
@@ -6049,6 +6277,10 @@ msgstr "Čekající"
 #: packages/admin/src/components/ContentStatusBadge.tsx:67
 msgid "Pending changes"
 msgstr "Neuložené změny"
+
+#: packages/admin/src/components/MediaLibrary.tsx:1278
+msgid "Per page"
+msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1413
 msgid "Permanently delete \"{title}\"? This cannot be undone."
@@ -6096,7 +6328,7 @@ msgstr "Zadejte platný e-mail"
 msgid "Please enter a valid email address"
 msgstr "Zadejte platnou e-mailovou adresu"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:442
+#: packages/admin/src/components/MediaPickerModal.tsx:443
 msgid "Please enter a valid URL"
 msgstr "Zadejte platnou URL"
 
@@ -6217,6 +6449,10 @@ msgstr "Obnovení k určitému okamžiku"
 msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
 msgstr "Nasměruje vyhledávače na původní verzi této stránky, pokud je duplikátem jiné URL"
 
+#: packages/admin/src/components/FocalPointEditor.tsx:30
+msgid "Portrait"
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeEditor.tsx:388
 msgid "Post"
 msgstr "Příspěvek"
@@ -6253,7 +6489,8 @@ msgstr "Příprava…"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:167
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
-#: packages/admin/src/components/MediaLibrary.tsx:549
+#: packages/admin/src/components/MediaDetailPanel.tsx:846
+#: packages/admin/src/components/MediaLibrary.tsx:1152
 msgid "Preview"
 msgstr "Náhled"
 
@@ -6271,6 +6508,7 @@ msgstr "Předchozí"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:353
 #: packages/admin/src/components/ContentList.tsx:700
+#: packages/admin/src/components/MediaLibrary.tsx:1260
 msgid "Previous page"
 msgstr "Předchozí stránka"
 
@@ -6306,7 +6544,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:843
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:297
-#: packages/admin/src/router.tsx:1070
+#: packages/admin/src/router.tsx:1084
 msgid "Published"
 msgstr "Publikováno"
 
@@ -6315,7 +6553,7 @@ msgstr "Publikováno"
 msgid "Published {0}"
 msgstr "Publikováno {0}"
 
-#: packages/admin/src/router.tsx:512
+#: packages/admin/src/router.tsx:525
 msgid "Published {total} items"
 msgstr "{total, plural, one {Publikována # položka} few {Publikovány # položky} many {Publikováno # položky} other {Publikováno # položek}}"
 
@@ -6331,7 +6569,7 @@ msgstr ""
 msgid "Python"
 msgstr "Python"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:100
+#: packages/admin/src/components/MediaUploadDialog.tsx:106
 msgid "Queued"
 msgstr ""
 
@@ -6345,8 +6583,8 @@ msgid "Quick edit alt text"
 msgstr "Rychlá úprava alternativního textu"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:111
-#: packages/admin/src/components/PortableTextEditor.tsx:1472
-#: packages/admin/src/components/PortableTextEditor.tsx:4115
+#: packages/admin/src/components/PortableTextEditor.tsx:1474
+#: packages/admin/src/components/PortableTextEditor.tsx:4117
 msgid "Quote"
 msgstr "Citát"
 
@@ -6428,7 +6666,7 @@ msgstr "Přesměrování na přihlašovací stránku…"
 msgid "Redirects"
 msgstr "Přesměrování"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4260
+#: packages/admin/src/components/PortableTextEditor.tsx:4262
 msgid "Redo"
 msgstr "Znovu"
 
@@ -6477,8 +6715,8 @@ msgstr "Toto vydání zatím nelze nainstalovat, protože je příliš nové"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1065
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
-#: packages/admin/src/components/ImageFieldRenderer.tsx:172
-#: packages/admin/src/components/PortableTextEditor.tsx:4233
+#: packages/admin/src/components/ImageFieldRenderer.tsx:179
+#: packages/admin/src/components/PortableTextEditor.tsx:4235
 #: packages/admin/src/components/settings/GeneralSettings.tsx:229
 #: packages/admin/src/components/settings/GeneralSettings.tsx:289
 #: packages/admin/src/components/settings/PasskeyItem.tsx:180
@@ -6490,13 +6728,13 @@ msgstr "Odebrat"
 #. placeholder {0}: passkey.name
 #. placeholder {0}: row.file.name
 #. placeholder {0}: term.label
-#: packages/admin/src/components/MediaUploadDialog.tsx:159
+#: packages/admin/src/components/MediaUploadDialog.tsx:165
 #: packages/admin/src/components/settings/PasskeyItem.tsx:181
 #: packages/admin/src/components/TaxonomySidebar.tsx:294
 msgid "Remove {0}"
 msgstr "Odebrat {0}"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:145
+#: packages/admin/src/components/AllowedTypesEditor.tsx:148
 msgid "Remove {entry}"
 msgstr "Odebrat {entry}"
 
@@ -6516,9 +6754,9 @@ msgstr "Odebrat doménu"
 msgid "Remove Domain?"
 msgstr "Odebrat doménu?"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:170
-#: packages/admin/src/components/ImageFieldRenderer.tsx:216
-#: packages/admin/src/components/ImageFieldRenderer.tsx:245
+#: packages/admin/src/components/ImageFieldRenderer.tsx:177
+#: packages/admin/src/components/ImageFieldRenderer.tsx:223
+#: packages/admin/src/components/ImageFieldRenderer.tsx:253
 #: packages/admin/src/components/SeoImageField.tsx:61
 msgid "Remove image"
 msgstr "Odebrat obrázek"
@@ -6529,7 +6767,7 @@ msgid "Remove Image"
 msgstr "Odebrat obrázek"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:320
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:325
 msgid "Remove image {0}"
 msgstr "Odebrat obrázek {0}"
 
@@ -6538,13 +6776,13 @@ msgid "Remove Image?"
 msgstr "Odebrat obrázek?"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2337
+#: packages/admin/src/components/PortableTextEditor.tsx:2339
 #: packages/admin/src/components/RepeaterField.tsx:275
 msgid "Remove item {0}"
 msgstr "Odebrat položku {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3618
-#: packages/admin/src/components/PortableTextEditor.tsx:3619
+#: packages/admin/src/components/PortableTextEditor.tsx:3620
+#: packages/admin/src/components/PortableTextEditor.tsx:3621
 msgid "Remove link"
 msgstr "Odebrat odkaz"
 
@@ -6600,12 +6838,12 @@ msgstr "Opakovaná skupina"
 msgid "Repeating group of fields"
 msgstr "Opakující se skupina polí"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:162
+#: packages/admin/src/components/ImageFieldRenderer.tsx:169
 msgid "Replace"
 msgstr ""
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:363
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:396
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:368
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:401
 msgid "Replace image"
 msgstr "Nahradit obrázek"
 
@@ -6627,7 +6865,7 @@ msgstr "Repozitář"
 msgid "Request a new link"
 msgstr "Požádat o nový odkaz"
 
-#: packages/admin/src/lib/api/client.ts:239
+#: packages/admin/src/lib/api/client.ts:260
 msgid "Request failed"
 msgstr "Požadavek selhal"
 
@@ -6665,6 +6903,10 @@ msgstr "Odeslat e-mail znovu"
 msgid "Resend in {resendCooldown}s"
 msgstr "Znovu odeslat za {resendCooldown} s"
 
+#: packages/admin/src/components/MediaDetailPanel.tsx:841
+msgid "Reset"
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:466
 msgid "Reset to original"
@@ -6674,7 +6916,7 @@ msgstr "Obnovit původní"
 msgid "Resize settings panel"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4106
+#: packages/admin/src/components/PortableTextEditor.tsx:4108
 msgid "Restart numbering"
 msgstr ""
 
@@ -6709,20 +6951,23 @@ msgid "Restoring..."
 msgstr "Obnovování..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
+#: packages/admin/src/components/MediaDetailPanel.tsx:744
+#: packages/admin/src/components/MediaLibrary.tsx:971
+#: packages/admin/src/components/MediaLibrary.tsx:1504
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2260
+#: packages/admin/src/router.tsx:2511
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Zkusit znovu"
 
 #. placeholder {0}: row.file.name
-#: packages/admin/src/components/MediaUploadDialog.tsx:145
+#: packages/admin/src/components/MediaUploadDialog.tsx:151
 msgid "Retry {0}"
 msgstr ""
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:497
+#: packages/admin/src/components/MediaUploadDialog.tsx:503
 msgid "Retry failed"
 msgstr ""
 
@@ -6730,7 +6975,7 @@ msgstr ""
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Znovupoužitelné bloky obsahu, které lze vložit do libovolného obsahu"
 
-#: packages/admin/src/router.tsx:1108
+#: packages/admin/src/router.tsx:1122
 msgid "Reverted to published version"
 msgstr "Obnovena publikovaná verze"
 
@@ -6843,7 +7088,8 @@ msgstr "Stejné okno"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:589
 #: packages/admin/src/components/editor/ImageNode.tsx:277
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:417
-#: packages/admin/src/components/MediaDetailPanel.tsx:439
+#: packages/admin/src/components/MediaDetailPanel.tsx:890
+#: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/SaveButton.tsx:32
@@ -6892,7 +7138,8 @@ msgstr "Uloženo „{0}“."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1203
 #: packages/admin/src/components/FieldEditor.tsx:689
-#: packages/admin/src/components/MediaDetailPanel.tsx:439
+#: packages/admin/src/components/MediaDetailPanel.tsx:890
+#: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
@@ -6932,7 +7179,7 @@ msgstr "Naplánovat na později"
 
 #: packages/admin/src/components/ContentList.tsx:834
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1128
+#: packages/admin/src/router.tsx:1142
 msgid "Scheduled"
 msgstr "Naplánováno"
 
@@ -7016,8 +7263,8 @@ msgstr "Hledat: {0}"
 msgid "Search {0}..."
 msgstr "Hledat: {0}…"
 
-#: packages/admin/src/components/MediaLibrary.tsx:379
-#: packages/admin/src/components/MediaPickerModal.tsx:626
+#: packages/admin/src/components/MediaLibrary.tsx:884
+#: packages/admin/src/components/MediaPickerModal.tsx:627
 msgid "Search by filename..."
 msgstr "Hledat podle názvu souboru..."
 
@@ -7060,12 +7307,17 @@ msgstr "Optimalizace pro vyhledávače"
 msgid "Search engine optimization and verification"
 msgstr "Optimalizace pro vyhledávače a ověření"
 
+#: packages/admin/src/components/MediaDetailPanel.tsx:702
+#: packages/admin/src/components/MediaDetailPanel.tsx:703
+msgid "Search folders"
+msgstr ""
+
 #: packages/admin/src/components/Widgets.tsx:152
 msgid "Search form"
 msgstr "Vyhledávací formulář"
 
-#: packages/admin/src/components/MediaLibrary.tsx:380
-#: packages/admin/src/components/MediaPickerModal.tsx:627
+#: packages/admin/src/components/MediaLibrary.tsx:885
+#: packages/admin/src/components/MediaPickerModal.tsx:628
 msgid "Search media"
 msgstr "Hledat média"
 
@@ -7108,8 +7360,8 @@ msgstr ""
 msgid "Search users"
 msgstr "Hledat uživatele"
 
-#: packages/admin/src/components/MediaLibrary.tsx:379
-#: packages/admin/src/components/MediaPickerModal.tsx:626
+#: packages/admin/src/components/MediaLibrary.tsx:884
+#: packages/admin/src/components/MediaPickerModal.tsx:627
 msgid "Search..."
 msgstr "Hledat..."
 
@@ -7122,7 +7374,7 @@ msgstr "Prohledávatelné"
 msgid "Searching..."
 msgstr "Hledání..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2736
+#: packages/admin/src/components/PortableTextEditor.tsx:2738
 msgid "Section"
 msgstr "Sekce"
 
@@ -7221,7 +7473,7 @@ msgstr "Vybrat"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
 #: packages/admin/src/components/ContentEditor.tsx:1789
 #: packages/admin/src/components/ContentEditor.tsx:1805
-#: packages/admin/src/components/ImageFieldRenderer.tsx:273
+#: packages/admin/src/components/ImageFieldRenderer.tsx:281
 msgid "Select {label}"
 msgstr "Vybrat: {label}"
 
@@ -7232,6 +7484,10 @@ msgstr "Vybrat {title}"
 #: packages/admin/src/components/Widgets.tsx:956
 msgid "Select a component..."
 msgstr "Vybrat komponentu..."
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:693
+msgid "Select a location"
+msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:919
 msgid "Select a menu..."
@@ -7267,20 +7523,20 @@ msgstr "Vybrat ikonu webu"
 msgid "Select file"
 msgstr "Vybrat soubor"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:150
+#: packages/admin/src/components/MediaPickerModal.tsx:151
 msgid "Select File"
 msgstr "Vybrat soubor"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3459
+#: packages/admin/src/components/PortableTextEditor.tsx:3461
 msgid "Select Gallery Images"
 msgstr "Vybrat obrázky galerie"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:261
+#: packages/admin/src/components/ImageFieldRenderer.tsx:269
 msgid "Select image"
 msgstr "Vybrat obrázek"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:150
-#: packages/admin/src/components/PortableTextEditor.tsx:3445
+#: packages/admin/src/components/MediaPickerModal.tsx:151
+#: packages/admin/src/components/PortableTextEditor.tsx:3447
 #: packages/admin/src/components/settings/SeoSettings.tsx:223
 msgid "Select Image"
 msgstr "Vybrat obrázek"
@@ -7307,20 +7563,20 @@ msgid "Select which content types to import."
 msgstr "Vyberte typy obsahu, které se mají importovat."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:2432
+#: packages/admin/src/components/PortableTextEditor.tsx:2434
 #: packages/admin/src/components/RepeaterField.tsx:372
 msgid "Select..."
 msgstr "Vybrat..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1761
+#: packages/admin/src/components/PortableTextEditor.tsx:1763
 msgid "Selected {selectedItemTitle}"
 msgstr "Vybrána položka {selectedItemTitle}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:116
+#: packages/admin/src/components/ImageFieldRenderer.tsx:120
 msgid "Selected image"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:795
+#: packages/admin/src/components/MediaPickerModal.tsx:796
 msgid "Selected:"
 msgstr "Vybráno:"
 
@@ -7492,6 +7748,11 @@ msgstr "Zobrazit náhledy"
 msgid "Show token"
 msgstr "Zobrazit token"
 
+#. placeholder {0}: totalCount ?? 0
+#: packages/admin/src/components/MediaLibrary.tsx:1269
+msgid "Showing {pageShowingRange} of {0}"
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:365
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:554
 msgid "Shown when hovering over the image."
@@ -7591,11 +7852,15 @@ msgstr "URL webu"
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr "Weby na Cloudflare D1 mohou navíc obnovit databázi k libovolné minutě za posledních 30 dní pomocí D1 Time Travel — vždy zapnuto, bez nutnosti nastavení."
 
-#: packages/admin/src/components/MediaLibrary.tsx:552
+#: packages/admin/src/components/MediaLibrary.tsx:1155
 msgid "Size"
 msgstr "Velikost"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:288
+#: packages/admin/src/components/MediaLibrary.tsx:1485
+msgid "Size is not applicable to folders"
+msgstr ""
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:551
 msgid "Size:"
 msgstr "Velikost:"
 
@@ -7632,15 +7897,15 @@ msgstr "Slug zkopírován do schránky"
 msgid "Slugs cannot be changed after the field is created."
 msgstr "Slug nelze po vytvoření pole změnit."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1413
+#: packages/admin/src/components/PortableTextEditor.tsx:1415
 msgid "Small section heading"
 msgstr "Malý nadpis sekce"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1423
+#: packages/admin/src/components/PortableTextEditor.tsx:1425
 msgid "Smaller section heading"
 msgstr "Menší nadpis sekce"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1443
+#: packages/admin/src/components/PortableTextEditor.tsx:1445
 msgid "Smallest section heading"
 msgstr "Nejmenší nadpis sekce"
 
@@ -7703,11 +7968,11 @@ msgstr "spam"
 msgid "Spam"
 msgstr "Spam"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4273
+#: packages/admin/src/components/PortableTextEditor.tsx:4275
 msgid "Spotlight Mode"
 msgstr "Režim soustředění"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:64
+#: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Spreadsheets"
 msgstr "Tabulkové soubory"
 
@@ -7715,13 +7980,17 @@ msgstr "Tabulkové soubory"
 msgid "SQL"
 msgstr "SQL"
 
+#: packages/admin/src/components/FocalPointEditor.tsx:31
+msgid "Square"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1922
 msgid "Start Import"
 msgstr "Spustit import"
 
 #: packages/admin/src/components/ContentEditor.tsx:1297
-#: packages/admin/src/components/PortableTextEditor.tsx:2591
-#: packages/admin/src/components/PortableTextEditor.tsx:2592
+#: packages/admin/src/components/PortableTextEditor.tsx:2593
+#: packages/admin/src/components/PortableTextEditor.tsx:2594
 msgid "Start writing, or type '/' for commands"
 msgstr "Začněte psát, nebo napište „/“ pro příkazy"
 
@@ -7753,8 +8022,8 @@ msgstr "Uložené zálohy"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "Ukládá se podle jazyka — každý překlad autorského podpisu má vlastní hodnotu."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3651
-#: packages/admin/src/components/PortableTextEditor.tsx:4056
+#: packages/admin/src/components/PortableTextEditor.tsx:3653
+#: packages/admin/src/components/PortableTextEditor.tsx:4058
 msgid "Strikethrough"
 msgstr "Přeškrtnutí"
 
@@ -7775,11 +8044,11 @@ msgstr "Podpole"
 msgid "Subscriber"
 msgstr "Odběratel"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3658
+#: packages/admin/src/components/PortableTextEditor.tsx:3660
 msgid "Subscript"
 msgstr "Dolní index"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3665
+#: packages/admin/src/components/PortableTextEditor.tsx:3667
 msgid "Superscript"
 msgstr "Horní index"
 
@@ -7811,11 +8080,11 @@ msgstr "Systém ({resolvedLabel})"
 msgid "System Fields"
 msgstr "Systémová pole"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1510
+#: packages/admin/src/components/PortableTextEditor.tsx:1512
 msgid "Table"
 msgstr "Tabulka"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3740
+#: packages/admin/src/components/PortableTextEditor.tsx:3742
 msgid "Table controls"
 msgstr "Ovládání tabulky"
 
@@ -7888,7 +8157,7 @@ msgstr "Položka taxonomie smazána"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4007
+#: packages/admin/src/components/PortableTextEditor.tsx:4009
 msgid "Text formatting"
 msgstr "Formátování textu"
 
@@ -7899,6 +8168,10 @@ msgstr "Zařízení nezíská přístup."
 #: packages/admin/src/components/WordPressImport.tsx:1862
 msgid "The existing collection has fields with incompatible types."
 msgstr "Stávající kolekce má pole s nekompatibilními typy."
+
+#: packages/admin/src/components/MediaLibrary.tsx:613
+msgid "The file or folder no longer exists."
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:136
 msgid "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
@@ -7925,7 +8198,7 @@ msgstr "Nabídka byla smazána."
 msgid "The name of your site, used in the header and metadata"
 msgstr "Název vašeho webu, používaný v hlavičce a metadatech"
 
-#: packages/admin/src/router.tsx:2274
+#: packages/admin/src/router.tsx:2525
 msgid "The page you're looking for doesn't exist."
 msgstr "Hledaná stránka neexistuje."
 
@@ -7944,6 +8217,10 @@ msgstr "Odkazovaný obrázek již není k dispozici. Vyberte nový, nebo odkaz o
 #: packages/admin/src/components/settings/GeneralSettings.tsx:209
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "Odkazované logo již není k dispozici. Vyberte nové, nebo odkaz odeberte."
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:365
+msgid "The selected folder no longer exists. Choose another location and save again."
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:153
 msgid "The theme marketplace is empty. Check back later."
@@ -7987,7 +8264,7 @@ msgstr "Tyto nástroje zůstanou po instalaci vypnuté, dokud výslovně nepovol
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "Tato kolekce je definována v kódu. Některá nastavení zde nelze změnit. Schéma upravte v souboru live.config.ts."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3342
+#: packages/admin/src/components/PortableTextEditor.tsx:3344
 msgid "This content cannot be edited safely"
 msgstr ""
 
@@ -7995,18 +8272,22 @@ msgstr ""
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "Toto nevypadá jako platný migrační klíč. Vygenerujte nový v pluginu a vložte celý řetězec začínající „em1.“."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3344
+#: packages/admin/src/components/PortableTextEditor.tsx:3346
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:461
+#: packages/admin/src/components/MediaPickerModal.tsx:462
 msgid "This field does not accept {sniffedMime} files."
 msgstr "Toto pole nepřijímá soubory typu {sniffedMime}."
 
 #: packages/admin/src/components/ContentEditor.tsx:1808
-#: packages/admin/src/components/ImageFieldRenderer.tsx:276
+#: packages/admin/src/components/ImageFieldRenderer.tsx:284
 msgid "This field is required"
 msgstr "Toto pole je povinné"
+
+#: packages/admin/src/components/MediaLibrary.tsx:1041
+msgid "This folder is empty"
+msgstr ""
 
 #: packages/admin/src/components/SectionEditor.tsx:322
 msgid "This is a custom section."
@@ -8023,6 +8304,10 @@ msgstr "Platnost tohoto odkazu vyprší za 7 dní a lze jej použít pouze jedno
 #: packages/admin/src/components/WordPressImport.tsx:921
 msgid "This may take a while for large exports."
 msgstr "U velkých exportů to může chvíli trvat."
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:359
+msgid "This media item no longer exists."
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:269
 msgid "This passkey is already registered on this device."
@@ -8058,7 +8343,7 @@ msgid "This removes the byline profile. Content byline links are removed and lea
 msgstr "Profil autorského podpisu bude odstraněn. Z obsahu budou odebrány odkazy na tento podpis a bude zrušeno jeho označení jako hlavního autora."
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:3371
+#: packages/admin/src/components/PortableTextEditor.tsx:3373
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr ""
 
@@ -8157,7 +8442,7 @@ msgstr "nebo je přidat do souboru astro.config.mjs."
 msgid "to select"
 msgstr "vybrat"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3785
+#: packages/admin/src/components/PortableTextEditor.tsx:3787
 msgid "Toggle header row"
 msgstr "Přepnout řádek záhlaví"
 
@@ -8216,7 +8501,7 @@ msgstr "Překládání..."
 #: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:987
 #: packages/admin/src/components/TaxonomySidebar.tsx:471
-#: packages/admin/src/router.tsx:1180
+#: packages/admin/src/router.tsx:1194
 msgid "Translation created"
 msgstr "Překlad vytvořen"
 
@@ -8249,11 +8534,11 @@ msgstr "Koš je prázdný."
 msgid "True/false toggle"
 msgstr "Přepínač ano/ne"
 
-#: packages/admin/src/components/MediaLibrary.tsx:457
+#: packages/admin/src/components/MediaLibrary.tsx:1030
 msgid "Try a broader media type or clear your filters."
 msgstr "Zkuste zvolit obecnější typ médií nebo zrušte filtry."
 
-#: packages/admin/src/components/MediaPickerModal.tsx:691
+#: packages/admin/src/components/MediaPickerModal.tsx:692
 msgid "Try a different search term"
 msgstr "Zkuste jiný hledaný výraz"
 
@@ -8274,15 +8559,19 @@ msgstr "Zkusit znovu"
 msgid "Try Again"
 msgstr "Zkusit znovu"
 
+#: packages/admin/src/components/MediaLibrary.tsx:620
+msgid "Try again."
+msgstr ""
+
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:207
 msgid "Try another code"
 msgstr "Zkusit jiný kód"
 
-#: packages/admin/src/components/MediaLibrary.tsx:482
+#: packages/admin/src/components/MediaLibrary.tsx:1066
 msgid "Try another filename or clear your search."
 msgstr "Zkuste jiný název souboru nebo zrušte hledání."
 
-#: packages/admin/src/components/MediaLibrary.tsx:456
+#: packages/admin/src/components/MediaLibrary.tsx:1029
 msgid "Try another filename, or clear your search and filters."
 msgstr "Zkuste jiný název souboru nebo zrušte hledání a filtry."
 
@@ -8310,7 +8599,7 @@ msgstr "Twitter"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:260
 #: packages/admin/src/components/FieldEditor.tsx:600
-#: packages/admin/src/components/MediaLibrary.tsx:551
+#: packages/admin/src/components/MediaLibrary.tsx:1154
 #: packages/admin/src/routes/byline-schema.tsx:240
 msgid "Type"
 msgstr "Typ"
@@ -8319,6 +8608,10 @@ msgstr "Typ"
 #: packages/admin/src/components/WordPressImport.tsx:2018
 msgid "Type mismatch ({0})"
 msgstr "Neshoda typu ({0})"
+
+#: packages/admin/src/components/MediaLibrary.tsx:1481
+msgid "Type: Folder"
+msgstr ""
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:56
 msgid "TypeScript"
@@ -8334,12 +8627,12 @@ msgstr "Tržiště není dostupné"
 msgid "Unassigned"
 msgstr "Nepřiřazeno"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3644
-#: packages/admin/src/components/PortableTextEditor.tsx:4049
+#: packages/admin/src/components/PortableTextEditor.tsx:3646
+#: packages/admin/src/components/PortableTextEditor.tsx:4051
 msgid "Underline"
 msgstr "Podtržení"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4253
+#: packages/admin/src/components/PortableTextEditor.tsx:4255
 msgid "Undo"
 msgstr "Zpět"
 
@@ -8395,7 +8688,7 @@ msgstr "Nepojmenovaný přístupový klíč"
 msgid "Unpublish {itemLabel}"
 msgstr "Zrušit publikování položky ({itemLabel})"
 
-#: packages/admin/src/router.tsx:1088
+#: packages/admin/src/router.tsx:1102
 msgid "Unpublished"
 msgstr "Nepublikováno"
 
@@ -8411,7 +8704,7 @@ msgstr ""
 msgid "Unschedule"
 msgstr "Zrušit naplánování"
 
-#: packages/admin/src/router.tsx:1149
+#: packages/admin/src/router.tsx:1163
 msgid "Unscheduled"
 msgstr "Nenaplánováno"
 
@@ -8495,11 +8788,12 @@ msgstr "Aktualizace URL obsahu..."
 msgid "Updating..."
 msgstr "Aktualizace..."
 
-#: packages/admin/src/components/MediaPickerModal.tsx:649
+#: packages/admin/src/components/MediaLibrary.tsx:833
+#: packages/admin/src/components/MediaPickerModal.tsx:650
 msgid "Upload"
 msgstr "Nahrát"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:152
+#: packages/admin/src/components/MediaPickerModal.tsx:153
 msgid "Upload a file to get started"
 msgstr "Začněte nahráním souboru"
 
@@ -8507,7 +8801,7 @@ msgstr "Začněte nahráním souboru"
 msgid "Upload an export file"
 msgstr "Nahrát soubor exportu"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:153
+#: packages/admin/src/components/MediaPickerModal.tsx:154
 msgid "Upload an image to get started"
 msgstr "Začněte nahráním obrázku"
 
@@ -8525,32 +8819,33 @@ msgstr "Nahrávat a spravovat média"
 msgid "Upload Export File"
 msgstr "Nahrát soubor exportu"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:96
+#: packages/admin/src/components/MediaUploadDialog.tsx:102
 msgid "Upload failed"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:669
+#: packages/admin/src/components/MediaPickerModal.tsx:670
 msgid "Upload failed: {uploadError}"
 msgstr "Nahrání selhalo: {uploadError}"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:661
+#: packages/admin/src/components/MediaPickerModal.tsx:662
 msgid "Upload file"
 msgstr "Nahrát soubor"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:154
+#: packages/admin/src/components/MediaPickerModal.tsx:155
 msgid "Upload File"
 msgstr "Nahrát soubor"
 
-#: packages/admin/src/components/MediaLibrary.tsx:472
-#: packages/admin/src/components/MediaLibrary.tsx:496
+#: packages/admin/src/components/MediaLibrary.tsx:721
+#: packages/admin/src/components/MediaLibrary.tsx:1056
+#: packages/admin/src/components/MediaLibrary.tsx:1080
 msgid "Upload Files"
 msgstr "Nahrát soubory"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:154
+#: packages/admin/src/components/MediaPickerModal.tsx:155
 msgid "Upload Image"
 msgstr "Nahrát obrázek"
 
-#: packages/admin/src/components/MediaLibrary.tsx:469
+#: packages/admin/src/components/MediaLibrary.tsx:1053
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "Nahrajte obrázky, videa a dokumenty a mějte znovupoužitelné soubory na jednom místě."
 
@@ -8558,16 +8853,16 @@ msgstr "Nahrajte obrázky, videa a dokumenty a mějte znovupoužitelné soubory 
 msgid "Upload Media"
 msgstr "Nahrát média"
 
-#: packages/admin/src/components/MediaLibrary.tsx:493
+#: packages/admin/src/components/MediaLibrary.tsx:1077
 msgid "Upload media to keep reusable assets in one place."
 msgstr "Nahrajte média a mějte znovupoužitelné soubory na jednom místě."
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
-#: packages/admin/src/components/MediaLibrary.tsx:330
+#: packages/admin/src/components/MediaLibrary.tsx:722
 msgid "Upload to {0}"
 msgstr "Nahrát do {0}"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:396
+#: packages/admin/src/components/MediaUploadDialog.tsx:402
 msgid "Upload to {providerName}"
 msgstr ""
 
@@ -8575,16 +8870,16 @@ msgstr ""
 msgid "Upload WordPress export file"
 msgstr "Nahrát soubor exportu z WordPressu"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:303
+#: packages/admin/src/components/MediaDetailPanel.tsx:574
 msgid "Uploaded:"
 msgstr "Nahráno:"
 
-#: packages/admin/src/components/MediaUploadDialog.tsx:80
+#: packages/admin/src/components/MediaUploadDialog.tsx:86
 #: packages/admin/src/components/WordPressImport.tsx:2127
 msgid "Uploading"
 msgstr "Nahrávání"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:649
+#: packages/admin/src/components/MediaPickerModal.tsx:650
 msgid "Uploading..."
 msgstr "Nahrávání..."
 
@@ -8593,9 +8888,9 @@ msgstr "Nahrávání..."
 #: packages/admin/src/components/FieldEditor.tsx:615
 #: packages/admin/src/components/MenuEditor.tsx:418
 #: packages/admin/src/components/MenuEditor.tsx:596
-#: packages/admin/src/components/PortableTextEditor.tsx:3598
-#: packages/admin/src/components/PortableTextEditor.tsx:4198
-#: packages/admin/src/components/PortableTextEditor.tsx:4208
+#: packages/admin/src/components/PortableTextEditor.tsx:3600
+#: packages/admin/src/components/PortableTextEditor.tsx:4200
+#: packages/admin/src/components/PortableTextEditor.tsx:4210
 msgid "URL"
 msgstr "URL"
 
@@ -8612,7 +8907,7 @@ msgstr "Identifikátor vhodný pro URL"
 msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
 msgstr "Identifikátor vhodný pro URL (např. „primary“, „footer“)"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:309
+#: packages/admin/src/components/MediaDetailPanel.tsx:593
 msgid "URL:"
 msgstr "URL:"
 
@@ -8640,7 +8935,7 @@ msgstr "Použije se jako identifikátor. Pouze malá písmena, číslice a podtr
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Použije se jako hlavní vizuál tohoto příspěvku ve výpisech a v jeho záhlaví"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:124
+#: packages/admin/src/components/MediaDetailPanel.tsx:202
 msgid "Used by screen readers and when image fails to load"
 msgstr "Používají jej čtečky obrazovky a zobrazí se také tehdy, když se obrázek nenačte"
 
@@ -8720,8 +9015,8 @@ msgstr "Verze"
 msgid "Version {0}"
 msgstr "Verze {0}"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:67
-#: packages/admin/src/components/MediaLibrary.tsx:399
+#: packages/admin/src/components/AllowedTypesEditor.tsx:70
+#: packages/admin/src/components/MediaLibrary.tsx:904
 msgid "Video"
 msgstr "Video"
 
@@ -8734,7 +9029,7 @@ msgstr "Zobrazit stav poskytovatele e-mailu a odeslat testovací e-maily"
 msgid "View in Marketplace"
 msgstr "Zobrazit na tržišti"
 
-#: packages/admin/src/components/MediaLibrary.tsx:411
+#: packages/admin/src/components/MediaLibrary.tsx:913
 msgid "View mode"
 msgstr "Režim zobrazení"
 
@@ -8842,7 +9137,7 @@ msgstr "Které typy obsahu mohou tuto taxonomii používat"
 msgid "Whole number"
 msgstr "Celé číslo"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:123
+#: packages/admin/src/components/MediaDetailPanel.tsx:201
 msgid "Why can't this be changed?"
 msgstr "Proč to nelze změnit?"
 
@@ -8870,7 +9165,7 @@ msgstr "Proč je to důležité pro viditelnost ve vyhledávání?"
 msgid "Why is this important for social sharing?"
 msgstr "Proč je to důležité pro sdílení na sociálních sítích?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:125
+#: packages/admin/src/components/MediaDetailPanel.tsx:203
 msgid "Why is this important?"
 msgstr "Proč je to důležité?"
 
@@ -9007,6 +9302,10 @@ msgstr "Můžete web prohlížet a přispívat do něj."
 msgid "You cannot change your own role"
 msgstr "Vlastní roli nemůžete změnit"
 
+#: packages/admin/src/components/MediaLibrary.tsx:618
+msgid "You don’t have permission to move this file."
+msgstr ""
+
 #: packages/admin/src/components/WelcomeModal.tsx:47
 msgid "You have full access to manage this site, including users, settings, and all content."
 msgstr "Máte plný přístup ke správě tohoto webu včetně uživatelů, nastavení a veškerého obsahu."
@@ -9015,7 +9314,7 @@ msgstr "Máte plný přístup ke správě tohoto webu včetně uživatelů, nast
 msgid "You need admin permissions to manage byline schema."
 msgstr "Ke správě schématu autorských podpisů jsou potřeba oprávnění správce."
 
-#: packages/admin/src/router.tsx:1558
+#: packages/admin/src/router.tsx:1809
 msgid "You need Editor permissions to moderate comments."
 msgstr "K moderování komentářů potřebujete oprávnění editora."
 
@@ -9096,8 +9395,8 @@ msgstr "Vaše uživatelské jméno na Instagramu"
 msgid "Your LinkedIn profile username"
 msgstr "Uživatelské jméno vašeho profilu na LinkedInu"
 
-#: packages/admin/src/components/MediaLibrary.tsx:468
-#: packages/admin/src/components/MediaLibrary.tsx:492
+#: packages/admin/src/components/MediaLibrary.tsx:1052
+#: packages/admin/src/components/MediaLibrary.tsx:1076
 msgid "Your media library is empty"
 msgstr "Vaše knihovna médií je prázdná"
 
@@ -9123,7 +9422,7 @@ msgstr "Váš web vyžaduje, aby byly verze staré alespoň {0}, než je lze nai
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "Vaše uživatelské jméno na Twitteru/X (např. @username)"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:451
+#: packages/admin/src/components/MediaDetailPanel.tsx:902
 msgid "Your unsaved media changes will be lost."
 msgstr "Neuložené změny tohoto souboru budou ztraceny."
 

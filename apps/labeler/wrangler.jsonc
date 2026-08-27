@@ -44,20 +44,21 @@
 	"vars": {
 		"LABELER_DID": "did:web:labels.emdashcms.com",
 		"LABELER_SERVICE_URL": "https://labels.emdashcms.com",
-		"LABEL_SIGNING_PUBLIC_KEY": "REPLACE_WITH_PRODUCTION_P256_MULTIKEY",
 		"LABELER_POLICY_VERSION": "listing-metadata-v1",
 		"LABELER_PARSER_VERSION": "canonical-listing-input-v1",
 		"LABELER_TEXT_MODEL_ID": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-		"LABELER_TEXT_PROMPT_HASH": "d7e2513e203d825e7aa6d10c9b8b503ad9df004f43e9779afbd429cdf5500daf",
-		"LABELER_IMAGE_MODEL_ID": "@cf/meta/llama-4-scout-17b-16e-instruct",
-		"LABELER_IMAGE_PROMPT_HASH": "ae78f2bd92696fa3704738182a20dc3b496bbbc9809276f0a986eec49b7e8d70",
+		"LABELER_IMAGE_MODEL_ID": "@cf/qwen/qwen3.8-27b",
 		"JETSTREAM_URL": "wss://jetstream2.us-east.bsky.network/subscribe",
-		"OPERATOR_ACCESS_CONFIG": "{\"teamDomain\":\"https://emdash.cloudflareaccess.com\",\"audience\":\"REPLACE_WITH_ACCESS_APP_AUDIENCE\",\"admins\":[\"emdash-labeler-admins\"],\"reviewers\":[\"emdash-labeler-reviewers\"]}",
 		"EVAL_TEXT_CONFIGURED_UNITS": "1",
 		"EVAL_IMAGE_CONFIGURED_UNITS": "1",
 	},
 	"secrets": {
-		"required": ["LABEL_SIGNING_PRIVATE_KEY", "RECONCILIATION_TOKEN"],
+		"required": [
+			"LABEL_SIGNING_PRIVATE_KEY",
+			"LABEL_SIGNING_PUBLIC_KEY",
+			"OPERATOR_ACCESS_CONFIG",
+			"RECONCILIATION_TOKEN",
+		],
 	},
 	"workflows": [
 		{

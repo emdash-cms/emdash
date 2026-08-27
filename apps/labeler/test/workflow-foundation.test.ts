@@ -298,6 +298,136 @@ describe("assessment Workflow foundation", () => {
 		).toBe("listing-error");
 	});
 
+	it("bounds concurrent image inference for a release with many display images", async () => {
+		const checksum = await computeMultihash(PNG_BYTES);
+		if (!checksum.success) throw new Error("test checksum could not be computed");
+		const sha256 = Array.from(
+			new Uint8Array(await crypto.subtle.digest("SHA-256", PNG_BYTES)),
+			(value) => value.toString(16).padStart(2, "0"),
+		).join("");
+		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+		const params = await createAssessmentWorkflowParams({
+			subject: { uri: RELEASE_URI, cid: RELEASE_CID, kind: "release" },
+			versions: ASSESSMENT_VERSIONS,
+			logicalTriggerId: "workflow:image-inference-concurrency",
+		});
+		await lifecycle.observeRun({ params, observedAt: "2026-08-24T10:47:00.000Z" });
+		const baseRecord = createReleaseRecord(checksum.value);
+		const record = {
+			...baseRecord,
+			artifacts: {
+				...baseRecord.artifacts,
+				screenshots: Array.from({ length: 5 }, (_, index) => ({
+					url: `https://media.example/screenshot-${index}.png`,
+					checksum: checksum.value,
+					contentType: "image/png" as const,
+					width: 1,
+					height: 1,
+				})),
+			},
+		};
+		const identity = {
+			adapterVersion: "listing-metadata-ai-v1",
+			modelId: ASSESSMENT_VERSIONS.textModelId,
+			promptVersion: "listing-text-v1",
+			promptHash: ASSESSMENT_VERSIONS.textPromptHash,
+			parameters: {},
+		};
+		const imageIdentity = {
+			...identity,
+			modelId: ASSESSMENT_VERSIONS.imageModelId,
+			promptVersion: "listing-image-v1",
+			promptHash: ASSESSMENT_VERSIONS.imagePromptHash,
+		};
+		let active = 0;
+		let maximumActive = 0;
+		const issuer = await createTestIssuer(env.DB, {
+			automationPolicyVersions: [ASSESSMENT_VERSIONS.policyVersion],
+		});
+		await runBoundAssessmentWorkflow(
+			{
+				instanceId: params.runKey,
+				workflowName: "assessment",
+				payload: params,
+				timestamp: new Date("2026-08-24T10:47:00.000Z"),
+			},
+			new CachedStep(),
+			{
+				lifecycle,
+				recordVerifier: {
+					async verifyExactRecord() {
+						return {
+							uri: RELEASE_URI,
+							cid: RELEASE_CID,
+							record,
+							verification: "did-mst-signature" as const,
+						};
+					},
+				},
+				mediaAcquirer: {
+					async acquire(_subject, descriptor) {
+						return {
+							kind: descriptor.kind,
+							index: descriptor.index,
+							sha256,
+							mimeType: "image/png" as const,
+							byteLength: PNG_BYTES.byteLength,
+							width: 1,
+							height: 1,
+							frames: 1,
+							contentAddress: `sha256:${sha256}`,
+							contentRef: `fixture://${descriptor.kind}/${descriptor.index}`,
+						};
+					},
+				},
+				mediaReader: {
+					async read() {
+						return PNG_BYTES;
+					},
+				},
+				textAdapter: {
+					identity,
+					async moderate(request) {
+						return {
+							findings: [],
+							coveredEvidenceRefs: [
+								...request.text.map(({ ref }) => ref),
+								...request.links.map(({ ref }) => ref),
+							],
+							identity,
+							latencyMs: 1,
+							usage: { configuredUnits: 1 },
+						};
+					},
+				},
+				imageAdapter: {
+					identity: imageIdentity,
+					async moderate(request) {
+						active += 1;
+						maximumActive = Math.max(maximumActive, active);
+						await scheduler.wait(10);
+						active -= 1;
+						return {
+							findings: [],
+							coveredEvidenceRefs: [request.evidenceRef],
+							identity: imageIdentity,
+							latencyMs: 10,
+							usage: { configuredUnits: 1 },
+						};
+					},
+				},
+				policy: {
+					...INITIAL_LISTING_POLICY_FIXTURE,
+					policyVersion: ASSESSMENT_VERSIONS.policyVersion,
+				},
+				finalizer: issuer,
+				now: () => new Date("2026-08-24T10:47:01.000Z"),
+			},
+		);
+
+		expect(maximumActive).toBeLessThanOrEqual(3);
+	});
+
 	it("stores an operational error without issuing a label when exact verification fails", async () => {
 		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
 		const params = await createAssessmentWorkflowParams({

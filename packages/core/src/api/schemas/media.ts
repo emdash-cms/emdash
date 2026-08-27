@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isValidFocalPointUpdate } from "#media/focal-point.js";
+
 import { cursorPaginationQuery } from "./common.js";
 import { mediaUsageSummarySchema } from "./media-usage.js";
 
@@ -21,12 +23,24 @@ const mimeTypeFilter = z
 
 export const mediaListQuery = cursorPaginationQuery
 	.extend({
+		page: z.coerce.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional(),
 		mimeType: mimeTypeFilter,
+		folderId: z
+			.union([z.literal("unfiled"), z.string().min(1).max(64)])
+			.optional()
+			.meta({
+				description:
+					"Filter by a media folder ID. Use `unfiled` for the Main library; omit for all media.",
+			}),
 		/** Case-insensitive filename substring search (also matches extensions). */
 		q: z.string().trim().min(1).max(200).optional(),
 		includeUsage: z.literal("1").optional().meta({
 			description: "Include a coverage-aware usage summary on each media item",
 		}),
+	})
+	.refine(({ cursor, page }) => cursor === undefined || page === undefined, {
+		message: "cursor and page cannot be used together",
+		path: ["page"],
 	})
 	.meta({ id: "MediaListQuery" });
 
@@ -44,8 +58,46 @@ export const mediaUpdateBody = z
 		caption: z.string().optional(),
 		width: z.number().int().positive().optional(),
 		height: z.number().int().positive().optional(),
+		folderId: z
+			.union([z.literal("unfiled"), z.string().min(1).max(64)])
+			.nullable()
+			.optional()
+			.transform((value) => (value === "unfiled" ? null : value))
+			.meta({
+				description:
+					"Assign a media folder ID, or use null or `unfiled` to return the item to the Main library.",
+			}),
+		focalX: z.number().min(0).max(1).nullable().optional(),
+		focalY: z.number().min(0).max(1).nullable().optional(),
+	})
+	.superRefine((value, context) => {
+		if (!isValidFocalPointUpdate(value)) {
+			context.addIssue({
+				code: "custom",
+				message: "focalX and focalY must both be numbers or both be null",
+				path: ["focalX"],
+			});
+		}
 	})
 	.meta({ id: "MediaUpdateBody" });
+
+export const mediaFolderIdSchema = z.string().min(1).max(64);
+
+export const mediaFolderListQuery = cursorPaginationQuery
+	.extend({ q: z.string().trim().min(1).max(200).optional() })
+	.meta({ id: "MediaFolderListQuery" });
+
+const mediaFolderNameSchema = z.string().refine(
+	(value) => {
+		const length = value.trim().length;
+		return length >= 1 && length <= 200;
+	},
+	{ message: "Folder name must be between 1 and 200 characters" },
+);
+
+export const mediaFolderBody = z
+	.object({ name: mediaFolderNameSchema })
+	.meta({ id: "MediaFolderBody" });
 
 /** Default maximum allowed file upload size (50 MB). */
 export const DEFAULT_MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
@@ -111,6 +163,8 @@ export const mediaItemSchema = z
 		size: z.number().nullable(),
 		width: z.number().nullable(),
 		height: z.number().nullable(),
+		focalX: z.number().nullable(),
+		focalY: z.number().nullable(),
 		alt: z.string().nullable(),
 		caption: z.string().nullable(),
 		storageKey: z.string(),
@@ -120,8 +174,21 @@ export const mediaItemSchema = z
 		dominantColor: z.string().nullable(),
 		createdAt: z.string(),
 		authorId: z.string().nullable(),
+		folderId: z.string().nullable(),
 	})
 	.meta({ id: "MediaItem" });
+
+export const mediaFolderSchema = z
+	.object({ id: z.string(), name: z.string() })
+	.meta({ id: "MediaFolder" });
+
+export const mediaFolderResponseSchema = z
+	.object({ item: mediaFolderSchema })
+	.meta({ id: "MediaFolderResponse" });
+
+export const mediaFolderListResponseSchema = z
+	.object({ items: z.array(mediaFolderSchema), nextCursor: z.string().optional() })
+	.meta({ id: "MediaFolderListResponse" });
 
 export const mediaResponseSchema = z
 	.object({ item: mediaItemSchema })
@@ -143,6 +210,7 @@ export const mediaListReadResponseSchema = z
 	.object({
 		items: z.array(mediaListReadItemSchema),
 		nextCursor: z.string().optional(),
+		totalCount: z.number().int().nonnegative().optional(),
 	})
 	.meta({ id: "MediaListReadResponse" });
 
@@ -150,6 +218,7 @@ export const mediaListResponseSchema = z
 	.object({
 		items: z.array(mediaItemSchema),
 		nextCursor: z.string().optional(),
+		totalCount: z.number().int().nonnegative().optional(),
 	})
 	.meta({ id: "MediaListResponse" });
 

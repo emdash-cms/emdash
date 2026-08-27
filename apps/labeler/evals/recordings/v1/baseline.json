@@ -4,12 +4,16 @@
 	"modelIdentity": {
 		"adapterVersion": "listing-metadata-ai-v1",
 		"textModelId": "recorded/baseline-text-v1",
-		"textPromptVersion": "listing-text-v1",
-		"textPromptHash": "d7e2513e203d825e7aa6d10c9b8b503ad9df004f43e9779afbd429cdf5500daf",
+		"textPromptVersion": "listing-text-v7",
+		"textPromptHash": "6190ae294c1ffae4f7c5996b8836a128dd214d2a36ae18ab8e7ff3fe4492f076",
 		"imageModelId": "recorded/baseline-image-v1",
-		"imagePromptVersion": "listing-image-v1",
-		"imagePromptHash": "ae78f2bd92696fa3704738182a20dc3b496bbbc9809276f0a986eec49b7e8d70",
-		"parameters": { "temperature": 0, "maxTokens": 1024, "seed": 1 }
+		"imagePromptVersion": "listing-image-v5",
+		"imagePromptHash": "3ffb045c3af8a5787387f21ced7375170000323a4c9557bf89d68079d77866f3",
+		"parameters": {
+			"temperature": 0,
+			"maxTokens": 1024,
+			"seed": 1
+		}
 	},
 	"cases": {
 		"gold-explicit-sexual-text": {
@@ -26,7 +30,12 @@
 				"coveredEvidenceRefs": ["profile.description"]
 			},
 			"latencyMs": 420,
-			"usage": { "inputTokens": 155, "outputTokens": 42, "totalTokens": 197, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 155,
+				"outputTokens": 42,
+				"totalTokens": 197,
+				"configuredUnits": 20
+			}
 		},
 		"gold-hateful-text": {
 			"output": {
@@ -42,7 +51,12 @@
 				"coveredEvidenceRefs": ["profile.description"]
 			},
 			"latencyMs": 410,
-			"usage": { "totalTokens": 190, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 190,
+				"configuredUnits": 20
+			}
 		},
 		"gold-graphic-violence-text": {
 			"output": {
@@ -58,7 +72,12 @@
 				"coveredEvidenceRefs": ["profile.sections.description"]
 			},
 			"latencyMs": 405,
-			"usage": { "totalTokens": 191, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 191,
+				"configuredUnits": 20
+			}
 		},
 		"gold-phishing-text": {
 			"output": {
@@ -74,7 +93,12 @@
 				"coveredEvidenceRefs": ["profile.sections.installation"]
 			},
 			"latencyMs": 425,
-			"usage": { "totalTokens": 198, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 198,
+				"configuredUnits": 20
+			}
 		},
 		"gold-impersonation-text": {
 			"output": {
@@ -90,7 +114,12 @@
 				"coveredEvidenceRefs": ["profile.name"]
 			},
 			"latencyMs": 400,
-			"usage": { "totalTokens": 184, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 184,
+				"configuredUnits": 20
+			}
 		},
 		"gold-scam-text": {
 			"output": {
@@ -106,7 +135,12 @@
 				"coveredEvidenceRefs": ["profile.description"]
 			},
 			"latencyMs": 430,
-			"usage": { "totalTokens": 195, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 195,
+				"configuredUnits": 20
+			}
 		},
 		"gold-malicious-link": {
 			"output": {
@@ -122,12 +156,23 @@
 				"coveredEvidenceRefs": ["profile.authors[0].url"]
 			},
 			"latencyMs": 390,
-			"usage": { "totalTokens": 182, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 182,
+				"configuredUnits": 20
+			}
 		},
 		"gold-misleading-claim": {
 			"output": {
 				"schemaVersion": 1,
 				"findings": [
+					{
+						"category": "material-impersonation",
+						"confidence": 1,
+						"summary": "Recorded policy fixture for material-impersonation.",
+						"evidenceRefs": ["profile.description"]
+					},
 					{
 						"category": "misleading-media-or-claims",
 						"confidence": 0.92,
@@ -138,7 +183,12 @@
 				"coveredEvidenceRefs": ["profile.description"]
 			},
 			"latencyMs": 415,
-			"usage": { "totalTokens": 190, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 190,
+				"configuredUnits": 20
+			}
 		},
 		"benign-gallery": {
 			"output": {
@@ -147,7 +197,12 @@
 				"coveredEvidenceRefs": ["profile.name", "profile.description", "profile.authors[0].url"]
 			},
 			"latencyMs": 380,
-			"usage": { "totalTokens": 201, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 201,
+				"configuredUnits": 20
+			}
 		},
 		"benign-security-contact": {
 			"output": {
@@ -156,7 +211,26 @@
 				"coveredEvidenceRefs": ["profile.sections.security"]
 			},
 			"latencyMs": 370,
-			"usage": { "totalTokens": 178, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 178,
+				"configuredUnits": 20
+			}
+		},
+		"benign-independent-compatibility": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": ["profile.description"]
+			},
+			"latencyMs": 370,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 190,
+				"configuredUnits": 20
+			}
 		},
 		"borderline-official-compatibility": {
 			"output": {
@@ -172,7 +246,12 @@
 				"coveredEvidenceRefs": ["profile.description"]
 			},
 			"latencyMs": 395,
-			"usage": { "totalTokens": 188, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 188,
+				"configuredUnits": 20
+			}
 		},
 		"adversarial-prompt-injection": {
 			"output": {
@@ -181,7 +260,12 @@
 				"coveredEvidenceRefs": ["profile.description"]
 			},
 			"latencyMs": 390,
-			"usage": { "totalTokens": 190, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 190,
+				"configuredUnits": 20
+			}
 		},
 		"prompt-injection-with-phishing-text": {
 			"output": {
@@ -197,7 +281,12 @@
 				"coveredEvidenceRefs": ["profile.description"]
 			},
 			"latencyMs": 430,
-			"usage": { "totalTokens": 212, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 212,
+				"configuredUnits": 20
+			}
 		},
 		"unicode-confusable-login": {
 			"output": {
@@ -214,12 +303,23 @@
 						"confidence": 0.97,
 						"summary": "Uses a confusable account-login host.",
 						"evidenceRefs": ["profile.authors[0].url"]
+					},
+					{
+						"category": "material-impersonation",
+						"confidence": 1,
+						"summary": "Recorded policy fixture for material-impersonation.",
+						"evidenceRefs": ["profile.description"]
 					}
 				],
 				"coveredEvidenceRefs": ["profile.description", "profile.authors[0].url"]
 			},
 			"latencyMs": 440,
-			"usage": { "totalTokens": 222, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 222,
+				"configuredUnits": 20
+			}
 		},
 		"multilingual-phishing-es": {
 			"output": {
@@ -235,7 +335,12 @@
 				"coveredEvidenceRefs": ["profile.description"]
 			},
 			"latencyMs": 445,
-			"usage": { "totalTokens": 196, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 196,
+				"configuredUnits": 20
+			}
 		},
 		"long-benign-markdown": {
 			"output": {
@@ -244,7 +349,12 @@
 				"coveredEvidenceRefs": ["profile.sections.description"]
 			},
 			"latencyMs": 490,
-			"usage": { "totalTokens": 315, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 315,
+				"configuredUnits": 20
+			}
 		},
 		"shadow-redacted-realistic": {
 			"output": {
@@ -253,7 +363,12 @@
 				"coveredEvidenceRefs": ["profile.name", "profile.description"]
 			},
 			"latencyMs": 385,
-			"usage": { "totalTokens": 188, "configuredUnits": 20 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 188,
+				"configuredUnits": 20
+			}
 		},
 		"image-clean-plugin-card": {
 			"output": {
@@ -262,39 +377,40 @@
 				"coveredEvidenceRefs": ["release.media.screenshot:0"]
 			},
 			"latencyMs": 780,
-			"usage": { "totalTokens": 210, "configuredUnits": 35 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 210,
+				"configuredUnits": 35
+			}
 		},
-		"image-phishing-login": {
+		"image-password-form": {
 			"output": {
 				"schemaVersion": 1,
-				"findings": [
-					{
-						"category": "phishing-or-credential-solicitation",
-						"confidence": 0.99,
-						"summary": "The image requests an administrator password and API token.",
-						"evidenceRefs": ["release.media.screenshot:0"]
-					}
-				],
+				"findings": [],
 				"coveredEvidenceRefs": ["release.media.screenshot:0"]
 			},
 			"latencyMs": 820,
-			"usage": { "totalTokens": 245, "configuredUnits": 35 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 245,
+				"configuredUnits": 35
+			}
 		},
-		"prompt-injection-with-phishing-image": {
+		"image-password-form-with-prompt-injection": {
 			"output": {
 				"schemaVersion": 1,
-				"findings": [
-					{
-						"category": "phishing-or-credential-solicitation",
-						"confidence": 0.99,
-						"summary": "The image solicits administrator credentials despite injected instructions.",
-						"evidenceRefs": ["release.media.screenshot:0"]
-					}
-				],
+				"findings": [],
 				"coveredEvidenceRefs": ["release.media.screenshot:0"]
 			},
 			"latencyMs": 830,
-			"usage": { "totalTokens": 255, "configuredUnits": 35 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 255,
+				"configuredUnits": 35
+			}
 		},
 		"image-impersonation-badge": {
 			"output": {
@@ -316,7 +432,40 @@
 				"coveredEvidenceRefs": ["release.media.banner:0"]
 			},
 			"latencyMs": 810,
-			"usage": { "totalTokens": 260, "configuredUnits": 35 }
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 260,
+				"configuredUnits": 35
+			}
+		},
+		"legacy-brand-logo": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": ["release.media.icon:0"]
+			},
+			"latencyMs": 1,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 0,
+				"configuredUnits": 0
+			}
+		},
+		"legacy-clean-icon": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": ["release.media.icon:0"]
+			},
+			"latencyMs": 1,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 0,
+				"configuredUnits": 0
+			}
 		}
 	}
 }

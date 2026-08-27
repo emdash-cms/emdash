@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-import { apiFetch, fetchManifest, throwResponseError } from "../../src/lib/api/client";
+import {
+	ApiResponseError,
+	apiFetch,
+	fetchManifest,
+	throwResponseError,
+} from "../../src/lib/api/client";
 
 describe("apiFetch", () => {
 	let fetchSpy: ReturnType<typeof vi.fn>;
@@ -130,6 +135,29 @@ describe("throwResponseError", () => {
 			{ status: 404 },
 		);
 		await expect(throwResponseError(response, "fallback")).rejects.toThrow("Not found");
+	});
+
+	it("preserves status, code, and details on API response errors", async () => {
+		const response = new Response(
+			JSON.stringify({
+				error: {
+					code: "CONFLICT",
+					message: "Already exists",
+					details: { field: "name" },
+				},
+			}),
+			{ status: 409 },
+		);
+
+		const error = await throwResponseError(response, "fallback").catch((value: unknown) => value);
+
+		expect(error).toBeInstanceOf(ApiResponseError);
+		expect(error).toMatchObject({
+			status: 409,
+			code: "CONFLICT",
+			message: "Already exists",
+			details: { field: "name" },
+		});
 	});
 
 	it("falls back to the generic fallback when the body has no error", async () => {

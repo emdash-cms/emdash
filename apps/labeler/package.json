@@ -12,6 +12,9 @@
 		"typecheck": "tsgo --noEmit && tsgo --noEmit -p evals/tsconfig.json",
 		"test": "vitest run && vitest run --config vitest.ai.config.ts",
 		"test:ai": "vitest run --config vitest.ai.config.ts",
+		"eval:sweep": "vitest run --config vitest.sweep.config.ts",
+		"eval:image:server": "wrangler dev -c evals/wrangler.sweep.jsonc --port 8790",
+		"eval:image:local": "node scripts/evaluate-local-images.mjs",
 		"types": "wrangler types",
 		"db:migrate:local": "wrangler d1 migrations apply emdash-labeler --local",
 		"db:migrate": "wrangler d1 migrations apply emdash-labeler --remote"

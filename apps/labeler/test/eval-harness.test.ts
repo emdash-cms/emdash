@@ -93,4 +93,30 @@ describe("Workers AI evaluation harness", () => {
 		await expect(runEvaluation(options)).resolves.toMatchObject({ mode: "recorded" });
 		expect(modelCalls).toBe(dataset.fixtures.length);
 	});
+
+	it("bounds case concurrency and preserves dataset order", async () => {
+		const dataset = await loadEvalDataset({ readFile: readDatasetFile });
+		const base = createRecordedEvaluationOptions({
+			dataset,
+			...loadRecordedBaseline(),
+			runnerCommit: "test",
+			executedAt: "2026-08-24T00:00:00.000Z",
+		});
+		let active = 0;
+		let maximumActive = 0;
+		const bundle = await runEvaluation({
+			...base,
+			caseConcurrency: 3,
+			async runCase(_name, callback) {
+				active += 1;
+				maximumActive = Math.max(maximumActive, active);
+				await new Promise((done) => setTimeout(done, 5));
+				const result = await callback();
+				active -= 1;
+				return result;
+			},
+		});
+		expect(maximumActive).toBe(3);
+		expect(bundle.cases.map(({ id }) => id)).toEqual(dataset.fixtures.map(({ id }) => id));
+	});
 });
