@@ -3,6 +3,7 @@ import {
 	CompositeDidDocumentResolver,
 	PlcDidDocumentResolver,
 } from "@atcute/identity-resolver";
+import { isDid, type AtprotoDid } from "@atcute/lexicons/syntax";
 import { INITIAL_LISTING_POLICY_FIXTURE } from "@emdash-cms/registry-moderation/fixtures";
 import { fetchVerifiedResource } from "@emdash-cms/registry-verification/fetch";
 
@@ -22,6 +23,7 @@ import { createDohHostnameResolver } from "../runtime-network.js";
 import { createLabelPublicationTarget } from "../subscriptions/publisher.js";
 import { createD1AssessmentLifecycleStore } from "./lifecycle.js";
 import { createGuardedMediaAcquirer } from "./media.js";
+import { publisherHandleFromDidDocument } from "./publisher-identity.js";
 import { createAtprotoExactRecordVerifier } from "./records.js";
 import {
 	createCloudflareImagesDecoder,
@@ -36,13 +38,7 @@ export async function createProductionAssessmentWorkflowDependencies(
 ): Promise<AssessmentWorkflowDependencies> {
 	const config = await readLabelerRuntimeConfig(env);
 	const resolveHostname = createDohHostnameResolver();
-	const guardedFetch = createGuardedIdentityFetch(resolveHostname);
-	const didResolver = new CompositeDidDocumentResolver({
-		methods: {
-			plc: new PlcDidDocumentResolver({ fetch: guardedFetch }),
-			web: new AtprotoWebDidDocumentResolver({ fetch: guardedFetch }),
-		},
-	});
+	const didResolver = createProductionDidResolver(resolveHostname);
 	const ai = workersAiBindingFromEnv(env.AI);
 	const { connect } = await import("cloudflare:sockets");
 	const issuer = await createProductionListingLabelIssuer(env, config);
@@ -94,6 +90,16 @@ export async function createProductionAssessmentWorkflowDependencies(
 		},
 		finalizer: issuer,
 	};
+}
+
+export async function resolveProductionPublisherHandle(
+	publisherDid: string,
+): Promise<string | null> {
+	if (!isAtprotoDid(publisherDid)) return null;
+	const resolveHostname = createDohHostnameResolver();
+	const document = await createProductionDidResolver(resolveHostname).resolve(publisherDid);
+	if (document.id !== publisherDid) return null;
+	return publisherHandleFromDidDocument(document);
 }
 
 export async function createProductionListingLabelIssuer(
@@ -161,4 +167,20 @@ function createGuardedIdentityFetch(
 			headers: result.value.headers,
 		});
 	};
+}
+
+function createProductionDidResolver(
+	resolveHostname: ReturnType<typeof createDohHostnameResolver>,
+) {
+	const guardedFetch = createGuardedIdentityFetch(resolveHostname);
+	return new CompositeDidDocumentResolver({
+		methods: {
+			plc: new PlcDidDocumentResolver({ fetch: guardedFetch }),
+			web: new AtprotoWebDidDocumentResolver({ fetch: guardedFetch }),
+		},
+	});
+}
+
+function isAtprotoDid(value: string): value is AtprotoDid {
+	return isDid(value) && (value.startsWith("did:plc:") || value.startsWith("did:web:"));
 }

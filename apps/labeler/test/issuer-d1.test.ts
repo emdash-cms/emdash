@@ -73,6 +73,19 @@ describe("D1 listing label issuer", () => {
 		expect(count?.count).toBe(first.labels.length);
 	});
 
+	it("allows approvals without a justification but keeps block reasons mandatory", async () => {
+		const issuer = await createTestIssuer(env.DB);
+		await expect(
+			issuer.approve(
+				{ ...decisionContext("approval-without-reason"), reason: "" },
+				PROFILE_SUBJECT,
+			),
+		).resolves.toMatchObject({ action: "approve" });
+		await expect(
+			issuer.block({ ...decisionContext("block-without-reason"), reason: "" }, PROFILE_SUBJECT),
+		).rejects.toThrow("reason must be between 1 and 1000 characters");
+	});
+
 	it("binds idempotency to actor, reason, action, subject, and proposal", async () => {
 		const issuer = await createTestIssuer(env.DB);
 		const context = decisionContext("bound");

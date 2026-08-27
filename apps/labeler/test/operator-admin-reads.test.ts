@@ -2,7 +2,12 @@ import { applyD1Migrations, env } from "cloudflare:test";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import type { OperatorIdentity } from "../src/access.js";
-import { handleOperatorApi, type OperatorApiDependencies } from "../src/operator/api.js";
+import {
+	handleOperatorApi,
+	readOperatorRelatedProfile,
+	type OperatorApiDependencies,
+} from "../src/operator/api.js";
+import { seedAssessment } from "./issuer-helpers.js";
 
 const ADMIN: OperatorIdentity = {
 	kind: "human",
@@ -16,6 +21,77 @@ beforeAll(async () => {
 });
 
 describe("operator administration reads", () => {
+	it("uses the latest prepared assessment for the current related profile", async () => {
+		const profileUri =
+			"at://did:example:publisher/com.emdashcms.experimental.package.profile/example";
+		await seedAssessment(env.DB, { id: "related-profile-old", state: "review", uri: profileUri });
+		await seedAssessment(env.DB, {
+			id: "related-profile-current",
+			state: "review",
+			uri: profileUri,
+		});
+		await env.DB.prepare(
+			"UPDATE assessments SET canonical_input_json = ? WHERE run_key = 'related-profile-current'",
+		)
+			.bind(
+				JSON.stringify({ input: { name: "Current profile", authors: [{ name: "Publisher" }] } }),
+			)
+			.run();
+		await env.DB.prepare(
+			"UPDATE current_assessments SET assessment_id = 'related-profile-old' WHERE subject_uri = ?",
+		)
+			.bind(profileUri)
+			.run();
+
+		await expect(
+			readOperatorRelatedProfile(env.DB, {
+				input: { publisherDid: "did:example:publisher", packageSlug: "example" },
+			}),
+		).resolves.toEqual({ name: "Current profile", authors: [{ name: "Publisher" }] });
+	});
+
+	it("serves only quarantined media referenced by an assessment", async () => {
+		const runKey = "operator-media-preview";
+		const sha256 = "a".repeat(64);
+		const objectKey = `media/${sha256}/12345678-1234-4123-8123-123456789abc`;
+		const bytes = new TextEncoder().encode("verified-image-bytes");
+		await seedAssessment(env.DB, { id: runKey, state: "review" });
+		await env.DB.prepare("UPDATE assessments SET canonical_input_json = ? WHERE run_key = ?")
+			.bind(
+				JSON.stringify({
+					mediaEvidence: [
+						{
+							kind: "icon",
+							index: 0,
+							sha256,
+							mimeType: "image/png",
+							contentRef: `r2://quarantine/${objectKey}`,
+						},
+					],
+				}),
+				runKey,
+			)
+			.run();
+		await env.MEDIA_QUARANTINE.put(objectKey, bytes);
+
+		const response = await handleOperatorApi(
+			new Request(`https://labels.example/_admin/api/assessments/${runKey}/media/icon/0`),
+			env,
+			dependencies(),
+		);
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("content-type")).toBe("image/png");
+		expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
+
+		const missing = await handleOperatorApi(
+			new Request(`https://labels.example/_admin/api/assessments/${runKey}/media/icon/1`),
+			env,
+			dependencies(),
+		);
+		expect(missing.status).toBe(404);
+	});
+
 	it("reads the persisted issuance control state", async () => {
 		await env.DB.prepare(
 			`INSERT INTO service_state (key, value, updated_at)

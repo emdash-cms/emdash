@@ -126,6 +126,19 @@ describe("public assessment XRPC", () => {
 				CREATED_AT,
 			)
 			.run();
+		await env.DB.prepare(
+			`INSERT INTO findings
+			 (assessment_id, finding_index, category, reason_code, public_summary,
+			  evidence_refs_json, created_at)
+			 VALUES (?, 1, 'moderation-manipulation', 'policy-finding', ?, ?, ?)`,
+		)
+			.bind(
+				seeded.id,
+				"RAW MANIPULATION MODEL OUTPUT MUST NOT LEAK",
+				'["profile.description"]',
+				CREATED_AT,
+			)
+			.run();
 		await insertAutomatedLabel(seeded, "listing-review", [1, 2, 3]);
 		await insertManualDecision(
 			seeded,
@@ -157,6 +170,11 @@ describe("public assessment XRPC", () => {
 					category: "phishing",
 					reasonCode: "policy-finding",
 					summary: "The assessment identified potential phishing in listing metadata.",
+				},
+				{
+					category: "moderation-manipulation",
+					reasonCode: "policy-finding",
+					summary: "The assessment identified an attempt to manipulate automated moderation.",
 				},
 			],
 			labels: [

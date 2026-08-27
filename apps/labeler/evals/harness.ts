@@ -198,7 +198,7 @@ async function evaluateFixture(
 		if (fixture.kind === "text") {
 			const canonical = await buildCanonicalTextEvalRequest(fixture);
 			result = await adapters.text.moderate({
-				subject: PROFILE_SUBJECT,
+				subject: canonical.subject,
 				text: canonical.text,
 				links: canonical.links,
 			});
@@ -258,19 +258,24 @@ async function evaluateFixture(
 }
 
 export async function buildCanonicalTextEvalRequest(fixture: TextEvalFixture) {
-	const record = materializeProfileRecord(fixture);
+	const slug = fixture.input.text.find(({ ref }) => ref === "profile.slug")?.value ?? "eval";
+	const subject = {
+		...PROFILE_SUBJECT,
+		uri: `at://did:plc:evaluationfixture/com.emdashcms.experimental.package.profile/${slug}`,
+	};
+	const record = materializeProfileRecord(fixture, subject.uri);
 	const verified = await verifyExactRegistryRecord(
 		{
 			async verifyExactRecord() {
 				return {
-					uri: PROFILE_SUBJECT.uri,
-					cid: PROFILE_SUBJECT.cid,
+					uri: subject.uri,
+					cid: subject.cid,
 					record,
 					verification: "did-mst-signature" as const,
 				};
 			},
 		},
-		PROFILE_SUBJECT,
+		subject,
 	);
 	const canonical = buildCanonicalAssessmentInput(verified);
 	if (canonical.kind !== "profile") throw new Error("text eval did not produce a profile");
@@ -288,10 +293,10 @@ export async function buildCanonicalTextEvalRequest(fixture: TextEvalFixture) {
 			throw new Error(`link fixture does not match canonical projection: ${expected.ref}`);
 		}
 	}
-	return { text: canonical.text, links: canonical.links };
+	return { subject, text: canonical.text, links: canonical.links };
 }
 
-function materializeProfileRecord(fixture: TextEvalFixture) {
+function materializeProfileRecord(fixture: TextEvalFixture, subjectUri: string) {
 	const authors: Array<{ name: string; url?: string; email?: string }> = [
 		{ name: "Evaluation Publisher" },
 	];
@@ -300,7 +305,7 @@ function materializeProfileRecord(fixture: TextEvalFixture) {
 	const keywords: string[] = [];
 	const record: Record<string, unknown> = {
 		$type: "com.emdashcms.experimental.package.profile",
-		id: PROFILE_SUBJECT.uri,
+		id: subjectUri,
 		type: "emdash-plugin",
 		slug: "eval",
 		license: "MIT",
@@ -500,6 +505,7 @@ export function calculateEvalMetrics(cases: readonly EvalCaseResult[]): EvalMetr
 		"scam-or-spam": categoryMetrics(),
 		"malicious-or-deceptive-link": categoryMetrics(),
 		"misleading-media-or-claims": categoryMetrics(),
+		"moderation-manipulation": categoryMetrics(),
 	};
 	const partitions = new Map<string, { reviews: number; total: number }>();
 	const allRuns = cases.flatMap(({ runs: caseRuns }) => caseRuns);

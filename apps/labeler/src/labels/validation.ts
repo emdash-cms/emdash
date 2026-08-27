@@ -57,7 +57,12 @@ export function validateListingLabelIssuance(
 ): ValidatedIssuance {
 	if (!DID.test(issuerDid)) throw new TypeError("issuerDid must be a valid DID");
 	if (!DID.test(context.actorDid)) throw new TypeError("actorDid must be a valid DID");
-	if (context.reason.trim().length === 0 || context.reason.length > 1_000) {
+	const approvalAllowsNoReason =
+		context.role !== "automation" && context.operatorAction.action === "approve";
+	if (
+		(!approvalAllowsNoReason && context.reason.trim().length === 0) ||
+		context.reason.length > 1_000
+	) {
 		throw new TypeError("reason must be between 1 and 1000 characters");
 	}
 	validateIdempotencyKey(context.idempotencyKey, "idempotencyKey");

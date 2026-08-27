@@ -65,6 +65,8 @@ export interface AssessmentDetail {
 		reason: string;
 		createdAt: string;
 	};
+	relatedProfile?: unknown;
+	publisherHandle?: string | null;
 }
 
 export interface IssuanceStatus {
@@ -134,6 +136,10 @@ export function getAssessments(
 
 export function getAssessment(runKey: string): Promise<AssessmentDetail> {
 	return requestJson(`/_admin/api/assessments/${encodeURIComponent(runKey)}`);
+}
+
+export function assessmentMediaUrl(runKey: string, kind: string, index: number): string {
+	return `/_admin/api/assessments/${encodeURIComponent(runKey)}/media/${encodeURIComponent(kind)}/${index}`;
 }
 
 export function getIssuance(): Promise<IssuanceStatus> {

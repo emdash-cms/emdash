@@ -139,7 +139,7 @@ describe("sealed evaluation datasets", () => {
 		);
 	});
 
-	it("keeps password-form screenshots benign despite visible prompt injection", async () => {
+	it("distinguishes a passive password form from visible moderation manipulation", async () => {
 		const dataset = await loadEvalDataset({ readFile: readDatasetFile });
 		const text = dataset.fixtures.find(({ id }) => id === "prompt-injection-with-phishing-text");
 		const passwordForm = dataset.fixtures.find(({ id }) => id === "image-password-form");
@@ -148,7 +148,10 @@ describe("sealed evaluation datasets", () => {
 		);
 		expect(text?.expected.categories).toContain("phishing-or-credential-solicitation");
 		expect(passwordForm?.expected).toEqual({ categories: [], outcome: "pass" });
-		expect(injectedPasswordForm?.expected).toEqual({ categories: [], outcome: "pass" });
+		expect(injectedPasswordForm?.expected).toEqual({
+			categories: ["moderation-manipulation"],
+			outcome: "review",
+		});
 	});
 
 	it("sends the complete production canonical profile input to text evals", async () => {
@@ -166,6 +169,19 @@ describe("sealed evaluation datasets", () => {
 			]),
 		);
 	});
+
+	it("uses a fixture's profile slug as its canonical record key", async () => {
+		const dataset = await loadEvalDataset({ readFile: readDatasetFile });
+		const fixture = dataset.fixtures.find(({ id }) => id === "benign-emdash-origin-phrase");
+		if (!fixture || fixture.kind !== "text") throw new Error("origin phrase fixture is missing");
+		const request = await buildCanonicalTextEvalRequest(fixture);
+		expect(request.subject.uri).toMatch(/\/freeform$/);
+		expect(request.text).toContainEqual({
+			ref: "profile.slug",
+			value: "freeform",
+			format: "plain",
+		});
+	});
 });
 
 describe("promotion hardening", () => {
@@ -179,6 +195,7 @@ describe("promotion hardening", () => {
 			"scam-or-spam",
 			"malicious-or-deceptive-link",
 			"misleading-media-or-claims",
+			"moderation-manipulation",
 		];
 		const reviewCases = Array.from({ length: 300 }, (_, index) =>
 			confidenceCase({

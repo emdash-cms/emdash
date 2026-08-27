@@ -69,6 +69,42 @@ describe("operator mutation API", () => {
 		);
 	});
 
+	it("approves without requiring a reason", async () => {
+		const approve = vi.fn(async () => ({
+			action: "approve" as const,
+			operatorActionId: 8,
+			labels: [],
+		}));
+		const response = await handleOperatorApi(
+			operatorRequest(`/_admin/api/assessments/${RUN.runKey}/approve`, {
+				uri: RUN.subject.uri,
+				cid: RUN.subject.cid,
+			}),
+			{} as Env,
+			dependencies(REVIEWER, { approve }),
+		);
+
+		expect(response.status).toBe(200);
+		expect(approve).toHaveBeenCalledWith(
+			expect.objectContaining({ reason: "" }),
+			RUN.subject,
+			expect.any(Date),
+		);
+	});
+
+	it("still requires a reason to block a revision", async () => {
+		const response = await handleOperatorApi(
+			operatorRequest(`/_admin/api/assessments/${RUN.runKey}/block`, {
+				uri: RUN.subject.uri,
+				cid: RUN.subject.cid,
+			}),
+			{} as Env,
+			dependencies(REVIEWER),
+		);
+
+		expect(response.status).toBe(400);
+	});
+
 	it("requires the custom header, same origin, JSON, authentication, and role", async () => {
 		const missingHeader = operatorRequest(`/_admin/api/assessments/${RUN.runKey}/approve`, {
 			reason: "Review",
@@ -498,6 +534,40 @@ describe("operator rerun idempotency", () => {
 				reason: "Different reason",
 			}),
 		).rejects.toThrow(/another action/);
+	});
+});
+
+describe("operator assessment detail", () => {
+	it("includes the resolved publisher handle", async () => {
+		const resolvePublisherHandle = vi.fn(async () => "publisher.example");
+		const response = await handleOperatorApi(
+			new Request(`https://labels.example/_admin/api/assessments/${RUN.runKey}`),
+			{} as Env,
+			{
+				...dependencies(REVIEWER),
+				resolvePublisherHandle,
+			},
+		);
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({ publisherHandle: "publisher.example" });
+		expect(resolvePublisherHandle).toHaveBeenCalledWith("did:plc:fixture");
+	});
+
+	it("keeps assessment detail available when handle resolution fails", async () => {
+		const response = await handleOperatorApi(
+			new Request(`https://labels.example/_admin/api/assessments/${RUN.runKey}`),
+			{} as Env,
+			{
+				...dependencies(REVIEWER),
+				resolvePublisherHandle: async () => {
+					throw new Error("resolver unavailable");
+				},
+			},
+		);
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({ publisherHandle: null });
 	});
 });
 

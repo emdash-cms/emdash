@@ -693,6 +693,8 @@ function publicFindingCategory(value: string): string {
 			return "malicious-link";
 		case "misleading-media-or-claims":
 			return "misleading-content";
+		case "moderation-manipulation":
+			return value;
 		default:
 			return "uncertain";
 	}
@@ -716,6 +718,8 @@ function publicFindingSummary(category: string): string {
 			return "The assessment identified a potentially malicious link in listing metadata.";
 		case "misleading-content":
 			return "The assessment identified potentially misleading listing metadata.";
+		case "moderation-manipulation":
+			return "The assessment identified an attempt to manipulate automated moderation.";
 		default:
 			return "The assessment identified listing metadata that requires review.";
 	}
