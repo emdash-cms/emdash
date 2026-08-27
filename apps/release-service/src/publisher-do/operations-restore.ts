@@ -38,7 +38,9 @@ interface RestoreStateRow {
 	total_pages: number;
 	next_page: number;
 	last_kind: PublisherRestoreKind;
-	status: "complete" | "restoring";
+	status: "complete" | "prepared" | "restoring";
+	deleted_intents: number;
+	deleted_workloads: number;
 }
 
 interface RestorePageRow {
@@ -116,7 +118,9 @@ export function initializeOperationsRestoreSchema(storage: DurableObjectStorage)
 			last_kind TEXT NOT NULL CHECK (
 				last_kind IN ('metadata', 'workload-policies', 'intents', 'audit-events')
 			),
-			status TEXT NOT NULL CHECK (status IN ('restoring', 'complete')),
+			status TEXT NOT NULL CHECK (status IN ('prepared', 'restoring', 'complete')),
+			deleted_intents INTEGER NOT NULL CHECK (deleted_intents >= 0),
+			deleted_workloads INTEGER NOT NULL CHECK (deleted_workloads >= 0),
 			actor_identity TEXT NOT NULL,
 			updated_at INTEGER NOT NULL
 		);
@@ -177,13 +181,17 @@ export class OperationsRestoreStore {
 			}
 			const state = this.#state();
 			if (input.page === 0) {
-				if (input.kind !== "metadata") {
+				if (
+					input.kind !== "metadata" ||
+					!state ||
+					state.archive_id !== input.archiveId ||
+					state.total_pages !== input.totalPages ||
+					state.next_page !== 0 ||
+					state.status !== "prepared"
+				) {
 					return { ok: false, code: "RESTORE_OUT_OF_ORDER" } as const;
 				}
-				if (state && state.archive_id !== input.archiveId) {
-					return { ok: false, code: "RESTORE_CONFLICT" } as const;
-				}
-				if (!state && !this.#emptyShard()) {
+				if (!this.#emptyShard()) {
 					return { ok: false, code: "RESTORE_NOT_EMPTY" } as const;
 				}
 			} else if (
@@ -200,24 +208,16 @@ export class OperationsRestoreStore {
 			const nextPage = input.page + 1;
 			const complete = nextPage === input.totalPages;
 			this.storage.sql.exec(
-				`INSERT INTO operations_restore (
-					id, archive_id, total_pages, next_page, last_kind, status, actor_identity, updated_at
-				) VALUES (1, ?, ?, ?, ?, ?, ?, ?)
-				ON CONFLICT(id) DO UPDATE SET
-					archive_id = excluded.archive_id,
-					total_pages = excluded.total_pages,
-					next_page = excluded.next_page,
-					last_kind = excluded.last_kind,
-					status = excluded.status,
-					actor_identity = excluded.actor_identity,
-					updated_at = excluded.updated_at`,
-				input.archiveId,
-				input.totalPages,
+				`UPDATE operations_restore SET
+					next_page = ?, last_kind = ?, status = ?, actor_identity = ?, updated_at = ?
+				 WHERE id = 1 AND archive_id = ? AND total_pages = ?`,
 				nextPage,
 				input.kind,
 				complete ? "complete" : "restoring",
 				input.actorIdentity,
 				now,
+				input.archiveId,
+				input.totalPages,
 			);
 			this.storage.sql.exec(
 				`INSERT INTO operations_restore_pages (
@@ -246,7 +246,9 @@ export class OperationsRestoreStore {
 		return (
 			this.storage.sql
 				.exec<RestoreStateRow>(
-					"SELECT archive_id, total_pages, next_page, last_kind, status FROM operations_restore WHERE id = 1",
+					`SELECT archive_id, total_pages, next_page, last_kind, status,
+					        deleted_intents, deleted_workloads
+					 FROM operations_restore WHERE id = 1`,
 				)
 				.toArray()[0] ?? null
 		);

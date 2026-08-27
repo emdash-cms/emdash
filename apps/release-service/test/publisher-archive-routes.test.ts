@@ -227,6 +227,17 @@ describe("publisher operations archive", () => {
 					authorityStatus: "reauthorization_required",
 				},
 			});
+			if (restorePage === 0) {
+				const prepareReplay = await handlePreparePublisherRestore(
+					prepareRestoreRequest(),
+					"restore-prepare-replay",
+					configuration,
+					{ publisherDid: PUBLISHER_DID },
+					ADMIN,
+				);
+				expect(prepareReplay.status).toBe(200);
+				await expect(prepareReplay.json()).resolves.toMatchObject({ data: { replayed: true } });
+			}
 		}
 		const restored = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
 		await expect(restored.getOperationsMetadata(PUBLISHER_DID)).resolves.toMatchObject({

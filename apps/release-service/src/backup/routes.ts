@@ -607,16 +607,23 @@ export async function handlePreparePublisherRestore(
 			snapshotContext(publisherDid, body["archiveId"], "manifest"),
 			configuration,
 		);
-		parseManifest(manifestPlaintext, publisherDid, body["archiveId"]);
+		const manifest = parseManifest(manifestPlaintext, publisherDid, body["archiveId"]);
 		const publisher = env.PUBLISHER_DO.getByName(publisherDid);
 		await publisher.setPublisherSuspended(publisherDid, true, actor.identity);
 		const result = await publisher.prepareOperationsRestore(
 			publisherDid,
 			body["archiveId"],
+			manifest.pages,
 			actor.identity,
 		);
 		if (!result.ok) {
-			throw new ApiError("RESTORE_OPERATION_FAILED", 409, "Publisher is not suspended");
+			throw new ApiError(
+				"RESTORE_OPERATION_FAILED",
+				409,
+				result.code === "PUBLISHER_NOT_SUSPENDED"
+					? "Publisher is not suspended"
+					: "Another publisher restore is already in progress",
+			);
 		}
 		return apiSuccess(
 			{
@@ -625,6 +632,7 @@ export async function handlePreparePublisherRestore(
 				prepared: true,
 				deletedIntents: result.deletedIntents,
 				deletedWorkloads: result.deletedWorkloads,
+				replayed: result.replayed,
 			},
 			requestId,
 		);

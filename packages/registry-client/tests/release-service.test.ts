@@ -532,6 +532,7 @@ describe("ReleaseServiceOperatorClient", () => {
 				prepared: true,
 				deletedIntents: 3,
 				deletedWorkloads: 1,
+				replayed: false,
 			});
 		};
 		const client = new ReleaseServiceOperatorClient({ serviceUrl: SERVICE, fetch });
@@ -539,7 +540,7 @@ describe("ReleaseServiceOperatorClient", () => {
 			client.preparePublisherRestore(PUBLISHER_DID, "publisher-archive-0001", {
 				idempotencyKey: "operator-publisher-restore-prepare-0001",
 			}),
-		).resolves.toMatchObject({ prepared: true, deletedIntents: 3 });
+		).resolves.toMatchObject({ prepared: true, deletedIntents: 3, replayed: false });
 		expect(new URL(captured!.url).pathname).toBe(
 			`/admin/api/publishers/${encodeURIComponent(PUBLISHER_DID)}/restore/prepare`,
 		);

@@ -654,6 +654,33 @@ export class IntentStateStore {
 			.map(rowToIntent);
 	}
 
+	listExpirable(now: number, limit: number): readonly StoredIntent[] {
+		if (
+			!Number.isSafeInteger(now) ||
+			now < 0 ||
+			!Number.isSafeInteger(limit) ||
+			limit < 1 ||
+			limit > 100
+		) {
+			throw new IntentStateError();
+		}
+		return this.#storage.sql
+			.exec<IntentRow>(
+				`SELECT id, package_slug, version, state, state_generation,
+				        workload_policy_version, workload_identity_digest, workload_idempotency_digest,
+				        request_digest, workload_identity_json, release_input_json, state_data_json,
+				        workflow_id, expires_at, created_at, updated_at
+				 FROM intents
+				 WHERE expires_at <= ?
+				   AND state IN ('received', 'verifying', 'verified', 'awaiting_approval', 'ready')
+				 ORDER BY expires_at, id LIMIT ?`,
+				now,
+				limit,
+			)
+			.toArray()
+			.map(rowToIntent);
+	}
+
 	listTransitions(intentId: string): readonly IntentTransition[] {
 		if (!ULID_PATTERN.test(intentId)) throw new IntentStateError();
 		return this.#storage.sql

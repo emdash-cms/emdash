@@ -1,4 +1,4 @@
-import { reset, runInDurableObject } from "cloudflare:test";
+import { reset, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -319,6 +319,28 @@ describe("publisher release intents", () => {
 		expect(await stub.listIntentTransitions(DID, INTENT_1)).toHaveLength(8);
 	});
 
+	it("expires an approval wait from the publisher alarm", async () => {
+		const stub = publisher();
+		const now = Date.now();
+		await stub.putWorkloadPolicy(policy());
+		await stub.createIntent(intent({ now, expiresAt: now + 60_000 }));
+		await stub.transitionIntent(transition("received", 1, "verifying", { now: now + 1 }));
+		await stub.transitionIntent(transition("verifying", 2, "verified", { now: now + 2 }));
+		await stub.transitionIntent(
+			transition("verified", 3, "awaiting_approval", {
+				reasonCode: "APPROVAL_REQUIRED",
+				now: now + 3,
+			}),
+		);
+		await runInDurableObject(stub, (_instance, state) => {
+			state.storage.sql.exec("UPDATE intents SET expires_at = ? WHERE id = ?", now - 1, INTENT_1);
+		});
+
+		await runDurableObjectAlarm(stub);
+
+		await expect(stub.getIntent(DID, INTENT_1)).resolves.toMatchObject({ state: "expired" });
+	});
+
 	it("blocks suspended publishers and rejects noncanonical private input", async () => {
 		const stub = publisher();
 		await stub.putWorkloadPolicy(policy());
@@ -332,7 +354,7 @@ describe("publisher release intents", () => {
 		await runInDurableObject(stub, async (instance) => {
 			await expect(
 				instance.createIntent(intent({ workloadIdentityJson: '{ "runId": "100" }' })),
-			).rejects.toEqual(expect.objectContaining({ code: "INTENT_INPUT_INVALID" }));
+			).rejects.toMatchObject({ code: "INTENT_INPUT_INVALID" });
 		});
 	});
 });

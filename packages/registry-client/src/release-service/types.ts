@@ -236,6 +236,7 @@ export interface PreparePublisherRestoreResult {
 	prepared: true;
 	deletedIntents: number;
 	deletedWorkloads: number;
+	replayed: boolean;
 }
 
 export interface CursorPage<T> {
