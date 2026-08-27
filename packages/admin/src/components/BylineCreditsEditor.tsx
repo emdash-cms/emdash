@@ -403,55 +403,61 @@ export function BylineCreditsEditor({
 							/>
 						</div>
 
-						<Autocomplete
-							items={options}
-							value={search}
-							onValueChange={(value) => {
-								setSearch(String(value ?? ""));
-								setAutocompleteOpen(true);
-							}}
-							open={autocompleteOpen && options.length > 0}
-							onOpenChange={setAutocompleteOpen}
-							mode="none"
-							autoHighlight="always"
-							openOnInputClick
-							itemToStringValue={(option: BylineOption) =>
-								option.type === "byline" ? option.byline.displayName : option.label
-							}
-							label={<span className="sr-only">{t`Search bylines`}</span>}
-						>
-							<Autocomplete.InputGroup size="base" placeholder={t`Search by name…`} />
-							<Autocomplete.Content>
-								<Autocomplete.List className="max-h-64 overflow-y-auto">
-									{(option: BylineOption) => (
-										<Autocomplete.Item
-											key={option.type === "byline" ? option.byline.id : "create"}
-											value={option}
-											onClick={() => {
-												if (option.type === "byline") addByline(option.byline);
-												else openCreate();
-											}}
-										>
-											{option.type === "byline" ? (
-												<span className="grid min-w-0 gap-0.5">
-													<Text bold as="span" DANGEROUS_className="wrap-break-word">
-														{option.byline.displayName}
-													</Text>
-													<Text as="span" variant="secondary" DANGEROUS_className="wrap-break-word">
-														{option.byline.slug}
-													</Text>
-												</span>
-											) : (
-												<span className="flex items-center gap-2">
-													<Plus aria-hidden="true" />
-													{t`Create “${option.label}”`}
-												</span>
-											)}
-										</Autocomplete.Item>
-									)}
-								</Autocomplete.List>
-							</Autocomplete.Content>
-						</Autocomplete>
+						<div className="[&>div>label]:sr-only">
+							<Autocomplete
+								items={options}
+								value={search}
+								onValueChange={(value) => {
+									setSearch(String(value ?? ""));
+									setAutocompleteOpen(true);
+								}}
+								open={autocompleteOpen && options.length > 0}
+								onOpenChange={setAutocompleteOpen}
+								mode="none"
+								autoHighlight="always"
+								openOnInputClick
+								itemToStringValue={(option: BylineOption) =>
+									option.type === "byline" ? option.byline.displayName : option.label
+								}
+								label={t`Search bylines`}
+							>
+								<Autocomplete.InputGroup size="base" placeholder={t`Search by name…`} />
+								<Autocomplete.Content>
+									<Autocomplete.List className="max-h-64 overflow-y-auto">
+										{(option: BylineOption) => (
+											<Autocomplete.Item
+												key={option.type === "byline" ? option.byline.id : "create"}
+												value={option}
+												onClick={() => {
+													if (option.type === "byline") addByline(option.byline);
+													else openCreate();
+												}}
+											>
+												{option.type === "byline" ? (
+													<span className="grid min-w-0 gap-0.5">
+														<Text bold as="span" DANGEROUS_className="wrap-break-word">
+															{option.byline.displayName}
+														</Text>
+														<Text
+															as="span"
+															variant="secondary"
+															DANGEROUS_className="wrap-break-word"
+														>
+															{option.byline.slug}
+														</Text>
+													</span>
+												) : (
+													<span className="flex items-center gap-2">
+														<Plus aria-hidden="true" />
+														{t`Create “${option.label}”`}
+													</span>
+												)}
+											</Autocomplete.Item>
+										)}
+									</Autocomplete.List>
+								</Autocomplete.Content>
+							</Autocomplete>
+						</div>
 
 						{searchEnabled && searchResults.isLoading && !searchResults.data ? (
 							<div className="flex items-center gap-2">
