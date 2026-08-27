@@ -39,7 +39,7 @@ function sourceRelease() {
 	};
 }
 
-function intent(state = "received") {
+function intent(state = "received", service = SERVICE) {
 	return {
 		id: INTENT_ID,
 		publisherDid: PUBLISHER_DID,
@@ -55,7 +55,7 @@ function intent(state = "received") {
 		result: null,
 		approvalUrl:
 			state === "awaiting_approval"
-				? `${SERVICE}/approvals/${INTENT_ID}?publisher=${encodeURIComponent(PUBLISHER_DID)}`
+				? `${service}/approvals/${INTENT_ID}?publisher=${encodeURIComponent(PUBLISHER_DID)}`
 				: null,
 	};
 }
@@ -99,6 +99,19 @@ describe("ReleaseServiceClient", () => {
 					workloadToken: "header.payload.signature",
 				}),
 		).toThrow("HTTPS origin or a loopback");
+	});
+
+	it("accepts an approval URL on the configured loopback origin", async () => {
+		const service = "http://127.0.0.1:5175";
+		const client = new ReleaseServiceClient({
+			serviceUrl: service,
+			fetch: async () => success({ intent: intent("awaiting_approval", service) }),
+			workloadToken: "header.payload.signature",
+		});
+
+		await expect(client.getIntent(PUBLISHER_DID, INTENT_ID)).resolves.toMatchObject({
+			approvalUrl: `${service}/approvals/${INTENT_ID}?publisher=${encodeURIComponent(PUBLISHER_DID)}`,
+		});
 	});
 
 	it("submits a typed intent without retaining or exposing the workload token", async () => {

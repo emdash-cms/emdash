@@ -15,7 +15,6 @@ import {
 import { unsupportedAuthDetails, UNSUPPORTED_AUTH_MESSAGE } from "./auth.js";
 import { compareDigestBytes, decodeMultihash, multihashFromBlobCid } from "./checksum.js";
 import type { VerificationErrorCode } from "./errors.js";
-import { GitHubProvenanceVerifier } from "./provenance.js";
 import type { ProvenanceVerifier, VerifiedProvenance } from "./provenance.js";
 import { canonicalizeRepositoryUrl } from "./repository.js";
 
@@ -43,6 +42,9 @@ export interface RecordVerificationInput {
 }
 
 export type RecordInspectionInput = Omit<RecordVerificationInput, "provenance">;
+export type RecordVerificationInputWithVerifier = Omit<RecordVerificationInput, "provenance"> & {
+	provenance?: ProvenanceEvidence & { verifier: ProvenanceVerifier };
+};
 
 export type RecordVerificationCode =
 	| VerificationErrorCode
@@ -233,9 +235,9 @@ export async function inspectPackageReleaseRecords(
 	};
 }
 
-/** Validate signed records and apply the complete provenance policy. */
-export async function verifyPackageReleaseRecords(
+async function verifyPackageReleaseRecordsInternal(
 	input: RecordVerificationInput,
+	defaultVerifier: ProvenanceVerifier | null,
 ): Promise<RecordVerificationReport> {
 	const inspection = await inspectPackageReleaseRecords(input);
 	if (!inspection.success) return inspection;
@@ -283,7 +285,14 @@ export async function verifyPackageReleaseRecords(
 			"failed",
 		);
 	}
-	const verifier = input.provenance.verifier ?? new GitHubProvenanceVerifier();
+	const verifier = input.provenance.verifier ?? defaultVerifier;
+	if (!verifier) {
+		return failed(
+			"PROVENANCE_UNVERIFIABLE",
+			"The supplied provenance verifier is unavailable.",
+			"failed",
+		);
+	}
 	let provenanceResult: Awaited<ReturnType<ProvenanceVerifier["verify"]>>;
 	try {
 		provenanceResult = await verifier.verify({
@@ -315,6 +324,19 @@ export async function verifyPackageReleaseRecords(
 			verifiedProvenance: provenanceResult.value,
 		},
 	};
+}
+
+export function verifyPackageReleaseRecordsWithVerifier(
+	input: RecordVerificationInputWithVerifier,
+): Promise<RecordVerificationReport> {
+	return verifyPackageReleaseRecordsInternal(input, null);
+}
+
+export function verifyPackageReleaseRecordsWithDefaultVerifier(
+	input: RecordVerificationInput,
+	defaultVerifier: ProvenanceVerifier,
+): Promise<RecordVerificationReport> {
+	return verifyPackageReleaseRecordsInternal(input, defaultVerifier);
 }
 
 function normalizePolicy(

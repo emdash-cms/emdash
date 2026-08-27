@@ -336,7 +336,7 @@ function parseIntent(value: unknown, serviceUrl?: string): ReleaseIntentResource
 		} catch {
 			throw invalidResponse();
 		}
-		if (parsedApproval.origin !== serviceUrl || parsedApproval.protocol !== "https:") {
+		if (parsedApproval.origin !== serviceUrl) {
 			throw invalidResponse();
 		}
 	}

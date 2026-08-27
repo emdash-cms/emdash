@@ -1,6 +1,6 @@
 import { reset } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AccessActor } from "../src/access/auth.js";
 import { handleStartPublisherArchive } from "../src/backup/workflow-route.js";
@@ -53,6 +53,28 @@ describe("PublisherArchiveWorkflow", () => {
 				created: true,
 			},
 		});
+	});
+
+	it("restarts an errored deterministic archive instance", async () => {
+		const restart = vi.fn(async () => undefined);
+		const workflow = {
+			create: vi.fn(async () => {
+				throw new Error("instance already exists");
+			}),
+			get: vi.fn(async () => ({
+				status: async () => ({ status: "errored" }),
+				restart,
+			})),
+		} as unknown as Parameters<typeof startPublisherArchiveWorkflow>[0];
+
+		await expect(
+			startPublisherArchiveWorkflow(workflow, {
+				publisherDid: PUBLISHER_DID,
+				archiveId: ARCHIVE_ID,
+				actorIdentity: "admin@example.com",
+			}),
+		).resolves.toMatchObject({ ok: true, created: false });
+		expect(restart).toHaveBeenCalledOnce();
 	});
 
 	it("resumes bounded pages to an encrypted completion manifest", async () => {

@@ -1,4 +1,9 @@
-import { abortAllDurableObjects, reset, runInDurableObject } from "cloudflare:test";
+import {
+	abortAllDurableObjects,
+	reset,
+	runDurableObjectAlarm,
+	runInDurableObject,
+} from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -75,6 +80,31 @@ describe("PublisherDurableObject", () => {
 		await expect(stub.revokePublisherSession(DID, secondHash)).resolves.toBe(false);
 	});
 
+	it("limits active publisher sessions per shard", async () => {
+		const stub = publisher();
+		const now = 1_800_000_000_000;
+		for (let index = 0; index < 20; index += 1) {
+			await expect(
+				stub.createPublisherSession({
+					publisherDid: DID,
+					tokenHash: String(index).padStart(43, "A"),
+					csrfHash: SESSION_CSRF_HASH,
+					expiresAt: now + 60_000,
+					now,
+				}),
+			).resolves.toMatchObject({ ok: true });
+		}
+		await expect(
+			stub.createPublisherSession({
+				publisherDid: DID,
+				tokenHash: "Z".repeat(43),
+				csrfHash: SESSION_CSRF_HASH,
+				expiresAt: now + 60_000,
+				now,
+			}),
+		).resolves.toEqual({ ok: false, code: "PUBLISHER_SESSION_LIMIT_REACHED" });
+	});
+
 	it("invalidates all publisher sessions by epoch and blocks suspended publishers", async () => {
 		const stub = publisher();
 		const now = 1_800_000_000_000;
@@ -102,6 +132,75 @@ describe("PublisherDurableObject", () => {
 				now,
 			}),
 		).resolves.toEqual({ ok: false, code: "PUBLISHER_SUSPENDED" });
+	});
+
+	it("schedules one alarm for publisher state expiry and expires pending intents", async () => {
+		const stub = publisher();
+		const now = Date.now();
+		await stub.putWorkloadPolicy({
+			publisherDid: DID,
+			packageSlug: "gallery",
+			repository: "example/gallery",
+			repositoryId: "123",
+			repositoryOwnerId: "456",
+			workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+			allowedRefs: [],
+			allowedEnvironments: [],
+			active: true,
+			expectedVersion: null,
+			now,
+		});
+		await stub.createPublisherSession({
+			publisherDid: DID,
+			tokenHash: SESSION_TOKEN_HASH,
+			csrfHash: SESSION_CSRF_HASH,
+			expiresAt: now + 40_000,
+			now,
+		});
+		await stub.putOAuthState({
+			publisherDid: DID,
+			stateHash: STATE_HASH,
+			encryptedState: "encrypted-oauth-state",
+			encryptionKeyVersion: 2,
+			encryptionPurpose: "oauth-console-transaction",
+			clientKeyId: "assertion-1",
+			redirectTarget: "/publisher",
+			expiresAt: now + 30_000,
+			now,
+		});
+		await stub.createIntent({
+			publisherDid: DID,
+			intentId: "01JABCDEFGHJKMNPQRSTVWXYZ0",
+			packageSlug: "gallery",
+			version: "1.2.3",
+			workloadPolicyVersion: 1,
+			workloadIdentityDigest: "A".repeat(43),
+			workloadIdempotencyDigest: "I".repeat(43),
+			idempotencyKey: "publisher-alarm-intent-0001",
+			requestDigest: "B".repeat(43),
+			workloadIdentityJson: '{"issuer":"github-actions"}',
+			releaseInputJson: '{"release":{"package":"gallery","version":"1.2.3"}}',
+			expiresAt: now + 20_000,
+			now,
+		});
+
+		await expect(
+			runInDurableObject(stub, (_instance, state) => state.storage.getAlarm()),
+		).resolves.toBe(now + 20_000);
+		await runInDurableObject(stub, (_instance, state) => {
+			state.storage.sql.exec("UPDATE intents SET expires_at = ?", now - 1);
+			state.storage.sql.exec("UPDATE oauth_states SET expires_at = ?", now - 1);
+			state.storage.sql.exec("UPDATE publisher_sessions SET expires_at = ?", now - 1);
+		});
+		await runDurableObjectAlarm(stub);
+
+		await expect(stub.getIntent(DID, "01JABCDEFGHJKMNPQRSTVWXYZ0")).resolves.toMatchObject({
+			state: "expired",
+		});
+		await expect(stub.consumeOAuthState(DID, STATE_HASH, now)).resolves.toBeNull();
+		await expect(
+			stub.validatePublisherSession(DID, SESSION_TOKEN_HASH, null, now),
+		).resolves.toEqual({ ok: false, code: "PUBLISHER_SESSION_INVALID" });
 	});
 
 	it("isolates publisher, repository, and workload admission budgets", async () => {
@@ -335,13 +434,45 @@ describe("PublisherDurableObject", () => {
 						encryptionKeyVersion: 2,
 						encryptionPurpose: "oauth-console-transaction",
 						clientKeyId: "assertion-1",
-						redirectTarget,
-						expiresAt: Date.now() + 60_000,
-					}),
-				).rejects.toEqual(expect.objectContaining({ code: "OAUTH_STATE_INVALID" }));
+					redirectTarget,
+					expiresAt: Date.now() + 60_000,
+				}),
+				).rejects.toMatchObject({ code: "OAUTH_STATE_INVALID" });
 			});
 		},
 	);
+	it("limits active publisher OAuth states per shard", async () => {
+		const stub = publisher();
+		const now = 1_800_000_000_000;
+		for (let index = 0; index < 20; index += 1) {
+			await expect(
+				stub.putOAuthState({
+					publisherDid: DID,
+					stateHash: String(index).padStart(43, "a"),
+					encryptedState: "encrypted-oauth-state",
+					encryptionKeyVersion: 2,
+					encryptionPurpose: "oauth-console-transaction",
+					clientKeyId: "assertion-1",
+					redirectTarget: "/publisher",
+					expiresAt: now + 60_000,
+					now,
+				}),
+			).resolves.toEqual({ ok: true });
+		}
+		await expect(
+			stub.putOAuthState({
+				publisherDid: DID,
+				stateHash: "Z".repeat(43),
+				encryptedState: "encrypted-oauth-state",
+				encryptionKeyVersion: 2,
+				encryptionPurpose: "oauth-console-transaction",
+				clientKeyId: "assertion-1",
+				redirectTarget: "/publisher",
+				expiresAt: now + 60_000,
+				now,
+			}),
+		).resolves.toEqual({ ok: false, code: "OAUTH_STATE_LIMIT_REACHED" });
+	});
 
 	it("rejects duplicate state and deletes expired state on consume", async () => {
 		const stub = publisher();

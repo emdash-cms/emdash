@@ -461,6 +461,7 @@ export class ApproverStore {
 				.toArray()[0];
 			if (existing) return { ok: false, code: "IDENTITY_TRANSACTION_EXISTS" } as const;
 			this.#deleteExpiredIdentityTransactions(now, MAX_ACTIVE_IDENTITY_TRANSACTIONS);
+			this.storage.sql.exec("DELETE FROM identity_transactions WHERE completed_at IS NOT NULL");
 			const count = this.storage.sql
 				.exec<{ count: number }>(
 					"SELECT COUNT(*) AS count FROM identity_transactions WHERE completed_at IS NULL",
@@ -877,6 +878,7 @@ export class ApproverStore {
 				.toArray()[0];
 			if (existing) return { ok: false, code: "CHALLENGE_EXISTS" } as const;
 			this.#expireChallenges(now, MAX_ACTIVE_CHALLENGES);
+			this.storage.sql.exec("DELETE FROM approval_challenges WHERE consumed_at IS NOT NULL");
 			const count = this.storage.sql
 				.exec<{ count: number }>(
 					"SELECT COUNT(*) AS count FROM approval_challenges WHERE consumed_at IS NULL",

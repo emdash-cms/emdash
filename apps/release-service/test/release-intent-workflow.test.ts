@@ -1132,6 +1132,72 @@ describe("ReleaseIntentWorkflow", () => {
 		expect(operation.lease_ms).toBe(5 * 60_000);
 	});
 
+	it("expires a ready intent instead of publishing it after a pause", async () => {
+		let paused = false;
+		let createAttempts = 0;
+		vi.stubGlobal(
+			"fetch",
+			workflowNetwork({
+				onAuthorizationMetadata: async () => {
+					if (paused) return;
+					paused = true;
+					await env.SERVICE_CONTROL_DO.getByName(SERVICE_CONTROL_OBJECT_NAME).setServiceMode({
+						actor: CONTROL_ACTOR,
+						idempotencyKey: "publication-expiry-pause",
+						requestDigest: "E".repeat(43),
+						mode: "publication-paused",
+						reasonCode: "TEST_PAUSE",
+					});
+				},
+				onCreateRecord: () => {
+					createAttempts += 1;
+					return Response.json({ uri: CREATED_URI, cid: CREATED_CID });
+				},
+			}),
+		);
+		await createVerifyingIntent();
+		await using introspector = await introspectWorkflowInstance(
+			env.RELEASE_INTENT_WORKFLOW,
+			INTENT_ID,
+		);
+		await env.RELEASE_INTENT_WORKFLOW.create({
+			id: INTENT_ID,
+			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+		});
+		await introspector.waitForStatus("complete");
+		await runInDurableObject(env.PUBLISHER_DO.getByName(PUBLISHER_DID), (_instance, state) => {
+			state.storage.sql.exec(
+				"UPDATE intents SET expires_at = ? WHERE id = ?",
+				Date.now() - 1,
+				INTENT_ID,
+			);
+		});
+		await env.SERVICE_CONTROL_DO.getByName(SERVICE_CONTROL_OBJECT_NAME).setServiceMode({
+			actor: CONTROL_ACTOR,
+			idempotencyKey: "publication-expiry-active",
+			requestDigest: "F".repeat(43),
+			mode: "active",
+			reasonCode: null,
+		});
+
+		await expect(
+			restartReleaseIntentWorkflow(
+				env.RELEASE_INTENT_WORKFLOW,
+				env.PUBLISHER_DO,
+				PUBLISHER_DID,
+				INTENT_ID,
+			),
+		).resolves.toEqual({ ok: true, workflowId: INTENT_ID, restarted: true });
+		await introspector.waitForStepResult({ name: "recovery-policy-decision" });
+		await introspector.waitForStatus("complete");
+		await expect(introspector.getOutput()).resolves.toEqual({
+			intentId: INTENT_ID,
+			state: "expired",
+			reasonCode: "INTENT_EXPIRED",
+		});
+		expect(createAttempts).toBe(0);
+	});
+
 	it("restarts an errored reconciliation and accepts the exact authoritative record", async () => {
 		let reconciliationAvailable = false;
 		let sourceAvailable = true;

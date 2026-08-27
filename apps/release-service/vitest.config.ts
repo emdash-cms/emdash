@@ -8,7 +8,9 @@ process.env["ENCRYPTION_KEYRING"] ??=
 	'{"current":1,"keys":[{"version":1,"key":"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"}]}';
 
 export default defineConfig({
-	test: { exclude: [...configDefaults.exclude, "src/ui/**/*.test.{ts,tsx}"] },
+	test: {
+		exclude: [...configDefaults.exclude, "src/ui/**/*.test.{ts,tsx}", "e2e/**/*.spec.ts"],
+	},
 	plugins: [
 		cloudflareTest({
 			wrangler: { configPath: "./wrangler.jsonc" },

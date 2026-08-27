@@ -150,7 +150,9 @@ function normalizeApproverDids(values: readonly string[]): readonly string[] {
 	if (!Array.isArray(values) || values.length === 0 || values.length > 32) {
 		throw new ApprovalDigestError();
 	}
-	const normalized = [...values].toSorted((left, right) => left.localeCompare(right));
+	const normalized = [...values].toSorted((left, right) =>
+		left < right ? -1 : left > right ? 1 : 0,
+	);
 	if (
 		normalized.some((value) => typeof value !== "string" || !DID_PATTERN.test(value)) ||
 		new Set(normalized).size !== normalized.length

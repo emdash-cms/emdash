@@ -7,12 +7,12 @@ import {
 	PackageRelease,
 	PackageReleaseExtension,
 } from "@emdash-cms/registry-lexicons";
+import { decodeMultihash } from "@emdash-cms/registry-verification/checksum";
 import {
-	decodeMultihash,
 	verifyPackageReleaseRecords,
 	type ProvenanceVerifier,
 	type VerifiedRecordContext,
-} from "@emdash-cms/registry-verification";
+} from "@emdash-cms/registry-verification/records";
 import { base64url } from "jose";
 
 import type {

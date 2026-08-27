@@ -13,6 +13,7 @@
 		"pretest": "vite build",
 		"test": "vitest run && pnpm run test:ui",
 		"test:ui": "vitest run --config vitest.ui.config.ts",
+		"test:browser": "playwright test --config playwright.config.ts",
 		"types": "wrangler types"
 	},
 	"dependencies": {
@@ -38,6 +39,7 @@
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "catalog:",
 		"@cloudflare/vitest-pool-workers": "catalog:",
+		"@playwright/test": "^1.61.1",
 		"@tailwindcss/vite": "^4.3.3",
 		"@testing-library/react": "^16.3.0",
 		"@types/react": "catalog:",

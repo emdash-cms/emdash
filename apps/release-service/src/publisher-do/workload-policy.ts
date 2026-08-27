@@ -74,7 +74,7 @@ function normalizeValues(
 	if (normalized.some((value) => typeof value !== "string" || !validate(value))) {
 		throw new WorkloadPolicyError();
 	}
-	normalized.sort((left, right) => left.localeCompare(right));
+	normalized.sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
 	if (new Set(normalized).size !== normalized.length) throw new WorkloadPolicyError();
 	return normalized;
 }

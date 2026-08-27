@@ -2,7 +2,7 @@ import type { ActorResolver } from "@atcute/identity-resolver";
 import { safeParse } from "@atcute/lexicons";
 import { isDid } from "@atcute/lexicons/syntax";
 import { NSID, PackageProfile, PackageProfileExtension } from "@emdash-cms/registry-lexicons";
-import { fetchVerifiedResource } from "@emdash-cms/registry-verification";
+import { fetchVerifiedResource } from "@emdash-cms/registry-verification/fetch";
 
 import { createWorkerActorResolver } from "../oauth/custody.js";
 import type {

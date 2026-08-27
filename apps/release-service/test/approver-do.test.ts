@@ -104,6 +104,33 @@ describe("ApproverDurableObject", () => {
 		expect(JSON.stringify(persisted.audit)).not.toContain("encrypted-identity-state");
 	});
 
+	it("bounds retained identity transaction tombstones", async () => {
+		const stub = approver();
+		const now = 1_800_000_000_000;
+		for (let index = 0; index < 30; index += 1) {
+			const stateHash = String(index).padStart(43, "a");
+			await stub.putIdentityTransaction({
+				approverDid: APPROVER_DID,
+				stateHash,
+				encryptedState: "encrypted-identity-state",
+				encryptionKeyVersion: 1,
+				clientKeyId: "assertion-1",
+				redirectTarget: "/approver",
+				expiresAt: now + 60_000,
+				now,
+			});
+			await stub.consumeIdentityTransaction(APPROVER_DID, stateHash, now + 1);
+		}
+
+		await expect(
+			runInDurableObject(stub, (_instance, state) =>
+				state.storage.sql
+					.exec<{ count: number }>("SELECT COUNT(*) AS count FROM identity_transactions")
+					.one(),
+			),
+		).resolves.toEqual({ count: 1 });
+	});
+
 	it("rejects expired identity proof state without returning encrypted material", async () => {
 		const stub = approver();
 		const now = 1_800_000_000_000;
@@ -337,6 +364,30 @@ describe("ApproverDurableObject", () => {
 				now,
 			}),
 		).resolves.toEqual({ ok: true });
+	});
+
+	it("bounds retained challenge tombstones while issuing new challenges", async () => {
+		const stub = approver();
+		const now = 1_800_000_000_000;
+		for (let index = 0; index < 75; index += 1) {
+			const challengeHash = String(index).padStart(43, "a");
+			await stub.createChallenge(APPROVER_DID, {
+				challengeHash,
+				kind: "registration",
+				context: "registration-context",
+				expiresAt: now + 60_000,
+				now,
+			});
+			await stub.consumeChallenge(APPROVER_DID, challengeHash, "registration", now + 1);
+		}
+
+		await expect(
+			runInDurableObject(stub, (_instance, state) =>
+				state.storage.sql
+					.exec<{ count: number }>("SELECT COUNT(*) AS count FROM approval_challenges")
+					.one(),
+			),
+		).resolves.toEqual({ count: 1 });
 	});
 
 	it("invalidates outstanding intent challenges on credential revocation", async () => {

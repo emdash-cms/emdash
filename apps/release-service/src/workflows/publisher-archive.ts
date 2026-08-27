@@ -81,9 +81,13 @@ export async function startPublisherArchiveWorkflow(
 		try {
 			const existing = await workflow.get(id);
 			const status = await existing.status();
-			return status.status === "unknown"
-				? { ok: false, code: "ARCHIVE_WORKFLOW_UNAVAILABLE" }
-				: { ok: true, workflowId: id, created: false };
+			if (status.status === "unknown") {
+				return { ok: false, code: "ARCHIVE_WORKFLOW_UNAVAILABLE" };
+			}
+			if (status.status === "errored" || status.status === "terminated") {
+				await existing.restart();
+			}
+			return { ok: true, workflowId: id, created: false };
 		} catch {
 			return { ok: false, code: "ARCHIVE_WORKFLOW_UNAVAILABLE" };
 		}

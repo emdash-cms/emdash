@@ -24,6 +24,10 @@
 		"./fetch": {
 			"types": "./dist/fetch-entry.d.ts",
 			"default": "./dist/fetch-entry.js"
+		},
+		"./records": {
+			"types": "./dist/records-entry.d.ts",
+			"default": "./dist/records-entry.js"
 		}
 	},
 	"files": [

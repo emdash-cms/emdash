@@ -109,6 +109,13 @@ describe("approval digest", () => {
 		);
 	});
 
+	it("uses ordinal ordering for canonical approver DIDs", async () => {
+		const encoded = await encodeAwaitingApprovalState(EVIDENCE, ["did:plc:a", "did:plc:B"]);
+		const parsed = JSON.parse(encoded) as { approverDids: string[] };
+
+		expect(parsed.approverDids).toEqual(["did:plc:B", "did:plc:a"]);
+	});
+
 	it("rejects a substituted evidence digest", async () => {
 		const encoded = await encodeAwaitingApprovalState(EVIDENCE, ["did:plc:approver"]);
 		const substituted = encoded.replace(await computeApprovalEvidenceDigest(EVIDENCE), DIGEST_A);

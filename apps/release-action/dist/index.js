@@ -889,6 +889,7 @@ const API_ERROR_CODES = {
 	APPROVAL_INVALID: true,
 	APPROVER_SESSION_INVALID: true,
 	APPROVER_SUSPENDED: true,
+	ARCHIVE_OPERATION_FAILED: true,
 	AUTH_INVALID: true,
 	CONFIGURATION_ERROR: true,
 	CREDENTIAL_LIMIT_REACHED: true,
@@ -896,6 +897,7 @@ const API_ERROR_CODES = {
 	CREDENTIAL_REVOKED: true,
 	CSRF_INVALID: true,
 	DELEGATION_REQUIRED: true,
+	ENCRYPTION_OPERATION_FAILED: true,
 	IDEMPOTENCY_KEY_INVALID: true,
 	IDEMPOTENCY_CONFLICT: true,
 	INTERNAL_ERROR: true,
@@ -911,11 +913,13 @@ const API_ERROR_CODES = {
 	PUBLISHER_SESSION_INVALID: true,
 	PUBLISHER_SUSPENDED: true,
 	RELEASE_EXISTS: true,
+	RESTORE_OPERATION_FAILED: true,
 	SERVICE_PAUSED: true,
 	SERVICE_UNAVAILABLE: true,
 	VERSION_RESERVED: true,
 	WORKFLOW_UNAVAILABLE: true,
-	WORKLOAD_NOT_ALLOWED: true
+	WORKLOAD_NOT_ALLOWED: true,
+	WORKLOAD_RATE_LIMITED: true
 };
 const RETRYABLE_ERROR_CODES = new Set([
 	"CONFIGURATION_ERROR",
@@ -925,7 +929,8 @@ const RETRYABLE_ERROR_CODES = new Set([
 	"PUBLISHER_SUSPENDED",
 	"SERVICE_PAUSED",
 	"SERVICE_UNAVAILABLE",
-	"WORKFLOW_UNAVAILABLE"
+	"WORKFLOW_UNAVAILABLE",
+	"WORKLOAD_RATE_LIMITED"
 ]);
 const INTENT_STATES = {
 	received: true,
@@ -1033,7 +1038,7 @@ function parseIntent(value, serviceUrl) {
 		} catch {
 			throw invalidResponse();
 		}
-		if (parsedApproval.origin !== serviceUrl || parsedApproval.protocol !== "https:") throw invalidResponse();
+		if (parsedApproval.origin !== serviceUrl) throw invalidResponse();
 	}
 	return {
 		id,

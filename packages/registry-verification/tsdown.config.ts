@@ -14,7 +14,13 @@ const rebundleSafeRequire = {
 
 export default defineConfig([
 	{
-		entry: ["src/artifact.ts", "src/bundle.ts", "src/checksum.ts", "src/fetch-entry.ts"],
+		entry: [
+			"src/artifact.ts",
+			"src/bundle.ts",
+			"src/checksum.ts",
+			"src/fetch-entry.ts",
+			"src/records-entry.ts",
+		],
 		format: ["esm"],
 		outExtensions: () => ({ js: ".js" }),
 		dts: true,
@@ -32,6 +38,7 @@ export default defineConfig([
 		platform: "node",
 		target: "es2024",
 		plugins: [rebundleSafeRequire],
+		outputOptions: { codeSplitting: false },
 		// Sigstore is bundled so the published workerd path carries our pinned
 		// @sigstore/core algorithm-selection fix instead of resolving a pristine copy.
 		inlineOnly: false,

@@ -6,7 +6,7 @@ import {
 	type DirectPdsDidDocumentResolver,
 } from "@emdash-cms/registry-client/direct-pds";
 import { NSID } from "@emdash-cms/registry-lexicons";
-import { fetchVerifiedResource } from "@emdash-cms/registry-verification";
+import { fetchVerifiedResource } from "@emdash-cms/registry-verification/fetch";
 import compareVersions from "semver/functions/compare.js";
 import validVersion from "semver/functions/valid.js";
 

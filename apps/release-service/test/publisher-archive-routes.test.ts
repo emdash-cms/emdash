@@ -1,6 +1,6 @@
 import { abortAllDurableObjects, reset, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AccessActor } from "../src/access/auth.js";
 import {
@@ -74,10 +74,35 @@ function maximalCanonicalObject(maxChars: number): string {
 }
 
 afterEach(async () => {
+	vi.restoreAllMocks();
 	await reset();
 });
 
 describe("publisher operations archive", () => {
+	it("rejects an oversized conflicting snapshot without reading its body", async () => {
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		const text = vi.fn(async () => {
+			throw new Error("oversized body must not be read");
+		});
+		// @ts-expect-error - conditional R2 writes return null when the precondition fails
+		vi.spyOn(env.OPERATIONS_ARCHIVE, "put").mockResolvedValue(null);
+		vi.spyOn(env.OPERATIONS_ARCHIVE, "get").mockResolvedValue({
+			size: 1_500_001,
+			text,
+		} as unknown as R2ObjectBody);
+
+		const response = await handleArchivePublisher(
+			request(null, 0),
+			"oversized-conflict",
+			configuration,
+			{ publisherDid: PUBLISHER_DID },
+			ADMIN,
+		);
+
+		expect(response.status).toBe(409);
+		expect(text).not.toHaveBeenCalled();
+	});
+
 	it("writes resumable encrypted snapshots and append-only sanitized audit pages", async () => {
 		const configuration = await loadConfiguration(TEST_BINDINGS);
 		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);

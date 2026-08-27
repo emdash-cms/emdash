@@ -10,6 +10,7 @@ import type {
 	VerifiedProvenance,
 } from "../src/index.js";
 import { inspectPackageReleaseRecords, verifyPackageReleaseRecords } from "../src/index.js";
+import { verifyPackageReleaseRecords as verifyPackageReleaseRecordsWithExplicitVerifier } from "../src/records-entry.js";
 
 const publisherDid = "did:plc:publisher";
 const packageSlug = "gallery";
@@ -77,6 +78,23 @@ describe("verifyPackageReleaseRecords", () => {
 					approvers: [],
 				},
 			},
+		});
+	});
+
+	it("keeps unattested releases available through the runtime-neutral entrypoint", async () => {
+		const report = await verifyPackageReleaseRecordsWithExplicitVerifier({
+			publisherDid,
+			package: packageSlug,
+			version,
+			rkey,
+			profile: cloneProfile(),
+			release: cloneRelease(),
+		});
+
+		expect(report).toMatchObject({
+			success: true,
+			status: "unattested",
+			code: "PROVENANCE_ABSENT_OPTIONAL",
 		});
 	});
 
