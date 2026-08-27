@@ -861,6 +861,7 @@ function SortableBylineRow({
 				/>
 				<DropdownMenu.Content>
 					<DropdownMenu.Item
+						className="data-highlighted:bg-kumo-fill"
 						icon={<Tag className="me-2 size-4" aria-hidden="true" />}
 						onClick={onOpenRole}
 					>
@@ -868,6 +869,7 @@ function SortableBylineRow({
 					</DropdownMenu.Item>
 					{onEdit ? (
 						<DropdownMenu.Item
+							className="data-highlighted:bg-kumo-fill"
 							icon={<PencilSimple className="me-2 size-4" aria-hidden="true" />}
 							onClick={onEdit}
 						>

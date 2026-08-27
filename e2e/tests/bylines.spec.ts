@@ -47,6 +47,43 @@ test.describe("Bylines", () => {
 		await expect(page.getByRole("button", { name: updatedName })).toBeVisible({ timeout: 5000 });
 	});
 
+	test("shows a visible light-mode hover on neutral byline actions", async ({
+		admin,
+		page,
+		serverInfo,
+	}) => {
+		await page.emulateMedia({ colorScheme: "light" });
+		await admin.goto(`/content/posts/${serverInfo.contentIds.posts[0]}`);
+		await admin.waitForShell();
+		await admin.waitForLoading();
+
+		const bylinesSection = page
+			.getByRole("heading", { name: "Bylines" })
+			.locator("xpath=ancestor::section")
+			.first();
+		await bylinesSection.getByRole("button", { name: /Choose bylines|Add another byline/ }).click();
+		await page.getByLabel("Search bylines").fill("Fixture Editorial");
+		await page.getByRole("button", { name: "Add Fixture Editorial" }).click();
+
+		await bylinesSection
+			.getByRole("button", { name: "More actions for Fixture Editorial" })
+			.click();
+		for (const name of ["Set role", "Edit name and slug"]) {
+			const item = page.getByRole("menuitem", { name });
+			await item.hover();
+			const colors = await item.evaluate((element) => {
+				const probe = document.createElement("div");
+				probe.style.backgroundColor = "var(--color-kumo-fill)";
+				document.body.append(probe);
+				const expected = getComputedStyle(probe).backgroundColor;
+				probe.remove();
+				return { actual: getComputedStyle(element).backgroundColor, expected };
+			});
+
+			expect(colors.actual).toBe(colors.expected);
+		}
+	});
+
 	test("sets a byline avatar via the media picker and preserves it across edits (#1250)", async ({
 		admin,
 		page,
