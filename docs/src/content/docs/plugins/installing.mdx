@@ -19,23 +19,28 @@ The admin dashboard includes a marketplace browser where you can search, install
 
 To install marketplace plugins, your site needs:
 
-1. **Sandbox runner configured** — Marketplace plugins run in an isolated runtime, which requires the sandbox runner. The following configuration enables it:
+1. **Sandbox runner configured** — Marketplace plugins run in an isolated runtime, so the runner setup depends on your deployment platform.
+
+   On **Cloudflare Workers**, use the Cloudflare sandbox adapter:
 
    ```typescript title="astro.config.mjs"
-   import { defineConfig } from "astro/config";
-   import emdash from "emdash/astro";
+   import { sandbox } from "@emdash-cms/cloudflare";
 
-   export default defineConfig({
-     integrations: [
-       emdash({
-         marketplace: "https://marketplace.emdashcms.com",
-         sandboxRunner: "@emdash-cms/sandbox-cloudflare",
-       }),
-     ],
-   });
+   emdash({
+     marketplace: "https://marketplace.emdashcms.com",
+     sandboxRunner: sandbox(),
+   })
    ```
 
-   On **Cloudflare Workers**, sandboxing uses the Dynamic Worker Loader API (no additional setup needed). On **Node.js**, install the workerd sandbox runner:
+   Sandboxed plugins use Worker Loader, which is available on Workers paid plans. Add the binding to `wrangler.jsonc` to enable them:
+
+   ```jsonc title="wrangler.jsonc"
+   "worker_loaders": [{ "binding": "LOADER" }],
+   ```
+
+   The Cloudflare adapter reads this config at build time. If the binding is absent, it disables the sandbox runner and logs a single explanatory line, allowing the same project to deploy on the Workers free plan.
+
+   On **Node.js**, install the workerd sandbox runner:
 
    ```bash
    npm install @emdash-cms/sandbox-workerd

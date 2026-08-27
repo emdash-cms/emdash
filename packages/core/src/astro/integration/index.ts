@@ -344,12 +344,6 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 			}
 			throw e;
 		}
-		if (!resolvedConfig.sandboxRunner) {
-			throw new Error(
-				"Marketplace requires `sandboxRunner` to be configured. " +
-					"Marketplace plugins run in sandboxed V8 isolates.",
-			);
-		}
 	}
 
 	// Validate siteUrl if provided in astro.config.mjs.

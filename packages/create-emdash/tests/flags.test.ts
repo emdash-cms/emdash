@@ -218,6 +218,26 @@ describe("parseFlags — install toggle", () => {
 	});
 });
 
+describe("parseFlags — sandboxed-plugins toggle", () => {
+	it("--sandboxed-plugins enables sandboxed plugins", () => {
+		expect(parseFlags(argv("--sandboxed-plugins")).sandboxedPlugins).toBe(true);
+	});
+
+	it("--no-sandboxed-plugins disables sandboxed plugins", () => {
+		expect(parseFlags(argv("--no-sandboxed-plugins")).sandboxedPlugins).toBe(false);
+	});
+
+	it("leaves sandboxedPlugins undefined when neither flag is passed", () => {
+		expect(parseFlags(argv()).sandboxedPlugins).toBeUndefined();
+	});
+
+	it("rejects conflicting sandboxed-plugin flags", () => {
+		expect(() => parseFlags(argv("--sandboxed-plugins", "--no-sandboxed-plugins"))).toThrow(
+			FlagError,
+		);
+	});
+});
+
 describe("parseFlags — --yes / -y", () => {
 	it("--yes sets yes: true", () => {
 		expect(parseFlags(argv("--yes")).yes).toBe(true);

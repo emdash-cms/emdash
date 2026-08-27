@@ -16,12 +16,8 @@
 			"bucket_name": "my-portfolio-media",
 		},
 	],
-	// Worker Loader for plugin sandboxing
-	"worker_loaders": [
-		{
-			"binding": "LOADER",
-		},
-	],
+	// Sandboxed plugins require Worker Loader, available on Workers paid plans. Uncomment to enable:
+	// "worker_loaders": [{ "binding": "LOADER" }],
 	// General maintenance plus the bounded Media Usage lane (see src/worker.ts)
 	"triggers": {
 		"crons": ["* * * * *", "*/2 * * * *"],
