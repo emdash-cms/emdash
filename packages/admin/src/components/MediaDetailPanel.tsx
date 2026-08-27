@@ -19,6 +19,7 @@ import {
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
+	ArrowCounterClockwise,
 	X,
 	Trash,
 	Calendar,
@@ -605,7 +606,7 @@ export function MediaDetailPanel({
 							>
 								<div className="flex min-w-0 items-start gap-2 text-sm">
 									<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
-										<HardDrive className="h-4 w-4" aria-hidden="true" />
+										<HardDrive className="h-4 w-4 translate-y-[2px]" aria-hidden="true" />
 									</span>
 									<p className="flex min-w-0 flex-nowrap items-baseline gap-1 whitespace-nowrap leading-5">
 										<span className="text-kumo-subtle">{t`Size:`}</span>
@@ -615,7 +616,7 @@ export function MediaDetailPanel({
 								{item.width && item.height && (
 									<div className="flex min-w-0 items-start gap-2 text-sm">
 										<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
-											<Ruler className="h-4 w-4" aria-hidden="true" />
+											<Ruler className="h-4 w-4 translate-y-[2px]" aria-hidden="true" />
 										</span>
 										<p className="flex min-w-0 flex-nowrap items-baseline gap-1 whitespace-nowrap leading-5">
 											<span className="text-kumo-subtle">{t`Dimensions:`}</span>
@@ -628,7 +629,7 @@ export function MediaDetailPanel({
 								{!isProviderAsset && (
 									<div className="flex min-w-0 items-start gap-2 text-sm">
 										<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
-											<Calendar className="h-4 w-4" aria-hidden="true" />
+											<Calendar className="h-4 w-4 translate-y-[2px]" aria-hidden="true" />
 										</span>
 										<p className="flex min-w-0 flex-nowrap items-baseline gap-1 overflow-hidden whitespace-nowrap leading-5">
 											<span className="shrink-0 text-kumo-subtle">{t`Uploaded:`}</span>
@@ -643,7 +644,7 @@ export function MediaDetailPanel({
 								)}
 								<div className="flex min-w-0 items-start gap-2 text-sm">
 									<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
-										<File className="h-4 w-4" aria-hidden="true" />
+										<File className="h-4 w-4 translate-y-[2px]" aria-hidden="true" />
 									</span>
 									<p className="flex min-w-0 flex-nowrap items-baseline gap-1 whitespace-nowrap leading-5">
 										<span className="text-kumo-subtle">{t`Format:`}</span>
@@ -654,7 +655,10 @@ export function MediaDetailPanel({
 									className="col-span-full flex min-w-0 items-center gap-2 text-sm"
 									data-testid="media-detail-dialog-file-url"
 								>
-									<LinkSimple className="h-4 w-4 shrink-0 text-kumo-subtle" aria-hidden="true" />
+									<LinkSimple
+										className="h-4 w-4 shrink-0 translate-y-[2px] text-kumo-subtle"
+										aria-hidden="true"
+									/>
 									<span className="shrink-0 text-kumo-subtle">{t`URL:`}</span>
 									{publicFileUrl ? (
 										<ClipboardText
@@ -800,7 +804,7 @@ export function MediaDetailPanel({
 												<Combobox.Empty>{t`No folders found`}</Combobox.Empty>
 												<Combobox.List
 													aria-busy={locationListQuery.isFetching || undefined}
-													style={{ maxHeight: "16.5rem" }}
+													style={{ maxHeight: "5rem" }}
 												>
 													{(option) => (
 														<Combobox.Item key={option.id ?? "main"} value={option}>
@@ -907,8 +911,8 @@ export function MediaDetailPanel({
 										gridArea: "panel",
 									}}
 								>
-									<div className="flex items-start justify-between gap-4">
-										<div className="grid min-w-0 gap-1.5">
+									<div className="flex items-center justify-between gap-4">
+										<div className="grid min-w-0 max-w-xs gap-1.5">
 											<h3 className="text-sm font-semibold">{t`Focal point`}</h3>
 											<p id={focalPointDescriptionId} className="text-sm text-kumo-subtle">
 												{t`Move the focal point to choose what stays visible in cropped images.`}
@@ -917,7 +921,14 @@ export function MediaDetailPanel({
 										<Button
 											type="button"
 											variant="outline"
-											size="sm"
+											size="lg"
+											icon={
+												<ArrowCounterClockwise
+													className="h-4 w-4"
+													weight="bold"
+													aria-hidden="true"
+												/>
+											}
 											className="shrink-0"
 											onClick={() => setFocalPoint(null)}
 											disabled={!focalPoint || isBusy}

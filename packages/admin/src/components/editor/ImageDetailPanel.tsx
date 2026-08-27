@@ -232,7 +232,7 @@ export function ImageDetailPanel({
 
 				{/* Preview */}
 				<div className="p-4 border-b">
-					<div className="aspect-video bg-kumo-tint rounded-lg overflow-hidden flex items-center justify-center relative group">
+					<div className="emdash-media-transparency-grid group relative flex aspect-video items-center justify-center overflow-hidden rounded-lg">
 						<img
 							src={attributes.src}
 							alt={attributes.alt || ""}
@@ -419,7 +419,7 @@ export function ImageDetailPanel({
 			<div className="flex-1 overflow-y-auto">
 				{/* Preview */}
 				<div className="p-4 border-b">
-					<div className="aspect-video bg-kumo-tint rounded-lg overflow-hidden flex items-center justify-center relative group">
+					<div className="emdash-media-transparency-grid group relative flex aspect-video items-center justify-center overflow-hidden rounded-lg">
 						<img
 							src={attributes.src}
 							alt={attributes.alt || ""}
