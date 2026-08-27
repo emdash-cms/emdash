@@ -64,7 +64,6 @@ vi.mock("../../src/components/RouterLinkButton.js", () => ({
 	}) => (
 		<a
 			{...props}
-			href={to}
 			role="link"
 			data-href={search?.folder ? `${to}?folder=${encodeURIComponent(search.folder)}` : to}
 		/>
