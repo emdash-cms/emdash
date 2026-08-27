@@ -51,9 +51,9 @@ The new implementation does not retain:
 
 ### Current execution state
 
-The replacement implementation is complete in a ten-layer local `gh-stack`. It includes confidential OAuth custody, sharded publisher and approver authority, GitHub Actions admission, verification and publication Workflows, independent installer enforcement, passkey approval, Access operator controls, product UIs, encrypted archive/restore, encryption-key lifecycle, abuse limits, observability, self-hosting documentation, and browser conformance.
+The replacement implementation is complete in a seven-layer local `gh-stack`. It includes confidential OAuth custody, sharded publisher and approver authority, GitHub Actions admission, verification and publication Workflows, independent installer enforcement, passkey approval, Access operator controls, product UIs, encrypted archive/restore, encryption-key lifecycle, abuse limits, observability, self-hosting documentation, and browser conformance.
 
-No replacement pull request is opened until the complete local stack passes its formatting, typecheck, package, Worker, browser, generated-binding, and changeset gates. The ten branches form one merge unit and do not represent deployable intermediate service versions.
+No replacement pull request is opened until the complete local stack passes its formatting, typecheck, package, Worker, browser, generated-binding, and changeset gates. The seven branches form one merge unit and do not represent deployable intermediate service versions.
 
 The public-client G0 lifecycle is complete on both providers: exact-scope authorization, forced refresh, and server revocation passed. npmX rejected its access token immediately after revocation. Cirrus retained the already-issued access token for its remaining lifetime while preventing future refresh. G0 still requires the deployed confidential-client run and client-key removal observation before either provider is advertised as supported by the hosted service.
 
@@ -620,24 +620,21 @@ Dependencies: begins at G1 and expands after every gate.
 
 ## Worktree and task strategy
 
-Implementation is consolidated in one integration worktree and one ten-layer `gh-stack`. The complete stack must pass locally before any branch is pushed or any replacement PR is opened.
+Implementation is consolidated in one integration worktree and one seven-layer `gh-stack`. The complete stack must pass locally before any branch is pushed or any replacement PR is opened.
 
-Each branch is a review boundary. All ten branches merge as one unit, and no branch is a supported deployment target by itself.
+Each branch is a review boundary and may contain several focused commits. All seven branches merge as one unit, and no branch is a supported deployment target by itself.
 
-### Consolidated ten-layer stack
+### Consolidated seven-layer stack
 
-| Layer | Branch                              | Review scope                                                    |
-| ----- | ----------------------------------- | --------------------------------------------------------------- |
-| 1     | `feat/drs-stack-01-foundation`      | Worker shell, exact scope, OAuth metadata, and encryption       |
-| 2     | `feat/drs-stack-02-oauth-custody`   | Publisher identity, confidential OAuth custody, and sessions    |
-| 3     | `feat/drs-stack-03-admission`       | Workload identity, policy, release intents, and admission       |
-| 4     | `feat/drs-stack-04-approvals`       | Required-UV passkeys, approver shards, and digest-bound review  |
-| 5     | `feat/drs-stack-05-verification`    | Isolated verification, installer trust, and provenance          |
-| 6     | `feat/drs-stack-06-service-control` | Cloudflare Access, pause controls, and operator authorization   |
-| 7     | `feat/drs-stack-07-publication`     | Publication, API client, Action, CLI, and product UIs           |
-| 8     | `feat/drs-stack-08-operations`      | Directory, archive/restore, secrets, metrics, and runbooks      |
-| 9     | `feat/drs-stack-09-hardening`       | Compatibility, browser conformance, and adversarial fixes       |
-| 10    | `feat/drs-stack-10-completion`      | Product completion, lifecycle orchestration, and specifications |
+| Layer | Branch                                        | Review scope                                                                 |
+| ----- | --------------------------------------------- | ---------------------------------------------------------------------------- |
+| 1     | `feat/drs-review-01-foundation`               | Worker shell, G0 harness, exact scope, OAuth metadata, encryption, and CI    |
+| 2     | `feat/drs-review-02-authority-admission`      | Publisher identity and custody, workload identity, intents, and admission    |
+| 3     | `feat/drs-review-03-approvals`                | Required-UV passkeys, approver shards, and digest-bound decisions            |
+| 4     | `feat/drs-review-04-verification`             | Isolated verification, authoritative records, installer trust, and consent   |
+| 5     | `feat/drs-review-05-publication-product`      | Access control, publication and reconciliation, clients, Action, CLI, and UI |
+| 6     | `feat/drs-review-06-operations`               | Directory, abuse controls, archive/restore, encryption operations, and runbook |
+| 7     | `feat/drs-review-07-integration`              | Compatibility, browser conformance, product completion, specifications, and CI |
 
 Lower-layer fixes are committed on the owning branch and cascaded with `gh stack rebase --upstack`. Do not amend or force-push an open PR except when a rebase requires replacing its branch history.
 
@@ -704,16 +701,16 @@ The repository has multiple remotes, so every `gh stack` command that accepts a 
 Create each template-compliant PR with its explicit parent branch, then link the existing PRs into the local stack order:
 
 1. Push each worktree branch explicitly.
-2. Create its draft PR with the correct parent branch and a fully completed `.github/PULL_REQUEST_TEMPLATE.md` body.
+2. Create its ready-for-review PR with the correct parent branch and a fully completed `.github/PULL_REQUEST_TEMPLATE.md` body.
 3. Link the existing branch PRs into a stack from bottom to top.
 
 For example, link the first layers after their PRs exist:
 
 ```sh
 gh stack link --base main --remote origin \
-	feat/drs-stack-01-foundation \
-	feat/drs-stack-02-oauth-custody \
-	feat/drs-stack-03-admission
+	feat/drs-review-01-foundation \
+	feat/drs-review-02-authority-admission \
+	feat/drs-review-03-approvals
 ```
 
 `gh stack link` finds the existing PRs, corrects their base branches, and creates or updates the GitHub stack without adding local stack state. Do not let it create a PR with an auto-generated body; every EmDash PR must use the repository template.
@@ -793,7 +790,7 @@ PRs #2659 and #2660 were closed and replaced by layer 5. The isolated verifier r
 | **Operations**            | `feat/drs-backup` -> `feat/drs-observability` -> `feat/drs-self-hosting`                           | G6                                               |
 | **Conformance**           | `test/drs-conformance` -> `test/drs-recovery-drills`                                               | G7                                               |
 
-The consolidated ten-layer stack supersedes this table.
+The consolidated seven-layer stack supersedes this table.
 
 ### Worktree task brief
 
@@ -894,18 +891,15 @@ Merge condition: G6 and then G7.
 
 ## Consolidated PR sequence
 
-The review stack contains ten PRs and merges as one unit:
+The review stack contains seven PRs and merges as one unit. Each PR preserves the focused implementation and follow-up commits within its review scope:
 
 1. **Foundation** — Worker shell, G0 harness, exact scope, OAuth metadata, and encryption.
-2. **OAuth custody** — publisher identity, confidential callbacks, retained delegation, and application sessions.
-3. **Admission** — GitHub workload identity, publisher policy, intents, idempotency, and publication leases.
-4. **Approvals** — required-UV passkeys, approver shards, and digest-bound decisions.
-5. **Verification** — isolated verifier, provenance, authoritative records, installer enforcement, and verified consent.
-6. **Service control** — Access authentication, service mode, suspension, readiness, and operator audit.
-7. **Publication product flow** — verification/publication Workflows, reconciliation, service API, client, Action, CLI, and base UIs.
-8. **Operations and recovery** — sharded directory, abuse limits, encrypted archive/restore, Secrets Store, metrics, and runbook.
-9. **Hardening** — Worker-safe package entrypoints, browser conformance, bounded state, compatibility, and generated Action fixes.
-10. **Completion** — dry-run admission, recovery/audit/status surfaces, encryption lifecycle, browser handoffs, directory gates, and final specifications.
+2. **Publisher authority and admission** — publisher identity, confidential custody, application sessions, GitHub workload identity, publisher policy, intents, idempotency, and publication operations.
+3. **Approvals** — required-UV passkeys, approver shards, and digest-bound decisions.
+4. **Verification and independent consumption** — isolated verifier, provenance, authoritative records, installer enforcement, and verified consent.
+5. **Publication product flow** — Access authentication and service control, verification/publication Workflows, reconciliation, service API, typed client, Action, CLI, and base UIs.
+6. **Operations and recovery** — sharded directory, abuse limits, encrypted archive/restore, encryption operations, Secrets Store, metrics, runbook, and retry-safety fixes.
+7. **Integration and conformance** — Worker-safe package entrypoints, bounded state, browser conformance, compatibility fixes, completed product surfaces, specifications, and the application CI gate.
 
 ## Definition of done for every implementation task
 
