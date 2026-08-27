@@ -102,7 +102,7 @@ describe("taxonomy sidebar refresh", () => {
 				return json({ data: { pending: 0, approved: 0, spam: 0, trash: 0 } });
 			}
 			if (method === "GET" && url === "/_emdash/api/taxonomies") {
-				return json({ data: { taxonomies: manifestFetches > 1 ? [category, genre] : [category] } });
+				return json({ data: { taxonomies: [category, genre] } });
 			}
 			if (method === "GET" && url.startsWith("/_emdash/api/taxonomies/category/terms")) {
 				return json({ data: { terms: [] } });
