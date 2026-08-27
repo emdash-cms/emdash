@@ -1,5 +1,6 @@
 import { sql, type Kysely } from "kysely";
 
+import { jsonTextValues } from "../../database/json-recordset.js";
 import type {
 	MediaUsageOccurrenceInput,
 	MediaUsageSourceInput,
@@ -63,6 +64,12 @@ export interface LoadContentMediaUsageSnapshotsOptions {
 	identityVersion?: number;
 }
 
+export interface LoadContentMediaUsageSnapshotsBatchControl {
+	shouldContinue?: () => boolean;
+	maxOccurrenceCount?: number;
+	maxProjectionBytes?: number;
+}
+
 export async function loadContentMediaUsageSnapshots(
 	db: Kysely<Database>,
 	collectionSlug: string,
@@ -70,20 +77,84 @@ export async function loadContentMediaUsageSnapshots(
 	fieldDiscovery?: ContentMediaUsageFieldDiscovery,
 	options: LoadContentMediaUsageSnapshotsOptions = {},
 ): Promise<LoadContentMediaUsageSnapshotsResult> {
+	const results = await loadContentMediaUsageSnapshotsBatch(
+		db,
+		collectionSlug,
+		[contentId],
+		fieldDiscovery,
+		options,
+	);
+	return results.get(contentId) ?? { success: false, error: "CONTENT_NOT_FOUND" };
+}
+
+export async function loadContentMediaUsageSnapshotsBatch(
+	db: Kysely<Database>,
+	collectionSlug: string,
+	contentIds: readonly string[],
+	fieldDiscovery?: ContentMediaUsageFieldDiscovery,
+	options: LoadContentMediaUsageSnapshotsOptions = {},
+	control: LoadContentMediaUsageSnapshotsBatchControl = {},
+): Promise<Map<string, LoadContentMediaUsageSnapshotsResult>> {
 	validateIdentifier(collectionSlug, "collection slug");
 	if (options.identityVersion !== undefined && !options.collectionId) {
 		throw new Error("Canonical media usage snapshots require a collection identity");
 	}
 	const discovery = fieldDiscovery ?? (await loadContentMediaUsageFields(db, collectionSlug));
-	const row = await loadContentRow(
+	const rows = await loadContentRows(
 		db,
 		collectionSlug,
-		contentId,
+		contentIds,
 		[...discovery.extractionFields.map((field) => field.slug), ...discovery.displayFieldSlugs],
 		options.collectionId,
 	);
+	const revisionIds = Array.from(rows.values(), (row) =>
+		readNullableString(row.draft_revision_id),
+	).filter((revisionId): revisionId is string => revisionId !== null);
+	const revisions = await loadRevisionRows(db, revisionIds);
+	const results = new Map<string, LoadContentMediaUsageSnapshotsResult>();
+	let occurrenceCount = 0;
+	let projectionBytes = 0;
+	for (const contentId of new Set(contentIds)) {
+		if (control.shouldContinue && !control.shouldContinue()) break;
+		const row = rows.get(contentId);
+		const result: LoadContentMediaUsageSnapshotsResult = row
+			? await buildContentMediaUsageSnapshots(row, collectionSlug, discovery, options, revisions)
+			: { success: false, error: "CONTENT_NOT_FOUND" };
+		const snapshots = result.success ? result.snapshots : (result.snapshots ?? []);
+		const itemOccurrenceCount = snapshots.reduce(
+			(total, snapshot) => total + snapshot.occurrences.length,
+			0,
+		);
+		const itemProjectionBytes = snapshots.reduce(
+			(total, snapshot) => total + snapshot.projectionByteLength,
+			0,
+		);
+		if (
+			results.size > 0 &&
+			((control.maxOccurrenceCount !== undefined &&
+				occurrenceCount + itemOccurrenceCount > control.maxOccurrenceCount) ||
+				(control.maxProjectionBytes !== undefined &&
+					projectionBytes + itemProjectionBytes > control.maxProjectionBytes))
+		) {
+			break;
+		}
+		results.set(contentId, result);
+		occurrenceCount += itemOccurrenceCount;
+		projectionBytes += itemProjectionBytes;
+	}
+	return results;
+}
 
-	if (!row) return { success: false, error: "CONTENT_NOT_FOUND" };
+async function buildContentMediaUsageSnapshots(
+	row: Record<string, unknown>,
+	collectionSlug: string,
+	discovery: ContentMediaUsageFieldDiscovery,
+	options: LoadContentMediaUsageSnapshotsOptions,
+	revisions: ReadonlyMap<
+		string,
+		{ success: true; revision: RevisionSnapshotRow } | { success: false }
+	>,
+): Promise<LoadContentMediaUsageSnapshotsResult> {
 	const collectionId = readString(row[CONTENT_COLLECTION_ID_RESULT]);
 	if (!collectionId) {
 		throw new Error("Media usage snapshot query did not return a collection identity");
@@ -135,7 +206,7 @@ export async function loadContentMediaUsageSnapshots(
 			sourceVariant: "draft_overlay",
 			revisionId: draftRevisionId,
 		});
-		const revisionResult = await loadRevisionRow(db, draftRevisionId);
+		const revisionResult = revisions.get(draftRevisionId);
 		if (!revisionResult) {
 			return {
 				success: false,
@@ -212,52 +283,78 @@ interface RevisionSnapshotRow {
 	data: Record<string, unknown>;
 }
 
-async function loadContentRow(
+async function loadContentRows(
 	db: Kysely<Database>,
 	collectionSlug: string,
-	contentId: string,
+	contentIds: readonly string[],
 	fieldSlugs: readonly string[],
 	expectedCollectionId?: string,
-): Promise<Record<string, unknown> | null> {
+): Promise<Map<string, Record<string, unknown>>> {
 	const tableName = getContentTableName(collectionSlug);
 	const columns = uniqueColumns([...CONTENT_SYSTEM_COLUMNS, ...fieldSlugs]);
 	const columnRefs = columns.map((column) => sql.ref(`content.${column}`));
+	const rows = new Map<string, Record<string, unknown>>();
+	const uniqueContentIds = [...new Set(contentIds)];
+	if (uniqueContentIds.length === 0) return rows;
+	const contentIdInput = jsonTextValues(db, uniqueContentIds);
 	const result = await sql<Record<string, unknown>>`
+		WITH requested AS (${contentIdInput})
 		SELECT
 			${sql.join(columnRefs, sql`, `)},
 			collection.id AS __emdash_media_usage_collection_id
 		FROM ${sql.ref(tableName)} AS content
+		INNER JOIN requested ON requested.value = content.id
 		INNER JOIN _emdash_collections AS collection
 			ON collection.slug = ${collectionSlug}
 			${expectedCollectionId ? sql`AND collection.id = ${expectedCollectionId}` : sql``}
-		WHERE content.id = ${contentId}
-		LIMIT 1
 	`.execute(db);
-
-	return result.rows[0] ?? null;
+	for (const row of result.rows) {
+		const contentId = readString(row.id);
+		if (contentId) rows.set(contentId, row);
+	}
+	return rows;
 }
 
-async function loadRevisionRow(
+async function loadRevisionRows(
 	db: Kysely<Database>,
-	revisionId: string,
-): Promise<{ success: true; revision: RevisionSnapshotRow } | { success: false } | null> {
-	const row = await db
-		.selectFrom("revisions")
-		.select(["id", "collection", "entry_id", "data"])
-		.where("id", "=", revisionId)
-		.executeTakeFirst();
-	if (!row) return null;
-	const data = parseRevisionData(row.data);
-	if (!data) return { success: false };
-	return {
-		success: true,
-		revision: {
-			id: row.id,
-			collection: row.collection,
-			entryId: row.entry_id,
-			data,
-		},
-	};
+	revisionIds: readonly string[],
+): Promise<Map<string, { success: true; revision: RevisionSnapshotRow } | { success: false }>> {
+	const revisions = new Map<
+		string,
+		{ success: true; revision: RevisionSnapshotRow } | { success: false }
+	>();
+	const uniqueRevisionIds = [...new Set(revisionIds)];
+	if (uniqueRevisionIds.length === 0) return revisions;
+	const revisionIdInput = jsonTextValues(db, uniqueRevisionIds);
+	const rows = await sql<{
+		id: string;
+		collection: string;
+		entry_id: string;
+		data: unknown;
+	}>`
+		WITH requested AS (${revisionIdInput})
+		SELECT revision.id, revision.collection, revision.entry_id, revision.data
+		FROM revisions AS revision
+		INNER JOIN requested ON requested.value = revision.id
+	`.execute(db);
+	for (const row of rows.rows) {
+		const data = parseRevisionData(row.data);
+		revisions.set(
+			row.id,
+			data
+				? {
+						success: true,
+						revision: {
+							id: row.id,
+							collection: row.collection,
+							entryId: row.entry_id,
+							data,
+						},
+					}
+				: { success: false },
+		);
+	}
+	return revisions;
 }
 
 function buildContentSource(input: {

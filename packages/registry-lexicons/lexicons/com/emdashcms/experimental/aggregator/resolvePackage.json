@@ -38,6 +38,10 @@
 				{
 					"name": "NotFound",
 					"description": "No package indexed under the resolved (did, slug)."
+				},
+				{
+					"name": "ListingUnavailable",
+					"description": "The resolved package is indexed but has no profile revision available under the aggregator's listing policy. No publisher-controlled content is returned."
 				}
 			]
 		}

@@ -14,7 +14,7 @@ import { Image as ImageIcon, ImageBroken, ImageSquare, X } from "@phosphor-icons
 import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
-import { metaString } from "../lib/media-utils";
+import { getMediaObjectPosition, metaString } from "../lib/media-utils";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 
@@ -34,6 +34,8 @@ export interface ImageFieldValue {
 	alt?: string;
 	width?: number;
 	height?: number;
+	focalX?: number;
+	focalY?: number;
 	/** LQIP blurhash placeholder (images only) */
 	blurhash?: string;
 	/** LQIP dominant-color placeholder, as a CSS color (images only) */
@@ -97,6 +99,8 @@ export function ImageFieldRenderer({
 			alt: item.alt || "",
 			width: item.width,
 			height: item.height,
+			focalX: item.focalX ?? undefined,
+			focalY: item.focalY ?? undefined,
 			filename: item.filename,
 			mimeType: item.mimeType,
 			// Cache LQIP alongside dimensions so embeds render a placeholder without a
@@ -120,6 +124,8 @@ export function ImageFieldRenderer({
 			: undefined;
 	const mimeType = typeof value === "object" && value.mimeType ? value.mimeType : undefined;
 	const metadata = [dimensions, mimeType].filter(Boolean).join(" · ");
+	const objectPosition =
+		typeof value === "object" && value ? getMediaObjectPosition(value) : undefined;
 
 	const featuredCard = displayUrl ? (
 		<LayerCard className="grid w-full grid-cols-1 rounded-xl p-0 sm:grid-cols-[12rem_minmax(0,1fr)]">
@@ -136,6 +142,7 @@ export function ImageFieldRenderer({
 						src={displayUrl}
 						alt=""
 						className="h-full w-full object-cover"
+						style={{ objectPosition }}
 						onError={() => setImageBroken(true)}
 					/>
 				)}
@@ -225,6 +232,7 @@ export function ImageFieldRenderer({
 							src={displayUrl}
 							alt=""
 							className="max-h-48 min-h-20 rounded-lg border object-cover"
+							style={{ objectPosition }}
 							onError={() => setImageBroken(true)}
 						/>
 						<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">

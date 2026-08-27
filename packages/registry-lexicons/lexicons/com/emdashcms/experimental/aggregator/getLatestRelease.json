@@ -34,6 +34,10 @@
 				{
 					"name": "NotFound",
 					"description": "No eligible release for the given (did, package)."
+				},
+				{
+					"name": "ListingUnavailable",
+					"description": "The package is indexed but has no release revision available under the aggregator's listing policy. No publisher-controlled content is returned."
 				}
 			]
 		}

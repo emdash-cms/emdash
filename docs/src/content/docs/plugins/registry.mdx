@@ -5,7 +5,7 @@ description: Install plugins from the experimental, federated EmDash plugin regi
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-The plugin registry is the decentralized successor to the central [marketplace](/plugins/installing/#from-the-marketplace). No single authority owns it or decides which plugins are listed, and the index that makes plugins discoverable — the **aggregator** — is something anyone can run. When you point your site at a registry, the admin dashboard browses and installs plugins from there instead of from the marketplace.
+The plugin registry is the decentralized successor to the central [marketplace](/plugins/installing/#from-the-marketplace). Publishers own their records, and anyone can run the index that makes them discoverable — the **aggregator**. Each aggregator defines which labellers must approve a listing before it appears. When you point your site at a registry, the admin dashboard browses and installs plugins from there instead of from the marketplace.
 
 It is built on the [AT Protocol](https://atproto.com/), the network behind [Bluesky](https://bsky.app).
 
@@ -25,8 +25,8 @@ Both the [marketplace](/plugins/installing/#from-the-marketplace) and the regist
 | --- | --- | --- |
 | **Control** | One company owns and operates it | No central owner; anyone can run an aggregator |
 | **Discovery** | Served by the marketplace service | Served by an aggregator that indexes the network |
-| **Moderation** | The operator vets listings and can remove them | Labellers issue takedown and verification labels you choose to accept |
-| **Who you trust** | The marketplace operator | The aggregator you point at, plus any labellers you accept |
+| **Moderation** | The operator vets listings and can remove them | Labellers approve exact listing revisions and can issue blocks or takedowns |
+| **Who you trust** | The marketplace operator | The aggregator you point at and the labellers its policy requires |
 
 You configure one or the other for a given site. When `experimental.registry` is set, the admin's browse and install flows use the registry.
 
@@ -52,7 +52,7 @@ export default defineConfig({
 });
 ```
 
-The bare URL string is shorthand. Use the object form when you need a labeller or a release-age policy:
+The bare URL string is shorthand. Use the object form when you need to declare accepted labellers or set a release-age policy:
 
 ```typescript title="astro.config.mjs"
 emdash({
@@ -60,7 +60,7 @@ emdash({
   experimental: {
     registry: {
       aggregatorUrl: "https://registry.emdashcms.com",
-      acceptLabelers: "did:plc:emdashverification",
+      acceptLabelers: "did:web:labels.emdashcms.com",
       policy: {
         minimumReleaseAge: "48h",
         minimumReleaseAgeExclude: ["did:plc:yourfirstpartydid"],
@@ -74,7 +74,7 @@ The aggregator URL must be HTTPS in production (`http://localhost` is allowed in
 
 ### Configuration options
 
-- **`acceptLabelers`** — a comma-separated list of labeller DIDs forwarded to the aggregator. Labellers apply takedown and verification labels; the aggregator filters and annotates results according to the ones you accept. When unset, the aggregator applies its operator default set.
+- **`acceptLabelers`** — an optional comma-separated list of bare labeller DIDs forwarded as a validated declaration and included in the client's cache identity. When set, the list must include every source required by the aggregator. The declaration cannot change the aggregator's approval, block, takedown, or withdrawal policy.
 - **`policy.minimumReleaseAge`** — hold back releases newer than this age when choosing the version to install or update to, widening the window for a takedown to land before a compromised release reaches your site. Accepts a duration string (`"24h"`, `"7d"`) or a number of seconds.
 - **`policy.minimumReleaseAgeExclude`** — DIDs exempt from the holdback, for publishers whose release tempo you have explicitly accepted (such as your own first-party plugins). Each entry is a bare publisher DID, or a `<did>/<slug>` pair to exempt a single package. Only DIDs are accepted, not handles.
 
@@ -82,7 +82,7 @@ The aggregator URL must be HTTPS in production (`http://localhost` is allowed in
 
 <Steps>
 1. Open the admin panel and navigate to **Plugins > Registry**.
-2. Browse or search. Each result shows the publisher's verified handle, the latest version, and any labels.
+2. Browse or search. Each approved result shows its listing name, approved author name or stable publisher DID, and latest version.
 3. Open a plugin to see its README, screenshots, declared access, and release history.
 4. Click **Install** and review the capability consent dialog.
 5. Confirm.
@@ -92,13 +92,16 @@ Installation verifies the downloaded bytes against the release checksum, confirm
 
 ### Trust model
 
-The registry is decentralized, so trust is explicit. Before activating a plugin, EmDash independently verifies that the artifact bytes hash to the release checksum, that the bundle addresses the plugin id and version it claims, and that its capabilities match the consent dialog.
+The registry is decentralized, so trust is explicit. The reference labeller assesses only the publisher-controlled metadata and media shown in the admin. It does not fetch or assess plugin archives, source code, manifests, dependencies, software bills of materials, or provenance evidence. Its approval is bound to the exact content identifier (CID) of a profile or release record.
+
+Plugin-code checks remain separate. Before activating a plugin, EmDash independently verifies that the artifact bytes hash to the approved release checksum, that the bundle addresses the plugin id and version it claims, and that its capabilities match the consent dialog.
 
 <Aside type="caution">
 	Point `aggregatorUrl` only at an aggregator you operate or trust with the same
-	authority as a central plugin source. `policy.minimumReleaseAge` and
-	`acceptLabelers` widen the takedown window but assume the labeller system is
-	operating.
+	authority as a central plugin source. `policy.minimumReleaseAge` widens the
+	takedown window. `acceptLabelers` declares the set sent with requests; the
+	aggregator's configured policy remains authoritative and rejects a declaration
+	that omits a required source.
 </Aside>
 
 ## What to read next

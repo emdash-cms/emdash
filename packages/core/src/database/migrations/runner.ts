@@ -74,6 +74,8 @@ import * as m068 from "./068_content_taxonomy_entry_groups.js";
 import * as m069 from "./069_collection_title_date_fields.js";
 import * as m070 from "./070_collection_routable.js";
 import * as m071 from "./071_restore_content_bylines_table.js";
+import * as m072 from "./072_media_folders.js";
+import * as m073 from "./073_media_focal_point.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -146,6 +148,8 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"069_collection_title_date_fields": m069,
 	"070_collection_routable": m070,
 	"071_restore_content_bylines_table": m071,
+	"072_media_folders": m072,
+	"073_media_focal_point": m073,
 });
 
 /** Ordered names from the statically registered migration set. */
@@ -260,7 +264,7 @@ function escapeRegExp(value: string): string {
  *
  * We match on the table name (not the full error text) because different
  * SQLite drivers phrase the message differently
- * (`UNIQUE constraint failed: _emdash_migrations.name` for better-sqlite3,
+ * (`UNIQUE constraint failed: _emdash_migrations.name` for file-backed SQLite,
  * `D1_ERROR: UNIQUE constraint failed: _emdash_migrations.name: SQLITE_CONSTRAINT`
  * for D1, etc.). The pattern is built from `MIGRATION_TABLE` so a rename
  * cannot silently disable race detection.
@@ -284,7 +288,7 @@ const MIGRATION_RACE_POLL_MS = 100;
  * Pattern used to detect "table does not exist" errors across the dialects
  * EmDash supports. The phrasing differs by driver:
  *
- *   - better-sqlite3: `no such table: _emdash_migrations`
+ *   - SQLite:         `no such table: _emdash_migrations`
  *   - D1:             `D1_ERROR: no such table: _emdash_migrations: SQLITE_ERROR`
  *   - PostgreSQL:     `relation "_emdash_migrations" does not exist`
  *                     (also occasionally `table "_emdash_migrations" does not exist`)

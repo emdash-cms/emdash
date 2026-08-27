@@ -9,11 +9,21 @@ import {
 } from "kysely";
 import { ulid } from "ulidx";
 
+import {
+	MEDIA_USAGE_ACTIVATION_RUNTIME_GENERATION,
+	MediaUsageActivationVersionMismatchError,
+} from "../../media/usage/activation.js";
 import { isMediaUsageProjectionFingerprint } from "../../media/usage/projection-fingerprint.js";
 import type { MediaUsageContentSourceVariant } from "../../media/usage/source-key.js";
-import type { MediaKind, MediaUsageReferenceType } from "../../media/usage/types.js";
+import {
+	CONTENT_SOURCE_SCHEMA_VERSION,
+	type MediaKind,
+	type MediaUsageReferenceType,
+} from "../../media/usage/types.js";
+import { getRequestContext } from "../../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isPostgres } from "../dialect-helpers.js";
+import { jsonTextValues } from "../json-recordset.js";
 import { withTransaction } from "../transaction.js";
 import type {
 	Database,
@@ -33,11 +43,30 @@ type MediaUsageSourceNullableStringColumn =
 	| "updated_at"
 	| "last_attempted_at"
 	| "last_error_code";
+type BatchSourceExpectedColumn =
+	| "source.collection_id"
+	| "source.source_fingerprint"
+	| "source.source_updated_at"
+	| "source.source_version"
+	| "source.identity_version"
+	| "source.revision_id"
+	| "source.last_attempted_at"
+	| "source.last_error_code";
+type BatchInputExpectedColumn =
+	| "input.expected_collection_id"
+	| "input.expected_source_fingerprint"
+	| "input.expected_source_updated_at"
+	| "input.expected_source_version"
+	| "input.expected_identity_version"
+	| "input.expected_revision_id"
+	| "input.expected_last_attempted_at"
+	| "input.expected_last_error_code";
 const OCCURRENCE_BIND_COLUMNS = 13;
+const D1_MAX_BOUND_PARAMETERS = 100;
 export const MEDIA_USAGE_GENERATION_WRITE_LEASE_MS = 60 * 60 * 1000;
 const OCCURRENCE_INSERT_BATCH_SIZE = Math.max(
 	1,
-	Math.floor(SQL_BATCH_SIZE / OCCURRENCE_BIND_COLUMNS),
+	Math.floor(D1_MAX_BOUND_PARAMETERS / OCCURRENCE_BIND_COLUMNS),
 );
 
 function cleanupDeleteBatchSize(cleanupLease: MediaUsageCleanupLease | undefined): number {
@@ -47,6 +76,84 @@ function cleanupDeleteBatchSize(cleanupLease: MediaUsageCleanupLease | undefined
 function canIssueCleanupStatement(canIssueStatement: (() => boolean) | undefined): boolean {
 	return canIssueStatement?.() ?? true;
 }
+
+function nullableRefMatch(
+	left: "content.live_revision_id" | "content.draft_revision_id",
+	right: "input.revision_id",
+): RawBuilder<boolean> {
+	const leftRef = sql.ref(left);
+	const rightRef = sql.ref(right);
+	return sql<boolean>`(
+		(${leftRef} IS NULL AND ${rightRef} IS NULL)
+		OR ${leftRef} = ${rightRef}
+	)`;
+}
+
+const MAX_JSON_BIND_BYTES = 1_900_000;
+const MEDIA_USAGE_EVENT_QUERY_CEILING = 900;
+const MEDIA_USAGE_QUERY_RESERVE = 150;
+
+function chunkJsonRows<T>(rows: readonly T[]): T[][] {
+	const batches: T[][] = [];
+	let batch: T[] = [];
+	let batchBytes = 2;
+	for (const row of rows) {
+		const rowBytes =
+			new TextEncoder().encode(JSON.stringify(row)).byteLength + (batch.length > 0 ? 1 : 0);
+		if (batch.length > 0 && batchBytes + rowBytes > MAX_JSON_BIND_BYTES) {
+			batches.push(batch);
+			batch = [];
+			batchBytes = 2;
+		}
+		batch.push(row);
+		batchBytes += rowBytes;
+	}
+	if (batch.length > 0) batches.push(batch);
+	return batches;
+}
+
+function mediaUsageQueryBudgetAllows(queries: number): boolean {
+	const metrics = getRequestContext()?.metrics;
+	return (
+		!metrics ||
+		metrics.dbCount + queries + MEDIA_USAGE_QUERY_RESERVE <= MEDIA_USAGE_EVENT_QUERY_CEILING
+	);
+}
+
+function mergeInto<T>(target: Set<T>, source: ReadonlySet<T>): void {
+	for (const value of source) target.add(value);
+}
+
+function batchOccurrenceRows(
+	prepared: readonly {
+		projection: { occurrences: readonly MediaUsageOccurrenceInput[] };
+		generation: string;
+		leaseToken: string;
+		row: { source_key: string };
+	}[],
+	now: string,
+) {
+	return prepared.flatMap((item) =>
+		item.projection.occurrences.map((occurrence) => ({
+			id: ulid(),
+			source_key: item.row.source_key,
+			generation: item.generation,
+			field_slug: occurrence.fieldSlug,
+			field_path: occurrence.fieldPath,
+			occurrence_index: occurrence.occurrenceIndex ?? 0,
+			reference_type: occurrence.referenceType,
+			media_id: occurrence.mediaId,
+			provider: occurrence.provider,
+			provider_asset_id: occurrence.providerAssetId,
+			media_kind: occurrence.mediaKind ?? null,
+			mime_type: occurrence.mimeType ?? null,
+			created_at: now,
+			lease_token: item.leaseToken,
+		})),
+	);
+}
+
+type BatchOccurrenceRow = ReturnType<typeof batchOccurrenceRows>[number];
 
 function cleanupDurationSeconds(value: number): number {
 	if (!Number.isSafeInteger(value) || value < 0) {
@@ -166,6 +273,15 @@ export interface MediaUsageGuardedReplaceResult {
 	unchanged: boolean;
 	/** Populated only when a guarded replacement did not win the current source row. */
 	source: MediaUsageSource | null;
+}
+
+export interface MediaUsageNewSourceProjection {
+	source: MediaUsageSourceInput;
+	occurrences: readonly MediaUsageOccurrenceInput[];
+}
+
+export interface MediaUsageExistingSourceProjection extends MediaUsageNewSourceProjection {
+	expectedSource: MediaUsageSource;
 }
 
 export interface MediaUsageGuardedDeleteResult {
@@ -338,6 +454,12 @@ export interface MediaUsageCollectionIndexStatusScope {
 	status: string | null;
 	schemaVersion: number | null;
 	reconciliationRequired: boolean;
+}
+
+export interface MediaUsageCollectionProgress {
+	status: "indexing" | "ready" | "needs_attention";
+	readyCollections: number;
+	totalCollections: number;
 }
 
 export interface MediaUsageEntrySource {
@@ -537,14 +659,15 @@ export class MediaUsageRepository {
 		const uniqueSourceKeys = [...new Set(sourceKeys)];
 		const sources = new Map<string, MediaUsageSource>();
 		if (uniqueSourceKeys.length === 0) return sources;
-
-		for (const sourceKeyBatch of chunks(uniqueSourceKeys, SQL_BATCH_SIZE)) {
-			const rows = await this.db
-				.selectFrom("_emdash_media_usage_sources")
-				.selectAll()
-				.where("source_key", "in", sourceKeyBatch)
-				.execute();
-			for (const row of rows) {
+		for (const sourceKeyBatch of chunkJsonRows(uniqueSourceKeys)) {
+			const input = jsonTextValues(this.db, sourceKeyBatch);
+			const result = await sql<Selectable<MediaUsageSourceTable>>`
+				WITH requested AS (${input})
+				SELECT source.*
+				FROM _emdash_media_usage_sources AS source
+				INNER JOIN requested ON requested.value = source.source_key
+			`.execute(this.db);
+			for (const row of result.rows) {
 				const source = rowToSource(row);
 				sources.set(source.sourceKey, source);
 			}
@@ -617,6 +740,441 @@ export class MediaUsageRepository {
 			unchanged: false,
 			source: replaced ? null : await this.findSource(source.sourceKey),
 		};
+	}
+
+	async replaceNewSourcesBatch(
+		projections: readonly MediaUsageNewSourceProjection[],
+	): Promise<Set<string>> {
+		const unique = [
+			...new Map(
+				projections.map((projection) => [projection.source.sourceKey, projection]),
+			).values(),
+		];
+		if (unique.length === 0) return new Set();
+		const collectionSlug = unique[0]?.source.collectionSlug;
+		const collectionId = unique[0]?.source.collectionId;
+		if (!collectionSlug || !collectionId) {
+			throw new Error("Canonical media usage batch requires collection identity");
+		}
+		validateIdentifier(collectionSlug, "collection slug");
+		if (
+			unique.some(
+				(projection) =>
+					projection.source.collectionSlug !== collectionSlug ||
+					projection.source.collectionId !== collectionId,
+			)
+		) {
+			throw new Error("Canonical media usage batch must contain one collection");
+		}
+
+		const now = new Date().toISOString();
+		const expiresAt = new Date(Date.now() + MEDIA_USAGE_GENERATION_WRITE_LEASE_MS).toISOString();
+		const prepared = unique.map((projection) => {
+			const generation = ulid();
+			return {
+				projection,
+				generation,
+				leaseToken: ulid(),
+				row: this.buildSourceRow(projection.source, generation, now),
+			};
+		});
+		const sourceRows = prepared.map((item) => ({
+			...item.row,
+			lease_token: item.leaseToken,
+		}));
+		const occurrenceRows = batchOccurrenceRows(prepared, now);
+		const estimatedQueries =
+			2 + chunkJsonRows(occurrenceRows).length + chunkJsonRows(sourceRows).length;
+		if (!mediaUsageQueryBudgetAllows(estimatedQueries)) {
+			if (unique.length === 1) return new Set();
+			const midpoint = Math.ceil(unique.length / 2);
+			const inserted = new Set<string>();
+			mergeInto(inserted, await this.replaceNewSourcesBatch(unique.slice(0, midpoint)));
+			mergeInto(inserted, await this.replaceNewSourcesBatch(unique.slice(midpoint)));
+			return inserted;
+		}
+
+		const leasesPayload = JSON.stringify(
+			prepared.map((item) => ({
+				source_key: item.row.source_key,
+				collection_id: item.row.collection_id,
+				collection_slug: item.row.collection_slug,
+				generation: item.generation,
+				lease_token: item.leaseToken,
+				expires_at: expiresAt,
+				created_at: now,
+			})),
+		);
+		const leases = this.generationWriteBatchInput(leasesPayload);
+		await sql`
+			WITH input AS (${leases})
+			INSERT INTO _emdash_media_usage_generation_writes (
+				source_key, generation, lease_token, expires_at, created_at
+			)
+			SELECT source_key, generation, lease_token, expires_at, created_at
+			FROM input
+			WHERE EXISTS (
+				SELECT 1
+				FROM _emdash_collections AS collection
+				INNER JOIN _emdash_media_usage_index_status AS status
+					ON status.collection_id = collection.id
+					AND status.scope_key = collection.slug
+				WHERE collection.id = input.collection_id
+					AND collection.slug = input.collection_slug
+					AND status.adapter_id = 'content-media'
+					AND status.scope_type = 'collection'
+					AND status.capture_state = 'active'
+					AND NOT EXISTS (
+						SELECT 1 FROM _emdash_media_usage_collection_deletions AS deletion
+						WHERE deletion.collection_id = input.collection_id
+					)
+			)
+		`.execute(this.db);
+
+		try {
+			await this.insertBatchOccurrences(occurrenceRows);
+			const tableName = `ec_${collectionSlug}`;
+			validateIdentifier(tableName, "content table");
+			const inserted = new Set<string>();
+			for (const sourceRowBatch of chunkJsonRows(sourceRows)) {
+				const input = this.sourceBatchInput(JSON.stringify(sourceRowBatch));
+				const result = await sql<{ source_key: string }>`
+					WITH input AS (${input})
+					INSERT INTO _emdash_media_usage_sources (
+						source_key, source_type, collection_id, collection_slug, content_id,
+						source_variant, locale, translation_group, content_slug, content_title,
+						content_status, content_scheduled_at, content_deleted_at, revision_id,
+						current_generation, schema_version, source_updated_at, source_version,
+						source_fingerprint, identity_version, source_completeness,
+						last_attempted_at, last_error_code, indexed_at, updated_at
+					)
+					SELECT
+						input.source_key, input.source_type, input.collection_id, input.collection_slug,
+						input.content_id, input.source_variant, input.locale, input.translation_group,
+						input.content_slug, input.content_title, input.content_status,
+						input.content_scheduled_at, input.content_deleted_at, input.revision_id,
+						input.current_generation, input.schema_version, input.source_updated_at,
+						input.source_version, input.source_fingerprint, input.identity_version,
+						input.source_completeness, input.last_attempted_at, input.last_error_code,
+						input.indexed_at, input.updated_at
+					FROM input
+					WHERE EXISTS (
+						SELECT 1
+						FROM _emdash_media_usage_generation_writes AS writer
+						WHERE writer.source_key = input.source_key
+							AND writer.generation = input.current_generation
+							AND writer.lease_token = input.lease_token
+							AND ${this.generationWriteLeaseExpiryIsInFuture("writer.expires_at")}
+					)
+					AND EXISTS (
+						SELECT 1
+						FROM _emdash_collections AS collection
+						INNER JOIN _emdash_media_usage_index_status AS status
+							ON status.collection_id = collection.id
+							AND status.scope_key = collection.slug
+						WHERE collection.id = input.collection_id
+							AND collection.slug = input.collection_slug
+							AND status.adapter_id = 'content-media'
+							AND status.scope_type = 'collection'
+							AND status.capture_state = 'active'
+							AND NOT EXISTS (
+								SELECT 1
+								FROM _emdash_media_usage_collection_deletions AS deletion
+								WHERE deletion.collection_id = input.collection_id
+							)
+					)
+					AND EXISTS (
+						SELECT 1
+						FROM ${sql.ref(tableName)} AS content
+						WHERE content.id = input.content_id
+							AND content.version = input.source_version
+							AND content.updated_at = input.source_updated_at
+							AND (
+								(input.source_variant = 'columns' AND ${nullableRefMatch("content.live_revision_id", "input.revision_id")})
+								OR
+								(input.source_variant = 'draft_overlay' AND ${nullableRefMatch("content.draft_revision_id", "input.revision_id")})
+							)
+					)
+					ON CONFLICT (source_key) DO NOTHING
+					RETURNING source_key
+				`.execute(this.db);
+				for (const row of result.rows) inserted.add(row.source_key);
+			}
+			return inserted;
+		} finally {
+			await sql`
+				WITH input AS (${leases})
+				DELETE FROM _emdash_media_usage_generation_writes AS writer
+				WHERE EXISTS (
+					SELECT 1
+					FROM input
+					WHERE input.source_key = writer.source_key
+						AND input.generation = writer.generation
+						AND input.lease_token = writer.lease_token
+				)
+			`.execute(this.db);
+		}
+	}
+
+	async replaceExistingSourcesBatch(
+		projections: readonly MediaUsageExistingSourceProjection[],
+	): Promise<Set<string>> {
+		const unique = [
+			...new Map(
+				projections.map((projection) => [projection.source.sourceKey, projection]),
+			).values(),
+		];
+		if (unique.length === 0) return new Set();
+		const collectionSlug = unique[0]?.source.collectionSlug;
+		const collectionId = unique[0]?.source.collectionId;
+		if (!collectionSlug || !collectionId) {
+			throw new Error("Canonical media usage batch requires collection identity");
+		}
+		validateIdentifier(collectionSlug, "collection slug");
+		if (
+			unique.some(
+				(projection) =>
+					projection.source.collectionSlug !== collectionSlug ||
+					projection.source.collectionId !== collectionId,
+			)
+		) {
+			throw new Error("Canonical media usage batch must contain one collection");
+		}
+
+		const now = new Date().toISOString();
+		const expiresAt = new Date(Date.now() + MEDIA_USAGE_GENERATION_WRITE_LEASE_MS).toISOString();
+		const prepared = unique.map((projection) => {
+			const generation = ulid();
+			return {
+				projection,
+				generation,
+				leaseToken: ulid(),
+				row: this.buildSourceRow(projection.source, generation, now),
+			};
+		});
+		const sourceRows = prepared.map((item) => ({
+			...item.row,
+			lease_token: item.leaseToken,
+			expected_generation: item.projection.expectedSource.currentGeneration,
+			expected_collection_id: item.projection.expectedSource.collectionId,
+			expected_updated_at: item.projection.expectedSource.updatedAt,
+			expected_source_fingerprint: item.projection.expectedSource.sourceFingerprint,
+			expected_source_updated_at: item.projection.expectedSource.sourceUpdatedAt,
+			expected_source_version: item.projection.expectedSource.sourceVersion,
+			expected_identity_version: item.projection.expectedSource.identityVersion,
+			expected_revision_id: item.projection.expectedSource.revisionId,
+			expected_source_completeness: item.projection.expectedSource.sourceCompleteness,
+			expected_last_attempted_at: item.projection.expectedSource.lastAttemptedAt,
+			expected_last_error_code: item.projection.expectedSource.lastErrorCode,
+		}));
+		const occurrenceRows = batchOccurrenceRows(prepared, now);
+		const estimatedQueries =
+			2 + chunkJsonRows(occurrenceRows).length + chunkJsonRows(sourceRows).length;
+		if (!mediaUsageQueryBudgetAllows(estimatedQueries)) {
+			if (unique.length === 1) return new Set();
+			const midpoint = Math.ceil(unique.length / 2);
+			const replaced = new Set<string>();
+			mergeInto(replaced, await this.replaceExistingSourcesBatch(unique.slice(0, midpoint)));
+			mergeInto(replaced, await this.replaceExistingSourcesBatch(unique.slice(midpoint)));
+			return replaced;
+		}
+		const leasesPayload = JSON.stringify(
+			prepared.map((item) => ({
+				source_key: item.row.source_key,
+				collection_id: item.row.collection_id,
+				collection_slug: item.row.collection_slug,
+				generation: item.generation,
+				lease_token: item.leaseToken,
+				expires_at: expiresAt,
+				created_at: now,
+			})),
+		);
+		const leases = this.generationWriteBatchInput(leasesPayload);
+		await sql`
+			WITH input AS (${leases})
+			INSERT INTO _emdash_media_usage_generation_writes (
+				source_key, generation, lease_token, expires_at, created_at
+			)
+			SELECT source_key, generation, lease_token, expires_at, created_at
+			FROM input
+			WHERE EXISTS (
+				SELECT 1
+				FROM _emdash_collections AS collection
+				INNER JOIN _emdash_media_usage_index_status AS status
+					ON status.collection_id = collection.id
+					AND status.scope_key = collection.slug
+				WHERE collection.id = input.collection_id
+					AND collection.slug = input.collection_slug
+					AND status.adapter_id = 'content-media'
+					AND status.scope_type = 'collection'
+					AND status.capture_state = 'active'
+					AND NOT EXISTS (
+						SELECT 1 FROM _emdash_media_usage_collection_deletions AS deletion
+						WHERE deletion.collection_id = input.collection_id
+					)
+			)
+		`.execute(this.db);
+
+		try {
+			await this.insertBatchOccurrences(occurrenceRows);
+			const tableName = `ec_${collectionSlug}`;
+			validateIdentifier(tableName, "content table");
+			const replaced = new Set<string>();
+			for (const sourceRowBatch of chunkJsonRows(sourceRows)) {
+				const input = this.sourceBatchInput(JSON.stringify(sourceRowBatch));
+				const result = await sql<{ source_key: string }>`
+					WITH input AS (${input})
+					UPDATE _emdash_media_usage_sources AS source
+					SET source_type = input.source_type,
+						collection_id = input.collection_id,
+						collection_slug = input.collection_slug,
+						content_id = input.content_id,
+						source_variant = input.source_variant,
+						locale = input.locale,
+						translation_group = input.translation_group,
+						content_slug = input.content_slug,
+						content_title = input.content_title,
+						content_status = input.content_status,
+						content_scheduled_at = input.content_scheduled_at,
+						content_deleted_at = input.content_deleted_at,
+						revision_id = input.revision_id,
+						current_generation = input.current_generation,
+						schema_version = input.schema_version,
+						source_updated_at = input.source_updated_at,
+						source_version = input.source_version,
+						source_fingerprint = input.source_fingerprint,
+						identity_version = input.identity_version,
+						source_completeness = input.source_completeness,
+						last_attempted_at = input.last_attempted_at,
+						last_error_code = input.last_error_code,
+						indexed_at = input.indexed_at,
+						updated_at = input.updated_at
+					FROM input
+					WHERE source.source_key = input.source_key
+						AND source.current_generation = input.expected_generation
+						AND ${this.batchRefsMatch("source.collection_id", "input.expected_collection_id")}
+						AND source.updated_at = input.expected_updated_at
+						AND ${this.batchRefsMatch("source.source_fingerprint", "input.expected_source_fingerprint")}
+						AND ${this.batchRefsMatch("source.source_updated_at", "input.expected_source_updated_at")}
+						AND ${this.batchRefsMatch("source.source_version", "input.expected_source_version")}
+						AND ${this.batchRefsMatch("source.identity_version", "input.expected_identity_version")}
+						AND ${this.batchRefsMatch("source.revision_id", "input.expected_revision_id")}
+						AND source.source_completeness = input.expected_source_completeness
+						AND ${this.batchRefsMatch("source.last_attempted_at", "input.expected_last_attempted_at")}
+						AND ${this.batchRefsMatch("source.last_error_code", "input.expected_last_error_code")}
+						AND EXISTS (
+							SELECT 1
+							FROM _emdash_media_usage_generation_writes AS writer
+							WHERE writer.source_key = input.source_key
+								AND writer.generation = input.current_generation
+								AND writer.lease_token = input.lease_token
+								AND ${this.generationWriteLeaseExpiryIsInFuture("writer.expires_at")}
+						)
+						AND EXISTS (
+							SELECT 1
+							FROM _emdash_collections AS collection
+							INNER JOIN _emdash_media_usage_index_status AS status
+								ON status.collection_id = collection.id
+								AND status.scope_key = collection.slug
+							WHERE collection.id = input.collection_id
+								AND collection.slug = input.collection_slug
+								AND status.adapter_id = 'content-media'
+								AND status.scope_type = 'collection'
+								AND status.capture_state = 'active'
+								AND NOT EXISTS (
+									SELECT 1
+									FROM _emdash_media_usage_collection_deletions AS deletion
+									WHERE deletion.collection_id = input.collection_id
+								)
+						)
+						AND EXISTS (
+							SELECT 1
+							FROM ${sql.ref(tableName)} AS content
+							WHERE content.id = input.content_id
+								AND content.version = input.source_version
+								AND content.updated_at = input.source_updated_at
+								AND (
+									(input.source_variant = 'columns' AND ${nullableRefMatch("content.live_revision_id", "input.revision_id")})
+									OR
+									(input.source_variant = 'draft_overlay' AND ${nullableRefMatch("content.draft_revision_id", "input.revision_id")})
+								)
+						)
+					RETURNING ${isPostgres(this.db) ? sql`source.source_key` : sql`source_key`} AS source_key
+				`.execute(this.db);
+				for (const row of result.rows) replaced.add(row.source_key);
+			}
+			return replaced;
+		} finally {
+			await sql`
+				WITH input AS (${leases})
+				DELETE FROM _emdash_media_usage_generation_writes AS writer
+				WHERE EXISTS (
+					SELECT 1
+					FROM input
+					WHERE input.source_key = writer.source_key
+						AND input.generation = writer.generation
+						AND input.lease_token = writer.lease_token
+				)
+			`.execute(this.db);
+		}
+	}
+
+	async matchingExistingSourcesBatch(
+		projections: readonly MediaUsageExistingSourceProjection[],
+	): Promise<Set<string>> {
+		if (projections.length === 0) return new Set();
+		const now = new Date().toISOString();
+		const rows = projections.map((projection) => ({
+			...this.buildSourceRow(projection.source, projection.expectedSource.currentGeneration, now),
+			expected_generation: projection.expectedSource.currentGeneration,
+			expected_collection_id: projection.expectedSource.collectionId,
+			expected_updated_at: projection.expectedSource.updatedAt,
+			expected_source_fingerprint: projection.expectedSource.sourceFingerprint,
+			expected_source_updated_at: projection.expectedSource.sourceUpdatedAt,
+			expected_source_version: projection.expectedSource.sourceVersion,
+			expected_identity_version: projection.expectedSource.identityVersion,
+			expected_revision_id: projection.expectedSource.revisionId,
+			expected_source_completeness: projection.expectedSource.sourceCompleteness,
+			expected_last_attempted_at: projection.expectedSource.lastAttemptedAt,
+			expected_last_error_code: projection.expectedSource.lastErrorCode,
+		}));
+		if (!mediaUsageQueryBudgetAllows(chunkJsonRows(rows).length)) {
+			if (projections.length === 1) return new Set();
+			const midpoint = Math.ceil(projections.length / 2);
+			const matched = new Set<string>();
+			mergeInto(matched, await this.matchingExistingSourcesBatch(projections.slice(0, midpoint)));
+			mergeInto(matched, await this.matchingExistingSourcesBatch(projections.slice(midpoint)));
+			return matched;
+		}
+		const matched = new Set<string>();
+		for (const batch of chunkJsonRows(rows)) {
+			const input = this.sourceBatchInput(JSON.stringify(batch));
+			const result = await sql<{ source_key: string }>`
+				WITH input AS (${input})
+				SELECT source.source_key
+				FROM _emdash_media_usage_sources AS source
+				INNER JOIN input ON input.source_key = source.source_key
+				WHERE source.current_generation = input.expected_generation
+					AND ${this.batchRefsMatch("source.collection_id", "input.expected_collection_id")}
+					AND source.updated_at = input.expected_updated_at
+					AND ${this.batchRefsMatch("source.source_fingerprint", "input.expected_source_fingerprint")}
+					AND ${this.batchRefsMatch("source.source_updated_at", "input.expected_source_updated_at")}
+					AND ${this.batchRefsMatch("source.source_version", "input.expected_source_version")}
+					AND ${this.batchRefsMatch("source.identity_version", "input.expected_identity_version")}
+					AND ${this.batchRefsMatch("source.revision_id", "input.expected_revision_id")}
+					AND source.source_completeness = input.expected_source_completeness
+					AND ${this.batchRefsMatch("source.last_attempted_at", "input.expected_last_attempted_at")}
+					AND ${this.batchRefsMatch("source.last_error_code", "input.expected_last_error_code")}
+					AND EXISTS (
+						SELECT 1
+						FROM _emdash_collections AS collection
+						WHERE collection.id = source.collection_id
+							AND collection.slug = source.collection_slug
+					)
+			`.execute(this.db);
+			for (const row of result.rows) matched.add(row.source_key);
+		}
+		return matched;
 	}
 
 	async markSourceAttempted(source: MediaUsageSourceInput): Promise<MediaUsageSource> {
@@ -760,6 +1318,129 @@ export class MediaUsageRepository {
 			reconciliationRequired:
 				row.reconciliation_required !== null && Number(row.reconciliation_required) !== 0,
 		}));
+	}
+
+	async findCollectionProgress(): Promise<MediaUsageCollectionProgress | null> {
+		const result = await sql<{
+			activation_active: boolean | number;
+			activation_generation: number | string | null;
+			needs_attention: boolean | number;
+			ready_collections: number | string;
+			total_collections: number | string;
+			cleanup_pending: boolean | number;
+		}>`
+			WITH collection_progress AS (
+				SELECT
+					CASE WHEN status.status = 'complete'
+						AND status.schema_version = ${CONTENT_SOURCE_SCHEMA_VERSION}
+						AND status.reconciliation_required = 0
+						AND status.capture_state = 'active'
+						AND NOT EXISTS (
+							SELECT 1 FROM _emdash_media_usage_work AS work
+							WHERE work.collection_id = collection.id
+								AND work.collection_slug = collection.slug
+						)
+					THEN 1 ELSE 0 END AS is_ready,
+					CASE WHEN status.collection_id IS NULL
+						OR COALESCE(status.capture_state, '') <> 'active'
+						OR status.status NOT IN ('complete', 'never', 'running', 'partial', 'failed', 'stale')
+						OR status.status = 'failed'
+						OR (
+							status.reconciliation_required = 0
+							AND (
+								status.status <> 'complete'
+								OR COALESCE(status.schema_version, -1) <> ${CONTENT_SOURCE_SCHEMA_VERSION}
+							)
+							AND NOT EXISTS (
+								SELECT 1 FROM _emdash_media_usage_work AS work
+								WHERE work.collection_id = collection.id
+									AND work.collection_slug = collection.slug
+							)
+						)
+						OR EXISTS (
+							SELECT 1 FROM _emdash_media_usage_work AS work
+							WHERE work.collection_id = collection.id
+								AND work.collection_slug = collection.slug
+								AND work.state = 'failed'
+						)
+						OR EXISTS (
+							SELECT 1 FROM _emdash_media_usage_reconciliations AS reconciliation
+							WHERE reconciliation.collection_id = collection.id
+								AND reconciliation.collection_slug = collection.slug
+								AND reconciliation.state = 'failed'
+								AND status.reconciliation_required = 1
+								AND (
+									reconciliation.target_epoch IS NULL
+									OR reconciliation.target_epoch >= status.change_epoch
+								)
+						)
+					THEN 1 ELSE 0 END AS needs_attention
+				FROM _emdash_collections AS collection
+				LEFT JOIN _emdash_media_usage_index_status AS status
+					ON status.adapter_id = 'content-media'
+					AND status.scope_type = 'collection'
+					AND status.collection_id = collection.id
+					AND status.scope_key = collection.slug
+				WHERE NOT EXISTS (
+					SELECT 1 FROM _emdash_media_usage_collection_deletions AS deletion
+					WHERE deletion.collection_id = collection.id
+						AND deletion.collection_slug = collection.slug
+				)
+			)
+			SELECT
+				(
+					SELECT activation.runtime_generation
+					FROM _emdash_media_usage_activation AS activation
+					WHERE activation.task_key = 'incremental_capture'
+				) AS activation_generation,
+				EXISTS (
+					SELECT 1 FROM _emdash_media_usage_activation AS activation
+					WHERE activation.task_key = 'incremental_capture'
+						AND activation.state = 'active'
+				) AS activation_active,
+				COUNT(*) AS total_collections,
+				COALESCE(SUM(is_ready), 0) AS ready_collections,
+				EXISTS (
+					SELECT 1 FROM _emdash_media_usage_collection_deletions AS deletion
+					WHERE deletion.state IN ('pending', 'retry', 'leased')
+				) AS cleanup_pending,
+				CASE WHEN COALESCE(MAX(needs_attention), 0) = 1 OR EXISTS (
+					SELECT 1 FROM _emdash_media_usage_collection_deletions AS deletion
+					WHERE deletion.state = 'failed'
+				) THEN 1 ELSE 0 END AS needs_attention
+			FROM collection_progress
+		`.execute(this.db);
+		const row = result.rows[0];
+		if (!row) throw new Error("Media usage progress query returned no result");
+		if (!row.activation_active) return null;
+		if (Number(row.activation_generation) !== MEDIA_USAGE_ACTIVATION_RUNTIME_GENERATION) {
+			throw new MediaUsageActivationVersionMismatchError(
+				"Media usage activation runtime generation is incompatible",
+			);
+		}
+		const readyCollections = Number(row.ready_collections);
+		const totalCollections = Number(row.total_collections);
+		const cleanupPending = Number(row.cleanup_pending);
+		const needsAttention = Number(row.needs_attention);
+		if (
+			!Number.isSafeInteger(readyCollections) ||
+			!Number.isSafeInteger(totalCollections) ||
+			readyCollections < 0 ||
+			totalCollections < readyCollections ||
+			(cleanupPending !== 0 && cleanupPending !== 1) ||
+			(needsAttention !== 0 && needsAttention !== 1)
+		) {
+			throw new Error("Media usage progress query returned invalid counts");
+		}
+		return {
+			status: needsAttention
+				? "needs_attention"
+				: readyCollections === totalCollections && cleanupPending === 0
+					? "ready"
+					: "indexing",
+			readyCollections,
+			totalCollections,
+		};
 	}
 
 	async findCurrentEntryUsagePageByMediaId(
@@ -1694,6 +2375,7 @@ export class MediaUsageRepository {
 				last_error_code: sql<
 					string | null
 				>`CASE WHEN ${canComplete} THEN NULL ELSE last_error_code END`,
+				cursor: sql<string | null>`CASE WHEN ${canComplete} THEN NULL ELSE cursor END`,
 				last_incremental_success_at: now,
 				updated_at: now,
 			})
@@ -1713,6 +2395,94 @@ export class MediaUsageRepository {
 			)
 			.executeTakeFirst();
 		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
+	async prepareIncrementalFinalization(
+		input: MediaUsageIncrementalStatusIdentity,
+	): Promise<
+		{ outcome: "marked"; marker: string } | { outcome: "not_required" } | { outcome: "lost" }
+	> {
+		const observed = await this.db
+			.selectFrom("_emdash_media_usage_index_status")
+			.select(["change_epoch", "reconciliation_required"])
+			.where("adapter_id", "=", "content-media")
+			.where("scope_type", "=", "collection")
+			.where("scope_key", "=", input.collectionSlug)
+			.where("collection_id", "=", input.collectionId)
+			.where("capture_state", "=", "active")
+			.executeTakeFirst();
+		if (!observed) return { outcome: "lost" };
+		if (observed.reconciliation_required !== 0) return { outcome: "not_required" };
+		const marker = `incremental-finalize:${String(observed.change_epoch)}:${ulid()}`;
+		const result = await this.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ cursor: marker, updated_at: this.sortableUtcTimestamp() })
+			.where("adapter_id", "=", "content-media")
+			.where("scope_type", "=", "collection")
+			.where("scope_key", "=", input.collectionSlug)
+			.where("collection_id", "=", input.collectionId)
+			.where("capture_state", "=", "active")
+			.where("reconciliation_required", "=", 0)
+			.where("change_epoch", "=", observed.change_epoch)
+			.where(
+				sql<boolean>`EXISTS (
+					SELECT 1
+					FROM _emdash_collections AS collection
+					WHERE collection.id = ${input.collectionId}
+						AND collection.slug = ${input.collectionSlug}
+				)`,
+			)
+			.where(
+				sql<boolean>`NOT EXISTS (
+					SELECT 1
+					FROM _emdash_media_usage_collection_deletions AS deletion
+					WHERE deletion.collection_id = ${input.collectionId}
+				)`,
+			)
+			.executeTakeFirst();
+		return Number(result.numUpdatedRows ?? 0) > 0
+			? { outcome: "marked", marker }
+			: { outcome: "lost" };
+	}
+
+	async recoverIncrementalFinalizations(): Promise<number> {
+		const markerMatchesEpoch = isPostgres(this.db)
+			? sql<boolean>`status.cursor LIKE ('incremental-finalize:' || status.change_epoch::text || ':%')`
+			: sql<boolean>`status.cursor LIKE ('incremental-finalize:' || CAST(status.change_epoch AS text) || ':%')`;
+		const now = new Date().toISOString();
+		const result = await sql<{ collection_id: string }>`
+			UPDATE _emdash_media_usage_index_status AS status
+			SET status = 'complete',
+				completed_at = ${now},
+				cursor = NULL,
+				last_error_code = NULL,
+				last_incremental_success_at = ${now},
+				updated_at = ${now}
+			WHERE status.adapter_id = 'content-media'
+				AND status.scope_type = 'collection'
+				AND status.capture_state = 'active'
+				AND status.reconciliation_required = 0
+				AND status.cursor IS NOT NULL
+				AND ${markerMatchesEpoch}
+				AND EXISTS (
+					SELECT 1
+					FROM _emdash_collections AS collection
+					WHERE collection.id = status.collection_id
+						AND collection.slug = status.scope_key
+				)
+				AND NOT EXISTS (
+					SELECT 1
+					FROM _emdash_media_usage_collection_deletions AS deletion
+					WHERE deletion.collection_id = status.collection_id
+				)
+				AND NOT EXISTS (
+					SELECT 1
+					FROM _emdash_media_usage_work AS work
+					WHERE work.collection_id = status.collection_id
+				)
+			RETURNING collection_id
+		`.execute(this.db);
+		return result.rows.length;
 	}
 
 	async recordIncrementalFailure(
@@ -1776,6 +2546,71 @@ export class MediaUsageRepository {
 			)
 			.executeTakeFirst();
 		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
+	async recordIncrementalFailuresByCollection(input: {
+		collectionIds: readonly string[];
+		errorCode: string;
+	}): Promise<Set<string>> {
+		const collectionIds = [...new Set(input.collectionIds)];
+		if (collectionIds.length === 0) return new Set();
+		const collections = jsonTextValues(this.db, collectionIds);
+		const now = new Date().toISOString();
+		const result = await sql<{ collection_id: string }>`
+			WITH failed_collections AS (${collections})
+			UPDATE _emdash_media_usage_index_status AS status
+			SET status = CASE
+					WHEN EXISTS (
+						SELECT 1
+						FROM _emdash_media_usage_reconciliations AS reconciliation
+						WHERE reconciliation.collection_id = status.collection_id
+							AND reconciliation.run_token = status.cursor
+					) THEN status.status
+					WHEN status.reconciliation_required = 0 THEN 'partial'
+					WHEN status.status = 'running' THEN 'stale'
+					ELSE status.status
+				END,
+				completed_at = CASE
+					WHEN EXISTS (
+						SELECT 1
+						FROM _emdash_media_usage_reconciliations AS reconciliation
+						WHERE reconciliation.collection_id = status.collection_id
+							AND reconciliation.run_token = status.cursor
+					) THEN status.completed_at
+					WHEN status.reconciliation_required = 0 OR status.status = 'running' THEN NULL
+					ELSE status.completed_at
+				END,
+				cursor = CASE
+					WHEN EXISTS (
+						SELECT 1
+						FROM _emdash_media_usage_reconciliations AS reconciliation
+						WHERE reconciliation.collection_id = status.collection_id
+							AND reconciliation.run_token = status.cursor
+					) THEN status.cursor
+					WHEN status.status = 'running' THEN NULL
+					ELSE status.cursor
+				END,
+				last_error_code = ${input.errorCode},
+				updated_at = ${now}
+			WHERE status.adapter_id = 'content-media'
+				AND status.scope_type = 'collection'
+				AND status.collection_id IN (SELECT value FROM failed_collections)
+				AND EXISTS (
+					SELECT 1
+					FROM _emdash_media_usage_work AS work
+					WHERE work.collection_id = status.collection_id
+						AND work.state = 'failed'
+						AND work.last_error_code = ${input.errorCode}
+				)
+				AND EXISTS (
+					SELECT 1
+					FROM _emdash_collections AS collection
+					WHERE collection.id = status.collection_id
+						AND collection.slug = status.scope_key
+				)
+			RETURNING collection_id
+		`.execute(this.db);
+		return new Set(result.rows.map((row) => row.collection_id));
 	}
 
 	async findIndexStatus(
@@ -2202,6 +3037,199 @@ export class MediaUsageRepository {
 		for (const rowBatch of chunks(rows, OCCURRENCE_INSERT_BATCH_SIZE)) {
 			await db.insertInto("_emdash_media_usage").values(rowBatch).execute();
 		}
+	}
+
+	private async insertBatchOccurrences(rows: readonly BatchOccurrenceRow[]): Promise<void> {
+		for (const rowBatch of chunkJsonRows(rows)) {
+			const input = this.occurrenceBatchInput(JSON.stringify(rowBatch));
+			await sql`
+				WITH input AS (${input})
+				INSERT INTO _emdash_media_usage (
+					id, source_key, generation, field_slug, field_path, occurrence_index,
+					reference_type, media_id, provider, provider_asset_id, media_kind,
+					mime_type, created_at
+				)
+				SELECT
+					id, source_key, generation, field_slug, field_path, occurrence_index,
+					reference_type, media_id, provider, provider_asset_id, media_kind,
+					mime_type, created_at
+				FROM input
+				WHERE EXISTS (
+					SELECT 1
+					FROM _emdash_media_usage_generation_writes AS writer
+					WHERE writer.source_key = input.source_key
+						AND writer.generation = input.generation
+						AND writer.lease_token = input.lease_token
+						AND ${this.generationWriteLeaseExpiryIsInFuture("writer.expires_at")}
+				)
+			`.execute(this.db);
+		}
+	}
+
+	private occurrenceBatchInput(payload: string): RawBuilder<unknown> {
+		if (isPostgres(this.db)) {
+			return sql`
+				SELECT
+					entry.value ->> 'id' AS id,
+					entry.value ->> 'source_key' AS source_key,
+					entry.value ->> 'generation' AS generation,
+					entry.value ->> 'field_slug' AS field_slug,
+					entry.value ->> 'field_path' AS field_path,
+					CAST(entry.value ->> 'occurrence_index' AS integer) AS occurrence_index,
+					entry.value ->> 'reference_type' AS reference_type,
+					entry.value ->> 'media_id' AS media_id,
+					entry.value ->> 'provider' AS provider,
+					entry.value ->> 'provider_asset_id' AS provider_asset_id,
+					entry.value ->> 'media_kind' AS media_kind,
+					entry.value ->> 'mime_type' AS mime_type,
+					entry.value ->> 'created_at' AS created_at,
+					entry.value ->> 'lease_token' AS lease_token
+				FROM jsonb_array_elements(${payload}::jsonb) AS entry(value)
+			`;
+		}
+		return sql`
+			SELECT
+				json_extract(entry.value, '$.id') AS id,
+				json_extract(entry.value, '$.source_key') AS source_key,
+				json_extract(entry.value, '$.generation') AS generation,
+				json_extract(entry.value, '$.field_slug') AS field_slug,
+				json_extract(entry.value, '$.field_path') AS field_path,
+				CAST(json_extract(entry.value, '$.occurrence_index') AS integer) AS occurrence_index,
+				json_extract(entry.value, '$.reference_type') AS reference_type,
+				json_extract(entry.value, '$.media_id') AS media_id,
+				json_extract(entry.value, '$.provider') AS provider,
+				json_extract(entry.value, '$.provider_asset_id') AS provider_asset_id,
+				json_extract(entry.value, '$.media_kind') AS media_kind,
+				json_extract(entry.value, '$.mime_type') AS mime_type,
+				json_extract(entry.value, '$.created_at') AS created_at,
+				json_extract(entry.value, '$.lease_token') AS lease_token
+			FROM json_each(${payload}) AS entry
+		`;
+	}
+
+	private sourceBatchInput(payload: string): RawBuilder<unknown> {
+		if (isPostgres(this.db)) {
+			return sql`
+				SELECT
+					entry.value ->> 'source_key' AS source_key,
+					entry.value ->> 'source_type' AS source_type,
+					entry.value ->> 'collection_id' AS collection_id,
+					entry.value ->> 'collection_slug' AS collection_slug,
+					entry.value ->> 'content_id' AS content_id,
+					entry.value ->> 'source_variant' AS source_variant,
+					entry.value ->> 'locale' AS locale,
+					entry.value ->> 'translation_group' AS translation_group,
+					entry.value ->> 'content_slug' AS content_slug,
+					entry.value ->> 'content_title' AS content_title,
+					entry.value ->> 'content_status' AS content_status,
+					entry.value ->> 'content_scheduled_at' AS content_scheduled_at,
+					entry.value ->> 'content_deleted_at' AS content_deleted_at,
+					entry.value ->> 'revision_id' AS revision_id,
+					entry.value ->> 'current_generation' AS current_generation,
+					CAST(entry.value ->> 'schema_version' AS integer) AS schema_version,
+					entry.value ->> 'source_updated_at' AS source_updated_at,
+					CAST(entry.value ->> 'source_version' AS bigint) AS source_version,
+					entry.value ->> 'source_fingerprint' AS source_fingerprint,
+					CAST(entry.value ->> 'identity_version' AS integer) AS identity_version,
+					entry.value ->> 'source_completeness' AS source_completeness,
+					entry.value ->> 'last_attempted_at' AS last_attempted_at,
+					entry.value ->> 'last_error_code' AS last_error_code,
+					entry.value ->> 'indexed_at' AS indexed_at,
+					entry.value ->> 'updated_at' AS updated_at,
+					entry.value ->> 'lease_token' AS lease_token,
+					entry.value ->> 'expected_generation' AS expected_generation,
+					entry.value ->> 'expected_collection_id' AS expected_collection_id,
+					entry.value ->> 'expected_updated_at' AS expected_updated_at,
+					entry.value ->> 'expected_source_fingerprint' AS expected_source_fingerprint,
+					entry.value ->> 'expected_source_updated_at' AS expected_source_updated_at,
+					CAST(entry.value ->> 'expected_source_version' AS bigint) AS expected_source_version,
+					CAST(entry.value ->> 'expected_identity_version' AS integer) AS expected_identity_version,
+					entry.value ->> 'expected_revision_id' AS expected_revision_id,
+					entry.value ->> 'expected_source_completeness' AS expected_source_completeness,
+					entry.value ->> 'expected_last_attempted_at' AS expected_last_attempted_at,
+					entry.value ->> 'expected_last_error_code' AS expected_last_error_code
+				FROM jsonb_array_elements(${payload}::jsonb) AS entry(value)
+			`;
+		}
+		return sql`
+			SELECT
+				json_extract(entry.value, '$.source_key') AS source_key,
+				json_extract(entry.value, '$.source_type') AS source_type,
+				json_extract(entry.value, '$.collection_id') AS collection_id,
+				json_extract(entry.value, '$.collection_slug') AS collection_slug,
+				json_extract(entry.value, '$.content_id') AS content_id,
+				json_extract(entry.value, '$.source_variant') AS source_variant,
+				json_extract(entry.value, '$.locale') AS locale,
+				json_extract(entry.value, '$.translation_group') AS translation_group,
+				json_extract(entry.value, '$.content_slug') AS content_slug,
+				json_extract(entry.value, '$.content_title') AS content_title,
+				json_extract(entry.value, '$.content_status') AS content_status,
+				json_extract(entry.value, '$.content_scheduled_at') AS content_scheduled_at,
+				json_extract(entry.value, '$.content_deleted_at') AS content_deleted_at,
+				json_extract(entry.value, '$.revision_id') AS revision_id,
+				json_extract(entry.value, '$.current_generation') AS current_generation,
+				CAST(json_extract(entry.value, '$.schema_version') AS integer) AS schema_version,
+				json_extract(entry.value, '$.source_updated_at') AS source_updated_at,
+				CAST(json_extract(entry.value, '$.source_version') AS integer) AS source_version,
+				json_extract(entry.value, '$.source_fingerprint') AS source_fingerprint,
+				CAST(json_extract(entry.value, '$.identity_version') AS integer) AS identity_version,
+				json_extract(entry.value, '$.source_completeness') AS source_completeness,
+				json_extract(entry.value, '$.last_attempted_at') AS last_attempted_at,
+				json_extract(entry.value, '$.last_error_code') AS last_error_code,
+				json_extract(entry.value, '$.indexed_at') AS indexed_at,
+				json_extract(entry.value, '$.updated_at') AS updated_at,
+				json_extract(entry.value, '$.lease_token') AS lease_token,
+				json_extract(entry.value, '$.expected_generation') AS expected_generation,
+				json_extract(entry.value, '$.expected_collection_id') AS expected_collection_id,
+				json_extract(entry.value, '$.expected_updated_at') AS expected_updated_at,
+				json_extract(entry.value, '$.expected_source_fingerprint') AS expected_source_fingerprint,
+				json_extract(entry.value, '$.expected_source_updated_at') AS expected_source_updated_at,
+				CAST(json_extract(entry.value, '$.expected_source_version') AS integer) AS expected_source_version,
+				CAST(json_extract(entry.value, '$.expected_identity_version') AS integer) AS expected_identity_version,
+				json_extract(entry.value, '$.expected_revision_id') AS expected_revision_id,
+				json_extract(entry.value, '$.expected_source_completeness') AS expected_source_completeness,
+				json_extract(entry.value, '$.expected_last_attempted_at') AS expected_last_attempted_at,
+				json_extract(entry.value, '$.expected_last_error_code') AS expected_last_error_code
+			FROM json_each(${payload}) AS entry
+		`;
+	}
+
+	private generationWriteBatchInput(payload: string): RawBuilder<unknown> {
+		if (isPostgres(this.db)) {
+			return sql`
+				SELECT
+					entry.value ->> 'source_key' AS source_key,
+					entry.value ->> 'collection_id' AS collection_id,
+					entry.value ->> 'collection_slug' AS collection_slug,
+					entry.value ->> 'generation' AS generation,
+					entry.value ->> 'lease_token' AS lease_token,
+					entry.value ->> 'expires_at' AS expires_at,
+					entry.value ->> 'created_at' AS created_at
+				FROM jsonb_array_elements(${payload}::jsonb) AS entry(value)
+			`;
+		}
+		return sql`
+			SELECT
+				json_extract(entry.value, '$.source_key') AS source_key,
+				json_extract(entry.value, '$.collection_id') AS collection_id,
+				json_extract(entry.value, '$.collection_slug') AS collection_slug,
+				json_extract(entry.value, '$.generation') AS generation,
+				json_extract(entry.value, '$.lease_token') AS lease_token,
+				json_extract(entry.value, '$.expires_at') AS expires_at,
+				json_extract(entry.value, '$.created_at') AS created_at
+			FROM json_each(${payload}) AS entry
+		`;
+	}
+
+	private batchRefsMatch(
+		left: BatchSourceExpectedColumn,
+		right: BatchInputExpectedColumn,
+	): RawBuilder<boolean> {
+		const leftRef = sql.ref(left);
+		const rightRef = sql.ref(right);
+		return isPostgres(this.db)
+			? sql<boolean>`${leftRef} IS NOT DISTINCT FROM ${rightRef}`
+			: sql<boolean>`${leftRef} IS ${rightRef}`;
 	}
 
 	private async lockCanonicalSourceCollection(

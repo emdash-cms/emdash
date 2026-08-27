@@ -324,6 +324,11 @@ describe("NSID map", () => {
 			"com.emdashcms.experimental.aggregator.listReleases",
 			"com.emdashcms.experimental.aggregator.resolvePackage",
 			"com.emdashcms.experimental.aggregator.searchPackages",
+			"com.emdashcms.experimental.labeler.defs",
+			"com.emdashcms.experimental.labeler.getAssessment",
+			"com.emdashcms.experimental.labeler.getCurrentAssessment",
+			"com.emdashcms.experimental.labeler.getPolicy",
+			"com.emdashcms.experimental.labeler.listAssessments",
 		].toSorted();
 
 		const actual = Object.values(NSID).toSorted();

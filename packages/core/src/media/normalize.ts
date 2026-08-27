@@ -9,6 +9,7 @@
  * the provider's `get()` method.
  */
 
+import { normalizeFocalPoint } from "./focal-point.js";
 import type { MediaProvider, MediaProviderItem, MediaValue } from "./types.js";
 
 export const INTERNAL_MEDIA_PREFIX = "/_emdash/api/media/file/";
@@ -138,6 +139,7 @@ async function resolveInternalUrl(
 		return { provider: "external", id: "", src: url };
 	}
 
+	const focalPoint = normalizeFocalPoint(item.focalX, item.focalY);
 	return {
 		provider: "local",
 		id: item.id,
@@ -145,6 +147,7 @@ async function resolveInternalUrl(
 		mimeType: item.mimeType,
 		width: item.width,
 		height: item.height,
+		...focalPoint,
 		blurhash: item.blurhash,
 		dominantColor: item.dominantColor,
 		alt: item.alt,
@@ -169,6 +172,7 @@ async function resolveLocalId(
 
 	if (!item) return null;
 
+	const focalPoint = normalizeFocalPoint(item.focalX, item.focalY);
 	return {
 		provider: "local",
 		id: item.id,
@@ -176,6 +180,7 @@ async function resolveLocalId(
 		mimeType: item.mimeType,
 		width: item.width,
 		height: item.height,
+		...focalPoint,
 		blurhash: item.blurhash,
 		dominantColor: item.dominantColor,
 		alt: item.alt,
@@ -234,6 +239,11 @@ function recordToMediaValue(obj: Record<string, unknown>): MediaValue {
 	if (typeof obj.mimeType === "string") result.mimeType = obj.mimeType;
 	if (typeof obj.width === "number") result.width = obj.width;
 	if (typeof obj.height === "number") result.height = obj.height;
+	const focalPoint = normalizeFocalPoint(obj.focalX, obj.focalY);
+	if (focalPoint) {
+		result.focalX = focalPoint.focalX;
+		result.focalY = focalPoint.focalY;
+	}
 	if (typeof obj.blurhash === "string") result.blurhash = obj.blurhash;
 	if (typeof obj.dominantColor === "string") result.dominantColor = obj.dominantColor;
 	if (typeof obj.alt === "string") result.alt = obj.alt;
