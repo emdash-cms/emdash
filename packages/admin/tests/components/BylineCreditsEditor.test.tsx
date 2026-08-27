@@ -93,7 +93,7 @@ describe("BylineCreditsEditor", () => {
 
 		await screen.getByRole("button", { name: "Choose bylines" }).click();
 		await screen.getByLabelText("Search bylines").fill("Starter");
-		await screen.getByRole("option", { name: /Create “Starter”/ }).click();
+		await screen.getByRole("button", { name: "Create Starter" }).click();
 
 		const dialog = screen.getByRole("dialog", { name: "Create byline" });
 		const name = dialog.getByLabelText("Name");
@@ -117,7 +117,7 @@ describe("BylineCreditsEditor", () => {
 
 		await screen.getByRole("button", { name: "Choose bylines" }).click();
 		await screen.getByLabelText("Search bylines").fill("Mina Patel");
-		await screen.getByRole("option", { name: /Create “Mina Patel”/ }).click();
+		await screen.getByRole("button", { name: "Create Mina Patel" }).click();
 		const dialog = screen.getByRole("dialog", { name: "Create byline" });
 		dialog.getByRole("button", { name: "Create and add" }).element().click();
 
@@ -138,7 +138,7 @@ describe("BylineCreditsEditor", () => {
 
 		await screen.getByRole("button", { name: "Choose bylines" }).click();
 		await screen.getByLabelText("Search bylines").fill("Mina Patel");
-		await screen.getByRole("option", { name: /Create “Mina Patel”/ }).click();
+		await screen.getByRole("button", { name: "Create Mina Patel" }).click();
 		screen
 			.getByRole("dialog", { name: "Create byline" })
 			.getByRole("button", { name: "Cancel" })
@@ -156,19 +156,28 @@ describe("BylineCreditsEditor", () => {
 			if (search === "broken") throw new Error("Search failed");
 			return { items: [mina], nextCursor: null };
 		});
-		const screen = await renderBylineEditor(<ControlledEditor bylines={[]} />);
+		const screen = await renderBylineEditor(
+			<ControlledEditor
+				bylines={[]}
+				onQuickCreate={async (input) =>
+					makeByline({ displayName: input.displayName, slug: input.slug })
+				}
+			/>,
+		);
 
 		await screen.getByRole("button", { name: "Choose bylines" }).click();
 		const search = screen.getByLabelText("Search bylines");
 		await search.fill("Mina");
-		await expect.element(screen.getByRole("option", { name: /Mina Patel/ })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Add Mina Patel" })).toBeVisible();
 
 		await search.fill("broken");
 		await expect.element(screen.getByText("Couldn’t search bylines.")).toBeVisible();
 		await expect
-			.element(screen.getByRole("option", { name: /Mina Patel/ }))
+			.element(screen.getByRole("button", { name: "Add Mina Patel" }))
 			.not.toBeInTheDocument();
-		await expect.element(screen.getByRole("option", { name: /Create/ })).not.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: /Create broken/ }))
+			.not.toBeInTheDocument();
 	});
 
 	it("edits a role only after Done and removes only the post credit", async () => {
@@ -245,15 +254,37 @@ describe("BylineCreditsEditor", () => {
 		await expect.element(screen.getByText("Guest Contributor")).toBeVisible();
 	});
 
-	it("does not repeat a generated slug beneath its matching name", async () => {
+	it("returns focus to a byline after adding it", async () => {
+		const mina = makeByline();
+		const screen = await renderBylineEditor(<ControlledEditor bylines={[mina]} />);
+
+		await screen.getByRole("button", { name: "Choose bylines" }).click();
+		await screen.getByRole("button", { name: "Add Mina Patel" }).click();
+
+		const actions = screen.getByRole("button", { name: "More actions for Mina Patel" });
+		await vi.waitFor(() => expect(document.activeElement).toBe(actions.element()));
+	});
+
+	it("hides only a slug that repeats the display name", async () => {
 		const byline = makeByline({ displayName: "the", slug: "the" });
 		const customSlug = makeByline({ id: "custom", slug: "editorial-mina" });
-		const screen = await renderBylineEditor(<ControlledEditor bylines={[byline, customSlug]} />);
+		const generatedSlug = makeByline({
+			id: "generated",
+			displayName: "Guest Contributor",
+			slug: "guest-contributor",
+		});
+		const screen = await renderBylineEditor(
+			<ControlledEditor bylines={[byline, customSlug, generatedSlug]} />,
+		);
 
 		await screen.getByRole("button", { name: "Choose bylines" }).click();
 
-		await expect.element(screen.getByRole("option", { name: "the", exact: true })).toBeVisible();
+		await expect
+			.element(screen.getByRole("button", { name: "Add the", exact: true }))
+			.toBeVisible();
 		await expect.element(screen.getByText("editorial-mina", { exact: true })).toBeVisible();
+		await expect.element(screen.getByText("guest-contributor", { exact: true })).toBeVisible();
+		await expect.element(screen.getByText("the", { exact: true })).toHaveLength(1);
 	});
 
 	it("reorders credits with the keyboard drag handle", async () => {

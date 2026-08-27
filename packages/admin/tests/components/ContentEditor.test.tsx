@@ -1108,7 +1108,7 @@ describe("ContentEditor", () => {
 			});
 
 			await screen.getByRole("button", { name: "Choose bylines" }).click();
-			await screen.getByRole("option", { name: /Mina Patel/ }).click();
+			await screen.getByRole("button", { name: "Add Mina Patel" }).click();
 			await screen.getByRole("button", { name: "Save" }).first().click();
 
 			expect(onSave).toHaveBeenCalledWith(
@@ -1146,7 +1146,7 @@ describe("ContentEditor", () => {
 				});
 
 				await screen.getByRole("button", { name: "Choose bylines" }).click();
-				await screen.getByRole("option", { name: /Mina Patel/ }).click();
+				await screen.getByRole("button", { name: "Add Mina Patel" }).click();
 				await vi.advanceTimersByTimeAsync(2000);
 
 				expect(onAutosave).toHaveBeenCalledWith(
@@ -2223,7 +2223,7 @@ describe("ContentEditor", () => {
 			});
 
 			// Clicking the result credits the byline and leaves the results list.
-			await screen.getByRole("option", { name: /Zoe Far/ }).click();
+			await screen.getByRole("button", { name: "Add Zoe Far" }).click();
 			await expect
 				.element(screen.getByRole("button", { name: "More actions for Zoe Far" }))
 				.toBeInTheDocument();

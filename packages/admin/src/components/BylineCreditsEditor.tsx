@@ -1,5 +1,4 @@
 import {
-	Autocomplete,
 	Badge,
 	Button,
 	Collapsible,
@@ -125,7 +124,6 @@ export function BylineCreditsEditor({
 }: BylineCreditsEditorProps) {
 	const { t } = useLingui();
 	const [chooserOpen, setChooserOpen] = React.useState(false);
-	const [autocompleteOpen, setAutocompleteOpen] = React.useState(false);
 	const [search, setSearch] = React.useState("");
 	const [knownBylines, setKnownBylines] = React.useState<Record<string, BylineSummary>>({});
 	const [announcement, setAnnouncement] = React.useState("");
@@ -150,7 +148,7 @@ export function BylineCreditsEditor({
 	const [editAdvancedOpen, setEditAdvancedOpen] = React.useState(false);
 	const chooserRef = React.useRef<HTMLDivElement>(null);
 	const chooserTriggerRef = React.useRef<HTMLButtonElement | null>(null);
-	const chooserReadyRef = React.useRef(false);
+	const pendingRowFocusRef = React.useRef<string | null>(null);
 	const rowRefs = React.useRef(new Map<string, HTMLDivElement>());
 	const creditsRef = React.useRef(credits);
 	creditsRef.current = credits;
@@ -224,6 +222,12 @@ export function BylineCreditsEditor({
 				?.focus(),
 		);
 	}, []);
+	const focusPendingRow = React.useCallback(() => {
+		const id = pendingRowFocusRef.current;
+		if (!id) return;
+		pendingRowFocusRef.current = null;
+		focusRow(id);
+	}, [focusRow]);
 
 	const changeCredits = React.useCallback(
 		(next: BylineCreditInput[]) => {
@@ -234,16 +238,12 @@ export function BylineCreditsEditor({
 	);
 
 	const openChooser = React.useCallback(() => {
-		chooserReadyRef.current = false;
 		setChooserOpen(true);
-		setAutocompleteOpen(false);
 		focusChooser();
 	}, [focusChooser]);
 
 	const closeChooser = React.useCallback((restoreFocus = true) => {
-		chooserReadyRef.current = false;
 		setChooserOpen(false);
-		setAutocompleteOpen(false);
 		setSearch("");
 		if (restoreFocus) requestAnimationFrame(() => chooserTriggerRef.current?.focus());
 	}, []);
@@ -252,13 +252,13 @@ export function BylineCreditsEditor({
 		(byline: BylineSummary) => {
 			const current = creditsRef.current;
 			if (current.some((credit) => credit.bylineId === byline.id)) return;
+			pendingRowFocusRef.current = byline.id;
 			setKnownBylines((known) => ({ ...known, [byline.id]: byline }));
 			changeCredits([...current, { bylineId: byline.id, roleLabel: null }]);
-			closeChooser();
+			closeChooser(false);
 			setAnnouncement(t`${byline.displayName} added to this post.`);
-			focusRow(byline.id);
 		},
-		[changeCredits, closeChooser, focusRow, t],
+		[changeCredits, closeChooser, t],
 	);
 
 	const handleDragStart = React.useCallback((event: DragStartEvent) => {
@@ -289,7 +289,6 @@ export function BylineCreditsEditor({
 		setCreateErrors({});
 		setCreateError(null);
 		setCreateAdvancedOpen(false);
-		setAutocompleteOpen(false);
 		setCreatePendingOpen(true);
 		setChooserOpen(false);
 	}, [search]);
@@ -378,25 +377,23 @@ export function BylineCreditsEditor({
 				open={chooserOpen}
 				onOpenChange={(open) => (open ? openChooser() : closeChooser(false))}
 				onOpenChangeComplete={(open) => {
-					chooserReadyRef.current = open;
-					if (open) {
-						setAutocompleteOpen(true);
-						return;
-					}
+					if (open) return;
 					if (createPendingOpen) {
 						setCreatePendingOpen(false);
 						setCreateOpen(true);
+						return;
 					}
+					focusPendingRow();
 				}}
 			>
 				<Popover.Content
 					align="end"
 					positionMethod="fixed"
-					className="w-80 max-w-[calc(100vw-2rem)]"
+					className="w-80 max-h-[var(--available-height)] max-w-[calc(100vw-2rem)] overflow-hidden"
 				>
 					<div
 						ref={chooserRef}
-						className="space-y-3"
+						className="flex min-h-0 flex-col gap-3 overflow-hidden"
 						onKeyDown={(event) => {
 							if (event.key === "Escape") {
 								event.preventDefault();
@@ -404,7 +401,7 @@ export function BylineCreditsEditor({
 							}
 						}}
 					>
-						<div className="flex items-start justify-between gap-3">
+						<div className="flex shrink-0 items-start justify-between gap-3">
 							<div className="min-w-0 space-y-1">
 								<Popover.Title>{t`Add byline`}</Popover.Title>
 								<Popover.Description>{t`Search reusable public profiles.`}</Popover.Description>
@@ -422,90 +419,122 @@ export function BylineCreditsEditor({
 							/>
 						</div>
 
-						<div className="[&>div>label]:sr-only">
-							<Autocomplete
-								items={options}
+						<div className="relative shrink-0">
+							<Input
+								size="base"
+								aria-label={t`Search bylines`}
+								placeholder={t`Search bylines to add…`}
+								className={searchResults.isFetching ? "w-full pe-10" : "w-full"}
 								value={search}
-								onValueChange={(value) => {
-									setSearch(String(value ?? ""));
-									if (chooserReadyRef.current) setAutocompleteOpen(true);
-								}}
-								open={autocompleteOpen && options.length > 0}
-								onOpenChange={(open) => setAutocompleteOpen(open && chooserReadyRef.current)}
-								mode="none"
-								autoHighlight="always"
-								openOnInputClick
-								itemToStringValue={(option: BylineOption) =>
-									option.type === "byline" ? option.byline.displayName : option.label
-								}
-								label={t`Search bylines`}
-							>
-								<Autocomplete.InputGroup size="base" placeholder={t`Search by name…`} />
-								<Autocomplete.Content>
-									<Autocomplete.List className="max-h-64 overflow-y-auto">
-										{(option: BylineOption) => (
-											<Autocomplete.Item
-												key={option.type === "byline" ? option.byline.id : "create"}
-												value={option}
-												onClick={() => {
-													if (option.type === "byline") addByline(option.byline);
-													else openCreate();
-												}}
-											>
-												{option.type === "byline" ? (
-													<span className="grid min-w-0 gap-0.5">
-														<Text bold as="span" DANGEROUS_className="wrap-break-word">
-															{option.byline.displayName}
-														</Text>
-														{option.byline.slug !== toBylineSlug(option.byline.displayName) ? (
-															<Text
-																as="span"
-																variant="secondary"
-																DANGEROUS_className="wrap-break-word"
-															>
-																{option.byline.slug}
-															</Text>
-														) : null}
-													</span>
-												) : (
-													<span className="flex items-center gap-2">
-														<Plus aria-hidden="true" />
-														{t`Create “${option.label}”`}
-													</span>
-												)}
-											</Autocomplete.Item>
-										)}
-									</Autocomplete.List>
-								</Autocomplete.Content>
-							</Autocomplete>
+								onChange={(event) => setSearch(event.target.value)}
+							/>
+							{searchResults.isFetching ? (
+								<span
+									className="pointer-events-none absolute end-3 top-1/2 flex -translate-y-1/2 items-center"
+									aria-hidden="true"
+								>
+									<Loader size="sm" />
+								</span>
+							) : null}
 						</div>
 
-						{searchEnabled && searchResults.isLoading && !searchResults.data ? (
-							<div className="flex items-center gap-2">
-								<Loader size="sm" />
-								<Text variant="secondary">{t`Searching…`}</Text>
-							</div>
-						) : null}
-						{searchEnabled && searchResults.isFetching && searchResults.data ? (
-							<div className="flex items-center gap-2">
-								<Loader size="sm" />
-								<Text variant="secondary">{t`Updating results…`}</Text>
-							</div>
-						) : null}
-						{searchEnabled && searchResults.isError ? (
-							<div className="space-y-2">
-								<Text variant="error">{t`Couldn’t search bylines.`}</Text>
-								<Button type="button" variant="secondary" onClick={() => searchResults.refetch()}>
-									{t`Retry`}
-								</Button>
-							</div>
-						) : null}
-						{searchEnabled && searchResults.isSuccess && options.length === 0 ? (
-							<Text variant="secondary">{t`No matching bylines.`}</Text>
-						) : null}
-						{(searchResults.data?.nextCursor || (!searchEnabled && bylines.length >= 100)) && (
-							<Text variant="secondary">{t`Keep typing to narrow the list.`}</Text>
-						)}
+						<div
+							role="region"
+							aria-label={t`Available bylines`}
+							aria-busy={searchResults.isFetching}
+							className="h-56 min-h-0 shrink overflow-y-auto overscroll-contain pe-1 [scrollbar-gutter:stable]"
+						>
+							{searchEnabled && searchResults.isLoading && !searchResults.data ? (
+								<div className="flex h-full items-center justify-center gap-2">
+									<Loader size="sm" />
+									<Text variant="secondary">{t`Searching…`}</Text>
+								</div>
+							) : searchEnabled && searchResults.isError ? (
+								<div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+									<Text variant="error">{t`Couldn’t search bylines.`}</Text>
+									<Button type="button" variant="secondary" onClick={() => searchResults.refetch()}>
+										{t`Retry`}
+									</Button>
+								</div>
+							) : options.length > 0 ? (
+								<ul className="space-y-2">
+									{options.map((option) => (
+										<li key={option.type === "byline" ? option.byline.id : "create"}>
+											<LayerCard className="flex min-h-14 items-center gap-3 px-3 py-2">
+												{option.type === "byline" ? (
+													<>
+														<div className="min-w-0 flex-1">
+															<Text bold as="span" DANGEROUS_className="block wrap-break-word">
+																{option.byline.displayName}
+															</Text>
+															{option.byline.slug !==
+															option.byline.displayName.trim().toLocaleLowerCase() ? (
+																<Text
+																	as="span"
+																	variant="secondary"
+																	DANGEROUS_className="block wrap-break-word"
+																>
+																	{option.byline.slug}
+																</Text>
+															) : null}
+														</div>
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="ms-auto"
+															aria-label={t`Add ${option.byline.displayName}`}
+															onClick={() => addByline(option.byline)}
+														>
+															{t`Add`}
+														</Button>
+													</>
+												) : (
+													<>
+														<span className="flex size-6 shrink-0 items-center justify-center text-kumo-subtle">
+															<Plus aria-hidden="true" />
+														</span>
+														<div className="min-w-0 flex-1">
+															<Text bold as="span" DANGEROUS_className="block wrap-break-word">
+																{t`Create “${option.label}”`}
+															</Text>
+															<Text as="span" variant="secondary">
+																{t`New reusable profile`}
+															</Text>
+														</div>
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="ms-auto"
+															aria-label={t`Create ${option.label}`}
+															onClick={openCreate}
+														>
+															{t`Create`}
+														</Button>
+													</>
+												)}
+											</LayerCard>
+										</li>
+									))}
+									{(searchResults.data?.nextCursor ||
+										(!searchEnabled && bylines.length >= 100)) && (
+										<li className="px-2 py-1">
+											<Text variant="secondary">{t`Keep typing to narrow the list.`}</Text>
+										</li>
+									)}
+								</ul>
+							) : (
+								<div className="flex h-full items-center justify-center text-center">
+									<Text variant="secondary">
+										{searchEnabled ? t`No matching bylines.` : t`No bylines available.`}
+									</Text>
+								</div>
+							)}
+						</div>
+						<span className="sr-only" aria-live="polite">
+							{searchResults.isFetching ? t`Searching…` : ""}
+						</span>
 					</div>
 				</Popover.Content>
 				<>
@@ -671,6 +700,7 @@ export function BylineCreditsEditor({
 						requestAnimationFrame(openChooser);
 					}
 				}}
+				onOpenChangeComplete={(open) => !open && focusPendingRow()}
 				name={createName}
 				slug={createSlug}
 				onNameChange={(value) => {
@@ -871,6 +901,7 @@ interface BylineProfileDialogProps {
 	kind: "create" | "edit";
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	onOpenChangeComplete?: (open: boolean) => void;
 	name: string;
 	slug: string;
 	onNameChange: (value: string) => void;
@@ -888,6 +919,7 @@ function BylineProfileDialog({
 	kind,
 	open,
 	onOpenChange,
+	onOpenChangeComplete,
 	name,
 	slug,
 	onNameChange,
@@ -903,7 +935,12 @@ function BylineProfileDialog({
 	const { t } = useLingui();
 	const prefix = kind === "create" ? "byline-create" : "byline-edit";
 	return (
-		<Dialog.Root open={open} onOpenChange={onOpenChange} disablePointerDismissal>
+		<Dialog.Root
+			open={open}
+			onOpenChange={onOpenChange}
+			onOpenChangeComplete={onOpenChangeComplete}
+			disablePointerDismissal
+		>
 			<Dialog className="p-6" size="sm">
 				<Dialog.Title className="text-lg font-semibold">
 					{kind === "create" ? t`Create byline` : t`Edit name and slug`}

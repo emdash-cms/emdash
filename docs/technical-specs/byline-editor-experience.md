@@ -60,7 +60,7 @@ The editor must distinguish these cases:
 - The quick-create name handler stops generating the slug after the first typed character. Browser and Vitest reproduction both produce `r` after typing `Review Tester` one character at a time.
 - The quick-edit mutation changes a reusable byline's display name and slug. Those changes affect every entry that renders that byline.
 - The editor settings panel is 320–480 px wide on desktop and a 320 px sheet below the `lg` breakpoint.
-- Kumo 2.6.0 provides the required `Autocomplete`, `Button`, `Collapsible`, `Dialog`, `DropdownMenu`, `Input`, `Loader`, and `Text` APIs. It does not expose a styled Avatar component.
+- Kumo 2.6.0 provides the required `Button`, `Collapsible`, `Dialog`, `DropdownMenu`, `Input`, `LayerCard`, `Loader`, `Popover`, and `Text` APIs. It does not expose a styled Avatar component.
 
 ## Component boundary
 
@@ -104,14 +104,14 @@ If explicit credits exist at another locale but do not resolve at the active loc
 
 `Choose bylines` and the selected-state add button open a Kumo popover anchored to the trigger. Keep the credit list mounted behind the popover so opening search does not resize or scroll the settings sections.
 
-Use one controlled Kumo `Autocomplete`:
+Use one controlled Kumo `Input` followed by a fixed-height scroll region:
 
-- visually hidden label: `Search bylines`;
-- placeholder: `Search by name…`;
+- accessible label: `Search bylines`;
+- placeholder: `Search bylines to add…`;
 - `size="base"`;
-- all available matching items in one scroll-capped `Autocomplete.List`;
-- no fixed five-item slice;
-- each option shows the display name and a muted slug only when it helps distinguish similar names;
+- all available matching items in a 14 rem scroll region with a reserved scrollbar gutter; shrink the region only when the popover has less vertical space;
+- each result is a separate Kumo `LayerCard` with the display name, a muted slug only when it helps distinguish the profile, and an `Add` button;
+- the create result uses the same card treatment with a `Create` button;
 - selected bylines are omitted from results;
 - Escape closes the chooser and restores focus to its trigger.
 
@@ -122,12 +122,12 @@ Show one create option for a non-empty query when `onQuickCreateByline` exists a
 Search states:
 
 - **Loading with no results:** show an inline Kumo `Loader` and `Searching…`.
-- **Loading with previous results:** retain the results and show a non-blocking loader.
+- **Loading with previous results:** retain the results and show a non-blocking loader inside the search input.
 - **No match:** show `No matching bylines.` followed by the create option.
 - **Error:** preserve the query, show `Couldn’t search bylines.`, and provide a Kumo `Retry` button.
 - **More results:** show `Keep typing to narrow the list.` when `nextCursor` exists. Do not add pagination to the editor.
 
-Selecting an option adds it at the end once, closes the chooser, clears its query, marks bylines as touched, and returns focus to the new credit row.
+Selecting `Add` appends the byline once, closes the chooser, clears its query, marks bylines as touched, and returns focus to the new credit row.
 
 ### Explicit credits
 
@@ -159,7 +159,7 @@ The role label remains optional free text. This PR does not change how sites cho
 
 ### Create byline
 
-Keep one controlled Kumo `Dialog.Root` mounted. Open it from the chooser's create option.
+Keep one controlled Kumo `Dialog.Root` mounted. Open it from the chooser's create card.
 
 The dialog contains:
 
@@ -187,13 +187,13 @@ The dialog description must state `Changes apply everywhere this byline appears.
 
 Use the installed public components directly:
 
-- `Autocomplete` for search and result selection;
 - `Button` for all actions and drag handles;
 - `DropdownMenu` for row actions;
 - `Popover` for the anchored chooser;
 - `Dialog` for create and reusable-profile edit;
 - `Collapsible` for Advanced and the per-entry role editor;
-- `Input` for name, slug, and role;
+- `Input` for chooser search, name, slug, and role;
+- `LayerCard` for available and selected byline rows;
 - `Loader` for search and mutation feedback;
 - `Text` and `Badge` for labels and state.
 
@@ -234,7 +234,7 @@ The same information order and actions apply at every width. The component reflo
 - Desktop settings-panel widths: 320, 368, and 480 px.
 - Mobile settings sheet: 320 px at supported narrow viewports.
 - Rows keep the handle, name, and action trigger reachable without horizontal scrolling. Long names and roles wrap inside the middle column.
-- Autocomplete content, dropdown menus, and dialogs stay inside the viewport and above the mobile settings sheet.
+- The chooser, dropdown menus, and dialogs stay inside the viewport and above the mobile settings sheet.
 - The create dialog uses Kumo `size="sm"`; its actions wrap or stack without changing their order.
 - Use base-size Kumo inputs without a page-local font-size override and never block browser zoom. If iOS verification exposes a package-wide Kumo input-zoom problem, record it as a design-system gap instead of expanding this PR.
 
@@ -243,7 +243,7 @@ Manual verification must cover 320, 360, 480, 768, 1023, 1024, and 1440 px viewp
 ## Accessibility, localization, and RTL
 
 - Every icon-only button has a localized accessible name. Decorative icons use `aria-hidden="true"`.
-- Kumo Autocomplete owns combobox, listbox, arrow-key, Enter, and Escape behavior.
+- The chooser uses a labelled search input, a labelled result region, semantic list items, and individually named `Add` or `Create` buttons.
 - Kumo Dialog owns focus trapping. Opening a dialog focuses Name; a validation failure focuses the first invalid input. The controlled workflow restores focus to a stable chooser input, row menu trigger, or newly added row when the originating popup item no longer exists.
 - The drag handle supports pointer, touch, and DnD Kit's keyboard model, including live instructions and position announcements.
 - Status changes such as adding, moving, or removing a credit use one polite live region. Validation and mutation failures use field errors or `DialogError`, not color or toast alone.
@@ -280,7 +280,7 @@ Keep the existing editor-level section gate and existing server authorization. T
 ### Search and selection
 
 - Typing calls the locale-pinned API after the debounce and keeps the input focused.
-- Keyboard selection adds one credit and returns focus to the new row.
+- Keyboard activation of an `Add` button adds one credit and returns focus to the new row.
 - A selected byline is absent from results; repeated activation cannot duplicate it.
 - Exact matches suppress the quick-create option; pending and failed searches suppress it until a successful result can rule out a duplicate.
 - Missing quick-create and quick-edit callbacks hide only their corresponding actions.
