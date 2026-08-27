@@ -200,6 +200,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: pnpm --filter @emdash-cms/release-service test
       - run: pnpm --filter @emdash-cms/release-verifier test
       - run: pnpm --filter @emdash-cms/release-action test
