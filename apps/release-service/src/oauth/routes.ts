@@ -6,6 +6,8 @@ import { ApiError } from "../api/errors.js";
 import { apiFailure, apiSuccess } from "../api/response.js";
 import { createApproverApplicationSession } from "../approver-session/session.js";
 import type { ServiceConfiguration } from "../config.js";
+import { registerDirectoryIdentity } from "../directory/sharding.js";
+import { writeOperationsMetric } from "../observability/metrics.js";
 import {
 	PublisherSessionError,
 	clearOAuthRouteCookie,
@@ -338,6 +340,25 @@ export async function handleOAuthCallback(
 						fetch: callbackFetch,
 					});
 		await client.callback(params);
+		try {
+			await registerDirectoryIdentity(
+				route.purpose === "approver_identity" ? "approver" : "publisher",
+				route.expectedDid,
+			);
+		} catch (error) {
+			writeOperationsMetric({
+				event: "directory_failure",
+				outcome: route.purpose === "approver_identity" ? "approver" : "publisher",
+				requestId,
+			});
+			console.error(
+				JSON.stringify({
+					event: "identity_directory_registration_failed",
+					requestId,
+					name: error instanceof Error ? error.name : "UnknownError",
+				}),
+			);
+		}
 		const headers = new Headers({
 			"cache-control": "no-store",
 			location: new URL(route.redirectTarget, configuration.publicOrigin).toString(),

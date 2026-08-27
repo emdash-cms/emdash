@@ -358,6 +358,7 @@ interface PutDurableOAuthStateInput {
 	stateHash: string;
 	encryptedState: string;
 	encryptionKeyVersion: number;
+	encryptionPurpose: ReturnType<typeof transactionEncryptionPurpose>;
 	clientKeyId: string;
 	redirectTarget: string;
 	expiresAt: number;
@@ -440,6 +441,7 @@ class DurableOAuthStateStore implements Store<string, StoredState> {
 			stateHash,
 			encryptedState: encrypted.envelope,
 			encryptionKeyVersion: encrypted.keyVersion,
+			encryptionPurpose: transactionEncryptionPurpose(this.#options.purpose),
 			clientKeyId: keyId,
 			redirectTarget: userState.redirectTarget,
 			expiresAt: state.expiresAt,

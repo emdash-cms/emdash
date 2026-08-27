@@ -107,4 +107,46 @@ describe("release-service OAuth configuration", () => {
 			issues: ["ENCRYPTION_KEYRING_INVALID"],
 		});
 	});
+
+	it("resolves assertion and encryption values from Secrets Store bindings", async () => {
+		let reads = 0;
+		const configuration = await loadConfiguration({
+			...TEST_BINDINGS,
+			OAUTH_ASSERTION_KEYSET: {
+				async get() {
+					reads += 1;
+					return TEST_BINDINGS.OAUTH_ASSERTION_KEYSET;
+				},
+			},
+			ENCRYPTION_KEYRING: {
+				async get() {
+					reads += 1;
+					return TEST_BINDINGS.ENCRYPTION_KEYRING;
+				},
+			},
+		});
+
+		expect(configuration.oauth.activeAssertionKeyId).toBe(ASSERTION_KEY_2.kid);
+		expect(configuration.encryption.currentKeyVersion).toBe(1);
+		expect(reads).toBe(2);
+	});
+
+	it("fails closed when Secrets Store retrieval fails without exposing the cause", async () => {
+		const sensitive = "secret store returned sensitive provider detail";
+		try {
+			await loadConfiguration({
+				...TEST_BINDINGS,
+				ENCRYPTION_KEYRING: {
+					async get() {
+						throw new Error(sensitive);
+					},
+				},
+			});
+			expect.fail("expected configuration failure");
+		} catch (error) {
+			expect(error).toBeInstanceOf(ConfigurationError);
+			expect(error).toMatchObject({ issues: ["SECRET_STORE_UNAVAILABLE"] });
+			expect(JSON.stringify(error)).not.toContain(sensitive);
+		}
+	});
 });

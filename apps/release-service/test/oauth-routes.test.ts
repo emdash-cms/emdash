@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { loadConfiguration } from "../src/config.js";
+import { identityDirectoryShard } from "../src/directory/sharding.js";
 import {
 	handleApproverIdentityAuthorize,
 	handleOAuthCallback,
@@ -179,6 +180,13 @@ describe("publisher OAuth routes", () => {
 		expect(setCookie).toContain("__Host-emdash_oauth_route=");
 		expect(network.requests.some((request) => request.path === "/revoke")).toBe(true);
 		await expect(env.PUBLISHER_DO.getByName(DID).getDelegation(DID)).resolves.toBeNull();
+		await expect(
+			env.IDENTITY_DIRECTORY_DO.getByName(await identityDirectoryShard(DID)).list(
+				"publisher",
+				null,
+				10,
+			),
+		).resolves.toEqual([expect.objectContaining({ did: DID, kind: "publisher" })]);
 	});
 
 	it("keeps approver identity state and cookies in the approver realm", async () => {
@@ -221,6 +229,13 @@ describe("publisher OAuth routes", () => {
 		await expect(env.APPROVER_DO.getByName(DID).listCredentials(DID, null, 10)).resolves.toEqual(
 			[],
 		);
+		await expect(
+			env.IDENTITY_DIRECTORY_DO.getByName(await identityDirectoryShard(DID)).list(
+				"approver",
+				null,
+				10,
+			),
+		).resolves.toEqual([expect.objectContaining({ did: DID, kind: "approver" })]);
 	});
 
 	it("keeps attacker-triggerable publisher authorization state out of the publisher shard", async () => {

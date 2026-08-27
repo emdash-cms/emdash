@@ -5,10 +5,21 @@ import {
 	TERMINAL_RELEASE_INTENT_STATES,
 	type CursorPage,
 	type DelegationResource,
+	type DirectoryIdentityKind,
+	type DirectoryIdentityResource,
+	type DirectoryListOptions,
+	type EncryptionRotationPageInput,
+	type EncryptionRotationResult,
 	type MutationResult,
 	type OperatorPublisherResource,
+	type PreparePublisherRestoreResult,
+	type PublisherArchiveKind,
+	type PublisherArchivePageInput,
+	type PublisherArchivePageResult,
 	type PublisherControlResource,
 	type PublisherResource,
+	type PublisherRestorePageInput,
+	type PublisherRestorePageResult,
 	type PutWorkloadPolicyInput,
 	type ReleaseIntentResource,
 	type ReleaseIntentResult,
@@ -16,6 +27,7 @@ import {
 	type ReleaseServiceApiErrorCode,
 	type ReleaseServiceClientErrorCode,
 	type ServiceControlState,
+	type StartPublisherArchiveResult,
 	type SubmitReleaseIntentInput,
 	type SubmitReleaseIntentResult,
 	type WorkloadPolicyResource,
@@ -34,10 +46,21 @@ export { parseDelegatedReleaseSourceRecord } from "./source-record.js";
 export type {
 	CursorPage,
 	DelegationResource,
+	DirectoryIdentityKind,
+	DirectoryIdentityResource,
+	DirectoryListOptions,
+	EncryptionRotationPageInput,
+	EncryptionRotationResult,
 	MutationResult,
 	OperatorPublisherResource,
+	PreparePublisherRestoreResult,
+	PublisherArchiveKind,
+	PublisherArchivePageInput,
+	PublisherArchivePageResult,
 	PublisherControlResource,
 	PublisherResource,
+	PublisherRestorePageInput,
+	PublisherRestorePageResult,
 	PutWorkloadPolicyInput,
 	ReleaseIntentResource,
 	ReleaseIntentResult,
@@ -45,6 +68,7 @@ export type {
 	ReleaseServiceApiErrorCode,
 	ReleaseServiceClientErrorCode,
 	ServiceControlState,
+	StartPublisherArchiveResult,
 	SubmitReleaseIntentInput,
 	SubmitReleaseIntentResult,
 	WorkloadPolicyResource,
@@ -60,6 +84,8 @@ const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
 const IDEMPOTENCY_PREFIX_PATTERN = /[^A-Za-z0-9._:-]/g;
 const DIGITS_PATTERN = /^[0-9]+$/;
 const CSRF_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const ARCHIVE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{15,63}$/;
+const DIRECTORY_SHARD_PATTERN = /^[0-9a-f]{2}$/;
 const API_ERROR_CODES: Readonly<Record<ReleaseServiceApiErrorCode, true>> = {
 	ACCESS_DENIED: true,
 	ACCESS_AUTH_INVALID: true,
@@ -67,6 +93,7 @@ const API_ERROR_CODES: Readonly<Record<ReleaseServiceApiErrorCode, true>> = {
 	APPROVAL_INVALID: true,
 	APPROVER_SESSION_INVALID: true,
 	APPROVER_SUSPENDED: true,
+	ARCHIVE_OPERATION_FAILED: true,
 	AUTH_INVALID: true,
 	CONFIGURATION_ERROR: true,
 	CREDENTIAL_LIMIT_REACHED: true,
@@ -74,6 +101,7 @@ const API_ERROR_CODES: Readonly<Record<ReleaseServiceApiErrorCode, true>> = {
 	CREDENTIAL_REVOKED: true,
 	CSRF_INVALID: true,
 	DELEGATION_REQUIRED: true,
+	ENCRYPTION_OPERATION_FAILED: true,
 	IDEMPOTENCY_KEY_INVALID: true,
 	IDEMPOTENCY_CONFLICT: true,
 	INTERNAL_ERROR: true,
@@ -89,11 +117,13 @@ const API_ERROR_CODES: Readonly<Record<ReleaseServiceApiErrorCode, true>> = {
 	PUBLISHER_SESSION_INVALID: true,
 	PUBLISHER_SUSPENDED: true,
 	RELEASE_EXISTS: true,
+	RESTORE_OPERATION_FAILED: true,
 	SERVICE_PAUSED: true,
 	SERVICE_UNAVAILABLE: true,
 	VERSION_RESERVED: true,
 	WORKFLOW_UNAVAILABLE: true,
 	WORKLOAD_NOT_ALLOWED: true,
+	WORKLOAD_RATE_LIMITED: true,
 };
 const RETRYABLE_ERROR_CODES: ReadonlySet<ReleaseServiceClientErrorCode> = new Set([
 	"CONFIGURATION_ERROR",
@@ -104,6 +134,7 @@ const RETRYABLE_ERROR_CODES: ReadonlySet<ReleaseServiceClientErrorCode> = new Se
 	"SERVICE_PAUSED",
 	"SERVICE_UNAVAILABLE",
 	"WORKFLOW_UNAVAILABLE",
+	"WORKLOAD_RATE_LIMITED",
 ]);
 const INTENT_STATES: Readonly<Record<ReleaseIntentState, true>> = {
 	received: true,
@@ -829,6 +860,237 @@ function parsePage<T>(value: unknown, parseItem: (item: unknown) => T): CursorPa
 	};
 }
 
+function parseDirectoryIdentity(value: unknown): DirectoryIdentityResource {
+	if (!isRecord(value)) throw invalidResponse();
+	const did = stringValue(value, "did");
+	const shard = stringValue(value, "shard");
+	const registeredAt = safeInteger(value, "registeredAt");
+	const lastSeenAt = safeInteger(value, "lastSeenAt");
+	if (
+		(value["kind"] !== "approver" && value["kind"] !== "publisher") ||
+		!did ||
+		!DID_PATTERN.test(did) ||
+		!shard ||
+		!DIRECTORY_SHARD_PATTERN.test(shard) ||
+		registeredAt === null ||
+		registeredAt < 0 ||
+		lastSeenAt === null ||
+		lastSeenAt < registeredAt
+	) {
+		throw invalidResponse();
+	}
+	return { kind: value["kind"], did, shard, registeredAt, lastSeenAt };
+}
+
+function rotationPageInput(value: EncryptionRotationPageInput): EncryptionRotationPageInput {
+	if (
+		(value.afterCursor !== null &&
+			(typeof value.afterCursor !== "string" || value.afterCursor.length === 0)) ||
+		!Number.isSafeInteger(value.limit) ||
+		value.limit < 1 ||
+		value.limit > 100
+	) {
+		throw new ReleaseServiceError({
+			code: "CLIENT_RESPONSE_INVALID",
+			message: "Encryption rotation page is invalid",
+		});
+	}
+	return value;
+}
+
+function parseEncryptionRotation(value: unknown): EncryptionRotationResult {
+	if (!isRecord(value)) throw invalidResponse();
+	const ownerDid = stringValue(value, "ownerDid");
+	const targetKeyVersion = safeInteger(value, "targetKeyVersion");
+	const scanned = safeInteger(value, "scanned");
+	const rotated = safeInteger(value, "rotated");
+	const raced = safeInteger(value, "raced");
+	const nextCursor = value["nextCursor"];
+	if (
+		!ownerDid ||
+		!DID_PATTERN.test(ownerDid) ||
+		targetKeyVersion === null ||
+		targetKeyVersion < 1 ||
+		scanned === null ||
+		scanned < 0 ||
+		rotated === null ||
+		rotated < 0 ||
+		raced === null ||
+		raced < 0 ||
+		rotated + raced > scanned ||
+		(nextCursor !== null && typeof nextCursor !== "string") ||
+		typeof value["complete"] !== "boolean"
+	) {
+		throw invalidResponse();
+	}
+	return {
+		ownerDid,
+		targetKeyVersion,
+		scanned,
+		rotated,
+		raced,
+		nextCursor,
+		complete: value["complete"],
+	};
+}
+
+function archivePageInput(value: PublisherArchivePageInput): PublisherArchivePageInput {
+	if (
+		!ARCHIVE_ID_PATTERN.test(value.archiveId) ||
+		(value.cursor !== null && (typeof value.cursor !== "string" || value.cursor.length === 0)) ||
+		!Number.isSafeInteger(value.page) ||
+		value.page < 0 ||
+		value.page > 999_999
+	) {
+		throw new ReleaseServiceError({
+			code: "CLIENT_RESPONSE_INVALID",
+			message: "Publisher archive page is invalid",
+		});
+	}
+	return value;
+}
+
+function isPublisherArchiveKind(value: unknown): value is PublisherArchiveKind {
+	return (
+		value === "audit-events" ||
+		value === "intents" ||
+		value === "metadata" ||
+		value === "workload-policies"
+	);
+}
+
+function parsePublisherArchivePage(value: unknown): PublisherArchivePageResult {
+	if (!isRecord(value)) throw invalidResponse();
+	const archiveId = stringValue(value, "archiveId");
+	const ownerHash = stringValue(value, "ownerHash");
+	const page = safeInteger(value, "page");
+	const nextPage = safeInteger(value, "nextPage");
+	const nextCursor = value["nextCursor"];
+	if (
+		!archiveId ||
+		!ARCHIVE_ID_PATTERN.test(archiveId) ||
+		!ownerHash ||
+		!CSRF_TOKEN_PATTERN.test(ownerHash) ||
+		page === null ||
+		page < 0 ||
+		nextPage === null ||
+		nextPage !== page + 1 ||
+		!isPublisherArchiveKind(value["kind"]) ||
+		(nextCursor !== null && typeof nextCursor !== "string") ||
+		typeof value["replayed"] !== "boolean" ||
+		typeof value["complete"] !== "boolean" ||
+		typeof value["manifestWritten"] !== "boolean" ||
+		value["complete"] !== (nextCursor === null) ||
+		(value["manifestWritten"] && !value["complete"])
+	) {
+		throw invalidResponse();
+	}
+	return {
+		archiveId,
+		ownerHash,
+		page,
+		kind: value["kind"],
+		nextCursor,
+		nextPage,
+		replayed: value["replayed"],
+		complete: value["complete"],
+		manifestWritten: value["manifestWritten"],
+	};
+}
+
+function parseStartedPublisherArchive(value: unknown): StartPublisherArchiveResult {
+	if (!isRecord(value)) throw invalidResponse();
+	const archiveId = stringValue(value, "archiveId");
+	const workflowId = stringValue(value, "workflowId");
+	if (
+		!archiveId ||
+		!ARCHIVE_ID_PATTERN.test(archiveId) ||
+		!workflowId ||
+		!CSRF_TOKEN_PATTERN.test(workflowId) ||
+		typeof value["created"] !== "boolean"
+	) {
+		throw invalidResponse();
+	}
+	return { archiveId, workflowId, created: value["created"] };
+}
+
+function restorePageInput(value: PublisherRestorePageInput): PublisherRestorePageInput {
+	if (
+		!ARCHIVE_ID_PATTERN.test(value.archiveId) ||
+		!Number.isSafeInteger(value.page) ||
+		value.page < 0 ||
+		value.page > 999_999
+	) {
+		throw new ReleaseServiceError({
+			code: "CLIENT_RESPONSE_INVALID",
+			message: "Publisher restore page is invalid",
+		});
+	}
+	return value;
+}
+
+function parsePublisherRestorePage(value: unknown): PublisherRestorePageResult {
+	if (!isRecord(value)) throw invalidResponse();
+	const archiveId = stringValue(value, "archiveId");
+	const ownerHash = stringValue(value, "ownerHash");
+	const page = safeInteger(value, "page");
+	const nextPage = safeInteger(value, "nextPage");
+	const totalPages = safeInteger(value, "totalPages");
+	if (
+		!archiveId ||
+		!ARCHIVE_ID_PATTERN.test(archiveId) ||
+		!ownerHash ||
+		!CSRF_TOKEN_PATTERN.test(ownerHash) ||
+		page === null ||
+		page < 0 ||
+		nextPage === null ||
+		nextPage < page + 1 ||
+		totalPages === null ||
+		totalPages < 1 ||
+		nextPage > totalPages ||
+		!isPublisherArchiveKind(value["kind"]) ||
+		typeof value["replayed"] !== "boolean" ||
+		typeof value["complete"] !== "boolean" ||
+		value["authorityStatus"] !== "reauthorization_required" ||
+		value["complete"] !== (nextPage === totalPages)
+	) {
+		throw invalidResponse();
+	}
+	return {
+		archiveId,
+		ownerHash,
+		page,
+		kind: value["kind"],
+		nextPage,
+		totalPages,
+		replayed: value["replayed"],
+		complete: value["complete"],
+		authorityStatus: "reauthorization_required",
+	};
+}
+
+function parsePreparedPublisherRestore(value: unknown): PreparePublisherRestoreResult {
+	if (!isRecord(value)) throw invalidResponse();
+	const archiveId = stringValue(value, "archiveId");
+	const publisherDid = stringValue(value, "publisherDid");
+	const deletedIntents = safeInteger(value, "deletedIntents");
+	const deletedWorkloads = safeInteger(value, "deletedWorkloads");
+	if (
+		!archiveId ||
+		!ARCHIVE_ID_PATTERN.test(archiveId) ||
+		!publisherDid ||
+		!DID_PATTERN.test(publisherDid) ||
+		value["prepared"] !== true ||
+		deletedIntents === null ||
+		deletedIntents < 0 ||
+		deletedWorkloads === null ||
+		deletedWorkloads < 0
+	) {
+		throw invalidResponse();
+	}
+	return { archiveId, publisherDid, prepared: true, deletedIntents, deletedWorkloads };
+}
+
 export class ReleaseServiceOperatorClient extends BaseReleaseServiceClient {
 	#mutationHeaders(idempotencyKey: string): Headers {
 		return new Headers({
@@ -846,6 +1108,32 @@ export class ReleaseServiceOperatorClient extends BaseReleaseServiceClient {
 				if (!isRecord(value)) throw invalidResponse();
 				return parseServiceState(value["state"]);
 			},
+		);
+	}
+
+	async listDirectory(
+		kind: DirectoryIdentityKind,
+		options: DirectoryListOptions & RequestOptions = {},
+	): Promise<CursorPage<DirectoryIdentityResource>> {
+		if (
+			(kind !== "approver" && kind !== "publisher") ||
+			(options.cursor !== undefined && options.cursor.length === 0) ||
+			(options.limit !== undefined &&
+				(!Number.isSafeInteger(options.limit) || options.limit < 1 || options.limit > 100))
+		) {
+			throw new ReleaseServiceError({
+				code: "CLIENT_RESPONSE_INVALID",
+				message: "Directory list request is invalid",
+			});
+		}
+		const url = new URL("/admin/api/directory", this.serviceUrl);
+		url.searchParams.set("kind", kind);
+		if (options.cursor !== undefined) url.searchParams.set("cursor", options.cursor);
+		if (options.limit !== undefined) url.searchParams.set("limit", String(options.limit));
+		return await this.call(
+			`${url.pathname}${url.search}`,
+			{ method: "GET", credentials: "include", signal: options.signal },
+			(value) => parsePage(value, parseDirectoryIdentity),
 		);
 	}
 
@@ -926,6 +1214,126 @@ export class ReleaseServiceOperatorClient extends BaseReleaseServiceClient {
 				if (!isRecord(value)) throw invalidResponse();
 				return parsePublisher(value["publisher"]);
 			},
+		);
+	}
+
+	async archivePublisher(
+		publisherDid: string,
+		page: PublisherArchivePageInput,
+		options: MutationOptions,
+	): Promise<PublisherArchivePageResult> {
+		return await this.call(
+			`/admin/api/publishers/${encodeURIComponent(publisherDid)}/archive`,
+			{
+				method: "POST",
+				credentials: "include",
+				headers: this.#mutationHeaders(options.idempotencyKey),
+				body: JSON.stringify(archivePageInput(page)),
+				signal: options.signal,
+			},
+			parsePublisherArchivePage,
+		);
+	}
+
+	async startPublisherArchive(
+		publisherDid: string,
+		archiveId: string,
+		options: MutationOptions,
+	): Promise<StartPublisherArchiveResult> {
+		if (!ARCHIVE_ID_PATTERN.test(archiveId)) {
+			throw new ReleaseServiceError({
+				code: "CLIENT_RESPONSE_INVALID",
+				message: "Publisher archive ID is invalid",
+			});
+		}
+		return await this.call(
+			`/admin/api/publishers/${encodeURIComponent(publisherDid)}/archive/start`,
+			{
+				method: "POST",
+				credentials: "include",
+				headers: this.#mutationHeaders(options.idempotencyKey),
+				body: JSON.stringify({ archiveId }),
+				signal: options.signal,
+			},
+			parseStartedPublisherArchive,
+		);
+	}
+
+	async restorePublisher(
+		publisherDid: string,
+		page: PublisherRestorePageInput,
+		options: MutationOptions,
+	): Promise<PublisherRestorePageResult> {
+		return await this.call(
+			`/admin/api/publishers/${encodeURIComponent(publisherDid)}/restore`,
+			{
+				method: "POST",
+				credentials: "include",
+				headers: this.#mutationHeaders(options.idempotencyKey),
+				body: JSON.stringify(restorePageInput(page)),
+				signal: options.signal,
+			},
+			parsePublisherRestorePage,
+		);
+	}
+
+	async preparePublisherRestore(
+		publisherDid: string,
+		archiveId: string,
+		options: MutationOptions,
+	): Promise<PreparePublisherRestoreResult> {
+		if (!ARCHIVE_ID_PATTERN.test(archiveId)) {
+			throw new ReleaseServiceError({
+				code: "CLIENT_RESPONSE_INVALID",
+				message: "Publisher archive ID is invalid",
+			});
+		}
+		return await this.call(
+			`/admin/api/publishers/${encodeURIComponent(publisherDid)}/restore/prepare`,
+			{
+				method: "POST",
+				credentials: "include",
+				headers: this.#mutationHeaders(options.idempotencyKey),
+				body: JSON.stringify({ archiveId, confirmPublisherDid: publisherDid }),
+				signal: options.signal,
+			},
+			parsePreparedPublisherRestore,
+		);
+	}
+
+	async rotatePublisherEncryption(
+		publisherDid: string,
+		page: EncryptionRotationPageInput,
+		options: MutationOptions,
+	): Promise<EncryptionRotationResult> {
+		return await this.call(
+			`/admin/api/publishers/${encodeURIComponent(publisherDid)}/encryption/rotate`,
+			{
+				method: "POST",
+				credentials: "include",
+				headers: this.#mutationHeaders(options.idempotencyKey),
+				body: JSON.stringify(rotationPageInput(page)),
+				signal: options.signal,
+			},
+			parseEncryptionRotation,
+		);
+	}
+
+	async rotateApproverEncryption(
+		approverDid: string,
+		page: EncryptionRotationPageInput,
+		options: MutationOptions,
+	): Promise<EncryptionRotationResult> {
+		return await this.call(
+			`/admin/api/approvers/${encodeURIComponent(approverDid)}/encryption/rotate`,
+			{
+				method: "POST",
+				credentials: "include",
+				headers: this.#mutationHeaders(options.idempotencyKey),
+				body: JSON.stringify(rotationPageInput(page)),
+				signal: options.signal,
+			},
+			parseEncryptionRotation,
 		);
 	}
 

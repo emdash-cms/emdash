@@ -1,5 +1,10 @@
 import { DurableObject } from "cloudflare:workers";
 
+import type {
+	EncryptionRecordPage,
+	EncryptionRecordReplacement,
+} from "../operations/encryption-records.js";
+import { MAX_ENCRYPTION_RECORD_PAGE } from "../operations/encryption-records.js";
 import {
 	initializeIntentStateSchema,
 	IntentStateStore,
@@ -21,6 +26,12 @@ import {
 	type StoredPublicationMaterialization,
 } from "./publication-materialization.js";
 import {
+	initializeOperationsRestoreSchema,
+	OperationsRestoreStore,
+	type ApplyPublisherRestorePageInput,
+	type ApplyPublisherRestorePageResult,
+} from "./operations-restore.js";
+import {
 	initializePublicationOperationSchema,
 	PublicationOperationStore,
 	type AdvancePublicationOperationPhaseInput,
@@ -29,6 +40,12 @@ import {
 	type CompletePublicationOperationInput,
 	type CompletePublicationOperationResult,
 } from "./publication-operation.js";
+import {
+	initializeIntentRateLimitSchema,
+	IntentRateLimitStore,
+	type ConsumeIntentRateLimitInput,
+	type ConsumeIntentRateLimitResult,
+} from "./rate-limit.js";
 import {
 	initializeVerificationStepSchema,
 	VerificationStepStore,
@@ -86,6 +103,12 @@ export type {
 	StoredVerificationStep,
 	VerificationStepName,
 } from "./verification-step.js";
+export type {
+	ApplyPublisherRestorePageInput,
+	ApplyPublisherRestorePageResult,
+	PublisherRestoreKind,
+} from "./operations-restore.js";
+export type { ConsumeIntentRateLimitInput, ConsumeIntentRateLimitResult } from "./rate-limit.js";
 
 const DID_PATTERN = /^did:[a-z][a-z0-9]*:[A-Za-z0-9._:%-]+$/;
 const HASH_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
@@ -96,6 +119,12 @@ const MAX_REFRESH_LEASE_MS = 5 * 60_000;
 const MAX_PUBLISHER_SESSION_MS = 24 * 60 * 60_000;
 const REFRESH_TOKEN_BYTES = 32;
 const BASE64_PADDING_PATTERN = /=+$/;
+const ENCRYPTION_CURSOR_PATTERN = /^(?:delegation:1|oauth-state:[A-Za-z0-9_-]{32,128})$/;
+const ARCHIVE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{15,63}$/;
+
+export type PublisherOAuthEncryptionPurpose =
+	| "oauth-console-transaction"
+	| "oauth-delegation-transaction";
 
 export type PublisherStateErrorCode =
 	| "PUBLISHER_DID_INVALID"
@@ -105,7 +134,10 @@ export type PublisherStateErrorCode =
 	| "DELEGATION_INVALID"
 	| "DELEGATION_CAS_REQUIRED"
 	| "DELEGATION_UNAVAILABLE"
-	| "PUBLISHER_SESSION_INVALID";
+	| "ENCRYPTION_OPERATION_INVALID"
+	| "OPERATIONS_EXPORT_INVALID"
+	| "PUBLISHER_SESSION_INVALID"
+	| "PUBLISHER_STATE_CORRUPT";
 
 export class PublisherStateError extends Error {
 	readonly code: PublisherStateErrorCode;
@@ -122,6 +154,7 @@ export interface PutOAuthStateInput {
 	stateHash: string;
 	encryptedState: string;
 	encryptionKeyVersion: number;
+	encryptionPurpose: PublisherOAuthEncryptionPurpose;
 	clientKeyId: string;
 	redirectTarget: string;
 	expiresAt: number;
@@ -164,6 +197,33 @@ export interface StoredDelegation {
 	status: "active" | "revoked" | "reauthorization_required";
 	stateVersion: number;
 }
+
+export interface PublisherOperationsMetadata {
+	publisher: {
+		did: string;
+		status: "active" | "suspended";
+		createdAt: number;
+	};
+	delegation: Omit<
+		StoredDelegation,
+		"clientKeyId" | "encryptedSession" | "encryptionKeyVersion"
+	> | null;
+}
+
+export interface PublisherAuditEvent {
+	sequence: number;
+	eventType: string;
+	actorRealm: "access" | "approver" | "oidc" | "publisher" | "system";
+	actorIdentity: string;
+	subject: string;
+	reasonCode: string | null;
+	publicPayloadJson: string;
+	createdAt: number;
+}
+
+export type PreparePublisherRestoreResult =
+	| { ok: true; deletedIntents: number; deletedWorkloads: number }
+	| { ok: false; code: "PUBLISHER_NOT_SUSPENDED" };
 
 export type PutDelegationResult =
 	| { ok: true; delegation: StoredDelegation }
@@ -223,6 +283,13 @@ interface PublisherSessionOwnerRow {
 	did: string;
 	status: "active" | "suspended";
 	session_epoch: number;
+}
+
+interface PublisherOperationsMetadataRow {
+	[key: string]: string | number | ArrayBuffer | null;
+	did: string;
+	status: "active" | "suspended";
+	created_at: number;
 }
 
 interface PublisherSessionRow {
@@ -290,6 +357,26 @@ interface OperationRow {
 	expires_at: number | null;
 }
 
+interface EncryptionRecordRow {
+	[key: string]: string | number | ArrayBuffer | null;
+	cursor: string;
+	envelope: string;
+	key_version: number;
+	purpose: "oauth-session" | PublisherOAuthEncryptionPurpose;
+}
+
+interface AuditRow {
+	[key: string]: string | number | ArrayBuffer | null;
+	sequence: number;
+	event_type: string;
+	actor_realm: PublisherAuditEvent["actorRealm"];
+	actor_identity: string;
+	subject: string;
+	reason_code: string | null;
+	public_payload: string;
+	created_at: number;
+}
+
 function validBoundedString(value: unknown, maxLength: number): value is string {
 	return typeof value === "string" && value.length > 0 && value.length <= maxLength;
 }
@@ -306,6 +393,12 @@ function validRelativeRedirectPath(value: unknown): value is string {
 
 function validPositiveInteger(value: unknown): value is number {
 	return Number.isSafeInteger(value) && Number(value) >= 1;
+}
+
+function validPublisherOAuthEncryptionPurpose(
+	value: unknown,
+): value is PublisherOAuthEncryptionPurpose {
+	return value === "oauth-console-transaction" || value === "oauth-delegation-transaction";
 }
 
 function validOptionalTimestamp(value: unknown): value is number | null {
@@ -348,6 +441,8 @@ export class PublisherDurableObject extends DurableObject<Env> {
 	readonly #publicationMaterializations: PublicationMaterializationStore;
 	readonly #publicationOperations: PublicationOperationStore;
 	readonly #verificationSteps: VerificationStepStore;
+	readonly #operationsRestore: OperationsRestoreStore;
+	readonly #intentRateLimits: IntentRateLimitStore;
 
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
@@ -357,6 +452,8 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		this.#publicationMaterializations = new PublicationMaterializationStore(ctx.storage);
 		this.#publicationOperations = new PublicationOperationStore(ctx.storage);
 		this.#verificationSteps = new VerificationStepStore(ctx.storage);
+		this.#operationsRestore = new OperationsRestoreStore(ctx.storage);
+		this.#intentRateLimits = new IntentRateLimitStore(ctx.storage);
 		void ctx.blockConcurrencyWhile(() => {
 			this.#initializeSchema();
 			return Promise.resolve();
@@ -375,7 +472,10 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			CREATE TABLE IF NOT EXISTS oauth_states (
 				state_hash TEXT PRIMARY KEY,
 				encrypted_state TEXT NOT NULL,
-				encryption_key_version INTEGER,
+				encryption_key_version INTEGER NOT NULL CHECK (encryption_key_version >= 1),
+				encryption_purpose TEXT NOT NULL CHECK (
+					encryption_purpose IN ('oauth-console-transaction', 'oauth-delegation-transaction')
+				),
 				client_key_id TEXT NOT NULL,
 				redirect_target TEXT NOT NULL,
 				expires_at INTEGER NOT NULL,
@@ -438,6 +538,8 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		initializePublicationMaterializationSchema(this.ctx.storage);
 		initializePublicationOperationSchema(this.ctx.storage);
 		initializeVerificationStepSchema(this.ctx.storage);
+		initializeOperationsRestoreSchema(this.ctx.storage);
+		initializeIntentRateLimitSchema(this.ctx.storage);
 	}
 
 	#assertPublisherObjectName(publisherDid: string): void {
@@ -557,6 +659,11 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		const result = this.#intents.create(input);
 		await this.#scheduleNextAlarm(input.now ?? Date.now());
 		return result;
+	}
+
+	consumeIntentRateLimit(input: ConsumeIntentRateLimitInput): ConsumeIntentRateLimitResult {
+		this.#assertPublisherDid(input.publisherDid);
+		return this.#intentRateLimits.consume(input);
 	}
 
 	findIdempotentIntent(
@@ -852,6 +959,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			!HASH_PATTERN.test(input.stateHash) ||
 			!validBoundedString(input.encryptedState, MAX_CIPHERTEXT_CHARS) ||
 			!validPositiveInteger(input.encryptionKeyVersion) ||
+			!validPublisherOAuthEncryptionPurpose(input.encryptionPurpose) ||
 			!validBoundedString(input.clientKeyId, 128) ||
 			!validRelativeRedirectPath(input.redirectTarget) ||
 			!Number.isSafeInteger(input.expiresAt) ||
@@ -869,12 +977,13 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			if (existing) return { ok: false, code: "OAUTH_STATE_EXISTS" } as const;
 			this.ctx.storage.sql.exec(
 				`INSERT INTO oauth_states (
-						state_hash, encrypted_state, encryption_key_version, client_key_id,
+						state_hash, encrypted_state, encryption_key_version, encryption_purpose, client_key_id,
 						redirect_target, expires_at, created_at
-					) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 				input.stateHash,
 				input.encryptedState,
 				input.encryptionKeyVersion,
+				input.encryptionPurpose,
 				input.clientKeyId,
 				input.redirectTarget,
 				input.expiresAt,
@@ -1007,6 +1116,268 @@ export class PublisherDurableObject extends DurableObject<Env> {
 	getDelegation(publisherDid: string): StoredDelegation | null {
 		this.#assertPublisherDid(publisherDid);
 		return this.#readDelegation();
+	}
+
+	getOperationsMetadata(publisherDid: string): PublisherOperationsMetadata {
+		this.#assertPublisherDid(publisherDid);
+		const publisher = this.ctx.storage.sql
+			.exec<PublisherOperationsMetadataRow>(
+				"SELECT did, status, created_at FROM publisher WHERE id = 1",
+			)
+			.one();
+		const delegation = this.#readDelegation();
+		return {
+			publisher: {
+				did: publisher.did,
+				status: publisher.status,
+				createdAt: publisher.created_at,
+			},
+			delegation: delegation
+				? {
+						releaseNsid: delegation.releaseNsid,
+						scope: delegation.scope,
+						issuer: delegation.issuer,
+						pdsUrl: delegation.pdsUrl,
+						expiresAt: delegation.expiresAt,
+						refreshBefore: delegation.refreshBefore,
+						status: delegation.status,
+						stateVersion: delegation.stateVersion,
+					}
+				: null,
+		};
+	}
+
+	applyOperationsRestorePage(
+		input: ApplyPublisherRestorePageInput,
+	): ApplyPublisherRestorePageResult {
+		this.#assertPublisherDid(input.publisherDid);
+		return this.#operationsRestore.apply(input);
+	}
+
+	prepareOperationsRestore(
+		publisherDid: string,
+		archiveId: string,
+		actorIdentity: string,
+		now = Date.now(),
+	): PreparePublisherRestoreResult {
+		this.#assertPublisherDid(publisherDid);
+		if (
+			!ARCHIVE_ID_PATTERN.test(archiveId) ||
+			!ACTOR_IDENTITY_PATTERN.test(actorIdentity) ||
+			!Number.isSafeInteger(now) ||
+			now < 0
+		) {
+			throw new PublisherStateError("OPERATIONS_EXPORT_INVALID");
+		}
+		return this.ctx.storage.transactionSync(() => {
+			const publisher = this.ctx.storage.sql
+				.exec<{ status: string }>("SELECT status FROM publisher WHERE id = 1")
+				.one();
+			if (publisher.status !== "suspended") {
+				return { ok: false, code: "PUBLISHER_NOT_SUSPENDED" } as const;
+			}
+			const deletedIntents = this.ctx.storage.sql
+				.exec<{ count: number }>("SELECT COUNT(*) AS count FROM intents")
+				.one().count;
+			const deletedWorkloads = this.ctx.storage.sql
+				.exec<{ count: number }>("SELECT COUNT(*) AS count FROM workload_policies")
+				.one().count;
+			this.ctx.storage.sql.exec("DELETE FROM intent_verification_steps");
+			this.ctx.storage.sql.exec("DELETE FROM intent_transitions");
+			this.ctx.storage.sql.exec("DELETE FROM release_reservations");
+			this.ctx.storage.sql.exec("DELETE FROM intent_idempotency");
+			this.ctx.storage.sql.exec("DELETE FROM publication_operations");
+			this.ctx.storage.sql.exec("DELETE FROM deadlines");
+			this.ctx.storage.sql.exec("DELETE FROM intents");
+			this.ctx.storage.sql.exec("DELETE FROM workload_policies");
+			this.ctx.storage.sql.exec("DELETE FROM publisher_sessions");
+			this.ctx.storage.sql.exec("DELETE FROM oauth_states");
+			this.ctx.storage.sql.exec("DELETE FROM delegation");
+			this.ctx.storage.sql.exec("DELETE FROM intent_rate_windows");
+			this.ctx.storage.sql.exec("DELETE FROM intent_rate_idempotency");
+			this.ctx.storage.sql.exec("DELETE FROM operations_restore_pages");
+			this.ctx.storage.sql.exec("DELETE FROM operations_restore");
+			this.ctx.storage.sql.exec("DELETE FROM audit_events");
+			this.ctx.storage.sql.exec(
+				`UPDATE delegation_operations SET generation = generation + 1,
+				 token_hash = NULL, delegation_version = NULL, expires_at = NULL, updated_at = ?
+				 WHERE kind = 'refresh'`,
+				now,
+			);
+			this.ctx.storage.sql.exec(
+				"UPDATE publisher SET session_epoch = session_epoch + 1 WHERE id = 1",
+			);
+			this.#appendAudit(
+				"publisher-restore-prepared",
+				"access",
+				actorIdentity,
+				archiveId,
+				now,
+				"PUBLISHER_SUSPENDED",
+			);
+			return { ok: true, deletedIntents, deletedWorkloads } as const;
+		});
+	}
+
+	listAuditEvents(
+		publisherDid: string,
+		afterSequence: number,
+		limit: number,
+	): readonly PublisherAuditEvent[] {
+		this.#assertPublisherDid(publisherDid);
+		if (
+			!Number.isSafeInteger(afterSequence) ||
+			afterSequence < 0 ||
+			!Number.isSafeInteger(limit) ||
+			limit < 1 ||
+			limit > 100
+		) {
+			throw new PublisherStateError("OPERATIONS_EXPORT_INVALID");
+		}
+		return this.ctx.storage.sql
+			.exec<AuditRow>(
+				`SELECT sequence, event_type, actor_realm, actor_identity,
+				        subject, reason_code, public_payload, created_at
+				 FROM audit_events WHERE sequence > ? ORDER BY sequence LIMIT ?`,
+				afterSequence,
+				limit,
+			)
+			.toArray()
+			.map((row) => {
+				let payload: unknown;
+				try {
+					payload = JSON.parse(row.public_payload);
+				} catch {
+					throw new PublisherStateError("PUBLISHER_STATE_CORRUPT");
+				}
+				if (
+					payload === null ||
+					typeof payload !== "object" ||
+					Array.isArray(payload) ||
+					JSON.stringify(payload) !== row.public_payload
+				) {
+					throw new PublisherStateError("PUBLISHER_STATE_CORRUPT");
+				}
+				return {
+					sequence: row.sequence,
+					eventType: row.event_type,
+					actorRealm: row.actor_realm,
+					actorIdentity: row.actor_identity,
+					subject: row.subject,
+					reasonCode: row.reason_code,
+					publicPayloadJson: row.public_payload,
+					createdAt: row.created_at,
+				};
+			});
+	}
+
+	listEncryptionRecords(
+		publisherDid: string,
+		afterCursor: string | null,
+		limit: number,
+		now = Date.now(),
+	): EncryptionRecordPage {
+		this.#assertPublisherDid(publisherDid);
+		if (
+			(afterCursor !== null && !ENCRYPTION_CURSOR_PATTERN.test(afterCursor)) ||
+			!Number.isSafeInteger(limit) ||
+			limit < 1 ||
+			limit > MAX_ENCRYPTION_RECORD_PAGE ||
+			!Number.isSafeInteger(now) ||
+			now < 0
+		) {
+			throw new PublisherStateError("ENCRYPTION_OPERATION_INVALID");
+		}
+		const rows = this.ctx.storage.sql
+			.exec<EncryptionRecordRow>(
+				`SELECT cursor, envelope, key_version, purpose FROM (
+					SELECT 'delegation:1' AS cursor, encrypted_session AS envelope,
+						encryption_key_version AS key_version, 'oauth-session' AS purpose
+					FROM delegation
+					WHERE status != 'revoked' AND encrypted_session != ''
+						AND encryption_key_version IS NOT NULL
+					UNION ALL
+					SELECT 'oauth-state:' || state_hash AS cursor, encrypted_state AS envelope,
+						encryption_key_version AS key_version, encryption_purpose AS purpose
+					FROM oauth_states
+					WHERE expires_at > ? AND encrypted_state != ''
+				) WHERE cursor > ? ORDER BY cursor LIMIT ?`,
+				now,
+				afterCursor ?? "",
+				limit + 1,
+			)
+			.toArray();
+		const hasMore = rows.length > limit;
+		const visible = hasMore ? rows.slice(0, limit) : rows;
+		const items = visible.map((row) => {
+			if (row.purpose !== "oauth-session" && !validPublisherOAuthEncryptionPurpose(row.purpose)) {
+				throw new PublisherStateError("ENCRYPTION_OPERATION_INVALID");
+			}
+			return {
+				cursor: row.cursor,
+				envelope: row.envelope,
+				keyVersion: row.key_version,
+				context:
+					row.cursor === "delegation:1"
+						? {
+								purpose: "oauth-session" as const,
+								objectClass: "PublisherDurableObject",
+								table: "delegation",
+								primaryKey: "1",
+								ownerDid: publisherDid,
+							}
+						: {
+								purpose: row.purpose,
+								objectClass: "PublisherDurableObject",
+								table: "oauth_states",
+								primaryKey: row.cursor.slice("oauth-state:".length),
+								ownerDid: publisherDid,
+							},
+			};
+		});
+		return {
+			items,
+			nextCursor: hasMore ? (items.at(-1)?.cursor ?? null) : null,
+		};
+	}
+
+	replaceEncryptionRecord(input: EncryptionRecordReplacement & { publisherDid: string }): boolean {
+		this.#assertPublisherDid(input.publisherDid);
+		const now = input.now ?? Date.now();
+		if (
+			!ENCRYPTION_CURSOR_PATTERN.test(input.cursor) ||
+			!validBoundedString(input.expectedEnvelope, MAX_CIPHERTEXT_CHARS) ||
+			!validBoundedString(input.replacementEnvelope, MAX_CIPHERTEXT_CHARS) ||
+			!validPositiveInteger(input.replacementKeyVersion) ||
+			!ACTOR_IDENTITY_PATTERN.test(input.actorIdentity) ||
+			!Number.isSafeInteger(now) ||
+			now < 0
+		) {
+			throw new PublisherStateError("ENCRYPTION_OPERATION_INVALID");
+		}
+		return this.ctx.storage.transactionSync(() => {
+			const result =
+				input.cursor === "delegation:1"
+					? this.ctx.storage.sql.exec(
+							`UPDATE delegation SET encrypted_session = ?, encryption_key_version = ?
+							 WHERE id = 1 AND status != 'revoked' AND encrypted_session = ?`,
+							input.replacementEnvelope,
+							input.replacementKeyVersion,
+							input.expectedEnvelope,
+						)
+					: this.ctx.storage.sql.exec(
+							`UPDATE oauth_states SET encrypted_state = ?, encryption_key_version = ?
+							 WHERE state_hash = ? AND encrypted_state = ? AND expires_at > ?`,
+							input.replacementEnvelope,
+							input.replacementKeyVersion,
+							input.cursor.slice("oauth-state:".length),
+							input.expectedEnvelope,
+							now,
+						);
+			if (result.rowsWritten !== 1) return false;
+			this.#appendAudit("encryption-rotated", "access", input.actorIdentity, input.cursor, now);
+			return true;
+		});
 	}
 
 	async beginDelegationRefresh(

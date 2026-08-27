@@ -6,8 +6,18 @@
 	// runtime. Request handling uses stable Web Platform APIs.
 	"compatibility_date": "2026-05-14",
 	"compatibility_flags": ["nodejs_compat"],
+	"analytics_engine_datasets": [
+		{
+			"binding": "OPERATIONS_METRICS",
+			"dataset": "emdash_release_service_operations",
+		},
+	],
 	"durable_objects": {
 		"bindings": [
+			{
+				"name": "IDENTITY_DIRECTORY_DO",
+				"class_name": "IdentityDirectoryDurableObject",
+			},
 			{
 				"name": "APPROVER_DO",
 				"class_name": "ApproverDurableObject",
@@ -31,6 +41,7 @@
 			"tag": "v1",
 			"new_sqlite_classes": [
 				"ApproverDurableObject",
+				"IdentityDirectoryDurableObject",
 				"OAuthStateDurableObject",
 				"PublisherDurableObject",
 				"ServiceControlDurableObject",
@@ -48,12 +59,21 @@
 			"binding": "PUBLICATION_STAGING",
 			"bucket_name": "emdash-release-service-publication-staging",
 		},
+		{
+			"binding": "OPERATIONS_ARCHIVE",
+			"bucket_name": "emdash-release-service-operations",
+		},
 	],
 	"workflows": [
 		{
 			"binding": "RELEASE_INTENT_WORKFLOW",
 			"name": "emdash-release-intent",
 			"class_name": "ReleaseIntentWorkflow",
+		},
+		{
+			"binding": "PUBLISHER_ARCHIVE_WORKFLOW",
+			"name": "emdash-publisher-archive",
+			"class_name": "PublisherArchiveWorkflow",
 		},
 	],
 	"assets": {

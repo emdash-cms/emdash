@@ -41,6 +41,7 @@ const OWNED_PURPOSES: ReadonlySet<unknown> = new Set<OwnedEncryptionPurpose>([
 	"webhook-destination",
 	"webhook-secret",
 	"csrf-secret",
+	"publisher-snapshot",
 ]);
 const UNOWNED_PURPOSES: ReadonlySet<unknown> = new Set<UnownedEncryptionPurpose>([
 	"confidential-client-private-key",
@@ -58,7 +59,8 @@ export type OwnedEncryptionPurpose =
 	| "email-address"
 	| "webhook-destination"
 	| "webhook-secret"
-	| "csrf-secret";
+	| "csrf-secret"
+	| "publisher-snapshot";
 
 export type OptionalOwnerEncryptionPurpose =
 	| "oauth-transaction"

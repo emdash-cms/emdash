@@ -218,6 +218,11 @@ describe("release-service web surfaces", () => {
 
 		expect(await screen.findByRole("heading", { name: "Service control" })).toBeTruthy();
 		expect(screen.getByRole("button", { name: "Pause admission" })).toBeTruthy();
+		expect(screen.getByRole("heading", { name: "Operations directory" })).toBeTruthy();
+		expect(screen.getByRole("button", { name: "List publishers" })).toBeTruthy();
+		expect(screen.getByRole("heading", { name: "Publisher archive" })).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Start archive workflow" })).toBeTruthy();
+		expect(screen.getByRole("heading", { name: "Encryption maintenance" })).toBeTruthy();
 		expect(screen.getByRole("heading", { name: "Publisher lookup" })).toBeTruthy();
 	});
 

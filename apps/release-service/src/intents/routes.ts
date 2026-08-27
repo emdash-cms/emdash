@@ -11,6 +11,7 @@ import { decodeAwaitingApprovalState } from "../approvals/digest.js";
 import { invalidateApprovalChallenges } from "../approvals/invalidation.js";
 import type { ServiceConfiguration } from "../config.js";
 import { SERVICE_CONTROL_OBJECT_NAME } from "../control-do/service-control-do.js";
+import { writeOperationsMetric } from "../observability/metrics.js";
 import type { IntentState, StoredIntent } from "../publisher-do/publisher-do.js";
 import {
 	PublisherSessionError,
@@ -325,6 +326,46 @@ export async function handleSubmitReleaseIntent(
 		const policy = await publisher.getWorkloadPolicy(publisherDid, release.package);
 		if (!policy || !evaluateWorkloadPolicy(identity, policy).ok) {
 			throw new ApiError("WORKLOAD_NOT_ALLOWED", 403, "Workload is not authorized");
+		}
+		const workloadRateKey = await digest([
+			"intent-rate-limit",
+			1,
+			identity.repository.id,
+			identity.workflow.ref,
+			release.value.package,
+		]);
+		const rateLimit = await publisher.consumeIntentRateLimit({
+			publisherDid,
+			repositoryId: identity.repository.id,
+			workloadKey: workloadRateKey,
+			idempotencyKey,
+			expiresAt: now + INTENT_LIFETIME_MS,
+			now,
+		});
+		if (!rateLimit.ok) {
+			writeOperationsMetric({
+				event: "intent_rate_limited",
+				ownerHash: workloadRateKey,
+				outcome: "denied",
+				scope: rateLimit.scope,
+				requestId,
+			});
+			console.warn(
+				JSON.stringify({
+					event: "release_intent_rate_limited",
+					requestId,
+					scope: rateLimit.scope,
+					workloadKey: workloadRateKey,
+					retryAt: rateLimit.retryAt,
+				}),
+			);
+			const response = apiFailure(
+				new ApiError("WORKLOAD_RATE_LIMITED", 429, "Release intent rate limit exceeded"),
+				requestId,
+			);
+			const headers = new Headers(response.headers);
+			headers.set("retry-after", String(Math.max(1, Math.ceil((rateLimit.retryAt - now) / 1000))));
+			return new Response(response.body, { status: response.status, headers });
 		}
 		const workloadIdentityDigest = await digestWorkloadIdentity(identity);
 		const created = await publisher.createIntent({

@@ -1,5 +1,11 @@
 import type { AuthenticatorTransport } from "@emdash-cms/auth";
 
+import type {
+	EncryptionRecordPage,
+	EncryptionRecordReplacement,
+} from "../operations/encryption-records.js";
+import { MAX_ENCRYPTION_RECORD_PAGE } from "../operations/encryption-records.js";
+
 const DID_PATTERN = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
 const HASH_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -18,6 +24,8 @@ const MAX_SESSION_MS = 24 * 60 * 60_000;
 const MAX_CHALLENGE_MS = 5 * 60_000;
 const MAX_CHALLENGE_CLOCK_SKEW_MS = 5_000;
 const COMPLETED_IDENTITY_RETENTION_MS = 60 * 60_000;
+const ACTOR_IDENTITY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/;
+const ENCRYPTION_CURSOR_PATTERN = /^identity-transaction:[A-Za-z0-9_-]{43}$/;
 
 export type ApproverStoreErrorCode =
 	| "APPROVER_DID_INVALID"
@@ -210,7 +218,7 @@ export type FindDecisionResult =
 export interface ApproverAuditEvent {
 	sequence: number;
 	eventType: string;
-	actorRealm: "approver" | "system";
+	actorRealm: "access" | "approver" | "system";
 	actorIdentity: string;
 	subject: string;
 	reasonCode: string | null;
@@ -238,6 +246,13 @@ interface IdentityTransactionRow {
 	redirect_target: string;
 	expires_at: number;
 	completed_at: number | null;
+}
+
+interface EncryptionRecordRow {
+	[key: string]: string | number | ArrayBuffer | null;
+	cursor: string;
+	envelope: string;
+	key_version: number;
 }
 
 interface ApproverSessionRow {
@@ -296,7 +311,7 @@ interface AuditRow {
 	[key: string]: string | number | ArrayBuffer | null;
 	sequence: number;
 	event_type: string;
-	actor_realm: "approver" | "system";
+	actor_realm: "access" | "approver" | "system";
 	actor_identity: string;
 	subject: string;
 	reason_code: string | null;
@@ -1066,6 +1081,96 @@ export class ApproverStore {
 			)
 			.toArray()
 			.map(auditView);
+	}
+
+	listEncryptionRecords(
+		approverDid: string,
+		afterCursor: string | null,
+		limit: number,
+		now = Date.now(),
+	): EncryptionRecordPage {
+		this.#assertOwner(approverDid);
+		if (
+			(afterCursor !== null && !ENCRYPTION_CURSOR_PATTERN.test(afterCursor)) ||
+			!validInteger(limit) ||
+			limit < 1 ||
+			limit > MAX_ENCRYPTION_RECORD_PAGE ||
+			!validInteger(now) ||
+			now < 0
+		) {
+			throw new ApproverStoreError("APPROVER_INPUT_INVALID");
+		}
+		const rows = this.storage.sql
+			.exec<EncryptionRecordRow>(
+				`SELECT 'identity-transaction:' || state_hash AS cursor,
+				        encrypted_state AS envelope, encryption_key_version AS key_version
+				 FROM identity_transactions
+				 WHERE completed_at IS NULL AND expires_at > ? AND encrypted_state != ''
+				   AND ('identity-transaction:' || state_hash) > ?
+				 ORDER BY state_hash LIMIT ?`,
+				now,
+				afterCursor ?? "",
+				limit + 1,
+			)
+			.toArray();
+		const hasMore = rows.length > limit;
+		const visible = hasMore ? rows.slice(0, limit) : rows;
+		const items = visible.map((row) => ({
+			cursor: row.cursor,
+			envelope: row.envelope,
+			keyVersion: row.key_version,
+			context: {
+				purpose: "oauth-approver-transaction" as const,
+				objectClass: "ApproverDurableObject",
+				table: "identity_transactions",
+				primaryKey: row.cursor.slice("identity-transaction:".length),
+				ownerDid: approverDid,
+			},
+		}));
+		return {
+			items,
+			nextCursor: hasMore ? (items.at(-1)?.cursor ?? null) : null,
+		};
+	}
+
+	replaceEncryptionRecord(input: EncryptionRecordReplacement & { approverDid: string }): boolean {
+		this.#assertOwner(input.approverDid);
+		const now = input.now ?? Date.now();
+		if (
+			!ENCRYPTION_CURSOR_PATTERN.test(input.cursor) ||
+			!validBoundedString(input.expectedEnvelope, MAX_CIPHERTEXT_CHARS) ||
+			!validBoundedString(input.replacementEnvelope, MAX_CIPHERTEXT_CHARS) ||
+			!validPositiveInteger(input.replacementKeyVersion) ||
+			!ACTOR_IDENTITY_PATTERN.test(input.actorIdentity) ||
+			!validInteger(now) ||
+			now < 0
+		) {
+			throw new ApproverStoreError("APPROVER_INPUT_INVALID");
+		}
+		return this.storage.transactionSync(() => {
+			const result = this.storage.sql.exec(
+				`UPDATE identity_transactions
+				 SET encrypted_state = ?, encryption_key_version = ?
+				 WHERE state_hash = ? AND encrypted_state = ?
+				   AND completed_at IS NULL AND expires_at > ?`,
+				input.replacementEnvelope,
+				input.replacementKeyVersion,
+				input.cursor.slice("identity-transaction:".length),
+				input.expectedEnvelope,
+				now,
+			);
+			if (result.rowsWritten !== 1) return false;
+			this.storage.sql.exec(
+				`INSERT INTO audit_events (
+					event_type, actor_realm, actor_identity, subject,
+					reason_code, public_payload, created_at
+				) VALUES ('encryption-rotated', 'access', ?, ?, NULL, '{}', ?)`,
+				input.actorIdentity,
+				input.cursor,
+				now,
+			);
+			return true;
+		});
 	}
 
 	cleanupExpired(now = Date.now(), limit = 100): CleanupResult {

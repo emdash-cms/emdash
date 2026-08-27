@@ -6,7 +6,11 @@ import { readJsonObject } from "../api/body.js";
 import { ApiError } from "../api/errors.js";
 import { apiSuccess } from "../api/response.js";
 import type { ServiceConfiguration } from "../config.js";
-import { SERVICE_CONTROL_OBJECT_NAME, type ServiceMode } from "./service-control-do.js";
+import { writeOperationsMetric } from "../observability/metrics.js";
+import {
+	SERVICE_CONTROL_OBJECT_NAME,
+	type ServiceMode,
+} from "./service-control-do.js";
 
 const REASON_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 const DECIMAL_INTEGER_PATTERN = /^(0|[1-9][0-9]*)$/;
@@ -120,6 +124,14 @@ export async function handleSetServiceMode(
 		});
 		if (!result.ok) {
 			throw new ApiError("IDEMPOTENCY_CONFLICT", 409, "Idempotency key conflicts with prior use");
+		}
+		if (mode === "publication-paused") {
+			writeOperationsMetric({
+				event: "publication_paused",
+				outcome: reasonCode ?? "unspecified",
+				scope: "service",
+				requestId,
+			});
 		}
 		return apiSuccess({ state: result.value, replayed: result.replayed }, requestId);
 	} catch (error) {

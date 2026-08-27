@@ -16,6 +16,7 @@ import {
 	type ServiceControlDurableObject,
 } from "../control-do/service-control-do.js";
 import { createPublisherOAuthClient, OAuthCustodyError } from "../oauth/custody.js";
+import { writeOperationsMetric } from "../observability/metrics.js";
 import type {
 	IntentState,
 	PublicationArtifactSlot,
@@ -909,7 +910,26 @@ export async function publishVerifiedIntent(
 					const errorCode = writeStarted
 						? "PUBLICATION_AMBIGUOUS"
 						: publicationErrorCode(error, "PUBLICATION_PRECONDITION_FAILED");
+					if (error instanceof OAuthCustodyError) {
+						writeOperationsMetric(
+							{
+								event: "refresh_failure",
+								outcome: error.code,
+								scope: "publisher",
+							},
+							env.OPERATIONS_METRICS,
+						);
+					}
 					if (!writeStarted) return failBeforeWrite(errorCode);
+					writeOperationsMetric(
+						{
+							event: "reconciliation_required",
+							outcome: errorCode,
+							scope: "publication",
+							value: attempt,
+						},
+						env.OPERATIONS_METRICS,
+					);
 					console.error(
 						JSON.stringify({
 							event: "publication_attempt_ambiguous",

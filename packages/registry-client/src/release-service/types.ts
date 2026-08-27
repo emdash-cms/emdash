@@ -23,6 +23,7 @@ export type ReleaseServiceApiErrorCode =
 	| "APPROVAL_INVALID"
 	| "APPROVER_SESSION_INVALID"
 	| "APPROVER_SUSPENDED"
+	| "ARCHIVE_OPERATION_FAILED"
 	| "AUTH_INVALID"
 	| "CONFIGURATION_ERROR"
 	| "CREDENTIAL_LIMIT_REACHED"
@@ -30,6 +31,7 @@ export type ReleaseServiceApiErrorCode =
 	| "CREDENTIAL_REVOKED"
 	| "CSRF_INVALID"
 	| "DELEGATION_REQUIRED"
+	| "ENCRYPTION_OPERATION_FAILED"
 	| "IDEMPOTENCY_KEY_INVALID"
 	| "IDEMPOTENCY_CONFLICT"
 	| "INTERNAL_ERROR"
@@ -45,11 +47,13 @@ export type ReleaseServiceApiErrorCode =
 	| "PUBLISHER_SESSION_INVALID"
 	| "PUBLISHER_SUSPENDED"
 	| "RELEASE_EXISTS"
+	| "RESTORE_OPERATION_FAILED"
 	| "SERVICE_PAUSED"
 	| "SERVICE_UNAVAILABLE"
 	| "VERSION_RESERVED"
 	| "WORKFLOW_UNAVAILABLE"
-	| "WORKLOAD_NOT_ALLOWED";
+	| "WORKLOAD_NOT_ALLOWED"
+	| "WORKLOAD_RATE_LIMITED";
 
 export type ReleaseServiceClientErrorCode =
 	| ReleaseServiceApiErrorCode
@@ -151,6 +155,87 @@ export interface PublisherControlResource {
 
 export interface OperatorPublisherResource extends PublisherResource {
 	control: PublisherControlResource;
+}
+
+export type DirectoryIdentityKind = "approver" | "publisher";
+
+export interface DirectoryIdentityResource {
+	kind: DirectoryIdentityKind;
+	did: string;
+	shard: string;
+	registeredAt: number;
+	lastSeenAt: number;
+}
+
+export interface DirectoryListOptions {
+	cursor?: string;
+	limit?: number;
+}
+
+export interface EncryptionRotationPageInput {
+	afterCursor: string | null;
+	limit: number;
+}
+
+export interface EncryptionRotationResult {
+	ownerDid: string;
+	targetKeyVersion: number;
+	scanned: number;
+	rotated: number;
+	raced: number;
+	nextCursor: string | null;
+	complete: boolean;
+}
+
+export type PublisherArchiveKind = "audit-events" | "intents" | "metadata" | "workload-policies";
+
+export interface PublisherArchivePageInput {
+	archiveId: string;
+	cursor: string | null;
+	page: number;
+}
+
+export interface PublisherArchivePageResult {
+	archiveId: string;
+	ownerHash: string;
+	page: number;
+	kind: PublisherArchiveKind;
+	nextCursor: string | null;
+	nextPage: number;
+	replayed: boolean;
+	complete: boolean;
+	manifestWritten: boolean;
+}
+
+export interface StartPublisherArchiveResult {
+	archiveId: string;
+	workflowId: string;
+	created: boolean;
+}
+
+export interface PublisherRestorePageInput {
+	archiveId: string;
+	page: number;
+}
+
+export interface PublisherRestorePageResult {
+	archiveId: string;
+	ownerHash: string;
+	page: number;
+	kind: PublisherArchiveKind;
+	nextPage: number;
+	totalPages: number;
+	replayed: boolean;
+	complete: boolean;
+	authorityStatus: "reauthorization_required";
+}
+
+export interface PreparePublisherRestoreResult {
+	archiveId: string;
+	publisherDid: string;
+	prepared: true;
+	deletedIntents: number;
+	deletedWorkloads: number;
 }
 
 export interface CursorPage<T> {

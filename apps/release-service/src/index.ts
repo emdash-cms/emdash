@@ -16,13 +16,16 @@ import {
 	type ConfigurationBindings,
 	type ServiceConfiguration,
 } from "./config.js";
+import { writeOperationsMetric } from "./observability/metrics.js";
 import { ROUTES, type RouteDefinition } from "./routes.js";
 
 export { PublisherDurableObject } from "./publisher-do/publisher-do.js";
 export { ApproverDurableObject } from "./approver-do/approver-do.js";
 export { OAuthStateDurableObject } from "./oauth/state-do.js";
 export { ReleaseIntentWorkflow } from "./workflows/release-intent.js";
+export { PublisherArchiveWorkflow } from "./workflows/publisher-archive.js";
 export { ServiceControlDurableObject } from "./control-do/service-control-do.js";
+export { IdentityDirectoryDurableObject } from "./directory/identity-directory-do.js";
 
 const DYNAMIC_PATH_PREFIXES = ["/.well-known/", "/admin/api/", "/oauth/", "/v1/"] as const;
 
@@ -66,6 +69,13 @@ export async function handleUiRequest(
 		try {
 			await authenticateOperatorUi(request, await loadConfiguration(bindings), accessKeyResolver);
 		} catch (error) {
+			if (error instanceof ApiError) {
+				writeOperationsMetric({
+					event: "access_denied",
+					outcome: error.code,
+					requestId: getRequestId(request),
+				});
+			}
 			return apiFailure(error, getRequestId(request));
 		}
 	}
@@ -143,11 +153,28 @@ export async function handleRequest(
 		return apiFailure(new ApiError("NOT_FOUND", 404, "Not found"), requestId);
 	} catch (error) {
 		if (error instanceof ConfigurationError) {
+			writeOperationsMetric({
+				event: "configuration_failure",
+				outcome: "invalid",
+				requestId,
+			});
 			console.error(JSON.stringify({ event: "configuration_error", issues: error.issues }));
 			return apiFailure(
 				new ApiError("CONFIGURATION_ERROR", 503, "Service is not configured"),
 				requestId,
 			);
+		}
+		if (
+			error instanceof ApiError &&
+			(error.code === "ACCESS_AUTH_INVALID" ||
+				error.code === "ACCESS_AUTH_REQUIRED" ||
+				error.code === "ACCESS_DENIED")
+		) {
+			writeOperationsMetric({
+				event: "access_denied",
+				outcome: error.code,
+				requestId,
+			});
 		}
 		console.error(
 			JSON.stringify({

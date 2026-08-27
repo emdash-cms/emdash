@@ -1,5 +1,9 @@
 import { DurableObject } from "cloudflare:workers";
 
+import type {
+	EncryptionRecordPage,
+	EncryptionRecordReplacement,
+} from "../operations/encryption-records.js";
 import { initializeApproverSchema } from "./schema.js";
 import {
 	ApproverStore,
@@ -251,6 +255,21 @@ export class ApproverDurableObject extends DurableObject<Env> {
 	): readonly ApproverAuditEvent[] {
 		this.#assertApproverDid(approverDid);
 		return this.#store.listAuditEvents(approverDid, afterSequence, limit);
+	}
+
+	listEncryptionRecords(
+		approverDid: string,
+		afterCursor: string | null,
+		limit: number,
+		now = Date.now(),
+	): EncryptionRecordPage {
+		this.#assertApproverDid(approverDid);
+		return this.#store.listEncryptionRecords(approverDid, afterCursor, limit, now);
+	}
+
+	replaceEncryptionRecord(input: EncryptionRecordReplacement & { approverDid: string }): boolean {
+		this.#assertApproverDid(input.approverDid);
+		return this.#store.replaceEncryptionRecord(input);
 	}
 
 	async cleanupExpired(approverDid: string, now = Date.now(), limit = 100): Promise<CleanupResult> {

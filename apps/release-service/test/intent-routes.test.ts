@@ -2,6 +2,7 @@ import { NSID, type PackageRelease } from "@emdash-cms/registry-lexicons";
 import { reset, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWTVerifyGetKey } from "jose";
+import { ulid } from "ulidx";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import releaseFixture from "../../../packages/registry-verification/fixtures/records/release.json";
@@ -382,5 +383,65 @@ describe("release intent API", () => {
 		);
 		expect(response.status).toBe(503);
 		expect(await response.json()).toMatchObject({ error: { code: "SERVICE_PAUSED" } });
+	});
+
+	it("rate limits one workload without consuming another publisher shard", async () => {
+		await putPolicy();
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		const workloadToken = await token();
+		for (let index = 0; index < 30; index += 1) {
+			const version = `1.2.${index}`;
+			const value = release();
+			value.version = version;
+			const response = await handleSubmitReleaseIntent(
+				request("/v1/release-intents", workloadToken, {
+					method: "POST",
+					body: {
+						publisherDid: PUBLISHER_DID,
+						packageSlug: "gallery",
+						version,
+						release: value,
+					},
+					idempotencyKey: `github-rate-limit-${String(index).padStart(4, "0")}`,
+				}),
+				`request-${index}`,
+				configuration,
+				{ ...submitDependencies, intentId: () => ulid(NOW + index) },
+			);
+			expect(response.status).toBe(202);
+		}
+		const blockedRelease = release();
+		blockedRelease.version = "1.2.30";
+		const blocked = await handleSubmitReleaseIntent(
+			request("/v1/release-intents", workloadToken, {
+				method: "POST",
+				body: {
+					publisherDid: PUBLISHER_DID,
+					packageSlug: "gallery",
+					version: "1.2.30",
+					release: blockedRelease,
+				},
+				idempotencyKey: "github-rate-limit-over-limit",
+			}),
+			"request-blocked",
+			configuration,
+			{ ...submitDependencies, intentId: () => ulid(NOW + 31) },
+		);
+		expect(blocked.status).toBe(429);
+		expect(blocked.headers.get("retry-after")).toBe("60");
+		await expect(blocked.json()).resolves.toMatchObject({
+			error: { code: "WORKLOAD_RATE_LIMITED" },
+		});
+
+		await expect(
+			env.PUBLISHER_DO.getByName("did:plc:other").consumeIntentRateLimit({
+				publisherDid: "did:plc:other",
+				repositoryId: "123456789",
+				workloadKey: "Z".repeat(43),
+				idempotencyKey: "other-publisher-rate-limit",
+				expiresAt: NOW + 24 * 60 * 60_000,
+				now: NOW,
+			}),
+		).resolves.toMatchObject({ ok: true });
 	});
 });

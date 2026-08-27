@@ -311,6 +311,37 @@ describe("ReleaseServiceClient", () => {
 });
 
 describe("ReleaseServiceOperatorClient", () => {
+	it("lists one bounded operations-directory shard", async () => {
+		let captured = "";
+		const fetch: typeof globalThis.fetch = async (input) => {
+			captured = input instanceof Request ? input.url : input.toString();
+			return success({
+				items: [
+					{
+						kind: "publisher",
+						did: PUBLISHER_DID,
+						shard: "7f",
+						registeredAt: 1_800_000_000_000,
+						lastSeenAt: 1_800_000_000_001,
+					},
+				],
+				nextCursor: "cursor-next",
+			});
+		};
+		const client = new ReleaseServiceOperatorClient({ serviceUrl: SERVICE, fetch });
+		await expect(
+			client.listDirectory("publisher", { cursor: "cursor-current", limit: 25 }),
+		).resolves.toMatchObject({
+			items: [{ did: PUBLISHER_DID, kind: "publisher", shard: "7f" }],
+			nextCursor: "cursor-next",
+		});
+		const url = new URL(captured);
+		expect(url.pathname).toBe("/admin/api/directory");
+		expect(url.searchParams.get("kind")).toBe("publisher");
+		expect(url.searchParams.get("cursor")).toBe("cursor-current");
+		expect(url.searchParams.get("limit")).toBe("25");
+	});
+
 	it("uses Access cookie credentials and roleless operator paths", async () => {
 		const calls: Array<{ init: RequestInit | undefined; url: string }> = [];
 		const fetch: typeof globalThis.fetch = async (input, init) => {
@@ -356,5 +387,164 @@ describe("ReleaseServiceOperatorClient", () => {
 		expect(headers.get("idempotency-key")).toBe("operator-reconcile-0001");
 		expect(headers.get("x-emdash-request")).toBe("1");
 		expect(captured!.init?.credentials).toBe("include");
+	});
+
+	it("pages publisher and approver encryption rotation through Access", async () => {
+		const calls: Array<{ body: string | null; path: string }> = [];
+		const fetch: typeof globalThis.fetch = async (input, init) => {
+			const url = new URL(input instanceof Request ? input.url : input.toString());
+			calls.push({ path: url.pathname, body: typeof init?.body === "string" ? init.body : null });
+			return success({
+				ownerDid: url.pathname.includes("/approvers/") ? "did:plc:approver" : PUBLISHER_DID,
+				targetKeyVersion: 2,
+				scanned: 1,
+				rotated: 1,
+				raced: 0,
+				nextCursor: null,
+				complete: true,
+			});
+		};
+		const client = new ReleaseServiceOperatorClient({ serviceUrl: SERVICE, fetch });
+		await expect(
+			client.rotatePublisherEncryption(
+				PUBLISHER_DID,
+				{ afterCursor: null, limit: 25 },
+				{ idempotencyKey: "operator-publisher-rotation-0001" },
+			),
+		).resolves.toMatchObject({ ownerDid: PUBLISHER_DID, targetKeyVersion: 2, complete: true });
+		await expect(
+			client.rotateApproverEncryption(
+				"did:plc:approver",
+				{
+					afterCursor: "identity-transaction:abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
+					limit: 10,
+				},
+				{ idempotencyKey: "operator-approver-rotation-0001" },
+			),
+		).resolves.toMatchObject({ ownerDid: "did:plc:approver", rotated: 1 });
+
+		expect(calls).toEqual([
+			{
+				path: `/admin/api/publishers/${encodeURIComponent(PUBLISHER_DID)}/encryption/rotate`,
+				body: '{"afterCursor":null,"limit":25}',
+			},
+			{
+				path: "/admin/api/approvers/did%3Aplc%3Aapprover/encryption/rotate",
+				body: '{"afterCursor":"identity-transaction:abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG","limit":10}',
+			},
+		]);
+	});
+
+	it("resumes encrypted publisher archive pages through Access", async () => {
+		let captured: { init: RequestInit | undefined; url: string } | null = null;
+		const fetch: typeof globalThis.fetch = async (input, init) => {
+			captured = { url: input instanceof Request ? input.url : input.toString(), init };
+			return success({
+				archiveId: "publisher-archive-0001",
+				ownerHash: "A".repeat(43),
+				page: 2,
+				kind: "intents",
+				nextCursor: "audit:0",
+				nextPage: 3,
+				replayed: false,
+				complete: false,
+				manifestWritten: false,
+			});
+		};
+		const client = new ReleaseServiceOperatorClient({ serviceUrl: SERVICE, fetch });
+		await expect(
+			client.archivePublisher(
+				PUBLISHER_DID,
+				{ archiveId: "publisher-archive-0001", cursor: "intents:", page: 2 },
+				{ idempotencyKey: "operator-publisher-archive-0001" },
+			),
+		).resolves.toMatchObject({ kind: "intents", nextCursor: "audit:0", nextPage: 3 });
+		expect(new URL(captured!.url).pathname).toBe(
+			`/admin/api/publishers/${encodeURIComponent(PUBLISHER_DID)}/archive`,
+		);
+		expect(captured!.init?.body).toBe(
+			'{"archiveId":"publisher-archive-0001","cursor":"intents:","page":2}',
+		);
+	});
+
+	it("starts a durable publisher archive Workflow through Access", async () => {
+		let captured: { init: RequestInit | undefined; url: string } | null = null;
+		const fetch: typeof globalThis.fetch = async (input, init) => {
+			captured = { url: input instanceof Request ? input.url : input.toString(), init };
+			return success(
+				{
+					archiveId: "publisher-archive-0001",
+					workflowId: "W".repeat(43),
+					created: true,
+				},
+				202,
+			);
+		};
+		const client = new ReleaseServiceOperatorClient({ serviceUrl: SERVICE, fetch });
+		await expect(
+			client.startPublisherArchive(PUBLISHER_DID, "publisher-archive-0001", {
+				idempotencyKey: "operator-publisher-archive-start-0001",
+			}),
+		).resolves.toMatchObject({ workflowId: "W".repeat(43), created: true });
+		expect(new URL(captured!.url).pathname).toBe(
+			`/admin/api/publishers/${encodeURIComponent(PUBLISHER_DID)}/archive/start`,
+		);
+		expect(captured!.init?.body).toBe('{"archiveId":"publisher-archive-0001"}');
+	});
+
+	it("applies suspended publisher restore pages through Access", async () => {
+		let captured: { init: RequestInit | undefined; url: string } | null = null;
+		const fetch: typeof globalThis.fetch = async (input, init) => {
+			captured = { url: input instanceof Request ? input.url : input.toString(), init };
+			return success({
+				archiveId: "publisher-archive-0001",
+				ownerHash: "A".repeat(43),
+				page: 3,
+				kind: "audit-events",
+				nextPage: 4,
+				totalPages: 4,
+				replayed: false,
+				complete: true,
+				authorityStatus: "reauthorization_required",
+			});
+		};
+		const client = new ReleaseServiceOperatorClient({ serviceUrl: SERVICE, fetch });
+		await expect(
+			client.restorePublisher(
+				PUBLISHER_DID,
+				{ archiveId: "publisher-archive-0001", page: 3 },
+				{ idempotencyKey: "operator-publisher-restore-0001" },
+			),
+		).resolves.toMatchObject({ complete: true, authorityStatus: "reauthorization_required" });
+		expect(new URL(captured!.url).pathname).toBe(
+			`/admin/api/publishers/${encodeURIComponent(PUBLISHER_DID)}/restore`,
+		);
+		expect(captured!.init?.body).toBe('{"archiveId":"publisher-archive-0001","page":3}');
+	});
+
+	it("prepares a suspended shard for restore with exact DID confirmation", async () => {
+		let captured: { init: RequestInit | undefined; url: string } | null = null;
+		const fetch: typeof globalThis.fetch = async (input, init) => {
+			captured = { url: input instanceof Request ? input.url : input.toString(), init };
+			return success({
+				archiveId: "publisher-archive-0001",
+				publisherDid: PUBLISHER_DID,
+				prepared: true,
+				deletedIntents: 3,
+				deletedWorkloads: 1,
+			});
+		};
+		const client = new ReleaseServiceOperatorClient({ serviceUrl: SERVICE, fetch });
+		await expect(
+			client.preparePublisherRestore(PUBLISHER_DID, "publisher-archive-0001", {
+				idempotencyKey: "operator-publisher-restore-prepare-0001",
+			}),
+		).resolves.toMatchObject({ prepared: true, deletedIntents: 3 });
+		expect(new URL(captured!.url).pathname).toBe(
+			`/admin/api/publishers/${encodeURIComponent(PUBLISHER_DID)}/restore/prepare`,
+		);
+		expect(captured!.init?.body).toBe(
+			`{"archiveId":"publisher-archive-0001","confirmPublisherDid":"${PUBLISHER_DID}"}`,
+		);
 	});
 });

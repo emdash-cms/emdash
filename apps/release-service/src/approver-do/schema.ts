@@ -82,7 +82,7 @@ export function initializeApproverSchema(storage: DurableObjectStorage): void {
 		CREATE TABLE IF NOT EXISTS audit_events (
 			sequence INTEGER PRIMARY KEY AUTOINCREMENT,
 			event_type TEXT NOT NULL,
-			actor_realm TEXT NOT NULL CHECK (actor_realm IN ('approver', 'system')),
+			actor_realm TEXT NOT NULL CHECK (actor_realm IN ('access', 'approver', 'system')),
 			actor_identity TEXT NOT NULL,
 			subject TEXT NOT NULL,
 			reason_code TEXT,

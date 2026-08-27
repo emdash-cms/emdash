@@ -131,6 +131,73 @@ describe("ApproverDurableObject", () => {
 		);
 	});
 
+	it("pages live identity ciphertexts and rotates them by compare-and-set", async () => {
+		const stub = approver();
+		const now = 1_800_000_000_000;
+		await stub.putIdentityTransaction({
+			approverDid: APPROVER_DID,
+			stateHash: STATE_HASH,
+			encryptedState: "approver-ciphertext-v1",
+			encryptionKeyVersion: 1,
+			clientKeyId: "assertion-1",
+			redirectTarget: `/approvals/${INTENT_ID}`,
+			expiresAt: now + 60_000,
+			now,
+		});
+
+		await expect(stub.listEncryptionRecords(APPROVER_DID, null, 10, now)).resolves.toEqual({
+			items: [
+				{
+					cursor: `identity-transaction:${STATE_HASH}`,
+					envelope: "approver-ciphertext-v1",
+					keyVersion: 1,
+					context: {
+						purpose: "oauth-approver-transaction",
+						objectClass: "ApproverDurableObject",
+						table: "identity_transactions",
+						primaryKey: STATE_HASH,
+						ownerDid: APPROVER_DID,
+					},
+				},
+			],
+			nextCursor: null,
+		});
+		await expect(
+			stub.replaceEncryptionRecord({
+				approverDid: APPROVER_DID,
+				cursor: `identity-transaction:${STATE_HASH}`,
+				expectedEnvelope: "approver-ciphertext-v1",
+				replacementEnvelope: "approver-ciphertext-v2",
+				replacementKeyVersion: 2,
+				actorIdentity: "operator@example.com",
+				now,
+			}),
+		).resolves.toBe(true);
+		await expect(
+			stub.replaceEncryptionRecord({
+				approverDid: APPROVER_DID,
+				cursor: `identity-transaction:${STATE_HASH}`,
+				expectedEnvelope: "approver-ciphertext-v1",
+				replacementEnvelope: "approver-ciphertext-v3",
+				replacementKeyVersion: 3,
+				actorIdentity: "operator@example.com",
+				now,
+			}),
+		).resolves.toBe(false);
+		await expect(stub.listEncryptionRecords(APPROVER_DID, null, 10, now)).resolves.toMatchObject({
+			items: [{ envelope: "approver-ciphertext-v2", keyVersion: 2 }],
+		});
+		expect(
+			await runInDurableObject(stub, (_instance, state) =>
+				state.storage.sql
+					.exec<{ event_type: string; public_payload: string }>(
+						"SELECT event_type, public_payload FROM audit_events WHERE event_type = 'encryption-rotated'",
+					)
+					.toArray(),
+			),
+		).toEqual([{ event_type: "encryption-rotated", public_payload: "{}" }]);
+	});
+
 	it("creates, validates, expires, revokes, and epoch-invalidates approver sessions", async () => {
 		const stub = approver();
 		const now = 1_800_000_000_000;
