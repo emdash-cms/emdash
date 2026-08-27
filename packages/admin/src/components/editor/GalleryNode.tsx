@@ -15,6 +15,7 @@ import { Node } from "@tiptap/react";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import * as React from "react";
 
+import { getMediaObjectPosition } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
 
 /** One image inside a gallery block — mirrors the Portable Text shape. */
@@ -32,6 +33,8 @@ export interface GalleryImage {
 	caption?: string;
 	width?: number;
 	height?: number;
+	focalX?: number;
+	focalY?: number;
 	/** LQIP blurhash placeholder (images only) */
 	blurhash?: string;
 	/** LQIP dominant-color placeholder, as a CSS color (images only) */
@@ -181,6 +184,7 @@ function GalleryNodeView({
 									src={galleryImageUrl(image)}
 									alt={image.alt || ""}
 									className="w-full aspect-square object-cover rounded-md border"
+									style={{ objectPosition: getMediaObjectPosition(image) }}
 									draggable={false}
 								/>
 							</button>

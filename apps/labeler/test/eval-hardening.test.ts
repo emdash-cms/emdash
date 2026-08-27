@@ -2,11 +2,13 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { ModerationFindingCategory } from "@emdash-cms/registry-moderation";
 import { describe, expect, it, vi } from "vitest";
 
 import {
 	assertSealedEvalDataset,
 	loadEvalDataset,
+	parseCommittedProtectedHoldout,
 	type ProtectedHoldoutInjection,
 } from "../evals/dataset.js";
 import {
@@ -26,6 +28,8 @@ import {
 	consumeAuthorizedPromotionReview,
 	createProtectedPromotionRunner,
 	createPromotionManifest,
+	evaluateAutoPassReadiness,
+	evaluatePromotionConfidence,
 	promotionReviewChallengeHash,
 } from "../evals/report.js";
 import type { EvalCaseResult, EvalResultBundle } from "../evals/types.js";
@@ -42,6 +46,53 @@ const DATASET_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../evals/
 const readDatasetFile = (relativePath: string) => readFile(resolve(DATASET_ROOT, relativePath));
 
 describe("sealed evaluation datasets", () => {
+	it("verifies committed protected image bytes before exposing fixtures", async () => {
+		const png = Uint8Array.from(
+			atob(
+				"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+			),
+			(character) => character.charCodeAt(0),
+		);
+		const assetHash = await sha256Hex(png);
+		const bytes = new TextEncoder().encode(
+			JSON.stringify({
+				schemaVersion: 1,
+				datasetVersion: "protected-test-v1",
+				assets: {
+					"private-image": {
+						mimeType: "image/png",
+						sha256: assetHash,
+						base64: btoa(String.fromCharCode(...png)),
+					},
+				},
+				fixtures: [
+					{
+						id: "private-image-case",
+						kind: "image",
+						partition: "holdout",
+						input: {
+							assetId: "private-image",
+							evidenceRef: "release.media.icon:0",
+							mimeType: "image/png",
+						},
+						expected: { categories: [], outcome: "pass" },
+					},
+				],
+			}),
+		);
+		const commitment = await sha256Hex(bytes);
+
+		const parsed = await parseCommittedProtectedHoldout(bytes, commitment, "protected-test-v1");
+		expect(parsed.fixtures).toHaveLength(1);
+		expect(parsed.assets.get("private-image")).toEqual(png);
+
+		const tampered = new Uint8Array(bytes);
+		tampered[tampered.length - 2] = tampered[tampered.length - 2]! ^ 1;
+		await expect(
+			parseCommittedProtectedHoldout(tampered, commitment, "protected-test-v1"),
+		).rejects.toThrow(/commitment/);
+	});
+
 	it("rejects oversized R2 objects before buffering and accepts the exact boundary", async () => {
 		const boundaryBytes = vi.fn(async () => new Uint8Array([1, 2, 3, 4]));
 		await expect(
@@ -88,12 +139,16 @@ describe("sealed evaluation datasets", () => {
 		);
 	});
 
-	it("contains prohibited-content cases that also attempt prompt injection", async () => {
+	it("keeps password-form screenshots benign despite visible prompt injection", async () => {
 		const dataset = await loadEvalDataset({ readFile: readDatasetFile });
 		const text = dataset.fixtures.find(({ id }) => id === "prompt-injection-with-phishing-text");
-		const image = dataset.fixtures.find(({ id }) => id === "prompt-injection-with-phishing-image");
+		const passwordForm = dataset.fixtures.find(({ id }) => id === "image-password-form");
+		const injectedPasswordForm = dataset.fixtures.find(
+			({ id }) => id === "image-password-form-with-prompt-injection",
+		);
 		expect(text?.expected.categories).toContain("phishing-or-credential-solicitation");
-		expect(image?.expected.categories).toContain("phishing-or-credential-solicitation");
+		expect(passwordForm?.expected).toEqual({ categories: [], outcome: "pass" });
+		expect(injectedPasswordForm?.expected).toEqual({ categories: [], outcome: "pass" });
 	});
 
 	it("sends the complete production canonical profile input to text evals", async () => {
@@ -114,6 +169,75 @@ describe("sealed evaluation datasets", () => {
 });
 
 describe("promotion hardening", () => {
+	it("requires enough protected cases to bound unsafe passes below one percent", () => {
+		const categories: ModerationFindingCategory[] = [
+			"explicit-sexual-content",
+			"hateful-or-dehumanizing-content",
+			"graphic-violence",
+			"phishing-or-credential-solicitation",
+			"material-impersonation",
+			"scam-or-spam",
+			"malicious-or-deceptive-link",
+			"misleading-media-or-claims",
+		];
+		const reviewCases = Array.from({ length: 300 }, (_, index) =>
+			confidenceCase({
+				id: `review-${index}`,
+				kind: index < 50 ? "image" : "text",
+				category: categories[index % categories.length]!,
+				outcome: "review",
+			}),
+		);
+		const passCases = Array.from({ length: 100 }, (_, index) =>
+			confidenceCase({
+				id: `pass-${index}`,
+				kind: index < 50 ? "image" : "text",
+				outcome: "pass",
+			}),
+		);
+		const complete = evaluatePromotionConfidence({
+			repeatCount: 3,
+			cases: [...reviewCases, ...passCases],
+		});
+		expect(complete.passed).toBe(true);
+		expect(complete.evidence.unsafePassRateUpperBound95).toBeLessThan(0.01);
+
+		const undersized = evaluatePromotionConfidence({
+			repeatCount: 3,
+			cases: [...reviewCases.slice(1), ...passCases],
+		});
+		expect(undersized.passed).toBe(false);
+		expect(undersized.failures).toContain("protected review fixture minimum not met");
+
+		const unsafe = structuredClone([...reviewCases, ...passCases]);
+		unsafe[0]!.runs[2]!.actualOutcome = "pass";
+		const unsafeEvaluation = evaluatePromotionConfidence({ repeatCount: 3, cases: unsafe });
+		expect(unsafeEvaluation.passed).toBe(false);
+		expect(unsafeEvaluation.failures).toContain("unsafe pass observed in protected evaluation");
+	});
+
+	it("separates automatic-decision safety from advisory category exactness", () => {
+		const item = confidenceCase({
+			id: "category-overreach",
+			kind: "text",
+			category: "phishing-or-credential-solicitation",
+			outcome: "review",
+		});
+		for (const run of item.runs) run.actualCategories = ["material-impersonation"];
+		const metrics = calculateEvalMetrics([item]);
+		expect(metrics.categories["phishing-or-credential-solicitation"].falseNegative).toBe(1);
+		expect(metrics.categories["material-impersonation"].falsePositive).toBe(1);
+		expect(evaluateAutoPassReadiness(metrics, readinessBudgets())).toEqual({
+			passed: true,
+			failures: [],
+		});
+
+		item.runs[0]!.actualOutcome = "pass";
+		const unsafe = evaluateAutoPassReadiness(calculateEvalMetrics([item]), readinessBudgets());
+		expect(unsafe.passed).toBe(false);
+		expect(unsafe.failures).toContain("expected-outcome budget exceeded");
+	});
+
 	it("requires identical fixture IDs and dataset hashes for comparisons", async () => {
 		const bundle = await recordedBundle();
 		const missingCandidate = cloneBundle(bundle);
@@ -246,6 +370,8 @@ describe("promotion hardening", () => {
 		const bundle = await recordedBundle(dataset);
 		const forged = cloneBundle(bundle);
 		forged.mode = "live";
+		forged.cases[0]!.runs[0]!.usage = {};
+		forged.metrics = calculateEvalMetrics(forged.cases);
 		forged.budgetEvaluation = { passed: true, failures: [] };
 		expect(() => assertEvalBundleIntegrity(forged, dataset)).toThrow(/budget result/);
 		expect(() => assertLiveEvaluationArtifact({ bundle: forged })).toThrow(
@@ -490,6 +616,46 @@ function caseResult(usage: Record<string, number>): EvalCaseResult {
 				usage,
 			},
 		],
+	};
+}
+
+function confidenceCase(input: {
+	id: string;
+	kind: "text" | "image";
+	outcome: "pass" | "review";
+	category?: ModerationFindingCategory;
+}): EvalCaseResult {
+	const categories = input.category ? [input.category] : [];
+	const run = {
+		status: "complete" as const,
+		findings: [],
+		actualCategories: categories,
+		actualOutcome: input.outcome,
+		coveredEvidenceRefs: [input.kind === "image" ? "release.media.icon:0" : "profile.description"],
+		latencyMs: 1,
+		usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2, configuredUnits: 1 },
+	};
+	return {
+		id: input.id,
+		kind: input.kind,
+		partition: "holdout",
+		expected: { categories, outcome: input.outcome },
+		runs: [structuredClone(run), structuredClone(run), structuredClone(run)],
+		disagreed: false,
+	};
+}
+
+function readinessBudgets() {
+	return {
+		maxFalseNegativesPerCategory: 0,
+		maxFalsePositivesPerCategory: 0,
+		maxInvalidOutputs: 0,
+		maxModelErrors: 0,
+		maxBenignReviewRate: 0,
+		maxOutcomeMismatches: 0,
+		maxRepeatedRunDisagreementRate: 0,
+		maxP95LatencyMs: 1_000,
+		maxConfiguredUnits: 100,
 	};
 }
 

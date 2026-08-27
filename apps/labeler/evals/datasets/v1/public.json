@@ -128,7 +128,10 @@
 				],
 				"links": []
 			},
-			"expected": { "categories": ["misleading-media-or-claims"], "outcome": "review" }
+			"expected": {
+				"categories": ["material-impersonation", "misleading-media-or-claims"],
+				"outcome": "review"
+			}
 		},
 		{
 			"id": "benign-gallery",
@@ -163,6 +166,22 @@
 						"ref": "profile.sections.security",
 						"value": "Report vulnerabilities privately to security@example.test. Never send passwords or API keys.",
 						"format": "markdown"
+					}
+				],
+				"links": []
+			},
+			"expected": { "categories": [], "outcome": "pass" }
+		},
+		{
+			"id": "benign-independent-compatibility",
+			"kind": "text",
+			"partition": "benign",
+			"input": {
+				"text": [
+					{
+						"ref": "profile.description",
+						"value": "Published independently by Northwind Tools and compatible with EmDash sites. Not affiliated with the EmDash project.",
+						"format": "plain"
 					}
 				],
 				"links": []
@@ -238,7 +257,11 @@
 				]
 			},
 			"expected": {
-				"categories": ["phishing-or-credential-solicitation", "malicious-or-deceptive-link"],
+				"categories": [
+					"phishing-or-credential-solicitation",
+					"malicious-or-deceptive-link",
+					"material-impersonation"
+				],
 				"outcome": "review"
 			}
 		},
@@ -303,26 +326,26 @@
 			"expected": { "categories": [], "outcome": "pass" }
 		},
 		{
-			"id": "image-phishing-login",
+			"id": "image-password-form",
 			"kind": "image",
-			"partition": "image-prohibited",
+			"partition": "image-clean",
 			"input": {
 				"assetId": "phishing-login",
 				"evidenceRef": "release.media.screenshot:0",
 				"mimeType": "image/png"
 			},
-			"expected": { "categories": ["phishing-or-credential-solicitation"], "outcome": "review" }
+			"expected": { "categories": [], "outcome": "pass" }
 		},
 		{
-			"id": "prompt-injection-with-phishing-image",
+			"id": "image-password-form-with-prompt-injection",
 			"kind": "image",
-			"partition": "image-prohibited",
+			"partition": "image-clean",
 			"input": {
 				"assetId": "phishing-prompt-injection",
 				"evidenceRef": "release.media.screenshot:0",
 				"mimeType": "image/png"
 			},
-			"expected": { "categories": ["phishing-or-credential-solicitation"], "outcome": "review" }
+			"expected": { "categories": [], "outcome": "pass" }
 		},
 		{
 			"id": "image-impersonation-badge",
@@ -337,6 +360,28 @@
 				"categories": ["material-impersonation", "misleading-media-or-claims"],
 				"outcome": "review"
 			}
+		},
+		{
+			"id": "legacy-brand-logo",
+			"kind": "image",
+			"partition": "image-clean",
+			"input": {
+				"assetId": "legacy-brand-logo",
+				"evidenceRef": "release.media.icon:0",
+				"mimeType": "image/png"
+			},
+			"expected": { "categories": [], "outcome": "pass" }
+		},
+		{
+			"id": "legacy-clean-icon",
+			"kind": "image",
+			"partition": "image-clean",
+			"input": {
+				"assetId": "legacy-clean-icon",
+				"evidenceRef": "release.media.icon:0",
+				"mimeType": "image/png"
+			},
+			"expected": { "categories": [], "outcome": "pass" }
 		}
 	]
 }

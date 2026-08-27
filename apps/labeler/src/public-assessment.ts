@@ -134,9 +134,7 @@ type PublicAssessmentConfigKey =
 	| "LABELER_POLICY_VERSION"
 	| "LABELER_PARSER_VERSION"
 	| "LABELER_TEXT_MODEL_ID"
-	| "LABELER_TEXT_PROMPT_HASH"
-	| "LABELER_IMAGE_MODEL_ID"
-	| "LABELER_IMAGE_PROMPT_HASH";
+	| "LABELER_IMAGE_MODEL_ID";
 
 type PublicAssessmentEnv = Record<PublicAssessmentConfigKey, string> & {
 	DB: PublicAssessmentDatabase;

@@ -1,7 +1,7 @@
+import { IMAGE_PROMPT_HASH, TEXT_PROMPT_HASH } from "./ai/prompts.js";
 import type { AssessmentVersionSet } from "./assessment/types.js";
 
 const DID_WEB_HOST_RE = /^did:web:([^:]+)$/;
-const SHA256_HEX_RE = /^[a-f0-9]{64}$/;
 const VERSION_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 export interface LabelerRuntimeConfig {
@@ -37,9 +37,9 @@ export function readAssessmentVersions(env: object): AssessmentVersionSet {
 		policyVersion: readVersion(env, "LABELER_POLICY_VERSION"),
 		parserVersion: readVersion(env, "LABELER_PARSER_VERSION"),
 		textModelId: readModelId(env, "LABELER_TEXT_MODEL_ID"),
-		textPromptHash: readHash(env, "LABELER_TEXT_PROMPT_HASH"),
+		textPromptHash: TEXT_PROMPT_HASH,
 		imageModelId: readModelId(env, "LABELER_IMAGE_MODEL_ID"),
-		imagePromptHash: readHash(env, "LABELER_IMAGE_PROMPT_HASH"),
+		imagePromptHash: IMAGE_PROMPT_HASH,
 	} satisfies AssessmentVersionSet;
 }
 
@@ -54,12 +54,6 @@ function readString(env: object, name: string): string {
 function readVersion(env: object, name: string): string {
 	const value = readString(env, name);
 	if (!VERSION_RE.test(value)) throw new TypeError(`${name} is invalid`);
-	return value;
-}
-
-function readHash(env: object, name: string): string {
-	const value = readString(env, name);
-	if (!SHA256_HEX_RE.test(value)) throw new TypeError(`${name} must be a SHA-256 hex digest`);
 	return value;
 }
 

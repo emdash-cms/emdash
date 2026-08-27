@@ -193,11 +193,26 @@ export interface MediaItem {
 	size: number;
 	width?: number;
 	height?: number;
+	focalX?: number | null;
+	focalY?: number | null;
 	alt?: string;
 	caption?: string;
 	createdAt: string;
 	updatedAt: string;
+	folderId?: string | null;
 	usage?: MediaUsageSummary;
+}
+
+/** Result of assigning local media to a folder or the Main library */
+export interface MediaFolderAssignment {
+	id: string;
+	folderId: string | null;
+}
+
+/** Flat media-library folder */
+export interface MediaFolder {
+	id: string;
+	name: string;
 }
 
 /** Media usage repair request */
@@ -845,16 +860,27 @@ export class EmDashClient {
 		mimeType?: string;
 		limit?: number;
 		cursor?: string;
+		page?: number;
 		includeUsage?: boolean;
-	}): Promise<ListResult<MediaItem>> {
+		folderId?: string | null;
+	}): Promise<ListResult<MediaItem> & { totalCount?: number }> {
 		const params = new URLSearchParams();
 		if (options?.mimeType) params.set("mimeType", options.mimeType);
 		if (options?.limit) params.set("limit", String(options.limit));
 		if (options?.cursor) params.set("cursor", options.cursor);
+		if (options?.page !== undefined) params.set("page", String(options.page));
 		if (options?.includeUsage === true) params.set("includeUsage", "1");
+		if (options?.folderId === null) {
+			params.set("folderId", "unfiled");
+		} else if (options?.folderId !== undefined) {
+			params.set("folderId", options.folderId);
+		}
 
 		const qs = params.toString();
-		return this.request<ListResult<MediaItem>>("GET", `/media${qs ? `?${qs}` : ""}`);
+		return this.request<ListResult<MediaItem> & { totalCount?: number }>(
+			"GET",
+			`/media${qs ? `?${qs}` : ""}`,
+		);
 	}
 
 	/** Get a single media item */
@@ -868,6 +894,58 @@ export class EmDashClient {
 			`/media/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`,
 		);
 		return data.item;
+	}
+
+	/** List media folders */
+	async mediaFolderList(
+		options: { limit?: number; cursor?: string; q?: string } = {},
+	): Promise<ListResult<MediaFolder>> {
+		const params = new URLSearchParams();
+		if (options.limit !== undefined) params.set("limit", String(options.limit));
+		if (options.cursor !== undefined) params.set("cursor", options.cursor);
+		if (options.q !== undefined) params.set("q", options.q);
+		const qs = params.toString();
+		return this.request<ListResult<MediaFolder>>("GET", `/media/folders${qs ? `?${qs}` : ""}`);
+	}
+
+	/** Get one media folder */
+	async mediaFolderGet(id: string): Promise<MediaFolder> {
+		const data = await this.request<{ item: MediaFolder }>(
+			"GET",
+			`/media/folders/${encodeURIComponent(id)}`,
+		);
+		return data.item;
+	}
+
+	/** Create a media folder */
+	async mediaFolderCreate(name: string): Promise<MediaFolder> {
+		const data = await this.request<{ item: MediaFolder }>("POST", "/media/folders", { name });
+		return data.item;
+	}
+
+	/** Rename a media folder */
+	async mediaFolderUpdate(id: string, name: string): Promise<MediaFolder> {
+		const data = await this.request<{ item: MediaFolder }>(
+			"PUT",
+			`/media/folders/${encodeURIComponent(id)}`,
+			{ name },
+		);
+		return data.item;
+	}
+
+	/** Delete a media folder */
+	async mediaFolderDelete(id: string): Promise<void> {
+		await this.request<unknown>("DELETE", `/media/folders/${encodeURIComponent(id)}`);
+	}
+
+	/** Assign media to a folder, or return it to the Main library */
+	async mediaSetFolder(id: string, folderId: string | null): Promise<MediaFolderAssignment> {
+		const data = await this.request<{ item: MediaFolderAssignment }>(
+			"PUT",
+			`/media/${encodeURIComponent(id)}`,
+			{ folderId },
+		);
+		return { id: data.item.id, folderId: data.item.folderId };
 	}
 
 	/** Get entry-grouped usage details for a media item */

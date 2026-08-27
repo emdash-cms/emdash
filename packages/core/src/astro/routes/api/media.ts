@@ -55,9 +55,11 @@ export const GET: APIRoute = async ({ request, locals }) => {
 
 	const result = await emdash.handleMediaList({
 		cursor: query.cursor,
+		page: query.page,
 		limit: query.limit,
 		mimeType: query.mimeType,
 		q: query.q,
+		folderId: query.folderId === "unfiled" ? null : query.folderId,
 	});
 
 	if (!result.success) {
@@ -67,7 +69,11 @@ export const GET: APIRoute = async ({ request, locals }) => {
 	// Add URL to each media item (relative URLs for portability)
 	const itemsWithUrl = result.data.items.map((item) => addUrlToMedia(item));
 	if (query.includeUsage !== "1") {
-		return apiSuccess({ items: itemsWithUrl, nextCursor: result.data.nextCursor });
+		return apiSuccess({
+			items: itemsWithUrl,
+			nextCursor: result.data.nextCursor,
+			totalCount: result.data.totalCount,
+		});
 	}
 
 	const includeCount = canReadMediaUsageCount(user, locals.tokenScopes);
@@ -85,7 +91,11 @@ export const GET: APIRoute = async ({ request, locals }) => {
 		itemsWithUsage.push({ ...item, usage });
 	}
 
-	return apiSuccess({ items: itemsWithUsage, nextCursor: result.data.nextCursor });
+	return apiSuccess({
+		items: itemsWithUsage,
+		nextCursor: result.data.nextCursor,
+		totalCount: result.data.totalCount,
+	});
 };
 
 /**

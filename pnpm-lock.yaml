@@ -296,6 +296,7 @@ overrides:
 patchedDependencies:
   '@sigstore/core@4.0.1': 2900ec704c3abfc6962eb2edecaa946b783a97e13084c4c30b1be0df5b30ae4d
   image-size@2.0.2: 77c12533e3a635c4066c55da8952f4912e8210416539dc1249550fa639271595
+  partysocket@1.1.18: 0b67a9ebe6fe9837a5fdc4cb8a05ae62eb6950e55fdcb174f7ee46d279c7f316
 
 importers:
 
@@ -13632,7 +13633,7 @@ snapshots:
       '@atcute/uint8array': 1.1.1
       '@mary-ext/event-iterator': 1.0.0
       '@mary-ext/simple-event-emitter': 1.0.1
-      partysocket: 1.1.18(react@19.2.4)
+      partysocket: 1.1.18(patch_hash=0b67a9ebe6fe9837a5fdc4cb8a05ae62eb6950e55fdcb174f7ee46d279c7f316)(react@19.2.4)
       type-fest: 4.41.0
     transitivePeerDependencies:
       - '@atcute/cid'
@@ -13687,7 +13688,7 @@ snapshots:
       '@atcute/lexicons': 2.0.0
       '@mary-ext/event-iterator': 1.0.0
       '@mary-ext/simple-event-emitter': 1.0.1
-      partysocket: 1.1.18(react@19.2.4)
+      partysocket: 1.1.18(patch_hash=0b67a9ebe6fe9837a5fdc4cb8a05ae62eb6950e55fdcb174f7ee46d279c7f316)(react@19.2.4)
       type-fest: 4.41.0
       valibot: 1.4.0(typescript@6.0.3)
     transitivePeerDependencies:
@@ -19153,7 +19154,7 @@ snapshots:
       mimetext: 3.0.28
       nanoid: 5.1.11
       partyserver: 0.5.5
-      partysocket: 1.1.18(react@19.2.4)
+      partysocket: 1.1.18(patch_hash=0b67a9ebe6fe9837a5fdc4cb8a05ae62eb6950e55fdcb174f7ee46d279c7f316)(react@19.2.4)
       react: 19.2.4
       yargs: 18.0.0
       zod: 4.4.1
@@ -22687,7 +22688,7 @@ snapshots:
     dependencies:
       nanoid: 5.1.11
 
-  partysocket@1.1.18(react@19.2.4):
+  partysocket@1.1.18(patch_hash=0b67a9ebe6fe9837a5fdc4cb8a05ae62eb6950e55fdcb174f7ee46d279c7f316)(react@19.2.4):
     dependencies:
       event-target-polyfill: 0.0.4
     optionalDependencies:

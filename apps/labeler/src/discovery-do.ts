@@ -70,6 +70,7 @@ export class LabelerDiscoveryDO extends DurableObject<Env> {
 		});
 		for (;;) {
 			let opened = false;
+			let connectionFailureLogged = false;
 			try {
 				const current = await cursor.read();
 				const subscription = new JetstreamSubscription({
@@ -78,15 +79,29 @@ export class LabelerDiscoveryDO extends DurableObject<Env> {
 					...(current === null ? {} : { cursor: Number(current) }),
 					onConnectionOpen: () => {
 						opened = true;
+						connectionFailureLogged = false;
 						this.#ready = true;
 						this.#reason = undefined;
 						this.#consecutiveFailures = 0;
 					},
-					onConnectionClose: () => {
+					onConnectionClose: (event) => {
+						if (!connectionFailureLogged) {
+							connectionFailureLogged = true;
+							logEvent("warn", "discovery_stream_connection_closed", {
+								code: event.code,
+								reason: event.reason,
+							});
+						}
 						this.#ready = false;
 						this.#reason = "connecting";
 					},
-					onConnectionError: () => {
+					onConnectionError: (event) => {
+						if (!connectionFailureLogged) {
+							connectionFailureLogged = true;
+							logEvent("warn", "discovery_stream_connection_error", {
+								message: event.message,
+							});
+						}
 						this.#ready = false;
 						this.#reason = "stream-unavailable";
 					},

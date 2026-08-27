@@ -47,8 +47,15 @@ export function createReconciliationWorkflowControl(
 ): ReconciliationWorkflowControl {
 	return {
 		async workflowPresence(runKey) {
-			const instance = await workflow.get(runKey);
-			return classifyReconciliationWorkflowStatus((await instance.status()).status);
+			try {
+				const instance = await workflow.get(runKey);
+				return classifyReconciliationWorkflowStatus((await instance.status()).status);
+			} catch (error) {
+				if (error instanceof Error && error.message.startsWith("(instance.not_found)")) {
+					return "missing";
+				}
+				throw error;
+			}
 		},
 		async restartWorkflow(runKey) {
 			await (await workflow.get(runKey)).restart();
