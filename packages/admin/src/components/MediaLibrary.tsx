@@ -932,6 +932,7 @@ export function MediaLibrary({
 			    Local library search/filter is handled server-side. */}
 			{showToolbar && (
 				<TableToolbar
+					className="flex-row flex-nowrap gap-2"
 					trailing={
 						<div role="group" aria-label={t`View mode`}>
 							<Tabs
@@ -971,7 +972,7 @@ export function MediaLibrary({
 							value={searchQuery}
 							onChange={handleSearchChange}
 							maxLength={MEDIA_SEARCH_MAX_LENGTH}
-							className="sm:w-72"
+							className="w-auto flex-1 sm:w-72"
 						/>
 					)}
 					{activeProvider === "local" && (
