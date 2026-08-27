@@ -137,13 +137,13 @@ async function setLocale(admin: AdminPage, code: string): Promise<void> {
  * Navigate to an admin path and wait for it to be ready without relying on any
  * localized selectors. The shared AdminPage.waitForShell() matches the sidebar
  * by its aria-label, which is translated -- so it can't be used once the locale
- * is Arabic. Here we wait on the hydration signal and the <aside> landmark
+ * is Arabic. Here we wait on the hydration signal and the <main> landmark
  * (both locale-independent), then confirm the document direction flipped.
  */
 async function openAdmin(admin: AdminPage, path: string, dir: string): Promise<void> {
 	await admin.goto(path);
 	await admin.page.waitForSelector("astro-island:not([ssr])", { timeout: 30000 });
-	await admin.page.locator("aside").first().waitFor({ state: "visible", timeout: 30000 });
+	await admin.page.locator("main").first().waitFor({ state: "visible", timeout: 30000 });
 	await expect(admin.page.locator("html")).toHaveAttribute("dir", dir);
 	await admin.waitForLoading();
 }
