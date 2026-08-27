@@ -5,6 +5,7 @@ export default defineConfig({
 		"src/index.ts",
 		"src/listing-policy.ts",
 		"src/withdrawal.ts",
+		"src/conformance/index.ts",
 		"src/credentials/index.ts",
 		"src/discovery/index.ts",
 		"src/env/index.ts",

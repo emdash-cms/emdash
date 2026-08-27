@@ -1,0 +1,20 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-release-service",
+	"main": "./src/index.ts",
+	// Pinned to the newest date supported by the workspace's workerd test
+	// runtime. Request handling uses stable Web Platform APIs.
+	"compatibility_date": "2026-05-14",
+	"compatibility_flags": ["nodejs_compat"],
+	"vars": {
+		"PUBLIC_ORIGIN": "",
+		"DEPLOYMENT_ID": "",
+		"OAUTH_REDIRECT_URIS": "[]",
+	},
+	"secrets": {
+		"required": ["OAUTH_ASSERTION_KEYSET", "ENCRYPTION_KEYRING"],
+	},
+	"observability": {
+		"enabled": true,
+	},
+}

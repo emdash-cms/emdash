@@ -1,0 +1,83 @@
+import { describe, expect, it } from "vitest";
+
+import { ConfigurationError, loadConfiguration } from "../src/config.js";
+import { getClientMetadata, getPublicJwks } from "../src/oauth/metadata.js";
+import { ASSERTION_KEY_1, ASSERTION_KEY_2, TEST_BINDINGS } from "./fixtures/oauth.js";
+
+describe("release-service OAuth configuration", () => {
+	it("derives exact create-only metadata and public overlapping JWKS", async () => {
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		const metadata = getClientMetadata(configuration.oauth);
+
+		expect(metadata).toEqual({
+			client_id: "https://release.example.invalid/.well-known/atproto-client-metadata.json",
+			client_name: "EmDash delegated release service",
+			client_uri: "https://release.example.invalid",
+			application_type: "web",
+			grant_types: ["authorization_code", "refresh_token"],
+			response_types: ["code"],
+			redirect_uris: ["https://release.example.invalid/oauth/callback"],
+			scope: "atproto repo:com.emdashcms.experimental.package.release?action=create",
+			jwks_uri: "https://release.example.invalid/oauth/jwks.json",
+			dpop_bound_access_tokens: true,
+			token_endpoint_auth_method: "private_key_jwt",
+			token_endpoint_auth_signing_alg: "ES256",
+		});
+		expect(getPublicJwks(configuration.oauth).keys.map((key) => key.kid)).toEqual([
+			ASSERTION_KEY_2.kid,
+			ASSERTION_KEY_1.kid,
+		]);
+		expect(JSON.stringify(getPublicJwks(configuration.oauth))).not.toContain('"d"');
+	});
+
+	it.each([
+		["empty origin", { ...TEST_BINDINGS, PUBLIC_ORIGIN: "" }],
+		["empty deployment ID", { ...TEST_BINDINGS, DEPLOYMENT_ID: "" }],
+		["HTTP origin", { ...TEST_BINDINGS, PUBLIC_ORIGIN: "http://release.example.invalid" }],
+		["origin path", { ...TEST_BINDINGS, PUBLIC_ORIGIN: "https://release.example.invalid/path" }],
+		[
+			"redirect mismatch",
+			{ ...TEST_BINDINGS, OAUTH_REDIRECT_URIS: '["https://other.example/callback"]' },
+		],
+		["empty redirects", { ...TEST_BINDINGS, OAUTH_REDIRECT_URIS: "[]" }],
+		["malformed keyset", { ...TEST_BINDINGS, OAUTH_ASSERTION_KEYSET: "not-json" }],
+		["malformed encryption keyring", { ...TEST_BINDINGS, ENCRYPTION_KEYRING: "not-json" }],
+		[
+			"missing active key",
+			{
+				...TEST_BINDINGS,
+				OAUTH_ASSERTION_KEYSET: JSON.stringify({
+					active: "missing",
+					keys: [ASSERTION_KEY_1],
+				}),
+			},
+		],
+		[
+			"wrong key algorithm",
+			{
+				...TEST_BINDINGS,
+				OAUTH_ASSERTION_KEYSET: JSON.stringify({
+					active: ASSERTION_KEY_1.kid,
+					keys: [{ ...ASSERTION_KEY_1, alg: "ES384" }],
+				}),
+			},
+		],
+	])("fails closed for %s", async (_name, bindings) => {
+		await expect(loadConfiguration(bindings)).rejects.toBeInstanceOf(ConfigurationError);
+	});
+
+	it("caches parsed encryption and invalidates it when the keyring changes", async () => {
+		const bindings = { ...TEST_BINDINGS };
+		const first = await loadConfiguration(bindings);
+		expect(first).toMatchObject({
+			deploymentId: TEST_BINDINGS.DEPLOYMENT_ID,
+		});
+		const second = await loadConfiguration(bindings);
+		expect(second.encryption).toBe(first.encryption);
+
+		bindings.ENCRYPTION_KEYRING = "not-json";
+		await expect(loadConfiguration(bindings)).rejects.toMatchObject({
+			issues: ["ENCRYPTION_KEYRING_INVALID"],
+		});
+	});
+});

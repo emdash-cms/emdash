@@ -17,6 +17,10 @@
 			"types": "./dist/publishing/index.d.ts",
 			"default": "./dist/publishing/index.js"
 		},
+		"./internal/conformance": {
+			"types": "./dist/conformance/index.d.ts",
+			"default": "./dist/conformance/index.js"
+		},
 		"./discovery": {
 			"types": "./dist/discovery/index.d.ts",
 			"default": "./dist/discovery/index.js"

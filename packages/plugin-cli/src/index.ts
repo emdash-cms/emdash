@@ -31,6 +31,7 @@ import { infoCommand } from "./commands/info.js";
 import { initCommand } from "./commands/init.js";
 import { loginCommand } from "./commands/login.js";
 import { logoutCommand } from "./commands/logout.js";
+import { pdsConformanceCommand } from "./commands/pds-conformance.js";
 import { publishCommand } from "./commands/publish.js";
 import { searchCommand } from "./commands/search.js";
 import { switchCommand } from "./commands/switch.js";
@@ -47,6 +48,7 @@ const main = defineCommand({
 	subCommands: {
 		login: loginCommand,
 		logout: logoutCommand,
+		"pds-conformance": pdsConformanceCommand,
 		whoami: whoamiCommand,
 		switch: switchCommand,
 		search: searchCommand,
