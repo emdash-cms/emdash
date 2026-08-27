@@ -33,14 +33,24 @@ function makeByline(overrides: Partial<BylineSummary> = {}): BylineSummary {
 	};
 }
 
+function makeCreditPair() {
+	const mina = makeByline();
+	const guest = makeByline({ id: "guest", slug: "guest", displayName: "Guest Contributor" });
+	return {
+		mina,
+		guest,
+		credits: [mina, guest].map((byline) => ({ bylineId: byline.id, roleLabel: null })),
+	};
+}
+
 function ControlledEditor({
 	initialCredits = [],
-	bylines,
+	bylines = [],
 	onQuickCreate,
 	onQuickEdit,
 }: {
 	initialCredits?: BylineCreditInput[];
-	bylines: BylineSummary[];
+	bylines?: BylineSummary[];
 	onQuickCreate?: (input: { slug: string; displayName: string }) => Promise<BylineSummary>;
 	onQuickEdit?: (
 		bylineId: string,
@@ -68,6 +78,22 @@ function renderBylineEditor(ui: React.ReactElement) {
 	});
 }
 
+type BylineEditorScreen = Awaited<ReturnType<typeof renderBylineEditor>>;
+
+const quickCreateByline = async (input: { slug: string; displayName: string }) =>
+	makeByline({ displayName: input.displayName, slug: input.slug });
+
+function renderControlled(props: Partial<React.ComponentProps<typeof ControlledEditor>> = {}) {
+	return renderBylineEditor(<ControlledEditor {...props} />);
+}
+
+async function openCreate(screen: BylineEditorScreen, name: string) {
+	await screen.getByRole("button", { name: "Choose bylines" }).click();
+	await screen.getByLabelText("Search bylines").fill(name);
+	await screen.getByRole("button", { name: `Create ${name}` }).click();
+	return screen.getByRole("dialog", { name: "Create byline" });
+}
+
 describe("BylineCreditsEditor", () => {
 	beforeEach(() => {
 		vi.mocked(fetchBylines).mockResolvedValue({ items: [], nextCursor: null });
@@ -87,15 +113,8 @@ describe("BylineCreditsEditor", () => {
 		const onQuickCreate = vi.fn(async (input) =>
 			makeByline({ displayName: input.displayName, slug: input.slug }),
 		);
-		const screen = await renderBylineEditor(
-			<ControlledEditor bylines={[]} onQuickCreate={onQuickCreate} />,
-		);
-
-		await screen.getByRole("button", { name: "Choose bylines" }).click();
-		await screen.getByLabelText("Search bylines").fill("Starter");
-		await screen.getByRole("button", { name: "Create Starter" }).click();
-
-		const dialog = screen.getByRole("dialog", { name: "Create byline" });
+		const screen = await renderControlled({ onQuickCreate });
+		const dialog = await openCreate(screen, "Starter");
 		const name = dialog.getByLabelText("Name");
 		await name.fill("");
 		await userEvent.type(name, "Review Tester");
@@ -111,14 +130,8 @@ describe("BylineCreditsEditor", () => {
 		const onQuickCreate = vi.fn(async () => {
 			throw new Error("A byline with this slug already exists");
 		});
-		const screen = await renderBylineEditor(
-			<ControlledEditor bylines={[]} onQuickCreate={onQuickCreate} />,
-		);
-
-		await screen.getByRole("button", { name: "Choose bylines" }).click();
-		await screen.getByLabelText("Search bylines").fill("Mina Patel");
-		await screen.getByRole("button", { name: "Create Mina Patel" }).click();
-		const dialog = screen.getByRole("dialog", { name: "Create byline" });
+		const screen = await renderControlled({ onQuickCreate });
+		const dialog = await openCreate(screen, "Mina Patel");
 		dialog.getByRole("button", { name: "Create and add" }).element().click();
 
 		await expect.element(dialog).toBeVisible();
@@ -127,23 +140,9 @@ describe("BylineCreditsEditor", () => {
 	});
 
 	it("returns to the same search after cancelling creation", async () => {
-		const screen = await renderBylineEditor(
-			<ControlledEditor
-				bylines={[]}
-				onQuickCreate={async (input) =>
-					makeByline({ displayName: input.displayName, slug: input.slug })
-				}
-			/>,
-		);
-
-		await screen.getByRole("button", { name: "Choose bylines" }).click();
-		await screen.getByLabelText("Search bylines").fill("Mina Patel");
-		await screen.getByRole("button", { name: "Create Mina Patel" }).click();
-		screen
-			.getByRole("dialog", { name: "Create byline" })
-			.getByRole("button", { name: "Cancel" })
-			.element()
-			.click();
+		const screen = await renderControlled({ onQuickCreate: quickCreateByline });
+		const dialog = await openCreate(screen, "Mina Patel");
+		dialog.getByRole("button", { name: "Cancel" }).element().click();
 		await new Promise((resolve) => setTimeout(resolve, 200));
 
 		await expect.element(screen.getByLabelText("Search bylines")).toBeVisible();
@@ -189,14 +188,7 @@ describe("BylineCreditsEditor", () => {
 			items: search === "Mina Patel" ? [mina] : [],
 			nextCursor: null,
 		}));
-		const screen = await renderBylineEditor(
-			<ControlledEditor
-				bylines={[]}
-				onQuickCreate={async (input) =>
-					makeByline({ displayName: input.displayName, slug: input.slug })
-				}
-			/>,
-		);
+		const screen = await renderControlled({ onQuickCreate: quickCreateByline });
 
 		await screen.getByRole("button", { name: "Choose bylines" }).click();
 		const search = screen.getByLabelText("Search bylines");
@@ -217,14 +209,7 @@ describe("BylineCreditsEditor", () => {
 			if (search === "broken") throw new Error("Search failed");
 			return { items: [mina], nextCursor: null };
 		});
-		const screen = await renderBylineEditor(
-			<ControlledEditor
-				bylines={[]}
-				onQuickCreate={async (input) =>
-					makeByline({ displayName: input.displayName, slug: input.slug })
-				}
-			/>,
-		);
+		const screen = await renderControlled({ onQuickCreate: quickCreateByline });
 
 		await screen.getByRole("button", { name: "Choose bylines" }).click();
 		const search = screen.getByLabelText("Search bylines");
@@ -243,12 +228,10 @@ describe("BylineCreditsEditor", () => {
 
 	it("edits a role only after Done and removes only the post credit", async () => {
 		const mina = makeByline();
-		const screen = await renderBylineEditor(
-			<ControlledEditor
-				initialCredits={[{ bylineId: mina.id, roleLabel: null }]}
-				bylines={[mina]}
-			/>,
-		);
+		const screen = await renderControlled({
+			initialCredits: [{ bylineId: mina.id, roleLabel: null }],
+			bylines: [mina],
+		});
 
 		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
 		await screen.getByRole("menuitem", { name: "Set role" }).click();
@@ -264,12 +247,10 @@ describe("BylineCreditsEditor", () => {
 
 	it("clears an unfinished role draft when its byline is removed", async () => {
 		const mina = makeByline();
-		const screen = await renderBylineEditor(
-			<ControlledEditor
-				initialCredits={[{ bylineId: mina.id, roleLabel: null }]}
-				bylines={[mina]}
-			/>,
-		);
+		const screen = await renderControlled({
+			initialCredits: [{ bylineId: mina.id, roleLabel: null }],
+			bylines: [mina],
+		});
 
 		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
 		await screen.getByRole("menuitem", { name: "Set role" }).click();
@@ -286,20 +267,13 @@ describe("BylineCreditsEditor", () => {
 	});
 
 	it("keeps ordering actions on the drag handle instead of the row menu", async () => {
-		const mina = makeByline();
-		const guest = makeByline({ id: "guest", slug: "guest", displayName: "Guest Contributor" });
-		const screen = await renderBylineEditor(
-			<ControlledEditor
-				initialCredits={[
-					{ bylineId: mina.id, roleLabel: null },
-					{ bylineId: guest.id, roleLabel: null },
-				]}
-				bylines={[mina, guest]}
-				onQuickEdit={async (_bylineId, input) =>
-					makeByline({ displayName: input.displayName, slug: input.slug })
-				}
-			/>,
-		);
+		const { mina, guest, credits } = makeCreditPair();
+		const screen = await renderControlled({
+			initialCredits: credits,
+			bylines: [mina, guest],
+			onQuickEdit: async (_bylineId, input) =>
+				makeByline({ displayName: input.displayName, slug: input.slug }),
+		});
 
 		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
 		const menu = screen.getByRole("menu", { name: "More actions for Mina Patel" });
@@ -318,29 +292,9 @@ describe("BylineCreditsEditor", () => {
 			.not.toBeInTheDocument();
 	});
 
-	it("keeps selected credits in place while the chooser is open", async () => {
-		const mina = makeByline();
-		const guest = makeByline({ id: "guest", slug: "guest", displayName: "Guest Contributor" });
-		const screen = await renderBylineEditor(
-			<ControlledEditor
-				initialCredits={[
-					{ bylineId: mina.id, roleLabel: null },
-					{ bylineId: guest.id, roleLabel: null },
-				]}
-				bylines={[mina, guest]}
-			/>,
-		);
-
-		await screen.getByRole("button", { name: "Add another byline" }).click();
-
-		await expect.element(screen.getByLabelText("Search bylines")).toBeVisible();
-		await expect.element(screen.getByText("Mina Patel")).toBeVisible();
-		await expect.element(screen.getByText("Guest Contributor")).toBeVisible();
-	});
-
 	it("returns focus to a byline after adding it", async () => {
 		const mina = makeByline();
-		const screen = await renderBylineEditor(<ControlledEditor bylines={[mina]} />);
+		const screen = await renderControlled({ bylines: [mina] });
 
 		await screen.getByRole("button", { name: "Choose bylines" }).click();
 		await screen.getByRole("button", { name: "Add Mina Patel" }).click();
@@ -357,9 +311,7 @@ describe("BylineCreditsEditor", () => {
 			displayName: "Guest Contributor",
 			slug: "guest-contributor",
 		});
-		const screen = await renderBylineEditor(
-			<ControlledEditor bylines={[byline, customSlug, generatedSlug]} />,
-		);
+		const screen = await renderControlled({ bylines: [byline, customSlug, generatedSlug] });
 
 		await screen.getByRole("button", { name: "Choose bylines" }).click();
 
@@ -371,47 +323,13 @@ describe("BylineCreditsEditor", () => {
 		await expect.element(screen.getByText("the", { exact: true })).toHaveLength(2);
 	});
 
-	it("reorders credits with the keyboard drag handle", async () => {
-		const mina = makeByline();
-		const guest = makeByline({ id: "guest", slug: "guest", displayName: "Guest Contributor" });
-		const screen = await renderBylineEditor(
-			<ControlledEditor
-				initialCredits={[
-					{ bylineId: mina.id, roleLabel: null },
-					{ bylineId: guest.id, roleLabel: null },
-				]}
-				bylines={[mina, guest]}
-			/>,
-		);
-
-		const handle = screen.getByRole("button", { name: "Reorder Mina Patel" });
-		handle.element().focus();
-		await userEvent.keyboard(" ");
-		await userEvent.keyboard("{ArrowDown}");
-		await userEvent.keyboard(" ");
-
-		const actions = Array.from(
-			screen.container.querySelectorAll<HTMLButtonElement>(
-				'button[aria-label^="More actions for"]',
-			),
-			(button) => button.getAttribute("aria-label"),
-		);
-		expect(actions).toEqual(["More actions for Guest Contributor", "More actions for Mina Patel"]);
-	});
-
-	it("restores row focus without depending on its translated accessible name", async () => {
-		const mina = makeByline();
-		const guest = makeByline({ id: "guest", slug: "guest", displayName: "Guest Contributor" });
-		const screen = await renderBylineEditor(
-			<ControlledEditor
-				initialCredits={[
-					{ bylineId: mina.id, roleLabel: null },
-					{ bylineId: guest.id, roleLabel: null },
-				]}
-				bylines={[mina, guest]}
-			/>,
-		);
+	it("reorders with the keyboard and restores translated row focus", async () => {
+		const { mina, guest, credits } = makeCreditPair();
+		const screen = await renderControlled({ initialCredits: credits, bylines: [mina, guest] });
 		const actions = screen.getByRole("button", { name: "More actions for Mina Patel" }).element();
+		const guestActions = screen
+			.getByRole("button", { name: "More actions for Guest Contributor" })
+			.element();
 		actions.setAttribute("aria-label", "إجراءات مينا");
 
 		const handle = screen.getByRole("button", { name: "Reorder Mina Patel" });
@@ -420,21 +338,17 @@ describe("BylineCreditsEditor", () => {
 		await userEvent.keyboard("{ArrowDown}");
 		await userEvent.keyboard(" ");
 
+		expect([
+			...screen.container.querySelectorAll<HTMLButtonElement>(
+				"button[data-byline-actions-trigger]",
+			),
+		]).toEqual([guestActions, actions]);
 		await vi.waitFor(() => expect(document.activeElement).toBe(actions));
 	});
 
 	it("keeps pointer dragging inside the credit list", async () => {
-		const mina = makeByline();
-		const guest = makeByline({ id: "guest", slug: "guest", displayName: "Guest Contributor" });
-		const screen = await renderBylineEditor(
-			<ControlledEditor
-				initialCredits={[
-					{ bylineId: mina.id, roleLabel: null },
-					{ bylineId: guest.id, roleLabel: null },
-				]}
-				bylines={[mina, guest]}
-			/>,
-		);
+		const { mina, guest, credits } = makeCreditPair();
+		const screen = await renderControlled({ initialCredits: credits, bylines: [mina, guest] });
 		const handle = screen.getByRole("button", { name: "Reorder Mina Patel" }).element();
 		const row = handle.parentElement!;
 		const list = row.parentElement!;

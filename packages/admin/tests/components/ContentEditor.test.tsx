@@ -151,6 +151,31 @@ function renderEditor(props: Partial<ContentEditorProps> = {}) {
 	return render(<ContentEditor {...defaultProps} />);
 }
 
+type SavedBylineCredit = NonNullable<ContentItem["bylines"]>[number];
+
+function savedCredit(
+	byline: BylineSummary,
+	source?: SavedBylineCredit["source"],
+	roleLabel: string | null = null,
+	sortOrder = 0,
+): SavedBylineCredit {
+	return { byline, sortOrder, roleLabel, ...(source ? { source } : {}) };
+}
+
+function renderBylineContent(
+	bylines: SavedBylineCredit[],
+	props: Partial<ContentEditorProps> = {},
+) {
+	return renderEditor({
+		isNew: false,
+		item: makeItem({ data: { title: "Hello", body: "" }, bylines }),
+		currentUser: { id: "u-1", role: 50 },
+		availableBylines: [],
+		availableBylinesLoaded: true,
+		...props,
+	});
+}
+
 function installMatchMedia(initialMatches: boolean) {
 	let matches = initialMatches;
 	const listeners = new Set<(event: MediaQueryListEvent) => void>();
@@ -1060,22 +1085,9 @@ describe("ContentEditor", () => {
 		});
 
 		it("shows an owner-inferred byline as an automatic credit", async () => {
-			const inferredCredit = {
-				byline: makeByline({ id: "inferred", displayName: "Owner Profile" }),
-				sortOrder: 0,
-				roleLabel: null,
-				source: "inferred" as const,
-			};
-			const screen = await renderEditor({
-				isNew: false,
-				item: makeItem({
-					data: { title: "Hello", body: "" },
-					bylines: [inferredCredit],
-				}),
-				currentUser: { id: "u-1", role: 50 },
-				availableBylines: [],
-				availableBylinesLoaded: true,
-			});
+			const screen = await renderBylineContent([
+				savedCredit(makeByline({ id: "inferred", displayName: "Owner Profile" }), "inferred"),
+			]);
 
 			await expect.element(screen.getByText("Automatic", { exact: true })).toBeInTheDocument();
 			await expect.element(screen.getByText("From the post owner")).toBeInTheDocument();
@@ -1089,19 +1101,10 @@ describe("ContentEditor", () => {
 				displayName: "Mina Patel",
 			});
 			const inferred = makeByline({ id: "inferred", displayName: "Owner Profile" });
-			const screen = await renderEditor({
-				isNew: false,
-				item: makeItem({
-					data: { title: "Hello", body: "" },
-					bylines: [
-						{ byline: explicit, sortOrder: 0, roleLabel: null, source: "explicit" },
-						{ byline: inferred, sortOrder: 1, roleLabel: null, source: "inferred" },
-					],
-				}),
-				currentUser: { id: "u-1", role: 50 },
-				availableBylines: [explicit],
-				availableBylinesLoaded: true,
-			});
+			const screen = await renderBylineContent(
+				[savedCredit(explicit, "explicit"), savedCredit(inferred, "inferred", null, 1)],
+				{ availableBylines: [explicit] },
+			);
 
 			await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
 			await screen.getByRole("menuitem", { name: "Remove from post" }).click();
@@ -1113,26 +1116,14 @@ describe("ContentEditor", () => {
 
 		it("never saves an inferred byline as an explicit credit", async () => {
 			const onSave = vi.fn();
-			const inferredCredit = {
-				byline: makeByline({ id: "inferred", displayName: "Owner Profile" }),
-				sortOrder: 0,
-				roleLabel: null,
-				source: "inferred" as const,
-			};
+			const inferred = makeByline({ id: "inferred", displayName: "Owner Profile" });
 			const explicit = makeByline({
 				id: "explicit",
 				slug: "mina-patel",
 				displayName: "Mina Patel",
 			});
-			const screen = await renderEditor({
-				isNew: false,
-				item: makeItem({
-					data: { title: "Hello", body: "" },
-					bylines: [inferredCredit],
-				}),
-				currentUser: { id: "u-1", role: 50 },
+			const screen = await renderBylineContent([savedCredit(inferred, "inferred")], {
 				availableBylines: [explicit],
-				availableBylinesLoaded: true,
 				onSave,
 			});
 
@@ -1151,26 +1142,14 @@ describe("ContentEditor", () => {
 			vi.useFakeTimers();
 			try {
 				const onAutosave = vi.fn();
-				const inferredCredit = {
-					byline: makeByline({ id: "inferred", displayName: "Owner Profile" }),
-					sortOrder: 0,
-					roleLabel: null,
-					source: "inferred" as const,
-				};
+				const inferred = makeByline({ id: "inferred", displayName: "Owner Profile" });
 				const explicit = makeByline({
 					id: "explicit",
 					slug: "mina-patel",
 					displayName: "Mina Patel",
 				});
-				const screen = await renderEditor({
-					isNew: false,
-					item: makeItem({
-						data: { title: "Hello", body: "" },
-						bylines: [inferredCredit],
-					}),
-					currentUser: { id: "u-1", role: 50 },
+				const screen = await renderBylineContent([savedCredit(inferred, "inferred")], {
 					availableBylines: [explicit],
-					availableBylinesLoaded: true,
 					onAutosave,
 				});
 
@@ -1189,22 +1168,8 @@ describe("ContentEditor", () => {
 		});
 
 		it("keeps a credit without a source editable for backwards compatibility", async () => {
-			const screen = await renderEditor({
-				isNew: false,
-				item: makeItem({
-					data: { title: "Hello", body: "" },
-					bylines: [
-						{
-							byline: makeByline({ id: "legacy", displayName: "Legacy Credit" }),
-							sortOrder: 0,
-							roleLabel: null,
-						},
-					],
-				}),
-				currentUser: { id: "u-1", role: 50 },
-				availableBylines: [],
-				availableBylinesLoaded: true,
-			});
+			const legacy = makeByline({ id: "legacy", displayName: "Legacy Credit" });
+			const screen = await renderBylineContent([savedCredit(legacy)]);
 
 			await expect.element(screen.getByText("Legacy Credit")).toBeInTheDocument();
 			await expect
@@ -1541,15 +1506,7 @@ describe("ContentEditor", () => {
 			const media = installMatchMedia(true);
 			try {
 				const byline = makeByline({ id: "credited", displayName: "Mina Patel" });
-				const screen = await renderEditor({
-					isNew: false,
-					item: makeItem({
-						bylines: [{ byline, sortOrder: 0, roleLabel: null }],
-					}),
-					currentUser: { id: "u-1", role: 50 },
-					availableBylines: [],
-					availableBylinesLoaded: true,
-				});
+				const screen = await renderBylineContent([savedCredit(byline)]);
 
 				await screen.getByRole("button", { name: "Settings" }).click();
 				await screen.getByRole("button", { name: "Add another byline" }).click();
@@ -2185,18 +2142,9 @@ describe("ContentEditor", () => {
 	// ---------------------------------------------------------------------------
 	describe("byline picker search (#1217)", () => {
 		it("keeps search behind one choose action for an automatic credit", async () => {
-			const inferredCredit = {
-				byline: makeByline({ id: "inferred", displayName: "Owner Profile" }),
-				sortOrder: 0,
-				roleLabel: null,
-				source: "inferred" as const,
-			};
-			const screen = await renderEditor({
-				isNew: false,
-				item: makeItem({ bylines: [inferredCredit] }),
-				currentUser: { id: "u-1", role: 50 },
+			const inferred = makeByline({ id: "inferred", displayName: "Owner Profile" });
+			const screen = await renderBylineContent([savedCredit(inferred, "inferred")], {
 				availableBylines: [makeByline()],
-				availableBylinesLoaded: true,
 			});
 
 			await expect.element(screen.getByLabelText("Search bylines")).not.toBeInTheDocument();
@@ -2206,15 +2154,7 @@ describe("ContentEditor", () => {
 
 		it("groups explicit credit actions under a scoped menu", async () => {
 			const credited = makeByline({ id: "credited", displayName: "Mina Patel" });
-			const screen = await renderEditor({
-				isNew: false,
-				item: makeItem({
-					bylines: [{ byline: credited, sortOrder: 0, roleLabel: "Writer" }],
-				}),
-				currentUser: { id: "u-1", role: 50 },
-				availableBylines: [],
-				availableBylinesLoaded: true,
-			});
+			const screen = await renderBylineContent([savedCredit(credited, undefined, "Writer")]);
 
 			await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
 			await expect.element(screen.getByRole("menuitem", { name: "Edit role" })).toBeInTheDocument();
