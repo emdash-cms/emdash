@@ -153,7 +153,7 @@ export function BylineCreditsEditor({
 	const rowRefs = React.useRef(new Map<string, HTMLDivElement>());
 	const creditsRef = React.useRef(credits);
 	creditsRef.current = credits;
-	React.useEffect(() => {
+	React.useLayoutEffect(() => {
 		activeInstanceRef.current = true;
 		return () => {
 			activeInstanceRef.current = false;
