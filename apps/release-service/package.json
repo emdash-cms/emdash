@@ -17,6 +17,7 @@
 		"@atcute/identity-resolver": "catalog:",
 		"@atcute/lexicons": "catalog:",
 		"@atcute/oauth-node-client": "catalog:",
+		"@emdash-cms/auth": "workspace:*",
 		"@emdash-cms/registry-lexicons": "workspace:*",
 		"@emdash-cms/registry-verification": "workspace:*",
 		"jose": "^6.1.3"

@@ -571,6 +571,9 @@ importers:
       '@atcute/oauth-node-client':
         specifier: 'catalog:'
         version: 2.0.0(@atcute/identity-resolver@2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@emdash-cms/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@emdash-cms/registry-lexicons':
         specifier: workspace:*
         version: link:../../packages/registry-lexicons

@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 
 import { ApiError } from "../api/errors.js";
 import { apiFailure } from "../api/response.js";
+import { createApproverApplicationSession } from "../approver-session/session.js";
 import type { ServiceConfiguration } from "../config.js";
 import {
 	PublisherSessionError,
@@ -13,6 +14,7 @@ import {
 	requirePublisherApplicationSession,
 } from "../publisher-session/session.js";
 import {
+	createApproverOAuthClient,
 	createPublisherOAuthClient,
 	createWorkerActorResolver,
 	canonicalizeRedirectTarget,
@@ -25,6 +27,66 @@ const ERROR_CODE_PATTERN = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+export async function handleApproverIdentityAuthorize(
+	request: Request,
+	requestId: string,
+	configuration: ServiceConfiguration,
+): Promise<Response> {
+	try {
+		requireSameOriginRequest(request, configuration.publicOrigin);
+		const body = await readJsonBody(request);
+		if (
+			Object.keys(body).length !== 2 ||
+			typeof body["identifier"] !== "string" ||
+			(!isDid(body["identifier"]) && !isHandle(body["identifier"])) ||
+			typeof body["redirectTarget"] !== "string"
+		) {
+			throw new ApiError("INVALID_REQUEST", 400, "Invalid OAuth authorization request");
+		}
+		const redirectTarget = canonicalizeRedirectTarget(
+			body["redirectTarget"],
+			configuration.publicOrigin,
+		);
+		const actorResolver = createWorkerActorResolver();
+		const actor = await actorResolver.resolve(body["identifier"], {
+			signal: AbortSignal.timeout(30_000),
+		});
+		const client = createApproverOAuthClient({
+			namespace: env.APPROVER_DO,
+			encryption: configuration.encryption,
+			oauth: configuration.oauth,
+			flow: {
+				purpose: "approver_identity",
+				expectedDid: actor.did,
+				redirectTarget,
+			},
+			actorResolver,
+		});
+		const authorization = await client.authorize(
+			{ type: "account", identifier: actor.did },
+			{ signal: AbortSignal.timeout(30_000) },
+		);
+		return redirectToAuthorization(
+			authorization.url,
+			createOAuthRouteCookie({
+				purpose: "approver_identity",
+				expectedDid: actor.did,
+				redirectTarget,
+				stateId: authorization.stateId,
+			}),
+			requestId,
+		);
+	} catch (error) {
+		if (error instanceof ApiError) return apiFailure(error, requestId);
+		return oauthError(
+			"OAUTH_AUTHORIZATION_FAILED",
+			400,
+			"OAuth authorization could not be started",
+			requestId,
+		);
+	}
 }
 
 function oauthError(
@@ -283,13 +345,30 @@ export async function handleOAuthCallback(
 				throw new PublisherSessionError("PUBLISHER_SESSION_INVALID");
 			}
 		}
-		const client = createPublisherOAuthClient({
-			namespace: env.PUBLISHER_DO,
-			encryption: configuration.encryption,
-			oauth: configuration.oauth,
-			flow: route,
-			fetch: callbackFetch,
-		});
+		const client =
+			route.purpose === "approver_identity"
+				? createApproverOAuthClient({
+						namespace: env.APPROVER_DO,
+						encryption: configuration.encryption,
+						oauth: configuration.oauth,
+						flow: {
+							purpose: "approver_identity",
+							expectedDid: route.expectedDid,
+							redirectTarget: route.redirectTarget,
+						},
+						fetch: callbackFetch,
+					})
+				: createPublisherOAuthClient({
+						namespace: env.PUBLISHER_DO,
+						encryption: configuration.encryption,
+						oauth: configuration.oauth,
+						flow: {
+							purpose: route.purpose,
+							expectedDid: route.expectedDid,
+							redirectTarget: route.redirectTarget,
+						},
+						fetch: callbackFetch,
+					});
 		await client.callback(params);
 		const headers = new Headers({
 			"cache-control": "no-store",
@@ -301,6 +380,9 @@ export async function handleOAuthCallback(
 		if (route.purpose === "publisher_identity") {
 			await client.revoke();
 			const created = await createPublisherApplicationSession(env.PUBLISHER_DO, route.expectedDid);
+			for (const cookie of created.setCookieHeaders) headers.append("set-cookie", cookie);
+		} else if (route.purpose === "approver_identity") {
+			const created = await createApproverApplicationSession(env.APPROVER_DO, route.expectedDid);
 			for (const cookie of created.setCookieHeaders) headers.append("set-cookie", cookie);
 		}
 		return new Response(null, { status: 303, headers });

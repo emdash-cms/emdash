@@ -9,6 +9,10 @@
 	"durable_objects": {
 		"bindings": [
 			{
+				"name": "APPROVER_DO",
+				"class_name": "ApproverDurableObject",
+			},
+			{
 				"name": "PUBLISHER_DO",
 				"class_name": "PublisherDurableObject",
 			},
@@ -17,7 +21,7 @@
 	"migrations": [
 		{
 			"tag": "v1",
-			"new_sqlite_classes": ["PublisherDurableObject"],
+			"new_sqlite_classes": ["ApproverDurableObject", "PublisherDurableObject"],
 		},
 	],
 	"vars": {

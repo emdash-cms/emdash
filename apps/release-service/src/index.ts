@@ -5,6 +5,7 @@ import { ConfigurationError, loadConfiguration, type ConfigurationBindings } fro
 import { ROUTES, type RouteDefinition } from "./routes.js";
 
 export { PublisherDurableObject } from "./publisher-do/publisher-do.js";
+export { ApproverDurableObject } from "./approver-do/approver-do.js";
 
 export async function handleRequest(
 	request: Request,
@@ -15,11 +16,19 @@ export async function handleRequest(
 	try {
 		const configuration = await loadConfiguration(bindings);
 		const url = new URL(request.url);
-		const route = routes.find(
-			(candidate) => candidate.path === url.pathname && candidate.method === request.method,
-		);
-		if (route) return await route.handler(request, requestId, configuration);
-		if (routes.some((candidate) => candidate.path === url.pathname)) {
+		const matches = routes.flatMap((candidate) => {
+			const params = candidate.match
+				? candidate.match(url.pathname)
+				: candidate.path === url.pathname
+					? {}
+					: null;
+			return params === null ? [] : [{ candidate, params }];
+		});
+		const route = matches.find(({ candidate }) => candidate.method === request.method);
+		if (route) {
+			return await route.candidate.handler(request, requestId, configuration, route.params);
+		}
+		if (matches.length > 0) {
 			return apiFailure(new ApiError("METHOD_NOT_ALLOWED", 405, "Method not allowed"), requestId);
 		}
 		return apiFailure(new ApiError("NOT_FOUND", 404, "Not found"), requestId);

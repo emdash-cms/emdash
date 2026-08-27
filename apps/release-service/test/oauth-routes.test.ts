@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { loadConfiguration } from "../src/config.js";
 import {
+	handleApproverIdentityAuthorize,
 	handleOAuthCallback,
 	handlePublisherDelegationAuthorize,
 	handlePublisherIdentityAuthorize,
@@ -151,6 +152,48 @@ describe("publisher OAuth routes", () => {
 		expect(setCookie).toContain("__Host-emdash_oauth_route=");
 		expect(network.requests.some((request) => request.path === "/revoke")).toBe(true);
 		await expect(env.PUBLISHER_DO.getByName(DID).getDelegation(DID)).resolves.toBeNull();
+	});
+
+	it("keeps approver identity state and cookies in the approver realm", async () => {
+		const network = oauthNetwork();
+		vi.stubGlobal("fetch", network.fetch);
+		const config = await configuration();
+		const start = await handleApproverIdentityAuthorize(
+			new Request(`${ORIGIN}/v1/approver/session/authorize`, {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					origin: ORIGIN,
+					"x-emdash-request": "1",
+				},
+				body: JSON.stringify({ identifier: DID, redirectTarget: "/approvals/intent-1" }),
+			}),
+			"approver-start",
+			config,
+		);
+		expect(start.status).toBe(303);
+		const routeCookie = cookiePair(start.headers.get("set-cookie") ?? "");
+		const par = network.requests.find((request) => request.path === "/par");
+		expect(par?.body.get("scope")).toBe("atproto");
+		const state = par?.body.get("state") ?? "";
+
+		const callback = await handleOAuthCallback(
+			new Request(
+				`${ORIGIN}/oauth/callback?code=code-1&state=${encodeURIComponent(state)}&iss=${encodeURIComponent("https://authorization.example")}`,
+				{ headers: { cookie: routeCookie } },
+			),
+			"approver-callback",
+			config,
+		);
+		expect(callback.status).toBe(303);
+		expect(callback.headers.get("location")).toBe(`${ORIGIN}/approvals/intent-1`);
+		const setCookie = callback.headers.get("set-cookie") ?? "";
+		expect(setCookie).toContain("__Host-emdash_approver_session=");
+		expect(setCookie).toContain("__Host-emdash_approver_csrf=");
+		expect(setCookie).not.toContain("__Host-emdash_publisher_session=");
+		await expect(env.APPROVER_DO.getByName(DID).listCredentials(DID, null, 10)).resolves.toEqual(
+			[],
+		);
 	});
 
 	it("requires same-origin authorization and rejects oversized bodies before resolution", async () => {

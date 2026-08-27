@@ -21,6 +21,10 @@ import {
 	type StoredState,
 } from "@atcute/oauth-node-client";
 
+import type {
+	ApproverDurableObject,
+	StoredIdentityTransaction,
+} from "../approver-do/approver-do.js";
 import type { OAuthConfiguration } from "../config.js";
 import {
 	EncryptionError,
@@ -32,6 +36,7 @@ import type {
 	DelegationRefreshLease,
 	PublisherDurableObject,
 	StoredDelegation,
+	StoredOAuthState,
 } from "../publisher-do/publisher-do.js";
 
 const DID_PATTERN = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
@@ -45,13 +50,24 @@ const decoder = new TextDecoder();
 
 type Did = `did:${string}:${string}`;
 
-export type PublisherOAuthPurpose = "publisher_identity" | "release_delegation";
+export type PublisherOAuthPurpose =
+	| "publisher_identity"
+	| "approver_identity"
+	| "release_delegation";
 
 export interface PublisherOAuthFlowOptions {
 	purpose: PublisherOAuthPurpose;
 	expectedDid: Did;
 	redirectTarget: string;
 }
+
+type PublisherShardOAuthFlowOptions = Omit<PublisherOAuthFlowOptions, "purpose"> & {
+	purpose: "publisher_identity" | "release_delegation";
+};
+
+type ApproverOAuthFlowOptions = Omit<PublisherOAuthFlowOptions, "purpose"> & {
+	purpose: "approver_identity";
+};
 
 export interface PublisherOAuthUserState {
 	purpose: PublisherOAuthPurpose;
@@ -335,24 +351,64 @@ function parseUserState(
 }
 
 function transactionEncryptionPurpose(purpose: PublisherOAuthPurpose) {
-	return purpose === "release_delegation"
-		? ("oauth-delegation-transaction" as const)
-		: ("oauth-console-transaction" as const);
+	if (purpose === "release_delegation") return "oauth-delegation-transaction" as const;
+	if (purpose === "approver_identity") return "oauth-approver-transaction" as const;
+	return "oauth-console-transaction" as const;
+}
+
+interface PutDurableOAuthStateInput {
+	stateHash: string;
+	encryptedState: string;
+	encryptionKeyVersion: number;
+	clientKeyId: string;
+	redirectTarget: string;
+	expiresAt: number;
+}
+
+interface DurableOAuthStateBackend {
+	objectClass: "PublisherDurableObject" | "ApproverDurableObject";
+	table: "oauth_states" | "identity_transactions";
+	put(input: PutDurableOAuthStateInput): Promise<{ ok: boolean }>;
+	consume(stateHash: string): Promise<StoredOAuthState | StoredIdentityTransaction | null>;
+}
+
+function publisherOAuthStateBackend(
+	stub: DurableObjectStub<PublisherDurableObject>,
+	publisherDid: Did,
+): DurableOAuthStateBackend {
+	return {
+		objectClass: "PublisherDurableObject",
+		table: "oauth_states",
+		put: (input) => stub.putOAuthState({ publisherDid, ...input }),
+		consume: (stateHash) => stub.consumeOAuthState(publisherDid, stateHash),
+	};
+}
+
+function approverOAuthStateBackend(
+	stub: DurableObjectStub<ApproverDurableObject>,
+	approverDid: Did,
+): DurableOAuthStateBackend {
+	return {
+		objectClass: "ApproverDurableObject",
+		table: "identity_transactions",
+		put: (input) => stub.putIdentityTransaction({ approverDid, ...input }),
+		consume: (stateHash) => stub.consumeIdentityTransaction(approverDid, stateHash),
+	};
 }
 
 class DurableOAuthStateStore implements Store<string, StoredState> {
-	readonly #stub: DurableObjectStub<PublisherDurableObject>;
+	readonly #backend: DurableOAuthStateBackend;
 	readonly #encryption: EnvelopeEncryption;
 	readonly #oauth: OAuthConfiguration;
 	readonly #options: PublisherOAuthFlowOptions;
 
 	constructor(
-		stub: DurableObjectStub<PublisherDurableObject>,
+		backend: DurableOAuthStateBackend,
 		encryption: EnvelopeEncryption,
 		oauth: OAuthConfiguration,
 		options: PublisherOAuthFlowOptions,
 	) {
-		this.#stub = stub;
+		this.#backend = backend;
 		this.#encryption = encryption;
 		this.#oauth = oauth;
 		this.#options = options;
@@ -387,8 +443,7 @@ class DurableOAuthStateStore implements Store<string, StoredState> {
 			encoder.encode(JSON.stringify({ ...state, userState })),
 			this.#encryptionContext(stateHash),
 		);
-		const result = await this.#stub.putOAuthState({
-			publisherDid: this.#options.expectedDid,
+		const result = await this.#backend.put({
 			stateHash,
 			encryptedState: encrypted.envelope,
 			encryptionKeyVersion: encrypted.keyVersion,
@@ -402,7 +457,7 @@ class DurableOAuthStateStore implements Store<string, StoredState> {
 	async get(rawState: string): Promise<StoredState | undefined> {
 		if (!isBase64Url(rawState) || rawState.length > 128) return undefined;
 		const stateHash = await hashOpaque(rawState);
-		const stored = await this.#stub.consumeOAuthState(this.#options.expectedDid, stateHash);
+		const stored = await this.#backend.consume(stateHash);
 		if (!stored) return undefined;
 		assertClientKeyAvailable(this.#oauth, stored.clientKeyId);
 		const plaintext = await this.#encryption.decrypt(
@@ -430,7 +485,7 @@ class DurableOAuthStateStore implements Store<string, StoredState> {
 
 	async delete(rawState: string): Promise<void> {
 		if (!isBase64Url(rawState) || rawState.length > 128) return;
-		await this.#stub.consumeOAuthState(this.#options.expectedDid, await hashOpaque(rawState));
+		await this.#backend.consume(await hashOpaque(rawState));
 	}
 
 	clear(): Promise<void> {
@@ -440,8 +495,8 @@ class DurableOAuthStateStore implements Store<string, StoredState> {
 	#encryptionContext(stateHash: string): EncryptionContext {
 		return {
 			purpose: transactionEncryptionPurpose(this.#options.purpose),
-			objectClass: "PublisherDurableObject",
-			table: "oauth_states",
+			objectClass: this.#backend.objectClass,
+			table: this.#backend.table,
 			primaryKey: stateHash,
 			ownerDid: this.#options.expectedDid,
 		};
@@ -452,7 +507,7 @@ class PublisherOAuthSessionStore implements Store<Did, StoredSession> {
 	readonly #stub: DurableObjectStub<PublisherDurableObject>;
 	readonly #encryption: EnvelopeEncryption;
 	readonly #oauth: OAuthConfiguration;
-	readonly #options: PublisherOAuthFlowOptions;
+	readonly #options: PublisherShardOAuthFlowOptions;
 	readonly #identitySessions: Store<Did, StoredSession> = new MemoryStore<Did, StoredSession>();
 	#activeLease: ActiveRefreshLease | null = null;
 
@@ -460,7 +515,7 @@ class PublisherOAuthSessionStore implements Store<Did, StoredSession> {
 		stub: DurableObjectStub<PublisherDurableObject>,
 		encryption: EnvelopeEncryption,
 		oauth: OAuthConfiguration,
-		options: PublisherOAuthFlowOptions,
+		options: PublisherShardOAuthFlowOptions,
 	) {
 		this.#stub = stub;
 		this.#encryption = encryption;
@@ -708,7 +763,7 @@ export function createPublisherOAuthStores(
 	namespace: DurableObjectNamespace<PublisherDurableObject>,
 	encryption: EnvelopeEncryption,
 	oauth: OAuthConfiguration,
-	options: PublisherOAuthFlowOptions,
+	options: PublisherShardOAuthFlowOptions,
 ): PublisherOAuthStores {
 	if (!isDid(options.expectedDid)) {
 		throw new OAuthCustodyError("OAUTH_IDENTITY_MISMATCH");
@@ -721,7 +776,12 @@ export function createPublisherOAuthStores(
 		),
 	};
 	const stub = namespace.getByName(options.expectedDid);
-	const states = new DurableOAuthStateStore(stub, encryption, oauth, normalizedOptions);
+	const states = new DurableOAuthStateStore(
+		publisherOAuthStateBackend(stub, options.expectedDid),
+		encryption,
+		oauth,
+		normalizedOptions,
+	);
 	const sessions = new PublisherOAuthSessionStore(stub, encryption, oauth, normalizedOptions);
 	return {
 		stores: { states, sessions },
@@ -756,7 +816,16 @@ export interface CreatePublisherOAuthClientOptions {
 	namespace: DurableObjectNamespace<PublisherDurableObject>;
 	encryption: EnvelopeEncryption;
 	oauth: OAuthConfiguration;
-	flow: PublisherOAuthFlowOptions;
+	flow: PublisherShardOAuthFlowOptions;
+	actorResolver?: ActorResolver;
+	fetch?: typeof globalThis.fetch;
+}
+
+export interface CreateApproverOAuthClientOptions {
+	namespace: DurableObjectNamespace<ApproverDurableObject>;
+	encryption: EnvelopeEncryption;
+	oauth: OAuthConfiguration;
+	flow: ApproverOAuthFlowOptions;
 	actorResolver?: ActorResolver;
 	fetch?: typeof globalThis.fetch;
 }
@@ -849,4 +918,41 @@ export function createPublisherOAuthClient(
 		fetch: fetchThis,
 	});
 	return new PublisherOAuthClient(client, options.oauth, options.flow, custody.userState);
+}
+
+export function createApproverOAuthClient(
+	options: CreateApproverOAuthClientOptions,
+): PublisherOAuthClient {
+	if (!isDid(options.flow.expectedDid)) {
+		throw new OAuthCustodyError("OAUTH_IDENTITY_MISMATCH");
+	}
+	const flow = {
+		...options.flow,
+		redirectTarget: canonicalizeRedirectTarget(
+			options.flow.redirectTarget,
+			options.oauth.clientMetadata.client_uri,
+		),
+	};
+	const stub = options.namespace.getByName(flow.expectedDid);
+	const states = new DurableOAuthStateStore(
+		approverOAuthStateBackend(stub, flow.expectedDid),
+		options.encryption,
+		options.oauth,
+		flow,
+	);
+	const sessions = new MemoryStore<Did, StoredSession>();
+	const fetchThis = options.fetch ?? globalThis.fetch;
+	const client = new OAuthClient({
+		metadata: options.oauth.clientMetadata,
+		keyset: options.oauth.keyset,
+		stores: { states, sessions },
+		actorResolver: options.actorResolver ?? createWorkerActorResolver(fetchThis),
+		fetch: fetchThis,
+	});
+	return new PublisherOAuthClient(
+		client,
+		options.oauth,
+		flow,
+		expectedUserState(flow, options.oauth.clientMetadata.client_uri),
+	);
 }

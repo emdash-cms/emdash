@@ -293,7 +293,9 @@ export function readOAuthRouteCookie(
 		!("v" in parsed) ||
 		parsed.v !== 1 ||
 		!("purpose" in parsed) ||
-		(parsed.purpose !== "publisher_identity" && parsed.purpose !== "release_delegation") ||
+		(parsed.purpose !== "publisher_identity" &&
+			parsed.purpose !== "approver_identity" &&
+			parsed.purpose !== "release_delegation") ||
 		!("expectedDid" in parsed) ||
 		!isDid(parsed.expectedDid) ||
 		!("redirectTarget" in parsed) ||
