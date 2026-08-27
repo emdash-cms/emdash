@@ -19,13 +19,19 @@ import * as React from "react";
 import { formatFileSize } from "../lib/media-utils.js";
 
 export const LOCAL_MEDIA_UPLOAD_ACCEPT =
-	"image/png,image/jpeg,image/gif,image/webp,video/*,audio/*,application/pdf";
+	"image/png,image/jpeg,image/gif,image/webp,image/avif,video/*,audio/*,application/pdf";
 
 const DEFAULT_CONCURRENCY = 3;
 const MAX_CONCURRENCY = 6;
 const MAX_VISIBLE_ROWS = 100;
 const MAX_PREVIEW_BYTES = 8 * 1024 * 1024;
-const PREVIEW_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+const PREVIEW_MIME_TYPES = new Set([
+	"image/jpeg",
+	"image/png",
+	"image/gif",
+	"image/webp",
+	"image/avif",
+]);
 
 type UploadStatus = "queued" | "uploading" | "complete" | "failed";
 

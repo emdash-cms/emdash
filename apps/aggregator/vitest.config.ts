@@ -41,6 +41,9 @@ export default defineConfig({
 					// `wrangler secret put ADMIN_TOKEN`; the value below only
 					// applies inside the workers test pool.
 					ADMIN_TOKEN: "test-admin-token",
+					LISTING_POLICY_MODE: "open",
+					LISTING_ALLOWLIST: "[]",
+					LISTING_MODERATION_POLICY: "",
 				},
 			},
 		}),

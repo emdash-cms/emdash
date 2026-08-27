@@ -1086,3 +1086,26 @@ describe("admin start route: auth + method", () => {
 		expect(res.status).toBe(204);
 	});
 });
+
+describe("admin label replay route", () => {
+	it("requires POST and administrator authentication", async () => {
+		const get = await SELF.fetch("https://test/_admin/labels/replay");
+		expect(get.status).toBe(405);
+		expect(get.headers.get("allow")).toBe("POST");
+
+		const unauthenticated = await SELF.fetch("https://test/_admin/labels/replay", {
+			method: "POST",
+		});
+		expect(unauthenticated.status).toBe(401);
+	});
+
+	it("returns the configured replay sources without cacheable output", async () => {
+		const response = await SELF.fetch("https://test/_admin/labels/replay", {
+			method: "POST",
+			headers: { authorization: "Bearer test-admin-token" },
+		});
+		expect(response.status).toBe(200);
+		expect(response.headers.get("cache-control")).toBe("private, no-store");
+		expect(await response.json()).toEqual({ sources: [] });
+	});
+});

@@ -797,7 +797,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				<div
 					data-testid="content-trash-actions"
 					aria-hidden={isReorderingSections || undefined}
-					className={cn("border-t p-4", isReorderingSections && "invisible pointer-events-none")}
+					className={cn(
+						"border-t bg-kumo-base p-4",
+						isReorderingSections && "invisible pointer-events-none",
+					)}
 				>
 					<Dialog.Root disablePointerDismissal>
 						<Dialog.Trigger
@@ -805,8 +808,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								<Button
 									{...p}
 									type="button"
-									variant="outline"
-									className="w-full text-kumo-danger hover:text-kumo-danger"
+									variant="ghost"
+									className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
 									disabled={isDeleting}
 									icon={isDeleting ? <Loader size="sm" /> : <Trash />}
 								>

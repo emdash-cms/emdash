@@ -50,6 +50,7 @@ overrides:
 patchedDependencies:
   "@sigstore/core@4.0.1": patches/@sigstore__core@4.0.1.patch
   image-size@2.0.2: patches/image-size@2.0.2.patch
+  partysocket@1.1.18: patches/partysocket@1.1.18.patch
 
 enablePrePostScripts: true
 
@@ -99,6 +100,7 @@ catalog:
   # Kumo identical: bump this version deliberately and rebuild admin.
   "@cloudflare/kumo": 2.6.0
   "@cloudflare/vite-plugin": ^1.36.3
+  "@cloudflare/vitest-plugin": ^1.0.0
   "@cloudflare/vitest-pool-workers": ^0.16.3
   "@cloudflare/workers-types": ^4.20260305.1
   "@iconify-json/ph": ^1.2.2

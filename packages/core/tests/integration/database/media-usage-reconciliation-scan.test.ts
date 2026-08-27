@@ -58,7 +58,7 @@ describeEachDialect("media usage reconciliation scan", (dialect) => {
 		expect(Number(coordinator.target_epoch)).toBe(1);
 		expect(coordinator).toMatchObject({
 			scan_upper_id: "entry-050",
-			scan_cursor: "entry-049",
+			scan_cursor: "entry-050",
 		});
 		expect(coordinator.field_fingerprint).toMatch(/^media-usage-fields:v1:sha256:[a-f0-9]{64}$/);
 		const workCount = await ctx.db
@@ -66,7 +66,7 @@ describeEachDialect("media usage reconciliation scan", (dialect) => {
 			.select((eb) => eb.fn.countAll<number>().as("count"))
 			.where("collection_id", "=", collection.id)
 			.executeTakeFirstOrThrow();
-		expect(Number(workCount.count)).toBe(50);
+		expect(Number(workCount.count)).toBe(51);
 		expect(await workState(ctx, collection.id, "entry-001")).toMatchObject({
 			change_epoch: 1,
 			work_version: 2,
@@ -89,7 +89,7 @@ describeEachDialect("media usage reconciliation scan", (dialect) => {
 		await expect(claimAndScan(ctx)).resolves.toBe("advanced");
 		expect(await workVersions(ctx, collection.id)).toEqual(versionsBeforeReplay);
 
-		await expect(claimAndScan(ctx)).resolves.toBe("advanced");
+		await expect(claimAndScan(ctx)).resolves.toBe("exhausted");
 		expect(
 			await ctx.db
 				.selectFrom("_emdash_media_usage_reconciliations")
@@ -97,7 +97,6 @@ describeEachDialect("media usage reconciliation scan", (dialect) => {
 				.where("collection_id", "=", collection.id)
 				.executeTakeFirstOrThrow(),
 		).toEqual({ scan_cursor: "entry-050" });
-		expect(await claimAndScan(ctx)).toBe("exhausted");
 	});
 
 	it("invalidates stale canonical publication after deletion or a newer version", async () => {

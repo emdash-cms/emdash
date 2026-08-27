@@ -12,6 +12,20 @@ const ACTIVATION_KEY = "incremental_capture";
 const ACTIVATION_ERROR_CODE = "MEDIA_USAGE_ACTIVATION_FAILED";
 export const MEDIA_USAGE_ACTIVATION_RUNTIME_GENERATION = 1;
 
+export class MediaUsageActivationVersionMismatchError extends Error {}
+
+export interface MediaUsageActivationStatus {
+	state: "expanded" | "activating" | "active";
+	collectionCursor: string | null;
+	attemptCount: number;
+	drainConfirmedAt: string | null;
+	lastAttemptedAt: string | null;
+	lastErrorCode: "MEDIA_USAGE_ACTIVATION_FAILED" | null;
+	leaseExpiresAt: string | null;
+	activatedAt: string | null;
+	updatedAt: string;
+}
+
 export const MEDIA_USAGE_ACTIVATION_LIMITS = Object.freeze({
 	collectionsPerCall: 1,
 	leaseDurationSeconds: 5 * 60,
@@ -27,11 +41,61 @@ export type MediaUsageActivationResult =
 	| { outcome: "lease_active"; leaseExpiresAt: string }
 	| { outcome: "conflict"; processedCollections: number };
 
+export type MediaUsageActivationContinuationResult =
+	| MediaUsageActivationResult
+	| { outcome: "inactive" | "failed" };
+
+type MediaUsageActivationClaimMode = "confirmed" | "background";
+
 export interface MediaUsageCollectionCapturePreparation {
 	captureRequired: boolean;
 	collectionId: string;
 	registrationExists: boolean;
 	resuming: boolean;
+}
+
+export async function getMediaUsageActivationStatus(
+	db: Kysely<Database>,
+): Promise<MediaUsageActivationStatus> {
+	const activation = await db
+		.selectFrom("_emdash_media_usage_activation")
+		.select([
+			"state",
+			"runtime_generation",
+			"collection_cursor",
+			"drain_confirmed_at",
+			"lease_expires_at",
+			"attempt_count",
+			"last_attempted_at",
+			"last_error_code",
+			"activated_at",
+			"updated_at",
+		])
+		.where("task_key", "=", ACTIVATION_KEY)
+		.executeTakeFirstOrThrow();
+	assertRuntimeGeneration(activation);
+	if (
+		activation.state !== "expanded" &&
+		activation.state !== "activating" &&
+		activation.state !== "active"
+	) {
+		throw new Error("Invalid media usage activation state");
+	}
+	if (!Number.isInteger(activation.attempt_count) || activation.attempt_count < 0) {
+		throw new Error("Invalid media usage activation attempt count");
+	}
+
+	return {
+		state: activation.state,
+		collectionCursor: activation.collection_cursor,
+		attemptCount: activation.attempt_count,
+		drainConfirmedAt: activation.drain_confirmed_at,
+		lastAttemptedAt: activation.last_attempted_at,
+		lastErrorCode: activation.last_error_code === null ? null : ACTIVATION_ERROR_CODE,
+		leaseExpiresAt: activation.lease_expires_at,
+		activatedAt: activation.activated_at,
+		updatedAt: activation.updated_at,
+	};
 }
 
 export async function canResumeMediaUsageCollectionCapture(
@@ -216,16 +280,45 @@ export async function activateMediaUsageCapture(
 	if (input.writersDrained !== true) {
 		throw new Error("Media usage activation requires confirmation that writers are drained");
 	}
+	return advanceMediaUsageActivation(db, "confirmed");
+}
 
+export async function continueMediaUsageActivation(
+	db: Kysely<Database>,
+): Promise<MediaUsageActivationContinuationResult> {
+	return advanceMediaUsageActivation(db, "background");
+}
+
+async function advanceMediaUsageActivation(
+	db: Kysely<Database>,
+	mode: "confirmed",
+): Promise<MediaUsageActivationResult>;
+async function advanceMediaUsageActivation(
+	db: Kysely<Database>,
+	mode: "background",
+): Promise<MediaUsageActivationContinuationResult>;
+async function advanceMediaUsageActivation(
+	db: Kysely<Database>,
+	mode: MediaUsageActivationClaimMode,
+): Promise<MediaUsageActivationContinuationResult> {
 	const before = await findActivation(db);
 	assertRuntimeGeneration(before);
 	if (before.state === "active") {
 		return { outcome: "active", processedCollections: 0 };
 	}
+	if (mode === "background") {
+		if (before.state === "expanded" || before.drain_confirmed_at === null) {
+			return { outcome: "inactive" };
+		}
+		if (before.state !== "activating") {
+			throw new Error("Invalid media usage activation state");
+		}
+		if (before.last_error_code !== null) return { outcome: "failed" };
+	}
 
 	const leaseToken = ulid();
-	const lease = await claimActivation(db, leaseToken);
-	if (!lease) return activationClaimLoss(db);
+	const lease = await claimActivation(db, leaseToken, mode);
+	if (!lease) return activationClaimLoss(db, mode);
 
 	let processedCollections = 0;
 	try {
@@ -308,56 +401,87 @@ async function findActivationIfAvailable(
 	return findActivation(db);
 }
 
-function assertRuntimeGeneration(activation: Selectable<MediaUsageActivationTable>): void {
+function assertRuntimeGeneration(activation: { runtime_generation: number }): void {
 	if (activation.runtime_generation !== MEDIA_USAGE_ACTIVATION_RUNTIME_GENERATION) {
-		throw new Error("Media usage activation runtime generation mismatch");
+		throw new MediaUsageActivationVersionMismatchError(
+			"Media usage activation runtime generation mismatch",
+		);
 	}
 }
 
 async function claimActivation(
 	db: Kysely<Database>,
 	leaseToken: string,
+	mode: MediaUsageActivationClaimMode,
 ): Promise<Selectable<MediaUsageActivationTable> | null> {
 	const now = timestampOffset(db, 0);
-	return (
-		(await db
-			.updateTable("_emdash_media_usage_activation")
-			.set({
-				state: "activating",
-				drain_confirmed_at: now,
-				lease_token: leaseToken,
-				lease_expires_at: timestampOffset(db, MEDIA_USAGE_ACTIVATION_LIMITS.leaseDurationSeconds),
-				attempt_count: sql<number>`attempt_count + 1`,
-				last_attempted_at: now,
-				last_error_code: null,
-				updated_at: now,
-			})
-			.where("task_key", "=", ACTIVATION_KEY)
-			.where("runtime_generation", "=", MEDIA_USAGE_ACTIVATION_RUNTIME_GENERATION)
-			.where((eb) =>
-				eb.or([
-					eb("state", "=", "expanded"),
-					eb.and([
-						eb("state", "=", "activating"),
-						eb.or([
-							eb("lease_token", "is", null),
-							eb.and([
-								eb("lease_expires_at", "is not", null),
-								timestampIsDue(db, "lease_expires_at"),
-							]),
+	const claimValues = {
+		lease_token: leaseToken,
+		lease_expires_at: timestampOffset(db, MEDIA_USAGE_ACTIVATION_LIMITS.leaseDurationSeconds),
+		attempt_count: sql<number>`attempt_count + 1`,
+		last_attempted_at: now,
+		updated_at: now,
+	};
+	let claim = db
+		.updateTable("_emdash_media_usage_activation")
+		.set(
+			mode === "confirmed"
+				? {
+						...claimValues,
+						state: "activating",
+						drain_confirmed_at: now,
+						last_error_code: null,
+					}
+				: claimValues,
+		)
+		.where("task_key", "=", ACTIVATION_KEY)
+		.where("runtime_generation", "=", MEDIA_USAGE_ACTIVATION_RUNTIME_GENERATION);
+	if (mode === "confirmed") {
+		claim = claim.where((eb) =>
+			eb.or([
+				eb("state", "=", "expanded"),
+				eb.and([
+					eb("state", "=", "activating"),
+					eb.or([
+						eb("lease_token", "is", null),
+						eb.and([
+							eb("lease_expires_at", "is not", null),
+							timestampIsDue(db, "lease_expires_at"),
 						]),
 					]),
 				]),
-			)
-			.returningAll()
-			.executeTakeFirst()) ?? null
-	);
+			]),
+		);
+	} else {
+		claim = claim
+			.where("state", "=", "activating")
+			.where("drain_confirmed_at", "is not", null)
+			.where("last_error_code", "is", null)
+			.where((eb) =>
+				eb.or([
+					eb("lease_token", "is", null),
+					eb.and([eb("lease_expires_at", "is not", null), timestampIsDue(db, "lease_expires_at")]),
+				]),
+			);
+	}
+	return (await claim.returningAll().executeTakeFirst()) ?? null;
 }
 
-async function activationClaimLoss(db: Kysely<Database>): Promise<MediaUsageActivationResult> {
+async function activationClaimLoss(
+	db: Kysely<Database>,
+	mode: MediaUsageActivationClaimMode,
+): Promise<MediaUsageActivationContinuationResult> {
 	const current = await findActivation(db);
 	assertRuntimeGeneration(current);
 	if (current.state === "active") return { outcome: "active", processedCollections: 0 };
+	if (mode === "background") {
+		if (current.state === "expanded" || current.drain_confirmed_at === null) {
+			return { outcome: "inactive" };
+		}
+		if (current.state === "activating" && current.last_error_code !== null) {
+			return { outcome: "failed" };
+		}
+	}
 	if (
 		current.state === "activating" &&
 		current.lease_token &&
@@ -365,6 +489,9 @@ async function activationClaimLoss(db: Kysely<Database>): Promise<MediaUsageActi
 		(await activationLeaseIsLive(db, current.lease_token))
 	) {
 		return { outcome: "lease_active", leaseExpiresAt: current.lease_expires_at };
+	}
+	if (mode === "background" && current.state === "activating") {
+		return { outcome: "conflict", processedCollections: 0 };
 	}
 	throw new Error("Media usage activation state is not claimable");
 }

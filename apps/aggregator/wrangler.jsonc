@@ -94,12 +94,20 @@
 				"name": "RECORDS_DO",
 				"class_name": "RecordsJetstreamDO",
 			},
+			{
+				"name": "LABEL_INGEST_DO",
+				"class_name": "LabelIngestDO",
+			},
 		],
 	},
 	"migrations": [
 		{
 			"tag": "v1",
 			"new_sqlite_classes": ["RecordsJetstreamDO"],
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["LabelIngestDO"],
 		},
 	],
 	"triggers": {
@@ -124,6 +132,14 @@
 		// Override for self-hosted indexers (e.g. Microcosm's Lightrail)
 		// if/when we want a non-bsky.network discovery path.
 		"RELAY_URL": "https://bsky.network",
+		// The reference deployment requires exact-CID positive labels. `open` is
+		// only an explicit local/test compatibility override.
+		"LISTING_POLICY_MODE": "projection",
+		// Exact package-profile AT URIs. Used only in allowlist mode; malformed
+		// JSON or entries produce an empty allowlist.
+		"LISTING_ALLOWLIST": "[]",
+		// Invalid policy JSON makes projection reads fail closed.
+		"LISTING_MODERATION_POLICY": "{\"schemaVersion\":1,\"policyVersion\":\"listing-metadata-v1\",\"effectiveAt\":\"2026-08-24T00:00:00.000Z\",\"requiredPositiveSources\":[\"did:web:labels.emdashcms.com\"],\"acceptedStateSources\":[\"did:web:labels.emdashcms.com\"],\"redactionSources\":[\"did:web:labels.emdashcms.com\"],\"autoPass\":\"disabled\",\"prohibitedCategories\":[\"explicit-sexual-content\",\"hateful-or-dehumanizing-content\",\"graphic-violence\",\"phishing-or-credential-solicitation\",\"material-impersonation\",\"scam-or-spam\",\"malicious-or-deceptive-link\",\"misleading-media-or-claims\"]}",
 	},
 	// Required secrets, declared in config so `wrangler types` generates the
 	// typed binding and `wrangler deploy` validates the secret is set on the
@@ -140,7 +156,7 @@
 	// not inherited by named environments — repeat it under each `env.<name>`
 	// you add or that env's deploys won't enforce the secret.
 	"secrets": {
-		"required": ["ADMIN_TOKEN"],
+		"required": ["ADMIN_TOKEN", "RECONCILIATION_TOKEN"],
 	},
 	"observability": {
 		"enabled": true,

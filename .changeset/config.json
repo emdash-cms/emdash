@@ -37,6 +37,7 @@
 		"@emdash-cms/playground",
 		"@emdash-cms/plugin-api-test",
 		"@emdash-cms/plugin-marketplace-test",
+		"@emdash-cms/plugin-mcp-smoke",
 		"@emdash-cms/plugin-sandboxed-test",
 		"@emdash-cms/template-blank",
 		"@emdash-cms/template-blog",

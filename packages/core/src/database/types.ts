@@ -67,6 +67,8 @@ export interface MediaTable {
 	size: number | null;
 	width: number | null;
 	height: number | null;
+	focal_x: number | null;
+	focal_y: number | null;
 	alt: string | null;
 	caption: string | null;
 	storage_key: string;
@@ -76,6 +78,13 @@ export interface MediaTable {
 	dominant_color: string | null;
 	created_at: Generated<string>;
 	author_id: string | null;
+	folder_id: Generated<string | null>;
+}
+
+export interface MediaFolderTable {
+	id: string;
+	name: string;
+	name_key: string;
 }
 
 export interface MediaUploadAttemptTable {
@@ -627,6 +636,7 @@ export interface Database {
 	content_taxonomies: ContentTaxonomyTable;
 	_emdash_taxonomy_defs: TaxonomyDefTable;
 	media: MediaTable;
+	media_folders: MediaFolderTable;
 	_emdash_media_upload_attempts: MediaUploadAttemptTable;
 	_emdash_media_usage_sources: MediaUsageSourceTable;
 	_emdash_media_usage: MediaUsageTable;
@@ -685,6 +695,8 @@ export type MediaRow = {
 	size: number | null;
 	width: number | null;
 	height: number | null;
+	focal_x: number | null;
+	focal_y: number | null;
 	alt: string | null;
 	caption: string | null;
 	storage_key: string;
@@ -694,6 +706,7 @@ export type MediaRow = {
 	dominant_color: string | null;
 	created_at: string;
 	author_id: string | null;
+	folder_id: string | null;
 };
 
 export interface RedirectTable {
