@@ -453,7 +453,7 @@ class PublisherOAuthSessionStore implements Store<Did, StoredSession> {
 	readonly #encryption: EnvelopeEncryption;
 	readonly #oauth: OAuthConfiguration;
 	readonly #options: PublisherOAuthFlowOptions;
-	readonly #identitySessions = new MemoryStore<Did, StoredSession>();
+	readonly #identitySessions: Store<Did, StoredSession> = new MemoryStore<Did, StoredSession>();
 	#activeLease: ActiveRefreshLease | null = null;
 	#preserveNextDelete = false;
 
