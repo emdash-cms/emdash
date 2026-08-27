@@ -803,16 +803,26 @@ function SortableBylineRow({
 					}
 				/>
 				<DropdownMenu.Content>
-					<DropdownMenu.Item icon={<Tag />} onClick={onOpenRole}>
+					<DropdownMenu.Item
+						icon={<Tag className="me-2 size-4" aria-hidden="true" />}
+						onClick={onOpenRole}
+					>
 						{credit.roleLabel ? t`Edit role` : t`Set role`}
 					</DropdownMenu.Item>
 					{onEdit ? (
-						<DropdownMenu.Item icon={<PencilSimple />} onClick={onEdit}>
+						<DropdownMenu.Item
+							icon={<PencilSimple className="me-2 size-4" aria-hidden="true" />}
+							onClick={onEdit}
+						>
 							{t`Edit name and slug`}
 						</DropdownMenu.Item>
 					) : null}
 					<DropdownMenu.Separator />
-					<DropdownMenu.Item icon={<UserMinus />} variant="danger" onClick={onRemove}>
+					<DropdownMenu.Item
+						icon={<UserMinus className="me-2 size-4" aria-hidden="true" />}
+						variant="danger"
+						onClick={onRemove}
+					>
 						{t`Remove from post`}
 					</DropdownMenu.Item>
 				</DropdownMenu.Content>
