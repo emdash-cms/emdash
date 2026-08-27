@@ -74,6 +74,21 @@ export interface OperatorAssessmentPage {
 	nextCursor?: string;
 }
 
+export interface OperatorIssuanceStatus {
+	paused: boolean;
+	updatedAt: string | null;
+}
+
+export interface OperatorEvaluationPage {
+	items: readonly Record<string, unknown>[];
+	nextCursor?: string;
+}
+
+export interface OperatorActivityPage {
+	items: readonly Record<string, unknown>[];
+	nextCursor?: string;
+}
+
 export class InvalidOperatorCursorError extends Error {
 	override readonly name = "InvalidOperatorCursorError";
 }
@@ -113,6 +128,9 @@ export interface OperatorApiDependencies {
 	}): Promise<string>;
 	runEvaluation?(input: EvalRunInput): Promise<EvalRunStatusResponse>;
 	readEvaluation?(runId: number): Promise<EvalRunStatusResponse | null>;
+	readIssuance?(): Promise<OperatorIssuanceStatus>;
+	listEvaluations?(limit: number, cursor?: string): Promise<OperatorEvaluationPage>;
+	listActivity?(limit: number, cursor?: string): Promise<OperatorActivityPage>;
 	now(): Date;
 }
 
@@ -329,6 +347,65 @@ async function handleOperatorRead(
 		return apiError("FORBIDDEN", "Operator role is not authorized for this action", 403);
 	}
 	const url = new URL(request.url);
+	if (url.pathname === "/_admin/api/session") {
+		return mutationResponse({
+			authenticated: true,
+			identity: {
+				kind: identity.kind,
+				principal: identity.kind === "human" ? identity.email : identity.commonName,
+				actorDid: await (dependencies?.actorDid(identity) ?? operatorActorDid(identity)),
+				roles: identity.roles,
+			},
+		});
+	}
+	if (url.pathname === "/_admin/api/issuance") {
+		const status = dependencies?.readIssuance
+			? await dependencies.readIssuance()
+			: await readProductionIssuanceStatus(env.DB);
+		return mutationResponse(status);
+	}
+	if (url.pathname === "/_admin/api/evals") {
+		if (!hasOperatorRole(identity, "admin")) {
+			return apiError("FORBIDDEN", "Operator role is not authorized for this resource", 403);
+		}
+		const limit = readPageLimit(url);
+		try {
+			const page = dependencies?.listEvaluations
+				? await dependencies.listEvaluations(limit, url.searchParams.get("cursor") ?? undefined)
+				: await readProductionEvaluationPage(
+						env.DB,
+						limit,
+						url.searchParams.get("cursor") ?? undefined,
+					);
+			return mutationResponse(page);
+		} catch (error) {
+			if (error instanceof InvalidOperatorCursorError) {
+				return apiError("INVALID_REQUEST", "Evaluation cursor is invalid", 400);
+			}
+			throw error;
+		}
+	}
+	if (url.pathname === "/_admin/api/activity") {
+		if (!hasOperatorRole(identity, "admin")) {
+			return apiError("FORBIDDEN", "Operator role is not authorized for this resource", 403);
+		}
+		const limit = readPageLimit(url);
+		try {
+			const page = dependencies?.listActivity
+				? await dependencies.listActivity(limit, url.searchParams.get("cursor") ?? undefined)
+				: await readProductionActivityPage(
+						env.DB,
+						limit,
+						url.searchParams.get("cursor") ?? undefined,
+					);
+			return mutationResponse(page);
+		} catch (error) {
+			if (error instanceof InvalidOperatorCursorError) {
+				return apiError("INVALID_REQUEST", "Activity cursor is invalid", 400);
+			}
+			throw error;
+		}
+	}
 	const evalDetail = EVAL_DETAIL_RE.exec(url.pathname);
 	if (evalDetail) {
 		if (!hasOperatorRole(identity, "admin")) {
@@ -402,10 +479,7 @@ async function handleOperatorRead(
 	if (!OPERATOR_ASSESSMENT_STATES.has(state)) {
 		return apiError("INVALID_REQUEST", "Assessment state filter is invalid", 400);
 	}
-	const requestedLimit = Number(url.searchParams.get("limit") ?? 50);
-	const limit = Number.isSafeInteger(requestedLimit)
-		? Math.min(100, Math.max(1, requestedLimit))
-		: 50;
+	const limit = readPageLimit(url);
 	try {
 		const page = await readOperatorAssessmentPage(
 			{
@@ -429,6 +503,81 @@ async function handleOperatorRead(
 		}
 		throw error;
 	}
+}
+
+async function readProductionIssuanceStatus(db: D1Database): Promise<OperatorIssuanceStatus> {
+	const row = await db
+		.prepare("SELECT value, updated_at FROM service_state WHERE key = 'issuance_paused'")
+		.first<{ value: string; updated_at: string }>();
+	return { paused: row?.value === "1", updatedAt: row?.updated_at ?? null };
+}
+
+async function readProductionEvaluationPage(
+	db: D1Database,
+	limit: number,
+	cursor?: string,
+): Promise<OperatorEvaluationPage> {
+	const before = decodeNumericCursor(cursor);
+	const rows = await db
+		.prepare(
+			`SELECT id, actor_did, reason, status, budget_passed, baseline_run_id,
+			        failure_code, failure_summary, created_at, updated_at, completed_at
+			 FROM eval_runs
+			 WHERE (? IS NULL OR id < ?)
+			 ORDER BY id DESC
+			 LIMIT ?`,
+		)
+		.bind(before, before, limit + 1)
+		.all();
+	return numericPage(rows.results, limit);
+}
+
+async function readProductionActivityPage(
+	db: D1Database,
+	limit: number,
+	cursor?: string,
+): Promise<OperatorActivityPage> {
+	const before = decodeNumericCursor(cursor);
+	const rows = await db
+		.prepare(
+			`SELECT id, actor_did, actor_role, action, subject_uri, subject_cid,
+			        reason, idempotency_key, created_at
+			 FROM operator_actions
+			 WHERE (? IS NULL OR id < ?)
+			 ORDER BY id DESC
+			 LIMIT ?`,
+		)
+		.bind(before, before, limit + 1)
+		.all();
+	return numericPage(rows.results, limit);
+}
+
+function numericPage(
+	rows: readonly Record<string, unknown>[],
+	limit: number,
+): { items: readonly Record<string, unknown>[]; nextCursor?: string } {
+	const items = rows.slice(0, limit);
+	const last = items.at(-1);
+	return {
+		items,
+		...(rows.length > limit && last && typeof last["id"] === "number"
+			? { nextCursor: String(last["id"]) }
+			: {}),
+	};
+}
+
+function decodeNumericCursor(value?: string): number | null {
+	if (value === undefined) return null;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed < 1 || String(parsed) !== value) {
+		throw new InvalidOperatorCursorError("operator cursor is invalid");
+	}
+	return parsed;
+}
+
+function readPageLimit(url: URL): number {
+	const requested = Number(url.searchParams.get("limit") ?? 50);
+	return Number.isSafeInteger(requested) ? Math.min(100, Math.max(1, requested)) : 50;
 }
 
 async function productionRerun(

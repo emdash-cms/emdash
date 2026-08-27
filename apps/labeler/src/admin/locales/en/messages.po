@@ -1,0 +1,570 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-08-27 11:05+0100\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: en\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#: src/admin/App.tsx:285
+#: src/admin/App.tsx:501
+#: src/admin/App.tsx:789
+#: src/admin/App.tsx:831
+msgid "Action"
+msgstr "Action"
+
+#: src/admin/App.tsx:494
+#: src/admin/App.tsx:523
+#: src/admin/App.tsx:910
+#: src/admin/App.tsx:936
+msgid "Action failed"
+msgstr "Action failed"
+
+#: src/admin/App.tsx:572
+msgid "Active"
+msgstr "Active"
+
+#: src/admin/App.tsx:91
+msgid "Activity"
+msgstr "Activity"
+
+#: src/admin/App.tsx:734
+msgid "Activity unavailable"
+msgstr "Activity unavailable"
+
+#: src/admin/App.tsx:837
+msgid "Actor"
+msgstr "Actor"
+
+#: src/admin/App.tsx:1146
+msgid "Admin"
+msgstr "Admin"
+
+#: src/admin/App.tsx:587
+msgid "All new label issuance will stop until an administrator resumes it."
+msgstr "All new label issuance will stop until an administrator resumes it."
+
+#: src/admin/App.tsx:371
+msgid "Approve"
+msgstr "Approve"
+
+#: src/admin/App.tsx:372
+msgid "Approve assessment"
+msgstr "Approve assessment"
+
+#: src/admin/App.tsx:411
+msgid "Assessment"
+msgstr "Assessment"
+
+#: src/admin/App.tsx:380
+msgid "Assessment approved"
+msgstr "Assessment approved"
+
+#: src/admin/App.tsx:393
+msgid "Assessment blocked"
+msgstr "Assessment blocked"
+
+#: src/admin/App.tsx:351
+msgid "Assessment detail"
+msgstr "Assessment detail"
+
+#: src/admin/App.tsx:405
+msgid "Assessment rerun started"
+msgstr "Assessment rerun started"
+
+#: src/admin/App.tsx:363
+msgid "Assessment unavailable"
+msgstr "Assessment unavailable"
+
+#: src/admin/App.tsx:87
+#: src/admin/App.tsx:237
+msgid "Assessments"
+msgstr "Assessments"
+
+#: src/admin/App.tsx:255
+msgid "Assessments unavailable"
+msgstr "Assessments unavailable"
+
+#: src/admin/App.tsx:510
+msgid "at://… or did:…"
+msgstr "at://… or did:…"
+
+#: src/admin/App.tsx:586
+msgid "Automated and operator label issuance will resume."
+msgstr "Automated and operator label issuance will resume."
+
+#: src/admin/App.tsx:355
+msgid "Back to assessments"
+msgstr "Back to assessments"
+
+#: src/admin/App.tsx:384
+msgid "Block"
+msgstr "Block"
+
+#: src/admin/App.tsx:385
+msgid "Block assessment"
+msgstr "Block assessment"
+
+#: src/admin/App.tsx:1141
+msgid "Blocked"
+msgstr "Blocked"
+
+#: src/admin/App.tsx:780
+msgid "Budget"
+msgstr "Budget"
+
+#: src/admin/App.tsx:944
+msgid "Cancel"
+msgstr "Cancel"
+
+#: src/admin/App.tsx:1143
+msgid "Cancelled"
+msgstr "Cancelled"
+
+#: src/admin/App.tsx:421
+msgid "Canonical input"
+msgstr "Canonical input"
+
+#: src/admin/App.tsx:188
+msgid "Checking"
+msgstr "Checking"
+
+#: src/admin/App.tsx:698
+msgid "Close"
+msgstr "Close"
+
+#: src/admin/App.tsx:1060
+msgid "Could not load more results"
+msgstr "Could not load more results"
+
+#: src/admin/App.tsx:420
+msgid "Coverage"
+msgstr "Coverage"
+
+#: src/admin/App.tsx:399
+msgid "Create a fresh assessment run for this exact URI and CID."
+msgstr "Create a fresh assessment run for this exact URI and CID."
+
+#: src/admin/App.tsx:179
+msgid "Current readiness and operator work."
+msgstr "Current readiness and operator work."
+
+#: src/admin/App.tsx:192
+msgid "Discovery"
+msgstr "Discovery"
+
+#: src/admin/App.tsx:689
+msgid "Durable run status and promotion result."
+msgstr "Durable run status and promotion result."
+
+#: src/admin/App.tsx:61
+msgid "EmDash labeler"
+msgstr "EmDash labeler"
+
+#: src/admin/App.tsx:100
+msgid "EmDash registry"
+msgstr "EmDash registry"
+
+#: src/admin/App.tsx:1137
+msgid "Error"
+msgstr "Error"
+
+#: src/admin/App.tsx:686
+msgid "Evaluation detail"
+msgstr "Evaluation detail"
+
+#: src/admin/App.tsx:638
+msgid "Evaluation started"
+msgstr "Evaluation started"
+
+#: src/admin/App.tsx:666
+msgid "Evaluation unavailable"
+msgstr "Evaluation unavailable"
+
+#: src/admin/App.tsx:90
+msgid "Evaluations"
+msgstr "Evaluations"
+
+#: src/admin/App.tsx:647
+msgid "Evaluations unavailable"
+msgstr "Evaluations unavailable"
+
+#: src/admin/App.tsx:805
+#: src/admin/App.tsx:1032
+msgid "Failed"
+msgstr "Failed"
+
+#: src/admin/App.tsx:425
+msgid "Findings"
+msgstr "Findings"
+
+#: src/admin/App.tsx:181
+msgid "Health check failed"
+msgstr "Health check failed"
+
+#: src/admin/App.tsx:723
+msgid "Immutable operator decisions and service control actions."
+msgstr "Immutable operator decisions and service control actions."
+
+#: src/admin/App.tsx:209
+msgid "Inspect assessments awaiting an operator decision."
+msgstr "Inspect assessments awaiting an operator decision."
+
+#: src/admin/App.tsx:89
+#: src/admin/App.tsx:547
+msgid "Issuance"
+msgstr "Issuance"
+
+#: src/admin/App.tsx:596
+msgid "Issuance paused"
+msgstr "Issuance paused"
+
+#: src/admin/App.tsx:596
+msgid "Issuance resumed"
+msgstr "Issuance resumed"
+
+#: src/admin/App.tsx:559
+msgid "Issuance status unavailable"
+msgstr "Issuance status unavailable"
+
+#: src/admin/App.tsx:373
+msgid "Issue an operator approval for this exact URI and CID."
+msgstr "Issue an operator approval for this exact URI and CID."
+
+#: src/admin/App.tsx:386
+msgid "Issue an operator block for this exact URI and CID."
+msgstr "Issue an operator block for this exact URI and CID."
+
+#: src/admin/App.tsx:477
+msgid "Issue or retract a takedown label for an AT URI or DID."
+msgstr "Issue or retract a takedown label for an AT URI or DID."
+
+#: src/admin/App.tsx:504
+#: src/admin/App.tsx:530
+msgid "Issue takedown"
+msgstr "Issue takedown"
+
+#: src/admin/App.tsx:276
+msgid "Kind"
+msgstr "Kind"
+
+#: src/admin/App.tsx:569
+msgid "Label issuance"
+msgstr "Label issuance"
+
+#: src/admin/App.tsx:103
+msgid "Labeler administration"
+msgstr "Labeler administration"
+
+#. placeholder {0}: formatDate(status.updatedAt)
+#: src/admin/App.tsx:577
+msgid "Last changed {0}"
+msgstr "Last changed {0}"
+
+#: src/admin/App.tsx:457
+msgid "Latest manual decision"
+msgstr "Latest manual decision"
+
+#: src/admin/App.tsx:1069
+msgid "Load more"
+msgstr "Load more"
+
+#: src/admin/App.tsx:359
+msgid "Loading assessment"
+msgstr "Loading assessment"
+
+#: src/admin/App.tsx:260
+msgid "Loading assessments"
+msgstr "Loading assessments"
+
+#: src/admin/App.tsx:643
+msgid "Loading evaluations"
+msgstr "Loading evaluations"
+
+#: src/admin/App.tsx:555
+msgid "Loading issuance status"
+msgstr "Loading issuance status"
+
+#: src/admin/App.tsx:730
+msgid "Loading operator activity"
+msgstr "Loading operator activity"
+
+#: src/admin/App.tsx:67
+msgid "Loading operator session"
+msgstr "Loading operator session"
+
+#: src/admin/App.tsx:740
+msgid "No activity"
+msgstr "No activity"
+
+#: src/admin/App.tsx:263
+msgid "No assessments"
+msgstr "No assessments"
+
+#: src/admin/App.tsx:578
+msgid "No control action has been recorded."
+msgstr "No control action has been recorded."
+
+#: src/admin/App.tsx:653
+msgid "No evaluations"
+msgstr "No evaluations"
+
+#: src/admin/App.tsx:450
+msgid "No findings"
+msgstr "No findings"
+
+#: src/admin/App.tsx:741
+msgid "No operator action has been recorded."
+msgstr "No operator action has been recorded."
+
+#: src/admin/App.tsx:654
+msgid "No protected evaluation has been started."
+msgstr "No protected evaluation has been started."
+
+#: src/admin/App.tsx:188
+#: src/admin/App.tsx:194
+#: src/admin/App.tsx:199
+msgid "Not ready"
+msgstr "Not ready"
+
+#: src/admin/App.tsx:213
+msgid "Open assessments"
+msgstr "Open assessments"
+
+#: src/admin/App.tsx:722
+msgid "Operator activity"
+msgstr "Operator activity"
+
+#: src/admin/App.tsx:120
+msgid "Operator navigation"
+msgstr "Operator navigation"
+
+#: src/admin/App.tsx:74
+msgid "Operator session unavailable"
+msgstr "Operator session unavailable"
+
+#: src/admin/App.tsx:86
+#: src/admin/App.tsx:179
+msgid "Overview"
+msgstr "Overview"
+
+#: src/admin/App.tsx:804
+#: src/admin/App.tsx:1140
+msgid "Passed"
+msgstr "Passed"
+
+#: src/admin/App.tsx:582
+msgid "Pause issuance"
+msgstr "Pause issuance"
+
+#: src/admin/App.tsx:583
+msgid "Pause label issuance"
+msgstr "Pause label issuance"
+
+#: src/admin/App.tsx:548
+msgid "Pause or resume all label issuance."
+msgstr "Pause or resume all label issuance."
+
+#: src/admin/App.tsx:572
+msgid "Paused"
+msgstr "Paused"
+
+#: src/admin/App.tsx:802
+#: src/admin/App.tsx:1138
+msgid "Pending"
+msgstr "Pending"
+
+#: src/admin/App.tsx:1150
+msgid "Profile"
+msgstr "Profile"
+
+#: src/admin/App.tsx:625
+msgid "Protected evaluations"
+msgstr "Protected evaluations"
+
+#: src/admin/App.tsx:188
+#: src/admin/App.tsx:194
+#: src/admin/App.tsx:199
+msgid "Ready"
+msgstr "Ready"
+
+#: src/admin/App.tsx:513
+#: src/admin/App.tsx:515
+#: src/admin/App.tsx:786
+#: src/admin/App.tsx:840
+#: src/admin/App.tsx:921
+#: src/admin/App.tsx:923
+msgid "Reason"
+msgstr "Reason"
+
+#: src/admin/App.tsx:241
+#: src/admin/App.tsx:551
+#: src/admin/App.tsx:726
+msgid "Refresh"
+msgstr "Refresh"
+
+#: src/admin/App.tsx:1151
+msgid "Release"
+msgstr "Release"
+
+#: src/admin/App.tsx:667
+#: src/admin/App.tsx:1061
+#: src/admin/App.tsx:1096
+msgid "Request failed"
+msgstr "Request failed"
+
+#: src/admin/App.tsx:397
+msgid "Rerun"
+msgstr "Rerun"
+
+#: src/admin/App.tsx:398
+msgid "Rerun assessment"
+msgstr "Rerun assessment"
+
+#: src/admin/App.tsx:582
+msgid "Resume issuance"
+msgstr "Resume issuance"
+
+#: src/admin/App.tsx:583
+msgid "Resume label issuance"
+msgstr "Resume label issuance"
+
+#: src/admin/App.tsx:504
+#: src/admin/App.tsx:530
+msgid "Retract takedown"
+msgstr "Retract takedown"
+
+#: src/admin/App.tsx:1136
+msgid "Review"
+msgstr "Review"
+
+#: src/admin/App.tsx:238
+msgid "Review model decisions and assessment failures."
+msgstr "Review model decisions and assessment failures."
+
+#: src/admin/App.tsx:206
+msgid "Review queue"
+msgstr "Review queue"
+
+#: src/admin/App.tsx:1147
+msgid "Reviewer"
+msgstr "Reviewer"
+
+#: src/admin/App.tsx:774
+msgid "Run"
+msgstr "Run"
+
+#: src/admin/App.tsx:626
+msgid "Run and inspect the protected model evaluation suite."
+msgstr "Run and inspect the protected model evaluation suite."
+
+#: src/admin/App.tsx:1032
+#: src/admin/App.tsx:1139
+msgid "Running"
+msgstr "Running"
+
+#: src/admin/App.tsx:185
+msgid "Service"
+msgstr "Service"
+
+#: src/admin/App.tsx:76
+msgid "Sign in through Cloudflare Access and try again."
+msgstr "Sign in through Cloudflare Access and try again."
+
+#: src/admin/App.tsx:197
+msgid "Signing"
+msgstr "Signing"
+
+#: src/admin/App.tsx:629
+msgid "Start evaluation"
+msgstr "Start evaluation"
+
+#: src/admin/App.tsx:630
+msgid "Start protected evaluation"
+msgstr "Start protected evaluation"
+
+#: src/admin/App.tsx:783
+msgid "Started"
+msgstr "Started"
+
+#: src/admin/App.tsx:279
+msgid "State"
+msgstr "State"
+
+#: src/admin/App.tsx:777
+msgid "Status"
+msgstr "Status"
+
+#: src/admin/App.tsx:273
+#: src/admin/App.tsx:834
+msgid "Subject"
+msgstr "Subject"
+
+#: src/admin/App.tsx:507
+msgid "Subject URI"
+msgstr "Subject URI"
+
+#: src/admin/App.tsx:1032
+msgid "Succeeded"
+msgstr "Succeeded"
+
+#: src/admin/App.tsx:419
+msgid "Summary"
+msgstr "Summary"
+
+#: src/admin/App.tsx:1142
+msgid "Superseded"
+msgstr "Superseded"
+
+#: src/admin/App.tsx:490
+msgid "Takedown issued"
+msgstr "Takedown issued"
+
+#: src/admin/App.tsx:490
+msgid "Takedown retracted"
+msgstr "Takedown retracted"
+
+#: src/admin/App.tsx:88
+#: src/admin/App.tsx:476
+msgid "Takedowns"
+msgstr "Takedowns"
+
+#: src/admin/App.tsx:631
+msgid "The evaluation runs asynchronously and may take several minutes."
+msgstr "The evaluation runs asynchronously and may take several minutes."
+
+#: src/admin/api.ts:235
+msgid "The request failed"
+msgstr "The request failed"
+
+#: src/admin/api.ts:234
+msgid "The service returned an invalid response"
+msgstr "The service returned an invalid response"
+
+#: src/admin/App.tsx:264
+msgid "There are no assessments in this state."
+msgstr "There are no assessments in this state."
+
+#: src/admin/App.tsx:451
+msgid "This assessment has no recorded findings."
+msgstr "This assessment has no recorded findings."
+
+#: src/admin/App.tsx:843
+msgid "Time"
+msgstr "Time"
+
+#: src/admin/App.tsx:282
+msgid "Updated"
+msgstr "Updated"
+
+#: src/admin/App.tsx:312
+#: src/admin/App.tsx:813
+msgid "View"
+msgstr "View"

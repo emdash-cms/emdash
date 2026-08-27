@@ -204,6 +204,81 @@ describe("operator mutation API", () => {
 });
 
 describe("operator review reads", () => {
+	it("returns the current operator session without exposing Access configuration", async () => {
+		const response = await handleOperatorApi(
+			new Request("https://labels.example/_admin/api/session"),
+			{} as Env,
+			dependencies(ADMIN),
+		);
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({
+			authenticated: true,
+			identity: {
+				kind: "human",
+				principal: "admin@example.com",
+				actorDid: "did:web:labels.emdashcms.com:operators:fixture",
+				roles: ["admin"],
+			},
+		});
+	});
+
+	it("exposes issuance state to reviewers", async () => {
+		const response = await handleOperatorApi(
+			new Request("https://labels.example/_admin/api/issuance"),
+			{} as Env,
+			{
+				...dependencies(REVIEWER),
+				readIssuance: async () => ({
+					paused: true,
+					updatedAt: "2026-08-24T12:00:00.000Z",
+				}),
+			},
+		);
+		expect(await response.json()).toEqual({
+			paused: true,
+			updatedAt: "2026-08-24T12:00:00.000Z",
+		});
+	});
+
+	it("restricts evaluation and activity history to admins", async () => {
+		const adminDependencies = {
+			...dependencies(ADMIN),
+			listEvaluations: vi.fn(async () => ({
+				items: [{ id: 42, status: "succeeded" }],
+				nextCursor: "41",
+			})),
+			listActivity: vi.fn(async () => ({
+				items: [{ id: 9, action: "pause-issuance" }],
+			})),
+		};
+		const evaluations = await handleOperatorApi(
+			new Request("https://labels.example/_admin/api/evals?limit=10&cursor=43"),
+			{} as Env,
+			adminDependencies,
+		);
+		expect(await evaluations.json()).toEqual({
+			items: [{ id: 42, status: "succeeded" }],
+			nextCursor: "41",
+		});
+		expect(adminDependencies.listEvaluations).toHaveBeenCalledWith(10, "43");
+
+		const activity = await handleOperatorApi(
+			new Request("https://labels.example/_admin/api/activity"),
+			{} as Env,
+			adminDependencies,
+		);
+		expect(await activity.json()).toEqual({ items: [{ id: 9, action: "pause-issuance" }] });
+
+		for (const path of ["/_admin/api/evals", "/_admin/api/activity"]) {
+			const response = await handleOperatorApi(
+				new Request(`https://labels.example${path}`),
+				{} as Env,
+				dependencies(REVIEWER),
+			);
+			expect(response.status).toBe(403);
+		}
+	});
+
 	it("filters decided reviews before stable keyset pagination", async () => {
 		const db = new DatabaseSync(":memory:");
 		db.exec(`

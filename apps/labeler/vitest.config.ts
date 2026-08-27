@@ -9,7 +9,7 @@ const migrations = await readD1Migrations(migrationsPath);
 export default defineConfig({
 	test: {
 		include: ["test/**/*.test.ts"],
-		exclude: ["test/{ai,eval,policy,runtime}-*.test.ts"],
+		exclude: ["test/{ai,eval,policy,runtime}-*.test.ts", "test/ui/**"],
 	},
 	plugins: [
 		cloudflareTest({

@@ -314,8 +314,8 @@ administrator receives `admin` and inherits reviewer actions:
 curl --fail-with-body --silent --show-error \
   --header "CF-Access-Client-Id: ${EMDASH_ACCESS_CLIENT_ID}" \
   --header "CF-Access-Client-Secret: ${EMDASH_ACCESS_CLIENT_SECRET}" \
-  "${EMDASH_LABELER_ORIGIN}/_admin" \
-  | jq -e '.authenticated == true and (.roles | length) > 0'
+  "${EMDASH_LABELER_ORIGIN}/_admin/api/session" \
+  | jq -e '.authenticated == true and (.identity.roles | length) > 0'
 ```
 
 Verify aggregator record-ingest status:
@@ -327,7 +327,30 @@ curl --fail-with-body --silent --show-error \
   | jq -e '.consecutiveFailures == 0'
 ```
 
+## Use the administration console
+
+Open `https://labels.emdashcms.com/_admin` in a browser and sign in through Cloudflare Access.
+The console shows only the controls permitted by the signed-in operator's configured role.
+
+A reviewer can inspect every assessment state, open the recorded model input and findings,
+approve or block an exact URI and CID, and start a fresh assessment run. An administrator can
+also:
+
+- issue and retract URI-scoped or DID-scoped takedowns;
+- view and change the durable issuance state;
+- start protected evaluations and inspect their durable results;
+- inspect immutable operator activity.
+
+The Overview page reads the public health endpoint and reports discovery and signing readiness.
+Every mutation asks for a reason. The console creates a new idempotency key and sends the
+same-origin request headers required by the Worker. Repeating an action from the console creates
+a new operator request; use the API directly when recovering a response with the original
+idempotency key.
+
 ## Use the operator APIs
+
+Use these endpoints for automation, incident recovery, or diagnostics when the browser console
+is not sufficient. The console uses the same endpoints.
 
 All labeler mutations require:
 
@@ -342,6 +365,17 @@ Reuse an idempotency key only to retry the identical action. Assessment decision
 and issuance control bind the actor, action, exact subject, and reason to the key. Live
 evaluations bind the actor, role, and reason. Use a new key when a bound value changes. A
 conflicting reuse returns `409`.
+
+Authenticated reads are available at:
+
+- `GET /_admin/api/session` for the current principal, actor DID, and roles;
+- `GET /_admin/api/issuance` for the durable pause state;
+- `GET /_admin/api/evals` and `GET /_admin/api/evals/{runId}` for protected evaluation history;
+- `GET /_admin/api/activity` for immutable operator activity.
+
+Evaluation and activity history require the administrator role. Collection responses contain
+`items` and, when more rows exist, `nextCursor`. Pass that cursor back as the `cursor` query
+parameter.
 
 ### Read an assessment
 
@@ -521,9 +555,9 @@ curl --fail-with-body --silent --show-error \
 ```
 
 Both responses return `{ "paused": true | false }`. Confirm the durable state with the D1
-query in [Status queries](#status-queries). Do not reuse a completed pause key after a later
-resume, or the idempotent response will describe the earlier request rather than perform a new
-transition.
+query in [Status queries](#status-queries), or open the Issuance page in the administration
+console. Do not reuse a completed pause key after a later resume, or the idempotent response will
+describe the earlier request rather than perform a new transition.
 
 ### Run the protected live evaluation
 

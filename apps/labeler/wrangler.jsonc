@@ -5,6 +5,18 @@
 	"compatibility_date": "2026-08-24",
 	"compatibility_flags": ["nodejs_compat"],
 	"routes": [{ "pattern": "labels.emdashcms.com", "custom_domain": true }],
+	"assets": {
+		"binding": "ASSETS",
+		"run_worker_first": [
+			"/",
+			"/_admin",
+			"/_admin/*",
+			"/index.html",
+			"/health",
+			"/.well-known/*",
+			"/xrpc/*",
+		],
+	},
 	"d1_databases": [
 		{
 			"binding": "DB",
