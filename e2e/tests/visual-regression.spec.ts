@@ -60,6 +60,7 @@ const LOCALES = [
 interface PageCase {
 	name: string;
 	path: (info: ServerInfo) => string;
+	viewport?: { width: number; height: number };
 	extraMasks?: (admin: AdminPage) => Locator[];
 	prepare?: (admin: AdminPage) => Promise<void>;
 }
@@ -120,6 +121,7 @@ const PAGES: PageCase[] = [
 	},
 	{ name: "content-new", path: () => "/content/posts/new" },
 	{ name: "media", path: () => "/media" },
+	{ name: "media-mobile", path: () => "/media", viewport: { width: 320, height: 800 } },
 	{ name: "menus", path: () => "/menus" },
 	{ name: "settings", path: () => "/settings" },
 ];
@@ -181,6 +183,7 @@ test.describe("visual regression", () => {
 		for (const pageCase of PAGES) {
 			test(`${pageCase.name} @${locale.name}`, async ({ admin, serverInfo }) => {
 				await setLocale(admin, locale.code);
+				if (pageCase.viewport) await admin.page.setViewportSize(pageCase.viewport);
 				await openAdmin(admin, pageCase.path(serverInfo), locale.dir);
 				await stabilize(admin);
 				await pageCase.prepare?.(admin);
