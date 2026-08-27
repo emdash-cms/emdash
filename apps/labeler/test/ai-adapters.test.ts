@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { parseImageByteArray, parseManualImageRequest } from "../evals/sweep-worker.js";
+import {
+	createManualImageModerationAdapter,
+	parseImageByteArray,
+	parseManualImageRequest,
+} from "../evals/sweep-worker.js";
 import { sha256Hex } from "../src/ai/hash.js";
 import { createResizedImageModerationAdapter } from "../src/ai/image-resize.js";
 import { parseModerationModelOutput } from "../src/ai/output.js";
@@ -151,6 +155,33 @@ describe("Workers AI production adapters", () => {
 				base64: "AAEC",
 			}),
 		).toThrow(/MIME type/);
+	});
+
+	it("lets manual image diagnostics outlast the production Workflow deadline", async () => {
+		const adapter = createManualImageModerationAdapter(
+			{
+				run: async () => ({
+					response: JSON.stringify({
+						schemaVersion: 1,
+						findings: [],
+						coveredEvidenceRefs: ["manual.image:0"],
+					}),
+				}),
+			},
+			{
+				resize: async (request) => ({ bytes: request.bytes, mimeType: "image/webp" }),
+			},
+		);
+
+		expect(adapter.identity.parameters.timeoutMs).toBeGreaterThan(20_000);
+		await expect(
+			adapter.moderate({
+				subject: { ...SUBJECT, kind: "release" },
+				evidenceRef: "manual.image:0",
+				mimeType: "image/webp",
+				bytes: new Uint8Array([1]),
+			}),
+		).resolves.toMatchObject({ coveredEvidenceRefs: ["manual.image:0"] });
 	});
 
 	it("rejects invalid native image byte arrays instead of coercing them", () => {

@@ -2,18 +2,21 @@ import {
 	createCloudflareImagesDerivativeTransformer,
 	createResizedImageModerationAdapter,
 	DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
+	type ImageModerationDerivativeTransformer,
 } from "../src/ai/image-resize.js";
 import { IMAGE_PROMPT_HASH } from "../src/ai/prompts.js";
 import {
 	createWorkersAiImageAdapter,
 	workersAiBindingFromEnv,
 	WORKERS_AI_IMAGE_MODEL_CANDIDATE,
+	type WorkersAiBinding,
 } from "../src/ai/workers-ai.js";
 
 const IMAGE_DATA_URL_RE = /^data:image\/(?:gif|jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/;
 const BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 const MAX_MANUAL_IMAGE_BYTES = 8 * 1024 * 1024;
 const MANUAL_IMAGE_PATH = "/moderate-image";
+const MANUAL_IMAGE_TIMEOUT_MS = 120_000;
 
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
@@ -106,15 +109,9 @@ async function moderateManualImage(value: unknown, env: Env): Promise<Response> 
 		);
 	}
 	try {
-		const baseAdapter = createWorkersAiImageAdapter(workersAiBindingFromEnv(env.AI), {
-			modelId: WORKERS_AI_IMAGE_MODEL_CANDIDATE,
-			promptHash: IMAGE_PROMPT_HASH,
-			thinking: false,
-		});
-		const adapter = createResizedImageModerationAdapter(
+		const adapter = createManualImageModerationAdapter(
+			workersAiBindingFromEnv(env.AI),
 			createCloudflareImagesDerivativeTransformer(env.IMAGES),
-			baseAdapter,
-			DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
 		);
 		const result = await adapter.moderate({
 			subject: {
@@ -141,6 +138,23 @@ async function moderateManualImage(value: unknown, env: Env): Promise<Response> 
 			{ status: 502 },
 		);
 	}
+}
+
+export function createManualImageModerationAdapter(
+	ai: WorkersAiBinding,
+	transformer: ImageModerationDerivativeTransformer,
+) {
+	const baseAdapter = createWorkersAiImageAdapter(ai, {
+		modelId: WORKERS_AI_IMAGE_MODEL_CANDIDATE,
+		promptHash: IMAGE_PROMPT_HASH,
+		thinking: false,
+		timeoutMs: MANUAL_IMAGE_TIMEOUT_MS,
+	});
+	return createResizedImageModerationAdapter(
+		transformer,
+		baseAdapter,
+		DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
+	);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
