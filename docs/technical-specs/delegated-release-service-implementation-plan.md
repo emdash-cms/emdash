@@ -626,15 +626,15 @@ Each branch is a review boundary and may contain several focused commits. All se
 
 ### Consolidated seven-layer stack
 
-| Layer | Branch                                        | Review scope                                                                 |
-| ----- | --------------------------------------------- | ---------------------------------------------------------------------------- |
-| 1     | `feat/drs-review-01-foundation`               | Worker shell, G0 harness, exact scope, OAuth metadata, encryption, and CI    |
-| 2     | `feat/drs-review-02-authority-admission`      | Publisher identity and custody, workload identity, intents, and admission    |
-| 3     | `feat/drs-review-03-approvals`                | Required-UV passkeys, approver shards, and digest-bound decisions            |
-| 4     | `feat/drs-review-04-verification`             | Isolated verification, authoritative records, installer trust, and consent   |
-| 5     | `feat/drs-review-05-publication-product`      | Access control, publication and reconciliation, clients, Action, CLI, and UI |
-| 6     | `feat/drs-review-06-operations`               | Directory, abuse controls, archive/restore, encryption operations, and runbook |
-| 7     | `feat/drs-review-07-integration`              | Compatibility, browser conformance, product completion, specifications, and CI |
+| Layer | Branch                                   | Review scope                                                                   |
+| ----- | ---------------------------------------- | ------------------------------------------------------------------------------ |
+| 1     | `feat/drs-review-01-foundation`          | Worker shell, G0 harness, exact scope, OAuth metadata, encryption, and CI      |
+| 2     | `feat/drs-review-02-authority-admission` | Publisher identity and custody, workload identity, intents, and admission      |
+| 3     | `feat/drs-review-03-approvals`           | Required-UV passkeys, approver shards, and digest-bound decisions              |
+| 4     | `feat/drs-review-04-verification`        | Isolated verification, authoritative records, installer trust, and consent     |
+| 5     | `feat/drs-review-05-publication-product` | Access control, publication and reconciliation, clients, Action, CLI, and UI   |
+| 6     | `feat/drs-review-06-operations`          | Directory, abuse controls, archive/restore, encryption operations, and runbook |
+| 7     | `feat/drs-review-07-integration`         | Compatibility, browser conformance, product completion, specifications, and CI |
 
 Lower-layer fixes are committed on the owning branch and cascaded with `gh stack rebase --upstack`. Do not amend or force-push an open PR except when a rebase requires replacing its branch history.
 
