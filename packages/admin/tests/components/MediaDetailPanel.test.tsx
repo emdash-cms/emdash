@@ -665,6 +665,7 @@ describe("MediaDetailPanel", () => {
 		const location = screen.getByRole("combobox", { name: "Location" });
 		await expect.element(location).toHaveTextContent("Product photos");
 		expect(location.element().querySelector('[dir="auto"]')).toHaveTextContent("Product photos");
+		expect(location.element().querySelector('[data-testid="media-location-icon"]')).not.toBeNull();
 
 		location.element().click();
 
@@ -675,11 +676,17 @@ describe("MediaDetailPanel", () => {
 				search: undefined,
 			});
 		});
-		await expect.element(screen.getByRole("option", { name: "Main library" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("option", { name: "Press" })).toBeInTheDocument();
+		const mainLibraryOption = screen.getByRole("option", { name: "Main library" });
+		const folderOption = screen.getByRole("option", { name: "Press" });
+		await expect.element(mainLibraryOption).toBeInTheDocument();
+		await expect.element(folderOption).toBeInTheDocument();
 		expect(
-			screen.getByRole("option", { name: "Press" }).element().querySelector('[dir="auto"]'),
-		).toHaveTextContent("Press");
+			mainLibraryOption.element().querySelector('[data-testid="media-location-icon"]'),
+		).not.toBeNull();
+		expect(
+			folderOption.element().querySelector('[data-testid="media-location-icon"]'),
+		).not.toBeNull();
+		expect(folderOption.element().querySelector('[dir="auto"]')).toHaveTextContent("Press");
 		await expect.element(screen.getByText("1 folder loaded")).toBeInTheDocument();
 	});
 
@@ -806,6 +813,9 @@ describe("MediaDetailPanel", () => {
 		const currentLocation = screen.getByText("Product photos");
 		await expect.element(currentLocation).toBeInTheDocument();
 		expect(currentLocation.element()).toHaveAttribute("dir", "auto");
+		expect(
+			currentLocation.element().parentElement?.querySelector('[data-testid="media-location-icon"]'),
+		).not.toBeNull();
 		expect(screen.getByRole("combobox", { name: "Location" }).query()).toBeNull();
 		expect(fetchMediaFolders).not.toHaveBeenCalled();
 	});
