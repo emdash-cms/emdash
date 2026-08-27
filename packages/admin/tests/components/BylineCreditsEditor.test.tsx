@@ -272,4 +272,67 @@ describe("BylineCreditsEditor", () => {
 		);
 		expect(actions).toEqual(["More actions for Guest Contributor", "More actions for Mina Patel"]);
 	});
+
+	it("keeps pointer dragging inside the credit list", async () => {
+		const mina = makeByline();
+		const guest = makeByline({ id: "guest", slug: "guest", displayName: "Guest Contributor" });
+		const screen = await renderBylineEditor(
+			<ControlledEditor
+				initialCredits={[
+					{ bylineId: mina.id, roleLabel: null },
+					{ bylineId: guest.id, roleLabel: null },
+				]}
+				bylines={[mina, guest]}
+			/>,
+		);
+		const handle = screen.getByRole("button", { name: "Reorder Mina Patel" }).element();
+		const row = handle.parentElement!;
+		const list = row.parentElement!;
+		const handleRect = handle.getBoundingClientRect();
+		const listRect = list.getBoundingClientRect();
+		const pointer = {
+			bubbles: true,
+			isPrimary: true,
+			pointerId: 1,
+			pointerType: "mouse",
+			clientX: handleRect.left + handleRect.width / 2,
+		};
+
+		handle.dispatchEvent(
+			new PointerEvent("pointerdown", {
+				...pointer,
+				clientY: handleRect.top + handleRect.height / 2,
+				button: 0,
+				buttons: 1,
+			}),
+		);
+		document.dispatchEvent(
+			new PointerEvent("pointermove", {
+				...pointer,
+				clientY: handleRect.bottom + 10,
+				buttons: 1,
+			}),
+		);
+		await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+		document.dispatchEvent(
+			new PointerEvent("pointermove", {
+				...pointer,
+				clientY: listRect.bottom + 200,
+				buttons: 1,
+			}),
+		);
+		await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+		expect(handle.dataset.sorting).toBe("true");
+		expect(row.getBoundingClientRect().bottom).toBeLessThanOrEqual(listRect.bottom + 0.5);
+
+		document.dispatchEvent(
+			new PointerEvent("pointerup", {
+				...pointer,
+				clientY: listRect.bottom + 200,
+				button: 0,
+				buttons: 0,
+			}),
+		);
+	});
 });

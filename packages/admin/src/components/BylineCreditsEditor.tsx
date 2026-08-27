@@ -56,7 +56,16 @@ const EDGE_HYPHENS_PATTERN = /^-+|-+$/g;
 const LEADING_LETTER_PATTERN = /^[a-z]/;
 const TRAILING_HYPHENS_PATTERN = /-+$/g;
 
-const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
+const restrictToBylineList: Modifier = ({ activeNodeRect, containerNodeRect, transform }) => {
+	if (!containerNodeRect || !activeNodeRect) return { ...transform, x: 0 };
+	const minY = containerNodeRect.top - activeNodeRect.top;
+	const maxY = containerNodeRect.bottom - activeNodeRect.bottom;
+	return {
+		...transform,
+		x: 0,
+		y: Math.min(maxY, Math.max(minY, transform.y)),
+	};
+};
 
 function stableHash(value: string): string {
 	let hash = 2_166_136_261;
@@ -510,7 +519,7 @@ export function BylineCreditsEditor({
 							<DndContext
 								sensors={sensors}
 								collisionDetection={closestCenter}
-								modifiers={[restrictToVerticalAxis]}
+								modifiers={[restrictToBylineList]}
 								onDragStart={handleDragStart}
 								onDragCancel={() => setActiveDragId(null)}
 								onDragEnd={handleDragEnd}
