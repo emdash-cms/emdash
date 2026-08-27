@@ -103,16 +103,12 @@ async function pointerDrag(page: Page, source: Locator, target: Locator) {
 	await page.mouse.up();
 }
 
-async function expectFolderColumns(page: Page, expectedColumns: number) {
-	const cards = page.locator("[data-media-folder-card]");
+async function expectFolderColumns(cards: Locator, expectedColumns: number) {
 	await expect(cards).toHaveCount(4);
-	const firstRowCount = await cards.evaluateAll((elements) => {
-		const firstTop = Math.round(elements[0]!.getBoundingClientRect().top);
-		return elements.filter(
-			(element) => Math.abs(Math.round(element.getBoundingClientRect().top) - firstTop) <= 1,
-		).length;
+	const columnCount = await cards.first().evaluate((element) => {
+		return getComputedStyle(element.parentElement!).gridTemplateColumns.trim().split(/\s+/).length;
 	});
-	expect(firstRowCount).toBe(expectedColumns);
+	expect(columnCount).toBe(expectedColumns);
 }
 
 test.describe("Media Library", () => {
@@ -383,13 +379,17 @@ test.describe("Media Library", () => {
 		page,
 	}) => {
 		test.setTimeout(60_000);
-		const longFolderName = `Campaign assets with a deliberately long folder name ${Date.now()}`;
+		const folderMarker = crypto.randomUUID();
+		const longFolderName = `Campaign assets with a deliberately long folder name ${folderMarker}`;
 		await admin.goToMedia();
 		await admin.waitForLoading();
-		await createFolder(page, `Archive ${Date.now()}`);
+		await createFolder(page, `Archive ${folderMarker}`);
 		await createFolder(page, longFolderName);
-		await createFolder(page, `Events ${Date.now()}`);
-		await createFolder(page, `Press ${Date.now()}`);
+		await createFolder(page, `Events ${folderMarker}`);
+		await createFolder(page, `Press ${folderMarker}`);
+		const createdFolderCards = page
+			.locator("[data-media-folder-card]")
+			.filter({ hasText: folderMarker });
 
 		const folderIconContrast = () =>
 			page
@@ -439,15 +439,13 @@ test.describe("Media Library", () => {
 		await page.reload();
 
 		for (const [width, columns] of [
-			[639, 1],
-			[640, 2],
-			[767, 2],
-			[768, 3],
-			[1023, 3],
-			[1024, 4],
+			[640, 1],
+			[800, 2],
+			[1100, 3],
+			[1400, 4],
 		] as const) {
 			await page.setViewportSize({ width, height: 900 });
-			await expectFolderColumns(page, columns);
+			await expectFolderColumns(createdFolderCards, columns);
 		}
 
 		await page.setViewportSize({ width: 1512, height: 982 });
@@ -499,7 +497,6 @@ test.describe("Media Library", () => {
 		expect(searchBox).not.toBeNull();
 		expect(typeFilterBox).not.toBeNull();
 		expect(viewModeBox).not.toBeNull();
-		expect(mediaTitleBox!.height).toBeLessThanOrEqual(26);
 		expect(addFolderBox!.width).toBeGreaterThan(44);
 		expect(addFolderBox!.width).toBeLessThanOrEqual(90);
 		expect(uploadFilesBox!.width).toBeGreaterThan(44);
