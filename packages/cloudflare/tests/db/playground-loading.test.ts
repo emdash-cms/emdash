@@ -72,7 +72,7 @@ describe("playground loading progress", () => {
 		vi.stubGlobal("location", { replace });
 
 		const html = renderPlaygroundLoadingPage();
-		const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+		const script = html.match(/<script>([\s\S]*?)<\/script>/i)?.[1];
 		expect(script).toBeDefined();
 		// oxlint-disable-next-line typescript/no-implied-eval -- executes the rendered inline script in a controlled test environment
 		new Function(script!)();
