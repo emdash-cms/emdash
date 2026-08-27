@@ -1,0 +1,283 @@
+import { reset, runInDurableObject } from "cloudflare:test";
+import { env } from "cloudflare:workers";
+import { afterEach, describe, expect, it } from "vitest";
+
+import type {
+	CreateIntentInput,
+	IntentState,
+	PutWorkloadPolicyInput,
+	TransitionIntentInput,
+} from "../src/publisher-do/publisher-do.js";
+
+const DID = "did:plc:publisher";
+const INTENT_1 = "01JABCDEFGHJKMNPQRSTVWXYZ0";
+const INTENT_2 = "01JABCDEFGHJKMNPQRSTVWXYZ1";
+const NOW = 1_800_000_000_000;
+
+function publisher() {
+	return env.PUBLISHER_DO.getByName(DID);
+}
+
+function policy(): PutWorkloadPolicyInput {
+	return {
+		publisherDid: DID,
+		packageSlug: "gallery",
+		repository: "emdash-cms/gallery",
+		repositoryId: "123456789",
+		repositoryOwnerId: "987654321",
+		workflowRef: "emdash-cms/gallery/.github/workflows/release.yml@refs/heads/main",
+		allowedRefs: ["refs/heads/main"],
+		allowedEnvironments: [],
+		active: true,
+		expectedVersion: null,
+		now: NOW,
+	};
+}
+
+function intent(overrides: Partial<CreateIntentInput> = {}): CreateIntentInput {
+	return {
+		publisherDid: DID,
+		intentId: INTENT_1,
+		packageSlug: "gallery",
+		version: "1.2.3",
+		workloadPolicyVersion: 1,
+		workloadIdentityDigest: "A".repeat(43),
+		idempotencyKey: "github-run-100-attempt-1",
+		requestDigest: "B".repeat(43),
+		workloadIdentityJson: JSON.stringify({ issuer: "github-actions", runId: "100" }),
+		releaseInputJson: JSON.stringify({ package: "gallery", version: "1.2.3" }),
+		expiresAt: NOW + 60_000,
+		now: NOW + 1,
+		...overrides,
+	};
+}
+
+function transition(
+	expectedState: IntentState,
+	expectedGeneration: number,
+	toState: IntentState,
+	overrides: Partial<TransitionIntentInput> = {},
+): TransitionIntentInput {
+	return {
+		publisherDid: DID,
+		intentId: INTENT_1,
+		expectedState,
+		expectedGeneration,
+		toState,
+		transitionDigest: String.fromCharCode(66 + expectedGeneration).repeat(43),
+		actorRealm: "system",
+		actorIdentity: "release-service",
+		reasonCode: null,
+		stateDataJson: JSON.stringify({ step: toState }),
+		now: NOW + 1 + expectedGeneration,
+		...overrides,
+	};
+}
+
+afterEach(async () => {
+	await reset();
+});
+
+describe("publisher release intents", () => {
+	it("atomically reserves a package version and records the received transition", async () => {
+		const stub = publisher();
+		await stub.putWorkloadPolicy(policy());
+
+		const created = await stub.createIntent(intent());
+		expect(created).toMatchObject({
+			ok: true,
+			replayed: false,
+			intent: {
+				id: INTENT_1,
+				packageSlug: "gallery",
+				version: "1.2.3",
+				state: "received",
+				stateGeneration: 1,
+				workloadPolicyVersion: 1,
+				workflowId: null,
+			},
+		});
+		await expect(stub.listIntentTransitions(DID, INTENT_1)).resolves.toMatchObject([
+			{
+				sequence: 1,
+				fromState: null,
+				toState: "received",
+				stateGeneration: 1,
+				actorRealm: "oidc",
+			},
+		]);
+	});
+
+	it("replays identical workload idempotency and rejects changed input", async () => {
+		const stub = publisher();
+		await stub.putWorkloadPolicy(policy());
+		const first = await stub.createIntent(intent());
+
+		await expect(stub.createIntent(intent({ intentId: INTENT_2 }))).resolves.toEqual({
+			...(first.ok ? first : {}),
+			replayed: true,
+		});
+		await expect(
+			stub.createIntent(intent({ intentId: INTENT_2, requestDigest: "C".repeat(43) })),
+		).resolves.toEqual({ ok: false, code: "IDEMPOTENCY_CONFLICT" });
+	});
+
+	it("returns the existing owner when another identity reserves the same version", async () => {
+		const stub = publisher();
+		await stub.putWorkloadPolicy(policy());
+		await stub.createIntent(intent());
+
+		await expect(
+			stub.createIntent(
+				intent({
+					intentId: INTENT_2,
+					workloadIdentityDigest: "D".repeat(43),
+					idempotencyKey: "github-run-101-attempt-1",
+				}),
+			),
+		).resolves.toEqual({
+			ok: false,
+			code: "RESERVATION_CONFLICT",
+			existingIntentId: INTENT_1,
+		});
+	});
+
+	it("releases an expired reservation for a new intent", async () => {
+		const stub = publisher();
+		await stub.putWorkloadPolicy(policy());
+		await stub.createIntent(intent({ expiresAt: NOW + 10 }));
+
+		await expect(
+			stub.createIntent(
+				intent({
+					intentId: INTENT_2,
+					workloadIdentityDigest: "D".repeat(43),
+					idempotencyKey: "github-run-101-attempt-1",
+					requestDigest: "E".repeat(43),
+					expiresAt: NOW + 60_000,
+					now: NOW + 11,
+				}),
+			),
+		).resolves.toMatchObject({ ok: true, replayed: false, intent: { id: INTENT_2 } });
+		await expect(
+			stub.transitionIntent(transition("received", 1, "verifying", { now: NOW + 12 })),
+		).resolves.toEqual({ ok: false, code: "INTENT_TRANSITION_INVALID" });
+	});
+
+	it("releases a terminal unpublished reservation for a new intent", async () => {
+		const stub = publisher();
+		await stub.putWorkloadPolicy(policy());
+		await stub.createIntent(intent());
+		await stub.transitionIntent(transition("received", 1, "cancelled"));
+
+		await expect(
+			stub.createIntent(
+				intent({
+					intentId: INTENT_2,
+					workloadIdentityDigest: "D".repeat(43),
+					idempotencyKey: "github-run-101-attempt-1",
+					requestDigest: "E".repeat(43),
+				}),
+			),
+		).resolves.toMatchObject({ ok: true, replayed: false, intent: { id: INTENT_2 } });
+	});
+
+	it("requires the exact active workload policy version", async () => {
+		const stub = publisher();
+		await stub.putWorkloadPolicy(policy());
+
+		await expect(stub.createIntent(intent({ workloadPolicyVersion: 2 }))).resolves.toEqual({
+			ok: false,
+			code: "WORKLOAD_POLICY_UNAVAILABLE",
+		});
+		await stub.putWorkloadPolicy({ ...policy(), active: false, expectedVersion: 1, now: NOW + 1 });
+		await expect(stub.createIntent(intent())).resolves.toEqual({
+			ok: false,
+			code: "WORKLOAD_POLICY_UNAVAILABLE",
+		});
+	});
+
+	it("enforces explicit generation-guarded transitions and idempotent replay", async () => {
+		const stub = publisher();
+		await stub.putWorkloadPolicy(policy());
+		await stub.createIntent(intent());
+		const verifying = transition("received", 1, "verifying", {
+			workflowId: "workflow-01JABCDEFGHJKMNPQRSTVWXYZ",
+		});
+
+		const first = await stub.transitionIntent(verifying);
+		expect(first).toMatchObject({
+			ok: true,
+			replayed: false,
+			intent: { state: "verifying", stateGeneration: 2, workflowId: verifying.workflowId },
+		});
+		await expect(stub.transitionIntent(verifying)).resolves.toMatchObject({
+			ok: true,
+			replayed: true,
+			intent: { state: "verifying", stateGeneration: 2 },
+		});
+		await expect(
+			stub.transitionIntent({ ...verifying, transitionDigest: "Z".repeat(43) }),
+		).resolves.toEqual({ ok: false, code: "INTENT_CAS_REQUIRED" });
+		await expect(
+			stub.transitionIntent(
+				transition("verifying", 2, "verified", {
+					workflowId: "different-workflow-id",
+				}),
+			),
+		).resolves.toEqual({ ok: false, code: "INTENT_TRANSITION_INVALID" });
+		await expect(stub.transitionIntent(transition("verifying", 2, "published"))).resolves.toEqual({
+			ok: false,
+			code: "INTENT_TRANSITION_INVALID",
+		});
+		await stub.transitionIntent(transition("verifying", 2, "verified"));
+		await expect(stub.transitionIntent(verifying)).resolves.toEqual({
+			ok: false,
+			code: "INTENT_CAS_REQUIRED",
+		});
+	});
+
+	it("completes the approval and reconciliation path and closes terminal state", async () => {
+		const stub = publisher();
+		await stub.putWorkloadPolicy(policy());
+		await stub.createIntent(intent());
+		const path: IntentState[] = [
+			"verifying",
+			"verified",
+			"awaiting_approval",
+			"ready",
+			"publishing",
+			"reconciling",
+			"published",
+		];
+		let state: IntentState = "received";
+		let generation = 1;
+		for (const next of path) {
+			const result = await stub.transitionIntent(transition(state, generation, next));
+			expect(result).toMatchObject({ ok: true, intent: { state: next } });
+			state = next;
+			generation += 1;
+		}
+		await expect(
+			stub.transitionIntent(transition("published", generation, "failed")),
+		).resolves.toEqual({ ok: false, code: "INTENT_TRANSITION_INVALID" });
+		expect(await stub.listIntentTransitions(DID, INTENT_1)).toHaveLength(8);
+	});
+
+	it("blocks suspended publishers and rejects noncanonical private input", async () => {
+		const stub = publisher();
+		await stub.putWorkloadPolicy(policy());
+		await runInDurableObject(stub, (_instance, state) => {
+			state.storage.sql.exec("UPDATE publisher SET status = 'suspended' WHERE id = 1");
+		});
+		await expect(stub.createIntent(intent())).resolves.toEqual({
+			ok: false,
+			code: "PUBLISHER_SUSPENDED",
+		});
+		await runInDurableObject(stub, async (instance) => {
+			expect(() =>
+				instance.createIntent(intent({ workloadIdentityJson: '{ "runId": "100" }' })),
+			).toThrowError(expect.objectContaining({ code: "INTENT_INPUT_INVALID" }));
+		});
+	});
+});

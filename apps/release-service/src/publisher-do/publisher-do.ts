@@ -1,5 +1,52 @@
 import { DurableObject } from "cloudflare:workers";
 
+import {
+	initializeIntentStateSchema,
+	IntentStateStore,
+	type CreateIntentInput,
+	type CreateIntentResult,
+	type IntentTransition,
+	type StoredIntent,
+	type TransitionIntentInput,
+	type TransitionIntentResult,
+} from "./intent-state.js";
+import {
+	initializePublicationOperationSchema,
+	PublicationOperationStore,
+	type BeginPublicationOperationResult,
+	type CompletePublicationOperationInput,
+	type CompletePublicationOperationResult,
+} from "./publication-operation.js";
+import {
+	initializeWorkloadPolicySchema,
+	WorkloadPolicyStore,
+	type PutWorkloadPolicyInput,
+	type PutWorkloadPolicyResult,
+	type StoredWorkloadPolicy,
+} from "./workload-policy.js";
+
+export type {
+	PutWorkloadPolicyInput,
+	PutWorkloadPolicyResult,
+	StoredWorkloadPolicy,
+} from "./workload-policy.js";
+export type {
+	CreateIntentInput,
+	CreateIntentResult,
+	IntentState,
+	IntentTransition,
+	StoredIntent,
+	TransitionIntentInput,
+	TransitionIntentResult,
+} from "./intent-state.js";
+export type {
+	BeginPublicationOperationResult,
+	CompletePublicationOperationInput,
+	CompletePublicationOperationResult,
+	PublicationOperationLease,
+	PublicationOutcome,
+} from "./publication-operation.js";
+
 const DID_PATTERN = /^did:[a-z][a-z0-9]*:[A-Za-z0-9._:%-]+$/;
 const HASH_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -255,10 +302,16 @@ async function hashRefreshToken(token: string): Promise<string> {
 
 export class PublisherDurableObject extends DurableObject<Env> {
 	readonly #objectName: string | undefined;
+	readonly #workloadPolicies: WorkloadPolicyStore;
+	readonly #intents: IntentStateStore;
+	readonly #publicationOperations: PublicationOperationStore;
 
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
 		this.#objectName = ctx.id.name;
+		this.#workloadPolicies = new WorkloadPolicyStore(ctx.storage);
+		this.#intents = new IntentStateStore(ctx.storage);
+		this.#publicationOperations = new PublicationOperationStore(ctx.storage);
 		void ctx.blockConcurrencyWhile(() => {
 			this.#initializeSchema();
 			return Promise.resolve();
@@ -335,6 +388,9 @@ export class PublisherDurableObject extends DurableObject<Env> {
 				created_at INTEGER NOT NULL
 			);
 		`);
+		initializeWorkloadPolicySchema(this.ctx.storage);
+		initializeIntentStateSchema(this.ctx.storage);
+		initializePublicationOperationSchema(this.ctx.storage);
 	}
 
 	#assertPublisherObjectName(publisherDid: string): void {
@@ -387,6 +443,73 @@ export class PublisherDurableObject extends DurableObject<Env> {
 
 	initializePublisher(publisherDid: string): void {
 		this.#assertPublisherDid(publisherDid);
+	}
+
+	putWorkloadPolicy(input: PutWorkloadPolicyInput): PutWorkloadPolicyResult {
+		this.#assertPublisherDid(input.publisherDid);
+		return this.#workloadPolicies.put(input);
+	}
+
+	getWorkloadPolicy(publisherDid: string, packageSlug: string): StoredWorkloadPolicy | null {
+		this.#assertPublisherDid(publisherDid);
+		return this.#workloadPolicies.get(packageSlug);
+	}
+
+	listWorkloadPolicies(
+		publisherDid: string,
+		afterPackageSlug: string | null,
+		limit: number,
+	): readonly StoredWorkloadPolicy[] {
+		this.#assertPublisherDid(publisherDid);
+		return this.#workloadPolicies.list(afterPackageSlug, limit);
+	}
+
+	createIntent(input: CreateIntentInput): CreateIntentResult {
+		this.#assertPublisherDid(input.publisherDid);
+		return this.#intents.create(input);
+	}
+
+	transitionIntent(input: TransitionIntentInput): TransitionIntentResult {
+		this.#assertPublisherDid(input.publisherDid);
+		return this.#intents.transition(input);
+	}
+
+	getIntent(publisherDid: string, intentId: string): StoredIntent | null {
+		this.#assertPublisherDid(publisherDid);
+		return this.#intents.get(intentId);
+	}
+
+	listIntentTransitions(publisherDid: string, intentId: string): readonly IntentTransition[] {
+		this.#assertPublisherDid(publisherDid);
+		return this.#intents.listTransitions(intentId);
+	}
+
+	async beginPublicationOperation(
+		publisherDid: string,
+		intentId: string,
+		expectedIntentGeneration: number,
+		leaseMs: number,
+		now = Date.now(),
+	): Promise<BeginPublicationOperationResult> {
+		this.#assertPublisherDid(publisherDid);
+		const result = await this.#publicationOperations.begin(
+			publisherDid,
+			intentId,
+			expectedIntentGeneration,
+			leaseMs,
+			now,
+		);
+		await this.#scheduleNextAlarm(now);
+		return result;
+	}
+
+	async completePublicationOperation(
+		input: CompletePublicationOperationInput,
+	): Promise<CompletePublicationOperationResult> {
+		this.#assertPublisherDid(input.publisherDid);
+		const result = await this.#publicationOperations.complete(input);
+		await this.#scheduleNextAlarm(input.now ?? Date.now());
+		return result;
 	}
 
 	createPublisherSession(input: CreatePublisherSessionInput): CreatePublisherSessionResult {
@@ -982,6 +1105,26 @@ export class PublisherDurableObject extends DurableObject<Env> {
 				)
 				.toArray()[0] ?? null
 		);
+	}
+
+	async #scheduleNextAlarm(now: number): Promise<void> {
+		const deadline = this.#publicationOperations.nextDeadline();
+		if (deadline === null) {
+			await this.ctx.storage.deleteAlarm();
+			return;
+		}
+		await this.ctx.storage.setAlarm(Math.max(now + 1, deadline));
+	}
+
+	override async alarm(): Promise<void> {
+		const now = Date.now();
+		this.#publicationOperations.recoverExpired(now);
+		this.ctx.storage.transactionSync(() => {
+			this.ctx.storage.sql.exec("DELETE FROM oauth_states WHERE expires_at <= ?", now);
+			this.ctx.storage.sql.exec("DELETE FROM publisher_sessions WHERE expires_at <= ?", now);
+			this.ctx.storage.sql.exec("DELETE FROM intent_idempotency WHERE expires_at <= ?", now);
+		});
+		await this.#scheduleNextAlarm(now);
 	}
 
 	#clearRefreshOperation(now: number): void {
