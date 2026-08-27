@@ -1082,6 +1082,35 @@ describe("ContentEditor", () => {
 			await expect.element(screen.getByLabelText("Role label")).not.toBeInTheDocument();
 		});
 
+		it("does not reveal an inferred credit from a malformed mixed response", async () => {
+			const explicit = makeByline({
+				id: "explicit",
+				slug: "mina-patel",
+				displayName: "Mina Patel",
+			});
+			const inferred = makeByline({ id: "inferred", displayName: "Owner Profile" });
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({
+					data: { title: "Hello", body: "" },
+					bylines: [
+						{ byline: explicit, sortOrder: 0, roleLabel: null, source: "explicit" },
+						{ byline: inferred, sortOrder: 1, roleLabel: null, source: "inferred" },
+					],
+				}),
+				currentUser: { id: "u-1", role: 50 },
+				availableBylines: [explicit],
+				availableBylinesLoaded: true,
+			});
+
+			await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
+			await screen.getByRole("menuitem", { name: "Remove from post" }).click();
+
+			await expect.element(screen.getByText("No byline is shown on this post.")).toBeVisible();
+			await expect.element(screen.getByText("Owner Profile")).not.toBeInTheDocument();
+			await expect.element(screen.getByText("Automatic", { exact: true })).not.toBeInTheDocument();
+		});
+
 		it("never saves an inferred byline as an explicit credit", async () => {
 			const onSave = vi.fn();
 			const inferredCredit = {

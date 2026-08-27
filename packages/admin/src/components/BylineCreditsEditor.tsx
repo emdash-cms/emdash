@@ -826,6 +826,7 @@ function SortableBylineRow({
 				type="button"
 				variant="ghost"
 				shape="square"
+				className="touch-none"
 				icon={<DotsSixVertical aria-hidden="true" />}
 				aria-label={t`Reorder ${byline.displayName}`}
 				data-sortable-handle

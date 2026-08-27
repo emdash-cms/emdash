@@ -81,11 +81,16 @@ function resolveEditorBylines(item?: ContentItem | null): {
 	inferredByline: BylineSummary | null;
 } {
 	const entries = item?.bylines ?? [];
+	const explicitEntries = entries.filter((entry) => entry.source !== "inferred");
 	return {
-		explicitCredits: entries
-			.filter((entry) => entry.source !== "inferred")
-			.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })),
-		inferredByline: entries.find((entry) => entry.source === "inferred")?.byline ?? null,
+		explicitCredits: explicitEntries.map((entry) => ({
+			bylineId: entry.byline.id,
+			roleLabel: entry.roleLabel,
+		})),
+		inferredByline:
+			explicitEntries.length === 0
+				? (entries.find((entry) => entry.source === "inferred")?.byline ?? null)
+				: null,
 	};
 }
 
