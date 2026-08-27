@@ -9,3 +9,5 @@ Existing callers can continue passing only `artifactDigest`. Successful results 
 Fixes `@emdash-cms/registry-verification` when it is rebundled into an Astro Cloudflare application, preventing requests from failing during Worker startup.
 
 Adds `@emdash-cms/registry-verification/records` for Worker callers that supply an explicit `ProvenanceVerifier`. The runtime-neutral entry does not load the Node-oriented default Sigstore verifier, while the package root keeps the existing default-verifier behavior.
+
+Fixes `@emdash-cms/registry-verification` when it is rebundled into an Astro Cloudflare application, preventing requests from failing during Worker startup.
