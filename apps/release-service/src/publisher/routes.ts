@@ -4,6 +4,11 @@ import { env } from "cloudflare:workers";
 import { readJsonObject } from "../api/body.js";
 import { ApiError } from "../api/errors.js";
 import { apiFailure, apiSuccess } from "../api/response.js";
+import {
+	ApprovalAuthorityError,
+	loadCurrentApprovalPolicy,
+	type CurrentApprovalPolicy,
+} from "../approvals/authority.js";
 import type { ServiceConfiguration } from "../config.js";
 import { serializeIntentResource } from "../intents/routes.js";
 import { createPublisherOAuthClient } from "../oauth/custody.js";
@@ -19,11 +24,17 @@ const ULID_PATTERN = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
 const WORKLOAD_PATH_PATTERN = /^\/v1\/publisher\/workloads\/([A-Za-z][A-Za-z0-9_-]{0,63})$/;
+const APPROVER_STATUS_PATH_PATTERN =
+	/^\/v1\/publisher\/workloads\/([A-Za-z][A-Za-z0-9_-]{0,63})\/approvers$/;
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
 export interface PublisherRouteDependencies {
 	revokeDelegation?: (publisherDid: `did:${string}:${string}`) => Promise<void>;
+	loadCurrentApprovalPolicy?: (
+		publisherDid: string,
+		packageSlug: string,
+	) => Promise<CurrentApprovalPolicy>;
 }
 
 function hasExactKeys(value: Record<string, unknown>, expected: readonly string[]): boolean {
@@ -82,6 +93,12 @@ function routeFailure(error: unknown, requestId: string): Response {
 	if (error instanceof WorkloadPolicyError) {
 		return apiFailure(
 			new ApiError("INVALID_REQUEST", 400, "Invalid workload policy request"),
+			requestId,
+		);
+	}
+	if (error instanceof ApprovalAuthorityError) {
+		return apiFailure(
+			new ApiError("PROFILE_FETCH_FAILED", 503, "Package profile could not be verified"),
 			requestId,
 		);
 	}
@@ -148,6 +165,13 @@ export function matchPublisherWorkloadPath(
 	pathname: string,
 ): Readonly<Record<string, string>> | null {
 	const match = WORKLOAD_PATH_PATTERN.exec(pathname);
+	return match?.[1] ? { packageSlug: match[1] } : null;
+}
+
+export function matchPublisherApproverStatusPath(
+	pathname: string,
+): Readonly<Record<string, string>> | null {
+	const match = APPROVER_STATUS_PATH_PATTERN.exec(pathname);
 	return match?.[1] ? { packageSlug: match[1] } : null;
 }
 
@@ -248,6 +272,56 @@ export async function handleListPublisherWorkloads(
 		const items = rows.slice(0, limit);
 		const nextCursor = rows.length > limit ? items.at(-1)?.packageSlug : undefined;
 		return apiSuccess({ items, ...(nextCursor ? { nextCursor } : {}) }, requestId);
+	} catch (error) {
+		return routeFailure(error, requestId);
+	}
+}
+
+export async function handleGetPublisherApproverStatus(
+	request: Request,
+	requestId: string,
+	configuration: ServiceConfiguration,
+	params: Readonly<Record<string, string>>,
+	dependencies: PublisherRouteDependencies = {},
+): Promise<Response> {
+	try {
+		const session = await publisherSession(request, configuration);
+		const url = new URL(request.url);
+		if ([...url.searchParams].length > 0) {
+			throw new ApiError(
+				"INVALID_REQUEST",
+				400,
+				"Approver status query does not accept parameters",
+			);
+		}
+		const packageSlug = params["packageSlug"];
+		if (!packageSlug || !PACKAGE_SLUG_PATTERN.test(packageSlug)) {
+			throw new ApiError("NOT_FOUND", 404, "Workload policy not found");
+		}
+		const publisher = env.PUBLISHER_DO.getByName(session.publisherDid);
+		if (!(await publisher.getWorkloadPolicy(session.publisherDid, packageSlug))) {
+			throw new ApiError("NOT_FOUND", 404, "Workload policy not found");
+		}
+		const policy = dependencies.loadCurrentApprovalPolicy
+			? await dependencies.loadCurrentApprovalPolicy(session.publisherDid, packageSlug)
+			: await loadCurrentApprovalPolicy(session.publisherDid, packageSlug);
+		const items = await Promise.all(
+			policy.approverDids.map(async (approverDid) => {
+				const enrollment =
+					await env.APPROVER_DO.getByName(approverDid).getEnrollmentStatus(approverDid);
+				return {
+					did: approverDid,
+					status:
+						enrollment.activeCredentialCount > 0
+							? ("enrolled" as const)
+							: enrollment.credentialCount > 0
+								? ("revoked" as const)
+								: ("not_enrolled" as const),
+					...enrollment,
+				};
+			}),
+		);
+		return apiSuccess({ packageSlug, profileCid: policy.profileCid, items }, requestId);
 	} catch (error) {
 		return routeFailure(error, requestId);
 	}
@@ -381,6 +455,51 @@ export async function handleListPublisherIntents(
 				),
 		);
 		const nextCursor = rows.length > limit ? rows[limit - 1]?.id : undefined;
+		return apiSuccess({ items, ...(nextCursor ? { nextCursor } : {}) }, requestId);
+	} catch (error) {
+		return routeFailure(error, requestId);
+	}
+}
+
+export async function handleListPublisherAudit(
+	request: Request,
+	requestId: string,
+	configuration: ServiceConfiguration,
+): Promise<Response> {
+	try {
+		const session = await publisherSession(request, configuration);
+		const url = new URL(request.url);
+		if ([...url.searchParams.keys()].some((key) => key !== "cursor" && key !== "limit")) {
+			throw new ApiError("INVALID_REQUEST", 400, "Invalid pagination parameters");
+		}
+		const cursorValue = url.searchParams.get("cursor");
+		if (
+			url.searchParams.getAll("cursor").length > 1 ||
+			url.searchParams.getAll("limit").length > 1 ||
+			(cursorValue !== null && !POSITIVE_INTEGER_PATTERN.test(cursorValue))
+		) {
+			throw new ApiError("INVALID_REQUEST", 400, "Invalid pagination parameters");
+		}
+		const cursor = cursorValue === null ? 0 : Number(cursorValue);
+		if (!Number.isSafeInteger(cursor)) {
+			throw new ApiError("INVALID_REQUEST", 400, "Invalid pagination parameters");
+		}
+		const limit = parseLimit(url);
+		const rows = await env.PUBLISHER_DO.getByName(session.publisherDid).listAuditEvents(
+			session.publisherDid,
+			cursor,
+			limit + 1,
+		);
+		const items = rows.slice(0, limit).map((row) => ({
+			sequence: row.sequence,
+			eventType: row.eventType,
+			actorRealm: row.actorRealm,
+			actorIdentity: row.actorIdentity,
+			subject: row.subject,
+			reasonCode: row.reasonCode,
+			createdAt: row.createdAt,
+		}));
+		const nextCursor = rows.length > limit ? String(items.at(-1)?.sequence) : undefined;
 		return apiSuccess({ items, ...(nextCursor ? { nextCursor } : {}) }, requestId);
 	} catch (error) {
 		return routeFailure(error, requestId);

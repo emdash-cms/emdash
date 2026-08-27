@@ -1,5 +1,5 @@
 import { I18nProvider } from "@lingui/react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getApproval, listApproverCredentials } from "./api.js";
@@ -48,6 +48,7 @@ describe("release-service web surfaces", () => {
 	});
 
 	it("renders publisher authority, workloads, and intent state", async () => {
+		let auditRequests = 0;
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async (input: RequestInfo | URL) => {
@@ -92,6 +93,40 @@ describe("release-service web surfaces", () => {
 						],
 					});
 				}
+				if (path === "/v1/publisher/audit") {
+					auditRequests += 1;
+					return success({
+						items: [
+							{
+								sequence: auditRequests === 1 ? 3 : 4,
+								eventType: auditRequests === 1 ? "workload-policy-stored" : "delegation-revoked",
+								actorRealm: "publisher",
+								actorIdentity: PUBLISHER_DID,
+								subject: "gallery",
+								reasonCode: null,
+								createdAt: 1_799_999_250_000,
+							},
+						],
+						...(auditRequests === 1 ? { nextCursor: "3" } : {}),
+					});
+				}
+				if (path === "/v1/publisher/workloads/gallery/approvers") {
+					return success({
+						packageSlug: "gallery",
+						profileCid: "bafyprofile",
+						items: [
+							{
+								did: "did:plc:approver",
+								status: "enrolled",
+								credentialCount: 1,
+								activeCredentialCount: 1,
+								firstEnrolledAt: 1_799_999_000_000,
+								lastEnrolledAt: 1_799_999_000_000,
+								lastRevokedAt: null,
+							},
+						],
+					});
+				}
 				return success({
 					items: [
 						{
@@ -115,9 +150,17 @@ describe("release-service web surfaces", () => {
 		);
 		renderApp("/publisher");
 
-		expect(await screen.findByText(PUBLISHER_DID)).toBeTruthy();
+		expect((await screen.findAllByText(PUBLISHER_DID)).length).toBeGreaterThan(0);
 		expect(screen.getAllByText("gallery").length).toBeGreaterThan(0);
 		expect(screen.getByText("Awaiting approval")).toBeTruthy();
+		expect(screen.getByRole("heading", { name: "Publisher audit" })).toBeTruthy();
+		expect(screen.getByText("workload-policy-stored")).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: "Next audit page" }));
+		expect(await screen.findByText("delegation-revoked")).toBeTruthy();
+		expect(screen.getByText("workload-policy-stored")).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: "Check approvers" }));
+		expect(await screen.findByRole("heading", { name: "Approver status" })).toBeTruthy();
+		expect(screen.getByText("did:plc:approver")).toBeTruthy();
 	});
 
 	it("shows immutable workload and provenance evidence before approval", async () => {
@@ -199,11 +242,56 @@ describe("release-service web surfaces", () => {
 		expect(approve.hasAttribute("disabled")).toBe(false);
 	});
 
-	it("renders the Access operator control surface", async () => {
+	it("manages approver passkeys without requiring an active release", async () => {
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async () =>
 				success({
+					items: [
+						{
+							id: "credential",
+							name: "Work laptop",
+							transports: ["internal"],
+							createdAt: 1_799_999_000_000,
+							lastUsedAt: null,
+							revokedAt: null,
+						},
+					],
+				}),
+			),
+		);
+		renderApp("/approver");
+
+		expect(await screen.findByRole("heading", { name: "Approver passkeys" })).toBeTruthy();
+		expect(screen.getByText("Work laptop")).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Enrol passkey" })).toBeTruthy();
+	});
+
+	it("renders the Access operator control surface", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (input: RequestInfo | URL) => {
+				const path = new URL(
+					input instanceof Request ? input.url : input.toString(),
+					location.origin,
+				).pathname;
+				if (path === "/admin/api/encryption/keys") {
+					return success({
+						configured: { activeVersion: 1, versions: [1] },
+						keys: [
+							{
+								version: 1,
+								status: "active",
+								activatedAt: 0,
+								retiredAt: null,
+								changedBy: "system:bootstrap",
+								updatedAt: 0,
+							},
+						],
+						verification: null,
+					});
+				}
+				return success({
 					state: {
 						mode: "active",
 						epoch: 1,
@@ -211,8 +299,8 @@ describe("release-service web surfaces", () => {
 						changedBy: "system:bootstrap",
 						changedAt: 0,
 					},
-				}),
-			),
+				});
+			}),
 		);
 		renderApp("/admin");
 
@@ -220,9 +308,23 @@ describe("release-service web surfaces", () => {
 		expect(screen.getByRole("button", { name: "Pause admission" })).toBeTruthy();
 		expect(screen.getByRole("heading", { name: "Operations directory" })).toBeTruthy();
 		expect(screen.getByRole("button", { name: "List publishers" })).toBeTruthy();
+		expect(screen.getByRole("heading", { name: "Service audit" })).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Load audit" })).toBeTruthy();
 		expect(screen.getByRole("heading", { name: "Publisher archive" })).toBeTruthy();
 		expect(screen.getByRole("button", { name: "Start archive workflow" })).toBeTruthy();
+		expect(screen.getByRole("heading", { name: "Restore publisher shard" })).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Prepare restore" })).toBeTruthy();
+		fireEvent.change(screen.getByLabelText("Page number"), { target: { value: "-1" } });
+		expect(
+			(screen.getByRole("button", { name: "Write archive page" }) as HTMLButtonElement).disabled,
+		).toBe(true);
+		fireEvent.change(screen.getByLabelText("Restore page"), { target: { value: "-1" } });
+		expect(
+			(screen.getByRole("button", { name: "Apply restore page" }) as HTMLButtonElement).disabled,
+		).toBe(true);
 		expect(screen.getByRole("heading", { name: "Encryption maintenance" })).toBeTruthy();
+		expect(screen.getByText("Configured active key: 1. Available versions: 1.")).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Activate configured key" })).toBeTruthy();
 		expect(screen.getByRole("heading", { name: "Publisher lookup" })).toBeTruthy();
 	});
 

@@ -15,6 +15,7 @@ import { decodeAwaitingApprovalState, type ApprovalEvidence } from "./digest.js"
 const DNS_ENDPOINT = "https://cloudflare-dns.com/dns-query";
 const MAX_DNS_RESPONSE_BYTES = 64 * 1024;
 const MAX_PROFILE_RESPONSE_BYTES = 256 * 1024;
+const PACKAGE_SLUG_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 
 export type ApprovalAuthorityErrorCode =
 	| "APPROVAL_EVIDENCE_INVALID"
@@ -43,6 +44,11 @@ export interface LoadedApprovalIntent {
 export interface VerifyCurrentApproverOptions {
 	actorResolver?: ActorResolver;
 	fetch?: typeof globalThis.fetch;
+}
+
+export interface CurrentApprovalPolicy {
+	profileCid: string;
+	approverDids: readonly string[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -244,20 +250,41 @@ export async function verifyCurrentApprover(
 	if (!isDid(evidence.publisherDid) || !isDid(approverDid)) {
 		throw new ApprovalAuthorityError("APPROVAL_EVIDENCE_INVALID");
 	}
+	const policy = await loadCurrentApprovalPolicy(
+		evidence.publisherDid,
+		evidence.packageSlug,
+		options,
+	);
+	if (!policy.approverDids.includes(approverDid)) {
+		throw new ApprovalAuthorityError("APPROVER_NOT_AUTHORIZED");
+	}
+	if (policy.profileCid !== evidence.profileCid) {
+		throw new ApprovalAuthorityError("PROFILE_CHANGED");
+	}
+}
+
+export async function loadCurrentApprovalPolicy(
+	publisherDid: string,
+	packageSlug: string,
+	options: VerifyCurrentApproverOptions = {},
+): Promise<CurrentApprovalPolicy> {
+	if (!isDid(publisherDid) || !PACKAGE_SLUG_PATTERN.test(packageSlug)) {
+		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
+	}
 	const fetchImplementation = options.fetch ?? globalThis.fetch;
 	let actor;
 	try {
 		actor = await (
 			options.actorResolver ??
 			createWorkerActorResolver(createGuardedIdentityFetch(fetchImplementation))
-		).resolve(evidence.publisherDid, { signal: AbortSignal.timeout(30_000), noCache: true });
+		).resolve(publisherDid, { signal: AbortSignal.timeout(30_000), noCache: true });
 	} catch {
 		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
 	}
-	if (actor.did !== evidence.publisherDid) {
+	if (actor.did !== publisherDid) {
 		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
 	}
-	const requestedUrl = profileRecordUrl(actor.pds, evidence.publisherDid, evidence.packageSlug);
+	const requestedUrl = profileRecordUrl(actor.pds, publisherDid, packageSlug);
 	const resource = await fetchVerifiedResource(requestedUrl, {
 		fetch: (url, init) => fetchImplementation(url, init),
 		resolveHostname: (hostname) => resolvePublicHostname(hostname, fetchImplementation),
@@ -277,7 +304,7 @@ export async function verifyCurrentApprover(
 	} catch {
 		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
 	}
-	const expectedUri = `at://${evidence.publisherDid}/${NSID.packageProfile}/${evidence.packageSlug}`;
+	const expectedUri = `at://${publisherDid}/${NSID.packageProfile}/${packageSlug}`;
 	if (
 		!isRecord(envelope) ||
 		envelope["uri"] !== expectedUri ||
@@ -293,10 +320,15 @@ export async function verifyCurrentApprover(
 	const rawExtension = profile.value.extensions?.[NSID.packageProfileExtension];
 	const extension = safeParse(PackageProfileExtension.mainSchema, rawExtension);
 	if (!extension.ok) throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
-	if (!extension.value.releasePolicy?.approvers?.includes(approverDid)) {
-		throw new ApprovalAuthorityError("APPROVER_NOT_AUTHORIZED");
+	const approverDids = extension.value.releasePolicy?.approvers ?? [];
+	if (
+		new Set(approverDids).size !== approverDids.length ||
+		approverDids.some((approverDid) => !isDid(approverDid))
+	) {
+		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
 	}
-	if (envelope["cid"] !== evidence.profileCid) {
-		throw new ApprovalAuthorityError("PROFILE_CHANGED");
-	}
+	return {
+		profileCid: envelope["cid"],
+		approverDids: [...approverDids].toSorted(),
+	};
 }

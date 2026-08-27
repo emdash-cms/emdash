@@ -17,6 +17,7 @@ export function Page({ children }: { children: ReactNode }) {
 				</div>
 				<nav aria-label={t("nav.label", "Release service sections")} className="flex gap-2">
 					<Link href="/publisher">{t("nav.publisher", "Publisher")}</Link>
+					<Link href="/approver">{t("nav.approver", "Approver")}</Link>
 					<Link href="/admin">{t("nav.operator", "Operator")}</Link>
 				</nav>
 			</header>

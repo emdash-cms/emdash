@@ -316,6 +316,36 @@ describe("ApproverDurableObject", () => {
 		).resolves.toEqual({ ok: false, code: "CREDENTIAL_STATE_CHANGED" });
 	});
 
+	it("reports enrolment and revocation state without initializing an empty shard", async () => {
+		const empty = env.APPROVER_DO.getByName(OTHER_APPROVER_DID);
+		await expect(empty.getEnrollmentStatus(OTHER_APPROVER_DID)).resolves.toEqual({
+			credentialCount: 0,
+			activeCredentialCount: 0,
+			firstEnrolledAt: null,
+			lastEnrolledAt: null,
+			lastRevokedAt: null,
+		});
+		await expect(
+			runInDurableObject(empty, (_instance, state) =>
+				state.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM approver").one(),
+			),
+		).resolves.toEqual({ count: 0 });
+
+		const stub = approver();
+		const now = 1_800_000_000_000;
+		await stub.enrolCredential(APPROVER_DID, credentialInput(CREDENTIAL_ID, now));
+		await stub.enrolCredential(APPROVER_DID, credentialInput(SECOND_CREDENTIAL_ID, now + 1));
+		await stub.revokeCredential(APPROVER_DID, CREDENTIAL_ID, now + 2);
+
+		await expect(stub.getEnrollmentStatus(APPROVER_DID)).resolves.toEqual({
+			credentialCount: 2,
+			activeCredentialCount: 1,
+			firstEnrolledAt: now,
+			lastEnrolledAt: now + 1,
+			lastRevokedAt: now + 2,
+		});
+	});
+
 	it("binds approval challenges to intent inputs and consumes them once", async () => {
 		const stub = approver();
 		const now = 1_800_000_000_000;

@@ -25,6 +25,13 @@ emdash-plugin build                          Build dist/ artifacts (plugin.mjs, 
 emdash-plugin dev                            Watch sources and rebuild on change
 emdash-plugin bundle                         Pack dist/ + assets into a registry tarball
 emdash-plugin publish                        Build, upload, and publish a release
+emdash-plugin release delegate               Print a publisher delegation browser handoff
+emdash-plugin release revoke                 Print an authority revocation browser handoff
+emdash-plugin release workload               Print a workload policy browser handoff
+emdash-plugin release enrol                  Print a passkey enrolment browser handoff
+emdash-plugin release approve <intent-id>    Print a passkey approval browser handoff
+emdash-plugin release reject <intent-id>     Print a passkey rejection browser handoff
+emdash-plugin release dry-run <release.json> Validate delegated release admission with GitHub OIDC
 emdash-plugin release submit <release.json>  Submit a delegated release with GitHub OIDC
 emdash-plugin release status <intent-id>     Read a delegated release intent
 emdash-plugin release cancel <intent-id>     Cancel an unpublished delegated release intent
@@ -37,7 +44,7 @@ emdash-plugin search <query>                 Free-text search
 emdash-plugin info <handle-or-did> <slug>    Show package details
 ```
 
-The non-interactive output commands (`whoami`, `validate`, `search`, `info`, `login`, `publish`, `release submit`, `release status`, `release cancel`) accept `--json` for machine-readable output. Discovery commands (`search`, `info`) accept `--registry-url <url>` (or `EMDASH_REGISTRY_URL`).
+The non-interactive output commands accept `--json` for machine-readable output. Discovery commands (`search`, `info`) accept `--registry-url <url>` (or `EMDASH_REGISTRY_URL`).
 
 ## Development
 
@@ -90,7 +97,7 @@ On first publish, pass `--license` and `--security-email` (or `--security-url`) 
 
 ## Delegated releases
 
-The `release` commands authenticate with the current GitHub Actions OpenID Connect (OIDC) identity. Grant the job `id-token: write`; the CLI requests a token whose audience is the release-service origin for every API call.
+The automation commands (`dry-run`, `submit`, `status`, and `cancel`) authenticate with the current GitHub Actions OpenID Connect (OIDC) identity. Grant the job `id-token: write`; the CLI requests a token whose audience is the release-service origin for every API call.
 
 The following command submits a generated package release record and waits for publication or an approval request:
 
@@ -110,6 +117,19 @@ emdash-plugin release cancel 01JABCDEFGHJKMNPQRSTVWXYZ0
 ```
 
 These commands fail outside GitHub Actions because no OIDC request endpoint is available. Use the delegated release Action when the workflow only needs submission and outputs.
+
+Publisher authorization and passkeys remain browser operations. The following commands print a validated browser handoff instead of copying OAuth sessions or WebAuthn assertions into the terminal:
+
+```sh
+emdash-plugin release delegate --service-url https://release.example.com
+emdash-plugin release workload --service-url https://release.example.com
+emdash-plugin release enrol --service-url https://release.example.com
+emdash-plugin release approve 01JABCDEFGHJKMNPQRSTVWXYZ0 \
+  --service-url https://release.example.com \
+  --publisher-did did:web:publisher.example.com
+```
+
+Use `release revoke` to open publisher authority revocation and `release reject` to open the rejection ceremony. The service keeps its application-session cookies and passkey ceremony at its own origin.
 
 ## `emdash-plugin.jsonc`
 

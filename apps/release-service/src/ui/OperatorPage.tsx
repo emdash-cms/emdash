@@ -1,12 +1,15 @@
-import { Badge, Button, Input, Surface, Table } from "@cloudflare/kumo";
+import { Badge, Button, Dialog, Input, Surface, Table } from "@cloudflare/kumo";
 import {
 	ReleaseServiceOperatorClient,
 	createReleaseIdempotencyKey,
+	type ControlAuditEventResource,
 	type DirectoryIdentityKind,
 	type DirectoryIdentityResource,
+	type EncryptionKeyStatusResource,
 	type EncryptionRotationResult,
 	type OperatorPublisherResource,
 	type PublisherArchivePageResult,
+	type PublisherRestorePageResult,
 	type ServiceControlState,
 	type StartPublisherArchiveResult,
 } from "@emdash-cms/registry-client/release-service";
@@ -54,6 +57,10 @@ export function OperatorPage() {
 	const [publisherRotationCursor, setPublisherRotationCursor] = useState("");
 	const [approverRotationCursor, setApproverRotationCursor] = useState("");
 	const [rotation, setRotation] = useState<EncryptionRotationResult | null>(null);
+	const [encryptionKeys, setEncryptionKeys] = useState<EncryptionKeyStatusResource | null>(null);
+	const [retireKeyVersion, setRetireKeyVersion] = useState("");
+	const [retireKeyConfirmOpen, setRetireKeyConfirmOpen] = useState(false);
+	const [verificationWorkflowId, setVerificationWorkflowId] = useState<string | null>(null);
 	const [archiveId, setArchiveId] = useState(() => `archive-${crypto.randomUUID()}`);
 	const [archiveCursor, setArchiveCursor] = useState("");
 	const [archivePage, setArchivePage] = useState("0");
@@ -62,12 +69,22 @@ export function OperatorPage() {
 	const [directoryKind, setDirectoryKind] = useState<DirectoryIdentityKind>("publisher");
 	const [directoryCursor, setDirectoryCursor] = useState("");
 	const [directoryItems, setDirectoryItems] = useState<DirectoryIdentityResource[]>([]);
+	const [auditItems, setAuditItems] = useState<ControlAuditEventResource[]>([]);
+	const [auditCursor, setAuditCursor] = useState("");
+	const [restorePage, setRestorePage] = useState("0");
+	const [restoreResult, setRestoreResult] = useState<PublisherRestorePageResult | null>(null);
+	const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
 	const [error, setError] = useState<unknown>(null);
 	const [busy, setBusy] = useState(false);
 
 	const refreshStatus = useCallback(async () => {
 		try {
-			setState(await client.getStatus());
+			const [serviceState, keyStatus] = await Promise.all([
+				client.getStatus(),
+				client.getEncryptionKeyStatus(),
+			]);
+			setState(serviceState);
+			setEncryptionKeys(keyStatus);
 		} catch (cause) {
 			setError(cause);
 		}
@@ -164,6 +181,70 @@ export function OperatorPage() {
 		}
 	}
 
+	async function activateConfiguredEncryptionKey() {
+		if (!encryptionKeys) return;
+		setBusy(true);
+		setError(null);
+		try {
+			await client.activateEncryptionKey(encryptionKeys.configured.activeVersion, {
+				idempotencyKey: createReleaseIdempotencyKey("web-key-activate"),
+			});
+			setEncryptionKeys(await client.getEncryptionKeyStatus());
+		} catch (cause) {
+			setError(cause);
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	async function retireEncryptionKey() {
+		const version = Number(retireKeyVersion);
+		if (!Number.isSafeInteger(version) || version < 1) return;
+		setBusy(true);
+		setError(null);
+		try {
+			await client.retireEncryptionKey(version, {
+				idempotencyKey: createReleaseIdempotencyKey("web-key-retire"),
+			});
+			setEncryptionKeys(await client.getEncryptionKeyStatus());
+			setRetireKeyVersion("");
+			setRetireKeyConfirmOpen(false);
+		} catch (cause) {
+			setError(cause);
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	async function startEncryptionVerification() {
+		const version = Number(retireKeyVersion);
+		if (!Number.isSafeInteger(version) || version < 1) return;
+		setBusy(true);
+		setError(null);
+		try {
+			const result = await client.startEncryptionVerification(version, {
+				idempotencyKey: createReleaseIdempotencyKey("web-key-verify"),
+			});
+			setVerificationWorkflowId(result.workflowId);
+		} catch (cause) {
+			setError(cause);
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	async function refreshEncryptionKeyStatus() {
+		setBusy(true);
+		setError(null);
+		try {
+			setEncryptionKeys(await client.getEncryptionKeyStatus());
+		} catch (cause) {
+			setError(cause);
+		} finally {
+			setBusy(false);
+		}
+	}
+
 	async function archivePublisher() {
 		setBusy(true);
 		setError(null);
@@ -215,6 +296,58 @@ export function OperatorPage() {
 				}
 			}
 			throw new Error("Directory traversal did not terminate");
+		} catch (cause) {
+			setError(cause);
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	async function listAudit(reset: boolean) {
+		setBusy(true);
+		setError(null);
+		try {
+			const result = await client.listAudit({
+				...(reset || !auditCursor ? {} : { cursor: auditCursor }),
+				limit: 50,
+			});
+			setAuditItems(result.items);
+			setAuditCursor(result.nextCursor ?? "");
+		} catch (cause) {
+			setError(cause);
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	async function preparePublisherRestore() {
+		setBusy(true);
+		setError(null);
+		try {
+			await client.preparePublisherRestore(publisherDid, archiveId, {
+				idempotencyKey: createReleaseIdempotencyKey("web-publisher-restore-prepare"),
+			});
+			setRestorePage("0");
+			setRestoreResult(null);
+			setRestoreConfirmOpen(false);
+		} catch (cause) {
+			setError(cause);
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	async function restorePublisherPage() {
+		setBusy(true);
+		setError(null);
+		try {
+			const result = await client.restorePublisher(
+				publisherDid,
+				{ archiveId, page: Number(restorePage) },
+				{ idempotencyKey: createReleaseIdempotencyKey("web-publisher-restore") },
+			);
+			setRestoreResult(result);
+			setRestorePage(String(result.nextPage));
 		} catch (cause) {
 			setError(cause);
 		} finally {
@@ -275,6 +408,63 @@ export function OperatorPage() {
 						{t("operator.service.pausePublication", "Pause publication")}
 					</Button>
 				</div>
+			</Surface>
+
+			<Surface className="rounded-xl border bg-kumo-base p-6">
+				<div className="flex flex-wrap items-start justify-between gap-4">
+					<div>
+						<h2 className="text-xl font-semibold text-kumo-strong">
+							{t("operator.audit.title", "Service audit")}
+						</h2>
+						<p className="mt-1 text-sm text-kumo-subtle">
+							{t(
+								"operator.audit.description",
+								"Review sanitized Access and service-control events in sequence.",
+							)}
+						</p>
+					</div>
+					<Button loading={busy} onClick={() => listAudit(true)} variant="outline">
+						{t("operator.audit.load", "Load audit")}
+					</Button>
+				</div>
+				{auditItems.length > 0 ? (
+					<div className="mt-5 overflow-x-auto">
+						<Table>
+							<Table.Header>
+								<Table.Row>
+									<Table.Head>{t("operator.audit.sequence", "Sequence")}</Table.Head>
+									<Table.Head>{t("operator.audit.event", "Event")}</Table.Head>
+									<Table.Head>{t("operator.audit.actor", "Actor")}</Table.Head>
+									<Table.Head>{t("operator.audit.subject", "Subject")}</Table.Head>
+									<Table.Head>{t("operator.audit.time", "Time")}</Table.Head>
+								</Table.Row>
+							</Table.Header>
+							<Table.Body>
+								{auditItems.map((item) => (
+									<Table.Row key={item.sequence}>
+										<Table.Cell>{item.sequence}</Table.Cell>
+										<Table.Cell>{item.eventType}</Table.Cell>
+										<Table.Cell className="break-all">{item.actorIdentity}</Table.Cell>
+										<Table.Cell className="break-all">{item.subject}</Table.Cell>
+										<Table.Cell>
+											{new Intl.DateTimeFormat(document.documentElement.lang, {
+												dateStyle: "medium",
+												timeStyle: "short",
+											}).format(item.createdAt)}
+										</Table.Cell>
+									</Table.Row>
+								))}
+							</Table.Body>
+						</Table>
+						{auditCursor ? (
+							<div className="mt-4 flex justify-end">
+								<Button loading={busy} onClick={() => listAudit(false)} variant="outline">
+									{t("operator.audit.next", "Next audit page")}
+								</Button>
+							</div>
+						) : null}
+					</div>
+				) : null}
 			</Surface>
 
 			<Surface className="rounded-xl border bg-kumo-base p-6">
@@ -387,7 +577,12 @@ export function OperatorPage() {
 						{t("operator.archive.start", "Start archive workflow")}
 					</Button>
 					<Button
-						disabled={!publisherDid || !archiveId || !Number.isSafeInteger(Number(archivePage))}
+						disabled={
+							!publisherDid ||
+							!archiveId ||
+							!Number.isSafeInteger(Number(archivePage)) ||
+							Number(archivePage) < 0
+						}
 						loading={busy}
 						onClick={archivePublisher}
 						variant="outline"
@@ -410,7 +605,84 @@ export function OperatorPage() {
 						</p>
 					) : null}
 				</div>
+				<div className="mt-6 border-t pt-5">
+					<h3 className="font-semibold text-kumo-strong">
+						{t("operator.restore.title", "Restore publisher shard")}
+					</h3>
+					<p className="mt-1 text-sm text-kumo-subtle">
+						{t(
+							"operator.restore.description",
+							"Preparation deletes the suspended publisher shard before encrypted pages are applied in order.",
+						)}
+					</p>
+					<div className="mt-4 flex flex-wrap items-end gap-3">
+						<Input
+							label={t("operator.restore.page", "Restore page")}
+							type="number"
+							value={restorePage}
+							onChange={(event) => setRestorePage(event.currentTarget.value)}
+						/>
+						<Button
+							disabled={!publisherDid || !archiveId}
+							loading={busy}
+							onClick={() => setRestoreConfirmOpen(true)}
+							variant="secondary-destructive"
+						>
+							{t("operator.restore.prepare", "Prepare restore")}
+						</Button>
+						<Button
+							disabled={
+								!publisherDid ||
+								!archiveId ||
+								!Number.isSafeInteger(Number(restorePage)) ||
+								Number(restorePage) < 0
+							}
+							loading={busy}
+							onClick={restorePublisherPage}
+							variant="outline"
+						>
+							{t("operator.restore.apply", "Apply restore page")}
+						</Button>
+					</div>
+					{restoreResult ? (
+						<p className="mt-4 text-sm text-kumo-subtle">
+							{restoreResult.complete
+								? t("operator.restore.complete", "Restore complete. Reauthorization is required.")
+								: t("operator.restore.next", "Restore page stored. Apply the next page.")}
+						</p>
+					) : null}
+				</div>
 			</Surface>
+
+			<Dialog.Root
+				disablePointerDismissal
+				onOpenChange={setRestoreConfirmOpen}
+				open={restoreConfirmOpen}
+			>
+				<Dialog className="p-6" size="sm">
+					<Dialog.Title className="text-lg font-semibold">
+						{t("operator.restore.confirmTitle", "Delete publisher state for restore?")}
+					</Dialog.Title>
+					<Dialog.Description className="mt-2 text-sm text-kumo-subtle">
+						{t(
+							"operator.restore.confirmDescription",
+							"The publisher must be suspended. This deletes current workload and intent state before archive pages can be restored.",
+						)}
+					</Dialog.Description>
+					<div className="mt-6 flex justify-end gap-3">
+						<Button onClick={() => setRestoreConfirmOpen(false)} variant="secondary">
+							{t("common.cancel", "Cancel")}
+						</Button>
+						<Button
+							loading={busy}
+							onClick={preparePublisherRestore}
+							variant="secondary-destructive"
+						>
+							{t("operator.restore.confirm", "Delete and prepare")}
+						</Button>
+					</div>
+				</Dialog>
+			</Dialog.Root>
 
 			<Surface className="rounded-xl border bg-kumo-base p-6">
 				<div className="flex flex-wrap items-start justify-between gap-4">
@@ -421,7 +693,7 @@ export function OperatorPage() {
 						<p className="mt-1 text-sm text-kumo-subtle">
 							{t(
 								"operator.encryption.description",
-								"Rotate one bounded shard page, then resume from the returned cursor until verification completes.",
+								"Keep publication paused while activating, rotating, verifying, or retiring encryption keys.",
 							)}
 						</p>
 					</div>
@@ -433,6 +705,137 @@ export function OperatorPage() {
 						</Badge>
 					) : null}
 				</div>
+				{encryptionKeys ? (
+					<div className="mt-5 flex flex-col gap-4">
+						<p className="text-sm text-kumo-subtle">
+							{t(
+								"operator.encryption.configured",
+								"Configured active key: {activeVersion}. Available versions: {versions}.",
+								{
+									activeVersion: encryptionKeys.configured.activeVersion,
+									versions: encryptionKeys.configured.versions.join(", "),
+								},
+							)}
+						</p>
+						<div className="overflow-x-auto">
+							<Table>
+								<Table.Header>
+									<Table.Row>
+										<Table.Head>{t("operator.encryption.version", "Version")}</Table.Head>
+										<Table.Head>{t("operator.encryption.status", "Status")}</Table.Head>
+										<Table.Head>{t("operator.encryption.updated", "Updated")}</Table.Head>
+									</Table.Row>
+								</Table.Header>
+								<Table.Body>
+									{encryptionKeys.keys.map((key) => (
+										<Table.Row key={key.version}>
+											<Table.Cell>{key.version}</Table.Cell>
+											<Table.Cell>
+												<Badge
+													variant={
+														key.status === "active"
+															? "success"
+															: key.status === "readable"
+																? "warning"
+																: "neutral"
+													}
+												>
+													{key.status === "active"
+														? t("operator.encryption.active", "Active")
+														: key.status === "readable"
+															? t("operator.encryption.readable", "Readable")
+															: t("operator.encryption.retired", "Retired")}
+												</Badge>
+											</Table.Cell>
+											<Table.Cell>
+												{key.updatedAt === 0
+													? t("operator.encryption.bootstrap", "Bootstrap")
+													: new Intl.DateTimeFormat(document.documentElement.lang, {
+															dateStyle: "medium",
+															timeStyle: "short",
+														}).format(key.updatedAt)}
+											</Table.Cell>
+										</Table.Row>
+									))}
+								</Table.Body>
+							</Table>
+						</div>
+						{encryptionKeys.verification ? (
+							<p className="text-sm text-kumo-subtle">
+								{t(
+									"operator.encryption.verification",
+									"Key {keyVersion} verified {publishers} publisher shards, {approvers} approver shards, and {records} retained records.",
+									{
+										keyVersion: encryptionKeys.verification.targetKeyVersion,
+										publishers: encryptionKeys.verification.publishers,
+										approvers: encryptionKeys.verification.approvers,
+										records: encryptionKeys.verification.records,
+									},
+								)}
+							</p>
+						) : null}
+						{verificationWorkflowId ? (
+							<p className="break-all text-sm text-kumo-subtle">
+								{t("operator.encryption.workflow", "Verification Workflow: {workflowId}", {
+									workflowId: verificationWorkflowId,
+								})}
+							</p>
+						) : null}
+						<div className="flex flex-wrap items-end gap-3">
+							<Button loading={busy} onClick={refreshEncryptionKeyStatus} variant="outline">
+								{t("operator.encryption.refresh", "Refresh key status")}
+							</Button>
+							<Button
+								disabled={
+									state?.mode !== "publication-paused" ||
+									encryptionKeys.keys.find((key) => key.status === "active")?.version ===
+										encryptionKeys.configured.activeVersion
+								}
+								loading={busy}
+								onClick={activateConfiguredEncryptionKey}
+								variant="outline"
+							>
+								{t("operator.encryption.activate", "Activate configured key")}
+							</Button>
+							<Input
+								label={t("operator.encryption.previousVersion", "Previous key version")}
+								type="number"
+								value={retireKeyVersion}
+								onChange={(event) => setRetireKeyVersion(event.currentTarget.value)}
+							/>
+							<Button
+								disabled={
+									state?.mode !== "publication-paused" ||
+									!Number.isSafeInteger(Number(retireKeyVersion)) ||
+									Number(retireKeyVersion) < 1 ||
+									!encryptionKeys.configured.versions.includes(Number(retireKeyVersion))
+								}
+								loading={busy}
+								onClick={startEncryptionVerification}
+								variant="outline"
+							>
+								{t("operator.encryption.verify", "Start fleet verification")}
+							</Button>
+							<Button
+								disabled={
+									state?.mode !== "publication-paused" ||
+									!Number.isSafeInteger(Number(retireKeyVersion)) ||
+									Number(retireKeyVersion) < 1 ||
+									encryptionKeys.configured.versions.includes(Number(retireKeyVersion)) ||
+									encryptionKeys.verification === null
+								}
+								loading={busy}
+								onClick={() => setRetireKeyConfirmOpen(true)}
+								variant="secondary-destructive"
+							>
+								{t("operator.encryption.retire", "Retire removed key")}
+							</Button>
+						</div>
+					</div>
+				) : null}
+				<h3 className="mt-6 font-semibold text-kumo-strong">
+					{t("operator.encryption.rotationTitle", "Shard rotation")}
+				</h3>
 				<div className="mt-5 grid gap-4 md:grid-cols-2">
 					<div className="flex flex-col gap-3">
 						<Input
@@ -490,6 +893,32 @@ export function OperatorPage() {
 					</p>
 				) : null}
 			</Surface>
+
+			<Dialog.Root
+				disablePointerDismissal
+				onOpenChange={setRetireKeyConfirmOpen}
+				open={retireKeyConfirmOpen}
+			>
+				<Dialog className="p-6" size="sm">
+					<Dialog.Title className="text-lg font-semibold">
+						{t("operator.encryption.retireConfirmTitle", "Retire encryption key?")}
+					</Dialog.Title>
+					<Dialog.Description className="mt-2 text-sm text-kumo-subtle">
+						{t(
+							"operator.encryption.retireConfirmDescription",
+							"Retire this version only after two zero-change verification scans and after removing it from the configured keyring. Remaining ciphertext for this version will become unreadable.",
+						)}
+					</Dialog.Description>
+					<div className="mt-6 flex justify-end gap-3">
+						<Button onClick={() => setRetireKeyConfirmOpen(false)} variant="secondary">
+							{t("common.cancel", "Cancel")}
+						</Button>
+						<Button loading={busy} onClick={retireEncryptionKey} variant="secondary-destructive">
+							{t("operator.encryption.retireConfirm", "Retire key")}
+						</Button>
+					</div>
+				</Dialog>
+			</Dialog.Root>
 
 			<Surface className="rounded-xl border bg-kumo-base p-6">
 				<h2 className="text-xl font-semibold text-kumo-strong">

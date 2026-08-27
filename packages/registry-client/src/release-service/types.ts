@@ -94,6 +94,16 @@ export interface SubmitReleaseIntentResult {
 	replayed: boolean;
 }
 
+export interface DryRunReleaseIntentResult {
+	allowed: true;
+	publisherDid: string;
+	packageSlug: string;
+	version: string;
+	workloadPolicyVersion: number;
+	workloadIdentityDigest: string;
+	requestDigest: string;
+}
+
 export interface WorkloadPolicyResource {
 	packageSlug: string;
 	repository: string;
@@ -172,6 +182,50 @@ export interface DirectoryListOptions {
 	limit?: number;
 }
 
+export interface AuditListOptions {
+	cursor?: string;
+	limit?: number;
+}
+
+export interface ControlAuditEventResource {
+	sequence: number;
+	eventType: string;
+	actorRealm: "access" | "system";
+	actorIdentity: string;
+	actorRole: "admin" | "reviewer" | "viewer" | null;
+	subject: string;
+	reasonCode: string | null;
+	createdAt: number;
+}
+
+export interface PublisherAuditEventResource {
+	sequence: number;
+	eventType: string;
+	actorRealm: "access" | "approver" | "oidc" | "publisher" | "system";
+	actorIdentity: string;
+	subject: string;
+	reasonCode: string | null;
+	createdAt: number;
+}
+
+export type PublisherApproverEnrollmentState = "enrolled" | "not_enrolled" | "revoked";
+
+export interface PublisherApproverStatusResource {
+	did: string;
+	status: PublisherApproverEnrollmentState;
+	credentialCount: number;
+	activeCredentialCount: number;
+	firstEnrolledAt: number | null;
+	lastEnrolledAt: number | null;
+	lastRevokedAt: number | null;
+}
+
+export interface PublisherApproverStatusResult {
+	packageSlug: string;
+	profileCid: string;
+	items: PublisherApproverStatusResource[];
+}
+
 export interface EncryptionRotationPageInput {
 	afterCursor: string | null;
 	limit: number;
@@ -185,6 +239,41 @@ export interface EncryptionRotationResult {
 	raced: number;
 	nextCursor: string | null;
 	complete: boolean;
+}
+
+export type EncryptionKeyLifecycleStatus = "active" | "readable" | "retired";
+
+export interface EncryptionKeyStateResource {
+	version: number;
+	status: EncryptionKeyLifecycleStatus;
+	activatedAt: number;
+	retiredAt: number | null;
+	changedBy: string;
+	updatedAt: number;
+}
+
+export interface EncryptionKeyStatusResource {
+	configured: {
+		activeVersion: number;
+		versions: number[];
+	};
+	keys: EncryptionKeyStateResource[];
+	verification: EncryptionVerificationResource | null;
+}
+
+export interface EncryptionVerificationResource {
+	targetKeyVersion: number;
+	workflowId: string;
+	publishers: number;
+	approvers: number;
+	records: number;
+	rotated: number;
+	verifiedAt: number;
+}
+
+export interface StartEncryptionVerificationResult {
+	workflowId: string;
+	created: boolean;
 }
 
 export type PublisherArchiveKind = "audit-events" | "intents" | "metadata" | "workload-policies";

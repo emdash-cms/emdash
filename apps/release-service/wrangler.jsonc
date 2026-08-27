@@ -75,6 +75,11 @@
 			"name": "emdash-publisher-archive",
 			"class_name": "PublisherArchiveWorkflow",
 		},
+		{
+			"binding": "ENCRYPTION_VERIFICATION_WORKFLOW",
+			"name": "emdash-encryption-verification",
+			"class_name": "EncryptionVerificationWorkflow",
+		},
 	],
 	"assets": {
 		"directory": "./dist/client",

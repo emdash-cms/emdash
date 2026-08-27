@@ -1,4 +1,5 @@
 import { reset } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWTVerifyGetKey } from "jose";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
@@ -10,6 +11,10 @@ import { TEST_ACCESS_AUDIENCES, TEST_BINDINGS } from "./fixtures/oauth.js";
 const ACCESS_KEY_ID = "control-route-access-key";
 const OPERATOR_SUBJECT = "7335d417-61da-459d-899c-0a01c76a2f94";
 const DID = "did:plc:publisher";
+const KEYRING_V2 =
+	'{"current":2,"keys":[{"version":1,"key":"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"},{"version":2,"key":"ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8"}]}';
+const KEYRING_V2_RETIRED =
+	'{"current":2,"keys":[{"version":2,"key":"ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8"}]}';
 
 let privateKey: CryptoKey;
 let keyResolver: JWTVerifyGetKey;
@@ -45,6 +50,7 @@ async function operatorRequest(
 	path: string,
 	role: AccessRole,
 	init: RequestInit = {},
+	bindings = TEST_BINDINGS,
 ): Promise<Response> {
 	const headers = new Headers(init.headers);
 	headers.set("cf-access-jwt-assertion", await accessToken(role));
@@ -57,7 +63,7 @@ async function operatorRequest(
 	}
 	return handleRequest(
 		new Request(`${TEST_BINDINGS.PUBLIC_ORIGIN}${path}`, { ...init, headers }),
-		TEST_BINDINGS,
+		bindings,
 		ROUTES,
 		keyResolver,
 	);
@@ -107,6 +113,117 @@ describe("Access service-control routes", () => {
 		expect(conflict.status).toBe(409);
 		expect(await conflict.json()).toMatchObject({
 			error: { code: "IDEMPOTENCY_CONFLICT" },
+		});
+	});
+
+	it("activates and retires configured encryption keys through Access", async () => {
+		const configuredV2 = { ...TEST_BINDINGS, ENCRYPTION_KEYRING: KEYRING_V2 };
+		const retiredV1 = { ...TEST_BINDINGS, ENCRYPTION_KEYRING: KEYRING_V2_RETIRED };
+		const initiallyNotReady = await handleRequest(
+			new Request(`${TEST_BINDINGS.PUBLIC_ORIGIN}/ready`),
+			configuredV2,
+			ROUTES,
+			keyResolver,
+		);
+		expect(initiallyNotReady.status).toBe(503);
+		const initial = await operatorRequest(
+			"/admin/api/encryption/keys",
+			"viewer",
+			{},
+			configuredV2,
+		);
+		await expect(initial.json()).resolves.toMatchObject({
+			data: {
+				configured: { activeVersion: 2, versions: [1, 2] },
+				keys: [{ version: 1, status: "active" }],
+			},
+		});
+
+		await operatorRequest(
+			"/admin/api/pause",
+			"admin",
+			{
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"idempotency-key": "key-lifecycle-pause-0001",
+				},
+				body: JSON.stringify({ mode: "publication-paused", reasonCode: "KEY_ROTATION" }),
+			},
+			configuredV2,
+		);
+		const activated = await operatorRequest(
+			"/admin/api/encryption/keys/activate",
+			"admin",
+			{
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"idempotency-key": "key-lifecycle-activate-0001",
+				},
+				body: JSON.stringify({ version: 2 }),
+			},
+			configuredV2,
+		);
+		expect(activated.status).toBe(200);
+		await expect(activated.json()).resolves.toMatchObject({
+			data: {
+				key: { version: 2, status: "active", changedBy: OPERATOR_SUBJECT },
+				replayed: false,
+			},
+		});
+		const ready = await handleRequest(
+			new Request(`${TEST_BINDINGS.PUBLIC_ORIGIN}/ready`),
+			configuredV2,
+			ROUTES,
+			keyResolver,
+		);
+		expect(ready.status).toBe(200);
+		await env.SERVICE_CONTROL_DO.getByName("global").recordEncryptionVerification({
+			targetKeyVersion: 2,
+			workflowId: "V".repeat(43),
+			actorIdentity: "release-service",
+			publishers: 0,
+			approvers: 0,
+			records: 0,
+			rotated: 0,
+			verifiedAt: Date.now(),
+		});
+
+		const retained = await operatorRequest(
+			"/admin/api/encryption/keys/1/retire",
+			"admin",
+			{
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"idempotency-key": "key-lifecycle-retire-0001",
+				},
+				body: "{}",
+			},
+			configuredV2,
+		);
+		expect(retained.status).toBe(409);
+		await expect(retained.json()).resolves.toMatchObject({
+			error: { code: "ENCRYPTION_OPERATION_FAILED" },
+		});
+
+		const retired = await operatorRequest(
+			"/admin/api/encryption/keys/1/retire",
+			"admin",
+			{
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"idempotency-key": "key-lifecycle-retire-0002",
+				},
+				body: "{}",
+			},
+			retiredV1,
+		);
+		expect(retired.status).toBe(200);
+		await expect(retired.json()).resolves.toMatchObject({
+			data: { key: { version: 1, status: "retired" }, replayed: false },
 		});
 	});
 
@@ -191,8 +308,12 @@ describe("Access service-control routes", () => {
 		["GET", "/admin/api/viewer/status", "viewer"],
 		["GET", `/admin/api/viewer/publisher-control?did=${encodeURIComponent(DID)}`, "viewer"],
 		["GET", "/admin/api/viewer/audit", "viewer"],
+		["GET", "/admin/api/viewer/encryption/keys", "viewer"],
 		["POST", "/admin/api/admin/service-mode", "admin"],
 		["POST", "/admin/api/admin/publisher-control", "admin"],
+		["POST", "/admin/api/admin/encryption/keys/activate", "admin"],
+		["POST", "/admin/api/admin/encryption/verify", "admin"],
+		["POST", "/admin/api/admin/encryption/keys/1/retire", "admin"],
 	] as const)("does not expose the legacy %s %s operator route", async (method, path, role) => {
 		const response = await operatorRequest(path, role, {
 			method,

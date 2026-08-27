@@ -10,6 +10,7 @@ import {
 	ApproverStoreError,
 	type ApproverAuditEvent,
 	type ApproverCredential,
+	type ApproverEnrollmentStatus,
 	type ApprovalReceipt,
 	type CleanupResult,
 	type CommitVerifiedDecisionInput,
@@ -35,6 +36,7 @@ import {
 export type {
 	ApproverAuditEvent,
 	ApproverCredential,
+	ApproverEnrollmentStatus,
 	ApprovalDecision,
 	ApprovalReceipt,
 	CleanupResult,
@@ -152,6 +154,11 @@ export class ApproverDurableObject extends DurableObject<Env> {
 	): readonly ApproverCredential[] {
 		this.#assertApproverDid(approverDid);
 		return this.#store.listCredentials(approverDid, afterCredentialId, limit);
+	}
+
+	getEnrollmentStatus(approverDid: string): ApproverEnrollmentStatus {
+		this.#assertObjectName(approverDid);
+		return this.#store.getEnrollmentStatus(approverDid);
 	}
 
 	getCredentialForVerification(

@@ -6,11 +6,14 @@ import { loadConfiguration } from "../src/config.js";
 import { createPublisherApplicationSession } from "../src/publisher-session/session.js";
 import {
 	handleDisablePublisherWorkload,
+	handleGetPublisherApproverStatus,
 	handleGetPublisher,
+	handleListPublisherAudit,
 	handleListPublisherIntents,
 	handleListPublisherWorkloads,
 	handlePutPublisherWorkload,
 	handleRevokePublisherDelegation,
+	matchPublisherApproverStatusPath,
 } from "../src/publisher/routes.js";
 import { TEST_BINDINGS } from "./fixtures/oauth.js";
 
@@ -146,6 +149,73 @@ describe("publisher API", () => {
 		});
 	});
 
+	it("compares signed approvers with safe enrolment summaries", async () => {
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		const enrolledDid = "did:plc:enrolled-approver";
+		const missingDid = "did:plc:missing-approver";
+		const revokedDid = "did:plc:revoked-approver";
+		await env.PUBLISHER_DO.getByName(PUBLISHER_DID).putWorkloadPolicy({
+			publisherDid: PUBLISHER_DID,
+			...policyBody(),
+			active: true,
+			now: NOW,
+		});
+		await env.APPROVER_DO.getByName(enrolledDid).enrolCredential(enrolledDid, {
+			credentialId: "publisher-visible-status",
+			publicKey: new Uint8Array([1, 2, 3]),
+			algorithm: -7,
+			counter: 0,
+			transports: ["internal"],
+			name: "Private credential name",
+			now: NOW + 1,
+		});
+		await env.APPROVER_DO.getByName(revokedDid).enrolCredential(revokedDid, {
+			credentialId: "revoked-publisher-status",
+			publicKey: new Uint8Array([4, 5, 6]),
+			algorithm: -7,
+			counter: 0,
+			transports: ["internal"],
+			name: "Revoked private credential",
+			now: NOW + 1,
+		});
+		await env.APPROVER_DO.getByName(revokedDid).revokeCredential(
+			revokedDid,
+			"revoked-publisher-status",
+			NOW + 2,
+		);
+		const params = matchPublisherApproverStatusPath("/v1/publisher/workloads/gallery/approvers");
+		expect(params).toEqual({ packageSlug: "gallery" });
+
+		const response = await handleGetPublisherApproverStatus(
+			request("/v1/publisher/workloads/gallery/approvers", await sessionHeaders()),
+			"request-approvers",
+			configuration,
+			params!,
+			{
+				loadCurrentApprovalPolicy: async () => ({
+					profileCid: "bafyprofile",
+					approverDids: [enrolledDid, missingDid, revokedDid],
+				}),
+			},
+		);
+
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body).toMatchObject({
+			data: {
+				packageSlug: "gallery",
+				profileCid: "bafyprofile",
+				items: [
+					{ did: enrolledDid, status: "enrolled", activeCredentialCount: 1 },
+					{ did: missingDid, status: "not_enrolled", activeCredentialCount: 0 },
+					{ did: revokedDid, status: "revoked", activeCredentialCount: 0 },
+				],
+			},
+		});
+		expect(JSON.stringify(body)).not.toContain("Private credential name");
+		expect(JSON.stringify(body)).not.toContain("publisher-visible-status");
+	});
+
 	it("lists only intents from the authenticated publisher shard", async () => {
 		const configuration = await loadConfiguration(TEST_BINDINGS);
 		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
@@ -180,6 +250,27 @@ describe("publisher API", () => {
 		expect(await response.json()).toMatchObject({
 			data: { items: [{ id: INTENT_ID, publisherDid: PUBLISHER_DID }] },
 		});
+	});
+
+	it("paginates the authenticated publisher audit without private payloads", async () => {
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		await sessionHeaders();
+		const response = await handleListPublisherAudit(
+			request("/v1/publisher/audit?limit=1", await sessionHeaders()),
+			"request-audit",
+			configuration,
+		);
+
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body).toMatchObject({
+			data: {
+				items: [{ sequence: 1, eventType: "publisher-session-created" }],
+				nextCursor: "1",
+			},
+		});
+		expect(JSON.stringify(body)).not.toContain("csrf");
+		expect(JSON.stringify(body)).not.toContain("publicPayloadJson");
 	});
 
 	it("revokes retained authority idempotently without exposing OAuth errors", async () => {

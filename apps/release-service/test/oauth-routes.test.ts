@@ -22,7 +22,6 @@ function cookiePair(setCookie: string): string {
 
 function oauthNetwork() {
 	const requests: Array<{ path: string; body: URLSearchParams }> = [];
-	let issuedScope = "atproto";
 	const fetch: typeof globalThis.fetch = async (input, init) => {
 		const url = new URL(input instanceof Request ? input.url : input.toString());
 		if (url.hostname === "publisher.example.com" && url.pathname === "/.well-known/did.json") {
@@ -71,7 +70,6 @@ function oauthNetwork() {
 			} else if (typeof init?.body === "string") {
 				for (const [key, value] of new URLSearchParams(init.body)) body.append(key, value);
 			}
-			issuedScope = body.get("scope") ?? issuedScope;
 			requests.push({ path: url.pathname, body });
 			return Response.json({
 				request_uri: "urn:ietf:params:oauth:request_uri:test",
@@ -84,7 +82,7 @@ function oauthNetwork() {
 				refresh_token: "refresh-token",
 				token_type: "DPoP",
 				sub: DID,
-				scope: issuedScope,
+				scope: requests.at(-1)?.body.get("scope") ?? "atproto",
 				expires_in: 3600,
 			});
 		}
@@ -187,6 +185,47 @@ describe("publisher OAuth routes", () => {
 				10,
 			),
 		).resolves.toEqual([expect.objectContaining({ did: DID, kind: "publisher" })]);
+	});
+
+	it("fails the callback before issuing an app session when directory registration fails", async () => {
+		const network = oauthNetwork();
+		vi.stubGlobal("fetch", network.fetch);
+		const config = await configuration();
+		const start = await handlePublisherIdentityAuthorize(
+			new Request(`${ORIGIN}/v1/publisher/session/authorize`, {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					origin: ORIGIN,
+					"x-emdash-request": "1",
+				},
+				body: JSON.stringify({ identifier: DID, redirectTarget: "/publisher" }),
+			}),
+			"route-start-directory-failure",
+			config,
+		);
+		const routeCookie = cookiePair(start.headers.get("set-cookie") ?? "");
+		const state =
+			network.requests.find((request) => request.path === "/par")?.body.get("state") ?? "";
+
+		const callback = await handleOAuthCallback(
+			new Request(
+				`${ORIGIN}/oauth/callback?code=code-1&state=${encodeURIComponent(state)}&iss=${encodeURIComponent("https://authorization.example")}`,
+				{ headers: { cookie: routeCookie } },
+			),
+			"route-callback-directory-failure",
+			config,
+			{
+				registerDirectoryIdentity: async () => {
+					throw new Error("directory unavailable");
+				},
+			},
+		);
+
+		expect(callback.status).toBe(400);
+		const setCookie = callback.headers.get("set-cookie") ?? "";
+		expect(setCookie).not.toContain("__Host-emdash_publisher_session=");
+		expect(setCookie).not.toContain("__Host-emdash_publisher_csrf=");
 	});
 
 	it("keeps approver identity state and cookies in the approver realm", async () => {
@@ -367,13 +406,13 @@ describe("publisher OAuth routes", () => {
 		expect(par?.body.get("scope")).not.toContain("transition:generic");
 	});
 
-	it("completes delegation callback into the publisher custody shard", async () => {
+	it("completes delegation callback after directory registration", async () => {
 		const network = oauthNetwork();
 		vi.stubGlobal("fetch", network.fetch);
 		const config = await configuration();
 		const session = await createPublisherApplicationSession(env.PUBLISHER_DO, DID);
 		const sessionCookies = session.setCookieHeaders.map(cookiePair);
-		const csrf = cookiePair(session.setCookieHeaders[1]).split("=", 2)[1] ?? "";
+		const csrf = sessionCookies[1]?.split("=", 2)[1] ?? "";
 		const start = await handlePublisherDelegationAuthorize(
 			new Request(`${ORIGIN}/v1/publisher/delegation/authorize`, {
 				method: "POST",
@@ -400,6 +439,7 @@ describe("publisher OAuth routes", () => {
 			),
 			"delegation-callback",
 			config,
+			{ registerDirectoryIdentity: async () => ({ shard: "00", created: true }) },
 		);
 
 		expect(callback.status).toBe(303);
@@ -411,26 +451,73 @@ describe("publisher OAuth routes", () => {
 		});
 	});
 
+	it("does not retain delegated authority when directory registration fails", async () => {
+		const network = oauthNetwork();
+		vi.stubGlobal("fetch", network.fetch);
+		const config = await configuration();
+		const session = await createPublisherApplicationSession(env.PUBLISHER_DO, DID);
+		const sessionCookies = session.setCookieHeaders.map(cookiePair);
+		const csrf = sessionCookies[1]?.split("=", 2)[1] ?? "";
+		const start = await handlePublisherDelegationAuthorize(
+			new Request(`${ORIGIN}/v1/publisher/delegation/authorize`, {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					cookie: sessionCookies.join("; "),
+					origin: ORIGIN,
+					"x-emdash-request": "1",
+					"x-emdash-csrf": csrf,
+				},
+				body: JSON.stringify({ redirectTarget: "/publisher" }),
+			}),
+			"delegation-directory-start",
+			config,
+		);
+		const routeCookie = cookiePair(start.headers.get("set-cookie") ?? "");
+		const state =
+			network.requests.find((request) => request.path === "/par")?.body.get("state") ?? "";
+
+		const callback = await handleOAuthCallback(
+			new Request(
+				`${ORIGIN}/oauth/callback?code=code-1&state=${encodeURIComponent(state)}&iss=${encodeURIComponent("https://authorization.example")}`,
+				{ headers: { cookie: [...sessionCookies, routeCookie].join("; ") } },
+			),
+			"delegation-directory-callback",
+			config,
+			{
+				registerDirectoryIdentity: async () => {
+					throw new Error("directory unavailable");
+				},
+			},
+		);
+
+		expect(callback.status).toBe(400);
+		await expect(env.PUBLISHER_DO.getByName(DID).getDelegation(DID)).resolves.toBeNull();
+	});
+
 	it("rejects callback state substitution and clears the routing cookie", async () => {
 		const config = await configuration();
 		const created = await createPublisherApplicationSession(env.PUBLISHER_DO, DID);
 		const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
-		const response = await handleOAuthCallback(
-			new Request(`${ORIGIN}/oauth/callback?state=unknown-state-value`, {
-				headers: { cookie: created.setCookieHeaders.map(cookiePair).join("; ") },
-			}),
-			"bad-callback",
-			config,
-		);
-		expect(response.status).toBe(400);
-		expect(response.headers.get("set-cookie")).toContain("__Host-emdash_oauth_route=");
-		expect(await response.text()).not.toContain("unknown-state-value");
-		expect(errorLog).toHaveBeenCalledWith(
-			expect.stringContaining('"event":"oauth_callback_error"'),
-		);
-		expect(errorLog).toHaveBeenCalledWith(
-			expect.stringContaining('"code":"PUBLISHER_SESSION_INVALID"'),
-		);
-		errorLog.mockRestore();
+		try {
+			const response = await handleOAuthCallback(
+				new Request(`${ORIGIN}/oauth/callback?state=unknown-state-value`, {
+					headers: { cookie: created.setCookieHeaders.map(cookiePair).join("; ") },
+				}),
+				"bad-callback",
+				config,
+			);
+			expect(response.status).toBe(400);
+			expect(response.headers.get("set-cookie")).toContain("__Host-emdash_oauth_route=");
+			expect(await response.text()).not.toContain("unknown-state-value");
+			expect(errorLog).toHaveBeenCalledWith(
+				expect.stringContaining('"event":"oauth_callback_error"'),
+			);
+			expect(errorLog).toHaveBeenCalledWith(
+				expect.stringContaining('"code":"PUBLISHER_SESSION_INVALID"'),
+			);
+		} finally {
+			errorLog.mockRestore();
+		}
 	});
 });

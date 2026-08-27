@@ -7,7 +7,7 @@ export function App() {
 	const path = location.pathname;
 	const content = path.startsWith("/admin") ? (
 		<OperatorPage />
-	) : path.startsWith("/approvals/") ? (
+	) : path === "/approver" || path.startsWith("/approvals/") ? (
 		<ApproverPage />
 	) : (
 		<PublisherPage />

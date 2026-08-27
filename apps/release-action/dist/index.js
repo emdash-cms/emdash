@@ -881,7 +881,9 @@ const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.-]{0,127}$/;
 const CID_PATTERN = /^[A-Za-z0-9]+$/;
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
 const DIGITS_PATTERN = /^[0-9]+$/;
+const POSITIVE_INTEGER_PATTERN$1 = /^[1-9][0-9]*$/;
 const CSRF_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const DIGEST_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const API_ERROR_CODES = {
 	ACCESS_DENIED: true,
 	ACCESS_AUTH_INVALID: true,
@@ -1005,6 +1007,10 @@ function safeInteger(value, key) {
 	const item = value[key];
 	return Number.isSafeInteger(item) ? Number(item) : null;
 }
+function nullableSafeInteger(value, key) {
+	const item = value[key];
+	return item === null ? null : Number.isSafeInteger(item) ? Number(item) : void 0;
+}
 function parseIntentResult(value) {
 	if (value === null) return null;
 	if (!isRecord(value)) return void 0;
@@ -1054,6 +1060,25 @@ function parseIntent(value, serviceUrl) {
 		updatedAt,
 		result,
 		approvalUrl
+	};
+}
+function parseDryRunIntent(value) {
+	if (!isRecord(value)) throw invalidResponse();
+	const publisherDid = stringValue(value, "publisherDid");
+	const packageSlug = stringValue(value, "packageSlug");
+	const version = stringValue(value, "version");
+	const workloadPolicyVersion = safeInteger(value, "workloadPolicyVersion");
+	const workloadIdentityDigest = stringValue(value, "workloadIdentityDigest");
+	const requestDigest = stringValue(value, "requestDigest");
+	if (value["allowed"] !== true || !publisherDid || !DID_PATTERN.test(publisherDid) || !packageSlug || !PACKAGE_SLUG_PATTERN.test(packageSlug) || !version || !VERSION_PATTERN.test(version) || workloadPolicyVersion === null || workloadPolicyVersion < 1 || !workloadIdentityDigest || !DIGEST_PATTERN.test(workloadIdentityDigest) || !requestDigest || !DIGEST_PATTERN.test(requestDigest)) throw invalidResponse();
+	return {
+		allowed: true,
+		publisherDid,
+		packageSlug,
+		version,
+		workloadPolicyVersion,
+		workloadIdentityDigest,
+		requestDigest
 	};
 }
 function parseStringArray(value) {
@@ -1121,6 +1146,47 @@ function parsePublisher(value) {
 		did,
 		delegation,
 		...sessionExpiresAt === void 0 ? {} : { sessionExpiresAt: Number(sessionExpiresAt) }
+	};
+}
+function parsePublisherAuditEvent(value) {
+	if (!isRecord(value)) throw invalidResponse();
+	const sequence = safeInteger(value, "sequence");
+	const eventType = stringValue(value, "eventType");
+	const actorRealm = value["actorRealm"];
+	const actorIdentity = stringValue(value, "actorIdentity");
+	const subject = stringValue(value, "subject");
+	const reasonCode = nullableString(value, "reasonCode");
+	const createdAt = safeInteger(value, "createdAt");
+	if (sequence === null || sequence < 1 || !eventType || actorRealm !== "access" && actorRealm !== "approver" && actorRealm !== "oidc" && actorRealm !== "publisher" && actorRealm !== "system" || !actorIdentity || !subject || reasonCode === void 0 || createdAt === null) throw invalidResponse();
+	return {
+		sequence,
+		eventType,
+		actorRealm,
+		actorIdentity,
+		subject,
+		reasonCode,
+		createdAt
+	};
+}
+function parsePublisherApproverStatus(value) {
+	if (!isRecord(value)) throw invalidResponse();
+	const did = stringValue(value, "did");
+	const status = value["status"];
+	const credentialCount = safeInteger(value, "credentialCount");
+	const activeCredentialCount = safeInteger(value, "activeCredentialCount");
+	const firstEnrolledAt = nullableSafeInteger(value, "firstEnrolledAt");
+	const lastEnrolledAt = nullableSafeInteger(value, "lastEnrolledAt");
+	const lastRevokedAt = nullableSafeInteger(value, "lastRevokedAt");
+	const expectedStatus = activeCredentialCount !== null && activeCredentialCount > 0 ? "enrolled" : credentialCount !== null && credentialCount > 0 ? "revoked" : "not_enrolled";
+	if (!did || !DID_PATTERN.test(did) || status !== "enrolled" && status !== "not_enrolled" && status !== "revoked" || status !== expectedStatus || credentialCount === null || credentialCount < 0 || activeCredentialCount === null || activeCredentialCount < 0 || activeCredentialCount > credentialCount || firstEnrolledAt === void 0 || lastEnrolledAt === void 0 || lastRevokedAt === void 0 || credentialCount === 0 && (firstEnrolledAt !== null || lastEnrolledAt !== null || lastRevokedAt !== null) || credentialCount > 0 && (firstEnrolledAt === null || lastEnrolledAt === null || firstEnrolledAt < 0 || lastEnrolledAt < firstEnrolledAt) || lastRevokedAt !== null && (firstEnrolledAt === null || lastRevokedAt < firstEnrolledAt) || status === "revoked" && lastRevokedAt === null) throw invalidResponse();
+	return {
+		did,
+		status,
+		credentialCount,
+		activeCredentialCount,
+		firstEnrolledAt,
+		lastEnrolledAt,
+		lastRevokedAt
 	};
 }
 function invalidResponse(requestId = null) {
@@ -1254,6 +1320,16 @@ var ReleaseServiceClient = class extends BaseReleaseServiceClient {
 			};
 		});
 	}
+	async dryRunIntent(input, options = {}) {
+		const headers = await this.#workloadHeaders();
+		headers.set("content-type", "application/json");
+		return await this.call("/v1/release-intents/dry-run", {
+			method: "POST",
+			headers,
+			body: JSON.stringify(input),
+			signal: options.signal
+		}, parseDryRunIntent);
+	}
 	async getIntent(publisherDid, intentId, options = {}) {
 		const headers = await this.#workloadHeaders();
 		return await this.call(`/v1/release-intents/${encodeURIComponent(intentId)}?publisher=${encodeURIComponent(publisherDid)}`, {
@@ -1368,6 +1444,48 @@ var ReleaseServiceClient = class extends BaseReleaseServiceClient {
 			credentials: "include",
 			signal: options.signal
 		}, (value) => parsePage(value, (item) => parseIntent(item, this.serviceUrl)));
+	}
+	async listPublisherAudit(options = {}) {
+		const url = new URL("/v1/publisher/audit", this.serviceUrl);
+		if (options.cursor) {
+			if (!POSITIVE_INTEGER_PATTERN$1.test(options.cursor)) throw new ReleaseServiceError({
+				code: "CLIENT_RESPONSE_INVALID",
+				message: "Audit cursor is invalid"
+			});
+			url.searchParams.set("cursor", options.cursor);
+		}
+		if (options.limit !== void 0) {
+			if (!Number.isSafeInteger(options.limit) || options.limit < 1 || options.limit > 100) throw new ReleaseServiceError({
+				code: "CLIENT_RESPONSE_INVALID",
+				message: "Audit limit is invalid"
+			});
+			url.searchParams.set("limit", String(options.limit));
+		}
+		return await this.call(`${url.pathname}${url.search}`, {
+			method: "GET",
+			credentials: "include",
+			signal: options.signal
+		}, (value) => parsePage(value, parsePublisherAuditEvent));
+	}
+	async getPublisherApproverStatus(packageSlug) {
+		if (!PACKAGE_SLUG_PATTERN.test(packageSlug)) throw new ReleaseServiceError({
+			code: "CLIENT_RESPONSE_INVALID",
+			message: "Package slug is invalid"
+		});
+		return await this.call(`/v1/publisher/workloads/${encodeURIComponent(packageSlug)}/approvers`, {
+			method: "GET",
+			credentials: "include"
+		}, (value) => {
+			if (!isRecord(value) || !Array.isArray(value["items"])) throw invalidResponse();
+			const returnedPackageSlug = stringValue(value, "packageSlug");
+			const profileCid = stringValue(value, "profileCid");
+			if (returnedPackageSlug !== packageSlug || !profileCid || !CID_PATTERN.test(profileCid)) throw invalidResponse();
+			return {
+				packageSlug: returnedPackageSlug,
+				profileCid,
+				items: value["items"].map(parsePublisherApproverStatus)
+			};
+		});
 	}
 };
 function parsePage(value, parseItem) {

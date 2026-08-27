@@ -150,6 +150,7 @@ function publisherSnapshotErrorCode(error: unknown): PublisherSnapshotError["cod
 
 function isRetryablePublicationBlock(code: string): boolean {
 	return (
+		code === "ENCRYPTION_KEY_INACTIVE" ||
 		code === "PERMIT_EXPIRED" ||
 		code === "PERMIT_STALE" ||
 		code === "PUBLICATION_PAUSED" ||
@@ -850,6 +851,7 @@ export async function publishVerifiedIntent(
 			return await step.do<AttemptResult>(`publication-create-${attempt}`, async () => {
 				let writeStarted = false;
 				try {
+					const serviceConfiguration = await loadConfiguration(env);
 					const restored = await restorePublicationSession(env, publisherDid);
 					const delegation = await publisher.getDelegation(publisherDid);
 					if (
@@ -862,6 +864,7 @@ export async function publishVerifiedIntent(
 						publisherDid,
 						originalIntent.id,
 						PUBLICATION_PERMIT_TTL_MS,
+						serviceConfiguration.encryption.currentKeyVersion,
 					);
 					if (!permit.ok) {
 						return failBeforeWrite(permit.code, isRetryablePublicationBlock(permit.code));

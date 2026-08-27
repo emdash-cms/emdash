@@ -161,6 +161,65 @@ describe("ReleaseServiceClient", () => {
 		expect(fetch).not.toHaveBeenCalled();
 	});
 
+	it("dry-runs workload admission without an idempotency key", async () => {
+		let request: Request | null = null;
+		const client = new ReleaseServiceClient({
+			serviceUrl: SERVICE,
+			workloadToken: "header.payload.signature",
+			fetch: async (input, init) => {
+				request = new Request(input, init);
+				return success({
+					allowed: true,
+					publisherDid: PUBLISHER_DID,
+					packageSlug: "gallery",
+					version: "1.2.3",
+					workloadPolicyVersion: 2,
+					workloadIdentityDigest: "W".repeat(43),
+					requestDigest: "R".repeat(43),
+				});
+			},
+		});
+		const release = sourceRelease();
+
+		await expect(
+			client.dryRunIntent({
+				publisherDid: PUBLISHER_DID,
+				packageSlug: "gallery",
+				version: "1.2.3",
+				release,
+			}),
+		).resolves.toMatchObject({ allowed: true, workloadPolicyVersion: 2 });
+		expect(request?.url).toBe(`${SERVICE}/v1/release-intents/dry-run`);
+		expect(request?.headers.get("authorization")).toBe("Bearer header.payload.signature");
+		expect(request?.headers.has("idempotency-key")).toBe(false);
+	});
+
+	it("rejects invalid dry-run source records before acquiring a workload token", async () => {
+		const release = sourceRelease();
+		Object.assign(release.artifacts.package, {
+			blob: {
+				$type: "blob",
+				ref: { $link: "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe" },
+				mimeType: "application/gzip",
+				size: 128,
+			},
+		});
+		const token = vi.fn(() => "header.payload.signature");
+		const fetch = vi.fn<typeof globalThis.fetch>();
+		const client = new ReleaseServiceClient({ serviceUrl: SERVICE, fetch, workloadToken: token });
+
+		await expect(
+			client.dryRunIntent({
+				publisherDid: PUBLISHER_DID,
+				packageSlug: "gallery",
+				version: "1.2.3",
+				release,
+			}),
+		).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+		expect(token).not.toHaveBeenCalled();
+		expect(fetch).not.toHaveBeenCalled();
+	});
+
 	it("maps stable server errors, retry hints, and network failures", async () => {
 		const workloadToken = "header.payload.signature";
 		const pausedFetch: typeof globalThis.fetch = async () =>
@@ -315,6 +374,79 @@ describe("ReleaseServiceClient", () => {
 		expect(mutationHeaders.has("authorization")).toBe(false);
 	});
 
+	it("lists only the authenticated publisher audit", async () => {
+		let captured = "";
+		let capturedSignal: AbortSignal | null | undefined;
+		const controller = new AbortController();
+		const client = new ReleaseServiceClient({
+			serviceUrl: SERVICE,
+			fetch: async (input, init) => {
+				captured = input instanceof Request ? input.url : input.toString();
+				capturedSignal = init?.signal;
+				return success({
+					items: [
+						{
+							sequence: 3,
+							eventType: "workload-policy-stored",
+							actorRealm: "publisher",
+							actorIdentity: PUBLISHER_DID,
+							subject: "gallery",
+							reasonCode: null,
+							createdAt: 1_800_000_000_000,
+						},
+					],
+					nextCursor: "3",
+				});
+			},
+		});
+
+		await expect(
+			client.listPublisherAudit({ cursor: "2", limit: 1, signal: controller.signal }),
+		).resolves.toMatchObject({
+			items: [{ sequence: 3, actorRealm: "publisher" }],
+			nextCursor: "3",
+		});
+		expect(captured).toBe(`${SERVICE}/v1/publisher/audit?cursor=2&limit=1`);
+		expect(capturedSignal).toBe(controller.signal);
+		await expect(client.listPublisherAudit({ cursor: "0" })).rejects.toMatchObject({
+			code: "CLIENT_RESPONSE_INVALID",
+		});
+		await expect(client.listPublisherAudit({ cursor: "01" })).rejects.toMatchObject({
+			code: "CLIENT_RESPONSE_INVALID",
+		});
+	});
+
+	it("reads publisher-visible approver enrolment status", async () => {
+		let captured = "";
+		const client = new ReleaseServiceClient({
+			serviceUrl: SERVICE,
+			fetch: async (input) => {
+				captured = input instanceof Request ? input.url : input.toString();
+				return success({
+					packageSlug: "gallery",
+					profileCid: "bafyprofile",
+					items: [
+						{
+							did: "did:plc:approver",
+							status: "enrolled",
+							credentialCount: 2,
+							activeCredentialCount: 1,
+							firstEnrolledAt: 1_799_999_000_000,
+							lastEnrolledAt: 1_799_999_500_000,
+							lastRevokedAt: 1_799_999_750_000,
+						},
+					],
+				});
+			},
+		});
+
+		await expect(client.getPublisherApproverStatus("gallery")).resolves.toMatchObject({
+			packageSlug: "gallery",
+			items: [{ did: "did:plc:approver", status: "enrolled", activeCredentialCount: 1 }],
+		});
+		expect(captured).toBe(`${SERVICE}/v1/publisher/workloads/gallery/approvers`);
+	});
+
 	it("creates valid collision-resistant idempotency keys", () => {
 		const first = createReleaseIdempotencyKey("github action");
 		const second = createReleaseIdempotencyKey("github action");
@@ -324,6 +456,37 @@ describe("ReleaseServiceClient", () => {
 });
 
 describe("ReleaseServiceOperatorClient", () => {
+	it("paginates sanitized service-control audit events", async () => {
+		let captured = "";
+		const client = new ReleaseServiceOperatorClient({
+			serviceUrl: SERVICE,
+			fetch: async (input) => {
+				captured = input instanceof Request ? input.url : input.toString();
+				return success({
+					items: [
+						{
+							sequence: 7,
+							eventType: "service-mode-changed",
+							actorRealm: "access",
+							actorIdentity: "operator-subject",
+							actorRole: "admin",
+							subject: "publication-paused",
+							reasonCode: "MAINTENANCE",
+							createdAt: 1_800_000_000_000,
+						},
+					],
+					nextCursor: "7",
+				});
+			},
+		});
+
+		await expect(client.listAudit({ cursor: "6", limit: 1 })).resolves.toMatchObject({
+			items: [{ sequence: 7, actorRole: "admin" }],
+			nextCursor: "7",
+		});
+		expect(captured).toBe(`${SERVICE}/admin/api/audit?after=6&limit=1`);
+	});
+
 	it("lists one bounded operations-directory shard", async () => {
 		let captured = "";
 		const fetch: typeof globalThis.fetch = async (input) => {
@@ -411,7 +574,7 @@ describe("ReleaseServiceOperatorClient", () => {
 				ownerDid: url.pathname.includes("/approvers/") ? "did:plc:approver" : PUBLISHER_DID,
 				targetKeyVersion: 2,
 				scanned: 1,
-				rotated: 1,
+				rotated: 0,
 				raced: 0,
 				nextCursor: null,
 				complete: true,
@@ -434,7 +597,7 @@ describe("ReleaseServiceOperatorClient", () => {
 				},
 				{ idempotencyKey: "operator-approver-rotation-0001" },
 			),
-		).resolves.toMatchObject({ ownerDid: "did:plc:approver", rotated: 1 });
+		).resolves.toMatchObject({ ownerDid: "did:plc:approver", rotated: 0 });
 
 		expect(calls).toEqual([
 			{
@@ -445,6 +608,78 @@ describe("ReleaseServiceOperatorClient", () => {
 				path: "/admin/api/approvers/did%3Aplc%3Aapprover/encryption/rotate",
 				body: '{"afterCursor":"identity-transaction:abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG","limit":10}',
 			},
+		]);
+	});
+
+	it("reads, activates, and retires encryption key lifecycle state", async () => {
+		const calls: Array<{ body: string | null; path: string }> = [];
+		const fetch: typeof globalThis.fetch = async (input, init) => {
+			const url = new URL(input instanceof Request ? input.url : input.toString());
+			calls.push({ path: url.pathname, body: typeof init?.body === "string" ? init.body : null });
+			if (init?.method === "GET") {
+				return success({
+					configured: { activeVersion: 2, versions: [1, 2] },
+					keys: [
+						{
+							version: 1,
+							status: "readable",
+							activatedAt: 0,
+							retiredAt: null,
+							changedBy: "system:bootstrap",
+							updatedAt: 100,
+						},
+						{
+							version: 2,
+							status: "active",
+							activatedAt: 100,
+							retiredAt: null,
+							changedBy: "operator",
+							updatedAt: 100,
+						},
+					],
+					verification: null,
+				});
+			}
+			if (url.pathname.endsWith("/verify")) {
+				return success({ workflowId: "V".repeat(43), created: true });
+			}
+			const retiring = url.pathname.endsWith("/retire");
+			return success({
+				key: {
+					version: retiring ? 1 : 2,
+					status: retiring ? "retired" : "active",
+					activatedAt: retiring ? 0 : 100,
+					retiredAt: retiring ? 200 : null,
+					changedBy: "operator",
+					updatedAt: retiring ? 200 : 100,
+				},
+				replayed: false,
+			});
+		};
+		const client = new ReleaseServiceOperatorClient({ serviceUrl: SERVICE, fetch });
+		await expect(client.getEncryptionKeyStatus()).resolves.toMatchObject({
+			configured: { activeVersion: 2 },
+			keys: [
+				{ version: 1, status: "readable" },
+				{ version: 2, status: "active" },
+			],
+		});
+		await expect(
+			client.activateEncryptionKey(2, { idempotencyKey: "operator-key-activate-0001" }),
+		).resolves.toMatchObject({ value: { version: 2, status: "active" }, replayed: false });
+		await expect(
+			client.startEncryptionVerification(1, {
+				idempotencyKey: "operator-key-verification-0001",
+			}),
+		).resolves.toEqual({ workflowId: "V".repeat(43), created: true });
+		await expect(
+			client.retireEncryptionKey(1, { idempotencyKey: "operator-key-retire-0001" }),
+		).resolves.toMatchObject({ value: { version: 1, status: "retired" }, replayed: false });
+		expect(calls).toEqual([
+			{ path: "/admin/api/encryption/keys", body: null },
+			{ path: "/admin/api/encryption/keys/activate", body: '{"version":2}' },
+			{ path: "/admin/api/encryption/verify", body: '{"retiringVersion":1}' },
+			{ path: "/admin/api/encryption/keys/1/retire", body: "{}" },
 		]);
 	});
 

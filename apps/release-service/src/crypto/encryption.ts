@@ -134,6 +134,7 @@ interface ParsedEnvelope {
 
 export interface EnvelopeEncryption {
 	readonly currentKeyVersion: number;
+	readonly availableKeyVersions: readonly number[];
 	encrypt(plaintext: Uint8Array, context: EncryptionContext): Promise<EncryptedValue>;
 	decrypt(envelope: string, context: EncryptionContext): Promise<Uint8Array<ArrayBuffer>>;
 	needsRotation(envelope: string): boolean;
@@ -339,6 +340,7 @@ async function createContextDigest(
 
 class JoseEnvelopeEncryption implements EnvelopeEncryption {
 	readonly currentKeyVersion: number;
+	readonly availableKeyVersions: readonly number[];
 	readonly #keys: ReadonlyMap<number, Uint8Array>;
 	readonly #deploymentId: string;
 
@@ -347,6 +349,7 @@ class JoseEnvelopeEncryption implements EnvelopeEncryption {
 			throw new EncryptionError("ENCRYPTION_CONFIGURATION_INVALID");
 		}
 		this.currentKeyVersion = keyring.currentVersion;
+		this.availableKeyVersions = Object.freeze([...keyring.keys.keys()].toSorted((a, b) => a - b));
 		this.#keys = keyring.keys;
 		this.#deploymentId = deploymentId;
 	}

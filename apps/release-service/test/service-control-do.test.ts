@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { AccessActor } from "../src/access/auth.js";
 import {
 	SERVICE_CONTROL_OBJECT_NAME,
+	type ActivateEncryptionKeyInput,
 	type SetServiceModeInput,
 } from "../src/control-do/service-control-do.js";
 
@@ -35,6 +36,19 @@ function modeInput(overrides: Partial<SetServiceModeInput> = {}): SetServiceMode
 		mode: "publication-paused",
 		reasonCode: "MAINTENANCE",
 		now: NOW,
+		...overrides,
+	};
+}
+
+function activationInput(
+	overrides: Partial<ActivateEncryptionKeyInput> = {},
+): ActivateEncryptionKeyInput {
+	return {
+		actor: ADMIN,
+		idempotencyKey: "encryption-key-activation-0001",
+		requestDigest: "K".repeat(43),
+		version: 2,
+		now: NOW + 1,
 		...overrides,
 	};
 }
@@ -102,6 +116,87 @@ describe("ServiceControlDurableObject", () => {
 		});
 	});
 
+	it("activates and retires key versions only while publication is paused", async () => {
+		const stub = control();
+		await expect(stub.readEncryptionKeys(VIEWER)).resolves.toEqual([
+			{
+				version: 1,
+				status: "active",
+				activatedAt: 0,
+				retiredAt: null,
+				changedBy: "system:bootstrap",
+				updatedAt: 0,
+			},
+		]);
+		await runInDurableObject(stub, async (instance) => {
+			await expect(instance.activateEncryptionKey(activationInput())).rejects.toMatchObject({
+				code: "CONTROL_INPUT_INVALID",
+			});
+		});
+
+		await stub.setServiceMode(modeInput());
+		const activated = await stub.activateEncryptionKey(activationInput());
+		expect(activated).toMatchObject({
+			ok: true,
+			replayed: false,
+			value: { version: 2, status: "active", activatedAt: NOW + 1 },
+		});
+		await expect(stub.activateEncryptionKey(activationInput())).resolves.toEqual({
+			...activated,
+			replayed: true,
+		});
+		await expect(stub.readEncryptionKeys(VIEWER)).resolves.toMatchObject([
+			{ version: 1, status: "readable" },
+			{ version: 2, status: "active" },
+		]);
+		await expect(
+			stub.recordEncryptionVerification({
+				targetKeyVersion: 2,
+				workflowId: "V".repeat(43),
+				actorIdentity: "release-service",
+				publishers: 3,
+				approvers: 2,
+				records: 8,
+				rotated: 5,
+				verifiedAt: NOW + 1,
+			}),
+		).resolves.toMatchObject({ targetKeyVersion: 2, records: 8, rotated: 5 });
+		await expect(stub.readEncryptionVerification(VIEWER, 2)).resolves.toMatchObject({
+			workflowId: "V".repeat(43),
+			publishers: 3,
+			approvers: 2,
+		});
+		await runInDurableObject(stub, async (instance) => {
+			await expect(
+				instance.retireEncryptionKey({
+					...activationInput({
+						idempotencyKey: "encryption-key-retirement-0001",
+						requestDigest: "R".repeat(43),
+					}),
+					version: 2,
+				}),
+			).rejects.toMatchObject({ code: "CONTROL_INPUT_INVALID" });
+		});
+		await expect(
+			stub.retireEncryptionKey({
+				...activationInput({
+					idempotencyKey: "encryption-key-retirement-0002",
+					requestDigest: "S".repeat(43),
+				}),
+				version: 1,
+			}),
+		).resolves.toMatchObject({
+			ok: true,
+			value: { version: 1, status: "retired", retiredAt: NOW + 1 },
+		});
+		await expect(stub.listAudit(VIEWER)).resolves.toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ eventType: "encryption-key-activated", subject: "2" }),
+				expect.objectContaining({ eventType: "encryption-key-retired", subject: "1" }),
+			]),
+		);
+	});
+
 	it("rejects insufficient operators and incomplete pause reasons", async () => {
 		const stub = control();
 
@@ -127,7 +222,7 @@ describe("ServiceControlDurableObject", () => {
 			mode: "admission-paused",
 			code: "ADMISSION_PAUSED",
 		});
-		const admittedPermit = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, NOW + 1);
+		const admittedPermit = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, 1, NOW + 1);
 		expect(admittedPermit).toMatchObject({ ok: true, permit: { modeEpoch: 2 } });
 
 		await stub.setServiceMode(
@@ -143,7 +238,7 @@ describe("ServiceControlDurableObject", () => {
 			mode: "publication-paused",
 			code: null,
 		});
-		await expect(stub.issuePublicationPermit(DID, INTENT_ID, 5_000, NOW + 3)).resolves.toEqual({
+		await expect(stub.issuePublicationPermit(DID, INTENT_ID, 5_000, 1, NOW + 3)).resolves.toEqual({
 			ok: false,
 			code: "PUBLICATION_PAUSED",
 		});
@@ -151,7 +246,11 @@ describe("ServiceControlDurableObject", () => {
 
 	it("issues a bound permit that can be consumed exactly once", async () => {
 		const stub = control();
-		const issued = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, NOW);
+		await expect(stub.issuePublicationPermit(DID, INTENT_ID, 5_000, 2, NOW)).resolves.toEqual({
+			ok: false,
+			code: "ENCRYPTION_KEY_INACTIVE",
+		});
+		const issued = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, 1, NOW);
 		expect(issued.ok).toBe(true);
 		if (!issued.ok) return;
 
@@ -178,7 +277,7 @@ describe("ServiceControlDurableObject", () => {
 
 	it("invalidates a cached permit when the service mode epoch changes", async () => {
 		const stub = control();
-		const issued = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, NOW);
+		const issued = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, 1, NOW);
 		expect(issued.ok).toBe(true);
 		if (!issued.ok) return;
 		await stub.setServiceMode(
@@ -192,7 +291,7 @@ describe("ServiceControlDurableObject", () => {
 
 	it("suspends publisher admission and invalidates outstanding permits", async () => {
 		const stub = control();
-		const issued = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, NOW);
+		const issued = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, 1, NOW);
 		expect(issued.ok).toBe(true);
 		if (!issued.ok) return;
 
@@ -214,7 +313,7 @@ describe("ServiceControlDurableObject", () => {
 			allowed: false,
 			code: "PUBLISHER_SUSPENDED",
 		});
-		await expect(stub.issuePublicationPermit(DID, "intent-2", 5_000, NOW + 2)).resolves.toEqual({
+		await expect(stub.issuePublicationPermit(DID, "intent-2", 5_000, 1, NOW + 2)).resolves.toEqual({
 			ok: false,
 			code: "PUBLISHER_SUSPENDED",
 		});
@@ -225,7 +324,7 @@ describe("ServiceControlDurableObject", () => {
 
 	it("never persists a plaintext permit token", async () => {
 		const stub = control();
-		const issued = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, NOW);
+		const issued = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, 1, NOW);
 		expect(issued.ok).toBe(true);
 		if (!issued.ok) return;
 
@@ -247,7 +346,7 @@ describe("ServiceControlDurableObject", () => {
 	it("cleans expired permits and operator idempotency with its alarm", async () => {
 		const stub = control();
 		const oldNow = Date.now() - 24 * 60 * 60_000 - 1_000;
-		await stub.issuePublicationPermit(DID, INTENT_ID, 1, oldNow);
+		await stub.issuePublicationPermit(DID, INTENT_ID, 1, 1, oldNow);
 		await stub.setServiceMode(
 			modeInput({
 				mode: "admission-paused",

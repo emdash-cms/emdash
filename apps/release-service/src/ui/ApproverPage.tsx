@@ -27,12 +27,19 @@ function detail(value: string | null, fallback: string): string {
 
 export function ApproverPage() {
 	const t = useT();
+	const standalone = location.pathname === "/approver";
 	const intentId = location.pathname.startsWith("/approvals/")
 		? location.pathname.slice("/approvals/".length)
 		: "";
 	const publisherDid = new URLSearchParams(location.search).get("publisher") ?? "";
+	const requestedDecisionValue = new URLSearchParams(location.search).get("decision");
+	const requestedDecision =
+		requestedDecisionValue === "approve" || requestedDecisionValue === "reject"
+			? requestedDecisionValue
+			: null;
 	const [approval, setApproval] = useState<ApprovalResource | null>(null);
 	const [credentials, setCredentials] = useState<ApproverCredential[]>([]);
+	const [loaded, setLoaded] = useState(false);
 	const [loginRequired, setLoginRequired] = useState(false);
 	const [credentialName, setCredentialName] = useState("");
 	const [error, setError] = useState<unknown>(null);
@@ -41,8 +48,24 @@ export function ApproverPage() {
 
 	const refresh = useCallback(async () => {
 		setError(null);
+		if (standalone) {
+			try {
+				setCredentials(await listApproverCredentials());
+				setLoginRequired(false);
+			} catch (cause) {
+				if (cause instanceof UiApiError && cause.code === "APPROVER_SESSION_INVALID") {
+					setLoginRequired(true);
+					return;
+				}
+				setError(cause);
+			} finally {
+				setLoaded(true);
+			}
+			return;
+		}
 		if (!intentId || !publisherDid) {
 			setError(new UiApiError("INVALID_REQUEST", 400, "Approval link is incomplete"));
+			setLoaded(true);
 			return;
 		}
 		try {
@@ -59,8 +82,10 @@ export function ApproverPage() {
 				return;
 			}
 			setError(cause);
+		} finally {
+			setLoaded(true);
 		}
-	}, [intentId, publisherDid]);
+	}, [intentId, publisherDid, standalone]);
 
 	useEffect(() => {
 		void refresh();
@@ -110,8 +135,44 @@ export function ApproverPage() {
 		}
 	}
 
+	const credentialsPanel = (
+		<Surface className="rounded-xl border bg-kumo-base p-6">
+			<h2 className="text-xl font-semibold text-kumo-strong">
+				{t("approval.credentials.title", "Approver passkeys")}
+			</h2>
+			<div className="mt-4 flex flex-wrap gap-2">
+				{credentials.map((credential) => (
+					<Badge key={credential.id} variant={credential.revokedAt ? "error" : "success"}>
+						{credential.name}
+					</Badge>
+				))}
+			</div>
+			<form className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end" onSubmit={enrol}>
+				<Input
+					className="flex-1"
+					label={t("approval.credentials.name", "Passkey name")}
+					placeholder={t("approval.credentials.placeholder", "Work laptop")}
+					required
+					value={credentialName}
+					onChange={(event) => setCredentialName(event.currentTarget.value)}
+				/>
+				<Button loading={busy} type="submit" variant="secondary">
+					{t("approval.credentials.enrol", "Enrol passkey")}
+				</Button>
+			</form>
+		</Surface>
+	);
+
 	if (loginRequired) return <LoginPanel realm="approver" />;
-	if (!approval && !error) return <LoadingPanel />;
+	if (!loaded && !error) return <LoadingPanel />;
+	if (standalone) {
+		return (
+			<div className="flex flex-col gap-6">
+				{error ? <ErrorBanner error={error} /> : null}
+				{credentialsPanel}
+			</div>
+		);
+	}
 	if (!approval) return <ErrorBanner error={error} />;
 	const review = approval.review;
 	const none = t("approval.none", "Not available");
@@ -229,32 +290,21 @@ export function ApproverPage() {
 				)}
 			</Surface>
 
-			<Surface className="rounded-xl border bg-kumo-base p-6">
-				<h2 className="text-xl font-semibold text-kumo-strong">
-					{t("approval.credentials.title", "Approver passkeys")}
-				</h2>
-				<div className="mt-4 flex flex-wrap gap-2">
-					{credentials.map((credential) => (
-						<Badge key={credential.id} variant={credential.revokedAt ? "error" : "success"}>
-							{credential.name}
-						</Badge>
-					))}
-				</div>
-				<form className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end" onSubmit={enrol}>
-					<Input
-						className="flex-1"
-						label={t("approval.credentials.name", "Passkey name")}
-						placeholder={t("approval.credentials.placeholder", "Work laptop")}
-						required
-						value={credentialName}
-						onChange={(event) => setCredentialName(event.currentTarget.value)}
-					/>
-					<Button loading={busy} type="submit" variant="secondary">
-						{t("approval.credentials.enrol", "Enrol passkey")}
-					</Button>
-				</form>
-			</Surface>
+			{credentialsPanel}
 
+			{requestedDecision ? (
+				<p className="text-sm text-kumo-subtle">
+					{requestedDecision === "approve"
+						? t(
+								"approval.requested.approve",
+								"The CLI requested approval. Review the evidence before using your passkey.",
+							)
+						: t(
+								"approval.requested.reject",
+								"The CLI requested rejection. Review the evidence before using your passkey.",
+							)}
+				</p>
+			) : null}
 			<div className="flex flex-wrap justify-end gap-3">
 				<Button
 					disabled={credentials.every((credential) => credential.revokedAt !== null)}

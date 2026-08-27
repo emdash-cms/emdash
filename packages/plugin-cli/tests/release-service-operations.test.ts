@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 import releaseFixture from "../../registry-verification/fixtures/records/release.json";
 import {
 	cancelDelegatedReleaseIntent,
+	dryRunDelegatedRelease,
 	getDelegatedReleaseIntent,
+	interactiveReleaseUrl,
 	requestGithubOidcToken,
 	submitDelegatedRelease,
 } from "../src/release-service/operations.js";
@@ -63,6 +65,37 @@ function success(data: unknown, status = 200): Response {
 }
 
 describe("delegated release CLI operations", () => {
+	it("creates browser handoffs without carrying service credentials", () => {
+		expect(interactiveReleaseUrl("delegate", { serviceUrl: SERVICE }).toString()).toBe(
+			`${SERVICE}/publisher?view=delegation`,
+		);
+		expect(interactiveReleaseUrl("revoke", { serviceUrl: SERVICE }).toString()).toBe(
+			`${SERVICE}/publisher?view=delegation&action=revoke`,
+		);
+		expect(interactiveReleaseUrl("workload", { serviceUrl: SERVICE }).toString()).toBe(
+			`${SERVICE}/publisher?view=workloads`,
+		);
+		expect(interactiveReleaseUrl("enrol", { serviceUrl: SERVICE }).toString()).toBe(
+			`${SERVICE}/approver`,
+		);
+		expect(
+			interactiveReleaseUrl("approve", {
+				serviceUrl: SERVICE,
+				publisherDid: PUBLISHER_DID,
+				intentId: INTENT_ID,
+			}).toString(),
+		).toBe(
+			`${SERVICE}/approvals/${INTENT_ID}?publisher=${encodeURIComponent(PUBLISHER_DID)}&decision=approve`,
+		);
+		expect(() =>
+			interactiveReleaseUrl("reject", {
+				serviceUrl: "http://release.example.com",
+				publisherDid: PUBLISHER_DID,
+				intentId: INTENT_ID,
+			}),
+		).toThrow("Release service URL must be a secure origin");
+	});
+
 	it("requests a GitHub OIDC token for the release-service audience", async () => {
 		const calls: Array<{ headers: Headers; url: URL }> = [];
 		const token = await requestGithubOidcToken(SERVICE, {
@@ -110,6 +143,41 @@ describe("delegated release CLI operations", () => {
 		expect(serviceRequests[0]?.headers.get("authorization")).toBe(
 			"Bearer header.payload.signature",
 		);
+	});
+
+	it("dry-runs admission without sending an idempotency key", async () => {
+		let serviceRequest: Request | null = null;
+		const result = await dryRunDelegatedRelease(
+			{
+				serviceUrl: SERVICE,
+				publisherDid: PUBLISHER_DID,
+				releaseFile: "release.json",
+			},
+			{
+				environment: ENVIRONMENT,
+				readReleaseRecord: async () => structuredClone(releaseFixture),
+				fetch: async (input, init) => {
+					const url = new URL(input instanceof Request ? input.url : input.toString());
+					if (url.hostname === "token.actions.example") {
+						return Response.json({ value: "header.payload.signature" });
+					}
+					serviceRequest = new Request(url, init);
+					return success({
+						allowed: true,
+						publisherDid: PUBLISHER_DID,
+						packageSlug: "gallery",
+						version: "1.2.3",
+						workloadPolicyVersion: 1,
+						workloadIdentityDigest: "W".repeat(43),
+						requestDigest: "R".repeat(43),
+					});
+				},
+			},
+		);
+
+		expect(result).toMatchObject({ allowed: true, workloadPolicyVersion: 1 });
+		expect(serviceRequest?.url).toBe(`${SERVICE}/v1/release-intents/dry-run`);
+		expect(serviceRequest?.headers.has("idempotency-key")).toBe(false);
 	});
 
 	it("uses fresh OIDC tokens for status and cancellation", async () => {

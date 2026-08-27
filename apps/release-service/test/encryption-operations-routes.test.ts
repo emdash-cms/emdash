@@ -125,7 +125,17 @@ describe("Access encryption operations", () => {
 		);
 		expect(second.status).toBe(200);
 		await expect(second.json()).resolves.toMatchObject({
-			data: { scanned: 1, rotated: 1, raced: 0, nextCursor: null },
+			data: { scanned: 1, rotated: 1, raced: 0, nextCursor: null, complete: false },
+		});
+		const verification = await handleRotatePublisherEncryption(
+			request({ afterCursor: null, limit: 10 }),
+			"request-3",
+			rotating,
+			{ publisherDid: PUBLISHER_DID },
+			ADMIN,
+		);
+		await expect(verification.json()).resolves.toMatchObject({
+			data: { scanned: 2, rotated: 0, raced: 0, nextCursor: null, complete: true },
 		});
 
 		const records = await publisher.listEncryptionRecords(PUBLISHER_DID, null, 10, now);
@@ -246,7 +256,19 @@ describe("Access encryption operations", () => {
 		);
 		expect(rescan.status).toBe(200);
 		await expect(rescan.json()).resolves.toMatchObject({
-			data: { complete: true, nextCursor: null, rotated: 1, raced: 0 },
+			data: { complete: false, nextCursor: null, rotated: 1, raced: 0 },
+		});
+
+		const cleanRescan = await handleRotatePublisherEncryption(
+			request({ afterCursor: null, limit: 10 }),
+			"race-clean-rescan",
+			rotating,
+			{ publisherDid: PUBLISHER_DID },
+			ADMIN,
+		);
+		expect(cleanRescan.status).toBe(200);
+		await expect(cleanRescan.json()).resolves.toMatchObject({
+			data: { complete: true, nextCursor: null, rotated: 0, raced: 0 },
 		});
 	});
 

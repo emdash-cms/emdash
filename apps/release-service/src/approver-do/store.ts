@@ -109,6 +109,14 @@ export interface ApproverCredential {
 	revokedAt: number | null;
 }
 
+export interface ApproverEnrollmentStatus {
+	credentialCount: number;
+	activeCredentialCount: number;
+	firstEnrolledAt: number | null;
+	lastEnrolledAt: number | null;
+	lastRevokedAt: number | null;
+}
+
 export interface CredentialVerificationMaterial {
 	id: string;
 	publicKey: Uint8Array;
@@ -283,6 +291,15 @@ interface CredentialListRow {
 	created_at: number;
 	last_used_at: number | null;
 	revoked_at: number | null;
+}
+
+interface EnrollmentStatusRow {
+	[key: string]: string | number | ArrayBuffer | null;
+	credential_count: number;
+	active_credential_count: number;
+	first_enrolled_at: number | null;
+	last_enrolled_at: number | null;
+	last_revoked_at: number | null;
 }
 
 interface ChallengeRow {
@@ -767,6 +784,43 @@ export class ApproverStore {
 						)
 						.toArray();
 		return rows.map(credentialView);
+	}
+
+	getEnrollmentStatus(approverDid: string): ApproverEnrollmentStatus {
+		if (!validDid(approverDid)) {
+			throw new ApproverStoreError("APPROVER_DID_INVALID");
+		}
+		const owner = this.#readOwner();
+		if (!owner) {
+			return {
+				credentialCount: 0,
+				activeCredentialCount: 0,
+				firstEnrolledAt: null,
+				lastEnrolledAt: null,
+				lastRevokedAt: null,
+			};
+		}
+		if (owner.did !== approverDid) {
+			throw new ApproverStoreError("APPROVER_DID_MISMATCH");
+		}
+		const row = this.storage.sql
+			.exec<EnrollmentStatusRow>(
+				`SELECT COUNT(*) AS credential_count,
+				        COALESCE(SUM(CASE WHEN revoked_at IS NULL THEN 1 ELSE 0 END), 0)
+				          AS active_credential_count,
+				        MIN(created_at) AS first_enrolled_at,
+				        MAX(created_at) AS last_enrolled_at,
+				        MAX(revoked_at) AS last_revoked_at
+				 FROM credentials`,
+			)
+			.one();
+		return {
+			credentialCount: row.credential_count,
+			activeCredentialCount: row.active_credential_count,
+			firstEnrolledAt: row.first_enrolled_at,
+			lastEnrolledAt: row.last_enrolled_at,
+			lastRevokedAt: row.last_revoked_at,
+		};
 	}
 
 	getCredentialForVerification(

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
 	ApprovalAuthorityError,
+	loadCurrentApprovalPolicy,
 	loadApprovalIntent,
 	verifyCurrentApprover,
 } from "../src/approvals/authority.js";
@@ -225,6 +226,21 @@ describe("approval authority", () => {
 				fetch: authorityFetch({ cid: "bafyreib3p6qchangedprofilecid" }),
 			}),
 		).rejects.toMatchObject({ code: "PROFILE_CHANGED" });
+	});
+
+	it("loads the current signed approver policy for publisher status views", async () => {
+		await expect(
+			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
+				actorResolver: actorResolver(),
+				fetch: authorityFetch(),
+			}),
+		).resolves.toEqual({ profileCid: PROFILE_CID, approverDids: [APPROVER_DID] });
+		await expect(
+			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
+				actorResolver: actorResolver(),
+				fetch: authorityFetch({ approvers: [APPROVER_DID, APPROVER_DID] }),
+			}),
+		).rejects.toMatchObject({ code: "PROFILE_FETCH_FAILED" });
 	});
 
 	it("rejects private PDS resolution before fetching the record", async () => {
