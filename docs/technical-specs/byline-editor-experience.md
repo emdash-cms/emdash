@@ -131,7 +131,7 @@ Selecting an option adds it at the end once, closes the chooser, clears its quer
 
 ### Explicit credits
 
-Show `Bylines` with an instant help tooltip containing `Shown to readers in this order.` Place the add action and section drag handle on the heading row, then render the divider-separated list immediately below it. Do not render a persistent description row or wrap each credit in a card.
+Show `Bylines` with an instant help tooltip containing `Shown to readers in this order.` Place the add action and section drag handle on the heading row, then render the credits as a compact stack of Kumo `LayerCard` rows immediately below it. Do not render a persistent description row.
 
 Each row contains:
 
@@ -214,7 +214,7 @@ Use Phosphor icons through Kumo icon or trigger props. Do not add raw interactiv
 - Reuse the section's `p-4` inline edges. All headings, descriptions, lists, inputs, and buttons align to that shared track.
 - Keep the heading, ordering-help trigger, add action, and section drag handle on one visual row.
 - Use a smaller gap inside a heading-description group than between the group and its action or list.
-- Use one divider-separated list. Do not nest `LayerCard`, draw a card around each row, or combine borders with shadows.
+- Use one compact stack of separate Kumo `LayerCard` rows. Do not nest cards or add custom borders or shadows.
 - Keep Kumo's radii, shadows, focus rings, disabled states, hover states, and press feedback. Do not override component internals.
 - Place the drag handle at inline start and row actions at inline end with logical classes only.
 - Keep destructive color only on `Remove from post`. Do not use color as its only meaning.

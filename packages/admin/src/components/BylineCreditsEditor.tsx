@@ -6,6 +6,7 @@ import {
 	Dialog,
 	DropdownMenu,
 	Input,
+	LayerCard,
 	Loader,
 	Popover,
 	Text,
@@ -526,7 +527,7 @@ export function BylineCreditsEditor({
 									items={credits.map((credit) => credit.bylineId)}
 									strategy={verticalListSortingStrategy}
 								>
-									<div className="divide-y divide-kumo-line border-y border-kumo-line">
+									<div className="space-y-2">
 										{credits.map((credit) => {
 											const byline = bylineMap.get(credit.bylineId);
 											if (!byline) return null;
@@ -756,9 +757,9 @@ function SortableBylineRow({
 	);
 
 	return (
-		<div
+		<LayerCard
 			ref={setRefs}
-			className="relative grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 py-2"
+			className="relative grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 py-2"
 			style={{
 				transform: transform ? CSS.Transform.toString(transform) : undefined,
 				transition,
@@ -852,7 +853,7 @@ function SortableBylineRow({
 					</div>
 				</Collapsible.Panel>
 			</Collapsible.Root>
-		</div>
+		</LayerCard>
 	);
 }
 
