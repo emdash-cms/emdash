@@ -16,6 +16,7 @@ import {
 	validateOrderByClause,
 	getIndexedFields,
 	jsonOrderExtract,
+	StorageQueryError,
 } from "../../plugins/storage-query.js";
 import type {
 	StorageCollection,
@@ -234,12 +235,38 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 			query = query.where(rawWhereExpr(whereResult.sql, whereResult.params));
 		}
 
+		const orderEntries = Object.entries(orderBy);
+		const orderDirections = new Set(orderEntries.map(([, direction]) => direction));
+
 		// Handle cursor-based pagination — throws on invalid cursor.
 		if (cursor) {
 			const decoded = decodeCursor(cursor);
-			query = query.where(({ eb }) =>
-				eb(sql`(created_at, id)`, ">", sql`(${decoded.orderValue}, ${decoded.id})`),
-			);
+			if (orderEntries.length === 0) {
+				query = query.where(({ eb }) =>
+					eb(sql`(created_at, id)`, ">", sql`(${decoded.orderValue}, ${decoded.id})`),
+				);
+			} else {
+				if (orderDirections.size > 1) {
+					throw new StorageQueryError(
+						"Cursor pagination requires every orderBy field to share one direction.",
+						Object.keys(orderBy).join(", "),
+						"Sort every field the same way, or page without a cursor.",
+					);
+				}
+				// Seek past the cursor row using the *sort* key, not created_at. The
+				// comparison operands are the same expressions the ORDER BY uses,
+				// recomputed for the cursor row by id, so no cursor value is bound as
+				// a literal and neither dialect has to coerce a JSON value to text.
+				const descending = orderEntries[0][1] === "desc";
+				const sortExprs = orderEntries.map(([field]) => sql.raw(jsonOrderExtract(this.db, field)));
+				const cursorExprs = orderEntries.map(
+					([field]) =>
+						sql`(select ${sql.raw(jsonOrderExtract(this.db, field))} from _plugin_storage where plugin_id = ${this.pluginId} and collection = ${this.collection} and id = ${decoded.id})`,
+				);
+				const left = sql`(${sql.join([...sortExprs, sql.ref("id")])})`;
+				const right = sql`(${sql.join([...cursorExprs, sql`${decoded.id}`])})`;
+				query = query.where(({ eb }) => eb(left, descending ? "<" : ">", right));
+			}
 		}
 
 		// Build ORDER BY using sql template
@@ -252,6 +279,11 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 					direction === "desc" ? sql`${sql.raw(extract)} desc` : sql`${sql.raw(extract)} asc`;
 				query = query.orderBy(orderExpr);
 			}
+			// Total order, so a page boundary can never fall inside a group of ties.
+			query = query.orderBy(
+				"id",
+				orderDirections.size === 1 && orderEntries[0][1] === "desc" ? "desc" : "asc",
+			);
 		} else {
 			// Default ordering for consistent pagination
 			query = query.orderBy("created_at", "asc").orderBy("id", "asc");
