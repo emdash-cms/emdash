@@ -197,10 +197,10 @@ describe("PublisherDurableObject", () => {
 				expect(() =>
 					instance.putOAuthState({
 						publisherDid: DID,
-							stateHash: STATE_HASH,
-							encryptedState: "encrypted-oauth-state",
-							encryptionKeyVersion: 2,
-							clientKeyId: "assertion-1",
+						stateHash: STATE_HASH,
+						encryptedState: "encrypted-oauth-state",
+						encryptionKeyVersion: 2,
+						clientKeyId: "assertion-1",
 						redirectTarget,
 						expiresAt: Date.now() + 60_000,
 					}),
