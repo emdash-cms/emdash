@@ -342,9 +342,9 @@ export default async function globalSetup(): Promise<void> {
 	});
 
 	try {
-		// 3 + 4. Wait for the server and dev optimizer to settle, then run setup
-		// and create a PAT. Setup replaces the named PAT, so it must run once;
-		// overlapping retries can invalidate the token returned to this process.
+		// Dev-bypass token creation is not idempotent: each call drops the named
+		// PAT and mints a new one. Poll the read-only status endpoint first, then
+		// call dev-bypass exactly once.
 		console.log("[pw] Waiting for server + setup...");
 		await waitForOk(`${baseUrl}/_emdash/api/setup/status`, 120_000);
 		const setupRes = await fetch(`${baseUrl}/_emdash/api/setup/dev-bypass?token=1`, {
