@@ -759,7 +759,7 @@ function SortableBylineRow({
 	return (
 		<LayerCard
 			ref={setRefs}
-			className="relative grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 py-2"
+			className="relative grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 px-2 py-2"
 			style={{
 				transform: transform ? CSS.Transform.toString(transform) : undefined,
 				transition,
