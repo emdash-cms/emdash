@@ -1,8 +1,7 @@
 /**
  * Transaction utility for D1 compatibility
  *
- * D1 (via kysely-d1) does not support transactions. On workerd, the error
- * from beginTransaction() crosses request contexts and can hang the worker.
+ * D1 (via kysely-d1) does not support transactions.
  *
  * This utility provides a drop-in replacement that runs the callback directly
  * against the db instance when transactions are unavailable. D1 is single-writer
@@ -19,34 +18,56 @@ import type { Kysely, Transaction } from "kysely";
 /**
  * Run a callback inside a transaction if supported, or directly if not.
  *
- * Probes the database once on first call to determine if transactions work.
- * The result is cached for the lifetime of the process/worker.
+ * Adapters can declare that transactions are unsupported. Other adapters are
+ * tried once and cached only when beginTransaction rejects with the standard
+ * unsupported-transaction error.
  */
-let transactionsSupported: boolean | null = null;
 const TRANSACTIONS_NOT_SUPPORTED_RE = /transactions are not supported/i;
+const TRANSACTIONS_UNSUPPORTED_MARKER = Symbol.for("emdash:transactions-unsupported");
+const UNSUPPORTED_ADAPTERS_KEY = Symbol.for("emdash:transaction-unsupported-adapters");
+
+type UnsupportedAdapterCache = WeakSet<object>;
+
+const g = globalThis as Record<symbol, unknown>;
+const unsupportedAdapters: UnsupportedAdapterCache =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-cache.ts)
+	(g[UNSUPPORTED_ADAPTERS_KEY] as UnsupportedAdapterCache | undefined) ??
+	(() => {
+		const cache: UnsupportedAdapterCache = new WeakSet();
+		g[UNSUPPORTED_ADAPTERS_KEY] = cache;
+		return cache;
+	})();
+
+function getAdapter<DB>(db: Kysely<DB>): object {
+	return db.getExecutor().adapter;
+}
 
 export async function withTransaction<DB, T>(
 	db: Kysely<DB>,
 	fn: (trx: Kysely<DB> | Transaction<DB>) => Promise<T>,
 ): Promise<T> {
-	// Fast path: we already know transactions work
-	if (transactionsSupported === true) {
-		return db.transaction().execute(fn);
-	}
-
-	// Fast path: we already know they don't
-	if (transactionsSupported === false) {
+	const adapter = getAdapter(db);
+	if (
+		unsupportedAdapters.has(adapter) ||
+		Reflect.get(adapter, TRANSACTIONS_UNSUPPORTED_MARKER) === true
+	) {
+		unsupportedAdapters.add(adapter);
 		return fn(db);
 	}
 
-	// First call: probe
+	let callbackStarted = false;
 	try {
-		const result = await db.transaction().execute(fn);
-		transactionsSupported = true;
-		return result;
+		return await db.transaction().execute((trx) => {
+			callbackStarted = true;
+			return fn(trx);
+		});
 	} catch (error) {
-		if (error instanceof Error && TRANSACTIONS_NOT_SUPPORTED_RE.test(error.message)) {
-			transactionsSupported = false;
+		if (
+			!callbackStarted &&
+			error instanceof Error &&
+			TRANSACTIONS_NOT_SUPPORTED_RE.test(error.message)
+		) {
+			unsupportedAdapters.add(adapter);
 			return fn(db);
 		}
 		throw error;

@@ -12,6 +12,7 @@ import { SqliteAdapter } from "kysely";
 import { D1Dialect } from "kysely-d1";
 
 import { D1Introspector } from "./d1-introspector.js";
+import { markTransactionsUnsupported } from "./transaction-capability.js";
 
 /**
  * Terms D1 allows in one compound SELECT (`UNION ALL`, `INTERSECT`, `EXCEPT`).
@@ -29,6 +30,11 @@ export const D1_COMPOUND_SELECT_LIMIT = 5;
  */
 export class D1Adapter extends SqliteAdapter implements CompoundSelectLimitedAdapter {
 	readonly compoundSelectLimit = D1_COMPOUND_SELECT_LIMIT;
+
+	constructor() {
+		super();
+		markTransactionsUnsupported(this);
+	}
 }
 
 /**

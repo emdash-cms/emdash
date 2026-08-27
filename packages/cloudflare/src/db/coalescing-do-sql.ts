@@ -32,6 +32,7 @@ import { D1Introspector } from "./d1-introspector.js";
 import type { DOSqlDialectConfig } from "./do-sql-dialect.js";
 import type { DOQueryOptions, EmDashDBStub } from "./do-sql-types.js";
 import { isReadStatement } from "./do-sql-types.js";
+import { markTransactionsUnsupported } from "./transaction-capability.js";
 
 /**
  * Statements safe to coalesce: plain SELECTs. Deliberately conservative --
@@ -299,7 +300,7 @@ export class CoalescingDOSqlDialect implements Dialect {
 	}
 
 	createAdapter(): SqliteAdapter {
-		return new CoalescingDOSqlAdapter();
+		return markTransactionsUnsupported(new CoalescingDOSqlAdapter());
 	}
 
 	createDriver(): Driver {

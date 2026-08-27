@@ -5,6 +5,8 @@ import { DOSqlDialect } from "../../src/db/do-sql-dialect.js";
 import type { BookmarkSink, DOSqlDialectConfig } from "../../src/db/do-sql-dialect.js";
 import type { EmDashDBStub } from "../../src/db/do-sql-types.js";
 
+const TRANSACTIONS_UNSUPPORTED_MARKER = Symbol.for("emdash:transactions-unsupported");
+
 function createMockStub(queryFn = vi.fn()): EmDashDBStub {
 	return { query: queryFn, batchQuery: vi.fn() } as unknown as EmDashDBStub;
 }
@@ -19,6 +21,13 @@ function createConfig(
 }
 
 describe("DOSqlDialect", () => {
+	it("declares that interactive transactions are unsupported", () => {
+		const { config } = createConfig();
+		const adapter = new DOSqlDialect(config).createAdapter();
+
+		expect(Reflect.get(adapter, TRANSACTIONS_UNSUPPORTED_MARKER)).toBe(true);
+	});
+
 	it("creates a SqliteAdapter and SqliteQueryCompiler", () => {
 		const { config } = createConfig();
 		const dialect = new DOSqlDialect(config);
