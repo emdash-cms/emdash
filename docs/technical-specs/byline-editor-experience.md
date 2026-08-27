@@ -131,7 +131,7 @@ Selecting an option adds it at the end once, closes the chooser, clears its quer
 
 ### Explicit credits
 
-Show `Bylines` with description `Shown to readers in this order.` Render one quiet list separated by hairline dividers. Do not wrap each credit in a card.
+Show `Bylines` with an instant help tooltip containing `Shown to readers in this order.` Place the add action and section drag handle on the heading row, then render the divider-separated list immediately below it. Do not render a persistent description row or wrap each credit in a card.
 
 Each row contains:
 
@@ -212,6 +212,7 @@ Use Phosphor icons through Kumo icon or trigger props. Do not add raw interactiv
 ### Spacing, alignment, and surfaces
 
 - Reuse the section's `p-4` inline edges. All headings, descriptions, lists, inputs, and buttons align to that shared track.
+- Keep the heading, ordering-help trigger, add action, and section drag handle on one visual row.
 - Use a smaller gap inside a heading-description group than between the group and its action or list.
 - Use one divider-separated list. Do not nest `LayerCard`, draw a card around each row, or combine borders with shadows.
 - Keep Kumo's radii, shadows, focus rings, disabled states, hover states, and press feedback. Do not override component internals.

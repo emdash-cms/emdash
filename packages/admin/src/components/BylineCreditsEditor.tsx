@@ -500,22 +500,20 @@ export function BylineCreditsEditor({
 				<>
 					{credits.length > 0 ? (
 						<>
-							<div className="flex items-center justify-between gap-3">
-								<Text variant="secondary">{t`Shown to readers in this order.`}</Text>
-								<Popover.Trigger
-									render={
-										<Button
-											ref={chooserTriggerRef}
-											type="button"
-											variant="ghost"
-											shape="square"
-											icon={<Plus aria-hidden="true" />}
-											aria-label={t`Add another byline`}
-											data-keep-mobile-sidebar-open
-										/>
-									}
-								/>
-							</div>
+							<Popover.Trigger
+								render={
+									<Button
+										ref={chooserTriggerRef}
+										type="button"
+										variant="ghost"
+										shape="square"
+										icon={<Plus aria-hidden="true" />}
+										className="absolute end-14 top-2"
+										aria-label={t`Add another byline`}
+										data-keep-mobile-sidebar-open
+									/>
+								}
+							/>
 							<DndContext
 								sensors={sensors}
 								collisionDetection={closestCenter}

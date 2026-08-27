@@ -668,9 +668,31 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{currentUser && currentUser.role >= ROLE_EDITOR && (
 					<SortableContentSettingsSection id="bylines" label={t`Bylines`}>
 						<div className="p-4">
-							<Text bold as="h3" DANGEROUS_className="mb-4">
-								{t`Bylines`}
-							</Text>
+							<div className="mb-4 flex items-center gap-1.5 pe-24">
+								<Text bold as="h3">
+									{t`Bylines`}
+								</Text>
+								<Tooltip
+									content={
+										<span className="block max-w-64 text-pretty">
+											{t`Shown to readers in this order.`}
+										</span>
+									}
+									delay={0}
+									closeDelay={0}
+									render={
+										<Button
+											type="button"
+											variant="ghost"
+											shape="square"
+											size="xs"
+											icon={<Info aria-hidden="true" />}
+											className="text-kumo-subtle hover:text-kumo-default"
+											aria-label={t`Why are bylines shown in this order?`}
+										/>
+									}
+								/>
+							</div>
 							<BylineCreditsEditor
 								key={`${collection}:${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`}
 								credits={activeBylines}
