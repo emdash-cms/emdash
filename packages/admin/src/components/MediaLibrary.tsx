@@ -1687,7 +1687,7 @@ function MediaGridItem({ item, selected, draggable, isMoving, onClick }: MediaGr
 						src={getMediaThumbnailUrl(item.url, item.mimeType, MEDIA_THUMBNAIL_WIDTH)}
 						alt={item.alt || item.filename}
 						draggable={false}
-						className="h-full w-full object-cover"
+						className="emdash-media-transparency-grid h-full w-full object-cover"
 						style={{ objectPosition: getMediaObjectPosition(item) }}
 						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
 					/>
@@ -1737,7 +1737,7 @@ function ProviderGridItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 					<img
 						src={item.previewUrl}
 						alt={item.alt || item.filename}
-						className="h-full w-full object-cover"
+						className="emdash-media-transparency-grid h-full w-full object-cover"
 						onLoad={handleImageLoad}
 					/>
 				) : (
@@ -1796,7 +1796,7 @@ function MediaListItem({ item, selected, draggable, isMoving, onClick }: MediaLi
 							src={getMediaThumbnailUrl(item.url, item.mimeType, 80)}
 							alt={item.alt || item.filename}
 							draggable={false}
-							className="h-full w-full object-cover"
+							className="emdash-media-transparency-grid h-full w-full object-cover"
 							style={{ objectPosition: getMediaObjectPosition(item) }}
 							onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
 						/>
@@ -1854,7 +1854,7 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 						<img
 							src={item.previewUrl}
 							alt={item.alt || item.filename}
-							className="h-full w-full object-cover"
+							className="emdash-media-transparency-grid h-full w-full object-cover"
 							onLoad={handleImageLoad}
 						/>
 					) : (

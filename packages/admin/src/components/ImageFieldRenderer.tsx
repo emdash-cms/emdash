@@ -240,7 +240,7 @@ export function ImageFieldRenderer({
 
 	const featuredCard = displayUrl ? (
 		<LayerCard className="grid w-full grid-cols-1 rounded-xl p-0 sm:grid-cols-[12rem_minmax(0,1fr)]">
-			<div className="m-2 aspect-[3/2] min-h-28 overflow-hidden rounded bg-kumo-muted ring ring-kumo-line">
+			<div className="m-2 aspect-[3/2] min-h-28 overflow-hidden rounded bg-kumo-tint ring ring-kumo-line">
 				{imageBroken ? (
 					<div className="flex h-full min-h-28 items-center justify-center gap-2 text-kumo-subtle">
 						<ImageBroken className="h-5 w-5" aria-hidden="true" />
@@ -252,7 +252,7 @@ export function ImageFieldRenderer({
 					<img
 						src={displayUrl}
 						alt=""
-						className="h-full w-full object-cover"
+						className="emdash-media-transparency-grid h-full w-full object-cover"
 						style={{ objectPosition }}
 						onError={() => setImageBroken(true)}
 					/>
@@ -312,7 +312,7 @@ export function ImageFieldRenderer({
 			) : displayUrl ? (
 				imageBroken ? (
 					<div className="relative group">
-						<div className="min-h-20 rounded-lg border bg-kumo-muted flex items-center justify-center gap-2 text-kumo-subtle">
+						<div className="flex min-h-20 items-center justify-center gap-2 rounded-lg border bg-kumo-tint text-kumo-subtle">
 							<ImageBroken className="h-5 w-5" />
 							<span className="text-sm">{t`Image not found`}</span>
 						</div>
@@ -342,7 +342,7 @@ export function ImageFieldRenderer({
 						<img
 							src={displayUrl}
 							alt=""
-							className="max-h-48 min-h-20 rounded-lg border object-cover"
+							className="emdash-media-transparency-grid max-h-48 min-h-20 rounded-lg border object-cover"
 							style={{ objectPosition }}
 							onError={() => setImageBroken(true)}
 						/>

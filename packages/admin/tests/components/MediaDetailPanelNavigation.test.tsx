@@ -107,6 +107,13 @@ async function renderPanelRouter(panelItem?: MediaItem) {
 	return { router, screen };
 }
 
+async function openUsageLink(screen: Awaited<ReturnType<typeof renderPanelRouter>>["screen"]) {
+	screen.getByRole("tab", { name: "Used in" }).element().click();
+	const link = screen.getByRole("link", { name: /Launch notes/ });
+	await expect.element(link).toBeVisible();
+	return link;
+}
+
 describe("MediaDetailPanel usage navigation", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -117,8 +124,7 @@ describe("MediaDetailPanel usage navigation", () => {
 
 	it("requests and navigates from local media without a usage summary", async () => {
 		const { router, screen } = await renderPanelRouter();
-		const link = screen.getByRole("link", { name: /Launch notes/ });
-		await expect.element(link).toBeVisible();
+		const link = await openUsageLink(screen);
 		expect(fetchMediaUsageDetails).toHaveBeenCalledTimes(1);
 
 		link.element().click();
@@ -140,7 +146,7 @@ describe("MediaDetailPanel usage navigation", () => {
 	it("preserves modified links and lets dirty same-tab navigation be cancelled", async () => {
 		const { router, screen } = await renderPanelRouter();
 		await screen.getByLabelText("Alt Text").fill("Changed");
-		const link = screen.getByRole("link", { name: /Launch notes/ });
+		const link = await openUsageLink(screen);
 
 		let preventedBeforeNavigationGuard: boolean | undefined;
 		const preventIframeNavigation = (event: MouseEvent) => {
@@ -174,10 +180,8 @@ describe("MediaDetailPanel usage navigation", () => {
 		const { router, screen } = await renderPanelRouter();
 		await screen.getByLabelText("Alt Text").fill("Changed");
 
-		screen
-			.getByRole("link", { name: /Launch notes/ })
-			.element()
-			.click();
+		const link = await openUsageLink(screen);
+		link.element().click();
 		await expect.element(screen.getByText("Discard changes?")).toBeVisible();
 		screen.getByRole("button", { name: "Discard" }).element().click();
 
@@ -191,8 +195,8 @@ describe("MediaDetailPanel usage navigation", () => {
 		vi.mocked(updateMedia).mockImplementation(() => new Promise(() => {}));
 		const { router, screen } = await renderPanelRouter();
 		await screen.getByLabelText("Alt Text").fill("Changed");
+		const link = await openUsageLink(screen);
 		screen.getByRole("button", { name: "Save" }).element().click();
-		const link = screen.getByRole("link", { name: /Launch notes/ });
 
 		await expect.element(link).toHaveAttribute("aria-disabled", "true");
 		const primaryAllowed = link
