@@ -4,6 +4,7 @@ import { NSID } from "@emdash-cms/registry-lexicons";
 import { describe, expect, it } from "vitest";
 
 import {
+	findAuthoritativeRelease,
 	PublisherSnapshotError,
 	readPublisherVerificationSnapshot,
 } from "../src/verification/pds.js";
@@ -99,6 +100,25 @@ function snapshotFetch(
 	};
 }
 
+function releaseFetch(record: ReturnType<typeof release> | null, options: { error?: string } = {}) {
+	return async (input: RequestInfo | URL): Promise<Response> => {
+		const url = new URL(input instanceof Request ? input.url : input.toString());
+		if (url.hostname === "cloudflare-dns.com") {
+			return Response.json({
+				Status: 0,
+				Answer: url.searchParams.get("type") === "A" ? [{ type: 1, data: "93.184.216.34" }] : [],
+			});
+		}
+		expect(url.pathname).toBe("/xrpc/com.atproto.repo.getRecord");
+		expect(url.searchParams.get("repo")).toBe(PUBLISHER_DID);
+		expect(url.searchParams.get("collection")).toBe(NSID.packageRelease);
+		expect(url.searchParams.get("rkey")).toBe("gallery:2.0.0");
+		return record
+			? Response.json(record)
+			: Response.json({ error: options.error ?? "RecordNotFound" }, { status: 400 });
+	};
+}
+
 describe("publisher verification snapshot", () => {
 	it("uses a signed repository proof instead of an unverified profile response", async () => {
 		const fetch: typeof globalThis.fetch = async (input, init) => {
@@ -179,5 +199,32 @@ describe("publisher verification snapshot", () => {
 				fetch: snapshotFetch({ privateAddress: true }),
 			}),
 		).rejects.toBeInstanceOf(PublisherSnapshotError);
+	});
+});
+
+describe("authoritative release reconciliation read", () => {
+	it("reads only the deterministic release key and returns its authoritative CID", async () => {
+		await expect(
+			findAuthoritativeRelease(PUBLISHER_DID, "gallery", "2.0.0", {
+				actorResolver: resolver(),
+				fetch: releaseFetch(release("2.0.0")),
+			}),
+		).resolves.toEqual(release("2.0.0"));
+	});
+
+	it("accepts only the explicit RecordNotFound response as confirmed absence", async () => {
+		await expect(
+			findAuthoritativeRelease(PUBLISHER_DID, "gallery", "2.0.0", {
+				actorResolver: resolver(),
+				fetch: releaseFetch(null),
+			}),
+		).resolves.toBeNull();
+
+		await expect(
+			findAuthoritativeRelease(PUBLISHER_DID, "gallery", "2.0.0", {
+				actorResolver: resolver(),
+				fetch: releaseFetch(null, { error: "InvalidRequest" }),
+			}),
+		).rejects.toMatchObject({ code: "RELEASE_RECORD_INVALID" });
 	});
 });

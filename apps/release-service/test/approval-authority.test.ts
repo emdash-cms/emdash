@@ -59,6 +59,7 @@ async function createAwaitingApprovalIntent() {
 		version: "1.2.3",
 		workloadPolicyVersion: 1,
 		workloadIdentityDigest: "A".repeat(43),
+		workloadIdempotencyDigest: "I".repeat(43),
 		idempotencyKey: "github-run-100-attempt-1",
 		requestDigest: "B".repeat(43),
 		workloadIdentityJson: JSON.stringify({ issuer: "github-actions", runId: "100" }),
@@ -103,7 +104,7 @@ async function createAwaitingApprovalIntent() {
 		actorRealm: "system",
 		actorIdentity: "release-service",
 		reasonCode: "APPROVAL_REQUIRED",
-		stateDataJson: await encodeAwaitingApprovalState(EVIDENCE),
+		stateDataJson: await encodeAwaitingApprovalState(EVIDENCE, [APPROVER_DID]),
 		now: NOW + 4,
 	});
 }

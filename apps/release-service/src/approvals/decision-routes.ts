@@ -1,6 +1,9 @@
+import { safeParse } from "@atcute/lexicons";
 import { isDid } from "@atcute/lexicons/syntax";
 import type { AuthenticationResponse } from "@emdash-cms/auth/passkey";
+import { NSID, PackageRelease, PackageReleaseExtension } from "@emdash-cms/registry-lexicons";
 import { env } from "cloudflare:workers";
+import { base64url } from "jose";
 
 import { ApiError } from "../api/errors.js";
 import { apiFailure, apiSuccess } from "../api/response.js";
@@ -10,6 +13,7 @@ import {
 } from "../approver-session/session.js";
 import type { ServiceConfiguration } from "../config.js";
 import { ApprovalAuthorityError, loadApprovalIntent, verifyCurrentApprover } from "./authority.js";
+import type { ApprovalEvidence } from "./digest.js";
 import {
 	ApprovalPasskeyError,
 	beginApprovalDecision,
@@ -132,6 +136,202 @@ function parseDecision(value: unknown): "approve" | "reject" {
 	return value;
 }
 
+async function digest(value: unknown): Promise<string> {
+	return base64url.encode(
+		new Uint8Array(
+			await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(value))),
+		),
+	);
+}
+
+function evidenceInvalid(): never {
+	throw new ApprovalAuthorityError("APPROVAL_EVIDENCE_INVALID");
+}
+
+function recordField(value: Record<string, unknown>, key: string): Record<string, unknown> {
+	const item = value[key];
+	return isRecord(item) ? item : evidenceInvalid();
+}
+
+function stringField(value: Record<string, unknown>, key: string): string {
+	const item = value[key];
+	return typeof item === "string" ? item : evidenceInvalid();
+}
+
+function integerField(value: Record<string, unknown>, key: string): number {
+	const item = value[key];
+	return Number.isSafeInteger(item) ? Number(item) : evidenceInvalid();
+}
+
+function nullableStringField(value: Record<string, unknown>, key: string): string | null {
+	const item = value[key];
+	return item === null || typeof item === "string" ? item : evidenceInvalid();
+}
+
+async function storedWorkloadSource(workloadIdentityJson: string, expectedDigest: string) {
+	let workload: unknown;
+	try {
+		workload = JSON.parse(workloadIdentityJson);
+	} catch {
+		evidenceInvalid();
+	}
+	if (!isRecord(workload)) evidenceInvalid();
+	const repository = recordField(workload, "repository");
+	const workflow = recordField(workload, "workflow");
+	const run = recordField(workload, "run");
+	const issuer = stringField(workload, "issuer");
+	const visibility = stringField(repository, "visibility");
+	const refType = stringField(run, "refType");
+	const runnerEnvironment = stringField(run, "runnerEnvironment");
+	if (
+		issuer !== "github-actions" ||
+		(visibility !== "public" && visibility !== "private" && visibility !== "internal") ||
+		(refType !== "branch" && refType !== "tag") ||
+		(runnerEnvironment !== "github-hosted" && runnerEnvironment !== "self-hosted")
+	) {
+		evidenceInvalid();
+	}
+	const source = {
+		repository: stringField(repository, "name"),
+		workflowRef: stringField(workflow, "ref"),
+		commitSha: stringField(run, "commitSha"),
+		runId: stringField(run, "id"),
+		actor: stringField(run, "actor"),
+	};
+	const actualDigest = await digest([
+		"emdash-release-service",
+		"workload-identity",
+		1,
+		issuer,
+		stringField(workload, "subject"),
+		stringField(workload, "tokenId"),
+		source.repository,
+		stringField(repository, "id"),
+		stringField(repository, "owner"),
+		stringField(repository, "ownerId"),
+		visibility,
+		source.workflowRef,
+		stringField(workflow, "sha"),
+		nullableStringField(workflow, "jobRef"),
+		nullableStringField(workflow, "jobSha"),
+		source.runId,
+		integerField(run, "attempt"),
+		source.actor,
+		stringField(run, "actorId"),
+		stringField(run, "eventName"),
+		stringField(run, "ref"),
+		refType,
+		source.commitSha,
+		nullableStringField(run, "environment"),
+		runnerEnvironment,
+		integerField(workload, "issuedAt"),
+		integerField(workload, "expiresAt"),
+	]);
+	if (actualDigest !== expectedDigest) evidenceInvalid();
+	return source;
+}
+
+async function storedReleaseReview(releaseInputJson: string, evidence: ApprovalEvidence) {
+	let input: unknown;
+	try {
+		input = JSON.parse(releaseInputJson);
+	} catch {
+		evidenceInvalid();
+	}
+	if (!isRecord(input) || !isRecord(input["release"])) evidenceInvalid();
+	const release = safeParse(PackageRelease.mainSchema, input["release"]);
+	if (!release.ok) evidenceInvalid();
+	const extension = safeParse(
+		PackageReleaseExtension.mainSchema,
+		release.value.extensions?.[NSID.packageReleaseExtension],
+	);
+	if (!extension.ok || !extension.value.provenance) evidenceInvalid();
+	const provenance = extension.value.provenance;
+	if (
+		release.value.package !== evidence.packageSlug ||
+		release.value.version !== evidence.version ||
+		release.value.artifacts.package.checksum !== evidence.artifactChecksum ||
+		provenance.checksum !== evidence.provenanceChecksum ||
+		(await digest(["release-intent", 1, evidence.publisherDid, release.value])) !==
+			evidence.releaseInputDigest
+	) {
+		evidenceInvalid();
+	}
+	return {
+		artifact: {
+			url: release.value.artifacts.package.url,
+			checksum: release.value.artifacts.package.checksum,
+		},
+		provenance: {
+			url: provenance.url,
+			checksum: provenance.checksum,
+			predicateType: provenance.predicateType,
+			sourceRepository: provenance.sourceRepository,
+			builderId: provenance.builderId,
+		},
+	};
+}
+
+async function storedAccessDiff(resultJson: string | null, expectedDigest: string) {
+	if (!resultJson) throw new ApprovalAuthorityError("APPROVAL_EVIDENCE_INVALID");
+	let result: unknown;
+	let diff: unknown;
+	try {
+		result = JSON.parse(resultJson);
+		if (!isRecord(result) || typeof result["accessDiffJson"] !== "string") throw new Error();
+		diff = JSON.parse(result["accessDiffJson"]);
+	} catch {
+		throw new ApprovalAuthorityError("APPROVAL_EVIDENCE_INVALID");
+	}
+	if (
+		!isRecord(diff) ||
+		typeof diff["escalation"] !== "boolean" ||
+		!Array.isArray(diff["changes"])
+	) {
+		throw new ApprovalAuthorityError("APPROVAL_EVIDENCE_INVALID");
+	}
+	if ((await digest(diff)) !== expectedDigest) evidenceInvalid();
+	const changes = diff["changes"].map((change) => {
+		if (
+			!isRecord(change) ||
+			typeof change["kind"] !== "string" ||
+			typeof change["category"] !== "string" ||
+			(change["operation"] !== undefined && typeof change["operation"] !== "string") ||
+			!Array.isArray(change["path"]) ||
+			change["path"].some((part) => typeof part !== "string") ||
+			typeof change["escalation"] !== "boolean"
+		) {
+			throw new ApprovalAuthorityError("APPROVAL_EVIDENCE_INVALID");
+		}
+		return {
+			kind: change["kind"],
+			category: change["category"],
+			operation: typeof change["operation"] === "string" ? change["operation"] : null,
+			path: change["path"],
+			escalation: change["escalation"],
+		};
+	});
+	return { escalation: diff["escalation"], changes };
+}
+
+async function approvalReview(
+	workloadIdentityJson: string,
+	releaseInputJson: string,
+	policyDecisionJson: string | null,
+	evidence: ApprovalEvidence,
+) {
+	const [source, releaseReview, accessDiff] = await Promise.all([
+		storedWorkloadSource(workloadIdentityJson, evidence.workloadIdentityDigest),
+		storedReleaseReview(releaseInputJson, evidence),
+		storedAccessDiff(policyDecisionJson, evidence.declaredAccessDiffDigest),
+	]);
+	return {
+		source,
+		...releaseReview,
+		accessDiff,
+	};
+}
+
 function mapApprovalError(error: unknown): ApiError {
 	if (error instanceof ApiError) return error;
 	if (error instanceof ApproverSessionError) {
@@ -227,6 +427,9 @@ export async function handleGetApproval(
 			intentId(params),
 		);
 		await verifyCurrentApprover(loaded.evidence, session.approverDid);
+		const policyDecision = await env.PUBLISHER_DO.getByName(
+			loaded.evidence.publisherDid,
+		).getVerificationStep(loaded.evidence.publisherDid, loaded.intent.id, "policy-decision");
 		return apiSuccess(
 			{
 				intent: {
@@ -238,6 +441,12 @@ export async function handleGetApproval(
 				},
 				evidence: loaded.evidence,
 				evidenceDigest: loaded.evidenceDigest,
+				review: await approvalReview(
+					loaded.intent.workloadIdentityJson,
+					loaded.intent.releaseInputJson,
+					policyDecision?.resultJson ?? null,
+					loaded.evidence,
+				),
 			},
 			requestId,
 		);

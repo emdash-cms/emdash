@@ -45,6 +45,7 @@ function intent(release = proposedRelease()): StoredIntent {
 		stateGeneration: 2,
 		workloadPolicyVersion: 1,
 		workloadIdentityDigest: "A".repeat(43),
+		workloadIdempotencyDigest: "I".repeat(43),
 		requestDigest: "B".repeat(43),
 		workloadIdentityJson: JSON.stringify({ issuer: "github-actions" }),
 		releaseInputJson: JSON.stringify({ release }),

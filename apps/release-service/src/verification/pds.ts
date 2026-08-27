@@ -19,6 +19,7 @@ const MAX_RELEASE_PAGES = 100;
 const PAGE_LIMIT = 100;
 const PACKAGE_SLUG_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.-]{0,127}$/;
+const UPSTREAM_STATUS_HEADER = "x-emdash-upstream-status";
 
 export interface AuthoritativeRecord {
 	uri: string;
@@ -46,6 +47,7 @@ export class PublisherSnapshotError extends Error {
 		| "PUBLISHER_PDS_INVALID"
 		| "PROFILE_INVALID"
 		| "RELEASE_EXISTS"
+		| "RELEASE_RECORD_INVALID"
 		| "RELEASE_LIST_INVALID";
 
 	constructor(code: PublisherSnapshotError["code"]) {
@@ -186,6 +188,44 @@ function guardedFetch(fetchImplementation: typeof fetch): typeof fetch {
 	};
 }
 
+async function guardedRecordJson(
+	url: URL,
+	fetchImplementation: typeof fetch,
+): Promise<{ status: number; value: unknown }> {
+	const resource = await fetchVerifiedResource(url, {
+		fetch: async (input, init) => {
+			const response = await fetchImplementation(input, init);
+			const headers = new Headers(response.headers);
+			headers.set(UPSTREAM_STATUS_HEADER, String(response.status));
+			return new Response(response.body, {
+				status: response.status === 400 ? 200 : response.status,
+				statusText: response.status === 400 ? "OK" : response.statusText,
+				headers,
+			});
+		},
+		resolveHostname: (hostname) => resolvePublicHostname(hostname, fetchImplementation),
+		headerTimeoutMs: 10_000,
+		totalTimeoutMs: 30_000,
+		maxBytes: MAX_PDS_RESPONSE_BYTES,
+		maxRedirects: 1,
+	});
+	if (!resource.success || resource.value.url.toString() !== url.toString()) {
+		throw new PublisherSnapshotError("PUBLISHER_PDS_INVALID");
+	}
+	const status = Number(resource.value.headers.get(UPSTREAM_STATUS_HEADER));
+	if (!Number.isSafeInteger(status)) throw new PublisherSnapshotError("PUBLISHER_PDS_INVALID");
+	try {
+		return {
+			status,
+			value: JSON.parse(
+				new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(resource.value.bytes),
+			),
+		};
+	} catch {
+		throw new PublisherSnapshotError("PUBLISHER_PDS_INVALID");
+	}
+}
+
 function pdsXrpcUrl(pds: string, method: string): URL {
 	let url: URL;
 	try {
@@ -271,6 +311,35 @@ async function getProfile(
 		}
 		throw new PublisherSnapshotError("PUBLISHER_PDS_INVALID");
 	}
+}
+
+async function getRelease(
+	pds: string,
+	publisherDid: string,
+	packageSlug: string,
+	version: string,
+	fetchImplementation: typeof fetch,
+): Promise<AuthoritativeRecord | null> {
+	const rkey = `${packageSlug}:${version}`;
+	const url = pdsXrpcUrl(pds, "com.atproto.repo.getRecord");
+	url.searchParams.set("repo", publisherDid);
+	url.searchParams.set("collection", NSID.packageRelease);
+	url.searchParams.set("rkey", rkey);
+	const response = await guardedRecordJson(url, fetchImplementation);
+	if (
+		response.status === 400 &&
+		isRecord(response.value) &&
+		response.value["error"] === "RecordNotFound"
+	) {
+		return null;
+	}
+	if (response.status !== 200) throw new PublisherSnapshotError("RELEASE_RECORD_INVALID");
+	const record = parseRecord(response.value);
+	const expectedUri = `at://${publisherDid}/${NSID.packageRelease}/${rkey}`;
+	if (!record || record.uri !== expectedUri) {
+		throw new PublisherSnapshotError("RELEASE_RECORD_INVALID");
+	}
+	return record;
 }
 
 async function listPackageReleases(
@@ -372,4 +441,30 @@ export async function readPublisherVerificationSnapshot(
 		baseline,
 		baselineVersion,
 	};
+}
+
+export async function findAuthoritativeRelease(
+	publisherDid: string,
+	packageSlug: string,
+	version: string,
+	options: ReadPublisherSnapshotOptions = {},
+): Promise<AuthoritativeRecord | null> {
+	if (
+		!isDid(publisherDid) ||
+		!PACKAGE_SLUG_PATTERN.test(packageSlug) ||
+		!VERSION_PATTERN.test(version)
+	) {
+		throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+	}
+	const fetchImplementation = options.fetch ?? globalThis.fetch;
+	let actor;
+	try {
+		actor = await (
+			options.actorResolver ?? createWorkerActorResolver(guardedIdentityFetch(fetchImplementation))
+		).resolve(publisherDid, { signal: AbortSignal.timeout(30_000), noCache: true });
+	} catch {
+		throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+	}
+	if (actor.did !== publisherDid) throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+	return getRelease(actor.pds, publisherDid, packageSlug, version, fetchImplementation);
 }

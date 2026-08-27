@@ -767,14 +767,14 @@ export class ServiceControlDurableObject extends DurableObject<Env> {
 			}
 			if (permit.expires_at <= now) return { ok: false, code: "PERMIT_EXPIRED" } as const;
 			const state = this.#readState();
-			if (permit.mode_epoch !== state.epoch) {
-				return { ok: false, code: "PERMIT_STALE" } as const;
-			}
 			if (state.mode === "publication-paused") {
 				return { ok: false, code: "PUBLICATION_PAUSED" } as const;
 			}
 			if (this.#readPublisherControl(input.publisherDid).status === "suspended") {
 				return { ok: false, code: "PUBLISHER_SUSPENDED" } as const;
+			}
+			if (permit.mode_epoch !== state.epoch) {
+				return { ok: false, code: "PERMIT_STALE" } as const;
 			}
 			this.ctx.storage.sql.exec(
 				"UPDATE publication_permits SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL",

@@ -11,6 +11,7 @@ export default defineConfig({
 		"src/discovery/index.ts",
 		"src/env/index.ts",
 		"src/publishing/index.ts",
+		"src/release-service/index.ts",
 	],
 	format: ["esm"],
 	outExtensions: () => ({ js: ".js" }),

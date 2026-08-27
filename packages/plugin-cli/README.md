@@ -25,6 +25,9 @@ emdash-plugin build                          Build dist/ artifacts (plugin.mjs, 
 emdash-plugin dev                            Watch sources and rebuild on change
 emdash-plugin bundle                         Pack dist/ + assets into a registry tarball
 emdash-plugin publish                        Build, upload, and publish a release
+emdash-plugin release submit <release.json>  Submit a delegated release with GitHub OIDC
+emdash-plugin release status <intent-id>     Read a delegated release intent
+emdash-plugin release cancel <intent-id>     Cancel an unpublished delegated release intent
 emdash-plugin validate [path]                Validate emdash-plugin.jsonc against the v1 schema
 emdash-plugin login <handle-or-did>          Interactive atproto OAuth login
 emdash-plugin logout [--did <did>]           Revoke the active session
@@ -34,7 +37,7 @@ emdash-plugin search <query>                 Free-text search
 emdash-plugin info <handle-or-did> <slug>    Show package details
 ```
 
-The non-interactive output commands (`whoami`, `validate`, `search`, `info`, `login`, `publish`) accept `--json` for machine-readable output. Discovery commands (`search`, `info`) accept `--registry-url <url>` (or `EMDASH_REGISTRY_URL`).
+The non-interactive output commands (`whoami`, `validate`, `search`, `info`, `login`, `publish`, `release submit`, `release status`, `release cancel`) accept `--json` for machine-readable output. Discovery commands (`search`, `info`) accept `--registry-url <url>` (or `EMDASH_REGISTRY_URL`).
 
 ## Development
 
@@ -84,6 +87,29 @@ emdash-plugin publish
 Pass `--url https://example.com/foo-1.0.0.tar.gz` to use an externally hosted bundle. The CLI downloads that URL to validate the bytes and compute the checksum. Listing images declared under `release.artifacts` are still uploaded to your PDS.
 
 On first publish, pass `--license` and `--security-email` (or `--security-url`) to bootstrap the package profile — or keep them in `emdash-plugin.jsonc` (see below).
+
+## Delegated releases
+
+The `release` commands authenticate with the current GitHub Actions OpenID Connect (OIDC) identity. Grant the job `id-token: write`; the CLI requests a token whose audience is the release-service origin for every API call.
+
+The following command submits a generated package release record and waits for publication or an approval request:
+
+```sh
+emdash-plugin release submit release.json \
+  --service-url https://release.example.com \
+  --publisher-did did:web:publisher.example.com
+```
+
+Set `EMDASH_RELEASE_SERVICE_URL` and `EMDASH_PUBLISHER_DID` to omit the two target flags. The default idempotency key uses the GitHub run ID and attempt. Pass `--idempotency-key` when separate jobs must replay the same submission.
+
+Use `--no-wait` to return after the service accepts the intent. The status and cancellation commands require the same publisher and GitHub workload identity:
+
+```sh
+emdash-plugin release status 01JABCDEFGHJKMNPQRSTVWXYZ0
+emdash-plugin release cancel 01JABCDEFGHJKMNPQRSTVWXYZ0
+```
+
+These commands fail outside GitHub Actions because no OIDC request endpoint is available. Use the delegated release Action when the workflow only needs submission and outputs.
 
 ## `emdash-plugin.jsonc`
 

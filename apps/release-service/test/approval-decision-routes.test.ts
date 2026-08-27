@@ -10,13 +10,84 @@ import { createApproverApplicationSession } from "../src/approver-session/sessio
 import { handleRequest } from "../src/index.js";
 import { TEST_BINDINGS } from "./fixtures/oauth.js";
 
-const ORIGIN = "https://release.example.invalid";
+const ORIGIN = "https://release.example.com";
 const PUBLISHER_DID = "did:web:publisher.example.com";
 const APPROVER_DID = "did:plc:approver";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const CREDENTIAL_ID = "approval-credential";
 const PROFILE_CID = "bafyreib3p6qexampleprofilecid";
 const NOW = 1_800_000_000_000;
+const WORKLOAD_IDENTITY = {
+	issuer: "github-actions",
+	subject: "repo:emdash-cms/gallery:ref:refs/heads/main",
+	tokenId: "release-token-100",
+	repository: {
+		name: "emdash-cms/gallery",
+		id: "123456789",
+		owner: "emdash-cms",
+		ownerId: "987654321",
+		visibility: "public",
+	},
+	workflow: {
+		ref: "emdash-cms/gallery/.github/workflows/release.yml@refs/heads/main",
+		sha: "b".repeat(40),
+		jobRef: null,
+		jobSha: null,
+	},
+	run: {
+		id: "100",
+		attempt: 1,
+		actor: "release-bot",
+		actorId: "123",
+		eventName: "workflow_dispatch",
+		ref: "refs/heads/main",
+		refType: "branch",
+		commitSha: "a".repeat(40),
+		environment: null,
+		runnerEnvironment: "github-hosted",
+	},
+	issuedAt: 1_799_999_000,
+	expiresAt: 1_800_000_000,
+};
+const RELEASE_INPUT = {
+	release: {
+		$type: NSID.packageRelease,
+		package: "gallery",
+		version: "1.2.3",
+		artifacts: {
+			package: {
+				url: "https://example.com/gallery.tgz",
+				checksum: "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja",
+			},
+		},
+		extensions: {
+			[NSID.packageReleaseExtension]: {
+				$type: NSID.packageReleaseExtension,
+				declaredAccess: {},
+				provenance: {
+					url: "https://example.com/provenance.json",
+					checksum: "bciqkkpvkbtfcwq6kjkbq3kgjxe5j6ihzkxlfxkzqhwzaaaa3wkbq3a",
+					predicateType: "https://slsa.dev/provenance/v1",
+					sourceRepository: "https://github.com/emdash-cms/gallery",
+					builderId:
+						"https://github.com/emdash-cms/gallery/.github/workflows/release.yml@refs/heads/main",
+				},
+			},
+		},
+	},
+};
+const ACCESS_DIFF = {
+	changes: [
+		{
+			kind: "operation-added",
+			category: "network",
+			operation: "request",
+			path: ["network", "request"],
+			escalation: true,
+		},
+	],
+	escalation: true,
+};
 
 const EVIDENCE: ApprovalEvidence = {
 	intentId: INTENT_ID,
@@ -24,13 +95,13 @@ const EVIDENCE: ApprovalEvidence = {
 	packageSlug: "gallery",
 	version: "1.2.3",
 	verificationGeneration: 4,
-	workloadIdentityDigest: "A".repeat(43),
-	releaseInputDigest: "B".repeat(43),
+	workloadIdentityDigest: "7u8b16-443AUWBwwI1uVQmsjeU_KTHiyKxjy4z04FlA",
+	releaseInputDigest: "ruIEXbYx2xHDU5T3qV28JL__twNtEss9qavvkvEfMiY",
 	profileCid: PROFILE_CID,
 	baselineReleaseCid: null,
-	artifactChecksum: "sha256:0123456789abcdef",
-	provenanceChecksum: "sha256:fedcba9876543210",
-	declaredAccessDiffDigest: "C".repeat(43),
+	artifactChecksum: "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja",
+	provenanceChecksum: "bciqkkpvkbtfcwq6kjkbq3kgjxe5j6ihzkxlfxkzqhwzaaaa3wkbq3a",
+	declaredAccessDiffDigest: "LBGKX2dDy6Ht_ClZjUrp5tfSzuPg_Zw-sEykbB1biYc",
 	verificationDigest: "D".repeat(43),
 };
 
@@ -57,7 +128,13 @@ async function sessionHeaders() {
 	};
 }
 
-async function createAwaitingIntent() {
+async function createAwaitingIntent(
+	overrides: {
+		workloadIdentityJson?: string;
+		releaseInputJson?: string;
+		accessDiffJson?: string;
+	} = {},
+) {
 	const stub = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
 	await stub.putWorkloadPolicy({
 		publisherDid: PUBLISHER_DID,
@@ -78,11 +155,12 @@ async function createAwaitingIntent() {
 		packageSlug: "gallery",
 		version: "1.2.3",
 		workloadPolicyVersion: 1,
-		workloadIdentityDigest: "A".repeat(43),
+		workloadIdentityDigest: EVIDENCE.workloadIdentityDigest,
+		workloadIdempotencyDigest: "I".repeat(43),
 		idempotencyKey: "github-run-100-attempt-1",
-		requestDigest: "B".repeat(43),
-		workloadIdentityJson: JSON.stringify({ issuer: "github-actions", runId: "100" }),
-		releaseInputJson: JSON.stringify({ package: "gallery", version: "1.2.3" }),
+		requestDigest: EVIDENCE.releaseInputDigest,
+		workloadIdentityJson: overrides.workloadIdentityJson ?? JSON.stringify(WORKLOAD_IDENTITY),
+		releaseInputJson: overrides.releaseInputJson ?? JSON.stringify(RELEASE_INPUT),
 		expiresAt: NOW + 60_000,
 		now: NOW + 1,
 	});
@@ -99,6 +177,15 @@ async function createAwaitingIntent() {
 		stateDataJson: "{}",
 		workflowId: "workflow-approval-route",
 		now: NOW + 2,
+	});
+	await stub.putVerificationStep({
+		publisherDid: PUBLISHER_DID,
+		intentId: INTENT_ID,
+		name: "policy-decision",
+		inputDigest: "H".repeat(43),
+		resultJson: JSON.stringify({
+			accessDiffJson: overrides.accessDiffJson ?? JSON.stringify(ACCESS_DIFF),
+		}),
 	});
 	await stub.transitionIntent({
 		publisherDid: PUBLISHER_DID,
@@ -123,7 +210,7 @@ async function createAwaitingIntent() {
 		actorRealm: "system",
 		actorIdentity: "release-service",
 		reasonCode: "APPROVAL_REQUIRED",
-		stateDataJson: await encodeAwaitingApprovalState(EVIDENCE),
+		stateDataJson: await encodeAwaitingApprovalState(EVIDENCE, [APPROVER_DID]),
 		now: NOW + 4,
 	});
 }
@@ -203,7 +290,7 @@ function assertion(
 	const clientDataJSON = Buffer.from(
 		JSON.stringify({ type: "webauthn.get", challenge, origin: ORIGIN }),
 	);
-	const rpIdHash = createHash("sha256").update("release.example.invalid").digest();
+	const rpIdHash = createHash("sha256").update("release.example.com").digest();
 	const counter = Buffer.alloc(4);
 	counter.writeUInt32BE(1);
 	const authenticatorData = Buffer.concat([
@@ -256,11 +343,23 @@ describe("approval decision routes", () => {
 		const resource = `${ORIGIN}/v1/approvals/${INTENT_ID}?publisher=${encodeURIComponent(PUBLISHER_DID)}`;
 
 		const detail = await handleRequest(new Request(resource, { headers }), bindings());
-		expect(detail.status).toBe(200);
+		expect(detail.status, await detail.clone().text()).toBe(200);
 		await expect(detail.json()).resolves.toMatchObject({
 			data: {
 				intent: { state: "awaiting_approval", packageSlug: "gallery", version: "1.2.3" },
 				evidence: { profileCid: PROFILE_CID },
+				review: {
+					source: {
+						repository: "emdash-cms/gallery",
+						commitSha: "a".repeat(40),
+					},
+					artifact: { checksum: EVIDENCE.artifactChecksum },
+					provenance: { checksum: EVIDENCE.provenanceChecksum },
+					accessDiff: {
+						escalation: true,
+						changes: [{ category: "network", operation: "request" }],
+					},
+				},
 			},
 		});
 
@@ -327,6 +426,57 @@ describe("approval decision routes", () => {
 			stateGeneration: 6,
 		});
 	});
+
+	it.each([
+		[
+			"workload identity",
+			{
+				workloadIdentityJson: JSON.stringify({
+					...WORKLOAD_IDENTITY,
+					repository: { ...WORKLOAD_IDENTITY.repository, name: "attacker/gallery" },
+				}),
+			},
+		],
+		[
+			"release input",
+			{
+				releaseInputJson: JSON.stringify({
+					release: {
+						...RELEASE_INPUT.release,
+						artifacts: {
+							package: {
+								...RELEASE_INPUT.release.artifacts.package,
+								checksum: EVIDENCE.provenanceChecksum,
+							},
+						},
+					},
+				}),
+			},
+		],
+		[
+			"declared access diff",
+			{
+				accessDiffJson: JSON.stringify({
+					...ACCESS_DIFF,
+					changes: [{ ...ACCESS_DIFF.changes[0], category: "storage" }],
+				}),
+			},
+		],
+	] as const)(
+		"fails closed when stored %s diverges from approval evidence",
+		async (_, overrides) => {
+			await createAwaitingIntent(overrides);
+			vi.stubGlobal("fetch", approvalNetwork({ approvers: [APPROVER_DID], cid: PROFILE_CID }));
+			const resource = `${ORIGIN}/v1/approvals/${INTENT_ID}?publisher=${encodeURIComponent(PUBLISHER_DID)}`;
+			const response = await handleRequest(
+				new Request(resource, { headers: await sessionHeaders() }),
+				bindings(),
+			);
+
+			expect(response.status).toBe(404);
+			await expect(response.json()).resolves.toMatchObject({ error: { code: "NOT_FOUND" } });
+		},
+	);
 
 	it("rejects an unlisted approver before creating a challenge", async () => {
 		await createAwaitingIntent();

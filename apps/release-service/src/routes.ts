@@ -22,6 +22,13 @@ import {
 	handleSetPublisherControl,
 	handleSetServiceMode,
 } from "./control-do/routes.js";
+import {
+	handleCancelReleaseIntent,
+	handleGetReleaseIntent,
+	handleSubmitReleaseIntent,
+	matchIntentCancelPath,
+	matchIntentResourcePath,
+} from "./intents/routes.js";
 import { getClientMetadata, getPublicJwks, publicOAuthJson } from "./oauth/metadata.js";
 import {
 	handleApproverIdentityAuthorize,
@@ -29,6 +36,27 @@ import {
 	handlePublisherDelegationAuthorize,
 	handlePublisherIdentityAuthorize,
 } from "./oauth/routes.js";
+import {
+	handleCancelOperatorIntent,
+	handleGetOperatorPublisher,
+	handleReconcileOperatorIntent,
+	handleRevokeOperatorPublisher,
+	handleSetOperatorPublisherSuspension,
+	matchOperatorIntentCancelPath,
+	matchOperatorIntentReconcilePath,
+	matchOperatorPublisherPath,
+	matchOperatorPublisherRevokePath,
+	matchOperatorPublisherSuspendPath,
+} from "./operator/routes.js";
+import {
+	handleDisablePublisherWorkload,
+	handleGetPublisher,
+	handleListPublisherIntents,
+	handleListPublisherWorkloads,
+	handlePutPublisherWorkload,
+	handleRevokePublisherDelegation,
+	matchPublisherWorkloadPath,
+} from "./publisher/routes.js";
 
 export interface RouteDefinition {
 	method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
@@ -59,8 +87,60 @@ export const ROUTES = Object.freeze([
 	},
 	{
 		method: "POST",
+		path: "/v1/release-intents",
+		handler: (request, requestId, configuration) =>
+			handleSubmitReleaseIntent(request, requestId, configuration),
+	},
+	{
+		method: "GET",
+		path: "/v1/release-intents/{intentId}",
+		match: matchIntentResourcePath,
+		handler: (request, requestId, configuration, params) =>
+			handleGetReleaseIntent(request, requestId, configuration, params),
+	},
+	{
+		method: "POST",
+		path: "/v1/release-intents/{intentId}/cancel",
+		match: matchIntentCancelPath,
+		handler: (request, requestId, configuration, params) =>
+			handleCancelReleaseIntent(request, requestId, configuration, params),
+	},
+	{
+		method: "POST",
 		path: "/v1/publisher/session/authorize",
 		handler: handlePublisherIdentityAuthorize,
+	},
+	{
+		method: "GET",
+		path: "/v1/publisher",
+		handler: handleGetPublisher,
+	},
+	{
+		method: "DELETE",
+		path: "/v1/publisher/delegation",
+		handler: (request, requestId, configuration) =>
+			handleRevokePublisherDelegation(request, requestId, configuration),
+	},
+	{
+		method: "GET",
+		path: "/v1/publisher/workloads",
+		handler: handleListPublisherWorkloads,
+	},
+	{
+		method: "POST",
+		path: "/v1/publisher/workloads",
+		handler: handlePutPublisherWorkload,
+	},
+	{
+		method: "DELETE",
+		path: "/v1/publisher/workloads/{packageSlug}",
+		match: matchPublisherWorkloadPath,
+		handler: handleDisablePublisherWorkload,
+	},
+	{
+		method: "GET",
+		path: "/v1/publisher/intents",
+		handler: handleListPublisherIntents,
 	},
 	{
 		method: "POST",
@@ -120,6 +200,59 @@ export const ROUTES = Object.freeze([
 		method: "GET",
 		path: "/ready",
 		handler: handleReadiness,
+	},
+	{
+		method: "GET",
+		path: "/admin/api/status",
+		accessRole: "viewer",
+		handler: handleServiceStatus,
+	},
+	{
+		method: "POST",
+		path: "/admin/api/pause",
+		accessRole: "admin",
+		handler: handleSetServiceMode,
+	},
+	{
+		method: "GET",
+		path: "/admin/api/publishers/{publisherDid}",
+		match: matchOperatorPublisherPath,
+		accessRole: "viewer",
+		handler: handleGetOperatorPublisher,
+	},
+	{
+		method: "POST",
+		path: "/admin/api/publishers/{publisherDid}/suspend",
+		match: matchOperatorPublisherSuspendPath,
+		accessRole: "admin",
+		handler: handleSetOperatorPublisherSuspension,
+	},
+	{
+		method: "POST",
+		path: "/admin/api/publishers/{publisherDid}/revoke",
+		match: matchOperatorPublisherRevokePath,
+		accessRole: "admin",
+		handler: handleRevokeOperatorPublisher,
+	},
+	{
+		method: "POST",
+		path: "/admin/api/intents/{intentId}/cancel",
+		match: matchOperatorIntentCancelPath,
+		accessRole: "reviewer",
+		handler: handleCancelOperatorIntent,
+	},
+	{
+		method: "POST",
+		path: "/admin/api/intents/{intentId}/reconcile",
+		match: matchOperatorIntentReconcilePath,
+		accessRole: "reviewer",
+		handler: handleReconcileOperatorIntent,
+	},
+	{
+		method: "GET",
+		path: "/admin/api/audit",
+		accessRole: "viewer",
+		handler: handleControlAudit,
 	},
 	{
 		method: "GET",

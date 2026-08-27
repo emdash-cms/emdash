@@ -4,6 +4,7 @@ const DID_PATTERN = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const ULID_PATTERN = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const DIGEST_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const REASON_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 const AT_URI_PATTERN =
 	/^at:\/\/did:[a-z0-9]+:[A-Za-z0-9._:%-]+\/[a-zA-Z0-9.-]+\/[A-Za-z0-9._:~-]+$/;
 const CID_PATTERN = /^[A-Za-z0-9]+$/;
@@ -53,7 +54,7 @@ export type BeginPublicationOperationResult =
 	  }
 	| { ok: false; code: "PUBLICATION_BUSY"; retryAt: number };
 
-export type PublicationOutcome = "published" | "ambiguous" | "conflict";
+export type PublicationOutcome = "published" | "ambiguous" | "blocked" | "conflict" | "failed";
 
 export interface CompletePublicationOperationInput {
 	publisherDid: string;
@@ -63,6 +64,7 @@ export interface CompletePublicationOperationInput {
 	expectedIntentGeneration: number;
 	completionDigest: string;
 	outcome: PublicationOutcome;
+	reasonCode?: string | null;
 	resultUri: string | null;
 	resultCid: string | null;
 	now?: number;
@@ -71,7 +73,7 @@ export interface CompletePublicationOperationInput {
 export type CompletePublicationOperationResult =
 	| {
 			ok: true;
-			state: "published" | "reconciling" | "conflict";
+			state: "published" | "reconciling" | "ready" | "conflict" | "failed";
 			stateGeneration: number;
 			replayed: boolean;
 	  }
@@ -88,6 +90,9 @@ interface OperationRow {
 	expires_at: number;
 	completion_digest: string | null;
 	outcome: PublicationOutcome | null;
+	reason_code: string | null;
+	result_uri: string | null;
+	result_cid: string | null;
 	completed_at: number | null;
 }
 
@@ -132,6 +137,21 @@ function readIntent(storage: DurableObjectStorage, intentId: string): IntentRow 
 	);
 }
 
+function stateForOutcome(outcome: PublicationOutcome) {
+	if (outcome === "published") return "published" as const;
+	if (outcome === "ambiguous") return "reconciling" as const;
+	if (outcome === "blocked") return "ready" as const;
+	if (outcome === "conflict") return "conflict" as const;
+	return "failed" as const;
+}
+
+function reasonForOutcome(input: CompletePublicationOperationInput): string | null {
+	if (input.outcome === "ambiguous") return "PDS_AMBIGUOUS";
+	if (input.outcome === "conflict") return "RELEASE_CONFLICT";
+	if (input.outcome === "blocked" || input.outcome === "failed") return input.reasonCode!;
+	return null;
+}
+
 export function initializePublicationOperationSchema(storage: DurableObjectStorage): void {
 	storage.sql.exec(`
 		CREATE TABLE IF NOT EXISTS publication_operations (
@@ -144,7 +164,10 @@ export function initializePublicationOperationSchema(storage: DurableObjectStora
 			materialization_digest TEXT,
 			expires_at INTEGER NOT NULL,
 			completion_digest TEXT,
-			outcome TEXT CHECK (outcome IN ('published', 'ambiguous', 'conflict')),
+			outcome TEXT CHECK (outcome IN ('published', 'ambiguous', 'blocked', 'conflict', 'failed')),
+			reason_code TEXT,
+			result_uri TEXT,
+			result_cid TEXT,
 			started_at INTEGER NOT NULL,
 			completed_at INTEGER
 		);
@@ -203,7 +226,8 @@ export class PublicationOperationStore {
 			const current = this.#storage.sql
 				.exec<OperationRow>(
 					`SELECT generation, token_hash, intent_generation, status, phase,
-					        materialization_digest, expires_at, completion_digest, outcome, completed_at
+					        materialization_digest, expires_at, completion_digest, outcome,
+					        reason_code, result_uri, result_cid, completed_at
 					 FROM publication_operations WHERE intent_id = ?`,
 					intentId,
 				)
@@ -220,8 +244,9 @@ export class PublicationOperationStore {
 				`INSERT INTO publication_operations (
 					intent_id, generation, token_hash, intent_generation, status, phase,
 					materialization_digest,
-					expires_at, completion_digest, outcome, started_at, completed_at
-				) VALUES (?, ?, ?, ?, 'active', 'uploading', NULL, ?, NULL, NULL, ?, NULL)
+					expires_at, completion_digest, outcome, reason_code, result_uri, result_cid,
+					started_at, completed_at
+				) VALUES (?, ?, ?, ?, 'active', 'uploading', NULL, ?, NULL, NULL, NULL, NULL, NULL, ?, NULL)
 				ON CONFLICT(intent_id) DO UPDATE SET
 					generation = excluded.generation,
 					token_hash = excluded.token_hash,
@@ -232,6 +257,9 @@ export class PublicationOperationStore {
 					expires_at = excluded.expires_at,
 					completion_digest = NULL,
 					outcome = NULL,
+					reason_code = NULL,
+					result_uri = NULL,
+					result_cid = NULL,
 					started_at = excluded.started_at,
 					completed_at = NULL`,
 				intentId,
@@ -377,7 +405,12 @@ export class PublicationOperationStore {
 			!DIGEST_PATTERN.test(input.completionDigest) ||
 			(input.outcome !== "published" &&
 				input.outcome !== "ambiguous" &&
-				input.outcome !== "conflict") ||
+				input.outcome !== "blocked" &&
+				input.outcome !== "conflict" &&
+				input.outcome !== "failed") ||
+			((input.outcome === "blocked" || input.outcome === "failed") &&
+				(typeof input.reasonCode !== "string" || !REASON_CODE_PATTERN.test(input.reasonCode))) ||
+			(input.outcome !== "blocked" && input.outcome !== "failed" && input.reasonCode != null) ||
 			(input.outcome === "published" &&
 				(typeof input.resultUri !== "string" ||
 					!AT_URI_PATTERN.test(input.resultUri) ||
@@ -394,18 +427,15 @@ export class PublicationOperationStore {
 			const operation = this.#storage.sql
 				.exec<OperationRow>(
 					`SELECT generation, token_hash, intent_generation, status, phase,
-					        materialization_digest, expires_at, completion_digest, outcome, completed_at
+					        materialization_digest, expires_at, completion_digest, outcome,
+					        reason_code, result_uri, result_cid, completed_at
 					 FROM publication_operations WHERE intent_id = ?`,
 					input.intentId,
 				)
 				.toArray()[0];
 			const intent = readIntent(this.#storage, input.intentId);
-			const replayState =
-				input.outcome === "published"
-					? "published"
-					: input.outcome === "ambiguous"
-						? "reconciling"
-						: "conflict";
+			const replayState = stateForOutcome(input.outcome);
+			const reasonCode = reasonForOutcome(input);
 			if (
 				operation?.status === "completed" &&
 				operation.phase === "creating" &&
@@ -415,6 +445,9 @@ export class PublicationOperationStore {
 				hashesEqual(operation.token_hash, tokenHash) &&
 				operation.completion_digest === input.completionDigest &&
 				operation.outcome === input.outcome &&
+				operation.reason_code === reasonCode &&
+				operation.result_uri === input.resultUri &&
+				operation.result_cid === input.resultCid &&
 				intent?.state === replayState &&
 				intent.state_generation === input.expectedIntentGeneration + 1
 			) {
@@ -434,25 +467,15 @@ export class PublicationOperationStore {
 				operation.token_hash === null ||
 				!hashesEqual(operation.token_hash, tokenHash) ||
 				operation.intent_generation !== input.expectedIntentGeneration ||
-				operation.expires_at <= now ||
+				(operation.expires_at <= now &&
+					(input.outcome === "published" || input.outcome === "conflict")) ||
 				!intent ||
 				intent.state !== "publishing" ||
 				intent.state_generation !== input.expectedIntentGeneration
 			) {
 				return { ok: false, code: "PUBLICATION_CAS_REQUIRED" } as const;
 			}
-			const nextState =
-				input.outcome === "published"
-					? "published"
-					: input.outcome === "ambiguous"
-						? "reconciling"
-						: "conflict";
-			const reasonCode =
-				input.outcome === "ambiguous"
-					? "PDS_AMBIGUOUS"
-					: input.outcome === "conflict"
-						? "RELEASE_CONFLICT"
-						: null;
+			const nextState = stateForOutcome(input.outcome);
 			const nextGeneration = intent.state_generation + 1;
 			const stateData = JSON.stringify({ resultUri: input.resultUri, resultCid: input.resultCid });
 			this.#storage.sql.exec(
@@ -491,10 +514,14 @@ export class PublicationOperationStore {
 			);
 			this.#storage.sql.exec(
 				`UPDATE publication_operations SET
-					status = 'completed', completion_digest = ?, outcome = ?, completed_at = ?
+					status = 'completed', completion_digest = ?, outcome = ?, reason_code = ?,
+					result_uri = ?, result_cid = ?, completed_at = ?
 				 WHERE intent_id = ?`,
 				input.completionDigest,
 				input.outcome,
+				reasonCode,
+				input.resultUri,
+				input.resultCid,
 				now,
 				input.intentId,
 			);
@@ -581,6 +608,9 @@ export class PublicationOperationStore {
 					`UPDATE publication_operations SET status = 'completed',
 						completion_digest = token_hash,
 						outcome = CASE WHEN phase = 'creating' THEN 'ambiguous' ELSE NULL END,
+						reason_code = CASE WHEN phase = 'creating'
+							THEN 'PDS_AMBIGUOUS' ELSE 'PUBLICATION_RETRY_REQUIRED' END,
+						result_uri = NULL, result_cid = NULL,
 						completed_at = ?
 					 WHERE intent_id = ? AND generation = ?`,
 					now,

@@ -6,7 +6,7 @@ import { createApproverApplicationSession } from "../src/approver-session/sessio
 import { handleRequest } from "../src/index.js";
 import { TEST_BINDINGS } from "./fixtures/oauth.js";
 
-const ORIGIN = "https://release.example.invalid";
+const ORIGIN = "https://release.example.com";
 const APPROVER_DID = "did:plc:approver";
 const CREDENTIAL_ID = "credential-one";
 
@@ -84,7 +84,7 @@ describe("approver credential routes", () => {
 		await expect(response.json()).resolves.toMatchObject({
 			data: {
 				authenticatorSelection: { userVerification: "required" },
-				rp: { id: "release.example.invalid" },
+				rp: { id: "release.example.com" },
 			},
 		});
 	});

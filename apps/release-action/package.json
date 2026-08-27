@@ -1,0 +1,23 @@
+{
+	"name": "@emdash-cms/release-action",
+	"version": "0.0.0",
+	"private": true,
+	"description": "GitHub Action for delegated EmDash plugin releases.",
+	"type": "module",
+	"scripts": {
+		"build": "tsdown",
+		"test": "vitest run",
+		"typecheck": "tsgo --noEmit"
+	},
+	"dependencies": {
+		"@atcute/lexicons": "catalog:",
+		"@emdash-cms/registry-client": "workspace:*",
+		"@emdash-cms/registry-lexicons": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/node": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	}
+}

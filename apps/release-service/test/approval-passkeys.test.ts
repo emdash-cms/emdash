@@ -18,8 +18,8 @@ const INTENT_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
 const EVIDENCE_DIGEST = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const CREDENTIAL_ID = "approval-credential";
 const RELYING_PARTY = {
-	rpId: "release.example.invalid",
-	origin: "https://release.example.invalid",
+	rpId: "release.example.com",
+	origin: "https://release.example.com",
 } as const;
 
 const REQUEST: ApprovalDecisionRequest = {

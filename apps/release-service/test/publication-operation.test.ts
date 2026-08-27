@@ -38,6 +38,7 @@ async function preparePublishing() {
 		version: "1.2.3",
 		workloadPolicyVersion: 1,
 		workloadIdentityDigest: "A".repeat(43),
+		workloadIdempotencyDigest: "I".repeat(43),
 		idempotencyKey: "github-run-100-attempt-1",
 		requestDigest: "B".repeat(43),
 		workloadIdentityJson: '{"issuer":"github-actions"}',
@@ -277,6 +278,9 @@ describe("publisher publication operations", () => {
 			stateGeneration: 6,
 			replayed: true,
 		});
+		await expect(
+			stub.completePublicationOperation({ ...completion, resultCid: "bafyother" }),
+		).resolves.toEqual({ ok: false, code: "PUBLICATION_CAS_REQUIRED" });
 		await expect(stub.getIntent(DID, INTENT_ID)).resolves.toMatchObject({
 			state: "published",
 			stateGeneration: 6,
@@ -338,8 +342,9 @@ describe("publisher publication operations", () => {
 				generation: started.lease.generation,
 				token: started.lease.token,
 				expectedIntentGeneration: 5,
-				completionDigest: "X".repeat(43),
+				completionDigest: "W".repeat(43),
 				outcome: "conflict",
+				reasonCode: null,
 				resultUri: null,
 				resultCid: null,
 				now: NOW + 11,
@@ -350,10 +355,6 @@ describe("publisher publication operations", () => {
 			stateGeneration: 6,
 			replayed: false,
 		});
-		await expect(stub.getIntent(DID, INTENT_ID)).resolves.toMatchObject({
-			state: "conflict",
-			stateGeneration: 6,
-		});
 		const transitions = await stub.listIntentTransitions(DID, INTENT_ID);
 		expect(transitions.at(-1)).toMatchObject({
 			fromState: "publishing",
@@ -361,6 +362,48 @@ describe("publisher publication operations", () => {
 			reasonCode: "RELEASE_CONFLICT",
 		});
 	});
+
+	it.each([
+		["blocked", "ready", "PUBLICATION_PAUSED"],
+		["failed", "failed", "OAUTH_DELEGATION_UNAVAILABLE"],
+	] as const)(
+		"closes an expired pre-write lease as %s without entering ambiguous reconciliation",
+		async (outcome, state, reasonCode) => {
+			const stub = await preparePublishing();
+			const started = await stub.beginPublicationOperation(DID, INTENT_ID, 5, 1, NOW + 10);
+			expect(started.ok).toBe(true);
+			if (!started.ok) return;
+
+			const completion = {
+				publisherDid: DID,
+				intentId: INTENT_ID,
+				generation: started.lease.generation,
+				token: started.lease.token,
+				expectedIntentGeneration: 5,
+				completionDigest: "X".repeat(43),
+				outcome,
+				reasonCode,
+				resultUri: null,
+				resultCid: null,
+				now: NOW + 12,
+			} as const;
+			await expect(stub.completePublicationOperation(completion)).resolves.toEqual({
+				ok: true,
+				state,
+				stateGeneration: 6,
+				replayed: false,
+			});
+			await expect(
+				stub.completePublicationOperation({ ...completion, reasonCode: "DIFFERENT_REASON" }),
+			).resolves.toEqual({ ok: false, code: "PUBLICATION_CAS_REQUIRED" });
+			await expect(stub.getIntent(DID, INTENT_ID)).resolves.toMatchObject({
+				state,
+				stateGeneration: 6,
+			});
+			const transitions = await stub.listIntentTransitions(DID, INTENT_ID);
+			expect(transitions.at(-1)).toMatchObject({ reasonCode, toState: state });
+		},
+	);
 
 	it("requires reconciliation and re-arms recovery for an expired write lease", async () => {
 		const stub = await preparePublishing();

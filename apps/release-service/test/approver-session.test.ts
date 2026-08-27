@@ -10,7 +10,7 @@ import {
 } from "../src/approver-session/session.js";
 
 const APPROVER_DID = "did:plc:approver";
-const ORIGIN = "https://release.example.invalid";
+const ORIGIN = "https://release.example.com";
 
 function cookiePair(setCookieHeaders: readonly string[]): string {
 	return setCookieHeaders.map((header) => header.split(";", 1)[0]).join("; ");

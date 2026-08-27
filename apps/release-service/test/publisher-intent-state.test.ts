@@ -42,6 +42,7 @@ function intent(overrides: Partial<CreateIntentInput> = {}): CreateIntentInput {
 		version: "1.2.3",
 		workloadPolicyVersion: 1,
 		workloadIdentityDigest: "A".repeat(43),
+		workloadIdempotencyDigest: "I".repeat(43),
 		idempotencyKey: "github-run-100-attempt-1",
 		requestDigest: "B".repeat(43),
 		workloadIdentityJson: JSON.stringify({ issuer: "github-actions", runId: "100" }),
@@ -113,13 +114,33 @@ describe("publisher release intents", () => {
 		await stub.putWorkloadPolicy(policy());
 		const first = await stub.createIntent(intent());
 
-		await expect(stub.createIntent(intent({ intentId: INTENT_2 }))).resolves.toEqual({
+		await expect(
+			stub.createIntent(intent({ intentId: INTENT_2, workloadIdentityDigest: "C".repeat(43) })),
+		).resolves.toEqual({
 			...(first.ok ? first : {}),
 			replayed: true,
 		});
 		await expect(
 			stub.createIntent(intent({ intentId: INTENT_2, requestDigest: "C".repeat(43) })),
 		).resolves.toEqual({ ok: false, code: "IDEMPOTENCY_CONFLICT" });
+	});
+
+	it("lists newest intents with an exclusive ULID cursor", async () => {
+		const stub = publisher();
+		await stub.putWorkloadPolicy(policy());
+		await stub.createIntent(intent());
+		await stub.createIntent(
+			intent({
+				intentId: INTENT_2,
+				version: "1.2.4",
+				workloadIdentityDigest: "D".repeat(43),
+				workloadIdempotencyDigest: "J".repeat(43),
+				idempotencyKey: "github-run-101-attempt-1",
+			}),
+		);
+
+		await expect(stub.listIntents(DID, null, 1)).resolves.toMatchObject([{ id: INTENT_2 }]);
+		await expect(stub.listIntents(DID, INTENT_2, 1)).resolves.toMatchObject([{ id: INTENT_1 }]);
 	});
 
 	it("returns the existing owner when another identity reserves the same version", async () => {
@@ -132,6 +153,7 @@ describe("publisher release intents", () => {
 				intent({
 					intentId: INTENT_2,
 					workloadIdentityDigest: "D".repeat(43),
+					workloadIdempotencyDigest: "J".repeat(43),
 					idempotencyKey: "github-run-101-attempt-1",
 				}),
 			),

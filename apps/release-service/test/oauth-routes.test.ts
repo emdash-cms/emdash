@@ -110,6 +110,33 @@ afterEach(async () => {
 });
 
 describe("publisher OAuth routes", () => {
+	it("returns an authorization URL envelope for SPA navigation", async () => {
+		const network = oauthNetwork();
+		vi.stubGlobal("fetch", network.fetch);
+		const response = await handlePublisherIdentityAuthorize(
+			new Request(`${ORIGIN}/v1/publisher/session/authorize`, {
+				method: "POST",
+				headers: {
+					accept: "application/json",
+					"content-type": "application/json",
+					origin: ORIGIN,
+					"x-emdash-request": "1",
+				},
+				body: JSON.stringify({ identifier: DID, redirectTarget: "/publisher" }),
+			}),
+			"route-json",
+			await configuration(),
+		);
+
+		expect(response.status).toBe(200);
+		await expect(response.json()).resolves.toMatchObject({
+			data: {
+				authorizationUrl: expect.stringContaining("https://authorization.example/authorize"),
+			},
+		});
+		expect(response.headers.get("set-cookie")).toContain("__Host-emdash_oauth_route=");
+	});
+
 	it("starts identity authorization and completes a bound callback into an app session", async () => {
 		const network = oauthNetwork();
 		vi.stubGlobal("fetch", network.fetch);

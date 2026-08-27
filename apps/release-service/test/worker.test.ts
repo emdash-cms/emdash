@@ -8,7 +8,7 @@ import { TEST_BINDINGS } from "./fixtures/oauth.js";
 
 describe("release-service Worker", () => {
 	it("serves health with a stable JSON envelope and request ID", async () => {
-		const response = await SELF.fetch("https://release.example.invalid/health", {
+		const response = await SELF.fetch("https://release.example.com/health", {
 			headers: { "x-request-id": "health-check-1" },
 		});
 		expect(response.status).toBe(200);
@@ -35,7 +35,7 @@ describe("release-service Worker", () => {
 	});
 
 	it("serves readiness only after configuration and control storage initialize", async () => {
-		const response = await SELF.fetch("https://release.example.invalid/ready");
+		const response = await SELF.fetch("https://release.example.com/ready");
 
 		expect(response.status).toBe(200);
 		expect(await response.json()).toMatchObject({ data: { status: "ready" } });
@@ -48,14 +48,14 @@ describe("release-service Worker", () => {
 		expect(metadata.status).toBe(200);
 		expect(metadata.headers.get("cache-control")).toBe("public, max-age=300");
 		expect(await metadata.json()).toMatchObject({
-			client_id: "https://release.example.invalid/.well-known/atproto-client-metadata.json",
-			redirect_uris: ["https://release.example.invalid/oauth/callback"],
-			jwks_uri: "https://release.example.invalid/oauth/jwks.json",
+			client_id: "https://release.example.com/.well-known/atproto-client-metadata.json",
+			redirect_uris: ["https://release.example.com/oauth/callback"],
+			jwks_uri: "https://release.example.com/oauth/jwks.json",
 			scope:
 				"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
 		});
 
-		const jwks = await SELF.fetch("https://release.example.invalid/oauth/jwks.json");
+		const jwks = await SELF.fetch("https://release.example.com/oauth/jwks.json");
 		const text = await jwks.text();
 		expect(JSON.parse(text).keys).toHaveLength(2);
 		expect(text).not.toContain('"d"');
@@ -76,9 +76,9 @@ describe("release-service Worker", () => {
 
 	it("returns method and route errors without exposing internal failures", async () => {
 		expect(
-			(await SELF.fetch("https://release.example.invalid/health", { method: "POST" })).status,
+			(await SELF.fetch("https://release.example.com/health", { method: "POST" })).status,
 		).toBe(405);
-		expect((await SELF.fetch("https://release.example.invalid/missing")).status).toBe(404);
+		expect((await SELF.fetch("https://release.example.com/v1/missing")).status).toBe(404);
 
 		const internalMessage = "assertion private key leaked";
 		const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -92,7 +92,7 @@ describe("release-service Worker", () => {
 		};
 		try {
 			const response = await handleRequest(
-				new Request("https://release.example.invalid/__test/failure"),
+				new Request("https://release.example.com/__test/failure"),
 				TEST_BINDINGS,
 				[route],
 			);
@@ -106,7 +106,7 @@ describe("release-service Worker", () => {
 
 	it("registers OAuth mutation routes behind their origin and session checks", async () => {
 		const identity = await SELF.fetch(
-			"https://release.example.invalid/v1/publisher/session/authorize",
+			"https://release.example.com/v1/publisher/session/authorize",
 			{
 				method: "POST",
 				headers: { "content-type": "application/json" },
@@ -115,8 +115,7 @@ describe("release-service Worker", () => {
 		);
 		expect(identity.status).toBe(403);
 		expect(
-			(await SELF.fetch("https://release.example.invalid/v1/publisher/delegation/authorize"))
-				.status,
+			(await SELF.fetch("https://release.example.com/v1/publisher/delegation/authorize")).status,
 		).toBe(405);
 	});
 });

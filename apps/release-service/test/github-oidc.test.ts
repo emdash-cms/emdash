@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { GITHUB_ACTIONS_ISSUER, verifyGitHubActionsToken } from "../src/workload/github-oidc.js";
 
-const AUDIENCE = "https://release.example.invalid";
+const AUDIENCE = "https://release.example.com";
 const KEY_ID = "github-actions-test-key";
 const SHA = "a".repeat(40);
 const WORKFLOW_SHA = "b".repeat(40);

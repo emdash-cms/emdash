@@ -45,6 +45,23 @@
 			"class_name": "ReleaseIntentWorkflow",
 		},
 	],
+	"assets": {
+		"directory": "./dist/client",
+		"binding": "ASSETS",
+		"not_found_handling": "single-page-application",
+		"html_handling": "none",
+		"run_worker_first": [
+			"/",
+			"/.well-known/*",
+			"/admin/*",
+			"/approvals/*",
+			"/health",
+			"/oauth/*",
+			"/publisher*",
+			"/ready",
+			"/v1/*",
+		],
+	},
 	"vars": {
 		"PUBLIC_ORIGIN": "",
 		"DEPLOYMENT_ID": "",

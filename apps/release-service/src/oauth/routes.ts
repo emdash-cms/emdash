@@ -3,7 +3,7 @@ import { env } from "cloudflare:workers";
 
 import { readJsonObject } from "../api/body.js";
 import { ApiError } from "../api/errors.js";
-import { apiFailure } from "../api/response.js";
+import { apiFailure, apiSuccess } from "../api/response.js";
 import { createApproverApplicationSession } from "../approver-session/session.js";
 import type { ServiceConfiguration } from "../config.js";
 import {
@@ -65,6 +65,7 @@ export async function handleApproverIdentityAuthorize(
 			{ signal: AbortSignal.timeout(30_000) },
 		);
 		return redirectToAuthorization(
+			request,
 			authorization.url,
 			createOAuthRouteCookie({
 				purpose: "approver_identity",
@@ -134,7 +135,23 @@ function requireSameOriginRequest(request: Request, publicOrigin: string): void 
 	}
 }
 
-function redirectToAuthorization(url: URL, stateCookie: string, requestId: string): Response {
+function redirectToAuthorization(
+	request: Request,
+	url: URL,
+	stateCookie: string,
+	requestId: string,
+): Response {
+	if (
+		request.headers
+			.get("accept")
+			?.split(",")
+			.some((value) => value.trim() === "application/json")
+	) {
+		const response = apiSuccess({ authorizationUrl: url.toString() }, requestId);
+		const headers = new Headers(response.headers);
+		headers.append("set-cookie", stateCookie);
+		return new Response(response.body, { status: response.status, headers });
+	}
 	const headers = new Headers({
 		"cache-control": "no-store",
 		location: url.toString(),
@@ -185,6 +202,7 @@ export async function handlePublisherIdentityAuthorize(
 			{ signal: AbortSignal.timeout(30_000) },
 		);
 		return redirectToAuthorization(
+			request,
 			authorization.url,
 			createOAuthRouteCookie({
 				purpose: "publisher_identity",
@@ -243,6 +261,7 @@ export async function handlePublisherDelegationAuthorize(
 			{ signal: AbortSignal.timeout(30_000) },
 		);
 		return redirectToAuthorization(
+			request,
 			authorization.url,
 			createOAuthRouteCookie({
 				purpose: "release_delegation",

@@ -5,6 +5,7 @@ import {
 	IntentStateStore,
 	type CreateIntentInput,
 	type CreateIntentResult,
+	type IntentIdempotencyMatch,
 	type IntentTransition,
 	type StoredIntent,
 	type TransitionIntentInput,
@@ -54,6 +55,7 @@ export type {
 	CreateIntentResult,
 	IntentState,
 	IntentTransition,
+	IntentIdempotencyMatch,
 	StoredIntent,
 	TransitionIntentInput,
 	TransitionIntentResult,
@@ -88,6 +90,7 @@ export type {
 const DID_PATTERN = /^did:[a-z][a-z0-9]*:[A-Za-z0-9._:%-]+$/;
 const HASH_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const ACTOR_IDENTITY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,255}$/;
 const MAX_CIPHERTEXT_CHARS = 1_500_000;
 const MAX_REFRESH_LEASE_MS = 5 * 60_000;
 const MAX_PUBLISHER_SESSION_MS = 24 * 60 * 60_000;
@@ -465,7 +468,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 
 	#appendAudit(
 		eventType: string,
-		actorRealm: "publisher" | "system",
+		actorRealm: "access" | "publisher" | "system",
 		actorIdentity: string,
 		subject: string,
 		createdAt: number,
@@ -487,6 +490,47 @@ export class PublisherDurableObject extends DurableObject<Env> {
 
 	initializePublisher(publisherDid: string): void {
 		this.#assertPublisherDid(publisherDid);
+	}
+
+	setPublisherSuspended(
+		publisherDid: string,
+		suspended: boolean,
+		actorIdentity: string,
+		now = Date.now(),
+	): { status: "active" | "suspended"; changed: boolean } {
+		this.#assertPublisherDid(publisherDid);
+		if (
+			typeof suspended !== "boolean" ||
+			!ACTOR_IDENTITY_PATTERN.test(actorIdentity) ||
+			!Number.isSafeInteger(now) ||
+			now < 0
+		) {
+			throw new PublisherStateError("PUBLISHER_SESSION_INVALID");
+		}
+		return this.ctx.storage.transactionSync(() => {
+			const row = this.ctx.storage.sql
+				.exec<{ status: "active" | "suspended"; session_epoch: number }>(
+					"SELECT status, session_epoch FROM publisher WHERE id = 1",
+				)
+				.one();
+			const status = suspended ? "suspended" : "active";
+			if (row.status === status) return { status, changed: false };
+			this.ctx.storage.sql.exec(
+				"UPDATE publisher SET status = ?, session_epoch = ? WHERE id = 1",
+				status,
+				suspended ? row.session_epoch + 1 : row.session_epoch,
+			);
+			if (suspended) this.ctx.storage.sql.exec("DELETE FROM publisher_sessions");
+			this.#appendAudit(
+				"publisher-suspension-changed",
+				"access",
+				actorIdentity,
+				publisherDid,
+				now,
+				suspended ? "PUBLISHER_SUSPENDED" : null,
+			);
+			return { status, changed: true };
+		});
 	}
 
 	putWorkloadPolicy(input: PutWorkloadPolicyInput): PutWorkloadPolicyResult {
@@ -515,6 +559,16 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		return result;
 	}
 
+	findIdempotentIntent(
+		publisherDid: string,
+		workloadIdempotencyDigest: string,
+		idempotencyKey: string,
+		now = Date.now(),
+	): IntentIdempotencyMatch | null {
+		this.#assertPublisherDid(publisherDid);
+		return this.#intents.findIdempotent(workloadIdempotencyDigest, idempotencyKey, now);
+	}
+
 	transitionIntent(input: TransitionIntentInput): TransitionIntentResult {
 		this.#assertPublisherDid(input.publisherDid);
 		return this.#intents.transition(input);
@@ -523,6 +577,15 @@ export class PublisherDurableObject extends DurableObject<Env> {
 	getIntent(publisherDid: string, intentId: string): StoredIntent | null {
 		this.#assertPublisherDid(publisherDid);
 		return this.#intents.get(intentId);
+	}
+
+	listIntents(
+		publisherDid: string,
+		afterIntentId: string | null,
+		limit: number,
+	): readonly StoredIntent[] {
+		this.#assertPublisherDid(publisherDid);
+		return this.#intents.list(afterIntentId, limit);
 	}
 
 	listIntentTransitions(publisherDid: string, intentId: string): readonly IntentTransition[] {
@@ -756,8 +819,11 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		});
 	}
 
-	revokeAllPublisherSessions(publisherDid: string): number | null {
+	revokeAllPublisherSessions(publisherDid: string, actorIdentity?: string): number | null {
 		this.#assertPublisherObjectName(publisherDid);
+		if (actorIdentity !== undefined && !ACTOR_IDENTITY_PATTERN.test(actorIdentity)) {
+			throw new PublisherStateError("PUBLISHER_SESSION_INVALID");
+		}
 		return this.ctx.storage.transactionSync(() => {
 			const owner = this.#readPublisherSessionOwner();
 			if (!owner) return null;
@@ -765,7 +831,13 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			const now = Date.now();
 			this.ctx.storage.sql.exec("UPDATE publisher SET session_epoch = ? WHERE id = 1", nextEpoch);
 			this.ctx.storage.sql.exec("DELETE FROM publisher_sessions");
-			this.#appendAudit("publisher-sessions-revoked", "publisher", publisherDid, publisherDid, now);
+			this.#appendAudit(
+				"publisher-sessions-revoked",
+				actorIdentity ? "access" : "publisher",
+				actorIdentity ?? publisherDid,
+				publisherDid,
+				now,
+			);
 			return nextEpoch;
 		});
 	}
@@ -1159,8 +1231,15 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		});
 	}
 
-	revokeDelegation(publisherDid: string, expectedVersion: number): RevokeDelegationResult {
+	revokeDelegation(
+		publisherDid: string,
+		expectedVersion: number,
+		actorIdentity?: string,
+	): RevokeDelegationResult {
 		this.#assertPublisherDid(publisherDid);
+		if (actorIdentity !== undefined && !ACTOR_IDENTITY_PATTERN.test(actorIdentity)) {
+			throw new PublisherStateError("DELEGATION_INVALID");
+		}
 		return this.ctx.storage.transactionSync(() => {
 			const now = Date.now();
 			const current = this.#readDelegation();
@@ -1176,7 +1255,13 @@ export class PublisherDurableObject extends DurableObject<Env> {
 				now,
 			);
 			this.#clearRefreshOperation(now);
-			this.#appendAudit("delegation-revoked", "publisher", publisherDid, current.releaseNsid, now);
+			this.#appendAudit(
+				"delegation-revoked",
+				actorIdentity ? "access" : "publisher",
+				actorIdentity ?? publisherDid,
+				current.releaseNsid,
+				now,
+			);
 			return { ok: true, delegation: this.#readDelegation()! } as const;
 		});
 	}

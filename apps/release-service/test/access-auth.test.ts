@@ -70,7 +70,7 @@ function authenticatedRequest(
 ): Request {
 	const headers = new Headers(init?.headers);
 	headers.set("cf-access-jwt-assertion", token);
-	return new Request(`https://release.example.invalid/admin/api/${role}/test`, {
+	return new Request(`https://release.example.com/admin/api/${role}/test`, {
 		...init,
 		headers,
 	});
@@ -99,7 +99,7 @@ describe("Cloudflare Access authentication", () => {
 	);
 
 	it("requires the Access assertion header and does not trust the browser cookie", async () => {
-		const request = new Request("https://release.example.invalid/admin/api/viewer/test", {
+		const request = new Request("https://release.example.com/admin/api/viewer/test", {
 			headers: { cookie: "CF_Authorization=unverified" },
 		});
 
@@ -213,6 +213,30 @@ describe("Access route enforcement", () => {
 		});
 	});
 
+	it("uses the route declaration for roleless operator API paths", async () => {
+		const token = await createAccessToken({ role: "viewer" });
+		const route: RouteDefinition = {
+			method: "GET",
+			path: "/admin/api/status",
+			accessRole: "viewer",
+			handler: (_request, requestId, _configuration, _params, actor) =>
+				apiSuccess({ actor }, requestId),
+		};
+		const response = await handleRequest(
+			new Request("https://release.example.com/admin/api/status", {
+				headers: { "cf-access-jwt-assertion": token },
+			}),
+			TEST_BINDINGS,
+			[route],
+			keyResolver,
+		);
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({
+			data: { actor: { identity: ACCESS_SUBJECT, role: "viewer" } },
+		});
+	});
+
 	it("fails closed when an operator route omits its Access role", async () => {
 		const unguardedRoute: RouteDefinition = {
 			method: "GET",
@@ -222,7 +246,7 @@ describe("Access route enforcement", () => {
 		const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
 		try {
 			const response = await handleRequest(
-				new Request("https://release.example.invalid/admin/api/viewer/test"),
+				new Request("https://release.example.com/admin/api/viewer/test"),
 				TEST_BINDINGS,
 				[unguardedRoute],
 				keyResolver,
@@ -245,7 +269,7 @@ describe("Access route enforcement", () => {
 		const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
 		try {
 			const response = await handleRequest(
-				new Request("https://release.example.invalid/admin/api/admin/test"),
+				new Request("https://release.example.com/admin/api/admin/test"),
 				TEST_BINDINGS,
 				[mismatchedRoute],
 				keyResolver,
@@ -306,7 +330,7 @@ describe("Access route enforcement", () => {
 
 describe("Access mutation validation", () => {
 	it("rejects a cross-origin request even with the custom header", () => {
-		const request = new Request("https://release.example.invalid/admin/api/admin/test", {
+		const request = new Request("https://release.example.com/admin/api/admin/test", {
 			method: "POST",
 			headers: {
 				origin: "https://attacker.example",

@@ -13,6 +13,13 @@ export type StartReleaseWorkflowResult =
 			code: "INTENT_NOT_FOUND" | "INTENT_STATE_INVALID" | "WORKFLOW_UNAVAILABLE";
 	  };
 
+export type RestartReleaseWorkflowResult =
+	| { ok: true; workflowId: string; restarted: boolean }
+	| {
+			ok: false;
+			code: "INTENT_NOT_FOUND" | "INTENT_STATE_INVALID" | "WORKFLOW_UNAVAILABLE";
+	  };
+
 async function digest(value: unknown): Promise<string> {
 	const bytes = new TextEncoder().encode(JSON.stringify(value));
 	return base64url.encode(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)));
@@ -81,5 +88,42 @@ export async function startReleaseIntentWorkflow(
 		} catch {
 			return { ok: false, code: "WORKFLOW_UNAVAILABLE" };
 		}
+	}
+}
+
+export async function restartReleaseIntentWorkflow(
+	workflow: Workflow<ReleaseIntentWorkflowParams>,
+	publishers: DurableObjectNamespace<PublisherDurableObject>,
+	publisherDid: string,
+	intentId: string,
+): Promise<RestartReleaseWorkflowResult> {
+	if (!DID_PATTERN.test(publisherDid) || !ULID_PATTERN.test(intentId)) {
+		return { ok: false, code: "INTENT_STATE_INVALID" };
+	}
+	const intent = await publishers.getByName(publisherDid).getIntent(publisherDid, intentId);
+	if (!intent) return { ok: false, code: "INTENT_NOT_FOUND" };
+	if (
+		intent.workflowId !== intentId ||
+		(intent.state !== "ready" && intent.state !== "reconciling")
+	) {
+		return { ok: false, code: "INTENT_STATE_INVALID" };
+	}
+	try {
+		const instance = await workflow.get(intentId);
+		const status = await instance.status();
+		if (
+			status.status === "queued" ||
+			status.status === "running" ||
+			status.status === "waiting" ||
+			status.status === "paused" ||
+			status.status === "waitingForPause"
+		) {
+			return { ok: true, workflowId: intentId, restarted: false };
+		}
+		if (status.status === "unknown") return { ok: false, code: "WORKFLOW_UNAVAILABLE" };
+		await instance.restart();
+		return { ok: true, workflowId: intentId, restarted: true };
+	} catch {
+		return { ok: false, code: "WORKFLOW_UNAVAILABLE" };
 	}
 }

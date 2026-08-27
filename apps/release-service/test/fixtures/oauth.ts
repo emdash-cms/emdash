@@ -34,13 +34,13 @@ export const TEST_ACCESS_AUDIENCES = {
 } as const;
 
 export const TEST_BINDINGS = {
-	PUBLIC_ORIGIN: "https://release.example.invalid",
+	PUBLIC_ORIGIN: "https://release.example.com",
 	DEPLOYMENT_ID: "test-release-service",
 	ACCESS_TEAM_DOMAIN: "https://emdash-test.cloudflareaccess.com",
 	ACCESS_VIEWER_AUD: TEST_ACCESS_AUDIENCES.viewer,
 	ACCESS_REVIEWER_AUD: TEST_ACCESS_AUDIENCES.reviewer,
 	ACCESS_ADMIN_AUD: TEST_ACCESS_AUDIENCES.admin,
-	OAUTH_REDIRECT_URIS: '["https://release.example.invalid/oauth/callback"]',
+	OAUTH_REDIRECT_URIS: '["https://release.example.com/oauth/callback"]',
 	OAUTH_ASSERTION_KEYSET: TEST_ASSERTION_KEYSET,
 	ENCRYPTION_KEYRING:
 		'{"current":1,"keys":[{"version":1,"key":"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"}]}',

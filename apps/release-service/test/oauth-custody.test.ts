@@ -32,7 +32,7 @@ function state(userState: unknown, overrides: Partial<StoredState> = {}): Stored
 		authMethod: { method: "private_key_jwt", kid: ASSERTION_KEY_2.kid },
 		pkceVerifier: PKCE_VERIFIER,
 		issuer: "https://authorization.example",
-		redirectUri: "https://release.example.invalid/oauth/callback",
+		redirectUri: "https://release.example.com/oauth/callback",
 		sub: DID,
 		userState,
 		expiresAt: Date.now() + 10 * 60_000,
@@ -168,6 +168,7 @@ describe("Durable Object OAuth custody", () => {
 		const delegatedSession = session(configuration.oauth.releaseScope);
 		await custody.stores.sessions.set(DID, delegatedSession);
 		await expect(custody.stores.sessions.get(DID)).resolves.toEqual(delegatedSession);
+		expect(custody.sessionVersion?.(DID)).toBe(1);
 		await expect(custody.stores.sessions.set(DID, delegatedSession)).rejects.toMatchObject({
 			code: "OAUTH_DELEGATION_CAS_REQUIRED",
 		});
@@ -224,6 +225,7 @@ describe("Durable Object OAuth custody", () => {
 		await expect(env.PUBLISHER_DO.getByName(DID).getDelegation(DID)).resolves.toMatchObject({
 			stateVersion: 2,
 		});
+		expect(custody.sessionVersion?.(DID)).toBe(2);
 	});
 
 	it("revokes authority and rejects assertion-key reuse as DPoP", async () => {
@@ -415,9 +417,9 @@ describe("OAuth redirect targets", () => {
 	it.each(["https://evil.example", "//evil.example", "/\\evil", "/path\nnext"])(
 		"rejects %j",
 		(value) => {
-			expect(() =>
-				canonicalizeRedirectTarget(value, "https://release.example.invalid"),
-			).toThrowError(expect.objectContaining({ code: "OAUTH_REDIRECT_INVALID" }));
+			expect(() => canonicalizeRedirectTarget(value, "https://release.example.com")).toThrowError(
+				expect.objectContaining({ code: "OAUTH_REDIRECT_INVALID" }),
+			);
 		},
 	);
 
@@ -425,7 +427,7 @@ describe("OAuth redirect targets", () => {
 		expect(
 			canonicalizeRedirectTarget(
 				"/publisher/../publisher?done=1#result",
-				"https://release.example.invalid",
+				"https://release.example.com",
 			),
 		).toBe("/publisher?done=1#result");
 	});

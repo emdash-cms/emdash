@@ -92,15 +92,17 @@ describe("approval digest", () => {
 	});
 
 	it("round-trips only its canonical awaiting-approval state", async () => {
-		const encoded = await encodeAwaitingApprovalState(EVIDENCE);
+		const encoded = await encodeAwaitingApprovalState(EVIDENCE, ["did:plc:approver"]);
 		await expect(decodeAwaitingApprovalState(encoded)).resolves.toEqual({
 			approvalEvidence: EVIDENCE,
 			approvalEvidenceDigest: await computeApprovalEvidenceDigest(EVIDENCE),
+			approverDids: ["did:plc:approver"],
 		});
 
 		const reordered = JSON.stringify({
 			approvalEvidenceDigest: await computeApprovalEvidenceDigest(EVIDENCE),
 			approvalEvidence: EVIDENCE,
+			approverDids: ["did:plc:approver"],
 		});
 		await expect(decodeAwaitingApprovalState(reordered)).rejects.toBeInstanceOf(
 			ApprovalDigestError,
@@ -108,7 +110,7 @@ describe("approval digest", () => {
 	});
 
 	it("rejects a substituted evidence digest", async () => {
-		const encoded = await encodeAwaitingApprovalState(EVIDENCE);
+		const encoded = await encodeAwaitingApprovalState(EVIDENCE, ["did:plc:approver"]);
 		const substituted = encoded.replace(await computeApprovalEvidenceDigest(EVIDENCE), DIGEST_A);
 
 		await expect(decodeAwaitingApprovalState(substituted)).rejects.toBeInstanceOf(

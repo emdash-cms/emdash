@@ -32,6 +32,7 @@ export interface ApprovalEvidence {
 export interface AwaitingApprovalState {
 	approvalEvidence: ApprovalEvidence;
 	approvalEvidenceDigest: string;
+	approverDids: readonly string[];
 }
 
 export interface ApprovalDecisionBinding {
@@ -145,9 +146,30 @@ export async function computeApprovalDecisionDigest(
 	);
 }
 
-export async function encodeAwaitingApprovalState(value: ApprovalEvidence): Promise<string> {
+function normalizeApproverDids(values: readonly string[]): readonly string[] {
+	if (!Array.isArray(values) || values.length === 0 || values.length > 32) {
+		throw new ApprovalDigestError();
+	}
+	const normalized = [...values].toSorted((left, right) => left.localeCompare(right));
+	if (
+		normalized.some((value) => typeof value !== "string" || !DID_PATTERN.test(value)) ||
+		new Set(normalized).size !== normalized.length
+	) {
+		throw new ApprovalDigestError();
+	}
+	return normalized;
+}
+
+export async function encodeAwaitingApprovalState(
+	value: ApprovalEvidence,
+	approverDids: readonly string[],
+): Promise<string> {
 	const approvalEvidenceDigest = await computeApprovalEvidenceDigest(value);
-	return JSON.stringify({ approvalEvidence: value, approvalEvidenceDigest });
+	return JSON.stringify({
+		approvalEvidence: value,
+		approvalEvidenceDigest,
+		approverDids: normalizeApproverDids(approverDids),
+	});
 }
 
 export async function decodeAwaitingApprovalState(value: string): Promise<AwaitingApprovalState> {
@@ -159,9 +181,10 @@ export async function decodeAwaitingApprovalState(value: string): Promise<Awaiti
 	}
 	if (
 		!isRecord(parsed) ||
-		!hasExactKeys(parsed, ["approvalEvidence", "approvalEvidenceDigest"]) ||
+		!hasExactKeys(parsed, ["approvalEvidence", "approvalEvidenceDigest", "approverDids"]) ||
 		!isRecord(parsed["approvalEvidence"]) ||
-		typeof parsed["approvalEvidenceDigest"] !== "string"
+		typeof parsed["approvalEvidenceDigest"] !== "string" ||
+		!Array.isArray(parsed["approverDids"])
 	) {
 		throw new ApprovalDigestError();
 	}
@@ -201,11 +224,18 @@ export async function decodeAwaitingApprovalState(value: string): Promise<Awaiti
 		verificationDigest: requireString(evidenceRecord["verificationDigest"]),
 	};
 	const expectedDigest = await computeApprovalEvidenceDigest(approvalEvidence);
+	const approverDids = normalizeApproverDids(parsed["approverDids"]);
 	if (parsed["approvalEvidenceDigest"] !== expectedDigest) throw new ApprovalDigestError();
-	if (JSON.stringify({ approvalEvidence, approvalEvidenceDigest: expectedDigest }) !== value) {
+	if (
+		JSON.stringify({
+			approvalEvidence,
+			approvalEvidenceDigest: expectedDigest,
+			approverDids,
+		}) !== value
+	) {
 		throw new ApprovalDigestError();
 	}
-	return { approvalEvidence, approvalEvidenceDigest: expectedDigest };
+	return { approvalEvidence, approvalEvidenceDigest: expectedDigest, approverDids };
 }
 
 function requireString(value: unknown): string {

@@ -1,0 +1,47 @@
+name: EmDash delegated release
+description: Publish an EmDash plugin release through the delegated release service.
+author: EmDash
+inputs:
+  service-url:
+    description: HTTPS origin of the delegated release service.
+    required: true
+  publisher-did:
+    description: Publisher DID that owns the package.
+    required: true
+  release-file:
+    description: Path to the package release record JSON file.
+    required: true
+  idempotency-key:
+    description: Stable key for replaying this submission. Defaults to the GitHub run and attempt.
+    required: false
+  poll-interval-seconds:
+    description: Seconds between status requests.
+    required: false
+    default: "5"
+  timeout-minutes:
+    description: Maximum time to wait for publication or approval.
+    required: false
+    default: "30"
+  wait-for-approval:
+    description: Continue polling while the intent awaits approval.
+    required: false
+    default: "false"
+outputs:
+  intent-id:
+    description: Release intent ULID.
+  state:
+    description: Final or approval-waiting intent state.
+  approval-url:
+    description: Approval URL when human approval is required.
+  release-uri:
+    description: Published AT URI.
+  release-cid:
+    description: Published record CID.
+  reason-code:
+    description: Stable terminal reason code when publication does not succeed.
+runs:
+  using: node24
+  main: dist/index.js
+branding:
+  icon: upload-cloud
+  color: purple
