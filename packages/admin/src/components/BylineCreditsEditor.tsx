@@ -35,6 +35,7 @@ import {
 	DotsThree,
 	PencilSimple,
 	Plus,
+	Tag,
 	UserMinus,
 	X,
 } from "@phosphor-icons/react";
@@ -793,22 +794,17 @@ function SortableBylineRow({
 					}
 				/>
 				<DropdownMenu.Content>
-					<DropdownMenu.Item icon={<PencilSimple />} onClick={onOpenRole}>
-						{credit.roleLabel ? t`Edit role for this post` : t`Set role for this post`}
+					<DropdownMenu.Item icon={<Tag />} onClick={onOpenRole}>
+						{credit.roleLabel ? t`Edit role` : t`Set role`}
 					</DropdownMenu.Item>
 					{onEdit ? (
 						<DropdownMenu.Item icon={<PencilSimple />} onClick={onEdit}>
-							<span className="grid gap-0.5">
-								<span>{t`Edit name and slug`}</span>
-								<Text as="span" variant="secondary">
-									{t`Changes apply everywhere`}
-								</Text>
-							</span>
+							{t`Edit name and slug`}
 						</DropdownMenu.Item>
 					) : null}
 					<DropdownMenu.Separator />
 					<DropdownMenu.Item icon={<UserMinus />} variant="danger" onClick={onRemove}>
-						{t`Remove credit from this post`}
+						{t`Remove from post`}
 					</DropdownMenu.Item>
 				</DropdownMenu.Content>
 			</DropdownMenu>

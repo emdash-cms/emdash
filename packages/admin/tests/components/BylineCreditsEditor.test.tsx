@@ -181,14 +181,14 @@ describe("BylineCreditsEditor", () => {
 		);
 
 		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
-		await screen.getByRole("menuitem", { name: "Set role for this post" }).click();
+		await screen.getByRole("menuitem", { name: "Set role" }).click();
 		await screen.getByLabelText("Role on this post (optional)").fill("Writer");
 		await expect.element(screen.getByText("Writer")).not.toBeInTheDocument();
 		await screen.getByRole("button", { name: "Done" }).click();
 		await expect.element(screen.getByText("Writer")).toBeInTheDocument();
 
 		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
-		await screen.getByRole("menuitem", { name: "Remove credit from this post" }).click();
+		await screen.getByRole("menuitem", { name: "Remove from post" }).click();
 		await expect.element(screen.getByText("No byline is shown on this post.")).toBeInTheDocument();
 	});
 
@@ -202,10 +202,23 @@ describe("BylineCreditsEditor", () => {
 					{ bylineId: guest.id, roleLabel: null },
 				]}
 				bylines={[mina, guest]}
+				onQuickEdit={async (_bylineId, input) =>
+					makeByline({ displayName: input.displayName, slug: input.slug })
+				}
 			/>,
 		);
 
 		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
+		const menu = screen.getByRole("menu", { name: "More actions for Mina Patel" });
+		await expect
+			.element(menu.getByRole("menuitem", { name: "Set role", exact: true }))
+			.toBeVisible();
+		await expect
+			.element(menu.getByRole("menuitem", { name: "Edit name and slug", exact: true }))
+			.toBeVisible();
+		await expect
+			.element(menu.getByRole("menuitem", { name: "Remove from post", exact: true }))
+			.toBeVisible();
 		await expect.element(screen.getByRole("menuitem", { name: "Move up" })).not.toBeInTheDocument();
 		await expect
 			.element(screen.getByRole("menuitem", { name: "Move down" }))

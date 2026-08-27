@@ -2188,11 +2188,9 @@ describe("ContentEditor", () => {
 			});
 
 			await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
+			await expect.element(screen.getByRole("menuitem", { name: "Edit role" })).toBeInTheDocument();
 			await expect
-				.element(screen.getByRole("menuitem", { name: "Edit role for this post" }))
-				.toBeInTheDocument();
-			await expect
-				.element(screen.getByRole("menuitem", { name: "Remove credit from this post" }))
+				.element(screen.getByRole("menuitem", { name: "Remove from post" }))
 				.toBeInTheDocument();
 		});
 

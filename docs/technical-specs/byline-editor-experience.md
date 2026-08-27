@@ -144,10 +144,10 @@ Use `@dnd-kit` pointer, touch, and keyboard sensors to reorder rows. The nested 
 
 The row menu contains:
 
-- `Set role for this post` or `Edit role for this post`;
-- `Edit name and slug` when `onQuickEditByline` exists, with supporting dialog copy that the change applies everywhere;
+- `Set role` or `Edit role`;
+- `Edit name and slug` when `onQuickEditByline` exists; the edit dialog states that the change applies everywhere;
 - a separator;
-- `Remove credit from this post` with `variant="danger"`.
+- `Remove from post` with `variant="danger"`.
 
 Removing a credit updates only the entry's explicit-credit list. It never calls `deleteByline`.
 
@@ -216,7 +216,7 @@ Use Phosphor icons through Kumo icon or trigger props. Do not add raw interactiv
 - Use one divider-separated list. Do not nest `LayerCard`, draw a card around each row, or combine borders with shadows.
 - Keep Kumo's radii, shadows, focus rings, disabled states, hover states, and press feedback. Do not override component internals.
 - Place the drag handle at inline start and row actions at inline end with logical classes only.
-- Keep destructive color only on `Remove credit from this post`. Do not use color as its only meaning.
+- Keep destructive color only on `Remove from post`. Do not use color as its only meaning.
 
 ### Motion and appearance
 
