@@ -148,13 +148,22 @@ export function BylineCreditsEditor({
 	const [editAdvancedOpen, setEditAdvancedOpen] = React.useState(false);
 	const chooserRef = React.useRef<HTMLDivElement>(null);
 	const chooserTriggerRef = React.useRef<HTMLButtonElement | null>(null);
+	const activeInstanceRef = React.useRef(false);
 	const pendingRowFocusRef = React.useRef<string | null>(null);
 	const rowRefs = React.useRef(new Map<string, HTMLDivElement>());
 	const creditsRef = React.useRef(credits);
 	creditsRef.current = credits;
+	React.useEffect(() => {
+		activeInstanceRef.current = true;
+		return () => {
+			activeInstanceRef.current = false;
+		};
+	}, []);
 
 	const debouncedSearch = useDebouncedValue(search, 300);
+	const currentSearch = search.trim();
 	const trimmedSearch = debouncedSearch.trim();
+	const searchIsDebouncing = chooserOpen && currentSearch !== trimmedSearch;
 	const searchEnabled = chooserOpen && trimmedSearch.length > 0;
 	const searchResults = useQuery({
 		queryKey: ["bylines", "credit-picker", entryLocale ?? null, trimmedSearch],
@@ -173,11 +182,13 @@ export function BylineCreditsEditor({
 		return map;
 	}, [bylines, knownBylines, searchResults.data?.items, selectedBylineDetails]);
 
-	const resultPool = searchEnabled
-		? searchResults.isError
-			? []
-			: (searchResults.data?.items ?? [])
-		: bylines;
+	const resultPool = searchIsDebouncing
+		? []
+		: searchEnabled
+			? searchResults.isError
+				? []
+				: (searchResults.data?.items ?? [])
+			: bylines;
 	const selectedIds = React.useMemo(
 		() => new Set(credits.map((credit) => credit.bylineId)),
 		[credits],
@@ -192,6 +203,7 @@ export function BylineCreditsEditor({
 	);
 	const showCreate =
 		!!onQuickCreate &&
+		!searchIsDebouncing &&
 		searchEnabled &&
 		searchResults.isSuccess &&
 		!searchResults.isFetching &&
@@ -203,6 +215,7 @@ export function BylineCreditsEditor({
 		],
 		[availableResults, showCreate, trimmedSearch],
 	);
+	const searchBusy = chooserOpen && (searchIsDebouncing || searchResults.isFetching);
 
 	const sensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -218,7 +231,7 @@ export function BylineCreditsEditor({
 		requestAnimationFrame(() =>
 			rowRefs.current
 				.get(id)
-				?.querySelector<HTMLButtonElement>('button[aria-label^="More actions for"]')
+				?.querySelector<HTMLButtonElement>("button[data-byline-actions-trigger]")
 				?.focus(),
 		);
 	}, []);
@@ -320,12 +333,13 @@ export function BylineCreditsEditor({
 		setIsCreating(true);
 		try {
 			const created = await onQuickCreate({ displayName: createName.trim(), slug: createSlug });
+			if (!activeInstanceRef.current) return;
 			setCreateOpen(false);
 			addByline(created);
 		} catch (error) {
-			setCreateError(error);
+			if (activeInstanceRef.current) setCreateError(error);
 		} finally {
-			setIsCreating(false);
+			if (activeInstanceRef.current) setIsCreating(false);
 		}
 	}, [addByline, createName, createSlug, isCreating, onQuickCreate, validateProfile]);
 
@@ -424,11 +438,11 @@ export function BylineCreditsEditor({
 								size="base"
 								aria-label={t`Search bylines`}
 								placeholder={t`Search bylines to add…`}
-								className={searchResults.isFetching ? "w-full pe-10" : "w-full"}
+								className={searchBusy ? "w-full pe-10" : "w-full"}
 								value={search}
 								onChange={(event) => setSearch(event.target.value)}
 							/>
-							{searchResults.isFetching ? (
+							{searchBusy ? (
 								<span
 									className="pointer-events-none absolute end-3 top-1/2 flex -translate-y-1/2 items-center"
 									aria-hidden="true"
@@ -441,10 +455,11 @@ export function BylineCreditsEditor({
 						<div
 							role="region"
 							aria-label={t`Available bylines`}
-							aria-busy={searchResults.isFetching}
+							aria-busy={searchBusy}
 							className="-mx-1 h-56 min-h-0 shrink overflow-y-auto overscroll-contain p-1"
 						>
-							{searchEnabled && searchResults.isLoading && !searchResults.data ? (
+							{searchIsDebouncing ||
+							(searchEnabled && searchResults.isLoading && !searchResults.data) ? (
 								<div className="flex h-full items-center justify-center gap-2">
 									<Loader size="sm" />
 									<Text variant="secondary">{t`Searching…`}</Text>
@@ -530,7 +545,7 @@ export function BylineCreditsEditor({
 							)}
 						</div>
 						<span className="sr-only" aria-live="polite">
-							{searchResults.isFetching ? t`Searching…` : ""}
+							{searchBusy ? t`Searching…` : ""}
 						</span>
 					</div>
 				</Popover.Content>
@@ -598,6 +613,10 @@ export function BylineCreditsEditor({
 													}}
 													onEdit={onQuickEdit ? () => openEdit(byline) : undefined}
 													onRemove={() => {
+														if (roleEditorId === credit.bylineId) {
+															setRoleEditorId(null);
+															setRoleDraft("");
+														}
 														changeCredits(
 															creditsRef.current.filter(
 																(entry) => entry.bylineId !== credit.bylineId,
@@ -835,6 +854,7 @@ function SortableBylineRow({
 							shape="square"
 							icon={<DotsThree aria-hidden="true" />}
 							aria-label={t`More actions for ${byline.displayName}`}
+							data-byline-actions-trigger
 						/>
 					}
 				/>

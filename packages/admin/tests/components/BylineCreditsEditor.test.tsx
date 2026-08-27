@@ -150,6 +150,67 @@ describe("BylineCreditsEditor", () => {
 		await expect.element(screen.getByLabelText("Search bylines")).toHaveValue("Mina Patel");
 	});
 
+	it("ignores a completed create request after the editor unmounts", async () => {
+		let resolveCreate!: (byline: BylineSummary) => void;
+		const onChange = vi.fn();
+		const onQuickCreate = vi.fn(
+			() => new Promise<BylineSummary>((resolve) => (resolveCreate = resolve)),
+		);
+		const screen = await renderBylineEditor(
+			<BylineCreditsEditor
+				credits={[]}
+				bylines={[]}
+				onChange={onChange}
+				onQuickCreate={onQuickCreate}
+				entryLocale="en"
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "Choose bylines" }).click();
+		await screen.getByLabelText("Search bylines").fill("Late profile");
+		await screen.getByRole("button", { name: "Create Late profile" }).click();
+		screen
+			.getByRole("dialog", { name: "Create byline" })
+			.getByRole("button", { name: "Create and add" })
+			.element()
+			.click();
+		await vi.waitFor(() => expect(onQuickCreate).toHaveBeenCalledOnce());
+
+		await screen.unmount();
+		resolveCreate(makeByline({ id: "late", displayName: "Late profile", slug: "late-profile" }));
+		await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
+	it("hides results while the latest search is still debouncing", async () => {
+		const mina = makeByline();
+		vi.mocked(fetchBylines).mockImplementation(async ({ search }) => ({
+			items: search === "Mina Patel" ? [mina] : [],
+			nextCursor: null,
+		}));
+		const screen = await renderBylineEditor(
+			<ControlledEditor
+				bylines={[]}
+				onQuickCreate={async (input) =>
+					makeByline({ displayName: input.displayName, slug: input.slug })
+				}
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "Choose bylines" }).click();
+		const search = screen.getByLabelText("Search bylines");
+		await search.fill("Old profile");
+		const oldCreateLocator = screen.getByRole("button", { name: "Create Old profile" });
+		await expect.element(oldCreateLocator).toBeVisible();
+		const oldCreate = oldCreateLocator.element();
+
+		await search.fill("Mina Patel");
+
+		expect(oldCreate.isConnected).toBe(false);
+		await expect.element(screen.getByRole("button", { name: "Add Mina Patel" })).toBeVisible();
+	});
+
 	it("hides stale results and creation when the latest search fails", async () => {
 		const mina = makeByline();
 		vi.mocked(fetchBylines).mockImplementation(async ({ search }) => {
@@ -199,6 +260,29 @@ describe("BylineCreditsEditor", () => {
 		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
 		await screen.getByRole("menuitem", { name: "Remove from post" }).click();
 		await expect.element(screen.getByText("No byline is shown on this post.")).toBeInTheDocument();
+	});
+
+	it("clears an unfinished role draft when its byline is removed", async () => {
+		const mina = makeByline();
+		const screen = await renderBylineEditor(
+			<ControlledEditor
+				initialCredits={[{ bylineId: mina.id, roleLabel: null }]}
+				bylines={[mina]}
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
+		await screen.getByRole("menuitem", { name: "Set role" }).click();
+		await screen.getByLabelText("Role on this post (optional)").fill("Unfinished draft");
+		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
+		await screen.getByRole("menuitem", { name: "Remove from post" }).click();
+
+		await screen.getByRole("button", { name: "Choose bylines" }).click();
+		await screen.getByRole("button", { name: "Add Mina Patel" }).click();
+
+		await expect
+			.element(screen.getByLabelText("Role on this post (optional)"))
+			.not.toBeInTheDocument();
 	});
 
 	it("keeps ordering actions on the drag handle instead of the row menu", async () => {
@@ -313,6 +397,30 @@ describe("BylineCreditsEditor", () => {
 			(button) => button.getAttribute("aria-label"),
 		);
 		expect(actions).toEqual(["More actions for Guest Contributor", "More actions for Mina Patel"]);
+	});
+
+	it("restores row focus without depending on its translated accessible name", async () => {
+		const mina = makeByline();
+		const guest = makeByline({ id: "guest", slug: "guest", displayName: "Guest Contributor" });
+		const screen = await renderBylineEditor(
+			<ControlledEditor
+				initialCredits={[
+					{ bylineId: mina.id, roleLabel: null },
+					{ bylineId: guest.id, roleLabel: null },
+				]}
+				bylines={[mina, guest]}
+			/>,
+		);
+		const actions = screen.getByRole("button", { name: "More actions for Mina Patel" }).element();
+		actions.setAttribute("aria-label", "إجراءات مينا");
+
+		const handle = screen.getByRole("button", { name: "Reorder Mina Patel" });
+		handle.element().focus();
+		await userEvent.keyboard(" ");
+		await userEvent.keyboard("{ArrowDown}");
+		await userEvent.keyboard(" ");
+
+		await vi.waitFor(() => expect(document.activeElement).toBe(actions));
 	});
 
 	it("keeps pointer dragging inside the credit list", async () => {
