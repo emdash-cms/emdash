@@ -456,7 +456,7 @@ export function BylineCreditsEditor({
 							role="region"
 							aria-label={t`Available bylines`}
 							aria-busy={searchBusy}
-							className="-mx-1 h-56 min-h-0 shrink overflow-y-auto overscroll-contain p-1"
+							className="-mx-1 max-h-42 min-h-0 shrink overflow-y-auto overscroll-contain p-1"
 						>
 							{searchIsDebouncing ||
 							(searchEnabled && searchResults.isLoading && !searchResults.data) ? (
