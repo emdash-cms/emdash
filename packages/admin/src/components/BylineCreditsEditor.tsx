@@ -449,13 +449,15 @@ export function BylineCreditsEditor({
 														<Text bold as="span" DANGEROUS_className="wrap-break-word">
 															{option.byline.displayName}
 														</Text>
-														<Text
-															as="span"
-															variant="secondary"
-															DANGEROUS_className="wrap-break-word"
-														>
-															{option.byline.slug}
-														</Text>
+														{option.byline.slug !== toBylineSlug(option.byline.displayName) ? (
+															<Text
+																as="span"
+																variant="secondary"
+																DANGEROUS_className="wrap-break-word"
+															>
+																{option.byline.slug}
+															</Text>
+														) : null}
 													</span>
 												) : (
 													<span className="flex items-center gap-2">

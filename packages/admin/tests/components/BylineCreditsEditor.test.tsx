@@ -245,6 +245,17 @@ describe("BylineCreditsEditor", () => {
 		await expect.element(screen.getByText("Guest Contributor")).toBeVisible();
 	});
 
+	it("does not repeat a generated slug beneath its matching name", async () => {
+		const byline = makeByline({ displayName: "the", slug: "the" });
+		const customSlug = makeByline({ id: "custom", slug: "editorial-mina" });
+		const screen = await renderBylineEditor(<ControlledEditor bylines={[byline, customSlug]} />);
+
+		await screen.getByRole("button", { name: "Choose bylines" }).click();
+
+		await expect.element(screen.getByRole("option", { name: "the", exact: true })).toBeVisible();
+		await expect.element(screen.getByText("editorial-mina", { exact: true })).toBeVisible();
+	});
+
 	it("reorders credits with the keyboard drag handle", async () => {
 		const mina = makeByline();
 		const guest = makeByline({ id: "guest", slug: "guest", displayName: "Guest Contributor" });
