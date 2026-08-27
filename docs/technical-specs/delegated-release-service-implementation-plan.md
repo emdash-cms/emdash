@@ -764,15 +764,15 @@ feat/drs-confidential-oauth-callback
         └── feat/drs-service-control-api
 ```
 
-PRs #2649 to #2651 were closed and replaced by layer 6 of the consolidated stack.
+PRs #2649 to #2651 were closed and replaced by layer 5 of the consolidated stack.
 
 ### Retired workload identity micro-stack
 
-PRs #2653, #2654, #2656, #2657, and #2658 were closed and replaced by layer 3. Their valid review findings are incorporated into the consolidated implementation.
+PRs #2653, #2654, #2656, #2657, and #2658 were closed and replaced by layer 2. Their valid review findings are incorporated into the consolidated implementation.
 
 ### Retired verifier micro-stack
 
-PRs #2659 and #2660 were closed and replaced by layer 5. The isolated verifier remains a separate Worker with no OAuth, Access, Durable Object, service-control, or secret bindings.
+PRs #2659 and #2660 were closed and replaced by layer 4. The isolated verifier remains a separate Worker with no OAuth, Access, Durable Object, service-control, or secret bindings.
 
 ### Original planned stacks
 
