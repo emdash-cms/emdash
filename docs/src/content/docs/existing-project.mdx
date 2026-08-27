@@ -10,7 +10,7 @@ import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 ## Prerequisites
 
 - **Astro 6 or later** — upgrade first if you're on an older major (`npx @astrojs/upgrade`)
-- **Node.js v22.12.0 or higher** (odd-numbered versions are not supported)
+- **Node.js v22.16.0 or higher** (odd-numbered versions are not supported)
 - **Server output** — EmDash serves content at runtime, so your project needs `output: "server"` and an [adapter](https://docs.astro.build/en/guides/on-demand-rendering/) (Node, Cloudflare, ...)
 
 ## Install the Packages
@@ -34,12 +34,6 @@ yarn add emdash @astrojs/react react react-dom
 ```
 </TabItem>
 </Tabs>
-
-For a local SQLite database (the default for development), also install the driver:
-
-```bash
-npm install better-sqlite3
-```
 
 Deploying to Cloudflare? Add the Cloudflare packages as well — the [Deploy to Cloudflare](/deployment/cloudflare/) guide covers them in detail:
 

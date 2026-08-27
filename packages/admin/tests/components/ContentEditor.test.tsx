@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -201,6 +202,15 @@ function installMatchMedia(initialMatches: boolean) {
 			matches = nextMatches;
 			const event = { matches, media: mediaQuery.media } as MediaQueryListEvent;
 			for (const listener of listeners) listener(event);
+		},
+		async setMatchesSequentially(nextMatches: boolean) {
+			matches = nextMatches;
+			const event = { matches, media: mediaQuery.media } as MediaQueryListEvent;
+			const callbacks = [...listeners];
+			for (const listener of callbacks) {
+				listener(event);
+				await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+			}
 		},
 		restore() {
 			spy.mockRestore();
@@ -1184,6 +1194,93 @@ describe("ContentEditor", () => {
 	});
 
 	describe("publish actions", () => {
+		describe("settings panel resizing", () => {
+			it("resizes through its bounded keyboard separator without collapsing", async () => {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				const panel = screen.getByRole("complementary", { name: "Settings" }).element();
+				const separator = screen.getByRole("separator", { name: "Settings" }).element();
+
+				expect(panel.getBoundingClientRect().width).toBeCloseTo(368);
+				expect(separator).toHaveAttribute("aria-valuemin", "320");
+				expect(separator).toHaveAttribute("aria-valuemax", "480");
+				expect(separator).toHaveAttribute("aria-valuenow", "368");
+				expect(separator).toHaveAttribute("aria-controls", panel.id);
+
+				separator.focus();
+				await userEvent.keyboard("{End}");
+				await vi.waitFor(() => expect(panel.getBoundingClientRect().width).toBeCloseTo(480));
+				expect(separator).toHaveAttribute("aria-valuenow", "480");
+
+				await userEvent.keyboard("{ArrowLeft}");
+				expect(panel.getBoundingClientRect().width).toBeCloseTo(480);
+
+				await userEvent.keyboard("{Home}");
+				await vi.waitFor(() => expect(panel.getBoundingClientRect().width).toBeCloseTo(320));
+				expect(separator).toHaveAttribute("aria-valuenow", "320");
+				await userEvent.keyboard("{ArrowLeft}");
+				await vi.waitFor(() => expect(panel.getBoundingClientRect().width).toBeCloseTo(330));
+			});
+
+			it.each([
+				{ locale: "en", dir: "ltr", growKey: "ArrowLeft", shrinkKey: "ArrowRight" },
+				{ locale: "ar", dir: "rtl", growKey: "ArrowRight", shrinkKey: "ArrowLeft" },
+			])("uses the physical growth key for $dir", async (testCase) => {
+				const previousLocale = i18n.locale;
+				const previousDir = document.documentElement.dir;
+				i18n.load(testCase.locale, {});
+				i18n.activate(testCase.locale);
+				document.documentElement.dir = testCase.dir;
+
+				try {
+					const screen = await renderEditor({ isNew: false, item: makeItem() });
+					const panel = screen.getByRole("complementary", { name: "Settings" }).element();
+					const separator = screen.getByRole("separator", { name: "Settings" }).element();
+					const before = panel.getBoundingClientRect();
+
+					separator.focus();
+					await userEvent.keyboard(`{${testCase.growKey}}`);
+					await vi.waitFor(() =>
+						expect(panel.getBoundingClientRect().width).toBeCloseTo(before.width + 10),
+					);
+					await userEvent.keyboard(`{${testCase.shrinkKey}}`);
+					await vi.waitFor(() =>
+						expect(panel.getBoundingClientRect().width).toBeCloseTo(before.width),
+					);
+				} finally {
+					document.documentElement.dir = previousDir;
+					i18n.activate(previousLocale);
+				}
+			});
+
+			it("hides resizing across a mobile round trip without losing the desktop width", async () => {
+				const media = installMatchMedia(false);
+				try {
+					const screen = await renderEditor({ isNew: false, item: makeItem() });
+					const separator = screen.getByRole("separator", { name: "Settings" });
+					separator.element().focus();
+					await userEvent.keyboard("{ArrowLeft}");
+					await expect.element(separator).toHaveAttribute("aria-valuenow", "378");
+
+					await media.setMatchesSequentially(true);
+					await expect
+						.element(screen.getByRole("separator", { name: "Settings" }))
+						.not.toBeInTheDocument();
+					await screen.getByRole("button", { name: "Settings" }).click();
+					await expect
+						.element(screen.getByRole("navigation", { name: "Settings" }))
+						.toBeInTheDocument();
+					await screen.getByRole("button", { name: "Close settings" }).click();
+
+					await media.setMatchesSequentially(false);
+					await expect
+						.element(screen.getByRole("separator", { name: "Settings" }))
+						.toHaveAttribute("aria-valuenow", "378");
+				} finally {
+					media.restore();
+				}
+			});
+		});
+
 		it("uses the elevated surface for the full-bleed canvas and settings panel", async () => {
 			await renderEditor({ isNew: false, item: makeItem() });
 			const form = document.querySelector("form");

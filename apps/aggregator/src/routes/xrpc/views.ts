@@ -18,6 +18,8 @@
  * later doesn't change the response shape.
  */
 
+import * as ComAtprotoLabelDefs from "@atcute/atproto/types/label/defs";
+import { safeParse } from "@atcute/lexicons/validations";
 import { type AggregatorDefs, NSID } from "@emdash-cms/registry-lexicons";
 
 import { isPlainObject, parseSignatureMetadataCid } from "../../utils.js";
@@ -40,6 +42,7 @@ export interface PackageRow {
 	signature_metadata: string | null;
 	verified_at: string;
 	indexed_at: string | null;
+	labels_json?: string;
 }
 
 /** Subset of columns from `releases` we read for `releaseView`. */
@@ -56,6 +59,7 @@ export interface ReleaseRow {
 	signature_metadata: string | null;
 	verified_at: string;
 	indexed_at: string | null;
+	labels_json?: string;
 }
 
 /** Column list backing `PackageRow`. Single source of truth so a column
@@ -131,7 +135,7 @@ export function packageView(row: PackageRow): AggregatorDefs.PackageView {
 		slug: row.slug,
 		profile: synthesizePackageProfile(row, uri),
 		indexedAt: row.indexed_at ?? row.verified_at,
-		labels: [],
+		labels: parseHydratedLabels(row.labels_json ?? "[]"),
 	};
 	if (row.latest_version !== null) {
 		view.latestVersion = row.latest_version;
@@ -159,7 +163,7 @@ export function releaseView(row: ReleaseRow): AggregatorDefs.ReleaseView {
 		release: synthesizePackageRelease(row),
 		mirrors: [],
 		indexedAt: row.indexed_at ?? row.verified_at,
-		labels: [],
+		labels: parseHydratedLabels(row.labels_json ?? "[]"),
 	};
 }
 
@@ -235,6 +239,17 @@ function parseJsonArray(json: string): unknown[] {
 	} catch {
 		return [];
 	}
+}
+
+function parseHydratedLabels(json: string): AggregatorDefs.ReleaseView["labels"] {
+	const values = parseJsonArray(json);
+	const labels: AggregatorDefs.ReleaseView["labels"] = [];
+	for (const value of values) {
+		const parsed = safeParse(ComAtprotoLabelDefs.labelSchema, value);
+		if (!parsed.ok) throw new Error("stored hydrated label failed AT Protocol validation");
+		labels.push(parsed.value);
+	}
+	return labels;
 }
 
 function parseJsonObject(json: string): Record<string, unknown> | null {

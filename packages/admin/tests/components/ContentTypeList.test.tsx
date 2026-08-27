@@ -213,6 +213,9 @@ describe("ContentTypeList", () => {
 		it("shows 'No content types yet' when no collections", async () => {
 			const screen = await render(<ContentTypeList collections={[]} />);
 			await expect.element(screen.getByText(NO_CONTENT_TYPES_REGEX)).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("link", { name: "Create your first content type" }))
+				.toBeInTheDocument();
 		});
 	});
 

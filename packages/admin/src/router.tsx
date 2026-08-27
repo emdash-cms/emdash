@@ -8,7 +8,13 @@ import { Button, Loader, Toast, useKumoToastManager } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+	keepPreviousData,
+	useQuery,
+	useInfiniteQuery,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
 import {
 	createRouter,
 	createRootRouteWithContext,
@@ -56,6 +62,7 @@ import { ApiTokenSettings } from "./components/settings/ApiTokenSettings";
 import { BackupSettings } from "./components/settings/BackupSettings";
 import { EmailSettings } from "./components/settings/EmailSettings";
 import { GeneralSettings } from "./components/settings/GeneralSettings";
+import { MediaUsageSettings } from "./components/settings/MediaUsageSettings";
 import { SecuritySettings } from "./components/settings/SecuritySettings";
 import { SeoSettings } from "./components/settings/SeoSettings";
 import { SocialSettings } from "./components/settings/SocialSettings";
@@ -79,6 +86,7 @@ import {
 	deleteContent,
 	fetchTranslations,
 	fetchMediaList,
+	updateMedia,
 	uploadMedia,
 	fetchCollections,
 	fetchCollection,
@@ -107,6 +115,12 @@ import {
 	unpublishContent,
 	discardDraft,
 	fetchRevision,
+	fetchMediaFolder,
+	fetchMediaFolders,
+	createMediaFolder,
+	renameMediaFolder,
+	deleteMediaFolder,
+	ApiResponseError,
 	useCurrentUser,
 	type CreateCollectionInput,
 	type UpdateCollectionInput,
@@ -815,7 +829,8 @@ const contentEditRoute = createRoute({
 	}),
 });
 
-// Editor role level from @emdash-cms/auth
+// Role levels from @emdash-cms/auth
+const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
 
 function ContentEditPage() {
@@ -1365,41 +1380,253 @@ const mediaRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/media",
 	component: MediaPage,
+	validateSearch: (search: Record<string, unknown>) => ({
+		folder:
+			typeof search.folder === "string" && search.folder.length > 0 && search.folder.length <= 64
+				? search.folder
+				: undefined,
+	}),
 });
 
 function MediaPage() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
+	const { folder } = useSearch({ from: "/_admin/media" });
+	const toastManager = Toast.useToastManager();
+	const { data: currentUser } = useCurrentUser();
 
-	// Filename search + MIME type filter for the local library (server-side).
 	const [search, setSearch] = React.useState("");
 	const [mimeFilter, setMimeFilter] = React.useState<string | string[] | undefined>(undefined);
+	const [page, setPage] = React.useState(1);
+	const [perPage, setPerPage] = React.useState(35);
+	const [retainedTotalCount, setRetainedTotalCount] = React.useState(0);
+	const [activeProvider, setActiveProvider] = React.useState("local");
 	const mimeKey = Array.isArray(mimeFilter) ? mimeFilter.join(",") : (mimeFilter ?? "");
-
-	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
-		useInfiniteQuery({
-			queryKey: ["media", { search, mime: mimeKey }],
-			queryFn: ({ pageParam }) =>
-				fetchMediaList({
-					cursor: pageParam,
-					limit: 40,
-					search: search || undefined,
-					mimeType: mimeFilter,
-				}),
-			initialPageParam: undefined as string | undefined,
-			getNextPageParam: (lastPage) => lastPage.nextCursor,
+	const currentFolderQuery = useQuery({
+		queryKey: ["media-folder", folder],
+		queryFn: () => fetchMediaFolder(folder!),
+		enabled: folder !== undefined,
+		retry: (failureCount, queryError) =>
+			!(queryError instanceof ApiResponseError && queryError.code === "NOT_FOUND") &&
+			failureCount < 2,
+	});
+	const missingFolder =
+		currentFolderQuery.error instanceof ApiResponseError &&
+		currentFolderQuery.error.code === "NOT_FOUND";
+	const recoveredFolderRef = React.useRef<string | null>(null);
+	React.useEffect(() => {
+		if (!folder || !missingFolder || recoveredFolderRef.current === folder) return;
+		recoveredFolderRef.current = folder;
+		void navigate({ to: "/media", search: { folder: undefined }, replace: true });
+		toastManager.add({
+			title: t`Folder no longer exists`,
+			type: "warning",
+			timeout: 4000,
 		});
+	}, [folder, missingFolder, navigate, t, toastManager]);
+	React.useEffect(() => {
+		if (folder !== recoveredFolderRef.current) recoveredFolderRef.current = null;
+	}, [folder]);
+	const previousFolderRef = React.useRef(folder);
+	const folderChanged = previousFolderRef.current !== folder;
+	const requestedPage = folderChanged ? 1 : page;
+	const folderListEnabled =
+		activeProvider === "local" &&
+		requestedPage === 1 &&
+		mimeFilter === undefined &&
+		(folder === undefined || search !== "");
+	const folderListQuery = useInfiniteQuery({
+		queryKey: ["media-folders", "page", { search }],
+		queryFn: ({ pageParam }) =>
+			fetchMediaFolders({
+				limit: 100,
+				cursor: pageParam,
+				search: search || undefined,
+			}),
+		initialPageParam: undefined as string | undefined,
+		getNextPageParam: (lastPage) => lastPage.nextCursor,
+		enabled: folderListEnabled,
+	});
+	const folders = React.useMemo(
+		() => folderListQuery.data?.pages.flatMap((folderPage) => folderPage.items) ?? [],
+		[folderListQuery.data?.pages],
+	);
+
+	const { data, isLoading, isFetching, error } = useQuery({
+		queryKey: [
+			"media",
+			{ search, mime: mimeKey, folder: folder ?? "main", page: requestedPage, perPage },
+		],
+		queryFn: () =>
+			fetchMediaList({
+				page: requestedPage,
+				limit: perPage,
+				search: search || undefined,
+				mimeType: mimeFilter,
+				folderId: search ? undefined : (folder ?? null),
+			}),
+		placeholderData: keepPreviousData,
+	});
+
+	React.useEffect(() => {
+		if (data?.totalCount !== undefined) setRetainedTotalCount(data.totalCount);
+	}, [data?.totalCount]);
+	React.useEffect(() => {
+		if (previousFolderRef.current === folder) return;
+		previousFolderRef.current = folder;
+		setPage(1);
+		setRetainedTotalCount(0);
+	}, [folder]);
+
+	const totalCount = data?.totalCount ?? retainedTotalCount;
+	const lastPage = Math.max(1, Math.ceil((data?.totalCount ?? 0) / perPage));
+	const isRecoveringPage = data?.totalCount !== undefined && requestedPage > lastPage;
+	React.useEffect(() => {
+		if (isRecoveringPage) setPage(lastPage);
+	}, [isRecoveringPage, lastPage]);
+
+	const pageCount = Math.max(1, Math.ceil(totalCount / perPage));
+	const handlePageChange = React.useCallback(
+		(nextPage: number) => {
+			if (isFetching || !Number.isSafeInteger(nextPage) || nextPage < 1 || nextPage > pageCount) {
+				return;
+			}
+			setPage(nextPage);
+		},
+		[isFetching, pageCount],
+	);
+	const handlePageSizeChange = React.useCallback(
+		(nextPerPage: number) => {
+			if (isFetching) return;
+			setPerPage(nextPerPage);
+			setPage(1);
+			setRetainedTotalCount(0);
+		},
+		[isFetching],
+	);
+	const handleSearchChange = React.useCallback((nextSearch: string) => {
+		setSearch(nextSearch);
+		setPage(1);
+		setRetainedTotalCount(0);
+	}, []);
+	const handleMimeFilterChange = React.useCallback(
+		(nextMimeFilter: string | string[] | undefined) => {
+			setMimeFilter(nextMimeFilter);
+			setPage(1);
+			setRetainedTotalCount(0);
+		},
+		[],
+	);
+
+	const paginationPending = isLoading || isFetching || isRecoveringPage;
 
 	const uploadMutation = useMutation({
 		mutationFn: ({ file, options }: { file: File; options?: MediaUploadOptions }) =>
 			uploadMedia(file, options),
 		onSuccess: () => {
+			setPage(1);
+			setRetainedTotalCount(0);
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
 		},
 	});
+	const resetMediaPage = React.useCallback(() => {
+		setPage(1);
+		setRetainedTotalCount(0);
+	}, []);
+	const handleOpenFolder = React.useCallback(
+		(nextFolder: { id: string }) => {
+			resetMediaPage();
+			void navigate({ to: "/media", search: { folder: nextFolder.id }, resetScroll: false });
+		},
+		[navigate, resetMediaPage],
+	);
+	const handleBackToMain = React.useCallback(() => {
+		resetMediaPage();
+		void navigate({ to: "/media", search: { folder: undefined }, resetScroll: false });
+	}, [navigate, resetMediaPage]);
+	const handleCreateFolder = React.useCallback(
+		async (name: string) => {
+			const created = await createMediaFolder(name);
+			resetMediaPage();
+			await queryClient.invalidateQueries({ queryKey: ["media-folders"] });
+			return created;
+		},
+		[queryClient, resetMediaPage],
+	);
+	const handleRenameFolder = React.useCallback(
+		async (targetFolder: { id: string }, name: string) => {
+			const renamed = await renameMediaFolder(targetFolder.id, name);
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["media-folders"] }),
+				queryClient.invalidateQueries({ queryKey: ["media-folder", targetFolder.id] }),
+			]);
+			return renamed;
+		},
+		[queryClient],
+	);
+	const handleDeleteFolder = React.useCallback(
+		async (targetFolder: { id: string }) => {
+			await deleteMediaFolder(targetFolder.id);
+			const deletingCurrentFolder = folder === targetFolder.id;
+			if (deletingCurrentFolder) {
+				resetMediaPage();
+				await navigate({
+					to: "/media",
+					search: { folder: undefined },
+					replace: true,
+					resetScroll: false,
+				});
+			}
+			queryClient.removeQueries({ queryKey: ["media-folder", targetFolder.id], exact: true });
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["media-folders"] }),
+				queryClient.invalidateQueries({ queryKey: ["media"] }),
+			]);
+			if (!deletingCurrentFolder) resetMediaPage();
+		},
+		[folder, navigate, queryClient, resetMediaPage],
+	);
+	const handleMoveMedia = React.useCallback(
+		async (item: { id: string }, destination: { id: string }) => {
+			try {
+				await updateMedia(item.id, { folderId: destination.id });
+				await queryClient.invalidateQueries({ queryKey: ["media"] });
+			} catch (moveError) {
+				const recovery: Promise<unknown>[] = [
+					queryClient.invalidateQueries({ queryKey: ["media"] }),
+				];
+				if (moveError instanceof ApiResponseError && moveError.code === "NOT_FOUND") {
+					recovery.push(
+						queryClient.invalidateQueries({ queryKey: ["media-folders"] }),
+						queryClient.invalidateQueries({ queryKey: ["media-folder"] }),
+					);
+				}
+				if (
+					moveError instanceof ApiResponseError &&
+					(moveError.status === 401 || moveError.status === 403)
+				) {
+					recovery.push(queryClient.resetQueries({ queryKey: ["currentUser"], exact: true }));
+				}
+				await Promise.allSettled(recovery);
+				throw moveError;
+			}
+		},
+		[queryClient],
+	);
+	const canMoveMedia = React.useCallback(
+		(item: { authorId: string | null }) =>
+			Boolean(
+				currentUser &&
+				(currentUser.role >= ROLE_EDITOR ||
+					(currentUser.role >= ROLE_AUTHOR && item.authorId === currentUser.id)),
+			),
+		[currentUser],
+	);
 
-	const items = React.useMemo(() => {
-		return data?.pages.flatMap((page) => page.items) || [];
-	}, [data]);
+	if (currentFolderQuery.error && !missingFolder) {
+		return <ErrorScreen error={currentFolderQuery.error.message} />;
+	}
 
 	if (error) {
 		return <ErrorScreen error={error.message} />;
@@ -1407,15 +1634,40 @@ function MediaPage() {
 
 	return (
 		<MediaLibrary
-			items={items}
-			isLoading={isLoading || isFetchingNextPage}
-			hasMore={!!hasNextPage}
-			onLoadMore={() => void fetchNextPage()}
+			items={isRecoveringPage ? [] : (data?.items ?? [])}
+			isLoading={paginationPending}
+			pagination={{
+				page: isRecoveringPage ? lastPage : requestedPage,
+				perPage,
+				totalCount,
+				isPending: paginationPending,
+				onPageChange: handlePageChange,
+				onPageSizeChange: handlePageSizeChange,
+			}}
 			onUpload={async (file, options) => {
 				await uploadMutation.mutateAsync({ file, options });
 			}}
-			onLocalSearchChange={setSearch}
-			onLocalMimeFilterChange={setMimeFilter}
+			onLocalSearchChange={handleSearchChange}
+			onLocalMimeFilterChange={handleMimeFilterChange}
+			folders={folders}
+			foldersLoading={folderListQuery.isLoading}
+			foldersError={folderListQuery.error}
+			hasMoreFolders={folderListQuery.hasNextPage}
+			isLoadingMoreFolders={folderListQuery.isFetchingNextPage}
+			onLoadMoreFolders={() => void folderListQuery.fetchNextPage()}
+			onActiveProviderChange={setActiveProvider}
+			folderId={folder}
+			currentFolder={currentFolderQuery.data ?? null}
+			currentFolderLoading={currentFolderQuery.isLoading}
+			canManageFolders={(currentUser?.role ?? 0) >= ROLE_EDITOR}
+			onOpenFolder={handleOpenFolder}
+			onBackToMain={handleBackToMain}
+			onRetryFolders={() => void folderListQuery.refetch()}
+			onCreateFolder={handleCreateFolder}
+			onRenameFolder={handleRenameFolder}
+			onDeleteFolder={handleDeleteFolder}
+			canMoveMedia={canMoveMedia}
+			onMoveMedia={handleMoveMedia}
 		/>
 	);
 }
@@ -1597,6 +1849,12 @@ const settingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings",
 	component: Settings,
+});
+
+const mediaUsageSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/settings/media-usage",
+	component: MediaUsageSettings,
 });
 
 // Security settings route
@@ -2181,6 +2439,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	bylineSchemaRoute,
 	widgetsRoute,
 	settingsRoute,
+	mediaUsageSettingsRoute,
 	generalSettingsRoute,
 	socialSettingsRoute,
 	seoSettingsRoute,

@@ -22,7 +22,7 @@ test.describe("Keyboard Shortcuts", () => {
 			await admin.waitForLoading();
 
 			// Seed data includes uploaded media — click the first grid item (a button)
-			const mediaItem = page.locator(".grid.gap-4 button").first();
+			const mediaItem = page.locator("[data-media-grid] button").first();
 			await expect(mediaItem).toBeVisible({ timeout: 10000 });
 			await mediaItem.click();
 
@@ -42,7 +42,7 @@ test.describe("Keyboard Shortcuts", () => {
 			await admin.waitForLoading();
 
 			// Click the first media item
-			const mediaItem = page.locator(".grid.gap-4 button").first();
+			const mediaItem = page.locator("[data-media-grid] button").first();
 			await expect(mediaItem).toBeVisible({ timeout: 10000 });
 			await mediaItem.click();
 

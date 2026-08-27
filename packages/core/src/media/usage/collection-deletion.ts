@@ -193,6 +193,16 @@ export class MediaUsageCollectionDeletionRepository {
 		return result.rows.map(rowToRecord);
 	}
 
+	async hasNonterminal(): Promise<boolean> {
+		const row = await this.db
+			.selectFrom("_emdash_media_usage_collection_deletions")
+			.select("collection_id")
+			.where("state", "in", ["pending", "retry", "leased"])
+			.limit(1)
+			.executeTakeFirst();
+		return row !== undefined;
+	}
+
 	async findOperatorPage(options: {
 		state?: MediaUsageCollectionDeletionState;
 		limit?: number;

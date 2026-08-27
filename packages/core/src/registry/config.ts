@@ -8,6 +8,8 @@
  * seconds so the browser doesn't need a duration parser.
  */
 
+import { isDid } from "@atcute/lexicons/syntax";
+
 import type { RegistryConfig, RegistryConfigInput } from "./types.js";
 
 /**
@@ -24,10 +26,12 @@ export interface ManifestRegistryConfig {
 		 * Allowlist of publishers / packages exempt from the
 		 * {@link minimumReleaseAgeSeconds} holdback. Each entry is either:
 		 *
-		 *   - A bare publisher identifier: `"did:plc:abc123"` or a handle
-		 *     like `"example.dev"`. Every package from that publisher is
-		 *     exempt.
-		 *   - A `publisher/slug` pair: only that specific package is exempt.
+		 *   - A bare publisher DID: `"did:plc:abc123"`. Every package from
+		 *     that publisher is exempt.
+		 *   - A `<did>/<slug>` pair: only that specific package is exempt.
+		 *
+		 * Handles are not accepted because they are mutable
+		 * aggregator-supplied envelope data.
 		 *
 		 * Normalized to lowercase strings at config load time so the
 		 * browser does case-insensitive comparison. See
@@ -109,6 +113,8 @@ const TRAILING_SLASHES = /\/+$/;
 
 /** Trailing dot on a hostname, stripped before URL host comparisons. */
 const TRAILING_DOT = /\.$/;
+
+const REGISTRY_PACKAGE_SLUG_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
 
 /**
  * Parse a duration string or raw second count into a non-negative
@@ -295,7 +301,19 @@ export function normalizeRegistryConfig(
 			if (!trimmed) {
 				throw new Error("registry.policy.minimumReleaseAgeExclude entries cannot be empty");
 			}
-			return trimmed.toLowerCase();
+			const lower = trimmed.toLowerCase();
+			const [did, slug, ...extra] = lower.split("/");
+			if (
+				!did ||
+				!isDid(did) ||
+				extra.length > 0 ||
+				(slug !== undefined && !REGISTRY_PACKAGE_SLUG_PATTERN.test(slug))
+			) {
+				throw new Error(
+					`registry.policy.minimumReleaseAgeExclude entry must be a DID or <did>/<slug>: ${trimmed}`,
+				);
+			}
+			return lower;
 		});
 		if (list.length > 0) {
 			policy.minimumReleaseAgeExclude = list;
