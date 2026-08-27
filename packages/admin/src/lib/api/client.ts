@@ -22,6 +22,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null;
 }
 
+export class ApiResponseError extends Error {
+	constructor(
+		public status: number,
+		public code: string,
+		message: string,
+		public details?: Record<string, unknown>,
+	) {
+		super(message);
+		this.name = "ApiResponseError";
+	}
+}
+
 /**
  * Extract per-field validation issue messages from a `VALIDATION_ERROR`
  * response's `error.details.issues` array (see `packages/core/src/api/parse.ts`).
@@ -56,12 +68,21 @@ function formatValidationIssues(error: Record<string, unknown>): string | undefi
 export async function throwResponseError(res: Response, fallback: string): Promise<never> {
 	const body: unknown = await res.json().catch(() => ({}));
 	let message: string | undefined;
+	let code = "UNKNOWN_ERROR";
+	let details: Record<string, unknown> | undefined;
 	if (isRecord(body) && isRecord(body.error)) {
 		const { error } = body;
 		message = formatValidationIssues(error);
 		if (!message && typeof error.message === "string") message = error.message;
+		if (typeof error.code === "string") code = error.code;
+		if (isRecord(error.details)) details = error.details;
 	}
-	throw new Error(message || `${fallback}: ${res.statusText}`);
+	throw new ApiResponseError(
+		res.status,
+		code,
+		message || `${fallback}: ${res.statusText}`,
+		details,
+	);
 }
 
 /**

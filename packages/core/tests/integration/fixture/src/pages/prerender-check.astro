@@ -1,0 +1,13 @@
+---
+export const prerender = true;
+
+import { getEmDashCollection } from "emdash";
+
+const { entries } = await getEmDashCollection("posts");
+---
+
+<html>
+	<body>
+		<p id="entry-count">{entries.length}</p>
+	</body>
+</html>

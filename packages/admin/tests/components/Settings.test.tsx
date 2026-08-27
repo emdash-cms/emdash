@@ -22,6 +22,7 @@ vi.mock("@tanstack/react-router", async () => {
 
 const mockFetchManifest = vi.fn<() => Promise<AdminManifest>>();
 const mockSetLocale = vi.fn<(locale: string) => void>();
+const currentUser = vi.hoisted(() => ({ role: 50 }));
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
@@ -33,6 +34,13 @@ vi.mock("../../src/lib/api", async () => {
 
 vi.mock("../../src/locales/useLocale.js", () => ({
 	useLocale: () => ({ locale: "en", setLocale: mockSetLocale }),
+}));
+
+vi.mock("../../src/lib/api/current-user.js", () => ({
+	useCurrentUser: () => ({
+		data: { id: "user-1", email: "admin@example.com", role: currentUser.role },
+		isLoading: false,
+	}),
 }));
 
 // Import after mocks
@@ -57,6 +65,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 describe("Settings", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		currentUser.role = 50;
 		mockFetchManifest.mockResolvedValue(defaultManifest);
 	});
 
@@ -90,6 +99,25 @@ describe("Settings", () => {
 		);
 		await expect.element(screen.getByRole("link", { name: /API Tokens/ })).toBeInTheDocument();
 		await expect.element(screen.getByText("Email", { exact: true })).toBeInTheDocument();
+	});
+
+	it("shows media usage tracking setup only to administrators", async () => {
+		const admin = await render(
+			<Wrapper>
+				<Settings />
+			</Wrapper>,
+		);
+		await expect
+			.element(admin.getByRole("link", { name: /Media usage tracking/ }))
+			.toBeInTheDocument();
+
+		currentUser.role = 40;
+		const editor = await render(
+			<Wrapper>
+				<Settings />
+			</Wrapper>,
+		);
+		expect(editor.getByRole("link", { name: /Media usage tracking/ }).query()).toBeNull();
 	});
 
 	it("groups settings into clear semantic sections", async () => {

@@ -84,21 +84,14 @@ describeEachDialect("media usage work repository", (dialect) => {
 		const replacement = await claimWork(repo, 1);
 		expect(replacement?.leaseToken).toBeTruthy();
 		expect(replacement?.leaseToken).not.toBe("old-owner");
-		expect(await repo.completeWork(lease("old-owner", 1))).toBe(false);
+		expect(await completeClaim(repo, lease("old-owner", 1))).toBe(false);
 		expect(
-			await repo.retryWork({
-				...lease("old-owner", 1),
-				retryDelaySeconds: 1,
-				errorCode: "TRANSIENT_DATABASE_FAILURE",
-			}),
-		).toBe(false);
+			await transitionClaim(repo, lease("old-owner", 1), "TRANSIENT_DATABASE_FAILURE"),
+		).toBeUndefined();
 		expect(
-			await repo.failWork({
-				...lease("old-owner", 1),
-				errorCode: "INVARIANT_FAILURE",
-			}),
-		).toBe(false);
-		expect(await repo.completeWork(lease(replacement!.leaseToken!, 1))).toBe(true);
+			await transitionClaim(repo, lease("old-owner", 1), "INVARIANT_FAILURE", 1, 0),
+		).toBeUndefined();
+		expect(await completeClaim(repo, lease(replacement!.leaseToken!, 1))).toBe(true);
 		expect(await readWork(ctx)).toBeUndefined();
 	});
 
@@ -121,20 +114,13 @@ describeEachDialect("media usage work repository", (dialect) => {
 			})
 			.execute();
 
-		expect(await repo.completeWork(lease(staleClaim!.leaseToken!, 1))).toBe(false);
+		expect(await completeClaim(repo, lease(staleClaim!.leaseToken!, 1))).toBe(false);
 		expect(
-			await repo.retryWork({
-				...lease(staleClaim!.leaseToken!, 1),
-				retryDelaySeconds: 1,
-				errorCode: "TRANSIENT_DATABASE_FAILURE",
-			}),
-		).toBe(false);
+			await transitionClaim(repo, lease(staleClaim!.leaseToken!, 1), "TRANSIENT_DATABASE_FAILURE"),
+		).toBeUndefined();
 		expect(
-			await repo.failWork({
-				...lease(staleClaim!.leaseToken!, 1),
-				errorCode: "INVARIANT_FAILURE",
-			}),
-		).toBe(false);
+			await transitionClaim(repo, lease(staleClaim!.leaseToken!, 1), "INVARIANT_FAILURE", 1, 0),
+		).toBeUndefined();
 		expect(await readWork(ctx)).toEqual(
 			expect.objectContaining({
 				work_version: expect.toSatisfy((value) => Number(value) === 2),
@@ -152,12 +138,8 @@ describeEachDialect("media usage work repository", (dialect) => {
 		expect(retryClaim).not.toBeNull();
 
 		expect(
-			await repo.retryWork({
-				...lease(retryClaim!.leaseToken!, 1),
-				retryDelaySeconds: 60,
-				errorCode: "SNAPSHOT_FAILURE",
-			}),
-		).toBe(true);
+			await transitionClaim(repo, lease(retryClaim!.leaseToken!, 1), "SNAPSHOT_FAILURE", 5, 60),
+		).toBe("retry");
 		const retry = await readWork(ctx);
 		expect(retry).toEqual(
 			expect.objectContaining({
@@ -178,11 +160,8 @@ describeEachDialect("media usage work repository", (dialect) => {
 		const failureClaim = await claimWork(repo, 1);
 		expect(failureClaim).not.toBeNull();
 		expect(
-			await repo.failWork({
-				...lease(failureClaim!.leaseToken!, 1),
-				errorCode: "RESOURCE_LIMIT",
-			}),
-		).toBe(true);
+			await transitionClaim(repo, lease(failureClaim!.leaseToken!, 1), "RESOURCE_LIMIT", 1, 0),
+		).toBe("failed");
 		expect(await readWork(ctx)).toEqual(
 			expect.objectContaining({
 				state: "failed",
@@ -205,15 +184,9 @@ describeEachDialect("media usage work repository", (dialect) => {
 			.execute();
 
 		const expiredLease = lease(expiredClaim!.leaseToken!, 1);
-		expect(await repo.completeWork(expiredLease)).toBe(false);
-		expect(
-			await repo.retryWork({
-				...expiredLease,
-				retryDelaySeconds: 1,
-				errorCode: "TRANSIENT_DATABASE_FAILURE",
-			}),
-		).toBe(false);
-		expect(await repo.failWork({ ...expiredLease, errorCode: "INVARIANT_FAILURE" })).toBe(false);
+		expect(await completeClaim(repo, expiredLease)).toBe(false);
+		expect(await transitionClaim(repo, expiredLease, "TRANSIENT_DATABASE_FAILURE")).toBeUndefined();
+		expect(await transitionClaim(repo, expiredLease, "INVARIANT_FAILURE", 1, 0)).toBeUndefined();
 		expect(await readWork(ctx)).toEqual(
 			expect.objectContaining({ state: "leased", lease_token: expiredClaim!.leaseToken }),
 		);
@@ -250,11 +223,11 @@ describeEachDialect("media usage work repository", (dialect) => {
 		expect(workClaim).not.toBeNull();
 
 		await expect(
-			repo.retryWork({
-				...lease(workClaim!.leaseToken!, 1),
-				retryDelaySeconds: 1,
-				errorCode: "database connection failed for customer data",
-			}),
+			transitionClaim(
+				repo,
+				lease(workClaim!.leaseToken!, 1),
+				"database connection failed for customer data",
+			),
 		).rejects.toThrow(/stable SCREAMING_SNAKE_CASE/i);
 		expect(await readWork(ctx)).toEqual(
 			expect.objectContaining({
@@ -314,13 +287,10 @@ describeEachDialect("media usage work repository", (dialect) => {
 			nextAttemptAt: "1998-01-01T00:00:00.000Z",
 		});
 
-		const due = await repo.findDueWork(10);
-
-		expect(due.map((work) => work.contentId)).toEqual([
-			"lease-expired",
-			"retry-due",
-			"pending-due",
-		]);
+		const first = await repo.claimDueWorkBatch({ limit: 2, leaseDurationSeconds: 60 });
+		expect(first.map((work) => work.contentId).toSorted()).toEqual(["lease-expired", "retry-due"]);
+		const second = await repo.claimDueWorkBatch({ limit: 10, leaseDurationSeconds: 60 });
+		expect(second.map((work) => work.contentId)).toEqual(["pending-due"]);
 	});
 });
 
@@ -340,6 +310,34 @@ function lease(leaseToken: string, workVersion: number) {
 		workVersion,
 		leaseToken,
 	};
+}
+
+async function completeClaim(
+	repo: MediaUsageWorkRepository,
+	work: ReturnType<typeof lease>,
+): Promise<boolean> {
+	return (await repo.completeWorkBatch([work])).has(workIdentityKey(work));
+}
+
+async function transitionClaim(
+	repo: MediaUsageWorkRepository,
+	work: ReturnType<typeof lease>,
+	errorCode: string,
+	maxAttempts = 5,
+	retryDelaySeconds = 1,
+) {
+	return (
+		await repo.retryClaimedWorkBatch({
+			work: [work],
+			errorCode,
+			maxAttempts,
+			retryDelaySeconds,
+		})
+	).get(workIdentityKey(work));
+}
+
+function workIdentityKey(work: ReturnType<typeof lease>): string {
+	return `${work.collectionId}\u0000${work.contentId}\u0000${String(work.workVersion)}`;
 }
 
 async function insertWork(

@@ -3,7 +3,7 @@ title: REST API Reference
 description: HTTP endpoints for content, media, and schema management.
 ---
 
-import { Aside } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
 EmDash exposes a REST API at `/_emdash/api/` for content management, media uploads, and schema operations.
 
@@ -186,10 +186,16 @@ GET /_emdash/api/media?includeUsage=1
 | Parameter      | Type     | Description                                                    |
 | -------------- | -------- | -------------------------------------------------------------- |
 | `cursor`       | `string` | Opaque pagination cursor                                       |
+| `page`         | `number` | Numbered page, starting at 1; cannot be combined with `cursor` |
 | `limit`        | `number` | Items per page, from 1 to 100 (default: 50)                    |
 | `mimeType`     | `string` | Filter by one or more comma-separated MIME types               |
 | `q`            | `string` | Case-insensitive filename search                               |
+| `folderId`     | `string` | Folder ID, or `unfiled` for the Main library                   |
 | `includeUsage` | `1`      | Include a coverage-aware `usage` summary on every returned item |
+
+Omit `folderId` to list media from the Main library and every folder. Use `folderId=unfiled` to
+list only media that is not assigned to a folder. A numbered request returns `totalCount`; cursor
+mode returns `nextCursor` when another page is available.
 
 #### Response
 
@@ -205,6 +211,7 @@ GET /_emdash/api/media?includeUsage=1
 				"size": 102400,
 				"width": 1920,
 				"height": 1080,
+				"folderId": null,
 				"url": "/_emdash/api/media/file/uploads/photo.jpg",
 				"createdAt": "2025-01-24T12:00:00Z",
 				"usage": {
@@ -254,12 +261,12 @@ collections:
 | `stale`    | Indexed coverage is outdated                                           |
 | `unknown`  | Stored coverage contains a state this version does not recognize        |
 
-Only `complete` supports a scoped complete-zero statement within the EmDash-managed fields
+Only `complete` supports a scoped complete-zero statement within the supported fields
 described below. Counts with any other status are indexed projections and may over-report or
 under-report. Even complete results are advisory during concurrent writes; usage reads are not a
 transactional lock and must not be used as a deletion guarantee.
 
-### Get Media Usage Details
+### Get media usage details
 
 ```http
 GET /_emdash/api/media/:id/usage?limit=50&cursor=...
@@ -313,34 +320,178 @@ trashed entry. Sources are `columns` or `draft_overlay`; occurrences identify th
 and path without exposing internal index metadata.
 
 Media usage covers local media references in top-level image and file fields, repeater image
-fields, and Portable Text image blocks managed by EmDash content collections. It does not scan
+fields, and Portable Text image blocks stored in EmDash content collections. It does not scan
 custom code, rendered HTML, settings, menus, widgets, plugin-private data, external sites, or
 provider-only assets.
 
-### Create Media
+### Upload Media
 
-```http
-POST /_emdash/api/media
-Content-Type: application/json
+Uploading media requires `media:upload`. Bearer tokens also require the `media:write` scope. The
+default maximum file size is 50 MB. Set
+[`maxUploadSize`](/reference/configuration/#maxuploadsize) to change the limit.
+
+Use one of the following upload methods:
+
+- Use a direct multipart upload when the client can send the file through EmDash.
+- Use the upload target flow for direct uploads to S3-compatible storage. Local storage and native
+  R2 return an EmDash upload URL instead.
+
+#### Direct multipart upload
+
+Send the file in the `file` field of a multipart request:
+
+```bash
+curl --request POST \
+  --header "Authorization: Bearer $EMDASH_TOKEN" \
+  --header "X-EmDash-Request: 1" \
+  --form "file=@./photo.jpg;type=image/jpeg" \
+  https://example.com/_emdash/api/media
 ```
 
-#### Request Body
+`curl` adds the multipart boundary to the `Content-Type` header. Do not set that header manually.
 
-```json
-{
-	"filename": "photo.jpg",
-	"mimeType": "image/jpeg",
-	"size": 102400,
-	"width": 1920,
-	"height": 1080,
-	"storageKey": "uploads/photo.jpg"
-}
-```
+The endpoint also accepts the following optional multipart fields:
 
-<Aside>
-	This endpoint records media metadata after upload. Use the upload endpoint or signed URLs to
-	upload the actual file.
+| Field       | Description                                                        |
+| ----------- | ------------------------------------------------------------------ |
+| `width`     | Image width in pixels                                               |
+| `height`    | Image height in pixels                                              |
+| `fieldId`   | Field whose configured MIME type allowlist applies to the upload   |
+| `thumbnail` | Downscaled image used to generate a low-quality image placeholder  |
+
+A new upload returns `201 Created` with the stored media item and `folderId: null`. If the same
+file already exists, EmDash returns `200 OK` with `deduplicated: true`, the existing media item,
+and its current folder assignment. Direct multipart uploads are ready immediately and do not use
+the confirmation endpoint.
+
+#### Upload target flow
+
+The upload target flow keeps the media item in `pending` state until the final confirmation.
+Pending media does not appear in the standard media list or media library.
+
+<Steps>
+
+1. Request an upload target
+
+	```http
+	POST /_emdash/api/media/upload-url
+	Authorization: Bearer <token>
+	Content-Type: application/json
+
+	{
+		"filename": "photo.jpg",
+		"contentType": "image/jpeg",
+		"size": 102400
+	}
+	```
+
+	`filename`, `contentType`, and `size` are required. The request also accepts the following
+	optional fields:
+
+	| Field         | Description                                                                 |
+	| ------------- | --------------------------------------------------------------------------- |
+	| `contentHash` | `sha1:` plus 40 lowercase hexadecimal characters, used to find a match       |
+	| `fieldId`     | Field whose configured MIME type allowlist applies to the upload             |
+
+	The response contains the URL, method, and headers for the file upload. `uploadUrl` is an
+	absolute signed URL when the storage adapter supports one. Otherwise, it is a root-relative
+	EmDash endpoint.
+
+	```json
+	{
+		"success": true,
+		"data": {
+			"uploadUrl": "/_emdash/api/media/01M0AFKJS0RJM3WV69QHAY7YA1/upload",
+			"method": "PUT",
+			"headers": {
+				"Content-Type": "image/jpeg",
+				"X-EmDash-Request": "1"
+			},
+			"mediaId": "01M0AFKJS0RJM3WV69QHAY7YA1",
+			"storageKey": "01M0AFKJS0K2YF0222NP6ENYWX.jpg",
+			"expiresAt": "2026-08-18T14:05:09.920Z"
+		}
+	}
+	```
+
+	If `contentHash` matches an existing media item with the same MIME type and size, the response
+	contains `existing: true`, `mediaId`, `storageKey`, and `url` instead of an upload target. Use the
+	returned media item and stop. Do not upload or confirm the file.
+
+2. Upload the file to `uploadUrl`
+
+	Start with the returned `method` and `headers`. Resolve a relative `uploadUrl` against the
+	EmDash site URL.
+
+	For a same-origin EmDash target, include the Bearer token in the upload request. For a signed URL
+	on another origin, send only the returned upload headers.
+
+	A same-origin upload returns the following response. A signed URL returns the storage provider's
+	response instead.
+
+	```json
+	{
+		"success": true,
+		"data": {
+			"uploaded": true,
+			"size": 102400
+		}
+	}
+	```
+
+3. Confirm the upload
+
+	Confirming checks the stored file and changes the media item from `pending` to `ready`. `size`,
+	`width`, and `height` are optional, but EmDash validates them when supplied.
+
+	```http
+	POST /_emdash/api/media/01M0AFKJS0RJM3WV69QHAY7YA1/confirm
+	Authorization: Bearer <token>
+	Content-Type: application/json
+
+	{
+		"size": 102400,
+		"width": 1920,
+		"height": 1080
+	}
+	```
+
+	The response contains the ready media item:
+
+	```json
+	{
+		"success": true,
+		"data": {
+			"item": {
+				"id": "01M0AFKJS0RJM3WV69QHAY7YA1",
+				"filename": "photo.jpg",
+				"status": "ready",
+				"url": "/_emdash/api/media/file/01M0AFKJS0K2YF0222NP6ENYWX.jpg"
+			}
+		}
+	}
+	```
+
+</Steps>
+
+<Aside type="caution">
+	Do not send the EmDash Bearer token to an upload URL on another origin. A signed URL already
+	authorizes the storage upload. Sending the token would disclose it to the storage host.
 </Aside>
+
+#### Upload errors
+
+| Status | Code                   | Cause                                                                    |
+| ------ | ---------------------- | ------------------------------------------------------------------------ |
+| `400`  | `NO_FILE`              | The multipart request has no `file` field, or the upload body is missing |
+| `400`  | `INVALID_TYPE`         | The MIME type is not allowed or does not match the pending media item     |
+| `400`  | `VALIDATION_ERROR`     | Upload metadata is missing, invalid, or exceeds the configured size limit |
+| `400`  | `FILE_NOT_FOUND`       | Confirmation cannot find the uploaded object                             |
+| `400`  | `UPLOAD_SIZE_MISMATCH` | The declared, uploaded, and confirmed sizes do not match                  |
+| `400`  | `INVALID_STATE`        | The media item is not pending                                             |
+| `404`  | `NOT_FOUND`            | The media item does not exist                                             |
+| `409`  | `INVALID_STATE`        | The pending media item changed during confirmation                        |
+| `413`  | `PAYLOAD_TOO_LARGE`    | The direct or same-origin upload is too large                             |
 
 ### Update Media
 
@@ -354,9 +505,100 @@ Content-Type: application/json
 ```json
 {
 	"alt": "Photo description",
-	"caption": "Photo caption"
+	"caption": "Photo caption",
+	"folderId": "01FOLDER..."
 }
 ```
+
+Omit `folderId` to leave the current assignment unchanged. Set it to `null` or `unfiled` to return
+the media item to the Main library. Assigning owned media requires `media:edit_own`; assigning any
+media requires `media:edit_any`. Bearer tokens also require the `media:write` scope.
+
+### List Media Folders
+
+```http
+GET /_emdash/api/media/folders?limit=50&q=product&cursor=...
+```
+
+| Parameter | Type     | Description                                           |
+| --------- | -------- | ----------------------------------------------------- |
+| `cursor`  | `string` | Opaque pagination cursor                              |
+| `limit`   | `number` | Folders per page, from 1 to 100 (default: 50)         |
+| `q`       | `string` | Case-insensitive partial folder-name search (1–200 characters) |
+
+Returns folders in name order with an optional `nextCursor`. The endpoint requires `media:read`.
+
+### Get Media Folder
+
+```http
+GET /_emdash/api/media/folders/:id
+```
+
+Returns the folder with the requested ID. The endpoint requires `media:read` and returns 404 when
+the folder does not exist.
+
+### Create Media Folder
+
+```http
+POST /_emdash/api/media/folders
+Content-Type: application/json
+
+{
+	"name": "Product photos"
+}
+```
+
+Returns `201 Created` with the created folder:
+
+```json
+{
+	"success": true,
+	"data": {
+		"item": {
+			"id": "01HXK5MZSN...",
+			"name": "Product photos"
+		}
+	}
+}
+```
+
+Folder names are trimmed and must contain 1 to 200 characters. Names are compared after Unicode
+normalization and lowercasing, so `Photos`, `photos`, and `ＰＨＯＴＯＳ` are treated as duplicates.
+Creating, renaming, and deleting folders requires `media:edit_any`. Bearer tokens also require the
+`media:write` scope.
+
+### Rename Media Folder
+
+```http
+PUT /_emdash/api/media/folders/:id
+Content-Type: application/json
+
+{
+	"name": "Published product photos"
+}
+```
+
+Returns `200 OK` with the updated folder in the same response shape as creation.
+
+### Delete Media Folder
+
+```http
+DELETE /_emdash/api/media/folders/:id
+```
+
+Returns `200 OK` with `{ "deleted": true }` in the response `data`.
+
+Deleting a folder returns its media to the Main library. It does not delete media, change media
+IDs or URLs, or change media usage records.
+
+#### Folder errors
+
+| Status | Code               | Cause                                                   |
+| ------ | ------------------ | ------------------------------------------------------- |
+| `400`  | `INVALID_CURSOR`   | The folder-list cursor is invalid                       |
+| `400`  | `VALIDATION_ERROR` | A folder name, folder ID, or list parameter is invalid  |
+| `404`  | `NOT_FOUND`        | A folder or folder assignment target does not exist     |
+| `409`  | `CONFLICT`         | A folder already has the same normalized name           |
 
 ### Delete Media
 
@@ -364,7 +606,113 @@ Content-Type: application/json
 DELETE /_emdash/api/media/:id
 ```
 
-### List Media Usage Work
+### Enable media usage tracking
+
+Sites with media usage tracking off must turn it on once. Pause direct database writes while EmDash prepares each collection. EmDash temporarily blocks its own content and schema writes during this step.
+
+Both endpoints require `schema:manage`. Bearer tokens also require the `admin` scope.
+
+For the admin procedure, see [Turn on media usage tracking](/guides/media-library/#turn-on-media-usage-tracking). The endpoints below provide the same procedure for API operators.
+
+#### Check the current state
+
+```http
+GET /_emdash/api/admin/media-usage/activation
+```
+
+This request does not change anything. It returns one of these states:
+
+- `expanded`: media usage tracking is off.
+- `activating`: EmDash is preparing the site's collections.
+- `active`: EmDash tracks changes to media references in content.
+
+Status responses do not include internal lock data or raw database errors.
+
+#### Start activation
+
+```http
+POST /_emdash/api/admin/media-usage/activation
+Content-Type: application/json
+X-EmDash-Request: 1
+
+{
+	"writersDrained": true
+}
+```
+
+The request prepares at most one collection. After it succeeds, advance setup and historical indexing through the progress endpoint below.
+
+Set `writersDrained` to `true` after application and direct database writes have stopped and any writes already in progress have finished.
+
+#### Enable tracking with the API
+
+1. Stop all direct database writers. Wait for writes already in progress to finish. EmDash fences its own writes during setup.
+2. Call the activation `GET` endpoint to check the current state.
+3. Call the activation `POST` endpoint once with `writersDrained: true`.
+4. Call the progress `POST` endpoint serially, following `nextRequestInMs`, until activation becomes `active`.
+5. Resume direct database writes after activation becomes `active`.
+6. Continue progress requests until historical indexing reports `ready` and `nextRequestInMs` is `null`.
+
+If `POST` times out or returns `409` or `500`, call `GET` before deciding what to do. If the state is
+still `activating` without `lastErrorCode`, another request may own the current batch. If `lastErrorCode` is set, keep writes stopped, check the application logs, fix the
+problem, and send one confirmed POST to retry. Do not edit EmDash's internal database tables.
+
+<Aside type="caution">
+	After this process starts, it cannot be cancelled or reset. Test it in a staging environment and
+	follow your normal database backup policy before using it in production.
+</Aside>
+
+When the state is `active`, EmDash tracks changes to media references in content. Existing content may still need progress requests before historical indexing is ready.
+
+#### Check historical indexing progress
+
+```http
+GET /_emdash/api/admin/media-usage/progress
+```
+
+After activation is active, this returns `indexing`, `ready`, or `needs_attention` together with the
+number of ready and total current content types. The endpoint does not inspect content rows or return
+work-item details. It requires `schema:manage`; bearer tokens also require the `admin` scope.
+
+#### Advance setup and historical indexing
+
+```http
+POST /_emdash/api/admin/media-usage/progress
+X-EmDash-Request: 1
+```
+
+The request has no body. It runs one bounded maintenance step and returns the stored activation and progress state after that step.
+
+```json
+{
+	"success": true,
+	"data": {
+		"activation": {
+			"state": "active",
+			"collectionCursor": null,
+			"attemptCount": 2,
+			"drainConfirmedAt": "2026-08-24T12:00:00.000Z",
+			"lastAttemptedAt": "2026-08-24T12:00:01.000Z",
+			"lastErrorCode": null,
+			"leaseExpiresAt": null,
+			"activatedAt": "2026-08-24T12:00:01.000Z",
+			"updatedAt": "2026-08-24T12:00:02.000Z"
+		},
+		"progress": {
+			"status": "indexing",
+			"readyCollections": 1,
+			"totalCollections": 2
+		},
+		"nextRequestInMs": 0
+	}
+}
+```
+
+`progress` is `null` until activation is active. `nextRequestInMs` is `0` for an immediate successor, `30000` for a delayed retry, or `null` when the server knows of no successor. Send only one progress request at a time and wait for the returned delay.
+
+Closing the client does not discard completed work, but it stops future requests. To resume, read activation first, read progress when activation is active, then continue progress requests. After an ambiguous response, perform the same reads before retrying.
+
+### List media usage work
 
 ```http
 GET /_emdash/api/admin/media-usage/work?collection=posts&state=failed&limit=50&cursor=...
@@ -403,7 +751,7 @@ page's `nextCursor`. The endpoint does not calculate an exact backlog count.
 Responses omit work versions, lease tokens, raw database errors, indexed content, media
 references, and exact counts.
 
-### Retry Media Usage Work
+### Retry media usage work
 
 ```http
 POST /_emdash/api/admin/media-usage/work/retry
@@ -428,9 +776,8 @@ replaces newer work or exposes its lease token.
 
 The list returns only known durable work. Retry can create work for the supplied identity in an
 active collection even when no work row exists, but it does not scan for historical gaps. Use
-collection-scoped Media Usage repair after imports or direct database writes.
-When scheduled maintenance is disabled, failed jobs remain visible and manually retryable, but no
-automatic freshness deadline is promised.
+collection-scoped media usage repair after imports or direct database writes.
+Failed jobs remain visible and manually retryable. A `needs_attention` progress state stops automatic requests from the media usage tracking settings page until the underlying failure is resolved.
 
 ### Recover Collection Deletion
 
@@ -456,7 +803,7 @@ returns `409 WORK_LEASE_ACTIVE`; a concurrent state change returns `409 WORK_CHA
 require `schema:manage`, and bearer tokens also require the `admin` scope. They recover internal
 index cleanup only and never delete media assets.
 
-### Repair Media Usage
+### Repair media usage
 
 ```http
 POST /_emdash/api/admin/media-usage/repair

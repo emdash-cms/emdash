@@ -23,6 +23,12 @@ export interface ConfirmDialogProps {
 	pendingLabel: string;
 	/** Button variant — defaults to "destructive" */
 	variant?: "destructive" | "primary";
+	/** Use tighter Kumo spacing for short, focused confirmations. */
+	compact?: boolean;
+	/** Prevent dismissing an irreversible request after it has started. */
+	preventCloseWhilePending?: boolean;
+	/** Disable confirmation until required input in the dialog is complete. */
+	confirmDisabled?: boolean;
 	isPending: boolean;
 	/** Error from a mutation — pass mutation.error directly */
 	error: unknown;
@@ -39,24 +45,44 @@ export function ConfirmDialog({
 	confirmLabel,
 	pendingLabel,
 	variant = "destructive",
+	compact = false,
+	preventCloseWhilePending = false,
+	confirmDisabled = false,
 	isPending,
 	error,
 	onConfirm,
 	children,
 }: ConfirmDialogProps) {
 	const { t } = useLingui();
+	const closeLocked = preventCloseWhilePending && isPending;
 	return (
-		<Dialog.Root open={open} onOpenChange={(o) => !o && onClose()} disablePointerDismissal>
-			<Dialog className="p-6" size="sm">
-				<Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
-				<Dialog.Description className="text-kumo-subtle">{description}</Dialog.Description>
+		<Dialog.Root
+			open={open}
+			onOpenChange={(nextOpen) => !nextOpen && !closeLocked && onClose()}
+			disablePointerDismissal
+		>
+			<Dialog className={compact ? "max-w-md px-5 pt-5 pb-4" : "p-6"} size="sm">
+				<div className={compact ? "grid gap-1.5" : undefined}>
+					<Dialog.Title
+						className={compact ? "text-lg font-semibold leading-6" : "text-lg font-semibold"}
+					>
+						{title}
+					</Dialog.Title>
+					<Dialog.Description
+						className={
+							compact ? "text-sm leading-5 text-pretty text-kumo-subtle" : "text-kumo-subtle"
+						}
+					>
+						{description}
+					</Dialog.Description>
+				</div>
 				{children}
 				<DialogError message={getMutationError(error)} className="mt-3" />
-				<div className="mt-6 flex justify-end gap-2">
-					<Button variant="secondary" onClick={onClose}>
+				<div className={`${compact ? "mt-5" : "mt-6"} flex justify-end gap-2`}>
+					<Button variant="secondary" disabled={closeLocked} onClick={onClose}>
 						{t`Cancel`}
 					</Button>
-					<Button variant={variant} disabled={isPending} onClick={onConfirm}>
+					<Button variant={variant} disabled={isPending || confirmDisabled} onClick={onConfirm}>
 						{isPending ? pendingLabel : confirmLabel}
 					</Button>
 				</div>
