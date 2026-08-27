@@ -1,5 +1,5 @@
 import { WorkflowEntrypoint } from "cloudflare:workers";
-import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
+import type { WorkflowEvent, WorkflowStep, WorkflowStepConfig } from "cloudflare:workers";
 
 import {
 	createD1EvalRunStore,
@@ -13,6 +13,9 @@ import {
 } from "./production.js";
 
 const WORKFLOW_READ_RETRY_DELAYS_MS = [250, 1_000] as const;
+const MODEL_EVALUATION_STEP_CONFIG = {
+	retries: { limit: 2, delay: "5 seconds", backoff: "exponential" },
+} as const satisfies WorkflowStepConfig;
 
 export interface LiveEvaluationWorkflowResult {
 	runId: number;
@@ -29,6 +32,7 @@ export interface LiveEvaluationWorkflowDependencies {
 
 export interface LiveEvaluationDurableStep {
 	do<T>(name: string, callback: () => Promise<T>): Promise<T>;
+	do<T>(name: string, config: WorkflowStepConfig, callback: () => Promise<T>): Promise<T>;
 }
 
 export async function runBoundLiveEvaluationWorkflow(
@@ -72,7 +76,8 @@ export async function runBoundLiveEvaluationWorkflow(
 		const completed = await dependencies.execute(event.payload.runId, {
 			executedAt: event.payload.executedAt,
 			identity: boundIdentity,
-			runCase: (name, callback) => step.do(`evaluate-${name}`, callback),
+			runCase: (name, callback) =>
+				step.do(`evaluate-${name}`, MODEL_EVALUATION_STEP_CONFIG, callback),
 			selectBaseline: (callback) => step.do("select-evaluation-baseline", callback),
 			async storeArtifact(callback) {
 				await step.do("store-evaluation-artifact", async () => {

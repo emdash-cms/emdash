@@ -724,6 +724,122 @@ describe("EmDashClient", () => {
 	});
 
 	describe("media usage reads", () => {
+		it("serializes Main library and folder media filters", async () => {
+			const capturedUrls: URL[] = [];
+			const backend: Interceptor = async (req) => {
+				capturedUrls.push(new URL(req.url));
+				return jsonResponse({ items: [] });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.mediaList({ folderId: null });
+			await client.mediaList({ folderId: "folder/one" });
+
+			expect(capturedUrls.map((url) => url.searchParams.get("folderId"))).toEqual([
+				"unfiled",
+				"folder/one",
+			]);
+		});
+
+		it("lists and mutates media folders with encoded IDs", async () => {
+			const requests: Array<{ method: string; url: URL; body: unknown }> = [];
+			const backend: Interceptor = async (req) => {
+				const url = new URL(req.url);
+				const text = await req.text();
+				requests.push({ method: req.method, url, body: text ? JSON.parse(text) : undefined });
+				if (req.method === "GET" && url.pathname.endsWith("/media/folders/folder%2Fone")) {
+					return jsonResponse({ item: { id: "folder/one", name: "One" } });
+				}
+				if (req.method === "GET") {
+					return jsonResponse({ items: [{ id: "folder/one", name: "One" }], nextCursor: "next" });
+				}
+				if (req.method === "DELETE") return jsonResponse({ deleted: true });
+				if (url.pathname.endsWith("/media/media%2Fone")) {
+					return jsonResponse({
+						item: { id: "media/one", folderId: null, focalX: 0.25, focalY: 0.75 },
+					});
+				}
+				return jsonResponse({ item: { id: "folder/one", name: "Updated" } });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const list = await client.mediaFolderList({
+				limit: 25,
+				cursor: "after / folder",
+				q: "photo set",
+			});
+			const fetched = await client.mediaFolderGet("folder/one");
+			const created = await client.mediaFolderCreate("Created");
+			const updated = await client.mediaFolderUpdate("folder/one", "Updated");
+			await client.mediaFolderDelete("folder/one");
+			const media = await client.mediaSetFolder("media/one", null);
+
+			expect(list).toEqual({ items: [{ id: "folder/one", name: "One" }], nextCursor: "next" });
+			expect(created).toEqual({ id: "folder/one", name: "Updated" });
+			expect(updated).toEqual({ id: "folder/one", name: "Updated" });
+			expect(fetched).toEqual({ id: "folder/one", name: "One" });
+			expect(media).toEqual({ id: "media/one", folderId: null });
+			expect(Object.fromEntries(requests[0]?.url.searchParams ?? [])).toEqual({
+				limit: "25",
+				cursor: "after / folder",
+				q: "photo set",
+			});
+			expect(
+				requests.map(({ method, url, body }) => ({ method, path: url.pathname, body })).slice(1),
+			).toEqual([
+				{
+					method: "GET",
+					path: "/_emdash/api/media/folders/folder%2Fone",
+					body: undefined,
+				},
+				{ method: "POST", path: "/_emdash/api/media/folders", body: { name: "Created" } },
+				{
+					method: "PUT",
+					path: "/_emdash/api/media/folders/folder%2Fone",
+					body: { name: "Updated" },
+				},
+				{
+					method: "DELETE",
+					path: "/_emdash/api/media/folders/folder%2Fone",
+					body: undefined,
+				},
+				{
+					method: "PUT",
+					path: "/_emdash/api/media/media%2Fone",
+					body: { folderId: null },
+				},
+			]);
+		});
+
+		it("requests a numbered media page and returns its total", async () => {
+			let capturedUrl: URL | undefined;
+			const backend: Interceptor = async (req) => {
+				capturedUrl = new URL(req.url);
+				return jsonResponse({ items: [{ id: "media-1" }], totalCount: 37 });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaList({ page: 2, limit: 25 });
+
+			expect(Object.fromEntries(capturedUrl?.searchParams ?? [])).toEqual({
+				limit: "25",
+				page: "2",
+			});
+			expect(result).toEqual({ items: [{ id: "media-1" }], totalCount: 37 });
+		});
+
 		it("opts media list into usage summaries with an exact includeUsage value", async () => {
 			let capturedUrl: URL | undefined;
 			const backend: Interceptor = async (req) => {

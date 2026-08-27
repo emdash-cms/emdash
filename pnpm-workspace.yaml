@@ -50,6 +50,7 @@ overrides:
 patchedDependencies:
   "@sigstore/core@4.0.1": patches/@sigstore__core@4.0.1.patch
   image-size@2.0.2: patches/image-size@2.0.2.patch
+  partysocket@1.1.18: patches/partysocket@1.1.18.patch
 
 enablePrePostScripts: true
 

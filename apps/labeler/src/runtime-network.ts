@@ -1,4 +1,4 @@
-import type { HostnameResolver } from "@emdash-cms/registry-verification";
+import type { HostnameResolver } from "@emdash-cms/registry-verification/fetch";
 
 const DOH_ENDPOINT = "https://cloudflare-dns.com/dns-query";
 const MAX_DNS_RESPONSE_BYTES = 64 * 1024;
@@ -29,7 +29,7 @@ async function queryDns(
 	url.searchParams.set("type", recordType);
 	const response = await fetchImplementation(url, {
 		method: "GET",
-		redirect: "error",
+		redirect: "manual",
 		headers: { accept: "application/dns-json" },
 		signal: AbortSignal.timeout(DNS_TIMEOUT_MS),
 	});
@@ -41,10 +41,13 @@ async function queryDns(
 	} catch {
 		throw new Error("DNS query returned an invalid response");
 	}
-	if (!isRecord(parsed) || parsed["Status"] !== 0 || !Array.isArray(parsed["Answer"])) {
+	if (!isRecord(parsed) || parsed["Status"] !== 0) {
 		throw new Error("DNS query failed");
 	}
-	return parsed["Answer"].flatMap((answer) => {
+	const answers = parsed["Answer"];
+	if (answers === undefined || answers === null) return [];
+	if (!Array.isArray(answers)) throw new Error("DNS query failed");
+	return answers.flatMap((answer) => {
 		if (!isRecord(answer) || answer["type"] !== numericType || typeof answer["data"] !== "string") {
 			return [];
 		}

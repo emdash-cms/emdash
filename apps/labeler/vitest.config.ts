@@ -20,6 +20,12 @@ export default defineConfig({
 					TEST_MIGRATIONS: migrations,
 					LABEL_SIGNING_PRIVATE_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE",
 					LABEL_SIGNING_PUBLIC_KEY: "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ",
+					OPERATOR_ACCESS_CONFIG: JSON.stringify({
+						teamDomain: "https://test.cloudflareaccess.com",
+						audience: "test-audience",
+						admins: [],
+						reviewers: [],
+					}),
 					RECONCILIATION_TOKEN: "test-reconciliation-token",
 				},
 				serviceBindings: {

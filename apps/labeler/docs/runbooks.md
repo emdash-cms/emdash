@@ -1,8 +1,8 @@
 # Plugin registry labeler operations
 
-This runbook covers production setup, routine operator actions, recovery, and signing-key
+This runbook covers deployment setup, routine operator actions, recovery, and signing-key
 rotation for the EmDash plugin registry labeler and aggregator. It is written for an operator
-who can deploy both Workers, manage their Cloudflare resources, and access production secrets.
+who can deploy both Workers, manage their Cloudflare resources, and access deployment secrets.
 
 The labeler assesses only publisher-controlled listing metadata and media displayed in the
 registry. Do not give it plugin archives, source code, manifests, dependency data, software
@@ -12,33 +12,28 @@ code.
 
 The reference aggregator normally runs in `projection` mode. An exact-CID `listing-passed`
 label from every required source is necessary for a profile or release to appear. The only
-emergency fallback is an explicit `allowlist`; never use `open` in production.
+emergency fallback is an explicit `allowlist`; never use `open` on the deployed service.
 
-## Production prerequisites
+## Deployment prerequisites
 
 Complete the repository configuration and the external Cloudflare configuration before the
-first production deployment.
+first deployment.
 
 ### Repository configuration
 
-Replace every production placeholder in `apps/labeler/wrangler.jsonc`:
+Confirm the non-secret values in `apps/labeler/wrangler.jsonc`:
 
-- Set `LABEL_SIGNING_PUBLIC_KEY` to the compressed P-256 public Multikey for the production
-  signing key.
-- Replace `REPLACE_WITH_ACCESS_APP_AUDIENCE` in `OPERATOR_ACCESS_CONFIG` with the audience of
-  the Access application that protects the labeler operator routes.
-- Replace the example `admins` and `reviewers` entries with the email addresses, Access groups,
-  or service-token common names that receive those roles.
 - Confirm that `LABELER_DID` and `LABELER_SERVICE_URL` describe the same host. The current
   configuration uses `did:web:labels.emdashcms.com` and `https://labels.emdashcms.com`.
-- Confirm the policy, parser, model, and prompt versions. These values are written into
-  assessment records and published in the policy document.
+- Confirm the policy, parser, and model versions. Prompt identities are computed from the
+  embedded prompts. These values are written into assessment records and published in the
+  policy document.
 
-Confirm the production policy in `apps/aggregator/wrangler.jsonc`:
+Confirm the deployed policy in `apps/aggregator/wrangler.jsonc`:
 
 - `LISTING_POLICY_MODE` is `projection` for normal operation or `allowlist` during an explicit
   rollback. It must not be `open`.
-- `LISTING_MODERATION_POLICY.requiredPositiveSources` contains the production labeler DID.
+- `LISTING_MODERATION_POLICY.requiredPositiveSources` contains the deployed labeler DID.
 - The same DID appears in the accepted-state and redaction source lists when the reference
   labeler is authoritative for those states.
 - `LISTING_ALLOWLIST` is a JSON array of exact package-profile AT URIs. Keep it empty in
@@ -46,15 +41,15 @@ Confirm the production policy in `apps/aggregator/wrangler.jsonc`:
 
 The private signing value is a canonical, unpadded base64url encoding of one valid 32-byte
 P-256 scalar. The public value is its canonical compressed P-256 Multikey. Generate and hold
-the pair using the approved production key-custody process. The test key in the repository is
-not suitable for production.
+the pair using the approved key-custody process. The test key in the repository is not suitable
+for deployment.
 
 ### External Cloudflare configuration
 
 The following configuration is outside this repository. Provision and verify it through the
 Cloudflare API, Wrangler, or the approved infrastructure system:
 
-- The `emdash-aggregator` and `emdash-labeler` Workers and their production routes.
+- The `emdash-aggregator` and `emdash-labeler` Workers and their routes.
 - The `labels.emdashcms.com` custom domain declared by the labeler. The aggregator route is
   configured outside `apps/aggregator/wrangler.jsonc`; commands below assume
   `https://api.emdashcms.com`.
@@ -74,7 +69,7 @@ expiry, subject, and role mapping. There is no Access client secret stored in th
 automation uses an Access service token, keep its client ID and secret in the external Access
 client's secret store and map the token's `common_name` to the minimum required operator role.
 
-### Production secrets
+### Deployment secrets
 
 Set secrets through Wrangler's interactive prompt or the approved secret-injection system.
 Do not put a secret value in a command argument, shell history, repository file, or log.
@@ -98,6 +93,19 @@ Set the labeler's private P-256 scalar:
 pnpm --dir apps/labeler exec wrangler secret put LABEL_SIGNING_PRIVATE_KEY
 ```
 
+Set the matching compressed P-256 public Multikey:
+
+```sh
+pnpm --dir apps/labeler exec wrangler secret put LABEL_SIGNING_PUBLIC_KEY
+```
+
+Set `OPERATOR_ACCESS_CONFIG` as JSON containing the Access application audience and the
+reviewer and administrator principal mappings:
+
+```sh
+pnpm --dir apps/labeler exec wrangler secret put OPERATOR_ACCESS_CONFIG
+```
+
 List the configured secret names without retrieving their values:
 
 ```sh
@@ -113,7 +121,8 @@ does not match `LABEL_SIGNING_PUBLIC_KEY`.
 
 The live evaluation runner loads the public fixture bytes and image assets from the
 `emdash-labeler-eval-datasets` R2 bucket. It loads the private holdout from the exact key
-`protected/holdout.json`. The holdout must stay outside the repository.
+`protected/holdout.json`. The holdout contains its private PNG assets as committed base64 data
+and must stay outside the repository.
 
 Before upload, confirm that the protected file's SHA-256 digest equals
 `holdout.commitment` in `apps/labeler/evals/datasets/v1/manifest.json`:
@@ -130,6 +139,8 @@ pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets
 pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets/v1/assets/impersonation-badge.png --remote --file evals/datasets/v1/assets/impersonation-badge.png --content-type image/png
 pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets/v1/assets/phishing-login.png --remote --file evals/datasets/v1/assets/phishing-login.png --content-type image/png
 pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets/v1/assets/phishing-prompt-injection.png --remote --file evals/datasets/v1/assets/phishing-prompt-injection.png --content-type image/png
+pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets/v1/assets/legacy-brand-logo.png --remote --file evals/datasets/v1/assets/legacy-brand-logo.png --content-type image/png
+pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets/v1/assets/legacy-clean-icon.png --remote --file evals/datasets/v1/assets/legacy-clean-icon.png --content-type image/png
 ```
 
 Upload the protected holdout from its controlled location:
@@ -140,7 +151,34 @@ pnpm --dir apps/labeler exec wrangler r2 object put emdash-labeler-eval-datasets
 
 The live runner verifies every public file hash, the aggregate public hash, the holdout
 commitment, and the promotion aggregate hash before it calls Workers AI. A missing or changed
-object makes the run fail.
+object makes the run fail. Promotion also requires `promotionEnabled: true` in the committed
+manifest. Keep it `false` for a corpus that has been consumed during selection or has failed its
+promotion run. See [Listing moderation model evaluation](model-evaluation.md) for the current
+evidence and decision.
+
+### Evaluate downloaded images locally
+
+The manual image evaluator reads GIF, JPEG, PNG, and WebP files from local paths without copying
+them into the repository or R2. It sends each image to Cloudflare Images and Workers AI through
+remote Wrangler bindings. Run it only for images that may be sent to Cloudflare, and expect the
+calls to incur Workers AI usage.
+
+Start the localhost proxy in one terminal:
+
+```sh
+pnpm --dir apps/labeler eval:image:server
+```
+
+Pass one or more image files or directories from another terminal:
+
+```sh
+pnpm --dir apps/labeler eval:image:local -- /secure/path/downloaded-images
+```
+
+The command searches directories recursively and writes one JSON object per file to standard
+output. The JSON contains the local path, pass/review outcome, findings, model identity, latency,
+and usage. Image bytes are not included in the output or stored by the evaluator. Stop the proxy
+when evaluation finishes.
 
 ## Deploy both Workers
 
@@ -502,7 +540,7 @@ EMDASH_EVAL_START="$(curl --fail-with-body --silent --show-error \
   --header "Origin: ${EMDASH_LABELER_ORIGIN}" \
   --header 'X-EmDash-Request: 1' \
   --header 'Idempotency-Key: eval-listing-metadata-v1-001' \
-  --data '{"reason":"Run the protected production evaluation for the reviewed model bundle."}' \
+  --data '{"reason":"Run the protected evaluation for the reviewed model bundle."}' \
   "${EMDASH_LABELER_ORIGIN}/_admin/api/evals/run")"
 
 export EMDASH_EVAL_RUN_ID="$(printf '%s' "${EMDASH_EVAL_START}" | jq -er '.runId')"
@@ -554,8 +592,8 @@ authenticated review and policy change is deployed.
 
 This procedure restores the aggregator D1 database, re-ingests current publisher records,
 replays the complete signed label history, and rebuilds the public projection. D1 Time Travel
-changes production data. Rehearse the complete procedure in staging and record the current
-bookmark before restoring production.
+changes deployed data. Rehearse the complete procedure against a D1 backup in disposable
+resources, and record the current bookmark before restoring the deployed database.
 
 Keep the registry in explicit `allowlist` mode for the entire recovery. Use an empty allowlist
 to hide every listing when there is no approved emergency set. Do not use `open`.
@@ -697,8 +735,8 @@ declaring the rollback complete.
 
 ## Rotate the signing key
 
-Rotate the key in staging before production. Keep the old private key under its existing custody
-policy until the replay and rollback window closes.
+Verify the replacement pair before deployment. Keep the old private key under its existing
+custody policy until the replay and rollback window closes.
 
 1. Generate a new P-256 key pair through the approved key-custody process. Record the canonical
    compressed public Multikey and place the unpadded base64url private scalar in a temporary
@@ -706,19 +744,22 @@ policy until the replay and rollback window closes.
 
    ```text title="/secure/path/labeler-key-rotation.env"
    LABEL_SIGNING_PRIVATE_KEY=<new-private-scalar>
+   LABEL_SIGNING_PUBLIC_KEY=<new-public-multikey>
    ```
+
+   Wrangler's `secret bulk` command accepts dotenv and JSON input. This procedure uses dotenv
+   so the reviewed key pair stays together during verification and upload.
 
 2. Pause automated issuance with a new incident or change-ticket idempotency key. Confirm
    `issuance_paused` is `1` with the D1 query in [Status queries](#status-queries).
-3. Replace `LABEL_SIGNING_PUBLIC_KEY` in `apps/labeler/wrangler.jsonc` with the reviewed new
-   Multikey. Do not deploy this public value separately from the private scalar.
-4. Build the labeler, then deploy one Worker version containing both the updated public variable
-   and the new secret:
+3. Upload both key values in one bulk secret operation. Do not update the public and private
+   values separately:
 
    ```sh
-   pnpm --dir apps/labeler build
-   pnpm --dir apps/labeler exec wrangler deploy --secrets-file /secure/path/labeler-key-rotation.env
+   pnpm --dir apps/labeler exec wrangler secret bulk /secure/path/labeler-key-rotation.env
    ```
+
+4. Deploy the reviewed labeler version.
 
 5. Fetch `/.well-known/did.json` and compare the complete `publicKeyMultibase` with the new
    reviewed value. Fetch `/health` and require `signing.ready: true`. A mismatched pair makes the
@@ -738,7 +779,7 @@ policy until the replay and rollback window closes.
    assessment responses. The aggregator also retains previously observed public keys so it can
    verify old in-flight events within their observed validity boundary.
 9. Resume automated issuance with a new idempotency key. Confirm `issuance_paused` is `0`, issue a
-   staging decision, and verify that the aggregator ingests its sequence.
+   test decision, and verify that the aggregator ingests its sequence.
 
 Never delete D1 label history as part of rotation. The immutable stored labels and operator
 actions remain the audit record even though replay delivery uses the current signing key.
@@ -782,7 +823,7 @@ pnpm --dir apps/aggregator exec wrangler tail emdash-aggregator --format json
 
 ## Alerts
 
-Cloudflare alert rules and notification destinations are external production configuration; the
+Cloudflare alert rules and notification destinations are external deployment configuration; the
 repository enables Worker observability but does not create those rules. Configure alerts for
 the following signals:
 

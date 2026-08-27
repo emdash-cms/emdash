@@ -73,6 +73,8 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 					size: item.size ?? undefined,
 					width: item.width ?? undefined,
 					height: item.height ?? undefined,
+					focalX: item.focalX ?? undefined,
+					focalY: item.focalY ?? undefined,
 					blurhash: item.blurhash ?? undefined,
 					dominantColor: item.dominantColor ?? undefined,
 					alt: item.alt ?? undefined,
@@ -99,6 +101,8 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 				size: item.size ?? undefined,
 				width: item.width ?? undefined,
 				height: item.height ?? undefined,
+				focalX: item.focalX ?? undefined,
+				focalY: item.focalY ?? undefined,
 				blurhash: item.blurhash ?? undefined,
 				dominantColor: item.dominantColor ?? undefined,
 				alt: item.alt ?? undefined,
@@ -225,6 +229,8 @@ export function repoItemToProviderItem(item: {
 	size: number | null;
 	width: number | null;
 	height: number | null;
+	focalX?: number | null;
+	focalY?: number | null;
 	alt: string | null;
 	caption: string | null;
 	storageKey: string;
@@ -238,6 +244,8 @@ export function repoItemToProviderItem(item: {
 		size: item.size ?? undefined,
 		width: item.width ?? undefined,
 		height: item.height ?? undefined,
+		focalX: item.focalX ?? undefined,
+		focalY: item.focalY ?? undefined,
 		blurhash: item.blurhash ?? undefined,
 		dominantColor: item.dominantColor ?? undefined,
 		alt: item.alt ?? undefined,

@@ -23,6 +23,7 @@ import { createProductionAssessmentWorkflowDependencies } from "./runtime.js";
 import type { AssessmentWorkflowParams, AssessmentWorkflowResult } from "./types.js";
 
 const MAX_INFERENCE_MEDIA_BYTES = 8 * 1024 * 1024;
+const MAX_CONCURRENT_IMAGE_INFERENCE = 3;
 
 export interface ModerationMediaReader {
 	read(input: {
@@ -90,8 +91,10 @@ export async function runBoundAssessmentWorkflow(
 						links: foundation.canonicalInput.links,
 					}),
 				);
-	const completedImageEntries = await Promise.all(
-		foundation.media.map(async (media) => {
+	const completedImageEntries = await mapConcurrent(
+		foundation.media,
+		MAX_CONCURRENT_IMAGE_INFERENCE,
+		async (media) => {
 			const ref = `release.media.${media.kind}:${media.index}`;
 			const stage = await runModerationStage(step, `moderate ${ref}`, async () => {
 				const reader = dependencies.mediaReader;
@@ -125,7 +128,7 @@ export async function runBoundAssessmentWorkflow(
 				});
 			});
 			return [ref, stage] as const;
-		}),
+		},
 	);
 	const imageEntries = [
 		...completedImageEntries,
@@ -181,6 +184,27 @@ export class AssessmentWorkflow extends WorkflowEntrypoint<Env, AssessmentWorkfl
 			await createProductionAssessmentWorkflowDependencies(this.env),
 		);
 	}
+}
+
+async function mapConcurrent<Input, Output>(
+	items: readonly Input[],
+	limit: number,
+	callback: (item: Input) => Promise<Output>,
+): Promise<Output[]> {
+	const output: Array<Output | undefined> = Array.from({ length: items.length });
+	let cursor = 0;
+	const worker = async (): Promise<void> => {
+		while (cursor < items.length) {
+			const index = cursor;
+			cursor += 1;
+			output[index] = await callback(items[index]!);
+		}
+	};
+	await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+	return output.map((value) => {
+		if (value === undefined) throw new Error("image inference did not produce every result");
+		return value;
+	});
 }
 
 async function runModerationStage(

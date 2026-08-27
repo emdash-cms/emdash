@@ -17,7 +17,7 @@ import { X, Plus, Trash, ImageSquare } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaItem } from "../../lib/api";
-import { metaString } from "../../lib/media-utils";
+import { getMediaObjectPosition, metaString } from "../../lib/media-utils";
 import { cn } from "../../lib/utils";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { galleryImageUrl, type GalleryAttributes, type GalleryImage } from "./GalleryNode";
@@ -49,6 +49,8 @@ export function mediaItemToGalleryImage(item: MediaItem): GalleryImage {
 		alt: item.alt || "",
 		width: item.width,
 		height: item.height,
+		focalX: item.focalX ?? undefined,
+		focalY: item.focalY ?? undefined,
 		// Cache LQIP alongside dimensions so the gallery renders a placeholder
 		// without a runtime lookup. Fall back to `meta` for providers that
 		// stash it there — mirrors ImageFieldRenderer's handleSelect.
@@ -148,6 +150,8 @@ export function GalleryDetailPanel({
 							alt: item.alt || "",
 							width: item.width,
 							height: item.height,
+							focalX: item.focalX ?? undefined,
+							focalY: item.focalY ?? undefined,
 							blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
 							dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
 						}
@@ -304,6 +308,7 @@ function SortableGalleryThumb({
 					src={galleryImageUrl(image)}
 					alt={image.alt || ""}
 					className="object-cover w-full h-full"
+					style={{ objectPosition: getMediaObjectPosition(image) }}
 					draggable={false}
 				/>
 			</Button>
