@@ -24,9 +24,8 @@ vi.mock("../../src/lib/api", async () => {
 });
 
 vi.mock("../../src/components/MediaUsedIn.js", () => ({
-	MediaUsedIn: ({ mediaId }: { mediaId: string }) => (
-		<div data-testid="media-used-in" data-media-id={mediaId} />
-	),
+	MediaUsedIn: ({ mediaId, open }: { mediaId: string; open: boolean }) =>
+		open ? <div data-testid="media-used-in" data-media-id={mediaId} /> : null,
 }));
 
 // Import the mocked functions for assertions
@@ -223,23 +222,52 @@ describe("MediaDetailPanel", () => {
 		expect(dialog.getBoundingClientRect().height).toBe(detailsHeight);
 	});
 
-	it("mounts Used in for local media inside the details column only", async () => {
+	it("shows usage only in its dedicated local-image tab", async () => {
 		const screen = await renderPanel();
-		const usedIn = screen.getByTestId("media-used-in");
-		await expect.element(usedIn).toHaveAttribute("data-media-id", "media-1");
-		expect(
-			screen.getByTestId("media-detail-dialog-details-column").element().contains(usedIn.element()),
-		).toBe(true);
+		const dialog = screen.getByRole("dialog", { name: "Media Details" }).element();
+		expect(Array.from(dialog.querySelectorAll('[role="tab"]'), (tab) => tab.textContent)).toEqual([
+			"Details",
+			"Used in",
+			"Focal point",
+		]);
+		await expect
+			.element(screen.getByTestId("media-used-in"), { timeout: 100 })
+			.not.toBeInTheDocument();
 
-		await screen.rerender(
-			<QueryWrapper>
-				<MediaDetailPanel
-					open
-					item={makeImageItem({ provider: "cloudflare-images" })}
-					onClose={vi.fn()}
-				/>
-			</QueryWrapper>,
-		);
+		screen.getByRole("tab", { name: "Focal point" }).element().click();
+		await expect
+			.element(screen.getByTestId("media-used-in"), { timeout: 100 })
+			.not.toBeInTheDocument();
+
+		screen.getByRole("tab", { name: "Used in" }).element().click();
+		await expect.element(screen.getByRole("tabpanel", { name: "Used in" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByTestId("media-used-in"))
+			.toHaveAttribute("data-media-id", "media-1");
+		await expect.element(screen.getByAltText("A nice photo")).not.toBeVisible();
+		await expect.element(screen.getByLabelText("Filename")).not.toBeVisible();
+	});
+
+	it("gives non-image local media a dedicated usage tab", async () => {
+		const screen = await renderPanel({ item: makePdfItem() });
+		const dialog = screen.getByRole("dialog", { name: "Media Details" }).element();
+		expect(Array.from(dialog.querySelectorAll('[role="tab"]'), (tab) => tab.textContent)).toEqual([
+			"Details",
+			"Used in",
+		]);
+		await expect.element(screen.getByText("application/pdf")).toBeVisible();
+
+		screen.getByRole("tab", { name: "Used in" }).element().click();
+		await expect.element(screen.getByTestId("media-used-in")).toBeInTheDocument();
+		await expect.element(screen.getByText("application/pdf")).not.toBeVisible();
+	});
+
+	it("does not offer usage for provider media", async () => {
+		const screen = await renderPanel({
+			item: makeImageItem({ provider: "cloudflare-images" }),
+		});
+
+		expect(screen.getByRole("tab", { name: "Used in" }).query()).toBeNull();
 		await expect
 			.element(screen.getByTestId("media-used-in"), { timeout: 100 })
 			.not.toBeInTheDocument();
@@ -306,12 +334,13 @@ describe("MediaDetailPanel", () => {
 
 		await openFocalEditor(screen);
 		await userEvent.keyboard("{ArrowRight}");
-		screen.getByRole("tab", { name: "Details" }).element().click();
+		screen.getByRole("tab", { name: "Used in" }).element().click();
+		await expect.element(screen.getByTestId("media-used-in")).toBeInTheDocument();
 		screen.getByRole("tab", { name: "Focal point" }).element().click();
 
-		expect(screen.getByTestId("focal-preview-square").element().style.objectPosition).toBe(
-			"51% 50%",
-		);
+		const squarePreview = screen.getByTestId("focal-preview-square");
+		await expect.element(squarePreview).toBeVisible();
+		expect(squarePreview.element().style.objectPosition).toBe("51% 50%");
 	});
 
 	it("edits the focal point with the keyboard and saves only the focal pair", async () => {
@@ -480,7 +509,6 @@ describe("MediaDetailPanel", () => {
 		const screen = await renderPanel({ item });
 		// Should show the mime type text instead of img
 		await expect.element(screen.getByText("application/pdf")).toBeInTheDocument();
-		expect(screen.getByRole("dialog").element().querySelector('[role="tablist"]')).toBeNull();
 		expect(screen.getByText("Focal point").query()).toBeNull();
 	});
 
