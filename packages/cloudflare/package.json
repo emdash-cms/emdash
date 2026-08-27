@@ -106,7 +106,8 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
-    "test": "vitest run",
+    "test": "vitest run && pnpm run test:workerd",
+    "test:workerd": "vitest run --config vitest.workerd.config.ts",
     "prepublishOnly": "node --run build",
     "check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution",
     "typecheck": "tsgo --noEmit"
@@ -146,6 +147,7 @@
     "@arethetypeswrong/cli": "catalog:",
     "@astrojs/cloudflare": "catalog:",
     "@cloudflare/kumo": "catalog:",
+    "@cloudflare/vitest-pool-workers": "catalog:",
     "@cloudflare/workers-types": "catalog:",
     "@types/pg": "^8.16.0",
     "@phosphor-icons/react": "catalog:",

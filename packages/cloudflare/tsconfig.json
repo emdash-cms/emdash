@@ -11,7 +11,7 @@
 		"esModuleInterop": true,
 		"noUncheckedIndexedAccess": true,
 		"noImplicitOverride": true,
-		"types": ["@cloudflare/workers-types", "astro/client"]
+		"types": ["@cloudflare/vitest-pool-workers/types", "@cloudflare/workers-types", "astro/client"]
 	},
 	"include": ["src/**/*.ts", "tests/**/*.ts"]
 }
