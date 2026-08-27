@@ -859,26 +859,27 @@ function SortableBylineRow({
 						/>
 					}
 				/>
-				<DropdownMenu.Content>
+				<DropdownMenu.Content className="p-1">
 					<DropdownMenu.Item
-						className="data-highlighted:bg-kumo-fill"
-						icon={<Tag className="me-2 size-4" aria-hidden="true" />}
+						className="py-1 data-highlighted:bg-kumo-fill"
+						icon={<Tag className="me-1.5 size-3.5" aria-hidden="true" />}
 						onClick={onOpenRole}
 					>
 						{credit.roleLabel ? t`Edit role` : t`Set role`}
 					</DropdownMenu.Item>
 					{onEdit ? (
 						<DropdownMenu.Item
-							className="data-highlighted:bg-kumo-fill"
-							icon={<PencilSimple className="me-2 size-4" aria-hidden="true" />}
+							className="py-1 data-highlighted:bg-kumo-fill"
+							icon={<PencilSimple className="me-1.5 size-3.5" aria-hidden="true" />}
 							onClick={onEdit}
 						>
 							{t`Edit name and slug`}
 						</DropdownMenu.Item>
 					) : null}
-					<DropdownMenu.Separator />
+					<DropdownMenu.Separator className="my-0.5" />
 					<DropdownMenu.Item
-						icon={<UserMinus className="me-2 size-4" aria-hidden="true" />}
+						className="py-1"
+						icon={<UserMinus className="me-1.5 size-3.5" aria-hidden="true" />}
 						variant="danger"
 						onClick={onRemove}
 					>
