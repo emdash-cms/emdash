@@ -457,7 +457,7 @@ export function BylineCreditsEditor({
 									</Button>
 								</div>
 							) : options.length > 0 ? (
-								<ul className="space-y-2">
+								<ul className="space-y-2 p-px">
 									{options.map((option) => (
 										<li key={option.type === "byline" ? option.byline.id : "create"}>
 											<LayerCard className="flex min-h-14 items-center gap-3 px-3 py-2">
