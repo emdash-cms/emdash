@@ -894,20 +894,23 @@ function SortableBylineRow({
 				onOpenChange={(open) => !open && onCancelRole()}
 			>
 				<Collapsible.Panel>
-					<div className="space-y-2 pt-2">
-						<Input
-							size="base"
-							label={t`Role on this post (optional)`}
-							value={roleDraft}
-							onChange={(event) => onRoleDraftChange(event.target.value)}
-							onKeyDown={(event) => {
-								if (event.key === "Escape") {
-									event.preventDefault();
-									onCancelRole();
-								}
-							}}
-							autoFocus={roleOpen}
-						/>
+					<div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 pt-2">
+						<div className="min-w-0">
+							<Input
+								size="base"
+								label={t`Role on this post (optional)`}
+								className="w-full min-w-0"
+								value={roleDraft}
+								onChange={(event) => onRoleDraftChange(event.target.value)}
+								onKeyDown={(event) => {
+									if (event.key === "Escape") {
+										event.preventDefault();
+										onCancelRole();
+									}
+								}}
+								autoFocus={roleOpen}
+							/>
+						</div>
 						<Button type="button" variant="secondary" onClick={onCommitRole}>
 							{t`Done`}
 						</Button>
