@@ -71,12 +71,36 @@ async function createPublishedPost(
 	return { id };
 }
 
+async function setPostSeoEnabled(baseUrl: string, token: string, enabled: boolean): Promise<void> {
+	const response = await fetch(`${baseUrl}/_emdash/api/schema/collections/posts`, {
+		method: "PUT",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${token}`,
+			"X-EmDash-Request": "1",
+			Origin: baseUrl,
+		},
+		body: JSON.stringify({ hasSeo: enabled }),
+	});
+	if (!response.ok) {
+		throw new Error(`Failed to update SEO for posts: ${response.status}`);
+	}
+}
+
 test.describe("i18n", () => {
 	test.beforeEach(async ({ admin }) => {
 		await admin.devBypassAuth();
 	});
 
 	test.describe("Canonical URLs", () => {
+		test.beforeEach(async ({ serverInfo }) => {
+			await setPostSeoEnabled(serverInfo.baseUrl, serverInfo.token, true);
+		});
+
+		test.afterEach(async ({ serverInfo }) => {
+			await setPostSeoEnabled(serverInfo.baseUrl, serverInfo.token, false);
+		});
+
 		test("preserves the locale prefix and normalizes the trailing slash", async ({
 			page,
 			serverInfo,
