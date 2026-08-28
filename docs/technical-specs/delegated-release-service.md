@@ -528,12 +528,10 @@ The typed operator client uses these canonical paths:
 | `POST /admin/api/publishers/{publisherDid}/archive/start`             | admin        | Start a resumable publisher archive Workflow       |
 | `POST /admin/api/publishers/{publisherDid}/restore/prepare`           | admin        | Validate an archive before restore                 |
 | `POST /admin/api/publishers/{publisherDid}/restore`                   | admin        | Restore one validated archive page                 |
-| `GET /admin/api/viewer/encryption/keys`                               | viewer       | Read encryption-key lifecycle state               |
-| `POST /admin/api/admin/encryption/keys/activate`                      | admin        | Activate a configured encryption-key version      |
-| `POST /admin/api/admin/encryption/verify`                             | admin        | Start fleet verification for a retiring key       |
-| `POST /admin/api/admin/encryption/keys/{version}/retire`              | admin        | Retire a verified inactive key                    |
-
-The Worker retains `/admin/api/viewer/status` and `/admin/api/viewer/audit` as aliases for the canonical status and audit reads. `/admin/api/viewer/publisher-control`, `/admin/api/admin/service-mode`, and `/admin/api/admin/publisher-control` retain the earlier control-plane request and response shapes for compatibility; new clients use the canonical paths above.
+| `GET /admin/api/encryption/keys`                                      | viewer       | Read encryption-key lifecycle state               |
+| `POST /admin/api/encryption/keys/activate`                            | admin        | Activate a configured encryption-key version      |
+| `POST /admin/api/encryption/verify`                                   | admin        | Start fleet verification for a retiring key       |
+| `POST /admin/api/encryption/keys/{version}/retire`                    | admin        | Retire a verified inactive key                    |
 
 State-changing requests require content-type validation, CSRF where cookies are used, and idempotency keys. API errors expose stable codes and public-safe messages.
 
