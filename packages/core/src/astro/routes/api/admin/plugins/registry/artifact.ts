@@ -24,17 +24,22 @@
 import type { Did } from "@atcute/lexicons";
 import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
 import { NSID, RECORD_SCOPED_BLOB_CACHE_TYPE } from "@emdash-cms/registry-lexicons";
-import { recordScopedImageCacheUrl } from "@emdash-cms/registry-verification/artifact";
+import {
+	recordScopedImageCacheUrl,
+	resolvePublisherPdsEndpoint,
+	type ReleaseArtifactReference,
+} from "@emdash-cms/registry-verification/artifact";
 import { multihashFromBlobCid } from "@emdash-cms/registry-verification/checksum";
+import { fetchVerifiedResource } from "@emdash-cms/registry-verification/fetch";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError } from "#api/error.js";
 import { verifyChecksum } from "#api/handlers/registry.js";
-import { assertSafeArtifactUrl } from "#api/index.js";
 
 import { fetchRegistryArtifactUrl } from "../../../../../../registry/artifact-fetch.js";
 import { coerceRegistryConfig, validateAggregatorUrl } from "../../../../../../registry/config.js";
+import { resolveAndValidateExternalUrlTarget } from "../../../../../../security/ssrf.js";
 
 export const prerender = false;
 
@@ -105,11 +110,17 @@ function timedFetch(totalDeadline: number): typeof fetch {
  * boundary, but `artifacts` is an aggregator pass-through typed `unknown`, so
  * the entry's shape is not guaranteed.
  */
-interface DeclaredArtifact {
-	url?: string;
-	blobCid?: string;
-	checksum: string;
-	requiresAuth: boolean;
+type DeclaredArtifact = ReleaseArtifactReference & { requiresAuth: boolean };
+
+interface ResolvedArtifact {
+	artifact: DeclaredArtifact;
+	record: {
+		did: string;
+		collection: string;
+		rkey: string;
+		cid: string;
+	};
+	imageCacheUrl?: URL;
 }
 
 function declaredArtifact(value: unknown): DeclaredArtifact | null {
@@ -121,14 +132,30 @@ function declaredArtifact(value: unknown): DeclaredArtifact | null {
 	const checksum = entry.checksum;
 	const ref = objectProperty(blob, "ref");
 	const blobCid = objectProperty(ref, "$link");
+	const blobMimeType = objectProperty(blob, "mimeType");
+	const blobSize = objectProperty(blob, "size");
 	const hasUrl = typeof url === "string" && url.length > 0;
-	const hasBlob = typeof blobCid === "string" && blobCid.length > 0;
+	const hasBlob =
+		typeof blobCid === "string" &&
+		blobCid.length > 0 &&
+		typeof blobMimeType === "string" &&
+		Number.isSafeInteger(blobSize) &&
+		Number(blobSize) >= 0;
 	if ((!hasUrl && !hasBlob) || typeof checksum !== "string" || checksum.length === 0) {
 		return null;
 	}
 	return {
 		...(hasUrl ? { url } : {}),
-		...(hasBlob ? { blobCid } : {}),
+		...(hasBlob
+			? {
+					blob: {
+						$type: "blob" as const,
+						ref: { $link: blobCid },
+						mimeType: blobMimeType,
+						size: Number(blobSize),
+					},
+				}
+			: {}),
 		checksum,
 		requiresAuth: entry.requiresAuth === true,
 	};
@@ -228,86 +255,56 @@ export const GET: APIRoute = async ({ url, locals }) => {
 	}
 
 	// Resolve the publisher-declared artifact URL from the release record.
-	let descriptor: DeclaredArtifact;
+	let resolvedArtifact: ResolvedArtifact;
 	try {
 		const resolved = await resolveArtifact(registryConfig, did, slug, version, cid, kind, index);
 		if (resolved === null) {
 			return apiError("ARTIFACT_NOT_FOUND", "Artifact not found", 404);
 		}
-		descriptor = resolved;
+		resolvedArtifact = resolved;
 	} catch {
 		return apiError("ARTIFACT_RESOLVE_FAILED", "Failed to resolve artifact", 502);
 	}
-	if (!descriptor.url) {
-		return apiError("ARTIFACT_NOT_FOUND", "Artifact not found", 404);
-	}
-
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 	try {
-		// `assertSafeArtifactUrl` validates scheme / credentials / loopback +
-		// resolves the hostname and rejects private / link-local / metadata
-		// targets (DNS-rebinding defence). It throws a plain Error on any
-		// block, so a rejection here means the URL is unsafe.
-		let current: URL;
-		try {
-			current = await assertSafeArtifactUrl(descriptor.url);
-		} catch {
-			return apiError("ARTIFACT_URL_REJECTED", "Artifact URL is not allowed", 400);
-		}
-
-		let response: Response;
-		for (let hop = 0; ; hop++) {
-			response = await fetchRegistryArtifactUrl(current.href, {
-				signal: controller.signal,
-				maxResponseBytes: MAX_IMAGE_BYTES,
-			});
-			if (response.status < 300 || response.status >= 400) break;
-			const location = response.headers.get("location");
-			if (!location) break;
-			if (hop === MAX_REDIRECTS) {
-				return apiError("ARTIFACT_URL_REJECTED", "Too many redirects", 502);
+		const fetchOptions = proxyFetchOptions(controller.signal);
+		let bytes: Uint8Array | undefined;
+		let headers: Headers | undefined;
+		let checksumValid: boolean | undefined;
+		if (resolvedArtifact.imageCacheUrl) {
+			const transformed = await fetchVerifiedResource(resolvedArtifact.imageCacheUrl, fetchOptions);
+			if (transformed.success) {
+				bytes = transformed.value.bytes;
+				headers = transformed.value.headers;
 			}
-			let next: URL;
-			try {
-				next = await assertSafeArtifactUrl(new URL(location, current).href);
-			} catch {
-				return apiError("ARTIFACT_URL_REJECTED", "Redirect target is not allowed", 400);
-			}
-			current = next;
 		}
-
-		if (!response.ok) {
-			return apiError("ARTIFACT_FETCH_FAILED", "Failed to fetch artifact", 502);
+		if (!bytes || !headers) {
+			const raw = await fetchRawArtifact(resolvedArtifact, fetchOptions);
+			if (!raw.success) return artifactFetchError(raw.code);
+			bytes = raw.bytes;
+			headers = raw.headers;
+			checksumValid = raw.checksumValid;
 		}
 
 		// Content-Type allowlist: only image types are proxied. A non-image
 		// (HTML error page, JSON, octet-stream) is rejected so the admin
 		// never renders publisher-controlled markup from the EmDash origin.
-		const rawType = response.headers.get("content-type") ?? "";
+		const rawType = headers.get("content-type") ?? "";
 		const contentType = rawType.split(";", 1)[0]!.trim().toLowerCase();
 		if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
 			return apiError("ARTIFACT_NOT_IMAGE", "Artifact is not an allowed image type", 415);
 		}
 
-		const declaredLength = response.headers.get("content-length");
+		const declaredLength = headers.get("content-length");
 		if (declaredLength) {
 			const declared = Number(declaredLength);
 			if (Number.isFinite(declared) && declared > MAX_IMAGE_BYTES) {
 				return apiError("ARTIFACT_TOO_LARGE", "Artifact exceeds size limit", 413);
 			}
 		}
-
-		const bytes = await readCapped(response, MAX_IMAGE_BYTES);
-		if (bytes === null) {
-			return apiError("ARTIFACT_TOO_LARGE", "Artifact exceeds size limit", 413);
-		}
-		if (!descriptor.blobCid && !(await verifyChecksum(bytes, descriptor.checksum))) {
-			return apiError(
-				"ARTIFACT_CHECKSUM_MISMATCH",
-				"Artifact bytes do not match the approved release record",
-				502,
-			);
+		if (checksumValid === false) {
+			return artifactFetchError("CHECKSUM_MISMATCH");
 		}
 
 		// Only the allowlisted Content-Type is forwarded — never copy other
@@ -352,7 +349,7 @@ async function resolveArtifact(
 	cid: string,
 	kind: string,
 	index: number,
-): Promise<DeclaredArtifact | null> {
+): Promise<ResolvedArtifact | null> {
 	// Lazy-load the discovery client so the `@atcute/client` dependency only
 	// loads when the registry path is exercised.
 	const { DiscoveryClient, registryLabelerPolicy } =
@@ -411,9 +408,11 @@ async function resolveArtifact(
 	}
 
 	const descriptor = resolveDeclaredArtifact(releaseView.release.artifacts, kind, index);
-	if (!descriptor || descriptor.requiresAuth) return null;
-	if (descriptor.blobCid) {
-		const expected = multihashFromBlobCid(descriptor.blobCid);
+	if (!descriptor || descriptor.requiresAuth || releaseView.release.auth !== undefined) return null;
+	const blobCid = descriptor.blob?.ref.$link;
+	let imageCacheUrl: URL | undefined;
+	if (blobCid) {
+		const expected = multihashFromBlobCid(blobCid);
 		if (!expected.success || expected.value !== descriptor.checksum) return null;
 		const rkey = `${slug}:${releaseView.version}`;
 		const serviceEndpoint = releaseView.artifactCaches
@@ -430,13 +429,22 @@ async function resolveArtifact(
 					rkey,
 					cid: releaseView.cid,
 				},
-				descriptor.blobCid,
+				blobCid,
 			);
 			if (!cacheUrl.success) return null;
-			descriptor.url = cacheUrl.value.href;
+			imageCacheUrl = cacheUrl.value;
 		}
 	}
-	return descriptor.url ? descriptor : null;
+	return {
+		artifact: descriptor,
+		record: {
+			did,
+			collection: NSID.packageRelease,
+			rkey: `${slug}:${releaseView.version}`,
+			cid: releaseView.cid,
+		},
+		...(imageCacheUrl ? { imageCacheUrl } : {}),
+	};
 }
 
 function recordScopedCacheEndpoint(value: unknown): string | null {
@@ -450,32 +458,80 @@ function recordScopedCacheEndpoint(value: unknown): string | null {
  * `null` when the cap is breached (the streamed body lied about / omitted
  * Content-Length). The cap is the real defence against an unbounded body.
  */
-async function readCapped(response: Response, limit: number): Promise<Uint8Array | null> {
-	const body = response.body;
-	if (!body) {
-		const buf = new Uint8Array(await response.arrayBuffer());
-		return buf.length > limit ? null : buf;
-	}
-	const reader = body.getReader();
-	const chunks: Uint8Array[] = [];
-	let total = 0;
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) break;
-		if (value) {
-			total += value.length;
-			if (total > limit) {
-				await reader.cancel();
-				return null;
-			}
-			chunks.push(value);
+function proxyFetchOptions(signal: AbortSignal) {
+	return {
+		fetch: async (url: URL, init: RequestInit) =>
+			fetchRegistryArtifactUrl(url.href, {
+				signal: init.signal instanceof AbortSignal ? init.signal : signal,
+				maxResponseBytes: MAX_IMAGE_BYTES,
+			}),
+		resolveHostname: async (hostname: string) =>
+			(await resolveAndValidateExternalUrlTarget(`https://${hostname}/`)).addresses,
+		maxBytes: MAX_IMAGE_BYTES,
+		maxRedirects: MAX_REDIRECTS,
+		totalTimeoutMs: FETCH_TIMEOUT_MS,
+	};
+}
+
+async function fetchRawArtifact(
+	resolved: ResolvedArtifact,
+	options: ReturnType<typeof proxyFetchOptions>,
+): Promise<
+	| { success: true; bytes: Uint8Array; headers: Headers; checksumValid: boolean }
+	| { success: false; code: string }
+> {
+	const urls: URL[] = [];
+	const blobCid = resolved.artifact.blob?.ref.$link;
+	let lastCode = "FETCH_FAILED";
+	let checksumMismatch: { bytes: Uint8Array; headers: Headers } | undefined;
+	if (blobCid) {
+		const pds = await resolvePublisherPdsEndpoint(resolved.record.did, options);
+		if (pds.success) {
+			const url = new URL("/xrpc/com.atproto.sync.getBlob", pds.value);
+			url.searchParams.set("did", resolved.record.did);
+			url.searchParams.set("cid", blobCid);
+			urls.push(url);
+		} else {
+			lastCode = pds.error.code;
 		}
 	}
-	const combined = new Uint8Array(total);
-	let offset = 0;
-	for (const chunk of chunks) {
-		combined.set(chunk, offset);
-		offset += chunk.length;
+	if (resolved.artifact.url) urls.push(new URL(resolved.artifact.url));
+
+	for (const url of urls) {
+		const fetched = await fetchVerifiedResource(url, options);
+		if (!fetched.success) {
+			lastCode = fetched.error.code;
+			continue;
+		}
+		if (!(await verifyChecksum(fetched.value.bytes, resolved.artifact.checksum))) {
+			lastCode = "CHECKSUM_MISMATCH";
+			checksumMismatch = { bytes: fetched.value.bytes, headers: fetched.value.headers };
+			continue;
+		}
+		return {
+			success: true,
+			bytes: fetched.value.bytes,
+			headers: fetched.value.headers,
+			checksumValid: true,
+		};
 	}
-	return combined;
+	if (checksumMismatch) return { success: true, ...checksumMismatch, checksumValid: false };
+	return { success: false, code: lastCode };
+}
+
+function artifactFetchError(code: string): Response {
+	if (code === "CHECKSUM_MISMATCH") {
+		return apiError(
+			"ARTIFACT_CHECKSUM_MISMATCH",
+			"Artifact bytes do not match the approved release record",
+			502,
+		);
+	}
+	if (code === "RESOURCE_SIZE_EXCEEDED") {
+		return apiError("ARTIFACT_TOO_LARGE", "Artifact exceeds size limit", 413);
+	}
+	if (code === "HOST_REJECTED" || code === "INVALID_URL") {
+		return apiError("ARTIFACT_URL_REJECTED", "Artifact URL is not allowed", 400);
+	}
+	return apiError("ARTIFACT_FETCH_FAILED", "Failed to fetch artifact", 502);
 }

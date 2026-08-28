@@ -34,43 +34,38 @@ const PNG_1x1 = Uint8Array.from(
 );
 const PNG_SHA256 = "4e25b424165e2da0783d555132372a957c289f3fe074b2da17e93dd443c97379";
 const RELEASE_CID = `bafyrei${"a".repeat(52)}`;
+const BLOB_BYTES = new TextEncoder().encode("bundle");
+const BLOB_CID = "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q";
+const BLOB_CHECKSUM = "bciqb43wwlv35mnso5lwvu5c3uxcjqwxcw4an3boxz57qe667fffdh7a";
 
 // The release record the mocked DiscoveryClient resolves. Tests mutate
 // `mockArtifacts` per case to point the declared URL where they need it.
 let mockArtifacts: unknown;
+let mockArtifactCaches: unknown[];
+let mockPublisherDid = "did:plc:abc123";
 let mockReleaseVersion = "1.0.0";
 let mockReleaseLabels: unknown[] = [];
 
 const getPackage = vi.fn(async () => ({ profile: {} }));
 const getLatestRelease = vi.fn(async () => ({
-	uri: `at://did:plc:abc123/com.emdashcms.experimental.package.release/myplugin:${mockReleaseVersion}`,
+	uri: `at://${mockPublisherDid}/com.emdashcms.experimental.package.release/myplugin:${mockReleaseVersion}`,
 	cid: RELEASE_CID,
-	did: "did:plc:abc123",
+	did: mockPublisherDid,
 	package: "myplugin",
 	version: mockReleaseVersion,
-	artifactCaches: [
-		{
-			$type: "com.emdashcms.experimental.aggregator.defs#recordScopedBlobCache",
-			serviceEndpoint: "https://cdn.em-da.sh",
-		},
-	],
+	artifactCaches: mockArtifactCaches,
 	labels: mockReleaseLabels,
 	release: { package: "myplugin", version: mockReleaseVersion, artifacts: mockArtifacts },
 }));
 const listReleases = vi.fn(async () => ({
 	releases: [
 		{
-			uri: `at://did:plc:abc123/com.emdashcms.experimental.package.release/myplugin:${mockReleaseVersion}`,
+			uri: `at://${mockPublisherDid}/com.emdashcms.experimental.package.release/myplugin:${mockReleaseVersion}`,
 			cid: RELEASE_CID,
-			did: "did:plc:abc123",
+			did: mockPublisherDid,
 			package: "myplugin",
 			version: mockReleaseVersion,
-			artifactCaches: [
-				{
-					$type: "com.emdashcms.experimental.aggregator.defs#recordScopedBlobCache",
-					serviceEndpoint: "https://cdn.em-da.sh",
-				},
-			],
+			artifactCaches: mockArtifactCaches,
 			labels: mockReleaseLabels,
 			release: { package: "myplugin", version: mockReleaseVersion, artifacts: mockArtifacts },
 		},
@@ -154,6 +149,13 @@ describe("registry artifact proxy", () => {
 				{ url: "https://cdn.example.com/s1.png", checksum: PNG_SHA256 },
 			],
 		};
+		mockArtifactCaches = [
+			{
+				$type: "com.emdashcms.experimental.aggregator.defs#recordScopedBlobCache",
+				serviceEndpoint: "https://cdn.em-da.sh",
+			},
+		];
+		mockPublisherDid = "did:plc:abc123";
 		mockReleaseVersion = "1.0.0";
 		mockReleaseLabels = [];
 		getPackage.mockClear();
@@ -344,6 +346,72 @@ describe("registry artifact proxy", () => {
 		expect(fetched).toBe(
 			`https://cdn.em-da.sh/img/avatar/r/did:plc:abc123/com.emdashcms.experimental.package.release/myplugin:1.0.0/${RELEASE_CID}/${blobCid}`,
 		);
+	});
+
+	it("verifies external fallback bytes for a blob-backed image", async () => {
+		mockArtifactCaches = [];
+		mockArtifacts = {
+			icon: {
+				blob: {
+					$type: "blob",
+					ref: { $link: BLOB_CID },
+					mimeType: "image/png",
+					size: BLOB_BYTES.byteLength,
+				},
+				url: "https://publisher.example/icon.png",
+				checksum: BLOB_CHECKSUM,
+			},
+		};
+		globalThis.fetch = vi.fn(async () =>
+			imageResponse(new TextEncoder().encode("substituted")),
+		) as typeof globalThis.fetch;
+
+		const response = await GET(makeContext(DEFAULT_PARAMS));
+
+		expect(response.status).toBe(502);
+		expect(await response.text()).toContain("ARTIFACT_CHECKSUM_MISMATCH");
+	});
+
+	it("falls back from an unavailable image cache to the publisher PDS", async () => {
+		mockPublisherDid = "did:plc:abcdefghijklmnopqrstuvwx";
+		mockArtifacts = {
+			icon: {
+				blob: {
+					$type: "blob",
+					ref: { $link: BLOB_CID },
+					mimeType: "image/png",
+					size: BLOB_BYTES.byteLength,
+				},
+				checksum: BLOB_CHECKSUM,
+			},
+		};
+		const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+			const url = new URL(input instanceof Request ? input.url : input.toString());
+			if (url.hostname === "cdn.em-da.sh") return new Response(null, { status: 503 });
+			if (url.hostname === "plc.directory") {
+				return Response.json({
+					id: mockPublisherDid,
+					service: [
+						{
+							id: `${mockPublisherDid}#atproto_pds`,
+							type: "AtprotoPersonalDataServer",
+							serviceEndpoint: "https://pds.example",
+						},
+					],
+				});
+			}
+			if (url.hostname === "pds.example") return imageResponse(BLOB_BYTES);
+			return new Response(null, { status: 500 });
+		}) as typeof globalThis.fetch;
+		globalThis.fetch = fetchMock;
+
+		const response = await GET(makeContext({ ...DEFAULT_PARAMS, did: mockPublisherDid }));
+
+		expect(response.status).toBe(200);
+		expect(new Uint8Array(await response.arrayBuffer())).toEqual(BLOB_BYTES);
+		expect(
+			fetchMock.mock.calls.some(([input]) => new URL(input.toString()).hostname === "pds.example"),
+		).toBe(true);
 	});
 
 	it("rejects an image blob whose checksum does not match its CID", async () => {
