@@ -193,7 +193,7 @@ Archive audit pages remain in R2. Restore begins a new shard audit history with 
 
 1. Pause admission when new authorization or refresh requests fail broadly.
 2. Pause publication when refresh or PDS writes cannot be distinguished from partial completion.
-3. Do not replace exact create-only scope with a broader permission.
+3. Do not replace the exact delegated scope with `transition:generic` or another broad permission.
 4. Resume after the provider succeeds and retained sessions pass refresh verification.
 
 ### Ambiguous PDS write

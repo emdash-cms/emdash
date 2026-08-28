@@ -525,7 +525,8 @@ describe("PublisherDurableObject", () => {
 		await stub.putDelegation({
 			publisherDid: DID,
 			releaseNsid: "com.emdashcms.experimental.package.release",
-			scope: "atproto repo:com.emdashcms.experimental.package.release?action=create",
+			scope:
+				"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
 			clientKeyId: "assertion-1",
 			encryptedSession: "delegation-ciphertext-v2",
 			...DELEGATION_METADATA,

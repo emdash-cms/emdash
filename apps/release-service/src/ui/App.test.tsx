@@ -62,7 +62,8 @@ describe("release-service web surfaces", () => {
 							did: PUBLISHER_DID,
 							delegation: {
 								releaseNsid: "com.emdashcms.experimental.package.release",
-								scope: "atproto repo:com.emdashcms.experimental.package.release?action=create",
+								scope:
+									"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
 								issuer: "https://authorization.example.com",
 								pdsUrl: "https://pds.example.com",
 								expiresAt: null,

@@ -66,7 +66,7 @@ GitHub Actions OIDC tokens are audience-bound to the service. The service persis
 The implementation must preserve these invariants:
 
 1. CI never receives or stores an AT Protocol refresh token, DPoP key, app password, or delegated release session.
-2. The delegated grant is the exact create-only scope returned by `getDelegatedReleasePermission()` from `@emdash-cms/registry-lexicons`.
+2. The delegated grant is the exact scope returned by `getDelegatedReleasePermission()` from `@emdash-cms/registry-lexicons`: create-only release-record authority plus gzip-package and image-blob uploads.
 3. The service never requests or stores package-profile write scope.
 4. The delegated path exposes no update or delete operation for a release record.
 5. A package version maps to one deterministic record key and one reservation in the publisher shard.
@@ -377,7 +377,7 @@ Allowed transitions are explicit. Compare-and-set transition methods take the ex
 1. The publisher starts an identity-only AT Protocol OAuth flow.
 2. The service resolves and verifies the publisher DID and PDS.
 3. Hosted-service admission policy permits or rejects the publisher.
-4. The publisher authorizes the exact create-only release scope.
+4. The publisher authorizes the exact delegated release scope for create-only release records and gzip-package and image-blob uploads.
 5. The service verifies the returned grant and stores the encrypted session in the publisher object.
 6. The publisher registers a package-to-GitHub-workload policy.
 7. The service fetches and validates the signed package profile.
@@ -637,7 +637,7 @@ The service is complete only when all of the following hold:
 
 ### Delegation and identity
 
-- A publisher authorizes the exact create-only release grant on the Bluesky PDS implementation at npmX and on Cirrus.
+- A publisher authorizes the exact delegated release grant on the Bluesky PDS implementation at npmX and on Cirrus.
 - The retained session creates a new release and cannot update it, delete it, edit a profile, or write another collection.
 - Revocation prevents new publication and eventual refresh; emergency service revocation removes retained authority.
 - Cloudflare Access operators cannot reach publisher, approver, or CI-authorized actions.

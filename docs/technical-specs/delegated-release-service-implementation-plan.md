@@ -8,7 +8,7 @@ Related design: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870)
 
 ## Outcome
 
-This plan delivers a hosted and self-hostable delegated release service in reviewable increments. A GitHub Actions workflow can publish an attested sandboxed-plugin release through a publisher's exact create-only AT Protocol delegation. Invalid output remains un-installable because EmDash independently repeats verification. Releases that expand declared access or use `confirmation: always` require a profile-authorized, user-verified passkey decision.
+This plan delivers a hosted and self-hostable delegated release service in reviewable increments. A GitHub Actions workflow can publish an attested sandboxed-plugin release through a publisher's exact AT Protocol delegation for create-only release records and bounded package/image blob uploads. Invalid output remains un-installable because EmDash independently repeats verification. Releases that expand declared access or use `confirmation: always` require a profile-authorized, user-verified passkey decision.
 
 Canonical service state is sharded by publisher or approver DID in SQLite-backed Durable Objects. Workflows coordinate long-running work. A 256-shard identity-directory Durable Object projection supports fleet enumeration and never participates in authorization.
 
@@ -135,7 +135,7 @@ W3 -> W8 -> W10 -> W12
 
 | Gate                            | Required evidence                                                                                                                            | Unblocks                                           |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| **G0 Design**                   | RFC decisions reconciled; exact create-only scope proved on every claimed PDS; no broad fallback                                             | Authority-bearing implementation                   |
+| **G0 Design**                   | RFC decisions reconciled; exact delegated release scope proved on every claimed PDS; no broad fallback                                      | Authority-bearing implementation                   |
 | **G1 Contracts**                | Lexicons, direct-PDS reads, shared record/bundle/provenance reports, and fixtures pass in Node and workerd                                   | Service Workflow and installer work                |
 | **G2 Durable state**            | Service shell, Access auth, control object, publisher object, initial schema, state machine, idempotency, and alarms pass real workerd tests | OAuth, OIDC, Workflow integration                  |
 | **G3 Automatic vertical slice** | Controlled GitHub workflow publishes one valid non-escalating release and converges under retries                                            | Independent enforcement and private service trials |
@@ -156,7 +156,7 @@ Dependencies: none.
 | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `W0.1` | Reconcile RFC #1870 with the Durable Object architecture, Access operator authentication, existing `emdash-plugin` command, and active experimental NSIDs |
 | `W0.2` | Freeze the first-release profile policy, provenance, workload policy, approval digest, intent state, and error contracts                                  |
-| `W0.3` | Validate the exact create-only grant against the available npmX-hosted Bluesky PDS and Cirrus test accounts                                               |
+| `W0.3` | Validate the exact delegated release grant against the available npmX-hosted Bluesky PDS and Cirrus test accounts                                        |
 | `W0.4` | Validate confidential OAuth refresh, DPoP behavior, revocation, and client-key rotation with real authorization servers                                   |
 | `W0.5` | Confirm current Workflow event, retention, retry, and test APIs support approval and recovery; record limits outside the protocol contract                |
 | `W0.6` | Define hosted-service Access audience and group-to-role mapping and the self-host configuration contract                                                  |
@@ -920,7 +920,7 @@ The review stack contains seven PRs and merges as one unit. Each PR preserves th
 ### Protocol and authority
 
 - [ ] RFC #1870 is accepted with the final actor, scope, policy, provenance, and approval contracts.
-- [ ] The Bluesky PDS implementation at npmX and Cirrus pass exact create-only, refresh, and revocation conformance.
+- [ ] The Bluesky PDS implementation at npmX and Cirrus pass exact delegated-scope, refresh, and revocation conformance.
 - [ ] No broad scope, update, delete, or profile-write path exists in retained service code.
 - [ ] Shared verification is the only implementation used by service and installer.
 
