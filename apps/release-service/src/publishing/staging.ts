@@ -58,6 +58,10 @@ function validMetadata(metadata: StagedArtifactMetadata): boolean {
 	);
 }
 
+function keySlot(path: StagedArtifactMetadata["path"]): string {
+	return path.startsWith("screenshots[") ? path.replace("[", "-").replace("]", "") : path;
+}
+
 async function readAndVerify(
 	object: R2ObjectBody,
 	metadata: StagedArtifactMetadata,
@@ -110,7 +114,7 @@ export async function persistStagedArtifact(
 	}
 	const sourceUrlDigest = await digest(input.sourceUrl);
 	const ownerHash = await digest(input.publisherDid);
-	const key = `publication/${ownerHash}/${input.intentId}/${input.artifact.metadata.path}/${input.artifact.metadata.checksum}`;
+	const key = `publication/${ownerHash}/${input.intentId}/${keySlot(input.artifact.metadata.path)}/${input.artifact.metadata.checksum}`;
 	try {
 		const created = await bucket.put(key, input.artifact.bytes, {
 			onlyIf: { etagDoesNotMatch: "*" },

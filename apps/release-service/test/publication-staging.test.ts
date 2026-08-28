@@ -61,4 +61,29 @@ describe("publication artifact staging", () => {
 			PublicationStagingError,
 		);
 	});
+
+	it("uses a staging key that remains valid for screenshot slots", async () => {
+		const screenshotBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+		const checksum = await computeMultihash(screenshotBytes);
+		if (!checksum.success) throw new Error(checksum.error.code);
+		const staged = await persistStagedArtifact(env.PUBLICATION_STAGING, {
+			publisherDid: PUBLISHER_DID,
+			intentId: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+			sourceUrl: "https://example.com/screenshot.png",
+			artifact: {
+				metadata: {
+					path: "screenshots[0]",
+					checksum: checksum.value,
+					mimeType: "image/png",
+					size: screenshotBytes.byteLength,
+					width: 1,
+					height: 1,
+				},
+				bytes: screenshotBytes,
+			},
+		});
+
+		expect(staged.key).toContain("/screenshots-0/");
+		expect(staged.key).not.toContain("[");
+	});
 });
