@@ -8,6 +8,8 @@ const DID = "did:plc:publisher";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const NOW = 1_800_000_000_000;
 const OPERATION_CREDENTIAL = "C".repeat(43);
+const ATTEMPT_KEY = "K".repeat(43);
+const ATTEMPT_TOKEN = "T".repeat(43);
 const CHECKSUM = "bciqb43wwlv35mnso5lwvu5c3uxcjqwxcw4an3boxz57qe667fffdh7a";
 const BLOB_CID = "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q";
 const SOURCE_URL = "https://example.com/gallery.tar.gz";
@@ -107,6 +109,16 @@ async function preparePublishing() {
 	return stub;
 }
 
+function beginPublicationOperation(
+	stub: ReturnType<typeof publisher>,
+	leaseMs: number,
+	now: number,
+	attemptKey = ATTEMPT_KEY,
+	token = ATTEMPT_TOKEN,
+) {
+	return stub.beginPublicationOperation(DID, INTENT_ID, 5, leaseMs, attemptKey, token, now);
+}
+
 async function digest(value: string): Promise<string> {
 	const bytes = new Uint8Array(
 		await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)),
@@ -203,47 +215,44 @@ afterEach(async () => {
 });
 
 describe("publisher publication operations", () => {
-	it("serializes publication with a generation-bound hashed lease", async () => {
+	it("replays a committed begin after response loss and serializes other attempts", async () => {
 		const stub = await preparePublishing();
-		const first = await stub.beginPublicationOperation(
-			DID,
-			INTENT_ID,
-			5,
-			5_000,
-			OPERATION_CREDENTIAL,
-			NOW + 10,
-		);
+		const first = await beginPublicationOperation(stub, 5_000, NOW + 10);
 		expect(first).toMatchObject({
 			ok: true,
 			replayed: false,
 			lease: { intentId: INTENT_ID, generation: 1, expectedIntentGeneration: 5 },
 		});
 		if (!first.ok) return;
+		await expect(beginPublicationOperation(stub, 5_000, NOW + 11)).resolves.toEqual({
+			ok: true,
+			lease: first.lease,
+			replayed: true,
+		});
 		await expect(
-			stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, OPERATION_CREDENTIAL, NOW + 11),
-		).resolves.toEqual({ ok: true, replayed: true, lease: first.lease });
-		await expect(
-			stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, "D".repeat(43), NOW + 11),
+			beginPublicationOperation(stub, 5_000, NOW + 11, OPERATION_CREDENTIAL, "U".repeat(43)),
 		).resolves.toEqual({
 			ok: false,
 			code: "PUBLICATION_BUSY",
 			retryAt: first.lease.expiresAt,
 		});
+		await expect(stub.getIntent(DID, INTENT_ID)).resolves.toMatchObject({ state: "publishing" });
 
 		const persisted = await runInDurableObject(stub, (_instance, state) =>
 			state.storage.sql
-				.exec<{ token_hash: string }>(
-					"SELECT token_hash FROM publication_operations WHERE intent_id = ?",
+				.exec<{ attempt_key: string; token_hash: string }>(
+					"SELECT attempt_key, token_hash FROM publication_operations WHERE intent_id = ?",
 					INTENT_ID,
 				)
 				.one(),
 		);
+		expect(persisted.attempt_key).toBe(ATTEMPT_KEY);
 		expect(persisted.token_hash).not.toBe(first.lease.token);
 	});
 
 	it("advances materialized and creating phases only for the active lease", async () => {
 		const stub = await preparePublishing();
-		const started = await stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, NOW + 10);
+		const started = await beginPublicationOperation(stub, 5_000, NOW + 10);
 		expect(started.ok).toBe(true);
 		if (!started.ok) return;
 		await expect(
@@ -297,7 +306,7 @@ describe("publisher publication operations", () => {
 
 	it("completes a confirmed write atomically and replays the exact completion", async () => {
 		const stub = await preparePublishing();
-		const started = await stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, NOW + 10);
+		const started = await beginPublicationOperation(stub, 5_000, NOW + 10);
 		expect(started.ok).toBe(true);
 		if (!started.ok) return;
 		await advanceToCreating(stub, started.lease);
@@ -341,7 +350,7 @@ describe("publisher publication operations", () => {
 
 	it("rejects stale tokens and records ambiguous outcomes for reconciliation", async () => {
 		const stub = await preparePublishing();
-		const started = await stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, NOW + 10);
+		const started = await beginPublicationOperation(stub, 5_000, NOW + 10);
 		expect(started.ok).toBe(true);
 		if (!started.ok) return;
 
@@ -378,7 +387,7 @@ describe("publisher publication operations", () => {
 
 	it("records a repository conflict as a terminal conflict outcome", async () => {
 		const stub = await preparePublishing();
-		const started = await stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, NOW + 10);
+		const started = await beginPublicationOperation(stub, 5_000, NOW + 10);
 		expect(started.ok).toBe(true);
 		if (!started.ok) return;
 		await advanceToCreating(stub, started.lease);
@@ -418,7 +427,7 @@ describe("publisher publication operations", () => {
 		"closes an expired pre-write lease as %s without entering ambiguous reconciliation",
 		async (outcome, state, reasonCode) => {
 			const stub = await preparePublishing();
-			const started = await stub.beginPublicationOperation(DID, INTENT_ID, 5, 1, NOW + 10);
+			const started = await beginPublicationOperation(stub, 1, NOW + 10);
 			expect(started.ok).toBe(true);
 			if (!started.ok) return;
 
@@ -460,7 +469,7 @@ describe("publisher publication operations", () => {
 		"rejects a %s completion after the create boundary",
 		async (outcome, reasonCode) => {
 			const stub = await preparePublishing();
-			const started = await stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, NOW + 10);
+			const started = await beginPublicationOperation(stub, 5_000, NOW + 10);
 			expect(started.ok).toBe(true);
 			if (!started.ok) return;
 			await advanceToCreating(stub, started.lease);
@@ -486,11 +495,11 @@ describe("publisher publication operations", () => {
 
 	it("requires reconciliation and re-arms recovery for an expired write lease", async () => {
 		const stub = await preparePublishing();
-		await stub.beginPublicationOperation(DID, INTENT_ID, 5, 1, NOW + 10);
+		await beginPublicationOperation(stub, 1, NOW + 10);
 		await runInDurableObject(stub, (_instance, state) => state.storage.deleteAlarm());
 
 		await expect(
-			stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, NOW + 12),
+			beginPublicationOperation(stub, 5_000, NOW + 12, "L".repeat(43), "U".repeat(43)),
 		).resolves.toEqual({ ok: false, code: "PUBLICATION_RECOVERY_REQUIRED" });
 		await expect(
 			runInDurableObject(stub, (_instance, state) => state.storage.getAlarm()),
@@ -500,7 +509,7 @@ describe("publisher publication operations", () => {
 	it("recovers an expired upload phase back to ready via the alarm", async () => {
 		const stub = await preparePublishing();
 		const alarmNow = Date.now() - 1_000;
-		await stub.beginPublicationOperation(DID, INTENT_ID, 5, 1, alarmNow);
+		await beginPublicationOperation(stub, 1, alarmNow);
 
 		await runDurableObjectAlarm(stub);
 		await expect(stub.getIntent(DID, INTENT_ID)).resolves.toMatchObject({
@@ -525,7 +534,7 @@ describe("publisher publication operations", () => {
 
 	it("retains materialization and reconciles only after the creating phase expires", async () => {
 		const stub = await preparePublishing();
-		const started = await stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, NOW + 10);
+		const started = await beginPublicationOperation(stub, 5_000, NOW + 10);
 		expect(started.ok).toBe(true);
 		if (!started.ok) return;
 		const materializationDigest = await advanceToCreating(stub, started.lease);
@@ -545,7 +554,7 @@ describe("publisher publication operations", () => {
 
 	it("retains materialization but returns an expired materialized phase to ready", async () => {
 		const stub = await preparePublishing();
-		const started = await stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, NOW + 10);
+		const started = await beginPublicationOperation(stub, 5_000, NOW + 10);
 		expect(started.ok).toBe(true);
 		if (!started.ok) return;
 		const materializationDigest = await materialize(stub);

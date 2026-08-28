@@ -1,7 +1,11 @@
-import { safeParse } from "@atcute/lexicons";
 import { isDid } from "@atcute/lexicons/syntax";
-import { PackageRelease } from "@emdash-cms/registry-lexicons";
+import {
+	parseDelegatedReleaseSourceRecord,
+	type DelegatedReleaseSourceRecord,
+} from "@emdash-cms/registry-client/release-service";
+import type { PackageRelease } from "@emdash-cms/registry-lexicons";
 import type { WorkflowStep } from "cloudflare:workers";
+import { NonRetryableError } from "cloudflare:workflows";
 import { base64url } from "jose";
 
 import type ReleaseVerifier from "../../../release-verifier/src/index.js";
@@ -14,8 +18,11 @@ import {
 import { createPublisherOAuthClient, OAuthCustodyError } from "../oauth/custody.js";
 import type {
 	IntentState,
+	PublicationArtifactSlot,
+	PublicationOperationLease,
 	PublisherDurableObject,
 	StoredIntent,
+	StoredPublicationMaterialization,
 } from "../publisher-do/publisher-do.js";
 import {
 	evaluateVerifiedRelease,
@@ -23,12 +30,26 @@ import {
 	prepareVerifierInput,
 } from "../verification/evaluate.js";
 import {
-	findAuthoritativeRelease,
+	findProofVerifiedRelease,
 	PublisherSnapshotError,
 	readPublisherVerificationSnapshot,
+	resolvePublicHostname,
 } from "../verification/pds.js";
-import { CreateReleaseError, createReleaseRecord } from "./create-only.js";
-import { reconcileReleaseRecord } from "./reconcile.js";
+import { createReleaseRecord, uploadReleaseBlob } from "./create-only.js";
+import {
+	buildMaterializedRelease,
+	stageReleaseArtifacts,
+	validateArtifactUploadReceipt,
+	type ArtifactMaterializationPath,
+	type ArtifactUploadReceipt,
+	type StagedArtifactMetadata,
+} from "./materialize.js";
+import {
+	canonicalReleaseJson,
+	parseCanonicalReleaseJson,
+	reconcileReleaseRecord,
+} from "./reconcile.js";
+import { deleteStagedArtifacts, loadStagedArtifact, persistStagedArtifact } from "./staging.js";
 
 const PUBLICATION_PERMIT_TTL_MS = 30_000;
 const PUBLICATION_OPERATION_LEASE_MS = 5 * 60_000;
@@ -41,6 +62,18 @@ const RECONCILIATION_STEP_CONFIG = {
 	retries: { limit: 3, delay: "1 second", backoff: "exponential" },
 	timeout: "2 minutes",
 } as const;
+const MATERIALIZATION_STEP_CONFIG = {
+	retries: { limit: 3, delay: "1 second", backoff: "exponential" },
+	timeout: "5 minutes",
+} as const;
+const UPLOAD_STEP_CONFIG = {
+	retries: { limit: 5, delay: "1 second", backoff: "exponential" },
+	timeout: "2 minutes",
+} as const;
+const ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
+const NON_RETRYABLE_ERROR_PREFIX = /^NonRetryableError:\s*/;
+const SCREENSHOT_PATH_PATTERN = /^screenshots\[([0-7])\]$/;
+const STEP_SLOT_PATTERN = /[[\]]/g;
 
 export interface PublicationWorkflowOutput {
 	intentId: string;
@@ -62,6 +95,33 @@ type AttemptResult =
 	| { state: "reconciling" }
 	| { state: "blocked"; reasonCode: string }
 	| { state: "failed"; reasonCode: string };
+
+interface AttemptCredential {
+	attemptKey: string;
+	token: string;
+}
+
+interface MaterializationStageResult {
+	planJson: string | null;
+}
+
+type OperationBeginSummary =
+	| { ok: true; lease: PublicationOperationLease; replayed: boolean }
+	| { ok: false; code: string };
+
+type OperationPhaseSummary =
+	| { ok: true; phase: "creating" | "materialized"; materializationDigest: string }
+	| { ok: false; code: string };
+
+interface MaterializedRelease {
+	record: PackageRelease.Main;
+	recordDigest: string;
+	recordJson: string;
+}
+
+interface MaterializedSummary {
+	recordDigest: string;
+}
 
 type FinalVerificationResult =
 	| { ok: true; verificationDigest: string }
@@ -95,6 +155,24 @@ function isRetryablePublicationBlock(code: string): boolean {
 	);
 }
 
+function publicationErrorCode(error: unknown, fallback: string): string {
+	if (error instanceof OAuthCustodyError) return error.code;
+	if (error instanceof Error) {
+		const message = error.message.replace(NON_RETRYABLE_ERROR_PREFIX, "");
+		if (ERROR_CODE_PATTERN.test(message)) return message;
+	}
+	if (
+		error !== null &&
+		typeof error === "object" &&
+		"code" in error &&
+		typeof error.code === "string" &&
+		ERROR_CODE_PATTERN.test(error.code)
+	) {
+		return error.code;
+	}
+	return fallback;
+}
+
 async function digest(value: unknown): Promise<string> {
 	return base64url.encode(
 		new Uint8Array(
@@ -103,7 +181,20 @@ async function digest(value: unknown): Promise<string> {
 	);
 }
 
-export function releaseFromIntent(intent: StoredIntent): PackageRelease.Main | null {
+async function digestText(value: string): Promise<string> {
+	return base64url.encode(
+		new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))),
+	);
+}
+
+function randomCredential(): AttemptCredential {
+	return {
+		attemptKey: base64url.encode(crypto.getRandomValues(new Uint8Array(32))),
+		token: base64url.encode(crypto.getRandomValues(new Uint8Array(32))),
+	};
+}
+
+export function releaseFromIntent(intent: StoredIntent): DelegatedReleaseSourceRecord | null {
 	let parsed: unknown;
 	try {
 		parsed = JSON.parse(intent.releaseInputJson);
@@ -119,8 +210,99 @@ export function releaseFromIntent(intent: StoredIntent): PackageRelease.Main | n
 	) {
 		return null;
 	}
-	const release = safeParse(PackageRelease.mainSchema, parsed.release);
-	return release.ok ? release.value : null;
+	return parseDelegatedReleaseSourceRecord(parsed.release, {
+		packageSlug: intent.packageSlug,
+		version: intent.version,
+	});
+}
+
+function sourceDescriptor(
+	release: DelegatedReleaseSourceRecord,
+	path: ArtifactMaterializationPath,
+) {
+	if (path === "package") return release.artifacts.package;
+	if (path === "icon") return release.artifacts.icon ?? null;
+	if (path === "banner") return release.artifacts.banner ?? null;
+	const match = SCREENSHOT_PATH_PATTERN.exec(path);
+	if (!match) return null;
+	return release.artifacts.screenshots?.[Number(match[1])] ?? null;
+}
+
+function isPublicationSlot(path: string): path is PublicationArtifactSlot {
+	return (
+		path === "package" ||
+		path === "icon" ||
+		path === "banner" ||
+		path === "screenshots[0]" ||
+		path === "screenshots[1]" ||
+		path === "screenshots[2]" ||
+		path === "screenshots[3]" ||
+		path === "screenshots[4]" ||
+		path === "screenshots[5]" ||
+		path === "screenshots[6]" ||
+		path === "screenshots[7]"
+	);
+}
+
+function publicationSlot(path: ArtifactMaterializationPath): PublicationArtifactSlot | null {
+	return isPublicationSlot(path) ? path : null;
+}
+
+function stagedMetadata(
+	artifact: StoredPublicationMaterialization["slots"][number],
+): StagedArtifactMetadata {
+	return {
+		path: artifact.slot,
+		checksum: artifact.checksum,
+		mimeType: artifact.mimeType,
+		size: artifact.size,
+		...(artifact.width === null ? {} : { width: artifact.width }),
+		...(artifact.height === null ? {} : { height: artifact.height }),
+	};
+}
+
+function receiptFromStored(
+	artifact: StoredPublicationMaterialization["slots"][number],
+): ArtifactUploadReceipt | null {
+	if (!artifact.blob) return null;
+	return validateArtifactUploadReceipt(stagedMetadata(artifact), artifact.blob);
+}
+
+export async function readPersistedMaterializedRelease(
+	publisher: DurableObjectStub<PublisherDurableObject>,
+	publisherDid: string,
+	intentId: string,
+	expectedSourceDigest: string,
+): Promise<MaterializedRelease | null> {
+	const stored = await publisher.getPublicationMaterialization(publisherDid, intentId);
+	if (
+		stored?.status !== "complete" ||
+		stored.sourceDigest !== expectedSourceDigest ||
+		stored.recordJson === null ||
+		stored.recordDigest === null ||
+		(await digestText(stored.recordJson)) !== stored.recordDigest
+	) {
+		return null;
+	}
+	const record = parseCanonicalReleaseJson(stored.recordJson);
+	return record
+		? { record, recordDigest: stored.recordDigest, recordJson: stored.recordJson }
+		: null;
+}
+
+async function restorePublicationSession(env: PublicationWorkflowEnv, publisherDid: string) {
+	if (!isDid(publisherDid)) throw new OAuthCustodyError("OAUTH_IDENTITY_MISMATCH");
+	const configuration = await loadConfiguration(env);
+	return createPublisherOAuthClient({
+		namespace: env.PUBLISHER_DO,
+		encryption: configuration.encryption,
+		oauth: configuration.oauth,
+		flow: {
+			purpose: "release_delegation",
+			expectedDid: publisherDid,
+			redirectTarget: "/",
+		},
+	}).restoreForPublication();
 }
 
 async function transition(
@@ -140,6 +322,212 @@ async function currentState(
 ): Promise<{ state: IntentState; stateGeneration: number } | null> {
 	const intent = await publisher.getIntent(publisherDid, intentId);
 	return intent ? { state: intent.state, stateGeneration: intent.stateGeneration } : null;
+}
+
+async function stageSourceArtifacts(
+	env: PublicationWorkflowEnv,
+	publisher: DurableObjectStub<PublisherDurableObject>,
+	publisherDid: string,
+	intent: StoredIntent,
+	release: DelegatedReleaseSourceRecord,
+): Promise<MaterializationStageResult> {
+	const existing = await readPersistedMaterializedRelease(
+		publisher,
+		publisherDid,
+		intent.id,
+		intent.requestDigest,
+	);
+	if (existing) return { planJson: null };
+	const begun = await publisher.beginPublicationMaterialization(
+		publisherDid,
+		intent.id,
+		intent.requestDigest,
+	);
+	if (!begun.ok) throw new Error(begun.code);
+	const staged = await stageReleaseArtifacts(release, {
+		fetch: globalThis.fetch,
+		resolveHostname: (hostname) => resolvePublicHostname(hostname, globalThis.fetch),
+	});
+	for (const artifact of staged.artifacts) {
+		const descriptor = sourceDescriptor(release, artifact.metadata.path);
+		const slot = publicationSlot(artifact.metadata.path);
+		if (!descriptor || !slot) throw new Error("MATERIALIZATION_SOURCE_INVALID");
+		const persisted = await persistStagedArtifact(env.PUBLICATION_STAGING, {
+			publisherDid,
+			intentId: intent.id,
+			sourceUrl: descriptor.url,
+			artifact,
+		});
+		const stored = await publisher.putPublicationArtifactStage({
+			publisherDid,
+			intentId: intent.id,
+			sourceDigest: intent.requestDigest,
+			slot,
+			sourceUrlDigest: persisted.sourceUrlDigest,
+			checksum: artifact.metadata.checksum,
+			stagingKey: persisted.key,
+			mimeType: artifact.metadata.mimeType,
+			size: artifact.metadata.size,
+			width: artifact.metadata.width ?? null,
+			height: artifact.metadata.height ?? null,
+		});
+		if (!stored.ok) throw new Error(stored.code);
+	}
+	return { planJson: JSON.stringify(staged.plan) };
+}
+
+async function uploadMaterializedArtifacts(
+	env: PublicationWorkflowEnv,
+	step: WorkflowStep,
+	publisher: DurableObjectStub<PublisherDurableObject>,
+	publisherDid: string,
+	intent: StoredIntent,
+): Promise<readonly ArtifactUploadReceipt[]> {
+	const materialization = await publisher.getPublicationMaterialization(publisherDid, intent.id);
+	if (!materialization || materialization.sourceDigest !== intent.requestDigest) {
+		throw new Error("MATERIALIZATION_UNAVAILABLE");
+	}
+	const receipts: ArtifactUploadReceipt[] = [];
+	for (const artifact of materialization.slots) {
+		const existing = receiptFromStored(artifact);
+		if (existing) {
+			receipts.push(existing);
+			continue;
+		}
+		const receipt = await step.do<ArtifactUploadReceipt>(
+			`publication-upload-${artifact.slot.replaceAll(STEP_SLOT_PATTERN, "-")}`,
+			UPLOAD_STEP_CONFIG,
+			async () => {
+				const latest = await publisher.getPublicationMaterialization(publisherDid, intent.id);
+				const latestArtifact = latest?.slots.find((item) => item.slot === artifact.slot);
+				if (!latestArtifact || latest?.sourceDigest !== intent.requestDigest) {
+					throw new Error("MATERIALIZATION_UNAVAILABLE");
+				}
+				const replayed = receiptFromStored(latestArtifact);
+				if (replayed) return replayed;
+				const staged = await loadStagedArtifact(env.PUBLICATION_STAGING, {
+					key: latestArtifact.stagingKey,
+					metadata: stagedMetadata(latestArtifact),
+					sourceUrlDigest: latestArtifact.sourceUrlDigest,
+				});
+				let restored;
+				try {
+					restored = await restorePublicationSession(env, publisherDid);
+				} catch (error) {
+					throw new NonRetryableError(publicationErrorCode(error, "OAUTH_DELEGATION_UNAVAILABLE"));
+				}
+				const delegation = await publisher.getDelegation(publisherDid);
+				if (
+					delegation?.status !== "active" ||
+					delegation.stateVersion !== restored.delegationVersion
+				) {
+					throw new OAuthCustodyError("OAUTH_DELEGATION_UNAVAILABLE");
+				}
+				const uploaded = await uploadReleaseBlob(
+					restored.session,
+					staged.bytes,
+					staged.metadata.mimeType,
+				);
+				const validated = validateArtifactUploadReceipt(staged.metadata, uploaded);
+				const stored = await publisher.putPublicationBlobReceipt({
+					publisherDid,
+					intentId: intent.id,
+					sourceDigest: intent.requestDigest,
+					slot: artifact.slot,
+					blob: validated.blob,
+				});
+				if (!stored.ok) throw new Error(stored.code);
+				return validated;
+			},
+		);
+		receipts.push(receipt);
+	}
+	return receipts;
+}
+
+async function completeMaterialization(
+	publisher: DurableObjectStub<PublisherDurableObject>,
+	publisherDid: string,
+	intent: StoredIntent,
+	planJson: string | null,
+): Promise<MaterializedRelease> {
+	const existing = await readPersistedMaterializedRelease(
+		publisher,
+		publisherDid,
+		intent.id,
+		intent.requestDigest,
+	);
+	if (existing) return existing;
+	if (!planJson) throw new Error("MATERIALIZATION_UNAVAILABLE");
+	const stored = await publisher.getPublicationMaterialization(publisherDid, intent.id);
+	if (!stored || stored.sourceDigest !== intent.requestDigest) {
+		throw new Error("MATERIALIZATION_UNAVAILABLE");
+	}
+	const receipts = stored.slots.map(receiptFromStored);
+	if (receipts.some((receipt) => receipt === null)) {
+		throw new Error("MATERIALIZATION_INCOMPLETE");
+	}
+	const completeReceipts = receipts.filter(
+		(receipt): receipt is ArtifactUploadReceipt => receipt !== null,
+	);
+	let plan: unknown;
+	try {
+		plan = JSON.parse(planJson);
+	} catch {
+		throw new Error("MATERIALIZATION_UNAVAILABLE");
+	}
+	const record = buildMaterializedRelease(plan, completeReceipts);
+	const recordJson = canonicalReleaseJson(record);
+	const recordDigest = await digestText(recordJson);
+	const completed = await publisher.completePublicationMaterialization({
+		publisherDid,
+		intentId: intent.id,
+		sourceDigest: intent.requestDigest,
+		recordJson,
+		recordDigest,
+	});
+	if (!completed.ok) throw new Error(completed.code);
+	const persisted = await readPersistedMaterializedRelease(
+		publisher,
+		publisherDid,
+		intent.id,
+		intent.requestDigest,
+	);
+	if (!persisted) throw new Error("MATERIALIZATION_UNAVAILABLE");
+	return persisted;
+}
+
+async function closeBeforeCreate(
+	publisher: DurableObjectStub<PublisherDurableObject>,
+	publisherDid: string,
+	intentId: string,
+	lease: PublicationOperationLease,
+	attempt: number,
+	reasonCode: string,
+	retryable: boolean,
+): Promise<AttemptResult> {
+	const completed = await publisher.completePublicationOperation({
+		publisherDid,
+		intentId,
+		generation: lease.generation,
+		token: lease.token,
+		expectedIntentGeneration: lease.expectedIntentGeneration,
+		completionDigest: await digest(["pre-create", attempt, reasonCode]),
+		outcome: retryable ? "blocked" : "failed",
+		reasonCode,
+		resultUri: null,
+		resultCid: null,
+	});
+	if (completed.ok) {
+		return retryable ? { state: "blocked", reasonCode } : { state: "failed", reasonCode };
+	}
+	const latest = await publisher.getIntent(publisherDid, intentId);
+	if (latest?.state === "published") return { state: "published", uri: "", cid: "" };
+	if (latest?.state === "reconciling") return { state: "reconciling" };
+	if (latest?.state === "ready") {
+		return { state: "blocked", reasonCode: "PUBLICATION_RETRY_REQUIRED" };
+	}
+	return { state: "failed", reasonCode: completed.code };
 }
 
 export async function publishVerifiedIntent(
@@ -268,128 +656,199 @@ export async function publishVerifiedIntent(
 			};
 		}
 
-		const attemptResult = await step.do<AttemptResult>(
-			`publication-attempt-${attempt}`,
-			async () => {
-				const current = await publisher.getIntent(publisherDid, originalIntent.id);
-				if (current?.state === "published") {
-					return { state: "published", uri: "", cid: "" };
-				}
-				if (current?.state === "reconciling") return { state: "reconciling" };
-				if (!current || (current.state !== "ready" && current.state !== "publishing")) {
-					return { state: "failed", reasonCode: "INTENT_NOT_READY" };
-				}
-				const permit = await control.issuePublicationPermit(
-					publisherDid,
-					originalIntent.id,
-					PUBLICATION_PERMIT_TTL_MS,
-				);
-				if (!permit.ok) {
-					if (current.state === "publishing") {
-						const ready = await transition(publisher, {
-							publisherDid,
-							intentId: originalIntent.id,
-							expectedState: "publishing",
-							expectedGeneration: current.stateGeneration,
-							toState: "ready",
-							transitionDigest: await digest([
-								"permit-blocked",
-								attempt,
-								permit.code,
-								expectedEvidenceDigest,
-							]),
-							actorRealm: "system",
-							actorIdentity: "release-service",
-							reasonCode: permit.code,
-							stateDataJson: JSON.stringify({ attempt, reasonCode: permit.code }),
-						});
-						if (!ready.ok) return { state: "failed", reasonCode: ready.code };
-					}
-					return { state: "blocked", reasonCode: permit.code };
-				}
-				let publishingGeneration = current.stateGeneration;
-				if (current.state === "ready") {
-					const publishing = await transition(publisher, {
-						publisherDid,
-						intentId: originalIntent.id,
-						expectedState: "ready",
-						expectedGeneration: current.stateGeneration,
-						toState: "publishing",
-						transitionDigest: await digest(["publishing", attempt, expectedEvidenceDigest]),
-						actorRealm: "system",
-						actorIdentity: "release-service",
-						reasonCode: null,
-						stateDataJson: JSON.stringify({ attempt }),
-					});
-					if (!publishing.ok) return { state: "failed", reasonCode: publishing.code };
-					publishingGeneration = publishing.stateGeneration;
-				}
-				const operation = await publisher.beginPublicationOperation(
-					publisherDid,
-					originalIntent.id,
-					publishingGeneration,
-					PUBLICATION_OPERATION_LEASE_MS,
-				);
-				if (!operation.ok) {
-					const failed = await transition(publisher, {
-						publisherDid,
-						intentId: originalIntent.id,
-						expectedState: "publishing",
-						expectedGeneration: publishingGeneration,
-						toState: "failed",
-						transitionDigest: await digest(["operation-failed", attempt, operation.code]),
-						actorRealm: "system",
-						actorIdentity: "release-service",
-						reasonCode: operation.code,
-						stateDataJson: JSON.stringify({ reasonCode: operation.code }),
-					});
-					return {
-						state: "failed",
-						reasonCode: failed.ok ? operation.code : failed.code,
-					};
-				}
-				const completionBase = {
+		const attemptResult = await (async (): Promise<AttemptResult> => {
+			const current = await publisher.getIntent(publisherDid, originalIntent.id);
+			if (current?.state === "published") {
+				return { state: "published", uri: "", cid: "" };
+			}
+			if (current?.state === "reconciling") return { state: "reconciling" };
+			if (!current || (current.state !== "ready" && current.state !== "publishing")) {
+				return { state: "failed", reasonCode: "INTENT_NOT_READY" };
+			}
+			const staged = await step.do<MaterializationStageResult>(
+				"publication-stage",
+				MATERIALIZATION_STEP_CONFIG,
+				() => stageSourceArtifacts(env, publisher, publisherDid, originalIntent, release),
+			);
+			const credential = await step.do<AttemptCredential>(
+				`publication-attempt-credential-${attempt}`,
+				async () => randomCredential(),
+			);
+			let publishingGeneration = current.stateGeneration;
+			if (current.state === "ready") {
+				const publishing = await transition(publisher, {
 					publisherDid,
 					intentId: originalIntent.id,
-					generation: operation.lease.generation,
-					token: operation.lease.token,
-					expectedIntentGeneration: operation.lease.expectedIntentGeneration,
-				};
-				const failBeforeWrite = async (
-					reasonCode: string,
-					retryable = false,
-				): Promise<AttemptResult> => {
-					const completed = await publisher.completePublicationOperation({
-						...completionBase,
-						completionDigest: await digest(["failed", reasonCode, attempt, expectedEvidenceDigest]),
-						outcome: retryable ? "blocked" : "failed",
-						reasonCode,
-						resultUri: null,
-						resultCid: null,
-					});
-					if (completed.ok) {
-						return retryable ? { state: "blocked", reasonCode } : { state: "failed", reasonCode };
+					expectedState: "ready",
+					expectedGeneration: current.stateGeneration,
+					toState: "publishing",
+					transitionDigest: await digest(["publishing", attempt, expectedEvidenceDigest]),
+					actorRealm: "system",
+					actorIdentity: "release-service",
+					reasonCode: null,
+					stateDataJson: JSON.stringify({ attempt }),
+				});
+				if (!publishing.ok) return { state: "failed", reasonCode: publishing.code };
+				publishingGeneration = publishing.stateGeneration;
+			}
+			const operation = await step.do<OperationBeginSummary>(
+				`publication-begin-${attempt}`,
+				async () => {
+					const result = await publisher.beginPublicationOperation(
+						publisherDid,
+						originalIntent.id,
+						publishingGeneration,
+						PUBLICATION_OPERATION_LEASE_MS,
+						credential.attemptKey,
+						credential.token,
+					);
+					if (
+						!result.ok &&
+						(result.code === "PUBLICATION_BUSY" || result.code === "PUBLICATION_RECOVERY_REQUIRED")
+					) {
+						throw new Error(result.code);
 					}
-					const latest = await publisher.getIntent(publisherDid, originalIntent.id);
-					if (latest?.state === "published") return { state: "published", uri: "", cid: "" };
-					if (latest?.state === "reconciling") return { state: "reconciling" };
-					return { state: "failed", reasonCode: completed.code };
+					return result.ok
+						? {
+								ok: true,
+								lease: {
+									intentId: result.lease.intentId,
+									generation: result.lease.generation,
+									token: result.lease.token,
+									expectedIntentGeneration: result.lease.expectedIntentGeneration,
+									expiresAt: result.lease.expiresAt,
+								},
+								replayed: result.replayed,
+							}
+						: { ok: false, code: result.code };
+				},
+			);
+			if (!operation.ok) {
+				const failed = await transition(publisher, {
+					publisherDid,
+					intentId: originalIntent.id,
+					expectedState: "publishing",
+					expectedGeneration: publishingGeneration,
+					toState: "failed",
+					transitionDigest: await digest(["operation-failed", attempt, operation.code]),
+					actorRealm: "system",
+					actorIdentity: "release-service",
+					reasonCode: operation.code,
+					stateDataJson: JSON.stringify({ reasonCode: operation.code }),
+				});
+				return {
+					state: "failed",
+					reasonCode: failed.ok ? operation.code : failed.code,
 				};
+			}
+			const completionBase = {
+				publisherDid,
+				intentId: originalIntent.id,
+				generation: operation.lease.generation,
+				token: operation.lease.token,
+				expectedIntentGeneration: operation.lease.expectedIntentGeneration,
+			};
+			const failBeforeWrite = async (
+				reasonCode: string,
+				retryable = false,
+			): Promise<AttemptResult> =>
+				closeBeforeCreate(
+					publisher,
+					publisherDid,
+					originalIntent.id,
+					operation.lease,
+					attempt,
+					reasonCode,
+					retryable,
+				);
+			let materializedDigest: string | null = null;
+			try {
+				await uploadMaterializedArtifacts(env, step, publisher, publisherDid, originalIntent);
+				const materialized = await step.do<MaterializedSummary>(
+					"publication-complete-materialization",
+					async () => {
+						const completed = await completeMaterialization(
+							publisher,
+							publisherDid,
+							originalIntent,
+							staged.planJson,
+						);
+						return {
+							recordDigest: completed.recordDigest,
+						};
+					},
+				);
+				materializedDigest = materialized.recordDigest;
+				const materializedPhase = await step.do<OperationPhaseSummary>(
+					`publication-materialized-${attempt}`,
+					async () => {
+						const result = await publisher.advancePublicationOperationPhase({
+							...completionBase,
+							phase: "materialized",
+							materializationDigest: materialized.recordDigest,
+						});
+						return result.ok
+							? {
+									ok: true,
+									phase: result.phase,
+									materializationDigest: result.materializationDigest,
+								}
+							: { ok: false, code: result.code };
+					},
+				);
+				if (!materializedPhase.ok) return failBeforeWrite(materializedPhase.code);
+				await step.do("publication-staging-cleanup", async () => {
+					const stored = await publisher.getPublicationMaterialization(
+						publisherDid,
+						originalIntent.id,
+					);
+					if (stored?.status !== "complete") return false;
+					try {
+						await deleteStagedArtifacts(
+							env.PUBLICATION_STAGING,
+							stored.slots.map((artifact) => ({
+								key: artifact.stagingKey,
+								metadata: stagedMetadata(artifact),
+								sourceUrlDigest: artifact.sourceUrlDigest,
+							})),
+						);
+						return true;
+					} catch (error) {
+						console.error(
+							JSON.stringify({
+								event: "publication_staging_cleanup_failed",
+								intentId: originalIntent.id,
+								name: error instanceof Error ? error.name : "UnknownError",
+							}),
+						);
+						return false;
+					}
+				});
+			} catch (error) {
+				return failBeforeWrite(publicationErrorCode(error, "PUBLICATION_PRECONDITION_FAILED"));
+			}
+			if (materializedDigest === null) {
+				return failBeforeWrite("MATERIALIZATION_UNAVAILABLE");
+			}
+			return await step.do<AttemptResult>(`publication-create-${attempt}`, async () => {
 				let writeStarted = false;
 				try {
-					const configuration = await loadConfiguration(env);
-					const flow = {
-						purpose: "release_delegation",
-						expectedDid: publisherDid,
-						redirectTarget: "/",
-					} as const;
-					const oauth = createPublisherOAuthClient({
-						namespace: env.PUBLISHER_DO,
-						encryption: configuration.encryption,
-						oauth: configuration.oauth,
-						flow,
-					});
-					const restored = await oauth.restoreForPublication();
+					const restored = await restorePublicationSession(env, publisherDid);
+					const delegation = await publisher.getDelegation(publisherDid);
+					if (
+						delegation?.status !== "active" ||
+						delegation.stateVersion !== restored.delegationVersion
+					) {
+						return failBeforeWrite("OAUTH_DELEGATION_UNAVAILABLE");
+					}
+					const permit = await control.issuePublicationPermit(
+						publisherDid,
+						originalIntent.id,
+						PUBLICATION_PERMIT_TTL_MS,
+					);
+					if (!permit.ok) {
+						return failBeforeWrite(permit.code, isRetryablePublicationBlock(permit.code));
+					}
 					const consumed = await control.consumePublicationPermit({
 						id: permit.permit.id,
 						token: permit.permit.token,
@@ -399,18 +858,31 @@ export async function publishVerifiedIntent(
 					if (!consumed.ok) {
 						return failBeforeWrite(consumed.code, isRetryablePublicationBlock(consumed.code));
 					}
-					const delegation = await publisher.getDelegation(publisherDid);
+					const recheckedDelegation = await publisher.getDelegation(publisherDid);
 					if (
-						delegation?.status !== "active" ||
-						delegation.stateVersion !== restored.delegationVersion
+						recheckedDelegation?.status !== "active" ||
+						recheckedDelegation.stateVersion !== restored.delegationVersion
 					) {
 						return failBeforeWrite("OAUTH_DELEGATION_UNAVAILABLE");
 					}
+					const persistedRecord = await readPersistedMaterializedRelease(
+						publisher,
+						publisherDid,
+						originalIntent.id,
+						originalIntent.requestDigest,
+					);
+					if (!persistedRecord) return failBeforeWrite("MATERIALIZATION_UNAVAILABLE");
+					const creatingPhase = await publisher.advancePublicationOperationPhase({
+						...completionBase,
+						phase: "creating",
+						materializationDigest: materializedDigest,
+					});
+					if (!creatingPhase.ok) return failBeforeWrite(creatingPhase.code);
 					writeStarted = true;
 					const created = await createReleaseRecord(restored.session, {
 						publisherDid,
 						rkey: `${originalIntent.packageSlug}:${originalIntent.version}`,
-						record: release,
+						record: persistedRecord.record,
 					});
 					const completionDigest = await digest(["published", created.uri, created.cid]);
 					const completed = await publisher.completePublicationOperation({
@@ -434,12 +906,9 @@ export async function publishVerifiedIntent(
 						? { state: "published", uri: created.uri, cid: created.cid }
 						: { state: "reconciling" };
 				} catch (error) {
-					const errorCode =
-						error instanceof OAuthCustodyError || error instanceof CreateReleaseError
-							? error.code
-							: writeStarted
-								? "PUBLICATION_AMBIGUOUS"
-								: "PUBLICATION_PRECONDITION_FAILED";
+					const errorCode = writeStarted
+						? "PUBLICATION_AMBIGUOUS"
+						: publicationErrorCode(error, "PUBLICATION_PRECONDITION_FAILED");
 					if (!writeStarted) return failBeforeWrite(errorCode);
 					console.error(
 						JSON.stringify({
@@ -463,12 +932,39 @@ export async function publishVerifiedIntent(
 						? { state: "published", uri: "", cid: "" }
 						: { state: "reconciling" };
 				}
-			},
-		);
+			});
+		})();
 		if (attemptResult.state === "published") {
 			return { intentId: originalIntent.id, state: "published", reasonCode: null };
 		}
 		if (attemptResult.state === "failed") {
+			await step.do(`publication-terminal-staging-cleanup-${attempt}`, async () => {
+				const stored = await publisher.getPublicationMaterialization(
+					publisherDid,
+					originalIntent.id,
+				);
+				if (!stored) return true;
+				try {
+					await deleteStagedArtifacts(
+						env.PUBLICATION_STAGING,
+						stored.slots.map((artifact) => ({
+							key: artifact.stagingKey,
+							metadata: stagedMetadata(artifact),
+							sourceUrlDigest: artifact.sourceUrlDigest,
+						})),
+					);
+					return true;
+				} catch (error) {
+					console.error(
+						JSON.stringify({
+							event: "publication_terminal_staging_cleanup_failed",
+							intentId: originalIntent.id,
+							name: error instanceof Error ? error.name : "UnknownError",
+						}),
+					);
+					return false;
+				}
+			});
 			return { intentId: originalIntent.id, state: "failed", reasonCode: attemptResult.reasonCode };
 		}
 		if (attemptResult.state === "blocked") {
@@ -480,7 +976,16 @@ export async function publishVerifiedIntent(
 			| { outcome: "exact"; uri: string; cid: string }
 			| { outcome: "conflict" }
 		>(`reconcile-${attempt}`, RECONCILIATION_STEP_CONFIG, async () => {
-			const authoritative = await findAuthoritativeRelease(
+			const materialized = await readPersistedMaterializedRelease(
+				publisher,
+				publisherDid,
+				originalIntent.id,
+				originalIntent.requestDigest,
+			);
+			if (!materialized) {
+				throw new NonRetryableError("MATERIALIZATION_UNAVAILABLE");
+			}
+			const authoritative = await findProofVerifiedRelease(
 				publisherDid,
 				originalIntent.packageSlug,
 				originalIntent.version,
@@ -489,7 +994,7 @@ export async function publishVerifiedIntent(
 				publisherDid,
 				originalIntent.packageSlug,
 				originalIntent.version,
-				release,
+				materialized.record,
 				authoritative,
 			);
 		});

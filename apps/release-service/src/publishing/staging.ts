@@ -1,6 +1,5 @@
-import { base64url } from "jose";
-
 import { verifyMultihash } from "@emdash-cms/registry-verification/checksum";
+import { base64url } from "jose";
 
 import type { StagedArtifactMetadata, StagedReleaseArtifact } from "./materialize.js";
 
@@ -70,7 +69,10 @@ async function readAndVerify(
 		throw new PublicationStagingError("PUBLICATION_STAGING_CORRUPT");
 	}
 	const bytes = new Uint8Array(await object.arrayBuffer());
-	if (bytes.byteLength !== metadata.size || !(await verifyMultihash(bytes, metadata.checksum)).success) {
+	if (
+		bytes.byteLength !== metadata.size ||
+		!(await verifyMultihash(bytes, metadata.checksum)).success
+	) {
 		throw new PublicationStagingError("PUBLICATION_STAGING_CORRUPT");
 	}
 	return bytes;

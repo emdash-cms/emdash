@@ -82,6 +82,7 @@ export type CompletePublicationOperationResult =
 interface OperationRow {
 	[key: string]: string | number | ArrayBuffer | null;
 	generation: number;
+	attempt_key: string;
 	token_hash: string | null;
 	intent_generation: number;
 	status: "active" | "completed";
@@ -167,6 +168,7 @@ export function initializePublicationOperationSchema(storage: DurableObjectStora
 		CREATE TABLE IF NOT EXISTS publication_operations (
 			intent_id TEXT PRIMARY KEY,
 			generation INTEGER NOT NULL CHECK (generation >= 1),
+			attempt_key TEXT NOT NULL,
 			token_hash TEXT,
 			intent_generation INTEGER NOT NULL CHECK (intent_generation >= 1),
 			status TEXT NOT NULL CHECK (status IN ('active', 'completed')),
@@ -207,14 +209,11 @@ export class PublicationOperationStore {
 		intentId: string,
 		expectedIntentGeneration: number,
 		leaseMs: number,
-		credentialOrNow: string | number = Date.now(),
+		attemptKey: string,
+		token: string,
 		now = Date.now(),
 	): Promise<BeginPublicationOperationResult> {
-		const operationNow = typeof credentialOrNow === "number" ? credentialOrNow : now;
-		const token =
-			typeof credentialOrNow === "string"
-				? credentialOrNow
-				: base64url.encode(crypto.getRandomValues(new Uint8Array(32)));
+		const operationNow = now;
 		if (
 			!DID_PATTERN.test(publisherDid) ||
 			!ULID_PATTERN.test(intentId) ||
@@ -223,6 +222,7 @@ export class PublicationOperationStore {
 			!Number.isSafeInteger(leaseMs) ||
 			leaseMs < 1 ||
 			leaseMs > MAX_LEASE_MS ||
+			!DIGEST_PATTERN.test(attemptKey) ||
 			!TOKEN_PATTERN.test(token) ||
 			!Number.isSafeInteger(operationNow) ||
 			operationNow < 0 ||
@@ -241,7 +241,7 @@ export class PublicationOperationStore {
 			}
 			const current = this.#storage.sql
 				.exec<OperationRow>(
-					`SELECT generation, token_hash, intent_generation, status, phase,
+					`SELECT generation, attempt_key, token_hash, intent_generation, status, phase,
 					        materialization_digest, expires_at, completion_digest, outcome,
 					        reason_code, result_uri, result_cid, completed_at
 					 FROM publication_operations WHERE intent_id = ?`,
@@ -251,6 +251,7 @@ export class PublicationOperationStore {
 			if (
 				current?.status === "active" &&
 				current.expires_at > operationNow &&
+				current.attempt_key === attemptKey &&
 				current.token_hash !== null &&
 				current.intent_generation === expectedIntentGeneration &&
 				hashesEqual(current.token_hash, tokenHash)
@@ -277,13 +278,14 @@ export class PublicationOperationStore {
 			const expiresAt = operationNow + leaseMs;
 			this.#storage.sql.exec(
 				`INSERT INTO publication_operations (
-					intent_id, generation, token_hash, intent_generation, status, phase,
+					intent_id, generation, attempt_key, token_hash, intent_generation, status, phase,
 					materialization_digest,
 					expires_at, completion_digest, outcome, reason_code, result_uri, result_cid,
 					started_at, completed_at
-				) VALUES (?, ?, ?, ?, 'active', 'uploading', NULL, ?, NULL, NULL, NULL, NULL, NULL, ?, NULL)
+				) VALUES (?, ?, ?, ?, ?, 'active', 'uploading', NULL, ?, NULL, NULL, NULL, NULL, NULL, ?, NULL)
 				ON CONFLICT(intent_id) DO UPDATE SET
 					generation = excluded.generation,
+					attempt_key = excluded.attempt_key,
 					token_hash = excluded.token_hash,
 					intent_generation = excluded.intent_generation,
 					status = 'active',
@@ -299,6 +301,7 @@ export class PublicationOperationStore {
 					completed_at = NULL`,
 				intentId,
 				generation,
+				attemptKey,
 				tokenHash,
 				expectedIntentGeneration,
 				expiresAt,
@@ -353,7 +356,7 @@ export class PublicationOperationStore {
 		return this.#storage.transactionSync(() => {
 			const operation = this.#storage.sql
 				.exec<OperationRow>(
-					`SELECT generation, token_hash, intent_generation, status, phase,
+					`SELECT generation, attempt_key, token_hash, intent_generation, status, phase,
 					        materialization_digest, expires_at, completion_digest, outcome, completed_at
 					 FROM publication_operations WHERE intent_id = ?`,
 					input.intentId,
@@ -462,7 +465,7 @@ export class PublicationOperationStore {
 		return this.#storage.transactionSync(() => {
 			const operation = this.#storage.sql
 				.exec<OperationRow>(
-					`SELECT generation, token_hash, intent_generation, status, phase,
+					`SELECT generation, attempt_key, token_hash, intent_generation, status, phase,
 					        materialization_digest, expires_at, completion_digest, outcome,
 					        reason_code, result_uri, result_cid, completed_at
 					 FROM publication_operations WHERE intent_id = ?`,

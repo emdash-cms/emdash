@@ -143,28 +143,35 @@ function isMaterializationPath(value: unknown): value is ArtifactMaterialization
 	);
 }
 
-function validMetadata(value: StagedArtifactMetadata): boolean {
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function validMetadata(value: unknown): value is StagedArtifactMetadata {
+	if (!isRecord(value) || !isMaterializationPath(value["path"])) return false;
+	const path = value["path"];
+	const width = value["width"];
+	const height = value["height"];
 	const dimensionsValid =
-		value.path === "package"
-			? value.width === undefined && value.height === undefined
-			: Number.isSafeInteger(value.width) &&
-				Number.isSafeInteger(value.height) &&
-				(value.width ?? 0) > 0 &&
-				(value.width ?? 0) <= IMAGE_MAX_DIMENSION &&
-				(value.height ?? 0) > 0 &&
-				(value.height ?? 0) <= IMAGE_MAX_DIMENSION;
+		path === "package"
+			? width === undefined && height === undefined
+			: Number.isSafeInteger(width) &&
+				Number.isSafeInteger(height) &&
+				Number(width) > 0 &&
+				Number(width) <= IMAGE_MAX_DIMENSION &&
+				Number(height) > 0 &&
+				Number(height) <= IMAGE_MAX_DIMENSION;
 	return (
-		isMaterializationPath(value.path) &&
-		typeof value.checksum === "string" &&
-		value.checksum.length > 0 &&
-		value.checksum.length <= 256 &&
-		typeof value.mimeType === "string" &&
-		(value.path === "package"
-			? value.mimeType === "application/gzip"
-			: IMAGE_MIME_TYPES.has(value.mimeType)) &&
-		Number.isSafeInteger(value.size) &&
-		value.size > 0 &&
-		value.size <= maxBytesForPath(value.path) &&
+		typeof value["checksum"] === "string" &&
+		value["checksum"].length > 0 &&
+		value["checksum"].length <= 256 &&
+		typeof value["mimeType"] === "string" &&
+		(path === "package"
+			? value["mimeType"] === "application/gzip"
+			: IMAGE_MIME_TYPES.has(value["mimeType"])) &&
+		Number.isSafeInteger(value["size"]) &&
+		Number(value["size"]) > 0 &&
+		Number(value["size"]) <= maxBytesForPath(path) &&
 		dimensionsValid
 	);
 }
@@ -285,6 +292,7 @@ function applyMeasuredDimensions(
 	if (!metadata || metadata.width === undefined || metadata.height === undefined) {
 		throw new ArtifactMaterializationError("ARTIFACT_DIMENSIONS_INVALID", metadata?.path ?? null);
 	}
+	descriptor.contentType = metadata.mimeType;
 	descriptor.width = metadata.width;
 	descriptor.height = metadata.height;
 }
@@ -298,6 +306,11 @@ function releaseTemplate(
 		artifacts.map((artifact) => [artifact.metadata.path, artifact.metadata]),
 	);
 	result.artifacts.package = withoutSources(result.artifacts.package);
+	const packageMetadata = metadata.get("package");
+	if (!packageMetadata) {
+		throw new ArtifactMaterializationError("ARTIFACT_MIME_INVALID", "package");
+	}
+	result.artifacts.package.contentType = packageMetadata.mimeType;
 	if (result.artifacts.icon) {
 		result.artifacts.icon = withoutSources(result.artifacts.icon);
 		applyMeasuredDimensions(result.artifacts.icon, metadata.get("icon"));
@@ -445,24 +458,30 @@ function dimensionsMatch(
 }
 
 export function buildMaterializedRelease(
-	plan: ReleaseArtifactMaterializationPlan,
+	plan: unknown,
 	receipts: readonly ArtifactUploadReceipt[],
 ): PackageRelease.Main {
-	let snapshot: ReleaseArtifactMaterializationPlan;
+	let snapshot: unknown;
 	try {
 		snapshot = structuredClone(plan);
 	} catch {
 		throw new ArtifactMaterializationError("RELEASE_INVALID", null);
 	}
-	const parsed = safeParse(PackageRelease.mainSchema, snapshot.release, { strict: true });
-	if (!parsed.ok || snapshot.version !== MATERIALIZATION_PLAN_VERSION) {
+	if (
+		!isRecord(snapshot) ||
+		snapshot["version"] !== MATERIALIZATION_PLAN_VERSION ||
+		!Array.isArray(snapshot["artifacts"])
+	) {
 		throw new ArtifactMaterializationError("RELEASE_INVALID", null);
 	}
+	const parsed = safeParse(PackageRelease.mainSchema, snapshot["release"], { strict: true });
+	if (!parsed.ok) throw new ArtifactMaterializationError("RELEASE_INVALID", null);
+	const artifactMetadata = snapshot["artifacts"];
 	const paths = materializationPaths(parsed.value);
 	const descriptors = templateDescriptors(parsed.value);
 	if (
 		paths.length !== descriptors.length ||
-		paths.length !== snapshot.artifacts.length ||
+		paths.length !== artifactMetadata.length ||
 		paths.length !== receipts.length ||
 		descriptors.some((descriptor) => !sourcesAbsent(descriptor))
 	) {
@@ -471,11 +490,11 @@ export function buildMaterializedRelease(
 	const blobs = new Map<ArtifactMaterializationPath, Blob>();
 	for (const [index, path] of paths.entries()) {
 		const descriptor = descriptors[index];
-		const metadata = snapshot.artifacts[index];
+		const metadata = artifactMetadata[index];
 		const receipt = receipts[index];
 		if (
 			!descriptor ||
-			!metadata ||
+			!validMetadata(metadata) ||
 			!receipt ||
 			metadata.path !== path ||
 			metadata.checksum !== descriptor.checksum ||

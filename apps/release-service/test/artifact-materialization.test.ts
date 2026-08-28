@@ -361,6 +361,8 @@ describe("release artifact materialization", () => {
 	it("uses measured dimensions when the submitted image omits them", async () => {
 		const release = await completeRelease();
 		if (!release.artifacts.icon) throw new Error("Expected icon fixture");
+		delete release.artifacts.package.contentType;
+		delete release.artifacts.icon.contentType;
 		delete release.artifacts.icon.width;
 		delete release.artifacts.icon.height;
 
@@ -369,7 +371,14 @@ describe("release artifact materialization", () => {
 			resolveHostname,
 		});
 
-		expect(staged.plan.release.artifacts.icon).toMatchObject({ width: 128, height: 128 });
+		expect(staged.plan.release.artifacts.package).toMatchObject({
+			contentType: "application/gzip",
+		});
+		expect(staged.plan.release.artifacts.icon).toMatchObject({
+			contentType: "image/png",
+			width: 128,
+			height: 128,
+		});
 		expect(staged.plan.artifacts[1]).toMatchObject({
 			path: "icon",
 			width: 128,

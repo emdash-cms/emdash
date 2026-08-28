@@ -12,7 +12,7 @@ import type {
 	TransitionIntentInput,
 } from "../publisher-do/publisher-do.js";
 import { reconcileReleaseRecord } from "../publishing/reconcile.js";
-import { publishVerifiedIntent, releaseFromIntent } from "../publishing/workflow.js";
+import { publishVerifiedIntent, readPersistedMaterializedRelease } from "../publishing/workflow.js";
 import {
 	evaluateVerifiedRelease,
 	normalizeVerifierReport,
@@ -20,7 +20,7 @@ import {
 	prepareVerifierInput,
 } from "../verification/evaluate.js";
 import {
-	findAuthoritativeRelease,
+	findProofVerifiedRelease,
 	readPublisherVerificationSnapshot,
 } from "../verification/pds.js";
 
@@ -288,10 +288,17 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 				stateGeneration: decision.approvalEvidence.verificationGeneration - 2,
 			};
 			if (intent.state === "reconciling") {
-				const release = releaseFromIntent(intent);
-				if (!release) throw new NonRetryableError("Stored release input is invalid");
 				const reconciliation = await step.do("recovery-reconciliation", async () => {
-					const authoritative = await findAuthoritativeRelease(
+					const materialized = await readPersistedMaterializedRelease(
+						publisher,
+						params.publisherDid,
+						params.intentId,
+						intent.requestDigest,
+					);
+					if (!materialized) {
+						throw new NonRetryableError("Stored materialized release is unavailable");
+					}
+					const authoritative = await findProofVerifiedRelease(
 						params.publisherDid,
 						intent.packageSlug,
 						intent.version,
@@ -300,7 +307,7 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 						params.publisherDid,
 						intent.packageSlug,
 						intent.version,
-						release,
+						materialized.record,
 						authoritative,
 					);
 				});

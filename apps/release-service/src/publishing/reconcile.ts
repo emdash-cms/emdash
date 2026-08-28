@@ -33,6 +33,19 @@ function canonicalJson(value: unknown): string {
 	return JSON.stringify(canonicalize(value));
 }
 
+export function canonicalReleaseJson(value: PackageRelease.Main): string {
+	return canonicalJson(value);
+}
+
+export function parseCanonicalReleaseJson(value: string): PackageRelease.Main | null {
+	try {
+		const parsed = safeParse(PackageRelease.mainSchema, JSON.parse(value), { strict: true });
+		return parsed.ok && canonicalJson(parsed.value) === value ? parsed.value : null;
+	} catch {
+		return null;
+	}
+}
+
 export function reconcileReleaseRecord(
 	publisherDid: string,
 	packageSlug: string,

@@ -617,7 +617,8 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		intentId: string,
 		expectedIntentGeneration: number,
 		leaseMs: number,
-		credentialOrNow: string | number = Date.now(),
+		attemptKey: string,
+		token: string,
 		now = Date.now(),
 	): Promise<BeginPublicationOperationResult> {
 		this.#assertPublisherDid(publisherDid);
@@ -626,10 +627,11 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			intentId,
 			expectedIntentGeneration,
 			leaseMs,
-			credentialOrNow,
+			attemptKey,
+			token,
 			now,
 		);
-		await this.#scheduleNextAlarm(typeof credentialOrNow === "number" ? credentialOrNow : now);
+		await this.#scheduleNextAlarm(now);
 		return result;
 	}
 

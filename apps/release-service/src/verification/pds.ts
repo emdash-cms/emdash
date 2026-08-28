@@ -125,7 +125,7 @@ async function resolveDnsType(
 	});
 }
 
-async function resolvePublicHostname(
+export async function resolvePublicHostname(
 	hostname: string,
 	fetchImplementation: typeof fetch,
 ): Promise<readonly string[]> {
@@ -167,11 +167,19 @@ function guardedFetch(fetchImplementation: typeof fetch): typeof fetch {
 		}
 		const headers = init?.headers ?? (input instanceof Request ? input.headers : undefined);
 		const resource = await fetchVerifiedResource(url, {
-			fetch: (verifiedUrl, verifiedInit) =>
-				fetchImplementation(verifiedUrl, {
+			fetch: async (verifiedUrl, verifiedInit) => {
+				const response = await fetchImplementation(verifiedUrl, {
 					...verifiedInit,
 					...(headers === undefined ? {} : { headers }),
-				}),
+				});
+				const responseHeaders = new Headers(response.headers);
+				responseHeaders.set(UPSTREAM_STATUS_HEADER, String(response.status));
+				return new Response(response.body, {
+					status: response.status === 404 ? 200 : response.status,
+					statusText: response.status === 404 ? "OK" : response.statusText,
+					headers: responseHeaders,
+				});
+			},
 			resolveHostname: (hostname) => resolvePublicHostname(hostname, fetchImplementation),
 			headerTimeoutMs: 10_000,
 			totalTimeoutMs: 30_000,
@@ -181,8 +189,12 @@ function guardedFetch(fetchImplementation: typeof fetch): typeof fetch {
 		if (!resource.success || resource.value.url.toString() !== url.toString()) {
 			throw new PublisherSnapshotError("PUBLISHER_PDS_INVALID");
 		}
+		const upstreamStatus = Number(resource.value.headers.get(UPSTREAM_STATUS_HEADER));
+		if (!Number.isSafeInteger(upstreamStatus)) {
+			throw new PublisherSnapshotError("PUBLISHER_PDS_INVALID");
+		}
 		return new Response(resource.value.bytes, {
-			status: resource.value.status,
+			status: upstreamStatus,
 			headers: resource.value.headers,
 		});
 	};
@@ -467,4 +479,55 @@ export async function findAuthoritativeRelease(
 	}
 	if (actor.did !== publisherDid) throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
 	return getRelease(actor.pds, publisherDid, packageSlug, version, fetchImplementation);
+}
+
+export async function findProofVerifiedRelease(
+	publisherDid: string,
+	packageSlug: string,
+	version: string,
+	options: ReadPublisherSnapshotOptions = {},
+): Promise<AuthoritativeRecord | null> {
+	if (
+		!isDid(publisherDid) ||
+		!PACKAGE_SLUG_PATTERN.test(packageSlug) ||
+		!VERSION_PATTERN.test(version)
+	) {
+		throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+	}
+	const advertised = await findAuthoritativeRelease(publisherDid, packageSlug, version, options);
+	if (!advertised) return null;
+	const fetchImplementation = options.fetch ?? globalThis.fetch;
+	try {
+		const record = await new DirectPdsClient({
+			did: publisherDid,
+			fetch: guardedFetch(fetchImplementation),
+			...(options.didDocumentResolver === undefined
+				? {}
+				: { didDocumentResolver: options.didDocumentResolver }),
+			requestTimeoutMs: 30_000,
+			maxResponseBytes: MAX_PDS_RESPONSE_BYTES,
+		}).getPackageRelease(packageSlug, version);
+		return { uri: record.uri, cid: record.cid, value: record.value };
+	} catch (error) {
+		if (error instanceof DirectPdsReadError) {
+			if (error.code === "RECORD_NOT_FOUND") return null;
+			if (
+				error.code === "DID_DOCUMENT_INVALID" ||
+				error.code === "DID_RESOLUTION_FAILED" ||
+				error.code === "DID_SIGNING_KEY_INVALID" ||
+				error.code === "DID_SIGNING_KEY_MISSING" ||
+				error.code === "PDS_ENDPOINT_INVALID" ||
+				error.code === "PDS_ENDPOINT_MISSING"
+			) {
+				throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+			}
+			if (error.code === "RELEASE_LEXICON_INVALID" || error.code === "RECORD_PROOF_INVALID") {
+				throw new PublisherSnapshotError("RELEASE_RECORD_INVALID");
+			}
+		}
+		if (error instanceof TypeError) {
+			throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+		}
+		throw new PublisherSnapshotError("PUBLISHER_PDS_INVALID");
+	}
 }
