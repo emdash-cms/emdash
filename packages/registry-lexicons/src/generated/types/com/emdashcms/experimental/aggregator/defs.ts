@@ -88,11 +88,13 @@ const _releaseViewSchema = /*#__PURE__*/ v.object({
 	 * @maxLength 4
 	 */
 	get artifactCaches() {
-		return /*#__PURE__*/ v.constrain(
-			/*#__PURE__*/ v.array(
-				/*#__PURE__*/ v.variant([recordScopedBlobCacheSchema]),
+		return /*#__PURE__*/ v.optional(
+			/*#__PURE__*/ v.constrain(
+				/*#__PURE__*/ v.array(
+					/*#__PURE__*/ v.variant([recordScopedBlobCacheSchema]),
+				),
+				[/*#__PURE__*/ v.arrayLength(0, 4)],
 			),
-			[/*#__PURE__*/ v.arrayLength(0, 4)],
 		);
 	},
 	/**

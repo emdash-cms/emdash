@@ -69,7 +69,6 @@
 				"package",
 				"version",
 				"release",
-				"artifactCaches",
 				"indexedAt"
 			],
 			"properties": {
