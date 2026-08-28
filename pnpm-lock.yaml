@@ -2479,6 +2479,9 @@ importers:
       '@atcute/lexicons':
         specifier: 'catalog:'
         version: 2.0.0
+      '@atcute/multibase':
+        specifier: 'catalog:'
+        version: 1.2.0
       '@emdash-cms/registry-lexicons':
         specifier: workspace:*
         version: link:../registry-lexicons

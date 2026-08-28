@@ -53,6 +53,7 @@
 		"@atcute/atproto": "catalog:",
 		"@atcute/client": "catalog:",
 		"@atcute/lexicons": "catalog:",
+		"@atcute/multibase": "catalog:",
 		"@emdash-cms/registry-lexicons": "workspace:*",
 		"@emdash-cms/registry-moderation": "workspace:*"
 	},

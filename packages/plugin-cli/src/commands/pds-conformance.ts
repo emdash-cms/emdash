@@ -12,7 +12,10 @@ import { dirname, join, resolve } from "node:path";
 
 import { isDid } from "@atcute/lexicons/syntax";
 import type { OAuthSession } from "@atcute/oauth-node-client";
-import { runPdsScopeConformance } from "@emdash-cms/registry-client/internal/conformance";
+import {
+	runPdsScopeConformance,
+	type PdsScopeDenialExpectation,
+} from "@emdash-cms/registry-client/internal/conformance";
 import { getDelegatedReleasePermission } from "@emdash-cms/registry-lexicons";
 import { defineCommand } from "citty";
 import { consola } from "consola";
@@ -29,6 +32,11 @@ import { resolveAtprotoProfile } from "../profile.js";
 const PROVIDER_PATTERN = /^[a-z][a-z0-9-]{1,31}$/;
 const PHASES = ["authorize", "resume", "revoke"] as const;
 type Phase = (typeof PHASES)[number];
+
+const SCOPE_DENIAL_BY_PROVIDER: Readonly<Record<string, PdsScopeDenialExpectation>> = {
+	bluesky: { status: 403, error: "ScopeMissingError" },
+	cirrus: { status: 403, error: "InsufficientScope" },
+};
 
 interface OAuthEvidence {
 	requestedScope: string;
@@ -51,7 +59,14 @@ function parseProvider(value: string): string {
 	if (!PROVIDER_PATTERN.test(provider)) {
 		throw new Error("--provider must contain 2-32 lowercase letters, digits, or hyphens");
 	}
+	scopeDenialExpectation(provider);
 	return provider;
+}
+
+export function scopeDenialExpectation(provider: string): PdsScopeDenialExpectation {
+	const expectation = SCOPE_DENIAL_BY_PROVIDER[provider];
+	if (!expectation) throw new Error("--provider must be bluesky or cirrus");
+	return expectation;
 }
 
 function createRunId(): string {
@@ -116,7 +131,7 @@ export const pdsConformanceCommand = defineCommand({
 		},
 		provider: {
 			type: "string",
-			description: "Evidence label, initially bluesky or cirrus",
+			description: "Provider denial contract: bluesky or cirrus",
 			required: true,
 		},
 		phase: {
@@ -166,6 +181,7 @@ export const pdsConformanceCommand = defineCommand({
 			pds: profile.pds,
 			provider,
 			runId: createRunId(),
+			scopeDenial: scopeDenialExpectation(provider),
 		});
 		const metadataAfter = await getStoredSessionMetadata(did, { stateDir });
 		const refreshDue =
