@@ -36,6 +36,7 @@ import {
 import { VERSION } from "../../version.js";
 import { local } from "../storage/adapters.js";
 import { readAdminLocaleManifest, resolveAdminLocales } from "./admin-locales.js";
+import { startCloudflareDevScheduler } from "./cloudflare-dev-scheduler.js";
 import { loadDevEnv } from "./dev-env.js";
 import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
@@ -571,6 +572,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	// Captured in astro:config:setup so the astro:server:setup hook can tell
 	// whether we're running `astro dev` (where the dev-bypass shortcut applies).
 	let astroCommand: "dev" | "build" | "preview" | "sync" | undefined;
+	let usesCloudflareAdapter = false;
 	let normalizedI18n: ReturnType<typeof normalizeAstroI18n> = null;
 	const migrationMetadata = createMigrationIntegrationMetadata(resolvedConfig.database);
 
@@ -586,6 +588,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				command,
 			}) => {
 				astroCommand = command;
+				usesCloudflareAdapter = astroConfig.adapter?.name === "@astrojs/cloudflare";
 				normalizeRegistryConfig(registry, {
 					allowLocalhost: command === "dev" || command === "sync",
 				});
@@ -784,6 +787,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				await writeMigrationManifest(fileURLToPath(finalConfig.root), manifest);
 			},
 			"astro:server:setup": ({ server, logger }) => {
+				if (astroCommand === "dev" && usesCloudflareAdapter) {
+					startCloudflareDevScheduler(server, logger);
+				}
+
 				// Print route info with absolute, clickable URLs once the server
 				// is listening. Only in `astro dev` -- the dev-bypass shortcut is
 				// dev-only and the port is unknown until now.
