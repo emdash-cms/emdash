@@ -44,6 +44,7 @@ type InjectRoute = (route: { pattern: string; entrypoint: string }) => void;
 
 interface InjectCoreRoutesOptions {
 	srcDir?: URL;
+	cloudflareDevScheduler?: boolean;
 }
 
 const ROUTE_OVERRIDE_EXTENSIONS = [
@@ -1077,6 +1078,13 @@ export function injectCoreRoutes(
 		pattern: "/_emdash/api/dev/emails",
 		entrypoint: resolveRoute("api/dev/emails.ts"),
 	});
+
+	if (options.cloudflareDevScheduler) {
+		injectRoute({
+			pattern: "/_emdash/api/dev/scheduled-tasks",
+			entrypoint: resolveRoute("api/dev/scheduled-tasks.ts"),
+		});
+	}
 
 	// Current user endpoint (always available)
 	injectRoute({
