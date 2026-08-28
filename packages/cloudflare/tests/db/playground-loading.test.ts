@@ -97,9 +97,17 @@ describe("playground loading progress", () => {
 
 		streamController.enqueue(encoder.encode('{"step":"ready"}\n'));
 		streamController.close();
-		await vi.advanceTimersByTimeAsync(400);
-		expect(elements.get("step-ready")!.className).toBe("pg-step done");
+		await vi.advanceTimersByTimeAsync(0);
+		expect(elements.get("step-ready")!.className).toBe("pg-step completing");
 		expect(elements.get("pg-message")!.textContent).toBe("Ready!");
+		expect(replace).not.toHaveBeenCalled();
+
+		await vi.advanceTimersByTimeAsync(899);
+		expect(elements.get("step-ready")!.className).toBe("pg-step completing");
+		expect(replace).not.toHaveBeenCalled();
+
+		await vi.advanceTimersByTimeAsync(1);
+		expect(elements.get("step-ready")!.className).toBe("pg-step done");
 		expect(replace).toHaveBeenCalledWith("/_emdash/admin");
 	});
 });

@@ -414,11 +414,10 @@ export function renderPlaygroundLoadingPage(): string {
   }
 
   function showReady() {
-    setStepState(2, "done");
     document.getElementById("pg-message").textContent = "Ready!";
-    stepTimers.push(setTimeout(function() {
+    return completeStep(2).then(function() {
       location.replace("/_emdash/admin");
-    }, 400));
+    });
   }
 
   function handleProgressEvent(event) {
@@ -427,10 +426,7 @@ export function renderPlaygroundLoadingPage(): string {
     }
     if (event.step === "database") return completeStep(0, 1);
     if (event.step === "content") return completeStep(1, 2);
-    if (event.step === "ready") {
-      showReady();
-      return Promise.resolve();
-    }
+    if (event.step === "ready") return showReady();
     return Promise.resolve();
   }
 
