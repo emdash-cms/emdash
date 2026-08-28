@@ -15,6 +15,8 @@ const APPROVER_ROTATION_PATH_PATTERN = /^\/admin\/api\/approvers\/([^/]+)\/encry
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
 const PUBLISHER_CURSOR_PATTERN = /^(?:delegation:1|oauth-state:[A-Za-z0-9_-]{32,128})$/;
 const APPROVER_CURSOR_PATTERN = /^identity-transaction:[A-Za-z0-9_-]{43}$/;
+const RACED_CURSOR_PREFIX = "raced:";
+const RESCAN_CURSOR = "rescan";
 
 interface EncryptionShard {
 	list(afterCursor: string | null, limit: number): Promise<EncryptionRecordPage>;
@@ -70,6 +72,19 @@ function matchOwner(
 	return isDid(did) ? { [key]: did } : null;
 }
 
+function decodeRotationCursor(
+	value: string | null,
+	cursorPattern: RegExp,
+): { afterCursor: string | null; raced: boolean } {
+	if (value === null || value === RESCAN_CURSOR) return { afterCursor: null, raced: false };
+	const raced = value.startsWith(RACED_CURSOR_PREFIX);
+	const afterCursor = raced ? value.slice(RACED_CURSOR_PREFIX.length) : value;
+	if (!cursorPattern.test(afterCursor)) {
+		throw new ApiError("INVALID_REQUEST", 400, "Invalid encryption rotation cursor");
+	}
+	return { afterCursor, raced };
+}
+
 export function matchPublisherEncryptionRotationPath(
 	pathname: string,
 ): Readonly<Record<string, string>> | null {
@@ -93,10 +108,8 @@ async function rotateEncryptionRecords(
 ): Promise<Response> {
 	requireIdempotencyKey(request);
 	const pageInput = await rotationPage(request);
-	if (pageInput.afterCursor !== null && !cursorPattern.test(pageInput.afterCursor)) {
-		throw new ApiError("INVALID_REQUEST", 400, "Invalid encryption rotation cursor");
-	}
-	const page = await shard.list(pageInput.afterCursor, pageInput.limit);
+	const cursor = decodeRotationCursor(pageInput.afterCursor, cursorPattern);
+	const page = await shard.list(cursor.afterCursor, pageInput.limit);
 	let rotated = 0;
 	let raced = 0;
 	for (const record of page.items) {
@@ -126,6 +139,15 @@ async function rotateEncryptionRecords(
 		if (replaced) rotated += 1;
 		else raced += 1;
 	}
+	const raceSeen = cursor.raced || raced > 0;
+	const nextCursor =
+		page.nextCursor === null
+			? raceSeen
+				? RESCAN_CURSOR
+				: null
+			: raceSeen
+				? `${RACED_CURSOR_PREFIX}${page.nextCursor}`
+				: page.nextCursor;
 	return apiSuccess(
 		{
 			ownerDid,
@@ -133,8 +155,8 @@ async function rotateEncryptionRecords(
 			scanned: page.items.length,
 			rotated,
 			raced,
-			nextCursor: page.nextCursor,
-			complete: page.nextCursor === null && raced === 0,
+			nextCursor,
+			complete: nextCursor === null,
 		},
 		requestId,
 	);

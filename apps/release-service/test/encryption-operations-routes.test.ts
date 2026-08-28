@@ -138,6 +138,118 @@ describe("Access encryption operations", () => {
 		}
 	});
 
+	it("requires a clean rescan when an earlier publisher page races", async () => {
+		const initial = await loadConfiguration(TEST_BINDINGS);
+		const now = Date.now();
+		const delegationContext = {
+			purpose: "oauth-session",
+			objectClass: "PublisherDurableObject",
+			table: "delegation",
+			primaryKey: "1",
+			ownerDid: PUBLISHER_DID,
+		} as const;
+		const stateContext = {
+			purpose: "oauth-console-transaction",
+			objectClass: "PublisherDurableObject",
+			table: "oauth_states",
+			primaryKey: STATE_HASH,
+			ownerDid: PUBLISHER_DID,
+		} as const;
+		const [delegation, racedDelegation, state] = await Promise.all([
+			initial.encryption.encrypt(new TextEncoder().encode("delegation-before"), delegationContext),
+			initial.encryption.encrypt(new TextEncoder().encode("delegation-raced"), delegationContext),
+			initial.encryption.encrypt(new TextEncoder().encode("state"), stateContext),
+		]);
+		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+		await publisher.putDelegation({
+			publisherDid: PUBLISHER_DID,
+			releaseNsid: initial.oauth.releaseNsid,
+			scope: initial.oauth.releaseScope,
+			clientKeyId: initial.oauth.activeAssertionKeyId,
+			encryptedSession: delegation.envelope,
+			encryptionKeyVersion: delegation.keyVersion,
+			issuer: "https://authorization.example.com",
+			pdsUrl: "https://pds.example.com",
+			expiresAt: null,
+			refreshBefore: null,
+			expectedVersion: null,
+		});
+		await publisher.putOAuthState({
+			publisherDid: PUBLISHER_DID,
+			stateHash: STATE_HASH,
+			encryptedState: state.envelope,
+			encryptionKeyVersion: state.keyVersion,
+			encryptionPurpose: "oauth-console-transaction",
+			clientKeyId: initial.oauth.activeAssertionKeyId,
+			redirectTarget: "/publisher",
+			expiresAt: now + 60_000,
+		});
+		const rotating = await loadConfiguration(bindings(KEYRING_V2));
+		let injectRace = true;
+		const racedConfiguration = {
+			...rotating,
+			encryption: {
+				...rotating.encryption,
+				rotate: async (...args: Parameters<typeof rotating.encryption.rotate>) => {
+					const replacement = await rotating.encryption.rotate(...args);
+					if (injectRace) {
+						injectRace = false;
+						await publisher.putDelegation({
+							publisherDid: PUBLISHER_DID,
+							releaseNsid: initial.oauth.releaseNsid,
+							scope: initial.oauth.releaseScope,
+							clientKeyId: initial.oauth.activeAssertionKeyId,
+							encryptedSession: racedDelegation.envelope,
+							encryptionKeyVersion: racedDelegation.keyVersion,
+							issuer: "https://authorization.example.com",
+							pdsUrl: "https://pds.example.com",
+							expiresAt: null,
+							refreshBefore: null,
+							expectedVersion: 1,
+						});
+					}
+					return replacement;
+				},
+			},
+		};
+
+		const first = await handleRotatePublisherEncryption(
+			request({ afterCursor: null, limit: 1 }),
+			"race-page-1",
+			racedConfiguration,
+			{ publisherDid: PUBLISHER_DID },
+			ADMIN,
+		);
+		expect(first.status).toBe(200);
+		const firstBody = await first.json<{ data: { nextCursor: string } }>();
+		expect(firstBody.data.nextCursor).toContain("delegation:1");
+
+		const second = await handleRotatePublisherEncryption(
+			request({ afterCursor: firstBody.data.nextCursor, limit: 1 }),
+			"race-page-2",
+			rotating,
+			{ publisherDid: PUBLISHER_DID },
+			ADMIN,
+		);
+		expect(second.status).toBe(200);
+		const secondBody = await second.json<{
+			data: { complete: boolean; nextCursor: string | null };
+		}>();
+		expect(secondBody.data).toMatchObject({ complete: false, nextCursor: "rescan" });
+
+		const rescan = await handleRotatePublisherEncryption(
+			request({ afterCursor: secondBody.data.nextCursor, limit: 10 }),
+			"race-rescan",
+			rotating,
+			{ publisherDid: PUBLISHER_DID },
+			ADMIN,
+		);
+		expect(rescan.status).toBe(200);
+		await expect(rescan.json()).resolves.toMatchObject({
+			data: { complete: true, nextCursor: null, rotated: 1, raced: 0 },
+		});
+	});
+
 	it("rotates an approver identity transaction without returning ciphertext", async () => {
 		const initial = await loadConfiguration(TEST_BINDINGS);
 		const now = Date.now();

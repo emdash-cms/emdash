@@ -111,7 +111,7 @@ Rebuild a missing directory as publishers and approvers complete OAuth again. Di
 2. Add the new key version to `ENCRYPTION_KEYRING`, retain every old key, and set `current` to the new version.
 3. Deploy the keyring change without removing old keys.
 4. Enumerate every publisher and approver from the operations directory.
-5. For each DID, run the relevant rotation operation from an empty cursor until it reports `Verified`.
+5. For each DID, run the relevant rotation operation from an empty cursor until it reports `Verified`. A compare-and-set race changes the resume cursor to a required rescan, so completion cannot discard a race reported by an earlier page.
 6. Repeat a full scan from an empty cursor. Every page must report the new target version, zero races, and completion.
 7. Confirm that no `refresh_failure`, `archive_gap`, or `restore_failure` event appeared during the scan.
 8. Remove the retired key version from `ENCRYPTION_KEYRING` and deploy the reduced keyring.
@@ -148,10 +148,10 @@ snapshots/{publisherHash}/{archiveId}/
 Sanitized audit pages use this prefix and never overwrite an existing sequence range:
 
 ```text
-audit/{publisherHash}/{firstSequence}-{lastSequence}.json
+audit/{publisherHash}/{firstSequence}-{lastSequence}-{contentDigest}.json
 ```
 
-Snapshot writes use create-only R2 conditions. A retried page decrypts and compares the existing object; different content at the same key fails with `ARCHIVE_OPERATION_FAILED`.
+The content digest keeps audit histories append-only when recovery resets a shard's local audit sequence. Snapshot writes use create-only R2 conditions. A retried page decrypts and compares the existing object; different content at the same key fails with `ARCHIVE_OPERATION_FAILED`.
 
 ## Restore a publisher shard
 
@@ -168,6 +168,8 @@ Preparing a restore deletes publisher state. Confirm the DID and archive ID befo
 9. Ask the publisher to reauthorize and re-enable each workload policy explicitly.
 10. Reconcile any release that may have reached the PDS before the shard was lost.
 11. Remove publisher suspension only after reauthorization and reconciliation complete.
+
+If a missing or corrupt page prevents completion, call `ReleaseServiceOperatorClient.abortPublisherRestore()` with the same publisher DID and archive ID. The operation marks the active restore as aborted and leaves the publisher suspended. A later `preparePublisherRestore()` call clears the abandoned partial state before starting another restore attempt. A completed restore cannot be aborted.
 
 Archive audit pages remain in R2. Restore begins a new shard audit history with `publisher-restore-prepared`, `publisher-restore-started`, per-intent restore events, and `publisher-restore-completed`.
 
