@@ -28,6 +28,7 @@ export interface NormalizedReleasePolicy {
 export interface ProvenanceEvidence {
 	document: Uint8Array;
 	artifactDigest: Uint8Array;
+	artifactDigests?: readonly Uint8Array[];
 	verifier?: ProvenanceVerifier;
 }
 
@@ -289,6 +290,7 @@ export async function verifyPackageReleaseRecords(
 			document: input.provenance.document,
 			reference: releaseExtension.provenance,
 			artifactDigest: input.provenance.artifactDigest,
+			artifactDigests: input.provenance.artifactDigests,
 			profileRepository: repository,
 		});
 	} catch {

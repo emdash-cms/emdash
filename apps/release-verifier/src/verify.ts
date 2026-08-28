@@ -1,6 +1,7 @@
 import {
 	MAX_BUNDLE_COMPRESSED_BYTES,
 	GitHubProvenanceVerifier,
+	computeArtifactDigestCandidates,
 	fetchVerifiedResource,
 	validatePluginBundle,
 	verifyMultihash,
@@ -220,12 +221,7 @@ export async function verifyRelease(
 			input.provenance.checksum,
 		);
 		if (!provenanceChecksum.success) return provenanceChecksum;
-		const artifactDigests = await Promise.all(
-			(["SHA-256", "SHA-384", "SHA-512"] as const).map(
-				async (algorithm) =>
-					new Uint8Array(await crypto.subtle.digest(algorithm, artifact.value.bytes)),
-			),
-		);
+		const artifactDigests = await computeArtifactDigestCandidates(artifact.value.bytes);
 		const [artifactDigest, ...additionalDigests] = artifactDigests;
 		if (!artifactDigest) return internalError("Release verification failed");
 		const provenance = await (

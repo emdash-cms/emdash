@@ -1,6 +1,9 @@
 import type { VerificationErrorCode } from "@emdash-cms/registry-verification";
 import { validatePluginBundle } from "@emdash-cms/registry-verification/bundle";
-import { decodeMultihash, verifyMultihash } from "@emdash-cms/registry-verification/checksum";
+import {
+	computeArtifactDigestCandidates,
+	verifyMultihash,
+} from "@emdash-cms/registry-verification/checksum";
 
 import { pluginManifestSchema, reconcileManifestAccess } from "../plugins/manifest-schema.js";
 import type { PluginBundle } from "../plugins/marketplace.js";
@@ -15,7 +18,11 @@ export type RegistryArtifactVerificationCode =
 export type RegistryArtifactVerificationResult =
 	| {
 			success: true;
-			value: { bundle: PluginBundle; artifactDigest: Uint8Array };
+			value: {
+				bundle: PluginBundle;
+				artifactDigest: Uint8Array;
+				artifactDigests: readonly Uint8Array[];
+			};
 	  }
 	| {
 			success: false;
@@ -30,8 +37,7 @@ export async function validateRegistryArtifact(
 ): Promise<RegistryArtifactVerificationResult> {
 	const checksumReport = await verifyMultihash(bytes, checksum);
 	if (!checksumReport.success) return checksumReport;
-	const decodedChecksum = decodeMultihash(checksum);
-	if (!decodedChecksum.success) return decodedChecksum;
+	const [artifactDigest, ...artifactDigests] = await computeArtifactDigestCandidates(bytes);
 
 	const bundleReport = await validatePluginBundle(bytes, {
 		expectedSlug: slug,
@@ -63,7 +69,8 @@ export async function validateRegistryArtifact(
 							: bundleDecoder.decode(bundleReport.value.admin),
 					checksum,
 				},
-				artifactDigest: decodedChecksum.value.digest,
+				artifactDigest,
+				artifactDigests,
 			},
 		};
 	} catch {

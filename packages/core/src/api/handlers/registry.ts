@@ -871,12 +871,11 @@ export async function handleRegistryInstall(
 				"install",
 			);
 		}
-		const { bundle, artifactDigest } = artifactReport.value;
-		const recordReport = await verifyAuthoritativePackageRelease(
-			records,
-			artifactDigest,
-			opts?.authoritativeRecords,
-		);
+		const { bundle, artifactDigest, artifactDigests } = artifactReport.value;
+		const recordReport = await verifyAuthoritativePackageRelease(records, artifactDigest, {
+			...opts?.authoritativeRecords,
+			artifactDigests,
+		});
 		if (!recordReport.success) {
 			return registryRecordError(
 				recordReport.code,
@@ -1480,12 +1479,11 @@ export async function handleRegistryUpdate(
 				"update",
 			);
 		}
-		const { bundle, artifactDigest } = artifactReport.value;
-		const recordReport = await verifyAuthoritativePackageRelease(
-			records,
-			artifactDigest,
-			opts?.authoritativeRecords,
-		);
+		const { bundle, artifactDigest, artifactDigests } = artifactReport.value;
+		const recordReport = await verifyAuthoritativePackageRelease(records, artifactDigest, {
+			...opts?.authoritativeRecords,
+			artifactDigests,
+		});
 		if (!recordReport.success) {
 			return registryRecordError(
 				recordReport.code,

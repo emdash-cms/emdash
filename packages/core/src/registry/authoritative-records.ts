@@ -34,6 +34,7 @@ export interface AuthoritativeRecordReadOptions {
 	provenanceFetch?: FetchImplementation;
 	resolveHostname?: HostnameResolver;
 	provenanceVerifier?: ProvenanceVerifier;
+	artifactDigests?: readonly Uint8Array[];
 }
 
 export interface VerifiedAuthoritativeRecords {
@@ -152,6 +153,7 @@ export async function verifyAuthoritativePackageRelease(
 				: {
 						document,
 						artifactDigest,
+						artifactDigests: options.artifactDigests,
 						verifier: options.provenanceVerifier,
 					},
 	});

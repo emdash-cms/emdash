@@ -89,6 +89,17 @@ export async function computeMultihash(
 	}
 }
 
+export async function computeArtifactDigestCandidates(
+	bytes: Uint8Array,
+): Promise<readonly [Uint8Array, Uint8Array, Uint8Array]> {
+	const [sha256, sha384, sha512] = await Promise.all([
+		crypto.subtle.digest("SHA-256", new Uint8Array(bytes)),
+		crypto.subtle.digest("SHA-384", new Uint8Array(bytes)),
+		crypto.subtle.digest("SHA-512", new Uint8Array(bytes)),
+	]);
+	return [new Uint8Array(sha256), new Uint8Array(sha384), new Uint8Array(sha512)];
+}
+
 export async function verifyMultihash(
 	bytes: Uint8Array,
 	expected: string,

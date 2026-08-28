@@ -1,5 +1,6 @@
 export {
 	compareDigestBytes,
+	computeArtifactDigestCandidates,
 	computeMultihash,
 	decodeMultihash,
 	multihashFromBlobCid,

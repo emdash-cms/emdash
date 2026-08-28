@@ -21,6 +21,7 @@ export interface DelegatedReleaseFixtureOptions {
 	releaseVersion?: string;
 	declaredAccess?: DeclaredAccess;
 	manifestDeclaredAccess?: DeclaredAccess;
+	provenanceDigestAlgorithm?: "sha256" | "sha384" | "sha512";
 	provenance?: Partial<ReleaseProvenance>;
 }
 
@@ -57,7 +58,7 @@ export interface DelegatedReleaseConformanceFixture {
 
 interface ConformanceProvenanceStatement {
 	predicateType: string;
-	subject: { sha256: string };
+	subject: Partial<Record<"sha256" | "sha384" | "sha512", string>>;
 	sourceRepository: string;
 	builderId: string;
 }
@@ -95,9 +96,19 @@ export async function createDelegatedReleaseConformanceFixture(
 		file("admin.js", "export default {};"),
 	]);
 	const artifact = await checksumAndDigest(artifactBytes);
+	const provenanceDigestAlgorithm = options.provenanceDigestAlgorithm ?? "sha256";
+	const provenanceArtifactDigest =
+		provenanceDigestAlgorithm === "sha256"
+			? artifact.digest
+			: new Uint8Array(
+					await crypto.subtle.digest(
+						provenanceDigestAlgorithm === "sha384" ? "SHA-384" : "SHA-512",
+						artifactBytes,
+					),
+				);
 	const statement: ConformanceProvenanceStatement = {
 		predicateType,
-		subject: { sha256: toHex(artifact.digest) },
+		subject: { [provenanceDigestAlgorithm]: toHex(provenanceArtifactDigest) },
 		sourceRepository: repository,
 		builderId,
 	};
@@ -155,6 +166,9 @@ export async function createDelegatedReleaseConformanceFixture(
 			}
 			if (!isConformanceStatement(value)) return unverifiable();
 			const parsed = value;
+			const matchedArtifactDigest = [input.artifactDigest, ...(input.artifactDigests ?? [])].find(
+				(candidate) => compareDigestBytes(candidate, provenanceArtifactDigest),
+			);
 			if (
 				input.reference.predicateType !== predicateType ||
 				input.reference.url !== provenanceUrl ||
@@ -163,8 +177,9 @@ export async function createDelegatedReleaseConformanceFixture(
 				input.reference.builderId !== builderId ||
 				input.profileRepository !== repository ||
 				!compareDigestBytes(input.artifactDigest, artifact.digest) ||
+				!matchedArtifactDigest ||
 				parsed.predicateType !== predicateType ||
-				parsed.subject.sha256 !== toHex(artifact.digest) ||
+				parsed.subject[provenanceDigestAlgorithm] !== toHex(provenanceArtifactDigest) ||
 				parsed.sourceRepository !== repository ||
 				parsed.builderId !== builderId
 			) {
@@ -174,7 +189,7 @@ export async function createDelegatedReleaseConformanceFixture(
 				success: true,
 				value: {
 					predicateType,
-					artifactDigest: input.artifactDigest,
+					artifactDigest: matchedArtifactDigest,
 					sourceRepository: repository,
 					builderId,
 				},
@@ -246,7 +261,9 @@ function isConformanceStatement(value: unknown): value is ConformanceProvenanceS
 		typeof Reflect.get(value, "builderId") === "string" &&
 		typeof subject === "object" &&
 		subject !== null &&
-		typeof Reflect.get(subject, "sha256") === "string"
+		["sha256", "sha384", "sha512"].some(
+			(algorithm) => typeof Reflect.get(subject, algorithm) === "string",
+		)
 	);
 }
 function unverifiable() {

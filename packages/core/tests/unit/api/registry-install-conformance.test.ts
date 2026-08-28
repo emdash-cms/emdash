@@ -296,6 +296,32 @@ describe("registry delegated-release conformance", () => {
 		);
 	});
 
+	it.each(["sha384", "sha512"] as const)(
+		"previews provenance whose subject uses %s",
+		async (provenanceDigestAlgorithm) => {
+			const fixture = await createDelegatedReleaseConformanceFixture({
+				provenanceDigestAlgorithm,
+			});
+			const context = await createContext(fixture);
+			await mockAggregator(fixture, context);
+			artifactFetch(fixture.artifactBytes);
+
+			await expect(
+				handleRegistryInstall(
+					db,
+					storage,
+					sandbox,
+					registryConfig,
+					{ did: fixture.publisherDid, slug: fixture.packageSlug, version: fixture.version },
+					{ verifyOnly: true, authoritativeRecords: context.options },
+				),
+			).resolves.toMatchObject({
+				success: true,
+				data: { verification: { provenance: "verified" } },
+			});
+		},
+	);
+
 	it("updates with the same verification and CID-bound re-consent", async () => {
 		const initial = await createDelegatedReleaseConformanceFixture();
 		const context = await createContext(initial);
