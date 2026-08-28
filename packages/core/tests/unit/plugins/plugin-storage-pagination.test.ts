@@ -3,10 +3,11 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { PluginStorageRepository } from "../../../src/database/repositories/plugin-storage.js";
 import type { Database } from "../../../src/database/types.js";
+import { StorageQueryError } from "../../../src/plugins/storage-query.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 interface Doc {
-	seq: number;
+	seq?: number;
 	createdAt: string;
 }
 
@@ -84,5 +85,33 @@ describe("PluginStorageRepository.query() cursor pagination", () => {
 		const seen = await drain(repo, { orderBy: { seq: "asc" }, limit: 5 });
 		expect(new Set(seen).size).toBe(TOTAL);
 		expect(seen).toHaveLength(TOTAL);
+	});
+
+	it("throws rather than paging wrongly when orderBy directions are mixed", async () => {
+		const first = await repo.query({ orderBy: { seq: "desc" }, limit: 5 });
+		expect(first.cursor).toBeDefined();
+		await expect(
+			repo.query({ orderBy: { seq: "desc", createdAt: "asc" }, cursor: first.cursor, limit: 5 }),
+		).rejects.toThrow(StorageQueryError);
+	});
+
+	it("still pages every row when documents omit the sorted field entirely", async () => {
+		for (let i = 0; i < TOTAL; i++) await repo.delete(`doc-${String(i).padStart(2, "0")}`);
+		// Half the documents have no `seq` key at all, so the sort expression is NULL.
+		for (let i = 0; i < TOTAL; i++) {
+			const doc: Doc =
+				i % 2 === 0
+					? { createdAt: `2026-03-${String(i + 1).padStart(2, "0")}T00:00:00.000Z` }
+					: { seq: i, createdAt: `2026-03-${String(i + 1).padStart(2, "0")}T00:00:00.000Z` };
+			await repo.put(`nul-${String(i).padStart(2, "0")}`, doc);
+		}
+		for (const direction of ["asc", "desc"] as const) {
+			const seen = await drain(repo, { orderBy: { seq: direction }, limit: 3 });
+			expect({ direction, unique: new Set(seen).size, total: seen.length }).toEqual({
+				direction,
+				unique: TOTAL,
+				total: TOTAL,
+			});
+		}
 	});
 });
