@@ -81,6 +81,21 @@ describe("workload policy evaluation", () => {
 		expect(evaluateWorkloadPolicy(identity, policy)).toEqual({ ok: true });
 	});
 
+	it("matches the repository portion of a workflow reference case-insensitively", () => {
+		expect(
+			evaluateWorkloadPolicy(
+				{
+					...identity,
+					workflow: {
+						...identity.workflow,
+						ref: "EmDash-CMS/Gallery/.github/workflows/release.yml@refs/heads/main",
+					},
+				},
+				policy,
+			),
+		).toEqual({ ok: true });
+	});
+
 	it.each(rejectionCases)("rejects %s", (code, replacement) => {
 		const changedIdentity = {
 			...identity,

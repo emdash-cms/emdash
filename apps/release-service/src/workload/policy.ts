@@ -1,6 +1,9 @@
 import { base64url } from "jose";
 
-import type { StoredWorkloadPolicy } from "../publisher-do/workload-policy.js";
+import {
+	normalizeWorkflowRefRepository,
+	type StoredWorkloadPolicy,
+} from "../publisher-do/workload-policy.js";
 import type { VerifiedWorkloadIdentity } from "./types.js";
 
 export type WorkloadPolicyRejectionCode =
@@ -26,7 +29,10 @@ export function evaluateWorkloadPolicy(
 	) {
 		return { ok: false, code: "WORKLOAD_REPOSITORY_MISMATCH" };
 	}
-	if (identity.workflow.ref !== policy.workflowRef) {
+	if (
+		normalizeWorkflowRefRepository(identity.workflow.ref) !==
+		normalizeWorkflowRefRepository(policy.workflowRef)
+	) {
 		return { ok: false, code: "WORKLOAD_WORKFLOW_MISMATCH" };
 	}
 	if (policy.allowedRefs.length > 0 && !policy.allowedRefs.includes(identity.run.ref)) {

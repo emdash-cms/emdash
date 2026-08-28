@@ -105,6 +105,13 @@ function validEnvironment(value: string): boolean {
 	return true;
 }
 
+export function normalizeWorkflowRefRepository(value: string): string {
+	const marker = "/.github/workflows/";
+	const markerIndex = value.indexOf(marker);
+	if (markerIndex < 1) return value;
+	return `${value.slice(0, markerIndex).toLowerCase()}${value.slice(markerIndex)}`;
+}
+
 function rowToPolicy(row: WorkloadPolicyRow): StoredWorkloadPolicy {
 	return {
 		packageSlug: row.package_slug,
@@ -152,8 +159,11 @@ export class WorkloadPolicyStore {
 
 	put(input: PutWorkloadPolicyInput): PutWorkloadPolicyResult {
 		const now = input.now ?? Date.now();
-		if (typeof input.repository !== "string") throw new WorkloadPolicyError();
+		if (typeof input.repository !== "string" || typeof input.workflowRef !== "string") {
+			throw new WorkloadPolicyError();
+		}
 		const repository = input.repository.toLowerCase();
+		const workflowRef = normalizeWorkflowRefRepository(input.workflowRef);
 		const allowedRefs = normalizeValues(input.allowedRefs, (value) => REF_PATTERN.test(value));
 		const allowedEnvironments = normalizeValues(input.allowedEnvironments, validEnvironment);
 		if (
@@ -163,7 +173,7 @@ export class WorkloadPolicyStore {
 			!DECIMAL_ID_PATTERN.test(input.repositoryId) ||
 			!DECIMAL_ID_PATTERN.test(input.repositoryOwnerId) ||
 			!WORKFLOW_REF_PATTERN.test(input.workflowRef) ||
-			!input.workflowRef.toLowerCase().startsWith(`${repository}/.github/workflows/`) ||
+			!workflowRef.startsWith(`${repository}/.github/workflows/`) ||
 			typeof input.active !== "boolean" ||
 			(input.expectedVersion !== null &&
 				(!Number.isSafeInteger(input.expectedVersion) || input.expectedVersion < 1)) ||
@@ -203,7 +213,7 @@ export class WorkloadPolicyStore {
 				repository,
 				input.repositoryId,
 				input.repositoryOwnerId,
-				input.workflowRef,
+				workflowRef,
 				JSON.stringify(allowedRefs),
 				JSON.stringify(allowedEnvironments),
 				input.active ? 1 : 0,

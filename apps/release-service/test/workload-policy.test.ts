@@ -44,7 +44,7 @@ describe("publisher workload policies", () => {
 				repository: "emdash-cms/gallery",
 				repositoryId: "123456789",
 				repositoryOwnerId: "987654321",
-				workflowRef: "EmDash-CMS/Gallery/.github/workflows/release.yml@refs/heads/main",
+				workflowRef: "emdash-cms/gallery/.github/workflows/release.yml@refs/heads/main",
 				allowedRefs: ["refs/heads/main", "refs/tags/v2"],
 				allowedEnvironments: ["production", "staging"],
 				active: true,
