@@ -675,9 +675,13 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		return result;
 	}
 
-	consumeIntentRateLimit(input: ConsumeIntentRateLimitInput): ConsumeIntentRateLimitResult {
+	async consumeIntentRateLimit(
+		input: ConsumeIntentRateLimitInput,
+	): Promise<ConsumeIntentRateLimitResult> {
 		this.#assertPublisherDid(input.publisherDid);
-		return this.#intentRateLimits.consume(input);
+		const result = this.#intentRateLimits.consume(input);
+		if (result.ok) await this.#scheduleNextAlarm(input.now ?? Date.now());
+		return result;
 	}
 
 	findIdempotentIntent(

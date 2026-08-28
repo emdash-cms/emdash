@@ -212,6 +212,26 @@ describe("PublisherDurableObject", () => {
 		).resolves.toMatchObject({ ok: true, replayed: false });
 	});
 
+	it("arms cleanup for rate-limit idempotency without another publisher operation", async () => {
+		const stub = publisher();
+		const now = 1_800_000_000_000;
+		const expiresAt = now + 24 * 60 * 60_000;
+		await expect(
+			stub.consumeIntentRateLimit({
+				publisherDid: DID,
+				repositoryId: "123",
+				workloadKey: "W".repeat(43),
+				idempotencyKey: "rate-alarm-idempotency-0001",
+				expiresAt,
+				now,
+			}),
+		).resolves.toMatchObject({ ok: true, replayed: false });
+
+		await expect(
+			runInDurableObject(stub, (_instance, state) => state.storage.getAlarm()),
+		).resolves.toBe(expiresAt);
+	});
+
 	it("routes and binds one object to one publisher DID", async () => {
 		const stub = publisher();
 		await stub.initializePublisher(DID);
