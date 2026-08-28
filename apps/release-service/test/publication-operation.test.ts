@@ -8,6 +8,42 @@ const DID = "did:plc:publisher";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const NOW = 1_800_000_000_000;
 const OPERATION_CREDENTIAL = "C".repeat(43);
+const CHECKSUM = "bciqb43wwlv35mnso5lwvu5c3uxcjqwxcw4an3boxz57qe667fffdh7a";
+const BLOB_CID = "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q";
+const SOURCE_URL = "https://example.com/gallery.tar.gz";
+
+function sourceRelease() {
+	return {
+		$type: "com.emdashcms.experimental.package.release" as const,
+		package: "gallery",
+		version: "1.2.3",
+		artifacts: {
+			package: {
+				url: SOURCE_URL,
+				checksum: CHECKSUM,
+				contentType: "application/gzip",
+			},
+		},
+	};
+}
+
+function materializedRelease() {
+	return {
+		...sourceRelease(),
+		artifacts: {
+			package: {
+				checksum: CHECKSUM,
+				contentType: "application/gzip",
+				blob: {
+					$type: "blob" as const,
+					ref: { $link: BLOB_CID },
+					mimeType: "application/gzip",
+					size: 32_768,
+				},
+			},
+		},
+	};
+}
 
 function publisher() {
 	return env.PUBLISHER_DO.getByName(DID);
@@ -43,7 +79,7 @@ async function preparePublishing() {
 		idempotencyKey: "github-run-100-attempt-1",
 		requestDigest: "B".repeat(43),
 		workloadIdentityJson: '{"issuer":"github-actions"}',
-		releaseInputJson: '{"package":"gallery","version":"1.2.3"}',
+		releaseInputJson: JSON.stringify({ release: sourceRelease() }),
 		expiresAt: NOW + 60_000,
 		now: NOW + 1,
 	});
@@ -88,8 +124,8 @@ async function materialize(stub: ReturnType<typeof publisher>): Promise<string> 
 		intentId: INTENT_ID,
 		sourceDigest,
 		slot: "package",
-		sourceUrlDigest: "U".repeat(43),
-		checksum: "bciqb43wwlv35mnso5lwvu5c3uxcjqwxcw4an3boxz57qe667fffdh7a",
+		sourceUrlDigest: await digest(SOURCE_URL),
+		checksum: CHECKSUM,
 		stagingKey: `publication/${INTENT_ID}/package`,
 		mimeType: "application/gzip",
 		size: 32_768,
@@ -104,13 +140,13 @@ async function materialize(stub: ReturnType<typeof publisher>): Promise<string> 
 		slot: "package",
 		blob: {
 			$type: "blob",
-			ref: { $link: "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q" },
+			ref: { $link: BLOB_CID },
 			mimeType: "application/gzip",
 			size: 32_768,
 		},
 		now: NOW + 8,
 	});
-	const recordJson = '{"package":"gallery","version":"1.2.3"}';
+	const recordJson = JSON.stringify(materializedRelease());
 	const recordDigest = await digest(recordJson);
 	await stub.completePublicationMaterialization({
 		publisherDid: DID,

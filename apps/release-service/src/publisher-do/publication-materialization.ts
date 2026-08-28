@@ -1,3 +1,5 @@
+import { safeParse } from "@atcute/lexicons";
+import { PackageRelease } from "@emdash-cms/registry-lexicons";
 import { multihashFromBlobCid } from "@emdash-cms/registry-verification/checksum";
 import { base64url } from "jose";
 
@@ -11,6 +13,7 @@ const STAGING_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,511}$/;
 const MAX_PACKAGE_BYTES = 256 * 1024;
 const MAX_IMAGE_BYTES = 1024 * 1024;
 const MAX_IMAGE_DIMENSION = 8192;
+const MAX_RELEASE_INPUT_JSON_CHARS = 64 * 1024;
 const MAX_RECORD_JSON_CHARS = 128 * 1024;
 
 export type PublicationArtifactSlot =
@@ -25,6 +28,17 @@ export type PublicationArtifactSlot =
 	| "screenshots[5]"
 	| "screenshots[6]"
 	| "screenshots[7]";
+
+const SCREENSHOT_SLOTS = [
+	"screenshots[0]",
+	"screenshots[1]",
+	"screenshots[2]",
+	"screenshots[3]",
+	"screenshots[4]",
+	"screenshots[5]",
+	"screenshots[6]",
+	"screenshots[7]",
+] as const satisfies readonly PublicationArtifactSlot[];
 
 export interface PublicationBlob {
 	$type: "blob";
@@ -106,8 +120,11 @@ export type PublicationMaterializationMutationResult =
 
 interface IntentRow {
 	[key: string]: string | number | ArrayBuffer | null;
+	package_slug: string;
+	version: string;
 	state: string;
 	request_digest: string;
+	release_input_json: string;
 }
 
 interface MaterializationRow {
@@ -247,21 +264,181 @@ function canonicalBlob(value: unknown): string | null {
 	});
 }
 
-function canonicalRecordJson(value: string): boolean {
+function parseCanonicalReleaseRecord(value: string): PackageRelease.Main | null {
 	if (typeof value !== "string" || value.length < 2 || value.length > MAX_RECORD_JSON_CHARS) {
-		return false;
+		return null;
 	}
 	try {
 		const parsed: unknown = JSON.parse(value);
-		return (
-			parsed !== null &&
-			typeof parsed === "object" &&
-			!Array.isArray(parsed) &&
-			JSON.stringify(parsed) === value
-		);
+		if (
+			parsed === null ||
+			typeof parsed !== "object" ||
+			Array.isArray(parsed) ||
+			JSON.stringify(parsed) !== value
+		) {
+			return null;
+		}
+		const release = safeParse(PackageRelease.mainSchema, parsed, { strict: true });
+		return release.ok ? release.value : null;
 	} catch {
-		return false;
+		return null;
 	}
+}
+
+function parseIntentRelease(value: string): PackageRelease.Main | null {
+	if (value.length < 2 || value.length > MAX_RELEASE_INPUT_JSON_CHARS) return null;
+	try {
+		const parsed: unknown = JSON.parse(value);
+		if (
+			!isRecord(parsed) ||
+			Object.keys(parsed).length !== 1 ||
+			!("release" in parsed) ||
+			JSON.stringify(parsed) !== value
+		) {
+			return null;
+		}
+		const release = safeParse(PackageRelease.mainSchema, parsed["release"], { strict: true });
+		return release.ok ? release.value : null;
+	} catch {
+		return null;
+	}
+}
+
+type ArtifactDescriptor = PackageRelease.Artifact | PackageRelease.ImageArtifact;
+
+function releaseArtifacts(
+	release: PackageRelease.Main,
+): readonly (readonly [PublicationArtifactSlot, ArtifactDescriptor])[] {
+	const screenshots = (release.artifacts.screenshots ?? []).map((descriptor, index) => {
+		const slot = SCREENSHOT_SLOTS[index];
+		if (!slot) throw new PublicationMaterializationError();
+		return [slot, descriptor] as const;
+	});
+	return [
+		["package", release.artifacts.package],
+		...(release.artifacts.icon ? ([["icon", release.artifacts.icon]] as const) : []),
+		...(release.artifacts.banner ? ([["banner", release.artifacts.banner]] as const) : []),
+		...screenshots,
+	];
+}
+
+function canonicalize(value: unknown): unknown {
+	if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+	if (typeof value === "number") {
+		if (!Number.isFinite(value)) throw new TypeError("Non-finite JSON number");
+		return Object.is(value, -0) ? 0 : value;
+	}
+	if (Array.isArray(value)) return value.map(canonicalize);
+	if (!isRecord(value)) throw new TypeError("Non-JSON value");
+	const result: Record<string, unknown> = Object.create(null);
+	for (const [key, item] of Object.entries(value).toSorted(([left], [right]) =>
+		left < right ? -1 : left > right ? 1 : 0,
+	)) {
+		if (item === undefined) throw new TypeError("Undefined JSON value");
+		result[key] = canonicalize(item);
+	}
+	return result;
+}
+
+function canonicalJson(value: unknown): string {
+	return JSON.stringify(canonicalize(value));
+}
+
+function expectedDescriptor(
+	slot: PublicationArtifactSlot,
+	source: ArtifactDescriptor,
+	artifact: StoredPublicationArtifact,
+): ArtifactDescriptor | null {
+	if (
+		typeof source.url !== "string" ||
+		Object.hasOwn(source, "blob") ||
+		Object.hasOwn(source, "requiresAuth") ||
+		source.checksum !== artifact.checksum ||
+		(source.contentType !== undefined && source.contentType.toLowerCase() !== artifact.mimeType) ||
+		!artifact.blob
+	) {
+		return null;
+	}
+	const blobChecksum = multihashFromBlobCid(artifact.blob.ref.$link);
+	if (
+		!blobChecksum.success ||
+		blobChecksum.value !== artifact.checksum ||
+		artifact.blob.mimeType !== artifact.mimeType ||
+		artifact.blob.size !== artifact.size
+	) {
+		return null;
+	}
+	if (slot === "package") {
+		if (
+			artifact.mimeType !== "application/gzip" ||
+			artifact.width !== null ||
+			artifact.height !== null
+		) {
+			return null;
+		}
+	} else if (
+		artifact.mimeType === "application/gzip" ||
+		artifact.width === null ||
+		artifact.height === null ||
+		(source.width !== undefined && source.width !== artifact.width) ||
+		(source.height !== undefined && source.height !== artifact.height)
+	) {
+		return null;
+	}
+	const expected = structuredClone(source);
+	delete expected.url;
+	delete expected.blob;
+	delete expected.requiresAuth;
+	delete expected.releaseAsset;
+	expected.contentType = artifact.mimeType;
+	expected.blob = artifact.blob;
+	if (slot !== "package") {
+		if (artifact.width === null || artifact.height === null) return null;
+		expected.width = artifact.width;
+		expected.height = artifact.height;
+	}
+	return expected;
+}
+
+function validateCompletedRecord(
+	intent: IntentRow,
+	source: PackageRelease.Main,
+	record: PackageRelease.Main,
+	artifacts: readonly StoredPublicationArtifact[],
+	sourceUrlDigests: ReadonlyMap<PublicationArtifactSlot, string>,
+): "complete" | "conflict" | "incomplete" {
+	if (
+		source.package !== intent.package_slug ||
+		source.version !== intent.version ||
+		record.package !== intent.package_slug ||
+		record.version !== intent.version
+	) {
+		return "conflict";
+	}
+	const sourceEntries = releaseArtifacts(source);
+	const recordEntries = new Map(releaseArtifacts(record));
+	const stored = new Map(artifacts.map((artifact) => [artifact.slot, artifact]));
+	if (sourceEntries.some(([slot]) => !stored.has(slot))) return "incomplete";
+	if (stored.size !== sourceEntries.length || recordEntries.size !== sourceEntries.length) {
+		return "conflict";
+	}
+	const { artifacts: sourceArtifactSet, ...sourceRecord } = source;
+	const { artifacts: recordArtifactSet, ...completedRecord } = record;
+	if (
+		canonicalJson(sourceRecord) !== canonicalJson(completedRecord) ||
+		sourceArtifactSet.$type !== recordArtifactSet.$type
+	) {
+		return "conflict";
+	}
+	for (const [slot, sourceDescriptor] of sourceEntries) {
+		const artifact = stored.get(slot);
+		const recordDescriptor = recordEntries.get(slot);
+		if (!artifact?.blob || !recordDescriptor) return "incomplete";
+		if (artifact.sourceUrlDigest !== sourceUrlDigests.get(slot)) return "conflict";
+		const expected = expectedDescriptor(slot, sourceDescriptor, artifact);
+		if (!expected || canonicalJson(expected) !== canonicalJson(recordDescriptor)) return "conflict";
+	}
+	return "complete";
 }
 
 async function digest(value: string): Promise<string> {
@@ -477,16 +654,42 @@ export class PublicationMaterializationStore {
 		input: CompletePublicationMaterializationInput,
 	): Promise<PublicationMaterializationMutationResult> {
 		const now = input.now ?? Date.now();
+		const record = parseCanonicalReleaseRecord(input.recordJson);
 		if (
 			!DID_PATTERN.test(input.publisherDid) ||
 			!ULID_PATTERN.test(input.intentId) ||
 			!DIGEST_PATTERN.test(input.sourceDigest) ||
-			!canonicalRecordJson(input.recordJson) ||
+			record === null ||
 			!DIGEST_PATTERN.test(input.recordDigest) ||
 			!validTimestamp(now) ||
 			(await digest(input.recordJson)) !== input.recordDigest
 		) {
 			throw new PublicationMaterializationError();
+		}
+		const intentSnapshot = this.#intent(input.intentId);
+		let source = intentSnapshot ? parseIntentRelease(intentSnapshot.release_input_json) : null;
+		const sourceUrlDigests = new Map<PublicationArtifactSlot, string>();
+		if (source) {
+			const digests = await Promise.all(
+				releaseArtifacts(source).map(async ([slot, descriptor]) => {
+					if (
+						typeof descriptor.url !== "string" ||
+						Object.hasOwn(descriptor, "blob") ||
+						Object.hasOwn(descriptor, "requiresAuth")
+					) {
+						return null;
+					}
+					return [slot, await digest(descriptor.url)] as const;
+				}),
+			);
+			for (const entry of digests) {
+				if (!entry) {
+					source = null;
+					break;
+				}
+				const [slot, sourceUrlDigest] = entry;
+				sourceUrlDigests.set(slot, sourceUrlDigest);
+			}
 		}
 		return this.storage.transactionSync(() => {
 			const parent = this.#materialization(input.intentId);
@@ -494,23 +697,36 @@ export class PublicationMaterializationStore {
 			if (parent.source_digest !== input.sourceDigest) {
 				return { ok: false, code: "MATERIALIZATION_CONFLICT" } as const;
 			}
+			const intent = this.#intent(input.intentId);
+			if (
+				!intentSnapshot ||
+				!intent ||
+				!source ||
+				intent.package_slug !== intentSnapshot.package_slug ||
+				intent.version !== intentSnapshot.version ||
+				intent.request_digest !== intentSnapshot.request_digest ||
+				intent.release_input_json !== intentSnapshot.release_input_json
+			) {
+				return { ok: false, code: "MATERIALIZATION_CONFLICT" } as const;
+			}
 			if (parent.status === "complete") {
 				return parent.record_json === input.recordJson &&
 					parent.record_digest === input.recordDigest
-					? ({ ok: true, replayed: true } as const)
-					: ({ ok: false, code: "MATERIALIZATION_CONFLICT" } as const);
+						? ({ ok: true, replayed: true } as const)
+						: ({ ok: false, code: "MATERIALIZATION_CONFLICT" } as const);
 			}
-			const counts = this.storage.sql
-				.exec<{ slots: number; receipts: number; packages: number }>(
-					`SELECT COUNT(*) AS slots,
-					        SUM(CASE WHEN blob_json IS NOT NULL THEN 1 ELSE 0 END) AS receipts,
-					        SUM(CASE WHEN slot = 'package' THEN 1 ELSE 0 END) AS packages
-					 FROM publication_materialization_slots WHERE intent_id = ?`,
-					input.intentId,
-				)
-				.one();
-			if (counts.slots < 1 || counts.packages !== 1 || counts.receipts !== counts.slots) {
+			const validation = validateCompletedRecord(
+				intent,
+				source,
+				record,
+				this.#artifacts(input.intentId),
+				sourceUrlDigests,
+			);
+			if (validation === "incomplete") {
 				return { ok: false, code: "MATERIALIZATION_INCOMPLETE" } as const;
+			}
+			if (validation === "conflict") {
+				return { ok: false, code: "MATERIALIZATION_CONFLICT" } as const;
 			}
 			if (!this.#mutableIntent(input.intentId)) {
 				return { ok: false, code: "INTENT_STATE_INVALID" } as const;
@@ -532,21 +748,6 @@ export class PublicationMaterializationStore {
 		if (!ULID_PATTERN.test(intentId)) throw new PublicationMaterializationError();
 		const parent = this.#materialization(intentId);
 		if (!parent) return null;
-		const slots = this.storage.sql
-			.exec<ArtifactRow>(
-				`SELECT slot, source_url_digest, checksum, staging_key, mime_type,
-				        byte_size, width, height, blob_json, staged_at, uploaded_at
-				 FROM publication_materialization_slots WHERE intent_id = ?
-				 ORDER BY CASE slot
-					WHEN 'package' THEN 0 WHEN 'icon' THEN 1 WHEN 'banner' THEN 2
-					WHEN 'screenshots[0]' THEN 3 WHEN 'screenshots[1]' THEN 4
-					WHEN 'screenshots[2]' THEN 5 WHEN 'screenshots[3]' THEN 6
-					WHEN 'screenshots[4]' THEN 7 WHEN 'screenshots[5]' THEN 8
-					WHEN 'screenshots[6]' THEN 9 WHEN 'screenshots[7]' THEN 10 ELSE 11 END`,
-				intentId,
-			)
-			.toArray()
-			.map(rowToArtifact);
 		return {
 			intentId: parent.intent_id,
 			sourceDigest: parent.source_digest,
@@ -555,14 +756,18 @@ export class PublicationMaterializationStore {
 			recordDigest: parent.record_digest,
 			createdAt: parent.created_at,
 			updatedAt: parent.updated_at,
-			slots,
+			slots: this.#artifacts(intentId),
 		};
 	}
 
 	#intent(intentId: string): IntentRow | null {
 		return (
 			this.storage.sql
-				.exec<IntentRow>("SELECT state, request_digest FROM intents WHERE id = ?", intentId)
+				.exec<IntentRow>(
+					`SELECT package_slug, version, state, request_digest, release_input_json
+					 FROM intents WHERE id = ?`,
+					intentId,
+				)
 				.toArray()[0] ?? null
 		);
 	}
@@ -597,6 +802,24 @@ export class PublicationMaterializationStore {
 				)
 				.toArray()[0] ?? null
 		);
+	}
+
+	#artifacts(intentId: string): readonly StoredPublicationArtifact[] {
+		return this.storage.sql
+			.exec<ArtifactRow>(
+				`SELECT slot, source_url_digest, checksum, staging_key, mime_type,
+				        byte_size, width, height, blob_json, staged_at, uploaded_at
+				 FROM publication_materialization_slots WHERE intent_id = ?
+				 ORDER BY CASE slot
+					WHEN 'package' THEN 0 WHEN 'icon' THEN 1 WHEN 'banner' THEN 2
+					WHEN 'screenshots[0]' THEN 3 WHEN 'screenshots[1]' THEN 4
+					WHEN 'screenshots[2]' THEN 5 WHEN 'screenshots[3]' THEN 6
+					WHEN 'screenshots[4]' THEN 7 WHEN 'screenshots[5]' THEN 8
+					WHEN 'screenshots[6]' THEN 9 WHEN 'screenshots[7]' THEN 10 ELSE 11 END`,
+				intentId,
+			)
+			.toArray()
+			.map(rowToArtifact);
 	}
 
 	#touch(intentId: string, now: number): void {
