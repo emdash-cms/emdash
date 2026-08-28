@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ulid } from "ulidx";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
 	const anchored: Promise<void>[] = [];
@@ -10,6 +11,11 @@ const mocks = vi.hoisted(() => {
 	const isReady = vi.fn();
 	const query = vi.fn();
 	const stub = { initializePlayground, isReady, query };
+	const namespace = {
+		idFromName: vi.fn((token: string) => token),
+		get: vi.fn(() => stub),
+	};
+	const workerEnv: Record<string, unknown> = { PLAYGROUND_DB: namespace };
 
 	return {
 		after,
@@ -17,10 +23,8 @@ const mocks = vi.hoisted(() => {
 		initializePlayground,
 		isReady,
 		query,
-		namespace: {
-			idFromName: vi.fn((token: string) => token),
-			get: vi.fn(() => stub),
-		},
+		namespace,
+		workerEnv,
 	};
 });
 
@@ -35,7 +39,7 @@ vi.mock("cloudflare:workers", () => ({
 			this.ctx = ctx;
 		}
 	},
-	env: { PLAYGROUND_DB: mocks.namespace },
+	env: mocks.workerEnv,
 }));
 vi.mock("virtual:emdash/config", () => ({
 	default: { database: { config: { binding: "PLAYGROUND_DB" } } },
@@ -96,13 +100,35 @@ async function requestPlayground(
 	return { response, setCookie };
 }
 
+async function requestPage(token: string): Promise<Response> {
+	const response = await onRequest(
+		{
+			url: new URL("https://example.com/_emdash/admin"),
+			request: new Request("https://example.com/_emdash/admin"),
+			cookies: {
+				get: (name: string) => (name === "emdash_playground" ? { value: token } : undefined),
+			},
+			locals: {},
+		} as never,
+		() => Promise.resolve(new Response("ok")),
+	);
+
+	if (!(response instanceof Response)) throw new Error("Expected a page response");
+	return response;
+}
+
 describe("playground initialization endpoint", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.anchored.length = 0;
+		mocks.workerEnv.PLAYGROUND_DB = mocks.namespace;
 		mocks.initializePlayground.mockImplementation(() => progressStream(SUCCESS_PROGRESS));
 		mocks.isReady.mockResolvedValue(false);
 		mocks.query.mockResolvedValue({ rows: [], changes: 1 });
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
 	});
 
 	it("proxies the Durable Object's initialization milestones", async () => {
@@ -115,10 +141,15 @@ describe("playground initialization endpoint", () => {
 
 	it("proxies initialization failures in the NDJSON stream", async () => {
 		mocks.initializePlayground.mockReturnValueOnce(progressStream(ERROR_PROGRESS));
+		const token = ulid();
 
-		const response = await requestInit("migration-failure", PROGRESS_TYPE);
+		const response = await requestInit(token, PROGRESS_TYPE);
 
 		expect(await response.text()).toBe(ERROR_PROGRESS);
+		await Promise.all(mocks.anchored);
+		mocks.isReady.mockResolvedValue(true);
+		await requestPage(token);
+		expect(mocks.isReady).toHaveBeenCalledTimes(1);
 	});
 
 	it("preserves the JSON response for clients that do not request progress", async () => {
@@ -166,13 +197,27 @@ describe("playground initialization endpoint", () => {
 		expect(cancel).not.toHaveBeenCalled();
 	});
 
-	it("checks durable readiness instead of retaining an initialized session token", async () => {
-		await requestInit("expired-session");
+	it("does not cache readiness for invalid session tokens", async () => {
+		await requestInit("invalid-session");
 		mocks.isReady.mockResolvedValue(false);
 
-		const { response } = await requestPlayground("expired-session");
+		const { response } = await requestPlayground("invalid-session");
 
 		expect(response.status).toBe(200);
+		expect(mocks.isReady).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not cache readiness for future session tokens", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-08-28T10:00:00Z"));
+		const token = ulid(Date.now() + 1_000);
+		const response = await requestInit(token, PROGRESS_TYPE);
+
+		await response.text();
+		await Promise.all(mocks.anchored);
+		mocks.isReady.mockResolvedValue(true);
+		await requestPage(token);
+
 		expect(mocks.isReady).toHaveBeenCalledTimes(1);
 	});
 
@@ -186,5 +231,52 @@ describe("playground initialization endpoint", () => {
 			expect.objectContaining({ maxAge: 3600 }),
 		);
 		expect(mocks.isReady).not.toHaveBeenCalled();
+	});
+
+	it("caches readiness after streamed initialization", async () => {
+		const token = ulid();
+		const response = await requestInit(token, PROGRESS_TYPE);
+
+		await response.text();
+		await Promise.all(mocks.anchored);
+		await requestPage(token);
+		await requestPage(token);
+
+		expect(mocks.isReady).not.toHaveBeenCalled();
+	});
+
+	it("rechecks durable readiness after the session TTL", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-08-28T10:00:00Z"));
+		const token = ulid(Date.now());
+		mocks.isReady.mockResolvedValue(true);
+
+		await requestPage(token);
+		await requestPage(token);
+		expect(mocks.isReady).toHaveBeenCalledTimes(1);
+
+		await vi.advanceTimersByTimeAsync(3_600_001);
+		await requestPage(token);
+		expect(mocks.isReady).toHaveBeenCalledTimes(2);
+	});
+
+	it("rechecks durable readiness when the binding changes", async () => {
+		const token = ulid();
+		mocks.isReady.mockResolvedValue(true);
+		await requestPage(token);
+
+		const replacementIsReady = vi.fn().mockResolvedValue(true);
+		mocks.workerEnv.PLAYGROUND_DB = {
+			idFromName: vi.fn((value: string) => value),
+			get: vi.fn(() => ({
+				initializePlayground: mocks.initializePlayground,
+				isReady: replacementIsReady,
+				query: mocks.query,
+			})),
+		};
+
+		await requestPage(token);
+
+		expect(replacementIsReady).toHaveBeenCalledTimes(1);
 	});
 });
