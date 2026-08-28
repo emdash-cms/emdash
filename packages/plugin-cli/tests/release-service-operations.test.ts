@@ -155,7 +155,7 @@ describe("delegated release CLI operations", () => {
 			},
 			{
 				environment: ENVIRONMENT,
-				readReleaseRecord: async () => structuredClone(releaseFixture),
+				readReleaseRecord: async () => sourceRelease(),
 				fetch: async (input, init) => {
 					const url = new URL(input instanceof Request ? input.url : input.toString());
 					if (url.hostname === "token.actions.example") {
@@ -178,6 +178,38 @@ describe("delegated release CLI operations", () => {
 		expect(result).toMatchObject({ allowed: true, workloadPolicyVersion: 1 });
 		expect(serviceRequest?.url).toBe(`${SERVICE}/v1/release-intents/dry-run`);
 		expect(serviceRequest?.headers.has("idempotency-key")).toBe(false);
+	});
+
+	it("rejects an invalid dry-run source before requesting OIDC", async () => {
+		const invalid = sourceRelease();
+		Object.assign(invalid.artifacts.package, {
+			blob: {
+				$type: "blob",
+				ref: { $link: "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe" },
+				mimeType: "application/gzip",
+				size: 128,
+			},
+		});
+		let fetchCalls = 0;
+
+		await expect(
+			dryRunDelegatedRelease(
+				{
+					serviceUrl: SERVICE,
+					publisherDid: PUBLISHER_DID,
+					releaseFile: "release.json",
+				},
+				{
+					environment: ENVIRONMENT,
+					readReleaseRecord: async () => invalid,
+					fetch: async () => {
+						fetchCalls += 1;
+						throw new Error("unexpected fetch");
+					},
+				},
+			),
+		).rejects.toThrow("Release record file is invalid");
+		expect(fetchCalls).toBe(0);
 	});
 
 	it("uses fresh OIDC tokens for status and cancellation", async () => {

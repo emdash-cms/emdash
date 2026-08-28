@@ -841,6 +841,16 @@ export class ReleaseServiceClient extends BaseReleaseServiceClient {
 		input: SubmitReleaseIntentInput,
 		options: RequestOptions = {},
 	): Promise<DryRunReleaseIntentResult> {
+		const release = parseDelegatedReleaseSourceRecord(input.release, {
+			packageSlug: input.packageSlug,
+			version: input.version,
+		});
+		if (!release) {
+			throw new ReleaseServiceError({
+				code: "INVALID_REQUEST",
+				message: "Delegated release source record is invalid",
+			});
+		}
 		const headers = await this.#workloadHeaders();
 		headers.set("content-type", "application/json");
 		return await this.call(
@@ -848,7 +858,7 @@ export class ReleaseServiceClient extends BaseReleaseServiceClient {
 			{
 				method: "POST",
 				headers,
-				body: JSON.stringify(input),
+				body: JSON.stringify({ ...input, release }),
 				signal: options.signal,
 			},
 			parseDryRunIntent,

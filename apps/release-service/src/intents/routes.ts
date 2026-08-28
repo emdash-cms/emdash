@@ -442,12 +442,11 @@ export async function handleDryRunReleaseIntent(
 		) {
 			throw new ApiError("INVALID_REQUEST", 400, "Invalid release intent request");
 		}
-		const release = safeParse(PackageRelease.mainSchema, body["release"]);
-		if (
-			!release.ok ||
-			release.value.package !== body["packageSlug"] ||
-			release.value.version !== body["version"]
-		) {
+		const release = parseDelegatedReleaseSourceRecord(body["release"], {
+			packageSlug: body["packageSlug"],
+			version: body["version"],
+		});
+		if (!release) {
 			throw new ApiError("INVALID_REQUEST", 400, "Invalid release intent request");
 		}
 		const publisherDid = body["publisherDid"];
@@ -465,7 +464,7 @@ export async function handleDryRunReleaseIntent(
 		}
 		const policy = await env.PUBLISHER_DO.getByName(publisherDid).getWorkloadPolicyIfInitialized(
 			publisherDid,
-			release.value.package,
+			release.package,
 		);
 		if (!policy || !evaluateWorkloadPolicy(identity, policy).ok) {
 			throw new ApiError("WORKLOAD_NOT_ALLOWED", 403, "Workload is not authorized");
@@ -474,11 +473,11 @@ export async function handleDryRunReleaseIntent(
 			{
 				allowed: true,
 				publisherDid,
-				packageSlug: release.value.package,
-				version: release.value.version,
+				packageSlug: release.package,
+				version: release.version,
 				workloadPolicyVersion: policy.stateVersion,
 				workloadIdentityDigest: await digestWorkloadIdentity(identity),
-				requestDigest: await digest(["release-intent", 1, publisherDid, release.value]),
+				requestDigest: await digest(["release-intent", 1, publisherDid, release]),
 			},
 			requestId,
 		);
