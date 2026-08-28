@@ -1,5 +1,6 @@
 import type { PackageRelease } from "@emdash-cms/registry-lexicons";
 
+import { parseDelegatedReleaseSourceRecord } from "./source-record.js";
 import {
 	TERMINAL_RELEASE_INTENT_STATES,
 	type CursorPage,
@@ -19,6 +20,16 @@ import {
 	type SubmitReleaseIntentResult,
 	type WorkloadPolicyResource,
 } from "./types.js";
+
+export type {
+	DelegatedReleaseSourceArtifact,
+	DelegatedReleaseSourceArtifacts,
+	DelegatedReleaseSourceEnvelope,
+	DelegatedReleaseSourceExtension,
+	DelegatedReleaseSourceImageArtifact,
+	DelegatedReleaseSourceRecord,
+} from "./source-record.js";
+export { parseDelegatedReleaseSourceRecord } from "./source-record.js";
 
 export type {
 	CursorPage,
@@ -605,6 +616,16 @@ export class ReleaseServiceClient extends BaseReleaseServiceClient {
 		input: SubmitReleaseIntentInput,
 		options: MutationOptions,
 	): Promise<SubmitReleaseIntentResult> {
+		const release = parseDelegatedReleaseSourceRecord(input.release, {
+			packageSlug: input.packageSlug,
+			version: input.version,
+		});
+		if (!release) {
+			throw new ReleaseServiceError({
+				code: "INVALID_REQUEST",
+				message: "Delegated release source record is invalid",
+			});
+		}
 		const headers = await this.#workloadHeaders(options.idempotencyKey);
 		headers.set("content-type", "application/json");
 		return await this.call(
@@ -612,7 +633,7 @@ export class ReleaseServiceClient extends BaseReleaseServiceClient {
 			{
 				method: "POST",
 				headers,
-				body: JSON.stringify(input),
+				body: JSON.stringify({ ...input, release }),
 				signal: options.signal,
 			},
 			(value) => {

@@ -1,3 +1,4 @@
+import { NSID } from "@emdash-cms/registry-lexicons";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -11,6 +12,32 @@ const SERVICE = "https://release.example.com";
 const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const CSRF = "C".repeat(43);
+const CHECKSUM = "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja";
+
+function sourceRelease() {
+	return {
+		$type: "com.emdashcms.experimental.package.release" as const,
+		package: "gallery",
+		version: "1.2.3",
+		artifacts: {
+			package: { url: "https://example.com/gallery.tgz", checksum: CHECKSUM },
+		},
+		extensions: {
+			[NSID.packageReleaseExtension]: {
+				$type: NSID.packageReleaseExtension,
+				declaredAccess: {},
+				provenance: {
+					url: "https://example.com/provenance.json",
+					checksum: CHECKSUM,
+					predicateType: "https://slsa.dev/provenance/v1",
+					sourceRepository: "https://github.com/example/gallery",
+					builderId:
+						"https://github.com/example/gallery/.github/workflows/release.yml@refs/heads/main",
+				},
+			},
+		},
+	};
+}
 
 function intent(state = "received") {
 	return {
@@ -82,14 +109,7 @@ describe("ReleaseServiceClient", () => {
 			return success({ intent: intent(), replayed: false }, 202);
 		});
 		const client = new ReleaseServiceClient({ serviceUrl: SERVICE, fetch, workloadToken });
-		const release = {
-			$type: "com.emdashcms.experimental.package.release" as const,
-			package: "gallery",
-			version: "1.2.3",
-			artifacts: {
-				package: { url: "https://example.com/gallery.tgz", checksum: "bciqexample" },
-			},
-		};
+		const release = sourceRelease();
 		const result = await client.submitIntent(
 			{ publisherDid: PUBLISHER_DID, packageSlug: "gallery", version: "1.2.3", release },
 			{ idempotencyKey: "github-run-100-attempt-1" },
@@ -102,6 +122,30 @@ describe("ReleaseServiceClient", () => {
 		expect(headers.get("authorization")).toBe(`Bearer ${workloadToken}`);
 		expect(headers.get("idempotency-key")).toBe("github-run-100-attempt-1");
 		expect(JSON.stringify(result)).not.toContain(workloadToken);
+	});
+
+	it("rejects invalid source records before acquiring a workload token", async () => {
+		const release = sourceRelease();
+		Object.assign(release.artifacts.package, {
+			blob: {
+				$type: "blob",
+				ref: { $link: "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe" },
+				mimeType: "application/gzip",
+				size: 128,
+			},
+		});
+		const token = vi.fn(() => "header.payload.signature");
+		const fetch = vi.fn<typeof globalThis.fetch>();
+		const client = new ReleaseServiceClient({ serviceUrl: SERVICE, fetch, workloadToken: token });
+
+		await expect(
+			client.submitIntent(
+				{ publisherDid: PUBLISHER_DID, packageSlug: "gallery", version: "1.2.3", release },
+				{ idempotencyKey: "github-run-100-attempt-1" },
+			),
+		).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+		expect(token).not.toHaveBeenCalled();
+		expect(fetch).not.toHaveBeenCalled();
 	});
 
 	it("maps stable server errors, retry hints, and network failures", async () => {

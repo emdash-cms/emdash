@@ -1,4 +1,4 @@
-import type { PackageRelease } from "@emdash-cms/registry-lexicons";
+import type { DelegatedReleaseSourceRecord } from "./source-record.js";
 
 export type ReleaseIntentState =
 	| "received"
@@ -82,7 +82,7 @@ export interface SubmitReleaseIntentInput {
 	publisherDid: string;
 	packageSlug: string;
 	version: string;
-	release: PackageRelease.Main;
+	release: DelegatedReleaseSourceRecord;
 }
 
 export interface SubmitReleaseIntentResult {
