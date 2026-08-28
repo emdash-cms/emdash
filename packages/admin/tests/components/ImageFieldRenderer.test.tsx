@@ -281,6 +281,26 @@ describe("ImageFieldRenderer", () => {
 		expect(onChange).toHaveBeenCalledWith(selectedImage);
 	});
 
+	it("gives the dark mode variant its own focal point", async () => {
+		const withDark: ImageFieldValue = {
+			...selectedImage,
+			darkVariant: {
+				id: "dark-image",
+				provider: "local",
+				focalX: 0.1,
+				focalY: 0.2,
+				meta: { storageKey: "dark-image.jpg" },
+			},
+		};
+		const screen = await render(
+			<ImageFieldRenderer label="Image" value={withDark} onChange={vi.fn()} darkVariant />,
+		);
+
+		const images = screen.container.querySelectorAll("img");
+		expect(images[0]?.style.objectPosition).toBe("25% 75%");
+		expect(images[1]?.style.objectPosition).toBe("10% 20%");
+	});
+
 	it("keeps the dark mode variant when the primary image is replaced", async () => {
 		const onChange = vi.fn();
 		const darkVariant: ImageFieldValue = { id: "dark-image", provider: "local" };
