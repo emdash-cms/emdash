@@ -39,7 +39,7 @@ const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
 const BASE64_PADDING_PATTERN = /=+$/;
 const MAX_STATE_LIFETIME_MS = 11 * 60_000;
 const REFRESH_LEASE_MS = 60_000;
-const REFRESH_LOCK_TIMEOUT_MS = 30_000;
+const REFRESH_LOCK_TIMEOUT_MS = REFRESH_LEASE_MS + 5_000;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -455,7 +455,6 @@ class PublisherOAuthSessionStore implements Store<Did, StoredSession> {
 	readonly #options: PublisherOAuthFlowOptions;
 	readonly #identitySessions: Store<Did, StoredSession> = new MemoryStore<Did, StoredSession>();
 	#activeLease: ActiveRefreshLease | null = null;
-	#preserveNextDelete = false;
 
 	constructor(
 		stub: DurableObjectStub<PublisherDurableObject>,
@@ -485,11 +484,8 @@ class PublisherOAuthSessionStore implements Store<Did, StoredSession> {
 			return undefined;
 		}
 		try {
-			const session = await this.#decryptSession(stored, did);
-			this.#preserveNextDelete = false;
-			return session;
+			return await this.#decryptSession(stored, did);
 		} catch (error) {
-			this.#preserveNextDelete = true;
 			await this.#requireReauthorization(did, stored, error);
 			throw error;
 		}
@@ -541,10 +537,6 @@ class PublisherOAuthSessionStore implements Store<Did, StoredSession> {
 		this.#assertDid(did);
 		if (this.#options.purpose === "publisher_identity") {
 			await this.#identitySessions.delete(did);
-			return;
-		}
-		if (this.#preserveNextDelete) {
-			this.#preserveNextDelete = false;
 			return;
 		}
 		for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -834,9 +826,6 @@ export class PublisherOAuthClient {
 	}
 
 	revoke(): Promise<void> {
-		if (this.#flow.purpose !== "release_delegation") {
-			return Promise.reject(new OAuthCustodyError("OAUTH_DELEGATION_UNAVAILABLE"));
-		}
 		return this.#client.revoke(this.#flow.expectedDid);
 	}
 }

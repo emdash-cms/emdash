@@ -52,6 +52,7 @@ function oauthNetwork() {
 				issuer: "https://authorization.example",
 				authorization_endpoint: "https://authorization.example/authorize",
 				token_endpoint: "https://authorization.example/token",
+				revocation_endpoint: "https://authorization.example/revoke",
 				pushed_authorization_request_endpoint: "https://authorization.example/par",
 				client_id_metadata_document_supported: true,
 				dpop_signing_alg_values_supported: ["ES256"],
@@ -84,6 +85,10 @@ function oauthNetwork() {
 				scope: issuedScope,
 				expires_in: 3600,
 			});
+		}
+		if (url.hostname === "authorization.example" && url.pathname === "/revoke") {
+			requests.push({ path: url.pathname, body: new URLSearchParams() });
+			return new Response(null, { status: 200 });
 		}
 		throw new Error(`Unexpected request: ${url.toString()}`);
 	};
@@ -144,6 +149,7 @@ describe("publisher OAuth routes", () => {
 		expect(setCookie).toContain("__Host-emdash_publisher_session=");
 		expect(setCookie).toContain("__Host-emdash_publisher_csrf=");
 		expect(setCookie).toContain("__Host-emdash_oauth_route=");
+		expect(network.requests.some((request) => request.path === "/revoke")).toBe(true);
 		await expect(env.PUBLISHER_DO.getByName(DID).getDelegation(DID)).resolves.toBeNull();
 	});
 
@@ -274,7 +280,9 @@ describe("publisher OAuth routes", () => {
 		expect(errorLog).toHaveBeenCalledWith(
 			expect.stringContaining('"event":"oauth_callback_error"'),
 		);
-		expect(JSON.stringify(errorLog.mock.calls)).not.toContain("PUBLISHER_SESSION_INVALID");
+		expect(errorLog).toHaveBeenCalledWith(
+			expect.stringContaining('"code":"PUBLISHER_SESSION_INVALID"'),
+		);
 		errorLog.mockRestore();
 	});
 });

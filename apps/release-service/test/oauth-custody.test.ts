@@ -260,7 +260,7 @@ describe("Durable Object OAuth custody", () => {
 		});
 	});
 
-	it("requires reauthorization without deleting ciphertext when its assertion key is retired", async () => {
+	it("allows explicit revocation after a failed restore marks reauthorization required", async () => {
 		const configuration = await loadConfiguration(TEST_BINDINGS);
 		const flow = {
 			purpose: "release_delegation",
@@ -294,11 +294,12 @@ describe("Durable Object OAuth custody", () => {
 		});
 		await afterRetirement.stores.sessions.delete(DID);
 		const afterRetirementDelegation = await env.PUBLISHER_DO.getByName(DID).getDelegation(DID);
+		expect(beforeRetirement?.encryptedSession).not.toBe("");
 		expect(afterRetirementDelegation).toMatchObject({
-			status: "reauthorization_required",
-			stateVersion: 2,
+			status: "revoked",
+			stateVersion: 3,
+			encryptedSession: "",
 		});
-		expect(afterRetirementDelegation?.encryptedSession).toBe(beforeRetirement?.encryptedSession);
 	});
 
 	it("builds a confidential client around the Durable Object stores", async () => {

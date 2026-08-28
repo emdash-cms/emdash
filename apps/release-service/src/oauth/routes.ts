@@ -20,6 +20,8 @@ import {
 
 const MAX_JSON_BODY_BYTES = 4096;
 const OAUTH_NETWORK_TIMEOUT_MS = 30_000;
+const ERROR_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
+const ERROR_CODE_PATTERN = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -39,12 +41,22 @@ function oauthError(
 	return new Response(response.body, { status: response.status, headers });
 }
 
-function logOAuthError(event: string, requestId: string, _error: unknown): void {
+function logOAuthError(event: string, requestId: string, error: unknown): void {
+	const name =
+		error instanceof Error && ERROR_NAME_PATTERN.test(error.name) ? error.name : "UnknownError";
+	const candidateCode =
+		isRecord(error) && typeof error["code"] === "string"
+			? error["code"]
+			: isRecord(error) && typeof error["error"] === "string"
+				? error["error"]
+				: undefined;
+	const errorCode =
+		candidateCode && ERROR_CODE_PATTERN.test(candidateCode) ? candidateCode : undefined;
 	console.error(
 		JSON.stringify({
 			event,
 			requestId,
-			error: { name: "OAuthCallbackError" },
+			error: { name, ...(errorCode ? { code: errorCode } : {}) },
 		}),
 	);
 }
@@ -287,6 +299,7 @@ export async function handleOAuthCallback(
 		});
 		headers.append("set-cookie", clearOAuthRouteCookie());
 		if (route.purpose === "publisher_identity") {
+			await client.revoke();
 			const created = await createPublisherApplicationSession(env.PUBLISHER_DO, route.expectedDid);
 			for (const cookie of created.setCookieHeaders) headers.append("set-cookie", cookie);
 		}
