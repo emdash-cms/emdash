@@ -161,7 +161,7 @@ export interface RegistryRecordVerificationSummary {
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-function registryArtifactError(
+export function registryArtifactError(
 	code: RegistryArtifactVerificationCode,
 	message: string,
 	operation: "install" | "update",
@@ -178,6 +178,14 @@ function registryArtifactError(
 		case "INVALID_MULTIHASH":
 		case "UNSUPPORTED_MULTIHASH":
 			apiCode = "CHECKSUM_MISMATCH";
+			break;
+		case "FETCH_FAILED":
+		case "HOST_REJECTED":
+		case "REDIRECT_LIMIT_EXCEEDED":
+		case "REDIRECT_LOCATION_MISSING":
+		case "RESOURCE_STATUS_ERROR":
+		case "RESOURCE_TIMEOUT":
+			apiCode = operation === "install" ? "INSTALL_FAILED" : "UPDATE_FAILED";
 			break;
 		default:
 			apiCode = "INVALID_BUNDLE";
