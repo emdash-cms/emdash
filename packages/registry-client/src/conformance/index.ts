@@ -22,6 +22,11 @@ import type { Did } from "../credentials/types.js";
 const RUN_ID_PATTERN = /^[a-z0-9]{6,32}$/;
 const CONFORMANCE_PACKAGE = "emdash_g0_conformance";
 const UNRELATED_COLLECTION = "com.emdashcms.experimental.conformance.probe";
+const SCOPE_DENIAL_ERRORS = new Set([
+	"AuthScopeMismatch",
+	"InsufficientScope",
+	"ScopeMissingError",
+]);
 
 export type PdsProbeExpectation = "allow" | "deny";
 export type PdsProbeOutcome = "allowed" | "denied" | "error";
@@ -69,7 +74,7 @@ interface ProbeValue {
 }
 
 function expectedDenial(error: ClientResponseError): boolean {
-	return error.status >= 400 && error.status < 500;
+	return error.status === 403 && SCOPE_DENIAL_ERRORS.has(error.error);
 }
 
 async function probe(

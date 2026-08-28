@@ -8,6 +8,7 @@ const RELEASE_COLLECTION = "com.emdashcms.experimental.package.release";
 
 interface ScopeHandlerOptions {
 	allowProfileCreate?: boolean;
+	updateError?: string;
 	updateStatus?: number;
 }
 
@@ -47,7 +48,10 @@ class ScopeHandler implements FetchHandlerObject {
 				return stored ? Response.json(stored) : errorResponse(400, "RecordNotFound");
 			}
 			case "/xrpc/com.atproto.repo.putRecord":
-				return errorResponse(this.#options.updateStatus ?? 403, "AuthScopeMismatch");
+				return errorResponse(
+					this.#options.updateStatus ?? 403,
+					this.#options.updateError ?? "AuthScopeMismatch",
+				);
 			case "/xrpc/com.atproto.repo.deleteRecord":
 				return errorResponse(403, "AuthScopeMismatch");
 			default:
@@ -120,6 +124,27 @@ describe("PDS delegated-release scope conformance", () => {
 			outcome: "error",
 			passed: false,
 			status: 503,
+		});
+	});
+
+	it.each([
+		[401, "ExpiredToken"],
+		[429, "RateLimitExceeded"],
+	])("does not count HTTP %i %s as an expected denial", async (status, error) => {
+		const report = await runPdsScopeConformance({
+			handler: new ScopeHandler({ updateStatus: status, updateError: error }),
+			did: DID,
+			pds: "https://pds.test",
+			provider: "test",
+			runId: "jkl012",
+		});
+
+		expect(report.passed).toBe(false);
+		expect(report.probes.find((probe) => probe.id === "release-update")).toMatchObject({
+			outcome: "error",
+			passed: false,
+			status,
+			error,
 		});
 	});
 
