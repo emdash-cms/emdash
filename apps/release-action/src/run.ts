@@ -73,16 +73,10 @@ async function defaultReadReleaseRecord(path: string, workspace: string): Promis
 
 function defaultIdempotencyKey(runtime: ActionRuntime): string {
 	const runId = runtime.getEnvironment("GITHUB_RUN_ID");
-	const runAttempt = runtime.getEnvironment("GITHUB_RUN_ATTEMPT");
-	if (
-		!runId ||
-		!runAttempt ||
-		!POSITIVE_INTEGER_PATTERN.test(runId) ||
-		!POSITIVE_INTEGER_PATTERN.test(runAttempt)
-	) {
+	if (!runId || !POSITIVE_INTEGER_PATTERN.test(runId)) {
 		throw new ActionConfigurationError("GitHub run identity is unavailable");
 	}
-	return `github-run-${runId}-attempt-${runAttempt}`;
+	return `github-run-${runId}`;
 }
 
 async function setIntentOutputs(

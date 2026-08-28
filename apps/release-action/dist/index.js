@@ -1559,9 +1559,8 @@ async function defaultReadReleaseRecord(path, workspace) {
 }
 function defaultIdempotencyKey(runtime) {
 	const runId = runtime.getEnvironment("GITHUB_RUN_ID");
-	const runAttempt = runtime.getEnvironment("GITHUB_RUN_ATTEMPT");
-	if (!runId || !runAttempt || !POSITIVE_INTEGER_PATTERN.test(runId) || !POSITIVE_INTEGER_PATTERN.test(runAttempt)) throw new ActionConfigurationError("GitHub run identity is unavailable");
-	return `github-run-${runId}-attempt-${runAttempt}`;
+	if (!runId || !POSITIVE_INTEGER_PATTERN.test(runId)) throw new ActionConfigurationError("GitHub run identity is unavailable");
+	return `github-run-${runId}`;
 }
 async function setIntentOutputs(runtime, intent) {
 	await runtime.setOutput("intent-id", intent.id);

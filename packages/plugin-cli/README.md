@@ -100,7 +100,7 @@ emdash-plugin release submit release.json \
   --publisher-did did:web:publisher.example.com
 ```
 
-Set `EMDASH_RELEASE_SERVICE_URL` and `EMDASH_PUBLISHER_DID` to omit the two target flags. The default idempotency key uses the GitHub run ID and attempt. Pass `--idempotency-key` when separate jobs must replay the same submission.
+Set `EMDASH_RELEASE_SERVICE_URL` and `EMDASH_PUBLISHER_DID` to omit the two target flags. The default idempotency key uses the GitHub run ID, so a re-run reuses the existing intent. Pass `--idempotency-key` when separate runs or jobs must replay the same submission.
 
 Use `--no-wait` to return after the service accepts the intent. The status and cancellation commands require the same publisher and GitHub workload identity:
 

@@ -56,14 +56,8 @@ async function defaultReadReleaseRecord(path: string): Promise<unknown> {
 
 function defaultIdempotencyKey(environment: ReleaseServiceEnvironment): string {
 	const runId = environment["GITHUB_RUN_ID"];
-	const runAttempt = environment["GITHUB_RUN_ATTEMPT"];
-	if (
-		runId &&
-		runAttempt &&
-		POSITIVE_INTEGER_PATTERN.test(runId) &&
-		POSITIVE_INTEGER_PATTERN.test(runAttempt)
-	) {
-		return `github-run-${runId}-attempt-${runAttempt}`;
+	if (runId && POSITIVE_INTEGER_PATTERN.test(runId)) {
+		return `github-run-${runId}`;
 	}
 	return createReleaseIdempotencyKey("emdash-plugin-release");
 }

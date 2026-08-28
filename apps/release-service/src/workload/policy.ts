@@ -103,6 +103,5 @@ export function digestWorkloadIdempotencyIdentity(
 		identity.repository.ownerId,
 		identity.workflow.ref,
 		identity.run.id,
-		identity.run.attempt,
 	]);
 }

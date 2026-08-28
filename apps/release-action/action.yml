@@ -12,7 +12,7 @@ inputs:
     description: Path to the package release record JSON file.
     required: true
   idempotency-key:
-    description: Stable key for replaying this submission. Defaults to the GitHub run and attempt.
+    description: Stable key for replaying this submission. Defaults to the GitHub run.
     required: false
   poll-interval-seconds:
     description: Seconds between status requests.

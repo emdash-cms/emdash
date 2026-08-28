@@ -40,17 +40,17 @@ The release record must conform to `com.emdashcms.experimental.package.release`.
 
 ## Inputs
 
-| Input                   | Required | Default                    | Purpose                                                                                        |
-| ----------------------- | -------- | -------------------------- | ---------------------------------------------------------------------------------------------- |
-| `service-url`           | Yes      | —                          | HTTPS origin of the delegated release service.                                                 |
-| `publisher-did`         | Yes      | —                          | DID that owns the package profile and release records.                                         |
-| `release-file`          | Yes      | —                          | JSON file containing the package release record. The path must stay inside `GITHUB_WORKSPACE`. |
-| `idempotency-key`       | No       | Current run ID and attempt | Stable key used to replay the same submission.                                                 |
-| `poll-interval-seconds` | No       | `5`                        | Delay between intent status requests.                                                          |
-| `timeout-minutes`       | No       | `30`                       | Maximum polling time.                                                                          |
-| `wait-for-approval`     | No       | `false`                    | Continue polling when the intent reaches `awaiting_approval`.                                  |
+| Input                   | Required | Default        | Purpose                                                                                        |
+| ----------------------- | -------- | -------------- | ---------------------------------------------------------------------------------------------- |
+| `service-url`           | Yes      | —              | HTTPS origin of the delegated release service.                                                 |
+| `publisher-did`         | Yes      | —              | DID that owns the package profile and release records.                                         |
+| `release-file`          | Yes      | —              | JSON file containing the package release record. The path must stay inside `GITHUB_WORKSPACE`. |
+| `idempotency-key`       | No       | Current run ID | Stable key used to replay the same submission.                                                 |
+| `poll-interval-seconds` | No       | `5`            | Delay between intent status requests.                                                          |
+| `timeout-minutes`       | No       | `30`           | Maximum polling time.                                                                          |
+| `wait-for-approval`     | No       | `false`        | Continue polling when the intent reaches `awaiting_approval`.                                  |
 
-The default idempotency key is stable for one GitHub run attempt. Set `idempotency-key` when separate jobs must replay the same submission identity.
+The default idempotency key is stable across attempts of one GitHub run. Set `idempotency-key` when separate runs or jobs must replay the same submission identity.
 
 ## Outputs
 

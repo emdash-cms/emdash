@@ -158,7 +158,7 @@ describe("release intent API", () => {
 			now: NOW + 1,
 		});
 
-		const secondToken = await token();
+		const secondToken = await token({ run_attempt: "2" });
 		const replay = await handleSubmitReleaseIntent(
 			request("/v1/release-intents", secondToken, {
 				method: "POST",
@@ -244,7 +244,7 @@ describe("release intent API", () => {
 		const status = await handleGetReleaseIntent(
 			request(
 				`/v1/release-intents/${INTENT_ID}?publisher=${encodeURIComponent(PUBLISHER_DID)}`,
-				await token(),
+				await token({ run_attempt: "2" }),
 			),
 			"request-2",
 			configuration,
@@ -269,7 +269,7 @@ describe("release intent API", () => {
 		const cancelled = await handleCancelReleaseIntent(
 			request(
 				`/v1/release-intents/${INTENT_ID}/cancel?publisher=${encodeURIComponent(PUBLISHER_DID)}`,
-				await token(),
+				await token({ run_attempt: "2" }),
 				{ method: "POST", body: {}, idempotencyKey: "cancel-run-100-attempt-1" },
 			),
 			"request-4",

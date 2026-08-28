@@ -147,6 +147,14 @@ describe("workload policy evaluation", () => {
 				"gallery",
 				"1.2.3",
 			),
+		).toBe(idempotencyDigest);
+		expect(
+			await digestWorkloadIdempotencyIdentity(
+				{ ...identity, run: { ...identity.run, id: "101" } },
+				"did:plc:publisher",
+				"gallery",
+				"1.2.3",
+			),
 		).not.toBe(idempotencyDigest);
 	});
 });

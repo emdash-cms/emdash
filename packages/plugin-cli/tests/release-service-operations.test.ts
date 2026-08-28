@@ -84,9 +84,7 @@ describe("delegated release CLI operations", () => {
 
 		expect(result.state).toBe("received");
 		expect(serviceRequests).toHaveLength(1);
-		expect(serviceRequests[0]?.headers.get("idempotency-key")).toBe(
-			"github-run-10000000001-attempt-2",
-		);
+		expect(serviceRequests[0]?.headers.get("idempotency-key")).toBe("github-run-10000000001");
 		expect(serviceRequests[0]?.headers.get("authorization")).toBe(
 			"Bearer header.payload.signature",
 		);

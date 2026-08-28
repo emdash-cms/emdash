@@ -96,7 +96,7 @@ const dependencies = {
 describe("delegated release Action", () => {
 	it("requests a fresh OIDC token, publishes, and emits stable outputs", async () => {
 		const runtime = new FakeRuntime();
-		const fetch = sequenceFetch([
+		const responses = sequenceFetch([
 			success({ intent: intent("received"), replayed: false }, 202),
 			success({
 				intent: intent("published", {
@@ -104,6 +104,11 @@ describe("delegated release Action", () => {
 				}),
 			}),
 		]);
+		const requests: RequestInit[] = [];
+		const fetch: typeof globalThis.fetch = async (input, init) => {
+			requests.push(init ?? {});
+			return responses(input, init);
+		};
 		const result = await runAction(runtime, { ...dependencies, fetch });
 
 		expect(result.state).toBe("published");
@@ -120,6 +125,7 @@ describe("delegated release Action", () => {
 			]),
 		);
 		expect(runtime.messages.at(-1)).toContain(CREATED_URI);
+		expect(new Headers(requests[0]?.headers).get("idempotency-key")).toBe("github-run-10000000001");
 	});
 
 	it("returns the approval URL without failing the job", async () => {
