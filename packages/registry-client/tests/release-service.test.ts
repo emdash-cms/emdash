@@ -177,6 +177,25 @@ describe("ReleaseServiceClient", () => {
 		expect(updates).toEqual(["verifying", "awaiting_approval"]);
 	});
 
+	it("parses expired intents whose state was updated after the deadline", async () => {
+		const expired = {
+			...intent("expired"),
+			reasonCode: "APPROVAL_EXPIRED",
+			updatedAt: 1_800_000_001_000,
+		};
+		const client = new ReleaseServiceClient({
+			serviceUrl: SERVICE,
+			fetch: async () => success({ intent: expired }),
+			workloadToken: "header.payload.signature",
+		});
+
+		await expect(client.getIntent(PUBLISHER_DID, INTENT_ID)).resolves.toMatchObject({
+			state: "expired",
+			reasonCode: "APPROVAL_EXPIRED",
+			updatedAt: expired.updatedAt,
+		});
+	});
+
 	it("rejects malformed success envelopes at the client trust boundary", async () => {
 		const client = new ReleaseServiceClient({
 			serviceUrl: SERVICE,

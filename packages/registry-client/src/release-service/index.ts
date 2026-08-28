@@ -278,7 +278,6 @@ function parseIntent(value: unknown, serviceUrl?: string): ReleaseIntentResource
 		approvalUrl === undefined ||
 		(workflowId !== null && !ULID_PATTERN.test(workflowId)) ||
 		createdAt > updatedAt ||
-		updatedAt > expiresAt ||
 		(result !== null &&
 			(result.uri !==
 				`at://${publisherDid}/com.emdashcms.experimental.package.release/${packageSlug}:${version}` ||
