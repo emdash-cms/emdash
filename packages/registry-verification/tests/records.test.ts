@@ -150,7 +150,7 @@ describe("verifyPackageReleaseRecords", () => {
 		});
 	});
 
-	it("rejects unknown authentication methods and returns their display hint", async () => {
+	it("rejects unknown authentication methods without trusting their display text", async () => {
 		const release = cloneRelease();
 		release.auth = {
 			$type: "com.example.package.auth",
@@ -161,9 +161,13 @@ describe("verifyPackageReleaseRecords", () => {
 		expect(await verify({ release })).toMatchObject({
 			success: false,
 			code: "AUTH_METHOD_UNSUPPORTED",
-			reasons: [{ code: "AUTH_METHOD_UNSUPPORTED" }],
+			reasons: [
+				{
+					code: "AUTH_METHOD_UNSUPPORTED",
+					message: "This release requires an authentication method the client does not support.",
+				},
+			],
 			details: {
-				hint: "Sign in to the publisher account",
 				hintUrl: "https://example.com/help",
 			},
 		});

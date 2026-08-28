@@ -1,5 +1,6 @@
 import { RECORD_SCOPED_BLOB_CACHE_TYPE } from "@emdash-cms/registry-lexicons";
 
+import { unsupportedAuthDetails, UNSUPPORTED_AUTH_MESSAGE } from "./auth.js";
 import { multihashFromBlobCid, verifyMultihash } from "./checksum.js";
 import { verificationError } from "./errors.js";
 import type { VerificationError, VerificationResult } from "./errors.js";
@@ -276,14 +277,8 @@ function didDocumentUrl(did: string): string | null {
 }
 
 function unsupportedAuth(auth: unknown): VerificationResult<never> {
-	const hint = isRecord(auth) && typeof auth.hint === "string" ? auth.hint : undefined;
-	const hintUrl = isRecord(auth) && typeof auth.hint_url === "string" ? auth.hint_url : undefined;
-	const details = hint === undefined && hintUrl === undefined ? undefined : { hint, hintUrl };
-	return verificationError(
-		"AUTH_METHOD_UNSUPPORTED",
-		hint ?? "This release requires an authentication method the client does not support.",
-		details,
-	);
+	const details = unsupportedAuthDetails(auth);
+	return verificationError("AUTH_METHOD_UNSUPPORTED", UNSUPPORTED_AUTH_MESSAGE, details);
 }
 
 function withinDeadline(

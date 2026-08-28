@@ -12,6 +12,7 @@ import {
 	PackageReleaseExtension,
 } from "@emdash-cms/registry-lexicons";
 
+import { unsupportedAuthDetails, UNSUPPORTED_AUTH_MESSAGE } from "./auth.js";
 import { compareDigestBytes, decodeMultihash, multihashFromBlobCid } from "./checksum.js";
 import type { VerificationErrorCode } from "./errors.js";
 import { GitHubProvenanceVerifier } from "./provenance.js";
@@ -383,13 +384,10 @@ function unsupportedAuth(release: PackageRelease.Main): {
 	].some((artifact) => artifact?.requiresAuth === true);
 	if (release.auth === undefined && !gated) return null;
 
-	const auth: unknown = release.auth;
-	const hint = isRecord(auth) && typeof auth.hint === "string" ? auth.hint : undefined;
-	const hintUrl = isRecord(auth) && typeof auth.hint_url === "string" ? auth.hint_url : undefined;
-	const details = hint === undefined && hintUrl === undefined ? undefined : { hint, hintUrl };
+	const details = unsupportedAuthDetails(release.auth);
 	return {
 		code: "AUTH_METHOD_UNSUPPORTED",
-		message: hint ?? "This release requires an authentication method the client does not support.",
+		message: UNSUPPORTED_AUTH_MESSAGE,
 		...(details === undefined ? {} : { details }),
 	};
 }

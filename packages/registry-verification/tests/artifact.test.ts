@@ -155,7 +155,7 @@ describe("fetchReleaseArtifact", () => {
 		});
 	});
 
-	it("returns the hint for an unsupported authentication method", async () => {
+	it("returns only a safe help URL for an unsupported authentication method", async () => {
 		const result = await fetchReleaseArtifact(
 			{
 				artifact: artifact({ requiresAuth: true }),
@@ -173,10 +173,32 @@ describe("fetchReleaseArtifact", () => {
 			success: false,
 			error: {
 				code: "AUTH_METHOD_UNSUPPORTED",
+				message: "This release requires an authentication method the client does not support.",
 				details: {
-					hint: "Sign in to the publisher account",
 					hintUrl: "https://example.com/help",
 				},
+			},
+		});
+	});
+
+	it("drops unsafe authentication help URLs", async () => {
+		const result = await fetchReleaseArtifact(
+			{
+				artifact: artifact({ requiresAuth: true }),
+				record,
+				auth: {
+					hint: "<script>alert(1)</script>",
+					hint_url: "javascript:alert(1)",
+				},
+			},
+			{ fetch: vi.fn(), resolveHostname },
+		);
+
+		expect(result).toEqual({
+			success: false,
+			error: {
+				code: "AUTH_METHOD_UNSUPPORTED",
+				message: "This release requires an authentication method the client does not support.",
 			},
 		});
 	});
