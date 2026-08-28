@@ -1,6 +1,6 @@
 # Delegated release service G0 PDS conformance
 
-Status: Prior record-only public-client lifecycle passed; blob-enabled scope reruns and confidential-client deployment runs pending
+Status: Blob-enabled harness implemented; real blob-enabled public-client reruns and confidential-client deployment runs pending
 
 Companion design: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870)
 
@@ -31,7 +31,7 @@ Dedicated test accounts are available for:
 
 Keep account handles, recovery material, OAuth state, DPoP keys, access tokens, refresh tokens, and client assertion private keys outside the repository. The evidence report contains the account DID, PDS URL, requested and returned scopes, token expiry metadata, probe results, and public release URI/CID. These values do not grant account access.
 
-Use only dedicated conformance accounts. A successful create-only test intentionally leaves a release record behind because deleting it must be denied.
+Use only dedicated conformance accounts. A successful run leaves its blob-referencing release record behind because the exact grant denies record deletion. The PDS owns blob garbage collection; the AT Protocol API does not expose a blob-delete operation. If an over-broad grant unexpectedly creates a profile or unrelated record, the harness attempts to delete only that run's record and reports whether cleanup succeeded.
 
 ## Harness surfaces
 
@@ -40,7 +40,7 @@ The internal `@emdash-cms/registry-client/internal/conformance` surface exports 
 - the loopback public-client preflight in `emdash-plugin pds-conformance`; and
 - the release service's confidential-client conformance route when that client is deployed.
 
-The probe runner records a 4xx response as an expected denial. A network error or 5xx response is an inconclusive error and fails the run. A successful forbidden operation fails the run.
+The caller supplies the exact scope-denial response expected for its provider. The npmX-hosted Bluesky PDS uses HTTP 403 `ScopeMissingError`; Cirrus uses HTTP 403 `InsufficientScope`. A denial passes only when both the status and error match. Another 4xx response, a network error, or a 5xx response is an inconclusive error and fails the run. A successful forbidden operation also fails the run.
 
 The CLI never retries the exact scope with `transition:generic`.
 
@@ -86,7 +86,7 @@ node packages/plugin-cli/dist/index.mjs pds-conformance \
 	--output <private-evidence-dir>/cirrus-authorize.json
 ```
 
-Review the generated report. `probes.passed` must be `true`, and the returned stored scope must equal the requested exact scope. Record the emitted DID for later phases.
+Review the generated report. `probes.passed` must be `true`, `probes.blobs` must contain the returned gzip and PNG blob metadata, and the returned stored scope must equal the requested exact scope. Record the emitted DID for later phases.
 
 The authorization phase proves granular scope enforcement through an AT Protocol loopback public client. It does not prove confidential-client assertion, refresh, or client-key behavior.
 
@@ -102,7 +102,7 @@ The public-client authorization run completed on 2026-08-24:
 - Update, delete, profile-create, and unrelated-create probes: HTTP 403 `ScopeMissingError`
 - Redacted evidence SHA-256: `d4be775c634969f8eb465f1c0c37a0788a388368314fc515a64774cfeec12590`
 
-This result passes the public-client exact-scope column. Refresh, explicit revocation, confidential-client scope, and assertion-key removal remain pending.
+This historical result proves the record-create boundary for the earlier record-only scope. It does not pass the blob-enabled public-client scope column. The blob probes, refresh, and revocation must run again with the active scope.
 
 ### Cirrus result
 
@@ -116,7 +116,7 @@ The public-client authorization run completed on 2026-08-24:
 - Update, delete, profile-create, and unrelated-create probes: HTTP 403 `InsufficientScope`
 - Redacted evidence SHA-256: `1abf5e389223879a41c7e260077b33ad457160acaed0ac328a158b1d8e6ec102`
 
-This result passes the public-client exact-scope column. Refresh, explicit revocation, confidential-client scope, and assertion-key removal remain pending.
+This historical result proves the record-create boundary for the earlier record-only scope. It does not pass the blob-enabled public-client scope column. The blob probes, refresh, and revocation must run again with the active scope.
 
 ## Phase 2: refresh observation
 
@@ -180,27 +180,40 @@ Each CLI report contains:
 
 The PDS report contains one row for each probe:
 
-| Probe              | Expected result            |
-| ------------------ | -------------------------- |
-| `release-create`   | Allowed                    |
-| `release-readback` | Allowed                    |
-| `release-update`   | Denied with a 4xx response |
-| `release-delete`   | Denied with a 4xx response |
-| `profile-create`   | Denied with a 4xx response |
-| `unrelated-create` | Denied with a 4xx response |
+| Probe                   | Expected result                                                                        |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| `package-blob-upload`   | Allowed; returned CID, `application/gzip` MIME type, and size match the uploaded bytes |
+| `image-blob-upload`     | Allowed; returned CID, `image/png` MIME type, and size match the uploaded bytes        |
+| `unrelated-blob-upload` | Denied with the exact HTTP 403 error in `scopeDenial`                                  |
+| `release-create`        | Allowed; record references the returned package and image blobs                        |
+| `release-readback`      | Allowed; public record contains the same blob CIDs, MIME types, and sizes              |
+| `release-apply-update`  | Batched update denied with the exact HTTP 403 error in `scopeDenial`                   |
+| `release-apply-delete`  | Batched delete denied with the exact HTTP 403 error in `scopeDenial`                   |
+| `release-update`        | Denied with the exact HTTP 403 error in `scopeDenial`                                  |
+| `release-delete`        | Denied with the exact HTTP 403 error in `scopeDenial`                                  |
+| `profile-create`        | Denied with the exact HTTP 403 error in `scopeDenial`                                  |
+| `unrelated-create`      | Denied with the exact HTTP 403 error in `scopeDenial`                                  |
+
+The PDS report also includes:
+
+- `scopeDenial`, the provider-specific HTTP status and error required for every denied probe;
+- `blobs.package` and `blobs.image`, containing the returned CID, MIME type, and byte size; and
+- `cleanup`, containing deletion outcomes only for forbidden profile or unrelated records that this harness run created.
+
+If an allowed blob upload succeeds but release creation fails, the report retains the blob metadata. No cleanup call is available for that unreferenced blob; its PDS controls eventual garbage collection.
 
 Do not commit raw evidence until it has been inspected for unexpected provider data. A reviewed summary matrix belongs in the RFC or implementation plan; sensitive OAuth state never does.
 
 ## Result matrix
 
-| Provider            | Public-client scope | Public-client refresh | Public-client revocation                         | Confidential scope         | Confidential refresh | Revocation/key removal | Status                  |
-| ------------------- | ------------------- | --------------------- | ------------------------------------------------ | -------------------------- | -------------------- | ---------------------- | ----------------------- |
-| Bluesky PDS at npmX | Pass (2026-08-25)   | Pass (2026-08-25)     | Pass; access token rejected immediately          | Pending service deployment | Pending              | Pending                | Public lifecycle passed |
-| Cirrus              | Pass (2026-08-25)   | Pass (2026-08-25)     | Pass; issued access token remained valid briefly | Pending service deployment | Pending              | Pending                | Public lifecycle passed |
+| Provider            | Public-client scope        | Public-client refresh  | Public-client revocation                             | Confidential scope         | Confidential refresh | Revocation/key removal | Status             |
+| ------------------- | -------------------------- | ---------------------- | ---------------------------------------------------- | -------------------------- | -------------------- | ---------------------- | ------------------ |
+| Bluesky PDS at npmX | Pending blob-enabled rerun | Prior record-only pass | Prior record-only pass; token rejected immediately   | Pending service deployment | Pending              | Pending                | Blob rerun pending |
+| Cirrus              | Pending blob-enabled rerun | Prior record-only pass | Prior record-only pass; token remained valid briefly | Pending service deployment | Pending              | Pending                | Blob rerun pending |
 
 ### Retained public-client evidence
 
-The redacted reports are retained outside the repository. Their SHA-256 hashes are:
+The earlier record-only redacted reports are retained outside the repository. Their SHA-256 hashes are:
 
 | Provider | Phase     | SHA-256                                                            |
 | -------- | --------- | ------------------------------------------------------------------ |
