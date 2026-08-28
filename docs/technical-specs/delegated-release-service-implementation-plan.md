@@ -51,11 +51,11 @@ The new implementation does not retain:
 
 ### Current execution state
 
-The replacement implementation is complete in a seven-layer local `gh-stack`. It includes confidential OAuth custody, sharded publisher and approver authority, GitHub Actions admission, verification and publication Workflows, independent installer enforcement, passkey approval, Access operator controls, product UIs, encrypted archive/restore, encryption-key lifecycle, abuse limits, observability, self-hosting documentation, and browser conformance.
+The replacement implementation is under review in the seven-layer `gh-stack` for PRs #2743 to #2749, above metadata prerequisite PR #2765. It includes confidential OAuth custody, sharded publisher and approver authority, GitHub Actions admission, verification and publication Workflows, independent installer enforcement, passkey approval, Access operator controls, product UIs, encrypted archive/restore, encryption-key lifecycle, abuse limits, observability, self-hosting documentation, and browser conformance.
 
-No replacement pull request is opened until the complete local stack passes its formatting, typecheck, package, Worker, browser, generated-binding, and changeset gates. The seven branches form one merge unit and do not represent deployable intermediate service versions.
+Review fixes remain local until the complete stack passes its formatting, typecheck, package, Worker, browser, generated-binding, and changeset gates. The seven branches form one merge unit and do not represent deployable intermediate service versions.
 
-The public-client G0 lifecycle is complete on both providers: exact-scope authorization, forced refresh, and server revocation passed. npmX rejected its access token immediately after revocation. Cirrus retained the already-issued access token for its remaining lifetime while preventing future refresh. G0 still requires the deployed confidential-client run and client-key removal observation before either provider is advertised as supported by the hosted service.
+The earlier record-only public-client G0 lifecycle completed on both providers: exact-scope authorization, forced refresh, and server revocation passed. npmX rejected its access token immediately after revocation. Cirrus retained the already-issued access token for its remaining lifetime while preventing future refresh. The blob-enabled public-client run, deployed confidential-client run, and client-key removal observation remain required before either provider is advertised as supported by the hosted service.
 
 Closed PR #1908 remains donor history and is not a merge target. Its D1 custody and coordination model does not satisfy this plan. Draft PR #1909 is the independent metadata-labeling service and does not join the delegated-release service stack.
 
