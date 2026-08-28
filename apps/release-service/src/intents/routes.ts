@@ -332,7 +332,7 @@ export async function handleSubmitReleaseIntent(
 			1,
 			identity.repository.id,
 			identity.workflow.ref,
-			release.value.package,
+			release.package,
 		]);
 		const rateLimit = await publisher.consumeIntentRateLimit({
 			publisherDid,
