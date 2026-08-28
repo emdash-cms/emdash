@@ -11,6 +11,15 @@ import {
 	type TransitionIntentResult,
 } from "./intent-state.js";
 import {
+	initializePublicationMaterializationSchema,
+	PublicationMaterializationStore,
+	type CompletePublicationMaterializationInput,
+	type PublicationMaterializationMutationResult,
+	type PutPublicationArtifactStageInput,
+	type PutPublicationBlobReceiptInput,
+	type StoredPublicationMaterialization,
+} from "./publication-materialization.js";
+import {
 	initializePublicationOperationSchema,
 	PublicationOperationStore,
 	type BeginPublicationOperationResult,
@@ -39,6 +48,16 @@ export type {
 	TransitionIntentInput,
 	TransitionIntentResult,
 } from "./intent-state.js";
+export type {
+	CompletePublicationMaterializationInput,
+	PublicationArtifactSlot,
+	PublicationBlob,
+	PublicationMaterializationMutationResult,
+	PutPublicationArtifactStageInput,
+	PutPublicationBlobReceiptInput,
+	StoredPublicationArtifact,
+	StoredPublicationMaterialization,
+} from "./publication-materialization.js";
 export type {
 	BeginPublicationOperationResult,
 	CompletePublicationOperationInput,
@@ -304,6 +323,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 	readonly #objectName: string | undefined;
 	readonly #workloadPolicies: WorkloadPolicyStore;
 	readonly #intents: IntentStateStore;
+	readonly #publicationMaterializations: PublicationMaterializationStore;
 	readonly #publicationOperations: PublicationOperationStore;
 
 	constructor(ctx: DurableObjectState, env: Env) {
@@ -311,6 +331,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		this.#objectName = ctx.id.name;
 		this.#workloadPolicies = new WorkloadPolicyStore(ctx.storage);
 		this.#intents = new IntentStateStore(ctx.storage);
+		this.#publicationMaterializations = new PublicationMaterializationStore(ctx.storage);
 		this.#publicationOperations = new PublicationOperationStore(ctx.storage);
 		void ctx.blockConcurrencyWhile(() => {
 			this.#initializeSchema();
@@ -390,6 +411,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		`);
 		initializeWorkloadPolicySchema(this.ctx.storage);
 		initializeIntentStateSchema(this.ctx.storage);
+		initializePublicationMaterializationSchema(this.ctx.storage);
 		initializePublicationOperationSchema(this.ctx.storage);
 	}
 
@@ -512,6 +534,45 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		const result = await this.#publicationOperations.complete(input);
 		await this.#scheduleNextAlarm(input.now ?? Date.now());
 		return result;
+	}
+
+	beginPublicationMaterialization(
+		publisherDid: string,
+		intentId: string,
+		sourceDigest: string,
+		now?: number,
+	): PublicationMaterializationMutationResult {
+		this.#assertPublisherDid(publisherDid);
+		return this.#publicationMaterializations.begin(publisherDid, intentId, sourceDigest, now);
+	}
+
+	putPublicationArtifactStage(
+		input: PutPublicationArtifactStageInput,
+	): PublicationMaterializationMutationResult {
+		this.#assertPublisherDid(input.publisherDid);
+		return this.#publicationMaterializations.putStage(input);
+	}
+
+	putPublicationBlobReceipt(
+		input: PutPublicationBlobReceiptInput,
+	): PublicationMaterializationMutationResult {
+		this.#assertPublisherDid(input.publisherDid);
+		return this.#publicationMaterializations.putReceipt(input);
+	}
+
+	completePublicationMaterialization(
+		input: CompletePublicationMaterializationInput,
+	): Promise<PublicationMaterializationMutationResult> {
+		this.#assertPublisherDid(input.publisherDid);
+		return this.#publicationMaterializations.complete(input);
+	}
+
+	getPublicationMaterialization(
+		publisherDid: string,
+		intentId: string,
+	): StoredPublicationMaterialization | null {
+		this.#assertPublisherDid(publisherDid);
+		return this.#publicationMaterializations.get(intentId);
 	}
 
 	async createPublisherSession(
