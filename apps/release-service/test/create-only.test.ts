@@ -46,9 +46,7 @@ describe("create-only release client", () => {
 		};
 		const handle = vi.fn(async (_pathname: string, _init: RequestInit) => Response.json({ blob }));
 
-		await expect(
-			uploadReleaseBlob({ handle }, bytes, "application/gzip"),
-		).resolves.toEqual(blob);
+		await expect(uploadReleaseBlob({ handle }, bytes, "application/gzip")).resolves.toEqual(blob);
 		expect(handle).toHaveBeenCalledOnce();
 		expect(handle.mock.calls[0]?.[0]).toBe("/xrpc/com.atproto.repo.uploadBlob");
 		const init = handle.mock.calls[0]?.[1];

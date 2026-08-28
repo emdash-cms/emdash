@@ -1,5 +1,5 @@
-import { env } from "cloudflare:workers";
 import { computeMultihash } from "@emdash-cms/registry-verification";
+import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
 import {

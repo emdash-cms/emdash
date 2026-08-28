@@ -214,12 +214,7 @@ afterEach(async () => {
 
 describe("publisher publication materialization", () => {
 	it("replays exact mutations, rejects conflicts, and lists slots canonically", async () => {
-		const stub = await prepareReadyIntent([
-			"package",
-			"icon",
-			"screenshots[0]",
-			"screenshots[1]",
-		]);
+		const stub = await prepareReadyIntent(["package", "icon", "screenshots[0]", "screenshots[1]"]);
 		await expect(
 			stub.beginPublicationMaterialization(DID, INTENT_ID, SOURCE_DIGEST, NOW + 4),
 		).resolves.toEqual({ ok: true, replayed: false });

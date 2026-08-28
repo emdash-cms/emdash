@@ -712,8 +712,8 @@ export class PublicationMaterializationStore {
 			if (parent.status === "complete") {
 				return parent.record_json === input.recordJson &&
 					parent.record_digest === input.recordDigest
-						? ({ ok: true, replayed: true } as const)
-						: ({ ok: false, code: "MATERIALIZATION_CONFLICT" } as const);
+					? ({ ok: true, replayed: true } as const)
+					: ({ ok: false, code: "MATERIALIZATION_CONFLICT" } as const);
 			}
 			const validation = validateCompletedRecord(
 				intent,
