@@ -746,7 +746,7 @@ export async function handleRegistryInstall(
 		}
 
 		const artifactBytes = await fetchArtifact(
-			releaseView.artifactCaches,
+			releaseView.artifactCaches ?? [],
 			packageArtifact,
 			{
 				did: publisherDid,
@@ -1323,7 +1323,7 @@ export async function handleRegistryUpdate(
 		}
 
 		const artifactBytes = await fetchArtifact(
-			releaseView.artifactCaches,
+			releaseView.artifactCaches ?? [],
 			packageArtifact,
 			{
 				did: publisherDid,
