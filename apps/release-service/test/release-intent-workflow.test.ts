@@ -695,20 +695,7 @@ describe("ReleaseIntentWorkflow", () => {
 	});
 
 	it("resumes publication when the publishing transition committed without an operation", async () => {
-		const profile: Record<string, unknown> = {
-			...structuredClone(profileFixture),
-			extensions: {
-				...structuredClone(profileFixture.extensions),
-				[NSID.packageProfileExtension]: {
-					...structuredClone(profileFixture.extensions[NSID.packageProfileExtension]),
-					releasePolicy: {
-						confirmation: "always",
-						approvers: ["did:plc:approver"],
-					},
-				},
-			},
-		};
-		vi.stubGlobal("fetch", workflowNetwork({ profile }));
+		vi.stubGlobal("fetch", workflowNetwork({ profileProof: APPROVAL_PROFILE_PROOF }));
 		await createVerifyingIntent();
 		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
 		const originalIntent = await publisher.getIntent(PUBLISHER_DID, INTENT_ID);
