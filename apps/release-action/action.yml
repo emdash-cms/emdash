@@ -9,7 +9,7 @@ inputs:
     description: Publisher DID that owns the package.
     required: true
   release-file:
-    description: Path to the package release record JSON file.
+    description: Path to a URL-source package release JSON file. The service publishes PDS blobs.
     required: true
   idempotency-key:
     description: Stable key for replaying this submission. Defaults to the GitHub run.

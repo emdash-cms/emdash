@@ -7,6 +7,7 @@ This runbook covers self-host deployment, routine maintenance, and incident reco
 - Publisher and approver Durable Objects are authoritative for retained authority and decisions.
 - The identity directory is a non-authoritative projection split across 256 Durable Objects. Deleting it does not change authority, release state, or approval state.
 - The initial deployment does not use D1. The operator console performs direct DID lookup and uses the sharded identity directory for fleet maintenance.
+- `PUBLICATION_STAGING` is private transient storage. Published release records reference only publisher-PDS blobs; they never reference staging objects or artifact source URLs.
 - R2 snapshot pages are encrypted before storage. Audit export objects contain only the sanitized `audit_events.public_payload` contract.
 - Restore requires a suspended publisher and a complete, decryptable archive manifest.
 - Restore clears retained OAuth authority, disables workload policies, and converts nonterminal intents to `failed`. A publisher must reauthorize before publication resumes.
@@ -25,6 +26,7 @@ The release-service Worker expects the following resources.
 | `RELEASE_INTENT_WORKFLOW`    | Workflow                         | Verification, approval wait, publication, and reconciliation                                  |
 | `PUBLISHER_ARCHIVE_WORKFLOW` | Workflow                         | Bounded, retryable publisher snapshot and audit export                                        |
 | `RELEASE_VERIFIER`           | Service binding                  | Isolated artifact and provenance verification                                                 |
+| `PUBLICATION_STAGING`        | Private R2 bucket                | Transient checksum-verified package and image bytes awaiting PDS blob upload                  |
 | `OPERATIONS_ARCHIVE`         | R2 bucket                        | Encrypted publisher snapshot pages and append-only sanitized audit pages                      |
 | `OPERATIONS_METRICS`         | Analytics Engine dataset         | Privacy-safe operational alert events                                                         |
 | `ASSETS`                     | Worker static assets             | Publisher, approver, and Access operator web surfaces                                         |
@@ -73,11 +75,24 @@ The base configuration uses Worker secret bindings. `loadConfiguration()` also a
 
 ### R2 and verifier
 
-Create the private operations bucket before deploying the service.
+Create separate private buckets for transient publication staging and encrypted operations archives before deploying the service.
 
 ```sh
+pnpm exec wrangler r2 bucket create emdash-release-service-publication-staging
 pnpm exec wrangler r2 bucket create emdash-release-service-operations
 ```
+
+Add a seven-day expiry rule for the deterministic `publication/` staging prefix:
+
+```sh
+pnpm exec wrangler r2 bucket lifecycle add \
+  emdash-release-service-publication-staging \
+  expire-publication-staging \
+  publication/ \
+  --expire-days 7
+```
+
+The Workflow deletes staging objects after it commits every PDS blob receipt and the canonical blob-only release record in the publisher Durable Object. The lifecycle rule is a recovery bound for objects left by an interrupted Workflow; it does not replace normal cleanup. Keep both buckets private and do not attach a public custom domain.
 
 Deploy the release verifier under the service name `emdash-release-verifier` before the release-service Worker. The release-service Worker calls it through the `RELEASE_VERIFIER` service binding rather than public HTTP.
 
@@ -94,6 +109,12 @@ pnpm exec wrangler deploy --dry-run
 ```
 
 After deployment, `GET /health` must return `200` without loading configuration. `GET /ready` returns `200` only after configuration loads, the service-control Durable Object initializes, and its active encryption-key version matches `ENCRYPTION_KEYRING.current`.
+
+List the staging lifecycle rules and confirm that `expire-publication-staging` targets the `publication/` prefix with a seven-day expiry:
+
+```sh
+pnpm exec wrangler r2 bucket lifecycle list emdash-release-service-publication-staging
+```
 
 ## Operations directory
 
@@ -273,4 +294,4 @@ Alert delivery is deployment-specific. A production launch requires tested notif
 
 ## Conformance after deployment
 
-Run the same G0 create-only, refresh, and revocation probes against npmX and Cirrus. Then run the service conformance suite against the hosted and self-hosted origins. Deployment is not complete until both origins publish the same fixture and a clean installer independently verifies and installs it.
+Run the same G0 create-only, blob-upload, refresh, and revocation probes against npmX and Cirrus. Then run the service conformance suite against the hosted and self-hosted origins. Deployment is not complete until both origins publish the same blob-only fixture, the source URLs are absent from its artifact descriptors, and a clean installer independently verifies and installs it.

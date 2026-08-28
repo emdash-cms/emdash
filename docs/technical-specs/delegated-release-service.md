@@ -6,9 +6,9 @@ Related design: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870)
 
 ## Summary
 
-The delegated release service lets a plugin publisher authorize automated releases without placing an AT Protocol account credential in continuous integration. The publisher grants the service create-only access to the package-release collection. A GitHub Actions workflow authenticates to the service with OpenID Connect (OIDC), submits an artifact and provenance document, and receives either a published release or an intent waiting for passkey approval.
+The delegated release service lets a plugin publisher authorize automated releases without placing an AT Protocol account credential in continuous integration. The publisher grants the service create-only access to the package-release collection and bounded blob-upload access. A GitHub Actions workflow authenticates to the service with OpenID Connect (OIDC) and submits a URL-source release record. The service verifies and stages those bytes, uploads them to the publisher's PDS, and creates a blob-only release record. The workflow receives either the published release or an intent waiting for passkey approval.
 
-The service is a delegated writer, not a registry or trust authority. It cannot edit package profiles, overwrite releases, host artifacts, moderate listings, or make an invalid release installable. EmDash installers independently verify the publisher's records, artifact, manifest, provenance, and signed package policy.
+The service is a delegated writer, not a registry or trust authority. It cannot edit package profiles, overwrite releases, serve public or long-lived artifacts, moderate listings, or make an invalid release installable. EmDash installers independently verify the publisher's records, artifact, manifest, provenance, and signed package policy.
 
 Canonical service state is sharded across SQLite-backed Durable Objects. A `PublisherDurableObject` owns each publisher's delegations, workload policies, release intents, reservations, and audit history. An `ApproverDurableObject` owns each approver's passkeys and challenges. A small `ServiceControlDurableObject` owns global pause and key-version state. Cloudflare Workflows orchestrate long-running verification and approval waits but do not replace the Durable Objects as the source of truth.
 
@@ -26,7 +26,7 @@ Canonical service state is sharded across SQLite-backed Durable Objects. A `Publ
 ## Non-goals
 
 - Native-plugin distribution.
-- Artifact or provenance hosting.
+- Public or long-lived artifact or provenance hosting.
 - Plugin-listing or metadata moderation.
 - Code-quality or malware assessment beyond canonical bundle, manifest, and provenance verification.
 - Editing package profiles from the release service.
@@ -71,7 +71,7 @@ The implementation must preserve these invariants:
 4. The delegated path exposes no update or delete operation for a release record.
 5. A package version maps to one deterministic record key and one reservation in the publisher shard.
 6. Publisher records are read directly from the DID-resolved PDS. Aggregator output is never an authority input.
-7. Supplied artifact and provenance bytes pass the shared SSRF-safe fetcher and their signed checksums.
+7. Supplied HTTPS artifact and provenance bytes pass the shared SSRF-safe fetcher and their signed checksums. Publication replaces every artifact URL with a checksum-bound PDS blob; the final artifact descriptors contain no source URL.
 8. Record, bundle, manifest, provenance, workload, policy, and access checks run after submission and again immediately before publication.
 9. Human approval cannot override failed verification. It authorizes only a valid release that policy requires a human to confirm.
 10. Approval is bound to the intent, workload claims, profile CID, baseline release CID, artifact and provenance checksums, declared-access diff, approver DID, and decision.
@@ -195,7 +195,7 @@ GitHub Actions                         Publisher or approver browser
                |                              v
                |                     artifact/provenance hosts
                v
-         publisher PDS
+      private R2 staging -----> publisher PDS blobs and release record
 
 Operational projections:
   OAuth callbacks -> 256 IdentityDirectoryDurableObject shards
@@ -228,6 +228,7 @@ The object owns:
 - workload policies;
 - release intents and immutable transition history;
 - package/version reservations;
+- immutable publication materialization plans, staged-object bindings, blob receipts, and final record JSON;
 - OIDC and request idempotency;
 - refresh and publication operation tokens;
 - publisher-scoped audit events; and
@@ -280,6 +281,7 @@ The Workflow owns:
 - durable retry timing;
 - isolated verification steps;
 - waiting for approval, rejection, cancellation, or expiry;
+- guarded URL-source staging, PDS blob upload, and durable materialization;
 - publication and ambiguous-write reconciliation; and
 - non-critical completion fan-out.
 
@@ -306,9 +308,11 @@ The directory is a non-authoritative projection. It excludes OAuth material, app
 
 The directory can be deleted and rebuilt as identities authenticate again without changing authorization or release outcomes.
 
-### R2 backup and audit export
+### R2 staging, backup and audit export
 
-Encrypted publisher snapshots and append-only audit exports may be written to R2. Snapshot production must be bounded and resumable. A restore never revives expired or revoked authority automatically. If an OAuth session cannot be restored safely, the publisher reauthorizes delegation.
+The private `PUBLICATION_STAGING` bucket holds checksum-verified artifact bytes while the Workflow uploads them to the publisher's PDS. Object keys bind the publisher, intent, artifact slot, and checksum. The Workflow deletes each object's material after all blob receipts and the canonical final record are committed in the publisher object. A seven-day lifecycle rule removes abandoned staging objects after interrupted Workflows. Staging objects are never public, authoritative, or referenced by the published record.
+
+Encrypted publisher snapshots and append-only audit exports may be written to the separate `OPERATIONS_ARCHIVE` bucket. Snapshot production must be bounded and resumable. A restore never revives expired or revoked authority automatically. If an OAuth session cannot be restored safely, the publisher reauthorizes delegation.
 
 ## Durable Object schemas
 
@@ -316,18 +320,20 @@ The following schemas describe required data and constraints. Exact SQL belongs 
 
 ### Publisher shard
 
-| Table                  | Required properties                                                                                                                                   |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `publisher`            | One row; DID, status, creation time, suspension reason code, session epoch                                                                            |
-| `delegations`          | Encrypted session envelope, exact scope, PDS, client key ID, expiry, refresh metadata, encryption-key version, revocation state                       |
-| `workload_policies`    | Package slug, repository, workflow reference, ref/environment restrictions, active state, authorizing publisher identity                              |
-| `intents`              | ULID, package/version, state, Workflow ID, normalized OIDC claims, record inputs, verification summaries, approval digest, result URI/CID, error code |
-| `intent_transitions`   | Intent ID, monotonic sequence, from/to state, actor realm and identity, reason code, timestamp                                                        |
-| `release_reservations` | Unique package/version, intent ID, reservation state                                                                                                  |
-| `idempotency_keys`     | Realm, key, request digest, intent/result reference, expiry                                                                                           |
-| `operations`           | Kind, generation, token hash, intent ID, start/deadline, completion state                                                                             |
-| `audit_events`         | Monotonic sequence, event type, actor realm, actor identity, subject, public-safe payload, timestamp                                                  |
-| `deadlines`            | Kind, subject ID, scheduled time, generation                                                                                                          |
+| Table                               | Required properties                                                                                                                                   |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `publisher`                         | One row; DID, status, creation time, suspension reason code, session epoch                                                                            |
+| `delegations`                       | Encrypted session envelope, exact scope, PDS, client key ID, expiry, refresh metadata, encryption-key version, revocation state                       |
+| `workload_policies`                 | Package slug, repository, workflow reference, ref/environment restrictions, active state, authorizing publisher identity                              |
+| `intents`                           | ULID, package/version, state, Workflow ID, normalized OIDC claims, record inputs, verification summaries, approval digest, result URI/CID, error code |
+| `intent_transitions`                | Intent ID, monotonic sequence, from/to state, actor realm and identity, reason code, timestamp                                                        |
+| `release_reservations`              | Unique package/version, intent ID, reservation state                                                                                                  |
+| `idempotency_keys`                  | Realm, key, request digest, intent/result reference, expiry                                                                                           |
+| `publication_materializations`      | Intent-bound source digest, status, canonical blob-only record JSON and digest, timestamps                                                            |
+| `publication_materialization_slots` | Artifact slot, source URL digest, checksum, R2 key, media metadata, immutable PDS blob receipt                                                        |
+| `operations`                        | Kind, generation, attempt key, token hash, intent ID, phase, materialization digest, start/deadline, completion state                                 |
+| `audit_events`                      | Monotonic sequence, event type, actor realm, actor identity, subject, public-safe payload, timestamp                                                  |
+| `deadlines`                         | Kind, subject ID, scheduled time, generation                                                                                                          |
 
 Sensitive values are encrypted individually with associated data binding the publisher DID, table, row identity, and key version. The database never stores an encryption master key.
 
@@ -391,7 +397,7 @@ The publisher can revoke the delegation from the service or directly through the
 1. GitHub Actions builds and bundles the plugin.
 2. CI emits SLSA provenance and uploads artifact and provenance bytes to stable HTTPS URLs.
 3. CI requests an OIDC token whose audience is the release service.
-4. The Action submits the token, package/version, URLs, checksums, release record, and idempotency key.
+4. The Action submits the token, package/version, URL-source release record, checksums, and idempotency key. Artifact descriptors contain HTTPS URLs and no PDS blobs.
 5. The Worker verifies request shape, OIDC signature and claims, and routes to the publisher object.
 6. The publisher object verifies workload-policy admission, reserves package/version, creates the intent, and records normalized claims.
 7. The object creates the Workflow instance using the intent ID.
@@ -436,16 +442,19 @@ The service accepts the receipt only if the current profile still lists the appr
 
 Before publication, the Workflow repeats every authoritative read and verification step. It then:
 
-1. obtains a fresh publication permit from the service-control object;
-2. obtains a generation-bound publication operation token from the publisher object;
-3. refreshes the encrypted AT Protocol session if required under a separate generation-bound refresh operation;
-4. creates the deterministic release record without an update path;
-5. completes the operation with the confirmed URI and CID; or
-6. enters reconciliation when the external result is ambiguous.
+1. fetches every URL-source artifact through the guarded verifier path and writes the verified bytes to deterministic private R2 objects;
+2. obtains a replay-stable, generation-bound publication operation from the publisher object;
+3. refreshes the encrypted AT Protocol session if required and uploads each staged package or image as a PDS blob;
+4. validates every returned blob against the source checksum, byte size, and media type, then persists immutable receipts and canonical blob-only record JSON in the publisher object;
+5. deletes the staged R2 objects after durable materialization;
+6. obtains and consumes a fresh publication permit, rechecks delegation, and moves the operation to `creating`;
+7. creates the deterministic release record without an update path;
+8. completes the operation with the confirmed URI and CID; or
+9. enters reconciliation only when the `createRecord` result is ambiguous.
 
 Reconciliation reads the deterministic release key directly from the PDS:
 
-- an exact semantic and CID match completes publication;
+- an exact proof-verified semantic match completes publication with the authoritative CID;
 - confirmed absence permits an idempotent create retry;
 - a different record at the key transitions to `conflict`; and
 - a transient inability to establish presence or absence remains `reconciling` with bounded retries and operator visibility.
@@ -481,18 +490,18 @@ Health endpoints are outside the versioned API. `GET /health` is configuration-i
 
 ### Publisher API
 
-| Method and path                                                | Purpose                                                    |
-| -------------------------------------------------------------- | ---------------------------------------------------------- |
-| `POST /v1/publisher/session/authorize`                         | Start identity-only publisher authorization                |
-| `GET /v1/publisher`                                            | Read publisher and delegation state                        |
-| `POST /v1/publisher/delegation/authorize`                      | Start exact-scope delegation authorization                 |
-| `DELETE /v1/publisher/delegation`                              | Revoke retained authority                                  |
-| `GET /v1/publisher/workloads`                                  | List package workload policies                             |
-| `POST /v1/publisher/workloads`                                 | Create or replace an authorized policy                     |
-| `DELETE /v1/publisher/workloads/{packageSlug}`                 | Disable a policy                                           |
-| `GET /v1/publisher/workloads/{packageSlug}/approvers`          | Read approval readiness for DIDs in the signed profile     |
-| `GET /v1/publisher/intents`                                    | List publisher intents with cursor pagination              |
-| `GET /v1/publisher/audit`                                      | List publisher-scoped audit events with cursor pagination  |
+| Method and path                                       | Purpose                                                   |
+| ----------------------------------------------------- | --------------------------------------------------------- |
+| `POST /v1/publisher/session/authorize`                | Start identity-only publisher authorization               |
+| `GET /v1/publisher`                                   | Read publisher and delegation state                       |
+| `POST /v1/publisher/delegation/authorize`             | Start exact-scope delegation authorization                |
+| `DELETE /v1/publisher/delegation`                     | Revoke retained authority                                 |
+| `GET /v1/publisher/workloads`                         | List package workload policies                            |
+| `POST /v1/publisher/workloads`                        | Create or replace an authorized policy                    |
+| `DELETE /v1/publisher/workloads/{packageSlug}`        | Disable a policy                                          |
+| `GET /v1/publisher/workloads/{packageSlug}/approvers` | Read approval readiness for DIDs in the signed profile    |
+| `GET /v1/publisher/intents`                           | List publisher intents with cursor pagination             |
+| `GET /v1/publisher/audit`                             | List publisher-scoped audit events with cursor pagination |
 
 ### Approver API
 
@@ -511,27 +520,27 @@ Health endpoints are outside the versioned API. `GET /health` is configuration-i
 
 The typed operator client uses these canonical paths:
 
-| Method and path                                                       | Minimum role | Purpose                                           |
-| --------------------------------------------------------------------- | ------------ | ------------------------------------------------- |
-| `GET /admin/api/status`                                               | viewer       | Read service mode and component health            |
-| `GET /admin/api/directory`                                            | viewer       | List publisher or approver directory projections  |
-| `GET /admin/api/audit`                                                | viewer       | Query global or projected operational audit data  |
-| `GET /admin/api/publishers/{publisherDid}`                            | viewer       | Read authoritative publisher state                |
-| `POST /admin/api/intents/{intentId}/cancel`                           | reviewer     | Stop an unpublished intent                        |
-| `POST /admin/api/intents/{intentId}/reconcile`                        | reviewer     | Trigger bounded reconciliation                    |
-| `POST /admin/api/pause`                                               | admin        | Change admission or publication mode              |
-| `POST /admin/api/publishers/{publisherDid}/suspend`                   | admin        | Suspend or restore publisher admission            |
-| `POST /admin/api/publishers/{publisherDid}/revoke`                    | admin        | Revoke retained service authority                 |
-| `POST /admin/api/publishers/{publisherDid}/encryption/rotate`         | admin        | Re-encrypt one page of publisher state             |
-| `POST /admin/api/approvers/{approverDid}/encryption/rotate`           | admin        | Re-encrypt one page of approver state              |
-| `POST /admin/api/publishers/{publisherDid}/archive`                   | admin        | Produce one bounded publisher archive page         |
-| `POST /admin/api/publishers/{publisherDid}/archive/start`             | admin        | Start a resumable publisher archive Workflow       |
-| `POST /admin/api/publishers/{publisherDid}/restore/prepare`           | admin        | Validate an archive before restore                 |
-| `POST /admin/api/publishers/{publisherDid}/restore`                   | admin        | Restore one validated archive page                 |
-| `GET /admin/api/encryption/keys`                                      | viewer       | Read encryption-key lifecycle state               |
-| `POST /admin/api/encryption/keys/activate`                            | admin        | Activate a configured encryption-key version      |
-| `POST /admin/api/encryption/verify`                                   | admin        | Start fleet verification for a retiring key       |
-| `POST /admin/api/encryption/keys/{version}/retire`                    | admin        | Retire a verified inactive key                    |
+| Method and path                                               | Minimum role | Purpose                                          |
+| ------------------------------------------------------------- | ------------ | ------------------------------------------------ |
+| `GET /admin/api/status`                                       | viewer       | Read service mode and component health           |
+| `GET /admin/api/directory`                                    | viewer       | List publisher or approver directory projections |
+| `GET /admin/api/audit`                                        | viewer       | Query global or projected operational audit data |
+| `GET /admin/api/publishers/{publisherDid}`                    | viewer       | Read authoritative publisher state               |
+| `POST /admin/api/intents/{intentId}/cancel`                   | reviewer     | Stop an unpublished intent                       |
+| `POST /admin/api/intents/{intentId}/reconcile`                | reviewer     | Trigger bounded reconciliation                   |
+| `POST /admin/api/pause`                                       | admin        | Change admission or publication mode             |
+| `POST /admin/api/publishers/{publisherDid}/suspend`           | admin        | Suspend or restore publisher admission           |
+| `POST /admin/api/publishers/{publisherDid}/revoke`            | admin        | Revoke retained service authority                |
+| `POST /admin/api/publishers/{publisherDid}/encryption/rotate` | admin        | Re-encrypt one page of publisher state           |
+| `POST /admin/api/approvers/{approverDid}/encryption/rotate`   | admin        | Re-encrypt one page of approver state            |
+| `POST /admin/api/publishers/{publisherDid}/archive`           | admin        | Produce one bounded publisher archive page       |
+| `POST /admin/api/publishers/{publisherDid}/archive/start`     | admin        | Start a resumable publisher archive Workflow     |
+| `POST /admin/api/publishers/{publisherDid}/restore/prepare`   | admin        | Validate an archive before restore               |
+| `POST /admin/api/publishers/{publisherDid}/restore`           | admin        | Restore one validated archive page               |
+| `GET /admin/api/encryption/keys`                              | viewer       | Read encryption-key lifecycle state              |
+| `POST /admin/api/encryption/keys/activate`                    | admin        | Activate a configured encryption-key version     |
+| `POST /admin/api/encryption/verify`                           | admin        | Start fleet verification for a retiring key      |
+| `POST /admin/api/encryption/keys/{version}/retire`            | admin        | Retire a verified inactive key                   |
 
 State-changing requests require content-type validation, CSRF where cookies are used, and idempotency keys. API errors expose stable codes and public-safe messages.
 
@@ -661,6 +670,8 @@ The service is complete only when all of the following hold:
 
 - Concurrent submissions cannot claim the same publisher/package/version.
 - OAuth refresh and PDS publication serialize within a publisher shard without holding a Durable Object-wide external-I/O lock.
+- Every package and listing image is uploaded as a checksum-bound PDS blob, and the created release record contains blob references with no artifact source URLs.
+- Blob receipts and the canonical final record are committed before a publication permit is issued or `createRecord` begins.
 - Duplicate Workflow execution cannot create a second semantic release or duplicate a terminal transition.
 - A timeout before, during, or after the PDS write converges to published, retryable absence, or conflict through reconciliation.
 - Service pause and publisher suspension are enforced immediately before the write.
@@ -675,6 +686,7 @@ The service is complete only when all of the following hold:
 ### Platform and operations
 
 - After the first deployment, Durable Object migrations preserve existing delegation, intent, credential, and audit data.
+- Successful materialization removes its R2 staging objects, and the staging bucket lifecycle removes objects abandoned for seven days.
 - Encryption-key rotation completes without losing authority or leaving values unreadable.
 - Encrypted snapshots and audit exports restore into a fresh deployment without automatically reviving expired or revoked authority.
 - Hosted and self-hosted deployments pass the same protocol and service conformance suite.

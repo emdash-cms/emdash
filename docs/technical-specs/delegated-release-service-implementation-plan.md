@@ -8,7 +8,7 @@ Related design: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870)
 
 ## Outcome
 
-This plan delivers a hosted and self-hostable delegated release service in reviewable increments. A GitHub Actions workflow can publish an attested sandboxed-plugin release through a publisher's exact AT Protocol delegation for create-only release records and bounded package/image blob uploads. Invalid output remains un-installable because EmDash independently repeats verification. Releases that expand declared access or use `confirmation: always` require a profile-authorized, user-verified passkey decision.
+This plan delivers a hosted and self-hostable delegated release service in reviewable increments. A GitHub Actions workflow submits checksum-bound HTTPS artifact sources. The service stages the verified bytes, uploads bounded package and image blobs through the publisher's exact AT Protocol delegation, and creates a blob-only release record. Invalid output remains un-installable because EmDash independently repeats verification. Releases that expand declared access or use `confirmation: always` require a profile-authorized, user-verified passkey decision.
 
 Canonical service state is sharded by publisher or approver DID in SQLite-backed Durable Objects. Workflows coordinate long-running work. A 256-shard identity-directory Durable Object projection supports fleet enumeration and never participates in authorization.
 
@@ -133,16 +133,16 @@ W3 -> W8 -> W10 -> W12
 
 ## Integration gates
 
-| Gate                            | Required evidence                                                                                                                            | Unblocks                                           |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| **G0 Design**                   | RFC decisions reconciled; exact delegated release scope proved on every claimed PDS; no broad fallback                                      | Authority-bearing implementation                   |
-| **G1 Contracts**                | Lexicons, direct-PDS reads, shared record/bundle/provenance reports, and fixtures pass in Node and workerd                                   | Service Workflow and installer work                |
-| **G2 Durable state**            | Service shell, Access auth, control object, publisher object, initial schema, state machine, idempotency, and alarms pass real workerd tests | OAuth, OIDC, Workflow integration                  |
-| **G3 Automatic vertical slice** | Controlled GitHub workflow publishes one valid non-escalating release and converges under retries                                            | Independent enforcement and private service trials |
-| **G4 Independent enforcement**  | A clean EmDash site accepts valid output and rejects every invalid service-output fixture                                                    | Hosted limited beta                                |
-| **G5 Approval**                 | `always` and escalation releases require a valid current approver and passkey; every invalidation path re-approves                           | Broader publisher beta                             |
-| **G6 Operational beta**         | Pause, suspension, revocation, reconciliation, key rotation, backup/export, alerts, and self-host path work without database edits           | Public beta                                        |
-| **G7 Production**               | End-to-end conformance, recovery drills, and external security review have no unresolved critical/high findings                              | Production launch                                  |
+| Gate                            | Required evidence                                                                                                                                | Unblocks                                           |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| **G0 Design**                   | RFC decisions reconciled; exact delegated release scope proved on every claimed PDS; no broad fallback                                           | Authority-bearing implementation                   |
+| **G1 Contracts**                | Lexicons, direct-PDS reads, shared record/bundle/provenance reports, and fixtures pass in Node and workerd                                       | Service Workflow and installer work                |
+| **G2 Durable state**            | Service shell, Access auth, control object, publisher object, initial schema, state machine, idempotency, and alarms pass real workerd tests     | OAuth, OIDC, Workflow integration                  |
+| **G3 Automatic vertical slice** | Controlled GitHub workflow materializes URL sources and publishes one valid blob-only non-escalating release; upload and create retries converge | Independent enforcement and private service trials |
+| **G4 Independent enforcement**  | A clean EmDash site accepts valid output and rejects every invalid service-output fixture                                                        | Hosted limited beta                                |
+| **G5 Approval**                 | `always` and escalation releases require a valid current approver and passkey; every invalidation path re-approves                               | Broader publisher beta                             |
+| **G6 Operational beta**         | Pause, suspension, revocation, reconciliation, key rotation, backup/export, alerts, and self-host path work without database edits               | Public beta                                        |
+| **G7 Production**               | End-to-end conformance, recovery drills, and external security review have no unresolved critical/high findings                                  | Production launch                                  |
 
 ## W0 Design and feasibility
 
@@ -156,7 +156,7 @@ Dependencies: none.
 | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `W0.1` | Reconcile RFC #1870 with the Durable Object architecture, Access operator authentication, existing `emdash-plugin` command, and active experimental NSIDs |
 | `W0.2` | Freeze the first-release profile policy, provenance, workload policy, approval digest, intent state, and error contracts                                  |
-| `W0.3` | Validate the exact delegated release grant against the available npmX-hosted Bluesky PDS and Cirrus test accounts                                        |
+| `W0.3` | Validate the exact delegated release grant against the available npmX-hosted Bluesky PDS and Cirrus test accounts                                         |
 | `W0.4` | Validate confidential OAuth refresh, DPoP behavior, revocation, and client-key rotation with real authorization servers                                   |
 | `W0.5` | Confirm current Workflow event, retention, retry, and test APIs support approval and recovery; record limits outside the protocol contract                |
 | `W0.6` | Define hosted-service Access audience and group-to-role mapping and the self-host configuration contract                                                  |
@@ -414,20 +414,23 @@ Dependencies: W4 delegation, W6 verified intents, W2 service permits.
 
 ### Tasks
 
-| Task   | Work                                                                                                                             |
-| ------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `W7.1` | Implement final re-fetch/reverification and invalidation of changed profile, baseline, artifact, provenance, workload, or policy |
-| `W7.2` | Implement fresh service permit, publisher revocation check, publication operation token, and serialized session refresh          |
-| `W7.3` | Implement deterministic create-only release publication                                                                          |
-| `W7.4` | Implement exact-match, absence, conflict, and transient ambiguous-write reconciliation                                           |
-| `W7.5` | Implement alarm/operator recovery and bounded retry policy                                                                       |
-| `W7.6` | Emit terminal audit and optional projection events only after authoritative completion                                           |
+| Task   | Work                                                                                                                                                                       |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `W7.1` | Implement final re-fetch/reverification and invalidation of changed profile, baseline, artifact, provenance, workload, or policy                                           |
+| `W7.2` | Implement deterministic private R2 staging, immutable materialization state, replay-stable operation credentials, and serialized session refresh                           |
+| `W7.3` | Upload checksum-bound package and image blobs, persist receipts and canonical blob-only record JSON, then issue a fresh permit and create the deterministic release record |
+| `W7.4` | Implement exact-match, absence, conflict, and transient ambiguous-write reconciliation                                                                                     |
+| `W7.5` | Implement alarm/operator recovery and bounded retry policy                                                                                                                 |
+| `W7.6` | Emit terminal audit and optional projection events only after authoritative completion                                                                                     |
 
 ### Acceptance criteria
 
 - No release is written from stale verification or approval inputs.
 - Pause, suspension, or delegation revocation immediately before the write blocks publication.
 - Concurrent publication within one publisher produces one active operation token.
+- URL-source bytes are fetched through the guarded path and staged under deterministic publisher/intent/slot/checksum R2 keys.
+- Every returned PDS blob matches the verified checksum, byte size, and media type; the final record contains no artifact URL.
+- Immutable receipts and canonical record JSON are committed before the permit and `creating` phase, and normal completion deletes staged objects.
 - A timeout before, during, or after `createRecord` converges without creating a second semantic release.
 - Exact existing record is successful replay; different existing record is terminal conflict.
 - Operator reconciliation cannot mark an absent or conflicting record as published.
@@ -523,14 +526,14 @@ Dependencies: stable APIs from W4 to W8 and W2 Access roles.
 
 ### Tasks
 
-| Task    | Work                                                                                                             |
-| ------- | ---------------------------------------------------------------------------------------------------------------- |
-| `W10.1` | Add typed API client, polling, stable error mapping, and idempotency helpers                                     |
-| `W10.2` | Build the official GitHub Action for OIDC, submission, status, approval URL, and terminal output                 |
-| `W10.3` | Add CLI commands for delegate, revoke, workload policy, dry run, submit/status/cancel, enrol, and approve/reject |
-| `W10.4` | Build publisher delegation, workload, intent, approver-status, and audit views                                   |
-| `W10.5` | Build approval detail, declared-access diff, provenance/workload evidence, and passkey decision views            |
-| `W10.6` | Build Access operator status, pause, publisher lookup, suspension, revocation, reconciliation, and audit views   |
+| Task    | Work                                                                                                                       |
+| ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `W10.1` | Add typed API client, polling, stable error mapping, and idempotency helpers                                               |
+| `W10.2` | Build the official GitHub Action for OIDC, submission, status, approval URL, and terminal output                           |
+| `W10.3` | Add CLI commands for delegate, revoke, workload policy, dry run, submit/status/cancel, enrol, and approve/reject           |
+| `W10.4` | Build publisher delegation, workload, intent, approver-status, and audit views                                             |
+| `W10.5` | Build approval detail, declared-access diff, provenance/workload evidence, and passkey decision views                      |
+| `W10.6` | Build Access operator status, pause, publisher lookup, suspension, revocation, reconciliation, and audit views             |
 | `W10.7` | Make the surfaces localizable with Lingui and cover accessibility, keyboard, responsive, and Arabic-direction RTL behavior |
 
 ### Acceptance criteria
@@ -560,15 +563,15 @@ Dependencies: W2 control plane and W3 publisher audit contract. Work can begin b
 
 ### Tasks
 
-| Task    | Work                                                                                                                                      |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `W11.1` | Implement a rebuildable 256-shard Durable Object identity directory containing only actor kind, DID, and timestamps                       |
-| `W11.2` | Implement encrypted publisher snapshots and append-only audit exports to R2 with bounded resumable scheduling                             |
-| `W11.3` | Implement encryption-key activation, background re-encryption, verification, retirement, and emergency rotation                           |
-| `W11.4` | Add structured logs, metrics, alerts, health checks, correlation IDs, and privacy redaction                                               |
-| `W11.5` | Add per-publisher, per-repository, and per-workload abuse/rate controls without a global request bottleneck                               |
-| `W11.6` | Document and test Access, Durable Object, Workflow, verifier, Secrets Store, R2, Analytics Engine, and custom-domain self-host deployment |
-| `W11.7` | Write incident, revocation, PDS outage, ambiguous write, key compromise, shard restore, Workflow loss, and rollback runbooks              |
+| Task    | Work                                                                                                                                                                                          |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `W11.1` | Implement a rebuildable 256-shard Durable Object identity directory containing only actor kind, DID, and timestamps                                                                           |
+| `W11.2` | Implement encrypted publisher snapshots and append-only audit exports to R2 with bounded resumable scheduling                                                                                 |
+| `W11.3` | Implement encryption-key activation, background re-encryption, verification, retirement, and emergency rotation                                                                               |
+| `W11.4` | Add structured logs, metrics, alerts, health checks, correlation IDs, and privacy redaction                                                                                                   |
+| `W11.5` | Add per-publisher, per-repository, and per-workload abuse/rate controls without a global request bottleneck                                                                                   |
+| `W11.6` | Document and test Access, Durable Object, Workflow, verifier, Secrets Store, private publication-staging R2 with expiry, archive R2, Analytics Engine, and custom-domain self-host deployment |
+| `W11.7` | Write incident, revocation, PDS outage, ambiguous write, key compromise, shard restore, Workflow loss, and rollback runbooks                                                                  |
 
 ### Acceptance criteria
 
@@ -577,6 +580,7 @@ Dependencies: W2 control plane and W3 publisher audit contract. Work can begin b
 - Key rotation can stop, resume, and prove every retained ciphertext readable before retirement.
 - Alerts cover publication pause, refresh failure, reconciliation backlog, shard migration failure, verifier failure, Access denial spikes, and audit/export gaps.
 - Abuse controls cannot let one publisher exhaust or block another publisher shard.
+- The publication-staging bucket is private, successful materialization deletes its objects, and a seven-day lifecycle rule removes abandoned objects.
 - A fresh self-host deployment passes the same service conformance suite as the hosted service.
 - Operators can execute every runbook without direct Durable Object SQLite edits.
 
@@ -942,6 +946,8 @@ The review stack contains seven PRs and merges as one unit. Each PR preserves th
 
 - [ ] Valid non-escalating release publishes automatically.
 - [ ] Invalid record, bundle, manifest, access, artifact, provenance, source, builder, workload, or policy input never reaches publication.
+- [ ] URL-source package and image bytes become checksum-bound PDS blobs, and the final release record contains no artifact URLs.
+- [ ] Durable blob receipts and canonical record JSON precede the publication permit and `createRecord`; successful materialization removes staged R2 bytes.
 - [ ] Ambiguous writes converge through deterministic reconciliation.
 - [ ] Pause, suspension, revocation, profile change, baseline change, and approval invalidation close every pre-write race.
 
@@ -961,6 +967,7 @@ The review stack contains seven PRs and merges as one unit. Each PR preserves th
 ### Operations
 
 - [ ] Pause, publisher suspension, delegation revocation, reconciliation, key rotation, backup/export, restore, and rollback work through supported tools.
+- [ ] The private publication-staging R2 bucket has the documented seven-day expiry rule and contains no objects from successful materializations.
 - [ ] The identity directory is rebuildable and non-authoritative.
 - [ ] Hosted and self-hosted deployments pass the same conformance suite.
 - [ ] External security review has no unresolved critical/high findings.

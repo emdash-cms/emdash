@@ -99,7 +99,7 @@ On first publish, pass `--license` and `--security-email` (or `--security-url`) 
 
 The automation commands (`dry-run`, `submit`, `status`, and `cancel`) authenticate with the current GitHub Actions OpenID Connect (OIDC) identity. Grant the job `id-token: write`; the CLI requests a token whose audience is the release-service origin for every API call.
 
-The following command submits a generated package release record and waits for publication or an approval request:
+The following command submits a generated URL-source package release record and waits for publication or an approval request:
 
 ```sh
 emdash-plugin release submit release.json \
@@ -108,6 +108,8 @@ emdash-plugin release submit release.json \
 ```
 
 Set `EMDASH_RELEASE_SERVICE_URL` and `EMDASH_PUBLISHER_DID` to omit the two target flags. The default idempotency key uses the GitHub run ID, so a re-run reuses the existing intent. Pass `--idempotency-key` when separate runs or jobs must replay the same submission.
+
+Each package or listing-image artifact in the source record must use a checksum-bound HTTPS `url` and must not include `blob`. The service verifies and uploads those bytes to the publisher's PDS. The published release record contains PDS blob references and no artifact source URLs; provenance remains URL-based.
 
 Use `--no-wait` to return after the service accepts the intent. The status and cancellation commands require the same publisher and GitHub workload identity:
 

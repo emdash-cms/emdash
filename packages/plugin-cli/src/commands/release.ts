@@ -187,7 +187,7 @@ export const releaseSubmitCommand = defineCommand({
 	args: {
 		"release-file": {
 			type: "positional",
-			description: "Package release record JSON file",
+			description: "URL-source package release JSON file",
 			required: true,
 		},
 		...commonArgs,
@@ -253,7 +253,7 @@ export const releaseDryRunCommand = defineCommand({
 	args: {
 		"release-file": {
 			type: "positional",
-			description: "Package release record JSON file",
+			description: "URL-source package release JSON file",
 			required: true,
 		},
 		...commonArgs,

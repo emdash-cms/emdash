@@ -1,6 +1,6 @@
 # EmDash delegated release Action
 
-This experimental Action submits a package release record to an EmDash delegated release service. It requests a GitHub OpenID Connect (OIDC) token for each service call, so the workflow does not store a release-service secret.
+This experimental Action submits a URL-source package release record to an EmDash delegated release service. It requests a GitHub OpenID Connect (OIDC) token for each service call, so the workflow does not store a release-service secret.
 
 ## Workflow setup
 
@@ -36,19 +36,19 @@ jobs:
 
 Replace the example service URL, publisher DID, build command, and exact commit with values for your publisher. Pin the Action to an exact commit while the delegated release protocol remains experimental.
 
-The release record must conform to `com.emdashcms.experimental.package.release`. The service validates its package, version, artifact, declared access, and provenance before publication.
+The source release record must conform to `com.emdashcms.experimental.package.release`. Every package or listing-image artifact must have a checksum-bound HTTPS `url` and must not contain `blob`. The service validates and uploads those bytes to the publisher's PDS, then creates a release record whose artifact descriptors contain blobs and no source URLs. Provenance remains checksum-bound to its HTTPS source.
 
 ## Inputs
 
-| Input                   | Required | Default        | Purpose                                                                                        |
-| ----------------------- | -------- | -------------- | ---------------------------------------------------------------------------------------------- |
-| `service-url`           | Yes      | —              | HTTPS origin of the delegated release service.                                                 |
-| `publisher-did`         | Yes      | —              | DID that owns the package profile and release records.                                         |
-| `release-file`          | Yes      | —              | JSON file containing the package release record. The path must stay inside `GITHUB_WORKSPACE`. |
-| `idempotency-key`       | No       | Current run ID | Stable key used to replay the same submission.                                                 |
-| `poll-interval-seconds` | No       | `5`            | Delay between intent status requests.                                                          |
-| `timeout-minutes`       | No       | `30`           | Maximum polling time.                                                                          |
-| `wait-for-approval`     | No       | `false`        | Continue polling when the intent reaches `awaiting_approval`.                                  |
+| Input                   | Required | Default        | Purpose                                                                                                   |
+| ----------------------- | -------- | -------------- | --------------------------------------------------------------------------------------------------------- |
+| `service-url`           | Yes      | —              | HTTPS origin of the delegated release service.                                                            |
+| `publisher-did`         | Yes      | —              | DID that owns the package profile and release records.                                                    |
+| `release-file`          | Yes      | —              | JSON file containing the URL-source package release record. The path must stay inside `GITHUB_WORKSPACE`. |
+| `idempotency-key`       | No       | Current run ID | Stable key used to replay the same submission.                                                            |
+| `poll-interval-seconds` | No       | `5`            | Delay between intent status requests.                                                                     |
+| `timeout-minutes`       | No       | `30`           | Maximum polling time.                                                                                     |
+| `wait-for-approval`     | No       | `false`        | Continue polling when the intent reaches `awaiting_approval`.                                             |
 
 The default idempotency key is stable across attempts of one GitHub run. Set `idempotency-key` when separate runs or jobs must replay the same submission identity.
 
