@@ -30,7 +30,8 @@ import {
 import { CreateReleaseError, createReleaseRecord } from "./create-only.js";
 import { reconcileReleaseRecord } from "./reconcile.js";
 
-const PUBLICATION_TTL_MS = 30_000;
+const PUBLICATION_PERMIT_TTL_MS = 30_000;
+const PUBLICATION_OPERATION_LEASE_MS = 5 * 60_000;
 const MAX_PUBLICATION_ATTEMPTS = 3;
 const FINAL_VERIFICATION_STEP_CONFIG = {
 	retries: { limit: 3, delay: "1 second", backoff: "exponential" },
@@ -275,40 +276,66 @@ export async function publishVerifiedIntent(
 					return { state: "published", uri: "", cid: "" };
 				}
 				if (current?.state === "reconciling") return { state: "reconciling" };
-				if (!current || current.state !== "ready") {
+				if (!current || (current.state !== "ready" && current.state !== "publishing")) {
 					return { state: "failed", reasonCode: "INTENT_NOT_READY" };
 				}
 				const permit = await control.issuePublicationPermit(
 					publisherDid,
 					originalIntent.id,
-					PUBLICATION_TTL_MS,
+					PUBLICATION_PERMIT_TTL_MS,
 				);
-				if (!permit.ok) return { state: "blocked", reasonCode: permit.code };
-				const publishing = await transition(publisher, {
-					publisherDid,
-					intentId: originalIntent.id,
-					expectedState: "ready",
-					expectedGeneration: current.stateGeneration,
-					toState: "publishing",
-					transitionDigest: await digest(["publishing", attempt, expectedEvidenceDigest]),
-					actorRealm: "system",
-					actorIdentity: "release-service",
-					reasonCode: null,
-					stateDataJson: JSON.stringify({ attempt }),
-				});
-				if (!publishing.ok) return { state: "failed", reasonCode: publishing.code };
+				if (!permit.ok) {
+					if (current.state === "publishing") {
+						const ready = await transition(publisher, {
+							publisherDid,
+							intentId: originalIntent.id,
+							expectedState: "publishing",
+							expectedGeneration: current.stateGeneration,
+							toState: "ready",
+							transitionDigest: await digest([
+								"permit-blocked",
+								attempt,
+								permit.code,
+								expectedEvidenceDigest,
+							]),
+							actorRealm: "system",
+							actorIdentity: "release-service",
+							reasonCode: permit.code,
+							stateDataJson: JSON.stringify({ attempt, reasonCode: permit.code }),
+						});
+						if (!ready.ok) return { state: "failed", reasonCode: ready.code };
+					}
+					return { state: "blocked", reasonCode: permit.code };
+				}
+				let publishingGeneration = current.stateGeneration;
+				if (current.state === "ready") {
+					const publishing = await transition(publisher, {
+						publisherDid,
+						intentId: originalIntent.id,
+						expectedState: "ready",
+						expectedGeneration: current.stateGeneration,
+						toState: "publishing",
+						transitionDigest: await digest(["publishing", attempt, expectedEvidenceDigest]),
+						actorRealm: "system",
+						actorIdentity: "release-service",
+						reasonCode: null,
+						stateDataJson: JSON.stringify({ attempt }),
+					});
+					if (!publishing.ok) return { state: "failed", reasonCode: publishing.code };
+					publishingGeneration = publishing.stateGeneration;
+				}
 				const operation = await publisher.beginPublicationOperation(
 					publisherDid,
 					originalIntent.id,
-					publishing.stateGeneration,
-					PUBLICATION_TTL_MS,
+					publishingGeneration,
+					PUBLICATION_OPERATION_LEASE_MS,
 				);
 				if (!operation.ok) {
 					const failed = await transition(publisher, {
 						publisherDid,
 						intentId: originalIntent.id,
 						expectedState: "publishing",
-						expectedGeneration: publishing.stateGeneration,
+						expectedGeneration: publishingGeneration,
 						toState: "failed",
 						transitionDigest: await digest(["operation-failed", attempt, operation.code]),
 						actorRealm: "system",

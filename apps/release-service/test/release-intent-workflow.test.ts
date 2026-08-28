@@ -2,13 +2,16 @@ import type { StoredSession } from "@atcute/oauth-node-client";
 import type { PackageRelease } from "@emdash-cms/registry-lexicons";
 import { NSID } from "@emdash-cms/registry-lexicons";
 import { introspectWorkflowInstance, reset, runInDurableObject } from "cloudflare:test";
-import { env } from "cloudflare:workers";
+import { env, type WorkflowStep } from "cloudflare:workers";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import releaseFixture from "../../../packages/registry-verification/fixtures/records/release.json";
+import type ReleaseVerifier from "../../release-verifier/src/index.js";
+import { decodeAwaitingApprovalState } from "../src/approvals/digest.js";
 import { loadConfiguration } from "../src/config.js";
 import { SERVICE_CONTROL_OBJECT_NAME } from "../src/control-do/service-control-do.js";
 import { createPublisherOAuthStores } from "../src/oauth/custody.js";
+import { publishVerifiedIntent } from "../src/publishing/workflow.js";
 import type { AuthoritativeRecord } from "../src/verification/pds.js";
 import {
 	restartReleaseIntentWorkflow,
@@ -247,6 +250,17 @@ async function createVerifyingIntent(
 		workflowId: INTENT_ID,
 		now: NOW + 2,
 	});
+}
+
+function immediateWorkflowStep(): WorkflowStep {
+	return {
+		do: async (...args: unknown[]) => {
+			const callback: unknown = args.findLast((value) => typeof value === "function");
+			if (typeof callback !== "function") throw new Error("Workflow step callback is missing");
+			const result: unknown = await callback();
+			return result;
+		},
+	} as WorkflowStep;
 }
 
 afterEach(async () => {
@@ -678,6 +692,125 @@ describe("ReleaseIntentWorkflow", () => {
 			reasonCode: null,
 		});
 		expect(createAttempts).toBe(1);
+	});
+
+	it("resumes publication when the publishing transition committed without an operation", async () => {
+		const profile: Record<string, unknown> = {
+			...structuredClone(profileFixture),
+			extensions: {
+				...structuredClone(profileFixture.extensions),
+				[NSID.packageProfileExtension]: {
+					...structuredClone(profileFixture.extensions[NSID.packageProfileExtension]),
+					releasePolicy: {
+						confirmation: "always",
+						approvers: ["did:plc:approver"],
+					},
+				},
+			},
+		};
+		vi.stubGlobal("fetch", workflowNetwork({ profile }));
+		await createVerifyingIntent();
+		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+		const originalIntent = await publisher.getIntent(PUBLISHER_DID, INTENT_ID);
+		if (!originalIntent) throw new Error("Expected a stored intent");
+		await using introspector = await introspectWorkflowInstance(
+			env.RELEASE_INTENT_WORKFLOW,
+			INTENT_ID,
+		);
+		await env.RELEASE_INTENT_WORKFLOW.create({
+			id: INTENT_ID,
+			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+		});
+		await introspector.waitForStepResult({ name: "await-approval" });
+		const awaiting = await publisher.getIntent(PUBLISHER_DID, INTENT_ID);
+		if (!awaiting) throw new Error("Expected an awaiting intent");
+		const approval = await decodeAwaitingApprovalState(awaiting.stateDataJson);
+		const ready = await publisher.transitionIntent({
+			publisherDid: PUBLISHER_DID,
+			intentId: INTENT_ID,
+			expectedState: "awaiting_approval",
+			expectedGeneration: awaiting.stateGeneration,
+			toState: "ready",
+			transitionDigest: "Y".repeat(43),
+			actorRealm: "approver",
+			actorIdentity: "did:plc:approver",
+			reasonCode: "APPROVED",
+			stateDataJson: JSON.stringify({ approved: true }),
+		});
+		expect(ready.ok).toBe(true);
+		if (!ready.ok) return;
+		await publisher.transitionIntent({
+			publisherDid: PUBLISHER_DID,
+			intentId: INTENT_ID,
+			expectedState: "ready",
+			expectedGeneration: ready.intent.stateGeneration,
+			toState: "publishing",
+			transitionDigest: "X".repeat(43),
+			actorRealm: "system",
+			actorIdentity: "release-service",
+			reasonCode: null,
+			stateDataJson: JSON.stringify({ attempt: 1 }),
+		});
+		const control = env.SERVICE_CONTROL_DO.getByName(SERVICE_CONTROL_OBJECT_NAME);
+		await control.setServiceMode({
+			actor: CONTROL_ACTOR,
+			idempotencyKey: "publishing-retry-paused",
+			requestDigest: "V".repeat(43),
+			mode: "publication-paused",
+			reasonCode: "TEST_PAUSE",
+		});
+
+		await expect(
+			publishVerifiedIntent(
+				{
+					...env,
+					RELEASE_VERIFIER: env.RELEASE_VERIFIER as Service<typeof ReleaseVerifier>,
+				},
+				immediateWorkflowStep(),
+				PUBLISHER_DID,
+				originalIntent,
+				approval.approvalEvidence,
+			),
+		).resolves.toEqual({
+			intentId: INTENT_ID,
+			state: "ready",
+			reasonCode: "PUBLICATION_PAUSED",
+		});
+		await expect(publisher.getIntent(PUBLISHER_DID, INTENT_ID)).resolves.toMatchObject({
+			state: "ready",
+		});
+		await control.setServiceMode({
+			actor: CONTROL_ACTOR,
+			idempotencyKey: "publishing-retry-active",
+			requestDigest: "U".repeat(43),
+			mode: "active",
+			reasonCode: null,
+		});
+		await expect(
+			publishVerifiedIntent(
+				{
+					...env,
+					RELEASE_VERIFIER: env.RELEASE_VERIFIER as Service<typeof ReleaseVerifier>,
+				},
+				immediateWorkflowStep(),
+				PUBLISHER_DID,
+				originalIntent,
+				approval.approvalEvidence,
+			),
+		).resolves.toEqual({ intentId: INTENT_ID, state: "published", reasonCode: null });
+		await expect(publisher.getIntent(PUBLISHER_DID, INTENT_ID)).resolves.toMatchObject({
+			state: "published",
+		});
+		const operation = await runInDurableObject(publisher, (_instance, state) =>
+			state.storage.sql
+				.exec<{ lease_ms: number }>(
+					`SELECT expires_at - started_at AS lease_ms
+					 FROM publication_operations WHERE intent_id = ?`,
+					INTENT_ID,
+				)
+				.one(),
+		);
+		expect(operation.lease_ms).toBe(5 * 60_000);
 	});
 
 	it("restarts an errored reconciliation and accepts the exact authoritative record", async () => {
