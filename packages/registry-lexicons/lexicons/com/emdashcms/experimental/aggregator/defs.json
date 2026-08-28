@@ -62,15 +62,7 @@
 		"releaseView": {
 			"type": "object",
 			"description": "An aggregator's view of a release: the signed record verbatim, record-scoped blob cache services, and any hydrated labels.",
-			"required": [
-				"uri",
-				"cid",
-				"did",
-				"package",
-				"version",
-				"release",
-				"indexedAt"
-			],
+			"required": ["uri", "cid", "did", "package", "version", "release", "indexedAt"],
 			"properties": {
 				"uri": {
 					"type": "string",
