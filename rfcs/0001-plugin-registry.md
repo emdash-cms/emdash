@@ -19,7 +19,7 @@ This RFC defines a decentralized plugin registry for EmDash. The registry uses a
 - Authors publish package and release records to their Atmosphere account's Personal Data Server (PDS).
 - The publisher's PDS stores plugin bundles and listing images as atproto blobs by default. A release can name an external HTTPS URL as an alternative source.
 - Aggregators subscribe to the atproto firehose and index eligible records for discovery.
-- Installing sites resolve the signed records, retrieve artifacts from configured mirrors, Cumulus, the publisher's PDS, or the external URL, and verify every artifact checksum.
+- Installing sites resolve the signed records, retrieve artifacts from an advertised record-scoped cache, the publisher's PDS, or the external URL, and verify every artifact checksum.
 
 The registry covers sandboxed plugins. Native plugins distributed through npm remain out of scope.
 
@@ -186,7 +186,7 @@ flowchart LR
     CLI[Plugin CLI] -->|uploadBlob + record writes| PDS[Publisher PDS]
     PDS -->|release events| RELAY[atproto relay]
     RELAY --> AGG[Aggregator]
-    AGG -->|search + release envelopes| ADMIN[EmDash admin]
+    AGG -->|records + cache descriptors| ADMIN[EmDash admin]
     ADMIN -->|record-scoped artifact request| CDN[cdn.em-da.sh]
     CDN -->|getRecord admission + getBlob fill| PDS
     ADMIN -.->|fallback getBlob| PDS
@@ -512,19 +512,19 @@ sequenceDiagram
     participant Admin as Admin UI
     participant Aggregator
     participant PDS as Author's PDS
-    participant Mirror as Aggregator Mirror / CDN
+    participant Cumulus as Record-scoped artifact cache
 
     User->>Admin: Browse / search plugins
     Admin->>Aggregator: GET /xrpc/com.emdashcms.experimental.aggregator.searchPackages?q=gallery
     Aggregator-->>Admin: Search results
     User->>Admin: Click "Install"
     Admin->>Aggregator: GET /xrpc/com.emdashcms.experimental.aggregator.resolvePackage?handle=example.dev&slug=gallery-plugin
-    Aggregator-->>Admin: Package + release record + mirror URLs
+    Aggregator-->>Admin: Package + release record + cache descriptors
     Admin->>PDS: Fetch package + release records by AT URI<br/>(verify MST signature)
     PDS-->>Admin: Signed records (ground truth)
     Admin->>Admin: Verify Aggregator metadata matches PDS records
-    Admin->>Mirror: GET bundle archive from first available source<br/>(local mirror → aggregator mirrors → author URL)
-    Mirror-->>Admin: gallery-plugin-1.0.0.tar.gz
+    Admin->>Cumulus: GET exact-record-scoped bundle blob
+    Cumulus-->>Admin: gallery-plugin-1.0.0.tar.gz
     Admin->>Admin: Verify checksum against signed record
     Admin->>Admin: Verify bundle manifest matches release.emdash extension
     Admin->>Admin: Install to sandbox
@@ -545,31 +545,29 @@ The PDS-direct fetch is the trust anchor for installation — the aggregator is 
 4. Fetch the package record from the author's PDS.
 5. Determine the latest release for this package. The aggregator's `listReleases` endpoint returns releases scoped to `(did, package)` and is the recommended path. If the aggregator is unavailable, the client falls back to the publisher's PDS: it pages through the `com.emdashcms.experimental.package.release` collection via `com.atproto.repo.listRecords` and filters locally to records whose rkey starts with `<package>:`. (atproto's `listRecords` does not support a server-side rkey prefix filter, so the PDS-direct path is a full collection scan; this is acceptable for occasional use but is the reason the aggregator path is preferred.) Pick the highest semver version (excluding any tombstoned via deletion or labelled `security:yanked`).
 6. Fetch the selected release record from the author's PDS by its full AT URI (`at://<did>/com.emdashcms.experimental.package.release/<package>:<version>`) to obtain the verified, signed copy. Verify the release record matches what the aggregator returned in step 5.
-7. Fetch the `package` artifact (see [Artifact retrieval](#artifact-retrieval)) using its `url`. Verify the artifact's `checksum` against the downloaded bytes. Verify the bundle manifest's `declaredAccess` matches `release.emdash.declaredAccess`. Install to the sandbox.
+7. Fetch the `package` artifact through an advertised record-scoped cache, the publisher PDS, or its explicit `url`. Verify the artifact's `checksum` against the downloaded bytes. Verify the bundle manifest's `declaredAccess` matches `release.emdash.declaredAccess`. Install to the sandbox.
 
 ### Metadata resolution
 
 Package and release _records_ are looked up in this order:
 
-1. **Local mirror**, if the site is configured with one — works offline and in air-gapped deployments. A mirror holds package and release records as well as cached artifacts, addressed by canonical package identity. Records served from a mirror must still be verified against the author's repo proof before install.
-2. **Aggregator API** — fast, cached, has aggregated package and release metadata.
-3. **Author's PDS directly** — slower, but works independently of the aggregator.
+1. **Aggregator API** — fast, cached, and policy-filtered for discovery.
+2. **Author's PDS directly** — slower, but works independently of the aggregator for known package identities.
 
-This means the registry is resilient to aggregator downtime for users who already know the canonical package identity, and installable from fully offline mirrors for operators that require it.
+Records returned by an aggregator are verified against the publisher repository before installation.
 
 ### Artifact retrieval
 
-The installer tries artifact sources in this order:
+For an artifact with a blob ref, the installer tries sources in this order:
 
-1. A site-local mirror, when configured.
-2. The Cumulus record-scoped URL advertised by the aggregator.
-3. The artifact's `blob`, fetched from the publisher's PDS through `com.atproto.sync.getBlob?did=<publisher-did>&cid=<blob-cid>`.
-4. The artifact's explicit `url`.
-5. Fail the installation and report the attempted source classes.
+1. Each recognised record-scoped cache service in the aggregator envelope.
+2. The artifact's `blob`, fetched from the publisher's PDS through `com.atproto.sync.getBlob?did=<publisher-did>&cid=<blob-cid>`.
+3. The artifact's explicit `url`, when present.
+4. Fail the installation and report the attempted source classes.
 
 The installer resolves the publisher's PDS endpoint from the publisher DID document. PDS and external URL requests use the same verified-resource controls: HTTPS only, no embedded credentials, public-address resolution on every redirect, response-size limits, and bounded header and total timeouts. A PDS is publisher-controlled from the installing site's perspective and receives no network exemption.
 
-The installer checks a blob CID against the signed `checksum` before fetching. It hashes bytes returned by every source and falls through when a cache or mirror returns corrupt bytes. A URL-only artifact remains valid; it is tried last because the publisher's PDS is already part of record resolution and narrows the set of outbound hosts.
+The installer checks a blob CID against the signed `checksum` before fetching. It hashes bytes returned by every raw source and falls through when a cache returns corrupt bytes. A URL-only artifact remains valid; it is tried last because the publisher's PDS is already part of record resolution and narrows the set of outbound hosts.
 
 If `requiresAuth` is true, the installer does not call the public `getBlob` endpoint. It uses the method in `auth` only when that variant is recognised. Otherwise it displays the variant's `hint`, when present, and refuses installation.
 
@@ -580,16 +578,19 @@ Cumulus runs at `https://cdn.em-da.sh` in record-scoped mode as a pull-through c
 Artifact URLs use this shape:
 
 ```text
-/r/{did}/com.emdashcms.experimental.package.release/{slug}:{version}/{cid}
+/r/{did}/com.emdashcms.experimental.package.release/{slug}:{version}/{recordCid}/{blobCid}
+/img/{preset}/r/{did}/com.emdashcms.experimental.package.release/{slug}:{version}/{recordCid}/{blobCid}
 ```
 
-Before serving a blob, Cumulus fetches the named release record and confirms that it references the CID. Admission is limited to the release collection and rejects any artifact with `requiresAuth: true`. Gated blobs are neither served nor cached.
+Before serving a blob, Cumulus fetches the named release record, requires its CID to equal `recordCid`, and confirms that the exact revision references `blobCid`. Admission is limited to the release collection and rejects any artifact with `requiresAuth: true`. Gated blobs are neither served nor cached.
 
 Cumulus purges the release record's cache tag when Jetstream reports an update or deletion. The registry labeller subscription purges the same tag when a withdrawal label becomes active.
 
-Package bundles are served verbatim. Listing images pass through Workers Images using fixed icon, banner, and screenshot-thumbnail presets and are re-encoded before delivery. The aggregator advertises these record-scoped URLs in its release envelope.
+Package bundles use the raw route and are served verbatim. Listing images use the image route with fixed `avatar`, `banner`, and `feed_thumbnail` presets and are re-encoded before delivery.
 
-The aggregator still downloads and validates each bundle at ingest. Tar parsing, decompressed limits, required entries, and the `declaredAccess` comparison gate listing eligibility rather than object-storage mirroring. Clients repeat the same validation at install time.
+The aggregator envelope does not enumerate artifact URLs. Its required `artifactCaches` array contains typed service descriptors. The record-scoped Cumulus variant carries `serviceEndpoint`; clients combine it with the release URI, release CID, and each public blob CID. Unknown cache variants are ignored.
+
+The aggregator still downloads and validates each bundle at ingest. Tar parsing, decompressed limits, required entries, and the `declaredAccess` comparison gate listing eligibility rather than artifact storage. Clients repeat the same validation at install time.
 
 Cumulus is a cache rather than durable storage. If a publisher PDS disappears, its records and blobs become unavailable together after cached entries expire. A durable R2 tier can be added later without changing release records.
 
@@ -601,9 +602,7 @@ Cumulus is a cache rather than durable storage. If a publisher PDS disappears, i
 
 ### Outbound network considerations
 
-Blob hosting narrows the default installer egress surface. An install can contact a configured local mirror, `cdn.em-da.sh`, the publisher PDS resolved from the signed record identity, and an explicit artifact `url` when present. Every destination passes the same HTTPS, redirect, DNS, timeout, and response-size controls.
-
-A local mirror can keep air-gapped installations from contacting publisher infrastructure. Artifact hosts and PDSes are trusted for availability only; the signed checksum remains authoritative for package bytes.
+Blob hosting narrows the default installer egress surface. An install can contact an advertised artifact cache, the publisher PDS resolved from the signed record identity, and an explicit artifact `url` when present. Every destination passes the same HTTPS, redirect, DNS, timeout, and response-size controls. Artifact caches and PDSes are trusted for availability only; the signed checksum remains authoritative for package bytes.
 
 ### Deletion semantics
 
@@ -614,7 +613,7 @@ A local mirror can keep air-gapped installations from contacting publisher infra
 - Deleting a package or release does not require uninstalling already-installed site-local copies. Removal from a site remains an explicit admin action.
 - Cumulus purges the record-scoped cache tag for deleted releases.
 
-An author who wants to pull a release deletes the record; the aggregator stops advertising it, the mirror stops serving it, and existing local installs keep running until an admin updates or uninstalls them. This differs deliberately from npm's yank-but-keep-installable primitive: because EmDash plugins are top-level installs with no transitive dependency chain, there is no `left-pad` failure mode for a pulled release to propagate through. If future RFCs introduce inter-plugin dependencies, a proper yank primitive may be needed at that point.
+An author who wants to pull a release deletes the record; the aggregator stops advertising it, Cumulus purges the record tag, and existing local installs keep running until an admin updates or uninstalls them. This differs deliberately from npm's yank-but-keep-installable primitive: because EmDash plugins are top-level installs with no transitive dependency chain, there is no `left-pad` failure mode for a pulled release to propagate through. If future RFCs introduce inter-plugin dependencies, a proper yank primitive may be needed at that point.
 
 ### Update Discovery and Takedowns
 
@@ -679,7 +678,7 @@ A package is published under one publisher DID. Team members can use the organis
 | `com.emdashcms.experimental.aggregator.getLatestRelease` | Get the highest eligible semantic version.                       |
 | `com.emdashcms.experimental.aggregator.resolvePackage`   | Resolve a handle and slug to the canonical DID and package view. |
 
-Release envelopes include record-scoped Cumulus URLs for public package blobs in the existing `mirrors` field. URL-only and gated artifacts return an empty list. Clients treat every envelope URL as untrusted operational data and verify the signed release and artifact checksum independently.
+Release envelopes include an `artifactCaches` array of open-union service descriptors. The default aggregator advertises a `recordScopedBlobCache` with `serviceEndpoint: "https://cdn.em-da.sh"`. Clients derive URLs only for public blob refs and bind each request to the envelope's exact release CID. Cache descriptors are unsigned operational data; clients still verify the signed release and artifact checksum independently.
 
 **Cumulus.** The default cache is deployed at `https://cdn.em-da.sh`. It admits only blobs referenced by `com.emdashcms.experimental.package.release` records and refuses gated artifacts. Cumulus performs the record-membership check on each cache fill; the aggregator does not vouch for or copy the bytes.
 
@@ -728,7 +727,6 @@ We provide reference implementations for every component in the initial system. 
 | ------------------------- | ------------------------------------------------------------------------------ | ----------------------------- | ------------------------------------------------------- |
 | **Lexicons**              | JSON schema definitions for the registry record types and the EmDash extension | n/a (published in a Git repo) | n/a                                                     |
 | **Aggregator**            | Firehose consumer + index + read API                                           | ✅ Yes                        | ✅ Yes — subscribe to the relay, index the same records |
-| **Package mirror**        | Optional artifact mirror for releases                                          | ✅ Yes                        | ✅ Yes — the protocol allows any mirror strategy        |
 | **Web directory**         | Browsable plugin directory website                                             | ✅ Yes                        | ✅ Yes — reads from any aggregator API                  |
 | **CLI (`emdash plugin`)** | Publish, search and manage plugins                                             | n/a (distributed via npm)     | n/a                                                     |
 | **Client library**        | TypeScript SDK for third-party integrations                                    | n/a (published to npm)        | n/a                                                     |
@@ -780,7 +778,7 @@ A client verifies:
 
 1. The release record belongs to the expected DID (via repo signature).
 2. A blob artifact's CID multihash equals the artifact's `checksum`.
-3. Package bytes returned by a local mirror, Cumulus, the publisher PDS, or an external URL hash to the artifact's `checksum`.
+3. Package bytes returned by an advertised artifact cache, the publisher PDS, or an external URL hash to the artifact's `checksum`.
 4. The bundle manifest's `declaredAccess` block is deep-equal to `release.emdash.declaredAccess`.
 
 The bundle is downloaded, hashed, and compared against the record before any install side effects occur. A failure at any step aborts the install with a specific error message.
@@ -867,7 +865,7 @@ The verification mechanism extends naturally to delegation. A `com.emdashcms.exp
 - **Provenance verification:** Test that install fetches package and release records from the author's repo (or equivalent verified proof) and rejects aggregator metadata that does not match source records.
 - **Manifest consistency:** Test that the EmDash client refuses to install a release whose bundle `manifest.json` declares a `declaredAccess` that isn't deep-equal (after canonicalisation) to the release's `emdash` extension data.
 - **Metadata fallback:** Test that the EmDash client falls back to PDS-direct record lookup when the aggregator is unreachable.
-- **Artifact source fallback:** Test local mirror → Cumulus → publisher PDS blob → external URL ordering and checksum verification on every package source.
+- **Artifact source fallback:** Test advertised cache → publisher PDS blob → external URL ordering and checksum verification on every package source.
 - **Aggregator listing validation:** Test that the aggregator excludes bundles that violate decompressed limits, fail tar parsing, omit required root entries, or disagree with the signed `declaredAccess` extension.
 - **Missing extension handling:** Test that the EmDash install client refuses to install a release with no `emdash` extension data, and that a generic directory can still render the release's metadata.
 - **Deletion handling:** Delete package and release records on a test PDS, verify the aggregator retains tombstones, Cumulus purges the record cache tag, and search/install omit the records. Verify deletion does not uninstall existing plugins.
@@ -880,8 +878,8 @@ The verification mechanism extends naturally to delegation. A `com.emdashcms.exp
 
 ## Adversarial testing
 
-- **Tampered artifacts:** Serve a bundle whose bytes do not match the artifact checksum from a URL, PDS, Cumulus, or local mirror and verify the client rejects it.
-- **Cumulus admission:** Request a CID that is not referenced by the named release record and verify Cumulus refuses it.
+- **Tampered artifacts:** Serve a bundle whose bytes do not match the artifact checksum from a URL, PDS, or advertised cache and verify the client rejects it.
+- **Cumulus admission:** Verify that a mismatched release-record CID or an unreferenced blob CID is refused, and that raw and image routes share the exact-record check.
 - **Duplicate-version override:** Publish a second release record with the same `(package, version)` pair as an existing release; verify the aggregator ignores the later record, install clients refuse it, and the earlier record remains canonical.
 - **Cross-package release confusion:** Publish a release whose `package` field references a profile that doesn't exist in the same repository; verify the aggregator rejects it at ingest. Publish a release whose rkey doesn't match `<package>:<version>`; verify the aggregator rejects it at ingest.
 - **Ingestion spam:** Publish records faster than the aggregator's per-DID rate limit; verify excess records are dropped at ingest and the aggregator stays responsive.
@@ -1009,8 +1007,8 @@ The work has a clear dependency chain — lexicons block both the CLI and the ag
 1. **Lexicons.** Publish the experimental profile, release, extension, and aggregator schemas, including slot-specific blob constraints.
 2. **CLI.** Implement `login`, `init`, blob-default `publish`, URL-alternative publishing, `search`, `info`, and `validate`. Request and verify the repository and blob OAuth scopes.
 3. **First-party plugin republishing.** Use the CLI to publish all existing first-party EmDash plugins through the new flow. This catches schema and CLI bugs before the aggregator is ready and gives us real data for the aggregator to index.
-4. **Aggregator.** Subscribe to the firehose, validate records and bundles, index eligible releases, and advertise `cdn.em-da.sh` URLs for public release-record blobs.
-5. **Admin UI install flow.** Search, record verification, mirror/Cumulus/PDS/URL resolution, integrity verification, capability consent, and install.
+4. **Aggregator.** Subscribe to the firehose, validate records and bundles, index eligible releases, and advertise the `cdn.em-da.sh` record-scoped cache service.
+5. **Admin UI install flow.** Search, record verification, cache/PDS/URL resolution, integrity verification, capability consent, and install.
 
 **Parallel work** (can land any time before Phase 1 ships):
 
