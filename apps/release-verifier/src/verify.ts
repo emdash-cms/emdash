@@ -37,7 +37,8 @@ export interface VerifyArtifactInput {
 }
 
 export interface VerifiedArtifactReport {
-	url: string;
+	requestedUrl: string;
+	resolvedUrl: string;
 	checksum: string;
 	compressedBytes: number;
 	manifest: {
@@ -72,7 +73,8 @@ export interface VerifyReleaseInput {
 export interface VerifiedReleaseReport {
 	artifact: VerifiedArtifactReport;
 	provenance: {
-		url: string;
+		requestedUrl: string;
+		resolvedUrl: string;
 		checksum: string;
 		documentBytes: number;
 		predicateType: string;
@@ -165,7 +167,8 @@ async function loadArtifact(
 		value: {
 			bytes: resource.value.bytes,
 			report: {
-				url: resource.value.url.toString(),
+				requestedUrl: input.url,
+				resolvedUrl: resource.value.url.toString(),
 				checksum: input.checksum,
 				compressedBytes: resource.value.bytes.byteLength,
 				manifest: {
@@ -239,7 +242,8 @@ export async function verifyRelease(
 			value: {
 				artifact: artifact.value.report,
 				provenance: {
-					url: provenanceResource.value.url.toString(),
+					requestedUrl: input.provenance.url,
+					resolvedUrl: provenanceResource.value.url.toString(),
 					checksum: input.provenance.checksum,
 					documentBytes: provenanceResource.value.bytes.byteLength,
 					predicateType: provenance.value.predicateType,

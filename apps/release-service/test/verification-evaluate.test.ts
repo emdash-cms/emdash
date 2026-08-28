@@ -5,7 +5,12 @@ import profileFixture from "../../../packages/registry-verification/fixtures/rec
 import releaseFixture from "../../../packages/registry-verification/fixtures/records/release.json";
 import type { ReleaseVerificationReport } from "../../release-verifier/src/verify.js";
 import type { StoredIntent } from "../src/publisher-do/publisher-do.js";
-import { evaluateVerifiedRelease, prepareVerifierInput } from "../src/verification/evaluate.js";
+import {
+	evaluateVerifiedRelease,
+	normalizeVerifierReport,
+	parseNormalizedVerifierReport,
+	prepareVerifierInput,
+} from "../src/verification/evaluate.js";
 import type { PublisherVerificationSnapshot } from "../src/verification/pds.js";
 
 const PUBLISHER_DID = "did:plc:publisher";
@@ -72,14 +77,16 @@ function verifierReport(): ReleaseVerificationReport {
 		success: true,
 		value: {
 			artifact: {
-				url: releaseFixture.artifacts.package.url,
+				requestedUrl: releaseFixture.artifacts.package.url,
+				resolvedUrl: releaseFixture.artifacts.package.url,
 				checksum: ARTIFACT_CHECKSUM,
 				compressedBytes: 1024,
 				manifest: { id: "gallery", version: "1.2.3", declaredAccess: {} },
 				bundle: { backendBytes: 100, adminBytes: null },
 			},
 			provenance: {
-				url: PROVENANCE.url,
+				requestedUrl: PROVENANCE.url,
+				resolvedUrl: PROVENANCE.url,
 				checksum: PROVENANCE.checksum,
 				documentBytes: 512,
 				predicateType: PROVENANCE.predicateType,
@@ -124,6 +131,30 @@ describe("verification evaluation", () => {
 					baselineReleaseCid: null,
 					verificationGeneration: 4,
 					workloadIdentityDigest: "A".repeat(43),
+				},
+			},
+		});
+	});
+
+	it("binds signed request URLs while retaining verified redirect destinations", async () => {
+		const report = verifierReport();
+		if (!report.success) throw new Error("Expected successful fixture");
+		report.value.artifact.resolvedUrl = "https://cdn.example.test/gallery.tgz";
+		report.value.provenance.resolvedUrl = "https://cdn.example.test/gallery.sigstore.json";
+		const normalized = normalizeVerifierReport(report);
+		const persisted = parseNormalizedVerifierReport(JSON.stringify(normalized));
+		if (!persisted?.success) throw new Error("Expected persisted verifier report");
+
+		await expect(
+			evaluateVerifiedRelease(PUBLISHER_DID, intent(), snapshot(), persisted),
+		).resolves.toMatchObject({
+			success: true,
+			value: {
+				verifier: {
+					artifact: { resolvedUrl: "https://cdn.example.test/gallery.tgz" },
+					provenance: {
+						resolvedUrl: "https://cdn.example.test/gallery.sigstore.json",
+					},
 				},
 			},
 		});

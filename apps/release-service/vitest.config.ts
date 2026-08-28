@@ -24,7 +24,8 @@ export default defineConfig({
 										success: true,
 										value: {
 											artifact: {
-												url: input.artifact.url,
+												requestedUrl: input.artifact.url,
+												resolvedUrl: input.artifact.url,
 												checksum: input.artifact.checksum,
 												compressedBytes: 1024,
 												manifest: {
@@ -35,7 +36,8 @@ export default defineConfig({
 												bundle: { backendBytes: 100, adminBytes: null },
 											},
 											provenance: {
-												url: input.provenance.url,
+												requestedUrl: input.provenance.url,
+												resolvedUrl: input.provenance.url,
 												checksum: input.provenance.checksum,
 												documentBytes: 512,
 												predicateType: input.provenance.predicateType,

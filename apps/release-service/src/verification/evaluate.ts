@@ -50,14 +50,16 @@ export type NormalizedVerifierReport =
 			success: true;
 			value: {
 				artifact: {
-					url: string;
+					requestedUrl: string;
+					resolvedUrl: string;
 					checksum: string;
 					compressedBytes: number;
 					manifest: { id: string; version: string; declaredAccess: unknown };
 					bundle: { backendBytes: number; adminBytes: number | null };
 				};
 				provenance: {
-					url: string;
+					requestedUrl: string;
+					resolvedUrl: string;
 					checksum: string;
 					documentBytes: number;
 					predicateType: string;
@@ -94,7 +96,8 @@ export function normalizeVerifierReport(
 		success: true,
 		value: {
 			artifact: {
-				url: report.value.artifact.url,
+				requestedUrl: report.value.artifact.requestedUrl,
+				resolvedUrl: report.value.artifact.resolvedUrl,
 				checksum: report.value.artifact.checksum,
 				compressedBytes: report.value.artifact.compressedBytes,
 				manifest: {
@@ -141,14 +144,16 @@ export function parseNormalizedVerifierReport(value: string): NormalizedVerifier
 	const manifest = artifact["manifest"];
 	const bundle = artifact["bundle"];
 	const normalized = {
-		url: stringField(artifact["url"]),
+		requestedUrl: stringField(artifact["requestedUrl"]),
+		resolvedUrl: stringField(artifact["resolvedUrl"]),
 		checksum: stringField(artifact["checksum"]),
 		compressedBytes: numberField(artifact["compressedBytes"]),
 		manifestId: stringField(manifest["id"]),
 		manifestVersion: stringField(manifest["version"]),
 		backendBytes: numberField(bundle["backendBytes"]),
 		adminBytes: bundle["adminBytes"] === null ? null : numberField(bundle["adminBytes"]),
-		provenanceUrl: stringField(provenance["url"]),
+		provenanceRequestedUrl: stringField(provenance["requestedUrl"]),
+		provenanceResolvedUrl: stringField(provenance["resolvedUrl"]),
 		provenanceChecksum: stringField(provenance["checksum"]),
 		documentBytes: numberField(provenance["documentBytes"]),
 		predicateType: stringField(provenance["predicateType"]),
@@ -156,13 +161,15 @@ export function parseNormalizedVerifierReport(value: string): NormalizedVerifier
 		builderId: stringField(provenance["builderId"]),
 	};
 	if (
-		normalized.url === null ||
+		normalized.requestedUrl === null ||
+		normalized.resolvedUrl === null ||
 		normalized.checksum === null ||
 		normalized.compressedBytes === null ||
 		normalized.manifestId === null ||
 		normalized.manifestVersion === null ||
 		normalized.backendBytes === null ||
-		normalized.provenanceUrl === null ||
+		normalized.provenanceRequestedUrl === null ||
+		normalized.provenanceResolvedUrl === null ||
 		normalized.provenanceChecksum === null ||
 		normalized.documentBytes === null ||
 		normalized.predicateType === null ||
@@ -176,7 +183,8 @@ export function parseNormalizedVerifierReport(value: string): NormalizedVerifier
 		success: true,
 		value: {
 			artifact: {
-				url: normalized.url,
+				requestedUrl: normalized.requestedUrl,
+				resolvedUrl: normalized.resolvedUrl,
 				checksum: normalized.checksum,
 				compressedBytes: normalized.compressedBytes,
 				manifest: {
@@ -190,7 +198,8 @@ export function parseNormalizedVerifierReport(value: string): NormalizedVerifier
 				},
 			},
 			provenance: {
-				url: normalized.provenanceUrl,
+				requestedUrl: normalized.provenanceRequestedUrl,
+				resolvedUrl: normalized.provenanceResolvedUrl,
 				checksum: normalized.provenanceChecksum,
 				documentBytes: normalized.documentBytes,
 				predicateType: normalized.predicateType,
@@ -288,7 +297,7 @@ function reportBackedVerifier(
 	return {
 		verify: async (input) => {
 			if (
-				input.reference.url !== report.provenance.url ||
+				input.reference.url !== report.provenance.requestedUrl ||
 				input.reference.checksum !== report.provenance.checksum ||
 				input.reference.predicateType !== report.provenance.predicateType ||
 				report.provenance.predicateType !== SLSA_PROVENANCE_V1 ||
@@ -328,7 +337,7 @@ export async function evaluateVerifiedRelease(
 	const verifierInput = prepareVerifierInput(intent, snapshot);
 	if (!payload || !verifierInput) return failed("INTENT_INPUT_INVALID");
 	if (
-		verifierReport.value.artifact.url !== verifierInput.artifact.url ||
+		verifierReport.value.artifact.requestedUrl !== verifierInput.artifact.url ||
 		verifierReport.value.artifact.checksum !== verifierInput.artifact.checksum ||
 		verifierReport.value.artifact.manifest.id !== intent.packageSlug ||
 		verifierReport.value.artifact.manifest.version !== intent.version

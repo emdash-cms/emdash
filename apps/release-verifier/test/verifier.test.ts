@@ -70,7 +70,8 @@ describe("isolated release verifier", () => {
 		expect(result).toMatchObject({
 			success: true,
 			value: {
-				url: ARTIFACT_URL,
+				requestedUrl: ARTIFACT_URL,
+				resolvedUrl: ARTIFACT_URL,
 				compressedBytes: bytes.byteLength,
 				manifest: {
 					id: "gallery",
@@ -84,6 +85,71 @@ describe("isolated release verifier", () => {
 			},
 		});
 		expect(JSON.stringify(result)).not.toContain("export default");
+	});
+
+	it("reports signed and resolved URLs separately after safe redirects", async () => {
+		const bytes = await validBundle();
+		const provenanceDocument = encoder.encode('{"sigstore":"bundle"}');
+		const resolvedArtifactUrl = "https://cdn.example.test/plugin.tgz";
+		const provenanceUrl = "https://provenance.example.test/bundle.json";
+		const resolvedProvenanceUrl = "https://cdn.example.test/bundle.json";
+		const result = await verifyRelease(
+			{
+				artifact: {
+					url: ARTIFACT_URL,
+					checksum: await checksum(bytes),
+					packageSlug: "gallery",
+					version: "1.2.3",
+				},
+				provenance: {
+					url: provenanceUrl,
+					checksum: await checksum(provenanceDocument),
+					predicateType: "https://slsa.dev/provenance/v1",
+					sourceRepository: "https://github.com/emdash-cms/gallery",
+					builderId:
+						"https://github.com/emdash-cms/gallery/.github/workflows/release.yml@refs/heads/main",
+				},
+				profileRepository: "https://github.com/emdash-cms/gallery",
+			},
+			{
+				fetch: async (url) => {
+					const href = url.toString();
+					if (href === ARTIFACT_URL) {
+						return new Response(null, { status: 302, headers: { location: resolvedArtifactUrl } });
+					}
+					if (href === resolvedArtifactUrl) return new Response(bytes);
+					if (href === provenanceUrl) {
+						return new Response(null, {
+							status: 302,
+							headers: { location: resolvedProvenanceUrl },
+						});
+					}
+					return new Response(provenanceDocument);
+				},
+				resolveHostname: async () => ["203.0.113.5"],
+				provenanceVerifier: {
+					async verify(input) {
+						return {
+							success: true,
+							value: {
+								predicateType: "https://slsa.dev/provenance/v1",
+								artifactDigest: input.artifactDigest,
+								sourceRepository: input.profileRepository,
+								builderId: input.reference.builderId,
+							},
+						};
+					},
+				},
+			},
+		);
+
+		expect(result).toMatchObject({
+			success: true,
+			value: {
+				artifact: { requestedUrl: ARTIFACT_URL, resolvedUrl: resolvedArtifactUrl },
+				provenance: { requestedUrl: provenanceUrl, resolvedUrl: resolvedProvenanceUrl },
+			},
+		});
 	});
 
 	it("verifies artifact and provenance in one isolated invocation with all digest candidates", async () => {
