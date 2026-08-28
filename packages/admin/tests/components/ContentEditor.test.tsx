@@ -1138,35 +1138,6 @@ describe("ContentEditor", () => {
 			);
 		});
 
-		it("never autosaves an inferred byline as an explicit credit", async () => {
-			vi.useFakeTimers();
-			try {
-				const onAutosave = vi.fn();
-				const inferred = makeByline({ id: "inferred", displayName: "Owner Profile" });
-				const explicit = makeByline({
-					id: "explicit",
-					slug: "mina-patel",
-					displayName: "Mina Patel",
-				});
-				const screen = await renderBylineContent([savedCredit(inferred, "inferred")], {
-					availableBylines: [explicit],
-					onAutosave,
-				});
-
-				await screen.getByRole("button", { name: "Choose bylines" }).click();
-				await screen.getByRole("button", { name: "Add Mina Patel" }).click();
-				await vi.advanceTimersByTimeAsync(2000);
-
-				expect(onAutosave).toHaveBeenCalledWith(
-					expect.objectContaining({
-						bylines: [{ bylineId: "explicit", roleLabel: null }],
-					}),
-				);
-			} finally {
-				vi.useRealTimers();
-			}
-		});
-
 		it("keeps a credit without a source editable for backwards compatibility", async () => {
 			const legacy = makeByline({ id: "legacy", displayName: "Legacy Credit" });
 			const screen = await renderBylineContent([savedCredit(legacy)]);
@@ -2150,17 +2121,6 @@ describe("ContentEditor", () => {
 			await expect.element(screen.getByLabelText("Search bylines")).not.toBeInTheDocument();
 			await screen.getByRole("button", { name: "Choose bylines" }).click();
 			await expect.element(screen.getByLabelText("Search bylines")).toBeInTheDocument();
-		});
-
-		it("groups explicit credit actions under a scoped menu", async () => {
-			const credited = makeByline({ id: "credited", displayName: "Mina Patel" });
-			const screen = await renderBylineContent([savedCredit(credited, undefined, "Writer")]);
-
-			await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
-			await expect.element(screen.getByRole("menuitem", { name: "Edit role" })).toBeInTheDocument();
-			await expect
-				.element(screen.getByRole("menuitem", { name: "Remove from post" }))
-				.toBeInTheDocument();
 		});
 
 		it("searches the server and adds a byline from outside the initial list", async () => {

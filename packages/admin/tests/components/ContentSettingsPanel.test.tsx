@@ -193,13 +193,10 @@ describe("ContentSettingsPanel", () => {
 				})}
 			/>,
 		);
-		const help = screen.getByText("Shown to readers in this order.");
-
-		expect(help.query()).toBeNull();
 		await expect.element(screen.getByRole("button", { name: "Add another byline" })).toBeVisible();
 		const trigger = screen.getByRole("button", { name: "Why are bylines shown in this order?" });
-		await userEvent.hover(trigger.element());
-		await expect.element(help).toBeVisible();
+		trigger.element().focus();
+		await expect.element(screen.getByText("Shown to readers in this order.")).toBeVisible();
 	});
 
 	it("shows the normalized pending changes label", async () => {

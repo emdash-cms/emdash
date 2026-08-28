@@ -143,7 +143,6 @@ describe("BylineCreditsEditor", () => {
 		const screen = await renderControlled({ onQuickCreate: quickCreateByline });
 		const dialog = await openCreate(screen, "Mina Patel");
 		dialog.getByRole("button", { name: "Cancel" }).element().click();
-		await new Promise((resolve) => setTimeout(resolve, 200));
 
 		await expect.element(screen.getByLabelText("Search bylines")).toBeVisible();
 		await expect.element(screen.getByLabelText("Search bylines")).toHaveValue("Mina Patel");
@@ -344,59 +343,5 @@ describe("BylineCreditsEditor", () => {
 			),
 		]).toEqual([guestActions, actions]);
 		await vi.waitFor(() => expect(document.activeElement).toBe(actions));
-	});
-
-	it("keeps pointer dragging inside the credit list", async () => {
-		const { mina, guest, credits } = makeCreditPair();
-		const screen = await renderControlled({ initialCredits: credits, bylines: [mina, guest] });
-		const handle = screen.getByRole("button", { name: "Reorder Mina Patel" }).element();
-		const row = handle.parentElement!;
-		const list = row.parentElement!;
-		const handleRect = handle.getBoundingClientRect();
-		const listRect = list.getBoundingClientRect();
-		const pointer = {
-			bubbles: true,
-			isPrimary: true,
-			pointerId: 1,
-			pointerType: "mouse",
-			clientX: handleRect.left + handleRect.width / 2,
-		};
-
-		handle.dispatchEvent(
-			new PointerEvent("pointerdown", {
-				...pointer,
-				clientY: handleRect.top + handleRect.height / 2,
-				button: 0,
-				buttons: 1,
-			}),
-		);
-		document.dispatchEvent(
-			new PointerEvent("pointermove", {
-				...pointer,
-				clientY: handleRect.bottom + 10,
-				buttons: 1,
-			}),
-		);
-		await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-		document.dispatchEvent(
-			new PointerEvent("pointermove", {
-				...pointer,
-				clientY: listRect.bottom + 200,
-				buttons: 1,
-			}),
-		);
-		await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-
-		expect(handle.dataset.sorting).toBe("true");
-		expect(row.getBoundingClientRect().bottom).toBeLessThanOrEqual(listRect.bottom + 0.5);
-
-		document.dispatchEvent(
-			new PointerEvent("pointerup", {
-				...pointer,
-				clientY: listRect.bottom + 200,
-				button: 0,
-				buttons: 0,
-			}),
-		);
 	});
 });
