@@ -417,6 +417,37 @@ describe("publisher publication operations", () => {
 		},
 	);
 
+	it.each([
+		["blocked", "PUBLICATION_PAUSED"],
+		["failed", "OAUTH_DELEGATION_UNAVAILABLE"],
+	] as const)(
+		"rejects a %s completion after the create boundary",
+		async (outcome, reasonCode) => {
+			const stub = await preparePublishing();
+			const started = await stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, NOW + 10);
+			expect(started.ok).toBe(true);
+			if (!started.ok) return;
+			await advanceToCreating(stub, started.lease);
+
+			await expect(
+				stub.completePublicationOperation({
+					publisherDid: DID,
+					intentId: INTENT_ID,
+					generation: started.lease.generation,
+					token: started.lease.token,
+					expectedIntentGeneration: started.lease.expectedIntentGeneration,
+					completionDigest: "X".repeat(43),
+					outcome,
+					reasonCode,
+					resultUri: null,
+					resultCid: null,
+					now: NOW + 12,
+				}),
+			).resolves.toEqual({ ok: false, code: "PUBLICATION_CAS_REQUIRED" });
+			await expect(stub.getIntent(DID, INTENT_ID)).resolves.toMatchObject({ state: "publishing" });
+		},
+	);
+
 	it("requires reconciliation and re-arms recovery for an expired write lease", async () => {
 		const stub = await preparePublishing();
 		await stub.beginPublicationOperation(DID, INTENT_ID, 5, 1, NOW + 10);
