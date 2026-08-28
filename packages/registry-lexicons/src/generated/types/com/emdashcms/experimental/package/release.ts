@@ -20,7 +20,7 @@ const _artifactSchema = /*#__PURE__*/ v.object({
 		]),
 	),
 	/**
-	 * Multibase-encoded multihash of the artifact bytes. EmDash clients MUST support sha2-256 (multihash code 0x12) and SHOULD support sha2-512 (0x13) and blake3 (0x1e). Recommended base prefix: base32 ('b'). Clients reject artifacts whose checksum uses an unsupported hash function rather than skipping verification.
+	 * Lowercase base32 multibase-encoded sha2-256 multihash of the artifact bytes (multihash code 0x12). EmDash clients reject unsupported hash functions rather than skipping verification.
 	 * @maxLength 256
 	 */
 	checksum: /*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
@@ -143,7 +143,7 @@ const _imageArtifactSchema = /*#__PURE__*/ v.object({
 		]),
 	),
 	/**
-	 * Multibase-encoded multihash of the artifact bytes. EmDash clients MUST support sha2-256 (multihash code 0x12) and SHOULD support sha2-512 (0x13) and blake3 (0x1e). Recommended base prefix: base32 ('b'). Clients reject artifacts whose checksum uses an unsupported hash function rather than skipping verification.
+	 * Lowercase base32 multibase-encoded sha2-256 multihash of the artifact bytes (multihash code 0x12). EmDash clients reject unsupported hash functions rather than skipping verification.
 	 * @maxLength 256
 	 */
 	checksum: /*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [

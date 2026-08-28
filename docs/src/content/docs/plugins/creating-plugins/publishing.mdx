@@ -59,6 +59,8 @@ emdash-plugin publish
 
 `publish` runs the same build and validation checks as `bundle`, creates the gzip archive, uploads it to your Personal Data Server (PDS), uploads any declared listing images, and writes the release record.
 
+Sites need a version of EmDash that supports PDS-hosted registry artifacts before they can install a blob-only release. Use the [external package URL](#use-an-external-package-url) path when the release must remain installable on older sites.
+
 ## Bundle
 
 `bundle` runs [`build`](/plugins/creating-plugins/cli/#build), validates, collects assets, and creates a tarball. Inside the tarball, `plugin.mjs` is packed as `backend.js` (the filename the registry expects).

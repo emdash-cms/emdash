@@ -22,6 +22,16 @@ For the full list of changes in each package, see its entry in the [EmDash chang
 
 ## Breaking changes
 
+### Changed: registry releases can use PDS blobs
+
+Earlier EmDash versions install package artifacts only from an external URL.
+
+Registry releases can now store the package bundle as a blob in the publisher's Personal Data Server (PDS). EmDash resolves blob-only releases through a record-scoped cache or the publisher's PDS and verifies the fetched bytes before installation.
+
+#### What should I do?
+
+Upgrade EmDash before installing a release whose package artifact does not provide an external URL. Publishers that must support older sites can continue to publish the package bundle with `emdash-plugin publish --url <https-url>`.
+
 ### Renamed: `@emdash-cms/registry-cli` is now `@emdash-cms/plugin-cli`
 
 Earlier releases shipped the plugin registry CLI as `@emdash-cms/registry-cli`, with an `emdash-registry` binary.
@@ -59,6 +69,8 @@ Remove `--artifact-base-url` and the image-host write credentials from publish s
 ```sh
 emdash-plugin publish
 ```
+
+The updated CLI rejects `--artifact-base-url` instead of ignoring it, so stale scripts fail with migration guidance.
 
 If the command reports `MISSING_BLOB_SCOPE`, run `emdash-plugin logout`, then log in again to grant blob upload access.
 
