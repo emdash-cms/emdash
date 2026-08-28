@@ -164,6 +164,39 @@ describe("publisher release intents", () => {
 		).resolves.toEqual({ ok: false, code: "INTENT_TRANSITION_INVALID" });
 	});
 
+	it("keeps an expired publishing intent reserved until reconciliation finishes", async () => {
+		const stub = publisher();
+		await stub.putWorkloadPolicy(policy());
+		await stub.createIntent(intent({ expiresAt: NOW + 10 }));
+		await stub.transitionIntent(transition("received", 1, "verifying"));
+		await stub.transitionIntent(transition("verifying", 2, "verified"));
+		await stub.transitionIntent(transition("verified", 3, "ready"));
+		await stub.transitionIntent(transition("ready", 4, "publishing"));
+
+		await expect(
+			stub.createIntent(
+				intent({
+					intentId: INTENT_2,
+					workloadIdentityDigest: "D".repeat(43),
+					idempotencyKey: "github-run-101-attempt-1",
+					requestDigest: "E".repeat(43),
+					expiresAt: NOW + 60_000,
+					now: NOW + 11,
+				}),
+			),
+		).resolves.toEqual({
+			ok: false,
+			code: "RESERVATION_CONFLICT",
+			existingIntentId: INTENT_1,
+		});
+		await expect(
+			stub.transitionIntent(transition("publishing", 5, "reconciling", { now: NOW + 12 })),
+		).resolves.toMatchObject({ ok: true, intent: { state: "reconciling" } });
+		await expect(
+			stub.transitionIntent(transition("reconciling", 6, "published", { now: NOW + 13 })),
+		).resolves.toMatchObject({ ok: true, intent: { state: "published" } });
+	});
+
 	it("releases a terminal unpublished reservation for a new intent", async () => {
 		const stub = publisher();
 		await stub.putWorkloadPolicy(policy());
@@ -275,9 +308,9 @@ describe("publisher release intents", () => {
 			code: "PUBLISHER_SUSPENDED",
 		});
 		await runInDurableObject(stub, async (instance) => {
-			expect(() =>
+			await expect(
 				instance.createIntent(intent({ workloadIdentityJson: '{ "runId": "100" }' })),
-			).toThrowError(expect.objectContaining({ code: "INTENT_INPUT_INVALID" }));
+			).rejects.toEqual(expect.objectContaining({ code: "INTENT_INPUT_INVALID" }));
 		});
 	});
 });

@@ -349,7 +349,7 @@ export class IntentStateStore {
 				     SELECT 1 FROM intents
 				      WHERE intents.id = release_reservations.intent_id
 				        AND (
-				          intents.state = 'published'
+				          intents.state IN ('published', 'publishing', 'reconciling')
 				          OR (
 				            intents.expires_at > ?
 				            AND intents.state NOT IN (
@@ -464,7 +464,8 @@ export class IntentStateStore {
 		return this.#storage.transactionSync(() => {
 			const current = this.get(input.intentId);
 			if (!current) return { ok: false, code: "INTENT_NOT_FOUND" } as const;
-			if (current.expiresAt <= now && input.toState !== "expired") {
+			const activePublication = current.state === "publishing" || current.state === "reconciling";
+			if (current.expiresAt <= now && !activePublication && input.toState !== "expired") {
 				return { ok: false, code: "INTENT_TRANSITION_INVALID" } as const;
 			}
 			if (
