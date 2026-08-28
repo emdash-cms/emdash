@@ -218,7 +218,8 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright install-deps chromium
+      - run: pnpm exec playwright install chromium
         if: steps.delegated-release-playwright-cache.outputs.cache-hit != 'true'
       - run: pnpm --filter @emdash-cms/release-service test:browser
 
