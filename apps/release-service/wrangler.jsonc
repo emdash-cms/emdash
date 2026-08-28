@@ -58,6 +58,7 @@
 		"run_worker_first": [
 			"/",
 			"/.well-known/*",
+			"/admin",
 			"/admin/*",
 			"/approvals/*",
 			"/health",

@@ -65,14 +65,14 @@ async function operatorRequest(
 
 describe("Access service-control routes", () => {
 	it("returns service status only for the viewer audience", async () => {
-		const response = await operatorRequest("/admin/api/viewer/status", "viewer");
+		const response = await operatorRequest("/admin/api/status", "viewer");
 
 		expect(response.status).toBe(200);
 		expect(await response.json()).toMatchObject({
 			data: { state: { mode: "active", epoch: 1 } },
 		});
 
-		const wrongAudience = await operatorRequest("/admin/api/admin/service-mode", "viewer", {
+		const wrongAudience = await operatorRequest("/admin/api/pause", "viewer", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ mode: "publication-paused", reasonCode: "MAINTENANCE" }),
@@ -87,7 +87,7 @@ describe("Access service-control routes", () => {
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ mode: "publication-paused", reasonCode: "MAINTENANCE" }),
 		};
-		const first = await operatorRequest("/admin/api/admin/service-mode", "admin", request);
+		const first = await operatorRequest("/admin/api/pause", "admin", request);
 		expect(first.status).toBe(200);
 		expect(await first.json()).toMatchObject({
 			data: {
@@ -96,11 +96,11 @@ describe("Access service-control routes", () => {
 			},
 		});
 
-		const replay = await operatorRequest("/admin/api/admin/service-mode", "admin", request);
+		const replay = await operatorRequest("/admin/api/pause", "admin", request);
 		expect(replay.status).toBe(200);
 		expect(await replay.json()).toMatchObject({ data: { replayed: true } });
 
-		const conflict = await operatorRequest("/admin/api/admin/service-mode", "admin", {
+		const conflict = await operatorRequest("/admin/api/pause", "admin", {
 			...request,
 			body: JSON.stringify({ mode: "admission-paused", reasonCode: "MAINTENANCE" }),
 		});
@@ -111,19 +111,22 @@ describe("Access service-control routes", () => {
 	});
 
 	it("sets and reads a publisher suspension without exposing operator email", async () => {
-		const changed = await operatorRequest("/admin/api/admin/publisher-control", "admin", {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({
-				publisherDid: DID,
-				status: "suspended",
-				reasonCode: "SECURITY_REVIEW",
-			}),
-		});
+		const changed = await operatorRequest(
+			`/admin/api/publishers/${encodeURIComponent(DID)}/suspend`,
+			"admin",
+			{
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					suspended: true,
+					reasonCode: "SECURITY_REVIEW",
+				}),
+			},
+		);
 		expect(changed.status).toBe(200);
 
 		const read = await operatorRequest(
-			`/admin/api/viewer/publisher-control?did=${encodeURIComponent(DID)}`,
+			`/admin/api/publishers/${encodeURIComponent(DID)}`,
 			"viewer",
 		);
 		const text = await read.text();
@@ -131,10 +134,13 @@ describe("Access service-control routes", () => {
 		expect(JSON.parse(text)).toMatchObject({
 			data: {
 				publisher: {
-					publisherDid: DID,
-					status: "suspended",
-					reasonCode: "SECURITY_REVIEW",
-					changedBy: OPERATOR_SUBJECT,
+					did: DID,
+					control: {
+						publisherDid: DID,
+						status: "suspended",
+						reasonCode: "SECURITY_REVIEW",
+						changedBy: OPERATOR_SUBJECT,
+					},
 				},
 			},
 		});
@@ -142,35 +148,34 @@ describe("Access service-control routes", () => {
 	});
 
 	it("paginates sanitized control audit events", async () => {
-		await operatorRequest("/admin/api/admin/service-mode", "admin", {
+		await operatorRequest("/admin/api/pause", "admin", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ mode: "admission-paused", reasonCode: "MAINTENANCE" }),
 		});
-		await operatorRequest("/admin/api/admin/publisher-control", "admin", {
+		await operatorRequest(`/admin/api/publishers/${encodeURIComponent(DID)}/suspend`, "admin", {
 			method: "POST",
 			headers: {
 				"content-type": "application/json",
 				"idempotency-key": "operator-request-0002",
 			},
 			body: JSON.stringify({
-				publisherDid: DID,
-				status: "suspended",
+				suspended: true,
 				reasonCode: "SECURITY_REVIEW",
 			}),
 		});
 
-		const first = await operatorRequest("/admin/api/viewer/audit?limit=1", "viewer");
+		const first = await operatorRequest("/admin/api/audit?limit=1", "viewer");
 		expect(await first.json()).toMatchObject({
 			data: { items: [{ sequence: 1 }], nextCursor: "1" },
 		});
 
-		const second = await operatorRequest("/admin/api/viewer/audit?after=1&limit=1", "viewer");
+		const second = await operatorRequest("/admin/api/audit?after=1&limit=1", "viewer");
 		expect(await second.json()).toMatchObject({ data: { items: [{ sequence: 2 }] } });
 	});
 
 	it("rejects invalid control bodies and query parameters", async () => {
-		const body = await operatorRequest("/admin/api/admin/service-mode", "admin", {
+		const body = await operatorRequest("/admin/api/pause", "admin", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ mode: "active", reasonCode: "STALE_REASON" }),
@@ -178,7 +183,23 @@ describe("Access service-control routes", () => {
 		expect(body.status).toBe(400);
 		expect(await body.json()).toMatchObject({ error: { code: "INVALID_REQUEST" } });
 
-		const query = await operatorRequest("/admin/api/viewer/audit?unexpected=1", "viewer");
+		const query = await operatorRequest("/admin/api/audit?unexpected=1", "viewer");
 		expect(query.status).toBe(400);
+	});
+
+	it.each([
+		["GET", "/admin/api/viewer/status", "viewer"],
+		["GET", `/admin/api/viewer/publisher-control?did=${encodeURIComponent(DID)}`, "viewer"],
+		["GET", "/admin/api/viewer/audit", "viewer"],
+		["POST", "/admin/api/admin/service-mode", "admin"],
+		["POST", "/admin/api/admin/publisher-control", "admin"],
+	] as const)("does not expose the legacy %s %s operator route", async (method, path, role) => {
+		const response = await operatorRequest(path, role, {
+			method,
+			headers: method === "POST" ? { "content-type": "application/json" } : undefined,
+			body: method === "POST" ? "{}" : undefined,
+		});
+
+		expect(response.status).toBe(404);
 	});
 });

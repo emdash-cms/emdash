@@ -1,4 +1,3 @@
-import { isDid } from "@atcute/lexicons/syntax";
 import { env } from "cloudflare:workers";
 import { base64url } from "jose";
 
@@ -7,11 +6,7 @@ import { readJsonObject } from "../api/body.js";
 import { ApiError } from "../api/errors.js";
 import { apiSuccess } from "../api/response.js";
 import type { ServiceConfiguration } from "../config.js";
-import {
-	SERVICE_CONTROL_OBJECT_NAME,
-	type PublisherControlStatus,
-	type ServiceMode,
-} from "./service-control-do.js";
+import { SERVICE_CONTROL_OBJECT_NAME, type ServiceMode } from "./service-control-do.js";
 
 const REASON_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 const DECIMAL_INTEGER_PATTERN = /^(0|[1-9][0-9]*)$/;
@@ -127,70 +122,6 @@ export async function handleSetServiceMode(
 			throw new ApiError("IDEMPOTENCY_CONFLICT", 409, "Idempotency key conflicts with prior use");
 		}
 		return apiSuccess({ state: result.value, replayed: result.replayed }, requestId);
-	} catch (error) {
-		mapControlError(error);
-	}
-}
-
-export async function handleGetPublisherControl(
-	request: Request,
-	requestId: string,
-	_configuration: ServiceConfiguration,
-	_params: Readonly<Record<string, string>>,
-	accessActor: AccessActor | null,
-): Promise<Response> {
-	const url = new URL(request.url);
-	const publisherDid = url.searchParams.get("did");
-	if (
-		[...url.searchParams.keys()].some((key) => key !== "did") ||
-		!publisherDid ||
-		!isDid(publisherDid)
-	) {
-		throw new ApiError("INVALID_REQUEST", 400, "Valid publisher DID required");
-	}
-	try {
-		const publisher = await control().readPublisherControl(requireActor(accessActor), publisherDid);
-		return apiSuccess({ publisher }, requestId);
-	} catch (error) {
-		mapControlError(error);
-	}
-}
-
-export async function handleSetPublisherControl(
-	request: Request,
-	requestId: string,
-	_configuration: ServiceConfiguration,
-	_params: Readonly<Record<string, string>>,
-	accessActor: AccessActor | null,
-): Promise<Response> {
-	const actor = requireActor(accessActor);
-	const body = await readJsonObject(request);
-	if (
-		!hasExactKeys(body, ["publisherDid", "status", "reasonCode"]) ||
-		typeof body["publisherDid"] !== "string" ||
-		!isDid(body["publisherDid"]) ||
-		(body["status"] !== "allowed" && body["status"] !== "suspended") ||
-		!validReasonCode(body["reasonCode"]) ||
-		(body["status"] === "allowed") !== (body["reasonCode"] === null)
-	) {
-		throw new ApiError("INVALID_REQUEST", 400, "Invalid publisher control request");
-	}
-	const publisherDid = body["publisherDid"];
-	const status: PublisherControlStatus = body["status"];
-	const reasonCode = body["reasonCode"];
-	try {
-		const result = await control().setPublisherControl({
-			actor,
-			idempotencyKey: requireIdempotencyKey(request),
-			requestDigest: await requestDigest(["publisher-control", publisherDid, status, reasonCode]),
-			publisherDid,
-			status,
-			reasonCode,
-		});
-		if (!result.ok) {
-			throw new ApiError("IDEMPOTENCY_CONFLICT", 409, "Idempotency key conflicts with prior use");
-		}
-		return apiSuccess({ publisher: result.value, replayed: result.replayed }, requestId);
 	} catch (error) {
 		mapControlError(error);
 	}

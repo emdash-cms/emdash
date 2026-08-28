@@ -16,10 +16,8 @@ import {
 import type { ServiceConfiguration } from "./config.js";
 import {
 	handleControlAudit,
-	handleGetPublisherControl,
 	handleReadiness,
 	handleServiceStatus,
-	handleSetPublisherControl,
 	handleSetServiceMode,
 } from "./control-do/routes.js";
 import {
@@ -253,35 +251,5 @@ export const ROUTES = Object.freeze([
 		path: "/admin/api/audit",
 		accessRole: "viewer",
 		handler: handleControlAudit,
-	},
-	{
-		method: "GET",
-		path: "/admin/api/viewer/status",
-		accessRole: "viewer",
-		handler: handleServiceStatus,
-	},
-	{
-		method: "GET",
-		path: "/admin/api/viewer/publisher-control",
-		accessRole: "viewer",
-		handler: handleGetPublisherControl,
-	},
-	{
-		method: "GET",
-		path: "/admin/api/viewer/audit",
-		accessRole: "viewer",
-		handler: handleControlAudit,
-	},
-	{
-		method: "POST",
-		path: "/admin/api/admin/service-mode",
-		accessRole: "admin",
-		handler: handleSetServiceMode,
-	},
-	{
-		method: "POST",
-		path: "/admin/api/admin/publisher-control",
-		accessRole: "admin",
-		handler: handleSetPublisherControl,
 	},
 ] as const satisfies readonly RouteDefinition[]);
