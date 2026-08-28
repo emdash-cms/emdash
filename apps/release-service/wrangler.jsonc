@@ -13,6 +13,10 @@
 				"class_name": "ApproverDurableObject",
 			},
 			{
+				"name": "OAUTH_STATE_DO",
+				"class_name": "OAuthStateDurableObject",
+			},
+			{
 				"name": "SERVICE_CONTROL_DO",
 				"class_name": "ServiceControlDurableObject",
 			},
@@ -27,6 +31,7 @@
 			"tag": "v1",
 			"new_sqlite_classes": [
 				"ApproverDurableObject",
+				"OAuthStateDurableObject",
 				"PublisherDurableObject",
 				"ServiceControlDurableObject",
 			],

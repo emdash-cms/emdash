@@ -2,6 +2,7 @@ import type { ActorResolver } from "@atcute/identity-resolver";
 import type { StoredSession, StoredState } from "@atcute/oauth-node-client";
 import { reset, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
+import { base64url } from "jose";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { loadConfiguration } from "../src/config.js";
@@ -76,19 +77,24 @@ describe("Durable Object OAuth custody", () => {
 			},
 		);
 		await custody.stores.states.set(RAW_STATE, state(custody.userState));
+		const stateHash = base64url.encode(
+			new Uint8Array(
+				await crypto.subtle.digest("SHA-256", new TextEncoder().encode(RAW_STATE)),
+			),
+		);
 
 		const persisted = await runInDurableObject(
-			env.PUBLISHER_DO.getByName(DID),
+			env.OAUTH_STATE_DO.getByName(stateHash),
 			(_instance, durableState) =>
 				durableState.storage.sql
 					.exec<{
 						state_hash: string;
 						encrypted_state: string;
 						encryption_key_version: number;
-					}>("SELECT state_hash, encrypted_state, encryption_key_version FROM oauth_states")
+					}>("SELECT state_hash, encrypted_state, encryption_key_version FROM oauth_state")
 					.one(),
 		);
-		expect(persisted.state_hash).not.toBe(RAW_STATE);
+		expect(persisted.state_hash).toBe(stateHash);
 		expect(persisted.encryption_key_version).toBe(configuration.encryption.currentKeyVersion);
 		expect(JSON.stringify(persisted)).not.toContain(RAW_STATE);
 		expect(JSON.stringify(persisted)).not.toContain(PKCE_VERIFIER);

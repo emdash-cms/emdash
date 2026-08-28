@@ -20,11 +20,9 @@ import {
 	type StoredSession,
 	type StoredState,
 } from "@atcute/oauth-node-client";
+import { env } from "cloudflare:workers";
 
-import type {
-	ApproverDurableObject,
-	StoredIdentityTransaction,
-} from "../approver-do/approver-do.js";
+import type { ApproverDurableObject } from "../approver-do/approver-do.js";
 import type { OAuthConfiguration } from "../config.js";
 import {
 	EncryptionError,
@@ -36,8 +34,8 @@ import type {
 	DelegationRefreshLease,
 	PublisherDurableObject,
 	StoredDelegation,
-	StoredOAuthState,
 } from "../publisher-do/publisher-do.js";
+import type { StoredOAuthTransaction } from "./state-do.js";
 
 const DID_PATTERN = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
@@ -366,33 +364,28 @@ interface PutDurableOAuthStateInput {
 }
 
 interface DurableOAuthStateBackend {
-	objectClass: "PublisherDurableObject" | "ApproverDurableObject";
-	table: "oauth_states" | "identity_transactions";
+	objectClass: "OAuthStateDurableObject";
+	table: "oauth_state";
 	put(input: PutDurableOAuthStateInput): Promise<{ ok: boolean }>;
-	consume(stateHash: string): Promise<StoredOAuthState | StoredIdentityTransaction | null>;
+	consume(stateHash: string): Promise<StoredOAuthTransaction | null>;
 }
 
-function publisherOAuthStateBackend(
-	stub: DurableObjectStub<PublisherDurableObject>,
-	publisherDid: Did,
-): DurableOAuthStateBackend {
+function oauthStateBackend(options: PublisherOAuthFlowOptions): DurableOAuthStateBackend {
 	return {
-		objectClass: "PublisherDurableObject",
-		table: "oauth_states",
-		put: (input) => stub.putOAuthState({ publisherDid, ...input }),
-		consume: (stateHash) => stub.consumeOAuthState(publisherDid, stateHash),
-	};
-}
-
-function approverOAuthStateBackend(
-	stub: DurableObjectStub<ApproverDurableObject>,
-	approverDid: Did,
-): DurableOAuthStateBackend {
-	return {
-		objectClass: "ApproverDurableObject",
-		table: "identity_transactions",
-		put: (input) => stub.putIdentityTransaction({ approverDid, ...input }),
-		consume: (stateHash) => stub.consumeIdentityTransaction(approverDid, stateHash),
+		objectClass: "OAuthStateDurableObject",
+		table: "oauth_state",
+		put: (input) =>
+			env.OAUTH_STATE_DO.getByName(input.stateHash).put({
+				...input,
+				ownerDid: options.expectedDid,
+				purpose: options.purpose,
+			}),
+		consume: (stateHash) =>
+			env.OAUTH_STATE_DO.getByName(stateHash).consume({
+				stateHash,
+				ownerDid: options.expectedDid,
+				purpose: options.purpose,
+			}),
 	};
 }
 
@@ -799,7 +792,7 @@ export function createPublisherOAuthStores(
 	};
 	const stub = namespace.getByName(options.expectedDid);
 	const states = new DurableOAuthStateStore(
-		publisherOAuthStateBackend(stub, options.expectedDid),
+		oauthStateBackend(normalizedOptions),
 		encryption,
 		oauth,
 		normalizedOptions,
@@ -981,9 +974,8 @@ export function createApproverOAuthClient(
 			options.oauth.clientMetadata.client_uri,
 		),
 	};
-	const stub = options.namespace.getByName(flow.expectedDid);
 	const states = new DurableOAuthStateStore(
-		approverOAuthStateBackend(stub, flow.expectedDid),
+		oauthStateBackend(flow),
 		options.encryption,
 		options.oauth,
 		flow,

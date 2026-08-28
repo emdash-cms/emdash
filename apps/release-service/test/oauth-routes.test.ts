@@ -1,4 +1,4 @@
-import { reset } from "cloudflare:test";
+import { reset, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -221,6 +221,68 @@ describe("publisher OAuth routes", () => {
 		await expect(env.APPROVER_DO.getByName(DID).listCredentials(DID, null, 10)).resolves.toEqual(
 			[],
 		);
+	});
+
+	it("keeps attacker-triggerable publisher authorization state out of the publisher shard", async () => {
+		const network = oauthNetwork();
+		vi.stubGlobal("fetch", network.fetch);
+		const config = await configuration();
+		for (let attempt = 0; attempt < 3; attempt += 1) {
+			const response = await handlePublisherIdentityAuthorize(
+				new Request(`${ORIGIN}/v1/publisher/session/authorize`, {
+					method: "POST",
+					headers: {
+						"content-type": "application/json",
+						origin: ORIGIN,
+						"x-emdash-request": "1",
+					},
+					body: JSON.stringify({ identifier: DID, redirectTarget: "/publisher" }),
+				}),
+				`publisher-state-${attempt}`,
+				config,
+			);
+			expect(response.status).toBe(303);
+		}
+
+		await expect(
+			runInDurableObject(env.PUBLISHER_DO.getByName(DID), (_instance, state) =>
+				state.storage.sql
+					.exec<{ count: number }>("SELECT COUNT(*) AS count FROM oauth_states")
+					.one(),
+			),
+		).resolves.toEqual({ count: 0 });
+	});
+
+	it("cannot exhaust approver authorization by filling the approver shard", async () => {
+		const network = oauthNetwork();
+		vi.stubGlobal("fetch", network.fetch);
+		const config = await configuration();
+		for (let attempt = 0; attempt < 21; attempt += 1) {
+			const response = await handleApproverIdentityAuthorize(
+				new Request(`${ORIGIN}/v1/approver/session/authorize`, {
+					method: "POST",
+					headers: {
+						"content-type": "application/json",
+						origin: ORIGIN,
+						"x-emdash-request": "1",
+					},
+					body: JSON.stringify({ identifier: DID, redirectTarget: "/approvals/intent-1" }),
+				}),
+				`approver-state-${attempt}`,
+				config,
+			);
+			expect(response.status).toBe(303);
+		}
+
+		await expect(
+			runInDurableObject(env.APPROVER_DO.getByName(DID), (_instance, state) =>
+				state.storage.sql
+					.exec<{ count: number }>(
+						"SELECT COUNT(*) AS count FROM identity_transactions WHERE completed_at IS NULL",
+					)
+					.one(),
+			),
+		).resolves.toEqual({ count: 0 });
 	});
 
 	it("requires same-origin authorization and rejects oversized bodies before resolution", async () => {
