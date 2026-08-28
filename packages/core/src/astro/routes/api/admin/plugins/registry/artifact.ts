@@ -66,7 +66,7 @@ const CID_PATTERN = /^b[a-z2-7]+$/;
 const INDEX_PATTERN = /^\d+$/;
 
 /** Cap proxied images so a hostile host can't stream an unbounded body. */
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 1024 * 1024;
 
 /** Redirect hops to follow, re-validating each target against SSRF rules. */
 const MAX_REDIRECTS = 5;

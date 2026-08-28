@@ -63,6 +63,8 @@ export async function fetchReleaseArtifact(
 		return unsupportedAuth(input.auth);
 	}
 	const blobCid = modernBlobCid(artifact.blob);
+	const blobMetadata =
+		blobCid && artifact.blob && "ref" in artifact.blob ? artifact.blob : undefined;
 	if (artifact.blob && !blobCid) {
 		return verificationError("BLOB_REF_INVALID", "Legacy blob references are not supported.");
 	}
@@ -92,7 +94,8 @@ export async function fetchReleaseArtifact(
 			"artifact-cache",
 			cacheUrl.value,
 			artifact.checksum,
-			attemptOptions,
+			withBlobSizeLimit(attemptOptions, blobMetadata),
+			blobMetadata,
 		);
 		if (result.success) return result;
 		lastError = result.error;
@@ -109,7 +112,13 @@ export async function fetchReleaseArtifact(
 			if (url.success) {
 				const attemptOptions = withinDeadline(options, deadline);
 				if (!attemptOptions) return timedOut();
-				const result = await fetchAndVerify("blob", url.value, artifact.checksum, attemptOptions);
+				const result = await fetchAndVerify(
+					"blob",
+					url.value,
+					artifact.checksum,
+					withBlobSizeLimit(attemptOptions, blobMetadata),
+					blobMetadata,
+				);
 				if (result.success) return result;
 				lastError = result.error;
 			} else {
@@ -123,7 +132,13 @@ export async function fetchReleaseArtifact(
 	if (artifact.url) {
 		const attemptOptions = withinDeadline(options, deadline);
 		if (!attemptOptions) return timedOut();
-		const result = await fetchAndVerify("url", artifact.url, artifact.checksum, attemptOptions);
+		const result = await fetchAndVerify(
+			"url",
+			artifact.url,
+			artifact.checksum,
+			withBlobSizeLimit(attemptOptions, blobMetadata),
+			blobMetadata,
+		);
 		if (result.success) return result;
 		lastError = result.error;
 	}
@@ -238,14 +253,44 @@ async function fetchAndVerify(
 	url: string | URL,
 	checksum: string,
 	options: FetchVerifiedResourceOptions,
+	blobMetadata?: { mimeType: string; size: number },
 ): Promise<VerificationResult<FetchedReleaseArtifact>> {
 	const fetched = await fetchVerifiedResource(url, options);
-	if (!fetched.success) return fetched;
+	if (!fetched.success) {
+		return blobMetadata && fetched.error.code === "RESOURCE_SIZE_EXCEEDED"
+			? verificationError(
+					"BLOB_METADATA_MISMATCH",
+					"The fetched artifact size does not match its signed blob metadata.",
+				)
+			: fetched;
+	}
 	const verified = await verifyMultihash(fetched.value.bytes, checksum);
 	if (!verified.success) return verified;
+	const contentType = fetched.value.headers.get("content-type")?.split(";", 1)[0]?.trim();
+	if (
+		blobMetadata &&
+		(fetched.value.bytes.byteLength !== blobMetadata.size ||
+			(contentType !== undefined && contentType !== blobMetadata.mimeType))
+	) {
+		return verificationError(
+			"BLOB_METADATA_MISMATCH",
+			"The fetched artifact does not match its signed blob metadata.",
+		);
+	}
 	return {
 		success: true,
 		value: { bytes: fetched.value.bytes, source, url: fetched.value.url },
+	};
+}
+
+function withBlobSizeLimit(
+	options: FetchVerifiedResourceOptions,
+	blobMetadata: { size: number } | undefined,
+): FetchVerifiedResourceOptions {
+	if (!blobMetadata) return options;
+	return {
+		...options,
+		maxBytes: Math.min(options.maxBytes ?? DEFAULT_FETCH_LIMITS.maxBytes, blobMetadata.size),
 	};
 }
 

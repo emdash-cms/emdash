@@ -621,7 +621,7 @@ describe("registry artifact proxy", () => {
 
 	it("rejects an oversized declared content-length", async () => {
 		globalThis.fetch = vi.fn(async () =>
-			imageResponse(PNG_1x1, "image/png", { "content-length": String(10 * 1024 * 1024) }),
+			imageResponse(PNG_1x1, "image/png", { "content-length": String(1024 * 1024 + 1) }),
 		) as typeof globalThis.fetch;
 		const res = await GET(makeContext(DEFAULT_PARAMS));
 		expect(res.status).toBe(413);
@@ -632,7 +632,7 @@ describe("registry artifact proxy", () => {
 		let emitted = 0;
 		const body = new ReadableStream<Uint8Array>({
 			pull(controller) {
-				if (emitted >= 6) {
+				if (emitted >= 2) {
 					controller.close();
 					return;
 				}

@@ -132,6 +132,31 @@ describe("fetchReleaseArtifact", () => {
 		expect(result).toMatchObject({ success: true, value: { source: "url", bytes } });
 	});
 
+	it("rejects fetched bytes that disagree with signed blob metadata", async () => {
+		for (const blob of [
+			{ ...artifact().blob!, size: bytes.byteLength - 1 },
+			{ ...artifact().blob!, mimeType: "image/png" },
+		]) {
+			const result = await fetchReleaseArtifact(
+				{
+					artifact: artifact({ blob, url: undefined }),
+					record,
+					pdsEndpoint: "https://pds.example",
+				},
+				{
+					fetch: async () =>
+						new Response(bytes, { headers: { "content-type": "application/gzip" } }),
+					resolveHostname,
+				},
+			);
+
+			expect(result).toMatchObject({
+				success: false,
+				error: { code: "BLOB_METADATA_MISMATCH" },
+			});
+		}
+	});
+
 	it("rejects a blob whose CID disagrees with its checksum before fetching", async () => {
 		const fetch = vi.fn();
 		const result = await fetchReleaseArtifact(

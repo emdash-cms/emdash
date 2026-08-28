@@ -1,6 +1,7 @@
 /** Stable, machine-readable failures returned by this package. */
 export const VERIFICATION_ERROR_CODES = [
 	"AUTH_METHOD_UNSUPPORTED",
+	"BLOB_METADATA_MISMATCH",
 	"BLOB_REF_INVALID",
 	"BUNDLE_COMPRESSED_SIZE_EXCEEDED",
 	"BUNDLE_DECOMPRESSED_SIZE_EXCEEDED",
