@@ -1,7 +1,7 @@
 import { isDid, isHandle } from "@atcute/lexicons/syntax";
 import { env } from "cloudflare:workers";
 
-import { readJsonObject } from "../api/body.js";
+import { isRecord, readJsonObject } from "../api/body.js";
 import { ApiError } from "../api/errors.js";
 import { apiFailure, apiSuccess } from "../api/response.js";
 import { createApproverApplicationSession } from "../approver-session/session.js";
