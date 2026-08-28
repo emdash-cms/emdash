@@ -7,10 +7,7 @@ import { ApiError } from "../api/errors.js";
 import { apiSuccess } from "../api/response.js";
 import type { ServiceConfiguration } from "../config.js";
 import { writeOperationsMetric } from "../observability/metrics.js";
-import {
-	SERVICE_CONTROL_OBJECT_NAME,
-	type ServiceMode,
-} from "./service-control-do.js";
+import { SERVICE_CONTROL_OBJECT_NAME, type ServiceMode } from "./service-control-do.js";
 
 const REASON_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 const DECIMAL_INTEGER_PATTERN = /^(0|[1-9][0-9]*)$/;

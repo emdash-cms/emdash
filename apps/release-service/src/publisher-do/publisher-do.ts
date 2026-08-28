@@ -17,6 +17,12 @@ import {
 	type TransitionIntentResult,
 } from "./intent-state.js";
 import {
+	initializeOperationsRestoreSchema,
+	OperationsRestoreStore,
+	type ApplyPublisherRestorePageInput,
+	type ApplyPublisherRestorePageResult,
+} from "./operations-restore.js";
+import {
 	initializePublicationMaterializationSchema,
 	PublicationMaterializationStore,
 	type CompletePublicationMaterializationInput,
@@ -25,12 +31,6 @@ import {
 	type PutPublicationBlobReceiptInput,
 	type StoredPublicationMaterialization,
 } from "./publication-materialization.js";
-import {
-	initializeOperationsRestoreSchema,
-	OperationsRestoreStore,
-	type ApplyPublisherRestorePageInput,
-	type ApplyPublisherRestorePageResult,
-} from "./operations-restore.js";
 import {
 	initializePublicationOperationSchema,
 	PublicationOperationStore,
