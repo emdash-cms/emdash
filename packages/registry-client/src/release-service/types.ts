@@ -213,11 +213,6 @@ export type PublisherApproverEnrollmentState = "enrolled" | "not_enrolled" | "re
 export interface PublisherApproverStatusResource {
 	did: string;
 	status: PublisherApproverEnrollmentState;
-	credentialCount: number;
-	activeCredentialCount: number;
-	firstEnrolledAt: number | null;
-	lastEnrolledAt: number | null;
-	lastRevokedAt: number | null;
 }
 
 export interface PublisherApproverStatusResult {

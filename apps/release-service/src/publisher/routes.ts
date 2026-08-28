@@ -317,7 +317,6 @@ export async function handleGetPublisherApproverStatus(
 							: enrollment.credentialCount > 0
 								? ("revoked" as const)
 								: ("not_enrolled" as const),
-					...enrollment,
 				};
 			}),
 		);

@@ -646,51 +646,14 @@ function parsePublisherApproverStatus(value: unknown): PublisherApproverStatusRe
 	if (!isRecord(value)) throw invalidResponse();
 	const did = stringValue(value, "did");
 	const status = value["status"];
-	const credentialCount = safeInteger(value, "credentialCount");
-	const activeCredentialCount = safeInteger(value, "activeCredentialCount");
-	const firstEnrolledAt = nullableSafeInteger(value, "firstEnrolledAt");
-	const lastEnrolledAt = nullableSafeInteger(value, "lastEnrolledAt");
-	const lastRevokedAt = nullableSafeInteger(value, "lastRevokedAt");
-	const expectedStatus =
-		activeCredentialCount !== null && activeCredentialCount > 0
-			? "enrolled"
-			: credentialCount !== null && credentialCount > 0
-				? "revoked"
-				: "not_enrolled";
 	if (
 		!did ||
 		!DID_PATTERN.test(did) ||
-		(status !== "enrolled" && status !== "not_enrolled" && status !== "revoked") ||
-		status !== expectedStatus ||
-		credentialCount === null ||
-		credentialCount < 0 ||
-		activeCredentialCount === null ||
-		activeCredentialCount < 0 ||
-		activeCredentialCount > credentialCount ||
-		firstEnrolledAt === undefined ||
-		lastEnrolledAt === undefined ||
-		lastRevokedAt === undefined ||
-		(credentialCount === 0 &&
-			(firstEnrolledAt !== null || lastEnrolledAt !== null || lastRevokedAt !== null)) ||
-		(credentialCount > 0 &&
-			(firstEnrolledAt === null ||
-				lastEnrolledAt === null ||
-				firstEnrolledAt < 0 ||
-				lastEnrolledAt < firstEnrolledAt)) ||
-		(lastRevokedAt !== null && (firstEnrolledAt === null || lastRevokedAt < firstEnrolledAt)) ||
-		(status === "revoked" && lastRevokedAt === null)
+		(status !== "enrolled" && status !== "not_enrolled" && status !== "revoked")
 	) {
 		throw invalidResponse();
 	}
-	return {
-		did,
-		status,
-		credentialCount,
-		activeCredentialCount,
-		firstEnrolledAt,
-		lastEnrolledAt,
-		lastRevokedAt,
-	};
+	return { did, status };
 }
 
 function invalidResponse(requestId: string | null = null): ReleaseServiceError {

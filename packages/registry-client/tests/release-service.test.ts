@@ -416,7 +416,7 @@ describe("ReleaseServiceClient", () => {
 		});
 	});
 
-	it("reads publisher-visible approver enrolment status", async () => {
+	it("reads publisher-visible approver readiness", async () => {
 		let captured = "";
 		const client = new ReleaseServiceClient({
 			serviceUrl: SERVICE,
@@ -429,20 +429,16 @@ describe("ReleaseServiceClient", () => {
 						{
 							did: "did:plc:approver",
 							status: "enrolled",
-							credentialCount: 2,
-							activeCredentialCount: 1,
-							firstEnrolledAt: 1_799_999_000_000,
-							lastEnrolledAt: 1_799_999_500_000,
-							lastRevokedAt: 1_799_999_750_000,
 						},
 					],
 				});
 			},
 		});
 
-		await expect(client.getPublisherApproverStatus("gallery")).resolves.toMatchObject({
+		await expect(client.getPublisherApproverStatus("gallery")).resolves.toEqual({
 			packageSlug: "gallery",
-			items: [{ did: "did:plc:approver", status: "enrolled", activeCredentialCount: 1 }],
+			profileCid: "bafyprofile",
+			items: [{ did: "did:plc:approver", status: "enrolled" }],
 		});
 		expect(captured).toBe(`${SERVICE}/v1/publisher/workloads/gallery/approvers`);
 	});

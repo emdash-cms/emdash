@@ -378,12 +378,6 @@ export function PublisherPage() {
 									<Table.Row>
 										<Table.Head>{t("publisher.approvers.did", "Approver")}</Table.Head>
 										<Table.Head>{t("publisher.approvers.status", "Status")}</Table.Head>
-										<Table.Head>
-											{t("publisher.approvers.activeCredentials", "Active credentials")}
-										</Table.Head>
-										<Table.Head>
-											{t("publisher.approvers.lastEnrolled", "Last enrolled")}
-										</Table.Head>
 									</Table.Row>
 								</Table.Header>
 								<Table.Body>
@@ -398,15 +392,6 @@ export function PublisherPage() {
 															? t("publisher.approvers.revoked", "Credentials revoked")
 															: t("publisher.approvers.notEnrolled", "Not enrolled")}
 												</Badge>
-											</Table.Cell>
-											<Table.Cell>{item.activeCredentialCount}</Table.Cell>
-											<Table.Cell>
-												{item.lastEnrolledAt === null
-													? t("publisher.approvers.never", "Never")
-													: new Intl.DateTimeFormat(document.documentElement.lang, {
-															dateStyle: "medium",
-															timeStyle: "short",
-														}).format(item.lastEnrolledAt)}
 											</Table.Cell>
 										</Table.Row>
 									))}

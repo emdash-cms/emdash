@@ -149,7 +149,7 @@ describe("publisher API", () => {
 		});
 	});
 
-	it("compares signed approvers with safe enrolment summaries", async () => {
+	it("compares signed approvers without exposing credential metadata", async () => {
 		const configuration = await loadConfiguration(TEST_BINDINGS);
 		const enrolledDid = "did:plc:enrolled-approver";
 		const missingDid = "did:plc:missing-approver";
@@ -202,16 +202,16 @@ describe("publisher API", () => {
 		expect(response.status).toBe(200);
 		const body = await response.json();
 		expect(body).toMatchObject({
-			data: {
-				packageSlug: "gallery",
-				profileCid: "bafyprofile",
-				items: [
-					{ did: enrolledDid, status: "enrolled", activeCredentialCount: 1 },
-					{ did: missingDid, status: "not_enrolled", activeCredentialCount: 0 },
-					{ did: revokedDid, status: "revoked", activeCredentialCount: 0 },
-				],
-			},
+			data: { packageSlug: "gallery", profileCid: "bafyprofile" },
 		});
+		if (typeof body !== "object" || body === null) throw new Error("Expected response object");
+		const data = Reflect.get(body, "data");
+		if (typeof data !== "object" || data === null) throw new Error("Expected response data");
+		expect(Reflect.get(data, "items")).toEqual([
+			{ did: enrolledDid, status: "enrolled" },
+			{ did: missingDid, status: "not_enrolled" },
+			{ did: revokedDid, status: "revoked" },
+		]);
 		expect(JSON.stringify(body)).not.toContain("Private credential name");
 		expect(JSON.stringify(body)).not.toContain("publisher-visible-status");
 	});

@@ -118,11 +118,6 @@ describe("release-service web surfaces", () => {
 							{
 								did: "did:plc:approver",
 								status: "enrolled",
-								credentialCount: 1,
-								activeCredentialCount: 1,
-								firstEnrolledAt: 1_799_999_000_000,
-								lastEnrolledAt: 1_799_999_000_000,
-								lastRevokedAt: null,
 							},
 						],
 					});
