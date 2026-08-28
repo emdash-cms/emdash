@@ -1,35 +1,10 @@
 /**
- * Registry plugin install handler.
- *
- * Installs a plugin published to the experimental decentralized plugin
- * registry described in RFC 0001. The install flow:
- *
- *   1. Resolve `(handle, slug)` to a publisher DID via the configured
- *      aggregator's `resolvePackage` XRPC.
- *   2. Look up the requested release (or the policy-filtered latest one)
- *      via `getLatestRelease` / `listReleases`.
- *   3. Require the aggregator's approved listing projection, then apply the
- *      release-withdrawal policy.
- *   4. Resolve the publisher DID document, fetch profile and release CARs
- *      from its PDS, and verify their repository proofs, CIDs, and policy.
- *   5. Apply the independent release-age and environment policies.
- *   6. Fetch the bundle artifact through an advertised record-scoped cache,
- *      the publisher PDS, or the publisher-declared URL.
- *   7. Verify the artifact's multibase checksum against the signed
- *      release record's `artifacts.package.checksum`.
- *   8. Extract `manifest.json` + `backend.js` + optional `admin.js` from
- *      the gzipped tar bundle.
- *   9. Store the extracted files in site-local R2 under the
- *      `registry/<plugin-id>/<version>/` prefix.
- *  10. Write a `plugin_states` row with `source = "registry"` and the
- *      `(publisher_did, slug)` pair so updates can be resolved later.
- *  11. Sync the runtime so the plugin becomes active immediately.
- *
- * `acceptLabelers` is forwarded to the aggregator. Label envelopes are
- * moderation metadata: applicable labels can block installation but cannot
- * supply records, checksums, permissions, or executable bytes. Listing
- * approval never substitutes for the independent record, artifact, manifest,
- * consent, sandbox, and environment checks.
+ * Registry installs use aggregator results only for discovery and moderation
+ * metadata. The handler reads profile and release records from the publisher's
+ * PDS, verifies their repository proofs, then validates the bundle checksum,
+ * manifest, policy, and consent before storing or activating executable code.
+ * Applicable labels can block installation but cannot supply any verified
+ * record, checksum, permission, or executable byte.
  */
 
 import { ClientResponseError, ClientValidationError } from "@atcute/client";

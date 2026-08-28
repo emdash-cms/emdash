@@ -23,4 +23,4 @@ The verification package also exports `inspectPackageReleaseRecords` for validat
 
 Registry install and update consent now show the exact verified profile and release CIDs, signed publisher policy, and provenance status. Install consent uses permissions and MCP tools read from the verified bundle rather than the aggregator's record copy.
 
-Release records must contain a lowercase base32 multibase `sha2-256` multihash. Existing releases produced by the EmDash plugin CLI already use this format; nonconforming bare hexadecimal checksums are rejected.
+Install, update, and delegated-release verification require lowercase base32 multibase `sha2-256` multihashes for package artifacts and provenance documents. The plugin CLI already produces this format. The authenticated image-artifact proxy still accepts legacy bare hexadecimal SHA-256 checksums for display-only images.
