@@ -737,7 +737,7 @@ export async function runInteractiveLogin(
 			}
 			await clientRegistrationStore(options.stateDir).set(result.session.sub, {
 				redirectUri: server.redirectUri,
-				scope: storedSession.tokenSet.scope,
+				scope: client.metadata.scope ?? DEFAULT_CLI_SCOPE,
 			});
 			// Atcute has accepted the callback. Only NOW render the success
 			// page in the user's browser -- so a stray /callback hit with
