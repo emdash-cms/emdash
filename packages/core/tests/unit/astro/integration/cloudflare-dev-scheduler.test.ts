@@ -9,20 +9,21 @@ afterEach(() => {
 });
 
 describe("Cloudflare dev scheduler", () => {
-	function createServer() {
+	function createServer(origin = "http://localhost:4323/") {
 		return Object.assign(new EventEmitter(), {
 			address: () => ({ address: "127.0.0.1", family: "IPv4", port: 4323 }),
+			resolvedUrls: { local: [origin], network: [] },
 		});
 	}
 
-	it("drives the Worker scheduled handler from the long-lived dev server", async () => {
+	it("drives the EmDash maintenance bridge from the long-lived dev server", async () => {
 		vi.useFakeTimers();
 		const httpServer = createServer();
 		const fetchScheduled = vi.fn(async () => new Response(null, { status: 200 }));
 		const warn = vi.fn();
 
 		startCloudflareDevScheduler(
-			{ httpServer: httpServer as never },
+			{ httpServer: httpServer as never, resolvedUrls: httpServer.resolvedUrls },
 			{ warn },
 			{ intervalMs: 1_000, fetch: fetchScheduled },
 		);
@@ -35,9 +36,9 @@ describe("Cloudflare dev scheduler", () => {
 		expect(fetchScheduled).toHaveBeenCalledOnce();
 		const url = new URL(String(fetchScheduled.mock.calls[0]?.[0]));
 		expect(url.origin).toBe("http://localhost:4323");
-		expect(url.pathname).toBe("/cdn-cgi/handler/scheduled");
-		expect(url.searchParams.get("cron")).toBe("* * * * *");
-		expect(url.searchParams.get("format")).toBe("json");
+		expect(url.pathname).toBe("/_emdash/api/dev/scheduled-tasks");
+		expect(url.search).toBe("");
+		expect(fetchScheduled.mock.calls[0]?.[1]).toEqual({ method: "POST" });
 		expect(warn).not.toHaveBeenCalled();
 
 		httpServer.emit("close");
@@ -45,7 +46,56 @@ describe("Cloudflare dev scheduler", () => {
 		expect(fetchScheduled).toHaveBeenCalledOnce();
 	});
 
-	it("reports a missing scheduled handler and keeps polling", async () => {
+	it("uses Vite's resolved HTTPS origin instead of reconstructing localhost", async () => {
+		vi.useFakeTimers();
+		const httpServer = createServer("https://dev.example.test:7443/");
+		const fetchScheduled = vi.fn(async () => new Response(null, { status: 204 }));
+
+		startCloudflareDevScheduler(
+			{ httpServer: httpServer as never, resolvedUrls: httpServer.resolvedUrls },
+			{ warn: vi.fn() },
+			{ intervalMs: 1_000, fetch: fetchScheduled },
+		);
+		httpServer.emit("listening");
+
+		await vi.advanceTimersByTimeAsync(1_000);
+
+		expect(String(fetchScheduled.mock.calls[0]?.[0])).toBe(
+			"https://dev.example.test:7443/_emdash/api/dev/scheduled-tasks",
+		);
+	});
+
+	it("does not dispatch custom generalCron or unrelated application scheduled jobs", async () => {
+		vi.useFakeTimers();
+		const httpServer = createServer();
+		const runEmDashMaintenance = vi.fn(async () => {});
+		const runApplicationScheduledHandler = vi.fn(async () => {});
+		const fetchScheduled = vi.fn(async (input: URL | RequestInfo) => {
+			const url = new URL(
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+			);
+			if (url.pathname === "/cdn-cgi/handler/scheduled") {
+				await runApplicationScheduledHandler(url.searchParams.get("cron"));
+			} else if (url.pathname === "/_emdash/api/dev/scheduled-tasks") {
+				await runEmDashMaintenance();
+			}
+			return new Response(null, { status: 204 });
+		});
+
+		startCloudflareDevScheduler(
+			{ httpServer: httpServer as never, resolvedUrls: httpServer.resolvedUrls },
+			{ warn: vi.fn() },
+			{ intervalMs: 1_000, fetch: fetchScheduled },
+		);
+		httpServer.emit("listening");
+
+		await vi.advanceTimersByTimeAsync(1_000);
+
+		expect(runEmDashMaintenance).toHaveBeenCalledOnce();
+		expect(runApplicationScheduledHandler).not.toHaveBeenCalled();
+	});
+
+	it("reports a missing maintenance bridge and keeps polling", async () => {
 		vi.useFakeTimers();
 		const httpServer = createServer();
 		const fetchScheduled = vi
@@ -55,7 +105,7 @@ describe("Cloudflare dev scheduler", () => {
 		const warn = vi.fn();
 
 		startCloudflareDevScheduler(
-			{ httpServer: httpServer as never },
+			{ httpServer: httpServer as never, resolvedUrls: httpServer.resolvedUrls },
 			{ warn },
 			{ intervalMs: 1_000, fetch: fetchScheduled },
 		);

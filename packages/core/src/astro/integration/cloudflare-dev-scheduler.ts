@@ -3,10 +3,10 @@ import type { Server } from "node:http";
 import type { AstroIntegrationLogger } from "astro";
 
 const DEFAULT_INTERVAL_MS = 60_000;
-const GENERAL_CRON = "* * * * *";
 
 interface DevServer {
-	httpServer: Pick<Server, "address" | "once"> | null;
+	httpServer: Pick<Server, "once"> | null;
+	resolvedUrls: { local: string[]; network: string[] } | null;
 }
 
 interface SchedulerOptions {
@@ -35,20 +35,18 @@ export function startCloudflareDevScheduler(
 
 	const run = async () => {
 		try {
-			const address = httpServer.address();
-			if (!address || typeof address === "string") {
-				logger.warn("Cloudflare dev scheduler could not resolve the local server port.");
+			const origin = server.resolvedUrls?.local[0] ?? server.resolvedUrls?.network[0];
+			if (!origin) {
+				logger.warn("Cloudflare dev scheduler could not resolve the dev server origin.");
 				return;
 			}
 
-			const url = new URL("/cdn-cgi/handler/scheduled", `http://localhost:${address.port}`);
-			url.searchParams.set("cron", GENERAL_CRON);
-			url.searchParams.set("format", "json");
-			const response = await fetchScheduled(url);
+			const url = new URL("/_emdash/api/dev/scheduled-tasks", origin);
+			const response = await fetchScheduled(url, { method: "POST" });
 			if (!response.ok) {
 				logger.warn(
 					`Cloudflare dev scheduler request failed with status ${response.status}. ` +
-						"Verify that the Worker entrypoint exports its scheduled handler.",
+						"Verify that EmDash's dev maintenance route is available.",
 				);
 			}
 		} catch (error) {

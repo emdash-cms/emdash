@@ -731,7 +731,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					astroInjectRoute({ ...route, prerender: false });
 
 				// Inject all core routes
-				injectCoreRoutes(injectRoute, { srcDir: astroConfig.srcDir });
+				injectCoreRoutes(injectRoute, {
+					srcDir: astroConfig.srcDir,
+					cloudflareDevScheduler: command === "dev" && usesCloudflareAdapter,
+				});
 
 				// Inject routes from pluggable auth providers (authProviders config)
 				if (resolvedConfig.authProviders?.length) {
