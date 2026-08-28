@@ -101,6 +101,7 @@ function releaseRecord() {
 
 interface WorkflowNetworkOptions {
 	profileProof?: string;
+	listedReleases?: () => readonly AuthoritativeRecord[];
 	authoritativeRelease?: () => AuthoritativeRecord | null;
 	onAuthorizationMetadata?: () => void | Promise<void>;
 	onCreateRecord?: (init: RequestInit | undefined) => Response | Promise<Response>;
@@ -181,7 +182,7 @@ function workflowNetwork(options: WorkflowNetworkOptions = {}) {
 			url.hostname === "pds.example.com" &&
 			url.pathname === "/xrpc/com.atproto.repo.listRecords"
 		) {
-			return Response.json({ records: [] });
+			return Response.json({ records: options.listedReleases?.() ?? [] });
 		}
 		if (
 			url.hostname === "pds.example.com" &&
@@ -416,6 +417,80 @@ describe("ReleaseIntentWorkflow", () => {
 			env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(PUBLISHER_DID, INTENT_ID),
 		).resolves.toMatchObject({ state: "conflict", stateGeneration: 7 });
 	});
+
+	it("makes a release that appears before final verification a terminal conflict", async () => {
+		let snapshotReads = 0;
+		let createAttempts = 0;
+		vi.stubGlobal(
+			"fetch",
+			workflowNetwork({
+				listedReleases: () => {
+					snapshotReads += 1;
+					return snapshotReads < 4
+						? []
+						: [{ uri: CREATED_URI, cid: CREATED_CID, value: releaseRecord() }];
+				},
+				onCreateRecord: () => {
+					createAttempts += 1;
+					return Response.json({ uri: CREATED_URI, cid: CREATED_CID });
+				},
+			}),
+		);
+		await createVerifyingIntent();
+		await using introspector = await introspectWorkflowInstance(
+			env.RELEASE_INTENT_WORKFLOW,
+			INTENT_ID,
+		);
+		await env.RELEASE_INTENT_WORKFLOW.create({
+			id: INTENT_ID,
+			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+		});
+		await introspector.waitForStatus("complete");
+
+		await expect(introspector.getOutput()).resolves.toEqual({
+			intentId: INTENT_ID,
+			state: "conflict",
+			reasonCode: "RELEASE_EXISTS",
+		});
+		expect(createAttempts).toBe(0);
+		await expect(
+			env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(PUBLISHER_DID, INTENT_ID),
+		).resolves.toMatchObject({ state: "conflict" });
+	}, 15_000);
+
+	it("invalidates an intent when the final publisher snapshot is malformed", async () => {
+		let snapshotReads = 0;
+		vi.stubGlobal(
+			"fetch",
+			workflowNetwork({
+				listedReleases: () => {
+					snapshotReads += 1;
+					return snapshotReads < 4
+						? []
+						: [{ uri: "not-an-at-uri", cid: CREATED_CID, value: releaseRecord() }];
+				},
+			}),
+		);
+		await createVerifyingIntent();
+		await using introspector = await introspectWorkflowInstance(
+			env.RELEASE_INTENT_WORKFLOW,
+			INTENT_ID,
+		);
+		await env.RELEASE_INTENT_WORKFLOW.create({
+			id: INTENT_ID,
+			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+		});
+		await introspector.waitForStatus("complete");
+
+		await expect(introspector.getOutput()).resolves.toEqual({
+			intentId: INTENT_ID,
+			state: "invalid",
+			reasonCode: "RELEASE_LIST_INVALID",
+		});
+		await expect(
+			env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(PUBLISHER_DID, INTENT_ID),
+		).resolves.toMatchObject({ state: "invalid" });
+	}, 15_000);
 
 	it("uses a fresh permit and publication generation after each confirmed absence", async () => {
 		let createAttempts = 0;

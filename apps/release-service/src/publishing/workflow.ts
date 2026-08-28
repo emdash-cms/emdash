@@ -24,6 +24,7 @@ import {
 } from "../verification/evaluate.js";
 import {
 	findAuthoritativeRelease,
+	PublisherSnapshotError,
 	readPublisherVerificationSnapshot,
 } from "../verification/pds.js";
 import { CreateReleaseError, createReleaseRecord } from "./create-only.js";
@@ -31,6 +32,10 @@ import { reconcileReleaseRecord } from "./reconcile.js";
 
 const PUBLICATION_TTL_MS = 30_000;
 const MAX_PUBLICATION_ATTEMPTS = 3;
+const FINAL_VERIFICATION_STEP_CONFIG = {
+	retries: { limit: 3, delay: "1 second", backoff: "exponential" },
+	timeout: "2 minutes",
+} as const;
 const RECONCILIATION_STEP_CONFIG = {
 	retries: { limit: 3, delay: "1 second", backoff: "exponential" },
 	timeout: "2 minutes",
@@ -56,6 +61,29 @@ type AttemptResult =
 	| { state: "reconciling" }
 	| { state: "blocked"; reasonCode: string }
 	| { state: "failed"; reasonCode: string };
+
+type FinalVerificationResult =
+	| { ok: true; verificationDigest: string }
+	| { ok: false; reasonCode: string; terminalState: "conflict" | "invalid" };
+
+const PUBLISHER_SNAPSHOT_ERROR_CODES: readonly PublisherSnapshotError["code"][] = [
+	"PUBLISHER_IDENTITY_INVALID",
+	"PUBLISHER_PDS_INVALID",
+	"PROFILE_INVALID",
+	"RELEASE_EXISTS",
+	"RELEASE_RECORD_INVALID",
+	"RELEASE_LIST_INVALID",
+];
+
+function publisherSnapshotErrorCode(error: unknown): PublisherSnapshotError["code"] | null {
+	if (error instanceof PublisherSnapshotError) return error.code;
+	if (!(error instanceof Error)) return null;
+	return (
+		PUBLISHER_SNAPSHOT_ERROR_CODES.find(
+			(code) => error.message === `PublisherSnapshotError: ${code}`,
+		) ?? null
+	);
+}
 
 function isRetryablePublicationBlock(code: string): boolean {
 	return (
@@ -132,71 +160,109 @@ export async function publishVerifiedIntent(
 	const expectedEvidenceDigest = await computeApprovalEvidenceDigest(approvalEvidence);
 
 	for (let attempt = 1; attempt <= MAX_PUBLICATION_ATTEMPTS; attempt += 1) {
-		const finalVerification = await step.do<
-			{ ok: true; verificationDigest: string } | { ok: false; reasonCode: string }
-		>(`final-verification-${attempt}`, async () => {
-			const snapshot = await readPublisherVerificationSnapshot(
-				publisherDid,
-				originalIntent.packageSlug,
-				originalIntent.version,
-			);
-			const verifierInput = prepareVerifierInput(originalIntent, snapshot);
-			if (!verifierInput) return { ok: false, reasonCode: "FINAL_INPUT_INVALID" };
-			const verifier = normalizeVerifierReport(
-				await env.RELEASE_VERIFIER.verifyRelease(verifierInput),
-			);
-			const evaluation = await evaluateVerifiedRelease(
-				publisherDid,
-				originalIntent,
-				snapshot,
-				verifier,
-			);
-			if (!evaluation.success) return { ok: false, reasonCode: evaluation.reasonCode };
-			if (
-				(await computeApprovalEvidenceDigest(evaluation.value.approvalEvidence)) !==
-				expectedEvidenceDigest
-			) {
-				return { ok: false, reasonCode: "FINAL_VERIFICATION_CHANGED" };
-			}
-			const stored = await publisher.putVerificationStep({
-				publisherDid,
-				intentId: originalIntent.id,
-				name: "final-verification",
-				inputDigest: expectedEvidenceDigest,
-				resultJson: JSON.stringify({
-					verificationDigest: evaluation.value.approvalEvidence.verificationDigest,
-				}),
-			});
-			return stored.ok
-				? {
-						ok: true,
-						verificationDigest: evaluation.value.approvalEvidence.verificationDigest,
+		let finalVerification: FinalVerificationResult;
+		try {
+			finalVerification = await step.do<FinalVerificationResult>(
+				`final-verification-${attempt}`,
+				FINAL_VERIFICATION_STEP_CONFIG,
+				async () => {
+					const snapshot = await readPublisherVerificationSnapshot(
+						publisherDid,
+						originalIntent.packageSlug,
+						originalIntent.version,
+					);
+					const verifierInput = prepareVerifierInput(originalIntent, snapshot);
+					if (!verifierInput) {
+						return { ok: false, reasonCode: "FINAL_INPUT_INVALID", terminalState: "invalid" };
 					}
-				: { ok: false, reasonCode: stored.code };
-		});
+					const verifier = normalizeVerifierReport(
+						await env.RELEASE_VERIFIER.verifyRelease(verifierInput),
+					);
+					const evaluation = await evaluateVerifiedRelease(
+						publisherDid,
+						originalIntent,
+						snapshot,
+						verifier,
+					);
+					if (!evaluation.success) {
+						return { ok: false, reasonCode: evaluation.reasonCode, terminalState: "invalid" };
+					}
+					if (
+						(await computeApprovalEvidenceDigest(evaluation.value.approvalEvidence)) !==
+						expectedEvidenceDigest
+					) {
+						return {
+							ok: false,
+							reasonCode: "FINAL_VERIFICATION_CHANGED",
+							terminalState: "invalid",
+						};
+					}
+					const stored = await publisher.putVerificationStep({
+						publisherDid,
+						intentId: originalIntent.id,
+						name: "final-verification",
+						inputDigest: expectedEvidenceDigest,
+						resultJson: JSON.stringify({
+							verificationDigest: evaluation.value.approvalEvidence.verificationDigest,
+						}),
+					});
+					return stored.ok
+						? {
+								ok: true,
+								verificationDigest: evaluation.value.approvalEvidence.verificationDigest,
+							}
+						: { ok: false, reasonCode: stored.code, terminalState: "invalid" };
+				},
+			);
+		} catch (error) {
+			const code = publisherSnapshotErrorCode(error);
+			if (!code) throw error;
+			finalVerification = {
+				ok: false,
+				reasonCode: code,
+				terminalState: code === "RELEASE_EXISTS" ? "conflict" : "invalid",
+			};
+		}
 		if (!finalVerification.ok) {
 			const current = await step.do(`final-invalid-state-${attempt}`, () =>
 				currentState(publisher, publisherDid, originalIntent.id),
 			);
-			if (current?.state === "ready") {
-				await step.do<TransitionSummary>(`mark-final-invalid-${attempt}`, () =>
+			if (current?.state === finalVerification.terminalState) {
+				return {
+					intentId: originalIntent.id,
+					state: finalVerification.terminalState,
+					reasonCode: finalVerification.reasonCode,
+				};
+			}
+			if (current?.state !== "ready") {
+				return {
+					intentId: originalIntent.id,
+					state: "failed",
+					reasonCode: "INTENT_STATE_INVALID",
+				};
+			}
+			const terminal = await step.do<TransitionSummary>(
+				`mark-final-${finalVerification.terminalState}-${attempt}`,
+				() =>
 					transition(publisher, {
 						publisherDid,
 						intentId: originalIntent.id,
 						expectedState: "ready",
 						expectedGeneration: current.stateGeneration,
-						toState: "invalid",
+						toState: finalVerification.terminalState,
 						transitionDigest: expectedEvidenceDigest,
 						actorRealm: "system",
 						actorIdentity: "release-service",
 						reasonCode: finalVerification.reasonCode,
 						stateDataJson: JSON.stringify({ reasonCode: finalVerification.reasonCode }),
 					}),
-				);
+			);
+			if (!terminal.ok) {
+				return { intentId: originalIntent.id, state: "failed", reasonCode: terminal.code };
 			}
 			return {
 				intentId: originalIntent.id,
-				state: "invalid",
+				state: finalVerification.terminalState,
 				reasonCode: finalVerification.reasonCode,
 			};
 		}
