@@ -131,6 +131,7 @@ describe("PublisherDurableObject", () => {
 
 	it("stores encrypted OAuth state without plaintext and consumes it once", async () => {
 		const stub = publisher();
+		const expiresAt = Date.now() + 60_000;
 		await expect(
 			stub.putOAuthState({
 				publisherDid: DID,
@@ -139,9 +140,12 @@ describe("PublisherDurableObject", () => {
 				encryptionKeyVersion: 2,
 				clientKeyId: "assertion-1",
 				redirectTarget: "/publisher/delegation",
-				expiresAt: Date.now() + 60_000,
+				expiresAt,
 			}),
 		).resolves.toEqual({ ok: true });
+		await expect(
+			runInDurableObject(stub, (_instance, state) => state.storage.getAlarm()),
+		).resolves.toBe(expiresAt);
 
 		const storedRows = await runInDurableObject(stub, (_instance, state) =>
 			state.storage.sql
@@ -193,8 +197,8 @@ describe("PublisherDurableObject", () => {
 	it.each(["https://attacker.example/callback", "//attacker.example/callback", "callback"])(
 		"rejects unsafe OAuth redirect target %s",
 		async (redirectTarget) => {
-			await runInDurableObject(publisher(), (instance) => {
-				expect(() =>
+			await runInDurableObject(publisher(), async (instance) => {
+				await expect(
 					instance.putOAuthState({
 						publisherDid: DID,
 						stateHash: STATE_HASH,
@@ -204,7 +208,7 @@ describe("PublisherDurableObject", () => {
 						redirectTarget,
 						expiresAt: Date.now() + 60_000,
 					}),
-				).toThrowError(expect.objectContaining({ code: "OAUTH_STATE_INVALID" }));
+				).rejects.toEqual(expect.objectContaining({ code: "OAUTH_STATE_INVALID" }));
 			});
 		},
 	);

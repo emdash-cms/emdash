@@ -464,9 +464,11 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		return this.#workloadPolicies.list(afterPackageSlug, limit);
 	}
 
-	createIntent(input: CreateIntentInput): CreateIntentResult {
+	async createIntent(input: CreateIntentInput): Promise<CreateIntentResult> {
 		this.#assertPublisherDid(input.publisherDid);
-		return this.#intents.create(input);
+		const result = this.#intents.create(input);
+		await this.#scheduleNextAlarm(input.now ?? Date.now());
+		return result;
 	}
 
 	transitionIntent(input: TransitionIntentInput): TransitionIntentResult {
@@ -512,7 +514,9 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		return result;
 	}
 
-	createPublisherSession(input: CreatePublisherSessionInput): CreatePublisherSessionResult {
+	async createPublisherSession(
+		input: CreatePublisherSessionInput,
+	): Promise<CreatePublisherSessionResult> {
 		this.#assertPublisherDid(input.publisherDid);
 		const now = input.now ?? Date.now();
 		if (
@@ -525,7 +529,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		) {
 			throw new PublisherStateError("PUBLISHER_SESSION_INVALID");
 		}
-		return this.ctx.storage.transactionSync(() => {
+		const result = this.ctx.storage.transactionSync(() => {
 			const owner = this.#readPublisherSessionOwner();
 			if (!owner || owner.status === "suspended") {
 				return { ok: false, code: "PUBLISHER_SUSPENDED" } as const;
@@ -565,6 +569,8 @@ export class PublisherDurableObject extends DurableObject<Env> {
 				},
 			} as const;
 		});
+		await this.#scheduleNextAlarm(now);
+		return result;
 	}
 
 	validatePublisherSession(
@@ -653,7 +659,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		});
 	}
 
-	putOAuthState(input: PutOAuthStateInput): PutOAuthStateResult {
+	async putOAuthState(input: PutOAuthStateInput): Promise<PutOAuthStateResult> {
 		this.#assertPublisherDid(input.publisherDid);
 		if (
 			!HASH_PATTERN.test(input.stateHash) ||
@@ -666,7 +672,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		) {
 			throw new PublisherStateError("OAUTH_STATE_INVALID");
 		}
-		return this.ctx.storage.transactionSync(() => {
+		const result = this.ctx.storage.transactionSync(() => {
 			const existing = this.ctx.storage.sql
 				.exec<{ state_hash: string }>(
 					"SELECT state_hash FROM oauth_states WHERE state_hash = ?",
@@ -696,6 +702,8 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			);
 			return { ok: true } as const;
 		});
+		await this.#scheduleNextAlarm(Date.now());
+		return result;
 	}
 
 	consumeOAuthState(
@@ -1108,7 +1116,22 @@ export class PublisherDurableObject extends DurableObject<Env> {
 	}
 
 	async #scheduleNextAlarm(now: number): Promise<void> {
-		const deadline = this.#publicationOperations.nextDeadline();
+		const stateDeadline = this.ctx.storage.sql
+			.exec<{ deadline: number | null }>(
+				`SELECT MIN(expires_at) AS deadline FROM (
+					SELECT expires_at FROM oauth_states
+					UNION ALL SELECT expires_at FROM publisher_sessions
+					UNION ALL SELECT expires_at FROM intent_idempotency
+				)`,
+			)
+			.one().deadline;
+		const operationDeadline = this.#publicationOperations.nextDeadline();
+		const deadline =
+			stateDeadline === null
+				? operationDeadline
+				: operationDeadline === null
+					? stateDeadline
+					: Math.min(stateDeadline, operationDeadline);
 		if (deadline === null) {
 			await this.ctx.storage.deleteAlarm();
 			return;
