@@ -60,9 +60,9 @@ export const infoCommand = defineCommand({
 			);
 			process.exit(2);
 		}
-		const latestRelease = result.latestVersion
-			? await client.getLatestRelease({ did: result.did, package: result.slug })
-			: null;
+		const latestRelease = await getLatestReleaseForInfo(result.latestVersion, () =>
+			client.getLatestRelease({ did: result.did, package: result.slug }),
+		);
 		const hosting = hostingMode(latestRelease?.release?.artifacts.package);
 
 		if (args.json) {
@@ -110,6 +110,18 @@ export const infoCommand = defineCommand({
 		}
 	},
 });
+
+export async function getLatestReleaseForInfo<T>(
+	latestVersion: string | null | undefined,
+	lookup: () => Promise<T>,
+): Promise<T | null> {
+	if (!latestVersion) return null;
+	try {
+		return await lookup();
+	} catch {
+		return null;
+	}
+}
 
 function hostingMode(artifact: unknown): string | null {
 	if (!artifact || typeof artifact !== "object") return null;
