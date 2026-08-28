@@ -527,8 +527,9 @@ export function generateBuildModule(buildTime: number): string {
  * Decides — at build time, from the Astro adapter — whether the runtime gets a
  * long-lived timer heartbeat. Cloudflare Workers have no persistent timers, so
  * the Worker's `scheduled()` handler drives `runScheduledTasks()` instead. In
- * local dev the Astro integration invokes that handler from the long-lived Vite
- * host. Other adapters (Node, Bun) get a `NodeCronScheduler` factory.
+ * local dev the long-lived Vite host invokes an EmDash-owned route that runs
+ * the same maintenance inside workerd. Other adapters (Node, Bun) get a
+ * `NodeCronScheduler` factory.
  *
  * Keeping the adapter check here — rather than in core's runtime — means the
  * runtime has no Cloudflare-specific code path; it just calls `createScheduler`
