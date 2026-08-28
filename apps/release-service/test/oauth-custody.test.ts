@@ -333,7 +333,10 @@ describe("Durable Object OAuth custody", () => {
 
 	it.each([
 		["publisher_identity", "atproto"],
-		["release_delegation", "atproto repo:com.emdashcms.experimental.package.release?action=create"],
+		[
+			"release_delegation",
+			"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
+		],
 	] as const)("forces the %s authorization scope", async (purpose, expectedScope) => {
 		const configuration = await loadConfiguration({
 			...TEST_BINDINGS,

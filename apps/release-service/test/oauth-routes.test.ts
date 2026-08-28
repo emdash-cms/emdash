@@ -215,7 +215,7 @@ describe("publisher OAuth routes", () => {
 		expect(response.status).toBe(303);
 		const par = network.requests.find((request) => request.path === "/par");
 		expect(par?.body.get("scope")).toBe(
-			"atproto repo:com.emdashcms.experimental.package.release?action=create",
+			"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
 		);
 		expect(par?.body.get("scope")).not.toContain("transition:generic");
 	});
@@ -259,7 +259,8 @@ describe("publisher OAuth routes", () => {
 		expect(callback.headers.get("location")).toBe(`${ORIGIN}/publisher/delegation`);
 		await expect(env.PUBLISHER_DO.getByName(DID).getDelegation(DID)).resolves.toMatchObject({
 			status: "active",
-			scope: "atproto repo:com.emdashcms.experimental.package.release?action=create",
+			scope:
+				"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
 		});
 	});
 

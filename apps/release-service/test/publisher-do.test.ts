@@ -252,7 +252,8 @@ describe("PublisherDurableObject", () => {
 		const firstResult = await stub.putDelegation({
 			publisherDid: DID,
 			releaseNsid: "com.emdashcms.experimental.package.release",
-			scope: "atproto repo:com.emdashcms.experimental.package.release?action=create",
+			scope:
+				"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
 			clientKeyId: "assertion-1",
 			encryptedSession: "ciphertext-v1",
 			...DELEGATION_METADATA,
@@ -310,7 +311,8 @@ describe("PublisherDurableObject", () => {
 			stub.putDelegation({
 				publisherDid: DID,
 				releaseNsid: "com.emdashcms.experimental.package.release",
-				scope: "atproto repo:com.emdashcms.experimental.package.release?action=create",
+				scope:
+					"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
 				clientKeyId: "assertion-1",
 				encryptedSession: "ciphertext-v1",
 				...DELEGATION_METADATA,
@@ -398,7 +400,8 @@ describe("PublisherDurableObject", () => {
 		await stub.putDelegation({
 			publisherDid: DID,
 			releaseNsid: "com.emdashcms.experimental.package.release",
-			scope: "atproto repo:com.emdashcms.experimental.package.release?action=create",
+			scope:
+				"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
 			clientKeyId: "assertion-1",
 			encryptedSession: "ciphertext-v1",
 			...DELEGATION_METADATA,
@@ -436,7 +439,8 @@ describe("PublisherDurableObject", () => {
 			stub.putDelegation({
 				publisherDid: DID,
 				releaseNsid: "com.emdashcms.experimental.package.release",
-				scope: "atproto repo:com.emdashcms.experimental.package.release?action=create",
+				scope:
+					"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
 				clientKeyId: "assertion-1",
 				encryptedSession: "persisted-ciphertext",
 				...DELEGATION_METADATA,
