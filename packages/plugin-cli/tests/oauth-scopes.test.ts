@@ -19,4 +19,8 @@ describe("registry blob OAuth scopes", () => {
 			missingBlobScopes("atproto blob:application/gzip blob:image/*", REGISTRY_BLOB_SCOPES),
 		).toEqual([]);
 	});
+
+	it("accepts the legacy generic transition grant for blob uploads", () => {
+		expect(missingBlobScopes("atproto transition:generic", REGISTRY_BLOB_SCOPES)).toEqual([]);
+	});
 });

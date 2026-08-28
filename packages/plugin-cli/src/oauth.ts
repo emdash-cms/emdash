@@ -82,6 +82,7 @@ export function missingBlobScopes(
 	required: readonly string[] = REGISTRY_BLOB_SCOPES,
 ): string[] {
 	const granted = new Set(grantedScope.split(SCOPE_SEPARATOR).filter(Boolean));
+	if (granted.has("transition:generic")) return [];
 	return required.filter((scope) => !granted.has(scope));
 }
 
