@@ -143,6 +143,28 @@ async function currentIntent(
 		: null;
 }
 
+async function failVerifyingIntent(
+	publisher: DurableObjectStub<PublisherDurableObject>,
+	params: ReleaseIntentWorkflowParams,
+	intent: StoredIntent,
+	reasonCode: "VERIFICATION_STEP_CONFLICT" | "VERIFIER_INPUT_INVALID",
+): Promise<never> {
+	const transitioned = await transitionIntent(publisher, {
+		publisherDid: params.publisherDid,
+		intentId: params.intentId,
+		expectedState: "verifying",
+		expectedGeneration: intent.stateGeneration,
+		toState: "failed",
+		transitionDigest: await digest(["verification-failed", reasonCode]),
+		actorRealm: "system",
+		actorIdentity: WORKFLOW_ACTOR,
+		reasonCode,
+		stateDataJson: JSON.stringify({ code: reasonCode }),
+	});
+	if (!transitioned.ok) throw new NonRetryableError(transitioned.code);
+	throw new NonRetryableError(reasonCode);
+}
+
 export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 	ReleaseWorkflowEnv,
 	ReleaseIntentWorkflowParams
@@ -189,7 +211,12 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 				inputDigest: baseDigest,
 				resultJson: JSON.stringify({ profileCid: result.profileCid }),
 			});
-			if (!storedProfile.ok) throw new NonRetryableError(storedProfile.code);
+			if (!storedProfile.ok) {
+				if (storedProfile.code === "VERIFICATION_STEP_CONFLICT") {
+					await failVerifyingIntent(publisher, params, intent, storedProfile.code);
+				}
+				throw new NonRetryableError(storedProfile.code);
+			}
 			const storedAbsence = await publisher.putVerificationStep({
 				publisherDid: params.publisherDid,
 				intentId: params.intentId,
@@ -200,7 +227,12 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 					absent: result.releaseAbsent,
 				}),
 			});
-			if (!storedAbsence.ok) throw new NonRetryableError(storedAbsence.code);
+			if (!storedAbsence.ok) {
+				if (storedAbsence.code === "VERIFICATION_STEP_CONFLICT") {
+					await failVerifyingIntent(publisher, params, intent, storedAbsence.code);
+				}
+				throw new NonRetryableError(storedAbsence.code);
+			}
 			const storedBaseline = await publisher.putVerificationStep({
 				publisherDid: params.publisherDid,
 				intentId: params.intentId,
@@ -211,7 +243,12 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 					baselineVersion: result.baselineVersion,
 				}),
 			});
-			if (!storedBaseline.ok) throw new NonRetryableError(storedBaseline.code);
+			if (!storedBaseline.ok) {
+				if (storedBaseline.code === "VERIFICATION_STEP_CONFLICT") {
+					await failVerifyingIntent(publisher, params, intent, storedBaseline.code);
+				}
+				throw new NonRetryableError(storedBaseline.code);
+			}
 			return result;
 		});
 		const verifierJson = await step.do<string>("isolated-verifier", async () => {
@@ -221,7 +258,9 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 				intent.version,
 			);
 			const input = prepareVerifierInput(intent, snapshot);
-			if (!input) throw new NonRetryableError("Release intent verifier input is invalid");
+			if (!input) {
+				return await failVerifyingIntent(publisher, params, intent, "VERIFIER_INPUT_INVALID");
+			}
 			const report = normalizeVerifierReport(await this.env.RELEASE_VERIFIER.verifyRelease(input));
 			const resultJson = JSON.stringify(report);
 			const stored = await publisher.putVerificationStep({
@@ -231,7 +270,12 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 				inputDigest: await digest(input),
 				resultJson,
 			});
-			if (!stored.ok) throw new NonRetryableError(stored.code);
+			if (!stored.ok) {
+				if (stored.code === "VERIFICATION_STEP_CONFLICT") {
+					await failVerifyingIntent(publisher, params, intent, stored.code);
+				}
+				throw new NonRetryableError(stored.code);
+			}
 			return resultJson;
 		});
 		const evaluation = await step.do<WorkflowEvaluation>("policy-decision", async () => {
@@ -276,7 +320,12 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 				inputDigest: await digest({ authoritative, verifierJson }),
 				resultJson,
 			});
-			if (!stored.ok) throw new NonRetryableError(stored.code);
+			if (!stored.ok) {
+				if (stored.code === "VERIFICATION_STEP_CONFLICT") {
+					await failVerifyingIntent(publisher, params, intent, stored.code);
+				}
+				throw new NonRetryableError(stored.code);
+			}
 			return result;
 		});
 		if (!evaluation.success) {

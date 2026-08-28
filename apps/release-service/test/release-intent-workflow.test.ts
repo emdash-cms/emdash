@@ -80,7 +80,10 @@ function workflowNetwork(profileProof = PROFILE_PROOF) {
 	};
 }
 
-async function createVerifyingIntent(transitionToVerifying = true) {
+async function createVerifyingIntent(
+	transitionToVerifying = true,
+	releaseInputJson = JSON.stringify({ release: releaseRecord() }),
+) {
 	const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
 	await publisher.putWorkloadPolicy({
 		publisherDid: PUBLISHER_DID,
@@ -105,7 +108,7 @@ async function createVerifyingIntent(transitionToVerifying = true) {
 		idempotencyKey: "github-run-100-attempt-1",
 		requestDigest: "B".repeat(43),
 		workloadIdentityJson: JSON.stringify({ issuer: "github-actions", runId: "100" }),
-		releaseInputJson: JSON.stringify({ release: releaseRecord() }),
+		releaseInputJson,
 		expiresAt: NOW + 60_000,
 		now: NOW + 1,
 	});
@@ -132,6 +135,54 @@ afterEach(async () => {
 });
 
 describe("ReleaseIntentWorkflow", () => {
+	it("fails the intent when a verification step conflicts", async () => {
+		vi.stubGlobal("fetch", workflowNetwork());
+		await createVerifyingIntent();
+		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+		await publisher.putVerificationStep({
+			publisherDid: PUBLISHER_DID,
+			intentId: INTENT_ID,
+			name: "authoritative-profile",
+			inputDigest: "Z".repeat(43),
+			resultJson: '{"profileCid":"conflicting"}',
+		});
+		await using introspector = await introspectWorkflowInstance(
+			env.RELEASE_INTENT_WORKFLOW,
+			INTENT_ID,
+		);
+		await env.RELEASE_INTENT_WORKFLOW.create({
+			id: INTENT_ID,
+			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+		});
+		await introspector.waitForStatus("errored");
+
+		await expect(publisher.getIntent(PUBLISHER_DID, INTENT_ID)).resolves.toMatchObject({
+			state: "failed",
+			stateDataJson: '{"code":"VERIFICATION_STEP_CONFLICT"}',
+		});
+	});
+
+	it("fails the intent when the verifier input is invalid", async () => {
+		vi.stubGlobal("fetch", workflowNetwork());
+		await createVerifyingIntent(true, "{}");
+		await using introspector = await introspectWorkflowInstance(
+			env.RELEASE_INTENT_WORKFLOW,
+			INTENT_ID,
+		);
+		await env.RELEASE_INTENT_WORKFLOW.create({
+			id: INTENT_ID,
+			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+		});
+		await introspector.waitForStatus("errored");
+
+		await expect(
+			env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(PUBLISHER_DID, INTENT_ID),
+		).resolves.toMatchObject({
+			state: "failed",
+			stateDataJson: '{"code":"VERIFIER_INPUT_INVALID"}',
+		});
+	});
+
 	it("persists every verification stage and makes a valid non-escalating intent ready", async () => {
 		vi.stubGlobal("fetch", workflowNetwork());
 		await createVerifyingIntent();
