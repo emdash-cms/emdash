@@ -1829,6 +1829,12 @@ importers:
       '@emdash-cms/registry-client':
         specifier: workspace:*
         version: link:../registry-client
+      '@emdash-cms/registry-lexicons':
+        specifier: workspace:*
+        version: link:../registry-lexicons
+      '@emdash-cms/registry-verification':
+        specifier: workspace:*
+        version: link:../registry-verification
       '@floating-ui/react':
         specifier: ^0.27.16
         version: 0.27.16(react-dom@19.2.4(react@19.2.4))(react@19.2.4)

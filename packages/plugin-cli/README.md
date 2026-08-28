@@ -24,7 +24,7 @@ emdash-plugin init [name]                    Scaffold a new sandboxed plugin
 emdash-plugin build                          Build dist/ artifacts (plugin.mjs, manifest.json, index.mjs)
 emdash-plugin dev                            Watch sources and rebuild on change
 emdash-plugin bundle                         Pack dist/ + assets into a registry tarball
-emdash-plugin publish --url <url>            Publish a release that points at a hosted tarball
+emdash-plugin publish                        Build, upload, and publish a release
 emdash-plugin validate [path]                Validate emdash-plugin.jsonc against the v1 schema
 emdash-plugin login <handle-or-did>          Interactive atproto OAuth login
 emdash-plugin logout [--did <did>]           Revoke the active session
@@ -74,13 +74,14 @@ The plugin author writes two files:
 
 ## Publishing
 
-Three steps. The CLI does not host artifacts — you do, anywhere public.
+The CLI builds the plugin and uploads the release artifacts to your PDS:
 
 ```sh
-emdash-plugin bundle
-# upload dist/<id>-<version>.tar.gz somewhere public
-emdash-plugin publish --url https://example.com/foo-1.0.0.tar.gz
+emdash-plugin login <handle-or-did>
+emdash-plugin publish
 ```
+
+Pass `--url https://example.com/foo-1.0.0.tar.gz` to use an externally hosted bundle. The CLI downloads that URL to validate the bytes and compute the checksum. Listing images declared under `release.artifacts` are still uploaded to your PDS.
 
 On first publish, pass `--license` and `--security-email` (or `--security-url`) to bootstrap the package profile — or keep them in `emdash-plugin.jsonc` (see below).
 

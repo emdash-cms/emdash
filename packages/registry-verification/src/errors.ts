@@ -1,5 +1,7 @@
 /** Stable, machine-readable failures returned by this package. */
 export const VERIFICATION_ERROR_CODES = [
+	"AUTH_METHOD_UNSUPPORTED",
+	"BLOB_REF_INVALID",
 	"BUNDLE_COMPRESSED_SIZE_EXCEEDED",
 	"BUNDLE_DECOMPRESSED_SIZE_EXCEEDED",
 	"BUNDLE_FILE_COUNT_EXCEEDED",
@@ -18,6 +20,7 @@ export const VERIFICATION_ERROR_CODES = [
 	"HOST_REJECTED",
 	"INVALID_MULTIHASH",
 	"INVALID_URL",
+	"PDS_RESOLUTION_FAILED",
 	"PROFILE_EXTENSION_INVALID",
 	"PROFILE_EXTENSION_MISSING",
 	"PROFILE_ID_MISMATCH",
@@ -33,6 +36,7 @@ export const VERIFICATION_ERROR_CODES = [
 	"RESOURCE_TIMEOUT",
 	"RELEASE_EXTENSION_INVALID",
 	"RELEASE_EXTENSION_MISSING",
+	"RELEASE_ARTIFACT_SOURCE_MISSING",
 	"RELEASE_LEXICON_INVALID",
 	"RELEASE_PACKAGE_MISMATCH",
 	"RELEASE_RKEY_MISMATCH",
@@ -46,6 +50,7 @@ export type VerificationErrorCode = (typeof VERIFICATION_ERROR_CODES)[number];
 export interface VerificationError {
 	code: VerificationErrorCode;
 	message: string;
+	details?: { hint?: string; hintUrl?: string };
 }
 
 export type VerificationResult<T> =
@@ -55,6 +60,10 @@ export type VerificationResult<T> =
 export function verificationError(
 	code: VerificationErrorCode,
 	message: string,
+	details?: VerificationError["details"],
 ): VerificationResult<never> {
-	return { success: false, error: { code, message } };
+	return {
+		success: false,
+		error: { code, message, ...(details === undefined ? {} : { details }) },
+	};
 }

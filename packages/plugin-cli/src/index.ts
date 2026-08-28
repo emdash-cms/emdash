@@ -15,7 +15,7 @@
  *   - build    — produce the npm distribution artifacts (dist/index.mjs, dist/plugin.mjs, dist/manifest.json)
  *   - dev      — watch sources and rebuild on change
  *   - bundle         — bundle a plugin source directory into a tarball
- *   - publish        — publish a release that points at a hosted tarball
+ *   - publish        — build, upload, and publish a release
  *   - update-package — edit an already-published package without a new release
  *   - validate       — validate an emdash-plugin.jsonc manifest against the v1 schema
  *

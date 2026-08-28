@@ -6,9 +6,9 @@
  * resolves the *declared* URL from the validated release record fetched from
  * the aggregator, then fetches it. So the route must:
  *   - validate the coordinate params (400 on bad input),
- *   - resolve only the publisher-declared URL (never a caller-supplied one),
+ *   - resolve only publisher-declared blob or URL sources,
  *   - reject private / loopback / link-local hosts on the resolved URL (SSRF),
- *   - reject non-image content types, including SVG (allowlist), allow AVIF,
+ *   - reject image types outside PNG, JPEG, and WebP,
  *   - cap the body size, and serve image bytes with hardened headers.
  *
  * We drive the route's `GET` directly with a fabricated context, mock the
@@ -48,6 +48,12 @@ const getLatestRelease = vi.fn(async () => ({
 	did: "did:plc:abc123",
 	package: "myplugin",
 	version: mockReleaseVersion,
+	artifactCaches: [
+		{
+			$type: "com.emdashcms.experimental.aggregator.defs#recordScopedBlobCache",
+			serviceEndpoint: "https://cdn.em-da.sh",
+		},
+	],
 	labels: mockReleaseLabels,
 	release: { package: "myplugin", version: mockReleaseVersion, artifacts: mockArtifacts },
 }));
@@ -59,6 +65,12 @@ const listReleases = vi.fn(async () => ({
 			did: "did:plc:abc123",
 			package: "myplugin",
 			version: mockReleaseVersion,
+			artifactCaches: [
+				{
+					$type: "com.emdashcms.experimental.aggregator.defs#recordScopedBlobCache",
+					serviceEndpoint: "https://cdn.em-da.sh",
+				},
+			],
 			labels: mockReleaseLabels,
 			release: { package: "myplugin", version: mockReleaseVersion, artifacts: mockArtifacts },
 		},
@@ -265,7 +277,7 @@ describe("registry artifact proxy", () => {
 		expect(res.status).toBe(400);
 	});
 
-	// ── resolution → declared URL is proxied ───────────────────────────
+	// ── resolution → declared source is proxied ────────────────────────
 
 	it("resolves the declared icon URL and proxies it", async () => {
 		const fetchMock = vi.fn(async () => imageResponse(PNG_1x1)) as typeof globalThis.fetch;
@@ -309,6 +321,54 @@ describe("registry artifact proxy", () => {
 		expect(fetched).toBe("https://cdn.example.com/s1.png");
 	});
 
+	it("resolves an image blob through the record-scoped Cumulus deployment", async () => {
+		const blobCid = "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe";
+		mockArtifacts = {
+			icon: {
+				blob: {
+					$type: "blob",
+					ref: { $link: blobCid },
+					mimeType: "image/png",
+					size: PNG_1x1.byteLength,
+				},
+				checksum: "bciqe4jnueqlf4lnapa6vkujsg4vjk7bit476a5fs3il6spouipexg6i",
+			},
+		};
+		const fetchMock = vi.fn(async () => imageResponse(PNG_1x1)) as typeof globalThis.fetch;
+		globalThis.fetch = fetchMock;
+
+		const response = await GET(makeContext(DEFAULT_PARAMS));
+
+		expect(response.status).toBe(200);
+		const fetched = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0];
+		expect(fetched).toBe(
+			`https://cdn.em-da.sh/img/avatar/r/did:plc:abc123/com.emdashcms.experimental.package.release/myplugin:1.0.0/${RELEASE_CID}/${blobCid}`,
+		);
+	});
+
+	it("rejects an image blob whose checksum does not match its CID", async () => {
+		mockArtifacts = {
+			icon: {
+				blob: {
+					$type: "blob",
+					ref: {
+						$link: "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe",
+					},
+					mimeType: "image/png",
+					size: PNG_1x1.byteLength,
+				},
+				checksum: "bciqinvalid",
+			},
+		};
+		const fetchMock = vi.fn(async () => imageResponse(PNG_1x1)) as typeof globalThis.fetch;
+		globalThis.fetch = fetchMock;
+
+		const response = await GET(makeContext(DEFAULT_PARAMS));
+
+		expect(response.status).toBe(404);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
 	it("paginates listReleases for an explicit version", async () => {
 		mockReleaseVersion = "2.0.0";
 		const fetchMock = vi.fn(async () => imageResponse(PNG_1x1)) as typeof globalThis.fetch;
@@ -332,7 +392,7 @@ describe("registry artifact proxy", () => {
 		expect(res.status).toBe(404);
 	});
 
-	it("returns 404 when the artifact entry has no usable url", async () => {
+	it("returns 404 when the artifact entry has no usable source", async () => {
 		mockArtifacts = { icon: { checksum: PNG_SHA256, width: 64 } };
 		const res = await GET(makeContext(DEFAULT_PARAMS));
 		expect(res.status).toBe(404);
@@ -383,13 +443,12 @@ describe("registry artifact proxy", () => {
 
 	// ── content-type allowlist ─────────────────────────────────────────
 
-	it("allows AVIF", async () => {
+	it("rejects AVIF", async () => {
 		globalThis.fetch = vi.fn(async () =>
 			imageResponse(PNG_1x1, "image/avif"),
 		) as typeof globalThis.fetch;
 		const res = await GET(makeContext(DEFAULT_PARAMS));
-		expect(res.status).toBe(200);
-		expect(res.headers.get("content-type")).toBe("image/avif");
+		expect(res.status).toBe(415);
 	});
 
 	it("rejects SVG (active content removed from the allowlist)", async () => {

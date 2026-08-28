@@ -2,8 +2,15 @@ export {
 	compareDigestBytes,
 	computeMultihash,
 	decodeMultihash,
+	multihashFromBlobCid,
 	verifyMultihash,
 } from "./checksum.js";
+export {
+	fetchReleaseArtifact,
+	recordScopedBlobCacheUrl,
+	recordScopedImageCacheUrl,
+	resolvePublisherPdsEndpoint,
+} from "./artifact.js";
 export { DEFAULT_FETCH_LIMITS, fetchVerifiedResource } from "./fetch.js";
 export { VERIFICATION_ERROR_CODES } from "./errors.js";
 export {
@@ -19,6 +26,12 @@ export { GitHubProvenanceVerifier } from "./provenance.js";
 export { canonicalizeRepositoryUrl } from "./repository.js";
 export { verifyPackageReleaseRecords } from "./records.js";
 export type { DecodedMultihash, MultihashAlgorithm } from "./checksum.js";
+export type {
+	FetchedReleaseArtifact,
+	FetchReleaseArtifactInput,
+	ReleaseArtifactReference,
+	RecordScopedImagePreset,
+} from "./artifact.js";
 export type {
 	FetchImplementation,
 	FetchVerifiedResourceOptions,
@@ -37,6 +50,7 @@ export type {
 	NormalizedReleasePolicy,
 	ProvenanceEvidence,
 	ProvenanceStatus,
+	RecordVerificationDetails,
 	RecordVerificationCode,
 	RecordVerificationInput,
 	RecordVerificationReason,

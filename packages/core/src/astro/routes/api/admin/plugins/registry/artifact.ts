@@ -10,9 +10,9 @@
  * Trust model (CRITICAL): the proxy never accepts an artifact URL from the
  * client. The caller addresses an artifact by its coordinates
  * `(did, slug, version, kind, index)`; the server resolves the *declared*
- * URL from the validated release record fetched from the configured
- * aggregator. The proxy can therefore only ever fetch a URL the publisher
- * declared in their signed release — not an arbitrary caller-supplied URL.
+ * artifact source from the validated release record fetched from the
+ * configured aggregator. Blob-backed images resolve to the record-scoped
+ * Cumulus deployment; URL artifacts retain the external fallback.
  *
  * The publisher-declared URL is still untrusted (an attacker who controls a
  * publisher record, or the aggregator, can point it anywhere), so the
@@ -23,6 +23,9 @@
 
 import type { Did } from "@atcute/lexicons";
 import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
+import { NSID, RECORD_SCOPED_BLOB_CACHE_TYPE } from "@emdash-cms/registry-lexicons";
+import { recordScopedImageCacheUrl } from "@emdash-cms/registry-verification/artifact";
+import { multihashFromBlobCid } from "@emdash-cms/registry-verification/checksum";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
@@ -42,15 +45,9 @@ export const prerender = false;
  * executes when navigated to as a top-level document), and the publisher
  * supplies the bytes. Rather than serve it behind mitigations, we refuse it
  * end-to-end — the publish CLI rejects SVG artifacts too, so a conforming
- * release never references one. AVIF is included.
+ * release never references one.
  */
-const ALLOWED_IMAGE_TYPES = new Set([
-	"image/png",
-	"image/jpeg",
-	"image/webp",
-	"image/gif",
-	"image/avif",
-]);
+const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 /** Artifact kinds the proxy can resolve. `screenshot` additionally needs `index`. */
 const ALLOWED_KINDS = new Set(["icon", "banner", "screenshot"]);
@@ -102,17 +99,17 @@ function timedFetch(totalDeadline: number): typeof fetch {
 }
 
 /**
- * Narrow one entry of a release's `artifacts` map to a usable image URL.
+ * Narrow one entry of a release's `artifacts` map to a usable image source.
  *
  * The embedded `release` record is lexicon-validated at the DiscoveryClient
  * boundary, but `artifacts` is an aggregator pass-through typed `unknown`, so
- * the entry's shape is not guaranteed. Returns the `url` string only when the
- * value is an object carrying a non-empty string `url`; everything else
- * (missing key, wrong type, no `url`) yields `null`.
+ * the entry's shape is not guaranteed.
  */
 interface DeclaredArtifact {
-	url: string;
+	url?: string;
+	blobCid?: string;
 	checksum: string;
+	requiresAuth: boolean;
 }
 
 function declaredArtifact(value: unknown): DeclaredArtifact | null {
@@ -120,20 +117,25 @@ function declaredArtifact(value: unknown): DeclaredArtifact | null {
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; fields checked below
 	const entry = value as Record<string, unknown>;
 	const url = entry.url;
+	const blob = entry.blob;
 	const checksum = entry.checksum;
-	if (
-		typeof url !== "string" ||
-		url.length === 0 ||
-		typeof checksum !== "string" ||
-		checksum.length === 0
-	) {
+	const ref = objectProperty(blob, "ref");
+	const blobCid = objectProperty(ref, "$link");
+	const hasUrl = typeof url === "string" && url.length > 0;
+	const hasBlob = typeof blobCid === "string" && blobCid.length > 0;
+	if ((!hasUrl && !hasBlob) || typeof checksum !== "string" || checksum.length === 0) {
 		return null;
 	}
-	return { url, checksum };
+	return {
+		...(hasUrl ? { url } : {}),
+		...(hasBlob ? { blobCid } : {}),
+		checksum,
+		requiresAuth: entry.requiresAuth === true,
+	};
 }
 
 /**
- * Resolve the declared artifact URL for `(kind, index)` from a release's
+ * Resolve the declared artifact source for `(kind, index)` from a release's
  * `artifacts` map. Returns `null` when the requested artifact isn't present
  * or doesn't carry a usable URL.
  */
@@ -153,6 +155,11 @@ function resolveDeclaredArtifact(
 	if (!Array.isArray(screenshots)) return null;
 	if (index < 0 || index >= screenshots.length) return null;
 	return declaredArtifact(screenshots[index]);
+}
+
+function objectProperty(value: unknown, key: string): unknown {
+	if (!value || typeof value !== "object") return undefined;
+	return Object.getOwnPropertyDescriptor(value, key)?.value;
 }
 
 export const GET: APIRoute = async ({ url, locals }) => {
@@ -231,6 +238,9 @@ export const GET: APIRoute = async ({ url, locals }) => {
 	} catch {
 		return apiError("ARTIFACT_RESOLVE_FAILED", "Failed to resolve artifact", 502);
 	}
+	if (!descriptor.url) {
+		return apiError("ARTIFACT_NOT_FOUND", "Artifact not found", 404);
+	}
 
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -292,7 +302,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 		if (bytes === null) {
 			return apiError("ARTIFACT_TOO_LARGE", "Artifact exceeds size limit", 413);
 		}
-		if (!(await verifyChecksum(bytes, descriptor.checksum))) {
+		if (!descriptor.blobCid && !(await verifyChecksum(bytes, descriptor.checksum))) {
 			return apiError(
 				"ARTIFACT_CHECKSUM_MISMATCH",
 				"Artifact bytes do not match the approved release record",
@@ -400,7 +410,39 @@ async function resolveArtifact(
 		return null;
 	}
 
-	return resolveDeclaredArtifact(releaseView.release.artifacts, kind, index);
+	const descriptor = resolveDeclaredArtifact(releaseView.release.artifacts, kind, index);
+	if (!descriptor || descriptor.requiresAuth) return null;
+	if (descriptor.blobCid) {
+		const expected = multihashFromBlobCid(descriptor.blobCid);
+		if (!expected.success || expected.value !== descriptor.checksum) return null;
+		const rkey = `${slug}:${releaseView.version}`;
+		const serviceEndpoint = releaseView.artifactCaches
+			.map(recordScopedCacheEndpoint)
+			.find((value) => value !== null);
+		if (serviceEndpoint) {
+			const preset = kind === "icon" ? "avatar" : kind === "banner" ? "banner" : "feed_thumbnail";
+			const cacheUrl = recordScopedImageCacheUrl(
+				serviceEndpoint,
+				preset,
+				{
+					did,
+					collection: NSID.packageRelease,
+					rkey,
+					cid: releaseView.cid,
+				},
+				descriptor.blobCid,
+			);
+			if (!cacheUrl.success) return null;
+			descriptor.url = cacheUrl.value.href;
+		}
+	}
+	return descriptor.url ? descriptor : null;
+}
+
+function recordScopedCacheEndpoint(value: unknown): string | null {
+	if (objectProperty(value, "$type") !== RECORD_SCOPED_BLOB_CACHE_TYPE) return null;
+	const endpoint = objectProperty(value, "serviceEndpoint");
+	return typeof endpoint === "string" ? endpoint : null;
 }
 
 /**

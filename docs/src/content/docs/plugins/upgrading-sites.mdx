@@ -46,6 +46,22 @@ emdash-registry publish --url https://example.com/my-plugin-1.0.0.tar.gz
 emdash-plugin publish --url https://example.com/my-plugin-1.0.0.tar.gz
 ```
 
+### Removed: `--artifact-base-url`
+
+Earlier releases required `--artifact-base-url` when a manifest declared icons, banners, or screenshots. The CLI uploaded those files with HTTP PUT.
+
+The CLI now uploads listing images to your Atmosphere account as atproto blobs. `emdash-plugin publish` also builds and uploads the package bundle there by default. The `--url` option remains available for externally hosted package bundles.
+
+#### What should I do?
+
+Remove `--artifact-base-url` and the image-host write credentials from publish scripts. Run `emdash-plugin publish` from the plugin directory:
+
+```sh
+emdash-plugin publish
+```
+
+If the command reports `MISSING_BLOB_SCOPE`, run `emdash-plugin logout`, then log in again to grant blob upload access.
+
 ### Changed: published plugins use a default export
 
 Earlier releases exposed first-party plugins as a named export and a factory call, for example `import { auditLogPlugin } from "@emdash-cms/plugin-audit-log"` used as `auditLogPlugin()`.
