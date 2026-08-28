@@ -1,5 +1,10 @@
 import type { ActorResolver } from "@atcute/identity-resolver";
 import { isDid } from "@atcute/lexicons/syntax";
+import {
+	DirectPdsClient,
+	DirectPdsReadError,
+	type DirectPdsDidDocumentResolver,
+} from "@emdash-cms/registry-client/direct-pds";
 import { NSID } from "@emdash-cms/registry-lexicons";
 import { fetchVerifiedResource } from "@emdash-cms/registry-verification";
 import compareVersions from "semver/functions/compare.js";
@@ -31,6 +36,7 @@ export interface PublisherVerificationSnapshot {
 
 export interface ReadPublisherSnapshotOptions {
 	actorResolver?: ActorResolver;
+	didDocumentResolver?: DirectPdsDidDocumentResolver;
 	fetch?: typeof globalThis.fetch;
 }
 
@@ -150,6 +156,36 @@ async function guardedJson(url: URL, fetchImplementation: typeof fetch): Promise
 	}
 }
 
+function guardedFetch(fetchImplementation: typeof fetch): typeof fetch {
+	return async (input, init) => {
+		const url = new URL(input instanceof Request ? input.url : input.toString());
+		const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+		if (method.toUpperCase() !== "GET") {
+			throw new PublisherSnapshotError("PUBLISHER_PDS_INVALID");
+		}
+		const headers = init?.headers ?? (input instanceof Request ? input.headers : undefined);
+		const resource = await fetchVerifiedResource(url, {
+			fetch: (verifiedUrl, verifiedInit) =>
+				fetchImplementation(verifiedUrl, {
+					...verifiedInit,
+					...(headers === undefined ? {} : { headers }),
+				}),
+			resolveHostname: (hostname) => resolvePublicHostname(hostname, fetchImplementation),
+			headerTimeoutMs: 10_000,
+			totalTimeoutMs: 30_000,
+			maxBytes: MAX_PDS_RESPONSE_BYTES,
+			maxRedirects: 1,
+		});
+		if (!resource.success || resource.value.url.toString() !== url.toString()) {
+			throw new PublisherSnapshotError("PUBLISHER_PDS_INVALID");
+		}
+		return new Response(resource.value.bytes, {
+			status: resource.value.status,
+			headers: resource.value.headers,
+		});
+	};
+}
+
 function pdsXrpcUrl(pds: string, method: string): URL {
 	let url: URL;
 	try {
@@ -196,19 +232,45 @@ function guardedIdentityFetch(fetchImplementation: typeof fetch): typeof fetch {
 }
 
 async function getProfile(
-	pds: string,
 	publisherDid: string,
 	packageSlug: string,
 	fetchImplementation: typeof fetch,
+	didDocumentResolver?: DirectPdsDidDocumentResolver,
 ): Promise<AuthoritativeRecord> {
-	const url = pdsXrpcUrl(pds, "com.atproto.repo.getRecord");
-	url.searchParams.set("repo", publisherDid);
-	url.searchParams.set("collection", NSID.packageProfile);
-	url.searchParams.set("rkey", packageSlug);
-	const record = parseRecord(await guardedJson(url, fetchImplementation));
-	const expectedUri = `at://${publisherDid}/${NSID.packageProfile}/${packageSlug}`;
-	if (!record || record.uri !== expectedUri) throw new PublisherSnapshotError("PROFILE_INVALID");
-	return record;
+	try {
+		const record = await new DirectPdsClient({
+			did: publisherDid,
+			fetch: guardedFetch(fetchImplementation),
+			...(didDocumentResolver === undefined ? {} : { didDocumentResolver }),
+			requestTimeoutMs: 30_000,
+			maxResponseBytes: MAX_PDS_RESPONSE_BYTES,
+		}).getPackageProfile(packageSlug);
+		return { uri: record.uri, cid: record.cid, value: record.value };
+	} catch (error) {
+		if (error instanceof DirectPdsReadError) {
+			if (
+				error.code === "DID_DOCUMENT_INVALID" ||
+				error.code === "DID_RESOLUTION_FAILED" ||
+				error.code === "DID_SIGNING_KEY_INVALID" ||
+				error.code === "DID_SIGNING_KEY_MISSING" ||
+				error.code === "PDS_ENDPOINT_INVALID" ||
+				error.code === "PDS_ENDPOINT_MISSING"
+			) {
+				throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+			}
+			if (
+				error.code === "PROFILE_LEXICON_INVALID" ||
+				error.code === "RECORD_NOT_FOUND" ||
+				error.code === "RECORD_PROOF_INVALID"
+			) {
+				throw new PublisherSnapshotError("PROFILE_INVALID");
+			}
+		}
+		if (error instanceof TypeError) {
+			throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+		}
+		throw new PublisherSnapshotError("PUBLISHER_PDS_INVALID");
+	}
 }
 
 async function listPackageReleases(
@@ -289,7 +351,7 @@ export async function readPublisherVerificationSnapshot(
 	}
 	if (actor.did !== publisherDid) throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
 	const [profile, releases] = await Promise.all([
-		getProfile(actor.pds, publisherDid, packageSlug, fetchImplementation),
+		getProfile(publisherDid, packageSlug, fetchImplementation, options.didDocumentResolver),
 		listPackageReleases(actor.pds, publisherDid, packageSlug, fetchImplementation),
 	]);
 	const proposedRkey = `${packageSlug}:${version}`;

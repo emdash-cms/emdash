@@ -19,6 +19,7 @@
 		"@atcute/oauth-node-client": "catalog:",
 		"@emdash-cms/auth": "workspace:*",
 		"@emdash-cms/plugin-types": "workspace:*",
+		"@emdash-cms/registry-client": "workspace:*",
 		"@emdash-cms/registry-lexicons": "workspace:*",
 		"@emdash-cms/registry-verification": "workspace:*",
 		"jose": "^6.1.3",

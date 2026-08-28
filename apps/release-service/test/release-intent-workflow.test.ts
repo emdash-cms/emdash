@@ -4,7 +4,6 @@ import { introspectWorkflowInstance, reset } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import profileFixture from "../../../packages/registry-verification/fixtures/records/profile.json";
 import releaseFixture from "../../../packages/registry-verification/fixtures/records/release.json";
 import { startReleaseIntentWorkflow } from "../src/workflows/start.js";
 
@@ -12,6 +11,10 @@ const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const NOW = 1_800_000_000_000;
 const ARTIFACT_CHECKSUM = "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja";
+const PROFILE_PROOF =
+	"OqJlcm9vdHOB2CpYJQABcRIgDvmOi+nZTPwAHpDNlC2y2J7fUQ1ApZKJRa48jp934NBndmVyc2lvbgHdAQFxEiAO+Y6L6dlM/AAekM2ULbLYnt9RDUClkolFrjyOn3fg0KZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211NXFhZHRwazIybWNzaWdYQKq7vfiaEIAWBU/mBxVb+dRselfs/o/vLWgXiiWtBrrBIT9LTKTG8Ylh5LuryHBu1Xx0m0Zu/FeAL7dzSrbBs9tkZGF0YdgqWCUAAXESICPWWGKAvX12s+8YBNB6iLwFl8YMr6smSZpFoaG8aBsnZHByZXb2Z3ZlcnNpb24DkwEBcRIgI9ZYYoC9fXaz7xgE0HqIvAWXxgyvqyZJmkWhobxoGyeiYWWBpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIg75HAxLI29zFxT2IAMP+6xED3Uxy3mslLTuujJkBV1nphbPbQAwFxEiDvkcDEsjb3MXFPYgAw/7rEQPdTHLeayUtO66MmQFXWeqhiaWR4VWF0Oi8vZGlkOndlYjpwdWJsaXNoZXIuZXhhbXBsZS5jb20vY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlL2dhbGxlcnlkbmFtZWdHYWxsZXJ5ZHR5cGVtZW1kYXNoLXBsdWdpbmUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlZ2F1dGhvcnOBoWRuYW1lcUV4YW1wbGUgUHVibGlzaGVyZ2xpY2Vuc2VjTUlUaHNlY3VyaXR5gaFlZW1haWx0c2VjdXJpdHlAZXhhbXBsZS5jb21qZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbqJlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbmpyZXBvc2l0b3J5eCJodHRwczovL2dpdGh1Yi5jb20vZXhhbXBsZS9nYWxsZXJ5";
+const APPROVAL_PROFILE_PROOF =
+	"OqJlcm9vdHOB2CpYJQABcRIgt4Be/ylpOhy2o33XFr7JATwH2VmFRzL6VB4p2I0MSzVndmVyc2lvbgHdAQFxEiC3gF7/KWk6HLajfdcWvskBPAfZWYVHMvpUHinYjQxLNaZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211NXFhZHR6Y2sybWNzaWdYQBg2vVFiuGjkb1Q9TukMNZFbFZ/xXo5d8a6UZnGNnq/FIGQMPMH+RiEl+yhSvATZ9KnIQ2ujZ5q5qkjKyu5t6XhkZGF0YdgqWCUAAXESIGduRlvZ/Lua96nilhYmPVcpLg+ZjEa4kIialhQmHwB0ZHByZXb2Z3ZlcnNpb24DkwEBcRIgZ25GW9n8u5r3qeKWFiY9VykuD5mMRriQiJqWFCYfAHSiYWWBpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIgrKiSWBl9zSDvo1PXTnK3qUZGccnZeweHtjm0xemh2J5hbPaPBAFxEiCsqJJYGX3NIO+jU9dOcrepRkZxydl7B4e2ObTF6aHYnqhiaWR4VWF0Oi8vZGlkOndlYjpwdWJsaXNoZXIuZXhhbXBsZS5jb20vY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlL2dhbGxlcnlkbmFtZWdHYWxsZXJ5ZHR5cGVtZW1kYXNoLXBsdWdpbmUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlZ2F1dGhvcnOBoWRuYW1lcUV4YW1wbGUgUHVibGlzaGVyZ2xpY2Vuc2VjTUlUaHNlY3VyaXR5gaFlZW1haWx0c2VjdXJpdHlAZXhhbXBsZS5jb21qZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbqNlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbmpyZXBvc2l0b3J5eCJodHRwczovL2dpdGh1Yi5jb20vZXhhbXBsZS9nYWxsZXJ5bXJlbGVhc2VQb2xpY3miaWFwcHJvdmVyc4FwZGlkOnBsYzphcHByb3Zlcmxjb25maXJtYXRpb25mYWx3YXlz";
 const PROVENANCE = {
 	predicateType: "https://slsa.dev/provenance/v1",
 	url: "https://github.com/example/gallery/attestation.sigstore.json",
@@ -32,7 +35,7 @@ function releaseRecord() {
 	return release;
 }
 
-function workflowNetwork(profile: Record<string, unknown> = structuredClone(profileFixture)) {
+function workflowNetwork(profileProof = PROFILE_PROOF) {
 	return async (input: RequestInfo | URL): Promise<Response> => {
 		const url = new URL(input instanceof Request ? input.url : input.toString());
 		if (url.hostname === "cloudflare-dns.com") {
@@ -44,6 +47,14 @@ function workflowNetwork(profile: Record<string, unknown> = structuredClone(prof
 		if (url.hostname === "publisher.example.com" && url.pathname === "/.well-known/did.json") {
 			return Response.json({
 				id: PUBLISHER_DID,
+				verificationMethod: [
+					{
+						id: `${PUBLISHER_DID}#atproto`,
+						type: "Multikey",
+						controller: PUBLISHER_DID,
+						publicKeyMultibase: "zDnaeq9feE9D74uYD5jynoyyQPbhhWU2vStcmC8W1xQHG3fWe",
+					},
+				],
 				service: [
 					{
 						id: "#atproto_pds",
@@ -53,15 +64,11 @@ function workflowNetwork(profile: Record<string, unknown> = structuredClone(prof
 				],
 			});
 		}
-		if (url.hostname === "pds.example.com" && url.pathname === "/xrpc/com.atproto.repo.getRecord") {
-			return Response.json({
-				uri: `at://${PUBLISHER_DID}/${NSID.packageProfile}/gallery`,
-				cid: "bafyprofile",
-				value: {
-					...profile,
-					id: `at://${PUBLISHER_DID}/${NSID.packageProfile}/gallery`,
-				},
-			});
+		if (url.hostname === "pds.example.com" && url.pathname === "/xrpc/com.atproto.sync.getRecord") {
+			return new Response(
+				Uint8Array.from(atob(profileProof), (character) => character.charCodeAt(0)),
+				{ headers: { "content-type": "application/vnd.ipld.car" } },
+			);
 		}
 		if (
 			url.hostname === "pds.example.com" &&
@@ -158,20 +165,7 @@ describe("ReleaseIntentWorkflow", () => {
 	});
 
 	it("waits for a canonical approval transition and resumes from its event", async () => {
-		const profile: Record<string, unknown> = {
-			...structuredClone(profileFixture),
-			extensions: {
-				...structuredClone(profileFixture.extensions),
-				[NSID.packageProfileExtension]: {
-					...structuredClone(profileFixture.extensions[NSID.packageProfileExtension]),
-					releasePolicy: {
-						confirmation: "always",
-						approvers: ["did:plc:approver"],
-					},
-				},
-			},
-		};
-		vi.stubGlobal("fetch", workflowNetwork(profile));
+		vi.stubGlobal("fetch", workflowNetwork(APPROVAL_PROFILE_PROOF));
 		await createVerifyingIntent();
 		await using introspector = await introspectWorkflowInstance(
 			env.RELEASE_INTENT_WORKFLOW,

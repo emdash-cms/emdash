@@ -577,6 +577,9 @@ importers:
       '@emdash-cms/plugin-types':
         specifier: workspace:*
         version: link:../../packages/plugin-types
+      '@emdash-cms/registry-client':
+        specifier: workspace:*
+        version: link:../../packages/registry-client
       '@emdash-cms/registry-lexicons':
         specifier: workspace:*
         version: link:../../packages/registry-lexicons
