@@ -132,6 +132,25 @@ describe("fetchReleaseArtifact", () => {
 		expect(result).toMatchObject({ success: true, value: { source: "url", bytes } });
 	});
 
+	it("fetches a blob from an explicitly allowed loopback PDS", async () => {
+		const fetch = vi.fn(async () => new Response(bytes));
+		const result = await fetchReleaseArtifact(
+			{
+				artifact: artifact({ url: undefined }),
+				record,
+				pdsEndpoint: "http://localhost:2583",
+			},
+			{
+				fetch,
+				resolveHostname: async () => [],
+				allowHttpLocalhost: true,
+			},
+		);
+
+		expect(result).toMatchObject({ success: true, value: { source: "blob", bytes } });
+		expect(fetch.mock.calls[0]?.[0].origin).toBe("http://localhost:2583");
+	});
+
 	it("rejects fetched bytes that disagree with signed blob metadata", async () => {
 		for (const blob of [
 			{ ...artifact().blob!, size: bytes.byteLength - 1 },

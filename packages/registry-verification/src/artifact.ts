@@ -238,7 +238,17 @@ export async function resolvePublisherPdsEndpoint(
 	}
 	try {
 		const endpoint = new URL(service.serviceEndpoint);
-		if (endpoint.protocol !== "https:" || endpoint.username || endpoint.password) throw new Error();
+		const loopbackHttp =
+			options.allowHttpLocalhost === true &&
+			endpoint.protocol === "http:" &&
+			(endpoint.hostname === "localhost" || endpoint.hostname === "127.0.0.1");
+		if (
+			(!loopbackHttp && endpoint.protocol !== "https:") ||
+			endpoint.username ||
+			endpoint.password
+		) {
+			throw new Error();
+		}
 		return { success: true, value: endpoint.href };
 	} catch {
 		return verificationError(

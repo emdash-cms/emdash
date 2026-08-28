@@ -331,6 +331,7 @@ async function fetchArtifact(
 			},
 			resolveHostname: async (hostname) =>
 				(await resolveAndValidateExternalUrlTarget(`https://${hostname}`)).addresses,
+			allowHttpLocalhost: import.meta.env.DEV,
 			headerTimeoutMs: ARTIFACT_FETCH_TIMEOUT_MS,
 			totalTimeoutMs: ARTIFACT_TOTAL_BUDGET_MS,
 			maxBytes: MAX_ARTIFACT_BYTES,
