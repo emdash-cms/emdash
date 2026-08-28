@@ -11,18 +11,26 @@ import {
 	type VerificationErrorCode,
 } from "@emdash-cms/registry-verification";
 
+import { readImageDimensions, type ImageMimeType } from "./image-metadata.js";
+
+const MATERIALIZATION_PLAN_VERSION = 1;
 const PACKAGE_MAX_BYTES = 256 * 1024;
 const IMAGE_MAX_BYTES = 1024 * 1024;
+const IMAGE_MAX_DIMENSION = 8192;
 const GENERIC_BINARY_MIME = "application/octet-stream";
 const MIME_TYPE_PATTERN = /^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/;
+const SCREENSHOT_PATH_PATTERN = /^screenshots\[([0-7])\]$/;
+const IMAGE_MIME_TYPES = new Set<string>(["image/png", "image/jpeg", "image/webp"]);
 
 export type ArtifactMaterializationPath = "package" | "icon" | "banner" | `screenshots[${number}]`;
 
 export type ArtifactMaterializationErrorCode =
 	| VerificationErrorCode
 	| "ARTIFACT_BLOB_INVALID"
+	| "ARTIFACT_DIMENSIONS_INVALID"
 	| "ARTIFACT_MIME_INVALID"
 	| "ARTIFACT_OPTIONS_INVALID"
+	| "ARTIFACT_RECEIPTS_INVALID"
 	| "ARTIFACT_SOURCE_UNVERIFIABLE"
 	| "ARTIFACT_UPLOAD_FAILED"
 	| "RELEASE_INVALID";
@@ -44,31 +52,60 @@ export class ArtifactMaterializationError extends Error {
 
 export type ArtifactBlobUploader = (bytes: Uint8Array, mimeType: string) => Promise<Blob>;
 
-export interface MaterializeReleaseArtifactsOptions {
+export interface StageReleaseArtifactsOptions {
 	fetch: FetchImplementation;
 	resolveHostname: HostnameResolver;
-	uploadBlob: ArtifactBlobUploader;
 	allowHttpLocalhost?: boolean;
 	headerTimeoutMs?: number;
 	totalTimeoutMs?: number;
 	maxRedirects?: number;
 }
 
-type ArtifactDescriptor = PackageRelease.Artifact | PackageRelease.ImageArtifact;
-
-interface PreparedArtifact<T extends ArtifactDescriptor = ArtifactDescriptor> {
-	path: ArtifactMaterializationPath;
-	descriptor: T;
-	bytes: Uint8Array;
-	mimeType: string;
-	maxBytes: number;
+export interface MaterializeReleaseArtifactsOptions extends StageReleaseArtifactsOptions {
+	uploadBlob: ArtifactBlobUploader;
 }
+
+export interface StagedArtifactMetadata {
+	path: ArtifactMaterializationPath;
+	checksum: string;
+	mimeType: string;
+	size: number;
+	width?: number;
+	height?: number;
+}
+
+export interface StagedReleaseArtifact {
+	metadata: StagedArtifactMetadata;
+	bytes: Uint8Array;
+}
+
+export interface ReleaseArtifactMaterializationPlan {
+	version: 1;
+	release: PackageRelease.Main;
+	artifacts: readonly StagedArtifactMetadata[];
+}
+
+export interface StagedReleaseArtifacts {
+	plan: ReleaseArtifactMaterializationPlan;
+	artifacts: readonly StagedReleaseArtifact[];
+}
+
+export interface ArtifactUploadReceipt {
+	path: ArtifactMaterializationPath;
+	checksum: string;
+	blob: Blob;
+}
+
+type ArtifactDescriptor = PackageRelease.Artifact | PackageRelease.ImageArtifact;
 
 function hasPrefix(bytes: Uint8Array, expected: readonly number[], offset = 0): boolean {
 	return expected.every((value, index) => bytes[offset + index] === value);
 }
 
-function detectedMimeType(path: ArtifactMaterializationPath, bytes: Uint8Array): string | null {
+function detectedMimeType(
+	path: ArtifactMaterializationPath,
+	bytes: Uint8Array,
+): "application/gzip" | ImageMimeType | null {
 	if (path === "package") {
 		return hasPrefix(bytes, [0x1f, 0x8b]) ? "application/gzip" : null;
 	}
@@ -89,9 +126,52 @@ function responseMimeType(headers: Headers): string | null {
 	return value && MIME_TYPE_PATTERN.test(value) ? value : null;
 }
 
+function maxBytesForPath(path: ArtifactMaterializationPath): number {
+	return path === "package" ? PACKAGE_MAX_BYTES : IMAGE_MAX_BYTES;
+}
+
+function isImageMimeType(value: string): value is ImageMimeType {
+	return IMAGE_MIME_TYPES.has(value);
+}
+
+function isMaterializationPath(value: unknown): value is ArtifactMaterializationPath {
+	return (
+		value === "package" ||
+		value === "icon" ||
+		value === "banner" ||
+		(typeof value === "string" && SCREENSHOT_PATH_PATTERN.test(value))
+	);
+}
+
+function validMetadata(value: StagedArtifactMetadata): boolean {
+	const dimensionsValid =
+		value.path === "package"
+			? value.width === undefined && value.height === undefined
+			: Number.isSafeInteger(value.width) &&
+				Number.isSafeInteger(value.height) &&
+				(value.width ?? 0) > 0 &&
+				(value.width ?? 0) <= IMAGE_MAX_DIMENSION &&
+				(value.height ?? 0) > 0 &&
+				(value.height ?? 0) <= IMAGE_MAX_DIMENSION;
+	return (
+		isMaterializationPath(value.path) &&
+		typeof value.checksum === "string" &&
+		value.checksum.length > 0 &&
+		value.checksum.length <= 256 &&
+		typeof value.mimeType === "string" &&
+		(value.path === "package"
+			? value.mimeType === "application/gzip"
+			: IMAGE_MIME_TYPES.has(value.mimeType)) &&
+		Number.isSafeInteger(value.size) &&
+		value.size > 0 &&
+		value.size <= maxBytesForPath(value.path) &&
+		dimensionsValid
+	);
+}
+
 function fetchImplementation(
 	descriptor: ArtifactDescriptor,
-	options: MaterializeReleaseArtifactsOptions,
+	options: StageReleaseArtifactsOptions,
 ): FetchImplementation {
 	return (url, init) => {
 		if (descriptor.releaseAsset !== true) return options.fetch(url, init);
@@ -101,13 +181,12 @@ function fetchImplementation(
 	};
 }
 
-async function prepareArtifact<T extends ArtifactDescriptor>(
+async function stageArtifact<T extends ArtifactDescriptor>(
 	path: ArtifactMaterializationPath,
 	descriptor: T,
-	maxBytes: number,
 	deadline: number,
-	options: MaterializeReleaseArtifactsOptions,
-): Promise<PreparedArtifact<T>> {
+	options: StageReleaseArtifactsOptions,
+): Promise<StagedReleaseArtifact> {
 	if (descriptor.requiresAuth === true) {
 		throw new ArtifactMaterializationError("AUTH_METHOD_UNSUPPORTED", path);
 	}
@@ -116,6 +195,7 @@ async function prepareArtifact<T extends ArtifactDescriptor>(
 	}
 	const remaining = deadline - Date.now();
 	if (remaining <= 0) throw new ArtifactMaterializationError("RESOURCE_TIMEOUT", path);
+	const maxBytes = maxBytesForPath(path);
 	const fetched = await fetchVerifiedResource(descriptor.url, {
 		fetch: fetchImplementation(descriptor, options),
 		resolveHostname: options.resolveHostname,
@@ -144,63 +224,102 @@ async function prepareArtifact<T extends ArtifactDescriptor>(
 	if (responseMime && responseMime !== GENERIC_BINARY_MIME && responseMime !== mimeType) {
 		throw new ArtifactMaterializationError("ARTIFACT_MIME_INVALID", path);
 	}
-	return { path, descriptor, bytes, mimeType, maxBytes };
-}
-
-async function uploadArtifact(
-	prepared: PreparedArtifact,
-	uploadBlob: ArtifactBlobUploader,
-): Promise<Blob> {
-	let uploaded: Blob;
-	try {
-		uploaded = await uploadBlob(new Uint8Array(prepared.bytes), prepared.mimeType);
-	} catch {
-		throw new ArtifactMaterializationError("ARTIFACT_UPLOAD_FAILED", prepared.path);
-	}
-	if (
-		!isBlob(uploaded) ||
-		uploaded.size !== prepared.bytes.byteLength ||
-		uploaded.size < 0 ||
-		uploaded.size > prepared.maxBytes ||
-		uploaded.mimeType !== prepared.mimeType ||
-		typeof uploaded.ref.$link !== "string"
-	) {
-		throw new ArtifactMaterializationError("ARTIFACT_BLOB_INVALID", prepared.path);
-	}
-	const uploadedChecksum = multihashFromBlobCid(uploaded.ref.$link);
-	if (!uploadedChecksum.success || uploadedChecksum.value !== prepared.descriptor.checksum) {
-		throw new ArtifactMaterializationError("ARTIFACT_BLOB_INVALID", prepared.path);
+	if (path !== "package") {
+		if (!isImageMimeType(mimeType)) {
+			throw new ArtifactMaterializationError("ARTIFACT_MIME_INVALID", path);
+		}
+		const measured = readImageDimensions(bytes, mimeType);
+		if (
+			!measured ||
+			measured.width > IMAGE_MAX_DIMENSION ||
+			measured.height > IMAGE_MAX_DIMENSION ||
+			("width" in descriptor &&
+				descriptor.width !== undefined &&
+				descriptor.width !== measured.width) ||
+			("height" in descriptor &&
+				descriptor.height !== undefined &&
+				descriptor.height !== measured.height)
+		) {
+			throw new ArtifactMaterializationError("ARTIFACT_DIMENSIONS_INVALID", path);
+		}
+		return {
+			metadata: {
+				path,
+				checksum: descriptor.checksum,
+				mimeType,
+				size: bytes.byteLength,
+				width: measured.width,
+				height: measured.height,
+			},
+			bytes,
+		};
 	}
 	return {
-		$type: "blob",
-		ref: { $link: uploaded.ref.$link },
-		mimeType: uploaded.mimeType,
-		size: uploaded.size,
+		metadata: { path, checksum: descriptor.checksum, mimeType, size: bytes.byteLength },
+		bytes,
 	};
 }
 
-function withBlob<T extends ArtifactDescriptor>(descriptor: T, blob: Blob): T {
+function withoutSources<T extends ArtifactDescriptor>(descriptor: T): T {
 	const result = structuredClone(descriptor);
 	delete result.url;
+	delete result.blob;
 	delete result.requiresAuth;
 	delete result.releaseAsset;
-	result.blob = blob;
 	return result;
 }
 
-function requireUploaded(
-	uploaded: ReadonlyMap<ArtifactMaterializationPath, Blob>,
-	path: ArtifactMaterializationPath,
-): Blob {
-	const blob = uploaded.get(path);
-	if (!blob) throw new ArtifactMaterializationError("ARTIFACT_BLOB_INVALID", path);
-	return blob;
+function materializationPaths(release: PackageRelease.Main): ArtifactMaterializationPath[] {
+	return [
+		"package",
+		...(release.artifacts.icon ? (["icon"] as const) : []),
+		...(release.artifacts.banner ? (["banner"] as const) : []),
+		...(release.artifacts.screenshots ?? []).map((_, index) => `screenshots[${index}]` as const),
+	];
 }
 
-export async function materializeReleaseArtifacts(
+function applyMeasuredDimensions(
+	descriptor: PackageRelease.ImageArtifact,
+	metadata: StagedArtifactMetadata | undefined,
+): void {
+	if (!metadata || metadata.width === undefined || metadata.height === undefined) {
+		throw new ArtifactMaterializationError("ARTIFACT_DIMENSIONS_INVALID", metadata?.path ?? null);
+	}
+	descriptor.width = metadata.width;
+	descriptor.height = metadata.height;
+}
+
+function releaseTemplate(
 	release: PackageRelease.Main,
-	options: MaterializeReleaseArtifactsOptions,
-): Promise<PackageRelease.Main> {
+	artifacts: readonly StagedReleaseArtifact[],
+): PackageRelease.Main {
+	const result = structuredClone(release);
+	const metadata = new Map(
+		artifacts.map((artifact) => [artifact.metadata.path, artifact.metadata]),
+	);
+	result.artifacts.package = withoutSources(result.artifacts.package);
+	if (result.artifacts.icon) {
+		result.artifacts.icon = withoutSources(result.artifacts.icon);
+		applyMeasuredDimensions(result.artifacts.icon, metadata.get("icon"));
+	}
+	if (result.artifacts.banner) {
+		result.artifacts.banner = withoutSources(result.artifacts.banner);
+		applyMeasuredDimensions(result.artifacts.banner, metadata.get("banner"));
+	}
+	if (result.artifacts.screenshots) {
+		result.artifacts.screenshots = result.artifacts.screenshots.map((screenshot, index) => {
+			const descriptor = withoutSources(screenshot);
+			applyMeasuredDimensions(descriptor, metadata.get(`screenshots[${index}]`));
+			return descriptor;
+		});
+	}
+	return result;
+}
+
+export async function stageReleaseArtifacts(
+	release: PackageRelease.Main,
+	options: StageReleaseArtifactsOptions,
+): Promise<StagedReleaseArtifacts> {
 	let snapshot: unknown;
 	try {
 		snapshot = structuredClone(release);
@@ -218,73 +337,190 @@ export async function materializeReleaseArtifacts(
 		throw new ArtifactMaterializationError("ARTIFACT_OPTIONS_INVALID", null);
 	}
 	const deadline = Date.now() + timeout;
-	const prepared: PreparedArtifact[] = [
-		await prepareArtifact(
-			"package",
-			parsed.value.artifacts.package,
-			PACKAGE_MAX_BYTES,
-			deadline,
-			options,
-		),
+	const artifacts: StagedReleaseArtifact[] = [
+		await stageArtifact("package", parsed.value.artifacts.package, deadline, options),
 	];
 	if (parsed.value.artifacts.icon) {
-		prepared.push(
-			await prepareArtifact(
-				"icon",
-				parsed.value.artifacts.icon,
-				IMAGE_MAX_BYTES,
-				deadline,
-				options,
-			),
-		);
+		artifacts.push(await stageArtifact("icon", parsed.value.artifacts.icon, deadline, options));
 	}
 	if (parsed.value.artifacts.banner) {
-		prepared.push(
-			await prepareArtifact(
-				"banner",
-				parsed.value.artifacts.banner,
-				IMAGE_MAX_BYTES,
-				deadline,
-				options,
-			),
-		);
+		artifacts.push(await stageArtifact("banner", parsed.value.artifacts.banner, deadline, options));
 	}
 	for (const [index, screenshot] of (parsed.value.artifacts.screenshots ?? []).entries()) {
-		prepared.push(
-			await prepareArtifact(
-				`screenshots[${index}]`,
-				screenshot,
-				IMAGE_MAX_BYTES,
-				deadline,
-				options,
-			),
-		);
+		artifacts.push(await stageArtifact(`screenshots[${index}]`, screenshot, deadline, options));
 	}
+	const template = releaseTemplate(parsed.value, artifacts);
+	const validTemplate = safeParse(PackageRelease.mainSchema, template, { strict: true });
+	if (!validTemplate.ok) throw new ArtifactMaterializationError("RELEASE_INVALID", null);
+	return {
+		plan: {
+			version: MATERIALIZATION_PLAN_VERSION,
+			release: validTemplate.value,
+			artifacts: artifacts.map(({ metadata }) => ({ ...metadata })),
+		},
+		artifacts,
+	};
+}
 
-	const uploaded = new Map<ArtifactMaterializationPath, Blob>();
-	for (const artifact of prepared) {
-		uploaded.set(artifact.path, await uploadArtifact(artifact, options.uploadBlob));
+export function validateArtifactUploadReceipt(
+	metadata: StagedArtifactMetadata,
+	uploaded: unknown,
+): ArtifactUploadReceipt {
+	if (
+		!validMetadata(metadata) ||
+		!isBlob(uploaded) ||
+		uploaded.size !== metadata.size ||
+		uploaded.mimeType !== metadata.mimeType ||
+		typeof uploaded.ref.$link !== "string"
+	) {
+		throw new ArtifactMaterializationError("ARTIFACT_BLOB_INVALID", metadata.path);
+	}
+	const uploadedChecksum = multihashFromBlobCid(uploaded.ref.$link);
+	if (!uploadedChecksum.success || uploadedChecksum.value !== metadata.checksum) {
+		throw new ArtifactMaterializationError("ARTIFACT_BLOB_INVALID", metadata.path);
+	}
+	return {
+		path: metadata.path,
+		checksum: metadata.checksum,
+		blob: {
+			$type: "blob",
+			ref: { $link: uploaded.ref.$link },
+			mimeType: uploaded.mimeType,
+			size: uploaded.size,
+		},
+	};
+}
+
+export async function uploadStagedArtifact(
+	artifact: StagedReleaseArtifact,
+	uploadBlob: ArtifactBlobUploader,
+): Promise<ArtifactUploadReceipt> {
+	let uploaded: unknown;
+	try {
+		uploaded = await uploadBlob(new Uint8Array(artifact.bytes), artifact.metadata.mimeType);
+	} catch {
+		throw new ArtifactMaterializationError("ARTIFACT_UPLOAD_FAILED", artifact.metadata.path);
+	}
+	return validateArtifactUploadReceipt(artifact.metadata, uploaded);
+}
+
+function withBlob<T extends ArtifactDescriptor>(descriptor: T, blob: Blob): T {
+	const result = withoutSources(descriptor);
+	result.blob = blob;
+	return result;
+}
+
+function sourcesAbsent(descriptor: ArtifactDescriptor): boolean {
+	return (
+		!Object.hasOwn(descriptor, "url") &&
+		!Object.hasOwn(descriptor, "blob") &&
+		!Object.hasOwn(descriptor, "requiresAuth") &&
+		!Object.hasOwn(descriptor, "releaseAsset")
+	);
+}
+
+function templateDescriptors(release: PackageRelease.Main): ArtifactDescriptor[] {
+	return [
+		release.artifacts.package,
+		...(release.artifacts.icon ? [release.artifacts.icon] : []),
+		...(release.artifacts.banner ? [release.artifacts.banner] : []),
+		...(release.artifacts.screenshots ?? []),
+	];
+}
+
+function dimensionsMatch(
+	path: ArtifactMaterializationPath,
+	descriptor: ArtifactDescriptor,
+	metadata: StagedArtifactMetadata,
+): boolean {
+	if (path === "package") {
+		return metadata.width === undefined && metadata.height === undefined;
+	}
+	return (
+		"width" in descriptor &&
+		"height" in descriptor &&
+		descriptor.width === metadata.width &&
+		descriptor.height === metadata.height
+	);
+}
+
+export function buildMaterializedRelease(
+	plan: ReleaseArtifactMaterializationPlan,
+	receipts: readonly ArtifactUploadReceipt[],
+): PackageRelease.Main {
+	let snapshot: ReleaseArtifactMaterializationPlan;
+	try {
+		snapshot = structuredClone(plan);
+	} catch {
+		throw new ArtifactMaterializationError("RELEASE_INVALID", null);
+	}
+	const parsed = safeParse(PackageRelease.mainSchema, snapshot.release, { strict: true });
+	if (!parsed.ok || snapshot.version !== MATERIALIZATION_PLAN_VERSION) {
+		throw new ArtifactMaterializationError("RELEASE_INVALID", null);
+	}
+	const paths = materializationPaths(parsed.value);
+	const descriptors = templateDescriptors(parsed.value);
+	if (
+		paths.length !== descriptors.length ||
+		paths.length !== snapshot.artifacts.length ||
+		paths.length !== receipts.length ||
+		descriptors.some((descriptor) => !sourcesAbsent(descriptor))
+	) {
+		throw new ArtifactMaterializationError("ARTIFACT_RECEIPTS_INVALID", null);
+	}
+	const blobs = new Map<ArtifactMaterializationPath, Blob>();
+	for (const [index, path] of paths.entries()) {
+		const descriptor = descriptors[index];
+		const metadata = snapshot.artifacts[index];
+		const receipt = receipts[index];
+		if (
+			!descriptor ||
+			!metadata ||
+			!receipt ||
+			metadata.path !== path ||
+			metadata.checksum !== descriptor.checksum ||
+			!dimensionsMatch(path, descriptor, metadata) ||
+			(descriptor.contentType !== undefined &&
+				descriptor.contentType.trim().toLowerCase() !== metadata.mimeType) ||
+			receipt.path !== path ||
+			receipt.checksum !== metadata.checksum
+		) {
+			throw new ArtifactMaterializationError("ARTIFACT_RECEIPTS_INVALID", path);
+		}
+		const validated = validateArtifactUploadReceipt(metadata, receipt.blob);
+		blobs.set(path, validated.blob);
 	}
 	const result = structuredClone(parsed.value);
-	result.artifacts.package = withBlob(
-		result.artifacts.package,
-		requireUploaded(uploaded, "package"),
-	);
+	const blobForPath = (path: ArtifactMaterializationPath): Blob => {
+		const blob = blobs.get(path);
+		if (!blob) throw new ArtifactMaterializationError("ARTIFACT_RECEIPTS_INVALID", path);
+		return blob;
+	};
+	result.artifacts.package = withBlob(result.artifacts.package, blobForPath("package"));
 	if (result.artifacts.icon) {
-		result.artifacts.icon = withBlob(result.artifacts.icon, requireUploaded(uploaded, "icon"));
+		result.artifacts.icon = withBlob(result.artifacts.icon, blobForPath("icon"));
 	}
 	if (result.artifacts.banner) {
-		result.artifacts.banner = withBlob(
-			result.artifacts.banner,
-			requireUploaded(uploaded, "banner"),
-		);
+		result.artifacts.banner = withBlob(result.artifacts.banner, blobForPath("banner"));
 	}
 	if (result.artifacts.screenshots) {
 		result.artifacts.screenshots = result.artifacts.screenshots.map((screenshot, index) =>
-			withBlob(screenshot, requireUploaded(uploaded, `screenshots[${index}]`)),
+			withBlob(screenshot, blobForPath(`screenshots[${index}]`)),
 		);
 	}
 	const output = safeParse(PackageRelease.mainSchema, result, { strict: true });
 	if (!output.ok) throw new ArtifactMaterializationError("RELEASE_INVALID", null);
 	return output.value;
+}
+
+export async function materializeReleaseArtifacts(
+	release: PackageRelease.Main,
+	options: MaterializeReleaseArtifactsOptions,
+): Promise<PackageRelease.Main> {
+	const staged = await stageReleaseArtifacts(release, options);
+	const receipts: ArtifactUploadReceipt[] = [];
+	for (const artifact of staged.artifacts) {
+		receipts.push(await uploadStagedArtifact(artifact, options.uploadBlob));
+	}
+	return buildMaterializedRelease(staged.plan, receipts);
 }
