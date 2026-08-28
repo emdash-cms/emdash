@@ -13,7 +13,7 @@ import {
 	type SettingsActionBarProps,
 } from "../../src/components/ContentSettingsPanel";
 import type { BlockSidebarPanel } from "../../src/components/PortableTextEditor";
-import type { AdminManifest, ContentItem } from "../../src/lib/api";
+import type { AdminManifest, BylineSummary, ContentItem } from "../../src/lib/api";
 import type { ContentEditorPanelContext } from "../../src/lib/content-editor-panels";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
 import { render } from "../utils/render.tsx";
@@ -77,6 +77,23 @@ function makeItem(overrides: Partial<ContentItem> = {}): ContentItem {
 		liveRevisionId: null,
 		draftRevisionId: null,
 		...overrides,
+	};
+}
+
+function makeByline(): BylineSummary {
+	return {
+		id: "byline-1",
+		slug: "mina-patel",
+		displayName: "Mina Patel",
+		bio: null,
+		avatarMediaId: null,
+		websiteUrl: null,
+		userId: null,
+		isGuest: true,
+		createdAt: "2026-08-26T12:00:00Z",
+		updatedAt: "2026-08-26T12:00:00Z",
+		locale: "en",
+		translationGroup: null,
 	};
 }
 
@@ -164,6 +181,22 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByTestId("doc-outline")).toBeInTheDocument();
 		await expect.element(screen.getByTestId("revision-history")).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Move to Trash" })).toBeInTheDocument();
+	});
+
+	it("moves byline ordering guidance into help beside the heading", async () => {
+		const byline = makeByline();
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					activeBylines: [{ bylineId: byline.id, roleLabel: null }],
+					availableBylines: [byline],
+				})}
+			/>,
+		);
+		await expect.element(screen.getByRole("button", { name: "Add another byline" })).toBeVisible();
+		const trigger = screen.getByRole("button", { name: "Why are bylines shown in this order?" });
+		trigger.element().focus();
+		await expect.element(screen.getByText("Shown to readers in this order.")).toBeVisible();
 	});
 
 	it("shows the normalized pending changes label", async () => {

@@ -69,8 +69,8 @@ msgstr "{0, plural, few {(# عناصر)} many {(# عنصرًا)}} other {(# عن
 
 #. placeholder {0}: 1
 #. placeholder {0}: value.bylineIds.length
-#: packages/admin/src/components/BylineFilter.tsx:103
-#: packages/admin/src/components/BylineFilter.tsx:104
+#: packages/admin/src/components/BylineFilter.tsx:105
+#: packages/admin/src/components/BylineFilter.tsx:106
 msgid "{0, plural, one {# byline} other {# bylines}}"
 msgstr ""
 
@@ -90,7 +90,7 @@ msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, zero {لم تُحدَّث تعليقات} one {تعليق واحد محدَّث} two {تعليقان محدَّثان} few {# تعليقات محدَّثة} many {# تعليقًا محدَّثًا} other {# تعليق محدَّث}}"
 
 #. placeholder {0}: comments.length
-#: packages/admin/src/components/comments/CommentInbox.tsx:345
+#: packages/admin/src/components/comments/CommentInbox.tsx:336
 msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, few {# تعليقات} many {# تعليقًا} other {# تعليق}}"
 
@@ -107,7 +107,7 @@ msgstr "{0, plural, few {# عناصر محتوى تم استيرادها} other 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
 #: packages/admin/src/components/MediaDetailPanel.tsx:750
-#: packages/admin/src/components/MediaLibrary.tsx:1012
+#: packages/admin/src/components/MediaLibrary.tsx:1006
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr ""
 
@@ -165,7 +165,7 @@ msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are pa
 msgstr "{0, plural, few {يوجد # إعادات توجيه تدور في حلقة لا منتهية.} other {يوجد # إعادة توجيه تدور في حلقة لا منتهية.}}"
 
 #. placeholder {0}: selected.size
-#: packages/admin/src/components/comments/CommentInbox.tsx:229
+#: packages/admin/src/components/comments/CommentInbox.tsx:220
 msgid "{0, plural, one {# selected} other {# selected}}"
 msgstr "{0, plural, other {تم تحديد #}}"
 
@@ -211,6 +211,11 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:218
 msgid "{0} • {1}"
 msgstr "{0} • {1}"
+
+#. placeholder {0}: byline.displayName
+#: packages/admin/src/components/BylineCreditsEditor.tsx:272
+msgid "{0} added to this post."
+msgstr ""
 
 #. placeholder {0}: displayName ?? slug
 #: packages/admin/src/components/RegistryPluginDetail.tsx:484
@@ -293,6 +298,11 @@ msgstr "{0} إضافة"
 msgid "{0} preview"
 msgstr "معاينة {0}"
 
+#. placeholder {0}: byline.displayName
+#: packages/admin/src/components/BylineCreditsEditor.tsx:625
+msgid "{0} removed from this post."
+msgstr ""
+
 #. placeholder {0}: SYSTEM_FIELDS.length
 #. placeholder {1}: fields.length
 #. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); const [routable, setRoutable] = React.useState(collection?.routable ?? true); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || routable !== (collection.routable ?? true) || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, routable, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="truncate text-2xl font-semibold"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-kumo-info" /> <p className="text-sm text-kumo-subtle"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <Switch checked={routable} onCheckedChange={setRoutable} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Routable`}</span> <p className="text-xs text-kumo-subtle"> {t`Require a slug before content can be published`} </p> </div> } /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`} </p> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && (isNew ? ( <Button type="submit" disabled={!hasChanges || !urlPatternValid} loading={isSaving} className="w-full justify-center" > {t`Create Content Type`} </Button> ) : ( <SaveButton type="submit" isDirty={!!hasChanges} isSaving={!!isSaving} announce={false} disabled={!urlPatternValid} className="w-full justify-center" /> ))} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className="text-xs text-kumo-subtle capitalize">{field.type}</span> {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
@@ -304,6 +314,11 @@ msgstr "{0} نظام + {1} مخصص {2}"
 #: packages/admin/src/components/TaxonomySidebar.tsx:411
 msgid "{0} updated"
 msgstr "تم تحديث {0}"
+
+#. placeholder {0}: updated.displayName
+#: packages/admin/src/components/BylineCreditsEditor.tsx:375
+msgid "{0} updated everywhere it appears."
+msgstr ""
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
@@ -332,7 +347,7 @@ msgstr "{base} إلى: {0}"
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, few {# تغييرات من المراجعة التالية} many {# تغييرًا من المراجعة التالية} other {# تغيير من المراجعة التالية}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2526
+#: packages/admin/src/components/PortableTextEditor.tsx:2530
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr ""
 
@@ -364,7 +379,7 @@ msgstr ""
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:1088
+#: packages/admin/src/components/ContentList.tsx:1200
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, zero {لا عناصر} one {عنصر واحد} two {عنصران} few {#{0} عناصر} many {#{1} عنصرًا} other {#{1} عنصر}}"
 
@@ -380,7 +395,12 @@ msgstr "{label} — بدون ترجمة"
 msgid "{label} — view translation"
 msgstr "{label} — عرض الترجمة"
 
-#: packages/admin/src/components/ContentList.tsx:1077
+#. placeholder {0}: to + 1
+#: packages/admin/src/components/BylineCreditsEditor.tsx:291
+msgid "{label} moved to position {0}."
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1189
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr ""
 
@@ -426,7 +446,7 @@ msgstr "{pluginName} تتطلب الصلاحيات التالية:"
 msgid "{pluginName} Settings"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2527
+#: packages/admin/src/components/PortableTextEditor.tsx:2531
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr ""
 
@@ -434,19 +454,19 @@ msgstr ""
 msgid "{rewrittenUrls, plural, one {<rewrittenCount>#</rewrittenCount> image URL updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}} other {<rewrittenCount>#</rewrittenCount> image URLs updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}}}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:474
+#: packages/admin/src/components/ContentList.tsx:493
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:516
+#: packages/admin/src/components/ContentList.tsx:535
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1083
+#: packages/admin/src/components/ContentList.tsx:1195
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, zero {لا عناصر} one {عنصر واحد} two {عنصران} few {# عناصر} many {# عنصرًا} other {# عنصر}}"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:150
+#: packages/admin/src/components/comments/CommentInbox.tsx:151
 msgid "{total, plural, one {# total} other {# total}}"
 msgstr "{total, plural, other {إجمالي #}}"
 
@@ -466,7 +486,7 @@ msgstr "{unchangedCount, plural, one {إخفاء # غير متغير} other {إ�
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
 msgstr "{unchangedCount, plural, other {إظهار # لم تتغير}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2525
+#: packages/admin/src/components/PortableTextEditor.tsx:2529
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr ""
 
@@ -601,6 +621,10 @@ msgstr "وصف مختصر لموقعك"
 msgid "A source and target locale are required"
 msgstr ""
 
+#: packages/admin/src/components/BylineFilter.tsx:184
+msgid "About inferred bylines"
+msgstr ""
+
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:201
 msgid "Accept & Install"
 msgstr "قبول وتثبيت"
@@ -647,9 +671,9 @@ msgstr "معلومات الحساب"
 msgid "ACF Fields"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:300
-#: packages/admin/src/components/ContentList.tsx:617
-#: packages/admin/src/components/ContentList.tsx:743
+#: packages/admin/src/components/comments/CommentInbox.tsx:291
+#: packages/admin/src/components/ContentList.tsx:636
+#: packages/admin/src/components/ContentList.tsx:762
 #: packages/admin/src/components/ContentTypeList.tsx:190
 #: packages/admin/src/components/TaxonomyManager.tsx:1056
 #: packages/admin/src/routes/byline-schema.tsx:249
@@ -661,20 +685,22 @@ msgid "Activation cannot be confirmed. Keep editing paused and refresh the statu
 msgstr ""
 
 #: packages/admin/src/components/users/UserDetail.tsx:206
-#: packages/admin/src/components/users/UserList.tsx:217
+#: packages/admin/src/components/users/UserList.tsx:210
 msgid "Active"
 msgstr "نشط"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:174
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1015
+#: packages/admin/src/components/BylineCreditsEditor.tsx:501
 #: packages/admin/src/components/MenuEditor.tsx:441
 #: packages/admin/src/components/TaxonomySidebar.tsx:619
 msgid "Add"
 msgstr "إضافة"
 
 #. placeholder {0}: field.item_label
+#. placeholder {0}: option.byline.displayName
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/PortableTextEditor.tsx:2138
+#: packages/admin/src/components/BylineCreditsEditor.tsx:498
+#: packages/admin/src/components/PortableTextEditor.tsx:2142
 #: packages/admin/src/components/TaxonomyManager.tsx:545
 #: packages/admin/src/components/TaxonomyManager.tsx:1047
 msgid "Add {0}"
@@ -688,15 +714,23 @@ msgstr "إضافة {label}"
 msgid "Add a new passkey"
 msgstr "إضافة مفتاح مرور جديد"
 
+#: packages/admin/src/components/BylineCreditsEditor.tsx:564
+msgid "Add another byline"
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:573
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "أضف حقلًا فرعيًا واحدًا على الأقل لتحديد هيكل الحقل التكراري."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3753
+#: packages/admin/src/components/BylineCreditsEditor.tsx:420
+msgid "Add byline"
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:3757
 msgid "Add column after"
 msgstr "إضافة عمود بعده"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3747
+#: packages/admin/src/components/PortableTextEditor.tsx:3751
 msgid "Add column before"
 msgstr "إضافة عمود قبله"
 
@@ -750,7 +784,7 @@ msgstr ""
 msgid "Add images to gallery"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2138
+#: packages/admin/src/components/PortableTextEditor.tsx:2142
 msgid "Add item"
 msgstr "إضافة عنصر"
 
@@ -758,7 +792,7 @@ msgstr "إضافة عنصر"
 msgid "Add Item"
 msgstr "إضافة عنصر"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3682
+#: packages/admin/src/components/PortableTextEditor.tsx:3686
 msgid "Add link"
 msgstr "إضافة رابط"
 
@@ -770,7 +804,7 @@ msgstr "أضف روابط لتصميم قائمة التنقل الخاصة بك
 msgid "Add MIME type or extension"
 msgstr "إضافة نوع MIME أو امتداد"
 
-#: packages/admin/src/components/ContentList.tsx:408
+#: packages/admin/src/components/ContentList.tsx:431
 msgid "Add New"
 msgstr "إضافة جديد"
 
@@ -797,11 +831,11 @@ msgstr "إضافة مفتاح مرور"
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "قم بإدراج إضافات لملف astro.config.mjs الخاص بك لتطوير وظائف EmDash."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3774
+#: packages/admin/src/components/PortableTextEditor.tsx:3778
 msgid "Add row after"
 msgstr "إضافة صف بعده"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3768
+#: packages/admin/src/components/PortableTextEditor.tsx:3772
 msgid "Add row before"
 msgstr "إضافة صف قبله"
 
@@ -852,6 +886,10 @@ msgstr "تنقل لوحة الإدارة"
 msgid "Administrator"
 msgstr "مسؤول"
 
+#: packages/admin/src/components/BylineCreditsEditor.tsx:990
+msgid "Advanced"
+msgstr ""
+
 #: packages/admin/src/components/settings/EmailSettings.tsx:191
 msgid "After send:"
 msgstr "بعد الإرسال:"
@@ -869,15 +907,15 @@ msgstr ""
 msgid "Agent-callable MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4150
+#: packages/admin/src/components/PortableTextEditor.tsx:4154
 msgid "Align Center"
 msgstr "محاذاة للوسط"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4143
+#: packages/admin/src/components/PortableTextEditor.tsx:4147
 msgid "Align Left"
 msgstr "محاذاة لليسار"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4157
+#: packages/admin/src/components/PortableTextEditor.tsx:4161
 msgid "Align Right"
 msgstr "محاذاة لليمين"
 
@@ -886,16 +924,16 @@ msgstr "محاذاة لليمين"
 msgid "Alignment"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:435
+#: packages/admin/src/components/ContentList.tsx:443
 msgid "All"
 msgstr "الكل"
 
-#: packages/admin/src/components/ContentList.tsx:891
-#: packages/admin/src/components/ContentList.tsx:895
+#: packages/admin/src/components/ContentList.tsx:911
+#: packages/admin/src/components/ContentList.tsx:915
 msgid "All authors"
 msgstr ""
 
-#: packages/admin/src/components/BylineFilter.tsx:101
+#: packages/admin/src/components/BylineFilter.tsx:103
 #: packages/admin/src/routes/bylines.tsx:412
 msgid "All bylines"
 msgstr "جميع الكُتّاب"
@@ -904,7 +942,7 @@ msgstr "جميع الكُتّاب"
 msgid "All capabilities"
 msgstr "جميع الصلاحيات"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:134
+#: packages/admin/src/components/comments/CommentInbox.tsx:135
 msgid "All collections"
 msgstr "جميع المجموعات"
 
@@ -920,8 +958,8 @@ msgstr "سيكون جميع المحتوى المستورد غير مُسنَد.
 msgid "All locales"
 msgstr "جميع المَحليات"
 
-#: packages/admin/src/components/users/UserList.tsx:42
-#: packages/admin/src/components/users/UserList.tsx:46
+#: packages/admin/src/components/users/UserList.tsx:43
+#: packages/admin/src/components/users/UserList.tsx:47
 msgid "All roles"
 msgstr "جميع الأدوار"
 
@@ -929,12 +967,12 @@ msgstr "جميع الأدوار"
 msgid "All Sources"
 msgstr "جميع المصادر"
 
-#: packages/admin/src/components/ContentList.tsx:831
+#: packages/admin/src/components/ContentList.tsx:850
 #: packages/admin/src/components/Redirects.tsx:426
 msgid "All statuses"
 msgstr "جميع الحالات"
 
-#: packages/admin/src/components/MediaLibrary.tsx:962
+#: packages/admin/src/components/MediaLibrary.tsx:988
 #: packages/admin/src/components/Redirects.tsx:432
 msgid "All types"
 msgstr "جميع الأنواع"
@@ -972,13 +1010,13 @@ msgstr "لديك حساب بالفعل؟"
 msgid "Also delete plugin storage data"
 msgstr "كذلك حذف بيانات تخزين الإضافة"
 
-#: packages/admin/src/components/BylineFilter.tsx:175
+#: packages/admin/src/components/BylineFilter.tsx:183
 msgid "Also match the byline linked to an entry's author when it has none assigned."
 msgstr ""
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:381
 #: packages/admin/src/components/editor/ImageNode.tsx:244
-#: packages/admin/src/components/MediaLibrary.tsx:1216
+#: packages/admin/src/components/MediaLibrary.tsx:1210
 msgid "Alt text"
 msgstr "النص البديل"
 
@@ -989,12 +1027,12 @@ msgstr "النص البديل"
 msgid "Alt Text"
 msgstr "النص البديل"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1549
+#: packages/admin/src/components/MediaLibrary.tsx:1543
 msgid "Alt text is not applicable to folders"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1823
-#: packages/admin/src/components/MediaLibrary.tsx:1880
+#: packages/admin/src/components/MediaLibrary.tsx:1817
+#: packages/admin/src/components/MediaLibrary.tsx:1874
 msgid "Alt text set"
 msgstr "تم تعيين النص البديل"
 
@@ -1092,23 +1130,23 @@ msgstr "يظهر في المنشورات والصفحات"
 msgid "Application Password"
 msgstr "كلمة مرور التطبيق"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4239
+#: packages/admin/src/components/PortableTextEditor.tsx:4243
 msgid "Apply"
 msgstr "تطبيق"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:181
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:182
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:299
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:300
 msgid "Apply language"
 msgstr "تطبيق اللغة"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3608
-#: packages/admin/src/components/PortableTextEditor.tsx:3609
+#: packages/admin/src/components/PortableTextEditor.tsx:3612
+#: packages/admin/src/components/PortableTextEditor.tsx:3613
 msgid "Apply link"
 msgstr "تطبيق الرابط"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:148
-#: packages/admin/src/components/comments/CommentInbox.tsx:238
-#: packages/admin/src/components/comments/CommentInbox.tsx:490
+#: packages/admin/src/components/comments/CommentInbox.tsx:229
+#: packages/admin/src/components/comments/CommentInbox.tsx:481
 msgid "Approve"
 msgstr "موافقة"
 
@@ -1116,7 +1154,7 @@ msgstr "موافقة"
 msgid "approved"
 msgstr "موافق عليه"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:203
+#: packages/admin/src/components/comments/CommentInbox.tsx:176
 msgid "Approved"
 msgstr "موافق عليه"
 
@@ -1124,7 +1162,7 @@ msgstr "موافق عليه"
 msgid "Arbitrary JSON data"
 msgstr "بيانات JSON غير مقيدة"
 
-#: packages/admin/src/components/ContentList.tsx:835
+#: packages/admin/src/components/ContentList.tsx:854
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr ""
@@ -1165,12 +1203,12 @@ msgstr ""
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "قم بتعيين مؤلفي WordPress إلى مستخدمي EmDash. سيتم نسب المنشورات إلى المستخدم المحدد."
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:28
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:27
 msgid "Astro"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:69
-#: packages/admin/src/components/MediaLibrary.tsx:965
+#: packages/admin/src/components/MediaLibrary.tsx:991
 msgid "Audio"
 msgstr "صوت"
 
@@ -1198,8 +1236,8 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "تم إلغاء المصادقة أو انتهت مهلتها. يرجى المحاولة مجددًا."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
-#: packages/admin/src/components/comments/CommentInbox.tsx:288
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1225
+#: packages/admin/src/components/comments/CommentInbox.tsx:279
+#: packages/admin/src/components/ContentSettingsPanel.tsx:889
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
@@ -1249,6 +1287,10 @@ msgstr "الموافقة التلقائية على المستخدمين المس
 msgid "Auto-generated from name (you can edit)"
 msgstr "تم توليده تلقائيًا من الاسم (يمكنك التعديل)"
 
+#: packages/admin/src/components/BylineCreditsEditor.tsx:645
+msgid "Automatic"
+msgstr ""
+
 #: packages/admin/src/components/settings/BackupSettings.tsx:204
 #: packages/admin/src/components/settings/BackupSettings.tsx:260
 msgid "Automatic Backups"
@@ -1262,6 +1304,10 @@ msgstr ""
 #: packages/admin/src/router.tsx:1071
 msgid "Autosave failed"
 msgstr "فشل الحفظ التلقائي"
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:457
+msgid "Available bylines"
+msgstr ""
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
 #: packages/admin/src/components/TaxonomySidebar.tsx:545
@@ -1293,7 +1339,7 @@ msgstr ""
 msgid "Back"
 msgstr "رجوع"
 
-#: packages/admin/src/components/ContentEditor.tsx:675
+#: packages/admin/src/components/ContentEditor.tsx:685
 msgid "Back to {collectionLabel} list"
 msgstr "العودة إلى قائمة {collectionLabel}"
 
@@ -1309,7 +1355,7 @@ msgstr "العودة إلى أنواع المحتوى"
 msgid "Back to login"
 msgstr "العودة إلى تسجيل الدخول"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1105
+#: packages/admin/src/components/MediaLibrary.tsx:1099
 msgid "Back to Main library"
 msgstr ""
 
@@ -1363,7 +1409,7 @@ msgstr ""
 msgid "Backups to keep"
 msgstr ""
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:29
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:28
 msgid "Bash"
 msgstr ""
 
@@ -1388,8 +1434,8 @@ msgstr "نبذة"
 msgid "Block actions - drag to reorder, click for menu"
 msgstr "إجراءات الكتلة - اسحب لإعادة الترتيب، انقر للقائمة"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3632
-#: packages/admin/src/components/PortableTextEditor.tsx:4037
+#: packages/admin/src/components/PortableTextEditor.tsx:3636
+#: packages/admin/src/components/PortableTextEditor.tsx:4041
 msgid "Bold"
 msgstr "عريض"
 
@@ -1433,10 +1479,14 @@ msgid "Browse themes and preview them with your own content."
 msgstr "تصفح المظاهر وقم بمعاينتها مع محتواك الخاص."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:127
-#: packages/admin/src/components/PortableTextEditor.tsx:1454
-#: packages/admin/src/components/PortableTextEditor.tsx:4085
+#: packages/admin/src/components/PortableTextEditor.tsx:1458
+#: packages/admin/src/components/PortableTextEditor.tsx:4089
 msgid "Bullet List"
 msgstr "قائمة نقطية"
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:290
+msgid "Byline"
+msgstr ""
 
 #: packages/admin/src/routes/byline-schema.tsx:218
 #: packages/admin/src/routes/bylines.tsx:383
@@ -1447,23 +1497,23 @@ msgstr ""
 msgid "Byline Schema"
 msgstr ""
 
-#: packages/admin/src/components/BylineFilter.tsx:135
-#: packages/admin/src/components/ContentSettingsPanel.tsx:670
+#: packages/admin/src/components/BylineFilter.tsx:145
+#: packages/admin/src/components/ContentSettingsPanel.tsx:669
 #: packages/admin/src/components/ContentSettingsPanel.tsx:673
 #: packages/admin/src/components/Sidebar.tsx:285
 #: packages/admin/src/routes/bylines.tsx:375
 msgid "Bylines"
 msgstr "الكُتّاب"
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:30
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:29
 msgid "C"
 msgstr ""
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:32
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:31
 msgid "C#"
 msgstr ""
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:31
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:30
 msgid "C++"
 msgstr ""
 
@@ -1483,20 +1533,19 @@ msgstr "يمكنه نشر محتواه الخاص"
 msgid "Can view content"
 msgstr "يمكنه عرض المحتوى"
 
+#: packages/admin/src/components/BylineCreditsEditor.tsx:1016
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:192
 #: packages/admin/src/components/ConfirmDialog.tsx:83
-#: packages/admin/src/components/ContentList.tsx:525
-#: packages/admin/src/components/ContentList.tsx:1251
-#: packages/admin/src/components/ContentList.tsx:1419
+#: packages/admin/src/components/ContentList.tsx:544
+#: packages/admin/src/components/ContentList.tsx:1363
+#: packages/admin/src/components/ContentList.tsx:1531
 #: packages/admin/src/components/ContentPickerModal.tsx:240
-#: packages/admin/src/components/ContentSettingsPanel.tsx:99
-#: packages/admin/src/components/ContentSettingsPanel.tsx:591
-#: packages/admin/src/components/ContentSettingsPanel.tsx:826
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1129
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1182
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:193
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:194
+#: packages/admin/src/components/ContentSettingsPanel.tsx:96
+#: packages/admin/src/components/ContentSettingsPanel.tsx:590
+#: packages/admin/src/components/ContentSettingsPanel.tsx:851
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:311
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:312
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:586
 #: packages/admin/src/components/editor/ImageNode.tsx:265
 #: packages/admin/src/components/editor/ImageNode.tsx:266
@@ -1509,7 +1558,7 @@ msgstr "يمكنه عرض المحتوى"
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/PluginManager.tsx:729
-#: packages/admin/src/components/PortableTextEditor.tsx:4223
+#: packages/admin/src/components/PortableTextEditor.tsx:4227
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
@@ -1598,7 +1647,7 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:1769
+#: packages/admin/src/components/ContentEditor.tsx:1785
 #: packages/admin/src/components/FieldEditor.tsx:428
 #: packages/admin/src/components/ImageFieldRenderer.tsx:215
 #: packages/admin/src/components/ImageFieldRenderer.tsx:245
@@ -1627,6 +1676,10 @@ msgstr "تغيير الشعار"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:819
 msgid "Changelog"
+msgstr ""
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:975
+msgid "Changes apply everywhere this byline appears."
 msgstr ""
 
 #: packages/admin/src/router.tsx:1122
@@ -1668,6 +1721,16 @@ msgstr "جاري التحقق من المصادقة..."
 msgid "Checking how many stored values reference \"{0}\"…"
 msgstr ""
 
+#: packages/admin/src/components/ContentList.tsx:1037
+#: packages/admin/src/components/ContentList.tsx:1043
+msgid "Choose a date range"
+msgstr ""
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:662
+#: packages/admin/src/components/BylineCreditsEditor.tsx:680
+msgid "Choose bylines"
+msgstr ""
+
 #: packages/admin/src/components/SetupWizard.tsx:288
 msgid "Choose how to sign in"
 msgstr "اختر طريقة تسجيل الدخول"
@@ -1680,7 +1743,12 @@ msgstr ""
 msgid "Choose your preferred admin language"
 msgstr "إختر لغة التحكم المفضلة لديك"
 
-#: packages/admin/src/components/ContentList.tsx:551
+#: packages/admin/src/components/BylineCreditsEditor.tsx:651
+msgid "Choosing a byline replaces this automatic credit."
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:570
+#: packages/admin/src/components/ContentList.tsx:1051
 msgid "Clear"
 msgstr ""
 
@@ -1688,14 +1756,14 @@ msgstr ""
 msgid "Clear completed"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:947
-#: packages/admin/src/components/MediaLibrary.tsx:1094
-#: packages/admin/src/components/users/UserList.tsx:129
+#: packages/admin/src/components/ContentList.tsx:956
+#: packages/admin/src/components/MediaLibrary.tsx:1088
+#: packages/admin/src/components/users/UserList.tsx:122
 msgid "Clear filters"
 msgstr "مسح الفلاتر"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1094
-#: packages/admin/src/components/MediaLibrary.tsx:1129
+#: packages/admin/src/components/MediaLibrary.tsx:1088
+#: packages/admin/src/components/MediaLibrary.tsx:1123
 msgid "Clear search"
 msgstr ""
 
@@ -1745,9 +1813,9 @@ msgstr "إضغط على الرابط في البريد الإلكتروني لت
 #: packages/admin/src/components/MenuList.tsx:139
 #: packages/admin/src/components/MenuList.tsx:145
 #: packages/admin/src/components/MenuList.tsx:149
-#: packages/admin/src/components/PortableTextEditor.tsx:1922
-#: packages/admin/src/components/PortableTextEditor.tsx:1928
+#: packages/admin/src/components/PortableTextEditor.tsx:1926
 #: packages/admin/src/components/PortableTextEditor.tsx:1932
+#: packages/admin/src/components/PortableTextEditor.tsx:1936
 #: packages/admin/src/components/Redirects.tsx:115
 #: packages/admin/src/components/Redirects.tsx:121
 #: packages/admin/src/components/SectionPickerModal.tsx:61
@@ -1777,6 +1845,10 @@ msgstr "إضغط على الرابط في البريد الإلكتروني لت
 msgid "Close"
 msgstr "إغلاق"
 
+#: packages/admin/src/components/BylineCreditsEditor.tsx:430
+msgid "Close byline search"
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeEditor.tsx:533
 msgid "Close comments after (days)"
 msgstr "إغلاق التعليقات بعد (أيام)"
@@ -1789,21 +1861,25 @@ msgstr ""
 msgid "Close panel"
 msgstr "إغلاق اللوحة"
 
-#: packages/admin/src/components/ContentEditor.tsx:1142
+#: packages/admin/src/components/ContentEditor.tsx:1158
 msgid "Close settings"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:356
-#: packages/admin/src/components/PortableTextEditor.tsx:3674
+#: packages/admin/src/components/PortableTextEditor.tsx:3678
 #: packages/admin/src/components/Redirects.tsx:478
 msgid "Code"
 msgstr "كود"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:119
-#: packages/admin/src/components/PortableTextEditor.tsx:1484
-#: packages/admin/src/components/PortableTextEditor.tsx:4124
+#: packages/admin/src/components/PortableTextEditor.tsx:1488
+#: packages/admin/src/components/PortableTextEditor.tsx:4128
 msgid "Code Block"
 msgstr "كتلة كود"
+
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:229
+msgid "Code block actions"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:506
 #: packages/admin/src/components/PluginManager.tsx:511
@@ -1839,7 +1915,7 @@ msgid "Comma-separated keywords for search."
 msgstr "كلمات مفتاحية مفصولة بفاصلة للبحث."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:95
-#: packages/admin/src/components/comments/CommentInbox.tsx:291
+#: packages/admin/src/components/comments/CommentInbox.tsx:282
 msgid "Comment"
 msgstr "تعليق"
 
@@ -1847,7 +1923,7 @@ msgstr "تعليق"
 msgid "Comment Detail"
 msgstr "تفاصيل التعليق"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:147
+#: packages/admin/src/components/comments/CommentInbox.tsx:148
 #: packages/admin/src/components/ContentTypeEditor.tsx:500
 #: packages/admin/src/components/Sidebar.tsx:261
 msgid "Comments"
@@ -1900,15 +1976,15 @@ msgstr "الاتصال بـ WordPress"
 msgid "Connected {0}"
 msgstr "متصل {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:192
+#: packages/admin/src/components/ContentSettingsPanel.tsx:189
 msgid "content"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:378
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
-#: packages/admin/src/components/comments/CommentInbox.tsx:294
+#: packages/admin/src/components/comments/CommentInbox.tsx:285
 #: packages/admin/src/components/Dashboard.tsx:269
-#: packages/admin/src/components/PortableTextEditor.tsx:2742
+#: packages/admin/src/components/PortableTextEditor.tsx:2746
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:408
 #: packages/admin/src/components/Widgets.tsx:899
@@ -1944,7 +2020,7 @@ msgstr "معرف المحتوى:"
 msgid "Content is now live"
 msgstr "المحتوى منشور الآن"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:498
+#: packages/admin/src/components/ContentSettingsPanel.tsx:497
 msgid "Content locale"
 msgstr ""
 
@@ -1995,7 +2071,7 @@ msgstr "متابعة >"
 msgid "Continue Import"
 msgstr "متابعة الاستيراد"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4101
+#: packages/admin/src/components/PortableTextEditor.tsx:4105
 msgid "Continue numbering"
 msgstr ""
 
@@ -2003,6 +2079,11 @@ msgstr ""
 #: packages/admin/src/components/WelcomeModal.tsx:28
 msgid "Contributor"
 msgstr "مساهم"
+
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:246
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:270
+msgid "Copied"
+msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
 #: packages/admin/src/components/users/InviteUserModal.tsx:133
@@ -2013,6 +2094,15 @@ msgstr "تم النسخ إلى الحافظة"
 #: packages/admin/src/components/Sections.tsx:399
 msgid "Copy {0} to clipboard"
 msgstr "نسخ {0} إلى الحافظة"
+
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:246
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:253
+msgid "Copy code"
+msgstr ""
+
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:270
+msgid "Copy failed"
+msgstr ""
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:124
 msgid "Copy invite link"
@@ -2041,7 +2131,7 @@ msgstr "نسخ الرابط"
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "تعذّر النسخ تلقائيًا. يرجى تحديد الرابط أعلاه ونسخه يدويًا."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3371
+#: packages/admin/src/components/PortableTextEditor.tsx:3375
 msgid "Could not insert section"
 msgstr ""
 
@@ -2089,8 +2179,8 @@ msgstr "تعذّر تعيين \"{draft}\" إلى نوع MIME. اكتب نوع MI
 msgid "Couldn’t move file"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1021
-msgid "Couldn't search bylines. Please try again."
+#: packages/admin/src/components/BylineCreditsEditor.tsx:469
+msgid "Couldn’t search bylines."
 msgstr ""
 
 #. placeholder {0}: deletingField.label
@@ -2102,7 +2192,7 @@ msgstr ""
 msgid "Count"
 msgstr "العدد"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1153
+#: packages/admin/src/components/BylineCreditsEditor.tsx:525
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:192
@@ -2113,16 +2203,26 @@ msgstr "العدد"
 msgid "Create"
 msgstr "إنشاء"
 
+#. placeholder {0}: option.label
+#: packages/admin/src/components/BylineCreditsEditor.tsx:511
+msgid "Create “{0}”"
+msgstr ""
+
 #: packages/admin/src/components/TaxonomySidebar.tsx:339
 msgid "Create \"{trimmedInput}\""
 msgstr "إنشاء \"{trimmedInput}\""
+
+#. placeholder {0}: option.label
+#: packages/admin/src/components/BylineCreditsEditor.tsx:522
+msgid "Create {0}"
+msgstr ""
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:556
 msgid "Create {0} translation"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1455
+#: packages/admin/src/components/PortableTextEditor.tsx:1459
 msgid "Create a bullet list"
 msgstr "إنشاء قائمة نقطية"
 
@@ -2131,9 +2231,13 @@ msgstr "إنشاء قائمة نقطية"
 msgid "Create a new {0}"
 msgstr "إنشاء {0} جديد"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1465
+#: packages/admin/src/components/PortableTextEditor.tsx:1469
 msgid "Create a numbered list"
 msgstr "إنشاء قائمة مرقمة"
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:974
+msgid "Create a reusable public profile, then add it to this post."
+msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:84
 #: packages/admin/src/components/SignupPage.tsx:236
@@ -2144,7 +2248,11 @@ msgstr "إنشاء حساب"
 msgid "Create an account"
 msgstr "إنشاء حساب"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1101
+#: packages/admin/src/components/BylineCreditsEditor.tsx:1019
+msgid "Create and add"
+msgstr ""
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:970
 #: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
 msgstr "إنشاء كاتب"
@@ -2237,7 +2345,7 @@ msgstr ""
 msgid "Create your first navigation menu to get started"
 msgstr "قم بإنشاء أول قائمة تنقل خاصة بك للبدء"
 
-#: packages/admin/src/components/ContentList.tsx:645
+#: packages/admin/src/components/ContentList.tsx:664
 msgid "Create your first one"
 msgstr "قم بإنشاء أول واحد خاص بك"
 
@@ -2267,8 +2375,8 @@ msgstr "إنشاء مصطلحات التصنيف وتعديلها وحذفها"
 msgid "Create, update, delete content"
 msgstr "إنشاء، تحديث، حذف المحتوى"
 
-#: packages/admin/src/components/ContentList.tsx:841
-#: packages/admin/src/components/ContentSettingsPanel.tsx:642
+#: packages/admin/src/components/ContentList.tsx:860
+#: packages/admin/src/components/ContentSettingsPanel.tsx:641
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:358
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
@@ -2297,7 +2405,6 @@ msgstr "تم الإنشاء في"
 msgid "Creating collections and fields..."
 msgstr "جاري إنشاء المجموعات والحقول..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1153
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:189
 #: packages/admin/src/components/Sections.tsx:212
@@ -2307,7 +2414,7 @@ msgstr "جاري إنشاء المجموعات والحقول..."
 msgid "Creating..."
 msgstr "جاري الإنشاء..."
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:33
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:32
 msgid "CSS"
 msgstr ""
 
@@ -2363,8 +2470,8 @@ msgstr "داكن"
 msgid "Dashboard"
 msgstr "لوحة المعلومات"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:297
-#: packages/admin/src/components/ContentList.tsx:606
+#: packages/admin/src/components/comments/CommentInbox.tsx:288
+#: packages/admin/src/components/ContentList.tsx:625
 msgid "Date"
 msgstr "التاريخ"
 
@@ -2377,13 +2484,17 @@ msgstr "تاريخ ووقت"
 msgid "Date and time picker"
 msgstr "منتقي التاريخ والوقت"
 
-#: packages/admin/src/components/ContentList.tsx:912
+#: packages/admin/src/components/ContentList.tsx:933
 msgid "Date field to filter on"
 msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:324
 msgid "Date Format"
 msgstr "تنسيق التاريخ"
+
+#: packages/admin/src/components/ContentList.tsx:983
+msgid "Date range"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:192
 msgid "Decimal number"
@@ -2426,8 +2537,8 @@ msgstr "حدد هيكل محتواك"
 msgid "Defined in code"
 msgstr "مُعرَّف في الكود"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:268
-#: packages/admin/src/components/comments/CommentInbox.tsx:408
+#: packages/admin/src/components/comments/CommentInbox.tsx:259
+#: packages/admin/src/components/comments/CommentInbox.tsx:399
 #: packages/admin/src/components/ContentTypeEditor.tsx:687
 #: packages/admin/src/components/ContentTypeList.tsx:236
 #: packages/admin/src/components/editor/BlockMenu.tsx:318
@@ -2504,11 +2615,11 @@ msgstr ""
 msgid "Delete Byline?"
 msgstr "حذف الكاتب؟"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3759
+#: packages/admin/src/components/PortableTextEditor.tsx:3763
 msgid "Delete column"
 msgstr "حذف العمود"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:406
+#: packages/admin/src/components/comments/CommentInbox.tsx:397
 msgid "Delete Comment?"
 msgstr "حذف التعليق؟"
 
@@ -2552,16 +2663,16 @@ msgstr "حذف الوسائط؟"
 msgid "Delete Menu"
 msgstr "حذف القائمة"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:526
+#: packages/admin/src/components/comments/CommentInbox.tsx:517
 msgid "Delete permanently"
 msgstr "حذف نهائي"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:1430
+#: packages/admin/src/components/ContentList.tsx:1542
 msgid "Delete Permanently"
 msgstr "حذف نهائي"
 
-#: packages/admin/src/components/ContentList.tsx:1410
+#: packages/admin/src/components/ContentList.tsx:1522
 msgid "Delete Permanently?"
 msgstr "حذف نهائي؟"
 
@@ -2578,7 +2689,7 @@ msgstr "حذف إعادة التوجيه {0}"
 msgid "Delete Redirect?"
 msgstr "حذف إعادة التوجيه؟"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3778
+#: packages/admin/src/components/PortableTextEditor.tsx:3782
 msgid "Delete row"
 msgstr "حذف الصف"
 
@@ -2586,7 +2697,7 @@ msgstr "حذف الصف"
 msgid "Delete Section?"
 msgstr "حذف القسم؟"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3793
+#: packages/admin/src/components/PortableTextEditor.tsx:3797
 msgid "Delete table"
 msgstr "حذف الجدول"
 
@@ -2594,7 +2705,7 @@ msgstr "حذف الجدول"
 msgid "Delete Widget Area?"
 msgstr "حذف منطقة عناصر الواجهة؟"
 
-#: packages/admin/src/components/ContentList.tsx:740
+#: packages/admin/src/components/ContentList.tsx:759
 msgid "Deleted"
 msgstr "محذوف"
 
@@ -2604,7 +2715,7 @@ msgstr "محذوف"
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:409
+#: packages/admin/src/components/comments/CommentInbox.tsx:400
 #: packages/admin/src/components/ContentTypeEditor.tsx:688
 #: packages/admin/src/components/ContentTypeList.tsx:237
 #: packages/admin/src/components/MediaDetailPanel.tsx:919
@@ -2710,7 +2821,7 @@ msgstr "مفتاح مرور مرتبط بالجهاز"
 msgid "Didn't receive the email?"
 msgstr "لم تتلقى البريد الإلكتروني؟"
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:34
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:33
 msgid "Diff"
 msgstr ""
 
@@ -2745,7 +2856,7 @@ msgstr "تعطيل المستخدم؟"
 #: packages/admin/src/components/PluginManager.tsx:389
 #: packages/admin/src/components/Redirects.tsx:426
 #: packages/admin/src/components/users/UserDetail.tsx:201
-#: packages/admin/src/components/users/UserList.tsx:212
+#: packages/admin/src/components/users/UserList.tsx:205
 msgid "Disabled"
 msgstr "معطل"
 
@@ -2766,8 +2877,8 @@ msgstr "جارٍ التعطيل..."
 msgid "Discard"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:86
-#: packages/admin/src/components/ContentSettingsPanel.tsx:106
+#: packages/admin/src/components/ContentSettingsPanel.tsx:83
+#: packages/admin/src/components/ContentSettingsPanel.tsx:103
 msgid "Discard changes"
 msgstr "التخلي عن التغييرات"
 
@@ -2775,7 +2886,7 @@ msgstr "التخلي عن التغييرات"
 msgid "Discard changes?"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:91
+#: packages/admin/src/components/ContentSettingsPanel.tsx:88
 msgid "Discard draft changes?"
 msgstr "التخلي عن تغييرات المسودة؟"
 
@@ -2792,7 +2903,7 @@ msgstr "إخفاء"
 msgid "Dismiss completed {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3385
+#: packages/admin/src/components/PortableTextEditor.tsx:3389
 msgid "Dismiss section error"
 msgstr ""
 
@@ -2808,8 +2919,6 @@ msgstr "عرض قائمة تنقل"
 msgid "Display category list"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1104
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1166
 #: packages/admin/src/routes/bylines.tsx:481
 msgid "Display name"
 msgstr "اسم العرض"
@@ -2832,20 +2941,20 @@ msgstr ""
 msgid "Displayed below the image as a visible caption."
 msgstr "تُعرض أسفل الصورة كتسمية مرئية."
 
-#: packages/admin/src/components/ContentEditor.tsx:736
+#: packages/admin/src/components/ContentEditor.tsx:746
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "وضع الخلو من التشتيت (⌘⇧\\)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1502
+#: packages/admin/src/components/PortableTextEditor.tsx:1506
 msgid "Divider"
 msgstr "فاصل"
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:35
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:34
 msgid "Dockerfile"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:66
-#: packages/admin/src/components/MediaLibrary.tsx:966
+#: packages/admin/src/components/MediaLibrary.tsx:992
 msgid "Documents"
 msgstr "مستندات"
 
@@ -2869,15 +2978,13 @@ msgstr "تم تحديث النطاق"
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "أليس لديك حساب؟ قم ب<0>التسجيل</0>"
 
+#: packages/admin/src/components/BylineCreditsEditor.tsx:915
+#: packages/admin/src/components/ContentList.tsx:1059
 #: packages/admin/src/components/MediaUploadDialog.tsx:512
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
 #: packages/admin/src/components/WordPressImport.tsx:2144
 msgid "Done"
 msgstr "تم"
-
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1047
-msgid "Down"
-msgstr "أسفل"
 
 #. placeholder {0}: archive.name
 #: packages/admin/src/components/settings/BackupSettings.tsx:304
@@ -2909,7 +3016,7 @@ msgstr ""
 msgid "Downloading"
 msgstr "جاري التنزيل"
 
-#: packages/admin/src/components/ContentList.tsx:833
+#: packages/admin/src/components/ContentList.tsx:852
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "مسودة"
@@ -2939,7 +3046,7 @@ msgstr "اسحب وأفلت أو اضغط للتصفح (.xml)"
 msgid "Drag here to add"
 msgstr "اسحب هنا للإضافة"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2314
+#: packages/admin/src/components/PortableTextEditor.tsx:2318
 msgid "Drag to reorder"
 msgstr "اسحب لإعادة الترتيب"
 
@@ -2983,7 +3090,7 @@ msgstr "قم بإفلات ملف تصدير WordPress الخاص بك هنا"
 msgid "Duplicate"
 msgstr "تكرار"
 
-#: packages/admin/src/components/ContentList.tsx:1224
+#: packages/admin/src/components/ContentList.tsx:1336
 msgid "Duplicate {title}"
 msgstr "استنساخ {title}"
 
@@ -3003,7 +3110,6 @@ msgstr "على سبيل المثال، خط CI/CD"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "مثال: MacBook Pro, iPhone"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1056
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:544
@@ -3017,7 +3123,7 @@ msgstr "تعديل"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:332
-#: packages/admin/src/components/PortableTextEditor.tsx:1919
+#: packages/admin/src/components/PortableTextEditor.tsx:1923
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:263
 #: packages/admin/src/components/TaxonomyManager.tsx:277
 #: packages/admin/src/components/TaxonomyManager.tsx:544
@@ -3031,17 +3137,13 @@ msgstr "تعديل {0}"
 msgid "Edit {0} field"
 msgstr "تعديل حقل {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:682
+#: packages/admin/src/components/ContentEditor.tsx:692
 msgid "Edit {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1216
+#: packages/admin/src/components/ContentList.tsx:1328
 msgid "Edit {title}"
 msgstr "تعديل {title}"
-
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1163
-msgid "Edit byline"
-msgstr "تعديل الكاتب"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "Edit byline field"
@@ -3060,8 +3162,8 @@ msgid "Edit folder"
 msgstr ""
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:1464
-#: packages/admin/src/components/MediaLibrary.tsx:1531
+#: packages/admin/src/components/MediaLibrary.tsx:1458
+#: packages/admin/src/components/MediaLibrary.tsx:1525
 msgid "Edit folder {0}"
 msgstr ""
 
@@ -3070,7 +3172,7 @@ msgstr ""
 msgid "Edit image {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3682
+#: packages/admin/src/components/PortableTextEditor.tsx:3686
 msgid "Edit link"
 msgstr "تعديل الرابط"
 
@@ -3081,6 +3183,11 @@ msgstr "تعديل عنصر القائمة"
 #: packages/admin/src/components/MenuEditor.tsx:369
 msgid "Edit menu items"
 msgstr "تعديل عناصر القائمة"
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:876
+#: packages/admin/src/components/BylineCreditsEditor.tsx:970
+msgid "Edit name and slug"
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:536
 msgid "Edit redirect"
@@ -3094,6 +3201,10 @@ msgstr "تعديل إعادة التوجيه"
 #: packages/admin/src/components/Redirects.tsx:537
 msgid "Edit redirect {0}"
 msgstr "تعديل إعادة التوجيه {0}"
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:868
+msgid "Edit role"
+msgstr ""
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
@@ -3164,11 +3275,11 @@ msgid "Email verified!"
 msgstr "تم التحقق من البريد الإلكتروني!"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:2756
+#: packages/admin/src/components/PortableTextEditor.tsx:2760
 msgid "Embed a {0}"
 msgstr "تضمين {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2759
+#: packages/admin/src/components/PortableTextEditor.tsx:2763
 msgid "Embeds"
 msgstr "المضمنات"
 
@@ -3229,8 +3340,12 @@ msgstr ""
 msgid "Enabled"
 msgstr "مُفعَّل"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:504
+#: packages/admin/src/components/ContentSettingsPanel.tsx:503
 msgid "English is used because no content locale is configured. Content locale is stored with the entry and is separate from your admin language."
+msgstr ""
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:312
+msgid "Enter a name."
 msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:423
@@ -3238,7 +3353,7 @@ msgstr ""
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "قم بإدخال رابطًا (https://…) أو رابطًا نسبيًا (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:1550
+#: packages/admin/src/components/ContentEditor.tsx:1566
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "أدخل رابطًا صالحًا (مثال: https://example.com)"
 
@@ -3246,7 +3361,7 @@ msgstr "أدخل رابطًا صالحًا (مثال: https://example.com)"
 msgid "Enter credentials manually"
 msgstr "إدخال بيانات الاعتماد يدويًا"
 
-#: packages/admin/src/components/ContentEditor.tsx:735
+#: packages/admin/src/components/ContentEditor.tsx:745
 msgid "Enter distraction-free mode"
 msgstr "الدخول إلى وضع الخلو من التشتت"
 
@@ -3258,7 +3373,7 @@ msgstr "أدخل البريد الإلكتروني"
 msgid "Enter HTML..."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1323
+#: packages/admin/src/components/ContentEditor.tsx:1339
 msgid "Enter markdown content..."
 msgstr "أدخل محتوى Markdown..."
 
@@ -3334,11 +3449,11 @@ msgstr ""
 msgid "Exists"
 msgstr "موجود"
 
-#: packages/admin/src/components/ContentEditor.tsx:794
+#: packages/admin/src/components/ContentEditor.tsx:804
 msgid "Exit distraction-free mode"
 msgstr "الخروج من وضع الخلو من التشتت"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4275
+#: packages/admin/src/components/PortableTextEditor.tsx:4279
 msgid "Exit Spotlight Mode"
 msgstr "الخروج من وضع التسليط"
 
@@ -3405,10 +3520,6 @@ msgstr "فشل إنشاء حساب المسؤول"
 msgid "Failed to create backup"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1147
-msgid "Failed to create byline"
-msgstr "فشل إنشاء الكاتب"
-
 #: packages/admin/src/lib/api/byline-fields.ts:120
 msgid "Failed to create byline field"
 msgstr ""
@@ -3470,7 +3581,7 @@ msgstr "فشل حذف المجموعة"
 msgid "Failed to delete comment"
 msgstr "فشل حذف التعليق"
 
-#: packages/admin/src/lib/api/content.ts:302
+#: packages/admin/src/lib/api/content.ts:303
 msgid "Failed to delete content"
 msgstr "فشل حذف المحتوى"
 
@@ -3635,8 +3746,8 @@ msgstr ""
 msgid "Failed to fetch provider media"
 msgstr ""
 
-#: packages/admin/src/lib/api/content.ts:579
-#: packages/admin/src/lib/api/content.ts:584
+#: packages/admin/src/lib/api/content.ts:580
+#: packages/admin/src/lib/api/content.ts:585
 msgid "Failed to fetch revision"
 msgstr "فشل جلب المراجعة"
 
@@ -3779,7 +3890,7 @@ msgstr "فشل تحميل عنصر الواجهة"
 msgid "Failed to perform bulk action"
 msgstr "فشل تنفيذ الإجراء الجماعي"
 
-#: packages/admin/src/lib/api/content.ts:345
+#: packages/admin/src/lib/api/content.ts:346
 msgid "Failed to permanently delete content"
 msgstr "فشل الحذف النهائي للمحتوى"
 
@@ -3834,12 +3945,12 @@ msgstr "فشل إعادة ترتيب عناصر الواجهة"
 msgid "Failed to restore"
 msgstr "فشل الاستعادة"
 
-#: packages/admin/src/lib/api/content.ts:334
+#: packages/admin/src/lib/api/content.ts:335
 msgid "Failed to restore content"
 msgstr "فشل استعادة المحتوى"
 
-#: packages/admin/src/lib/api/content.ts:601
-#: packages/admin/src/lib/api/content.ts:606
+#: packages/admin/src/lib/api/content.ts:602
+#: packages/admin/src/lib/api/content.ts:607
 msgid "Failed to restore revision"
 msgstr "فشل استعادة المراجعة"
 
@@ -3923,10 +4034,6 @@ msgstr "فشل تحديث {0}"
 #: packages/admin/src/lib/api/backups.ts:46
 msgid "Failed to update backup settings"
 msgstr ""
-
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1197
-msgid "Failed to update byline"
-msgstr "فشل تحديث الكاتب"
 
 #: packages/admin/src/lib/api/byline-fields.ts:135
 msgid "Failed to update byline field"
@@ -4062,7 +4169,7 @@ msgstr "ملف من مكتبة الوسائط"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:666
 #: packages/admin/src/components/MediaDetailPanel.tsx:683
-#: packages/admin/src/components/MediaLibrary.tsx:1213
+#: packages/admin/src/components/MediaLibrary.tsx:1207
 msgid "Filename"
 msgstr "اسم الملف"
 
@@ -4074,11 +4181,11 @@ msgstr "لا يمكن تغيير اسم الملف بعد الرفع"
 msgid "Files upload as soon as you add them."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:887
+#: packages/admin/src/components/ContentList.tsx:907
 msgid "Filter by author"
 msgstr ""
 
-#: packages/admin/src/components/BylineFilter.tsx:111
+#: packages/admin/src/components/BylineFilter.tsx:116
 msgid "Filter by byline"
 msgstr ""
 
@@ -4086,11 +4193,15 @@ msgstr ""
 msgid "Filter by capability"
 msgstr "تصفية حسب الإمكانية"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:178
+#: packages/admin/src/components/comments/CommentInbox.tsx:211
 msgid "Filter by collection"
 msgstr "تصفية حسب المجموعة"
 
-#: packages/admin/src/components/users/UserList.tsx:82
+#: packages/admin/src/components/ContentList.tsx:1029
+msgid "Filter by date range: {rangeLabel}"
+msgstr ""
+
+#: packages/admin/src/components/users/UserList.tsx:75
 msgid "Filter by role"
 msgstr "تصفية حسب الدور"
 
@@ -4098,12 +4209,12 @@ msgstr "تصفية حسب الدور"
 msgid "Filter by source"
 msgstr "تصفية حسب المصدر"
 
-#: packages/admin/src/components/ContentList.tsx:869
+#: packages/admin/src/components/ContentList.tsx:889
 #: packages/admin/src/components/Redirects.tsx:427
 msgid "Filter by status"
 msgstr "تصفية حسب الحالة"
 
-#: packages/admin/src/components/MediaLibrary.tsx:968
+#: packages/admin/src/components/MediaLibrary.tsx:994
 #: packages/admin/src/components/Redirects.tsx:433
 msgid "Filter by type"
 msgstr "تصفية حسب النوع"
@@ -4116,7 +4227,7 @@ msgstr "تصفية حسب نوع الكاتب"
 msgid "Finish any current edits."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1319
+#: packages/admin/src/components/MediaLibrary.tsx:1313
 msgid "First page"
 msgstr ""
 
@@ -4159,13 +4270,13 @@ msgstr ""
 msgid "Folder unavailable"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1027
+#: packages/admin/src/components/MediaLibrary.tsx:1021
 msgid "Folders"
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:772
-#: packages/admin/src/components/MediaLibrary.tsx:1037
-#: packages/admin/src/components/MediaLibrary.tsx:1561
+#: packages/admin/src/components/MediaLibrary.tsx:1031
+#: packages/admin/src/components/MediaLibrary.tsx:1555
 msgid "Folders could not be loaded."
 msgstr ""
 
@@ -4189,8 +4300,13 @@ msgstr ""
 msgid "Format:"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:928
-msgid "From date"
+#. placeholder {0}: formatter.format(from)
+#: packages/admin/src/components/ContentList.tsx:980
+msgid "From {0}"
+msgstr ""
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:648
+msgid "From the post owner"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:164
@@ -4207,7 +4323,7 @@ msgid "Full admin access"
 msgstr "وصول التحكم الكامل"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:175
-#: packages/admin/src/components/PortableTextEditor.tsx:2723
+#: packages/admin/src/components/PortableTextEditor.tsx:2727
 msgid "Gallery"
 msgstr ""
 
@@ -4223,6 +4339,10 @@ msgstr "عام"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:118
 msgid "General Settings"
 msgstr "الإعدادات العامة"
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:997
+msgid "Generated automatically."
+msgstr ""
 
 #: packages/admin/src/components/TaxonomyManager.tsx:816
 msgid "Genres"
@@ -4240,7 +4360,7 @@ msgstr "GitHub"
 msgid "Give this passkey a name to help you identify it later."
 msgstr "أعط مفتاح المرور هذا اسمًا لمساعدتك في التعرف عليه لاحقًا."
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:36
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:35
 msgid "Go"
 msgstr ""
 
@@ -4254,11 +4374,11 @@ msgstr "الذهاب إلى لوحة المعلومات"
 msgid "Google Verification"
 msgstr "تحقق Google"
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:37
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:36
 msgid "GraphQL"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:986
+#: packages/admin/src/components/MediaLibrary.tsx:950
 msgid "Grid view"
 msgstr "عرض شبكي"
 
@@ -4280,37 +4400,37 @@ msgstr "ضيف فقط"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:63
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:32
-#: packages/admin/src/components/PortableTextEditor.tsx:1394
+#: packages/admin/src/components/PortableTextEditor.tsx:1398
 msgid "Heading 1"
 msgstr "عنوان 1"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:71
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:1404
+#: packages/admin/src/components/PortableTextEditor.tsx:1408
 msgid "Heading 2"
 msgstr "عنوان 2"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:79
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:1414
+#: packages/admin/src/components/PortableTextEditor.tsx:1418
 msgid "Heading 3"
 msgstr "عنوان 3"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
-#: packages/admin/src/components/PortableTextEditor.tsx:1424
+#: packages/admin/src/components/PortableTextEditor.tsx:1428
 msgid "Heading 4"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:95
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
-#: packages/admin/src/components/PortableTextEditor.tsx:1434
+#: packages/admin/src/components/PortableTextEditor.tsx:1438
 msgid "Heading 5"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:103
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
-#: packages/admin/src/components/PortableTextEditor.tsx:1444
+#: packages/admin/src/components/PortableTextEditor.tsx:1448
 msgid "Heading 6"
 msgstr ""
 
@@ -4373,9 +4493,9 @@ msgstr ""
 msgid "How to create an Application Password"
 msgstr "كيفية إنشاء كلمة مرور التطبيق"
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:38
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:37
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
-#: packages/admin/src/components/PortableTextEditor.tsx:1494
+#: packages/admin/src/components/PortableTextEditor.tsx:1498
 msgid "HTML"
 msgstr ""
 
@@ -4383,8 +4503,8 @@ msgstr ""
 msgid "HTML source"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3595
-#: packages/admin/src/components/PortableTextEditor.tsx:4205
+#: packages/admin/src/components/PortableTextEditor.tsx:3599
+#: packages/admin/src/components/PortableTextEditor.tsx:4209
 msgid "https://..."
 msgstr ""
 
@@ -4419,7 +4539,7 @@ msgstr "إذا كان يوجد حساب لـ <0>{email}</0>، قمنا بإرس�
 
 #: packages/admin/src/components/FieldEditor.tsx:233
 #: packages/admin/src/components/FieldEditor.tsx:616
-#: packages/admin/src/components/PortableTextEditor.tsx:2708
+#: packages/admin/src/components/PortableTextEditor.tsx:2712
 msgid "Image"
 msgstr "صورة"
 
@@ -4458,7 +4578,7 @@ msgstr "رابط الصورة"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:64
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:196
-#: packages/admin/src/components/MediaLibrary.tsx:963
+#: packages/admin/src/components/MediaLibrary.tsx:989
 msgid "Images"
 msgstr "الصور"
 
@@ -4560,7 +4680,8 @@ msgstr ""
 msgid "In trash"
 msgstr ""
 
-#: packages/admin/src/components/BylineFilter.tsx:172
+#: packages/admin/src/components/BylineFilter.tsx:187
+#: packages/admin/src/components/BylineFilter.tsx:193
 msgid "Include inferred bylines"
 msgstr ""
 
@@ -4589,7 +4710,7 @@ msgstr ""
 msgid "Indexing existing content"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4065
+#: packages/admin/src/components/PortableTextEditor.tsx:4069
 msgid "Inline Code"
 msgstr "كود مضمَّن"
 
@@ -4599,44 +4720,44 @@ msgid "Insert"
 msgstr "إدراج"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:1919
+#: packages/admin/src/components/PortableTextEditor.tsx:1923
 msgid "Insert {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1475
+#: packages/admin/src/components/PortableTextEditor.tsx:1479
 msgid "Insert a blockquote"
 msgstr "إدراج كتلة إقتباس"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1485
+#: packages/admin/src/components/PortableTextEditor.tsx:1489
 msgid "Insert a code block"
 msgstr "إدراج كتلة كود"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1503
+#: packages/admin/src/components/PortableTextEditor.tsx:1507
 msgid "Insert a horizontal rule"
 msgstr "إدراج فاصل أفقي"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2739
+#: packages/admin/src/components/PortableTextEditor.tsx:2743
 msgid "Insert a reusable section"
 msgstr "إدراج قسم قابل لإعادة الاستخدام"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1513
+#: packages/admin/src/components/PortableTextEditor.tsx:1517
 msgid "Insert a table"
 msgstr "إدراج جدول"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2709
+#: packages/admin/src/components/PortableTextEditor.tsx:2713
 msgid "Insert an image"
 msgstr "إدراج صورة"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2724
+#: packages/admin/src/components/PortableTextEditor.tsx:2728
 msgid "Insert an image gallery"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1747
+#: packages/admin/src/components/PortableTextEditor.tsx:1751
 msgid "Insert block"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4017
-#: packages/admin/src/components/PortableTextEditor.tsx:4027
+#: packages/admin/src/components/PortableTextEditor.tsx:4021
+#: packages/admin/src/components/PortableTextEditor.tsx:4031
 msgid "Insert block after current block"
 msgstr ""
 
@@ -4648,20 +4769,20 @@ msgstr ""
 msgid "Insert from URL"
 msgstr "إدراج من رابط"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4131
+#: packages/admin/src/components/PortableTextEditor.tsx:4135
 msgid "Insert HTML"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4128
+#: packages/admin/src/components/PortableTextEditor.tsx:4132
 msgid "Insert Image"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4175
-#: packages/admin/src/components/PortableTextEditor.tsx:4189
+#: packages/admin/src/components/PortableTextEditor.tsx:4179
+#: packages/admin/src/components/PortableTextEditor.tsx:4193
 msgid "Insert Link"
 msgstr "إدراج رابط"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1495
+#: packages/admin/src/components/PortableTextEditor.tsx:1499
 msgid "Insert raw HTML"
 msgstr ""
 
@@ -4723,7 +4844,7 @@ msgstr "عدد صحيح"
 msgid "Invalid invite link"
 msgstr "رابط الدعوة غير صالح"
 
-#: packages/admin/src/components/ContentEditor.tsx:1619
+#: packages/admin/src/components/ContentEditor.tsx:1635
 msgid "Invalid JSON"
 msgstr "صيغة JSON غير صالحة"
 
@@ -4744,11 +4865,11 @@ msgid "Invite Link Created"
 msgstr "تم إنشاء رابط الدعوة"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:79
-#: packages/admin/src/components/users/UserList.tsx:56
+#: packages/admin/src/components/users/UserList.tsx:57
 msgid "Invite User"
 msgstr "دعوة مستخدم"
 
-#: packages/admin/src/components/users/UserList.tsx:140
+#: packages/admin/src/components/users/UserList.tsx:133
 msgid "Invite your first team member"
 msgstr "ادعُ أول عضو في فريقك"
 
@@ -4760,13 +4881,13 @@ msgstr ""
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3639
-#: packages/admin/src/components/PortableTextEditor.tsx:4044
+#: packages/admin/src/components/PortableTextEditor.tsx:3643
+#: packages/admin/src/components/PortableTextEditor.tsx:4048
 msgid "Italic"
 msgstr "مائل"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2300
+#: packages/admin/src/components/PortableTextEditor.tsx:2304
 #: packages/admin/src/components/RepeaterField.tsx:239
 msgid "Item {0}"
 msgstr "العنصر {0}"
@@ -4792,11 +4913,11 @@ msgstr ""
 msgid "Jane Doe"
 msgstr "جين دو"
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:39
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 msgid "Java"
 msgstr ""
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:40
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:39
 msgid "JavaScript"
 msgstr ""
 
@@ -4808,12 +4929,12 @@ msgstr ""
 msgid "job_title"
 msgstr ""
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:41
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:40
 #: packages/admin/src/components/FieldEditor.tsx:251
 msgid "JSON"
 msgstr "JSON"
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:42
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:41
 msgid "JSX"
 msgstr ""
 
@@ -4833,8 +4954,8 @@ msgstr ""
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1026
-msgid "Keep typing to narrow down more bylines."
+#: packages/admin/src/components/BylineCreditsEditor.tsx:535
+msgid "Keep typing to narrow the list."
 msgstr ""
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:304
@@ -4843,7 +4964,7 @@ msgstr ""
 msgid "Keywords"
 msgstr "الكلمات المفتاحية"
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:43
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:42
 msgid "Kotlin"
 msgstr ""
 
@@ -4871,7 +4992,7 @@ msgstr "التسمية (المفرد)"
 msgid "Landscape"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:162
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:280
 #: packages/admin/src/components/LoginPage.tsx:347
 #: packages/admin/src/components/Settings.tsx:122
 #: packages/admin/src/components/Settings.tsx:132
@@ -4879,7 +5000,7 @@ msgstr ""
 msgid "Language"
 msgstr "اللغة"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1395
+#: packages/admin/src/components/PortableTextEditor.tsx:1399
 msgid "Large section heading"
 msgstr "عنوان قسم كبير"
 
@@ -4891,11 +5012,11 @@ msgstr "آخر تفعيل:"
 msgid "Last login"
 msgstr "آخر تسجيل دخول"
 
-#: packages/admin/src/components/users/UserList.tsx:107
+#: packages/admin/src/components/users/UserList.tsx:100
 msgid "Last Login"
 msgstr "آخر تسجيل دخول"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1322
+#: packages/admin/src/components/MediaLibrary.tsx:1316
 msgid "Last page"
 msgstr ""
 
@@ -4936,7 +5057,7 @@ msgstr ""
 #: packages/admin/src/components/MediaLibrary.tsx:330
 #: packages/admin/src/components/MediaLibrary.tsx:489
 #: packages/admin/src/components/MediaLibrary.tsx:762
-#: packages/admin/src/components/MediaLibrary.tsx:1363
+#: packages/admin/src/components/MediaLibrary.tsx:1357
 #: packages/admin/src/components/MediaPickerModal.tsx:212
 #: packages/admin/src/components/MediaPickerModal.tsx:510
 msgid "Library"
@@ -4987,13 +5108,13 @@ msgstr "لينكد إن"
 msgid "Links"
 msgstr "الروابط"
 
-#: packages/admin/src/components/MediaLibrary.tsx:995
+#: packages/admin/src/components/MediaLibrary.tsx:959
 msgid "List view"
 msgstr "عرض قائمة"
 
-#: packages/admin/src/components/ContentEditor.tsx:716
-#: packages/admin/src/components/ContentEditor.tsx:759
-#: packages/admin/src/components/ContentSettingsPanel.tsx:265
+#: packages/admin/src/components/ContentEditor.tsx:726
+#: packages/admin/src/components/ContentEditor.tsx:769
+#: packages/admin/src/components/ContentSettingsPanel.tsx:262
 msgid "Live View"
 msgstr "العرض المباشر"
 
@@ -5007,17 +5128,17 @@ msgstr "العرض المباشر"
 msgid "Load more"
 msgstr "تحميل المزيد"
 
-#: packages/admin/src/components/ContentList.tsx:724
-#: packages/admin/src/components/ContentList.tsx:782
-#: packages/admin/src/components/MediaLibrary.tsx:1356
+#: packages/admin/src/components/ContentList.tsx:743
+#: packages/admin/src/components/ContentList.tsx:801
+#: packages/admin/src/components/MediaLibrary.tsx:1350
 #: packages/admin/src/components/MediaPickerModal.tsx:776
-#: packages/admin/src/components/users/UserList.tsx:169
+#: packages/admin/src/components/users/UserList.tsx:162
 msgid "Load More"
 msgstr "تحميل المزيد"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:791
-#: packages/admin/src/components/MediaLibrary.tsx:1067
-#: packages/admin/src/components/MediaLibrary.tsx:1257
+#: packages/admin/src/components/MediaLibrary.tsx:1061
+#: packages/admin/src/components/MediaLibrary.tsx:1251
 msgid "Load more folders"
 msgstr ""
 
@@ -5033,7 +5154,7 @@ msgstr ""
 msgid "Loading collections..."
 msgstr "جاري تحميل المجموعات..."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:308
+#: packages/admin/src/components/comments/CommentInbox.tsx:299
 msgid "Loading comments..."
 msgstr "جاري تحميل التعليقات..."
 
@@ -5046,12 +5167,12 @@ msgstr "جارٍ تحميل الإعدادات..."
 msgid "Loading content..."
 msgstr "جاري تحميل المحتوى..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3358
+#: packages/admin/src/components/PortableTextEditor.tsx:3362
 msgid "Loading editor..."
 msgstr "جارٍ تحميل المحرر..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1011
-#: packages/admin/src/components/MediaLibrary.tsx:1225
+#: packages/admin/src/components/MediaLibrary.tsx:1005
+#: packages/admin/src/components/MediaLibrary.tsx:1219
 msgid "Loading folders"
 msgstr ""
 
@@ -5107,19 +5228,19 @@ msgstr ""
 msgid "Loading widgets..."
 msgstr "جارٍ تحميل عناصر الواجهة..."
 
-#: packages/admin/src/components/ContentList.tsx:627
-#: packages/admin/src/components/ContentList.tsx:724
-#: packages/admin/src/components/ContentList.tsx:753
-#: packages/admin/src/components/ContentList.tsx:782
+#: packages/admin/src/components/ContentList.tsx:646
+#: packages/admin/src/components/ContentList.tsx:743
+#: packages/admin/src/components/ContentList.tsx:772
+#: packages/admin/src/components/ContentList.tsx:801
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaDetailPanel.tsx:271
 #: packages/admin/src/components/MediaDetailPanel.tsx:287
 #: packages/admin/src/components/MediaDetailPanel.tsx:289
-#: packages/admin/src/components/MediaLibrary.tsx:1356
+#: packages/admin/src/components/MediaLibrary.tsx:1350
 #: packages/admin/src/components/MediaPickerModal.tsx:776
 #: packages/admin/src/components/MediaUsedIn.tsx:195
-#: packages/admin/src/components/PortableTextEditor.tsx:2427
+#: packages/admin/src/components/PortableTextEditor.tsx:2431
 #: packages/admin/src/components/Redirects.tsx:560
 #: packages/admin/src/components/RegistryBrowse.tsx:165
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:169
@@ -5131,16 +5252,16 @@ msgstr "جارٍ تحميل عناصر الواجهة..."
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
-#: packages/admin/src/components/users/UserList.tsx:156
+#: packages/admin/src/components/users/UserList.tsx:149
 #: packages/admin/src/routes/bylines.tsx:468
 msgid "Loading..."
 msgstr "جاري التحميل..."
 
-#: packages/admin/src/components/BylineFilter.tsx:136
+#: packages/admin/src/components/BylineFilter.tsx:147
 msgid "Loading…"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:599
+#: packages/admin/src/components/ContentList.tsx:618
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "المَحلية"
@@ -5197,6 +5318,10 @@ msgstr "أحرف صغيرة وأرقام وشرطات فقط"
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "أحرف صغيرة وأرقام وشرطات سفلية فقط، تبدأ بحرف"
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:43
+msgid "Lua"
+msgstr ""
+
 #: packages/admin/src/components/MediaDetailPanel.tsx:240
 msgid "Main library"
 msgstr ""
@@ -5225,7 +5350,7 @@ msgstr "إدارة"
 msgid "Manage {0} for {1}"
 msgstr "إدارة {0} لـ {1}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:988
+#: packages/admin/src/components/BylineCreditsEditor.tsx:698
 msgid "Manage bylines in {entryLocale}"
 msgstr "إدارة الكُتّاب في {entryLocale}"
 
@@ -5280,7 +5405,7 @@ msgstr ""
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:502
+#: packages/admin/src/components/comments/CommentInbox.tsx:493
 msgid "Mark as spam"
 msgstr "تحديد كغير مرغوب فيه"
 
@@ -5315,8 +5440,8 @@ msgstr ""
 msgid "MDX"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2712
-#: packages/admin/src/components/PortableTextEditor.tsx:2727
+#: packages/admin/src/components/PortableTextEditor.tsx:2716
+#: packages/admin/src/components/PortableTextEditor.tsx:2731
 #: packages/admin/src/components/Settings.tsx:70
 #: packages/admin/src/components/Sidebar.tsx:256
 #: packages/admin/src/components/WordPressImport.tsx:770
@@ -5356,7 +5481,7 @@ msgstr ""
 msgid "Media Library"
 msgstr "مكتبة الوسائط"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1318
+#: packages/admin/src/components/MediaLibrary.tsx:1312
 msgid "Media pagination"
 msgstr ""
 
@@ -5393,7 +5518,7 @@ msgstr ""
 msgid "Media Write"
 msgstr "كتابة الوسائط"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1405
+#: packages/admin/src/components/PortableTextEditor.tsx:1409
 msgid "Medium section heading"
 msgstr "عنوان قسم متوسط"
 
@@ -5490,7 +5615,7 @@ msgstr "الحد الأدنى للطول"
 msgid "Min Value"
 msgstr "القيمة الدنيا"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1435
+#: packages/admin/src/components/PortableTextEditor.tsx:1439
 msgid "Minor section heading"
 msgstr ""
 
@@ -5514,6 +5639,11 @@ msgstr ""
 msgid "Monthly/yearly archives"
 msgstr ""
 
+#. placeholder {0}: byline.displayName
+#: packages/admin/src/components/BylineCreditsEditor.tsx:857
+msgid "More actions for {0}"
+msgstr ""
+
 #: packages/admin/src/components/ImageFieldRenderer.tsx:191
 msgid "More information about {label}"
 msgstr ""
@@ -5532,7 +5662,7 @@ msgstr ""
 msgid "Move \"{0}\" up"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1245
+#: packages/admin/src/components/ContentList.tsx:1357
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "نقل \"{title}\" إلى سلة المحذوفات؟ يمكنك استعادته لاحقًا."
 
@@ -5556,7 +5686,7 @@ msgstr ""
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1236
+#: packages/admin/src/components/ContentList.tsx:1348
 msgid "Move {title} to trash"
 msgstr "نقل {title} إلى سلة المحذوفات"
 
@@ -5564,24 +5694,24 @@ msgstr "نقل {title} إلى سلة المحذوفات"
 msgid "Move down"
 msgstr "تحريك للأسفل"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1102
+#: packages/admin/src/components/MediaLibrary.tsx:1096
 msgid "Move media here from Media Details."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:509
+#: packages/admin/src/components/ContentList.tsx:528
 msgid "Move to trash"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:536
-#: packages/admin/src/components/ContentList.tsx:1258
-#: packages/admin/src/components/ContentSettingsPanel.tsx:813
-#: packages/admin/src/components/ContentSettingsPanel.tsx:833
+#: packages/admin/src/components/ContentList.tsx:555
+#: packages/admin/src/components/ContentList.tsx:1370
+#: packages/admin/src/components/ContentSettingsPanel.tsx:838
+#: packages/admin/src/components/ContentSettingsPanel.tsx:858
 msgid "Move to Trash"
 msgstr "نقل إلى سلة المحذوفات"
 
-#: packages/admin/src/components/ContentList.tsx:514
-#: packages/admin/src/components/ContentList.tsx:1243
-#: packages/admin/src/components/ContentSettingsPanel.tsx:818
+#: packages/admin/src/components/ContentList.tsx:533
+#: packages/admin/src/components/ContentList.tsx:1355
+#: packages/admin/src/components/ContentSettingsPanel.tsx:843
 msgid "Move to Trash?"
 msgstr "نقل إلى سلة المحذوفات؟"
 
@@ -5618,6 +5748,7 @@ msgstr "اختيارات متعددة من الخيارات المتاحة"
 msgid "My Awesome Blog"
 msgstr "مدونتي الرائعة"
 
+#: packages/admin/src/components/BylineCreditsEditor.tsx:982
 #: packages/admin/src/components/ContentTypeList.tsx:178
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MediaFolderDialog.tsx:131
@@ -5655,7 +5786,7 @@ msgid "Needs attention"
 msgstr ""
 
 #: packages/admin/src/components/users/UserDetail.tsx:231
-#: packages/admin/src/components/users/UserList.tsx:185
+#: packages/admin/src/components/users/UserList.tsx:178
 msgid "Never"
 msgstr "أبدًا"
 
@@ -5676,7 +5807,7 @@ msgstr "جديد"
 msgid "New {0}"
 msgstr "{0} جديد"
 
-#: packages/admin/src/components/ContentEditor.tsx:682
+#: packages/admin/src/components/ContentEditor.tsx:692
 msgid "New {itemLabel}"
 msgstr ""
 
@@ -5710,6 +5841,10 @@ msgstr "مسارات عامة جديدة"
 msgid "New Redirect"
 msgstr "إعادة توجيه جديدة"
 
+#: packages/admin/src/components/BylineCreditsEditor.tsx:514
+msgid "New reusable profile"
+msgstr ""
+
 #: packages/admin/src/components/Sections.tsx:143
 msgid "New Section"
 msgstr "قسم جديد"
@@ -5742,9 +5877,9 @@ msgstr "أخبار"
 msgid "Next"
 msgstr "التالي"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:372
-#: packages/admin/src/components/ContentList.tsx:712
-#: packages/admin/src/components/MediaLibrary.tsx:1321
+#: packages/admin/src/components/comments/CommentInbox.tsx:363
+#: packages/admin/src/components/ContentList.tsx:731
+#: packages/admin/src/components/MediaLibrary.tsx:1315
 msgid "Next page"
 msgstr "الصفحة التالية"
 
@@ -5752,7 +5887,7 @@ msgstr "الصفحة التالية"
 msgid "Next screenshot"
 msgstr "لقطة الشاشة التالية"
 
-#: packages/admin/src/components/ContentList.tsx:1281
+#: packages/admin/src/components/ContentList.tsx:1393
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:422
 msgid "No"
@@ -5768,7 +5903,7 @@ msgid "No {0} available."
 msgstr "لا يوجد {0} متاح."
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:638
+#: packages/admin/src/components/ContentList.tsx:657
 msgid "No {0} yet."
 msgstr "لا يوجد {0} بعد."
 
@@ -5781,8 +5916,8 @@ msgstr "لا يوجد {0} بعد. قم بإنشاء أحدها للبدء."
 msgid "No 404 errors recorded yet."
 msgstr "لم يتم تسجيل أخطاء 404 بعد."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1823
-#: packages/admin/src/components/MediaLibrary.tsx:1880
+#: packages/admin/src/components/MediaLibrary.tsx:1817
+#: packages/admin/src/components/MediaLibrary.tsx:1874
 msgid "No alt text"
 msgstr "لا يوجد نص بديل"
 
@@ -5790,15 +5925,15 @@ msgstr "لا يوجد نص بديل"
 msgid "No API tokens yet. Create one to get started."
 msgstr "لا يوجد رموز API بعد. قم بإنشاء أحدها للبدء."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:548
+#: packages/admin/src/components/comments/CommentInbox.tsx:539
 msgid "No approved comments yet."
 msgstr "لا توجد تعليقات موافق عليها بعد."
 
-#: packages/admin/src/components/BylineFilter.tsx:99
+#: packages/admin/src/components/BylineFilter.tsx:101
 msgid "No byline"
 msgstr ""
 
-#: packages/admin/src/components/BylineFilter.tsx:131
+#: packages/admin/src/components/BylineFilter.tsx:138
 msgid "No byline assigned"
 msgstr ""
 
@@ -5806,28 +5941,32 @@ msgstr ""
 msgid "No byline fields yet."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:980
+#: packages/admin/src/components/BylineCreditsEditor.tsx:670
+msgid "No byline is shown on this post."
+msgstr ""
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:690
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "لا يوجد كُتّاب متاحون في {entryLocale}. أنشئ نسخة من صفحة الكُتّاب قبل إسناد كاتب لهذا المدخل."
 
-#: packages/admin/src/components/BylineFilter.tsx:139
+#: packages/admin/src/components/BylineCreditsEditor.tsx:542
+msgid "No bylines available."
+msgstr ""
+
+#: packages/admin/src/components/BylineFilter.tsx:150
 #: packages/admin/src/routes/bylines.tsx:452
 msgid "No bylines found"
 msgstr "لم يُعثر على كُتّاب"
-
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1088
-msgid "No bylines selected."
-msgstr "لم يتم اختيار أي كاتب."
 
 #: packages/admin/src/components/Dashboard.tsx:275
 msgid "No collections configured"
 msgstr "لم يتم تهيئة مجموعات"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:547
+#: packages/admin/src/components/comments/CommentInbox.tsx:538
 msgid "No comments awaiting moderation."
 msgstr "لا توجد تعليقات في انتظار الإشراف."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:543
+#: packages/admin/src/components/comments/CommentInbox.tsx:534
 msgid "No comments match your search."
 msgstr "لا توجد تعليقات مطابقة لبحثك."
 
@@ -5907,7 +6046,7 @@ msgstr "لا توجد إصدارات قابلة للتثبيت"
 msgid "No invite token provided"
 msgstr "لم يُقدَّم رمز دعوة"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2223
+#: packages/admin/src/components/PortableTextEditor.tsx:2227
 #: packages/admin/src/components/RepeaterField.tsx:165
 #: packages/admin/src/components/settings/BackupSettings.tsx:283
 msgid "No items yet"
@@ -5921,16 +6060,16 @@ msgstr "بدون حد"
 msgid "No linked user"
 msgstr "لا يوجد مستخدم مرتبط"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:171
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:289
 msgid "No matches"
 msgstr "لا توجد نتائج"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1023
+#: packages/admin/src/components/BylineCreditsEditor.tsx:542
 msgid "No matching bylines."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1086
-#: packages/admin/src/components/MediaLibrary.tsx:1125
+#: packages/admin/src/components/MediaLibrary.tsx:1080
+#: packages/admin/src/components/MediaLibrary.tsx:1119
 msgid "No matching media"
 msgstr ""
 
@@ -5947,11 +6086,11 @@ msgstr "بدون حد أقصى"
 msgid "No media available from this provider"
 msgstr "لا توجد وسائط متاحة من هذا المزود"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1148
+#: packages/admin/src/components/MediaLibrary.tsx:1142
 msgid "No media available from this provider."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1147
+#: packages/admin/src/components/MediaLibrary.tsx:1141
 #: packages/admin/src/components/MediaPickerModal.tsx:689
 msgid "No media found"
 msgstr "لم يتم العثور على وسائط"
@@ -6017,13 +6156,13 @@ msgstr "لا يوجد نشاط حديث"
 msgid "No redirects yet"
 msgstr "لا توجد إعادات توجيه بعد"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1772
+#: packages/admin/src/components/PortableTextEditor.tsx:1776
 #: packages/admin/src/components/RepeaterField.tsx:374
 msgid "No results"
 msgstr "لا يوجد نتائج"
 
-#: packages/admin/src/components/ContentList.tsx:635
 #: packages/admin/src/components/ContentList.tsx:654
+#: packages/admin/src/components/ContentList.tsx:673
 msgid "No results for \"{activeSearch}\""
 msgstr ""
 
@@ -6054,7 +6193,7 @@ msgstr "لم يتم العثور على أقسام"
 msgid "No sections yet"
 msgstr "لا توجد أقسام بعد"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:549
+#: packages/admin/src/components/comments/CommentInbox.tsx:540
 msgid "No spam comments."
 msgstr "لا توجد تعليقات غير مرغوب فيها."
 
@@ -6066,11 +6205,11 @@ msgstr "لم يتم العثور على مظاهر"
 msgid "No usage found in EmDash-managed content fields."
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:120
+#: packages/admin/src/components/users/UserList.tsx:113
 msgid "No users found matching your filters."
 msgstr "لا يوجد مستخدمون يطابقون الفلاتر المحددة."
 
-#: packages/admin/src/components/users/UserList.tsx:134
+#: packages/admin/src/components/users/UserList.tsx:127
 msgid "No users yet."
 msgstr "لا يوجد مستخدمون بعد."
 
@@ -6091,7 +6230,7 @@ msgstr "بدون (المستوى الأعلى)"
 msgid "Not compatible with this environment"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1280
+#: packages/admin/src/components/ContentList.tsx:1392
 #: packages/admin/src/components/PluginSettings.tsx:341
 msgid "Not set"
 msgstr ""
@@ -6110,8 +6249,8 @@ msgid "Number of posts to show per page on list views"
 msgstr "عدد المنشورات الظاهرة لكل صفحة في عروض القائمة"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:135
-#: packages/admin/src/components/PortableTextEditor.tsx:1464
-#: packages/admin/src/components/PortableTextEditor.tsx:4092
+#: packages/admin/src/components/PortableTextEditor.tsx:1468
+#: packages/admin/src/components/PortableTextEditor.tsx:4096
 msgid "Numbered List"
 msgstr "قائمة مرقمة"
 
@@ -6148,8 +6287,8 @@ msgid "Oops!"
 msgstr "عذرًا!"
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:1448
-#: packages/admin/src/components/MediaLibrary.tsx:1519
+#: packages/admin/src/components/MediaLibrary.tsx:1442
+#: packages/admin/src/components/MediaLibrary.tsx:1513
 msgid "Open folder {0}"
 msgstr ""
 
@@ -6247,7 +6386,7 @@ msgstr "تم حفظ الترتيب"
 msgid "Original:"
 msgstr "الأصلي:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:777
+#: packages/admin/src/components/ContentSettingsPanel.tsx:802
 #: packages/admin/src/components/editor/DocumentOutline.tsx:191
 msgid "Outline"
 msgstr "مخطط المستند"
@@ -6256,8 +6395,8 @@ msgstr "مخطط المستند"
 msgid "Overrides the page title in search engine results"
 msgstr "يَحل محل عنوان الصفحة في نتائج محركات البحث"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:655
-#: packages/admin/src/components/ContentSettingsPanel.tsx:658
+#: packages/admin/src/components/ContentSettingsPanel.tsx:654
+#: packages/admin/src/components/ContentSettingsPanel.tsx:657
 msgid "Ownership"
 msgstr "الملكية"
 
@@ -6269,11 +6408,11 @@ msgstr "الحزمة"
 msgid "Page Not Found"
 msgstr "الصفحة غير موجودة"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1323
+#: packages/admin/src/components/MediaLibrary.tsx:1317
 msgid "Page number"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1324
+#: packages/admin/src/components/MediaLibrary.tsx:1318
 msgid "Page size"
 msgstr ""
 
@@ -6330,7 +6469,7 @@ msgid "Passkey renamed"
 msgstr "تم إعادة تسمية مفتاح المرور"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:135
-#: packages/admin/src/components/users/UserList.tsx:110
+#: packages/admin/src/components/users/UserList.tsx:103
 msgid "Passkeys"
 msgstr "مفاتيح المرور"
 
@@ -6395,7 +6534,7 @@ msgstr "PDF"
 msgid "pending"
 msgstr "معلّق"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:198
+#: packages/admin/src/components/comments/CommentInbox.tsx:171
 msgid "Pending"
 msgstr "معلّق"
 
@@ -6403,15 +6542,20 @@ msgstr "معلّق"
 msgid "Pending changes"
 msgstr "تغييرات معلّقة"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1338
+#: packages/admin/src/components/BylineCreditsEditor.tsx:640
+#: packages/admin/src/components/BylineCreditsEditor.tsx:669
+msgid "People shown publicly on this post."
+msgstr ""
+
+#: packages/admin/src/components/MediaLibrary.tsx:1332
 msgid "Per page"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1413
+#: packages/admin/src/components/ContentList.tsx:1525
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "حذف \"{title}\" نهائيًا؟ لا يمكن التراجع عن هذا الإجراء."
 
-#: packages/admin/src/components/ContentList.tsx:1402
+#: packages/admin/src/components/ContentList.tsx:1514
 msgid "Permanently delete {title}"
 msgstr "حذف {title} نهائيًا"
 
@@ -6431,8 +6575,8 @@ msgstr "اختر أي طريقة لإنشاء حساب المسؤول."
 msgid "Placeholder text"
 msgstr ""
 
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:27
-#: packages/admin/src/components/editor/codeBlockLanguages.ts:120
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:26
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:121
 msgid "Plain text"
 msgstr ""
 
@@ -6603,10 +6747,10 @@ msgstr "جاري التحضير لتنزيل الملفات من WordPress..."
 msgid "Preparing..."
 msgstr "جاري التحضير..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:167
+#: packages/admin/src/components/ContentSettingsPanel.tsx:164
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
 #: packages/admin/src/components/MediaDetailPanel.tsx:880
-#: packages/admin/src/components/MediaLibrary.tsx:1212
+#: packages/admin/src/components/MediaLibrary.tsx:1206
 msgid "Preview"
 msgstr "معاينة"
 
@@ -6614,7 +6758,7 @@ msgstr "معاينة"
 msgid "Preview content before publishing"
 msgstr "معاينة المحتوى قبل النشر"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:167
+#: packages/admin/src/components/ContentSettingsPanel.tsx:164
 msgid "Preview draft"
 msgstr "معاينة المسودة"
 
@@ -6622,9 +6766,9 @@ msgstr "معاينة المسودة"
 msgid "Previous"
 msgstr "السابق"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:353
-#: packages/admin/src/components/ContentList.tsx:700
-#: packages/admin/src/components/MediaLibrary.tsx:1320
+#: packages/admin/src/components/comments/CommentInbox.tsx:344
+#: packages/admin/src/components/ContentList.tsx:719
+#: packages/admin/src/components/MediaLibrary.tsx:1314
 msgid "Previous page"
 msgstr "الصفحة السابقة"
 
@@ -6644,20 +6788,20 @@ msgstr ""
 msgid "Provider:"
 msgstr "المزود:"
 
-#: packages/admin/src/components/ContentList.tsx:485
-#: packages/admin/src/components/ContentSettingsPanel.tsx:198
-#: packages/admin/src/components/ContentSettingsPanel.tsx:205
-#: packages/admin/src/components/ContentSettingsPanel.tsx:484
-#: packages/admin/src/components/ContentSettingsPanel.tsx:487
+#: packages/admin/src/components/ContentList.tsx:504
+#: packages/admin/src/components/ContentSettingsPanel.tsx:195
+#: packages/admin/src/components/ContentSettingsPanel.tsx:202
+#: packages/admin/src/components/ContentSettingsPanel.tsx:483
+#: packages/admin/src/components/ContentSettingsPanel.tsx:486
 msgid "Publish"
 msgstr "نشر"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:612
+#: packages/admin/src/components/ContentSettingsPanel.tsx:611
 msgid "Publish date"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:832
-#: packages/admin/src/components/ContentList.tsx:843
+#: packages/admin/src/components/ContentList.tsx:851
+#: packages/admin/src/components/ContentList.tsx:862
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:297
 #: packages/admin/src/router.tsx:1085
@@ -6689,18 +6833,14 @@ msgstr ""
 msgid "Queued"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1096
-msgid "Quick create byline"
-msgstr "إنشاء كاتب بشكل سريع"
-
 #: packages/admin/src/components/editor/ImageNode.tsx:209
 #: packages/admin/src/components/editor/ImageNode.tsx:210
 msgid "Quick edit alt text"
 msgstr "تعديل سريع للنص البديل"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:111
-#: packages/admin/src/components/PortableTextEditor.tsx:1474
-#: packages/admin/src/components/PortableTextEditor.tsx:4117
+#: packages/admin/src/components/PortableTextEditor.tsx:1478
+#: packages/admin/src/components/PortableTextEditor.tsx:4121
 msgid "Quote"
 msgstr "إقتباس"
 
@@ -6784,7 +6924,7 @@ msgstr "جاري إعادة التوجيه إلى تسجيل الدخول..."
 msgid "Redirects"
 msgstr "إعادات التوجيه"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4262
+#: packages/admin/src/components/PortableTextEditor.tsx:4266
 msgid "Redo"
 msgstr "إعادة"
 
@@ -6843,10 +6983,9 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1065
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
 #: packages/admin/src/components/ImageFieldRenderer.tsx:179
-#: packages/admin/src/components/PortableTextEditor.tsx:4235
+#: packages/admin/src/components/PortableTextEditor.tsx:4239
 #: packages/admin/src/components/settings/GeneralSettings.tsx:229
 #: packages/admin/src/components/settings/GeneralSettings.tsx:289
 #: packages/admin/src/components/settings/PasskeyItem.tsx:180
@@ -6868,7 +7007,7 @@ msgstr "إزالة {0}"
 msgid "Remove {entry}"
 msgstr "إزالة {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1777
+#: packages/admin/src/components/ContentEditor.tsx:1793
 msgid "Remove {label}"
 msgstr "إزالة {label}"
 
@@ -6883,6 +7022,10 @@ msgstr "إزالة النطاق"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:381
 msgid "Remove Domain?"
 msgstr "إزالة النطاق؟"
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:886
+msgid "Remove from post"
+msgstr ""
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:177
 #: packages/admin/src/components/ImageFieldRenderer.tsx:223
@@ -6906,13 +7049,13 @@ msgid "Remove Image?"
 msgstr "إزالة الصورة؟"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2339
+#: packages/admin/src/components/PortableTextEditor.tsx:2343
 #: packages/admin/src/components/RepeaterField.tsx:275
 msgid "Remove item {0}"
 msgstr "إزالة العنصر {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3620
-#: packages/admin/src/components/PortableTextEditor.tsx:3621
+#: packages/admin/src/components/PortableTextEditor.tsx:3624
+#: packages/admin/src/components/PortableTextEditor.tsx:3625
 msgid "Remove link"
 msgstr "إزالة الرابط"
 
@@ -6955,7 +7098,9 @@ msgstr "إعادة تسمية مفتاح المرور"
 msgid "Reorder"
 msgstr ""
 
+#. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
+#: packages/admin/src/components/BylineCreditsEditor.tsx:831
 #: packages/admin/src/components/ContentTypeList.tsx:281
 msgid "Reorder {0}"
 msgstr ""
@@ -7042,11 +7187,11 @@ msgstr ""
 msgid "Reset to original"
 msgstr "إعادة التعيين إلى الأصل"
 
-#: packages/admin/src/components/ContentEditor.tsx:969
+#: packages/admin/src/components/ContentEditor.tsx:980
 msgid "Resize settings panel"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4108
+#: packages/admin/src/components/PortableTextEditor.tsx:4112
 msgid "Restart numbering"
 msgstr ""
 
@@ -7054,7 +7199,7 @@ msgstr ""
 msgid "Restore"
 msgstr "استعادة"
 
-#: packages/admin/src/components/ContentList.tsx:1390
+#: packages/admin/src/components/ContentList.tsx:1502
 msgid "Restore {title}"
 msgstr "استعادة {title}"
 
@@ -7080,10 +7225,11 @@ msgstr "استعادة هذا الإصدار من {0}؟ سيتم تحديث ال
 msgid "Restoring..."
 msgstr "جاري الاستعادة..."
 
+#: packages/admin/src/components/BylineCreditsEditor.tsx:471
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/MediaDetailPanel.tsx:778
-#: packages/admin/src/components/MediaLibrary.tsx:1031
-#: packages/admin/src/components/MediaLibrary.tsx:1564
+#: packages/admin/src/components/MediaLibrary.tsx:1025
+#: packages/admin/src/components/MediaLibrary.tsx:1558
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
@@ -7095,6 +7241,11 @@ msgstr "إعادة المحاولة"
 #. placeholder {0}: row.file.name
 #: packages/admin/src/components/MediaUploadDialog.tsx:151
 msgid "Retry {0}"
+msgstr ""
+
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:246
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:253
+msgid "Retry copy"
 msgstr ""
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:503
@@ -7134,7 +7285,7 @@ msgstr "مراجعة الصلاحيات الجديدة"
 msgid "Revision restored"
 msgstr "تم استعادة المراجعة"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:785
+#: packages/admin/src/components/ContentSettingsPanel.tsx:810
 #: packages/admin/src/components/ContentTypeEditor.tsx:76
 #: packages/admin/src/components/RevisionHistory.tsx:168
 msgid "Revisions"
@@ -7188,7 +7339,7 @@ msgstr ""
 #: packages/admin/src/components/users/InviteUserModal.tsx:164
 #: packages/admin/src/components/users/UserDetail.tsx:169
 #: packages/admin/src/components/users/UserDetail.tsx:181
-#: packages/admin/src/components/users/UserList.tsx:101
+#: packages/admin/src/components/users/UserList.tsx:94
 msgid "Role"
 msgstr "الدور"
 
@@ -7196,9 +7347,14 @@ msgstr "الدور"
 msgid "Role {role}"
 msgstr "الدور {role}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1070
-msgid "Role label"
-msgstr "تسمية الدور"
+#: packages/admin/src/components/BylineCreditsEditor.tsx:901
+msgid "Role on this post (optional)"
+msgstr ""
+
+#. placeholder {0}: byline.displayName
+#: packages/admin/src/components/BylineCreditsEditor.tsx:611
+msgid "Role updated for {0}."
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:428
 msgid "Routable"
@@ -7226,7 +7382,6 @@ msgstr ""
 msgid "Same window"
 msgstr "نفس النافذة"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1203
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:395
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:589
 #: packages/admin/src/components/editor/ImageNode.tsx:277
@@ -7249,6 +7404,7 @@ msgstr "حفظ (Enter)"
 msgid "Save alt text"
 msgstr "حفظ النص البديل"
 
+#: packages/admin/src/components/BylineCreditsEditor.tsx:1019
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Save changes"
 msgstr ""
@@ -7279,7 +7435,6 @@ msgstr "تم الحفظ"
 msgid "Saved \"{0}\"."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1203
 #: packages/admin/src/components/FieldEditor.tsx:689
 #: packages/admin/src/components/MediaDetailPanel.tsx:934
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
@@ -7308,26 +7463,26 @@ msgstr ""
 msgid "SBOM · {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:580
+#: packages/admin/src/components/ContentSettingsPanel.tsx:579
 msgid "Schedule"
 msgstr "جدولة"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:566
+#: packages/admin/src/components/ContentSettingsPanel.tsx:565
 msgid "Schedule for"
 msgstr "جدولة لـ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:603
+#: packages/admin/src/components/ContentSettingsPanel.tsx:602
 msgid "Schedule for later"
 msgstr "جدولة لوقت لاحق"
 
-#: packages/admin/src/components/ContentList.tsx:834
+#: packages/admin/src/components/ContentList.tsx:853
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
 #: packages/admin/src/router.tsx:1143
 msgid "Scheduled"
 msgstr "مجدول"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:554
+#: packages/admin/src/components/ContentSettingsPanel.tsx:553
 msgid "Scheduled for: {0}"
 msgstr "مجدول لـ: {0}"
 
@@ -7397,43 +7552,43 @@ msgid "Search"
 msgstr "بحث"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:419
+#: packages/admin/src/components/ContentList.tsx:465
 msgid "Search {0}"
 msgstr "بحث {0}"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:418
+#: packages/admin/src/components/ContentList.tsx:464
 msgid "Search {0}..."
 msgstr "بحث {0}..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:944
+#: packages/admin/src/components/MediaLibrary.tsx:970
 #: packages/admin/src/components/MediaPickerModal.tsx:627
 msgid "Search by filename..."
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:69
+#: packages/admin/src/components/users/UserList.tsx:63
 msgid "Search by name or email..."
 msgstr "ابحث بالاسم أو البريد الإلكتروني..."
 
-#: packages/admin/src/components/BylineFilter.tsx:121
-#: packages/admin/src/components/ContentSettingsPanel.tsx:997
+#: packages/admin/src/components/BylineCreditsEditor.tsx:439
+#: packages/admin/src/components/BylineFilter.tsx:128
 #: packages/admin/src/routes/bylines.tsx:401
 msgid "Search bylines"
 msgstr "البحث في الكُتّاب"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:996
-msgid "Search bylines to add..."
+#: packages/admin/src/components/BylineCreditsEditor.tsx:440
+msgid "Search bylines to add…"
 msgstr ""
 
-#: packages/admin/src/components/BylineFilter.tsx:122
+#: packages/admin/src/components/BylineFilter.tsx:129
 msgid "Search bylines…"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:164
+#: packages/admin/src/components/comments/CommentInbox.tsx:201
 msgid "Search comments"
 msgstr "البحث في التعليقات"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:163
+#: packages/admin/src/components/comments/CommentInbox.tsx:200
 msgid "Search comments..."
 msgstr "البحث في التعليقات..."
 
@@ -7459,7 +7614,7 @@ msgstr ""
 msgid "Search form"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:945
+#: packages/admin/src/components/MediaLibrary.tsx:971
 #: packages/admin/src/components/MediaPickerModal.tsx:628
 msgid "Search media"
 msgstr "البحث في الوسائط"
@@ -7478,6 +7633,10 @@ msgstr "البحث في الإضافات"
 msgid "Search plugins..."
 msgstr "البحث في الإضافات..."
 
+#: packages/admin/src/components/BylineCreditsEditor.tsx:421
+msgid "Search reusable public profiles."
+msgstr ""
+
 #: packages/admin/src/components/SectionPickerModal.tsx:82
 #: packages/admin/src/components/Sections.tsx:226
 msgid "Search sections..."
@@ -7495,15 +7654,15 @@ msgstr "البحث في المظاهر"
 msgid "Search themes..."
 msgstr "البحث في المظاهر..."
 
-#: packages/admin/src/components/BylineFilter.tsx:158
+#: packages/admin/src/components/BylineFilter.tsx:169
 msgid "Search to narrow the list"
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:73
+#: packages/admin/src/components/users/UserList.tsx:66
 msgid "Search users"
 msgstr "البحث عن مستخدمين"
 
-#: packages/admin/src/components/MediaLibrary.tsx:944
+#: packages/admin/src/components/MediaLibrary.tsx:970
 #: packages/admin/src/components/MediaPickerModal.tsx:627
 msgid "Search..."
 msgstr "بحث..."
@@ -7513,11 +7672,12 @@ msgstr "بحث..."
 msgid "Searchable"
 msgstr "قابل للبحث"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1001
-msgid "Searching..."
+#: packages/admin/src/components/BylineCreditsEditor.tsx:465
+#: packages/admin/src/components/BylineCreditsEditor.tsx:548
+msgid "Searching…"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2738
+#: packages/admin/src/components/PortableTextEditor.tsx:2742
 msgid "Section"
 msgstr "قسم"
 
@@ -7609,13 +7769,13 @@ msgid "Select"
 msgstr "اختيار"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:1789
 #: packages/admin/src/components/ContentEditor.tsx:1805
+#: packages/admin/src/components/ContentEditor.tsx:1821
 #: packages/admin/src/components/ImageFieldRenderer.tsx:281
 msgid "Select {label}"
 msgstr "اختيار {label}"
 
-#: packages/admin/src/components/ContentList.tsx:1141
+#: packages/admin/src/components/ContentList.tsx:1253
 msgid "Select {title}"
 msgstr ""
 
@@ -7631,16 +7791,16 @@ msgstr ""
 msgid "Select a menu..."
 msgstr "اختر قائمة..."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:284
+#: packages/admin/src/components/comments/CommentInbox.tsx:275
 msgid "Select all"
 msgstr "اختيار الكل"
 
-#: packages/admin/src/components/ContentList.tsx:567
+#: packages/admin/src/components/ContentList.tsx:586
 msgid "Select all on this page"
 msgstr ""
 
 #. placeholder {0}: comment.authorName
-#: packages/admin/src/components/comments/CommentInbox.tsx:457
+#: packages/admin/src/components/comments/CommentInbox.tsx:448
 msgid "Select comment by {0}"
 msgstr "اختيار تعليق {0}"
 
@@ -7657,7 +7817,7 @@ msgstr "اختر صورة التواصل الاجتماعي الافتراضية
 msgid "Select Favicon"
 msgstr "اختيار أيقونة المتصفح"
 
-#: packages/admin/src/components/ContentEditor.tsx:1793
+#: packages/admin/src/components/ContentEditor.tsx:1809
 msgid "Select file"
 msgstr "اختر ملفًا"
 
@@ -7665,7 +7825,7 @@ msgstr "اختر ملفًا"
 msgid "Select File"
 msgstr "اختر ملفًا"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3461
+#: packages/admin/src/components/PortableTextEditor.tsx:3465
 msgid "Select Gallery Images"
 msgstr ""
 
@@ -7674,7 +7834,7 @@ msgid "Select image"
 msgstr "اختيار صورة"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:151
-#: packages/admin/src/components/PortableTextEditor.tsx:3447
+#: packages/admin/src/components/PortableTextEditor.tsx:3451
 #: packages/admin/src/components/settings/SeoSettings.tsx:223
 msgid "Select Image"
 msgstr "اختيار صورة"
@@ -7701,12 +7861,12 @@ msgid "Select which content types to import."
 msgstr "اختر أنواع المحتوى المراد استيرادها."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:2434
+#: packages/admin/src/components/PortableTextEditor.tsx:2438
 #: packages/admin/src/components/RepeaterField.tsx:372
 msgid "Select..."
 msgstr "اختيار..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1763
+#: packages/admin/src/components/PortableTextEditor.tsx:1767
 msgid "Selected {selectedItemTitle}"
 msgstr ""
 
@@ -7761,8 +7921,8 @@ msgstr "إرسال بريد إلكتروني تجريبي"
 msgid "Sending..."
 msgstr "جاري الإرسال..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:728
-#: packages/admin/src/components/ContentSettingsPanel.tsx:731
+#: packages/admin/src/components/ContentSettingsPanel.tsx:753
+#: packages/admin/src/components/ContentSettingsPanel.tsx:756
 #: packages/admin/src/components/ContentTypeEditor.tsx:487
 #: packages/admin/src/components/Settings.tsx:64
 msgid "SEO"
@@ -7790,20 +7950,23 @@ msgstr "عنوان تحسين محركات البحث"
 msgid "Set a custom display size for this image instance."
 msgstr "عيّن حجم عرض مخصص لنسخة هذه الصورة."
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:146
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:150
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:239
 msgid "Set language"
 msgstr "تعيين اللغة"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:147
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:236
 msgid "Set language (current: {label})"
 msgstr "تعيين اللغة (الحالية: {label})"
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:868
+msgid "Set role"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:544
 msgid "Set to 0 to never close comments automatically."
 msgstr "اضبط على 0 لتجنب الإغلاق التلقائي للتعليقات."
 
-#: packages/admin/src/components/ContentList.tsx:495
+#: packages/admin/src/components/ContentList.tsx:514
 msgid "Set to draft"
 msgstr ""
 
@@ -7825,8 +7988,8 @@ msgid "Setting up..."
 msgstr "جاري الإعداد..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:234
-#: packages/admin/src/components/ContentEditor.tsx:850
-#: packages/admin/src/components/ContentEditor.tsx:1128
+#: packages/admin/src/components/ContentEditor.tsx:860
+#: packages/admin/src/components/ContentEditor.tsx:1144
 #: packages/admin/src/components/ContentTypeEditor.tsx:382
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:478
@@ -7900,8 +8063,12 @@ msgid "Show token"
 msgstr "عرض الرمز"
 
 #. placeholder {0}: totalCount ?? 0
-#: packages/admin/src/components/MediaLibrary.tsx:1329
+#: packages/admin/src/components/MediaLibrary.tsx:1323
 msgid "Showing {pageShowingRange} of {0}"
+msgstr ""
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:678
+msgid "Shown to readers in this order."
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:365
@@ -8003,11 +8170,11 @@ msgstr "رابط الموقع"
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1215
+#: packages/admin/src/components/MediaLibrary.tsx:1209
 msgid "Size"
 msgstr "الحجم"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1545
+#: packages/admin/src/components/MediaLibrary.tsx:1539
 msgid "Size is not applicable to folders"
 msgstr ""
 
@@ -8024,9 +8191,7 @@ msgid "Skipped"
 msgstr "تم التخطي"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:239
-#: packages/admin/src/components/ContentSettingsPanel.tsx:491
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1112
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1174
+#: packages/admin/src/components/ContentSettingsPanel.tsx:490
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
 #: packages/admin/src/components/ContentTypeEditor.tsx:403
 #: packages/admin/src/components/ContentTypeList.tsx:181
@@ -8048,15 +8213,15 @@ msgstr "تم نسخ جزء الرابط إلى الحافظة"
 msgid "Slugs cannot be changed after the field is created."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1415
+#: packages/admin/src/components/PortableTextEditor.tsx:1419
 msgid "Small section heading"
 msgstr "عنوان قسم صغير"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1425
+#: packages/admin/src/components/PortableTextEditor.tsx:1429
 msgid "Smaller section heading"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1445
+#: packages/admin/src/components/PortableTextEditor.tsx:1449
 msgid "Smallest section heading"
 msgstr ""
 
@@ -8118,12 +8283,12 @@ msgid "spam"
 msgstr "غير مرغوب فيه"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:159
-#: packages/admin/src/components/comments/CommentInbox.tsx:208
-#: packages/admin/src/components/comments/CommentInbox.tsx:248
+#: packages/admin/src/components/comments/CommentInbox.tsx:181
+#: packages/admin/src/components/comments/CommentInbox.tsx:239
 msgid "Spam"
 msgstr "غير مرغوب فيه"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4275
+#: packages/admin/src/components/PortableTextEditor.tsx:4279
 msgid "Spotlight Mode"
 msgstr "وضع التسليط"
 
@@ -8143,20 +8308,20 @@ msgstr ""
 msgid "Start Import"
 msgstr "بدء الاستيراد"
 
-#: packages/admin/src/components/ContentEditor.tsx:1297
-#: packages/admin/src/components/PortableTextEditor.tsx:2593
-#: packages/admin/src/components/PortableTextEditor.tsx:2594
+#: packages/admin/src/components/ContentEditor.tsx:1313
+#: packages/admin/src/components/PortableTextEditor.tsx:2597
+#: packages/admin/src/components/PortableTextEditor.tsx:2598
 msgid "Start writing, or type '/' for commands"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:592
-#: packages/admin/src/components/ContentSettingsPanel.tsx:526
+#: packages/admin/src/components/ContentList.tsx:611
+#: packages/admin/src/components/ContentSettingsPanel.tsx:525
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
 #: packages/admin/src/components/Redirects.tsx:480
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:615
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:641
-#: packages/admin/src/components/users/UserList.tsx:104
+#: packages/admin/src/components/users/UserList.tsx:97
 msgid "Status"
 msgstr "الحالة"
 
@@ -8180,8 +8345,8 @@ msgstr ""
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3653
-#: packages/admin/src/components/PortableTextEditor.tsx:4058
+#: packages/admin/src/components/PortableTextEditor.tsx:3657
+#: packages/admin/src/components/PortableTextEditor.tsx:4062
 msgid "Strikethrough"
 msgstr "يتوسطه خط"
 
@@ -8202,11 +8367,11 @@ msgstr "الحقول الفرعية"
 msgid "Subscriber"
 msgstr "مشترك"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3660
+#: packages/admin/src/components/PortableTextEditor.tsx:3664
 msgid "Subscript"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3667
+#: packages/admin/src/components/PortableTextEditor.tsx:3671
 msgid "Superscript"
 msgstr ""
 
@@ -8238,11 +8403,11 @@ msgstr "النظام ({resolvedLabel})"
 msgid "System Fields"
 msgstr "حقول النظام"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1512
+#: packages/admin/src/components/PortableTextEditor.tsx:1516
 msgid "Table"
 msgstr "جدول"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3742
+#: packages/admin/src/components/PortableTextEditor.tsx:3746
 msgid "Table controls"
 msgstr ""
 
@@ -8270,7 +8435,7 @@ msgstr "الهدف"
 msgid "Target locale"
 msgstr "اللغة المستهدفة"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:715
+#: packages/admin/src/components/ContentSettingsPanel.tsx:740
 #: packages/admin/src/components/TaxonomySidebar.tsx:683
 msgid "Taxonomies"
 msgstr "التصنيفات"
@@ -8315,7 +8480,7 @@ msgstr "تم حذف المصطلح"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4009
+#: packages/admin/src/components/PortableTextEditor.tsx:4013
 msgid "Text formatting"
 msgstr "تنسيق النص"
 
@@ -8422,7 +8587,7 @@ msgstr ""
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "هذه المجموعة مُعرَّفة في الكود. لا يمكن تغيير بعض الإعدادات هنا. عدّل ملف live.config.ts لتغيير المخطط."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3344
+#: packages/admin/src/components/PortableTextEditor.tsx:3348
 msgid "This content cannot be edited safely"
 msgstr ""
 
@@ -8430,7 +8595,7 @@ msgstr ""
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3346
+#: packages/admin/src/components/PortableTextEditor.tsx:3350
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr ""
 
@@ -8438,12 +8603,12 @@ msgstr ""
 msgid "This field does not accept {sniffedMime} files."
 msgstr "هذا الحقل لا يقبل ملفات {sniffedMime}."
 
-#: packages/admin/src/components/ContentEditor.tsx:1808
+#: packages/admin/src/components/ContentEditor.tsx:1824
 #: packages/admin/src/components/ImageFieldRenderer.tsx:284
 msgid "This field is required"
 msgstr "هذا الحقل مطلوب"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1101
+#: packages/admin/src/components/MediaLibrary.tsx:1095
 msgid "This folder is empty"
 msgstr ""
 
@@ -8501,7 +8666,7 @@ msgid "This removes the byline profile. Content byline links are removed and lea
 msgstr "سيُزال ملف الكاتب. ستُحذف روابط الكُتّاب في المحتوى وتُمسح مؤشرات القيادة."
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:3373
+#: packages/admin/src/components/PortableTextEditor.tsx:3377
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr ""
 
@@ -8525,7 +8690,7 @@ msgstr "سيُحذف هذا منطقة عناصر الواجهة وجميع عن
 msgid "This will grant CLI access with your permissions."
 msgstr "سيمنح هذا وصول CLI بنفس صلاحياتك."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:820
+#: packages/admin/src/components/ContentSettingsPanel.tsx:845
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "سيؤدي هذا إلى نقل العنصر إلى سلة المحذوفات. يمكنك استعادته لاحقًا من سلة المحذوفات."
 
@@ -8539,7 +8704,7 @@ msgstr "سيؤدي هذا إلى حذف \"{0}\" نهائيًا وإزالته م
 msgid "This will permanently delete \"{0}\". This action cannot be undone."
 msgstr "سيؤدي هذا إلى حذف \"{0}\" نهائيًا. لا يمكن التراجع عن هذا الإجراء."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:407
+#: packages/admin/src/components/comments/CommentInbox.tsx:398
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "سيؤدي هذا إلى حذف هذا التعليق نهائيًا. لا يمكن التراجع عن هذا الإجراء."
 
@@ -8547,7 +8712,7 @@ msgstr "سيؤدي هذا إلى حذف هذا التعليق نهائيًا. ل
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "سيؤدي هذا إلى إزالة الإضافة وحزمتها من موقعك."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:93
+#: packages/admin/src/components/ContentSettingsPanel.tsx:90
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "سيؤدي هذا إلى الرجوع إلى النسخة المنشورة. ستُفقد تغييرات المسودة."
 
@@ -8563,8 +8728,8 @@ msgstr "المنطقة الزمنية"
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "المنطقة الزمنية لعرض التواريخ (مثال: America/New_York)"
 
-#: packages/admin/src/components/ContentList.tsx:577
-#: packages/admin/src/components/ContentList.tsx:737
+#: packages/admin/src/components/ContentList.tsx:596
+#: packages/admin/src/components/ContentList.tsx:756
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:170
 #: packages/admin/src/components/Widgets.tsx:891
@@ -8580,23 +8745,15 @@ msgstr "العنوان (تلميح)"
 msgid "Title Separator"
 msgstr "فاصل العنوان"
 
-#: packages/admin/src/components/ContentList.tsx:933
-msgid "to"
-msgstr ""
-
 #: packages/admin/src/components/AdminCommandPalette.tsx:483
 msgid "to close"
 msgstr "للإغلاق"
-
-#: packages/admin/src/components/ContentList.tsx:937
-msgid "To date"
-msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:473
 msgid "to select"
 msgstr "للإختيار"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3787
+#: packages/admin/src/components/PortableTextEditor.tsx:3791
 msgid "Toggle header row"
 msgstr "تبديل صف الرأس"
 
@@ -8663,7 +8820,7 @@ msgstr "جارٍ الترجمة..."
 msgid "Translation created"
 msgstr "تم إنشاء الترجمة"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:693
+#: packages/admin/src/components/ContentSettingsPanel.tsx:718
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "الترجمات"
@@ -8673,18 +8830,18 @@ msgid "trash"
 msgstr "سلة المحذوفات"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:170
-#: packages/admin/src/components/comments/CommentInbox.tsx:217
-#: packages/admin/src/components/comments/CommentInbox.tsx:258
-#: packages/admin/src/components/comments/CommentInbox.tsx:514
-#: packages/admin/src/components/ContentList.tsx:441
+#: packages/admin/src/components/comments/CommentInbox.tsx:190
+#: packages/admin/src/components/comments/CommentInbox.tsx:249
+#: packages/admin/src/components/comments/CommentInbox.tsx:505
+#: packages/admin/src/components/ContentList.tsx:449
 msgid "Trash"
 msgstr "سلة المحذوفات"
 
-#: packages/admin/src/components/ContentList.tsx:760
+#: packages/admin/src/components/ContentList.tsx:779
 msgid "Trash is empty"
 msgstr "سلة المحذوفات فارغة"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:550
+#: packages/admin/src/components/comments/CommentInbox.tsx:541
 msgid "Trash is empty."
 msgstr "سلة المحذوفات فارغة."
 
@@ -8692,7 +8849,7 @@ msgstr "سلة المحذوفات فارغة."
 msgid "True/false toggle"
 msgstr "زر صح/خطأ"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1090
+#: packages/admin/src/components/MediaLibrary.tsx:1084
 msgid "Try a broader media type or clear your filters."
 msgstr ""
 
@@ -8730,11 +8887,11 @@ msgstr ""
 msgid "Try another code"
 msgstr "جرّب رمزًا آخر"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1126
+#: packages/admin/src/components/MediaLibrary.tsx:1120
 msgid "Try another filename or clear your search."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1089
+#: packages/admin/src/components/MediaLibrary.tsx:1083
 msgid "Try another filename, or clear your search and filters."
 msgstr ""
 
@@ -8774,7 +8931,7 @@ msgstr "تويتر"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:260
 #: packages/admin/src/components/FieldEditor.tsx:600
-#: packages/admin/src/components/MediaLibrary.tsx:1214
+#: packages/admin/src/components/MediaLibrary.tsx:1208
 #: packages/admin/src/routes/byline-schema.tsx:240
 msgid "Type"
 msgstr "النوع"
@@ -8784,7 +8941,7 @@ msgstr "النوع"
 msgid "Type mismatch ({0})"
 msgstr "عدم تطابق النوع ({0})"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1541
+#: packages/admin/src/components/MediaLibrary.tsx:1535
 msgid "Type: Folder"
 msgstr ""
 
@@ -8797,17 +8954,17 @@ msgstr ""
 msgid "Unable to reach marketplace"
 msgstr "تعذّر الوصول إلى السوق"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1217
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1234
+#: packages/admin/src/components/ContentSettingsPanel.tsx:881
+#: packages/admin/src/components/ContentSettingsPanel.tsx:898
 msgid "Unassigned"
 msgstr "لم يتم التعيين"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3646
-#: packages/admin/src/components/PortableTextEditor.tsx:4051
+#: packages/admin/src/components/PortableTextEditor.tsx:3650
+#: packages/admin/src/components/PortableTextEditor.tsx:4055
 msgid "Underline"
 msgstr "تسطير"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4255
+#: packages/admin/src/components/PortableTextEditor.tsx:4259
 msgid "Undo"
 msgstr "تراجع"
 
@@ -8859,7 +9016,7 @@ msgstr "إلغاء تثبيت نسبة العرض إلى الارتفاع"
 msgid "Unnamed passkey"
 msgstr "مفتاح مرور بدون اسم"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:211
+#: packages/admin/src/components/ContentSettingsPanel.tsx:208
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
@@ -8875,7 +9032,7 @@ msgstr "تم العثور على جداول محتوى غير مسجلة"
 msgid "Unresolved assignment"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:556
+#: packages/admin/src/components/ContentSettingsPanel.tsx:555
 msgid "Unschedule"
 msgstr "إلغاء الجدولة"
 
@@ -8888,12 +9045,17 @@ msgstr "غير مجدول"
 msgid "Unsupported widget element type: {0}"
 msgstr "نوع عنصر واجهة غير مدعوم: {0}"
 
+#. placeholder {0}: formatter.format(to)
+#: packages/admin/src/components/ContentList.tsx:982
+msgid "Until {0}"
+msgstr ""
+
 #: packages/admin/src/components/Dashboard.tsx:368
 #: packages/admin/src/components/MediaUsedIn.tsx:246
 msgid "Untitled"
 msgstr "بدون عنوان"
 
-#: packages/admin/src/components/ContentEditor.tsx:1711
+#: packages/admin/src/components/ContentEditor.tsx:1727
 msgid "Untitled file"
 msgstr "ملف بلا عنوان"
 
@@ -8902,11 +9064,7 @@ msgstr "ملف بلا عنوان"
 msgid "Untitled Widget"
 msgstr "عنصر واجهة بلا عنوان"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1044
-msgid "Up"
-msgstr "أعلى"
-
-#: packages/admin/src/components/BylineFilter.tsx:164
+#: packages/admin/src/components/BylineFilter.tsx:175
 msgid "Up to {MAX_SELECTED} bylines can be selected"
 msgstr ""
 
@@ -8918,7 +9076,7 @@ msgstr "تحديث"
 msgid "Update Field"
 msgstr "تحديث الحقل"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:630
+#: packages/admin/src/components/ContentSettingsPanel.tsx:629
 msgid "Update publish date"
 msgstr ""
 
@@ -8945,8 +9103,8 @@ msgstr "تحديث قاعدة التحويل هذه."
 msgid "Update to v{0}"
 msgstr "التحديث إلى الإصدار {0}"
 
-#: packages/admin/src/components/ContentList.tsx:842
-#: packages/admin/src/components/ContentSettingsPanel.tsx:646
+#: packages/admin/src/components/ContentList.tsx:861
+#: packages/admin/src/components/ContentSettingsPanel.tsx:645
 #: packages/admin/src/components/RegistryPluginDetail.tsx:538
 msgid "Updated"
 msgstr ""
@@ -9016,8 +9174,8 @@ msgid "Upload File"
 msgstr "رفع ملف"
 
 #: packages/admin/src/components/MediaLibrary.tsx:761
-#: packages/admin/src/components/MediaLibrary.tsx:1116
-#: packages/admin/src/components/MediaLibrary.tsx:1140
+#: packages/admin/src/components/MediaLibrary.tsx:1110
+#: packages/admin/src/components/MediaLibrary.tsx:1134
 msgid "Upload Files"
 msgstr "رفع ملفات"
 
@@ -9025,7 +9183,7 @@ msgstr "رفع ملفات"
 msgid "Upload Image"
 msgstr "رفع صورة"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1113
+#: packages/admin/src/components/MediaLibrary.tsx:1107
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr ""
 
@@ -9033,7 +9191,7 @@ msgstr ""
 msgid "Upload Media"
 msgstr "رفع وسائط"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1137
+#: packages/admin/src/components/MediaLibrary.tsx:1131
 msgid "Upload media to keep reusable assets in one place."
 msgstr ""
 
@@ -9068,15 +9226,19 @@ msgstr "جاري الرفع..."
 #: packages/admin/src/components/FieldEditor.tsx:615
 #: packages/admin/src/components/MenuEditor.tsx:418
 #: packages/admin/src/components/MenuEditor.tsx:596
-#: packages/admin/src/components/PortableTextEditor.tsx:3600
-#: packages/admin/src/components/PortableTextEditor.tsx:4200
-#: packages/admin/src/components/PortableTextEditor.tsx:4210
+#: packages/admin/src/components/PortableTextEditor.tsx:3604
+#: packages/admin/src/components/PortableTextEditor.tsx:4204
+#: packages/admin/src/components/PortableTextEditor.tsx:4214
 msgid "URL"
 msgstr "الرابط"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:438
 msgid "URL Pattern"
 msgstr "نمط الرابط"
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:996
+msgid "URL slug"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:113
 #: packages/admin/src/components/FieldEditor.tsx:258
@@ -9127,6 +9289,14 @@ msgstr ""
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "استخدم [param] أو [...rest] في الروابط النسبية لمطابقة الأنماط."
 
+#: packages/admin/src/components/ContentList.tsx:1056
+msgid "Use as end date"
+msgstr ""
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:314
+msgid "Use lowercase letters, numbers, and hyphens, starting with a letter."
+msgstr ""
+
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:356
 msgid "Use your device's biometric authentication, security key, or PIN to sign in."
 msgstr "استخدم المصادقة الحيوية لجهازك أو مفتاح الأمان أو رمز PIN لتسجيل الدخول."
@@ -9143,7 +9313,7 @@ msgstr "تُستخدم صورةً احتياطية لـ Open Graph حين لا �
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "يُستخدم كمعرف. أحرف صغيرة وأرقام وشرطات سفلية فقط."
 
-#: packages/admin/src/components/ContentEditor.tsx:1400
+#: packages/admin/src/components/ContentEditor.tsx:1416
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "يُستخدم كالصورة الرئيسية لهذا المنشور في صفحات القائمة وأعلى المنشور"
 
@@ -9167,7 +9337,7 @@ msgstr "يُستخدم لتحديد هوية هذا القسم. أحرف صغي�
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:223
 #: packages/admin/src/components/Header.tsx:43
 #: packages/admin/src/components/Header.tsx:83
-#: packages/admin/src/components/users/UserList.tsx:98
+#: packages/admin/src/components/users/UserList.tsx:91
 msgid "User"
 msgstr "المستخدم"
 
@@ -9186,7 +9356,7 @@ msgstr "لم يتم العثور على المستخدم"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:210
 #: packages/admin/src/components/Sidebar.tsx:296
-#: packages/admin/src/components/users/UserList.tsx:54
+#: packages/admin/src/components/users/UserList.tsx:55
 msgid "Users"
 msgstr "المستخدمين"
 
@@ -9232,7 +9402,7 @@ msgid "Version {0}"
 msgstr "الإصدار {0}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:70
-#: packages/admin/src/components/MediaLibrary.tsx:964
+#: packages/admin/src/components/MediaLibrary.tsx:990
 msgid "Video"
 msgstr "فيديو"
 
@@ -9245,11 +9415,11 @@ msgstr "عرض حالة مزود البريد الإلكتروني وإرسال 
 msgid "View in Marketplace"
 msgstr "عرض في السوق"
 
-#: packages/admin/src/components/MediaLibrary.tsx:973
+#: packages/admin/src/components/MediaLibrary.tsx:937
 msgid "View mode"
 msgstr "وضع العرض"
 
-#: packages/admin/src/components/ContentList.tsx:1208
+#: packages/admin/src/components/ContentList.tsx:1320
 msgid "View published {title}"
 msgstr "عرض {title} المنشور"
 
@@ -9361,11 +9531,15 @@ msgstr "أنواع المحتوى التي يمكنها استخدام هذا ا
 msgid "Whole number"
 msgstr "عدد صحيح"
 
+#: packages/admin/src/components/ContentSettingsPanel.tsx:691
+msgid "Why are bylines shown in this order?"
+msgstr ""
+
 #: packages/admin/src/components/MediaDetailPanel.tsx:209
 msgid "Why can't this be changed?"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:517
+#: packages/admin/src/components/ContentSettingsPanel.tsx:516
 msgid "Why English is used"
 msgstr ""
 
@@ -9459,7 +9633,7 @@ msgstr ""
 msgid "WordPress Username"
 msgstr "اسم مستخدم WordPress"
 
-#: packages/admin/src/components/ContentList.tsx:473
+#: packages/admin/src/components/ContentList.tsx:492
 msgid "Working on {selectedCount} items…"
 msgstr ""
 
@@ -9487,7 +9661,7 @@ msgstr ""
 msgid "Yearly"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1283
+#: packages/admin/src/components/ContentList.tsx:1395
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:420
 #: packages/admin/src/routes/byline-schema.tsx:422
@@ -9619,8 +9793,8 @@ msgstr "اسم مستخدم Instagram الخاص بك"
 msgid "Your LinkedIn profile username"
 msgstr "اسم مستخدم ملف LinkedIn الشخصي"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1112
-#: packages/admin/src/components/MediaLibrary.tsx:1136
+#: packages/admin/src/components/MediaLibrary.tsx:1106
+#: packages/admin/src/components/MediaLibrary.tsx:1130
 msgid "Your media library is empty"
 msgstr ""
 
@@ -9662,3 +9836,7 @@ msgstr "معرف قناة YouTube أو المعرّف الخاص بك"
 #: packages/admin/src/components/settings/SocialSettings.tsx:179
 msgid "YouTube"
 msgstr "يوتيوب"
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:60
+msgid "Zig"
+msgstr ""

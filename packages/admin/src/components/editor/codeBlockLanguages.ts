@@ -6,9 +6,8 @@
  * is the canonical identifier persisted in the Portable Text `language`
  * field and emitted as a `language-{id}` CSS class on the frontend.
  *
- * Aliases let common variants ("typescript", "ts") resolve to the same id.
- * Frontend highlighters (shipped in a follow-up PR) will use this map to
- * normalize unknown inputs.
+ * Aliases let common variants ("typescript", "ts") resolve to the same stored
+ * id. Editor highlighters leave unsupported stored ids as plain text.
  */
 
 import type { MessageDescriptor } from "@lingui/core";
@@ -41,6 +40,7 @@ export const CODE_BLOCK_LANGUAGES: readonly CodeBlockLanguage[] = [
 	{ id: "json", label: msg`JSON` },
 	{ id: "jsx", label: msg`JSX` },
 	{ id: "kotlin", label: msg`Kotlin`, aliases: ["kt"] },
+	{ id: "lua", label: msg`Lua` },
 	{ id: "markdown", label: msg`Markdown`, aliases: ["md"] },
 	{ id: "mdx", label: msg`MDX` },
 	{ id: "php", label: msg`PHP` },
@@ -57,6 +57,7 @@ export const CODE_BLOCK_LANGUAGES: readonly CodeBlockLanguage[] = [
 	{ id: "vue", label: msg`Vue` },
 	{ id: "xml", label: msg`XML` },
 	{ id: "yaml", label: msg`YAML`, aliases: ["yml"] },
+	{ id: "zig", label: msg`Zig` },
 ];
 
 /**

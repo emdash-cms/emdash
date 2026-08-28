@@ -3,7 +3,6 @@ import {
 	Breadcrumbs,
 	Button,
 	Grid,
-	Input,
 	LayerCard,
 	Loader,
 	Pagination,
@@ -80,6 +79,7 @@ import { MediaDetailPanel } from "./MediaDetailPanel";
 import { MediaFolderDialog } from "./MediaFolderDialog.js";
 import { LOCAL_MEDIA_UPLOAD_ACCEPT, MediaUploadDialog } from "./MediaUploadDialog.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
 
 /** Maps a coarse type-filter choice to the media list's `mimeType` filter. */
 function mimeForTypeFilter(value: string): string | string[] | undefined {
@@ -931,45 +931,9 @@ export function MediaLibrary({
 			{/* Toolbar: search + type filter (start) · view toggle (end).
 			    Local library search/filter is handled server-side. */}
 			{showToolbar && (
-				<div className="flex min-w-0 items-center gap-2 sm:flex-wrap sm:gap-3 sm:justify-between">
-					<div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none sm:gap-3">
-						{(canSearch || activeProvider === "local") && (
-							<div className="relative min-w-0 flex-1 sm:w-72 sm:flex-none">
-								<MagnifyingGlass
-									className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle"
-									aria-hidden="true"
-								/>
-								<Input
-									type="search"
-									placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
-									aria-label={t`Search media`}
-									value={searchQuery}
-									onChange={handleSearchChange}
-									maxLength={MEDIA_SEARCH_MAX_LENGTH}
-									className="w-full ps-9"
-								/>
-							</div>
-						)}
-						{activeProvider === "local" && (
-							<Select
-								value={localTypeFilter}
-								onValueChange={(v) => {
-									const next = v ?? "all";
-									setLocalTypeFilter(next);
-									onLocalMimeFilterChange?.(mimeForTypeFilter(next));
-								}}
-								items={{
-									all: t`All types`,
-									image: t`Images`,
-									video: t`Video`,
-									audio: t`Audio`,
-									document: t`Documents`,
-								}}
-								aria-label={t`Filter by type`}
-							/>
-						)}
-					</div>
-					<div className="flex flex-shrink-0 items-center justify-end">
+				<TableToolbar
+					className="flex-row flex-nowrap gap-2"
+					trailing={
 						<div role="group" aria-label={t`View mode`}>
 							<Tabs
 								variant="segmented"
@@ -999,8 +963,38 @@ export function MediaLibrary({
 								]}
 							/>
 						</div>
-					</div>
-				</div>
+					}
+				>
+					{(canSearch || activeProvider === "local") && (
+						<TableToolbarSearch
+							placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
+							aria-label={t`Search media`}
+							value={searchQuery}
+							onChange={handleSearchChange}
+							maxLength={MEDIA_SEARCH_MAX_LENGTH}
+							className="w-auto flex-1 sm:w-72"
+						/>
+					)}
+					{activeProvider === "local" && (
+						<Select
+							size="sm"
+							value={localTypeFilter}
+							onValueChange={(v) => {
+								const next = v ?? "all";
+								setLocalTypeFilter(next);
+								onLocalMimeFilterChange?.(mimeForTypeFilter(next));
+							}}
+							items={{
+								all: t`All types`,
+								image: t`Images`,
+								video: t`Video`,
+								audio: t`Audio`,
+								document: t`Documents`,
+							}}
+							aria-label={t`Filter by type`}
+						/>
+					)}
+				</TableToolbar>
 			)}
 
 			{activeProvider === "local" && (
