@@ -1,15 +1,14 @@
 import { readFile, realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 
-import { safeParse } from "@atcute/lexicons";
 import { isDid } from "@atcute/lexicons/syntax";
 import {
 	ReleaseServiceClient,
 	ReleaseServiceError,
 	createReleaseIdempotencyKey,
+	parseDelegatedReleaseSourceRecord,
 	type ReleaseIntentResource,
 } from "@emdash-cms/registry-client/release-service";
-import { PackageRelease } from "@emdash-cms/registry-lexicons";
 
 import type { ActionRuntime } from "./runtime.js";
 
@@ -105,8 +104,8 @@ export async function runAction(
 		releaseFile,
 		workspace,
 	);
-	const release = safeParse(PackageRelease.mainSchema, rawRelease);
-	if (!release.ok) throw new ActionConfigurationError("Release record file is invalid");
+	const release = parseDelegatedReleaseSourceRecord(rawRelease);
+	if (!release) throw new ActionConfigurationError("Release record file is invalid");
 
 	const configuredIdempotencyKey = runtime.getInput("idempotency-key");
 	const idempotencyKey = configuredIdempotencyKey || defaultIdempotencyKey(runtime);
@@ -136,9 +135,9 @@ export async function runAction(
 	const submitted = await client.submitIntent(
 		{
 			publisherDid,
-			packageSlug: release.value.package,
-			version: release.value.version,
-			release: release.value,
+			packageSlug: release.package,
+			version: release.version,
+			release,
 		},
 		{ idempotencyKey },
 	);

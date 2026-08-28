@@ -66,7 +66,7 @@ const RELEASE_INPUT = {
 				declaredAccess: {},
 				provenance: {
 					url: "https://example.com/provenance.json",
-					checksum: "bciqkkpvkbtfcwq6kjkbq3kgjxe5j6ihzkxlfxkzqhwzaaaa3wkbq3a",
+					checksum: "bciqaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 					predicateType: "https://slsa.dev/provenance/v1",
 					sourceRepository: "https://github.com/emdash-cms/gallery",
 					builderId:
@@ -96,11 +96,11 @@ const EVIDENCE: ApprovalEvidence = {
 	version: "1.2.3",
 	verificationGeneration: 4,
 	workloadIdentityDigest: "7u8b16-443AUWBwwI1uVQmsjeU_KTHiyKxjy4z04FlA",
-	releaseInputDigest: "ruIEXbYx2xHDU5T3qV28JL__twNtEss9qavvkvEfMiY",
+	releaseInputDigest: "9bHOUQ7KoEcAlBHom7rb9MHmVn1b32woiveMIxZk-Hg",
 	profileCid: PROFILE_CID,
 	baselineReleaseCid: null,
 	artifactChecksum: "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja",
-	provenanceChecksum: "bciqkkpvkbtfcwq6kjkbq3kgjxe5j6ihzkxlfxkzqhwzaaaa3wkbq3a",
+	provenanceChecksum: "bciqaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 	declaredAccessDiffDigest: "LBGKX2dDy6Ht_ClZjUrp5tfSzuPg_Zw-sEykbB1biYc",
 	verificationDigest: "D".repeat(43),
 };

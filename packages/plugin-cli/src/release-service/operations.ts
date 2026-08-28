@@ -1,12 +1,11 @@
 import { readFile, stat } from "node:fs/promises";
 
-import { safeParse } from "@atcute/lexicons";
 import {
 	ReleaseServiceClient,
 	createReleaseIdempotencyKey,
+	parseDelegatedReleaseSourceRecord,
 	type ReleaseIntentResource,
 } from "@emdash-cms/registry-client/release-service";
-import { PackageRelease } from "@emdash-cms/registry-lexicons";
 
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
 const MAX_RELEASE_FILE_BYTES = 128 * 1024;
@@ -125,16 +124,16 @@ export async function submitDelegatedRelease(
 	const rawRelease = await (dependencies.readReleaseRecord ?? defaultReadReleaseRecord)(
 		options.releaseFile,
 	);
-	const release = safeParse(PackageRelease.mainSchema, rawRelease);
-	if (!release.ok) throw new Error("Release record file is invalid");
+	const release = parseDelegatedReleaseSourceRecord(rawRelease);
+	if (!release) throw new Error("Release record file is invalid");
 	const environment = dependencies.environment ?? process.env;
 	const client = releaseClient(options, dependencies);
 	const submitted = await client.submitIntent(
 		{
 			publisherDid: options.publisherDid,
-			packageSlug: release.value.package,
-			version: release.value.version,
-			release: release.value,
+			packageSlug: release.package,
+			version: release.version,
+			release,
 		},
 		{ idempotencyKey: options.idempotencyKey ?? defaultIdempotencyKey(environment) },
 	);

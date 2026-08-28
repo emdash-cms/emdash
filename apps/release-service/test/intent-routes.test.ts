@@ -1,5 +1,5 @@
-import type { PackageRelease } from "@emdash-cms/registry-lexicons";
-import { reset } from "cloudflare:test";
+import { NSID, type PackageRelease } from "@emdash-cms/registry-lexicons";
+import { reset, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWTVerifyGetKey } from "jose";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -21,6 +21,7 @@ const NOW = 1_800_000_000_000;
 const KEY_ID = "github-actions-route-test";
 const SHA = "a".repeat(40);
 const WORKFLOW_SHA = "b".repeat(40);
+const CHECKSUM = "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja";
 
 let privateKey: CryptoKey;
 let keyResolver: JWTVerifyGetKey;
@@ -72,7 +73,23 @@ async function token(overrides: Record<string, unknown> = {}): Promise<string> {
 }
 
 function release(): PackageRelease.Main {
-	return structuredClone(releaseFixture) as PackageRelease.Main;
+	const value = structuredClone(releaseFixture) as PackageRelease.Main;
+	value.artifacts.package.checksum = CHECKSUM;
+	value.extensions = {
+		[NSID.packageReleaseExtension]: {
+			$type: NSID.packageReleaseExtension,
+			declaredAccess: {},
+			provenance: {
+				url: "https://example.com/provenance.json",
+				checksum: CHECKSUM,
+				predicateType: "https://slsa.dev/provenance/v1",
+				sourceRepository: "https://github.com/example/gallery",
+				builderId:
+					"https://github.com/example/gallery/.github/workflows/release.yml@refs/heads/main",
+			},
+		},
+	};
+	return value;
 }
 
 function request(
@@ -120,6 +137,55 @@ afterEach(async () => {
 });
 
 describe("release intent API", () => {
+	it("rejects invalid source records before reserving or starting a Workflow", async () => {
+		const invalidRelease = release();
+		Object.assign(invalidRelease.artifacts.package, {
+			blob: {
+				$type: "blob",
+				ref: { $link: "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe" },
+				mimeType: "application/gzip",
+				size: 128,
+			},
+		});
+		let workflowStarted = false;
+		const response = await handleSubmitReleaseIntent(
+			request("/v1/release-intents", await token(), {
+				method: "POST",
+				body: {
+					publisherDid: PUBLISHER_DID,
+					packageSlug: "gallery",
+					version: "1.2.3",
+					release: invalidRelease,
+				},
+				idempotencyKey: "github-run-100-attempt-1",
+			}),
+			"request-invalid-source",
+			await loadConfiguration(TEST_BINDINGS),
+			{
+				...submitDependencies,
+				startWorkflow: async () => {
+					workflowStarted = true;
+					return { ok: true, workflowId: INTENT_ID, created: true };
+				},
+			},
+		);
+
+		expect(response.status).toBe(400);
+		expect(await response.json()).toMatchObject({ error: { code: "INVALID_REQUEST" } });
+		expect(workflowStarted).toBe(false);
+		await expect(
+			runInDurableObject(env.PUBLISHER_DO.getByName(PUBLISHER_DID), (_instance, state) =>
+				state.storage.sql
+					.exec<{ intents: number; reservations: number }>(
+						`SELECT
+							(SELECT COUNT(*) FROM intents) AS intents,
+							(SELECT COUNT(*) FROM release_reservations) AS reservations`,
+					)
+					.one(),
+			),
+		).resolves.toEqual({ intents: 0, reservations: 0 });
+	});
+
 	it("submits asynchronously, replays with a fresh matching token, and never stores the token", async () => {
 		await putPolicy();
 		const configuration = await loadConfiguration(TEST_BINDINGS);

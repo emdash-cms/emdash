@@ -1,3 +1,4 @@
+import { NSID, type PackageRelease } from "@emdash-cms/registry-lexicons";
 import { describe, expect, it } from "vitest";
 
 import releaseFixture from "../../../packages/registry-verification/fixtures/records/release.json";
@@ -9,6 +10,27 @@ const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const CREATED_URI = `at://${PUBLISHER_DID}/com.emdashcms.experimental.package.release/gallery:1.2.3`;
 const CREATED_CID = "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixe";
+const CHECKSUM = "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja";
+
+function sourceRelease(): PackageRelease.Main {
+	const release = structuredClone(releaseFixture) as PackageRelease.Main;
+	release.artifacts.package.checksum = CHECKSUM;
+	release.extensions = {
+		[NSID.packageReleaseExtension]: {
+			$type: NSID.packageReleaseExtension,
+			declaredAccess: {},
+			provenance: {
+				url: "https://example.com/provenance.json",
+				checksum: CHECKSUM,
+				predicateType: "https://slsa.dev/provenance/v1",
+				sourceRepository: "https://github.com/example/gallery",
+				builderId:
+					"https://github.com/example/gallery/.github/workflows/release.yml@refs/heads/main",
+			},
+		},
+	};
+	return release;
+}
 
 class FakeRuntime implements ActionRuntime {
 	readonly inputs = new Map<string, string>([
@@ -90,7 +112,7 @@ function sequenceFetch(responses: Response[]): typeof fetch {
 }
 
 const dependencies = {
-	readReleaseRecord: async () => structuredClone(releaseFixture),
+	readReleaseRecord: async () => sourceRelease(),
 };
 
 describe("delegated release Action", () => {
@@ -176,6 +198,28 @@ describe("delegated release Action", () => {
 		const runtime = new FakeRuntime();
 		await executeAction(runtime, {
 			readReleaseRecord: async () => ({ package: "gallery" }),
+			fetch: async () => {
+				throw new Error("must not fetch");
+			},
+		});
+
+		expect(runtime.failures).toEqual(["Release record file is invalid"]);
+		expect(runtime.tokenCount).toBe(0);
+	});
+
+	it("rejects blob-bearing source input before requesting OIDC", async () => {
+		const runtime = new FakeRuntime();
+		const release = sourceRelease();
+		Object.assign(release.artifacts.package, {
+			blob: {
+				$type: "blob",
+				ref: { $link: "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe" },
+				mimeType: "application/gzip",
+				size: 128,
+			},
+		});
+		await executeAction(runtime, {
+			readReleaseRecord: async () => release,
 			fetch: async () => {
 				throw new Error("must not fetch");
 			},

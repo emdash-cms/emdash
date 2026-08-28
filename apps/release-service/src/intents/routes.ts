@@ -1,6 +1,5 @@
-import { safeParse } from "@atcute/lexicons";
 import { isDid } from "@atcute/lexicons/syntax";
-import { PackageRelease } from "@emdash-cms/registry-lexicons";
+import { parseDelegatedReleaseSourceRecord } from "@emdash-cms/registry-client/release-service";
 import { env } from "cloudflare:workers";
 import { base64url, type JWTVerifyGetKey } from "jose";
 import { ulid } from "ulidx";
@@ -262,12 +261,11 @@ export async function handleSubmitReleaseIntent(
 		) {
 			throw new ApiError("INVALID_REQUEST", 400, "Invalid release intent request");
 		}
-		const release = safeParse(PackageRelease.mainSchema, body["release"]);
-		if (
-			!release.ok ||
-			release.value.package !== body["packageSlug"] ||
-			release.value.version !== body["version"]
-		) {
+		const release = parseDelegatedReleaseSourceRecord(body["release"], {
+			packageSlug: body["packageSlug"],
+			version: body["version"],
+		});
+		if (!release) {
 			throw new ApiError("INVALID_REQUEST", 400, "Invalid release intent request");
 		}
 		const publisherDid = body["publisherDid"];
@@ -275,14 +273,14 @@ export async function handleSubmitReleaseIntent(
 		const workloadIdempotencyDigest = await digestWorkloadIdempotencyIdentity(
 			identity,
 			publisherDid,
-			release.value.package,
-			release.value.version,
+			release.package,
+			release.version,
 		);
-		const releaseInputJson = JSON.stringify({ release: release.value });
+		const releaseInputJson = JSON.stringify({ release });
 		if (releaseInputJson.length > MAX_RELEASE_INPUT_CHARS) {
 			throw new ApiError("INVALID_REQUEST", 413, "Release intent is too large");
 		}
-		const requestDigest = await digest(["release-intent", 1, publisherDid, release.value]);
+		const requestDigest = await digest(["release-intent", 1, publisherDid, release]);
 		const now = dependencies.now?.() ?? Date.now();
 		const replay = await publisher.findIdempotentIntent(
 			publisherDid,
@@ -324,7 +322,7 @@ export async function handleSubmitReleaseIntent(
 					: "Release admission is paused",
 			);
 		}
-		const policy = await publisher.getWorkloadPolicy(publisherDid, release.value.package);
+		const policy = await publisher.getWorkloadPolicy(publisherDid, release.package);
 		if (!policy || !evaluateWorkloadPolicy(identity, policy).ok) {
 			throw new ApiError("WORKLOAD_NOT_ALLOWED", 403, "Workload is not authorized");
 		}
@@ -332,8 +330,8 @@ export async function handleSubmitReleaseIntent(
 		const created = await publisher.createIntent({
 			publisherDid,
 			intentId: dependencies.intentId?.(now) ?? ulid(now),
-			packageSlug: release.value.package,
-			version: release.value.version,
+			packageSlug: release.package,
+			version: release.version,
 			workloadPolicyVersion: policy.stateVersion,
 			workloadIdentityDigest,
 			workloadIdempotencyDigest,

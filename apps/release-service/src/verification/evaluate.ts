@@ -1,5 +1,6 @@
 import { safeParse } from "@atcute/lexicons";
 import { diffDeclaredAccess, type AccessDiff, type DeclaredAccess } from "@emdash-cms/plugin-types";
+import { parseDelegatedReleaseSourceRecord } from "@emdash-cms/registry-client/release-service";
 import {
 	NSID,
 	PackageProfileExtension,
@@ -245,27 +246,25 @@ export function prepareVerifierInput(
 ): VerifyReleaseInput | null {
 	const payload = parseReleaseIntent(intent.releaseInputJson);
 	if (!payload) return null;
-	const release = safeParse(PackageRelease.mainSchema, payload.release);
+	const release = parseDelegatedReleaseSourceRecord(payload.release, {
+		packageSlug: intent.packageSlug,
+		version: intent.version,
+	});
 	const profileExtensionRaw = isRecord(snapshot.profile.value)
 		? isRecord(snapshot.profile.value["extensions"])
 			? snapshot.profile.value["extensions"][NSID.packageProfileExtension]
 			: undefined
 		: undefined;
 	const profileExtension = safeParse(PackageProfileExtension.mainSchema, profileExtensionRaw);
-	if (!release.ok || !profileExtension.ok || !isRecord(release.value.extensions)) return null;
-	const releaseExtension = safeParse(
-		PackageReleaseExtension.mainSchema,
-		release.value.extensions[NSID.packageReleaseExtension],
-	);
-	if (!releaseExtension.ok || !releaseExtension.value.provenance) return null;
+	if (!release || !profileExtension.ok) return null;
 	return {
 		artifact: {
-			url: release.value.artifacts.package.url,
-			checksum: release.value.artifacts.package.checksum,
+			url: release.artifacts.package.url,
+			checksum: release.artifacts.package.checksum,
 			packageSlug: intent.packageSlug,
 			version: intent.version,
 		},
-		provenance: releaseExtension.value.provenance,
+		provenance: release.extensions[NSID.packageReleaseExtension].provenance,
 		profileRepository: profileExtension.value.repository,
 	};
 }

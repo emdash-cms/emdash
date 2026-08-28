@@ -1,3 +1,4 @@
+import { NSID, type PackageRelease } from "@emdash-cms/registry-lexicons";
 import { describe, expect, it } from "vitest";
 
 import releaseFixture from "../../registry-verification/fixtures/records/release.json";
@@ -11,12 +12,33 @@ import {
 const SERVICE = "https://release.example.com";
 const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
+const CHECKSUM = "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja";
 const ENVIRONMENT = {
 	ACTIONS_ID_TOKEN_REQUEST_URL: "https://token.actions.example/id-token?api-version=1",
 	ACTIONS_ID_TOKEN_REQUEST_TOKEN: "runner-request-token",
 	GITHUB_RUN_ID: "10000000001",
 	GITHUB_RUN_ATTEMPT: "2",
 };
+
+function sourceRelease(): PackageRelease.Main {
+	const release = structuredClone(releaseFixture) as PackageRelease.Main;
+	release.artifacts.package.checksum = CHECKSUM;
+	release.extensions = {
+		[NSID.packageReleaseExtension]: {
+			$type: NSID.packageReleaseExtension,
+			declaredAccess: {},
+			provenance: {
+				url: "https://example.com/provenance.json",
+				checksum: CHECKSUM,
+				predicateType: "https://slsa.dev/provenance/v1",
+				sourceRepository: "https://github.com/example/gallery",
+				builderId:
+					"https://github.com/example/gallery/.github/workflows/release.yml@refs/heads/main",
+			},
+		},
+	};
+	return release;
+}
 
 function intent(state: string) {
 	return {
@@ -70,7 +92,7 @@ describe("delegated release CLI operations", () => {
 			},
 			{
 				environment: ENVIRONMENT,
-				readReleaseRecord: async () => structuredClone(releaseFixture),
+				readReleaseRecord: async () => sourceRelease(),
 				fetch: async (input, init) => {
 					const url = new URL(input instanceof Request ? input.url : input.toString());
 					if (url.hostname === "token.actions.example") {
@@ -131,6 +153,37 @@ describe("delegated release CLI operations", () => {
 				{
 					environment: ENVIRONMENT,
 					readReleaseRecord: async () => ({ package: "gallery" }),
+					fetch: async () => {
+						fetched = true;
+						throw new Error("unexpected fetch");
+					},
+				},
+			),
+		).rejects.toThrow("Release record file is invalid");
+		expect(fetched).toBe(false);
+	});
+
+	it("rejects a blob-bearing source record before requesting OIDC", async () => {
+		const release = sourceRelease();
+		Object.assign(release.artifacts.package, {
+			blob: {
+				$type: "blob",
+				ref: { $link: "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe" },
+				mimeType: "application/gzip",
+				size: 128,
+			},
+		});
+		let fetched = false;
+		await expect(
+			submitDelegatedRelease(
+				{
+					serviceUrl: SERVICE,
+					publisherDid: PUBLISHER_DID,
+					releaseFile: "release.json",
+				},
+				{
+					environment: ENVIRONMENT,
+					readReleaseRecord: async () => release,
 					fetch: async () => {
 						fetched = true;
 						throw new Error("unexpected fetch");
