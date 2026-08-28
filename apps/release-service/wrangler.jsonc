@@ -43,6 +43,12 @@
 			"service": "emdash-release-verifier",
 		},
 	],
+	"r2_buckets": [
+		{
+			"binding": "PUBLICATION_STAGING",
+			"bucket_name": "emdash-release-service-publication-staging",
+		},
+	],
 	"workflows": [
 		{
 			"binding": "RELEASE_INTENT_WORKFLOW",

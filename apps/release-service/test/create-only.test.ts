@@ -4,7 +4,7 @@ import { NSID } from "@emdash-cms/registry-lexicons";
 import { describe, expect, it, vi } from "vitest";
 
 import releaseFixture from "../../../packages/registry-verification/fixtures/records/release.json";
-import { createReleaseRecord } from "../src/publishing/create-only.js";
+import { createReleaseRecord, uploadReleaseBlob } from "../src/publishing/create-only.js";
 
 describe("create-only release client", () => {
 	it("calls only createRecord with validation enabled", async () => {
@@ -34,5 +34,25 @@ describe("create-only release client", () => {
 			rkey: "gallery:1.2.3",
 			validate: true,
 		});
+	});
+
+	it("uploads blob bytes with their verified content type", async () => {
+		const bytes = new Uint8Array([0x1f, 0x8b, 0x08]);
+		const blob = {
+			$type: "blob" as const,
+			ref: { $link: "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q" },
+			mimeType: "application/gzip",
+			size: bytes.byteLength,
+		};
+		const handle = vi.fn(async (_pathname: string, _init: RequestInit) => Response.json({ blob }));
+
+		await expect(
+			uploadReleaseBlob({ handle }, bytes, "application/gzip"),
+		).resolves.toEqual(blob);
+		expect(handle).toHaveBeenCalledOnce();
+		expect(handle.mock.calls[0]?.[0]).toBe("/xrpc/com.atproto.repo.uploadBlob");
+		const init = handle.mock.calls[0]?.[1];
+		expect(init?.headers).toEqual({ "content-type": "application/gzip" });
+		expect(init?.body).toEqual(bytes);
 	});
 });

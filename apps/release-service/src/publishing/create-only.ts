@@ -1,6 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/no-empty-named-blocks, eslint-plugin-import/no-empty-named-blocks, eslint-plugin-unicorn/require-module-specifiers, import/no-empty-named-blocks, unicorn/require-module-specifiers -- registers com.atproto.repo RPC types
 import type {} from "@atcute/atproto";
 import { Client, ok, type FetchHandlerObject } from "@atcute/client";
+import type { Blob } from "@atcute/lexicons/interfaces";
 import { isDid } from "@atcute/lexicons/syntax";
 import { NSID, type PackageRelease } from "@emdash-cms/registry-lexicons";
 
@@ -62,4 +63,19 @@ export async function createReleaseRecord(
 		throw new CreateReleaseError("CREATE_RESPONSE_INVALID");
 	}
 	return { uri: result.uri, cid: result.cid };
+}
+
+export async function uploadReleaseBlob(
+	session: FetchHandlerObject,
+	bytes: Uint8Array,
+	mimeType: string,
+): Promise<Blob> {
+	const client = new Client({ handler: session });
+	const result = await ok(
+		client.post("com.atproto.repo.uploadBlob", {
+			headers: { "content-type": mimeType },
+			input: bytes,
+		}),
+	);
+	return result.blob;
 }
