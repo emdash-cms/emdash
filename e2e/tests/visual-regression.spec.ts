@@ -54,6 +54,8 @@ const LOCALES = [
  * A screen to snapshot.
  *
  * `path` may depend on seeded data (e.g. a post id for the editor).
+ * `fixedTime` freezes the browser wall clock so date-sensitive components
+ * such as calendars highlighting "today" stay stable across snapshot runs.
  * `extraMasks` returns page regions to paint over on top of the always-masked
  * version footer -- use it for anything that changes every run (timestamps).
  */
@@ -61,6 +63,7 @@ interface PageCase {
 	name: string;
 	path: (info: ServerInfo) => string;
 	viewport?: { width: number; height: number };
+	fixedTime?: string;
 	extraMasks?: (admin: AdminPage) => Locator[];
 	prepare?: (admin: AdminPage) => Promise<void>;
 }
@@ -107,6 +110,7 @@ const PAGES: PageCase[] = [
 	{
 		name: "content-list-date-range-filter",
 		path: () => "/content/posts",
+		fixedTime: "2026-08-27T12:00:00",
 		prepare: openFilter(".emdash-date-range-trigger", ".kumo-popover-popup:visible"),
 		extraMasks: (admin) => [admin.page.getByTestId("content-updated")],
 	},
@@ -184,6 +188,7 @@ test.describe("visual regression", () => {
 			test(`${pageCase.name} @${locale.name}`, async ({ admin, serverInfo }) => {
 				await setLocale(admin, locale.code);
 				if (pageCase.viewport) await admin.page.setViewportSize(pageCase.viewport);
+				if (pageCase.fixedTime) await admin.page.clock.setFixedTime(pageCase.fixedTime);
 				await openAdmin(admin, pageCase.path(serverInfo), locale.dir);
 				await stabilize(admin);
 				await pageCase.prepare?.(admin);
