@@ -150,33 +150,6 @@ const isResourceUri = /* @__NO_SIDE_EFFECTS__ */ (input) => {
 };
 
 //#endregion
-//#region ../../node_modules/.pnpm/@atcute+uint8array@1.1.1/node_modules/@atcute/uint8array/dist/index.node.js
-const _alloc = Buffer.alloc;
-const _allocUnsafe = Buffer.allocUnsafe;
-const _concat = Buffer.concat;
-const _from = Buffer.from;
-const _byteLength = Buffer.byteLength;
-const _compare = Buffer.prototype.compare;
-const _equals = Buffer.prototype.equals;
-const _utf8Slice = Buffer.prototype.utf8Slice;
-const _utf8Write = Buffer.prototype.utf8Write;
-const _fromCharCode = String.fromCharCode;
-/**
-* checks if a string's UTF-8 byte length is within a given range
-* @param str string to measure
-* @param min minimum byte length (inclusive)
-* @param max maximum byte length (inclusive)
-* @returns true if byte length is within [min, max]
-*/
-const isUtf8LengthInRange = (str, min, max) => {
-	const len = str.length;
-	if (len * 3 < min) return false;
-	if (len >= min && len * 3 <= max) return true;
-	const utf8len = _byteLength(str, "utf8");
-	return utf8len >= min && utf8len <= max;
-};
-
-//#endregion
 //#region ../../node_modules/.pnpm/@atcute+lexicons@2.0.0/node_modules/@atcute/lexicons/dist/syntax/cid.js
 const DASL_CID_RE = /^baf[ky]rei[a-z2-7]{52}$/;
 const isCid = /* @__NO_SIDE_EFFECTS__ */ (input) => {
@@ -205,12 +178,77 @@ const isTid = /* @__NO_SIDE_EFFECTS__ */ (input) => {
 };
 
 //#endregion
+//#region ../../node_modules/.pnpm/@atcute+uint8array@1.1.1/node_modules/@atcute/uint8array/dist/index.node.js
+const _alloc = Buffer.alloc;
+const _allocUnsafe = Buffer.allocUnsafe;
+const _concat = Buffer.concat;
+const _from = Buffer.from;
+const _byteLength = Buffer.byteLength;
+const _compare = Buffer.prototype.compare;
+const _equals = Buffer.prototype.equals;
+const _utf8Slice = Buffer.prototype.utf8Slice;
+const _utf8Write = Buffer.prototype.utf8Write;
+const toUint8Array = (buffer) => {
+	return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+};
+const allocUnsafe = (size) => {
+	return toUint8Array(_allocUnsafe(size));
+};
+const _fromCharCode$1 = String.fromCharCode;
+/**
+* checks if a string's UTF-8 byte length is within a given range
+* @param str string to measure
+* @param min minimum byte length (inclusive)
+* @param max maximum byte length (inclusive)
+* @returns true if byte length is within [min, max]
+*/
+const isUtf8LengthInRange = (str, min, max) => {
+	const len = str.length;
+	if (len * 3 < min) return false;
+	if (len >= min && len * 3 <= max) return true;
+	const utf8len = _byteLength(str, "utf8");
+	return utf8len >= min && utf8len <= max;
+};
+
+//#endregion
 //#region ../../node_modules/.pnpm/@atcute+lexicons@2.0.0/node_modules/@atcute/lexicons/dist/syntax/uri.js
 const URI_RE = /^\w+:(?:\/\/)?[^\s/][^\s]*$/;
 const isGenericUri = /* @__NO_SIDE_EFFECTS__ */ (input) => {
 	if (typeof input !== "string") return false;
 	if (!isUtf8LengthInRange(input, 3, 8192)) return false;
 	return URI_RE.test(input);
+};
+
+//#endregion
+//#region ../../packages/registry-lexicons/dist/chunk-BYypO7fO.js
+var __defProp = Object.defineProperty;
+var __exportAll = (all, no_symbols) => {
+	let target = {};
+	for (var name in all) __defProp(target, name, {
+		get: all[name],
+		enumerable: true
+	});
+	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
+	return target;
+};
+
+//#endregion
+//#region ../../node_modules/.pnpm/@atcute+lexicons@2.0.0/node_modules/@atcute/lexicons/dist/interfaces/cid-link.js
+const CID_LINK_SYMBOL = Symbol.for("@atcute/cid-link-wrapper");
+const isCidLink = (input) => {
+	const v = input;
+	return typeof v === "object" && v !== null && (CID_LINK_SYMBOL in v || /* @__PURE__ */ isCid(v.$link));
+};
+
+//#endregion
+//#region ../../node_modules/.pnpm/@atcute+lexicons@2.0.0/node_modules/@atcute/lexicons/dist/interfaces/blob.js
+const isBlob = (input) => {
+	const v = input;
+	return typeof v === "object" && v !== null && v.$type === "blob" && typeof v.mimeType === "string" && Number.isSafeInteger(v.size) && isCidLink(v.ref) && Object.keys(v).length === 4;
+};
+const isLegacyBlob = (input) => {
+	const v = input;
+	return typeof v === "object" && v !== null && typeof v.cid === "string" && typeof v.mimeType === "string" && Object.keys(v).length === 2;
 };
 
 //#endregion
@@ -313,6 +351,13 @@ const countIssues = (tree) => {
 			tree = tree.tree;
 			continue;
 		default: return count + 1;
+	}
+};
+const separatedList = (list, sep) => {
+	switch (list.length) {
+		case 0: return `nothing`;
+		case 1: return list[0];
+		default: return `${list.slice(0, -1).join(", ")} ${sep} ${list[list.length - 1]}`;
 	}
 };
 const formatLiteral = (value) => {
@@ -606,6 +651,82 @@ const stringLength = /* @__NO_SIDE_EFFECTS__ */ (minLength, maxLength = Infinity
 		}
 	};
 };
+const ISSUE_EXPECTED_BLOB = {
+	ok: false,
+	code: "invalid_type",
+	expected: "blob",
+	msg() {
+		return `expected blob`;
+	}
+};
+const BLOB_SCHEMA = {
+	kind: "schema",
+	type: "blob",
+	"~run"(input, flags) {
+		if (typeof input !== "object" || input === null) return ISSUE_EXPECTED_BLOB;
+		if (isBlob(input)) return;
+		if (!(flags & FLAG_STRICT) && isLegacyBlob(input)) return /* @__PURE__ */ ok({
+			$type: "blob",
+			mimeType: input.mimeType,
+			ref: { $link: input.cid },
+			size: -1
+		});
+		return ISSUE_EXPECTED_BLOB;
+	},
+	get "~standard"() {
+		return /* @__PURE__ */ lazyProperty(this, "~standard", toStandardSchema(this));
+	}
+};
+const blob = /* @__NO_SIDE_EFFECTS__ */ () => {
+	return BLOB_SCHEMA;
+};
+const blobSize = /* @__NO_SIDE_EFFECTS__ */ (maxSize) => {
+	const issue = {
+		ok: false,
+		code: "invalid_blob_size",
+		maxSize,
+		msg() {
+			return `blob size must not exceed ${maxSize} bytes`;
+		}
+	};
+	return {
+		kind: "constraint",
+		type: "blob_size",
+		maxSize,
+		"~run"(input, flags) {
+			if (!(flags & FLAG_STRICT)) return;
+			if (input.size > maxSize) return issue;
+		}
+	};
+};
+const blobAccept = /* @__NO_SIDE_EFFECTS__ */ (accept) => {
+	const normalized = accept.map((p) => p.toLowerCase());
+	const issue = {
+		ok: false,
+		code: "invalid_blob_mime_type",
+		accept,
+		msg() {
+			return `blob MIME type must match: ${accept.join(", ")}`;
+		}
+	};
+	return {
+		kind: "constraint",
+		type: "blob_accept",
+		accept,
+		"~run"(input, flags) {
+			if (!(flags & FLAG_STRICT)) return;
+			const mimeType = input.mimeType.toLowerCase();
+			for (let idx = 0, len = normalized.length; idx < len; idx++) {
+				const pattern = normalized[idx];
+				if (pattern === "*/*") return;
+				if (pattern.endsWith("/*")) {
+					if (mimeType.startsWith(pattern.slice(0, -1))) return;
+				} else if (mimeType === pattern) return;
+			}
+			return issue;
+		}
+	};
+};
 const optional = /* @__NO_SIDE_EFFECTS__ */ (wrapped, defaultValue) => {
 	return {
 		kind: "schema",
@@ -838,6 +959,50 @@ const record = /* @__NO_SIDE_EFFECTS__ */ (key, object) => {
 		}
 	};
 };
+const ISSUE_VARIANT_MISSING = /* @__PURE__ */ prependPath("$type", ISSUE_MISSING);
+const ISSUE_VARIANT_TYPE = /* @__PURE__ */ prependPath("$type", ISSUE_TYPE_STRING);
+const variant = /* @__NO_SIDE_EFFECTS__ */ (members, closed = false) => {
+	return {
+		kind: "schema",
+		type: "variant",
+		members,
+		closed,
+		get "~run"() {
+			const types = [];
+			const schemas = [];
+			for (let idx = 0, len = members.length; idx < len; idx++) {
+				const raw = members[idx];
+				const member = raw.type === "record" ? raw.object : raw;
+				let t = member.shape.$type;
+				assert(t !== void 0, `expected $type in variant member #${idx} to be defined`);
+				if (t.type === "optional") t = t.wrapped;
+				assert(t.type === "literal" && typeof t.expected === "string", `expected $type in variant member #${idx} to be a string literal`);
+				types.push(t.expected);
+				schemas.push(member);
+			}
+			const issue = {
+				ok: false,
+				code: "invalid_variant",
+				expected: types,
+				msg() {
+					return `expected ${separatedList(types, "or")}`;
+				}
+			};
+			const matcher = (input, flags) => {
+				if (!/* @__PURE__ */ isObject(input)) return ISSUE_TYPE_OBJECT;
+				const type = input.$type;
+				if (type === void 0 && !("$type" in input)) return ISSUE_VARIANT_MISSING;
+				if (typeof type !== "string") return closed ? issue : ISSUE_VARIANT_TYPE;
+				for (let idx = 0, len = types.length; idx < len; idx++) if (types[idx] === type) return schemas[idx]["~run"](input, flags);
+				if (closed) return issue;
+			};
+			return /* @__PURE__ */ lazyProperty(this, "~run", matcher);
+		},
+		get "~standard"() {
+			return /* @__PURE__ */ lazyProperty(this, "~standard", toStandardSchema(this));
+		}
+	};
+};
 const ISSUE_TYPE_UNKNOWN = {
 	ok: false,
 	code: "invalid_type",
@@ -861,7 +1026,470 @@ const unknown = /* @__NO_SIDE_EFFECTS__ */ () => {
 };
 
 //#endregion
-//#region ../../packages/registry-client/dist/types-Cuqx9ScV.js
+//#region ../../packages/registry-lexicons/dist/generated/types/com/emdashcms/experimental/package/release.js
+var release_exports = /* @__PURE__ */ __exportAll({
+	artifactSchema: () => artifactSchema,
+	artifactsSchema: () => artifactsSchema,
+	imageArtifactSchema: () => imageArtifactSchema,
+	mainSchema: () => mainSchema$1,
+	sbomSchema: () => sbomSchema
+});
+const _artifactSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.release#artifact")),
+	blob: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ blob(), [/* @__PURE__ */ blobSize(262144), /* @__PURE__ */ blobAccept(["application/gzip"])])),
+	checksum: /* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 256)]),
+	contentType: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 256)])),
+	height: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ integer(), [/* @__PURE__ */ integerRange(1, 8192)])),
+	id: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 128)])),
+	lang: /* @__PURE__ */ optional(/* @__PURE__ */ languageCodeString()),
+	releaseAsset: /* @__PURE__ */ optional(/* @__PURE__ */ boolean()),
+	requiresAuth: /* @__PURE__ */ optional(/* @__PURE__ */ boolean()),
+	signature: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 1024)])),
+	url: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 2048)])),
+	width: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ integer(), [/* @__PURE__ */ integerRange(1, 8192)]))
+});
+const _artifactsSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.release#artifacts")),
+	get banner() {
+		return /* @__PURE__ */ optional(imageArtifactSchema);
+	},
+	get icon() {
+		return /* @__PURE__ */ optional(imageArtifactSchema);
+	},
+	get package() {
+		return artifactSchema;
+	},
+	get screenshots() {
+		return /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ array(imageArtifactSchema), [/* @__PURE__ */ arrayLength(0, 8)]));
+	}
+});
+const _imageArtifactSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.release#imageArtifact")),
+	blob: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ blob(), [/* @__PURE__ */ blobSize(1048576), /* @__PURE__ */ blobAccept([
+		"image/png",
+		"image/jpeg",
+		"image/webp"
+	])])),
+	checksum: /* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 256)]),
+	contentType: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 256)])),
+	height: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ integer(), [/* @__PURE__ */ integerRange(1, 8192)])),
+	id: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 128)])),
+	lang: /* @__PURE__ */ optional(/* @__PURE__ */ languageCodeString()),
+	releaseAsset: /* @__PURE__ */ optional(/* @__PURE__ */ boolean()),
+	requiresAuth: /* @__PURE__ */ optional(/* @__PURE__ */ boolean()),
+	signature: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 1024)])),
+	url: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 2048)])),
+	width: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ integer(), [/* @__PURE__ */ integerRange(1, 8192)]))
+});
+const _mainSchema$1 = /* @__PURE__ */ record(/* @__PURE__ */ string(), /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ literal("com.emdashcms.experimental.package.release"),
+	get artifacts() {
+		return artifactsSchema;
+	},
+	get auth() {
+		return /* @__PURE__ */ optional(/* @__PURE__ */ variant([]));
+	},
+	extensions: /* @__PURE__ */ optional(/* @__PURE__ */ unknown()),
+	package: /* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(1, 64)]),
+	provides: /* @__PURE__ */ optional(/* @__PURE__ */ unknown()),
+	repo: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 1024)])),
+	requires: /* @__PURE__ */ optional(/* @__PURE__ */ unknown()),
+	get sbom() {
+		return /* @__PURE__ */ optional(sbomSchema);
+	},
+	suggests: /* @__PURE__ */ optional(/* @__PURE__ */ unknown()),
+	version: /* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(1, 64)])
+}));
+const _sbomSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.release#sbom")),
+	checksum: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 256)])),
+	format: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 32)])),
+	url: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 2048)]))
+});
+const artifactSchema = _artifactSchema;
+const artifactsSchema = _artifactsSchema;
+const imageArtifactSchema = _imageArtifactSchema;
+const mainSchema$1 = _mainSchema$1;
+const sbomSchema = _sbomSchema;
+
+//#endregion
+//#region ../../packages/registry-lexicons/dist/generated/types/com/emdashcms/experimental/package/releaseExtension.js
+var releaseExtension_exports = /* @__PURE__ */ __exportAll({
+	contentAccessSchema: () => contentAccessSchema,
+	contentReadConstraintsSchema: () => contentReadConstraintsSchema,
+	contentWriteConstraintsSchema: () => contentWriteConstraintsSchema,
+	declaredAccessSchema: () => declaredAccessSchema,
+	emailAccessSchema: () => emailAccessSchema,
+	emailEventsConstraintsSchema: () => emailEventsConstraintsSchema,
+	emailSendConstraintsSchema: () => emailSendConstraintsSchema,
+	emailTransportConstraintsSchema: () => emailTransportConstraintsSchema,
+	mainSchema: () => mainSchema,
+	mediaAccessSchema: () => mediaAccessSchema,
+	mediaReadConstraintsSchema: () => mediaReadConstraintsSchema,
+	mediaWriteConstraintsSchema: () => mediaWriteConstraintsSchema,
+	networkAccessSchema: () => networkAccessSchema,
+	networkRequestConstraintsSchema: () => networkRequestConstraintsSchema,
+	pageAccessSchema: () => pageAccessSchema,
+	pageFragmentsConstraintsSchema: () => pageFragmentsConstraintsSchema,
+	provenanceSchema: () => provenanceSchema,
+	taxonomiesAccessSchema: () => taxonomiesAccessSchema,
+	taxonomiesReadConstraintsSchema: () => taxonomiesReadConstraintsSchema,
+	usersAccessSchema: () => usersAccessSchema,
+	usersReadConstraintsSchema: () => usersReadConstraintsSchema
+});
+const _contentAccessSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#contentAccess")),
+	get read() {
+		return /* @__PURE__ */ optional(contentReadConstraintsSchema);
+	},
+	get write() {
+		return /* @__PURE__ */ optional(contentWriteConstraintsSchema);
+	}
+});
+const _contentReadConstraintsSchema = /* @__PURE__ */ object({ $type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#contentReadConstraints")) });
+const _contentWriteConstraintsSchema = /* @__PURE__ */ object({ $type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#contentWriteConstraints")) });
+const _declaredAccessSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#declaredAccess")),
+	get content() {
+		return /* @__PURE__ */ optional(contentAccessSchema);
+	},
+	get email() {
+		return /* @__PURE__ */ optional(emailAccessSchema);
+	},
+	get media() {
+		return /* @__PURE__ */ optional(mediaAccessSchema);
+	},
+	get network() {
+		return /* @__PURE__ */ optional(networkAccessSchema);
+	},
+	get page() {
+		return /* @__PURE__ */ optional(pageAccessSchema);
+	},
+	get taxonomies() {
+		return /* @__PURE__ */ optional(taxonomiesAccessSchema);
+	},
+	get users() {
+		return /* @__PURE__ */ optional(usersAccessSchema);
+	}
+});
+const _emailAccessSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#emailAccess")),
+	get events() {
+		return /* @__PURE__ */ optional(emailEventsConstraintsSchema);
+	},
+	get send() {
+		return /* @__PURE__ */ optional(emailSendConstraintsSchema);
+	},
+	get transport() {
+		return /* @__PURE__ */ optional(emailTransportConstraintsSchema);
+	}
+});
+const _emailEventsConstraintsSchema = /* @__PURE__ */ object({ $type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#emailEventsConstraints")) });
+const _emailSendConstraintsSchema = /* @__PURE__ */ object({ $type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#emailSendConstraints")) });
+const _emailTransportConstraintsSchema = /* @__PURE__ */ object({ $type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#emailTransportConstraints")) });
+const _mainSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension")),
+	get declaredAccess() {
+		return declaredAccessSchema;
+	},
+	get provenance() {
+		return /* @__PURE__ */ optional(provenanceSchema);
+	}
+});
+const _mediaAccessSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#mediaAccess")),
+	get read() {
+		return /* @__PURE__ */ optional(mediaReadConstraintsSchema);
+	},
+	get write() {
+		return /* @__PURE__ */ optional(mediaWriteConstraintsSchema);
+	}
+});
+const _mediaReadConstraintsSchema = /* @__PURE__ */ object({ $type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#mediaReadConstraints")) });
+const _mediaWriteConstraintsSchema = /* @__PURE__ */ object({ $type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#mediaWriteConstraints")) });
+const _networkAccessSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#networkAccess")),
+	get request() {
+		return /* @__PURE__ */ optional(networkRequestConstraintsSchema);
+	}
+});
+const _networkRequestConstraintsSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#networkRequestConstraints")),
+	allowedHosts: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ array(/* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 256)])), [/* @__PURE__ */ arrayLength(1, 64)]))
+});
+const _pageAccessSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#pageAccess")),
+	get fragments() {
+		return /* @__PURE__ */ optional(pageFragmentsConstraintsSchema);
+	}
+});
+const _pageFragmentsConstraintsSchema = /* @__PURE__ */ object({ $type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#pageFragmentsConstraints")) });
+const _provenanceSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#provenance")),
+	builderId: /* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 1024)]),
+	checksum: /* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 256)]),
+	predicateType: /* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 1024)]),
+	sourceRepository: /* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 1024)]),
+	url: /* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 2048)])
+});
+const _taxonomiesAccessSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#taxonomiesAccess")),
+	get read() {
+		return /* @__PURE__ */ optional(taxonomiesReadConstraintsSchema);
+	}
+});
+const _taxonomiesReadConstraintsSchema = /* @__PURE__ */ object({ $type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#taxonomiesReadConstraints")) });
+const _usersAccessSchema = /* @__PURE__ */ object({
+	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#usersAccess")),
+	get read() {
+		return /* @__PURE__ */ optional(usersReadConstraintsSchema);
+	}
+});
+const _usersReadConstraintsSchema = /* @__PURE__ */ object({ $type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.releaseExtension#usersReadConstraints")) });
+const contentAccessSchema = _contentAccessSchema;
+const contentReadConstraintsSchema = _contentReadConstraintsSchema;
+const contentWriteConstraintsSchema = _contentWriteConstraintsSchema;
+const declaredAccessSchema = _declaredAccessSchema;
+const emailAccessSchema = _emailAccessSchema;
+const emailEventsConstraintsSchema = _emailEventsConstraintsSchema;
+const emailSendConstraintsSchema = _emailSendConstraintsSchema;
+const emailTransportConstraintsSchema = _emailTransportConstraintsSchema;
+const mainSchema = _mainSchema;
+const mediaAccessSchema = _mediaAccessSchema;
+const mediaReadConstraintsSchema = _mediaReadConstraintsSchema;
+const mediaWriteConstraintsSchema = _mediaWriteConstraintsSchema;
+const networkAccessSchema = _networkAccessSchema;
+const networkRequestConstraintsSchema = _networkRequestConstraintsSchema;
+const pageAccessSchema = _pageAccessSchema;
+const pageFragmentsConstraintsSchema = _pageFragmentsConstraintsSchema;
+const provenanceSchema = _provenanceSchema;
+const taxonomiesAccessSchema = _taxonomiesAccessSchema;
+const taxonomiesReadConstraintsSchema = _taxonomiesReadConstraintsSchema;
+const usersAccessSchema = _usersAccessSchema;
+const usersReadConstraintsSchema = _usersReadConstraintsSchema;
+
+//#endregion
+//#region ../../packages/registry-lexicons/dist/index.js
+/**
+* NSID constants for the lexicons defined by this package. Useful for consumers
+* that need to reference a record collection by string (e.g. when issuing
+* `listRecords` or `putRecord` calls against a PDS).
+*/
+const NSID = {
+	packageProfile: "com.emdashcms.experimental.package.profile",
+	packageProfileExtension: "com.emdashcms.experimental.package.profileExtension",
+	packageRelease: "com.emdashcms.experimental.package.release",
+	packageReleaseExtension: "com.emdashcms.experimental.package.releaseExtension",
+	publisherProfile: "com.emdashcms.experimental.publisher.profile",
+	publisherVerification: "com.emdashcms.experimental.publisher.verification",
+	aggregatorDefs: "com.emdashcms.experimental.aggregator.defs",
+	aggregatorGetLatestRelease: "com.emdashcms.experimental.aggregator.getLatestRelease",
+	aggregatorGetPackage: "com.emdashcms.experimental.aggregator.getPackage",
+	aggregatorListReleases: "com.emdashcms.experimental.aggregator.listReleases",
+	aggregatorResolvePackage: "com.emdashcms.experimental.aggregator.resolvePackage",
+	aggregatorSearchPackages: "com.emdashcms.experimental.aggregator.searchPackages",
+	labelerDefs: "com.emdashcms.experimental.labeler.defs",
+	labelerGetAssessment: "com.emdashcms.experimental.labeler.getAssessment",
+	labelerGetCurrentAssessment: "com.emdashcms.experimental.labeler.getCurrentAssessment",
+	labelerGetPolicy: "com.emdashcms.experimental.labeler.getPolicy",
+	labelerListAssessments: "com.emdashcms.experimental.labeler.listAssessments"
+};
+const RECORD_SCOPED_BLOB_CACHE_TYPE = `${NSID.aggregatorDefs}#recordScopedBlobCache`;
+const DELEGATED_RELEASE_PERMISSION = Object.freeze({
+	collection: NSID.packageRelease,
+	scope: `atproto repo:${NSID.packageRelease}?action=create blob:application/gzip blob:image/*`
+});
+/**
+* NSIDs of record-shaped lexicons in this package (one row per NSID in the
+* publisher's repo). Embedded objects (`profileExtension`, `releaseExtension`) and shared defs
+* (`aggregator.defs`) are excluded — they don't address their own collection.
+*
+* Useful for consumers building OAuth `repo:` scopes or enumerating writable
+* collections without hand-rolling a list that drifts from the lexicons.
+*/
+const RECORD_NSIDS = [
+	NSID.packageProfile,
+	NSID.packageRelease,
+	NSID.publisherProfile,
+	NSID.publisherVerification
+];
+/**
+* NSIDs of query-shaped lexicons in this package (read-only XRPC methods on
+* the aggregator). Procedures and shared defs are excluded.
+*
+* Useful for consumers building OAuth `rpc:` scopes or enumerating callable
+* AppView endpoints.
+*/
+const QUERY_NSIDS = [
+	NSID.aggregatorGetLatestRelease,
+	NSID.aggregatorGetPackage,
+	NSID.aggregatorListReleases,
+	NSID.aggregatorResolvePackage,
+	NSID.aggregatorSearchPackages,
+	NSID.labelerGetAssessment,
+	NSID.labelerGetCurrentAssessment,
+	NSID.labelerGetPolicy,
+	NSID.labelerListAssessments
+];
+
+//#endregion
+//#region ../../node_modules/.pnpm/@atcute+multibase@1.2.0/node_modules/@atcute/multibase/dist/bases/base32-encode.js
+const ALPHABET$1 = "abcdefghijklmnopqrstuvwxyz234567";
+const _cc = (() => {
+	const t = new Uint8Array(32);
+	for (let i = 0; i < 32; i++) t[i] = ALPHABET$1.charCodeAt(i);
+	return t;
+})();
+const _fromCharCode = String.fromCharCode;
+/**
+* encodes a Uint8Array to an unpadded RFC 4648 base32 (lowercase) string
+* @param bytes source buffer
+* @returns base32 encoded string
+*/
+const toBase32 = (bytes) => {
+	const len = bytes.length;
+	const full = len / 5 | 0;
+	const rem = len - full * 5;
+	const cc = _cc;
+	let str = "";
+	let ip = 0;
+	const pairs = full / 2 | 0;
+	for (let g = 0; g < pairs; g++) {
+		const a0 = bytes[ip], a1 = bytes[ip + 1], a2 = bytes[ip + 2], a3 = bytes[ip + 3], a4 = bytes[ip + 4];
+		const b0 = bytes[ip + 5], b1 = bytes[ip + 6], b2 = bytes[ip + 7], b3 = bytes[ip + 8], b4 = bytes[ip + 9];
+		str += _fromCharCode(cc[a0 >>> 3], cc[(a0 << 2 | a1 >>> 6) & 31], cc[a1 >>> 1 & 31], cc[(a1 << 4 | a2 >>> 4) & 31], cc[(a2 << 1 | a3 >>> 7) & 31], cc[a3 >>> 2 & 31], cc[(a3 << 3 | a4 >>> 5) & 31], cc[a4 & 31], cc[b0 >>> 3], cc[(b0 << 2 | b1 >>> 6) & 31], cc[b1 >>> 1 & 31], cc[(b1 << 4 | b2 >>> 4) & 31], cc[(b2 << 1 | b3 >>> 7) & 31], cc[b3 >>> 2 & 31], cc[(b3 << 3 | b4 >>> 5) & 31], cc[b4 & 31]);
+		ip += 10;
+	}
+	if (full & 1) {
+		const b0 = bytes[ip], b1 = bytes[ip + 1], b2 = bytes[ip + 2], b3 = bytes[ip + 3], b4 = bytes[ip + 4];
+		str += _fromCharCode(cc[b0 >>> 3], cc[(b0 << 2 | b1 >>> 6) & 31], cc[b1 >>> 1 & 31], cc[(b1 << 4 | b2 >>> 4) & 31], cc[(b2 << 1 | b3 >>> 7) & 31], cc[b3 >>> 2 & 31], cc[(b3 << 3 | b4 >>> 5) & 31], cc[b4 & 31]);
+		ip += 5;
+	}
+	if (rem > 0) {
+		let buffer = 0;
+		let bits = 0;
+		for (let i = ip; i < len; i++) {
+			buffer = buffer << 8 | bytes[i];
+			bits += 8;
+		}
+		while (bits >= 5) {
+			bits -= 5;
+			str += _fromCharCode(cc[buffer >>> bits & 31]);
+		}
+		if (bits > 0) str += _fromCharCode(cc[buffer << 5 - bits & 31]);
+	}
+	return str;
+};
+
+//#endregion
+//#region ../../node_modules/.pnpm/@atcute+multibase@1.2.0/node_modules/@atcute/multibase/dist/bases/base32.js
+const ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
+const _decodeLut = (() => {
+	const t = new Uint8Array(128).fill(255);
+	for (let i = 0; i < 32; i++) t[ALPHABET.charCodeAt(i)] = i;
+	return t;
+})();
+/**
+* decodes an unpadded RFC 4648 base32 (lowercase) string to a Uint8Array
+* @param str base32 encoded string
+* @returns decoded buffer
+* @throws {SyntaxError} on invalid characters or malformed trailing bits
+*/
+const fromBase32 = (str) => {
+	const end = str.length;
+	const bytes = allocUnsafe(end * 5 / 8 | 0);
+	let written = 0;
+	let i = 0;
+	const fullGroups = end - end % 8;
+	for (; i < fullGroups; i += 8) {
+		const c0 = _decodeLut[str.charCodeAt(i)];
+		const c1 = _decodeLut[str.charCodeAt(i + 1)];
+		const c2 = _decodeLut[str.charCodeAt(i + 2)];
+		const c3 = _decodeLut[str.charCodeAt(i + 3)];
+		const c4 = _decodeLut[str.charCodeAt(i + 4)];
+		const c5 = _decodeLut[str.charCodeAt(i + 5)];
+		const c6 = _decodeLut[str.charCodeAt(i + 6)];
+		const c7 = _decodeLut[str.charCodeAt(i + 7)];
+		if ((c0 | c1 | c2 | c3 | c4 | c5 | c6 | c7) & 224) throw new SyntaxError(`invalid base string`);
+		bytes[written] = c0 << 3 | c1 >>> 2;
+		bytes[written + 1] = (c1 << 6 | c2 << 1 | c3 >>> 4) & 255;
+		bytes[written + 2] = (c3 << 4 | c4 >>> 1) & 255;
+		bytes[written + 3] = (c4 << 7 | c5 << 2 | c6 >>> 3) & 255;
+		bytes[written + 4] = (c6 << 5 | c7) & 255;
+		written += 5;
+	}
+	if (i < end) {
+		let bits = 0;
+		let buffer = 0;
+		for (; i < end; ++i) {
+			const value = _decodeLut[str.charCodeAt(i)];
+			if (value & 224) throw new SyntaxError(`invalid base string`);
+			buffer = buffer << 5 | value;
+			bits += 5;
+			if (bits >= 8) {
+				bits -= 8;
+				bytes[written++] = 255 & buffer >> bits;
+			}
+		}
+		if (bits >= 5 || (255 & buffer << 8 - bits) !== 0) throw new SyntaxError(`unexpected end of data`);
+	}
+	return bytes;
+};
+
+//#endregion
+//#region ../../packages/registry-client/dist/types-BKvoAsmc.js
+const SOURCE_ARTIFACT_KEYS = new Set([
+	"$type",
+	"package",
+	"icon",
+	"banner",
+	"screenshots"
+]);
+const IMAGE_CONTENT_TYPES = new Set([
+	"image/jpeg",
+	"image/png",
+	"image/webp"
+]);
+function isRecord$1(value) {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function isHttpsUrl(value) {
+	if (typeof value !== "string") return false;
+	try {
+		const url = new URL(value);
+		return url.protocol === "https:" && url.username === "" && url.password === "" && url.hash === "";
+	} catch {
+		return false;
+	}
+}
+function isCanonicalSha256Multihash(value) {
+	if (typeof value !== "string" || !value.startsWith("b")) return false;
+	try {
+		const bytes = fromBase32(value.slice(1));
+		return bytes.length === 34 && bytes[0] === 18 && bytes[1] === 32 && `b${toBase32(bytes)}` === value;
+	} catch {
+		return false;
+	}
+}
+function validSourceArtifact(value, image) {
+	if (!isRecord$1(value) || Object.hasOwn(value, "blob") || Object.hasOwn(value, "requiresAuth") || !isHttpsUrl(value["url"]) || !isCanonicalSha256Multihash(value["checksum"])) return false;
+	const contentType = value["contentType"];
+	return contentType === void 0 ? true : image ? typeof contentType === "string" && IMAGE_CONTENT_TYPES.has(contentType) : contentType === "application/gzip";
+}
+function validSourceArtifacts(value) {
+	if (!isRecord$1(value) || Object.keys(value).some((key) => !SOURCE_ARTIFACT_KEYS.has(key)) || !validSourceArtifact(value["package"], false) || value["icon"] !== void 0 && !validSourceArtifact(value["icon"], true) || value["banner"] !== void 0 && !validSourceArtifact(value["banner"], true)) return false;
+	const screenshots = value["screenshots"];
+	return screenshots === void 0 || Array.isArray(screenshots) && screenshots.every((artifact) => validSourceArtifact(artifact, true));
+}
+function isDelegatedReleaseSourceRecord(release, envelope) {
+	if (Object.hasOwn(release, "auth") || !validSourceArtifacts(release.artifacts) || envelope !== void 0 && (release.package !== envelope.packageSlug || release.version !== envelope.version) || !isRecord$1(release.extensions)) return false;
+	const extension = /* @__PURE__ */ safeParse(releaseExtension_exports.mainSchema, release.extensions[NSID.packageReleaseExtension]);
+	return extension.ok && extension.value.provenance !== void 0 && isHttpsUrl(extension.value.provenance.url) && isCanonicalSha256Multihash(extension.value.provenance.checksum);
+}
+function parseDelegatedReleaseSourceRecord(value, envelope) {
+	const release = /* @__PURE__ */ safeParse(release_exports.mainSchema, value);
+	return release.ok && isDelegatedReleaseSourceRecord(release.value, envelope) ? release.value : null;
+}
 const TERMINAL_RELEASE_INTENT_STATES = new Set([
 	"published",
 	"invalid",
@@ -1007,10 +1635,6 @@ function safeInteger(value, key) {
 	const item = value[key];
 	return Number.isSafeInteger(item) ? Number(item) : null;
 }
-function nullableSafeInteger(value, key) {
-	const item = value[key];
-	return item === null ? null : Number.isSafeInteger(item) ? Number(item) : void 0;
-}
 function parseIntentResult(value) {
 	if (value === null) return null;
 	if (!isRecord(value)) return void 0;
@@ -1036,7 +1660,7 @@ function parseIntent(value, serviceUrl) {
 	const updatedAt = safeInteger(value, "updatedAt");
 	const result = parseIntentResult(value["result"]);
 	const approvalUrl = nullableString(value, "approvalUrl");
-	if (!id || !ULID_PATTERN.test(id) || !publisherDid || !DID_PATTERN.test(publisherDid) || !packageSlug || !PACKAGE_SLUG_PATTERN.test(packageSlug) || !version || !VERSION_PATTERN.test(version) || !isIntentState(state) || stateGeneration === null || stateGeneration < 1 || reasonCode === void 0 || workflowId === void 0 || expiresAt === null || createdAt === null || updatedAt === null || result === void 0 || approvalUrl === void 0 || workflowId !== null && !ULID_PATTERN.test(workflowId) || createdAt > updatedAt || updatedAt > expiresAt || result !== null && (result.uri !== `at://${publisherDid}/com.emdashcms.experimental.package.release/${packageSlug}:${version}` || !CID_PATTERN.test(result.cid))) throw invalidResponse();
+	if (!id || !ULID_PATTERN.test(id) || !publisherDid || !DID_PATTERN.test(publisherDid) || !packageSlug || !PACKAGE_SLUG_PATTERN.test(packageSlug) || !version || !VERSION_PATTERN.test(version) || !isIntentState(state) || stateGeneration === null || stateGeneration < 1 || reasonCode === void 0 || workflowId === void 0 || expiresAt === null || createdAt === null || updatedAt === null || result === void 0 || approvalUrl === void 0 || workflowId !== null && !ULID_PATTERN.test(workflowId) || createdAt > updatedAt || result !== null && (result.uri !== `at://${publisherDid}/com.emdashcms.experimental.package.release/${packageSlug}:${version}` || !CID_PATTERN.test(result.cid))) throw invalidResponse();
 	if (approvalUrl !== null && serviceUrl) {
 		let parsedApproval;
 		try {
@@ -1172,21 +1796,10 @@ function parsePublisherApproverStatus(value) {
 	if (!isRecord(value)) throw invalidResponse();
 	const did = stringValue(value, "did");
 	const status = value["status"];
-	const credentialCount = safeInteger(value, "credentialCount");
-	const activeCredentialCount = safeInteger(value, "activeCredentialCount");
-	const firstEnrolledAt = nullableSafeInteger(value, "firstEnrolledAt");
-	const lastEnrolledAt = nullableSafeInteger(value, "lastEnrolledAt");
-	const lastRevokedAt = nullableSafeInteger(value, "lastRevokedAt");
-	const expectedStatus = activeCredentialCount !== null && activeCredentialCount > 0 ? "enrolled" : credentialCount !== null && credentialCount > 0 ? "revoked" : "not_enrolled";
-	if (!did || !DID_PATTERN.test(did) || status !== "enrolled" && status !== "not_enrolled" && status !== "revoked" || status !== expectedStatus || credentialCount === null || credentialCount < 0 || activeCredentialCount === null || activeCredentialCount < 0 || activeCredentialCount > credentialCount || firstEnrolledAt === void 0 || lastEnrolledAt === void 0 || lastRevokedAt === void 0 || credentialCount === 0 && (firstEnrolledAt !== null || lastEnrolledAt !== null || lastRevokedAt !== null) || credentialCount > 0 && (firstEnrolledAt === null || lastEnrolledAt === null || firstEnrolledAt < 0 || lastEnrolledAt < firstEnrolledAt) || lastRevokedAt !== null && (firstEnrolledAt === null || lastRevokedAt < firstEnrolledAt) || status === "revoked" && lastRevokedAt === null) throw invalidResponse();
+	if (!did || !DID_PATTERN.test(did) || status !== "enrolled" && status !== "not_enrolled" && status !== "revoked") throw invalidResponse();
 	return {
 		did,
-		status,
-		credentialCount,
-		activeCredentialCount,
-		firstEnrolledAt,
-		lastEnrolledAt,
-		lastRevokedAt
+		status
 	};
 }
 function invalidResponse(requestId = null) {
@@ -1305,12 +1918,23 @@ var ReleaseServiceClient = class extends BaseReleaseServiceClient {
 		});
 	}
 	async submitIntent(input, options) {
+		const release = parseDelegatedReleaseSourceRecord(input.release, {
+			packageSlug: input.packageSlug,
+			version: input.version
+		});
+		if (!release) throw new ReleaseServiceError({
+			code: "INVALID_REQUEST",
+			message: "Delegated release source record is invalid"
+		});
 		const headers = await this.#workloadHeaders(options.idempotencyKey);
 		headers.set("content-type", "application/json");
 		return await this.call("/v1/release-intents", {
 			method: "POST",
 			headers,
-			body: JSON.stringify(input),
+			body: JSON.stringify({
+				...input,
+				release
+			}),
 			signal: options.signal
 		}, (value) => {
 			if (!isRecord(value) || typeof value["replayed"] !== "boolean") throw invalidResponse();
@@ -1321,12 +1945,23 @@ var ReleaseServiceClient = class extends BaseReleaseServiceClient {
 		});
 	}
 	async dryRunIntent(input, options = {}) {
+		const release = parseDelegatedReleaseSourceRecord(input.release, {
+			packageSlug: input.packageSlug,
+			version: input.version
+		});
+		if (!release) throw new ReleaseServiceError({
+			code: "INVALID_REQUEST",
+			message: "Delegated release source record is invalid"
+		});
 		const headers = await this.#workloadHeaders();
 		headers.set("content-type", "application/json");
 		return await this.call("/v1/release-intents/dry-run", {
 			method: "POST",
 			headers,
-			body: JSON.stringify(input),
+			body: JSON.stringify({
+				...input,
+				release
+			}),
 			signal: options.signal
 		}, parseDryRunIntent);
 	}
@@ -1499,146 +2134,6 @@ function parsePage(value, parseItem) {
 }
 
 //#endregion
-//#region ../../packages/registry-lexicons/dist/chunk-BYypO7fO.js
-var __defProp = Object.defineProperty;
-var __exportAll = (all, no_symbols) => {
-	let target = {};
-	for (var name in all) __defProp(target, name, {
-		get: all[name],
-		enumerable: true
-	});
-	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
-	return target;
-};
-
-//#endregion
-//#region ../../packages/registry-lexicons/dist/generated/types/com/emdashcms/experimental/package/release.js
-var release_exports = /* @__PURE__ */ __exportAll({
-	artifactSchema: () => artifactSchema,
-	artifactsSchema: () => artifactsSchema,
-	mainSchema: () => mainSchema,
-	sbomSchema: () => sbomSchema
-});
-const _artifactSchema = /* @__PURE__ */ object({
-	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.release#artifact")),
-	checksum: /* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 256)]),
-	contentType: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 256)])),
-	height: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ integer(), [/* @__PURE__ */ integerRange(1, 8192)])),
-	id: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 128)])),
-	lang: /* @__PURE__ */ optional(/* @__PURE__ */ languageCodeString()),
-	releaseAsset: /* @__PURE__ */ optional(/* @__PURE__ */ boolean()),
-	requiresAuth: /* @__PURE__ */ optional(/* @__PURE__ */ boolean()),
-	signature: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 1024)])),
-	url: /* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 2048)]),
-	width: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ integer(), [/* @__PURE__ */ integerRange(1, 8192)]))
-});
-const _artifactsSchema = /* @__PURE__ */ object({
-	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.release#artifacts")),
-	get banner() {
-		return /* @__PURE__ */ optional(artifactSchema);
-	},
-	get icon() {
-		return /* @__PURE__ */ optional(artifactSchema);
-	},
-	get package() {
-		return artifactSchema;
-	},
-	get screenshots() {
-		return /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ array(artifactSchema), [/* @__PURE__ */ arrayLength(0, 8)]));
-	}
-});
-const _mainSchema = /* @__PURE__ */ record(/* @__PURE__ */ string(), /* @__PURE__ */ object({
-	$type: /* @__PURE__ */ literal("com.emdashcms.experimental.package.release"),
-	get artifacts() {
-		return artifactsSchema;
-	},
-	auth: /* @__PURE__ */ optional(/* @__PURE__ */ unknown()),
-	extensions: /* @__PURE__ */ optional(/* @__PURE__ */ unknown()),
-	package: /* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(1, 64)]),
-	provides: /* @__PURE__ */ optional(/* @__PURE__ */ unknown()),
-	repo: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 1024)])),
-	requires: /* @__PURE__ */ optional(/* @__PURE__ */ unknown()),
-	get sbom() {
-		return /* @__PURE__ */ optional(sbomSchema);
-	},
-	suggests: /* @__PURE__ */ optional(/* @__PURE__ */ unknown()),
-	version: /* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(1, 64)])
-}));
-const _sbomSchema = /* @__PURE__ */ object({
-	$type: /* @__PURE__ */ optional(/* @__PURE__ */ literal("com.emdashcms.experimental.package.release#sbom")),
-	checksum: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 256)])),
-	format: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ string(), [/* @__PURE__ */ stringLength(0, 32)])),
-	url: /* @__PURE__ */ optional(/* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 2048)]))
-});
-const artifactSchema = _artifactSchema;
-const artifactsSchema = _artifactsSchema;
-const mainSchema = _mainSchema;
-const sbomSchema = _sbomSchema;
-
-//#endregion
-//#region ../../packages/registry-lexicons/dist/index.js
-/**
-* NSID constants for the lexicons defined by this package. Useful for consumers
-* that need to reference a record collection by string (e.g. when issuing
-* `listRecords` or `putRecord` calls against a PDS).
-*/
-const NSID = {
-	packageProfile: "com.emdashcms.experimental.package.profile",
-	packageProfileExtension: "com.emdashcms.experimental.package.profileExtension",
-	packageRelease: "com.emdashcms.experimental.package.release",
-	packageReleaseExtension: "com.emdashcms.experimental.package.releaseExtension",
-	publisherProfile: "com.emdashcms.experimental.publisher.profile",
-	publisherVerification: "com.emdashcms.experimental.publisher.verification",
-	aggregatorDefs: "com.emdashcms.experimental.aggregator.defs",
-	aggregatorGetLatestRelease: "com.emdashcms.experimental.aggregator.getLatestRelease",
-	aggregatorGetPackage: "com.emdashcms.experimental.aggregator.getPackage",
-	aggregatorListReleases: "com.emdashcms.experimental.aggregator.listReleases",
-	aggregatorResolvePackage: "com.emdashcms.experimental.aggregator.resolvePackage",
-	aggregatorSearchPackages: "com.emdashcms.experimental.aggregator.searchPackages",
-	labelerDefs: "com.emdashcms.experimental.labeler.defs",
-	labelerGetAssessment: "com.emdashcms.experimental.labeler.getAssessment",
-	labelerGetCurrentAssessment: "com.emdashcms.experimental.labeler.getCurrentAssessment",
-	labelerGetPolicy: "com.emdashcms.experimental.labeler.getPolicy",
-	labelerListAssessments: "com.emdashcms.experimental.labeler.listAssessments"
-};
-const DELEGATED_RELEASE_PERMISSION = Object.freeze({
-	collection: NSID.packageRelease,
-	scope: `atproto repo:${NSID.packageRelease}?action=create`
-});
-/**
-* NSIDs of record-shaped lexicons in this package (one row per NSID in the
-* publisher's repo). Embedded objects (`profileExtension`, `releaseExtension`) and shared defs
-* (`aggregator.defs`) are excluded — they don't address their own collection.
-*
-* Useful for consumers building OAuth `repo:` scopes or enumerating writable
-* collections without hand-rolling a list that drifts from the lexicons.
-*/
-const RECORD_NSIDS = [
-	NSID.packageProfile,
-	NSID.packageRelease,
-	NSID.publisherProfile,
-	NSID.publisherVerification
-];
-/**
-* NSIDs of query-shaped lexicons in this package (read-only XRPC methods on
-* the aggregator). Procedures and shared defs are excluded.
-*
-* Useful for consumers building OAuth `rpc:` scopes or enumerating callable
-* AppView endpoints.
-*/
-const QUERY_NSIDS = [
-	NSID.aggregatorGetLatestRelease,
-	NSID.aggregatorGetPackage,
-	NSID.aggregatorListReleases,
-	NSID.aggregatorResolvePackage,
-	NSID.aggregatorSearchPackages,
-	NSID.labelerGetAssessment,
-	NSID.labelerGetCurrentAssessment,
-	NSID.labelerGetPolicy,
-	NSID.labelerListAssessments
-];
-
-//#endregion
 //#region src/run.ts
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
 const MAX_RELEASE_FILE_BYTES = 128 * 1024;
@@ -1700,9 +2195,8 @@ async function runAction(runtime, dependencies = {}) {
 	const releaseFile = runtime.getInput("release-file", { required: true });
 	const workspace = runtime.getEnvironment("GITHUB_WORKSPACE");
 	if (!workspace) throw new ActionConfigurationError("GitHub workspace is unavailable");
-	const rawRelease = await (dependencies.readReleaseRecord ?? defaultReadReleaseRecord)(releaseFile, workspace);
-	const release = /* @__PURE__ */ safeParse(release_exports.mainSchema, rawRelease);
-	if (!release.ok) throw new ActionConfigurationError("Release record file is invalid");
+	const release = parseDelegatedReleaseSourceRecord(await (dependencies.readReleaseRecord ?? defaultReadReleaseRecord)(releaseFile, workspace));
+	if (!release) throw new ActionConfigurationError("Release record file is invalid");
 	const idempotencyKey = runtime.getInput("idempotency-key") || defaultIdempotencyKey(runtime);
 	const pollIntervalSeconds = parsePositiveInteger(runtime.getInput("poll-interval-seconds") || "5", "poll-interval-seconds", 300);
 	const timeoutMinutes = parsePositiveInteger(runtime.getInput("timeout-minutes") || "30", "timeout-minutes", 360);
@@ -1718,9 +2212,9 @@ async function runAction(runtime, dependencies = {}) {
 	});
 	const submitted = await client.submitIntent({
 		publisherDid,
-		packageSlug: release.value.package,
-		version: release.value.version,
-		release: release.value
+		packageSlug: release.package,
+		version: release.version,
+		release
 	}, { idempotencyKey });
 	runtime.info(submitted.replayed ? `Reusing release intent ${submitted.intent.id}` : `Submitted release intent ${submitted.intent.id}`);
 	let previousState = submitted.intent.state;
