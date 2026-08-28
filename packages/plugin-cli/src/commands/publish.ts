@@ -67,6 +67,10 @@ export const publishCommand = defineCommand({
 		description: "Build and publish a sandboxed plugin release to the atproto registry",
 	},
 	args: {
+		"artifact-base-url": {
+			type: "string",
+			description: "Removed; listing images are uploaded to the publisher PDS",
+		},
 		url: {
 			type: "string",
 			description: "Use an externally hosted tarball instead of uploading it to the publisher PDS",
@@ -156,6 +160,8 @@ export const publishCommand = defineCommand({
  * and renders consistently (human + JSON modes).
  */
 async function runPublish(args: PublishArgs): Promise<void> {
+	const removedOptionError = removedArtifactBaseUrlError(args["artifact-base-url"]);
+	if (removedOptionError) throw new CliError(removedOptionError, 2, "INVALID_FLAG");
 	if (args.url !== undefined) {
 		const urlError = validatePublishUrl(args.url);
 		if (urlError) throw new CliError(urlError, 2, "INVALID_URL");
@@ -514,6 +520,7 @@ class CliError extends Error {
 
 /** citty arg shape for the publish command. Inferred from the schema below. */
 type PublishArgs = {
+	"artifact-base-url"?: string;
 	url?: string;
 	local?: string;
 	license?: string;
@@ -527,6 +534,12 @@ type PublishArgs = {
 	"allow-overwrite"?: boolean;
 	json?: boolean;
 };
+
+export function removedArtifactBaseUrlError(value: string | undefined): string | null {
+	return value === undefined
+		? null
+		: "--artifact-base-url was removed. Remove the option so listing images are uploaded to the publisher PDS.";
+}
 
 /**
  * Result of resolving the manifest for `runPublish`. Surfaces both the
