@@ -12,8 +12,7 @@ import { SERVICE_CONTROL_OBJECT_NAME, type ServiceMode } from "./service-control
 
 const REASON_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 const DECIMAL_INTEGER_PATTERN = /^(0|[1-9][0-9]*)$/;
-const ENCRYPTION_RETIRE_PATH_PATTERN =
-	/^\/admin\/api\/encryption\/keys\/([1-9][0-9]*)\/retire$/;
+const ENCRYPTION_RETIRE_PATH_PATTERN = /^\/admin\/api\/encryption\/keys\/([1-9][0-9]*)\/retire$/;
 
 function requireActor(actor: AccessActor | null): AccessActor {
 	if (!actor) throw new Error("Access actor missing from protected operator route");

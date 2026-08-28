@@ -434,9 +434,9 @@ describe("PublisherDurableObject", () => {
 						encryptionKeyVersion: 2,
 						encryptionPurpose: "oauth-console-transaction",
 						clientKeyId: "assertion-1",
-					redirectTarget,
-					expiresAt: Date.now() + 60_000,
-				}),
+						redirectTarget,
+						expiresAt: Date.now() + 60_000,
+					}),
 				).rejects.toMatchObject({ code: "OAUTH_STATE_INVALID" });
 			});
 		},

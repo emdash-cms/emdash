@@ -126,12 +126,7 @@ describe("Access service-control routes", () => {
 			keyResolver,
 		);
 		expect(initiallyNotReady.status).toBe(503);
-		const initial = await operatorRequest(
-			"/admin/api/encryption/keys",
-			"viewer",
-			{},
-			configuredV2,
-		);
+		const initial = await operatorRequest("/admin/api/encryption/keys", "viewer", {}, configuredV2);
 		await expect(initial.json()).resolves.toMatchObject({
 			data: {
 				configured: { activeVersion: 2, versions: [1, 2] },

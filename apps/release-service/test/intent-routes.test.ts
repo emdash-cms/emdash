@@ -263,9 +263,7 @@ describe("release intent API", () => {
 		});
 		await expect(
 			runInDurableObject(env.PUBLISHER_DO.getByName(PUBLISHER_DID), (_instance, state) =>
-				state.storage.sql
-					.exec<{ count: number }>("SELECT COUNT(*) AS count FROM publisher")
-					.one(),
+				state.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM publisher").one(),
 			),
 		).resolves.toEqual({ count: 0 });
 	});
