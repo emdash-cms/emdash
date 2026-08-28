@@ -275,6 +275,7 @@ describe("authenticateWithPasskey", () => {
 			challenge: generated.challenge,
 		});
 		const atomicStore = {
+			atomic: true,
 			set: initial.challengeStore.set,
 			consume: vi.fn(async () => stored),
 		} satisfies AtomicChallengeStore;
@@ -290,6 +291,42 @@ describe("authenticateWithPasskey", () => {
 		).resolves.toMatchObject({ challengeContext: { intentId: "intent_1" } });
 		expect(atomicStore.consume).toHaveBeenCalledWith(generated.challenge);
 		expect(initial.challengeStore.delete).not.toHaveBeenCalled();
+	});
+
+	it("does not infer atomic semantics from an unrelated consume method", async () => {
+		const initial = createValidAssertion({ userVerified: true });
+		const generated = await generateAuthenticationOptions(
+			{ ...config, userVerification: "required" },
+			[initial.credential],
+			initial.challengeStore,
+			bindChallengeContext(approvalContext, { intentId: "intent_1" }),
+		);
+		const challengeStore: ChallengeStore = initial.challengeStore;
+		const stored = vi.mocked(challengeStore.set).mock.calls[0]?.[1];
+		if (!stored) throw new Error("Expected challenge data to be stored");
+		const { credential: validCredential, response } = createValidAssertion({
+			userVerified: true,
+			challenge: generated.challenge,
+		});
+		const storeWithUnrelatedConsume = {
+			...initial.challengeStore,
+			consume: vi.fn(async () => stored),
+		};
+		const nonAtomicStore: ChallengeStore = storeWithUnrelatedConsume;
+
+		await expect(
+			verifyAuthenticationResponse(
+				{ ...config, userVerification: "required" },
+				response,
+				validCredential,
+				nonAtomicStore as unknown as AtomicChallengeStore,
+				approvalContext,
+			),
+		).rejects.toMatchObject({
+			code: "invalid_response",
+			message: "Typed challenge context requires an atomic challenge store",
+		});
+		expect(storeWithUnrelatedConsume.consume).not.toHaveBeenCalled();
 	});
 
 	it.each([
@@ -344,6 +381,7 @@ describe("authenticateWithPasskey", () => {
 			challenge: generated.challenge,
 		});
 		const atomicStore = {
+			atomic: true,
 			set: initial.challengeStore.set,
 			consume: vi.fn(async () => ({
 				...stored,

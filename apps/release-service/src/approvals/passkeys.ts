@@ -75,6 +75,8 @@ interface ChallengeMetadata {
 }
 
 class DurableApproverChallengeStore implements AtomicChallengeStore {
+	readonly atomic = true;
+
 	constructor(
 		private readonly stub: DurableObjectStub<ApproverDurableObject>,
 		private readonly approverDid: string,

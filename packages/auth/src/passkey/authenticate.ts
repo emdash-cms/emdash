@@ -311,7 +311,12 @@ export async function verifyAuthenticationResponse<Type extends string, Context>
 function isAtomicChallengeStore(
 	store: ChallengeStore | AtomicChallengeStore,
 ): store is AtomicChallengeStore {
-	return "consume" in store && typeof store.consume === "function";
+	return (
+		"atomic" in store &&
+		store.atomic === true &&
+		"consume" in store &&
+		typeof store.consume === "function"
+	);
 }
 
 /**

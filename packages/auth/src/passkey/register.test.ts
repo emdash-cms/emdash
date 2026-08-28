@@ -131,6 +131,7 @@ describe("verifyRegistrationResponse", () => {
 		const stored = vi.mocked(challengeStore.set).mock.calls[0]?.[1];
 		if (!stored) throw new Error("Expected challenge data to be stored");
 		const atomicStore = {
+			atomic: true,
 			set: challengeStore.set,
 			consume: vi.fn(async () => stored),
 		} satisfies AtomicChallengeStore;
