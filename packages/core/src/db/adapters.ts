@@ -199,7 +199,21 @@ export interface PostgresConfig {
 	user?: string;
 	password?: string;
 	ssl?: boolean;
-	pool?: { min?: number; max?: number };
+	pool?: {
+		min?: number;
+		max?: number;
+		/**
+		 * How long to wait for a connection before failing, in milliseconds.
+		 * Left unset, a request that cannot reach the database waits on the
+		 * operating system's TCP timeout instead. Passed through to `pg`.
+		 */
+		connectionTimeoutMillis?: number;
+		/**
+		 * How long an idle client stays in the pool before being closed, in
+		 * milliseconds. Passed through to `pg`.
+		 */
+		idleTimeoutMillis?: number;
+	};
 	migrationConnectionStringEnv?: string;
 }
 
