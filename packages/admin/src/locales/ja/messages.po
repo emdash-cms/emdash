@@ -984,7 +984,7 @@ msgstr "plugin-toolスコープを持つMCPトークンに、これらのルー�
 #: packages/admin/src/components/Settings.tsx:92
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:159
 msgid "Allow users from specific domains to sign up"
-msgstr "指定したドメインのメールアドレスによるユーザー登録を許可"
+msgstr "指定したドメインのメールアドレスを持つユーザーの登録を許可"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:510
 msgid "Allow visitors to leave comments on this collection's content"
