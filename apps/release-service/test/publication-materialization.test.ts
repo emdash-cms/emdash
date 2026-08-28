@@ -39,6 +39,7 @@ async function prepareReadyIntent() {
 		version: "1.2.3",
 		workloadPolicyVersion: 1,
 		workloadIdentityDigest: "A".repeat(43),
+		workloadIdempotencyDigest: "I".repeat(43),
 		idempotencyKey: "github-run-100-attempt-1",
 		requestDigest: SOURCE_DIGEST,
 		workloadIdentityJson: '{"issuer":"github-actions"}',
