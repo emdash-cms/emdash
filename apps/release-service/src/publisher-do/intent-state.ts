@@ -36,7 +36,7 @@ const ALLOWED_TRANSITIONS: Readonly<Record<IntentState, ReadonlySet<IntentState>
 	verified: new Set(["ready", "awaiting_approval", "invalid", "failed", "cancelled", "expired"]),
 	awaiting_approval: new Set(["ready", "rejected", "invalid", "cancelled", "expired"]),
 	ready: new Set(["publishing", "invalid", "cancelled", "expired"]),
-	publishing: new Set(["published", "reconciling", "failed", "conflict"]),
+	publishing: new Set(["ready", "published", "reconciling", "failed", "conflict"]),
 	reconciling: new Set(["published", "failed", "conflict"]),
 	published: new Set(),
 	invalid: new Set(),

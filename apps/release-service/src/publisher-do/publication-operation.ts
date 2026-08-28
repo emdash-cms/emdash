@@ -17,6 +17,34 @@ export interface PublicationOperationLease {
 	expiresAt: number;
 }
 
+export type PublicationOperationPhase = "creating" | "materialized" | "uploading";
+
+export interface AdvancePublicationOperationPhaseInput {
+	publisherDid: string;
+	intentId: string;
+	generation: number;
+	token: string;
+	expectedIntentGeneration: number;
+	phase: "creating" | "materialized";
+	materializationDigest: string;
+	now?: number;
+}
+
+export type AdvancePublicationOperationPhaseResult =
+	| {
+			ok: true;
+			phase: "creating" | "materialized";
+			materializationDigest: string;
+			replayed: boolean;
+	  }
+	| {
+			ok: false;
+			code:
+				| "MATERIALIZATION_UNAVAILABLE"
+				| "PUBLICATION_CAS_REQUIRED"
+				| "PUBLICATION_PHASE_CONFLICT";
+	  };
+
 export type BeginPublicationOperationResult =
 	| { ok: true; lease: PublicationOperationLease }
 	| {
@@ -55,6 +83,8 @@ interface OperationRow {
 	token_hash: string | null;
 	intent_generation: number;
 	status: "active" | "completed";
+	phase: PublicationOperationPhase;
+	materialization_digest: string | null;
 	expires_at: number;
 	completion_digest: string | null;
 	outcome: PublicationOutcome | null;
@@ -110,6 +140,8 @@ export function initializePublicationOperationSchema(storage: DurableObjectStora
 			token_hash TEXT,
 			intent_generation INTEGER NOT NULL CHECK (intent_generation >= 1),
 			status TEXT NOT NULL CHECK (status IN ('active', 'completed')),
+			phase TEXT NOT NULL CHECK (phase IN ('uploading', 'materialized', 'creating')),
+			materialization_digest TEXT,
 			expires_at INTEGER NOT NULL,
 			completion_digest TEXT,
 			outcome TEXT CHECK (outcome IN ('published', 'ambiguous', 'conflict')),
@@ -170,8 +202,8 @@ export class PublicationOperationStore {
 			}
 			const current = this.#storage.sql
 				.exec<OperationRow>(
-					`SELECT generation, token_hash, intent_generation, status, expires_at,
-					        completion_digest, outcome, completed_at
+					`SELECT generation, token_hash, intent_generation, status, phase,
+					        materialization_digest, expires_at, completion_digest, outcome, completed_at
 					 FROM publication_operations WHERE intent_id = ?`,
 					intentId,
 				)
@@ -186,14 +218,17 @@ export class PublicationOperationStore {
 			const expiresAt = now + leaseMs;
 			this.#storage.sql.exec(
 				`INSERT INTO publication_operations (
-					intent_id, generation, token_hash, intent_generation, status,
+					intent_id, generation, token_hash, intent_generation, status, phase,
+					materialization_digest,
 					expires_at, completion_digest, outcome, started_at, completed_at
-				) VALUES (?, ?, ?, ?, 'active', ?, NULL, NULL, ?, NULL)
+				) VALUES (?, ?, ?, ?, 'active', 'uploading', NULL, ?, NULL, NULL, ?, NULL)
 				ON CONFLICT(intent_id) DO UPDATE SET
 					generation = excluded.generation,
 					token_hash = excluded.token_hash,
 					intent_generation = excluded.intent_generation,
 					status = 'active',
+					phase = 'uploading',
+					materialization_digest = NULL,
 					expires_at = excluded.expires_at,
 					completion_digest = NULL,
 					outcome = NULL,
@@ -231,6 +266,102 @@ export class PublicationOperationStore {
 		});
 	}
 
+	async advancePhase(
+		input: AdvancePublicationOperationPhaseInput,
+	): Promise<AdvancePublicationOperationPhaseResult> {
+		const now = input.now ?? Date.now();
+		if (
+			!DID_PATTERN.test(input.publisherDid) ||
+			!ULID_PATTERN.test(input.intentId) ||
+			!Number.isSafeInteger(input.generation) ||
+			input.generation < 1 ||
+			!TOKEN_PATTERN.test(input.token) ||
+			!Number.isSafeInteger(input.expectedIntentGeneration) ||
+			input.expectedIntentGeneration < 1 ||
+			(input.phase !== "materialized" && input.phase !== "creating") ||
+			!DIGEST_PATTERN.test(input.materializationDigest) ||
+			!Number.isSafeInteger(now) ||
+			now < 0
+		) {
+			throw new PublicationOperationError();
+		}
+		const tokenHash = await hashToken(input.token);
+		return this.#storage.transactionSync(() => {
+			const operation = this.#storage.sql
+				.exec<OperationRow>(
+					`SELECT generation, token_hash, intent_generation, status, phase,
+					        materialization_digest, expires_at, completion_digest, outcome, completed_at
+					 FROM publication_operations WHERE intent_id = ?`,
+					input.intentId,
+				)
+				.toArray()[0];
+			const intent = readIntent(this.#storage, input.intentId);
+			if (
+				!operation ||
+				operation.status !== "active" ||
+				operation.generation !== input.generation ||
+				operation.token_hash === null ||
+				!hashesEqual(operation.token_hash, tokenHash) ||
+				operation.intent_generation !== input.expectedIntentGeneration ||
+				operation.expires_at <= now ||
+				!intent ||
+				intent.state !== "publishing" ||
+				intent.state_generation !== input.expectedIntentGeneration
+			) {
+				return { ok: false, code: "PUBLICATION_CAS_REQUIRED" } as const;
+			}
+			if (operation.phase === input.phase) {
+				return operation.materialization_digest === input.materializationDigest
+					? ({
+							ok: true,
+							phase: input.phase,
+							materializationDigest: input.materializationDigest,
+							replayed: true,
+						} as const)
+					: ({ ok: false, code: "PUBLICATION_PHASE_CONFLICT" } as const);
+			}
+			if (operation.phase === "uploading") {
+				if (input.phase !== "materialized" || operation.materialization_digest !== null) {
+					return { ok: false, code: "PUBLICATION_PHASE_CONFLICT" } as const;
+				}
+			} else if (
+				operation.phase !== "materialized" ||
+				input.phase !== "creating" ||
+				operation.materialization_digest !== input.materializationDigest
+			) {
+				return { ok: false, code: "PUBLICATION_PHASE_CONFLICT" } as const;
+			}
+			const materialization = this.#storage.sql
+				.exec<{ record_digest: string | null; status: string }>(
+					`SELECT status, record_digest FROM publication_materializations
+					 WHERE intent_id = ?`,
+					input.intentId,
+				)
+				.toArray()[0];
+			if (
+				!materialization ||
+				materialization.status !== "complete" ||
+				materialization.record_digest !== input.materializationDigest
+			) {
+				return { ok: false, code: "MATERIALIZATION_UNAVAILABLE" } as const;
+			}
+			this.#storage.sql.exec(
+				`UPDATE publication_operations SET phase = ?, materialization_digest = ?
+				 WHERE intent_id = ? AND generation = ? AND status = 'active'`,
+				input.phase,
+				input.materializationDigest,
+				input.intentId,
+				input.generation,
+			);
+			return {
+				ok: true,
+				phase: input.phase,
+				materializationDigest: input.materializationDigest,
+				replayed: false,
+			} as const;
+		});
+	}
+
 	async complete(
 		input: CompletePublicationOperationInput,
 	): Promise<CompletePublicationOperationResult> {
@@ -262,8 +393,8 @@ export class PublicationOperationStore {
 		return this.#storage.transactionSync(() => {
 			const operation = this.#storage.sql
 				.exec<OperationRow>(
-					`SELECT generation, token_hash, intent_generation, status, expires_at,
-					        completion_digest, outcome, completed_at
+					`SELECT generation, token_hash, intent_generation, status, phase,
+					        materialization_digest, expires_at, completion_digest, outcome, completed_at
 					 FROM publication_operations WHERE intent_id = ?`,
 					input.intentId,
 				)
@@ -277,6 +408,8 @@ export class PublicationOperationStore {
 						: "conflict";
 			if (
 				operation?.status === "completed" &&
+				operation.phase === "creating" &&
+				operation.materialization_digest !== null &&
 				operation.generation === input.generation &&
 				operation.token_hash !== null &&
 				hashesEqual(operation.token_hash, tokenHash) &&
@@ -295,6 +428,8 @@ export class PublicationOperationStore {
 			if (
 				!operation ||
 				operation.status !== "active" ||
+				operation.phase !== "creating" ||
+				operation.materialization_digest === null ||
 				operation.generation !== input.generation ||
 				operation.token_hash === null ||
 				!hashesEqual(operation.token_hash, tokenHash) ||
@@ -380,8 +515,13 @@ export class PublicationOperationStore {
 		if (!Number.isSafeInteger(now) || now < 0) throw new PublicationOperationError();
 		return this.#storage.transactionSync(() => {
 			const expired = this.#storage.sql
-				.exec<{ intent_id: string; generation: number; token_hash: string }>(
-					`SELECT intent_id, generation, token_hash FROM publication_operations
+				.exec<{
+					intent_id: string;
+					generation: number;
+					token_hash: string;
+					phase: PublicationOperationPhase;
+				}>(
+					`SELECT intent_id, generation, token_hash, phase FROM publication_operations
 					 WHERE status = 'active' AND expires_at <= ? AND token_hash IS NOT NULL`,
 					now,
 				)
@@ -390,11 +530,20 @@ export class PublicationOperationStore {
 			for (const operation of expired) {
 				const intent = readIntent(this.#storage, operation.intent_id);
 				if (intent?.state === "publishing") {
+					const createStarted = operation.phase === "creating";
+					const nextState = createStarted ? "reconciling" : "ready";
+					const reasonCode = createStarted ? "PDS_AMBIGUOUS" : "PUBLICATION_RETRY_REQUIRED";
+					const eventType = createStarted
+						? "publication-operation-recovery-required"
+						: "publication-operation-retry-required";
+					const stateData = createStarted
+						? '{"recovery":"operation-expired-after-create"}'
+						: '{"recovery":"operation-expired-before-create"}';
 					const nextGeneration = intent.state_generation + 1;
-					const stateData = '{"recovery":"operation-expired"}';
 					this.#storage.sql.exec(
-						`UPDATE intents SET state = 'reconciling', state_generation = ?,
+						`UPDATE intents SET state = ?, state_generation = ?,
 							state_data_json = ?, updated_at = ? WHERE id = ?`,
+						nextState,
 						nextGeneration,
 						stateData,
 						now,
@@ -405,12 +554,14 @@ export class PublicationOperationStore {
 							intent_id, sequence, from_state, to_state, state_generation,
 							transition_digest, actor_realm, actor_identity, reason_code,
 							state_data_json, created_at
-						) VALUES (?, ?, 'publishing', 'reconciling', ?, ?, 'system',
-						          'release-service', 'PDS_AMBIGUOUS', ?, ?)`,
+						) VALUES (?, ?, 'publishing', ?, ?, ?, 'system',
+						          'release-service', ?, ?, ?)`,
 						operation.intent_id,
 						nextGeneration,
+						nextState,
 						nextGeneration,
 						operation.token_hash,
+						reasonCode,
 						stateData,
 						now,
 					);
@@ -418,16 +569,19 @@ export class PublicationOperationStore {
 						`INSERT INTO audit_events (
 							event_type, actor_realm, actor_identity, subject,
 							reason_code, public_payload, created_at
-						) VALUES ('publication-operation-recovery-required', 'system',
-						          'release-service', ?, 'PDS_AMBIGUOUS', '{}', ?)`,
+						) VALUES (?, 'system', 'release-service', ?, ?, '{}', ?)`,
+						eventType,
 						operation.intent_id,
+						reasonCode,
 						now,
 					);
 					recovered += 1;
 				}
 				this.#storage.sql.exec(
 					`UPDATE publication_operations SET status = 'completed',
-						completion_digest = token_hash, outcome = 'ambiguous', completed_at = ?
+						completion_digest = token_hash,
+						outcome = CASE WHEN phase = 'creating' THEN 'ambiguous' ELSE NULL END,
+						completed_at = ?
 					 WHERE intent_id = ? AND generation = ?`,
 					now,
 					operation.intent_id,

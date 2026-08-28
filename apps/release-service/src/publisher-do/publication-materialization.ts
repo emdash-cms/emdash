@@ -1,3 +1,4 @@
+import { multihashFromBlobCid } from "@emdash-cms/registry-verification/checksum";
 import { base64url } from "jose";
 
 const DID_PATTERN = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
@@ -169,7 +170,7 @@ function validTimestamp(value: number): boolean {
 }
 
 function isMutableIntentState(value: string): boolean {
-	return value === "ready" || value === "publishing" || value === "reconciling";
+	return value === "ready" || value === "publishing";
 }
 
 function validStage(input: PutPublicationArtifactStageInput, now: number): boolean {
@@ -442,7 +443,13 @@ export class PublicationMaterializationStore {
 			}
 			const stage = this.#artifact(input.intentId, input.slot);
 			if (!stage) return { ok: false, code: "MATERIALIZATION_SLOT_NOT_FOUND" } as const;
-			if (input.blob.mimeType !== stage.mime_type || input.blob.size !== stage.byte_size) {
+			const blobChecksum = multihashFromBlobCid(input.blob.ref.$link);
+			if (
+				!blobChecksum.success ||
+				blobChecksum.value !== stage.checksum ||
+				input.blob.mimeType !== stage.mime_type ||
+				input.blob.size !== stage.byte_size
+			) {
 				throw new PublicationMaterializationError();
 			}
 			if (stage.blob_json !== null) {

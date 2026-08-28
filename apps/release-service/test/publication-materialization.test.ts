@@ -78,7 +78,7 @@ function stage(slot: "icon" | "package" | "screenshots[0]" | "screenshots[1]") {
 		sourceDigest: SOURCE_DIGEST,
 		slot,
 		sourceUrlDigest: `${slot[0]!.toUpperCase()}${"U".repeat(42)}`,
-		checksum: `b${"a".repeat(51)}`,
+		checksum: "bciqb43wwlv35mnso5lwvu5c3uxcjqwxcw4an3boxz57qe667fffdh7a",
 		stagingKey: `publication/${INTENT_ID}/${slot.replace("[", "-").replace("]", "")}`,
 		mimeType: image ? ("image/png" as const) : ("application/gzip" as const),
 		size: image ? 4_096 : 32_768,
@@ -97,7 +97,7 @@ function receipt(slot: "icon" | "package" | "screenshots[0]" | "screenshots[1]")
 		slot,
 		blob: {
 			$type: "blob" as const,
-			ref: { $link: `bafkrei${"a".repeat(52)}` },
+			ref: { $link: "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q" },
 			mimeType: staged.mimeType,
 			size: staged.size,
 		},
@@ -190,6 +190,19 @@ describe("publisher publication materialization", () => {
 				now: NOW + 12,
 			}),
 		).resolves.toEqual({ ok: false, code: "MATERIALIZATION_INCOMPLETE" });
+		await runInDurableObject(stub, (instance) => {
+			expect(() =>
+				instance.putPublicationBlobReceipt({
+					...receipt("package"),
+					blob: {
+						...receipt("package").blob,
+						ref: {
+							$link: "bafkreibm6jg3ux5qu5wzvikphw4qjzx6i7htc4w4e4c4pv7a7uynxqevmy",
+						},
+					},
+				}),
+			).toThrowError(expect.objectContaining({ code: "PUBLICATION_MATERIALIZATION_INVALID" }));
+		});
 		await stub.putPublicationBlobReceipt(receipt("package"));
 
 		const complete = {

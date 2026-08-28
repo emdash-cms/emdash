@@ -22,6 +22,8 @@ import {
 import {
 	initializePublicationOperationSchema,
 	PublicationOperationStore,
+	type AdvancePublicationOperationPhaseInput,
+	type AdvancePublicationOperationPhaseResult,
 	type BeginPublicationOperationResult,
 	type CompletePublicationOperationInput,
 	type CompletePublicationOperationResult,
@@ -59,10 +61,13 @@ export type {
 	StoredPublicationMaterialization,
 } from "./publication-materialization.js";
 export type {
+	AdvancePublicationOperationPhaseInput,
+	AdvancePublicationOperationPhaseResult,
 	BeginPublicationOperationResult,
 	CompletePublicationOperationInput,
 	CompletePublicationOperationResult,
 	PublicationOperationLease,
+	PublicationOperationPhase,
 	PublicationOutcome,
 } from "./publication-operation.js";
 
@@ -532,6 +537,15 @@ export class PublisherDurableObject extends DurableObject<Env> {
 	): Promise<CompletePublicationOperationResult> {
 		this.#assertPublisherDid(input.publisherDid);
 		const result = await this.#publicationOperations.complete(input);
+		await this.#scheduleNextAlarm(input.now ?? Date.now());
+		return result;
+	}
+
+	async advancePublicationOperationPhase(
+		input: AdvancePublicationOperationPhaseInput,
+	): Promise<AdvancePublicationOperationPhaseResult> {
+		this.#assertPublisherDid(input.publisherDid);
+		const result = await this.#publicationOperations.advancePhase(input);
 		await this.#scheduleNextAlarm(input.now ?? Date.now());
 		return result;
 	}
