@@ -78,9 +78,7 @@ describe("Durable Object OAuth custody", () => {
 		);
 		await custody.stores.states.set(RAW_STATE, state(custody.userState));
 		const stateHash = base64url.encode(
-			new Uint8Array(
-				await crypto.subtle.digest("SHA-256", new TextEncoder().encode(RAW_STATE)),
-			),
+			new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(RAW_STATE))),
 		);
 
 		const persisted = await runInDurableObject(
