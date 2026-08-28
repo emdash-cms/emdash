@@ -152,6 +152,10 @@ function reasonForOutcome(input: CompletePublicationOperationInput): string | nu
 	return null;
 }
 
+function requiresCreatingPhase(outcome: PublicationOutcome): boolean {
+	return outcome === "published" || outcome === "ambiguous" || outcome === "conflict";
+}
+
 export function initializePublicationOperationSchema(storage: DurableObjectStorage): void {
 	storage.sql.exec(`
 		CREATE TABLE IF NOT EXISTS publication_operations (
@@ -424,6 +428,7 @@ export class PublicationOperationStore {
 		}
 		const tokenHash = await hashToken(input.token);
 		return this.#storage.transactionSync(() => {
+			const requiresCreating = requiresCreatingPhase(input.outcome);
 			const operation = this.#storage.sql
 				.exec<OperationRow>(
 					`SELECT generation, token_hash, intent_generation, status, phase,
@@ -438,8 +443,8 @@ export class PublicationOperationStore {
 			const reasonCode = reasonForOutcome(input);
 			if (
 				operation?.status === "completed" &&
-				operation.phase === "creating" &&
-				operation.materialization_digest !== null &&
+				(!requiresCreating ||
+					(operation.phase === "creating" && operation.materialization_digest !== null)) &&
 				operation.generation === input.generation &&
 				operation.token_hash !== null &&
 				hashesEqual(operation.token_hash, tokenHash) &&
@@ -461,8 +466,8 @@ export class PublicationOperationStore {
 			if (
 				!operation ||
 				operation.status !== "active" ||
-				operation.phase !== "creating" ||
-				operation.materialization_digest === null ||
+				(requiresCreating &&
+					(operation.phase !== "creating" || operation.materialization_digest === null)) ||
 				operation.generation !== input.generation ||
 				operation.token_hash === null ||
 				!hashesEqual(operation.token_hash, tokenHash) ||
