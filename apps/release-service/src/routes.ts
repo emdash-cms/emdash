@@ -14,10 +14,12 @@ import {
 	matchApproverCredentialPath,
 } from "./approvals/routes.js";
 import {
+	handleAbortPublisherRestore,
 	handleArchivePublisher,
 	handlePreparePublisherRestore,
 	handleRestorePublisher,
 	matchPublisherArchivePath,
+	matchPublisherRestoreAbortPath,
 	matchPublisherRestorePreparePath,
 	matchPublisherRestorePath,
 } from "./backup/routes.js";
@@ -291,6 +293,13 @@ export const ROUTES = Object.freeze([
 		match: matchPublisherRestorePreparePath,
 		accessRole: "admin",
 		handler: handlePreparePublisherRestore,
+	},
+	{
+		method: "POST",
+		path: "/admin/api/publishers/{publisherDid}/restore/abort",
+		match: matchPublisherRestoreAbortPath,
+		accessRole: "admin",
+		handler: handleAbortPublisherRestore,
 	},
 	{
 		method: "POST",

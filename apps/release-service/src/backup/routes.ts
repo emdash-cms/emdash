@@ -14,12 +14,13 @@ import { writeOperationsMetric } from "../observability/metrics.js";
 const ARCHIVE_PATH_PATTERN = /^\/admin\/api\/publishers\/([^/]+)\/archive$/;
 const RESTORE_PATH_PATTERN = /^\/admin\/api\/publishers\/([^/]+)\/restore$/;
 const RESTORE_PREPARE_PATH_PATTERN = /^\/admin\/api\/publishers\/([^/]+)\/restore\/prepare$/;
+const RESTORE_ABORT_PATH_PATTERN = /^\/admin\/api\/publishers\/([^/]+)\/restore\/abort$/;
 const ARCHIVE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{15,63}$/;
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
 const CURSOR_PATTERN =
 	/^(?:workloads:[A-Za-z0-9_-]{0,64}|intents:[0-9A-HJKMNP-TV-Z]{0,26}|audit:[0-9]+)$/;
 const WORKLOAD_PAGE_SIZE = 20;
-const INTENT_PAGE_SIZE = 4;
+const INTENT_PAGE_SIZE = 1;
 const AUDIT_PAGE_SIZE = 100;
 const MAX_ARCHIVE_PAGE = 999_999;
 const MAX_ARCHIVE_OBJECT_BYTES = 1_500_000;
@@ -167,11 +168,7 @@ async function readEncryptedObject(
 	}
 }
 
-async function writeAuditObject(
-	ownerHash: string,
-	publisherDid: string,
-	events: readonly unknown[],
-): Promise<void> {
+async function writeAuditObject(ownerHash: string, events: readonly unknown[]): Promise<void> {
 	if (events.length === 0) return;
 	const first = events[0];
 	const last = events.at(-1);
@@ -187,10 +184,28 @@ async function writeAuditObject(
 	) {
 		throw new ApiError("ARCHIVE_OPERATION_FAILED", 500, "Audit export failed");
 	}
+	const publicEvents = events.map((event) => {
+		if (!isRecord(event) || typeof event["publicPayloadJson"] !== "string") {
+			throw new ApiError("ARCHIVE_OPERATION_FAILED", 500, "Audit export failed");
+		}
+		let payload: unknown;
+		try {
+			payload = JSON.parse(event["publicPayloadJson"]);
+		} catch {
+			throw new ApiError("ARCHIVE_OPERATION_FAILED", 500, "Audit export failed");
+		}
+		if (!isRecord(payload) || JSON.stringify(payload) !== event["publicPayloadJson"]) {
+			throw new ApiError("ARCHIVE_OPERATION_FAILED", 500, "Audit export failed");
+		}
+		return payload;
+	});
 	const firstSequence = String(first.sequence).padStart(20, "0");
 	const lastSequence = String(last.sequence).padStart(20, "0");
-	const key = `audit/${ownerHash}/${firstSequence}-${lastSequence}.json`;
-	const content = JSON.stringify({ version: SNAPSHOT_VERSION, publisherDid, events });
+	const content = JSON.stringify({ version: SNAPSHOT_VERSION, events: publicEvents });
+	const contentDigest = base64url.encode(
+		new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(content))),
+	);
+	const key = `audit/${ownerHash}/${firstSequence}-${lastSequence}-${contentDigest}.json`;
 	const created = await env.OPERATIONS_ARCHIVE.put(key, content, {
 		onlyIf: { etagDoesNotMatch: "*" },
 		httpMetadata: { contentType: "application/json" },
@@ -223,11 +238,12 @@ async function buildPage(publisherDid: string, cursor: string | null): Promise<P
 	}
 	if (cursor.startsWith("intents:")) {
 		const after = cursor.slice("intents:".length) || null;
-		const intents = await publisher.listIntents(publisherDid, after, INTENT_PAGE_SIZE);
+		const intents = await publisher.listIntents(publisherDid, after, INTENT_PAGE_SIZE + 1);
+		const items = intents.slice(0, INTENT_PAGE_SIZE);
 		return {
 			kind: "intents",
-			data: { items: intents },
-			nextCursor: intents.length === INTENT_PAGE_SIZE ? `intents:${intents.at(-1)!.id}` : "audit:0",
+			data: { items },
+			nextCursor: intents.length > INTENT_PAGE_SIZE ? `intents:${items.at(-1)!.id}` : "audit:0",
 		};
 	}
 	const afterSequence = Number(cursor.slice("audit:".length));
@@ -282,6 +298,20 @@ export function matchPublisherRestorePreparePath(
 	return isDid(publisherDid) ? { publisherDid } : null;
 }
 
+export function matchPublisherRestoreAbortPath(
+	pathname: string,
+): Readonly<Record<string, string>> | null {
+	const match = RESTORE_ABORT_PATH_PATTERN.exec(pathname);
+	if (!match?.[1]) return null;
+	let publisherDid: string;
+	try {
+		publisherDid = decodeURIComponent(match[1]);
+	} catch {
+		return null;
+	}
+	return isDid(publisherDid) ? { publisherDid } : null;
+}
+
 export async function handleArchivePublisher(
 	request: Request,
 	requestId: string,
@@ -321,7 +351,7 @@ export async function handleArchivePublisher(
 			},
 		);
 		if (result.auditEvents) {
-			await writeAuditObject(ownerHash, publisherDid, result.auditEvents);
+			await writeAuditObject(ownerHash, result.auditEvents);
 		}
 		let manifestWritten = false;
 		if (result.nextCursor === null) {
@@ -645,6 +675,84 @@ export async function handlePreparePublisherRestore(
 		if (error instanceof ApiError) return apiFailure(error, requestId);
 		return apiFailure(
 			new ApiError("RESTORE_OPERATION_FAILED", 503, "Publisher restore preparation failed"),
+			requestId,
+		);
+	}
+}
+
+export async function handleAbortPublisherRestore(
+	request: Request,
+	requestId: string,
+	_configuration: ServiceConfiguration,
+	params: Readonly<Record<string, string>>,
+	accessActor: AccessActor | null,
+): Promise<Response> {
+	try {
+		const actor = requireActor(accessActor);
+		requireIdempotencyKey(request);
+		const publisherDid = params["publisherDid"];
+		if (!publisherDid || !isDid(publisherDid)) {
+			throw new ApiError("NOT_FOUND", 404, "Publisher not found");
+		}
+		const body = await readJsonObject(request);
+		if (
+			!hasExactKeys(body, ["archiveId", "confirmPublisherDid"]) ||
+			typeof body["archiveId"] !== "string" ||
+			!ARCHIVE_ID_PATTERN.test(body["archiveId"]) ||
+			body["confirmPublisherDid"] !== publisherDid
+		) {
+			throw new ApiError("INVALID_REQUEST", 400, "Publisher restore confirmation is invalid");
+		}
+		const control = await env.SERVICE_CONTROL_DO.getByName(
+			SERVICE_CONTROL_OBJECT_NAME,
+		).readPublisherControl(actor, publisherDid);
+		if (control.status !== "suspended") {
+			throw new ApiError(
+				"RESTORE_OPERATION_FAILED",
+				409,
+				"Suspend the publisher before aborting a restore",
+			);
+		}
+		const result = await env.PUBLISHER_DO.getByName(publisherDid).abortOperationsRestore(
+			publisherDid,
+			body["archiveId"],
+			actor.identity,
+		);
+		if (!result.ok) {
+			throw new ApiError(
+				"RESTORE_OPERATION_FAILED",
+				409,
+				result.code === "PUBLISHER_NOT_SUSPENDED"
+					? "Publisher is not suspended"
+					: "Publisher restore cannot be aborted",
+			);
+		}
+		console.log(
+			JSON.stringify({
+				event: "publisher_restore_aborted",
+				archiveId: body["archiveId"],
+				publisherHash: await hashOwner(publisherDid),
+				replayed: result.replayed,
+			}),
+		);
+		return apiSuccess(
+			{
+				archiveId: body["archiveId"],
+				publisherDid,
+				aborted: true,
+				replayed: result.replayed,
+			},
+			requestId,
+		);
+	} catch (error) {
+		writeOperationsMetric({
+			event: "restore_failure",
+			outcome: error instanceof ApiError ? error.code : "internal",
+			requestId,
+		});
+		if (error instanceof ApiError) return apiFailure(error, requestId);
+		return apiFailure(
+			new ApiError("RESTORE_OPERATION_FAILED", 503, "Publisher restore abort failed"),
 			requestId,
 		);
 	}

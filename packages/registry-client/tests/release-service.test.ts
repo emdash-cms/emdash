@@ -548,4 +548,29 @@ describe("ReleaseServiceOperatorClient", () => {
 			`{"archiveId":"publisher-archive-0001","confirmPublisherDid":"${PUBLISHER_DID}"}`,
 		);
 	});
+
+	it("aborts a suspended shard restore with exact DID confirmation", async () => {
+		let captured: { init: RequestInit | undefined; url: string } | null = null;
+		const fetch: typeof globalThis.fetch = async (input, init) => {
+			captured = { url: input instanceof Request ? input.url : input.toString(), init };
+			return success({
+				archiveId: "publisher-archive-0001",
+				publisherDid: PUBLISHER_DID,
+				aborted: true,
+				replayed: false,
+			});
+		};
+		const client = new ReleaseServiceOperatorClient({ serviceUrl: SERVICE, fetch });
+		await expect(
+			client.abortPublisherRestore(PUBLISHER_DID, "publisher-archive-0001", {
+				idempotencyKey: "operator-publisher-restore-abort-0001",
+			}),
+		).resolves.toMatchObject({ aborted: true, replayed: false });
+		expect(new URL(captured!.url).pathname).toBe(
+			`/admin/api/publishers/${encodeURIComponent(PUBLISHER_DID)}/restore/abort`,
+		);
+		expect(captured!.init?.body).toBe(
+			`{"archiveId":"publisher-archive-0001","confirmPublisherDid":"${PUBLISHER_DID}"}`,
+		);
+	});
 });

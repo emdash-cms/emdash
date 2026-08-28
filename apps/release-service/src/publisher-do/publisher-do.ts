@@ -227,6 +227,10 @@ export type PreparePublisherRestoreResult =
 	| { ok: true; deletedIntents: number; deletedWorkloads: number; replayed: boolean }
 	| { ok: false; code: "PUBLISHER_NOT_SUSPENDED" | "RESTORE_CONFLICT" };
 
+export type AbortPublisherRestoreResult =
+	| { ok: true; replayed: boolean }
+	| { ok: false; code: "PUBLISHER_NOT_SUSPENDED" | "RESTORE_CONFLICT" };
+
 export type PutDelegationResult =
 	| { ok: true; delegation: StoredDelegation }
 	| { ok: false; code: "DELEGATION_CAS_REQUIRED" };
@@ -1188,7 +1192,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 				.exec<{
 					archive_id: string;
 					total_pages: number;
-					status: "complete" | "prepared" | "restoring";
+					status: "aborted" | "complete" | "prepared" | "restoring";
 					deleted_intents: number;
 					deleted_workloads: number;
 				}>(
@@ -1196,7 +1200,11 @@ export class PublisherDurableObject extends DurableObject<Env> {
 					 FROM operations_restore WHERE id = 1`,
 				)
 				.toArray()[0];
-			if (existing?.archive_id === archiveId && existing.total_pages === totalPages) {
+			if (
+				existing?.archive_id === archiveId &&
+				existing.total_pages === totalPages &&
+				existing.status !== "aborted"
+			) {
 				return {
 					ok: true,
 					deletedIntents: existing.deleted_intents,
@@ -1204,7 +1212,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 					replayed: true,
 				} as const;
 			}
-			if (existing && existing.status !== "complete") {
+			if (existing && existing.status !== "aborted" && existing.status !== "complete") {
 				return { ok: false, code: "RESTORE_CONFLICT" } as const;
 			}
 			const publisher = this.ctx.storage.sql
@@ -1265,6 +1273,59 @@ export class PublisherDurableObject extends DurableObject<Env> {
 				"PUBLISHER_SUSPENDED",
 			);
 			return { ok: true, deletedIntents, deletedWorkloads, replayed: false } as const;
+		});
+	}
+
+	abortOperationsRestore(
+		publisherDid: string,
+		archiveId: string,
+		actorIdentity: string,
+		now = Date.now(),
+	): AbortPublisherRestoreResult {
+		this.#assertPublisherDid(publisherDid);
+		if (
+			!ARCHIVE_ID_PATTERN.test(archiveId) ||
+			!ACTOR_IDENTITY_PATTERN.test(actorIdentity) ||
+			!Number.isSafeInteger(now) ||
+			now < 0
+		) {
+			throw new PublisherStateError("OPERATIONS_EXPORT_INVALID");
+		}
+		return this.ctx.storage.transactionSync(() => {
+			const publisher = this.ctx.storage.sql
+				.exec<{ status: string }>("SELECT status FROM publisher WHERE id = 1")
+				.one();
+			if (publisher.status !== "suspended") {
+				return { ok: false, code: "PUBLISHER_NOT_SUSPENDED" } as const;
+			}
+			const existing = this.ctx.storage.sql
+				.exec<{
+					archive_id: string;
+					status: "aborted" | "complete" | "prepared" | "restoring";
+				}>("SELECT archive_id, status FROM operations_restore WHERE id = 1")
+				.toArray()[0];
+			if (existing?.archive_id === archiveId && existing.status === "aborted") {
+				return { ok: true, replayed: true } as const;
+			}
+			if (!existing || existing.archive_id !== archiveId || existing.status === "complete") {
+				return { ok: false, code: "RESTORE_CONFLICT" } as const;
+			}
+			this.ctx.storage.sql.exec(
+				`UPDATE operations_restore SET status = 'aborted', actor_identity = ?, updated_at = ?
+				 WHERE id = 1 AND archive_id = ?`,
+				actorIdentity,
+				now,
+				archiveId,
+			);
+			this.#appendAudit(
+				"publisher-restore-aborted",
+				"access",
+				actorIdentity,
+				archiveId,
+				now,
+				"RESTORE_ABORTED",
+			);
+			return { ok: true, replayed: false } as const;
 		});
 	}
 

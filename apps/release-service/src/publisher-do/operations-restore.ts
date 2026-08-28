@@ -38,7 +38,7 @@ interface RestoreStateRow {
 	total_pages: number;
 	next_page: number;
 	last_kind: PublisherRestoreKind;
-	status: "complete" | "prepared" | "restoring";
+	status: "aborted" | "complete" | "prepared" | "restoring";
 	deleted_intents: number;
 	deleted_workloads: number;
 }
@@ -118,7 +118,7 @@ export function initializeOperationsRestoreSchema(storage: DurableObjectStorage)
 			last_kind TEXT NOT NULL CHECK (
 				last_kind IN ('metadata', 'workload-policies', 'intents', 'audit-events')
 			),
-			status TEXT NOT NULL CHECK (status IN ('prepared', 'restoring', 'complete')),
+			status TEXT NOT NULL CHECK (status IN ('prepared', 'restoring', 'complete', 'aborted')),
 			deleted_intents INTEGER NOT NULL CHECK (deleted_intents >= 0),
 			deleted_workloads INTEGER NOT NULL CHECK (deleted_workloads >= 0),
 			actor_identity TEXT NOT NULL,
@@ -199,6 +199,7 @@ export class OperationsRestoreStore {
 				state.archive_id !== input.archiveId ||
 				state.total_pages !== input.totalPages ||
 				state.next_page !== input.page ||
+				state.status !== "restoring" ||
 				KIND_ORDER[input.kind] < KIND_ORDER[state.last_kind]
 			) {
 				return { ok: false, code: "RESTORE_OUT_OF_ORDER" } as const;

@@ -239,6 +239,13 @@ export interface PreparePublisherRestoreResult {
 	replayed: boolean;
 }
 
+export interface AbortPublisherRestoreResult {
+	archiveId: string;
+	publisherDid: string;
+	aborted: true;
+	replayed: boolean;
+}
+
 export interface CursorPage<T> {
 	items: T[];
 	nextCursor?: string;

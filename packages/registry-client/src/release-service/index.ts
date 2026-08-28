@@ -3,6 +3,7 @@ import type { PackageRelease } from "@emdash-cms/registry-lexicons";
 import { parseDelegatedReleaseSourceRecord } from "./source-record.js";
 import {
 	TERMINAL_RELEASE_INTENT_STATES,
+	type AbortPublisherRestoreResult,
 	type CursorPage,
 	type DelegationResource,
 	type DirectoryIdentityKind,
@@ -44,6 +45,7 @@ export type {
 export { parseDelegatedReleaseSourceRecord } from "./source-record.js";
 
 export type {
+	AbortPublisherRestoreResult,
 	CursorPage,
 	DelegationResource,
 	DirectoryIdentityKind,
@@ -1099,6 +1101,28 @@ function parsePreparedPublisherRestore(value: unknown): PreparePublisherRestoreR
 	};
 }
 
+function parseAbortedPublisherRestore(value: unknown): AbortPublisherRestoreResult {
+	if (!isRecord(value)) throw invalidResponse();
+	const archiveId = stringValue(value, "archiveId");
+	const publisherDid = stringValue(value, "publisherDid");
+	if (
+		!archiveId ||
+		!ARCHIVE_ID_PATTERN.test(archiveId) ||
+		!publisherDid ||
+		!DID_PATTERN.test(publisherDid) ||
+		value["aborted"] !== true ||
+		typeof value["replayed"] !== "boolean"
+	) {
+		throw invalidResponse();
+	}
+	return {
+		archiveId,
+		publisherDid,
+		aborted: true,
+		replayed: value["replayed"],
+	};
+}
+
 export class ReleaseServiceOperatorClient extends BaseReleaseServiceClient {
 	#mutationHeaders(idempotencyKey: string): Headers {
 		return new Headers({
@@ -1306,6 +1330,30 @@ export class ReleaseServiceOperatorClient extends BaseReleaseServiceClient {
 				signal: options.signal,
 			},
 			parsePreparedPublisherRestore,
+		);
+	}
+
+	async abortPublisherRestore(
+		publisherDid: string,
+		archiveId: string,
+		options: MutationOptions,
+	): Promise<AbortPublisherRestoreResult> {
+		if (!ARCHIVE_ID_PATTERN.test(archiveId)) {
+			throw new ReleaseServiceError({
+				code: "CLIENT_RESPONSE_INVALID",
+				message: "Publisher archive ID is invalid",
+			});
+		}
+		return await this.call(
+			`/admin/api/publishers/${encodeURIComponent(publisherDid)}/restore/abort`,
+			{
+				method: "POST",
+				credentials: "include",
+				headers: this.#mutationHeaders(options.idempotencyKey),
+				body: JSON.stringify({ archiveId, confirmPublisherDid: publisherDid }),
+				signal: options.signal,
+			},
+			parseAbortedPublisherRestore,
 		);
 	}
 
