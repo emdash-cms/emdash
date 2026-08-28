@@ -7,6 +7,7 @@ import type { IntentState, PutWorkloadPolicyInput } from "../src/publisher-do/pu
 const DID = "did:plc:publisher";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const NOW = 1_800_000_000_000;
+const OPERATION_CREDENTIAL = "C".repeat(43);
 
 function publisher() {
 	return env.PUBLISHER_DO.getByName(DID);
@@ -168,14 +169,25 @@ afterEach(async () => {
 describe("publisher publication operations", () => {
 	it("serializes publication with a generation-bound hashed lease", async () => {
 		const stub = await preparePublishing();
-		const first = await stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, NOW + 10);
+		const first = await stub.beginPublicationOperation(
+			DID,
+			INTENT_ID,
+			5,
+			5_000,
+			OPERATION_CREDENTIAL,
+			NOW + 10,
+		);
 		expect(first).toMatchObject({
 			ok: true,
+			replayed: false,
 			lease: { intentId: INTENT_ID, generation: 1, expectedIntentGeneration: 5 },
 		});
 		if (!first.ok) return;
 		await expect(
-			stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, NOW + 11),
+			stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, OPERATION_CREDENTIAL, NOW + 11),
+		).resolves.toEqual({ ok: true, replayed: true, lease: first.lease });
+		await expect(
+			stub.beginPublicationOperation(DID, INTENT_ID, 5, 5_000, "D".repeat(43), NOW + 11),
 		).resolves.toEqual({
 			ok: false,
 			code: "PUBLICATION_BUSY",

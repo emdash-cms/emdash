@@ -47,7 +47,7 @@ export type AdvancePublicationOperationPhaseResult =
 	  };
 
 export type BeginPublicationOperationResult =
-	| { ok: true; lease: PublicationOperationLease }
+	| { ok: true; lease: PublicationOperationLease; replayed: boolean }
 	| {
 			ok: false;
 			code: "INTENT_UNAVAILABLE" | "INTENT_CAS_REQUIRED" | "PUBLICATION_RECOVERY_REQUIRED";
@@ -201,8 +201,14 @@ export class PublicationOperationStore {
 		intentId: string,
 		expectedIntentGeneration: number,
 		leaseMs: number,
+		credentialOrNow: string | number = Date.now(),
 		now = Date.now(),
 	): Promise<BeginPublicationOperationResult> {
+		const operationNow = typeof credentialOrNow === "number" ? credentialOrNow : now;
+		const token =
+			typeof credentialOrNow === "string"
+				? credentialOrNow
+				: base64url.encode(crypto.getRandomValues(new Uint8Array(32)));
 		if (
 			!DID_PATTERN.test(publisherDid) ||
 			!ULID_PATTERN.test(intentId) ||
@@ -211,13 +217,13 @@ export class PublicationOperationStore {
 			!Number.isSafeInteger(leaseMs) ||
 			leaseMs < 1 ||
 			leaseMs > MAX_LEASE_MS ||
-			!Number.isSafeInteger(now) ||
-			now < 0 ||
-			now > Number.MAX_SAFE_INTEGER - leaseMs
+			!TOKEN_PATTERN.test(token) ||
+			!Number.isSafeInteger(operationNow) ||
+			operationNow < 0 ||
+			operationNow > Number.MAX_SAFE_INTEGER - leaseMs
 		) {
 			throw new PublicationOperationError();
 		}
-		const token = base64url.encode(crypto.getRandomValues(new Uint8Array(32)));
 		const tokenHash = await hashToken(token);
 		return this.#storage.transactionSync(() => {
 			const intent = readIntent(this.#storage, intentId);
@@ -236,14 +242,33 @@ export class PublicationOperationStore {
 					intentId,
 				)
 				.toArray()[0];
-			if (current?.status === "active" && current.expires_at > now) {
+			if (
+				current?.status === "active" &&
+				current.expires_at > operationNow &&
+				current.token_hash !== null &&
+				current.intent_generation === expectedIntentGeneration &&
+				hashesEqual(current.token_hash, tokenHash)
+			) {
+				return {
+					ok: true,
+					lease: {
+						intentId,
+						generation: current.generation,
+						token,
+						expectedIntentGeneration,
+						expiresAt: current.expires_at,
+					},
+					replayed: true,
+				} as const;
+			}
+			if (current?.status === "active" && current.expires_at > operationNow) {
 				return { ok: false, code: "PUBLICATION_BUSY", retryAt: current.expires_at } as const;
 			}
 			if (current?.status === "active") {
 				return { ok: false, code: "PUBLICATION_RECOVERY_REQUIRED" } as const;
 			}
 			const generation = (current?.generation ?? 0) + 1;
-			const expiresAt = now + leaseMs;
+			const expiresAt = operationNow + leaseMs;
 			this.#storage.sql.exec(
 				`INSERT INTO publication_operations (
 					intent_id, generation, token_hash, intent_generation, status, phase,
@@ -271,7 +296,7 @@ export class PublicationOperationStore {
 				tokenHash,
 				expectedIntentGeneration,
 				expiresAt,
-				now,
+				operationNow,
 			);
 			this.#storage.sql.exec(
 				`INSERT INTO deadlines (kind, subject_id, generation, scheduled_at)
@@ -289,11 +314,12 @@ export class PublicationOperationStore {
 				) VALUES ('publication-operation-started', 'system',
 				          'release-service', ?, NULL, '{}', ?)`,
 				intentId,
-				now,
+				operationNow,
 			);
 			return {
 				ok: true,
 				lease: { intentId, generation, token, expectedIntentGeneration, expiresAt },
+				replayed: false,
 			} as const;
 		});
 	}
