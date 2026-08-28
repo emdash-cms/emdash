@@ -876,11 +876,15 @@ describe("ReleaseIntentWorkflow", () => {
 			env.RELEASE_INTENT_WORKFLOW,
 			INTENT_ID,
 		);
+		await introspector.modify((modifier) =>
+			modifier.forceEventTimeout({ name: "approval-decision" }),
+		);
 		const instance = await env.RELEASE_INTENT_WORKFLOW.create({
 			id: INTENT_ID,
 			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
 		});
 		await introspector.waitForStepResult({ name: "await-approval" });
+		await introspector.waitForStepResult({ name: "approval-timeout-state" });
 		const awaiting = await env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(
 			PUBLISHER_DID,
 			INTENT_ID,

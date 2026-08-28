@@ -598,50 +598,64 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 			}),
 		);
 		if (!awaiting.ok) throw new NonRetryableError(awaiting.code);
-		const timeout = Math.max(1, awaiting.expiresAt - event.timestamp.getTime());
-		try {
-			await step.waitForEvent("approval-decision", { type: "approval-decision", timeout });
-		} catch {
-			const timeoutState = await step.do<{ intent: IntentSummary | null; checkedAt: number }>(
-				"approval-timeout-state",
-				async () => ({
-					intent: await currentIntent(publisher, params.publisherDid, params.intentId),
-					checkedAt: Date.now(),
-				}),
-			);
-			if (
-				timeoutState.intent?.state === "awaiting_approval" &&
-				timeoutState.checkedAt >= timeoutState.intent.expiresAt
-			) {
-				const expired = await step.do<TransitionSummary>("mark-expired", async () => {
-					const result = await transitionIntent(publisher, {
-						publisherDid: params.publisherDid,
-						intentId: params.intentId,
-						expectedState: "awaiting_approval",
-						expectedGeneration: timeoutState.intent!.stateGeneration,
-						toState: "expired",
-						transitionDigest: await digest(["expired", decision.approvalEvidence]),
-						actorRealm: "system",
-						actorIdentity: WORKFLOW_ACTOR,
-						reasonCode: "APPROVAL_EXPIRED",
-						stateDataJson: JSON.stringify({ reasonCode: "APPROVAL_EXPIRED" }),
-					});
-					if (result.ok) {
-						await invalidateApprovalChallenges(
-							this.env.APPROVER_DO,
-							decision.approvers,
-							params.intentId,
-							"EXPIRED",
-							timeoutState.checkedAt,
-						);
-					}
-					return result;
+		let waitStartedAt = event.timestamp.getTime();
+		let waitSequence = 1;
+		for (;;) {
+			const waitName =
+				waitSequence === 1 ? "approval-decision" : `approval-decision-${waitSequence}`;
+			try {
+				await step.waitForEvent(waitName, {
+					type: "approval-decision",
+					timeout: Math.max(1, awaiting.expiresAt - waitStartedAt),
 				});
-				if (!expired.ok) throw new NonRetryableError(expired.code);
-				return { intentId: params.intentId, state: "expired", reasonCode: "APPROVAL_EXPIRED" };
-			}
-			if (timeoutState.intent?.state === "awaiting_approval") {
-				throw new Error("Approval wait ended before the intent deadline");
+				break;
+			} catch {
+				const timeoutStateName =
+					waitSequence === 1 ? "approval-timeout-state" : `approval-timeout-state-${waitSequence}`;
+				const timeoutState = await step.do<{ intent: IntentSummary | null; checkedAt: number }>(
+					timeoutStateName,
+					async () => ({
+						intent: await currentIntent(publisher, params.publisherDid, params.intentId),
+						checkedAt: Date.now(),
+					}),
+				);
+				if (
+					timeoutState.intent?.state === "awaiting_approval" &&
+					timeoutState.checkedAt >= timeoutState.intent.expiresAt
+				) {
+					const expired = await step.do<TransitionSummary>("mark-expired", async () => {
+						const result = await transitionIntent(publisher, {
+							publisherDid: params.publisherDid,
+							intentId: params.intentId,
+							expectedState: "awaiting_approval",
+							expectedGeneration: timeoutState.intent!.stateGeneration,
+							toState: "expired",
+							transitionDigest: await digest(["expired", decision.approvalEvidence]),
+							actorRealm: "system",
+							actorIdentity: WORKFLOW_ACTOR,
+							reasonCode: "APPROVAL_EXPIRED",
+							stateDataJson: JSON.stringify({ reasonCode: "APPROVAL_EXPIRED" }),
+						});
+						if (result.ok) {
+							await invalidateApprovalChallenges(
+								this.env.APPROVER_DO,
+								decision.approvers,
+								params.intentId,
+								"EXPIRED",
+								timeoutState.checkedAt,
+							);
+						}
+						return result;
+					});
+					if (!expired.ok) throw new NonRetryableError(expired.code);
+					return { intentId: params.intentId, state: "expired", reasonCode: "APPROVAL_EXPIRED" };
+				}
+				if (timeoutState.intent?.state === "awaiting_approval") {
+					waitStartedAt = timeoutState.checkedAt;
+					waitSequence += 1;
+					continue;
+				}
+				break;
 			}
 		}
 		const completed = await step.do<IntentSummary | null>("approval-result", () =>
