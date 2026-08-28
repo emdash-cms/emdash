@@ -219,14 +219,14 @@ async function listPackageReleases(
 ): Promise<readonly AuthoritativeRecord[]> {
 	const records: AuthoritativeRecord[] = [];
 	const cursors = new Set<string>();
+	const collectionUriPrefix = `at://${publisherDid}/${NSID.packageRelease}/`;
+	const packageUriPrefix = `${collectionUriPrefix}${packageSlug}:`;
 	let cursor: string | null = null;
 	for (let page = 0; page < MAX_RELEASE_PAGES; page += 1) {
 		const url = pdsXrpcUrl(pds, "com.atproto.repo.listRecords");
 		url.searchParams.set("repo", publisherDid);
 		url.searchParams.set("collection", NSID.packageRelease);
 		url.searchParams.set("limit", String(PAGE_LIMIT));
-		url.searchParams.set("rkeyStart", `${packageSlug}:`);
-		url.searchParams.set("rkeyEnd", `${packageSlug}:~`);
 		if (cursor !== null) url.searchParams.set("cursor", cursor);
 		const parsed = await guardedJson(url, fetchImplementation);
 		if (!isRecord(parsed) || !Array.isArray(parsed["records"])) {
@@ -234,7 +234,10 @@ async function listPackageReleases(
 		}
 		for (const value of parsed["records"]) {
 			const record = parseRecord(value);
-			if (!record) throw new PublisherSnapshotError("RELEASE_LIST_INVALID");
+			if (!record || !record.uri.startsWith(collectionUriPrefix)) {
+				throw new PublisherSnapshotError("RELEASE_LIST_INVALID");
+			}
+			if (!record.uri.startsWith(packageUriPrefix)) continue;
 			records.push(record);
 		}
 		if (parsed["cursor"] === undefined) return records;

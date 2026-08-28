@@ -19,11 +19,11 @@ function resolver(): ActorResolver {
 	};
 }
 
-function release(version: string) {
+function release(version: string, packageSlug = "gallery") {
 	return {
-		uri: `at://${PUBLISHER_DID}/${NSID.packageRelease}/gallery:${version}`,
-		cid: `bafy${version.replaceAll(".", "")}`,
-		value: { package: "gallery", version },
+		uri: `at://${PUBLISHER_DID}/${NSID.packageRelease}/${packageSlug}:${version}`,
+		cid: `bafy${packageSlug}${version.replaceAll(".", "")}`,
+		value: { package: packageSlug, version },
 	};
 }
 
@@ -47,16 +47,20 @@ function snapshotFetch(options: { privateAddress?: boolean; proposedExists?: boo
 			});
 		}
 		if (url.pathname === "/xrpc/com.atproto.repo.listRecords") {
-			expect(url.searchParams.get("rkeyStart")).toBe("gallery:");
-			expect(url.searchParams.get("rkeyEnd")).toBe("gallery:~");
+			expect(url.searchParams.has("rkeyStart")).toBe(false);
+			expect(url.searchParams.has("rkeyEnd")).toBe(false);
 			if (url.searchParams.get("cursor") === null) {
 				return Response.json({
-					records: [release("1.9.0"), release("1.10.0")],
+					records: [release("9.0.0", "other"), release("1.9.0"), release("1.10.0")],
 					cursor: "page-2",
 				});
 			}
 			return Response.json({
-				records: [release("2.0.0-rc.1"), ...(options.proposedExists ? [release("2.0.0")] : [])],
+				records: [
+					release("not-semver", "unrelated"),
+					release("2.0.0-rc.1"),
+					...(options.proposedExists ? [release("2.0.0")] : []),
+				],
 			});
 		}
 		throw new Error(`Unexpected request: ${url.toString()}`);
@@ -75,7 +79,7 @@ describe("publisher verification snapshot", () => {
 			proposedRkey: "gallery:2.0.0",
 			proposedReleaseAbsent: true,
 			baselineVersion: "2.0.0-rc.1",
-			baseline: { cid: "bafy200-rc1" },
+			baseline: { cid: "bafygallery200-rc1" },
 		});
 	});
 
