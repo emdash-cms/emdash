@@ -70,18 +70,21 @@ function validPurpose(value: unknown): value is OAuthTransactionPurpose {
 }
 
 function validRedirectTarget(value: unknown): value is string {
-	return (
-		typeof value === "string" &&
-		value.length > 0 &&
-		value.length <= 4096 &&
-		value.startsWith("/") &&
-		!value.startsWith("//") &&
-		!value.includes("\\") &&
-		![...value].some((character) => {
-			const code = character.charCodeAt(0);
-			return code <= 0x1f || code === 0x7f;
-		})
-	);
+	if (
+		typeof value !== "string" ||
+		value.length === 0 ||
+		value.length > 4096 ||
+		!value.startsWith("/") ||
+		value.startsWith("//") ||
+		value.includes("\\")
+	) {
+		return false;
+	}
+	for (let index = 0; index < value.length; index += 1) {
+		const code = value.charCodeAt(index);
+		if (code <= 0x1f || code === 0x7f) return false;
+	}
+	return true;
 }
 
 function validPutInput(input: PutOAuthTransactionInput, now: number): boolean {
