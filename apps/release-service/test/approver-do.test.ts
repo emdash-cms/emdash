@@ -205,6 +205,19 @@ describe("ApproverDurableObject", () => {
 			stub.commitCredentialUse(APPROVER_DID, CREDENTIAL_ID, 1, 0, now + 4),
 		).resolves.toEqual({ ok: false, code: "COUNTER_REGRESSION" });
 		await expect(
+			runInDurableObject(stub, (_instance, state) =>
+				state.storage.sql
+					.exec<{ event_type: string; reason_code: string | null }>(
+						`SELECT event_type, reason_code FROM audit_events
+						 WHERE event_type = 'credential-counter-regression'`,
+					)
+					.one(),
+			),
+		).resolves.toEqual({
+			event_type: "credential-counter-regression",
+			reason_code: "COUNTER_REGRESSION",
+		});
+		await expect(
 			stub.commitCredentialUse(APPROVER_DID, CREDENTIAL_ID, 0, 2, now + 4),
 		).resolves.toEqual({ ok: false, code: "CREDENTIAL_STATE_CHANGED" });
 	});
@@ -244,6 +257,19 @@ describe("ApproverDurableObject", () => {
 		await expect(
 			stub.consumeChallenge(APPROVER_DID, CHALLENGE_HASH, "approval", now + 3),
 		).resolves.toEqual({ ok: false, code: "CHALLENGE_CONSUMED" });
+	});
+
+	it("accepts challenge expiry within the worker-to-DO clock-skew allowance", async () => {
+		const now = 1_800_000_000_000;
+		await expect(
+			approver().createChallenge(APPROVER_DID, {
+				challengeHash: CHALLENGE_HASH,
+				kind: "registration",
+				context: "registration-context",
+				expiresAt: now + 5 * 60_000 + 1_000,
+				now,
+			}),
+		).resolves.toEqual({ ok: true });
 	});
 
 	it("invalidates outstanding intent challenges on credential revocation", async () => {

@@ -16,6 +16,7 @@ const MAX_CONTEXT_CHARS = 16 * 1024;
 const MAX_IDENTITY_TRANSACTION_MS = 10 * 60_000;
 const MAX_SESSION_MS = 24 * 60 * 60_000;
 const MAX_CHALLENGE_MS = 5 * 60_000;
+const MAX_CHALLENGE_CLOCK_SKEW_MS = 5_000;
 const COMPLETED_IDENTITY_RETENTION_MS = 60 * 60_000;
 
 export type ApproverStoreErrorCode =
@@ -824,6 +825,13 @@ export class ApproverStore {
 				return { ok: false, code: "CREDENTIAL_STATE_CHANGED" } as const;
 			}
 			if ((newCounter > 0 || expectedCounter > 0) && newCounter <= expectedCounter) {
+				this.#appendAudit(
+					"credential-counter-regression",
+					approverDid,
+					credentialId,
+					now,
+					"COUNTER_REGRESSION",
+				);
 				return { ok: false, code: "COUNTER_REGRESSION" } as const;
 			}
 			this.storage.sql.exec(
@@ -998,6 +1006,13 @@ export class ApproverStore {
 				(input.newCounter > 0 || input.expectedCounter > 0) &&
 				input.newCounter <= input.expectedCounter
 			) {
+				this.#appendAudit(
+					"credential-counter-regression",
+					approverDid,
+					input.credentialId,
+					input.verifiedAt,
+					"COUNTER_REGRESSION",
+				);
 				return { ok: false, code: "COUNTER_REGRESSION" } as const;
 			}
 			this.storage.sql.exec(
@@ -1149,7 +1164,7 @@ export class ApproverStore {
 			!validInteger(now) ||
 			!validInteger(input.expiresAt) ||
 			input.expiresAt <= now ||
-			input.expiresAt - now > MAX_CHALLENGE_MS ||
+			input.expiresAt - now > MAX_CHALLENGE_MS + MAX_CHALLENGE_CLOCK_SKEW_MS ||
 			!validBoundedString(input.context, MAX_CONTEXT_CHARS)
 		) {
 			return false;
