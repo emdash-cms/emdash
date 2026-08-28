@@ -75,7 +75,10 @@ export const exportSeedCommand = defineCommand({
 
 		// Connect to database
 		const dbPath = resolve(cwd, args.database);
-		consola.info(`Database: ${dbPath}`);
+		// The seed document is this command's stdout payload, so anything else
+		// written there corrupts `emdash export-seed > seed.json`. Diagnostics
+		// go to stderr, where a redirect leaves them visible.
+		process.stderr.write(`Database: ${dbPath}\n`);
 
 		const db = createDatabase({ url: `file:${dbPath}` });
 
@@ -355,7 +358,11 @@ async function exportTaxonomies(
 	const defs = await db
 		.selectFrom("_emdash_taxonomy_defs")
 		.selectAll()
-		.orderBy(["name", "locale"])
+		// Chained, not `orderBy(["name", "locale"])`: kysely deprecated the array
+		// form and announces it with `console.log`, which lands in the seed
+		// document this command writes to stdout.
+		.orderBy("name")
+		.orderBy("locale")
 		.execute();
 
 	const result: SeedTaxonomy[] = [];
@@ -446,7 +453,11 @@ async function exportMenus(db: Kysely<Database>, i18nEnabled: boolean): Promise<
 	const menus = await db
 		.selectFrom("_emdash_menus")
 		.selectAll()
-		.orderBy(["name", "locale"])
+		// Chained, not `orderBy(["name", "locale"])`: kysely deprecated the array
+		// form and announces it with `console.log`, which lands in the seed
+		// document this command writes to stdout.
+		.orderBy("name")
+		.orderBy("locale")
 		.execute();
 
 	const result: SeedMenu[] = [];
