@@ -382,7 +382,7 @@ Allowed transitions are explicit. Compare-and-set transition methods take the ex
 6. The publisher registers a package-to-GitHub-workload policy.
 7. The service fetches and validates the signed package profile.
 8. Profile-listed approvers separately prove their DIDs and enrol passkeys.
-9. A dry-run submission verifies OIDC and provenance configuration without reserving or publishing a version.
+9. A dry-run submission verifies OIDC identity, request shape, service admission, and workload policy without reserving, rate-limiting, starting verification, or publishing a version. It does not fetch or validate the artifact or provenance document.
 
 The publisher can revoke the delegation from the service or directly through the authorization server. The service treats refresh failure after revocation as terminal authority loss, not as a retry loop.
 
@@ -475,25 +475,30 @@ Health endpoints are outside the versioned API. `GET /health` is configuration-i
 | Method and path                        | Purpose                                                           |
 | -------------------------------------- | ----------------------------------------------------------------- |
 | `POST /v1/release-intents`             | Submit or replay an OIDC-authenticated intent                     |
+| `POST /v1/release-intents/dry-run`     | Check OIDC and admission policy without creating an intent        |
 | `GET /v1/release-intents/{id}`         | Read status using matching workload identity or publisher session |
 | `POST /v1/release-intents/{id}/cancel` | Cancel before publication                                         |
 
 ### Publisher API
 
-| Method and path                       | Purpose                                       |
-| ------------------------------------- | --------------------------------------------- |
-| `GET /v1/publisher`                   | Read publisher and delegation state           |
-| `POST /v1/publisher/delegation`       | Start or complete exact-scope delegation      |
-| `DELETE /v1/publisher/delegation`     | Revoke retained authority                     |
-| `GET /v1/publisher/workloads`         | List package workload policies                |
-| `POST /v1/publisher/workloads`        | Create or replace an authorized policy        |
-| `DELETE /v1/publisher/workloads/{id}` | Disable a policy                              |
-| `GET /v1/publisher/intents`           | List publisher intents with cursor pagination |
+| Method and path                                                | Purpose                                                    |
+| -------------------------------------------------------------- | ---------------------------------------------------------- |
+| `POST /v1/publisher/session/authorize`                         | Start identity-only publisher authorization                |
+| `GET /v1/publisher`                                            | Read publisher and delegation state                        |
+| `POST /v1/publisher/delegation/authorize`                      | Start exact-scope delegation authorization                 |
+| `DELETE /v1/publisher/delegation`                              | Revoke retained authority                                  |
+| `GET /v1/publisher/workloads`                                  | List package workload policies                             |
+| `POST /v1/publisher/workloads`                                 | Create or replace an authorized policy                     |
+| `DELETE /v1/publisher/workloads/{packageSlug}`                 | Disable a policy                                           |
+| `GET /v1/publisher/workloads/{packageSlug}/approvers`          | Read approval readiness for DIDs in the signed profile     |
+| `GET /v1/publisher/intents`                                    | List publisher intents with cursor pagination              |
+| `GET /v1/publisher/audit`                                      | List publisher-scoped audit events with cursor pagination  |
 
 ### Approver API
 
 | Method and path                         | Purpose                           |
 | --------------------------------------- | --------------------------------- |
+| `POST /v1/approver/session/authorize`   | Start identity-only authorization |
 | `GET /v1/approver/credentials`          | List active and revoked passkeys  |
 | `POST /v1/approver/credentials/options` | Begin enrolment                   |
 | `POST /v1/approver/credentials`         | Finish enrolment                  |
@@ -504,16 +509,31 @@ Health endpoints are outside the versioned API. `GET /health` is configuration-i
 
 ### Access operator API
 
-| Method and path                                           | Purpose                                          |
-| --------------------------------------------------------- | ------------------------------------------------ |
-| `GET /admin/api/viewer/status`                            | Read service mode and component health           |
-| `GET /admin/api/viewer/publisher-control?did={did}`       | Read authoritative publisher control state       |
-| `GET /admin/api/viewer/audit`                             | Query global or projected operational audit data |
-| `POST /admin/api/reviewer/intents/{id}/cancel`            | Stop an unpublished intent                       |
-| `POST /admin/api/reviewer/intents/{id}/reconcile`         | Trigger bounded reconciliation                   |
-| `POST /admin/api/admin/service-mode`                      | Change admission or publication mode             |
-| `POST /admin/api/admin/publisher-control`                 | Suspend or restore publisher admission           |
-| `POST /admin/api/admin/publishers/{did}/revoke-authority` | Revoke retained service authority                |
+The typed operator client uses these canonical paths:
+
+| Method and path                                                       | Minimum role | Purpose                                           |
+| --------------------------------------------------------------------- | ------------ | ------------------------------------------------- |
+| `GET /admin/api/status`                                               | viewer       | Read service mode and component health            |
+| `GET /admin/api/directory`                                            | viewer       | List publisher or approver directory projections  |
+| `GET /admin/api/audit`                                                | viewer       | Query global or projected operational audit data  |
+| `GET /admin/api/publishers/{publisherDid}`                            | viewer       | Read authoritative publisher state                |
+| `POST /admin/api/intents/{intentId}/cancel`                           | reviewer     | Stop an unpublished intent                        |
+| `POST /admin/api/intents/{intentId}/reconcile`                        | reviewer     | Trigger bounded reconciliation                    |
+| `POST /admin/api/pause`                                               | admin        | Change admission or publication mode              |
+| `POST /admin/api/publishers/{publisherDid}/suspend`                   | admin        | Suspend or restore publisher admission            |
+| `POST /admin/api/publishers/{publisherDid}/revoke`                    | admin        | Revoke retained service authority                 |
+| `POST /admin/api/publishers/{publisherDid}/encryption/rotate`         | admin        | Re-encrypt one page of publisher state             |
+| `POST /admin/api/approvers/{approverDid}/encryption/rotate`           | admin        | Re-encrypt one page of approver state              |
+| `POST /admin/api/publishers/{publisherDid}/archive`                   | admin        | Produce one bounded publisher archive page         |
+| `POST /admin/api/publishers/{publisherDid}/archive/start`             | admin        | Start a resumable publisher archive Workflow       |
+| `POST /admin/api/publishers/{publisherDid}/restore/prepare`           | admin        | Validate an archive before restore                 |
+| `POST /admin/api/publishers/{publisherDid}/restore`                   | admin        | Restore one validated archive page                 |
+| `GET /admin/api/viewer/encryption/keys`                               | viewer       | Read encryption-key lifecycle state               |
+| `POST /admin/api/admin/encryption/keys/activate`                      | admin        | Activate a configured encryption-key version      |
+| `POST /admin/api/admin/encryption/verify`                             | admin        | Start fleet verification for a retiring key       |
+| `POST /admin/api/admin/encryption/keys/{version}/retire`              | admin        | Retire a verified inactive key                    |
+
+The Worker retains `/admin/api/viewer/status` and `/admin/api/viewer/audit` as aliases for the canonical status and audit reads. `/admin/api/viewer/publisher-control`, `/admin/api/admin/service-mode`, and `/admin/api/admin/publisher-control` retain the earlier control-plane request and response shapes for compatibility; new clients use the canonical paths above.
 
 State-changing requests require content-type validation, CSRF where cookies are used, and idempotency keys. API errors expose stable codes and public-safe messages.
 

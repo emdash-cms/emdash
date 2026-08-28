@@ -74,7 +74,7 @@ Closed PR #1908 remains donor history and is not a merge target. Its D1 custody 
 - Before the first service deployment, define the complete initial schema and persisted formats on their owning lowest branches. Do not add migrations or legacy readers solely for intermediate branches in an unmerged stack. After the first deployment, every persisted-state change uses a forward-only migration and preserves deployed data.
 - Merging an implementation stack does not authorize a deployment. The first hosted or self-hosted release waits for the complete service and its G7 production gate.
 - New public records and fields remain additive while experimental.
-- User-facing application strings use Lingui and RTL-safe layouts. The Access operator console follows the same UI quality rules even though its deployment audience is small.
+- User-facing application strings use Lingui message IDs with English fallbacks, making the surfaces localizable. Layouts are RTL-ready. The Access operator console follows the same UI quality rules even though its deployment audience is small.
 - Each published-package change includes a reviewed changeset.
 
 ## Workstream dependency graph
@@ -531,7 +531,7 @@ Dependencies: stable APIs from W4 to W8 and W2 Access roles.
 | `W10.4` | Build publisher delegation, workload, intent, approver-status, and audit views                                   |
 | `W10.5` | Build approval detail, declared-access diff, provenance/workload evidence, and passkey decision views            |
 | `W10.6` | Build Access operator status, pause, publisher lookup, suspension, revocation, reconciliation, and audit views   |
-| `W10.7` | Complete Lingui, accessibility, keyboard, responsive, and Arabic RTL coverage                                    |
+| `W10.7` | Make the surfaces localizable with Lingui and cover accessibility, keyboard, responsive, and Arabic-direction RTL behavior |
 
 ### Acceptance criteria
 
@@ -540,7 +540,7 @@ Dependencies: stable APIs from W4 to W8 and W2 Access roles.
 - Publisher UI cannot access another publisher shard.
 - Approval UI exposes enough immutable evidence to identify package, version, source, workflow, commit, artifact, provenance, policy, and access diff before passkey use.
 - Operator UI cannot call publisher or approver mutation routes.
-- All strings are localized and all layouts use logical direction-safe styling.
+- All user-facing strings use Lingui message IDs with English fallbacks, and all layouts use logical direction-safe styling.
 - Browser tests cover publisher OAuth, Access roles, passkey enrolment/approval, cancellation, pause, and reconciliation.
 
 ### Parallelism
@@ -909,7 +909,7 @@ The review stack contains seven PRs and merges as one unit. Each PR preserves th
 - Public errors use stable codes and contain no provider payload, secret, assertion, stack trace, or private evidence.
 - Authentication and authorization are tested independently.
 - New API lists use cursor pagination and bounded limits.
-- New user-facing strings use Lingui and layouts pass RTL review.
+- New user-facing strings remain localizable through Lingui and layouts pass RTL review.
 - Published-package changes include a proportional changeset.
 - The affected package/app builds and typechecks.
 - `pnpm lint:quick`, targeted Node/workerd/browser tests, formatting, and `git diff --check` pass.
