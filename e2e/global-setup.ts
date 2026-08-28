@@ -342,11 +342,18 @@ export default async function globalSetup(): Promise<void> {
 	});
 
 	try {
-		// 3 + 4. Wait for the server and dev optimizer to settle, then run setup
-		// + create a PAT. The gate polls until dev-bypass actually returns 200,
-		// absorbing the optimizer's cold-start failures.
+		// Dev-bypass token creation is not idempotent: each call drops the named
+		// PAT and mints a new one. Poll the read-only status endpoint first, then
+		// call dev-bypass exactly once.
 		console.log("[pw] Waiting for server + setup...");
-		const setupRes = await waitForOk(`${baseUrl}/_emdash/api/setup/dev-bypass?token=1`, 120_000);
+		await waitForOk(`${baseUrl}/_emdash/api/setup/status`, 120_000);
+		const setupRes = await fetch(`${baseUrl}/_emdash/api/setup/dev-bypass?token=1`, {
+			signal: AbortSignal.timeout(120_000),
+		});
+		if (!setupRes.ok) {
+			const body = await setupRes.text().catch(() => "");
+			throw new Error(`Dev bypass failed (${setupRes.status}): ${body.slice(0, 300)}`);
+		}
 		const setupJson: { data: { user: { id: string }; token?: string } } = await setupRes.json();
 		const setupData = setupJson.data;
 		const token = setupData.token;
