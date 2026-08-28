@@ -60,6 +60,7 @@ export function LocaleSwitcher({
 				onValueChange={(nextValue) => {
 					if (typeof nextValue === "string") onChange(nextValue);
 				}}
+				renderValue={(locale) => (locale ? locale.toUpperCase() : t`All locales`)}
 				aria-label={t`Locale`}
 				size={size === "sm" ? "sm" : "base"}
 			>
