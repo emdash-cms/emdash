@@ -505,6 +505,9 @@ export function hostEnvFromManifest(manifest: AdminManifest | undefined): HostEn
  *   - `{ status: "missing" }` — no handle claimed at all (no
  *     `alsoKnownAs`), or the DID document couldn't be fetched (network
  *     error, unsupported DID method).
+ *
+ * This result is an advisory display signal. Install and update trust the
+ * publisher DID and signed repository proofs rather than the mutable handle.
  */
 let actorResolver: import("@atcute/identity-resolver").LocalActorResolver | null = null;
 async function getActorResolver(): Promise<import("@atcute/identity-resolver").LocalActorResolver> {
@@ -541,10 +544,8 @@ export type DidHandleResolution =
 	| { status: "missing" };
 
 /**
- * localStorage-backed cache for DID→handle resolutions. Handles are
- * stable for hours-to-days in practice, but bound the cache so a
- * compromised handle eventually flips back to "invalid" without a
- * forced refresh. 24h matches the typical atproto handle TTL.
+ * localStorage-backed cache for conclusive DID→handle resolutions. Bound the
+ * cache to 24 hours so the advisory display and mismatch signal are refreshed.
  *
  * Failures (network errors, unsupported DID method) are *not* cached --
  * those should retry on the next render.

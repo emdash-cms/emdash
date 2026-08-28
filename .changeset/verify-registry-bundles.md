@@ -11,9 +11,11 @@ Adds `DirectPdsClient` for reading package profiles and releases with AT Protoco
 
 Install and update reject aggregator-supplied profile or release metadata whose URI or CID does not match the publisher's signed records. The server returns `AGGREGATOR_RECORD_MISMATCH` before fetching the artifact or requesting consent.
 
-#### Publisher handle verification
+#### Publisher identity display
 
-The admin keeps the install button disabled while resolving the package DID back to a handle. If `resolveDidToHandle()` returns `"invalid"`, the admin blocks installation and displays an error.
+The admin treats handle resolution as an advisory identity signal. It keeps the install button disabled while attempting to resolve the package DID back to a handle, then blocks installation when `resolveDidToHandle()` conclusively returns `"invalid"`. An indeterminate result caused by a network failure, unsupported DID method, or missing handle displays the publisher DID and does not block installation.
+
+Install and update trust the publisher DID and the signed repository proofs for the profile and release records. A handle is display metadata and is not an authorization or record-integrity input.
 
 #### Provenance and release policy
 

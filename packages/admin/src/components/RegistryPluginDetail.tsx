@@ -145,6 +145,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		enabled: Boolean(pkg?.did),
 	});
 	const publisherHandlePending = Boolean(pkg?.did) && publisherHandleResolution === undefined;
+	// A conclusive round-trip mismatch blocks the UI. Indeterminate lookup failures
+	// do not participate in trust decisions; the server verifies DID-bound records.
 	const publisherHandleInvalid = publisherHandleResolution?.status === "invalid";
 
 	// `listReleases` returns releases in descending semver order. The aggregator
