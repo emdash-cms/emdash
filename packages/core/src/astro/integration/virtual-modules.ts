@@ -525,30 +525,22 @@ export function generateBuildModule(buildTime: number): string {
  * Generates the scheduler virtual module.
  *
  * Decides — at build time, from the Astro adapter — whether the runtime gets a
- * long-lived timer heartbeat. A *production* Cloudflare build has no persistent
- * timers, so the Worker's `scheduled()` handler (a Cron Trigger) drives
- * `runScheduledTasks()` instead and this exports `null`. Every other case — any
- * other adapter (Node, Bun), and crucially local `astro dev` even under the
- * Cloudflare adapter (no Cron Trigger fires in dev) — gets a `NodeCronScheduler`
- * factory so plugin cron, scheduled publishing, and cleanup still run.
+ * long-lived timer heartbeat. Cloudflare Workers have no persistent timers, so
+ * the Worker's `scheduled()` handler drives `runScheduledTasks()` instead. In
+ * local dev the Astro integration invokes that handler from the long-lived Vite
+ * host. Other adapters (Node, Bun) get a `NodeCronScheduler` factory.
  *
  * Keeping the adapter check here — rather than in core's runtime — means the
  * runtime has no Cloudflare-specific code path; it just calls `createScheduler`
  * if one was injected. Mirrors the wait-until module's approach.
  */
-export function generateSchedulerModule(
-	adapterName: string | undefined,
-	command: "build" | "serve" | undefined,
-): string {
-	// Only suppress the timer for an actual Cloudflare *build* — that artifact
-	// runs in workerd where a Cron Trigger drives scheduled work. In `serve`
-	// (local dev) nothing fires the Cron Trigger, so fall through to the timer.
-	if (adapterName === "@astrojs/cloudflare" && command !== "serve") {
-		return `// Serverless build: an external Cron Trigger drives scheduled work.
+export function generateSchedulerModule(adapterName: string | undefined): string {
+	if (adapterName === "@astrojs/cloudflare") {
+		return `// Cloudflare: an external platform event drives scheduled work.
 export const createScheduler = null;
 `;
 	}
-	return `// Long-lived runtime (or local dev): drive scheduled work from an in-process timer.
+	return `// Long-lived runtime: drive scheduled work from an in-process timer.
 import { NodeCronScheduler } from "emdash";
 
 export function createScheduler(executor) {
