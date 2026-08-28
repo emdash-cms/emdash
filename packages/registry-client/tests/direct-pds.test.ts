@@ -131,6 +131,23 @@ describe("DirectPdsClient", () => {
 		);
 	});
 
+	it("retries publisher resolution after a transient failure", async () => {
+		const harness = await createPublisher();
+		const resolve = vi.fn(async (did: Parameters<DirectPdsDidDocumentResolver["resolve"]>[0]) => {
+			if (resolve.mock.calls.length === 1) throw new Error("temporary resolver failure");
+			return harness.resolver.resolve(did);
+		});
+		const direct = client(harness, { didDocumentResolver: { resolve } });
+
+		await expect(direct.getPackageProfile("gallery")).rejects.toMatchObject({
+			code: "DID_RESOLUTION_FAILED",
+		});
+		await expect(direct.getPackageProfile("gallery")).resolves.toMatchObject({
+			rkey: "gallery",
+		});
+		expect(resolve).toHaveBeenCalledTimes(2);
+	});
+
 	it("rejects a valid proof when the resolved DID document supplies another publisher's key", async () => {
 		const harness = await createPublisher();
 		const dave = await harness.fixture.createPublisher({ did: DAVE_DID });

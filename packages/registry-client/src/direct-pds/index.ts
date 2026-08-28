@@ -212,7 +212,14 @@ export class DirectPdsClient {
 		rkey: string,
 	): Promise<{ cid: string; value: unknown }> {
 		this.#resolvedPublisher ??= this.#resolvePublisher();
-		const publisher = await this.#resolvedPublisher;
+		const pendingPublisher = this.#resolvedPublisher;
+		let publisher: ResolvedPublisher;
+		try {
+			publisher = await pendingPublisher;
+		} catch (error) {
+			if (this.#resolvedPublisher === pendingPublisher) this.#resolvedPublisher = undefined;
+			throw error;
+		}
 		const url = new URL("/xrpc/com.atproto.sync.getRecord", publisher.pds);
 		url.searchParams.set("did", this.did);
 		url.searchParams.set("collection", collection);
