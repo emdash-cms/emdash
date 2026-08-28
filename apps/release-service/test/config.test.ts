@@ -5,7 +5,7 @@ import { getClientMetadata, getPublicJwks } from "../src/oauth/metadata.js";
 import { ASSERTION_KEY_1, ASSERTION_KEY_2, TEST_BINDINGS } from "./fixtures/oauth.js";
 
 describe("release-service OAuth configuration", () => {
-	it("derives exact create-only metadata and public overlapping JWKS", async () => {
+	it("derives exact delegated-release metadata and public overlapping JWKS", async () => {
 		const configuration = await loadConfiguration(TEST_BINDINGS);
 		const metadata = getClientMetadata(configuration.oauth);
 
@@ -17,7 +17,8 @@ describe("release-service OAuth configuration", () => {
 			grant_types: ["authorization_code", "refresh_token"],
 			response_types: ["code"],
 			redirect_uris: ["https://release.example.invalid/oauth/callback"],
-			scope: "atproto repo:com.emdashcms.experimental.package.release?action=create",
+			scope:
+				"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
 			jwks_uri: "https://release.example.invalid/oauth/jwks.json",
 			dpop_bound_access_tokens: true,
 			token_endpoint_auth_method: "private_key_jwt",

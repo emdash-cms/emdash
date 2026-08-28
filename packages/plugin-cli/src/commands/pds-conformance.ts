@@ -1,7 +1,8 @@
 /**
  * Engineering command for G0 delegated-release PDS conformance.
  *
- * It deliberately requests only the exact create-only release scope and
+ * It deliberately requests only the exact delegated release scope, whose
+ * repository permission is limited to creating release records, and
  * never retries with `transition:generic`.
  */
 

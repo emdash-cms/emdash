@@ -1,6 +1,6 @@
 # Delegated release service G0 PDS conformance
 
-Status: Public-client lifecycle passed; confidential-client deployment runs pending
+Status: Prior record-only public-client lifecycle passed; blob-enabled scope reruns and confidential-client deployment runs pending
 
 Companion design: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870)
 
@@ -10,6 +10,7 @@ G0 establishes whether the delegated release service can hold the exact authorit
 
 Each provider must prove that the exact delegated scope:
 
+- uploads gzip package bundles and raster listing images;
 - creates a record in the active package-release collection;
 - reads the created record through the public read path;
 - cannot update or delete the release;
@@ -61,7 +62,7 @@ The CLI defaults OAuth state to `~/.emdash/pds-conformance/<provider>`. Pass `--
 
 ## Phase 1: exact-scope authorization
 
-Run the command with the account handle. The browser consent screen must show only the active release collection's create authority.
+Run the command with the account handle. The browser consent screen must show the active release collection's create authority plus `blob:application/gzip` and `blob:image/*`.
 
 The Bluesky preflight uses the following command:
 

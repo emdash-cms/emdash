@@ -30,7 +30,8 @@ describe("release-service Worker", () => {
 			client_id: "https://release.example.invalid/.well-known/atproto-client-metadata.json",
 			redirect_uris: ["https://release.example.invalid/oauth/callback"],
 			jwks_uri: "https://release.example.invalid/oauth/jwks.json",
-			scope: "atproto repo:com.emdashcms.experimental.package.release?action=create",
+			scope:
+				"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
 		});
 
 		const jwks = await SELF.fetch("https://release.example.invalid/oauth/jwks.json");
