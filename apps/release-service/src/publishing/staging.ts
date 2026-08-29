@@ -58,7 +58,7 @@ function validMetadata(metadata: StagedArtifactMetadata): boolean {
 }
 
 function keySlot(path: StagedArtifactMetadata["path"]): string {
-	return path.startsWith("screenshots[") ? path.replace("[", "-").replace("]", "") : path;
+	return path.startsWith("screenshots[") ? path.replaceAll("[", "-").replaceAll("]", "") : path;
 }
 
 async function readAndVerify(

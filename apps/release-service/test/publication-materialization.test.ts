@@ -59,7 +59,7 @@ function policy(): PutWorkloadPolicyInput {
 }
 
 function sourceUrl(slot: TestArtifactSlot): string {
-	return `https://example.com/${slot.replace("[", "-").replace("]", "")}`;
+	return `https://example.com/${slot.replaceAll("[", "-").replaceAll("]", "")}`;
 }
 
 function sourceRelease(slots: readonly TestArtifactSlot[]): TestRelease {
