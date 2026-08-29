@@ -269,9 +269,9 @@ export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAd
 				emailVerified: row.email_verified === 1,
 				disabled: row.disabled === 1,
 				data: row.data ? JSON.parse(row.data) : null,
-				createdAt: new Date(row.created_at),
-				updatedAt: new Date(row.updated_at),
-				lastLogin: row.last_login ? new Date(row.last_login) : null,
+				createdAt: parseDatabaseTimestamp(row.created_at),
+				updatedAt: parseDatabaseTimestamp(row.updated_at),
+				lastLogin: row.last_login ? parseDatabaseTimestamp(row.last_login) : null,
 				credentialCount: row.credential_count ?? 0,
 				oauthProviders: oauthByUser.get(row.id) ?? [],
 			}));
@@ -308,7 +308,7 @@ export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAd
 
 			// Find last login from most recent credential use
 			const lastLogin = credentials.reduce<Date | null>((latest, cred) => {
-				const lastUsed = new Date(cred.last_used_at);
+				const lastUsed = parseDatabaseTimestamp(cred.last_used_at);
 				return !latest || lastUsed > latest ? lastUsed : latest;
 			}, null);
 
@@ -585,6 +585,16 @@ export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAd
 // Row converters
 // ============================================================================
 
+const DATABASE_DATETIME_PATTERN = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/;
+const TIMEZONE_DESIGNATOR_PATTERN = /(?:[zZ]|[+-]\d\d(?::?\d\d)?)$/;
+
+function parseDatabaseTimestamp(value: string): Date {
+	if (DATABASE_DATETIME_PATTERN.test(value) && !TIMEZONE_DESIGNATOR_PATTERN.test(value)) {
+		return new Date(`${value.replace(" ", "T")}Z`);
+	}
+	return new Date(value);
+}
+
 function rowToUser(row: Selectable<UserTable>): User {
 	return {
 		id: row.id,
@@ -595,8 +605,8 @@ function rowToUser(row: Selectable<UserTable>): User {
 		emailVerified: row.email_verified === 1,
 		disabled: row.disabled === 1,
 		data: row.data ? JSON.parse(row.data) : null,
-		createdAt: new Date(row.created_at),
-		updatedAt: new Date(row.updated_at),
+		createdAt: parseDatabaseTimestamp(row.created_at),
+		updatedAt: parseDatabaseTimestamp(row.updated_at),
 	};
 }
 
@@ -611,8 +621,8 @@ function rowToCredential(row: Selectable<CredentialTable>): Credential {
 		backedUp: row.backed_up === 1,
 		transports: row.transports ? JSON.parse(row.transports) : [],
 		name: row.name,
-		createdAt: new Date(row.created_at),
-		lastUsedAt: new Date(row.last_used_at),
+		createdAt: parseDatabaseTimestamp(row.created_at),
+		lastUsedAt: parseDatabaseTimestamp(row.last_used_at),
 	};
 }
 
@@ -624,8 +634,8 @@ function rowToAuthToken(row: Selectable<AuthTokenTable>): AuthToken {
 		type: toTokenType(row.type),
 		role: row.role != null ? toRoleLevel(row.role) : null,
 		invitedBy: row.invited_by,
-		expiresAt: new Date(row.expires_at),
-		createdAt: new Date(row.created_at),
+		expiresAt: parseDatabaseTimestamp(row.expires_at),
+		createdAt: parseDatabaseTimestamp(row.created_at),
 	};
 }
 
@@ -634,7 +644,7 @@ function rowToOAuthAccount(row: Selectable<OAuthAccountTable>): OAuthAccount {
 		provider: row.provider,
 		providerAccountId: row.provider_account_id,
 		userId: row.user_id,
-		createdAt: new Date(row.created_at),
+		createdAt: parseDatabaseTimestamp(row.created_at),
 	};
 }
 
@@ -643,7 +653,7 @@ function rowToAllowedDomain(row: Selectable<AllowedDomainTable>): AllowedDomain 
 		domain: row.domain,
 		defaultRole: toRoleLevel(row.default_role),
 		enabled: row.enabled === 1,
-		createdAt: new Date(row.created_at),
+		createdAt: parseDatabaseTimestamp(row.created_at),
 	};
 }
 
