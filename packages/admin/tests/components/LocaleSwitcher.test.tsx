@@ -17,7 +17,7 @@ describe("LocaleSwitcher", () => {
 			);
 
 			const localeSwitcher = screen.getByRole("combobox", { name: "Locale" });
-			await expect.element(localeSwitcher).toHaveTextContent(/^EN$/);
+			await expect.element(localeSwitcher).toHaveTextContent(/^EN \(default\)$/);
 			await userEvent.click(localeSwitcher);
 
 			await expect.element(screen.getByRole("listbox")).toBeInTheDocument();

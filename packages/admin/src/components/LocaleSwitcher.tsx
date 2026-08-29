@@ -49,6 +49,11 @@ export function LocaleSwitcher({
 	size = "md",
 }: LocaleSwitcherProps) {
 	const { t } = useLingui();
+	const formatLocaleLabel = (locale: string) => {
+		const code = locale.toUpperCase();
+		return locale === defaultLocale ? t`${code} (default)` : code;
+	};
+
 	return (
 		<div className={cn("flex items-center gap-1.5", className)}>
 			<GlobeSimple
@@ -60,15 +65,14 @@ export function LocaleSwitcher({
 				onValueChange={(nextValue) => {
 					if (typeof nextValue === "string") onChange(nextValue);
 				}}
-				renderValue={(locale) => (locale ? locale.toUpperCase() : t`All locales`)}
+				renderValue={(locale) => (locale ? formatLocaleLabel(locale) : t`All locales`)}
 				aria-label={t`Locale`}
 				size={size === "sm" ? "sm" : "base"}
 			>
 				{showAll && <Select.Option value="">{t`All locales`}</Select.Option>}
 				{locales.map((locale) => (
 					<Select.Option key={locale} value={locale}>
-						{locale.toUpperCase()}
-						{locale === defaultLocale ? t` (default)` : ""}
+						{formatLocaleLabel(locale)}
 					</Select.Option>
 				))}
 			</Select>
