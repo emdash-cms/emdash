@@ -170,6 +170,7 @@ describe("ApiTokenSettings", () => {
 	});
 
 	it("shows created and expiry times with seconds from their stored UTC instants", async () => {
+		expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe("America/New_York");
 		const storedCreatedAt = "2026-05-20 02:00:00";
 		const storedExpiresAt = "2026-05-21T03:04:05.000Z";
 		const format = new Intl.DateTimeFormat("en", {
