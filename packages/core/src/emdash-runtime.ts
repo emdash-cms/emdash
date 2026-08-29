@@ -4088,7 +4088,10 @@ export class EmDashRuntime {
 					result = record;
 				}
 			} catch (error) {
-				console.error(`EmDash: Sandboxed plugin ${id} beforeSave hook error:`, error);
+				console.error(
+					`EmDash: Sandboxed plugin ${id} beforeSave hook threw; a sandboxed plugin cannot cancel a save, so the save continues:`,
+					error,
+				);
 			}
 		}
 
