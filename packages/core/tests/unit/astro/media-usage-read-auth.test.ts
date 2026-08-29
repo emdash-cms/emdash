@@ -22,6 +22,16 @@ vi.mock(
 	{ virtual: true },
 );
 
+const { deferredTasks } = vi.hoisted(() => ({
+	deferredTasks: [] as Array<() => void | Promise<void>>,
+}));
+
+vi.mock("../../../src/after.js", () => ({
+	after: vi.fn((fn: () => void | Promise<void>) => {
+		deferredTasks.push(fn);
+	}),
+}));
+
 import { handleApiTokenCreate } from "../../../src/api/handlers/api-tokens.js";
 import { onRequest as authMiddleware } from "../../../src/astro/middleware/auth.js";
 import { GET } from "../../../src/astro/routes/api/media/[id]/usage.js";
@@ -73,13 +83,16 @@ describe("media usage detail auth middleware", () => {
 	});
 
 	afterEach(async () => {
+		await flushDeferredTasks();
 		if (db) await teardownTestDatabase(db);
 		db = undefined;
 	});
 
 	it("allows an admin-scoped token for a contributor to read usage details", async () => {
 		const response = await invokeThroughAuth(await createToken("contributor-1", ["admin"]));
-		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(deferredTasks).toHaveLength(1);
+		await flushDeferredTasks();
 		const stored = await db!
 			.selectFrom("_emdash_api_tokens")
 			.select("last_used_at")
@@ -126,7 +139,7 @@ describe("media usage detail auth middleware", () => {
 		const next = vi.fn(async () => new Response("should not run"));
 
 		const response = await authMiddleware(usageContext(token), next);
-		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(deferredTasks).toHaveLength(0);
 		const stored = await db!
 			.selectFrom("_emdash_api_tokens")
 			.select("last_used_at")
@@ -183,6 +196,12 @@ describe("media usage detail auth middleware", () => {
 		} as unknown as AuthContext;
 	}
 });
+
+async function flushDeferredTasks(): Promise<void> {
+	while (deferredTasks.length > 0) {
+		await deferredTasks.shift()!();
+	}
+}
 
 async function expectError(response: Response, status: number, code: string): Promise<void> {
 	expect(response.status).toBe(status);
