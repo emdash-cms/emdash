@@ -55,17 +55,13 @@ test.describe("i18n", () => {
 			await admin.goToContent("posts");
 			await admin.waitForLoading();
 
-			// Should have a select element for locale filtering
-			const select = admin.page.locator("select").first();
+			const select = admin.page.getByRole("combobox", { name: "Locale" });
 			await expect(select).toBeVisible();
+			await select.click();
 
-			// Should show available locale options
-			const options = select.locator("option");
-			const optionTexts = await options.allTextContents();
-			// Expect EN, FR, ES options (may also have "All locales")
-			expect(optionTexts.some((t) => t.includes("EN"))).toBe(true);
-			expect(optionTexts.some((t) => t.includes("FR"))).toBe(true);
-			expect(optionTexts.some((t) => t.includes("ES"))).toBe(true);
+			await expect(admin.page.getByRole("option", { name: "EN (default)" })).toBeVisible();
+			await expect(admin.page.getByRole("option", { name: "FR" })).toBeVisible();
+			await expect(admin.page.getByRole("option", { name: "ES" })).toBeVisible();
 		});
 	});
 
