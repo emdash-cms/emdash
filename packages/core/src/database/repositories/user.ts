@@ -175,6 +175,7 @@ export class UserRepository {
 		if (input.data !== undefined) updates.data = JSON.stringify(input.data);
 
 		if (Object.keys(updates).length > 0) {
+			updates.updated_at = new Date().toISOString();
 			await this.db.updateTable("users").set(updates).where("id", "=", id).execute();
 		}
 
