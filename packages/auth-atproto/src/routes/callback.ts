@@ -32,6 +32,8 @@ import type { Kysely } from "kysely";
 
 export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 	const { emdash } = locals;
+	let providerSession: { signOut(): Promise<void> } | undefined;
+	let authenticationComplete = false;
 
 	if (!emdash?.db) {
 		return redirect(
@@ -61,6 +63,7 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		const storage = await getAtprotoStorage(emdash as Parameters<typeof getAtprotoStorage>[0]);
 		const client = await getAtprotoOAuthClient(baseUrl, storage);
 		const { session: atprotoSession } = await client.callback(url.searchParams);
+		providerSession = atprotoSession;
 
 		const did = atprotoSession.did;
 
@@ -168,13 +171,6 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 				return null;
 			}
 			return { allowed: true, role: defaultRole };
-		}).catch(async (authError: unknown) => {
-			if (authError instanceof AccountDisabledError) {
-				await atprotoSession.signOut().catch((signOutError: unknown) => {
-					console.error("[atproto-auth] Failed to remove disabled account session:", signOutError);
-				});
-			}
-			throw authError;
 		});
 
 		if (isFirstUser) {
@@ -200,6 +196,7 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		if (session) {
 			session.set("user", { id: user.id });
 		}
+		authenticationComplete = true;
 
 		// Redirect to admin dashboard
 		return redirect("/_emdash/admin");
@@ -229,5 +226,11 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		return redirect(
 			`/_emdash/admin/login?error=${errorCode}&message=${encodeURIComponent(message)}`,
 		);
+	} finally {
+		if (providerSession && !authenticationComplete) {
+			await providerSession.signOut().catch((signOutError: unknown) => {
+				console.error("[atproto-auth] Failed to remove rejected provider session:", signOutError);
+			});
+		}
 	}
 };

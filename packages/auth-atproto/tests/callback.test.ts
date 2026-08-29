@@ -78,4 +78,115 @@ describe("AT Protocol callback", () => {
 		expect(session.set).not.toHaveBeenCalled();
 		expect(response.headers.get("location")).toContain("error=account_disabled");
 	});
+
+	it("removes the provider session when the DID is not allowed", async () => {
+		const signOut = vi.fn().mockResolvedValue(undefined);
+		mocks.getAtprotoOAuthClient.mockResolvedValue({
+			callback: vi.fn().mockResolvedValue({
+				session: { did: "did:plc:denied", signOut },
+			}),
+		});
+		mocks.resolveAtprotoProfile.mockResolvedValue({
+			displayName: "Denied User",
+			handle: "denied.example.com",
+		});
+		const redirect = vi.fn((location: string) =>
+			Response.redirect(new URL(location, "https://example.com")),
+		);
+
+		const response = await GET({
+			request: new Request("https://example.com/_emdash/api/auth/atproto/callback?code=abc"),
+			locals: {
+				emdash: {
+					db: {},
+					config: {
+						authProviders: [
+							{
+								id: "atproto",
+								config: { allowedDIDs: ["did:plc:allowed"] },
+							},
+						],
+					},
+				},
+			},
+			redirect,
+		} as never);
+
+		expect(response.headers.get("location")).toContain("error=not_allowed");
+		expect(signOut).toHaveBeenCalledOnce();
+	});
+
+	it("removes the provider session when profile resolution fails", async () => {
+		const signOut = vi.fn().mockResolvedValue(undefined);
+		mocks.getAtprotoOAuthClient.mockResolvedValue({
+			callback: vi.fn().mockResolvedValue({
+				session: { did: "did:plc:error", signOut },
+			}),
+		});
+		mocks.resolveAtprotoProfile.mockRejectedValue(new Error("Profile lookup failed"));
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+		const redirect = vi.fn((location: string) =>
+			Response.redirect(new URL(location, "https://example.com")),
+		);
+
+		try {
+			const response = await GET({
+				request: new Request("https://example.com/_emdash/api/auth/atproto/callback?code=abc"),
+				locals: { emdash: { db: {}, config: {} } },
+				redirect,
+			} as never);
+
+			expect(response.headers.get("location")).toContain("error=atproto_error");
+			expect(signOut).toHaveBeenCalledOnce();
+		} finally {
+			consoleError.mockRestore();
+		}
+	});
+
+	it("keeps the provider session after authentication succeeds", async () => {
+		const signOut = vi.fn().mockResolvedValue(undefined);
+		mocks.getAtprotoOAuthClient.mockResolvedValue({
+			callback: vi.fn().mockResolvedValue({
+				session: { did: "did:plc:allowed", signOut },
+			}),
+		});
+		mocks.resolveAtprotoProfile.mockResolvedValue({
+			displayName: "Allowed User",
+			handle: "allowed.example.com",
+		});
+		mocks.findOrCreateOAuthUser.mockResolvedValue({
+			id: "user-1",
+			email: "user@example.com",
+			name: "Allowed User",
+			role: 10,
+			disabled: false,
+		});
+		const session = { set: vi.fn() };
+		const redirect = vi.fn((location: string) =>
+			Response.redirect(new URL(location, "https://example.com")),
+		);
+
+		const response = await GET({
+			request: new Request("https://example.com/_emdash/api/auth/atproto/callback?code=abc"),
+			locals: {
+				emdash: {
+					db: {},
+					config: {
+						authProviders: [
+							{
+								id: "atproto",
+								config: { allowedDIDs: ["did:plc:allowed"] },
+							},
+						],
+					},
+				},
+			},
+			session,
+			redirect,
+		} as never);
+
+		expect(response.headers.get("location")).toBe("https://example.com/_emdash/admin");
+		expect(session.set).toHaveBeenCalledWith("user", { id: "user-1" });
+		expect(signOut).not.toHaveBeenCalled();
+	});
 });
