@@ -2,6 +2,7 @@ import type { Kysely, Selectable, Updateable } from "kysely";
 import { ulid } from "ulidx";
 
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import { currentTimestampValue } from "../dialect-helpers.js";
 import type { Database, UserTable } from "../types.js";
 import { encodeCursor, decodeCursor, type FindManyResult } from "./types.js";
 
@@ -175,8 +176,14 @@ export class UserRepository {
 		if (input.data !== undefined) updates.data = JSON.stringify(input.data);
 
 		if (Object.keys(updates).length > 0) {
-			updates.updated_at = new Date().toISOString();
-			await this.db.updateTable("users").set(updates).where("id", "=", id).execute();
+			await this.db
+				.updateTable("users")
+				.set({
+					...updates,
+					updated_at: currentTimestampValue(this.db),
+				})
+				.where("id", "=", id)
+				.execute();
 		}
 
 		return this.findById(id);
