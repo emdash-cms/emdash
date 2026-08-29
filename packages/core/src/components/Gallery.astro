@@ -13,6 +13,7 @@ import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
 import { toAbsoluteMediaUrl, RESPONSIVE_BREAKPOINTS } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
+import { focalPointToObjectPosition } from "../media/focal-point.js";
 
 export interface Props {
 	node: {
@@ -31,6 +32,8 @@ export interface Props {
 			caption?: string;
 			width?: number;
 			height?: number;
+			focalX?: number;
+			focalY?: number;
 			/** LQIP blurhash placeholder (images only) */
 			blurhash?: string;
 			/** LQIP dominant-color placeholder, as a CSS color (images only) */
@@ -72,6 +75,7 @@ const resolvedImages = await Promise.all(
 	images.map(async (image) => {
 		const { asset, alt = "", width, height } = image;
 		const aspectRatio = width && height ? width / height : undefined;
+		const objectPosition = focalPointToObjectPosition(image.focalX, image.focalY);
 
 		let src = "";
 		let srcset: string | undefined;
@@ -145,6 +149,7 @@ const resolvedImages = await Promise.all(
 			sizes,
 			astroImageSrc,
 			placeholderStyle,
+			objectPosition,
 		};
 	}),
 );
@@ -161,6 +166,7 @@ const resolvedImages = await Promise.all(
 						width={image.width!}
 						height={image.height!}
 						layout="constrained"
+						style={image.objectPosition ? `object-position: ${image.objectPosition};` : undefined}
 					/>
 				) : (
 					<img
@@ -172,6 +178,7 @@ const resolvedImages = await Promise.all(
 						height={image.height}
 						loading="lazy"
 						decoding="async"
+						style={image.objectPosition ? `object-position: ${image.objectPosition};` : undefined}
 					/>
 				)}
 				{image.caption && <figcaption>{image.caption}</figcaption>}

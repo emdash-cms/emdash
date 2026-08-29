@@ -59,6 +59,10 @@ import { SaveButton } from "./SaveButton.js";
 const AUTOSAVE_DELAY = 2000;
 // Mirrors Header.tsx's h-[58px]; the fixed mobile sheet offsets its body by it.
 const ADMIN_HEADER_HEIGHT_PX = 58;
+const EDITOR_SETTINGS_MIN_WIDTH_PX = 320;
+const EDITOR_SETTINGS_DEFAULT_WIDTH_PX = 368;
+const EDITOR_SETTINGS_MAX_WIDTH_PX = 480;
+const EDITOR_SETTINGS_KEYBOARD_STEP_PX = 10;
 
 function serializeEditorState(input: {
 	data: Record<string, unknown>;
@@ -70,6 +74,24 @@ function serializeEditorState(input: {
 		slug: input.slug,
 		bylines: input.bylines,
 	});
+}
+
+function resolveEditorBylines(item?: ContentItem | null): {
+	explicitCredits: BylineCreditInput[];
+	inferredByline: BylineSummary | null;
+} {
+	const entries = item?.bylines ?? [];
+	const explicitEntries = entries.filter((entry) => entry.source !== "inferred");
+	return {
+		explicitCredits: explicitEntries.map((entry) => ({
+			bylineId: entry.byline.id,
+			roleLabel: entry.roleLabel,
+		})),
+		inferredByline:
+			explicitEntries.length === 0
+				? (entries.find((entry) => entry.source === "inferred")?.byline ?? null)
+				: null,
+	};
 }
 
 import type { ContentSeoInput } from "../lib/api";
@@ -246,6 +268,7 @@ export function ContentEditor({
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
 	const itemLabel = collectionLabel;
+	const settingsPanelId = React.useId();
 	// Kumo Sidebar's `side` is physical, not logical.
 	const panelSide = getLocaleDir(uiLocale) === "rtl" ? "left" : "right";
 	// Mirrors the Sidebar's mobileBreakpoint; `contained` flips with it.
@@ -262,9 +285,9 @@ export function ContentEditor({
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
 	const [status, setStatus] = React.useState(item?.status || "draft");
+	const resolvedItemBylines = resolveEditorBylines(item);
 	const [internalBylines, setInternalBylines] = React.useState<BylineCreditInput[]>(
-		item?.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
-			[],
+		resolvedItemBylines.explicitCredits,
 	);
 	// Gates whether `bylines` is included in the save payload. Untouched
 	// edits must not ship `[]` — strict per-locale hydration can return
@@ -309,11 +332,7 @@ export function ContentEditor({
 		serializeEditorState({
 			data: item?.data || {},
 			slug: item?.slug || "",
-			bylines:
-				item?.bylines?.map((entry) => ({
-					bylineId: entry.byline.id,
-					roleLabel: entry.roleLabel,
-				})) ?? [],
+			bylines: resolvedItemBylines.explicitCredits,
 		}),
 	);
 	const pendingAutosaveStateRef = React.useRef<string | null>(null);
@@ -337,9 +356,7 @@ export function ContentEditor({
 		setSlug(item.slug || "");
 		setSlugTouched(!!item.slug);
 		setStatus(item.status);
-		const nextBylines =
-			item.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
-			[];
+		const nextBylines = resolveEditorBylines(item).explicitCredits;
 		setInternalBylines(nextBylines);
 		setLastSavedData(
 			serializeEditorState({
@@ -355,31 +372,29 @@ export function ContentEditor({
 	// Update form and last saved state when item changes (e.g., after save or restore)
 	// Stringify the data for comparison since objects are compared by reference
 	const itemDataString = React.useMemo(() => (item ? JSON.stringify(item.data) : ""), [item?.data]);
+	const itemBylinesString = React.useMemo(
+		() => (item ? JSON.stringify(item.bylines ?? []) : ""),
+		[item?.bylines],
+	);
 	React.useEffect(() => {
 		if (item) {
+			const nextBylines = resolveEditorBylines(item).explicitCredits;
 			setFormData(item.data);
 			setSlug(item.slug || "");
 			setSlugTouched(!!item.slug);
 			setStatus(item.status);
-			setInternalBylines(
-				item.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
-					[],
-			);
+			setInternalBylines(nextBylines);
 			setLastSavedData(
 				serializeEditorState({
 					data: item.data,
 					slug: item.slug || "",
-					bylines:
-						item.bylines?.map((entry) => ({
-							bylineId: entry.byline.id,
-							roleLabel: entry.roleLabel,
-						})) ?? [],
+					bylines: nextBylines,
 				}),
 			);
 			pendingAutosaveStateRef.current = null;
 			setBylinesTouched(false);
 		}
-	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
+	}, [item?.updatedAt, itemDataString, itemBylinesString, item?.slug, item?.status]);
 
 	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
 	const unsupportedPortableTextMarks = React.useMemo(() => {
@@ -632,14 +647,19 @@ export function ContentEditor({
 			<Sidebar.Provider
 				contained={!isBelowLg}
 				defaultOpen
+				open={isBelowLg ? undefined : true}
 				side={panelSide}
 				collapsible="offcanvas"
+				resizable
+				defaultWidth={EDITOR_SETTINGS_DEFAULT_WIDTH_PX}
+				minWidth={EDITOR_SETTINGS_MIN_WIDTH_PX}
+				maxWidth={EDITOR_SETTINGS_MAX_WIDTH_PX}
 				mobileBreakpoint={1024}
 				className={cn(!isDistractionFree && "h-full min-h-0")}
 				style={
 					{
-						"--sidebar-width": isBelowLg ? "20rem" : "23rem",
 						"--sidebar-bg": "var(--color-kumo-elevated)",
+						...(isBelowLg ? { "--sidebar-width": "20rem" } : {}),
 					} as React.CSSProperties
 				}
 			>
@@ -835,7 +855,11 @@ export function ContentEditor({
 				{/* Hidden (not unmounted) in distraction-free mode so panel-local
 			    state survives the round trip; `hidden` on the pane's own layout
 			    element leaves no gap. */}
-				<Sidebar aria-label={t`Settings`} className={cn(isDistractionFree && "hidden")}>
+				<Sidebar
+					id={settingsPanelId}
+					aria-label={t`Settings`}
+					className={cn(isDistractionFree && "hidden")}
+				>
 					{/* The action bar absorbs the high-frequency props (isDirty,
 					    isSaving, isAutosaving) so they never reach the memoized panel. */}
 					{!isBelowLg && (
@@ -858,7 +882,7 @@ export function ContentEditor({
 						/>
 					)}
 					<div
-						className="flex-1 overflow-y-auto overflow-x-hidden"
+						className="flex-1 overflow-y-auto overflow-x-hidden bg-kumo-base"
 						style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
 					>
 						{isBelowLg && (
@@ -893,6 +917,7 @@ export function ContentEditor({
 							users={users}
 							onAuthorChange={onAuthorChange}
 							activeBylines={activeBylines}
+							inferredByline={resolvedItemBylines.inferredByline}
 							availableBylines={availableBylines}
 							availableBylinesLoaded={availableBylinesLoaded}
 							onBylinesChange={handleBylinesChange}
@@ -909,6 +934,7 @@ export function ContentEditor({
 							onBlockSidebarDelete={handleBlockSidebarDelete}
 						/>
 					</div>
+					{!isBelowLg && <ContentEditorSettingsResizeHandle panelId={settingsPanelId} />}
 				</Sidebar>
 
 				{/* Below lg, opening a block detail panel must open the sheet.
@@ -918,6 +944,48 @@ export function ContentEditor({
 				<MobileSidebarPortalGuard />
 			</Sidebar.Provider>
 		</form>
+	);
+}
+
+function ContentEditorSettingsResizeHandle({ panelId }: { panelId: string }) {
+	const { t } = useLingui();
+	const { side, width, minWidth, maxWidth, setWidth } = useSidebar();
+
+	const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+		let nextWidth: number;
+		switch (event.key) {
+			case "ArrowLeft":
+				nextWidth = width + (side === "right" ? 1 : -1) * EDITOR_SETTINGS_KEYBOARD_STEP_PX;
+				break;
+			case "ArrowRight":
+				nextWidth = width + (side === "left" ? 1 : -1) * EDITOR_SETTINGS_KEYBOARD_STEP_PX;
+				break;
+			case "Home":
+				nextWidth = minWidth;
+				break;
+			case "End":
+				nextWidth = maxWidth;
+				break;
+			default:
+				return;
+		}
+
+		event.preventDefault();
+		setWidth(nextWidth);
+	};
+
+	return (
+		<Sidebar.ResizeHandle
+			role="separator"
+			aria-label={t`Resize settings panel`}
+			aria-orientation="vertical"
+			aria-controls={panelId}
+			aria-valuemin={minWidth}
+			aria-valuemax={maxWidth}
+			aria-valuenow={width}
+			className="touch-none"
+			onKeyDown={handleKeyDown}
+		/>
 	);
 }
 
@@ -1004,6 +1072,11 @@ function MobileSidebarPortalGuard() {
 			// sheet and closes it before focus is restored. Keep this transient
 			// sortable-handle blur inside the mobile settings interaction.
 			if (source.closest("[data-sortable-handle]") && destination === null) {
+				event.stopPropagation();
+				keepSheetOpen();
+				return;
+			}
+			if (source.closest("[data-keep-mobile-sidebar-open]") && destination === null) {
 				event.stopPropagation();
 				keepSheetOpen();
 				return;

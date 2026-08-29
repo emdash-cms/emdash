@@ -28,6 +28,7 @@ import {
 	RESPONSIVE_BREAKPOINTS,
 } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
+import { focalPointToObjectPosition } from "../media/focal-point.js";
 
 interface Props extends Omit<
 	HTMLAttributes<"img">,
@@ -178,6 +179,7 @@ const blurhash =
 	img?.blurhash ?? (img?.meta?.blurhash as string | undefined);
 const dominantColor =
 	img?.dominantColor ?? (img?.meta?.dominantColor as string | undefined);
+const objectPosition = focalPointToObjectPosition(img?.focalX, img?.focalY);
 
 let placeholderStyle = "";
 if (placeholder && blurhash) {
@@ -186,6 +188,12 @@ if (placeholder && blurhash) {
 } else if (placeholder && dominantColor) {
 	placeholderStyle = `background-color: ${dominantColor};`;
 }
+const generatedStyle = [
+	placeholderStyle,
+	objectPosition ? `object-position: ${objectPosition};` : "",
+]
+	.filter(Boolean)
+	.join(" ");
 
 const imgProps: Record<string, unknown> = {
 	src,
@@ -197,7 +205,7 @@ const imgProps: Record<string, unknown> = {
 	loading: priority ? "eager" : "lazy",
 	fetchpriority: priority ? "high" : undefined,
 	decoding: "async",
-	style: placeholderStyle || undefined,
+	style: generatedStyle || undefined,
 	class: ["emdash-image-media", className].filter(Boolean).join(" "),
 	...attrs,
 };
@@ -215,7 +223,7 @@ const imgProps: Record<string, unknown> = {
 			loading={priority ? "eager" : "lazy"}
 			decoding="async"
 			class={className}
-			style={placeholderStyle || undefined}
+			style={generatedStyle || undefined}
 			{...attrs}
 		/>
 	) : img && src ? (

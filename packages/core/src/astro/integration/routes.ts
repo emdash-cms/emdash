@@ -209,6 +209,16 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/media/folders",
+		entrypoint: resolveRoute("api/media/folders/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/media/folders/[id]",
+		entrypoint: resolveRoute("api/media/folders/[id].ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/media/[id]",
 		entrypoint: resolveRoute("api/media/[id].ts"),
 	});
@@ -257,6 +267,14 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/admin/media-usage/work/retry",
 		entrypoint: resolveRoute("api/admin/media-usage/work/retry.ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/admin/media-usage/activation",
+		entrypoint: resolveRoute("api/admin/media-usage/activation.ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/admin/media-usage/progress",
+		entrypoint: resolveRoute("api/admin/media-usage/progress.ts"),
 	});
 	injectRoute({
 		pattern: "/_emdash/api/admin/media-usage/collection-deletions",

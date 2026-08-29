@@ -18,7 +18,6 @@
     "@astrojs/react": "catalog:",
     "@emdash-cms/plugin-audit-log": "workspace:*",
     "astro": "catalog:",
-    "better-sqlite3": "catalog:",
     "emdash": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:"

@@ -37,6 +37,10 @@ const FREEZE_CSS = `
 		caret-color: transparent !important;
 		scroll-behavior: auto !important;
 	}
+	[data-testid="activity-time"] {
+		inline-size: 6rem !important;
+		overflow: hidden !important;
+	}
 `;
 
 // Admin locale is driven by the `emdash-locale` cookie (path /_emdash); Arabic
@@ -50,13 +54,25 @@ const LOCALES = [
  * A screen to snapshot.
  *
  * `path` may depend on seeded data (e.g. a post id for the editor).
+ * `fixedTime` freezes the browser wall clock so date-sensitive components
+ * such as calendars highlighting "today" stay stable across snapshot runs.
  * `extraMasks` returns page regions to paint over on top of the always-masked
  * version footer -- use it for anything that changes every run (timestamps).
  */
 interface PageCase {
 	name: string;
 	path: (info: ServerInfo) => string;
+	viewport?: { width: number; height: number };
+	fixedTime?: string;
 	extraMasks?: (admin: AdminPage) => Locator[];
+	prepare?: (admin: AdminPage) => Promise<void>;
+}
+
+function openFilter(trigger: string, popup: string): (admin: AdminPage) => Promise<void> {
+	return async (admin) => {
+		await admin.page.locator(trigger).click();
+		await admin.page.locator(popup).waitFor({ state: "visible" });
+	};
 }
 
 const PAGES: PageCase[] = [
@@ -74,13 +90,42 @@ const PAGES: PageCase[] = [
 		extraMasks: (admin) => [admin.page.getByTestId("content-updated")],
 	},
 	{
+		name: "content-list-status-filter",
+		path: () => "/content/posts",
+		prepare: openFilter(".emdash-status-filter-trigger", '[role="listbox"]:visible'),
+		extraMasks: (admin) => [admin.page.getByTestId("content-updated")],
+	},
+	{
+		name: "content-list-date-field-filter",
+		path: () => "/content/posts",
+		prepare: openFilter(".emdash-date-field-filter-trigger", '[role="listbox"]:visible'),
+		extraMasks: (admin) => [admin.page.getByTestId("content-updated")],
+	},
+	{
+		name: "content-list-byline-filter",
+		path: () => "/content/posts",
+		prepare: openFilter(".emdash-byline-filter-trigger", ".kumo-popover-popup:visible"),
+		extraMasks: (admin) => [admin.page.getByTestId("content-updated")],
+	},
+	{
+		name: "content-list-date-range-filter",
+		path: () => "/content/posts",
+		fixedTime: "2026-08-27T12:00:00",
+		prepare: openFilter(".emdash-date-range-trigger", ".kumo-popover-popup:visible"),
+		extraMasks: (admin) => [admin.page.getByTestId("content-updated")],
+	},
+	{
 		name: "content-editor",
 		path: (info) => `/content/posts/${info.contentIds.posts[0]}`,
-		// The Publish panel prints Created/Updated timestamps seeded at test time.
-		extraMasks: (admin) => [admin.page.getByTestId("content-timestamps")],
+		// The Publish panel prints timestamps seeded at test time.
+		extraMasks: (admin) => [
+			admin.page.locator('input[type="datetime-local"]'),
+			admin.page.getByTestId("content-timestamps"),
+		],
 	},
 	{ name: "content-new", path: () => "/content/posts/new" },
 	{ name: "media", path: () => "/media" },
+	{ name: "media-mobile", path: () => "/media", viewport: { width: 320, height: 800 } },
 	{ name: "menus", path: () => "/menus" },
 	{ name: "settings", path: () => "/settings" },
 ];
@@ -96,13 +141,13 @@ async function setLocale(admin: AdminPage, code: string): Promise<void> {
  * Navigate to an admin path and wait for it to be ready without relying on any
  * localized selectors. The shared AdminPage.waitForShell() matches the sidebar
  * by its aria-label, which is translated -- so it can't be used once the locale
- * is Arabic. Here we wait on the hydration signal and the <aside> landmark
+ * is Arabic. Here we wait on the hydration signal and the <main> landmark
  * (both locale-independent), then confirm the document direction flipped.
  */
 async function openAdmin(admin: AdminPage, path: string, dir: string): Promise<void> {
 	await admin.goto(path);
 	await admin.page.waitForSelector("astro-island:not([ssr])", { timeout: 30000 });
-	await admin.page.locator("aside").first().waitFor({ state: "visible", timeout: 30000 });
+	await admin.page.locator("main").first().waitFor({ state: "visible", timeout: 30000 });
 	await expect(admin.page.locator("html")).toHaveAttribute("dir", dir);
 	await admin.waitForLoading();
 }
@@ -142,8 +187,11 @@ test.describe("visual regression", () => {
 		for (const pageCase of PAGES) {
 			test(`${pageCase.name} @${locale.name}`, async ({ admin, serverInfo }) => {
 				await setLocale(admin, locale.code);
+				if (pageCase.viewport) await admin.page.setViewportSize(pageCase.viewport);
+				if (pageCase.fixedTime) await admin.page.clock.setFixedTime(pageCase.fixedTime);
 				await openAdmin(admin, pageCase.path(serverInfo), locale.dir);
 				await stabilize(admin);
+				await pageCase.prepare?.(admin);
 
 				await expect(admin.page).toHaveScreenshot(`${pageCase.name}-${locale.name}.png`, {
 					fullPage: true,

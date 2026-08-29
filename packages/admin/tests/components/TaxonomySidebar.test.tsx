@@ -194,6 +194,7 @@ describe("TaxonomySidebar", () => {
 		const screen = await render(<TaxonomySidebar collection="products" />, { wrapper: Wrapper });
 		const input = screen.getByLabelText("Add Tags");
 
+		await expect.element(input).toBeInTheDocument();
 		await userEvent.tab();
 
 		expect(document.activeElement).toBe(input.element());

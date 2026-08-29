@@ -22,13 +22,23 @@
 import { isDid } from "@atcute/lexicons/syntax";
 import { NSID } from "@emdash-cms/registry-lexicons";
 
+import {
+	ACTIVE_PROJECTION_JOINS_SQL,
+	ACTIVE_PROJECTION_POLICY_SQL,
+	ACTIVE_PROFILE_SQL,
+	ACTIVE_PROFILE_REDACTION_SQL,
+	ACTIVE_PUBLIC_PACKAGE_SQL,
+	ACTIVE_PUBLIC_RELEASE_SQL,
+	ACTIVE_RELEASE_REDACTION_SQL,
+	ALLOWLIST_PROFILE_SQL,
+	activeProjectionPolicyBindings,
+	activePublicSubjectBindings,
+	getListingPolicy,
+	packageProfileUri,
+	type ListingPolicyConfig,
+} from "../../listing-policy.js";
+
 const CAR_CONTENT_TYPE = "application/vnd.ipld.car";
-/** 5 minutes. The CAR bytes are content-addressed (CID-derivable) so a
- * stale cache is detectable client-side; we trade absolute freshness for
- * lower aggregator load on the install-time hot path. Tighter than the
- * aggregator endpoints (`no-store`) because there's no label-dependent
- * filtering on this passthrough. */
-const CACHE_CONTROL = "public, max-age=300";
 
 interface ParsedQuery {
 	did: string;
@@ -43,8 +53,9 @@ export async function syncGetRecord(env: Env, request: Request): Promise<Respons
 	const parseResult = parseQuery(request);
 	if ("error" in parseResult) return parseResult.error;
 	const { did, collection, rkey } = parseResult;
+	const policy = await getListingPolicy(env);
 
-	const carBytes = await fetchRecordBlob(env, did, collection, rkey);
+	const carBytes = await fetchRecordBlob(env, policy, did, collection, rkey);
 	if (!carBytes) {
 		return jsonError(
 			404,
@@ -69,7 +80,7 @@ export async function syncGetRecord(env: Env, request: Request): Promise<Respons
 		headers: {
 			"content-type": CAR_CONTENT_TYPE,
 			"content-length": String(body.byteLength),
-			"cache-control": CACHE_CONTROL,
+			"cache-control": "private, no-store",
 		},
 	});
 }
@@ -92,6 +103,7 @@ function parseQuery(request: Request): ParsedQuery | { error: Response } {
 
 async function fetchRecordBlob(
 	env: Env,
+	policy: ListingPolicyConfig,
 	did: string,
 	collection: string,
 	rkey: string,
@@ -100,17 +112,87 @@ async function fetchRecordBlob(
 	// replica. The CAR bytes are immutable per record version (the writer
 	// rejects content changes via CID-based dedup), so even a slightly stale
 	// replica returns the same bytes a primary would.
-	const session = env.DB.withSession("first-unconstrained");
+	const session = env.DB.withSession(
+		policy.mode === "open" ? "first-unconstrained" : "first-primary",
+	);
 	switch (collection) {
-		case NSID.packageProfile:
-			return selectBlob(session, `SELECT record_blob FROM packages WHERE did = ? AND slug = ?`, [
-				did,
-				rkey,
-			]);
-		case NSID.packageRelease:
+		case NSID.packageProfile: {
+			if (policy.mode === "projection") {
+				return selectBlob(
+					session,
+					`SELECT p.record_blob
+					 FROM public_projection_state projection_state
+					 ${ACTIVE_PROJECTION_JOINS_SQL}
+					 JOIN public_packages p ON p.generation = projection_state.active_generation
+					 WHERE projection_state.id = 1
+					   AND ${ACTIVE_PROJECTION_POLICY_SQL}
+					   AND ${ACTIVE_PUBLIC_PACKAGE_SQL}
+					   AND p.did = ? AND p.slug = ?`,
+					[
+						...activeProjectionPolicyBindings(policy),
+						...activePublicSubjectBindings(policy),
+						did,
+						rkey,
+					],
+				);
+			}
+			if (policy.mode === "allowlist" && !policy.allowlist.has(packageProfileUri(did, rkey))) {
+				return null;
+			}
 			return selectBlob(
 				session,
-				`SELECT record_blob FROM releases WHERE did = ? AND rkey = ? AND tombstoned_at IS NULL`,
+				`SELECT p.record_blob FROM packages p
+				 WHERE p.did = ? AND p.slug = ?
+				   AND ${ACTIVE_PROFILE_SQL}
+				   AND ${ACTIVE_PROFILE_REDACTION_SQL}`,
+				[did, rkey],
+			);
+		}
+		case NSID.packageRelease:
+			if (policy.mode === "projection") {
+				return selectBlob(
+					session,
+					`SELECT r.record_blob
+					 FROM public_projection_state projection_state
+					 ${ACTIVE_PROJECTION_JOINS_SQL}
+					 JOIN public_releases r ON r.generation = projection_state.active_generation
+					 JOIN public_packages p
+					   ON p.generation = r.generation AND p.did = r.did AND p.slug = r.package
+					 WHERE projection_state.id = 1
+					   AND ${ACTIVE_PROJECTION_POLICY_SQL}
+					   AND ${ACTIVE_PUBLIC_RELEASE_SQL}
+					   AND ${ACTIVE_RELEASE_REDACTION_SQL}
+					   AND r.did = ? AND r.rkey = ?`,
+					[
+						...activeProjectionPolicyBindings(policy),
+						...activePublicSubjectBindings(policy),
+						did,
+						rkey,
+					],
+				);
+			}
+			if (policy.mode === "allowlist") {
+				return selectBlob(
+					session,
+					`SELECT r.record_blob
+					 FROM releases r
+					 JOIN packages p ON p.did = r.did AND p.slug = r.package
+						 WHERE r.did = ? AND r.rkey = ? AND r.tombstoned_at IS NULL
+						   AND ${ACTIVE_PROFILE_SQL}
+						   AND ${ACTIVE_PROFILE_REDACTION_SQL}
+						   AND ${ALLOWLIST_PROFILE_SQL}
+						   AND ${ACTIVE_RELEASE_REDACTION_SQL}`,
+					[did, rkey, policy.allowlistJson],
+				);
+			}
+			return selectBlob(
+				session,
+				`SELECT r.record_blob FROM releases r
+				 JOIN packages p ON p.did = r.did AND p.slug = r.package
+				 WHERE r.did = ? AND r.rkey = ? AND r.tombstoned_at IS NULL
+				   AND ${ACTIVE_PROFILE_SQL}
+				   AND ${ACTIVE_PROFILE_REDACTION_SQL}
+				   AND ${ACTIVE_RELEASE_REDACTION_SQL}`,
 				[did, rkey],
 			);
 		case NSID.publisherProfile:

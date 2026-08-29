@@ -33,8 +33,16 @@ beforeAll(async () => {
 beforeEach(async () => {
 	// Tables in dependency order: releases → packages (FK), then publishers
 	// + verifications.
+	await testEnv.DB.prepare("UPDATE public_projection_state SET active_generation = NULL").run();
+	await testEnv.DB.prepare("DELETE FROM public_releases").run();
+	await testEnv.DB.prepare("DELETE FROM public_packages").run();
+	await testEnv.DB.prepare("DELETE FROM public_projection_generations").run();
+	await testEnv.DB.prepare("DELETE FROM label_state").run();
+	await testEnv.DB.prepare("DELETE FROM labellers").run();
 	await testEnv.DB.prepare("DELETE FROM releases").run();
 	await testEnv.DB.prepare("DELETE FROM packages").run();
+	await testEnv.DB.prepare("DELETE FROM package_profile_heads").run();
+	await testEnv.DB.prepare("DELETE FROM package_profile_revisions").run();
 	await testEnv.DB.prepare("DELETE FROM publishers").run();
 	await testEnv.DB.prepare("DELETE FROM publisher_verifications").run();
 });
@@ -126,6 +134,26 @@ async function seedRelease(opts: SeedReleaseOpts): Promise<void> {
 			NOW.toISOString(),
 			opts.tombstoned ? NOW.toISOString() : null,
 		)
+		.run();
+}
+
+async function seedTakedown(uri: string, cid: string | null = null): Promise<void> {
+	await testEnv.DB.prepare(
+		`INSERT INTO labellers
+		   (did, endpoint, signing_key, signing_key_id, trusted, added_at, last_resolved_at,
+		    active, required_positive, accepted_state, redaction, policy_version)
+		 VALUES ('did:web:labels.example', 'https://labels.example', 'key',
+		         'did:web:labels.example#atproto_label', 1, ?, ?, 1, 0, 0, 1, 'test-v1')
+		 ON CONFLICT(did) DO UPDATE SET active = 1, trusted = 1, redaction = 1`,
+	)
+		.bind(NOW.toISOString(), NOW.toISOString())
+		.run();
+	await testEnv.DB.prepare(
+		`INSERT INTO label_state
+		   (src, uri, val, cid, neg, cts, exp, trusted, cts_epoch, cts_fraction, collision)
+		 VALUES ('did:web:labels.example', ?, '!takedown', ?, 0, ?, NULL, 1, ?, ?, 1)`,
+	)
+		.bind(uri, cid, NOW.toISOString(), Math.floor(NOW.getTime() / 1_000), "0".repeat(32))
 		.run();
 }
 
@@ -337,6 +365,29 @@ describe("searchPackages", () => {
 		expect(body.packages.map((p) => p.slug).toSorted()).toEqual(["alpha", "beta"]);
 	});
 
+	it("excludes every package from a publisher with an active DID takedown", async () => {
+		await seedPackage({ slug: "gallery", name: "Gallery Plugin" });
+		await seedPackage({ did: DID_B, slug: "form", name: "Form Plugin" });
+		await seedTakedown(DID_A);
+
+		for (const query of ["", "?q=gallery"]) {
+			const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}${query}`);
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as { packages: Array<{ did: string }> };
+			expect(body.packages.map((pkg) => pkg.did)).not.toContain(DID_A);
+		}
+	});
+
+	it("applies a profile takedown only to the exact CID", async () => {
+		await seedPackage({ slug: "gallery", name: "Gallery Plugin", cid: "bafycurrent" });
+		await seedTakedown(`at://${DID_A}/${NSID.packageProfile}/gallery`, "bafyprevious");
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=gallery`);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+		expect(body.packages.map((pkg) => pkg.slug)).toContain("gallery");
+	});
+
 	it("paginates via offset cursor", async () => {
 		for (let i = 0; i < 5; i++) await seedPackage({ slug: `pkg${i}` });
 
@@ -415,7 +466,7 @@ describe("sync.getRecord", () => {
 		);
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toBe("application/vnd.ipld.car");
-		expect(res.headers.get("cache-control")).toBe("public, max-age=300");
+		expect(res.headers.get("cache-control")).toBe("private, no-store");
 		const bytes = new Uint8Array(await res.arrayBuffer());
 		expect([...bytes]).toEqual([0x11, 0x22, 0x33]);
 	});

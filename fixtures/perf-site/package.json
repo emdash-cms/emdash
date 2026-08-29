@@ -19,7 +19,6 @@
 		"@astrojs/react": "catalog:",
 		"@emdash-cms/cloudflare": "workspace:*",
 		"astro": "catalog:",
-		"better-sqlite3": "catalog:",
 		"emdash": "workspace:*",
 		"kysely": "^0.29.0",
 		"react": "catalog:",
