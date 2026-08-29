@@ -12,6 +12,7 @@ describe("Kysely auth timestamps", () => {
 
 	beforeEach(async () => {
 		originalTimezone = process.env.TZ;
+		// A non-UTC zone makes regressions to local parsing of SQLite UTC timestamps observable.
 		process.env.TZ = "America/New_York";
 		db = await setupTestDatabase();
 	});
