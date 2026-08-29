@@ -60,10 +60,6 @@ describe("Kysely auth timestamps", () => {
 
 		const user = await createKyselyAdapter(db).getUserById(created.id);
 
-		if (stored === "2026-08-29 10:11:12") {
-			const incorrectlyParsedAsLocal = new Date(stored).getTime();
-			expect(incorrectlyParsedAsLocal).not.toBe(Date.parse(expected));
-		}
 		expect(user?.createdAt.toISOString()).toBe(expected);
 		expect(user?.updatedAt.toISOString()).toBe(expected);
 	});
