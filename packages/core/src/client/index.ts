@@ -244,6 +244,18 @@ export interface MediaUsageRepairResponse {
 	collections: MediaUsageRepairCollectionSummary[];
 }
 
+export interface MediaUsageProgress {
+	status: "indexing" | "ready" | "needs_attention";
+	readyCollections: number;
+	totalCollections: number;
+}
+
+export interface MediaUsageProgressAdvanceResponse {
+	activation: MediaUsageActivationStatus;
+	progress: MediaUsageProgress | null;
+	nextRequestInMs: 0 | 30_000 | null;
+}
+
 /** Durable media usage entry-work state */
 export type MediaUsageWorkState = "pending" | "retry" | "leased" | "failed";
 
@@ -285,6 +297,28 @@ export interface MediaUsageWorkRetryInput {
 export interface MediaUsageWorkRetryResponse {
 	changed: boolean;
 	item: MediaUsageWorkItem;
+}
+
+export interface MediaUsageActivationStatus {
+	state: "expanded" | "activating" | "active";
+	collectionCursor: string | null;
+	attemptCount: number;
+	drainConfirmedAt: string | null;
+	lastAttemptedAt: string | null;
+	lastErrorCode: "MEDIA_USAGE_ACTIVATION_FAILED" | null;
+	leaseExpiresAt: string | null;
+	activatedAt: string | null;
+	updatedAt: string;
+}
+
+export interface MediaUsageActivationAdvanceInput {
+	writersDrained: true;
+}
+
+export interface MediaUsageActivationAdvanceResponse {
+	outcome: "activating" | "active";
+	processedCollections: number;
+	activation: MediaUsageActivationStatus;
 }
 
 export type MediaUsageCollectionDeletionState = "pending" | "retry" | "leased" | "failed";
@@ -970,6 +1004,32 @@ export class EmDashClient {
 	/** Repair content media usage indexes for one collection or all collections */
 	async mediaRepairUsage(input: MediaUsageRepairInput): Promise<MediaUsageRepairResponse> {
 		return this.request<MediaUsageRepairResponse>("POST", "/admin/media-usage/repair", input);
+	}
+
+	/** Read aggregate Media Usage indexing progress */
+	async mediaGetUsageProgress(): Promise<MediaUsageProgress> {
+		return this.request<MediaUsageProgress>("GET", "/admin/media-usage/progress");
+	}
+
+	/** Advance exactly one Media Usage maintenance step */
+	async mediaAdvanceUsageProgress(): Promise<MediaUsageProgressAdvanceResponse> {
+		return this.request<MediaUsageProgressAdvanceResponse>("POST", "/admin/media-usage/progress");
+	}
+
+	/** Read the redacted controlled-activation status */
+	async mediaGetUsageActivation(): Promise<MediaUsageActivationStatus> {
+		return this.request<MediaUsageActivationStatus>("GET", "/admin/media-usage/activation");
+	}
+
+	/** Advance exactly one controlled-activation batch */
+	async mediaAdvanceUsageActivation(
+		input: MediaUsageActivationAdvanceInput,
+	): Promise<MediaUsageActivationAdvanceResponse> {
+		return this.request<MediaUsageActivationAdvanceResponse>(
+			"POST",
+			"/admin/media-usage/activation",
+			input,
+		);
 	}
 
 	/** List a bounded page of durable media usage entry work */

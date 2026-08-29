@@ -28,6 +28,57 @@ export function normalizeMediaSearch(value: string | undefined | null): string {
 	return (value ?? "").trim().slice(0, MEDIA_SEARCH_MAX_LENGTH);
 }
 
+export type MediaUsageCoverageStatus =
+	| "complete"
+	| "never"
+	| "running"
+	| "partial"
+	| "failed"
+	| "stale"
+	| "unknown";
+
+export interface MediaUsageCoverage {
+	scope: "all_content_collections";
+	status: MediaUsageCoverageStatus;
+}
+
+export interface MediaUsageOccurrenceDetail {
+	fieldSlug: string;
+	fieldPath: string;
+	occurrenceIndex: number;
+	referenceType: "image_field" | "file_field" | "portable_text_image" | "unknown";
+}
+
+export interface MediaUsageSourceDetail {
+	variant: "columns" | "draft_overlay";
+	occurrences: MediaUsageOccurrenceDetail[];
+}
+
+export interface MediaUsageEntryDetail {
+	collection: string;
+	contentId: string;
+	title: string | null;
+	slug: string | null;
+	locale: string | null;
+	status: string | null;
+	scheduledAt: string | null;
+	deletedAt: string | null;
+	sources: MediaUsageSourceDetail[];
+}
+
+export interface MediaUsageDetailsResponse {
+	items: MediaUsageEntryDetail[];
+	nextCursor?: string;
+	coverage: MediaUsageCoverage;
+}
+
+export class MediaUsageAccessDeniedError extends Error {
+	constructor() {
+		super("Media usage details are unavailable");
+		this.name = "MediaUsageAccessDeniedError";
+	}
+}
+
 export interface MediaItem {
 	id: string;
 	filename: string;
@@ -126,6 +177,28 @@ export async function fetchMediaItem(
 		i18n._(msg`Failed to fetch media item`),
 	);
 	return data.item;
+}
+
+export async function fetchMediaUsageDetails(
+	mediaId: string,
+	options?: { cursor?: string; limit?: number; signal?: AbortSignal },
+): Promise<MediaUsageDetailsResponse> {
+	const params = new URLSearchParams();
+	if (options?.cursor !== undefined) params.set("cursor", options.cursor);
+	if (options?.limit !== undefined) params.set("limit", String(options.limit));
+
+	const query = params.toString();
+	const response = await apiFetch(
+		`${API_BASE}/media/${encodeURIComponent(mediaId)}/usage${query ? `?${query}` : ""}`,
+		{ signal: options?.signal },
+	);
+	if (response.status === 401 || response.status === 403) {
+		throw new MediaUsageAccessDeniedError();
+	}
+	return parseApiResponse<MediaUsageDetailsResponse>(
+		response,
+		i18n._(msg`Failed to fetch media usage details`),
+	);
 }
 
 export async function fetchMediaFolders(

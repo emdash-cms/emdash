@@ -1,10 +1,11 @@
-import { Button, Input, Loader, Select } from "@cloudflare/kumo";
+import { Button, Loader, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { MagnifyingGlass, UserPlus, Prohibit, CheckCircle } from "@phosphor-icons/react";
+import { UserPlus, Prohibit, CheckCircle } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { UserListItem } from "../../lib/api";
 import { cn } from "../../lib/utils";
+import { TableToolbar, TableToolbarSearch } from "../TableToolbar.js";
 import { RoleBadge } from "./RoleBadge";
 import { useRolesConfig } from "./useRolesConfig.js";
 
@@ -57,23 +58,15 @@ export function UserList({
 				</Button>
 			</div>
 
-			{/* Filters */}
-			<div className="flex gap-4">
-				<div className="relative flex-1 max-w-sm">
-					<MagnifyingGlass
-						className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle"
-						aria-hidden="true"
-					/>
-					<Input
-						type="search"
-						placeholder={t`Search by name or email...`}
-						className="ps-10"
-						value={searchQuery}
-						onChange={(e) => onSearchChange(e.target.value)}
-						aria-label={t`Search users`}
-					/>
-				</div>
+			<TableToolbar>
+				<TableToolbarSearch
+					placeholder={t`Search by name or email...`}
+					value={searchQuery}
+					onChange={(e) => onSearchChange(e.target.value)}
+					aria-label={t`Search users`}
+				/>
 				<Select
+					size="sm"
 					value={roleFilter?.toString() ?? "all"}
 					onValueChange={(value) =>
 						onRoleFilterChange(value === "all" || value === null ? undefined : parseInt(value, 10))
@@ -87,7 +80,7 @@ export function UserList({
 						</Select.Option>
 					))}
 				</Select>
-			</div>
+			</TableToolbar>
 
 			{/* Table */}
 			<div className="rounded-md border bg-kumo-base overflow-x-auto">

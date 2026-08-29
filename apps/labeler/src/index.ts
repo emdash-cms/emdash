@@ -87,7 +87,9 @@ export default {
 			return handleOperatorApi(request, env);
 		}
 		if (url.pathname === "/_admin" || url.pathname.startsWith(OPERATOR_PREFIX)) {
-			return requireAccessVerification(request, env);
+			const verification = await requireAccessVerification(request, env);
+			if (!verification.ok) return verification;
+			return env.ASSETS.fetch(new Request(new URL("/index.html", request.url), request));
 		}
 
 		return new Response("not found", { status: 404 });

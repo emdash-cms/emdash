@@ -30,6 +30,7 @@ import {
 	Info,
 } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
@@ -44,6 +45,7 @@ import {
 	type MediaFolder,
 	type MediaItem,
 	type MediaUpdateInput,
+	type MediaUsageEntryDetail,
 } from "../lib/api";
 import { useDebouncedValue, useStableCallback } from "../lib/hooks";
 import {
@@ -56,6 +58,7 @@ import {
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { FocalPointEditor, FocalPointPreviews } from "./FocalPointEditor.js";
+import { MediaUsedIn } from "./MediaUsedIn.js";
 
 const CLOSE_FALLBACK_MS = 500;
 type MediaDetailTab = "details" | "edit-image";
@@ -97,6 +100,7 @@ export function MediaDetailPanel({
 }: MediaDetailPanelProps) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
 	const restoreFocusAfterDeleteRef = React.useRef(false);
 	const savePendingRef = React.useRef(false);
 	const closeFallbackTimerRef = React.useRef<number | null>(null);
@@ -126,6 +130,9 @@ export function MediaDetailPanel({
 	const [activeTab, setActiveTab] = React.useState<MediaDetailTab>("details");
 	const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 	const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false);
+	const [pendingUsageEntry, setPendingUsageEntry] = React.useState<MediaUsageEntryDetail | null>(
+		null,
+	);
 	const focalPointDescriptionId = React.useId();
 
 	React.useEffect(() => {
@@ -148,6 +155,7 @@ export function MediaDetailPanel({
 		setActiveTab("details");
 		setShowDeleteConfirm(false);
 		setShowDiscardConfirm(false);
+		setPendingUsageEntry(null);
 	}, [item.id, localItem?.folderId, open]);
 
 	React.useEffect(() => {
@@ -368,6 +376,7 @@ export function MediaDetailPanel({
 	const requestClose = React.useCallback(() => {
 		if (isBusy) return;
 		if (isConfirmOpen) return;
+		setPendingUsageEntry(null);
 		if (hasChanges) {
 			setShowDiscardConfirm(true);
 			return;
@@ -397,8 +406,33 @@ export function MediaDetailPanel({
 	};
 
 	const handleDiscardConfirm = () => {
+		const usageEntry = pendingUsageEntry;
 		setShowDiscardConfirm(false);
+		setPendingUsageEntry(null);
 		closeDialog();
+		if (usageEntry) {
+			void navigate({
+				to: "/content/$collection/$id",
+				params: { collection: usageEntry.collection, id: usageEntry.contentId },
+				search: { locale: usageEntry.locale ?? undefined },
+			});
+		}
+	};
+
+	const handleUsageEntryClick = (
+		event: React.MouseEvent<HTMLAnchorElement>,
+		entry: MediaUsageEntryDetail,
+	) => {
+		if (isBusy) {
+			event.preventDefault();
+			return;
+		}
+		if (!hasChanges || event.button !== 0) return;
+		if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+		event.preventDefault();
+		setPendingUsageEntry(entry);
+		setShowDiscardConfirm(true);
 	};
 
 	const stableHandleSave = useStableCallback(handleSave);
@@ -629,7 +663,7 @@ export function MediaDetailPanel({
 							>
 								<div className="w-full space-y-2">
 									<div className="flex items-center gap-1.5">
-										<span className="text-sm font-medium text-kumo-default">{t`Filename`}</span>
+										<span className="text-[14px] font-medium text-kumo-default">{t`Filename`}</span>
 										<Tooltip
 											content={filenameHelp}
 											delay={0}
@@ -773,7 +807,7 @@ export function MediaDetailPanel({
 									<>
 										<div className="w-full space-y-2">
 											<div className="flex items-center gap-1.5">
-												<span className="text-sm font-medium text-kumo-default">{t`Alt Text`}</span>
+												<span className="text-[14px] font-medium text-kumo-default">{t`Alt Text`}</span>
 												<Tooltip
 													content={altTextHelp}
 													delay={0}
@@ -849,10 +883,20 @@ export function MediaDetailPanel({
 									)}
 								</div>
 							)}
-
 							{updateErrorMessage && (
 								<div style={{ gridArea: canEditMetadata ? "error" : undefined }}>
 									<DialogError message={updateErrorMessage} />
+								</div>
+							)}
+
+							{!isProviderAsset && (
+								<div className="border-t border-kumo-line pt-4">
+									<MediaUsedIn
+										mediaId={item.id}
+										open={open}
+										navigationBlocked={isBusy}
+										onEntryClick={handleUsageEntryClick}
+									/>
 								</div>
 							)}
 						</div>
@@ -897,7 +941,10 @@ export function MediaDetailPanel({
 
 			<ConfirmDialog
 				open={showDiscardConfirm}
-				onClose={() => setShowDiscardConfirm(false)}
+				onClose={() => {
+					setShowDiscardConfirm(false);
+					setPendingUsageEntry(null);
+				}}
 				title={t`Discard changes?`}
 				description={t`Your unsaved media changes will be lost.`}
 				confirmLabel={t`Discard`}

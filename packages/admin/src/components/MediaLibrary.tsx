@@ -1,8 +1,8 @@
 import {
+	Banner,
 	Breadcrumbs,
 	Button,
 	Grid,
-	Input,
 	LayerCard,
 	Loader,
 	Pagination,
@@ -56,6 +56,13 @@ import {
 	fetchProviderMedia,
 	uploadToProvider,
 } from "../lib/api";
+import { useCurrentUser } from "../lib/api/current-user.js";
+import {
+	MEDIA_USAGE_ACTIVATION_QUERY_KEY,
+	MEDIA_USAGE_PROGRESS_QUERY_KEY,
+	fetchMediaUsageActivationStatus,
+	fetchMediaUsageProgress,
+} from "../lib/api/media-usage-activation.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import {
 	providerItemToMediaItem,
@@ -72,6 +79,7 @@ import { MediaDetailPanel } from "./MediaDetailPanel";
 import { MediaFolderDialog } from "./MediaFolderDialog.js";
 import { LOCAL_MEDIA_UPLOAD_ACCEPT, MediaUploadDialog } from "./MediaUploadDialog.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
 
 /** Maps a coarse type-filter choice to the media list's `mimeType` filter. */
 function mimeForTypeFilter(value: string): string | string[] | undefined {
@@ -217,11 +225,43 @@ export function MediaLibrary({
 	onMoveMedia,
 }: MediaLibraryProps) {
 	const { t } = useLingui();
+	const isAdmin = (useCurrentUser().data?.role ?? 0) >= 50;
+	const [activeProvider, setActiveProvider] = React.useState<string>("local");
+	const activationQuery = useQuery({
+		queryKey: MEDIA_USAGE_ACTIVATION_QUERY_KEY,
+		queryFn: fetchMediaUsageActivationStatus,
+		enabled: isAdmin && activeProvider === "local",
+		retry: false,
+		staleTime: 60_000,
+		refetchOnMount: "always",
+		refetchOnWindowFocus: false,
+		refetchOnReconnect: false,
+	});
+	const setupStatus = isAdmin && !activationQuery.isError ? activationQuery.data : undefined;
+	const progressQuery = useQuery({
+		queryKey: MEDIA_USAGE_PROGRESS_QUERY_KEY,
+		queryFn: fetchMediaUsageProgress,
+		enabled:
+			isAdmin &&
+			activeProvider === "local" &&
+			!activationQuery.isError &&
+			setupStatus?.state === "active",
+		retry: false,
+		staleTime: 60_000,
+		refetchOnMount: "always",
+		refetchOnWindowFocus: false,
+		refetchOnReconnect: false,
+	});
+	const setupProgress = progressQuery.data;
+	const setupIncomplete =
+		setupStatus &&
+		(setupStatus.state !== "active" ||
+			progressQuery.isError ||
+			(progressQuery.isSuccess && setupProgress?.status !== "ready"));
 	const [toastManager] = React.useState(createKumoToastManager);
 	const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
 	const [detailItem, setDetailItem] = React.useState<MediaItem | null>(null);
 	const [isDetailOpen, setIsDetailOpen] = React.useState(false);
-	const [activeProvider, setActiveProvider] = React.useState<string>("local");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [localTypeFilter, setLocalTypeFilter] = React.useState("all");
 	const mediaHeadingRef = React.useRef<HTMLHeadingElement>(null);
@@ -836,6 +876,26 @@ export function MediaLibrary({
 					)}
 				</div>
 			</div>
+			{activeProvider === "local" && setupIncomplete ? (
+				<Banner
+					variant="alert"
+					title={
+						setupStatus.state === "expanded"
+							? t`Set up media usage tracking`
+							: progressQuery.isError || setupProgress?.status === "needs_attention"
+								? t`Media usage tracking needs attention`
+								: setupStatus.state === "active"
+									? t`Media usage tracking is indexing existing content`
+									: t`Media usage tracking is setting up`
+					}
+					description={t`Index existing content and keep Used in results up to date.`}
+					action={
+						<RouterLinkButton to="/settings/media-usage" size="sm" variant="secondary">
+							{setupStatus.state === "expanded" ? t`Open setup` : t`View setup`}
+						</RouterLinkButton>
+					}
+				/>
+			) : null}
 
 			{/* Provider tabs (only when an external provider is configured) */}
 			{providerTabs.length > 1 && (
@@ -871,45 +931,9 @@ export function MediaLibrary({
 			{/* Toolbar: search + type filter (start) · view toggle (end).
 			    Local library search/filter is handled server-side. */}
 			{showToolbar && (
-				<div className="flex min-w-0 items-center gap-2 sm:flex-wrap sm:gap-3 sm:justify-between">
-					<div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none sm:gap-3">
-						{(canSearch || activeProvider === "local") && (
-							<div className="relative min-w-0 flex-1 sm:w-72 sm:flex-none">
-								<MagnifyingGlass
-									className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle"
-									aria-hidden="true"
-								/>
-								<Input
-									type="search"
-									placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
-									aria-label={t`Search media`}
-									value={searchQuery}
-									onChange={handleSearchChange}
-									maxLength={MEDIA_SEARCH_MAX_LENGTH}
-									className="w-full ps-9"
-								/>
-							</div>
-						)}
-						{activeProvider === "local" && (
-							<Select
-								value={localTypeFilter}
-								onValueChange={(v) => {
-									const next = v ?? "all";
-									setLocalTypeFilter(next);
-									onLocalMimeFilterChange?.(mimeForTypeFilter(next));
-								}}
-								items={{
-									all: t`All types`,
-									image: t`Images`,
-									video: t`Video`,
-									audio: t`Audio`,
-									document: t`Documents`,
-								}}
-								aria-label={t`Filter by type`}
-							/>
-						)}
-					</div>
-					<div className="flex flex-shrink-0 items-center justify-end">
+				<TableToolbar
+					className="flex-row flex-nowrap gap-2"
+					trailing={
 						<div role="group" aria-label={t`View mode`}>
 							<Tabs
 								variant="segmented"
@@ -939,8 +963,38 @@ export function MediaLibrary({
 								]}
 							/>
 						</div>
-					</div>
-				</div>
+					}
+				>
+					{(canSearch || activeProvider === "local") && (
+						<TableToolbarSearch
+							placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
+							aria-label={t`Search media`}
+							value={searchQuery}
+							onChange={handleSearchChange}
+							maxLength={MEDIA_SEARCH_MAX_LENGTH}
+							className="w-auto flex-1 sm:w-72"
+						/>
+					)}
+					{activeProvider === "local" && (
+						<Select
+							size="sm"
+							value={localTypeFilter}
+							onValueChange={(v) => {
+								const next = v ?? "all";
+								setLocalTypeFilter(next);
+								onLocalMimeFilterChange?.(mimeForTypeFilter(next));
+							}}
+							items={{
+								all: t`All types`,
+								image: t`Images`,
+								video: t`Video`,
+								audio: t`Audio`,
+								document: t`Documents`,
+							}}
+							aria-label={t`Filter by type`}
+						/>
+					)}
+				</TableToolbar>
 			)}
 
 			{activeProvider === "local" && (

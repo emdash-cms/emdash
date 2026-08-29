@@ -15,6 +15,26 @@ and files that are not assigned to a folder. Open a folder to see its files.
 
 <img src={mediaLibraryImg.src} alt="EmDash media library showing image grid with upload button" />
 
+## Used in
+
+Open a file in EmDash's media library to see the content entries that reference it. While EmDash scans existing content, the list includes the references found so far and may be incomplete.
+
+### Turn on media usage tracking
+
+If media usage tracking is off, an administrator can turn it on:
+
+1. Finish any content edits. If another application writes directly to the content database, pause it and wait for any writes in progress to finish.
+2. Open **Settings → Media usage tracking**, select **Enable tracking**, then confirm.
+3. When the page shows **Indexing existing content**, editing and other database writes can resume.
+4. Keep the page open until it shows **Ready**. If you leave, return to continue from saved progress.
+
+Once media usage tracking is on, it cannot be turned off.
+
+<Aside type="caution">
+	The **Used in** list checks supported references in EmDash content. It does not inspect custom code
+	or external sites, so an empty list does not prove that a file is safe to delete.
+</Aside>
+
 ## Uploading Files
 
 ### From the Media Library

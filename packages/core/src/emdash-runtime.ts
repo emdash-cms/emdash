@@ -9,7 +9,7 @@
 
 import { Permissions } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
-import { Kysely, sql, type Dialect } from "kysely";
+import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
@@ -48,25 +48,14 @@ import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-diagnostic.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
-import {
-	MEDIA_USAGE_COLLECTION_DELETION_LIMITS,
-	processDueMediaUsageCollectionDeletions,
-} from "./media/usage/collection-deletion-processor.js";
+import { activateMediaUsageCapture } from "./media/usage/activation.js";
 import {
 	deleteContentMediaUsage,
 	findNonTranslatableSiblingContentIds,
 	markContentMediaUsageCollectionStale,
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
-import {
-	MEDIA_USAGE_RECONCILIATION_LIMITS,
-	processDueMediaUsageReconciliation,
-} from "./media/usage/reconciliation-processor.js";
-import {
-	MEDIA_USAGE_WORK_PROCESSING_LIMITS,
-	processDueMediaUsageWork,
-	processMediaUsageWorkAfterWrite,
-} from "./media/usage/work-processor.js";
+import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
 import { getSandboxRouteErrorDetails } from "./plugins/sandbox/types.js";
 import type {
@@ -553,62 +542,6 @@ const marketplaceManifestCache = new Map<
 const sandboxedRouteMetaCache = new Map<string, Map<string, RouteMeta>>();
 let sandboxRunner: SandboxRunner | null = null;
 
-export const MEDIA_USAGE_MAINTENANCE_QUERY_RESERVATIONS = Object.freeze({
-	entryWork: MEDIA_USAGE_WORK_PROCESSING_LIMITS.ordinaryStatementsPerJob,
-	collectionDeletion: MEDIA_USAGE_COLLECTION_DELETION_LIMITS.maxQueriesPerTick,
-	reconciliation: MEDIA_USAGE_RECONCILIATION_LIMITS.maxQueriesPerTick,
-	maxClassQueries: Math.max(
-		MEDIA_USAGE_WORK_PROCESSING_LIMITS.ordinaryStatementsPerJob,
-		MEDIA_USAGE_COLLECTION_DELETION_LIMITS.maxQueriesPerTick,
-		MEDIA_USAGE_RECONCILIATION_LIMITS.maxQueriesPerTick,
-	),
-	eventCeiling: 40,
-});
-
-export type MediaUsageMaintenanceTaskClass =
-	| "entry_work"
-	| "collection_deletion"
-	| "reconciliation";
-
-export type MediaUsageMaintenanceResult =
-	| { outcome: "inactive" | "admission_closed"; taskClass: null; turn: null }
-	| { outcome: "processed"; taskClass: MediaUsageMaintenanceTaskClass; turn: number };
-
-async function runScheduledMediaUsageLane(
-	db: Kysely<Database>,
-): Promise<MediaUsageMaintenanceResult> {
-	const queriesAlreadySpent = getRequestContext()?.metrics?.dbCount ?? 0;
-	if (
-		queriesAlreadySpent + 1 + MEDIA_USAGE_MAINTENANCE_QUERY_RESERVATIONS.maxClassQueries >
-		MEDIA_USAGE_MAINTENANCE_QUERY_RESERVATIONS.eventCeiling
-	) {
-		return { outcome: "admission_closed", taskClass: null, turn: null };
-	}
-
-	const activation = await db
-		.updateTable("_emdash_media_usage_activation")
-		.set({
-			media_usage_maintenance_turn: sql<number>`(media_usage_maintenance_turn + 1) % 3`,
-		})
-		.where("task_key", "=", "incremental_capture")
-		.where("state", "=", "active")
-		.returning("media_usage_maintenance_turn")
-		.executeTakeFirst();
-	if (!activation) return { outcome: "inactive", taskClass: null, turn: null };
-
-	const turn = activation.media_usage_maintenance_turn;
-	if (turn === 0) {
-		await processDueMediaUsageWork(db);
-		return { outcome: "processed", taskClass: "entry_work", turn };
-	}
-	if (turn === 1) {
-		await processDueMediaUsageCollectionDeletions(db);
-		return { outcome: "processed", taskClass: "collection_deletion", turn };
-	}
-	await processDueMediaUsageReconciliation(db);
-	return { outcome: "processed", taskClass: "reconciliation", turn };
-}
-
 /**
  * EmDashRuntime - singleton per worker
  */
@@ -812,10 +745,6 @@ export class EmDashRuntime {
 		await recordSchedulerHeartbeatSafely(this.db);
 
 		return { published };
-	}
-
-	async runScheduledMediaUsageTasks(): Promise<MediaUsageMaintenanceResult> {
-		return runScheduledMediaUsageLane(this.db);
 	}
 
 	/**
@@ -1448,6 +1377,15 @@ export class EmDashRuntime {
 		// per-isolate lock keyed by the configured db so a reclaimed-and-rerun
 		// create() can't apply the seed a second time concurrently.
 		if (seedGate.collectionCount === 0 && !seedGate.setupDone) {
+			try {
+				const activation = await activateMediaUsageCapture(db, { writersDrained: true });
+				if (activation.outcome !== "active") {
+					throw new Error("Fresh-site media usage activation did not complete");
+				}
+			} catch (error) {
+				await disposeReadDb();
+				throw error;
+			}
 			const seedKey = deps.config.database?.entrypoint ?? "default";
 			const seedHolder = getSeedHolder();
 			try {
@@ -1756,14 +1694,6 @@ export class EmDashRuntime {
 				if (deps.createScheduler) {
 					const scheduler = deps.createScheduler(cronExecutor);
 					cronScheduler = scheduler;
-					const runMediaUsageMaintenance = async () => {
-						const runtime = runtimeRef.current;
-						if (runtime) {
-							await runtime.runScheduledMediaUsageTasks();
-						} else {
-							await runScheduledMediaUsageLane(db);
-						}
-					};
 
 					// Run scheduled publishing and system cleanup alongside each tick.
 					// Pass storage so cleanupPendingUploads can delete orphaned files.
@@ -1797,16 +1727,7 @@ export class EmDashRuntime {
 						// Never throws; no-op unless scheduled backups are enabled and due.
 						await maybeRunScheduledBackup(db, storage ?? undefined);
 						await recordSchedulerHeartbeatSafely(db);
-						if (!scheduler.setMediaUsageMaintenance) {
-							try {
-								await runMediaUsageMaintenance();
-							} catch (error) {
-								console.error("[media-usage] Scheduled maintenance failed:", error);
-							}
-						}
 					});
-					scheduler.setMediaUsageMaintenance?.(runMediaUsageMaintenance);
-
 					// start() is void on the timer scheduler but the interface
 					// allows a promise (alarm-backed schedulers); we don't block on it.
 					void scheduler.start();
@@ -3700,14 +3621,14 @@ export class EmDashRuntime {
 		for (const contentId of new Set(contentIds)) {
 			try {
 				const work = await processMediaUsageWorkAfterWrite(this.db, collection, contentId);
-				if (work.outcome !== "inactive") return;
+				if (work.outcome !== "inactive") continue;
 				await refreshContentMediaUsageAfterWrite(this.db, collection, contentId);
 			} catch (error) {
 				console.error(
 					`[media-usage] Failed after content write ${collection}/${contentId}:`,
 					error,
 				);
-				return;
+				continue;
 			}
 		}
 	}

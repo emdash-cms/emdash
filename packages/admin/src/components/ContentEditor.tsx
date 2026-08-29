@@ -76,6 +76,24 @@ function serializeEditorState(input: {
 	});
 }
 
+function resolveEditorBylines(item?: ContentItem | null): {
+	explicitCredits: BylineCreditInput[];
+	inferredByline: BylineSummary | null;
+} {
+	const entries = item?.bylines ?? [];
+	const explicitEntries = entries.filter((entry) => entry.source !== "inferred");
+	return {
+		explicitCredits: explicitEntries.map((entry) => ({
+			bylineId: entry.byline.id,
+			roleLabel: entry.roleLabel,
+		})),
+		inferredByline:
+			explicitEntries.length === 0
+				? (entries.find((entry) => entry.source === "inferred")?.byline ?? null)
+				: null,
+	};
+}
+
 import type { ContentSeoInput } from "../lib/api";
 import { findUnsupportedPortableTextMarks } from "../lib/portable-text-marks.js";
 import { MediaPickerModal } from "./MediaPickerModal";
@@ -267,9 +285,9 @@ export function ContentEditor({
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
 	const [status, setStatus] = React.useState(item?.status || "draft");
+	const resolvedItemBylines = resolveEditorBylines(item);
 	const [internalBylines, setInternalBylines] = React.useState<BylineCreditInput[]>(
-		item?.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
-			[],
+		resolvedItemBylines.explicitCredits,
 	);
 	// Gates whether `bylines` is included in the save payload. Untouched
 	// edits must not ship `[]` — strict per-locale hydration can return
@@ -314,11 +332,7 @@ export function ContentEditor({
 		serializeEditorState({
 			data: item?.data || {},
 			slug: item?.slug || "",
-			bylines:
-				item?.bylines?.map((entry) => ({
-					bylineId: entry.byline.id,
-					roleLabel: entry.roleLabel,
-				})) ?? [],
+			bylines: resolvedItemBylines.explicitCredits,
 		}),
 	);
 	const pendingAutosaveStateRef = React.useRef<string | null>(null);
@@ -342,9 +356,7 @@ export function ContentEditor({
 		setSlug(item.slug || "");
 		setSlugTouched(!!item.slug);
 		setStatus(item.status);
-		const nextBylines =
-			item.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
-			[];
+		const nextBylines = resolveEditorBylines(item).explicitCredits;
 		setInternalBylines(nextBylines);
 		setLastSavedData(
 			serializeEditorState({
@@ -360,31 +372,29 @@ export function ContentEditor({
 	// Update form and last saved state when item changes (e.g., after save or restore)
 	// Stringify the data for comparison since objects are compared by reference
 	const itemDataString = React.useMemo(() => (item ? JSON.stringify(item.data) : ""), [item?.data]);
+	const itemBylinesString = React.useMemo(
+		() => (item ? JSON.stringify(item.bylines ?? []) : ""),
+		[item?.bylines],
+	);
 	React.useEffect(() => {
 		if (item) {
+			const nextBylines = resolveEditorBylines(item).explicitCredits;
 			setFormData(item.data);
 			setSlug(item.slug || "");
 			setSlugTouched(!!item.slug);
 			setStatus(item.status);
-			setInternalBylines(
-				item.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
-					[],
-			);
+			setInternalBylines(nextBylines);
 			setLastSavedData(
 				serializeEditorState({
 					data: item.data,
 					slug: item.slug || "",
-					bylines:
-						item.bylines?.map((entry) => ({
-							bylineId: entry.byline.id,
-							roleLabel: entry.roleLabel,
-						})) ?? [],
+					bylines: nextBylines,
 				}),
 			);
 			pendingAutosaveStateRef.current = null;
 			setBylinesTouched(false);
 		}
-	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
+	}, [item?.updatedAt, itemDataString, itemBylinesString, item?.slug, item?.status]);
 
 	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
 	const unsupportedPortableTextMarks = React.useMemo(() => {
@@ -907,6 +917,7 @@ export function ContentEditor({
 							users={users}
 							onAuthorChange={onAuthorChange}
 							activeBylines={activeBylines}
+							inferredByline={resolvedItemBylines.inferredByline}
 							availableBylines={availableBylines}
 							availableBylinesLoaded={availableBylinesLoaded}
 							onBylinesChange={handleBylinesChange}
@@ -1061,6 +1072,11 @@ function MobileSidebarPortalGuard() {
 			// sheet and closes it before focus is restored. Keep this transient
 			// sortable-handle blur inside the mobile settings interaction.
 			if (source.closest("[data-sortable-handle]") && destination === null) {
+				event.stopPropagation();
+				keepSheetOpen();
+				return;
+			}
+			if (source.closest("[data-keep-mobile-sidebar-open]") && destination === null) {
 				event.stopPropagation();
 				keepSheetOpen();
 				return;

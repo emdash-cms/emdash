@@ -6,6 +6,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MediaLibrary } from "../../src/components/MediaLibrary";
 import type { LocalMediaItem, MediaFolder, MediaItem, MediaProviderItem } from "../../src/lib/api";
 import { ApiResponseError, deleteMedia } from "../../src/lib/api";
+import {
+	MEDIA_USAGE_ACTIVATION_QUERY_KEY,
+	MEDIA_USAGE_PROGRESS_QUERY_KEY,
+} from "../../src/lib/api/media-usage-activation.js";
 import { render } from "../utils/render.tsx";
 
 const dndState = vi.hoisted(() => ({
@@ -73,6 +77,26 @@ vi.mock("../../src/components/RouterLinkButton.js", () => ({
 const UPLOAD_CTA_PATTERN = /Upload images, videos, and documents to keep reusable assets/;
 const UPLOAD_TO_LIBRARY_PATTERN = /Upload to Library/;
 const UPLOAD_FILES_PATTERN = /Upload Files/;
+const setupMocks = vi.hoisted(() => ({
+	fetchStatus: vi.fn(),
+	fetchProgress: vi.fn(),
+	role: 40,
+}));
+
+vi.mock("../../src/lib/api/media-usage-activation.js", async () => {
+	const actual = await vi.importActual<
+		typeof import("../../src/lib/api/media-usage-activation.js")
+	>("../../src/lib/api/media-usage-activation.js");
+	return {
+		...actual,
+		fetchMediaUsageActivationStatus: setupMocks.fetchStatus,
+		fetchMediaUsageProgress: setupMocks.fetchProgress,
+	};
+});
+
+vi.mock("../../src/lib/api/current-user.js", () => ({
+	useCurrentUser: () => ({ data: { id: "user-1", role: setupMocks.role } }),
+}));
 
 function setInputFiles(input: HTMLInputElement, files: File[]) {
 	const transfer = new DataTransfer();
@@ -115,17 +139,20 @@ vi.mock("../../src/lib/api", async () => {
 });
 
 function QueryWrapper({ children }: { children: React.ReactNode }) {
-	const qc = new QueryClient({
+	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 	});
 	return (
 		<Toasty>
-			<QueryClientProvider client={qc}>{children}</QueryClientProvider>
+			<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 		</Toasty>
 	);
 }
 
-function renderLibrary(props: Partial<React.ComponentProps<typeof MediaLibrary>> = {}) {
+function renderLibrary(
+	props: Partial<React.ComponentProps<typeof MediaLibrary>> = {},
+	queryClient?: QueryClient,
+) {
 	const defaultProps: React.ComponentProps<typeof MediaLibrary> = {
 		items: [],
 		isLoading: false,
@@ -134,10 +161,13 @@ function renderLibrary(props: Partial<React.ComponentProps<typeof MediaLibrary>>
 		onItemUpdated: vi.fn(),
 		...props,
 	};
+	const library = <MediaLibrary {...defaultProps} />;
 	return render(
-		<QueryWrapper>
-			<MediaLibrary {...defaultProps} />
-		</QueryWrapper>,
+		queryClient ? (
+			<QueryClientProvider client={queryClient}>{library}</QueryClientProvider>
+		) : (
+			<QueryWrapper>{library}</QueryWrapper>
+		),
 	);
 }
 
@@ -187,6 +217,131 @@ describe("MediaLibrary", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		dndState.props = null;
+		setupMocks.role = 40;
+		setupMocks.fetchStatus.mockResolvedValue({ state: "active" });
+		setupMocks.fetchProgress.mockResolvedValue({
+			status: "ready",
+			readyCollections: 2,
+			totalCollections: 2,
+		});
+	});
+
+	describe("Media Usage setup discovery", () => {
+		it("shows an administrator one setup action while activation is off", async () => {
+			setupMocks.role = 50;
+			setupMocks.fetchStatus.mockResolvedValue({ state: "expanded" });
+
+			const screen = await renderLibrary();
+
+			await expect.element(screen.getByText("Set up media usage tracking")).toBeInTheDocument();
+			await expect.element(screen.getByRole("link", { name: "Open setup" })).toBeInTheDocument();
+		});
+
+		it("links to the automatic setup status while activation is running", async () => {
+			setupMocks.role = 50;
+			setupMocks.fetchStatus.mockResolvedValue({ state: "activating" });
+
+			const screen = await renderLibrary();
+
+			await expect
+				.element(screen.getByText("Media usage tracking is setting up"))
+				.toBeInTheDocument();
+			await expect.element(screen.getByRole("link", { name: "View setup" })).toBeInTheDocument();
+		});
+
+		it("keeps the setup link while existing content is indexing", async () => {
+			setupMocks.role = 50;
+			setupMocks.fetchStatus.mockResolvedValue({ state: "active" });
+			setupMocks.fetchProgress.mockResolvedValue({
+				status: "indexing",
+				readyCollections: 1,
+				totalCollections: 2,
+			});
+
+			const screen = await renderLibrary();
+
+			await expect
+				.element(screen.getByText("Media usage tracking is indexing existing content"))
+				.toBeVisible();
+			await expect.element(screen.getByRole("link", { name: "View setup" })).toBeVisible();
+		});
+
+		it("waits for progress before labelling an active site as incomplete", async () => {
+			setupMocks.role = 50;
+			setupMocks.fetchStatus.mockResolvedValue({ state: "active" });
+			let finishProgress!: (value: {
+				status: "indexing";
+				readyCollections: number;
+				totalCollections: number;
+			}) => void;
+			setupMocks.fetchProgress.mockImplementation(
+				() => new Promise((resolve) => (finishProgress = resolve)),
+			);
+
+			const screen = await renderLibrary();
+
+			await vi.waitFor(() => expect(setupMocks.fetchProgress).toHaveBeenCalledOnce());
+			expect(screen.getByRole("link", { name: "View setup" }).query()).toBeNull();
+			expect(
+				screen.getByText("Media usage tracking is indexing existing content").query(),
+			).toBeNull();
+
+			finishProgress({ status: "indexing", readyCollections: 1, totalCollections: 2 });
+			await expect.element(screen.getByRole("link", { name: "View setup" })).toBeVisible();
+		});
+
+		it("does not label an unreadable progress state as indexing", async () => {
+			setupMocks.role = 50;
+			setupMocks.fetchStatus.mockResolvedValue({ state: "active" });
+			setupMocks.fetchProgress.mockRejectedValue(new Error("status unavailable"));
+
+			const screen = await renderLibrary();
+
+			await expect.element(screen.getByText("Media usage tracking needs attention")).toBeVisible();
+			await expect.element(screen.getByRole("link", { name: "View setup" })).toBeVisible();
+		});
+
+		it("refreshes fresh cached indexing state when the library mounts", async () => {
+			setupMocks.role = 50;
+			const queryClient = new QueryClient({
+				defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+			});
+			queryClient.setQueryData(MEDIA_USAGE_ACTIVATION_QUERY_KEY, { state: "active" });
+			queryClient.setQueryData(MEDIA_USAGE_PROGRESS_QUERY_KEY, {
+				status: "indexing",
+				readyCollections: 1,
+				totalCollections: 2,
+			});
+			setupMocks.fetchStatus.mockResolvedValue({ state: "active" });
+			setupMocks.fetchProgress.mockResolvedValue({
+				status: "ready",
+				readyCollections: 2,
+				totalCollections: 2,
+			});
+
+			const screen = await renderLibrary({}, queryClient);
+
+			await vi.waitFor(() => expect(setupMocks.fetchStatus).toHaveBeenCalledOnce());
+			await vi.waitFor(() => expect(setupMocks.fetchProgress).toHaveBeenCalledOnce());
+			await expect
+				.element(screen.getByRole("link", { name: "View setup" }))
+				.not.toBeInTheDocument();
+		});
+
+		it("keeps the library usable when optional setup discovery fails", async () => {
+			setupMocks.role = 50;
+			setupMocks.fetchStatus.mockRejectedValue(new Error("status unavailable"));
+
+			const screen = await renderLibrary({
+				items: [makeMediaItem({ id: "1", filename: "still-usable.jpg" })],
+			});
+
+			await expect.element(screen.getByAltText("still-usable.jpg")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }))
+				.toBeInTheDocument();
+			expect(screen.getByText("Set up media usage tracking").query()).toBeNull();
+		});
 	});
 
 	describe("rendering items", () => {

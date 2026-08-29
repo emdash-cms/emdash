@@ -125,10 +125,13 @@ function matchesPublicationFence(observed: ContentItem, existing: ContentItem): 
 	);
 }
 
-function isConfirmedStatementFailure(error: unknown): boolean {
+export function isConfirmedStatementFailure(error: unknown): boolean {
 	if (typeof error !== "object" || error === null || !("code" in error)) return false;
 	const code = (error as { code?: unknown }).code;
-	return typeof code === "string" && (code.startsWith("SQLITE_") || SQLSTATE_PATTERN.test(code));
+	return (
+		typeof code === "string" &&
+		(code === "ERR_SQLITE_ERROR" || code.startsWith("SQLITE_") || SQLSTATE_PATTERN.test(code))
+	);
 }
 
 interface ResolvedOrderField {
@@ -1383,8 +1386,6 @@ export class ContentRepository {
 		if (bylineIds.length === 0) {
 			// A filter that resolved to no ids must match nothing rather than
 			// silently degrade to "no filter" and return the whole collection.
-			// `1 = 0` rather than a bound `false`: better-sqlite3 refuses to
-			// bind JS booleans.
 			return query.where(() => sql<boolean>`1 = 0`);
 		}
 

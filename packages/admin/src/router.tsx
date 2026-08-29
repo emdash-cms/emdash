@@ -62,6 +62,7 @@ import { ApiTokenSettings } from "./components/settings/ApiTokenSettings";
 import { BackupSettings } from "./components/settings/BackupSettings";
 import { EmailSettings } from "./components/settings/EmailSettings";
 import { GeneralSettings } from "./components/settings/GeneralSettings";
+import { MediaUsageSettings } from "./components/settings/MediaUsageSettings";
 import { SecuritySettings } from "./components/settings/SecuritySettings";
 import { SeoSettings } from "./components/settings/SeoSettings";
 import { SocialSettings } from "./components/settings/SocialSettings";
@@ -1850,6 +1851,12 @@ const settingsRoute = createRoute({
 	component: Settings,
 });
 
+const mediaUsageSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/settings/media-usage",
+	component: MediaUsageSettings,
+});
+
 // Security settings route
 const securitySettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -2432,6 +2439,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	bylineSchemaRoute,
 	widgetsRoute,
 	settingsRoute,
+	mediaUsageSettingsRoute,
 	generalSettingsRoute,
 	socialSettingsRoute,
 	seoSettingsRoute,

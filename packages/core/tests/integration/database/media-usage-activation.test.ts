@@ -623,6 +623,41 @@ describeEachDialect("media usage production activation", (dialect) => {
 		);
 	});
 
+	it("rejects an excessive owned trigger set before changing trigger DDL", async () => {
+		if (dialect !== "sqlite") return;
+		const registry = new SchemaRegistry(ctx.db);
+		await registry.createCollection({ slug: "trigger_limit", label: "Trigger limit" });
+		for (let index = 0; index < 150; index++) {
+			const triggerName = `emdash_mu_extra_${String(index).padStart(3, "0")}`;
+			await sql`
+				CREATE TRIGGER ${sql.ref(triggerName)}
+				AFTER INSERT ON ${sql.ref("ec_trigger_limit")}
+				BEGIN
+					SELECT 1;
+				END
+			`.execute(ctx.db);
+		}
+
+		await expect(activateMediaUsageCapture(ctx.db, { writersDrained: true })).rejects.toThrow(
+			/activation failed/i,
+		);
+
+		const triggers = await sql<{ name: string }>`
+			SELECT name FROM sqlite_master
+			WHERE type = 'trigger'
+				AND tbl_name = 'ec_trigger_limit'
+				AND substr(name, 1, 10) = 'emdash_mu_'
+		`.execute(ctx.db);
+		expect(triggers.rows).toHaveLength(150);
+		expect(await activationRow()).toEqual(
+			expect.objectContaining({
+				state: "activating",
+				lease_token: null,
+				last_error_code: "MEDIA_USAGE_ACTIVATION_FAILED",
+			}),
+		);
+	});
+
 	it("refuses a runtime generation mismatch without changing activation state", async () => {
 		await ctx.db
 			.updateTable("_emdash_media_usage_activation")

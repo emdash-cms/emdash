@@ -48,7 +48,6 @@ import { createDeferredTaskTracker } from "../deferred-tasks.js";
 import {
 	DB_INIT_DEADLINE_MS,
 	EmDashRuntime,
-	type MediaUsageMaintenanceResult,
 	type RuntimeDependencies,
 	type SandboxedPluginEntry,
 	type MediaProviderEntry,
@@ -298,12 +297,6 @@ export async function runScheduledTasks(
 	const config = getConfig();
 	if (!config) return { published: [] };
 	return runOutsideRequest(config, (runtime) => runtime.runScheduledTasks(options));
-}
-
-export async function runScheduledMediaUsageTasks(): Promise<MediaUsageMaintenanceResult> {
-	const config = getConfig();
-	if (!config) return { outcome: "inactive", taskClass: null, turn: null };
-	return runOutsideRequest(config, (runtime) => runtime.runScheduledMediaUsageTasks());
 }
 
 /**

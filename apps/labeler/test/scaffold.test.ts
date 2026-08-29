@@ -100,6 +100,11 @@ describe("labeler scaffold", () => {
 		const missingAssertion = await SELF.fetch("https://labeler.test/_admin");
 		expect(missingAssertion.status).toBe(401);
 		expect(missingAssertion.headers.get("cache-control")).toBe("no-store");
+
+		const directShell = await SELF.fetch("https://labeler.test/index.html");
+		expect(directShell.status).toBe(404);
+		const rootShell = await SELF.fetch("https://labeler.test/");
+		expect(rootShell.status).toBe(404);
 	});
 
 	it("uses run keys as deterministic Workflow instance IDs", async () => {

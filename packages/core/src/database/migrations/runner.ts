@@ -264,7 +264,7 @@ function escapeRegExp(value: string): string {
  *
  * We match on the table name (not the full error text) because different
  * SQLite drivers phrase the message differently
- * (`UNIQUE constraint failed: _emdash_migrations.name` for better-sqlite3,
+ * (`UNIQUE constraint failed: _emdash_migrations.name` for file-backed SQLite,
  * `D1_ERROR: UNIQUE constraint failed: _emdash_migrations.name: SQLITE_CONSTRAINT`
  * for D1, etc.). The pattern is built from `MIGRATION_TABLE` so a rename
  * cannot silently disable race detection.
@@ -288,7 +288,7 @@ const MIGRATION_RACE_POLL_MS = 100;
  * Pattern used to detect "table does not exist" errors across the dialects
  * EmDash supports. The phrasing differs by driver:
  *
- *   - better-sqlite3: `no such table: _emdash_migrations`
+ *   - SQLite:         `no such table: _emdash_migrations`
  *   - D1:             `D1_ERROR: no such table: _emdash_migrations: SQLITE_ERROR`
  *   - PostgreSQL:     `relation "_emdash_migrations" does not exist`
  *                     (also occasionally `table "_emdash_migrations" does not exist`)

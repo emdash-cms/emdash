@@ -257,6 +257,58 @@ In edit mode, `{...entry.edit.title}` produces a `data-emdash-ref` attribute tha
 	injects a TipTap editor. For image fields, it opens a media library popover.
 </Aside>
 
+### Styling inline code blocks
+
+Inline code blocks follow the system's light or dark appearance by default. If your site has its own theme switch, set these properties in its light and dark theme selectors:
+
+| Property | Purpose |
+| --- | --- |
+| `--emdash-inline-code-background` | Code block background |
+| `--emdash-inline-code-foreground` | Plain code text |
+| `--emdash-inline-code-muted` | Comments and quoted text |
+| `--emdash-inline-code-keyword` | Keywords, literals, selectors, and deleted text |
+| `--emdash-inline-code-string` | Strings, attributes, symbols, and added text |
+| `--emdash-inline-code-number` | Numbers and metadata |
+| `--emdash-inline-code-title` | Titles, names, types, and built-ins |
+| `--emdash-inline-code-border` | Language selector border |
+| `--emdash-inline-code-control-background` | Language selector background |
+| `--emdash-inline-code-control-foreground` | Language selector text and icons |
+| `--emdash-inline-code-focus` | Keyboard focus indicator |
+
+The following example styles inline code blocks for a site that applies `.dark` to the `<html>` element:
+
+```css title="src/styles/global.css"
+:root {
+  --emdash-inline-code-background: #f7f7f5;
+  --emdash-inline-code-foreground: #24292f;
+  --emdash-inline-code-muted: #57606a;
+  --emdash-inline-code-keyword: #b8172a;
+  --emdash-inline-code-string: #0a3069;
+  --emdash-inline-code-number: #0550ae;
+  --emdash-inline-code-title: #7545c7;
+  --emdash-inline-code-border: #7d8590;
+  --emdash-inline-code-control-background: #fff;
+  --emdash-inline-code-control-foreground: #24292f;
+  --emdash-inline-code-focus: #0550ae;
+}
+
+:root.dark {
+  --emdash-inline-code-background: #202020;
+  --emdash-inline-code-foreground: #f0f3f6;
+  --emdash-inline-code-muted: #c9d1d9;
+  --emdash-inline-code-keyword: #ffc1bb;
+  --emdash-inline-code-string: #b9ddff;
+  --emdash-inline-code-number: #a8d5ff;
+  --emdash-inline-code-title: #e5ccff;
+  --emdash-inline-code-border: #6e7681;
+  --emdash-inline-code-control-background: #161b22;
+  --emdash-inline-code-control-foreground: #f0f3f6;
+  --emdash-inline-code-focus: #a8d5ff;
+}
+```
+
+If you change the code block background, also override every text color so the syntax remains readable. These properties apply only while inline editing is active. Style published code blocks with your site's CSS.
+
 ## Sorting Results
 
 `getEmDashCollection` does not guarantee sort order. Sort results in your template:
