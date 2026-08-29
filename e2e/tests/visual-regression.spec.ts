@@ -126,7 +126,14 @@ const PAGES: PageCase[] = [
 	{ name: "content-new", path: () => "/content/posts/new" },
 	{ name: "media", path: () => "/media" },
 	{ name: "media-mobile", path: () => "/media", viewport: { width: 320, height: 800 } },
-	{ name: "menus", path: () => "/menus" },
+	{
+		name: "menus",
+		path: () => "/menus",
+		prepare: openFilter(
+			'[data-kumo-component="Select"][data-kumo-part="trigger"]',
+			'[role="listbox"]:visible',
+		),
+	},
 	{ name: "settings", path: () => "/settings" },
 ];
 
