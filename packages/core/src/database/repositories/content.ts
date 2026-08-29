@@ -2058,6 +2058,7 @@ export class ContentRepository {
 			throw new EmDashValidationError("Content item not found");
 		}
 		assertRevisionPrecondition(existing, expectedRevision);
+		if (existing.status === "draft" && !existing.liveRevisionId) return existing;
 
 		const revisionRepo = new RevisionRepository(this.db);
 		let provisionalRevisionId: string | null = null;
