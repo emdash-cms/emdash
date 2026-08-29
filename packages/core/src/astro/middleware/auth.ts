@@ -64,6 +64,13 @@ function csrfRejectedResponse(): Response {
 	return apiError("CSRF_REJECTED", "Missing required header", 403);
 }
 
+function accountDisabledResponse(): Response {
+	return new Response("Account disabled", {
+		status: 403,
+		headers: { "Content-Type": "text/plain", ...MW_CACHE_HEADERS },
+	});
+}
+
 function mcpUnauthorizedResponse(
 	url: URL,
 	config?: Parameters<typeof getPublicOrigin>[1],
@@ -505,6 +512,7 @@ async function handleExternalAuth(
 		// Find or create user
 		const adapter = createKyselyAdapter(emdash.db);
 		let user = await adapter.getUserByEmail(authResult.email);
+		if (user?.disabled) return accountDisabledResponse();
 
 		if (!user) {
 			// User doesn't exist
@@ -563,7 +571,13 @@ async function handleExternalAuth(
 
 			if (Object.keys(updates).length > 0) {
 				updates.updated_at = new Date().toISOString();
-				await emdash.db.updateTable("users").set(updates).where("id", "=", user.id).execute();
+				const result = await emdash.db
+					.updateTable("users")
+					.set(updates)
+					.where("id", "=", user.id)
+					.where("disabled", "=", 0)
+					.executeTakeFirst();
+				if (Number(result.numUpdatedRows ?? 0) === 0) return accountDisabledResponse();
 
 				user = {
 					...user,
@@ -588,10 +602,7 @@ async function handleExternalAuth(
 
 		// Check if user is disabled locally
 		if (user.disabled) {
-			return new Response("Account disabled", {
-				status: 403,
-				headers: { "Content-Type": "text/plain", ...MW_CACHE_HEADERS },
-			});
+			return accountDisabledResponse();
 		}
 
 		// Set user in locals

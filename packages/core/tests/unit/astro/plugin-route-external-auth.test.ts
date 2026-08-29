@@ -45,15 +45,15 @@ afterAll(() => {
 	vi.unstubAllEnvs();
 });
 
-function createContext(path: string, isPublic: boolean) {
+function createContext(path: string, isPublic: boolean, db: unknown = {}) {
 	const locals: Record<string, unknown> & { user?: { id: string; email: string } } = {
 		emdash: {
-			db: {},
+			db,
 			config: {
 				auth: {
 					type: "cloudflare-access",
 					entrypoint: "@emdash-cms/cloudflare/auth",
-					config: { teamDomain: "example.cloudflareaccess.com" },
+					config: { teamDomain: "example.cloudflareaccess.com", syncRoles: true },
 				},
 			},
 			getPluginRouteMeta: vi.fn(() => ({ public: isPublic })),
@@ -112,6 +112,58 @@ describe("external auth on plugin API routes", () => {
 		} finally {
 			consoleError.mockRestore();
 		}
+	});
+
+	it("rejects a disabled user before syncing provider profile data", async () => {
+		getUserByEmail.mockResolvedValueOnce({
+			id: "user-1",
+			email: "admin@example.com",
+			name: "Old Name",
+			role: 10,
+			disabled: true,
+		});
+		const { context, locals, session } = createContext(
+			"/_emdash/api/plugins/ai-search/config",
+			false,
+		);
+		const next = vi.fn(async () => new Response("should not run"));
+
+		const response = await onRequest(context as never, next);
+
+		expect(response.status).toBe(403);
+		expect(session.set).not.toHaveBeenCalled();
+		expect(locals.user).toBeUndefined();
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it("does not establish a session if the user is disabled during profile sync", async () => {
+		getUserByEmail.mockResolvedValueOnce({
+			id: "user-1",
+			email: "admin@example.com",
+			name: "Old Name",
+			role: 50,
+			disabled: false,
+		});
+		const executeTakeFirst = vi.fn(async () => ({ numUpdatedRows: 0n }));
+		const query = {
+			set: vi.fn(() => query),
+			where: vi.fn(() => query),
+			executeTakeFirst,
+		};
+		const db = { updateTable: vi.fn(() => query) };
+		const { context, locals, session } = createContext(
+			"/_emdash/api/plugins/ai-search/config",
+			false,
+			db,
+		);
+		const next = vi.fn(async () => new Response("should not run"));
+
+		const response = await onRequest(context as never, next);
+
+		expect(response.status).toBe(403);
+		expect(session.set).not.toHaveBeenCalled();
+		expect(locals.user).toBeUndefined();
+		expect(next).not.toHaveBeenCalled();
 	});
 
 	it("leaves explicitly public plugin routes unauthenticated", async () => {
