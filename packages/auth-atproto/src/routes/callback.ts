@@ -33,6 +33,8 @@ import type { Kysely } from "kysely";
 export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 	const { emdash } = locals;
 	let providerSession: { signOut(): Promise<void> } | undefined;
+	let providerSessionDid: string | undefined;
+	let providerSessionStorage: { delete(id: string): Promise<unknown> } | undefined;
 	let authenticationComplete = false;
 
 	if (!emdash?.db) {
@@ -61,11 +63,14 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		const { getAtprotoStorage } = await import("../storage.js");
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- emdash locals satisfy EmdashLocals shape required by getAtprotoStorage
 		const storage = await getAtprotoStorage(emdash as Parameters<typeof getAtprotoStorage>[0]);
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- auth provider storage declares a sessions collection
+		providerSessionStorage = storage?.sessions as typeof providerSessionStorage;
 		const client = await getAtprotoOAuthClient(baseUrl, storage);
 		const { session: atprotoSession } = await client.callback(url.searchParams);
 		providerSession = atprotoSession;
 
 		const did = atprotoSession.did;
+		providerSessionDid = did;
 
 		// Resolve profile for display name and handle
 		const { displayName, handle } = await resolveAtprotoProfile(atprotoSession);
@@ -193,9 +198,8 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		}
 
 		// Create Astro session
-		if (session) {
-			session.set("user", { id: user.id });
-		}
+		if (!session) throw new Error("Session unavailable");
+		session.set("user", { id: user.id });
 		authenticationComplete = true;
 
 		// Redirect to admin dashboard
@@ -228,9 +232,14 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		);
 	} finally {
 		if (providerSession && !authenticationComplete) {
-			await providerSession.signOut().catch((signOutError: unknown) => {
+			void providerSession.signOut().catch((signOutError: unknown) => {
 				console.error("[atproto-auth] Failed to remove rejected provider session:", signOutError);
 			});
+			if (providerSessionStorage && providerSessionDid) {
+				await providerSessionStorage.delete(providerSessionDid).catch((deleteError: unknown) => {
+					console.error("[atproto-auth] Failed to delete rejected provider session:", deleteError);
+				});
+			}
 		}
 	}
 };
