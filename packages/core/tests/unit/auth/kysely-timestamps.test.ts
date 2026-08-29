@@ -2,16 +2,28 @@ import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { UserRepository } from "../../../src/database/repositories/user.js";
+import type { Database } from "../../../src/database/types.js";
+import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+
 describe("Kysely auth timestamps", () => {
 	let db: Kysely<Database>;
+	let originalTimezone: string | undefined;
 
 	beforeEach(async () => {
+		originalTimezone = process.env.TZ;
+		// A non-UTC zone makes regressions to local parsing of SQLite UTC timestamps observable.
+		process.env.TZ = "America/New_York";
 		db = await setupTestDatabase();
 	});
 
 	afterEach(async () => {
+		if (originalTimezone === undefined) {
+			delete process.env.TZ;
+		} else {
+			process.env.TZ = originalTimezone;
+		}
 		await teardownTestDatabase(db);
-	});
 	});
 
 	it.each([
