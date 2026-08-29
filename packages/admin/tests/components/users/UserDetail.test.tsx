@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import { userEvent } from "@vitest/browser/context";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
@@ -101,6 +102,59 @@ describe("UserDetail", () => {
 		await expect.element(screen.getByLabelText("Name")).toHaveValue("Alice Smith");
 		// Email input
 		await expect.element(screen.getByLabelText("Email")).toHaveValue("alice@example.com");
+	});
+
+	it("shows account, passkey, and OAuth dates with seconds and time zone", async () => {
+		const previousLocale = i18n.locale;
+		const timestamps = {
+			createdAt: "2026-05-20T02:03:04.000Z",
+			updatedAt: "2026-05-21T03:04:05.000Z",
+			credentialCreatedAt: "2026-05-22T04:05:06.000Z",
+			oauthCreatedAt: "2026-05-23T05:06:07.000Z",
+		};
+		const format = new Intl.DateTimeFormat("ar", {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+			second: "2-digit",
+			timeZoneName: "short",
+		});
+		i18n.activate("ar");
+
+		try {
+			const screen = await render(
+				<UserDetail
+					user={makeUser({
+						createdAt: timestamps.createdAt,
+						updatedAt: timestamps.updatedAt,
+						credentials: [
+							{
+								id: "cred-1",
+								name: "My Passkey",
+								deviceType: "multiDevice",
+								createdAt: timestamps.credentialCreatedAt,
+								lastUsedAt: "2026-05-24T06:07:08.000Z",
+							},
+						],
+						oauthAccounts: [{ provider: "github", createdAt: timestamps.oauthCreatedAt }],
+					})}
+					isOpen={true}
+					onClose={noop}
+					onSave={noop}
+					onDisable={noop}
+					onEnable={noop}
+				/>,
+			);
+			const detailText = screen.getByRole("dialog").element().textContent;
+
+			for (const timestamp of Object.values(timestamps)) {
+				expect(detailText).toContain(format.format(new Date(timestamp)));
+			}
+		} finally {
+			i18n.activate(previousLocale);
+		}
 	});
 
 	it("escape key calls onClose", async () => {

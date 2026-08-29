@@ -28,6 +28,18 @@ export function parseTimestamp(value: string): Date {
 	return new Date(value);
 }
 
+export function formatDateTime(value: string, locale: string): string {
+	return new Intl.DateTimeFormat(locale, {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		timeZoneName: "short",
+	}).format(parseTimestamp(value));
+}
+
 export function formatRelativeTime(dateString: string): string {
 	const date = parseTimestamp(dateString);
 	const now = new Date();

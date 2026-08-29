@@ -169,18 +169,31 @@ describe("ApiTokenSettings", () => {
 		expect(screen.getByRole("alert").query()).toBeNull();
 	});
 
-	it("shows the created date from the stored UTC instant, not the viewer's local zone", async () => {
+	it("shows created and expiry times with seconds from their stored UTC instants", async () => {
 		const storedCreatedAt = "2026-05-20 02:00:00";
-		const format = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
+		const storedExpiresAt = "2026-05-21T03:04:05.000Z";
+		const format = new Intl.DateTimeFormat("en", {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+			second: "2-digit",
+			timeZoneName: "short",
+		});
 		const correct = format.format(new Date(Date.UTC(2026, 4, 20, 2, 0, 0)));
 		const localMisread = format.format(new Date(storedCreatedAt));
+		const expectedExpiry = format.format(new Date(storedExpiresAt));
 		expect(correct).not.toBe(localMisread);
 
-		mockFetchApiTokens.mockResolvedValue([{ ...token, createdAt: storedCreatedAt }]);
+		mockFetchApiTokens.mockResolvedValue([
+			{ ...token, createdAt: storedCreatedAt, expiresAt: storedExpiresAt },
+		]);
 		const screen = await renderApiTokenSettings();
 
 		await expect.element(screen.getByText("CI token")).toBeInTheDocument();
 		await expect.element(screen.getByText(correct)).toBeInTheDocument();
+		await expect.element(screen.getByText(expectedExpiry)).toBeInTheDocument();
 		expect(screen.getByText(localMisread).query()).toBeNull();
 	});
 

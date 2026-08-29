@@ -21,7 +21,7 @@ import {
 	type ApiTokenScopeValue,
 } from "../../lib/api/api-tokens.js";
 import { fetchPlugins } from "../../lib/api/plugins.js";
-import { parseTimestamp } from "../../lib/utils.js";
+import { formatDateTime } from "../../lib/utils.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
@@ -357,14 +357,14 @@ export function ApiTokenSettings() {
 												<div className="flex gap-1.5">
 													<dt>{t`Created`}</dt>
 													<dd className="tabular-nums">
-														{i18n.date(parseTimestamp(token.createdAt), { dateStyle: "medium" })}
+														{formatDateTime(token.createdAt, i18n.locale)}
 													</dd>
 												</div>
 												{token.expiresAt && (
 													<div className="flex gap-1.5">
 														<dt>{t(msg`Expiry`)}</dt>
 														<dd className="tabular-nums">
-															{i18n.date(new Date(token.expiresAt), { dateStyle: "medium" })}
+															{formatDateTime(token.expiresAt, i18n.locale)}
 														</dd>
 													</div>
 												)}

@@ -14,7 +14,7 @@ import * as React from "react";
 
 import type { UserDetail as UserDetailType, UpdateUserInput } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
-import { cn } from "../../lib/utils";
+import { cn, formatDateTime } from "../../lib/utils.js";
 import { useRolesConfig } from "./useRolesConfig.js";
 
 export interface UserDetailProps {
@@ -51,7 +51,7 @@ export function UserDetail({
 	onEnable,
 	onSendRecovery,
 }: UserDetailProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const { roles, roleLabels, getRoleLabel } = useRolesConfig();
 	const [name, setName] = React.useState(user?.name ?? "");
 	const [email, setEmail] = React.useState(user?.email ?? "");
@@ -217,11 +217,11 @@ export function UserDetail({
 										<div className="space-y-2 text-sm">
 											<div className="flex justify-between">
 												<span className="text-kumo-subtle">{t`Created`}</span>
-												<span>{new Date(user.createdAt).toLocaleDateString()}</span>
+												<span>{formatDateTime(user.createdAt, i18n.locale)}</span>
 											</div>
 											<div className="flex justify-between">
 												<span className="text-kumo-subtle">{t`Last updated`}</span>
-												<span>{new Date(user.updatedAt).toLocaleDateString()}</span>
+												<span>{formatDateTime(user.updatedAt, i18n.locale)}</span>
 											</div>
 											<div className="flex justify-between">
 												<span className="text-kumo-subtle">{t`Last login`}</span>
@@ -257,7 +257,7 @@ export function UserDetail({
 															</div>
 														</div>
 														<div className="text-end text-kumo-subtle">
-															<div>{t`Created ${new Date(cred.createdAt).toLocaleDateString()}`}</div>
+															<div>{t`Created ${formatDateTime(cred.createdAt, i18n.locale)}`}</div>
 															<div className="text-xs">
 																{t`Last used ${new Date(cred.lastUsedAt).toLocaleDateString()}`}
 															</div>
@@ -283,7 +283,7 @@ export function UserDetail({
 													>
 														<span className="capitalize">{account.provider}</span>
 														<span className="text-kumo-subtle">
-															{t`Connected ${new Date(account.createdAt).toLocaleDateString()}`}
+															{t`Connected ${formatDateTime(account.createdAt, i18n.locale)}`}
 														</span>
 													</div>
 												))}

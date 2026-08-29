@@ -212,6 +212,29 @@ describe("SecuritySettings", () => {
 		}
 	});
 
+	it("shows passkey creation time with seconds and time zone in the active locale", async () => {
+		const previousLocale = i18n.locale;
+		const createdAt = "2026-01-01T02:03:04.000Z";
+		const expectedCreatedAt = new Intl.DateTimeFormat("ar", {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+			second: "2-digit",
+			timeZoneName: "short",
+		}).format(new Date(createdAt));
+		mockFetchPasskeys.mockResolvedValue([{ ...passkeys[0], createdAt }]);
+		i18n.activate("ar");
+
+		try {
+			const screen = await renderSecuritySettings();
+			await expect.element(screen.getByText(expectedCreatedAt)).toBeInTheDocument();
+		} finally {
+			i18n.activate(previousLocale);
+		}
+	});
+
 	it("requires confirmation before deleting a passkey", async () => {
 		mockFetchPasskeys.mockResolvedValue(passkeys);
 		const screen = await renderSecuritySettings();
