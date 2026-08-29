@@ -3294,6 +3294,7 @@ export class EmDashRuntime {
 			publishedAt?: string;
 			requireScheduledDue?: boolean;
 			expectedScheduledAt?: string;
+			_rev?: string;
 		} = {},
 	) {
 		const result = await handleContentPublish(this.db, collection, id, options);
@@ -3309,8 +3310,8 @@ export class EmDashRuntime {
 		return result;
 	}
 
-	async handleContentUnpublish(collection: string, id: string) {
-		const result = await handleContentUnpublish(this.db, collection, id);
+	async handleContentUnpublish(collection: string, id: string, options: { _rev?: string } = {}) {
+		const result = await handleContentUnpublish(this.db, collection, id, options);
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
@@ -3355,8 +3356,8 @@ export class EmDashRuntime {
 		return handleContentCountScheduled(this.db, collection);
 	}
 
-	async handleContentDiscardDraft(collection: string, id: string) {
-		const result = await handleContentDiscardDraft(this.db, collection, id);
+	async handleContentDiscardDraft(collection: string, id: string, options: { _rev?: string } = {}) {
+		const result = await handleContentDiscardDraft(this.db, collection, id, options);
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
