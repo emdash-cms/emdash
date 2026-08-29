@@ -79,11 +79,18 @@ describe("media usage detail auth middleware", () => {
 
 	it("allows an admin-scoped token for a contributor to read usage details", async () => {
 		const response = await invokeThroughAuth(await createToken("contributor-1", ["admin"]));
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		const stored = await db!
+			.selectFrom("_emdash_api_tokens")
+			.select("last_used_at")
+			.where("user_id", "=", "contributor-1")
+			.executeTakeFirstOrThrow();
 
 		expect(response.status).toBe(200);
 		expect((await response.json()) as { data: { items: unknown[] } }).toEqual(
 			expect.objectContaining({ data: expect.objectContaining({ items: [] }) }),
 		);
+		expect(stored.last_used_at).not.toBeNull();
 	});
 
 	it("lets a media-read token reach the route before rejecting its missing admin scope", async () => {
@@ -111,6 +118,24 @@ describe("media usage detail auth middleware", () => {
 		const response = await invokeThroughAuth(await createToken("subscriber-1", ["admin"]));
 
 		await expectError(response, 403, "FORBIDDEN");
+	});
+
+	it("does not record rejected API-token use for a disabled user", async () => {
+		const token = await createToken("contributor-1", ["admin"]);
+		await db!.updateTable("users").set({ disabled: 1 }).where("id", "=", "contributor-1").execute();
+		const next = vi.fn(async () => new Response("should not run"));
+
+		const response = await authMiddleware(usageContext(token), next);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		const stored = await db!
+			.selectFrom("_emdash_api_tokens")
+			.select("last_used_at")
+			.where("user_id", "=", "contributor-1")
+			.executeTakeFirstOrThrow();
+
+		expect(next).not.toHaveBeenCalled();
+		await expectError(response, 401, "INVALID_TOKEN");
+		expect(stored.last_used_at).toBeNull();
 	});
 
 	it("rejects an unauthenticated request before the route runs", async () => {

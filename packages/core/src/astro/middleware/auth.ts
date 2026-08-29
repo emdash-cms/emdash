@@ -28,7 +28,11 @@ import { getPublicOrigin } from "../../api/public-url.js";
 const MW_CACHE_HEADERS = {
 	"Cache-Control": "private, no-store",
 } as const;
-import { resolveApiToken, resolveOAuthToken } from "../../api/handlers/api-tokens.js";
+import {
+	recordApiTokenUse,
+	resolveApiToken,
+	resolveOAuthToken,
+} from "../../api/handlers/api-tokens.js";
 import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
@@ -636,9 +640,12 @@ async function handleBearerAuth(
 
 	// Resolve token based on prefix
 	let resolved: { userId: string; scopes: string[] } | null = null;
+	let apiTokenId: string | null = null;
 
 	if (token.startsWith("ec_pat_")) {
-		resolved = await resolveApiToken(emdash.db, token);
+		const apiToken = await resolveApiToken(emdash.db, token);
+		resolved = apiToken;
+		apiTokenId = apiToken?.tokenId ?? null;
 	} else if (token.startsWith("ec_oat_")) {
 		resolved = await resolveOAuthToken(emdash.db, token);
 	} else {
@@ -653,6 +660,7 @@ async function handleBearerAuth(
 	const user = await adapter.getUserById(resolved.userId);
 
 	if (!user || user.disabled) return "invalid";
+	if (apiTokenId) recordApiTokenUse(emdash.db, apiTokenId);
 
 	// Set user and scopes on locals
 	locals.user = user;

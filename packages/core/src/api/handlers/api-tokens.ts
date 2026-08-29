@@ -193,19 +193,25 @@ export async function deleteApiTokensByName(
 
 /**
  * Resolve a raw API token (ec_pat_...) to a user ID and scopes.
- * Updates last_used_at on successful lookup.
- * Returns null if the token is invalid or expired.
+ * Returns null if the token is invalid, expired, or belongs to a disabled user.
  */
 export async function resolveApiToken(
 	db: Kysely<Database>,
 	rawToken: string,
-): Promise<{ userId: string; scopes: string[] } | null> {
+): Promise<{ tokenId: string; userId: string; scopes: string[] } | null> {
 	const hash = hashApiToken(rawToken);
 
 	const row = await db
-		.selectFrom("_emdash_api_tokens")
-		.select(["id", "user_id", "scopes", "expires_at"])
-		.where("token_hash", "=", hash)
+		.selectFrom("_emdash_api_tokens as token")
+		.innerJoin("users as user", "user.id", "token.user_id")
+		.select([
+			"token.id as id",
+			"token.user_id as user_id",
+			"token.scopes as scopes",
+			"token.expires_at as expires_at",
+		])
+		.where("token.token_hash", "=", hash)
+		.where("user.disabled", "=", 0)
 		.executeTakeFirst();
 
 	if (!row) return null;
@@ -215,17 +221,20 @@ export async function resolveApiToken(
 		return null;
 	}
 
-	// Update last_used_at (fire-and-forget, don't block the request)
-	db.updateTable("_emdash_api_tokens")
-		.set({ last_used_at: new Date().toISOString() })
-		.where("id", "=", row.id)
-		.execute()
-		.catch(() => {}); // Non-critical, swallow errors
-
 	return {
+		tokenId: row.id,
 		userId: row.user_id,
 		scopes: JSON.parse(row.scopes) as string[],
 	};
+}
+
+export function recordApiTokenUse(db: Kysely<Database>, tokenId: string): void {
+	db.updateTable("_emdash_api_tokens")
+		.set({ last_used_at: new Date().toISOString() })
+		.where("id", "=", tokenId)
+		.where("user_id", "in", db.selectFrom("users").select("id").where("disabled", "=", 0))
+		.execute()
+		.catch(() => {}); // Non-critical, swallow errors
 }
 
 /**
