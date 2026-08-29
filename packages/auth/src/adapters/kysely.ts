@@ -589,10 +589,15 @@ const DATABASE_DATETIME_PATTERN = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/;
 const TIMEZONE_DESIGNATOR_PATTERN = /(?:[zZ]|[+-]\d\d(?::?\d\d)?)$/;
 
 function parseDatabaseTimestamp(value: string): Date {
-	if (DATABASE_DATETIME_PATTERN.test(value) && !TIMEZONE_DESIGNATOR_PATTERN.test(value)) {
-		return new Date(`${value.replace(" ", "T")}Z`);
+	const normalized =
+		DATABASE_DATETIME_PATTERN.test(value) && !TIMEZONE_DESIGNATOR_PATTERN.test(value)
+			? `${value.replace(" ", "T")}Z`
+			: value;
+	const date = new Date(normalized);
+	if (Number.isNaN(date.getTime())) {
+		throw new RangeError("Invalid database timestamp");
 	}
-	return new Date(value);
+	return date;
 }
 
 function rowToUser(row: Selectable<UserTable>): User {
