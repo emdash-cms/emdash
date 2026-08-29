@@ -120,6 +120,7 @@ function createStorageCollection<T>(
 		get: (id) => repo.get(id),
 		put: (id, data) => repo.put(id, data),
 		delete: (id) => repo.delete(id),
+		deleteIfUnchanged: (id, data) => repo.deleteIfUnchanged(id, data),
 		exists: (id) => repo.exists(id),
 		getMany: (ids) => repo.getMany(ids),
 		putMany: (items) => repo.putMany(items),

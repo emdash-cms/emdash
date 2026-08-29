@@ -737,6 +737,24 @@ describe("Capability Enforcement Integration (v2)", () => {
 			expect(typeof collection.count).toBe("function");
 		});
 
+		it("exposes atomic comparison-delete through collection accessors", async () => {
+			const storage = createStorageAccess(db, "test-plugin", {
+				items: { indexes: [] },
+			});
+			const collection = storage.items;
+			const original = { value: "original" };
+			const replacement = { value: "replacement" };
+
+			await collection.put("doc-1", original);
+			await collection.put("doc-1", replacement);
+
+			if (!collection.deleteIfUnchanged) throw new Error("Comparison-delete is unavailable");
+			expect(await collection.deleteIfUnchanged("doc-1", original)).toBe(false);
+			expect(await collection.get("doc-1")).toEqual(replacement);
+			expect(await collection.deleteIfUnchanged("doc-1", replacement)).toBe(true);
+			expect(await collection.get("doc-1")).toBeNull();
+		});
+
 		it("isolates storage between plugins", async () => {
 			const storage1 = createStorageAccess(db, "plugin-1", {
 				items: { indexes: [] },
