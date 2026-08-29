@@ -106,6 +106,36 @@ describe("media usage detail auth middleware", () => {
 		expect(stored.last_used_at).not.toBeNull();
 	});
 
+	it("does not let an older deferred update replace a newer last-used timestamp", async () => {
+		const token = await createToken("contributor-1", ["admin"]);
+		const older = "2026-08-30T00:00:00.000Z";
+		const newer = "2026-08-30T00:00:01.000Z";
+		let responses: Response[];
+
+		vi.useFakeTimers({ toFake: ["Date"] });
+		try {
+			vi.setSystemTime(older);
+			const first = await invokeThroughAuth(token);
+			vi.setSystemTime(newer);
+			const second = await invokeThroughAuth(token);
+			responses = [first, second];
+		} finally {
+			vi.useRealTimers();
+		}
+
+		expect(responses.map((response) => response.status)).toEqual([200, 200]);
+		expect(deferredTasks).toHaveLength(2);
+		await deferredTasks.pop()!();
+		await deferredTasks.pop()!();
+		const stored = await db!
+			.selectFrom("_emdash_api_tokens")
+			.select("last_used_at")
+			.where("user_id", "=", "contributor-1")
+			.executeTakeFirstOrThrow();
+
+		expect(stored.last_used_at).toBe(newer);
+	});
+
 	it("lets a media-read token reach the route before rejecting its missing admin scope", async () => {
 		const context = usageContext(await createToken("contributor-1", ["media:read"]));
 		const next = vi.fn(() => GET(context as never));

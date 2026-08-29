@@ -238,6 +238,7 @@ export function recordApiTokenUse(db: Kysely<Database>, tokenId: string): void {
 				.set({ last_used_at: lastUsedAt })
 				.where("id", "=", tokenId)
 				.where("user_id", "in", db.selectFrom("users").select("id").where("disabled", "=", 0))
+				.where((eb) => eb.or([eb("last_used_at", "is", null), eb("last_used_at", "<", lastUsedAt)]))
 				.execute();
 		} catch (error) {
 			console.error("[api-tokens] Failed to record token use:", error);
