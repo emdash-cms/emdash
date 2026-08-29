@@ -16,6 +16,7 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
+import type { StoredSession } from "@atcute/oauth-node-client";
 import {
 	AccountDisabledError,
 	Role,
@@ -26,15 +27,62 @@ import {
 	type OAuthProfile,
 } from "@emdash-cms/auth";
 import { createKyselyAdapter, type AuthTables } from "@emdash-cms/auth/adapters/kysely";
+import { after } from "emdash";
 import type { AuthProviderDescriptor } from "emdash";
 import { finalizeSetup, getPublicOrigin, OptionsRepository } from "emdash/api/route-utils";
 import type { Kysely } from "kysely";
 
+const REJECTED_PROVIDER_REVOCATION_TIMEOUT_MS = 5_000;
+
+async function waitForRejectedProviderRevocation(
+	server: { revoke(token: string): Promise<void> },
+	accessToken: string,
+): Promise<void> {
+	let timeoutId: ReturnType<typeof setTimeout> | undefined;
+	const timeout = new Promise<"timeout">((resolve) => {
+		timeoutId = setTimeout(resolve, REJECTED_PROVIDER_REVOCATION_TIMEOUT_MS, "timeout");
+	});
+	const revocation = Promise.resolve()
+		.then(() => server.revoke(accessToken))
+		.then(
+			() => "complete" as const,
+			(revokeError: unknown) => {
+				console.error("[atproto-auth] Failed to revoke rejected provider session:", revokeError);
+				return "failed" as const;
+			},
+		);
+
+	try {
+		if ((await Promise.race([revocation, timeout])) === "timeout") {
+			console.error("[atproto-auth] Rejected provider session revocation timed out");
+		}
+	} finally {
+		if (timeoutId !== undefined) clearTimeout(timeoutId);
+	}
+}
+
+function cleanupRejectedProviderSession(
+	server: { revoke(token: string): Promise<void> },
+	accessToken: string,
+): void {
+	after(() => waitForRejectedProviderRevocation(server, accessToken));
+}
+
+interface StoredSessionEntry {
+	value: StoredSession;
+	expiresAt: number | null;
+}
+
+interface ProviderSessionStorage {
+	deleteIfUnchanged?(id: string, data: StoredSessionEntry): Promise<boolean>;
+}
+
 export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 	const { emdash } = locals;
-	let providerSession: { signOut(): Promise<void> } | undefined;
+	let providerSession: { server: { revoke(token: string): Promise<void> } } | undefined;
 	let providerSessionDid: string | undefined;
-	let providerSessionStorage: { delete(id: string): Promise<unknown> } | undefined;
+	let providerSessionStorage: ProviderSessionStorage | undefined;
+	let providerStoredSession: StoredSession | undefined;
 	let authenticationComplete = false;
 
 	if (!emdash?.db) {
@@ -65,7 +113,12 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		const storage = await getAtprotoStorage(emdash as Parameters<typeof getAtprotoStorage>[0]);
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- auth provider storage declares a sessions collection
 		providerSessionStorage = storage?.sessions as typeof providerSessionStorage;
-		const client = await getAtprotoOAuthClient(baseUrl, storage);
+		const client = await getAtprotoOAuthClient(baseUrl, storage, {
+			onSessionStored: (did, storedSession) => {
+				providerSessionDid = did;
+				providerStoredSession = storedSession;
+			},
+		});
 		const { session: atprotoSession } = await client.callback(url.searchParams);
 		providerSession = atprotoSession;
 
@@ -231,14 +284,23 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 			`/_emdash/admin/login?error=${errorCode}&message=${encodeURIComponent(message)}`,
 		);
 	} finally {
-		if (providerSession && !authenticationComplete) {
-			void providerSession.signOut().catch((signOutError: unknown) => {
-				console.error("[atproto-auth] Failed to remove rejected provider session:", signOutError);
-			});
-			if (providerSessionStorage && providerSessionDid) {
-				await providerSessionStorage.delete(providerSessionDid).catch((deleteError: unknown) => {
-					console.error("[atproto-auth] Failed to delete rejected provider session:", deleteError);
-				});
+		if (providerSession && providerStoredSession && !authenticationComplete) {
+			cleanupRejectedProviderSession(
+				providerSession.server,
+				providerStoredSession.tokenSet.access_token,
+			);
+			if (providerSessionStorage?.deleteIfUnchanged && providerSessionDid) {
+				await providerSessionStorage
+					.deleteIfUnchanged(providerSessionDid, {
+						value: providerStoredSession,
+						expiresAt: null,
+					})
+					.catch((deleteError: unknown) => {
+						console.error(
+							"[atproto-auth] Failed to delete rejected provider session:",
+							deleteError,
+						);
+					});
 			}
 		}
 	}

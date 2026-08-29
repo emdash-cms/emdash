@@ -96,4 +96,18 @@ describeEachDialect("plugin storage filtered query/count (#920)", (dialect) => {
 		expect(result.items.map((item) => item.id)).toEqual(["p1"]);
 		expect(await repo.count({ active: false })).toBe(2);
 	});
+
+	it("does not delete a document that has been replaced", async () => {
+		const repo = makeRepo();
+		const original = { provider: "resend", active: true, priority: 1 };
+		const replacement = { ...original, provider: "sendgrid", priority: 2 };
+
+		await repo.put("p1", original);
+		await repo.put("p1", replacement);
+
+		expect(await repo.deleteIfUnchanged("p1", original)).toBe(false);
+		expect(await repo.get("p1")).toEqual(replacement);
+		expect(await repo.deleteIfUnchanged("p1", replacement)).toBe(true);
+		expect(await repo.get("p1")).toBeNull();
+	});
 });

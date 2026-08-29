@@ -122,6 +122,21 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 	}
 
 	/**
+	 * Delete a document only when its stored value has not changed.
+	 */
+	async deleteIfUnchanged(id: string, data: T): Promise<boolean> {
+		const result = await this.db
+			.deleteFrom("_plugin_storage")
+			.where("plugin_id", "=", this.pluginId)
+			.where("collection", "=", this.collection)
+			.where("id", "=", id)
+			.where("data", "=", JSON.stringify(data))
+			.executeTakeFirst();
+
+		return (result.numDeletedRows ?? 0) > 0;
+	}
+
+	/**
 	 * Check if a document exists
 	 */
 	async exists(id: string): Promise<boolean> {

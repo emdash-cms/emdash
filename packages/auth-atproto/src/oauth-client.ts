@@ -34,6 +34,7 @@ import {
 import {
 	MemoryStore,
 	OAuthClient,
+	type Store,
 	type OAuthSession,
 	type StoredSession,
 	type StoredState,
@@ -52,6 +53,26 @@ interface StorageCollectionLike<T = unknown> {
 }
 
 type AuthProviderStorageMap = Record<string, StorageCollectionLike>;
+
+export interface AtprotoOAuthClientOptions {
+	onSessionStored?: (did: Did, session: StoredSession) => void;
+}
+
+function observeSessionStore(
+	store: Store<Did, StoredSession>,
+	onSessionStored: AtprotoOAuthClientOptions["onSessionStored"],
+): Store<Did, StoredSession> {
+	if (!onSessionStored) return store;
+	return {
+		get: (key, options) => store.get(key, options),
+		set: (key, value) => {
+			onSessionStored(key, value);
+			return store.set(key, value);
+		},
+		delete: (key) => store.delete(key),
+		clear: () => store.clear(),
+	};
+}
 
 function isLoopback(url: string): boolean {
 	try {
@@ -82,6 +103,7 @@ function isLoopback(url: string): boolean {
 export async function getAtprotoOAuthClient(
 	baseUrl: string,
 	storage?: AuthProviderStorageMap | null,
+	options: AtprotoOAuthClientOptions = {},
 ): Promise<OAuthClient> {
 	// RFC 8252 §8.3: loopback redirect URIs MUST use an IP literal (127.0.0.1),
 	// not "localhost". The atcute library enforces this — see loopbackRedirectUriSchema.
@@ -109,29 +131,30 @@ export async function getAtprotoOAuthClient(
 	// Use plugin storage when available (required for multi-instance deployments
 	// like Cloudflare Workers where in-memory state doesn't survive across
 	// requests). Fall back to MemoryStore for local dev.
-	const stores = storage
-		? {
-				sessions: createDbStore<Did, StoredSession>(
-					() =>
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- plugin storage collections match StorageCollectionLike shape
-						storage.sessions as StorageCollectionLike<{
-							value: StoredSession;
-							expiresAt: number | null;
-						}>,
-				),
-				states: createDbStore<string, StoredState>(
-					() =>
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- plugin storage collections match StorageCollectionLike shape
-						storage.states as StorageCollectionLike<{
-							value: StoredState;
-							expiresAt: number | null;
-						}>,
-				),
-			}
-		: {
-				sessions: new MemoryStore<Did, StoredSession>(),
-				states: new MemoryStore<string, StoredState>(),
-			};
+	const sessionStore = storage
+		? createDbStore<Did, StoredSession>(
+				() =>
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- plugin storage collections match StorageCollectionLike shape
+					storage.sessions as StorageCollectionLike<{
+						value: StoredSession;
+						expiresAt: number | null;
+					}>,
+			)
+		: new MemoryStore<Did, StoredSession>();
+	const stateStore = storage
+		? createDbStore<string, StoredState>(
+				() =>
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- plugin storage collections match StorageCollectionLike shape
+					storage.states as StorageCollectionLike<{
+						value: StoredState;
+						expiresAt: number | null;
+					}>,
+			)
+		: new MemoryStore<string, StoredState>();
+	const stores = {
+		sessions: observeSessionStore(sessionStore, options.onSessionStored),
+		states: stateStore,
+	};
 
 	if (isLoopback(baseUrl)) {
 		// Loopback public client for local development.

@@ -144,6 +144,7 @@ export interface StorageCollection<T = unknown> {
 	get(id: string): Promise<T | null>;
 	put(id: string, data: T): Promise<void>;
 	delete(id: string): Promise<boolean>;
+	deleteIfUnchanged?(id: string, data: T): Promise<boolean>;
 	exists(id: string): Promise<boolean>;
 
 	// Batch operations
