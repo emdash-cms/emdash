@@ -32,6 +32,13 @@ jobs:
       - run: pnpm run --filter emdash-demo --filter @emdash-cms/demo-cloudflare typecheck
       - run: pnpm typecheck:templates
       - run: node scripts/typecheck-public-source.mjs
+      - run: pnpm run --filter @emdash-cms/release-service --filter @emdash-cms/release-verifier --filter @emdash-cms/release-action typecheck
+      - run: pnpm run --filter @emdash-cms/release-service --filter @emdash-cms/release-verifier --filter @emdash-cms/release-action build
+      - run: git diff --exit-code -- apps/release-action/dist/index.js
+      - run: pnpm --dir apps/release-service exec wrangler types --check
+      - run: pnpm --dir apps/release-verifier exec wrangler types --check
+      - run: pnpm --dir apps/release-service exec wrangler deploy --dry-run
+      - run: pnpm --dir apps/release-verifier exec wrangler deploy --dry-run
 
   lint:
     name: Lint
@@ -138,10 +145,12 @@ jobs:
           EMDASH_TEST_PG: postgres://postgres:test@localhost:5432/emdash_test
       # Render tests use the Astro Vite plugin (vitest.repro.config.ts);
       # they can't run under the plain-node config in test:unit.
-      - if: matrix.shardIndex == 1
-        run: pnpm --filter emdash exec vitest run --config vitest.repro.config.ts
+		- if: matrix.shardIndex == 1
+		  run: pnpm --filter emdash exec vitest run --config vitest.repro.config.ts
+		- if: matrix.shardIndex == 1
+		  run: pnpm run --filter @emdash-cms/release-service --filter @emdash-cms/release-verifier --filter @emdash-cms/release-action test
 
-  test:
+	test:
     name: Tests
     if: always()
     needs: [test-shards]
@@ -152,8 +161,8 @@ jobs:
         run: |
           if [ "${{ needs.test-shards.result }}" != "success" ]; then
             echo "Tests failed or were cancelled"
-            exit 1
-          fi
+			  exit 1
+			fi
 
   test-smoke:
     name: Smoke Tests
@@ -186,43 +195,6 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:test@localhost:5432/emdash_smoke
 
-  delegated-release:
-    name: Delegated Release Service
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm --filter @emdash-cms/release-service test
-      - run: pnpm --filter @emdash-cms/release-verifier test
-      - run: pnpm --filter @emdash-cms/release-action test
-      - run: pnpm --filter @emdash-cms/release-service typecheck
-      - run: pnpm --filter @emdash-cms/release-verifier typecheck
-      - run: pnpm --filter @emdash-cms/release-action typecheck
-      - run: pnpm --filter @emdash-cms/release-action build
-      - run: git diff --exit-code -- apps/release-action/dist/index.js
-      - run: pnpm --dir apps/release-service exec wrangler types --check
-      - run: pnpm --dir apps/release-verifier exec wrangler types --check
-      - run: pnpm --dir apps/release-service exec wrangler deploy --dry-run
-      - run: pnpm --dir apps/release-verifier exec wrangler deploy --dry-run
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: delegated-release-playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm exec playwright install-deps chromium
-      - run: pnpm exec playwright install chromium
-        if: steps.delegated-release-playwright-cache.outputs.cache-hit != 'true'
-      - run: pnpm --filter @emdash-cms/release-service test:browser
-
   test-integration:
     name: Integration Tests
     runs-on: ubuntu-latest
@@ -253,7 +225,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run --filter @emdash-cms/admin... build
+      - run: pnpm run --filter @emdash-cms/admin... --filter @emdash-cms/release-service... build
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: playwright-cache
         with:
@@ -261,6 +233,7 @@ jobs:
           key: playwright-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm exec playwright install --with-deps chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
+      - run: pnpm --filter @emdash-cms/release-service test:browser
       - run: pnpm run --filter @emdash-cms/admin test
 
   test-e2e-rollup:
