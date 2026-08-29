@@ -29,7 +29,7 @@ export function parseTimestamp(value: string): Date {
 }
 
 export function formatDateTime(value: string, locale: string): string {
-	return new Intl.DateTimeFormat(locale, {
+	return new Intl.DateTimeFormat([locale, "en"], {
 		year: "numeric",
 		month: "short",
 		day: "numeric",

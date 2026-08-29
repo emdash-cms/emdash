@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
-import { cn, parseTimestamp, slugify } from "../../src/lib/utils";
+import { cn, formatDateTime, parseTimestamp, slugify } from "../../src/lib/utils";
 
 describe("slugify", () => {
 	it("converts basic text to slug", () => {
@@ -105,5 +105,29 @@ describe("parseTimestamp", () => {
 
 	it("treats a Postgres hour-only offset as already zoned", () => {
 		expect(parseTimestamp("2026-05-03 17:26:23+00").toISOString()).toBe("2026-05-03T17:26:23.000Z");
+	});
+});
+
+describe("formatDateTime", () => {
+	it("falls back to English when the requested locale is unavailable", () => {
+		const unsupportedLocale = "qaa";
+		const value = "2026-08-29T10:11:12.000Z";
+		const expected = formatDateTime(value, "en");
+		const NativeDateTimeFormat = Intl.DateTimeFormat;
+
+		const dateTimeFormat = vi
+			.spyOn(Intl, "DateTimeFormat")
+			.mockImplementation(function DateTimeFormat(locales, formatOptions) {
+				if (locales === unsupportedLocale) {
+					return new NativeDateTimeFormat("ja", formatOptions);
+				}
+				return new NativeDateTimeFormat(locales, formatOptions);
+			});
+
+		try {
+			expect(formatDateTime(value, unsupportedLocale)).toBe(expected);
+		} finally {
+			dateTimeFormat.mockRestore();
+		}
 	});
 });
