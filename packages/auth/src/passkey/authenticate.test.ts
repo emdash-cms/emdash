@@ -7,7 +7,7 @@ import {
 } from "@oslojs/webauthn";
 import { describe, it, expect, vi } from "vitest";
 
-import type { AuthAdapter, Credential } from "../types.js";
+import type { AuthAdapter, Credential, User } from "../types.js";
 import { authenticateWithPasskey, PasskeyAuthenticationError } from "./authenticate.js";
 import type { ChallengeStore } from "./types.js";
 
@@ -160,6 +160,33 @@ function createValidRS256Assertion(opts: { rpId?: string; origin?: string } = {}
 }
 
 describe("authenticateWithPasskey", () => {
+	it("rejects a disabled user without updating credential usage", async () => {
+		const { credential: validCredential, response, challengeStore } = createValidAssertion();
+		const disabledUser: User = {
+			id: "user_1",
+			email: "disabled@example.com",
+			name: "Disabled User",
+			avatarUrl: null,
+			role: 30,
+			emailVerified: true,
+			disabled: true,
+			data: null,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		};
+		const updateCredentialCounter = vi.fn(async () => undefined);
+		const adapter = {
+			getCredentialById: vi.fn(async () => validCredential),
+			updateCredentialCounter,
+			getUserById: vi.fn(async () => disabledUser),
+		} as unknown as AuthAdapter;
+
+		await expect(
+			authenticateWithPasskey(config, adapter, response, challengeStore),
+		).rejects.toMatchObject({ code: "account_disabled" });
+		expect(updateCredentialCounter).not.toHaveBeenCalled();
+	});
+
 	it("throws a typed passkey auth error for malformed assertion payloads", async () => {
 		try {
 			await authenticateWithPasskey(

@@ -134,6 +134,55 @@ describe("acceptInviteViaOAuth", () => {
 		).rejects.toMatchObject({ code: "invite_invalid" });
 	});
 
+	it("does not link or consume an invite for a disabled existing user", async () => {
+		const token = await invite("invitee@example.com");
+		const user = await adapter.createUser({
+			email: "invitee@example.com",
+			name: "Invitee",
+			role: Role.AUTHOR,
+			emailVerified: true,
+		});
+		await adapter.updateUser(user.id, { disabled: true });
+
+		await expect(
+			acceptInviteViaOAuth(adapter, "google", makeProfile(), token),
+		).rejects.toMatchObject({ code: "account_disabled" });
+		expect(await adapter.getOAuthAccount("google", "google-123")).toBeNull();
+
+		await adapter.updateUser(user.id, { disabled: false });
+		await expect(
+			acceptInviteViaOAuth(adapter, "google", makeProfile(), token),
+		).resolves.toMatchObject({
+			id: user.id,
+		});
+	});
+
+	it("does not consume an invite for an already-linked disabled user", async () => {
+		const token = await invite("invitee@example.com");
+		const user = await adapter.createUser({
+			email: "invitee@example.com",
+			name: "Invitee",
+			role: Role.AUTHOR,
+			emailVerified: true,
+		});
+		await adapter.createOAuthAccount({
+			provider: "google",
+			providerAccountId: "google-linked",
+			userId: user.id,
+		});
+		await adapter.updateUser(user.id, { disabled: true });
+
+		const linkedProfile = makeProfile({ id: "google-linked" });
+		await expect(
+			acceptInviteViaOAuth(adapter, "google", linkedProfile, token),
+		).rejects.toMatchObject({ code: "account_disabled" });
+
+		await adapter.updateUser(user.id, { disabled: false });
+		await expect(
+			acceptInviteViaOAuth(adapter, "google", linkedProfile, token),
+		).resolves.toMatchObject({ id: user.id });
+	});
+
 	it("rejects (and does not consume) when the already-linked account's user has a different email", async () => {
 		const token = await invite("invitee@example.com");
 		// An OAuth identity is already linked to a user whose EmDash email differs

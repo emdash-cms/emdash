@@ -28,6 +28,7 @@ import {
 } from "@oslojs/webauthn";
 
 import { generateToken } from "../tokens.js";
+import { assertUserEnabled } from "../types.js";
 import type { Credential, AuthAdapter, User } from "../types.js";
 import type {
 	AuthenticationOptions,
@@ -257,14 +258,15 @@ export async function authenticateWithPasskey(
 	// Verify the response
 	const verified = await verifyAuthenticationResponse(config, response, credential, challengeStore);
 
-	// Update counter
-	await adapter.updateCredentialCounter(verified.credentialId, verified.newCounter);
-
 	// Get the user
 	const user = await adapter.getUserById(credential.userId);
 	if (!user) {
 		throw new PasskeyAuthenticationError("user_not_found", "User not found");
 	}
+	assertUserEnabled(user);
+
+	// Update counter
+	await adapter.updateCredentialCounter(verified.credentialId, verified.newCounter);
 
 	return user;
 }

@@ -8,6 +8,7 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
+import { AccountDisabledError } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { authenticateWithPasskey, PasskeyAuthenticationError } from "@emdash-cms/auth/passkey";
 
@@ -68,6 +69,9 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 			},
 		});
 	} catch (error) {
+		if (error instanceof AccountDisabledError) {
+			return apiError("ACCOUNT_DISABLED", error.message, 403);
+		}
 		if (error instanceof PasskeyAuthenticationError) {
 			return apiError("UNAUTHORIZED", "Authentication failed", 401);
 		}

@@ -9,6 +9,7 @@ import type { APIRoute } from "astro";
 export const prerender = false;
 
 import {
+	AccountDisabledError,
 	handleOAuthCallback,
 	OAuthError,
 	Role,
@@ -212,7 +213,10 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 		let message = "Authentication failed";
 		let errorCode = "oauth_error";
 
-		if (callbackError instanceof OAuthError) {
+		if (callbackError instanceof AccountDisabledError) {
+			errorCode = callbackError.code;
+			message = callbackError.message;
+		} else if (callbackError instanceof OAuthError) {
 			errorCode = callbackError.code;
 
 			// Map all error codes to user-friendly messages (never expose raw error.message)

@@ -9,7 +9,7 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
-import { verifyMagicLink, MagicLinkError } from "@emdash-cms/auth";
+import { verifyMagicLink, AccountDisabledError, MagicLinkError } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 
 import { apiError } from "#api/error.js";
@@ -52,6 +52,12 @@ export const GET: APIRoute = async ({ url, locals, session, redirect }) => {
 		return redirect(redirectUrl);
 	} catch (error) {
 		console.error("Magic link verify error:", error);
+
+		if (error instanceof AccountDisabledError) {
+			return redirect(
+				`/_emdash/admin/login?error=${error.code}&message=${encodeURIComponent(error.message)}`,
+			);
+		}
 
 		// Handle specific errors
 		if (error instanceof MagicLinkError) {

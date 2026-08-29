@@ -17,6 +17,7 @@ import type { APIRoute } from "astro";
 export const prerender = false;
 
 import {
+	AccountDisabledError,
 	Role,
 	toRoleLevel,
 	findOrCreateOAuthUser,
@@ -167,6 +168,13 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 				return null;
 			}
 			return { allowed: true, role: defaultRole };
+		}).catch(async (authError: unknown) => {
+			if (authError instanceof AccountDisabledError) {
+				await atprotoSession.signOut().catch((signOutError: unknown) => {
+					console.error("[atproto-auth] Failed to remove disabled account session:", signOutError);
+				});
+			}
+			throw authError;
 		});
 
 		if (isFirstUser) {
@@ -201,7 +209,10 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		let message = "AT Protocol authentication failed. Please try again.";
 		let errorCode = "atproto_error";
 
-		if (callbackError instanceof OAuthError) {
+		if (callbackError instanceof AccountDisabledError) {
+			errorCode = callbackError.code;
+			message = callbackError.message;
+		} else if (callbackError instanceof OAuthError) {
 			errorCode = callbackError.code;
 			switch (callbackError.code) {
 				case "signup_not_allowed":

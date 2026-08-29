@@ -4,6 +4,7 @@
 
 import { escapeHtml } from "../invite.js";
 import { generateTokenWithHash, hashToken } from "../tokens.js";
+import { assertUserEnabled } from "../types.js";
 import type { AuthAdapter, User, EmailMessage } from "../types.js";
 
 const TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
@@ -135,6 +136,7 @@ async function verifyTokenAndGetUser(
 	if (!user) {
 		throw new MagicLinkError("user_not_found", "User not found");
 	}
+	assertUserEnabled(user);
 
 	return user;
 }

@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { completeInvite, InviteError, validateInvite } from "../invite.js";
 import { hashToken } from "../tokens.js";
+import { assertUserEnabled } from "../types.js";
 import type { AuthAdapter, User, RoleLevel } from "../types.js";
 import { github, fetchGitHubEmail } from "./providers/github.js";
 import { google } from "./providers/google.js";
@@ -181,6 +182,7 @@ export async function acceptInviteViaOAuth(
 				"This invite was sent to a different email address than your account.",
 			);
 		}
+		assertUserEnabled(user);
 		await adapter.deleteToken(hashToken(inviteToken));
 		return user;
 	}
@@ -190,6 +192,7 @@ export async function acceptInviteViaOAuth(
 	// than failing, so the single-use token cannot be replayed.
 	const existingUser = await adapter.getUserByEmail(profile.email);
 	if (existingUser) {
+		assertUserEnabled(existingUser);
 		await adapter.createOAuthAccount({
 			provider: providerName,
 			providerAccountId: profile.id,
@@ -325,6 +328,7 @@ export async function findOrCreateOAuthUser(
 		if (!user) {
 			throw new OAuthError("user_not_found", "Linked user not found");
 		}
+		assertUserEnabled(user);
 		return user;
 	}
 
@@ -339,6 +343,7 @@ export async function findOrCreateOAuthUser(
 				"Cannot link account: email not verified by provider",
 			);
 		}
+		assertUserEnabled(existingUser);
 		await adapter.createOAuthAccount({
 			provider: providerName,
 			providerAccountId: profile.id,
