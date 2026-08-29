@@ -8,19 +8,26 @@ import type { Database } from "../../../src/database/types.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
-import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
+import {
+	describeEachDialect,
+	setupForDialectWithCollections,
+	teardownForDialect,
+	type DialectTestContext,
+} from "../../utils/test-db.js";
 
-describe("conditional content publication", () => {
+describeEachDialect("conditional content publication", (dialect) => {
+	let ctx: DialectTestContext;
 	let db: Kysely<Database>;
 	let runtime: EmDashRuntime;
 
 	beforeEach(async () => {
-		db = await setupTestDatabaseWithCollections();
+		ctx = await setupForDialectWithCollections(dialect);
+		db = ctx.db;
 		runtime = createTestRuntime(db);
 	});
 
 	afterEach(async () => {
-		await teardownTestDatabase(db);
+		await teardownForDialect(ctx);
 	});
 
 	async function createPublished(title = "Live") {
