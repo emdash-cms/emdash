@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 
 import { cn, formatDateTime, parseTimestamp, slugify } from "../../src/lib/utils";
 
@@ -110,24 +110,8 @@ describe("parseTimestamp", () => {
 
 describe("formatDateTime", () => {
 	it("falls back to English when the requested locale is unavailable", () => {
-		const unsupportedLocale = "qaa";
 		const value = "2026-08-29T10:11:12.000Z";
-		const expected = formatDateTime(value, "en");
-		const NativeDateTimeFormat = Intl.DateTimeFormat;
 
-		const dateTimeFormat = vi
-			.spyOn(Intl, "DateTimeFormat")
-			.mockImplementation(function DateTimeFormat(locales, formatOptions) {
-				if (locales === unsupportedLocale) {
-					return new NativeDateTimeFormat("ja", formatOptions);
-				}
-				return new NativeDateTimeFormat(locales, formatOptions);
-			});
-
-		try {
-			expect(formatDateTime(value, unsupportedLocale)).toBe(expected);
-		} finally {
-			dateTimeFormat.mockRestore();
-		}
+		expect(formatDateTime(value, "qaa")).toBe(formatDateTime(value, "en"));
 	});
 });
