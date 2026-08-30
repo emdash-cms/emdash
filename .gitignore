@@ -67,3 +67,4 @@ __screenshots__/
 # Downloaded test data (fetched on demand in CI)
 examples/wp-theme-unit-test/
 .opencode
+.claude/worktrees/
