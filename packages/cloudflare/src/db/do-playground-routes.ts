@@ -41,6 +41,12 @@ const BLOCKED_PREFIXES = [
 	"/_emdash/api/snapshot",
 ];
 
+const MEDIA_ROOT = "/_emdash/api/media";
+const MEDIA_PROVIDER_PREFIX = `${MEDIA_ROOT}/providers/`;
+const MEDIA_ITEM_PATH = /^\/_emdash\/api\/media\/[^/]+$/;
+const MEDIA_ITEM_UPLOAD_PATH = /^\/_emdash\/api\/media\/[^/]+\/(?:upload|confirm)$/;
+const TRAILING_SLASHES = /\/+$/;
+
 /**
  * Check whether a request should be blocked in playground mode.
  *
@@ -49,15 +55,27 @@ const BLOCKED_PREFIXES = [
  * Only auth, setup, user management, media uploads, and plugin
  * installation are blocked.
  */
-export function isBlockedInPlayground(pathname: string): boolean {
+export function isBlockedInPlayground(pathname: string, method = "GET"): boolean {
+	const normalizedPath = pathname.length > 1 ? pathname.replace(TRAILING_SLASHES, "") : pathname;
 	// Check allowlist first -- specific routes that must work despite
 	// their parent prefix being blocked (e.g. /auth/me for admin UI)
-	if (AUTH_ALLOWLIST.has(pathname)) {
+	if (AUTH_ALLOWLIST.has(normalizedPath)) {
 		return false;
 	}
 
+	const normalizedMethod = method.toUpperCase();
+	if (normalizedPath === MEDIA_ROOT && normalizedMethod === "POST") return true;
+	if (MEDIA_ITEM_PATH.test(normalizedPath) && normalizedMethod === "DELETE") return true;
+	if (MEDIA_ITEM_UPLOAD_PATH.test(normalizedPath)) return true;
+	if (normalizedPath.startsWith(MEDIA_PROVIDER_PREFIX)) {
+		const providerPath = normalizedPath.slice(MEDIA_PROVIDER_PREFIX.length).split("/");
+		if (providerPath.length === 1 && normalizedMethod === "POST") return true;
+		if (providerPath.length === 2 && normalizedMethod === "DELETE") return true;
+	}
+
 	for (const prefix of BLOCKED_PREFIXES) {
-		if (pathname === prefix || pathname.startsWith(prefix)) {
+		const prefixRoot = prefix.replace(TRAILING_SLASHES, "");
+		if (normalizedPath === prefixRoot || normalizedPath.startsWith(prefix)) {
 			return true;
 		}
 	}
