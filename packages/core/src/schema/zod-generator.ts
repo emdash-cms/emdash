@@ -1,7 +1,13 @@
 import { z, type ZodTypeAny } from "zod";
 
 import { hashString } from "../utils/hash.js";
-import type { CollectionWithFields, Field, FieldType, RepeaterSubField } from "./types.js";
+import {
+	STORAGELESS_FIELD_TYPES,
+	type CollectionWithFields,
+	type Field,
+	type FieldType,
+	type RepeaterSubField,
+} from "./types.js";
 
 /** Pattern to split on underscores, hyphens, and spaces for PascalCase conversion */
 const PASCAL_CASE_SPLIT_PATTERN = /[_\-\s]+/;
@@ -18,6 +24,7 @@ export function generateZodSchema(
 	const shape: Record<string, ZodTypeAny> = {};
 
 	for (const field of collection.fields) {
+		if (STORAGELESS_FIELD_TYPES.has(field.type)) continue;
 		shape[field.slug] = generateFieldSchema(field);
 	}
 

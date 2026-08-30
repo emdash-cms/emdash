@@ -20,8 +20,10 @@ import {
 	Trash,
 	X,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
+import { fetchCollections } from "../lib/api";
 import type { FieldType, CreateFieldInput, SchemaField } from "../lib/api";
 import { cn } from "../lib/utils";
 import { AllowedTypesEditor } from "./AllowedTypesEditor";
@@ -47,7 +49,6 @@ const INDEXABLE_FIELD_TYPES = new Set<FieldType>([
 	"boolean",
 	"datetime",
 	"select",
-	"reference",
 	"slug",
 ]);
 
@@ -104,6 +105,8 @@ interface FieldFormState {
 	minItems: string;
 	maxItems: string;
 	allowedMimeTypes: string[];
+	targetCollection: string;
+	allowMultiple: boolean;
 }
 
 function getInitialFormState(field?: SchemaField): FieldFormState {
@@ -129,6 +132,8 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 			minItems: (field.validation as Record<string, unknown>)?.minItems?.toString() ?? "",
 			maxItems: (field.validation as Record<string, unknown>)?.maxItems?.toString() ?? "",
 			allowedMimeTypes: field.validation?.allowedMimeTypes ?? [],
+			targetCollection: field.validation?.targetCollection ?? "",
+			allowMultiple: field.validation?.multiple ?? true,
 		};
 	}
 	return {
@@ -150,6 +155,8 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 		minItems: "",
 		maxItems: "",
 		allowedMimeTypes: [],
+		targetCollection: "",
+		allowMultiple: true,
 	};
 }
 
@@ -159,16 +166,24 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: FieldEditorProps) {
 	const { t } = useLingui();
 	const [formState, setFormState] = React.useState(() => getInitialFormState(field));
+	const [refError, setRefError] = React.useState(false);
+
+	const { data: collections = [] } = useQuery({
+		queryKey: ["collections"],
+		queryFn: fetchCollections,
+	});
 
 	// Reset state when dialog opens
 	React.useEffect(() => {
 		if (open) {
 			setFormState(getInitialFormState(field));
+			setRefError(false);
 		}
 	}, [open, field]);
 
 	const { step, selectedType, slug, label, required, unique, searchable, indexed } = formState;
 	const { minLength, maxLength, min, max, pattern, options } = formState;
+	const { targetCollection, allowMultiple } = formState;
 	const setField = <K extends keyof FieldFormState>(key: K, value: FieldFormState[K]) =>
 		setFormState((prev) => ({ ...prev, [key]: value }));
 
@@ -294,6 +309,11 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 	const handleSave = () => {
 		if (!selectedType || !slug || !label) return;
 
+		if (selectedType === "reference" && !targetCollection) {
+			setRefError(true);
+			return;
+		}
+
 		const validation: CreateFieldInput["validation"] = {};
 
 		// Build validation based on field type
@@ -338,6 +358,11 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 			formState.allowedMimeTypes.length > 0
 		) {
 			validation.allowedMimeTypes = formState.allowedMimeTypes;
+		}
+
+		if (selectedType === "reference") {
+			validation.targetCollection = targetCollection;
+			validation.multiple = allowMultiple;
 		}
 
 		// Only include searchable for text-based fields
@@ -544,6 +569,34 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 								placeholder={t`Option 1\nOption 2\nOption 3`}
 								rows={5}
 							/>
+						)}
+
+						{selectedType === "reference" && (
+							<div className="flex flex-col gap-4">
+								<h4 className="font-medium text-sm">{t`Reference`}</h4>
+								<Select
+									label={t`Referenced collection`}
+									value={targetCollection}
+									onValueChange={(v) => {
+										setField("targetCollection", v ?? "");
+										setRefError(false);
+									}}
+									items={collections.map((c) => ({ label: c.label, value: c.slug }))}
+									placeholder={t`Select a collection`}
+									disabled={!!field}
+									error={refError ? t`Referenced collection is required` : undefined}
+								/>
+								{field && (
+									<p className="text-xs text-kumo-subtle">
+										{t`The referenced collection cannot be changed after creation`}
+									</p>
+								)}
+								<Switch
+									checked={allowMultiple}
+									onCheckedChange={(checked) => setField("allowMultiple", checked)}
+									label={<span className="text-sm">{t`Allow multiple references`}</span>}
+								/>
+							</div>
 						)}
 
 						{selectedType === "repeater" && (
