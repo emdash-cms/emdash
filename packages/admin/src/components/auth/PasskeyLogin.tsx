@@ -15,7 +15,7 @@ import { Button, Input } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
-import { apiFetch, parseApiResponse } from "../../lib/api/client";
+import { ApiResponseError, apiFetch, parseApiResponse } from "../../lib/api/client";
 import {
 	isPasskeyEnvironmentUsable,
 	isWebAuthnSecureContext,
@@ -255,7 +255,10 @@ export function PasskeyLogin({
 				const message = error instanceof Error ? error.message : t`Authentication failed`;
 
 				// Handle specific WebAuthn errors
-				let userMessage = message;
+				let userMessage =
+					error instanceof ApiResponseError && error.code === "ACCOUNT_DISABLED"
+						? t`Authentication failed`
+						: message;
 				if (error instanceof DOMException) {
 					switch (error.name) {
 						case "NotAllowedError":
