@@ -88,6 +88,8 @@ Dynamic Workers are available on the [Workers Paid plan](https://developers.clou
 2. Select the runner in the `emdash()` integration:
 
    ```js title="astro.config.mjs"
+   import { sqlite } from "emdash/db";
+
    emdash({
    	database: sqlite({ url: "file:./data/emdash.db" }),
    	sandboxRunner: "@emdash-cms/sandbox-workerd/sandbox",

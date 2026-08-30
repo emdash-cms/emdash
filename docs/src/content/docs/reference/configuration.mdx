@@ -484,6 +484,8 @@ In every mode, the toolbar can be dismissed in the browser via its × button (pe
 Pass a bare aggregator URL string, or an object when you need a labeller or a release-age policy. The following example uses the object form:
 
 ```js title="astro.config.mjs"
+import { sandbox } from "@emdash-cms/cloudflare";
+
 emdash({
 	sandboxRunner: sandbox(),
 	experimental: {
