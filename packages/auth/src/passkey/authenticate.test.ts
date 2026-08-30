@@ -7,7 +7,8 @@ import {
 } from "@oslojs/webauthn";
 import { describe, it, expect, vi } from "vitest";
 
-import type { AuthAdapter, Credential } from "../types.js";
+import { AccountDisabledError, Role } from "../types.js";
+import type { AuthAdapter, Credential, User } from "../types.js";
 import { authenticateWithPasskey, PasskeyAuthenticationError } from "./authenticate.js";
 import type { ChallengeStore } from "./types.js";
 
@@ -201,6 +202,38 @@ describe("authenticateWithPasskey", () => {
 		}
 	});
 
+	it("rejects a disabled user before recording credential usage", async () => {
+		const { credential: validCredential, response, challengeStore } = createValidAssertion();
+		const disabledUser: User = {
+			id: "user_1",
+			email: "disabled@example.com",
+			name: null,
+			avatarUrl: null,
+			role: Role.ADMIN,
+			emailVerified: true,
+			disabled: true,
+			data: null,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		};
+		const updateCredentialCounter = vi.fn(async () => undefined);
+		const adapter = {
+			getCredentialById: vi.fn(async () => validCredential),
+			updateCredentialCounter,
+			getUserById: vi.fn(async () => disabledUser),
+		} as unknown as AuthAdapter;
+
+		try {
+			await authenticateWithPasskey(config, adapter, response, challengeStore);
+			expect.fail("Expected disabled account rejection");
+		} catch (error) {
+			expect(error).toBeInstanceOf(AccountDisabledError);
+			expect(error).toMatchObject({ code: "account_disabled" });
+		}
+		expect(updateCredentialCounter).not.toHaveBeenCalled();
+		expect(challengeStore.delete).toHaveBeenCalledOnce();
+	});
+
 	it("rejects an origin that is not in the accepted list", async () => {
 		// Single-origin config; assertion arrives from a different subdomain.
 		const singleOriginConfig = {
@@ -250,9 +283,10 @@ describe("authenticateWithPasskey", () => {
 			rpId: "example.com",
 			origin: "https://preview.example.com",
 		});
+		const updateCredentialCounter = vi.fn(async () => undefined);
 		const adapter = {
 			getCredentialById: vi.fn(async () => validCredential),
-			updateCredentialCounter: vi.fn(async () => undefined),
+			updateCredentialCounter,
 			getUserById: vi.fn(async () => ({
 				id: "user_1",
 				email: "u@example.com",
@@ -269,6 +303,7 @@ describe("authenticateWithPasskey", () => {
 			challengeStore,
 		);
 		expect(user).toMatchObject({ id: "user_1" });
+		expect(updateCredentialCounter).toHaveBeenCalledWith(validCredential.id, 1);
 	});
 
 	it("accepts an RS256 (RSA) assertion with a PKIX-encoded public key", async () => {

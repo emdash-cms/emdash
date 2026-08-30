@@ -336,7 +336,15 @@ export class AuthError extends Error {
 	}
 }
 
+export class AccountDisabledError extends AuthError {
+	constructor() {
+		super("account_disabled", "Account disabled");
+		this.name = "AccountDisabledError";
+	}
+}
+
 export type AuthErrorCode =
+	| "account_disabled"
 	| "invalid_credentials"
 	| "invalid_token"
 	| "token_expired"
