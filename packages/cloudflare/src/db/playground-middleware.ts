@@ -15,7 +15,6 @@
 
 import { defineMiddleware } from "astro:middleware";
 import { env } from "cloudflare:workers";
-import { after } from "emdash";
 import { Kysely } from "kysely";
 import { ulid } from "ulidx";
 // @ts-ignore - virtual module populated by EmDash integration at build time
@@ -25,10 +24,9 @@ import type { EmDashPreviewDB } from "./do-class.js";
 import { PreviewDODialect } from "./do-dialect.js";
 import type { PreviewDBStub } from "./do-dialect.js";
 import { isBlockedInPlayground } from "./do-playground-routes.js";
-import { initializePlayground, runPlaygroundInitialization } from "./playground-initializer.js";
+import { initializePlayground } from "./playground-initializer.js";
 import { renderPlaygroundLoadingPage } from "./playground-loading.js";
 import { renderPlaygroundToolbar } from "./playground-toolbar.js";
-import { createStorage } from "./playground.js";
 
 /** Default TTL for playground data (1 hour) */
 const DEFAULT_TTL = 3600;
@@ -50,12 +48,7 @@ const PLAYGROUND_USER = {
 };
 
 /** Track which DOs have been initialized this Worker lifetime */
-const READY_SESSIONS_KEY = Symbol.for("emdash:playground-ready-sessions");
-const globalStore = globalThis as Record<symbol, unknown>;
-const initializedSessions =
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton shared across duplicated SSR chunks
-	(globalStore[READY_SESSIONS_KEY] as Set<string> | undefined) ?? new Set<string>();
-globalStore[READY_SESSIONS_KEY] = initializedSessions;
+const initializedSessions = new Set<string>();
 
 async function ensurePlaygroundInitialized(
 	binding: string,
@@ -64,25 +57,18 @@ async function ensurePlaygroundInitialized(
 ): Promise<void> {
 	if (initializedSessions.has(token)) return;
 
-	await runPlaygroundInitialization(
-		`${binding}:${token}`,
-		() => initializedSessions.has(token),
-		async () => {
-			const stub = getStub(binding, token);
-			const dialect = new PreviewDODialect({ getStub: () => stub });
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const db = new Kysely<any>({ dialect });
-			try {
-				await getFullStub(binding, token).setTtlAlarm(ttl);
-				const { loadSeed } = await import("emdash/seed");
-				await initializePlayground(db, await loadSeed(), createStorage({}));
-				initializedSessions.add(token);
-			} finally {
-				await db.destroy();
-			}
-		},
-		(promise) => after(() => promise),
-	);
+	const stub = getStub(binding, token);
+	const dialect = new PreviewDODialect({ getStub: () => stub });
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const db = new Kysely<any>({ dialect });
+	try {
+		await getFullStub(binding, token).setTtlAlarm(ttl);
+		const { loadSeed } = await import("emdash/seed");
+		await initializePlayground(db, await loadSeed());
+		initializedSessions.add(token);
+	} finally {
+		await db.destroy();
+	}
 }
 
 /**

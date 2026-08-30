@@ -3,7 +3,6 @@ import { EmDashStorageError } from "emdash";
 
 export interface PlaygroundMediaAsset {
 	id: string;
-	postSlug: string;
 	storageKey: string;
 	filename: string;
 	alt: string;
@@ -13,16 +12,9 @@ export interface PlaygroundMediaAsset {
 	height: 800;
 }
 
-function mediaAsset(
-	id: string,
-	postSlug: string,
-	filename: string,
-	alt: string,
-	size: number,
-): PlaygroundMediaAsset {
+function mediaAsset(id: string, filename: string, alt: string, size: number): PlaygroundMediaAsset {
 	return {
 		id,
-		postSlug,
 		storageKey: `playground-v1-${filename}`,
 		filename,
 		alt,
@@ -36,49 +28,42 @@ function mediaAsset(
 export const PLAYGROUND_MEDIA_ASSETS: readonly PlaygroundMediaAsset[] = [
 	mediaAsset(
 		"01M1A5H7P30125M3W71HJ7XC2F",
-		"building-for-the-long-term",
 		"building-long-term.jpg",
 		"Code on a monitor in a dark room",
 		153_471,
 	),
 	mediaAsset(
 		"01M1A5H7P5ENTD9V05G0PZX6CZ",
-		"the-case-for-static",
 		"case-for-static.jpg",
 		"Laptop and coffee on a wooden table",
 		114_942,
 	),
 	mediaAsset(
 		"01M1A5H7P589NPKC1G1KXMWCZW",
-		"learning-in-public",
 		"learning-in-public.jpg",
 		"Notebook and pen on a desk",
 		241_878,
 	),
 	mediaAsset(
 		"01M1A5H7P56RDVDAYQBZHE98P5",
-		"small-tools-big-impact",
 		"small-tools.jpg",
 		"Wrenches and hand tools hanging on a workshop wall",
 		204_912,
 	),
 	mediaAsset(
 		"01M1A5H7P55HBXRAMRKYJ170FS",
-		"designing-with-constraints",
 		"designing-with-constraints.jpg",
 		"Pencils and design tools on a desk",
 		55_811,
 	),
 	mediaAsset(
 		"01M1A5H7P573FR41Y0MGQNZTW3",
-		"a-weekend-with-a-side-project",
 		"weekend-side-project.jpg",
 		"Code on a screen with a dark theme",
 		123_495,
 	),
 	mediaAsset(
 		"01M1A5H7P50MKJJ39ZGZH0K78M",
-		"notes-on-simplicity",
 		"notes-on-simplicity.jpg",
 		"Geometric pattern carved into white paper",
 		147_485,
@@ -112,16 +97,6 @@ export class PlaygroundAssetsStorage implements Storage {
 			throw new EmDashStorageError(`Failed to download file: ${key}`, "DOWNLOAD_FAILED", error);
 		}
 		if (!response.ok || !response.body) throw notFound(key);
-
-		const contentType = response.headers.get("content-type")?.split(";", 1)[0];
-		const contentLength = response.headers.get("content-length");
-		if (
-			contentType !== asset.mimeType ||
-			(contentLength !== null && Number(contentLength) !== asset.size)
-		) {
-			await response.body.cancel();
-			throw new EmDashStorageError(`Invalid bundled asset metadata: ${key}`, "DOWNLOAD_FAILED");
-		}
 
 		return { body: response.body, contentType: asset.mimeType, size: asset.size };
 	}

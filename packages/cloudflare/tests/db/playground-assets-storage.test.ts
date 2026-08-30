@@ -5,9 +5,9 @@ import {
 	PlaygroundAssetsStorage,
 } from "../../src/db/playground-assets-storage.js";
 
-function assetResponse(contentType = "image/jpeg", size = PLAYGROUND_MEDIA_ASSETS[0]!.size) {
+function assetResponse() {
 	return new Response(new Uint8Array([1]), {
-		headers: { "Content-Type": contentType, "Content-Length": String(size) },
+		headers: { "Content-Type": "image/jpeg" },
 	});
 }
 
@@ -34,21 +34,10 @@ describe("PlaygroundAssetsStorage", () => {
 		expect(fetch).not.toHaveBeenCalled();
 	});
 
-	it("rejects bundled responses whose metadata does not match the manifest", async () => {
-		const fetch = vi.fn().mockResolvedValue(assetResponse("text/html"));
-		const storage = new PlaygroundAssetsStorage({ fetch });
-
-		await expect(storage.download(PLAYGROUND_MEDIA_ASSETS[0]!.storageKey)).rejects.toMatchObject({
-			code: "DOWNLOAD_FAILED",
-		});
-	});
-
-	it("keeps every mutating storage operation unavailable", async () => {
+	it("keeps uploads and deletes unavailable", async () => {
 		const storage = new PlaygroundAssetsStorage({ fetch: vi.fn() });
 
 		await expect(storage.upload()).rejects.toMatchObject({ code: "NOT_SUPPORTED" });
 		await expect(storage.delete()).rejects.toMatchObject({ code: "NOT_SUPPORTED" });
-		await expect(storage.getSignedUploadUrl()).rejects.toMatchObject({ code: "NOT_SUPPORTED" });
-		await expect(storage.list()).rejects.toMatchObject({ code: "NOT_SUPPORTED" });
 	});
 });
