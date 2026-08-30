@@ -52,7 +52,7 @@ The commands below use pnpm and a site created from a Cloudflare template. For a
    pnpm build
    ```
 
-   The build regenerates `emdash-env.d.ts` and writes the migration manifest for the installed version. If the build fails, see [If the site breaks after an update](#if-the-site-breaks-after-an-update).
+   The build writes the migration manifest for the installed version. If the build fails, see [If the site breaks after an update](#if-the-site-breaks-after-an-update).
 
 4. Start the site locally and open the admin at `/_emdash/admin`.
 
@@ -60,7 +60,7 @@ The commands below use pnpm and a site created from a Cloudflare template. For a
    pnpm dev
    ```
 
-   In development, pending core migrations run on the first request.
+   The EmDash integration generates `emdash-env.d.ts` when the dev server starts. Pending core migrations run on the first request.
 
 </Steps>
 
