@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 import type { Database, Storage } from "emdash";
 import { OptionsRepository } from "emdash";
+import { runMigrations } from "emdash/db";
 import type { SeedFile } from "emdash/seed";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -67,6 +68,40 @@ function createAssetStorage(failDownloadAt?: number): Storage & { allowDownloads
 	};
 }
 
+async function expectMediaUsageReady(db: Kysely<Database>): Promise<void> {
+	const activation = await db
+		.selectFrom("_emdash_media_usage_activation")
+		.select("state")
+		.where("task_key", "=", "incremental_capture")
+		.executeTakeFirstOrThrow();
+	expect(activation.state).toBe("active");
+
+	const collections = await db
+		.selectFrom("_emdash_media_usage_index_status")
+		.select(["scope_key", "status", "capture_state", "reconciliation_required"])
+		.where("adapter_id", "=", "content-media")
+		.where("scope_type", "=", "collection")
+		.orderBy("scope_key")
+		.execute();
+	expect(collections).toEqual([
+		{
+			scope_key: "pages",
+			status: "complete",
+			capture_state: "active",
+			reconciliation_required: 0,
+		},
+		{
+			scope_key: "posts",
+			status: "complete",
+			capture_state: "active",
+			reconciliation_required: 0,
+		},
+	]);
+	expect(await db.selectFrom("_emdash_media_usage_work").select("content_id").execute()).toEqual(
+		[],
+	);
+}
+
 describe("initializePlayground", () => {
 	const databases: Kysely<Database>[] = [];
 
@@ -102,6 +137,7 @@ describe("initializePlayground", () => {
 			expect(image.value).toMatchObject({ provider: "local" });
 			expect(media.some(({ id }) => id === image.value.id)).toBe(true);
 		}
+		await expectMediaUsageReady(db);
 	});
 
 	it("leaves setup incomplete and retries after partial media preparation", async () => {
@@ -119,6 +155,36 @@ describe("initializePlayground", () => {
 
 		expect(await db.selectFrom("media").select("id").execute()).toHaveLength(7);
 		expect(await new OptionsRepository(db).get("emdash:setup_complete")).toBe(true);
+		await expectMediaUsageReady(db);
+	});
+
+	it("withholds setup completion until Media Usage reaches Ready", async () => {
+		const db = createDatabase();
+		databases.push(db);
+		await runMigrations(db);
+		await sql`CREATE TABLE test_media_usage_gate (blocked integer NOT NULL)`.execute(db);
+		await sql`INSERT INTO test_media_usage_gate (blocked) VALUES (1)`.execute(db);
+		await sql`
+			CREATE TRIGGER test_block_media_usage_completion
+			BEFORE UPDATE OF status ON _emdash_media_usage_index_status
+			WHEN NEW.status = 'complete' AND (SELECT blocked FROM test_media_usage_gate) = 1
+			BEGIN
+				SELECT RAISE(FAIL, 'blocked media usage completion');
+			END
+		`.execute(db);
+		const seed = loadPlaygroundSeed();
+		const storage = createAssetStorage();
+
+		await expect(initializePlayground(db, seed, storage)).rejects.toThrow(
+			"Media Usage did not reach Ready",
+		);
+		expect(await new OptionsRepository(db).get("emdash:setup_complete")).toBeNull();
+
+		await sql`UPDATE test_media_usage_gate SET blocked = 0`.execute(db);
+		await initializePlayground(db, seed, storage);
+
+		expect(await new OptionsRepository(db).get("emdash:setup_complete")).toBe(true);
+		await expectMediaUsageReady(db);
 	});
 });
 

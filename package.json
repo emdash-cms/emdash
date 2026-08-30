@@ -13,6 +13,7 @@
 		"test:unit": "pnpm run --filter emdash --filter @emdash-cms/aggregator --filter @emdash-cms/auth --filter @emdash-cms/blocks --filter @emdash-cms/gutenberg-to-portable-text --filter @emdash-cms/labeler --filter @emdash-cms/marketplace --filter @emdash-cms/plugin-cli --filter @emdash-cms/plugin-forms --filter @emdash-cms/plugin-types --filter @emdash-cms/registry-client --filter @emdash-cms/registry-lexicons --filter @emdash-cms/registry-moderation test",
 		"test:browser": "pnpm run --filter @emdash-cms/admin test",
 		"test:e2e": "playwright test",
+		"test:e2e:playground": "playwright test --config e2e/playground/playwright.config.ts",
 		"test:e2e:ui": "playwright test --ui",
 		"build": "pnpm run --filter {./packages/**} build",
 		"postbuild": "node scripts/relink-bins-if-needed.mjs",

@@ -1,5 +1,11 @@
 import type { Database } from "emdash";
-import { applySeed, OptionsRepository } from "emdash";
+import {
+	applySeed,
+	handleMediaUsageActivationAdvance,
+	handleMediaUsageProgress,
+	handleMediaUsageRepair,
+	OptionsRepository,
+} from "emdash";
 import type { Storage } from "emdash";
 import { runMigrations } from "emdash/db";
 import type { SeedFile } from "emdash/seed";
@@ -72,6 +78,14 @@ export async function initializePlayground(
 	}
 
 	await runMigrations(db);
+	const activation = await handleMediaUsageActivationAdvance(db, { writersDrained: true });
+	if (
+		!activation.success ||
+		activation.data.outcome !== "active" ||
+		activation.data.activation.state !== "active"
+	) {
+		throw new Error("Media Usage activation did not become active");
+	}
 
 	assertPlaygroundSeed(seed);
 
@@ -98,6 +112,30 @@ export async function initializePlayground(
 	});
 
 	await assertStoredSeedMedia(db);
+	const repair = await handleMediaUsageRepair(db, { scope: "all" });
+	const expectedCollections = ["pages", "posts"];
+	if (
+		!repair.success ||
+		repair.data.status !== "complete" ||
+		repair.data.failedSourceCount !== 0 ||
+		repair.data.skippedSourceCount !== 0 ||
+		repair.data.collections.length !== expectedCollections.length ||
+		repair.data.collections.some(
+			(collection, index) =>
+				collection.collection !== expectedCollections[index] || collection.status !== "complete",
+		)
+	) {
+		throw new Error("Media Usage did not reach Ready");
+	}
+	const progress = await handleMediaUsageProgress(db);
+	if (
+		!progress.success ||
+		progress.data.status !== "ready" ||
+		progress.data.readyCollections !== 2 ||
+		progress.data.totalCollections !== 2
+	) {
+		throw new Error("Media Usage did not reach Ready");
+	}
 	await options.set("emdash:site_title", "EmDash Playground");
 	await options.set("emdash:setup_complete", true);
 }
