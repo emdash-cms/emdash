@@ -42,6 +42,7 @@ describe("isBlockedInPlayground", () => {
 
 	it.each([
 		["POST", "/_emdash/api/media"],
+		["POST", "/_emdash/api/import/wordpress/media"],
 		["POST", "/_emdash/api/media/upload-url"],
 		["PUT", "/_emdash/api/media/media-id/upload"],
 		["POST", "/_emdash/api/media/media-id/confirm"],
