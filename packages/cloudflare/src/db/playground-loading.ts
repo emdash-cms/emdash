@@ -156,8 +156,8 @@ export function renderPlaygroundLoadingPage(): string {
     stroke: var(--step-green-ring);
     stroke-dasharray: 100 0;
     transition:
-      stroke 900ms ease,
-      stroke-dasharray 900ms cubic-bezier(0.22, 1, 0.36, 1);
+      stroke 400ms ease,
+      stroke-dasharray 400ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .pg-step.done .pg-ring-progress {
@@ -182,7 +182,7 @@ export function renderPlaygroundLoadingPage(): string {
 
   .pg-step.completing .pg-step-core {
     background: var(--step-green);
-    transition-duration: 900ms;
+    transition-duration: 400ms;
   }
 
   .pg-step.done .pg-step-core {
@@ -200,8 +200,8 @@ export function renderPlaygroundLoadingPage(): string {
     opacity: 0;
     transform: scale(0.35);
     transition:
-      opacity 900ms cubic-bezier(0.16, 1, 0.3, 1),
-      transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
+      opacity 400ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .pg-step.completing .pg-check,
@@ -234,7 +234,7 @@ export function renderPlaygroundLoadingPage(): string {
 
   .pg-step.completing .pg-connector-fill {
     transform: scaleY(1);
-    transition: transform 750ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .pg-step.done .pg-connector-fill {
@@ -256,7 +256,7 @@ export function renderPlaygroundLoadingPage(): string {
   .pg-step.completing .pg-step-label,
   .pg-step.done .pg-step-label {
     color: var(--label-complete);
-    transition-duration: 900ms;
+    transition-duration: 400ms;
   }
 
   @keyframes pg-ring-spin {
@@ -326,7 +326,7 @@ export function renderPlaygroundLoadingPage(): string {
   <div class="pg-logo"><svg viewBox="0 0 75 75" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="69" height="69" rx="10.518" stroke="url(#pl-b)" stroke-width="6"/><rect x="18" y="34" width="39.366" height="6.561" fill="url(#pl-d)"/><defs><linearGradient id="pl-b" x1="-43" y1="124" x2="92.42" y2="-41.75" gradientUnits="userSpaceOnUse"><stop stop-color="#0F006B"/><stop offset=".08" stop-color="#281A81"/><stop offset=".17" stop-color="#5D0C83"/><stop offset=".25" stop-color="#911475"/><stop offset=".33" stop-color="#CE2F55"/><stop offset=".42" stop-color="#FF6633"/><stop offset=".5" stop-color="#F6821F"/><stop offset=".58" stop-color="#FBAD41"/><stop offset=".67" stop-color="#FFCD89"/><stop offset=".75" stop-color="#FFE9CB"/><stop offset=".83" stop-color="#FFF7EC"/><stop offset=".92" stop-color="#FFF8EE"/><stop offset="1" stop-color="#fff"/></linearGradient><linearGradient id="pl-d" x1="91.5" y1="27.5" x2="28.12" y2="54.18" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset=".13" stop-color="#FFF8EE"/><stop offset=".62" stop-color="#FBAD41"/><stop offset=".85" stop-color="#F6821F"/><stop offset="1" stop-color="#FF6633"/></linearGradient></defs></svg>EmDash</div>
 
   <div>
-    <div class="pg-message">
+    <div class="pg-message" role="status" aria-live="polite" aria-atomic="true">
       <span id="pg-message">Creating your playground&hellip;</span>
       <span class="pg-message-measure" aria-hidden="true">Creating your playground&hellip;</span>
     </div>
@@ -373,7 +373,7 @@ export function renderPlaygroundLoadingPage(): string {
   </div>
 
   <div class="pg-error" id="pg-error">
-    <div class="pg-error-message" id="pg-error-message"></div>
+    <div class="pg-error-message" id="pg-error-message" role="alert"></div>
     <button class="pg-retry-btn" id="pg-retry">Try again</button>
   </div>
 </div>
@@ -382,9 +382,8 @@ export function renderPlaygroundLoadingPage(): string {
 (function() {
   var steps = ["step-db", "step-content", "step-ready"];
   var stepTimers = [];
-  var completionDuration = 900;
-  var nextStepDelay = 300;
-  var progressContentType = "application/x-ndjson";
+  var completionDuration = 400;
+  var nextStepDelay = 150;
 
   function setStepState(index, state) {
     var step = document.getElementById(steps[index]);
@@ -399,84 +398,26 @@ export function renderPlaygroundLoadingPage(): string {
   function completeStep(index, nextIndex) {
     setStepState(index, "completing");
 
-    return new Promise(function(resolve) {
-      if (nextIndex !== undefined) {
-        stepTimers.push(setTimeout(function() {
-          setStepState(nextIndex, "active");
-        }, nextStepDelay));
-      }
-
+    if (nextIndex !== undefined) {
       stepTimers.push(setTimeout(function() {
-        setStepState(index, "done");
-        resolve();
-      }, completionDuration));
-    });
+        setStepState(nextIndex, "active");
+      }, nextStepDelay));
+    }
+    stepTimers.push(setTimeout(function() {
+      setStepState(index, "done");
+    }, completionDuration));
   }
 
   function showReady() {
+    clearStepTimers();
+    setStepState(0, "done");
+    setStepState(1, "done");
+    setStepState(2, "completing");
     document.getElementById("pg-message").textContent = "Ready!";
-    return completeStep(2).then(function() {
+    stepTimers.push(setTimeout(function() {
+      setStepState(2, "done");
       location.replace("/_emdash/admin");
-    });
-  }
-
-  function handleProgressEvent(event) {
-    if (event.error) {
-      throw new Error(event.error.message || "Initialization failed");
-    }
-    if (event.step === "database") return completeStep(0, 1);
-    if (event.step === "content") return completeStep(1, 2);
-    if (event.step === "ready") return showReady();
-    return Promise.resolve();
-  }
-
-  function readProgress(response) {
-    if (!response.ok) {
-      return response.json().then(function(body) {
-        throw new Error(body.error?.message || "Initialization failed");
-      });
-    }
-
-    if (!response.headers.get("content-type")?.includes(progressContentType)) {
-      return response.json().then(function() {
-        setStepState(0, "done");
-        setStepState(1, "done");
-        showReady();
-      });
-    }
-
-    if (!response.body) throw new Error("Initialization progress is unavailable");
-
-    var reader = response.body.getReader();
-    var decoder = new TextDecoder();
-    var buffer = "";
-    var readyReported = false;
-
-    function processLines(lines) {
-      return lines.reduce(function(promise, line) {
-        if (!line.trim()) return promise;
-        return promise.then(function() {
-          var event = JSON.parse(line);
-          if (event.step === "ready") readyReported = true;
-          return handleProgressEvent(event);
-        });
-      }, Promise.resolve());
-    }
-
-    function readNext() {
-      return reader.read().then(function(result) {
-        buffer += decoder.decode(result.value, { stream: !result.done });
-        var lines = buffer.split("\\n");
-        buffer = result.done ? "" : lines.pop() || "";
-
-        return processLines(lines).then(function() {
-          if (!result.done) return readNext();
-          if (!readyReported) throw new Error("Initialization ended before the playground was ready");
-        });
-      });
-    }
-
-    return readNext();
+    }, completionDuration));
   }
 
   function showError(message) {
@@ -498,12 +439,19 @@ export function renderPlaygroundLoadingPage(): string {
     var errorEl = document.getElementById("pg-error");
     if (errorEl) errorEl.className = "pg-error";
 
-    fetch("/_playground/init", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { Accept: progressContentType }
-    })
-      .then(readProgress)
+    stepTimers.push(setTimeout(function() { completeStep(0, 1); }, 800));
+    stepTimers.push(setTimeout(function() { completeStep(1, 2); }, 2000));
+
+    fetch("/_playground/init", { method: "POST", credentials: "same-origin" })
+      .then(function(response) {
+        if (!response.ok) {
+          return response.json().then(function(body) {
+            throw new Error(body.error?.message || "Initialization failed");
+          });
+        }
+        return response.json();
+      })
+      .then(showReady)
       .catch(function(err) {
         clearStepTimers();
         showError(err.message || "Failed to create playground. Please try again.");

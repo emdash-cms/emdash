@@ -202,50 +202,33 @@ export class EmDashPreviewDB extends DurableObject {
 	 * Drop all user tables in the DO's SQLite database.
 	 * Preserves SQLite and Cloudflare internal tables.
 	 *
-	 * Drops child tables before the parents they reference. Durable Object
-	 * SQLite keeps foreign key enforcement enabled, so sqlite_master order is
-	 * not safe for schemas with cascading relationships.
+	 * Disables foreign key enforcement before dropping to avoid cascade
+	 * errors when tables are dropped in an order that violates FK
+	 * dependencies (e.g. child dropped first, then parent's implicit
+	 * CASCADE delete references the already-dropped child table).
 	 */
 	private dropAllTables(): void {
-		this.ctx.storage.sql.exec("PRAGMA defer_foreign_keys = ON");
+		// Disable FK enforcement so DROP order doesn't matter.
+		// Cloudflare DO SQLite enforces foreign keys by default.
+		this.ctx.storage.sql.exec("PRAGMA foreign_keys = OFF");
 
 		try {
-			const tables = Array.from(
-				this.ctx.storage.sql.exec<{ name: string }>(
+			const tables = [
+				...this.ctx.storage.sql.exec(
 					"SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'",
 				),
-				(row) => row.name,
-			).filter((name) => SAFE_IDENTIFIER.test(name));
-			const childrenByParent = new Map<string, Set<string>>();
-			for (const table of tables) {
-				for (const foreignKey of this.ctx.storage.sql.exec<{ table: string }>(
-					`PRAGMA foreign_key_list("${table}")`,
-				)) {
-					if (!tables.includes(foreignKey.table) || foreignKey.table === table) continue;
-					const children = childrenByParent.get(foreignKey.table) ?? new Set<string>();
-					children.add(table);
-					childrenByParent.set(foreignKey.table, children);
+			];
+			for (const row of tables) {
+				// eslint-disable-next-line typescript/no-base-to-string -- sqlite_master.name is a scalar text column
+				const name = String(row.name);
+				if (!SAFE_IDENTIFIER.test(name)) {
+					// Skip tables with unsafe names rather than interpolating them
+					continue;
 				}
-			}
-
-			const dropOrder: string[] = [];
-			const visiting = new Set<string>();
-			const visited = new Set<string>();
-			const visit = (table: string) => {
-				if (visited.has(table) || visiting.has(table)) return;
-				visiting.add(table);
-				for (const child of childrenByParent.get(table) ?? []) visit(child);
-				visiting.delete(table);
-				visited.add(table);
-				dropOrder.push(table);
-			};
-			for (const table of tables) visit(table);
-
-			for (const name of dropOrder) {
 				this.ctx.storage.sql.exec(`DROP TABLE IF EXISTS "${name}"`);
 			}
 		} finally {
-			this.ctx.storage.sql.exec("PRAGMA defer_foreign_keys = OFF");
+			this.ctx.storage.sql.exec("PRAGMA foreign_keys = ON");
 		}
 	}
 

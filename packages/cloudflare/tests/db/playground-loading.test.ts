@@ -26,14 +26,21 @@ describe("playground loading progress", () => {
 
 	it("reserves the setup message width when the status changes", () => {
 		const html = renderPlaygroundLoadingPage();
-		const message = html.match(/<div class="pg-message">([\s\S]*?)<\/div>/)?.[1];
+		const message = html.match(/<div class="pg-message"[\s\S]*?<\/div>/)?.[0];
 
 		expect(message).toContain('id="pg-message"');
 		expect(message).toContain('class="pg-message-measure" aria-hidden="true"');
 		expect(message?.match(/Creating your playground/g)).toHaveLength(2);
 	});
 
-	it("advances only when the server reports completed initialization phases", async () => {
+	it("announces status and error changes", () => {
+		const html = renderPlaygroundLoadingPage();
+
+		expect(html).toContain('class="pg-message" role="status" aria-live="polite"');
+		expect(html).toContain('id="pg-error-message" role="alert"');
+	});
+
+	it("animates cosmetic setup stages without delaying a completed setup", async () => {
 		vi.useFakeTimers();
 		const elements = new Map(
 			[
@@ -52,17 +59,11 @@ describe("playground loading progress", () => {
 		elements.get("step-ready")!.className = "pg-step";
 		elements.get("pg-message")!.textContent = "Creating your playground…";
 
-		let streamController!: ReadableStreamDefaultController<Uint8Array>;
-		const body = new ReadableStream<Uint8Array>({
-			start(controller) {
-				streamController = controller;
-			},
+		let resolveSetup!: (response: Response) => void;
+		const setup = new Promise<Response>((resolve) => {
+			resolveSetup = resolve;
 		});
-		const fetchMock = vi.fn().mockResolvedValue(
-			new Response(body, {
-				headers: { "content-type": "application/x-ndjson" },
-			}),
-		);
+		const fetchMock = vi.fn().mockReturnValue(setup);
 		const replace = vi.fn();
 
 		vi.stubGlobal("document", {
@@ -78,31 +79,20 @@ describe("playground loading progress", () => {
 		new Function(script!)();
 		await Promise.resolve();
 
-		await vi.advanceTimersByTimeAsync(10_000);
-		expect(elements.get("step-db")!.className).toBe("pg-step active");
-		expect(elements.get("step-content")!.className).toBe("pg-step");
-		expect(elements.get("step-ready")!.className).toBe("pg-step");
-
-		const encoder = new TextEncoder();
-		streamController.enqueue(encoder.encode('{"step":"database"}\n'));
-		await vi.advanceTimersByTimeAsync(900);
-		expect(elements.get("step-db")!.className).toBe("pg-step done");
+		await vi.advanceTimersByTimeAsync(800);
+		expect(elements.get("step-db")!.className).toBe("pg-step completing");
+		await vi.advanceTimersByTimeAsync(150);
 		expect(elements.get("step-content")!.className).toBe("pg-step active");
 
-		streamController.enqueue(encoder.encode('{"step":"content"}\n'));
-		await vi.advanceTimersByTimeAsync(900);
-		expect(elements.get("step-content")!.className).toBe("pg-step done");
-		expect(elements.get("step-ready")!.className).toBe("pg-step active");
-		expect(elements.get("pg-message")!.textContent).toBe("Creating your playground…");
-
-		streamController.enqueue(encoder.encode('{"step":"ready"}\n'));
-		streamController.close();
+		resolveSetup(Response.json({ ok: true }));
 		await vi.advanceTimersByTimeAsync(0);
+		expect(elements.get("step-db")!.className).toBe("pg-step done");
+		expect(elements.get("step-content")!.className).toBe("pg-step done");
 		expect(elements.get("step-ready")!.className).toBe("pg-step completing");
 		expect(elements.get("pg-message")!.textContent).toBe("Ready!");
 		expect(replace).not.toHaveBeenCalled();
 
-		await vi.advanceTimersByTimeAsync(899);
+		await vi.advanceTimersByTimeAsync(399);
 		expect(elements.get("step-ready")!.className).toBe("pg-step completing");
 		expect(replace).not.toHaveBeenCalled();
 

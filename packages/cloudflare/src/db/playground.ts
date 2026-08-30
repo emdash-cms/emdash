@@ -45,5 +45,5 @@ export function createDialect(_config: PreviewDOConfig): Dialect {
 	return new PreviewDODialect({ getStub: () => notInitialized });
 }
 
-export { EmDashPreviewDB } from "./playground-do-class.js";
+export { EmDashPreviewDB } from "./do-class.js";
 export { isBlockedInPlayground } from "./do-playground-routes.js";
