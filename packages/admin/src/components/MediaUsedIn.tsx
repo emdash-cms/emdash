@@ -1,4 +1,4 @@
-import { Badge, Banner, Button, SkeletonLine, Tooltip } from "@cloudflare/kumo";
+import { Badge, Banner, Button, LayerCard, SkeletonLine, Tooltip } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowCounterClockwise,
@@ -145,9 +145,7 @@ export function MediaUsedIn({ mediaId, open, navigationBlocked, onEntryClick }: 
 						/>
 					)}
 				</div>
-				<p className="text-sm text-kumo-subtle">
-					{t`See where this media appears across your content.`}
-				</p>
+				<p className="text-sm text-kumo-subtle">{t`See where this file is used.`}</p>
 			</div>
 			<span className="sr-only" role="status">
 				{statusMessage}
@@ -179,11 +177,16 @@ export function MediaUsedIn({ mediaId, open, navigationBlocked, onEntryClick }: 
 							))}
 						</ul>
 					) : canRenderEmpty ? (
-						<p className="text-sm text-kumo-subtle">
-							{coverageComplete
-								? t`No usage found in EmDash-managed content fields.`
-								: t`No indexed references are currently available.`}
-						</p>
+						<LayerCard className="grid justify-items-center gap-1.5 px-6 py-5 text-center">
+							<p className="text-sm font-medium text-kumo-default">
+								{coverageComplete ? t`No usage` : t`No usage to show yet`}
+							</p>
+							<p className="text-sm text-kumo-subtle">
+								{coverageComplete
+									? t`This file isn’t used in any content.`
+									: t`Some content may not appear here yet.`}
+							</p>
+						</LayerCard>
 					) : null}
 
 					{usageQuery.hasNextPage && (

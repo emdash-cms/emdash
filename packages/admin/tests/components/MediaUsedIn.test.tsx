@@ -115,9 +115,7 @@ describe("MediaUsedIn", () => {
 		const screen = await renderUsedIn();
 
 		await expect.element(screen.getByRole("heading", { name: "Used in" })).toBeVisible();
-		await expect
-			.element(screen.getByText("See where this media appears across your content."))
-			.toBeVisible();
+		await expect.element(screen.getByText("See where this file is used.")).toBeVisible();
 		await expect
 			.element(screen.getByRole("region", { name: "Used in" }))
 			.toHaveAttribute("aria-busy", "true");
@@ -226,8 +224,9 @@ describe("MediaUsedIn", () => {
 
 	it("distinguishes trustworthy and incomplete empty results", async () => {
 		const completeScreen = await renderUsedIn();
+		await expect.element(completeScreen.getByText("No usage", { exact: true })).toBeVisible();
 		await expect
-			.element(completeScreen.getByText("No usage found in EmDash-managed content fields."))
+			.element(completeScreen.getByText("This file isn’t used in any content."))
 			.toBeVisible();
 		await expect
 			.element(completeScreen.getByRole("region", { name: "Used in" }).getByRole("button"), {
@@ -243,7 +242,10 @@ describe("MediaUsedIn", () => {
 		const incompleteScreen = await renderUsedIn({ mediaId: "media-2" });
 
 		await expect
-			.element(incompleteScreen.getByText("No indexed references are currently available."))
+			.element(incompleteScreen.getByText("No usage to show yet", { exact: true }))
+			.toBeVisible();
+		await expect
+			.element(incompleteScreen.getByText("Some content may not appear here yet.").last())
 			.toBeVisible();
 		await expect
 			.element(
