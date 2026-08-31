@@ -1039,7 +1039,7 @@ export function MediaLibrary({
 							<Loader />
 						</div>
 					) : (
-						<Grid variant="4up" gap="sm">
+						<Grid variant="4up" gap="sm" className="2xl:grid-cols-6">
 							{visibleFolders.map((folder) => (
 								<MediaFolderCard
 									key={folder.id}
@@ -1146,7 +1146,13 @@ export function MediaLibrary({
 					/>
 				)
 			) : viewMode === "grid" ? (
-				<Grid variant="4up" gap="sm" data-media-grid inert={currentLoading || undefined}>
+				<Grid
+					variant="4up"
+					gap="sm"
+					className="2xl:grid-cols-6"
+					data-media-grid
+					inert={currentLoading || undefined}
+				>
 					{activeProvider === "local"
 						? currentItems.map((item) => (
 								<MediaGridItem
