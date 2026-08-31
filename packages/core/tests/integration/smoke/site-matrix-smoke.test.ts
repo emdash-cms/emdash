@@ -292,6 +292,9 @@ const CLOUDFLARE_OPTIMIZER_SITE: SiteCase = {
 	waitPath: "/_emdash/api/setup/status",
 };
 
+const LATE_MANIFEST_OPTIMIZATION =
+	/(?:new )?dependenc(?:y|ies) (?:found|optimized):.*astro\/app\/manifest/;
+
 describe.sequential("Cloudflare dependency optimizer", () => {
 	it(
 		"pre-bundles dependencies imported by transformed server modules",
@@ -309,12 +312,16 @@ describe.sequential("Cloudflare dependency optimizer", () => {
 				const frontendRes = await fetchWithRetry(`${server.baseUrl}/`);
 				expect([200, 302, 307, 308]).toContain(frontendRes.status);
 				await frontendRes.text();
-				await new Promise((resolveSleep) => setTimeout(resolveSleep, 250));
-				const optimizerOutput = [
-					server.output,
-					existsSync(devLogPath) ? readFileSync(devLogPath, "utf8") : "",
-				].join("\n");
-				expect(optimizerOutput).not.toMatch(/dependenc(?:y|ies) optimized:.*astro\/app\/manifest/);
+				const readOptimizerOutput = () =>
+					[server.output, existsSync(devLogPath) ? readFileSync(devLogPath, "utf8") : ""].join(
+						"\n",
+					);
+				const observationDeadline = Date.now() + 5_000;
+				while (Date.now() < observationDeadline) {
+					expect(readOptimizerOutput()).not.toMatch(LATE_MANIFEST_OPTIMIZATION);
+					await new Promise((resolveSleep) => setTimeout(resolveSleep, 100));
+				}
+				expect(readOptimizerOutput()).not.toMatch(LATE_MANIFEST_OPTIMIZATION);
 			} finally {
 				await killServer(server.process);
 				await execAsync("pnpm", ["exec", "astro", "dev", "stop"], {
