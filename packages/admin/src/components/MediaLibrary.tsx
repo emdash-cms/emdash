@@ -855,10 +855,11 @@ export function MediaLibrary({
 					{activeProvider === "local" && !folderId && folderActionsAvailable && (
 						<Button
 							variant="secondary"
+							size="base"
 							icon={<Plus className="hidden sm:block" aria-hidden="true" />}
 							aria-label={t`Add new folder`}
 							onClick={openCreateFolder}
-							className="h-6.5 shrink-0 gap-1 px-2 text-xs sm:h-9 sm:gap-1.5 sm:px-3 sm:text-base"
+							className="shrink-0"
 						>
 							<span className="sm:hidden">{t`New folder`}</span>
 							<span className="hidden sm:inline">{t`Add new folder`}</span>
@@ -867,9 +868,10 @@ export function MediaLibrary({
 					{canUploadHere && (
 						<Button
 							onClick={openUploadDialog}
+							size="base"
 							icon={<Upload className="hidden sm:block" aria-hidden="true" />}
 							aria-label={uploadActionLabel}
-							className="h-6.5 shrink-0 gap-1 px-2 text-xs sm:h-9 sm:gap-1.5 sm:px-3 sm:text-base"
+							className="shrink-0"
 						>
 							<span className="sm:hidden">{t`Upload`}</span>
 							<span className="hidden sm:inline">{uploadActionLabel}</span>
