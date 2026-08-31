@@ -65,6 +65,14 @@ describe("isBlockedInPlayground", () => {
 		expect(isBlockedInPlayground(path, method)).toBe(false);
 	});
 
+	it("normalizes slash-heavy paths without excessive backtracking", () => {
+		const pathname = `${"/".repeat(64_000)}x`;
+		const startedAt = performance.now();
+
+		expect(isBlockedInPlayground(pathname)).toBe(false);
+		expect(performance.now() - startedAt).toBeLessThan(250);
+	});
+
 	describe("allowed routes", () => {
 		it.each([
 			// Site pages

@@ -46,7 +46,13 @@ const MEDIA_ROOT = "/_emdash/api/media";
 const MEDIA_PROVIDER_PREFIX = `${MEDIA_ROOT}/providers/`;
 const MEDIA_ITEM_PATH = /^\/_emdash\/api\/media\/[^/]+$/;
 const MEDIA_ITEM_UPLOAD_PATH = /^\/_emdash\/api\/media\/[^/]+\/(?:upload|confirm)$/;
-const TRAILING_SLASHES = /\/+$/;
+
+function trimTrailingSlashes(pathname: string): string {
+	if (pathname === "/") return pathname;
+	let end = pathname.length;
+	while (end > 0 && pathname[end - 1] === "/") end--;
+	return pathname.slice(0, end);
+}
 
 /**
  * Check whether a request should be blocked in playground mode.
@@ -57,7 +63,7 @@ const TRAILING_SLASHES = /\/+$/;
  * installation are blocked.
  */
 export function isBlockedInPlayground(pathname: string, method = "GET"): boolean {
-	const normalizedPath = pathname.length > 1 ? pathname.replace(TRAILING_SLASHES, "") : pathname;
+	const normalizedPath = trimTrailingSlashes(pathname);
 	// Check allowlist first -- specific routes that must work despite
 	// their parent prefix being blocked (e.g. /auth/me for admin UI)
 	if (AUTH_ALLOWLIST.has(normalizedPath)) {
@@ -75,7 +81,7 @@ export function isBlockedInPlayground(pathname: string, method = "GET"): boolean
 	}
 
 	for (const prefix of BLOCKED_PREFIXES) {
-		const prefixRoot = prefix.replace(TRAILING_SLASHES, "");
+		const prefixRoot = trimTrailingSlashes(prefix);
 		if (normalizedPath === prefixRoot || normalizedPath.startsWith(prefix)) {
 			return true;
 		}

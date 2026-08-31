@@ -69,7 +69,7 @@ test("opens with seeded media and ready usage after creation and reset", async (
 	);
 	expect(blockedUpload).toBe(403);
 	const blockedDelete = await page.evaluate(async () =>
-		fetch("/_emdash/api/media/01M1A5H7P30125M3W71HJ7XC2F", {
+		fetch("/_emdash/api/media/01M1A5H7P30125M3W71HJ7XC2F////", {
 			method: "DELETE",
 			headers: { "X-EmDash-Request": "1" },
 		}).then((response) => response.status),
