@@ -5,18 +5,6 @@
 
 import type { ContentBylineCredit, TaxonomyTerm, PortableTextBlock } from "emdash";
 
-export interface Employee {
-  id: string;
-  slug: string | null;
-  status: string;
-  name?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  publishedAt: Date | null;
-  bylines?: ContentBylineCredit[];
-  terms?: Record<string, TaxonomyTerm[]>;
-}
-
 export interface Page {
   id: string;
   slug: string | null;
@@ -35,7 +23,7 @@ export interface Post {
   slug: string | null;
   status: string;
   title: string;
-  featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> };
+  featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> };
   content?: PortableTextBlock[];
   excerpt?: string;
   createdAt: Date;
@@ -45,36 +33,9 @@ export interface Post {
   terms?: Record<string, TaxonomyTerm[]>;
 }
 
-export interface Project {
-  id: string;
-  slug: string | null;
-  status: string;
-  worked_on?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  publishedAt: Date | null;
-  bylines?: ContentBylineCredit[];
-  terms?: Record<string, TaxonomyTerm[]>;
-}
-
-export interface Test {
-  id: string;
-  slug: string | null;
-  status: string;
-  example: string;
-  createdAt: Date;
-  updatedAt: Date;
-  publishedAt: Date | null;
-  bylines?: ContentBylineCredit[];
-  terms?: Record<string, TaxonomyTerm[]>;
-}
-
 declare module "emdash" {
   interface EmDashCollections {
-    employees: Employee;
     pages: Page;
     posts: Post;
-    projects: Project;
-    tests: Test;
   }
 }
