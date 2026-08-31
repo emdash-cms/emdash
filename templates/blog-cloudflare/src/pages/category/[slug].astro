@@ -10,7 +10,6 @@ import PostCard from "../../components/PostCard.astro";
 import { getReadingTime } from "../../utils/reading-time";
 
 const slug = decodeSlug(Astro.params.slug);
-// This page renders the term label only, so skip the visible-entry count.
 const term = slug ? await getTerm("category", slug, { includeCounts: false }) : null;
 
 if (!term) {
