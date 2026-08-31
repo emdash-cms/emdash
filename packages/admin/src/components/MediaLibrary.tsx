@@ -1708,7 +1708,11 @@ function MediaGridItem({ item, selected, draggable, isMoving, onClick }: MediaGr
 				)}
 			</LayerCard.Primary>
 			<LayerCard.Secondary className="my-0 min-w-0 justify-between px-3 py-2.5 text-sm text-kumo-default">
-				<span dir="auto" title={item.filename} className="min-w-0 flex-1 truncate font-medium">
+				<span
+					dir="auto"
+					title={item.filename}
+					className="min-w-0 flex-1 truncate font-medium leading-5"
+				>
 					{item.filename}
 				</span>
 				<Badge variant="secondary" className="h-5 min-w-11 justify-center rounded-md px-2 py-0">
@@ -1763,7 +1767,11 @@ function ProviderGridItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 				)}
 			</LayerCard.Primary>
 			<LayerCard.Secondary className="my-0 min-w-0 justify-between px-3 py-2.5 text-sm text-kumo-default">
-				<span dir="auto" title={item.filename} className="min-w-0 flex-1 truncate font-medium">
+				<span
+					dir="auto"
+					title={item.filename}
+					className="min-w-0 flex-1 truncate font-medium leading-5"
+				>
 					{item.filename}
 				</span>
 				<Badge variant="secondary" className="h-5 min-w-11 justify-center rounded-md px-2 py-0">
