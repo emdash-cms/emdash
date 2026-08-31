@@ -3,4 +3,4 @@
 "@emdash-cms/cloudflare": patch
 ---
 
-Adds programmatic Media Usage activation, repair, and progress handlers, and fixes new Playground sessions so `Used in` data is ready before the admin opens.
+Adds `handleMediaUsageActivationAdvance`, `handleMediaUsageProgress`, and `handleMediaUsageRepair` to the `emdash` package root so integrations can activate Media Usage, rebuild usage data, and check when indexing is ready. Playground sessions use these handlers so `Used in` results are ready when the admin opens.
