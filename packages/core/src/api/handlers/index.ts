@@ -110,6 +110,7 @@ export {
 	handleSchemaFieldCreate,
 	handleSchemaFieldUpdate,
 	handleSchemaFieldDelete,
+	handleSchemaCollectionReorder,
 	handleSchemaFieldReorder,
 	handleOrphanedTableList,
 	handleOrphanedTableRegister,
