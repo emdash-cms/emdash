@@ -14,6 +14,21 @@ import emdash from "emdash/astro";
 
 const marketplaceUrl = process.env.EMDASH_MARKETPLACE_URL || undefined;
 
+// Mirrors Astro-generated virtual modules that the initial dependency scan cannot see.
+const lateManifestImport = {
+	name: "late-manifest-import",
+	resolveId(id) {
+		return id === "virtual:late-manifest" ? "\0virtual:late-manifest" : undefined;
+	},
+	load(id) {
+		if (id !== "\0virtual:late-manifest") return undefined;
+		return `
+			import * as manifest from "astro/app/manifest";
+			export const manifestExports = Object.keys(manifest).length;
+		`;
+	},
+};
+
 export default defineConfig({
 	output: "server",
 	adapter: cloudflare(),
@@ -35,6 +50,7 @@ export default defineConfig({
 	},
 	devToolbar: { enabled: false },
 	vite: {
+		plugins: [lateManifestImport],
 		server: {
 			fs: { strict: false },
 		},
