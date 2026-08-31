@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process";
-import { readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
@@ -307,12 +307,14 @@ describe.sequential("Cloudflare dependency optimizer", () => {
 
 			try {
 				const frontendRes = await fetchWithRetry(`${server.baseUrl}/`);
-				expect(frontendRes.status).toBeLessThan(500);
+				expect([200, 302, 307, 308]).toContain(frontendRes.status);
 				await frontendRes.text();
 				await new Promise((resolveSleep) => setTimeout(resolveSleep, 250));
-				expect(readFileSync(devLogPath, "utf8")).not.toMatch(
-					/dependenc(?:y|ies) optimized:.*astro\/app\/manifest/,
-				);
+				const optimizerOutput = [
+					server.output,
+					existsSync(devLogPath) ? readFileSync(devLogPath, "utf8") : "",
+				].join("\n");
+				expect(optimizerOutput).not.toMatch(/dependenc(?:y|ies) optimized:.*astro\/app\/manifest/);
 			} finally {
 				await killServer(server.process);
 				await execAsync("pnpm", ["exec", "astro", "dev", "stop"], {
