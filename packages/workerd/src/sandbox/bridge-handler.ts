@@ -273,6 +273,7 @@ async function dispatch(
 				requireString(body, "contentType"),
 				requireMediaBytes(body, "bytes"),
 				optionalString(body, "encoding"),
+				optionalString(body, "visibility"),
 				opts.storage,
 			);
 		case "media/delete":
@@ -1074,14 +1075,19 @@ function rowToMediaItem(row: {
 	size: number | null;
 	storage_key: string;
 	created_at: string;
+	visibility: string;
 }) {
 	return {
 		id: row.id,
 		filename: row.filename,
 		mimeType: row.mime_type,
 		size: row.size,
-		url: `/_emdash/api/media/file/${row.storage_key}`,
+		url:
+			row.visibility === "private"
+				? `/_emdash/api/media/private/${row.storage_key.slice("private/".length)}`
+				: `/_emdash/api/media/file/${row.storage_key}`,
 		createdAt: row.created_at,
+		visibility: row.visibility,
 	};
 }
 
@@ -1122,6 +1128,7 @@ async function mediaList(
 	let query = db
 		.selectFrom("media")
 		.where("status", "=", "ready")
+		.where("visibility", "=", "public")
 		.selectAll()
 		.orderBy("id", "desc");
 
@@ -1154,6 +1161,7 @@ async function mediaUpload(
 	contentType: string,
 	bytes: string | number[],
 	encoding: string | undefined,
+	visibilityInput: string | undefined,
 	storage?: BridgeStorage | null,
 ): Promise<{ mediaId: string; storageKey: string; url: string }> {
 	if (!storage) {
@@ -1170,12 +1178,20 @@ async function mediaUpload(
 
 	const { ulid } = await import("ulidx");
 	const mediaId = ulid();
+	if (
+		visibilityInput !== undefined &&
+		visibilityInput !== "public" &&
+		visibilityInput !== "private"
+	) {
+		throw new Error("media/upload: visibility must be public or private");
+	}
+	const visibility = visibilityInput ?? "public";
 	const basename = filename.includes("/")
 		? filename.slice(filename.lastIndexOf("/") + 1)
 		: filename;
 	const rawExt = basename.includes(".") ? basename.slice(basename.lastIndexOf(".")) : "";
 	const ext = FILE_EXT_RE.test(rawExt) ? rawExt : "";
-	const storageKey = `${mediaId}${ext}`;
+	const storageKey = `${visibility === "private" ? "private/" : ""}${mediaId}${ext}`;
 	const now = new Date().toISOString();
 	let byteArray: Uint8Array;
 	if (encoding === "base64" && typeof bytes === "string") {
@@ -1205,6 +1221,7 @@ async function mediaUpload(
 				storage_key: storageKey,
 				status: "ready",
 				created_at: now,
+				visibility,
 			})
 			.execute();
 	} catch (error) {
@@ -1225,7 +1242,10 @@ async function mediaUpload(
 	return {
 		mediaId,
 		storageKey,
-		url: `/_emdash/api/media/file/${storageKey}`,
+		url:
+			visibility === "private"
+				? `/_emdash/api/media/private/${storageKey.slice("private/".length)}`
+				: `/_emdash/api/media/file/${storageKey}`,
 	};
 }
 
@@ -1243,19 +1263,10 @@ async function mediaDelete(
 
 	if (!media) return false;
 
-	// Delete the DB row first
+	// Keep the row retryable until object cleanup succeeds.
+	if (!storage) throw new Error("Media storage is not configured");
+	await storage.delete(media.storage_key);
 	const result = await db.deleteFrom("media").where("id", "=", id).executeTakeFirst();
-
-	// Delete the storage object. If this fails, log but don't throw —
-	// the DB row is already deleted and the orphan cleanup cron will
-	// catch it. Matches the Cloudflare bridge's behavior.
-	if (storage && media.storage_key) {
-		try {
-			await storage.delete(media.storage_key);
-		} catch (error) {
-			console.warn(`[bridge] Failed to delete storage object ${media.storage_key}:`, error);
-		}
-	}
 
 	return BigInt(result.numDeletedRows) > 0n;
 }

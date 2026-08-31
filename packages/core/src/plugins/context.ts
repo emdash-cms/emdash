@@ -528,8 +528,12 @@ export function createMediaAccess(db: Kysely<Database>): MediaAccess {
 				mimeType: item.mimeType,
 				size: item.size,
 				// Construct URL from storage key (or use a sensible default path)
-				url: `/media/${item.id}/${item.filename}`,
+				url:
+					item.visibility === "private"
+						? `/_emdash/api/media/private/${item.storageKey.slice("private/".length)}`
+						: `/_emdash/api/media/file/${item.storageKey}`,
 				createdAt: item.createdAt,
+				visibility: item.visibility,
 			};
 		},
 
@@ -546,8 +550,9 @@ export function createMediaAccess(db: Kysely<Database>): MediaAccess {
 					filename: item.filename,
 					mimeType: item.mimeType,
 					size: item.size,
-					url: `/media/${item.id}/${item.filename}`,
+					url: `/_emdash/api/media/file/${item.storageKey}`,
 					createdAt: item.createdAt,
+					visibility: item.visibility,
 				})),
 				cursor: result.nextCursor,
 				hasMore: !!result.nextCursor,
@@ -612,6 +617,7 @@ export function createMediaAccessWithWrite(
 			filename: string,
 			contentType: string,
 			bytes: ArrayBuffer,
+			options,
 		): Promise<{ mediaId: string; storageKey: string; url: string }> {
 			if (!storage) {
 				throw new Error(
@@ -625,7 +631,8 @@ export function createMediaAccessWithWrite(
 			const basename = filename.split("/").pop() ?? filename;
 			const dotIdx = basename.lastIndexOf(".");
 			const ext = dotIdx > 0 ? basename.slice(dotIdx).toLowerCase() : "";
-			const storageKey = `${keyPrefix}${ext}`;
+			const visibility = options?.visibility ?? "public";
+			const storageKey = `${visibility === "private" ? "private/" : ""}${keyPrefix}${ext}`;
 
 			// Upload to storage first
 			await storage.upload({
@@ -646,6 +653,7 @@ export function createMediaAccessWithWrite(
 					size: bytes.byteLength,
 					storageKey,
 					status: "ready",
+					visibility,
 					width: enriched.width,
 					height: enriched.height,
 					blurhash: enriched.blurhash,
@@ -663,11 +671,22 @@ export function createMediaAccessWithWrite(
 			return {
 				mediaId: media.id,
 				storageKey,
-				url: `/_emdash/api/media/file/${storageKey}`,
+				url:
+					visibility === "private"
+						? `/_emdash/api/media/private/${storageKey.slice("private/".length)}`
+						: `/_emdash/api/media/file/${storageKey}`,
 			};
 		},
 
 		async delete(id: string): Promise<boolean> {
+			if (!storage) {
+				throw new Error(
+					"Media delete() requires a storage backend. Configure storage in PluginContextFactoryOptions.",
+				);
+			}
+			const item = await mediaRepo.findById(id);
+			if (!item) return false;
+			await storage.delete(item.storageKey);
 			const deleted = await mediaRepo.delete(id);
 			// Plugins can delete media that's referenced by site settings
 			// (`logo`, `favicon`, `seo.defaultOgImage`); the worker-scoped

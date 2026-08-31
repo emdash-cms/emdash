@@ -157,7 +157,17 @@ export type DefinitionInput = z.infer<typeof definitionSchema>;
 
 export const submitSchema = z.object({
 	formId: z.string().min(1),
-	data: z.record(z.string(), z.unknown()),
+	data: z.preprocess(
+		(value) => {
+			if (typeof value !== "string") return value;
+			try {
+				return JSON.parse(value);
+			} catch {
+				return value;
+			}
+		},
+		z.record(z.string(), z.unknown()),
+	),
 	files: z
 		.record(
 			z.string(),

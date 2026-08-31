@@ -7,6 +7,7 @@
 import type { RouteContext, StorageCollection } from "emdash";
 import { PluginRouteError } from "emdash";
 
+import { deleteSubmissionFiles } from "../cleanup.js";
 import { formatCsv } from "../format.js";
 import type {
 	ExportInput,
@@ -92,12 +93,10 @@ export async function submissionDeleteHandler(ctx: RouteContext<SubmissionDelete
 		throw PluginRouteError.notFound("Submission not found");
 	}
 
-	// Delete associated media files
-	if (existing.files && ctx.media && "delete" in ctx.media) {
-		const mediaWithDelete = ctx.media as { delete(id: string): Promise<boolean> };
-		for (const file of existing.files) {
-			await mediaWithDelete.delete(file.mediaId).catch(() => {});
-		}
+	if (!(await deleteSubmissionFiles(ctx, existing.files))) {
+		throw PluginRouteError.internal(
+			"Attachment cleanup failed; the submission was retained for retry",
+		);
 	}
 
 	await submissions(ctx).delete(input.id);

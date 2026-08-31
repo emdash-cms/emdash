@@ -100,6 +100,32 @@ const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
  */
 export async function parseRouteInput(request: Request): Promise<unknown> {
 	if (BODY_METHODS.has(request.method.toUpperCase())) {
+		if (request.headers.get("content-type")?.startsWith("multipart/form-data")) {
+			const formData = await request.formData();
+			const input: Record<string, unknown> = {};
+			const files: Record<string, { filename: string; contentType: string; bytes: ArrayBuffer }> =
+				{};
+
+			for (const [key, value] of formData) {
+				if (value instanceof File) {
+					if (value.size > 0) {
+						files[key] = {
+							filename: value.name,
+							contentType: value.type,
+							bytes: await value.arrayBuffer(),
+						};
+					}
+				} else if (input[key] === undefined) {
+					input[key] = value;
+				} else {
+					input[key] = Array.isArray(input[key]) ? [...input[key], value] : [input[key], value];
+				}
+			}
+
+			if (Object.keys(files).length > 0) input.files = files;
+			return input;
+		}
+
 		try {
 			return await request.json();
 		} catch {

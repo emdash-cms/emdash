@@ -79,6 +79,7 @@ export interface MediaTable {
 	created_at: Generated<string>;
 	author_id: string | null;
 	folder_id: Generated<string | null>;
+	visibility: Generated<string>; // 'public' | 'private'
 }
 
 export interface MediaFolderTable {
@@ -707,6 +708,7 @@ export type MediaRow = {
 	created_at: string;
 	author_id: string | null;
 	folder_id: string | null;
+	visibility: string; // 'public' | 'private'
 };
 
 export interface RedirectTable {

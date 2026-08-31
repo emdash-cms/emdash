@@ -6,6 +6,7 @@
  * DELETE /_emdash/api/media/:id - Delete media item
  */
 
+import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { canReadMediaUsageCount, requireOwnerPerm, requirePerm } from "#api/authorize.js";
@@ -39,6 +40,13 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	if (isParseError(query)) return query;
 
 	const result = await emdash.handleMediaGet(id);
+	if (
+		result.success &&
+		result.data.item.visibility === "private" &&
+		!hasPermission(user, "plugins:read")
+	) {
+		return apiError("NOT_FOUND", "Media item not found", 404);
+	}
 	if (!result.success || query.includeUsage !== "1") return unwrapResult(result);
 
 	const includeCount = canReadMediaUsageCount(user, locals.tokenScopes);

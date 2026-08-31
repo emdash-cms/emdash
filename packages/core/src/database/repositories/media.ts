@@ -47,6 +47,7 @@ function mimeMatchExpr(eb: ExpressionBuilder<Database, "media">, filters: string
 }
 
 export type MediaStatus = "pending" | "ready" | "failed";
+export type MediaVisibility = "public" | "private";
 
 export interface MediaItem {
 	id: string;
@@ -66,7 +67,8 @@ export interface MediaItem {
 	dominantColor: string | null;
 	createdAt: string;
 	authorId: string | null;
-	folderId?: string | null;
+	folderId: string | null;
+	visibility: MediaVisibility;
 }
 
 export interface CreateMediaInput {
@@ -83,6 +85,7 @@ export interface CreateMediaInput {
 	dominantColor?: string;
 	status?: MediaStatus;
 	authorId?: string;
+	visibility?: MediaVisibility;
 }
 
 export interface FindManyMediaOptions {
@@ -95,6 +98,7 @@ export interface FindManyMediaOptions {
 	q?: string;
 	/** Omit for all media, pass null for the Main library, or pass a folder ID. */
 	folderId?: string | null;
+	visibility?: MediaVisibility | "all";
 }
 
 export interface UpdateMediaInput extends FocalPointUpdate {
@@ -149,6 +153,7 @@ export class MediaRepository {
 			created_at: now,
 			author_id: input.authorId ?? null,
 			folder_id: null,
+			visibility: input.visibility ?? "public",
 		};
 
 		await this.db.insertInto("media").values(row).execute();
@@ -385,6 +390,7 @@ export class MediaRepository {
 			.selectAll()
 			.where("content_hash", "=", contentHash)
 			.where("status", "=", "ready")
+			.where("visibility", "=", "public")
 			.executeTakeFirst();
 
 		return row ? this.rowToItem(row) : null;
@@ -541,6 +547,10 @@ export class MediaRepository {
 			query = query.where("folder_id", "=", options.folderId);
 		}
 
+		if (options.visibility !== "all") {
+			query = query.where("visibility", "=", options.visibility ?? "public");
+		}
+
 		return query;
 	}
 
@@ -589,6 +599,8 @@ export class MediaRepository {
 			createdAt: row.created_at,
 			authorId: row.author_id,
 			folderId: row.folder_id,
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- migration constrains stored values
+			visibility: row.visibility as MediaVisibility,
 		};
 	}
 }

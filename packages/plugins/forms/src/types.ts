@@ -137,6 +137,8 @@ export interface SubmissionFile {
 	size: number;
 	/** Reference to media library item */
 	mediaId: string;
+	/** Authenticated download route for private attachments */
+	downloadUrl: string;
 }
 
 export interface SubmissionMeta {

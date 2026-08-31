@@ -824,6 +824,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		size: number | null;
 		url: string;
 		createdAt: string;
+		visibility?: "public" | "private";
 	} | null> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("media:read")) {
@@ -836,6 +837,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			size: number | null;
 			storage_key: string;
 			created_at: string;
+			visibility: "public" | "private";
 		}>();
 		if (!result) return null;
 		return {
@@ -843,8 +845,12 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			filename: result.filename,
 			mimeType: result.mime_type,
 			size: result.size,
-			url: `/_emdash/api/media/file/${result.storage_key}`,
+			url:
+				result.visibility === "private"
+					? `/_emdash/api/media/private/${result.storage_key.slice("private/".length)}`
+					: `/_emdash/api/media/file/${result.storage_key}`,
 			createdAt: result.created_at,
+			visibility: result.visibility,
 		};
 	}
 
@@ -866,7 +872,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 		const limit = Math.min(opts.limit ?? 50, 100);
 		// Only return ready items (matching core's MediaRepository.findMany default)
-		let sql = "SELECT * FROM media WHERE status = 'ready'";
+		let sql = "SELECT * FROM media WHERE status = 'ready' AND visibility = 'public'";
 		const params: unknown[] = [];
 
 		if (opts.mimeType) {
@@ -926,6 +932,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		filename: string,
 		contentType: string,
 		bytes: ArrayBuffer,
+		options?: { visibility?: "public" | "private" },
 	): Promise<{ mediaId: string; storageKey: string; url: string }> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("media:write")) {
@@ -945,6 +952,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 
 		const mediaId = ulid();
+		const visibility = options?.visibility ?? "public";
 		// Derive extension from basename only, validate it's a simple extension
 		const basename = filename.includes("/")
 			? filename.slice(filename.lastIndexOf("/") + 1)
@@ -952,7 +960,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		const rawExt = basename.includes(".") ? basename.slice(basename.lastIndexOf(".")) : "";
 		const ext = FILE_EXT_REGEX.test(rawExt) ? rawExt : "";
 		// Flat storage key matching core convention: ${ulid}${ext}
-		const storageKey = `${mediaId}${ext}`;
+		const storageKey = `${visibility === "private" ? "private/" : ""}${mediaId}${ext}`;
 		const now = new Date().toISOString();
 
 		// Write bytes to R2 first, then create DB record.
@@ -964,9 +972,9 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		try {
 			// Create confirmed media record with ISO timestamp (matching core)
 			await this.env.DB.prepare(
-				"INSERT INTO media (id, filename, mime_type, size, storage_key, status, created_at) VALUES (?, ?, ?, ?, ?, 'ready', ?)",
+				"INSERT INTO media (id, filename, mime_type, size, storage_key, status, created_at, visibility) VALUES (?, ?, ?, ?, ?, 'ready', ?, ?)",
 			)
-				.bind(mediaId, filename, contentType, bytes.byteLength, storageKey, now)
+				.bind(mediaId, filename, contentType, bytes.byteLength, storageKey, now, visibility)
 				.run();
 		} catch (error) {
 			// Clean up R2 object on DB failure to prevent orphans
@@ -982,7 +990,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		return {
 			mediaId,
 			storageKey,
-			url: `/_emdash/api/media/file/${storageKey}`,
+			url:
+				visibility === "private"
+					? `/_emdash/api/media/private/${storageKey.slice("private/".length)}`
+					: `/_emdash/api/media/file/${storageKey}`,
 		};
 	}
 
@@ -999,18 +1010,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 		if (!media) return false;
 
-		// Delete the DB row
+		// Keep the row retryable until object cleanup succeeds.
+		if (!this.env.MEDIA) throw new Error("Media storage (R2) is not configured");
+		await this.env.MEDIA.delete(media.storage_key);
 		const result = await this.env.DB.prepare("DELETE FROM media WHERE id = ?").bind(id).run();
-
-		// Delete from R2 if the binding is available
-		if (this.env.MEDIA && media.storage_key) {
-			try {
-				await this.env.MEDIA.delete(media.storage_key);
-			} catch {
-				// Log but don't fail - the DB row is already deleted
-				console.warn(`[plugin-bridge] Failed to delete R2 object: ${media.storage_key}`);
-			}
-		}
 
 		return (result.meta?.changes ?? 0) > 0;
 	}

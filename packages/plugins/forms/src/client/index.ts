@@ -104,40 +104,19 @@ async function handleSubmit(e: Event) {
 	clearStatus(form);
 
 	try {
-		const hasFiles = form.querySelector<HTMLInputElement>('input[type="file"]');
+		const payload = collectSubmissionPayload(form);
 		let body: BodyInit;
 		const headers: Record<string, string> = {};
 
-		if (hasFiles) {
-			body = new FormData(form);
+		if (payload.files.length > 0) {
+			const multipart = new FormData();
+			multipart.set("formId", payload.formId);
+			multipart.set("data", JSON.stringify(payload.data));
+			for (const [name, file] of payload.files) multipart.set(name, file);
+			body = multipart;
 		} else {
 			headers["Content-Type"] = "application/json";
-			const formData = new FormData(form);
-			let formId = "";
-			const data: Record<string, unknown> = {};
-			// Track keys we've seen to detect multi-value fields (checkbox-group)
-			const seen = new Set<string>();
-			for (const [key, val] of formData) {
-				if (typeof val !== "string") continue;
-				if (key === "formId") {
-					formId = val;
-				} else if (key === "_hp" || key === "cf-turnstile-response") {
-					// Include spam fields at top level for server-side checks
-					data[key] = val;
-				} else if (seen.has(key)) {
-					// Multi-value field (checkbox-group) — collect into array
-					const existing = data[key];
-					if (Array.isArray(existing)) {
-						existing.push(val);
-					} else {
-						data[key] = [existing, val];
-					}
-				} else {
-					seen.add(key);
-					data[key] = val;
-				}
-			}
-			body = JSON.stringify({ formId, data });
+			body = JSON.stringify({ formId: payload.formId, data: payload.data });
 		}
 
 		const res = await fetch(form.action, {
@@ -175,6 +154,31 @@ async function handleSubmit(e: Event) {
 			submitBtn.textContent = form.dataset.submitLabel || "Submit";
 		}
 	}
+}
+
+function collectSubmissionPayload(form: HTMLFormElement) {
+	let formId = "";
+	const data: Record<string, unknown> = {};
+	const files: Array<[string, File]> = [];
+	const seen = new Set<string>();
+
+	for (const [key, value] of new FormData(form)) {
+		if (value instanceof File) {
+			if (value.size > 0) files.push([key, value]);
+			continue;
+		}
+		if (key === "formId") {
+			formId = value;
+		} else if (seen.has(key)) {
+			const existing = data[key];
+			data[key] = Array.isArray(existing) ? [...existing, value] : [existing, value];
+		} else {
+			seen.add(key);
+			data[key] = value;
+		}
+	}
+
+	return { formId, data, files };
 }
 
 /** validates that a redirect url uses a safe protocol */

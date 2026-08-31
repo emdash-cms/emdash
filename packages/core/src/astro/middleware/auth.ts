@@ -99,6 +99,7 @@ const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/oauth/register",
 	"/_emdash/api/comments/",
 	"/_emdash/api/media/file/",
+	"/_emdash/api/media/private/",
 	"/_emdash/.well-known/",
 ];
 
@@ -178,6 +179,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const isPublicApiRoute = isPublicEmDashRoute(url.pathname);
 
 	const isPublicRoute = !isAdminRoute && !isApiRoute;
+	const isPrivateMediaRoute = url.pathname.startsWith("/_emdash/api/media/private/");
+
+	// Private downloads deliberately return a non-disclosing 404 from the route
+	// when credentials are absent or insufficient, so auth here is soft.
+	if (isPrivateMediaRoute) {
+		return handlePrivateMediaRouteAuth(context, next);
+	}
 
 	// Public API routes skip auth but still need CSRF protection on state-changing methods.
 	// We check Origin header against the request host (same approach as Astro's checkOrigin).
@@ -472,6 +480,19 @@ async function handlePublicRouteAuth(
 	}
 
 	return next();
+}
+
+async function handlePrivateMediaRouteAuth(
+	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
+	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
+): Promise<Response> {
+	try {
+		if ((await handleBearerAuth(context)) === "authenticated") return next();
+	} catch {
+		// The route returns the same 404 as every other unauthorized request.
+	}
+
+	return handlePublicRouteAuth(context, next);
 }
 
 /**

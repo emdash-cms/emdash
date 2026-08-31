@@ -219,6 +219,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/media/private/[...key]",
+		entrypoint: resolveRoute("api/media/private/[...key].ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/media/[id]",
 		entrypoint: resolveRoute("api/media/[id].ts"),
 	});

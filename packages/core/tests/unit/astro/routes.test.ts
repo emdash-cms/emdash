@@ -11,6 +11,7 @@ import {
 } from "../../../src/astro/integration/routes.js";
 import * as mediaUploadRoute from "../../../src/astro/routes/api/media/[id]/upload.js";
 import { GET as getMediaFile } from "../../../src/astro/routes/api/media/file/[...key].js";
+import { GET as getPrivateMediaFile } from "../../../src/astro/routes/api/media/private/[...key].js";
 
 function mockMediaContext(key: string | undefined) {
 	const download = vi.fn().mockResolvedValue({
@@ -71,6 +72,14 @@ describe("core media route injection", () => {
 				// output placeholders can't mangle dynamic-route filenames.
 				entrypoint: expect.stringContaining("api/media/file/_...key_"),
 			}),
+		);
+	});
+
+	it("registers a separate authenticated private-media route", () => {
+		const routes: Array<{ pattern: string; entrypoint: string }> = [];
+		injectCoreRoutes((route) => routes.push(route));
+		expect(routes).toContainEqual(
+			expect.objectContaining({ pattern: "/_emdash/api/media/private/[...key]" }),
 		);
 	});
 
@@ -187,5 +196,50 @@ describe("media file catch-all route", () => {
 		const response = await getMediaFile(context);
 		expect(response.status).toBe(404);
 		expect(download).not.toHaveBeenCalled();
+	});
+
+	it("does not serve private keys through the public route", async () => {
+		const { context, download } = mockMediaContext("private/brief.pdf");
+		const response = await getMediaFile(context);
+		expect(response.status).toBe(404);
+		expect(download).not.toHaveBeenCalled();
+	});
+});
+
+describe("private media route", () => {
+	function privateContext(role?: number) {
+		const download = vi.fn().mockResolvedValue({
+			body: new Uint8Array([1, 2, 3]),
+			contentType: "application/pdf",
+			size: 3,
+		});
+		return {
+			context: {
+				params: { key: "brief.pdf" },
+				locals: {
+					emdash: { storage: { download } },
+					user: role === undefined ? null : { id: "u1", role },
+				},
+			} as Parameters<typeof getPrivateMediaFile>[0],
+			download,
+		};
+	}
+
+	it("returns the same 404 to anonymous and insufficient-role callers", async () => {
+		for (const role of [undefined, 10]) {
+			const { context, download } = privateContext(role);
+			const response = await getPrivateMediaFile(context);
+			expect(response.status).toBe(404);
+			expect(download).not.toHaveBeenCalled();
+		}
+	});
+
+	it("serves editors without public caching", async () => {
+		const { context, download } = privateContext(40);
+		const response = await getPrivateMediaFile(context);
+		expect(response.status).toBe(200);
+		expect(download).toHaveBeenCalledWith("private/brief.pdf");
+		expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+		expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
 	});
 });

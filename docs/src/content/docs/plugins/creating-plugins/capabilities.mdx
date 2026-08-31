@@ -49,6 +49,20 @@ A few things worth knowing:
 - **`network:request:unrestricted` exists for user-configured URLs.** A webhook plugin where the operator types in the destination URL needs to reach hosts that aren't in the manifest. Plugins that always call known APIs should use `network:request` + `allowedHosts`.
 - **`email:send` is gated by configuration, not just the capability.** A plugin can declare `email:send`, but `ctx.email` will only be populated if some other plugin has registered an `email:deliver` transport.
 
+### Private media uploads
+
+Pass `visibility: "private"` when a plugin stores a file that must not use the public media route:
+
+```ts
+const attachment = await ctx.media.upload(filename, contentType, bytes, {
+	visibility: "private",
+});
+```
+
+The returned `attachment.url` uses the authenticated private-media route. Only editors and administrators can download it, responses use `Cache-Control: private, no-store`, and the object does not appear in general media lists. Call `ctx.media.delete(attachment.mediaId)` when the owning record is removed. A storage failure rejects the deletion and leaves the media row available for a later retry.
+
+Private media also requires private storage. Do not configure a bucket public URL or CDN that can serve the object key directly; application authorization cannot protect a second public path to the same object.
+
 ### Creating content in a locale
 
 `ctx.content.create()` accepts an optional third argument for the new entry's locale:

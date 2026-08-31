@@ -7,6 +7,7 @@
 
 import type { PluginContext, StorageCollection } from "emdash";
 
+import { deleteSubmissionFiles } from "../cleanup.js";
 import { formatDigestText } from "../format.js";
 import type { FormDefinition, Submission } from "../types.js";
 
@@ -49,19 +50,10 @@ export async function handleCleanup(ctx: PluginContext) {
 					cursor,
 				});
 
-				// Delete media files
-				if (ctx.media && "delete" in ctx.media) {
-					const mediaWithDelete = ctx.media as { delete(id: string): Promise<boolean> };
-					for (const item of batch.items) {
-						if (item.data.files) {
-							for (const file of item.data.files) {
-								await mediaWithDelete.delete(file.mediaId).catch(() => {});
-							}
-						}
-					}
+				const ids: string[] = [];
+				for (const item of batch.items) {
+					if (await deleteSubmissionFiles(ctx, item.data.files)) ids.push(item.id);
 				}
-
-				const ids = batch.items.map((item) => item.id);
 				if (ids.length > 0) {
 					await submissions(ctx).deleteMany(ids);
 					deletedCount += ids.length;

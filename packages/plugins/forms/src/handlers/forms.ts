@@ -8,21 +8,22 @@ import type { RouteContext, StorageCollection } from "emdash";
 import { PluginRouteError } from "emdash";
 import { ulid } from "ulidx";
 
+import { deleteSubmissionFiles } from "../cleanup.js";
 import type {
 	FormCreateInput,
 	FormDeleteInput,
 	FormDuplicateInput,
 	FormUpdateInput,
 } from "../schemas.js";
-import type { FormDefinition } from "../types.js";
+import type { FormDefinition, Submission } from "../types.js";
 
 /** Typed access to plugin storage collections */
 function forms(ctx: RouteContext): StorageCollection<FormDefinition> {
 	return ctx.storage.forms as StorageCollection<FormDefinition>;
 }
 
-function submissions(ctx: RouteContext): StorageCollection {
-	return ctx.storage.submissions as StorageCollection;
+function submissions(ctx: RouteContext): StorageCollection<Submission> {
+	return ctx.storage.submissions as StorageCollection<Submission>;
 }
 
 // ─── List Forms ──────────────────────────────────────────────────
@@ -246,16 +247,11 @@ async function deleteFormSubmissions(formId: string, ctx: RouteContext) {
 			cursor,
 		});
 
-		// Delete associated media files
-		if (ctx.media && "delete" in ctx.media) {
-			const mediaWithDelete = ctx.media as { delete(id: string): Promise<boolean> };
-			for (const item of batch.items) {
-				const sub = item.data as { files?: Array<{ mediaId: string }> };
-				if (sub.files) {
-					for (const file of sub.files) {
-						await mediaWithDelete.delete(file.mediaId).catch(() => {});
-					}
-				}
+		for (const item of batch.items) {
+			if (!(await deleteSubmissionFiles(ctx, item.data.files))) {
+				throw PluginRouteError.internal(
+					"Attachment cleanup failed; form submissions were retained for retry",
+				);
 			}
 		}
 

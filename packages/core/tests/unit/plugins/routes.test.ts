@@ -727,6 +727,35 @@ describe("parseRouteInput (#2146)", () => {
 		}
 	});
 
+	it("parses multipart fields and files without losing binary bytes", async () => {
+		const body = new FormData();
+		body.set("formId", "project-estimate");
+		body.set("data", JSON.stringify({ email: "ada@example.com" }));
+		body.set(
+			"upload",
+			new File([new Uint8Array([0x25, 0x50, 0x44, 0x46])], "brief.pdf", {
+				type: "application/pdf",
+			}),
+		);
+
+		const input = await parseRouteInput(new Request("http://test.com/x", { method: "POST", body }));
+
+		expect(input).toEqual({
+			formId: "project-estimate",
+			data: JSON.stringify({ email: "ada@example.com" }),
+			files: {
+				upload: {
+					filename: "brief.pdf",
+					contentType: "application/pdf",
+					bytes: expect.any(ArrayBuffer),
+				},
+			},
+		});
+		expect(new Uint8Array((input as any).files.upload.bytes)).toEqual(
+			new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+		);
+	});
+
 	it("returns undefined for a body method with no/invalid JSON", async () => {
 		expect(
 			await parseRouteInput(new Request("http://test.com/x", { method: "POST" })),

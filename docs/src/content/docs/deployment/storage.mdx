@@ -89,6 +89,13 @@ storage: r2({
 	adapter with R2 credentials instead.
 </Aside>
 
+<Aside type="caution" title="Private plugin media">
+	A bucket that stores private plugin uploads must not have public access or a configured
+	`publicUrl`. Private downloads are authorized through EmDash; a public R2 or CDN URL would
+	bypass that check. Use a separate private bucket when the same deployment also requires
+	direct public bucket URLs.
+</Aside>
+
 ## S3-Compatible Storage
 
 The S3 adapter works with Cloudflare R2 (via S3 API), MinIO, and other S3-compatible services.
@@ -209,6 +216,10 @@ storage: s3({
 ```
 
 Generate R2 API credentials in the Cloudflare dashboard under R2 > Manage R2 API Tokens.
+
+For private plugin media, omit `publicUrl` and leave `S3_PUBLIC_URL` unset. EmDash will serve
+public objects through its public media route and private objects through the authenticated
+private-media route.
 
 ### MinIO
 

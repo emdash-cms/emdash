@@ -81,6 +81,10 @@ describe("Bridge Handler Conformance", () => {
 		allowedHosts?: string[];
 		storageCollections?: string[];
 		beforeContentWrite?: () => Promise<void>;
+		storage?: {
+			upload(options: { key: string; body: Uint8Array; contentType: string }): Promise<unknown>;
+			delete(key: string): Promise<unknown>;
+		};
 	}) {
 		return createBridgeHandler({
 			pluginId: "test-plugin",
@@ -91,6 +95,7 @@ describe("Bridge Handler Conformance", () => {
 			db,
 			emailSend: () => null,
 			beforeContentWrite: opts.beforeContentWrite,
+			storage: opts.storage,
 		});
 	}
 
@@ -528,6 +533,7 @@ describe("Bridge Handler Conformance", () => {
 				.addColumn("storage_key", "text", (col) => col.notNull())
 				.addColumn("status", "text", (col) => col.notNull().defaultTo("ready"))
 				.addColumn("created_at", "text", (col) => col.notNull())
+				.addColumn("visibility", "text", (col) => col.notNull().defaultTo("public"))
 				.execute();
 			for (const id of ["m-1", "m-2", "m-3"]) {
 				await db
@@ -550,6 +556,55 @@ describe("Bridge Handler Conformance", () => {
 			const list = result.result as { items: unknown[] };
 			expect(list.items.length).toBeGreaterThanOrEqual(1);
 			expect(list.items.length).toBeLessThanOrEqual(1);
+		});
+
+		it("stores private media outside public listings and keeps failed deletes retryable", async () => {
+			await db.schema
+				.createTable("media")
+				.addColumn("id", "text", (col) => col.primaryKey())
+				.addColumn("filename", "text", (col) => col.notNull())
+				.addColumn("mime_type", "text", (col) => col.notNull())
+				.addColumn("size", "integer")
+				.addColumn("storage_key", "text", (col) => col.notNull())
+				.addColumn("status", "text", (col) => col.notNull().defaultTo("ready"))
+				.addColumn("created_at", "text", (col) => col.notNull())
+				.addColumn("visibility", "text", (col) => col.notNull().defaultTo("public"))
+				.execute();
+
+			const objects = new Map<string, Uint8Array>();
+			const storage = {
+				async upload(options: { key: string; body: Uint8Array }) {
+					objects.set(options.key, options.body);
+				},
+				async delete() {
+					throw new Error("R2 unavailable");
+				},
+			};
+			const handler = makeHandler({ capabilities: ["write:media", "read:media"], storage });
+			const uploaded = await call(handler, "media/upload", {
+				filename: "brief.pdf",
+				contentType: "application/pdf",
+				bytes: "JVBERi0=",
+				encoding: "base64",
+				visibility: "private",
+			});
+			const media = uploaded.result as { mediaId: string; storageKey: string; url: string };
+			expect(media.storageKey).toMatch(/^private\//);
+			expect(media.url).toContain("/_emdash/api/media/private/");
+			expect(objects.has(media.storageKey)).toBe(true);
+
+			const listed = await call(handler, "media/list");
+			expect((listed.result as { items: unknown[] }).items).toEqual([]);
+
+			const deletion = await call(handler, "media/delete", { id: media.mediaId });
+			expect(deletion.error).toContain("R2 unavailable");
+			expect(
+				await db
+					.selectFrom("media" as any)
+					.select("id")
+					.where("id", "=", media.mediaId)
+					.executeTakeFirst(),
+			).toBeDefined();
 		});
 
 		it("storage/query clamps negative limit to 1", async () => {

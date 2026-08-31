@@ -141,6 +141,7 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 			// --- Admin routes (require auth) ---
 
 			"forms/list": {
+				permission: "plugins:read",
 				handler: formsListHandler,
 			},
 			"forms/create": {
@@ -161,22 +162,27 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 			},
 
 			"submissions/list": {
+				permission: "plugins:read",
 				input: submissionsListSchema,
 				handler: submissionsListHandler as never,
 			},
 			"submissions/get": {
+				permission: "plugins:read",
 				input: submissionGetSchema,
 				handler: submissionGetHandler as never,
 			},
 			"submissions/update": {
+				permission: "plugins:read",
 				input: submissionUpdateSchema,
 				handler: submissionUpdateHandler as never,
 			},
 			"submissions/delete": {
+				permission: "plugins:read",
 				input: submissionDeleteSchema,
 				handler: submissionDeleteHandler as never,
 			},
 			"submissions/export": {
+				permission: "plugins:read",
 				input: exportSchema,
 				handler: exportHandler as never,
 			},

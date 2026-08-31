@@ -82,4 +82,37 @@ describe("plugin ctx.media.upload — metadata enrichment", () => {
 		expect(row?.width).toBeNull();
 		expect(row?.blurhash).toBeNull();
 	});
+
+	it("stores private plugin uploads outside the public media route", async () => {
+		const media = createMediaAccessWithWrite(db, undefined, fakeStorage());
+		const result = await media.upload(
+			"brief.pdf",
+			"application/pdf",
+			new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]).buffer,
+			{ visibility: "private" },
+		);
+
+		const row = await new MediaRepository(db).findById(result.mediaId);
+		expect(row?.visibility).toBe("private");
+		expect(result.storageKey).toMatch(/^private\//);
+		expect(result.url).toBe(
+			`/_emdash/api/media/private/${result.storageKey.slice("private/".length)}`,
+		);
+	});
+
+	it("deletes the storage object before removing a plugin media record", async () => {
+		const storage = fakeStorage();
+		const media = createMediaAccessWithWrite(db, undefined, storage);
+		const result = await media.upload(
+			"brief.pdf",
+			"application/pdf",
+			new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]).buffer,
+			{ visibility: "private" },
+		);
+
+		expect(await storage.exists(result.storageKey)).toBe(true);
+		await expect(media.delete(result.mediaId)).resolves.toBe(true);
+		expect(await storage.exists(result.storageKey)).toBe(false);
+		expect(await new MediaRepository(db).findById(result.mediaId)).toBeNull();
+	});
 });

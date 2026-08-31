@@ -365,6 +365,13 @@ export interface MediaItem {
 	size: number | null;
 	url: string;
 	createdAt: string;
+	visibility?: MediaVisibility;
+}
+
+export type MediaVisibility = "public" | "private";
+
+export interface MediaUploadOptions {
+	visibility?: MediaVisibility;
 }
 
 /**
@@ -398,6 +405,7 @@ export interface MediaAccess {
 		filename: string,
 		contentType: string,
 		bytes: ArrayBuffer,
+		options?: MediaUploadOptions,
 	): Promise<{ mediaId: string; storageKey: string; url: string }>;
 	delete?(id: string): Promise<boolean>;
 }
@@ -414,6 +422,7 @@ export interface MediaAccessWithWrite extends MediaAccess {
 		filename: string,
 		contentType: string,
 		bytes: ArrayBuffer,
+		options?: MediaUploadOptions,
 	): Promise<{ mediaId: string; storageKey: string; url: string }>;
 	delete(id: string): Promise<boolean>;
 }

@@ -104,6 +104,14 @@ interface SubmissionItem {
 	starred: boolean;
 	notes?: string;
 	createdAt: string;
+	files?: Array<{
+		fieldName: string;
+		filename: string;
+		contentType: string;
+		size: number;
+		mediaId: string;
+		downloadUrl: string;
+	}>;
 	meta: {
 		ip: string | null;
 		country: string | null;
@@ -1176,6 +1184,25 @@ function SubmissionsPage() {
 								</div>
 							))}
 						</dl>
+
+						{selectedSub.files && selectedSub.files.length > 0 && (
+							<div>
+								<p className="text-xs font-medium text-muted-foreground mb-1">Attachments</p>
+								<ul className="space-y-1">
+									{selectedSub.files.map((file) => (
+										<li key={file.mediaId}>
+											<a
+												href={file.downloadUrl}
+												className="text-sm underline break-all"
+												download={file.filename}
+											>
+												{file.filename}
+											</a>
+										</li>
+									))}
+								</ul>
+							</div>
+						)}
 
 						{selectedSub.meta.country && (
 							<p className="text-xs text-muted-foreground">Country: {selectedSub.meta.country}</p>

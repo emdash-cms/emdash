@@ -181,7 +181,7 @@ function createContext() {
 	const media = {
 		get: (id) => bridgeCall("media/get", { id }),
 		list: (opts) => bridgeCall("media/list", opts || {}),
-		upload: (filename, contentType, bytes) => {
+		upload: (filename, contentType, bytes, options) => {
 			// Convert any binary input into a Uint8Array view pointing at the
 			// SAME underlying bytes (not reinterpreted). For ArrayBufferView
 			// inputs (Uint16Array, Int32Array, DataView, etc.) we must use
@@ -204,6 +204,7 @@ function createContext() {
 				contentType,
 				bytes: btoa(binary),
 				encoding: "base64",
+				visibility: options?.visibility,
 			});
 		},
 		getUploadUrl: () => { throw new Error("getUploadUrl is not available in sandbox mode. Use media.upload() instead."); },

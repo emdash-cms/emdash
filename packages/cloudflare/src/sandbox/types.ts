@@ -149,6 +149,7 @@ interface BridgeMediaItem {
 	size: number | null;
 	url: string;
 	createdAt: string;
+	visibility?: "public" | "private";
 }
 
 /**
@@ -209,6 +210,7 @@ export interface PluginBridgeBinding {
 		filename: string,
 		contentType: string,
 		bytes: ArrayBuffer,
+		options?: { visibility?: "public" | "private" },
 	): Promise<{ mediaId: string; storageKey: string; url: string }>;
 	mediaDelete(id: string): Promise<boolean>;
 	// Network

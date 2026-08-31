@@ -9,6 +9,7 @@ import type { RouteContext, StorageCollection } from "emdash";
 import { PluginRouteError } from "emdash";
 import { ulid } from "ulidx";
 
+import { validateSubmissionFiles } from "../file-validation.js";
 import { formatSubmissionText, formatWebhookPayload } from "../format.js";
 import type { SubmitInput } from "../schemas.js";
 import { verifyTurnstile } from "../turnstile.js";
@@ -94,7 +95,18 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 
 	// 3. Validate submission data
 	const allFields = getFormFields(form);
-	const result = validateSubmission(allFields, input.data);
+	const suppliedFiles = input.files ?? {};
+	validateSubmissionFiles(suppliedFiles);
+	const fileFields = new Map(
+		allFields.filter((field) => field.type === "file").map((f) => [f.name, f]),
+	);
+	for (const name of Object.keys(suppliedFiles)) {
+		if (!fileFields.has(name)) throw PluginRouteError.badRequest(`Unknown file field: ${name}`);
+	}
+
+	const validationData = { ...input.data };
+	for (const [name, file] of Object.entries(suppliedFiles)) validationData[name] = file.filename;
+	const result = validateSubmission(allFields, validationData);
 
 	if (!result.valid) {
 		return { success: false, errors: result.errors };
@@ -102,17 +114,11 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 
 	// 4. Upload files
 	const files: SubmissionFile[] = [];
-	if (input.files && ctx.media && "upload" in ctx.media) {
-		const mediaWithWrite = ctx.media as {
-			upload(
-				filename: string,
-				contentType: string,
-				bytes: ArrayBuffer,
-			): Promise<{ mediaId: string; storageKey: string; url: string }>;
-		};
+	if (Object.keys(suppliedFiles).length > 0) {
+		if (!ctx.media?.upload) throw PluginRouteError.internal("File storage is not configured");
 
-		for (const field of allFields.filter((f) => f.type === "file")) {
-			const fileData = input.files[field.name];
+		for (const field of fileFields.values()) {
+			const fileData = suppliedFiles[field.name];
 			if (!fileData) continue;
 
 			// Validate file type
@@ -139,20 +145,37 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 					`File too large for ${field.label}. Maximum: ${Math.round(field.validation.maxFileSize / 1024)} KB`,
 				);
 			}
+		}
 
-			const uploaded = await mediaWithWrite.upload(
-				fileData.filename,
-				fileData.contentType,
-				fileData.bytes,
-			);
-
-			files.push({
-				fieldName: field.name,
-				filename: fileData.filename,
-				contentType: fileData.contentType,
-				size: fileData.bytes.byteLength,
-				mediaId: uploaded.mediaId,
-			});
+		try {
+			for (const field of fileFields.values()) {
+				const fileData = suppliedFiles[field.name];
+				if (!fileData) continue;
+				const uploaded = await ctx.media.upload(
+					fileData.filename,
+					fileData.contentType,
+					fileData.bytes,
+					{ visibility: "private" },
+				);
+				files.push({
+					fieldName: field.name,
+					filename: fileData.filename,
+					contentType: fileData.contentType,
+					size: fileData.bytes.byteLength,
+					mediaId: uploaded.mediaId,
+					downloadUrl: uploaded.url,
+				});
+			}
+		} catch (error) {
+			for (const file of files) {
+				await ctx.media.delete?.(file.mediaId).catch((cleanupError: unknown) => {
+					ctx.log.error("Failed to roll back form attachment", {
+						mediaId: file.mediaId,
+						error: String(cleanupError),
+					});
+				});
+			}
+			throw error;
 		}
 	}
 
