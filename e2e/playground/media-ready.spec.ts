@@ -13,11 +13,15 @@ const expectedMediaUsage = [
 const ADMIN_URL_PATTERN = /\/_emdash\/admin\/?$/;
 
 async function openFreshPlayground(page: Page): Promise<void> {
+	const welcome = page.getByRole("dialog").filter({ hasText: "Welcome to EmDash" });
+	await page.addLocatorHandler(welcome, (dialog) =>
+		dialog.getByRole("button", { name: "Get Started" }).click(),
+	);
 	await page.goto("/playground");
 	await page.waitForURL(ADMIN_URL_PATTERN, { timeout: 120_000 });
-	await page.waitForSelector("astro-island:not([ssr])", { timeout: 60_000 });
-	const welcome = page.getByRole("dialog").filter({ hasText: "Welcome to EmDash" });
-	if (await welcome.isVisible()) await welcome.getByRole("button", { name: "Get Started" }).click();
+	await expect(page.getByRole("link", { name: "Media", exact: true })).toBeVisible({
+		timeout: 60_000,
+	});
 }
 
 test("opens with seeded media and ready usage after creation and reset", async ({
