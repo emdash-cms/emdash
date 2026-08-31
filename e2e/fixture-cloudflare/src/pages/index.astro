@@ -1,9 +1,6 @@
 ---
 import { getEmDashCollection } from "emdash";
-// @ts-ignore - virtual module
-import { manifestExports } from "virtual:late-manifest";
 const { entries: posts } = await getEmDashCollection("posts");
-void manifestExports;
 ---
 
 <html>

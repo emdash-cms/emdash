@@ -14,18 +14,14 @@ import emdash from "emdash/astro";
 
 const marketplaceUrl = process.env.EMDASH_MARKETPLACE_URL || undefined;
 
-// Mirrors Astro-generated virtual modules that the initial dependency scan cannot see.
+// Mirrors a server dependency introduced by Astro after the initial dependency scan.
 const lateManifestImport = {
 	name: "late-manifest-import",
-	resolveId(id) {
-		return id === "virtual:late-manifest" ? "\0virtual:late-manifest" : undefined;
-	},
-	load(id) {
-		if (id !== "\0virtual:late-manifest") return undefined;
-		return `
-			import * as manifest from "astro/app/manifest";
-			export const manifestExports = Object.keys(manifest).length;
-		`;
+	apply: "serve",
+	enforce: "post",
+	transform(code, id) {
+		if (!id.endsWith("/src/pages/index.astro")) return undefined;
+		return `import * as manifest from "astro/app/manifest";\nvoid manifest;\n${code}`;
 	},
 };
 
