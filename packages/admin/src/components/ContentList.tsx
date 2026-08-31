@@ -405,6 +405,7 @@ export function ContentList({
 	};
 	const colSpan =
 		(i18n ? 5 : 4) + listColumns.length + extensionColumns.length + (bulkEnabled ? 1 : 0);
+	const trashColSpan = i18n ? 4 : 3;
 
 	return (
 		<div className="space-y-4">
@@ -755,6 +756,11 @@ export function ContentList({
 									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 										{t`Title`}
 									</th>
+									{i18n && (
+										<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
+											{t`Locale`}
+										</th>
+									)}
 									<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
 										{t`Deleted`}
 									</th>
@@ -766,7 +772,7 @@ export function ContentList({
 							<tbody className="divide-y divide-kumo-line">
 								{isTrashedLoading && trashedItems.length === 0 ? (
 									<tr>
-										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
+										<td colSpan={trashColSpan} className="px-4 py-8 text-center text-kumo-subtle">
 											<span className="inline-flex items-center gap-2">
 												<Loader size="sm" />
 												{t`Loading...`}
@@ -775,7 +781,7 @@ export function ContentList({
 									</tr>
 								) : trashedItems.length === 0 ? (
 									<tr>
-										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
+										<td colSpan={trashColSpan} className="px-4 py-8 text-center text-kumo-subtle">
 											{t`Trash is empty`}
 										</td>
 									</tr>
@@ -785,6 +791,7 @@ export function ContentList({
 											key={item.id}
 											item={item}
 											titleField={titleField}
+											showLocale={!!i18n}
 											onRestore={onRestore}
 											onPermanentDelete={onPermanentDelete}
 										/>
@@ -1479,11 +1486,18 @@ function scalarListColumnValue(value: unknown): string | undefined {
 interface TrashedListItemProps {
 	item: TrashedContentItem;
 	titleField?: string;
+	showLocale?: boolean;
 	onRestore?: (id: string) => void;
 	onPermanentDelete?: (id: string) => void;
 }
 
-function TrashedListItem({ item, titleField, onRestore, onPermanentDelete }: TrashedListItemProps) {
+function TrashedListItem({
+	item,
+	titleField,
+	showLocale,
+	onRestore,
+	onPermanentDelete,
+}: TrashedListItemProps) {
 	const { t } = useLingui();
 	const title = getEntryTitle(item, titleField);
 	const deletedDate = parseTimestamp(item.deletedAt);
@@ -1493,6 +1507,13 @@ function TrashedListItem({ item, titleField, onRestore, onPermanentDelete }: Tra
 			<td className="px-4 py-3">
 				<span className="font-medium text-kumo-subtle">{title}</span>
 			</td>
+			{showLocale && (
+				<td className="px-4 py-3">
+					<span className="bg-kumo-tint rounded px-1.5 py-0.5 text-xs font-semibold uppercase">
+						{item.locale}
+					</span>
+				</td>
+			)}
 			<td className="px-4 py-3 text-sm text-kumo-subtle">{deletedDate.toLocaleDateString()}</td>
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">

@@ -254,6 +254,36 @@ describe("ContentList", () => {
 			);
 			await expect.element(screen.getByText("42")).toBeInTheDocument();
 		});
+
+		it("shows each trashed item's locale when i18n is configured", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[]}
+					trashedItems={[makeTrashedItem({ id: "t1", locale: "fr" })]}
+					i18n={{ defaultLocale: "en", locales: ["en", "fr"] }}
+					activeLocale="fr"
+					onLocaleChange={() => {}}
+				/>,
+			);
+			await screen.getByText("Trash").click();
+			await expect
+				.element(screen.getByRole("columnheader", { name: "Locale" }))
+				.toBeInTheDocument();
+			await expect.element(screen.getByRole("cell", { name: "fr" })).toBeInTheDocument();
+		});
+
+		it("omits the trash locale column on a single-locale site", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[]}
+					trashedItems={[makeTrashedItem({ id: "t1", locale: "en" })]}
+				/>,
+			);
+			await screen.getByText("Trash").click();
+			expect(screen.getByRole("columnheader", { name: "Locale" }).query()).toBeNull();
+		});
 	});
 
 	describe("status badges", () => {
