@@ -59,6 +59,26 @@ function formatValidationIssues(error: Record<string, unknown>): string | undefi
 }
 
 /**
+ * Client errors that pass no verdict on the request body, so resending it
+ * unchanged can still succeed. Every other 4xx repeats its verdict on every
+ * attempt.
+ */
+const RETRYABLE_CLIENT_ERROR_STATUSES: ReadonlySet<number> = new Set([
+	408, // Request Timeout: the server gave up waiting for the request
+	421, // Misdirected Request: another connection can be routed correctly
+	425, // Too Early: sent as TLS early data, replayable after the handshake
+	429, // Too Many Requests: succeeds once the rate limit window has passed
+]);
+
+/** Whether retrying the same request unchanged can never succeed. */
+export function isTerminalRequestError(error: unknown): boolean {
+	if (!(error instanceof ApiResponseError)) return false;
+	return (
+		error.status >= 400 && error.status < 500 && !RETRYABLE_CLIENT_ERROR_STATUSES.has(error.status)
+	);
+}
+
+/**
  * Throw an error with the message from the API response body if available,
  * falling back to a generic message. All API error responses use the shape
  * `{ success: false, error: { code, message, details? } }`. For validation

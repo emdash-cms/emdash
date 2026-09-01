@@ -246,6 +246,8 @@ export {
 	PluginManager,
 	createPluginManager,
 	PluginRouteError,
+	ContentSaveRejectedError,
+	isContentSaveRejection,
 	// Scheduler (Node timer heartbeat — used by virtual:emdash/scheduler)
 	NodeCronScheduler,
 	// Sandbox

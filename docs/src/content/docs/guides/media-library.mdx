@@ -291,6 +291,8 @@ const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
 
 `priority` is for the primary above-the-fold image. It sets `loading="eager"` and `fetchpriority="high"`: `loading` controls whether loading is deferred, and `fetchpriority` gives the browser a priority hint for the request.
 
+When the field value carries a dark counterpart, `Image` renders both and shows the one matching the visitor's color scheme. [Dark Mode](/guides/dark-mode/) covers enabling the slot on a field and the `<html>` class convention the component relies on.
+
 EmDash installs an image endpoint that produces the resized variants on request. On Cloudflare Workers that endpoint uses the `IMAGES` binding. [Image Transformation](/deployment/cloudflare/#image-transformation) covers where the binding comes from and what happens when it is absent.
 
 ## Deleting Media

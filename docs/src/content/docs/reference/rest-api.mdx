@@ -1135,6 +1135,8 @@ POST /_emdash/api/admin/plugins/:id/disable
 | `CONTENT_LIST_ERROR`   | 500         | Failed to list content   |
 | `CONTENT_CREATE_ERROR` | 500         | Failed to create content |
 | `CONTENT_UPDATE_ERROR` | 500         | Failed to update content |
+| `SAVE_REJECTED`        | 422         | Save rejected by a plugin hook |
+| `CONTENT_HOOK_ERROR`   | 500         | Plugin hook failed during save |
 | `CONTENT_DELETE_ERROR` | 500         | Failed to delete content |
 | `MEDIA_LIST_ERROR`     | 500         | Failed to list media     |
 | `MEDIA_CREATE_ERROR`   | 500         | Failed to create media   |

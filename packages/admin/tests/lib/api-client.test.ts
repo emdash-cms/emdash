@@ -4,6 +4,7 @@ import {
 	ApiResponseError,
 	apiFetch,
 	fetchManifest,
+	isTerminalRequestError,
 	throwResponseError,
 } from "../../src/lib/api/client";
 
@@ -165,5 +166,33 @@ describe("throwResponseError", () => {
 		await expect(throwResponseError(response, "fallback")).rejects.toThrow(
 			"fallback: Internal Server Error",
 		);
+	});
+});
+
+describe("isTerminalRequestError", () => {
+	const apiError = (status: number, code: string, message: string) =>
+		new ApiResponseError(status, code, message);
+
+	it("treats a client error outside the retryable list as terminal", () => {
+		expect(isTerminalRequestError(apiError(400, "VALIDATION_ERROR", "rejected"))).toBe(true);
+		expect(isTerminalRequestError(apiError(401, "UNAUTHORIZED", "unauthorized"))).toBe(true);
+		expect(isTerminalRequestError(apiError(404, "NOT_FOUND", "not found"))).toBe(true);
+		expect(isTerminalRequestError(apiError(409, "CONFLICT", "conflict"))).toBe(true);
+		expect(isTerminalRequestError(apiError(413, "PAYLOAD_TOO_LARGE", "payload too large"))).toBe(
+			true,
+		);
+	});
+
+	it("keeps the retryable client errors retryable", () => {
+		expect(isTerminalRequestError(apiError(408, "REQUEST_TIMEOUT", "request timeout"))).toBe(false);
+		expect(isTerminalRequestError(apiError(421, "MISDIRECTED_REQUEST", "misdirected"))).toBe(false);
+		expect(isTerminalRequestError(apiError(425, "TOO_EARLY", "too early"))).toBe(false);
+		expect(isTerminalRequestError(apiError(429, "RATE_LIMITED", "slow down"))).toBe(false);
+	});
+
+	it("keeps server errors and network failures retryable", () => {
+		expect(isTerminalRequestError(apiError(500, "INTERNAL_ERROR", "boom"))).toBe(false);
+		expect(isTerminalRequestError(apiError(504, "GATEWAY_TIMEOUT", "gateway timeout"))).toBe(false);
+		expect(isTerminalRequestError(new TypeError("Failed to fetch"))).toBe(false);
 	});
 });

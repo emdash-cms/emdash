@@ -12,6 +12,16 @@ import type { Database } from "../database/types.js";
 export type PluginStatus = "active" | "inactive";
 export type PluginSource = "config" | "marketplace" | "registry";
 
+const TIMEZONE_SUFFIX = /(?:z|[+-]\d{2}(?::?\d{2})?)$/i;
+const HOUR_OFFSET_SUFFIX = /\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?[+-]\d{2}$/i;
+
+function parseDatabaseTimestamp(value: string): Date {
+	let normalized = value.trim().replace(" ", "T");
+	if (HOUR_OFFSET_SUFFIX.test(normalized)) normalized += ":00";
+	else if (!TIMEZONE_SUFFIX.test(normalized)) normalized += "Z";
+	return new Date(normalized);
+}
+
 function toPluginStatus(value: string): PluginStatus {
 	if (value === "active") return "active";
 	return "inactive";
@@ -255,9 +265,9 @@ function rowToPluginState(row: PluginStateRow): PluginState {
 		pluginId: row.plugin_id,
 		status: toPluginStatus(row.status),
 		version: row.version,
-		installedAt: new Date(row.installed_at),
-		activatedAt: row.activated_at ? new Date(row.activated_at) : null,
-		deactivatedAt: row.deactivated_at ? new Date(row.deactivated_at) : null,
+		installedAt: parseDatabaseTimestamp(row.installed_at),
+		activatedAt: row.activated_at ? parseDatabaseTimestamp(row.activated_at) : null,
+		deactivatedAt: row.deactivated_at ? parseDatabaseTimestamp(row.deactivated_at) : null,
 		source: toPluginSource(row.source),
 		marketplaceVersion: row.marketplace_version ?? null,
 		displayName: row.display_name ?? null,
