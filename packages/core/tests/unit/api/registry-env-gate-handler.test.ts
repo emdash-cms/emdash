@@ -64,7 +64,7 @@ function releaseViewWithRequires(
 		package: SLUG,
 		version,
 		labels,
-		mirrors: [],
+		artifactCaches: [],
 		release: {
 			package: SLUG,
 			version,

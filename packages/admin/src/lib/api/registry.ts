@@ -681,8 +681,8 @@ export interface MediaArtifacts {
 
 /**
  * Narrow one entry of a release's `artifacts` map to the fields we render.
- * Returns `null` when the value isn't an object carrying a usable `url`
- * (presence gate), keeping only the dimensions for layout.
+ * Returns `null` when the value does not carry a blob or URL source, keeping
+ * only the dimensions for layout.
  *
  * Records are lexicon-validated at the DiscoveryClient boundary, but
  * `artifacts` is an aggregator pass-through, so each entry still needs
@@ -692,7 +692,9 @@ function asMediaArtifact(value: unknown): MediaArtifact | null {
 	if (!value || typeof value !== "object") return null;
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; field shapes checked below
 	const v = value as Record<string, unknown>;
-	if (typeof v.url !== "string" || v.url.length === 0) return null;
+	const hasUrl = typeof v.url === "string" && v.url.length > 0;
+	const hasBlob = Boolean(v.blob && typeof v.blob === "object");
+	if (!hasUrl && !hasBlob) return null;
 	const artifact: MediaArtifact = {};
 	if (typeof v.width === "number") artifact.width = v.width;
 	if (typeof v.height === "number") artifact.height = v.height;
@@ -702,7 +704,7 @@ function asMediaArtifact(value: unknown): MediaArtifact | null {
 /**
  * Pull icon, banner, and the screenshot gallery out of a release's `artifacts`
  * map, keeping presence and dimensions only. The lexicon types `screenshots`
- * as an array of artifacts; entries without a usable `url` are dropped, and
+ * as an array of artifacts; entries without a usable source are dropped, and
  * gallery order is preserved so screenshot indices line up with the proxy's.
  */
 export function extractMediaArtifacts(artifacts: unknown): MediaArtifacts {

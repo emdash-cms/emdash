@@ -1,12 +1,12 @@
 /**
- * `emdash-plugin publish --url <url>`
+ * `emdash-plugin publish`
  *
  * Thin citty wrapper around `publishRelease` from `../publish/api.js`.
  *
  * Responsibilities here are limited to:
  *   - parsing args and reading filesystem credentials,
- *   - fetching the tarball at `--url` (with URL/size guards) so the API has
- *     bytes to work with,
+ *   - building and uploading the package blob, or fetching `--url` when the
+ *     publisher explicitly uses external hosting,
  *   - extracting the manifest from those bytes BEFORE printing any tarball
  *     metadata so users don't see "looks good" output for a malformed file,
  *   - opening an authenticated `PublishingClient` from the OAuth session,
@@ -28,6 +28,7 @@ import { defineCommand } from "citty";
 import consola from "consola";
 import pc from "picocolors";
 
+import { BundleError, bundlePlugin } from "../bundle/api.js";
 import { formatBytes, MAX_BUNDLE_SIZE, validateBundleSize } from "../bundle/utils.js";
 import { redirectConsolaToStderr } from "../cli-output.js";
 import { loadManifest, MANIFEST_FILENAME, ManifestError } from "../manifest/load.js";
@@ -40,7 +41,7 @@ import {
 	SectionError,
 } from "../manifest/translate.js";
 import { sha256Multihash } from "../multihash.js";
-import { resumeSession } from "../oauth.js";
+import { missingBlobScopes, resumeSession } from "../oauth.js";
 import {
 	PublishError,
 	publishRelease,
@@ -48,7 +49,7 @@ import {
 	type PublishLogger,
 	type ReleaseArtifactsInput,
 } from "../publish/api.js";
-import { ArtifactUploadError, resolveReleaseArtifacts } from "../publish/upload-artifacts.js";
+import { ArtifactUploadError, resolveReleaseArtifacts } from "../publish/blob-artifacts.js";
 
 /**
  * Hard cap on the gzipped tarball we'll buffer into memory. Sized for the
@@ -58,18 +59,21 @@ import { ArtifactUploadError, resolveReleaseArtifacts } from "../publish/upload-
  * against the per-file and total caps via `validateBundleSize`.
  */
 const MAX_TARBALL_BYTES = 384 * 1024;
+const MAX_PACKAGE_BLOB_BYTES = 256 * 1024;
 
 export const publishCommand = defineCommand({
 	meta: {
 		name: "publish",
-		description:
-			"Publish a sandboxed plugin release to the registry (atproto + FAIR-shaped records)",
+		description: "Build and publish a sandboxed plugin release to the atproto registry",
 	},
 	args: {
+		"artifact-base-url": {
+			type: "string",
+			description: "Removed; listing images are uploaded to the publisher PDS",
+		},
 		url: {
 			type: "string",
-			description: "Public URL where the tarball is hosted (artifact source-of-truth)",
-			required: true,
+			description: "Use an externally hosted tarball instead of uploading it to the publisher PDS",
 		},
 		local: {
 			type: "string",
@@ -117,18 +121,13 @@ export const publishCommand = defineCommand({
 		"allow-overwrite": {
 			type: "boolean",
 			description:
-				"Allow overwriting an existing release at <slug>:<version>. Default refuses, since FAIR treats version records as immutable and aggregators/labellers may flag any change as a takedown event.",
+				"Allow overwriting an existing release at <slug>:<version>. Default refuses because release versions are immutable and aggregators/labellers may flag any change as a takedown event.",
 			default: false,
-		},
-		"artifact-base-url": {
-			type: "string",
-			description:
-				"Base URL the CLI PUTs media artifacts (icon / screenshot / banner) to. Each file is uploaded to <base>/<slug>/<version>/<filename> and that URL is recorded in the release. The target must serve the bytes back unchanged with a stable content type. Required when the manifest declares any `release.artifacts`.",
 		},
 		json: {
 			type: "boolean",
 			description:
-				"Emit a single-line JSON object on stdout instead of human output. Success: {profile, release, cid, checksum, url, profileCreated, releaseOverwritten}. Failure: {error: {code, message}}. Human-readable progress goes to stderr in either mode.",
+				"Emit a single-line JSON object on stdout instead of human output. Success includes profile, release, cid, checksum, hosting, and optional url. Failure is {error: {code, message}}. Human-readable progress goes to stderr in either mode.",
 		},
 	},
 	async run({ args }) {
@@ -161,11 +160,14 @@ export const publishCommand = defineCommand({
  * and renders consistently (human + JSON modes).
  */
 async function runPublish(args: PublishArgs): Promise<void> {
-	// Validate URL before any network access. Empty or non-https URLs are
-	// rejected so we never publish a record pointing at file:// or a private
-	// IP that consumers won't be able to fetch from.
-	const urlError = validatePublishUrl(args.url);
-	if (urlError) throw new CliError(urlError, 2, "INVALID_URL");
+	const removedOptionError = removedArtifactBaseUrlError(args["artifact-base-url"]);
+	if (removedOptionError) throw new CliError(removedOptionError, 2, "INVALID_FLAG");
+	if (args.url !== undefined) {
+		const urlError = validatePublishUrl(args.url);
+		if (urlError) throw new CliError(urlError, 2, "INVALID_URL");
+	} else if (args.local !== undefined) {
+		throw new CliError("--local can only be used with --url.", 2, "INVALID_FLAG");
+	}
 
 	// Reject empty-string flags up front. citty leaves them as "" rather
 	// than undefined, and the publish API treats "" as missing -- bad UX.
@@ -232,40 +234,91 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		}
 	}
 
-	// Fetch + checksum the tarball, then extract the manifest BEFORE we
-	// print any reassuring "tarball looks fine" lines. A 200 from a CDN
-	// can serve an HTML 404 page; we want the failure to land before the
-	// user sees apparent success.
-	consola.start(`Fetching ${args.url}...`);
-	const tarballBytes = await fetchTarball(args.url);
-	const checksum = sha256Multihash(tarballBytes);
-	const manifest = await extractManifestFromTarball(tarballBytes);
+	let tarballBytes: Uint8Array;
+	let checksum: string;
+	let manifest: PluginManifest;
+	if (args.url !== undefined) {
+		consola.start(`Fetching ${args.url}...`);
+		tarballBytes = await fetchTarball(args.url);
+		checksum = sha256Multihash(tarballBytes);
+		manifest = await extractManifestFromTarball(tarballBytes);
+
+		if (args.local) {
+			const localPath = resolve(args.local);
+			const localBytes = await readFile(localPath);
+			const localChecksum = sha256Multihash(localBytes);
+			if (localChecksum !== checksum) {
+				throw new CliError(
+					`Local file ${localPath} does not match the bytes served at ${args.url}. Local multihash: ${localChecksum}; remote multihash: ${checksum}. Re-upload the correct tarball, or drop --local to publish whatever's at the URL.`,
+					1,
+					"LOCAL_CHECKSUM_MISMATCH",
+				);
+			}
+			consola.success(`Local file at ${pc.dim(localPath)} matches the URL`);
+		}
+	} else {
+		try {
+			const bundled = await bundlePlugin({
+				dir: manifestLoad ? dirname(manifestLoad.path) : process.cwd(),
+				logger: {
+					start: (message) => consola.start(message),
+					info: (message) => consola.info(message),
+					success: (message) => consola.success(message),
+					warn: (message) => consola.warn(message),
+				},
+			});
+			if (!bundled.tarballPath) throw new Error("Plugin bundling produced no tarball");
+			tarballBytes = await readFile(bundled.tarballPath);
+			if (tarballBytes.byteLength > MAX_PACKAGE_BLOB_BYTES) {
+				throw new CliError(
+					`Compressed bundle is ${formatBytes(tarballBytes.byteLength)}; PDS package blobs are limited to ${formatBytes(MAX_PACKAGE_BLOB_BYTES)}. Use --url with an external host for this release.`,
+					1,
+					"TARBALL_TOO_LARGE",
+				);
+			}
+			checksum = sha256Multihash(tarballBytes);
+			manifest = bundled.manifest;
+		} catch (error) {
+			if (error instanceof BundleError) throw new CliError(error.message, 1, error.code);
+			throw error;
+		}
+	}
 
 	consola.info(`Tarball: ${formatBytes(tarballBytes.length)}`);
 	consola.info(`Multihash: ${pc.dim(checksum)}`);
 	consola.info(`Manifest: ${pc.bold(manifest.id)}@${manifest.version}`);
 
-	// Optional local cross-check.
-	if (args.local) {
-		const localPath = resolve(args.local);
-		const localBytes = await readFile(localPath);
-		const localChecksum = sha256Multihash(localBytes);
-		if (localChecksum !== checksum) {
+	const oauthSession = await resumeSession(session.did);
+	const needsImages = Boolean(
+		manifestLoad?.manifest.artifacts &&
+		(manifestLoad.manifest.artifacts.icon ||
+			manifestLoad.manifest.artifacts.banner ||
+			manifestLoad.manifest.artifacts.screenshots?.length),
+	);
+	const requiredBlobScopes = [
+		...(args.url === undefined ? ["blob:application/gzip"] : []),
+		...(needsImages ? ["blob:image/*"] : []),
+	];
+	if (requiredBlobScopes.length > 0) {
+		const token = await oauthSession.getTokenInfo();
+		const missing = missingBlobScopes(token.scope, requiredBlobScopes);
+		if (missing.length > 0) {
 			throw new CliError(
-				`Local file ${localPath} does not match the bytes served at ${args.url}. Local multihash: ${localChecksum}; remote multihash: ${checksum}. Re-upload the correct tarball, or drop --local to publish whatever's at the URL.`,
+				`The active OAuth grant is missing ${missing.join(", ")}. Run \`emdash-plugin logout\`, then log in again to grant blob uploads.`,
 				1,
-				"LOCAL_CHECKSUM_MISMATCH",
+				"MISSING_BLOB_SCOPE",
 			);
 		}
-		consola.success(`Local file at ${pc.dim(localPath)} matches the URL`);
 	}
-
-	const oauthSession = await resumeSession(session.did);
 	const publisher = PublishingClient.fromHandler({
 		handler: oauthSession,
 		did: session.did,
 		pds: session.pds,
 	});
+	const packageBlob =
+		args.url === undefined
+			? await publisher.uploadBlob(tarballBytes, "application/gzip")
+			: undefined;
 
 	// Resolve the profile block. The manifest is the base; the deprecated
 	// flat flags override on top (explicit caller intent wins). A single
@@ -312,7 +365,7 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		warn: (m) => consola.warn(m),
 	};
 
-	const artifacts = await resolveManifestArtifacts(args, manifestLoad, logger);
+	const artifacts = await resolveManifestArtifacts(manifestLoad, publisher, logger);
 
 	const result = await publishRelease({
 		publisher,
@@ -320,6 +373,7 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		manifest,
 		checksum,
 		url: args.url,
+		blob: packageBlob,
 		profileInput,
 		repo: manifestLoad?.manifest.repo,
 		requires: manifestLoad?.manifest.requires,
@@ -366,7 +420,8 @@ async function runPublish(args: PublishArgs): Promise<void> {
 				release: result.releaseUri,
 				cid: result.releaseCid,
 				checksum: result.checksum,
-				url: args.url,
+				hosting: args.url === undefined ? "blob" : "url",
+				...(args.url === undefined ? {} : { url: args.url }),
 				profileCreated: result.profileCreated,
 				releaseOverwritten: result.releaseOverwritten,
 			})}\n`,
@@ -387,47 +442,22 @@ async function runPublish(args: PublishArgs): Promise<void> {
 /**
  * Resolve the manifest's `release.artifacts` block into uploaded, embeddable
  * records. Returns `undefined` when no manifest was loaded or it declared no
- * artifacts. Throws `CliError` when artifacts are declared but the publisher
- * didn't supply `--artifact-base-url`, or when resolution/upload fails.
+ * artifacts.
  */
 async function resolveManifestArtifacts(
-	args: PublishArgs,
 	manifestLoad: ManifestLoadOutcome | null,
+	publisher: PublishingClient,
 	logger: PublishLogger,
 ): Promise<ReleaseArtifactsInput | undefined> {
 	const artifacts = manifestLoad?.manifest.artifacts;
 	if (!manifestLoad || !artifacts) return undefined;
 
-	const baseUrl = args["artifact-base-url"];
-	if (baseUrl === undefined || baseUrl.length === 0) {
-		throw new CliError(
-			"The manifest declares `release.artifacts` (icon / screenshot / banner) but no --artifact-base-url was given. Pass --artifact-base-url <url> so the CLI can upload the images and record where they're hosted.",
-			2,
-			"ARTIFACT_BASE_URL_REQUIRED",
-		);
-	}
-	let parsedBase: URL;
-	try {
-		parsedBase = new URL(baseUrl);
-	} catch {
-		throw new CliError(`--artifact-base-url is not a valid URL: ${baseUrl}`, 2, "INVALID_FLAG");
-	}
-	if (parsedBase.protocol !== "https:") {
-		throw new CliError(
-			`--artifact-base-url must use https; got ${parsedBase.protocol}. Host artifacts over TLS.`,
-			2,
-			"INVALID_FLAG",
-		);
-	}
-
 	try {
 		return await resolveReleaseArtifacts({
 			artifacts,
 			manifestDir: dirname(manifestLoad.path),
-			baseUrl,
-			slug: manifestLoad.manifest.slug,
-			version: manifestLoad.manifest.version,
 			logger,
+			upload: ({ bytes, contentType }) => publisher.uploadBlob(bytes, contentType),
 		});
 	} catch (error) {
 		if (error instanceof ArtifactUploadError) {
@@ -490,7 +520,8 @@ class CliError extends Error {
 
 /** citty arg shape for the publish command. Inferred from the schema below. */
 type PublishArgs = {
-	url: string;
+	"artifact-base-url"?: string;
+	url?: string;
 	local?: string;
 	license?: string;
 	"author-name"?: string;
@@ -501,9 +532,14 @@ type PublishArgs = {
 	manifest?: string;
 	"no-manifest"?: boolean;
 	"allow-overwrite"?: boolean;
-	"artifact-base-url"?: string;
 	json?: boolean;
 };
+
+export function removedArtifactBaseUrlError(value: string | undefined): string | null {
+	return value === undefined
+		? null
+		: "--artifact-base-url was removed. Remove the option so listing images are uploaded to the publisher PDS.";
+}
 
 /**
  * Result of resolving the manifest for `runPublish`. Surfaces both the

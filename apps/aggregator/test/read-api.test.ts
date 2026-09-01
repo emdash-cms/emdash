@@ -4,12 +4,11 @@
  * Each test seeds D1 directly with the columns the handlers read, then
  * exercises the handler via `SELF.fetch` to a `/xrpc/...` URL — same path
  * a real client would take. Asserts on the envelope shape (uri, cid, did,
- * indexedAt, mirrors, labels) and on error mappings (404 NotFound, 400
+ * indexedAt, artifactCaches, labels) and on error mappings (404 NotFound, 400
  * InvalidRequest).
  *
- * `mirrors: []` and `labels: []` are the v1 contract; Slice 2 (labels)
- * and Slice 3 (mirrors) populate them, but the contract is locked now so
- * cached clients don't see a shape change later.
+ * Cache descriptors are operational delivery metadata rather than signed
+ * release fields.
  */
 
 import { NSID } from "@emdash-cms/registry-lexicons";
@@ -103,6 +102,7 @@ interface SeedReleaseOpts {
 	tombstoned?: boolean;
 	cid?: string;
 	carBytes?: Uint8Array;
+	artifacts?: unknown;
 }
 
 async function seedRelease(opts: SeedReleaseOpts): Promise<void> {
@@ -122,7 +122,11 @@ async function seedRelease(opts: SeedReleaseOpts): Promise<void> {
 			opts.version,
 			rkey,
 			opts.versionSort ?? defaultVersionSort(opts.version),
-			JSON.stringify({ package: { url: "https://x.test/d.tgz", checksum: "bsha256-abc" } }),
+			JSON.stringify(
+				opts.artifacts ?? {
+					package: { url: "https://x.test/d.tgz", checksum: "bsha256-abc" },
+				},
+			),
 			null,
 			null,
 			JSON.stringify({ declaredAccess: {} }),
@@ -184,8 +188,8 @@ describe("getPackage", () => {
 			indexedAt: NOW.toISOString(),
 			labels: [],
 		});
-		// `mirrors` is on releaseView only — assert it's NOT on packageView.
-		expect(body).not.toHaveProperty("mirrors");
+		// Artifact cache services apply to release blobs, not package profiles.
+		expect(body).not.toHaveProperty("artifactCaches");
 		const profile = body["profile"] as Record<string, unknown>;
 		expect(profile["$type"]).toBe(NSID.packageProfile);
 		expect(profile["id"]).toBe(`at://${DID_A}/${NSID.packageProfile}/demo`);
@@ -296,6 +300,69 @@ describe("listReleases", () => {
 });
 
 describe("getLatestRelease", () => {
+	it("advertises the record-scoped Cumulus service for release blobs", async () => {
+		const cid = "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q";
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({
+			version: "1.0.0",
+			artifacts: {
+				package: {
+					blob: {
+						$type: "blob",
+						ref: { $link: cid },
+						mimeType: "application/gzip",
+						size: 6,
+					},
+					checksum: "bciqb43wwlv35mnso5lwvu5c3uxcjqwxcw4an3boxz57qe667fffdh7a",
+				},
+			},
+		});
+
+		const response = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		const body = (await response.json()) as Record<string, unknown>;
+		expect(body["artifactCaches"]).toEqual([
+			{
+				$type: "com.emdashcms.experimental.aggregator.defs#recordScopedBlobCache",
+				serviceEndpoint: "https://cdn.em-da.sh",
+			},
+		]);
+		expect(body).not.toHaveProperty("mirrors");
+	});
+
+	it("does not represent the cache descriptor as admission for a gated blob", async () => {
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({
+			version: "1.0.0",
+			artifacts: {
+				package: {
+					blob: {
+						$type: "blob",
+						ref: {
+							$link: "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q",
+						},
+						mimeType: "application/gzip",
+						size: 6,
+					},
+					requiresAuth: true,
+					checksum: "bciqb43wwlv35mnso5lwvu5c3uxcjqwxcw4an3boxz57qe667fffdh7a",
+				},
+			},
+		});
+
+		const response = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		const body = (await response.json()) as Record<string, unknown>;
+		expect(body["artifactCaches"]).toEqual([
+			{
+				$type: "com.emdashcms.experimental.aggregator.defs#recordScopedBlobCache",
+				serviceEndpoint: "https://cdn.em-da.sh",
+			},
+		]);
+	});
+
 	it("returns the release pointed to by packages.latest_version", async () => {
 		await seedPackage({ slug: "demo", latestVersion: "2.0.0" });
 		await seedRelease({ version: "1.0.0" });

@@ -54,6 +54,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 		isSaveFeedbackActive,
 		isUpdatingPublishedAt,
 		autosaveCompletionToken,
+		autosaveRejectionToken,
 	}: {
 		item?: { data?: { title?: string }; slug?: string | null };
 		onSave?: (payload: { data: Record<string, unknown> }) => void;
@@ -65,6 +66,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 		isSaveFeedbackActive?: boolean;
 		isUpdatingPublishedAt?: boolean;
 		autosaveCompletionToken?: number;
+		autosaveRejectionToken?: number;
 	}) => (
 		<div data-testid="content-editor">
 			<div data-testid="mock-title">{item?.data?.title ?? ""}</div>
@@ -73,6 +75,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 			<div data-testid="manual-save-blocked">{isSaving ? "blocked" : "ready"}</div>
 			<div data-testid="autosave-blocked">{isSaving || isAutosaving ? "blocked" : "ready"}</div>
 			<div data-testid="autosave-completion-token">{autosaveCompletionToken ?? 0}</div>
+			<div data-testid="autosave-rejection-token">{autosaveRejectionToken ?? 0}</div>
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();
@@ -1664,5 +1667,57 @@ describe("ContentEditPage – autosave cache patching", () => {
 		} finally {
 			globalThis.fetch = fetchWithMocks;
 		}
+	});
+
+	it("signals a rejected autosave to the editor", async () => {
+		mockFetch.on(
+			"PUT",
+			"/_emdash/api/content/posts/post_1?locale=en",
+			{ error: { code: "VALIDATION_ERROR", message: "title: Too big" } },
+			400,
+		);
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		await screen.getByRole("button", { name: "Trigger Draft Sync" }).click();
+
+		await waitFor(() => {
+			expect(screen.getByTestId("autosave-rejection-token").element().textContent).toBe("1");
+		});
+		expect(screen.getByTestId("autosave-completion-token").element().textContent).toBe("0");
+		expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+	});
+
+	it("does not signal a rejection for a server error", async () => {
+		mockFetch.on(
+			"PUT",
+			"/_emdash/api/content/posts/post_1?locale=en",
+			{ error: { code: "INTERNAL_ERROR", message: "boom" } },
+			500,
+		);
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		await screen.getByRole("button", { name: "Trigger Draft Sync" }).click();
+
+		await expect.element(screen.getByText("Autosave failed")).toBeInTheDocument();
+		await waitFor(() => {
+			expect(screen.getByTestId("autosave-blocked").element().textContent).toBe("ready");
+		});
+		expect(screen.getByTestId("autosave-rejection-token").element().textContent).toBe("0");
 	});
 });

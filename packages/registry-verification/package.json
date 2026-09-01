@@ -13,6 +13,10 @@
 			"types": "./dist/bundle.d.ts",
 			"default": "./dist/bundle.js"
 		},
+		"./artifact": {
+			"types": "./dist/artifact.d.ts",
+			"default": "./dist/artifact.js"
+		},
 		"./checksum": {
 			"types": "./dist/checksum.d.ts",
 			"default": "./dist/checksum.js"

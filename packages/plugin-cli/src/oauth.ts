@@ -60,17 +60,31 @@ import { DEFAULT_OAUTH_DIR } from "./config.js";
  *     yet — granting them at login means future tooling that resumes the
  *     stored session can call the aggregator without forcing a re-login.
  *     `aud=*` because the aggregator's service DID isn't pinned today.
+ *   - Blob scopes for package bundles and raster listing images.
  *
  * `transition:generic` is intentionally not included. PDSes accept granular
  * scopes at PAR even when their `scopes_supported` metadata still lists only
  * the transitional shims, so requesting only what we need keeps the consent
  * screen honest.
  */
+export const REGISTRY_BLOB_SCOPES = ["blob:application/gzip", "blob:image/*"] as const;
+const SCOPE_SEPARATOR = /\s+/;
+
 const DEFAULT_CLI_SCOPE = [
 	"atproto",
 	...RECORD_NSIDS.map((nsid) => `repo:${nsid}`),
 	...QUERY_NSIDS.map((nsid) => `rpc:${nsid}?aud=*`),
+	...REGISTRY_BLOB_SCOPES,
 ].join(" ");
+
+export function missingBlobScopes(
+	grantedScope: string,
+	required: readonly string[] = REGISTRY_BLOB_SCOPES,
+): string[] {
+	const granted = new Set(grantedScope.split(SCOPE_SEPARATOR).filter(Boolean));
+	if (granted.has("transition:generic")) return [];
+	return required.filter((scope) => !granted.has(scope));
+}
 
 /**
  * Legacy fallback scope used when the AS returns `invalid_scope` for the

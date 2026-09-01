@@ -10,8 +10,8 @@
  *      via `getLatestRelease` / `listReleases`.
  *   3. Require the aggregator's approved listing projection, then apply the
  *      independent release-age and environment policies.
- *   4. Fetch the bundle artifact, walking aggregator mirrors first and
- *      falling back to the publisher-declared URL.
+ *   4. Fetch the bundle artifact through an advertised record-scoped cache,
+ *      the publisher PDS, or the publisher-declared URL.
  *   5. Verify the artifact's multibase checksum against the signed
  *      release record's `artifacts.package.checksum`.
  *   6. Extract `manifest.json` + `backend.js` + optional `admin.js` from
@@ -42,6 +42,11 @@ import type { Did } from "@atcute/lexicons";
 import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
 import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
+import { NSID } from "@emdash-cms/registry-lexicons";
+import {
+	fetchReleaseArtifact,
+	type ReleaseArtifactReference,
+} from "@emdash-cms/registry-verification/artifact";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
@@ -55,7 +60,7 @@ import {
 } from "../../plugins/storage-indexes.js";
 import { declaredAccessToCapabilities } from "../../plugins/types.js";
 import type { DeclaredAccess } from "../../plugins/types.js";
-import { assertSafeArtifactUrl, fetchRegistryArtifactUrl } from "../../registry/artifact-fetch.js";
+import { fetchRegistryArtifactUrl } from "../../registry/artifact-fetch.js";
 import {
 	canonicalCapabilitiesForDriftCheck,
 	coerceRegistryConfig,
@@ -65,6 +70,7 @@ import {
 } from "../../registry/config.js";
 import { makeRegistryPluginId } from "../../registry/plugin-id.js";
 import type { RegistryConfigInput } from "../../registry/types.js";
+import { resolveAndValidateExternalUrlTarget } from "../../security/ssrf.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
 import type { ApiResult } from "../types.js";
@@ -243,29 +249,20 @@ const MAX_REDIRECTS = 5;
 
 /**
  * Wall-clock cap on any single artifact fetch attempt (per URL).
- * Defends against slow-loris mirrors that accept the connection but
+ * Defends against slow-loris artifact sources that accept the connection but
  * never finish sending headers or body.
  */
 const ARTIFACT_FETCH_TIMEOUT_MS = 15_000;
 
 /**
  * Total wall-clock budget for the artifact-download phase across all
- * mirrors and the declared URL. Even with the per-URL timeout, a
- * malicious mirror list could otherwise tie up the install request for
+ * advertised caches, the publisher PDS, and the declared URL. Even with the
+ * per-URL timeout, unavailable sources could otherwise tie up the install request for
  * minutes; this caps total time at a budget interactive admins can
  * tolerate. Tuned so a fast happy path takes <1s of budget per
  * attempt and a worst case still completes in under a minute.
  */
 const ARTIFACT_TOTAL_BUDGET_MS = 45_000;
-
-/**
- * Cap on the number of mirror URLs we try before falling back to the
- * publisher-declared URL. Matches the aggregator lexicon's
- * `mirrors` array length cap (16) but enforced here independently so
- * a misbehaving aggregator can't slow-loris us through hundreds of
- * URLs.
- */
-const MAX_MIRRORS = 16;
 
 /**
  * Per-request timeout applied to every aggregator XRPC call
@@ -306,149 +303,45 @@ function timedFetch(totalDeadline: number): typeof fetch {
 	};
 }
 
-/**
- * Fetch one URL with manual redirect handling so every hop is
- * URL-validated, a hard byte cap so a malicious response body cannot
- * exhaust memory before the checksum check rejects it, and a wall-clock
- * timeout that covers connect, headers, and body together. The timeout
- * is the minimum of the per-URL cap and the remaining total budget so
- * a late-arriving mirror still respects the install's global budget.
- */
-async function fetchWithLimits(initialUrl: string, totalDeadline: number): Promise<Uint8Array> {
-	const now = Date.now();
-	const remaining = Math.max(0, totalDeadline - now);
-	if (remaining === 0) {
-		throw new Error("Artifact download budget exhausted");
-	}
-	const perUrlTimeout = Math.min(ARTIFACT_FETCH_TIMEOUT_MS, remaining);
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), perUrlTimeout);
-	try {
-		let current = new URL(initialUrl);
-		let response: Response;
-		for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-			response = await fetchRegistryArtifactUrl(current.href, {
-				signal: controller.signal,
-				maxResponseBytes: MAX_ARTIFACT_BYTES,
-			});
-			if (response.status < 300 || response.status >= 400) break;
-			const location = response.headers.get("location");
-			if (!location) break;
-			if (hop === MAX_REDIRECTS) {
-				throw new Error(`Too many redirects fetching artifact (>${MAX_REDIRECTS})`);
-			}
-			current = new URL(location, current);
-		}
-		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- response is assigned in the first loop iteration
-		const finalResponse = response!;
-		if (!finalResponse.ok) {
-			throw new Error(`HTTP ${finalResponse.status}`);
-		}
-
-		// Check Content-Length up front when present. Untrusted servers can
-		// lie or omit it; the streaming cap below is the real defense.
-		const lengthHeader = finalResponse.headers.get("content-length");
-		if (lengthHeader) {
-			const declared = Number(lengthHeader);
-			if (Number.isFinite(declared) && declared > MAX_ARTIFACT_BYTES) {
-				throw new Error(
-					`Artifact too large (declared ${declared} bytes, limit ${MAX_ARTIFACT_BYTES})`,
-				);
-			}
-		}
-
-		const body = finalResponse.body;
-		if (!body) {
-			// Workers can't return a null body for a normal GET; defensive fallback.
-			const buf = new Uint8Array(await finalResponse.arrayBuffer());
-			if (buf.byteLength > MAX_ARTIFACT_BYTES) {
-				throw new Error(`Artifact too large (limit ${MAX_ARTIFACT_BYTES} bytes)`);
-			}
-			return buf;
-		}
-
-		const reader = body.getReader();
-		const chunks: Uint8Array[] = [];
-		let total = 0;
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			if (!value) continue;
-			total += value.byteLength;
-			if (total > MAX_ARTIFACT_BYTES) {
-				try {
-					await reader.cancel();
-				} catch {
-					// nothing to do
-				}
-				throw new Error(`Artifact too large (limit ${MAX_ARTIFACT_BYTES} bytes)`);
-			}
-			chunks.push(value);
-		}
-
-		const out = new Uint8Array(total);
-		let offset = 0;
-		for (const chunk of chunks) {
-			out.set(chunk, offset);
-			offset += chunk.byteLength;
-		}
-		return out;
-	} finally {
-		clearTimeout(timer);
-	}
-}
-
-/**
- * Strip query string and fragment from a URL for use in
- * client-visible error messages. Registry artifacts are often hosted
- * on storage backends that include presigned tokens in the query
- * string; surfacing the raw URL on a failed install leaks those
- * tokens into the admin's HTTP response and any log drain that
- * captures the error chain. Origin + pathname is enough to identify
- * the host and resource without exposing credentials.
- *
- * Falls back to a generic placeholder when the URL is malformed.
- */
-function redactUrlForError(raw: string): string {
-	try {
-		const u = new URL(raw);
-		return `${u.origin}${u.pathname}`;
-	} catch {
-		return "<malformed url>";
-	}
-}
-
-/** Walk artifact source URLs in priority order and return the first that fetches successfully. */
-async function fetchArtifact(mirrors: string[], declaredUrl: string): Promise<Uint8Array> {
-	// Clamp mirrors regardless of what the lexicon type says -- a buggy
-	// or malicious aggregator could return more than the spec'd limit
-	// and slow-loris each one. The declared URL is always tried last.
-	const clampedMirrors = mirrors.slice(0, MAX_MIRRORS);
-	const urls = [...clampedMirrors, declaredUrl];
-	// Client-visible errors carry redacted URLs (origin + path only).
-	// The full URL with any query-string token is logged server-side
-	// so operators can still debug delivery failures.
-	const clientErrors: string[] = [];
-
-	const totalDeadline = Date.now() + ARTIFACT_TOTAL_BUDGET_MS;
-
-	for (const url of urls) {
-		if (Date.now() >= totalDeadline) {
-			clientErrors.push("(total artifact download budget exhausted)");
-			break;
-		}
-		try {
-			return await fetchWithLimits(url, totalDeadline);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
-			console.warn(`[registry-install] Artifact fetch failed from ${url}:`, message);
-			clientErrors.push(`${redactUrlForError(url)}: ${message}`);
-		}
-	}
-
-	throw new Error(
-		`Failed to download artifact from any source. Tried:\n  ${clientErrors.join("\n  ")}`,
+async function fetchArtifact(
+	artifactCaches: readonly unknown[],
+	artifact: ReleaseArtifactReference,
+	record: {
+		did: string;
+		collection: string;
+		rkey: string;
+		cid: string;
+	},
+	auth?: unknown,
+): Promise<Uint8Array> {
+	const result = await fetchReleaseArtifact(
+		{
+			artifact,
+			record,
+			artifactCaches,
+			...(auth === undefined ? {} : { auth }),
+		},
+		{
+			fetch: async (url, init) => {
+				if (!init.signal) throw new Error("Registry artifact fetch requires an abort signal");
+				return fetchRegistryArtifactUrl(url.href, {
+					signal: init.signal,
+					maxResponseBytes: MAX_ARTIFACT_BYTES,
+				});
+			},
+			resolveHostname: async (hostname) =>
+				(await resolveAndValidateExternalUrlTarget(`https://${hostname}`)).addresses,
+			allowHttpLocalhost: import.meta.env.DEV,
+			headerTimeoutMs: ARTIFACT_FETCH_TIMEOUT_MS,
+			totalTimeoutMs: ARTIFACT_TOTAL_BUDGET_MS,
+			maxBytes: MAX_ARTIFACT_BYTES,
+			maxRedirects: MAX_REDIRECTS,
+		},
 	);
+	if (!result.success) {
+		throw new Error(`Artifact retrieval failed (${result.error.code}): ${result.error.message}`);
+	}
+	return result.value.bytes;
 }
 
 /**
@@ -837,25 +730,33 @@ export async function handleRegistryInstall(
 
 		// Step 4: fetch the artifact bytes.
 		// `releaseView.release` is lexicon-validated by DiscoveryClient (or
-		// `null`); a missing url/checksum (incl. the `null` case) fails closed
-		// below. Mirrors come from the envelope (aggregator operational data,
-		// not part of the signed record).
+		// `null`); a missing source/checksum (including the `null` case) fails
+		// closed below. Cache descriptors are unsigned aggregator operational data.
 		const release = releaseView.release;
-		const declaredUrl = release?.artifacts?.package?.url;
-		const declaredChecksum = release?.artifacts?.package?.checksum;
+		const packageArtifact = release?.artifacts?.package;
+		const declaredChecksum = packageArtifact?.checksum;
 
-		if (!declaredUrl || !declaredChecksum) {
+		if (!packageArtifact || !declaredChecksum) {
 			return {
 				success: false,
 				error: {
 					code: "INVALID_RELEASE",
-					message: "Release record is missing artifact url or checksum",
+					message: "Release record is missing its package artifact or checksum",
 				},
 			};
 		}
 
-		const mirrors = releaseView.mirrors ?? [];
-		const artifactBytes = await fetchArtifact(mirrors, declaredUrl);
+		const artifactBytes = await fetchArtifact(
+			releaseView.artifactCaches ?? [],
+			packageArtifact,
+			{
+				did: publisherDid,
+				collection: NSID.packageRelease,
+				rkey: `${slug}:${version}`,
+				cid: releaseView.cid,
+			},
+			release.auth,
+		);
 
 		// Step 5: verify the bytes against the signed record's checksum.
 		const checksumOk = await verifyChecksum(artifactBytes, declaredChecksum);
@@ -1410,28 +1311,29 @@ export async function handleRegistryUpdate(
 			if (envError) return { success: false, error: envError };
 		}
 
-		const declaredUrl = signedRelease.artifacts?.package?.url;
-		const declaredChecksum = signedRelease.artifacts?.package?.checksum;
-		if (!declaredUrl || !declaredChecksum) {
+		const packageArtifact = signedRelease.artifacts?.package;
+		const declaredChecksum = packageArtifact?.checksum;
+		if (!packageArtifact || !declaredChecksum) {
 			return {
 				success: false,
 				error: {
 					code: "INVALID_RELEASE",
-					message: "Release record is missing artifact url or checksum",
+					message: "Release record is missing its package artifact or checksum",
 				},
 			};
 		}
 
-		// SSRF check on declared URL + each mirror.
-		await assertSafeArtifactUrl(declaredUrl);
-		const rawMirrors = releaseView.mirrors ?? [];
-		const mirrors = rawMirrors.slice(0, MAX_MIRRORS);
-		for (const mirror of mirrors) {
-			await assertSafeArtifactUrl(mirror);
-		}
-
-		// `fetchArtifact` derives its own per-call deadline internally.
-		const artifactBytes = await fetchArtifact(mirrors, declaredUrl);
+		const artifactBytes = await fetchArtifact(
+			releaseView.artifactCaches ?? [],
+			packageArtifact,
+			{
+				did: publisherDid,
+				collection: NSID.packageRelease,
+				rkey: `${slug}:${newVersion}`,
+				cid: releaseView.cid,
+			},
+			signedRelease.auth,
+		);
 		if (!(await verifyChecksum(artifactBytes, declaredChecksum))) {
 			return {
 				success: false,

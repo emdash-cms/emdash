@@ -12,7 +12,8 @@ import {
 	PackageReleaseExtension,
 } from "@emdash-cms/registry-lexicons";
 
-import { compareDigestBytes, decodeMultihash } from "./checksum.js";
+import { unsupportedAuthDetails, UNSUPPORTED_AUTH_MESSAGE } from "./auth.js";
+import { compareDigestBytes, decodeMultihash, multihashFromBlobCid } from "./checksum.js";
 import type { VerificationErrorCode } from "./errors.js";
 import { GitHubProvenanceVerifier } from "./provenance.js";
 import type { ProvenanceVerifier, VerifiedProvenance } from "./provenance.js";
@@ -52,6 +53,11 @@ export type ProvenanceStatus =
 	| "verified"
 	| "failed";
 
+export interface RecordVerificationDetails {
+	hint?: string;
+	hintUrl?: string;
+}
+
 export interface RecordVerificationReason {
 	code: RecordVerificationCode;
 	message: string;
@@ -83,6 +89,7 @@ export type RecordVerificationReport =
 			code: VerificationErrorCode;
 			reasons: RecordVerificationReason[];
 			provenance: { status: ProvenanceStatus };
+			details?: RecordVerificationDetails;
 	  };
 
 const DEFAULT_POLICY: NormalizedReleasePolicy = {
@@ -162,6 +169,14 @@ export async function verifyPackageReleaseRecords(
 			"RELEASE_RKEY_MISMATCH",
 			"The release record key does not match package and version.",
 		);
+	}
+	const artifactFailure = validateArtifacts(release);
+	if (artifactFailure) {
+		return failed(artifactFailure.code, artifactFailure.message);
+	}
+	const authFailure = unsupportedAuth(release);
+	if (authFailure) {
+		return failed(authFailure.code, authFailure.message, "not-checked", authFailure.details);
 	}
 
 	if (release.extensions === undefined) {
@@ -302,6 +317,7 @@ function failed(
 	code: VerificationErrorCode,
 	message: string,
 	provenance: ProvenanceStatus = "not-checked",
+	details?: RecordVerificationDetails,
 ): RecordVerificationReport {
 	return {
 		success: false,
@@ -309,6 +325,70 @@ function failed(
 		code,
 		reasons: [{ code, message }],
 		provenance: { status: provenance },
+		...(details === undefined ? {} : { details }),
+	};
+}
+
+function validateArtifacts(
+	release: PackageRelease.Main,
+): { code: VerificationErrorCode; message: string } | null {
+	const artifacts: unknown[] = [
+		release.artifacts.package,
+		release.artifacts.icon,
+		release.artifacts.banner,
+		...(release.artifacts.screenshots ?? []),
+	];
+	for (const value of artifacts) {
+		if (value === undefined) continue;
+		if (!isRecord(value)) {
+			return { code: "RELEASE_LEXICON_INVALID", message: "A release artifact is malformed." };
+		}
+		const hasUrl = typeof value.url === "string" && value.url.length > 0;
+		const blob = value.blob;
+		const hasBlob = isRecord(blob);
+		if (!hasUrl && !hasBlob) {
+			return {
+				code: "RELEASE_ARTIFACT_SOURCE_MISSING",
+				message: "Every release artifact must provide a blob or URL.",
+			};
+		}
+		if (hasBlob) {
+			const ref = blob.ref;
+			const cid = isRecord(ref) ? ref.$link : undefined;
+			if (typeof cid !== "string") {
+				return { code: "BLOB_REF_INVALID", message: "The blob reference CID is malformed." };
+			}
+			const expected = multihashFromBlobCid(cid);
+			if (!expected.success) return expected.error;
+			if (value.checksum !== expected.value) {
+				return {
+					code: "CHECKSUM_MISMATCH",
+					message: "The artifact checksum does not match its blob reference CID.",
+				};
+			}
+		}
+	}
+	return null;
+}
+
+function unsupportedAuth(release: PackageRelease.Main): {
+	code: "AUTH_METHOD_UNSUPPORTED";
+	message: string;
+	details?: RecordVerificationDetails;
+} | null {
+	const gated = [
+		release.artifacts.package,
+		release.artifacts.icon,
+		release.artifacts.banner,
+		...(release.artifacts.screenshots ?? []),
+	].some((artifact) => artifact?.requiresAuth === true);
+	if (release.auth === undefined && !gated) return null;
+
+	const details = unsupportedAuthDetails(release.auth);
+	return {
+		code: "AUTH_METHOD_UNSUPPORTED",
+		message: UNSUPPORTED_AUTH_MESSAGE,
+		...(details === undefined ? {} : { details }),
 	};
 }
 

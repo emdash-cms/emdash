@@ -5,6 +5,7 @@ const DIGITS = /^\d+$/;
 const IPV4_LITERAL = /^\d{1,3}(?:\.\d{1,3}){3}$/;
 const IPV4_PART = /^\d{1,3}$/;
 const IPV6_PART = /^[0-9a-f]{1,4}$/i;
+const TRAILING_DOT = /\.+$/;
 
 export const DEFAULT_FETCH_LIMITS = {
 	headerTimeoutMs: 10_000,
@@ -24,6 +25,7 @@ export type HostnameResolver = (hostname: string) => Promise<readonly string[]>;
 export interface FetchVerifiedResourceOptions {
 	fetch: FetchImplementation;
 	resolveHostname: HostnameResolver;
+	allowHttpLocalhost?: boolean;
 	headerTimeoutMs?: number;
 	totalTimeoutMs?: number;
 	maxBytes?: number;
@@ -51,7 +53,7 @@ export async function fetchVerifiedResource(
 		return verificationError("INVALID_URL", "Fetch limits must be positive integers.");
 
 	const startedAt = Date.now();
-	let currentUrl = parseAndValidateUrl(value);
+	let currentUrl = parseAndValidateUrl(value, undefined, options.allowHttpLocalhost === true);
 	if (!currentUrl.success) return currentUrl;
 
 	for (let redirects = 0; ; redirects += 1) {
@@ -61,7 +63,9 @@ export async function fetchVerifiedResource(
 				"RESOURCE_TIMEOUT",
 				"The resource fetch exceeded its total timeout.",
 			);
-		const host = await validateHost(currentUrl.value, options.resolveHostname, remaining);
+		const host = isAllowedLoopback(currentUrl.value, options.allowHttpLocalhost === true)
+			? ({ success: true, value: true } as const)
+			: await validateHost(currentUrl.value, options.resolveHostname, remaining);
 		if (!host.success) return host;
 
 		const remainingAfterResolution = limits.totalTimeoutMs - (Date.now() - startedAt);
@@ -91,7 +95,11 @@ export async function fetchVerifiedResource(
 					"The redirect response has no location header.",
 				);
 			}
-			currentUrl = parseAndValidateUrl(location, currentUrl.value);
+			currentUrl = parseAndValidateUrl(
+				location,
+				currentUrl.value,
+				options.allowHttpLocalhost === true,
+			);
 			if (!currentUrl.success) return currentUrl;
 			continue;
 		}
@@ -129,23 +137,46 @@ export async function fetchVerifiedResource(
 	}
 }
 
-function parseAndValidateUrl(value: string | URL, base?: URL): VerificationResult<URL> {
+function parseAndValidateUrl(
+	value: string | URL,
+	base?: URL,
+	allowHttpLocalhost = false,
+): VerificationResult<URL> {
 	let url: URL;
 	try {
 		url = new URL(value, base);
 	} catch {
 		return verificationError("INVALID_URL", "The resource URL is invalid.");
 	}
-	if (url.protocol !== "https:" || url.username !== "" || url.password !== "") {
+	if (
+		(url.protocol !== "https:" && !isAllowedLoopback(url, allowHttpLocalhost)) ||
+		url.username !== "" ||
+		url.password !== ""
+	) {
 		return verificationError(
 			"INVALID_URL",
 			"Resource URLs must use HTTPS and cannot include credentials.",
 		);
 	}
-	if (isIpLiteral(url.hostname) || isLocalHostname(url.hostname)) {
+	if (
+		!isAllowedLoopback(url, allowHttpLocalhost) &&
+		(isIpLiteral(url.hostname) || isLocalHostname(url.hostname))
+	) {
 		return verificationError("HOST_REJECTED", "The resource host is not permitted.");
 	}
 	return { success: true, value: url };
+}
+
+function isAllowedLoopback(url: URL, enabled: boolean): boolean {
+	if (!enabled || (url.protocol !== "http:" && url.protocol !== "https:")) return false;
+	const hostname = url.hostname.toLowerCase().replace(TRAILING_DOT, "");
+	return (
+		hostname === "localhost" ||
+		hostname.endsWith(".localhost") ||
+		hostname === "127.0.0.1" ||
+		hostname === "[::1]" ||
+		hostname === "::1"
+	);
 }
 
 async function validateHost(

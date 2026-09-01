@@ -163,7 +163,7 @@ export function parseDurationSeconds(duration: string | number): number {
  * required in production; `http://localhost` allowed only in dev.
  *
  * The aggregator's responses are the trust source for release records,
- * checksums, labels, mirrors, and `indexedAt` (until full MST
+ * checksums, labels, artifact cache descriptors, and `indexedAt` (until full MST
  * verification lands). Allowing plain HTTP here would let a network
  * attacker swap a release record and point the artifact URL at their
  * own HTTPS bundle, defeating the checksum trust chain because the

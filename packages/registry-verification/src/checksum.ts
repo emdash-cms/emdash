@@ -12,6 +12,28 @@ export interface DecodedMultihash {
 	digest: Uint8Array;
 }
 
+/** Derive the required artifact checksum from a raw sha2-256 blob CID. */
+export function multihashFromBlobCid(value: string): VerificationResult<string> {
+	if (!value.startsWith("b")) {
+		return verificationError("BLOB_REF_INVALID", "The blob reference CID is malformed.");
+	}
+	const bytes = decodeBase32(value.slice(1));
+	if (bytes === null || bytes.length !== 36 || bytes[0] !== 1 || bytes[1] !== 0x55) {
+		return verificationError(
+			"BLOB_REF_INVALID",
+			"Blob references must use a CIDv1 raw sha2-256 CID.",
+		);
+	}
+	const checksum = `b${encodeBase32(bytes.slice(2))}`;
+	if (!decodeMultihash(checksum).success) {
+		return verificationError(
+			"BLOB_REF_INVALID",
+			"Blob references must use a CIDv1 raw sha2-256 CID.",
+		);
+	}
+	return { success: true, value: checksum };
+}
+
 /** Decodes a lowercase base32 multibase-encoded multihash. */
 export function decodeMultihash(value: string): VerificationResult<DecodedMultihash> {
 	if (!value.startsWith("b")) {

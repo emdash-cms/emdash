@@ -89,6 +89,11 @@ export {
 } from "./media-usage.js";
 
 export {
+	handleMediaUsageActivationAdvance,
+	handleMediaUsageActivationStatus,
+} from "./media-usage-activation.js";
+
+export {
 	handleMediaUsageWorkList,
 	handleMediaUsageWorkRetry,
 	type MediaUsageWorkItem,
