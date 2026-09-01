@@ -35,7 +35,7 @@ const BLOCKED_PREFIXES = [
 	// Plugin installation (security boundary)
 	"/_emdash/api/plugins/install",
 	"/_emdash/api/plugins/marketplace",
-	// Media uploads (abuse vector -- no storage in playground)
+	// Media uploads (abuse vector -- writes are blocked in playground)
 	"/_emdash/api/import/wordpress/media",
 	"/_emdash/api/media/upload",
 	// Snapshot export (no point exporting a playground)
