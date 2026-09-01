@@ -9,7 +9,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createDelegatedReleaseConformanceFixture } from "../../../packages/registry-verification/fixtures/conformance/delegated-release.js";
 import { resolvePublicHostname } from "../src/dns.js";
-import { verifyArtifact, verifyRelease } from "../src/verify.js";
+import {
+	verifyArtifact,
+	verifyRelease,
+	verifyReleaseBytes,
+	type VerifyReleaseInput,
+} from "../src/verify.js";
 
 const encoder = new TextEncoder();
 const ARTIFACT_URL = "https://artifact.example.test/plugin.tgz";
@@ -214,6 +219,52 @@ describe("isolated release verifier", () => {
 			expect(result.value.provenance.artifactDigest).toEqual(received?.artifactDigests?.[1]);
 		}
 		expect(JSON.stringify(result)).not.toContain("export default");
+	});
+
+	it("verifies private staged bytes without network egress", async () => {
+		const artifactBytes = await validBundle();
+		const provenanceBytes = encoder.encode('{"sigstore":"private-stage"}');
+		const input: VerifyReleaseInput = {
+			artifact: {
+				url: `https://release.example.com/v1/staged-artifacts/package/${await checksum(artifactBytes)}`,
+				checksum: await checksum(artifactBytes),
+				packageSlug: "gallery",
+				version: "1.2.3",
+			},
+			provenance: {
+				url: `https://release.example.com/v1/provenance/${await checksum(provenanceBytes)}`,
+				checksum: await checksum(provenanceBytes),
+				predicateType: "https://slsa.dev/provenance/v1",
+				sourceRepository: "https://github.com/emdash-cms/gallery",
+				builderId:
+					"https://github.com/emdash-cms/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
+			},
+			profileRepository: "https://github.com/emdash-cms/gallery",
+		};
+		const result = await verifyReleaseBytes(input, artifactBytes, provenanceBytes, {
+			async verify(candidate) {
+				return {
+					success: true,
+					value: {
+						predicateType: "https://slsa.dev/provenance/v1",
+						artifactDigest: candidate.artifactDigest,
+						sourceRepository: candidate.profileRepository,
+						builderId: candidate.reference.builderId,
+					},
+				};
+			},
+		});
+
+		expect(result).toMatchObject({
+			success: true,
+			value: {
+				artifact: { requestedUrl: input.artifact.url, resolvedUrl: input.artifact.url },
+				provenance: {
+					requestedUrl: input.provenance.url,
+					resolvedUrl: input.provenance.url,
+				},
+			},
+		});
 	});
 
 	it("uses a release-specific message for unexpected provenance failures", async () => {

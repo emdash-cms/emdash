@@ -55,6 +55,11 @@ export type ArtifactBlobUploader = (bytes: Uint8Array, mimeType: string) => Prom
 export interface StageReleaseArtifactsOptions {
 	fetch: FetchImplementation;
 	resolveHostname: HostnameResolver;
+	loadSource?: (input: {
+		path: ArtifactMaterializationPath;
+		url: string;
+		checksum: string;
+	}) => Promise<{ bytes: Uint8Array; contentType: string } | null>;
 	allowHttpLocalhost?: boolean;
 	headerTimeoutMs?: number;
 	totalTimeoutMs?: number;
@@ -203,21 +208,39 @@ async function stageArtifact<T extends ArtifactDescriptor>(
 	const remaining = deadline - Date.now();
 	if (remaining <= 0) throw new ArtifactMaterializationError("RESOURCE_TIMEOUT", path);
 	const maxBytes = maxBytesForPath(path);
-	const fetched = await fetchVerifiedResource(descriptor.url, {
-		fetch: fetchImplementation(descriptor, options),
-		resolveHostname: options.resolveHostname,
-		...(options.allowHttpLocalhost === undefined
-			? {}
-			: { allowHttpLocalhost: options.allowHttpLocalhost }),
-		...(options.headerTimeoutMs === undefined ? {} : { headerTimeoutMs: options.headerTimeoutMs }),
-		totalTimeoutMs: remaining,
-		maxBytes,
-		...(options.maxRedirects === undefined ? {} : { maxRedirects: options.maxRedirects }),
+	const loadedSource = await options.loadSource?.({
+		path,
+		url: descriptor.url,
+		checksum: descriptor.checksum,
 	});
-	if (!fetched.success) {
-		throw new ArtifactMaterializationError(fetched.error.code, path);
+	let bytes: Uint8Array;
+	let responseMime: string | null;
+	if (loadedSource) {
+		bytes = new Uint8Array(loadedSource.bytes);
+		if (bytes.byteLength < 1 || bytes.byteLength > maxBytes) {
+			throw new ArtifactMaterializationError("RESOURCE_SIZE_EXCEEDED", path);
+		}
+		responseMime = loadedSource.contentType;
+	} else {
+		const fetched = await fetchVerifiedResource(descriptor.url, {
+			fetch: fetchImplementation(descriptor, options),
+			resolveHostname: options.resolveHostname,
+			...(options.allowHttpLocalhost === undefined
+				? {}
+				: { allowHttpLocalhost: options.allowHttpLocalhost }),
+			...(options.headerTimeoutMs === undefined
+				? {}
+				: { headerTimeoutMs: options.headerTimeoutMs }),
+			totalTimeoutMs: remaining,
+			maxBytes,
+			...(options.maxRedirects === undefined ? {} : { maxRedirects: options.maxRedirects }),
+		});
+		if (!fetched.success) {
+			throw new ArtifactMaterializationError(fetched.error.code, path);
+		}
+		bytes = new Uint8Array(fetched.value.bytes);
+		responseMime = responseMimeType(fetched.value.headers);
 	}
-	const bytes = new Uint8Array(fetched.value.bytes);
 	const verified = await verifyMultihash(bytes, descriptor.checksum);
 	if (!verified.success) {
 		throw new ArtifactMaterializationError(verified.error.code, path);
@@ -227,7 +250,6 @@ async function stageArtifact<T extends ArtifactDescriptor>(
 	if (descriptor.contentType && descriptor.contentType.trim().toLowerCase() !== mimeType) {
 		throw new ArtifactMaterializationError("ARTIFACT_MIME_INVALID", path);
 	}
-	const responseMime = responseMimeType(fetched.value.headers);
 	if (responseMime && responseMime !== GENERIC_BINARY_MIME && responseMime !== mimeType) {
 		throw new ArtifactMaterializationError("ARTIFACT_MIME_INVALID", path);
 	}

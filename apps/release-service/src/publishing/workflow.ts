@@ -3,7 +3,7 @@ import {
 	parseDelegatedReleaseSourceRecord,
 	type DelegatedReleaseSourceRecord,
 } from "@emdash-cms/registry-client/release-service";
-import type { PackageRelease } from "@emdash-cms/registry-lexicons";
+import { NSID, type PackageRelease } from "@emdash-cms/registry-lexicons";
 import type { WorkflowStep } from "cloudflare:workers";
 import { NonRetryableError } from "cloudflare:workflows";
 import { base64url } from "jose";
@@ -36,6 +36,7 @@ import {
 	readPublisherVerificationSnapshot,
 	resolvePublicHostname,
 } from "../verification/pds.js";
+import { verifyReleaseEvidence } from "../verification/staged-input.js";
 import { createReleaseRecord, uploadReleaseBlob } from "./create-only.js";
 import {
 	buildMaterializedRelease,
@@ -51,6 +52,13 @@ import {
 	reconcileReleaseRecord,
 } from "./reconcile.js";
 import { deleteStagedArtifacts, loadStagedArtifact, persistStagedArtifact } from "./staging.js";
+import {
+	deleteWorkloadStagedArtifacts,
+	loadWorkloadStagedArtifact,
+	promoteWorkloadProvenance,
+	workloadArtifactSourceUrl,
+	type WorkloadArtifactIdentity,
+} from "./workload-staging.js";
 
 const PUBLICATION_PERMIT_TTL_MS = 30_000;
 const PUBLICATION_OPERATION_LEASE_MS = 5 * 60_000;
@@ -231,6 +239,59 @@ function sourceDescriptor(
 	return release.artifacts.screenshots?.[Number(match[1])] ?? null;
 }
 
+function releaseArtifactPaths(
+	release: DelegatedReleaseSourceRecord,
+): ArtifactMaterializationPath[] {
+	const paths: ArtifactMaterializationPath[] = ["package"];
+	if (release.artifacts.icon) paths.push("icon");
+	if (release.artifacts.banner) paths.push("banner");
+	for (const [index] of (release.artifacts.screenshots ?? []).entries()) {
+		paths.push(`screenshots[${index}]`);
+	}
+	return paths;
+}
+
+function workloadStagedSources(
+	publicOrigin: string,
+	publisherDid: string,
+	intent: StoredIntent,
+	release: DelegatedReleaseSourceRecord,
+): WorkloadArtifactIdentity[] {
+	const sources: WorkloadArtifactIdentity[] = releaseArtifactPaths(release).flatMap((slot) => {
+		const descriptor = sourceDescriptor(release, slot);
+		if (
+			!descriptor ||
+			descriptor.url !== workloadArtifactSourceUrl(publicOrigin, slot, descriptor.checksum)
+		) {
+			return [];
+		}
+		return [
+			{
+				publisherDid,
+				workloadDigest: intent.workloadIdempotencyDigest,
+				packageSlug: intent.packageSlug,
+				version: intent.version,
+				slot,
+				checksum: descriptor.checksum,
+			},
+		];
+	});
+	const provenance = release.extensions[NSID.packageReleaseExtension].provenance;
+	if (
+		provenance.url === workloadArtifactSourceUrl(publicOrigin, "provenance", provenance.checksum)
+	) {
+		sources.push({
+			publisherDid,
+			workloadDigest: intent.workloadIdempotencyDigest,
+			packageSlug: intent.packageSlug,
+			version: intent.version,
+			slot: "provenance",
+			checksum: provenance.checksum,
+		});
+	}
+	return sources;
+}
+
 function isPublicationSlot(path: string): path is PublicationArtifactSlot {
 	return (
 		path === "package" ||
@@ -350,6 +411,18 @@ async function stageSourceArtifacts(
 	const staged = await stageReleaseArtifacts(release, {
 		fetch: globalThis.fetch,
 		resolveHostname: (hostname) => resolvePublicHostname(hostname, globalThis.fetch),
+		loadSource: async ({ path, url, checksum }) => {
+			if (url !== workloadArtifactSourceUrl(env.PUBLIC_ORIGIN, path, checksum)) return null;
+			const loaded = await loadWorkloadStagedArtifact(env.PUBLICATION_STAGING, {
+				publisherDid,
+				workloadDigest: intent.workloadIdempotencyDigest,
+				packageSlug: intent.packageSlug,
+				version: intent.version,
+				slot: path,
+				checksum,
+			});
+			return { bytes: loaded.bytes, contentType: loaded.contentType };
+		},
 	});
 	for (const artifact of staged.artifacts) {
 		const descriptor = sourceDescriptor(release, artifact.metadata.path);
@@ -568,7 +641,11 @@ export async function publishVerifiedIntent(
 						return { ok: false, reasonCode: "FINAL_INPUT_INVALID", terminalState: "invalid" };
 					}
 					const verifier = normalizeVerifierReport(
-						await env.RELEASE_VERIFIER.verifyRelease(verifierInput),
+						await verifyReleaseEvidence({ ...originalIntent, publisherDid }, verifierInput, {
+							bucket: env.PUBLICATION_STAGING,
+							publicOrigin: env.PUBLIC_ORIGIN,
+							verifier: env.RELEASE_VERIFIER,
+						}),
 					);
 					const evaluation = await evaluateVerifiedRelease(
 						publisherDid,
@@ -782,6 +859,23 @@ export async function publishVerifiedIntent(
 			let materializedDigest: string | null = null;
 			try {
 				await uploadMaterializedArtifacts(env, step, publisher, publisherDid, originalIntent);
+				await step.do("publication-provenance-promote", async () => {
+					const provenance = release.extensions[NSID.packageReleaseExtension].provenance;
+					if (
+						provenance.url !==
+						workloadArtifactSourceUrl(env.PUBLIC_ORIGIN, "provenance", provenance.checksum)
+					) {
+						return false;
+					}
+					await promoteWorkloadProvenance(env.PUBLICATION_STAGING, env.PROVENANCE_STORE, {
+						publisherDid,
+						workloadDigest: originalIntent.workloadIdempotencyDigest,
+						packageSlug: originalIntent.packageSlug,
+						version: originalIntent.version,
+						checksum: provenance.checksum,
+					});
+					return true;
+				});
 				const materialized = await step.do<MaterializedSummary>(
 					"publication-complete-materialization",
 					async () => {
@@ -822,14 +916,20 @@ export async function publishVerifiedIntent(
 					);
 					if (stored?.status !== "complete") return false;
 					try {
-						await deleteStagedArtifacts(
-							env.PUBLICATION_STAGING,
-							stored.slots.map((artifact) => ({
-								key: artifact.stagingKey,
-								metadata: stagedMetadata(artifact),
-								sourceUrlDigest: artifact.sourceUrlDigest,
-							})),
-						);
+						await Promise.all([
+							deleteStagedArtifacts(
+								env.PUBLICATION_STAGING,
+								stored.slots.map((artifact) => ({
+									key: artifact.stagingKey,
+									metadata: stagedMetadata(artifact),
+									sourceUrlDigest: artifact.sourceUrlDigest,
+								})),
+							),
+							deleteWorkloadStagedArtifacts(
+								env.PUBLICATION_STAGING,
+								workloadStagedSources(env.PUBLIC_ORIGIN, publisherDid, originalIntent, release),
+							),
+						]);
 						return true;
 					} catch (error) {
 						console.error(

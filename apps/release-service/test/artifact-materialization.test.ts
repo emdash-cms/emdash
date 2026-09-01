@@ -201,6 +201,35 @@ function persisted<T>(value: T): T {
 }
 
 describe("release artifact materialization", () => {
+	it("materializes a private staged source without network fetch", async () => {
+		const release = structuredClone(releaseFixture) as PackageRelease.Main;
+		release.artifacts.package.url =
+			"https://release.example.com/v1/staged-artifacts/package/checksum";
+		release.artifacts.package.checksum = await checksum(PACKAGE_BYTES);
+		const fetch = vi.fn();
+		const loadSource = vi.fn(async () => ({
+			bytes: PACKAGE_BYTES,
+			contentType: "application/gzip",
+		}));
+
+		const staged = await stageReleaseArtifacts(release, {
+			fetch,
+			resolveHostname,
+			loadSource,
+		});
+
+		expect(fetch).not.toHaveBeenCalled();
+		expect(loadSource).toHaveBeenCalledWith({
+			path: "package",
+			url: release.artifacts.package.url,
+			checksum: release.artifacts.package.checksum,
+		});
+		expect(staged.artifacts[0]).toMatchObject({
+			metadata: { path: "package", mimeType: "application/gzip", size: PACKAGE_BYTES.byteLength },
+			bytes: PACKAGE_BYTES,
+		});
+	});
+
 	it("materializes package, icon, banner, and ordered screenshots into strict blobs", async () => {
 		const release = await completeRelease();
 		const original = structuredClone(release);

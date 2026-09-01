@@ -24,6 +24,7 @@ import {
 	findProofVerifiedRelease,
 	readPublisherVerificationSnapshot,
 } from "../verification/pds.js";
+import { verifyReleaseEvidence } from "../verification/staged-input.js";
 
 const DID_PATTERN = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const ULID_PATTERN = /^[0-9A-HJKMNP-TV-Z]{26}$/;
@@ -459,7 +460,13 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 			if (!input) {
 				return await failVerifyingIntent(publisher, params, intent, "VERIFIER_INPUT_INVALID");
 			}
-			const report = normalizeVerifierReport(await this.env.RELEASE_VERIFIER.verifyRelease(input));
+			const report = normalizeVerifierReport(
+				await verifyReleaseEvidence({ ...intent, publisherDid: params.publisherDid }, input, {
+					bucket: this.env.PUBLICATION_STAGING,
+					publicOrigin: this.env.PUBLIC_ORIGIN,
+					verifier: this.env.RELEASE_VERIFIER,
+				}),
+			);
 			if (!report.success) {
 				writeOperationsMetric(
 					{

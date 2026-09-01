@@ -3,6 +3,7 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 import {
 	verifyArtifact,
 	verifyRelease,
+	verifyReleaseBytes,
 	type ArtifactVerificationReport,
 	type ReleaseVerificationReport,
 	type VerifyArtifactInput,
@@ -20,5 +21,13 @@ export default class ReleaseVerifier extends WorkerEntrypoint<Env> {
 
 	async verifyRelease(input: VerifyReleaseInput): Promise<ReleaseVerificationReport> {
 		return verifyRelease(input);
+	}
+
+	async verifyReleaseBytes(
+		input: VerifyReleaseInput,
+		artifactBytes: Uint8Array,
+		provenanceBytes: Uint8Array,
+	): Promise<ReleaseVerificationReport> {
+		return verifyReleaseBytes(input, artifactBytes, provenanceBytes);
 	}
 }

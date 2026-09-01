@@ -155,9 +155,22 @@ async function loadArtifact(
 		maxBytes: MAX_BUNDLE_COMPRESSED_BYTES,
 	});
 	if (!resource.success) return resource;
-	const checksum = await verifyMultihash(resource.value.bytes, input.checksum);
+	return await verifyArtifactBytes(input, resource.value.bytes, resource.value.url.toString());
+}
+
+async function verifyArtifactBytes(
+	input: VerifyArtifactInput,
+	bytes: Uint8Array,
+	resolvedUrl: string,
+): Promise<
+	{ success: true; value: { bytes: Uint8Array; report: VerifiedArtifactReport } } | VerifierError
+> {
+	if (bytes.byteLength < 1 || bytes.byteLength > MAX_BUNDLE_COMPRESSED_BYTES) {
+		return invalidInput("Artifact bytes are invalid");
+	}
+	const checksum = await verifyMultihash(bytes, input.checksum);
 	if (!checksum.success) return checksum;
-	const bundle = await validatePluginBundle(resource.value.bytes, {
+	const bundle = await validatePluginBundle(bytes, {
 		expectedSlug: input.packageSlug,
 		expectedVersion: input.version,
 	});
@@ -165,12 +178,12 @@ async function loadArtifact(
 	return {
 		success: true,
 		value: {
-			bytes: resource.value.bytes,
+			bytes,
 			report: {
 				requestedUrl: input.url,
-				resolvedUrl: resource.value.url.toString(),
+				resolvedUrl,
 				checksum: input.checksum,
-				compressedBytes: resource.value.bytes.byteLength,
+				compressedBytes: bytes.byteLength,
 				manifest: {
 					id: bundle.value.manifest.id,
 					version: bundle.value.manifest.version,
@@ -180,6 +193,47 @@ async function loadArtifact(
 					backendBytes: bundle.value.backend.byteLength,
 					adminBytes: bundle.value.admin?.byteLength ?? null,
 				},
+			},
+		},
+	};
+}
+
+async function verifyLoadedRelease(
+	input: VerifyReleaseInput,
+	artifact: { bytes: Uint8Array; report: VerifiedArtifactReport },
+	provenanceBytes: Uint8Array,
+	provenanceResolvedUrl: string,
+	provenanceVerifier: ProvenanceVerifier,
+): Promise<ReleaseVerificationReport> {
+	if (provenanceBytes.byteLength < 1 || provenanceBytes.byteLength > MAX_PROVENANCE_BYTES) {
+		return invalidInput("Provenance bytes are invalid");
+	}
+	const provenanceChecksum = await verifyMultihash(provenanceBytes, input.provenance.checksum);
+	if (!provenanceChecksum.success) return provenanceChecksum;
+	const artifactDigests = await computeArtifactDigestCandidates(artifact.bytes);
+	const [artifactDigest, ...additionalDigests] = artifactDigests;
+	if (!artifactDigest) return internalError("Release verification failed");
+	const provenance = await provenanceVerifier.verify({
+		document: provenanceBytes,
+		reference: input.provenance,
+		artifactDigest,
+		artifactDigests: additionalDigests,
+		profileRepository: input.profileRepository,
+	});
+	if (!provenance.success) return provenance;
+	return {
+		success: true,
+		value: {
+			artifact: artifact.report,
+			provenance: {
+				requestedUrl: input.provenance.url,
+				resolvedUrl: provenanceResolvedUrl,
+				checksum: input.provenance.checksum,
+				documentBytes: provenanceBytes.byteLength,
+				predicateType: provenance.value.predicateType,
+				sourceRepository: provenance.value.sourceRepository,
+				builderId: provenance.value.builderId,
+				artifactDigest: provenance.value.artifactDigest.slice(),
 			},
 		},
 	};
@@ -219,40 +273,41 @@ export async function verifyRelease(
 			maxBytes: MAX_PROVENANCE_BYTES,
 		});
 		if (!provenanceResource.success) return provenanceResource;
-		const provenanceChecksum = await verifyMultihash(
+		return await verifyLoadedRelease(
+			input,
+			artifact.value,
 			provenanceResource.value.bytes,
-			input.provenance.checksum,
+			provenanceResource.value.url.toString(),
+			dependencies.provenanceVerifier ?? new GitHubProvenanceVerifier(),
 		);
-		if (!provenanceChecksum.success) return provenanceChecksum;
-		const artifactDigests = await computeArtifactDigestCandidates(artifact.value.bytes);
-		const [artifactDigest, ...additionalDigests] = artifactDigests;
-		if (!artifactDigest) return internalError("Release verification failed");
-		const provenance = await (
-			dependencies.provenanceVerifier ?? new GitHubProvenanceVerifier()
-		).verify({
-			document: provenanceResource.value.bytes,
-			reference: input.provenance,
-			artifactDigest,
-			artifactDigests: additionalDigests,
-			profileRepository: input.profileRepository,
-		});
-		if (!provenance.success) return provenance;
-		return {
-			success: true,
-			value: {
-				artifact: artifact.value.report,
-				provenance: {
-					requestedUrl: input.provenance.url,
-					resolvedUrl: provenanceResource.value.url.toString(),
-					checksum: input.provenance.checksum,
-					documentBytes: provenanceResource.value.bytes.byteLength,
-					predicateType: provenance.value.predicateType,
-					sourceRepository: provenance.value.sourceRepository,
-					builderId: provenance.value.builderId,
-					artifactDigest: provenance.value.artifactDigest.slice(),
-				},
-			},
-		};
+	} catch {
+		return internalError("Release verification failed");
+	}
+}
+
+export async function verifyReleaseBytes(
+	input: VerifyReleaseInput,
+	artifactBytes: Uint8Array,
+	provenanceBytes: Uint8Array,
+	provenanceVerifier: ProvenanceVerifier = new GitHubProvenanceVerifier(),
+): Promise<ReleaseVerificationReport> {
+	if (
+		!validReleaseInput(input) ||
+		!(artifactBytes instanceof Uint8Array) ||
+		!(provenanceBytes instanceof Uint8Array)
+	) {
+		return invalidInput("Release verification request is invalid");
+	}
+	try {
+		const artifact = await verifyArtifactBytes(input.artifact, artifactBytes, input.artifact.url);
+		if (!artifact.success) return artifact;
+		return await verifyLoadedRelease(
+			input,
+			artifact.value,
+			provenanceBytes,
+			input.provenance.url,
+			provenanceVerifier,
+		);
 	} catch {
 		return internalError("Release verification failed");
 	}

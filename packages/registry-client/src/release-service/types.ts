@@ -98,6 +98,36 @@ export interface SubmitReleaseIntentResult {
 	replayed: boolean;
 }
 
+export type ReleaseArtifactSlot =
+	| "package"
+	| "icon"
+	| "banner"
+	| `screenshots[${number}]`
+	| "provenance";
+
+export interface UploadReleaseArtifactInput {
+	publisherDid: string;
+	packageSlug: string;
+	version: string;
+	slot: ReleaseArtifactSlot;
+	checksum: string;
+	contentType: string;
+	bytes: Uint8Array;
+}
+
+export interface StagedReleaseArtifactResource {
+	slot: ReleaseArtifactSlot;
+	checksum: string;
+	contentType: string;
+	size: number;
+	sourceUrl: string;
+}
+
+export interface UploadReleaseArtifactResult {
+	artifact: StagedReleaseArtifactResource;
+	replayed: boolean;
+}
+
 export interface DryRunReleaseIntentResult {
 	allowed: true;
 	publisherDid: string;

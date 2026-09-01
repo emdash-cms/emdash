@@ -160,6 +160,51 @@ describe("ReleaseServiceClient", () => {
 		expect(JSON.stringify(result)).not.toContain(workloadToken);
 	});
 
+	it("uploads exact release bytes through workload OIDC before intent submission", async () => {
+		let request: Request | null = null;
+		const bytes = new Uint8Array([0x1f, 0x8b, 0x08, 0x00]);
+		const client = new ReleaseServiceClient({
+			serviceUrl: SERVICE,
+			workloadToken: "header.payload.signature",
+			fetch: async (input, init) => {
+				request = new Request(input, init);
+				return success(
+					{
+						artifact: {
+							slot: "package",
+							checksum: CHECKSUM,
+							contentType: "application/gzip",
+							size: bytes.byteLength,
+							sourceUrl: `${SERVICE}/v1/staged-artifacts/package/${CHECKSUM}`,
+						},
+						replayed: false,
+					},
+					201,
+				);
+			},
+		});
+
+		await expect(
+			client.uploadReleaseArtifact(
+				{
+					publisherDid: PUBLISHER_DID,
+					packageSlug: "gallery",
+					version: "1.2.3",
+					slot: "package",
+					checksum: CHECKSUM,
+					contentType: "application/gzip",
+					bytes,
+				},
+				{ idempotencyKey: "github-upload-package-0001" },
+			),
+		).resolves.toMatchObject({ artifact: { slot: "package", size: bytes.byteLength } });
+		expect(request?.url).toBe(`${SERVICE}/v1/staged-artifacts`);
+		expect(request?.headers.get("authorization")).toBe("Bearer header.payload.signature");
+		expect(request?.headers.get("content-length")).toBe(String(bytes.byteLength));
+		expect(request?.headers.get("x-emdash-checksum")).toBe(CHECKSUM);
+		expect(new Uint8Array(await request!.arrayBuffer())).toEqual(bytes);
+	});
+
 	it("rejects invalid source records before acquiring a workload token", async () => {
 		const release = sourceRelease();
 		Object.assign(release.artifacts.package, {

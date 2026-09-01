@@ -22,7 +22,7 @@ export default defineConfig({
 						script: `
 							import { WorkerEntrypoint } from "cloudflare:workers";
 							export default class ReleaseVerifier extends WorkerEntrypoint {
-								async verifyRelease(input) {
+								report(input, artifactBytes = 1024, provenanceBytes = 512) {
 									return {
 										success: true,
 										value: {
@@ -30,7 +30,7 @@ export default defineConfig({
 												requestedUrl: input.artifact.url,
 												resolvedUrl: input.artifact.url,
 												checksum: input.artifact.checksum,
-												compressedBytes: 1024,
+												compressedBytes: artifactBytes,
 												manifest: {
 													id: input.artifact.packageSlug,
 													version: input.artifact.version,
@@ -42,13 +42,19 @@ export default defineConfig({
 												requestedUrl: input.provenance.url,
 												resolvedUrl: input.provenance.url,
 												checksum: input.provenance.checksum,
-												documentBytes: 512,
+												documentBytes: provenanceBytes,
 												predicateType: input.provenance.predicateType,
 												sourceRepository: input.provenance.sourceRepository,
 												builderId: input.provenance.builderId,
 											},
 										},
 									};
+								}
+								async verifyRelease(input) {
+									return this.report(input);
+								}
+								async verifyReleaseBytes(input, artifact, provenance) {
+									return this.report(input, artifact.byteLength, provenance.byteLength);
 								}
 							}
 						`,

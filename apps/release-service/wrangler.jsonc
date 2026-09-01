@@ -60,6 +60,10 @@
 			"bucket_name": "emdash-release-service-publication-staging",
 		},
 		{
+			"binding": "PROVENANCE_STORE",
+			"bucket_name": "emdash-release-service-provenance",
+		},
+		{
 			"binding": "OPERATIONS_ARCHIVE",
 			"bucket_name": "emdash-release-service-operations",
 		},

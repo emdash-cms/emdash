@@ -86,6 +86,11 @@ import {
 	matchPublisherWorkloadPath,
 } from "./publisher/routes.js";
 import {
+	handleGetPublishedProvenance,
+	matchPublishedProvenancePath,
+} from "./publishing/provenance-routes.js";
+import { handleUploadWorkloadArtifact } from "./publishing/workload-staging-routes.js";
+import {
 	handleConfirmWorkflowConnection,
 	handleListWorkflowConnections,
 	handleRequestWorkflowConnection,
@@ -118,6 +123,19 @@ export const ROUTES = Object.freeze([
 		path: "/oauth/jwks.json",
 		handler: (_request, _requestId, configuration) =>
 			publicOAuthJson(getPublicJwks(configuration.oauth)),
+	},
+	{
+		method: "GET",
+		path: "/v1/provenance/{checksum}",
+		match: matchPublishedProvenancePath,
+		handler: (request, requestId, _configuration, params) =>
+			handleGetPublishedProvenance(request, requestId, params),
+	},
+	{
+		method: "POST",
+		path: "/v1/staged-artifacts",
+		handler: (request, requestId, configuration) =>
+			handleUploadWorkloadArtifact(request, requestId, configuration),
 	},
 	{
 		method: "POST",

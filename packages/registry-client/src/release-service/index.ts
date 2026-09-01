@@ -34,6 +34,7 @@ import {
 	type PutWorkloadPolicyInput,
 	type RequestWorkflowConnectionInput,
 	type RequestWorkflowConnectionResult,
+	type ReleaseArtifactSlot,
 	type ReleaseIntentResource,
 	type ReleaseIntentResult,
 	type ReleaseIntentState,
@@ -44,6 +45,8 @@ import {
 	type StartEncryptionVerificationResult,
 	type SubmitReleaseIntentInput,
 	type SubmitReleaseIntentResult,
+	type UploadReleaseArtifactInput,
+	type UploadReleaseArtifactResult,
 	type WorkloadPolicyResource,
 	type WorkflowConnectionClaimResource,
 	type WorkflowConnectionRequestResource,
@@ -93,6 +96,7 @@ export type {
 	PutWorkloadPolicyInput,
 	RequestWorkflowConnectionInput,
 	RequestWorkflowConnectionResult,
+	ReleaseArtifactSlot,
 	ReleaseIntentResource,
 	ReleaseIntentResult,
 	ReleaseIntentState,
@@ -103,6 +107,8 @@ export type {
 	StartEncryptionVerificationResult,
 	SubmitReleaseIntentInput,
 	SubmitReleaseIntentResult,
+	UploadReleaseArtifactInput,
+	UploadReleaseArtifactResult,
 	WorkloadPolicyResource,
 	WorkflowConnectionClaimResource,
 	WorkflowConnectionRefScope,
@@ -118,6 +124,8 @@ const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.-]{0,127}$/;
 const CID_PATTERN = /^[A-Za-z0-9]+$/;
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
 const IDEMPOTENCY_PREFIX_PATTERN = /[^A-Za-z0-9._:-]/g;
+const CHECKSUM_PATTERN = /^b[a-z2-7]{10,255}$/;
+const SCREENSHOT_SLOT_PATTERN = /^screenshots\[([0-7])\]$/;
 const DIGITS_PATTERN = /^[0-9]+$/;
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
 const CSRF_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -569,6 +577,32 @@ function parseWorkflowConnectionRequest(value: unknown): WorkflowConnectionReque
 	return { id, packageSlug, state, claim, refScope, expiresAt, createdAt, confirmedAt };
 }
 
+function isReleaseArtifactSlot(value: unknown): value is ReleaseArtifactSlot {
+	return (
+		value === "package" ||
+		value === "icon" ||
+		value === "banner" ||
+		value === "provenance" ||
+		(typeof value === "string" && SCREENSHOT_SLOT_PATTERN.test(value))
+	);
+}
+
+function artifactContentTypeValid(slot: ReleaseArtifactSlot, contentType: string): boolean {
+	if (slot === "package") return contentType === "application/gzip";
+	if (slot === "provenance") return contentType === "application/json";
+	return (
+		contentType === "image/png" || contentType === "image/jpeg" || contentType === "image/webp"
+	);
+}
+
+function stagedArtifactPath(slot: ReleaseArtifactSlot, checksum: string): string {
+	if (slot === "provenance") return `/v1/provenance/${checksum}`;
+	const normalizedSlot = slot.startsWith("screenshots[")
+		? slot.replaceAll("[", "-").replaceAll("]", "")
+		: slot;
+	return `/v1/staged-artifacts/${normalizedSlot}/${checksum}`;
+}
+
 function parseDelegation(value: unknown): DelegationResource | null {
 	if (value === null) return null;
 	if (!isRecord(value)) throw invalidResponse();
@@ -935,6 +969,87 @@ export class ReleaseServiceClient extends BaseReleaseServiceClient {
 				}
 				return {
 					intent: parseIntent(value["intent"], this.serviceUrl),
+					replayed: value["replayed"],
+				};
+			},
+		);
+	}
+
+	async uploadReleaseArtifact(
+		input: UploadReleaseArtifactInput,
+		options: MutationOptions,
+	): Promise<UploadReleaseArtifactResult> {
+		if (
+			!DID_PATTERN.test(input.publisherDid) ||
+			!PACKAGE_SLUG_PATTERN.test(input.packageSlug) ||
+			!VERSION_PATTERN.test(input.version) ||
+			!isReleaseArtifactSlot(input.slot) ||
+			!CHECKSUM_PATTERN.test(input.checksum) ||
+			!artifactContentTypeValid(input.slot, input.contentType) ||
+			!(input.bytes instanceof Uint8Array) ||
+			input.bytes.byteLength < 1
+		) {
+			throw new ReleaseServiceError({
+				code: "INVALID_REQUEST",
+				message: "Release artifact upload is invalid",
+			});
+		}
+		const headers = await this.#workloadHeaders(options.idempotencyKey);
+		headers.set("content-length", String(input.bytes.byteLength));
+		headers.set("content-type", input.contentType);
+		headers.set("x-emdash-publisher-did", input.publisherDid);
+		headers.set("x-emdash-package", input.packageSlug);
+		headers.set("x-emdash-version", input.version);
+		headers.set("x-emdash-artifact-slot", input.slot);
+		headers.set("x-emdash-checksum", input.checksum);
+		return await this.call(
+			"/v1/staged-artifacts",
+			{
+				method: "POST",
+				headers,
+				body: new Uint8Array(input.bytes),
+				signal: options.signal,
+			},
+			(value) => {
+				if (
+					!isRecord(value) ||
+					!isRecord(value["artifact"]) ||
+					typeof value["replayed"] !== "boolean"
+				) {
+					throw invalidResponse();
+				}
+				const artifact = value["artifact"];
+				const slot = artifact["slot"];
+				const checksum = stringValue(artifact, "checksum");
+				const contentType = stringValue(artifact, "contentType");
+				const size = safeInteger(artifact, "size");
+				const sourceUrl = stringValue(artifact, "sourceUrl");
+				if (
+					!isReleaseArtifactSlot(slot) ||
+					slot !== input.slot ||
+					checksum !== input.checksum ||
+					contentType !== input.contentType ||
+					size !== input.bytes.byteLength ||
+					!sourceUrl
+				) {
+					throw invalidResponse();
+				}
+				let parsedSource: URL;
+				try {
+					parsedSource = new URL(sourceUrl);
+				} catch {
+					throw invalidResponse();
+				}
+				if (
+					parsedSource.origin !== this.serviceUrl ||
+					parsedSource.pathname !== stagedArtifactPath(input.slot, input.checksum) ||
+					parsedSource.search !== "" ||
+					parsedSource.hash !== ""
+				) {
+					throw invalidResponse();
+				}
+				return {
+					artifact: { slot, checksum, contentType, size, sourceUrl },
 					replayed: value["replayed"],
 				};
 			},
