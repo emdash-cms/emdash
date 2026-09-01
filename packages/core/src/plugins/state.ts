@@ -13,7 +13,7 @@ export type PluginStatus = "active" | "inactive";
 export type PluginSource = "config" | "marketplace" | "registry";
 
 const TIMEZONE_SUFFIX = /(?:z|[+-]\d{2}(?::?\d{2})?)$/i;
-const HOUR_OFFSET_SUFFIX = /[+-]\d{2}$/;
+const HOUR_OFFSET_SUFFIX = /\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?[+-]\d{2}$/i;
 
 function parseDatabaseTimestamp(value: string): Date {
 	let normalized = value.trim().replace(" ", "T");
