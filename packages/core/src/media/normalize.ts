@@ -15,6 +15,16 @@ import type { MediaProvider, MediaProviderItem, MediaValue } from "./types.js";
 export const INTERNAL_MEDIA_PREFIX = "/_emdash/api/media/file/";
 const URL_PATTERN = /^https?:\/\//;
 
+export function normalizeLegacyExternalMediaValue(value: MediaValue): MediaValue {
+	if (value.provider !== "external-url") return value;
+	const src = value.src ?? value.previewUrl;
+	return {
+		...value,
+		provider: "external",
+		...(src === undefined ? {} : { src }),
+	};
+}
+
 /**
  * Normalize a media field value into a consistent MediaValue shape.
  *
@@ -41,16 +51,17 @@ export async function normalizeMediaValue(
 	// Must have at least an id to be a valid media value
 	if (!("id" in value) && !("src" in value)) return null;
 
-	const provider = (typeof value.provider === "string" ? value.provider : undefined) || "local";
-	const id = typeof value.id === "string" ? value.id : "";
+	const parsed = normalizeLegacyExternalMediaValue(recordToMediaValue(value));
+	const provider = parsed.provider || "local";
+	const id = parsed.id;
 
 	// External URLs — return as-is, no server-side dimension detection
 	if (provider === "external") {
-		return recordToMediaValue(value);
+		return parsed;
 	}
 
 	// Build the base value from the input
-	const result: MediaValue = { ...recordToMediaValue(value), provider };
+	const result: MediaValue = { ...parsed, provider };
 
 	// For local media, strip `src` — it's derived at display time from storageKey
 	if (provider === "local") {
