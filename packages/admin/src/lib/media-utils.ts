@@ -1,5 +1,10 @@
 import type { MediaItem, MediaProviderItem } from "./api/media.js";
 
+export function canonicalMediaProviderId(provider: string | undefined): string {
+	if (!provider) return "local";
+	return provider === "external-url" ? "external" : provider;
+}
+
 export interface MediaFocalPoint {
 	focalX: number;
 	focalY: number;

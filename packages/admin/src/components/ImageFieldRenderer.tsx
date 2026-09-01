@@ -14,7 +14,7 @@ import { Image as ImageIcon, ImageBroken, ImageSquare, X } from "@phosphor-icons
 import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
-import { getMediaObjectPosition, metaString } from "../lib/media-utils";
+import { canonicalMediaProviderId, getMediaObjectPosition, metaString } from "../lib/media-utils";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 
@@ -88,14 +88,17 @@ export function ImageFieldRenderer({
 	}, [displayUrl]);
 
 	const handleSelect = (item: MediaItem) => {
-		const isLocalProvider = !item.provider || item.provider === "local";
+		const provider = canonicalMediaProviderId(item.provider);
+		const isLocalProvider = provider === "local";
+		const isDirectUrl = provider === "external";
 
 		onChange({
 			id: item.id,
-			provider: item.provider || "local",
-			// Local media derives URLs from meta.storageKey at display time — no src needed
-			// External providers cache a preview URL for admin display
-			previewUrl: isLocalProvider ? undefined : item.url,
+			provider,
+			// Local media derives its URL from storageKey. Direct URLs persist src,
+			// while external providers cache a preview URL for the admin.
+			src: isDirectUrl ? item.url : undefined,
+			previewUrl: !isLocalProvider && !isDirectUrl ? item.url : undefined,
 			alt: item.alt || "",
 			width: item.width,
 			height: item.height,

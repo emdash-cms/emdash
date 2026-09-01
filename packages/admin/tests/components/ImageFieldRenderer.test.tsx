@@ -7,28 +7,48 @@ import { render } from "../utils/render.tsx";
 vi.mock("../../src/components/MediaPickerModal", () => ({
 	MediaPickerModal: ({ open, onSelect }: { open: boolean; onSelect: (item: unknown) => void }) =>
 		open ? (
-			<button
-				type="button"
-				onClick={() =>
-					onSelect({
-						id: "replacement-image",
-						filename: "replacement.webp",
-						mimeType: "image/webp",
-						url: "/media/replacement.webp",
-						storageKey: "replacement.webp",
-						provider: "local",
-						size: 31_744,
-						width: 1600,
-						height: 800,
-						focalX: 0.2,
-						focalY: 0.8,
-						alt: "Replacement image",
-						createdAt: "2026-07-23T12:00:00.000Z",
-					})
-				}
-			>
-				Choose replacement
-			</button>
+			<>
+				<button
+					type="button"
+					onClick={() =>
+						onSelect({
+							id: "replacement-image",
+							filename: "replacement.webp",
+							mimeType: "image/webp",
+							url: "/media/replacement.webp",
+							storageKey: "replacement.webp",
+							provider: "local",
+							size: 31_744,
+							width: 1600,
+							height: 800,
+							focalX: 0.2,
+							focalY: 0.8,
+							alt: "Replacement image",
+							createdAt: "2026-07-23T12:00:00.000Z",
+						})
+					}
+				>
+					Choose replacement
+				</button>
+				<button
+					type="button"
+					onClick={() =>
+						onSelect({
+							id: "",
+							filename: "external.jpg",
+							mimeType: "image/jpeg",
+							url: "https://media.example/external.jpg",
+							provider: "external-url",
+							size: 0,
+							width: 1200,
+							height: 800,
+							createdAt: "2026-07-23T12:00:00.000Z",
+						})
+					}
+				>
+					Choose external URL
+				</button>
+			</>
 		) : null,
 }));
 
@@ -130,6 +150,30 @@ describe("ImageFieldRenderer", () => {
 				focalY: 0.8,
 			}),
 		);
+	});
+
+	it("stores an external URL as a renderable direct media value", async () => {
+		const onChange = vi.fn();
+		const screen = await render(
+			<ImageFieldRenderer
+				label="Featured image"
+				value={selectedImage}
+				onChange={onChange}
+				variant="featured"
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "Replace" }).click();
+		await screen.getByRole("button", { name: "Choose external URL" }).click();
+
+		expect(onChange).toHaveBeenCalledWith(
+			expect.objectContaining({
+				id: "",
+				provider: "external",
+				src: "https://media.example/external.jpg",
+			}),
+		);
+		expect(onChange.mock.calls[0]?.[0].previewUrl).toBeUndefined();
 	});
 
 	it("removes the featured image immediately", async () => {
