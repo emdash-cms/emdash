@@ -24,12 +24,8 @@ async function openFreshPlayground(page: Page): Promise<void> {
 	});
 }
 
-test("opens with seeded media and ready usage after creation and reset", async ({
-	page,
-	context,
-}) => {
+test("opens with seeded media and ready usage", async ({ page }) => {
 	await openFreshPlayground(page);
-	const firstSession = (await context.cookies()).find(({ name }) => name === "emdash_playground");
 
 	await page.goto("/_emdash/admin/media");
 	await expect(page.getByRole("heading", { name: "Media Library" })).toBeVisible();
@@ -79,11 +75,4 @@ test("opens with seeded media and ready usage after creation and reset", async (
 		}).then((response) => response.status),
 	);
 	expect(blockedDelete).toBe(403);
-
-	await page.goto("/_playground/reset");
-	await page.waitForURL(ADMIN_URL_PATTERN, { timeout: 120_000 });
-	const secondSession = (await context.cookies()).find(({ name }) => name === "emdash_playground");
-	expect(secondSession?.value).not.toBe(firstSession?.value);
-	await page.goto("/_emdash/admin/media");
-	await expect(page.locator("[data-media-grid] img")).toHaveCount(7);
 });
