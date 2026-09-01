@@ -14,6 +14,7 @@ import {
 	submitDelegatedRelease,
 	type InteractiveReleaseAction,
 } from "../release-service/operations.js";
+import { releaseSetupCommand } from "../release-setup.js";
 
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
 const FAILURE_STATES = new Set([
@@ -329,6 +330,7 @@ export const releaseCommand = defineCommand({
 		enrol: releaseEnrolCommand,
 		reject: releaseRejectCommand,
 		revoke: releaseRevokeCommand,
+		setup: releaseSetupCommand,
 		submit: releaseSubmitCommand,
 		status: releaseStatusCommand,
 		cancel: releaseCancelCommand,
