@@ -30,6 +30,7 @@
 		"@emdash-cms/registry-lexicons": "workspace:*",
 		"@emdash-cms/registry-verification": "workspace:*",
 		"@lingui/core": "catalog:",
+		"@lingui/message-utils": "catalog:",
 		"@lingui/react": "catalog:",
 		"jose": "^6.1.3",
 		"react": "catalog:",

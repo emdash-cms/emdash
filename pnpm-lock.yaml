@@ -111,6 +111,9 @@ catalogs:
     '@lingui/macro':
       specifier: ^5.9.4
       version: 5.9.5
+    '@lingui/message-utils':
+      specifier: ^5.9.4
+      version: 5.9.5
     '@lingui/react':
       specifier: ^5.9.4
       version: 5.9.5
@@ -623,6 +626,9 @@ importers:
       '@lingui/core':
         specifier: 'catalog:'
         version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3))
+      '@lingui/message-utils':
+        specifier: 'catalog:'
+        version: 5.9.5
       '@lingui/react':
         specifier: 'catalog:'
         version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3))(react@19.2.4)
@@ -23275,7 +23281,7 @@ snapshots:
   publint@0.3.17:
     dependencies:
       '@publint/pack': 0.1.4
-      package-manager-detector: 1.6.0
+      package-manager-detector: 1.7.0
       picocolors: 1.1.1
       sade: 1.8.1
 

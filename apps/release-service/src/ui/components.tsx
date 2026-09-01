@@ -10,7 +10,7 @@ export function Page({ children }: { children: ReactNode }) {
 		<main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 p-6 sm:p-10">
 			<header>
 				<div>
-					<p className="text-sm text-kumo-subtle">{t("brand.name", "EmDash")}</p>
+					<p className="text-sm text-kumo-subtle">EmDash</p>
 					<h1 className="text-2xl font-semibold text-kumo-strong">
 						{t("brand.releaseService", "Plugin releases")}
 					</h1>
