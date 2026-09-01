@@ -41,6 +41,7 @@ import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
+import { ReferencesSidebar } from "./ReferencesSidebar.js";
 import { RevisionHistory } from "./RevisionHistory";
 import { SaveButton } from "./SaveButton";
 import { SeoPanel } from "./SeoPanel";
@@ -745,6 +746,17 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							entryLocale={activeEntryLocale}
 							defaultLocale={i18n?.defaultLocale}
 							canManageTaxonomies={(currentUser?.role ?? 0) >= ROLE_EDITOR}
+						/>
+					</SortableContentSettingsSection>
+				)}
+
+				{item && !isNew && (
+					<SortableContentSettingsSection id="references" label={t`Referenced by`}>
+						<ReferencesSidebar
+							className="p-4"
+							collection={collection}
+							entryId={item.id}
+							entryLocale={item.locale ?? entryLocale}
 						/>
 					</SortableContentSettingsSection>
 				)}

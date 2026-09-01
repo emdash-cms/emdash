@@ -11,8 +11,10 @@ import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { ContentItem } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import { resolveConfiguredLocale } from "../../i18n/config.js";
+import { requestCached } from "../../request-cache.js";
 import { SchemaRegistry } from "../../schema/registry.js";
 import type { ApiResult } from "../types.js";
+import { referenceFieldConstraints, validateReferenceSelection } from "./validate-references.js";
 
 /** Map an edge-read failure: a bad pagination cursor is a 400 client error,
  * everything else is the generic 500-shaped reference-read error. */
@@ -228,10 +230,55 @@ export type EntryRef = {
 	id: string;
 	slug: string | null;
 	collection: string;
+	/**
+	 * Display label sourced from the collection's configured `titleField`, then
+	 * `title`, then `name` — `null` when none is set, leaving the client to fall
+	 * back to slug/id. Mirrors the admin's `getEntryTitle`.
+	 */
+	title: string | null;
 	/** The actual locale of the resolved variant — see `pickVariant`. */
 	locale: string | null;
+	/**
+	 * The edge's target: the translation group `id` was resolved from. Stable
+	 * across locales, unlike `id`, so callers comparing a ref against a content
+	 * row (the admin's picker) match the entry rather than one of its variants.
+	 */
+	translationGroup: string | null;
 	sortOrder?: number;
 };
+
+/**
+ * Display title for a resolved entry: the collection's configured `titleField`,
+ * then `title`, then `name`, else null.
+ */
+function entryTitle(data: Record<string, unknown>, titleField?: string): string | null {
+	if (titleField) {
+		const configured = data[titleField];
+		if (typeof configured === "string" && configured.length > 0) return configured;
+	}
+	if (typeof data.title === "string" && data.title.length > 0) return data.title;
+	if (typeof data.name === "string" && data.name.length > 0) return data.name;
+	return null;
+}
+
+/**
+ * The collection's configured `titleField`, memoized for the request: a single
+ * content read hydrates every reference field, and several of them commonly
+ * target the same collection.
+ */
+export async function getReferenceTitleField(
+	db: Kysely<Database>,
+	collection: string,
+): Promise<string | undefined> {
+	return requestCached(`reference-title-field:${collection}`, async () => {
+		const row = await db
+			.selectFrom("_emdash_collections")
+			.select("title_field")
+			.where("slug", "=", collection)
+			.executeTakeFirst();
+		return row?.title_field ?? undefined;
+	});
+}
 
 /** Resolve a relation from an id OR its translation_group. */
 async function resolveRelation(
@@ -268,13 +315,14 @@ function pickVariant(items: ContentItem[], locale: string | null): ContentItem |
  * is restricted to published entries so a draft/scheduled entry referenced by an
  * edge is skipped exactly like a dangling one, never leaking its id/slug/locale.
  */
-async function resolveEntries(
+export async function resolveEntries(
 	content: ContentRepository,
 	collection: string,
 	edges: ContentReference[],
 	pick: (e: ContentReference) => string,
 	locale: string | null,
 	includeDrafts: boolean,
+	titleField?: string,
 ): Promise<EntryRef[]> {
 	const groups = edges.map(pick);
 	const all = await content.findTranslationsForGroups(collection, groups, {
@@ -301,7 +349,9 @@ async function resolveEntries(
 			id: entry.id,
 			slug: entry.slug,
 			collection,
+			title: entryTitle(entry.data, titleField),
 			locale: entry.locale,
+			translationGroup: entry.translationGroup,
 			sortOrder: edge.sortOrder,
 		});
 	}
@@ -352,11 +402,81 @@ export async function handleReferenceChildrenGet(
 			(e) => e.childGroup,
 			entry.locale,
 			includeDrafts,
+			await getReferenceTitleField(db, rel.childCollection),
 		);
 		return { success: true, data: { children, nextCursor: edges.nextCursor } };
 	} catch (error) {
 		return referencesGetError(error);
 	}
+}
+
+/**
+ * Resolve a relation + parent entry + child ids and replace the parent's
+ * children under that relation. Extracted from `handleReferenceChildrenSet` so
+ * the content create/update transaction can reuse the same resolution logic
+ * with either a `Kysely<Database>` or a `Transaction<Database>`.
+ *
+ * Returns the resolved relation/entry translation_groups on success so callers
+ * can re-read and echo the new set without re-deriving them.
+ */
+export async function setReferenceChildren(
+	db: Kysely<Database>,
+	collection: string,
+	entryId: string,
+	relation: string,
+	childIds: string[],
+): Promise<ApiResult<{ relationGroup: string; entryGroup: string }>> {
+	const repo = new RelationRepository(db);
+	const content = new ContentRepository(db);
+
+	const rel = await resolveRelation(repo, relation);
+	if (!rel) return { success: false, error: { code: "NOT_FOUND", message: "Relation not found" } };
+	if (collection !== rel.parentCollection) {
+		return {
+			success: false,
+			error: {
+				code: "VALIDATION_ERROR",
+				message: "Entry is not the parent side of this relation",
+			},
+		};
+	}
+
+	const constraints = (await referenceFieldConstraints(db, collection)).get(rel.translationGroup);
+	if (constraints) {
+		const selection = validateReferenceSelection(constraints, childIds);
+		if (!selection.success) return selection;
+	}
+
+	const entry = await content.findByIdOrSlug(collection, entryId);
+	if (!entry?.translationGroup) {
+		return { success: false, error: { code: "NOT_FOUND", message: "Content entry not found" } };
+	}
+
+	// Resolve every child within the relation's child_collection in one batch
+	// (constant queries, not an N+1 of point lookups for a set up to 1000). A
+	// child id that does not resolve there fails collection-agreement
+	// (invariant 3); order is preserved by iterating the caller's `childIds`.
+	const resolvedChildren = await content.findManyByIdOrSlug(rel.childCollection, childIds);
+	const childGroups: string[] = [];
+	for (const childId of childIds) {
+		const child = resolvedChildren.get(childId);
+		if (!child?.translationGroup) {
+			return {
+				success: false,
+				error: {
+					code: "NOT_FOUND",
+					message: `Child entry '${childId}' not found in ${rel.childCollection}`,
+				},
+			};
+		}
+		childGroups.push(child.translationGroup);
+	}
+
+	await repo.setChildren(rel.translationGroup, entry.translationGroup, childGroups);
+	return {
+		success: true,
+		data: { relationGroup: rel.translationGroup, entryGroup: entry.translationGroup },
+	};
 }
 
 export async function handleReferenceChildrenSet(
@@ -367,53 +487,27 @@ export async function handleReferenceChildrenSet(
 	childIds: string[],
 ): Promise<ApiResult<{ children: EntryRef[]; nextCursor?: string }>> {
 	try {
+		const set = await setReferenceChildren(db, collection, entryId, relation, childIds);
+		if (!set.success) return set;
+
 		const repo = new RelationRepository(db);
 		const content = new ContentRepository(db);
 
+		// Re-resolve the relation/entry for their locale + childCollection — cheap
+		// relative to the write above, and keeps this function independent of
+		// `setReferenceChildren`'s internals beyond the two returned groups.
 		const rel = await resolveRelation(repo, relation);
 		if (!rel)
 			return { success: false, error: { code: "NOT_FOUND", message: "Relation not found" } };
-		if (collection !== rel.parentCollection) {
-			return {
-				success: false,
-				error: {
-					code: "VALIDATION_ERROR",
-					message: "Entry is not the parent side of this relation",
-				},
-			};
-		}
-
 		const entry = await content.findByIdOrSlug(collection, entryId);
-		if (!entry?.translationGroup) {
+		if (!entry) {
 			return { success: false, error: { code: "NOT_FOUND", message: "Content entry not found" } };
 		}
-
-		// Resolve every child within the relation's child_collection in one batch
-		// (constant queries, not an N+1 of point lookups for a set up to 1000). A
-		// child id that does not resolve there fails collection-agreement
-		// (invariant 3); order is preserved by iterating the caller's `childIds`.
-		const resolvedChildren = await content.findManyByIdOrSlug(rel.childCollection, childIds);
-		const childGroups: string[] = [];
-		for (const childId of childIds) {
-			const child = resolvedChildren.get(childId);
-			if (!child?.translationGroup) {
-				return {
-					success: false,
-					error: {
-						code: "NOT_FOUND",
-						message: `Child entry '${childId}' not found in ${rel.childCollection}`,
-					},
-				};
-			}
-			childGroups.push(child.translationGroup);
-		}
-
-		await repo.setChildren(rel.translationGroup, entry.translationGroup, childGroups);
 
 		// Return the first page of the new set, mirroring the GET shape. The actor
 		// holds an edit permission (gated by the route), so draft children are
 		// included in the echo.
-		const edges = await repo.getChildrenPage(rel.translationGroup, entry.translationGroup);
+		const edges = await repo.getChildrenPage(set.data.relationGroup, set.data.entryGroup);
 		const children = await resolveEntries(
 			content,
 			rel.childCollection,
@@ -421,6 +515,7 @@ export async function handleReferenceChildrenSet(
 			(e) => e.childGroup,
 			entry.locale,
 			true,
+			await getReferenceTitleField(db, rel.childCollection),
 		);
 		return { success: true, data: { children, nextCursor: edges.nextCursor } };
 	} catch {
@@ -471,6 +566,7 @@ export async function handleReferenceParentsGet(
 			(e) => e.parentGroup,
 			entry.locale,
 			includeDrafts,
+			await getReferenceTitleField(db, rel.parentCollection),
 		);
 		return { success: true, data: { parents, nextCursor: edges.nextCursor } };
 	} catch (error) {

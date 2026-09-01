@@ -13,6 +13,7 @@ import {
 	throwResponseError,
 	type FindManyResult,
 } from "./client.js";
+import type { EntryRef } from "./relations.js";
 
 /**
  * Derive draft status from a content item's revision pointers
@@ -59,6 +60,13 @@ export interface ContentItem {
 	liveRevisionId: string | null;
 	draftRevisionId: string | null;
 	seo?: ContentSeo;
+	/**
+	 * First page of reference-field edges, keyed by relation translation group.
+	 * Only present when the server opts into hydration (the editor GET route).
+	 * Each field's entries are stored solely in `_emdash_content_references`;
+	 * the admin sends the desired id lists back in the `references` save key.
+	 */
+	references?: Record<string, { children: EntryRef[]; nextCursor?: string }>;
 }
 
 export interface CreateContentInput {
@@ -69,6 +77,8 @@ export interface CreateContentInput {
 	bylines?: BylineCreditInput[];
 	locale?: string;
 	translationOf?: string;
+	/** Reference-field edges to write atomically, keyed by relation group. */
+	references?: Record<string, string[]>;
 }
 
 export interface TranslationSummary {
@@ -114,6 +124,8 @@ export interface UpdateContentInput {
 	/** Skip revision creation (used by autosave) */
 	skipRevision?: boolean;
 	seo?: ContentSeoInput;
+	/** Reference-field edges to replace atomically, keyed by relation group. */
+	references?: Record<string, string[]>;
 }
 
 /**
@@ -259,6 +271,7 @@ export async function createContent(
 			bylines: input.bylines,
 			locale: input.locale,
 			translationOf: input.translationOf,
+			references: input.references,
 		}),
 	});
 	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to create content");

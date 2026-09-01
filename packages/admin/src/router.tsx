@@ -160,6 +160,7 @@ interface ContentUpdateChanges {
 	bylines?: BylineCreditInput[];
 	skipRevision?: boolean;
 	seo?: ContentSeoInput;
+	references?: Record<string, string[]>;
 }
 
 interface ContentUpdateMutationInput {
@@ -172,7 +173,7 @@ interface ContentUpdateMutationInput {
 interface AutosaveMutationInput {
 	targetId: string;
 	targetLocale?: string;
-	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines">;
+	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines" | "references">;
 }
 
 function patchAutosaveQueries(
@@ -714,6 +715,7 @@ function ContentNewPage() {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
 		}) => createContent(collection, { ...data, locale: pickerLocale }),
 		onSuccess: (result) => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
@@ -768,7 +770,12 @@ function ContentNewPage() {
 	// ContentSettingsPanel, so fresh arrows on every mutation-state flip
 	// would defeat the memo. mutate/mutateAsync are referentially stable.
 	const handleSave = React.useCallback(
-		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+		(payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
+		}) => {
 			createMutation.mutate(payload);
 		},
 		[createMutation.mutate],
@@ -1232,7 +1239,12 @@ function ContentEditPage() {
 	// (twice per autosave cycle) would defeat the memo. mutate/mutateAsync
 	// are referentially stable.
 	const handleSave = React.useCallback(
-		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+		(payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
+		}) => {
 			updateMutation.mutate({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
@@ -1244,7 +1256,12 @@ function ContentEditPage() {
 	);
 
 	const handleAutosave = React.useCallback(
-		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+		(payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
+		}) => {
 			autosaveMutation.mutate({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,

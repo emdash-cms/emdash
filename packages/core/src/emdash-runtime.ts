@@ -2475,10 +2475,15 @@ export class EmDashRuntime {
 							label: v.charAt(0).toUpperCase() + v.slice(1),
 						}));
 					}
-					// Include full validation for repeater fields (subFields, minItems, maxItems)
-					// and for file/image fields (allowedMimeTypes).
+					// Include full validation for repeater fields (subFields, minItems, maxItems),
+					// file/image fields (allowedMimeTypes), and reference fields (relation,
+					// targetCollection, multiple) so the admin's reference picker widget
+					// knows which collection(s) to relate to.
 					if (
-						(field.type === "repeater" || field.type === "file" || field.type === "image") &&
+						(field.type === "repeater" ||
+							field.type === "file" ||
+							field.type === "image" ||
+							field.type === "reference") &&
 						field.validation
 					) {
 						entry.validation = { ...field.validation };
@@ -2802,8 +2807,13 @@ export class EmDashRuntime {
 		return handleContentAuthors(this.db, collection);
 	}
 
-	async handleContentGet(collection: string, id: string, locale?: string) {
-		const result = await handleContentGet(this.db, collection, id, locale);
+	async handleContentGet(
+		collection: string,
+		id: string,
+		locale?: string,
+		referenceOptions?: { includeDrafts: boolean },
+	) {
+		const result = await handleContentGet(this.db, collection, id, locale, referenceOptions);
 		return this.hydrateDraftData(result);
 	}
 
@@ -2885,6 +2895,7 @@ export class EmDashRuntime {
 			locale?: string;
 			translationOf?: string;
 			taxonomies?: Record<string, string[]>;
+			references?: Record<string, string[]>;
 		},
 	) {
 		// Run beforeSave hooks (trusted plugins)
@@ -2950,6 +2961,7 @@ export class EmDashRuntime {
 				noIndex?: boolean;
 			};
 			taxonomies?: Record<string, string[]>;
+			references?: Record<string, string[]>;
 			publishedAt?: string | null;
 			locale?: string;
 			/** Replace the previous autosave revision after staging this save. */
