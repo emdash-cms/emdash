@@ -580,20 +580,24 @@ test.describe("Media Library", () => {
 		await page.getByRole("link", { name: `Open folder ${folderName}` }).click();
 		await expect(page).toHaveURL(/\/media\?folder=/);
 		await expect(mediaGrid.locator("img").first()).toHaveAttribute("src", originalSrc!);
+		const mediaLibrary = page.locator("[data-media-library]");
+		const pageSize = page.getByRole("combobox", { name: "Page size" });
+		await expect(mediaLibrary).not.toHaveAttribute("aria-busy", "true");
+		await pageSize.click();
+		await page.getByRole("option", { name: "70" }).click();
+		await expect(pageSize).toContainText("70");
+		await expect(mediaLibrary).not.toHaveAttribute("aria-busy", "true");
 
 		const folderSearch = page.getByRole("searchbox", { name: "Search media" });
 		await folderSearch.fill(searchTerm);
 		await page.getByRole("combobox", { name: "Filter by type" }).click();
 		await page.getByRole("option", { name: "Images" }).click();
-		await expect(page.locator("[data-media-library]")).not.toHaveAttribute("aria-busy", "true");
+		await expect(mediaLibrary).not.toHaveAttribute("aria-busy", "true");
 		await expect(mediaGrid.locator("button").filter({ hasText: uniqueFilename })).toBeVisible();
 		await page.getByRole("tab", { name: "List view" }).click();
 		const mediaRow = page.getByRole("row").filter({ hasText: uniqueFilename });
 		await expect(mediaRow).toBeVisible();
-		await page.getByRole("combobox", { name: "Page size" }).click();
-		await page.getByRole("option", { name: "70" }).click();
-		await expect(page.getByRole("combobox", { name: "Page size" })).toContainText("70");
-		await expect(page.locator("[data-media-library]")).not.toHaveAttribute("aria-busy", "true");
+		await expect(pageSize).toContainText("70");
 		await expect(mediaRow).toBeVisible();
 		const main = page.locator("main");
 		const headerBack = page.getByRole("link", { name: "Back" });
@@ -610,7 +614,7 @@ test.describe("Media Library", () => {
 		await expect(page).toHaveURL(/\/media\/?$/);
 		await expect(folderSearch).toHaveValue(searchTerm);
 		await expect(page.getByRole("combobox", { name: "Filter by type" })).toContainText("Images");
-		await expect(page.getByRole("combobox", { name: "Page size" })).toContainText("70");
+		await expect(pageSize).toContainText("70");
 		await expect(page.getByRole("tab", { name: "List view" })).toHaveAttribute(
 			"aria-selected",
 			"true",
