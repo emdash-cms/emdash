@@ -14,7 +14,11 @@ import { Image as ImageIcon, ImageBroken, ImageSquare, Moon, X } from "@phosphor
 import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
-import { canonicalMediaProviderId, getMediaObjectPosition, metaString } from "../lib/media-utils";
+import {
+	canonicalMediaProviderId,
+	getMediaObjectPosition,
+	metaString,
+} from "../lib/media-utils.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 

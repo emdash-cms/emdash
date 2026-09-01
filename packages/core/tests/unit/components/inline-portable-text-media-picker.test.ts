@@ -5,7 +5,11 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { InlinePortableTextEditor } from "../../../src/components/InlinePortableTextEditor.js";
+import {
+	InlinePortableTextEditor,
+	_pmToPortableText as pmToPortableText,
+	_portableTextToPM as portableTextToPM,
+} from "../../../src/components/InlinePortableTextEditor.js";
 
 const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 
@@ -28,7 +32,24 @@ describe("inline Portable Text media picker", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("saves the configured provider for an inserted image", async () => {
+	it("canonicalizes a legacy direct URL provider when an existing image is saved", () => {
+		const pm = portableTextToPM([
+			{
+				_type: "image",
+				_key: "external-image",
+				asset: {
+					_ref: "",
+					url: "https://media.example/external.jpg",
+					provider: "external-url",
+				},
+			},
+		]);
+
+		const restored = pmToPortableText(pm);
+		expect((restored[0] as { asset?: { provider?: string } }).asset?.provider).toBe("external");
+	});
+
+	async function expectSavedProvider(provider: string, storedProvider: string) {
 		const requests: Array<{ url: string; init?: RequestInit }> = [];
 		vi.stubGlobal(
 			"fetch",
@@ -41,15 +62,15 @@ describe("inline Portable Text media picker", () => {
 						data: {
 							items: [
 								{
-									id: "cloudflare-images",
-									name: "Cloudflare Images",
+									id: provider,
+									name: "Test Provider",
 									capabilities: { browse: true, search: true, upload: true, delete: true },
 								},
 							],
 						},
 					});
 				}
-				if (url.startsWith("/_emdash/api/media/providers/cloudflare-images?")) {
+				if (url.startsWith(`/_emdash/api/media/providers/${provider}?`)) {
 					return Response.json({
 						data: {
 							items: [
@@ -90,7 +111,7 @@ describe("inline Portable Text media picker", () => {
 		await act(async () => document.dispatchEvent(new CustomEvent("emdash:open-media-picker")));
 		const providerTab = await vi.waitFor(() => {
 			const button = [...document.querySelectorAll("button")].find(
-				(candidate) => candidate.textContent === "Cloudflare Images",
+				(candidate) => candidate.textContent === "Test Provider",
 			);
 			expect(button).not.toBeUndefined();
 			return button!;
@@ -123,6 +144,12 @@ describe("inline Portable Text media picker", () => {
 			data: { body: Array<{ asset: { provider?: string } }> };
 		};
 		expect(saved.init?.method).toBe("PUT");
-		expect(body.data.body[0]?.asset.provider).toBe("cloudflare-images");
-	});
+		expect(body.data.body[0]?.asset.provider).toBe(storedProvider);
+	}
+
+	it("saves the configured provider for an inserted image", () =>
+		expectSavedProvider("cloudflare-images", "cloudflare-images"));
+
+	it("canonicalizes the legacy direct URL provider for an inserted image", () =>
+		expectSavedProvider("external-url", "external"));
 });
