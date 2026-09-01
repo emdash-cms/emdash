@@ -2225,6 +2225,7 @@ export function InlinePortableTextEditor({
 					src,
 					alt: item.alt || item.filename || "",
 					mediaId: item.id,
+					provider: item.provider || "local",
 					width: item.width,
 					height: item.height,
 					blurhash: item.blurhash,
