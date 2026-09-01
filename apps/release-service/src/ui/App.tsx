@@ -10,7 +10,10 @@ export function App() {
 	) : path === "/approver" || path.startsWith("/approvals/") ? (
 		<ApproverPage />
 	) : (
-		<PublisherPage />
+		<div className="flex flex-col gap-6">
+			<PublisherPage />
+			<ApproverPage embedded />
+		</div>
 	);
 	return <Page>{content}</Page>;
 }

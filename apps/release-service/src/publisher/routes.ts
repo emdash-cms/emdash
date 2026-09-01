@@ -1,3 +1,4 @@
+import type { ActorResolver } from "@atcute/identity-resolver";
 import { isDid } from "@atcute/lexicons/syntax";
 import { env } from "cloudflare:workers";
 
@@ -11,7 +12,7 @@ import {
 } from "../approvals/authority.js";
 import type { ServiceConfiguration } from "../config.js";
 import { serializeIntentResource } from "../intents/routes.js";
-import { createPublisherOAuthClient } from "../oauth/custody.js";
+import { createPublisherOAuthClient, createWorkerActorResolver } from "../oauth/custody.js";
 import type { StoredWorkloadPolicy } from "../publisher-do/publisher-do.js";
 import { WorkloadPolicyError } from "../publisher-do/workload-policy.js";
 import {
@@ -28,6 +29,7 @@ const APPROVER_STATUS_PATH_PATTERN =
 	/^\/v1\/publisher\/workloads\/([A-Za-z][A-Za-z0-9_-]{0,63})\/approvers$/;
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
+const MAX_AUDIT_ACTOR_RESOLUTIONS = 16;
 
 export interface PublisherRouteDependencies {
 	revokeDelegation?: (publisherDid: `did:${string}:${string}`) => Promise<void>;
@@ -35,6 +37,32 @@ export interface PublisherRouteDependencies {
 		publisherDid: string,
 		packageSlug: string,
 	) => Promise<CurrentApprovalPolicy>;
+	actorResolver?: ActorResolver;
+}
+
+async function resolveAuditActorHandles(
+	rows: readonly { actorIdentity: string }[],
+	resolver: ActorResolver,
+): Promise<ReadonlyMap<string, string>> {
+	const actorDids = [...new Set(rows.map((row) => row.actorIdentity).filter(isDid))].slice(
+		0,
+		MAX_AUDIT_ACTOR_RESOLUTIONS,
+	);
+	const entries = await Promise.all(
+		actorDids.map(async (actorDid) => {
+			try {
+				const actor = await resolver.resolve(actorDid, { signal: AbortSignal.timeout(5_000) });
+				return actor.handle === "handle.invalid" ? null : ([actorDid, actor.handle] as const);
+			} catch {
+				return null;
+			}
+		}),
+	);
+	const handles = new Map<string, string>();
+	for (const entry of entries) {
+		if (entry) handles.set(entry[0], entry[1]);
+	}
+	return handles;
 }
 
 function hasExactKeys(value: Record<string, unknown>, expected: readonly string[]): boolean {
@@ -179,16 +207,22 @@ export async function handleGetPublisher(
 	request: Request,
 	requestId: string,
 	configuration: ServiceConfiguration,
+	dependencies: PublisherRouteDependencies = {},
 ): Promise<Response> {
 	try {
 		const session = await publisherSession(request, configuration);
-		const delegation = await env.PUBLISHER_DO.getByName(session.publisherDid).getDelegation(
-			session.publisherDid,
-		);
+		const [delegation, actorHandles] = await Promise.all([
+			env.PUBLISHER_DO.getByName(session.publisherDid).getDelegation(session.publisherDid),
+			resolveAuditActorHandles(
+				[{ actorIdentity: session.publisherDid }],
+				dependencies.actorResolver ?? createWorkerActorResolver(),
+			),
+		]);
 		return apiSuccess(
 			{
 				publisher: {
 					did: session.publisherDid,
+					handle: actorHandles.get(session.publisherDid) ?? null,
 					delegation: sanitizedDelegation(delegation),
 					sessionExpiresAt: session.expiresAt,
 				},
@@ -320,7 +354,21 @@ export async function handleGetPublisherApproverStatus(
 				};
 			}),
 		);
-		return apiSuccess({ packageSlug, profileCid: policy.profileCid, items }, requestId);
+		const actorHandles = await resolveAuditActorHandles(
+			items.map((item) => ({ actorIdentity: item.did })),
+			dependencies.actorResolver ?? createWorkerActorResolver(),
+		);
+		return apiSuccess(
+			{
+				packageSlug,
+				profileCid: policy.profileCid,
+				items: items.map((item) => ({
+					...item,
+					handle: actorHandles.get(item.did) ?? null,
+				})),
+			},
+			requestId,
+		);
 	} catch (error) {
 		return routeFailure(error, requestId);
 	}
@@ -464,6 +512,7 @@ export async function handleListPublisherAudit(
 	request: Request,
 	requestId: string,
 	configuration: ServiceConfiguration,
+	dependencies: PublisherRouteDependencies = {},
 ): Promise<Response> {
 	try {
 		const session = await publisherSession(request, configuration);
@@ -489,11 +538,16 @@ export async function handleListPublisherAudit(
 			cursor,
 			limit + 1,
 		);
+		const actorHandles = await resolveAuditActorHandles(
+			rows.slice(0, limit),
+			dependencies.actorResolver ?? createWorkerActorResolver(),
+		);
 		const items = rows.slice(0, limit).map((row) => ({
 			sequence: row.sequence,
 			eventType: row.eventType,
 			actorRealm: row.actorRealm,
 			actorIdentity: row.actorIdentity,
+			actorHandle: actorHandles.get(row.actorIdentity) ?? null,
 			subject: row.subject,
 			reasonCode: row.reasonCode,
 			createdAt: row.createdAt,

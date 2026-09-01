@@ -9,8 +9,8 @@ import { applyLocale, i18n } from "./i18n.js";
 const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 
-function success(data: unknown): Response {
-	return Response.json({ data, requestId: "request-1" });
+function success(data: unknown, status = 200): Response {
+	return Response.json({ data, requestId: "request-1" }, { status });
 }
 
 function renderApp(path: string) {
@@ -24,11 +24,12 @@ function renderApp(path: string) {
 
 afterEach(() => {
 	vi.unstubAllGlobals();
+	document.cookie = "__Host-emdash_publisher_csrf=; Max-Age=0; Path=/; Secure";
 	applyLocale("en");
 });
 
 describe("release-service web surfaces", () => {
-	it("shows publisher identity login when no application session exists", async () => {
+	it("shows one account login without role navigation", async () => {
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async () =>
@@ -43,8 +44,13 @@ describe("release-service web surfaces", () => {
 		);
 		renderApp("/publisher");
 
-		expect(await screen.findByRole("heading", { name: "Sign in as a publisher" })).toBeTruthy();
-		expect(screen.getByRole("button", { name: "Continue with Atmosphere" })).toBeTruthy();
+		expect(await screen.findByRole("heading", { name: "Sign in" })).toBeTruthy();
+		expect(
+			screen.getByText("Use your Atmosphere account to view and manage your plugin releases."),
+		).toBeTruthy();
+		expect(screen.getByLabelText("Account handle")).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Sign in with Atmosphere" })).toBeTruthy();
+		expect(screen.queryByRole("navigation")).toBeNull();
 	});
 
 	it("renders publisher authority, workloads, and intent state", async () => {
@@ -60,6 +66,7 @@ describe("release-service web surfaces", () => {
 					return success({
 						publisher: {
 							did: PUBLISHER_DID,
+							handle: "publisher.example.com",
 							delegation: {
 								releaseNsid: "com.emdashcms.experimental.package.release",
 								scope:
@@ -103,6 +110,7 @@ describe("release-service web surfaces", () => {
 								eventType: auditRequests === 1 ? "workload-policy-stored" : "delegation-revoked",
 								actorRealm: "publisher",
 								actorIdentity: PUBLISHER_DID,
+								actorHandle: "publisher.example.com",
 								subject: "gallery",
 								reasonCode: null,
 								createdAt: 1_799_999_250_000,
@@ -118,7 +126,22 @@ describe("release-service web surfaces", () => {
 						items: [
 							{
 								did: "did:plc:approver",
+								handle: "approver.example.com",
 								status: "enrolled",
+							},
+						],
+					});
+				}
+				if (path === "/v1/approver/credentials") {
+					return success({
+						items: [
+							{
+								id: "credential",
+								name: "Work laptop",
+								transports: ["internal"],
+								createdAt: 1_799_999_000_000,
+								lastUsedAt: null,
+								revokedAt: null,
 							},
 						],
 					});
@@ -146,17 +169,147 @@ describe("release-service web surfaces", () => {
 		);
 		renderApp("/publisher");
 
-		expect((await screen.findAllByText(PUBLISHER_DID)).length).toBeGreaterThan(0);
+		const accountIdentifiers = await screen.findAllByText(PUBLISHER_DID);
+		expect(accountIdentifiers.length).toBeGreaterThan(0);
+		expect(accountIdentifiers.every((identifier) => identifier.closest("details") !== null)).toBe(
+			true,
+		);
 		expect(screen.getAllByText("gallery").length).toBeGreaterThan(0);
 		expect(screen.getByText("Awaiting approval")).toBeTruthy();
-		expect(screen.getByRole("heading", { name: "Publisher audit" })).toBeTruthy();
-		expect(screen.getByText("workload-policy-stored")).toBeTruthy();
-		fireEvent.click(screen.getByRole("button", { name: "Next audit page" }));
-		expect(await screen.findByText("delegation-revoked")).toBeTruthy();
-		expect(screen.getByText("workload-policy-stored")).toBeTruthy();
-		fireEvent.click(screen.getByRole("button", { name: "Check approvers" }));
-		expect(await screen.findByRole("heading", { name: "Approver status" })).toBeTruthy();
-		expect(screen.getByText("did:plc:approver")).toBeTruthy();
+		expect(screen.getByRole("heading", { name: "Account activity" })).toBeTruthy();
+		expect(
+			screen.getByRole("heading", { name: "Connect another GitHub Actions workflow" }),
+		).toBeTruthy();
+		expect(
+			screen.getByText(
+				"Choose which workflow may publish releases for one of your plugin packages. GitHub proves the repository, workflow file, and branch when you run it.",
+			),
+		).toBeTruthy();
+		expect(screen.getAllByText("publisher.example.com")).toHaveLength(2);
+		expect(screen.getByRole("heading", { name: "Release approval passkeys" })).toBeTruthy();
+		expect(screen.getByText("Work laptop")).toBeTruthy();
+		expect(screen.getByText("GitHub workflow connected")).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: "Show older activity" }));
+		expect(await screen.findByText("Automated publishing turned off")).toBeTruthy();
+		expect(screen.getByText("GitHub workflow connected")).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: "Check approval readiness" }));
+		expect(await screen.findByRole("heading", { name: "Approval readiness" })).toBeTruthy();
+		expect(screen.getByText("approver.example.com")).toBeTruthy();
+	});
+
+	it("connects a GitHub workflow without asking for GitHub identifiers", async () => {
+		document.cookie = `__Host-emdash_publisher_csrf=${"C".repeat(43)}; Path=/; Secure`;
+		const requests: Request[] = [];
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+				const url = new URL(
+					input instanceof Request ? input.url : input.toString(),
+					location.origin,
+				);
+				const request = new Request(url, init);
+				requests.push(request);
+				const path = url.pathname;
+				if (path === "/v1/publisher") {
+					return success({ publisher: { did: PUBLISHER_DID, delegation: null } });
+				}
+				if (path === "/v1/publisher/workloads") return success({ items: [] });
+				if (path === "/v1/publisher/intents") return success({ items: [] });
+				if (path === "/v1/publisher/audit") return success({ items: [] });
+				if (path === "/v1/approver/credentials") return success({ items: [] });
+				const basePairing = {
+					id: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+					packageSlug: "gallery",
+					expiresAt: 1_900_000_000_000,
+					createdAt: 1_800_000_000_000,
+				};
+				if (path.endsWith("/confirm")) {
+					return success({
+						pairing: {
+							...basePairing,
+							state: "confirmed",
+							claim: {
+								repository: "example/gallery",
+								repositoryId: "123",
+								repositoryOwner: "example",
+								repositoryOwnerId: "456",
+								repositoryVisibility: "private",
+								workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+								ref: "refs/heads/main",
+								environment: null,
+							},
+							claimedAt: 1_800_000_001_000,
+							confirmedAt: 1_800_000_002_000,
+						},
+						policy: {
+							packageSlug: "gallery",
+							repository: "example/gallery",
+							repositoryId: "123",
+							repositoryOwnerId: "456",
+							workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+							allowedRefs: ["refs/heads/main"],
+							allowedEnvironments: [],
+							active: true,
+							stateVersion: 1,
+							authorizedBy: PUBLISHER_DID,
+							createdAt: 1_800_000_002_000,
+							updatedAt: 1_800_000_002_000,
+						},
+						replayed: false,
+					});
+				}
+				if (request.method === "GET") {
+					return success({
+						pairing: {
+							...basePairing,
+							state: "claimed",
+							claim: {
+								repository: "example/gallery",
+								repositoryId: "123",
+								repositoryOwner: "example",
+								repositoryOwnerId: "456",
+								repositoryVisibility: "private",
+								workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+								ref: "refs/heads/main",
+								environment: null,
+							},
+							claimedAt: 1_800_000_001_000,
+							confirmedAt: null,
+						},
+					});
+				}
+				return success(
+					{
+						pairing: {
+							...basePairing,
+							state: "pending",
+							claim: null,
+							claimedAt: null,
+							confirmedAt: null,
+						},
+						pairingToken: "T".repeat(43),
+						replayed: false,
+					},
+					201,
+				);
+			}),
+		);
+		renderApp("/publisher");
+
+		await screen.findByRole("heading", { name: "2. Connect a GitHub Actions workflow" });
+		fireEvent.change(screen.getByLabelText("Plugin package"), { target: { value: "gallery" } });
+		fireEvent.click(screen.getByRole("button", { name: "Start connection" }));
+		expect(await screen.findByText("Run the workflow once to identify it")).toBeTruthy();
+		expect(screen.getByText(/id-token: write/)).toBeTruthy();
+		expect(screen.getByText(/release connect/)).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: "I've run the workflow" }));
+		expect(await screen.findByText("Confirm this GitHub workflow")).toBeTruthy();
+		expect(screen.getByText("example/gallery")).toBeTruthy();
+		expect(screen.getByText(".github/workflows/release.yml")).toBeTruthy();
+		expect(screen.getByText("main")).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: "Allow this workflow" }));
+		await screen.findByRole("button", { name: "Start connection" });
+		expect(requests.some((request) => request.url.endsWith("/confirm"))).toBe(true);
 	});
 
 	it("shows immutable workload and provenance evidence before approval", async () => {
@@ -230,9 +383,13 @@ describe("release-service web surfaces", () => {
 		});
 		renderApp(`/approvals/${INTENT_ID}?publisher=${encodeURIComponent(PUBLISHER_DID)}`);
 
-		expect(await screen.findByText("example/gallery")).toBeTruthy();
-		expect(screen.getByText("sha256:artifact")).toBeTruthy();
-		expect(screen.getByText("sha256:provenance")).toBeTruthy();
+		expect(await screen.findByRole("heading", { name: "Review plugin release" })).toBeTruthy();
+		expect(screen.getByText("example/gallery")).toBeTruthy();
+		expect(screen.getByText(".github/workflows/release.yml")).toBeTruthy();
+		expect(screen.getByText("Adds permission to connect to external websites")).toBeTruthy();
+		for (const technicalValue of [PUBLISHER_DID, "sha256:artifact", "sha256:provenance"]) {
+			expect(screen.getByText(technicalValue).closest("details")).not.toBeNull();
+		}
 		const approve = screen.getByRole("button", { name: "Approve release" });
 		expect(approve).toBeInstanceOf(HTMLButtonElement);
 		expect(approve.hasAttribute("disabled")).toBe(false);
@@ -258,9 +415,9 @@ describe("release-service web surfaces", () => {
 		);
 		renderApp("/approver");
 
-		expect(await screen.findByRole("heading", { name: "Approver passkeys" })).toBeTruthy();
+		expect(await screen.findByRole("heading", { name: "Release approval passkeys" })).toBeTruthy();
 		expect(screen.getByText("Work laptop")).toBeTruthy();
-		expect(screen.getByRole("button", { name: "Enrol passkey" })).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Add passkey" })).toBeTruthy();
 	});
 
 	it("renders the Access operator control surface", async () => {

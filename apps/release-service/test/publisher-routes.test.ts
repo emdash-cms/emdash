@@ -88,6 +88,17 @@ describe("publisher API", () => {
 			request("/v1/publisher", headers),
 			"request-1",
 			configuration,
+			{
+				actorResolver: {
+					async resolve() {
+						return {
+							did: PUBLISHER_DID,
+							handle: "publisher.example.com",
+							pds: "https://pds.example.com",
+						};
+					},
+				},
+			},
 		);
 		expect(response.status).toBe(200);
 		const value = await response.json();
@@ -95,6 +106,7 @@ describe("publisher API", () => {
 			data: {
 				publisher: {
 					did: PUBLISHER_DID,
+					handle: "publisher.example.com",
 					delegation: { status: "active", stateVersion: 1 },
 				},
 			},
@@ -196,6 +208,15 @@ describe("publisher API", () => {
 					profileCid: "bafyprofile",
 					approverDids: [enrolledDid, missingDid, revokedDid],
 				}),
+				actorResolver: {
+					async resolve(identifier) {
+						return {
+							did: identifier as `did:${string}:${string}`,
+							handle: `${identifier.split(":").at(-1)}.example.com` as `${string}.${string}`,
+							pds: "https://pds.example.com",
+						};
+					},
+				},
 			},
 		);
 
@@ -208,9 +229,9 @@ describe("publisher API", () => {
 		const data = Reflect.get(body, "data");
 		if (typeof data !== "object" || data === null) throw new Error("Expected response data");
 		expect(Reflect.get(data, "items")).toEqual([
-			{ did: enrolledDid, status: "enrolled" },
-			{ did: missingDid, status: "not_enrolled" },
-			{ did: revokedDid, status: "revoked" },
+			{ did: enrolledDid, handle: "enrolled-approver.example.com", status: "enrolled" },
+			{ did: missingDid, handle: "missing-approver.example.com", status: "not_enrolled" },
+			{ did: revokedDid, handle: "revoked-approver.example.com", status: "revoked" },
 		]);
 		expect(JSON.stringify(body)).not.toContain("Private credential name");
 		expect(JSON.stringify(body)).not.toContain("publisher-visible-status");
@@ -279,13 +300,30 @@ describe("publisher API", () => {
 			request("/v1/publisher/audit?limit=1", await sessionHeaders()),
 			"request-audit",
 			configuration,
+			{
+				actorResolver: {
+					async resolve() {
+						return {
+							did: PUBLISHER_DID,
+							handle: "publisher.example.com",
+							pds: "https://pds.example.com",
+						};
+					},
+				},
+			},
 		);
 
 		expect(response.status).toBe(200);
 		const body = await response.json();
 		expect(body).toMatchObject({
 			data: {
-				items: [{ sequence: 1, eventType: "publisher-session-created" }],
+				items: [
+					{
+						sequence: 1,
+						eventType: "publisher-session-created",
+						actorHandle: "publisher.example.com",
+					},
+				],
 				nextCursor: "1",
 			},
 		});

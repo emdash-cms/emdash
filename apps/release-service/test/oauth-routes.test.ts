@@ -175,6 +175,8 @@ describe("publisher OAuth routes", () => {
 		const setCookie = callback.headers.get("set-cookie") ?? "";
 		expect(setCookie).toContain("__Host-emdash_publisher_session=");
 		expect(setCookie).toContain("__Host-emdash_publisher_csrf=");
+		expect(setCookie).toContain("__Host-emdash_approver_session=");
+		expect(setCookie).toContain("__Host-emdash_approver_csrf=");
 		expect(setCookie).toContain("__Host-emdash_oauth_route=");
 		expect(network.requests.some((request) => request.path === "/revoke")).toBe(true);
 		await expect(env.PUBLISHER_DO.getByName(DID).getDelegation(DID)).resolves.toBeNull();
@@ -185,6 +187,13 @@ describe("publisher OAuth routes", () => {
 				10,
 			),
 		).resolves.toEqual([expect.objectContaining({ did: DID, kind: "publisher" })]);
+		await expect(
+			env.IDENTITY_DIRECTORY_DO.getByName(await identityDirectoryShard(DID)).list(
+				"approver",
+				null,
+				10,
+			),
+		).resolves.toEqual([expect.objectContaining({ did: DID, kind: "approver" })]);
 	});
 
 	it("fails the callback before issuing an app session when directory registration fails", async () => {
@@ -228,7 +237,7 @@ describe("publisher OAuth routes", () => {
 		expect(setCookie).not.toContain("__Host-emdash_publisher_csrf=");
 	});
 
-	it("keeps approver identity state and cookies in the approver realm", async () => {
+	it("establishes both account sessions from approver identity", async () => {
 		const network = oauthNetwork();
 		vi.stubGlobal("fetch", network.fetch);
 		const config = await configuration();
@@ -264,7 +273,8 @@ describe("publisher OAuth routes", () => {
 		const setCookie = callback.headers.get("set-cookie") ?? "";
 		expect(setCookie).toContain("__Host-emdash_approver_session=");
 		expect(setCookie).toContain("__Host-emdash_approver_csrf=");
-		expect(setCookie).not.toContain("__Host-emdash_publisher_session=");
+		expect(setCookie).toContain("__Host-emdash_publisher_session=");
+		expect(setCookie).toContain("__Host-emdash_publisher_csrf=");
 		await expect(env.APPROVER_DO.getByName(DID).listCredentials(DID, null, 10)).resolves.toEqual(
 			[],
 		);
@@ -275,6 +285,13 @@ describe("publisher OAuth routes", () => {
 				10,
 			),
 		).resolves.toEqual([expect.objectContaining({ did: DID, kind: "approver" })]);
+		await expect(
+			env.IDENTITY_DIRECTORY_DO.getByName(await identityDirectoryShard(DID)).list(
+				"publisher",
+				null,
+				10,
+			),
+		).resolves.toEqual([expect.objectContaining({ did: DID, kind: "publisher" })]);
 	});
 
 	it("keeps attacker-triggerable publisher authorization state out of the publisher shard", async () => {

@@ -1,4 +1,4 @@
-import { Banner, Button, Input, Link, Loader, Surface } from "@cloudflare/kumo";
+import { Banner, Button, Input, Loader, Surface } from "@cloudflare/kumo";
 import { type FormEvent, type ReactNode, useState } from "react";
 
 import { beginIdentityAuthorization, UiApiError } from "./api.js";
@@ -8,18 +8,13 @@ export function Page({ children }: { children: ReactNode }) {
 	const t = useT();
 	return (
 		<main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 p-6 sm:p-10">
-			<header className="flex flex-wrap items-center justify-between gap-4">
+			<header>
 				<div>
 					<p className="text-sm text-kumo-subtle">{t("brand.name", "EmDash")}</p>
 					<h1 className="text-2xl font-semibold text-kumo-strong">
-						{t("brand.releaseService", "Delegated release service")}
+						{t("brand.releaseService", "Plugin releases")}
 					</h1>
 				</div>
-				<nav aria-label={t("nav.label", "Release service sections")} className="flex gap-2">
-					<Link href="/publisher">{t("nav.publisher", "Publisher")}</Link>
-					<Link href="/approver">{t("nav.approver", "Approver")}</Link>
-					<Link href="/admin">{t("nav.operator", "Operator")}</Link>
-				</nav>
 			</header>
 			{children}
 		</main>
@@ -54,10 +49,6 @@ export function LoginPanel({ realm }: { realm: "approver" | "publisher" }) {
 	const [identifier, setIdentifier] = useState("");
 	const [error, setError] = useState<unknown>(null);
 	const [loading, setLoading] = useState(false);
-	const label =
-		realm === "publisher"
-			? t("login.publisherTitle", "Sign in as a publisher")
-			: t("login.approverTitle", "Sign in as an approver");
 
 	async function submit(event: FormEvent) {
 		event.preventDefault();
@@ -80,21 +71,24 @@ export function LoginPanel({ realm }: { realm: "approver" | "publisher" }) {
 		<Surface className="mx-auto w-full max-w-xl rounded-xl border bg-kumo-base p-6 sm:p-8">
 			<form className="flex flex-col gap-5" onSubmit={submit}>
 				<div>
-					<h2 className="text-xl font-semibold text-kumo-strong">{label}</h2>
+					<h2 className="text-xl font-semibold text-kumo-strong">{t("login.title", "Sign in")}</h2>
 					<p className="mt-1 text-sm text-kumo-subtle">
-						{t("login.description", "Use the Atmosphere account that owns this release role.")}
+						{t(
+							"login.description",
+							"Use your Atmosphere account to view and manage your plugin releases.",
+						)}
 					</p>
 				</div>
 				{error ? <ErrorBanner error={error} /> : null}
 				<Input
-					label={t("login.identifier", "Handle or DID")}
-					placeholder={t("login.placeholder", "publisher.example.com")}
+					label={t("login.identifier", "Account handle")}
+					placeholder={t("login.placeholder", "your-handle.example")}
 					value={identifier}
 					onChange={(event) => setIdentifier(event.currentTarget.value)}
 					required
 				/>
 				<Button loading={loading} type="submit" variant="primary">
-					{t("login.continue", "Continue with Atmosphere")}
+					{t("login.continue", "Sign in with Atmosphere")}
 				</Button>
 			</form>
 		</Surface>

@@ -8,6 +8,7 @@ const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const BASE_URL = "http://localhost:5185";
 const WEB_IDEMPOTENCY_KEY = /^web-/;
+const OIDC_PERMISSION_PATTERN = /id-token: write/;
 
 function success(data: unknown) {
 	return {
@@ -53,15 +54,15 @@ test("publisher login sends mutation fencing and remains RTL-safe on mobile", as
 	});
 
 	await page.goto("/publisher?locale=ar");
-	await expect(page.getByRole("heading", { name: "Sign in as a publisher" })).toBeVisible();
+	await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
 	expect(await page.locator("html").getAttribute("dir")).toBe("rtl");
 	expect(
 		await page.evaluate(
 			() => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
 		),
 	).toBe(true);
-	await page.getByLabel("Handle or DID").fill("publisher.example.com");
-	await page.getByRole("button", { name: "Continue with Atmosphere" }).click();
+	await page.getByLabel("Account handle").fill("publisher.example.com");
+	await page.getByRole("button", { name: "Sign in with Atmosphere" }).click();
 	await page.waitForURL("**/oauth/mock");
 
 	expect(authorizationRequest).not.toBeNull();
@@ -71,6 +72,135 @@ test("publisher login sends mutation fencing and remains RTL-safe on mobile", as
 		identifier: "publisher.example.com",
 		redirectTarget: "/publisher?locale=ar",
 	});
+});
+
+test("account connects a GitHub workflow only after confirming its identity", async ({ page }) => {
+	await page.context().addCookies([
+		{
+			name: "__Host-emdash_publisher_csrf",
+			value: "C".repeat(43),
+			url: "https://localhost:5185",
+			httpOnly: false,
+			secure: true,
+			sameSite: "Strict",
+		},
+	]);
+	let confirmed = false;
+	await page.route("**/v1/**", async (route) => {
+		const request = route.request();
+		const path = new URL(request.url()).pathname;
+		if (path === "/v1/publisher") {
+			await route.fulfill(
+				success({
+					publisher: {
+						did: PUBLISHER_DID,
+						handle: "publisher.example.com",
+						delegation: null,
+					},
+				}),
+			);
+			return;
+		}
+		if (
+			path === "/v1/publisher/workloads" ||
+			path === "/v1/publisher/intents" ||
+			path === "/v1/publisher/audit" ||
+			path === "/v1/approver/credentials"
+		) {
+			await route.fulfill(success({ items: [] }));
+			return;
+		}
+		const pairing = {
+			id: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+			packageSlug: "gallery",
+			expiresAt: 1_900_000_000_000,
+			createdAt: 1_800_000_000_000,
+		};
+		const claim = {
+			repository: "example/gallery",
+			repositoryId: "123",
+			repositoryOwner: "example",
+			repositoryOwnerId: "456",
+			repositoryVisibility: "private",
+			workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+			ref: "refs/heads/main",
+			environment: null,
+		};
+		if (path === "/v1/publisher/workflow-pairings" && request.method() === "POST") {
+			await route.fulfill(
+				success({
+					pairing: {
+						...pairing,
+						state: "pending",
+						claim: null,
+						claimedAt: null,
+						confirmedAt: null,
+					},
+					pairingToken: "T".repeat(43),
+					replayed: false,
+				}),
+			);
+			return;
+		}
+		if (path.endsWith("/confirm")) {
+			confirmed = true;
+			await route.fulfill(
+				success({
+					pairing: {
+						...pairing,
+						state: "confirmed",
+						claim,
+						claimedAt: 1_800_000_001_000,
+						confirmedAt: 1_800_000_002_000,
+					},
+					policy: {
+						packageSlug: "gallery",
+						repository: "example/gallery",
+						repositoryId: "123",
+						repositoryOwnerId: "456",
+						workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+						allowedRefs: ["refs/heads/main"],
+						allowedEnvironments: [],
+						active: true,
+						stateVersion: 1,
+						authorizedBy: PUBLISHER_DID,
+						createdAt: 1_800_000_002_000,
+						updatedAt: 1_800_000_002_000,
+					},
+					replayed: false,
+				}),
+			);
+			return;
+		}
+		if (path.includes("/workflow-pairings/") && request.method() === "GET") {
+			await route.fulfill(
+				success({
+					pairing: {
+						...pairing,
+						state: "claimed",
+						claim,
+						claimedAt: 1_800_000_001_000,
+						confirmedAt: null,
+					},
+				}),
+			);
+			return;
+		}
+		await route.abort();
+	});
+
+	await page.goto("/publisher");
+	await page.getByLabel("Plugin package").fill("gallery");
+	await page.getByRole("button", { name: "Start connection" }).click();
+	await expect(page.getByText("Run the workflow once to identify it")).toBeVisible();
+	await expect(page.getByText(OIDC_PERMISSION_PATTERN)).toBeVisible();
+	await page.getByRole("button", { name: "I've run the workflow" }).click();
+	await expect(page.getByRole("heading", { name: "Confirm this GitHub workflow" })).toBeVisible();
+	await expect(page.getByText("example/gallery")).toBeVisible();
+	await expect(page.getByText(".github/workflows/release.yml")).toBeVisible();
+	await page.getByRole("button", { name: "Allow this workflow" }).click();
+	await expect(page.getByRole("button", { name: "Start connection" })).toBeVisible();
+	expect(confirmed).toBe(true);
 });
 
 test("approver enrols and uses a user-verified virtual passkey", async ({ page }) => {
@@ -190,9 +320,9 @@ test("approver enrols and uses a user-verified virtual passkey", async ({ page }
 		});
 
 		await page.goto(`/approvals/${INTENT_ID}?publisher=${encodeURIComponent(PUBLISHER_DID)}`);
-		await expect(page.getByRole("heading", { name: "Review delegated release" })).toBeVisible();
+		await expect(page.getByRole("heading", { name: "Review plugin release" })).toBeVisible();
 		await page.getByLabel("Passkey name").fill("Virtual key");
-		await page.getByRole("button", { name: "Enrol passkey" }).click();
+		await page.getByRole("button", { name: "Add passkey" }).click();
 		await expect(page.getByText("Virtual key", { exact: true })).toBeVisible();
 		await page.getByRole("button", { name: "Approve release" }).click();
 		await expect(
