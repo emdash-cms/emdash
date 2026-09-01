@@ -1,5 +1,5 @@
 import { I18nProvider } from "@lingui/react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getApproval, listApproverCredentials } from "./api.js";
@@ -23,6 +23,7 @@ function renderApp(path: string) {
 }
 
 afterEach(() => {
+	vi.useRealTimers();
 	vi.unstubAllGlobals();
 	document.cookie = "__Host-emdash_publisher_csrf=; Max-Age=0; Path=/; Secure";
 	applyLocale("en");
@@ -179,8 +180,11 @@ describe("release-service web surfaces", () => {
 			screen.getByRole("heading", { name: "Connect another GitHub Actions workflow" }),
 		).toBeTruthy();
 		expect(
+			screen.getByText("pnpm exec emdash-plugin release setup"),
+		).toBeTruthy();
+		expect(
 			screen.getByText(
-				"Add the EmDash release action to the workflow that publishes your plugin, then run it. Its first run will appear here for approval.",
+				"It creates .github/workflows/emdash-release.yml. Review and commit the file, then push a version tag or start it from GitHub Actions.",
 			),
 		).toBeTruthy();
 		expect(screen.getAllByText("@publisher.example.com")).toHaveLength(1);
@@ -335,6 +339,123 @@ describe("release-service web surfaces", () => {
 		const confirmationRequest = requests.find((request) => request.url.endsWith("/confirm"));
 		expect(confirmationRequest).toBeDefined();
 		expect(await confirmationRequest?.json()).toEqual({ refScope: "version_tags" });
+	});
+
+	it("focuses and polls a requested workflow until it is no longer pending", async () => {
+		vi.useFakeTimers();
+		const connectionId = "01JABCDEFGHJKMNPQRSTVWXYZ1";
+		const connectionRequest = {
+			id: connectionId,
+			packageSlug: "gallery",
+			state: "pending",
+			claim: {
+				repository: "example/gallery",
+				repositoryId: "123",
+				repositoryOwner: "example",
+				repositoryOwnerId: "456",
+				repositoryVisibility: "private",
+				workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+				ref: "refs/tags/v1.2.3",
+				environment: null,
+			},
+			refScope: null,
+			expiresAt: 1_900_000_000_000,
+			createdAt: 1_800_000_000_000,
+			confirmedAt: null,
+		};
+		let publisherRequests = 0;
+		let connectionRequests = 0;
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (input: RequestInfo | URL) => {
+				const path = new URL(
+					input instanceof Request ? input.url : input.toString(),
+					location.origin,
+				).pathname;
+				if (path === "/v1/publisher") {
+					publisherRequests += 1;
+					return success({
+						publisher: {
+							did: PUBLISHER_DID,
+							handle: "publisher.example.com",
+							delegation: {
+								releaseNsid: "com.emdashcms.experimental.package.release",
+								scope:
+									"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
+								issuer: "https://authorization.example.com",
+								pdsUrl: "https://pds.example.com",
+								expiresAt: null,
+								refreshBefore: null,
+								status: "active",
+								stateVersion: 1,
+							},
+						},
+					});
+				}
+				if (path === "/v1/publisher/workflow-connections") {
+					connectionRequests += 1;
+					return success({ items: connectionRequests === 1 ? [connectionRequest] : [] });
+				}
+				if (
+					path === "/v1/publisher/workloads" ||
+					path === "/v1/publisher/intents" ||
+					path === "/v1/publisher/audit" ||
+					path === "/v1/approver/credentials"
+				) {
+					return success({ items: [] });
+				}
+				throw new Error(`Unexpected request: ${path}`);
+			}),
+		);
+		const scrollIntoView = vi.fn();
+		const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+		HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+		try {
+			const view = renderApp(`/publisher?connection=${connectionId}`);
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(0);
+			});
+
+			const requestRegion = screen.getByRole("region", {
+				name: "Approve workflow for gallery",
+			});
+			expect(requestRegion.getAttribute("aria-current")).toBe("true");
+			expect(document.activeElement).toBe(requestRegion);
+			expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+			expect(publisherRequests).toBe(1);
+			expect(connectionRequests).toBe(1);
+
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(30_000);
+			});
+			expect(publisherRequests).toBe(2);
+			expect(connectionRequests).toBe(2);
+
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(30_000);
+			});
+			expect(publisherRequests).toBe(2);
+			expect(connectionRequests).toBe(2);
+
+			view.unmount();
+			publisherRequests = 0;
+			connectionRequests = 0;
+			const pendingView = renderApp(`/publisher?connection=${connectionId}`);
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(0);
+			});
+			expect(publisherRequests).toBe(1);
+			expect(connectionRequests).toBe(1);
+			pendingView.unmount();
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(30_000);
+			});
+			expect(publisherRequests).toBe(1);
+			expect(connectionRequests).toBe(1);
+		} finally {
+			HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
+		}
 	});
 
 	it("shows immutable workload and provenance evidence before approval", async () => {

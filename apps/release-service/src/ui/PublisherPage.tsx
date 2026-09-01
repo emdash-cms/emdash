@@ -11,13 +11,15 @@ import {
 	type WorkflowConnectionRefScope,
 	type WorkflowConnectionRequestResource,
 } from "@emdash-cms/registry-client/release-service";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { beginPublisherDelegation, publisherCsrfToken } from "./api.js";
 import { ErrorBanner, LoadingPanel, LoginPanel } from "./components.js";
 import { useT } from "./i18n.js";
 
 const GIT_REF_PREFIX_PATTERN = /^refs\/(?:heads|tags)\//;
+const WORKFLOW_CONNECTION_POLL_INTERVAL_MS = 5_000;
+const RELEASE_SETUP_COMMAND = "pnpm exec emdash-plugin release setup";
 
 interface PublisherData {
 	publisher: PublisherResource;
@@ -273,6 +275,12 @@ export function PublisherPage() {
 	const [connectionScopes, setConnectionScopes] = useState<
 		Record<string, WorkflowConnectionRefScope>
 	>({});
+	const requestedConnectionId = useMemo(
+		() => new URLSearchParams(location.search).get("connection"),
+		[],
+	);
+	const requestedConnectionElement = useRef<HTMLDivElement>(null);
+	const focusedConnectionId = useRef<string | null>(null);
 
 	const refresh = useCallback(async () => {
 		setError(null);
@@ -309,6 +317,85 @@ export function PublisherPage() {
 	useEffect(() => {
 		void refresh();
 	}, [refresh]);
+
+	const requestedConnection = data?.connections.find(
+		(connection) => connection.id === requestedConnectionId,
+	);
+	const requestedConnectionKey = requestedConnection?.id;
+	const requestedConnectionState = requestedConnection?.state;
+	const requestedConnectionExpiresAt = requestedConnection?.expiresAt;
+
+	useEffect(() => {
+		const element = requestedConnectionElement.current;
+		if (
+			!requestedConnectionKey ||
+			!element ||
+			focusedConnectionId.current === requestedConnectionKey
+		) {
+			return;
+		}
+		focusedConnectionId.current = requestedConnectionKey;
+		element.scrollIntoView({ behavior: "smooth", block: "center" });
+		element.focus({ preventScroll: true });
+	}, [requestedConnectionKey]);
+
+	useEffect(() => {
+		if (
+			!requestedConnectionId ||
+			requestedConnectionState !== "pending" ||
+			requestedConnectionExpiresAt === undefined ||
+			requestedConnectionExpiresAt <= Date.now()
+		) {
+			return;
+		}
+
+		const abortController = new AbortController();
+		let stopped = false;
+		let timeout: ReturnType<typeof setTimeout> | undefined;
+
+		const schedule = (expiresAt: number) => {
+			const remaining = expiresAt - Date.now();
+			if (stopped || remaining <= 0) return;
+			timeout = setTimeout(
+				() => void poll(),
+				Math.min(WORKFLOW_CONNECTION_POLL_INTERVAL_MS, remaining),
+			);
+		};
+
+		const poll = async () => {
+			try {
+				const [publisher, connections] = await Promise.all([
+					client.getPublisher({ signal: abortController.signal }),
+					client.listWorkflowConnections({ signal: abortController.signal }),
+				]);
+				if (stopped) return;
+				setError(null);
+				setData((current) => (current ? { ...current, publisher, connections } : current));
+				const pending = connections.find(
+					(connection) => connection.id === requestedConnectionId && connection.state === "pending",
+				);
+				if (pending) schedule(pending.expiresAt);
+			} catch (cause) {
+				if (stopped || abortController.signal.aborted) return;
+				if (
+					cause instanceof ReleaseServiceError &&
+					(cause.code === "PUBLISHER_SESSION_INVALID" || cause.code === "AUTH_INVALID")
+				) {
+					setLoginRequired(true);
+					return;
+				}
+				setError(cause);
+				schedule(requestedConnectionExpiresAt);
+			}
+		};
+
+		schedule(requestedConnectionExpiresAt);
+		return () => {
+			stopped = true;
+			abortController.abort();
+			if (timeout) clearTimeout(timeout);
+		};
+	}, [client, requestedConnectionExpiresAt, requestedConnectionId, requestedConnectionState]);
 
 	async function authorizeDelegation() {
 		setBusy(true);
@@ -460,23 +547,56 @@ export function PublisherPage() {
 						)}
 					</p>
 				) : (
-					<p className="mt-1 text-sm text-kumo-subtle">
-						{t(
-							"publisher.workload.description",
-							"Add the EmDash release action to the workflow that publishes your plugin, then run it. Its first run will appear here for approval.",
-						)}
-					</p>
+					<div className="mt-3 grid gap-3 text-sm">
+						<p className="text-kumo-subtle">
+							{t(
+								"publisher.workload.setupCommand",
+								"Run this once from your plugin project:",
+							)}
+						</p>
+						<div className="overflow-x-auto rounded-lg bg-kumo-tint px-4 py-3">
+							<code className="whitespace-nowrap font-mono text-sm text-kumo-strong">
+								{RELEASE_SETUP_COMMAND}
+							</code>
+						</div>
+						<p className="text-kumo-subtle">
+							{t(
+								"publisher.workload.setupResult",
+								"It creates .github/workflows/emdash-release.yml. Review and commit the file, then push a version tag or start it from GitHub Actions.",
+							)}
+						</p>
+						<p className="text-kumo-subtle">
+							{t(
+								"publisher.workload.firstRun",
+								"The first run waits while you approve the repository, workflow, and release tags here.",
+							)}
+						</p>
+					</div>
 				)}
 				{data.connections.length > 0 ? (
 					<div className="mt-5 grid gap-4">
 						{data.connections.map((request) => {
 							const scope = connectionScopes[request.id] ?? defaultRefScope(request);
 							const tagRequest = request.claim.ref.startsWith("refs/tags/");
+							const isRequested = request.id === requestedConnectionId;
+							const headingId = `workflow-connection-${request.id}`;
 							return (
-								<div className="rounded-lg bg-kumo-tint p-4" key={request.id}>
+								<div
+									aria-current={isRequested ? "true" : undefined}
+									aria-labelledby={headingId}
+									className={`rounded-lg border p-4 transition-colors ${
+										isRequested
+											? "border-kumo-brand bg-kumo-brand/10 ring-2 ring-kumo-brand/20"
+											: "border-transparent bg-kumo-tint"
+									}`}
+									key={request.id}
+									ref={isRequested ? requestedConnectionElement : undefined}
+									role="region"
+									tabIndex={isRequested ? -1 : undefined}
+								>
 									<div className="flex flex-wrap items-start justify-between gap-3">
 										<div>
-											<h3 className="font-semibold text-kumo-strong">
+											<h3 className="font-semibold text-kumo-strong" id={headingId}>
 												{t("publisher.connection.title", "Approve workflow for {packageSlug}", {
 													packageSlug: request.packageSlug,
 												})}
