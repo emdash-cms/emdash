@@ -31,7 +31,6 @@ emdash-plugin release workload               Print a workload policy browser han
 emdash-plugin release enrol                  Print a passkey enrolment browser handoff
 emdash-plugin release approve <intent-id>    Print a passkey approval browser handoff
 emdash-plugin release reject <intent-id>     Print a passkey rejection browser handoff
-emdash-plugin release connect                Connect the current GitHub Actions workflow
 emdash-plugin release dry-run <release.json> Validate delegated release admission with GitHub OIDC
 emdash-plugin release submit <release.json>  Submit a delegated release with GitHub OIDC
 emdash-plugin release status <intent-id>     Read a delegated release intent
@@ -98,13 +97,13 @@ On first publish, pass `--license` and `--security-email` (or `--security-url`) 
 
 ## Delegated releases
 
-Use the release-service dashboard to set up delegated publishing. Sign in with the Atmosphere account that owns the plugin, allow EmDash to create plugin releases, and select the plugin package you want to connect.
+Use the release-service dashboard to set up delegated publishing. Sign in with the Atmosphere account that owns the plugin and allow EmDash to create plugin releases.
 
-The dashboard provides a short-lived `release connect` step for the GitHub Actions workflow that will publish the plugin. Add the step to a job with `id-token: write`, run the workflow once, then return to the dashboard. The dashboard shows the repository, workflow file, branch or tag, and environment reported by GitHub. Confirm those details to authorize that exact workflow. The connection token and GitHub identity do not authorize publishing until you confirm them in the browser.
+Add the permanent release command to a GitHub Actions job with `id-token: write`. The first submission sends the job's signed GitHub identity to the release service and waits. Open the approval URL printed by the command, then check the repository, workflow file, branch or tag, and environment in the dashboard. Confirming those details creates the publishing policy and lets the waiting command continue.
 
-Remove the temporary connection step after confirmation. Keep `id-token: write` on the job that submits releases.
+For a release started from a tag, the dashboard can authorize all version tags or only the current tag. Repository and workflow paths remain exact in both cases.
 
-The automation commands (`connect`, `dry-run`, `submit`, `status`, and `cancel`) authenticate with the current GitHub Actions OpenID Connect (OIDC) identity. The CLI requests a token whose audience is the release-service origin for every API call.
+The automation commands (`dry-run`, `submit`, `status`, and `cancel`) authenticate with the current GitHub Actions OpenID Connect (OIDC) identity. The CLI requests a token whose audience is the release-service origin for every API call.
 
 The following command submits a generated URL-source package release record and waits for publication or an approval request:
 

@@ -269,15 +269,15 @@ Dependencies: W2.1 and shared state/error contracts.
 
 ### Tasks
 
-| Task   | Work                                                                                                                                                                                                        |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `W3.1` | Implement the complete initial object schema with `publisher`, `delegations`, `workflow_pairings`, `workload_policies`, `intents`, reservations, transitions, operations, audit, idempotency, and deadlines |
-| `W3.2` | Implement the complete intent state machine with expected-state and generation guards                                                                                                                       |
-| `W3.3` | Implement package/version reservation and OIDC/request idempotency semantics                                                                                                                                |
-| `W3.4` | Implement generation-bound refresh and publication operation tokens without external I/O inside transactions                                                                                                |
-| `W3.5` | Implement append-only audit and public/private serializers                                                                                                                                                  |
-| `W3.6` | Implement one-alarm deadline queue for operation recovery, intent and pairing expiry, session cleanup, and audit/snapshot scheduling                                                                        |
-| `W3.7` | Implement publisher session epoch and publisher/service suspension checks                                                                                                                                   |
+| Task   | Work                                                                                                                                                                                                                   |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `W3.1` | Implement the complete initial object schema with `publisher`, `delegations`, `workflow_connection_requests`, `workload_policies`, `intents`, reservations, transitions, operations, audit, idempotency, and deadlines |
+| `W3.2` | Implement the complete intent state machine with expected-state and generation guards                                                                                                                                  |
+| `W3.3` | Implement package/version reservation and OIDC/request idempotency semantics                                                                                                                                           |
+| `W3.4` | Implement generation-bound refresh and publication operation tokens without external I/O inside transactions                                                                                                           |
+| `W3.5` | Implement append-only audit and public/private serializers                                                                                                                                                             |
+| `W3.6` | Implement one-alarm deadline queue for operation recovery, intent and connection-request expiry, session cleanup, and audit/snapshot scheduling                                                                        |
+| `W3.7` | Implement publisher session epoch and publisher/service suspension checks                                                                                                                                              |
 
 ### Acceptance criteria
 

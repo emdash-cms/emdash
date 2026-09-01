@@ -42,7 +42,7 @@ The service has three external authentication mechanisms. Credentials from one m
 
 | Actor                     | Authentication                                         | Authority                                                                                         |
 | ------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| GitHub Actions workflow   | GitHub Actions OIDC                                    | Identify the repository, workflow, ref, and environment; submit an intent after browser pairing   |
+| GitHub Actions workflow   | GitHub Actions OIDC                                    | Request publisher approval for its identity, then submit release intents                          |
 | Atmosphere account holder | AT Protocol OAuth plus an enrolled passkey when needed | Establish or revoke delegation, confirm a GitHub workflow, and approve or reject an exact release |
 | Service operator          | Cloudflare Access                                      | Observe, pause, suspend, revoke, retry, and recover the service                                   |
 
@@ -170,6 +170,8 @@ interface GitHubWorkloadPolicy {
 ```
 
 Repository and owner IDs preserve the authorization boundary across GitHub renames or name reuse. This policy narrows who may submit an intent. It cannot weaken the signed package policy or change publisher records.
+
+Ref restrictions are exact by default. The only wildcard form is a trailing `*` under `refs/heads/` or `refs/tags/`; workflow repository and file paths remain exact. Choosing all version tags stores `refs/tags/*` for the trigger ref and only applies the same suffix to the workflow source ref when that source is also tag-based.
 
 ## Architecture
 
@@ -384,9 +386,9 @@ Allowed transitions are explicit. Compare-and-set transition methods take the ex
 3. Hosted-service admission policy permits or rejects the publisher.
 4. The publisher authorizes the exact delegated release scope for create-only release records and gzip-package and image-blob uploads.
 5. The service verifies the returned grant and stores the encrypted session in the publisher object.
-6. The publisher starts a short-lived pairing for a plugin package.
-7. A temporary `release connect` step runs in the intended GitHub Actions workflow. Its audience-bound OIDC token supplies the immutable repository and owner IDs, workflow file, ref, and environment.
-8. The browser displays the human-readable repository, workflow file, branch or tag, and environment. The publisher confirms those details before the service creates the package-to-GitHub-workload policy. The pairing token and OIDC claim grant no publishing authority without this confirmation.
+6. The permanent release Action runs in the intended GitHub Actions workflow. Its audience-bound OIDC token supplies the immutable repository and owner IDs, workflow file, ref, and environment.
+7. When no matching workload policy exists, the publisher object stores a short-lived workflow connection request and returns a browser approval URL. The Action writes that URL to the job summary and waits.
+8. The browser displays the human-readable repository, workflow file, branch or tag, and environment. For a tag-triggered release, the publisher chooses the current tag or all version tags. Confirmation creates the package-to-GitHub-workload policy; the OIDC request cannot create authority by itself.
 9. The service fetches and validates the signed package profile.
 10. Profile-listed approvers use the same Atmosphere login and enrol passkeys before approving a release.
 11. A dry-run submission verifies OIDC identity, request shape, service admission, and workload policy without reserving, rate-limiting, starting verification, or publishing a version. It does not fetch or validate the artifact or provenance document.
@@ -398,11 +400,12 @@ The publisher can revoke the delegation from the service or directly through the
 1. GitHub Actions builds and bundles the plugin.
 2. CI emits SLSA provenance and uploads artifact and provenance bytes to stable HTTPS URLs.
 3. CI requests an OIDC token whose audience is the release service.
-4. The Action submits the token, package/version, URL-source release record, checksums, and idempotency key. Artifact descriptors contain HTTPS URLs and no PDS blobs.
-5. The Worker verifies request shape, OIDC signature and claims, and routes to the publisher object.
-6. The publisher object verifies workload-policy admission, reserves package/version, creates the intent, and records normalized claims.
-7. The object creates the Workflow instance using the intent ID.
-8. The API returns the intent resource. Publication is always asynchronous even when it completes quickly.
+4. The Action requests or verifies its workflow connection. A missing policy creates a pending request; a matching policy lets the run continue.
+5. After browser confirmation, the Action requests a fresh OIDC token and submits the package/version, URL-source release record, checksums, and idempotency key. Artifact descriptors contain HTTPS URLs and no PDS blobs.
+6. The Worker verifies request shape, OIDC signature and claims, and routes to the publisher object.
+7. The publisher object verifies workload-policy admission, reserves package/version, creates the intent, and records normalized claims.
+8. The object creates the Workflow instance using the intent ID.
+9. The API returns the intent resource. Publication is always asynchronous even when it completes quickly.
 
 The idempotency identity includes publisher DID, package, version, GitHub repository, workflow, run ID, and run attempt. Repeating the same request returns the existing intent. Reusing the identity with a different request digest returns `IDEMPOTENCY_CONFLICT`.
 
@@ -491,23 +494,22 @@ Health endpoints are outside the versioned API. `GET /health` is configuration-i
 
 ### Publisher API
 
-| Method and path                                            | Purpose                                                   |
-| ---------------------------------------------------------- | --------------------------------------------------------- |
-| `POST /v1/publisher/session/authorize`                     | Start identity-only publisher authorization               |
-| `GET /v1/publisher`                                        | Read publisher and delegation state                       |
-| `POST /v1/publisher/delegation/authorize`                  | Start exact-scope delegation authorization                |
-| `DELETE /v1/publisher/delegation`                          | Revoke retained authority                                 |
-| `GET /v1/publisher/workloads`                              | List package workload policies                            |
-| `POST /v1/publisher/workloads`                             | Create or replace an authorized policy                    |
-| `POST /v1/publisher/workflow-pairings`                     | Start a short-lived package-to-workflow pairing           |
-| `GET /v1/publisher/workflow-pairings/{pairingId}`          | Read the GitHub identity proposed by a pairing            |
-| `POST /v1/publisher/workflow-pairings/{pairingId}/confirm` | Confirm the proposed identity and create its policy       |
-| `DELETE /v1/publisher/workloads/{packageSlug}`             | Disable a policy                                          |
-| `GET /v1/publisher/workloads/{packageSlug}/approvers`      | Read approval readiness for DIDs in the signed profile    |
-| `GET /v1/publisher/intents`                                | List publisher intents with cursor pagination             |
-| `GET /v1/publisher/audit`                                  | List publisher-scoped audit events with cursor pagination |
+| Method and path                                               | Purpose                                                   |
+| ------------------------------------------------------------- | --------------------------------------------------------- |
+| `POST /v1/publisher/session/authorize`                        | Start identity-only publisher authorization               |
+| `GET /v1/publisher`                                           | Read publisher and delegation state                       |
+| `POST /v1/publisher/delegation/authorize`                     | Start exact-scope delegation authorization                |
+| `DELETE /v1/publisher/delegation`                             | Revoke retained authority                                 |
+| `GET /v1/publisher/workloads`                                 | List package workload policies                            |
+| `POST /v1/publisher/workloads`                                | Create or replace an authorized policy                    |
+| `GET /v1/publisher/workflow-connections`                      | List pending workflow connection requests                 |
+| `POST /v1/publisher/workflow-connections/{requestId}/confirm` | Confirm a request and create its workload policy          |
+| `DELETE /v1/publisher/workloads/{packageSlug}`                | Disable a policy                                          |
+| `GET /v1/publisher/workloads/{packageSlug}/approvers`         | Read approval readiness for DIDs in the signed profile    |
+| `GET /v1/publisher/intents`                                   | List publisher intents with cursor pagination             |
+| `GET /v1/publisher/audit`                                     | List publisher-scoped audit events with cursor pagination |
 
-`POST /v1/workflow-pairings/{pairingId}/claim` is the GitHub OIDC-authenticated endpoint used by `release connect`. It records a proposal in the publisher shard but cannot create a workload policy.
+`POST /v1/workflow-connections` is the GitHub OIDC-authenticated endpoint used by the permanent Action and `release submit`. It returns an existing matching policy or records a pending request in the publisher shard. It cannot create a workload policy.
 
 ### Approver API
 
