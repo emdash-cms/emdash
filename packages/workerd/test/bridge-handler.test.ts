@@ -180,16 +180,16 @@ describe("Bridge Handler Conformance", () => {
 	// ── Capability Enforcement ────────────────────────────────────────────
 
 	describe("capability enforcement", () => {
-		it("rejects content read without read:content capability", async () => {
+		it("rejects content read without content:read capability", async () => {
 			const handler = makeHandler({ capabilities: [] });
 			const result = await call(handler, "content/get", {
 				collection: "posts",
 				id: "123",
 			});
-			expect(result.error).toContain("Missing capability: read:content");
+			expect(result.error).toContain("Missing capability: content:read");
 		});
 
-		it("allows content read with read:content", async () => {
+		it("allows content read with content:read", async () => {
 			// Create a content table first
 			await db.schema
 				.createTable("ec_posts")
@@ -198,7 +198,7 @@ describe("Bridge Handler Conformance", () => {
 				.addColumn("title", "text")
 				.execute();
 
-			const handler = makeHandler({ capabilities: ["read:content"] });
+			const handler = makeHandler({ capabilities: ["content:read"] });
 			const result = await call(handler, "content/get", {
 				collection: "posts",
 				id: "123",
@@ -208,11 +208,11 @@ describe("Bridge Handler Conformance", () => {
 			expect(result.result).toBeNull();
 		});
 
-		it("write:content does NOT imply read:content (matches Cloudflare bridge)", async () => {
+		it("content:write does NOT imply content:read (matches Cloudflare bridge)", async () => {
 			// The bridge enforces capabilities strictly: a plugin that declares
-			// only write:content cannot call ctx.content.get/list. This matches
+			// only content:write cannot call ctx.content.get/list. This matches
 			// the Cloudflare PluginBridge behavior. The plugin must declare
-			// read:content explicitly to read.
+			// content:read explicitly to read.
 			await db.schema
 				.createTable("ec_posts")
 				.addColumn("id", "text", (col) => col.primaryKey())
@@ -220,18 +220,18 @@ describe("Bridge Handler Conformance", () => {
 				.addColumn("title", "text")
 				.execute();
 
-			const handler = makeHandler({ capabilities: ["write:content"] });
+			const handler = makeHandler({ capabilities: ["content:write"] });
 			const result = await call(handler, "content/get", {
 				collection: "posts",
 				id: "123",
 			});
-			expect(result.error).toContain("Missing capability: read:content");
+			expect(result.error).toContain("Missing capability: content:read");
 		});
 
 		it("rejects taxonomy read without taxonomies:read capability", async () => {
 			// content:read does not grant taxonomy access — it's a separate
 			// capability (and a new one, so the canonical name is checked).
-			const handler = makeHandler({ capabilities: ["read:content"] });
+			const handler = makeHandler({ capabilities: ["content:read"] });
 			const result = await call(handler, "taxonomy/list", {});
 			expect(result.error).toContain("Missing capability: taxonomies:read");
 		});
@@ -331,7 +331,7 @@ describe("Bridge Handler Conformance", () => {
 				.values({ collection: "posts", entry_id: "post-1", taxonomy_id: "tg-scifi" })
 				.execute();
 
-			const denied = makeHandler({ capabilities: ["read:content"] });
+			const denied = makeHandler({ capabilities: ["content:read"] });
 			expect((await call(denied, "taxonomy/terms", { taxonomy: "genre" })).error).toContain(
 				"Missing capability: taxonomies:read",
 			);
@@ -371,14 +371,14 @@ describe("Bridge Handler Conformance", () => {
 			expect((localized.result as unknown[]).length).toBe(1);
 		});
 
-		it("rejects user read without read:users capability", async () => {
+		it("rejects user read without users:read capability", async () => {
 			const handler = makeHandler({ capabilities: [] });
 			const result = await call(handler, "users/get", { id: "user-1" });
-			expect(result.error).toContain("Missing capability: read:users");
+			expect(result.error).toContain("Missing capability: users:read");
 		});
 
-		it("allows user read with read:users", async () => {
-			const handler = makeHandler({ capabilities: ["read:users"] });
+		it("allows user read with users:read", async () => {
+			const handler = makeHandler({ capabilities: ["users:read"] });
 			const result = await call(handler, "users/get", { id: "user-1" });
 			expect(result.error).toBeUndefined();
 			const user = result.result as { id: string; email: string };
@@ -386,12 +386,12 @@ describe("Bridge Handler Conformance", () => {
 			expect(user.email).toBe("test@example.com");
 		});
 
-		it("rejects network fetch without network:fetch capability", async () => {
+		it("rejects network fetch without network:request capability", async () => {
 			const handler = makeHandler({ capabilities: [] });
 			const result = await call(handler, "http/fetch", {
 				url: "https://example.com",
 			});
-			expect(result.error).toContain("Missing capability: network:fetch");
+			expect(result.error).toContain("Missing capability: network:request");
 		});
 
 		it("rejects email send without email:send capability", async () => {
@@ -484,7 +484,7 @@ describe("Bridge Handler Conformance", () => {
 		});
 
 		it("returns error for missing required parameters", async () => {
-			const handler = makeHandler({ capabilities: ["read:content"] });
+			const handler = makeHandler({ capabilities: ["content:read"] });
 			const result = await call(handler, "content/get", {});
 			expect(result.error).toContain("Missing required string parameter");
 		});
@@ -507,7 +507,7 @@ describe("Bridge Handler Conformance", () => {
 					.execute();
 			}
 
-			const handler = makeHandler({ capabilities: ["read:content"] });
+			const handler = makeHandler({ capabilities: ["content:read"] });
 			const result = await call(handler, "content/list", {
 				collection: "posts",
 				limit: -5,
@@ -544,7 +544,7 @@ describe("Bridge Handler Conformance", () => {
 					.execute();
 			}
 
-			const handler = makeHandler({ capabilities: ["read:media"] });
+			const handler = makeHandler({ capabilities: ["media:read"] });
 			const result = await call(handler, "media/list", { limit: -5 });
 			expect(result.error).toBeUndefined();
 			const list = result.result as { items: unknown[] };
@@ -618,7 +618,7 @@ describe("Bridge Handler Conformance", () => {
 			});
 		});
 		const handler = makeHandler({
-			capabilities: ["write:content"],
+			capabilities: ["content:write"],
 			beforeContentWrite,
 		});
 
@@ -663,7 +663,7 @@ describe("Bridge Handler Conformance", () => {
 		});
 
 		it("contentCreateMany rolls back when a mid-batch insert fails", async () => {
-			const handler = makeHandler({ capabilities: ["write:content"] });
+			const handler = makeHandler({ capabilities: ["content:write"] });
 			// Pre-insert a row that will collide with item index 2's slug.
 			await call(handler, "content/create", {
 				collection: "atomic_posts",
@@ -697,7 +697,7 @@ describe("Bridge Handler Conformance", () => {
 		});
 
 		it("contentCreateMany commits all when no item fails", async () => {
-			const handler = makeHandler({ capabilities: ["write:content"] });
+			const handler = makeHandler({ capabilities: ["content:write"] });
 			const result = await call(handler, "content/createMany", {
 				collection: "atomic_posts",
 				items: [
