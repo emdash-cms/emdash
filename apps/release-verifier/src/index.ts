@@ -10,6 +10,10 @@ import {
 } from "./verify.js";
 
 export default class ReleaseVerifier extends WorkerEntrypoint<Env> {
+	override fetch(_request: Request): Response {
+		return new Response(null, { status: 404 });
+	}
+
 	async verifyArtifact(input: VerifyArtifactInput): Promise<ArtifactVerificationReport> {
 		return verifyArtifact(input);
 	}

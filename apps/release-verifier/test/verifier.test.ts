@@ -400,6 +400,12 @@ describe("isolated release verifier", () => {
 			}),
 		).resolves.toMatchObject({ success: false, error: { code: "VERIFIER_INPUT_INVALID" } });
 	});
+
+	it("does not expose verification over HTTP", async () => {
+		const response = await exports.default.fetch(new Request("https://verifier.example.test/"));
+
+		expect(response.status).toBe(404);
+	});
 });
 
 describe("Cloudflare DNS resolver", () => {
