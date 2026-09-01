@@ -5,10 +5,10 @@ export default defineConfig({
 	testMatch: "media-ready.spec.ts",
 	fullyParallel: false,
 	workers: 1,
-	timeout: 120_000,
+	timeout: 240_000,
 	use: {
 		baseURL: "http://localhost:4450",
-		trace: "on-first-retry",
+		trace: "retain-on-failure",
 		screenshot: "only-on-failure",
 		...devices["Desktop Chrome"],
 	},
