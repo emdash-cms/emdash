@@ -6,6 +6,7 @@ const REF_PATTERN = /^refs\/[A-Za-z0-9._/-]{1,507}$/;
 const WORKFLOW_REF_PATTERN =
 	/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9._/-]+$/;
 const MAX_POLICY_VALUES = 32;
+const MAX_LIST_LIMIT = 101;
 
 export interface StoredWorkloadPolicy {
 	packageSlug: string;
@@ -254,7 +255,7 @@ export class WorkloadPolicyStore {
 			(afterPackageSlug !== null && !PACKAGE_SLUG_PATTERN.test(afterPackageSlug)) ||
 			!Number.isSafeInteger(limit) ||
 			limit < 1 ||
-			limit > 100
+			limit > MAX_LIST_LIMIT
 		) {
 			throw new WorkloadPolicyError();
 		}

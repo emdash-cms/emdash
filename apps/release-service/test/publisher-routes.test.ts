@@ -252,6 +252,26 @@ describe("publisher API", () => {
 		});
 	});
 
+	it("accepts the maximum page size for workload and intent lists", async () => {
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		const headers = await sessionHeaders();
+		const workloads = await handleListPublisherWorkloads(
+			request("/v1/publisher/workloads?limit=100", headers),
+			"request-workloads",
+			configuration,
+		);
+		const intents = await handleListPublisherIntents(
+			request("/v1/publisher/intents?limit=100", headers),
+			"request-intents",
+			configuration,
+		);
+
+		expect(workloads.status).toBe(200);
+		expect(await workloads.json()).toMatchObject({ data: { items: [] } });
+		expect(intents.status).toBe(200);
+		expect(await intents.json()).toMatchObject({ data: { items: [] } });
+	});
+
 	it("paginates the authenticated publisher audit without private payloads", async () => {
 		const configuration = await loadConfiguration(TEST_BINDINGS);
 		await sessionHeaders();

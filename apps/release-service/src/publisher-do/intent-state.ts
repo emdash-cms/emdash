@@ -11,6 +11,7 @@ const MAX_WORKLOAD_JSON_CHARS = 16 * 1024;
 const MAX_RELEASE_INPUT_JSON_CHARS = 64 * 1024;
 const MAX_STATE_DATA_JSON_CHARS = 64 * 1024;
 const MAX_INTENT_LIFETIME_MS = 7 * 24 * 60 * 60_000;
+const MAX_LIST_LIMIT = 101;
 
 export type IntentState =
 	| "received"
@@ -634,7 +635,7 @@ export class IntentStateStore {
 			(afterIntentId !== null && !ULID_PATTERN.test(afterIntentId)) ||
 			!Number.isSafeInteger(limit) ||
 			limit < 1 ||
-			limit > 100
+			limit > MAX_LIST_LIMIT
 		) {
 			throw new IntentStateError();
 		}
