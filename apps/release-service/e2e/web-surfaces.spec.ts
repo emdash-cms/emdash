@@ -8,7 +8,6 @@ const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const BASE_URL = "http://localhost:5185";
 const WEB_IDEMPOTENCY_KEY = /^web-/;
-const OIDC_PERMISSION_PATTERN = /id-token: write/;
 
 function success(data: unknown) {
 	return {
@@ -74,7 +73,9 @@ test("publisher login sends mutation fencing and remains RTL-safe on mobile", as
 	});
 });
 
-test("account connects a GitHub workflow only after confirming its identity", async ({ page }) => {
+test("account approves a connection requested by the permanent release workflow", async ({
+	page,
+}) => {
 	await page.context().addCookies([
 		{
 			name: "__Host-emdash_publisher_csrf",
@@ -86,6 +87,25 @@ test("account connects a GitHub workflow only after confirming its identity", as
 		},
 	]);
 	let confirmed = false;
+	const connectionRequest = {
+		id: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+		packageSlug: "gallery",
+		state: "pending",
+		claim: {
+			repository: "example/gallery",
+			repositoryId: "123",
+			repositoryOwner: "example",
+			repositoryOwnerId: "456",
+			repositoryVisibility: "private",
+			workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+			ref: "refs/tags/v1.2.3",
+			environment: "production",
+		},
+		refScope: null,
+		expiresAt: 1_900_000_000_000,
+		createdAt: 1_800_000_000_000,
+		confirmedAt: null,
+	};
 	await page.route("**/v1/**", async (route) => {
 		const request = route.request();
 		const path = new URL(request.url()).pathname;
@@ -111,6 +131,10 @@ test("account connects a GitHub workflow only after confirming its identity", as
 			);
 			return;
 		}
+		if (path === "/v1/publisher/workflow-connections" && request.method() === "GET") {
+			await route.fulfill(success({ items: confirmed ? [] : [connectionRequest] }));
+			return;
+		}
 		if (
 			path === "/v1/publisher/workloads" ||
 			path === "/v1/publisher/intents" ||
@@ -120,47 +144,14 @@ test("account connects a GitHub workflow only after confirming its identity", as
 			await route.fulfill(success({ items: [] }));
 			return;
 		}
-		const pairing = {
-			id: "01JABCDEFGHJKMNPQRSTVWXYZ1",
-			packageSlug: "gallery",
-			expiresAt: 1_900_000_000_000,
-			createdAt: 1_800_000_000_000,
-		};
-		const claim = {
-			repository: "example/gallery",
-			repositoryId: "123",
-			repositoryOwner: "example",
-			repositoryOwnerId: "456",
-			repositoryVisibility: "private",
-			workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
-			ref: "refs/heads/main",
-			environment: null,
-		};
-		if (path === "/v1/publisher/workflow-pairings" && request.method() === "POST") {
-			await route.fulfill(
-				success({
-					pairing: {
-						...pairing,
-						state: "pending",
-						claim: null,
-						claimedAt: null,
-						confirmedAt: null,
-					},
-					pairingToken: "T".repeat(43),
-					replayed: false,
-				}),
-			);
-			return;
-		}
 		if (path.endsWith("/confirm")) {
 			confirmed = true;
 			await route.fulfill(
 				success({
-					pairing: {
-						...pairing,
+					request: {
+						...connectionRequest,
 						state: "confirmed",
-						claim,
-						claimedAt: 1_800_000_001_000,
+						refScope: "version_tags",
 						confirmedAt: 1_800_000_002_000,
 					},
 					policy: {
@@ -169,8 +160,8 @@ test("account connects a GitHub workflow only after confirming its identity", as
 						repositoryId: "123",
 						repositoryOwnerId: "456",
 						workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
-						allowedRefs: ["refs/heads/main"],
-						allowedEnvironments: [],
+						allowedRefs: ["refs/tags/*"],
+						allowedEnvironments: ["production"],
 						active: true,
 						stateVersion: 1,
 						authorizedBy: PUBLISHER_DID,
@@ -182,49 +173,20 @@ test("account connects a GitHub workflow only after confirming its identity", as
 			);
 			return;
 		}
-		if (path.includes("/workflow-pairings/") && request.method() === "GET") {
-			await route.fulfill(
-				success({
-					pairing: {
-						...pairing,
-						state: "claimed",
-						claim,
-						claimedAt: 1_800_000_001_000,
-						confirmedAt: null,
-					},
-				}),
-			);
-			return;
-		}
 		await route.abort();
 	});
 
-	await page.goto("/publisher");
+	await page.goto(`/publisher?connection=${connectionRequest.id}`);
 	await expect(page.getByText("Signed in as @publisher.example.com")).toBeVisible();
 	await expect(page.getByText(PUBLISHER_DID)).toHaveCount(0);
-	const pluginId = page.getByLabel("Plugin ID");
-	const startConnection = page.getByRole("button", { name: "Start connection" });
-	const [pluginIdBox, startConnectionBox] = await Promise.all([
-		pluginId.boundingBox(),
-		startConnection.boundingBox(),
-	]);
-	expect(pluginIdBox).not.toBeNull();
-	expect(startConnectionBox).not.toBeNull();
-	expect(
-		Math.abs(
-			pluginIdBox!.y + pluginIdBox!.height - (startConnectionBox!.y + startConnectionBox!.height),
-		),
-	).toBeLessThan(1);
-	await pluginId.fill("gallery");
-	await startConnection.click();
-	await expect(page.getByText("Run the workflow once to identify it")).toBeVisible();
-	await expect(page.getByText(OIDC_PERMISSION_PATTERN)).toBeVisible();
-	await page.getByRole("button", { name: "I've run the workflow" }).click();
-	await expect(page.getByRole("heading", { name: "Confirm this GitHub workflow" })).toBeVisible();
+	await expect(page.getByRole("heading", { name: "2. Run your release workflow" })).toBeVisible();
+	await expect(page.getByRole("heading", { name: "Approve workflow for gallery" })).toBeVisible();
 	await expect(page.getByText("example/gallery")).toBeVisible();
 	await expect(page.getByText(".github/workflows/release.yml")).toBeVisible();
-	await page.getByRole("button", { name: "Allow this workflow" }).click();
-	await expect(page.getByRole("button", { name: "Start connection" })).toBeVisible();
+	await expect(page.getByText("v1.2.3")).toBeVisible();
+	await expect(page.getByText("All version tags")).toBeVisible();
+	await page.getByRole("button", { name: "Approve workflow" }).click();
+	await expect(page.getByRole("button", { name: "Check for workflow requests" })).toBeVisible();
 	expect(confirmed).toBe(true);
 });
 

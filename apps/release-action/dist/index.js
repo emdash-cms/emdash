@@ -1548,6 +1548,10 @@ const API_ERROR_CODES = {
 	SERVICE_UNAVAILABLE: true,
 	VERSION_RESERVED: true,
 	WORKFLOW_UNAVAILABLE: true,
+	WORKFLOW_CONNECTION_CONFLICT: true,
+	WORKFLOW_CONNECTION_EXPIRED: true,
+	WORKFLOW_CONNECTION_LIMIT_REACHED: true,
+	WORKFLOW_CONNECTION_NOT_FOUND: true,
 	WORKLOAD_NOT_ALLOWED: true,
 	WORKLOAD_RATE_LIMITED: true
 };
@@ -1634,6 +1638,10 @@ function nullableString(value, key) {
 function safeInteger(value, key) {
 	const item = value[key];
 	return Number.isSafeInteger(item) ? Number(item) : null;
+}
+function nullableSafeInteger(value, key) {
+	const item = value[key];
+	return item === null ? null : Number.isSafeInteger(item) ? Number(item) : void 0;
 }
 function parseIntentResult(value) {
 	if (value === null) return null;
@@ -1737,6 +1745,51 @@ function parsePolicy(value) {
 		updatedAt
 	};
 }
+function parseWorkflowConnectionClaim(value) {
+	if (!isRecord(value)) throw invalidResponse();
+	const repository = stringValue(value, "repository");
+	const repositoryId = stringValue(value, "repositoryId");
+	const repositoryOwner = stringValue(value, "repositoryOwner");
+	const repositoryOwnerId = stringValue(value, "repositoryOwnerId");
+	const repositoryVisibility = value["repositoryVisibility"];
+	const workflowRef = stringValue(value, "workflowRef");
+	const ref = stringValue(value, "ref");
+	const environment = nullableString(value, "environment");
+	if (!repository || !repositoryId || !POSITIVE_INTEGER_PATTERN$1.test(repositoryId) || !repositoryOwner || !repositoryOwnerId || !POSITIVE_INTEGER_PATTERN$1.test(repositoryOwnerId) || repositoryVisibility !== "public" && repositoryVisibility !== "private" && repositoryVisibility !== "internal" || !workflowRef || !ref || environment === void 0) throw invalidResponse();
+	return {
+		repository,
+		repositoryId,
+		repositoryOwner,
+		repositoryOwnerId,
+		repositoryVisibility,
+		workflowRef,
+		ref,
+		environment
+	};
+}
+function parseWorkflowConnectionRequest(value) {
+	if (!isRecord(value)) throw invalidResponse();
+	const id = stringValue(value, "id");
+	const packageSlug = stringValue(value, "packageSlug");
+	const state = value["state"];
+	const refScope = value["refScope"];
+	const expiresAt = safeInteger(value, "expiresAt");
+	const createdAt = safeInteger(value, "createdAt");
+	const confirmedAt = nullableSafeInteger(value, "confirmedAt");
+	if (!id || !ULID_PATTERN.test(id) || !packageSlug || !PACKAGE_SLUG_PATTERN.test(packageSlug) || state !== "pending" && state !== "confirmed" && state !== "expired" || refScope !== null && refScope !== "current_ref" && refScope !== "version_tags" || expiresAt === null || createdAt === null || confirmedAt === void 0 || createdAt > expiresAt) throw invalidResponse();
+	const claim = parseWorkflowConnectionClaim(value["claim"]);
+	if (state === "pending" && (refScope !== null || confirmedAt !== null) || state === "confirmed" && (refScope === null || confirmedAt === null)) throw invalidResponse();
+	return {
+		id,
+		packageSlug,
+		state,
+		claim,
+		refScope,
+		expiresAt,
+		createdAt,
+		confirmedAt
+	};
+}
 function parseDelegation(value) {
 	if (value === null) return null;
 	if (!isRecord(value)) throw invalidResponse();
@@ -1763,11 +1816,14 @@ function parseDelegation(value) {
 function parsePublisher(value) {
 	if (!isRecord(value)) throw invalidResponse();
 	const did = stringValue(value, "did");
+	const handleValue = value["handle"];
+	const handle = typeof handleValue === "string" ? handleValue : null;
 	const delegation = parseDelegation(value["delegation"]);
 	const sessionExpiresAt = value["sessionExpiresAt"];
-	if (!did || !DID_PATTERN.test(did) || sessionExpiresAt !== void 0 && !Number.isSafeInteger(sessionExpiresAt)) throw invalidResponse();
+	if (!did || !DID_PATTERN.test(did) || handleValue !== void 0 && handleValue !== null && handle === null || sessionExpiresAt !== void 0 && !Number.isSafeInteger(sessionExpiresAt)) throw invalidResponse();
 	return {
 		did,
+		handle,
 		delegation,
 		...sessionExpiresAt === void 0 ? {} : { sessionExpiresAt: Number(sessionExpiresAt) }
 	};
@@ -1778,15 +1834,18 @@ function parsePublisherAuditEvent(value) {
 	const eventType = stringValue(value, "eventType");
 	const actorRealm = value["actorRealm"];
 	const actorIdentity = stringValue(value, "actorIdentity");
+	const actorHandleValue = value["actorHandle"];
+	const actorHandle = typeof actorHandleValue === "string" ? actorHandleValue : null;
 	const subject = stringValue(value, "subject");
 	const reasonCode = nullableString(value, "reasonCode");
 	const createdAt = safeInteger(value, "createdAt");
-	if (sequence === null || sequence < 1 || !eventType || actorRealm !== "access" && actorRealm !== "approver" && actorRealm !== "oidc" && actorRealm !== "publisher" && actorRealm !== "system" || !actorIdentity || !subject || reasonCode === void 0 || createdAt === null) throw invalidResponse();
+	if (sequence === null || sequence < 1 || !eventType || actorRealm !== "access" && actorRealm !== "approver" && actorRealm !== "oidc" && actorRealm !== "publisher" && actorRealm !== "system" || !actorIdentity || actorHandleValue !== void 0 && actorHandleValue !== null && actorHandle === null || !subject || reasonCode === void 0 || createdAt === null) throw invalidResponse();
 	return {
 		sequence,
 		eventType,
 		actorRealm,
 		actorIdentity,
+		actorHandle,
 		subject,
 		reasonCode,
 		createdAt
@@ -1795,10 +1854,13 @@ function parsePublisherAuditEvent(value) {
 function parsePublisherApproverStatus(value) {
 	if (!isRecord(value)) throw invalidResponse();
 	const did = stringValue(value, "did");
+	const handleValue = value["handle"];
+	const handle = typeof handleValue === "string" ? handleValue : null;
 	const status = value["status"];
-	if (!did || !DID_PATTERN.test(did) || status !== "enrolled" && status !== "not_enrolled" && status !== "revoked") throw invalidResponse();
+	if (!did || !DID_PATTERN.test(did) || handleValue !== void 0 && handleValue !== null && handle === null || status !== "enrolled" && status !== "not_enrolled" && status !== "revoked") throw invalidResponse();
 	return {
 		did,
+		handle,
 		status
 	};
 }
@@ -2030,6 +2092,86 @@ var ReleaseServiceClient = class extends BaseReleaseServiceClient {
 			return parsePublisher(value["publisher"]);
 		});
 	}
+	async requestWorkflowConnection(input, options) {
+		if (!DID_PATTERN.test(input.publisherDid) || !PACKAGE_SLUG_PATTERN.test(input.packageSlug)) throw invalidResponse();
+		const headers = await this.#workloadHeaders(options.idempotencyKey);
+		headers.set("content-type", "application/json");
+		return await this.call("/v1/workflow-connections", {
+			method: "POST",
+			headers,
+			body: JSON.stringify(input),
+			signal: options.signal
+		}, (value) => {
+			if (!isRecord(value)) throw invalidResponse();
+			if (value["status"] === "connected") return {
+				status: "connected",
+				policy: parsePolicy(value["policy"])
+			};
+			if (value["status"] !== "pending" || typeof value["replayed"] !== "boolean") throw invalidResponse();
+			const request = parseWorkflowConnectionRequest(value["request"]);
+			const approvalUrl = stringValue(value, "approvalUrl");
+			if (!approvalUrl) throw invalidResponse();
+			let parsedApproval;
+			try {
+				parsedApproval = new URL(approvalUrl);
+			} catch {
+				throw invalidResponse();
+			}
+			if (parsedApproval.origin !== this.serviceUrl || parsedApproval.pathname !== "/publisher" || parsedApproval.searchParams.get("connection") !== request.id) throw invalidResponse();
+			return {
+				status: "pending",
+				request,
+				approvalUrl,
+				replayed: value["replayed"]
+			};
+		});
+	}
+	async waitForWorkflowConnection(input, options) {
+		const pollIntervalMs = options.pollIntervalMs ?? 1e3;
+		const maxWaitMs = options.maxWaitMs ?? 15 * 6e4;
+		if (!Number.isSafeInteger(pollIntervalMs) || pollIntervalMs < 0 || !Number.isSafeInteger(maxWaitMs) || maxWaitMs < 1) throw new ReleaseServiceError({
+			code: "INVALID_REQUEST",
+			message: "Polling options are invalid"
+		});
+		const deadline = Date.now() + maxWaitMs;
+		for (;;) {
+			const result = await this.requestWorkflowConnection(input, options);
+			await options.onUpdate?.(result);
+			if (result.status === "connected") return result.policy;
+			if (Date.now() >= deadline) throw new ReleaseServiceError({
+				code: "POLL_TIMEOUT",
+				message: "Timed out waiting for workflow approval"
+			});
+			await sleep(Math.min(pollIntervalMs, Math.max(0, deadline - Date.now())), options.signal);
+		}
+	}
+	async listWorkflowConnections(options = {}) {
+		return await this.call("/v1/publisher/workflow-connections", {
+			method: "GET",
+			credentials: "include",
+			signal: options.signal
+		}, (value) => {
+			if (!isRecord(value) || !Array.isArray(value["items"])) throw invalidResponse();
+			return value["items"].map(parseWorkflowConnectionRequest);
+		});
+	}
+	async confirmWorkflowConnection(requestId, refScope, options) {
+		if (!ULID_PATTERN.test(requestId) || refScope !== "current_ref" && refScope !== "version_tags") throw invalidResponse();
+		return await this.call(`/v1/publisher/workflow-connections/${encodeURIComponent(requestId)}/confirm`, {
+			method: "POST",
+			credentials: "include",
+			headers: await this.#publisherMutationHeaders(options.idempotencyKey),
+			body: JSON.stringify({ refScope }),
+			signal: options.signal
+		}, (value) => {
+			if (!isRecord(value) || typeof value["replayed"] !== "boolean") throw invalidResponse();
+			return {
+				request: parseWorkflowConnectionRequest(value["request"]),
+				policy: parsePolicy(value["policy"]),
+				replayed: value["replayed"]
+			};
+		});
+	}
 	async listWorkloads(options = {}) {
 		const url = new URL("/v1/publisher/workloads", this.serviceUrl);
 		if (options.cursor) url.searchParams.set("cursor", options.cursor);
@@ -2198,6 +2340,8 @@ async function runAction(runtime, dependencies = {}) {
 	const release = parseDelegatedReleaseSourceRecord(await (dependencies.readReleaseRecord ?? defaultReadReleaseRecord)(releaseFile, workspace));
 	if (!release) throw new ActionConfigurationError("Release record file is invalid");
 	const idempotencyKey = runtime.getInput("idempotency-key") || defaultIdempotencyKey(runtime);
+	const runId = runtime.getEnvironment("GITHUB_RUN_ID");
+	if (!runId || !POSITIVE_INTEGER_PATTERN.test(runId)) throw new ActionConfigurationError("GitHub run identity is unavailable");
 	const pollIntervalSeconds = parsePositiveInteger(runtime.getInput("poll-interval-seconds") || "5", "poll-interval-seconds", 300);
 	const timeoutMinutes = parsePositiveInteger(runtime.getInput("timeout-minutes") || "30", "timeout-minutes", 360);
 	const waitForApproval = parseBoolean(runtime.getInput("wait-for-approval") || "false", "wait-for-approval");
@@ -2208,6 +2352,23 @@ async function runAction(runtime, dependencies = {}) {
 			const token = await runtime.getIDToken(serviceUrl);
 			runtime.addMask(token);
 			return token;
+		}
+	});
+	await runtime.setOutput("connection-url", "");
+	let connectionRequestId = null;
+	await client.waitForWorkflowConnection({
+		publisherDid,
+		packageSlug: release.package
+	}, {
+		idempotencyKey: `github-connection-${runId}-${release.package}`,
+		pollIntervalMs: pollIntervalSeconds * 1e3,
+		maxWaitMs: timeoutMinutes * 6e4,
+		onUpdate: async (current) => {
+			if (current.status !== "pending" || current.request.id === connectionRequestId) return;
+			connectionRequestId = current.request.id;
+			await runtime.setOutput("connection-url", current.approvalUrl);
+			runtime.info(`Approve this GitHub workflow to continue: ${current.approvalUrl}`);
+			await runtime.writeSummary(`## Approve this GitHub workflow\n\n[Open EmDash to review and approve the workflow](${current.approvalUrl})`);
 		}
 	});
 	const submitted = await client.submitIntent({
@@ -2305,6 +2466,11 @@ var DefaultActionRuntime = class {
 		if (!outputFile) throw new Error("GitHub output file is unavailable");
 		const delimiter = `emdash_${crypto.randomUUID()}`;
 		await appendFile(outputFile, `${name}<<${delimiter}\n${value}\n${delimiter}\n`, "utf8");
+	}
+	async writeSummary(markdown) {
+		const summaryFile = process.env["GITHUB_STEP_SUMMARY"];
+		if (!summaryFile) return;
+		await appendFile(summaryFile, `${markdown}\n`, "utf8");
 	}
 	info(message) {
 		console.log(message);

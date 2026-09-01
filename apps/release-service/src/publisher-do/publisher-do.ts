@@ -55,14 +55,14 @@ import {
 	type VerificationStepName,
 } from "./verification-step.js";
 import {
-	initializeWorkflowPairingSchema,
-	WorkflowPairingStore,
-	type ClaimWorkflowPairingInput,
-	type ClaimWorkflowPairingResult,
-	type CreateWorkflowPairingInput,
-	type CreateWorkflowPairingResult,
-	type StoredWorkflowPairing,
-} from "./workflow-pairing.js";
+	initializeWorkflowConnectionSchema,
+	WorkflowConnectionStore,
+	type CreateWorkflowConnectionRequestInput,
+	type StoredWorkflowConnectionRequest,
+	type WorkflowConnectionRefScope,
+	workflowConnectionPolicy,
+	workflowConnectionPolicyMatches,
+} from "./workflow-connection.js";
 import {
 	initializeWorkloadPolicySchema,
 	WorkloadPolicyStore,
@@ -119,14 +119,13 @@ export type {
 } from "./operations-restore.js";
 export type { ConsumeIntentRateLimitInput, ConsumeIntentRateLimitResult } from "./rate-limit.js";
 export type {
-	ClaimWorkflowPairingInput,
-	ClaimWorkflowPairingResult,
-	CreateWorkflowPairingInput,
-	CreateWorkflowPairingResult,
-	StoredWorkflowPairing,
-	WorkflowPairingClaim,
-	WorkflowPairingState,
-} from "./workflow-pairing.js";
+	CreateWorkflowConnectionRequestInput,
+	CreateWorkflowConnectionRequestResult,
+	StoredWorkflowConnectionRequest,
+	WorkflowConnectionClaim,
+	WorkflowConnectionRefScope,
+	WorkflowConnectionRequestState,
+} from "./workflow-connection.js";
 
 const DID_PATTERN = /^did:[a-z][a-z0-9]*:[A-Za-z0-9._:%-]+$/;
 const HASH_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
@@ -357,16 +356,37 @@ export type ValidatePublisherSessionResult =
 			code: "PUBLISHER_SESSION_INVALID" | "PUBLISHER_SESSION_EXPIRED" | "PUBLISHER_SUSPENDED";
 	  };
 
-export type ConfirmWorkflowPairingResult =
+export type RequestWorkflowConnectionResult =
+	| { ok: true; status: "connected"; policy: StoredWorkloadPolicy }
 	| {
 			ok: true;
-			pairing: StoredWorkflowPairing;
+			status: "pending";
+			request: StoredWorkflowConnectionRequest;
+			replayed: boolean;
+	  }
+	| {
+			ok: false;
+			code:
+				| "DELEGATION_REQUIRED"
+				| "PUBLISHER_SUSPENDED"
+				| "WORKFLOW_CONNECTION_CONFLICT"
+				| "WORKFLOW_CONNECTION_LIMIT_REACHED";
+	  };
+
+export type ConfirmWorkflowConnectionResult =
+	| {
+			ok: true;
+			request: StoredWorkflowConnectionRequest;
 			policy: StoredWorkloadPolicy;
 			replayed: boolean;
 	  }
 	| {
 			ok: false;
-			code: "PAIRING_CONFLICT" | "PAIRING_EXPIRED" | "PAIRING_INVALID" | "PAIRING_NOT_CLAIMED";
+			code:
+				| "DELEGATION_REQUIRED"
+				| "WORKFLOW_CONNECTION_CONFLICT"
+				| "WORKFLOW_CONNECTION_EXPIRED"
+				| "WORKFLOW_CONNECTION_NOT_FOUND";
 	  };
 
 interface OAuthStateRow {
@@ -486,7 +506,7 @@ async function expirationDigest(intentId: string, expiresAt: number): Promise<st
 	return encodeBase64Url(new Uint8Array(digest));
 }
 
-function workflowPairingPolicyMatches(
+function workloadPolicyEquals(
 	policy: StoredWorkloadPolicy,
 	expected: Pick<
 		StoredWorkloadPolicy,
@@ -521,7 +541,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 	readonly #verificationSteps: VerificationStepStore;
 	readonly #operationsRestore: OperationsRestoreStore;
 	readonly #intentRateLimits: IntentRateLimitStore;
-	readonly #workflowPairings: WorkflowPairingStore;
+	readonly #workflowConnections: WorkflowConnectionStore;
 
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
@@ -533,7 +553,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		this.#verificationSteps = new VerificationStepStore(ctx.storage);
 		this.#operationsRestore = new OperationsRestoreStore(ctx.storage);
 		this.#intentRateLimits = new IntentRateLimitStore(ctx.storage);
-		this.#workflowPairings = new WorkflowPairingStore(ctx.storage);
+		this.#workflowConnections = new WorkflowConnectionStore(ctx.storage);
 		void ctx.blockConcurrencyWhile(() => {
 			this.#initializeSchema();
 			return Promise.resolve();
@@ -620,7 +640,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		initializeVerificationStepSchema(this.ctx.storage);
 		initializeOperationsRestoreSchema(this.ctx.storage);
 		initializeIntentRateLimitSchema(this.ctx.storage);
-		initializeWorkflowPairingSchema(this.ctx.storage);
+		initializeWorkflowConnectionSchema(this.ctx.storage);
 	}
 
 	#assertPublisherObjectName(publisherDid: string): void {
@@ -750,56 +770,64 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		return this.#workloadPolicies.list(afterPackageSlug, limit);
 	}
 
-	async createWorkflowPairing(
-		input: CreateWorkflowPairingInput,
-	): Promise<CreateWorkflowPairingResult> {
-		this.#assertPublisherDid(input.publisherDid);
+	async requestWorkflowConnection(
+		input: CreateWorkflowConnectionRequestInput,
+	): Promise<RequestWorkflowConnectionResult> {
+		this.#assertPublisherObjectName(input.publisherDid);
+		const owner = this.ctx.storage.sql
+			.exec<PublisherSessionOwnerRow>(
+				"SELECT did, status, session_epoch FROM publisher WHERE id = 1",
+			)
+			.toArray()[0];
+		if (!owner || this.#readDelegation()?.status !== "active") {
+			return { ok: false, code: "DELEGATION_REQUIRED" };
+		}
+		if (owner.did !== input.publisherDid) {
+			throw new PublisherStateError("PUBLISHER_DID_MISMATCH");
+		}
+		if (owner.status === "suspended") return { ok: false, code: "PUBLISHER_SUSPENDED" };
 		const currentPolicy = this.#workloadPolicies.get(input.packageSlug);
-		const result = this.#workflowPairings.create(input, currentPolicy?.stateVersion ?? null);
+		if (currentPolicy && workflowConnectionPolicyMatches(currentPolicy, input.claim)) {
+			return { ok: true, status: "connected", policy: currentPolicy };
+		}
+		const result = this.#workflowConnections.create(input, currentPolicy?.stateVersion ?? null);
 		if (result.ok) await this.#scheduleNextAlarm(input.now ?? Date.now());
-		return result;
+		return result.ok
+			? { ok: true, status: "pending", request: result.request, replayed: result.replayed }
+			: result;
 	}
 
-	getWorkflowPairing(
+	listWorkflowConnectionRequests(
 		publisherDid: string,
-		pairingId: string,
+		limit: number,
 		now = Date.now(),
-	): StoredWorkflowPairing | null {
+	): readonly StoredWorkflowConnectionRequest[] {
 		this.#assertPublisherDid(publisherDid);
-		return this.#workflowPairings.get(pairingId, now);
+		return this.#workflowConnections.listPending(limit, now);
 	}
 
-	claimWorkflowPairing(input: ClaimWorkflowPairingInput): ClaimWorkflowPairingResult {
-		this.#assertPublisherDid(input.publisherDid);
-		return this.#workflowPairings.claim(input);
-	}
-
-	confirmWorkflowPairing(
+	confirmWorkflowConnection(
 		publisherDid: string,
-		pairingId: string,
+		requestId: string,
+		refScope: WorkflowConnectionRefScope,
 		now = Date.now(),
-	): ConfirmWorkflowPairingResult {
+	): ConfirmWorkflowConnectionResult {
 		this.#assertPublisherDid(publisherDid);
-		const prepared = this.#workflowPairings.prepareConfirmation(pairingId, now);
+		const prepared = this.#workflowConnections.prepareConfirmation(requestId, now);
 		if (!prepared.ok) return prepared;
-		const claim = prepared.pairing.claim;
-		if (!claim) return { ok: false, code: "PAIRING_NOT_CLAIMED" };
-		const expectedVersion = prepared.pairing.expectedPolicyVersion;
-		const expectedPolicy = {
-			packageSlug: prepared.pairing.packageSlug,
-			repository: claim.repository,
-			repositoryId: claim.repositoryId,
-			repositoryOwnerId: claim.repositoryOwnerId,
-			workflowRef: claim.workflowRef,
-			allowedRefs: [claim.ref],
-			allowedEnvironments: claim.environment ? [claim.environment] : [],
-			active: true,
-		} as const;
+		if (this.#readDelegation()?.status !== "active") {
+			return { ok: false, code: "DELEGATION_REQUIRED" };
+		}
+		if (prepared.replayed && prepared.request.refScope !== refScope) {
+			return { ok: false, code: "WORKFLOW_CONNECTION_CONFLICT" };
+		}
+		const expectedVersion = prepared.request.expectedPolicyVersion;
+		const expectedPolicy = workflowConnectionPolicy(prepared.request, refScope);
 		if (prepared.replayed) {
 			const policy = this.#workloadPolicies.get(expectedPolicy.packageSlug);
-			return policy && workflowPairingPolicyMatches(policy, expectedPolicy)
-				? { ok: true, pairing: prepared.pairing, policy, replayed: true }
-				: { ok: false, code: "PAIRING_CONFLICT" };
+			return policy && workloadPolicyEquals(policy, expectedPolicy)
+				? { ok: true, request: prepared.request, policy, replayed: true }
+				: { ok: false, code: "WORKFLOW_CONNECTION_CONFLICT" };
 		}
 		const result = this.#workloadPolicies.put({
 			publisherDid,
@@ -813,15 +841,15 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			if (
 				current &&
 				current.stateVersion === (expectedVersion ?? 0) + 1 &&
-				workflowPairingPolicyMatches(current, expectedPolicy)
+				workloadPolicyEquals(current, expectedPolicy)
 			) {
 				policy = current;
 			}
 		}
-		if (!policy) return { ok: false, code: "PAIRING_CONFLICT" };
+		if (!policy) return { ok: false, code: "WORKFLOW_CONNECTION_CONFLICT" };
 		return {
 			ok: true,
-			pairing: this.#workflowPairings.complete(pairingId, now),
+			request: this.#workflowConnections.complete(requestId, refScope, now),
 			policy,
 			replayed: false,
 		};
@@ -1416,7 +1444,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			this.ctx.storage.sql.exec("DELETE FROM deadlines");
 			this.ctx.storage.sql.exec("DELETE FROM intents");
 			this.ctx.storage.sql.exec("DELETE FROM workload_policies");
-			this.ctx.storage.sql.exec("DELETE FROM workflow_pairings");
+			this.ctx.storage.sql.exec("DELETE FROM workflow_connection_requests");
 			this.ctx.storage.sql.exec("DELETE FROM publisher_sessions");
 			this.ctx.storage.sql.exec("DELETE FROM oauth_states");
 			this.ctx.storage.sql.exec("DELETE FROM delegation");
@@ -1987,7 +2015,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 				idempotency_expiry: number | null;
 				rate_expiry: number | null;
 				intent_expiry: number | null;
-				pairing_expiry: number | null;
+				connection_expiry: number | null;
 			}>(
 				`SELECT
 					(SELECT MIN(scheduled_at) FROM deadlines) AS operation_deadline,
@@ -1999,8 +2027,8 @@ export class PublisherDurableObject extends DurableObject<Env> {
 					 WHERE state IN (
 					   'received', 'verifying', 'verified', 'awaiting_approval', 'ready'
 					 )) AS intent_expiry,
-					(SELECT MIN(expires_at) FROM workflow_pairings
-					 WHERE state IN ('pending', 'claimed')) AS pairing_expiry`,
+					(SELECT MIN(expires_at) FROM workflow_connection_requests
+					 WHERE state = 'pending') AS connection_expiry`,
 			)
 			.one();
 		const deadlines = Object.values(candidates).filter(
@@ -2040,7 +2068,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			this.ctx.storage.sql.exec("DELETE FROM publisher_sessions WHERE expires_at <= ?", now);
 			this.ctx.storage.sql.exec("DELETE FROM intent_idempotency WHERE expires_at <= ?", now);
 			this.ctx.storage.sql.exec("DELETE FROM intent_rate_idempotency WHERE expires_at <= ?", now);
-			this.#workflowPairings.expire(now);
+			this.#workflowConnections.expire(now);
 		});
 		await this.#scheduleNextAlarm(now);
 	}

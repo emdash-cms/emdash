@@ -49,4 +49,21 @@ describe("GitHub Action runtime", () => {
 			await rm(directory, { recursive: true, force: true });
 		}
 	});
+
+	it("writes workflow approval links to the GitHub step summary", async () => {
+		const directory = await mkdtemp(join(tmpdir(), "emdash-release-action-"));
+		try {
+			const summaryFile = join(directory, "summary");
+			vi.stubEnv("GITHUB_STEP_SUMMARY", summaryFile);
+			await new DefaultActionRuntime().writeSummary(
+				"## Approve this GitHub workflow\n\n[Open EmDash](https://release.example.com/publisher)",
+			);
+
+			await expect(readFile(summaryFile, "utf8")).resolves.toBe(
+				"## Approve this GitHub workflow\n\n[Open EmDash](https://release.example.com/publisher)\n",
+			);
+		} finally {
+			await rm(directory, { recursive: true, force: true });
+		}
+	});
 });

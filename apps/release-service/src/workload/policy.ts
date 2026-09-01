@@ -1,8 +1,9 @@
 import { base64url } from "jose";
 
 import {
-	normalizeWorkflowRefRepository,
+	refRuleMatches,
 	type StoredWorkloadPolicy,
+	workflowRefRuleMatches,
 } from "../publisher-do/workload-policy.js";
 import type { VerifiedWorkloadIdentity } from "./types.js";
 
@@ -29,13 +30,13 @@ export function evaluateWorkloadPolicy(
 	) {
 		return { ok: false, code: "WORKLOAD_REPOSITORY_MISMATCH" };
 	}
-	if (
-		normalizeWorkflowRefRepository(identity.workflow.ref) !==
-		normalizeWorkflowRefRepository(policy.workflowRef)
-	) {
+	if (!workflowRefRuleMatches(policy.workflowRef, identity.workflow.ref)) {
 		return { ok: false, code: "WORKLOAD_WORKFLOW_MISMATCH" };
 	}
-	if (policy.allowedRefs.length > 0 && !policy.allowedRefs.includes(identity.run.ref)) {
+	if (
+		policy.allowedRefs.length > 0 &&
+		!policy.allowedRefs.some((rule) => refRuleMatches(rule, identity.run.ref))
+	) {
 		return { ok: false, code: "WORKLOAD_REF_MISMATCH" };
 	}
 	if (

@@ -109,6 +109,10 @@ export async function runAction(
 
 	const configuredIdempotencyKey = runtime.getInput("idempotency-key");
 	const idempotencyKey = configuredIdempotencyKey || defaultIdempotencyKey(runtime);
+	const runId = runtime.getEnvironment("GITHUB_RUN_ID");
+	if (!runId || !POSITIVE_INTEGER_PATTERN.test(runId)) {
+		throw new ActionConfigurationError("GitHub run identity is unavailable");
+	}
 	const pollIntervalSeconds = parsePositiveInteger(
 		runtime.getInput("poll-interval-seconds") || "5",
 		"poll-interval-seconds",
@@ -132,6 +136,25 @@ export async function runAction(
 			return token;
 		},
 	});
+	await runtime.setOutput("connection-url", "");
+	let connectionRequestId: string | null = null;
+	await client.waitForWorkflowConnection(
+		{ publisherDid, packageSlug: release.package },
+		{
+			idempotencyKey: `github-connection-${runId}-${release.package}`,
+			pollIntervalMs: pollIntervalSeconds * 1000,
+			maxWaitMs: timeoutMinutes * 60_000,
+			onUpdate: async (current) => {
+				if (current.status !== "pending" || current.request.id === connectionRequestId) return;
+				connectionRequestId = current.request.id;
+				await runtime.setOutput("connection-url", current.approvalUrl);
+				runtime.info(`Approve this GitHub workflow to continue: ${current.approvalUrl}`);
+				await runtime.writeSummary(
+					`## Approve this GitHub workflow\n\n[Open EmDash to review and approve the workflow](${current.approvalUrl})`,
+				);
+			},
+		},
+	);
 	const submitted = await client.submitIntent(
 		{
 			publisherDid,

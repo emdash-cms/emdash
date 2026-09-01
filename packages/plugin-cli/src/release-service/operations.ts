@@ -5,8 +5,8 @@ import {
 	createReleaseIdempotencyKey,
 	parseDelegatedReleaseSourceRecord,
 	type DryRunReleaseIntentResult,
-	type ClaimWorkflowPairingResult,
 	type ReleaseIntentResource,
+	type RequestWorkflowConnectionResult,
 } from "@emdash-cms/registry-client/release-service";
 
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
@@ -37,6 +37,7 @@ export interface SubmitDelegatedReleaseOptions extends ReleaseServiceTarget {
 	waitForApproval?: boolean;
 	pollIntervalMs?: number;
 	maxWaitMs?: number;
+	onConnectionUpdate?: (result: RequestWorkflowConnectionResult) => void | Promise<void>;
 	onUpdate?: (intent: ReleaseIntentResource) => void | Promise<void>;
 }
 
@@ -47,11 +48,6 @@ export interface DryRunDelegatedReleaseOptions extends ReleaseServiceTarget {
 export interface MutateReleaseIntentOptions extends ReleaseServiceTarget {
 	intentId: string;
 	idempotencyKey?: string;
-}
-
-export interface ConnectGithubWorkflowOptions extends ReleaseServiceTarget {
-	pairingId: string;
-	pairingToken: string;
 }
 
 export type InteractiveReleaseAction =
@@ -136,6 +132,17 @@ function defaultIdempotencyKey(environment: ReleaseServiceEnvironment): string {
 	return createReleaseIdempotencyKey("emdash-plugin-release");
 }
 
+function defaultConnectionIdempotencyKey(
+	environment: ReleaseServiceEnvironment,
+	packageSlug: string,
+): string {
+	const runId = environment["GITHUB_RUN_ID"];
+	if (runId && POSITIVE_INTEGER_PATTERN.test(runId)) {
+		return `github-connection-${runId}-${packageSlug}`;
+	}
+	return createReleaseIdempotencyKey("workflow-connection");
+}
+
 export async function requestGithubOidcToken(
 	audience: string,
 	dependencies: ReleaseServiceOperationDependencies = {},
@@ -203,6 +210,16 @@ export async function submitDelegatedRelease(
 	if (!release) throw new Error("Release record file is invalid");
 	const environment = dependencies.environment ?? process.env;
 	const client = releaseClient(options, dependencies);
+	await client.waitForWorkflowConnection(
+		{ publisherDid: options.publisherDid, packageSlug: release.package },
+		{
+			idempotencyKey: defaultConnectionIdempotencyKey(environment, release.package),
+			pollIntervalMs: options.pollIntervalMs,
+			maxWaitMs: options.maxWaitMs,
+			onUpdate: options.onConnectionUpdate,
+		},
+	);
+	const idempotencyKey = options.idempotencyKey ?? defaultIdempotencyKey(environment);
 	const submitted = await client.submitIntent(
 		{
 			publisherDid: options.publisherDid,
@@ -210,7 +227,7 @@ export async function submitDelegatedRelease(
 			version: release.version,
 			release,
 		},
-		{ idempotencyKey: options.idempotencyKey ?? defaultIdempotencyKey(environment) },
+		{ idempotencyKey },
 	);
 	if (options.wait === false) return submitted.intent;
 	return await client.waitForIntent(options.publisherDid, submitted.intent.id, {
@@ -235,17 +252,6 @@ export async function dryRunDelegatedRelease(
 		packageSlug: release.package,
 		version: release.version,
 		release,
-	});
-}
-
-export async function connectGithubWorkflow(
-	options: ConnectGithubWorkflowOptions,
-	dependencies: ReleaseServiceOperationDependencies = {},
-): Promise<ClaimWorkflowPairingResult> {
-	return await releaseClient(options, dependencies).claimWorkflowPairing({
-		publisherDid: options.publisherDid,
-		pairingId: options.pairingId,
-		pairingToken: options.pairingToken,
 	});
 }
 

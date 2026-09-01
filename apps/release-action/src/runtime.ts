@@ -8,6 +8,7 @@ export interface ActionRuntime {
 	getIDToken(audience: string): Promise<string>;
 	addMask(value: string): void;
 	setOutput(name: string, value: string): Promise<void>;
+	writeSummary(markdown: string): Promise<void>;
 	info(message: string): void;
 	setFailed(message: string): void;
 	getEnvironment(name: string): string | undefined;
@@ -81,6 +82,12 @@ export class DefaultActionRuntime implements ActionRuntime {
 		if (!outputFile) throw new Error("GitHub output file is unavailable");
 		const delimiter = `emdash_${crypto.randomUUID()}`;
 		await appendFile(outputFile, `${name}<<${delimiter}\n${value}\n${delimiter}\n`, "utf8");
+	}
+
+	async writeSummary(markdown: string): Promise<void> {
+		const summaryFile = process.env["GITHUB_STEP_SUMMARY"];
+		if (!summaryFile) return;
+		await appendFile(summaryFile, `${markdown}\n`, "utf8");
 	}
 
 	info(message: string): void {

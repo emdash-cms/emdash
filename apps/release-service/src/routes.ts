@@ -86,14 +86,11 @@ import {
 	matchPublisherWorkloadPath,
 } from "./publisher/routes.js";
 import {
-	handleClaimWorkflowPairing,
-	handleConfirmWorkflowPairing,
-	handleCreateWorkflowPairing,
-	handleGetWorkflowPairing,
-	matchWorkflowPairingClaimPath,
-	matchWorkflowPairingConfirmPath,
-	matchWorkflowPairingPath,
-} from "./workflow-pairing/routes.js";
+	handleConfirmWorkflowConnection,
+	handleListWorkflowConnections,
+	handleRequestWorkflowConnection,
+	matchWorkflowConnectionConfirmPath,
+} from "./workflow-connection/routes.js";
 
 export interface RouteDefinition {
 	method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
@@ -172,30 +169,22 @@ export const ROUTES = Object.freeze([
 	},
 	{
 		method: "POST",
-		path: "/v1/publisher/workflow-pairings",
+		path: "/v1/workflow-connections",
 		handler: (request, requestId, configuration) =>
-			handleCreateWorkflowPairing(request, requestId, configuration),
+			handleRequestWorkflowConnection(request, requestId, configuration),
 	},
 	{
 		method: "GET",
-		path: "/v1/publisher/workflow-pairings/{pairingId}",
-		match: matchWorkflowPairingPath,
-		handler: (request, requestId, configuration, params) =>
-			handleGetWorkflowPairing(request, requestId, configuration, params),
+		path: "/v1/publisher/workflow-connections",
+		handler: (request, requestId, configuration) =>
+			handleListWorkflowConnections(request, requestId, configuration),
 	},
 	{
 		method: "POST",
-		path: "/v1/publisher/workflow-pairings/{pairingId}/confirm",
-		match: matchWorkflowPairingConfirmPath,
+		path: "/v1/publisher/workflow-connections/{requestId}/confirm",
+		match: matchWorkflowConnectionConfirmPath,
 		handler: (request, requestId, configuration, params) =>
-			handleConfirmWorkflowPairing(request, requestId, configuration, params),
-	},
-	{
-		method: "POST",
-		path: "/v1/workflow-pairings/{pairingId}/claim",
-		match: matchWorkflowPairingClaimPath,
-		handler: (request, requestId, configuration, params) =>
-			handleClaimWorkflowPairing(request, requestId, configuration, params),
+			handleConfirmWorkflowConnection(request, requestId, configuration, params),
 	},
 	{
 		method: "POST",

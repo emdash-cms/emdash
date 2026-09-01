@@ -1,16 +1,17 @@
-import { Badge, Button, Input, Popover, Surface, Table } from "@cloudflare/kumo";
+import { Badge, Button, Popover, Select, Surface, Table } from "@cloudflare/kumo";
 import {
 	ReleaseServiceClient,
 	ReleaseServiceError,
 	createReleaseIdempotencyKey,
-	type CreateWorkflowPairingResult,
 	type PublisherApproverStatusResult,
 	type PublisherAuditEventResource,
 	type PublisherResource,
 	type ReleaseIntentResource,
 	type WorkloadPolicyResource,
+	type WorkflowConnectionRefScope,
+	type WorkflowConnectionRequestResource,
 } from "@emdash-cms/registry-client/release-service";
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { beginPublisherDelegation, publisherCsrfToken } from "./api.js";
 import { ErrorBanner, LoadingPanel, LoginPanel } from "./components.js";
@@ -20,6 +21,7 @@ const GIT_REF_PREFIX_PATTERN = /^refs\/(?:heads|tags)\//;
 
 interface PublisherData {
 	publisher: PublisherResource;
+	connections: WorkflowConnectionRequestResource[];
 	workloads: WorkloadPolicyResource[];
 	intents: ReleaseIntentResource[];
 	audit: PublisherAuditEventResource[];
@@ -132,20 +134,8 @@ function activityEventLabel(t: ReturnType<typeof useT>, eventType: string): stri
 	return t("activity.recorded", "Account activity recorded");
 }
 
-function workflowPairingStep(
-	pairing: CreateWorkflowPairingResult,
-	publisherDid: string,
-	stepName: string,
-): string {
-	return [
-		`- name: ${stepName}`,
-		"  run: |",
-		"    npx @emdash-cms/plugin-cli release connect \\",
-		`      --service-url ${location.origin} \\`,
-		`      --publisher-did ${publisherDid} \\`,
-		`      --pairing-id ${pairing.pairing.id} \\`,
-		`      --pairing-token ${pairing.pairingToken}`,
-	].join("\n");
+function defaultRefScope(request: WorkflowConnectionRequestResource): WorkflowConnectionRefScope {
+	return request.claim.ref.startsWith("refs/tags/") ? "version_tags" : "current_ref";
 }
 
 function activityActorLabel(t: ReturnType<typeof useT>, item: PublisherAuditEventResource): string {
@@ -280,20 +270,23 @@ export function PublisherPage() {
 	const [loginRequired, setLoginRequired] = useState(false);
 	const [error, setError] = useState<unknown>(null);
 	const [busy, setBusy] = useState(false);
-	const [packageSlug, setPackageSlug] = useState("");
-	const [workflowPairing, setWorkflowPairing] = useState<CreateWorkflowPairingResult | null>(null);
+	const [connectionScopes, setConnectionScopes] = useState<
+		Record<string, WorkflowConnectionRefScope>
+	>({});
 
 	const refresh = useCallback(async () => {
 		setError(null);
 		try {
-			const [publisher, workloads, intents, audit] = await Promise.all([
+			const [publisher, connections, workloads, intents, audit] = await Promise.all([
 				client.getPublisher(),
+				client.listWorkflowConnections(),
 				client.listWorkloads({ limit: 100 }),
 				client.listPublisherIntents({ limit: 100 }),
 				client.listPublisherAudit({ limit: 50 }),
 			]);
 			setData({
 				publisher,
+				connections,
 				workloads: workloads.items,
 				intents: intents.items,
 				audit: audit.items,
@@ -341,50 +334,15 @@ export function PublisherPage() {
 		}
 	}
 
-	async function startWorkflowPairing(event: FormEvent) {
-		event.preventDefault();
-		if (data?.publisher.delegation?.status !== "active") return;
+	async function confirmWorkflowConnection(request: WorkflowConnectionRequestResource) {
 		setBusy(true);
 		setError(null);
 		try {
-			setWorkflowPairing(
-				await client.createWorkflowPairing(packageSlug, {
-					idempotencyKey: createReleaseIdempotencyKey("web-workflow-pairing"),
-				}),
+			await client.confirmWorkflowConnection(
+				request.id,
+				connectionScopes[request.id] ?? defaultRefScope(request),
+				{ idempotencyKey: createReleaseIdempotencyKey("web-workflow-confirm") },
 			);
-		} catch (cause) {
-			setError(cause);
-		} finally {
-			setBusy(false);
-		}
-	}
-
-	async function checkWorkflowPairing() {
-		if (!workflowPairing) return;
-		setBusy(true);
-		setError(null);
-		try {
-			setWorkflowPairing({
-				...workflowPairing,
-				pairing: await client.getWorkflowPairing(workflowPairing.pairing.id),
-			});
-		} catch (cause) {
-			setError(cause);
-		} finally {
-			setBusy(false);
-		}
-	}
-
-	async function confirmWorkflowPairing() {
-		if (!workflowPairing) return;
-		setBusy(true);
-		setError(null);
-		try {
-			await client.confirmWorkflowPairing(workflowPairing.pairing.id, {
-				idempotencyKey: createReleaseIdempotencyKey("web-workflow-confirm"),
-			});
-			setWorkflowPairing(null);
-			setPackageSlug("");
 			await refresh();
 		} catch (cause) {
 			setError(cause);
@@ -484,160 +442,136 @@ export function PublisherPage() {
 			<Surface className="rounded-xl border bg-kumo-base p-6">
 				<h2 className="text-xl font-semibold text-kumo-strong">
 					{data.workloads.length === 0
-						? t("publisher.workload.setupTitle", "2. Connect a GitHub Actions workflow")
+						? t("publisher.workload.setupTitle", "2. Run your release workflow")
 						: t("publisher.workload.addTitle", "Connect another GitHub Actions workflow")}
 				</h2>
-				{publishingEnabled ? (
-					<p className="mt-1 text-sm text-kumo-subtle">
-						{t(
-							"publisher.workload.description",
-							"Choose which workflow may publish releases for one of your plugin packages. GitHub proves the repository, workflow file, and branch when you run it.",
-						)}
-					</p>
-				) : (
+				{!publishingEnabled ? (
 					<p className="mt-1 text-sm text-kumo-subtle">
 						{t(
 							"publisher.workload.authorizationRequired",
 							"Authorize publishing before connecting a GitHub workflow.",
 						)}
 					</p>
-				)}
-				{!workflowPairing ? (
-					<form className="mt-5 max-w-2xl" onSubmit={startWorkflowPairing}>
-						<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-							<Input
-								aria-describedby="workflow-plugin-id-description"
-								disabled={!publishingEnabled || busy}
-								label={t("publisher.workload.package", "Plugin ID")}
-								placeholder={t("publisher.workload.packagePlaceholder", "gallery")}
-								required
-								value={packageSlug}
-								onChange={(event) => setPackageSlug(event.currentTarget.value)}
-							/>
-							<Button disabled={!publishingEnabled || busy} type="submit" variant="primary">
-								{t("publisher.workload.start", "Start connection")}
-							</Button>
-						</div>
-						<p id="workflow-plugin-id-description" className="mt-2 text-sm text-kumo-subtle">
-							{t(
-								"publisher.workload.packageDescription",
-								"Use the plugin ID from emdash-plugin.jsonc for the plugin this workflow will publish.",
-							)}
-						</p>
-					</form>
-				) : workflowPairing.pairing.state === "pending" ? (
-					<div className="mt-5">
-						<h3 className="font-semibold text-kumo-strong">
-							{t("publisher.pairing.runTitle", "Run the workflow once to identify it")}
-						</h3>
-						<p className="mt-1 text-sm text-kumo-subtle">
-							{t(
-								"publisher.pairing.runDescription",
-								"Add a temporary connection step to the GitHub Actions job that should publish this plugin. EmDash will show you what GitHub identifies before you approve anything.",
-							)}
-						</p>
-						<p className="mt-4 text-sm font-medium text-kumo-strong">
-							{t(
-								"publisher.pairing.permissionTitle",
-								"Grant the job permission to identify itself",
-							)}
-						</p>
-						<pre className="mt-4 overflow-x-auto rounded-lg bg-kumo-tint p-4 text-sm text-kumo-default">
-							<code>{"permissions:\n  id-token: write"}</code>
-						</pre>
-						<p className="mt-4 text-sm font-medium text-kumo-strong">
-							{t("publisher.pairing.stepTitle", "Add this temporary step and run the workflow")}
-						</p>
-						<pre className="mt-4 overflow-x-auto rounded-lg bg-kumo-tint p-4 text-sm text-kumo-default">
-							<code>
-								{workflowPairingStep(
-									workflowPairing,
-									data.publisher.did,
-									t("publisher.pairing.stepName", "Connect EmDash publishing"),
-								)}
-							</code>
-						</pre>
-						<p className="mt-3 text-sm text-kumo-subtle">
-							{t(
-								"publisher.pairing.removeStep",
-								"You can remove the temporary step after you confirm the connection.",
-							)}
-						</p>
-						<div className="mt-4 flex flex-wrap gap-2">
-							<Button disabled={busy} onClick={checkWorkflowPairing} variant="primary">
-								{t("publisher.pairing.check", "I've run the workflow")}
-							</Button>
-							<Button onClick={() => setWorkflowPairing(null)} variant="outline">
-								{t("publisher.pairing.cancel", "Cancel")}
-							</Button>
-						</div>
-					</div>
-				) : workflowPairing.pairing.state === "claimed" && workflowPairing.pairing.claim ? (
-					<div className="mt-5">
-						<h3 className="font-semibold text-kumo-strong">
-							{t("publisher.pairing.confirmTitle", "Confirm this GitHub workflow")}
-						</h3>
-						<dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-							<div>
-								<dt className="text-kumo-subtle">
-									{t("publisher.pairing.repository", "Repository")}
-								</dt>
-								<dd className="font-medium text-kumo-strong">
-									{workflowPairing.pairing.claim.repository}
-								</dd>
-							</div>
-							<div>
-								<dt className="text-kumo-subtle">
-									{t("publisher.pairing.workflow", "Workflow file")}
-								</dt>
-								<dd className="font-medium text-kumo-strong">
-									{workflowFile(
-										workflowPairing.pairing.claim.repository,
-										workflowPairing.pairing.claim.workflowRef,
-									)}
-								</dd>
-							</div>
-							<div>
-								<dt className="text-kumo-subtle">
-									{t("publisher.pairing.branch", "Branch or tag")}
-								</dt>
-								<dd className="font-medium text-kumo-strong">
-									{friendlyRef(workflowPairing.pairing.claim.ref)}
-								</dd>
-							</div>
-							{workflowPairing.pairing.claim.environment ? (
-								<div>
-									<dt className="text-kumo-subtle">
-										{t("publisher.pairing.environment", "Environment")}
-									</dt>
-									<dd className="font-medium text-kumo-strong">
-										{workflowPairing.pairing.claim.environment}
-									</dd>
-								</div>
-							) : null}
-						</dl>
-						<div className="mt-5 flex flex-wrap gap-2">
-							<Button disabled={busy} onClick={confirmWorkflowPairing} variant="primary">
-								{t("publisher.pairing.confirm", "Allow this workflow")}
-							</Button>
-							<Button onClick={() => setWorkflowPairing(null)} variant="outline">
-								{t("publisher.pairing.cancel", "Cancel")}
-							</Button>
-						</div>
-					</div>
+				) : data.connections.length > 0 ? (
+					<p className="mt-1 text-sm text-kumo-subtle">
+						{t(
+							"publisher.workload.reviewDescription",
+							"A release workflow is waiting for your approval. Check the GitHub details before allowing it to publish this plugin.",
+						)}
+					</p>
 				) : (
-					<div className="mt-5">
-						<p className="text-sm text-kumo-subtle">
-							{t(
-								"publisher.pairing.expired",
-								"This connection has expired. Start again to create a new one.",
-							)}
-						</p>
-						<Button className="mt-4" onClick={() => setWorkflowPairing(null)} variant="primary">
-							{t("publisher.pairing.restart", "Start again")}
-						</Button>
-					</div>
+					<p className="mt-1 text-sm text-kumo-subtle">
+						{t(
+							"publisher.workload.description",
+							"Add the EmDash release action to the workflow that publishes your plugin, then run it. Its first run will appear here for approval.",
+						)}
+					</p>
 				)}
+				{data.connections.length > 0 ? (
+					<div className="mt-5 grid gap-4">
+						{data.connections.map((request) => {
+							const scope = connectionScopes[request.id] ?? defaultRefScope(request);
+							const tagRequest = request.claim.ref.startsWith("refs/tags/");
+							return (
+								<div className="rounded-lg bg-kumo-tint p-4" key={request.id}>
+									<div className="flex flex-wrap items-start justify-between gap-3">
+										<div>
+											<h3 className="font-semibold text-kumo-strong">
+												{t("publisher.connection.title", "Approve workflow for {packageSlug}", {
+													packageSlug: request.packageSlug,
+												})}
+											</h3>
+											<p className="mt-1 text-sm text-kumo-subtle">
+												{t(
+													"publisher.connection.warning",
+													"Approve only if you recognise this repository and workflow.",
+												)}
+											</p>
+										</div>
+										<Badge variant="warning">
+											{t("publisher.connection.waiting", "Waiting for approval")}
+										</Badge>
+									</div>
+									<dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+										<div>
+											<dt className="text-kumo-subtle">
+												{t("publisher.connection.repository", "Repository")}
+											</dt>
+											<dd className="font-medium text-kumo-strong">{request.claim.repository}</dd>
+										</div>
+										<div>
+											<dt className="text-kumo-subtle">
+												{t("publisher.connection.workflow", "Workflow file")}
+											</dt>
+											<dd className="font-medium text-kumo-strong">
+												{workflowFile(request.claim.repository, request.claim.workflowRef)}
+											</dd>
+										</div>
+										<div>
+											<dt className="text-kumo-subtle">
+												{t("publisher.connection.trigger", "Started from")}
+											</dt>
+											<dd className="font-medium text-kumo-strong">
+												{friendlyRef(request.claim.ref)}
+											</dd>
+										</div>
+										{request.claim.environment ? (
+											<div>
+												<dt className="text-kumo-subtle">
+													{t("publisher.connection.environment", "Environment")}
+												</dt>
+												<dd className="font-medium text-kumo-strong">
+													{request.claim.environment}
+												</dd>
+											</div>
+										) : null}
+									</dl>
+									{tagRequest ? (
+										<Select
+											className="mt-4 max-w-sm"
+											items={{
+												version_tags: t("publisher.connection.scope.allTags", "All version tags"),
+												current_ref: t("publisher.connection.scope.currentTag", "Only this tag"),
+											}}
+											label={t(
+												"publisher.connection.scope.label",
+												"Which releases may this workflow publish?",
+											)}
+											onValueChange={(value) => {
+												if (value === "current_ref" || value === "version_tags") {
+													setConnectionScopes((current) => ({
+														...current,
+														[request.id]: value,
+													}));
+												}
+											}}
+											value={scope}
+										/>
+									) : (
+										<p className="mt-4 text-sm text-kumo-subtle">
+											{t(
+												"publisher.connection.scope.branch",
+												"This approval covers only this branch.",
+											)}
+										</p>
+									)}
+									<Button
+										className="mt-4"
+										disabled={!publishingEnabled || busy}
+										onClick={() => confirmWorkflowConnection(request)}
+										variant="primary"
+									>
+										{t("publisher.connection.approve", "Approve workflow")}
+									</Button>
+								</div>
+							);
+						})}
+					</div>
+				) : publishingEnabled ? (
+					<Button className="mt-4" disabled={busy} onClick={refresh} variant="outline">
+						{t("publisher.connection.check", "Check for workflow requests")}
+					</Button>
+				) : null}
 			</Surface>
 
 			{data.workloads.length > 0 ? (

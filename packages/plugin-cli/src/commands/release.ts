@@ -8,7 +8,6 @@ import pc from "picocolors";
 
 import {
 	cancelDelegatedReleaseIntent,
-	connectGithubWorkflow,
 	dryRunDelegatedRelease,
 	getDelegatedReleaseIntent,
 	interactiveReleaseUrl,
@@ -218,6 +217,7 @@ export const releaseSubmitCommand = defineCommand({
 	},
 	async run({ args }) {
 		const target = requiredTarget(args);
+		let connectionRequestId: string | null = null;
 		let previousState: string | null = null;
 		const intent = await submitDelegatedRelease({
 			...target,
@@ -228,6 +228,15 @@ export const releaseSubmitCommand = defineCommand({
 			pollIntervalMs:
 				positiveInteger(args["poll-interval-seconds"], "poll-interval-seconds", 300) * 1000,
 			maxWaitMs: positiveInteger(args["timeout-minutes"], "timeout-minutes", 360) * 60_000,
+			onConnectionUpdate: args.json
+				? undefined
+				: (current) => {
+						if (current.status === "pending" && current.request.id !== connectionRequestId) {
+							connectionRequestId = current.request.id;
+							consola.info("Approve this GitHub workflow to continue:");
+							console.log(`  ${pc.cyan(pc.bold(current.approvalUrl))}`);
+						}
+					},
 			onUpdate: args.json
 				? undefined
 				: (current) => {
@@ -243,41 +252,6 @@ export const releaseSubmitCommand = defineCommand({
 				`Release intent ended in ${intent.state}${intent.reasonCode ? ` (${intent.reasonCode})` : ""}`,
 			);
 		}
-	},
-});
-
-export const releaseConnectCommand = defineCommand({
-	meta: {
-		name: "connect",
-		description: "Connect this GitHub Actions workflow to a plugin package",
-	},
-	args: {
-		...commonArgs,
-		"pairing-id": {
-			type: "string",
-			description: "Short-lived connection ID from the release dashboard",
-			required: true,
-		},
-		"pairing-token": {
-			type: "string",
-			description: "Short-lived connection token from the release dashboard",
-			required: true,
-		},
-	},
-	async run({ args }) {
-		const result = await connectGithubWorkflow({
-			...requiredTarget(args),
-			pairingId: args["pairing-id"],
-			pairingToken: args["pairing-token"],
-		});
-		if (args.json) {
-			console.log(JSON.stringify(result, null, 2));
-			return;
-		}
-		const claim = result.pairing.claim;
-		if (!claim) throw new Error("GitHub workflow connection was not recorded");
-		console.log(`${pc.bold(claim.repository)} ${pc.dim(claim.ref)}`);
-		consola.success("Workflow verified. Return to the EmDash release dashboard to confirm it.");
 	},
 });
 
@@ -350,7 +324,6 @@ export const releaseCommand = defineCommand({
 	meta: { name: "release", description: "Manage delegated release intents" },
 	subCommands: {
 		approve: releaseApproveCommand,
-		connect: releaseConnectCommand,
 		delegate: releaseDelegateCommand,
 		"dry-run": releaseDryRunCommand,
 		enrol: releaseEnrolCommand,

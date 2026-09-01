@@ -5,11 +5,8 @@ import {
 	TERMINAL_RELEASE_INTENT_STATES,
 	type AbortPublisherRestoreResult,
 	type AuditListOptions,
-	type ClaimWorkflowPairingInput,
-	type ClaimWorkflowPairingResult,
-	type ConfirmWorkflowPairingResult,
+	type ConfirmWorkflowConnectionResult,
 	type ControlAuditEventResource,
-	type CreateWorkflowPairingResult,
 	type CursorPage,
 	type DelegationResource,
 	type DryRunReleaseIntentResult,
@@ -35,6 +32,8 @@ import {
 	type PublisherRestorePageInput,
 	type PublisherRestorePageResult,
 	type PutWorkloadPolicyInput,
+	type RequestWorkflowConnectionInput,
+	type RequestWorkflowConnectionResult,
 	type ReleaseIntentResource,
 	type ReleaseIntentResult,
 	type ReleaseIntentState,
@@ -46,8 +45,8 @@ import {
 	type SubmitReleaseIntentInput,
 	type SubmitReleaseIntentResult,
 	type WorkloadPolicyResource,
-	type WorkflowPairingClaimResource,
-	type WorkflowPairingResource,
+	type WorkflowConnectionClaimResource,
+	type WorkflowConnectionRequestResource,
 } from "./types.js";
 
 export type {
@@ -63,11 +62,8 @@ export { parseDelegatedReleaseSourceRecord } from "./source-record.js";
 export type {
 	AbortPublisherRestoreResult,
 	AuditListOptions,
-	ClaimWorkflowPairingInput,
-	ClaimWorkflowPairingResult,
-	ConfirmWorkflowPairingResult,
+	ConfirmWorkflowConnectionResult,
 	ControlAuditEventResource,
-	CreateWorkflowPairingResult,
 	CursorPage,
 	DelegationResource,
 	DryRunReleaseIntentResult,
@@ -95,6 +91,8 @@ export type {
 	PublisherRestorePageInput,
 	PublisherRestorePageResult,
 	PutWorkloadPolicyInput,
+	RequestWorkflowConnectionInput,
+	RequestWorkflowConnectionResult,
 	ReleaseIntentResource,
 	ReleaseIntentResult,
 	ReleaseIntentState,
@@ -106,9 +104,10 @@ export type {
 	SubmitReleaseIntentInput,
 	SubmitReleaseIntentResult,
 	WorkloadPolicyResource,
-	WorkflowPairingClaimResource,
-	WorkflowPairingResource,
-	WorkflowPairingState,
+	WorkflowConnectionClaimResource,
+	WorkflowConnectionRefScope,
+	WorkflowConnectionRequestResource,
+	WorkflowConnectionRequestState,
 } from "./types.js";
 export { TERMINAL_RELEASE_INTENT_STATES } from "./types.js";
 
@@ -122,7 +121,6 @@ const IDEMPOTENCY_PREFIX_PATTERN = /[^A-Za-z0-9._:-]/g;
 const DIGITS_PATTERN = /^[0-9]+$/;
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
 const CSRF_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-const PAIRING_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const ARCHIVE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{15,63}$/;
 const DIRECTORY_SHARD_PATTERN = /^[0-9a-f]{2}$/;
 const DIGEST_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -152,11 +150,6 @@ const API_ERROR_CODES: Readonly<Record<ReleaseServiceApiErrorCode, true>> = {
 	NOT_FOUND: true,
 	OAUTH_AUTHORIZATION_FAILED: true,
 	OAUTH_CALLBACK_INVALID: true,
-	PAIRING_CONFLICT: true,
-	PAIRING_EXPIRED: true,
-	PAIRING_INVALID: true,
-	PAIRING_LIMIT_REACHED: true,
-	PAIRING_NOT_CLAIMED: true,
 	PROFILE_CHANGED: true,
 	PROFILE_FETCH_FAILED: true,
 	PUBLISHER_SESSION_INVALID: true,
@@ -167,6 +160,10 @@ const API_ERROR_CODES: Readonly<Record<ReleaseServiceApiErrorCode, true>> = {
 	SERVICE_UNAVAILABLE: true,
 	VERSION_RESERVED: true,
 	WORKFLOW_UNAVAILABLE: true,
+	WORKFLOW_CONNECTION_CONFLICT: true,
+	WORKFLOW_CONNECTION_EXPIRED: true,
+	WORKFLOW_CONNECTION_LIMIT_REACHED: true,
+	WORKFLOW_CONNECTION_NOT_FOUND: true,
 	WORKLOAD_NOT_ALLOWED: true,
 	WORKLOAD_RATE_LIMITED: true,
 };
@@ -221,6 +218,12 @@ export interface WaitForIntentOptions extends RequestOptions {
 	maxWaitMs?: number;
 	stopOnApproval?: boolean;
 	onUpdate?: (intent: ReleaseIntentResource) => void | Promise<void>;
+}
+
+export interface WaitForWorkflowConnectionOptions extends MutationOptions {
+	pollIntervalMs?: number;
+	maxWaitMs?: number;
+	onUpdate?: (result: RequestWorkflowConnectionResult) => void | Promise<void>;
 }
 
 export interface OperatorClientOptions {
@@ -495,8 +498,7 @@ function parsePolicy(value: unknown): WorkloadPolicyResource {
 	};
 }
 
-function parseWorkflowPairingClaim(value: unknown): WorkflowPairingClaimResource | null {
-	if (value === null) return null;
+function parseWorkflowConnectionClaim(value: unknown): WorkflowConnectionClaimResource {
 	if (!isRecord(value)) throw invalidResponse();
 	const repository = stringValue(value, "repository");
 	const repositoryId = stringValue(value, "repositoryId");
@@ -534,38 +536,37 @@ function parseWorkflowPairingClaim(value: unknown): WorkflowPairingClaimResource
 	};
 }
 
-function parseWorkflowPairing(value: unknown): WorkflowPairingResource {
+function parseWorkflowConnectionRequest(value: unknown): WorkflowConnectionRequestResource {
 	if (!isRecord(value)) throw invalidResponse();
 	const id = stringValue(value, "id");
 	const packageSlug = stringValue(value, "packageSlug");
 	const state = value["state"];
+	const refScope = value["refScope"];
 	const expiresAt = safeInteger(value, "expiresAt");
 	const createdAt = safeInteger(value, "createdAt");
-	const claimedAt = nullableSafeInteger(value, "claimedAt");
 	const confirmedAt = nullableSafeInteger(value, "confirmedAt");
 	if (
 		!id ||
 		!ULID_PATTERN.test(id) ||
 		!packageSlug ||
 		!PACKAGE_SLUG_PATTERN.test(packageSlug) ||
-		(state !== "pending" && state !== "claimed" && state !== "confirmed" && state !== "expired") ||
+		(state !== "pending" && state !== "confirmed" && state !== "expired") ||
+		(refScope !== null && refScope !== "current_ref" && refScope !== "version_tags") ||
 		expiresAt === null ||
 		createdAt === null ||
-		claimedAt === undefined ||
 		confirmedAt === undefined ||
 		createdAt > expiresAt
 	) {
 		throw invalidResponse();
 	}
-	const claim = parseWorkflowPairingClaim(value["claim"]);
+	const claim = parseWorkflowConnectionClaim(value["claim"]);
 	if (
-		(state === "pending" && (claim !== null || claimedAt !== null || confirmedAt !== null)) ||
-		(state === "claimed" && (claim === null || claimedAt === null || confirmedAt !== null)) ||
-		(state === "confirmed" && (claim === null || claimedAt === null || confirmedAt === null))
+		(state === "pending" && (refScope !== null || confirmedAt !== null)) ||
+		(state === "confirmed" && (refScope === null || confirmedAt === null))
 	) {
 		throw invalidResponse();
 	}
-	return { id, packageSlug, state, claim, expiresAt, createdAt, claimedAt, confirmedAt };
+	return { id, packageSlug, state, claim, refScope, expiresAt, createdAt, confirmedAt };
 }
 
 function parseDelegation(value: unknown): DelegationResource | null {
@@ -1067,99 +1068,115 @@ export class ReleaseServiceClient extends BaseReleaseServiceClient {
 		);
 	}
 
-	async createWorkflowPairing(
-		packageSlug: string,
+	async requestWorkflowConnection(
+		input: RequestWorkflowConnectionInput,
 		options: MutationOptions,
-	): Promise<CreateWorkflowPairingResult> {
-		if (!PACKAGE_SLUG_PATTERN.test(packageSlug)) throw invalidResponse();
-		return await this.call(
-			"/v1/publisher/workflow-pairings",
-			{
-				method: "POST",
-				credentials: "include",
-				headers: await this.#publisherMutationHeaders(options.idempotencyKey),
-				body: JSON.stringify({ packageSlug }),
-				signal: options.signal,
-			},
-			(value) => {
-				if (!isRecord(value) || typeof value["replayed"] !== "boolean") {
-					throw invalidResponse();
-				}
-				const pairingToken = stringValue(value, "pairingToken");
-				if (!pairingToken || !PAIRING_TOKEN_PATTERN.test(pairingToken)) throw invalidResponse();
-				return {
-					pairing: parseWorkflowPairing(value["pairing"]),
-					pairingToken,
-					replayed: value["replayed"],
-				};
-			},
-		);
-	}
-
-	async getWorkflowPairing(
-		pairingId: string,
-		options: RequestOptions = {},
-	): Promise<WorkflowPairingResource> {
-		if (!ULID_PATTERN.test(pairingId)) throw invalidResponse();
-		return await this.call(
-			`/v1/publisher/workflow-pairings/${encodeURIComponent(pairingId)}`,
-			{ method: "GET", credentials: "include", signal: options.signal },
-			(value) => {
-				if (!isRecord(value)) throw invalidResponse();
-				return parseWorkflowPairing(value["pairing"]);
-			},
-		);
-	}
-
-	async confirmWorkflowPairing(
-		pairingId: string,
-		options: MutationOptions,
-	): Promise<ConfirmWorkflowPairingResult> {
-		if (!ULID_PATTERN.test(pairingId)) throw invalidResponse();
-		return await this.call(
-			`/v1/publisher/workflow-pairings/${encodeURIComponent(pairingId)}/confirm`,
-			{
-				method: "POST",
-				credentials: "include",
-				headers: await this.#publisherMutationHeaders(options.idempotencyKey),
-				body: "{}",
-				signal: options.signal,
-			},
-			(value) => {
-				if (!isRecord(value) || typeof value["replayed"] !== "boolean") {
-					throw invalidResponse();
-				}
-				return {
-					pairing: parseWorkflowPairing(value["pairing"]),
-					policy: parsePolicy(value["policy"]),
-					replayed: value["replayed"],
-				};
-			},
-		);
-	}
-
-	async claimWorkflowPairing(
-		input: ClaimWorkflowPairingInput,
-		options: RequestOptions = {},
-	): Promise<ClaimWorkflowPairingResult> {
-		if (
-			!DID_PATTERN.test(input.publisherDid) ||
-			!ULID_PATTERN.test(input.pairingId) ||
-			!PAIRING_TOKEN_PATTERN.test(input.pairingToken)
-		) {
+	): Promise<RequestWorkflowConnectionResult> {
+		if (!DID_PATTERN.test(input.publisherDid) || !PACKAGE_SLUG_PATTERN.test(input.packageSlug)) {
 			throw invalidResponse();
 		}
-		const headers = await this.#workloadHeaders();
+		const headers = await this.#workloadHeaders(options.idempotencyKey);
 		headers.set("content-type", "application/json");
 		return await this.call(
-			`/v1/workflow-pairings/${encodeURIComponent(input.pairingId)}/claim`,
+			"/v1/workflow-connections",
 			{
 				method: "POST",
 				headers,
-				body: JSON.stringify({
-					publisherDid: input.publisherDid,
-					pairingToken: input.pairingToken,
-				}),
+				body: JSON.stringify(input),
+				signal: options.signal,
+			},
+			(value) => {
+				if (!isRecord(value)) throw invalidResponse();
+				if (value["status"] === "connected") {
+					return { status: "connected", policy: parsePolicy(value["policy"]) };
+				}
+				if (value["status"] !== "pending" || typeof value["replayed"] !== "boolean") {
+					throw invalidResponse();
+				}
+				const request = parseWorkflowConnectionRequest(value["request"]);
+				const approvalUrl = stringValue(value, "approvalUrl");
+				if (!approvalUrl) throw invalidResponse();
+				let parsedApproval: URL;
+				try {
+					parsedApproval = new URL(approvalUrl);
+				} catch {
+					throw invalidResponse();
+				}
+				if (
+					parsedApproval.origin !== this.serviceUrl ||
+					parsedApproval.pathname !== "/publisher" ||
+					parsedApproval.searchParams.get("connection") !== request.id
+				) {
+					throw invalidResponse();
+				}
+				return { status: "pending", request, approvalUrl, replayed: value["replayed"] };
+			},
+		);
+	}
+
+	async waitForWorkflowConnection(
+		input: RequestWorkflowConnectionInput,
+		options: WaitForWorkflowConnectionOptions,
+	): Promise<WorkloadPolicyResource> {
+		const pollIntervalMs = options.pollIntervalMs ?? 1_000;
+		const maxWaitMs = options.maxWaitMs ?? 15 * 60_000;
+		if (
+			!Number.isSafeInteger(pollIntervalMs) ||
+			pollIntervalMs < 0 ||
+			!Number.isSafeInteger(maxWaitMs) ||
+			maxWaitMs < 1
+		) {
+			throw new ReleaseServiceError({
+				code: "INVALID_REQUEST",
+				message: "Polling options are invalid",
+			});
+		}
+		const deadline = Date.now() + maxWaitMs;
+		for (;;) {
+			const result = await this.requestWorkflowConnection(input, options);
+			await options.onUpdate?.(result);
+			if (result.status === "connected") return result.policy;
+			if (Date.now() >= deadline) {
+				throw new ReleaseServiceError({
+					code: "POLL_TIMEOUT",
+					message: "Timed out waiting for workflow approval",
+				});
+			}
+			await sleep(Math.min(pollIntervalMs, Math.max(0, deadline - Date.now())), options.signal);
+		}
+	}
+
+	async listWorkflowConnections(
+		options: RequestOptions = {},
+	): Promise<WorkflowConnectionRequestResource[]> {
+		return await this.call(
+			"/v1/publisher/workflow-connections",
+			{ method: "GET", credentials: "include", signal: options.signal },
+			(value) => {
+				if (!isRecord(value) || !Array.isArray(value["items"])) throw invalidResponse();
+				return value["items"].map(parseWorkflowConnectionRequest);
+			},
+		);
+	}
+
+	async confirmWorkflowConnection(
+		requestId: string,
+		refScope: "current_ref" | "version_tags",
+		options: MutationOptions,
+	): Promise<ConfirmWorkflowConnectionResult> {
+		if (
+			!ULID_PATTERN.test(requestId) ||
+			(refScope !== "current_ref" && refScope !== "version_tags")
+		) {
+			throw invalidResponse();
+		}
+		return await this.call(
+			`/v1/publisher/workflow-connections/${encodeURIComponent(requestId)}/confirm`,
+			{
+				method: "POST",
+				credentials: "include",
+				headers: await this.#publisherMutationHeaders(options.idempotencyKey),
+				body: JSON.stringify({ refScope }),
 				signal: options.signal,
 			},
 			(value) => {
@@ -1167,7 +1184,8 @@ export class ReleaseServiceClient extends BaseReleaseServiceClient {
 					throw invalidResponse();
 				}
 				return {
-					pairing: parseWorkflowPairing(value["pairing"]),
+					request: parseWorkflowConnectionRequest(value["request"]),
+					policy: parsePolicy(value["policy"]),
 					replayed: value["replayed"],
 				};
 			},

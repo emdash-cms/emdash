@@ -46,6 +46,7 @@ class FakeRuntime implements ActionRuntime {
 	readonly outputs = new Map<string, string>();
 	readonly masks: string[] = [];
 	readonly messages: string[] = [];
+	readonly summaries: string[] = [];
 	readonly failures: string[] = [];
 	tokenCount = 0;
 
@@ -70,6 +71,10 @@ class FakeRuntime implements ActionRuntime {
 
 	info(message: string): void {
 		this.messages.push(message);
+	}
+
+	async writeSummary(markdown: string): Promise<void> {
+		this.summaries.push(markdown);
 	}
 
 	setFailed(message: string): void {
@@ -106,6 +111,45 @@ function success(data: unknown, status = 200): Response {
 	return Response.json({ data, requestId: "request-1" }, { status });
 }
 
+function policy() {
+	return {
+		packageSlug: "gallery",
+		repository: "example/gallery",
+		repositoryId: "123456789",
+		repositoryOwnerId: "987654321",
+		workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+		allowedRefs: ["refs/tags/*"],
+		allowedEnvironments: ["production"],
+		active: true,
+		stateVersion: 1,
+		authorizedBy: PUBLISHER_DID,
+		createdAt: 1_800_000_000_000,
+		updatedAt: 1_800_000_000_000,
+	};
+}
+
+function connectionRequest() {
+	return {
+		id: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+		packageSlug: "gallery",
+		state: "pending",
+		claim: {
+			repository: "example/gallery",
+			repositoryId: "123456789",
+			repositoryOwner: "example",
+			repositoryOwnerId: "987654321",
+			repositoryVisibility: "private",
+			workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+			ref: "refs/tags/v1.2.3",
+			environment: "production",
+		},
+		refScope: null,
+		expiresAt: 1_800_086_400_000,
+		createdAt: 1_800_000_000_000,
+		confirmedAt: null,
+	};
+}
+
 function sequenceFetch(responses: Response[]): typeof fetch {
 	let index = 0;
 	return async () => responses[index++] ?? Response.json({ error: "unexpected" }, { status: 500 });
@@ -119,6 +163,7 @@ describe("delegated release Action", () => {
 	it("requests a fresh OIDC token, publishes, and emits stable outputs", async () => {
 		const runtime = new FakeRuntime();
 		const responses = sequenceFetch([
+			success({ status: "connected", policy: policy() }),
 			success({ intent: intent("received"), replayed: false }, 202),
 			success({
 				intent: intent("published", {
@@ -134,10 +179,15 @@ describe("delegated release Action", () => {
 		const result = await runAction(runtime, { ...dependencies, fetch });
 
 		expect(result.state).toBe("published");
-		expect(runtime.tokenCount).toBe(2);
-		expect(runtime.masks).toEqual(["header.payload.signature-1", "header.payload.signature-2"]);
+		expect(runtime.tokenCount).toBe(3);
+		expect(runtime.masks).toEqual([
+			"header.payload.signature-1",
+			"header.payload.signature-2",
+			"header.payload.signature-3",
+		]);
 		expect(runtime.outputs).toEqual(
 			new Map([
+				["connection-url", ""],
 				["intent-id", INTENT_ID],
 				["state", "published"],
 				["approval-url", ""],
@@ -147,7 +197,41 @@ describe("delegated release Action", () => {
 			]),
 		);
 		expect(runtime.messages.at(-1)).toContain(CREATED_URI);
-		expect(new Headers(requests[0]?.headers).get("idempotency-key")).toBe("github-run-10000000001");
+		expect(new Headers(requests[0]?.headers).get("idempotency-key")).toBe(
+			"github-connection-10000000001-gallery",
+		);
+		expect(new Headers(requests[1]?.headers).get("idempotency-key")).toBe("github-run-10000000001");
+	});
+
+	it("puts first-run workflow approval in the job summary and continues after confirmation", async () => {
+		const runtime = new FakeRuntime();
+		runtime.inputs.set("poll-interval-seconds", "1");
+		const connectionUrl = `${SERVICE}/publisher?connection=${connectionRequest().id}`;
+		const result = await runAction(runtime, {
+			...dependencies,
+			fetch: sequenceFetch([
+				success(
+					{
+						status: "pending",
+						request: connectionRequest(),
+						approvalUrl: connectionUrl,
+						replayed: false,
+					},
+					202,
+				),
+				success({ status: "connected", policy: policy() }),
+				success({ intent: intent("received"), replayed: false }, 202),
+				success({
+					intent: intent("published", { result: { uri: CREATED_URI, cid: CREATED_CID } }),
+				}),
+			]),
+		});
+
+		expect(result.state).toBe("published");
+		expect(runtime.outputs.get("connection-url")).toBe(connectionUrl);
+		expect(runtime.summaries).toEqual([
+			`## Approve this GitHub workflow\n\n[Open EmDash to review and approve the workflow](${connectionUrl})`,
+		]);
 	});
 
 	it("returns the approval URL without failing the job", async () => {
@@ -156,6 +240,7 @@ describe("delegated release Action", () => {
 		const result = await runAction(runtime, {
 			...dependencies,
 			fetch: sequenceFetch([
+				success({ status: "connected", policy: policy() }),
 				success({ intent: intent("received"), replayed: false }, 202),
 				success({ intent: intent("awaiting_approval", { approvalUrl }) }),
 			]),
@@ -171,6 +256,7 @@ describe("delegated release Action", () => {
 		await executeAction(runtime, {
 			...dependencies,
 			fetch: sequenceFetch([
+				success({ status: "connected", policy: policy() }),
 				success({ intent: intent("received"), replayed: false }, 202),
 				success({ intent: intent("invalid", { reasonCode: "PROVENANCE_INVALID" }) }),
 			]),

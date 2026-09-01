@@ -11,8 +11,7 @@ import {
 const SERVICE = "https://release.example.com";
 const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
-const PAIRING_ID = "01JABCDEFGHJKMNPQRSTVWXYZ1";
-const PAIRING_TOKEN = "T".repeat(43);
+const CONNECTION_ID = "01JABCDEFGHJKMNPQRSTVWXYZ1";
 const CSRF = "C".repeat(43);
 const CHECKSUM = "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja";
 
@@ -79,27 +78,24 @@ function policy() {
 	};
 }
 
-function pairing(state: "claimed" | "confirmed" | "pending") {
+function connection(state: "confirmed" | "pending") {
 	return {
-		id: PAIRING_ID,
+		id: CONNECTION_ID,
 		packageSlug: "gallery",
 		state,
-		claim:
-			state === "pending"
-				? null
-				: {
-						repository: "example/gallery",
-						repositoryId: "123456789",
-						repositoryOwner: "example",
-						repositoryOwnerId: "987654321",
-						repositoryVisibility: "private",
-						workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
-						ref: "refs/heads/main",
-						environment: "production",
-					},
+		claim: {
+			repository: "example/gallery",
+			repositoryId: "123456789",
+			repositoryOwner: "example",
+			repositoryOwnerId: "987654321",
+			repositoryVisibility: "private",
+			workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+			ref: "refs/tags/v1.2.3",
+			environment: "production",
+		},
+		refScope: state === "confirmed" ? "version_tags" : null,
 		expiresAt: 1_800_000_900_000,
 		createdAt: 1_800_000_000_000,
-		claimedAt: state === "pending" ? null : 1_800_000_001_000,
 		confirmedAt: state === "confirmed" ? 1_800_000_002_000 : null,
 	};
 }
@@ -401,22 +397,28 @@ describe("ReleaseServiceClient", () => {
 		expect(mutationHeaders.has("authorization")).toBe(false);
 	});
 
-	it("pairs a GitHub workflow through separate browser and OIDC steps", async () => {
+	it("requests a GitHub workflow connection from OIDC and confirms it in the browser", async () => {
 		const calls: Request[] = [];
+		let workloadRequests = 0;
 		const fetch: typeof globalThis.fetch = async (input, init = {}) => {
 			const request = new Request(input, init);
 			calls.push(request);
-			if (request.url.endsWith("/claim")) {
-				return success({ pairing: pairing("claimed"), replayed: false });
-			}
 			if (request.url.endsWith("/confirm")) {
-				return success({ pairing: pairing("confirmed"), policy: policy(), replayed: false });
+				return success({ request: connection("confirmed"), policy: policy(), replayed: false });
 			}
-			if (request.method === "GET") return success({ pairing: pairing("claimed") });
-			return success(
-				{ pairing: pairing("pending"), pairingToken: PAIRING_TOKEN, replayed: false },
-				201,
-			);
+			if (request.method === "GET") return success({ items: [connection("pending")] });
+			workloadRequests += 1;
+			return workloadRequests === 1
+				? success(
+						{
+							status: "pending",
+							request: connection("pending"),
+							approvalUrl: `${SERVICE}/publisher?connection=${CONNECTION_ID}`,
+							replayed: false,
+						},
+						202,
+					)
+				: success({ status: "connected", policy: policy() });
 		};
 		const client = new ReleaseServiceClient({
 			serviceUrl: SERVICE,
@@ -426,33 +428,36 @@ describe("ReleaseServiceClient", () => {
 		});
 
 		await expect(
-			client.createWorkflowPairing("gallery", {
-				idempotencyKey: "workflow-pairing-create-0001",
-			}),
-		).resolves.toMatchObject({ pairingToken: PAIRING_TOKEN, pairing: { state: "pending" } });
-		await expect(client.getWorkflowPairing(PAIRING_ID)).resolves.toMatchObject({
-			state: "claimed",
-		});
+			client.requestWorkflowConnection(
+				{ publisherDid: PUBLISHER_DID, packageSlug: "gallery" },
+				{
+					idempotencyKey: "workflow-connection-request-0001",
+				},
+			),
+		).resolves.toMatchObject({ status: "pending", request: { state: "pending" } });
+		await expect(client.listWorkflowConnections()).resolves.toMatchObject([
+			{ id: CONNECTION_ID, state: "pending" },
+		]);
 		await expect(
-			client.confirmWorkflowPairing(PAIRING_ID, {
-				idempotencyKey: "workflow-pairing-confirm-0001",
+			client.confirmWorkflowConnection(CONNECTION_ID, "version_tags", {
+				idempotencyKey: "workflow-connection-confirm-0001",
 			}),
-		).resolves.toMatchObject({ pairing: { state: "confirmed" }, policy: { active: true } });
+		).resolves.toMatchObject({ request: { state: "confirmed" }, policy: { active: true } });
 		await expect(
-			client.claimWorkflowPairing({
-				publisherDid: PUBLISHER_DID,
-				pairingId: PAIRING_ID,
-				pairingToken: PAIRING_TOKEN,
-			}),
-		).resolves.toMatchObject({ pairing: { state: "claimed" } });
+			client.requestWorkflowConnection(
+				{ publisherDid: PUBLISHER_DID, packageSlug: "gallery" },
+				{ idempotencyKey: "workflow-connection-request-0002" },
+			),
+		).resolves.toMatchObject({ status: "connected", policy: { active: true } });
 
 		expect(calls.map((request) => new URL(request.url).pathname)).toEqual([
-			"/v1/publisher/workflow-pairings",
-			`/v1/publisher/workflow-pairings/${PAIRING_ID}`,
-			`/v1/publisher/workflow-pairings/${PAIRING_ID}/confirm`,
-			`/v1/workflow-pairings/${PAIRING_ID}/claim`,
+			"/v1/workflow-connections",
+			"/v1/publisher/workflow-connections",
+			`/v1/publisher/workflow-connections/${CONNECTION_ID}/confirm`,
+			"/v1/workflow-connections",
 		]);
-		expect(calls[0]?.credentials).toBe("include");
+		expect(calls[0]?.headers.get("authorization")).toBe("Bearer header.payload.signature");
+		expect(calls[1]?.credentials).toBe("include");
 		expect(calls[2]?.headers.get("x-emdash-csrf")).toBe(CSRF);
 		expect(calls[3]?.headers.get("authorization")).toBe("Bearer header.payload.signature");
 	});

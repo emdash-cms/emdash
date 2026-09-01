@@ -127,6 +127,33 @@ describe("workload policy evaluation", () => {
 		).toEqual({ ok: true });
 	});
 
+	it("allows future version tags through bounded trailing-wildcard rules", () => {
+		expect(
+			evaluateWorkloadPolicy(
+				{
+					...identity,
+					workflow: {
+						...identity.workflow,
+						ref: "emdash-cms/gallery/.github/workflows/release.yml@refs/tags/v2.0.0",
+					},
+					run: { ...identity.run, ref: "refs/tags/v2.0.0", refType: "tag" },
+				},
+				{
+					...policy,
+					workflowRef: "emdash-cms/gallery/.github/workflows/release.yml@refs/tags/*",
+					allowedRefs: ["refs/tags/*"],
+				},
+			),
+		).toEqual({ ok: true });
+		expect(
+			evaluateWorkloadPolicy(identity, {
+				...policy,
+				workflowRef: "emdash-cms/gallery/.github/workflows/release.yml@refs/tags/*",
+				allowedRefs: ["refs/tags/*"],
+			}),
+		).toEqual({ ok: false, code: "WORKLOAD_WORKFLOW_MISMATCH" });
+	});
+
 	it("produces stable, domain-separated workload digests", async () => {
 		const identityDigest = await digestWorkloadIdentity(identity);
 		const idempotencyDigest = await digestWorkloadIdempotencyIdentity(

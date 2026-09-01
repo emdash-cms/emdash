@@ -81,6 +81,7 @@ describe("release-service web surfaces", () => {
 						},
 					});
 				}
+				if (path === "/v1/publisher/workflow-connections") return success({ items: [] });
 				if (path === "/v1/publisher/workloads") {
 					return success({
 						items: [
@@ -179,7 +180,7 @@ describe("release-service web surfaces", () => {
 		).toBeTruthy();
 		expect(
 			screen.getByText(
-				"Choose which workflow may publish releases for one of your plugin packages. GitHub proves the repository, workflow file, and branch when you run it.",
+				"Add the EmDash release action to the workflow that publishes your plugin, then run it. Its first run will appear here for approval.",
 			),
 		).toBeTruthy();
 		expect(screen.getAllByText("@publisher.example.com")).toHaveLength(1);
@@ -228,16 +229,34 @@ describe("release-service web surfaces", () => {
 		expect(
 			screen.getByText("Authorize publishing before connecting a GitHub workflow."),
 		).toBeTruthy();
-		expect(screen.getByLabelText("Plugin ID").hasAttribute("disabled")).toBe(true);
-		expect(screen.getByRole("button", { name: "Start connection" }).hasAttribute("disabled")).toBe(
-			true,
-		);
+		expect(screen.queryByLabelText("Plugin ID")).toBeNull();
+		expect(screen.queryByRole("button", { name: "Start connection" })).toBeNull();
 		expect(screen.queryByText(PUBLISHER_DID)).toBeNull();
 	});
 
-	it("connects a GitHub workflow without asking for GitHub identifiers", async () => {
+	it("approves a connection requested by the permanent release workflow", async () => {
 		document.cookie = `__Host-emdash_publisher_csrf=${"C".repeat(43)}; Path=/; Secure`;
 		const requests: Request[] = [];
+		let confirmed = false;
+		const connectionRequest = {
+			id: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+			packageSlug: "gallery",
+			state: "pending",
+			claim: {
+				repository: "example/gallery",
+				repositoryId: "123",
+				repositoryOwner: "example",
+				repositoryOwnerId: "456",
+				repositoryVisibility: "private",
+				workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+				ref: "refs/tags/v1.2.3",
+				environment: "production",
+			},
+			refScope: null,
+			expiresAt: 1_900_000_000_000,
+			createdAt: 1_800_000_000_000,
+			confirmedAt: null,
+		};
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -267,32 +286,20 @@ describe("release-service web surfaces", () => {
 						},
 					});
 				}
+				if (path === "/v1/publisher/workflow-connections" && request.method === "GET") {
+					return success({ items: confirmed ? [] : [connectionRequest] });
+				}
 				if (path === "/v1/publisher/workloads") return success({ items: [] });
 				if (path === "/v1/publisher/intents") return success({ items: [] });
 				if (path === "/v1/publisher/audit") return success({ items: [] });
 				if (path === "/v1/approver/credentials") return success({ items: [] });
-				const basePairing = {
-					id: "01JABCDEFGHJKMNPQRSTVWXYZ1",
-					packageSlug: "gallery",
-					expiresAt: 1_900_000_000_000,
-					createdAt: 1_800_000_000_000,
-				};
 				if (path.endsWith("/confirm")) {
+					confirmed = true;
 					return success({
-						pairing: {
-							...basePairing,
+						request: {
+							...connectionRequest,
 							state: "confirmed",
-							claim: {
-								repository: "example/gallery",
-								repositoryId: "123",
-								repositoryOwner: "example",
-								repositoryOwnerId: "456",
-								repositoryVisibility: "private",
-								workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
-								ref: "refs/heads/main",
-								environment: null,
-							},
-							claimedAt: 1_800_000_001_000,
+							refScope: "version_tags",
 							confirmedAt: 1_800_000_002_000,
 						},
 						policy: {
@@ -301,8 +308,8 @@ describe("release-service web surfaces", () => {
 							repositoryId: "123",
 							repositoryOwnerId: "456",
 							workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
-							allowedRefs: ["refs/heads/main"],
-							allowedEnvironments: [],
+							allowedRefs: ["refs/tags/*"],
+							allowedEnvironments: ["production"],
 							active: true,
 							stateVersion: 1,
 							authorizedBy: PUBLISHER_DID,
@@ -312,58 +319,22 @@ describe("release-service web surfaces", () => {
 						replayed: false,
 					});
 				}
-				if (request.method === "GET") {
-					return success({
-						pairing: {
-							...basePairing,
-							state: "claimed",
-							claim: {
-								repository: "example/gallery",
-								repositoryId: "123",
-								repositoryOwner: "example",
-								repositoryOwnerId: "456",
-								repositoryVisibility: "private",
-								workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
-								ref: "refs/heads/main",
-								environment: null,
-							},
-							claimedAt: 1_800_000_001_000,
-							confirmedAt: null,
-						},
-					});
-				}
-				return success(
-					{
-						pairing: {
-							...basePairing,
-							state: "pending",
-							claim: null,
-							claimedAt: null,
-							confirmedAt: null,
-						},
-						pairingToken: "T".repeat(43),
-						replayed: false,
-					},
-					201,
-				);
+				throw new Error(`Unexpected request: ${request.method} ${path}`);
 			}),
 		);
 		renderApp("/publisher");
 
-		await screen.findByRole("heading", { name: "2. Connect a GitHub Actions workflow" });
-		fireEvent.change(screen.getByLabelText("Plugin ID"), { target: { value: "gallery" } });
-		fireEvent.click(screen.getByRole("button", { name: "Start connection" }));
-		expect(await screen.findByText("Run the workflow once to identify it")).toBeTruthy();
-		expect(screen.getByText(/id-token: write/)).toBeTruthy();
-		expect(screen.getByText(/release connect/)).toBeTruthy();
-		fireEvent.click(screen.getByRole("button", { name: "I've run the workflow" }));
-		expect(await screen.findByText("Confirm this GitHub workflow")).toBeTruthy();
+		await screen.findByRole("heading", { name: "2. Run your release workflow" });
+		expect(await screen.findByText("Approve workflow for gallery")).toBeTruthy();
 		expect(screen.getByText("example/gallery")).toBeTruthy();
 		expect(screen.getByText(".github/workflows/release.yml")).toBeTruthy();
-		expect(screen.getByText("main")).toBeTruthy();
-		fireEvent.click(screen.getByRole("button", { name: "Allow this workflow" }));
-		await screen.findByRole("button", { name: "Start connection" });
-		expect(requests.some((request) => request.url.endsWith("/confirm"))).toBe(true);
+		expect(screen.getByText("v1.2.3")).toBeTruthy();
+		expect(screen.getByText("All version tags")).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: "Approve workflow" }));
+		await screen.findByRole("button", { name: "Check for workflow requests" });
+		const confirmationRequest = requests.find((request) => request.url.endsWith("/confirm"));
+		expect(confirmationRequest).toBeDefined();
+		expect(await confirmationRequest?.json()).toEqual({ refScope: "version_tags" });
 	});
 
 	it("shows immutable workload and provenance evidence before approval", async () => {

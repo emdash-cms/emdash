@@ -19,7 +19,7 @@ inputs:
     required: false
     default: "5"
   timeout-minutes:
-    description: Maximum time to wait for publication or approval.
+    description: Maximum time to wait for workflow approval, publication, or release approval.
     required: false
     default: "30"
   wait-for-approval:
@@ -27,6 +27,8 @@ inputs:
     required: false
     default: "false"
 outputs:
+  connection-url:
+    description: Browser URL for approving the workflow on its first release run.
   intent-id:
     description: Release intent ULID.
   state:

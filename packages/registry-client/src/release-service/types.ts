@@ -42,11 +42,6 @@ export type ReleaseServiceApiErrorCode =
 	| "NOT_FOUND"
 	| "OAUTH_AUTHORIZATION_FAILED"
 	| "OAUTH_CALLBACK_INVALID"
-	| "PAIRING_CONFLICT"
-	| "PAIRING_EXPIRED"
-	| "PAIRING_INVALID"
-	| "PAIRING_LIMIT_REACHED"
-	| "PAIRING_NOT_CLAIMED"
 	| "PROFILE_CHANGED"
 	| "PROFILE_FETCH_FAILED"
 	| "PUBLISHER_SESSION_INVALID"
@@ -57,6 +52,10 @@ export type ReleaseServiceApiErrorCode =
 	| "SERVICE_UNAVAILABLE"
 	| "VERSION_RESERVED"
 	| "WORKFLOW_UNAVAILABLE"
+	| "WORKFLOW_CONNECTION_CONFLICT"
+	| "WORKFLOW_CONNECTION_EXPIRED"
+	| "WORKFLOW_CONNECTION_LIMIT_REACHED"
+	| "WORKFLOW_CONNECTION_NOT_FOUND"
 	| "WORKLOAD_NOT_ALLOWED"
 	| "WORKLOAD_RATE_LIMITED";
 
@@ -135,9 +134,10 @@ export interface PutWorkloadPolicyInput {
 	expectedVersion: number | null;
 }
 
-export type WorkflowPairingState = "claimed" | "confirmed" | "expired" | "pending";
+export type WorkflowConnectionRequestState = "confirmed" | "expired" | "pending";
+export type WorkflowConnectionRefScope = "current_ref" | "version_tags";
 
-export interface WorkflowPairingClaimResource {
+export interface WorkflowConnectionClaimResource {
 	repository: string;
 	repositoryId: string;
 	repositoryOwner: string;
@@ -148,36 +148,33 @@ export interface WorkflowPairingClaimResource {
 	environment: string | null;
 }
 
-export interface WorkflowPairingResource {
+export interface WorkflowConnectionRequestResource {
 	id: string;
 	packageSlug: string;
-	state: WorkflowPairingState;
-	claim: WorkflowPairingClaimResource | null;
+	state: WorkflowConnectionRequestState;
+	claim: WorkflowConnectionClaimResource;
+	refScope: WorkflowConnectionRefScope | null;
 	expiresAt: number;
 	createdAt: number;
-	claimedAt: number | null;
 	confirmedAt: number | null;
 }
 
-export interface CreateWorkflowPairingResult {
-	pairing: WorkflowPairingResource;
-	pairingToken: string;
-	replayed: boolean;
-}
-
-export interface ClaimWorkflowPairingInput {
+export interface RequestWorkflowConnectionInput {
 	publisherDid: string;
-	pairingId: string;
-	pairingToken: string;
+	packageSlug: string;
 }
 
-export interface ClaimWorkflowPairingResult {
-	pairing: WorkflowPairingResource;
-	replayed: boolean;
-}
+export type RequestWorkflowConnectionResult =
+	| { status: "connected"; policy: WorkloadPolicyResource }
+	| {
+			status: "pending";
+			request: WorkflowConnectionRequestResource;
+			approvalUrl: string;
+			replayed: boolean;
+	  };
 
-export interface ConfirmWorkflowPairingResult {
-	pairing: WorkflowPairingResource;
+export interface ConfirmWorkflowConnectionResult {
+	request: WorkflowConnectionRequestResource;
 	policy: WorkloadPolicyResource;
 	replayed: boolean;
 }

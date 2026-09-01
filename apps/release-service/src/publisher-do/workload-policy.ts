@@ -3,8 +3,8 @@ const PACKAGE_SLUG_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const DECIMAL_ID_PATTERN = /^[1-9][0-9]*$/;
 const REF_PATTERN = /^refs\/[A-Za-z0-9._/-]{1,507}$/;
-const WORKFLOW_REF_PATTERN =
-	/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9._/-]+$/;
+const WORKFLOW_PATH_PATTERN =
+	/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml$/;
 const MAX_POLICY_VALUES = 32;
 const MAX_LIST_LIMIT = 101;
 
@@ -106,6 +106,45 @@ function validEnvironment(value: string): boolean {
 	return true;
 }
 
+export function validRefRule(value: string): boolean {
+	if (REF_PATTERN.test(value)) return true;
+	if (!value.endsWith("*")) return false;
+	const prefix = value.slice(0, -1);
+	return (
+		(prefix.startsWith("refs/heads/") || prefix.startsWith("refs/tags/")) &&
+		REF_PATTERN.test(prefix)
+	);
+}
+
+export function refRuleMatches(rule: string, value: string): boolean {
+	if (!validRefRule(rule) || !REF_PATTERN.test(value)) return false;
+	return rule.endsWith("*") ? value.startsWith(rule.slice(0, -1)) : rule === value;
+}
+
+export function validWorkflowRefRule(value: string): boolean {
+	const separator = value.lastIndexOf("@");
+	if (separator < 1) return false;
+	return (
+		WORKFLOW_PATH_PATTERN.test(value.slice(0, separator)) &&
+		validRefRule(value.slice(separator + 1))
+	);
+}
+
+export function workflowRefRuleMatches(rule: string, value: string): boolean {
+	const normalizedRule = normalizeWorkflowRefRepository(rule);
+	const normalizedValue = normalizeWorkflowRefRepository(value);
+	const ruleSeparator = normalizedRule.lastIndexOf("@");
+	const valueSeparator = normalizedValue.lastIndexOf("@");
+	if (ruleSeparator < 1 || valueSeparator < 1) return false;
+	return (
+		normalizedRule.slice(0, ruleSeparator) === normalizedValue.slice(0, valueSeparator) &&
+		refRuleMatches(
+			normalizedRule.slice(ruleSeparator + 1),
+			normalizedValue.slice(valueSeparator + 1),
+		)
+	);
+}
+
 export function normalizeWorkflowRefRepository(value: string): string {
 	const marker = "/.github/workflows/";
 	const markerIndex = value.indexOf(marker);
@@ -120,7 +159,7 @@ function rowToPolicy(row: WorkloadPolicyRow): StoredWorkloadPolicy {
 		repositoryId: row.repository_id,
 		repositoryOwnerId: row.repository_owner_id,
 		workflowRef: row.workflow_ref,
-		allowedRefs: parseStringArray(row.allowed_refs, (value) => REF_PATTERN.test(value)),
+		allowedRefs: parseStringArray(row.allowed_refs, validRefRule),
 		allowedEnvironments: parseStringArray(row.allowed_environments, validEnvironment),
 		active: row.active === 1,
 		stateVersion: row.state_version,
@@ -165,7 +204,7 @@ export class WorkloadPolicyStore {
 		}
 		const repository = input.repository.toLowerCase();
 		const workflowRef = normalizeWorkflowRefRepository(input.workflowRef);
-		const allowedRefs = normalizeValues(input.allowedRefs, (value) => REF_PATTERN.test(value));
+		const allowedRefs = normalizeValues(input.allowedRefs, validRefRule);
 		const allowedEnvironments = normalizeValues(input.allowedEnvironments, validEnvironment);
 		if (
 			!DID_PATTERN.test(input.publisherDid) ||
@@ -173,7 +212,7 @@ export class WorkloadPolicyStore {
 			!REPOSITORY_PATTERN.test(repository) ||
 			!DECIMAL_ID_PATTERN.test(input.repositoryId) ||
 			!DECIMAL_ID_PATTERN.test(input.repositoryOwnerId) ||
-			!WORKFLOW_REF_PATTERN.test(input.workflowRef) ||
+			!validWorkflowRefRule(input.workflowRef) ||
 			!workflowRef.startsWith(`${repository}/.github/workflows/`) ||
 			typeof input.active !== "boolean" ||
 			(input.expectedVersion !== null &&

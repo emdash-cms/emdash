@@ -58,6 +58,32 @@ describe("publisher workload policies", () => {
 		await expect(stub.getWorkloadPolicy(DID, "Gallery")).resolves.toEqual(result.policy);
 	});
 
+	it("stores bounded version-tag patterns without accepting arbitrary globs", async () => {
+		await expect(
+			publisher().putWorkloadPolicy(
+				input({
+					workflowRef: "EmDash-CMS/Gallery/.github/workflows/release.yml@refs/tags/*",
+					allowedRefs: ["refs/tags/*"],
+				}),
+			),
+		).resolves.toMatchObject({
+			ok: true,
+			policy: {
+				workflowRef: "emdash-cms/gallery/.github/workflows/release.yml@refs/tags/*",
+				allowedRefs: ["refs/tags/*"],
+			},
+		});
+		await runInDurableObject(publisher(), async (instance) => {
+			expect(() =>
+				instance.putWorkloadPolicy(
+					input({
+						workflowRef: "EmDash-CMS/Gallery/.github/workflows/*.yml@refs/tags/*",
+					}),
+				),
+			).toThrowError(expect.objectContaining({ code: "WORKLOAD_POLICY_INVALID" }));
+		});
+	});
+
 	it("requires compare-and-set for replacement and preserves creation time", async () => {
 		const stub = publisher();
 		await stub.putWorkloadPolicy(input());
