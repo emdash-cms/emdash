@@ -1,4 +1,4 @@
-import { Badge, Button, Input, Surface, Table } from "@cloudflare/kumo";
+import { Badge, Button, Input, Popover, Surface, Table } from "@cloudflare/kumo";
 import {
 	ReleaseServiceClient,
 	ReleaseServiceError,
@@ -149,11 +149,112 @@ function workflowPairingStep(
 }
 
 function activityActorLabel(t: ReturnType<typeof useT>, item: PublisherAuditEventResource): string {
-	if (item.actorHandle) return item.actorHandle;
+	if (item.actorHandle) return formatHandle(item.actorHandle);
 	if (item.actorRealm === "system") return t("activity.actor.service", "EmDash release service");
 	if (item.actorIdentity.startsWith("did:"))
 		return t("activity.actor.atmosphere", "Atmosphere account");
 	return item.actorIdentity;
+}
+
+function formatHandle(handle: string): string {
+	return handle.startsWith("@") ? handle : `@${handle}`;
+}
+
+function ActivityDetails({
+	action,
+	item,
+	t,
+}: {
+	action: string;
+	item: PublisherAuditEventResource;
+	t: ReturnType<typeof useT>;
+}) {
+	return (
+		<Popover>
+			<Popover.Trigger
+				render={
+					<Button
+						aria-label={t("publisher.audit.viewDetails", "View details for {action}", {
+							action,
+						})}
+						icon={
+							<span aria-hidden="true" className="text-base leading-none">
+								•••
+							</span>
+						}
+						shape="square"
+						size="sm"
+						variant="ghost"
+					/>
+				}
+			/>
+			<Popover.Content align="end" className="w-80 max-w-[calc(100vw-2rem)] p-4">
+				<Popover.Title>{t("publisher.audit.detailsTitle", "Activity details")}</Popover.Title>
+				<dl className="mt-3 grid gap-3 text-sm">
+					<div>
+						<dt className="text-kumo-subtle">{t("publisher.audit.eventType", "Event type")}</dt>
+						<dd>
+							<code className="break-all">{item.eventType}</code>
+						</dd>
+					</div>
+					<div>
+						<dt className="text-kumo-subtle">{t("publisher.audit.actorId", "Actor ID")}</dt>
+						<dd>
+							<code className="break-all">{item.actorIdentity}</code>
+						</dd>
+					</div>
+					<div>
+						<dt className="text-kumo-subtle">{t("publisher.audit.subject", "Subject")}</dt>
+						<dd>
+							<code className="break-all">{item.subject}</code>
+						</dd>
+					</div>
+					{item.reasonCode ? (
+						<div>
+							<dt className="text-kumo-subtle">{t("publisher.audit.reason", "Reason")}</dt>
+							<dd>
+								<code className="break-all">{item.reasonCode}</code>
+							</dd>
+						</div>
+					) : null}
+				</dl>
+			</Popover.Content>
+		</Popover>
+	);
+}
+
+function AccountIdentifier({
+	did,
+	handle,
+	t,
+}: {
+	did: string;
+	handle: string | null;
+	t: ReturnType<typeof useT>;
+}) {
+	if (handle) return formatHandle(handle);
+	return (
+		<span className="flex items-center gap-1">
+			{t("publisher.approvers.account", "Atmosphere account")}
+			<Popover>
+				<Popover.Trigger
+					render={
+						<Button
+							aria-label={t("publisher.approvers.viewAccountId", "View account ID")}
+							icon={<span aria-hidden="true">•••</span>}
+							shape="square"
+							size="xs"
+							variant="ghost"
+						/>
+					}
+				/>
+				<Popover.Content align="start" className="w-72 max-w-[calc(100vw-2rem)] p-4">
+					<Popover.Title>{t("publisher.approvers.accountId", "Account ID")}</Popover.Title>
+					<code className="mt-2 block break-all text-sm">{did}</code>
+				</Popover.Content>
+			</Popover>
+		</span>
+	);
 }
 
 function workflowFile(repository: string, workflowRef: string): string {
@@ -242,6 +343,7 @@ export function PublisherPage() {
 
 	async function startWorkflowPairing(event: FormEvent) {
 		event.preventDefault();
+		if (data?.publisher.delegation?.status !== "active") return;
 		setBusy(true);
 		setError(null);
 		try {
@@ -332,6 +434,7 @@ export function PublisherPage() {
 	if (!data) return <ErrorBanner error={error} />;
 	const delegation = data.publisher.delegation;
 	const publishingEnabled = delegation?.status === "active";
+	const publisherHandle = data.publisher.handle ? formatHandle(data.publisher.handle) : null;
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -345,7 +448,11 @@ export function PublisherPage() {
 								: t("publisher.authority.setupTitle", "1. Allow EmDash to publish releases")}
 						</h2>
 						<p className="mt-1 text-sm text-kumo-subtle">
-							{data.publisher.handle ?? t("publisher.account", "Atmosphere account")}
+							{publisherHandle
+								? t("publisher.signedInAs", "Signed in as {handle}", {
+										handle: publisherHandle,
+									})
+								: t("publisher.signedIn", "Signed in with Atmosphere")}
 						</p>
 					</div>
 					<Badge variant={publishingEnabled ? "success" : "warning"}>
@@ -360,18 +467,14 @@ export function PublisherPage() {
 						"EmDash may create new plugin release records and upload their files. It cannot change or delete existing records.",
 					)}
 				</p>
-				<details className="mt-3 text-sm text-kumo-subtle">
-					<summary>{t("publisher.technicalDetails", "Technical details")}</summary>
-					<code className="mt-2 block break-all">{data.publisher.did}</code>
-				</details>
 				<div className="mt-5 flex flex-wrap gap-2">
-					<Button loading={busy} onClick={authorizeDelegation} variant="primary">
+					<Button disabled={busy} onClick={authorizeDelegation} variant="primary">
 						{publishingEnabled
-							? t("publisher.delegation.replace", "Reconnect publishing account")
-							: t("publisher.delegation.authorize", "Allow EmDash to publish releases")}
+							? t("publisher.delegation.replace", "Reconnect publishing")
+							: t("publisher.delegation.authorize", "Authorize publishing")}
 					</Button>
 					{delegation && delegation.status !== "revoked" ? (
-						<Button loading={busy} onClick={revokeDelegation} variant="secondary-destructive">
+						<Button disabled={busy} onClick={revokeDelegation} variant="secondary-destructive">
 							{t("publisher.delegation.revoke", "Turn off automated publishing")}
 						</Button>
 					) : null}
@@ -384,32 +487,43 @@ export function PublisherPage() {
 						? t("publisher.workload.setupTitle", "2. Connect a GitHub Actions workflow")
 						: t("publisher.workload.addTitle", "Connect another GitHub Actions workflow")}
 				</h2>
-				<p className="mt-1 text-sm text-kumo-subtle">
-					{t(
-						"publisher.workload.description",
-						"Choose which workflow may publish releases for one of your plugin packages. GitHub proves the repository, workflow file, and branch when you run it.",
-					)}
-				</p>
+				{publishingEnabled ? (
+					<p className="mt-1 text-sm text-kumo-subtle">
+						{t(
+							"publisher.workload.description",
+							"Choose which workflow may publish releases for one of your plugin packages. GitHub proves the repository, workflow file, and branch when you run it.",
+						)}
+					</p>
+				) : (
+					<p className="mt-1 text-sm text-kumo-subtle">
+						{t(
+							"publisher.workload.authorizationRequired",
+							"Authorize publishing before connecting a GitHub workflow.",
+						)}
+					</p>
+				)}
 				{!workflowPairing ? (
-					<form
-						className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end"
-						onSubmit={startWorkflowPairing}
-					>
-						<Input
-							className="flex-1"
-							description={t(
+					<form className="mt-5 max-w-2xl" onSubmit={startWorkflowPairing}>
+						<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+							<Input
+								aria-describedby="workflow-plugin-id-description"
+								disabled={!publishingEnabled || busy}
+								label={t("publisher.workload.package", "Plugin ID")}
+								placeholder={t("publisher.workload.packagePlaceholder", "gallery")}
+								required
+								value={packageSlug}
+								onChange={(event) => setPackageSlug(event.currentTarget.value)}
+							/>
+							<Button disabled={!publishingEnabled || busy} type="submit" variant="primary">
+								{t("publisher.workload.start", "Start connection")}
+							</Button>
+						</div>
+						<p id="workflow-plugin-id-description" className="mt-2 text-sm text-kumo-subtle">
+							{t(
 								"publisher.workload.packageDescription",
-								"The plugin package this workflow may release.",
+								"Use the plugin ID from emdash-plugin.jsonc for the plugin this workflow will publish.",
 							)}
-							label={t("publisher.workload.package", "Plugin package")}
-							placeholder={t("publisher.workload.packagePlaceholder", "gallery")}
-							required
-							value={packageSlug}
-							onChange={(event) => setPackageSlug(event.currentTarget.value)}
-						/>
-						<Button loading={busy} type="submit" variant="primary">
-							{t("publisher.workload.start", "Start connection")}
-						</Button>
+						</p>
 					</form>
 				) : workflowPairing.pairing.state === "pending" ? (
 					<div className="mt-5">
@@ -450,7 +564,7 @@ export function PublisherPage() {
 							)}
 						</p>
 						<div className="mt-4 flex flex-wrap gap-2">
-							<Button loading={busy} onClick={checkWorkflowPairing} variant="primary">
+							<Button disabled={busy} onClick={checkWorkflowPairing} variant="primary">
 								{t("publisher.pairing.check", "I've run the workflow")}
 							</Button>
 							<Button onClick={() => setWorkflowPairing(null)} variant="outline">
@@ -503,7 +617,7 @@ export function PublisherPage() {
 							) : null}
 						</dl>
 						<div className="mt-5 flex flex-wrap gap-2">
-							<Button loading={busy} onClick={confirmWorkflowPairing} variant="primary">
+							<Button disabled={busy} onClick={confirmWorkflowPairing} variant="primary">
 								{t("publisher.pairing.confirm", "Allow this workflow")}
 							</Button>
 							<Button onClick={() => setWorkflowPairing(null)} variant="outline">
@@ -558,7 +672,7 @@ export function PublisherPage() {
 									</Table.Cell>
 									<Table.Cell>
 										<Button
-											loading={busy}
+											disabled={busy}
 											onClick={() => loadApproverStatus(workload.packageSlug)}
 											variant="outline"
 										>
@@ -586,7 +700,7 @@ export function PublisherPage() {
 							)}
 						</p>
 						<details className="mt-3 text-sm text-kumo-subtle">
-							<summary>{t("publisher.technicalDetails", "Technical details")}</summary>
+							<summary>{t("publisher.profileReference", "Show profile reference")}</summary>
 							<code className="mt-2 block break-all">{approverStatus.profileCid}</code>
 						</details>
 					</div>
@@ -603,15 +717,7 @@ export function PublisherPage() {
 									{approverStatus.items.map((item) => (
 										<Table.Row key={item.did}>
 											<Table.Cell>
-												{item.handle ?? t("publisher.approvers.account", "Atmosphere account")}
-												{item.handle ? null : (
-													<details className="mt-1 text-xs text-kumo-subtle">
-														<summary>
-															{t("publisher.technicalDetails", "Technical details")}
-														</summary>
-														<code className="mt-1 block break-all">{item.did}</code>
-													</details>
-												)}
+												<AccountIdentifier did={item.did} handle={item.handle} t={t} />
 											</Table.Cell>
 											<Table.Cell>
 												<Badge variant={item.status === "enrolled" ? "success" : "warning"}>
@@ -690,53 +796,28 @@ export function PublisherPage() {
 									<Table.Head>{t("publisher.audit.event", "Action")}</Table.Head>
 									<Table.Head>{t("publisher.audit.actor", "By")}</Table.Head>
 									<Table.Head>{t("publisher.audit.time", "When")}</Table.Head>
+									<Table.Head>
+										<span className="sr-only">{t("publisher.audit.details", "Details")}</span>
+									</Table.Head>
 								</Table.Row>
 							</Table.Header>
 							<Table.Body>
 								{data.audit.map((item) => (
 									<Table.Row key={item.sequence}>
-										<Table.Cell>
-											{activityEventLabel(t, item.eventType)}
-											<details className="mt-1 text-xs text-kumo-subtle">
-												<summary>{t("publisher.technicalDetails", "Technical details")}</summary>
-												<dl className="mt-1 grid gap-1">
-													<div>
-														<dt>{t("publisher.audit.eventType", "Event type")}</dt>
-														<dd>
-															<code className="break-all">{item.eventType}</code>
-														</dd>
-													</div>
-													<div>
-														<dt>{t("publisher.audit.subject", "Subject")}</dt>
-														<dd>
-															<code className="break-all">{item.subject}</code>
-														</dd>
-													</div>
-													{item.reasonCode ? (
-														<div>
-															<dt>{t("publisher.audit.reason", "Reason")}</dt>
-															<dd>
-																<code className="break-all">{item.reasonCode}</code>
-															</dd>
-														</div>
-													) : null}
-												</dl>
-											</details>
-										</Table.Cell>
-										<Table.Cell>
-											{activityActorLabel(t, item)}
-											{item.actorHandle || item.actorRealm === "system" ? null : (
-												<details className="mt-1 text-xs text-kumo-subtle">
-													<summary>{t("publisher.technicalDetails", "Technical details")}</summary>
-													<code className="mt-1 block break-all">{item.actorIdentity}</code>
-												</details>
-											)}
-										</Table.Cell>
+										<Table.Cell>{activityEventLabel(t, item.eventType)}</Table.Cell>
+										<Table.Cell>{activityActorLabel(t, item)}</Table.Cell>
 										<Table.Cell>
 											{new Intl.DateTimeFormat(document.documentElement.lang, {
 												dateStyle: "medium",
 												timeStyle: "short",
 											}).format(item.createdAt)}
+										</Table.Cell>
+										<Table.Cell>
+											<ActivityDetails
+												action={activityEventLabel(t, item.eventType)}
+												item={item}
+												t={t}
+											/>
 										</Table.Cell>
 									</Table.Row>
 								))}
@@ -750,7 +831,7 @@ export function PublisherPage() {
 				)}
 				{data.auditCursor ? (
 					<div className="mt-4 flex justify-end">
-						<Button loading={busy} onClick={loadNextAuditPage} variant="outline">
+						<Button disabled={busy} onClick={loadNextAuditPage} variant="outline">
 							{t("publisher.audit.next", "Show older activity")}
 						</Button>
 					</div>

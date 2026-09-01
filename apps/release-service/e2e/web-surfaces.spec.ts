@@ -95,7 +95,17 @@ test("account connects a GitHub workflow only after confirming its identity", as
 					publisher: {
 						did: PUBLISHER_DID,
 						handle: "publisher.example.com",
-						delegation: null,
+						delegation: {
+							releaseNsid: "com.emdashcms.experimental.package.release",
+							scope:
+								"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
+							issuer: "https://authorization.example.com",
+							pdsUrl: "https://pds.example.com",
+							expiresAt: null,
+							refreshBefore: null,
+							status: "active",
+							stateVersion: 1,
+						},
 					},
 				}),
 			);
@@ -190,8 +200,23 @@ test("account connects a GitHub workflow only after confirming its identity", as
 	});
 
 	await page.goto("/publisher");
-	await page.getByLabel("Plugin package").fill("gallery");
-	await page.getByRole("button", { name: "Start connection" }).click();
+	await expect(page.getByText("Signed in as @publisher.example.com")).toBeVisible();
+	await expect(page.getByText(PUBLISHER_DID)).toHaveCount(0);
+	const pluginId = page.getByLabel("Plugin ID");
+	const startConnection = page.getByRole("button", { name: "Start connection" });
+	const [pluginIdBox, startConnectionBox] = await Promise.all([
+		pluginId.boundingBox(),
+		startConnection.boundingBox(),
+	]);
+	expect(pluginIdBox).not.toBeNull();
+	expect(startConnectionBox).not.toBeNull();
+	expect(
+		Math.abs(
+			pluginIdBox!.y + pluginIdBox!.height - (startConnectionBox!.y + startConnectionBox!.height),
+		),
+	).toBeLessThan(1);
+	await pluginId.fill("gallery");
+	await startConnection.click();
 	await expect(page.getByText("Run the workflow once to identify it")).toBeVisible();
 	await expect(page.getByText(OIDC_PERMISSION_PATTERN)).toBeVisible();
 	await page.getByRole("button", { name: "I've run the workflow" }).click();

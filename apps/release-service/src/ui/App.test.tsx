@@ -169,11 +169,8 @@ describe("release-service web surfaces", () => {
 		);
 		renderApp("/publisher");
 
-		const accountIdentifiers = await screen.findAllByText(PUBLISHER_DID);
-		expect(accountIdentifiers.length).toBeGreaterThan(0);
-		expect(accountIdentifiers.every((identifier) => identifier.closest("details") !== null)).toBe(
-			true,
-		);
+		await screen.findByText("Signed in as @publisher.example.com");
+		expect(screen.queryByText(PUBLISHER_DID)).toBeNull();
 		expect(screen.getAllByText("gallery").length).toBeGreaterThan(0);
 		expect(screen.getByText("Awaiting approval")).toBeTruthy();
 		expect(screen.getByRole("heading", { name: "Account activity" })).toBeTruthy();
@@ -185,16 +182,57 @@ describe("release-service web surfaces", () => {
 				"Choose which workflow may publish releases for one of your plugin packages. GitHub proves the repository, workflow file, and branch when you run it.",
 			),
 		).toBeTruthy();
-		expect(screen.getAllByText("publisher.example.com")).toHaveLength(2);
+		expect(screen.getAllByText("@publisher.example.com")).toHaveLength(1);
 		expect(screen.getByRole("heading", { name: "Release approval passkeys" })).toBeTruthy();
 		expect(screen.getByText("Work laptop")).toBeTruthy();
 		expect(screen.getByText("GitHub workflow connected")).toBeTruthy();
+		expect(screen.queryByText("Technical details")).toBeNull();
+		fireEvent.click(
+			screen.getByRole("button", { name: "View details for GitHub workflow connected" }),
+		);
+		expect(await screen.findByText("Activity details")).toBeTruthy();
+		expect(screen.getByText(PUBLISHER_DID)).toBeTruthy();
+		expect(screen.getByText("workload-policy-stored")).toBeTruthy();
 		fireEvent.click(screen.getByRole("button", { name: "Show older activity" }));
 		expect(await screen.findByText("Automated publishing turned off")).toBeTruthy();
 		expect(screen.getByText("GitHub workflow connected")).toBeTruthy();
 		fireEvent.click(screen.getByRole("button", { name: "Check approval readiness" }));
 		expect(await screen.findByRole("heading", { name: "Approval readiness" })).toBeTruthy();
-		expect(screen.getByText("approver.example.com")).toBeTruthy();
+		expect(screen.getByText("@approver.example.com")).toBeTruthy();
+	});
+
+	it("keeps workflow setup unavailable until publishing is authorized", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (input: RequestInfo | URL) => {
+				const path = new URL(
+					input instanceof Request ? input.url : input.toString(),
+					location.origin,
+				).pathname;
+				if (path === "/v1/publisher") {
+					return success({
+						publisher: {
+							did: PUBLISHER_DID,
+							handle: "publisher.example.com",
+							delegation: null,
+						},
+					});
+				}
+				return success({ items: [] });
+			}),
+		);
+		renderApp("/publisher");
+
+		expect(await screen.findByText("Signed in as @publisher.example.com")).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Authorize publishing" })).toBeTruthy();
+		expect(
+			screen.getByText("Authorize publishing before connecting a GitHub workflow."),
+		).toBeTruthy();
+		expect(screen.getByLabelText("Plugin ID").hasAttribute("disabled")).toBe(true);
+		expect(screen.getByRole("button", { name: "Start connection" }).hasAttribute("disabled")).toBe(
+			true,
+		);
+		expect(screen.queryByText(PUBLISHER_DID)).toBeNull();
 	});
 
 	it("connects a GitHub workflow without asking for GitHub identifiers", async () => {
@@ -211,7 +249,23 @@ describe("release-service web surfaces", () => {
 				requests.push(request);
 				const path = url.pathname;
 				if (path === "/v1/publisher") {
-					return success({ publisher: { did: PUBLISHER_DID, delegation: null } });
+					return success({
+						publisher: {
+							did: PUBLISHER_DID,
+							handle: "publisher.example.com",
+							delegation: {
+								releaseNsid: "com.emdashcms.experimental.package.release",
+								scope:
+									"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
+								issuer: "https://authorization.example.com",
+								pdsUrl: "https://pds.example.com",
+								expiresAt: null,
+								refreshBefore: null,
+								status: "active",
+								stateVersion: 1,
+							},
+						},
+					});
 				}
 				if (path === "/v1/publisher/workloads") return success({ items: [] });
 				if (path === "/v1/publisher/intents") return success({ items: [] });
@@ -297,7 +351,7 @@ describe("release-service web surfaces", () => {
 		renderApp("/publisher");
 
 		await screen.findByRole("heading", { name: "2. Connect a GitHub Actions workflow" });
-		fireEvent.change(screen.getByLabelText("Plugin package"), { target: { value: "gallery" } });
+		fireEvent.change(screen.getByLabelText("Plugin ID"), { target: { value: "gallery" } });
 		fireEvent.click(screen.getByRole("button", { name: "Start connection" }));
 		expect(await screen.findByText("Run the workflow once to identify it")).toBeTruthy();
 		expect(screen.getByText(/id-token: write/)).toBeTruthy();
