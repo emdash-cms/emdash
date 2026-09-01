@@ -38,10 +38,6 @@ const FREEZE_CSS = `
 		caret-color: transparent !important;
 		scroll-behavior: auto !important;
 	}
-	[data-testid="activity-time"] {
-		inline-size: 6rem !important;
-		overflow: hidden !important;
-	}
 `;
 
 // Admin locale is driven by the `emdash-locale` cookie (path /_emdash); Arabic

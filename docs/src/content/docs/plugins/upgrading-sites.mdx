@@ -12,13 +12,13 @@ This guide is for **site operators**: people who install plugins into a site. If
 Update `emdash` and your plugin packages to their latest versions, then reinstall and rebuild:
 
 ```sh
-pnpm up emdash @emdash-cms/plugin-audit-log @emdash-cms/plugin-webhook-notifier @emdash-cms/plugin-atproto
+pnpm up --latest emdash @emdash-cms/plugin-audit-log @emdash-cms/plugin-webhook-notifier @emdash-cms/plugin-atproto
 pnpm build
 ```
 
 After upgrading, your site may build and run without further changes. If the build fails or a plugin stops loading, work through the breaking changes below. Each one tells you exactly what to change.
 
-For the full list of changes in each package, see its entry in the [EmDash changelog](https://github.com/emdash-cms/emdash/blob/main/CHANGELOG.md).
+For the full list of changes in each package, see its entry on the [releases page](https://github.com/emdash-cms/emdash/releases).
 
 ## Breaking changes
 

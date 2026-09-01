@@ -104,6 +104,16 @@ body {
 	-moz-osx-font-smoothing: grayscale;
 }
 
+.emdash-media-transparency-grid {
+	background-color: var(--color-kumo-base);
+	background-image: repeating-conic-gradient(
+		var(--color-kumo-tint) 0% 25%,
+		var(--color-kumo-base) 0% 50%
+	);
+	background-position: 50%;
+	background-size: 20px 20px;
+}
+
 /*
  * Mirrors the pre-React EmDash boot loader exactly. Keep these values in sync
  * with packages/core/src/astro/routes/admin.astro so the two loading stages do

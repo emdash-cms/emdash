@@ -19,12 +19,15 @@ import {
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
+	ArrowCounterClockwise,
 	X,
 	Trash,
 	Calendar,
 	CaretDown,
 	File,
+	Folder,
 	HardDrive,
+	ImagesSquare,
 	LinkSimple,
 	Ruler,
 	Info,
@@ -61,7 +64,7 @@ import { FocalPointEditor, FocalPointPreviews } from "./FocalPointEditor.js";
 import { MediaUsedIn } from "./MediaUsedIn.js";
 
 const CLOSE_FALLBACK_MS = 500;
-type MediaDetailTab = "details" | "edit-image";
+type MediaDetailTab = "details" | "used-in" | "edit-image";
 
 interface MediaLocationOption {
 	id: string | null;
@@ -113,6 +116,7 @@ export function MediaDetailPanel({
 	// Present when the item streams rather than resolving to a playable file.
 	const playback = metaPlayback(item.meta);
 	const canEditMetadata = !isProviderAsset && isImage;
+	const hasUsage = !isProviderAsset;
 	const canDelete = !isProviderAsset || Boolean(canDeleteProp);
 	const localItem = isLocalMediaItem(item) ? item : null;
 	const canMoveLocation = Boolean(localItem && canMoveLocationProp);
@@ -200,6 +204,7 @@ export function MediaDetailPanel({
 		(alt !== (item.alt ?? "") || caption !== (item.caption ?? "") || focalPointChanged);
 	const locationChanged = canMoveLocation && folderId !== localItem?.folderId;
 	const canEdit = canEditMetadata || canMoveLocation;
+	const hasTabs = canEditMetadata || hasUsage;
 	const hasChanges = metadataChanged || locationChanged;
 	const isConfirmOpen = showDeleteConfirm || showDiscardConfirm;
 	const publicFileUrl =
@@ -467,7 +472,7 @@ export function MediaDetailPanel({
 				<Dialog
 					size="xl"
 					className="min-w-0 flex flex-col overflow-hidden p-0"
-					style={{ width: "min(94vw, 72rem)", maxHeight: "min(88dvh, 48rem)" }}
+					style={{ width: "min(94vw, 72rem)", height: "min(88dvh, 43.5rem)" }}
 				>
 					<div
 						className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line"
@@ -491,38 +496,62 @@ export function MediaDetailPanel({
 						</Button>
 					</div>
 
-					{canEditMetadata && (
+					{hasTabs && (
 						<div className="shrink-0 border-b border-kumo-line px-6 py-4 md:px-8">
 							<Tabs
 								variant="segmented"
-								className="max-w-sm"
+								className="w-full max-w-lg"
 								value={activeTab}
 								onValueChange={(value) => {
-									if (value === "details" || value === "edit-image") setActiveTab(value);
+									if (
+										value === "details" ||
+										(value === "used-in" && hasUsage) ||
+										(value === "edit-image" && canEditMetadata)
+									) {
+										setActiveTab(value);
+									}
 								}}
 								tabs={[
 									{ value: "details", label: t`Details`, className: "flex-1 justify-center" },
-									{
-										value: "edit-image",
-										label: t`Focal point`,
-										className: "flex-1 justify-center",
-									},
+									...(hasUsage
+										? [{ value: "used-in", label: t`Used in`, className: "flex-1 justify-center" }]
+										: []),
+									...(canEditMetadata
+										? [
+												{
+													value: "edit-image",
+													label: t`Focal point`,
+													className: "flex-1 justify-center",
+												},
+											]
+										: []),
 								]}
 							/>
 						</div>
 					)}
 
 					<div
-						className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-2 md:overflow-hidden"
+						className={
+							activeTab === "used-in"
+								? "min-h-0 flex-1 overflow-hidden"
+								: "grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-2 md:overflow-hidden"
+						}
 						data-testid="media-detail-dialog-body"
-						role={canEditMetadata ? "tabpanel" : undefined}
+						role={hasTabs ? "tabpanel" : undefined}
 						aria-label={
-							canEditMetadata ? (activeTab === "details" ? t`Details` : t`Focal point`) : undefined
+							hasTabs
+								? activeTab === "details"
+									? t`Details`
+									: activeTab === "used-in"
+										? t`Used in`
+										: t`Focal point`
+								: undefined
 						}
 					>
 						<div
-							className="space-y-5 border-b border-kumo-line p-6 md:min-h-0 md:overflow-y-auto md:border-e md:border-b-0 md:p-8"
+							className={`border-b border-kumo-line p-6 md:min-h-0 md:overflow-y-auto md:border-e md:border-b-0 md:p-8 ${activeTab === "edit-image" ? "flex flex-col md:justify-center" : "space-y-5"}`}
 							data-testid="media-detail-dialog-preview-column"
+							hidden={activeTab === "used-in"}
 						>
 							{isImage ? (
 								<FocalPointEditor
@@ -568,20 +597,18 @@ export function MediaDetailPanel({
 							)}
 
 							<div
-								className={
-									activeTab === "details"
-										? "grid grid-cols-2 gap-x-6 gap-y-3"
-										: "hidden grid-cols-2 gap-x-6 gap-y-3 md:grid"
-								}
+								className="grid gap-x-6 gap-y-3"
 								data-testid="media-detail-dialog-file-facts"
-								style={{ visibility: activeTab === "details" ? undefined : "hidden" }}
-								aria-hidden={activeTab !== "details"}
+								hidden={activeTab !== "details"}
+								style={{
+									gridTemplateColumns: "minmax(0, 3fr) minmax(0, 2fr)",
+								}}
 							>
 								<div className="flex min-w-0 items-start gap-2 text-sm">
 									<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
-										<HardDrive className="h-4 w-4" aria-hidden="true" />
+										<HardDrive className="h-4 w-4 translate-y-[2px]" aria-hidden="true" />
 									</span>
-									<p className="flex min-w-0 flex-wrap items-baseline gap-1 leading-5">
+									<p className="flex min-w-0 flex-nowrap items-baseline gap-1 whitespace-nowrap leading-5">
 										<span className="text-kumo-subtle">{t`Size:`}</span>
 										<span className="tabular-nums">{formatFileSize(item.size)}</span>
 									</p>
@@ -589,9 +616,9 @@ export function MediaDetailPanel({
 								{item.width && item.height && (
 									<div className="flex min-w-0 items-start gap-2 text-sm">
 										<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
-											<Ruler className="h-4 w-4" aria-hidden="true" />
+											<Ruler className="h-4 w-4 translate-y-[2px]" aria-hidden="true" />
 										</span>
-										<p className="flex min-w-0 flex-wrap items-baseline gap-1 leading-5">
+										<p className="flex min-w-0 flex-nowrap items-baseline gap-1 whitespace-nowrap leading-5">
 											<span className="text-kumo-subtle">{t`Dimensions:`}</span>
 											<span className="tabular-nums">
 												{item.width} × {item.height}
@@ -602,19 +629,24 @@ export function MediaDetailPanel({
 								{!isProviderAsset && (
 									<div className="flex min-w-0 items-start gap-2 text-sm">
 										<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
-											<Calendar className="h-4 w-4" aria-hidden="true" />
+											<Calendar className="h-4 w-4 translate-y-[2px]" aria-hidden="true" />
 										</span>
-										<p className="flex min-w-0 flex-wrap items-baseline gap-1 leading-5">
-											<span className="text-kumo-subtle">{t`Uploaded:`}</span>
-											<span className="tabular-nums">{formatDate(item.createdAt)}</span>
+										<p className="flex min-w-0 flex-nowrap items-baseline gap-1 overflow-hidden whitespace-nowrap leading-5">
+											<span className="shrink-0 text-kumo-subtle">{t`Uploaded:`}</span>
+											<span
+												className="min-w-0 truncate tabular-nums"
+												title={formatDate(item.createdAt)}
+											>
+												{formatDate(item.createdAt)}
+											</span>
 										</p>
 									</div>
 								)}
 								<div className="flex min-w-0 items-start gap-2 text-sm">
 									<span className="flex h-lh shrink-0 items-center text-kumo-subtle">
-										<File className="h-4 w-4" aria-hidden="true" />
+										<File className="h-4 w-4 translate-y-[2px]" aria-hidden="true" />
 									</span>
-									<p className="flex min-w-0 flex-wrap items-baseline gap-1 leading-5">
+									<p className="flex min-w-0 flex-nowrap items-baseline gap-1 whitespace-nowrap leading-5">
 										<span className="text-kumo-subtle">{t`Format:`}</span>
 										<span>{formatFileFormat(item.mimeType)}</span>
 									</p>
@@ -623,7 +655,10 @@ export function MediaDetailPanel({
 									className="col-span-full flex min-w-0 items-center gap-2 text-sm"
 									data-testid="media-detail-dialog-file-url"
 								>
-									<LinkSimple className="h-4 w-4 shrink-0 text-kumo-subtle" aria-hidden="true" />
+									<LinkSimple
+										className="h-4 w-4 shrink-0 translate-y-[2px] text-kumo-subtle"
+										aria-hidden="true"
+									/>
 									<span className="shrink-0 text-kumo-subtle">{t`URL:`}</span>
 									{publicFileUrl ? (
 										<ClipboardText
@@ -641,9 +676,14 @@ export function MediaDetailPanel({
 						</div>
 
 						<div
-							className="grid gap-5 p-6 md:min-h-0 md:overflow-y-auto md:p-8"
+							className={`grid gap-5 p-6 md:min-h-0 md:overflow-y-auto md:p-8 ${activeTab === "edit-image" ? "md:content-center" : ""}`}
 							data-testid="media-detail-dialog-details-column"
-							style={canEditMetadata ? { gridTemplateAreas: '"panel" "error"' } : undefined}
+							hidden={activeTab === "used-in"}
+							style={
+								canEditMetadata
+									? { gridTemplateAreas: updateErrorMessage ? '"panel" "error"' : '"panel"' }
+									: undefined
+							}
 						>
 							{isProviderAsset && activeTab === "details" && (
 								<p className="rounded-lg bg-kumo-tint p-3 text-sm text-kumo-subtle">
@@ -654,12 +694,11 @@ export function MediaDetailPanel({
 							)}
 
 							<div
-								className={activeTab === "details" ? "space-y-4" : "hidden space-y-4 md:block"}
+								className="space-y-4"
+								hidden={activeTab !== "details"}
 								style={{
 									gridArea: canEditMetadata ? "panel" : undefined,
-									visibility: activeTab === "details" ? undefined : "hidden",
 								}}
-								aria-hidden={activeTab !== "details"}
 							>
 								<div className="w-full space-y-2">
 									<div className="flex items-center gap-1.5">
@@ -723,9 +762,18 @@ export function MediaDetailPanel({
 												className={`${inputVariants()} relative flex w-full items-center pe-8 text-start`}
 											>
 												<Combobox.Value>
-													{(option) => (
-														<span dir="auto">{option?.name ?? t`Select a location`}</span>
-													)}
+													{(option) =>
+														option ? (
+															<span className="flex min-w-0 items-center gap-2">
+																<MediaLocationIcon folderId={option.id} />
+																<span className="truncate" dir="auto">
+																	{option.name}
+																</span>
+															</span>
+														) : (
+															<span>{t`Select a location`}</span>
+														)
+													}
 												</Combobox.Value>
 												<Combobox.Icon className="absolute end-2 top-1/2 flex -translate-y-1/2 items-center text-kumo-subtle">
 													<CaretDown className="h-4 w-4" aria-hidden="true" />
@@ -756,11 +804,16 @@ export function MediaDetailPanel({
 												<Combobox.Empty>{t`No folders found`}</Combobox.Empty>
 												<Combobox.List
 													aria-busy={locationListQuery.isFetching || undefined}
-													style={{ maxHeight: "16.5rem" }}
+													style={{ maxHeight: "5rem" }}
 												>
 													{(option) => (
 														<Combobox.Item key={option.id ?? "main"} value={option}>
-															<span dir="auto">{option.name}</span>
+															<span className="flex min-w-0 items-center gap-2">
+																<MediaLocationIcon folderId={option.id} />
+																<span className="truncate" dir="auto">
+																	{option.name}
+																</span>
+															</span>
 														</Combobox.Item>
 													)}
 												</Combobox.List>
@@ -797,8 +850,14 @@ export function MediaDetailPanel({
 									) : (
 										<div className="space-y-1">
 											<p className="text-sm font-medium text-kumo-default">{t`Location`}</p>
-											<p className="text-sm text-kumo-subtle" aria-live="polite">
-												<span dir="auto">{currentLocationName}</span>
+											<p
+												className="flex items-center gap-2 text-sm text-kumo-subtle"
+												aria-live="polite"
+											>
+												<MediaLocationIcon folderId={localItem.folderId} />
+												<span className="min-w-0 truncate" dir="auto">
+													{currentLocationName}
+												</span>
 											</p>
 										</div>
 									))}
@@ -846,28 +905,30 @@ export function MediaDetailPanel({
 							</div>
 							{canEditMetadata && (
 								<div
-									className={
-										activeTab === "edit-image"
-											? "grid content-start gap-6"
-											: "hidden content-start gap-6 md:grid"
-									}
+									className="grid content-start gap-6"
+									hidden={activeTab !== "edit-image"}
 									style={{
 										gridArea: "panel",
-										visibility: activeTab === "edit-image" ? undefined : "hidden",
 									}}
-									aria-hidden={activeTab !== "edit-image"}
 								>
-									<div className="flex items-start justify-between gap-4">
-										<div className="grid min-w-0 gap-1.5">
+									<div className="flex items-center justify-between gap-4">
+										<div className="grid min-w-0 max-w-xs gap-1.5">
 											<h3 className="text-sm font-semibold">{t`Focal point`}</h3>
 											<p id={focalPointDescriptionId} className="text-sm text-kumo-subtle">
-												{t`Choose the part that should remain visible when this image is cropped.`}
+												{t`Move the focal point to choose what stays visible in cropped images.`}
 											</p>
 										</div>
 										<Button
 											type="button"
 											variant="outline"
-											size="sm"
+											size="lg"
+											icon={
+												<ArrowCounterClockwise
+													className="h-4 w-4"
+													weight="bold"
+													aria-hidden="true"
+												/>
+											}
 											className="shrink-0"
 											onClick={() => setFocalPoint(null)}
 											disabled={!focalPoint || isBusy}
@@ -888,18 +949,17 @@ export function MediaDetailPanel({
 									<DialogError message={updateErrorMessage} />
 								</div>
 							)}
-
-							{!isProviderAsset && (
-								<div className="border-t border-kumo-line pt-4">
-									<MediaUsedIn
-										mediaId={item.id}
-										open={open}
-										navigationBlocked={isBusy}
-										onEntryClick={handleUsageEntryClick}
-									/>
-								</div>
-							)}
 						</div>
+						{activeTab === "used-in" && (
+							<div className="h-full min-h-0 w-full overflow-hidden p-6 md:p-8">
+								<MediaUsedIn
+									mediaId={item.id}
+									open={open}
+									navigationBlocked={isBusy}
+									onEntryClick={handleUsageEntryClick}
+								/>
+							</div>
+						)}
 					</div>
 
 					<div
@@ -992,6 +1052,17 @@ function isLocalMediaItem(item: MediaItem): item is LocalMediaItem {
 		"folderId" in item &&
 		"authorId" in item &&
 		typeof item.storageKey === "string"
+	);
+}
+
+function MediaLocationIcon({ folderId }: { folderId: string | null }) {
+	const LocationIcon = folderId === null ? ImagesSquare : Folder;
+	return (
+		<LocationIcon
+			className="h-4 w-4 shrink-0 text-kumo-subtle"
+			aria-hidden="true"
+			data-testid="media-location-icon"
+		/>
 	);
 }
 

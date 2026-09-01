@@ -179,7 +179,7 @@ export function SeoSettings() {
 										<img
 											src={formData.seo.defaultOgImage.url}
 											alt={formData.seo.defaultOgImage.alt || t`Default social image`}
-											className="h-32 max-w-full rounded border border-kumo-line bg-kumo-tint object-contain p-2"
+											className="emdash-media-transparency-grid h-32 max-w-full rounded border border-kumo-line object-contain p-2"
 										/>
 									) : (
 										<div

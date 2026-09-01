@@ -221,6 +221,7 @@ export default defineConfig({
 					items: [
 						{ label: "Deploy to Cloudflare", slug: "deployment/cloudflare" },
 						{ label: "Deploy to Node.js", slug: "deployment/nodejs" },
+						{ label: "Update EmDash", slug: "deployment/updating" },
 						{ label: "Core Database Migrations", slug: "deployment/core-migrations" },
 						{ label: "Evolving a Deployed Site", slug: "deployment/schema-evolution" },
 						{ label: "Database Options", slug: "deployment/database" },

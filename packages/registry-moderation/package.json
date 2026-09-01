@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/registry-moderation",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"description": "Shared listing-label reduction, visibility policy, and metadata moderation contracts for the EmDash plugin registry.",
 	"type": "module",
 	"main": "dist/index.js",
