@@ -179,9 +179,7 @@ describe("release-service web surfaces", () => {
 		expect(
 			screen.getByRole("heading", { name: "Connect another GitHub Actions workflow" }),
 		).toBeTruthy();
-		expect(
-			screen.getByText("pnpm exec emdash-plugin release setup"),
-		).toBeTruthy();
+		expect(screen.getByText("pnpm exec emdash-plugin release setup")).toBeTruthy();
 		expect(
 			screen.getByText(
 				"It creates .github/workflows/emdash-release.yml. Review and commit the file, then push a version tag or start it from GitHub Actions.",

@@ -549,10 +549,7 @@ export function PublisherPage() {
 				) : (
 					<div className="mt-3 grid gap-3 text-sm">
 						<p className="text-kumo-subtle">
-							{t(
-								"publisher.workload.setupCommand",
-								"Run this once from your plugin project:",
-							)}
+							{t("publisher.workload.setupCommand", "Run this once from your plugin project:")}
 						</p>
 						<div className="overflow-x-auto rounded-lg bg-kumo-tint px-4 py-3">
 							<code className="whitespace-nowrap font-mono text-sm text-kumo-strong">
