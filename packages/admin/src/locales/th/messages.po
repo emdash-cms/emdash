@@ -37,7 +37,7 @@ msgstr " (เลือกแล้ว)"
 
 #: packages/admin/src/routes/bylines.tsx:706
 msgid "-- Select --"
-msgstr ""
+msgstr "-- เลือก --"
 
 #. placeholder {0}: providers?.find((p) => p.id === selectedItem.providerId)?.name
 #: packages/admin/src/components/MediaPickerModal.tsx:799
@@ -68,7 +68,7 @@ msgstr "{0, plural, one {(# รายการ)} other {(# รายการ)}}
 #: packages/admin/src/components/BylineFilter.tsx:105
 #: packages/admin/src/components/BylineFilter.tsx:106
 msgid "{0, plural, one {# byline} other {# bylines}}"
-msgstr ""
+msgstr "{0, plural, one {# ชื่อผู้เขียน} other {# ชื่อผู้เขียน}}"
 
 #. placeholder {0}: seedInfo.collections
 #: packages/admin/src/components/SetupWizard.tsx:156
@@ -78,7 +78,7 @@ msgstr "{0, plural, one {# คอลเลกชัน} other {# คอลเล
 #. placeholder {0}: result.comments.imported
 #: packages/admin/src/components/WordPressImport.tsx:2279
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
-msgstr ""
+msgstr "{0, plural, one {นำเข้าความคิดเห็น # รายการแล้ว} other {นำเข้าความคิดเห็น # รายการแล้ว}}"
 
 #. placeholder {0}: result.affected
 #: packages/admin/src/router.tsx:1798
@@ -105,12 +105,12 @@ msgstr "{0, plural, one {นำเข้าเนื้อหา # รายก�
 #: packages/admin/src/components/MediaDetailPanel.tsx:750
 #: packages/admin/src/components/MediaLibrary.tsx:1006
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
-msgstr ""
+msgstr "{0, plural, one {โหลดโฟลเดอร์ # รายการแล้ว} other {โหลดโฟลเดอร์ # รายการแล้ว}}"
 
 #. placeholder {0}: selectedItems.length
 #: packages/admin/src/components/MediaPickerModal.tsx:788
 msgid "{0, plural, one {# item selected} other {# items selected}}"
-msgstr ""
+msgstr "{0, plural, one {เลือกแล้ว # รายการ} other {เลือกแล้ว # รายการ}}"
 
 #. placeholder {0}: items.length
 #. placeholder {0}: menu.itemCount ?? 0
@@ -122,7 +122,7 @@ msgstr "{0, plural, one {# รายการ} other {# รายการ}}"
 #. placeholder {0}: mcpTools.length
 #: packages/admin/src/components/PluginManager.tsx:426
 msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
-msgstr ""
+msgstr "{0, plural, one {# เครื่องมือ MCP} other {# เครื่องมือ MCP}}"
 
 #. placeholder {0}: mediaResult.failed.length
 #: packages/admin/src/components/WordPressImport.tsx:2295
@@ -137,7 +137,7 @@ msgstr "{0, plural, one {นำเข้าไฟล์มีเดีย # ไ�
 #. placeholder {0}: result.menus.created
 #: packages/admin/src/components/WordPressImport.tsx:2271
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
-msgstr ""
+msgstr "{0, plural, one {นำเข้าเมนู # รายการแล้ว} other {นำเข้าเมนู # รายการแล้ว}}"
 
 #. placeholder {0}: navMenus.length
 #: packages/admin/src/components/WordPressImport.tsx:1919
@@ -173,12 +173,12 @@ msgstr "{0, plural, one {ข้ามไป # รายการ (มีอย�
 #. placeholder {0}: result.taxonomyAssignments
 #: packages/admin/src/components/WordPressImport.tsx:2263
 msgid "{0, plural, one {# taxonomy assignment} other {# taxonomy assignments}}"
-msgstr ""
+msgstr "{0, plural, one {การกำหนดอนุกรมวิธาน # รายการ} other {การกำหนดอนุกรมวิธาน # รายการ}}"
 
 #. placeholder {0}: result.taxonomiesCreated.length
 #: packages/admin/src/components/WordPressImport.tsx:2255
 msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
-msgstr ""
+msgstr "{0, plural, one {สร้างอนุกรมวิธาน # รายการแล้ว} other {สร้างอนุกรมวิธาน # รายการแล้ว}}"
 
 #. placeholder {0}: fields.length
 #: packages/admin/src/components/ContentTypeEditor.tsx:600
@@ -188,12 +188,12 @@ msgstr "{0, plural, one {ฟิลด์} other {ฟิลด์}}"
 #. placeholder {0}: stats.mediaCount
 #: packages/admin/src/components/Dashboard.tsx:213
 msgid "{0, plural, one {Media file} other {Media files}}"
-msgstr ""
+msgstr "{0, plural, one {ไฟล์มีเดีย} other {ไฟล์มีเดีย}}"
 
 #. placeholder {0}: stats.userCount
 #: packages/admin/src/components/Dashboard.tsx:217
 msgid "{0, plural, one {User} other {Users}}"
-msgstr ""
+msgstr "{0, plural, one {ผู้ใช้} other {ผู้ใช้}}"
 
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
@@ -211,7 +211,7 @@ msgstr "{0} • {1}"
 #. placeholder {0}: byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:272
 msgid "{0} added to this post."
-msgstr ""
+msgstr "เพิ่ม {0} ในโพสต์นี้แล้ว"
 
 #. placeholder {0}: displayName ?? slug
 #: packages/admin/src/components/RegistryPluginDetail.tsx:484
@@ -221,7 +221,7 @@ msgstr "แบนเนอร์ {0}"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:233
 msgid "{0} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to."
-msgstr ""
+msgstr "ย้าย {0} มาที่นี่ไม่ได้ — รายการแม่ไม่มีคำแปลในภาษานี้ รายการนี้จึงไม่ใช่กลุ่มที่ถูกต้อง"
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
 #: packages/admin/src/components/WordPressImport.tsx:1319
@@ -231,7 +231,7 @@ msgstr "ตรวจพบ {0}"
 #. placeholder {0}: term.locale.toUpperCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:356
 msgid "{0} fallback"
-msgstr ""
+msgstr "ใช้ {0} แทน"
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/PluginManager.tsx:127
@@ -272,17 +272,17 @@ msgstr "จะนำเข้า {0} รายการ"
 #. placeholder {0}: failedIds.length
 #: packages/admin/src/router.tsx:575
 msgid "{0} of {total} could not be deleted"
-msgstr ""
+msgstr "ลบไม่สำเร็จ {0} จาก {total} รายการ"
 
 #. placeholder {0}: failedIds.length
 #: packages/admin/src/router.tsx:531
 msgid "{0} of {total} could not be published"
-msgstr ""
+msgstr "เผยแพร่ไม่สำเร็จ {0} จาก {total} รายการ"
 
 #. placeholder {0}: failedIds.length
 #: packages/admin/src/router.tsx:554
 msgid "{0} of {total} could not be updated"
-msgstr ""
+msgstr "อัปเดตไม่สำเร็จ {0} จาก {total} รายการ"
 
 #. placeholder {0}: plugins?.length ?? 0
 #: packages/admin/src/components/PluginManager.tsx:191
@@ -297,7 +297,7 @@ msgstr "ดูตัวอย่าง {0}"
 #. placeholder {0}: byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:625
 msgid "{0} removed from this post."
-msgstr ""
+msgstr "นำ {0} ออกจากโพสต์นี้แล้ว"
 
 #. placeholder {0}: SYSTEM_FIELDS.length
 #. placeholder {1}: fields.length
@@ -314,7 +314,7 @@ msgstr "อัปเดต {0} แล้ว"
 #. placeholder {0}: updated.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:375
 msgid "{0} updated everywhere it appears."
-msgstr ""
+msgstr "อัปเดต {0} ในทุกที่ที่ปรากฏแล้ว"
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
@@ -345,17 +345,17 @@ msgstr "{changedCount, plural, one {# การเปลี่ยนแปลง
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2530
 msgid "{characters, plural, one {# character} other {# characters}}"
-msgstr ""
+msgstr "{characters, plural, one {# อักขระ} other {# อักขระ}}"
 
 #. placeholder {0}: rows.length
 #: packages/admin/src/components/MediaUploadDialog.tsx:488
 msgid "{completedCount} of {0} complete"
-msgstr ""
+msgstr "เสร็จแล้ว {completedCount} จาก {0}"
 
 #. placeholder {0}: rows.length
 #: packages/admin/src/components/MediaUploadDialog.tsx:373
 msgid "{completedCount} of {0} uploads complete"
-msgstr ""
+msgstr "อัปโหลดเสร็จแล้ว {completedCount} จาก {0} รายการ"
 
 #: packages/admin/src/components/WordPressImport.tsx:2088
 msgid "{count, plural, one {# file} other {# files}}"
@@ -371,7 +371,7 @@ msgstr "{current} จาก {total}"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:375
 msgid "{failedCount, plural, one {# upload failed} other {# uploads failed}}"
-msgstr ""
+msgstr "{failedCount, plural, one {อัปโหลดไม่สำเร็จ # รายการ} other {อัปโหลดไม่สำเร็จ # รายการ}}"
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
@@ -381,7 +381,7 @@ msgstr "{filteredCount, plural, one {#{0} รายการ} other {#{1} รา
 
 #: packages/admin/src/components/MediaImportSummary.tsx:9
 msgid "{importedFiles, plural, one {<count>#</count> file imported} other {<count>#</count> files imported}}"
-msgstr ""
+msgstr "{importedFiles, plural, one {นำเข้าไฟล์ <count>#</count> รายการแล้ว} other {นำเข้าไฟล์ <count>#</count> รายการแล้ว}}"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:107
 msgid "{label} — no translation"
@@ -394,7 +394,7 @@ msgstr "{label} — ดูคำแปล"
 #. placeholder {0}: to + 1
 #: packages/admin/src/components/BylineCreditsEditor.tsx:291
 msgid "{label} moved to position {0}."
-msgstr ""
+msgstr "ย้าย {label} ไปตำแหน่งที่ {0} แล้ว"
 
 #: packages/admin/src/components/ContentList.tsx:1189
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
@@ -418,15 +418,15 @@ msgstr "{needsNewFields, plural, one {จะมีการเพิ่มฟิ
 
 #: packages/admin/src/components/Dashboard.tsx:102
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
-msgstr ""
+msgstr "{overdueCount, plural, one {มีรายการตามกำหนดเวลาเลยกำหนดแล้ว และสัญญาณจากตัวจัดกำหนดการค้างอยู่ ให้รัน `npx emdash doctor` และตรวจสอบ Cron Trigger ที่ดีพลอยไว้} other {มีรายการตามกำหนดเวลา # รายการเลยกำหนดแล้ว และสัญญาณจากตัวจัดกำหนดการค้างอยู่ ให้รัน `npx emdash doctor` และตรวจสอบ Cron Trigger ที่ดีพลอยไว้}}"
 
 #: packages/admin/src/components/Dashboard.tsx:97
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
-msgstr ""
+msgstr "{overdueCount, plural, one {มีรายการตามกำหนดเวลาเลยกำหนดแล้ว แต่ยังไม่มีการทำงานของตัวจัดกำหนดการที่เสร็จสมบูรณ์ ให้รัน `npx emdash doctor` และตรวจสอบ Cron Trigger ที่ดีพลอยไว้} other {มีรายการตามกำหนดเวลา # รายการเลยกำหนดแล้ว แต่ยังไม่มีการทำงานของตัวจัดกำหนดการที่เสร็จสมบูรณ์ ให้รัน `npx emdash doctor` และตรวจสอบ Cron Trigger ที่ดีพลอยไว้}}"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:464
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
-msgstr ""
+msgstr "{overflowCount, plural, one {ไม่ได้เพิ่มไฟล์ # รายการ เพราะรายการอัปโหลดเต็มแล้ว} other {ไม่ได้เพิ่มไฟล์ # รายการ เพราะรายการอัปโหลดเต็มแล้ว}}"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:83
 msgid "{pluginName} is requesting additional permissions:"
@@ -440,23 +440,23 @@ msgstr "{pluginName} ต้องการสิทธิ์ต่อไปน�
 #: packages/admin/src/components/PluginSettings.tsx:142
 #: packages/admin/src/components/PluginSettings.tsx:170
 msgid "{pluginName} Settings"
-msgstr ""
+msgstr "ตั้งค่า {pluginName}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2531
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
-msgstr ""
+msgstr "{readingTime, plural, one {อ่าน # นาที} other {อ่าน # นาที}}"
 
 #: packages/admin/src/components/MediaImportSummary.tsx:11
 msgid "{rewrittenUrls, plural, one {<rewrittenCount>#</rewrittenCount> image URL updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}} other {<rewrittenCount>#</rewrittenCount> image URLs updated in {updatedContentItems, plural, one {<contentCount>#</contentCount> content item} other {<contentCount>#</contentCount> content items}}}}"
-msgstr ""
+msgstr "{rewrittenUrls, plural, one {อัปเดต URL รูปภาพ <rewrittenCount>#</rewrittenCount> รายการใน{updatedContentItems, plural, one {เนื้อหา <contentCount>#</contentCount> รายการ} other {เนื้อหา <contentCount>#</contentCount> รายการ}}} other {อัปเดต URL รูปภาพ <rewrittenCount>#</rewrittenCount> รายการใน{updatedContentItems, plural, one {เนื้อหา <contentCount>#</contentCount> รายการ} other {เนื้อหา <contentCount>#</contentCount> รายการ}}}}"
 
 #: packages/admin/src/components/ContentList.tsx:493
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {เลือกแล้ว # รายการ} other {เลือกแล้ว # รายการ}}"
 
 #: packages/admin/src/components/ContentList.tsx:535
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {ย้าย # รายการไปถังขยะหรือไม่? คุณกู้คืนได้ภายหลัง} other {ย้าย # รายการไปถังขยะหรือไม่? คุณกู้คืนได้ภายหลัง}}"
 
 #: packages/admin/src/components/ContentList.tsx:1195
 msgid "{total, plural, one {# item} other {# items}}"
@@ -468,11 +468,11 @@ msgstr "{total, plural, one {รวม #} other {รวม #}}"
 
 #: packages/admin/src/components/Dashboard.tsx:201
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
-msgstr ""
+msgstr "{totalDrafts, plural, one {ฉบับร่าง} other {ฉบับร่าง}}"
 
 #: packages/admin/src/components/Dashboard.tsx:207
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
-msgstr ""
+msgstr "{totalScheduled, plural, one {กำหนดเวลา} other {กำหนดเวลา}}"
 
 #: packages/admin/src/components/RevisionHistory.tsx:367
 msgid "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
@@ -484,7 +484,7 @@ msgstr "{unchangedCount, plural, one {แสดงรายการที่ไ
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2529
 msgid "{words, plural, one {# word} other {# words}}"
-msgstr ""
+msgstr "{words, plural, one {# คำ} other {# คำ}}"
 
 #: packages/admin/src/components/Redirects.tsx:142
 msgid "/new-page or /articles/[slug]"
@@ -527,7 +527,7 @@ msgstr "1. เข้าสู่ระบบแดชบอร์ด WordPress a
 
 #: packages/admin/src/components/WordPressImport.tsx:76
 msgid "2. Go to <0>Tools → Export</0>"
-msgstr ""
+msgstr "2. ไปที่ <0>Tools → Export</0>"
 
 #: packages/admin/src/components/WordPressImport.tsx:1539
 msgid "2. Go to Users → Profile"
@@ -575,11 +575,11 @@ msgstr "ข้อผิดพลาด 404"
 
 #: packages/admin/src/components/Redirects.tsx:160
 msgid "410 Content Deleted (Gone)"
-msgstr ""
+msgstr "410 เนื้อหาถูกลบแล้ว (Gone)"
 
 #: packages/admin/src/components/Redirects.tsx:161
 msgid "451 Unavailable for legal reasons"
-msgstr ""
+msgstr "451 ไม่พร้อมใช้งานด้วยเหตุผลทางกฎหมาย"
 
 #: packages/admin/src/components/WordPressImport.tsx:1542
 msgid "5. Copy the generated password"
@@ -607,7 +607,7 @@ msgstr "แบนเนอร์ฮีโร่แบบเต็มความ
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:86
 msgid "A media folder with this name already exists"
-msgstr ""
+msgstr "มีโฟลเดอร์มีเดียชื่อนี้อยู่แล้ว"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:176
 msgid "A short description of your site"
@@ -615,11 +615,11 @@ msgstr "คำอธิบายสั้น ๆ ของเว็บไซต�
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:455
 msgid "A source and target locale are required"
-msgstr ""
+msgstr "ต้องระบุภาษาต้นทางและภาษาปลายทาง"
 
 #: packages/admin/src/components/BylineFilter.tsx:184
 msgid "About inferred bylines"
-msgstr ""
+msgstr "เกี่ยวกับชื่อผู้เขียนที่อนุมานอัตโนมัติ"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:201
 msgid "Accept & Install"
@@ -636,7 +636,7 @@ msgstr "ยอมรับคำเชิญ"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:305
 #: packages/admin/src/routes/byline-schema.tsx:174
 msgid "Access denied"
-msgstr ""
+msgstr "ไม่มีสิทธิ์เข้าถึง"
 
 #: packages/admin/src/router.tsx:1818
 msgid "Access Denied"
@@ -665,7 +665,7 @@ msgstr "ข้อมูลบัญชี"
 
 #: packages/admin/src/components/WordPressImport.tsx:1176
 msgid "ACF Fields"
-msgstr ""
+msgstr "ฟิลด์ ACF"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:291
 #: packages/admin/src/components/ContentList.tsx:636
@@ -678,7 +678,7 @@ msgstr "การดำเนินการ"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:334
 msgid "Activation cannot be confirmed. Keep editing paused and refresh the status."
-msgstr ""
+msgstr "ยืนยันการเปิดใช้งานไม่ได้ ให้หยุดการแก้ไขไว้ก่อนแล้วรีเฟรชสถานะ"
 
 #: packages/admin/src/components/users/UserDetail.tsx:206
 #: packages/admin/src/components/users/UserList.tsx:210
@@ -712,7 +712,7 @@ msgstr "เพิ่ม Passkey ใหม่"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:564
 msgid "Add another byline"
-msgstr ""
+msgstr "เพิ่มชื่อผู้เขียนอีกรายการ"
 
 #: packages/admin/src/components/FieldEditor.tsx:583
 msgid "Add at least one sub-field to define the repeater structure."
@@ -720,7 +720,7 @@ msgstr "เพิ่มฟิลด์ย่อยอย่างน้อยห
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:420
 msgid "Add byline"
-msgstr ""
+msgstr "เพิ่มชื่อผู้เขียน"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3757
 msgid "Add column after"
@@ -762,7 +762,7 @@ msgstr "เพิ่มฟิลด์"
 
 #: packages/admin/src/routes/byline-schema.tsx:293
 msgid "Add fields like \"Job title\" or \"Pronouns\" to enrich every byline."
-msgstr ""
+msgstr "เพิ่มฟิลด์อย่าง \"ตำแหน่งงาน\" หรือ \"คำสรรพนาม\" เพื่อเสริมข้อมูลให้ชื่อผู้เขียนทุกรายการ"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:628
 msgid "Add fields to define the structure of your content"
@@ -778,11 +778,11 @@ msgstr "เพิ่มรายการแรก"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:204
 msgid "Add Images"
-msgstr ""
+msgstr "เพิ่มรูปภาพ"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:251
 msgid "Add images to gallery"
-msgstr ""
+msgstr "เพิ่มรูปภาพลงแกลเลอรี"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2142
 msgid "Add item"
@@ -817,7 +817,7 @@ msgstr "เพิ่ม {0} ใหม่"
 #: packages/admin/src/components/MediaLibrary.tsx:858
 #: packages/admin/src/components/MediaLibrary.tsx:863
 msgid "Add new folder"
-msgstr ""
+msgstr "เพิ่มโฟลเดอร์ใหม่"
 
 #: packages/admin/src/components/SeoPanel.tsx:240
 msgid "Add noindex meta tag"
@@ -870,7 +870,7 @@ msgstr "ข้อมูลเพิ่มเติมที่จะนำเข
 
 #: packages/admin/src/components/WordPressImport.tsx:1499
 msgid "admin"
-msgstr ""
+msgstr "admin"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
 #: packages/admin/src/components/Sidebar.tsx:426
@@ -888,7 +888,7 @@ msgstr "ผู้ดูแลระบบ"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:990
 msgid "Advanced"
-msgstr ""
+msgstr "ขั้นสูง"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:191
 msgid "After send:"
@@ -896,16 +896,16 @@ msgstr "หลังส่ง:"
 
 #: packages/admin/src/components/PluginManager.tsx:547
 msgid "Agent access"
-msgstr ""
+msgstr "การเข้าถึงของเอเจนต์"
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/PluginManager.tsx:341
 msgid "Agent access for {0} has been updated"
-msgstr ""
+msgstr "อัปเดตการเข้าถึงของเอเจนต์สำหรับ {0} แล้ว"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:139
 msgid "Agent-callable MCP tools"
-msgstr ""
+msgstr "เครื่องมือ MCP ที่เอเจนต์เรียกใช้ได้"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4154
 msgid "Align Center"
@@ -922,7 +922,7 @@ msgstr "จัดชิดขวา"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:324
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:513
 msgid "Alignment"
-msgstr ""
+msgstr "การจัดตำแหน่ง"
 
 #: packages/admin/src/components/ContentList.tsx:443
 msgid "All"
@@ -931,7 +931,7 @@ msgstr "ทั้งหมด"
 #: packages/admin/src/components/ContentList.tsx:911
 #: packages/admin/src/components/ContentList.tsx:915
 msgid "All authors"
-msgstr ""
+msgstr "ผู้เขียนทั้งหมด"
 
 #: packages/admin/src/components/BylineFilter.tsx:103
 #: packages/admin/src/routes/bylines.tsx:412
@@ -979,11 +979,11 @@ msgstr "ทุกประเภท"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:377
 msgid "All uploads finished"
-msgstr ""
+msgstr "อัปโหลดเสร็จทั้งหมดแล้ว"
 
 #: packages/admin/src/components/PluginManager.tsx:549
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
-msgstr ""
+msgstr "อนุญาตให้โทเคน MCP ที่มีขอบเขต plugin-tool เรียกใช้เส้นทางเหล่านี้"
 
 #: packages/admin/src/components/Settings.tsx:92
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:159
@@ -1012,7 +1012,7 @@ msgstr "ลบข้อมูลที่จัดเก็บของปลั
 
 #: packages/admin/src/components/BylineFilter.tsx:183
 msgid "Also match the byline linked to an entry's author when it has none assigned."
-msgstr ""
+msgstr "จับคู่ชื่อผู้เขียนที่ผูกกับผู้เขียนของรายการด้วย เมื่อรายการนั้นยังไม่ได้กำหนดชื่อผู้เขียน"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:381
 #: packages/admin/src/components/editor/ImageNode.tsx:244
@@ -1029,7 +1029,7 @@ msgstr "ข้อความ Alt"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1543
 msgid "Alt text is not applicable to folders"
-msgstr ""
+msgstr "ข้อความ Alt ใช้กับโฟลเดอร์ไม่ได้"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1817
 #: packages/admin/src/components/MediaLibrary.tsx:1874
@@ -1097,7 +1097,7 @@ msgstr "เกิดข้อผิดพลาด"
 
 #: packages/admin/src/routes/byline-schema.tsx:272
 msgid "An unexpected error occurred."
-msgstr ""
+msgstr "เกิดข้อผิดพลาดที่ไม่คาดคิด"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:251
 msgid "An unknown error occurred"
@@ -1165,7 +1165,7 @@ msgstr "ข้อมูล JSON ตามต้องการ"
 #: packages/admin/src/components/ContentList.tsx:854
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
-msgstr ""
+msgstr "เก็บถาวรแล้ว"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:68
 #: packages/admin/src/components/Widgets.tsx:158
@@ -1175,7 +1175,7 @@ msgstr "คลังเก็บถาวร"
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:375
 msgid "Are you sure you want to delete \"{0}\"? No stored values reference this field."
-msgstr ""
+msgstr "แน่ใจหรือไม่ว่าต้องการลบ \"{0}\"? ไม่มีค่าที่จัดเก็บไว้อ้างอิงถึงฟิลด์นี้"
 
 #. placeholder {0}: deleteTarget.label
 #: packages/admin/src/components/ContentTypeList.tsx:233
@@ -1197,7 +1197,7 @@ msgstr "ในฐานะผู้ดูแลระบบ คุณสาม�
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:307
 msgid "Ask an administrator to complete this setup."
-msgstr ""
+msgstr "ให้ผู้ดูแลระบบตั้งค่านี้ให้เสร็จ"
 
 #: packages/admin/src/components/WordPressImport.tsx:2472
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
@@ -1205,7 +1205,7 @@ msgstr "กำหนดผู้เขียน WordPress ให้กับผ�
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:27
 msgid "Astro"
-msgstr ""
+msgstr "Astro"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:69
 #: packages/admin/src/components/MediaLibrary.tsx:991
@@ -1289,17 +1289,17 @@ msgstr "สร้างอัตโนมัติจากชื่อ (คุ�
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:645
 msgid "Automatic"
-msgstr ""
+msgstr "อัตโนมัติ"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:204
 #: packages/admin/src/components/settings/BackupSettings.tsx:260
 msgid "Automatic Backups"
-msgstr ""
+msgstr "การสำรองข้อมูลอัตโนมัติ"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:261
 #: packages/admin/src/components/settings/BackupSettings.tsx:279
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
-msgstr ""
+msgstr "การสำรองข้อมูลอัตโนมัติต้องใช้ที่จัดเก็บข้อมูล (R2, S3 หรือที่จัดเก็บในเครื่อง) ตั้งค่าที่จัดเก็บข้อมูลใน EmDash config เพื่อเปิดใช้งาน"
 
 #: packages/admin/src/router.tsx:1079
 msgid "Autosave failed"
@@ -1307,12 +1307,12 @@ msgstr "บันทึกอัตโนมัติล้มเหลว"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:457
 msgid "Available bylines"
-msgstr ""
+msgstr "ชื่อผู้เขียนที่ใช้ได้"
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
 #: packages/admin/src/components/TaxonomySidebar.tsx:545
 msgid "Available in {0}"
-msgstr ""
+msgstr "มีใน {0}"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:711
 msgid "Available media"
@@ -1329,7 +1329,7 @@ msgstr "วิดเจ็ตที่ใช้ได้"
 #: packages/admin/src/components/BylineAvatarField.tsx:46
 #: packages/admin/src/components/BylineAvatarField.tsx:71
 msgid "Avatar"
-msgstr ""
+msgstr "รูปประจำตัว"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:266
 #: packages/admin/src/components/MediaLibrary.tsx:818
@@ -1357,7 +1357,7 @@ msgstr "กลับไปเข้าสู่ระบบ"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1099
 msgid "Back to Main library"
-msgstr ""
+msgstr "กลับไปที่คลังหลัก"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:126
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:404
@@ -1385,33 +1385,33 @@ msgstr "กลับไปยังธีม"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:214
 msgid "Back up now"
-msgstr ""
+msgstr "สำรองข้อมูลตอนนี้"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:214
 msgid "Backing up..."
-msgstr ""
+msgstr "กำลังสำรองข้อมูล..."
 
 #. placeholder {0}: archive.name
 #: packages/admin/src/components/settings/BackupSettings.tsx:115
 msgid "Backup created: {0}"
-msgstr ""
+msgstr "สร้างข้อมูลสำรองแล้ว: {0}"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:98
 msgid "Backup settings saved"
-msgstr ""
+msgstr "บันทึกการตั้งค่าการสำรองข้อมูลแล้ว"
 
 #: packages/admin/src/components/Settings.tsx:116
 #: packages/admin/src/components/settings/BackupSettings.tsx:143
 msgid "Backups"
-msgstr ""
+msgstr "ข้อมูลสำรอง"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:238
 msgid "Backups to keep"
-msgstr ""
+msgstr "จำนวนข้อมูลสำรองที่เก็บไว้"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:28
 msgid "Bash"
-msgstr ""
+msgstr "Bash"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:186
 msgid "Before send:"
@@ -1419,7 +1419,7 @@ msgstr "ก่อนส่ง:"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:590
 msgid "Before you continue:"
-msgstr ""
+msgstr "ก่อนดำเนินการต่อ:"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:233
 #: packages/admin/src/components/settings/SeoSettings.tsx:247
@@ -1459,7 +1459,7 @@ msgstr "เรียกดูและติดตั้งปลั๊กอิ
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:445
 msgid "Browse files"
-msgstr ""
+msgstr "เลือกไฟล์"
 
 #: packages/admin/src/components/WordPressImport.tsx:1142
 #: packages/admin/src/components/WordPressImport.tsx:1610
@@ -1468,11 +1468,11 @@ msgstr "เรียกดูไฟล์"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:454
 msgid "Browse files to upload"
-msgstr ""
+msgstr "เลือกไฟล์เพื่ออัปโหลด"
 
 #: packages/admin/src/components/PluginManager.tsx:61
 msgid "Browse the <0>marketplace</0> to install plugins, or add them to your astro.config.mjs."
-msgstr ""
+msgstr "เลือกดู<0>มาร์เก็ตเพลส</0>เพื่อติดตั้งปลั๊กอิน หรือเพิ่มปลั๊กอินใน astro.config.mjs ของคุณ"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:79
 msgid "Browse themes and preview them with your own content."
@@ -1486,16 +1486,16 @@ msgstr "รายการแบบจุด"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:290
 msgid "Byline"
-msgstr ""
+msgstr "ชื่อผู้เขียน"
 
 #: packages/admin/src/routes/byline-schema.tsx:218
 #: packages/admin/src/routes/bylines.tsx:383
 msgid "Byline schema"
-msgstr ""
+msgstr "สคีมาชื่อผู้เขียน"
 
 #: packages/admin/src/components/Sidebar.tsx:295
 msgid "Byline Schema"
-msgstr ""
+msgstr "สคีมาชื่อผู้เขียน"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/ContentSettingsPanel.tsx:669
@@ -1507,15 +1507,15 @@ msgstr "ชื่อผู้เขียน"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:29
 msgid "C"
-msgstr ""
+msgstr "C"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:31
 msgid "C#"
-msgstr ""
+msgstr "C#"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:30
 msgid "C++"
-msgstr ""
+msgstr "C++"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:25
 msgid "Can create content"
@@ -1581,11 +1581,11 @@ msgstr "ยกเลิก (Esc)"
 #. placeholder {0}: row.file.name
 #: packages/admin/src/components/MediaUploadDialog.tsx:162
 msgid "Cancel {0}"
-msgstr ""
+msgstr "ยกเลิก {0}"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:508
 msgid "Cancel remaining"
-msgstr ""
+msgstr "ยกเลิกรายการที่เหลือ"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:141
 msgid "Cancel rename"
@@ -1625,7 +1625,7 @@ msgstr "คำบรรยายภาพ / คำบรรยายใต้ภ
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:461
 msgid "Capture is being prepared. Keep editing paused until setup is complete."
-msgstr ""
+msgstr "กำลังเตรียมการเก็บข้อมูล ให้หยุดการแก้ไขไว้จนกว่าการตั้งค่าจะเสร็จ"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:192
 #: packages/admin/src/components/Widgets.tsx:135
@@ -1639,11 +1639,11 @@ msgstr "หมวดหมู่ ({0})"
 
 #: packages/admin/src/components/WordPressImport.tsx:1164
 msgid "Categories & Tags"
-msgstr ""
+msgstr "หมวดหมู่และแท็ก"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:161
 msgid "Center"
-msgstr ""
+msgstr "กึ่งกลาง"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
@@ -1680,7 +1680,7 @@ msgstr "บันทึกการเปลี่ยนแปลง"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:975
 msgid "Changes apply everywhere this byline appears."
-msgstr ""
+msgstr "การเปลี่ยนแปลงมีผลทุกที่ที่ชื่อผู้เขียนนี้ปรากฏ"
 
 #: packages/admin/src/router.tsx:1130
 msgid "Changes discarded"
@@ -1700,7 +1700,7 @@ msgstr "ตรวจสอบเว็บไซต์"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:476
 msgid "Check the server logs, then use the media usage recovery API for the failed work."
-msgstr ""
+msgstr "ตรวจสอบบันทึกของเซิร์ฟเวอร์ แล้วใช้ media usage recovery API กับงานที่ล้มเหลว"
 
 #: packages/admin/src/components/LoginPage.tsx:102
 #: packages/admin/src/components/SignupPage.tsx:148
@@ -1719,17 +1719,17 @@ msgstr "กำลังตรวจสอบการยืนยันตัว
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:362
 msgid "Checking how many stored values reference \"{0}\"…"
-msgstr ""
+msgstr "กำลังตรวจสอบว่ามีค่าที่จัดเก็บไว้กี่รายการที่อ้างอิงถึง \"{0}\"…"
 
 #: packages/admin/src/components/ContentList.tsx:1037
 #: packages/admin/src/components/ContentList.tsx:1043
 msgid "Choose a date range"
-msgstr ""
+msgstr "เลือกช่วงวันที่"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:662
 #: packages/admin/src/components/BylineCreditsEditor.tsx:680
 msgid "Choose bylines"
-msgstr ""
+msgstr "เลือกชื่อผู้เขียน"
 
 #: packages/admin/src/components/SetupWizard.tsx:288
 msgid "Choose how to sign in"
@@ -1737,7 +1737,7 @@ msgstr "เลือกวิธีเข้าสู่ระบบ"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:864
 msgid "Choose the part that should remain visible when this image is cropped."
-msgstr ""
+msgstr "เลือกส่วนที่ต้องการให้ยังคงมองเห็นเมื่อครอบตัดรูปภาพนี้"
 
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Choose your preferred admin language"
@@ -1745,16 +1745,16 @@ msgstr "เลือกภาษาผู้ดูแลระบบที่ค
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:651
 msgid "Choosing a byline replaces this automatic credit."
-msgstr ""
+msgstr "การเลือกชื่อผู้เขียนจะแทนที่เครดิตอัตโนมัตินี้"
 
 #: packages/admin/src/components/ContentList.tsx:570
 #: packages/admin/src/components/ContentList.tsx:1051
 msgid "Clear"
-msgstr ""
+msgstr "ล้าง"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:493
 msgid "Clear completed"
-msgstr ""
+msgstr "ล้างรายการที่เสร็จแล้ว"
 
 #: packages/admin/src/components/ContentList.tsx:956
 #: packages/admin/src/components/MediaLibrary.tsx:1088
@@ -1765,15 +1765,15 @@ msgstr "ล้างตัวกรอง"
 #: packages/admin/src/components/MediaLibrary.tsx:1088
 #: packages/admin/src/components/MediaLibrary.tsx:1123
 msgid "Clear search"
-msgstr ""
+msgstr "ล้างการค้นหา"
 
 #: packages/admin/src/components/PluginSettings.tsx:354
 msgid "Clear stored value"
-msgstr ""
+msgstr "ล้างค่าที่จัดเก็บไว้"
 
 #: packages/admin/src/components/PluginSettings.tsx:352
 msgid "Clear stored value for {fieldKey}"
-msgstr ""
+msgstr "ล้างค่าที่จัดเก็บไว้ของ {fieldKey}"
 
 #: packages/admin/src/components/SignupPage.tsx:155
 msgid "Click the link in the email to continue setting up your account."
@@ -1847,7 +1847,7 @@ msgstr "ปิด"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:430
 msgid "Close byline search"
-msgstr ""
+msgstr "ปิดการค้นหาชื่อผู้เขียน"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:533
 msgid "Close comments after (days)"
@@ -1855,7 +1855,7 @@ msgstr "ปิดความคิดเห็นหลังจาก (วั�
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:182
 msgid "Close gallery settings"
-msgstr ""
+msgstr "ปิดการตั้งค่าแกลเลอรี"
 
 #: packages/admin/src/components/users/UserDetail.tsx:121
 msgid "Close panel"
@@ -1863,7 +1863,7 @@ msgstr "ปิดแผง"
 
 #: packages/admin/src/components/ContentEditor.tsx:1178
 msgid "Close settings"
-msgstr ""
+msgstr "ปิดการตั้งค่า"
 
 #: packages/admin/src/components/ContentTypeList.tsx:356
 #: packages/admin/src/components/PortableTextEditor.tsx:3678
@@ -1879,7 +1879,7 @@ msgstr "บล็อกโค้ด"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:229
 msgid "Code block actions"
-msgstr ""
+msgstr "การดำเนินการกับบล็อกโค้ด"
 
 #: packages/admin/src/components/PluginManager.tsx:506
 #: packages/admin/src/components/PluginManager.tsx:511
@@ -1908,7 +1908,7 @@ msgstr "คอลเลกชันที่สร้าง:"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:189
 msgid "Columns"
-msgstr ""
+msgstr "คอลัมน์"
 
 #: packages/admin/src/components/SectionEditor.tsx:309
 msgid "Comma-separated keywords for search."
@@ -1935,7 +1935,7 @@ msgstr "ความคิดเห็นจากผู้ใช้ CMS ที�
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:94
 msgid "Complete"
-msgstr ""
+msgstr "เสร็จแล้ว"
 
 #: packages/admin/src/components/SignupPage.tsx:418
 msgid "Complete signup"
@@ -1978,7 +1978,7 @@ msgstr "เชื่อมต่อ {0} แล้ว"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:189
 msgid "content"
-msgstr ""
+msgstr "เนื้อหา"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:378
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
@@ -2022,7 +2022,7 @@ msgstr "เนื้อหาเผยแพร่แล้ว"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:497
 msgid "Content locale"
-msgstr ""
+msgstr "ภาษาของเนื้อหา"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:47
 msgid "Content Read"
@@ -2073,7 +2073,7 @@ msgstr "ดำเนินการนำเข้าต่อ"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4105
 msgid "Continue numbering"
-msgstr ""
+msgstr "นับเลขต่อ"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:24
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2083,7 +2083,7 @@ msgstr "ผู้ร่วมเขียน"
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:246
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:270
 msgid "Copied"
-msgstr ""
+msgstr "คัดลอกแล้ว"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
 #: packages/admin/src/components/users/InviteUserModal.tsx:133
@@ -2098,11 +2098,11 @@ msgstr "คัดลอก {0} ไปยังคลิปบอร์ด"
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:246
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:253
 msgid "Copy code"
-msgstr ""
+msgstr "คัดลอกโค้ด"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:270
 msgid "Copy failed"
-msgstr ""
+msgstr "คัดลอกไม่สำเร็จ"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:124
 msgid "Copy invite link"
@@ -2133,11 +2133,11 @@ msgstr "ไม่สามารถคัดลอกโดยอัตโนม
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3375
 msgid "Could not insert section"
-msgstr ""
+msgstr "แทรกส่วนไม่สำเร็จ"
 
 #: packages/admin/src/components/Dashboard.tsx:124
 msgid "Could not load dashboard data"
-msgstr ""
+msgstr "โหลดข้อมูลแดชบอร์ดไม่สำเร็จ"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:487
 msgid "Could not load image from URL"
@@ -2145,7 +2145,7 @@ msgstr "ไม่สามารถโหลดรูปภาพจาก URL �
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:372
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
-msgstr ""
+msgstr "ยืนยันไม่ได้ว่ารายการมีเดียหรือโฟลเดอร์ที่เลือกยังคงอยู่หรือไม่ ลองอีกครั้ง"
 
 #: packages/admin/src/components/WordPressImport.tsx:1280
 msgid "Couldn't detect WordPress"
@@ -2153,23 +2153,23 @@ msgstr "ตรวจไม่พบ WordPress"
 
 #: packages/admin/src/routes/byline-schema.tsx:268
 msgid "Couldn't load byline fields."
-msgstr ""
+msgstr "โหลดฟิลด์ชื่อผู้เขียนไม่สำเร็จ"
 
 #: packages/admin/src/routes/bylines.tsx:547
 msgid "Couldn't load custom fields."
-msgstr ""
+msgstr "โหลดฟิลด์ที่กำหนดเองไม่สำเร็จ"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:349
 msgid "Couldn’t load media usage tracking settings."
-msgstr ""
+msgstr "โหลดการตั้งค่าการติดตามการใช้งานมีเดียไม่สำเร็จ"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:186
 msgid "Couldn’t load more usage."
-msgstr ""
+msgstr "โหลดข้อมูลการใช้งานเพิ่มเติมไม่สำเร็จ"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:224
 msgid "Couldn’t load usage."
-msgstr ""
+msgstr "โหลดข้อมูลการใช้งานไม่สำเร็จ"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:91
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
@@ -2177,16 +2177,16 @@ msgstr "ไม่สามารถจับคู่ \"{draft}\" กับป�
 
 #: packages/admin/src/components/MediaLibrary.tsx:650
 msgid "Couldn’t move file"
-msgstr ""
+msgstr "ย้ายไฟล์ไม่สำเร็จ"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:469
 msgid "Couldn’t search bylines."
-msgstr ""
+msgstr "ค้นหาชื่อผู้เขียนไม่สำเร็จ"
 
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:369
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
-msgstr ""
+msgstr "ตรวจสอบไม่ได้ว่ามีค่ากี่รายการที่อ้างอิงถึง \"{0}\" การลบจะยังคงลบค่าที่จัดเก็บไว้ทั้งหมดของฟิลด์นี้ — แต่ตรวจสอบจำนวนด้านบนไม่ได้"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1055
 msgid "Count"
@@ -2206,7 +2206,7 @@ msgstr "สร้าง"
 #. placeholder {0}: option.label
 #: packages/admin/src/components/BylineCreditsEditor.tsx:511
 msgid "Create “{0}”"
-msgstr ""
+msgstr "สร้าง “{0}”"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:339
 msgid "Create \"{trimmedInput}\""
@@ -2215,12 +2215,12 @@ msgstr "สร้าง \"{trimmedInput}\""
 #. placeholder {0}: option.label
 #: packages/admin/src/components/BylineCreditsEditor.tsx:522
 msgid "Create {0}"
-msgstr ""
+msgstr "สร้าง {0}"
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:556
 msgid "Create {0} translation"
-msgstr ""
+msgstr "สร้างคำแปลภาษา {0}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1459
 msgid "Create a bullet list"
@@ -2237,7 +2237,7 @@ msgstr "สร้างรายการแบบลำดับเลข"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:974
 msgid "Create a reusable public profile, then add it to this post."
-msgstr ""
+msgstr "สร้างโปรไฟล์สาธารณะที่ใช้ซ้ำได้ แล้วเพิ่มลงในโพสต์นี้"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:84
 #: packages/admin/src/components/SignupPage.tsx:236
@@ -2250,7 +2250,7 @@ msgstr "สร้างบัญชี"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:1019
 msgid "Create and add"
-msgstr ""
+msgstr "สร้างและเพิ่ม"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:970
 #: packages/admin/src/routes/bylines.tsx:476
@@ -2263,7 +2263,7 @@ msgstr "สร้างประเภทเนื้อหา"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Create field"
-msgstr ""
+msgstr "สร้างฟิลด์"
 
 #: packages/admin/src/components/MenuList.tsx:129
 #: packages/admin/src/components/MenuList.tsx:192
@@ -2339,7 +2339,7 @@ msgstr "สร้างบัญชีของคุณ"
 
 #: packages/admin/src/components/ContentTypeList.tsx:206
 msgid "Create your first content type"
-msgstr ""
+msgstr "สร้างประเภทเนื้อหาแรกของคุณ"
 
 #: packages/admin/src/components/MenuList.tsx:190
 msgid "Create your first navigation menu to get started"
@@ -2385,7 +2385,7 @@ msgstr "สร้างแล้ว"
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:96
 msgid "Created \"{0}\"."
-msgstr ""
+msgstr "สร้าง \"{0}\" แล้ว"
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #: packages/admin/src/components/users/UserDetail.tsx:260
@@ -2416,7 +2416,7 @@ msgstr "กำลังสร้าง..."
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:32
 msgid "CSS"
-msgstr ""
+msgstr "CSS"
 
 #: packages/admin/src/components/TranslationsPanel.tsx:83
 msgid "current"
@@ -2428,7 +2428,7 @@ msgstr "ปัจจุบัน"
 
 #: packages/admin/src/components/PluginSettings.tsx:340
 msgid "Currently set — enter a new value to replace"
-msgstr ""
+msgstr "ตั้งค่าไว้แล้ว — ป้อนค่าใหม่เพื่อแทนที่"
 
 #: packages/admin/src/components/Sections.tsx:46
 msgid "Custom"
@@ -2448,11 +2448,11 @@ msgstr "ส่วนกำหนดเอง"
 
 #: packages/admin/src/components/WordPressImport.tsx:1165
 msgid "Custom Taxonomies"
-msgstr ""
+msgstr "อนุกรมวิธานที่กำหนดเอง"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:223
 msgid "Daily automatic backups"
-msgstr ""
+msgstr "การสำรองข้อมูลอัตโนมัติรายวัน"
 
 #: packages/admin/src/components/ThemeToggle.tsx:22
 msgid "dark"
@@ -2491,7 +2491,7 @@ msgstr "ตัวเลือกวันที่และเวลา"
 
 #: packages/admin/src/components/ContentList.tsx:933
 msgid "Date field to filter on"
-msgstr ""
+msgstr "ฟิลด์วันที่ที่ใช้กรอง"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:324
 msgid "Date Format"
@@ -2499,7 +2499,7 @@ msgstr "รูปแบบวันที่"
 
 #: packages/admin/src/components/ContentList.tsx:983
 msgid "Date range"
-msgstr ""
+msgstr "ช่วงวันที่"
 
 #: packages/admin/src/components/FieldEditor.tsx:195
 msgid "Decimal number"
@@ -2532,7 +2532,7 @@ msgstr "กำหนดอนุกรมวิธานใหม่สำหร
 
 #: packages/admin/src/routes/byline-schema.tsx:220
 msgid "Define custom fields stored on every byline — job title, pronouns, social handles, and more."
-msgstr ""
+msgstr "กำหนดฟิลด์ที่กำหนดเองซึ่งจัดเก็บไว้กับชื่อผู้เขียนทุกรายการ — ตำแหน่งงาน คำสรรพนาม บัญชีโซเชียล และอื่นๆ"
 
 #: packages/admin/src/components/ContentTypeList.tsx:118
 msgid "Define the structure of your content"
@@ -2568,7 +2568,7 @@ msgstr "ลบ"
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/MediaFolderDialog.tsx:182
 msgid "Delete “{0}”?"
-msgstr ""
+msgstr "ลบ “{0}” หรือไม่?"
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:964
@@ -2610,11 +2610,11 @@ msgstr "ลบ {0} หรือไม่?"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:350
 msgid "Delete backup?"
-msgstr ""
+msgstr "ลบข้อมูลสำรองหรือไม่?"
 
 #: packages/admin/src/routes/byline-schema.tsx:358
 msgid "Delete byline field?"
-msgstr ""
+msgstr "ลบฟิลด์ชื่อผู้เขียนหรือไม่?"
 
 #: packages/admin/src/routes/bylines.tsx:622
 msgid "Delete Byline?"
@@ -2643,13 +2643,13 @@ msgstr "ลบฟิลด์หรือไม่?"
 #: packages/admin/src/components/MediaFolderDialog.tsx:167
 #: packages/admin/src/components/MediaFolderDialog.tsx:184
 msgid "Delete folder"
-msgstr ""
+msgstr "ลบโฟลเดอร์"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:241
 #: packages/admin/src/components/editor/GalleryNode.tsx:223
 #: packages/admin/src/components/editor/GalleryNode.tsx:224
 msgid "Delete gallery"
-msgstr ""
+msgstr "ลบแกลเลอรี"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:131
 msgid "Delete HTML block"
@@ -2718,7 +2718,7 @@ msgstr "ลบแล้ว"
 #. placeholder {1}: deleteUsageQuery.data.totalAffectedRows
 #: packages/admin/src/routes/byline-schema.tsx:371
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
-msgstr ""
+msgstr "การลบ \"{0}\" จะลบ{1, plural, one {ค่าที่จัดเก็บไว้ # รายการ} other {ค่าที่จัดเก็บไว้ # รายการ}}ในชื่อผู้เขียนทั้งหมดด้วย การดำเนินการนี้ย้อนกลับไม่ได้"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:400
 #: packages/admin/src/components/ContentTypeEditor.tsx:688
@@ -2738,7 +2738,7 @@ msgstr "กำลังลบ..."
 
 #: packages/admin/src/routes/byline-schema.tsx:379
 msgid "Deleting…"
-msgstr ""
+msgstr "กำลังลบ…"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:254
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:147
@@ -2799,12 +2799,12 @@ msgstr "เส้นทางปลายทาง"
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:153
 #: packages/admin/src/components/PluginManager.tsx:568
 msgid "Destructive"
-msgstr ""
+msgstr "ทำลายข้อมูล"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:504
 #: packages/admin/src/components/MediaDetailPanel.tsx:520
 msgid "Details"
-msgstr ""
+msgstr "รายละเอียด"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:186
 msgid "Device authorized"
@@ -2828,7 +2828,7 @@ msgstr "ไม่ได้รับอีเมลหรือไม่?"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:33
 msgid "Diff"
-msgstr ""
+msgstr "Diff"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:595
 msgid "Dimensions:"
@@ -2844,7 +2844,7 @@ msgstr "ปิดใช้งานปลั๊กอิน"
 
 #: packages/admin/src/components/PluginManager.tsx:558
 msgid "Disable plugin MCP tools"
-msgstr ""
+msgstr "ปิดใช้งานเครื่องมือ MCP ของปลั๊กอิน"
 
 #: packages/admin/src/components/Redirects.tsx:513
 msgid "Disable redirect"
@@ -2880,7 +2880,7 @@ msgstr "กำลังปิดใช้งาน..."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:950
 msgid "Discard"
-msgstr ""
+msgstr "ละทิ้ง"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:83
 #: packages/admin/src/components/ContentSettingsPanel.tsx:103
@@ -2889,7 +2889,7 @@ msgstr "ละทิ้งการเปลี่ยนแปลง"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:948
 msgid "Discard changes?"
-msgstr ""
+msgstr "ละทิ้งการเปลี่ยนแปลงหรือไม่?"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:88
 msgid "Discard draft changes?"
@@ -2897,7 +2897,7 @@ msgstr "ละทิ้งการเปลี่ยนแปลงในฉบ
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:951
 msgid "Discarding..."
-msgstr ""
+msgstr "กำลังละทิ้ง..."
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:267
 msgid "Dismiss"
@@ -2906,15 +2906,15 @@ msgstr "ปิด"
 #. placeholder {0}: row.file.name
 #: packages/admin/src/components/MediaUploadDialog.tsx:164
 msgid "Dismiss completed {0}"
-msgstr ""
+msgstr "ปิดรายการที่เสร็จแล้ว {0}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3389
 msgid "Dismiss section error"
-msgstr ""
+msgstr "ปิดข้อผิดพลาดของส่วน"
 
 #: packages/admin/src/components/Widgets.tsx:127
 msgid "Display a list of recent posts"
-msgstr ""
+msgstr "แสดงรายการโพสต์ล่าสุด"
 
 #: packages/admin/src/components/Widgets.tsx:105
 msgid "Display a navigation menu"
@@ -2922,7 +2922,7 @@ msgstr "แสดงเมนูนำทาง"
 
 #: packages/admin/src/components/Widgets.tsx:136
 msgid "Display category list"
-msgstr ""
+msgstr "แสดงรายการหมวดหมู่"
 
 #: packages/admin/src/routes/bylines.tsx:481
 msgid "Display name"
@@ -2939,7 +2939,7 @@ msgstr "ขนาดที่แสดง"
 
 #: packages/admin/src/components/Widgets.tsx:144
 msgid "Display tag cloud"
-msgstr ""
+msgstr "แสดงแท็กคลาวด์"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:356
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:545
@@ -2956,7 +2956,7 @@ msgstr "เส้นแบ่ง"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:34
 msgid "Dockerfile"
-msgstr ""
+msgstr "Dockerfile"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:66
 #: packages/admin/src/components/MediaLibrary.tsx:992
@@ -2994,24 +2994,24 @@ msgstr "เสร็จสิ้น"
 #. placeholder {0}: archive.name
 #: packages/admin/src/components/settings/BackupSettings.tsx:304
 msgid "Download {0}"
-msgstr ""
+msgstr "ดาวน์โหลด {0}"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:191
 msgid "Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included."
-msgstr ""
+msgstr "ดาวน์โหลดข้อมูลสำรองทั้งหมดของเว็บไซต์: เนื้อหาทั้งหมด (รวมฉบับร่างและถังขยะ) คอลเลกชัน อนุกรมวิธาน เมนู วิดเจ็ต ข้อมูลเมตาของมีเดีย และการตั้งค่าเว็บไซต์ บัญชีผู้ใช้และข้อมูลลับจะไม่รวมอยู่ด้วย"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:195
 msgid "Download backup"
-msgstr ""
+msgstr "ดาวน์โหลดข้อมูลสำรอง"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:187
 msgid "Download Backup"
-msgstr ""
+msgstr "ดาวน์โหลดข้อมูลสำรอง"
 
 #: packages/admin/src/components/Settings.tsx:117
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
 msgid "Download backups and schedule automatic backups to storage"
-msgstr ""
+msgstr "ดาวน์โหลดข้อมูลสำรองและกำหนดเวลาสำรองข้อมูลอัตโนมัติไปยังที่จัดเก็บข้อมูล"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:529
 msgid "Download SBOM"
@@ -3037,11 +3037,11 @@ msgstr "ฉบับร่าง"
 
 #: packages/admin/src/components/WordPressImport.tsx:1184
 msgid "Drafts & Private"
-msgstr ""
+msgstr "ฉบับร่างและส่วนตัว"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:433
 msgid "Drag and drop files here"
-msgstr ""
+msgstr "ลากและวางไฟล์ที่นี่"
 
 #: packages/admin/src/components/WordPressImport.tsx:1137
 msgid "Drag and drop or click to browse (.xml)"
@@ -3065,7 +3065,7 @@ msgstr "ลากเพื่อจัดเรียง {0} ใหม่"
 #: packages/admin/src/components/SortableContentSettingsSections.tsx:219
 #: packages/admin/src/components/SortableContentSettingsSections.tsx:220
 msgid "Drag to reorder {label}"
-msgstr ""
+msgstr "ลากเพื่อจัดลำดับ {label} ใหม่"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:355
 msgid "Drag to reorder block"
@@ -3081,7 +3081,7 @@ msgstr "ลากวิดเจ็ตไปยังพื้นที่เพ
 
 #: packages/admin/src/components/MediaLibrary.tsx:798
 msgid "Drop files to upload"
-msgstr ""
+msgstr "วางไฟล์เพื่ออัปโหลด"
 
 #: packages/admin/src/components/Widgets.tsx:700
 msgid "Drop to add widget"
@@ -3144,7 +3144,7 @@ msgstr "แก้ไขฟิลด์ {0}"
 
 #: packages/admin/src/components/ContentEditor.tsx:712
 msgid "Edit {itemLabel}"
-msgstr ""
+msgstr "แก้ไข {itemLabel}"
 
 #: packages/admin/src/components/ContentList.tsx:1328
 msgid "Edit {title}"
@@ -3152,7 +3152,7 @@ msgstr "แก้ไข {title}"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "Edit byline field"
-msgstr ""
+msgstr "แก้ไขฟิลด์ชื่อผู้เขียน"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:330
 msgid "Edit Domain"
@@ -3164,18 +3164,18 @@ msgstr "แก้ไขฟิลด์"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:127
 msgid "Edit folder"
-msgstr ""
+msgstr "แก้ไขโฟลเดอร์"
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/MediaLibrary.tsx:1458
 #: packages/admin/src/components/MediaLibrary.tsx:1525
 msgid "Edit folder {0}"
-msgstr ""
+msgstr "แก้ไขโฟลเดอร์ {0}"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/editor/GalleryNode.tsx:181
 msgid "Edit image {0}"
-msgstr ""
+msgstr "แก้ไขรูปภาพ {0}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3686
 msgid "Edit link"
@@ -3192,7 +3192,7 @@ msgstr "แก้ไขรายการเมนู"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:876
 #: packages/admin/src/components/BylineCreditsEditor.tsx:970
 msgid "Edit name and slug"
-msgstr ""
+msgstr "แก้ไขชื่อและ slug"
 
 #: packages/admin/src/components/Redirects.tsx:536
 msgid "Edit redirect"
@@ -3209,7 +3209,7 @@ msgstr "แก้ไขการเปลี่ยนเส้นทาง {0}"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:868
 msgid "Edit role"
-msgstr ""
+msgstr "แก้ไขบทบาท"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
@@ -3226,7 +3226,7 @@ msgid ""
 "Editor\n"
 "Reporter\n"
 "Photographer"
-msgstr ""
+msgstr "บรรณาธิการ\nผู้สื่อข่าว\nช่างภาพ"
 
 #: packages/admin/src/components/FieldEditor.tsx:691
 msgid "Editors can select a second image that the site shows in dark mode."
@@ -3234,7 +3234,7 @@ msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1062
 msgid "em1.…"
-msgstr ""
+msgstr "em1.…"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:62
 #: packages/admin/src/components/Settings.tsx:110
@@ -3298,19 +3298,19 @@ msgstr "ตรวจพบปลั๊กอิน EmDash Exporter! คุณส
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:487
 msgid "EmDash is scanning existing content."
-msgstr ""
+msgstr "EmDash กำลังสแกนเนื้อหาที่มีอยู่"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:575
 msgid "EmDash will continue setup and resume scanning existing content."
-msgstr ""
+msgstr "EmDash จะตั้งค่าต่อและสแกนเนื้อหาที่มีอยู่ต่อจากเดิม"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:576
 msgid "EmDash will scan existing content to show where media is used."
-msgstr ""
+msgstr "EmDash จะสแกนเนื้อหาที่มีอยู่เพื่อแสดงว่ามีเดียถูกใช้ที่ใดบ้าง"
 
 #: packages/admin/src/components/editor/GalleryNode.tsx:163
 msgid "Empty gallery — open settings to add images"
-msgstr ""
+msgstr "แกลเลอรีว่าง — เปิดการตั้งค่าเพื่อเพิ่มรูปภาพ"
 
 #: packages/admin/src/components/users/UserDetail.tsx:319
 msgid "Enable"
@@ -3330,7 +3330,7 @@ msgstr "เปิดใช้งานปลั๊กอิน"
 
 #: packages/admin/src/components/PluginManager.tsx:559
 msgid "Enable plugin MCP tools"
-msgstr ""
+msgstr "เปิดใช้งานเครื่องมือ MCP ของปลั๊กอิน"
 
 #: packages/admin/src/components/Redirects.tsx:513
 msgid "Enable redirect"
@@ -3338,11 +3338,11 @@ msgstr "เปิดใช้งานการเปลี่ยนเส้น
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
 msgid "Enable tracking"
-msgstr ""
+msgstr "เปิดใช้งานการติดตาม"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:454
 msgid "Enable tracking to index existing content and keep references up to date."
-msgstr ""
+msgstr "เปิดใช้งานการติดตามเพื่อทำดัชนีเนื้อหาที่มีอยู่และรักษาการอ้างอิงให้เป็นปัจจุบัน"
 
 #: packages/admin/src/components/Redirects.tsx:176
 #: packages/admin/src/components/Redirects.tsx:426
@@ -3351,11 +3351,11 @@ msgstr "เปิดใช้งาน"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:503
 msgid "English is used because no content locale is configured. Content locale is stored with the entry and is separate from your admin language."
-msgstr ""
+msgstr "ระบบใช้ภาษาอังกฤษเพราะยังไม่ได้ตั้งค่าภาษาของเนื้อหา ภาษาของเนื้อหาจัดเก็บไว้กับรายการและแยกจากภาษาของหน้าผู้ดูแลระบบ"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:312
 msgid "Enter a name."
-msgstr ""
+msgstr "ป้อนชื่อ"
 
 #: packages/admin/src/components/MenuEditor.tsx:423
 #: packages/admin/src/components/MenuEditor.tsx:601
@@ -3444,15 +3444,15 @@ msgstr "ทุกรุ่นที่เผยแพร่ของปลั๊
 #. placeholder {0}: formData.dateFormat ?? "MMMM d, yyyy"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:327
 msgid "Example: {0} → January 23, 2026"
-msgstr ""
+msgstr "ตัวอย่าง: {0} → 23 มกราคม 2026"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:294
 msgid "example.com"
-msgstr ""
+msgstr "example.com"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:478
 msgid "Existing content is indexed. New changes are tracked automatically."
-msgstr ""
+msgstr "ทำดัชนีเนื้อหาที่มีอยู่แล้ว การเปลี่ยนแปลงใหม่จะถูกติดตามอัตโนมัติ"
 
 #: packages/admin/src/components/WordPressImport.tsx:2026
 msgid "Exists"
@@ -3506,7 +3506,7 @@ msgstr "เพิ่มโดเมนไม่สำเร็จ"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:175
 msgid "Failed to add passkey"
-msgstr ""
+msgstr "เพิ่มพาสคีย์ไม่สำเร็จ"
 
 #: packages/admin/src/components/WordPressImport.tsx:431
 msgid "Failed to analyze WordPress site"
@@ -3518,7 +3518,7 @@ msgstr "สื่อสารกับปลั๊กอินไม่สำเ
 
 #: packages/admin/src/lib/api/media.ts:360
 msgid "Failed to confirm upload"
-msgstr ""
+msgstr "ยืนยันการอัปโหลดไม่สำเร็จ"
 
 #: packages/admin/src/components/SetupWizard.tsx:493
 msgid "Failed to create admin"
@@ -3527,23 +3527,23 @@ msgstr "สร้างผู้ดูแลระบบไม่สำเร็
 #: packages/admin/src/components/settings/BackupSettings.tsx:122
 #: packages/admin/src/lib/api/backups.ts:51
 msgid "Failed to create backup"
-msgstr ""
+msgstr "สร้างข้อมูลสำรองไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/byline-fields.ts:120
 msgid "Failed to create byline field"
-msgstr ""
+msgstr "สร้างฟิลด์ชื่อผู้เขียนไม่สำเร็จ"
 
 #: packages/admin/src/routes/byline-schema.tsx:102
 msgid "Failed to create field"
-msgstr ""
+msgstr "สร้างฟิลด์ไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/media.ts:237
 msgid "Failed to create media folder"
-msgstr ""
+msgstr "สร้างโฟลเดอร์มีเดียไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/sections.ts:88
 msgid "Failed to create section"
-msgstr ""
+msgstr "สร้างส่วนไม่สำเร็จ"
 
 #: packages/admin/src/components/WordPressImport.tsx:1730
 msgid "Failed to create some collections"
@@ -3571,7 +3571,7 @@ msgstr "ลบโดเมนที่อนุญาตไม่สำเร็
 
 #: packages/admin/src/lib/api/backups.ts:58
 msgid "Failed to delete backup"
-msgstr ""
+msgstr "ลบข้อมูลสำรองไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/bylines.ts:143
 msgid "Failed to delete byline"
@@ -3579,7 +3579,7 @@ msgstr "ลบชื่อผู้เขียนไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/byline-fields.ts:143
 msgid "Failed to delete byline field"
-msgstr ""
+msgstr "ลบฟิลด์ชื่อผู้เขียนไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/schema.ts:244
 msgid "Failed to delete collection"
@@ -3609,7 +3609,7 @@ msgstr "ลบมีเดียไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/media.ts:259
 msgid "Failed to delete media folder"
-msgstr ""
+msgstr "ลบโฟลเดอร์มีเดียไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/menus.ts:163
 msgid "Failed to delete menu"
@@ -3650,7 +3650,7 @@ msgstr "ปิดใช้งานปลั๊กอินไม่สำเร
 
 #: packages/admin/src/lib/api/search.ts:32
 msgid "Failed to disable search"
-msgstr ""
+msgstr "ปิดใช้งานการค้นหาไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/users.ts:118
 msgid "Failed to disable user"
@@ -3675,7 +3675,7 @@ msgstr "เปิดใช้งานปลั๊กอินไม่สำเ
 
 #: packages/admin/src/lib/api/search.ts:31
 msgid "Failed to enable search"
-msgstr ""
+msgstr "เปิดใช้งานการค้นหาไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/users.ts:138
 msgid "Failed to enable user"
@@ -3687,11 +3687,11 @@ msgstr "ดำเนินการนำเข้าไม่สำเร็จ
 
 #: packages/admin/src/lib/api/client.ts:309
 msgid "Failed to fetch auth mode"
-msgstr ""
+msgstr "ดึงข้อมูลโหมดการยืนยันตัวตนไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/backups.ts:37
 msgid "Failed to fetch backup settings"
-msgstr ""
+msgstr "ดึงข้อมูลการตั้งค่าการสำรองข้อมูลไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/schema.ts:192
 #: packages/admin/src/lib/api/schema.ts:196
@@ -3700,11 +3700,11 @@ msgstr "ดึงข้อมูลคอลเลกชันไม่สำเ
 
 #: packages/admin/src/lib/api/dashboard.ts:47
 msgid "Failed to fetch dashboard stats"
-msgstr ""
+msgstr "ดึงข้อมูลสถิติแดชบอร์ดไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/email-settings.ts:34
 msgid "Failed to fetch email settings"
-msgstr ""
+msgstr "ดึงข้อมูลการตั้งค่าอีเมลไม่สำเร็จ"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:140
 msgid "Failed to fetch entry terms"
@@ -3716,27 +3716,27 @@ msgstr "ดึงข้อมูล manifest ไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/media.ts:159
 msgid "Failed to fetch media"
-msgstr ""
+msgstr "ดึงข้อมูลมีเดียไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/media.ts:224
 msgid "Failed to fetch media folder"
-msgstr ""
+msgstr "ดึงข้อมูลโฟลเดอร์มีเดียไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/media.ts:216
 msgid "Failed to fetch media folders"
-msgstr ""
+msgstr "ดึงรายการโฟลเดอร์มีเดียไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/media.ts:177
 msgid "Failed to fetch media item"
-msgstr ""
+msgstr "ดึงข้อมูลรายการมีเดียไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/media.ts:572
 msgid "Failed to fetch media providers"
-msgstr ""
+msgstr "ดึงรายการผู้ให้บริการมีเดียไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/media.ts:200
 msgid "Failed to fetch media usage details"
-msgstr ""
+msgstr "ดึงข้อมูลรายละเอียดการใช้งานมีเดียไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/plugins.ts:70
 #: packages/admin/src/lib/api/plugins.ts:74
@@ -3745,15 +3745,15 @@ msgstr "ดึงข้อมูลปลั๊กอินไม่สำเร
 
 #: packages/admin/src/lib/api/plugins.ts:114
 msgid "Failed to fetch plugin settings"
-msgstr ""
+msgstr "ดึงข้อมูลการตั้งค่าปลั๊กอินไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/plugins.ts:56
 msgid "Failed to fetch plugins"
-msgstr ""
+msgstr "ดึงรายการปลั๊กอินไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/media.ts:602
 msgid "Failed to fetch provider media"
-msgstr ""
+msgstr "ดึงข้อมูลมีเดียจากผู้ให้บริการไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/content.ts:580
 #: packages/admin/src/lib/api/content.ts:585
@@ -3762,15 +3762,15 @@ msgstr "ดึงข้อมูลรุ่นแก้ไขไม่สำเ
 
 #: packages/admin/src/lib/api/sections.ts:76
 msgid "Failed to fetch section"
-msgstr ""
+msgstr "ดึงข้อมูลส่วนไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/sections.ts:68
 msgid "Failed to fetch sections"
-msgstr ""
+msgstr "ดึงรายการส่วนไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/settings.ts:50
 msgid "Failed to fetch settings"
-msgstr ""
+msgstr "ดึงข้อมูลการตั้งค่าไม่สำเร็จ"
 
 #: packages/admin/src/components/SetupWizard.tsx:446
 msgid "Failed to fetch setup status"
@@ -3806,7 +3806,7 @@ msgstr "รับตัวเลือกการลงทะเบียนไ
 
 #: packages/admin/src/lib/api/media.ts:332
 msgid "Failed to get upload URL"
-msgstr ""
+msgstr "รับ URL สำหรับอัปโหลดไม่สำเร็จ"
 
 #: packages/admin/src/components/WordPressImport.tsx:454
 msgid "Failed to import from WordPress"
@@ -3824,7 +3824,7 @@ msgstr "ติดตั้งปลั๊กอินไม่สำเร็จ
 
 #: packages/admin/src/lib/api/byline-fields.ts:98
 msgid "Failed to list byline fields"
-msgstr ""
+msgstr "แสดงรายการฟิลด์ชื่อผู้เขียนไม่สำเร็จ"
 
 #: packages/admin/src/router.tsx:302
 msgid "Failed to load admin"
@@ -3837,7 +3837,7 @@ msgstr "โหลดโดเมนที่อนุญาตไม่สำเ
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:165
 msgid "Failed to load backup settings"
-msgstr ""
+msgstr "โหลดการตั้งค่าการสำรองข้อมูลไม่สำเร็จ"
 
 #. placeholder {0}: error.message
 #: packages/admin/src/routes/bylines.tsx:365
@@ -3863,7 +3863,7 @@ msgstr "โหลดปลั๊กอินไม่สำเร็จ"
 
 #: packages/admin/src/components/PluginSettings.tsx:146
 msgid "Failed to load plugin settings"
-msgstr ""
+msgstr "โหลดการตั้งค่าปลั๊กอินไม่สำเร็จ"
 
 #. placeholder {0}: error.message
 #: packages/admin/src/components/PluginManager.tsx:161
@@ -3914,7 +3914,7 @@ msgstr "เผยแพร่ไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
-msgstr ""
+msgstr "อ่านข้อมูลการใช้งานฟิลด์ชื่อผู้เขียนไม่สำเร็จ"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:124
 msgid "Failed to remove domain"
@@ -3927,7 +3927,7 @@ msgstr "นำ Passkey ออกไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/media.ts:250
 msgid "Failed to rename media folder"
-msgstr ""
+msgstr "เปลี่ยนชื่อโฟลเดอร์มีเดียไม่สำเร็จ"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:50
 msgid "Failed to rename passkey"
@@ -3935,11 +3935,11 @@ msgstr "เปลี่ยนชื่อ Passkey ไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/byline-fields.ts:156
 msgid "Failed to reorder byline fields"
-msgstr ""
+msgstr "จัดลำดับฟิลด์ชื่อผู้เขียนใหม่ไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/schema.ts:332
 msgid "Failed to reorder content types"
-msgstr ""
+msgstr "จัดลำดับประเภทเนื้อหาใหม่ไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/schema.ts:315
 #: packages/admin/src/routes/byline-schema.tsx:152
@@ -3979,11 +3979,11 @@ msgstr "บันทึกไม่สำเร็จ"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:102
 msgid "Failed to save backup settings"
-msgstr ""
+msgstr "บันทึกการตั้งค่าการสำรองข้อมูลไม่สำเร็จ"
 
 #: packages/admin/src/routes/byline-schema.tsx:122
 msgid "Failed to save field"
-msgstr ""
+msgstr "บันทึกฟิลด์ไม่สำเร็จ"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
 #: packages/admin/src/components/settings/GeneralSettings.tsx:77
@@ -4033,7 +4033,7 @@ msgstr "ยกเลิกการกำหนดเวลาไม่สำเ
 
 #: packages/admin/src/router.tsx:553
 msgid "Failed to update"
-msgstr ""
+msgstr "อัปเดตไม่สำเร็จ"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:415
@@ -4042,11 +4042,11 @@ msgstr "อัปเดต {0} ไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/backups.ts:46
 msgid "Failed to update backup settings"
-msgstr ""
+msgstr "อัปเดตการตั้งค่าการสำรองข้อมูลไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/byline-fields.ts:135
 msgid "Failed to update byline field"
-msgstr ""
+msgstr "อัปเดตฟิลด์ชื่อผู้เขียนไม่สำเร็จ"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:107
 msgid "Failed to update domain"
@@ -4054,7 +4054,7 @@ msgstr "อัปเดตโดเมนไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/media.ts:523
 msgid "Failed to update media"
-msgstr ""
+msgstr "อัปเดตมีเดียไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/marketplace.ts:232
 #: packages/admin/src/lib/api/registry.ts:836
@@ -4063,19 +4063,19 @@ msgstr "อัปเดตปลั๊กอินไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/plugins.ts:172
 msgid "Failed to update plugin MCP access"
-msgstr ""
+msgstr "อัปเดตการเข้าถึง MCP ของปลั๊กอินไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/plugins.ts:133
 msgid "Failed to update plugin settings"
-msgstr ""
+msgstr "อัปเดตการตั้งค่าปลั๊กอินไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/sections.ts:100
 msgid "Failed to update section"
-msgstr ""
+msgstr "อัปเดตส่วนไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/settings.ts:64
 msgid "Failed to update settings"
-msgstr ""
+msgstr "อัปเดตการตั้งค่าไม่สำเร็จ"
 
 #: packages/admin/src/router.tsx:1762
 msgid "Failed to update status"
@@ -4087,11 +4087,11 @@ msgstr "อัปโหลดไฟล์ไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/media.ts:450
 msgid "Failed to upload media"
-msgstr ""
+msgstr "อัปโหลดมีเดียไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/media.ts:627
 msgid "Failed to upload to provider"
-msgstr ""
+msgstr "อัปโหลดไปยังผู้ให้บริการไม่สำเร็จ"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:249
 msgid "Failed to verify authentication"
@@ -4116,7 +4116,7 @@ msgstr "คุณสมบัติ"
 
 #: packages/admin/src/components/WordPressImport.tsx:1166
 msgid "Featured Images"
-msgstr ""
+msgstr "รูปภาพเด่น"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:455
 #: packages/admin/src/components/ContentTypeList.tsx:187
@@ -4129,11 +4129,11 @@ msgstr "กำลังดึงเนื้อหาจาก EmDash Exporter A
 
 #: packages/admin/src/routes/byline-schema.tsx:95
 msgid "Field created"
-msgstr ""
+msgstr "สร้างฟิลด์แล้ว"
 
 #: packages/admin/src/routes/byline-schema.tsx:133
 msgid "Field deleted"
-msgstr ""
+msgstr "ลบฟิลด์แล้ว"
 
 #: packages/admin/src/components/FieldEditor.tsx:606
 msgid "Field label"
@@ -4149,11 +4149,11 @@ msgstr "Slug ของฟิลด์ไม่สามารถเปลี่�
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:268
 msgid "Field type cannot be changed after creation."
-msgstr ""
+msgstr "เปลี่ยนประเภทฟิลด์หลังจากสร้างแล้วไม่ได้"
 
 #: packages/admin/src/routes/byline-schema.tsx:115
 msgid "Field updated"
-msgstr ""
+msgstr "อัปเดตฟิลด์แล้ว"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:596
 msgid "Fields"
@@ -4188,15 +4188,15 @@ msgstr "ชื่อไฟล์ไม่สามารถเปลี่ยน
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:405
 msgid "Files upload as soon as you add them."
-msgstr ""
+msgstr "ไฟล์จะอัปโหลดทันทีที่คุณเพิ่ม"
 
 #: packages/admin/src/components/ContentList.tsx:907
 msgid "Filter by author"
-msgstr ""
+msgstr "กรองตามผู้เขียน"
 
 #: packages/admin/src/components/BylineFilter.tsx:116
 msgid "Filter by byline"
-msgstr ""
+msgstr "กรองตามชื่อผู้เขียน"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:115
 msgid "Filter by capability"
@@ -4208,7 +4208,7 @@ msgstr "กรองตามคอลเลกชัน"
 
 #: packages/admin/src/components/ContentList.tsx:1029
 msgid "Filter by date range: {rangeLabel}"
-msgstr ""
+msgstr "กรองตามช่วงวันที่: {rangeLabel}"
 
 #: packages/admin/src/components/users/UserList.tsx:75
 msgid "Filter by role"
@@ -4234,11 +4234,11 @@ msgstr "กรองตามประเภทชื่อผู้เขีย
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:592
 msgid "Finish any current edits."
-msgstr ""
+msgstr "ทำการแก้ไขที่ค้างอยู่ให้เสร็จ"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1313
 msgid "First page"
-msgstr ""
+msgstr "หน้าแรก"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:64
 msgid "First-time commenters only"
@@ -4248,50 +4248,50 @@ msgstr "เฉพาะผู้แสดงความคิดเห็นค
 #: packages/admin/src/components/MediaDetailPanel.tsx:520
 #: packages/admin/src/components/MediaDetailPanel.tsx:862
 msgid "Focal point"
-msgstr ""
+msgstr "จุดโฟกัส"
 
 #: packages/admin/src/components/FocalPointEditor.tsx:141
 msgid "Focal point. Use arrow keys to move it."
-msgstr ""
+msgstr "จุดโฟกัส ใช้ปุ่มลูกศรเพื่อเลื่อน"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:67
 msgid "Folder deleted"
-msgstr ""
+msgstr "ลบโฟลเดอร์แล้ว"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:84
 #: packages/admin/src/components/MediaFolderDialog.tsx:96
 msgid "Folder name must be between 1 and 200 characters"
-msgstr ""
+msgstr "ชื่อโฟลเดอร์ต้องมีความยาว 1 ถึง 200 อักขระ"
 
 #: packages/admin/src/router.tsx:1432
 msgid "Folder no longer exists"
-msgstr ""
+msgstr "ไม่มีโฟลเดอร์นี้แล้ว"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:50
 msgid "Folder successfully created"
-msgstr ""
+msgstr "สร้างโฟลเดอร์สำเร็จ"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:50
 msgid "Folder successfully edited"
-msgstr ""
+msgstr "แก้ไขโฟลเดอร์สำเร็จ"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:62
 msgid "Folder unavailable"
-msgstr ""
+msgstr "โฟลเดอร์ไม่พร้อมใช้งาน"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1021
 msgid "Folders"
-msgstr ""
+msgstr "โฟลเดอร์"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:772
 #: packages/admin/src/components/MediaLibrary.tsx:1031
 #: packages/admin/src/components/MediaLibrary.tsx:1555
 msgid "Folders could not be loaded."
-msgstr ""
+msgstr "โหลดโฟลเดอร์ไม่สำเร็จ"
 
 #: packages/admin/src/components/MediaLibrary.tsx:829
 msgid "Folders navigation"
-msgstr ""
+msgstr "การนำทางโฟลเดอร์"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:72
 msgid "Fonts"
@@ -4303,25 +4303,25 @@ msgstr "สำหรับการนำเข้าที่สมบูรณ
 
 #: packages/admin/src/components/WordPressImport.tsx:67
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
-msgstr ""
+msgstr "เพื่อประสบการณ์การนำเข้าที่ดีที่สุด ให้ติดตั้งปลั๊กอิน <0>EmDash Exporter</0> บนเว็บไซต์ WordPress ของคุณ"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:618
 msgid "Format:"
-msgstr ""
+msgstr "รูปแบบ:"
 
 #. placeholder {0}: formatter.format(from)
 #: packages/admin/src/components/ContentList.tsx:980
 msgid "From {0}"
-msgstr ""
+msgstr "ตั้งแต่ {0}"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:648
 msgid "From the post owner"
-msgstr ""
+msgstr "จากเจ้าของโพสต์"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:164
 #: packages/admin/src/components/WordPressImport.tsx:1173
 msgid "Full"
-msgstr ""
+msgstr "เต็ม"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:43
 msgid "Full access"
@@ -4334,12 +4334,12 @@ msgstr "สิทธิ์เข้าถึงระดับผู้ดูแ
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:175
 #: packages/admin/src/components/PortableTextEditor.tsx:2727
 msgid "Gallery"
-msgstr ""
+msgstr "แกลเลอรี"
 
 #: packages/admin/src/components/editor/GalleryNode.tsx:211
 #: packages/admin/src/components/editor/GalleryNode.tsx:212
 msgid "Gallery settings"
-msgstr ""
+msgstr "การตั้งค่าแกลเลอรี"
 
 #: packages/admin/src/components/Settings.tsx:52
 msgid "General"
@@ -4351,7 +4351,7 @@ msgstr "การตั้งค่าทั่วไป"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:997
 msgid "Generated automatically."
-msgstr ""
+msgstr "สร้างขึ้นอัตโนมัติ"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:816
 msgid "Genres"
@@ -4371,7 +4371,7 @@ msgstr "ตั้งชื่อให้ Passkey นี้เพื่อช่
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:35
 msgid "Go"
-msgstr ""
+msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
 #: packages/admin/src/router.tsx:2545
@@ -4385,7 +4385,7 @@ msgstr "การยืนยัน Google"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:36
 msgid "GraphQL"
-msgstr ""
+msgstr "GraphQL"
 
 #: packages/admin/src/components/MediaLibrary.tsx:950
 msgid "Grid view"
@@ -4397,7 +4397,7 @@ msgstr "กลุ่ม (ไม่บังคับ)"
 
 #: packages/admin/src/components/Widgets.tsx:162
 msgid "Group by"
-msgstr ""
+msgstr "จัดกลุ่มตาม"
 
 #: packages/admin/src/routes/bylines.tsx:555
 msgid "Guest byline"
@@ -4429,24 +4429,24 @@ msgstr "หัวข้อ 3"
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
 #: packages/admin/src/components/PortableTextEditor.tsx:1428
 msgid "Heading 4"
-msgstr ""
+msgstr "หัวข้อ 4"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:95
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
 #: packages/admin/src/components/PortableTextEditor.tsx:1438
 msgid "Heading 5"
-msgstr ""
+msgstr "หัวข้อ 5"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:103
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
 #: packages/admin/src/components/PortableTextEditor.tsx:1448
 msgid "Heading 6"
-msgstr ""
+msgstr "หัวข้อ 6"
 
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:142
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:158
 msgid "Headings"
-msgstr ""
+msgstr "หัวข้อ"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:308
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:497
@@ -4496,7 +4496,7 @@ msgstr "Hooks"
 #. placeholder {1}: Math.round(next.focalY * 100)
 #: packages/admin/src/components/FocalPointEditor.tsx:73
 msgid "Horizontal {0}%, vertical {1}%"
-msgstr ""
+msgstr "แนวนอน {0}% แนวตั้ง {1}%"
 
 #: packages/admin/src/components/WordPressImport.tsx:1536
 msgid "How to create an Application Password"
@@ -4515,7 +4515,7 @@ msgstr "โค้ด HTML"
 #: packages/admin/src/components/PortableTextEditor.tsx:3599
 #: packages/admin/src/components/PortableTextEditor.tsx:4209
 msgid "https://..."
-msgstr ""
+msgstr "https://..."
 
 #: packages/admin/src/components/MenuEditor.tsx:424
 msgid "https://example.com or /about"
@@ -4527,11 +4527,11 @@ msgstr "https://example.com/image.jpg"
 
 #: packages/admin/src/components/WordPressImport.tsx:1107
 msgid "https://yoursite.com"
-msgstr ""
+msgstr "https://yoursite.com"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:604
 msgid "I’ve completed these steps and understand tracking can’t be turned off."
-msgstr ""
+msgstr "ฉันทำขั้นตอนเหล่านี้เสร็จแล้ว และเข้าใจว่าปิดการติดตามไม่ได้"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:243
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:153
@@ -4555,7 +4555,7 @@ msgstr "รูปภาพ"
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:298
 msgid "Image {0}"
-msgstr ""
+msgstr "รูปภาพ {0}"
 
 #: packages/admin/src/components/FieldEditor.tsx:237
 msgid "Image from media library"
@@ -4661,7 +4661,7 @@ msgstr "นำเข้าตามคอลเลกชัน"
 #. placeholder {0}: wpImportProgress.comments
 #: packages/admin/src/components/WordPressImport.tsx:921
 msgid "Importing comments... {0}"
-msgstr ""
+msgstr "กำลังนำเข้าความคิดเห็น... {0}"
 
 #: packages/admin/src/components/WordPressImport.tsx:938
 msgid "Importing content..."
@@ -4670,12 +4670,12 @@ msgstr "กำลังนำเข้าเนื้อหา..."
 #. placeholder {0}: wpImportProgress.processed
 #: packages/admin/src/components/WordPressImport.tsx:919
 msgid "Importing content... {0}"
-msgstr ""
+msgstr "กำลังนำเข้าเนื้อหา... {0}"
 
 #. placeholder {0}: wpImportProgress.processed
 #: packages/admin/src/components/WordPressImport.tsx:918
 msgid "Importing content... {0} of {totalSelectedPosts}"
-msgstr ""
+msgstr "กำลังนำเข้าเนื้อหา... {0} จาก {totalSelectedPosts}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2155
 msgid "Importing Media"
@@ -4683,16 +4683,16 @@ msgstr "กำลังนำเข้ามีเดีย"
 
 #: packages/admin/src/components/WordPressImport.tsx:922
 msgid "Importing menus and site settings..."
-msgstr ""
+msgstr "กำลังนำเข้าเมนูและการตั้งค่าเว็บไซต์..."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:265
 msgid "In trash"
-msgstr ""
+msgstr "อยู่ในถังขยะ"
 
 #: packages/admin/src/components/BylineFilter.tsx:187
 #: packages/admin/src/components/BylineFilter.tsx:193
 msgid "Include inferred bylines"
-msgstr ""
+msgstr "รวมชื่อผู้เขียนที่อนุมานอัตโนมัติ"
 
 #: packages/admin/src/components/SetupWizard.tsx:138
 msgid "Include sample content (recommended for new sites)"
@@ -4704,7 +4704,7 @@ msgstr "ไม่เข้ากัน"
 
 #: packages/admin/src/components/MediaLibrary.tsx:891
 msgid "Index existing content and keep Used in results up to date."
-msgstr ""
+msgstr "ทำดัชนีเนื้อหาที่มีอยู่และรักษาผลลัพธ์ “ใช้ใน” ให้เป็นปัจจุบัน"
 
 #: packages/admin/src/components/FieldEditor.tsx:491
 #: packages/admin/src/components/RegistryPluginDetail.tsx:543
@@ -4713,11 +4713,11 @@ msgstr "จัดทำดัชนีแล้ว"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:495
 msgid "Indexing"
-msgstr ""
+msgstr "กำลังทำดัชนี"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:472
 msgid "Indexing existing content"
-msgstr ""
+msgstr "กำลังทำดัชนีเนื้อหาที่มีอยู่"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4069
 msgid "Inline Code"
@@ -4759,20 +4759,20 @@ msgstr "แทรกรูปภาพ"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2728
 msgid "Insert an image gallery"
-msgstr ""
+msgstr "แทรกแกลเลอรีรูปภาพ"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1751
 msgid "Insert block"
-msgstr ""
+msgstr "แทรกบล็อก"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4021
 #: packages/admin/src/components/PortableTextEditor.tsx:4031
 msgid "Insert block after current block"
-msgstr ""
+msgstr "แทรกบล็อกหลังบล็อกปัจจุบัน"
 
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:170
 msgid "Insert block below"
-msgstr ""
+msgstr "แทรกบล็อกด้านล่าง"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:550
 msgid "Insert from URL"
@@ -4780,11 +4780,11 @@ msgstr "แทรกจาก URL"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4135
 msgid "Insert HTML"
-msgstr ""
+msgstr "แทรก HTML"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4132
 msgid "Insert Image"
-msgstr ""
+msgstr "แทรกรูปภาพ"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4179
 #: packages/admin/src/components/PortableTextEditor.tsx:4193
@@ -4818,7 +4818,7 @@ msgstr "การติดตั้งถูกบล็อก"
 
 #: packages/admin/src/components/WordPressImport.tsx:1057
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
-msgstr ""
+msgstr "ติดตั้งปลั๊กอิน EmDash Exporter บนเว็บไซต์ WordPress ของคุณ แล้วสร้างคีย์ที่ Tools → EmDash Migration"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:817
 msgid "Installation"
@@ -4884,11 +4884,11 @@ msgstr "เชิญสมาชิกทีมคนแรกของคุณ
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:98
 msgid "Invoke MCP tools from all enabled plugins"
-msgstr ""
+msgstr "เรียกใช้เครื่องมือ MCP จากปลั๊กอินที่เปิดใช้งานทั้งหมด"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:517
 msgid "Invoke only this plugin's enabled MCP tools"
-msgstr ""
+msgstr "เรียกใช้เฉพาะเครื่องมือ MCP ที่เปิดใช้งานของปลั๊กอินนี้"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3643
 #: packages/admin/src/components/PortableTextEditor.tsx:4048
@@ -4915,7 +4915,7 @@ msgstr "อัปเดตรายการแล้ว"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:455
 msgid "Its listing has not been approved for display. Check back later."
-msgstr ""
+msgstr "รายการนี้ยังไม่ได้รับอนุมัติให้แสดง กลับมาตรวจสอบภายหลัง"
 
 #: packages/admin/src/components/SetupWizard.tsx:213
 #: packages/admin/src/components/SignupPage.tsx:221
@@ -4924,19 +4924,19 @@ msgstr "Jane Doe"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 msgid "Java"
-msgstr ""
+msgstr "Java"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:39
 msgid "JavaScript"
-msgstr ""
+msgstr "JavaScript"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:235
 msgid "Job title"
-msgstr ""
+msgstr "ตำแหน่งงาน"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:246
 msgid "job_title"
-msgstr ""
+msgstr "job_title"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:40
 #: packages/admin/src/components/FieldEditor.tsx:254
@@ -4945,27 +4945,27 @@ msgstr "JSON"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:41
 msgid "JSX"
-msgstr ""
+msgstr "JSX"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:316
 msgid "Keep editing paused and deploy a compatible EmDash version before continuing."
-msgstr ""
+msgstr "หยุดการแก้ไขไว้ก่อน แล้วดีพลอย EmDash เวอร์ชันที่รองรับก่อนดำเนินการต่อ"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:460
 msgid "Keep editing paused, fix the server issue, then retry setup."
-msgstr ""
+msgstr "หยุดการแก้ไขไว้ก่อน แก้ปัญหาของเซิร์ฟเวอร์ แล้วลองตั้งค่าใหม่"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:598
 msgid "Keep this page open until setup finishes. If you leave, return to continue where it stopped."
-msgstr ""
+msgstr "เปิดหน้านี้ไว้จนกว่าการตั้งค่าจะเสร็จ ถ้าคุณออกจากหน้านี้ ให้กลับมาเพื่อทำต่อจากจุดที่หยุดไว้"
 
 #: packages/admin/src/components/WordPressImport.tsx:934
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
-msgstr ""
+msgstr "เปิดแท็บนี้ไว้ การนำเข้าทำงานเป็นขั้นตอนย่อยและรันซ้ำได้อย่างปลอดภัยหากถูกขัดจังหวะ"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:535
 msgid "Keep typing to narrow the list."
-msgstr ""
+msgstr "พิมพ์ต่อเพื่อจำกัดรายการให้แคบลง"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:304
 #: packages/admin/src/components/SectionEditor.tsx:304
@@ -4975,7 +4975,7 @@ msgstr "คำสำคัญ"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:42
 msgid "Kotlin"
-msgstr ""
+msgstr "Kotlin"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:232
 #: packages/admin/src/components/FieldEditor.tsx:447
@@ -4999,7 +4999,7 @@ msgstr "ป้ายกำกับ (เอกพจน์)"
 
 #: packages/admin/src/components/FocalPointEditor.tsx:32
 msgid "Landscape"
-msgstr ""
+msgstr "แนวนอน"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:280
 #: packages/admin/src/components/LoginPage.tsx:347
@@ -5027,7 +5027,7 @@ msgstr "เข้าสู่ระบบล่าสุด"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1316
 msgid "Last page"
-msgstr ""
+msgstr "หน้าสุดท้าย"
 
 #: packages/admin/src/components/Redirects.tsx:227
 msgid "Last seen"
@@ -5049,7 +5049,7 @@ msgstr "ใช้งานล่าสุด {0}"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:337
 msgid "Learn more"
-msgstr ""
+msgstr "ดูข้อมูลเพิ่มเติม"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:331
 msgid "Leave blank to use a discoverable passkey."
@@ -5061,7 +5061,7 @@ msgstr "เว้นว่างไว้โดยไม่กำหนด"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:160
 msgid "Left"
-msgstr ""
+msgstr "ซ้าย"
 
 #: packages/admin/src/components/MediaLibrary.tsx:330
 #: packages/admin/src/components/MediaLibrary.tsx:489
@@ -5086,7 +5086,7 @@ msgstr "สว่าง"
 
 #: packages/admin/src/components/Widgets.tsx:165
 msgid "Limit"
-msgstr ""
+msgstr "จำนวนสูงสุด"
 
 #: packages/admin/src/components/SignupPage.tsx:273
 msgid "Link expired"
@@ -5149,15 +5149,15 @@ msgstr "โหลดเพิ่มเติม"
 #: packages/admin/src/components/MediaLibrary.tsx:1061
 #: packages/admin/src/components/MediaLibrary.tsx:1251
 msgid "Load more folders"
-msgstr ""
+msgstr "โหลดโฟลเดอร์เพิ่มเติม"
 
 #: packages/admin/src/router.tsx:2500
 msgid "Loading"
-msgstr ""
+msgstr "กำลังโหลด"
 
 #: packages/admin/src/routes/byline-schema.tsx:257
 msgid "Loading byline fields…"
-msgstr ""
+msgstr "กำลังโหลดฟิลด์ชื่อผู้เขียน…"
 
 #: packages/admin/src/components/ContentTypeList.tsx:198
 msgid "Loading collections..."
@@ -5183,15 +5183,15 @@ msgstr "กำลังโหลดตัวแก้ไข..."
 #: packages/admin/src/components/MediaLibrary.tsx:1005
 #: packages/admin/src/components/MediaLibrary.tsx:1219
 msgid "Loading folders"
-msgstr ""
+msgstr "กำลังโหลดโฟลเดอร์"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:748
 msgid "Loading folders..."
-msgstr ""
+msgstr "กำลังโหลดโฟลเดอร์..."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:619
 msgid "Loading media usage tracking settings…"
-msgstr ""
+msgstr "กำลังโหลดการตั้งค่าการติดตามการใช้งานมีเดีย…"
 
 #: packages/admin/src/components/MenuEditor.tsx:342
 msgid "Loading menu..."
@@ -5231,7 +5231,7 @@ msgstr "กำลังโหลดเทอม..."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:111
 msgid "Loading usage"
-msgstr ""
+msgstr "กำลังโหลดข้อมูลการใช้งาน"
 
 #: packages/admin/src/components/Widgets.tsx:372
 msgid "Loading widgets..."
@@ -5268,7 +5268,7 @@ msgstr "กำลังโหลด..."
 
 #: packages/admin/src/components/BylineFilter.tsx:147
 msgid "Loading…"
-msgstr ""
+msgstr "กำลังโหลด…"
 
 #: packages/admin/src/components/ContentList.tsx:618
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
@@ -5279,12 +5279,12 @@ msgstr "ภาษา"
 #: packages/admin/src/components/MediaDetailPanel.tsx:722
 #: packages/admin/src/components/MediaDetailPanel.tsx:799
 msgid "Location"
-msgstr ""
+msgstr "ตำแหน่งที่จัดเก็บ"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:272
 #: packages/admin/src/components/MediaDetailPanel.tsx:289
 msgid "Location unavailable"
-msgstr ""
+msgstr "ตำแหน่งที่จัดเก็บไม่พร้อมใช้งาน"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:296
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:297
@@ -5295,7 +5295,7 @@ msgstr "ล็อกอัตราส่วนภาพ"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:291
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
-msgstr ""
+msgstr "ล็อกไว้เพราะฟิลด์นี้มีค่าที่จัดเก็บอยู่ ให้ลบค่าเหล่านั้น (หรือลบฟิลด์) เพื่อเปลี่ยนแปลง"
 
 #: packages/admin/src/components/Header.tsx:109
 msgid "Log out"
@@ -5312,7 +5312,7 @@ msgstr "โลโก้และ favicon"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:53
 msgid "Long text"
-msgstr ""
+msgstr "ข้อความยาว"
 
 #: packages/admin/src/components/FieldEditor.tsx:188
 #: packages/admin/src/components/FieldEditor.tsx:619
@@ -5329,11 +5329,11 @@ msgstr "ใช้ได้เฉพาะตัวอักษรพิมพ์
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:43
 msgid "Lua"
-msgstr ""
+msgstr "Lua"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:240
 msgid "Main library"
-msgstr ""
+msgstr "คลังหลัก"
 
 #: packages/admin/src/components/Widgets.tsx:436
 msgid "Main Sidebar"
@@ -5386,11 +5386,11 @@ msgstr "จัดการ Passkey และการยืนยันตัว
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:651
 msgid "Managed by {providerName}"
-msgstr ""
+msgstr "จัดการโดย {providerName}"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:652
 msgid "Managed by an external media provider"
-msgstr ""
+msgstr "จัดการโดยผู้ให้บริการมีเดียภายนอก"
 
 #: packages/admin/src/components/Redirects.tsx:432
 msgid "Manual"
@@ -5408,11 +5408,11 @@ msgstr "จับคู่ผู้ใช้ WordPress {0} กับผู้ใ
 #. placeholder {0}: item.path
 #: packages/admin/src/components/Redirects.tsx:256
 msgid "Mark {0} as Gone (410)"
-msgstr ""
+msgstr "ทำเครื่องหมาย {0} เป็น Gone (410)"
 
 #: packages/admin/src/components/Redirects.tsx:255
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
-msgstr ""
+msgstr "ทำเครื่องหมายเป็น Gone (410) — แจ้งเครื่องมือค้นหาว่าถูกลบถาวรแล้ว"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:493
 msgid "Mark as spam"
@@ -5420,7 +5420,7 @@ msgstr "ทำเครื่องหมายเป็นสแปม"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:44
 msgid "Markdown"
-msgstr ""
+msgstr "Markdown"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
 #: packages/admin/src/components/PluginManager.tsx:188
@@ -5443,11 +5443,11 @@ msgstr "ค่าสูงสุด"
 
 #: packages/admin/src/components/Widgets.tsx:147
 msgid "Maximum tags"
-msgstr ""
+msgstr "จำนวนแท็กสูงสุด"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:45
 msgid "MDX"
-msgstr ""
+msgstr "MDX"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2716
 #: packages/admin/src/components/PortableTextEditor.tsx:2731
@@ -5482,7 +5482,7 @@ msgstr "ข้ามการนำเข้ามีเดียแล้ว"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:183
 msgid "Media in this folder will return to Main library. No files will be deleted."
-msgstr ""
+msgstr "มีเดียในโฟลเดอร์นี้จะกลับไปที่คลังหลัก จะไม่มีไฟล์ใดถูกลบ"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:153
 #: packages/admin/src/components/MediaLibrary.tsx:826
@@ -5492,7 +5492,7 @@ msgstr "คลังมีเดีย"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1312
 msgid "Media pagination"
-msgstr ""
+msgstr "การแบ่งหน้ามีเดีย"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:57
 msgid "Media Read"
@@ -5501,27 +5501,27 @@ msgstr "อ่านมีเดีย"
 #: packages/admin/src/components/Settings.tsx:74
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:299
 msgid "Media usage tracking"
-msgstr ""
+msgstr "การติดตามการใช้งานมีเดีย"
 
 #: packages/admin/src/components/MediaLibrary.tsx:888
 msgid "Media usage tracking is indexing existing content"
-msgstr ""
+msgstr "การติดตามการใช้งานมีเดียกำลังทำดัชนีเนื้อหาที่มีอยู่"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:453
 msgid "Media usage tracking is off"
-msgstr ""
+msgstr "การติดตามการใช้งานมีเดียปิดอยู่"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:469
 msgid "Media usage tracking is ready"
-msgstr ""
+msgstr "การติดตามการใช้งานมีเดียพร้อมใช้งาน"
 
 #: packages/admin/src/components/MediaLibrary.tsx:889
 msgid "Media usage tracking is setting up"
-msgstr ""
+msgstr "การติดตามการใช้งานมีเดียกำลังตั้งค่า"
 
 #: packages/admin/src/components/MediaLibrary.tsx:886
 msgid "Media usage tracking needs attention"
-msgstr ""
+msgstr "การติดตามการใช้งานมีเดียต้องการการตรวจสอบ"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:62
 msgid "Media Write"
@@ -5610,7 +5610,7 @@ msgstr "Meta title คำอธิบาย และรูปภาพสำห
 
 #: packages/admin/src/components/WordPressImport.tsx:1069
 msgid "Migration key"
-msgstr ""
+msgstr "คีย์การย้ายข้อมูล"
 
 #: packages/admin/src/components/FieldEditor.tsx:659
 msgid "Min Items"
@@ -5626,7 +5626,7 @@ msgstr "ค่าต่ำสุด"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1439
 msgid "Minor section heading"
-msgstr ""
+msgstr "หัวข้อย่อยระดับรอง"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:519
 msgid "Moderation"
@@ -5642,20 +5642,20 @@ msgstr "แก้ไขสคีมาของคอลเลกชัน"
 
 #: packages/admin/src/components/Widgets.tsx:163
 msgid "Monthly"
-msgstr ""
+msgstr "รายเดือน"
 
 #: packages/admin/src/components/Widgets.tsx:159
 msgid "Monthly/yearly archives"
-msgstr ""
+msgstr "คลังรายเดือน/รายปี"
 
 #. placeholder {0}: byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:857
 msgid "More actions for {0}"
-msgstr ""
+msgstr "การดำเนินการเพิ่มเติมสำหรับ {0}"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:302
 msgid "More information about {label}"
-msgstr ""
+msgstr "ข้อมูลเพิ่มเติมเกี่ยวกับ {label}"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:42
 msgid "Most Popular"
@@ -5664,12 +5664,12 @@ msgstr "ยอดนิยมที่สุด"
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:439
 msgid "Move \"{0}\" down"
-msgstr ""
+msgstr "ย้าย \"{0}\" ลง"
 
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:429
 msgid "Move \"{0}\" up"
-msgstr ""
+msgstr "ย้าย \"{0}\" ขึ้น"
 
 #: packages/admin/src/components/ContentList.tsx:1357
 msgid "Move \"{title}\" to trash? You can restore it later."
@@ -5678,22 +5678,22 @@ msgstr "ย้าย \"{title}\" ไปยังถังขยะ? คุณส
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:256
 msgid "Move {0} down"
-msgstr ""
+msgstr "ย้าย {0} ลง"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:255
 msgid "Move {0} down — unavailable, its parent has no translation in this locale"
-msgstr ""
+msgstr "ย้าย {0} ลง — ทำไม่ได้ เพราะรายการแม่ไม่มีคำแปลในภาษานี้"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:243
 msgid "Move {0} up"
-msgstr ""
+msgstr "ย้าย {0} ขึ้น"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:242
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
-msgstr ""
+msgstr "ย้าย {0} ขึ้น — ทำไม่ได้ เพราะรายการแม่ไม่มีคำแปลในภาษานี้"
 
 #: packages/admin/src/components/ContentList.tsx:1348
 msgid "Move {title} to trash"
@@ -5705,11 +5705,11 @@ msgstr "เลื่อนลง"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1096
 msgid "Move media here from Media Details."
-msgstr ""
+msgstr "ย้ายมีเดียมาที่นี่จากรายละเอียดมีเดีย"
 
 #: packages/admin/src/components/ContentList.tsx:528
 msgid "Move to trash"
-msgstr ""
+msgstr "ย้ายไปถังขยะ"
 
 #: packages/admin/src/components/ContentList.tsx:555
 #: packages/admin/src/components/ContentList.tsx:1370
@@ -5730,16 +5730,16 @@ msgstr "เลื่อนขึ้น"
 
 #: packages/admin/src/router.tsx:550
 msgid "Moved {total} items to draft"
-msgstr ""
+msgstr "ย้าย {total} รายการไปเป็นฉบับร่างแล้ว"
 
 #: packages/admin/src/router.tsx:571
 msgid "Moved {total} items to trash"
-msgstr ""
+msgstr "ย้าย {total} รายการไปถังขยะแล้ว"
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/MediaLibrary.tsx:643
 msgid "Moved to {0}"
-msgstr ""
+msgstr "ย้ายไปที่ {0} แล้ว"
 
 #: packages/admin/src/components/FieldEditor.tsx:224
 msgid "Multi Select"
@@ -5792,7 +5792,7 @@ msgstr "การนำทาง"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:505
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:507
 msgid "Needs attention"
-msgstr ""
+msgstr "ต้องการการตรวจสอบ"
 
 #: packages/admin/src/components/users/UserDetail.tsx:231
 #: packages/admin/src/components/users/UserList.tsx:178
@@ -5818,11 +5818,11 @@ msgstr "{0} ใหม่"
 
 #: packages/admin/src/components/ContentEditor.tsx:712
 msgid "New {itemLabel}"
-msgstr ""
+msgstr "{itemLabel}ใหม่"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "New byline field"
-msgstr ""
+msgstr "ฟิลด์ชื่อผู้เขียนใหม่"
 
 #: packages/admin/src/components/WordPressImport.tsx:1998
 msgid "New collection"
@@ -5835,11 +5835,11 @@ msgstr "ประเภทเนื้อหาใหม่"
 
 #: packages/admin/src/routes/byline-schema.tsx:224
 msgid "New field"
-msgstr ""
+msgstr "ฟิลด์ใหม่"
 
 #: packages/admin/src/components/MediaLibrary.tsx:862
 msgid "New folder"
-msgstr ""
+msgstr "โฟลเดอร์ใหม่"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:122
 msgid "New public routes"
@@ -5852,7 +5852,7 @@ msgstr "การเปลี่ยนเส้นทางใหม่"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:514
 msgid "New reusable profile"
-msgstr ""
+msgstr "โปรไฟล์ที่ใช้ซ้ำได้ใหม่"
 
 #: packages/admin/src/components/Sections.tsx:143
 msgid "New Section"
@@ -5904,7 +5904,7 @@ msgstr "ไม่"
 
 #: packages/admin/src/routes/byline-schema.tsx:420
 msgid "No (shared across translations)"
-msgstr ""
+msgstr "ไม่ (ใช้ร่วมกันทุกคำแปล)"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:576
@@ -5940,19 +5940,19 @@ msgstr "ยังไม่มีความคิดเห็นที่อน
 
 #: packages/admin/src/components/BylineFilter.tsx:101
 msgid "No byline"
-msgstr ""
+msgstr "ไม่มีชื่อผู้เขียน"
 
 #: packages/admin/src/components/BylineFilter.tsx:138
 msgid "No byline assigned"
-msgstr ""
+msgstr "ยังไม่ได้กำหนดชื่อผู้เขียน"
 
 #: packages/admin/src/routes/byline-schema.tsx:291
 msgid "No byline fields yet."
-msgstr ""
+msgstr "ยังไม่มีฟิลด์ชื่อผู้เขียน"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:670
 msgid "No byline is shown on this post."
-msgstr ""
+msgstr "ไม่มีชื่อผู้เขียนแสดงบนโพสต์นี้"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:690
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
@@ -5960,7 +5960,7 @@ msgstr "ไม่มีชื่อผู้เขียนให้ใช้ง
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:542
 msgid "No bylines available."
-msgstr ""
+msgstr "ไม่มีชื่อผู้เขียนที่ใช้ได้"
 
 #: packages/admin/src/components/BylineFilter.tsx:150
 #: packages/admin/src/routes/bylines.tsx:452
@@ -6029,11 +6029,11 @@ msgstr "ไม่มีฟิลด์ให้เปรียบเทียบ
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:488
 msgid "No files added"
-msgstr ""
+msgstr "ยังไม่ได้เพิ่มไฟล์"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:756
 msgid "No folders found"
-msgstr ""
+msgstr "ไม่พบโฟลเดอร์"
 
 #: packages/admin/src/components/editor/DocumentOutline.tsx:213
 msgid "No headings in document"
@@ -6041,11 +6041,11 @@ msgstr "ไม่มีหัวข้อในเอกสาร"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:209
 msgid "No images in this gallery yet."
-msgstr ""
+msgstr "ยังไม่มีรูปภาพในแกลเลอรีนี้"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:179
 msgid "No indexed references are currently available."
-msgstr ""
+msgstr "ขณะนี้ยังไม่มีการอ้างอิงที่ทำดัชนีไว้"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:605
 msgid "No installable releases"
@@ -6080,7 +6080,7 @@ msgstr "ไม่พบผู้เขียนที่ตรงกัน"
 #: packages/admin/src/components/MediaLibrary.tsx:1080
 #: packages/admin/src/components/MediaLibrary.tsx:1119
 msgid "No matching media"
-msgstr ""
+msgstr "ไม่พบมีเดียที่ตรงกัน"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:265
 msgid "No matching passkey found for this account."
@@ -6097,7 +6097,7 @@ msgstr "ไม่มีมีเดียจากผู้ให้บริก
 
 #: packages/admin/src/components/MediaLibrary.tsx:1142
 msgid "No media available from this provider."
-msgstr ""
+msgstr "ไม่มีมีเดียจากผู้ให้บริการรายนี้"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1141
 #: packages/admin/src/components/MediaPickerModal.tsx:689
@@ -6123,7 +6123,7 @@ msgstr "ไม่มีการกลั่นกรอง (อนุมัต�
 
 #: packages/admin/src/components/MenuEditor.tsx:329
 msgid "No parent (top level)"
-msgstr ""
+msgstr "ไม่มีรายการแม่ (ระดับบนสุด)"
 
 #: packages/admin/src/components/users/UserDetail.tsx:248
 msgid "No passkeys registered"
@@ -6155,7 +6155,7 @@ msgstr "ไม่มีตัวอย่าง"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:637
 msgid "No public URL available"
-msgstr ""
+msgstr "ไม่มี URL สาธารณะ"
 
 #: packages/admin/src/components/Dashboard.tsx:354
 msgid "No recent activity"
@@ -6212,7 +6212,7 @@ msgstr "ไม่พบธีม"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:178
 msgid "No usage found in EmDash-managed content fields."
-msgstr ""
+msgstr "ไม่พบการใช้งานในฟิลด์เนื้อหาที่ EmDash จัดการ"
 
 #: packages/admin/src/components/users/UserList.tsx:113
 msgid "No users found matching your filters."
@@ -6228,7 +6228,7 @@ msgstr "ยังไม่มีพื้นที่วิดเจ็ต ส�
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:159
 msgid "None"
-msgstr ""
+msgstr "ไม่มี"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:601
 #: packages/admin/src/components/TaxonomyManager.tsx:610
@@ -6242,7 +6242,7 @@ msgstr "ไม่รองรับกับสภาพแวดล้อมน
 #: packages/admin/src/components/ContentList.tsx:1392
 #: packages/admin/src/components/PluginSettings.tsx:341
 msgid "Not set"
-msgstr ""
+msgstr "ยังไม่ได้ตั้งค่า"
 
 #: packages/admin/src/components/FieldEditor.tsx:194
 #: packages/admin/src/components/FieldEditor.tsx:620
@@ -6251,7 +6251,7 @@ msgstr "ตัวเลข"
 
 #: packages/admin/src/components/Widgets.tsx:129
 msgid "Number of posts"
-msgstr ""
+msgstr "จำนวนโพสต์"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:319
 msgid "Number of posts to show per page on list views"
@@ -6265,11 +6265,11 @@ msgstr "รายการแบบมีลำดับเลข"
 
 #: packages/admin/src/components/WordPressImport.tsx:512
 msgid "OAuth authorization requires HTTPS. Please use manual credentials."
-msgstr ""
+msgstr "การให้สิทธิ์ OAuth ต้องใช้ HTTPS ให้ใช้ข้อมูลรับรองแบบกรอกเองแทน"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:455
 msgid "Off"
-msgstr ""
+msgstr "ปิด"
 
 #: packages/admin/src/components/SeoImageField.tsx:46
 msgid "OG Image"
@@ -6299,7 +6299,7 @@ msgstr "อุ๊ปส์!"
 #: packages/admin/src/components/MediaLibrary.tsx:1442
 #: packages/admin/src/components/MediaLibrary.tsx:1513
 msgid "Open folder {0}"
-msgstr ""
+msgstr "เปิดโฟลเดอร์ {0}"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:379
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:380
@@ -6312,7 +6312,7 @@ msgstr "เปิดในแท็บใหม่"
 
 #: packages/admin/src/components/MediaLibrary.tsx:894
 msgid "Open setup"
-msgstr ""
+msgstr "เปิดการตั้งค่า"
 
 #: packages/admin/src/components/WordPressImport.tsx:1550
 msgid "Open WordPress Profile"
@@ -6330,7 +6330,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:390
 msgid "Optional caption"
-msgstr ""
+msgstr "คำบรรยายภาพ (ไม่บังคับ)"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:355
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:544
@@ -6357,7 +6357,7 @@ msgstr "ตัวเลือก (หนึ่งรายการต่อบ�
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:435
 msgid "Or browse files from your computer"
-msgstr ""
+msgstr "หรือเลือกไฟล์จากคอมพิวเตอร์ของคุณ"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:580
 msgid "or choose from library"
@@ -6369,7 +6369,7 @@ msgstr "หรือคลิกเพื่อเรียกดู รอง�
 
 #: packages/admin/src/components/WordPressImport.tsx:1089
 msgid "or connect by URL"
-msgstr ""
+msgstr "หรือเชื่อมต่อด้วย URL"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:97
 #: packages/admin/src/components/LoginPage.tsx:263
@@ -6419,11 +6419,11 @@ msgstr "ไม่พบหน้า"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1317
 msgid "Page number"
-msgstr ""
+msgstr "หมายเลขหน้า"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1318
 msgid "Page size"
-msgstr ""
+msgstr "จำนวนรายการต่อหน้า"
 
 #: packages/admin/src/components/PluginManager.tsx:408
 #: packages/admin/src/components/WordPressImport.tsx:1344
@@ -6446,7 +6446,7 @@ msgstr "เป็นส่วนหนึ่งของวงวนการเ
 
 #: packages/admin/src/components/WordPressImport.tsx:1171
 msgid "Partial"
-msgstr ""
+msgstr "บางส่วน"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:324
 msgid "Pass"
@@ -6503,7 +6503,7 @@ msgstr "ไม่สามารถใช้ Passkey ที่นี่ได้
 
 #: packages/admin/src/components/auth/PasskeyContextMessage.tsx:5
 msgid "Passkeys require a <0>secure context</0>: use <1>HTTPS</1>, or open the admin at <2>http://localhost</2> (with your dev port). Plain <3>http://</3> on a custom hostname is not treated as secure, even on loopback."
-msgstr ""
+msgstr "พาสคีย์ต้องใช้<0>บริบทที่ปลอดภัย</0>: ใช้ <1>HTTPS</1> หรือเปิดหน้าผู้ดูแลระบบที่ <2>http://localhost</2> (พร้อมพอร์ตสำหรับพัฒนาของคุณ) การใช้ <3>http://</3> ธรรมดากับชื่อโฮสต์ที่กำหนดเองจะไม่ถือว่าปลอดภัย แม้จะเป็น loopback ก็ตาม"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:159
 msgid "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
@@ -6511,7 +6511,7 @@ msgstr "Passkey ต้องใช้ HTTPS หรือ http://localhost (พ�
 
 #: packages/admin/src/components/WordPressImport.tsx:1055
 msgid "Paste your migration key"
-msgstr ""
+msgstr "วางคีย์การย้ายข้อมูลของคุณ"
 
 #: packages/admin/src/components/Redirects.tsx:225
 msgid "Path"
@@ -6533,7 +6533,7 @@ msgstr "รูปแบบต้องมีตัวยึดตำแหน่
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:593
 msgid "Pause other tools that update content."
-msgstr ""
+msgstr "หยุดเครื่องมืออื่นที่อัปเดตเนื้อหาไว้ชั่วคราว"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:65
 msgid "PDF"
@@ -6554,11 +6554,11 @@ msgstr "การเปลี่ยนแปลงที่รอดำเนิ
 #: packages/admin/src/components/BylineCreditsEditor.tsx:640
 #: packages/admin/src/components/BylineCreditsEditor.tsx:669
 msgid "People shown publicly on this post."
-msgstr ""
+msgstr "บุคคลที่แสดงต่อสาธารณะบนโพสต์นี้"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1332
 msgid "Per page"
-msgstr ""
+msgstr "ต่อหน้า"
 
 #: packages/admin/src/components/ContentList.tsx:1525
 msgid "Permanently delete \"{title}\"? This cannot be undone."
@@ -6574,7 +6574,7 @@ msgstr "สิทธิ์"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:46
 msgid "PHP"
-msgstr ""
+msgstr "PHP"
 
 #: packages/admin/src/components/SetupWizard.tsx:290
 msgid "Pick any method to create your admin account."
@@ -6582,12 +6582,12 @@ msgstr "เลือกวิธีใดก็ได้เพื่อสร้
 
 #: packages/admin/src/components/Widgets.tsx:154
 msgid "Placeholder text"
-msgstr ""
+msgstr "ข้อความตัวอย่าง"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:26
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:121
 msgid "Plain text"
-msgstr ""
+msgstr "ข้อความธรรมดา"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:166
 msgid "Please ask your administrator to send a new invite."
@@ -6611,11 +6611,11 @@ msgstr "ปลั๊กอิน"
 
 #: packages/admin/src/lib/api/plugins.ts:68
 msgid "Plugin \"{pluginId}\" not found"
-msgstr ""
+msgstr "ไม่พบปลั๊กอิน \"{pluginId}\""
 
 #: packages/admin/src/lib/content-list-columns.tsx:236
 msgid "Plugin column unavailable"
-msgstr ""
+msgstr "คอลัมน์ของปลั๊กอินไม่พร้อมใช้งาน"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:773
 msgid "Plugin details"
@@ -6640,15 +6640,15 @@ msgstr "ข้อผิดพลาดของปลั๊กอิน ({0})"
 
 #: packages/admin/src/components/PluginManager.tsx:340
 msgid "Plugin MCP access updated"
-msgstr ""
+msgstr "อัปเดตการเข้าถึง MCP ของปลั๊กอินแล้ว"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:97
 msgid "Plugin MCP Tools"
-msgstr ""
+msgstr "เครื่องมือ MCP ของปลั๊กอิน"
 
 #: packages/admin/src/lib/api/marketplace.ts:108
 msgid "Plugin MCP tools require explicit consent"
-msgstr ""
+msgstr "เครื่องมือ MCP ของปลั๊กอินต้องได้รับความยินยอมอย่างชัดเจน"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:123
 msgid "Plugin not found"
@@ -6656,15 +6656,15 @@ msgstr "ไม่พบปลั๊กอิน"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:470
 msgid "Plugin not found. The publisher or slug may be incorrect."
-msgstr ""
+msgstr "ไม่พบปลั๊กอิน ผู้เผยแพร่หรือ slug อาจไม่ถูกต้อง"
 
 #: packages/admin/src/components/PluginManager.tsx:489
 msgid "Plugin pages"
-msgstr ""
+msgstr "หน้าของปลั๊กอิน"
 
 #: packages/admin/src/lib/content-editor-panels.tsx:192
 msgid "Plugin panel unavailable."
-msgstr ""
+msgstr "แผงของปลั๊กอินไม่พร้อมใช้งาน"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:79
 msgid "Plugin Permissions"
@@ -6683,7 +6683,7 @@ msgstr "ปลั๊กอินตอบกลับด้วย {0}: {text}"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:512
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:515
 msgid "Plugin tools: {0}"
-msgstr ""
+msgstr "เครื่องมือของปลั๊กอิน: {0}"
 
 #: packages/admin/src/components/PluginManager.tsx:329
 msgid "Plugin uninstalled"
@@ -6699,7 +6699,7 @@ msgstr "อัปเดตปลั๊กอินแล้ว"
 
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:34
 msgid "Plugin widget error"
-msgstr ""
+msgstr "ข้อผิดพลาดของวิดเจ็ตปลั๊กอิน"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:218
 #: packages/admin/src/components/PluginManager.tsx:151
@@ -6712,7 +6712,7 @@ msgstr "ปลั๊กอิน"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:327
 msgid "Point-in-Time Restore"
-msgstr ""
+msgstr "การกู้คืน ณ เวลาที่ระบุ"
 
 #: packages/admin/src/components/SeoPanel.tsx:221
 msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
@@ -6720,11 +6720,11 @@ msgstr "ชี้ให้เครื่องมือค้นหาไปย
 
 #: packages/admin/src/components/FocalPointEditor.tsx:30
 msgid "Portrait"
-msgstr ""
+msgstr "แนวตั้ง"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:388
 msgid "Post"
-msgstr ""
+msgstr "โพสต์"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:396
 #: packages/admin/src/components/WordPressImport.tsx:1338
@@ -6733,7 +6733,7 @@ msgstr "โพสต์"
 
 #: packages/admin/src/components/WordPressImport.tsx:1162
 msgid "Posts & Pages"
-msgstr ""
+msgstr "โพสต์และหน้า"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:313
 msgid "Posts Per Page"
@@ -6791,7 +6791,7 @@ msgstr "การนำทางหลัก"
 
 #: packages/admin/src/components/ContentStatusBadge.tsx:69
 msgid "Private"
-msgstr ""
+msgstr "ส่วนตัว"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:167
 msgid "Provider:"
@@ -6807,7 +6807,7 @@ msgstr "เผยแพร่"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:611
 msgid "Publish date"
-msgstr ""
+msgstr "วันที่เผยแพร่"
 
 #: packages/admin/src/components/ContentList.tsx:851
 #: packages/admin/src/components/ContentList.tsx:862
@@ -6824,7 +6824,7 @@ msgstr "เผยแพร่แล้ว {0}"
 
 #: packages/admin/src/router.tsx:527
 msgid "Published {total} items"
-msgstr ""
+msgstr "เผยแพร่ {total} รายการแล้ว"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 msgid "Published At"
@@ -6832,15 +6832,15 @@ msgstr "เผยแพร่เมื่อ"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:507
 msgid "Published by <0/>"
-msgstr ""
+msgstr "เผยแพร่โดย <0/>"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:47
 msgid "Python"
-msgstr ""
+msgstr "Python"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:106
 msgid "Queued"
-msgstr ""
+msgstr "รอคิว"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:209
 #: packages/admin/src/components/editor/ImageNode.tsx:210
@@ -6855,7 +6855,7 @@ msgstr "คำพูดอ้างอิง"
 
 #: packages/admin/src/components/WordPressImport.tsx:1180
 msgid "Raw meta"
-msgstr ""
+msgstr "ข้อมูลเมตาดิบ"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
@@ -6885,7 +6885,7 @@ msgstr "อ่านเนื้อหาของคุณ"
 
 #: packages/admin/src/lib/api/marketplace.ts:281
 msgid "Read your taxonomies and terms"
-msgstr ""
+msgstr "อ่านอนุกรมวิธานและเทอมของคุณ"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:310
 msgid "Reading"
@@ -6903,7 +6903,7 @@ msgstr "กิจกรรมล่าสุด"
 
 #: packages/admin/src/components/Widgets.tsx:126
 msgid "Recent Posts"
-msgstr ""
+msgstr "โพสต์ล่าสุด"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:43
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:35
@@ -6947,15 +6947,15 @@ msgstr "ไม่สามารถใช้ favicon ที่อ้างอิ
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:337
 msgid "Refresh status"
-msgstr ""
+msgstr "รีเฟรชสถานะ"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:506
 msgid "Refresh status before continuing."
-msgstr ""
+msgstr "รีเฟรชสถานะก่อนดำเนินการต่อ"
 
 #: packages/admin/src/components/Dashboard.tsx:125
 msgid "Refresh the page or try again."
-msgstr ""
+msgstr "รีเฟรชหน้านี้หรือลองอีกครั้ง"
 
 #: packages/admin/src/components/ContentTypeList.tsx:156
 msgid "Register"
@@ -6988,7 +6988,7 @@ msgstr "รุ่นนี้ใหม่เกินกว่าจะติด
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:325
 msgid "Reload after updating EmDash before trying again."
-msgstr ""
+msgstr "โหลดหน้าใหม่หลังอัปเดต EmDash ก่อนลองอีกครั้ง"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
@@ -7023,7 +7023,7 @@ msgstr "นำออก {label}"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:565
 msgid "Remove assignment"
-msgstr ""
+msgstr "นำการกำหนดออก"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:221
 msgid "Remove dark mode variant"
@@ -7039,7 +7039,7 @@ msgstr "นำโดเมนออกหรือไม่"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:886
 msgid "Remove from post"
-msgstr ""
+msgstr "นำออกจากโพสต์"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:288
 #: packages/admin/src/components/ImageFieldRenderer.tsx:334
@@ -7056,7 +7056,7 @@ msgstr "นำรูปภาพออก"
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:325
 msgid "Remove image {0}"
-msgstr ""
+msgstr "นำรูปภาพ {0} ออก"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:197
 msgid "Remove Image?"
@@ -7110,14 +7110,14 @@ msgstr "เปลี่ยนชื่อ passkey"
 
 #: packages/admin/src/components/ContentTypeList.tsx:174
 msgid "Reorder"
-msgstr ""
+msgstr "จัดลำดับใหม่"
 
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
 #: packages/admin/src/components/BylineCreditsEditor.tsx:831
 #: packages/admin/src/components/ContentTypeList.tsx:281
 msgid "Reorder {0}"
-msgstr ""
+msgstr "จัดลำดับ {0} ใหม่"
 
 #: packages/admin/src/components/FieldEditor.tsx:272
 msgid "Repeater"
@@ -7130,7 +7130,7 @@ msgstr "กลุ่มฟิลด์ที่ทำซ้ำได้"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:213
 #: packages/admin/src/components/ImageFieldRenderer.tsx:280
 msgid "Replace"
-msgstr ""
+msgstr "แทนที่"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:211
 msgid "Replace dark mode variant"
@@ -7139,7 +7139,7 @@ msgstr ""
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:368
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:401
 msgid "Replace image"
-msgstr ""
+msgstr "แทนที่รูปภาพ"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:213
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:248
@@ -7161,11 +7161,11 @@ msgstr "ขอลิงก์ใหม่"
 
 #: packages/admin/src/lib/api/client.ts:280
 msgid "Request failed"
-msgstr ""
+msgstr "คำขอไม่สำเร็จ"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:430
 msgid "Require a slug before content can be published"
-msgstr ""
+msgstr "ต้องมี slug ก่อนจึงจะเผยแพร่เนื้อหาได้"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:280
 #: packages/admin/src/components/ContentTypeEditor.tsx:745
@@ -7199,7 +7199,7 @@ msgstr "ส่งอีกครั้งใน {resendCooldown} วินาท
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:875
 msgid "Reset"
-msgstr ""
+msgstr "รีเซ็ต"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:466
@@ -7208,11 +7208,11 @@ msgstr "รีเซ็ตเป็นค่าดั้งเดิม"
 
 #: packages/admin/src/components/ContentEditor.tsx:1000
 msgid "Resize settings panel"
-msgstr ""
+msgstr "ปรับขนาดแผงการตั้งค่า"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4112
 msgid "Restart numbering"
-msgstr ""
+msgstr "เริ่มนับเลขใหม่"
 
 #: packages/admin/src/components/RevisionHistory.tsx:238
 msgid "Restore"
@@ -7260,29 +7260,29 @@ msgstr "ลองใหม่"
 #. placeholder {0}: row.file.name
 #: packages/admin/src/components/MediaUploadDialog.tsx:151
 msgid "Retry {0}"
-msgstr ""
+msgstr "ลองใหม่ {0}"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:246
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:253
 msgid "Retry copy"
-msgstr ""
+msgstr "ลองคัดลอกใหม่"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:503
 msgid "Retry failed"
-msgstr ""
+msgstr "ลองรายการที่ล้มเหลวใหม่"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:578
 msgid "Retry setup"
-msgstr ""
+msgstr "ลองตั้งค่าใหม่"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:572
 msgid "Retry setup?"
-msgstr ""
+msgstr "ลองตั้งค่าใหม่หรือไม่?"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:579
 msgid "Retrying…"
-msgstr ""
+msgstr "กำลังลองใหม่…"
 
 #: packages/admin/src/components/Sections.tsx:136
 msgid "Reusable content blocks you can insert into any content"
@@ -7319,7 +7319,7 @@ msgstr "เพิกถอนโทเค็น"
 #. placeholder {0}: token.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:392
 msgid "Revoke token {0}"
-msgstr ""
+msgstr "เพิกถอนโทเคน {0}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:414
 msgid "Revoke?"
@@ -7343,7 +7343,7 @@ msgstr "ตัวแก้ไข Rich Text"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:162
 msgid "Right"
-msgstr ""
+msgstr "ขวา"
 
 #. placeholder {0}: latest.audit.riskScore
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:322
@@ -7353,7 +7353,7 @@ msgstr "คะแนนความเสี่ยง: {0}/100"
 #: packages/admin/src/components/settings/SeoSettings.tsx:255
 #: packages/admin/src/components/settings/SeoSettings.tsx:258
 msgid "robots.txt"
-msgstr ""
+msgstr "robots.txt"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:164
 #: packages/admin/src/components/users/UserDetail.tsx:169
@@ -7368,31 +7368,31 @@ msgstr "บทบาท {role}"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:901
 msgid "Role on this post (optional)"
-msgstr ""
+msgstr "บทบาทในโพสต์นี้ (ไม่บังคับ)"
 
 #. placeholder {0}: byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:611
 msgid "Role updated for {0}."
-msgstr ""
+msgstr "อัปเดตบทบาทของ {0} แล้ว"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:428
 msgid "Routable"
-msgstr ""
+msgstr "เข้าถึงได้ด้วย URL"
 
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:149
 #: packages/admin/src/components/PluginManager.tsx:572
 msgid "Route: {0} · Permission: {1}"
-msgstr ""
+msgstr "เส้นทาง: {0} · สิทธิ์: {1}"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:48
 msgid "Ruby"
-msgstr ""
+msgstr "Ruby"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:49
 msgid "Rust"
-msgstr ""
+msgstr "Rust"
 
 #: packages/admin/src/components/MenuEditor.tsx:430
 #: packages/admin/src/components/MenuEditor.tsx:432
@@ -7426,7 +7426,7 @@ msgstr "บันทึกข้อความแสดงแทน"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:1019
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Save changes"
-msgstr ""
+msgstr "บันทึกการเปลี่ยนแปลง"
 
 #: packages/admin/src/components/users/UserDetail.tsx:311
 msgid "Save Changes"
@@ -7452,7 +7452,7 @@ msgstr "บันทึกแล้ว"
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:116
 msgid "Saved \"{0}\"."
-msgstr ""
+msgstr "บันทึก \"{0}\" แล้ว"
 
 #: packages/admin/src/components/FieldEditor.tsx:712
 #: packages/admin/src/components/MediaDetailPanel.tsx:934
@@ -7471,7 +7471,7 @@ msgstr "กำลังบันทึก..."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Saving…"
-msgstr ""
+msgstr "กำลังบันทึก…"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:519
 msgid "SBOM"
@@ -7507,7 +7507,7 @@ msgstr "กำหนดเวลาสำหรับ: {0}"
 
 #: packages/admin/src/components/Dashboard.tsx:111
 msgid "Scheduled publishing needs attention"
-msgstr ""
+msgstr "การเผยแพร่ตามกำหนดเวลาต้องการการตรวจสอบ"
 
 #: packages/admin/src/components/WordPressImport.tsx:2338
 msgid "Schema Changes"
@@ -7561,7 +7561,7 @@ msgstr "ภาพหน้าจอ"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:50
 msgid "SCSS"
-msgstr ""
+msgstr "SCSS"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:86
 #: packages/admin/src/components/Settings.tsx:155
@@ -7597,11 +7597,11 @@ msgstr "ค้นหาชื่อผู้เขียน"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:440
 msgid "Search bylines to add…"
-msgstr ""
+msgstr "ค้นหาชื่อผู้เขียนที่ต้องการเพิ่ม…"
 
 #: packages/admin/src/components/BylineFilter.tsx:129
 msgid "Search bylines…"
-msgstr ""
+msgstr "ค้นหาชื่อผู้เขียน…"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:201
 msgid "Search comments"
@@ -7627,11 +7627,11 @@ msgstr "การทำ SEO และการยืนยัน"
 #: packages/admin/src/components/MediaDetailPanel.tsx:736
 #: packages/admin/src/components/MediaDetailPanel.tsx:737
 msgid "Search folders"
-msgstr ""
+msgstr "ค้นหาโฟลเดอร์"
 
 #: packages/admin/src/components/Widgets.tsx:152
 msgid "Search form"
-msgstr ""
+msgstr "แบบฟอร์มค้นหา"
 
 #: packages/admin/src/components/MediaLibrary.tsx:971
 #: packages/admin/src/components/MediaPickerModal.tsx:628
@@ -7654,7 +7654,7 @@ msgstr "ค้นหาปลั๊กอิน..."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:421
 msgid "Search reusable public profiles."
-msgstr ""
+msgstr "ค้นหาโปรไฟล์สาธารณะที่ใช้ซ้ำได้"
 
 #: packages/admin/src/components/SectionPickerModal.tsx:82
 #: packages/admin/src/components/Sections.tsx:226
@@ -7675,7 +7675,7 @@ msgstr "ค้นหาธีม..."
 
 #: packages/admin/src/components/BylineFilter.tsx:169
 msgid "Search to narrow the list"
-msgstr ""
+msgstr "ค้นหาเพื่อจำกัดรายการให้แคบลง"
 
 #: packages/admin/src/components/users/UserList.tsx:66
 msgid "Search users"
@@ -7694,7 +7694,7 @@ msgstr "ค้นหาได้"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:465
 #: packages/admin/src/components/BylineCreditsEditor.tsx:548
 msgid "Searching…"
-msgstr ""
+msgstr "กำลังค้นหา…"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2742
 msgid "Section"
@@ -7796,7 +7796,7 @@ msgstr "เลือก {label}"
 
 #: packages/admin/src/components/ContentList.tsx:1253
 msgid "Select {title}"
-msgstr ""
+msgstr "เลือก {title}"
 
 #: packages/admin/src/components/Widgets.tsx:956
 msgid "Select a component..."
@@ -7804,7 +7804,7 @@ msgstr "เลือกคอมโพเนนต์..."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:727
 msgid "Select a location"
-msgstr ""
+msgstr "เลือกตำแหน่งที่จัดเก็บ"
 
 #: packages/admin/src/components/Widgets.tsx:919
 msgid "Select a menu..."
@@ -7816,7 +7816,7 @@ msgstr "เลือกทั้งหมด"
 
 #: packages/admin/src/components/ContentList.tsx:586
 msgid "Select all on this page"
-msgstr ""
+msgstr "เลือกทั้งหมดในหน้านี้"
 
 #. placeholder {0}: comment.authorName
 #: packages/admin/src/components/comments/CommentInbox.tsx:448
@@ -7850,7 +7850,7 @@ msgstr "เลือกไฟล์"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3465
 msgid "Select Gallery Images"
-msgstr ""
+msgstr "เลือกรูปภาพสำหรับแกลเลอรี"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:380
 msgid "Select image"
@@ -7891,12 +7891,12 @@ msgstr "เลือก..."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1767
 msgid "Selected {selectedItemTitle}"
-msgstr ""
+msgstr "เลือก {selectedItemTitle} แล้ว"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:164
 #: packages/admin/src/components/ImageFieldRenderer.tsx:174
 msgid "Selected image"
-msgstr ""
+msgstr "รูปภาพที่เลือก"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:796
 msgid "Selected:"
@@ -7984,7 +7984,7 @@ msgstr "ตั้งค่าภาษา (ปัจจุบัน: {label})"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:868
 msgid "Set role"
-msgstr ""
+msgstr "กำหนดบทบาท"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:544
 msgid "Set to 0 to never close comments automatically."
@@ -7992,11 +7992,11 @@ msgstr "ตั้งค่าเป็น 0 เพื่อไม่ปิดค
 
 #: packages/admin/src/components/ContentList.tsx:514
 msgid "Set to draft"
-msgstr ""
+msgstr "เปลี่ยนเป็นฉบับร่าง"
 
 #: packages/admin/src/components/MediaLibrary.tsx:884
 msgid "Set up media usage tracking"
-msgstr ""
+msgstr "ตั้งค่าการติดตามการใช้งานมีเดีย"
 
 #: packages/admin/src/components/SetupWizard.tsx:559
 msgid "Set up your site"
@@ -8005,7 +8005,7 @@ msgstr "ตั้งค่าเว็บไซต์ของคุณ"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:458
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:462
 msgid "Setting up"
-msgstr ""
+msgstr "กำลังตั้งค่า"
 
 #: packages/admin/src/components/SetupWizard.tsx:150
 msgid "Setting up..."
@@ -8038,7 +8038,7 @@ msgstr "บันทึกการตั้งค่าสำเร็จ"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:474
 msgid "Setup couldn’t continue. Try again."
-msgstr ""
+msgstr "ดำเนินการตั้งค่าต่อไม่ได้ ลองอีกครั้ง"
 
 #: packages/admin/src/components/SetupWizard.tsx:468
 msgid "Setup failed"
@@ -8050,11 +8050,11 @@ msgstr "แชร์ลิงก์นี้กับผู้ใช้ที่
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:294
 msgid "Shared across all translations of the same byline."
-msgstr ""
+msgstr "ใช้ร่วมกันในทุกคำแปลของชื่อผู้เขียนเดียวกัน"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:52
 msgid "Short text"
-msgstr ""
+msgstr "ข้อความสั้น"
 
 #: packages/admin/src/components/FieldEditor.tsx:182
 #: packages/admin/src/components/FieldEditor.tsx:618
@@ -8063,23 +8063,23 @@ msgstr "ข้อความสั้น"
 
 #: packages/admin/src/components/Widgets.tsx:146
 msgid "Show count"
-msgstr ""
+msgstr "แสดงจำนวน"
 
 #: packages/admin/src/components/Widgets.tsx:131
 msgid "Show date"
-msgstr ""
+msgstr "แสดงวันที่"
 
 #: packages/admin/src/components/Widgets.tsx:139
 msgid "Show hierarchy"
-msgstr ""
+msgstr "แสดงลำดับชั้น"
 
 #: packages/admin/src/components/Widgets.tsx:138
 msgid "Show post count"
-msgstr ""
+msgstr "แสดงจำนวนโพสต์"
 
 #: packages/admin/src/components/Widgets.tsx:130
 msgid "Show thumbnails"
-msgstr ""
+msgstr "แสดงภาพขนาดย่อ"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:276
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
@@ -8089,11 +8089,11 @@ msgstr "แสดงโทเค็น"
 #. placeholder {0}: totalCount ?? 0
 #: packages/admin/src/components/MediaLibrary.tsx:1323
 msgid "Showing {pageShowingRange} of {0}"
-msgstr ""
+msgstr "แสดง {pageShowingRange} จาก {0}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:678
 msgid "Shown to readers in this order."
-msgstr ""
+msgstr "แสดงต่อผู้อ่านตามลำดับนี้"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:365
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:554
@@ -8161,7 +8161,7 @@ msgstr "เอกลักษณ์เว็บไซต์"
 
 #: packages/admin/src/components/WordPressImport.tsx:2286
 msgid "site identity applied (title, tagline, logo)"
-msgstr ""
+msgstr "ใช้เอกลักษณ์เว็บไซต์แล้ว (ชื่อ คำโปรย โลโก้)"
 
 #: packages/admin/src/components/Settings.tsx:53
 #: packages/admin/src/components/settings/GeneralSettings.tsx:119
@@ -8192,7 +8192,7 @@ msgstr "URL เว็บไซต์"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:330
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
-msgstr ""
+msgstr "เว็บไซต์บน Cloudflare D1 สามารถกู้คืนฐานข้อมูลไปยังนาทีใดก็ได้ภายใน 30 วันล่าสุดเพิ่มเติมได้ด้วย D1 Time Travel — เปิดใช้งานตลอดเวลา ไม่ต้องตั้งค่า"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1209
 msgid "Size"
@@ -8200,7 +8200,7 @@ msgstr "ขนาด"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1539
 msgid "Size is not applicable to folders"
-msgstr ""
+msgstr "ขนาดใช้กับโฟลเดอร์ไม่ได้"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:585
 msgid "Size:"
@@ -8235,7 +8235,7 @@ msgstr "คัดลอก Slug ไปยังคลิปบอร์ดแล
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:251
 msgid "Slugs cannot be changed after the field is created."
-msgstr ""
+msgstr "เปลี่ยน slug หลังจากสร้างฟิลด์แล้วไม่ได้"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1419
 msgid "Small section heading"
@@ -8243,11 +8243,11 @@ msgstr "หัวข้อส่วนขนาดเล็ก"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1429
 msgid "Smaller section heading"
-msgstr ""
+msgstr "หัวข้อย่อยขนาดเล็กลง"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1449
 msgid "Smallest section heading"
-msgstr ""
+msgstr "หัวข้อย่อยขนาดเล็กที่สุด"
 
 #: packages/admin/src/components/Settings.tsx:58
 #: packages/admin/src/components/settings/SocialSettings.tsx:89
@@ -8269,7 +8269,7 @@ msgstr "โปรไฟล์โซเชียล"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:93
 msgid "Some content may not appear here yet."
-msgstr ""
+msgstr "เนื้อหาบางส่วนอาจยังไม่ปรากฏที่นี่"
 
 #: packages/admin/src/components/WordPressImport.tsx:1876
 msgid "Some content types cannot be imported"
@@ -8322,11 +8322,11 @@ msgstr "สเปรดชีต"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:51
 msgid "SQL"
-msgstr ""
+msgstr "SQL"
 
 #: packages/admin/src/components/FocalPointEditor.tsx:31
 msgid "Square"
-msgstr ""
+msgstr "จัตุรัส"
 
 #: packages/admin/src/components/WordPressImport.tsx:1938
 msgid "Start Import"
@@ -8336,7 +8336,7 @@ msgstr "เริ่มการนำเข้า"
 #: packages/admin/src/components/PortableTextEditor.tsx:2597
 #: packages/admin/src/components/PortableTextEditor.tsx:2598
 msgid "Start writing, or type '/' for commands"
-msgstr ""
+msgstr "เริ่มเขียน หรือพิมพ์ '/' เพื่อดูคำสั่ง"
 
 #: packages/admin/src/components/ContentList.tsx:611
 #: packages/admin/src/components/ContentSettingsPanel.tsx:525
@@ -8355,19 +8355,19 @@ msgstr "รหัสสถานะ"
 
 #: packages/admin/src/components/Dashboard.tsx:401
 msgid "Status: {status}"
-msgstr ""
+msgstr "สถานะ: {status}"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:205
 msgid "Store a daily backup in your site's storage bucket. Old backups are removed automatically."
-msgstr ""
+msgstr "จัดเก็บข้อมูลสำรองรายวันในบักเก็ตที่จัดเก็บข้อมูลของเว็บไซต์ ข้อมูลสำรองเก่าจะถูกลบอัตโนมัติ"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:270
 msgid "Stored Backups"
-msgstr ""
+msgstr "ข้อมูลสำรองที่จัดเก็บไว้"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:293
 msgid "Stored per locale — each translation of a byline gets its own value."
-msgstr ""
+msgstr "จัดเก็บแยกตามภาษา — คำแปลแต่ละภาษาของชื่อผู้เขียนมีค่าของตัวเอง"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3657
 #: packages/admin/src/components/PortableTextEditor.tsx:4062
@@ -8380,7 +8380,7 @@ msgstr "โครงสร้าง"
 
 #: packages/admin/src/components/WordPressImport.tsx:1182
 msgid "Structured"
-msgstr ""
+msgstr "มีโครงสร้าง"
 
 #: packages/admin/src/components/FieldEditor.tsx:562
 msgid "Sub-Fields"
@@ -8393,19 +8393,19 @@ msgstr "ผู้ติดตาม"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3664
 msgid "Subscript"
-msgstr ""
+msgstr "ตัวห้อย"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3671
 msgid "Superscript"
-msgstr ""
+msgstr "ตัวยก"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:52
 msgid "Svelte"
-msgstr ""
+msgstr "Svelte"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:53
 msgid "Swift"
-msgstr ""
+msgstr "Swift"
 
 #: packages/admin/src/components/users/UserDetail.tsx:256
 msgid "Synced"
@@ -8433,7 +8433,7 @@ msgstr "ตาราง"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3746
 msgid "Table controls"
-msgstr ""
+msgstr "การควบคุมตาราง"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:173
 #: packages/admin/src/components/SetupWizard.tsx:127
@@ -8474,7 +8474,7 @@ msgstr "สร้างอนุกรมวิธานแล้ว"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:35
 msgid "Taxonomy not found: {taxonomyName}"
-msgstr ""
+msgstr "ไม่พบอนุกรมวิธาน: {taxonomyName}"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:346
 msgid "Taxonomy: {taxonomyName}"
@@ -8518,7 +8518,7 @@ msgstr "คอลเลกชันที่มีอยู่มีฟิลด
 
 #: packages/admin/src/components/MediaLibrary.tsx:653
 msgid "The file or folder no longer exists."
-msgstr ""
+msgstr "ไม่มีไฟล์หรือโฟลเดอร์นี้แล้ว"
 
 #: packages/admin/src/components/ContentTypeList.tsx:136
 msgid "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
@@ -8551,7 +8551,7 @@ msgstr "ไม่พบหน้าที่คุณกำลังค้นห
 
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:37
 msgid "The plugin field widget failed to render."
-msgstr ""
+msgstr "แสดงผลวิดเจ็ตฟิลด์ของปลั๊กอินไม่สำเร็จ"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:185
 msgid "The public URL of your site (used for canonical links and sitemaps)"
@@ -8567,7 +8567,7 @@ msgstr "โลโก้ที่อ้างอิงไม่พร้อมใ
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:373
 msgid "The selected folder no longer exists. Choose another location and save again."
-msgstr ""
+msgstr "ไม่มีโฟลเดอร์ที่เลือกแล้ว ให้เลือกตำแหน่งที่จัดเก็บอื่นแล้วบันทึกอีกครั้ง"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:153
 msgid "The theme marketplace is empty. Check back later."
@@ -8605,7 +8605,7 @@ msgstr "ธีม"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:141
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
-msgstr ""
+msgstr "เครื่องมือเหล่านี้จะยังปิดใช้งานอยู่หลังการติดตั้ง จนกว่าคุณจะเปิดการเข้าถึงของเอเจนต์อย่างชัดเจน"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:371
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
@@ -8613,15 +8613,15 @@ msgstr "คอลเลกชันนี้กำหนดไว้ในโค
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3348
 msgid "This content cannot be edited safely"
-msgstr ""
+msgstr "แก้ไขเนื้อหานี้อย่างปลอดภัยไม่ได้"
 
 #: packages/admin/src/components/WordPressImport.tsx:1077
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
-msgstr ""
+msgstr "นี่ไม่เหมือนคีย์การย้ายข้อมูลที่ถูกต้อง ให้สร้างคีย์ใหม่ในปลั๊กอิน แล้ววางสตริงเต็มที่ขึ้นต้นด้วย \"em1.\""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3350
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
-msgstr ""
+msgstr "ฟิลด์นี้มีมาร์ก Portable Text ที่ไม่รองรับ: <0>{markList}</0> ให้นำออกผ่าน API ก่อนแก้ไขหรือบันทึกเนื้อหานี้"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:462
 msgid "This field does not accept {sniffedMime} files."
@@ -8634,7 +8634,7 @@ msgstr "ฟิลด์นี้ต้องระบุ"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1095
 msgid "This folder is empty"
-msgstr ""
+msgstr "โฟลเดอร์นี้ว่างเปล่า"
 
 #: packages/admin/src/components/SectionEditor.tsx:322
 msgid "This is a custom section."
@@ -8654,7 +8654,7 @@ msgstr "การดำเนินการนี้อาจใช้เวล
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:367
 msgid "This media item no longer exists."
-msgstr ""
+msgstr "ไม่มีรายการมีเดียนี้แล้ว"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:270
 msgid "This passkey is already registered on this device."
@@ -8663,15 +8663,15 @@ msgstr "Passkey นี้ลงทะเบียนบนอุปกรณ์�
 #. placeholder {0}: archiveToDelete?.name ?? ""
 #: packages/admin/src/components/settings/BackupSettings.tsx:351
 msgid "This permanently deletes {0} from storage."
-msgstr ""
+msgstr "การดำเนินการนี้จะลบ {0} ออกจากที่จัดเก็บข้อมูลอย่างถาวร"
 
 #: packages/admin/src/components/PluginSettings.tsx:177
 msgid "This plugin has no configurable settings."
-msgstr ""
+msgstr "ปลั๊กอินนี้ไม่มีการตั้งค่าที่ปรับได้"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:453
 msgid "This plugin is not available yet"
-msgstr ""
+msgstr "ปลั๊กอินนี้ยังไม่พร้อมใช้งาน"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:287
 msgid "This plugin requires no special permissions."
@@ -8692,7 +8692,7 @@ msgstr "การดำเนินการนี้จะนำโปรไฟ
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
 #: packages/admin/src/components/PortableTextEditor.tsx:3377
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
-msgstr ""
+msgstr "ส่วนนี้มีมาร์ก Portable Text ที่ไม่รองรับ: <0>{0}</0> ให้อัปเดตส่วนนี้ก่อนแทรก"
 
 #: packages/admin/src/components/SectionEditor.tsx:319
 msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
@@ -8797,7 +8797,7 @@ msgstr "ชื่อโทเค็น"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:54
 msgid "TOML"
-msgstr ""
+msgstr "TOML"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:77
 msgid "Track content history"
@@ -8805,16 +8805,16 @@ msgstr "ติดตามประวัติเนื้อหา"
 
 #: packages/admin/src/components/Settings.tsx:75
 msgid "Track where media is used across your content"
-msgstr ""
+msgstr "ติดตามว่ามีเดียถูกใช้ที่ใดบ้างในเนื้อหาของคุณ"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:300
 msgid "Track where media is used across your content."
-msgstr ""
+msgstr "ติดตามว่ามีเดียถูกใช้ที่ใดบ้างในเนื้อหาของคุณ"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:287
 #: packages/admin/src/routes/byline-schema.tsx:243
 msgid "Translatable"
-msgstr ""
+msgstr "แปลได้"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:271
 #: packages/admin/src/components/TaxonomyManager.tsx:381
@@ -8875,7 +8875,7 @@ msgstr "สวิตช์จริง/เท็จ"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1084
 msgid "Try a broader media type or clear your filters."
-msgstr ""
+msgstr "ลองเลือกประเภทมีเดียที่กว้างขึ้น หรือล้างตัวกรองของคุณ"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:692
 msgid "Try a different search term"
@@ -8905,7 +8905,7 @@ msgstr "ลองอีกครั้ง"
 
 #: packages/admin/src/components/MediaLibrary.tsx:660
 msgid "Try again."
-msgstr ""
+msgstr "ลองอีกครั้ง"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:207
 msgid "Try another code"
@@ -8913,11 +8913,11 @@ msgstr "ลองรหัสอื่น"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1120
 msgid "Try another filename or clear your search."
-msgstr ""
+msgstr "ลองชื่อไฟล์อื่น หรือล้างการค้นหาของคุณ"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1083
 msgid "Try another filename, or clear your search and filters."
-msgstr ""
+msgstr "ลองชื่อไฟล์อื่น หรือล้างการค้นหาและตัวกรองของคุณ"
 
 #: packages/admin/src/components/WordPressImport.tsx:1302
 #: packages/admin/src/components/WordPressImport.tsx:1424
@@ -8931,7 +8931,7 @@ msgstr "ลองด้วยข้อมูลของฉัน"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:55
 msgid "TSX"
-msgstr ""
+msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:297
 msgid "Turn into"
@@ -8939,15 +8939,15 @@ msgstr "เปลี่ยนเป็น"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:578
 msgid "Turn on"
-msgstr ""
+msgstr "เปิด"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:572
 msgid "Turn on media usage tracking?"
-msgstr ""
+msgstr "เปิดการติดตามการใช้งานมีเดียหรือไม่?"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:579
 msgid "Turning on…"
-msgstr ""
+msgstr "กำลังเปิด…"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:139
 msgid "Twitter"
@@ -8967,11 +8967,11 @@ msgstr "ประเภทไม่ตรงกัน ({0})"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1535
 msgid "Type: Folder"
-msgstr ""
+msgstr "ประเภท: โฟลเดอร์"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:56
 msgid "TypeScript"
-msgstr ""
+msgstr "TypeScript"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:133
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:112
@@ -9042,7 +9042,7 @@ msgstr "Passkey ที่ไม่มีชื่อ"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:208
 msgid "Unpublish {itemLabel}"
-msgstr ""
+msgstr "ยกเลิกการเผยแพร่ {itemLabel}"
 
 #: packages/admin/src/router.tsx:1111
 msgid "Unpublished"
@@ -9054,7 +9054,7 @@ msgstr "พบตารางเนื้อหาที่ยังไม่ไ
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:543
 msgid "Unresolved assignment"
-msgstr ""
+msgstr "การกำหนดที่ยังไม่มีในภาษานี้"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:555
 msgid "Unschedule"
@@ -9072,7 +9072,7 @@ msgstr "ประเภทองค์ประกอบวิดเจ็ตท
 #. placeholder {0}: formatter.format(to)
 #: packages/admin/src/components/ContentList.tsx:982
 msgid "Until {0}"
-msgstr ""
+msgstr "จนถึง {0}"
 
 #: packages/admin/src/components/Dashboard.tsx:368
 #: packages/admin/src/components/MediaUsedIn.tsx:246
@@ -9090,7 +9090,7 @@ msgstr "วิดเจ็ตไม่มีชื่อ"
 
 #: packages/admin/src/components/BylineFilter.tsx:175
 msgid "Up to {MAX_SELECTED} bylines can be selected"
-msgstr ""
+msgstr "เลือกชื่อผู้เขียนได้สูงสุด {MAX_SELECTED} รายการ"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:667
 msgid "Update"
@@ -9102,7 +9102,7 @@ msgstr "อัปเดตฟิลด์"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:629
 msgid "Update publish date"
-msgstr ""
+msgstr "อัปเดตวันที่เผยแพร่"
 
 #. placeholder {0}: editingDomain?.domain
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:333
@@ -9143,7 +9143,7 @@ msgstr "กำลังอัปเดต URL ของเนื้อหา..."
 
 #: packages/admin/src/components/MediaUsedIn.tsx:112
 msgid "Updating usage"
-msgstr ""
+msgstr "กำลังอัปเดตข้อมูลการใช้งาน"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:197
 #: packages/admin/src/components/PluginManager.tsx:458
@@ -9183,7 +9183,7 @@ msgstr "อัปโหลดไฟล์ส่งออก"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:102
 msgid "Upload failed"
-msgstr ""
+msgstr "อัปโหลดไม่สำเร็จ"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:670
 msgid "Upload failed: {uploadError}"
@@ -9209,7 +9209,7 @@ msgstr "อัปโหลดรูปภาพ"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1107
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
-msgstr ""
+msgstr "อัปโหลดรูปภาพ วิดีโอ และเอกสาร เพื่อเก็บทรัพยากรที่ใช้ซ้ำได้ไว้ในที่เดียว"
 
 #: packages/admin/src/components/Dashboard.tsx:163
 msgid "Upload Media"
@@ -9217,7 +9217,7 @@ msgstr "อัปโหลดมีเดีย"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1131
 msgid "Upload media to keep reusable assets in one place."
-msgstr ""
+msgstr "อัปโหลดมีเดียเพื่อเก็บทรัพยากรที่ใช้ซ้ำได้ไว้ในที่เดียว"
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
 #: packages/admin/src/components/MediaLibrary.tsx:762
@@ -9226,7 +9226,7 @@ msgstr "อัปโหลดไปยัง {0}"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:402
 msgid "Upload to {providerName}"
-msgstr ""
+msgstr "อัปโหลดไปยัง {providerName}"
 
 #: packages/admin/src/components/WordPressImport.tsx:1136
 msgid "Upload WordPress export file"
@@ -9262,7 +9262,7 @@ msgstr "รูปแบบ URL"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:996
 msgid "URL slug"
-msgstr ""
+msgstr "URL slug"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:113
 #: packages/admin/src/components/FieldEditor.tsx:261
@@ -9275,39 +9275,39 @@ msgstr "ตัวระบุที่เหมาะกับ URL (เช่น
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:627
 msgid "URL:"
-msgstr ""
+msgstr "URL:"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:103
 msgid "Usage completeness couldn’t be verified."
-msgstr ""
+msgstr "ตรวจสอบความครบถ้วนของข้อมูลการใช้งานไม่ได้"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:152
 msgid "Usage details aren’t available for your account."
-msgstr ""
+msgstr "บัญชีของคุณไม่มีสิทธิ์ดูรายละเอียดการใช้งาน"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:110
 msgid "Usage details unavailable"
-msgstr ""
+msgstr "รายละเอียดการใช้งานไม่พร้อมใช้งาน"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:98
 msgid "Usage indexing couldn’t finish."
-msgstr ""
+msgstr "การทำดัชนีการใช้งานทำไม่เสร็จ"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:83
 msgid "Usage indexing hasn’t started."
-msgstr ""
+msgstr "ยังไม่ได้เริ่มทำดัชนีการใช้งาน"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:72
 msgid "Usage is updating. Some content may not appear here yet."
-msgstr ""
+msgstr "กำลังอัปเดตข้อมูลการใช้งาน เนื้อหาบางส่วนอาจยังไม่ปรากฏที่นี่"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:114
 msgid "Usage loaded"
-msgstr ""
+msgstr "โหลดข้อมูลการใช้งานแล้ว"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:88
 msgid "Usage may be out of date."
-msgstr ""
+msgstr "ข้อมูลการใช้งานอาจไม่เป็นปัจจุบัน"
 
 #: packages/admin/src/components/Redirects.tsx:111
 msgid "Use [param] or [...rest] in paths for pattern matching."
@@ -9315,11 +9315,11 @@ msgstr "ใช้ [param] หรือ [...rest] ในเส้นทางเ�
 
 #: packages/admin/src/components/ContentList.tsx:1056
 msgid "Use as end date"
-msgstr ""
+msgstr "ใช้เป็นวันที่สิ้นสุด"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:314
 msgid "Use lowercase letters, numbers, and hyphens, starting with a letter."
-msgstr ""
+msgstr "ใช้ตัวอักษรพิมพ์เล็ก ตัวเลข และยัติภังค์ โดยขึ้นต้นด้วยตัวอักษร"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:356
 msgid "Use your device's biometric authentication, security key, or PIN to sign in."
@@ -9347,7 +9347,7 @@ msgstr "ใช้โดยโปรแกรมอ่านหน้าจอแ
 
 #: packages/admin/src/components/MediaUsedIn.tsx:125
 msgid "Used in"
-msgstr ""
+msgstr "ใช้ใน"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:409
 msgid "Used in URLs and API endpoints"
@@ -9386,7 +9386,7 @@ msgstr "ผู้ใช้"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:38
 msgid "Users from <0>{domain}</0> will no longer be able to sign up without an invite. Existing users are not affected."
-msgstr ""
+msgstr "ผู้ใช้จาก <0>{domain}</0> จะสมัครใช้งานโดยไม่มีคำเชิญไม่ได้อีกต่อไป ผู้ใช้เดิมจะไม่ได้รับผลกระทบ"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:205
 msgid "Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically."
@@ -9449,7 +9449,7 @@ msgstr "ดู {title} ที่เผยแพร่แล้ว"
 
 #: packages/admin/src/components/MediaLibrary.tsx:894
 msgid "View setup"
-msgstr ""
+msgstr "ดูการตั้งค่า"
 
 #: packages/admin/src/components/Header.tsx:59
 msgid "View Site"
@@ -9469,11 +9469,11 @@ msgstr "ผู้เข้าชมที่เข้าถึงเส้นท
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:57
 msgid "Vue"
-msgstr ""
+msgstr "Vue"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:594
 msgid "Wait for updates already in progress to finish."
-msgstr ""
+msgstr "รอให้การอัปเดตที่กำลังดำเนินอยู่เสร็จสิ้น"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:181
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:185
@@ -9499,7 +9499,7 @@ msgstr "เราจะส่งลิงก์ให้คุณเพื่อ
 
 #: packages/admin/src/components/SignupPage.tsx:26
 msgid "We've sent a verification link to <0>{email}</0>"
-msgstr ""
+msgstr "เราส่งลิงก์ยืนยันไปที่ <0>{email}</0> แล้ว"
 
 #: packages/admin/src/components/FieldEditor.tsx:267
 msgid "Web address"
@@ -9557,43 +9557,43 @@ msgstr "จำนวนเต็ม"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:691
 msgid "Why are bylines shown in this order?"
-msgstr ""
+msgstr "ทำไมชื่อผู้เขียนจึงแสดงตามลำดับนี้?"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:209
 msgid "Why can't this be changed?"
-msgstr ""
+msgstr "ทำไมจึงเปลี่ยนสิ่งนี้ไม่ได้?"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:516
 msgid "Why English is used"
-msgstr ""
+msgstr "ทำไมจึงใช้ภาษาอังกฤษ"
 
 #: packages/admin/src/components/SeoPanel.tsx:222
 msgid "Why is this important for duplicate pages?"
-msgstr ""
+msgstr "ทำไมสิ่งนี้จึงสำคัญสำหรับหน้าที่ซ้ำกัน?"
 
 #: packages/admin/src/components/SeoPanel.tsx:196
 msgid "Why is this important for search result summaries?"
-msgstr ""
+msgstr "ทำไมสิ่งนี้จึงสำคัญสำหรับสรุปผลการค้นหา?"
 
 #: packages/admin/src/components/SeoPanel.tsx:175
 msgid "Why is this important for search result titles?"
-msgstr ""
+msgstr "ทำไมสิ่งนี้จึงสำคัญสำหรับชื่อผลการค้นหา?"
 
 #: packages/admin/src/components/SeoPanel.tsx:241
 msgid "Why is this important for search visibility?"
-msgstr ""
+msgstr "ทำไมสิ่งนี้จึงสำคัญต่อการมองเห็นในการค้นหา?"
 
 #: packages/admin/src/components/SeoImageField.tsx:44
 msgid "Why is this important for social sharing?"
-msgstr ""
+msgstr "ทำไมสิ่งนี้จึงสำคัญสำหรับการแชร์บนโซเชียล?"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:211
 msgid "Why is this important?"
-msgstr ""
+msgstr "ทำไมสิ่งนี้จึงสำคัญ?"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:163
 msgid "Wide"
-msgstr ""
+msgstr "กว้าง"
 
 #: packages/admin/src/components/Widgets.tsx:802
 #: packages/admin/src/components/Widgets.tsx:817
@@ -9639,7 +9639,7 @@ msgstr "ความกว้าง"
 
 #: packages/admin/src/components/PluginSettings.tsx:338
 msgid "Will be cleared on save"
-msgstr ""
+msgstr "จะถูกล้างเมื่อบันทึก"
 
 #: packages/admin/src/components/WordPressImport.tsx:2030
 msgid "Will create"
@@ -9651,7 +9651,7 @@ msgstr "หากไม่มีผู้ให้บริการอีเม
 
 #: packages/admin/src/components/WordPressImport.tsx:228
 msgid "WordPress authorization was rejected"
-msgstr ""
+msgstr "การให้สิทธิ์ WordPress ถูกปฏิเสธ"
 
 #: packages/admin/src/components/WordPressImport.tsx:1492
 msgid "WordPress Username"
@@ -9659,7 +9659,7 @@ msgstr "ชื่อผู้ใช้ WordPress"
 
 #: packages/admin/src/components/ContentList.tsx:492
 msgid "Working on {selectedCount} items…"
-msgstr ""
+msgstr "กำลังดำเนินการ {selectedCount} รายการ…"
 
 #: packages/admin/src/components/Widgets.tsx:904
 msgid "Write widget content..."
@@ -9671,19 +9671,19 @@ msgstr "ไฟล์ WXR"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:58
 msgid "XML"
-msgstr ""
+msgstr "XML"
 
 #: packages/admin/src/components/WordPressImport.tsx:1513
 msgid "xxxx xxxx xxxx xxxx xxxx xxxx"
-msgstr ""
+msgstr "xxxx xxxx xxxx xxxx xxxx xxxx"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:59
 msgid "YAML"
-msgstr ""
+msgstr "YAML"
 
 #: packages/admin/src/components/Widgets.tsx:163
 msgid "Yearly"
-msgstr ""
+msgstr "รายปี"
 
 #: packages/admin/src/components/ContentList.tsx:1395
 #: packages/admin/src/components/users/UserDetail.tsx:236
@@ -9694,7 +9694,7 @@ msgstr "ใช่"
 
 #: packages/admin/src/components/WordPressImport.tsx:1178
 msgid "Yoast/RankMath"
-msgstr ""
+msgstr "Yoast/RankMath"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:188
 msgid "You can close this page and return to your terminal."
@@ -9710,7 +9710,7 @@ msgstr "คุณสามารถจัดการเนื้อหา ม�
 
 #: packages/admin/src/routes/bylines.tsx:549
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
-msgstr ""
+msgstr "คุณยังแก้ไขฟิลด์ตายตัวด้านบนได้ การบันทึกจะไม่กระทบค่าของฟิลด์ที่กำหนดเองที่จัดเก็บไว้"
 
 #: packages/admin/src/components/WelcomeModal.tsx:50
 msgid "You can view and contribute to the site."
@@ -9722,7 +9722,7 @@ msgstr "คุณไม่สามารถเปลี่ยนบทบาท
 
 #: packages/admin/src/components/MediaLibrary.tsx:658
 msgid "You don’t have permission to move this file."
-msgstr ""
+msgstr "คุณไม่มีสิทธิ์ย้ายไฟล์นี้"
 
 #: packages/admin/src/components/WelcomeModal.tsx:47
 msgid "You have full access to manage this site, including users, settings, and all content."
@@ -9730,11 +9730,11 @@ msgstr "คุณมีสิทธิ์เข้าถึงเต็มรู
 
 #: packages/admin/src/routes/byline-schema.tsx:175
 msgid "You need admin permissions to manage byline schema."
-msgstr ""
+msgstr "คุณต้องมีสิทธิ์ผู้ดูแลระบบเพื่อจัดการสคีมาชื่อผู้เขียน"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:306
 msgid "You need Admin permissions to manage media usage tracking."
-msgstr ""
+msgstr "คุณต้องมีสิทธิ์ผู้ดูแลระบบเพื่อจัดการการติดตามการใช้งานมีเดีย"
 
 #: packages/admin/src/router.tsx:1819
 msgid "You need Editor permissions to moderate comments."
@@ -9764,7 +9764,7 @@ msgstr "คุณจะถูกเปลี่ยนเส้นทางไป
 
 #: packages/admin/src/components/SignupPage.tsx:35
 msgid "You'll be signing up as <0>{roleName}</0>"
-msgstr ""
+msgstr "คุณจะสมัครใช้งานในฐานะ <0>{roleName}</0>"
 
 #: packages/admin/src/components/SetupWizard.tsx:564
 msgid "You're signed in via Cloudflare Access"
@@ -9820,7 +9820,7 @@ msgstr "ชื่อผู้ใช้โปรไฟล์ LinkedIn ของ�
 #: packages/admin/src/components/MediaLibrary.tsx:1106
 #: packages/admin/src/components/MediaLibrary.tsx:1130
 msgid "Your media library is empty"
-msgstr ""
+msgstr "คลังมีเดียของคุณว่างเปล่า"
 
 #: packages/admin/src/components/SetupWizard.tsx:209
 msgid "Your Name"
@@ -9846,7 +9846,7 @@ msgstr "ชื่อบัญชี Twitter/X ของคุณ (เช่น @
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:949
 msgid "Your unsaved media changes will be lost."
-msgstr ""
+msgstr "การเปลี่ยนแปลงมีเดียที่ยังไม่ได้บันทึกจะสูญหาย"
 
 #. placeholder {0}: attachments.count
 #: packages/admin/src/components/WordPressImport.tsx:2078
@@ -9863,4 +9863,4 @@ msgstr "YouTube"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:60
 msgid "Zig"
-msgstr ""
+msgstr "Zig"
