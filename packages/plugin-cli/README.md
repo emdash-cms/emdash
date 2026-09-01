@@ -31,6 +31,7 @@ emdash-plugin release workload               Print a workload policy browser han
 emdash-plugin release enrol                  Print a passkey enrolment browser handoff
 emdash-plugin release approve <intent-id>    Print a passkey approval browser handoff
 emdash-plugin release reject <intent-id>     Print a passkey rejection browser handoff
+emdash-plugin release connect                Connect the current GitHub Actions workflow
 emdash-plugin release dry-run <release.json> Validate delegated release admission with GitHub OIDC
 emdash-plugin release submit <release.json>  Submit a delegated release with GitHub OIDC
 emdash-plugin release status <intent-id>     Read a delegated release intent
@@ -97,7 +98,13 @@ On first publish, pass `--license` and `--security-email` (or `--security-url`) 
 
 ## Delegated releases
 
-The automation commands (`dry-run`, `submit`, `status`, and `cancel`) authenticate with the current GitHub Actions OpenID Connect (OIDC) identity. Grant the job `id-token: write`; the CLI requests a token whose audience is the release-service origin for every API call.
+Use the release-service dashboard to set up delegated publishing. Sign in with the Atmosphere account that owns the plugin, allow EmDash to create plugin releases, and select the plugin package you want to connect.
+
+The dashboard provides a short-lived `release connect` step for the GitHub Actions workflow that will publish the plugin. Add the step to a job with `id-token: write`, run the workflow once, then return to the dashboard. The dashboard shows the repository, workflow file, branch or tag, and environment reported by GitHub. Confirm those details to authorize that exact workflow. The connection token and GitHub identity do not authorize publishing until you confirm them in the browser.
+
+Remove the temporary connection step after confirmation. Keep `id-token: write` on the job that submits releases.
+
+The automation commands (`connect`, `dry-run`, `submit`, `status`, and `cancel`) authenticate with the current GitHub Actions OpenID Connect (OIDC) identity. The CLI requests a token whose audience is the release-service origin for every API call.
 
 The following command submits a generated URL-source package release record and waits for publication or an approval request:
 
@@ -120,7 +127,7 @@ emdash-plugin release cancel 01JABCDEFGHJKMNPQRSTVWXYZ0
 
 These commands fail outside GitHub Actions because no OIDC request endpoint is available. Use the delegated release Action when the workflow only needs submission and outputs.
 
-Publisher authorization and passkeys remain browser operations. The following commands print a validated browser handoff instead of copying OAuth sessions or WebAuthn assertions into the terminal:
+Atmosphere authorization and passkeys remain browser operations. The following commands print validated browser links instead of copying OAuth sessions or passkey assertions into the terminal:
 
 ```sh
 emdash-plugin release delegate --service-url https://release.example.com

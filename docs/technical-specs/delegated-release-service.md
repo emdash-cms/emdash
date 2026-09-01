@@ -38,14 +38,13 @@ Canonical service state is sharded across SQLite-backed Durable Objects. A `Publ
 
 ## Actors and authentication
 
-The service has four independent authentication realms. Credentials and sessions from one realm never authorize another.
+The service has three external authentication mechanisms. Credentials from one mechanism never authorize another.
 
-| Actor            | Authentication                             | Authority                                                                  |
-| ---------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
-| CI workflow      | GitHub Actions OIDC                        | Submit an intent for a configured repository and workflow                  |
-| Publisher        | AT Protocol OAuth                          | Establish or revoke delegation and configure service-local workload policy |
-| Approver         | AT Protocol OAuth plus an enrolled passkey | Approve or reject one exact release intent                                 |
-| Service operator | Cloudflare Access                          | Observe, pause, suspend, revoke, retry, and recover the service            |
+| Actor                     | Authentication                                         | Authority                                                                                         |
+| ------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| GitHub Actions workflow   | GitHub Actions OIDC                                    | Identify the repository, workflow, ref, and environment; submit an intent after browser pairing   |
+| Atmosphere account holder | AT Protocol OAuth plus an enrolled passkey when needed | Establish or revoke delegation, confirm a GitHub workflow, and approve or reject an exact release |
+| Service operator          | Cloudflare Access                                      | Observe, pause, suspend, revoke, retry, and recover the service                                   |
 
 Cloudflare Access protects `/admin/*` and the operator API. The Worker verifies the `Cf-Access-Jwt-Assertion` signature, team issuer, role-specific audience, time claims, token type, and human identity. Access-injected identity headers and the browser cookie are not sufficient by themselves. Operator mutations retain CSRF and idempotency protection.
 
@@ -57,7 +56,7 @@ Deployments use separate Access policy and audience boundaries for three service
 
 Role names and audience bindings are stable application contracts. Each deployment assigns its operator groups to the appropriate Access policies; Access evaluates membership before forwarding the request. The Worker does not authorize from optional group claims because Access may trim custom claims to fit its cookie limit. No Access role can establish publisher delegation, authorize workload policy, enrol an approver, approve an intent, or publish a release.
 
-Publisher and approver OAuth proves control of a DID. After a successful identity-only OAuth flow, the service may issue a short-lived application session. That session cannot write to the PDS. The separately authorized release delegation is encrypted and stored in the publisher's Durable Object.
+One identity-only OAuth flow proves control of an Atmosphere account and issues short-lived publisher and approver application sessions. The separate cookies and Durable Objects preserve the internal authority boundaries without requiring two user logins. Application sessions cannot write to the PDS. The separately authorized release delegation is encrypted and stored in the publisher's Durable Object.
 
 GitHub Actions OIDC tokens are audience-bound to the service. The service persists normalized claims and token identifiers, not the raw token.
 
@@ -380,15 +379,17 @@ Allowed transitions are explicit. Compare-and-set transition methods take the ex
 
 ## Publisher onboarding
 
-1. The publisher starts an identity-only AT Protocol OAuth flow.
+1. The publisher signs in once with the Atmosphere account that owns the plugin.
 2. The service resolves and verifies the publisher DID and PDS.
 3. Hosted-service admission policy permits or rejects the publisher.
 4. The publisher authorizes the exact delegated release scope for create-only release records and gzip-package and image-blob uploads.
 5. The service verifies the returned grant and stores the encrypted session in the publisher object.
-6. The publisher registers a package-to-GitHub-workload policy.
-7. The service fetches and validates the signed package profile.
-8. Profile-listed approvers separately prove their DIDs and enrol passkeys.
-9. A dry-run submission verifies OIDC identity, request shape, service admission, and workload policy without reserving, rate-limiting, starting verification, or publishing a version. It does not fetch or validate the artifact or provenance document.
+6. The publisher starts a short-lived pairing for a plugin package.
+7. A temporary `release connect` step runs in the intended GitHub Actions workflow. Its audience-bound OIDC token supplies the immutable repository and owner IDs, workflow file, ref, and environment.
+8. The browser displays the human-readable repository, workflow file, branch or tag, and environment. The publisher confirms those details before the service creates the package-to-GitHub-workload policy. The pairing token and OIDC claim grant no publishing authority without this confirmation.
+9. The service fetches and validates the signed package profile.
+10. Profile-listed approvers use the same Atmosphere login and enrol passkeys before approving a release.
+11. A dry-run submission verifies OIDC identity, request shape, service admission, and workload policy without reserving, rate-limiting, starting verification, or publishing a version. It does not fetch or validate the artifact or provenance document.
 
 The publisher can revoke the delegation from the service or directly through the authorization server. The service treats refresh failure after revocation as terminal authority loss, not as a retry loop.
 
@@ -430,8 +431,8 @@ If approval is required, the publisher object stores an approval digest and tran
 
 An approver:
 
-1. establishes a publisher-independent application session after AT Protocol OAuth;
-2. opens the intent and reviews its source, workload, artifact, provenance, profile policy, baseline, and access diff;
+1. signs in with an Atmosphere account, using the same identity flow as the account dashboard;
+2. opens the release and reviews its plugin, repository, workflow, GitHub account, and permission changes, with protocol evidence available under technical details;
 3. requests a challenge from the approver object;
 4. signs the approval digest using an active, user-verified credential; and
 5. submits `approve` or `reject` with an idempotency key.
@@ -490,18 +491,23 @@ Health endpoints are outside the versioned API. `GET /health` is configuration-i
 
 ### Publisher API
 
-| Method and path                                       | Purpose                                                   |
-| ----------------------------------------------------- | --------------------------------------------------------- |
-| `POST /v1/publisher/session/authorize`                | Start identity-only publisher authorization               |
-| `GET /v1/publisher`                                   | Read publisher and delegation state                       |
-| `POST /v1/publisher/delegation/authorize`             | Start exact-scope delegation authorization                |
-| `DELETE /v1/publisher/delegation`                     | Revoke retained authority                                 |
-| `GET /v1/publisher/workloads`                         | List package workload policies                            |
-| `POST /v1/publisher/workloads`                        | Create or replace an authorized policy                    |
-| `DELETE /v1/publisher/workloads/{packageSlug}`        | Disable a policy                                          |
-| `GET /v1/publisher/workloads/{packageSlug}/approvers` | Read approval readiness for DIDs in the signed profile    |
-| `GET /v1/publisher/intents`                           | List publisher intents with cursor pagination             |
-| `GET /v1/publisher/audit`                             | List publisher-scoped audit events with cursor pagination |
+| Method and path                                            | Purpose                                                   |
+| ---------------------------------------------------------- | --------------------------------------------------------- |
+| `POST /v1/publisher/session/authorize`                     | Start identity-only publisher authorization               |
+| `GET /v1/publisher`                                        | Read publisher and delegation state                       |
+| `POST /v1/publisher/delegation/authorize`                  | Start exact-scope delegation authorization                |
+| `DELETE /v1/publisher/delegation`                          | Revoke retained authority                                 |
+| `GET /v1/publisher/workloads`                              | List package workload policies                            |
+| `POST /v1/publisher/workloads`                             | Create or replace an authorized policy                    |
+| `POST /v1/publisher/workflow-pairings`                     | Start a short-lived package-to-workflow pairing           |
+| `GET /v1/publisher/workflow-pairings/{pairingId}`          | Read the GitHub identity proposed by a pairing            |
+| `POST /v1/publisher/workflow-pairings/{pairingId}/confirm` | Confirm the proposed identity and create its policy       |
+| `DELETE /v1/publisher/workloads/{packageSlug}`             | Disable a policy                                          |
+| `GET /v1/publisher/workloads/{packageSlug}/approvers`      | Read approval readiness for DIDs in the signed profile    |
+| `GET /v1/publisher/intents`                                | List publisher intents with cursor pagination             |
+| `GET /v1/publisher/audit`                                  | List publisher-scoped audit events with cursor pagination |
+
+`POST /v1/workflow-pairings/{pairingId}/claim` is the GitHub OIDC-authenticated endpoint used by `release connect`. It records a proposal in the publisher shard but cannot create a workload policy.
 
 ### Approver API
 

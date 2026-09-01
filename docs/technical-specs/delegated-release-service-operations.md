@@ -10,28 +10,28 @@ This runbook covers self-host deployment, routine maintenance, and incident reco
 - `PUBLICATION_STAGING` is private transient storage. Published release records reference only publisher-PDS blobs; they never reference staging objects or artifact source URLs.
 - R2 snapshot pages are encrypted before storage. Audit export objects contain only the sanitized `audit_events.public_payload` contract.
 - Restore requires a suspended publisher and a complete, decryptable archive manifest.
-- Restore clears retained OAuth authority, disables workload policies, and converts nonterminal intents to `failed`. A publisher must reauthorize before publication resumes.
+- Restore clears retained OAuth authority and pending workflow pairings, disables workload policies, and converts nonterminal intents to `failed`. A publisher must reauthorize before publication resumes.
 - Operators use supported Access routes and clients. Runbooks never require direct Durable Object SQLite edits.
 
 ## Cloudflare resources
 
 The release-service Worker expects the following resources.
 
-| Binding                      | Resource                         | Purpose                                                                                       |
-| ---------------------------- | -------------------------------- | --------------------------------------------------------------------------------------------- |
-| `PUBLISHER_DO`               | `PublisherDurableObject`         | Per-publisher delegation, workload, intent, publication, audit, restore, and rate-limit state |
-| `APPROVER_DO`                | `ApproverDurableObject`          | Per-approver sessions, passkeys, decisions, audit, and encrypted OAuth transactions           |
-| `SERVICE_CONTROL_DO`         | `ServiceControlDurableObject`    | Global pause mode, publisher suspension, publication permits, and operator audit              |
-| `IDENTITY_DIRECTORY_DO`      | `IdentityDirectoryDurableObject` | Non-authoritative publisher and approver inventory, sharded by DID hash                       |
-| `RELEASE_INTENT_WORKFLOW`    | Workflow                         | Verification, approval wait, publication, and reconciliation                                  |
-| `PUBLISHER_ARCHIVE_WORKFLOW` | Workflow                         | Bounded, retryable publisher snapshot and audit export                                        |
-| `RELEASE_VERIFIER`           | Service binding                  | Isolated artifact and provenance verification                                                 |
-| `PUBLICATION_STAGING`        | Private R2 bucket                | Transient checksum-verified package and image bytes awaiting PDS blob upload                  |
-| `OPERATIONS_ARCHIVE`         | R2 bucket                        | Encrypted publisher snapshot pages and append-only sanitized audit pages                      |
-| `OPERATIONS_METRICS`         | Analytics Engine dataset         | Privacy-safe operational alert events                                                         |
-| `ASSETS`                     | Worker static assets             | Publisher, approver, and Access operator web surfaces                                         |
+| Binding                      | Resource                         | Purpose                                                                                                       |
+| ---------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `PUBLISHER_DO`               | `PublisherDurableObject`         | Per-publisher delegation, workflow pairing, policy, intent, publication, audit, restore, and rate-limit state |
+| `APPROVER_DO`                | `ApproverDurableObject`          | Per-approver sessions, passkeys, decisions, audit, and encrypted OAuth transactions                           |
+| `SERVICE_CONTROL_DO`         | `ServiceControlDurableObject`    | Global pause mode, publisher suspension, publication permits, and operator audit                              |
+| `IDENTITY_DIRECTORY_DO`      | `IdentityDirectoryDurableObject` | Non-authoritative publisher and approver inventory, sharded by DID hash                                       |
+| `RELEASE_INTENT_WORKFLOW`    | Workflow                         | Verification, approval wait, publication, and reconciliation                                                  |
+| `PUBLISHER_ARCHIVE_WORKFLOW` | Workflow                         | Bounded, retryable publisher snapshot and audit export                                                        |
+| `RELEASE_VERIFIER`           | Service binding                  | Isolated artifact and provenance verification                                                                 |
+| `PUBLICATION_STAGING`        | Private R2 bucket                | Transient checksum-verified package and image bytes awaiting PDS blob upload                                  |
+| `OPERATIONS_ARCHIVE`         | R2 bucket                        | Encrypted publisher snapshot pages and append-only sanitized audit pages                                      |
+| `OPERATIONS_METRICS`         | Analytics Engine dataset         | Privacy-safe operational alert events                                                                         |
+| `ASSETS`                     | Worker static assets             | Publisher, approver, and Access operator web surfaces                                                         |
 
-The initial Durable Object migration tag is `v1`. It contains every class and table required before the first deployment.
+The initial Durable Object migration tag is `v1`. It contains every class required before the first deployment. Each publisher object initializes its complete schema, including short-lived `workflow_pairings`, before serving requests.
 
 ## Configure a self-hosted deployment
 
@@ -111,6 +111,15 @@ pnpm exec wrangler deploy --dry-run
 
 After deployment, `GET /health` must return `200` without loading configuration. `GET /ready` returns `200` only after configuration loads, the service-control Durable Object initializes, and its active encryption-key version matches `ENCRYPTION_KEYRING.current`.
 
+Test the account and workflow connection journey against the deployed origin:
+
+1. Sign in once with a test Atmosphere account and confirm the account dashboard loads publishing state, connected workflows, recent releases, activity, and any existing approval passkeys.
+2. Start a workflow connection for a test plugin package.
+3. Add the generated temporary step to a test GitHub Actions job with `id-token: write`, then run it once.
+4. Confirm the browser shows the expected repository, workflow file, branch or tag, and environment. Verify no workload policy exists before browser confirmation.
+5. Confirm the connection and verify the resulting workload policy contains the immutable GitHub repository and owner IDs plus the displayed workflow, ref, and environment.
+6. Remove the temporary connection step and run a delegated-release dry run from the connected job.
+
 List the staging lifecycle rules and confirm that `expire-publication-staging` targets the `publication/` prefix with a seven-day expiry:
 
 ```sh
@@ -159,6 +168,8 @@ Use `Start archive workflow` in the operator console or `ReleaseServiceOperatorC
 3. canonical intent rows;
 4. sanitized audit events;
 5. an encrypted completion manifest.
+
+Short-lived workflow pairings are not archived. A restored publisher must create and confirm a new pairing before replacing a disabled workload policy.
 
 Snapshot objects use the following prefix:
 

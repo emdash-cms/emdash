@@ -269,15 +269,15 @@ Dependencies: W2.1 and shared state/error contracts.
 
 ### Tasks
 
-| Task   | Work                                                                                                                                                                                   |
-| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `W3.1` | Implement the complete initial object schema with `publisher`, `delegations`, `workload_policies`, `intents`, reservations, transitions, operations, audit, idempotency, and deadlines |
-| `W3.2` | Implement the complete intent state machine with expected-state and generation guards                                                                                                  |
-| `W3.3` | Implement package/version reservation and OIDC/request idempotency semantics                                                                                                           |
-| `W3.4` | Implement generation-bound refresh and publication operation tokens without external I/O inside transactions                                                                           |
-| `W3.5` | Implement append-only audit and public/private serializers                                                                                                                             |
-| `W3.6` | Implement one-alarm deadline queue for operation recovery, intent expiry, session cleanup, and audit/snapshot scheduling                                                               |
-| `W3.7` | Implement publisher session epoch and publisher/service suspension checks                                                                                                              |
+| Task   | Work                                                                                                                                                                                                        |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `W3.1` | Implement the complete initial object schema with `publisher`, `delegations`, `workflow_pairings`, `workload_policies`, `intents`, reservations, transitions, operations, audit, idempotency, and deadlines |
+| `W3.2` | Implement the complete intent state machine with expected-state and generation guards                                                                                                                       |
+| `W3.3` | Implement package/version reservation and OIDC/request idempotency semantics                                                                                                                                |
+| `W3.4` | Implement generation-bound refresh and publication operation tokens without external I/O inside transactions                                                                                                |
+| `W3.5` | Implement append-only audit and public/private serializers                                                                                                                                                  |
+| `W3.6` | Implement one-alarm deadline queue for operation recovery, intent and pairing expiry, session cleanup, and audit/snapshot scheduling                                                                        |
+| `W3.7` | Implement publisher session epoch and publisher/service suspension checks                                                                                                                                   |
 
 ### Acceptance criteria
 
@@ -518,28 +518,27 @@ Owner surface:
 - `packages/registry-client/src/release-service/`
 - `packages/plugin-cli/`
 - a new official GitHub Action package or action directory
-- `apps/release-service/src/publisher-ui/`
-- `apps/release-service/src/approver-ui/`
-- `apps/release-service/src/admin-ui/`
+- `apps/release-service/src/ui/`
 
 Dependencies: stable APIs from W4 to W8 and W2 Access roles.
 
 ### Tasks
 
-| Task    | Work                                                                                                                       |
-| ------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `W10.1` | Add typed API client, polling, stable error mapping, and idempotency helpers                                               |
-| `W10.2` | Build the official GitHub Action for OIDC, submission, status, approval URL, and terminal output                           |
-| `W10.3` | Add CLI commands for delegate, revoke, workload policy, dry run, submit/status/cancel, enrol, and approve/reject           |
-| `W10.4` | Build publisher delegation, workload, intent, approver-status, and audit views                                             |
-| `W10.5` | Build approval detail, declared-access diff, provenance/workload evidence, and passkey decision views                      |
-| `W10.6` | Build Access operator status, pause, publisher lookup, suspension, revocation, reconciliation, and audit views             |
-| `W10.7` | Make the surfaces localizable with Lingui and cover accessibility, keyboard, responsive, and Arabic-direction RTL behavior |
+| Task    | Work                                                                                                                                        |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `W10.1` | Add typed API client, polling, stable error mapping, and idempotency helpers                                                                |
+| `W10.2` | Build the official GitHub Action for OIDC, submission, status, approval URL, and terminal output                                            |
+| `W10.3` | Add CLI commands for workflow connection, dry run, submit/status/cancel, and browser handoffs for delegated publishing and release approval |
+| `W10.4` | Build one Atmosphere account dashboard for publishing authority, connected GitHub workflows, releases, activity, and approval passkeys      |
+| `W10.5` | Build a plain-language release review with plugin permissions and expandable protocol, provenance, and workload evidence                    |
+| `W10.6` | Build Access operator status, pause, publisher lookup, suspension, revocation, reconciliation, and audit views                              |
+| `W10.7` | Make the surfaces localizable with Lingui and cover accessibility, keyboard, responsive, and Arabic-direction RTL behavior                  |
 
 ### Acceptance criteria
 
 - CI needs no static secret and prints stable intent/published outputs.
 - CLI and web clients show the same state and error semantics.
+- One identity-only OAuth flow creates both application sessions; the main interface does not present publisher and approver as separate logins.
 - Publisher UI cannot access another publisher shard.
 - Approval UI exposes enough immutable evidence to identify package, version, source, workflow, commit, artifact, provenance, policy, and access diff before passkey use.
 - Operator UI cannot call publisher or approver mutation routes.
