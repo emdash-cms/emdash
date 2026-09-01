@@ -96,6 +96,7 @@ function ImageNodeView({
 		title: node.attrs.title,
 		caption: node.attrs.caption,
 		mediaId: node.attrs.mediaId,
+		provider: node.attrs.provider,
 		width: node.attrs.width,
 		height: node.attrs.height,
 		blurhash: node.attrs.blurhash,
