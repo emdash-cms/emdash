@@ -48,6 +48,19 @@ describe("release-service OAuth configuration", () => {
 		expect(configuration.access.teamDomain).toBe("https://access.example.com");
 	});
 
+	it("accepts multiple Access applications for one operator role", async () => {
+		const secondAdminAudience = "d".repeat(64);
+		const configuration = await loadConfiguration({
+			...TEST_BINDINGS,
+			ACCESS_ADMIN_AUD: JSON.stringify([TEST_BINDINGS.ACCESS_ADMIN_AUD, secondAdminAudience]),
+		});
+
+		expect(configuration.access.audiences.admin).toEqual([
+			TEST_BINDINGS.ACCESS_ADMIN_AUD,
+			secondAdminAudience,
+		]);
+	});
+
 	it.each([
 		["empty origin", { ...TEST_BINDINGS, PUBLIC_ORIGIN: "" }],
 		["empty deployment ID", { ...TEST_BINDINGS, DEPLOYMENT_ID: "" }],
@@ -65,6 +78,26 @@ describe("release-service OAuth configuration", () => {
 			{ ...TEST_BINDINGS, ACCESS_TEAM_DOMAIN: "https://emdash-test.cloudflareaccess.com:8443" },
 		],
 		["malformed Access audience", { ...TEST_BINDINGS, ACCESS_ADMIN_AUD: "not-an-aud" }],
+		["empty Access audience list", { ...TEST_BINDINGS, ACCESS_ADMIN_AUD: "[]" }],
+		[
+			"duplicate Access audience list",
+			{
+				...TEST_BINDINGS,
+				ACCESS_ADMIN_AUD: JSON.stringify([
+					TEST_BINDINGS.ACCESS_ADMIN_AUD,
+					TEST_BINDINGS.ACCESS_ADMIN_AUD,
+				]),
+			},
+		],
+		[
+			"oversized Access audience list",
+			{
+				...TEST_BINDINGS,
+				ACCESS_ADMIN_AUD: JSON.stringify(
+					Array.from({ length: 9 }, (_value, index) => index.toString(16).repeat(64)),
+				),
+			},
+		],
 		[
 			"duplicate Access audiences",
 			{ ...TEST_BINDINGS, ACCESS_ADMIN_AUD: TEST_BINDINGS.ACCESS_REVIEWER_AUD },

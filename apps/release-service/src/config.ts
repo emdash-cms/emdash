@@ -27,6 +27,7 @@ type ResolvedConfigurationBindings = Record<
 >;
 
 const ACCESS_AUDIENCE_PATTERN = /^[a-f0-9]{64}$/;
+const MAX_ACCESS_AUDIENCES_PER_ROLE = 8;
 const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
 const DEPLOYMENT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
 const MAX_ASSERTION_KEYSET_CHARS = 64 * 1024;
@@ -110,16 +111,36 @@ function parseAccessTeamDomain(value: unknown): string | null {
 function parseAccessAudiences(
 	bindings: ResolvedConfigurationBindings,
 ): AccessConfiguration["audiences"] | null {
-	const audiences = {
-		viewer: bindings.ACCESS_VIEWER_AUD,
-		reviewer: bindings.ACCESS_REVIEWER_AUD,
-		admin: bindings.ACCESS_ADMIN_AUD,
-	};
-	const values = Object.values(audiences);
-	return values.every((audience) => ACCESS_AUDIENCE_PATTERN.test(audience)) &&
-		new Set(values).size === values.length
-		? audiences
-		: null;
+	function parseAudience(value: string): string | readonly string[] | null {
+		if (ACCESS_AUDIENCE_PATTERN.test(value)) return value;
+		try {
+			const parsed: unknown = JSON.parse(value);
+			if (
+				!Array.isArray(parsed) ||
+				parsed.length === 0 ||
+				parsed.length > MAX_ACCESS_AUDIENCES_PER_ROLE ||
+				!parsed.every(
+					(audience): audience is string =>
+						typeof audience === "string" && ACCESS_AUDIENCE_PATTERN.test(audience),
+				)
+			) {
+				return null;
+			}
+			return Object.freeze([...parsed]);
+		} catch {
+			return null;
+		}
+	}
+
+	const viewer = parseAudience(bindings.ACCESS_VIEWER_AUD);
+	const reviewer = parseAudience(bindings.ACCESS_REVIEWER_AUD);
+	const admin = parseAudience(bindings.ACCESS_ADMIN_AUD);
+	if (!viewer || !reviewer || !admin) return null;
+	const audiences = { viewer, reviewer, admin };
+	const values = Object.values(audiences).flatMap((audience) =>
+		typeof audience === "string" ? [audience] : audience,
+	);
+	return new Set(values).size === values.length ? audiences : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

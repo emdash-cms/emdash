@@ -98,6 +98,22 @@ describe("Cloudflare Access authentication", () => {
 		},
 	);
 
+	it("authenticates any configured application audience for a role", async () => {
+		const secondAdminAudience = "d".repeat(64);
+		const configuration = {
+			...ACCESS_CONFIGURATION,
+			audiences: {
+				...ACCESS_CONFIGURATION.audiences,
+				admin: [ACCESS_CONFIGURATION.audiences.admin, secondAdminAudience],
+			},
+		};
+		const token = await createAccessToken({ audience: secondAdminAudience });
+
+		await expect(
+			authenticateAccessRequest(authenticatedRequest(token), "admin", configuration, keyResolver),
+		).resolves.toMatchObject({ role: "admin" });
+	});
+
 	it("requires the Access assertion header and does not trust the browser cookie", async () => {
 		const request = new Request("https://release.example.com/admin/api/viewer/test", {
 			headers: { cookie: "CF_Authorization=unverified" },

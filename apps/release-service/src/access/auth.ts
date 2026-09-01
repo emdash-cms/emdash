@@ -14,7 +14,7 @@ export type AccessRole = "viewer" | "reviewer" | "admin";
 
 export interface AccessConfiguration {
 	teamDomain: string;
-	audiences: Readonly<Record<AccessRole, string>>;
+	audiences: Readonly<Record<AccessRole, string | readonly string[]>>;
 }
 
 export interface AccessActor {
@@ -62,9 +62,11 @@ export async function authenticateAccessRequest(
 		throw new ApiError("ACCESS_AUTH_INVALID", 403, "Access authorization failed");
 	}
 	try {
+		const configuredAudience = configuration.audiences[requiredRole];
 		const { payload } = await jwtVerify(token, keyResolver, {
 			algorithms: ["RS256"],
-			audience: configuration.audiences[requiredRole],
+			audience:
+				typeof configuredAudience === "string" ? configuredAudience : [...configuredAudience],
 			clockTolerance: 5,
 			issuer: configuration.teamDomain,
 			typ: "JWT",

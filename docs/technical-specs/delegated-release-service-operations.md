@@ -43,7 +43,7 @@ Set the following non-secret variables in `apps/release-service/wrangler.jsonc`:
 - `DEPLOYMENT_ID`: a stable identifier that remains unchanged across deployments and key rotations;
 - `OAUTH_REDIRECT_URIS`: a JSON array containing `${PUBLIC_ORIGIN}/oauth/callback`;
 - `ACCESS_TEAM_DOMAIN`: the exact HTTPS issuer origin for Cloudflare Access, including a custom Access hostname when configured, without a port or path;
-- `ACCESS_VIEWER_AUD`, `ACCESS_REVIEWER_AUD`, and `ACCESS_ADMIN_AUD`: the distinct Access application audiences described below.
+- `ACCESS_VIEWER_AUD`, `ACCESS_REVIEWER_AUD`, and `ACCESS_ADMIN_AUD`: a distinct Access application audience or a JSON array of up to eight distinct audiences for the role described below. Use multiple applications when the exact route set exceeds the Access destination limit.
 
 Changing `DEPLOYMENT_ID` makes existing encryption envelopes unreadable because the deployment identifier is part of the authenticated encryption context.
 
@@ -58,6 +58,7 @@ Create Access applications whose path specificity supplies the audience required
 | Admin    | `/admin/api/pause`, `/admin/api/publishers/*`, `/admin/api/approvers/*`                      | Pause publication, suspend or revoke publishers, rotate keys, archive, and restore |
 
 The Worker verifies the Access JWT issuer and the route-specific audience. Access group claims do not grant a role inside the Worker.
+Every configured audience must be unique across all three roles.
 
 ### Secrets
 
