@@ -2,6 +2,7 @@ import { NSID, type PackageRelease } from "@emdash-cms/registry-lexicons";
 import { describe, expect, it } from "vitest";
 
 import releaseFixture from "../../../packages/registry-verification/fixtures/records/release.json";
+import type { PreparedReleaseFiles } from "../src/prepare.js";
 import { executeAction, runAction } from "../src/run.js";
 import type { ActionRuntime } from "../src/runtime.js";
 
@@ -11,6 +12,7 @@ const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const CREATED_URI = `at://${PUBLISHER_DID}/com.emdashcms.experimental.package.release/gallery:1.2.3`;
 const CREATED_CID = "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixe";
 const CHECKSUM = "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja";
+const PROVENANCE_CHECKSUM = "bciqaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 function sourceRelease(): PackageRelease.Main {
 	const release = structuredClone(releaseFixture) as PackageRelease.Main;
@@ -159,6 +161,21 @@ const dependencies = {
 	readReleaseRecord: async () => sourceRelease(),
 };
 
+function preparedFiles(): PreparedReleaseFiles {
+	return {
+		packageSlug: "gallery",
+		version: "1.2.3",
+		packageBytes: new Uint8Array([0x1f, 0x8b, 0x08, 0x00]),
+		packageChecksum: CHECKSUM,
+		provenanceBytes: new TextEncoder().encode('{"sigstore":"bundle"}\n'),
+		provenanceChecksum: PROVENANCE_CHECKSUM,
+		declaredAccess: {},
+		sourceRepository: "https://github.com/example/gallery",
+		builderId:
+			"https://github.com/example/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
+	};
+}
+
 describe("delegated release Action", () => {
 	it("requests a fresh OIDC token, publishes, and emits stable outputs", async () => {
 		const runtime = new FakeRuntime();
@@ -201,6 +218,84 @@ describe("delegated release Action", () => {
 			"github-connection-10000000001-gallery",
 		);
 		expect(new Headers(requests[1]?.headers).get("idempotency-key")).toBe("github-run-10000000001");
+	});
+
+	it("uploads a built bundle and attestation without a hand-authored release record", async () => {
+		const runtime = new FakeRuntime();
+		runtime.inputs.delete("release-file");
+		runtime.inputs.set("bundle-file", ".emdash-release/gallery.tar.gz");
+		runtime.inputs.set("provenance-file", "/runner/temp/attestation.json");
+		runtime.environment.set("RUNNER_TEMP", "/runner/temp");
+		runtime.environment.set("GITHUB_REPOSITORY", "example/gallery");
+		runtime.environment.set(
+			"GITHUB_WORKFLOW_REF",
+			"example/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
+		);
+		runtime.environment.set("GITHUB_REPOSITORY_VISIBILITY", "public");
+		const prepared = preparedFiles();
+		const requests: Request[] = [];
+		const responses = sequenceFetch([
+			success({ status: "connected", policy: policy() }),
+			success(
+				{
+					artifact: {
+						slot: "package",
+						checksum: CHECKSUM,
+						contentType: "application/gzip",
+						size: prepared.packageBytes.byteLength,
+						sourceUrl: `${SERVICE}/v1/staged-artifacts/package/${CHECKSUM}`,
+					},
+					replayed: false,
+				},
+				201,
+			),
+			success(
+				{
+					artifact: {
+						slot: "provenance",
+						checksum: PROVENANCE_CHECKSUM,
+						contentType: "application/json",
+						size: prepared.provenanceBytes.byteLength,
+						sourceUrl: `${SERVICE}/v1/provenance/${PROVENANCE_CHECKSUM}`,
+					},
+					replayed: false,
+				},
+				201,
+			),
+			success({ intent: intent("received"), replayed: false }, 202),
+			success({ intent: intent("published", { result: { uri: CREATED_URI, cid: CREATED_CID } }) }),
+		]);
+		const result = await runAction(runtime, {
+			prepareReleaseFiles: async () => prepared,
+			fetch: async (input, init) => {
+				requests.push(new Request(input, init));
+				return responses(input, init);
+			},
+		});
+
+		expect(result.state).toBe("published");
+		expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+			"/v1/workflow-connections",
+			"/v1/staged-artifacts",
+			"/v1/staged-artifacts",
+			"/v1/release-intents",
+			`/v1/release-intents/${INTENT_ID}`,
+		]);
+		const submitted = await requests[3]!.json();
+		expect(submitted).toMatchObject({
+			release: {
+				package: "gallery",
+				version: "1.2.3",
+				artifacts: {
+					package: { url: `${SERVICE}/v1/staged-artifacts/package/${CHECKSUM}` },
+				},
+				extensions: {
+					[NSID.packageReleaseExtension]: {
+						provenance: { url: `${SERVICE}/v1/provenance/${PROVENANCE_CHECKSUM}` },
+					},
+				},
+			},
+		});
 	});
 
 	it("puts first-run workflow approval in the job summary and continues after confirmation", async () => {

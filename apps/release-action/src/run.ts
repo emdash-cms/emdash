@@ -7,9 +7,17 @@ import {
 	ReleaseServiceError,
 	createReleaseIdempotencyKey,
 	parseDelegatedReleaseSourceRecord,
+	type DelegatedReleaseSourceRecord,
 	type ReleaseIntentResource,
 } from "@emdash-cms/registry-client/release-service";
+import { NSID } from "@emdash-cms/registry-lexicons";
 
+import {
+	prepareReleaseFiles as defaultPrepareReleaseFiles,
+	ReleasePreparationError,
+	type PreparedReleaseFiles,
+	type PrepareReleaseFilesOptions,
+} from "./prepare.js";
 import type { ActionRuntime } from "./runtime.js";
 
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
@@ -26,6 +34,7 @@ const FAILURE_STATES = new Set([
 export interface RunActionDependencies {
 	fetch?: typeof fetch;
 	readReleaseRecord?: (path: string, workspace: string) => Promise<unknown>;
+	prepareReleaseFiles?: (options: PrepareReleaseFilesOptions) => Promise<PreparedReleaseFiles>;
 }
 
 export class ActionConfigurationError extends Error {
@@ -90,6 +99,40 @@ async function setIntentOutputs(
 	await runtime.setOutput("reason-code", intent.reasonCode ?? "");
 }
 
+function sourceReleaseFromPrepared(
+	prepared: PreparedReleaseFiles,
+	packageUrl: string,
+	provenanceUrl: string,
+): DelegatedReleaseSourceRecord {
+	const release = parseDelegatedReleaseSourceRecord({
+		$type: NSID.packageRelease,
+		package: prepared.packageSlug,
+		version: prepared.version,
+		artifacts: {
+			package: {
+				url: packageUrl,
+				checksum: prepared.packageChecksum,
+				contentType: "application/gzip",
+			},
+		},
+		extensions: {
+			[NSID.packageReleaseExtension]: {
+				$type: NSID.packageReleaseExtension,
+				declaredAccess: prepared.declaredAccess,
+				provenance: {
+					url: provenanceUrl,
+					checksum: prepared.provenanceChecksum,
+					predicateType: "https://slsa.dev/provenance/v1",
+					sourceRepository: prepared.sourceRepository,
+					builderId: prepared.builderId,
+				},
+			},
+		},
+	});
+	if (!release) throw new ActionConfigurationError("Prepared release record is invalid");
+	return release;
+}
+
 export async function runAction(
 	runtime: ActionRuntime,
 	dependencies: RunActionDependencies = {},
@@ -97,15 +140,51 @@ export async function runAction(
 	const serviceUrl = runtime.getInput("service-url", { required: true });
 	const publisherDid = runtime.getInput("publisher-did", { required: true });
 	if (!isDid(publisherDid)) throw new ActionConfigurationError("publisher-did must be a valid DID");
-	const releaseFile = runtime.getInput("release-file", { required: true });
 	const workspace = runtime.getEnvironment("GITHUB_WORKSPACE");
 	if (!workspace) throw new ActionConfigurationError("GitHub workspace is unavailable");
-	const rawRelease = await (dependencies.readReleaseRecord ?? defaultReadReleaseRecord)(
-		releaseFile,
-		workspace,
-	);
-	const release = parseDelegatedReleaseSourceRecord(rawRelease);
-	if (!release) throw new ActionConfigurationError("Release record file is invalid");
+	const releaseFile = runtime.getInput("release-file");
+	const bundleFile = runtime.getInput("bundle-file");
+	const provenanceFile = runtime.getInput("provenance-file");
+	let prepared: PreparedReleaseFiles | null = null;
+	let release: DelegatedReleaseSourceRecord | null = null;
+	if (releaseFile) {
+		if (bundleFile || provenanceFile) {
+			throw new ActionConfigurationError(
+				"release-file cannot be combined with bundle-file or provenance-file",
+			);
+		}
+		const rawRelease = await (dependencies.readReleaseRecord ?? defaultReadReleaseRecord)(
+			releaseFile,
+			workspace,
+		);
+		release = parseDelegatedReleaseSourceRecord(rawRelease);
+		if (!release) throw new ActionConfigurationError("Release record file is invalid");
+	} else {
+		if (!provenanceFile) {
+			throw new ActionConfigurationError(
+				"provenance-file is required for project or bundle releases",
+			);
+		}
+		const runnerTemp = runtime.getEnvironment("RUNNER_TEMP");
+		const repository = runtime.getEnvironment("GITHUB_REPOSITORY");
+		const workflowRef = runtime.getEnvironment("GITHUB_WORKFLOW_REF");
+		const repositoryVisibility = runtime.getEnvironment("GITHUB_REPOSITORY_VISIBILITY");
+		if (!runnerTemp || !repository || !workflowRef || !repositoryVisibility) {
+			throw new ActionConfigurationError("GitHub workflow identity is unavailable");
+		}
+		prepared = await (dependencies.prepareReleaseFiles ?? defaultPrepareReleaseFiles)({
+			workspace,
+			runnerTemp,
+			...(bundleFile ? { bundleFile } : {}),
+			pluginDirectory: runtime.getInput("plugin-directory") || ".",
+			provenanceFile,
+			repository,
+			workflowRef,
+			repositoryVisibility,
+		});
+	}
+	const packageSlug = prepared?.packageSlug ?? release!.package;
+	const version = prepared?.version ?? release!.version;
 
 	const configuredIdempotencyKey = runtime.getInput("idempotency-key");
 	const idempotencyKey = configuredIdempotencyKey || defaultIdempotencyKey(runtime);
@@ -139,9 +218,9 @@ export async function runAction(
 	await runtime.setOutput("connection-url", "");
 	let connectionRequestId: string | null = null;
 	await client.waitForWorkflowConnection(
-		{ publisherDid, packageSlug: release.package },
+		{ publisherDid, packageSlug },
 		{
-			idempotencyKey: `github-connection-${runId}-${release.package}`,
+			idempotencyKey: `github-connection-${runId}-${packageSlug}`,
 			pollIntervalMs: pollIntervalSeconds * 1000,
 			maxWaitMs: timeoutMinutes * 60_000,
 			onUpdate: async (current) => {
@@ -155,11 +234,43 @@ export async function runAction(
 			},
 		},
 	);
+	if (prepared) {
+		const packageUpload = await client.uploadReleaseArtifact(
+			{
+				publisherDid,
+				packageSlug,
+				version,
+				slot: "package",
+				checksum: prepared.packageChecksum,
+				contentType: "application/gzip",
+				bytes: prepared.packageBytes,
+			},
+			{ idempotencyKey: `github-upload-${runId}-${packageSlug}-package` },
+		);
+		const provenanceUpload = await client.uploadReleaseArtifact(
+			{
+				publisherDid,
+				packageSlug,
+				version,
+				slot: "provenance",
+				checksum: prepared.provenanceChecksum,
+				contentType: "application/json",
+				bytes: prepared.provenanceBytes,
+			},
+			{ idempotencyKey: `github-upload-${runId}-${packageSlug}-provenance` },
+		);
+		release = sourceReleaseFromPrepared(
+			prepared,
+			packageUpload.artifact.sourceUrl,
+			provenanceUpload.artifact.sourceUrl,
+		);
+	}
+	if (!release) throw new ActionConfigurationError("Release input is unavailable");
 	const submitted = await client.submitIntent(
 		{
 			publisherDid,
-			packageSlug: release.package,
-			version: release.version,
+			packageSlug,
+			version,
 			release,
 		},
 		{ idempotencyKey },
@@ -205,7 +316,11 @@ export async function executeAction(
 	try {
 		await runAction(runtime, dependencies);
 	} catch (error) {
-		if (error instanceof ReleaseServiceError || error instanceof ActionConfigurationError) {
+		if (
+			error instanceof ReleaseServiceError ||
+			error instanceof ActionConfigurationError ||
+			error instanceof ReleasePreparationError
+		) {
 			runtime.setFailed(
 				error instanceof ReleaseServiceError ? `${error.code}: ${error.message}` : error.message,
 			);

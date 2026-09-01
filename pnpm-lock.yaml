@@ -574,6 +574,9 @@ importers:
       '@emdash-cms/registry-lexicons':
         specifier: workspace:*
         version: link:../../packages/registry-lexicons
+      '@emdash-cms/registry-verification':
+        specifier: workspace:*
+        version: link:../../packages/registry-verification
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

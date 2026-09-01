@@ -10,4 +10,5 @@ export default defineConfig({
 	target: "node24",
 	noExternal: [/.*/],
 	inlineOnly: false,
+	outputOptions: { codeSplitting: false },
 });
