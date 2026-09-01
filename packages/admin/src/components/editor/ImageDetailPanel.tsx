@@ -20,6 +20,7 @@ import * as React from "react";
 
 import type { MediaItem } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
+import { canonicalMediaProviderId } from "../../lib/media-utils.js";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { MediaPickerModal } from "../MediaPickerModal";
 
@@ -29,6 +30,7 @@ export interface ImageAttributes {
 	title?: string;
 	caption?: string;
 	mediaId?: string;
+	provider?: string;
 	/** Original image width */
 	width?: number;
 	/** Original image height */
@@ -117,6 +119,7 @@ export function ImageDetailPanel({
 			src: item.url,
 			alt: item.alt || item.filename,
 			mediaId: item.id,
+			provider: canonicalMediaProviderId(item.provider),
 			width: item.width,
 			height: item.height,
 			blurhash: item.blurhash,
