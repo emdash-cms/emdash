@@ -11,6 +11,8 @@ import {
 const SERVICE = "https://release.example.com";
 const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
+const PAIRING_ID = "01JABCDEFGHJKMNPQRSTVWXYZ1";
+const PAIRING_TOKEN = "T".repeat(43);
 const CSRF = "C".repeat(43);
 const CHECKSUM = "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja";
 
@@ -74,6 +76,31 @@ function policy() {
 		authorizedBy: PUBLISHER_DID,
 		createdAt: 1_799_999_000_000,
 		updatedAt: 1_799_999_000_000,
+	};
+}
+
+function pairing(state: "claimed" | "confirmed" | "pending") {
+	return {
+		id: PAIRING_ID,
+		packageSlug: "gallery",
+		state,
+		claim:
+			state === "pending"
+				? null
+				: {
+						repository: "example/gallery",
+						repositoryId: "123456789",
+						repositoryOwner: "example",
+						repositoryOwnerId: "987654321",
+						repositoryVisibility: "private",
+						workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+						ref: "refs/heads/main",
+						environment: "production",
+					},
+		expiresAt: 1_800_000_900_000,
+		createdAt: 1_800_000_000_000,
+		claimedAt: state === "pending" ? null : 1_800_000_001_000,
+		confirmedAt: state === "confirmed" ? 1_800_000_002_000 : null,
 	};
 }
 
@@ -374,6 +401,62 @@ describe("ReleaseServiceClient", () => {
 		expect(mutationHeaders.has("authorization")).toBe(false);
 	});
 
+	it("pairs a GitHub workflow through separate browser and OIDC steps", async () => {
+		const calls: Request[] = [];
+		const fetch: typeof globalThis.fetch = async (input, init = {}) => {
+			const request = new Request(input, init);
+			calls.push(request);
+			if (request.url.endsWith("/claim")) {
+				return success({ pairing: pairing("claimed"), replayed: false });
+			}
+			if (request.url.endsWith("/confirm")) {
+				return success({ pairing: pairing("confirmed"), policy: policy(), replayed: false });
+			}
+			if (request.method === "GET") return success({ pairing: pairing("claimed") });
+			return success(
+				{ pairing: pairing("pending"), pairingToken: PAIRING_TOKEN, replayed: false },
+				201,
+			);
+		};
+		const client = new ReleaseServiceClient({
+			serviceUrl: SERVICE,
+			fetch,
+			csrfToken: CSRF,
+			workloadToken: "header.payload.signature",
+		});
+
+		await expect(
+			client.createWorkflowPairing("gallery", {
+				idempotencyKey: "workflow-pairing-create-0001",
+			}),
+		).resolves.toMatchObject({ pairingToken: PAIRING_TOKEN, pairing: { state: "pending" } });
+		await expect(client.getWorkflowPairing(PAIRING_ID)).resolves.toMatchObject({
+			state: "claimed",
+		});
+		await expect(
+			client.confirmWorkflowPairing(PAIRING_ID, {
+				idempotencyKey: "workflow-pairing-confirm-0001",
+			}),
+		).resolves.toMatchObject({ pairing: { state: "confirmed" }, policy: { active: true } });
+		await expect(
+			client.claimWorkflowPairing({
+				publisherDid: PUBLISHER_DID,
+				pairingId: PAIRING_ID,
+				pairingToken: PAIRING_TOKEN,
+			}),
+		).resolves.toMatchObject({ pairing: { state: "claimed" } });
+
+		expect(calls.map((request) => new URL(request.url).pathname)).toEqual([
+			"/v1/publisher/workflow-pairings",
+			`/v1/publisher/workflow-pairings/${PAIRING_ID}`,
+			`/v1/publisher/workflow-pairings/${PAIRING_ID}/confirm`,
+			`/v1/workflow-pairings/${PAIRING_ID}/claim`,
+		]);
+		expect(calls[0]?.credentials).toBe("include");
+		expect(calls[2]?.headers.get("x-emdash-csrf")).toBe(CSRF);
+		expect(calls[3]?.headers.get("authorization")).toBe("Bearer header.payload.signature");
+	});
+
 	it("lists only the authenticated publisher audit", async () => {
 		let captured = "";
 		let capturedSignal: AbortSignal | null | undefined;
@@ -390,6 +473,7 @@ describe("ReleaseServiceClient", () => {
 							eventType: "workload-policy-stored",
 							actorRealm: "publisher",
 							actorIdentity: PUBLISHER_DID,
+							actorHandle: "publisher.example.com",
 							subject: "gallery",
 							reasonCode: null,
 							createdAt: 1_800_000_000_000,
@@ -403,7 +487,7 @@ describe("ReleaseServiceClient", () => {
 		await expect(
 			client.listPublisherAudit({ cursor: "2", limit: 1, signal: controller.signal }),
 		).resolves.toMatchObject({
-			items: [{ sequence: 3, actorRealm: "publisher" }],
+			items: [{ sequence: 3, actorRealm: "publisher", actorHandle: "publisher.example.com" }],
 			nextCursor: "3",
 		});
 		expect(captured).toBe(`${SERVICE}/v1/publisher/audit?cursor=2&limit=1`);
@@ -428,6 +512,7 @@ describe("ReleaseServiceClient", () => {
 					items: [
 						{
 							did: "did:plc:approver",
+							handle: "approver.example.com",
 							status: "enrolled",
 						},
 					],
@@ -438,7 +523,7 @@ describe("ReleaseServiceClient", () => {
 		await expect(client.getPublisherApproverStatus("gallery")).resolves.toEqual({
 			packageSlug: "gallery",
 			profileCid: "bafyprofile",
-			items: [{ did: "did:plc:approver", status: "enrolled" }],
+			items: [{ did: "did:plc:approver", handle: "approver.example.com", status: "enrolled" }],
 		});
 		expect(captured).toBe(`${SERVICE}/v1/publisher/workloads/gallery/approvers`);
 	});

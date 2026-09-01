@@ -4,9 +4,13 @@ import { parseDelegatedReleaseSourceRecord } from "./source-record.js";
 import {
 	TERMINAL_RELEASE_INTENT_STATES,
 	type AbortPublisherRestoreResult,
-	type CursorPage,
 	type AuditListOptions,
+	type ClaimWorkflowPairingInput,
+	type ClaimWorkflowPairingResult,
+	type ConfirmWorkflowPairingResult,
 	type ControlAuditEventResource,
+	type CreateWorkflowPairingResult,
+	type CursorPage,
 	type DelegationResource,
 	type DryRunReleaseIntentResult,
 	type DirectoryIdentityKind,
@@ -42,6 +46,8 @@ import {
 	type SubmitReleaseIntentInput,
 	type SubmitReleaseIntentResult,
 	type WorkloadPolicyResource,
+	type WorkflowPairingClaimResource,
+	type WorkflowPairingResource,
 } from "./types.js";
 
 export type {
@@ -56,9 +62,13 @@ export { parseDelegatedReleaseSourceRecord } from "./source-record.js";
 
 export type {
 	AbortPublisherRestoreResult,
-	CursorPage,
 	AuditListOptions,
+	ClaimWorkflowPairingInput,
+	ClaimWorkflowPairingResult,
+	ConfirmWorkflowPairingResult,
 	ControlAuditEventResource,
+	CreateWorkflowPairingResult,
+	CursorPage,
 	DelegationResource,
 	DryRunReleaseIntentResult,
 	DirectoryIdentityKind,
@@ -96,6 +106,9 @@ export type {
 	SubmitReleaseIntentInput,
 	SubmitReleaseIntentResult,
 	WorkloadPolicyResource,
+	WorkflowPairingClaimResource,
+	WorkflowPairingResource,
+	WorkflowPairingState,
 } from "./types.js";
 export { TERMINAL_RELEASE_INTENT_STATES } from "./types.js";
 
@@ -109,6 +122,7 @@ const IDEMPOTENCY_PREFIX_PATTERN = /[^A-Za-z0-9._:-]/g;
 const DIGITS_PATTERN = /^[0-9]+$/;
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
 const CSRF_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const PAIRING_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const ARCHIVE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{15,63}$/;
 const DIRECTORY_SHARD_PATTERN = /^[0-9a-f]{2}$/;
 const DIGEST_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -138,6 +152,11 @@ const API_ERROR_CODES: Readonly<Record<ReleaseServiceApiErrorCode, true>> = {
 	NOT_FOUND: true,
 	OAUTH_AUTHORIZATION_FAILED: true,
 	OAUTH_CALLBACK_INVALID: true,
+	PAIRING_CONFLICT: true,
+	PAIRING_EXPIRED: true,
+	PAIRING_INVALID: true,
+	PAIRING_LIMIT_REACHED: true,
+	PAIRING_NOT_CLAIMED: true,
 	PROFILE_CHANGED: true,
 	PROFILE_FETCH_FAILED: true,
 	PUBLISHER_SESSION_INVALID: true,
@@ -476,6 +495,79 @@ function parsePolicy(value: unknown): WorkloadPolicyResource {
 	};
 }
 
+function parseWorkflowPairingClaim(value: unknown): WorkflowPairingClaimResource | null {
+	if (value === null) return null;
+	if (!isRecord(value)) throw invalidResponse();
+	const repository = stringValue(value, "repository");
+	const repositoryId = stringValue(value, "repositoryId");
+	const repositoryOwner = stringValue(value, "repositoryOwner");
+	const repositoryOwnerId = stringValue(value, "repositoryOwnerId");
+	const repositoryVisibility = value["repositoryVisibility"];
+	const workflowRef = stringValue(value, "workflowRef");
+	const ref = stringValue(value, "ref");
+	const environment = nullableString(value, "environment");
+	if (
+		!repository ||
+		!repositoryId ||
+		!POSITIVE_INTEGER_PATTERN.test(repositoryId) ||
+		!repositoryOwner ||
+		!repositoryOwnerId ||
+		!POSITIVE_INTEGER_PATTERN.test(repositoryOwnerId) ||
+		(repositoryVisibility !== "public" &&
+			repositoryVisibility !== "private" &&
+			repositoryVisibility !== "internal") ||
+		!workflowRef ||
+		!ref ||
+		environment === undefined
+	) {
+		throw invalidResponse();
+	}
+	return {
+		repository,
+		repositoryId,
+		repositoryOwner,
+		repositoryOwnerId,
+		repositoryVisibility,
+		workflowRef,
+		ref,
+		environment,
+	};
+}
+
+function parseWorkflowPairing(value: unknown): WorkflowPairingResource {
+	if (!isRecord(value)) throw invalidResponse();
+	const id = stringValue(value, "id");
+	const packageSlug = stringValue(value, "packageSlug");
+	const state = value["state"];
+	const expiresAt = safeInteger(value, "expiresAt");
+	const createdAt = safeInteger(value, "createdAt");
+	const claimedAt = nullableSafeInteger(value, "claimedAt");
+	const confirmedAt = nullableSafeInteger(value, "confirmedAt");
+	if (
+		!id ||
+		!ULID_PATTERN.test(id) ||
+		!packageSlug ||
+		!PACKAGE_SLUG_PATTERN.test(packageSlug) ||
+		(state !== "pending" && state !== "claimed" && state !== "confirmed" && state !== "expired") ||
+		expiresAt === null ||
+		createdAt === null ||
+		claimedAt === undefined ||
+		confirmedAt === undefined ||
+		createdAt > expiresAt
+	) {
+		throw invalidResponse();
+	}
+	const claim = parseWorkflowPairingClaim(value["claim"]);
+	if (
+		(state === "pending" && (claim !== null || claimedAt !== null || confirmedAt !== null)) ||
+		(state === "claimed" && (claim === null || claimedAt === null || confirmedAt !== null)) ||
+		(state === "confirmed" && (claim === null || claimedAt === null || confirmedAt === null))
+	) {
+		throw invalidResponse();
+	}
+	return { id, packageSlug, state, claim, expiresAt, createdAt, claimedAt, confirmedAt };
+}
+
 function parseDelegation(value: unknown): DelegationResource | null {
 	if (value === null) return null;
 	if (!isRecord(value)) throw invalidResponse();
@@ -514,17 +606,21 @@ function parseDelegation(value: unknown): DelegationResource | null {
 function parsePublisher(value: unknown): PublisherResource {
 	if (!isRecord(value)) throw invalidResponse();
 	const did = stringValue(value, "did");
+	const handleValue = value["handle"];
+	const handle = typeof handleValue === "string" ? handleValue : null;
 	const delegation = parseDelegation(value["delegation"]);
 	const sessionExpiresAt = value["sessionExpiresAt"];
 	if (
 		!did ||
 		!DID_PATTERN.test(did) ||
+		(handleValue !== undefined && handleValue !== null && handle === null) ||
 		(sessionExpiresAt !== undefined && !Number.isSafeInteger(sessionExpiresAt))
 	) {
 		throw invalidResponse();
 	}
 	return {
 		did,
+		handle,
 		delegation,
 		...(sessionExpiresAt === undefined ? {} : { sessionExpiresAt: Number(sessionExpiresAt) }),
 	};
@@ -612,6 +708,8 @@ function parsePublisherAuditEvent(value: unknown): PublisherAuditEventResource {
 	const eventType = stringValue(value, "eventType");
 	const actorRealm = value["actorRealm"];
 	const actorIdentity = stringValue(value, "actorIdentity");
+	const actorHandleValue = value["actorHandle"];
+	const actorHandle = typeof actorHandleValue === "string" ? actorHandleValue : null;
 	const subject = stringValue(value, "subject");
 	const reasonCode = nullableString(value, "reasonCode");
 	const createdAt = safeInteger(value, "createdAt");
@@ -625,6 +723,7 @@ function parsePublisherAuditEvent(value: unknown): PublisherAuditEventResource {
 			actorRealm !== "publisher" &&
 			actorRealm !== "system") ||
 		!actorIdentity ||
+		(actorHandleValue !== undefined && actorHandleValue !== null && actorHandle === null) ||
 		!subject ||
 		reasonCode === undefined ||
 		createdAt === null
@@ -636,6 +735,7 @@ function parsePublisherAuditEvent(value: unknown): PublisherAuditEventResource {
 		eventType,
 		actorRealm,
 		actorIdentity,
+		actorHandle,
 		subject,
 		reasonCode,
 		createdAt,
@@ -645,15 +745,18 @@ function parsePublisherAuditEvent(value: unknown): PublisherAuditEventResource {
 function parsePublisherApproverStatus(value: unknown): PublisherApproverStatusResource {
 	if (!isRecord(value)) throw invalidResponse();
 	const did = stringValue(value, "did");
+	const handleValue = value["handle"];
+	const handle = typeof handleValue === "string" ? handleValue : null;
 	const status = value["status"];
 	if (
 		!did ||
 		!DID_PATTERN.test(did) ||
+		(handleValue !== undefined && handleValue !== null && handle === null) ||
 		(status !== "enrolled" && status !== "not_enrolled" && status !== "revoked")
 	) {
 		throw invalidResponse();
 	}
-	return { did, status };
+	return { did, handle, status };
 }
 
 function invalidResponse(requestId: string | null = null): ReleaseServiceError {
@@ -960,6 +1063,113 @@ export class ReleaseServiceClient extends BaseReleaseServiceClient {
 			(value) => {
 				if (!isRecord(value)) throw invalidResponse();
 				return parsePublisher(value["publisher"]);
+			},
+		);
+	}
+
+	async createWorkflowPairing(
+		packageSlug: string,
+		options: MutationOptions,
+	): Promise<CreateWorkflowPairingResult> {
+		if (!PACKAGE_SLUG_PATTERN.test(packageSlug)) throw invalidResponse();
+		return await this.call(
+			"/v1/publisher/workflow-pairings",
+			{
+				method: "POST",
+				credentials: "include",
+				headers: await this.#publisherMutationHeaders(options.idempotencyKey),
+				body: JSON.stringify({ packageSlug }),
+				signal: options.signal,
+			},
+			(value) => {
+				if (!isRecord(value) || typeof value["replayed"] !== "boolean") {
+					throw invalidResponse();
+				}
+				const pairingToken = stringValue(value, "pairingToken");
+				if (!pairingToken || !PAIRING_TOKEN_PATTERN.test(pairingToken)) throw invalidResponse();
+				return {
+					pairing: parseWorkflowPairing(value["pairing"]),
+					pairingToken,
+					replayed: value["replayed"],
+				};
+			},
+		);
+	}
+
+	async getWorkflowPairing(
+		pairingId: string,
+		options: RequestOptions = {},
+	): Promise<WorkflowPairingResource> {
+		if (!ULID_PATTERN.test(pairingId)) throw invalidResponse();
+		return await this.call(
+			`/v1/publisher/workflow-pairings/${encodeURIComponent(pairingId)}`,
+			{ method: "GET", credentials: "include", signal: options.signal },
+			(value) => {
+				if (!isRecord(value)) throw invalidResponse();
+				return parseWorkflowPairing(value["pairing"]);
+			},
+		);
+	}
+
+	async confirmWorkflowPairing(
+		pairingId: string,
+		options: MutationOptions,
+	): Promise<ConfirmWorkflowPairingResult> {
+		if (!ULID_PATTERN.test(pairingId)) throw invalidResponse();
+		return await this.call(
+			`/v1/publisher/workflow-pairings/${encodeURIComponent(pairingId)}/confirm`,
+			{
+				method: "POST",
+				credentials: "include",
+				headers: await this.#publisherMutationHeaders(options.idempotencyKey),
+				body: "{}",
+				signal: options.signal,
+			},
+			(value) => {
+				if (!isRecord(value) || typeof value["replayed"] !== "boolean") {
+					throw invalidResponse();
+				}
+				return {
+					pairing: parseWorkflowPairing(value["pairing"]),
+					policy: parsePolicy(value["policy"]),
+					replayed: value["replayed"],
+				};
+			},
+		);
+	}
+
+	async claimWorkflowPairing(
+		input: ClaimWorkflowPairingInput,
+		options: RequestOptions = {},
+	): Promise<ClaimWorkflowPairingResult> {
+		if (
+			!DID_PATTERN.test(input.publisherDid) ||
+			!ULID_PATTERN.test(input.pairingId) ||
+			!PAIRING_TOKEN_PATTERN.test(input.pairingToken)
+		) {
+			throw invalidResponse();
+		}
+		const headers = await this.#workloadHeaders();
+		headers.set("content-type", "application/json");
+		return await this.call(
+			`/v1/workflow-pairings/${encodeURIComponent(input.pairingId)}/claim`,
+			{
+				method: "POST",
+				headers,
+				body: JSON.stringify({
+					publisherDid: input.publisherDid,
+					pairingToken: input.pairingToken,
+				}),
+				signal: options.signal,
+			},
+			(value) => {
+				if (!isRecord(value) || typeof value["replayed"] !== "boolean") {
+					throw invalidResponse();
+				}
+				return {
+					pairing: parseWorkflowPairing(value["pairing"]),
+					replayed: value["replayed"],
+				};
 			},
 		);
 	}

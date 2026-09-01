@@ -5,6 +5,7 @@ import {
 	createReleaseIdempotencyKey,
 	parseDelegatedReleaseSourceRecord,
 	type DryRunReleaseIntentResult,
+	type ClaimWorkflowPairingResult,
 	type ReleaseIntentResource,
 } from "@emdash-cms/registry-client/release-service";
 
@@ -46,6 +47,11 @@ export interface DryRunDelegatedReleaseOptions extends ReleaseServiceTarget {
 export interface MutateReleaseIntentOptions extends ReleaseServiceTarget {
 	intentId: string;
 	idempotencyKey?: string;
+}
+
+export interface ConnectGithubWorkflowOptions extends ReleaseServiceTarget {
+	pairingId: string;
+	pairingToken: string;
 }
 
 export type InteractiveReleaseAction =
@@ -229,6 +235,17 @@ export async function dryRunDelegatedRelease(
 		packageSlug: release.package,
 		version: release.version,
 		release,
+	});
+}
+
+export async function connectGithubWorkflow(
+	options: ConnectGithubWorkflowOptions,
+	dependencies: ReleaseServiceOperationDependencies = {},
+): Promise<ClaimWorkflowPairingResult> {
+	return await releaseClient(options, dependencies).claimWorkflowPairing({
+		publisherDid: options.publisherDid,
+		pairingId: options.pairingId,
+		pairingToken: options.pairingToken,
 	});
 }
 

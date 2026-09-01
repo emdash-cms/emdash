@@ -55,6 +55,15 @@ import {
 	type VerificationStepName,
 } from "./verification-step.js";
 import {
+	initializeWorkflowPairingSchema,
+	WorkflowPairingStore,
+	type ClaimWorkflowPairingInput,
+	type ClaimWorkflowPairingResult,
+	type CreateWorkflowPairingInput,
+	type CreateWorkflowPairingResult,
+	type StoredWorkflowPairing,
+} from "./workflow-pairing.js";
+import {
 	initializeWorkloadPolicySchema,
 	WorkloadPolicyStore,
 	type PutWorkloadPolicyInput,
@@ -109,6 +118,15 @@ export type {
 	PublisherRestoreKind,
 } from "./operations-restore.js";
 export type { ConsumeIntentRateLimitInput, ConsumeIntentRateLimitResult } from "./rate-limit.js";
+export type {
+	ClaimWorkflowPairingInput,
+	ClaimWorkflowPairingResult,
+	CreateWorkflowPairingInput,
+	CreateWorkflowPairingResult,
+	StoredWorkflowPairing,
+	WorkflowPairingClaim,
+	WorkflowPairingState,
+} from "./workflow-pairing.js";
 
 const DID_PATTERN = /^did:[a-z][a-z0-9]*:[A-Za-z0-9._:%-]+$/;
 const HASH_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
@@ -339,6 +357,18 @@ export type ValidatePublisherSessionResult =
 			code: "PUBLISHER_SESSION_INVALID" | "PUBLISHER_SESSION_EXPIRED" | "PUBLISHER_SUSPENDED";
 	  };
 
+export type ConfirmWorkflowPairingResult =
+	| {
+			ok: true;
+			pairing: StoredWorkflowPairing;
+			policy: StoredWorkloadPolicy;
+			replayed: boolean;
+	  }
+	| {
+			ok: false;
+			code: "PAIRING_CONFLICT" | "PAIRING_EXPIRED" | "PAIRING_INVALID" | "PAIRING_NOT_CLAIMED";
+	  };
+
 interface OAuthStateRow {
 	[key: string]: string | number | ArrayBuffer | null;
 	encrypted_state: string;
@@ -456,6 +486,32 @@ async function expirationDigest(intentId: string, expiresAt: number): Promise<st
 	return encodeBase64Url(new Uint8Array(digest));
 }
 
+function workflowPairingPolicyMatches(
+	policy: StoredWorkloadPolicy,
+	expected: Pick<
+		StoredWorkloadPolicy,
+		| "active"
+		| "allowedEnvironments"
+		| "allowedRefs"
+		| "packageSlug"
+		| "repository"
+		| "repositoryId"
+		| "repositoryOwnerId"
+		| "workflowRef"
+	>,
+): boolean {
+	return (
+		policy.packageSlug === expected.packageSlug &&
+		policy.repository === expected.repository &&
+		policy.repositoryId === expected.repositoryId &&
+		policy.repositoryOwnerId === expected.repositoryOwnerId &&
+		policy.workflowRef === expected.workflowRef &&
+		JSON.stringify(policy.allowedRefs) === JSON.stringify(expected.allowedRefs) &&
+		JSON.stringify(policy.allowedEnvironments) === JSON.stringify(expected.allowedEnvironments) &&
+		policy.active === expected.active
+	);
+}
+
 export class PublisherDurableObject extends DurableObject<Env> {
 	readonly #objectName: string | undefined;
 	readonly #workloadPolicies: WorkloadPolicyStore;
@@ -465,6 +521,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 	readonly #verificationSteps: VerificationStepStore;
 	readonly #operationsRestore: OperationsRestoreStore;
 	readonly #intentRateLimits: IntentRateLimitStore;
+	readonly #workflowPairings: WorkflowPairingStore;
 
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
@@ -476,6 +533,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		this.#verificationSteps = new VerificationStepStore(ctx.storage);
 		this.#operationsRestore = new OperationsRestoreStore(ctx.storage);
 		this.#intentRateLimits = new IntentRateLimitStore(ctx.storage);
+		this.#workflowPairings = new WorkflowPairingStore(ctx.storage);
 		void ctx.blockConcurrencyWhile(() => {
 			this.#initializeSchema();
 			return Promise.resolve();
@@ -562,6 +620,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		initializeVerificationStepSchema(this.ctx.storage);
 		initializeOperationsRestoreSchema(this.ctx.storage);
 		initializeIntentRateLimitSchema(this.ctx.storage);
+		initializeWorkflowPairingSchema(this.ctx.storage);
 	}
 
 	#assertPublisherObjectName(publisherDid: string): void {
@@ -689,6 +748,83 @@ export class PublisherDurableObject extends DurableObject<Env> {
 	): readonly StoredWorkloadPolicy[] {
 		this.#assertPublisherDid(publisherDid);
 		return this.#workloadPolicies.list(afterPackageSlug, limit);
+	}
+
+	async createWorkflowPairing(
+		input: CreateWorkflowPairingInput,
+	): Promise<CreateWorkflowPairingResult> {
+		this.#assertPublisherDid(input.publisherDid);
+		const currentPolicy = this.#workloadPolicies.get(input.packageSlug);
+		const result = this.#workflowPairings.create(input, currentPolicy?.stateVersion ?? null);
+		if (result.ok) await this.#scheduleNextAlarm(input.now ?? Date.now());
+		return result;
+	}
+
+	getWorkflowPairing(
+		publisherDid: string,
+		pairingId: string,
+		now = Date.now(),
+	): StoredWorkflowPairing | null {
+		this.#assertPublisherDid(publisherDid);
+		return this.#workflowPairings.get(pairingId, now);
+	}
+
+	claimWorkflowPairing(input: ClaimWorkflowPairingInput): ClaimWorkflowPairingResult {
+		this.#assertPublisherDid(input.publisherDid);
+		return this.#workflowPairings.claim(input);
+	}
+
+	confirmWorkflowPairing(
+		publisherDid: string,
+		pairingId: string,
+		now = Date.now(),
+	): ConfirmWorkflowPairingResult {
+		this.#assertPublisherDid(publisherDid);
+		const prepared = this.#workflowPairings.prepareConfirmation(pairingId, now);
+		if (!prepared.ok) return prepared;
+		const claim = prepared.pairing.claim;
+		if (!claim) return { ok: false, code: "PAIRING_NOT_CLAIMED" };
+		const expectedVersion = prepared.pairing.expectedPolicyVersion;
+		const expectedPolicy = {
+			packageSlug: prepared.pairing.packageSlug,
+			repository: claim.repository,
+			repositoryId: claim.repositoryId,
+			repositoryOwnerId: claim.repositoryOwnerId,
+			workflowRef: claim.workflowRef,
+			allowedRefs: [claim.ref],
+			allowedEnvironments: claim.environment ? [claim.environment] : [],
+			active: true,
+		} as const;
+		if (prepared.replayed) {
+			const policy = this.#workloadPolicies.get(expectedPolicy.packageSlug);
+			return policy && workflowPairingPolicyMatches(policy, expectedPolicy)
+				? { ok: true, pairing: prepared.pairing, policy, replayed: true }
+				: { ok: false, code: "PAIRING_CONFLICT" };
+		}
+		const result = this.#workloadPolicies.put({
+			publisherDid,
+			...expectedPolicy,
+			expectedVersion,
+			now,
+		});
+		let policy: StoredWorkloadPolicy | null = result.ok ? result.policy : null;
+		if (!policy) {
+			const current = this.#workloadPolicies.get(expectedPolicy.packageSlug);
+			if (
+				current &&
+				current.stateVersion === (expectedVersion ?? 0) + 1 &&
+				workflowPairingPolicyMatches(current, expectedPolicy)
+			) {
+				policy = current;
+			}
+		}
+		if (!policy) return { ok: false, code: "PAIRING_CONFLICT" };
+		return {
+			ok: true,
+			pairing: this.#workflowPairings.complete(pairingId, now),
+			policy,
+			replayed: false,
+		};
 	}
 
 	async createIntent(input: CreateIntentInput): Promise<CreateIntentResult> {
@@ -1280,6 +1416,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			this.ctx.storage.sql.exec("DELETE FROM deadlines");
 			this.ctx.storage.sql.exec("DELETE FROM intents");
 			this.ctx.storage.sql.exec("DELETE FROM workload_policies");
+			this.ctx.storage.sql.exec("DELETE FROM workflow_pairings");
 			this.ctx.storage.sql.exec("DELETE FROM publisher_sessions");
 			this.ctx.storage.sql.exec("DELETE FROM oauth_states");
 			this.ctx.storage.sql.exec("DELETE FROM delegation");
@@ -1850,6 +1987,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 				idempotency_expiry: number | null;
 				rate_expiry: number | null;
 				intent_expiry: number | null;
+				pairing_expiry: number | null;
 			}>(
 				`SELECT
 					(SELECT MIN(scheduled_at) FROM deadlines) AS operation_deadline,
@@ -1860,7 +1998,9 @@ export class PublisherDurableObject extends DurableObject<Env> {
 					(SELECT MIN(expires_at) FROM intents
 					 WHERE state IN (
 					   'received', 'verifying', 'verified', 'awaiting_approval', 'ready'
-					 )) AS intent_expiry`,
+					 )) AS intent_expiry,
+					(SELECT MIN(expires_at) FROM workflow_pairings
+					 WHERE state IN ('pending', 'claimed')) AS pairing_expiry`,
 			)
 			.one();
 		const deadlines = Object.values(candidates).filter(
@@ -1900,6 +2040,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			this.ctx.storage.sql.exec("DELETE FROM publisher_sessions WHERE expires_at <= ?", now);
 			this.ctx.storage.sql.exec("DELETE FROM intent_idempotency WHERE expires_at <= ?", now);
 			this.ctx.storage.sql.exec("DELETE FROM intent_rate_idempotency WHERE expires_at <= ?", now);
+			this.#workflowPairings.expire(now);
 		});
 		await this.#scheduleNextAlarm(now);
 	}

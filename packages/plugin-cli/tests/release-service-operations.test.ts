@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import releaseFixture from "../../registry-verification/fixtures/records/release.json";
 import {
 	cancelDelegatedReleaseIntent,
+	connectGithubWorkflow,
 	dryRunDelegatedRelease,
 	getDelegatedReleaseIntent,
 	interactiveReleaseUrl,
@@ -112,6 +113,58 @@ describe("delegated release CLI operations", () => {
 		expect(token).toBe("header.payload.signature");
 		expect(calls[0]?.url.searchParams.get("audience")).toBe(SERVICE);
 		expect(calls[0]?.headers.get("authorization")).toBe("Bearer runner-request-token");
+	});
+
+	it("claims a browser-started workflow pairing with GitHub OIDC", async () => {
+		const serviceRequests: Request[] = [];
+		const result = await connectGithubWorkflow(
+			{
+				serviceUrl: SERVICE,
+				publisherDid: PUBLISHER_DID,
+				pairingId: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+				pairingToken: "T".repeat(43),
+			},
+			{
+				environment: ENVIRONMENT,
+				fetch: async (input, init) => {
+					const url = new URL(input instanceof Request ? input.url : input.toString());
+					if (url.hostname === "token.actions.example") {
+						return Response.json({ value: "header.payload.signature" });
+					}
+					serviceRequests.push(new Request(url, init));
+					return success({
+						pairing: {
+							id: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+							packageSlug: "gallery",
+							state: "claimed",
+							claim: {
+								repository: "example/gallery",
+								repositoryId: "123456789",
+								repositoryOwner: "example",
+								repositoryOwnerId: "987654321",
+								repositoryVisibility: "private",
+								workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+								ref: "refs/heads/main",
+								environment: null,
+							},
+							expiresAt: 1_800_000_900_000,
+							createdAt: 1_800_000_000_000,
+							claimedAt: 1_800_000_001_000,
+							confirmedAt: null,
+						},
+						replayed: false,
+					});
+				},
+			},
+		);
+
+		expect(result.pairing.state).toBe("claimed");
+		expect(serviceRequests[0]?.headers.get("authorization")).toBe(
+			"Bearer header.payload.signature",
+		);
+		expect(serviceRequests[0]?.url).toBe(
+			`${SERVICE}/v1/workflow-pairings/01JABCDEFGHJKMNPQRSTVWXYZ1/claim`,
+		);
 	});
 
 	it("submits with the stable GitHub run idempotency identity", async () => {

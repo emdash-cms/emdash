@@ -8,6 +8,7 @@ import pc from "picocolors";
 
 import {
 	cancelDelegatedReleaseIntent,
+	connectGithubWorkflow,
 	dryRunDelegatedRelease,
 	getDelegatedReleaseIntent,
 	interactiveReleaseUrl,
@@ -245,6 +246,41 @@ export const releaseSubmitCommand = defineCommand({
 	},
 });
 
+export const releaseConnectCommand = defineCommand({
+	meta: {
+		name: "connect",
+		description: "Connect this GitHub Actions workflow to a plugin package",
+	},
+	args: {
+		...commonArgs,
+		"pairing-id": {
+			type: "string",
+			description: "Short-lived connection ID from the release dashboard",
+			required: true,
+		},
+		"pairing-token": {
+			type: "string",
+			description: "Short-lived connection token from the release dashboard",
+			required: true,
+		},
+	},
+	async run({ args }) {
+		const result = await connectGithubWorkflow({
+			...requiredTarget(args),
+			pairingId: args["pairing-id"],
+			pairingToken: args["pairing-token"],
+		});
+		if (args.json) {
+			console.log(JSON.stringify(result, null, 2));
+			return;
+		}
+		const claim = result.pairing.claim;
+		if (!claim) throw new Error("GitHub workflow connection was not recorded");
+		console.log(`${pc.bold(claim.repository)} ${pc.dim(claim.ref)}`);
+		consola.success("Workflow verified. Return to the EmDash release dashboard to confirm it.");
+	},
+});
+
 export const releaseDryRunCommand = defineCommand({
 	meta: {
 		name: "dry-run",
@@ -314,6 +350,7 @@ export const releaseCommand = defineCommand({
 	meta: { name: "release", description: "Manage delegated release intents" },
 	subCommands: {
 		approve: releaseApproveCommand,
+		connect: releaseConnectCommand,
 		delegate: releaseDelegateCommand,
 		"dry-run": releaseDryRunCommand,
 		enrol: releaseEnrolCommand,

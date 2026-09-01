@@ -85,6 +85,15 @@ import {
 	matchPublisherApproverStatusPath,
 	matchPublisherWorkloadPath,
 } from "./publisher/routes.js";
+import {
+	handleClaimWorkflowPairing,
+	handleConfirmWorkflowPairing,
+	handleCreateWorkflowPairing,
+	handleGetWorkflowPairing,
+	matchWorkflowPairingClaimPath,
+	matchWorkflowPairingConfirmPath,
+	matchWorkflowPairingPath,
+} from "./workflow-pairing/routes.js";
 
 export interface RouteDefinition {
 	method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
@@ -147,7 +156,8 @@ export const ROUTES = Object.freeze([
 	{
 		method: "GET",
 		path: "/v1/publisher",
-		handler: handleGetPublisher,
+		handler: (request, requestId, configuration) =>
+			handleGetPublisher(request, requestId, configuration),
 	},
 	{
 		method: "DELETE",
@@ -159,6 +169,33 @@ export const ROUTES = Object.freeze([
 		method: "GET",
 		path: "/v1/publisher/workloads",
 		handler: handleListPublisherWorkloads,
+	},
+	{
+		method: "POST",
+		path: "/v1/publisher/workflow-pairings",
+		handler: (request, requestId, configuration) =>
+			handleCreateWorkflowPairing(request, requestId, configuration),
+	},
+	{
+		method: "GET",
+		path: "/v1/publisher/workflow-pairings/{pairingId}",
+		match: matchWorkflowPairingPath,
+		handler: (request, requestId, configuration, params) =>
+			handleGetWorkflowPairing(request, requestId, configuration, params),
+	},
+	{
+		method: "POST",
+		path: "/v1/publisher/workflow-pairings/{pairingId}/confirm",
+		match: matchWorkflowPairingConfirmPath,
+		handler: (request, requestId, configuration, params) =>
+			handleConfirmWorkflowPairing(request, requestId, configuration, params),
+	},
+	{
+		method: "POST",
+		path: "/v1/workflow-pairings/{pairingId}/claim",
+		match: matchWorkflowPairingClaimPath,
+		handler: (request, requestId, configuration, params) =>
+			handleClaimWorkflowPairing(request, requestId, configuration, params),
 	},
 	{
 		method: "POST",

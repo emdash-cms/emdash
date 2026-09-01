@@ -42,6 +42,11 @@ export type ReleaseServiceApiErrorCode =
 	| "NOT_FOUND"
 	| "OAUTH_AUTHORIZATION_FAILED"
 	| "OAUTH_CALLBACK_INVALID"
+	| "PAIRING_CONFLICT"
+	| "PAIRING_EXPIRED"
+	| "PAIRING_INVALID"
+	| "PAIRING_LIMIT_REACHED"
+	| "PAIRING_NOT_CLAIMED"
 	| "PROFILE_CHANGED"
 	| "PROFILE_FETCH_FAILED"
 	| "PUBLISHER_SESSION_INVALID"
@@ -130,6 +135,53 @@ export interface PutWorkloadPolicyInput {
 	expectedVersion: number | null;
 }
 
+export type WorkflowPairingState = "claimed" | "confirmed" | "expired" | "pending";
+
+export interface WorkflowPairingClaimResource {
+	repository: string;
+	repositoryId: string;
+	repositoryOwner: string;
+	repositoryOwnerId: string;
+	repositoryVisibility: "internal" | "private" | "public";
+	workflowRef: string;
+	ref: string;
+	environment: string | null;
+}
+
+export interface WorkflowPairingResource {
+	id: string;
+	packageSlug: string;
+	state: WorkflowPairingState;
+	claim: WorkflowPairingClaimResource | null;
+	expiresAt: number;
+	createdAt: number;
+	claimedAt: number | null;
+	confirmedAt: number | null;
+}
+
+export interface CreateWorkflowPairingResult {
+	pairing: WorkflowPairingResource;
+	pairingToken: string;
+	replayed: boolean;
+}
+
+export interface ClaimWorkflowPairingInput {
+	publisherDid: string;
+	pairingId: string;
+	pairingToken: string;
+}
+
+export interface ClaimWorkflowPairingResult {
+	pairing: WorkflowPairingResource;
+	replayed: boolean;
+}
+
+export interface ConfirmWorkflowPairingResult {
+	pairing: WorkflowPairingResource;
+	policy: WorkloadPolicyResource;
+	replayed: boolean;
+}
+
 export interface DelegationResource {
 	releaseNsid: string;
 	scope: string;
@@ -143,6 +195,7 @@ export interface DelegationResource {
 
 export interface PublisherResource {
 	did: string;
+	handle: string | null;
 	delegation: DelegationResource | null;
 	sessionExpiresAt?: number;
 }
@@ -203,6 +256,7 @@ export interface PublisherAuditEventResource {
 	eventType: string;
 	actorRealm: "access" | "approver" | "oidc" | "publisher" | "system";
 	actorIdentity: string;
+	actorHandle: string | null;
 	subject: string;
 	reasonCode: string | null;
 	createdAt: number;
@@ -212,6 +266,7 @@ export type PublisherApproverEnrollmentState = "enrolled" | "not_enrolled" | "re
 
 export interface PublisherApproverStatusResource {
 	did: string;
+	handle: string | null;
 	status: PublisherApproverEnrollmentState;
 }
 
