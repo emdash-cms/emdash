@@ -25,6 +25,7 @@ emdash-plugin build                          Build dist/ artifacts (plugin.mjs, 
 emdash-plugin dev                            Watch sources and rebuild on change
 emdash-plugin bundle                         Pack dist/ + assets into a registry tarball
 emdash-plugin publish                        Build, upload, and publish a release
+emdash-plugin release setup                  Create the permanent GitHub release workflow
 emdash-plugin release delegate               Print a publisher delegation browser handoff
 emdash-plugin release revoke                 Print an authority revocation browser handoff
 emdash-plugin release workload               Print a workload policy browser handoff
@@ -97,13 +98,23 @@ On first publish, pass `--license` and `--security-email` (or `--security-url`) 
 
 ## Delegated releases
 
-Use the release-service dashboard to set up delegated publishing. Sign in with the Atmosphere account that owns the plugin and allow EmDash to create plugin releases.
+Run the setup command from a public GitHub repository containing an EmDash plugin:
 
-Add the permanent release command to a GitHub Actions job with `id-token: write`. The first submission sends the job's signed GitHub identity to the release service and waits. Open the approval URL printed by the command, then check the repository, workflow file, branch or tag, and environment in the dashboard. Confirming those details creates the publishing policy and lets the waiting command continue.
+```sh
+emdash-plugin release setup
+```
+
+The command reads the plugin publisher from `emdash-plugin.jsonc` and creates `.github/workflows/emdash-release.yml`. Review and commit that file. The command does not push or change an existing workflow; pass `--force` to replace one deliberately.
+
+The generated workflow builds the plugin, creates signed GitHub build provenance, and publishes on version tags or a manual run. Private and internal GitHub repositories are not supported because their attestations use a private Sigstore trust root that the release verifier does not trust.
+
+Sign in to the release-service dashboard with the Atmosphere account that owns the plugin and authorize EmDash to create plugin releases. Start the workflow by pushing a version tag such as `v1.2.3`. The first run waits and adds an approval link to the GitHub job summary. Open that link, check the repository, workflow file, branch or tag, and environment, then confirm the workflow. The same run continues after confirmation.
 
 For a release started from a tag, the dashboard can authorize all version tags or only the current tag. Repository and workflow paths remain exact in both cases.
 
-The automation commands (`dry-run`, `submit`, `status`, and `cancel`) authenticate with the current GitHub Actions OpenID Connect (OIDC) identity. The CLI requests a token whose audience is the release-service origin for every API call.
+The workflow uploads the bundle and raw Sigstore attestation to private, transient service storage with a fresh GitHub Actions OpenID Connect (OIDC) token for each request. The service verifies the exact bytes, uploads the plugin bundle to the publisher's personal data server (PDS), and publishes a release record containing the PDS blob. The published provenance URL points to the immutable verified attestation.
+
+The lower-level automation commands (`dry-run`, `submit`, `status`, and `cancel`) remain available for custom workflows. They authenticate with the current GitHub Actions OIDC identity and accept a hand-authored URL-source release record.
 
 The following command submits a generated URL-source package release record and waits for publication or an approval request:
 
@@ -115,7 +126,7 @@ emdash-plugin release submit release.json \
 
 Set `EMDASH_RELEASE_SERVICE_URL` and `EMDASH_PUBLISHER_DID` to omit the two target flags. The default idempotency key uses the GitHub run ID, so a re-run reuses the existing intent. Pass `--idempotency-key` when separate runs or jobs must replay the same submission.
 
-Each package or listing-image artifact in the source record must use a checksum-bound HTTPS `url` and must not include `blob`. The service verifies and uploads those bytes to the publisher's PDS. The published release record contains PDS blob references and no artifact source URLs; provenance remains URL-based.
+Each package or listing-image artifact in a hand-authored source record must use a checksum-bound HTTPS `url` and must not include `blob`. The published release record contains PDS blob references and no artifact source URLs.
 
 Use `--no-wait` to return after the service accepts the intent. The status and cancellation commands require the same publisher and GitHub workload identity:
 
@@ -124,7 +135,7 @@ emdash-plugin release status 01JABCDEFGHJKMNPQRSTVWXYZ0
 emdash-plugin release cancel 01JABCDEFGHJKMNPQRSTVWXYZ0
 ```
 
-These commands fail outside GitHub Actions because no OIDC request endpoint is available. Use the delegated release Action when the workflow only needs submission and outputs.
+These commands fail outside GitHub Actions because no OIDC request endpoint is available. Use `release setup` for the standard workflow.
 
 Atmosphere authorization and passkeys remain browser operations. The following commands print validated browser links instead of copying OAuth sessions or passkey assertions into the terminal:
 

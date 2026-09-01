@@ -8,6 +8,7 @@ This runbook covers self-host deployment, routine maintenance, and incident reco
 - The identity directory is a non-authoritative projection split across 256 Durable Objects. Deleting it does not change authority, release state, or approval state.
 - The initial deployment does not use D1. The operator console performs direct DID lookup and uses the sharded identity directory for fleet maintenance.
 - `PUBLICATION_STAGING` is private transient storage. Published release records reference only publisher-PDS blobs; they never reference staging objects or artifact source URLs.
+- `PROVENANCE_STORE` is private immutable storage exposed only through the checksum-addressed provenance route.
 - R2 snapshot pages are encrypted before storage. Audit export objects contain only the sanitized `audit_events.public_payload` contract.
 - Restore requires a suspended publisher and a complete, decryptable archive manifest.
 - Restore clears retained OAuth authority and pending workflow connection requests, disables workload policies, and converts nonterminal intents to `failed`. A publisher must reauthorize before publication resumes.
@@ -27,6 +28,7 @@ The release-service Worker expects the following resources.
 | `PUBLISHER_ARCHIVE_WORKFLOW` | Workflow                         | Bounded, retryable publisher snapshot and audit export                                                           |
 | `RELEASE_VERIFIER`           | Service binding                  | Isolated artifact and provenance verification                                                                    |
 | `PUBLICATION_STAGING`        | Private R2 bucket                | Transient checksum-verified package and image bytes awaiting PDS blob upload                                     |
+| `PROVENANCE_STORE`           | Private R2 bucket                | Immutable verified Sigstore bundles referenced by published releases                                             |
 | `OPERATIONS_ARCHIVE`         | R2 bucket                        | Encrypted publisher snapshot pages and append-only sanitized audit pages                                         |
 | `OPERATIONS_METRICS`         | Analytics Engine dataset         | Privacy-safe operational alert events                                                                            |
 | `ASSETS`                     | Worker static assets             | Publisher, approver, and Access operator web surfaces                                                            |
@@ -80,6 +82,7 @@ Create separate private buckets for transient publication staging and encrypted 
 
 ```sh
 pnpm exec wrangler r2 bucket create emdash-release-service-publication-staging
+pnpm exec wrangler r2 bucket create emdash-release-service-provenance
 pnpm exec wrangler r2 bucket create emdash-release-service-operations
 ```
 
@@ -90,6 +93,16 @@ pnpm exec wrangler r2 bucket lifecycle add \
   emdash-release-service-publication-staging \
   expire-publication-staging \
   publication/ \
+  --expire-days 7
+```
+
+Add the same recovery bound for workflow uploads:
+
+```sh
+pnpm exec wrangler r2 bucket lifecycle add \
+  emdash-release-service-publication-staging \
+  expire-workload-staging \
+  workload/ \
   --expire-days 7
 ```
 
@@ -120,7 +133,7 @@ Test the account and workflow connection journey against the deployed origin:
 5. Confirm the connection and verify the resulting workload policy contains the immutable GitHub repository and owner IDs plus the selected ref scope and environment.
 6. Confirm the waiting Action requests fresh OIDC, creates the release intent, and continues normally.
 
-List the staging lifecycle rules and confirm that `expire-publication-staging` targets the `publication/` prefix with a seven-day expiry:
+List the staging lifecycle rules and confirm that `expire-publication-staging` and `expire-workload-staging` target their respective prefixes with a seven-day expiry:
 
 ```sh
 pnpm exec wrangler r2 bucket lifecycle list emdash-release-service-publication-staging

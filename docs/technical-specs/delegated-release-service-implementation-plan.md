@@ -428,7 +428,7 @@ Dependencies: W4 delegation, W6 verified intents, W2 service permits.
 - No release is written from stale verification or approval inputs.
 - Pause, suspension, or delegation revocation immediately before the write blocks publication.
 - Concurrent publication within one publisher produces one active operation token.
-- URL-source bytes are fetched through the guarded path and staged under deterministic publisher/intent/slot/checksum R2 keys.
+- Workflow uploads are admitted with OIDC and staged under deterministic publisher/workload/package/version/slot keys; external URL sources still use the guarded fetch path.
 - Every returned PDS blob matches the verified checksum, byte size, and media type; the final record contains no artifact URL.
 - Immutable receipts and canonical record JSON are committed before the permit and `creating` phase, and normal completion deletes staged objects.
 - A timeout before, during, or after `createRecord` converges without creating a second semantic release.
@@ -945,7 +945,7 @@ The review stack contains seven PRs and merges as one unit. Each PR preserves th
 
 - [ ] Valid non-escalating release publishes automatically.
 - [ ] Invalid record, bundle, manifest, access, artifact, provenance, source, builder, workload, or policy input never reaches publication.
-- [ ] URL-source package and image bytes become checksum-bound PDS blobs, and the final release record contains no artifact URLs.
+- [ ] Workflow-uploaded or URL-source package and image bytes become checksum-bound PDS blobs, and the final release record contains no artifact URLs.
 - [ ] Durable blob receipts and canonical record JSON precede the publication permit and `createRecord`; successful materialization removes staged R2 bytes.
 - [ ] Ambiguous writes converge through deterministic reconciliation.
 - [ ] Pause, suspension, revocation, profile change, baseline change, and approval invalidation close every pre-write race.
@@ -966,7 +966,8 @@ The review stack contains seven PRs and merges as one unit. Each PR preserves th
 ### Operations
 
 - [ ] Pause, publisher suspension, delegation revocation, reconciliation, key rotation, backup/export, restore, and rollback work through supported tools.
-- [ ] The private publication-staging R2 bucket has the documented seven-day expiry rule and contains no objects from successful materializations.
+- [ ] The private publication-staging R2 bucket expires abandoned `workload/` and `publication/` objects after seven days and contains no transient objects from successful materializations.
+- [ ] Verified provenance is promoted to the private immutable provenance bucket before its stable Worker URL is published.
 - [ ] The identity directory is rebuildable and non-authoritative.
 - [ ] Hosted and self-hosted deployments pass the same conformance suite.
 - [ ] External security review has no unresolved critical/high findings.

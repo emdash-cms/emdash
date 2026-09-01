@@ -6,7 +6,7 @@ Related design: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870)
 
 ## Summary
 
-The delegated release service lets a plugin publisher authorize automated releases without placing an AT Protocol account credential in continuous integration. The publisher grants the service create-only access to the package-release collection and bounded blob-upload access. A GitHub Actions workflow authenticates to the service with OpenID Connect (OIDC) and submits a URL-source release record. The service verifies and stages those bytes, uploads them to the publisher's PDS, and creates a blob-only release record. The workflow receives either the published release or an intent waiting for passkey approval.
+The delegated release service lets a plugin publisher authorize automated releases without placing an AT Protocol account credential in continuous integration. The publisher grants the service create-only access to the package-release collection and bounded blob-upload access. A GitHub Actions workflow authenticates to the service with OpenID Connect (OIDC), uploads its bundle and provenance to private staging, and submits the checksum-bound release. The service verifies those bytes, uploads the bundle to the publisher's PDS, and creates a blob-only release record. The workflow receives either the published release or an intent waiting for passkey approval.
 
 The service is a delegated writer, not a registry or trust authority. It cannot edit package profiles, overwrite releases, serve public or long-lived artifacts, moderate listings, or make an invalid release installable. EmDash installers independently verify the publisher's records, artifact, manifest, provenance, and signed package policy.
 
@@ -282,7 +282,7 @@ The Workflow owns:
 - durable retry timing;
 - isolated verification steps;
 - waiting for approval, rejection, cancellation, or expiry;
-- guarded URL-source staging, PDS blob upload, and durable materialization;
+- OIDC-authorized workflow uploads, guarded external-source staging, PDS blob upload, and durable materialization;
 - publication and ambiguous-write reconciliation; and
 - non-critical completion fan-out.
 
@@ -299,7 +299,7 @@ The verifier is a separate Worker reached through a service binding. It has no p
 - verifies supported Sigstore/SLSA provenance; and
 - returns a bounded, serializable report without artifact bytes or secrets.
 
-Artifact and provenance hosting remain the publisher's responsibility.
+The service stages workflow-produced artifacts privately. It promotes verified provenance to immutable service storage before publishing its stable URL.
 
 ### Sharded identity directory
 
@@ -311,7 +311,9 @@ The directory can be deleted and rebuilt as identities authenticate again withou
 
 ### R2 staging, backup and audit export
 
-The private `PUBLICATION_STAGING` bucket holds checksum-verified artifact bytes while the Workflow uploads them to the publisher's PDS. Object keys bind the publisher, intent, artifact slot, and checksum. The Workflow deletes each object's material after all blob receipts and the canonical final record are committed in the publisher object. A seven-day lifecycle rule removes abandoned staging objects after interrupted Workflows. Staging objects are never public, authoritative, or referenced by the published record.
+The private `PUBLICATION_STAGING` bucket holds checksum-verified workflow uploads and publication artifacts while the Workflow uploads them to the publisher's PDS. Object keys bind the publisher, stable workload identity, package, version, and artifact slot. The Workflow deletes transient objects after all blob receipts and the canonical final record are committed in the publisher object. Seven-day lifecycle rules remove abandoned `workload/` and `publication/` objects after interrupted Workflows. Staging objects are never public, authoritative, or referenced by the published record.
+
+The private `PROVENANCE_STORE` bucket holds provenance that passed initial and final verification. Objects use checksum-addressed, create-only keys. `GET /v1/provenance/{checksum}` streams only promoted objects with immutable caching; the transient staging bucket has no public read route.
 
 Encrypted publisher snapshots and append-only audit exports may be written to the separate `OPERATIONS_ARCHIVE` bucket. Snapshot production must be bounded and resumable. A restore never revives expired or revoked authority automatically. If an OAuth session cannot be restored safely, the publisher reauthorizes delegation.
 
@@ -398,10 +400,10 @@ The publisher can revoke the delegation from the service or directly through the
 ## Release submission
 
 1. GitHub Actions builds and bundles the plugin.
-2. CI emits SLSA provenance and uploads artifact and provenance bytes to stable HTTPS URLs.
-3. CI requests an OIDC token whose audience is the release service.
-4. The Action requests or verifies its workflow connection. A missing policy creates a pending request; a matching policy lets the run continue.
-5. After browser confirmation, the Action requests a fresh OIDC token and submits the package/version, URL-source release record, checksums, and idempotency key. Artifact descriptors contain HTTPS URLs and no PDS blobs.
+2. GitHub Actions creates SLSA provenance for the exact bundle.
+3. The Action requests or verifies its workflow connection with an OIDC token whose audience is the release service. A missing policy creates a pending request; a matching policy lets the run continue.
+4. After browser confirmation, the Action uploads the bundle and raw Sigstore file to private staging with fresh OIDC tokens. Each object is checksum-bound to the publisher, workload, package, version, and slot.
+5. The Action submits the package, version, staged source references, checksums, and idempotency key. Artifact descriptors contain internal HTTPS references and no PDS blobs.
 6. The Worker verifies request shape, OIDC signature and claims, and routes to the publisher object.
 7. The publisher object verifies workload-policy admission, reserves package/version, creates the intent, and records normalized claims.
 8. The object creates the Workflow instance using the intent ID.
@@ -446,11 +448,11 @@ The service accepts the receipt only if the current profile still lists the appr
 
 Before publication, the Workflow repeats every authoritative read and verification step. It then:
 
-1. fetches every URL-source artifact through the guarded verifier path and writes the verified bytes to deterministic private R2 objects;
+1. reads workflow-uploaded artifacts from private R2 or fetches external URL sources through the guarded verifier path, then writes verified bytes to deterministic publication objects;
 2. obtains a replay-stable, generation-bound publication operation from the publisher object;
 3. refreshes the encrypted AT Protocol session if required and uploads each staged package or image as a PDS blob;
 4. validates every returned blob against the source checksum, byte size, and media type, then persists immutable receipts and canonical blob-only record JSON in the publisher object;
-5. deletes the staged R2 objects after durable materialization;
+5. promotes verified provenance to its immutable store and deletes transient R2 objects after durable materialization;
 6. obtains and consumes a fresh publication permit, rechecks delegation, and moves the operation to `creating`;
 7. creates the deterministic release record without an update path;
 8. completes the operation with the confirmed URI and CID; or
