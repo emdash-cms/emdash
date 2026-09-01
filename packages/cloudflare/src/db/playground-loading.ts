@@ -31,6 +31,20 @@ export function renderPlaygroundLoadingPage(): string {
   }
 
   .pg-loading {
+    --step-size: 28px;
+    --step-gap: 14px;
+    --step-ring-idle: #363634;
+    --step-core-idle: #454542;
+    --step-orange: #d9784f;
+    --step-orange-light: #ffb17f;
+    --step-green: #168c58;
+    --step-green-ring: #163b2e;
+    --connector-track: #30302e;
+    --connector-fill: #565652;
+    --label: #e3e3de;
+    --label-muted: #777773;
+    --label-complete: #78c99e;
+
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -39,9 +53,10 @@ export function renderPlaygroundLoadingPage(): string {
   }
 
   .pg-logo {
+    align-self: flex-start;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 12px;
     font-size: 28px;
     font-weight: 700;
@@ -55,71 +70,197 @@ export function renderPlaygroundLoadingPage(): string {
     flex-shrink: 0;
   }
 
-  .pg-spinner-wrap {
-    position: relative;
-    width: 48px;
-    height: 48px;
-  }
-
-  .pg-spinner {
-    width: 48px;
-    height: 48px;
-    border: 3px solid rgba(255, 255, 255, 0.08);
-    border-top-color: #facc15;
-    border-radius: 50%;
-    animation: pg-spin 0.8s linear infinite;
-  }
-
-  @keyframes pg-spin {
-    to { transform: rotate(360deg); }
-  }
-
   .pg-message {
-    font-size: 15px;
+    display: grid;
+    font-size: 17px;
+    font-weight: 500;
     color: #888;
     line-height: 1.5;
+    text-align: left;
+  }
+
+  .pg-message > span {
+    grid-area: 1 / 1;
+  }
+
+  .pg-message-measure {
+    visibility: hidden;
   }
 
   .pg-steps {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-top: 4px;
+    gap: var(--step-gap);
+    margin-top: 18px;
+    text-align: left;
   }
 
   .pg-step {
-    display: flex;
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--step-size) minmax(0, 1fr);
+    column-gap: 10px;
+    min-width: 0;
     align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #555;
-    transition: color 0.3s;
   }
 
-  .pg-step.active {
-    color: #ccc;
+  .pg-step-marker {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    width: var(--step-size);
+    height: var(--step-size);
+    place-items: center;
   }
 
-  .pg-step.done {
-    color: #4ade80;
+  .pg-ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
   }
 
-  .pg-step-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #333;
-    flex-shrink: 0;
-    transition: background 0.3s;
+  .pg-ring-track,
+  .pg-ring-progress {
+    fill: none;
+    stroke-width: 10;
   }
 
-  .pg-step.active .pg-step-dot {
-    background: #facc15;
-    box-shadow: 0 0 6px rgba(250, 204, 21, 0.4);
+  .pg-ring-track {
+    stroke: var(--step-ring-idle);
   }
 
-  .pg-step.done .pg-step-dot {
-    background: #4ade80;
+  .pg-ring-progress {
+    stroke: var(--step-orange-light);
+    stroke-linecap: butt;
+    stroke-dasharray: 14 86;
+    opacity: 0;
+    transform: rotate(-90deg);
+    transform-origin: center;
+    transition: opacity 250ms ease-in;
+  }
+
+  .pg-step.active .pg-ring,
+  .pg-step.completing .pg-ring {
+    animation: pg-ring-spin 800ms linear infinite;
+  }
+
+  .pg-step.active .pg-ring-progress,
+  .pg-step.completing .pg-ring-progress,
+  .pg-step.done .pg-ring-progress {
+    opacity: 1;
+  }
+
+  .pg-step.completing .pg-ring-progress {
+    stroke: var(--step-green-ring);
+    stroke-dasharray: 100 0;
+    transition:
+      stroke 400ms ease,
+      stroke-dasharray 400ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .pg-step.done .pg-ring-progress {
+    stroke: var(--step-green-ring);
+    stroke-dasharray: 100 0;
+  }
+
+  .pg-step-core {
+    position: relative;
+    display: grid;
+    width: 64%;
+    height: 64%;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--step-core-idle);
+    transition: background-color 220ms ease;
+  }
+
+  .pg-step.active .pg-step-core {
+    background: var(--step-orange);
+  }
+
+  .pg-step.completing .pg-step-core {
+    background: var(--step-green);
+    transition-duration: 400ms;
+  }
+
+  .pg-step.done .pg-step-core {
+    background: var(--step-green);
+  }
+
+  .pg-check {
+    width: 52%;
+    height: 52%;
+    fill: none;
+    stroke: white;
+    stroke-width: 3.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+    transform: scale(0.35);
+    transition:
+      opacity 400ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .pg-step.completing .pg-check,
+  .pg-step.done .pg-check {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .pg-connector {
+    position: absolute;
+    z-index: 0;
+    top: calc(var(--step-size) + 3px);
+    left: calc(var(--step-size) / 2 - 1px);
+    width: 2px;
+    height: calc(var(--step-gap) - 6px);
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--connector-track);
+  }
+
+  .pg-connector-fill {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--connector-fill);
+    transform: scaleY(0);
+    transform-origin: center top;
+  }
+
+  .pg-step.completing .pg-connector-fill {
+    transform: scaleY(1);
+    transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .pg-step.done .pg-connector-fill {
+    transform: scaleY(1);
+  }
+
+  .pg-step-label {
+    color: var(--label-muted);
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.35;
+    transition: color 220ms ease;
+  }
+
+  .pg-step.active .pg-step-label {
+    color: var(--label);
+  }
+
+  .pg-step.completing .pg-step-label,
+  .pg-step.done .pg-step-label {
+    color: var(--label-complete);
+    transition-duration: 400ms;
+  }
+
+  @keyframes pg-ring-spin {
+    to { transform: rotate(360deg); }
   }
 
   .pg-error {
@@ -159,36 +300,80 @@ export function renderPlaygroundLoadingPage(): string {
   .pg-retry-btn:hover {
     background: rgba(250, 204, 21, 0.22);
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pg-step.active .pg-ring,
+    .pg-step.completing .pg-ring {
+      animation: none;
+    }
+
+    .pg-ring-progress,
+    .pg-step.completing .pg-ring-progress,
+    .pg-step-core,
+    .pg-step.completing .pg-step-core,
+    .pg-check,
+    .pg-connector-fill,
+    .pg-step.completing .pg-connector-fill,
+    .pg-step-label,
+    .pg-step.completing .pg-step-label {
+      transition: none;
+    }
+  }
 </style>
 </head>
 <body>
 <div class="pg-loading">
   <div class="pg-logo"><svg viewBox="0 0 75 75" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="69" height="69" rx="10.518" stroke="url(#pl-b)" stroke-width="6"/><rect x="18" y="34" width="39.366" height="6.561" fill="url(#pl-d)"/><defs><linearGradient id="pl-b" x1="-43" y1="124" x2="92.42" y2="-41.75" gradientUnits="userSpaceOnUse"><stop stop-color="#0F006B"/><stop offset=".08" stop-color="#281A81"/><stop offset=".17" stop-color="#5D0C83"/><stop offset=".25" stop-color="#911475"/><stop offset=".33" stop-color="#CE2F55"/><stop offset=".42" stop-color="#FF6633"/><stop offset=".5" stop-color="#F6821F"/><stop offset=".58" stop-color="#FBAD41"/><stop offset=".67" stop-color="#FFCD89"/><stop offset=".75" stop-color="#FFE9CB"/><stop offset=".83" stop-color="#FFF7EC"/><stop offset=".92" stop-color="#FFF8EE"/><stop offset="1" stop-color="#fff"/></linearGradient><linearGradient id="pl-d" x1="91.5" y1="27.5" x2="28.12" y2="54.18" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset=".13" stop-color="#FFF8EE"/><stop offset=".62" stop-color="#FBAD41"/><stop offset=".85" stop-color="#F6821F"/><stop offset="1" stop-color="#FF6633"/></linearGradient></defs></svg>EmDash</div>
 
-  <div class="pg-spinner-wrap">
-    <div class="pg-spinner" id="pg-spinner"></div>
-  </div>
-
   <div>
-    <div class="pg-message" id="pg-message">Creating your playground&hellip;</div>
+    <div class="pg-message" role="status" aria-live="polite" aria-atomic="true">
+      <span id="pg-message">Creating your playground&hellip;</span>
+      <span class="pg-message-measure" aria-hidden="true">Creating your playground&hellip;</span>
+    </div>
     <div class="pg-steps" id="pg-steps">
       <div class="pg-step active" id="step-db">
-        <span class="pg-step-dot"></span>
-        Setting up database
+        <span class="pg-connector" aria-hidden="true"><span class="pg-connector-fill"></span></span>
+        <span class="pg-step-marker" aria-hidden="true">
+          <svg class="pg-ring" viewBox="0 0 80 80">
+            <circle class="pg-ring-track" cx="40" cy="40" r="35" />
+            <circle class="pg-ring-progress" cx="40" cy="40" r="35" pathLength="100" />
+          </svg>
+          <span class="pg-step-core">
+            <svg class="pg-check" viewBox="0 0 24 24"><path d="m5 12.5 4.25 4.25L19 7" /></svg>
+          </span>
+        </span>
+        <span class="pg-step-label">Setting up database</span>
       </div>
       <div class="pg-step" id="step-content">
-        <span class="pg-step-dot"></span>
-        Loading demo content
+        <span class="pg-connector" aria-hidden="true"><span class="pg-connector-fill"></span></span>
+        <span class="pg-step-marker" aria-hidden="true">
+          <svg class="pg-ring" viewBox="0 0 80 80">
+            <circle class="pg-ring-track" cx="40" cy="40" r="35" />
+            <circle class="pg-ring-progress" cx="40" cy="40" r="35" pathLength="100" />
+          </svg>
+          <span class="pg-step-core">
+            <svg class="pg-check" viewBox="0 0 24 24"><path d="m5 12.5 4.25 4.25L19 7" /></svg>
+          </span>
+        </span>
+        <span class="pg-step-label">Loading demo content</span>
       </div>
       <div class="pg-step" id="step-ready">
-        <span class="pg-step-dot"></span>
-        Almost ready
+        <span class="pg-step-marker" aria-hidden="true">
+          <svg class="pg-ring" viewBox="0 0 80 80">
+            <circle class="pg-ring-track" cx="40" cy="40" r="35" />
+            <circle class="pg-ring-progress" cx="40" cy="40" r="35" pathLength="100" />
+          </svg>
+          <span class="pg-step-core">
+            <svg class="pg-check" viewBox="0 0 24 24"><path d="m5 12.5 4.25 4.25L19 7" /></svg>
+          </span>
+        </span>
+        <span class="pg-step-label">Almost ready</span>
       </div>
     </div>
   </div>
 
   <div class="pg-error" id="pg-error">
-    <div class="pg-error-message" id="pg-error-message"></div>
+    <div class="pg-error-message" id="pg-error-message" role="alert"></div>
     <button class="pg-retry-btn" id="pg-retry">Try again</button>
   </div>
 </div>
@@ -196,19 +381,46 @@ export function renderPlaygroundLoadingPage(): string {
 <script>
 (function() {
   var steps = ["step-db", "step-content", "step-ready"];
-  var currentStep = 0;
+  var stepTimers = [];
+  var completionDuration = 400;
+  var nextStepDelay = 150;
 
-  function setStep(index) {
-    for (var i = 0; i < steps.length; i++) {
-      var el = document.getElementById(steps[i]);
-      if (!el) continue;
-      el.className = "pg-step" + (i < index ? " done" : i === index ? " active" : "");
+  function setStepState(index, state) {
+    var step = document.getElementById(steps[index]);
+    if (step) step.className = "pg-step" + (state ? " " + state : "");
+  }
+
+  function clearStepTimers() {
+    stepTimers.forEach(function(timer) { clearTimeout(timer); });
+    stepTimers = [];
+  }
+
+  function completeStep(index, nextIndex) {
+    setStepState(index, "completing");
+
+    if (nextIndex !== undefined) {
+      stepTimers.push(setTimeout(function() {
+        setStepState(nextIndex, "active");
+      }, nextStepDelay));
     }
-    currentStep = index;
+    stepTimers.push(setTimeout(function() {
+      setStepState(index, "done");
+    }, completionDuration));
+  }
+
+  function showReady() {
+    clearStepTimers();
+    setStepState(0, "done");
+    setStepState(1, "done");
+    setStepState(2, "completing");
+    document.getElementById("pg-message").textContent = "Ready!";
+    stepTimers.push(setTimeout(function() {
+      setStepState(2, "done");
+      location.replace("/_emdash/admin");
+    }, completionDuration));
   }
 
   function showError(message) {
-    document.getElementById("pg-spinner").style.display = "none";
     document.getElementById("pg-message").textContent = "Something went wrong";
     document.getElementById("pg-steps").style.display = "none";
     var errorEl = document.getElementById("pg-error");
@@ -218,41 +430,30 @@ export function renderPlaygroundLoadingPage(): string {
   }
 
   function init() {
-    setStep(0);
-    document.getElementById("pg-spinner").style.display = "";
+    clearStepTimers();
+    steps.forEach(function(_, index) {
+      setStepState(index, index === 0 ? "active" : "");
+    });
     document.getElementById("pg-message").textContent = "Creating your playground\\u2026";
     document.getElementById("pg-steps").style.display = "";
     var errorEl = document.getElementById("pg-error");
     if (errorEl) errorEl.className = "pg-error";
 
-    // Advance steps on a timer for visual feedback while init runs.
-    // The actual init is a single server call -- these steps are cosmetic.
-    var stepTimer = setTimeout(function() { setStep(1); }, 800);
-    var stepTimer2 = setTimeout(function() { setStep(2); }, 2000);
+    stepTimers.push(setTimeout(function() { completeStep(0, 1); }, 800));
+    stepTimers.push(setTimeout(function() { completeStep(1, 2); }, 2000));
 
     fetch("/_playground/init", { method: "POST", credentials: "same-origin" })
-      .then(function(res) {
-        clearTimeout(stepTimer);
-        clearTimeout(stepTimer2);
-        if (!res.ok) {
-          return res.json().then(function(body) {
+      .then(function(response) {
+        if (!response.ok) {
+          return response.json().then(function(body) {
             throw new Error(body.error?.message || "Initialization failed");
           });
         }
-        return res.json();
+        return response.json();
       })
-      .then(function() {
-        // Mark all steps done
-        setStep(steps.length);
-        document.getElementById("pg-message").textContent = "Ready!";
-        // Brief pause so the user sees "Ready!" before navigating
-        setTimeout(function() {
-          location.replace("/_emdash/admin");
-        }, 400);
-      })
+      .then(showReady)
       .catch(function(err) {
-        clearTimeout(stepTimer);
-        clearTimeout(stepTimer2);
+        clearStepTimers();
         showError(err.message || "Failed to create playground. Please try again.");
       });
   }
