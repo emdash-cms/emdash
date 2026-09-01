@@ -167,6 +167,7 @@ export interface FieldValidation {
 export interface FieldWidgetOptions {
 	rows?: number; // For textarea
 	showPreview?: boolean; // For image/file
+	darkVariant?: boolean; // For image: offer a second slot for a dark-color-scheme counterpart
 	collection?: string; // For reference - which collection to reference
 	allowMultiple?: boolean; // For reference
 	[key: string]: unknown;

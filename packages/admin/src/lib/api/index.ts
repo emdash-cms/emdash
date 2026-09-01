@@ -9,6 +9,7 @@ export {
 	API_BASE,
 	ApiResponseError,
 	apiFetch,
+	isTerminalRequestError,
 	parseApiResponse,
 	throwResponseError,
 	type FindManyResult,

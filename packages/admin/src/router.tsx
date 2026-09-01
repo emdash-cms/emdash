@@ -121,6 +121,7 @@ import {
 	renameMediaFolder,
 	deleteMediaFolder,
 	ApiResponseError,
+	isTerminalRequestError,
 	useCurrentUser,
 	type CreateCollectionInput,
 	type UpdateCollectionInput,
@@ -941,6 +942,8 @@ function ContentEditPage() {
 	const itemLocale = rawItem?.locale ?? undefined;
 	const autosaveCompletionSequenceRef = React.useRef(0);
 	const [autosaveCompletion, setAutosaveCompletion] = React.useState({ entryId: "", token: 0 });
+	const autosaveRejectionSequenceRef = React.useRef(0);
+	const [autosaveRejection, setAutosaveRejection] = React.useState({ entryId: "", token: 0 });
 	const [editorSavePendingCounts, setEditorSavePendingCounts] = React.useState<
 		ReadonlyMap<string, number>
 	>(new Map());
@@ -956,6 +959,10 @@ function ContentEditPage() {
 	const recordAutosaveCompletion = React.useCallback((entryId: string) => {
 		autosaveCompletionSequenceRef.current += 1;
 		setAutosaveCompletion({ entryId, token: autosaveCompletionSequenceRef.current });
+	}, []);
+	const recordAutosaveRejection = React.useCallback((entryId: string) => {
+		autosaveRejectionSequenceRef.current += 1;
+		setAutosaveRejection({ entryId, token: autosaveRejectionSequenceRef.current });
 	}, []);
 	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
 		queryKey: ["bylines", "picker", itemLocale ?? null],
@@ -1066,7 +1073,8 @@ function ContentEditPage() {
 			// Keep the cache fresh without refetching older server state back into the form
 			// while the user is still typing.
 		},
-		onError: (err) => {
+		onError: (err, variables) => {
+			if (isTerminalRequestError(err)) recordAutosaveRejection(variables.targetId);
 			toastManager.add({
 				title: t`Autosave failed`,
 				description: err instanceof Error ? err.message : t`An error occurred`,
@@ -1344,6 +1352,7 @@ function ContentEditPage() {
 				autosaveMutation.isPending && autosaveMutation.variables?.targetId === id
 			}
 			autosaveCompletionToken={autosaveCompletion.entryId === id ? autosaveCompletion.token : 0}
+			autosaveRejectionToken={autosaveRejection.entryId === id ? autosaveRejection.token : 0}
 			onPublish={handlePublish}
 			onUnpublish={handleUnpublish}
 			onDiscardDraft={handleDiscardDraft}
