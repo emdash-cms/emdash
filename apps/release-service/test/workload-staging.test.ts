@@ -128,6 +128,7 @@ describe("workload artifact staging", () => {
 			params!,
 		);
 		expect(response.status).toBe(200);
+		expect(response.headers.get("access-control-allow-origin")).toBe("*");
 		expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
 		expect(response.headers.get("x-content-type-options")).toBe("nosniff");
 		expect(new Uint8Array(await response.arrayBuffer())).toEqual(provenance);

@@ -42,6 +42,7 @@ export async function handleGetPublishedProvenance(
 	}
 	return new Response(object.body, {
 		headers: {
+			"access-control-allow-origin": "*",
 			"cache-control": "public, max-age=31536000, immutable",
 			"content-length": String(object.size),
 			"content-type": "application/json",
