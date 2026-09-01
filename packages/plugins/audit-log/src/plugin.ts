@@ -58,6 +58,19 @@ function isAuditEntry(value: unknown): value is AuditEntry {
 // Works within a single request lifecycle if the isolate persists.
 const beforeSaveCache = new Map<string, unknown>();
 
+// Entries are consumed by the matching after-hook, which never fires for
+// failed saves, so cap the cache and evict the oldest entry to keep a
+// long-lived isolate from accumulating stale state.
+const MAX_CACHED_STATES = 100;
+
+function cacheBeforeState(key: string, value: unknown): void {
+	beforeSaveCache.set(key, value);
+	if (beforeSaveCache.size > MAX_CACHED_STATES) {
+		const oldest = beforeSaveCache.keys().next().value;
+		if (oldest !== undefined) beforeSaveCache.delete(oldest);
+	}
+}
+
 // ── Plugin definition ──
 
 export default {
@@ -79,21 +92,26 @@ export default {
 		},
 
 		"content:beforeSave": {
+			// Read-only observer: captures before-state with content:read,
+			// without requesting write access to drafts.
+			observe: true,
 			handler: async (event, ctx) => {
-				const contentId = stringifyId(event.content.id);
+				const contentId = stringifyId(event.id ?? event.content.id);
 				if (!event.isNew && contentId) {
 					try {
 						if (ctx.content) {
 							const existing = await ctx.content.get(event.collection, contentId);
-							if (existing) {
-								beforeSaveCache.set(`${event.collection}:${contentId}`, existing);
+							// Cache the field data, not the item envelope, so the
+							// entry's `before` matches the shape of `after`
+							// (afterSave stores event.content.data).
+							if (existing && isRecord(existing.data)) {
+								cacheBeforeState(`${event.collection}:${contentId}`, existing.data);
 							}
 						}
 					} catch {
 						// Ignore -- best effort
 					}
 				}
-				return event.content;
 			},
 		},
 
@@ -135,7 +153,7 @@ export default {
 					try {
 						const existing = await ctx.content.get(event.collection, event.id);
 						if (existing) {
-							beforeSaveCache.set(`delete:${event.collection}:${event.id}`, existing);
+							cacheBeforeState(`delete:${event.collection}:${event.id}`, existing);
 						}
 					} catch {
 						// Ignore

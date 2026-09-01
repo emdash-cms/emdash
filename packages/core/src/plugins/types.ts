@@ -800,9 +800,19 @@ export interface HookConfig<THandler> {
 	 * admin-selected provider. Used for email:deliver, search, image optimization, etc.
 	 */
 	exclusive?: boolean;
+	/**
+	 * Register this hook as a read-only observer: the handler's return value
+	 * is discarded, so it cannot modify the pipeline payload. Only supported
+	 * on `content:beforeSave`, where it drops the required capability from
+	 * `content:write` to `content:read`.
+	 */
+	observe?: boolean;
 	/** The hook handler */
 	handler: THandler;
 }
+
+/** Hook names that support `HookConfig.observe`. */
+export const OBSERVABLE_HOOKS: ReadonlySet<string> = new Set(["content:beforeSave"]);
 
 /**
  * Content hook event
@@ -811,6 +821,13 @@ export interface ContentHookEvent {
 	content: Record<string, unknown>;
 	collection: string;
 	isNew: boolean;
+	/**
+	 * ID of the item being saved. Set on `content:beforeSave` when updating
+	 * existing content — the update payload's `content` carries only field
+	 * data, no id. Absent when creating (the id is generated after the hook
+	 * runs). After-save handlers read `content.id` instead.
+	 */
+	id?: string;
 }
 
 /**
@@ -1157,6 +1174,8 @@ export interface ResolvedHook<THandler> {
 	errorPolicy: "continue" | "abort";
 	/** Whether this hook is exclusive (provider pattern) */
 	exclusive: boolean;
+	/** Whether this hook is a read-only observer (see HookConfig.observe) */
+	observe?: boolean;
 	handler: THandler;
 	pluginId: string;
 }

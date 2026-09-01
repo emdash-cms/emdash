@@ -1398,12 +1398,12 @@ importers:
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.4
-      react-dom:
-        specifier: ^18.0.0 || ^19.0.0
-        version: 19.2.4(react@19.2.4)
       react-day-picker:
         specifier: 'catalog:'
         version: 9.14.0(react@19.2.4)
+      react-dom:
+        specifier: ^18.0.0 || ^19.0.0
+        version: 19.2.4(react@19.2.4)
       react-hotkeys-hook:
         specifier: ^5.2.4
         version: 5.2.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -2274,12 +2274,18 @@ importers:
       '@emdash-cms/plugin-cli':
         specifier: workspace:*
         version: link:../../plugin-cli
+      jsonc-parser:
+        specifier: 'catalog:'
+        version: 3.3.1
       tsdown:
         specifier: 'catalog:'
         version: 0.20.3(@arethetypeswrong/core@0.18.2)(@typescript/native-preview@7.0.0-dev.20260421.2)(oxc-resolver@11.16.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3))(publint@0.3.17)(typescript@6.0.3)
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@26.1.1)(jsdom@26.1.0)(vite@8.0.16(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
 
   packages/plugins/color:
     dependencies:
@@ -5744,12 +5750,15 @@ packages:
 
   '@oslojs/asn1@1.0.0':
     resolution: {integrity: sha512-zw/wn0sj0j0QKbIXfIlnEcTviaCzYOY3V5rAyjR6YtOByFtJiT574+8p9Wlach0lZH9fddD4yb9laEAIl4vXQA==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   '@oslojs/binary@1.0.0':
     resolution: {integrity: sha512-9RCU6OwXU6p67H4NODbuxv2S3eenuQ4/WFLrsq+K/k682xrznH5EVWA7N4VFk9VYVcbFtKqur5YQQZc0ySGhsQ==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   '@oslojs/cbor@1.0.0':
     resolution: {integrity: sha512-AY6Lknexs7n2xp8Cgey95c+975VG7XOk4UEdRdNFxHmDDbuf47OC/LAVRsl14DeTLwo8W6xr3HLFwUFmKcndTQ==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   '@oslojs/crypto@1.0.0':
     resolution: {integrity: sha512-dVz8TkkgYdr3tlwxHd7SCYGxoN7ynwHLA0nei/Aq9C+ERU0BK+U8+/3soEzBUxUNKYBf42351DyJUZ2REla50w==}
@@ -5770,6 +5779,7 @@ packages:
 
   '@oslojs/jwt@0.2.0':
     resolution: {integrity: sha512-bLE7BtHrURedCn4Mco3ma9L4Y1GR2SMBuIvjWr7rmQ4/W/4Jy70TIAgZ+0nIlk0xHz1vNP8x8DCns45Sb2XRbg==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   '@oslojs/webauthn@1.0.0':
     resolution: {integrity: sha512-2ZRpbt3msNURwvjmavzq9vrNlxUnWFBGMYqbC1kO3fYBLskL7r4DiLJT1wbtLoI+hclFwjhl48YhRFBl6RWg1A==}
@@ -24715,6 +24725,35 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
       '@types/node': 25.9.1
+      jsdom: 26.1.0
+    transitivePeerDependencies:
+      - msw
+
+  vitest@4.1.5(@opentelemetry/api@1.9.0)(@types/node@26.1.1)(jsdom@26.1.0)(vite@8.0.16(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)):
+    dependencies:
+      '@vitest/expect': 4.1.5
+      '@vitest/mocker': 4.1.5(vite@8.0.16(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+      '@vitest/pretty-format': 4.1.5
+      '@vitest/runner': 4.1.5
+      '@vitest/snapshot': 4.1.5
+      '@vitest/spy': 4.1.5
+      '@vitest/utils': 4.1.5
+      es-module-lexer: 2.0.0
+      expect-type: 1.3.0
+      magic-string: 0.30.21
+      obug: 2.1.1
+      pathe: 2.0.3
+      picomatch: 4.0.4
+      std-env: 4.1.0
+      tinybench: 2.9.0
+      tinyexec: 1.0.4
+      tinyglobby: 0.2.17
+      tinyrainbow: 3.1.0
+      vite: 8.0.16(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.0
+      '@types/node': 26.1.1
       jsdom: 26.1.0
     transitivePeerDependencies:
       - msw

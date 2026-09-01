@@ -296,6 +296,7 @@ export const bundleCommand = defineCommand({
 												dependencies: (config.dependencies as string[]) ?? [],
 												errorPolicy: (config.errorPolicy as string) ?? "abort",
 												exclusive: (config.exclusive as boolean) ?? false,
+												observe: (config.observe as boolean) ?? false,
 												pluginId: result.id,
 											};
 										}

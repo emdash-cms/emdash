@@ -10,9 +10,10 @@
 	"description": "Tracks content and media changes (create / update / delete) for compliance and debugging.",
 
 	// Trust contract. Reads content to capture before-state in
-	// update audit entries; declares the `entries` storage collection
-	// where audit log lives. No outbound network.
-	"capabilities": ["content:read"],
+	// update audit entries and media records to log uploads; declares
+	// the `entries` storage collection where audit log lives.
+	// No outbound network, no write access.
+	"capabilities": ["content:read", "media:read"],
 	"allowedHosts": [],
 	"storage": {
 		"entries": { "indexes": ["timestamp", "action", "resourceType", "collection"] },

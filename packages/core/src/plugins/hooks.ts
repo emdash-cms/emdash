@@ -276,6 +276,8 @@ export class HookPipeline {
 		["email:afterSend", "hooks.email-events:register"],
 		["email:deliver", "hooks.email-transport:register"],
 		// Content — beforeSave can mutate content, so requires content:write.
+		// An observe-mode beforeSave (HookConfig.observe) has its return value
+		// discarded and needs only content:read — see registerPluginHook.
 		// afterSave is read-only notification, so content:read suffices.
 		["content:beforeSave", "content:write"],
 		["content:afterSave", "content:read"],
@@ -308,10 +310,17 @@ export class HookPipeline {
 		// Hooks that expose sensitive data or inject into pages require specific
 		// capabilities. Plugins without the required capability have the hook
 		// silently skipped to prevent unauthorized data access or page injection.
-		const requiredCapability = HookPipeline.HOOK_REQUIRED_CAPABILITY.get(name);
+		const requiredCapability =
+			name === "content:beforeSave" && hook.observe
+				? "content:read"
+				: HookPipeline.HOOK_REQUIRED_CAPABILITY.get(name);
 		if (requiredCapability && !plugin.capabilities.includes(requiredCapability as never)) {
+			const observeHint =
+				name === "content:beforeSave" && !hook.observe
+					? " (set observe: true on the hook to register it read-only with content:read)"
+					: "";
 			console.warn(
-				`[hooks] Plugin "${plugin.id}" declares ${name} hook without ${requiredCapability} capability — skipping`,
+				`[hooks] Plugin "${plugin.id}" declares ${name} hook without ${requiredCapability} capability — skipping${observeHint}`,
 			);
 			return;
 		}
@@ -493,6 +502,7 @@ export class HookPipeline {
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
+		id?: string,
 	): Promise<{
 		content: Record<string, unknown>;
 		results: HookResult<Record<string, unknown>>[];
@@ -504,17 +514,22 @@ export class HookPipeline {
 		for (const hook of hooks) {
 			const { handler } = hook;
 			const event: ContentHookEvent = {
-				content: currentContent,
+				// Observers get a deep copy so mutation of the event — including
+				// nested values like portable text blocks — can't leak into the
+				// saved content.
+				content: hook.observe ? structuredClone(currentContent) : currentContent,
 				collection,
 				isNew,
+				id,
 			};
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 
 			try {
 				const result = await this.executeWithTimeout(() => handler(event, ctx), hook.timeout);
-				// Handler can return modified content or void (keep current)
-				if (result !== undefined) {
+				// Handler can return modified content or void (keep current).
+				// Observe hooks are read-only — their return value is discarded.
+				if (result !== undefined && !hook.observe) {
 					currentContent = result;
 				}
 				results.push({
@@ -531,7 +546,9 @@ export class HookPipeline {
 					duration: Date.now() - start,
 				});
 
-				if (hook.errorPolicy === "abort") {
+				// An observer that could abort the pipeline would be a veto, not
+				// an observer — its failures are recorded but never block the save.
+				if (hook.errorPolicy === "abort" && !hook.observe) {
 					throw error;
 				}
 			}

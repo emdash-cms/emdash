@@ -10,7 +10,7 @@
  * authoring shape.
  */
 
-import { normalizeCapabilities } from "./types.js";
+import { normalizeCapabilities, OBSERVABLE_HOOKS } from "./types.js";
 import type {
 	PluginDefinition,
 	ResolvedPlugin,
@@ -235,7 +235,7 @@ function resolveHooks(hooks: PluginHooks, pluginId: string): ResolvedPluginHooks
 	for (const key of Object.keys(hooks) as Array<keyof PluginHooks>) {
 		const hook = hooks[key];
 		if (hook) {
-			(resolved as Record<string, unknown>)[key] = resolveHook(hook, pluginId);
+			(resolved as Record<string, unknown>)[key] = resolveHook(hook, pluginId, key);
 		}
 	}
 
@@ -257,6 +257,7 @@ function isHookConfig<THandler>(
 function resolveHook<THandler>(
 	hook: HookConfig<THandler> | THandler,
 	pluginId: string,
+	name: keyof PluginHooks,
 ): ResolvedHook<THandler> {
 	// If it's a config object with handler property
 	if (isHookConfig(hook)) {
@@ -265,12 +266,28 @@ function resolveHook<THandler>(
 				`Invalid "exclusive" value in hook config for plugin "${pluginId}". Must be boolean.`,
 			);
 		}
+		if (hook.observe !== undefined && typeof hook.observe !== "boolean") {
+			throw new Error(
+				`Invalid "observe" value in hook config for plugin "${pluginId}". Must be boolean.`,
+			);
+		}
+		if (hook.observe && !OBSERVABLE_HOOKS.has(name)) {
+			throw new Error(
+				`Invalid "observe" in ${name} hook config for plugin "${pluginId}". Only content:beforeSave supports observe.`,
+			);
+		}
+		if (hook.observe && hook.exclusive) {
+			throw new Error(
+				`Invalid hook config for plugin "${pluginId}": "observe" cannot be combined with "exclusive".`,
+			);
+		}
 		return {
 			priority: hook.priority ?? 100,
 			timeout: hook.timeout ?? 5000,
 			dependencies: hook.dependencies ?? [],
 			errorPolicy: hook.errorPolicy ?? "abort",
 			exclusive: hook.exclusive ?? false,
+			observe: hook.observe ?? false,
 			handler: hook.handler,
 			pluginId,
 		};
@@ -283,6 +300,7 @@ function resolveHook<THandler>(
 		dependencies: [],
 		errorPolicy: "abort",
 		exclusive: false,
+		observe: false,
 		handler: hook,
 		pluginId,
 	};

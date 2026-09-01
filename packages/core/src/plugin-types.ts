@@ -137,6 +137,13 @@ export interface HookConfig<K extends keyof HookHandlers> {
 	dependencies?: string[];
 	errorPolicy?: "continue" | "abort";
 	exclusive?: boolean;
+	/**
+	 * Register this hook as a read-only observer: the handler's return value
+	 * is discarded, so it cannot modify the pipeline payload. Only supported
+	 * on `content:beforeSave`, where it drops the required capability from
+	 * `content:write` to `content:read`.
+	 */
+	observe?: boolean;
 }
 
 /**

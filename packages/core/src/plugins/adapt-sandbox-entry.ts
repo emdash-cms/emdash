@@ -13,7 +13,7 @@
 import type { PluginDescriptor } from "../astro/integration/runtime.js";
 import type { RouteEntry, RouteHandler, SandboxedPlugin } from "../plugin-types.js";
 import { PLUGIN_CAPABILITIES, HOOK_NAMES } from "./manifest-schema.js";
-import { normalizeCapabilities } from "./types.js";
+import { normalizeCapabilities, OBSERVABLE_HOOKS } from "./types.js";
 import type {
 	ResolvedPlugin,
 	ResolvedPluginHooks,
@@ -45,6 +45,7 @@ type AnyHookEntry =
 			dependencies?: string[];
 			errorPolicy?: "continue" | "abort";
 			exclusive?: boolean;
+			observe?: boolean;
 	  };
 
 /**
@@ -71,14 +72,34 @@ function isHookConfig(entry: AnyHookEntry): entry is Exclude<AnyHookEntry, AnyHo
  * so the handler is compatible as-is — we just normalise the
  * surrounding config (priority, timeout, etc.) to its defaults.
  */
-function resolveSandboxedHook(entry: AnyHookEntry, pluginId: string): ResolvedHook<AnyHookHandler> {
+function resolveSandboxedHook(
+	entry: AnyHookEntry,
+	pluginId: string,
+	hookName: string,
+): ResolvedHook<AnyHookHandler> {
 	if (isHookConfig(entry)) {
+		if (entry.observe !== undefined && typeof entry.observe !== "boolean") {
+			throw new Error(
+				`Invalid "observe" value in hook config for plugin "${pluginId}". Must be boolean.`,
+			);
+		}
+		if (entry.observe && !OBSERVABLE_HOOKS.has(hookName)) {
+			throw new Error(
+				`Invalid "observe" in ${hookName} hook config for plugin "${pluginId}". Only content:beforeSave supports observe.`,
+			);
+		}
+		if (entry.observe && entry.exclusive) {
+			throw new Error(
+				`Invalid hook config for plugin "${pluginId}": "observe" cannot be combined with "exclusive".`,
+			);
+		}
 		return {
 			priority: entry.priority ?? DEFAULT_PRIORITY,
 			timeout: entry.timeout ?? DEFAULT_TIMEOUT,
 			dependencies: entry.dependencies ?? [],
 			errorPolicy: entry.errorPolicy ?? DEFAULT_ERROR_POLICY,
 			exclusive: entry.exclusive ?? false,
+			observe: entry.observe ?? false,
 			handler: entry.handler,
 			pluginId,
 		};
@@ -91,6 +112,7 @@ function resolveSandboxedHook(entry: AnyHookEntry, pluginId: string): ResolvedHo
 		dependencies: [],
 		errorPolicy: DEFAULT_ERROR_POLICY,
 		exclusive: false,
+		observe: false,
 		handler: entry,
 		pluginId,
 	};
@@ -184,7 +206,11 @@ export function adaptSandboxEntry(
 			// We store it as the generic type and let HookPipeline's typed dispatch
 			// methods handle the type narrowing at call time.
 			// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- bridging untyped map to typed interface
-			(resolvedHooks as Record<string, unknown>)[hookName] = resolveSandboxedHook(entry, pluginId);
+			(resolvedHooks as Record<string, unknown>)[hookName] = resolveSandboxedHook(
+				entry,
+				pluginId,
+				hookName,
+			);
 		}
 	}
 

@@ -62,6 +62,7 @@ hooks: {
 | `dependencies` | `string[]`              | `[]`      | Plugin ids that must run before this hook.                                                   |
 | `errorPolicy`  | `"abort" \| "continue"` | `"abort"` | Whether to stop the pipeline on error.                                                       |
 | `exclusive`    | `boolean`               | `false`   | Only one plugin can be the active provider. Used for `email:deliver` and `comment:moderate`. |
+| `observe`      | `boolean`               | `false`   | Read-only observer: the return value is discarded. `content:beforeSave` only.                |
 | `handler`      | `function`              | —         | The hook handler function. Required.                                                         |
 
 <Aside type="tip">
@@ -154,7 +155,25 @@ Runs before content is saved. Return modified content, or `void` to leave it unc
 },
 ```
 
-**Event:** `{ content, collection, isNew }` — **Returns:** modified content or `void`.
+**Event:** `{ content, collection, isNew, id? }` — **Returns:** modified content or `void`.
+
+On updates, `event.id` is the id of the item being saved; `content` carries only the submitted field data. On creates, `id` is absent because it is generated after the hook runs.
+
+Requires `content:write` capability, because the returned content replaces what is saved. A plugin that only watches saves — an audit trail capturing before-state, for example — can set `observe: true` in the hook config. An observe hook registers with `content:read`; its return value is discarded and errors it throws never block the save, so it cannot affect the content.
+
+The following hook records every save without requesting write access.
+
+```typescript
+"content:beforeSave": {
+	observe: true,
+	handler: async (event, ctx) => {
+		await ctx.storage.log.put(`${Date.now()}`, {
+			collection: event.collection,
+			id: event.id,
+		});
+	},
+},
+```
 
 ### `content:afterSave`
 
@@ -175,6 +194,8 @@ Runs after content is successfully saved. Use for side effects like notification
 
 **Event:** `{ content, collection, isNew }` — **Returns:** `Promise<void>`
 
+Requires `content:read` capability.
+
 ### `content:beforeDelete`
 
 Runs before content is deleted. Return `false` to cancel; `true` or `void` allows it.
@@ -191,6 +212,8 @@ Runs before content is deleted. Return `false` to cancel; `true` or `void` allow
 
 **Event:** `{ id, collection }` — **Returns:** `boolean | void`
 
+Requires `content:read` capability.
+
 ### `content:afterDelete`
 
 Runs after content is successfully deleted.
@@ -202,6 +225,8 @@ Runs after content is successfully deleted.
 ```
 
 **Event:** `{ id, collection }` — **Returns:** `Promise<void>`
+
+Requires `content:read` capability.
 
 ### `content:afterPublish`
 
@@ -253,9 +278,11 @@ Runs before a file is uploaded. Return modified file metadata or throw to cancel
 
 **Event:** `{ file: { name, type, size } }` — **Returns:** modified file or `void`
 
+Requires `media:write` capability.
+
 ### `media:afterUpload`
 
-Runs after a file is successfully uploaded.
+Runs after a file is successfully uploaded. Requires `media:read` capability.
 
 **Event:** `{ media: { id, filename, mimeType, size, url, createdAt } }` — **Returns:** `Promise<void>`
 

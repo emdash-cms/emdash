@@ -328,6 +328,20 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 
 	if (parsed.hooks) {
 		for (const [hookName, hookEntry] of Object.entries(parsed.hooks)) {
+			// Mirrors the runtime's checks in adaptSandboxEntry so a bad
+			// `observe` fails the author's build, not the user's site boot.
+			if (hookEntry.observe && hookName !== "content:beforeSave") {
+				throw new BuildPipelineError(
+					"INVALID_PLUGIN_FORMAT",
+					`Invalid "observe" in ${hookName} hook config. Only content:beforeSave supports observe.`,
+				);
+			}
+			if (hookEntry.observe && hookEntry.exclusive) {
+				throw new BuildPipelineError(
+					"INVALID_PLUGIN_FORMAT",
+					`Invalid hook config for ${hookName}: "observe" cannot be combined with "exclusive".`,
+				);
+			}
 			resolvedPlugin.hooks[hookName] = assembleHook(hookEntry, resolvedPlugin.id);
 		}
 	}
@@ -474,6 +488,7 @@ function assembleHook(entry: ProbedHookEntry, pluginId: string): ResolvedPlugin[
 		dependencies: entry.dependencies ?? [],
 		errorPolicy: entry.errorPolicy ?? "abort",
 		exclusive: entry.exclusive ?? false,
+		observe: entry.observe ?? false,
 		pluginId,
 	};
 }

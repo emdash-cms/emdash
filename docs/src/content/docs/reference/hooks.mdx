@@ -75,6 +75,7 @@ interface ContentHookEvent {
 	content: Record<string, unknown>; // Content data
 	collection: string; // Collection slug
 	isNew: boolean; // True for creates, false for updates
+	id?: string; // Item id on updates; absent on creates (id not yet generated)
 }
 ```
 
@@ -82,6 +83,21 @@ interface ContentHookEvent {
 
 - Return modified content object to apply changes
 - Return `void` to pass through unchanged
+
+#### Capability
+
+Requires `content:write` capability, because the returned content replaces what is saved. A plugin that only watches saves can set `observe: true` in the hook config: the hook then registers with `content:read`, its return value is discarded, and errors it throws are logged without blocking the save, so it cannot affect the content.
+
+```ts
+hooks: {
+	"content:beforeSave": {
+		observe: true,
+		handler: async (event, ctx) => {
+			ctx.log.info(`Saving ${event.collection}`);
+		},
+	},
+}
+```
 
 ### `content:afterSave`
 
@@ -250,9 +266,11 @@ interface MediaUploadEvent {
 - Return `void` to pass through unchanged
 - Throw to reject the upload
 
+Requires `media:write` capability.
+
 ### `media:afterUpload`
 
-Runs after a file is uploaded. Use for processing, thumbnails, or metadata extraction.
+Runs after a file is uploaded. Use for processing, thumbnails, or metadata extraction. Requires `media:read` capability.
 
 ```ts
 hooks: {
@@ -709,6 +727,7 @@ hooks: {
 | `dependencies` | `string[]` | `[]`      | Plugin IDs that must run first                       |
 | `errorPolicy`  | `string`   | `"abort"` | `"continue"` to ignore errors                        |
 | `exclusive`    | `boolean`  | `false`   | Only one plugin can be the active provider (for provider-pattern hooks like `email:deliver`, `comment:moderate`) |
+| `observe`      | `boolean`  | `false`   | Read-only observer: the return value is discarded. `content:beforeSave` only, where it drops the required capability to `content:read` |
 
 ## Plugin Context
 

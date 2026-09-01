@@ -82,6 +82,7 @@ const HookEntryConfigSchema = z.looseObject({
 		})
 		.optional(),
 	exclusive: z.boolean().optional(),
+	observe: z.boolean().optional(),
 });
 
 export const HookEntrySchema = z.preprocess(normaliseEntry, HookEntryConfigSchema);

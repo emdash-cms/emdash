@@ -68,6 +68,7 @@ export interface ResolvedPlugin {
 			dependencies?: string[];
 			errorPolicy?: string;
 			exclusive?: boolean;
+			observe?: boolean;
 			pluginId?: string;
 		}
 	>;

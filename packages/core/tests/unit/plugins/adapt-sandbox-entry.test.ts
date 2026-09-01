@@ -294,6 +294,42 @@ describe("adaptSandboxEntry", () => {
 			expect(() => adaptSandboxEntry(def, descriptor)).toThrow("unknown hook");
 		});
 
+		it("passes the observe flag through for content:beforeSave", () => {
+			const def: SandboxedPlugin = {
+				hooks: {
+					"content:beforeSave": { observe: true, handler: mockHandler() },
+				},
+			};
+
+			const result = adaptSandboxEntry(def, createDescriptor());
+
+			expect(result.hooks["content:beforeSave"]!.observe).toBe(true);
+		});
+
+		it("throws when observe is set on a hook other than content:beforeSave", () => {
+			const def: SandboxedPlugin = {
+				hooks: {
+					"media:beforeUpload": { observe: true, handler: mockHandler() },
+				},
+			};
+
+			expect(() => adaptSandboxEntry(def, createDescriptor())).toThrow(
+				"Only content:beforeSave supports observe",
+			);
+		});
+
+		it("throws when observe is combined with exclusive", () => {
+			const def: SandboxedPlugin = {
+				hooks: {
+					"content:beforeSave": { observe: true, exclusive: true, handler: mockHandler() },
+				},
+			};
+
+			expect(() => adaptSandboxEntry(def, createDescriptor())).toThrow(
+				'"observe" cannot be combined with "exclusive"',
+			);
+		});
+
 		it("applies default config for partial config objects", () => {
 			const handler = vi.fn();
 			const def: SandboxedPlugin = {

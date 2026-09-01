@@ -53,6 +53,7 @@ function createTestHook<T>(
 		dependencies: [],
 		errorPolicy: "continue",
 		exclusive: false,
+		observe: false,
 		...overrides,
 	};
 }
@@ -617,6 +618,172 @@ describe("HookPipeline", () => {
 
 			const pipeline = new HookPipeline([plugin]);
 			expect(pipeline.hasHooks("content:afterUnschedule")).toBe(true);
+		});
+	});
+
+	describe("content:beforeSave event id", () => {
+		it("passes the item id through to the hook event", async () => {
+			const seenIds: Array<string | undefined> = [];
+			const plugin = createTestPlugin({
+				id: "test",
+				capabilities: ["content:write"],
+				hooks: {
+					"content:beforeSave": createTestHook("test", async (event: ContentHookEvent) => {
+						seenIds.push(event.id);
+					}),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin], { db });
+			await pipeline.runContentBeforeSave({ title: "x" }, "posts", false, "item-1");
+			await pipeline.runContentBeforeSave({ title: "y" }, "posts", true);
+
+			expect(seenIds).toEqual(["item-1", undefined]);
+		});
+	});
+
+	describe("observe mode — content:beforeSave", () => {
+		it("registers an observe content:beforeSave with only content:read", () => {
+			const plugin = createTestPlugin({
+				id: "observer",
+				capabilities: ["content:read"],
+				hooks: {
+					"content:beforeSave": createTestHook("observer", vi.fn(), { observe: true }),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin]);
+			expect(pipeline.hasHooks("content:beforeSave")).toBe(true);
+		});
+
+		it("skips an observe content:beforeSave without content:read", () => {
+			const plugin = createTestPlugin({
+				id: "no-cap",
+				capabilities: [],
+				hooks: {
+					"content:beforeSave": createTestHook("no-cap", vi.fn(), { observe: true }),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin]);
+			expect(pipeline.hasHooks("content:beforeSave")).toBe(false);
+		});
+
+		it("discards the return value of an observe hook", async () => {
+			const handler = vi.fn(async () => ({ title: "hijacked" }));
+			const plugin = createTestPlugin({
+				id: "observer",
+				capabilities: ["content:read"],
+				hooks: {
+					"content:beforeSave": createTestHook("observer", handler, { observe: true }),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin], { db });
+			const { content } = await pipeline.runContentBeforeSave({ title: "original" }, "posts", true);
+
+			expect(handler).toHaveBeenCalledOnce();
+			expect(content).toEqual({ title: "original" });
+		});
+
+		it("does not leak in-place event mutation from an observe hook, including nested values", async () => {
+			const handler = vi.fn(async (event: ContentHookEvent) => {
+				event.content.title = "mutated";
+				(event.content.body as Array<{ text: string }>)[0]!.text = "mutated";
+				(event.content.seo as Record<string, unknown>).title = "mutated";
+			});
+			const plugin = createTestPlugin({
+				id: "observer",
+				capabilities: ["content:read"],
+				hooks: {
+					"content:beforeSave": createTestHook("observer", handler, { observe: true }),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin], { db });
+			const original = {
+				title: "original",
+				body: [{ text: "original" }],
+				seo: { title: "original" },
+			};
+			const { content } = await pipeline.runContentBeforeSave(original, "posts", true);
+
+			expect(content).toEqual({
+				title: "original",
+				body: [{ text: "original" }],
+				seo: { title: "original" },
+			});
+		});
+
+		it("does not abort the pipeline when an observe hook throws under errorPolicy abort", async () => {
+			const observer = createTestPlugin({
+				id: "observer",
+				capabilities: ["content:read"],
+				hooks: {
+					"content:beforeSave": createTestHook(
+						"observer",
+						async () => {
+							throw new Error("observer exploded");
+						},
+						{ observe: true, errorPolicy: "abort", priority: 100 },
+					),
+				},
+			});
+			const mutator = createTestPlugin({
+				id: "mutator",
+				capabilities: ["content:write"],
+				hooks: {
+					"content:beforeSave": createTestHook(
+						"mutator",
+						async (event: ContentHookEvent) => ({ ...event.content, slugged: true }),
+						{ priority: 200 },
+					),
+				},
+			});
+
+			const pipeline = new HookPipeline([observer, mutator], { db });
+			const { content, results } = await pipeline.runContentBeforeSave(
+				{ title: "x" },
+				"posts",
+				true,
+			);
+
+			expect(content).toEqual({ title: "x", slugged: true });
+			expect(results[0]?.success).toBe(false);
+		});
+
+		it("observers see the pipeline content while mutating hooks still apply", async () => {
+			const seen: Record<string, unknown>[] = [];
+			const observer = createTestPlugin({
+				id: "observer",
+				capabilities: ["content:read"],
+				hooks: {
+					"content:beforeSave": createTestHook(
+						"observer",
+						async (event: ContentHookEvent) => {
+							seen.push(event.content);
+						},
+						{ observe: true, priority: 200 },
+					),
+				},
+			});
+			const mutator = createTestPlugin({
+				id: "mutator",
+				capabilities: ["content:write"],
+				hooks: {
+					"content:beforeSave": createTestHook(
+						"mutator",
+						async (event: ContentHookEvent) => ({ ...event.content, slugged: true }),
+						{ priority: 100 },
+					),
+				},
+			});
+
+			const pipeline = new HookPipeline([observer, mutator], { db });
+			const { content } = await pipeline.runContentBeforeSave({ title: "x" }, "posts", true);
+
+			expect(content).toEqual({ title: "x", slugged: true });
+			expect(seen).toEqual([{ title: "x", slugged: true }]);
 		});
 	});
 

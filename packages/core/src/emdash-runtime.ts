@@ -2990,12 +2990,18 @@ export class EmDashRuntime {
 					bodyWithoutRev.data,
 					collection,
 					false,
+					resolvedItem?.id,
 				);
 				processedData = hookResult.content;
 			}
 
 			// Run sandboxed beforeSave hooks
-			processedData = await this.runSandboxedBeforeSave(processedData!, collection, false);
+			processedData = await this.runSandboxedBeforeSave(
+				processedData!,
+				collection,
+				false,
+				resolvedItem?.id,
+			);
 
 			// Normalize media fields (fill dimensions, storageKey, etc.)
 			processedData = await this.normalizeMediaFields(collection, processedData);
@@ -4034,6 +4040,7 @@ export class EmDashRuntime {
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
+		contentId?: string,
 	): Promise<Record<string, unknown>> {
 		let result = content;
 
@@ -4046,6 +4053,7 @@ export class EmDashRuntime {
 					content: result,
 					collection,
 					isNew,
+					id: contentId,
 				});
 				if (hookResult && typeof hookResult === "object" && !Array.isArray(hookResult)) {
 					// Sandbox returns unknown; convert to record by iterating own properties
