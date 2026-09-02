@@ -337,6 +337,8 @@ The following schemas describe required data and constraints. Exact SQL belongs 
 | `operations`                        | Kind, generation, attempt key, token hash, intent ID, phase, materialization digest, start/deadline, completion state                                 |
 | `audit_events`                      | Monotonic sequence, event type, actor realm, actor identity, subject, public-safe payload, timestamp                                                  |
 | `deadlines`                         | Kind, subject ID, scheduled time, generation                                                                                                          |
+| `workflow_connection_invitations`   | One-time SHA-256 token hash, package slug, expiry, creation time                                                                                      |
+| `workflow_connection_requests`      | ULID, mutation key, connection key, package slug, normalized OIDC claims, state, ref scope, expected policy version, expiry and timestamps            |
 
 Sensitive values are encrypted individually with associated data binding the publisher DID, table, row identity, and key version. The database never stores an encryption master key.
 
