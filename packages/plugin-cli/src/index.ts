@@ -31,7 +31,9 @@ import { infoCommand } from "./commands/info.js";
 import { initCommand } from "./commands/init.js";
 import { loginCommand } from "./commands/login.js";
 import { logoutCommand } from "./commands/logout.js";
+import { pdsConformanceCommand } from "./commands/pds-conformance.js";
 import { publishCommand } from "./commands/publish.js";
+import { releaseCommand } from "./commands/release.js";
 import { searchCommand } from "./commands/search.js";
 import { switchCommand } from "./commands/switch.js";
 import { updatePackageCommand } from "./commands/update-package.js";
@@ -47,6 +49,7 @@ const main = defineCommand({
 	subCommands: {
 		login: loginCommand,
 		logout: logoutCommand,
+		"pds-conformance": pdsConformanceCommand,
 		whoami: whoamiCommand,
 		switch: switchCommand,
 		search: searchCommand,
@@ -56,6 +59,7 @@ const main = defineCommand({
 		dev: devCommand,
 		bundle: bundleCommand,
 		publish: publishCommand,
+		release: releaseCommand,
 		"update-package": updatePackageCommand,
 		validate: validateCommand,
 	},

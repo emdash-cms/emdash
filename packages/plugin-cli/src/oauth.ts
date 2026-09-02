@@ -584,11 +584,69 @@ export interface RunInteractiveLoginOptions {
 	 * granting broader permissions than the spec-compliant path would.
 	 */
 	onLegacyScopeFallback?: () => void;
+	/** Override the OAuth scope requested by the loopback client. */
+	scope?: string;
+	/**
+	 * Retry with `transition:generic` when granular scopes are rejected.
+	 * Defaults to `true` for the normal publishing CLI. Conformance callers
+	 * disable this so a broad fallback cannot produce a passing result.
+	 */
+	allowLegacyScopeFallback?: boolean;
 }
 
 export interface RunInteractiveLoginResult {
 	session: OAuthSession;
 	did: Did;
+}
+
+interface StoredOAuthClientRegistration {
+	redirectUri: `http://127.0.0.1:${number}/callback`;
+	scope: string;
+}
+
+function clientRegistrationStore(stateDir: string | undefined) {
+	return new FileStore<StoredOAuthClientRegistration>(
+		join(stateDir ?? DEFAULT_OAUTH_DIR, "clients.json"),
+	);
+}
+
+function isLoopbackRedirectUri(
+	value: unknown,
+): value is StoredOAuthClientRegistration["redirectUri"] {
+	if (typeof value !== "string") return false;
+	try {
+		const url = new URL(value);
+		const port = Number(url.port);
+		return (
+			url.protocol === "http:" &&
+			url.hostname === "127.0.0.1" &&
+			Number.isInteger(port) &&
+			port >= 1 &&
+			port <= 65_535 &&
+			url.pathname === "/callback" &&
+			url.search === "" &&
+			url.hash === ""
+		);
+	} catch {
+		return false;
+	}
+}
+
+async function getClientRegistration(
+	did: Did,
+	stateDir: string | undefined,
+): Promise<StoredOAuthClientRegistration> {
+	const stored = await clientRegistrationStore(stateDir).get(did);
+	if (
+		!stored ||
+		!isLoopbackRedirectUri(stored.redirectUri) ||
+		typeof stored.scope !== "string" ||
+		stored.scope.length === 0 ||
+		stored.scope.length > 4096
+	) {
+		throw new Error("Stored OAuth client registration is missing or invalid; sign in again");
+	}
+	return stored;
 }
 
 /**
@@ -607,10 +665,13 @@ async function authorizeWithLegacyFallback(input: {
 	redirectUri: `http://127.0.0.1:${number}/callback`;
 	identifier: ActorIdentifier;
 	onLegacyScopeFallback: (() => void) | undefined;
+	scope: string | undefined;
+	allowLegacyScopeFallback: boolean;
 }): Promise<{ client: OAuthClient; url: URL }> {
 	const granular = createCliOAuthClient({
 		stateDir: input.stateDir,
 		redirectUri: input.redirectUri,
+		...(input.scope ? { scope: input.scope } : {}),
 	});
 	try {
 		const { url } = await granular.authorize({
@@ -618,7 +679,11 @@ async function authorizeWithLegacyFallback(input: {
 		});
 		return { client: granular, url };
 	} catch (error) {
-		if (!(error instanceof OAuthResponseError) || error.error !== "invalid_scope") {
+		if (
+			!(error instanceof OAuthResponseError) ||
+			error.error !== "invalid_scope" ||
+			!input.allowLegacyScopeFallback
+		) {
 			throw error;
 		}
 		input.onLegacyScopeFallback?.();
@@ -654,6 +719,8 @@ export async function runInteractiveLogin(
 			redirectUri: server.redirectUri,
 			identifier,
 			onLegacyScopeFallback: options.onLegacyScopeFallback,
+			scope: options.scope,
+			allowLegacyScopeFallback: options.allowLegacyScopeFallback ?? true,
 		});
 
 		options.onUrl?.(url);
@@ -662,6 +729,16 @@ export async function runInteractiveLogin(
 		const params = await server.awaitCallback();
 		try {
 			const result = await client.callback(params);
+			const storedSession = await new FileStore<StoredSession>(
+				join(options.stateDir ?? DEFAULT_OAUTH_DIR, "sessions.json"),
+			).get(result.session.sub);
+			if (!storedSession) {
+				throw new Error("OAuth callback did not persist the session");
+			}
+			await clientRegistrationStore(options.stateDir).set(result.session.sub, {
+				redirectUri: server.redirectUri,
+				scope: client.metadata.scope ?? DEFAULT_CLI_SCOPE,
+			});
 			// Atcute has accepted the callback. Only NOW render the success
 			// page in the user's browser -- so a stray /callback hit with
 			// invalid state can't trick the user into thinking they're logged
@@ -684,39 +761,111 @@ export async function runInteractiveLogin(
  * Resume a previously-stored session by DID, refreshing tokens if needed.
  * Throws if no session exists for the DID.
  *
- * The redirect URI is irrelevant for resume (it's only used during authorize),
- * but the OAuth client constructor requires one matching the stored metadata.
- * We pass a placeholder; the OAuth library never tries to bind it.
+ * Refresh tokens are bound to the public loopback client's complete client ID,
+ * which includes the authorization redirect URI and scope. Resume therefore
+ * reconstructs the same client metadata that created the session.
  */
 export async function resumeSession(
 	did: Did,
-	options: { stateDir?: string } = {},
+	options: { stateDir?: string; scope?: string; refresh?: boolean | "auto" } = {},
 ): Promise<OAuthSession> {
+	const registration = await getClientRegistration(did, options.stateDir);
+	if (options.scope && options.scope !== registration.scope) {
+		throw new Error("Stored OAuth client scope does not match the requested scope; sign in again");
+	}
 	const client = createCliOAuthClient({
 		stateDir: options.stateDir,
-		redirectUri: "http://127.0.0.1:0/callback",
+		redirectUri: registration.redirectUri,
+		scope: registration.scope,
 	});
-	return client.restore(did);
+	return client.restore(did, { refresh: options.refresh ?? "auto" });
+}
+
+export interface StoredSessionMetadata {
+	did: Did;
+	issuer: string;
+	audience: string;
+	scope: string;
+	expiresAt?: number;
+	hasRefreshToken: boolean;
+}
+
+/** Read non-secret metadata from a stored OAuth session. */
+export async function getStoredSessionMetadata(
+	did: Did,
+	options: { stateDir?: string } = {},
+): Promise<StoredSessionMetadata | null> {
+	const sessions = new FileStore<StoredSession>(
+		join(options.stateDir ?? DEFAULT_OAUTH_DIR, "sessions.json"),
+	);
+	const stored = await sessions.get(did);
+	if (!stored) return null;
+	return {
+		did: stored.tokenSet.sub,
+		issuer: stored.tokenSet.iss,
+		audience: stored.tokenSet.aud,
+		scope: stored.tokenSet.scope,
+		...(typeof stored.tokenSet.expires_at === "number"
+			? { expiresAt: stored.tokenSet.expires_at }
+			: {}),
+		hasRefreshToken: typeof stored.tokenSet.refresh_token === "string",
+	};
+}
+
+export interface RevokeSessionOptions {
+	stateDir?: string;
+	scope?: string;
+	/** Surface server-side revocation failure after local cleanup. */
+	strict?: boolean;
+}
+
+export interface RevokeSessionResult {
+	serverRevoked: boolean;
 }
 
 /**
- * Revoke a session and remove its stored state. Best-effort: a network failure
- * during revocation is logged but does not prevent local cleanup, since the
- * user's intent is "stop using this session on this machine".
+ * Revoke a session and remove its stored state. By default, a network failure
+ * does not prevent local cleanup, since the user's intent is "stop using this
+ * session on this machine". Conformance callers use `strict` to require proof
+ * that the server-side revocation request completed.
  */
-export async function revokeSession(did: Did, options: { stateDir?: string } = {}): Promise<void> {
+export async function revokeSession(
+	did: Did,
+	options: RevokeSessionOptions = {},
+): Promise<RevokeSessionResult> {
+	const sessions = new FileStore<StoredSession>(
+		join(options.stateDir ?? DEFAULT_OAUTH_DIR, "sessions.json"),
+	);
+	const registrations = clientRegistrationStore(options.stateDir);
+	let registration: StoredOAuthClientRegistration;
+	try {
+		registration = await getClientRegistration(did, options.stateDir);
+	} catch (error) {
+		if (!options.strict) {
+			await sessions.delete(did);
+			await registrations.delete(did);
+			return { serverRevoked: false };
+		}
+		throw error;
+	}
+	if (options.scope && options.scope !== registration.scope) {
+		throw new Error("Stored OAuth client scope does not match the requested scope; sign in again");
+	}
 	const client = createCliOAuthClient({
 		stateDir: options.stateDir,
-		redirectUri: "http://127.0.0.1:0/callback",
+		redirectUri: registration.redirectUri,
+		scope: registration.scope,
 	});
 	try {
 		await client.revoke(did);
-	} catch {
+		await registrations.delete(did);
+		return { serverRevoked: true };
+	} catch (error) {
 		// Local-cleanup-only fallback: drop the session entry directly so
 		// `restore` won't accidentally reuse a server-side-revoked session.
-		const sessions = new FileStore<StoredSession>(
-			join(options.stateDir ?? DEFAULT_OAUTH_DIR, "sessions.json"),
-		);
 		await sessions.delete(did);
+		await registrations.delete(did);
+		if (options.strict) throw error;
+		return { serverRevoked: false };
 	}
 }

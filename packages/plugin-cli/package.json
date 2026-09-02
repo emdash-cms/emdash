@@ -38,7 +38,7 @@
 		"@emdash-cms/registry-lexicons": "workspace:*",
 		"@oslojs/crypto": "catalog:",
 		"chokidar": "catalog:",
-		"citty": "^0.1.6",
+		"citty": "^0.2.2",
 		"consola": "^3.4.2",
 		"jsonc-parser": "catalog:",
 		"modern-tar": "^0.7.5",

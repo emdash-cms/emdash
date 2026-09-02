@@ -20,13 +20,14 @@ export function createChallengeStore(db: Kysely<Database>): ChallengeStore {
 					challenge,
 					type: data.type,
 					user_id: data.userId ?? null,
-					data: null, // Could store additional context if needed
+					data: data.context ?? null,
 					expires_at: expiresAt,
 				})
 				.onConflict((oc) =>
 					oc.column("challenge").doUpdateSet({
 						type: data.type,
 						user_id: data.userId ?? null,
+						data: data.context ?? null,
 						expires_at: expiresAt,
 					}),
 				)
@@ -55,6 +56,7 @@ export function createChallengeStore(db: Kysely<Database>): ChallengeStore {
 				type: row.type === "registration" ? "registration" : "authentication",
 				userId: row.user_id ?? undefined,
 				expiresAt,
+				...(row.data === null ? {} : { context: row.data }),
 			};
 		},
 

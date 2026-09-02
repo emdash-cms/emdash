@@ -1,5 +1,6 @@
 export {
 	compareDigestBytes,
+	computeArtifactDigestCandidates,
 	computeMultihash,
 	decodeMultihash,
 	multihashFromBlobCid,
@@ -24,7 +25,8 @@ export {
 export { validatePluginBundle } from "./bundle.js";
 export { GitHubProvenanceVerifier } from "./provenance.js";
 export { canonicalizeRepositoryUrl } from "./repository.js";
-export { verifyPackageReleaseRecords } from "./records.js";
+export { inspectPackageReleaseRecords } from "./records.js";
+export { verifyPackageReleaseRecords } from "./records-default.js";
 export type { DecodedMultihash, MultihashAlgorithm } from "./checksum.js";
 export type {
 	FetchedReleaseArtifact,
@@ -50,8 +52,11 @@ export type {
 	NormalizedReleasePolicy,
 	ProvenanceEvidence,
 	ProvenanceStatus,
+	RecordInspectionInput,
+	RecordInspectionReport,
 	RecordVerificationDetails,
 	RecordVerificationCode,
+	RecordVerificationFailure,
 	RecordVerificationInput,
 	RecordVerificationReason,
 	RecordVerificationReport,

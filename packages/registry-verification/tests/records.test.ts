@@ -9,7 +9,8 @@ import type {
 	ReleaseProvenance,
 	VerifiedProvenance,
 } from "../src/index.js";
-import { verifyPackageReleaseRecords } from "../src/index.js";
+import { inspectPackageReleaseRecords, verifyPackageReleaseRecords } from "../src/index.js";
+import { verifyPackageReleaseRecords as verifyPackageReleaseRecordsWithExplicitVerifier } from "../src/records-entry.js";
 
 const publisherDid = "did:plc:publisher";
 const packageSlug = "gallery";
@@ -77,6 +78,23 @@ describe("verifyPackageReleaseRecords", () => {
 					approvers: [],
 				},
 			},
+		});
+	});
+
+	it("keeps unattested releases available through the runtime-neutral entrypoint", async () => {
+		const report = await verifyPackageReleaseRecordsWithExplicitVerifier({
+			publisherDid,
+			package: packageSlug,
+			version,
+			rkey,
+			profile: cloneProfile(),
+			release: cloneRelease(),
+		});
+
+		expect(report).toMatchObject({
+			success: true,
+			status: "unattested",
+			code: "PROVENANCE_ABSENT_OPTIONAL",
 		});
 	});
 
@@ -219,6 +237,28 @@ describe("verifyPackageReleaseRecords", () => {
 			success: false,
 			code: "PROVENANCE_REQUIRED",
 			provenance: { status: "absent-required" },
+		});
+	});
+
+	it("inspects signed policy before provenance evidence is available", async () => {
+		const profile = cloneProfile();
+		profile.extensions["com.emdashcms.experimental.package.profileExtension"].releasePolicy = {
+			requireProvenance: true,
+		};
+		expect(
+			await inspectPackageReleaseRecords({
+				publisherDid,
+				package: packageSlug,
+				version,
+				rkey,
+				profile,
+				release: cloneRelease(),
+			}),
+		).toMatchObject({
+			success: true,
+			status: "inspected",
+			provenance: { status: "not-checked" },
+			value: { policy: { requireProvenance: true } },
 		});
 	});
 

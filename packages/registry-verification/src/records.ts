@@ -15,7 +15,6 @@ import {
 import { unsupportedAuthDetails, UNSUPPORTED_AUTH_MESSAGE } from "./auth.js";
 import { compareDigestBytes, decodeMultihash, multihashFromBlobCid } from "./checksum.js";
 import type { VerificationErrorCode } from "./errors.js";
-import { GitHubProvenanceVerifier } from "./provenance.js";
 import type { ProvenanceVerifier, VerifiedProvenance } from "./provenance.js";
 import { canonicalizeRepositoryUrl } from "./repository.js";
 
@@ -28,6 +27,7 @@ export interface NormalizedReleasePolicy {
 export interface ProvenanceEvidence {
 	document: Uint8Array;
 	artifactDigest: Uint8Array;
+	artifactDigests?: readonly Uint8Array[];
 	verifier?: ProvenanceVerifier;
 }
 
@@ -40,6 +40,11 @@ export interface RecordVerificationInput {
 	release: unknown;
 	provenance?: ProvenanceEvidence;
 }
+
+export type RecordInspectionInput = Omit<RecordVerificationInput, "provenance">;
+export type RecordVerificationInputWithVerifier = Omit<RecordVerificationInput, "provenance"> & {
+	provenance?: ProvenanceEvidence & { verifier: ProvenanceVerifier };
+};
 
 export type RecordVerificationCode =
 	| VerificationErrorCode
@@ -74,6 +79,15 @@ export interface VerifiedRecordContext {
 	verifiedProvenance?: VerifiedProvenance;
 }
 
+export type RecordVerificationFailure = {
+	success: false;
+	status: "failed";
+	code: VerificationErrorCode;
+	reasons: RecordVerificationReason[];
+	provenance: { status: ProvenanceStatus };
+	details?: RecordVerificationDetails;
+};
+
 export type RecordVerificationReport =
 	| {
 			success: true;
@@ -83,14 +97,18 @@ export type RecordVerificationReport =
 			provenance: { status: "verified" | "absent-optional" };
 			value: VerifiedRecordContext;
 	  }
+	| RecordVerificationFailure;
+
+export type RecordInspectionReport =
 	| {
-			success: false;
-			status: "failed";
-			code: VerificationErrorCode;
+			success: true;
+			status: "inspected";
+			code: "VERIFIED";
 			reasons: RecordVerificationReason[];
-			provenance: { status: ProvenanceStatus };
-			details?: RecordVerificationDetails;
-	  };
+			provenance: { status: "not-checked" };
+			value: VerifiedRecordContext;
+	  }
+	| RecordVerificationFailure;
 
 const DEFAULT_POLICY: NormalizedReleasePolicy = {
 	requireProvenance: false,
@@ -98,10 +116,10 @@ const DEFAULT_POLICY: NormalizedReleasePolicy = {
 	approvers: [],
 };
 
-/** Validate signed profile/release records and apply the complete provenance policy. */
-export async function verifyPackageReleaseRecords(
-	input: RecordVerificationInput,
-): Promise<RecordVerificationReport> {
+/** Validate signed profile/release records without evaluating provenance evidence. */
+export async function inspectPackageReleaseRecords(
+	input: RecordInspectionInput,
+): Promise<RecordInspectionReport> {
 	const profile = await parseLexicon(PackageProfile.mainSchema, input.profile);
 	if (!profile) return failed("PROFILE_LEXICON_INVALID", "The package profile is malformed.");
 
@@ -199,6 +217,33 @@ export async function verifyPackageReleaseRecords(
 	}
 	const declaredAccess = canonicalizeDeclaredAccess(releaseExtension.declaredAccess);
 
+	return {
+		success: true,
+		status: "inspected",
+		code: "VERIFIED",
+		reasons: [{ code: "VERIFIED", message: "The signed package records are valid." }],
+		provenance: { status: "not-checked" },
+		value: {
+			profile,
+			release,
+			profileExtension,
+			releaseExtension,
+			repository,
+			policy,
+			declaredAccess,
+		},
+	};
+}
+
+async function verifyPackageReleaseRecordsInternal(
+	input: RecordVerificationInput,
+	defaultVerifier: ProvenanceVerifier | null,
+): Promise<RecordVerificationReport> {
+	const inspection = await inspectPackageReleaseRecords(input);
+	if (!inspection.success) return inspection;
+	const context = inspection.value;
+	const { policy, release, releaseExtension, repository } = context;
+
 	if (!releaseExtension.provenance) {
 		if (policy.requireProvenance) {
 			return failed(
@@ -218,15 +263,7 @@ export async function verifyPackageReleaseRecords(
 				},
 			],
 			provenance: { status: "absent-optional" },
-			value: {
-				profile,
-				release,
-				profileExtension,
-				releaseExtension,
-				repository,
-				policy,
-				declaredAccess,
-			},
+			value: context,
 		};
 	}
 
@@ -248,13 +285,21 @@ export async function verifyPackageReleaseRecords(
 			"failed",
 		);
 	}
-	const verifier = input.provenance.verifier ?? new GitHubProvenanceVerifier();
+	const verifier = input.provenance.verifier ?? defaultVerifier;
+	if (!verifier) {
+		return failed(
+			"PROVENANCE_UNVERIFIABLE",
+			"The supplied provenance verifier is unavailable.",
+			"failed",
+		);
+	}
 	let provenanceResult: Awaited<ReturnType<ProvenanceVerifier["verify"]>>;
 	try {
 		provenanceResult = await verifier.verify({
 			document: input.provenance.document,
 			reference: releaseExtension.provenance,
 			artifactDigest: input.provenance.artifactDigest,
+			artifactDigests: input.provenance.artifactDigests,
 			profileRepository: repository,
 		});
 	} catch {
@@ -275,16 +320,23 @@ export async function verifyPackageReleaseRecords(
 		reasons: [{ code: "VERIFIED", message: "The signed records and provenance are valid." }],
 		provenance: { status: "verified" },
 		value: {
-			profile,
-			release,
-			profileExtension,
-			releaseExtension,
-			repository,
-			policy,
-			declaredAccess,
+			...context,
 			verifiedProvenance: provenanceResult.value,
 		},
 	};
+}
+
+export function verifyPackageReleaseRecordsWithVerifier(
+	input: RecordVerificationInputWithVerifier,
+): Promise<RecordVerificationReport> {
+	return verifyPackageReleaseRecordsInternal(input, null);
+}
+
+export function verifyPackageReleaseRecordsWithDefaultVerifier(
+	input: RecordVerificationInput,
+	defaultVerifier: ProvenanceVerifier,
+): Promise<RecordVerificationReport> {
+	return verifyPackageReleaseRecordsInternal(input, defaultVerifier);
 }
 
 function normalizePolicy(
@@ -318,7 +370,7 @@ function failed(
 	message: string,
 	provenance: ProvenanceStatus = "not-checked",
 	details?: RecordVerificationDetails,
-): RecordVerificationReport {
+): RecordVerificationFailure {
 	return {
 		success: false,
 		status: "failed",

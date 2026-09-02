@@ -14,8 +14,33 @@ import {
 	normalizeIPv6MappedToIPv4,
 	resolveAndValidateExternalUrl,
 	SsrfError,
+	ssrfSafeFetch,
 	validateExternalUrl,
 } from "../../../src/import/ssrf.js";
+
+describe("ssrfSafeFetch HTTPS policy", () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it("rejects a redirect from HTTPS to HTTP when HTTPS is required", async () => {
+		const fetch = vi.fn().mockResolvedValue(
+			new Response(null, {
+				status: 302,
+				headers: { Location: "http://downloads.example.test/archive" },
+			}),
+		);
+		vi.stubGlobal("fetch", fetch);
+
+		await expect(
+			ssrfSafeFetch("https://publisher.example.test/record", undefined, {
+				httpsOnly: true,
+				resolver: async () => ["93.184.216.34"],
+			}),
+		).rejects.toThrow("Only HTTPS URLs are allowed");
+		expect(fetch).toHaveBeenCalledOnce();
+	});
+});
 
 describe("validateExternalUrl", () => {
 	// =========================================================================

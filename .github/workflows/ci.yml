@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
@@ -33,6 +32,13 @@ jobs:
       - run: pnpm run --filter emdash-demo --filter @emdash-cms/demo-cloudflare typecheck
       - run: pnpm typecheck:templates
       - run: node scripts/typecheck-public-source.mjs
+      - run: pnpm run --filter @emdash-cms/release-service --filter @emdash-cms/release-verifier --filter @emdash-cms/release-action typecheck
+      - run: pnpm run --filter @emdash-cms/release-service --filter @emdash-cms/release-verifier --filter @emdash-cms/release-action build
+      - run: git diff --exit-code -- apps/release-action/dist/index.js
+      - run: pnpm --dir apps/release-service exec wrangler types --check
+      - run: pnpm --dir apps/release-verifier exec wrangler types --check
+      - run: pnpm --dir apps/release-service exec wrangler deploy --dry-run
+      - run: pnpm --dir apps/release-verifier exec wrangler deploy --dry-run
 
   lint:
     name: Lint
@@ -141,6 +147,8 @@ jobs:
       # they can't run under the plain-node config in test:unit.
       - if: matrix.shardIndex == 1
         run: pnpm --filter emdash exec vitest run --config vitest.repro.config.ts
+      - if: matrix.shardIndex == 1
+        run: pnpm run --filter @emdash-cms/release-service --filter @emdash-cms/release-verifier --filter @emdash-cms/release-action test
 
   test:
     name: Tests
@@ -217,7 +225,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run --filter @emdash-cms/admin... build
+      - run: pnpm run --filter @emdash-cms/admin... --filter @emdash-cms/release-service... build
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: playwright-cache
         with:
@@ -225,6 +233,7 @@ jobs:
           key: playwright-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm exec playwright install --with-deps chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
+      - run: pnpm --filter @emdash-cms/release-service test:browser
       - run: pnpm run --filter @emdash-cms/admin test
 
   test-e2e-rollup:
