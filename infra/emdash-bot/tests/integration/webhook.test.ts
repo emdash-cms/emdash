@@ -7,7 +7,7 @@
 // the same secret to sign synthetic payloads.
 
 import { env, exports } from "cloudflare:workers";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { verifyWebhookSignature } from "../../.flue/lib/webhook.js";
 
@@ -15,10 +15,43 @@ const SELF = exports.default;
 
 interface TestEnv {
 	Orchestrator: Env["Orchestrator"];
+	GITHUB_APP_INSTALLATION_ID: string;
+	GITHUB_APP_PRIVATE_KEY: string;
 	GITHUB_WEBHOOK_SECRET: string;
+	GITHUB_OWNER: string;
+	GITHUB_REPO: string;
 }
 
 const testEnv = env as unknown as TestEnv;
+
+afterEach(() => {
+	testEnv.GITHUB_APP_PRIVATE_KEY = "";
+	vi.unstubAllGlobals();
+});
+
+async function generatedPrivateKeyPem(): Promise<string> {
+	const pair = await crypto.subtle.generateKey(
+		{
+			name: "RSASSA-PKCS1-v1_5",
+			modulusLength: 2048,
+			publicExponent: new Uint8Array([1, 0, 1]),
+			hash: "SHA-256",
+		},
+		true,
+		["sign", "verify"],
+	);
+	if (!("privateKey" in pair)) throw new Error("RSA key generation did not return a key pair");
+	const exported = await crypto.subtle.exportKey("pkcs8", pair.privateKey);
+	if (!(exported instanceof ArrayBuffer)) throw new Error("RSA private key export was not binary");
+	const pkcs8 = new Uint8Array(exported);
+	let binary = "";
+	for (const byte of pkcs8) binary += String.fromCharCode(byte);
+	const body =
+		btoa(binary)
+			.match(/.{1,64}/g)
+			?.join("\n") ?? "";
+	return `-----BEGIN PRIVATE KEY-----\n${body}\n-----END PRIVATE KEY-----`;
+}
 
 async function sign(body: string): Promise<string> {
 	const encoder = new TextEncoder();
@@ -109,6 +142,55 @@ describe("verifyWebhookSignature (workers-pool)", () => {
 });
 
 describe("POST /webhook/github (workers-pool)", () => {
+	test("serves the public dashboard", async () => {
+		const res = await SELF.fetch("https://test/");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("content-type")).toContain("text/html");
+		const html = await res.text();
+		expect(html).toContain("Issue lifecycle");
+		expect(html).toContain("Agent run");
+		expect(html).toContain("Work plan");
+		expect(html).toContain("Run trace");
+	});
+
+	test("dashboard API fails closed when GitHub credentials are unavailable", async () => {
+		const res = await SELF.fetch("https://test/api/dashboard");
+		expect(res.status).toBe(503);
+		expect(await res.json()).toEqual({ error: "Dashboard data is temporarily unavailable" });
+	});
+
+	test("serves the selected issue's public run trace without GitHub credentials", async () => {
+		const issueNumber = uniqueIssueNumber();
+		const stub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
+		await stub.debugSetStaleRun(
+			"dashboard-trace-run",
+			Date.now() - 1_000,
+			`investigate-${issueNumber}-dashboard-trace-run`,
+			"repro",
+		);
+		await stub.recordRunTraceEvent({
+			runId: "dashboard-trace-run",
+			event: {
+				key: "dashboard-trace-event",
+				at: Date.now(),
+				kind: "turn",
+				title: "Model turn",
+				detail: "deepseek-v4",
+				tone: "active",
+				output: "Inspecting the issue.",
+			},
+		});
+
+		const res = await SELF.fetch(`https://test/api/issues/${issueNumber}/trace`);
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("cache-control")).toBe("no-store");
+		expect(await res.json()).toMatchObject({
+			selectedRunId: "dashboard-trace-run",
+			events: [{ kind: "turn", output: "Inspecting the issue." }],
+		});
+	});
+
 	test("rejects requests without a valid signature", async () => {
 		const res = await postWebhook({
 			eventType: "ping",
@@ -166,8 +248,8 @@ describe("POST /webhook/github (workers-pool)", () => {
 
 	test("classifier failure remains retryable and does not persist state", async () => {
 		// The webhook acknowledges durable admission before classifier work. The
-		// test entry has no Flue runtime, so processing fails and leaves the item
-		// queued for retry without persisting state.
+		// test entry returns a classifier error, so processing leaves the item
+		// queued for retry without persisting state or using remote inference.
 		const issueNumber = uniqueIssueNumber();
 		const res = await postWebhook({
 			eventType: "issue_comment",
@@ -211,6 +293,115 @@ describe("POST /webhook/github (workers-pool)", () => {
 		});
 		expect(res.status).toBe(202);
 		expect(await res.text()).toMatch(/skipped/);
+	});
+
+	test("top-level bot PR feedback resolves its head branch before durable admission", async () => {
+		const issueNumber = uniqueIssueNumber();
+		const pullRequestNumber = uniqueIssueNumber();
+		testEnv.GITHUB_APP_PRIVATE_KEY = await generatedPrivateKeyPem();
+		const requests: Array<{ url: string; signal: AbortSignal | null | undefined }> = [];
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			requests.push({ url, signal: init?.signal });
+			if (url.includes("/access_tokens")) {
+				return Promise.resolve(
+					new Response(JSON.stringify({ token: "installation-token" }), {
+						status: 201,
+						headers: { "content-type": "application/json" },
+					}),
+				);
+			}
+			return Promise.resolve(
+				new Response(JSON.stringify({ head: { ref: `bot/fix-${issueNumber}` } }), {
+					headers: { "content-type": "application/json" },
+				}),
+			);
+		});
+
+		const res = await postWebhook({
+			eventType: "issue_comment",
+			delivery: `pr-comment-${pullRequestNumber}`,
+			payload: {
+				action: "created",
+				issue: {
+					number: pullRequestNumber,
+					user: { login: "emdashbot[bot]" },
+					pull_request: {},
+				},
+				comment: {
+					body: "@emdashbot simplify the adapter test",
+					author_association: "MEMBER",
+					user: { login: "alice" },
+				},
+				sender: { login: "alice" },
+			},
+		});
+
+		expect(res.status).toBe(202);
+		expect(await res.json()).toMatchObject({ anchor: `issue-${issueNumber}` });
+		expect(requests.map((request) => request.url)).toEqual([
+			`https://api.github.com/app/installations/${testEnv.GITHUB_APP_INSTALLATION_ID}/access_tokens`,
+			`https://api.github.com/repos/${testEnv.GITHUB_OWNER}/${testEnv.GITHUB_REPO}/pulls/${pullRequestNumber}`,
+		]);
+		expect(requests[0]?.signal).toBeInstanceOf(AbortSignal);
+		expect(requests[1]?.signal).toBe(requests[0]?.signal);
+	});
+
+	test("top-level bot PR feedback returns a retryable error when lookup fails", async () => {
+		const pullRequestNumber = uniqueIssueNumber();
+		testEnv.GITHUB_APP_PRIVATE_KEY = await generatedPrivateKeyPem();
+		vi.stubGlobal("fetch", () => Promise.resolve(new Response("unavailable", { status: 503 })));
+
+		const res = await postWebhook({
+			eventType: "issue_comment",
+			payload: {
+				action: "created",
+				issue: {
+					number: pullRequestNumber,
+					user: { login: "emdashbot[bot]" },
+					pull_request: {},
+				},
+				comment: {
+					body: "@emdashbot revise this",
+					author_association: "MEMBER",
+					user: { login: "alice" },
+				},
+				sender: { login: "alice" },
+			},
+		});
+
+		expect(res.status).toBe(503);
+		expect(await res.text()).toBe("pull request lookup failed");
+	});
+
+	test("bot PR merge advances the originating issue rather than the PR number", async () => {
+		const issueNumber = uniqueIssueNumber();
+		const pullRequestNumber = uniqueIssueNumber();
+		const res = await postWebhook({
+			eventType: "pull_request",
+			delivery: `merge-${pullRequestNumber}`,
+			payload: {
+				action: "closed",
+				pull_request: {
+					number: pullRequestNumber,
+					user: { login: "emdashbot[bot]" },
+					head: { ref: `bot/fix-${issueNumber}` },
+					merged: true,
+					labels: [{ name: "bot:bug" }, { name: "bot:in-review" }],
+				},
+				sender: { login: "alice" },
+			},
+		});
+
+		expect(res.status).toBe(202);
+		expect(await res.json()).toMatchObject({ anchor: `issue-${issueNumber}` });
+		const issueStub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
+		await issueStub.tick();
+		expect((await issueStub.getPersistedState()).state).toBe("done");
+		expect(
+			(await testEnv.Orchestrator.getByName(`issue-${pullRequestNumber}`).getPersistedState())
+				.state,
+		).toBe(null);
 	});
 
 	test("duplicate delivery is deduped at the DO layer", async () => {

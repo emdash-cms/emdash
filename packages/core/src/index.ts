@@ -1,8 +1,14 @@
 // Database (only types and utilities - internal functions not exported)
-export { EmDashDatabaseError, getMigrationStatus } from "./database/index.js";
+export {
+	EmDashDatabaseError,
+	getMigrationStatus,
+	getExactMigrationStatus,
+	MIGRATION_NAMES,
+} from "./database/index.js";
 export type {
 	DatabaseConfig,
 	MigrationStatus,
+	ExactMigrationStatus,
 	Database,
 	UserTable,
 	MediaTable,
@@ -78,6 +84,9 @@ export {
 	handleMediaCreate,
 	handleMediaUpdate,
 	handleMediaDelete,
+	handleMediaUsageActivationAdvance,
+	handleMediaUsageProgress,
+	handleMediaUsageRepair,
 	handleRevisionList,
 	handleRevisionGet,
 	handleRevisionRestore,
@@ -116,7 +125,7 @@ export type {
 export { ulid } from "ulidx";
 export { computeContentHash, hashString } from "./utils/hash.js";
 export { sanitizeHref, isSafeHref } from "./utils/url.js";
-export { decodeSlug } from "./utils/slugify.js";
+export { decodeSlug, slugify } from "./utils/slugify.js";
 
 // Live Collections query functions (loader is in emdash/runtime)
 export {
@@ -237,6 +246,8 @@ export {
 	PluginManager,
 	createPluginManager,
 	PluginRouteError,
+	ContentSaveRejectedError,
+	isContentSaveRejection,
 	// Scheduler (Node timer heartbeat — used by virtual:emdash/scheduler)
 	NodeCronScheduler,
 	// Sandbox

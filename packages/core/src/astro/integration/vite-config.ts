@@ -378,13 +378,7 @@ export function createVirtualModulesPlugin(
 // `?url`), so both forms resolve to dist rather than the source alias.
 const ADMIN_STYLES_ALIAS = /^@emdash-cms\/admin\/styles\.css/;
 
-const NODE_NATIVE_EXTERNALS = [
-	"better-sqlite3",
-	"bindings",
-	"file-uri-to-path",
-	"@libsql/kysely-libsql",
-	"pg",
-];
+const NODE_NATIVE_EXTERNALS = ["@libsql/kysely-libsql", "pg"];
 
 /**
  * Detect whether the Cloudflare adapter is being used.
@@ -562,6 +556,7 @@ export function createViteConfig(
 							"emdash > zod",
 							"@emdash-cms/cloudflare > kysely-d1",
 							// Astro internal deps not covered by @astrojs/cloudflare adapter
+							"astro/app/manifest",
 							"astro/virtual-modules/middleware.js",
 							"astro/virtual-modules/live-config",
 							"astro/content/runtime",

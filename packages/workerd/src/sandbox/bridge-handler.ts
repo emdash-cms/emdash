@@ -15,6 +15,7 @@
  */
 
 import {
+	ContentRepository,
 	createHttpAccess,
 	createSandboxRouteErrorEnvelope,
 	createUnrestrictedHttpAccess,
@@ -22,7 +23,7 @@ import {
 	resolveContentCreateLocale,
 } from "emdash";
 import type { Database, I18nConfig, SandboxEmailSendCallback } from "emdash";
-import { sql, type Kysely, type RawBuilder } from "kysely";
+import type { Kysely } from "kysely";
 
 /**
  * Schema view of a content table (ec_${collection}) for kysely. The standard
@@ -848,55 +849,19 @@ async function contentUpdate(
 	locale: string;
 }> {
 	validateCollectionName(collection);
-	const table = `ec_${collection}`;
-	const cdb = asContentDb(db);
-
-	const now = new Date().toISOString();
-
-	// Build update: always bump updated_at and version. Collect every column
-	// change into a single .set() so the value-bag type is `unknown` per
-	// column and we don't need narrowing casts.
-	const updates: Record<string, unknown> = {
-		updated_at: now,
-		version: sql`version + 1` satisfies RawBuilder<unknown>,
+	const updated = await new ContentRepository(db).updateDraftAware(collection, id, {
+		data,
+		status: typeof data.status === "string" ? data.status : undefined,
+		slug: data.slug === undefined ? undefined : typeof data.slug === "string" ? data.slug : null,
+	});
+	return {
+		id: updated.id,
+		type: updated.type,
+		data: updated.data,
+		createdAt: updated.createdAt,
+		updatedAt: updated.updatedAt,
+		locale: updated.locale ?? "en",
 	};
-
-	if (typeof data.status === "string") {
-		updates.status = data.status;
-	}
-	if (data.slug !== undefined) {
-		updates.slug = typeof data.slug === "string" ? data.slug : null;
-	}
-
-	for (const [key, value] of Object.entries(data)) {
-		if (!SYSTEM_COLUMNS.has(key) && COLLECTION_NAME_RE.test(key)) {
-			updates[key] = serializeValue(value);
-		}
-	}
-
-	const result = await cdb
-		.updateTable(table)
-		.set(updates)
-		.where("id", "=", id)
-		.where("deleted_at", "is", null)
-		.executeTakeFirst();
-
-	if (BigInt(result.numUpdatedRows) === 0n) {
-		throw new Error(`Content not found or deleted: ${collection}/${id}`);
-	}
-
-	// Re-read the updated row
-	const updated = await cdb
-		.selectFrom(table)
-		.where("id", "=", id)
-		.where("deleted_at", "is", null)
-		.selectAll()
-		.executeTakeFirst();
-
-	if (!updated) {
-		throw new Error(`Content not found: ${collection}/${id}`);
-	}
-	return rowToContentItem(collection, updated);
 }
 
 async function contentDelete(

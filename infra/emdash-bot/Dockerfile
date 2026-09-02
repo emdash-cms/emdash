@@ -33,7 +33,7 @@ RUN npm install -g pnpm@11.1.3 bgproc@0.3.0 agent-browser@0.30.1 \
 # /root/.agent-browser/browsers.
 RUN agent-browser install
 
-FROM cloudflare/sandbox:0.12.1
+FROM cloudflare/sandbox:0.12.3
 
 # Base OS packages: git for the repo clone the agent does in revise mode,
 # ca-certificates for HTTPS, fonts/libs Chromium needs (the agent-browser CLI
@@ -108,6 +108,9 @@ RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && node --version && npm --version && pnpm --version
 
 ENV NODE_OPTIONS="--max-old-space-size=6144"
+# Native dependency fallbacks use the Node headers copied into this image.
+# Without this, node-gyp downloads the same headers again at runtime.
+ENV npm_config_nodedir=/usr/local
 
 # The agent operates under /workspace; the workflow clones into /workspace/repo.
 WORKDIR /workspace

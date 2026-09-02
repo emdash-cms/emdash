@@ -52,6 +52,20 @@ export type ExecuteCollectionDeletionGuard = (
 	input: CollectionDeletionGuardInput,
 ) => Promise<CollectionDeletionGuardResult>;
 
+const ENVIRONMENT_VARIABLE_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+function migrationEnvironmentVariable(
+	value: string | undefined,
+	fallback: string,
+	optionName: string,
+): string {
+	const name = value ?? fallback;
+	if (!ENVIRONMENT_VARIABLE_PATTERN.test(name)) {
+		throw new Error(`${optionName} must be a valid environment variable name.`);
+	}
+	return name;
+}
+
 /**
  * Database descriptor - serializable config for virtual modules
  */
@@ -59,6 +73,11 @@ export interface DatabaseDescriptor {
 	entrypoint: string;
 	config: unknown;
 	type: DatabaseDialectType;
+	/** Deployment migration capability with configuration safe for a build artifact. */
+	migrations?: {
+		entrypoint: string;
+		manifestConfig: unknown;
+	};
 	/**
 	 * When true, the adapter's runtime entrypoint MUST export a named
 	 * `createRequestScopedDb` function matching the signature declared in
@@ -111,12 +130,13 @@ export interface LibsqlConfig {
 	 * Auth token for remote libSQL
 	 */
 	authToken?: string;
+	migrationAuthTokenEnv?: string;
 }
 
 /**
- * SQLite database adapter (better-sqlite3)
+ * SQLite database adapter (node:sqlite)
  *
- * For local development and Node.js deployments.
+ * For local development and Node.js deployments. Requires Node.js 22.16 or later.
  *
  * @example
  * ```ts
@@ -128,6 +148,10 @@ export function sqlite(config: SqliteConfig): DatabaseDescriptor {
 		entrypoint: "emdash/db/sqlite",
 		config,
 		type: "sqlite",
+		migrations: {
+			entrypoint: "emdash/db/sqlite-migrations",
+			manifestConfig: { url: config.url },
+		},
 	};
 }
 
@@ -145,10 +169,22 @@ export function sqlite(config: SqliteConfig): DatabaseDescriptor {
  * ```
  */
 export function libsql(config: LibsqlConfig): DatabaseDescriptor {
+	const { migrationAuthTokenEnv, ...runtimeConfig } = config;
 	return {
 		entrypoint: "emdash/db/libsql",
-		config,
+		config: runtimeConfig,
 		type: "sqlite",
+		migrations: {
+			entrypoint: "emdash/db/libsql-migrations",
+			manifestConfig: {
+				url: config.url,
+				authTokenEnv: migrationEnvironmentVariable(
+					migrationAuthTokenEnv,
+					"TURSO_AUTH_TOKEN",
+					"migrationAuthTokenEnv",
+				),
+			},
+		},
 	};
 }
 
@@ -164,6 +200,7 @@ export interface PostgresConfig {
 	password?: string;
 	ssl?: boolean;
 	pool?: { min?: number; max?: number };
+	migrationConnectionStringEnv?: string;
 }
 
 /**
@@ -177,9 +214,20 @@ export interface PostgresConfig {
  * ```
  */
 export function postgres(config: PostgresConfig): DatabaseDescriptor {
+	const { migrationConnectionStringEnv, ...runtimeConfig } = config;
 	return {
 		entrypoint: "emdash/db/postgres",
-		config,
+		config: runtimeConfig,
 		type: "postgres",
+		migrations: {
+			entrypoint: "emdash/db/postgres-migrations",
+			manifestConfig: {
+				connectionStringEnv: migrationEnvironmentVariable(
+					migrationConnectionStringEnv,
+					"DATABASE_URL",
+					"migrationConnectionStringEnv",
+				),
+			},
+		},
 	};
 }

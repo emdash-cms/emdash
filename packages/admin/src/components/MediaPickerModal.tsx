@@ -30,6 +30,7 @@ import {
 	providerItemToMediaItem,
 	getFileIcon,
 	getMediaThumbnailUrl,
+	getMediaObjectPosition,
 	fallbackToOriginalThumbnail,
 } from "../lib/media-utils";
 import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
@@ -870,7 +871,8 @@ function MediaPickerItem({
 					<img
 						src={displayUrl}
 						alt=""
-						className="h-full w-full object-cover"
+						className="emdash-media-transparency-grid h-full w-full object-cover"
+						style={{ objectPosition: getMediaObjectPosition(item) }}
 						onLoad={handleImageLoad}
 						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
 					/>
@@ -953,7 +955,7 @@ function ProviderMediaItem({
 					<img
 						src={item.previewUrl}
 						alt=""
-						className="h-full w-full object-cover"
+						className="emdash-media-transparency-grid h-full w-full object-cover"
 						onLoad={handleImageLoad}
 					/>
 				) : (

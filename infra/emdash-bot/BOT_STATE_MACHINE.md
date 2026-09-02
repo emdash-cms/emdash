@@ -1,41 +1,59 @@
-# emdashbot state machine
+# emdashbot lifecycle machines
 
 <!-- Generated from .flue/lib/machine.ts by `pnpm bot:generate`. Do not edit by hand. -->
 
+The issue lifecycle coordinates the long-lived GitHub item. The agent run lifecycle records one bounded execution attempt. GitHub labels project the issue state; run mode and phase remain in Durable Object storage.
+
+## Issue lifecycle
+
 Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 
-## States
+### Phases
 
-| State | Label | Board column | Terminal | Transient | Offered commands |
-| --- | --- | --- | --- | --- | --- |
-| `unmanaged` | — | (none) | no | no | `investigate`, `repro`, `implement`, `decline` |
-| `triage` | `bot:triage` | Triage | no | no | `investigate`, `repro`, `implement`, `decline` |
-| `working` | `bot:working` | Working | no | yes | `status` |
-| `blocked` | `bot:blocked` | Blocked | no | no | `investigate`, `implement`, `repro`, `retry`, `decline`, `take_over` |
-| `awaiting_feedback` | `bot:awaiting-feedback` | Awaiting feedback | no | no | `confirm`, `reject`, `retry`, `take_over` |
-| `in_review` | `bot:in-review` | In review | no | no | `revise`, `decline`, `take_over` |
-| `human_owned` | `bot:human-owned` | Human owned | no | no | `hand_back` |
-| `done` | `bot:done` | Done | yes | no | `reopen` |
-| `declined` | `bot:declined` | Declined | yes | no | `reopen` |
-| `failed` | `bot:failed` | Failed | no | no | `retry`, `implement`, `repro`, `investigate`, `decline` |
-| `investigating` | `bot:investigating` | Investigating | no | yes | `status` |
-| `reproduced` | `bot:reproduced` | Reproduced | no | no | `fix`, `investigate`, `decline`, `take_over` |
-| `diagnosed` | `bot:diagnosed` | Diagnosed | no | no | `fix`, `investigate`, `decline`, `take_over` |
-| `not_reproduced` | `bot:not-reproduced` | Not reproduced | no | no | `investigate`, `decline`, `take_over` |
-| `needs_info` | `bot:needs-info` | Needs info | no | no | `investigate`, `decline`, `take_over` |
-| `fixing` | `bot:fixing` | Fixing | no | yes | `status` |
-| `preview_building` | `bot:preview-building` | Building preview | no | yes | `status` |
-| `awaiting_reporter` | `bot:awaiting-reporter` | Awaiting reporter | no | no | `confirm`, `reject`, `decline`, `take_over` |
+| Phase | Label |
+| --- | --- |
+| `intake` | Triage |
+| `evidence` | Investigate |
+| `verdict` | Establish |
+| `candidate` | Build |
+| `preview` | Preview |
+| `confirmation` | Confirm |
+| `review` | Review |
+| `complete` | Done |
 
-## Events
+### States
+
+| State | Phase | Label | Board column | Terminal | Transient | Offered commands |
+| --- | --- | --- | --- | --- | --- | --- |
+| `unmanaged` | `intake` | — | (none) | no | no | `investigate`, `repro`, `fix`, `implement`, `decline` |
+| `triage` | `intake` | `bot:triage` | Triage | no | no | `investigate`, `repro`, `fix`, `implement`, `decline` |
+| `working` | `evidence` | `bot:working` | Working | no | yes | `status` |
+| `blocked` | `candidate` | `bot:blocked` | Blocked | no | no | `investigate`, `fix`, `implement`, `repro`, `retry`, `decline`, `take_over` |
+| `awaiting_feedback` | `confirmation` | `bot:awaiting-feedback` | Awaiting feedback | no | no | `confirm`, `reject`, `retry`, `take_over` |
+| `in_review` | `review` | `bot:in-review` | In review | no | no | `revise`, `decline`, `take_over` |
+| `human_owned` | `review` | `bot:human-owned` | Human owned | no | no | `hand_back` |
+| `done` | `complete` | `bot:done` | Done | yes | no | `reopen` |
+| `declined` | `complete` | `bot:declined` | Declined | yes | no | `reopen` |
+| `failed` | `candidate` | `bot:failed` | Failed | no | no | `resume`, `retry`, `implement`, `repro`, `investigate`, `decline` |
+| `investigating` | `evidence` | `bot:investigating` | Investigating | no | yes | `status` |
+| `reproduced` | `verdict` | `bot:reproduced` | Reproduced | no | no | `fix`, `implement`, `investigate`, `decline`, `take_over` |
+| `diagnosed` | `verdict` | `bot:diagnosed` | Diagnosed | no | no | `fix`, `implement`, `investigate`, `decline`, `take_over` |
+| `not_reproduced` | `verdict` | `bot:not-reproduced` | Not reproduced | no | no | `investigate`, `decline`, `take_over` |
+| `needs_info` | `verdict` | `bot:needs-info` | Needs info | no | no | `investigate`, `decline`, `take_over` |
+| `fixing` | `candidate` | `bot:fixing` | Fixing | no | yes | `status` |
+| `preview_building` | `preview` | `bot:preview-building` | Building preview | no | yes | `status` |
+| `awaiting_reporter` | `confirmation` | `bot:awaiting-reporter` | Awaiting reporter | no | no | `confirm`, `reject`, `decline`, `take_over` |
+
+### Events
 
 | Event | Category | Actors | Arg | Description |
 | --- | --- | --- | --- | --- |
 | `repro` | command | maintainer | — | Reproduce the issue as a bug and attempt a fix. |
 | `investigate` | command | maintainer | `directive` | Reproduce and diagnose the issue as a bug, with evidence. Does not attempt a fix. |
 | `implement` | command | maintainer | `directive` | Build the described change (feature or directed fix), skipping the bug-repro gate. |
-| `fix` | command | maintainer | `directive` | Build a candidate fix on a bot branch and post a preview for the reporter to try. |
+| `fix` | command | maintainer | `directive` | Build a candidate bug fix and post a preview for the reporter to try. |
 | `retry` | command | maintainer | — | Re-run the bug reproduction pipeline. |
+| `resume` | command | maintainer | `directive` | Continue the saved conversation and workspace from a timed-out run. |
 | `revise` | command | maintainer | `feedback` | Send review feedback back into the agent to update the open PR branch. |
 | `confirm` | command | reporter, maintainer | — | Confirm the staged fix works; open a PR. |
 | `reject` | command | reporter, maintainer | `feedback` | The staged fix does not work; retry with feedback. |
@@ -51,7 +69,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `agent.by_design` | agent result | system | — | Agent verified the behaviour as intended. |
 | `agent.reproduced` | agent result | system | — | Reproduced, but the fix needs a human decision. |
 | `agent.diagnosed` | agent result | system | — | Root cause identified without a confirming reproduction. |
-| `agent.fix_ready` | agent result | system | — | A verified candidate change is published on bot/fix-<n>. |
+| `agent.fix_ready` | agent result | system | — | A candidate change is published on bot/fix-<n>. |
 | `agent.needs_info` | agent result | system | — | Investigation is blocked on information only the reporter can supply. |
 | `agent.failed` | agent result | system | — | Agent run errored or produced no usable result. |
 | `pr.opened` | pr lifecycle | system | — | A bot PR was opened for this item. |
@@ -63,22 +81,27 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `preview.failed` | preview | system | — | The preview deploy failed to build. |
 | `expire` | timer | system | — | The reporter-confirmation window elapsed without a reply. |
 
-## Transitions
+### Transitions
 
 | From | Event | To | Action |
 | --- | --- | --- | --- |
 | `unmanaged` | `repro` | `working` | `investigate.repro` |
+| `unmanaged` | `fix` | `fixing` | `investigate.implement` |
 | `unmanaged` | `implement` | `fixing` | `investigate.implement` |
 | `unmanaged` | `decline` | `declined` | — |
 | `triage` | `repro` | `working` | `investigate.repro` |
+| `triage` | `fix` | `fixing` | `investigate.implement` |
 | `triage` | `implement` | `fixing` | `investigate.implement` |
 | `triage` | `decline` | `declined` | — |
 | `working` | `agent.skipped` | `blocked` | — |
-| `working` | `agent.not_reproduced` | `blocked` | — |
+| `working` | `agent.not_reproduced` | `not_reproduced` | — |
 | `working` | `agent.by_design` | `blocked` | — |
-| `working` | `agent.reproduced` | `blocked` | — |
+| `working` | `agent.reproduced` | `reproduced` | — |
+| `working` | `agent.diagnosed` | `diagnosed` | — |
+| `working` | `agent.needs_info` | `needs_info` | — |
 | `working` | `agent.fix_ready` | `awaiting_feedback` | — |
 | `working` | `agent.failed` | `failed` | — |
+| `blocked` | `fix` | `fixing` | `investigate.implement` |
 | `blocked` | `implement` | `fixing` | `investigate.implement` |
 | `blocked` | `repro` | `working` | `investigate.repro` |
 | `blocked` | `retry` | `working` | `investigate.repro` |
@@ -113,6 +136,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `human_owned` | `hand_back` | `triage` | — |
 | `done` | `reopen` | `triage` | — |
 | `declined` | `reopen` | `triage` | — |
+| `failed` | `resume` | saved: `working`, `investigating`, or `fixing` | `investigate.resume` |
 | `failed` | `retry` | `working` | `investigate.repro` |
 | `failed` | `implement` | `fixing` | `investigate.implement` |
 | `failed` | `repro` | `working` | `investigate.repro` |
@@ -132,9 +156,11 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `investigating` | `agent.skipped` | `blocked` | — |
 | `investigating` | `agent.failed` | `failed` | — |
 | `reproduced` | `fix` | `fixing` | `investigate.fix` |
+| `reproduced` | `implement` | `fixing` | `investigate.fix` |
 | `reproduced` | `decline` | `declined` | — |
 | `reproduced` | `take_over` | `human_owned` | — |
 | `diagnosed` | `fix` | `fixing` | `investigate.fix` |
+| `diagnosed` | `implement` | `fixing` | `investigate.fix` |
 | `diagnosed` | `decline` | `declined` | — |
 | `diagnosed` | `take_over` | `human_owned` | — |
 | `diagnosed` | `investigate` | `investigating` | `investigate.diagnose` |
@@ -161,23 +187,28 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `preview_building` | `reset` | `triage` | — |
 | `awaiting_reporter` | `reset` | `triage` | — |
 
-## Diagram
+### Diagram
 
 ```mermaid
 stateDiagram-v2
     [*] --> unmanaged
     unmanaged --> working: repro / investigate.repro
+    unmanaged --> fixing: fix / investigate.implement
     unmanaged --> fixing: implement / investigate.implement
     unmanaged --> declined: decline
     triage --> working: repro / investigate.repro
+    triage --> fixing: fix / investigate.implement
     triage --> fixing: implement / investigate.implement
     triage --> declined: decline
     working --> blocked: agent.skipped
-    working --> blocked: agent.not_reproduced
+    working --> not_reproduced: agent.not_reproduced
     working --> blocked: agent.by_design
-    working --> blocked: agent.reproduced
+    working --> reproduced: agent.reproduced
+    working --> diagnosed: agent.diagnosed
+    working --> needs_info: agent.needs_info
     working --> awaiting_feedback: agent.fix_ready
     working --> failed: agent.failed
+    blocked --> fixing: fix / investigate.implement
     blocked --> fixing: implement / investigate.implement
     blocked --> working: repro / investigate.repro
     blocked --> working: retry / investigate.repro
@@ -212,6 +243,9 @@ stateDiagram-v2
     human_owned --> triage: hand_back
     done --> triage: reopen
     declined --> triage: reopen
+    failed --> working: resume [saved] / investigate.resume
+    failed --> investigating: resume [saved] / investigate.resume
+    failed --> fixing: resume [saved] / investigate.resume
     failed --> working: retry / investigate.repro
     failed --> fixing: implement / investigate.implement
     failed --> working: repro / investigate.repro
@@ -231,9 +265,11 @@ stateDiagram-v2
     investigating --> blocked: agent.skipped
     investigating --> failed: agent.failed
     reproduced --> fixing: fix / investigate.fix
+    reproduced --> fixing: implement / investigate.fix
     reproduced --> declined: decline
     reproduced --> human_owned: take_over
     diagnosed --> fixing: fix / investigate.fix
+    diagnosed --> fixing: implement / investigate.fix
     diagnosed --> declined: decline
     diagnosed --> human_owned: take_over
     diagnosed --> investigating: investigate / investigate.diagnose
@@ -262,4 +298,58 @@ stateDiagram-v2
     fixing --> triage: reset
     preview_building --> triage: reset
     awaiting_reporter --> triage: reset
+```
+
+## Agent run lifecycle
+
+A run stores its mode, selected phase plan, current phase, status, attempt, and fixed deadline independently from the issue state. An explicit `implement` directive selects the direct implementation plan and omits reproduction and diagnosis.
+
+### Phases
+
+| Phase | Label |
+| --- | --- |
+| `prepare` | Prepare |
+| `reproduce` | Reproduce |
+| `diagnose` | Diagnose |
+| `edit` | Edit |
+| `finalize` | Finalize |
+| `verify` | Verify |
+| `publish` | Publish |
+| `report` | Report |
+
+### Plans
+
+| Mode | Ordered phases |
+| --- | --- |
+| `diagnose` | `prepare` → `reproduce` → `diagnose` → `report` |
+| `repro` | `prepare` → `reproduce` → `diagnose` → `edit` → `finalize` → `verify` → `publish` → `report` |
+| `implement` | `prepare` → `edit` → `finalize` → `verify` → `publish` → `report` |
+| `fix` | `prepare` → `edit` → `finalize` → `verify` → `publish` → `report` |
+| `revise` | `prepare` → `edit` → `finalize` → `verify` → `publish` → `report` |
+
+### Task-specific work plan
+
+Each agent run creates a bounded work plan for its specific directive through `update_work_plan`. The plan is independent from the run phase plan: it may describe arbitrary repository work, while the run phases track deadlines and publication.
+
+The Orchestrator stores the plan and projects it into one evolving GitHub comment for that run and into the dashboard. Resume updates the same run comment. A fresh retry or directive creates a new run comment. The final agent result updates the same comment; `Completed` is used only when the mode's trusted outcome succeeds.
+
+### Statuses
+
+`running`, `succeeded`, `failed`, `timed_out`, `cancelled`
+
+### Diagram
+
+```mermaid
+stateDiagram-v2
+    [*] --> prepare
+    prepare --> reproduce: diagnose, repro
+    reproduce --> diagnose: diagnose, repro
+    diagnose --> report: diagnose
+    diagnose --> edit: repro
+    edit --> finalize: repro, implement, fix, revise
+    finalize --> verify: repro, implement, fix, revise
+    verify --> publish: repro, implement, fix, revise
+    publish --> report: repro, implement, fix, revise
+    prepare --> edit: implement, fix, revise
+    report --> [*]
 ```

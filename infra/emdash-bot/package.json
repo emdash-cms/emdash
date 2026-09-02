@@ -20,7 +20,7 @@
 		"test:watch": "vitest --config vitest.config.ts"
 	},
 	"devDependencies": {
-		"@cloudflare/vite-plugin": "1.36.3",
+		"@cloudflare/vite-plugin": "1.53.0",
 		"@cloudflare/vitest-pool-workers": "catalog:",
 		"@flue/vite": "2.0.3",
 		"typescript": "catalog:",
@@ -30,7 +30,7 @@
 	},
 	"dependencies": {
 		"@cloudflare/codemode": "^0.4.1",
-		"@cloudflare/sandbox": "^0.12.1",
+		"@cloudflare/sandbox": "0.12.3",
 		"@cloudflare/shell": "^0.4.0",
 		"@flue/runtime": "2.0.3",
 		"agents": "^0.20.1",

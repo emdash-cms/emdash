@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/fixture-perf-site",
-	"version": "0.0.36",
+	"version": "0.0.39",
 	"private": true,
 	"type": "module",
 	"description": "Fixture site for query-count perf snapshots. Runs under sqlite+node or d1+cloudflare based on EMDASH_FIXTURE_TARGET.",
@@ -19,7 +19,6 @@
 		"@astrojs/react": "catalog:",
 		"@emdash-cms/cloudflare": "workspace:*",
 		"astro": "catalog:",
-		"better-sqlite3": "catalog:",
 		"emdash": "workspace:*",
 		"kysely": "^0.29.0",
 		"react": "catalog:",

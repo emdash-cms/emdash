@@ -21,6 +21,8 @@ interface TestTaxonomy {
 	id: string;
 	name: string;
 	label: string;
+	locale?: string;
+	translationGroup?: string;
 	labelSingular?: string;
 	hierarchical: boolean;
 	collections: string[];
@@ -33,6 +35,14 @@ interface TestTerm {
 	label: string;
 	parentId?: string | null;
 	children: TestTerm[];
+	locale: string;
+	translationGroup: string;
+}
+
+interface TestUnresolvedAssignment {
+	translationGroup: string;
+	availableLocales: string[];
+	translations: Array<{ id: string; slug: string; locale: string }>;
 }
 
 const tagsTaxonomy: TestTaxonomy = {
@@ -64,6 +74,8 @@ function makeTerm(id: string, label: string): TestTerm {
 		label,
 		parentId: null,
 		children: [],
+		locale: "en",
+		translationGroup: id,
 	};
 }
 
@@ -76,19 +88,27 @@ function dataResponse(data: unknown) {
 	);
 }
 
+function requestUrl(input: string | URL | Request): string {
+	return typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+}
+
 function mockApiFetch({
 	taxonomies = [tagsTaxonomy],
 	terms = [alphaTerm, betaTerm],
 	entryTerms = [],
 	createdTerm = makeTerm("term_created", "Gamma"),
+	createError,
+	unresolved = [],
 }: {
 	taxonomies?: TestTaxonomy[];
 	terms?: TestTerm[];
 	entryTerms?: TestTerm[];
 	createdTerm?: TestTerm;
+	createError?: string;
+	unresolved?: TestUnresolvedAssignment[];
 } = {}) {
 	vi.mocked(apiFetch).mockImplementation((url: string | URL | Request, init?: RequestInit) => {
-		const urlString = typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
+		const urlString = requestUrl(url);
 		const path = new URL(urlString, "http://localhost").pathname;
 		const method = init?.method ?? "GET";
 
@@ -105,10 +125,28 @@ function mockApiFetch({
 		}
 
 		if (method === "GET" && path === "/_emdash/api/content/products/entry_1/terms/tags") {
-			return dataResponse({ terms: entryTerms });
+			return dataResponse({
+				terms: entryTerms,
+				unresolved,
+				entryLocale: "fr",
+				defaultLocale: "en",
+				implicitDefaultLocale: false,
+			});
+		}
+
+		if (method === "POST" && path === "/_emdash/api/taxonomies/tags/terms/nyusu/translations") {
+			return dataResponse({ term: { ...alphaTerm, id: "term_fr", locale: "fr" } });
 		}
 
 		if (method === "POST" && path === "/_emdash/api/taxonomies/tags/terms") {
+			if (createError) {
+				return Promise.resolve(
+					new Response(
+						JSON.stringify({ error: { code: "TERM_CREATE_ERROR", message: createError } }),
+						{ status: 500, headers: { "Content-Type": "application/json" } },
+					),
+				);
+			}
 			return dataResponse({ term: createdTerm });
 		}
 
@@ -139,7 +177,9 @@ describe("TaxonomySidebar", () => {
 	});
 
 	it("shows existing flat taxonomy terms when the tag picker receives focus", async () => {
-		const screen = await render(<TaxonomySidebar collection="products" />, { wrapper: Wrapper });
+		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
+			wrapper: Wrapper,
+		});
 
 		await expect.element(screen.getByLabelText("Add Tags")).toBeInTheDocument();
 		expect(screen.getByRole("option", { name: /^Alpha$/ }).query()).toBeNull();
@@ -154,6 +194,7 @@ describe("TaxonomySidebar", () => {
 		const screen = await render(<TaxonomySidebar collection="products" />, { wrapper: Wrapper });
 		const input = screen.getByLabelText("Add Tags");
 
+		await expect.element(input).toBeInTheDocument();
 		await userEvent.tab();
 
 		expect(document.activeElement).toBe(input.element());
@@ -162,7 +203,9 @@ describe("TaxonomySidebar", () => {
 	});
 
 	it("filters flat taxonomy terms while preserving the create option for new input", async () => {
-		const screen = await render(<TaxonomySidebar collection="products" />, { wrapper: Wrapper });
+		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
+			wrapper: Wrapper,
+		});
 
 		const input = screen.getByLabelText("Add Tags");
 		await input.fill("Alp");
@@ -323,24 +366,30 @@ describe("TaxonomySidebar", () => {
 	it("does not suggest terms already assigned to the entry", async () => {
 		mockApiFetch({ entryTerms: [alphaTerm] });
 
-		const screen = await render(<TaxonomySidebar collection="products" entryId="entry_1" />, {
-			wrapper: Wrapper,
-		});
+		const screen = await render(
+			<TaxonomySidebar collection="products" entryId="entry_1" canManageTaxonomies />,
+			{ wrapper: Wrapper },
+		);
 
 		await expect.element(screen.getByLabelText("Remove Alpha")).toBeInTheDocument();
 		await screen.getByLabelText("Add Tags").click();
 
-		expect(screen.getByRole("option", { name: /^Alpha$/ }).query()).toBeNull();
-		await expect.element(screen.getByRole("option", { name: /^Beta$/ })).toBeInTheDocument();
+		expect(screen.getByRole("option", { name: /^Alpha/ }).query()).toBeNull();
+		await expect
+			.element(screen.getByRole("option", { name: /^Beta.*EN fallback$/ }))
+			.toBeInTheDocument();
 	});
 
 	it("keeps the create prompt available when no flat taxonomy terms exist", async () => {
 		const onChange = vi.fn();
 		mockApiFetch({ terms: [] });
 
-		const screen = await render(<TaxonomySidebar collection="products" onChange={onChange} />, {
-			wrapper: Wrapper,
-		});
+		const screen = await render(
+			<TaxonomySidebar collection="products" canManageTaxonomies onChange={onChange} />,
+			{
+				wrapper: Wrapper,
+			},
+		);
 
 		const input = screen.getByLabelText("Add Tags");
 		await input.click();
@@ -357,21 +406,89 @@ describe("TaxonomySidebar", () => {
 				"/_emdash/api/taxonomies/tags/terms",
 				expect.objectContaining({
 					method: "POST",
-					body: JSON.stringify({ slug: "gamma", label: "Gamma" }),
+					body: JSON.stringify({ label: "Gamma" }),
 				}),
 			);
 		});
 		expect(onChange).toHaveBeenCalledWith("tags", ["term_created"]);
 	});
 
+	it("lets the server derive the slug for an inline Unicode term", async () => {
+		mockApiFetch({ terms: [] });
+		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
+			wrapper: Wrapper,
+		});
+
+		await screen.getByLabelText("Add Tags").fill("音楽");
+		await screen.getByText('Create "音楽"').click();
+
+		await vi.waitFor(() => {
+			const call = vi.mocked(apiFetch).mock.calls.find(([, init]) => init?.method === "POST");
+			expect(call).toBeDefined();
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toEqual({ label: "音楽" });
+		});
+	});
+
+	it("shows flat-term creation errors below the autocomplete", async () => {
+		mockApiFetch({ terms: [], createError: "Term could not be created" });
+		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
+			wrapper: Wrapper,
+		});
+
+		await screen.getByLabelText("Add Tags").fill("Gamma");
+		await screen.getByText('Create "Gamma"').click();
+
+		await expect.element(screen.getByText("Term could not be created")).toBeInTheDocument();
+	});
+
 	it("continues to render hierarchical taxonomies as a checkbox tree", async () => {
 		mockApiFetch({ taxonomies: [categoriesTaxonomy], terms: [alphaTerm] });
 
-		const screen = await render(<TaxonomySidebar collection="products" />, { wrapper: Wrapper });
+		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
+			wrapper: Wrapper,
+		});
 
 		await expect.element(screen.getByText("Categories")).toBeInTheDocument();
 		await expect.element(screen.getByText("Alpha")).toBeInTheDocument();
 		expect(screen.getByLabelText("Add Categories").query()).toBeNull();
+	});
+
+	it("renders only the entry-locale definition for a translated taxonomy", async () => {
+		mockApiFetch({
+			taxonomies: [
+				{ ...tagsTaxonomy, id: "tags-en", label: "Tags", locale: "en", translationGroup: "tags" },
+				{
+					...tagsTaxonomy,
+					id: "tags-de",
+					label: "Schlagwörter",
+					locale: "de",
+					translationGroup: "tags",
+				},
+				{
+					...tagsTaxonomy,
+					id: "tags-fr",
+					label: "Étiquettes",
+					locale: "fr",
+					translationGroup: "tags",
+				},
+			],
+		});
+
+		const screen = await render(
+			<TaxonomySidebar
+				collection="products"
+				entryLocale="de"
+				defaultLocale="en"
+				canManageTaxonomies
+			/>,
+			{ wrapper: Wrapper },
+		);
+
+		await expect.element(screen.getByText("Schlagwörter", { exact: true })).toBeInTheDocument();
+		expect(screen.getByText("Tags").query()).toBeNull();
+		expect(screen.getByText("Étiquettes").query()).toBeNull();
+		await expect.element(screen.getByLabelText("Add Schlagwörter")).toBeInTheDocument();
 	});
 
 	it("selects Arabic matches when the interface direction is RTL", async () => {
@@ -400,5 +517,152 @@ describe("TaxonomySidebar", () => {
 		} finally {
 			document.documentElement.dir = previousDirection;
 		}
+	});
+
+	it("shows the actual locale when a selected term uses the default fallback", async () => {
+		mockApiFetch({ entryTerms: [alphaTerm] });
+
+		const screen = await render(
+			<TaxonomySidebar
+				collection="products"
+				entryId="entry_1"
+				entryLocale="fr"
+				canManageTaxonomies
+			/>,
+			{ wrapper: Wrapper },
+		);
+
+		await expect.element(screen.getByText("EN fallback")).toBeInTheDocument();
+	});
+
+	it("labels fallback terms in flat suggestions before selection", async () => {
+		const screen = await render(
+			<TaxonomySidebar
+				collection="products"
+				entryId="entry_1"
+				entryLocale="fr"
+				canManageTaxonomies
+			/>,
+			{ wrapper: Wrapper },
+		);
+
+		await screen.getByLabelText("Add Tags").click();
+		await expect
+			.element(screen.getByRole("option", { name: /^Alpha.*EN fallback$/ }))
+			.toBeInTheDocument();
+	});
+
+	it("keeps unresolved groups visible and preserves them when another term is assigned", async () => {
+		mockApiFetch({
+			unresolved: [
+				{
+					translationGroup: "group_ja",
+					availableLocales: ["ja"],
+					translations: [{ id: "term_ja", slug: "nyusu", locale: "ja" }],
+				},
+			],
+		});
+
+		const screen = await render(
+			<TaxonomySidebar
+				collection="products"
+				entryId="entry_1"
+				entryLocale="fr"
+				canManageTaxonomies
+			/>,
+			{ wrapper: Wrapper },
+		);
+
+		await expect.element(screen.getByText("Unresolved assignment")).toBeInTheDocument();
+		await expect.element(screen.getByText("Available in JA")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Create FR translation" }))
+			.toBeInTheDocument();
+
+		await screen.getByLabelText("Add Tags").click();
+		await screen.getByRole("option", { name: /^Beta.*EN fallback$/ }).click();
+
+		await vi.waitFor(() => {
+			const save = vi
+				.mocked(apiFetch)
+				.mock.calls.find(
+					([url, init]) =>
+						requestUrl(url).includes("/content/products/entry_1/terms/tags") &&
+						init?.method === "POST",
+				);
+			expect(save).toBeDefined();
+			if (!save) throw new Error("Expected an entry-terms save request");
+			expect(requestUrl(save[0])).not.toContain("locale=");
+			const body = save?.[1]?.body;
+			expect(typeof body).toBe("string");
+			if (typeof body !== "string") throw new Error("Expected a JSON request body");
+			expect(JSON.parse(body)).toEqual({
+				termIds: expect.arrayContaining(["term_beta", "term_ja"]),
+			});
+		});
+	});
+
+	it("requests exact/default resolution for the entry-locale picker", async () => {
+		const screen = await render(
+			<TaxonomySidebar
+				collection="products"
+				entryId="entry_1"
+				entryLocale="fr"
+				canManageTaxonomies
+			/>,
+			{ wrapper: Wrapper },
+		);
+		await expect.element(screen.getByLabelText("Add Tags")).toBeInTheDocument();
+
+		const termListCall = vi
+			.mocked(apiFetch)
+			.mock.calls.find(([url]) => requestUrl(url).includes("/taxonomies/tags/terms"));
+		expect(termListCall).toBeDefined();
+		if (!termListCall) throw new Error("Expected a taxonomy term-list request");
+		expect(requestUrl(termListCall[0])).toContain("resolveFallback=true");
+
+		const entryTermsCall = vi
+			.mocked(apiFetch)
+			.mock.calls.find(([url]) => requestUrl(url).includes("/content/products/entry_1/terms/tags"));
+		expect(entryTermsCall).toBeDefined();
+		if (!entryTermsCall) throw new Error("Expected an entry-terms request");
+		expect(requestUrl(entryTermsCall[0])).not.toContain("locale=");
+	});
+
+	it("hides flat-term and translation creation without taxonomy management permission", async () => {
+		mockApiFetch({
+			unresolved: [
+				{
+					translationGroup: "group_ja",
+					availableLocales: ["ja"],
+					translations: [{ id: "term_ja", slug: "nyusu", locale: "ja" }],
+				},
+			],
+		});
+		const screen = await render(
+			<TaxonomySidebar
+				collection="products"
+				entryId="entry_1"
+				entryLocale="fr"
+				canManageTaxonomies={false}
+			/>,
+			{ wrapper: Wrapper },
+		);
+
+		await expect.element(screen.getByText("Unresolved assignment")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Create FR translation" }).query()).toBeNull();
+		await screen.getByLabelText("Add Tags").fill("Gamma");
+		expect(screen.getByText('Create "Gamma"').query()).toBeNull();
+	});
+
+	it("hides hierarchical term creation without taxonomy management permission", async () => {
+		mockApiFetch({ taxonomies: [categoriesTaxonomy], terms: [alphaTerm] });
+		const screen = await render(
+			<TaxonomySidebar collection="products" canManageTaxonomies={false} />,
+			{ wrapper: Wrapper },
+		);
+
+		await expect.element(screen.getByText("Categories")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Add new category" }).query()).toBeNull();
 	});
 });

@@ -87,6 +87,18 @@ describe("core media route injection", () => {
 		}
 	});
 
+	it("registers static media folder routes before the dynamic media item route", () => {
+		const patterns = collectRoutePatterns();
+		const folders = patterns.indexOf("/_emdash/api/media/folders");
+		const folder = patterns.indexOf("/_emdash/api/media/folders/[id]");
+		const mediaItem = patterns.indexOf("/_emdash/api/media/[id]");
+
+		expect(folders).toBeGreaterThan(-1);
+		expect(folder).toBeGreaterThan(-1);
+		expect(folders).toBeLessThan(mediaItem);
+		expect(folder).toBeLessThan(mediaItem);
+	});
+
 	it("injects default root SEO routes when the site does not define them", () => {
 		const routes = collectRoutePatterns();
 

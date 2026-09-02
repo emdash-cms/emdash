@@ -16,7 +16,7 @@
  */
 
 import Database from "better-sqlite3";
-import { Kysely, SqliteDialect } from "kysely";
+import { Kysely, SqliteDialect, sql } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createBridgeHandler } from "../src/sandbox/bridge-handler.js";
@@ -34,6 +34,36 @@ function createTestDb() {
 }
 
 async function runMigrations(db: Kysely<any>) {
+	await db.schema
+		.createTable("_emdash_collections")
+		.addColumn("id", "text", (col) => col.primaryKey())
+		.addColumn("slug", "text", (col) => col.notNull().unique())
+		.addColumn("supports", "text")
+		.execute();
+	await db.schema
+		.createTable("_emdash_fields")
+		.addColumn("collection_id", "text", (col) => col.notNull())
+		.addColumn("slug", "text", (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable("revisions")
+		.addColumn("id", "text", (col) => col.primaryKey())
+		.addColumn("collection", "text", (col) => col.notNull())
+		.addColumn("entry_id", "text", (col) => col.notNull())
+		.addColumn("data", "text", (col) => col.notNull())
+		.addColumn("author_id", "text")
+		.addColumn("created_at", "text", (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
+		.execute();
+
+	await db.schema
+		.createTable("_emdash_revision_prune_queue")
+		.addColumn("collection", "text", (col) => col.notNull())
+		.addColumn("entry_id", "text", (col) => col.notNull())
+		.addColumn("revision_id", "text", (col) => col.notNull())
+		.addPrimaryKeyConstraint("pk_revision_prune_queue", ["collection", "entry_id"])
+		.execute();
+
 	// Plugin storage (migration 004)
 	await db.schema
 		.createTable("_plugin_storage")
@@ -75,15 +105,31 @@ async function runMigrations(db: Kysely<any>) {
 		.addColumn("slug", "text")
 		.addColumn("status", "text", (col) => col.notNull().defaultTo("draft"))
 		.addColumn("author_id", "text")
+		.addColumn("primary_byline_id", "text")
 		.addColumn("created_at", "text", (col) => col.notNull())
 		.addColumn("updated_at", "text", (col) => col.notNull())
 		.addColumn("published_at", "text")
+		.addColumn("scheduled_at", "text")
 		.addColumn("deleted_at", "text")
 		.addColumn("version", "integer", (col) => col.notNull().defaultTo(1))
+		.addColumn("live_revision_id", "text")
+		.addColumn("draft_revision_id", "text")
 		.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
 		.addColumn("translation_group", "text")
 		.addColumn("title", "text")
 		.addColumn("body", "text")
+		.execute();
+
+	await db
+		.insertInto("_emdash_collections" as any)
+		.values({ id: "posts", slug: "posts", supports: "[]" })
+		.execute();
+	await db
+		.insertInto("_emdash_fields" as any)
+		.values([
+			{ collection_id: "posts", slug: "title" },
+			{ collection_id: "posts", slug: "body" },
+		])
 		.execute();
 }
 
@@ -322,6 +368,71 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				id: created.id,
 			});
 			expect(afterDelete.result).toBeNull();
+		});
+
+		it("stages revision-enabled updates and returns the effective draft", async () => {
+			await db
+				.updateTable("_emdash_collections" as any)
+				.set({ supports: '["revisions"]' })
+				.where("slug", "=", "posts")
+				.execute();
+			const now = new Date().toISOString();
+			await db
+				.insertInto("revisions" as any)
+				.values({
+					id: "live-revision",
+					collection: "posts",
+					entry_id: "published-post",
+					data: JSON.stringify({ title: "Live title", body: "Live body" }),
+					author_id: null,
+					created_at: now,
+				})
+				.execute();
+			await db
+				.insertInto("ec_posts" as any)
+				.values({
+					id: "published-post",
+					slug: "published-post",
+					status: "published",
+					title: "Live title",
+					body: "Live body",
+					created_at: now,
+					updated_at: now,
+					version: 1,
+					live_revision_id: "live-revision",
+				})
+				.execute();
+			const handler = makeWriteHandler();
+
+			const updateResult = await call(handler, "content/update", {
+				collection: "posts",
+				id: "published-post",
+				data: { title: "Plugin title" },
+			});
+
+			expect(updateResult.error).toBeUndefined();
+			expect(updateResult.result).toMatchObject({
+				id: "published-post",
+				data: { title: "Plugin title", body: "Live body" },
+			});
+			const row = await db
+				.selectFrom("ec_posts" as any)
+				.selectAll()
+				.where("id", "=", "published-post")
+				.executeTakeFirstOrThrow();
+			expect(row).toMatchObject({
+				title: "Live title",
+				body: "Live body",
+				live_revision_id: "live-revision",
+				version: 2,
+			});
+			expect(row.draft_revision_id).toEqual(expect.any(String));
+			const draft = await db
+				.selectFrom("revisions" as any)
+				.select("data")
+				.where("id", "=", row.draft_revision_id)
+				.executeTakeFirstOrThrow();
+			expect(JSON.parse(draft.data)).toEqual({ title: "Plugin title", body: "Live body" });
 		});
 
 		it("forwards and normalizes an explicit locale", async () => {

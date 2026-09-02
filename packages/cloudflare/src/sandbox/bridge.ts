@@ -9,8 +9,9 @@
 
 import type { D1Database } from "@cloudflare/workers-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
-import type { ContentCreateOptions, I18nConfig, SandboxEmailSendCallback } from "emdash";
+import type { ContentCreateOptions, Database, I18nConfig, SandboxEmailSendCallback } from "emdash";
 import {
+	ContentRepository,
 	createSandboxRouteError,
 	getSandboxRouteErrorDetails,
 	ulid,
@@ -660,54 +661,22 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
 		await this.assertMediaUsageActivationWriteAllowed();
-
-		const now = new Date().toISOString();
-		// Quote identifiers to avoid SQL keyword collisions
-		const setClauses: string[] = ['"updated_at" = ?', '"version" = "version" + 1'];
-		const values: unknown[] = [now];
-
-		// System field updates (only if provided)
-		if (typeof data.status === "string") {
-			setClauses.push('"status" = ?');
-			values.push(data.status);
-		}
-		if (data.slug !== undefined) {
-			setClauses.push('"slug" = ?');
-			values.push(typeof data.slug === "string" ? data.slug : null);
-		}
-
-		// User data fields (quote identifiers)
-		for (const [key, value] of Object.entries(data)) {
-			if (!SYSTEM_COLUMNS.has(key) && COLLECTION_NAME_REGEX.test(key)) {
-				setClauses.push(`"${key}" = ?`);
-				values.push(serializeValue(value));
-			}
-		}
-
-		// WHERE clause: match by id and not soft-deleted
-		values.push(id);
-
-		const result = await this.env.DB.prepare(
-			`UPDATE ec_${collection} SET ${setClauses.join(", ")} WHERE "id" = ? AND "deleted_at" IS NULL`,
-		)
-			.bind(...values)
-			.run();
-
-		if ((result.meta?.changes ?? 0) === 0) {
-			throw new Error(`Content not found or deleted: ${collection}/${id}`);
-		}
-
-		// Re-read the updated row (with soft-delete guard)
-		const updated = await this.env.DB.prepare(
-			`SELECT * FROM ec_${collection} WHERE id = ? AND deleted_at IS NULL`,
-		)
-			.bind(id)
-			.first();
-
-		if (!updated) {
-			throw new Error(`Content not found: ${collection}/${id}`);
-		}
-		return rowToContentItem(collection, updated);
+		const db = new Kysely<Database>({
+			dialect: new D1Dialect({ database: this.env.DB }),
+		});
+		const updated = await new ContentRepository(db).updateDraftAware(collection, id, {
+			data,
+			status: typeof data.status === "string" ? data.status : undefined,
+			slug: data.slug === undefined ? undefined : typeof data.slug === "string" ? data.slug : null,
+		});
+		return {
+			id: updated.id,
+			type: updated.type,
+			data: updated.data,
+			createdAt: updated.createdAt,
+			updatedAt: updated.updatedAt,
+			locale: updated.locale ?? "en",
+		};
 	}
 
 	async contentDelete(collection: string, id: string): Promise<boolean> {

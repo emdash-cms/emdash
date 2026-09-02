@@ -40,10 +40,16 @@ import {
 import {
 	mediaUsageDetailsQuery,
 	mediaUsageDetailsResponseSchema,
+	mediaUsageProgressSchema,
+	mediaUsageProgressAdvanceResponseSchema,
 	mediaUsageCollectionDeletionListQuery,
 	mediaUsageCollectionDeletionListResponseSchema,
 	mediaUsageCollectionDeletionRetryBody,
 	mediaUsageCollectionDeletionRetryResponseSchema,
+	mediaUsageActivationStatusSchema,
+	mediaUsageActivationAdvanceBody,
+	mediaUsageActivationAdvanceResponseSchema,
+	mediaUsageActivationConflictSchema,
 	mediaUsageRepairBody,
 	mediaUsageRepairResponseSchema,
 	mediaUsageWorkListQuery,
@@ -57,6 +63,11 @@ import {
 	mediaConfirmBody,
 	mediaConfirmResponseSchema,
 	mediaExistingResponseSchema,
+	mediaFolderBody,
+	mediaFolderIdSchema,
+	mediaFolderListQuery,
+	mediaFolderListResponseSchema,
+	mediaFolderResponseSchema,
 	mediaGetQuery,
 	mediaListQuery,
 	mediaListReadResponseSchema,
@@ -178,6 +189,7 @@ function standardErrors(
 		404: "Not Found",
 		409: "Conflict",
 		413: "Payload Too Large",
+		422: "Unprocessable Entity",
 		500: "Internal Server Error",
 	};
 	for (const code of codes) {
@@ -244,7 +256,7 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(400, 500),
+				...standardErrors(400, 422, 500),
 			},
 		},
 	},
@@ -302,7 +314,7 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(400, 404, 409, 500),
+				...standardErrors(400, 404, 409, 422, 500),
 			},
 		},
 		delete: {
@@ -702,6 +714,98 @@ function buildMediaPaths(maxUploadSize: number) {
 				},
 			},
 		},
+		"/_emdash/api/media/folders": {
+			get: {
+				operationId: "listMediaFolders",
+				summary: "List media folders",
+				tags: ["Media"],
+				requestParams: { query: mediaFolderListQuery },
+				responses: {
+					"200": {
+						description: "Media folder list",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderListResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 500),
+				},
+			},
+			post: {
+				operationId: "createMediaFolder",
+				summary: "Create a media folder",
+				tags: ["Media"],
+				requestBody: { content: { [JSON_CONTENT]: { schema: mediaFolderBody } } },
+				responses: {
+					"201": {
+						description: "Created media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 409, 500),
+				},
+			},
+		},
+		"/_emdash/api/media/folders/{id}": {
+			get: {
+				operationId: "getMediaFolder",
+				summary: "Get a media folder",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: mediaFolderIdSchema.meta({ description: "Media folder ID" }) }),
+				},
+				responses: {
+					"200": {
+						description: "Media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+				},
+			},
+			put: {
+				operationId: "updateMediaFolder",
+				summary: "Update a media folder",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: mediaFolderIdSchema.meta({ description: "Media folder ID" }) }),
+				},
+				requestBody: { content: { [JSON_CONTENT]: { schema: mediaFolderBody } } },
+				responses: {
+					"200": {
+						description: "Updated media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 409, 500),
+				},
+			},
+			delete: {
+				operationId: "deleteMediaFolder",
+				summary: "Delete a media folder",
+				description: "Deletes the folder and returns its media to the Main library.",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: mediaFolderIdSchema.meta({ description: "Media folder ID" }) }),
+				},
+				responses: {
+					"200": {
+						description: "Deleted media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(deleteResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+				},
+			},
+		},
 		"/_emdash/api/media/{id}": {
 			get: {
 				operationId: "getMedia",
@@ -802,6 +906,46 @@ function buildMediaPaths(maxUploadSize: number) {
 				},
 			},
 		},
+		"/_emdash/api/admin/media-usage/progress": {
+			get: {
+				operationId: "getMediaUsageProgress",
+				summary: "Get media usage indexing progress",
+				description:
+					"Returns aggregate indexing readiness for current content collections after controlled activation is active. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				responses: {
+					"200": {
+						description: "Aggregate media usage indexing progress",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageProgressSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(409),
+					...standardErrors(500),
+				},
+			},
+			post: {
+				operationId: "advanceMediaUsageProgress",
+				summary: "Advance media usage indexing",
+				description:
+					"Runs one bounded Media Usage maintenance step and returns the stored activation and indexing state. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				responses: {
+					"200": {
+						description: "Media Usage progress after one maintenance step",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(mediaUsageProgressAdvanceResponseSchema),
+							},
+						},
+					},
+					...authErrors,
+					...standardErrors(409),
+					...standardErrors(500),
+				},
+			},
+		},
 		"/_emdash/api/admin/media-usage/work": {
 			get: {
 				operationId: "listMediaUsageWork",
@@ -819,6 +963,52 @@ function buildMediaPaths(maxUploadSize: number) {
 					},
 					...authErrors,
 					...standardErrors(400, 404, 500),
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/activation": {
+			get: {
+				operationId: "getMediaUsageActivation",
+				summary: "Get media usage activation status",
+				description:
+					"Returns the redacted status of controlled Media Usage capture activation. This operation is read-only and does not start or resume activation. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				responses: {
+					"200": {
+						description: "Media usage activation status",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageActivationStatusSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(409, 500),
+				},
+			},
+			post: {
+				operationId: "advanceMediaUsageActivation",
+				summary: "Advance media usage activation",
+				description:
+					"Starts, resumes, or retries exactly one bounded activation batch after the operator confirms that all writers are drained. Continue setup through the Media Usage progress endpoint. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [JSON_CONTENT]: { schema: mediaUsageActivationAdvanceBody } },
+				},
+				responses: {
+					"200": {
+						description: "Current media usage activation progress",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(mediaUsageActivationAdvanceResponseSchema),
+							},
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 500),
+					"409": {
+						description: "Activation is busy, changed ownership, or is incompatible",
+						content: { [JSON_CONTENT]: { schema: mediaUsageActivationConflictSchema } },
+					},
 				},
 			},
 		},

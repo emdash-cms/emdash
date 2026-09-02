@@ -5,33 +5,75 @@
 		"task"
 	],
 	"entryState": "unmanaged",
+	"phases": [
+		{
+			"id": "intake",
+			"label": "Triage"
+		},
+		{
+			"id": "evidence",
+			"label": "Investigate"
+		},
+		{
+			"id": "verdict",
+			"label": "Establish"
+		},
+		{
+			"id": "candidate",
+			"label": "Build"
+		},
+		{
+			"id": "preview",
+			"label": "Preview"
+		},
+		{
+			"id": "confirmation",
+			"label": "Confirm"
+		},
+		{
+			"id": "review",
+			"label": "Review"
+		},
+		{
+			"id": "complete",
+			"label": "Done"
+		}
+	],
 	"states": {
 		"unmanaged": {
 			"label": "",
+			"phase": "intake",
+			"tone": "active",
 			"boardColumn": "(none)",
 			"description": "No bot labels yet. An issue nobody has handed to the bot. Entry commands work directly.",
 			"terminal": false,
 			"offeredCommands": [
 				"investigate",
 				"repro",
+				"fix",
 				"implement",
 				"decline"
 			]
 		},
 		"triage": {
 			"label": "bot:triage",
+			"phase": "intake",
+			"tone": "active",
 			"boardColumn": "Triage",
 			"description": "Filed and awaiting a decision on whether/how the bot should act.",
 			"terminal": false,
 			"offeredCommands": [
 				"investigate",
 				"repro",
+				"fix",
 				"implement",
 				"decline"
 			]
 		},
 		"working": {
 			"label": "bot:working",
+			"phase": "evidence",
+			"tone": "active",
 			"boardColumn": "Working",
 			"description": "An agent run is in flight (reproduce / diagnose / verify / fix / implement).",
 			"terminal": false,
@@ -42,11 +84,15 @@
 		},
 		"blocked": {
 			"label": "bot:blocked",
+			"phase": "candidate",
+			"tone": "attention",
+			"detour": true,
 			"boardColumn": "Blocked",
-			"description": "The bot stopped and needs a human decision. Covers the old skipped / not-reproduced / reproduced-no-fix / by-design outcomes; the reason is in the bot's comment.",
+			"description": "The bot stopped without a first-class verdict and needs a human decision. Covers skipped, by-design, closed-PR, and legacy infrastructure outcomes; the reason is in the bot's comment.",
 			"terminal": false,
 			"offeredCommands": [
 				"investigate",
+				"fix",
 				"implement",
 				"repro",
 				"retry",
@@ -56,6 +102,8 @@
 		},
 		"awaiting_feedback": {
 			"label": "bot:awaiting-feedback",
+			"phase": "confirmation",
+			"tone": "waiting",
 			"boardColumn": "Awaiting feedback",
 			"description": "A fix is staged on bot/fix-<n>; waiting for the reporter or a maintainer to confirm or reject.",
 			"terminal": false,
@@ -68,6 +116,8 @@
 		},
 		"in_review": {
 			"label": "bot:in-review",
+			"phase": "review",
+			"tone": "waiting",
 			"boardColumn": "In review",
 			"description": "A PR is open. The review/* sub-states live on the PR and roll up here. On a bot PR, a plain `@emdashbot` comment is feedback; explicit verbs still win.",
 			"terminal": false,
@@ -80,6 +130,9 @@
 		},
 		"human_owned": {
 			"label": "bot:human-owned",
+			"phase": "review",
+			"tone": "waiting",
+			"detour": true,
 			"boardColumn": "Human owned",
 			"description": "A maintainer took it over; the bot stays disengaged but the item stays on the board.",
 			"terminal": false,
@@ -89,6 +142,8 @@
 		},
 		"done": {
 			"label": "bot:done",
+			"phase": "complete",
+			"tone": "active",
 			"boardColumn": "Done",
 			"description": "Shipped (PR merged) or confirmed resolved.",
 			"terminal": true,
@@ -98,6 +153,9 @@
 		},
 		"declined": {
 			"label": "bot:declined",
+			"phase": "complete",
+			"tone": "attention",
+			"detour": true,
 			"boardColumn": "Declined",
 			"description": "Won't be actioned (by design, out of scope, or a maintainer call).",
 			"terminal": true,
@@ -107,10 +165,14 @@
 		},
 		"failed": {
 			"label": "bot:failed",
+			"phase": "candidate",
+			"tone": "attention",
+			"detour": true,
 			"boardColumn": "Failed",
 			"description": "An agent run errored or produced no usable result. Retryable -- not a dead end.",
 			"terminal": false,
 			"offeredCommands": [
+				"resume",
 				"retry",
 				"implement",
 				"repro",
@@ -120,6 +182,8 @@
 		},
 		"investigating": {
 			"label": "bot:investigating",
+			"phase": "evidence",
+			"tone": "active",
 			"boardColumn": "Investigating",
 			"description": "A maintainer-triggered investigation is in flight: reproduce + diagnose, no fix. Emits an evidence-carrying verdict.",
 			"terminal": false,
@@ -130,11 +194,14 @@
 		},
 		"reproduced": {
 			"label": "bot:reproduced",
+			"phase": "verdict",
+			"tone": "active",
 			"boardColumn": "Reproduced",
 			"description": "Verdict: reproduced with a diagnosis attached. Resting until a maintainer triggers the fix loop or disposes of it.",
 			"terminal": false,
 			"offeredCommands": [
 				"fix",
+				"implement",
 				"investigate",
 				"decline",
 				"take_over"
@@ -142,11 +209,14 @@
 		},
 		"diagnosed": {
 			"label": "bot:diagnosed",
+			"phase": "verdict",
+			"tone": "active",
 			"boardColumn": "Diagnosed",
 			"description": "Verdict: root cause identified, but not confirmed by a reproduction (environment limits). Actionable like reproduced; the fix loop verifies with a failing test before changing anything.",
 			"terminal": false,
 			"offeredCommands": [
 				"fix",
+				"implement",
 				"investigate",
 				"decline",
 				"take_over"
@@ -154,6 +224,9 @@
 		},
 		"not_reproduced": {
 			"label": "bot:not-reproduced",
+			"phase": "verdict",
+			"tone": "attention",
+			"detour": true,
 			"boardColumn": "Not reproduced",
 			"description": "Verdict: could not reproduce, transcript attached. A first-class outcome, not a failure. Reporter can add steps; a maintainer can re-investigate.",
 			"terminal": false,
@@ -165,6 +238,9 @@
 		},
 		"needs_info": {
 			"label": "bot:needs-info",
+			"phase": "verdict",
+			"tone": "attention",
+			"detour": true,
 			"boardColumn": "Needs info",
 			"description": "Verdict: the investigation needs information only the reporter has. Evidence records what was tried and what is missing.",
 			"terminal": false,
@@ -176,6 +252,8 @@
 		},
 		"fixing": {
 			"label": "bot:fixing",
+			"phase": "candidate",
+			"tone": "active",
 			"boardColumn": "Fixing",
 			"description": "A maintainer-triggered delivery run is building a candidate on bot/fix-<n>.",
 			"terminal": false,
@@ -186,6 +264,8 @@
 		},
 		"preview_building": {
 			"label": "bot:preview-building",
+			"phase": "preview",
+			"tone": "active",
 			"boardColumn": "Building preview",
 			"description": "The candidate change is published; a preview is building so the reporter can try it before a PR exists.",
 			"terminal": false,
@@ -196,6 +276,8 @@
 		},
 		"awaiting_reporter": {
 			"label": "bot:awaiting-reporter",
+			"phase": "confirmation",
+			"tone": "waiting",
 			"boardColumn": "Awaiting reporter",
 			"description": "Preview link posted; waiting for the reporter to confirm the change. On confirm a draft PR opens; on denial or 14-day silence the branch is reaped.",
 			"terminal": false,
@@ -232,17 +314,25 @@
 			"defaultKind": "enhancement"
 		},
 		"fix": {
-			"description": "Build a candidate fix on a bot branch and post a preview for the reporter to try.",
+			"description": "Build a candidate bug fix and post a preview for the reporter to try.",
 			"actors": [
 				"maintainer"
 			],
-			"arg": "directive"
+			"arg": "directive",
+			"defaultKind": "bug"
 		},
 		"retry": {
 			"description": "Re-run the bug reproduction pipeline.",
 			"actors": [
 				"maintainer"
 			]
+		},
+		"resume": {
+			"description": "Continue the saved conversation and workspace from a timed-out run.",
+			"actors": [
+				"maintainer"
+			],
+			"arg": "directive"
 		},
 		"revise": {
 			"description": "Send review feedback back into the agent to update the open PR branch.",
@@ -347,7 +437,7 @@
 			]
 		},
 		"agent.fix_ready": {
-			"description": "A verified candidate change is published on bot/fix-<n>.",
+			"description": "A candidate change is published on bot/fix-<n>.",
 			"actors": [
 				"system"
 			]
@@ -422,6 +512,13 @@
 		},
 		{
 			"from": "unmanaged",
+			"event": "fix",
+			"to": "fixing",
+			"action": "investigate.implement",
+			"note": "direct bug delivery from an untriaged issue; no stored diagnosis required"
+		},
+		{
+			"from": "unmanaged",
 			"event": "implement",
 			"to": "fixing",
 			"action": "investigate.implement",
@@ -437,6 +534,13 @@
 			"event": "repro",
 			"to": "working",
 			"action": "investigate.repro"
+		},
+		{
+			"from": "triage",
+			"event": "fix",
+			"to": "fixing",
+			"action": "investigate.implement",
+			"note": "direct bug delivery; no stored diagnosis required"
 		},
 		{
 			"from": "triage",
@@ -459,8 +563,7 @@
 		{
 			"from": "working",
 			"event": "agent.not_reproduced",
-			"to": "blocked",
-			"note": "reason: not-reproduced (was a sink)"
+			"to": "not_reproduced"
 		},
 		{
 			"from": "working",
@@ -471,8 +574,17 @@
 		{
 			"from": "working",
 			"event": "agent.reproduced",
-			"to": "blocked",
-			"note": "reason: fix needs a decision"
+			"to": "reproduced"
+		},
+		{
+			"from": "working",
+			"event": "agent.diagnosed",
+			"to": "diagnosed"
+		},
+		{
+			"from": "working",
+			"event": "agent.needs_info",
+			"to": "needs_info"
 		},
 		{
 			"from": "working",
@@ -484,6 +596,12 @@
 			"from": "working",
 			"event": "agent.failed",
 			"to": "failed"
+		},
+		{
+			"from": "blocked",
+			"event": "fix",
+			"to": "fixing",
+			"action": "investigate.implement"
 		},
 		{
 			"from": "blocked",
@@ -675,6 +793,13 @@
 		},
 		{
 			"from": "failed",
+			"event": "resume",
+			"to": "working",
+			"action": "investigate.resume",
+			"note": "the orchestrator replaces the fallback target with the active state saved in the timeout checkpoint"
+		},
+		{
+			"from": "failed",
 			"event": "retry",
 			"to": "working",
 			"action": "investigate.repro"
@@ -787,6 +912,12 @@
 		},
 		{
 			"from": "reproduced",
+			"event": "implement",
+			"to": "fixing",
+			"action": "investigate.fix"
+		},
+		{
+			"from": "reproduced",
 			"event": "decline",
 			"to": "declined"
 		},
@@ -798,6 +929,12 @@
 		{
 			"from": "diagnosed",
 			"event": "fix",
+			"to": "fixing",
+			"action": "investigate.fix"
+		},
+		{
+			"from": "diagnosed",
+			"event": "implement",
 			"to": "fixing",
 			"action": "investigate.fix"
 		},
@@ -950,5 +1087,90 @@
 			"event": "reset",
 			"to": "triage"
 		}
-	]
+	],
+	"run": {
+		"phases": [
+			{
+				"id": "prepare",
+				"label": "Prepare"
+			},
+			{
+				"id": "reproduce",
+				"label": "Reproduce"
+			},
+			{
+				"id": "diagnose",
+				"label": "Diagnose"
+			},
+			{
+				"id": "edit",
+				"label": "Edit"
+			},
+			{
+				"id": "finalize",
+				"label": "Finalize"
+			},
+			{
+				"id": "verify",
+				"label": "Verify"
+			},
+			{
+				"id": "publish",
+				"label": "Publish"
+			},
+			{
+				"id": "report",
+				"label": "Report"
+			}
+		],
+		"statuses": [
+			"running",
+			"succeeded",
+			"failed",
+			"timed_out",
+			"cancelled"
+		],
+		"plans": {
+			"diagnose": [
+				"prepare",
+				"reproduce",
+				"diagnose",
+				"report"
+			],
+			"repro": [
+				"prepare",
+				"reproduce",
+				"diagnose",
+				"edit",
+				"finalize",
+				"verify",
+				"publish",
+				"report"
+			],
+			"implement": [
+				"prepare",
+				"edit",
+				"finalize",
+				"verify",
+				"publish",
+				"report"
+			],
+			"fix": [
+				"prepare",
+				"edit",
+				"finalize",
+				"verify",
+				"publish",
+				"report"
+			],
+			"revise": [
+				"prepare",
+				"edit",
+				"finalize",
+				"verify",
+				"publish",
+				"report"
+			]
+		}
+	}
 }

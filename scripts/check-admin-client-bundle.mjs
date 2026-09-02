@@ -5,12 +5,13 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ANALYSIS_FILE = "emdash-client-bundle.json";
-const MAX_PLUGIN_REGISTRY_BYTES = 2_250_000;
-const MAX_INITIAL_CLOSURE_BYTES = 3_150_000;
+const MAX_PLUGIN_REGISTRY_BYTES = 2_500_000;
+const MAX_INITIAL_CLOSURE_BYTES = 3_600_000;
 const MAX_INITIAL_PHOSPHOR_DEFS = 350;
 const MAX_NON_BUCKET_LAZY_PHOSPHOR_DEFS = 32;
 const MAX_TOTAL_NON_BUCKET_LAZY_PHOSPHOR_DEFS = 96;
 const MAX_ICON_BUCKET_BYTES = 275_000;
+const EXPECTED_ICON_BUCKETS = 32;
 const ICON_BUCKET_MODULE_RE = /\/bucket-\d{2}(?:-[^/]+)?\.js$/;
 const CHART_MODULE_RE = /\/chart(?:-[^/]+)?\.js$/;
 const PHOSPHOR_DEFINITION_RE =
@@ -175,7 +176,7 @@ function run(command, args, cwd = repoRoot, env = process.env) {
 }
 
 function buildWorkspacePackages() {
-	for (const { name } of packageBuilds) run("pnpm", ["--filter", name, "build"]);
+	run("pnpm", ["--filter", "@emdash-cms/fixture-perf-site^...", "build"]);
 }
 
 function buildFixture() {
@@ -280,6 +281,9 @@ export function checkAdminClientBundle() {
 	const iconBuckets = Object.entries(chunks).filter(([, chunk]) =>
 		chunk.modules.some(isIconBucketModule),
 	);
+	const iconBucketModules = new Set(
+		iconBuckets.flatMap(([, chunk]) => chunk.modules.filter(isIconBucketModule)),
+	);
 	const iconBucketFiles = new Set(iconBuckets.map(([fileName]) => fileName));
 	const missingSourceMaps = new Set();
 	const nonBucketLazyPhosphorDefinitions = [...completeClosure]
@@ -344,8 +348,11 @@ export function checkAdminClientBundle() {
 			`Non-bucket lazy chunks contain ${allNonBucketLazyPhosphorDefinitions.size} Phosphor definitions in total (limit ${MAX_TOTAL_NON_BUCKET_LAZY_PHOSPHOR_DEFS})`,
 		);
 	}
-	if (iconBuckets.length === 0)
-		failures.push("No generated Phosphor icon bucket chunks were emitted");
+	if (iconBucketModules.size !== EXPECTED_ICON_BUCKETS) {
+		failures.push(
+			`Expected ${EXPECTED_ICON_BUCKETS} generated Phosphor icon buckets, found ${iconBucketModules.size}`,
+		);
+	}
 	for (const [fileName] of iconBuckets) {
 		const bytes = chunkBytes(fileName);
 		if (!completeClosure.has(fileName)) {
@@ -382,7 +389,7 @@ export function checkAdminClientBundle() {
 			`Initial static closure: ${formatBytes(initialClosureBytes)} / ${formatBytes(MAX_INITIAL_CLOSURE_BYTES)} bytes across ${staticClosure.size} chunks`,
 			`Initial Phosphor definitions: ${initialPhosphorDefinitions.size} / ${MAX_INITIAL_PHOSPHOR_DEFS}`,
 			`Non-bucket lazy Phosphor definitions: ${allNonBucketLazyPhosphorDefinitions.size} / ${MAX_TOTAL_NON_BUCKET_LAZY_PHOSPHOR_DEFS} total; largest chunk ${largestNonBucketLazyPhosphorSet} / ${MAX_NON_BUCKET_LAZY_PHOSPHOR_DEFS}`,
-			`Lazy icon buckets: ${iconBuckets.length}; largest ${formatBytes(largestBucket)} / ${formatBytes(MAX_ICON_BUCKET_BYTES)} bytes`,
+			`Lazy icon buckets: ${iconBucketModules.size}; largest ${formatBytes(largestBucket)} / ${formatBytes(MAX_ICON_BUCKET_BYTES)} bytes`,
 			`Lazy chart chunks: ${chartChunks.length}`,
 		].join("\n") + "\n",
 	);

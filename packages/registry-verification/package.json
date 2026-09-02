@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/registry-verification",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Runtime-neutral verification primitives for the EmDash plugin registry.",
 	"type": "module",
 	"main": "dist/index.js",
@@ -12,6 +12,10 @@
 		"./bundle": {
 			"types": "./dist/bundle.d.ts",
 			"default": "./dist/bundle.js"
+		},
+		"./artifact": {
+			"types": "./dist/artifact.d.ts",
+			"default": "./dist/artifact.js"
 		},
 		"./checksum": {
 			"types": "./dist/checksum.d.ts",

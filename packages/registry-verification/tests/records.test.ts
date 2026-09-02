@@ -125,6 +125,64 @@ describe("verifyPackageReleaseRecords", () => {
 		});
 	});
 
+	it("rejects an artifact with no retrieval source", async () => {
+		const release = cloneRelease();
+		delete release.artifacts.package.url;
+
+		expect(await verify({ release })).toMatchObject({
+			success: false,
+			code: "RELEASE_ARTIFACT_SOURCE_MISSING",
+		});
+	});
+
+	it("rejects a blob checksum that does not match the blob CID", async () => {
+		const release = cloneRelease();
+		release.artifacts.package.blob = {
+			$type: "blob",
+			ref: { $link: "bafkreibm6jg3ux5qu5wzvikphw4qjzx6i7htc4w4e4c4pv7a7uynxqevmy" },
+			mimeType: "application/gzip",
+			size: 24_000,
+		};
+
+		expect(await verify({ release })).toMatchObject({
+			success: false,
+			code: "CHECKSUM_MISMATCH",
+		});
+	});
+
+	it("rejects unknown authentication methods without trusting their display text", async () => {
+		const release = cloneRelease();
+		release.auth = {
+			$type: "com.example.package.auth",
+			hint: "Sign in to the publisher account",
+			hint_url: "https://example.com/help",
+		};
+
+		expect(await verify({ release })).toMatchObject({
+			success: false,
+			code: "AUTH_METHOD_UNSUPPORTED",
+			reasons: [
+				{
+					code: "AUTH_METHOD_UNSUPPORTED",
+					message: "This release requires an authentication method the client does not support.",
+				},
+			],
+			details: {
+				hintUrl: "https://example.com/help",
+			},
+		});
+	});
+
+	it("rejects gated artifacts without a supported authentication method", async () => {
+		const release = cloneRelease();
+		release.artifacts.package.requiresAuth = true;
+
+		expect(await verify({ release })).toMatchObject({
+			success: false,
+			code: "AUTH_METHOD_UNSUPPORTED",
+		});
+	});
+
 	it.each([
 		"http://github.com/example/gallery",
 		"https://github.com/example/gallery/",

@@ -67,9 +67,13 @@ beforeAll(async () => {
 
 beforeEach(async () => {
 	for (const table of [
+		"public_releases",
+		"public_packages",
 		"release_duplicate_attempts",
 		"releases",
 		"packages",
+		"package_profile_heads",
+		"package_profile_revisions",
 		"publisher_verifications",
 		"publishers",
 		"known_publishers",
@@ -427,16 +431,32 @@ describe("applyDelete", () => {
 		);
 	});
 
-	it("hard-deletes a package.profile", async () => {
+	it("removes package eligibility while retaining verified history", async () => {
 		await applyDelete(
 			testEnv.DB,
 			jobFor(DID_A, NSID.packageProfile, "demo", { operation: "delete" }),
 			NOW,
 		);
-		const row = await testEnv.DB.prepare(`SELECT did FROM packages WHERE did = ?`)
-			.bind(DID_A)
-			.first();
-		expect(row).toBeNull();
+		const row = await testEnv.DB.prepare(
+			`SELECT h.deleted_at,
+			        (SELECT COUNT(*) FROM package_profile_revisions r
+			         WHERE r.did = h.did AND r.slug = h.slug) AS revision_count,
+			        (SELECT tombstoned_at FROM releases
+			         WHERE did = h.did AND package = h.slug LIMIT 1) AS release_tombstoned_at
+			 FROM package_profile_heads h
+			 WHERE h.did = ? AND h.slug = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{
+				deleted_at: string | null;
+				revision_count: number;
+				release_tombstoned_at: string | null;
+			}>();
+		expect(row).toMatchObject({
+			deleted_at: NOW.toISOString(),
+			revision_count: 1,
+			release_tombstoned_at: NOW.toISOString(),
+		});
 	});
 
 	it("soft-deletes a release (sets tombstoned_at)", async () => {

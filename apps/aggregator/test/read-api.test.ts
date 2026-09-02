@@ -4,12 +4,11 @@
  * Each test seeds D1 directly with the columns the handlers read, then
  * exercises the handler via `SELF.fetch` to a `/xrpc/...` URL — same path
  * a real client would take. Asserts on the envelope shape (uri, cid, did,
- * indexedAt, mirrors, labels) and on error mappings (404 NotFound, 400
+ * indexedAt, artifactCaches, labels) and on error mappings (404 NotFound, 400
  * InvalidRequest).
  *
- * `mirrors: []` and `labels: []` are the v1 contract; Slice 2 (labels)
- * and Slice 3 (mirrors) populate them, but the contract is locked now so
- * cached clients don't see a shape change later.
+ * Cache descriptors are operational delivery metadata rather than signed
+ * release fields.
  */
 
 import { NSID } from "@emdash-cms/registry-lexicons";
@@ -33,8 +32,16 @@ beforeAll(async () => {
 beforeEach(async () => {
 	// Tables in dependency order: releases → packages (FK), then publishers
 	// + verifications.
+	await testEnv.DB.prepare("UPDATE public_projection_state SET active_generation = NULL").run();
+	await testEnv.DB.prepare("DELETE FROM public_releases").run();
+	await testEnv.DB.prepare("DELETE FROM public_packages").run();
+	await testEnv.DB.prepare("DELETE FROM public_projection_generations").run();
+	await testEnv.DB.prepare("DELETE FROM label_state").run();
+	await testEnv.DB.prepare("DELETE FROM labellers").run();
 	await testEnv.DB.prepare("DELETE FROM releases").run();
 	await testEnv.DB.prepare("DELETE FROM packages").run();
+	await testEnv.DB.prepare("DELETE FROM package_profile_heads").run();
+	await testEnv.DB.prepare("DELETE FROM package_profile_revisions").run();
 	await testEnv.DB.prepare("DELETE FROM publishers").run();
 	await testEnv.DB.prepare("DELETE FROM publisher_verifications").run();
 });
@@ -95,6 +102,7 @@ interface SeedReleaseOpts {
 	tombstoned?: boolean;
 	cid?: string;
 	carBytes?: Uint8Array;
+	artifacts?: unknown;
 }
 
 async function seedRelease(opts: SeedReleaseOpts): Promise<void> {
@@ -114,7 +122,11 @@ async function seedRelease(opts: SeedReleaseOpts): Promise<void> {
 			opts.version,
 			rkey,
 			opts.versionSort ?? defaultVersionSort(opts.version),
-			JSON.stringify({ package: { url: "https://x.test/d.tgz", checksum: "bsha256-abc" } }),
+			JSON.stringify(
+				opts.artifacts ?? {
+					package: { url: "https://x.test/d.tgz", checksum: "bsha256-abc" },
+				},
+			),
 			null,
 			null,
 			JSON.stringify({ declaredAccess: {} }),
@@ -126,6 +138,26 @@ async function seedRelease(opts: SeedReleaseOpts): Promise<void> {
 			NOW.toISOString(),
 			opts.tombstoned ? NOW.toISOString() : null,
 		)
+		.run();
+}
+
+async function seedTakedown(uri: string, cid: string | null = null): Promise<void> {
+	await testEnv.DB.prepare(
+		`INSERT INTO labellers
+		   (did, endpoint, signing_key, signing_key_id, trusted, added_at, last_resolved_at,
+		    active, required_positive, accepted_state, redaction, policy_version)
+		 VALUES ('did:web:labels.example', 'https://labels.example', 'key',
+		         'did:web:labels.example#atproto_label', 1, ?, ?, 1, 0, 0, 1, 'test-v1')
+		 ON CONFLICT(did) DO UPDATE SET active = 1, trusted = 1, redaction = 1`,
+	)
+		.bind(NOW.toISOString(), NOW.toISOString())
+		.run();
+	await testEnv.DB.prepare(
+		`INSERT INTO label_state
+		   (src, uri, val, cid, neg, cts, exp, trusted, cts_epoch, cts_fraction, collision)
+		 VALUES ('did:web:labels.example', ?, '!takedown', ?, 0, ?, NULL, 1, ?, ?, 1)`,
+	)
+		.bind(uri, cid, NOW.toISOString(), Math.floor(NOW.getTime() / 1_000), "0".repeat(32))
 		.run();
 }
 
@@ -156,8 +188,8 @@ describe("getPackage", () => {
 			indexedAt: NOW.toISOString(),
 			labels: [],
 		});
-		// `mirrors` is on releaseView only — assert it's NOT on packageView.
-		expect(body).not.toHaveProperty("mirrors");
+		// Artifact cache services apply to release blobs, not package profiles.
+		expect(body).not.toHaveProperty("artifactCaches");
 		const profile = body["profile"] as Record<string, unknown>;
 		expect(profile["$type"]).toBe(NSID.packageProfile);
 		expect(profile["id"]).toBe(`at://${DID_A}/${NSID.packageProfile}/demo`);
@@ -268,6 +300,69 @@ describe("listReleases", () => {
 });
 
 describe("getLatestRelease", () => {
+	it("advertises the record-scoped Cumulus service for release blobs", async () => {
+		const cid = "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q";
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({
+			version: "1.0.0",
+			artifacts: {
+				package: {
+					blob: {
+						$type: "blob",
+						ref: { $link: cid },
+						mimeType: "application/gzip",
+						size: 6,
+					},
+					checksum: "bciqb43wwlv35mnso5lwvu5c3uxcjqwxcw4an3boxz57qe667fffdh7a",
+				},
+			},
+		});
+
+		const response = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		const body = (await response.json()) as Record<string, unknown>;
+		expect(body["artifactCaches"]).toEqual([
+			{
+				$type: "com.emdashcms.experimental.aggregator.defs#recordScopedBlobCache",
+				serviceEndpoint: "https://cdn.em-da.sh",
+			},
+		]);
+		expect(body).not.toHaveProperty("mirrors");
+	});
+
+	it("does not represent the cache descriptor as admission for a gated blob", async () => {
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({
+			version: "1.0.0",
+			artifacts: {
+				package: {
+					blob: {
+						$type: "blob",
+						ref: {
+							$link: "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q",
+						},
+						mimeType: "application/gzip",
+						size: 6,
+					},
+					requiresAuth: true,
+					checksum: "bciqb43wwlv35mnso5lwvu5c3uxcjqwxcw4an3boxz57qe667fffdh7a",
+				},
+			},
+		});
+
+		const response = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		const body = (await response.json()) as Record<string, unknown>;
+		expect(body["artifactCaches"]).toEqual([
+			{
+				$type: "com.emdashcms.experimental.aggregator.defs#recordScopedBlobCache",
+				serviceEndpoint: "https://cdn.em-da.sh",
+			},
+		]);
+	});
+
 	it("returns the release pointed to by packages.latest_version", async () => {
 		await seedPackage({ slug: "demo", latestVersion: "2.0.0" });
 		await seedRelease({ version: "1.0.0" });
@@ -335,6 +430,29 @@ describe("searchPackages", () => {
 		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}`);
 		const body = (await res.json()) as { packages: Array<{ slug: string }> };
 		expect(body.packages.map((p) => p.slug).toSorted()).toEqual(["alpha", "beta"]);
+	});
+
+	it("excludes every package from a publisher with an active DID takedown", async () => {
+		await seedPackage({ slug: "gallery", name: "Gallery Plugin" });
+		await seedPackage({ did: DID_B, slug: "form", name: "Form Plugin" });
+		await seedTakedown(DID_A);
+
+		for (const query of ["", "?q=gallery"]) {
+			const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}${query}`);
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as { packages: Array<{ did: string }> };
+			expect(body.packages.map((pkg) => pkg.did)).not.toContain(DID_A);
+		}
+	});
+
+	it("applies a profile takedown only to the exact CID", async () => {
+		await seedPackage({ slug: "gallery", name: "Gallery Plugin", cid: "bafycurrent" });
+		await seedTakedown(`at://${DID_A}/${NSID.packageProfile}/gallery`, "bafyprevious");
+
+		const res = await SELF.fetch(`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=gallery`);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+		expect(body.packages.map((pkg) => pkg.slug)).toContain("gallery");
 	});
 
 	it("paginates via offset cursor", async () => {
@@ -415,7 +533,7 @@ describe("sync.getRecord", () => {
 		);
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toBe("application/vnd.ipld.car");
-		expect(res.headers.get("cache-control")).toBe("public, max-age=300");
+		expect(res.headers.get("cache-control")).toBe("private, no-store");
 		const bytes = new Uint8Array(await res.arrayBuffer());
 		expect([...bytes]).toEqual([0x11, 0x22, 0x33]);
 	});

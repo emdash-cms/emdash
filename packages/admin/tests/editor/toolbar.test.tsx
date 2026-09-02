@@ -7,6 +7,7 @@ import {
 	PortableTextEditor,
 	type PortableTextEditorProps,
 } from "../../src/components/PortableTextEditor";
+import type { MediaItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
 // ---------------------------------------------------------------------------
@@ -14,7 +15,54 @@ import { render } from "../utils/render.tsx";
 // ---------------------------------------------------------------------------
 
 vi.mock("../../src/components/MediaPickerModal", () => ({
-	MediaPickerModal: () => null,
+	MediaPickerModal: ({
+		open,
+		onOpenChange,
+		onSelect,
+	}: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+		onSelect: (item: MediaItem) => void;
+	}) =>
+		open ? (
+			<div role="dialog" aria-label="Test image picker">
+				<button
+					type="button"
+					onClick={() =>
+						onSelect({
+							id: "image-1",
+							filename: "diagram.png",
+							mimeType: "image/png",
+							url: "/diagram.png",
+							size: 1024,
+							alt: "Architecture diagram",
+							createdAt: "2026-08-16T00:00:00.000Z",
+						})
+					}
+				>
+					Choose test image
+				</button>
+				<button
+					type="button"
+					onClick={() =>
+						onSelect({
+							id: "",
+							filename: "remote.jpg",
+							mimeType: "image/jpeg",
+							url: "https://media.example/remote.jpg",
+							provider: "external-url",
+							size: 0,
+							createdAt: "2026-08-16T00:00:00.000Z",
+						})
+					}
+				>
+					Choose external image
+				</button>
+				<button type="button" onClick={() => onOpenChange(false)}>
+					Cancel image picker
+				</button>
+			</div>
+		) : null,
 }));
 
 vi.mock("../../src/components/SectionPickerModal", () => ({
@@ -50,6 +98,14 @@ vi.mock("../../src/components/editor/ImageNode", async () => {
 		},
 		renderHTML({ HTMLAttributes }) {
 			return ["img", HTMLAttributes];
+		},
+		addCommands() {
+			return {
+				setImage:
+					(options: Record<string, unknown>) =>
+					({ commands }) =>
+						commands.insertContent({ type: this.name, attrs: options }),
+			};
 		},
 	});
 	return { ImageExtension };
@@ -269,13 +325,13 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(screen.getByRole("button", { name: "Align Right" })).toBeVisible();
 	});
 
-	it("keeps insertion-only actions in the block menu", async () => {
+	it("exposes core block insertions and keeps extended actions in the block menu", async () => {
 		const { screen } = await renderEditor();
 		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
 		await expect.element(screen.getByRole("button", { name: "Insert Link" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Insert Image" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Insert HTML" })).toBeVisible();
 		expect(toolbar.querySelector('[aria-label="Insert Table"]')).toBeNull();
-		expect(toolbar.querySelector('[aria-label="Insert Image"]')).toBeNull();
-		expect(toolbar.querySelector('[aria-label="Insert HTML"]')).toBeNull();
 		expect(toolbar.querySelector('[aria-label="Insert Horizontal Rule"]')).toBeNull();
 	});
 
@@ -360,6 +416,63 @@ describe("Toolbar Presence and Structure", () => {
 		const { screen } = await renderEditor({ minimal: true });
 		const toolbar = screen.container.querySelector('[role="toolbar"]');
 		expect(toolbar).toBeNull();
+	});
+});
+
+// =============================================================================
+// Block insertion
+// =============================================================================
+
+describe("Block insertion", () => {
+	it("leaves content unchanged until an image is selected from the toolbar picker", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.commands.focus("end");
+		const before = editor.getJSON();
+
+		getToolbarButton(screen, "Insert Image").element().click();
+		await screen.getByRole("button", { name: "Cancel image picker" }).click();
+		expect(editor.getJSON()).toEqual(before);
+
+		getToolbarButton(screen, "Insert Image").element().click();
+		await screen.getByRole("button", { name: "Choose test image" }).click();
+		await vi.waitFor(() => {
+			const image = editor.getJSON().content?.find((node) => node.type === "image");
+			expect(image?.attrs).toMatchObject({
+				src: "/diagram.png",
+				alt: "Architecture diagram",
+				mediaId: "image-1",
+				provider: "local",
+			});
+		});
+	});
+
+	it("stores a canonical provider when inserting an external URL", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.commands.focus("end");
+
+		getToolbarButton(screen, "Insert Image").element().click();
+		await screen.getByRole("button", { name: "Choose external image" }).click();
+
+		await vi.waitFor(() => {
+			const image = editor.getJSON().content?.find((node) => node.type === "image");
+			expect(image?.attrs).toMatchObject({
+				src: "https://media.example/remote.jpg",
+				mediaId: "",
+				provider: "external",
+			});
+		});
+	});
+
+	it("inserts an empty HTML block from the toolbar", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.commands.focus("end");
+
+		getToolbarButton(screen, "Insert HTML").element().click();
+
+		await vi.waitFor(() => {
+			const htmlBlock = editor.getJSON().content?.find((node) => node.type === "htmlBlock");
+			expect(htmlBlock?.attrs?.html).toBe("");
+		});
 	});
 });
 

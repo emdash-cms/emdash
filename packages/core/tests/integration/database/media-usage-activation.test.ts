@@ -423,6 +423,20 @@ describeEachDialect("media usage production activation", (dialect) => {
 		);
 	});
 
+	it("includes collection routability in the seed capture fingerprint", async () => {
+		const fields = [{ slug: "hero", label: "Hero", type: "image" as const }];
+		const routable = await buildSeedCollectionCaptureFingerprint(
+			{ slug: "posts", label: "Posts", routable: true },
+			fields,
+		);
+		const nonRoutable = await buildSeedCollectionCaptureFingerprint(
+			{ slug: "posts", label: "Posts", routable: false },
+			fields,
+		);
+
+		expect(nonRoutable).not.toBe(routable);
+	});
+
 	it("distinguishes an omitted seed default from an explicit null default", async () => {
 		await activateMediaUsageCapture(ctx.db, { writersDrained: true });
 		const registry = new SchemaRegistry(ctx.db);
@@ -606,6 +620,41 @@ describeEachDialect("media usage production activation", (dialect) => {
 		);
 		expect(await statusRow(collection.id)).toEqual(
 			expect.objectContaining({ capture_state: "installing", reconciliation_required: 1 }),
+		);
+	});
+
+	it("rejects an excessive owned trigger set before changing trigger DDL", async () => {
+		if (dialect !== "sqlite") return;
+		const registry = new SchemaRegistry(ctx.db);
+		await registry.createCollection({ slug: "trigger_limit", label: "Trigger limit" });
+		for (let index = 0; index < 150; index++) {
+			const triggerName = `emdash_mu_extra_${String(index).padStart(3, "0")}`;
+			await sql`
+				CREATE TRIGGER ${sql.ref(triggerName)}
+				AFTER INSERT ON ${sql.ref("ec_trigger_limit")}
+				BEGIN
+					SELECT 1;
+				END
+			`.execute(ctx.db);
+		}
+
+		await expect(activateMediaUsageCapture(ctx.db, { writersDrained: true })).rejects.toThrow(
+			/activation failed/i,
+		);
+
+		const triggers = await sql<{ name: string }>`
+			SELECT name FROM sqlite_master
+			WHERE type = 'trigger'
+				AND tbl_name = 'ec_trigger_limit'
+				AND substr(name, 1, 10) = 'emdash_mu_'
+		`.execute(ctx.db);
+		expect(triggers.rows).toHaveLength(150);
+		expect(await activationRow()).toEqual(
+			expect.objectContaining({
+				state: "activating",
+				lease_token: null,
+				last_error_code: "MEDIA_USAGE_ACTIVATION_FAILED",
+			}),
 		);
 	});
 

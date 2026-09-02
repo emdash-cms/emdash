@@ -36,6 +36,7 @@ interface FoldedTerm {
 	name: string;
 	slug: string;
 	label: string;
+	locale: string;
 }
 
 describeEachDialect("loader hydration fold", (dialect) => {
@@ -260,6 +261,74 @@ describeEachDialect("loader hydration fold", (dialect) => {
 			expect(data.bylines[0].byline.displayName).toBe("Auteur français");
 			expect(data.bylines[0].byline.locale).toBe("fr");
 			expect(data.byline.displayName).toBe("Auteur français");
+		} finally {
+			setI18nConfig(null);
+		}
+	});
+
+	it("folds the default-locale variant when the entry-locale term is missing", async () => {
+		// eslint-disable-next-line typescript/no-explicit-any -- schema type vs Database type
+		const db = ctx.db as any;
+		const content = new ContentRepository(db);
+		const tax = new TaxonomyRepository(db);
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		try {
+			const post = await content.create({
+				type: "post",
+				slug: "bonjour",
+				data: { title: "Bonjour" },
+				locale: "fr",
+			});
+			const tag = await tax.create({
+				name: "tag",
+				slug: "news",
+				label: "News",
+				locale: "en",
+			});
+			await tax.attachToEntry("post", post.id, tag.id);
+
+			const loader = emdashLoader();
+			const result = await runWithContext({ editMode: false, db: ctx.db }, () =>
+				loader.loadEntry({ filter: { type: "post", id: "bonjour", locale: "fr" } }),
+			);
+			// eslint-disable-next-line typescript/no-explicit-any -- loader result union
+			const terms = read<FoldedTerm[]>((result as any).data, FOLDED_TERMS);
+			expect(terms).toEqual([
+				expect.objectContaining({ slug: "news", label: "News", locale: "en" }),
+			]);
+		} finally {
+			setI18nConfig(null);
+		}
+	});
+
+	it("does not fold an arbitrary locale when exact and default variants are missing", async () => {
+		// eslint-disable-next-line typescript/no-explicit-any -- schema type vs Database type
+		const db = ctx.db as any;
+		const content = new ContentRepository(db);
+		const tax = new TaxonomyRepository(db);
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr", "ja"] });
+		try {
+			const post = await content.create({
+				type: "post",
+				slug: "bonjour",
+				data: { title: "Bonjour" },
+				locale: "fr",
+			});
+			const tag = await tax.create({
+				name: "tag",
+				slug: "nyusu",
+				label: "ニュース",
+				locale: "ja",
+			});
+			await tax.attachToEntry("post", post.id, tag.id);
+
+			const loader = emdashLoader();
+			const result = await runWithContext({ editMode: false, db: ctx.db }, () =>
+				loader.loadEntry({ filter: { type: "post", id: "bonjour", locale: "fr" } }),
+			);
+			// eslint-disable-next-line typescript/no-explicit-any -- loader result union
+			const terms = read<FoldedTerm[]>((result as any).data, FOLDED_TERMS);
+			expect(terms).toEqual([]);
 		} finally {
 			setI18nConfig(null);
 		}

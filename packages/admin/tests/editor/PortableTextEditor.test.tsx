@@ -9,6 +9,7 @@
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import type { PluginBlockDef } from "../../src/components/PortableTextEditor";
 import {
@@ -911,13 +912,16 @@ describe("Toolbar", () => {
 
 	it("has inline formatting buttons", async () => {
 		const screen = await renderWithToolbar();
-		await expect.element(screen.getByRole("button", { name: "Bold" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Italic" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Underline" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Strikethrough" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Subscript" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Superscript" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Inline Code" })).toBeInTheDocument();
+		const toolbar = screen.getByRole("toolbar");
+		await expect.element(toolbar.getByRole("button", { name: "Bold" })).toBeInTheDocument();
+		await expect.element(toolbar.getByRole("button", { name: "Italic" })).toBeInTheDocument();
+		await expect.element(toolbar.getByRole("button", { name: "Underline" })).toBeInTheDocument();
+		await expect
+			.element(toolbar.getByRole("button", { name: "Strikethrough" }))
+			.toBeInTheDocument();
+		await expect.element(toolbar.getByRole("button", { name: "Inline Code" })).toBeInTheDocument();
+		expect(toolbar.element().querySelector('[aria-label="Subscript"]')).toBeNull();
+		expect(toolbar.element().querySelector('[aria-label="Superscript"]')).toBeNull();
 	});
 
 	it.each([
@@ -925,10 +929,17 @@ describe("Toolbar", () => {
 		["Superscript", "superscript"],
 	] as const)("persists %s formatting as a Portable Text mark", async (label, mark) => {
 		const onChange = vi.fn();
-		const { screen, editor } = await renderAndGetEditor({ onChange, value: [] });
+		const { editor } = await renderAndGetEditor({ onChange, value: [textBlock("2")] });
+		editor.chain().focus().selectAll().run();
 
-		await screen.getByRole("button", { name: label }).click();
-		typeIntoEditor(editor, "2");
+		let bubbleButton: HTMLButtonElement | null = null;
+		await vi.waitFor(() => {
+			bubbleButton = document.querySelector(
+				`[data-emdash-inline-bubble-menu] [aria-label="${label}"]`,
+			);
+			expect(bubbleButton).toBeTruthy();
+		});
+		bubbleButton!.click();
 
 		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
 		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
@@ -968,13 +979,11 @@ describe("Toolbar", () => {
 		await expect.element(screen.getByRole("button", { name: "Align Right" })).toBeInTheDocument();
 	});
 
-	it("keeps insertion-only actions out of the formatting toolbar", async () => {
+	it("keeps extended insertion actions out of the formatting toolbar", async () => {
 		const screen = await renderWithToolbar();
 		const toolbar = screen.getByRole("toolbar").element();
 		await expect.element(screen.getByRole("button", { name: "Insert Link" })).toBeInTheDocument();
 		expect(toolbar.querySelector('[aria-label="Insert Table"]')).toBeNull();
-		expect(toolbar.querySelector('[aria-label="Insert Image"]')).toBeNull();
-		expect(toolbar.querySelector('[aria-label="Insert HTML"]')).toBeNull();
 		expect(toolbar.querySelector('[aria-label="Insert Horizontal Rule"]')).toBeNull();
 	});
 
@@ -1262,5 +1271,180 @@ describe("onChange output shape", () => {
 		const json = capturedEditor!.getJSON();
 		const listNode = json.content?.find((n: { type: string }) => n.type === "bulletList");
 		expect(listNode).toBeTruthy();
+	});
+});
+
+describe("Code block copy action", () => {
+	it("copies raw code and resets its accessible feedback", async () => {
+		const clipboardWrite = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+		try {
+			const { screen } = await renderAndGetEditor({
+				value: [
+					{
+						_type: "code",
+						_key: "code",
+						code: "const greeting = 'hello';",
+						language: "javascript",
+					},
+				],
+			});
+			await expect
+				.element(screen.getByRole("button", { name: "Set language (current: JavaScript)" }))
+				.toBeInTheDocument();
+			const copyButton = screen.getByRole("button", { name: "Copy code" });
+			await expect.element(copyButton).toBeInTheDocument();
+			vi.useFakeTimers();
+			await copyButton.click();
+			await vi.waitFor(() => {
+				expect(clipboardWrite).toHaveBeenCalledWith("const greeting = 'hello';");
+			});
+			await expect.element(screen.getByRole("button", { name: "Copy code" })).toBeInTheDocument();
+			await expect.element(screen.getByRole("status")).toHaveTextContent("Copied");
+			await vi.advanceTimersByTimeAsync(1500);
+			await expect.element(screen.getByRole("status")).toHaveTextContent("");
+		} finally {
+			vi.useRealTimers();
+			clipboardWrite.mockRestore();
+		}
+	});
+
+	it("keeps the newest copy feedback and reports failures", async () => {
+		let rejectFirst!: (reason: unknown) => void;
+		let resolveSecond!: () => void;
+		const firstCopy = new Promise<void>((_resolve, reject) => {
+			rejectFirst = reject;
+		});
+		const secondCopy = new Promise<void>((resolve) => {
+			resolveSecond = resolve;
+		});
+		const clipboardWrite = vi
+			.spyOn(navigator.clipboard, "writeText")
+			.mockImplementationOnce(() => firstCopy)
+			.mockImplementationOnce(() => secondCopy)
+			.mockRejectedValueOnce(new DOMException("Denied", "NotAllowedError"));
+		const copyCommand = vi.spyOn(document, "execCommand").mockReturnValue(false);
+		try {
+			const { screen } = await renderAndGetEditor({
+				value: [
+					{
+						_type: "code",
+						_key: "code",
+						code: "copy()",
+						language: "javascript",
+					},
+				],
+			});
+			const copyButton = screen.getByRole("button", { name: "Copy code" }).element();
+			copyButton.click();
+			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(1));
+			copyButton.click();
+			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(2));
+
+			resolveSecond();
+			await expect.element(screen.getByRole("status")).toHaveTextContent("Copied");
+			rejectFirst(new DOMException("Denied", "NotAllowedError"));
+			await vi.waitFor(() =>
+				expect(screen.getByRole("status").element().textContent).toBe("Copied"),
+			);
+
+			copyButton.click();
+			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(3));
+			await expect.element(screen.getByRole("button", { name: "Retry copy" })).toBeVisible();
+			await expect.element(screen.getByRole("status")).toHaveTextContent("Copy failed");
+			expect(copyCommand).toHaveBeenCalledTimes(1);
+		} finally {
+			copyCommand.mockRestore();
+			clipboardWrite.mockRestore();
+		}
+	});
+
+	it("falls back after Clipboard API rejection and restores focus and selection", async () => {
+		const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+		const clipboardWrite = vi.fn().mockRejectedValue(new DOMException("Denied", "NotAllowedError"));
+		const copyCommand = vi.spyOn(document, "execCommand").mockReturnValue(true);
+		Object.defineProperty(navigator, "clipboard", {
+			configurable: true,
+			value: { writeText: clipboardWrite },
+		});
+		try {
+			const { screen, editor } = await renderAndGetEditor({
+				value: [
+					{
+						_type: "code",
+						_key: "code",
+						code: "first line\nsecond line",
+						language: "plaintext",
+					},
+				],
+			});
+			const copyButton = screen.getByRole("button", { name: "Copy code" });
+			await expect.element(copyButton).toBeInTheDocument();
+			editor.chain().focus().setTextSelection({ from: 3, to: 13 }).run();
+			const selectionBeforeCopy = {
+				from: editor.state.selection.from,
+				to: editor.state.selection.to,
+			};
+			await vi.waitFor(() => expect(document.getSelection()?.toString()).not.toBe(""));
+			const domSelection = document.getSelection();
+			const rangeBeforeCopy = domSelection!.getRangeAt(0).cloneRange();
+			const activeElement = document.activeElement;
+			await copyButton.click();
+			await vi.waitFor(() => {
+				expect(clipboardWrite).toHaveBeenCalledWith("first line\nsecond line");
+				expect(copyCommand).toHaveBeenCalledWith("copy");
+			});
+			expect(document.activeElement).toBe(activeElement);
+			expect(editor.state.selection.from).toBe(selectionBeforeCopy.from);
+			expect(editor.state.selection.to).toBe(selectionBeforeCopy.to);
+			expect(domSelection?.toString()).not.toBe("");
+			const rangeAfterCopy = domSelection!.getRangeAt(0);
+			expect(rangeAfterCopy.startContainer).toBe(rangeBeforeCopy.startContainer);
+			expect(rangeAfterCopy.startOffset).toBe(rangeBeforeCopy.startOffset);
+			expect(rangeAfterCopy.endContainer).toBe(rangeBeforeCopy.endContainer);
+			expect(rangeAfterCopy.endOffset).toBe(rangeBeforeCopy.endOffset);
+		} finally {
+			copyCommand.mockRestore();
+			if (clipboardDescriptor) {
+				Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
+			} else {
+				Reflect.deleteProperty(navigator, "clipboard");
+			}
+		}
+	});
+
+	it("preserves alias, free-form, apply, and cancel behavior", async () => {
+		const { screen, editor } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "code",
+					_key: "code",
+					code: "custom()",
+					language: "plaintext",
+				},
+			],
+		});
+		const storedLanguage = () =>
+			editor.getJSON().content?.find((item) => item.type === "codeBlock")?.attrs?.language;
+		const clickPickerAction = (label: "Apply language" | "Cancel") => {
+			const button = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+			expect(button).not.toBeNull();
+			button?.click();
+		};
+		await screen.getByRole("button", { name: "Set language (current: Plain text)" }).click();
+		await screen.getByPlaceholder("Language").fill("js");
+		clickPickerAction("Apply language");
+		await vi.waitFor(() => expect(storedLanguage()).toBe("javascript"));
+		await screen.getByRole("button", { name: "Set language (current: JavaScript)" }).click();
+		await screen.getByPlaceholder("Language").fill("Discarded Language");
+		const cancelButton = document.querySelector<HTMLButtonElement>('button[aria-label="Cancel"]');
+		expect(cancelButton).not.toBeNull();
+		cancelButton?.focus();
+		await userEvent.keyboard("{Enter}");
+		expect(storedLanguage()).toBe("javascript");
+
+		await screen.getByRole("button", { name: "Set language (current: JavaScript)" }).click();
+		await screen.getByPlaceholder("Language").fill("Custom Language");
+		clickPickerAction("Apply language");
+		await vi.waitFor(() => expect(storedLanguage()).toBe("custom-language"));
 	});
 });

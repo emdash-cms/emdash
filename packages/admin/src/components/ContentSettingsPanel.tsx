@@ -8,10 +8,10 @@ import {
 	Loader,
 	Select,
 	Text,
+	Tooltip,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowSquareOut, Eye, EyeSlash, Trash, Upload, X } from "@phosphor-icons/react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { ArrowSquareOut, Eye, EyeSlash, Info, Trash, Upload, X } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
@@ -25,15 +25,14 @@ import type {
 	TranslationSummary,
 	UserListItem,
 } from "../lib/api";
-import { fetchBylines } from "../lib/api";
 import {
 	ContentEditorPanelBoundary,
 	resolveContentEditorPanels,
 } from "../lib/content-editor-panels";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
-import { useDebouncedValue } from "../lib/hooks.js";
 import { usePluginAdmins } from "../lib/plugin-context";
-import { cn, parseTimestamp, slugify } from "../lib/utils";
+import { cn, parseTimestamp } from "../lib/utils";
+import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { ContentStatusBadge, isContentStatusState } from "./ContentStatusBadge.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
@@ -43,7 +42,6 @@ import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
 import { RevisionHistory } from "./RevisionHistory";
-import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton";
 import { SeoPanel } from "./SeoPanel";
 import {
@@ -320,6 +318,7 @@ export interface ContentSettingsPanelProps {
 	users?: UserListItem[];
 	onAuthorChange?: (authorId: string | null) => void;
 	activeBylines: BylineCreditInput[];
+	inferredByline?: BylineSummary | null;
 	availableBylines?: BylineSummary[];
 	availableBylinesLoaded?: boolean;
 	onBylinesChange: (next: BylineCreditInput[]) => void;
@@ -376,6 +375,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	users,
 	onAuthorChange,
 	activeBylines,
+	inferredByline,
 	availableBylines,
 	availableBylinesLoaded,
 	onBylinesChange,
@@ -413,9 +413,16 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const [publishedDate, setPublishedDate] = React.useState(storedPublishedDate);
 	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
-	const hasApplicableTaxonomies = useHasApplicableTaxonomies(collection);
+	const activeEntryLocale = item?.locale ?? entryLocale ?? undefined;
+	const hasApplicableTaxonomies = useHasApplicableTaxonomies(
+		collection,
+		activeEntryLocale,
+		i18n?.defaultLocale,
+	);
 	const canUpdatePublishedDate =
 		item?.publishedAt != null && (currentUser?.role ?? 0) >= ROLE_EDITOR && !!onPublishedAtChange;
+	const contentLocale = item?.locale ?? entryLocale ?? manifest?.contentLocale?.defaultLocale;
+	const usesImplicitEnglish = manifest?.contentLocale?.implicit === true && contentLocale === "en";
 
 	React.useEffect(() => {
 		setPublishedDate(storedPublishedDate);
@@ -485,6 +492,34 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								onChange={(e) => onSlugChange(e.target.value)}
 								placeholder="my-post-slug"
 							/>
+							{contentLocale ? (
+								<div className="flex flex-wrap items-center gap-1.5">
+									<Label>{t`Content locale`}</Label>
+									<Badge variant="secondary">{contentLocale.toUpperCase()}</Badge>
+									{usesImplicitEnglish ? (
+										<Tooltip
+											content={
+												<span className="block max-w-64 text-pretty">
+													{t`English is used because no content locale is configured. Content locale is stored with the entry and is separate from your admin language.`}
+												</span>
+											}
+											delay={0}
+											closeDelay={0}
+											render={
+												<Button
+													type="button"
+													variant="ghost"
+													shape="square"
+													size="xs"
+													icon={<Info aria-hidden="true" />}
+													className="text-kumo-subtle hover:text-kumo-default"
+													aria-label={t`Why English is used`}
+												/>
+											}
+										/>
+									) : null}
+								</div>
+							) : null}
 							<div>
 								<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
 									<Label>{t`Status`}</Label>
@@ -633,13 +668,39 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{currentUser && currentUser.role >= ROLE_EDITOR && (
 					<SortableContentSettingsSection id="bylines" label={t`Bylines`}>
 						<div className="p-4">
-							<Text bold as="h3" DANGEROUS_className="mb-4">
-								{t`Bylines`}
-							</Text>
+							<div className="mb-4 flex items-center gap-1.5 pe-24">
+								<Text bold as="h3">
+									{t`Bylines`}
+								</Text>
+								<Tooltip
+									content={
+										<span className="block max-w-64 text-pretty">
+											{t`Shown to readers in this order.`}
+										</span>
+									}
+									delay={0}
+									closeDelay={0}
+									render={
+										<Button
+											type="button"
+											variant="ghost"
+											shape="square"
+											size="xs"
+											icon={<Info aria-hidden="true" />}
+											className="text-kumo-subtle hover:text-kumo-default"
+											aria-label={t`Why are bylines shown in this order?`}
+										/>
+									}
+								/>
+							</div>
 							<BylineCreditsEditor
+								key={`${collection}:${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`}
 								credits={activeBylines}
+								inferredByline={inferredByline}
 								bylines={availableBylines ?? []}
-								selectedBylineDetails={item?.bylines?.map((entry) => entry.byline)}
+								selectedBylineDetails={item?.bylines
+									?.filter((entry) => entry.source !== "inferred")
+									.map((entry) => entry.byline)}
 								bylinesLoaded={availableBylinesLoaded}
 								onChange={onBylinesChange}
 								onQuickCreate={onQuickCreateByline}
@@ -681,7 +742,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							className="p-4"
 							collection={collection}
 							entryId={item.id}
-							entryLocale={item.locale ?? entryLocale}
+							entryLocale={activeEntryLocale}
+							defaultLocale={i18n?.defaultLocale}
+							canManageTaxonomies={(currentUser?.role ?? 0) >= ROLE_EDITOR}
 						/>
 					</SortableContentSettingsSection>
 				)}
@@ -756,7 +819,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				<div
 					data-testid="content-trash-actions"
 					aria-hidden={isReorderingSections || undefined}
-					className={cn("border-t p-4", isReorderingSections && "invisible pointer-events-none")}
+					className={cn(
+						"border-t bg-kumo-base p-4",
+						isReorderingSections && "invisible pointer-events-none",
+					)}
 				>
 					<Dialog.Root disablePointerDismissal>
 						<Dialog.Trigger
@@ -764,8 +830,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								<Button
 									{...p}
 									type="button"
-									variant="outline"
-									className="w-full text-kumo-danger hover:text-kumo-danger"
+									variant="ghost"
+									className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
 									disabled={isDeleting}
 									icon={isDeleting ? <Loader size="sm" /> : <Trash />}
 								>
@@ -806,367 +872,6 @@ interface AuthorSelectorProps {
 	authorId: string | null;
 	users: UserListItem[];
 	onChange?: (authorId: string | null) => void;
-}
-
-interface BylineCreditsEditorProps {
-	credits: BylineCreditInput[];
-	bylines: BylineSummary[];
-	/**
-	 * Full byline details for the entry's already-selected credits. Seeded from
-	 * the saved entry so credited bylines always render their name/slug even when
-	 * they fall outside the initial (unsearched) picker list.
-	 */
-	selectedBylineDetails?: BylineSummary[];
-	onChange: (bylines: BylineCreditInput[]) => void;
-	onQuickCreate?: (input: { slug: string; displayName: string }) => Promise<BylineSummary>;
-	onQuickEdit?: (
-		bylineId: string,
-		input: { slug: string; displayName: string },
-	) => Promise<BylineSummary>;
-	/**
-	 * Locale of the entry being edited. When the picker comes back empty and
-	 * the install is multi-locale, the empty-state copy and CTA link are
-	 * scoped to this locale (post-migration 040, the picker is strict
-	 * per-locale — see the bylines manager flow).
-	 */
-	entryLocale?: string | null;
-	/** i18n config from the manifest. When set with >1 locales, the editor renders the locale-scoped empty-state. */
-	i18n?: { defaultLocale: string; locales: string[] } | null;
-	/** Suppresses the empty-state until the picker query resolves. Defaults to true. */
-	bylinesLoaded?: boolean;
-}
-
-function BylineCreditsEditor({
-	credits,
-	bylines,
-	selectedBylineDetails,
-	onChange,
-	onQuickCreate,
-	onQuickEdit,
-	entryLocale,
-	i18n,
-	bylinesLoaded = true,
-}: BylineCreditsEditorProps) {
-	const { t } = useLingui();
-	const [search, setSearch] = React.useState("");
-	const debouncedSearch = useDebouncedValue(search, 300);
-	const [quickName, setQuickName] = React.useState("");
-	const [quickSlug, setQuickSlug] = React.useState("");
-	const [quickError, setQuickError] = React.useState<string | null>(null);
-	const [isCreating, setIsCreating] = React.useState(false);
-	const [editBylineId, setEditBylineId] = React.useState<string | null>(null);
-	const [editName, setEditName] = React.useState("");
-	const [editSlug, setEditSlug] = React.useState("");
-	const [editError, setEditError] = React.useState<string | null>(null);
-	const [isEditing, setIsEditing] = React.useState(false);
-
-	// Server-side search so the picker isn't limited to the first page of
-	// bylines (previously capped at 100 with no way to find the rest). When the
-	// search box is empty we fall back to the parent-provided initial list.
-	const trimmedSearch = debouncedSearch.trim();
-	const searchEnabled = trimmedSearch.length > 0;
-	const searchResults = useQuery({
-		queryKey: ["bylines", "credit-picker", entryLocale ?? null, trimmedSearch],
-		queryFn: () =>
-			fetchBylines({ search: trimmedSearch, locale: entryLocale ?? undefined, limit: 20 }),
-		enabled: searchEnabled,
-		placeholderData: keepPreviousData,
-	});
-
-	const resultPool = searchEnabled ? (searchResults.data?.items ?? []) : bylines;
-	const hasMoreResults = searchEnabled ? !!searchResults.data?.nextCursor : bylines.length >= 100;
-
-	// Resolve credited bylines to their full details for display. Selected rows
-	// come from the parent-provided details so they keep rendering even when the
-	// current search results no longer include them.
-	const bylineMap = React.useMemo(() => {
-		const map = new Map<string, BylineSummary>();
-		for (const b of selectedBylineDetails ?? []) map.set(b.id, b);
-		for (const b of bylines) map.set(b.id, b);
-		for (const b of searchResults.data?.items ?? []) map.set(b.id, b);
-		return map;
-	}, [selectedBylineDetails, bylines, searchResults.data?.items]);
-
-	const availableToAdd = resultPool.filter((b) => !credits.some((c) => c.bylineId === b.id));
-
-	const addByline = (bylineId: string) => {
-		if (credits.some((c) => c.bylineId === bylineId)) return;
-		onChange([...credits, { bylineId, roleLabel: null }]);
-	};
-
-	const move = (index: number, direction: -1 | 1) => {
-		const target = index + direction;
-		if (target < 0 || target >= credits.length) return;
-		const next = [...credits];
-		const [moved] = next.splice(index, 1);
-		if (!moved) return;
-		next.splice(target, 0, moved);
-		onChange(next);
-	};
-
-	const resetQuickCreate = () => {
-		setQuickName("");
-		setQuickSlug("");
-		setQuickError(null);
-	};
-
-	const openEditByline = (byline: BylineSummary) => {
-		setEditBylineId(byline.id);
-		setEditName(byline.displayName);
-		setEditSlug(byline.slug);
-		setEditError(null);
-	};
-
-	const resetQuickEdit = () => {
-		setEditBylineId(null);
-		setEditName("");
-		setEditSlug("");
-		setEditError(null);
-	};
-
-	// Multi-locale install with no bylines at the entry's locale: show a
-	// CTA to the byline manager, scoped to that locale. Quick-create
-	// still works inline.
-	const isMultiLocale = !!i18n && i18n.locales.length > 1;
-	const showLocaleEmptyState =
-		isMultiLocale && bylinesLoaded && bylines.length === 0 && !!entryLocale;
-
-	return (
-		<div className="space-y-4">
-			{showLocaleEmptyState && (
-				<div className="rounded-lg border border-dashed p-3 text-sm space-y-2">
-					<p className="text-kumo-subtle">
-						{t`No bylines available in ${entryLocale}. Create a variant from the Bylines page before crediting one on this entry.`}
-					</p>
-					<RouterLinkButton
-						to="/bylines"
-						search={{ locale: entryLocale ?? undefined }}
-						variant="secondary"
-						size="sm"
-					>
-						{t`Manage bylines in ${entryLocale}`}
-					</RouterLinkButton>
-				</div>
-			)}
-			<div className="space-y-2">
-				<Input
-					value={search}
-					onChange={(e) => setSearch(e.target.value)}
-					placeholder={t`Search bylines to add...`}
-					aria-label={t`Search bylines`}
-					className="w-full"
-				/>
-				{searchEnabled && searchResults.isLoading ? (
-					<p className="text-sm text-kumo-subtle">{t`Searching...`}</p>
-				) : availableToAdd.length > 0 ? (
-					<ul className="max-h-48 divide-y overflow-y-auto rounded-lg border">
-						{availableToAdd.map((b) => (
-							<li key={b.id}>
-								<button
-									type="button"
-									className="flex w-full items-center justify-between gap-2 p-2 text-start hover:bg-kumo-tint"
-									onClick={() => addByline(b.id)}
-								>
-									<span className="min-w-0">
-										<span className="block truncate text-sm font-medium">{b.displayName}</span>
-										<span className="block truncate text-xs text-kumo-subtle">{b.slug}</span>
-									</span>
-									<span className="text-xs text-kumo-subtle">{t`Add`}</span>
-								</button>
-							</li>
-						))}
-					</ul>
-				) : searchEnabled && searchResults.isError ? (
-					<p className="text-sm text-kumo-danger">{t`Couldn't search bylines. Please try again.`}</p>
-				) : searchEnabled ? (
-					<p className="text-sm text-kumo-subtle">{t`No matching bylines.`}</p>
-				) : null}
-				{hasMoreResults && (
-					<p className="text-xs text-kumo-subtle">{t`Keep typing to narrow down more bylines.`}</p>
-				)}
-			</div>
-
-			{credits.length > 0 ? (
-				<div className="space-y-2">
-					{credits.map((credit, index) => {
-						const byline = bylineMap.get(credit.bylineId);
-						if (!byline) return null;
-						return (
-							<div key={`${credit.bylineId}-${index}`} className="rounded-lg border p-2 space-y-2">
-								<div className="grid min-w-0 items-start gap-2">
-									<div className="min-w-0">
-										<p className="truncate text-sm font-medium">{byline.displayName}</p>
-										<p className="truncate text-xs text-kumo-subtle">{byline.slug}</p>
-									</div>
-									<div className="flex min-w-0 flex-wrap gap-1">
-										<Button type="button" variant="ghost" size="sm" onClick={() => move(index, -1)}>
-											{t`Up`}
-										</Button>
-										<Button type="button" variant="ghost" size="sm" onClick={() => move(index, 1)}>
-											{t`Down`}
-										</Button>
-										{onQuickEdit && (
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												onClick={() => openEditByline(byline)}
-											>
-												{t`Edit`}
-											</Button>
-										)}
-										<Button
-											type="button"
-											variant="destructive"
-											size="sm"
-											onClick={() => onChange(credits.filter((_, i) => i !== index))}
-										>
-											{t`Remove`}
-										</Button>
-									</div>
-								</div>
-								<Input
-									label={t`Role label`}
-									value={credit.roleLabel ?? ""}
-									onChange={(e) => {
-										const next = [...credits];
-										const current = next[index];
-										if (!current) return;
-										next[index] = {
-											...current,
-											roleLabel: e.target.value || null,
-										};
-										onChange(next);
-									}}
-								/>
-							</div>
-						);
-					})}
-				</div>
-			) : (
-				<p className="text-sm text-kumo-subtle">{t`No bylines selected.`}</p>
-			)}
-
-			{onQuickCreate && (
-				<Dialog.Root>
-					<Dialog.Trigger
-						render={(p) => (
-							<Button {...p} type="button" variant="secondary" className="w-full">
-								{t`Quick create byline`}
-							</Button>
-						)}
-					/>
-					<Dialog className="p-6" size="sm">
-						<Dialog.Title className="text-lg font-semibold">{t`Create byline`}</Dialog.Title>
-						<div className="mt-4 space-y-3">
-							<Input
-								label={t`Display name`}
-								value={quickName}
-								onChange={(e) => {
-									setQuickName(e.target.value);
-									if (!quickSlug) setQuickSlug(slugify(e.target.value));
-								}}
-							/>
-							<Input
-								label={t`Slug`}
-								value={quickSlug}
-								onChange={(e) => setQuickSlug(e.target.value)}
-							/>
-							{quickError && <p className="text-sm text-kumo-danger">{quickError}</p>}
-						</div>
-						<div className="mt-6 flex justify-end gap-2">
-							<Dialog.Close
-								render={(p) => (
-									<Button
-										{...p}
-										variant="secondary"
-										onClick={(e) => {
-											resetQuickCreate();
-											p.onClick?.(e);
-										}}
-									>
-										{t`Cancel`}
-									</Button>
-								)}
-							/>
-							<Button
-								type="button"
-								disabled={!quickName || !quickSlug || isCreating}
-								onClick={async () => {
-									setQuickError(null);
-									setIsCreating(true);
-									try {
-										const created = await onQuickCreate({
-											displayName: quickName,
-											slug: quickSlug,
-										});
-										onChange([...credits, { bylineId: created.id, roleLabel: null }]);
-										resetQuickCreate();
-									} catch (err) {
-										setQuickError(err instanceof Error ? err.message : t`Failed to create byline`);
-									} finally {
-										setIsCreating(false);
-									}
-								}}
-							>
-								{isCreating ? t`Creating...` : t`Create`}
-							</Button>
-						</div>
-					</Dialog>
-				</Dialog.Root>
-			)}
-
-			{onQuickEdit && editBylineId && (
-				<Dialog.Root open onOpenChange={(open) => (!open ? resetQuickEdit() : undefined)}>
-					<Dialog className="p-6" size="sm">
-						<Dialog.Title className="text-lg font-semibold">{t`Edit byline`}</Dialog.Title>
-						<div className="mt-4 space-y-3">
-							<Input
-								label={t`Display name`}
-								value={editName}
-								onChange={(e) => {
-									setEditName(e.target.value);
-									if (!editSlug) setEditSlug(slugify(e.target.value));
-								}}
-							/>
-							<Input
-								label={t`Slug`}
-								value={editSlug}
-								onChange={(e) => setEditSlug(e.target.value)}
-							/>
-							{editError && <p className="text-sm text-kumo-danger">{editError}</p>}
-						</div>
-						<div className="mt-6 flex justify-end gap-2">
-							<Button type="button" variant="secondary" onClick={resetQuickEdit}>
-								{t`Cancel`}
-							</Button>
-							<Button
-								type="button"
-								disabled={!editName || !editSlug || isEditing}
-								onClick={async () => {
-									setEditError(null);
-									setIsEditing(true);
-									try {
-										await onQuickEdit(editBylineId, {
-											displayName: editName,
-											slug: editSlug,
-										});
-										resetQuickEdit();
-									} catch (err) {
-										setEditError(err instanceof Error ? err.message : t`Failed to update byline`);
-									} finally {
-										setIsEditing(false);
-									}
-								}}
-							>
-								{isEditing ? t`Saving...` : t`Save`}
-							</Button>
-						</div>
-					</Dialog>
-				</Dialog.Root>
-			)}
-		</div>
-	);
 }
 
 function AuthorSelector({ authorId, users, onChange }: AuthorSelectorProps) {

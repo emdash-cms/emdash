@@ -3,6 +3,7 @@ import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import type { ContentEditorProps } from "../../src/components/ContentEditor";
 import {
@@ -12,7 +13,7 @@ import {
 	type SettingsActionBarProps,
 } from "../../src/components/ContentSettingsPanel";
 import type { BlockSidebarPanel } from "../../src/components/PortableTextEditor";
-import type { AdminManifest, ContentItem } from "../../src/lib/api";
+import type { AdminManifest, BylineSummary, ContentItem } from "../../src/lib/api";
 import type { ContentEditorPanelContext } from "../../src/lib/content-editor-panels";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
 import { render } from "../utils/render.tsx";
@@ -24,7 +25,11 @@ vi.mock("../../src/components/RevisionHistory", () => ({
 }));
 
 vi.mock("../../src/components/TaxonomySidebar", () => ({
-	TaxonomySidebar: () => <div data-testid="taxonomy-sidebar">Taxonomy</div>,
+	TaxonomySidebar: ({ canManageTaxonomies }: { canManageTaxonomies: boolean }) => (
+		<div data-testid="taxonomy-sidebar" data-can-manage={String(canManageTaxonomies)}>
+			Taxonomy
+		</div>
+	),
 	useHasApplicableTaxonomies: () => true,
 }));
 
@@ -72,6 +77,23 @@ function makeItem(overrides: Partial<ContentItem> = {}): ContentItem {
 		liveRevisionId: null,
 		draftRevisionId: null,
 		...overrides,
+	};
+}
+
+function makeByline(): BylineSummary {
+	return {
+		id: "byline-1",
+		slug: "mina-patel",
+		displayName: "Mina Patel",
+		bio: null,
+		avatarMediaId: null,
+		websiteUrl: null,
+		userId: null,
+		isGuest: true,
+		createdAt: "2026-08-26T12:00:00Z",
+		updatedAt: "2026-08-26T12:00:00Z",
+		locale: "en",
+		translationGroup: null,
 	};
 }
 
@@ -161,12 +183,93 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByRole("button", { name: "Move to Trash" })).toBeInTheDocument();
 	});
 
+	it("moves byline ordering guidance into help beside the heading", async () => {
+		const byline = makeByline();
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					activeBylines: [{ bylineId: byline.id, roleLabel: null }],
+					availableBylines: [byline],
+				})}
+			/>,
+		);
+		await expect.element(screen.getByRole("button", { name: "Add another byline" })).toBeVisible();
+		const trigger = screen.getByRole("button", { name: "Why are bylines shown in this order?" });
+		trigger.element().focus();
+		await expect.element(screen.getByText("Shown to readers in this order.")).toBeVisible();
+	});
+
 	it("shows the normalized pending changes label", async () => {
 		const screen = await render(
 			<ContentSettingsPanel {...makePanelProps({ isLive: true, hasPendingChanges: true })} />,
 		);
 
 		await expect.element(screen.getByText("Pending changes")).toBeInTheDocument();
+	});
+
+	it("only grants inline taxonomy management to editors", async () => {
+		const screen = await render(<ContentSettingsPanel {...makePanelProps()} />);
+		await expect
+			.element(screen.getByTestId("taxonomy-sidebar"))
+			.toHaveAttribute("data-can-manage", "true");
+
+		await screen.rerender(
+			<ContentSettingsPanel {...makePanelProps({ currentUser: AUTHOR_ROLE })} />,
+		);
+		await expect
+			.element(screen.getByTestId("taxonomy-sidebar"))
+			.toHaveAttribute("data-can-manage", "false");
+	});
+
+	it("shows the stored content locale separately from the admin language", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ locale: "ja" }),
+					manifest: {
+						...TEST_MANIFEST,
+						contentLocale: { defaultLocale: "ja", implicit: false },
+					},
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByText("Content locale")).toBeInTheDocument();
+		await expect.element(screen.getByText("JA", { exact: true })).toBeInTheDocument();
+		expect(screen.getByText(/stored with the entry and is separate/).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Why English is used" }).query()).toBeNull();
+	});
+
+	it("keeps implicit English visible through compact help without a persistent warning", async () => {
+		const manifest = { ...TEST_MANIFEST, contentLocale: { defaultLocale: "en", implicit: true } };
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({ item: makeItem({ locale: "en" }), i18n: undefined, manifest })}
+			/>,
+		);
+
+		await expect.element(screen.getByText("EN", { exact: true })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Why English is used" }).query()).not.toBeNull();
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({ item: null, isNew: true, i18n: undefined, manifest })}
+			/>,
+		);
+		expect(screen.getByText(/stored with the entry and is separate/).query()).toBeNull();
+		const trigger = screen.getByRole("button", { name: "Why English is used" });
+		await expect.element(screen.getByText("EN", { exact: true })).toBeInTheDocument();
+		const explanation =
+			"English is used because no content locale is configured. Content locale is stored with the entry and is separate from your admin language.";
+		const help = screen.getByText(explanation);
+		await userEvent.hover(trigger.element());
+		await expect.element(help).toBeVisible();
+		await userEvent.hover(document.body);
+		await vi.waitFor(() => expect(help.query()).toBeNull());
+		trigger.element().focus();
+		await expect.element(help).toBeVisible();
+		expect(screen.getByRole("alert").query()).toBeNull();
+		await userEvent.tab();
+		await vi.waitFor(() => expect(help.query()).toBeNull());
 	});
 
 	it("shows Scheduled without a Draft companion", async () => {

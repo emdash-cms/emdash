@@ -19,11 +19,12 @@
  *   EMDASH_VISUAL=1 pnpm exec playwright test visual-regression
  */
 
-import type { Locator } from "@playwright/test";
-
 import { test, expect, type AdminPage, type ServerInfo } from "../fixtures";
 
 const VISUAL_ENABLED = process.env.EMDASH_VISUAL === "1";
+const FIXED_VISUAL_TIME = "2026-08-27T12:00:00.000Z";
+const DYNAMIC_TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "publishedAt", "scheduledAt"]);
+const TIMESTAMPED_API_ROUTES = ["**/_emdash/api/dashboard", "**/_emdash/api/content/**"];
 
 // Kill the usual sources of pixel nondeterminism: animations, transitions,
 // the blinking text caret, and smooth-scroll. Re-injected after every reload
@@ -50,37 +51,51 @@ const LOCALES = [
  * A screen to snapshot.
  *
  * `path` may depend on seeded data (e.g. a post id for the editor).
- * `extraMasks` returns page regions to paint over on top of the always-masked
- * version footer -- use it for anything that changes every run (timestamps).
  */
 interface PageCase {
 	name: string;
 	path: (info: ServerInfo) => string;
-	extraMasks?: (admin: AdminPage) => Locator[];
+	viewport?: { width: number; height: number };
+	prepare?: (admin: AdminPage) => Promise<void>;
+}
+
+function openFilter(trigger: string, popup: string): (admin: AdminPage) => Promise<void> {
+	return async (admin) => {
+		await admin.page.locator(trigger).click();
+		await admin.page.locator(popup).waitFor({ state: "visible" });
+	};
 }
 
 const PAGES: PageCase[] = [
 	{
 		name: "dashboard",
 		path: () => "/",
-		// Recent Activity prints relative times ("just now") that drift over time.
-		extraMasks: (admin) => [admin.page.getByTestId("activity-time")],
 	},
+	{ name: "content-list", path: () => "/content/posts" },
 	{
-		name: "content-list",
+		name: "content-list-status-filter",
 		path: () => "/content/posts",
-		// The Updated column is an absolute date (the seed day) -- guaranteed to
-		// differ between a committed baseline and any later run.
-		extraMasks: (admin) => [admin.page.getByTestId("content-updated")],
+		prepare: openFilter(".emdash-status-filter-trigger", '[role="listbox"]:visible'),
 	},
 	{
-		name: "content-editor",
-		path: (info) => `/content/posts/${info.contentIds.posts[0]}`,
-		// The Publish panel prints Created/Updated timestamps seeded at test time.
-		extraMasks: (admin) => [admin.page.getByTestId("content-timestamps")],
+		name: "content-list-date-field-filter",
+		path: () => "/content/posts",
+		prepare: openFilter(".emdash-date-field-filter-trigger", '[role="listbox"]:visible'),
 	},
+	{
+		name: "content-list-byline-filter",
+		path: () => "/content/posts",
+		prepare: openFilter(".emdash-byline-filter-trigger", ".kumo-popover-popup:visible"),
+	},
+	{
+		name: "content-list-date-range-filter",
+		path: () => "/content/posts",
+		prepare: openFilter(".emdash-date-range-trigger", ".kumo-popover-popup:visible"),
+	},
+	{ name: "content-editor", path: (info) => `/content/posts/${info.contentIds.posts[0]}` },
 	{ name: "content-new", path: () => "/content/posts/new" },
 	{ name: "media", path: () => "/media" },
+	{ name: "media-mobile", path: () => "/media", viewport: { width: 320, height: 800 } },
 	{ name: "menus", path: () => "/menus" },
 	{ name: "settings", path: () => "/settings" },
 ];
@@ -92,17 +107,47 @@ async function setLocale(admin: AdminPage, code: string): Promise<void> {
 		.addCookies([{ name: "emdash-locale", value: code, domain: "localhost", path: "/_emdash" }]);
 }
 
+function normalizeTimestamps(value: unknown): unknown {
+	if (Array.isArray(value)) return value.map(normalizeTimestamps);
+	if (value === null || typeof value !== "object") return value;
+
+	return Object.fromEntries(
+		Object.entries(value).map(([key, nested]) => [
+			key,
+			DYNAMIC_TIMESTAMP_KEYS.has(key) && typeof nested === "string"
+				? FIXED_VISUAL_TIME
+				: normalizeTimestamps(nested),
+		]),
+	);
+}
+
+async function installTimestampNormalizer(admin: AdminPage): Promise<void> {
+	for (const url of TIMESTAMPED_API_ROUTES) {
+		await admin.page.route(url, async (route) => {
+			const response = await route.fetch();
+			const contentType = response.headers()["content-type"] ?? "";
+			if (!contentType.includes("application/json")) {
+				await route.fulfill({ response });
+				return;
+			}
+
+			const body: unknown = await response.json();
+			await route.fulfill({ response, json: normalizeTimestamps(body) });
+		});
+	}
+}
+
 /**
  * Navigate to an admin path and wait for it to be ready without relying on any
  * localized selectors. The shared AdminPage.waitForShell() matches the sidebar
  * by its aria-label, which is translated -- so it can't be used once the locale
- * is Arabic. Here we wait on the hydration signal and the <aside> landmark
+ * is Arabic. Here we wait on the hydration signal and the <main> landmark
  * (both locale-independent), then confirm the document direction flipped.
  */
 async function openAdmin(admin: AdminPage, path: string, dir: string): Promise<void> {
 	await admin.goto(path);
 	await admin.page.waitForSelector("astro-island:not([ssr])", { timeout: 30000 });
-	await admin.page.locator("aside").first().waitFor({ state: "visible", timeout: 30000 });
+	await admin.page.locator("main").first().waitFor({ state: "visible", timeout: 30000 });
 	await expect(admin.page.locator("html")).toHaveAttribute("dir", dir);
 	await admin.waitForLoading();
 }
@@ -131,25 +176,35 @@ async function stabilize(admin: AdminPage): Promise<void> {
 test.describe("visual regression", () => {
 	test.skip(!VISUAL_ENABLED, "Set EMDASH_VISUAL=1 to run visual regression snapshots");
 
-	// Freeze OS-level motion preferences as well as our CSS override.
-	test.use({ reducedMotion: "reduce" });
+	// Freeze browser time, timezone, locale, and OS-level motion preferences.
+	test.use({ locale: "en-US", reducedMotion: "reduce", timezoneId: "UTC" });
 
 	test.beforeEach(async ({ admin }) => {
 		await admin.devBypassAuth();
+		await admin.page.clock.setFixedTime(FIXED_VISUAL_TIME);
+		// A screenshot mask changes pixels after layout, so masked timestamps can
+		// still resize columns or cover an overlapping popover.
+		await installTimestampNormalizer(admin);
+	});
+
+	test.afterEach(async ({ admin }) => {
+		await admin.page.unrouteAll({ behavior: "ignoreErrors" });
 	});
 
 	for (const locale of LOCALES) {
 		for (const pageCase of PAGES) {
 			test(`${pageCase.name} @${locale.name}`, async ({ admin, serverInfo }) => {
 				await setLocale(admin, locale.code);
+				if (pageCase.viewport) await admin.page.setViewportSize(pageCase.viewport);
 				await openAdmin(admin, pageCase.path(serverInfo), locale.dir);
 				await stabilize(admin);
+				await pageCase.prepare?.(admin);
 
 				await expect(admin.page).toHaveScreenshot(`${pageCase.name}-${locale.name}.png`, {
 					fullPage: true,
 					animations: "disabled",
 					// The version/commit string changes every build; always mask it.
-					mask: [admin.page.getByTestId("admin-version"), ...(pageCase.extraMasks?.(admin) ?? [])],
+					mask: [admin.page.getByTestId("admin-version")],
 				});
 			});
 		}

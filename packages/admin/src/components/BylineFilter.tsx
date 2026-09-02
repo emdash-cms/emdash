@@ -7,6 +7,7 @@ import * as React from "react";
 
 import { fetchBylines, type BylineSummary } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
+import { FieldHelpLabel } from "./FieldHelpLabel.js";
 
 /**
  * Byline filter state for the content list.
@@ -52,6 +53,7 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 	const { t } = useLingui();
 	const [open, setOpen] = React.useState(false);
 	const [search, setSearch] = React.useState("");
+	const inferredBylineId = React.useId();
 	const debouncedSearch = useDebouncedValue(search, 300);
 	const trimmedSearch = debouncedSearch.trim();
 
@@ -108,15 +110,20 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<Popover.Trigger asChild>
-				<Button variant="secondary" size="sm" aria-label={t`Filter by byline`} className="gap-2">
+				<Button
+					variant="secondary"
+					size="sm"
+					aria-label={t`Filter by byline`}
+					className="emdash-byline-filter-trigger gap-1 px-3.5 font-normal"
+				>
 					<span className="max-w-[140px] truncate">{label}</span>
-					<CaretDown className="h-4 w-4 shrink-0" aria-hidden="true" />
+					<CaretDown className="size-3 shrink-0" aria-hidden="true" />
 				</Button>
 			</Popover.Trigger>
 
-			<Popover.Content className="w-72 p-2" align="start">
+			<Popover.Content className="w-80 max-w-[calc(100vw-2rem)] p-3" align="start">
 				<Input
-					size="sm"
+					size="base"
 					type="search"
 					aria-label={t`Search bylines`}
 					placeholder={t`Search bylines…`}
@@ -124,7 +131,7 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 					onChange={(e) => setSearch(e.target.value)}
 				/>
 
-				<div className="mt-2 border-b pb-2">
+				<div className="mt-3 border-b px-1 pb-3">
 					<Checkbox
 						checked={value.none}
 						onCheckedChange={toggleNone}
@@ -132,30 +139,34 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 					/>
 				</div>
 
-				<div className="mt-2 max-h-64 overflow-y-auto" role="group" aria-label={t`Bylines`}>
-					{isLoading && <p className="p-2 text-sm text-kumo-subtle">{t`Loading…`}</p>}
+				<div
+					className="mt-2 max-h-64 space-y-0.5 overflow-y-auto"
+					role="group"
+					aria-label={t`Bylines`}
+				>
+					{isLoading && <p className="py-2 text-base text-kumo-subtle">{t`Loading…`}</p>}
 
 					{!isLoading && options.length === 0 && (
-						<p className="p-2 text-sm text-kumo-subtle">{t`No bylines found`}</p>
+						<p className="py-2 text-base text-kumo-subtle">{t`No bylines found`}</p>
 					)}
 
 					{options.map((byline) => {
 						const group = groupOf(byline);
 						const checked = value.bylineIds.includes(group);
 						return (
-							<div key={byline.id} className="rounded px-2 py-1 hover:bg-kumo-tint/50">
+							<div key={byline.id} className="rounded px-1 py-2 hover:bg-kumo-tint/50">
 								<Checkbox
 									checked={checked}
 									disabled={!checked && (atLimit || value.none)}
 									onCheckedChange={() => toggle(group)}
-									label={<span className="text-sm">{byline.displayName}</span>}
+									label={<span className="text-base font-normal">{byline.displayName}</span>}
 								/>
 							</div>
 						);
 					})}
 
 					{data?.nextCursor && (
-						<p className="p-2 text-sm text-kumo-subtle">{t`Search to narrow the list`}</p>
+						<p className="py-2 text-base text-kumo-subtle">{t`Search to narrow the list`}</p>
 					)}
 				</div>
 
@@ -165,15 +176,23 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 					</Badge>
 				)}
 
-				<div className="mt-2 border-t pt-2">
-					<Switch
-						checked={value.includeInferred}
-						onCheckedChange={(checked) => onChange({ ...value, includeInferred: checked })}
-						label={<span className="text-sm">{t`Include inferred bylines`}</span>}
-					/>
-					<p className="mt-1 text-xs text-kumo-subtle">
-						{t`Also match the byline linked to an entry's author when it has none assigned.`}
-					</p>
+				<div className="mt-3 border-t px-1 pt-3">
+					<div className="flex items-center justify-between gap-3">
+						<FieldHelpLabel
+							htmlFor={inferredBylineId}
+							help={t`Also match the byline linked to an entry's author when it has none assigned.`}
+							helpLabel={t`About inferred bylines`}
+							labelClassName="text-base font-normal text-kumo-default"
+						>
+							{t`Include inferred bylines`}
+						</FieldHelpLabel>
+						<Switch
+							id={inferredBylineId}
+							checked={value.includeInferred}
+							onCheckedChange={(checked) => onChange({ ...value, includeInferred: checked })}
+							aria-label={t`Include inferred bylines`}
+						/>
+					</div>
 				</div>
 			</Popover.Content>
 		</Popover>

@@ -31,10 +31,15 @@ const getPackage = vi.fn();
 
 vi.mock("@emdash-cms/registry-client/discovery", () => ({
 	DiscoveryClient: class {
+		labelerPolicy = { enforcement: "required" as const };
 		getLatestRelease = getLatestRelease;
 		listReleases = listReleases;
 		getPackage = getPackage;
 	},
+	registryLabelerPolicy: (acceptLabelers?: string) => ({
+		enforcement: "required",
+		acceptLabelers,
+	}),
 }));
 
 const PUBLISHER = "did:plc:abc";
@@ -44,13 +49,22 @@ const SLUG = "gallery";
  * A release view shaped enough to pass the update handler's identity
  * cross-check and reach the env gate, carrying a `requires` block.
  */
-function releaseViewWithRequires(version: string, requires: Record<string, string>) {
+
+function releaseViewWithRequires(
+	version: string,
+	requires: Record<string, string>,
+	labels: unknown[] = [],
+) {
+	const uri = `at://${PUBLISHER}/com.emdashcms.experimental.package.release/${SLUG}:${version}`;
+	const cid = `bafyrei${"a".repeat(52)}`;
 	return {
+		uri,
+		cid,
 		did: PUBLISHER,
 		package: SLUG,
 		version,
-		labels: [],
-		mirrors: [],
+		labels,
+		artifactCaches: [],
 		release: {
 			package: SLUG,
 			version,
@@ -69,13 +83,15 @@ function releaseViewWithRequires(version: string, requires: Record<string, strin
 
 describe("handleRegistryUpdate env gate", () => {
 	let db: Kysely<DbSchema>;
+	let handleRegistryInstall: typeof import("../../../src/api/handlers/registry.js").handleRegistryInstall;
 	let handleRegistryUpdate: typeof import("../../../src/api/handlers/registry.js").handleRegistryUpdate;
 	const stubSandbox = { isAvailable: () => true } as unknown as SandboxRunner;
 	const config = { aggregatorUrl: "https://aggregator.test" };
 	let fetchSpy: ReturnType<typeof vi.fn>;
 
 	beforeEach(async () => {
-		({ handleRegistryUpdate } = await import("../../../src/api/handlers/registry.js"));
+		({ handleRegistryInstall, handleRegistryUpdate } =
+			await import("../../../src/api/handlers/registry.js"));
 		const sqlite = new BetterSqlite3(":memory:");
 		db = new Kysely<DbSchema>({ dialect: new SqliteDialect({ database: sqlite }) });
 		await runMigrations(db);
@@ -137,5 +153,61 @@ describe("handleRegistryUpdate env gate", () => {
 		// The gate passes; the update proceeds past it. With null storage the
 		// handler then fails downstream — but never with ENV_INCOMPATIBLE.
 		expect(result.error?.code).not.toBe("ENV_INCOMPATIBLE");
+	});
+
+	it("preserves release withdrawal independently from listing approval", async () => {
+		const version = "2.0.0";
+		const uri = `at://${PUBLISHER}/com.emdashcms.experimental.package.release/${SLUG}:${version}`;
+		const cid = `bafyrei${"a".repeat(52)}`;
+		getLatestRelease.mockResolvedValue(
+			releaseViewWithRequires(version, {}, [
+				{
+					ver: 1,
+					src: "did:plc:labeler",
+					uri,
+					cid,
+					val: "security:yanked",
+					cts: "2026-08-24T10:00:00.000Z",
+				},
+			]),
+		);
+
+		const result = await handleRegistryUpdate(
+			db,
+			stubStorage,
+			stubSandbox,
+			config,
+			"r_gallery000000000",
+		);
+
+		expect(result).toMatchObject({ success: false, error: { code: "YANKED" } });
+		expect(fetchSpy).not.toHaveBeenCalled();
+	});
+
+	it("preserves the install handler's RELEASE_YANKED compatibility code", async () => {
+		const version = "2.0.0";
+		const uri = `at://${PUBLISHER}/com.emdashcms.experimental.package.release/${SLUG}:${version}`;
+		const cid = `bafyrei${"a".repeat(52)}`;
+		getPackage.mockResolvedValue({ did: PUBLISHER, slug: SLUG, profile: {} });
+		getLatestRelease.mockResolvedValue(
+			releaseViewWithRequires(version, {}, [
+				{
+					ver: 1,
+					src: "did:plc:labeler",
+					uri,
+					cid,
+					val: "security:yanked",
+					cts: "2026-08-24T10:00:00.000Z",
+				},
+			]),
+		);
+
+		const result = await handleRegistryInstall(db, stubStorage, stubSandbox, config, {
+			did: PUBLISHER,
+			slug: SLUG,
+		});
+
+		expect(result).toMatchObject({ success: false, error: { code: "RELEASE_YANKED" } });
+		expect(fetchSpy).not.toHaveBeenCalled();
 	});
 });

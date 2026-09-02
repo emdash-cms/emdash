@@ -113,6 +113,7 @@ import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
+import { canonicalMediaProviderId } from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -181,7 +182,7 @@ interface PortableTextTextBlock {
 interface PortableTextImageBlock {
 	_type: "image";
 	_key: string;
-	asset: { _ref: string; url?: string; meta?: Record<string, unknown> };
+	asset: { _ref: string; url?: string; provider?: string; meta?: Record<string, unknown> };
 	alt?: string;
 	caption?: string;
 	width?: number;
@@ -248,6 +249,8 @@ function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[]
 		if (attrStr(record.caption)) image.caption = attrStr(record.caption);
 		if (typeof record.width === "number") image.width = record.width;
 		if (typeof record.height === "number") image.height = record.height;
+		if (typeof record.focalX === "number") image.focalX = record.focalX;
+		if (typeof record.focalY === "number") image.focalY = record.focalY;
 		if (attrStr(record.blurhash)) image.blurhash = attrStr(record.blurhash);
 		if (attrStr(record.dominantColor)) image.dominantColor = attrStr(record.dominantColor);
 		images.push(image);
@@ -614,11 +617,20 @@ function convertPMNode(
 
 						const contentSpans: PortableTextSpan[] = [];
 						const cellMarkDefs: PortableTextMarkDef[] = [];
+						let paragraphCount = 0;
 						for (const paragraph of cellContent) {
 							if (paragraph.type === "paragraph") {
-								const { children, markDefs } = convertInlineContent(paragraph.content || []);
+								if (paragraphCount > 0) {
+									contentSpans.push({
+										_type: "span",
+										_key: generateKey(),
+										text: "\n",
+									});
+								}
+								const { children, markDefs } = convertInlineContent(paragraph.content || [], true);
 								contentSpans.push(...children);
 								cellMarkDefs.push(...markDefs);
+								paragraphCount++;
 							}
 						}
 
@@ -732,7 +744,10 @@ function convertList(
 	return blocks;
 }
 
-function convertInlineContent(nodes: unknown[]): {
+function convertInlineContent(
+	nodes: unknown[],
+	preserveHardBreakBoundary = false,
+): {
 	children: PortableTextSpan[];
 	markDefs: PortableTextMarkDef[];
 } {
@@ -763,7 +778,7 @@ function convertInlineContent(nodes: unknown[]): {
 				marks: marks.length > 0 ? marks : undefined,
 			});
 		} else if (node.type === "hardBreak") {
-			if (children.length > 0) {
+			if (children.length > 0 && !preserveHardBreakBoundary) {
 				const last = children.at(-1);
 				if (last) last.text += "\n";
 			} else {
@@ -1000,6 +1015,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					title: imageBlock.caption || "",
 					caption: imageBlock.caption || "",
 					mediaId: imageBlock.asset._ref,
+					provider: canonicalMediaProviderId(imageBlock.asset.provider),
 					width: imageBlock.width,
 					height: imageBlock.height,
 					blurhash,
@@ -1014,9 +1030,13 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 		case "code": {
 			if (!isCodeBlock(block)) return null;
 			const codeBlock = block;
+			const language =
+				typeof codeBlock.language === "string" && codeBlock.language.length > 0
+					? codeBlock.language
+					: null;
 			return {
 				type: "codeBlock",
-				attrs: { language: codeBlock.language || null },
+				attrs: { language },
 				content: codeBlock.code ? [{ type: "text", text: codeBlock.code }] : undefined,
 			};
 		}
@@ -1365,6 +1385,12 @@ interface SlashCommandItem {
 	category?: MessageDescriptor | string;
 }
 
+function insertHtmlBlock(editor: Editor, range?: Range) {
+	const chain = editor.chain().focus();
+	if (range) chain.deleteRange(range);
+	chain.insertContent({ type: "htmlBlock", attrs: { html: "" } }).run();
+}
+
 /**
  * Default slash commands for built-in block types
  */
@@ -1475,14 +1501,7 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		description: msg`Insert raw HTML`,
 		icon: BracketsAngle,
 		aliases: ["html", "raw", "markup"],
-		command: ({ editor, range }) => {
-			editor
-				.chain()
-				.focus()
-				.deleteRange(range)
-				.insertContent({ type: "htmlBlock", attrs: { html: "" } })
-				.run();
-		},
+		command: ({ editor, range }) => insertHtmlBlock(editor, range),
 	},
 	{
 		id: "divider",
@@ -2638,6 +2657,10 @@ export function PortableTextEditor({
 	// Section picker state (for inserting sections)
 	const [sectionPickerOpen, setSectionPickerOpen] = React.useState(false);
 	const pendingBlockInsertPosRef = React.useRef<number | null>(null);
+	const openToolbarImagePicker = React.useCallback(() => {
+		pendingBlockInsertPosRef.current = null;
+		setMediaPickerOpen(true);
+	}, []);
 
 	// Slash commands state
 	const [slashMenuState, setSlashMenuStateRaw] = React.useState<SlashMenuState>({
@@ -3177,7 +3200,7 @@ export function PortableTextEditor({
 					src: item.url,
 					alt: item.alt || item.filename,
 					mediaId: item.id,
-					provider: item.provider || "local",
+					provider: canonicalMediaProviderId(item.provider),
 					width: item.width,
 					height: item.height,
 					blurhash: item.blurhash,
@@ -3399,6 +3422,7 @@ export function PortableTextEditor({
 						focusMode={focusMode}
 						onFocusModeChange={setFocusMode}
 						onInsertBlock={handleTouchInsertBlock}
+						onInsertImage={openToolbarImagePicker}
 					/>
 				)}
 				<div className="relative overflow-visible">
@@ -3861,12 +3885,14 @@ function EditorToolbar({
 	focusMode,
 	onFocusModeChange,
 	onInsertBlock,
+	onInsertImage,
 }: {
 	toolbarRef: React.RefObject<HTMLDivElement | null>;
 	editor: Editor;
 	focusMode: FocusMode;
 	onFocusModeChange: (mode: FocusMode) => void;
 	onInsertBlock: () => void;
+	onInsertImage: () => void;
 }) {
 	const { t } = useLingui();
 	const [showLinkPopover, setShowLinkPopover] = React.useState(false);
@@ -3884,8 +3910,6 @@ function EditorToolbar({
 				isItalic: ctx.editor.isActive("italic"),
 				isUnderline: ctx.editor.isActive("underline"),
 				isStrike: ctx.editor.isActive("strike"),
-				isSubscript: ctx.editor.isActive("subscript"),
-				isSuperscript: ctx.editor.isActive("superscript"),
 				isCode: ctx.editor.isActive("code"),
 				isBulletList: ctx.editor.isActive("bulletList"),
 				isOrderedList,
@@ -4042,20 +4066,6 @@ function EditorToolbar({
 					<TextStrikethrough className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleSubscript().run()}
-					active={editorState.isSubscript}
-					title={t`Subscript`}
-				>
-					<TextSubscript className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleSuperscript().run()}
-					active={editorState.isSuperscript}
-					title={t`Superscript`}
-				>
-					<TextSuperscript className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleCode().run()}
 					active={editorState.isCode}
 					title={t`Inline Code`}
@@ -4120,6 +4130,12 @@ function EditorToolbar({
 					title={t`Code Block`}
 				>
 					<CodeBlock className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton onClick={onInsertImage} title={t`Insert Image`}>
+					<ImageIcon className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton onClick={() => insertHtmlBlock(editor)} title={t`Insert HTML`}>
+					<BracketsAngle className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 			</ToolbarGroup>
 

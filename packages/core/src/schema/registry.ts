@@ -197,6 +197,7 @@ export async function buildSeedCollectionCaptureFingerprint(
 				sortOrder: input.sortOrder ?? null,
 				commentsEnabled: input.commentsEnabled ?? false,
 				urlPattern: input.urlPattern ?? null,
+				routable: input.routable ?? true,
 			},
 			fields: definitions,
 		}),
@@ -457,6 +458,7 @@ export class SchemaRegistry {
 				supports: JSON.stringify(supports),
 				source: input.source ?? "manual",
 				has_seo: hasSeo ? 1 : 0,
+				routable: input.routable === false ? 0 : 1,
 				hidden: input.hidden ? 1 : 0,
 				sort_order: input.sortOrder ?? null,
 				comments_enabled: input.commentsEnabled ? 1 : 0,
@@ -599,6 +601,7 @@ export class SchemaRegistry {
 					supports: JSON.stringify(supports),
 					source: "seed",
 					has_seo: hasSeo ? 1 : 0,
+					routable: input.routable === false ? 0 : 1,
 					hidden: input.hidden ? 1 : 0,
 					sort_order: input.sortOrder ?? null,
 					comments_enabled: input.commentsEnabled ? 1 : 0,
@@ -744,6 +747,7 @@ export class SchemaRegistry {
 			if (input.admin !== undefined) updates.admin_config = JSON.stringify(input.admin);
 			if (input.supports !== undefined) updates.supports = JSON.stringify(input.supports);
 			if (input.urlPattern !== undefined) updates.url_pattern = input.urlPattern;
+			if (input.routable !== undefined) updates.routable = input.routable ? 1 : 0;
 			if (input.hasSeo !== undefined) {
 				updates.has_seo = input.hasSeo ? 1 : 0;
 			} else if (input.supports !== undefined) {
@@ -1799,6 +1803,7 @@ export class SchemaRegistry {
 			titleField: row.title_field ?? undefined,
 			dateField: row.date_field ?? undefined,
 			urlPattern: row.url_pattern ?? undefined,
+			routable: row.routable !== 0,
 			hidden: row.hidden === 1,
 			sortOrder: row.sort_order ?? undefined,
 			commentsEnabled: row.comments_enabled === 1,

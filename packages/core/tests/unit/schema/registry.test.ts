@@ -66,6 +66,19 @@ describe("SchemaRegistry", () => {
 			expect(collection.supports).toEqual([]);
 		});
 
+		it("defaults collections to routable and preserves explicit opt-out", async () => {
+			const routable = await registry.createCollection({ slug: "posts", label: "Posts" });
+			const internal = await registry.createCollection({
+				slug: "blocks",
+				label: "Blocks",
+				routable: false,
+			});
+
+			expect(routable.routable).toBe(true);
+			expect(internal.routable).toBe(false);
+			expect((await registry.updateCollection("blocks", { routable: true })).routable).toBe(true);
+		});
+
 		it("should create the content table when creating a collection", async () => {
 			await registry.createCollection({
 				slug: "articles",

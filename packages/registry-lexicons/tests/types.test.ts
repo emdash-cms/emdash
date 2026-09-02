@@ -17,7 +17,8 @@ describe("delegated release permission", () => {
 
 		expect(permission).toEqual({
 			collection: NSID.packageRelease,
-			scope: "atproto repo:com.emdashcms.experimental.package.release?action=create",
+			scope:
+				"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
 		});
 		expect(Object.isFrozen(permission)).toBe(true);
 		expect(permission.scope).not.toContain("transition:generic");
@@ -233,6 +234,57 @@ describe("PackageRelease", () => {
 
 		expect(is(PackageRelease.mainSchema, bad)).toBe(false);
 	});
+
+	it("validates blob-hosted package and image artifacts", () => {
+		const release: PackageRelease.Main = {
+			$type: NSID.packageRelease,
+			package: "gallery",
+			version: "1.0.0",
+			artifacts: {
+				package: {
+					blob: {
+						$type: "blob",
+						ref: { $link: "bafkreibm6jg3ux5qu5wzvikphw4qjzx6i7htc4w4e4c4pv7a7uynxqevmy" },
+						mimeType: "application/gzip",
+						size: 24_000,
+					},
+					checksum: "bciqft3cnxjpwrjxnsvfdz5xeckn7shz3rxfxbyjyb4x35ap2mlnucfwq",
+				},
+				icon: {
+					blob: {
+						$type: "blob",
+						ref: { $link: "bafkreifxfs7hxymrqjjxjoz2nalc4o5n2hzqctqc74wp5bsvoodw7rr3me" },
+						mimeType: "image/webp",
+						size: 4_096,
+					},
+					checksum: "bciqlole7pprrdbetoys3bifrodo3xiptafhadxzmp2dfk44hn6ohoyq",
+				},
+			},
+		};
+
+		expect(is(PackageRelease.mainSchema, release)).toBe(true);
+	});
+
+	it("accepts an unknown authentication variant", () => {
+		const release: PackageRelease.Main = {
+			$type: NSID.packageRelease,
+			package: "gallery",
+			version: "1.0.0",
+			artifacts: {
+				package: {
+					url: "https://example.com/gallery.tar.gz",
+					checksum: "bciqinvalid",
+				},
+			},
+			auth: {
+				$type: "com.example.package.auth",
+				hint: "Sign in to the publisher account",
+				hint_url: "https://example.com/help",
+			},
+		};
+
+		expect(is(PackageRelease.mainSchema, release)).toBe(true);
+	});
 });
 
 describe("PackageReleaseExtension", () => {
@@ -324,6 +376,11 @@ describe("NSID map", () => {
 			"com.emdashcms.experimental.aggregator.listReleases",
 			"com.emdashcms.experimental.aggregator.resolvePackage",
 			"com.emdashcms.experimental.aggregator.searchPackages",
+			"com.emdashcms.experimental.labeler.defs",
+			"com.emdashcms.experimental.labeler.getAssessment",
+			"com.emdashcms.experimental.labeler.getCurrentAssessment",
+			"com.emdashcms.experimental.labeler.getPolicy",
+			"com.emdashcms.experimental.labeler.listAssessments",
 		].toSorted();
 
 		const actual = Object.values(NSID).toSorted();

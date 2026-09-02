@@ -17,7 +17,7 @@ import { X, Plus, Trash, ImageSquare } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaItem } from "../../lib/api";
-import { metaString } from "../../lib/media-utils";
+import { getMediaObjectPosition, metaString } from "../../lib/media-utils";
 import { cn } from "../../lib/utils";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { galleryImageUrl, type GalleryAttributes, type GalleryImage } from "./GalleryNode";
@@ -49,6 +49,8 @@ export function mediaItemToGalleryImage(item: MediaItem): GalleryImage {
 		alt: item.alt || "",
 		width: item.width,
 		height: item.height,
+		focalX: item.focalX ?? undefined,
+		focalY: item.focalY ?? undefined,
 		// Cache LQIP alongside dimensions so the gallery renders a placeholder
 		// without a runtime lookup. Fall back to `meta` for providers that
 		// stash it there — mirrors ImageFieldRenderer's handleSelect.
@@ -148,6 +150,8 @@ export function GalleryDetailPanel({
 							alt: item.alt || "",
 							width: item.width,
 							height: item.height,
+							focalX: item.focalX ?? undefined,
+							focalY: item.focalY ?? undefined,
 							blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
 							dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
 						}
@@ -303,7 +307,8 @@ function SortableGalleryThumb({
 				<img
 					src={galleryImageUrl(image)}
 					alt={image.alt || ""}
-					className="object-cover w-full h-full"
+					className="emdash-media-transparency-grid h-full w-full object-cover"
+					style={{ objectPosition: getMediaObjectPosition(image) }}
 					draggable={false}
 				/>
 			</Button>
@@ -345,7 +350,7 @@ function GalleryImageSettings({ image, onChange, onReplace }: GalleryImageSettin
 
 	return (
 		<div className="border rounded-lg p-3 space-y-3">
-			<div className="aspect-video bg-kumo-tint rounded-lg overflow-hidden flex items-center justify-center relative group">
+			<div className="emdash-media-transparency-grid group relative flex aspect-video items-center justify-center overflow-hidden rounded-lg">
 				<img
 					src={galleryImageUrl(image)}
 					alt={image.alt || ""}

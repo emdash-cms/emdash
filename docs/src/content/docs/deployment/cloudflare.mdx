@@ -15,7 +15,7 @@ Cloudflare Workers provides a fast, globally distributed runtime for EmDash. Thi
 
 ## Configure Bindings
 
-Create `wrangler.jsonc` in your project root with D1 and R2 bindings. Wrangler provisions both resources on the first deploy if they don't already exist.
+Provision the production D1 database and R2 bucket, then create `wrangler.jsonc` in your project root with bindings for their immutable IDs and names. Database provisioning is separate from applying EmDash's schema migrations.
 
 ```jsonc title="wrangler.jsonc"
 {
@@ -28,6 +28,7 @@ Create `wrangler.jsonc` in your project root with D1 and R2 bindings. Wrangler p
 		{
 			"binding": "DB",
 			"database_name": "emdash-db",
+			"database_id": "00000000-0000-0000-0000-000000000000",
 		},
 	],
 
@@ -44,7 +45,7 @@ These are the bindings you configure yourself. The `@astrojs/cloudflare` adapter
 
 ## Configure EmDash
 
-Update your Astro configuration to use D1 and R2:
+The following Astro configuration uses the D1 and R2 bindings.
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -66,17 +67,38 @@ export default defineConfig({
 });
 ```
 
-## First Boot
+## Migrate and Deploy
 
-Database migrations run automatically on the first request after deployment, and on every subsequent boot if there's anything new to apply.
+Runtime migrations remain automatic by default. For deployment-managed migrations, build the Worker and inspect the provisioned D1 target using its account and database UUID.
+
+```bash
+pnpm build
+pnpm exec emdash migrate --status --json \
+  --account-id "$CLOUDFLARE_ACCOUNT_ID" \
+  --d1 "$D1_DATABASE_ID"
+```
+
+After reviewing and recording the reported target fingerprint, apply the migrations and deploy the same build.
+
+```bash
+pnpm exec emdash migrate \
+  --account-id "$CLOUDFLARE_ACCOUNT_ID" \
+  --d1 "$D1_DATABASE_ID" \
+  --expected-target-fingerprint "$EMDASH_TARGET_FINGERPRINT"
+pnpm exec wrangler deploy
+```
+
+The migration job requires `CLOUDFLARE_API_TOKEN` with D1 Edit permission. Serialize jobs by account and database UUID. See [Manage Core Database Migrations](/deployment/core-migrations/) for provisioning, CI concurrency, runtime modes, and recovery guidance.
 
 If the database is empty (no collections) and the setup wizard hasn't been completed, EmDash also applies a seed file on first boot. The seed is read at build time from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the bundle. If none is present, a built-in default seed is used. Subsequent deploys against an existing database leave its content alone.
 
 To change the schema or content model of a site that is already deployed, see [Evolving a Deployed Site](/deployment/schema-evolution/).
 
-## Scheduled Publishing
+## Scheduled tasks
 
-On Cloudflare Workers, scheduled publishing, plugin cron, and maintenance tasks run from Worker Cron Triggers. New Cloudflare templates include both required schedules automatically. When updating an existing project, configure distinct general and Media Usage lanes:
+Cloudflare runs scheduled publishing, plugin tasks, and general maintenance from one Cron Trigger.
+
+Use the standard Worker entry point:
 
 ```ts title="src/worker.ts"
 import handler, {
@@ -92,21 +114,18 @@ export default {
 } satisfies ExportedHandler;
 ```
 
-By default, `*/2 * * * *` runs Media Usage maintenance and every other expression runs general maintenance. Then add both Cron Triggers to `wrangler.jsonc`:
+Configure one Cron Trigger for general maintenance in `wrangler.jsonc`:
 
 ```jsonc title="wrangler.jsonc"
 {
 	"triggers": {
-		"crons": ["* * * * *", "*/2 * * * *"],
+		"crons": ["* * * * *"],
 	},
 }
 ```
 
-To use different schedules, set the corresponding `generalCron` or `mediaUsageCron` option in `createScheduledHandler()` and use the same expression in `wrangler.jsonc`.
-
-<Aside type="caution">
-	Without the general trigger, scheduled publishing and plugin cron do not run. Without the dedicated Media Usage trigger, automatic historical reconciliation cannot progress. Local `astro dev` still uses the in-process scheduler.
-</Aside>
+To use a different general maintenance schedule, set `generalCron` in `createScheduledHandler()` and
+use the same expression in `wrangler.jsonc`.
 
 ## Deploy
 
@@ -354,7 +373,7 @@ The AI Search plugin indexes published EmDash content and adds smart search inte
 5. Deploy the site:
 
 	```bash
-	pnpm deploy
+	pnpm exec wrangler deploy
 	```
 
 6. Open **Cloudflare AI Search** in the EmDash admin panel, select the collections to index, and click **Sync All Content**.

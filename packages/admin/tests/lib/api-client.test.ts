@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-import { apiFetch, fetchManifest, throwResponseError } from "../../src/lib/api/client";
+import {
+	ApiResponseError,
+	apiFetch,
+	fetchManifest,
+	isTerminalRequestError,
+	throwResponseError,
+} from "../../src/lib/api/client";
 
 describe("apiFetch", () => {
 	let fetchSpy: ReturnType<typeof vi.fn>;
@@ -132,10 +138,61 @@ describe("throwResponseError", () => {
 		await expect(throwResponseError(response, "fallback")).rejects.toThrow("Not found");
 	});
 
+	it("preserves status, code, and details on API response errors", async () => {
+		const response = new Response(
+			JSON.stringify({
+				error: {
+					code: "CONFLICT",
+					message: "Already exists",
+					details: { field: "name" },
+				},
+			}),
+			{ status: 409 },
+		);
+
+		const error = await throwResponseError(response, "fallback").catch((value: unknown) => value);
+
+		expect(error).toBeInstanceOf(ApiResponseError);
+		expect(error).toMatchObject({
+			status: 409,
+			code: "CONFLICT",
+			message: "Already exists",
+			details: { field: "name" },
+		});
+	});
+
 	it("falls back to the generic fallback when the body has no error", async () => {
 		const response = new Response("", { status: 500, statusText: "Internal Server Error" });
 		await expect(throwResponseError(response, "fallback")).rejects.toThrow(
 			"fallback: Internal Server Error",
 		);
+	});
+});
+
+describe("isTerminalRequestError", () => {
+	const apiError = (status: number, code: string, message: string) =>
+		new ApiResponseError(status, code, message);
+
+	it("treats a client error outside the retryable list as terminal", () => {
+		expect(isTerminalRequestError(apiError(400, "VALIDATION_ERROR", "rejected"))).toBe(true);
+		expect(isTerminalRequestError(apiError(401, "UNAUTHORIZED", "unauthorized"))).toBe(true);
+		expect(isTerminalRequestError(apiError(404, "NOT_FOUND", "not found"))).toBe(true);
+		expect(isTerminalRequestError(apiError(409, "CONFLICT", "conflict"))).toBe(true);
+		expect(isTerminalRequestError(apiError(413, "PAYLOAD_TOO_LARGE", "payload too large"))).toBe(
+			true,
+		);
+	});
+
+	it("keeps the retryable client errors retryable", () => {
+		expect(isTerminalRequestError(apiError(408, "REQUEST_TIMEOUT", "request timeout"))).toBe(false);
+		expect(isTerminalRequestError(apiError(421, "MISDIRECTED_REQUEST", "misdirected"))).toBe(false);
+		expect(isTerminalRequestError(apiError(425, "TOO_EARLY", "too early"))).toBe(false);
+		expect(isTerminalRequestError(apiError(429, "RATE_LIMITED", "slow down"))).toBe(false);
+	});
+
+	it("keeps server errors and network failures retryable", () => {
+		expect(isTerminalRequestError(apiError(500, "INTERNAL_ERROR", "boom"))).toBe(false);
+		expect(isTerminalRequestError(apiError(504, "GATEWAY_TIMEOUT", "gateway timeout"))).toBe(false);
+		expect(isTerminalRequestError(new TypeError("Failed to fetch"))).toBe(false);
 	});
 });

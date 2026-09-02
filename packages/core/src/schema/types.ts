@@ -167,6 +167,7 @@ export interface FieldValidation {
 export interface FieldWidgetOptions {
 	rows?: number; // For textarea
 	showPreview?: boolean; // For image/file
+	darkVariant?: boolean; // For image: offer a second slot for a dark-color-scheme counterpart
 	collection?: string; // For reference - which collection to reference
 	allowMultiple?: boolean; // For reference
 	[key: string]: unknown;
@@ -201,6 +202,8 @@ export interface Collection {
 	dateField?: string;
 	/** URL pattern with {slug} placeholder (e.g. "/{slug}", "/blog/{slug}") */
 	urlPattern?: string;
+	/** Whether published entries require a public slug. Defaults to true. */
+	routable?: boolean;
 	/**
 	 * Omit this collection's auto-generated entry from the admin sidebar.
 	 * The collection stays fully functional everywhere else (API, MCP, hooks,
@@ -264,6 +267,7 @@ export interface CreateCollectionInput {
 	supports?: CollectionSupport[];
 	source?: CollectionSource;
 	urlPattern?: string;
+	routable?: boolean;
 	hasSeo?: boolean;
 	/** Omit the auto-generated admin sidebar entry (defaults to false) */
 	hidden?: boolean;
@@ -283,6 +287,7 @@ export interface UpdateCollectionInput {
 	admin?: CollectionAdminConfig;
 	supports?: CollectionSupport[];
 	urlPattern?: string | null;
+	routable?: boolean;
 	hasSeo?: boolean;
 	/** Omit the auto-generated admin sidebar entry */
 	hidden?: boolean;

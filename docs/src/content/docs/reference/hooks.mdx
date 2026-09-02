@@ -43,7 +43,7 @@ The following table lists every hook, what triggers it, what it can modify, and 
 
 ### `content:beforeSave`
 
-Runs before content is saved to the database. Use to validate, transform, or enrich content.
+Runs before content is saved to the database. Use to validate, transform, or enrich content. To reject a save, throw `ContentSaveRejectedError` (exported from `emdash`): the API responds with a `SAVE_REJECTED` error that carries the message, and the admin shows it to the editor. Any other thrown error also cancels the save, but the response replaces its message with a generic one. A plugin running in the sandbox cannot reject a save: the sandbox logs the thrown error and the save continues.
 
 ```ts
 import { definePlugin } from "emdash";

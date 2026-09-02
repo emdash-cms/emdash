@@ -47,7 +47,11 @@ export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
 			</FieldHelpLabel>
 			{imageUrl ? (
 				<div className="mt-2 relative group">
-					<img src={imageUrl} alt="" className="max-h-48 rounded-lg border object-cover" />
+					<img
+						src={imageUrl}
+						alt=""
+						className="emdash-media-transparency-grid max-h-48 rounded-lg border object-cover"
+					/>
 					<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
 						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
 							{t`Change`}

@@ -30,6 +30,11 @@ import { DialogError, getMutationError } from "./DialogError.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
 import { TranslationsPanel } from "./TranslationsPanel.js";
 
+export function TaxonomyNotFoundMessage({ taxonomyName }: { taxonomyName: string }) {
+	const { t } = useLingui();
+	return <>{t`Taxonomy not found: ${taxonomyName}`}</>;
+}
+
 interface TaxonomyManagerProps {
 	taxonomyName: string;
 }
@@ -434,7 +439,7 @@ function TermFormDialog({
 	const createMutation = useMutation({
 		mutationFn: () =>
 			createTerm(taxonomyName, {
-				slug,
+				...(autoSlug ? {} : { slug }),
 				label,
 				parentId: parentId || undefined,
 				description: description || undefined,
@@ -719,6 +724,7 @@ function CreateTaxonomyDialog({
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["taxonomy-defs"] });
 			void queryClient.invalidateQueries({ queryKey: ["taxonomy-def"] });
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			onCreated();
 			resetForm();
 		},
@@ -1011,7 +1017,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 	if (!taxonomyDef) {
 		return (
 			<div>
-				{t`Taxonomy not found:`} {taxonomyName}
+				<TaxonomyNotFoundMessage taxonomyName={taxonomyName} />
 			</div>
 		);
 	}

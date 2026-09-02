@@ -2,6 +2,7 @@ import { sql, type Kysely, type RawBuilder, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { isPostgres } from "../../database/dialect-helpers.js";
+import { jsonTextValues } from "../../database/json-recordset.js";
 import type { Database, MediaUsageReconciliationTable } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 
@@ -147,8 +148,8 @@ export class MediaUsageReconciliationRepository {
 		reconciliation: MediaUsageReconciliationRecord,
 		limit: number,
 	): Promise<string[]> {
-		if (!Number.isSafeInteger(limit) || limit < 1 || limit > 50) {
-			throw new Error("Reconciliation scan page limit must be from 1 to 50");
+		if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1_000) {
+			throw new Error("Reconciliation scan page limit must be from 1 to 1000");
 		}
 		if (!reconciliation.leaseToken || reconciliation.targetEpoch === null) return [];
 		const tableName = contentTableName(reconciliation.collectionSlug);
@@ -366,8 +367,8 @@ export class MediaUsageReconciliationRepository {
 		reconciliation: MediaUsageReconciliationRecord,
 		limit: number,
 	): Promise<MediaUsageReconciliationSourceCandidate[]> {
-		if (!Number.isSafeInteger(limit) || limit < 1 || limit > 50) {
-			throw new Error("Reconciliation source page limit must be from 1 to 50");
+		if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1_000) {
+			throw new Error("Reconciliation source page limit must be from 1 to 1000");
 		}
 		if (!reconciliation.leaseToken || reconciliation.targetEpoch === null) return [];
 		let query = this.db
@@ -400,12 +401,16 @@ export class MediaUsageReconciliationRepository {
 	): Promise<string[]> {
 		const unique = [...new Set(contentIds)];
 		if (unique.length === 0) return [];
-		if (unique.length > 50 || unique.some((contentId) => !contentId)) {
+		if (unique.length > 1_000 || unique.some((contentId) => !contentId)) {
 			throw new Error("Reconciliation source page has invalid content identity");
 		}
 		const tableName = contentTableName(collectionSlug);
+		const requested = jsonTextValues(this.db, unique);
 		const existing = await sql<{ id: string }>`
-			SELECT id FROM ${sql.ref(tableName)} WHERE id IN (${sql.join(unique)})
+			WITH requested AS (${requested})
+			SELECT content.id
+			FROM ${sql.ref(tableName)} AS content
+			INNER JOIN requested ON requested.value = content.id
 		`.execute(this.db);
 		const present = new Set(existing.rows.map((row) => row.id));
 		return unique.filter((contentId) => !present.has(contentId));
@@ -482,6 +487,12 @@ export class MediaUsageReconciliationRepository {
 			.where("status.collection_id", "=", collectionId)
 			.where("status.status", "=", "running")
 			.where("status.cursor", "=", runToken)
+			.where(sql<boolean>`status.change_epoch = (
+				SELECT reconciliation.target_epoch
+				FROM _emdash_media_usage_reconciliations AS reconciliation
+				WHERE reconciliation.collection_id = ${collectionId}
+					AND reconciliation.run_token = ${runToken}
+			)`)
 			.where((eb) =>
 				eb.exists(
 					eb
@@ -751,6 +762,70 @@ export class MediaUsageReconciliationRepository {
 		return result.rows.map(rowToRecord);
 	}
 
+	async hasDeferredCandidate(): Promise<boolean> {
+		const row = await this.db
+			.selectFrom("_emdash_media_usage_reconciliations")
+			.select("collection_id")
+			.where("state", "in", ["pending", "retry", "leased"])
+			.limit(1)
+			.executeTakeFirst();
+		return row !== undefined;
+	}
+
+	async wakeDrainedBarrierCandidate(): Promise<boolean> {
+		const now = timestampOffset(this.db, 0);
+		const candidateIsDue = timestampIsDue(this.db, "reconciliation.next_attempt_at");
+		const targetIsDue = timestampIsDue(
+			this.db,
+			"_emdash_media_usage_reconciliations.next_attempt_at",
+		);
+		const result = await sql<{ collection_id: string }>`
+			UPDATE _emdash_media_usage_reconciliations
+			SET next_attempt_at = ${now}, updated_at = ${now}
+			WHERE collection_id = (
+				SELECT reconciliation.collection_id
+				FROM _emdash_media_usage_reconciliations AS reconciliation
+				INNER JOIN _emdash_media_usage_index_status AS status
+					ON status.collection_id = reconciliation.collection_id
+					AND status.scope_key = reconciliation.collection_slug
+				WHERE reconciliation.state = 'pending'
+					AND reconciliation.target_epoch IS NOT NULL
+					AND NOT ${candidateIsDue}
+					AND status.adapter_id = ${CONTENT_ADAPTER_ID}
+					AND status.scope_type = ${COLLECTION_SCOPE}
+					AND status.capture_state = 'active'
+					AND status.reconciliation_required = 1
+					AND status.status = 'running'
+					AND status.cursor = reconciliation.run_token
+					AND status.change_epoch = reconciliation.target_epoch
+					AND NOT EXISTS (
+						SELECT 1 FROM _emdash_media_usage_work AS work
+						WHERE work.collection_id = reconciliation.collection_id
+					)
+					AND NOT EXISTS (
+						SELECT 1 FROM _emdash_media_usage_collection_deletions AS deletion
+						WHERE deletion.collection_id = reconciliation.collection_id
+					)
+				ORDER BY reconciliation.next_attempt_at, reconciliation.updated_at,
+					reconciliation.collection_id
+				LIMIT 1
+			)
+			AND state = 'pending'
+			AND NOT ${targetIsDue}
+			AND EXISTS (
+				SELECT 1 FROM _emdash_media_usage_activation AS activation
+				WHERE activation.task_key = ${ACTIVATION_KEY}
+					AND activation.state = 'active'
+			)
+			AND NOT EXISTS (
+				SELECT 1 FROM _emdash_media_usage_work AS work
+				WHERE work.collection_id = _emdash_media_usage_reconciliations.collection_id
+			)
+			RETURNING collection_id
+		`.execute(this.db);
+		return result.rows.length === 1;
+	}
+
 	async findFailed(limit: number): Promise<MediaUsageReconciliationRecord[]> {
 		assertLimit(limit);
 		const rows = await this.db
@@ -1005,7 +1080,15 @@ export class MediaUsageReconciliationRepository {
 						.where("status.scope_type", "=", COLLECTION_SCOPE)
 						.where("status.capture_state", "=", "active")
 						.where("status.reconciliation_required", "=", 1)
-						.where("status.cursor", "is", null)
+						.where((status) =>
+							status.or([
+								status("status.cursor", "is", null),
+								status.and([
+									status("status.status", "=", "running"),
+									status("status.cursor", "=", runToken),
+								]),
+							]),
+						)
 						.where("status.change_epoch", ">", targetEpoch),
 				),
 			)

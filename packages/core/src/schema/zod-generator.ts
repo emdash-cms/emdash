@@ -135,8 +135,8 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 					.passthrough(),
 			);
 
-		case "image":
-			return z.object({
+		case "image": {
+			const mediaSchema = z.object({
 				id: z.string(),
 				src: z.string().optional(),
 				alt: z.string().optional(),
@@ -153,6 +153,11 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 				/** Provider-specific metadata; for local media this carries storageKey */
 				meta: z.record(z.string(), z.unknown()).optional(),
 			});
+			return mediaSchema.extend({
+				/** Counterpart shown when the page renders in a dark color scheme */
+				darkVariant: mediaSchema.optional(),
+			});
+		}
 
 		case "file":
 			return z.object({
@@ -420,7 +425,10 @@ export async function generateSchemaHash(collections: CollectionWithFields[]): P
 /**
  * Map field type to TypeScript type
  */
-function fieldTypeToTypeScript(field: Field): string {
+function fieldTypeToTypeScript(field: {
+	type: Field["type"];
+	validation?: Field["validation"];
+}): string {
 	switch (field.type) {
 		case "string":
 		case "text":
@@ -450,11 +458,41 @@ function fieldTypeToTypeScript(field: Field): string {
 			}
 			return "string[]";
 
+		case "repeater": {
+			const subFields = field.validation?.subFields;
+			// `validation` is unvalidated JSON on the seed and registry paths.
+			if (!Array.isArray(subFields) || subFields.length === 0) return "unknown";
+
+			// A duplicated slug keeps its first position and last declaration, as
+			// `generateRepeaterRowSchema`'s `shape[subField.slug]` does.
+			const members = new Map<string, string>();
+
+			for (const subField of subFields) {
+				const type = fieldTypeToTypeScript({
+					type: subField.type,
+					validation: subField.options ? { options: subField.options } : undefined,
+				});
+				// A sub-field slug is not guaranteed to be a valid identifier, so it is
+				// quoted rather than emitted bare.
+				const name = JSON.stringify(subField.slug);
+				// A sub-field that is not required may be null at runtime.
+				members.set(
+					subField.slug,
+					subField.required ? `${name}: ${type}` : `${name}?: ${type} | null`,
+				);
+			}
+
+			return `{ ${[...members.values()].join("; ")} }[]`;
+		}
+
 		case "portableText":
 			return "PortableTextBlock[]";
 
-		case "image":
-			return "{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
+		case "image": {
+			const media =
+				"{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
+			return `${media.slice(0, -2)}; darkVariant?: ${media} }`;
+		}
 
 		case "file":
 			return "{ id: string; url?: string; src?: string; filename?: string; mimeType?: string; size?: number; provider?: string; meta?: Record<string, unknown> }";

@@ -67,6 +67,8 @@ export interface MediaTable {
 	size: number | null;
 	width: number | null;
 	height: number | null;
+	focal_x: number | null;
+	focal_y: number | null;
 	alt: string | null;
 	caption: string | null;
 	storage_key: string;
@@ -76,6 +78,13 @@ export interface MediaTable {
 	dominant_color: string | null;
 	created_at: Generated<string>;
 	author_id: string | null;
+	folder_id: Generated<string | null>;
+}
+
+export interface MediaFolderTable {
+	id: string;
+	name: string;
+	name_key: string;
 }
 
 export interface MediaUploadAttemptTable {
@@ -423,6 +432,7 @@ export interface CollectionTable {
 	title_field: string | null; // field slug for the admin list Title column (NULL = default)
 	date_field: string | null; // field slug (datetime) for the admin list Date column (NULL = default)
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")
+	routable: Generated<number>; // 0 or 1 — published entries require a slug when enabled
 	hidden: Generated<number>; // 0 or 1 — omit the auto-generated admin sidebar entry
 	sort_order: number | null; // explicit admin sidebar position; NULL = alphabetical fallback
 	comments_enabled: Generated<number>; // 0 or 1
@@ -626,6 +636,7 @@ export interface Database {
 	content_taxonomies: ContentTaxonomyTable;
 	_emdash_taxonomy_defs: TaxonomyDefTable;
 	media: MediaTable;
+	media_folders: MediaFolderTable;
 	_emdash_media_upload_attempts: MediaUploadAttemptTable;
 	_emdash_media_usage_sources: MediaUsageSourceTable;
 	_emdash_media_usage: MediaUsageTable;
@@ -684,6 +695,8 @@ export type MediaRow = {
 	size: number | null;
 	width: number | null;
 	height: number | null;
+	focal_x: number | null;
+	focal_y: number | null;
 	alt: string | null;
 	caption: string | null;
 	storage_key: string;
@@ -693,6 +706,7 @@ export type MediaRow = {
 	dominant_color: string | null;
 	created_at: string;
 	author_id: string | null;
+	folder_id: string | null;
 };
 
 export interface RedirectTable {

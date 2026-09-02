@@ -36,6 +36,7 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 		const result = await handleTermList(emdash.db, name, {
 			locale: query.locale,
 			includeCounts: query.includeCounts,
+			resolveFallback: query.resolveFallback,
 		});
 		return unwrapResult(result);
 	} catch (error) {

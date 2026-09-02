@@ -25,7 +25,7 @@ const _packageViewSchema = /*#__PURE__*/ v.object({
 	 */
 	indexedAt: /*#__PURE__*/ v.datetimeString(),
 	/**
-	 * Hydrated labels applying to this package, per the labellers the request asked for via the atproto-accept-labelers header.
+	 * Hydrated trusted label state attached by the aggregator's configured policy.
 	 * @maxLength 64
 	 */
 	get labels() {
@@ -62,12 +62,41 @@ const _packageViewSchema = /*#__PURE__*/ v.object({
 	 */
 	uri: /*#__PURE__*/ v.resourceUriString(),
 });
+const _recordScopedBlobCacheSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.aggregator.defs#recordScopedBlobCache",
+		),
+	),
+	/**
+	 * HTTPS origin of the record-scoped blob cache.
+	 * @maxLength 2048
+	 */
+	serviceEndpoint: /*#__PURE__*/ v.constrain(
+		/*#__PURE__*/ v.genericUriString(),
+		[/*#__PURE__*/ v.stringLength(0, 2048)],
+	),
+});
 const _releaseViewSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
 			"com.emdashcms.experimental.aggregator.defs#releaseView",
 		),
 	),
+	/**
+	 * Blob cache services the aggregator advertises for this release. Clients ignore unrecognised service variants and derive artifact URLs only for public blob refs.
+	 * @maxLength 4
+	 */
+	get artifactCaches() {
+		return /*#__PURE__*/ v.optional(
+			/*#__PURE__*/ v.constrain(
+				/*#__PURE__*/ v.array(
+					/*#__PURE__*/ v.variant([recordScopedBlobCacheSchema]),
+				),
+				[/*#__PURE__*/ v.arrayLength(0, 4)],
+			),
+		);
+	},
 	/**
 	 * CID of the release record content the aggregator indexed.
 	 */
@@ -81,7 +110,7 @@ const _releaseViewSchema = /*#__PURE__*/ v.object({
 	 */
 	indexedAt: /*#__PURE__*/ v.datetimeString(),
 	/**
-	 * Hydrated labels applying to this release, per the labellers the request asked for.
+	 * Hydrated trusted label state attached by the aggregator's configured policy.
 	 * @maxLength 64
 	 */
 	get labels() {
@@ -92,20 +121,6 @@ const _releaseViewSchema = /*#__PURE__*/ v.object({
 			),
 		);
 	},
-	/**
-	 * URLs the aggregator currently serves the primary `package` artifact from. Empty if the aggregator did not mirror this release (e.g. license is non-redistributable). The URL shape is opaque per the aggregator; clients treat them as-is and verify checksums on download.
-	 * @maxLength 16
-	 */
-	mirrors: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.constrain(
-			/*#__PURE__*/ v.array(
-				/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.genericUriString(), [
-					/*#__PURE__*/ v.stringLength(0, 2048),
-				]),
-			),
-			[/*#__PURE__*/ v.arrayLength(0, 16)],
-		),
-	),
 	/**
 	 * Parent package slug. Denormalised convenience.
 	 * @minLength 1
@@ -133,13 +148,20 @@ const _releaseViewSchema = /*#__PURE__*/ v.object({
 });
 
 type packageView$schematype = typeof _packageViewSchema;
+type recordScopedBlobCache$schematype = typeof _recordScopedBlobCacheSchema;
 type releaseView$schematype = typeof _releaseViewSchema;
 
 export interface packageViewSchema extends packageView$schematype {}
+export interface recordScopedBlobCacheSchema extends recordScopedBlobCache$schematype {}
 export interface releaseViewSchema extends releaseView$schematype {}
 
 export const packageViewSchema = _packageViewSchema as packageViewSchema;
+export const recordScopedBlobCacheSchema =
+	_recordScopedBlobCacheSchema as recordScopedBlobCacheSchema;
 export const releaseViewSchema = _releaseViewSchema as releaseViewSchema;
 
 export interface PackageView extends v.InferInput<typeof packageViewSchema> {}
+export interface RecordScopedBlobCache extends v.InferInput<
+	typeof recordScopedBlobCacheSchema
+> {}
 export interface ReleaseView extends v.InferInput<typeof releaseViewSchema> {}

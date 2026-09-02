@@ -21,6 +21,7 @@
 
 import type { Did, Handle } from "@atcute/lexicons";
 import type {
+	ListingStatusResult,
 	ValidatedListReleases,
 	ValidatedPackageView,
 	ValidatedReleaseView,
@@ -28,6 +29,11 @@ import type {
 } from "@emdash-cms/registry-client/discovery";
 import { hostEnvFromVersions } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
+import {
+	registryLabelerPolicy,
+	registryLabelerPolicyKey,
+	type RegistryLabelerPolicy,
+} from "@emdash-cms/registry-client/listing-policy";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
@@ -71,6 +77,7 @@ export interface RegistryClientConfig {
 export type RegistryPackageView = ValidatedPackageView;
 export type RegistryReleaseView = ValidatedReleaseView;
 export type RegistrySearchResult = ValidatedSearchPackages;
+export type RegistryPackageStatus = ListingStatusResult<RegistryPackageView>;
 
 export interface RegistrySearchOpts {
 	q?: string;
@@ -102,6 +109,8 @@ interface WrappedDiscoveryClient {
 	searchPackages: (opts: RegistrySearchOpts) => Promise<RegistrySearchResult>;
 	resolvePackage: (handle: string, slug: string) => Promise<RegistryPackageView>;
 	getPackage: (did: string, slug: string) => Promise<RegistryPackageView>;
+	resolvePackageStatus: (handle: string, slug: string) => Promise<RegistryPackageStatus>;
+	getPackageStatus: (did: string, slug: string) => Promise<RegistryPackageStatus>;
 	getLatestRelease: (did: string, slug: string) => Promise<RegistryReleaseView>;
 	listReleases: (
 		did: string,
@@ -111,15 +120,28 @@ interface WrappedDiscoveryClient {
 }
 
 let cachedDiscovery: {
-	config: RegistryClientConfig;
+	aggregatorUrl: string;
+	policyKey: string;
 	client: WrappedDiscoveryClient;
 } | null = null;
 
+export function effectiveRegistryLabelerPolicy(
+	config: RegistryClientConfig,
+): RegistryLabelerPolicy {
+	return registryLabelerPolicy(config.acceptLabelers);
+}
+
+export function registryQueryPolicyKey(config: RegistryClientConfig): string {
+	return registryLabelerPolicyKey(effectiveRegistryLabelerPolicy(config));
+}
+
 async function getDiscoveryClient(config: RegistryClientConfig): Promise<WrappedDiscoveryClient> {
+	const labelerPolicy = effectiveRegistryLabelerPolicy(config);
+	const policyKey = registryLabelerPolicyKey(labelerPolicy);
 	if (
 		cachedDiscovery &&
-		cachedDiscovery.config.aggregatorUrl === config.aggregatorUrl &&
-		cachedDiscovery.config.acceptLabelers === config.acceptLabelers
+		cachedDiscovery.aggregatorUrl === config.aggregatorUrl &&
+		cachedDiscovery.policyKey === policyKey
 	) {
 		return cachedDiscovery.client;
 	}
@@ -129,6 +151,7 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 	const discovery = new DiscoveryClient({
 		aggregatorUrl: config.aggregatorUrl,
 		acceptLabelers: config.acceptLabelers,
+		labelerPolicy,
 	});
 
 	const wrapped: WrappedDiscoveryClient = {
@@ -153,6 +176,20 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 				slug,
 			});
 		},
+		async resolvePackageStatus(handle: string, slug: string) {
+			return discovery.resolvePackageStatus({
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did/handle shape validated by aggregator
+				handle: handle as Handle,
+				slug,
+			});
+		},
+		async getPackageStatus(did: string, slug: string) {
+			return discovery.getPackageStatus({
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
+				did: did as Did,
+				slug,
+			});
+		},
 		async getLatestRelease(did: string, slug: string) {
 			return discovery.getLatestRelease({
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
@@ -171,7 +208,7 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 		},
 	};
 
-	cachedDiscovery = { config, client: wrapped };
+	cachedDiscovery = { aggregatorUrl: config.aggregatorUrl, policyKey, client: wrapped };
 	return wrapped;
 }
 
@@ -385,6 +422,24 @@ export async function getRegistryPackage(
 	return client.getPackage(did, slug);
 }
 
+export async function resolveRegistryPackageStatus(
+	config: RegistryClientConfig,
+	handle: string,
+	slug: string,
+): Promise<RegistryPackageStatus> {
+	const client = await getDiscoveryClient(config);
+	return client.resolvePackageStatus(handle, slug);
+}
+
+export async function getRegistryPackageStatus(
+	config: RegistryClientConfig,
+	did: string,
+	slug: string,
+): Promise<RegistryPackageStatus> {
+	const client = await getDiscoveryClient(config);
+	return client.getPackageStatus(did, slug);
+}
+
 export async function getLatestRegistryRelease(
 	config: RegistryClientConfig,
 	did: string,
@@ -569,6 +624,8 @@ export type ArtifactKind = "icon" | "banner" | "screenshot";
 export interface ArtifactCoords {
 	did: string;
 	slug: string;
+	/** Exact approved release revision whose descriptor the proxy may serve. */
+	cid: string;
 	version?: string;
 	kind: ArtifactKind;
 	/** Required for `kind: "screenshot"`; ignored otherwise. */
@@ -588,6 +645,7 @@ export function artifactProxyUrl(coords: ArtifactCoords): string {
 	const params = new URLSearchParams();
 	params.set("did", coords.did);
 	params.set("slug", coords.slug);
+	params.set("cid", coords.cid);
 	params.set("kind", coords.kind);
 	if (coords.version) params.set("version", coords.version);
 	if (coords.kind === "screenshot" && coords.index !== undefined) {
@@ -623,8 +681,8 @@ export interface MediaArtifacts {
 
 /**
  * Narrow one entry of a release's `artifacts` map to the fields we render.
- * Returns `null` when the value isn't an object carrying a usable `url`
- * (presence gate), keeping only the dimensions for layout.
+ * Returns `null` when the value does not carry a blob or URL source, keeping
+ * only the dimensions for layout.
  *
  * Records are lexicon-validated at the DiscoveryClient boundary, but
  * `artifacts` is an aggregator pass-through, so each entry still needs
@@ -634,7 +692,9 @@ function asMediaArtifact(value: unknown): MediaArtifact | null {
 	if (!value || typeof value !== "object") return null;
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; field shapes checked below
 	const v = value as Record<string, unknown>;
-	if (typeof v.url !== "string" || v.url.length === 0) return null;
+	const hasUrl = typeof v.url === "string" && v.url.length > 0;
+	const hasBlob = Boolean(v.blob && typeof v.blob === "object");
+	if (!hasUrl && !hasBlob) return null;
 	const artifact: MediaArtifact = {};
 	if (typeof v.width === "number") artifact.width = v.width;
 	if (typeof v.height === "number") artifact.height = v.height;
@@ -644,7 +704,7 @@ function asMediaArtifact(value: unknown): MediaArtifact | null {
 /**
  * Pull icon, banner, and the screenshot gallery out of a release's `artifacts`
  * map, keeping presence and dimensions only. The lexicon types `screenshots`
- * as an array of artifacts; entries without a usable `url` are dropped, and
+ * as an array of artifacts; entries without a usable source are dropped, and
  * gallery order is preserved so screenshot indices line up with the proxy's.
  */
 export function extractMediaArtifacts(artifacts: unknown): MediaArtifacts {

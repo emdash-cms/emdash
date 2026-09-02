@@ -1,7 +1,9 @@
 import { describe, expect, test } from "vitest";
 
 import {
+	fillPullRequestTemplate,
 	renderAgentComment,
+	renderCommandFeedback,
 	renderDraftPrBody,
 	renderPreviewReadyAsk,
 	renderReadonlyReply,
@@ -83,10 +85,14 @@ describe("renderPreviewReadyAsk", () => {
 		const body = ask();
 		expect(body).toContain("<!-- bot-ask: 2026-08-08T00:00:00Z -->");
 		expect(body).toContain("npm i https://pkg.pr.new/emdash@bot/fix-77");
+		expect(body).toContain("[Open the playground preview](https://bot-fix-77.try.emdashcms.com/)");
 		expect(body).toContain("Root cause: the loader drops the locale.");
 		expect(body).toContain("@alice");
 		expect(body).toContain("`bot/fix-77`");
 		expect(body).toContain("`bot/artifacts-77`");
+		expect(body).toContain("`@emdashbot confirm`");
+		expect(body).toContain("`@emdashbot reject <details>`");
+		expect(body).not.toContain('A simple "yes" or "no" is enough.');
 	});
 
 	test("falls back to a generic ask when the reporter login is unknown", () => {
@@ -134,13 +140,43 @@ describe("renderPreviewReadyAsk", () => {
 });
 
 describe("renderDraftPrBody", () => {
-	test("closes the issue, links the verified preview, and flags review", () => {
-		const body = renderDraftPrBody(77);
+	test("tolerates normal wording changes in the pull request template", () => {
+		const template = [
+			"## TYPE OF CHANGE",
+			"",
+			"- [ ] Bug fix (include a regression test)",
+			"- [ ] Feature (link the approved discussion)",
+			"",
+			"## AI-generated code disclosure",
+			"",
+			"- [ ] This PR includes AI-generated code — model/tool: examples may change",
+		].join("\n");
+
+		const completed = fillPullRequestTemplate(template, "bug");
+		expect(completed).toContain("- [x] Bug fix (include a regression test)");
+		expect(completed).toContain("- [ ] Feature (link the approved discussion)");
+		expect(completed).toContain(
+			"- [x] This PR includes AI-generated code — model/tool: emdashbot + Kimi K2.7 Code",
+		);
+	});
+
+	test("fills the GitHub PR template with the bot description and preview", () => {
+		const body = renderDraftPrBody({
+			issueNumber: 77,
+			kind: "bug",
+			description: "Preserves the requested locale when the loader resolves content.",
+		});
+		expect(body).toContain("## What does this PR do?");
+		expect(body).toContain("Preserves the requested locale when the loader resolves content.");
 		expect(body).toContain("Closes #77.");
 		expect(body).toContain("npm i https://pkg.pr.new/emdash@bot/fix-77");
-		expect(body).toContain("candidate change");
-		expect(body).not.toMatch(/candidate fix|regression test/i);
-		expect(body).toContain("draft");
+		expect(body).toContain("## Type of change");
+		expect(body).toContain("- [x] Bug fix");
+		expect(body).toContain("## Checklist");
+		expect(body).toContain("## AI-generated code disclosure");
+		expect(body).toContain("- [x] This PR includes AI-generated code");
+		expect(body).toContain("## Screenshots / test output");
+		expect(body).not.toContain("<!-- Describe the change");
 	});
 });
 
@@ -157,5 +193,28 @@ describe("shouldPostReadonlyReply", () => {
 		expect(shouldPostReadonlyReply(true)).toBe(false);
 		expect(shouldPostReadonlyReply(false)).toBe(true);
 		expect(shouldPostReadonlyReply()).toBe(true);
+	});
+
+	test("help lists the commands available to the actor in the current state", () => {
+		const body = renderReadonlyReply("unmanaged", "help", "maintainer");
+		expect(body).toContain("`@emdashbot fix <directive>`");
+		expect(body).toContain("`@emdashbot implement <directive>`");
+		expect(body).toContain("Build a candidate bug fix");
+	});
+});
+
+describe("renderCommandFeedback", () => {
+	test("explains an unavailable command and lists valid alternatives", () => {
+		const body = renderCommandFeedback("unmanaged", "confirm", "maintainer");
+		expect(body).toContain("`@emdashbot confirm` isn't available");
+		expect(body).toContain("`unmanaged`");
+		expect(body).toContain("`@emdashbot fix <directive>`");
+		expect(body).toContain("`@emdashbot investigate <directive>`");
+	});
+
+	test("does not offer maintainer commands to a reporter", () => {
+		const body = renderCommandFeedback("unmanaged", "investigate", "reporter");
+		expect(body).toContain("can only be used by a maintainer");
+		expect(body).not.toContain("Available now: `@emdashbot fix");
 	});
 });

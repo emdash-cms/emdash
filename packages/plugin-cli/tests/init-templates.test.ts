@@ -253,8 +253,8 @@ describe("renderGitignore", () => {
 describe("renderReadme", () => {
 	it("documents the publish path", () => {
 		const source = renderReadme(FULL_INPUTS);
-		expect(source).toContain("emdash-plugin bundle");
 		expect(source).toContain("emdash-plugin publish");
+		expect(source).toContain("uploads artifacts to your PDS");
 	});
 
 	it("documents version-bump rules for the trust contract", () => {

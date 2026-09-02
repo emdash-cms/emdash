@@ -60,10 +60,19 @@ export {
 	type MediaListResponse,
 	type MediaResponse,
 } from "./media.js";
+export {
+	handleMediaFolderList,
+	handleMediaFolderGet,
+	handleMediaFolderCreate,
+	handleMediaFolderUpdate,
+	handleMediaFolderDelete,
+} from "./media-folders.js";
 
 export {
 	aggregateMediaUsageCoverageStatus,
 	handleMediaUsageDetails,
+	handleMediaUsageProgress,
+	handleMediaUsageProgressAdvance,
 	handleMediaUsageSummaries,
 	handleMediaUsageRepair,
 	toMediaUsageRepairResponse,
@@ -72,10 +81,17 @@ export {
 	type MediaUsageDetailsResponse,
 	type MediaUsageEntryDetail,
 	type MediaUsageOccurrenceDetail,
+	type MediaUsageProgress,
+	type MediaUsageProgressAdvanceResponse,
 	type MediaUsageRepairResponse,
 	type MediaUsageSourceDetail,
 	type MediaUsageSummary,
 } from "./media-usage.js";
+
+export {
+	handleMediaUsageActivationAdvance,
+	handleMediaUsageActivationStatus,
+} from "./media-usage-activation.js";
 
 export {
 	handleMediaUsageWorkList,
@@ -99,6 +115,7 @@ export {
 	handleSchemaFieldCreate,
 	handleSchemaFieldUpdate,
 	handleSchemaFieldDelete,
+	handleSchemaCollectionReorder,
 	handleSchemaFieldReorder,
 	handleOrphanedTableList,
 	handleOrphanedTableRegister,
