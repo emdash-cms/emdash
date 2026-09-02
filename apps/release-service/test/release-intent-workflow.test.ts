@@ -115,6 +115,9 @@ const PROFILE_PROOF =
 	"OqJlcm9vdHOB2CpYJQABcRIgDvmOi+nZTPwAHpDNlC2y2J7fUQ1ApZKJRa48jp934NBndmVyc2lvbgHdAQFxEiAO+Y6L6dlM/AAekM2ULbLYnt9RDUClkolFrjyOn3fg0KZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211NXFhZHRwazIybWNzaWdYQKq7vfiaEIAWBU/mBxVb+dRselfs/o/vLWgXiiWtBrrBIT9LTKTG8Ylh5LuryHBu1Xx0m0Zu/FeAL7dzSrbBs9tkZGF0YdgqWCUAAXESICPWWGKAvX12s+8YBNB6iLwFl8YMr6smSZpFoaG8aBsnZHByZXb2Z3ZlcnNpb24DkwEBcRIgI9ZYYoC9fXaz7xgE0HqIvAWXxgyvqyZJmkWhobxoGyeiYWWBpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIg75HAxLI29zFxT2IAMP+6xED3Uxy3mslLTuujJkBV1nphbPbQAwFxEiDvkcDEsjb3MXFPYgAw/7rEQPdTHLeayUtO66MmQFXWeqhiaWR4VWF0Oi8vZGlkOndlYjpwdWJsaXNoZXIuZXhhbXBsZS5jb20vY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlL2dhbGxlcnlkbmFtZWdHYWxsZXJ5ZHR5cGVtZW1kYXNoLXBsdWdpbmUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlZ2F1dGhvcnOBoWRuYW1lcUV4YW1wbGUgUHVibGlzaGVyZ2xpY2Vuc2VjTUlUaHNlY3VyaXR5gaFlZW1haWx0c2VjdXJpdHlAZXhhbXBsZS5jb21qZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbqJlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbmpyZXBvc2l0b3J5eCJodHRwczovL2dpdGh1Yi5jb20vZXhhbXBsZS9nYWxsZXJ5";
 const APPROVAL_PROFILE_PROOF =
 	"OqJlcm9vdHOB2CpYJQABcRIgt4Be/ylpOhy2o33XFr7JATwH2VmFRzL6VB4p2I0MSzVndmVyc2lvbgHdAQFxEiC3gF7/KWk6HLajfdcWvskBPAfZWYVHMvpUHinYjQxLNaZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211NXFhZHR6Y2sybWNzaWdYQBg2vVFiuGjkb1Q9TukMNZFbFZ/xXo5d8a6UZnGNnq/FIGQMPMH+RiEl+yhSvATZ9KnIQ2ujZ5q5qkjKyu5t6XhkZGF0YdgqWCUAAXESIGduRlvZ/Lua96nilhYmPVcpLg+ZjEa4kIialhQmHwB0ZHByZXb2Z3ZlcnNpb24DkwEBcRIgZ25GW9n8u5r3qeKWFiY9VykuD5mMRriQiJqWFCYfAHSiYWWBpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIgrKiSWBl9zSDvo1PXTnK3qUZGccnZeweHtjm0xemh2J5hbPaPBAFxEiCsqJJYGX3NIO+jU9dOcrepRkZxydl7B4e2ObTF6aHYnqhiaWR4VWF0Oi8vZGlkOndlYjpwdWJsaXNoZXIuZXhhbXBsZS5jb20vY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlL2dhbGxlcnlkbmFtZWdHYWxsZXJ5ZHR5cGVtZW1kYXNoLXBsdWdpbmUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlZ2F1dGhvcnOBoWRuYW1lcUV4YW1wbGUgUHVibGlzaGVyZ2xpY2Vuc2VjTUlUaHNlY3VyaXR5gaFlZW1haWx0c2VjdXJpdHlAZXhhbXBsZS5jb21qZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbqNlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbmpyZXBvc2l0b3J5eCJodHRwczovL2dpdGh1Yi5jb20vZXhhbXBsZS9nYWxsZXJ5bXJlbGVhc2VQb2xpY3miaWFwcHJvdmVyc4FwZGlkOnBsYzphcHByb3Zlcmxjb25maXJtYXRpb25mYWx3YXlz";
+const ESCALATION_ONLY_PROFILE_PROOF =
+	"OqJlcm9vdHOB2CpYJQABcRIg9qJp06k9Bpe+jLKRiea83D3qgyuWI1PLK7ZIuHEC+z9ndmVyc2lvbgHdAQFxEiD2omnTqT0Gl76MspGJ5rzcPeqDK5YjU8srtki4cQL7P6ZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211amt6dHZwamMyeGNzaWdYQCWWVx/ubT52wRrIeUXNKyG88VYq3qksj4dMdk1V+fmAeR9K1vt3fK1vmpfvG2eVBWEmfNkxExHnHal22FDev6JkZGF0YdgqWCUAAXESINF8ERKM5sXJ8zAdcMaArpcVuqgGvseuNQmec5MYvHnQZHByZXb2Z3ZlcnNpb24DkwEBcRIg0XwREozmxcnzMB1wxoCulxW6qAa+x641CZ5zkxi8edCiYWWBpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIgN+KakpY3MooEiEzdUFA1gQ7vaaorJdv7QEQF4jxZ9t9hbPaYBAFxEiA34pqSljcyigSITN1QUDWBDu9pqisl2/tARAXiPFn236hiaWR4VWF0Oi8vZGlkOndlYjpwdWJsaXNoZXIuZXhhbXBsZS5jb20vY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlL2dhbGxlcnlkbmFtZWdHYWxsZXJ5ZHR5cGVtZW1kYXNoLXBsdWdpbmUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlZ2F1dGhvcnOBoWRuYW1lcUV4YW1wbGUgUHVibGlzaGVyZ2xpY2Vuc2VjTUlUaHNlY3VyaXR5gaFlZW1haWx0c2VjdXJpdHlAZXhhbXBsZS5jb21qZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbqNlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbmpyZXBvc2l0b3J5eCJodHRwczovL2dpdGh1Yi5jb20vZXhhbXBsZS9nYWxsZXJ5bXJlbGVhc2VQb2xpY3miaWFwcHJvdmVyc4FwZGlkOnBsYzphcHByb3Zlcmxjb25maXJtYXRpb25vZXNjYWxhdGlvbi1vbmx5";
+const ESCALATION_ONLY_SIGNING_KEY = "zDnaekRBnvWmwwGibpSzPHpH1rvvZZXB6APVS4tHEccxMBEDc";
 const PROVENANCE = {
 	predicateType: "https://slsa.dev/provenance/v1",
 	url: "https://github.com/example/gallery/attestation.sigstore.json",
@@ -186,6 +189,19 @@ function releaseRecord() {
 	release.artifacts.package.checksum = ARTIFACT_CHECKSUM;
 	release.extensions[NSID.packageReleaseExtension]!.provenance = PROVENANCE;
 	return release;
+}
+
+const NETWORK_ACCESS = { network: { request: {} } } as const;
+
+function baselineRelease(version: string, declaredAccess: Record<string, unknown>) {
+	const value = releaseRecord();
+	value.version = version;
+	value.extensions[NSID.packageReleaseExtension]!.declaredAccess = declaredAccess;
+	return {
+		uri: `at://${PUBLISHER_DID}/${NSID.packageRelease}/gallery:${version}`,
+		cid: `bafygallery${version.replaceAll(".", "")}`,
+		value,
+	};
 }
 
 async function fullReleaseRecord() {
@@ -930,6 +946,65 @@ describe("ReleaseIntentWorkflow", () => {
 		await expect(
 			env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(PUBLISHER_DID, INTENT_ID),
 		).resolves.toMatchObject({ state: "invalid" });
+	}, 15_000);
+
+	it("does not reintroduce access after a capability-removing release changes the baseline", async () => {
+		let baseline = baselineRelease("1.0.0", NETWORK_ACCESS);
+		let createAttempts = 0;
+		let removalPublished = false;
+		const release = releaseRecord();
+		release.artifacts.package.url =
+			"https://github.com/example/gallery/releases/download/v1.2.3/gallery.tar.gz?declaredAccess=network";
+		release.extensions[NSID.packageReleaseExtension]!.declaredAccess = NETWORK_ACCESS;
+		vi.stubGlobal(
+			"fetch",
+			workflowNetwork({
+				profileProof: ESCALATION_ONLY_PROFILE_PROOF,
+				signingKey: () => ESCALATION_ONLY_SIGNING_KEY,
+				listedReleases: () => [baseline],
+				onAuthorizationMetadata: () => {
+					baseline = baselineRelease("1.1.0", {});
+					removalPublished = true;
+				},
+				onCreateRecord: () => {
+					createAttempts += 1;
+					return Response.json({ uri: CREATED_URI, cid: CREATED_CID });
+				},
+			}),
+		);
+		await createVerifyingIntent(true, JSON.stringify({ release }));
+		await using introspector = await introspectWorkflowInstance(
+			env.RELEASE_INTENT_WORKFLOW,
+			INTENT_ID,
+		);
+		await env.RELEASE_INTENT_WORKFLOW.create({
+			id: INTENT_ID,
+			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+		});
+		await introspector.waitForStatus("complete");
+
+		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+		const decision = await publisher.getVerificationStep(
+			PUBLISHER_DID,
+			INTENT_ID,
+			"policy-decision",
+		);
+		expect(JSON.parse(decision?.resultJson ?? "null")).toMatchObject({
+			requiresApproval: false,
+			approvalEvidence: { baselineReleaseCid: "bafygallery100" },
+		});
+		expect(
+			(await publisher.listIntentTransitions(PUBLISHER_DID, INTENT_ID)).map(
+				(transition) => transition.toState,
+			),
+		).not.toContain("awaiting_approval");
+		expect(removalPublished).toBe(true);
+		expect(createAttempts).toBe(0);
+		await expect(introspector.getOutput()).resolves.toEqual({
+			intentId: INTENT_ID,
+			state: "failed",
+			reasonCode: "FINAL_VERIFICATION_CHANGED",
+		});
 	}, 15_000);
 
 	it("uses a fresh permit and publication generation after each confirmed absence", async () => {

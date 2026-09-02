@@ -34,7 +34,10 @@ export default defineConfig({
 												manifest: {
 													id: input.artifact.packageSlug,
 													version: input.artifact.version,
-													declaredAccess: {},
+													declaredAccess:
+														new URL(input.artifact.url).searchParams.get("declaredAccess") === "network"
+															? { network: { request: {} } }
+															: {},
 												},
 												bundle: { backendBytes: 100, adminBytes: null },
 											},

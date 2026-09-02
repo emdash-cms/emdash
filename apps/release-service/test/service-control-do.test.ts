@@ -6,11 +6,15 @@ import type { AccessActor } from "../src/access/auth.js";
 import {
 	SERVICE_CONTROL_OBJECT_NAME,
 	type ActivateEncryptionKeyInput,
+	type IssuePublicationPermitInput,
 	type SetServiceModeInput,
 } from "../src/control-do/service-control-do.js";
 
 const DID = "did:plc:publisher";
 const INTENT_ID = "intent-01JABCDEFGHJKMNPQRSTVWXYZ";
+const PACKAGE_SLUG = "gallery";
+const PROFILE_CID = "bafyprofile";
+const BASELINE_CID = "bafybaseline";
 const NOW = 1_800_000_000_000;
 const VIEWER = {
 	realm: "access",
@@ -49,6 +53,22 @@ function activationInput(
 		requestDigest: "K".repeat(43),
 		version: 2,
 		now: NOW + 1,
+		...overrides,
+	};
+}
+
+function permitInput(
+	overrides: Partial<IssuePublicationPermitInput> = {},
+): IssuePublicationPermitInput {
+	return {
+		publisherDid: DID,
+		intentId: INTENT_ID,
+		packageSlug: PACKAGE_SLUG,
+		profileCid: PROFILE_CID,
+		baselineCid: BASELINE_CID,
+		ttlMs: 5_000,
+		encryptionKeyVersion: 1,
+		now: NOW,
 		...overrides,
 	};
 }
@@ -222,7 +242,7 @@ describe("ServiceControlDurableObject", () => {
 			mode: "admission-paused",
 			code: "ADMISSION_PAUSED",
 		});
-		const admittedPermit = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, 1, NOW + 1);
+		const admittedPermit = await stub.issuePublicationPermit(permitInput({ now: NOW + 1 }));
 		expect(admittedPermit).toMatchObject({ ok: true, permit: { modeEpoch: 2 } });
 
 		await stub.setServiceMode(
@@ -238,7 +258,7 @@ describe("ServiceControlDurableObject", () => {
 			mode: "publication-paused",
 			code: null,
 		});
-		await expect(stub.issuePublicationPermit(DID, INTENT_ID, 5_000, 1, NOW + 3)).resolves.toEqual({
+		await expect(stub.issuePublicationPermit(permitInput({ now: NOW + 3 }))).resolves.toEqual({
 			ok: false,
 			code: "PUBLICATION_PAUSED",
 		});
@@ -246,14 +266,23 @@ describe("ServiceControlDurableObject", () => {
 
 	it("issues a bound permit that can be consumed exactly once", async () => {
 		const stub = control();
-		await expect(stub.issuePublicationPermit(DID, INTENT_ID, 5_000, 2, NOW)).resolves.toEqual({
+		await expect(
+			stub.issuePublicationPermit(permitInput({ encryptionKeyVersion: 2 })),
+		).resolves.toEqual({
 			ok: false,
 			code: "ENCRYPTION_KEY_INACTIVE",
 		});
-		const issued = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, 1, NOW);
+		const issued = await stub.issuePublicationPermit(permitInput());
 		expect(issued.ok).toBe(true);
 		if (!issued.ok) return;
 
+		await expect(
+			stub.consumePublicationPermit({
+				...issued.permit,
+				baselineCid: "bafydifferent",
+				now: NOW + 1,
+			}),
+		).resolves.toEqual({ ok: false, code: "PERMIT_INVALID" });
 		await expect(
 			stub.consumePublicationPermit({
 				...issued.permit,
@@ -277,7 +306,7 @@ describe("ServiceControlDurableObject", () => {
 
 	it("invalidates a cached permit when the service mode epoch changes", async () => {
 		const stub = control();
-		const issued = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, 1, NOW);
+		const issued = await stub.issuePublicationPermit(permitInput());
 		expect(issued.ok).toBe(true);
 		if (!issued.ok) return;
 		await stub.setServiceMode(
@@ -291,7 +320,7 @@ describe("ServiceControlDurableObject", () => {
 
 	it("suspends publisher admission and invalidates outstanding permits", async () => {
 		const stub = control();
-		const issued = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, 1, NOW);
+		const issued = await stub.issuePublicationPermit(permitInput());
 		expect(issued.ok).toBe(true);
 		if (!issued.ok) return;
 
@@ -313,7 +342,9 @@ describe("ServiceControlDurableObject", () => {
 			allowed: false,
 			code: "PUBLISHER_SUSPENDED",
 		});
-		await expect(stub.issuePublicationPermit(DID, "intent-2", 5_000, 1, NOW + 2)).resolves.toEqual({
+		await expect(
+			stub.issuePublicationPermit(permitInput({ intentId: "intent-2", now: NOW + 2 })),
+		).resolves.toEqual({
 			ok: false,
 			code: "PUBLISHER_SUSPENDED",
 		});
@@ -324,7 +355,7 @@ describe("ServiceControlDurableObject", () => {
 
 	it("never persists a plaintext permit token", async () => {
 		const stub = control();
-		const issued = await stub.issuePublicationPermit(DID, INTENT_ID, 5_000, 1, NOW);
+		const issued = await stub.issuePublicationPermit(permitInput());
 		expect(issued.ok).toBe(true);
 		if (!issued.ok) return;
 
@@ -346,7 +377,7 @@ describe("ServiceControlDurableObject", () => {
 	it("cleans expired permits and operator idempotency with its alarm", async () => {
 		const stub = control();
 		const oldNow = Date.now() - 24 * 60 * 60_000 - 1_000;
-		await stub.issuePublicationPermit(DID, INTENT_ID, 1, 1, oldNow);
+		await stub.issuePublicationPermit(permitInput({ ttlMs: 1, now: oldNow }));
 		await stub.setServiceMode(
 			modeInput({
 				mode: "admission-paused",

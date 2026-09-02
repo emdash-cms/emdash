@@ -23,6 +23,15 @@ import {
 	type ApplyPublisherRestorePageResult,
 } from "./operations-restore.js";
 import {
+	initializePublicationCoordinationSchema,
+	PublicationCoordinationStore,
+	type AcquirePublicationCoordinationResult,
+	type ReleasePublicationCoordinationInput,
+	type ReleasePublicationCoordinationResult,
+	type RenewPublicationCoordinationInput,
+	type RenewPublicationCoordinationResult,
+} from "./publication-coordination.js";
+import {
 	initializePublicationMaterializationSchema,
 	PublicationMaterializationStore,
 	type CompletePublicationMaterializationInput,
@@ -86,6 +95,14 @@ export type {
 	TransitionIntentInput,
 	TransitionIntentResult,
 } from "./intent-state.js";
+export type {
+	AcquirePublicationCoordinationResult,
+	PublicationCoordinationLease,
+	ReleasePublicationCoordinationInput,
+	ReleasePublicationCoordinationResult,
+	RenewPublicationCoordinationInput,
+	RenewPublicationCoordinationResult,
+} from "./publication-coordination.js";
 export type {
 	CompletePublicationMaterializationInput,
 	PublicationArtifactSlot,
@@ -536,6 +553,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 	readonly #objectName: string | undefined;
 	readonly #workloadPolicies: WorkloadPolicyStore;
 	readonly #intents: IntentStateStore;
+	readonly #publicationCoordinations: PublicationCoordinationStore;
 	readonly #publicationMaterializations: PublicationMaterializationStore;
 	readonly #publicationOperations: PublicationOperationStore;
 	readonly #verificationSteps: VerificationStepStore;
@@ -548,6 +566,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		this.#objectName = ctx.id.name;
 		this.#workloadPolicies = new WorkloadPolicyStore(ctx.storage);
 		this.#intents = new IntentStateStore(ctx.storage);
+		this.#publicationCoordinations = new PublicationCoordinationStore(ctx.storage);
 		this.#publicationMaterializations = new PublicationMaterializationStore(ctx.storage);
 		this.#publicationOperations = new PublicationOperationStore(ctx.storage);
 		this.#verificationSteps = new VerificationStepStore(ctx.storage);
@@ -635,6 +654,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		`);
 		initializeWorkloadPolicySchema(this.ctx.storage);
 		initializeIntentStateSchema(this.ctx.storage);
+		initializePublicationCoordinationSchema(this.ctx.storage);
 		initializePublicationMaterializationSchema(this.ctx.storage);
 		initializePublicationOperationSchema(this.ctx.storage);
 		initializeVerificationStepSchema(this.ctx.storage);
@@ -944,6 +964,45 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			now,
 		);
 		await this.#scheduleNextAlarm(now);
+		return result;
+	}
+
+	async acquirePublicationCoordination(
+		publisherDid: string,
+		packageSlug: string,
+		intentId: string,
+		leaseMs: number,
+		token: string,
+		now = Date.now(),
+	): Promise<AcquirePublicationCoordinationResult> {
+		this.#assertPublisherDid(publisherDid);
+		const result = await this.#publicationCoordinations.acquire(
+			publisherDid,
+			packageSlug,
+			intentId,
+			leaseMs,
+			token,
+			now,
+		);
+		await this.#scheduleNextAlarm(now);
+		return result;
+	}
+
+	async renewPublicationCoordination(
+		input: RenewPublicationCoordinationInput,
+	): Promise<RenewPublicationCoordinationResult> {
+		this.#assertPublisherDid(input.publisherDid);
+		const result = await this.#publicationCoordinations.renew(input);
+		await this.#scheduleNextAlarm(input.now ?? Date.now());
+		return result;
+	}
+
+	async releasePublicationCoordination(
+		input: ReleasePublicationCoordinationInput,
+	): Promise<ReleasePublicationCoordinationResult> {
+		this.#assertPublisherDid(input.publisherDid);
+		const result = await this.#publicationCoordinations.release(input);
+		await this.#scheduleNextAlarm(input.now ?? Date.now());
 		return result;
 	}
 
@@ -1441,6 +1500,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			this.ctx.storage.sql.exec("DELETE FROM release_reservations");
 			this.ctx.storage.sql.exec("DELETE FROM intent_idempotency");
 			this.ctx.storage.sql.exec("DELETE FROM publication_operations");
+			this.ctx.storage.sql.exec("DELETE FROM publication_coordinations");
 			this.ctx.storage.sql.exec("DELETE FROM deadlines");
 			this.ctx.storage.sql.exec("DELETE FROM intents");
 			this.ctx.storage.sql.exec("DELETE FROM workload_policies");
@@ -2010,6 +2070,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		const candidates = this.ctx.storage.sql
 			.exec<{
 				operation_deadline: number | null;
+				coordination_deadline: number | null;
 				oauth_expiry: number | null;
 				session_expiry: number | null;
 				idempotency_expiry: number | null;
@@ -2019,6 +2080,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			}>(
 				`SELECT
 					(SELECT MIN(scheduled_at) FROM deadlines) AS operation_deadline,
+					(SELECT MIN(expires_at) FROM publication_coordinations) AS coordination_deadline,
 					(SELECT MIN(expires_at) FROM oauth_states) AS oauth_expiry,
 					(SELECT MIN(expires_at) FROM publisher_sessions) AS session_expiry,
 					(SELECT MIN(expires_at) FROM intent_idempotency) AS idempotency_expiry,
@@ -2044,6 +2106,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 
 	override async alarm(): Promise<void> {
 		const now = Date.now();
+		this.#publicationCoordinations.recoverExpired(now);
 		this.#publicationOperations.recoverExpired(now);
 		const publisherDid = this.#objectName;
 		if (publisherDid !== undefined) {
