@@ -6,8 +6,7 @@ import type {
 	EncryptionRecordReplacement,
 } from "../operations/encryption-records.js";
 import { MAX_ENCRYPTION_RECORD_PAGE } from "../operations/encryption-records.js";
-import { digestWorkloadIdentity } from "../workload/policy.js";
-import { parseStoredWorkloadIdentity } from "../workload/types.js";
+import { parseStoredWorkloadIdentity } from "../workload/stored-identity.js";
 import {
 	initializeIntentStateSchema,
 	IntentStateStore,
@@ -1108,12 +1107,17 @@ export class PublisherDurableObject extends DurableObject<Env> {
 	): Promise<AdvancePublicationOperationPhaseResult> {
 		this.#assertPublisherDid(input.publisherDid);
 		const intent = input.phase === "creating" ? this.#intents.get(input.intentId) : null;
-		const identity = intent ? parseStoredWorkloadIdentity(intent.workloadIdentityJson) : null;
+		const identity = intent
+			? await parseStoredWorkloadIdentity(
+					intent.workloadIdentityJson,
+					intent.workloadIdentityDigest,
+				)
+			: null;
 		const authorization =
 			intent && identity
 				? {
 						identity,
-						identityDigest: await digestWorkloadIdentity(identity),
+						identityDigest: intent.workloadIdentityDigest,
 						identityJson: intent.workloadIdentityJson,
 					}
 				: null;
