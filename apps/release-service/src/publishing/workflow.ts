@@ -36,6 +36,7 @@ import {
 	readPublisherVerificationSnapshot,
 	resolvePublicHostname,
 	resolvePublisherPds,
+	samePdsOrigin,
 } from "../verification/pds.js";
 import { verifyReleaseEvidence } from "../verification/staged-input.js";
 import { createReleaseRecord, uploadReleaseBlob } from "./create-only.js";
@@ -377,13 +378,13 @@ async function requireCurrentPublicationAudience(
 ): Promise<void> {
 	const token = await restored.session.getTokenInfo(false);
 	const currentPds = await resolvePublisherPds(publisherDid);
-	if (new URL(token.aud).href === currentPds) return;
+	if (samePdsOrigin(token.aud, currentPds)) return;
 	await publisher.requireDelegationReauthorization(
 		publisherDid,
 		restored.delegationVersion,
 		"OAUTH_SESSION_INVALID",
 	);
-	throw new OAuthCustodyError("OAUTH_DELEGATION_UNAVAILABLE");
+	throw new NonRetryableError("OAUTH_DELEGATION_UNAVAILABLE");
 }
 
 async function transition(

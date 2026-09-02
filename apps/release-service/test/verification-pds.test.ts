@@ -7,6 +7,7 @@ import {
 	findAuthoritativeRelease,
 	PublisherSnapshotError,
 	readPublisherVerificationSnapshot,
+	samePdsOrigin,
 } from "../src/verification/pds.js";
 
 const PUBLISHER_DID = "did:plc:publisher";
@@ -118,6 +119,13 @@ function releaseFetch(record: ReturnType<typeof release> | null, options: { erro
 			: Response.json({ error: options.error ?? "RecordNotFound" }, { status: 400 });
 	};
 }
+
+describe("PDS origin identity", () => {
+	it("treats canonical URL variants as the same resource server", () => {
+		expect(samePdsOrigin("https://pds.example.com", "https://PDS.EXAMPLE.COM:443/")).toBe(true);
+		expect(samePdsOrigin("https://pds.example.com", "https://pds.example.com:8443/")).toBe(false);
+	});
+});
 
 describe("publisher verification snapshot", () => {
 	it("uses a signed repository proof instead of an unverified profile response", async () => {

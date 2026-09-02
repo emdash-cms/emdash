@@ -57,6 +57,10 @@ export class PublisherSnapshotError extends Error {
 	}
 }
 
+export function samePdsOrigin(left: string, right: string): boolean {
+	return new URL(left).origin === new URL(right).origin;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
