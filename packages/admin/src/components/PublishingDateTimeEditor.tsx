@@ -253,14 +253,16 @@ export function PublishingScheduleDialog({
 	};
 
 	const title = isEditing
-		? t`Edit schedule`
+		? t`Change schedule`
 		: isLive
-			? t`Schedule updates`
+			? t`Schedule changes`
 			: t`Schedule publication`;
 	const description = isLive
-		? t`Your current version stays live until these changes publish.`
-		: t`Choose when this version should go live.`;
-	const submitLabel = isEditing ? t`Update schedule` : isLive ? t`Schedule updates` : t`Schedule`;
+		? t`Choose when these changes replace the live version.`
+		: isEditing
+			? t`Choose a new publication time for this draft.`
+			: t`Choose when this draft becomes public.`;
+	const submitLabel = isEditing ? t`Save schedule` : isLive ? t`Schedule changes` : t`Schedule`;
 
 	return (
 		<Dialog.Root open={open} onOpenChange={handleOpenChange}>

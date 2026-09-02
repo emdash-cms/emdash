@@ -1019,12 +1019,12 @@ describe("SettingsActionBar", () => {
 			.toBeInTheDocument();
 	});
 
-	it("shows Publish updates now for a live item with edits and no schedule option", async () => {
+	it("shows Publish changes now for a live item with edits and no schedule option", async () => {
 		const props = makeBarProps({ isLive: true, hasPendingChanges: true });
 		const screen = await render(<SettingsActionBar {...props} />);
 
 		const publishChanges = screen.getByRole("button", {
-			name: "Publish updates now",
+			name: "Publish changes now",
 			exact: true,
 		});
 		await expect.element(publishChanges).toBeInTheDocument();
@@ -1080,7 +1080,7 @@ describe("SettingsActionBar", () => {
 			screen.getByRole("button", { name: "Saved" }).element(),
 			screen.getByRole("link", { name: "Live View" }).element(),
 			screen.getByRole("button", { name: "Preview draft" }).element(),
-			screen.getByRole("button", { name: "Publish updates now", exact: true }).element(),
+			screen.getByRole("button", { name: "Publish changes now", exact: true }).element(),
 		];
 		const slots = actions.map((action) => action.parentElement);
 

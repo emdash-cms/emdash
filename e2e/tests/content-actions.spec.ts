@@ -155,7 +155,7 @@ test.describe("Schedule content", () => {
 		const scheduledButton = page.getByRole("button", { name: "Scheduled", exact: true });
 		await expect(scheduledButton).toBeVisible();
 		await scheduledButton.click();
-		await expect(page.getByRole("menuitem", { name: /Edit schedule/ })).toBeVisible();
+		await expect(page.getByRole("menuitem", { name: /Change schedule/ })).toBeVisible();
 		await expect(page.getByRole("menuitem", { name: /Remove schedule/ })).toBeVisible();
 	});
 
@@ -242,10 +242,12 @@ test.describe("Schedule content", () => {
 		expect(publicHtml).toContain("Schedule Test Post");
 		expect(publicHtml).not.toContain("Scheduled Draft Update");
 
-		await page.getByRole("button", { name: "Publish updates", exact: true }).click();
-		await page.getByRole("menuitem", { name: /Schedule updates/ }).click();
-		const dialog = page.getByRole("dialog", { name: "Schedule updates" });
-		await expect(dialog.getByText(/current version stays live/)).toBeVisible();
+		await page.getByRole("button", { name: "Publish changes", exact: true }).click();
+		await page.getByRole("menuitem", { name: /Schedule changes/ }).click();
+		const dialog = page.getByRole("dialog", { name: "Schedule changes" });
+		await expect(
+			dialog.getByText("Choose when these changes replace the live version.", { exact: true }),
+		).toBeVisible();
 		await dialog.getByRole("button", { name: /Tomorrow at/ }).click();
 		const scheduleResponse = page.waitForResponse(
 			(res) =>
@@ -254,10 +256,10 @@ test.describe("Schedule content", () => {
 				res.status() === 200,
 			{ timeout: 10000 },
 		);
-		await dialog.getByRole("button", { name: "Schedule updates", exact: true }).click();
+		await dialog.getByRole("button", { name: "Schedule changes", exact: true }).click();
 		await scheduleResponse;
 
-		await expect(page.getByRole("button", { name: "Update scheduled", exact: true })).toBeVisible({
+		await expect(page.getByRole("button", { name: "Scheduled update", exact: true })).toBeVisible({
 			timeout: 5000,
 		});
 		await expect(
@@ -271,7 +273,7 @@ test.describe("Schedule content", () => {
 		expect(publicHtml).toContain("Schedule Test Post");
 		expect(publicHtml).not.toContain("Scheduled Draft Update");
 
-		await page.getByRole("button", { name: "Update scheduled", exact: true }).click();
+		await page.getByRole("button", { name: "Scheduled update", exact: true }).click();
 		const unscheduleResponse = page.waitForResponse(
 			(res) =>
 				SCHEDULE_API_PATTERN.test(res.url()) &&
@@ -282,7 +284,7 @@ test.describe("Schedule content", () => {
 		await page.getByRole("menuitem", { name: /Remove schedule/ }).click();
 		await unscheduleResponse;
 
-		await expect(page.getByRole("button", { name: "Publish updates", exact: true })).toBeVisible({
+		await expect(page.getByRole("button", { name: "Publish changes", exact: true })).toBeVisible({
 			timeout: 5000,
 		});
 		await expect(

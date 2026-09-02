@@ -1897,7 +1897,7 @@ describe("ContentEditor", () => {
 				.toBeInTheDocument();
 		});
 
-		it("labels live draft actions as publishing updates", async () => {
+		it("labels live draft actions as publishing changes", async () => {
 			const screen = await renderEditor({
 				isNew: false,
 				item: makeItem({
@@ -1910,14 +1910,26 @@ describe("ContentEditor", () => {
 				onSchedule: vi.fn(),
 			});
 
-			await screen.getByRole("button", { name: "Publish updates", exact: true }).click();
+			await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
 
 			await expect
-				.element(screen.getByRole("menuitem", { name: /Publish updates now/ }))
+				.element(screen.getByRole("menuitem", { name: /Publish changes now/ }))
 				.toBeInTheDocument();
 			await expect
-				.element(screen.getByRole("menuitem", { name: /Schedule updates/ }))
+				.element(screen.getByRole("menuitem", { name: /Schedule changes/ }))
 				.toBeInTheDocument();
+			await expect
+				.element(screen.getByText("Make draft changes visible now", { exact: true }))
+				.toBeVisible();
+			await expect
+				.element(screen.getByText("Choose when changes go live", { exact: true }))
+				.toBeVisible();
+
+			await screen.getByRole("menuitem", { name: /Schedule changes/ }).click();
+			const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
+			await expect
+				.element(dialog.getByText("Choose when these changes replace the live version."))
+				.toBeVisible();
 		});
 
 		it("groups immediate publish and schedule management for scheduled content", async () => {
@@ -1938,7 +1950,7 @@ describe("ContentEditor", () => {
 				.element(screen.getByRole("menuitem", { name: /Publish now/ }))
 				.toBeInTheDocument();
 			await expect
-				.element(screen.getByRole("menuitem", { name: /Edit schedule/ }))
+				.element(screen.getByRole("menuitem", { name: /Change schedule/ }))
 				.toBeInTheDocument();
 			await expect
 				.element(screen.getByRole("menuitem", { name: /Remove schedule/ }))

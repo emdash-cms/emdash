@@ -462,6 +462,7 @@ export function PublishActions({
 	const state =
 		publishingState ??
 		(isLive ? (hasPendingChanges ? "published-with-changes" : "published") : "draft");
+	const hasDraftChanges = state === "published-with-changes" || state === "update-scheduled";
 	const closeMenu = () => {
 		setOpen(false);
 		onMenuOpenChange?.(false);
@@ -492,20 +493,12 @@ export function PublishActions({
 	if (onPublish) {
 		actions.push({
 			kind: "publish",
-			label:
-				state === "published-with-changes" ||
-				state === "update-scheduled" ||
-				state === "published-scheduled"
-					? t`Publish updates now`
-					: t`Publish now`,
-			description:
-				state === "published-with-changes" ||
-				state === "update-scheduled" ||
-				state === "published-scheduled"
-					? t`Replace the current live version`
-					: state === "scheduled"
-						? t`Go live before the scheduled time`
-						: t`Make this version live immediately`,
+			label: hasDraftChanges ? t`Publish changes now` : t`Publish now`,
+			description: state.includes("scheduled")
+				? t`Publish before the scheduled time`
+				: hasDraftChanges
+					? t`Make draft changes visible now`
+					: t`Make this draft visible now`,
 			Icon: Upload,
 			onSelect: publish,
 		});
@@ -514,7 +507,7 @@ export function PublishActions({
 		actions.push({
 			kind: "schedule",
 			label: t`Schedule publication`,
-			description: t`Choose a future date and time`,
+			description: t`Choose when this draft goes live`,
 			Icon: CalendarPlus,
 			onSelect: openSchedule,
 		});
@@ -522,8 +515,8 @@ export function PublishActions({
 	if (state === "published-with-changes" && canSchedule && onOpenSchedule) {
 		actions.push({
 			kind: "schedule",
-			label: t`Schedule updates`,
-			description: t`Keep the current version live until then`,
+			label: t`Schedule changes`,
+			description: t`Choose when changes go live`,
 			Icon: CalendarPlus,
 			onSelect: openSchedule,
 		});
@@ -534,7 +527,7 @@ export function PublishActions({
 	) {
 		actions.push({
 			kind: "schedule",
-			label: t`Edit schedule`,
+			label: t`Change schedule`,
 			description: t`Choose a different date and time`,
 			Icon: CalendarDots,
 			onSelect: openSchedule,
@@ -574,13 +567,14 @@ export function PublishActions({
 
 	const triggerLabel =
 		state === "published-with-changes"
-			? t`Publish updates`
+			? t`Publish changes`
 			: state === "scheduled"
 				? t`Scheduled`
-				: state === "update-scheduled" || state === "published-scheduled"
-					? t`Update scheduled`
-					: t`Publish`;
-	const TriggerIcon = state.includes("scheduled") ? CalendarDots : Upload;
+				: state === "update-scheduled"
+					? t`Scheduled update`
+					: state === "published-scheduled"
+						? t`Scheduled publication`
+						: t`Publish`;
 
 	return (
 		<DropdownMenu
@@ -596,7 +590,6 @@ export function PublishActions({
 						type="button"
 						variant="primary"
 						size={size}
-						icon={<TriggerIcon aria-hidden="true" />}
 						loading={isScheduling || isUnscheduling}
 						aria-haspopup="menu"
 						aria-expanded={open}
@@ -606,24 +599,29 @@ export function PublishActions({
 					</Button>
 				}
 			/>
-			<DropdownMenu.Content align="end" className="w-72 max-w-[calc(100vw-2rem)] p-1">
+			<DropdownMenu.Content align="end" className="w-80 max-w-[calc(100vw-2rem)] p-1.5">
 				{actions.map(({ kind, label, description, Icon: ActionIcon, onSelect }) => (
 					<DropdownMenu.Item
 						key={kind}
 						icon={
-							<span className="me-2 flex h-lh shrink-0 items-center">
-								<ActionIcon className="size-4" aria-hidden="true" />
+							<span className="me-2.5 flex h-lh shrink-0 items-center">
+								<ActionIcon className="size-5" weight="bold" aria-hidden="true" />
 							</span>
 						}
 						disabled={isScheduling || isUnscheduling}
 						onClick={onSelect}
-						className="items-start py-2"
+						className="items-start px-2.5 py-2"
 					>
 						<span className="grid min-w-0 gap-0.5">
 							<Text as="span" bold>
 								{label}
 							</Text>
-							<Text as="span" variant="secondary" DANGEROUS_className="text-pretty">
+							<Text
+								as="span"
+								variant="secondary"
+								size="sm"
+								DANGEROUS_className="text-pretty leading-5"
+							>
 								{description}
 							</Text>
 						</span>
