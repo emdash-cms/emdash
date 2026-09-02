@@ -70,7 +70,7 @@ export function LocaleSwitcher({
 			<Select<string>
 				value={value}
 				onValueChange={(nextValue) => {
-					if (typeof nextValue === "string") onChange(nextValue);
+					if (typeof nextValue === "string" && nextValue !== value) onChange(nextValue);
 				}}
 				placeholder={showAll ? t`All locales` : undefined}
 				renderValue={formatLocaleLabel}
