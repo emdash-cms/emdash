@@ -1,5 +1,9 @@
 import { base64url } from "jose";
 
+import { evaluateWorkloadPolicy } from "../workload/policy.js";
+import type { VerifiedWorkloadIdentity } from "../workload/types.js";
+import { WorkloadPolicyStore } from "./workload-policy.js";
+
 const DID_PATTERN = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const ULID_PATTERN = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -43,8 +47,15 @@ export type AdvancePublicationOperationPhaseResult =
 			code:
 				| "MATERIALIZATION_UNAVAILABLE"
 				| "PUBLICATION_CAS_REQUIRED"
-				| "PUBLICATION_PHASE_CONFLICT";
+				| "PUBLICATION_PHASE_CONFLICT"
+				| "WORKLOAD_POLICY_UNAVAILABLE";
 	  };
+
+export interface PublicationWorkloadAuthorization {
+	identity: VerifiedWorkloadIdentity;
+	identityDigest: string;
+	identityJson: string;
+}
 
 export type BeginPublicationOperationResult =
 	| { ok: true; lease: PublicationOperationLease; replayed: boolean }
@@ -101,6 +112,10 @@ interface IntentRow {
 	[key: string]: string | number | ArrayBuffer | null;
 	state: string;
 	state_generation: number;
+	package_slug: string;
+	workload_policy_version: number;
+	workload_identity_digest: string;
+	workload_identity_json: string;
 }
 
 export class PublicationOperationError extends Error {
@@ -133,7 +148,12 @@ function hashesEqual(left: string, right: string): boolean {
 function readIntent(storage: DurableObjectStorage, intentId: string): IntentRow | null {
 	return (
 		storage.sql
-			.exec<IntentRow>("SELECT state, state_generation FROM intents WHERE id = ?", intentId)
+			.exec<IntentRow>(
+				`SELECT state, state_generation, package_slug, workload_policy_version,
+				        workload_identity_digest, workload_identity_json
+				 FROM intents WHERE id = ?`,
+				intentId,
+			)
 			.toArray()[0] ?? null
 	);
 }
@@ -335,6 +355,7 @@ export class PublicationOperationStore {
 
 	async advancePhase(
 		input: AdvancePublicationOperationPhaseInput,
+		authorization: PublicationWorkloadAuthorization | null = null,
 	): Promise<AdvancePublicationOperationPhaseResult> {
 		const now = input.now ?? Date.now();
 		if (
@@ -411,6 +432,19 @@ export class PublicationOperationStore {
 				materialization.record_digest !== input.materializationDigest
 			) {
 				return { ok: false, code: "MATERIALIZATION_UNAVAILABLE" } as const;
+			}
+			if (input.phase === "creating") {
+				const policy = new WorkloadPolicyStore(this.#storage).get(intent.package_slug);
+				if (
+					!authorization ||
+					authorization.identityJson !== intent.workload_identity_json ||
+					authorization.identityDigest !== intent.workload_identity_digest ||
+					!policy ||
+					policy.stateVersion !== intent.workload_policy_version ||
+					!evaluateWorkloadPolicy(authorization.identity, policy).ok
+				) {
+					return { ok: false, code: "WORKLOAD_POLICY_UNAVAILABLE" } as const;
+				}
 			}
 			this.#storage.sql.exec(
 				`UPDATE publication_operations SET phase = ?, materialization_digest = ?

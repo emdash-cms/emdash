@@ -3,6 +3,8 @@ import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { IntentState, PutWorkloadPolicyInput } from "../src/publisher-do/publisher-do.js";
+import { digestWorkloadIdentity } from "../src/workload/policy.js";
+import type { VerifiedWorkloadIdentity } from "../src/workload/types.js";
 
 const DID = "did:plc:publisher";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
@@ -13,6 +15,38 @@ const ATTEMPT_TOKEN = "T".repeat(43);
 const CHECKSUM = "bciqb43wwlv35mnso5lwvu5c3uxcjqwxcw4an3boxz57qe667fffdh7a";
 const BLOB_CID = "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q";
 const SOURCE_URL = "https://example.com/gallery.tar.gz";
+const WORKLOAD_IDENTITY: VerifiedWorkloadIdentity = {
+	issuer: "github-actions",
+	subject: "repo:emdash-cms/gallery:ref:refs/heads/main",
+	tokenId: "release-token-100",
+	repository: {
+		name: "emdash-cms/gallery",
+		id: "123",
+		owner: "emdash-cms",
+		ownerId: "456",
+		visibility: "public",
+	},
+	workflow: {
+		ref: "emdash-cms/gallery/.github/workflows/release.yml@refs/heads/main",
+		sha: "a".repeat(40),
+		jobRef: null,
+		jobSha: null,
+	},
+	run: {
+		id: "100",
+		attempt: 1,
+		actor: "release-bot",
+		actorId: "200",
+		eventName: "workflow_dispatch",
+		ref: "refs/heads/main",
+		refType: "branch",
+		commitSha: "b".repeat(40),
+		environment: null,
+		runnerEnvironment: "github-hosted",
+	},
+	issuedAt: 1_800_000_000,
+	expiresAt: 1_800_000_300,
+};
 
 function sourceRelease() {
 	return {
@@ -76,11 +110,11 @@ async function preparePublishing() {
 		packageSlug: "gallery",
 		version: "1.2.3",
 		workloadPolicyVersion: 1,
-		workloadIdentityDigest: "A".repeat(43),
+		workloadIdentityDigest: await digestWorkloadIdentity(WORKLOAD_IDENTITY),
 		workloadIdempotencyDigest: "I".repeat(43),
 		idempotencyKey: "github-run-100-attempt-1",
 		requestDigest: "B".repeat(43),
-		workloadIdentityJson: '{"issuer":"github-actions"}',
+		workloadIdentityJson: JSON.stringify(WORKLOAD_IDENTITY),
 		releaseInputJson: JSON.stringify({ release: sourceRelease() }),
 		expiresAt: NOW + 60_000,
 		now: NOW + 1,
@@ -302,6 +336,126 @@ describe("publisher publication operations", () => {
 		await expect(
 			stub.advancePublicationOperationPhase({ ...input, phase: "creating", now: NOW + 12 }),
 		).resolves.toMatchObject({ ok: true, phase: "creating", replayed: false });
+	});
+
+	it.each([
+		["disabled", { active: false }],
+		["narrowed", { allowedRefs: ["refs/tags/*"] }],
+	] as const)(
+		"invalidates a pre-write operation when its workload is %s",
+		async (_name, change) => {
+			const stub = await preparePublishing();
+			const started = await beginPublicationOperation(stub, 5_000, NOW + 10);
+			expect(started.ok).toBe(true);
+			if (!started.ok) return;
+			const materializationDigest = await materialize(stub);
+			const phaseInput = {
+				publisherDid: DID,
+				intentId: INTENT_ID,
+				generation: started.lease.generation,
+				token: started.lease.token,
+				expectedIntentGeneration: started.lease.expectedIntentGeneration,
+				materializationDigest,
+			};
+			await stub.advancePublicationOperationPhase({
+				...phaseInput,
+				phase: "materialized",
+				now: NOW + 11,
+			});
+
+			await stub.putWorkloadPolicy({
+				...policy(),
+				...change,
+				expectedVersion: 1,
+				now: NOW + 12,
+			});
+
+			await expect(stub.getIntent(DID, INTENT_ID)).resolves.toMatchObject({
+				state: "invalid",
+				stateGeneration: 6,
+				stateDataJson: '{"reasonCode":"WORKLOAD_POLICY_CHANGED"}',
+			});
+			await expect(
+				stub.advancePublicationOperationPhase({
+					...phaseInput,
+					phase: "creating",
+					now: NOW + 13,
+				}),
+			).resolves.toEqual({ ok: false, code: "PUBLICATION_CAS_REQUIRED" });
+		},
+	);
+
+	it.each([
+		["inactive version", "UPDATE workload_policies SET active = 0, state_version = 2"],
+		["narrowed current rules", `UPDATE workload_policies SET allowed_refs = '["refs/tags/*"]'`],
+		[
+			"canonical stored identity",
+			`UPDATE intents SET workload_identity_json = '{"issuer":"github-actions"}'`,
+		],
+	] as const)("rechecks the %s at the atomic creating gate", async (_name, policyUpdate) => {
+		const stub = await preparePublishing();
+		const started = await beginPublicationOperation(stub, 5_000, NOW + 10);
+		expect(started.ok).toBe(true);
+		if (!started.ok) return;
+		const materializationDigest = await materialize(stub);
+		const phaseInput = {
+			publisherDid: DID,
+			intentId: INTENT_ID,
+			generation: started.lease.generation,
+			token: started.lease.token,
+			expectedIntentGeneration: started.lease.expectedIntentGeneration,
+			materializationDigest,
+		};
+		await stub.advancePublicationOperationPhase({
+			...phaseInput,
+			phase: "materialized",
+			now: NOW + 11,
+		});
+		await runInDurableObject(stub, (_instance, state) => {
+			state.storage.sql.exec(policyUpdate);
+		});
+
+		await expect(
+			stub.advancePublicationOperationPhase({
+				...phaseInput,
+				phase: "creating",
+				now: NOW + 12,
+			}),
+		).resolves.toEqual({ ok: false, code: "WORKLOAD_POLICY_UNAVAILABLE" });
+	});
+
+	it("preserves reconciliation after the creating boundary wins the ordering race", async () => {
+		const stub = await preparePublishing();
+		const started = await beginPublicationOperation(stub, 5_000, NOW + 10);
+		expect(started.ok).toBe(true);
+		if (!started.ok) return;
+		await advanceToCreating(stub, started.lease);
+
+		await stub.putWorkloadPolicy({
+			...policy(),
+			active: false,
+			expectedVersion: 1,
+			now: NOW + 11,
+		});
+
+		await expect(stub.getIntent(DID, INTENT_ID)).resolves.toMatchObject({
+			state: "publishing",
+			stateGeneration: 5,
+		});
+		await expect(
+			stub.completePublicationOperation({
+				publisherDid: DID,
+				intentId: INTENT_ID,
+				generation: started.lease.generation,
+				token: started.lease.token,
+				expectedIntentGeneration: started.lease.expectedIntentGeneration,
+				completionDigest: "Z".repeat(43),
+				outcome: "ambiguous",
+				resultUri: null,
+				resultCid: null,
+				now: NOW + 12,
+			}),
+		).resolves.toMatchObject({ ok: true, state: "reconciling" });
 	});
 
 	it("completes a confirmed write atomically and replays the exact completion", async () => {

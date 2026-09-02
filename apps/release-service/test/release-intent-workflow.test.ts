@@ -22,6 +22,8 @@ import {
 	restartReleaseIntentWorkflow,
 	startReleaseIntentWorkflow,
 } from "../src/workflows/start.js";
+import { digestWorkloadIdentity } from "../src/workload/policy.js";
+import type { VerifiedWorkloadIdentity } from "../src/workload/types.js";
 import { ASSERTION_KEY_2, TEST_BINDINGS } from "./fixtures/oauth.js";
 import publicationProofs from "./fixtures/publication-proofs.json";
 
@@ -34,6 +36,38 @@ const PACKAGE_BYTES = new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0x01]);
 const ARTIFACT_CHECKSUM = "bciqhazpl5w2ra742ngjezwxoy4p74p2eyiftnnhycsofanwmdrezity";
 const ARTIFACT_BLOB_CID = "bafkreidqmxv63niqp6ngtesm3lxmoh76h5cmeczwwt4bjhcqg3gbysmuj4";
 const DEFAULT_SIGNING_KEY = "zDnaeq9feE9D74uYD5jynoyyQPbhhWU2vStcmC8W1xQHG3fWe";
+const WORKLOAD_IDENTITY: VerifiedWorkloadIdentity = {
+	issuer: "github-actions",
+	subject: "repo:example/gallery:ref:refs/heads/main",
+	tokenId: "release-token-100",
+	repository: {
+		name: "example/gallery",
+		id: "123456789",
+		owner: "example",
+		ownerId: "987654321",
+		visibility: "public",
+	},
+	workflow: {
+		ref: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+		sha: "a".repeat(40),
+		jobRef: null,
+		jobSha: null,
+	},
+	run: {
+		id: "100",
+		attempt: 1,
+		actor: "release-bot",
+		actorId: "200",
+		eventName: "workflow_dispatch",
+		ref: "refs/heads/main",
+		refType: "branch",
+		commitSha: "b".repeat(40),
+		environment: null,
+		runnerEnvironment: "github-hosted",
+	},
+	issuedAt: 1_800_000_000,
+	expiresAt: 1_800_000_300,
+};
 
 function writeUint24LittleEndian(bytes: Uint8Array, offset: number, value: number): void {
 	bytes[offset] = value & 0xff;
@@ -403,11 +437,11 @@ async function createVerifyingIntent(
 		packageSlug: "gallery",
 		version: "1.2.3",
 		workloadPolicyVersion: 1,
-		workloadIdentityDigest: "A".repeat(43),
+		workloadIdentityDigest: await digestWorkloadIdentity(WORKLOAD_IDENTITY),
 		workloadIdempotencyDigest: "I".repeat(43),
 		idempotencyKey: "github-run-100-attempt-1",
 		requestDigest: "B".repeat(43),
-		workloadIdentityJson: JSON.stringify({ issuer: "github-actions", runId: "100" }),
+		workloadIdentityJson: JSON.stringify(WORKLOAD_IDENTITY),
 		releaseInputJson,
 		expiresAt: NOW + 60_000,
 		now: NOW + 1,
